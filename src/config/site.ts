@@ -115,6 +115,26 @@ const defaultAddons: readonly Addon[] = [
   { id: "giftwrap", price: 5000, hiddenFor: ["digital", "premium"] },
 ];
 
+/**
+ * Пакеты запросов к ИИ-дизайнеру сверх 5 бесплатных в сутки. Купленные запросы не сгорают. Сетка: чем больше пакет, тем
+ * дешевле запрос (99 → 83 → 60 ₸); цену, число запросов и продажу пакета владелец меняет в «Ценах и тарифах».
+ */
+export type AiPackId = "small" | "medium" | "large";
+export interface AiPack {
+  id: AiPackId;
+  requests: number;
+  price: number;
+  /** Выделить в предложении («выгоднее всего»). */
+  featured?: boolean;
+  hidden?: boolean;
+}
+const defaultAiPacks: readonly AiPack[] = [
+  { id: "small", requests: 10, price: 990 },
+  { id: "medium", requests: 30, price: 2490, featured: true },
+  { id: "large", requests: 100, price: 5990 },
+];
+export const MAX_AI_PACK_REQUESTS = 1000;
+
 /** Доставка в другую страну: нужны страна и индекс, стоимость всегда считает менеджер. */
 export const isAbroadDelivery = (id: string | null | undefined): boolean => id === "abroad";
 
@@ -127,6 +147,7 @@ export interface CatalogOverrides {
    * вписал сам в «Ценах и тарифах»; старые сохранённые цены без отметки не возвращают фиксированную доставку.
    */
   delivery?: Partial<Record<DeliveryId, { price?: number; fixed?: boolean }>>;
+  aiPacks?: Partial<Record<AiPackId, { price?: number; requests?: number; hidden?: boolean }>>;
 }
 
 export const MAX_PRICE = 10_000_000;
@@ -158,6 +179,15 @@ export function sanitizeOverrides(raw: unknown): CatalogOverrides {
     if (v === undefined || (d.quoted && !fixed)) continue;
     (out.delivery ??= {})[d.id] = d.quoted ? { price: v, fixed: true } : { price: v };
   }
+  for (const d of defaultAiPacks) {
+    const r = o.aiPacks?.[d.id];
+    if (!r || typeof r !== "object") continue;
+    const e: { price?: number; requests?: number; hidden?: boolean } = {};
+    if (price(r.price) !== undefined) e.price = price(r.price);
+    if (typeof r.requests === "number" && Number.isInteger(r.requests) && r.requests >= 1 && r.requests <= MAX_AI_PACK_REQUESTS) e.requests = r.requests;
+    if (typeof r.hidden === "boolean") e.hidden = r.hidden;
+    if (Object.keys(e).length) (out.aiPacks ??= {})[d.id] = e;
+  }
   // Хотя бы один тариф должен продаваться: иначе оформить заказ нельзя.
   if (defaultPlans.every((d) => (out.plans?.[d.id]?.hidden ?? d.hidden) === true)) delete out.plans;
   return out;
@@ -170,6 +200,7 @@ interface Effective {
   visible: Plan[];
   addons: Addon[];
   delivery: DeliveryOption[];
+  aiPacks: AiPack[];
 }
 
 function build(overrides: CatalogOverrides): Effective {
@@ -185,6 +216,7 @@ function build(overrides: CatalogOverrides): Effective {
       const o = overrides.delivery?.[d.id];
       return o ? { id: d.id, maxDays: d.maxDays, price: o.price ?? d.price, ...(d.quoted && !o.fixed ? { quoted: true } : {}) } : { ...d };
     }),
+    aiPacks: defaultAiPacks.map((d) => ({ ...d, ...overrides.aiPacks?.[d.id] })),
   };
 }
 
@@ -204,7 +236,7 @@ export function applyCatalog(raw: CatalogOverrides | null | undefined) {
 
 export const getCatalogOverrides = (): CatalogOverrides => current().overrides;
 /** Заводские значения — для подсказок в админке. */
-export const factoryCatalog = { plans: defaultPlans, addons: defaultAddons, delivery: defaultDelivery };
+export const factoryCatalog = { plans: defaultPlans, addons: defaultAddons, delivery: defaultDelivery, aiPacks: defaultAiPacks };
 
 /**
  * Переключатели сайта из админки («Сайт»). Живут в globalThis по той же причине, что и каталог цен: общие для всех слоёв
@@ -284,6 +316,9 @@ export const getPlans = (): readonly Plan[] => current().plans;
 /** Тарифы, которые сейчас можно купить. */
 export const getVisiblePlans = (): readonly Plan[] => current().visible;
 export const getAddons = (): readonly Addon[] => current().addons;
+/** Все пакеты ИИ-запросов, включая снятые с продажи (оплаченные покупки читаются по ним). */
+export const getAiPacks = (): readonly AiPack[] => current().aiPacks;
+export const getAiPack = (id: string): AiPack | undefined => current().aiPacks.find((p) => p.id === id);
 export const getDeliveryOptions = (): readonly DeliveryOption[] => current().delivery;
 /**
  * Стоимость доставки рассчитывается индивидуально: в заказе 0 ₸, клиенту — «рассчитывается индивидуально». Доставку по

@@ -45,8 +45,9 @@ import { LayersPanel } from "./LayersPanel";
 import { addLayer, alignBox, designColors, duplicateLayer, findLayer, moveZ, newDecorLayer, newImageLayer, newShapeLayer, newTextLayer, removeLayer, reorder, unsafeTextLayers, updateLayer, type AlignHow, type TextPreset, type ZMove } from "./logic";
 import { COVER_SWATCHES, PropertiesPanel } from "./PropertiesPanel";
 import { useDesigner } from "./useDesigner";
+import { DesignAiPanel } from "@/components/design/DesignAiPanel";
 
-type Tab = "add" | "layouts" | "background" | "properties" | "layers";
+type Tab = "ai" | "add" | "layouts" | "background" | "properties" | "layers";
 
 const ZOOMS = [1, 1.5, 2];
 
@@ -198,6 +199,16 @@ export function CoverDesigner({ bookId, template, format: formatId, initial, tex
   };
 
   const panels: Record<Tab, ReactNode> = {
+    ai: (
+      <DesignAiPanel
+        bookId={bookId}
+        target="cover"
+        editable={editable}
+        payload={() => ({ state: { template, design } })}
+        onApply={(res) => res.coverDesign && pickLayout(res.coverDesign as CoverDesign, res.coverTemplate)}
+        onUndo={dz.undo}
+      />
+    ),
     add: <AddPanel bookId={bookId} bookPhotos={bookPhotos} disabled={full || !editable} onText={onText} onImage={onImage} onShape={onShape} onDecor={onDecor} />,
     layouts: layouts ? layouts(pickLayout) : null,
     background: (
@@ -230,8 +241,8 @@ export function CoverDesigner({ bookId, template, format: formatId, initial, tex
       />
     ),
   };
-  const leftTabs: Tab[] = layouts ? ["add", "layouts", "background"] : ["add", "background"];
-  const mobileTabs: Tab[] = layouts ? ["add", "properties", "layers", "layouts", "background"] : ["add", "properties", "layers", "background"];
+  const leftTabs: Tab[] = layouts ? ["add", "ai", "layouts", "background"] : ["add", "ai", "background"];
+  const mobileTabs: Tab[] = layouts ? ["add", "ai", "properties", "layers", "layouts", "background"] : ["add", "ai", "properties", "layers", "background"];
   const tabLabel = (k: Tab) => m.panels[k];
   const tabBar = (list: Tab[], current: Tab, className?: string) => (
     <div role="tablist" aria-label={m.panels.aria} className={cn("no-scrollbar flex gap-1 overflow-x-auto rounded-2xl bg-cream/80 p-1", className)}>

@@ -31,6 +31,13 @@ export interface KaspiDealInvoices {
   sales: Pick<InvoiceSales, "deal">;
 }
 
+/** Пакеты запросов к ИИ-дизайнеру (их покупки живут у дизайнера; подтверждение — в транзакции оплаты). */
+export interface KaspiAiPacks {
+  find(id: string): Promise<{ id: string; userId: string; number: number; amount: number; status: "pending_payment" | "paid" | "cancelled" } | null>;
+  /** Отметить оплаченной и начислить запросы; false — уже оплачена или отменена. */
+  confirm(id: string, paymentId: string): Promise<boolean>;
+}
+
 /** Не чаще раза в столько спрашиваем Kaspi о счёте, когда клиент ждёт на странице. */
 const REFRESH_EVERY_MS = 3_000;
 /** Уведомление без подписи — повод сверить счёт, но не чаще раза в столько. */
@@ -62,6 +69,8 @@ export class KaspiPaymentsService {
     private readonly logger: Logger,
     /** Счета из чата (цель deal_invoice); не подключены — такие попытки оплаты считаются ошибкой. */
     private readonly dealInvoices: KaspiDealInvoices | null = null,
+    /** Пакеты ИИ-дизайнера (цель ai_pack); не подключены — такие попытки оплаты считаются ошибкой. */
+    private readonly aiPacks: KaspiAiPacks | null = null,
   ) {}
 
   /** Показывать ли клиенту оплату через Kaspi: включена и кассир подключён. */
@@ -82,6 +91,14 @@ export class KaspiPaymentsService {
     if (!gift) throw new OrderingError("giftNotFound");
     if (gift.status !== "pending_payment") throw new OrderingError("notPayable");
     return this.issue({ kind: "gift", id: gift.id }, gift.amount, `MyBooks G${gift.number}`, input);
+  }
+
+  /** Пакет запросов к ИИ-дизайнеру: платит сам покупатель (вошедший клиент), комментарий «MyBooks A<n>». */
+  async payAiPack(purchaseId: string, userId: string, input: { method: KaspiMethod; phone?: string | null }) {
+    const purchase = await this.packs().find(purchaseId);
+    if (!purchase || purchase.userId !== userId) throw new OrderingError("invoiceNotFound");
+    if (purchase.status !== "pending_payment") throw new OrderingError("notPayable");
+    return this.issue({ kind: "ai_pack", id: purchase.id }, purchase.amount, `MyBooks A${purchase.number}`, input);
   }
 
   /**
@@ -204,6 +221,11 @@ export class KaspiPaymentsService {
     return this.dealInvoices;
   }
 
+  private packs(): KaspiAiPacks {
+    if (!this.aiPacks) throw new OrderingError("invoiceNotFound");
+    return this.aiPacks;
+  }
+
   /** Счёт из чата можно оплатить: ждёт оплаты, не истёк, сделка есть и по ней ещё нет заказа. */
   private async payable(invoice: DealInvoice) {
     if (!invoice.isPayable(this.clock.now())) return false;
@@ -258,6 +280,8 @@ export class KaspiPaymentsService {
         return "giftToken" in owner && (await this.gifts.findById(target.id))?.token === owner.giftToken;
       case "deal_invoice":
         return "dealInvoiceToken" in owner && (await this.deals().repo.findById(target.id))?.token === owner.dealInvoiceToken;
+      case "ai_pack":
+        return "userId" in owner && (await this.packs().find(target.id))?.userId === owner.userId;
       default:
         return unknownTarget(target);
     }
@@ -321,6 +345,9 @@ export class KaspiPaymentsService {
         if (result === "unknown" || result === "mismatch") this.logger.error("оплата Kaspi по счёту из чата не засчитана", undefined, { dealInvoiceId: target.id, externalId: invoice.externalId, result });
         return;
       }
+      case "ai_pack":
+        if (!(await this.packs().confirm(target.id, paymentId))) this.logger.warn("оплата Kaspi пришла по уже закрытой покупке пакета ИИ — нужен возврат", { purchaseId: target.id, externalId: invoice.externalId });
+        return;
       default:
         unknownTarget(target);
     }

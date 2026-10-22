@@ -190,6 +190,7 @@ export function PagesEditor({
 
       <div className="space-y-12">
         <DesignStudio
+          bookId={bookId}
           interior={state.interior}
           base={base}
           design={design}

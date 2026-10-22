@@ -8,6 +8,7 @@ import type { SpreadKind, SpreadSample } from "@/components/interior/InteriorSpr
 import type { BookFormat } from "@/lib/book/formats";
 import type { InteriorDesign, InteriorId, InteriorStyle } from "@/lib/book/interiors";
 import { cn } from "@/lib/class-names";
+import { DesignAiPanel } from "@/components/design/DesignAiPanel";
 import { ChaptersTab, type StudioChapter } from "./ChaptersTab";
 import { ColorsTab } from "./ColorsTab";
 import { ElementsTab } from "./ElementsTab";
@@ -16,8 +17,8 @@ import { StylesTab } from "./StylesTab";
 import { TextTab } from "./TextTab";
 import { countCustom, resetStyle } from "./style-edit";
 
-type Tab = "styles" | "fonts" | "text" | "elements" | "colors" | "chapters";
-const TABS: Tab[] = ["styles", "fonts", "text", "elements", "colors", "chapters"];
+type Tab = "ai" | "styles" | "fonts" | "text" | "elements" | "colors" | "chapters";
+const TABS: Tab[] = ["ai", "styles", "fonts", "text", "elements", "colors", "chapters"];
 
 interface Snapshot {
   interior: InteriorId;
@@ -34,6 +35,7 @@ const HISTORY_MAX = 80;
  * показывает его по base + style) и сохраняются автосохранением.
  */
 export function DesignStudio({
+  bookId,
   interior,
   base,
   design,
@@ -46,6 +48,7 @@ export function DesignStudio({
   editable,
   onPreview,
 }: {
+  bookId: string;
   interior: InteriorId;
   /** Стиль из каталога и он же с настройками. */
   base: InteriorDesign;
@@ -165,6 +168,21 @@ export function DesignStudio({
       ) : null}
 
       <div role="tabpanel" className={cn("mt-4", !editable && "pointer-events-none opacity-60")}>
+        {tab === "ai" ? (
+          <DesignAiPanel
+            bookId={bookId}
+            target="pages"
+            editable={editable}
+            payload={() => ({ state: { interior, style }, chapters: chapters.map((c) => ({ key: c.key, title: c.title.slice(0, 120) })) })}
+            onApply={(res) => {
+              if (!res.interior || !res.interiorStyle) return;
+              commit({ interior: res.interior as InteriorId, style: res.interiorStyle as InteriorStyle }, false);
+              setKept(null);
+              onPreview("chapter");
+            }}
+            onUndo={undo}
+          />
+        ) : null}
         {tab === "styles" ? <StylesTab current={interior} format={format} sample={sample} pairs={cover.pairs} coverName={cover.name} editable={editable} onPick={pickStyle} /> : null}
         {tab === "fonts" ? <FontsTab design={design} style={style} set={setStyle} sample={sample.title} onFocus={focus} /> : null}
         {tab === "text" ? <TextTab design={design} style={style} set={setStyle} onFocus={focus} /> : null}

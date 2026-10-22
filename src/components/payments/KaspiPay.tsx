@@ -9,7 +9,7 @@ import { formatPhone } from "@/shared/domain/phone";
 import { Alert } from "@/components/ui/Alert";
 import type { KaspiInvoiceView as InvoiceView } from "@/modules/ordering/ui/kaspi";
 
-export type KaspiTarget = { kind: "order"; orderId: string } | { kind: "gift"; token: string } | { kind: "deal_invoice"; token: string };
+export type KaspiTarget = { kind: "order"; orderId: string } | { kind: "gift"; token: string } | { kind: "deal_invoice"; token: string } | { kind: "ai_pack"; purchaseId: string };
 
 /** Подсказки блока для оплаты по ссылке: получатель и комментарий, номер по умолчанию (с маской) — тексты уже на языке страницы. */
 export interface KaspiHints {
@@ -40,6 +40,8 @@ function requestBody(target: KaspiTarget, method: "invoice" | "qr", phone: strin
     case "deal_invoice":
       // Пустое поле — номер из счёта (его знает только сервер).
       return { target: "deal_invoice", token: target.token, method, phone: phone.trim() || undefined };
+    case "ai_pack":
+      return { target: "ai_pack", purchaseId: target.purchaseId, method, phone };
   }
 }
 
@@ -57,7 +59,24 @@ function timeLeft(expiresAt: string | null, now: number) {
  * статус; после оплаты заказ подтверждается сам (вебхук или сверка), без менеджера. Если Kaspi недоступен —
  * показываем запасной способ (перевод по номеру и «Я оплатил(а)»).
  */
-export function KaspiPay({ target, amountLabel, defaultPhone, initial, fallback, hints }: { target: KaspiTarget; amountLabel: string; defaultPhone: string; initial: InvoiceView | null; fallback: ReactNode; hints?: KaspiHints }) {
+export function KaspiPay({
+  target,
+  amountLabel,
+  defaultPhone,
+  initial,
+  fallback,
+  hints,
+  onPaid,
+}: {
+  target: KaspiTarget;
+  amountLabel: string;
+  defaultPhone: string;
+  initial: InvoiceView | null;
+  fallback: ReactNode;
+  hints?: KaspiHints;
+  /** Что сделать после оплаты вместо обновления страницы (оплата внутри редактора — его состояние не терять). */
+  onPaid?: () => void;
+}) {
   const t = useMessages().common.kaspiPay;
   const router = useRouter();
   const [invoice, setInvoice] = useState<InvoiceView | null>(initial);
@@ -75,13 +94,13 @@ export function KaspiPay({ target, amountLabel, defaultPhone, initial, fallback,
       try {
         const res = await apiFetch<{ invoice: InvoiceView }>(invoiceUrl(target, invoice.id));
         setInvoice(res.invoice);
-        if (res.invoice.status === "paid") setTimeout(() => router.refresh(), 1200);
+        if (res.invoice.status === "paid") setTimeout(() => (onPaid ? onPaid() : router.refresh()), 1200);
       } catch {
         // Сеть мигнула — спросим на следующем шаге.
       }
     }, POLL_MS);
     return () => clearInterval(timer);
-  }, [pending, invoice, target, router]);
+  }, [pending, invoice, target, router, onPaid]);
 
   const issue = async (method: "invoice" | "qr") => {
     setBusy(true);

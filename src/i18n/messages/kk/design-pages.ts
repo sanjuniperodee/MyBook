@@ -4,7 +4,7 @@ import type { Messages } from "..";
 export const design_pages: Messages["design"]["pages"] = {
   title: "Беттердің безендірілуі",
   text: "Стильді таңдап, өзіңізге қарай баптаңыз: қаріптер, аралықтар, тарау бастамалары, өрнектер мен түстер. Жайылмада не көрінсе, солай басылады.",
-  tabs: { styles: "Стильдер", fonts: "Қаріптер", text: "Мәтін", elements: "Элементтер", colors: "Түстер", chapters: "Тараулар" },
+  tabs: { ai: "ЖИ-дизайнер", styles: "Стильдер", fonts: "Қаріптер", text: "Мәтін", elements: "Элементтер", colors: "Түстер", chapters: "Тараулар" },
   tabsAria: "Безендіру бөлімдері",
   undo: "Болдырмау",
   redo: "Қайтару",

@@ -36,7 +36,7 @@ export const design_cover = {
     grid: "Сетка",
     back2: "К шаблону и тексту",
   },
-  panels: { add: "Добавить", layouts: "Макеты", background: "Фон", properties: "Свойства", layers: "Слои", aria: "Панели конструктора" },
+  panels: { ai: "ИИ", add: "Добавить", layouts: "Макеты", background: "Фон", properties: "Свойства", layers: "Слои", aria: "Панели конструктора" },
   add: {
     text: "Текст",
     presets: { heading: "Заголовок", subheading: "Подзаголовок", body: "Обычный текст", script: "Надпись от руки" },

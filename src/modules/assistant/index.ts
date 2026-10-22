@@ -1,5 +1,6 @@
 import type { Clock, CustomFieldsReader, SettingsReader } from "@/shared/application";
-import { AssistantService, ProofreadService, type ConversationReader } from "./application";
+import { AssistantService, ProofreadService, type ConversationReader, type LanguageModel } from "./application";
+import { DESIGN_AI_MODEL } from "@/lib/book/design-ai";
 import { modelOf } from "./infrastructure/models";
 import { aiConnections, type AssistantSettingKey } from "./infrastructure/connection";
 import { crmAssistantData } from "./infrastructure/data";
@@ -15,6 +16,8 @@ export class AssistantModule {
   readonly service: AssistantService;
   /** AI-корректор ответов в редакторе книги — со своей моделью («Интеграции» → «Проверка текста»). */
   readonly proofreader: ProofreadService;
+  /** ИИ-дизайнер оформления страниц и обложки (Claude Haiku). */
+  readonly designer: LanguageModel;
   readonly #ai: ReturnType<typeof aiConnections>;
 
   /** Настройки «Интеграций» и свои поля сделки — порты рабочего пространства, переписка диалога — порт Messaging. */
@@ -22,6 +25,8 @@ export class AssistantModule {
     this.#ai = aiConnections(deps.settings);
     this.service = new AssistantService(modelOf(this.#ai.active), crmAssistantData(deps.settings, deps.fields, deps.conversations), deps.clock);
     this.proofreader = new ProofreadService(modelOf(this.#ai.proofread));
+    // ИИ-дизайнер книги: Claude Haiku с ключом Anthropic из «Интеграций» (harness — lib/book/design-ai).
+    this.designer = modelOf(this.#ai.claude(DESIGN_AI_MODEL));
     // Продажник: Claude по уровням (Haiku / Sonnet / Opus) — основной, остальные провайдеры — запасные; режим off — прежняя одна модель.
     this.seller = sellerModel(
       {

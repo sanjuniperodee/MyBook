@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { applyCatalog, applySiteFlags, registrationOpen, availableAddons, getAddons, getCatalogOverrides, getDeliveryOptions, getPlan, getPlans, getVisiblePlans, sanitizeOverrides } from "@/config/site";
+import { applyCatalog, applySiteFlags, getAiPack, getAiPacks, registrationOpen, availableAddons, getAddons, getCatalogOverrides, getDeliveryOptions, getPlan, getPlans, getVisiblePlans, sanitizeOverrides } from "@/config/site";
 import { calculatePrice } from "@/modules/ordering/domain/Pricing";
 import { addonLabels, deliveryLabels, planLabels } from "@/modules/ordering/ui/labels";
 
@@ -92,5 +92,23 @@ describe("переключатели сайта", () => {
     expect(registrationOpen()).toBe(false);
     applySiteFlags({ registration: true });
     expect(registrationOpen()).toBe(true);
+  });
+});
+
+describe("пакеты запросов к ИИ-дизайнеру", () => {
+  it("заводская сетка: 10/990, 30/2 490 (выгоднее), 100/5 990", () => {
+    expect(getAiPacks().map((p) => [p.id, p.requests, p.price, !!p.featured, !!p.hidden])).toEqual([
+      ["small", 10, 990, false, false],
+      ["medium", 30, 2490, true, false],
+      ["large", 100, 5990, false, false],
+    ]);
+  });
+
+  it("цена, число запросов и продажа — из админки; неверное отбрасывается", () => {
+    expect(sanitizeOverrides({ aiPacks: { small: { price: 1490, requests: 15 }, large: { hidden: true, requests: 0 }, giant: { price: 1 } } })).toEqual({ aiPacks: { small: { price: 1490, requests: 15 }, large: { hidden: true } } });
+    applyCatalog({ aiPacks: { small: { price: 1490, requests: 15 }, large: { hidden: true } } });
+    expect(getAiPack("small")).toMatchObject({ price: 1490, requests: 15 });
+    expect(getAiPack("large")?.hidden).toBe(true);
+    expect(getAiPack("medium")).toMatchObject({ price: 2490, requests: 30 });
   });
 });

@@ -96,8 +96,29 @@ describe("Kaspi: счёт", () => {
 
 // ─── сценарии с фейками ─────────────────────────────────────────────────────
 
+/** Покупки пакетов ИИ-дизайнера в памяти: подтверждение начисляет запросы один раз. */
+function memPacks() {
+  const rows = new Map<string, { id: string; userId: string; number: number; amount: number; requests: number; status: "pending_payment" | "paid" | "cancelled"; paymentId: string | null }>();
+  const credits = new Map<string, number>();
+  return {
+    rows,
+    credits,
+    add: (id: string, userId: string, amount: number, requests: number) => void rows.set(id, { id, userId, number: rows.size + 1, amount, requests, status: "pending_payment", paymentId: null }),
+    find: async (id: string) => rows.get(id) ?? null,
+    confirm: async (id: string, paymentId: string) => {
+      const r = rows.get(id);
+      if (!r || r.status !== "pending_payment") return false;
+      r.status = "paid";
+      r.paymentId = paymentId;
+      credits.set(r.userId, (credits.get(r.userId) ?? 0) + r.requests);
+      return true;
+    },
+  };
+}
+
 function kaspiSetup() {
   const base = setup();
+  const packs = memPacks();
   const invoices = new MemInvoices();
   const promos = new MemPromos();
   const gifts = new MemGifts();
@@ -106,9 +127,9 @@ function kaspiSetup() {
   const kaspi = new FakeKaspi();
   let enabled = true;
   const logger = { ...consoleLogger("test"), warn: () => {}, error: () => {} };
-  const svc = new KaspiPaymentsService(invoices, base.orders, gifts, base.svc, giftsService, kaspi, async () => enabled, uow, base.c, logger);
+  const svc = new KaspiPaymentsService(invoices, base.orders, gifts, base.svc, giftsService, kaspi, async () => enabled, uow, base.c, logger, null, packs);
   // kaspiUow — события сервиса Kaspi и сертификатов; события заказов — в uow из setup().
-  return { ...base, kaspiUow: uow, invoices, kaspi, svc, giftsService, gifts, promos, setEnabled: (v: boolean) => void (enabled = v) };
+  return { ...base, kaspiUow: uow, invoices, kaspi, svc, giftsService, gifts, promos, packs, setEnabled: (v: boolean) => void (enabled = v) };
 }
 
 describe("Kaspi: оплата заказа", () => {
@@ -240,6 +261,34 @@ describe("Kaspi: оплата сертификата", () => {
     expect(await t.svc.onWebhook(hook, true)).toBe("ok");
     expect(t.promos.rows.size).toBe(1);
     expect(t.kaspiUow.types().filter((x) => x === "ordering.gift_paid")).toHaveLength(1);
+  });
+});
+
+describe("Kaspi: пакет запросов к ИИ-дизайнеру", () => {
+  it("платит только покупатель; после оплаты запросы начисляются один раз", async () => {
+    const t = kaspiSetup();
+    const id = "00000000-0000-4000-8000-0000000000a1";
+    t.packs.add(id, "user-1", 2490, 30);
+    await expect(t.svc.payAiPack(id, "user-2", { method: "qr" })).rejects.toMatchObject({ code: "invoiceNotFound" });
+    const inv = await t.svc.payAiPack(id, "user-1", { method: "invoice", phone: "+7 701 000 00 00" });
+    expect(t.kaspi.created.at(-1)).toEqual({ method: "invoice", phone: "77010000000", amount: 2490, comment: "MyBooks A1" });
+    await expect(t.svc.status(inv.id, { userId: "user-2" })).rejects.toMatchObject({ code: "invoiceNotFound" });
+    const hook = { event: "payment.success", externalId: inv.externalId, method: "invoice", status: "Processed", amount: 2490 } as const;
+    await t.svc.onWebhook(hook, true);
+    expect(t.packs.rows.get(id)).toMatchObject({ status: "paid", paymentId: `kaspi:${inv.externalId}` });
+    expect(t.packs.credits.get("user-1")).toBe(30);
+    await t.svc.onWebhook(hook, true);
+    expect(t.packs.credits.get("user-1")).toBe(30);
+    await expect(t.svc.payAiPack(id, "user-1", { method: "qr" })).rejects.toMatchObject({ code: "notPayable" });
+  });
+
+  it("сумма не по счёту — запросы не начисляются", async () => {
+    const t = kaspiSetup();
+    const id = "00000000-0000-4000-8000-0000000000a2";
+    t.packs.add(id, "user-1", 990, 10);
+    const inv = await t.svc.payAiPack(id, "user-1", { method: "qr" });
+    await t.svc.onWebhook({ event: "payment.success", externalId: inv.externalId, method: "qr", status: "Processed", amount: 100 }, true);
+    expect(t.packs.credits.get("user-1")).toBeUndefined();
   });
 });
 

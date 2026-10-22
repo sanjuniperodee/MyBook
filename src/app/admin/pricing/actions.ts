@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { factoryCatalog, getCatalogOverrides, isAbroadDelivery, MAX_PRICE, type CatalogOverrides } from "@/config/site";
+import { factoryCatalog, getCatalogOverrides, isAbroadDelivery, MAX_AI_PACK_REQUESTS, MAX_PRICE, type CatalogOverrides } from "@/config/site";
 import { assertStaff, audit } from "@/server/access";
 import { ensureCatalog, saveCatalog } from "@/server/catalog";
 import { addonLabels, deliveryLabels, planLabels } from "@/modules/ordering/ui/labels";
@@ -23,6 +23,15 @@ function money(form: FormData, name: string, label: string, min = 0): number {
   return n;
 }
 
+/** Число запросов в пакете ИИ-дизайнера: от 1 до MAX_AI_PACK_REQUESTS. */
+function requests(form: FormData, name: string, label: string): number {
+  const n = Number(String(form.get(name) ?? "").replace(/\s/g, ""));
+  if (!Number.isInteger(n) || n < 1 || n > MAX_AI_PACK_REQUESTS) throw new Error(`${label}: укажите целое число запросов от 1 до ${MAX_AI_PACK_REQUESTS}`);
+  return n;
+}
+
+const aiPackLabel = (n: number) => `Пакет ИИ ${n}`;
+
 /**
  * Цены и видимость тарифов. Действуют сразу на витрине, в оформлении, сертификатах, в ответах помощника и бота, в счёте
  * бота и в лимите скидки менеджеров; уже оформленные заказы хранят свою сумму и не меняются, а договорённая менеджером цена
@@ -31,7 +40,7 @@ function money(form: FormData, name: string, label: string, min = 0): number {
 export async function savePricingAction(_: PricingState, form: FormData): Promise<PricingState> {
   const staff = await assertStaff("settings.manage");
   if (!textForm(form).success) return { error: BAD_FORM };
-  const next: CatalogOverrides = { plans: {}, addons: {}, delivery: {} };
+  const next: CatalogOverrides = { plans: {}, addons: {}, delivery: {}, aiPacks: {} };
   try {
     for (const p of factoryCatalog.plans) {
       next.plans![p.id] = {
@@ -49,6 +58,15 @@ export async function savePricingAction(_: PricingState, form: FormData): Promis
       const price = money(form, `delivery_${d.id}_price`, deliveryLabels[d.id]);
       next.delivery![d.id] = d.quoted ? { price, fixed: true } : { price };
     }
+    factoryCatalog.aiPacks.forEach((p, i) => {
+      // Форма без пакетов (старая вкладка) — их цены не трогаем.
+      if (form.get(`ai_${p.id}_price`) === null) {
+        const kept = getCatalogOverrides().aiPacks?.[p.id];
+        if (kept) next.aiPacks![p.id] = kept;
+        return;
+      }
+      next.aiPacks![p.id] = { requests: requests(form, `ai_${p.id}_requests`, aiPackLabel(i + 1)), price: money(form, `ai_${p.id}_price`, `${aiPackLabel(i + 1)}: цена`, 100), hidden: form.get(`ai_${p.id}_visible`) !== "on" };
+    });
   } catch (err) {
     return { error: (err as Error).message };
   }

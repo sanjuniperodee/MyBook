@@ -32,6 +32,7 @@ import { whatsappCallGateway } from "./whatsapp-calls";
 import { botSiteInfo } from "./bot-site";
 import { referralPromos } from "./promo-ports";
 import { requestOrigin } from "./rateLimit";
+import { confirmDesignAiPurchase, findDesignAiPurchase } from "@/server/designAiStore";
 
 /**
  * Корень композиции: единственное место, где модули собираются из реализаций.
@@ -405,6 +406,8 @@ export class Container {
       },
       agreements: { agreementFor: (userId) => this.sales.agreementFor(userId), attachOrder: (dealId, orderId) => this.sales.attachAgreementOrder(dealId, orderId) },
       kaspiConfig,
+      // Пакеты ИИ-дизайнера: покупка и начисление запросов — у дизайнера, оплата — общая через Kaspi.
+      aiPacks: { find: findDesignAiPurchase, confirm: confirmDesignAiPurchase },
       // Слежка за кассиром Kaspi: состояние и порог тревоги — в настройках, тревога — руководителям.
       settings: this.workspace.settings,
       notifier: this.workspace.notifier,
