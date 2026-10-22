@@ -6,13 +6,14 @@ import { photoPatchSchema } from "../patch";
 
 type Ctx = { params: Promise<{ id: string; pid: string }> };
 
-const row = async (bookId: string, photoId: string) => (await container().authoring.queries.photos(bookId)).find((p) => p.id === photoId);
-
+/** В ответ правки — строка фото и версия правил раскладки книги: правка места могла перевести книгу на правила 2. */
 export const PATCH = api(async (req, { params }: Ctx) => {
   const { id, pid } = idParams(await params, "id", "pid");
   const { viewer } = await apiViewer(req, id);
-  await container().authoring.photos.update(id, viewer, pid, photoPatchSchema.parse(await req.json()));
-  return NextResponse.json({ photo: await row(id, pid) });
+  const authoring = container().authoring;
+  await authoring.photos.update(id, viewer, pid, photoPatchSchema.parse(await req.json()));
+  const [rows, book] = await Promise.all([authoring.queries.photos(id), authoring.queries.book(id)]);
+  return NextResponse.json({ photo: rows.find((p) => p.id === pid), layoutRev: book?.layoutRev });
 });
 
 export const DELETE = api(async (req, { params }: Ctx) => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Check, Maximize2, Search, Sparkles, X } from "lucide-react";
+import { Check, ImageIcon, Maximize2, Search, Sparkles, X } from "lucide-react";
 import { useMessages } from "@/i18n/client";
 import { InteriorSpread, type SpreadKind, type SpreadSample } from "@/components/interior/InteriorSpread";
 import type { BookFormat } from "@/lib/book/formats";
@@ -121,7 +121,7 @@ export function StylesTab({
               <div key={d.id} className="group relative text-left">
                 <button type="button" onClick={() => onPick(d.id)} disabled={!editable} aria-pressed={active} className="block w-full text-left">
                   <div className={cn("relative rounded-[3px] ring-offset-2 ring-offset-paper transition", active ? "ring-2 ring-wine" : "ring-1 ring-line group-hover:-translate-y-0.5 group-hover:ring-ink/30")}>
-                    <InteriorSpread design={d} format={format} sample={sample} className="rounded-[3px]" />
+                    <InteriorSpread design={d} format={format} sample={sample} openerPlaceholder className="rounded-[3px]" />
                     {active ? (
                       <span className="absolute top-1.5 right-1.5 flex size-5 items-center justify-center rounded-full bg-wine text-white">
                         <Check className="size-3" />
@@ -137,6 +137,15 @@ export function StylesTab({
                     <span className={cn("text-sm", active ? "font-semibold text-ink" : "font-medium text-ink-soft")}>{names[d.id].name}</span>
                     <span className="shrink-0 text-[11px] text-muted">{dirNames[interiorDirection(d)]}</span>
                   </div>
+                  {/* Есть ли в стиле фото в начале главы и какой формы — его выбирает автор (места фото, выпуск 2). */}
+                  {d.opener.photo ? (
+                    <div className="mt-0.5 flex items-start gap-1 text-[11px] leading-snug font-medium text-wine" data-badge="opener-photo">
+                      <ImageIcon className="mt-px size-3 shrink-0" aria-hidden />
+                      <span>
+                        {m.books.pagesPhotos.badge} · {m.editor.openerShape[d.opener.photo]}
+                      </span>
+                    </div>
+                  ) : null}
                   <div className="line-clamp-2 text-xs text-muted">{names[d.id].description}</div>
                 </button>
                 <button

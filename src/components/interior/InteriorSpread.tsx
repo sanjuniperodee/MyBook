@@ -3,6 +3,7 @@ import type { SampleTocCandidate, SampleTocLine, TocLines, TocMode } from "@/lib
 import type { Locale } from "@/i18n/config";
 import type { BookFormat } from "@/lib/book/formats";
 import type { InteriorDesign } from "@/lib/book/interiors";
+import type { PhotoCrop } from "@/lib/book/photo-crop";
 import { cn } from "@/lib/class-names";
 import { bookMessagesFor } from "@/i18n/messages/partial";
 import type { SampleEntry } from "./entry";
@@ -31,8 +32,13 @@ export interface SpreadSample {
   tocMode?: TocMode;
   tocLines?: TocLines;
   showToc: boolean;
-  /** Фото книги для разворота «Фото» и начала главы; недостающие — пейзажи-заглушки. */
+  /** Фото книги для разворота «Фото» (и начала главы по прежним правилам); недостающие — пейзажи-заглушки. */
   photos?: { url: string; width: number; height: number; caption: string }[];
+  /**
+   * Фото начала первой главы по правилам раскладки 2 — как в книге: выбранное автором фото главы с его кадром, null —
+   * не выбрано, глава начнётся страницей с названием. Нет — прежние правила: первое фото книги (или пейзаж).
+   */
+  opener?: { url: string; crop?: PhotoCrop } | null;
   /** Подписи к фото-заглушкам по виду книги; нет — подписи подарка из словаря. */
   captions?: readonly string[];
 }
@@ -54,6 +60,15 @@ function samplePhotos(language: Locale, own: NonNullable<SpreadSample["photos"]>
 }
 
 /**
+ * Фото на начальной полосе примера (оформление с фото главы): по правилам 2 — выбранное автором фото главы, без него —
+ * страница с названием (или пейзаж в миниатюре выбора оформления); по прежним правилам — первое фото книги или пейзаж.
+ */
+export function sampleOpener(sample: Pick<SpreadSample, "opener" | "photos">, placeholder = false): { url?: string; crop?: PhotoCrop } | undefined {
+  if (sample.opener === undefined) return { url: sample.photos?.[0]?.url };
+  return sample.opener ?? (placeholder ? {} : undefined);
+}
+
+/**
  * Разворот книги в выбранном оформлении: «Глава» — начальная полоса и текст, «Титул» — титул и
  * посвящение, «Оглавление» — содержание и финальная страница, «Фото» — фотостраницы с рамками
  * и подписями дизайна. Масштабируется по ширине родителя.
@@ -63,12 +78,15 @@ export const InteriorSpread = memo(function InteriorSpread({
   format,
   sample,
   kind = "chapter",
+  openerPlaceholder = false,
   className,
 }: {
   design: InteriorDesign;
   format: BookFormat;
   sample: SpreadSample;
   kind?: SpreadKind;
+  /** Миниатюра в выборе оформления: без выбранного фото главы — пейзаж-заглушка в рамке оформления, чтобы видна была форма. */
+  openerPlaceholder?: boolean;
   className?: string;
 }) {
   const kit = pageKit(design, format, cqwUnits(format.widthMm), sample.language);
@@ -86,7 +104,7 @@ export const InteriorSpread = memo(function InteriorSpread({
     left = <TocPage kit={kit} entries={sample.toc} muted={!sample.showToc} style={page} />;
     right = <EndPage kit={kit} year={sample.year} style={page} />;
   } else {
-    left = <OpenerPage kit={kit} number={sample.chapter.number} title={sample.chapter.title} epigraph={sample.chapter.epigraph} photo={design.opener.photo ? { url: sample.photos?.[0]?.url } : undefined} style={page} />;
+    left = <OpenerPage kit={kit} number={sample.chapter.number} title={sample.chapter.title} epigraph={sample.chapter.epigraph} photo={design.opener.photo ? sampleOpener(sample, openerPlaceholder) : undefined} style={page} />;
     right = (
       <TextPage
         kit={kit}

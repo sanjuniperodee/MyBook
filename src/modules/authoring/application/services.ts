@@ -531,7 +531,13 @@ export class PhotosService {
     await this.photos.reorder(book.id, ids);
   }
 
-  /** Поворот самого файла на 90°. Новые ключи — чтобы браузер и кэш предпросмотра не показали старую ориентацию. */
+  /**
+   * Поворот самого файла на 90°. Новые ключи — чтобы браузер и кэш предпросмотра не показали старую ориентацию.
+   * Файлы обрабатываются без блокировки (это секунды), а запись — под блокировкой книги по строке, перечитанной после
+   * обработки, и только полей поворота (файлы, размеры, кадр и вид в ответе): правка места или перевод на правила 2,
+   * записанные за это время, не откатываются. Фото успели повернуть или заменить файл — поворот не по тому снимку,
+   * новые файлы удаляются (photosOutdated).
+   */
   async rotate(bookId: string, viewer: BookViewer, photoId: string) {
     const book = await loadBook(this.books, bookId, viewer, { editable: true });
     const photo = await this.photos.findInBook(book.id, photoId);
@@ -541,11 +547,41 @@ export class PhotosService {
     const rev = this.ids.revision();
     const keys = { storageKey: `photos/${book.id}/${photo.id}_${rev}.jpg`, thumbKey: `photos/${book.id}/${photo.id}_${rev}_thumb.jpg` };
     await Promise.all([this.files.put(keys.storageKey, out.full), this.files.put(keys.thumbKey, out.thumb)]);
-    const previous = photo.rotated(keys);
-    await this.photos.save(photo);
-    await Promise.all([this.files.delete(previous.storageKey), this.files.delete(previous.thumbKey)]).catch(() => {});
-    await this.books.touch(book.id);
-    return photo;
+    const dropNew = () => Promise.all([this.files.delete(keys.storageKey), this.files.delete(keys.thumbKey)]).catch(() => {});
+    const work = async () => {
+      await loadBook(this.books, bookId, viewer, { editable: true, lock: true });
+      const fresh = await this.photos.findInBook(book.id, photoId);
+      if (!fresh) throw new AuthoringError("photoNotFound");
+      if (fresh.storageKey !== photo.storageKey) throw new AuthoringError("photosOutdated");
+      const previous = fresh.rotated(keys);
+      await this.photos.saveRotation(fresh);
+      await this.books.touch(book.id);
+      return { fresh, previous };
+    };
+    let saved: Awaited<ReturnType<typeof work>>;
+    try {
+      saved = await (this.uow ? this.uow.run(work) : work());
+    } catch (err) {
+      await dropNew();
+      throw err;
+    }
+    await Promise.all([this.files.delete(saved.previous.storageKey), this.files.delete(saved.previous.thumbKey)]).catch(() => {});
+    return saved.fresh;
+  }
+
+  /**
+   * Явный перевод книги на правила раскладки фото 2 — редактор зовёт его перед первой правкой мест (POST …/layout),
+   * чтобы его превью, счётчик и снимки для «Отменить» сразу шли по строкам и правилам, которые запишет правка.
+   * Права — как у правки фото, книга заблокирована до конца транзакции. Возвращает версию правил после него: прежнюю,
+   * если перевод не повторяет вёрстку (правка тогда идёт по правилам 1, как раньше) или выпуск 2 выключен.
+   */
+  async upgradeLayout(bookId: string, viewer: BookViewer): Promise<number> {
+    const work = async () => {
+      const book = await loadBook(this.books, bookId, viewer, { editable: true, lock: true });
+      if (book.layoutRev === LAYOUT_REV_2 || !this.layout?.onTouch) return book.layoutRev;
+      return (await this.layout.upgrade(book.id)) ? LAYOUT_REV_2 : book.layoutRev;
+    };
+    return this.uow ? this.uow.run(work) : work();
   }
 }
 

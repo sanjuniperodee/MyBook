@@ -1,10 +1,15 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { ArrowRight, ImagePlus } from "lucide-react";
 import { Link, useMessages } from "@/i18n/client";
 import { SaveIndicator } from "@/components/SaveIndicator";
 import { PreviewDock, useScrolledPast } from "@/components/PreviewDock";
-import { Choice, FormSection } from "@/components/ui/Choice";
+import { FormSection } from "@/components/ui/Choice";
+import { ChapterPhotoSheet } from "@/components/editor/photos/ChapterPhotoSheet";
+import { GallerySheet } from "@/components/editor/photos/GallerySheet";
+import { galleryTitleOf, type PlaceData, type PlaceEvents } from "@/components/editor/photos/model";
 import { InteriorSpread, type SpreadKind, type SpreadSample } from "@/components/interior/InteriorSpread";
 import { useAutosave } from "@/hooks/useAutosave";
 import { apiFetch } from "@/lib/client-api";
@@ -13,7 +18,8 @@ import { applyInteriorStyle, chapterDesign, getInteriorDesign, type InteriorId, 
 import { cn } from "@/lib/class-names";
 import { bookKind } from "@/lib/content/kinds";
 import { sampleToc, type TocLines, type TocMode } from "@/lib/book/toc";
-import { ChaptersEditor, type ChapterPhotoPlan } from "./ChaptersEditor";
+import { ChaptersEditor, type PhotoSheetTarget } from "./ChaptersEditor";
+import { albumCount, designNotice, placesForDesign, type PagesPhotoData } from "./pages-photos";
 import type { StoryInfo } from "./StoryList";
 import { TocEditor } from "./TocEditor";
 import { DesignStudio } from "./studio/DesignStudio";
@@ -34,7 +40,10 @@ const spreads: SpreadKind[] = ["chapter", "photos", "front", "toc"];
 /**
  * Оформление страниц — как выбор обложки: слева большой разворот книги клиента в выбранном
  * дизайне, справа — все дизайны миниатюрами с фильтром по настроению и подсказкой «к обложке».
- * Ниже — то, что тоже определяет вид блока: посвящение, оглавление и место фотографий.
+ * Ниже — то, что тоже определяет вид блока: посвящение, главы с их фото, оглавление и правило фото (его меняют во
+ * вкладке «Фото», здесь — одна строка). Оформления с фото в начале главы — со значком и формой фото; выбрали такое —
+ * подсказка, сколько глав уже с фото, и кнопка к листу «Фото главы»; ушли из него — что выбранные фото глав никуда не
+ * денутся (R5). Листы фото правят фото сразу, страница потом перечитывает книгу с сервера (места фото — его сборка).
  */
 export function PagesEditor({
   bookId,
@@ -46,8 +55,7 @@ export function PagesEditor({
   theme,
   editable,
   stories,
-  photoPlan,
-  galleryTitle,
+  photos,
 }: {
   bookId: string;
   /** Тема книги — подсказка посвящения зависит от вида книги. */
@@ -62,10 +70,8 @@ export function PagesEditor({
   editable: boolean;
   /** Истории книги по id ответа: заголовок по умолчанию, свой и скрыт ли — для блока «Главы книги». */
   stories: Record<string, StoryInfo>;
-  /** Фото по главам — кнопка «Фото главы» в карточке главы. */
-  photoPlan?: ChapterPhotoPlan;
-  /** Название раздела фото в конце книги — как в печати (по виду книги, на языке книги). */
-  galleryTitle: string;
+  /** Фото книги и их места по сборке сервера — фото глав, альбом, листы фото. */
+  photos: PagesPhotoData;
 }) {
   const [state, setState] = useState(initial);
   const [spread, setSpread] = useState<SpreadKind>("chapter");
@@ -79,9 +85,12 @@ export function PagesEditor({
   const base = getInteriorDesign(state.interior);
   // Стиль с настройками книги — то же, что уйдёт в PDF (layout.ts → bookInterior).
   const design = useMemo(() => applyInteriorStyle(base, state.interiorStyle), [base, state.interiorStyle]);
+  const router = useRouter();
+  // Оформление, с которым автор открыл вкладку: от него — «выбрали оформление с фото» и «ушли из него».
+  const [opened] = useState(initial.interior);
 
   const changes = useRef<Partial<PagesState>>({});
-  const { status, error, schedule } = useAutosave<null>(async () => {
+  const { status, error, schedule, flush } = useAutosave<null>(async () => {
     const patch = changes.current;
     changes.current = {};
     if (!Object.keys(patch).length) return;
@@ -91,6 +100,8 @@ export function PagesEditor({
       changes.current = { ...patch, ...changes.current };
       throw e;
     }
+    // Новое оформление — сервер пересоберёт книгу: места фото (фото главы или после главы), подсказки формы, разворот.
+    if (patch.interior) router.refresh();
   }, 600);
   const update = (patch: Partial<PagesState>) => {
     if (!editable) return;
@@ -138,6 +149,43 @@ export function PagesEditor({
   const names = m.catalog.interiors;
   const bigPreview = useRef<HTMLDivElement>(null);
   const scrolled = useScrolledPast(bigPreview);
+  const designSection = useRef<HTMLElement>(null);
+
+  // Фото глав: места по сборке сервера, под оформление, выбранное сейчас (пока сервер не пересобрал книгу).
+  const openerDesign = !!design.opener.photo;
+  const serverPlaces = useMemo(() => new Map(photos.places), [photos.places]);
+  const places = useMemo(() => placesForDesign(serverPlaces, photos.photos, openerDesign), [serverPlaces, photos.photos, openerDesign]);
+  const placeData = useMemo<PlaceData>(
+    () => ({ book: { ...photos.book, interior: state.interior, photoPlacement: state.photoPlacement }, photos: photos.photos, places, chapters: photos.chapters, answers: photos.answers, tocLines: state.tocLines }),
+    [photos, places, state.interior, state.photoPlacement, state.tocLines],
+  );
+  const [sheet, setSheet] = useState<PhotoSheetTarget | null>(null);
+  const openSheet = (target: PhotoSheetTarget) => {
+    // Несохранённые правки строк глав — до листа: он сам пишет строки оглавления («без фото», название альбома).
+    void flush();
+    setSheet(target);
+  };
+  // Что поменял лист: фото — страница перечитывает книгу; настройки книги — сразу здесь (уже сохранены листом).
+  const placeEvents = useMemo<PlaceEvents>(() => {
+    const refresh = () => router.refresh();
+    return {
+      onPhotos: refresh,
+      onUploaded: refresh,
+      onOrder: refresh,
+      // Лист перевёл книгу на правила раскладки 2 перед правкой места — места и порядок фото с сервера.
+      onLayout: refresh,
+      onBook: (patch) => {
+        setState((s) => ({ ...s, ...patch }));
+        // Ждущая сохранения правка тех же настроек не должна затереть сохранённое листом.
+        if (patch.tocLines && changes.current.tocLines) changes.current.tocLines = patch.tocLines;
+        if (patch.photoPlacement && changes.current.photoPlacement) changes.current.photoPlacement = patch.photoPlacement;
+        refresh();
+      },
+    };
+  }, [router]);
+  const notice = designNotice({ design, from: getInteriorDesign(opened), changed: state.interior !== opened, data: photos, places, tocLines: state.tocLines });
+  const album = albumCount(photos, places);
+  const pp = m.books.pagesPhotos;
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-12">
@@ -189,6 +237,20 @@ export function PagesEditor({
       </div>
 
       <div className="space-y-12">
+        {notice?.kind === "toPhoto" ? (
+          <div className="mt-3 rounded-2xl bg-cream/70 p-3.5 text-sm" role="status">
+            <p className="text-ink-soft">{pp.toPhoto(names[design.id].name, m.editor.openerShape[notice.shape], notice.chosen, notice.total)}</p>
+            {notice.next && notice.chosen < notice.total && photos.book.editable ? (
+              <button type="button" className="btn btn-outline btn-sm mt-2.5 min-h-11" onClick={() => openSheet({ kind: "chapter", key: notice.next! })}>
+                <ImagePlus className="size-4" /> {pp.toPhotoBtn}
+              </button>
+            ) : null}
+          </div>
+        ) : notice?.kind === "leaving" ? (
+          <p className="mt-3 rounded-2xl bg-cream/70 p-3.5 text-sm text-ink-soft" role="status">
+            {pp.leaving}
+          </p>
+        ) : null}
         <DesignStudio
           bookId={bookId}
           interior={state.interior}
@@ -220,13 +282,14 @@ export function PagesEditor({
           />
         </FormSection>
 
-        {/* Главы своей книги автор называет и собирает в редакторе вопросов; здесь — главы темы. */}
-        {kind !== "blank" && sample.tocAll ? (
-          <FormSection title={t.chapters} description={t.chaptersText}>
+        {/* Главы темы: название, эпиграф, «убрать» и фото главы; своя книга — только фото глав (главы — в редакторе). */}
+        {sample.tocAll && (kind !== "blank" || sample.tocAll.some((c) => c.kind === "chapter" && !c.key.startsWith("c:planned-"))) ? (
+          <FormSection title={t.chapters} description={kind === "blank" ? pp.blankNote : t.chaptersText}>
             <ChaptersEditor
               bookId={bookId}
+              blank={kind === "blank"}
               stories={stories}
-              photoPlan={photoPlan}
+              photos={{ places, openerDesign, album: album ? { title: galleryTitleOf(state.tocLines, photos.book.galleryTitle), count: album } : null, onOpen: openSheet }}
               candidates={sample.tocAll}
               lines={state.tocLines}
               editable={editable}
@@ -259,23 +322,30 @@ export function PagesEditor({
           ) : null}
         </FormSection>
 
-        <FormSection title={t.photos} description={t.photosText}>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Choice active={state.photoPlacement === "chapters"} onClick={() => update({ photoPlacement: "chapters" })} disabled={!editable}>
-              <div className="font-medium">{t.photosChapters}</div>
-              <div className="text-sm text-muted">{t.photosChaptersText}</div>
-            </Choice>
-            <Choice active={state.photoPlacement === "end"} onClick={() => update({ photoPlacement: "end" })} disabled={!editable}>
-              <div className="font-medium">{t.photosEnd}</div>
-              <div className="text-sm text-muted">{t.photosEndText(galleryTitle)}</div>
-            </Choice>
-            <Choice active={state.photoPlacement === "none"} onClick={() => update({ photoPlacement: "none" })} disabled={!editable}>
-              <div className="font-medium">{t.photosNone}</div>
-              <div className="text-sm text-muted">{t.photosNoneText}</div>
-            </Choice>
-          </div>
+        {/* Правило для фото без выбранного места — одной строкой: выбирают его во вкладке «Фото», рядом с самими фото. */}
+        <FormSection title={t.photos}>
+          <p className="text-sm text-ink-soft">{pp.summary[state.photoPlacement]}</p>
+          <Link href={`/books/${bookId}/photos`} className="mt-2 inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-wine hover:underline">
+            {pp.summaryLink} <ArrowRight className="size-3.5" />
+          </Link>
         </FormSection>
       </div>
+
+      {sheet?.kind === "chapter" ? (
+        <ChapterPhotoSheet
+          data={placeData}
+          on={placeEvents}
+          chapterKey={sheet.key}
+          fit={state.interior === photos.book.interior ? photos.fit[sheet.key] : undefined}
+          onChangeDesign={() => {
+            setSheet(null);
+            designSection.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }}
+          onClose={() => setSheet(null)}
+        />
+      ) : sheet?.kind === "album" ? (
+        <GallerySheet data={placeData} on={placeEvents} onClose={() => setSheet(null)} />
+      ) : null}
     </div>
   );
 }

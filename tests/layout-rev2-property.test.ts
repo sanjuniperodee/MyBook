@@ -8,7 +8,9 @@ import { applyPins, buildLayout, layoutBundle, layoutPhoto, layoutQuestion, YEAR
 /**
  * Перевод на правила 2 на случайных книгах: 1–6 глав × 0–14 фото × раскладка фото × оформление (с фото главы и без) ×
  * выбранные заранее места × снимки обложки и оборота (с шаблоном и вариантом оборота: видны не все). Каждый найденный
- * план даёт ту же подпись вёрстки, а план B не находится только у книги со снимком обложки в ответе.
+ * план даёт ту же подпись вёрстки (у черновика со снимком обложки в ответе — ту же без этого снимка) и не трогает фото,
+ * которое ждёт свою главу без текста; план B не находится только у заказанной книги со снимком обложки в ответе или
+ * когда вёрстку повторил бы только перенос ждущего фото (waitingChapter).
  */
 
 /** Повторяемый генератор (mulberry32). */
@@ -74,6 +76,13 @@ function scenario(seed: number, c: number, n: number, placement: "chapters" | "e
 
 const signature = (b: LayoutBundle, rows: readonly LayoutPhoto[], rev: number) => layoutSignature(buildLayout(b, rows, rev));
 
+/** Фото, которые ждут свою главу: выбрана глава книги, а она по прежним правилам не печатается (нет текста). */
+function waitingIds(b: LayoutBundle) {
+  const real = new Set([...b.chapters.map((c) => c.key), ...b.questions.map((q) => q.chapter)]);
+  const printed = new Set(buildLayout(b, b.photos, 1).chapters.flatMap((ch) => [ch.key, ...(ch.folded ?? []).map((f) => f.key)]));
+  return new Set(b.photos.filter((p) => !p.questionId && isChapterPhotoKey(p.chapter) && real.has(p.chapter) && !printed.has(p.chapter)).map((p) => p.id));
+}
+
 /** Найденный план — та же вёрстка; места фото не нарушают правил Photo (фото начала — у главы, фото в ответе без главы). */
 function expectExact(b: LayoutBundle, plan: Extract<LayoutRev2Plan, { ok: true }>, label: string) {
   const rows = applyPins(b.photos, plan.changes);
@@ -82,14 +91,19 @@ function expectExact(b: LayoutBundle, plan: Extract<LayoutRev2Plan, { ok: true }
     if (p.opener) expect(isChapterPhotoKey(p.chapter), label).toBe(true);
   }
   expect(new Set(rows.map((p) => p.position)).size, label).toBe(rows.length);
-  expect(signature(b, rows, 2), label).toBe(signature(b, b.photos, 1));
+  if (!plan.coverInAnswer) return expect(signature(b, rows, 2), label).toBe(signature(b, b.photos, 1));
+  // Черновик со снимком обложки в ответе: снимок остаётся в ответе (по правилам 2 печатается там), без него — та же вёрстка.
+  const cover = b.book.coverPhotoId;
+  expect([b.book.status, rows.find((p) => p.id === cover)?.questionId], label).toEqual(["draft", plan.coverInAnswer.questionId]);
+  const hidden = rows.map((p) => (p.id === cover ? { ...p, questionId: null, chapter: PHOTO_OFF_KEY, opener: false } : p));
+  expect(signature(b, hidden, 2), label).toBe(signature(b, b.photos, 1));
 }
 
 describe("перевод на правила 2: свойство на случайных книгах", () => {
-  it("каждый план повторяет вёрстку; план B не находится только у книги со снимком обложки в ответе", () => {
-    // Снимок обложки в ответе — книга остаётся на правилах 1 (черновик и заказанная); offCover — основное фото обложки,
-    // которого на ней не видно, закреплено «не печатается».
-    const seen = { A: 0, B: 0, coverDraft: 0, coverOrdered: 0, offCover: 0 };
+  it("каждый план повторяет вёрстку и не трогает ждущие фото; план B не находится только у заказанной книги со снимком обложки в ответе или из-за ждущего фото", () => {
+    // Снимок обложки в ответе: черновик переводится (снимок печатается в ответе, остальное как было), заказанная книга
+    // остаётся на правилах 1; offCover — основное фото обложки, которого на ней не видно, закреплено «не печатается».
+    const seen = { A: 0, B: 0, coverDraft: 0, coverOrdered: 0, offCover: 0, waiting: 0 };
     let seed = 1;
     for (let c = 1; c <= 6; c++)
       for (let n = 0; n <= 14; n++)
@@ -101,13 +115,21 @@ describe("перевод на правила 2: свойство на случа
                 const label = `seed ${seed - 1}: ${c} гл., ${n} фото, ${placement}, ${interior}${prePins ? ", места" : ""}${coverExtras ? ", обложка" : ""}`;
                 const plan = planLayoutRev2(b, YEAR);
                 const onlyB = planLayoutRev2(b, YEAR, ["B"]);
+                const waiting = waitingIds(b);
                 for (const p of [plan, onlyB]) {
-                  if (p.ok) expectExact(b, p, label);
-                  else expect(p.reason, label).toBe("coverInAnswer");
+                  if (p.ok) {
+                    expectExact(b, p, label);
+                    // Фото, которое ждёт свою главу без текста, план не трогает: глава и отметка — те же.
+                    for (const c of p.changes) if (waiting.has(c.id)) expect([c.after.chapter, c.after.opener], label).toEqual([c.before.chapter, c.before.opener]);
+                  } else if (p.reason === "waitingChapter") expect(waiting.size, label).toBeGreaterThan(0);
+                  else expect([p.reason, b.book.status], label).toEqual(["coverInAnswer", "ordered"]);
                 }
-                expect(plan.ok, label).toBe(onlyB.ok);
-                if (plan.ok) seen[plan.plan]++;
-                else seen[b.book.status === "draft" ? "coverDraft" : "coverOrdered"]++;
+                // План A может обойтись без правки ждущих фото там, где план B их переставил бы.
+                if (onlyB.ok || onlyB.reason !== "waitingChapter") expect(plan.ok, label).toBe(onlyB.ok);
+                if (plan.ok && plan.coverInAnswer) seen.coverDraft++;
+                else if (plan.ok) seen[plan.plan]++;
+                else if (plan.reason === "waitingChapter") seen.waiting++;
+                else seen.coverOrdered++;
                 if (plan.ok && plan.changes.some((c) => c.id === b.book.coverPhotoId && c.after.chapter === PHOTO_OFF_KEY)) seen.offCover++;
               }
     // Набор задевает все ветки перевода.
@@ -116,5 +138,6 @@ describe("перевод на правила 2: свойство на случа
     expect(seen.coverDraft).toBeGreaterThan(5);
     expect(seen.coverOrdered).toBeGreaterThan(5);
     expect(seen.offCover).toBeGreaterThan(5);
+    expect(seen.waiting).toBeGreaterThan(5);
   });
 });

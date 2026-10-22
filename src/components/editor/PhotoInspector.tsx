@@ -1,11 +1,17 @@
 "use client";
 
-import { AlignCenter, AlignLeft, AlignRight, ChevronDown, ChevronUp, LoaderCircle, Move, RotateCcw, RotateCw, X } from "lucide-react";
-import { useState } from "react";
+import { AlignCenter, AlignLeft, AlignRight, ArrowRightLeft, ChevronDown, ChevronUp, LoaderCircle, Move, RotateCcw, RotateCw, X } from "lucide-react";
+import { useState, useSyncExternalStore, type ReactNode } from "react";
+import { getFormat } from "@/lib/book/formats";
 import { cropRect, normalizeStyle, splitParagraphs } from "@/lib/book/inline-photo";
 import type { InlinePhotoStyle } from "@/lib/book/inline-photo";
+import { fillFocus, type PhotoCrop } from "@/lib/book/photo-crop";
+import { CONTAIN_LOSS, coverLoss, defaultPageFit, WARN_LOSS } from "@/lib/book/photo-loss";
+import { pageFrame } from "@/lib/book/photo-pages";
 import { cn } from "@/lib/class-names";
 import { useMessages } from "@/i18n/client";
+import { frameWidth, ZoomSlider } from "./CropDialog";
+import { PanFrame } from "./PanFrame";
 
 export interface InspectorPhoto {
   id: string;
@@ -14,17 +20,56 @@ export interface InspectorPhoto {
   height: number;
   caption: string;
   inline?: InlinePhotoStyle | null;
+  /** Кадр автора (photos.crop) — по нему печатается фото «До краёв» на отдельной странице. */
+  crop?: PhotoCrop | null;
 }
 
 const aspectIds: InlinePhotoStyle["aspect"][] = ["original", "1:1", "4:3", "3:4", "16:9"];
 const frameIds: InlinePhotoStyle["frame"][] = ["none", "line", "polaroid", "round"];
 
-const sizes = [
-  { w: 33, label: "S" },
-  { w: 50, label: "M" },
-  { w: 75, label: "L" },
-  { w: 100, label: "XL" },
+/** Размеры словами — ширина фото в тексте, %. */
+export type SizeWord = "small" | "medium" | "large" | "full";
+const sizes: { w: number; id: SizeWord }[] = [
+  { w: 33, id: "small" },
+  { w: 50, id: "medium" },
+  { w: 75, id: "large" },
+  { w: 100, id: "full" },
 ];
+
+/** Ширина фото словом: ближайший из размеров (ползунок даёт и промежуточные). */
+export function sizeWord(width: number): SizeWord {
+  let best = sizes[0];
+  for (const s of sizes) if (Math.abs(s.w - width) < Math.abs(best.w - width)) best = s;
+  return best.id;
+}
+
+/** Сколько снимка срежется, если заполнить им лист книги (фото на отдельной странице «До краёв»). */
+export const pageLoss = (photo: { width: number; height: number }, format: string) => coverLoss(photo, pageFrame(getFormat(format)).ratio);
+
+/**
+ * Что записать, когда фото в тексте ставят на отдельную страницу (R11): pageFit — явно, «целиком, с полями», если
+ * при заполнении листа срежется заметная доля снимка, иначе «до краёв». Остальной вид (размер, форма, рамка) не
+ * трогаем — он вернётся, если фото снова поставить в текст.
+ */
+export function pageModePatch(photo: { width: number; height: number }, format: string): Partial<InlinePhotoStyle> {
+  return { page: true, pageFit: defaultPageFit(photo, getFormat(format)) };
+}
+
+/** Подпись печатается только у фото в тексте (R10): у фото на отдельной странице её нет. */
+export const captionShown = (style: Pick<InlinePhotoStyle, "page">) => !style.page;
+
+// Мышь или палец: подсказку «потяните за уголок в превью» видят только с мышью (на телефоне уголка нет).
+const finePointer = (onChange: () => void) => {
+  const mq = window.matchMedia("(pointer: fine)");
+  mq.addEventListener("change", onChange);
+  return () => mq.removeEventListener("change", onChange);
+};
+const useFinePointer = () =>
+  useSyncExternalStore(
+    finePointer,
+    () => window.matchMedia("(pointer: fine)").matches,
+    () => false,
+  );
 
 export function Segmented<T extends string | number>({
   value,
@@ -51,7 +96,7 @@ export function Segmented<T extends string | number>({
           disabled={disabled}
           onClick={() => onChange(o.id)}
           className={cn(
-            "flex h-8 flex-1 items-center justify-center rounded-[10px] px-2 text-xs whitespace-nowrap transition",
+            "flex h-8 flex-1 items-center justify-center rounded-[10px] px-2 text-xs whitespace-nowrap transition max-sm:h-10",
             value === o.id ? "bg-white font-medium text-ink shadow-sm" : "text-muted hover:text-ink",
           )}
         >
@@ -89,7 +134,7 @@ function FocusPicker({ photo, style, onChange, disabled }: { photo: InspectorPho
   return (
     <div className="flex justify-center rounded-2xl bg-ink/[.04] p-3">
       <div
-        className={cn("relative overflow-hidden rounded-lg select-none", cropped && !disabled && "cursor-crosshair")}
+        className={cn("relative overflow-hidden rounded-lg select-none", cropped && !disabled && "cursor-crosshair touch-none")}
         style={{ aspectRatio: `${photo.width} / ${photo.height}`, height: photo.width >= photo.height ? undefined : "14rem", width: photo.width >= photo.height ? "100%" : undefined }}
         onPointerDown={(e) => {
           if (!cropped || disabled) return;
@@ -126,6 +171,50 @@ function FocusPicker({ photo, style, onChange, disabled }: { photo: InspectorPho
   );
 }
 
+/**
+ * Фото на отдельной странице, как его напечатают: «целиком, с полями» — снимок вписан в лист; «до краёв» — рамка
+ * листа (с вылетами под обрез, pageFrame), в которой снимок двигают пальцем и приближают — это кадр photos.crop.
+ */
+function PageFrame({ photo, format, contain, onCrop, disabled }: { photo: InspectorPhoto; format: string; contain: boolean; onCrop?: (crop: PhotoCrop | null) => void; disabled?: boolean }) {
+  const t = useMessages().editor;
+  const ratio = pageFrame(getFormat(format)).ratio;
+  const [width] = useState(() => frameWidth(ratio, 220));
+  const [draft, setDraft] = useState<PhotoCrop | null>(null);
+  const crop = draft ?? fillFocus(photo);
+  if (contain || !onCrop)
+    return (
+      <div className="flex justify-center rounded-2xl bg-ink/[.04] p-3">
+        <div className="relative overflow-hidden rounded-[4px] bg-white ring-1 ring-line" style={{ width, aspectRatio: String(ratio) }}>
+          {/* eslint-disable-next-line @next/next/no-img-element -- фото клиента на листе */}
+          <img src={photo.url} alt="" draggable={false} className={cn("absolute inset-0 size-full", contain ? "object-contain" : "object-cover")} />
+        </div>
+      </div>
+    );
+  const commit = (c: PhotoCrop) => {
+    onCrop(c);
+    setDraft(null);
+  };
+  return (
+    <div className="space-y-3 rounded-2xl bg-ink/[.04] p-3">
+      <div className="flex justify-center">
+        <PanFrame photo={photo} crop={crop} ratio={ratio} mask="rect" width={width} onChange={setDraft} onCommit={commit} disabled={disabled} />
+      </div>
+      <p className="text-center text-[11px] text-muted">{t.answerPhoto.pageCropHint}</p>
+      <ZoomSlider value={crop.zoom} disabled={disabled} onChange={(zoom) => setDraft({ ...crop, zoom: Math.round(zoom * 100) / 100 })} onCommit={() => (draft ? commit(draft) : undefined)} />
+      {photo.crop ? (
+        <button type="button" disabled={disabled} onClick={() => onCrop(null)} className="flex h-10 items-center gap-1.5 rounded-full px-3 text-sm text-muted hover:bg-cream hover:text-ink">
+          <RotateCcw className="size-4" /> {t.crop.reset}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Настройка фото в ответе (S7): как стоит — в тексте или на отдельной странице; у отдельной страницы — «целиком» или
+ * «до краёв» с кадром в рамке листа; у фото в тексте — размер словами, выравнивание, форма, рамка и подпись (подпись —
+ * только там, где она печатается, R10). Ниже — повернуть, сбросить вид, перенести в другое место книги, убрать из ответа.
+ */
 export function PhotoInspector({
   photo,
   answer,
@@ -135,6 +224,11 @@ export function PhotoInspector({
   onRotate,
   onRemove,
   onClose,
+  format = "a5",
+  blank = false,
+  onCrop,
+  onMove,
+  badge,
 }: {
   photo: InspectorPhoto;
   answer: string;
@@ -144,10 +238,22 @@ export function PhotoInspector({
   onRotate: () => Promise<void>;
   onRemove: () => void;
   onClose: () => void;
+  /** Формат книги (id из lib/book/formats): рамка листа и обрезка на отдельной странице. */
+  format?: string;
+  /** Своя книга: «раздел» вместо «ответ». */
+  blank?: boolean;
+  /** Кадр фото на отдельной странице (photos.crop); без него рамку листа не двигают. */
+  onCrop?: (crop: PhotoCrop | null) => void;
+  /** «Перенести…» — лист «Где стоит фото». */
+  onMove?: () => void;
+  /** Подпись места фото в книге (PlaceBadge) — под заголовком. */
+  badge?: ReactNode;
 }) {
-  const t = useMessages().editor.inspector;
-  const aspects = aspectIds.map((id) => ({ id, label: id === "original" ? t.aspectOriginal : id }));
-  const frames = frameIds.map((id) => ({ id, label: t.frames[id] }));
+  const m = useMessages();
+  const t = m.editor.inspector;
+  const a = m.editor.answerPhoto;
+  const fine = useFinePointer();
+  const aspects = aspectIds.map((id) => ({ id, label: id === "original" ? a.shapes.original : id === "1:1" ? a.shapes.square : id }));
   const style = normalizeStyle(photo.inline);
   const paragraphs = splitParagraphs(answer);
   const [rotating, setRotating] = useState(false);
@@ -155,102 +261,127 @@ export function PhotoInspector({
   const positions: (number | null)[] = paragraphs.length ? [-1, ...paragraphs.slice(0, -1).map((_, i) => i), null] : [null];
   const current = style.anchor === null || style.anchor >= paragraphs.length - 1 ? null : style.anchor;
   const pos = Math.max(0, positions.indexOf(current));
-  const posLabel = (a: number | null) => {
-    if (a === null) return t.atEnd;
-    if (a < 0) return t.beforeText;
-    return t.afterParagraph(a + 1, paragraphs[a].split(/\s+/).slice(0, 5).join(" "));
+  const posLabel = (p: number | null) => {
+    if (p === null) return t.atEnd;
+    if (p < 0) return t.beforeText;
+    return t.afterParagraph(p + 1, paragraphs[p].split(/\s+/).slice(0, 5).join(" "));
   };
+  const page = !!style.page;
+  const contain = style.pageFit === "contain";
+  const loss = pageLoss(photo, format);
 
   return (
     <div className="space-y-4 rounded-3xl border border-line bg-white p-4 shadow-[0_10px_30px_-18px_rgba(0,0,0,.35)] sm:p-5" data-testid="photo-inspector">
-      <div className="flex items-center justify-between">
-        <div className="text-sm font-medium">{t.title}</div>
-        <button type="button" onClick={onClose} className="rounded-full p-2.5 text-muted hover:bg-cream hover:text-ink sm:p-1.5" aria-label={t.close}>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-medium">{blank ? a.titleBlank : a.title}</div>
+          {badge}
+        </div>
+        <button type="button" onClick={onClose} className="-mt-1.5 -mr-1.5 flex size-11 shrink-0 items-center justify-center rounded-full text-muted hover:bg-cream hover:text-ink" aria-label={t.close}>
           <X className="size-4" />
         </button>
       </div>
 
-      <FocusPicker photo={photo} style={style} onChange={onChange} disabled={!editable} />
-      <p className="-mt-2 text-center text-[11px] text-muted">
-        {style.aspect === "original" ? t.cropHint : t.focusHint}
-      </p>
-
-      <fieldset disabled={!editable} className="space-y-4">
-        {/* На всю страницу: история прерывается, снимок — отдельной страницей без полей, текст продолжается после. */}
-        <label className={cn("flex items-start gap-3 rounded-2xl border p-3 text-sm transition", style.page ? "border-ink bg-cream/60" : "border-line")}>
-          <input type="checkbox" className="mt-0.5 size-4 accent-wine" checked={!!style.page} onChange={(e) => onChange({ page: e.target.checked })} />
-          <span>
-            <span className="block font-medium">{t.fullPage}</span>
-            <span className="block text-xs text-muted">{t.fullPageHint}</span>
-          </span>
-        </label>
-        {style.page ? (
-          <div role="radiogroup" aria-label={t.fullPage} className="grid grid-cols-2 gap-1 rounded-xl bg-cream/70 p-1 text-xs">
-            {([undefined, "contain"] as const).map((fit) => (
-              <button
-                key={fit ?? "cover"}
-                type="button"
-                role="radio"
-                aria-checked={style.pageFit === fit}
-                onClick={() => onChange({ pageFit: fit })}
-                className={cn("rounded-lg px-2 py-2 font-medium transition", style.pageFit === fit ? "bg-white shadow-soft" : "text-muted hover:text-ink")}
-              >
-                {fit ? t.fullPageContain : t.fullPageCover}
-              </button>
-            ))}
-          </div>
-        ) : null}
-        <fieldset disabled={!!style.page} className={cn("space-y-4", style.page && "opacity-40")}>
-        <Field label={t.size} aside={<span className="tabular-nums">{t.width(style.width)}</span>}>
-          <div className="flex items-center gap-3">
-            <input
-              type="range"
-              min={25}
-              max={100}
-              step={1}
-              value={style.width}
-              onChange={(e) => onChange({ width: Number(e.target.value) })}
-              aria-label={t.sizeAria}
-              className="h-2 flex-1 accent-[var(--color-wine)]"
-            />
-            <div className="flex gap-1">
-              {sizes.map((s) => (
-                <button
-                  key={s.w}
-                  type="button"
-                  onClick={() => onChange({ width: s.w })}
-                  className={cn("h-7 w-8 rounded-lg text-[11px] font-medium max-sm:h-10 max-sm:w-10", style.width === s.w ? "bg-ink text-white" : "bg-cream text-muted hover:text-ink")}
-                  title={`${s.w}%`}
-                >
-                  {s.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          <p className="mt-1 text-[11px] text-muted">{t.sizeHint}</p>
-        </Field>
-
-        <Field label={t.align}>
-          <Segmented
-            label={t.align}
-            value={style.align}
-            disabled={style.width === 100}
-            onChange={(align) => onChange({ align })}
+      <fieldset disabled={!editable} className="min-w-0 space-y-4">
+        <Field label={a.how}>
+          <Segmented<"text" | "page">
+            label={a.how}
+            value={page ? "page" : "text"}
+            onChange={(v) => (v === "page" ? (page ? undefined : onChange(pageModePatch(photo, format))) : onChange({ page: false }))}
             options={[
-              { id: "left", label: <AlignLeft className="size-4" />, title: t.alignLeft },
-              { id: "center", label: <AlignCenter className="size-4" />, title: t.alignCenter },
-              { id: "right", label: <AlignRight className="size-4" />, title: t.alignRight },
+              { id: "text", label: a.inText },
+              { id: "page", label: a.onPage },
             ]}
           />
         </Field>
 
-        </fieldset>
+        {page ? (
+          <>
+            <div role="radiogroup" aria-label={a.onPage} className="grid grid-cols-2 gap-1 rounded-xl bg-cream/70 p-1 text-xs">
+              {(["contain", "fill"] as const).map((fit) => {
+                const on = fit === "contain" ? contain : !contain;
+                return (
+                  <button
+                    key={fit}
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    onClick={() => onChange({ pageFit: fit === "contain" ? "contain" : undefined })}
+                    className={cn("min-h-11 rounded-lg px-2 py-2 leading-snug font-medium transition", on ? "bg-white shadow-soft" : "text-muted hover:text-ink")}
+                  >
+                    {a.fit[fit]}
+                  </button>
+                );
+              })}
+            </div>
+            {contain && loss >= CONTAIN_LOSS ? <p className="text-xs leading-snug text-muted">{a.autoContain}</p> : null}
+            <PageFrame key={photo.id} photo={photo} format={format} contain={contain} onCrop={onCrop} disabled={!editable} />
+            {!contain && loss >= WARN_LOSS ? (
+              <p className="text-xs leading-snug font-medium text-amber-700" data-testid="page-loss">
+                {a.loss(Math.round(loss * 100))}
+              </p>
+            ) : null}
+          </>
+        ) : (
+          <>
+            <FocusPicker photo={photo} style={style} onChange={onChange} disabled={!editable} />
+            <p className="-mt-2 text-center text-[11px] text-muted">{style.aspect === "original" ? a.originalHint : a.focusHint}</p>
+
+            <Field label={a.size} aside={<span>{a.sizes[sizeWord(style.width)]}</span>}>
+              <div role="radiogroup" aria-label={a.size} className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+                {sizes.map((s) => (
+                  <button
+                    key={s.w}
+                    type="button"
+                    role="radio"
+                    aria-checked={style.width === s.w}
+                    onClick={() => onChange({ width: s.w })}
+                    className={cn("min-h-11 rounded-xl px-2 text-xs font-medium transition sm:min-h-9", style.width === s.w ? "bg-ink text-white" : "bg-cream text-muted hover:text-ink")}
+                  >
+                    {a.sizes[s.id]}
+                  </button>
+                ))}
+              </div>
+              <input
+                type="range"
+                min={25}
+                max={100}
+                step={1}
+                value={style.width}
+                onChange={(e) => onChange({ width: Number(e.target.value) })}
+                aria-label={t.sizeAria}
+                className="mt-2 h-2 w-full accent-[var(--color-wine)]"
+              />
+              <p className="mt-1 text-[11px] text-muted">
+                {a.sizeHintRow}
+                {fine ? ` ${a.sizeHintDrag}` : ""}
+              </p>
+            </Field>
+
+            <Field label={t.align}>
+              <Segmented
+                label={t.align}
+                value={style.align}
+                disabled={style.width === 100}
+                onChange={(align) => onChange({ align })}
+                options={[
+                  { id: "left", label: <AlignLeft className="size-4" />, title: t.alignLeft },
+                  { id: "center", label: <AlignCenter className="size-4" />, title: t.alignCenter },
+                  { id: "right", label: <AlignRight className="size-4" />, title: t.alignRight },
+                ]}
+              />
+            </Field>
+          </>
+        )}
+
         <Field
           label={t.place}
           aside={
-            <span className="flex items-center gap-1 text-[11px] font-normal">
-              <Move className="size-3" /> {t.placeDrag}
-            </span>
+            fine ? (
+              <span className="flex items-center gap-1 text-[11px] font-normal">
+                <Move className="size-3" /> {t.placeDrag}
+              </span>
+            ) : null
           }
         >
           <div className="flex gap-1.5">
@@ -258,11 +389,11 @@ export function PhotoInspector({
               value={String(pos)}
               onChange={(e) => onChange({ anchor: positions[Number(e.target.value)] })}
               aria-label={t.placeAria}
-              className="h-10 min-w-0 flex-1 rounded-xl border border-line bg-white px-2 text-sm sm:h-9"
+              className="h-11 min-w-0 flex-1 rounded-xl border border-line bg-white px-2 text-sm sm:h-9"
             >
-              {positions.map((a, i) => (
+              {positions.map((p, i) => (
                 <option key={i} value={i}>
-                  {posLabel(a)}
+                  {posLabel(p)}
                 </option>
               ))}
             </select>
@@ -270,7 +401,7 @@ export function PhotoInspector({
               type="button"
               disabled={pos === 0}
               onClick={() => onChange({ anchor: positions[pos - 1] })}
-              className="flex size-10 items-center justify-center rounded-xl border border-line hover:bg-cream disabled:opacity-40 sm:size-9"
+              className="flex size-11 items-center justify-center rounded-xl border border-line hover:bg-cream disabled:opacity-40 sm:size-9"
               aria-label={t.upAria}
               title={t.up}
             >
@@ -280,7 +411,7 @@ export function PhotoInspector({
               type="button"
               disabled={pos === positions.length - 1}
               onClick={() => onChange({ anchor: positions[pos + 1] })}
-              className="flex size-10 items-center justify-center rounded-xl border border-line hover:bg-cream disabled:opacity-40 sm:size-9"
+              className="flex size-11 items-center justify-center rounded-xl border border-line hover:bg-cream disabled:opacity-40 sm:size-9"
               aria-label={t.downAria}
               title={t.down}
             >
@@ -289,46 +420,54 @@ export function PhotoInspector({
           </div>
         </Field>
 
-        <fieldset disabled={!!style.page} className={cn("space-y-4", style.page && "opacity-40")}>
-        <Field label={t.aspect}>
-          <Segmented label={t.aspect} value={style.aspect} onChange={(aspect) => onChange({ aspect })} options={aspects} />
-        </Field>
+        {page ? null : (
+          <>
+            <Field label={a.shape}>
+              <Segmented label={a.shape} value={style.aspect} onChange={(aspect) => onChange({ aspect })} options={aspects} />
+            </Field>
 
-        <Field label={t.frame}>
-          <div role="radiogroup" aria-label={t.frame} className="grid grid-cols-4 gap-1.5">
-            {frames.map((f) => (
-              <button
-                key={f.id}
-                type="button"
-                role="radio"
-                aria-checked={style.frame === f.id}
-                onClick={() => onChange({ frame: f.id })}
-                className={cn("flex flex-col items-center gap-1.5 rounded-xl border p-2 text-[11px] transition", style.frame === f.id ? "border-ink bg-cream/60 text-ink" : "border-line text-muted hover:border-ink/40")}
-              >
-                <span
-                  className={cn(
-                    "block h-7 w-9 bg-gradient-to-br from-[#c9b8a6] to-[#8c7a6b]",
-                    f.id === "line" && "outline outline-1 outline-offset-2 outline-ink",
-                    f.id === "polaroid" && "border-[3px] border-b-[8px] border-white shadow ring-1 ring-line",
-                    f.id === "round" && "rounded-md",
-                  )}
-                />
-                {f.label}
-              </button>
-            ))}
-          </div>
-        </Field>
+            <Field label={a.frame}>
+              <div role="radiogroup" aria-label={a.frame} className="grid grid-cols-4 gap-1.5">
+                {frameIds.map((id) => (
+                  <button
+                    key={id}
+                    type="button"
+                    role="radio"
+                    aria-checked={style.frame === id}
+                    onClick={() => onChange({ frame: id })}
+                    className={cn("flex flex-col items-center gap-1.5 rounded-xl border p-2 text-[11px] leading-tight transition", style.frame === id ? "border-ink bg-cream/60 text-ink" : "border-line text-muted hover:border-ink/40")}
+                  >
+                    <span
+                      className={cn(
+                        "block h-7 w-9 bg-gradient-to-br from-[#c9b8a6] to-[#8c7a6b]",
+                        id === "line" && "outline outline-1 outline-offset-2 outline-ink",
+                        id === "polaroid" && "border-[3px] border-b-[8px] border-white shadow ring-1 ring-line",
+                        id === "round" && "rounded-md",
+                      )}
+                    />
+                    {a.frames[id]}
+                  </button>
+                ))}
+              </div>
+            </Field>
+          </>
+        )}
 
-        </fieldset>
-        <Field label={style.frame === "polaroid" ? t.captionPolaroid : t.caption}>
-          <input
-            value={photo.caption}
-            onChange={(e) => onCaption(e.target.value)}
-            placeholder={t.captionPlaceholder}
-            maxLength={200}
-            className="h-10 w-full rounded-xl border border-line px-3 text-sm outline-none focus:border-ink/40 sm:h-9"
-          />
-        </Field>
+        {captionShown(style) ? (
+          <Field label={style.frame === "polaroid" ? a.captionPolaroid : a.caption}>
+            <input
+              value={photo.caption}
+              onChange={(e) => onCaption(e.target.value)}
+              placeholder={t.captionPlaceholder}
+              maxLength={200}
+              className="h-11 w-full rounded-xl border border-line px-3 text-sm outline-none focus:border-ink/40 sm:h-9"
+            />
+          </Field>
+        ) : (
+          <p className="text-xs text-muted" data-testid="caption-off">
+            {a.captionOff}
+          </p>
+        )}
 
         <div className="flex flex-wrap gap-2 border-t border-line pt-4">
           <button
@@ -342,21 +481,27 @@ export function PhotoInspector({
               }
             }}
             disabled={rotating}
-            className="flex h-10 items-center gap-1.5 rounded-full border border-line px-3.5 text-sm hover:bg-cream sm:h-9"
+            className="flex h-11 items-center gap-1.5 rounded-full border border-line px-3.5 text-sm hover:bg-cream sm:h-9"
           >
             {rotating ? <LoaderCircle className="size-4 animate-spin" /> : <RotateCw className="size-4" />}
-            {t.rotate}
+            {a.rotate}
           </button>
           <button
             type="button"
             onClick={() => onChange({ width: 100, align: "center", aspect: "original", focusX: 0.5, focusY: 0.5, frame: "none", page: false })}
-            className="flex h-10 items-center gap-1.5 rounded-full border border-line px-3.5 text-sm hover:bg-cream sm:h-9"
+            className="flex h-11 items-center gap-1.5 rounded-full border border-line px-3.5 text-sm hover:bg-cream sm:h-9"
           >
             <RotateCcw className="size-4" />
-            {t.reset}
+            {a.reset}
           </button>
-          <button type="button" onClick={onRemove} className="ml-auto flex h-10 items-center rounded-full px-3.5 text-sm text-muted hover:bg-red-50 hover:text-red-700 sm:h-9">
-            {t.remove}
+          {onMove ? (
+            <button type="button" onClick={onMove} className="flex h-11 items-center gap-1.5 rounded-full border border-line px-3.5 text-sm hover:bg-cream sm:h-9">
+              <ArrowRightLeft className="size-4" />
+              {a.move}
+            </button>
+          ) : null}
+          <button type="button" onClick={onRemove} className="ml-auto flex h-11 items-center rounded-full px-3.5 text-sm text-muted hover:bg-red-50 hover:text-red-700 sm:h-9">
+            {blank ? a.removeBlank : a.remove}
           </button>
         </div>
       </fieldset>

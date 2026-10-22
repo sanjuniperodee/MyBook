@@ -8,7 +8,7 @@ import { bookInterior } from "@/lib/book/interiors";
 import { estimateChapterPages, sectionPageOffsets, textMetrics } from "@/lib/book/estimate";
 import { GALLERY_KEY, sampleToc, tocCandidates } from "@/lib/book/toc";
 import { buildBookContent } from "@/lib/book/book-content";
-import { printableText } from "@/lib/book/layout";
+import { LAYOUT_REV_2, printableText, toPhotoItem, type ContentChapter } from "@/lib/book/layout";
 import { splitParagraphs } from "@/lib/book/inline-photo";
 import { photoUrl } from "@/lib/urls";
 
@@ -27,7 +27,7 @@ export function bookSpreadSample(
   chapters: Parameters<typeof buildBookContent>[3],
   dedicationPlaceholder: string,
   /** Фото книги: в примерах фотостраниц и начала главы показываем их, а не пейзажи-заглушки. */
-  photos: { id: string; width: number; height: number; caption: string }[] = [],
+  photos: (Parameters<typeof toPhotoItem>[0] & { caption: string })[] = [],
   /** Номера страниц готового макета этой книги (BookBuild.chapterPages: ключи — pageKey оглавления); нет — оценка. */
   realPages?: Record<string, number> | null,
 ) {
@@ -109,6 +109,20 @@ export function bookSpreadSample(
     showToc: book.showToc,
     captions: own?.photos,
     photos: photos.filter((p) => p.id !== book.coverPhotoId).slice(0, 4).map((p) => ({ url: photoUrl(p.id, "full"), width: p.width, height: p.height, caption: p.caption })),
+    // Правила 2: начало главы — как в книге, выбранное автором фото главы или страница с названием (не «первое фото»).
+    ...(book.layoutRev === LAYOUT_REV_2 ? { opener: sampleOpener(first ? buildBookContent(book, questions, photos.map(toPhotoItem), chapters).chapters.find((c) => c.key === first.key) : undefined) } : {}),
   };
+}
+
+/**
+ * Фото главы первой главы по правилам 2: выбранное автором (его кадр — тоже). Оформление книги может быть и без фото
+ * главы — тогда отмеченное фото стоит после главы (R5), а разворот других оформлений всё равно покажет его в начале.
+ */
+function sampleOpener(ch: ContentChapter | undefined): { url: string; crop?: NonNullable<ContentChapter["openerPhoto"]>["crop"] } | null {
+  if (!ch) return null;
+  const keys = [ch.key, ...(ch.folded ?? []).map((f) => f.key)];
+  const marked = ch.photos.filter((p) => p.opener && keys.includes(p.chapter!));
+  const photo = ch.openerPhoto ?? marked.find((p) => p.chapter === ch.key) ?? marked[0];
+  return photo ? { url: photoUrl(photo.id, "view"), ...(photo.crop ? { crop: photo.crop } : {}) } : null;
 }
 

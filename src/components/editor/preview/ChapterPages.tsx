@@ -5,7 +5,7 @@ import type { Messages } from "@/i18n/messages";
 import type { Locale } from "@/i18n/config";
 import { answerBlocks, rowsByBlock, type AnswerBlock } from "@/lib/book/answer-blocks";
 import { layoutMedia, type AnswerMedia } from "@/lib/book/answer-media";
-import type { PreviewChapter, PreviewEntry, PreviewPhoto } from "@/lib/book/editor-model";
+import type { PreviewChapter, PreviewEntry, PreviewPagePhoto, PreviewPhoto } from "@/lib/book/editor-model";
 import { cssFont } from "@/lib/book/fonts";
 import { print, PT_TO_MM } from "@/lib/book/formats";
 import { layoutInline, normalizeStyle, splitParagraphs, type InlinePhotoStyle } from "@/lib/book/inline-photo";
@@ -14,24 +14,33 @@ import { AnswerBlockView } from "@/components/interior/answer-block";
 import { Divider, InlineRow, MediaCard, QuestionHeading } from "@/components/interior/entry";
 import { RunningHead } from "@/components/interior/folio";
 import type { PageKit } from "@/components/interior/kit";
-import { OpenerPage } from "@/components/interior/pages";
 import { LazyPage } from "./LazyPage";
+import { PAGE_SHADOW, PreviewOpener, PreviewPhotoPages } from "./book-pages";
 import { fillFocus } from "@/lib/book/photo-crop";
 import { previewPhotoLayer } from "./photo-layer";
 import type { PhotoPages } from "./layout-hooks";
+import type { OnPreviewTarget } from "./targets";
 import type { usePhotoDrag } from "./usePhotoDrag";
 
 const END = Number.POSITIVE_INFINITY;
-const PAGE_SHADOW = "shadow-[0_1px_3px_rgba(0,0,0,.06),0_20px_40px_-20px_rgba(0,0,0,.25)]";
 
 type Item = { p: PreviewPhoto; style: InlinePhotoStyle };
 
 /**
- * Содержимое главы для сравнения: заголовки, ответы, фото с их видом и QR-коды. Глава превью перерисовывается и
- * перемеряется, только когда оно меняется (или когда в ней текущий ответ).
+ * Содержимое главы для сравнения: заголовки, ответы, фото с их видом и QR-коды, фото главы и страницы фото после
+ * неё. Глава превью перерисовывается и перемеряется, только когда оно меняется (или когда в ней текущий ответ).
  */
 export function chapterContentKey(ch: PreviewChapter) {
-  return [ch.key, ch.number, ch.title, ch.epigraph ?? "", ...ch.entries.map((e) => `${e.id}:${e.heading}:${e.answer}:` + e.photos.map((p) => `${p.id}:${p.url}:${p.caption}:` + JSON.stringify(normalizeStyle(p.inline))).join(",") + `:${JSON.stringify(e.media)}`)].join("|");
+  const pagePhoto = (p: PreviewPagePhoto) => `${p.id}:${p.url}:${p.caption}:${p.layout}:${p.auto ? 1 : 0}:${JSON.stringify(p.crop ?? null)}:${p.contain ? 1 : 0}`;
+  return [
+    ch.key,
+    ch.number,
+    ch.title,
+    ch.epigraph ?? "",
+    ch.openerPhoto ? pagePhoto(ch.openerPhoto) : "",
+    (ch.photoPages ?? []).map((g) => g.map(pagePhoto).join("+")).join(","),
+    ...ch.entries.map((e) => `${e.id}:${e.heading}:${e.answer}:` + e.photos.map((p) => `${p.id}:${p.url}:${p.caption}:` + JSON.stringify(normalizeStyle(p.inline))).join(",") + `:${JSON.stringify(e.media)}`),
+  ].join("|");
 }
 
 export interface ChapterPagesProps {
@@ -44,6 +53,10 @@ export interface ChapterPagesProps {
   bookTitle: string;
   language: Locale;
   t: Messages["editor"]["preview"];
+  /** Подписи мест фото в превью; нет (стенд снимков, тесты) — полосы без чипов и пунктирного места. */
+  tp?: Messages["editor"]["previewPhotos"];
+  /** Нажатие на начальную полосу и страницы фото (ключи — как у полос сборки); нет — превью только смотрят. */
+  onTarget?: OnPreviewTarget;
   /** Полос текста в главе (по замеру). */
   pages: number;
   /** На какой полосе текста каждое фото «на всю страницу» (по замеру; тот же объект, пока не изменилось). */
@@ -64,7 +77,7 @@ export interface ChapterPagesProps {
 }
 
 /** Начальная полоса главы, полосы текста и невидимая копия главы для замера. */
-function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, language, t, pages, photoPages, currentId, selectedId, interactive, drag, onChange, scroll, setMeasureRef, measure, onPageClick }: ChapterPagesProps) {
+function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, language, t, tp, onTarget, pages, photoPages, currentId, selectedId, interactive, drag, onChange, scroll, setMeasureRef, measure, onPageClick }: ChapterPagesProps) {
   const { format, design } = kit;
   const m = interiorMetrics[format.id];
   const side = pageSide(format);
@@ -256,7 +269,20 @@ function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, 
           {ch.entries.map((e, i) => renderEntry(e, i === 0, true))}
         </div>
       </div>
-      <OpenerPage kit={kit} number={ch.number} title={ch.title} epigraph={ch.epigraph} className={PAGE_SHADOW} style={{ width: pageW, height: format.heightMm * px }} />
+      {/* Начальная полоса: фото главы, как в печати, — или полоса с названием и пунктирное место фото (только здесь). */}
+      <PreviewOpener
+        kit={kit}
+        number={ch.number}
+        title={ch.title}
+        epigraph={ch.epigraph}
+        photo={ch.openerPhoto}
+        placeholder={!!design.opener.photo && !!onTarget}
+        style={{ width: pageW, height: format.heightMm * px }}
+        tp={tp}
+        target={{ kind: "opener", chapterKey: ch.key }}
+        label={tp?.openerAria(ch.title) ?? ""}
+        onTarget={design.opener.photo ? onTarget : undefined}
+      />
       {Array.from({ length: pages }, (_, k) => (
         <LazyPage key={k} root={scroll} pageId={`${ch.key}:${k}`} className={`relative overflow-hidden bg-white ${PAGE_SHADOW}`} style={{ width: pageW, height: format.heightMm * px }} onClick={onPageClick}>
           {() => (
@@ -273,6 +299,22 @@ function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, 
           )}
         </LazyPage>
       ))}
+      {/* Страницы фото после главы — как в PDF: после всего текста главы. */}
+      {ch.photoPages?.length ? (
+        <PreviewPhotoPages
+          kit={kit}
+          pages={ch.photoPages}
+          pageW={pageW}
+          pageH={format.heightMm * px}
+          scroll={scroll}
+          idPrefix={ch.key}
+          tp={tp}
+          target={(group) => ({ kind: "photo", chapterKey: ch.key, ...(group.length === 1 ? { photoId: group[0].id } : {}) })}
+          label={tp?.photoPageAria ?? ""}
+          chip={onTarget ? tp?.afterChip(ch.photoPages.flat().length) : undefined}
+          onTarget={onTarget}
+        />
+      ) : null}
     </>
   );
 }

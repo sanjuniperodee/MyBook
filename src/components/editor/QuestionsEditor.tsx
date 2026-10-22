@@ -10,12 +10,12 @@ import { AddQuestion } from "./questions/AddQuestion";
 import { ChapterNav, type NavActions } from "./questions/ChapterNav";
 import { Drawer } from "./questions/Drawer";
 import { EmptyEditor, type EmptyMode } from "./questions/EmptyEditor";
-import { MobileBar } from "./questions/MobileBar";
+import { MobileBar, MobileBarButton } from "./questions/MobileBar";
 import { PhotoPicker } from "./questions/PhotoPicker";
 import { DictationControl, DictationStatus } from "./questions/DictationControl";
 import { HeadingField } from "./questions/HeadingField";
 import { MediaStrip } from "./questions/MediaStrip";
-import { PhotoStrip } from "./questions/PhotoStrip";
+import { PhotoStrip, removePatch } from "./questions/PhotoStrip";
 import { BlankProgress, ProgressCard, QuestionPager } from "./questions/QuestionPager";
 import { SectionFields } from "./questions/SectionFields";
 import { AnswerToolbar, EditorTopBar } from "./questions/Toolbars";
@@ -24,7 +24,13 @@ import { chapterNumbers, selectionAfterRemoval } from "./questions/outline";
 import { useOutline } from "./questions/useOutline";
 import { answerPagesOf } from "./questions/usePageEstimate";
 import { PagesBadge } from "./questions/PagesBadge";
-import { PreviewPane } from "./questions/PreviewPane";
+import { PreviewIntro, PreviewPane, PreviewSheet } from "./questions/PreviewPane";
+import { ChapterStart, type ChapterStartAction } from "./questions/ChapterStartCard";
+import { PhotoSheetHost, placeData, type BookSource, type PhotoSheetTarget } from "./preview/photo-sheets";
+import type { PreviewTarget } from "./preview/targets";
+import { patchBook } from "./photos/api";
+import { placeNames, withNoOpenerPhoto, type PlaceEvents } from "./photos/model";
+import { useBookContent } from "./questions/useBookContent";
 import { useQuestionsDraft } from "./questions/useQuestionsDraft";
 import { ProofBar, ProofTextarea, type ProofHandle } from "./proofread/ProofTextarea";
 import { useProofread } from "./proofread/useProofread";
@@ -34,6 +40,7 @@ import { useDictation } from "@/hooks/useDictation";
 import { getFormat } from "@/lib/book/formats";
 import { cssFont } from "@/lib/book/fonts";
 import { groupByChapter, sectionLabel, type EditorBook, type EditorChapter, type EditorPhoto, type EditorQuestion } from "@/lib/book/editor-model";
+import type { TocLines } from "@/lib/book/toc";
 import { bookInterior } from "@/lib/book/interiors";
 import { countWords, type LetterLike } from "@/lib/book/layout";
 import type { AnswerMedia } from "@/lib/book/answer-media";
@@ -52,6 +59,8 @@ export interface QuestionsEditorProps {
   /** Номер раздела (с нуля) для совместимости со ссылками ?q=N; раздел по id (?s=) страница переводит в номер. */
   initialIndex: number;
   initialPhotos: EditorPhoto[];
+  /** Лимит фото в книге (MAX_PHOTOS): загрузка не берёт больше и говорит, сколько не поместилось. */
+  maxPhotos?: number;
   /** Одобренные письма близких: идут в книгу последней главой и входят в оценку объёма. */
   letters: LetterLike[];
   /** Книгу можно править: она черновик и у смотрящего есть право правки (сотрудник с просмотром — только читает). */
@@ -105,12 +114,13 @@ function PreviewHeading({ bookId, title, exact, onLeave }: { bookId: string; tit
 }
 
 function EditorBody({
-  book,
+  book: initialBook,
   epigraphs = NO_EPIGRAPHS,
   initialQuestions,
   chapters: initialChapters = NO_CHAPTERS,
   initialIndex,
   initialPhotos,
+  maxPhotos,
   letters,
   editable,
   proofreadAi = false,
@@ -119,6 +129,13 @@ function EditorBody({
 }: QuestionsEditorProps & { resumeId: string | null; onResync: (currentId: string | null) => void }) {
   const t = useMessages().editor;
   const messages = useMessages();
+  // Настройки книги, которые меняют листы фото («без фото» у главы, своё название альбома, правило фото), — живая
+  // копия: сборка книги (превью, счётчик, места фото) берёт их отсюда сразу, без перечитывания страницы.
+  const [book, setBook] = useState(initialBook);
+  const bookRef = useRef(book);
+  useLayoutEffect(() => {
+    bookRef.current = book;
+  });
   const kind = book.kind;
   const blank = kind === "blank";
   const untitled = messages.books.untitledSection;
@@ -136,9 +153,14 @@ function EditorBody({
 
   const draft = useQuestionsDraft({ bookId: book.id, editable, initialQuestions, initialChapters, onGone });
   const { questions, chapters, status, error, flush, patchQuestion, patchChapter, appendText } = draft;
-  const inlinePhotos = useInlinePhotos({ bookId: book.id, editable, initialPhotos });
-  const { photos, selectedPhotoId, setSelectedPhotoId, updateInline, rotatePhoto, patchPhoto, editCaption, detachQuestions } = inlinePhotos;
+  // Правила раскладки фото — в живой копии книги: перевод на правила 2 перед первой правкой места меняет их сразу, и
+  // сборка (превью, счётчик, места фото) идёт по тем же правилам, что печать, без перечитывания страницы.
+  const onLayoutRev = useCallback((layoutRev: number) => setBook((b) => (b.layoutRev === layoutRev ? b : { ...b, layoutRev })), []);
+  const inlinePhotos = useInlinePhotos({ bookId: book.id, editable, initialPhotos, maxPhotos, layoutRev: book.layoutRev, onLayoutRev });
+  const { photos, selectedPhotoId, setSelectedPhotoId, updateInline, rotatePhoto, patchPhoto, applyUndo, editCaption, detachQuestions } = inlinePhotos;
   const [picker, setPicker] = useState(false);
+  // Открытый лист фото: «Фото главы», «Где стоит фото» или «Альбом в конце» — с превью, карточки главы, оглавления.
+  const [sheet, setSheet] = useState<PhotoSheetTarget | null>(null);
   const [addingMedia, setAddingMedia] = useState(false);
   const [currentId, setCurrentId] = useState<string | null>(() => {
     const byId = resumeId ? initialQuestions.find((x) => x.id === resumeId) : undefined;
@@ -280,22 +302,92 @@ function EditorBody({
   const selectedPhoto = qPhotos.find((p) => p.id === selectedPhotoId) ?? null;
   const labelOf = (x: EditorQuestion) => sectionLabel(x, kind, untitled);
 
+  // Книга для сборки (useBookContent): превью, счётчик полос, карточка главы, оглавление и листы фото передают одни
+  // и те же объекты — сборка одна на правку. Главы — у любой книги (у книг с вопросами — эпиграфы начальных полос).
+  const src: BookSource = { book, questions, photos, letters, chapters };
+  // Места фото и названия глав и ответов для подписей мест в выборе фото и под фото ответа — из той же сборки.
+  const { content: bookContent, places } = useBookContent(book, questions, photos, letters, chapters);
+  const names = useMemo(() => {
+    const d = placeData({ book, questions, photos, letters, chapters }, bookContent, places, { editable, untitledSection: untitled, untitledChapter });
+    return placeNames(d.chapters, d.answers);
+  }, [book, questions, photos, letters, chapters, bookContent, places, editable, untitled, untitledChapter]);
+  const openerDesign = !!design.opener.photo;
+  /** Лист «Где стоит фото» — из подписи места в выборе фото и «Перенести…» у фото ответа. */
+  const openPlace = useCallback((photoId: string) => setSheet({ kind: "photo", photoId }), []);
+  const openSheet = useCallback((target: PreviewTarget) => setSheet(target), []);
+  const closePreview = useCallback(() => setShowPreview(false), []);
+  // Шапка превью на весь экран — тем же элементом между правками: превью (memo) не перерисовывается из-за неё.
+  const previewHeader = useMemo(
+    () => (
+      <div className="mb-4 space-y-3">
+        <PreviewHeading bookId={book.id} title={t.inBook} exact={t.inBookExact} onLeave={() => void flush()} />
+        {editable ? <PreviewIntro blank={blank} /> : null}
+      </div>
+    ),
+    [book.id, t, flush, editable, blank],
+  );
   const previewProps = q
     ? {
+        ...src,
         language: book.language,
         format,
         design,
         bookTitle: book.title,
-        questions,
-        photos,
         epigraphs,
-        chapters: blank ? chapters : undefined,
         currentId: q.id,
         selectedId: selectedPhoto?.id ?? null,
         onSelect: setSelectedPhotoId,
         onChange: editable ? updateInline : undefined,
+        onTarget: openSheet,
       }
     : null;
+
+  // Что поменяли листы фото: строки фото, загруженные, настройки книги, порядок фото (отмену показывает сам лист).
+  const { replace: replacePhotos, reorder: reorderPhotos, applyLayout } = inlinePhotos;
+  const photoEvents = useMemo<PlaceEvents>(
+    () => ({
+      onPhotos: replacePhotos,
+      onUploaded: replacePhotos,
+      onBook: (patch) => setBook((b) => ({ ...b, ...patch })),
+      onOrder: reorderPhotos,
+      // Лист перевёл книгу на правила 2 (или сверил версию): все строки фото и версия правил — в редактор.
+      onLayout: applyLayout,
+    }),
+    [replacePhotos, reorderPhotos, applyLayout],
+  );
+
+  /** «Без фото» у главы (tocLines noOpenerPhoto): сразу на экране, потом на сервер; ошибка — откат. */
+  const setNoOpener = useCallback(
+    async (key: string, on: boolean) => {
+      const prev: TocLines = bookRef.current.tocLines ?? {};
+      const next = withNoOpenerPhoto(prev, key, on);
+      setBook((b) => ({ ...b, tocLines: next }));
+      try {
+        const res = await patchBook(bookRef.current.id, { tocLines: next });
+        setBook((b) => ({ ...b, tocLines: res.tocLines }));
+        return true;
+      } catch (e) {
+        setBook((b) => ({ ...b, tocLines: prev }));
+        toastError(e);
+        return false;
+      }
+    },
+    [],
+  );
+
+  /** Кнопки карточки «Начало главы»: лист «Фото главы» с нужного места или «Без фото» с «Отменить». */
+  const onChapterStart = (chapterKey: string, action: ChapterStartAction) => {
+    const cs = t.chapterStart;
+    if (action === "none") {
+      void setNoOpener(chapterKey, true).then((ok) => ok && toast(cs.toastNone, "success", { action: { label: cs.undo, run: () => setNoOpener(chapterKey, false) } }));
+      return;
+    }
+    setSheet({
+      kind: "opener",
+      chapterKey,
+      ...(action === "change" ? { choose: "opener" as const } : action === "addAfter" ? { choose: "after" as const } : action === "after" ? { focus: "after" as const } : {}),
+    });
+  };
 
   const prev = questions[index - 1];
   const next = questions[index + 1];
@@ -404,7 +496,15 @@ function EditorBody({
   const dictateControl = (className: string, compact: boolean) =>
     editable && dictation.supported && q ? <DictationControl dictation={dictation} lang={lang} onLang={setLang} onToggle={toggleDictation} compact={compact} className={className} /> : null;
 
-  const navProps = { groups, kind, current: q?.id ?? null, onPick: pick, photos, actions: navActions, busy, renaming, onRenaming: setRenaming };
+  const onChapterPhoto = useCallback((key: string) => {
+    setDrawer(false);
+    setSheet({ kind: "opener", chapterKey: key });
+  }, []);
+  const onAlbum = useCallback(() => {
+    setDrawer(false);
+    setSheet({ kind: "gallery" });
+  }, []);
+  const navProps = { groups, kind, current: q?.id ?? null, onPick: pick, photos, actions: navActions, busy, renaming, onRenaming: setRenaming, photoNav: { src, onChapterPhoto, onAlbum } };
   const sidebar = <ChapterNav {...navProps} />;
 
   const emptyMode: EmptyMode | null = q ? null : blank ? (chapters.length ? "noSections" : "noChapters") : "noQuestions";
@@ -429,7 +529,7 @@ function EditorBody({
               chapterNumber={chapterNumber}
               chapterTitle={chapterTitle}
               language={book.language}
-              pages={<PagesBadge book={book} questions={questions} photos={photos} letters={letters} chapters={blank ? chapters : undefined} />}
+              pages={<PagesBadge book={book} questions={questions} photos={photos} letters={letters} chapters={chapters} />}
               focus={focus}
               onChapters={() => setDrawer(true)}
               onRename={
@@ -452,6 +552,9 @@ function EditorBody({
             </div>
           )}
 
+          {q && group && posInChapter === 0 ? (
+            <ChapterStart {...src} chapterKey={group.key} fallbackTitle={chapterTitle} editable={editable} onAction={(action) => onChapterStart(group.key, action)} />
+          ) : null}
           {q && group ? (
             <article className="relative overflow-hidden rounded-[28px] border border-line/70 bg-white shadow-soft">
               {/* Прогресс по главе — тонкая линия сверху */}
@@ -555,10 +658,13 @@ function EditorBody({
                   onChange={updateInline}
                   onCaption={editCaption}
                   onRotate={rotatePhoto}
-                  onRemove={(id) => {
-                    setSelectedPhotoId(null);
-                    void patchPhoto(id, { questionId: null });
-                  }}
+                  format={book.format}
+                  blank={blank}
+                  places={places}
+                  names={names}
+                  onPatch={patchPhoto}
+                  onUndo={applyUndo}
+                  onMove={openPlace}
                 />
               ) : null}
 
@@ -611,10 +717,16 @@ function EditorBody({
           ) : null}
 
           {previewProps && showPreview && !focus ? (
-            <div className="mt-6 space-y-2 xl:hidden">
-              <PreviewHeading bookId={book.id} title={t.inBook} exact={t.inBookExact} onLeave={() => void flush()} />
-              <PreviewPane {...previewProps} className="max-h-[75dvh] overflow-y-auto rounded-3xl bg-cream/60 p-4" />
-            </div>
+            // Телефон и узкий экран: превью на весь экран, прокручено к текущему ответу; листы фото — поверх него.
+            <PreviewSheet title={t.chrome.previewTitle} onClose={closePreview}>
+              {(className) => (
+                <PreviewPane
+                  {...previewProps}
+                  className={className}
+                  header={previewHeader}
+                />
+              )}
+            </PreviewSheet>
           ) : null}
         </section>
 
@@ -625,6 +737,7 @@ function EditorBody({
               {previewProps ? (
                 <>
                   <PreviewHeading bookId={book.id} title={t.inBook} exact={t.inBookExact} onLeave={() => void flush()} />
+                  {editable ? <PreviewIntro blank={blank} /> : null}
                   <PreviewPane {...previewProps} className="max-h-[calc(100dvh-16rem)] overflow-y-auto rounded-2xl bg-cream/60 p-3" />
                 </>
               ) : null}
@@ -651,9 +764,7 @@ function EditorBody({
                 <ArrowLeft className="size-5" />
               </button>
               {dictateControl("shrink-0", true)}
-              <button className="flex size-11 shrink-0 items-center justify-center rounded-full border border-line bg-white" onClick={() => setPicker(true)} aria-label={t.photoInAnswer}>
-                <ImagePlus className="size-5" />
-              </button>
+              <MobileBarButton icon={<ImagePlus className="size-[18px]" />} label={t.chrome.photoBtn} onClick={() => setPicker(true)} />
               {next ? (
                 <button onClick={() => goTo(index + 1)} className="flex h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-full bg-ink px-4 text-[15px] font-medium text-white active:bg-ink-soft">
                   <span className="truncate">{blank ? t.blank.nextSection : q.answer.trim() ? t.next : t.skip}</span>
@@ -708,11 +819,24 @@ function EditorBody({
           photos={photos}
           questionId={q.id}
           questionLabel={labelOf(q)}
+          places={places}
+          names={names}
+          blank={blank}
+          openerDesign={openerDesign}
+          maxPhotos={maxPhotos}
+          upload={inlinePhotos.upload}
+          onUndo={applyUndo}
+          onPlace={openPlace}
           onAttach={(id) => {
             setSelectedPhotoId(id);
-            void patchPhoto(id, { questionId: q.id });
+            return patchPhoto(id, { questionId: q.id });
           }}
-          onDetach={(id) => patchPhoto(id, { questionId: null })}
+          onDetach={(id) => {
+            // Снятое с ответа фото не печатается (а не встаёт само после главы); «Отменить» — в тосте.
+            void patchPhoto(id, removePatch()).then((undo) => {
+              if (undo) toast(t.answerPhoto.toastRemoved, "success", { action: { label: t.answerPhoto.undo, run: () => applyUndo(undo) } });
+            });
+          }}
           onUploaded={inlinePhotos.addUploaded}
           onClose={() => setPicker(false)}
           otherLabel={(qid) => {
@@ -721,6 +845,8 @@ function EditorBody({
           }}
         />
       ) : null}
+
+      {sheet ? <PhotoSheetHost src={src} target={sheet} editable={editable} on={photoEvents} onLeave={() => void flush()} onClose={() => setSheet(null)} /> : null}
 
       {drawer ? (
         <Drawer title={blank ? t.blank.drawerTitle : undefined} onClose={() => setDrawer(false)}>

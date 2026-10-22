@@ -2,7 +2,7 @@ import "server-only";
 import { Document } from "@react-pdf/renderer";
 import { site } from "@/config/site";
 import { chapterRuns, photoPages, type BookContent } from "@/lib/book/layout";
-import { hasToc } from "@/lib/book/toc";
+import { hasToc, printedGalleryTitle } from "@/lib/book/toc";
 import { ChapterBody } from "./chapter-body";
 import { Colophon } from "./colophon";
 import { Dedication } from "./dedication";
@@ -44,7 +44,7 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
   }
 
   if (content.galleryPhotos.length) {
-    pages.push(<Opener key="open-__gallery" kit={kit} chapterKey="__gallery" number={null} title={content.galleryTitle} />);
+    pages.push(<Opener key="open-__gallery" kit={kit} chapterKey="__gallery" number={null} title={printedGalleryTitle(content)} />);
     photoPages(content.galleryPhotos).forEach((group, i) => pages.push(<PhotoPage key={`ph-gallery-${i}`} kit={kit} group={group} />));
   }
 

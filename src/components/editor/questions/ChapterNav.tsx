@@ -1,13 +1,18 @@
 "use client";
 
-import { memo, useDeferredValue, useEffect, useRef, useState, type ReactNode } from "react";
-import { ArrowDown, ArrowUp, Check, MoreHorizontal, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { memo, useDeferredValue, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { ArrowDown, ArrowUp, Check, Images, MoreHorizontal, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { confirmDialog } from "@/components/ui/overlays";
 import { useMessages } from "@/i18n/client";
-import { sectionLabel, type ChapterGroup, type EditorPhoto } from "@/lib/book/editor-model";
+import { editorPhotoUrl, sectionLabel, type ChapterGroup, type EditorPhoto } from "@/lib/book/editor-model";
+import { getInteriorDesign } from "@/lib/book/interiors";
 import { CHAPTER_TITLE_MAX, type BookKind } from "@/lib/content/kinds";
 import { cn } from "@/lib/class-names";
+import { noOpenerPhotoOf } from "../photos/model";
+import type { BookSource } from "../preview/photo-sheets";
+import { chapterStartPhotos } from "./ChapterStartCard";
 import { chapterNumbers, chapterStats } from "./outline";
+import { useBookContent } from "./useBookContent";
 
 /** Что оглавление может делать с главами и разделами своей книги; null у ChapterNav — оглавление только для чтения. */
 export interface NavActions {
@@ -33,6 +38,25 @@ interface NavProps {
   /** Глава, название которой правится в строке (её открывает и кнопка в шапке листа). */
   renaming: string | null;
   onRenaming: (key: string | null) => void;
+  /** Фото глав: миниатюра у строки, «Фото главы» в меню ⋯, строка альбома в конце; нет — оглавление без фото. */
+  photoNav?: PhotoNav | null;
+}
+
+/** Фото глав в оглавлении: по сборке книги (src) и что открыть — лист «Фото главы» или альбом. */
+export interface PhotoNav {
+  src: BookSource;
+  onChapterPhoto: (key: string) => void;
+  onAlbum: () => void;
+}
+
+/** Что оглавление показывает о фото глав: миниатюра фото главы (null — не выбрано), «без фото», фото в альбоме. */
+interface NavPhotos {
+  openerDesign: boolean;
+  thumbs: ReadonlyMap<string, string | null>;
+  dismissed: ReadonlySet<string>;
+  album: number;
+  onChapterPhoto: (key: string) => void;
+  onAlbum: () => void;
 }
 
 /** Кнопка-значок действия: на телефоне не меньше 40 px. */
@@ -135,10 +159,11 @@ function AddChapter({ onAdd, busy }: { onAdd: (title: string) => void; busy: boo
  * Оглавление по главам: поиск, «только без текста», текущая глава раскрыта. У своей книги (actions не null) главы
  * переименовываются в строке, переставляются и удаляются, разделы переставляются, переносятся в другую главу и удаляются.
  */
-function ChapterNavView({ groups, kind, current, onPick, photos, actions, busy, renaming, onRenaming }: NavProps) {
+function ChapterNavView({ groups, kind, current, onPick, photos, actions, busy, renaming, onRenaming, chapterPhotos: cp }: Omit<NavProps, "photoNav"> & { chapterPhotos: NavPhotos | null }) {
   const ed = useMessages();
   const t = ed.editor;
   const nav = t.nav;
+  const chrome = t.chrome;
   const blank = kind === "blank";
   const untitled = ed.books.untitledSection;
   const untitledChapter = ed.book.untitledChapter;
@@ -163,6 +188,8 @@ function ChapterNavView({ groups, kind, current, onPick, photos, actions, busy, 
   const s = search.trim().toLowerCase();
   const filtering = !!s || onlyEmpty;
   const own = blank && actions !== null;
+  // Меню ⋯: у своей книги — правка главы и «Фото главы», у книг с вопросами — только «Фото главы».
+  const hasMenu = own || !!cp;
 
   const askDelete = async (g: ChapterGroup) => {
     const st = chapterStats(
@@ -197,7 +224,8 @@ function ChapterNavView({ groups, kind, current, onPick, photos, actions, busy, 
           const number = numbers.get(g.key) ?? null;
           const empty = blank && number === null;
           const title = g.title.trim() || (blank ? untitledChapter : g.title);
-          const menuOpen = own && menu === g.key;
+          const menuOpen = hasMenu && menu === g.key;
+          const thumb = cp?.openerDesign ? cp.thumbs.get(g.key) : undefined;
           return (
             <li key={`${g.key}-${gi}`}>
               <div className="flex items-center gap-1">
@@ -226,12 +254,18 @@ function ChapterNavView({ groups, kind, current, onPick, photos, actions, busy, 
                       <span className={cn("block truncate", !g.title.trim() && blank && "text-muted italic")}>{title}</span>
                       {empty ? <span className="block truncate text-[11px] font-normal text-muted">{nav.notInBook}</span> : null}
                     </span>
+                    {thumb ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- миниатюра фото главы
+                      <img src={thumb} alt={chrome.navThumbAria(title)} className="size-5 shrink-0 rounded-full object-cover ring-1 ring-line" loading="lazy" />
+                    ) : thumb === null && !cp?.dismissed.has(g.key) ? (
+                      <span role="img" aria-label={chrome.navNoPhotoAria} className="size-5 shrink-0 rounded-full border border-dashed border-muted/60" />
+                    ) : null}
                     <span className="text-[11px] text-muted tabular-nums">
                       {answered}/{g.items.length}
                     </span>
                   </button>
                 )}
-                {own && renaming !== g.key ? (
+                {hasMenu && renaming !== g.key ? (
                   <IconBtn label={nav.chapterActions(title)} onClick={() => setMenu(menuOpen ? null : g.key)}>
                     <MoreHorizontal className="size-4" />
                   </IconBtn>
@@ -239,6 +273,20 @@ function ChapterNavView({ groups, kind, current, onPick, photos, actions, busy, 
               </div>
               {menuOpen ? (
                 <div className="mt-1 mb-2 ml-2 flex flex-wrap items-center gap-1">
+                  {cp ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMenu(null);
+                        cp.onChapterPhoto(g.key);
+                      }}
+                      className="flex h-8 items-center gap-1.5 rounded-lg px-2 text-[13px] text-ink-soft transition hover:bg-ink/5 hover:text-ink max-sm:h-10 max-sm:border max-sm:border-line"
+                    >
+                      <Images className="size-4" /> {chrome.navMenu}
+                    </button>
+                  ) : null}
+                  {own ? (
+                    <>
                   <IconBtn
                     label={nav.rename}
                     disabled={busy}
@@ -266,6 +314,8 @@ function ChapterNavView({ groups, kind, current, onPick, photos, actions, busy, 
                   >
                     <Trash2 className="size-4" />
                   </IconBtn>
+                    </>
+                  ) : null}
                 </div>
               ) : null}
               {expanded ? (
@@ -342,6 +392,14 @@ function ChapterNavView({ groups, kind, current, onPick, photos, actions, busy, 
           );
         })}
       </ol>
+      {cp?.album ? (
+        <button type="button" onClick={cp.onAlbum} className="mt-1 flex min-h-10 w-full items-center gap-2 rounded-xl px-2 py-2 text-left text-sm text-ink-soft transition hover:bg-ink/5 max-sm:min-h-11">
+          <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-cream text-muted">
+            <Images className="size-3.5" />
+          </span>
+          <span className="min-w-0 flex-1 truncate">{chrome.albumRow(cp.album)}</span>
+        </button>
+      ) : null}
       {own ? <AddChapter onAdd={(title) => actions?.addChapter(title)} busy={busy} /> : null}
     </div>
   );
@@ -354,7 +412,34 @@ const ChapterNavList = memo(ChapterNavView);
  * перерисовывается, только когда меняются главы или текущий вопрос. Текущий вопрос и переход — по id, а не по
  * месту в списке: пока отложенные главы догоняют добавленный или удалённый вопрос, места сдвинуты.
  */
-export function ChapterNav({ groups, ...rest }: NavProps) {
+export function ChapterNav({ groups, photoNav, ...rest }: NavProps) {
   const deferred = useDeferredValue(groups);
-  return <ChapterNavList groups={deferred} {...rest} />;
+  if (photoNav) return <ChapterNavPhotos groups={deferred} photoNav={photoNav} {...rest} />;
+  return <ChapterNavList groups={deferred} chapterPhotos={null} {...rest} />;
+}
+
+/**
+ * Оглавление с фото глав: миниатюры и альбом — по сборке книги (useBookContent, та же, что у превью); список
+ * перерисовывается, только когда фото глав и альбом действительно изменились.
+ */
+function ChapterNavPhotos({ photoNav, ...rest }: Omit<NavProps, "photoNav"> & { photoNav: PhotoNav }) {
+  const { src, onChapterPhoto, onAlbum } = photoNav;
+  const { book, photos } = src;
+  const { content, places } = useBookContent(book, src.questions, photos, src.letters, src.chapters);
+  const openerDesign = !!getInteriorDesign(book.interior).opener.photo;
+  const keys = rest.groups.map((g) => g.key).join("\n");
+  // Значение — строкой: новый объект только при настоящей перемене (правка текста оглавление не трогает).
+  const sig = useMemo(() => {
+    const tocLines = book.tocLines ?? {};
+    const thumbs = keys.split("\n").map((key) => {
+      const opener = chapterStartPhotos(places, photos, key).opener;
+      return [key, opener ? editorPhotoUrl(opener) : null, noOpenerPhotoOf(tocLines, key)] as const;
+    });
+    return JSON.stringify([openerDesign, content.galleryPhotos.length, thumbs]);
+  }, [keys, places, photos, book.tocLines, openerDesign, content.galleryPhotos.length]);
+  const chapterPhotos = useMemo<NavPhotos>(() => {
+    const [design, album, thumbs] = JSON.parse(sig) as [boolean, number, [string, string | null, boolean][]];
+    return { openerDesign: design, album, thumbs: new Map(thumbs.map(([k, u]) => [k, u])), dismissed: new Set(thumbs.filter((x) => x[2]).map((x) => x[0])), onChapterPhoto, onAlbum };
+  }, [sig, onChapterPhoto, onAlbum]);
+  return <ChapterNavList {...rest} chapterPhotos={chapterPhotos} />;
 }

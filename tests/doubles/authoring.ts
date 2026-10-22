@@ -315,6 +315,7 @@ export class MemPhotos implements PhotoRepository {
   belongToBook = async (_b: string, ids: string[]) => ids.every((id) => this.rows.some((p) => p.id === id));
   add = async (p: Photo) => void this.rows.push(p);
   save = async () => {};
+  saveRotation = async () => {};
   delete = async (p: Photo) => void (this.rows = this.rows.filter((x) => x.id !== p.id));
   reorder = async () => {};
   detachFromQuestions = async (_b: string, questionIds: readonly string[]) => {

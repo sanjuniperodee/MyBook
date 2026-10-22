@@ -92,7 +92,7 @@ export const books = pgTable(
      * Правила раскладки фото (src/lib/book/layout.ts): 1 — прежние, 2 — у каждого фото одно место (фото главы выбирает
      * автор, снимки обложки внутрь сами не идут). Меняется только переводом книги (authoring/application/layout-rev2.ts).
      */
-    layoutRev: smallint("layout_rev").notNull().default(1),
+    layoutRev: smallint("layout_rev").notNull().default(2),
     /** Токен публичной ссылки для писем от близких; null — приём писем выключен. */
     inviteToken: text("invite_token"),
     /** Язык книги: вопросы, заголовки глав и служебные страницы PDF (ru | kk). */

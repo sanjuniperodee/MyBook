@@ -7,6 +7,12 @@ import { getTheme } from "@/lib/content/themes";
 import { parseFrames } from "@/lib/book/photo-frame";
 import { parseCoverDesign } from "@/lib/book/cover-design";
 import { bookSpreadSample } from "@/server/spreadSample";
+import { bookKind } from "@/lib/content/kinds";
+import { buildBookContent } from "@/lib/book/book-content";
+import { withCoverPhotos } from "@/lib/book/cover-photos";
+import { questionTexts, toPhotoItem } from "@/lib/book/layout";
+import { photoPlaceOf } from "@/lib/book/photo-place";
+import { editorModel } from "@/lib/book/editor-data";
 import { CoverEditor } from "./CoverEditor";
 import { getLocale, getMessages } from "@/i18n/server";
 
@@ -26,6 +32,18 @@ export default async function CoverPage({ params }: { params: Promise<{ id: stri
     getMessages(),
   ]);
   const theme = getTheme(book.theme, locale);
+  // Где каждое фото в книге — та же сборка, что у PDF и вкладки «Фото»: подписи в выборе фото обложки.
+  const covered = withCoverPhotos(book, photos.map((p) => p.id));
+  const content = buildBookContent(covered, questions, photos.map(toPhotoItem), chapters);
+  const places = photoPlaceOf(content, photos, covered);
+  const placeNames = {
+    // Главы книги — названия как в печати (идут последними: у подписей побеждает последнее); без текста — как в редакторе.
+    chapters: [
+      ...editorModel(book, questions, chapters, photos).chapters.map((c) => ({ key: c.key, title: c.title })),
+      ...content.chapters.flatMap((c) => [{ key: c.key, title: c.title }, ...(c.folded ?? []).map((f) => ({ key: f.key, title: f.title }))]),
+    ],
+    answers: questions.map((q) => ({ id: q.id, title: questionTexts(q, book).heading.trim() || m.books.photos.answer })),
+  };
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
       <h1 className="mb-5 font-serif text-3xl font-medium sm:mb-8 sm:text-5xl">{m.books.cover.title}</h1>
@@ -35,7 +53,10 @@ export default async function CoverPage({ params }: { params: Promise<{ id: stri
         editable={book.status === "draft"}
         recipientLabel={theme.recipientLabel ?? ""}
         sample={bookSpreadSample(book, questions, chapters, m.books.pages.dedicationEmpty, photos)}
-        photos={photos.map((p) => ({ id: p.id, width: p.width, height: p.height }))}
+        photos={photos.map((p) => ({ id: p.id, width: p.width, height: p.height, opener: p.opener ?? false }))}
+        places={[...places]}
+        placeNames={placeNames}
+        blank={bookKind(book.theme) === "blank"}
         theme={book.theme}
         year={book.occasionDate ? Number(book.occasionDate.slice(0, 4)) : new Date().getFullYear()}
         initial={{

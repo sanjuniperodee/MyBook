@@ -16,9 +16,15 @@ describe("editorModel", () => {
     expect(groups.flatMap((g) => g.items.map((x) => x.i))).toEqual(model.questions.map((_, i) => i));
   });
 
-  it("фото обложки в редактор не попадает, остальные идут как есть", () => {
-    expect(model.photos.map((p) => p.id)).not.toContain(classic.book.coverPhotoId);
-    expect(model.photos).toHaveLength(classic.photos.length - 1);
+  it("все фото книги, снимок обложки тоже (R9): печатается ли он внутри, решает сборка; «на обложке» — только видные на ней", () => {
+    expect(model.photos.map((p) => p.id)).toEqual(classic.photos.map((p) => p.id));
+    // «Лён» — обложка без фото, оборот «цитата» — тоже: выбранные снимки на них не видны.
+    expect(model.photos.every((p) => p.onCover === null)).toBe(true);
+    const photobook = fixtureBook("photobook", "a5", "ru").bundle;
+    const m = editorModel(photobook.book, photobook.questions, photobook.chapters, photobook.photos);
+    const onCover = (name: string) => m.photos.find((p) => photobook.photos.find((x) => x.id === p.id)!.storageKey.endsWith(`/${name}.jpg`))!.onCover;
+    // «Мозаика» — четыре места (cover, p5, p7, p13), оборот «полароиды» — три снимка; p14 и p16 выбраны, но не видны.
+    expect([onCover("cover"), onCover("p13"), onCover("p14"), onCover("p1"), onCover("p10"), onCover("a")]).toEqual(["cover", "cover", null, "back", "back", null]);
   });
 
   it("эпиграфы — по ключу главы темы, только у глав, где они есть", () => {

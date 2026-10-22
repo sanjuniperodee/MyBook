@@ -131,6 +131,12 @@ export function isRemovedChapter(c: Pick<TocCandidate, "kind" | "key" | "pageKey
   return c.kind === "chapter" && !!lines[c.key]?.hidden && !c.first && c.pageKey !== GALLERY_KEY;
 }
 
+/**
+ * Название альбома в конце, как его печатает книга: своё (название строки альбома в оглавлении) или по умолчанию.
+ * Одно на начальную полосу альбома в PDF, строку оглавления, образец «Страниц» и превью редактора.
+ */
+export const printedGalleryTitle = (content: Pick<BookContent, "galleryTitle" | "tocLines">) => content.tocLines?.[tocKey.chapter(GALLERY_KEY)]?.title || content.galleryTitle;
+
 /** Оглавление книги по её настройкам. */
 export function bookToc(content: BookContent): TocLine[] {
   return selectToc(tocCandidates(content), content.tocMode ?? "chapters", content.tocLines ?? {});

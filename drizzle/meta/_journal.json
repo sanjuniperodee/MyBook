@@ -498,6 +498,13 @@
       "when": 1792689963586,
       "tag": "0070_design_ai",
       "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1792692118947,
+      "tag": "0071_layout_rev_default",
+      "breakpoints": true
     }
   ]
 }

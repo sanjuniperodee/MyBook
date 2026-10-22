@@ -82,7 +82,7 @@ async function migrate(limit: number, only: string | null) {
     renameSync(`${backupFile}.tmp`, backupFile);
   };
 
-  const tally = { scanned: 0, A: 0, B: 0, stayed: 0, done: 0, missing: 0, failed: 0 };
+  const tally = { scanned: 0, A: 0, B: 0, coverDrafts: 0, stayed: 0, done: 0, missing: 0, failed: 0 };
   const stayed: Record<string, number> = {};
   let after: string | null = null;
   for (;;) {
@@ -103,14 +103,20 @@ async function migrate(limit: number, only: string | null) {
         if (r.plan.ok) {
           tally[r.plan.plan]++;
           const what = r.plan.plan === "B" ? `план B, позиции фото перенумерованы (${r.plan.changes.length} фото)` : `план A (${r.plan.changes.length} фото)`;
-          if (r.plan.plan === "B" || only) console.log(`${label}: ${what}`);
+          if (r.plan.coverInAnswer) {
+            // Черновик со снимком обложки в ответе: переводится, и снимок теперь печатается в ответе (редактор его там показывает).
+            tally.coverDrafts++;
+            console.log(`${label}: ${what}; фото обложки теперь видно в ответе «${r.plan.coverInAnswer.heading || "без заголовка"}»`);
+          } else if (r.plan.plan === "B" || only) console.log(`${label}: ${what}`);
         } else {
           tally.stayed++;
           stayed[r.plan.reason] = (stayed[r.plan.reason] ?? 0) + 1;
           const why =
             r.plan.reason === "coverInAnswer"
-              ? `фото обложки стоит в ответе «${r.plan.coverInAnswer?.heading || "без заголовка"}» — по правилам 2 оно там напечатается, а редактор его в ответе не показывает`
-              : "правила 2 не повторяют вёрстку";
+              ? `книга заказана, а фото обложки стоит в ответе «${r.plan.coverInAnswer?.heading || "без заголовка"}» — по правилам 2 оно там напечаталось бы`
+              : r.plan.reason === "waitingChapter"
+                ? "фото ждёт свою главу без текста — перевод переставил бы его, а выбор автора не трогаем"
+                : "правила 2 не повторяют вёрстку";
           console.log(`${label}: остаётся на правилах 1 — ${why}`);
         }
       } catch (err) {
@@ -129,6 +135,7 @@ async function migrate(limit: number, only: string | null) {
     [
       `Просмотрено книг на правилах 1: ${tally.scanned}`,
       `${apply ? "Переведено" : "Можно перевести"}: план A — ${tally.A}, план B (позиции перенумерованы) — ${tally.B}`,
+      `Из них черновиков, где фото обложки теперь видно в ответе: ${tally.coverDrafts}`,
       `Остаются на правилах 1: ${tally.stayed}${reasons ? ` (${reasons})` : ""}`,
       ...(tally.done || tally.missing ? [`Уже на правилах 2: ${tally.done}, нет книги: ${tally.missing}`] : []),
       ...(tally.failed ? [`Ошибок: ${tally.failed}`] : []),
