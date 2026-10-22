@@ -38,7 +38,7 @@ export const design_cover: Messages["design"]["cover"] = {
     grid: "Тор",
     back2: "Үлгі мен мәтінге",
   },
-  panels: { add: "Қосу", layouts: "Макеттер", background: "Фон", properties: "Баптаулар", layers: "Қабаттар", aria: "Құрастырушы панельдері" },
+  panels: { ai: "ЖИ", add: "Қосу", layouts: "Макеттер", background: "Фон", properties: "Баптаулар", layers: "Қабаттар", aria: "Құрастырушы панельдері" },
   add: {
     text: "Мәтін",
     presets: { heading: "Тақырып", subheading: "Тақырыпша", body: "Қарапайым мәтін", script: "Қолжазба жазу" },

@@ -252,6 +252,7 @@ export function PagesEditor({
           </p>
         ) : null}
         <DesignStudio
+          bookId={bookId}
           interior={state.interior}
           base={base}
           design={design}

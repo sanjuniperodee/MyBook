@@ -1,5 +1,5 @@
 /** Книги: сама книга, вопросы с ответами, фото и письма близких (модуль authoring). */
-import { boolean, index, integer, jsonb, pgTable, smallint, text, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { boolean, index, integer, jsonb, pgTable, serial, smallint, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import type { Locale } from "@/i18n/config";
 import { timestamps } from "./columns";
 import { users } from "./identity";
@@ -211,3 +211,64 @@ export const bookLetters = pgTable(
 );
 
 export type BookLetter = typeof bookLetters.$inferSelect;
+
+/**
+ * Просьбы к ИИ-дизайнеру (оформление страниц и обложка): по ним считается бесплатный лимит клиента (5 за всё время), они же — журнал для
+ * разбора качества (просьба, операции, замечания, токены). pending — запрос идёт; failed — модель не ответила (не в лимите).
+ */
+export const designAiRequests = pgTable(
+  "design_ai_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    bookId: uuid("book_id")
+      .notNull()
+      .references(() => books.id, { onDelete: "cascade" }),
+    target: text("target", { enum: ["pages", "cover"] }).notNull(),
+    prompt: text("prompt").notNull(),
+    status: text("status", { enum: ["pending", "ok", "failed"] }).notNull().default("pending"),
+    /** Из чего списан запрос: бесплатный лимит или купленный пакет. */
+    source: text("source", { enum: ["free", "credit"] }).notNull().default("free"),
+    reply: text("reply").notNull().default(""),
+    ops: jsonb("ops").$type<unknown[]>().notNull().default([]),
+    errors: jsonb("errors").$type<string[]>().notNull().default([]),
+    usage: jsonb("usage").$type<Record<string, number>>().notNull().default({}),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("design_ai_requests_user_idx").on(t.userId, t.createdAt)],
+);
+
+/** Купленные запросы к ИИ-дизайнеру: остаток на клиента. Тратятся, когда бесплатный лимит исчерпан. */
+export const designAiCredits = pgTable("design_ai_credits", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  balance: integer("balance").notNull().default(0),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * Покупки пакетов запросов к ИИ-дизайнеру. Число запросов и сумма — как в каталоге на момент покупки; оплата через Kaspi
+ * (цель ai_pack, в комментарии «MyBooks A<number>»). Запросы начисляются в той же транзакции, что и отметка «оплачено».
+ */
+export const designAiPurchases = pgTable(
+  "design_ai_purchases",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    number: serial("number").notNull(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    packId: text("pack_id").notNull(),
+    requests: integer("requests").notNull(),
+    amount: integer("amount").notNull(),
+    status: text("status", { enum: ["pending_payment", "paid", "cancelled"] }).notNull().default("pending_payment"),
+    /** Операция оплаты («kaspi:<id>» или «manual:<сотрудник>»). */
+    paymentId: text("payment_id"),
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("design_ai_purchases_number_idx").on(t.number), index("design_ai_purchases_user_idx").on(t.userId, t.createdAt)],
+);

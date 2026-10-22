@@ -1,3 +1,4 @@
+import { design_ai } from "./design-ai";
 import { design_cover } from "./design-cover";
 import { design_layouts } from "./design-layouts";
 import { design_pages } from "./design-pages";
@@ -15,4 +16,5 @@ export const design = {
   layouts: design_layouts,
   pages: design_pages,
   ui: design_ui,
+  ai: design_ai,
 };

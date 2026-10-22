@@ -188,7 +188,7 @@ export async function financeUnrecorded(): Promise<UnrecordedRow[]> {
     select pi.id, pi.target_kind, pi.external_id, pi.status = 'failed' as mismatch,
       case when pi.status = 'failed' and substring(pi.provider_status from 16) ~ '^[0-9]+$' then substring(pi.provider_status from 16)::int else pi.amount end as amount,
       coalesce(pi.paid_at, pi.updated_at) as at,
-      i.number as invoice_number, d.id as deal_id, d.number as deal_number, o.id as order_id, o.number as order_number, g.number as gift_number,
+      i.number as invoice_number, d.id as deal_id, d.number as deal_number, o.id as order_id, o.number as order_number, g.number as gift_number, ap.number as ai_pack_number,
       coalesce(d.assignee_id, o.assignee_id) as manager_id,
       coalesce(nullif(d.contact_name, ''), nullif(i.client_name, ''), o.contact_name, g.buyer_name, '') as client
     from payment_invoices pi
@@ -196,12 +196,14 @@ export async function financeUnrecorded(): Promise<UnrecordedRow[]> {
     left join crm_deals d on d.id = i.deal_id
     left join orders o on pi.target_kind = 'order' and o.id = pi.target_id
     left join gift_cards g on pi.target_kind = 'gift' and g.id = pi.target_id
+    left join design_ai_purchases ap on pi.target_kind = 'ai_pack' and ap.id = pi.target_id
     where pi.provider = 'kaspi' and coalesce(pi.paid_at, pi.updated_at) >= now() - make_interval(days => ${REFUND_WINDOW_DAYS})
       -- Сумма оплаты не совпала со счётом: Kaspi деньги принял, мы платёж не засчитали (provider_status «AmountMismatch:<сумма>»).
       and ((pi.status = 'failed' and pi.provider_status like 'AmountMismatch:%') or (pi.status = 'paid' and case pi.target_kind
         when 'deal_invoice' then not exists (select 1 from crm_payments p where p.method = 'kaspi' and p.external_ref in (pi.external_id, 'kaspi:' || pi.external_id))
         when 'order' then not exists (select 1 from order_payments x where x.method = 'kaspi' and x.external_ref in (pi.external_id, 'kaspi:' || pi.external_id))
         when 'gift' then g.payment_id is distinct from 'kaspi:' || pi.external_id
+        when 'ai_pack' then ap.payment_id is distinct from 'kaspi:' || pi.external_id
         else false end))
     order by at desc`);
   return r.rows.map((x) => ({
@@ -217,6 +219,7 @@ export async function financeUnrecorded(): Promise<UnrecordedRow[]> {
     orderId: str(x.order_id),
     orderNumber: x.order_number === null ? null : num(x.order_number),
     giftNumber: x.gift_number === null ? null : num(x.gift_number),
+    aiPackNumber: x.ai_pack_number == null ? null : num(x.ai_pack_number),
     managerId: str(x.manager_id),
     client: String(x.client ?? ""),
   }));
