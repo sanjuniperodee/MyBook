@@ -27,7 +27,7 @@ export class CallsService {
   }
 
   private async apply(e: CallEvent): Promise<Call | null> {
-    const staffId = await this.staff.byExtension(e.extension);
+    const staffId = e.staffId ?? (await this.staff.byExtension(e.extension));
     let call = await this.calls.findByExternal(e.provider, e.externalId);
     if (!call) {
       if (e.stage === "record") return null; // запись без звонка — игнорируем

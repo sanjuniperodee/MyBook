@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# Сборка шлюза WhatsApp (GOWA) со звонками — бета из открытого PR aldinokemal/go-whatsapp-web-multidevice#892
+# (библиотека purpshell/meowcaller, MIT). В релизах GOWA звонков нет, а на сервере нет Go и мало памяти для сборки,
+# поэтому программа собирается здесь, в Docker, под Linux сервера (x86_64, glibc Ubuntu 24.04), и уезжает готовым файлом:
+#
+#   bash deploy/gowa-beta-build.sh                       # → dist/gowa-beta/whatsapp + whatsapp.sha256
+#   scp dist/gowa-beta/whatsapp* сервер:~/mybook-sidecars/
+#   на сервере: GOWA_BETA_BIN=~/mybook-sidecars/whatsapp bash deploy/sidecars.sh whatsapp
+#
+# Коммит зафиксирован: новая голова PR — это новый, непроверенный код с доступом к номеру магазина. Обновлять осознанно.
+set -euo pipefail
+
+GOWA_BETA_REF="474275afbfd7eca48a918ef103de71669f2b6db0"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+OUT="${1:-$ROOT/dist/gowa-beta}"
+command -v docker >/dev/null || { echo "Нужен Docker"; exit 1; }
+mkdir -p "$OUT"
+
+# glibc сборки (Debian bookworm, 2.36) не новее, чем на сервере (2.39): программа с CGO (sqlite) там запустится.
+docker run --rm --platform linux/amd64 -v "$OUT:/out" -e REF="$GOWA_BETA_REF" golang:1.26-bookworm bash -euo pipefail -c '
+  git clone --quiet --filter=blob:none https://github.com/aldinokemal/go-whatsapp-web-multidevice.git /src
+  cd /src && git fetch --quiet origin refs/pull/892/head && git checkout --quiet "$REF"
+  cd src && CGO_ENABLED=1 go build -trimpath -ldflags="-w -s" -o /out/whatsapp .
+  cd /out && sha256sum whatsapp > whatsapp.sha256
+'
+echo "✓ $OUT/whatsapp ($(cut -c1-12 "$OUT/whatsapp.sha256")…), GOWA PR #892 @ ${GOWA_BETA_REF:0:7}"

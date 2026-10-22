@@ -21,6 +21,7 @@ const fake = {
   ordering: { deliverDueGifts: stepFn("gifts", 0), kaspiWatch: { check: stepFn("kaspi watch", null) } },
   notifications: { lifecycle: { run: stepFn("lifecycle", 0) } },
   outbox: { purge: stepFn("purge", undefined) },
+  telephony: { whatsapp: { sweep: stepFn("whatsapp calls", 0) } },
 };
 
 vi.mock("@/server/container", () => ({ container: () => fake }));
@@ -41,10 +42,10 @@ describe("scheduler: шаг упал — проход идёт дальше", ()
   });
   afterEach(() => vi.restoreAllMocks());
 
-  it("минутный проход: правила CRM и круг заявок упали — напоминания, бот, почта, доступ по счетам и проверка кассира Kaspi всё равно выполняются", async () => {
+  it("минутный проход: правила CRM и круг заявок упали — напоминания, бот, звонки WhatsApp, почта, доступ по счетам и проверка кассира Kaspi всё равно выполняются", async () => {
     failing.add("automations").add("routing");
     await crmTick();
-    expect(calls).toEqual(["automations", "reminders", "routing", "bot", "imap", "access", "expire", "kaspi watch"]);
+    expect(calls).toEqual(["automations", "reminders", "routing", "bot", "whatsapp calls", "imap", "access", "expire", "kaspi watch"]);
     expect(errors.map((e) => e[0])).toEqual(['[scheduler] step "crm automations" failed', '[scheduler] step "lead routing" failed']);
   });
 
@@ -52,7 +53,7 @@ describe("scheduler: шаг упал — проход идёт дальше", ()
     failing.add("kaspi watch");
     await crmTick();
     expect(calls.at(-1)).toBe("kaspi watch");
-    expect(calls).toHaveLength(8);
+    expect(calls).toHaveLength(9);
     expect(errors.map((e) => e[0])).toEqual(['[scheduler] step "kaspi watch" failed']);
   });
 

@@ -6,6 +6,7 @@ import { LoaderCircle, Mail, MessageCircle, PhoneOutgoing } from "lucide-react";
 import { toast, toastError } from "@/components/ui/overlays";
 import { callAction, openChatAction, sendEmailAction } from "@/app/admin/crm-actions";
 import { cn } from "@/lib/class-names";
+import { WhatsappCallButton } from "./WhatsappCall";
 
 type Target = { clientId?: string; dealId?: string; orderId?: string; callId?: string };
 
@@ -34,6 +35,7 @@ export function ContactActions({ target, canCall, canChat, canEmail = false, cla
           {calling ? <LoaderCircle className="size-4 animate-spin" /> : <PhoneOutgoing className="size-4" />} Позвонить
         </button>
       ) : null}
+      {canCall ? <WhatsappCallButton target={target} className="flex-1" /> : null}
       {canChat ? (
         <button
           type="button"

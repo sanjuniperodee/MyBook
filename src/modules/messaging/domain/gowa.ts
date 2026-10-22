@@ -115,6 +115,51 @@ function attachment(p: Record<string, unknown>): { type: string; path: string | 
   return null;
 }
 
+/** id звонка WhatsApp (шестнадцатеричный); он уходит в адрес аудиопотока шлюза — другие символы не пропускаем. */
+export const GOWA_CALL_ID = /^[A-Za-z0-9_.:-]{1,100}$/;
+
+/**
+ * id звонка из адреса аудиопотока (/wa-call/audio?call_id=…) — как есть, без раскодирования: nginx подставит шлюзу именно
+ * эту строку ($arg_call_id, первое вхождение), поэтому %-последовательности и прочие символы не пропускаем.
+ */
+export function gowaAudioCallId(originalUri: string | null): string | null {
+  const raw = /[?&]call_id=([^&#]*)/.exec(originalUri ?? "")?.[1] ?? "";
+  return GOWA_CALL_ID.test(raw) ? raw : null;
+}
+
+/** Событие журнала звонков (формат контекста «Телефония»; здесь — структурно, чтобы контексты не зависели друг от друга). */
+export type WhatsappCallEvent = {
+  provider: "whatsapp";
+  externalId: string;
+  direction: "in";
+  clientPhone: string;
+  extension: null;
+  at: Date;
+} & ({ stage: "end"; status: "missed"; durationSec: 0 } | { stage: "start" });
+
+/**
+ * Входящий звонок в WhatsApp → событие журнала звонков. Звонок из группы — не звонок клиента; скрытый номер (LID), который
+ * шлюз не смог сопоставить с телефоном, — пустой номер.
+ *
+ * - Обычный шлюз сообщает только о начале звонка (call.offer), ответить на него можно лишь на телефоне магазина, поэтому
+ *   звонок записывается пропущенным: менеджер перезвонит, а если дозвонится — пропущенные с этого номера закроются.
+ * - Шлюз со звонками (native — включены «Звонки WhatsApp» в «Интеграциях») присылает call.incoming: звонок звонит в CRM,
+ *   и сотрудник отвечает из браузера. call.offer такой шлюз шлёт тоже — его пропускаем, иначе звонок сразу стал бы пропущенным.
+ */
+export function parseGowaCall(body: unknown, opts: { native: boolean }): WhatsappCallEvent | null {
+  const b = record(body);
+  const event = str(b.event);
+  if (event !== (opts.native ? "call.incoming" : "call.offer")) return null;
+  const p = record(b.payload);
+  const callId = str(p.call_id);
+  const from = str(p.from);
+  if (!GOWA_CALL_ID.test(callId) || str(p.group_jid)) return null;
+  const phone = /@s\.whatsapp\.net$/.test(from) ? gowaChatId(from).replace(/\D/g, "") : "";
+  const at = new Date(str(b.timestamp));
+  const base = { provider: "whatsapp", externalId: callId, direction: "in", clientPhone: phone, extension: null, at: Number.isNaN(at.getTime()) ? new Date() : at } as const;
+  return opts.native ? { ...base, stage: "start" } : { ...base, stage: "end", status: "missed", durationSec: 0 };
+}
+
 /** Получатель статуса — сам аккаунт магазина (он прочитал входящее): такие отметки к нашим сообщениям не относятся. */
 const ownJid = (deviceId: string) => deviceId.split("@")[0].split(":")[0];
 

@@ -74,6 +74,9 @@ export async function crmTick() {
     // Бот-квалификатор: ходы, не сделанные таймером (перезапуск процесса), ожидание менеджера, брошенные опросы.
     const botTurns = await step("bot", () => container().messaging.bot.sweep(), 0);
     if (botTurns) console.log(`[scheduler] crm bot turns=${botTurns}`);
+    // Звонки WhatsApp, о конце которых никто не сообщил: звонят больше полутора минут или вкладка сотрудника пропала.
+    const calls = await step("whatsapp calls", () => container().telephony.whatsapp.sweep(), 0);
+    if (calls) console.log(`[scheduler] whatsapp calls closed=${calls}`);
     // Входящие письма по IMAP (если ящик подключён в «Интеграциях»).
     const mails = await step("imap", () => container().messaging.email.pollImap(), 0);
     if (mails) console.log(`[scheduler] crm emails=${mails}`);

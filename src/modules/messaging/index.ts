@@ -26,7 +26,7 @@ export type { ChatMessage } from "./infrastructure/chatView";
 export { WazzupError } from "./infrastructure/wazzup";
 export { MediaUnavailableError } from "./application/media";
 export { EDIT_WINDOW_MS, MessageActionError, REVOKE_WINDOW_MS } from "./application/services";
-export { GowaError, type GowaConfig, type GowaStatus, type GowaWebhook } from "./infrastructure/gowa";
+export { GOWA_DEVICE, GowaError, type GowaConfig, type GowaStatus, type GowaWebhook } from "./infrastructure/gowa";
 export type { Attachment, BlockReason, ContactsTarget, IngestExtra, SalesGateway as MessagingSalesGateway, IncomingRules, BotBrain, BotCrm, BotInvoices, BotSellerModel } from "./application";
 export type { BotSiteInfo } from "./infrastructure/adapters";
 export type { BotMetrics } from "./infrastructure/persistence";
@@ -54,6 +54,8 @@ export interface WhatsappSettings {
   gowa(): Promise<GowaConfig>;
   /** Адрес вебхука на сайте и секрет подписи (создаётся при первом обращении) — их сайт передаёт шлюзу сам. */
   gowaWebhook(): Promise<GowaWebhook>;
+  /** Звонки WhatsApp из CRM включены (свой шлюз и «Звонки WhatsApp» в «Интеграциях»). */
+  callsEnabled(): Promise<boolean>;
 }
 
 /** Вложения, которые пересылаются файлом. */
