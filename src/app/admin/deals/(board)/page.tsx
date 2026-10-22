@@ -75,30 +75,31 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
             ))}
           </div>
         ) : null}
-        <span className="text-sm text-muted max-lg:w-full">
+        <span className="text-sm text-muted max-lg:order-3 max-lg:w-full">
           в работе {rows.filter((r) => r.stageKind === "open").length} · {formatPrice(openSum)}
         </span>
-        <div className="m-hscroll ml-auto flex gap-2 max-lg:order-first max-lg:ml-0 max-lg:w-full max-lg:justify-end">
+        <div className="ml-auto flex gap-2 max-lg:order-2">
           {can(staff, "settings.manage") ? (
-            <Link href="/admin/deals/fields" className="btn btn-ghost btn-sm">
+            <Link href="/admin/deals/fields" className="btn btn-ghost btn-sm max-lg:hidden">
               Поля
             </Link>
           ) : null}
           {can(staff, "settings.manage") ? (
-            <Link href={`/admin/deals/stages?p=${pipeline.id}`} className="btn btn-ghost btn-sm">
+            <Link href={`/admin/deals/stages?p=${pipeline.id}`} className="btn btn-ghost btn-sm max-lg:hidden">
               <Settings2 className="size-4" /> Этапы
             </Link>
           ) : null}
           {can(staff, "deals.edit") ? (
-            <Link href={`/admin/deals/new?p=${pipeline.id}`} className="btn btn-sm">
+            <Link href={`/admin/deals/new?p=${pipeline.id}`} className="btn btn-primary btn-sm">
               <Plus className="size-4" /> Новая сделка
             </Link>
           ) : null}
         </div>
       </div>
-      <div className="m-hscroll flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="m-hscroll flex items-center gap-2 max-lg:w-full lg:contents">
         {can(staff, "deals.edit") ? (
-          <Link href="/admin/deals/duplicates" className="text-sm text-muted hover:text-wine">
+          <Link href="/admin/deals/duplicates" className="text-sm text-muted hover:text-wine max-lg:order-last max-lg:px-2">
             Дубли
           </Link>
         ) : null}
@@ -120,6 +121,13 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
                 </Link>
               ))
           : null}
+        {can(staff, "settings.manage") ? (
+          <>
+            <Link href="/admin/deals/stages" className="px-2 text-sm text-muted lg:hidden">Этапы</Link>
+            <Link href="/admin/deals/fields" className="px-2 text-sm text-muted lg:hidden">Поля</Link>
+          </>
+        ) : null}
+        </div>
         <MobileFilters className="ml-auto w-full shrink-0 lg:w-auto">
         <form className="ml-auto flex items-center gap-2 max-lg:flex-col max-lg:items-stretch" action="/admin/deals">
           {sp.p ? <input type="hidden" name="p" value={sp.p} /> : null}

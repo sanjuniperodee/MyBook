@@ -1,8 +1,8 @@
 "use client";
 
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef } from "react";
-import { navKind, rememberTab, saveScroll, savedScroll, type NavKind } from "./nav-memory";
+import { navKind, rememberTab, sectionOf, saveScroll, savedScroll, type NavKind } from "./nav-memory";
 
 const PHONE = "(max-width: 1023.98px)";
 
@@ -18,6 +18,8 @@ export function NavMotion() {
   const url = pathname + (search ? `?${search}` : "");
   const current = useRef(url);
   const pending = useRef<NavKind | null>(null);
+  const prev = useRef<string | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     const root = document.documentElement;
@@ -34,7 +36,14 @@ export function NavMotion() {
       const to = new URL(a.href, location.href);
       if (to.origin !== location.origin || !to.pathname.startsWith("/admin")) return;
       saveScroll(current.current, window.scrollY);
-      mark(navKind(location.pathname, to.pathname));
+      const kind = navKind(location.pathname, to.pathname);
+      mark(kind);
+      // «Назад» на уровень выше в том же разделе — туда, откуда пришли (список с фильтрами и позицией), а не на голый корень раздела.
+      const from = prev.current;
+      if (kind === "back" && from && sectionOf(from) === sectionOf(to.pathname) && new URL(from, location.origin).pathname === to.pathname) {
+        e.preventDefault();
+        router.push(from);
+      }
     };
     // Жест «назад» на iPhone уже анимирует сам Safari — свою анимацию не добавляем, но позицию вернём.
     const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
@@ -55,11 +64,12 @@ export function NavMotion() {
       window.removeEventListener("scroll", onScroll);
       cancelAnimationFrame(raf);
     };
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     const kind = pending.current;
     const first = current.current === url && kind === null;
+    if (current.current !== url) prev.current = current.current;
     current.current = url;
     rememberTab(url);
     // Вглубь — всегда с начала; назад, вкладка и обновление — туда, где стояли.

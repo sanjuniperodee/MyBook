@@ -94,6 +94,7 @@ export function StaffRow({ member: m, roles, isSelf, canTouchOwner, isOwner }: {
         </select>
       </td>
       <td className="px-4 py-3 max-lg:block max-lg:p-0">
+        <span className="mb-1 block text-xs text-muted lg:hidden">Внутренний номер</span>
         <input
           className="input h-9 w-24 text-sm max-lg:w-full"
           inputMode="numeric"
@@ -107,6 +108,7 @@ export function StaffRow({ member: m, roles, isSelf, canTouchOwner, isOwner }: {
         />
       </td>
       <td className="px-4 py-3 max-lg:block max-lg:p-0">
+        <span className="mb-1 block text-xs text-muted lg:hidden">Телефон (WhatsApp)</span>
         <input
           className="input h-9 w-40 text-sm max-lg:w-full"
           inputMode="tel"

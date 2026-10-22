@@ -17,7 +17,7 @@ export default async function RolesPage({ searchParams }: { searchParams: Promis
   const creating = want === "new";
   const current = creating ? null : (roles.find((r) => r.role.id === want) ?? roles.find((r) => r.role.id === staff.user.crmRoleId) ?? roles[0]);
   const item = (href: string, active: boolean, children: React.ReactNode) => (
-    <Link href={href} aria-current={active ? "page" : undefined} className={cn("flex min-h-11 items-center gap-2 rounded-xl px-3 py-2 text-sm whitespace-nowrap transition-colors max-lg:border max-lg:border-line max-lg:bg-white lg:min-h-0", active ? "bg-rose/40 font-medium text-wine" : "text-ink-soft hover:bg-cream/70")}>
+    <Link key={href} href={href} aria-current={active ? "page" : undefined} className={cn("flex min-h-11 items-center gap-2 rounded-xl px-3 py-2 text-sm whitespace-nowrap transition-colors max-lg:border max-lg:border-line max-lg:bg-white lg:min-h-0", active ? "bg-rose/40 font-medium text-wine" : "text-ink-soft hover:bg-cream/70")}>
       {children}
     </Link>
   );

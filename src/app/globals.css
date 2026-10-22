@@ -401,6 +401,7 @@ body {
     min-height: 2.5rem;
     display: inline-flex;
     align-items: center;
+    gap: 0.375rem;
   }
   /* Лента вбок: фильтры, этапы, чипсы не переносятся на 3 строки, а листаются пальцем. */
   .m-hscroll {
@@ -409,6 +410,7 @@ body {
     margin-inline: -1rem;
     padding-inline: 1rem;
     scroll-snap-type: x proximity;
+    scroll-padding-inline: 1rem;
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
   }

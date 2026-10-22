@@ -117,7 +117,7 @@ export default async function DealPage({ params, searchParams }: { params: Promi
         <Link href="/admin/deals" className="inline-flex min-h-11 items-center text-sm text-muted hover:text-ink">
           ← Сделки
         </Link>
-        <span className="text-sm text-muted">
+        <span className="text-sm text-muted max-lg:hidden">
           создана {formatDate(deal.createdAt, true)} · {dealSourceLabels[deal.source]}
         </span>
         {can(staff, "deals.delete") ? (
@@ -130,6 +130,9 @@ export default async function DealPage({ params, searchParams }: { params: Promi
         <h1 className="text-2xl font-semibold break-words">
           <span className="text-muted">№{deal.number}</span> {deal.title}
         </h1>
+        <p className="mt-1 text-sm text-muted lg:hidden">
+          создана {formatDate(deal.createdAt, true)} · {dealSourceLabels[deal.source]}
+        </p>
         {stage?.kind === "lost" && deal.lostReason ? <p className="mt-1 text-sm text-red-700">Отказ: {deal.lostReason}</p> : null}
       </div>
       {deal.unsorted ? <UnsortedBanner dealId={deal.id} canEdit={canEdit && canWork(staff, deal.assigneeId)} canDecide={can(staff, "deals.delete")} request={deal.tags.includes(REJECTION_TAGS.spam) ? "spam" : deal.tags.includes(REJECTION_TAGS.reject) ? "reject" : null} /> : null}
