@@ -16,6 +16,7 @@ export class MicEncoder {
   private pos = 0;
   private acc = 0;
   private count = 0;
+  private last = 0;
   private frame = new Int16Array(FRAME_SAMPLES);
   private filled = 0;
 
@@ -30,16 +31,19 @@ export class MicEncoder {
       this.acc += muted ? 0 : input[i];
       this.count++;
       this.pos += 1;
-      if (this.pos < this.ratio) continue;
-      this.pos -= this.ratio;
-      const v = Math.max(-1, Math.min(1, this.acc / this.count));
-      this.acc = 0;
-      this.count = 0;
-      this.frame[this.filled++] = v < 0 ? Math.round(v * 0x8000) : Math.round(v * 0x7fff);
-      if (this.filled === FRAME_SAMPLES) {
-        out.push(littleEndian(this.frame));
-        this.frame = new Int16Array(FRAME_SAMPLES);
-        this.filled = 0;
+      // Частота микрофона ниже 16 кГц (гарнитура Bluetooth в режиме звонка — 8 кГц): на один входной сэмпл — несколько выходных.
+      while (this.pos >= this.ratio) {
+        this.pos -= this.ratio;
+        const v = this.count ? Math.max(-1, Math.min(1, this.acc / this.count)) : this.last;
+        this.last = v;
+        this.acc = 0;
+        this.count = 0;
+        this.frame[this.filled++] = v < 0 ? Math.round(v * 0x8000) : Math.round(v * 0x7fff);
+        if (this.filled === FRAME_SAMPLES) {
+          out.push(littleEndian(this.frame));
+          this.frame = new Int16Array(FRAME_SAMPLES);
+          this.filled = 0;
+        }
       }
     }
     return out;

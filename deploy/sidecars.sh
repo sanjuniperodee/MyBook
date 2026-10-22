@@ -103,8 +103,12 @@ if has whatsapp; then
     beta_call=false
   fi
   # Сессия номера и история — в storages: копия перед сменой программы, чтобы откат был без повторной привязки по QR.
+  # Шлюз на время копии останавливается (его базы SQLite в режиме WAL на ходу копировать нельзя) — ниже он всё равно
+  # перезапускается. Хранятся три последние копии.
   if [ -d "$G/storages" ] && ! cmp -s "$bin" "$G/whatsapp"; then
-    tar -C "$G" -czf "$G/storages-$(date +%Y%m%d-%H%M%S).tgz" storages && ls -1t "$G"/storages-*.tgz | tail -n +4 | xargs -r rm -f
+    pm2 stop mybook-gowa >/dev/null 2>&1 || true
+    tar -C "$G" -czf "$G/storages-$(date +%Y%m%d-%H%M%S).tgz" storages || { pm2 start mybook-gowa >/dev/null 2>&1 || true; echo "GOWA: копия storages не снята — шлюз оставлен как был"; exit 1; }
+    ls -1t "$G"/storages-*.tgz | tail -n +4 | xargs -r rm -f
   fi
   install -m 755 "$bin" "$G/whatsapp.new" && mv -f "$G/whatsapp.new" "$G/whatsapp"
   touch "$G/.env" && chmod 600 "$G/.env"

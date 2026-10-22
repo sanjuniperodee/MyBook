@@ -125,6 +125,7 @@ createdb mybook                         # или через psql: CREATE DATABAS
 git clone -b <ветка> https://github.com/sanjuniperodee/MyBook ~/mybook && cd ~/mybook
 cp .env.example .env                    # APP_URL, DATABASE_URL, ADMIN_EMAILS, STORAGE_DIR=/home/<user>/mybook-storage
 sudo cp deploy/nginx-mybook.conf /etc/nginx/sites-available/mybook   # поправьте server_name
+sudo cp deploy/nginx-wa-call.conf /etc/nginx/snippets/mybook-wa-call.conf   # звук звонков WhatsApp (docs/features/whatsapp-calls.md)
 sudo ln -s /etc/nginx/sites-available/mybook /etc/nginx/sites-enabled/ && sudo nginx -t && sudo systemctl reload nginx
 sudo certbot --nginx -d <домен>
 

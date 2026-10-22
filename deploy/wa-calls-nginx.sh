@@ -23,7 +23,7 @@ restore() {
 }
 
 sudo install -m 644 "$ROOT/deploy/nginx-wa-call.conf" "$SNIPPET"
-if ! grep -q "include snippets/mybook-wa-call.conf;" "$SITE"; then
+if ! grep -q "include snippets/mybook-wa-call" "$SITE"; then
   # В каждый server с 443 (https) — перед первым location.
   sudo python3 - "$SITE" "$LINE" <<'PY'
 import re, sys

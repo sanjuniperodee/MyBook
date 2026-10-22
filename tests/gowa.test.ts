@@ -98,9 +98,14 @@ describe("GOWA: входящие звонки", () => {
     expect(parseGowaCall(message({}), plain)).toBeNull();
     expect(parseGowaWebhook(offer({})).messages).toEqual([]);
   });
-  it("id звонка из адреса аудиопотока — первое вхождение как есть; %-коды, пустой и лишние символы — отказ", () => {
+  it("id звонка из адреса аудиопотока — только строка запроса, ровно один call_id (без учёта регистра); %-коды и пустой — отказ", () => {
     expect(gowaAudioCallId("/wa-call/audio?call_id=3A5F00B2C1")).toBe("3A5F00B2C1");
-    expect(gowaAudioCallId("/wa-call/audio?x=1&call_id=AB&call_id=CD")).toBe("AB");
+    expect(gowaAudioCallId("/wa-call/audio?x=1&CALL_ID=AB")).toBe("AB");
+    // Два id (в том числе в разном регистре) — непонятно, какой имелся в виду: отказ.
+    expect(gowaAudioCallId("/wa-call/audio?call_id=AB&call_id=CD")).toBeNull();
+    expect(gowaAudioCallId("/wa-call/audio?CALL_ID=VICTIM&call_id=MINE")).toBeNull();
+    // call_id в пути (обход через «..») не считается.
+    expect(gowaAudioCallId("/x&call_id=MINE&/../wa-call/audio?call_id=VICTIM")).toBe("VICTIM");
     expect(gowaAudioCallId("/wa-call/audio?call_id=AB%26device_id%3Dother")).toBeNull();
     expect(gowaAudioCallId("/wa-call/audio?xcall_id=AB")).toBeNull();
     expect(gowaAudioCallId("/wa-call/audio?call_id=")).toBeNull();

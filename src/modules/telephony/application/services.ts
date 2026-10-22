@@ -40,7 +40,7 @@ export class CallsService {
       case "unchanged":
         return call;
       case "changed":
-        await this.calls.save(call);
+        if (!(await this.calls.update(call))) return (await this.calls.findByExternal(e.provider, e.externalId)) ?? call;
         return call;
       case "finish":
         if (!(await this.calls.finish(call))) return call; // уже обработан

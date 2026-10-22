@@ -111,6 +111,7 @@ export class Call extends AggregateRoot<CallProps> {
         p.staffId = staffId ?? p.staffId;
         return "changed";
       case "answer":
+        if (p.endedAt) return "unchanged";
         p.status = "answered";
         p.answeredAt ??= e.at;
         p.extension = e.extension ?? p.extension;

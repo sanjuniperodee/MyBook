@@ -44,6 +44,11 @@ export class DrizzleCallRepository implements CallRepository, LiveCallRepository
     const { id, ...props } = call.snapshot();
     await executor().update(crmCalls).set(props).where(eq(crmCalls.id, id));
   }
+  async update(call: Call) {
+    const { id, ...props } = call.snapshot();
+    const rows = await executor().update(crmCalls).set(props).where(and(eq(crmCalls.id, id), isNull(crmCalls.endedAt))).returning({ id: crmCalls.id });
+    return rows.length > 0;
+  }
   async finish(call: Call) {
     const { id, ...props } = call.snapshot();
     const rows = await executor().update(crmCalls).set(props).where(and(eq(crmCalls.id, id), isNull(crmCalls.endedAt))).returning({ id: crmCalls.id });
@@ -63,16 +68,16 @@ export class DrizzleCallRepository implements CallRepository, LiveCallRepository
   async claimAnswer(id: string, staffId: string, at: Date) {
     const rows = await executor()
       .update(crmCalls)
-      .set({ status: "answered", answeredAt: at, staffId, heartbeatAt: at })
-      .where(and(eq(crmCalls.id, id), eq(crmCalls.provider, WHATSAPP), isNull(crmCalls.endedAt), isNull(crmCalls.answeredAt), or(isNull(crmCalls.staffId), eq(crmCalls.staffId, staffId))))
+      .set({ staffId, heartbeatAt: at })
+      .where(and(eq(crmCalls.id, id), eq(crmCalls.provider, WHATSAPP), eq(crmCalls.status, "ringing"), isNull(crmCalls.endedAt), isNull(crmCalls.answeredAt), or(isNull(crmCalls.staffId), eq(crmCalls.staffId, staffId))))
       .returning({ id: crmCalls.id });
     return rows.length > 0;
   }
   async releaseClaim(id: string, staffId: string) {
     await executor()
       .update(crmCalls)
-      .set({ status: "ringing", answeredAt: null, heartbeatAt: null })
-      .where(and(eq(crmCalls.id, id), eq(crmCalls.staffId, staffId), isNull(crmCalls.endedAt)));
+      .set({ staffId: null, heartbeatAt: null })
+      .where(and(eq(crmCalls.id, id), eq(crmCalls.staffId, staffId), isNull(crmCalls.answeredAt), isNull(crmCalls.endedAt)));
   }
   async heartbeat(id: string, staffId: string, at: Date) {
     if (!UUID.test(id)) return false;
@@ -92,7 +97,8 @@ export class DrizzleCallRepository implements CallRepository, LiveCallRepository
           eq(crmCalls.provider, WHATSAPP),
           isNull(crmCalls.endedAt),
           or(
-            and(isNull(crmCalls.answeredAt), lt(crmCalls.startedAt, new Date(now.getTime() - opts.ringMs))),
+            // Без ответа дольше ringMs — если и вкладка не отмечается (исходящий с живой вкладкой ограничивает гудки сама).
+            and(isNull(crmCalls.answeredAt), lt(crmCalls.startedAt, new Date(now.getTime() - opts.ringMs)), lt(sql`coalesce(${crmCalls.heartbeatAt}, ${crmCalls.startedAt})`, new Date(now.getTime() - opts.silentMs))),
             and(isNotNull(crmCalls.answeredAt), lt(sql`coalesce(${crmCalls.heartbeatAt}, ${crmCalls.answeredAt})`, new Date(now.getTime() - opts.silentMs))),
           ),
         ),

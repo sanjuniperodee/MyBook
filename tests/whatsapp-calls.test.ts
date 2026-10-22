@@ -6,7 +6,7 @@ import { whatsappCallError } from "@/server/whatsapp-calls";
 import { GowaError } from "@/modules/messaging/infrastructure/gowa";
 
 /** Звонки WhatsApp из CRM (WhatsappCallsService): журнал в памяти, шлюз — заглушка, часы двигаем вручную. */
-function setup(opts: { answerFails?: boolean; openDeal?: string } = {}) {
+function setup(opts: { answerFails?: boolean; openDeal?: string; duringAnswer?: () => Promise<unknown> } = {}) {
   let t = new Date("2026-10-22T06:00:00Z").getTime();
   const clock = { now: () => new Date(t) };
   const tick = (sec: number) => void (t += sec * 1000);
@@ -23,6 +23,11 @@ function setup(opts: { answerFails?: boolean; openDeal?: string } = {}) {
     findById: async (id) => (rows.has(id) ? restore(rows.get(id)!) : null),
     add: async (c) => !!rows.set(c.id, { ...c.snapshot() }),
     save: async (c) => void rows.set(c.id, { ...c.snapshot() }),
+    update: async (c) => {
+      if (rows.get(c.id)?.endedAt) return false;
+      rows.set(c.id, { ...c.snapshot() });
+      return true;
+    },
     finish: async (c) => {
       if (rows.get(c.id)?.endedAt) return false;
       rows.set(c.id, { ...c.snapshot() });
@@ -33,14 +38,15 @@ function setup(opts: { answerFails?: boolean; openDeal?: string } = {}) {
     markHandled: async () => {},
     claimAnswer: async (id, staffId, at) => {
       const r = rows.get(id);
-      if (!r || r.endedAt || r.answeredAt || (r.staffId && r.staffId !== staffId)) return false;
-      Object.assign(r, { status: "answered", answeredAt: at, staffId });
+      if (!r || r.status !== "ringing" || r.endedAt || r.answeredAt || (r.staffId && r.staffId !== staffId)) return false;
+      r.staffId = staffId;
       beats.set(id, at);
       return true;
     },
-    releaseClaim: async (id) => {
+    releaseClaim: async (id, staffId) => {
       const r = rows.get(id)!;
-      Object.assign(r, { status: "ringing", answeredAt: null, staffId: null });
+      if (r.staffId !== staffId || r.answeredAt || r.endedAt) return;
+      r.staffId = null;
       beats.delete(id);
     },
     heartbeat: async (id, staffId, at) => {
@@ -51,7 +57,13 @@ function setup(opts: { answerFails?: boolean; openDeal?: string } = {}) {
     },
     stale: async (now, o) =>
       [...rows.values()]
-        .filter((r) => !r.endedAt && (r.answeredAt ? (beats.get(r.id) ?? r.answeredAt).getTime() < now.getTime() - o.silentMs : r.startedAt.getTime() < now.getTime() - o.ringMs))
+        .filter(
+          (r) =>
+            !r.endedAt &&
+            (r.answeredAt
+              ? (beats.get(r.id) ?? r.answeredAt).getTime() < now.getTime() - o.silentMs
+              : r.startedAt.getTime() < now.getTime() - o.ringMs && (beats.get(r.id) ?? r.startedAt).getTime() < now.getTime() - o.silentMs),
+        )
         .map((r) => ({ call: restore(r), lastSeen: beats.get(r.id) ?? null })),
   };
   const sales: SalesGateway = {
@@ -75,6 +87,7 @@ function setup(opts: { answerFails?: boolean; openDeal?: string } = {}) {
     start: async (phone) => (log.push(`gw:start:${phone}`), "WA1"),
     answer: async (id) => {
       log.push(`gw:answer:${id}`);
+      await opts.duringAnswer?.();
       if (opts.answerFails) throw new TelephonyError("notFound", "Звонок уже завершён");
     },
     hangup: async (id) => void log.push(`gw:hangup:${id}`),
@@ -135,14 +148,37 @@ describe("WhatsappCallsService: входящий", () => {
     expect(log).toEqual(["gw:answer:IN1", `finished:${call.id}:answered:42`, "deal:Звонок: …4567", "accept:d1:m1:входящий звонок принят"]);
   });
 
-  it("звонящий успел положить трубку до ответа — звонок пропущенный, сотруднику понятная ошибка", async () => {
+  it("звонящий успел положить трубку до ответа — звонок пропущенный, трубка в шлюзе, сотруднику понятная ошибка", async () => {
     const { service, log, rows, ring } = setup({ answerFails: true });
     const call = (await ring())!;
     await expect(service.answer(call.id, "m1")).rejects.toThrow("Звонок уже завершён");
     expect(rows.get(call.id)).toMatchObject({ status: "missed", answeredAt: null });
+    expect(log).toContain("gw:hangup:IN1");
     expect(log).toContain(`finished:${call.id}:missed:0`);
     expect(log.some((l) => l.startsWith("notify:m9:Пропущенный звонок"))).toBe(true);
     await expect(service.answer(call.id, "m2")).rejects.toThrow("Звонок уже завершён");
+  });
+
+  it("шлюз сообщил о конце, пока ответ ещё в пути, — пропущенный, а не разговор 0:00; поздний «ответ» не оживляет звонок", async () => {
+    const ref: { service?: WhatsappCallsService } = {};
+    const t = setup({ answerFails: true, duringAnswer: () => ref.service!.endedByGateway("IN1") });
+    const service = (ref.service = t.service);
+    const call = (await t.ring())!;
+    await expect(service.answer(call.id, "m1")).rejects.toThrow();
+    expect(t.rows.get(call.id)).toMatchObject({ status: "missed", answeredAt: null });
+    expect(t.log.filter((l) => l.startsWith("finished"))).toEqual([`finished:${call.id}:missed:0`]);
+    expect(t.log.some((l) => l.startsWith("accept"))).toBe(false);
+  });
+
+  it("звонок завершился сразу после ответа шлюза — отметка ответа его не трогает", async () => {
+    const ref: { service?: WhatsappCallsService } = {};
+    const t = setup({ duringAnswer: () => ref.service!.endedByGateway("IN1") });
+    const service = (ref.service = t.service);
+    const call = (await t.ring())!;
+    await service.answer(call.id, "m1");
+    expect(t.rows.get(call.id)).toMatchObject({ status: "missed" });
+    expect(t.rows.get(call.id)?.endedAt).toBeTruthy();
+    expect(t.log.filter((l) => l.startsWith("finished"))).toHaveLength(1);
   });
 
   it("отклонить звонящий входящий может любой сотрудник: трубка в шлюзе, звонок пропущенный", async () => {
@@ -154,6 +190,21 @@ describe("WhatsappCallsService: входящий", () => {
 });
 
 describe("WhatsappCallsService: зависшие звонки (планировщик)", () => {
+  it("исходящий: отметка «собеседник ответил» потерялась — её доносит отметка «на связи» с разговором; живая вкладка не даёт оборвать звонок", async () => {
+    const { service, rows, tick } = setup();
+    const { id } = await service.dial({ staffId: "m1", phone: "77011234567" });
+    for (let i = 0; i < 6; i++) {
+      tick(15);
+      await service.heartbeat(id, "m1");
+    }
+    // 90 с без ответа, но вкладка на связи — планировщик звонок не трогает (гудки ограничивает сама вкладка).
+    expect(await service.sweep()).toBe(0);
+    tick(15);
+    await service.heartbeat(id, "m1", true);
+    expect(rows.get(id)).toMatchObject({ status: "answered" });
+    expect(await service.sweep()).toBe(0);
+  });
+
   it("никто не ответил за полторы минуты — пропущенный; разговор без вкладки — закрыт по последнему признаку жизни, трубка в шлюзе", async () => {
     const { service, log, tick, ring } = setup();
     const lost = (await ring("IN1"))!;
