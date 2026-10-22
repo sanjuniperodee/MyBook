@@ -45,6 +45,7 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
               subtitle={book.subtitle}
               names={names}
               photos={photos}
+              design={book.coverDesign}
               className="rounded-[3px] shadow-book"
             />
             <Link href={`/books/${book.id}/cover`} className="mt-3 block text-center text-sm text-wine hover:underline">

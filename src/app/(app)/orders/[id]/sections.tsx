@@ -177,6 +177,7 @@ export function BookAside({ book, t }: { book: OrderView["book"]; t: T }) {
             subtitle={book.subtitle}
             names={coverNames(book)}
             photos={photoUrls(coverPhotoIds(book))}
+            design={book.coverDesign}
             className="rounded-[3px] shadow-book"
           />
         </div>

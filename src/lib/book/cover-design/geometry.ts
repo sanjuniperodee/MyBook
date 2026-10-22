@@ -148,3 +148,9 @@ export function backgroundArt(bg: Exclude<CoverBackground, { kind: "template" }>
 
 /** Цвет фона для подсказок контраста (корешок, оборот, текст на нём). */
 export const backgroundBase = (bg: CoverBackground) => (bg.kind === "color" ? bg.color : bg.kind === "gradient" ? bg.from : null);
+
+/** Светлый или тёмный текст на фоне цвета bg (корешок и оборот обложки со своим фоном). */
+export function inkOn(bg: string) {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(bg.slice(i, i + 2), 16) / 255);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.55 ? "#1F1A17" : "#FBF7F1";
+}

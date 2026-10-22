@@ -9,6 +9,7 @@ import type { CoverTextStyle } from "../covers/types";
 import { fontWidth } from "../fonts";
 import type { BookFormat } from "../formats";
 import { boardSize } from "./geometry";
+import { parseCoverDesign } from "./parse";
 import type { CoverDesign, CoverLayer, CoverTexts, TextLayer } from "./types";
 
 /** Отбивки блока текста шаблона — как в CoverText и CoverDocument: доли ширины крышки. */
@@ -81,5 +82,6 @@ export function designFromTemplate(template: CoverMeta, texts: CoverTexts, forma
     layers.push({ id: bind, kind: "text", bind, text: "", x: ta.x, y: y / H, w: ta.w, h: (it.h + slack) / H, style: styleOf(style, align) });
     y += it.h;
   }
-  return { v: 1, background: { kind: "template" }, layers };
+  // Через разбор: числа округлены так же, как при сохранении — данные в редакторе и в базе совпадают.
+  return parseCoverDesign({ v: 1, background: { kind: "template" }, layers })!;
 }
