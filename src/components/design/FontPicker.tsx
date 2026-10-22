@@ -125,7 +125,7 @@ export function FontPicker({
 }
 
 /** Насыщенность и курсив — только из начертаний шрифта. */
-export function FaceControls({ font, weight, italic, onChange }: { font: FontKey; weight: number; italic?: boolean; onChange: (v: { weight?: number; italic?: boolean }) => void }) {
+export function FaceControls({ font, weight, italic, onChange, allowItalic = true }: { font: FontKey; weight: number; italic?: boolean; onChange: (v: { weight?: number; italic?: boolean }) => void; allowItalic?: boolean }) {
   const t = useMessages().design.ui;
   const { weights, italic: hasItalic } = fontWeights(font);
   const current = weights.reduce((a, b) => (Math.abs(b - weight) < Math.abs(a - weight) ? b : a), weights[0]);
@@ -134,7 +134,7 @@ export function FaceControls({ font, weight, italic, onChange }: { font: FontKey
       {weights.length > 1 ? (
         <Segmented label={t.weight} value={String(current)} options={weights.map((w) => ({ value: String(w), label: <span style={{ fontWeight: w }}>{t.weights[w] ?? w}</span> }))} onChange={(v) => onChange({ weight: Number(v) })} wrap />
       ) : null}
-      {hasItalic ? (
+      {hasItalic && allowItalic ? (
         <button
           type="button"
           aria-pressed={!!italic}

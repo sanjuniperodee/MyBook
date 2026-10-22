@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { Check, Sparkles } from "lucide-react";
 import { Link, useMessages } from "@/i18n/client";
 import { SaveIndicator } from "@/components/SaveIndicator";
 import { PreviewDock, useScrolledPast } from "@/components/PreviewDock";
@@ -10,24 +9,25 @@ import { InteriorSpread, type SpreadKind, type SpreadSample } from "@/components
 import { useAutosave } from "@/hooks/useAutosave";
 import { apiFetch } from "@/lib/client-api";
 import { getFormat } from "@/lib/book/formats";
-import { getInteriorDesign, interiorDesigns, interiorMoods, type InteriorId, type InteriorMood } from "@/lib/book/interiors";
+import { applyInteriorStyle, chapterDesign, getInteriorDesign, type InteriorId, type InteriorStyle } from "@/lib/book/interiors";
 import { cn } from "@/lib/class-names";
 import { bookKind } from "@/lib/content/kinds";
 import { sampleToc, type TocLines, type TocMode } from "@/lib/book/toc";
 import { ChaptersEditor, type ChapterPhotoPlan } from "./ChaptersEditor";
 import type { StoryInfo } from "./StoryList";
 import { TocEditor } from "./TocEditor";
+import { DesignStudio } from "./studio/DesignStudio";
 
 interface PagesState {
   interior: InteriorId;
+  /** Настройки дизайнера поверх стиля (interiors/style.ts). */
+  interiorStyle: InteriorStyle;
   dedication: string;
   showToc: boolean;
   tocMode: TocMode;
   tocLines: TocLines;
   photoPlacement: "chapters" | "end" | "none";
 }
-
-type Filter = InteriorMood | "all" | "cover";
 
 const spreads: SpreadKind[] = ["chapter", "photos", "front", "toc"];
 
@@ -65,14 +65,17 @@ export function PagesEditor({
   photoPlan?: ChapterPhotoPlan;
 }) {
   const [state, setState] = useState(initial);
-  const [filter, setFilter] = useState<Filter>("all");
   const [spread, setSpread] = useState<SpreadKind>("chapter");
+  /** Глава, оформление которой правят во вкладке «Главы» студии: разворот показывает её начало. */
+  const [previewChapter, setPreviewChapter] = useState<string | null>(null);
   const m = useMessages();
   const t = m.books.pages;
   const kind = bookKind(theme);
   const dedicationHint = t.dedicationByKind[kind] ?? { text: t.dedicationText, placeholder: t.dedicationPlaceholder };
   const format = getFormat(formatId);
-  const design = getInteriorDesign(state.interior);
+  const base = getInteriorDesign(state.interior);
+  // Стиль с настройками книги — то же, что уйдёт в PDF (layout.ts → bookInterior).
+  const design = useMemo(() => applyInteriorStyle(base, state.interiorStyle), [base, state.interiorStyle]);
 
   const changes = useRef<Partial<PagesState>>({});
   const { status, error, schedule } = useAutosave<null>(async () => {
@@ -94,16 +97,34 @@ export function PagesEditor({
   };
 
   // Большой разворот сразу показывает посвящение и оглавление; миниатюры от них не зависят и не перерисовываются.
-  const live = useMemo(
-    () => ({ ...sample, dedication: state.dedication.trim(), showToc: state.showToc, toc: sample.tocAll ? sampleToc(sample.tocAll, state.tocMode, state.tocLines) : sample.toc }),
-    [sample, state.dedication, state.showToc, state.tocMode, state.tocLines],
+  // Главы книги для студии (вкладка «Главы»): названия — с правками автора, убранные главы не показываем.
+  const studioChapters = useMemo(
+    () =>
+      (sample.tocAll ?? [])
+        .filter((c) => c.kind === "chapter" && c.number !== null && !c.folded)
+        .map((c) => ({ key: c.key.replace(/^c:/, ""), title: state.tocLines[c.key]?.title?.trim() || c.label, number: c.number, epigraph: state.tocLines[c.key]?.epigraph ?? c.epigraph })),
+    [sample.tocAll, state.tocLines],
   );
+  const previewOf = studioChapters.find((c) => c.key === previewChapter);
+  const live = useMemo(
+    () => ({
+      ...sample,
+      dedication: state.dedication.trim(),
+      showToc: state.showToc,
+      toc: sample.tocAll ? sampleToc(sample.tocAll, state.tocMode, state.tocLines) : sample.toc,
+      ...(previewOf ? { chapter: { number: previewOf.number ?? sample.chapter.number, title: previewOf.title, epigraph: previewOf.epigraph } } : {}),
+    }),
+    [sample, state.dedication, state.showToc, state.tocMode, state.tocLines, previewOf],
+  );
+  // Разворот главы со своим оформлением — в её оформлении.
+  const spreadDesign = previewOf ? chapterDesign(design, previewOf.key) : design;
   // Номера в оглавлении точные, пока оформление то, по которому собран макет (правки меняют разбивку), и у каждой
   // строки номер из макета; иначе под разворотом — что они примерные.
   const tocExact = useMemo(() => {
     if (!exactPages) return false;
     const changed =
       state.interior !== initial.interior ||
+      JSON.stringify(state.interiorStyle) !== JSON.stringify(initial.interiorStyle) ||
       state.showToc !== initial.showToc ||
       state.tocMode !== initial.tocMode ||
       !!state.dedication.trim() !== !!initial.dedication.trim() ||
@@ -111,9 +132,6 @@ export function PagesEditor({
     const pageKeys = new Map<string, string>((sample.tocAll ?? []).map((c) => [c.key, c.pageKey]));
     return !changed && live.toc.every((l) => (pageKeys.get(l.key ?? "") ?? "") in exactPages);
   }, [exactPages, initial, state, sample.tocAll, live.toc]);
-  const paired = new Set(cover.pairs);
-  const filters: Filter[] = ["all", ...(paired.size ? (["cover"] as const) : []), ...interiorMoods];
-  const shown = interiorDesigns.filter((d) => filter === "all" || d.id === state.interior || (filter === "cover" ? paired.has(d.id) : d.mood === filter));
   const names = m.catalog.interiors;
   const bigPreview = useRef<HTMLDivElement>(null);
   const scrolled = useScrolledPast(bigPreview);
@@ -122,7 +140,7 @@ export function PagesEditor({
     <div className="grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-12">
       <PreviewDock show={scrolled}>
         <div className="shrink-0" style={{ width: 150 }}>
-          <InteriorSpread design={design} format={format} sample={live} kind={spread} className="rounded-[2px] shadow-soft" />
+          <InteriorSpread design={spreadDesign} format={format} sample={live} kind={spread} className="rounded-[2px] shadow-soft" />
         </div>
         <div className="min-w-0 flex-1 text-sm">
           <div className="truncate font-medium text-ink">{names[design.id].name}</div>
@@ -132,7 +150,7 @@ export function PagesEditor({
       <div>
         <div className="lg:sticky lg:top-24">
           <div ref={bigPreview} className="rounded-[28px] bg-cream/70 p-3 sm:p-8">
-            <InteriorSpread design={design} format={format} sample={live} kind={spread} className="rounded-[3px] shadow-book" />
+            <InteriorSpread design={spreadDesign} format={format} sample={live} kind={spread} className="rounded-[3px] shadow-book" />
           </div>
           <div className="mt-4 flex justify-center">
             <div role="radiogroup" aria-label={t.spreadsAria} className="no-scrollbar inline-flex max-w-full gap-1 overflow-x-auto rounded-2xl bg-cream/70 p-1">
@@ -168,60 +186,22 @@ export function PagesEditor({
       </div>
 
       <div className="space-y-12">
-        <section>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-xl font-semibold">{t.design}</h2>
-            <span className="text-xs text-muted">{m.common.count.variants(interiorDesigns.length)}</span>
-          </div>
-          <p className="mt-1 text-sm text-muted">{t.designText}</p>
-          <div className="no-scrollbar -mx-1 mt-4 flex gap-1.5 overflow-x-auto px-1 pb-1" role="radiogroup" aria-label={t.moodAria}>
-            {filters.map((id) => (
-              <button
-                key={id}
-                type="button"
-                role="radio"
-                aria-checked={filter === id}
-                onClick={() => setFilter(id)}
-                className={cn(
-                  "inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm transition",
-                  filter === id ? "bg-ink text-white" : "bg-white text-ink-soft ring-1 ring-line hover:ring-ink/30",
-                )}
-              >
-                {id === "cover" ? <Sparkles className="size-3.5" /> : null}
-                {id === "cover" ? t.forCover(cover.name) : m.catalog.interiorMoods[id]}
-              </button>
-            ))}
-          </div>
-          <div className="mt-5 grid grid-cols-2 gap-x-4 gap-y-6">
-            {shown.map((d) => {
-              const active = d.id === state.interior;
-              return (
-                <button key={d.id} type="button" onClick={() => update({ interior: d.id })} disabled={!editable} aria-pressed={active} className="group text-left">
-                  <div
-                    className={cn(
-                      "relative rounded-[3px] ring-offset-2 ring-offset-paper transition",
-                      active ? "ring-2 ring-wine" : "ring-1 ring-line group-hover:-translate-y-0.5 group-hover:ring-ink/30",
-                    )}
-                  >
-                    <InteriorSpread design={d} format={format} sample={sample} className="rounded-[3px]" />
-                    {active ? (
-                      <span className="absolute top-1.5 right-1.5 flex size-5 items-center justify-center rounded-full bg-wine text-white">
-                        <Check className="size-3" />
-                      </span>
-                    ) : null}
-                    {paired.has(d.id) ? (
-                      <span className="absolute top-1.5 left-1.5 inline-flex items-center gap-1 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-medium text-wine shadow-sm">
-                        <Sparkles className="size-2.5" /> {t.pairBadge}
-                      </span>
-                    ) : null}
-                  </div>
-                  <div className={cn("mt-2 text-sm", active ? "font-semibold text-ink" : "font-medium text-ink-soft")}>{names[d.id].name}</div>
-                  <div className="line-clamp-2 text-xs text-muted">{names[d.id].description}</div>
-                </button>
-              );
-            })}
-          </div>
-        </section>
+        <DesignStudio
+          interior={state.interior}
+          base={base}
+          design={design}
+          style={state.interiorStyle}
+          onChange={(next) => update(next)}
+          format={format}
+          sample={sample}
+          cover={cover}
+          chapters={studioChapters}
+          editable={editable}
+          onPreview={(kind, chapterKey) => {
+            setSpread(kind);
+            setPreviewChapter(chapterKey ?? null);
+          }}
+        />
 
         <FormSection title={t.dedication} description={dedicationHint.text}>
           <textarea

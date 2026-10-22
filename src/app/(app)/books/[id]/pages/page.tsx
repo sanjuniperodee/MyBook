@@ -5,7 +5,7 @@ import { container } from "@/server/container";
 import { getLocale, getMessages } from "@/i18n/server";
 import { coverName } from "@/i18n/labels";
 import { getFormat } from "@/lib/book/formats";
-import { bookInterior, getInteriorDesign, interiorsForCover } from "@/lib/book/interiors";
+import { bookInterior, getInteriorDesign, interiorsForCover, parseInteriorStyle } from "@/lib/book/interiors";
 import { bookSpreadSample } from "@/server/spreadSample";
 import { questionTexts, toPhotoItem } from "@/lib/book/layout";
 import { buildBookContent } from "@/lib/book/book-content";
@@ -61,7 +61,7 @@ export default async function PagesPage({ params }: { params: Promise<{ id: stri
         photoPlan={photoPlan}
         theme={book.theme}
         cover={{ name: coverName(book.coverTemplate, locale), pairs: interiorsForCover(book.coverTemplate).map((d) => d.id) }}
-        initial={{ interior: getInteriorDesign(book.interior).id, dedication: book.dedication, showToc: book.showToc, tocMode: book.tocMode, tocLines: book.tocLines, photoPlacement: book.photoPlacement }}
+        initial={{ interior: getInteriorDesign(book.interior).id, interiorStyle: parseInteriorStyle(book.interiorStyle), dedication: book.dedication, showToc: book.showToc, tocMode: book.tocMode, tocLines: book.tocLines, photoPlacement: book.photoPlacement }}
       />
     </main>
   );
