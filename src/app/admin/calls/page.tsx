@@ -73,6 +73,7 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
                 <div className="truncate text-xs text-muted">
                   {formatDate(c.startedAt, true)}
                   {c.staffId ? ` · ${names.get(c.staffId) ?? ""}` : ""}
+                  {c.provider === "whatsapp" ? " · WhatsApp" : ""}
                 </div>
               </div>
               <div className="flex flex-col items-end gap-1 text-xs">
@@ -92,7 +93,7 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
               )}
               {c.hasRecording && can(staff, "calls.recordings") ? <audio controls preload="none" src={`/api/admin/calls/${c.id}/recording`} className="mt-2.5 h-10 w-full" /> : null}
               <div className="mt-1 flex justify-end">
-                <CallRowActions callId={c.id} canCall={can(staff, "calls.make") && !!c.clientPhone} canHandle={c.status === "missed" && c.direction === "in" && !c.handledAt} />
+                <CallRowActions callId={c.id} canCall={can(staff, "calls.make") && !!c.clientPhone} canHandle={c.status === "missed" && c.direction === "in" && !c.handledAt} whatsapp />
               </div>
             </li>
           );
@@ -142,6 +143,7 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
                   <td className="px-4 py-2.5">
                     {c.staffId ? names.get(c.staffId) : <span className="text-muted">—</span>}
                     {c.extension ? <span className="ml-1 text-xs text-muted">({c.extension})</span> : null}
+                    {c.provider === "whatsapp" ? <span className="ml-1 rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] text-emerald-700">WhatsApp</span> : null}
                   </td>
                   <td className="px-4 py-2.5">
                     <span className={cn("rounded-full px-2 py-0.5 text-xs", c.status === "answered" ? "bg-emerald-100 text-emerald-800" : c.status === "missed" ? "bg-red-100 text-red-700" : "bg-cream text-ink-soft")}>
@@ -154,7 +156,7 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
                     {c.hasRecording && can(staff, "calls.recordings") ? <audio controls preload="none" src={`/api/admin/calls/${c.id}/recording`} className="h-8 w-52" /> : <span className="text-muted">—</span>}
                   </td>
                   <td className="px-4 py-2.5 text-right">
-                    <CallRowActions callId={c.id} canCall={can(staff, "calls.make") && !!c.clientPhone} canHandle={c.status === "missed" && c.direction === "in" && !c.handledAt} />
+                    <CallRowActions callId={c.id} canCall={can(staff, "calls.make") && !!c.clientPhone} canHandle={c.status === "missed" && c.direction === "in" && !c.handledAt} whatsapp />
                   </td>
                 </tr>
               );

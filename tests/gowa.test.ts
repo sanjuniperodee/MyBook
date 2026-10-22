@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createHmac } from "node:crypto";
-import { gowaChatId, gowaJid, gowaMediaUrl, parseGowaWebhook } from "@/modules/messaging/domain/gowa";
+import { gowaChatId, gowaJid, gowaMediaUrl, parseGowaCall, parseGowaWebhook } from "@/modules/messaging/domain/gowa";
 import type { Conversation } from "@/modules/messaging/domain";
 import { GOWA_DEVICE, GowaClient, GowaError, verifyGowaSignature } from "@/modules/messaging/infrastructure/gowa";
 import { channelTransport, whatsappTransport } from "@/modules/messaging/infrastructure/adapters";
@@ -78,6 +78,19 @@ describe("GOWA: протокол вебхуков", () => {
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
 const config = async () => ({ baseUrl: "http://gowa:3000/", basicAuth: "admin:pass" });
 
+describe("GOWA: входящие звонки", () => {
+  const offer = (payload: Record<string, unknown>) => ({ event: "call.offer", device_id: device, timestamp: "2026-10-13T10:30:00Z", payload: { call_id: "ABC123", from: "77011234567:5@s.whatsapp.net", auto_rejected: false, ...payload } });
+  it("call.offer → пропущенный входящий с номером клиента", () => {
+    expect(parseGowaCall(offer({}))).toEqual({ provider: "whatsapp", externalId: "ABC123", stage: "end", direction: "in", clientPhone: "77011234567", extension: null, at: new Date("2026-10-13T10:30:00Z"), status: "missed", durationSec: 0 });
+  });
+  it("скрытый номер (LID) — без телефона; групповые звонки и прочие события — не звонок", () => {
+    expect(parseGowaCall(offer({ from: "1234567890@lid" }))?.clientPhone).toBe("");
+    expect(parseGowaCall(offer({ group_jid: "120363@g.us" }))).toBeNull();
+    expect(parseGowaCall(message({}))).toBeNull();
+    expect(parseGowaWebhook(offer({}))).toEqual({ messages: [], statuses: [] });
+  });
+});
+
 describe("GOWA: клиент шлюза", () => {
   it("отправка текста: JID, логин шлюза, id сообщения для статусов", async () => {
     const calls: { url: string; init: RequestInit }[] = [];
@@ -142,10 +155,10 @@ describe("GOWA: клиент шлюза", () => {
     });
     const hook = { url: "https://mybooks.kz/api/integrations/gowa", secret: "s3cret" };
     await client.connect(hook);
-    expect(calls.slice(-1)[0]).toEqual({ method: "POST", path: "/devices", body: { device_id: GOWA_DEVICE, webhook_url: hook.url, webhook_secret: "s3cret", webhook_events: "message,message.ack" } });
+    expect(calls.slice(-1)[0]).toEqual({ method: "POST", path: "/devices", body: { device_id: GOWA_DEVICE, webhook_url: hook.url, webhook_secret: "s3cret", webhook_events: "message,message.ack,call.offer" } });
     devices = [{ id: "other" }, { id: GOWA_DEVICE }];
     await client.connect({ ...hook, url: "http://127.0.0.1:3040/api/integrations/gowa" });
-    expect(calls.slice(-1)[0]).toEqual({ method: "PATCH", path: `/devices/${GOWA_DEVICE}/webhook`, body: { webhook_url: "http://127.0.0.1:3040/api/integrations/gowa", webhook_secret: "s3cret", webhook_events: "message,message.ack" } });
+    expect(calls.slice(-1)[0]).toEqual({ method: "PATCH", path: `/devices/${GOWA_DEVICE}/webhook`, body: { webhook_url: "http://127.0.0.1:3040/api/integrations/gowa", webhook_secret: "s3cret", webhook_events: "message,message.ack,call.offer" } });
     await client.logout();
     expect(calls.slice(-1)[0]).toMatchObject({ method: "POST", path: `/devices/${GOWA_DEVICE}/logout` });
   });

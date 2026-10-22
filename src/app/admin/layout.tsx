@@ -9,6 +9,7 @@ import { Webphone } from "@/components/admin/Webphone";
 import { can } from "@/server/access";
 import { autoShiftOnVisit } from "@/server/shift";
 import { THEME_SCRIPT, ThemeSync, ThemeToggle } from "@/components/admin/Theme";
+import { WhatsappCallFollowUp } from "@/components/admin/WhatsappCall";
 import { NavMotion } from "@/components/admin/NavMotion";
 import { MobileTabBar } from "@/components/admin/MobileTabBar";
 import { PullToRefresh } from "@/components/admin/PullToRefresh";
@@ -49,6 +50,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   // Зашёл в рабочее время — сразу «в сети».
   const onShift = await autoShiftOnVisit(staff);
   const [live, phone] = await Promise.all([container().reporting.live(staff.context), can(staff, "calls.make") ? container().telephony.phone.webphoneAvailable(staff.user.sipExtension) : false]);
+  // Звонки в WhatsApp, по которым ещё не отмечен итог, — плашка «Как прошёл звонок?».
+  const waPending = can(staff, "calls.make") ? await container().telephony.queries.pendingWhatsapp(staff.user.id, new Date()) : [];
   const nav = { adminName: staffLabel(staff.user), roleName: staff.roleName, perms: [...staff.permissions], onShift };
   // Нижняя панель на телефоне — по роли, как в приложении.
   const layout = mobileLayout((p) => can(staff, p), staff.isOwner);
@@ -78,6 +81,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         </div>
       </div>
       <NavMotion />
+      <WhatsappCallFollowUp pending={waPending.map((p) => ({ externalId: p.externalId, phone: p.clientPhone, startedAt: p.startedAt.toISOString() }))} />
       <MobileTabBar tabs={tabs} profileLabel={layout === "leader" ? "Ещё" : "Профиль"} />
       <IncomingCall />
     </CrmLiveProvider>

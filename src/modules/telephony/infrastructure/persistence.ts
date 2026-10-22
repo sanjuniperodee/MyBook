@@ -1,6 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { and, eq, gte, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, gte, isNull, sql } from "drizzle-orm";
 import { crmCalls, crmNotes, users } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
 import type { CallRepository, CallTimeline, StaffDirectory } from "../application";
@@ -85,5 +85,15 @@ export class DrizzleCallQueries {
     if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
     const [r] = await executor().select().from(crmCalls).where(eq(crmCalls.id, id)).limit(1);
     return r ?? null;
+  }
+
+  /** Звонки клиентам в WhatsApp, по которым менеджер ещё не отметил итог (последние 3 часа): их ждёт плашка «Как прошёл звонок?». */
+  async pendingWhatsapp(staffId: string, now: Date) {
+    return executor()
+      .select({ externalId: crmCalls.externalId, clientPhone: crmCalls.clientPhone, startedAt: crmCalls.startedAt })
+      .from(crmCalls)
+      .where(and(eq(crmCalls.provider, "whatsapp"), eq(crmCalls.direction, "out"), eq(crmCalls.staffId, staffId), isNull(crmCalls.endedAt), gte(crmCalls.startedAt, new Date(now.getTime() - 3 * 3_600_000))))
+      .orderBy(desc(crmCalls.startedAt))
+      .limit(3);
   }
 }

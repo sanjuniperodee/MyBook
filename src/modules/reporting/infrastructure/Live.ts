@@ -1,5 +1,5 @@
 import "server-only";
-import { and, count, desc, eq, gte, isNull, or } from "drizzle-orm";
+import { and, count, desc, eq, gte, isNull, ne, or } from "drizzle-orm";
 import { executor } from "@/shared/infrastructure/database";
 import { crmCalls, crmDeals, crmNotifications, users } from "@/shared/infrastructure/db/schema";
 import { crmCounters, type CrmCounters } from "./Counters";
@@ -55,6 +55,8 @@ export async function getLive(staff: StaffView): Promise<LiveState> {
             and(
               eq(crmCalls.status, "ringing"),
               isNull(crmCalls.endedAt),
+              // Звонок клиенту в WhatsApp набирается в приложении WhatsApp, а итог отмечается плашкой, — живой карточки у него нет.
+              ne(crmCalls.provider, "whatsapp"),
               gte(crmCalls.startedAt, new Date(Date.now() - 3 * 60_000)),
               // Звонок на мой внутренний номер или ещё не распределённый входящий.
               or(eq(crmCalls.staffId, me), and(isNull(crmCalls.staffId), eq(crmCalls.direction, "in"))),

@@ -129,4 +129,24 @@ describe("CallsService", () => {
     await service.handle(event({ stage: "end" }));
     expect(log).toEqual(["finished:c1"]);
   });
+
+  it("звонок клиенту в WhatsApp: набрал → итог; заявка принимается, в ленту — запись, чужой итог не принимается", async () => {
+    const { service, log } = setup({ openDeal: "d5", client: "u1" });
+    const id = await service.startWhatsapp({ staffId: "m1", phone: "77011234567" });
+    expect(id).toMatch(/^wa-out-/);
+    await expect(service.finishWhatsapp({ externalId: id, staffId: "m2", outcome: "answered", minutes: 3 })).rejects.toThrow("Звонок не найден");
+    await service.finishWhatsapp({ externalId: id, staffId: "m1", outcome: "answered", minutes: 3 });
+    expect(log).toContain("accept:d5:m1:исходящий звонок клиенту");
+    expect(log.some((l) => l.startsWith("note:Исходящий звонок, 3:00"))).toBe(true);
+    // Повторная отметка ничего не меняет.
+    await service.finishWhatsapp({ externalId: id, staffId: "m1", outcome: "failed", minutes: 0 });
+    expect(log.filter((l) => l.startsWith("finished")).length).toBe(1);
+  });
+
+  it("«Не ответил» в WhatsApp: звонок записан, но это не пропущенный входящий — без уведомлений", async () => {
+    const { service, log } = setup();
+    const id = await service.startWhatsapp({ staffId: "m1", phone: "77011234567" });
+    await service.finishWhatsapp({ externalId: id, staffId: "m1", outcome: "missed", minutes: 0 });
+    expect(log.some((l) => l.startsWith("notify"))).toBe(false);
+  });
 });

@@ -14,6 +14,8 @@ export interface CallEvent {
   direction: "in" | "out";
   clientPhone: string;
   extension: string | null;
+  /** Сотрудник известен сразу (звонок в WhatsApp из CRM) — тогда по внутреннему номеру его не ищем. */
+  staffId?: string | null;
   at: Date;
   durationSec?: number;
   status?: "answered" | "missed" | "busy" | "failed";

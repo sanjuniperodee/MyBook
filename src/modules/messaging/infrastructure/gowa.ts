@@ -53,7 +53,7 @@ export const GOWA_DEVICE = "mybooks";
 export const GOWA_PAGE_LIMIT = 100;
 
 /** События, которые нужны CRM: сообщения и отметки о доставке. */
-const WEBHOOK_EVENTS = "message,message.ack";
+const WEBHOOK_EVENTS = "message,message.ack,call.offer";
 
 type Method = "GET" | "POST" | "PATCH";
 

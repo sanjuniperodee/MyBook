@@ -4,6 +4,8 @@ import { staffLabel } from "@/shared/domain/staff";
 import { Call, TelephonyError, type CallEvent } from "../domain";
 import type { CallRepository, CallSideEffects, CallTimeline, SalesGateway, StaffDirectory, TelephonyProvider } from "./ports";
 
+export const WHATSAPP = "whatsapp";
+
 /** События АТС → журнал звонков, сделки, лента клиента, пропущенные. Идемпотентно. */
 export class CallsService {
   constructor(
@@ -26,8 +28,38 @@ export class CallsService {
     return call?.snapshot() ?? null;
   }
 
+  /**
+   * Звонок клиенту в WhatsApp из CRM: исходящих звонков шлюз не умеет, поэтому CRM открывает у менеджера WhatsApp на чате
+   * клиента, а здесь заводит запись «набираю» — потом менеджер отмечает итог (finishWhatsapp), и звонок попадает в журнал,
+   * ленту клиента и принимает заявку в работу, как обычный исходящий.
+   */
+  async startWhatsapp(input: { staffId: string; phone: string }) {
+    const externalId = `wa-out-${this.calls.nextId()}`;
+    await this.handle({ provider: WHATSAPP, externalId, stage: "start", direction: "out", clientPhone: input.phone, extension: null, staffId: input.staffId, at: this.clock.now() });
+    return externalId;
+  }
+
+  /** Итог звонка в WhatsApp: отвечает только тот, кто набирал; повторная отметка ничего не меняет. */
+  async finishWhatsapp(input: { externalId: string; staffId: string; outcome: "answered" | "missed" | "failed"; minutes: number }) {
+    const call = await this.calls.findByExternal(WHATSAPP, input.externalId);
+    if (!call || call.staffId !== input.staffId || call.direction !== "out") throw new TelephonyError("notFound", "Звонок не найден");
+    const answered = input.outcome === "answered";
+    await this.handle({
+      provider: WHATSAPP,
+      externalId: input.externalId,
+      stage: "end",
+      direction: "out",
+      clientPhone: call.clientPhone,
+      extension: null,
+      staffId: input.staffId,
+      at: this.clock.now(),
+      status: input.outcome,
+      durationSec: answered ? Math.max(0, Math.min(600, Math.round(input.minutes))) * 60 : 0,
+    });
+  }
+
   private async apply(e: CallEvent): Promise<Call | null> {
-    const staffId = await this.staff.byExtension(e.extension);
+    const staffId = e.staffId ?? (await this.staff.byExtension(e.extension));
     let call = await this.calls.findByExternal(e.provider, e.externalId);
     if (!call) {
       if (e.stage === "record") return null; // запись без звонка — игнорируем

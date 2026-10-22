@@ -115,6 +115,46 @@ function attachment(p: Record<string, unknown>): { type: string; path: string | 
   return null;
 }
 
+/** Событие журнала звонков (формат контекста «Телефония»; здесь — структурно, чтобы контексты не зависели друг от друга). */
+export interface WhatsappCallEvent {
+  provider: "whatsapp";
+  externalId: string;
+  stage: "end";
+  direction: "in";
+  clientPhone: string;
+  extension: null;
+  at: Date;
+  status: "missed";
+  durationSec: 0;
+}
+
+/**
+ * Входящий звонок в WhatsApp (call.offer) → событие журнала звонков. Шлюз сообщает только о начале звонка, отвечает на него
+ * человек на телефоне магазина, поэтому звонок записывается пропущенным: менеджер перезвонит, а если дозвонится сам —
+ * пропущенные с этого номера закроются. Звонок из группы и звонок со скрытым номером (LID) без телефона — пустой номер.
+ */
+export function parseGowaCall(body: unknown): WhatsappCallEvent | null {
+  const b = record(body);
+  if (str(b.event) !== "call.offer") return null;
+  const p = record(b.payload);
+  const callId = str(p.call_id);
+  const from = str(p.from);
+  if (!callId || str(p.group_jid)) return null;
+  const phone = /@s\.whatsapp\.net$/.test(from) ? gowaChatId(from).replace(/\D/g, "") : "";
+  const at = new Date(str(b.timestamp));
+  return {
+    provider: "whatsapp",
+    externalId: callId,
+    stage: "end",
+    direction: "in",
+    clientPhone: phone,
+    extension: null,
+    at: Number.isNaN(at.getTime()) ? new Date() : at,
+    status: "missed",
+    durationSec: 0,
+  };
+}
+
 /** Получатель статуса — сам аккаунт магазина (он прочитал входящее): такие отметки к нашим сообщениям не относятся. */
 const ownJid = (deviceId: string) => deviceId.split("@")[0].split(":")[0];
 

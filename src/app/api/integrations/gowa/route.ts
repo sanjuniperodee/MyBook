@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { parseGowaWebhook } from "@/modules/messaging/domain/gowa";
+import { parseGowaCall, parseGowaWebhook } from "@/modules/messaging/domain/gowa";
 import { container } from "@/server/container";
 
 /**
- * Вебхук своего шлюза WhatsApp (GOWA): входящие, ответы с телефона магазина (эхо) и статусы доставки.
+ * Вебхук своего шлюза WhatsApp (GOWA): входящие, ответы с телефона магазина (эхо), статусы доставки и входящие звонки.
  * Подпись — X-Hub-Signature-256 (HMAC-SHA256, секрет из «Интеграций»). Обработка идемпотентна (по id сообщения),
  * поэтому при ошибке отвечаем 500 — шлюз доставит событие повторно.
  */
@@ -18,7 +18,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "bad json" }, { status: 400 });
   }
   const { messages, statuses } = parseGowaWebhook(body);
+  const call = parseGowaCall(body);
   try {
+    // Входящий звонок WhatsApp — в общий журнал звонков (идемпотентно по call_id).
+    if (call) await container().telephony.calls.handle(call);
     for (const m of messages) await messaging.chats.ingest(m, { anyWhatsappChannel: true });
     for (const s of statuses) await messaging.chats.applyStatus(s);
   } catch (err) {

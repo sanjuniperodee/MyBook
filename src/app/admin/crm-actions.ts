@@ -16,7 +16,7 @@ import { channelOf, channels, isManualChannel, manualAttribution, toAttribution 
 
 type Target = ContactTarget;
 
-type ActionResult = { ok: true; message?: string; id?: string } | { ok: false; message: string };
+type ActionResult = { ok: true; message?: string; id?: string; url?: string } | { ok: false; message: string };
 
 
 /** Ответственный за клиента. «Только свои» может лишь взять неразобранного клиента себе. */
@@ -104,6 +104,38 @@ export async function callAction(target: Target): Promise<ActionResult> {
     throw err;
   }
   return { ok: true, message: "Сейчас зазвонит ваш телефон — возьмите трубку, и АТС соединит с клиентом" };
+}
+
+/**
+ * Звонок клиенту в WhatsApp. Исходящих звонков шлюз WhatsApp не умеет, поэтому CRM записывает «набираю» и отдаёт ссылку: она
+ * открывает WhatsApp на чате клиента на телефоне менеджера (там один раз нажать на значок звонка), а итог менеджер отмечает
+ * плашкой «Как прошёл звонок?» — см. finishWhatsappCallAction.
+ */
+export async function whatsappCallAction(target: Target): Promise<ActionResult> {
+  const staff = await assertStaff("calls.make");
+  const c = await resolveContact(target);
+  const phone = normalizePhone(c?.phone ?? "");
+  if (!c?.phone || phone.length < 10) return { ok: false, message: "У клиента нет номера телефона" };
+  const refusal = workRefusal(staff, c.assigneeId);
+  if (refusal) return { ok: false, message: refusal };
+  await container().telephony.calls.startWhatsapp({ staffId: staff.user.id, phone });
+  revalidatePath("/admin/calls");
+  return { ok: true, url: `https://wa.me/${phone}`, message: "Открываем WhatsApp — нажмите на значок звонка" };
+}
+
+/** Итог звонка в WhatsApp: дозвонился (сколько минут), не ответил, не вышло. */
+export async function finishWhatsappCallAction(externalId: string, outcome: string, minutes: number): Promise<ActionResult> {
+  const staff = await assertStaff("calls.make");
+  const parsed = z.object({ externalId: z.string().min(1).max(100), outcome: z.enum(["answered", "missed", "failed"]), minutes: z.number().min(0).max(600) }).safeParse({ externalId, outcome, minutes });
+  if (!parsed.success) return { ok: false, message: "Не удалось сохранить итог звонка" };
+  try {
+    await container().telephony.calls.finishWhatsapp({ ...parsed.data, staffId: staff.user.id });
+  } catch (err) {
+    if (TelephonyError.is(err)) return { ok: false, message: err.message };
+    throw err;
+  }
+  revalidatePath("/admin/calls");
+  return { ok: true, message: "Звонок записан" };
 }
 
 /** Открыть чат WhatsApp с клиентом (существующий или новый) — возвращает id диалога. */
