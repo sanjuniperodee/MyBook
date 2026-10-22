@@ -30,8 +30,10 @@ function editorTexts(questions: EditorQuestion[], chapters: readonly EditorChapt
 
 export function editorEstimate(book: EditorBook, questions: EditorQuestion[], photos: EditorPhoto[], letters: LetterLike[], chapters?: readonly EditorChapter[]) {
   const content = assembleBookContent(
-    // Подзаголовок, имена и обложка на число полос не влияют; фото обложки в списке редактора уже нет.
-    { ...book, subtitle: "", authorName: "", recordedBy: "", recipientName: "", coverPhotoId: null },
+    // Подзаголовок, имена и обложка на число полос не влияют; фото обложки в списке редактора уже нет. Правила
+    // раскладки фото — прежние: мест фото (глава, фото начала, снимки обложки) у редактора пока нет, и по прежним
+    // правилам без них счёт ближе к печати.
+    { ...book, subtitle: "", authorName: "", recordedBy: "", recipientName: "", coverPhotoId: null, coverPhotoExtra: [], backPhotoId: null, backPhotoExtra: [], layoutRev: 1 },
     // Заголовок по умолчанию в редакторе уже в роде автора и адресата, свой текст (custom) — как у автора.
     questions.map((q, position) => ({ id: q.id, chapter: q.chapter, position, title: q.defaultTitle, displayText: q.displayText, hideHeading: q.hideHeading, answer: q.answer, media: q.media, questionKey: q.isCustom ? CUSTOM_KEY : null })),
     photos.map((p) => toPhotoItem({ ...p, inline: p.inline ?? null, storageKey: "", thumbKey: "" })),

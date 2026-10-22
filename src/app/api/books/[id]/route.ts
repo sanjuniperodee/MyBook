@@ -44,8 +44,9 @@ const patchSchema = z
     showToc: z.boolean(),
     tocMode: z.enum(TOC_MODES),
     // Строки оглавления: вид ключей и длину названий проверяет домен (parseTocLines), здесь — только размер.
+    // noOpenerPhoto — «глава без фото» (решение автора для редактора, в вёрстку не идёт).
     tocLines: z
-      .record(z.string().max(90), z.object({ title: z.string().max(TOC_TITLE_MAX).optional(), hidden: z.boolean().optional(), epigraph: z.string().max(TOC_EPIGRAPH_MAX).optional() }))
+      .record(z.string().max(90), z.object({ title: z.string().max(TOC_TITLE_MAX).optional(), hidden: z.boolean().optional(), epigraph: z.string().max(TOC_EPIGRAPH_MAX).optional(), noOpenerPhoto: z.boolean().optional() }))
       .refine((o) => Object.keys(o).length <= TOC_LINES_MAX),
     occasion: z.string().max(40).nullable(),
     occasionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),

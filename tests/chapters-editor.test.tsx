@@ -1,7 +1,7 @@
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { ChaptersEditor } from "@/app/(app)/books/[id]/pages/ChaptersEditor";
+import { ChaptersEditor, withChapterLine } from "@/app/(app)/books/[id]/pages/ChaptersEditor";
 import { MessagesContext } from "@/i18n/context";
 import { kk } from "@/i18n/messages/kk";
 import { ru } from "@/i18n/messages/ru";
@@ -62,5 +62,20 @@ describe("Главы книги: убрать и переименовать", ()
   it("превью оглавления сразу без убранной главы и с номерами подряд", () => {
     const toc = sampleToc(candidates, "chapters", { "c:date": { hidden: true } });
     expect(toc.map((l) => `${l.number}. ${l.title}`)).toEqual(["1. Алғысөздің орнына", "2. Бәрі қалай басталды", "3. Ғашықтық"]);
+  });
+});
+
+describe("Главы книги: правка строки главы", () => {
+  it("переименование, «убрать», эпиграф и их сброс не теряют «без фото главы»", () => {
+    const lines: TocLines = { "c:meet": { noOpenerPhoto: true }, "c:love": { title: "Любовь" } };
+    expect(withChapterLine(lines, "c:meet", { title: "Знакомство" })).toEqual({ "c:meet": { title: "Знакомство", noOpenerPhoto: true }, "c:love": { title: "Любовь" } });
+    expect(withChapterLine({ "c:meet": { title: "Знакомство", noOpenerPhoto: true } }, "c:meet", { title: "" })).toEqual({ "c:meet": { noOpenerPhoto: true } });
+    expect(withChapterLine(lines, "c:meet", { hidden: true })["c:meet"]).toEqual({ hidden: true, noOpenerPhoto: true });
+    expect(withChapterLine(lines, "c:meet", { epigraph: "Строка" })["c:meet"]).toEqual({ epigraph: "Строка", noOpenerPhoto: true });
+  });
+
+  it("строка без настроек убирается; длинное название обрезается", () => {
+    expect(withChapterLine({ "c:love": { title: "Любовь" } }, "c:love", { title: "" })).toEqual({});
+    expect(withChapterLine({}, "c:love", { title: "x".repeat(500) })["c:love"].title!.length).toBeLessThan(500);
   });
 });

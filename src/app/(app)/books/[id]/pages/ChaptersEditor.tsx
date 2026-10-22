@@ -52,16 +52,7 @@ export function ChaptersEditor({
   const storiesOf = (key: string) => candidates.filter((c) => c.kind === "section" && c.parent === key);
   if (!chapters.length || chapters.every((c) => c.key.startsWith("c:planned-"))) return <p className="text-sm text-muted">{t.chaptersLater}</p>;
 
-  const setLine = (key: string, patch: TocLineSetting) => {
-    const next = { ...lines[key], ...patch };
-    const clean: TocLineSetting = {};
-    if (next.title) clean.title = next.title.slice(0, TOC_TITLE_MAX);
-    if (next.hidden) clean.hidden = true;
-    if (next.epigraph) clean.epigraph = next.epigraph.slice(0, TOC_EPIGRAPH_MAX);
-    const rest = { ...lines };
-    delete rest[key];
-    onChange(clean.title !== undefined || clean.hidden || clean.epigraph !== undefined ? { ...rest, [key]: clean } : rest);
-  };
+  const setLine = (key: string, patch: TocLineSetting) => onChange(withChapterLine(lines, key, patch));
 
   const rows = chapterRows(chapters, lines, (key) => storiesOf(key).length);
   // Куда переносить истории: оставшиеся главы темы (не письма).
@@ -169,6 +160,22 @@ export function ChaptersEditor({
       ) : null}
     </div>
   );
+}
+
+/**
+ * Строки глав с правкой строки key: пустое название и эпиграф не хранятся, строка без настроек убирается. «Без фото
+ * главы» (noOpenerPhoto) этот блок не правит — переименование, «убрать» и эпиграф его не теряют.
+ */
+export function withChapterLine(lines: TocLines, key: string, patch: TocLineSetting): TocLines {
+  const next = { ...lines[key], ...patch };
+  const clean: TocLineSetting = {};
+  if (next.title) clean.title = next.title.slice(0, TOC_TITLE_MAX);
+  if (next.hidden) clean.hidden = true;
+  if (next.epigraph) clean.epigraph = next.epigraph.slice(0, TOC_EPIGRAPH_MAX);
+  if (next.noOpenerPhoto) clean.noOpenerPhoto = true;
+  const rest = { ...lines };
+  delete rest[key];
+  return Object.keys(clean).length ? { ...rest, [key]: clean } : rest;
 }
 
 /** Номер главы и куда уйдут истории убранной — по текущим правкам, ещё до сохранения. */

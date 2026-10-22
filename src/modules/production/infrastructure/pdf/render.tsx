@@ -22,6 +22,7 @@ import {
 } from "@/lib/book/formats";
 import { photoAreaMm, photoPages, toPhotoItem, type BookContent, type PhotoItem } from "@/lib/book/layout";
 import { buildBookContent } from "@/lib/book/book-content";
+import { estimatePages } from "@/lib/book/estimate";
 import { emptyFlow } from "@/lib/book/flow-decisions";
 import { interiorMetrics, textArea } from "@/lib/book/page-geometry";
 import { interiorSizes } from "@/lib/book/typesetting";
@@ -40,6 +41,7 @@ import { readLayout, refineDropCaps, refineFlow } from "@/modules/production/inf
 import { readPages } from "@/modules/production/infrastructure/pdf/pages";
 import { tocKey } from "@/lib/book/toc";
 import type { BookBuildManifest, BookBuildPage } from "@/lib/book/book-build";
+import type { RenderReport } from "../../application/RenderProgress";
 
 export type RenderMode = "print" | "preview" | "reading";
 
@@ -218,11 +220,14 @@ let placeholderJpeg: Promise<Buffer> | undefined;
 /** Крошечный снимок-заглушка: на раскладку влияют только заданные размеры фото, а не сами пиксели. */
 const placeholder = () => (placeholderJpeg ??= sharp({ create: { width: 4, height: 4, channels: 3, background: "#cccccc" } }).jpeg().toBuffer());
 
-export async function renderInterior(bundle: BookBundle, mode: RenderMode): Promise<InteriorResult> {
+/** report: этапы сборки блока — картинки, доводка вёрстки, итоговая сборка (size — оценка страниц и фото: от неё срок). */
+export async function renderInterior(bundle: BookBundle, mode: RenderMode, report?: RenderReport): Promise<InteriorResult> {
   ensureFonts();
   const content = contentFor(bundle);
   const { bleed } = modeSettings[mode];
+  report?.({ stage: "images", size: estimatePages(content) + bundle.photos.length });
   const images = await prepareImages(content, mode, bleed);
+  report?.({ stage: "flow" });
 
   // Доводка вёрстки: собираем блок с заглушками вместо фото, читаем раскладку, принимаем решения
   // (разрывы перед заголовками, размер фото под свободное место — см. lib/book/flow-decisions.ts) и повторяем, пока есть что поправить.
@@ -266,6 +271,7 @@ export async function renderInterior(bundle: BookBundle, mode: RenderMode): Prom
   let final: unknown;
   let raw: Buffer;
   let chapters: Record<string, number> = {};
+  report?.({ stage: "final" });
   for (let retry = 0; ; retry++) {
     const captured: Record<string, number> = {};
     raw = await renderPdf(
@@ -316,8 +322,8 @@ export type ScreenLayout = Omit<BookBuildManifest, "fp">;
  * Экранная сборка — единственная вёрстка, которую показывают предпросмотры (PDF, 3D-книга, превью полос): блок
  * в режиме preview и раскладка его полос. Разбивка та же, что у блока для печати: режимы отличаются только фото.
  */
-export async function renderScreenBuild(bundle: BookBundle): Promise<{ pdf: Buffer; layout: ScreenLayout }> {
-  const res = await renderInterior(bundle, "preview");
+export async function renderScreenBuild(bundle: BookBundle, report?: RenderReport): Promise<{ pdf: Buffer; layout: ScreenLayout }> {
+  const res = await renderInterior(bundle, "preview", report);
   const format = getFormat(bundle.book.format);
   return {
     pdf: res.pdf,
@@ -464,8 +470,9 @@ export async function renderCover(bundle: BookBundle, pageCount: number, mode: R
 }
 
 /** Читательская версия: обложка + блок без вылетов, одним файлом. */
-export async function renderReadingPdf(bundle: BookBundle) {
-  const [interior, cover] = await Promise.all([renderInterior(bundle, "reading"), renderCover(bundle, 0, "reading", true)]);
+export async function renderReadingPdf(bundle: BookBundle, report?: RenderReport) {
+  const [interior, cover] = await Promise.all([renderInterior(bundle, "reading", report), renderCover(bundle, 0, "reading", true)]);
+  report?.({ stage: "finish" });
   const out = await PDFDocument.create();
   const [coverDoc, interiorDoc] = await Promise.all([PDFDocument.load(cover.pdf), PDFDocument.load(interior.pdf)]);
   const [coverPage] = await out.copyPages(coverDoc, [0]);
@@ -505,9 +512,11 @@ export interface PrintPackage {
   coverHeightMm: number;
 }
 
-export async function renderPrintPackage(bundle: BookBundle): Promise<PrintPackage> {
-  const interior = await renderInterior(bundle, "print");
+export async function renderPrintPackage(bundle: BookBundle, report?: RenderReport): Promise<PrintPackage> {
+  const interior = await renderInterior(bundle, "print", report);
+  report?.({ stage: "cover" });
   const cover = await renderCover(bundle, interior.pageCount, "print");
+  report?.({ stage: "finish" });
   const layout = await renderLayoutScheme(bundle, interior.pageCount, cover.pdf);
   return {
     interior: interior.pdf,

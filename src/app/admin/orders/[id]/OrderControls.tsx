@@ -3,10 +3,13 @@
 import { ask } from "@/components/ui/overlays";
 import { useActionState, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { LoaderCircle, RefreshCw } from "lucide-react";
+import { Download, FileArchive, LoaderCircle, RefreshCw } from "lucide-react";
 import { generateFilesAction, reviewOrderPaymentAction, saveAdminNoteAction, startPostpayAction, toggleBookLockAction, updateOrderAction, updateOrderDetailsAction, type AdminState } from "../../actions";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { Alert } from "@/components/ui/Alert";
+import { prepareAndDownload, RenderStatus, useRenderJob } from "@/components/ui/RenderProgress";
+import { orders } from "@/i18n/messages/ru/orders";
+import type { RenderKind } from "@/modules/production";
 import { orderStatusLabel } from "@/modules/ordering/ui/status";
 import { orderNotice, type OrderNoticeFacts } from "@/modules/ordering/ui/notice";
 import { deliveryLabels } from "@/modules/ordering/ui/labels";
@@ -69,13 +72,57 @@ export function NoteForm({ orderId, note }: { orderId: string; note: string | nu
   );
 }
 
-export function GenerateButton({ orderId, hasFiles }: { orderId: string; hasFiles: boolean }) {
-  const [pending, start] = useTransition();
+/**
+ * Файлы для типографии: скачивание и пересборка. Пока файла нет (или его пересобирают), кнопка ждёт сборку и показывает
+ * её ход — этап, проценты и сколько осталось; готовый файл скачивается сразу из кэша.
+ */
+export function PrintFileActions({ orderId, hasFiles }: { orderId: string; hasFiles: boolean }) {
+  const router = useRouter();
+  // Админка — только по-русски: тексты хода сборки те же, что у клиента на русском.
+  const labels = orders.order.progress;
+  const { busy, job, error, run, waiting } = useRenderJob(orderId, labels.failed);
+  const link = (id: string, kind: string, href: string, label: string, opts: { className: string; icon?: "zip"; kinds?: RenderKind[] }) => (
+    <a
+      key={id}
+      href={href}
+      aria-disabled={busy !== null}
+      className={`${opts.className} ${busy !== null && busy !== id ? "pointer-events-none opacity-50" : ""}`}
+      onClick={(e) => {
+        // Ctrl/⌘-клик и средняя кнопка — как у обычной ссылки.
+        if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+        e.preventDefault();
+        void run(id, opts.kinds ?? ["package"], () => prepareAndDownload(orderId, kind, href));
+      }}
+    >
+      {busy === id ? <LoaderCircle className="size-4 animate-spin" /> : opts.icon === "zip" ? <FileArchive className="size-4" /> : <Download className="size-4" />} {label}
+    </a>
+  );
   return (
-    <button className="btn btn-outline btn-sm" disabled={pending} onClick={() => start(() => generateFilesAction(orderId))}>
-      {pending ? <LoaderCircle className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
-      {pending ? "Генерируем… (до минуты)" : hasFiles ? "Перегенерировать файлы" : "Сгенерировать файлы"}
-    </button>
+    <>
+      <div className="flex flex-wrap gap-2">
+        {link("zip", "block", `/api/admin/orders/${orderId}/package`, "Скачать всё (ZIP)", { className: "btn btn-primary btn-sm", icon: "zip" })}
+        {link("block", "block", `/api/orders/${orderId}/files/block`, "Блок", { className: "btn btn-outline btn-sm" })}
+        {link("cover", "cover", `/api/orders/${orderId}/files/cover`, "Обложка", { className: "btn btn-outline btn-sm" })}
+        {link("layout", "layout", `/api/orders/${orderId}/files/layout`, "Каркас обложки", { className: "btn btn-outline btn-sm", kinds: ["package", "layout"] })}
+        {link("spec", "spec", `/api/orders/${orderId}/files/spec`, "Техзадание", { className: "btn btn-outline btn-sm" })}
+        {link("reading", "reading", `/api/orders/${orderId}/files/reading`, "PDF для чтения", { className: "btn btn-ghost btn-sm", kinds: ["reading"] })}
+        <button
+          className="btn btn-outline btn-sm"
+          disabled={busy !== null}
+          onClick={() =>
+            void run("generate", ["package"], async () => {
+              await generateFilesAction(orderId);
+              router.refresh();
+            })
+          }
+        >
+          {busy === "generate" ? <LoaderCircle className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+          {busy === "generate" ? "Генерируем…" : hasFiles ? "Перегенерировать файлы" : "Сгенерировать файлы"}
+        </button>
+      </div>
+      <RenderStatus job={job} waiting={waiting} labels={labels} />
+      {error ? <Alert>{error}</Alert> : null}
+    </>
   );
 }
 

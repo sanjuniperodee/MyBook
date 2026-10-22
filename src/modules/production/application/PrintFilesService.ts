@@ -1,5 +1,6 @@
 import { systemClock, type Clock, type Logger } from "@/shared/application";
-import { buildImageBase, type BookBuild, type BookBuildManifest, type BookBuildState, type PageImageWidth } from "@/lib/book/book-build";
+import { buildImageBase, type BookBuild, type BookBuildManifest, type BookBuildState, type BuildProgress, type PageImageWidth } from "@/lib/book/book-build";
+import { RenderProgress, type RenderKind, type RenderReport } from "./RenderProgress";
 
 export type PrintFileKind = "block" | "cover" | "layout" | "spec" | "reading";
 
@@ -19,12 +20,12 @@ export interface PrintSpec {
   generatedAt: string;
 }
 
-/** Порт рендера: PDF блока, обложки и читательской версии. */
+/** Порт рендера: PDF блока, обложки и читательской версии. report — рендер докладывает, какой этап начался (RenderProgress). */
 export interface BookRenderer {
-  renderPrintPackage(bookId: string, orderNumber: number): Promise<{ interior: Buffer; cover: Buffer; layout: Buffer; spec: Buffer; printSpec: PrintSpec } | null>;
+  renderPrintPackage(bookId: string, orderNumber: number, report?: RenderReport): Promise<{ interior: Buffer; cover: Buffer; layout: Buffer; spec: Buffer; printSpec: PrintSpec } | null>;
   /** Каркас — готовая обложка с рамками крышек и корешка — по готовым PDF блока и обложки (для заказов, собранных до появления каркаса). */
-  renderLayout(bookId: string, block: Buffer, cover: Buffer): Promise<Buffer | null>;
-  renderReading(bookId: string): Promise<Buffer | null>;
+  renderLayout(bookId: string, block: Buffer, cover: Buffer, report?: RenderReport): Promise<Buffer | null>;
+  renderReading(bookId: string, report?: RenderReport): Promise<Buffer | null>;
   /**
    * Экранная сборка — единственная вёрстка всех предпросмотров: отпечаток содержимого (ключ кэша), отложенный рендер
    * (PDF без водяного знака и манифест его полос) и водяной знак «Предпросмотр» поверх готового PDF этой книги.
@@ -37,7 +38,7 @@ export interface BookRenderer {
 /** Экранная сборка книги до рендера: отпечаток считается сразу, сама вёрстка — по render(). */
 export interface ScreenDraft {
   fingerprint: string;
-  render(): Promise<{ pdf: Buffer; manifest: BookBuildManifest }>;
+  render(report?: RenderReport): Promise<{ pdf: Buffer; manifest: BookBuildManifest }>;
   /** Знак ставится поверх полос: вёрстка под ним не меняется. */
   watermark(pdf: Buffer): Promise<Buffer>;
 }
@@ -93,18 +94,26 @@ export class PrintFilesService {
     private readonly files: FileStore,
     private readonly queue: RenderQueue,
     private readonly logger: Logger,
+    /** Ход сборок: экран заказа спрашивает его, пока файлы готовятся. */
+    private readonly progress: RenderProgress = new RenderProgress(),
   ) {}
 
   private key(orderId: string, kind: PrintFileKind) {
     return `orders/${orderId}/${kind === "spec" ? "spec.txt" : `${kind}.pdf`}`;
   }
 
+  /** Сборка в очереди рендера под ключом key; ход виден через RenderProgress. */
+  private render<T>(key: string, kind: RenderKind, task: (report: RenderReport) => Promise<T>): Promise<T> {
+    this.progress.queued(key, kind);
+    return this.queue.run(key, () => this.progress.track(key, task));
+  }
+
   /** Сгенерировать файлы для печати (или взять готовые). Возвращает параметры печати, если рендерили. */
   async prepare(job: PrintJob, opts: { force?: boolean } = {}): Promise<PrintSpec | null> {
     const keys = { block: this.key(job.orderId, "block"), cover: this.key(job.orderId, "cover"), spec: this.key(job.orderId, "spec") };
     if (!opts.force && (await this.files.exists(keys.block)) && (await this.files.exists(keys.cover)) && (await this.files.exists(keys.spec))) return null;
-    return this.queue.run(`print:${job.orderId}`, async () => {
-      const pkg = await this.renderer.renderPrintPackage(job.bookId, job.number);
+    return this.render(`print:${job.orderId}`, "package", async (report) => {
+      const pkg = await this.renderer.renderPrintPackage(job.bookId, job.number, report);
       if (!pkg) throw new Error(`book ${job.bookId} not found`);
       await this.files.put(keys.block, pkg.interior);
       await this.files.put(keys.cover, pkg.cover);
@@ -120,8 +129,8 @@ export class PrintFilesService {
     const key = this.key(job.orderId, kind);
     if (kind === "reading") {
       if (!opts.force && (await this.files.exists(key))) return this.files.get(key);
-      return this.queue.run(`reading:${job.orderId}`, async () => {
-        const pdf = await this.renderer.renderReading(job.bookId);
+      return this.render(`reading:${job.orderId}`, "reading", async (report) => {
+        const pdf = await this.renderer.renderReading(job.bookId, report);
         if (!pdf) throw new Error(`book ${job.bookId} not found`);
         await this.files.put(key, pdf);
         return pdf;
@@ -130,12 +139,26 @@ export class PrintFilesService {
     await this.prepare(job, opts);
     if (kind === "layout" && !(await this.files.exists(key))) {
       const [block, cover] = await Promise.all([this.files.get(this.key(job.orderId, "block")), this.files.get(this.key(job.orderId, "cover"))]);
-      const pdf = await this.queue.run(`layout:${job.orderId}`, () => this.renderer.renderLayout(job.bookId, block, cover));
+      const pdf = await this.render(`layout:${job.orderId}`, "layout", (report) => this.renderer.renderLayout(job.bookId, block, cover, report));
       if (!pdf) throw new Error(`book ${job.bookId} not found`);
       await this.files.put(key, pdf);
       return pdf;
     }
     return this.files.get(key);
+  }
+
+  /**
+   * Подготовить файл, не читая его в память: страница ждёт готовности (показывая ход сборки), а само скачивание
+   * потом идёт из кэша. Сборка и кэш — те же, что у getFile.
+   */
+  async ensure(job: PrintJob, kind: PrintFileKind, opts: { force?: boolean } = {}): Promise<void> {
+    const key = this.key(job.orderId, kind);
+    if (kind === "reading") {
+      if (opts.force || !(await this.files.exists(key))) await this.getFile(job, kind, opts);
+      return;
+    }
+    await this.prepare(job, opts);
+    if (kind === "layout" && !(await this.files.exists(key))) await this.getFile(job, kind);
   }
 
   /**
@@ -248,6 +271,8 @@ export class BookPreviewService {
     /** Книга оплачена — водяной знак больше не нужен. */
     private readonly paid: (bookId: string) => Promise<boolean> = async () => false,
     private readonly clock: Clock = systemClock,
+    /** Ход сборок: экран предпросмотра спрашивает его, пока страницы собираются. */
+    private readonly progress: RenderProgress = new RenderProgress(),
   ) {}
 
   private dir(bookId: string) {
@@ -313,11 +338,15 @@ export class BookPreviewService {
     const job = (async () => {
       // await всегда уступает ход: в очередь встаём, когда сборка уже записана в waiting, а идущая сборка книги закончилась.
       await after?.catch(() => undefined);
-      return this.queue.run(`screen:${bookId}:${++this.seq}`, () => {
-        // Пошла — дальнейшие запросы заводят следующую сборку.
-        this.waiting.delete(bookId);
-        return this.assemble(bookId);
-      });
+      const key = `screen:${bookId}:${++this.seq}`;
+      this.progress.queued(key, "screen");
+      return this.queue.run(key, () =>
+        this.progress.track(key, (report) => {
+          // Пошла — дальнейшие запросы заводят следующую сборку.
+          this.waiting.delete(bookId);
+          return this.assemble(bookId, report);
+        }),
+      );
     })();
     this.waiting.set(bookId, job);
     this.last.set(bookId, job);
@@ -330,7 +359,7 @@ export class BookPreviewService {
   }
 
   /** Сборка в слоте рендера: книга как сейчас, готовая — из кэша. Пока книга не оплачена, сразу ставит и знак. */
-  private async assemble(bookId: string): Promise<Screen | null> {
+  private async assemble(bookId: string, report?: RenderReport): Promise<Screen | null> {
     const draft = await this.renderer.preview(bookId);
     if (!draft) return null;
     const fp = draft.fingerprint;
@@ -339,7 +368,8 @@ export class BookPreviewService {
     if (this.held(bookId, fp)) throw new Error(`screen build ${bookId}:${fp} failed recently`);
     let build: BookBuild;
     try {
-      const { pdf, manifest } = await draft.render();
+      const { pdf, manifest } = await draft.render(report);
+      report?.({ stage: "finish" });
       // Тот же отпечаток собирается заново (манифест испорчен, другая версия сборки) — картинки и знак прошлого PDF не годятся.
       await this.files.deletePrefix(this.pagesDir(bookId, fp));
       await this.files.deletePrefix(this.markedKey(bookId, fp));
@@ -481,6 +511,11 @@ export class BookPreviewService {
     // Сбой пишется в лог и в failures при сборке; здесь его не ждём.
     this.screen(bookId).catch(() => undefined);
     return { status: "building", previous };
+  }
+
+  /** Ход идущей сборки книги для экрана; null — сборки нет (готова, не начата или упала). Книгу не загружает: читает только память. */
+  progressOf(bookId: string): BuildProgress | null {
+    return this.progress.forBook(bookId);
   }
 
   /**

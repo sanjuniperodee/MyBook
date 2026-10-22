@@ -50,24 +50,24 @@ type BookBundleSource = (bookId: string) => Promise<BookBundle | null>;
 export function reactPdfRenderer(load: BookBundleSource): BookRenderer {
   const pdf = () => import("@/modules/production/infrastructure/pdf/render");
   return {
-    async renderPrintPackage(bookId, orderNumber) {
+    async renderPrintPackage(bookId, orderNumber, report) {
       const bundle = await load(bookId);
       if (!bundle) return null;
-      const pkg = await inPdfThread({ task: "printPackage", bundle, orderNumber });
+      const pkg = await inPdfThread({ task: "printPackage", bundle, orderNumber }, report);
       const printSpec: PrintSpec = { format: bundle.book.format, pageCount: pkg.pageCount, spineMm: pkg.spineMm, coverWidthMm: pkg.coverWidthMm, coverHeightMm: pkg.coverHeightMm, generatedAt: new Date().toISOString() };
       return { interior: buf(pkg.interior), cover: buf(pkg.cover), layout: buf(pkg.layout), spec: buf(pkg.spec), printSpec };
     },
-    async renderLayout(bookId, block, cover) {
+    async renderLayout(bookId, block, cover, report) {
       const bundle = await load(bookId);
       if (!bundle) return null;
       const { PDFDocument } = await import("pdf-lib");
       const pageCount = (await PDFDocument.load(block)).getPageCount();
-      return buf(await inPdfThread({ task: "layout", bundle, pageCount, cover }));
+      return buf(await inPdfThread({ task: "layout", bundle, pageCount, cover }, report));
     },
-    async renderReading(bookId) {
+    async renderReading(bookId, report) {
       const bundle = await load(bookId);
       if (!bundle) return null;
-      return buf(await inPdfThread({ task: "reading", bundle }));
+      return buf(await inPdfThread({ task: "reading", bundle }, report));
     },
     async preview(bookId) {
       const bundle = await load(bookId);
@@ -76,8 +76,8 @@ export function reactPdfRenderer(load: BookBundleSource): BookRenderer {
       const fp = contentFingerprint(bundle);
       return {
         fingerprint: fp,
-        async render() {
-          const res = await inPdfThread({ task: "preview", bundle });
+        async render(report) {
+          const res = await inPdfThread({ task: "preview", bundle }, report);
           return { pdf: buf(res.pdf), manifest: { fp, ...res.layout } };
         },
         watermark: async (file) => buf(await inPdfThread({ task: "watermark", pdf: file, language: bundle.book.language, format: bundle.book.format })),

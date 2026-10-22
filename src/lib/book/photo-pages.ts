@@ -4,9 +4,9 @@
  * поэтому снимки в превью и в печати лежат одинаково. Единицы — мм от левого верхнего угла
  * обрезного формата; рамки — фигуры interior-art (under — под снимком, over — поверх).
  */
-import { PT_TO_MM, type BookFormat, type Rect } from "./formats";
+import { print, PT_TO_MM, type BookFormat, type Rect } from "./formats";
 import { PHOTO_COLORS, type InteriorDesign } from "./interiors";
-import { photoCaptionFace, photoCaptionSize, type InteriorSizes } from "./typesetting";
+import { interiorSizes, photoCaptionFace, photoCaptionSize, type InteriorSizes } from "./typesetting";
 import type { Shape } from "./interior-art";
 import { n } from "./covers/svg-kit";
 import { interiorMetrics, pageSide, textArea } from "./page-geometry";
@@ -344,4 +344,46 @@ export function openerPhotoPlan(format: BookFormat, design: InteriorDesign): Ope
     over: [{ kind: "path", d: rectPath({ x: -tw / 2, y: -th / 2, w: tw, h: th }), fill: design.photos.tape ?? PHOTO_COLORS.tape, opacity: 0.8, transform: `translate(${n(cx + (ch / 2) * Math.sin(a))},${n(cy - (ch / 2) * Math.cos(a))}) rotate(3)` }],
     textTop: textTop(card.y + ch),
   };
+}
+
+// ─── кадр места снимка для редактора ────────────────────────────────────────
+
+/**
+ * Кадр, в который ляжет снимок на своём месте: снимок начала главы (вид — по оформлению), лист под обрез (фото на всю
+ * страницу) или ячейка сетки. Считается по той же геометрии, что у PDF (openerPhotoPlan, photoPagePlan), — рамки,
+ * слова о форме, проверка dpi и оценка обрезки в редакторе берут его из текущих оформления и формата.
+ */
+export interface PlaceFrame {
+  kind: NonNullable<InteriorDesign["opener"]["photo"]> | "page" | "grid";
+  /** Пропорции кадра: ширина к высоте. */
+  ratio: number;
+  /** Форма окна: арка или круг; null — прямоугольник. */
+  mask: "arch" | "circle" | null;
+  /** Снимок в карточке полароида. */
+  card: boolean;
+  /** Размер кадра, мм (у мест под обрез — с вылетами): по нему считается dpi. */
+  w: number;
+  h: number;
+}
+
+/** Кадр снимка начала главы в этом оформлении; null — глава в нём открывается без фото. */
+export function openerFrame(format: BookFormat, design: InteriorDesign): PlaceFrame | null {
+  const kind = design.opener.photo;
+  const plan = openerPhotoPlan(format, design);
+  if (!kind || !plan) return null;
+  return { kind, ratio: plan.img.w / plan.img.h, mask: plan.mask ?? null, card: !!plan.card, w: plan.img.w, h: plan.img.h };
+}
+
+/** Лист под обрез — фото на всю страницу в истории и фото «под обрез» (как страница PDF для печати, с вылетами). */
+export function pageFrame(format: BookFormat): PlaceFrame {
+  const w = format.widthMm + print.bleedMm * 2;
+  const h = format.heightMm + print.bleedMm * 2;
+  return { kind: "page", ratio: w / h, mask: null, card: false, w, h };
+}
+
+/** Ячейка сетки из четырёх снимков без подписей (там снимок заполняет место с обрезкой) — с рамкой оформления. */
+export function gridCellFrame(format: BookFormat, design: InteriorDesign): PlaceFrame {
+  const group = [0, 1, 2, 3].map((i) => ({ id: String(i), width: 1, height: 1, caption: "", layout: "grid" }));
+  const { img } = photoPagePlan(group, photoArea(format), design, interiorSizes(design, interiorMetrics[format.id].scale)).cells[0];
+  return { kind: "grid", ratio: img.w / img.h, mask: null, card: design.photos.frame === "polaroid", w: img.w, h: img.h };
 }

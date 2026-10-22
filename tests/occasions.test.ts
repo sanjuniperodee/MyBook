@@ -23,7 +23,7 @@ describe("поводы под тему книги", () => {
     const withValentine = ids("mom", "2026-06-10T10:00:00", "valentine");
     expect(withValentine).toContain("valentine");
     expect(withValentine.at(-1)).toBe("other");
-    expect(ids("unknown", "2026-06-10T10:00:00")).toHaveLength(9);
+    expect(ids("unknown", "2026-06-10T10:00:00")).toHaveLength(10);
   });
 });
 
@@ -37,8 +37,15 @@ describe("поводы под вид книги", () => {
 
   it("своя книга — любой повод, «Другой повод» последним", () => {
     const own = ids("blank");
-    expect(own).toHaveLength(9);
+    expect(own).toHaveLength(10);
     expect(own.at(-1)).toBe("other");
+  });
+
+  it("учителю — День учителя первым, без «Годовщины», «14 февраля» и свадьбы", () => {
+    const teacher = ids("teacher");
+    expect(teacher[0]).toBe("teachersday");
+    for (const id of ["anniversary", "valentine", "wedding"]) expect(teacher).not.toContain(id);
+    expect(teacher.at(-1)).toBe("other");
   });
 
   it("выбранный повод остаётся в списке и у автобиографии", () => {
@@ -53,6 +60,15 @@ describe("occasions", () => {
     expect(nextFixedDate(v, new Date(2027, 1, 14))).toBe("2027-02-14");
     expect(nextFixedDate(v, new Date(2027, 1, 15))).toBe("2028-02-14");
     expect(nextFixedDate(getOccasion("birthday")!, new Date())).toBeNull();
+  });
+
+  it("День учителя — первое воскресенье октября, после него — уже в следующем году", () => {
+    const t = getOccasion("teachersday")!;
+    expect(nextFixedDate(t, new Date(2026, 5, 10))).toBe("2026-10-04");
+    expect(nextFixedDate(t, new Date(2026, 9, 4))).toBe("2026-10-04");
+    expect(nextFixedDate(t, new Date(2026, 9, 5))).toBe("2027-10-03");
+    // 1 октября 2028 — воскресенье: праздник в тот же день.
+    expect(nextFixedDate(t, new Date(2028, 0, 1))).toBe("2028-10-01");
   });
 
   it("skips weekends when subtracting workdays", () => {

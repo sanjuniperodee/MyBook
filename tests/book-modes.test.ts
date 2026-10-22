@@ -440,6 +440,7 @@ const bookRow = (p: Partial<BookRow> = {}): BookRow => ({
   showToc: true,
   tocMode: "chapters",
   tocLines: {},
+  layoutRev: 1,
   inviteToken: null,
   language: "ru",
   occasion: null,

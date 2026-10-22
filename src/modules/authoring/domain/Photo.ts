@@ -2,6 +2,7 @@ import { AggregateRoot } from "@/shared/domain";
 import type { InlinePhotoStyle } from "@/lib/book/inline-photo";
 import { normalizeStyle } from "@/lib/book/inline-photo";
 import { normalizeCrop, rotateCrop, type PhotoCrop } from "@/lib/book/photo-crop";
+import { isChapterPhotoKey } from "@/lib/book/layout";
 
 export interface PhotoProps {
   bookId: string;
@@ -16,13 +17,16 @@ export interface PhotoProps {
   inline: InlinePhotoStyle | null;
   /** Кадр автора (точка и приближение); null — по правилу места. */
   crop: PhotoCrop | null;
-  /** Глава, выбранная автором для фото вне историй; null — по правилу книги. */
+  /**
+   * Место, выбранное автором для фото вне историй: ключ главы, «__gallery» — альбом в конце, «__off» — не печатается
+   * (служебные ключи читает только сборка, lib/book/layout.ts); null — по правилу книги.
+   */
   chapter?: string | null;
   /** Снимок начала главы chapter. */
   opener?: boolean;
 }
 
-/** Ключ главы: темы — латиница, своей книги — uuid, письма — __letters. */
+/** Ключ главы: темы — латиница, своей книги — uuid, письма — __letters; места __gallery и __off — тем же видом. */
 const CHAPTER_KEY = /^[\w-]{1,80}$/;
 
 export const MAX_PHOTOS = 120;
@@ -60,10 +64,11 @@ export class Photo extends AggregateRoot<PhotoProps> {
     if (patch.crop !== undefined) this.props.crop = normalizeCrop(patch.crop);
     if (patch.chapter !== undefined) {
       this.props.chapter = patch.chapter && CHAPTER_KEY.test(patch.chapter) ? patch.chapter : null;
-      if (!this.props.chapter) this.props.opener = false;
+      if (!isChapterPhotoKey(this.props.chapter)) this.props.opener = false;
     }
-    // Снимок начала — только у фото с выбранной главой; фото в ответе им не бывает.
-    if (patch.opener !== undefined) this.props.opener = patch.opener && !!this.props.chapter && !this.props.questionId;
+    // Снимок начала — только у фото с выбранной настоящей главой (не альбом, не «не печатается», не письма);
+    // фото в ответе им не бывает. Снятая отметка оставляет главу: фото встаёт после неё.
+    if (patch.opener !== undefined) this.props.opener = patch.opener && isChapterPhotoKey(this.props.chapter) && !this.props.questionId;
     // Вставили в ответ — фото больше не «фото главы».
     if (this.props.questionId) {
       this.props.chapter = null;

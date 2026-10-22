@@ -64,9 +64,12 @@ export class DrizzleBookRepository implements BookRepository {
         .values(questions.map((q, position) => ({ bookId: id, position, chapter: q.chapter, questionKey: q.key, prompt: q.prompt, title: q.title, hint: q.hint })));
   }
   async save(book: Book) {
-    const { id, createdAt: _c, userId: _u, ...props } = book.snapshot();
+    // Правила раскладки фото снимок не пишет: их меняет только перевод книги (layoutRevStore), и книга, загруженная до
+    // него, не вернёт прежние.
+    const { id, createdAt: _c, userId: _u, layoutRev: _r, ...props } = book.snapshot();
     void _c;
     void _u;
+    void _r;
     await executor().update(books).set({ ...props, updatedAt: new Date() }).where(eq(books.id, id));
   }
   async touch(bookId: string) {

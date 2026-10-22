@@ -4,9 +4,11 @@ import { useState, type CSSProperties, type ReactNode } from "react";
 import { Download, LoaderCircle, RotateCcw, TriangleAlert } from "lucide-react";
 import { useLocale, useMessages } from "@/i18n/client";
 import { localeMeta } from "@/i18n/config";
-import { pageImageUrl, type BookBuild, type BookBuildState, type PageImageWidth } from "@/lib/book/book-build";
+import { pageImageUrl, type BookBuild, type BookBuildState, type BuildProgress, type PageImageWidth } from "@/lib/book/book-build";
 import { cn } from "@/lib/class-names";
+import { progressSummary, RenderStatus } from "@/components/ui/RenderProgress";
 import { useBookBuild } from "./useBookBuild";
+import { useBuildProgress } from "./useBuildProgress";
 
 type Side = "left" | "right";
 export type Spread = [left: number | null, right: number | null];
@@ -174,6 +176,7 @@ export function PageReaderView({
   slow = false,
   retryAt = null,
   retrying = false,
+  progress = null,
   onRetry,
   onPageError,
 }: {
@@ -185,12 +188,15 @@ export function PageReaderView({
   /** Когда сработает повтор упавшей сборки (часы браузера); null — сейчас. */
   retryAt?: number | null;
   retrying?: boolean;
+  /** Ход идущей сборки (этап, проценты, сколько осталось); null — неизвестен. */
+  progress?: BuildProgress | null;
   onRetry: () => void;
   /** Картинка полосы не загрузилась — сборку, может, заменили: её стоит переспросить. */
   onPageError?: () => void;
 }) {
   const m = useMessages();
   const t = m.books.preview.reader;
+  const progressLabels = m.orders.order.progress;
   // Пока новая сборка не готова — показываем прошлую (во время сборки — приглушённой); вёрстки HTML здесь нет вовсе.
   const build = state?.status === "ready" ? state.build : (state?.previous ?? null);
   const building = state?.status === "building";
@@ -206,7 +212,15 @@ export function PageReaderView({
   const retry = <RetryButton retrying={retrying} retryAt={state?.status === "failed" ? retryAt : null} onRetry={onRetry} />;
 
   const lines: ReactNode[] = [];
-  if (building && build) lines.push(<StatusLine key="building" tone="busy">{slow ? t.slow : t.updating}</StatusLine>);
+  if (building && build) {
+    const summary = progressSummary(progress, progressLabels);
+    lines.push(
+      <StatusLine key="building" tone="busy">
+        {slow ? t.slow : t.updating}
+        {summary ? <span className="whitespace-nowrap tabular-nums text-muted"> · {summary}</span> : null}
+      </StatusLine>,
+    );
+  }
   else if (state?.status === "failed")
     lines.push(
       <StatusLine key="failed" tone="warn" action={retry}>
@@ -257,8 +271,13 @@ export function PageReaderView({
           </a>
         ) : (
           // Пока сборка не готова, скачивание ждало бы её (или упало) без всякого отклика на странице.
-          <button type="button" disabled title={t.downloadWait} className="btn btn-outline btn-sm">
-            <Download className="size-4" /> {t.download}
+          <button type="button" disabled title={t.downloadWait} className="btn btn-outline btn-sm relative overflow-hidden">
+            {/* Пока страницы собираются — кнопка заполняется: сколько готово, видно сразу на ней. */}
+            {building && progress?.state === "running" ? <span aria-hidden className="absolute inset-y-0 left-0 bg-wine/15 transition-[width] duration-1000 ease-linear" style={{ width: `${progress.percent}%` }} /> : null}
+            <span className="relative inline-flex items-center gap-2">
+              <Download className="size-4" /> {t.download}
+              {building && progress?.state === "running" ? <span className="tabular-nums">· {progress.percent}%</span> : null}
+            </span>
           </button>
         )}
       </div>
@@ -282,6 +301,7 @@ export function PageReaderView({
             <>
               <span className="font-medium text-ink-soft">{t.building}</span>
               <span>{slow ? t.slow : t.buildingHint}</span>
+              <RenderStatus job={progress} labels={progressLabels} className="w-full max-w-xs text-left" />
             </>
           ) : (
             m.common.actions.loading
@@ -299,9 +319,10 @@ export function PageReaderView({
 export function PageReader({ bookId }: { bookId: string }) {
   const { state, error, slow, retryAt, retry, recover } = useBookBuild(bookId);
   const [retrying, setRetrying] = useState(false);
+  const progress = useBuildProgress(bookId, state?.status === "building");
   const onRetry = () => {
     setRetrying(true);
     void retry().finally(() => setRetrying(false));
   };
-  return <PageReaderView bookId={bookId} state={state} error={error} slow={slow} retryAt={retryAt} retrying={retrying} onRetry={onRetry} onPageError={recover} />;
+  return <PageReaderView bookId={bookId} state={state} error={error} slow={slow} retryAt={retryAt} retrying={retrying} progress={progress} onRetry={onRetry} onPageError={recover} />;
 }

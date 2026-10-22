@@ -196,6 +196,7 @@ export const common: Messages["common"] = {
     wedding: { label: "Үйлену тойы", until: "тойға" },
     parents: { label: "Ата-ананың мерейтойы", until: "мерейтойға" },
     graduation: { label: "Бітіру кеші", until: "бітіру кешіне" },
+    teachersday: { label: "Ұстаздар күні", until: "Ұстаздар күніне" },
     other: { label: "Басқа мереке", until: "мерекеге" },
   },
   occasion: {
