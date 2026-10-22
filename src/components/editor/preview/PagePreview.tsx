@@ -12,7 +12,7 @@ import { pageKit } from "@/components/interior/kit";
 import { pxUnits } from "@/components/interior/units";
 import { ChapterPages, chapterContentKey } from "./ChapterPages";
 import { anchorLabel } from "./drag";
-import { usePageWidth, usePreviewPages } from "./layout-hooks";
+import { NO_PHOTO_PAGES, usePageWidth, usePreviewPages } from "./layout-hooks";
 import { usePhotoDrag } from "./usePhotoDrag";
 
 /**
@@ -76,7 +76,7 @@ function PagePreviewView({
     onChange,
   });
 
-  const { scroll, pagesBy, setMeasureRef, measure } = usePreviewPages({ chapters, currentId, textW, gap, marginTop: interiorMetrics[format.id].marginTop * px });
+  const { scroll, pagesBy, photoPagesBy, setMeasureRef, measure } = usePreviewPages({ chapters, currentId, textW, gap, marginTop: interiorMetrics[format.id].marginTop * px });
 
   // Щелчок по полосе мимо фото снимает выделение. Обработчик стабилен (через ref), чтобы не перерисовывать главы.
   const clickState = useRef({ interactive, selectedId, onSelect, suppressUntil: drag.suppressClickUntil });
@@ -110,6 +110,7 @@ function PagePreviewView({
                 language={language}
                 t={t}
                 pages={pagesBy[ch.key] ?? 1}
+                photoPages={photoPagesBy[ch.key] ?? NO_PHOTO_PAGES}
                 currentId={current ? currentId : null}
                 selectedId={current ? selectedId : null}
                 interactive={interactive}

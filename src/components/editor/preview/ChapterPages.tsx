@@ -18,6 +18,7 @@ import { OpenerPage } from "@/components/interior/pages";
 import { LazyPage } from "./LazyPage";
 import { fillFocus } from "@/lib/book/photo-crop";
 import { previewPhotoLayer } from "./photo-layer";
+import type { PhotoPages } from "./layout-hooks";
 import type { usePhotoDrag } from "./usePhotoDrag";
 
 const END = Number.POSITIVE_INFINITY;
@@ -45,6 +46,8 @@ export interface ChapterPagesProps {
   t: Messages["editor"]["preview"];
   /** Полос текста в главе (по замеру). */
   pages: number;
+  /** На какой полосе текста каждое фото «на всю страницу» (по замеру; тот же объект, пока не изменилось). */
+  photoPages: PhotoPages;
   /** Текущий ответ, если он в этой главе, иначе null. */
   currentId: string | null;
   /** Выделенное фото, если глава текущая. */
@@ -61,7 +64,7 @@ export interface ChapterPagesProps {
 }
 
 /** Начальная полоса главы, полосы текста и невидимая копия главы для замера. */
-function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, language, t, pages, currentId, selectedId, interactive, drag, onChange, scroll, setMeasureRef, measure, onPageClick }: ChapterPagesProps) {
+function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, language, t, pages, photoPages, currentId, selectedId, interactive, drag, onChange, scroll, setMeasureRef, measure, onPageClick }: ChapterPagesProps) {
   const { format, design } = kit;
   const m = interiorMetrics[format.id];
   const side = pageSide(format);
@@ -107,8 +110,55 @@ function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, 
     measure(ch.key);
   }, [measure, ch.key, contentKey, resizing?.width]);
 
+  // Фото на всю страницу главы — с ответом и местом в тексте: их рисуют полосы поверх колонок.
+  const pagePhotos = useMemo(
+    () =>
+      ch.entries.flatMap((e) => {
+        const d = info.get(e.id)!;
+        return [...d.pages].flatMap(([key, rows]) => rows.flat().map((item) => ({ item, entryId: e.id, anchor: key === END ? "end" : key < 0 ? key : d.blocks[key].to })));
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- содержимое главы описывает contentKey (через info)
+    [info],
+  );
+
   const moving = drag?.moving ?? null;
   const hint = drag?.hint ?? (() => undefined);
+
+  /** Фото на всю страницу поверх полосы: лист целиком, с вылетами, как в PDF, — лишнее срезает край страницы. */
+  const pagePhoto = ({ item, entryId, anchor }: (typeof pagePhotos)[number]) => {
+    const layer = previewPhotoLayer({ t, kit, live: entryId === currentId && interactive && !!drag, isMeasure: false, measure: measureThis, selectedId, drag: drag!, onChange });
+    const fig = layer(item, { outerW: 0, outerH: 0 } as Parameters<typeof layer>[1]);
+    return (
+      <div
+        key={`pg-${item.p.id}`}
+        {...fig.figure}
+        data-entry={entryId}
+        data-row-anchor={anchor}
+        className="absolute inset-0 overflow-hidden"
+        // Рамка выделения — внутри листа: снаружи её срежет край страницы.
+        style={{ ...fig.figure?.style, position: "absolute", ...(fig.frame ? { ...fig.frame, outlineOffset: -3 } : null) }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element -- фото клиента на всю страницу в превью */}
+        <img
+          src={item.p.url}
+          alt={fig.img?.alt ?? ""}
+          draggable={false}
+          style={{
+            position: "absolute",
+            left: -print.bleedMm * px,
+            top: -print.bleedMm * px,
+            width: pageW + print.bleedMm * 2 * px,
+            height: (format.heightMm + print.bleedMm * 2) * px,
+            maxWidth: "none",
+            objectFit: item.style.pageFit === "contain" ? "contain" : "cover",
+            // Кадр — как в PDF (fillFocus): точка из редактора фото, иначе 30% от верха.
+            objectPosition: (({ x, y }) => `${x * 100}% ${y * 100}%`)(fillFocus({ inline: item.style })),
+            background: "#fff",
+          }}
+        />
+      </div>
+    );
+  };
 
   const renderRows = (entry: PreviewEntry, key: number, isMeasure: boolean) => {
     const d = info.get(entry.id)!;
@@ -118,42 +168,18 @@ function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, 
     const layer = previewPhotoLayer({ t, kit, live: entry.id === currentId && interactive && !!drag, isMeasure, measure: measureThis, selectedId, drag: drag!, onChange });
     return [
       ...(d.layout.get(key) ?? []).map((row, r) => <InlineRow key={`${anchor}-${r}`} kit={kit} row={row} layer={layer} data-entry={entry.id} data-row-anchor={anchor === END ? "end" : anchor} />),
-      // Фото на всю страницу — целая колонка (разрыв до и после), снимок в ней — на весь лист поверх полей набора.
-      ...(d.pages.get(key) ?? []).flat().map((item) => {
-        const fig = layer(item, { outerW: 0, outerH: 0 } as Parameters<typeof layer>[1]);
-        return (
-          <div
-            key={`pg-${item.p.id}`}
-            {...fig.figure}
-            data-entry={entry.id}
-            data-row-anchor={anchor === END ? "end" : anchor}
-            style={{ ...fig.figure?.style, position: "relative", height: textH, breakBefore: "column", breakAfter: "column", breakInside: "avoid" }}
-          >
-            {isMeasure ? null : (
-              // eslint-disable-next-line @next/next/no-img-element -- фото клиента на всю страницу в превью
-              <img
-                src={item.p.url}
-                alt=""
-                draggable={false}
-                style={{
-                  position: "absolute",
-                  // С вылетами, как лист PDF: кадр совпадает с печатью, лишнее срезает край страницы.
-                  left: -(side + print.bleedMm) * px,
-                  top: -(m.marginTop + print.bleedMm) * px,
-                  width: pageW + print.bleedMm * 2 * px,
-                  height: (format.heightMm + print.bleedMm * 2) * px,
-                  maxWidth: "none",
-                  objectFit: item.style.pageFit === "contain" ? "contain" : "cover",
-                  // Кадр — как в PDF (fillFocus): точка из редактора фото, иначе 30% от верха.
-                  objectPosition: (({ x, y }) => `${x * 100}% ${y * 100}%`)(fillFocus({ inline: item.style })),
-                  background: "#fff",
-                  ...fig.frame,
-                }}
-              />
-            )}
-          </div>
-        );
-      }),
+      // Фото на всю страницу — целая колонка (разрыв до и после): здесь только пустая заглушка, снимок рисуется поверх
+      // полосы, на которую она попала (pagePhoto). Внутри колонок его не нарисовать: Chrome ставит абсолютный блок
+      // в элементе с break-before по месту до разрыва — внизу прошлой полосы, а своя остаётся пустой.
+      ...(d.pages.get(key) ?? []).flat().map((item) => (
+        <div
+          key={`pg-${item.p.id}`}
+          data-page-photo={item.p.id}
+          data-entry={entry.id}
+          data-row-anchor={anchor === END ? "end" : anchor}
+          style={{ height: textH, breakBefore: "column", breakAfter: "column", breakInside: "avoid" }}
+        />
+      )),
       // QR-коды — после фото того же места; в превью без ссылки (клик по странице выбирает ответ).
       ...(d.media.get(key) ?? []).map((m) => <MediaCard key={`${anchor}-m-${m.id}`} kit={kit} media={m} data-entry={entry.id} data-media={m.id} />),
     ];
@@ -237,10 +263,11 @@ function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, 
             <>
               {/* Начальная полоса считается правой, поэтому первая полоса текста — левая. */}
               <RunningHead kit={kit} bookTitle={bookTitle} chapterTitle={ch.title} recto={k % 2 === 1} />
-              {/* Без обрезки по полосе набора: фото на всю страницу выходит на поля; соседние колонки — за краем листа (его обрезает сама страница). */}
+              {/* Соседние колонки — за краем листа (его обрезает сама страница). */}
               <div className="absolute" style={{ left: side * px, top: m.marginTop * px, width: textW, height: textH }}>
                 {flow(k)}
               </div>
+              {pagePhotos.filter((x) => photoPages[x.item.p.id] === k).map(pagePhoto)}
               {/* Номера страниц нет: здесь вёрстка браузера, а номер в книге — у полосы макета (растр PDF). */}
             </>
           )}
