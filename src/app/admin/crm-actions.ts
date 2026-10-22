@@ -106,6 +106,13 @@ export async function callAction(target: Target): Promise<ActionResult> {
   return { ok: true, message: "Сейчас зазвонит ваш телефон — возьмите трубку, и АТС соединит с клиентом" };
 }
 
+/** Собеседник диалога WhatsApp в «Чатах» — звонок именно на номер этого чата (у сделки может быть указан другой). */
+async function conversationContact(id: string) {
+  const conv = await container().messaging.queries.conversation(uuid.parse(id));
+  if (!conv || conv.channel !== "whatsapp") return null;
+  return { phone: conv.chatId, name: conv.contactName, assigneeId: conv.assigneeId, clientId: conv.clientId, dealId: conv.dealId };
+}
+
 /** Звонок WhatsApp, который открывает панель звонка в браузере: id в журнале, id звонка шлюза (аудиопоток), кому звоним. */
 export type WhatsappCallStart = { ok: true; id: string; callId: string; title: string; phone: string; clientId: string | null; dealId: string | null } | { ok: false; message: string };
 
@@ -113,9 +120,9 @@ export type WhatsappCallStart = { ok: true; id: string; callId: string; title: s
  * Позвонить клиенту в WhatsApp прямо из CRM: шлюз номера магазина набирает клиента, звук идёт через браузер сотрудника
  * (панель звонка, WhatsappCall). Отказ — ответом, как у звонка через АТС.
  */
-export async function whatsappDialAction(target: Target): Promise<WhatsappCallStart> {
+export async function whatsappDialAction(target: Target & { conversationId?: string }): Promise<WhatsappCallStart> {
   const staff = await assertStaff("calls.make");
-  const c = await resolveContact(target);
+  const c = target.conversationId ? await conversationContact(target.conversationId) : await resolveContact(target);
   const phone = normalizePhone(c?.phone ?? "");
   if (!c || phone.length < 10) return { ok: false, message: "У клиента нет номера телефона" };
   const refusal = workRefusal(staff, c.assigneeId);

@@ -152,6 +152,7 @@ export function ChatHeader({
   backHref,
   deal,
   assignee,
+  call = null,
 }: {
   title: string;
   avatarUrl: string | null;
@@ -160,6 +161,8 @@ export function ChatHeader({
   backHref: string;
   deal: { href: string; number: number; stage: string; color: string } | null;
   assignee: string | null;
+  /** Кнопка звонка клиенту (WhatsApp), если звонки включены и у сотрудника есть право. */
+  call?: React.ReactNode;
 }) {
   return (
     <div className="flex h-[calc(68px+env(safe-area-inset-top))] shrink-0 items-center gap-3 border-b border-line bg-white px-4 pt-[env(safe-area-inset-top)] lg:h-[68px] lg:pt-0">
@@ -180,6 +183,7 @@ export function ChatHeader({
           </span>
         </Link>
       ) : null}
+      {call}
       <DetailsToggle />
     </div>
   );

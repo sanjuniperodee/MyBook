@@ -11,7 +11,7 @@ import { cn } from "@/lib/class-names";
 import { CallAudio, CallAudioError, type CallAudioEvent } from "./wa-call/engine";
 import { playRing } from "./sound";
 
-type Target = { clientId?: string; dealId?: string; orderId?: string; callId?: string };
+type Target = { clientId?: string; dealId?: string; orderId?: string; callId?: string; conversationId?: string };
 
 /** Вкладка отмечается на сервере раз в 15 с (WHATSAPP_HEARTBEAT_MS в контексте «Телефония»). */
 const HEARTBEAT_MS = 15_000;
@@ -39,6 +39,8 @@ interface ActiveCall {
 
 interface WhatsappCallApi {
   enabled: boolean;
+  /** У сотрудника есть звонок через АТС (Zadarma и внутренний номер); нет — «Позвонить» звонит в WhatsApp. */
+  pbx: boolean;
   busy: boolean;
   dial(target: Target, title?: string): void;
   /** true — разговор начался (микрофон есть, сервер принял ответ). */
@@ -91,7 +93,7 @@ const clock = (ms: number) => {
  * Голос идёт через шлюз номера магазина, звук — через микрофон и динамик браузера; панель звонка живёт поверх CRM и
  * переживает переходы между страницами. Закрыли вкладку — трубка кладётся сама.
  */
-export function WhatsappCallProvider({ enabled, children }: { enabled: boolean; children: React.ReactNode }) {
+export function WhatsappCallProvider({ enabled, pbx = false, children }: { enabled: boolean; pbx?: boolean; children: React.ReactNode }) {
   const router = useRouter();
   const [call, setCallState] = useState<ActiveCall | null>(null);
   const [muted, setMuted] = useState(false);
@@ -275,7 +277,7 @@ export function WhatsappCallProvider({ enabled, children }: { enabled: boolean; 
   };
 
   return (
-    <Ctx.Provider value={{ enabled, busy: !!call, dial, answer, decline }}>
+    <Ctx.Provider value={{ enabled, pbx, busy: !!call, dial, answer, decline }}>
       {children}
       {call ? <CallPanel call={call} muted={muted} micLevel={micLevel} onMute={toggleMute} onHangup={hangup} /> : null}
     </Ctx.Provider>
@@ -355,9 +357,23 @@ export function WaIcon({ className }: { className?: string }) {
 }
 
 /** «WhatsApp» рядом с «Позвонить»: звонок клиенту в WhatsApp прямо из CRM. Звонки выключены — кнопки нет. */
-export function WhatsappCallButton({ target, title, className, label = "WhatsApp", plain = false }: { target: Target; title?: string; className?: string; label?: string; plain?: boolean }) {
+export function WhatsappCallButton({ target, title, className, label = "WhatsApp", plain = false, iconOnly = false }: { target: Target; title?: string; className?: string; label?: string; plain?: boolean; iconOnly?: boolean }) {
   const wa = useWhatsappCall();
   if (!wa) return null;
+  if (iconOnly)
+    return (
+      <button
+        type="button"
+        className={cn("flex size-11 shrink-0 items-center justify-center rounded-full text-emerald-600 transition hover:bg-[#f3efe9] disabled:opacity-40", className)}
+        disabled={wa.busy}
+        aria-label="Позвонить в WhatsApp"
+        title={wa.busy ? "Сначала завершите текущий звонок" : "Позвонить в WhatsApp"}
+        data-testid="wa-call-button"
+        onClick={() => wa.dial(target, title)}
+      >
+        <WaIcon className="size-5" />
+      </button>
+    );
   return (
     <button type="button" className={cn(!plain && "btn btn-outline btn-sm", "inline-flex items-center gap-1", className)} disabled={wa.busy} aria-label="Позвонить в WhatsApp" title={wa.busy ? "Сначала завершите текущий звонок" : undefined} data-testid="wa-call-button" onClick={() => wa.dial(target, title)}>
       <WaIcon className="size-4 text-emerald-600" /> {label}

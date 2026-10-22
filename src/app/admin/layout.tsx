@@ -51,14 +51,20 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const onShift = await autoShiftOnVisit(staff);
   const calls = can(staff, "calls.make");
   // Звонки WhatsApp из CRM — кнопки «WhatsApp», ответ на входящие и панель звонка (если включены в «Интеграциях»).
-  const [live, phone, waCalls] = await Promise.all([container().reporting.live(staff.context), calls ? container().telephony.phone.webphoneAvailable(staff.user.sipExtension) : false, calls ? container().telephony.whatsapp.enabled() : false]);
+  const [live, phone, waCalls, pbx] = await Promise.all([
+    container().reporting.live(staff.context),
+    calls ? container().telephony.phone.webphoneAvailable(staff.user.sipExtension) : false,
+    calls ? container().telephony.whatsapp.enabled() : false,
+    // Звонок через АТС есть только с Zadarma и внутренним номером; нет — «Позвонить» звонит в WhatsApp.
+    calls && staff.user.sipExtension ? container().telephony.phone.currentProvider().then((p) => p === "zadarma") : false,
+  ]);
   const nav = { adminName: staffLabel(staff.user), roleName: staff.roleName, perms: [...staff.permissions], onShift };
   // Нижняя панель на телефоне — по роли, как в приложении.
   const layout = mobileLayout((p) => can(staff, p), staff.isOwner);
   const tabs = layoutTabs(layout, (p) => can(staff, p));
   return (
     <CrmLiveProvider initial={live}>
-      <WhatsappCallProvider enabled={waCalls}>
+      <WhatsappCallProvider enabled={waCalls} pbx={pbx}>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: STANDALONE_SCRIPT }} />
         <ThemeSync />

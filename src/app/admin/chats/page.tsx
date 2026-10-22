@@ -21,6 +21,7 @@ import { InvoicesBlock } from "@/components/admin/invoices/InvoicesBlock";
 import { invoiceViews } from "@/app/admin/invoices/view";
 import { BotBanner, ChatSideControls } from "./ChatControls";
 import { PhoneHolder } from "./PhoneHolder";
+import { WhatsappCallButton } from "@/components/admin/WhatsappCall";
 import { CHAT_FILTERS, ChatAvatar, ChatHeader, ChatListPane, SideSection, type ChatFilter, type ChatListItem } from "@/components/admin/chat/Inbox";
 
 export const metadata = { title: "Чаты" };
@@ -124,6 +125,7 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
           backHref={`/admin/chats?f=${f}${q ? `&q=${encodeURIComponent(q)}` : ""}`}
           deal={dealRow ? { href: `/admin/deals/${dealRow.deal.id}`, number: dealRow.deal.number, stage: dealRow.stage.name, color: dealRow.stage.color } : null}
           assignee={conv.assigneeId ? (names.get(conv.assigneeId) ?? null) : null}
+          call={can(staff, "calls.make") && conv.channel === "whatsapp" && /^\d{10,15}$/.test(conv.chatId) ? <WhatsappCallButton iconOnly target={{ conversationId: conv.id }} title={title(conv)} /> : null}
         />
         {!mine ? <p className="border-b border-amber-100 bg-amber-50 px-4 py-2 text-xs text-amber-800">Заявку распределяет круг — ответит менеджер, которому она достанется. Назначить вручную может руководитель.</p> : null}
         <BotBanner conversationId={conv.id} status={bot} canControl={canReply} hasDeal={!!conv.dealId} />

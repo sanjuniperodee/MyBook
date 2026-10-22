@@ -4,27 +4,32 @@ import { useTransition } from "react";
 import { CheckCircle2, PhoneOutgoing } from "lucide-react";
 import { toast } from "@/components/ui/overlays";
 import { callAction, markCallHandledAction } from "../crm-actions";
-import { WhatsappCallButton } from "@/components/admin/WhatsappCall";
+import { useWhatsappCall, WhatsappCallButton } from "@/components/admin/WhatsappCall";
 
 export function CallRowActions({ callId, canCall, canHandle }: { callId: string; canCall: boolean; canHandle: boolean }) {
   const [pending, start] = useTransition();
+  const wa = useWhatsappCall();
+  // АТС нет, а звонки WhatsApp включены — «Перезвонить» звонит в WhatsApp.
+  const viaWhatsapp = !!wa && !wa.pbx;
   return (
     <div className="flex justify-end gap-3 text-xs max-lg:text-sm">
       {canCall ? (
         <button
           className="flex items-center gap-1 text-wine hover:underline max-lg:min-h-11 max-lg:px-2"
-          disabled={pending}
+          disabled={pending || (viaWhatsapp && wa.busy)}
           onClick={() =>
-            start(async () => {
-              const r = await callAction({ callId });
-              toast(r.message ?? "Звоним", r.ok ? "success" : "error");
-            })
+            viaWhatsapp
+              ? wa.dial({ callId })
+              : start(async () => {
+                  const r = await callAction({ callId });
+                  toast(r.message ?? "Звоним", r.ok ? "success" : "error");
+                })
           }
         >
           <PhoneOutgoing className="size-3.5" /> Перезвонить
         </button>
       ) : null}
-      {canCall ? <WhatsappCallButton plain target={{ callId }} label="WhatsApp" className="text-wine hover:underline max-lg:min-h-11 max-lg:px-2" /> : null}
+      {canCall && !viaWhatsapp ? <WhatsappCallButton plain target={{ callId }} label="WhatsApp" className="text-wine hover:underline max-lg:min-h-11 max-lg:px-2" /> : null}
       {canHandle ? (
         <button className="flex items-center gap-1 text-muted hover:text-ink max-lg:min-h-11 max-lg:px-2" disabled={pending} onClick={() => start(async () => void (await markCallHandledAction(callId)))}>
           <CheckCircle2 className="size-3.5" /> Обработан
