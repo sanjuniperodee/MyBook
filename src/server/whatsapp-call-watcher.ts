@@ -10,6 +10,7 @@ import { whatsappSettings } from "@/server/integration-settings";
  */
 const CHECK_MS = 15_000;
 const MAX_BACKOFF_MS = 30_000;
+const CONNECT_TIMEOUT_MS = 10_000;
 
 /** Сообщение служебного сокета шлюза: { code, message, result }. Конец любого звонка — CALL_ENDED с result.call_id. */
 export function endedCallId(data: unknown): string | null {
@@ -56,7 +57,29 @@ export function startWhatsappCallWatcher() {
       const ws = new (WebSocket as unknown as new (url: string, init: { headers: Record<string, string> }) => WebSocket)(url, { headers: auth ? { Authorization: auth } : {} });
       socket = ws;
       key = next;
+      // Шлюз перезапускается или недоступен — переподключаемся с нарастающей паузой.
+      const lost = () => {
+        if (socket !== ws) return;
+        clearTimeout(connecting);
+        socket = null;
+        key = "";
+        ws.onclose = null;
+        try {
+          ws.close();
+        } catch {
+          // уже закрыт
+        }
+        retryAt = Date.now() + Math.min(MAX_BACKOFF_MS, 1000 * 2 ** attempt++);
+        setTimeout(() => void check(), retryAt - Date.now() + 50).unref?.();
+      };
+      // Подключение к ещё не поднявшемуся шлюзу WebSocket Node.js может держать в «подключаюсь» бесконечно — без ошибки
+      // и без закрытия; тогда сокет считался бы живым и CRM больше не переподключалась. Не открылся за 10 с — заново.
+      const connecting = setTimeout(() => {
+        if (ws.readyState !== WebSocket.OPEN) lost();
+      }, CONNECT_TIMEOUT_MS);
+      connecting.unref?.();
       ws.onopen = () => {
+        clearTimeout(connecting);
         attempt = 0;
       };
       ws.onmessage = (e) => {
@@ -64,14 +87,7 @@ export function startWhatsappCallWatcher() {
         if (id) void container().telephony.whatsapp.endedByGateway(id).catch((err) => console.error("[whatsapp calls] end", err));
       };
       ws.onerror = () => {};
-      ws.onclose = () => {
-        if (socket !== ws) return;
-        socket = null;
-        key = "";
-        // Шлюз перезапускается или недоступен — переподключаемся с нарастающей паузой.
-        retryAt = Date.now() + Math.min(MAX_BACKOFF_MS, 1000 * 2 ** attempt++);
-        setTimeout(() => void check(), retryAt - Date.now() + 50).unref?.();
-      };
+      ws.onclose = lost;
     } catch (err) {
       console.error("[whatsapp calls] watcher", err);
     }
