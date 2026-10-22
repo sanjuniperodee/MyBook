@@ -7,6 +7,7 @@ import { formatPhone } from "@/shared/domain/phone";
 import { cn } from "@/lib/class-names";
 import { formatDate } from "@/lib/dates";
 import { CallRowActions } from "./CallActions";
+import { RecordingPlayer } from "./RecordingPlayer";
 
 export const metadata = { title: "Звонки" };
 
@@ -91,7 +92,7 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
               ) : (
                 body
               )}
-              {c.hasRecording && can(staff, "calls.recordings") ? <audio controls preload="none" src={`/api/admin/calls/${c.id}/recording`} className="mt-2.5 h-10 w-full" /> : null}
+              {c.hasRecording && can(staff, "calls.recordings") ? <RecordingPlayer callId={c.id} durationSec={c.durationSec} ext={c.provider === "whatsapp" ? "m4a" : "mp3"} className="mt-2.5" /> : null}
               <div className="mt-1 flex justify-end">
                 <CallRowActions callId={c.id} canCall={can(staff, "calls.make") && !!c.clientPhone} canHandle={c.status === "missed" && c.direction === "in" && !c.handledAt} />
               </div>
@@ -153,7 +154,7 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
                   </td>
                   <td className="px-4 py-2.5 tabular-nums">{dur(c.durationSec)}</td>
                   <td className="px-4 py-2.5">
-                    {c.hasRecording && can(staff, "calls.recordings") ? <audio controls preload="none" src={`/api/admin/calls/${c.id}/recording`} className="h-8 w-52" /> : <span className="text-muted">—</span>}
+                    {c.hasRecording && can(staff, "calls.recordings") ? <RecordingPlayer callId={c.id} durationSec={c.durationSec} ext={c.provider === "whatsapp" ? "m4a" : "mp3"} className="w-60" /> : <span className="text-muted">—</span>}
                   </td>
                   <td className="px-4 py-2.5 text-right">
                     <CallRowActions callId={c.id} canCall={can(staff, "calls.make") && !!c.clientPhone} canHandle={c.status === "missed" && c.direction === "in" && !c.handledAt} />
