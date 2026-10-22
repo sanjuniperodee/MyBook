@@ -132,7 +132,9 @@ export function FaceView({ face, no, ctx }: { face: Face; no: number; ctx: FaceC
       const entries = runsOf(ch)[run]?.entries ?? [];
       // Картинкой — только фото этой полосы (остальные — пустое место того же размера), см. VisiblePhotos.
       const columns = ctx.photoColumns?.get(`${face.chapter}-${run}`);
-      const visible = (id: string) => !columns || columns[id] === undefined || columns[id] === face.part;
+      // С запасом на соседние полосы: колонка из замера может разойтись на одну (шрифты, округление) — тогда фото
+      // не нарисовалось бы нигде; три снимка на полосу вместо всех снимков главы — память всё равно в пределах.
+      const visible = (id: string) => !columns || columns[id] === undefined || Math.abs(columns[id] - face.part) <= 1;
       return (
         <VisiblePhotos.Provider value={visible}>
           <TextPage kit={kit} entries={entries} folio={no} bookTitle={data.title} chapterTitle={ch.title} recto={no % 2 === 1} leadIn={face.part === 0 && run === 0} part={face.part} tail={run === lastTextRun(ch)} className={faceBox} />
