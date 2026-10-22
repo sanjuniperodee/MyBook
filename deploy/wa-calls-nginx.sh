@@ -12,7 +12,8 @@ LINE="    include snippets/mybook-wa-call.conf;"
 
 [ -f "$SITE" ] || { echo "Нет файла сайта $SITE"; exit 1; }
 nginx -V 2>&1 | grep -q http_auth_request_module || { echo "nginx собран без auth_request"; exit 1; }
-grep -q "upstream mybook_app" -r /etc/nginx/sites-enabled/ || { echo "Нет upstream mybook_app (deploy/nginx-mybook.conf)"; exit 1; }
+# sites-enabled — симлинки: grep -r по ним не идёт, поэтому файлы перечисляем явно.
+grep -qs "upstream mybook_app" /etc/nginx/sites-enabled/* || { echo "Нет upstream mybook_app (deploy/nginx-mybook.conf)"; exit 1; }
 
 backup="$(mktemp -d)"
 cp -a "$SITE" "$backup/site"
