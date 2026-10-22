@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef } from "react";
+import { scrollMax, scrollTo, scrollTop } from "./scroller";
 import { navKind, rememberTab, sectionOf, saveScroll, savedScroll, type NavKind } from "./nav-memory";
 
 const PHONE = "(max-width: 1023.98px)";
@@ -35,7 +36,7 @@ export function NavMotion() {
       if (!a || a.target === "_blank" || a.hasAttribute("download")) return;
       const to = new URL(a.href, location.href);
       if (to.origin !== location.origin || !to.pathname.startsWith("/admin")) return;
-      saveScroll(current.current, window.scrollY);
+      saveScroll(current.current, scrollTop());
       const kind = navKind(location.pathname, to.pathname);
       mark(kind);
       // «Назад» на уровень выше в том же разделе — туда, откуда пришли (список с фильтрами и позицией), а не на голый корень раздела.
@@ -55,13 +56,14 @@ export function NavMotion() {
     const onScroll = () => {
       cancelAnimationFrame(raf);
       // Пока идёт переход, прокрутку не пишем: Next сбрасывает её в 0 раньше, чем мы узнаём новый адрес.
-      raf = requestAnimationFrame(() => pending.current === null && saveScroll(current.current, window.scrollY));
+      raf = requestAnimationFrame(() => pending.current === null && saveScroll(current.current, scrollTop()));
     };
-    window.addEventListener("scroll", onScroll, { passive: true });
+    // Захват: событие прокрутки элемента (оболочки) не всплывает до окна.
+    window.addEventListener("scroll", onScroll, { passive: true, capture: true });
     return () => {
       document.removeEventListener("click", onClick, true);
       window.removeEventListener("popstate", onPop);
-      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("scroll", onScroll, true);
       cancelAnimationFrame(raf);
     };
   }, [router]);
@@ -82,10 +84,10 @@ export function NavMotion() {
     const settle = () => {
       if (stop || frames++ > 40) return;
       // Содержимое ещё догружается (стриминг) — пробуем, пока страница не станет достаточно длинной.
-      const max = document.documentElement.scrollHeight - window.innerHeight;
-      if (target > 0 && max >= target - 1) window.scrollTo({ top: target, behavior: "instant" });
-      else if (target === 0 && window.scrollY !== 0) window.scrollTo({ top: 0, behavior: "instant" });
-      if (target > 0 && Math.abs(window.scrollY - target) > 2) requestAnimationFrame(settle);
+      const max = scrollMax();
+      if (target > 0 && max >= target - 1) scrollTo(target);
+      else if (target === 0 && scrollTop() !== 0) scrollTo(0);
+      if (target > 0 && Math.abs(scrollTop() - target) > 2) requestAnimationFrame(settle);
     };
     if (!first || target > 0) requestAnimationFrame(() => requestAnimationFrame(settle));
     // Направление нужно только на время перехода.

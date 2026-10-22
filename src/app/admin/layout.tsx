@@ -25,6 +25,9 @@ export const metadata = {
 // viewport-fit=cover — экран до краёв (вырез и «домашняя» полоска iPhone учитываются отступами env(safe-area-inset-*)); клавиатура ужимает страницу, а не перекрывает её.
 export const viewport = { themeColor: "#7a1f2b", viewportFit: "cover" as const, interactiveWidget: "resizes-content" as const };
 
+// Открыто как установленное приложение — страница не «резинится» при протяжке (см. .crm-shell в globals.css).
+const STANDALONE_SCRIPT = `try{if(matchMedia("(display-mode: standalone)").matches||navigator.standalone===true)document.documentElement.dataset.standalone="1"}catch(e){}`;
+
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const { staff, gate } = await requireStaffShell();
   if (gate === "2fa") {
@@ -53,8 +56,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <CrmLiveProvider initial={live}>
       <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      <script dangerouslySetInnerHTML={{ __html: STANDALONE_SCRIPT }} />
       <ThemeSync />
-      <div className="flex min-h-dvh bg-[#f7f4ef]">
+      <div className="crm-shell flex min-h-dvh bg-[#f7f4ef]">
         <AdminNav variant="sidebar" {...nav} />
         <div className="flex min-w-0 flex-1 flex-col">
           <header style={{ viewTransitionName: "crm-topbar" }} className="crm-topbar sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-line bg-white/85 px-4 backdrop-blur sm:px-6">

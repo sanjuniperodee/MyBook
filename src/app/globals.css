@@ -535,3 +535,30 @@ body {
   .crm-main .space-y-5 > :not(:last-child) { margin-block-end: 1rem; }
   .crm-main .space-y-4 > :not(:last-child) { margin-block-end: 0.875rem; }
 }
+
+/*
+ * Протяжка сверху/снизу не тянет интерфейс. В браузере — overscroll-behavior: none на корне. В установленном приложении (iOS
+ * всё равно «резинит» окно) страницу прокручивает оболочка .crm-shell, а окно неподвижно; тянуть вниз для обновления — своим
+ * жестом (PullToRefresh). Прокрутку читает scroller.ts.
+ */
+@media (max-width: 1023.98px) {
+  html:has(.crm-shell),
+  html:has(.crm-shell) body {
+    overscroll-behavior: none;
+  }
+  html[data-standalone]:has(.crm-shell),
+  html[data-standalone]:has(.crm-shell) body {
+    height: 100%;
+    overflow: hidden;
+  }
+  html[data-standalone] .crm-shell {
+    display: block; /* колонка растёт по содержимому — иначе шапка (sticky) уезжает вместе с растянутой колонкой */
+    position: fixed;
+    inset: 0;
+    height: 100dvh;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
+  }
+}

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { LoaderCircle } from "lucide-react";
+import { scrollTop } from "./scroller";
 
 const THRESHOLD = 70;
 
@@ -18,7 +19,7 @@ export function PullToRefresh({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!window.matchMedia("(pointer: coarse)").matches) return;
-    const atTop = () => window.scrollY <= 0;
+    const atTop = () => scrollTop() <= 0;
     const onStart = (e: TouchEvent) => {
       // Внутри прокручиваемых блоков (лента чата, доска) жест не наш.
       const t = e.target as HTMLElement | null;

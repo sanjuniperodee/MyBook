@@ -8,6 +8,7 @@ import type { MobileTabKey } from "@/shared/domain/mobileLayout";
 import { cn } from "@/lib/class-names";
 import { useLive } from "./CrmLive";
 import { lastOfTab, sectionOf } from "./nav-memory";
+import { scrollTo } from "./scroller";
 
 const TABS: Record<MobileTabKey, { label: string; href: string; icon: LucideIcon; badge?: "chats" | "tasks" | "deals" | "attention" | "calls" }> = {
   overview: { label: "Обзор", href: "/admin", icon: BarChart3 },
@@ -81,7 +82,7 @@ export function MobileTabBar({ tabs, profileLabel }: { tabs: MobileTabKey[]; pro
                 onClick={(e) => {
                   if (on && pathname === it.href) {
                     e.preventDefault();
-                    window.scrollTo({ top: 0, behavior: "smooth" });
+                    scrollTo(0, "smooth");
                   }
                 }}
                 className={cn("relative flex h-full flex-col items-center justify-center gap-0.5 text-[10.5px] font-medium transition active:scale-95 active:opacity-60", on ? "text-wine" : "text-muted")}>
