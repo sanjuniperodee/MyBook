@@ -253,8 +253,9 @@ export function assembleBookContent(
   // Главы по-своему: переименованные и убранные автором (их истории — в предыдущей главе) — до раздачи фото по главам.
   foldChapters(chapters, book.tocLines ?? {});
 
-  // Фото обложки не дублируем внутри книги.
-  const placedInAnswers = new Set(chapters.flatMap((c) => c.items.flatMap((it) => (it.photos ?? []).map((p) => p.id))));
+  // Фото обложки не дублируем внутри книги. Фото на всю страницу из истории — тоже в ней: splitAtPagePhotos вынес его
+  // из photos в photoBefore следующей части, и без него снимок печатался второй раз — на фотостранице главы.
+  const placedInAnswers = new Set(chapters.flatMap((c) => c.items.flatMap((it) => [...(it.photos ?? []), ...(it.photoBefore ? [it.photoBefore] : [])].map((p) => p.id))));
   // Фото, которым автор выбрал главу, — в ней (глава убрана — в той, куда влиты её истории), даже снимок обложки.
   const hostOf = new Map<string, ContentChapter>();
   for (const ch of chapters) for (const key of [ch.key, ...(ch.folded ?? []).map((f) => f.key)]) hostOf.set(key, ch);
