@@ -5,7 +5,7 @@ import { bookSpreads, PageReaderView, READER_WIDTHS } from "@/components/book-pa
 import { MessagesContext } from "@/i18n/context";
 import { kk } from "@/i18n/messages/kk";
 import { ru } from "@/i18n/messages/ru";
-import { buildImageBase, type BookBuild, type BookBuildState } from "@/lib/book/book-build";
+import { buildImageBase, type BookBuild, type BookBuildState, type BuildProgress } from "@/lib/book/book-build";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh() {} }), usePathname: () => "/", useSearchParams: () => new URLSearchParams() }));
 
@@ -25,7 +25,7 @@ const build = (fp: string, pageCount: number): BookBuild => ({
 });
 const FP = "0123456789abcdef";
 const OLD = "fedcba9876543210";
-const render = (state: BookBuildState | null, error: string | null = null, messages: typeof ru | typeof kk = ru, extra: { slow?: boolean; retryAt?: number | null } = {}) =>
+const render = (state: BookBuildState | null, error: string | null = null, messages: typeof ru | typeof kk = ru, extra: { slow?: boolean; retryAt?: number | null; progress?: BuildProgress | null } = {}) =>
   html(createElement(PageReaderView, { bookId: "b1", state, error, onRetry: () => {}, ...extra }), messages);
 const spreads = (markup: string) => [...markup.matchAll(/data-spread="([^"]*)"/g)].map((m) => m[1]);
 const images = (markup: string) => [...markup.matchAll(/<img [^>]*>/g)].map((m) => m[0]);
@@ -115,6 +115,39 @@ describe("пока сборка обновляется", () => {
   it("сборка идёт дольше обычного — подсказка вместо «обновляем»", () => {
     expect(text(render({ status: "building", previous: build(OLD, 2) }, null, ru, { slow: true }))).toContain(ru.books.preview.reader.slow);
     expect(text(render({ status: "building", previous: null }, null, ru, { slow: true }))).toContain(ru.books.preview.reader.slow);
+  });
+
+  describe("ход сборки", () => {
+    const running: BuildProgress = { state: "running", stage: "flow", percent: 45, etaMs: 21_000, overrun: false, ahead: 0 };
+
+    it("первая сборка: этап, проценты и сколько осталось; кнопка скачивания заполняется и показывает проценты", () => {
+      const markup = render({ status: "building", previous: null }, null, ru, { progress: running });
+      expect(text(markup)).toContain("Верстаем страницы");
+      expect(text(markup)).toContain("45%");
+      expect(text(markup)).toContain("осталось ≈ 20 с");
+      expect(markup).toContain('role="progressbar"');
+      expect(markup).toContain('aria-valuenow="45"');
+      expect(markup).toContain("width:45%");
+      expect(markup).toMatch(/<button[^>]*disabled=""[^>]*>.*· 45%/);
+    });
+
+    it("обновление после правок: проценты и остаток — в строке состояния поверх страниц", () => {
+      const markup = render({ status: "building", previous: build(OLD, 4) }, null, ru, { progress: running });
+      expect(text(markup)).toContain("Обновляем страницы после последних правок… · 45% · осталось ≈ 20 с");
+    });
+
+    it("в очереди рендера: сколько стоит впереди, без процентов", () => {
+      const queued: BuildProgress = { state: "queued", stage: null, percent: 0, etaMs: null, overrun: false, ahead: 2 };
+      const markup = render({ status: "building", previous: null }, null, ru, { progress: queued });
+      expect(text(markup)).toContain("Ждём очереди — перед вашей книгой ещё 2");
+      expect(markup).not.toContain("aria-valuenow");
+      expect(text(markup)).not.toContain("%");
+    });
+
+    it("хода ещё нет (первый опрос не пришёл) — прежний экран без полосы; на казахском — казахские подписи", () => {
+      expect(render({ status: "building", previous: null })).not.toContain("progressbar");
+      expect(text(render({ status: "building", previous: null }, null, kk, { progress: running }))).toContain(kk.orders.order.progress.stages.flow);
+    });
   });
 
   it("сбой опроса во время сборки — текст ошибки без кнопки: опрос повторится сам", () => {

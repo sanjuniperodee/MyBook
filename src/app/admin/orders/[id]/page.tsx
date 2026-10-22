@@ -4,7 +4,6 @@ import { localeMeta } from "@/i18n/config";
 import Link from "next/link";
 import { BackLink } from "@/components/admin/BackLink";
 import { notFound } from "next/navigation";
-import { Download, FileArchive } from "lucide-react";
 import { container } from "@/server/container";
 import { formatPrice, getPlan, isQuotedDelivery } from "@/config/site";
 import { deliveryAddress } from "@/modules/ordering/ui/labels";
@@ -14,7 +13,7 @@ import { bookKind } from "@/lib/content/kinds";
 import { getFormat } from "@/lib/book/formats";
 import { cn } from "@/lib/class-names";
 import { formatDate } from "@/lib/dates";
-import { DetailsForm, GenerateButton, LockButton, NoteForm, OrderMoney, StatusForm } from "./OrderControls";
+import { DetailsForm, LockButton, NoteForm, OrderMoney, PrintFileActions, StatusForm } from "./OrderControls";
 import { AssigneeSelect, NotesTimeline, TaskList, type NoteItem, type TaskItem } from "@/components/admin/CrmWidgets";
 import { staffOptions } from "@/modules/access/ui";
 import { staffLabel } from "@/shared/domain/staff";
@@ -85,7 +84,6 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
   const canEdit = can(staff, "orders.edit");
   const notice = canEdit ? await noticeFacts(order) : null;
   const canClients = can(staff, "clients.view");
-  const file = (kind: string) => `/api/orders/${order.id}/files/${kind}`;
 
   return (
     <div className="space-y-6">
@@ -114,15 +112,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
         <div className="space-y-6">
           {can(staff, "orders.files") ? (
           <Card title="Файлы для типографии">
-            <div className="flex flex-wrap gap-2">
-              <a href={`/api/admin/orders/${order.id}/package`} className="btn btn-primary btn-sm"><FileArchive className="size-4" /> Скачать всё (ZIP)</a>
-              <a href={file("block")} className="btn btn-outline btn-sm"><Download className="size-4" /> Блок</a>
-              <a href={file("cover")} className="btn btn-outline btn-sm"><Download className="size-4" /> Обложка</a>
-              <a href={file("layout")} className="btn btn-outline btn-sm"><Download className="size-4" /> Каркас обложки</a>
-              <a href={file("spec")} className="btn btn-outline btn-sm"><Download className="size-4" /> Техзадание</a>
-              <a href={file("reading")} className="btn btn-ghost btn-sm"><Download className="size-4" /> PDF для чтения</a>
-              <GenerateButton orderId={order.id} hasFiles={!!spec} />
-            </div>
+            <PrintFileActions orderId={order.id} hasFiles={!!spec} />
             {spec ? (
               <dl className="mt-5 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
                 <Spec label="Формат" value={getFormat(spec.format).short} />

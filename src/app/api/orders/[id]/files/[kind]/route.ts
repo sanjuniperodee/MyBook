@@ -29,8 +29,15 @@ export const GET = api(async (req, { params }: { params: Promise<{ id: string; k
   const access = canDownloadFile(order, getPlan(order.plan), kind as OrderFile, { userId: user.id, can: (p) => staffSees && can(staff, p) });
   if (access === "notFound") throw new HttpError(404, "orderNotFound");
   if (access === "notReady") throw new HttpError(403, "fileNotReady");
-  const force = access === "staff" && new URL(req.url).searchParams.get("regenerate") === "1";
-  const data = await c.printFiles.getFile({ orderId: order.id, bookId: order.bookId, number: order.number }, kind as OrderFileKind, { force });
+  const query = new URL(req.url).searchParams;
+  const force = access === "staff" && query.get("regenerate") === "1";
+  const job = { orderId: order.id, bookId: order.bookId, number: order.number };
+  // prepare=1 — только собрать файл: страница ждёт готовности, показывая ход сборки (render-progress), а скачивание потом идёт из кэша.
+  if (query.get("prepare") === "1") {
+    await c.printFiles.ensure(job, kind as OrderFileKind, { force });
+    return new Response(null, { status: 204, headers: { "Cache-Control": "private, no-store" } });
+  }
+  const data = await c.printFiles.getFile(job, kind as OrderFileKind, { force });
   const meta = kinds[kind as OrderFileKind];
   return new Response(new Uint8Array(data), {
     headers: {

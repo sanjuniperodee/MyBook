@@ -1,4 +1,5 @@
 import type { Locale } from "@/i18n/config";
+import type { RenderReport } from "../../application/RenderProgress";
 import type { BookBundle, ScreenLayout } from "./render";
 
 /**
@@ -33,21 +34,24 @@ export interface ScreenBuildResult {
 /** Результат задачи: для printPackage — пакет файлов, для preview — экранная сборка, для остальных — один PDF. */
 export type PdfTaskResult<T extends PdfTask> = T extends { task: "printPackage" } ? PrintPackageResult : T extends { task: "preview" } ? ScreenBuildResult : Uint8Array;
 
-/** Выполняет задачу в текущем потоке — и в воркере, и запасным путём, когда воркера нет (next dev). */
-export async function runPdfTask(t: PdfTask): Promise<PrintPackageResult | ScreenBuildResult | Uint8Array> {
+/**
+ * Выполняет задачу в текущем потоке — и в воркере, и запасным путём, когда воркера нет (next dev).
+ * report — рендер докладывает о начале этапов (из воркера они уходят в основной поток сообщениями).
+ */
+export async function runPdfTask(t: PdfTask, report?: RenderReport): Promise<PrintPackageResult | ScreenBuildResult | Uint8Array> {
   const r = await import("./render");
   switch (t.task) {
     case "printPackage": {
-      const pkg = await r.renderPrintPackage(t.bundle);
+      const pkg = await r.renderPrintPackage(t.bundle, report);
       const spec = Buffer.from(r.printSpecText(t.bundle, pkg, t.orderNumber), "utf8");
       return { interior: pkg.interior, cover: pkg.cover, layout: pkg.layout, spec, pageCount: pkg.pageCount, spineMm: pkg.spineMm, coverWidthMm: pkg.coverWidthMm, coverHeightMm: pkg.coverHeightMm };
     }
     case "layout":
       return r.renderLayoutScheme(t.bundle, t.pageCount, Buffer.from(t.cover));
     case "reading":
-      return r.renderReadingPdf(t.bundle);
+      return r.renderReadingPdf(t.bundle, report);
     case "preview":
-      return r.renderScreenBuild(t.bundle);
+      return r.renderScreenBuild(t.bundle, report);
     case "watermark":
       // pdf-lib разбирает и пересобирает весь файл — тоже в потоке PDF, чтобы не держать сайт.
       return (await import("./watermark")).watermarkPdf(t.pdf, t.language, t.format);

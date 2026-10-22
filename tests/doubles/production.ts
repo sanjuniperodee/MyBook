@@ -1,5 +1,5 @@
 import type { BookBuildManifest, BookPageKind } from "@/lib/book/book-build";
-import { BookPreviewService, PrintFilesService, RasterizerMissingError, type BookRenderer, type FileStore, type PageRaster, type PrintJob, type PrintSpec, type RenderQueue } from "@/modules/production";
+import { BookPreviewService, PrintFilesService, RasterizerMissingError, RenderProgress, type BookRenderer, type FileStore, type PageRaster, type PrintJob, type PrintSpec, type RenderQueue, type RenderReport } from "@/modules/production";
 import type { Clock, Logger } from "@/shared/application";
 
 // ─── тестовые двойники ─────────────────────────────────────────────────────
@@ -62,6 +62,8 @@ class FakeRenderer implements BookRenderer {
   books = new Map<string, { fingerprint: string }>();
   crash = new Set<"package" | "layout" | "reading" | "preview" | "watermark">();
   calls: string[] = [];
+  /** Вызывается в начале каждой сборки с её report: тест докладывает этапы и снимает состояние, пока «рендер идёт». */
+  onReport?: (report: RenderReport | undefined) => void | Promise<void>;
   private n = 0;
   private gate: Promise<void> | null = null;
   private open: () => void = () => {};
@@ -76,19 +78,22 @@ class FakeRenderer implements BookRenderer {
     if (this.crash.has(kind)) throw new Error(`${kind} crashed`);
     return this.books.has(bookId) ? ++this.n : null;
   }
-  async renderPrintPackage(bookId: string, orderNumber: number) {
+  async renderPrintPackage(bookId: string, orderNumber: number, report?: RenderReport) {
     this.calls.push(`package:${bookId}:${orderNumber}`);
+    await this.onReport?.(report);
     const n = this.step("package", bookId);
     if (n === null) return null;
     const printSpec: PrintSpec = { format: "a5", pageCount: 64 + n, spineMm: 8, coverWidthMm: 316, coverHeightMm: 216, generatedAt: "2026-10-01T10:00:00.000Z" };
     return { interior: Buffer.from(`block#${n}`), cover: Buffer.from(`cover#${n}`), layout: Buffer.from(`layout#${n}`), spec: Buffer.from(`spec#${n}`), printSpec };
   }
-  async renderLayout(bookId: string, block: Buffer, cover: Buffer) {
+  async renderLayout(bookId: string, block: Buffer, cover: Buffer, report?: RenderReport) {
     this.calls.push(`layout:${bookId}:${block}+${cover}`);
+    await this.onReport?.(report);
     return this.step("layout", bookId) === null ? null : Buffer.from(`layout(${block}+${cover})`);
   }
-  async renderReading(bookId: string) {
+  async renderReading(bookId: string, report?: RenderReport) {
     this.calls.push(`reading:${bookId}`);
+    await this.onReport?.(report);
     const n = this.step("reading", bookId);
     return n === null ? null : Buffer.from(`reading#${n}`);
   }
@@ -99,8 +104,9 @@ class FakeRenderer implements BookRenderer {
     const fp = book.fingerprint;
     return {
       fingerprint: fp,
-      render: async () => {
+      render: async (report?: RenderReport) => {
         this.calls.push(`render:${bookId}:${fp}`);
+        await this.onReport?.(report);
         if (this.gate) await this.gate;
         if (this.crash.has("preview")) throw new Error("preview crashed");
         const manifest: BookBuildManifest = {
@@ -227,8 +233,10 @@ export function setup() {
   const raster = new FakeRaster();
   const logger = new SpyLogger();
   const paid = new Set<string>();
+  const progress = new RenderProgress(files, clock);
   renderer.books.set("b1", { fingerprint: "fp1" });
   return {
+    progress,
     renderer,
     files,
     queue,
@@ -236,7 +244,7 @@ export function setup() {
     clock,
     logger,
     pay: (bookId: string) => void paid.add(bookId),
-    printFiles: new PrintFilesService(renderer, files, queue, logger),
-    previews: new BookPreviewService(renderer, files, queue, raster, logger, async (bookId) => paid.has(bookId), clock),
+    printFiles: new PrintFilesService(renderer, files, queue, logger, progress),
+    previews: new BookPreviewService(renderer, files, queue, raster, logger, async (bookId) => paid.has(bookId), clock, progress),
   };
 }

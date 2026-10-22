@@ -24,7 +24,7 @@ import { WorkspaceModule, smtpConfig } from "@/modules/workspace";
 import { FeedbackModule, reviewUrl, THANK_YOU } from "@/modules/feedback";
 import { ReferralsModule } from "@/modules/referrals";
 import { AutomationModule } from "@/modules/automation";
-import { BookPreviewService, PrintFilesService, pdfPageRaster, pdfRenderQueue, reactPdfRenderer, renderGiftPdf, storageFileStore, type BookRenderer } from "@/modules/production";
+import { BookPreviewService, PrintFilesService, RenderProgress, pdfPageRaster, pdfRenderQueue, reactPdfRenderer, renderGiftPdf, storageFileStore, type BookRenderer } from "@/modules/production";
 import { registerSubscriptions } from "./subscriptions";
 import { createInvoiceAccess, type InvoiceAccess } from "./invoice-access";
 import { kaspiConfig, whatsappSettings } from "./integration-settings";
@@ -368,18 +368,24 @@ export class Container {
   #printFiles?: PrintFilesService;
   #previews?: BookPreviewService;
   #renderer?: BookRenderer;
+  #renderProgress?: RenderProgress;
 
   /** Рендер PDF читает книгу через read-модель Authoring, а не таблицы напрямую. */
   private get renderer(): BookRenderer {
     return (this.#renderer ??= reactPdfRenderer((bookId) => this.authoring.queries.bundle(bookId)));
   }
 
+  /** Ход сборок PDF — один на процесс: его показывают экраны заказа и предпросмотра. */
+  get renderProgress(): RenderProgress {
+    return (this.#renderProgress ??= new RenderProgress(storageFileStore));
+  }
+
   get printFiles(): PrintFilesService {
-    return (this.#printFiles ??= new PrintFilesService(this.renderer, storageFileStore, pdfRenderQueue, consoleLogger("production")));
+    return (this.#printFiles ??= new PrintFilesService(this.renderer, storageFileStore, pdfRenderQueue, consoleLogger("production"), this.renderProgress));
   }
 
   get previews(): BookPreviewService {
-    return (this.#previews ??= new BookPreviewService(this.renderer, storageFileStore, pdfRenderQueue, pdfPageRaster, consoleLogger("production"), (bookId) => this.ordering.queries.bookPaid(bookId)));
+    return (this.#previews ??= new BookPreviewService(this.renderer, storageFileStore, pdfRenderQueue, pdfPageRaster, consoleLogger("production"), (bookId) => this.ordering.queries.bookPaid(bookId), undefined, this.renderProgress));
   }
 
   get ordering(): OrderingModule {

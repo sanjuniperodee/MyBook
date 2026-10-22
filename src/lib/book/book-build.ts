@@ -31,6 +31,24 @@ export interface BookBuild {
   imageBase: string;
 }
 
+/** Этапы сборки PDF по порядку: фото под печать, доводка вёрстки, итоговая сборка, обложка, упаковка файлов. */
+export type RenderStageName = "images" | "flow" | "final" | "cover" | "finish";
+
+/** Ход сборки для экрана (RenderProgress.snapshot): этап, сколько готово и сколько осталось по замерам прошлых сборок. */
+export interface BuildProgress {
+  /** queued — ждёт свободного места рендера, running — идёт. */
+  state: "queued" | "running";
+  stage: RenderStageName | null;
+  /** 0–99. */
+  percent: number;
+  /** Сколько мс осталось по оценке; null — оценить нечем (стоит в очереди). */
+  etaMs: number | null;
+  /** Идёт дольше оценки: срок уже не показываем. */
+  overrun: boolean;
+  /** Сколько сборок стоят перед этой. */
+  ahead: number;
+}
+
 export type BookBuildState =
   | { status: "ready"; build: BookBuild }
   | { status: "building"; previous: BookBuild | null }

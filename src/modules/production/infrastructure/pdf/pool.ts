@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import * as threads from "node:worker_threads";
 import type { Worker } from "node:worker_threads";
+import type { RenderEvent, RenderReport } from "../../application/RenderProgress";
 import { runPdfTask, type PdfTask, type PdfTaskResult } from "./worker-tasks";
 
 /**
@@ -15,7 +16,7 @@ const WORKER_FILE = process.env.PDF_WORKER_FILE || path.join(process.cwd(), "pdf
 
 let worker: Worker | null = null;
 let seq = 0;
-const pending = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void }>();
+const pending = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void; report?: RenderReport }>();
 
 function failAll(err: Error) {
   for (const p of pending.values()) p.reject(err);
@@ -28,9 +29,14 @@ function getWorker(): Worker | null {
   // Конструктор — через Reflect: увидев `new Worker(…)`, Turbopack пытается собрать воркер сам и падает при сборке.
   // Файл воркера собирает scripts/build-pdf-worker.mjs.
   const w: Worker = Reflect.construct(Reflect.get(threads, "Worker") as typeof Worker, [WORKER_FILE]);
-  w.on("message", (m: { id: number; ok: boolean; result?: unknown; error?: string }) => {
+  w.on("message", (m: { id: number; ok?: boolean; result?: unknown; error?: string; progress?: RenderEvent }) => {
     const p = pending.get(m.id);
     if (!p) return;
+    // Ход работы: задача ещё идёт, ответ будет позже.
+    if (m.progress) {
+      p.report?.(m.progress);
+      return;
+    }
     pending.delete(m.id);
     if (m.ok) p.resolve(m.result);
     else p.reject(new Error(`PDF: ${m.error}`));
@@ -51,13 +57,13 @@ function getWorker(): Worker | null {
   return w;
 }
 
-/** Выполнить задачу вёрстки в потоке PDF (или в текущем, если воркера нет). */
-export async function inPdfThread<T extends PdfTask>(job: T): Promise<PdfTaskResult<T>> {
+/** Выполнить задачу вёрстки в потоке PDF (или в текущем, если воркера нет). report получает начало этапов работы. */
+export async function inPdfThread<T extends PdfTask>(job: T, report?: RenderReport): Promise<PdfTaskResult<T>> {
   const w = getWorker();
-  if (!w) return (await runPdfTask(job)) as PdfTaskResult<T>;
+  if (!w) return (await runPdfTask(job, report)) as PdfTaskResult<T>;
   const id = ++seq;
   return new Promise<PdfTaskResult<T>>((resolve, reject) => {
-    pending.set(id, { resolve: resolve as (v: unknown) => void, reject });
+    pending.set(id, { resolve: resolve as (v: unknown) => void, reject, report });
     w.postMessage({ id, job });
   });
 }
