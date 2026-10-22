@@ -1,34 +1,32 @@
 import "server-only";
-import { and, count, desc, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/shared/infrastructure/db";
 import { executor } from "@/shared/infrastructure/database";
 import { designAiCredits, designAiPurchases, designAiRequests } from "@/shared/infrastructure/db/schema";
 import type { AiPack } from "@/config/site";
-import { DESIGN_AI_DAILY_LIMIT, designAiDay, type DesignTarget } from "@/lib/book/design-ai";
+import { DESIGN_AI_FREE_LIMIT, type DesignTarget } from "@/lib/book/design-ai";
 
 /**
- * Учёт просьб к ИИ-дизайнеру: 5 бесплатных в сутки (по Алматы) и купленные запросы сверх них. Резерв берётся под
+ * Учёт просьб к ИИ-дизайнеру: 5 бесплатных на клиента за всё время и купленные запросы сверх них. Резерв берётся под
  * блокировкой клиента — две вкладки не потратят один последний запрос дважды; если модель не ответила, резерв
  * возвращается (бесплатный — не считается, купленный — возвращается на баланс).
  */
 
 export interface DesignAiAllowance {
   limit: number;
-  /** Бесплатных осталось сегодня. */
+  /** Бесплатных осталось. */
   remaining: number;
   /** Купленных запросов на балансе. */
   credits: number;
-  /** Когда обновится бесплатный лимит (ISO). */
-  resetAt: string;
 }
 
 const LOCK = 7_301_224;
 
-async function usedToday(tx: Pick<typeof db, "select">, userId: string, now: Date) {
+async function usedFree(tx: Pick<typeof db, "select">, userId: string) {
   const [r] = await tx
     .select({ n: count() })
     .from(designAiRequests)
-    .where(and(eq(designAiRequests.userId, userId), eq(designAiRequests.source, "free"), inArray(designAiRequests.status, ["pending", "ok"]), gte(designAiRequests.createdAt, designAiDay(now).start)));
+    .where(and(eq(designAiRequests.userId, userId), eq(designAiRequests.source, "free"), inArray(designAiRequests.status, ["pending", "ok"])));
   return r?.n ?? 0;
 }
 
@@ -37,9 +35,9 @@ async function creditsOf(tx: Pick<typeof db, "select">, userId: string) {
   return r?.balance ?? 0;
 }
 
-export async function designAiAllowance(userId: string, now = new Date()): Promise<DesignAiAllowance> {
-  const [used, credits] = await Promise.all([usedToday(db, userId, now), creditsOf(db, userId)]);
-  return { limit: DESIGN_AI_DAILY_LIMIT, remaining: Math.max(0, DESIGN_AI_DAILY_LIMIT - used), credits, resetAt: designAiDay(now).reset.toISOString() };
+export async function designAiAllowance(userId: string): Promise<DesignAiAllowance> {
+  const [used, credits] = await Promise.all([usedFree(db, userId), creditsOf(db, userId)]);
+  return { limit: DESIGN_AI_FREE_LIMIT, remaining: Math.max(0, DESIGN_AI_FREE_LIMIT - used), credits };
 }
 
 /** Взять запрос: бесплатный, если остались, иначе купленный. Нет ни того ни другого — null. */
@@ -47,7 +45,7 @@ export async function reserveDesignAi(input: { userId: string; bookId: string; t
   return db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(${LOCK}, hashtext(${input.userId}))`);
     let source: "free" | "credit" | null = null;
-    if ((await usedToday(tx, input.userId, now)) < DESIGN_AI_DAILY_LIMIT) source = "free";
+    if ((await usedFree(tx, input.userId)) < DESIGN_AI_FREE_LIMIT) source = "free";
     else {
       const taken = await tx
         .update(designAiCredits)

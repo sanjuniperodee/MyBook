@@ -213,7 +213,7 @@ export const bookLetters = pgTable(
 export type BookLetter = typeof bookLetters.$inferSelect;
 
 /**
- * Просьбы к ИИ-дизайнеру (оформление страниц и обложка): по ним считается дневной лимит клиента, они же — журнал для
+ * Просьбы к ИИ-дизайнеру (оформление страниц и обложка): по ним считается бесплатный лимит клиента (5 за всё время), они же — журнал для
  * разбора качества (просьба, операции, замечания, токены). pending — запрос идёт; failed — модель не ответила (не в лимите).
  */
 export const designAiRequests = pgTable(
@@ -229,7 +229,7 @@ export const designAiRequests = pgTable(
     target: text("target", { enum: ["pages", "cover"] }).notNull(),
     prompt: text("prompt").notNull(),
     status: text("status", { enum: ["pending", "ok", "failed"] }).notNull().default("pending"),
-    /** Из чего списан запрос: бесплатный дневной лимит или купленный пакет. */
+    /** Из чего списан запрос: бесплатный лимит или купленный пакет. */
     source: text("source", { enum: ["free", "credit"] }).notNull().default("free"),
     reply: text("reply").notNull().default(""),
     ops: jsonb("ops").$type<unknown[]>().notNull().default([]),
@@ -240,7 +240,7 @@ export const designAiRequests = pgTable(
   (t) => [index("design_ai_requests_user_idx").on(t.userId, t.createdAt)],
 );
 
-/** Купленные запросы к ИИ-дизайнеру: остаток на клиента. Тратятся, когда дневной бесплатный лимит исчерпан. */
+/** Купленные запросы к ИИ-дизайнеру: остаток на клиента. Тратятся, когда бесплатный лимит исчерпан. */
 export const designAiCredits = pgTable("design_ai_credits", {
   userId: uuid("user_id")
     .primaryKey()

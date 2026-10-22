@@ -96,7 +96,7 @@ export function PricingForm({ plans, addons, delivery, aiPacks, factory, changed
       <section className="space-y-4 rounded-2xl border border-line bg-white p-5" data-testid="pricing-ai-packs">
         <div>
           <h2 className="text-sm font-semibold">Пакеты запросов к ИИ-дизайнеру</h2>
-          <p className="mt-1 text-xs text-muted">5 запросов в сутки бесплатно. Когда они кончаются, клиенту предлагают пакеты ниже; купленные запросы не сгорают и тратятся после бесплатных.</p>
+          <p className="mt-1 text-xs text-muted">5 запросов бесплатно на клиента (за всё время). Когда они кончаются, клиенту предлагают пакеты ниже; купленные запросы не сгорают и тратятся после бесплатных.</p>
         </div>
         <div className="grid gap-3 lg:grid-cols-3">
           {aiPacks.map((p, i) => {

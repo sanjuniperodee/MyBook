@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyCoverOps, applyPagesOps, designAiDay, DESIGN_AI_MODEL, MAX_ATTEMPTS, pagesSystemPrompt, coverSystemPrompt, quotaOf, runDesignAi, type Ask, type DesignOp } from "@/lib/book/design-ai";
+import { applyCoverOps, applyPagesOps, DESIGN_AI_FREE_LIMIT, DESIGN_AI_MODEL, MAX_ATTEMPTS, pagesSystemPrompt, coverSystemPrompt, quotaOf, runDesignAi, type Ask, type DesignOp } from "@/lib/book/design-ai";
 import { designFromTemplate } from "@/lib/book/cover-design";
 import { coverMeta } from "@/lib/book/covers/meta";
 import { getCoverTemplate } from "@/lib/book/covers";
@@ -128,15 +128,10 @@ describe("ИИ-дизайнер: harness", () => {
   });
 });
 
-describe("лимит по суткам Алматы", () => {
-  it("сутки начинаются в полночь UTC+5", () => {
-    const { start, reset } = designAiDay(new Date("2026-10-22T18:30:00Z")); // 23:30 в Алматы
-    expect(start.toISOString()).toBe("2026-10-21T19:00:00.000Z");
-    expect(reset.toISOString()).toBe("2026-10-22T19:00:00.000Z");
-    expect(designAiDay(new Date("2026-10-22T19:05:00Z")).start.toISOString()).toBe("2026-10-22T19:00:00.000Z");
-  });
-
-  it("остаток не уходит в минус", () => {
-    expect(quotaOf(7, new Date("2026-10-22T10:00:00Z"))).toMatchObject({ limit: 5, used: 5, remaining: 0 });
+describe("бесплатный лимит", () => {
+  it("5 запросов на клиента за всё время; остаток не уходит в минус", () => {
+    expect(DESIGN_AI_FREE_LIMIT).toBe(5);
+    expect(quotaOf(2)).toEqual({ limit: 5, used: 2, remaining: 3 });
+    expect(quotaOf(7)).toEqual({ limit: 5, used: 5, remaining: 0 });
   });
 });

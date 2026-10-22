@@ -16,7 +16,6 @@ export interface DesignAiAllowance {
   limit: number;
   remaining: number;
   credits: number;
-  resetAt: string;
 }
 
 interface Pack {
@@ -136,7 +135,6 @@ export function DesignAiPanel({
     }
   };
 
-  const resetTime = allowance ? new Date(allowance.resetAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Almaty" }) : "";
   // Предупреждение до отправки: сколько осталось и откуда спишется этот запрос.
   const notice = !allowance
     ? null
@@ -198,7 +196,6 @@ export function DesignAiPanel({
             <p className="mt-1 text-sm text-ink-soft">{t.outText}</p>
           </div>
           <Packs packs={packs} opening={opening} onBuy={buy} />
-          <p className="text-xs text-muted">{t.resetAt(resetTime)}</p>
         </div>
       ) : (
         <>
@@ -230,7 +227,7 @@ export function DesignAiPanel({
               {notice}
             </p>
           ) : allowance ? (
-            <p className="text-xs text-muted">{t.dailyNote(allowance.limit)}</p>
+            <p className="text-xs text-muted">{t.freeNote(allowance.limit)}</p>
           ) : null}
           <button type="button" className="btn btn-primary w-full" disabled={!editable || busy || prompt.trim().length < 2 || !allowance} onClick={() => void send()}>
             {busy ? <LoaderCircle className="size-4 animate-spin" /> : <Sparkles className="size-4" />} {busy ? t.thinking : t.send}
