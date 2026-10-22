@@ -196,6 +196,7 @@ export const common = {
     wedding: { label: "Свадьба", until: "свадьбы" },
     parents: { label: "Юбилей родителей", until: "юбилея" },
     graduation: { label: "Выпускной", until: "выпускного" },
+    teachersday: { label: "День учителя", until: "Дня учителя" },
     other: { label: "Другой повод", until: "праздника" },
   },
   occasion: {
