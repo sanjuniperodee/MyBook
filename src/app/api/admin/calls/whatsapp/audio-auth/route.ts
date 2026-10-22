@@ -20,5 +20,6 @@ export const GET = api(async (req) => {
   const call = await container().telephony.whatsapp.liveCall(callId);
   if (!call || call.staffId !== staff.user.id) return deny(403);
   const auth = await container().messaging.gowa.authorization();
-  return new Response(null, { status: 204, headers: { "cache-control": "no-store", ...(auth ? { "x-gw-authorization": auth } : {}) } });
+  // Id звонка — обратно nginx: к шлюзу уйдёт именно он, а не то, что nginx прочтёт из адреса сам.
+  return new Response(null, { status: 204, headers: { "cache-control": "no-store", "x-wa-call-id": callId, ...(auth ? { "x-gw-authorization": auth } : {}) } });
 });

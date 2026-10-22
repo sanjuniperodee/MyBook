@@ -119,11 +119,16 @@ function attachment(p: Record<string, unknown>): { type: string; path: string | 
 export const GOWA_CALL_ID = /^[A-Za-z0-9_.:-]{1,100}$/;
 
 /**
- * id звонка из адреса аудиопотока (/wa-call/audio?call_id=…) — как есть, без раскодирования: nginx подставит шлюзу именно
- * эту строку ($arg_call_id, первое вхождение), поэтому %-последовательности и прочие символы не пропускаем.
+ * id звонка из адреса аудиопотока (/wa-call/audio?call_id=…): только строка запроса, имя — без учёта регистра, значение —
+ * как есть (%-коды и прочие символы не пропускаем). Шлюзу nginx отдаёт этот же id из ответа сайта (X-Wa-Call-Id), так что
+ * разночтений с самим nginx нет; второй call_id в адресе — отказ, чтобы не гадать, какой имелся в виду.
  */
 export function gowaAudioCallId(originalUri: string | null): string | null {
-  const raw = /[?&]call_id=([^&#]*)/.exec(originalUri ?? "")?.[1] ?? "";
+  const uri = originalUri ?? "";
+  const query = uri.includes("?") ? uri.slice(uri.indexOf("?") + 1).split("#")[0] : "";
+  const ids = query.split("&").filter((p) => /^call_id=/i.test(p));
+  if (ids.length !== 1) return null;
+  const raw = ids[0].slice("call_id=".length);
   return GOWA_CALL_ID.test(raw) ? raw : null;
 }
 

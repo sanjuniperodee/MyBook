@@ -37,6 +37,14 @@ describe("звук звонка WhatsApp: микрофон → шлюз", () => 
   });
 });
 
+describe("звук звонка WhatsApp: микрофон ниже 16 кГц", () => {
+  it("8 кГц (гарнитура Bluetooth) → вдвое больше сэмплов, тон тот же: голос не ускоряется", () => {
+    const out = new MicEncoder(8_000).push(sine(8_000, 300, 8_000)).flatMap(samples);
+    expect(Math.abs(out.length - 16_000)).toBeLessThanOrEqual(FRAME_SAMPLES);
+    expect(Math.abs(pitch(out, WIRE_RATE) - 300)).toBeLessThan(5);
+  });
+});
+
 describe("звук звонка WhatsApp: шлюз → динамик", () => {
   const wire = (xs: Float32Array) => {
     const buf = new ArrayBuffer(xs.length * 2);

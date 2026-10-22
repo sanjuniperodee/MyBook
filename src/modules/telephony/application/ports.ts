@@ -6,6 +6,8 @@ export interface CallRepository {
   /** false — параллельный вебхук уже создал этот звонок. */
   add(call: Call): Promise<boolean>;
   save(call: Call): Promise<void>;
+  /** Сохранить идущий звонок; false — его уже завершил параллельный вебхук (тогда не трогаем: не «оживлять» завершённый). */
+  update(call: Call): Promise<boolean>;
   /** Завершение атомарно: false — звонок уже завершён другим вебхуком. */
   finish(call: Call): Promise<boolean>;
   /** Дозвонились — прошлые пропущенные с этого номера за неделю считаем обработанными. */

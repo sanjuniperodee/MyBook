@@ -24,13 +24,17 @@ export interface WhatsappCallGateway {
 /** Хранилище живых звонков WhatsApp: кто ответил первым, признак жизни вкладки, зависшие звонки. */
 export interface LiveCallRepository {
   findById(id: string): Promise<Call | null>;
-  /** Ответить на звонящий входящий: атомарно, только первый сотрудник. false — уже ответили или звонок завершён. */
+  /**
+   * Взять звонящий входящий себе (ответ ещё не подтверждён шлюзом): атомарно, только первый сотрудник. Звонок остаётся
+   * «звонит» без времени ответа — если звонящий положит трубку в эту секунду, звонок закроется пропущенным, а не разговором.
+   * false — уже взял другой или звонок завершён.
+   */
   claimAnswer(id: string, staffId: string, at: Date): Promise<boolean>;
-  /** Шлюз не ответил на звонок — вернуть его в «звонит», чтобы закрыть пропущенным. */
+  /** Шлюз не ответил на звонок — снова ничей. */
   releaseClaim(id: string, staffId: string): Promise<void>;
   /** Вкладка сотрудника на связи. false — звонка нет, он завершён или чужой. */
   heartbeat(id: string, staffId: string, at: Date): Promise<boolean>;
-  /** Незавершённые звонки WhatsApp: звонят дольше ringMs или с ответом, но вкладка молчит дольше silentMs. */
+  /** Незавершённые звонки WhatsApp: без ответа дольше ringMs (и вкладка не отмечается) или с ответом, но вкладка молчит дольше silentMs. */
   stale(now: Date, opts: { ringMs: number; silentMs: number }): Promise<{ call: Call; lastSeen: Date | null }[]>;
 }
 
@@ -97,7 +101,9 @@ export class WhatsappCallsService {
     try {
       await this.gateway.answer(call.externalId);
     } catch (err) {
-      // Звонящий успел положить трубку (или шлюз недоступен): разговора не было — звонок пропущенный.
+      // Звонящий успел положить трубку (или шлюз не ответил вовремя): разговора не было — звонок пропущенный. Трубку в шлюзе
+      // кладём на всякий случай: если ответ всё же дошёл, звонящий не должен остаться на линии без сотрудника.
+      await this.gateway.hangup(call.externalId).catch(() => {});
       await this.repo.releaseClaim(id, staffId);
       const fresh = await this.repo.findById(id);
       if (fresh) await this.finish(fresh, this.clock.now());
@@ -117,9 +123,14 @@ export class WhatsappCallsService {
     await this.calls.handle({ provider: WHATSAPP, externalId: call.externalId, stage: "answer", direction: "out", clientPhone: call.clientPhone, extension: null, staffId, at: this.clock.now() });
   }
 
-  /** Вкладка на связи во время звонка. false — звонка уже нет: вкладка закрывает панель. */
-  heartbeat(id: string, staffId: string) {
-    return this.repo.heartbeat(id, staffId, this.clock.now());
+  /**
+   * Вкладка на связи во время звонка. talking — у неё идёт разговор: если отметка «собеседник ответил» потерялась в сети,
+   * она дойдёт так (иначе планировщик счёл бы исходящий недозвоном). false — звонка уже нет: вкладка закрывает панель.
+   */
+  async heartbeat(id: string, staffId: string, talking = false) {
+    const live = await this.repo.heartbeat(id, staffId, this.clock.now());
+    if (live && talking) await this.connected(id, staffId);
+    return live;
   }
 
   /**

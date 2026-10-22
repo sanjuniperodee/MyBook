@@ -31,6 +31,7 @@ function setup(opts: { blocked?: boolean; client?: string; staff?: { name: strin
     findByExternal: async (_p, ext) => [...rows.values()].find((c) => c.snapshot().externalId === ext) ?? null,
     add: async (c) => !!rows.set(c.id, c),
     save: async () => {},
+    update: async () => true,
     finish: async (c) => !log.includes(`finished:${c.id}`) && !!log.push(`finished:${c.id}`),
     markMissedHandled: async (phone) => void log.push(`handled:${phone}`),
     markHandled: async () => {},

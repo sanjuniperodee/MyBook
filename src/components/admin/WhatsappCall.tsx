@@ -41,7 +41,8 @@ interface WhatsappCallApi {
   enabled: boolean;
   busy: boolean;
   dial(target: Target, title?: string): void;
-  answer(id: string, title: string): void;
+  /** true — разговор начался (микрофон есть, сервер принял ответ). */
+  answer(id: string, title: string): Promise<boolean>;
   decline(id: string): Promise<void>;
 }
 
@@ -53,7 +54,20 @@ export function useWhatsappCall() {
   return api?.enabled ? api : null;
 }
 
-const send = (id: string, op: "heartbeat" | "connected" | "hangup" | "ended") => apiFetch<{ live: boolean }>(`/api/admin/calls/whatsapp/${id}`, { method: "POST", json: { op } });
+const send = (id: string, op: "heartbeat" | "connected" | "hangup" | "ended", extra: { talking?: boolean } = {}) => apiFetch<{ live: boolean }>(`/api/admin/calls/whatsapp/${id}`, { method: "POST", json: { op, ...extra } });
+
+/** «Собеседник ответил» — с повторами: потерянная отметка превратила бы разговор в недозвон (её дублируют и отметки «на связи»). */
+async function sendConnected(id: string) {
+  for (const wait of [0, 1_000, 3_000, 7_000]) {
+    if (wait) await new Promise((r) => setTimeout(r, wait));
+    try {
+      await send(id, "connected");
+      return;
+    } catch {
+      // сеть моргнула — повторим
+    }
+  }
+}
 
 /**
  * Вкладку закрывают или уходят из CRM посреди звонка — трубку кладёт сервер по запросу, который браузер доотправит сам.
@@ -84,6 +98,8 @@ export function WhatsappCallProvider({ enabled, children }: { enabled: boolean; 
   const [micLevel, setMicLevel] = useState(0);
   const audio = useRef<CallAudio | null>(null);
   const lastBeat = useRef(0);
+  /** Панель ещё на странице: ушли из CRM, пока включался микрофон или сервер набирал номер, — звонок не продолжаем. */
+  const mounted = useRef(true);
   // Текущий звонок нужен обработчикам звука и таймеров сразу, не дожидаясь отрисовки, — ref меняется вместе с состоянием.
   const callRef = useRef<ActiveCall | null>(null);
   const setCall = useCallback((next: ActiveCall | null | ((c: ActiveCall | null) => ActiveCall | null)) => {
@@ -117,7 +133,7 @@ export function WhatsappCallProvider({ enabled, children }: { enabled: boolean; 
   const beat = useCallback(
     (id: string) => {
       lastBeat.current = Date.now();
-      void send(id, "heartbeat")
+      void send(id, "heartbeat", { talking: !!callRef.current?.talkingSince })
         .then((r) => {
           if (!r.live && callRef.current?.id === id) finish("Звонок завершён", null);
         })
@@ -135,7 +151,7 @@ export function WhatsappCallProvider({ enabled, children }: { enabled: boolean; 
           if (c.phase !== "ringing") return;
           audio.current?.ringback(false);
           patch({ phase: "talking", talkingSince: Date.now() });
-          void send(c.id, "connected").catch(() => {});
+          void sendConnected(c.id);
           return;
         case "ended":
           return finish(c.talkingSince ? "Звонок завершён" : c.direction === "out" ? "Не отвечает" : "Звонок завершён", "ended");
@@ -158,18 +174,26 @@ export function WhatsappCallProvider({ enabled, children }: { enabled: boolean; 
 
   /** Общий путь набора и ответа: микрофон до запроса к серверу (без него звонок не начинаем), потом звук к звонку. */
   const begin = useCallback(
-    (direction: "in" | "out", title: string, start: () => Promise<WhatsappCallStart>) => {
-      if (callRef.current) return void toast("Сначала завершите текущий звонок", "error");
+    (direction: "in" | "out", title: string, start: () => Promise<WhatsappCallStart>): Promise<boolean> => {
+      if (callRef.current) {
+        toast("Сначала завершите текущий звонок", "error");
+        return Promise.resolve(false);
+      }
       // AudioContext — прямо в обработчике нажатия, до первого await: иначе браузер не даст звук.
       const opening = CallAudio.open();
       setCall({ id: "", callId: "", direction, title, phone: "", clientId: null, dealId: null, phase: "preparing", talkingSince: null, outcome: null });
-      void (async () => {
+      return (async () => {
         let a: CallAudio;
         try {
           a = await opening;
         } catch (err) {
           setCall(null);
-          return void toast(err instanceof CallAudioError ? err.message : "Не удалось включить микрофон", "error");
+          toast(err instanceof CallAudioError ? err.message : "Не удалось включить микрофон", "error");
+          return false;
+        }
+        if (!mounted.current) {
+          a.close();
+          return false;
         }
         let r: WhatsappCallStart;
         try {
@@ -177,22 +201,29 @@ export function WhatsappCallProvider({ enabled, children }: { enabled: boolean; 
         } catch {
           r = { ok: false, message: "Не удалось начать звонок — проверьте связь" };
         }
+        if (!mounted.current) {
+          a.close();
+          if (r.ok) hangupOnLeave(r.id);
+          return false;
+        }
         if (!r.ok) {
           a.close();
           setCall(null);
-          return void toast(r.message, "error");
+          toast(r.message, "error");
+          return false;
         }
         audio.current = a;
         const answered = direction === "in";
         setCall({ id: r.id, callId: r.callId, direction, title: r.title, phone: r.phone, clientId: r.clientId, dealId: r.dealId, phase: answered ? "talking" : "ringing", talkingSince: answered ? Date.now() : null, outcome: null });
         if (!answered) a.ringback(true);
         a.connect(r.callId, onAudio);
+        return true;
       })();
     },
     [onAudio, setCall],
   );
 
-  const dial = useCallback((target: Target, title = "Клиент") => begin("out", title, () => whatsappDialAction(target)), [begin]);
+  const dial = useCallback((target: Target, title = "Клиент") => void begin("out", title, () => whatsappDialAction(target)), [begin]);
   const answer = useCallback((id: string, title: string) => begin("in", title, () => whatsappAnswerAction(id)), [begin]);
   const decline = useCallback(async (id: string) => {
     try {
@@ -227,14 +258,15 @@ export function WhatsappCallProvider({ enabled, children }: { enabled: boolean; 
   }, [id, beat, finish]);
 
   // Ушли из CRM (на витрину) посреди звонка — звук выключается вместе с панелью, поэтому и трубку кладём.
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
       const c = callRef.current;
       if (c?.id && c.phase !== "ended") hangupOnLeave(c.id);
       audio.current?.close();
-    },
-    [],
-  );
+    };
+  }, []);
 
   const toggleMute = () => {
     const next = !muted;
@@ -369,9 +401,9 @@ export function WhatsappIncomingActions({ id, title, onDone }: { id: string; tit
         className="btn btn-sm flex-1 bg-[#16a34a] text-white hover:bg-[#15803d]"
         disabled={wa.busy}
         data-testid="wa-call-answer"
-        onClick={() => {
-          onDone();
-          wa.answer(id, title);
+        onClick={async () => {
+          // Карточка убирается, только когда разговор начался: нет микрофона или сбой — можно ответить ещё раз.
+          if (await wa.answer(id, title)) onDone();
         }}
       >
         <PhoneIncoming className="size-4" /> Ответить
