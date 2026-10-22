@@ -72,6 +72,29 @@ async function sendConnected(id: string) {
 }
 
 /**
+ * Запись разговора: кусок за куском, по порядку, с повторами при сбое сети. Небольшой кусок уходит keepalive-запросом —
+ * он доедет, даже если вкладку закрывают (так уходит последний кусок после «Завершить»).
+ */
+function recordingUploader(id: string) {
+  let seq = 0;
+  let queue = Promise.resolve();
+  return (chunk: Blob, mime: string) => {
+    const n = seq++;
+    queue = queue.then(async () => {
+      for (const wait of [0, 1_000, 3_000]) {
+        if (wait) await new Promise((r) => setTimeout(r, wait));
+        try {
+          const res = await fetch(`/api/admin/calls/whatsapp/${id}/recording?seq=${n}`, { method: "POST", body: chunk, headers: { "Content-Type": mime.split(";")[0] }, keepalive: chunk.size < 60_000 });
+          if (res.ok || res.status === 409 || res.status === 400) return;
+        } catch {
+          // сеть моргнула — повторим
+        }
+      }
+    });
+  };
+}
+
+/**
  * Вкладку закрывают или уходят из CRM посреди звонка — трубку кладёт сервер по запросу, который браузер доотправит сам.
  * Chrome иногда теряет один такой запрос при выгрузке страницы, поэтому их два (повтор безвреден); не дошли оба — звонок
  * закроет планировщик по отметкам вкладки.
@@ -153,6 +176,7 @@ export function WhatsappCallProvider({ enabled, pbx = false, children }: { enabl
           if (c.phase !== "ringing") return;
           audio.current?.ringback(false);
           patch({ phase: "talking", talkingSince: Date.now() });
+          audio.current?.startRecording(recordingUploader(c.id));
           void sendConnected(c.id);
           return;
         case "ended":
@@ -218,6 +242,7 @@ export function WhatsappCallProvider({ enabled, pbx = false, children }: { enabl
         const answered = direction === "in";
         setCall({ id: r.id, callId: r.callId, direction, title: r.title, phone: r.phone, clientId: r.clientId, dealId: r.dealId, phase: answered ? "talking" : "ringing", talkingSince: answered ? Date.now() : null, outcome: null });
         if (!answered) a.ringback(true);
+        else a.startRecording(recordingUploader(r.id));
         a.connect(r.callId, onAudio);
         return true;
       })();

@@ -470,6 +470,13 @@
       "when": 1792643637880,
       "tag": "0066_whatsapp_call_heartbeat",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1792651257423,
+      "tag": "0067_manager_no_call_recordings",
+      "breakpoints": true
     }
   ]
 }

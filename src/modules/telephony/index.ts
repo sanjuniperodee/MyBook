@@ -3,6 +3,7 @@ import { CallsService, TelephonyService, WhatsappCallsService, type CallSideEffe
 import { DrizzleCallQueries, DrizzleCallRepository, crmCallTimeline, drizzleStaff } from "./infrastructure/persistence";
 import { zadarmaProvider, type TelephonySettingKey } from "./infrastructure/zadarma";
 import { crmCallEffects } from "./infrastructure/effects";
+import { localCallRecordings } from "./infrastructure/recordings";
 
 export { TelephonyError, type CallEvent } from "./domain";
 export type { SalesGateway as TelephonySalesGateway, CallSideEffects, WhatsappCallGateway } from "./application";
@@ -22,6 +23,6 @@ export class TelephonyModule {
     const repo = new DrizzleCallRepository();
     this.phone = new TelephonyService(zadarmaProvider(deps.settings));
     this.calls = new CallsService(repo, drizzleStaff, deps.sales, crmCallTimeline, crmCallEffects(deps), deps.clock);
-    this.whatsapp = new WhatsappCallsService(this.calls, repo, deps.whatsapp, deps.clock);
+    this.whatsapp = new WhatsappCallsService(this.calls, repo, deps.whatsapp, deps.clock, localCallRecordings);
   }
 }

@@ -21,6 +21,17 @@ export interface WhatsappCallGateway {
   hangup(callId: string): Promise<void>;
 }
 
+/** Записи разговоров WhatsApp: куски из браузера и готовый файл для прослушивания. */
+export interface CallRecordingStore {
+  /** Кусок записи номер seq (по порядку с 0) в формате mime (audio/webm, audio/mp4, audio/ogg). */
+  append(callId: string, seq: number, mime: string, data: Uint8Array): Promise<void>;
+  /** Файл записи законченного звонка (склеивается при первом обращении); null — записи нет. */
+  file(callId: string): Promise<{ path: string; mime: string } | null>;
+}
+
+/** После конца звонка вкладка ещё доотправляет хвост записи — столько его принимаем. */
+export const WHATSAPP_RECORDING_TAIL_MS = 5 * 60_000;
+
 /** Хранилище живых звонков WhatsApp: кто ответил первым, признак жизни вкладки, зависшие звонки. */
 export interface LiveCallRepository {
   findById(id: string): Promise<Call | null>;
@@ -34,6 +45,8 @@ export interface LiveCallRepository {
   releaseClaim(id: string, staffId: string): Promise<void>;
   /** Вкладка сотрудника на связи. false — звонка нет, он завершён или чужой. */
   heartbeat(id: string, staffId: string, at: Date): Promise<boolean>;
+  /** У звонка есть запись (показать плеер в «Звонках»). */
+  markRecorded(id: string): Promise<void>;
   /** Незавершённые звонки WhatsApp: без ответа дольше ringMs (и вкладка не отмечается) или с ответом, но вкладка молчит дольше silentMs. */
   stale(now: Date, opts: { ringMs: number; silentMs: number }): Promise<{ call: Call; lastSeen: Date | null }[]>;
 }
@@ -55,6 +68,7 @@ export class WhatsappCallsService {
     private readonly repo: Pick<CallRepository, "findByExternal"> & LiveCallRepository,
     private readonly gateway: WhatsappCallGateway,
     private readonly clock: Clock,
+    private readonly recordings: CallRecordingStore,
   ) {}
 
   enabled() {
@@ -145,6 +159,25 @@ export class WhatsappCallsService {
     // Шлюз мог уже завершить звонок сам — тогда трубку класть некуда, журнал всё равно закрываем.
     await this.gateway.hangup(call.externalId).catch(() => {});
     return this.finish(call, this.clock.now());
+  }
+
+  /**
+   * Кусок записи разговора из вкладки сотрудника. Пишет только тот, кто разговаривал, и только пока звонок идёт или
+   * недавно закончился (хвост записи вкладка отправляет после «Завершить»).
+   */
+  async record(id: string, staffId: string, input: { seq: number; mime: string; data: Uint8Array }) {
+    const call = await this.mine(id, staffId);
+    const endedAt = call.snapshot().endedAt;
+    if (endedAt && this.clock.now().getTime() - endedAt.getTime() > WHATSAPP_RECORDING_TAIL_MS) throw new TelephonyError("notFound", "Звонок давно завершён");
+    await this.recordings.append(call.id, input.seq, input.mime, input.data);
+    if (!call.snapshot().hasRecording) await this.repo.markRecorded(call.id);
+  }
+
+  /** Файл записи для прослушивания — только законченного звонка WhatsApp. */
+  async recordingFile(call: { id: string; provider: string; endedAt: Date | null; hasRecording: boolean }) {
+    if (call.provider !== WHATSAPP || !call.hasRecording) return null;
+    if (!call.endedAt) throw new TelephonyError("notFound", "Звонок ещё идёт — запись будет после его окончания");
+    return this.recordings.file(call.id);
   }
 
   /** Шлюз сообщил, что звонок закончился (положил трубку собеседник, сотрудник или WhatsApp). */

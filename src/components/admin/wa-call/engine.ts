@@ -19,6 +19,11 @@ export class CallAudioError extends Error {}
 
 /** Паузы между попытками восстановить аудиопоток: всего ~12 с, дальше звонок считается оборванным. */
 const RETRY_MS = [300, 700, 1500, 3000, 6000];
+/** Кусок записи разговора — раз в 10 с: вкладка пропала — теряется не больше этого. */
+const RECORD_SLICE_MS = 10_000;
+/** Форматы записи по убыванию предпочтения: Chrome/Edge/Firefox — Opus, Safari — AAC в MP4. */
+const RECORD_MIMES = ["audio/webm;codecs=opus", "audio/ogg;codecs=opus", "audio/mp4", "audio/webm"];
+
 /** Отправка застряла (сеть) больше чем на ~1 с звука — новые кадры выбрасываем: звонок живой, а не запись. */
 const MAX_BUFFERED = 32_000;
 
@@ -48,6 +53,9 @@ export class CallAudio {
   private muted = false;
   private lastLevel = 0;
   private tone: { stop(): void } | null = null;
+  private recorder: MediaRecorder | null = null;
+  /** Микрофон в запись — через свою громкость: «Микрофон выкл.» выключает его и в записи. */
+  private recordMic: GainNode | null = null;
   private listener: (e: CallAudioEvent) => void = () => {};
   private readonly encoder: MicEncoder;
   private readonly decoder: PeerDecoder;
@@ -56,6 +64,7 @@ export class CallAudio {
     private readonly ctx: AudioContext,
     private readonly stream: MediaStream,
     private readonly node: AudioWorkletNode,
+    private readonly mic: MediaStreamAudioSourceNode,
   ) {
     this.encoder = new MicEncoder(ctx.sampleRate);
     this.decoder = new PeerDecoder(ctx.sampleRate);
@@ -80,10 +89,11 @@ export class CallAudio {
       try {
         await ctx.audioWorklet.addModule("/wa-call-worklet.js");
         const node = new AudioWorkletNode(ctx, "wa-call", { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1] });
-        ctx.createMediaStreamSource(stream).connect(node);
+        const mic = ctx.createMediaStreamSource(stream);
+        mic.connect(node);
         node.connect(ctx.destination);
         if (ctx.state !== "running") await ctx.resume().catch(() => {});
-        return new CallAudio(ctx, stream, node);
+        return new CallAudio(ctx, stream, node, mic);
       } catch {
         stream.getTracks().forEach((t) => t.stop());
         void ctx.close();
@@ -101,6 +111,32 @@ export class CallAudio {
 
   setMuted(muted: boolean) {
     this.muted = muted;
+    if (this.recordMic) this.recordMic.gain.value = muted ? 0 : 1;
+  }
+
+  /**
+   * Запись разговора: микрофон сотрудника и голос собеседника сводятся в один поток и сжимаются кодеком браузера
+   * (~32 кбит/с), куски по 10 с — в onChunk (их порядок — порядок склейки). Гудки в запись не попадают. Браузер без
+   * MediaRecorder — без записи, звонок от этого не страдает.
+   */
+  startRecording(onChunk: (chunk: Blob, mime: string) => void) {
+    if (this.recorder || this.closed || typeof MediaRecorder === "undefined") return;
+    try {
+      const dest = this.ctx.createMediaStreamDestination();
+      this.recordMic = this.ctx.createGain();
+      this.recordMic.gain.value = this.muted ? 0 : 1;
+      this.mic.connect(this.recordMic).connect(dest);
+      this.node.connect(dest);
+      const mimeType = RECORD_MIMES.find((m) => MediaRecorder.isTypeSupported(m));
+      const rec = new MediaRecorder(dest.stream, { ...(mimeType ? { mimeType } : {}), audioBitsPerSecond: 32_000 });
+      rec.ondataavailable = (e) => {
+        if (e.data.size) onChunk(e.data, rec.mimeType || e.data.type);
+      };
+      rec.start(RECORD_SLICE_MS);
+      this.recorder = rec;
+    } catch {
+      this.recorder = null;
+    }
   }
 
   /** Гудки, пока собеседник не взял трубку (шлюз их не передаёт): 425 Гц, секунда звука, три — тишина. */
@@ -137,9 +173,22 @@ export class CallAudio {
     this.socket = null;
     s?.close();
     this.node.port.onmessage = null;
-    this.node.disconnect();
-    this.stream.getTracks().forEach((t) => t.stop());
-    void this.ctx.close().catch(() => {});
+    const release = () => {
+      this.node.disconnect();
+      this.stream.getTracks().forEach((t) => t.stop());
+      void this.ctx.close().catch(() => {});
+    };
+    // Запись сначала отдаёт последний кусок (ondataavailable после stop), потом звук выключается.
+    const rec = this.recorder;
+    this.recorder = null;
+    if (rec && rec.state !== "inactive") {
+      const timer = setTimeout(release, 1500);
+      rec.onstop = () => {
+        clearTimeout(timer);
+        release();
+      };
+      rec.stop();
+    } else release();
   }
 
   private dial() {

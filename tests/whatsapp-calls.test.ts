@@ -49,6 +49,9 @@ function setup(opts: { answerFails?: boolean; openDeal?: string; duringAnswer?: 
       r.staffId = null;
       beats.delete(id);
     },
+    markRecorded: async (id) => {
+      rows.get(id)!.hasRecording = true;
+    },
     heartbeat: async (id, staffId, at) => {
       const r = rows.get(id);
       if (!r || r.endedAt || r.staffId !== staffId) return false;
@@ -92,9 +95,14 @@ function setup(opts: { answerFails?: boolean; openDeal?: string; duringAnswer?: 
     },
     hangup: async (id) => void log.push(`gw:hangup:${id}`),
   };
-  const service = new WhatsappCallsService(calls, repo, gateway, clock);
+  const parts: string[] = [];
+  const recordings = {
+    append: async (id: string, seq: number, mime: string, data: Uint8Array) => void parts.push(`${id}:${seq}:${mime}:${data.length}`),
+    file: async (id: string) => (parts.some((p) => p.startsWith(`${id}:`)) ? { path: `/rec/${id}.m4a`, mime: "audio/mp4" } : null),
+  };
+  const service = new WhatsappCallsService(calls, repo, gateway, clock, recordings);
   const ring = (externalId = "IN1") => service.incoming({ provider: "whatsapp", externalId, stage: "start", direction: "in", clientPhone: "77011234567", extension: null, at: clock.now() });
-  return { service, log, rows, tick, ring, disable: () => (enabled = false) };
+  return { service, log, rows, tick, ring, parts, disable: () => (enabled = false) };
 }
 
 describe("WhatsappCallsService: исходящий", () => {
@@ -233,6 +241,27 @@ describe("WhatsappCallsService: зависшие звонки (планиров�
     await service.hangup(id, "m1");
     expect(await service.liveCall("WA1")).toBeNull();
     expect(await service.liveCall("NOPE")).toBeNull();
+  });
+});
+
+describe("WhatsappCallsService: запись разговора", () => {
+  it("пишет только тот, кто разговаривал, пока звонок идёт и 5 минут после; слушать — только законченный звонок", async () => {
+    const { service, rows, parts, tick } = setup();
+    const { id } = await service.dial({ staffId: "m1", phone: "77011234567" });
+    const chunk = { seq: 0, mime: "audio/webm", data: new Uint8Array(100) };
+    await expect(service.record(id, "m2", chunk)).rejects.toThrow("Звонок не найден");
+    await service.record(id, "m1", chunk);
+    expect(rows.get(id)?.hasRecording).toBe(true);
+    await expect(service.recordingFile({ ...rows.get(id)!, endedAt: null })).rejects.toThrow("Звонок ещё идёт");
+    await service.hangup(id, "m1");
+    tick(60);
+    await service.record(id, "m1", { ...chunk, seq: 1 });
+    expect(parts).toEqual([`${id}:0:audio/webm:100`, `${id}:1:audio/webm:100`]);
+    expect(await service.recordingFile(rows.get(id)!)).toEqual({ path: `/rec/${id}.m4a`, mime: "audio/mp4" });
+    tick(6 * 60);
+    await expect(service.record(id, "m1", { ...chunk, seq: 2 })).rejects.toThrow("давно завершён");
+    // У звонков АТС записи — у провайдера, не здесь.
+    expect(await service.recordingFile({ ...rows.get(id)!, provider: "zadarma" })).toBeNull();
   });
 });
 

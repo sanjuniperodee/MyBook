@@ -79,6 +79,12 @@ export class DrizzleCallRepository implements CallRepository, LiveCallRepository
       .set({ staffId: null, heartbeatAt: null })
       .where(and(eq(crmCalls.id, id), eq(crmCalls.staffId, staffId), isNull(crmCalls.answeredAt), isNull(crmCalls.endedAt)));
   }
+  async markRecorded(id: string) {
+    await executor()
+      .update(crmCalls)
+      .set({ hasRecording: true, recordingRef: "local" })
+      .where(and(eq(crmCalls.id, id), eq(crmCalls.provider, WHATSAPP)));
+  }
   async heartbeat(id: string, staffId: string, at: Date) {
     if (!UUID.test(id)) return false;
     const rows = await executor()
