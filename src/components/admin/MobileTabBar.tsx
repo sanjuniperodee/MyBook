@@ -7,6 +7,7 @@ import { BarChart3, CheckSquare, Ellipsis, Handshake, MessagesSquare, Package, P
 import type { MobileTabKey } from "@/shared/domain/mobileLayout";
 import { cn } from "@/lib/class-names";
 import { useLive } from "./CrmLive";
+import { lastOfTab, sectionOf } from "./nav-memory";
 
 const TABS: Record<MobileTabKey, { label: string; href: string; icon: LucideIcon; badge?: "chats" | "tasks" | "deals" | "attention" | "calls" }> = {
   overview: { label: "Обзор", href: "/admin", icon: BarChart3 },
@@ -29,6 +30,12 @@ export function MobileTabBar({ tabs, profileLabel }: { tabs: MobileTabKey[]; pro
   const params = useSearchParams();
   const { counters } = useLive().live;
   const [keyboard, setKeyboard] = useState(false);
+  // Вкладка помнит, где вы в ней были (как в iOS): нажатие возвращает на последнюю открытую страницу вкладки.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sessionStorage есть только в браузере: до монтирования ссылки ведут на корни вкладок, как на сервере
+    setMounted(true);
+  }, []);
   const chatOpen = pathname.startsWith("/admin/chats") && !!params.get("c");
 
   // Открытый чат — на весь экран: шапка CRM и нижняя панель скрываются (стили — globals.css, [data-chat-open]).
@@ -58,14 +65,25 @@ export function MobileTabBar({ tabs, profileLabel }: { tabs: MobileTabKey[]; pro
   // «Заказы» — и список, и доска производства.
   const active = (href: string) => (href === "/admin" ? pathname === "/admin" : pathname.startsWith(href) || (href === "/admin/orders" && pathname.startsWith("/admin/board")));
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-line/70 bg-white/85 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden" aria-label="Разделы CRM" data-testid="mobile-tabbar">
+    <nav style={{ viewTransitionName: "crm-tabbar" }} className="fixed inset-x-0 bottom-0 z-40 border-t border-line/70 bg-white/85 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden" aria-label="Разделы CRM" data-testid="mobile-tabbar">
       <ul className="mx-auto flex h-[3.6rem] max-w-xl">
         {items.map((it) => {
           const on = active(it.href);
           const n = it.badge ? counters[it.badge] : 0;
+          // Другая вкладка — на её последнюю страницу; текущая — на корень (повторное нажатие на корне прокручивает наверх).
+          const href = !on && mounted ? (lastOfTab(sectionOf(it.href)) ?? it.href) : it.href;
           return (
             <li key={it.key} className="flex-1">
-              <Link href={it.href} aria-current={on ? "page" : undefined} className={cn("relative flex h-full flex-col items-center justify-center gap-0.5 text-[10.5px] font-medium transition active:scale-95 active:opacity-60", on ? "text-wine" : "text-muted")}>
+              <Link
+                href={href}
+                aria-current={on ? "page" : undefined}
+                onClick={(e) => {
+                  if (on && pathname === it.href) {
+                    e.preventDefault();
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }
+                }}
+                className={cn("relative flex h-full flex-col items-center justify-center gap-0.5 text-[10.5px] font-medium transition active:scale-95 active:opacity-60", on ? "text-wine" : "text-muted")}>
                 <span className="relative">
                   <it.icon className={cn("size-6 transition", on && "scale-110")} strokeWidth={on ? 2.2 : 1.8} />
                   {n ? <span className="absolute -top-1.5 -right-3 min-w-[18px] rounded-full bg-wine px-1 text-center text-[10.5px] leading-[18px] font-semibold text-white tabular-nums">{n > 99 ? "99+" : n}</span> : null}

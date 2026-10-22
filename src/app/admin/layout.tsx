@@ -9,6 +9,7 @@ import { Webphone } from "@/components/admin/Webphone";
 import { can } from "@/server/access";
 import { autoShiftOnVisit } from "@/server/shift";
 import { THEME_SCRIPT, ThemeSync, ThemeToggle } from "@/components/admin/Theme";
+import { NavMotion } from "@/components/admin/NavMotion";
 import { MobileTabBar } from "@/components/admin/MobileTabBar";
 import { PullToRefresh } from "@/components/admin/PullToRefresh";
 import { layoutTabs, mobileLayout } from "@/shared/domain/mobileLayout";
@@ -56,7 +57,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       <div className="flex min-h-dvh bg-[#f7f4ef]">
         <AdminNav variant="sidebar" {...nav} />
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="crm-topbar sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-line bg-white/85 px-4 backdrop-blur sm:px-6">
+          <header style={{ viewTransitionName: "crm-topbar" }} className="crm-topbar sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-line bg-white/85 px-4 backdrop-blur sm:px-6">
             <form action="/admin/search" className="relative w-full max-w-md">
               <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" />
               <input name="q" placeholder="Поиск: сделка, заказ, имя, телефон, книга" className="h-9 w-full rounded-xl border border-line bg-[#f7f4ef] pr-3 pl-9 text-sm outline-none focus:border-wine/40 focus:bg-white" />
@@ -72,6 +73,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           </main>
         </div>
       </div>
+      <NavMotion />
       <MobileTabBar tabs={tabs} profileLabel={layout === "leader" ? "Ещё" : "Профиль"} />
       <IncomingCall />
     </CrmLiveProvider>

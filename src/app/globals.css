@@ -450,3 +450,68 @@ body {
     background-color: transparent;
   }
 }
+
+/*
+ * Переходы между экранами CRM на телефоне — как в iOS. Направление ставит NavMotion (<html data-nav>), экран — div.crm-page в
+ * admin/template.tsx. Вглубь: новый экран въезжает справа, старый чуть сдвигается влево; назад — наоборот; вкладки — растворение.
+ * Шапка и нижняя панель — отдельные группы, остаются на месте поверх экранов.
+ */
+.crm-page {
+  min-height: 100%;
+  background-color: #f7f4ef;
+}
+.dark .crm-page {
+  background-color: #14110f;
+}
+::view-transition-group(crm-topbar),
+::view-transition-group(crm-tabbar) {
+  animation: none;
+  z-index: 100;
+}
+::view-transition-old(crm-topbar),
+::view-transition-old(crm-tabbar) {
+  display: none;
+}
+::view-transition-new(crm-topbar),
+::view-transition-new(crm-tabbar) {
+  animation: none;
+}
+::view-transition {
+  pointer-events: none;
+}
+:root {
+  --ios-ease: cubic-bezier(0.32, 0.72, 0, 1);
+}
+::view-transition-old(.crm-page) {
+  animation: 140ms ease-out both crm-fade-out;
+}
+::view-transition-new(.crm-page) {
+  animation: 220ms ease-out both crm-fade-in;
+}
+:root[data-nav="forward"]::view-transition-old(.crm-page) {
+  animation: 380ms var(--ios-ease) both crm-push-out;
+}
+:root[data-nav="forward"]::view-transition-new(.crm-page) {
+  animation: 380ms var(--ios-ease) both crm-push-in;
+  box-shadow: -8px 0 24px rgb(0 0 0 / 0.12);
+}
+:root[data-nav="back"]::view-transition-old(.crm-page) {
+  animation: 380ms var(--ios-ease) both crm-pop-out;
+  z-index: 2;
+  box-shadow: -8px 0 24px rgb(0 0 0 / 0.12);
+}
+:root[data-nav="back"]::view-transition-new(.crm-page) {
+  animation: 380ms var(--ios-ease) both crm-pop-in;
+}
+:root[data-nav="tab"]::view-transition-old(.crm-page) {
+  animation: 120ms ease-out both crm-fade-out;
+}
+:root[data-nav="tab"]::view-transition-new(.crm-page) {
+  animation: 200ms ease-out 40ms both crm-fade-in;
+}
+@keyframes crm-fade-out { to { opacity: 0; } }
+@keyframes crm-fade-in { from { opacity: 0; } }
+@keyframes crm-push-in { from { transform: translateX(100%); } }
+@keyframes crm-push-out { to { transform: translateX(-28%); opacity: 0.6; } }
+@keyframes crm-pop-in { from { transform: translateX(-28%); opacity: 0.6; } }
+@keyframes crm-pop-out { to { transform: translateX(100%); } }
