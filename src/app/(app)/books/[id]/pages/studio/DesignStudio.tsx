@@ -4,9 +4,10 @@ import { useRef, useState } from "react";
 import { Redo2, RotateCcw, Undo2 } from "lucide-react";
 import { useMessages } from "@/i18n/client";
 import { confirmDialog } from "@/components/ui/overlays";
-import type { SpreadKind, SpreadSample } from "@/components/interior/InteriorSpread";
+import { InteriorSpread, type SpreadKind, type SpreadSample } from "@/components/interior/InteriorSpread";
 import type { BookFormat } from "@/lib/book/formats";
-import type { InteriorDesign, InteriorId, InteriorStyle } from "@/lib/book/interiors";
+import { applyInteriorStyle, getInteriorDesign, isInteriorId, parseInteriorStyle, type InteriorDesign, type InteriorId, type InteriorStyle } from "@/lib/book/interiors";
+import { applyPagesOps } from "@/lib/book/design-ai/ops";
 import { cn } from "@/lib/class-names";
 import { DesignAiPanel } from "@/components/design/DesignAiPanel";
 import { ChaptersTab, type StudioChapter } from "./ChaptersTab";
@@ -174,12 +175,25 @@ export function DesignStudio({
             target="pages"
             editable={editable}
             payload={() => ({ state: { interior, style }, chapters: chapters.map((c) => ({ key: c.key, title: c.title.slice(0, 120) })) })}
-            onApply={(res) => {
-              if (!res.interior || !res.interiorStyle) return;
-              commit({ interior: res.interior as InteriorId, style: res.interiorStyle as InteriorStyle }, false);
+            onApply={(patch) => {
+              if (!patch.interior || !isInteriorId(patch.interior) || !patch.interiorStyle) return;
+              commit({ interior: patch.interior, style: parseInteriorStyle(patch.interiorStyle) }, false);
               setKept(null);
               onPreview("chapter");
             }}
+            applyOps={(ops) => {
+              const r = applyPagesOps({ interior, style }, ops);
+              if (JSON.stringify(r.state) === JSON.stringify({ interior, style })) return false;
+              commit(r.state, false);
+              onPreview("chapter");
+              return true;
+            }}
+            renderPreview={(patch) =>
+              patch.interior && isInteriorId(patch.interior) ? (
+                <InteriorSpread design={applyInteriorStyle(getInteriorDesign(patch.interior), parseInteriorStyle(patch.interiorStyle ?? {}))} format={format} sample={sample} kind="chapter" className="rounded-[3px]" />
+              ) : null
+            }
+            previewMin={220}
             onUndo={undo}
           />
         ) : null}

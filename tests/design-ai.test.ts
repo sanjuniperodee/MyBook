@@ -135,3 +135,127 @@ describe("бесплатный лимит", () => {
     expect(quotaOf(7)).toEqual({ limit: 5, used: 5, remaining: 0 });
   });
 });
+
+// ─── умнее: плейбук, критик, макеты, варианты, оценка, память ─────────────
+
+import { coverLayouts, DECOR_IDS, type CoverDesign } from "@/lib/book/cover-design";
+import { fontFaces } from "@/lib/book/fonts";
+import { isInteriorId } from "@/lib/book/interiors";
+import { isKnownCover } from "@/lib/book/covers";
+import { contrastRatio, critiqueCover, MOODS, newAdvice, runDesignReview, runDesignVariants, THEME_MOODS, userPrompt, VARIANTS } from "@/lib/book/design-ai";
+
+describe("плейбук", () => {
+  it("все шрифты, стили, макеты, шаблоны и мотивы — из каталогов; палитры читаемы", () => {
+    const layouts = new Set(coverLayouts.map((l) => l.id));
+    for (const m of MOODS) {
+      for (const [d, b] of m.fonts) {
+        expect(fontFaces[d], `${m.id}: ${d}`).toBeDefined();
+        expect(fontFaces[b]?.body, `${m.id}: ${b} — шрифт для текста`).toBe(true);
+      }
+      for (const i of m.interiors) expect(isInteriorId(i), `${m.id}: ${i}`).toBe(true);
+      for (const l of m.layouts) expect(layouts.has(l), `${m.id}: ${l}`).toBe(true);
+      for (const t of m.templates) expect(isKnownCover(t), `${m.id}: ${t}`).toBe(true);
+      for (const d of m.decor) expect(DECOR_IDS as readonly string[], `${m.id}: ${d}`).toContain(d);
+      expect(contrastRatio(m.pages.ink, m.pages.paper), `${m.id}: текст`).toBeGreaterThanOrEqual(7);
+      expect(contrastRatio(m.cover.title, m.cover.background), `${m.id}: название`).toBeGreaterThanOrEqual(4.5);
+    }
+    for (const ids of Object.values(THEME_MOODS)) for (const id of ids) expect(MOODS.some((m) => m.id === id)).toBe(true);
+  });
+
+  it("плейбук и макеты — в системном промпте", () => {
+    expect(pagesSystemPrompt()).toContain("Настроения");
+    expect(coverSystemPrompt()).toContain("romance-arch");
+    expect(coverSystemPrompt()).toContain("apply_layout");
+  });
+});
+
+describe("критик", () => {
+  const withTitle = (color: string, bg: string): CoverDesign => {
+    const d = cover().design;
+    return { ...d, background: { kind: "color", color: bg }, layers: d.layers.map((l) => (l.kind === "text" && l.bind === "title" ? { ...l, style: { ...l.style, color } } : l)) };
+  };
+  it("нечитаемое название — замечание; читаемое — нет", () => {
+    expect(critiqueCover({ template: "linen", design: withTitle("#EEEEEE", "#FFFFFF") }).map((a) => a.code)).toContain("contrast:title");
+    expect(critiqueCover({ template: "linen", design: withTitle("#1D2A44", "#FFFFFF") }).some((a) => a.code.startsWith("contrast:title"))).toBe(false);
+  });
+
+  it("старые недочёты не считаются новыми", () => {
+    const before = critiqueCover({ template: "linen", design: withTitle("#EEEEEE", "#FFFFFF") });
+    const after = critiqueCover({ template: "linen", design: withTitle("#E0E0E0", "#FFFFFF") });
+    expect(newAdvice(before, after)).toEqual([]);
+  });
+});
+
+describe("операции: готовый макет и адресация", () => {
+  it("apply_layout собирает обложку по макету; layers.title находит название в любом макете; @decor — все украшения", () => {
+    const texts = { title: "Там, где ты", subtitle: "", names: "Элия & Олжас" };
+    const { state, errors } = applyCoverOps(cover(), [op("apply_layout", "", "premium-deco"), op("set", "layers.title.style.color", "#D9BC7C"), op("set", "layers.@decor.color", "#B8975A")], formats.a5, { texts, photos: [] });
+    expect(errors).toEqual([]);
+    const title = state.design.layers.find((l) => l.kind === "text" && l.bind === "title");
+    expect(title?.kind === "text" && title.style.color).toBe("#D9BC7C");
+    const decor = state.design.layers.filter((l) => l.kind === "decor");
+    expect(decor.length).toBeGreaterThan(1);
+    expect(decor.every((l) => l.kind === "decor" && l.color === "#B8975A")).toBe(true);
+  });
+
+  it("неизвестный макет и группа — замечания", () => {
+    const { errors } = applyCoverOps(cover(), [op("apply_layout", "", "nope"), op("set", "layers.@ghost.color", "#000000")], formats.a5);
+    expect(errors.join("\n")).toMatch(/нет макета/);
+    expect(errors.join("\n")).toMatch(/группа/);
+  });
+});
+
+describe("harness: варианты, оценка, память", () => {
+  const answer = (o: unknown): Ask => async () => ({ text: JSON.stringify(o) });
+
+  it("три разных варианта: каждый от текущего оформления, пустые и повторы отброшены после исправления", async () => {
+    const asks: string[] = [];
+    const first = { reply: "r", variants: [{ name: "А", idea: "", ops: [op("set_interior", "", "novel")] }, { name: "Б", idea: "", ops: [op("set_interior", "", "novel")] }, { name: "В", idea: "", ops: [] }] };
+    const second = { reply: "Три настроения", variants: [{ name: "Роман", idea: "", ops: [op("set_interior", "", "novel")] }, { name: "Воздух", idea: "", ops: [op("set_interior", "", "airy")] }, { name: "Ретро", idea: "", ops: [op("set_interior", "", "antique")] }] };
+    const queue = [first, second];
+    const ask: Ask = async (r) => {
+      asks.push(r.user);
+      return { text: JSON.stringify(queue.shift()) };
+    };
+    const res = await runDesignVariants(ask, { target: "pages", request: "три варианта", state: { interior: "classic", style: {} }, book });
+    expect(asks).toHaveLength(2);
+    expect(asks[0]).toContain("Режим: варианты");
+    expect(asks[1]).toMatch(/повторяет другой вариант/);
+    expect(asks[1]).toMatch(/ничего не меняет/);
+    expect(res.variants.map((v) => v.state.interior)).toEqual(["novel", "airy", "antique"]);
+    expect(res.variants).toHaveLength(VARIANTS);
+  });
+
+  it("оценка: балл в пределах 1–10, совет с операциями — с готовым оформлением, совет словами — без", async () => {
+    const res = await runDesignReview(
+      answer({ score: 14, summary: "Хорошо", strengths: ["Шрифт"], tips: [{ title: "Крупнее текст", why: "Легче читать", ops: [op("set", "body.size", 11.5)] }, { title: "Добавьте фото", why: "Живее", ops: [] }] }),
+      { target: "pages", request: "", state: { interior: "classic", style: {} }, book },
+    );
+    expect(res.score).toBe(10);
+    expect(res.tips[0].state?.style).toEqual({ body: { size: 11.5 } });
+    expect(res.tips[1].state).toBeNull();
+  });
+
+  it("правка помнит прошлые просьбы и знает контекст книги", () => {
+    const user = userPrompt("pages", { ...book, theme: "love", occasion: "Годовщина", palette: { colors: ["#C9A27E"], tone: "тёплые" }, other: "фон #1D2A44" }, {}, "ещё темнее", undefined, { mode: "edit", history: [{ prompt: "сделай бордовым", reply: "Сделал акцент бордовым" }] });
+    expect(user).toContain("тема love");
+    expect(user).toContain("Повод: Годовщина");
+    expect(user).toContain("#C9A27E");
+    expect(user).toContain("Обложка книги сейчас: фон #1D2A44");
+    expect(user).toContain("«сделай бордовым» → Сделал акцент бордовым");
+  });
+
+  it("новый недочёт после правки — повод исправить; старый — нет", async () => {
+    // Был нечитаемый акцент — правка шрифта не должна заставлять его чинить; новая нечитаемость подписей — должна.
+    const users: string[] = [];
+    const answers = [{ reply: "1", ops: [op("set", "colors.muted", "#F2EFEA")] }, { reply: "2", ops: [op("set", "colors.muted", "#6B6158")] }];
+    const ask: Ask = async (r) => {
+      users.push(r.user);
+      return { text: JSON.stringify(answers.shift()) };
+    };
+    const res = await runDesignAi(ask, { target: "pages", request: "подписи светлее", state: { interior: "classic", style: {} }, book });
+    expect(users).toHaveLength(2);
+    expect(users[1]).toMatch(/подписи .* почти не видны/);
+    expect(res.state.style.colors?.muted).toBe("#6B6158");
+  });
+});

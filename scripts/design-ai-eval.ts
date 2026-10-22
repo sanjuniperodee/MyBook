@@ -6,7 +6,7 @@ import { designFromTemplate, type CoverDesign } from "@/lib/book/cover-design";
 import { getCoverTemplate } from "@/lib/book/covers";
 import { coverMeta } from "@/lib/book/covers/meta";
 import { formats } from "@/lib/book/formats";
-import { DESIGN_AI_MODEL, runDesignAi, type Ask, type CoverState, type DesignBookContext, type PagesState } from "@/lib/book/design-ai";
+import { DESIGN_AI_MODEL, runDesignAi, runDesignReview, runDesignVariants, type Ask, type CoverState, type DesignBookContext, type PagesState } from "@/lib/book/design-ai";
 
 const apiKey = process.env.ANTHROPIC_API_KEY;
 if (!apiKey) {
@@ -29,7 +29,8 @@ const ask: Ask = async ({ system, user, effort, schema }) => {
   return { text, usage: { inputTokens: res.usage.input_tokens, outputTokens: res.usage.output_tokens, cacheReadTokens: res.usage.cache_read_input_tokens ?? 0, cacheWriteTokens: res.usage.cache_creation_input_tokens ?? 0 } };
 };
 
-const book: DesignBookContext = { title: "Там, где ты", kind: "gift", language: "ru", format: formats.a5, ui: "ru", chapters: [{ key: "childhood", title: "Детство" }, { key: "love", title: "Как мы познакомились" }] };
+const texts = { title: "Там, где ты", subtitle: "", names: "Элия & Олжас" };
+const book: DesignBookContext = { title: "Там, где ты", kind: "gift", theme: "love", occasion: "Годовщина", recipient: "Олжас", language: "ru", format: formats.a5, ui: "ru", chapters: [{ key: "childhood", title: "Детство" }, { key: "love", title: "Как мы познакомились" }], texts, palette: { colors: ["#C9A27E", "#3B4A5C"], tone: "средние по яркости, тёплые, приглушённые" } };
 const pages = (): PagesState => ({ interior: "classic", style: {} });
 const cover = (): CoverState => ({ template: "linen", design: designFromTemplate(coverMeta(getCoverTemplate("linen")), { title: "Там, где ты", subtitle: "", names: "Элия & Олжас" }, formats.a5) });
 const hex = (c: unknown) => (typeof c === "string" ? parseInt(c.slice(1), 16) : -1);
@@ -50,6 +51,14 @@ const cases: Case[] = [
   { id: "navy-gold", target: "cover", request: "тёмно-синий фон, а название крупнее и золотом", check: (s) => (s.design.background.kind === "color" && dark(s.design.background.color) && titleOf(s.design) ? null : "фон не тёмный") },
   { id: "frame", target: "cover", request: "добавь тонкую рамку по краю", check: (s) => (s.design.layers.some((l) => l.kind === "shape" && ["frame", "double", "rect", "corners"].includes(l.shape)) ? null : "нет рамки") },
   { id: "pastel", target: "cover", request: "сделай нежно, в пастельных тонах", check: (s) => (JSON.stringify(s.design) !== JSON.stringify(cover().design) ? null : "ничего не поменялось") },
+  { id: "layout", target: "cover", request: "хочу как премиальное издание, тёмное с золотом", check: (s) => (s.design.background.kind !== "template" || s.template !== "linen" ? null : "обложка не сменила настроение") },
+];
+
+// Режимы «варианты» и «оценка»: три разных направления и честный разбор с советами.
+const special = [
+  { id: "variants-pages", run: () => runDesignVariants(ask, { target: "pages", request: "предложи три варианта для книги к годовщине", state: pages(), book }), check: (r: { variants: unknown[] }) => (r.variants.length === 3 ? null : `вариантов ${r.variants.length}`) },
+  { id: "variants-cover", run: () => runDesignVariants(ask, { target: "cover", request: "три варианта обложки", state: cover(), book, layout: { texts, photos: [] } }), check: (r: { variants: unknown[] }) => (r.variants.length === 3 ? null : `вариантов ${r.variants.length}`) },
+  { id: "review-cover", run: () => runDesignReview(ask, { target: "cover", request: "", state: cover(), book, layout: { texts, photos: [] } }), check: (r: { score: number; tips: { state: unknown }[] }) => (r.score >= 1 && r.tips.some((t) => t.state) ? null : "нет применимых советов") },
 ];
 
 let pass = 0;
@@ -59,7 +68,7 @@ for (const c of cases.filter((x) => !only || x.id === only)) {
   for (let i = 0; i < runs; i++) {
     total++;
     const started = Date.now();
-    const res = c.target === "pages" ? await runDesignAi(ask, { target: "pages", request: c.request, state: pages(), book }) : await runDesignAi(ask, { target: "cover", request: c.request, state: cover(), book });
+    const res = c.target === "pages" ? await runDesignAi(ask, { target: "pages", request: c.request, state: pages(), book }) : await runDesignAi(ask, { target: "cover", request: c.request, state: cover(), book, layout: { texts, photos: [] } });
     const fail = c.target === "pages" ? c.check(res.state as PagesState) : c.check(res.state as CoverState);
     if (!fail) pass++;
     tokens.input += res.usage.inputTokens;
@@ -67,6 +76,21 @@ for (const c of cases.filter((x) => !only || x.id === only)) {
     tokens.cacheRead += res.usage.cacheReadTokens;
     tokens.cacheWrite += res.usage.cacheWriteTokens;
     console.log(`${fail ? "✗" : "✓"} ${c.id.padEnd(10)} попыток ${res.attempts}, ${((Date.now() - started) / 1000).toFixed(1)} с${fail ? ` — ${fail}` : ""}${res.errors.length ? ` · замечания: ${res.errors.join("; ")}` : ""}\n    «${res.reply}»`);
+  }
+}
+for (const c of special.filter((x) => !only || x.id === only)) {
+  for (let i = 0; i < runs; i++) {
+    total++;
+    const started = Date.now();
+    const res = await c.run();
+    const fail = c.check(res as never);
+    if (!fail) pass++;
+    tokens.input += res.usage.inputTokens;
+    tokens.output += res.usage.outputTokens;
+    tokens.cacheRead += res.usage.cacheReadTokens;
+    tokens.cacheWrite += res.usage.cacheWriteTokens;
+    const said = "variants" in res ? res.variants.map((v) => `${v.name}: ${v.idea}`).join(" | ") : `${res.score}/10 ${res.summary} · ${res.tips.map((t) => t.title).join("; ")}`;
+    console.log(`${fail ? "✗" : "✓"} ${c.id.padEnd(14)} попыток ${res.attempts}, ${((Date.now() - started) / 1000).toFixed(1)} с${fail ? ` — ${fail}` : ""}\n    ${said}`);
   }
 }
 console.log(`\nИтог: ${pass}/${total}. Токены: вход ${tokens.input}, выход ${tokens.output}, кэш чтение ${tokens.cacheRead}, кэш запись ${tokens.cacheWrite}.`);

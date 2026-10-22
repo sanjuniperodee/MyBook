@@ -7,54 +7,112 @@ import { idParams } from "@/server/input";
 import { AssistantError } from "@/modules/assistant";
 import { completeDesignAi, designAiAllowance, failDesignAi, reserveDesignAi } from "@/server/designAiStore";
 import { designAiPacks } from "@/server/designAiPacks";
-import { runDesignAi, type Ask, type CoverState, type PagesState } from "@/lib/book/design-ai";
-import { parseCoverDesign } from "@/lib/book/cover-design";
+import { photoPalette } from "@/server/photoPalette";
+import { describeCover, describePages, describeTemplate, runDesignAi, runDesignReview, runDesignVariants, type Ask, type CoverState, type DesignAiInput, type DesignBookContext, type DesignTarget, type PagesState } from "@/lib/book/design-ai";
+import { parseCoverDesign, type CoverDesign } from "@/lib/book/cover-design";
+import { coverNames } from "@/lib/book/cover-names";
 import { getFormat } from "@/lib/book/formats";
 import { getInteriorDesign, isInteriorId, parseInteriorStyle } from "@/lib/book/interiors";
-import { isKnownCover } from "@/lib/book/covers";
+import { getCoverTemplate, isKnownCover } from "@/lib/book/covers";
 import { bookKind } from "@/lib/content/kinds";
-import { getLocale } from "@/i18n/server";
+import { getLocale, getMessages } from "@/i18n/server";
 
 export const maxDuration = 120;
 
+const common = {
+  mode: z.enum(["edit", "variants", "review"]).default("edit"),
+  prompt: z.string().trim().max(500),
+  history: z.array(z.object({ prompt: z.string().max(500), reply: z.string().max(600) })).max(4).default([]),
+};
 const body = z.discriminatedUnion("target", [
   z.object({
     target: z.literal("pages"),
-    prompt: z.string().trim().min(2).max(500),
+    ...common,
     state: z.object({ interior: z.string().max(40), style: z.record(z.string(), z.unknown()) }),
     chapters: z.array(z.object({ key: z.string().max(90), title: z.string().max(120) })).max(60).default([]),
   }),
   z.object({
     target: z.literal("cover"),
-    prompt: z.string().trim().min(2).max(500),
+    ...common,
     state: z.object({ template: z.string().max(40), design: z.record(z.string(), z.unknown()) }),
   }),
 ]);
 
-/** Остаток лимита ИИ-дизайнера и пакеты запросов — редактор показывает их до того, как клиент что-то отправит. */
+/** Остаток лимита ИИ-дизайнера, пакеты запросов и подсказки под книгу — редактор показывает их до первой просьбы. */
 export const GET = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = idParams(await params, "id");
-  const { user } = await apiBook(req, id);
-  return NextResponse.json({ allowance: await designAiAllowance(user.id), packs: await designAiPacks() });
+  const { user, book } = await apiBook(req, id);
+  const photos = await container().authoring.queries.photos(book.id);
+  // Тема и наличие фото — для подсказок-идей под эту книгу.
+  return NextResponse.json({ allowance: await designAiAllowance(user.id), packs: await designAiPacks(), theme: book.theme, hasPhotos: photos.length > 0 });
 });
 
+/** Готовое оформление для редактора: страницы — стиль и настройки, обложка — шаблон и слои (только фото этой книги). */
+function patchOf(target: DesignTarget, state: PagesState | CoverState, own: Set<string>) {
+  if (target === "pages") {
+    const s = state as PagesState;
+    return { interior: s.interior, interiorStyle: s.style };
+  }
+  const s = state as CoverState;
+  const design: CoverDesign = { ...s.design, layers: s.design.layers.map((l) => (l.kind === "image" && l.photoId && !own.has(l.photoId) ? { ...l, photoId: null } : l)) };
+  return { coverTemplate: s.template, coverDesign: design };
+}
+
 /**
- * Просьба к ИИ-дизайнеру: оформление страниц или обложка. Состояние — из редактора (ещё не обязательно сохранено);
- * ответ — новое состояние, которое редактор применяет с отменой и сохраняет сам. Лимит: 5 бесплатных на клиента, дальше —
- * купленные запросы; без них — 402 designAiLimit, и редактор предлагает пакеты.
+ * Просьба к ИИ-дизайнеру: правка, три варианта или оценка — для страниц или обложки. Состояние — из редактора (ещё не
+ * обязательно сохранено); ответ — готовое оформление (или варианты, или советы с оформлением), которое редактор
+ * применяет с отменой и сохраняет сам. Любой режим — один запрос. Лимит: 5 бесплатных на клиента, дальше — купленные;
+ * без них — 402 designAiLimit, и редактор предлагает пакеты.
  */
 export const POST = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = idParams(await params, "id");
   const { user, book } = await apiBook(req, id, { editable: true });
   const input = body.parse(await req.json());
+  if (input.mode !== "review" && input.prompt.length < 2) throw new HttpError(400, "badRequest");
   const designer = container().assistant.designer;
   if (!(await designer.configured())) throw new HttpError(503, "designAiOff");
-  // Защита от очереди кликов: не чаще раза в 5 секунд (дневной лимит считается отдельно).
+  // Защита от очереди кликов: не чаще раза в 5 секунд (лимит считается отдельно).
   if (!(await rateLimit(`design-ai:${user.id}`, 1, 5_000))) throw new HttpError(429, "writeAiRate");
 
   const format = getFormat(book.format);
-  const ui = await getLocale();
-  const reserved = await reserveDesignAi({ userId: user.id, bookId: book.id, target: input.target, prompt: input.prompt });
+  const [ui, m] = await Promise.all([getLocale(), getMessages()]);
+  const allPhotos = await container().authoring.queries.photos(book.id);
+  const ordered = [...allPhotos.filter((p) => p.id === book.coverPhotoId), ...allPhotos.filter((p) => p.id !== book.coverPhotoId)];
+  const photos = ordered.map((p) => ({ id: p.id, width: p.width, height: p.height }));
+  const own = new Set(photos.map((p) => p.id));
+  const texts = { title: book.title, subtitle: book.subtitle ?? "", names: coverNames(book) };
+
+  let state: PagesState | CoverState;
+  let other: string;
+  if (input.target === "pages") {
+    state = { interior: isInteriorId(input.state.interior) ? input.state.interior : getInteriorDesign(book.interior).id, style: parseInteriorStyle(input.state.style) };
+    const savedCover = parseCoverDesign(book.coverDesign);
+    other = savedCover ? describeCover({ template: book.coverTemplate, design: savedCover }) : describeTemplate(book.coverTemplate, getCoverTemplate(book.coverTemplate).mood);
+  } else {
+    const design = parseCoverDesign(input.state.design);
+    if (!design) throw new HttpError(400, "badRequest");
+    state = { template: isKnownCover(input.state.template) ? input.state.template : book.coverTemplate, design };
+    other = describePages({ interior: getInteriorDesign(book.interior).id, style: parseInteriorStyle(book.interiorStyle) });
+  }
+  const occasion = book.occasion ? ((m.common.occasions as Record<string, { label: string } | undefined>)[book.occasion]?.label ?? book.occasion) : null;
+  const ctx: DesignBookContext = {
+    title: book.title,
+    kind: bookKind(book.theme),
+    theme: book.theme,
+    occasion,
+    recipient: book.recipientName || undefined,
+    author: book.authorName || undefined,
+    language: book.language,
+    format,
+    ui,
+    chapters: input.target === "pages" ? input.chapters : undefined,
+    photos: input.target === "cover" ? photos : undefined,
+    palette: await photoPalette(ordered),
+    other,
+    texts,
+  };
+
+  const reserved = await reserveDesignAi({ userId: user.id, bookId: book.id, target: input.target, prompt: input.prompt || `(${input.mode})` });
   // Лимит и купленные кончились — редактор сам покажет пакеты (GET).
   if (!reserved) throw new HttpError(402, "designAiLimit");
 
@@ -62,24 +120,28 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
     const res = await designer.ask(r);
     return { text: res.text, usage: { inputTokens: res.usage.input, outputTokens: res.usage.output, cacheReadTokens: res.usage.cacheRead, cacheWriteTokens: res.usage.cacheWrite } };
   };
-  const ctx = { title: book.title, kind: bookKind(book.theme), language: book.language, format, ui };
+  const run: DesignAiInput<DesignTarget> = { target: input.target, request: input.prompt, state, book: ctx, history: input.history, layout: { texts, photos } };
   try {
-    if (input.target === "pages") {
-      const state: PagesState = { interior: isInteriorId(input.state.interior) ? input.state.interior : getInteriorDesign(book.interior).id, style: parseInteriorStyle(input.state.style) };
-      const res = await runDesignAi(ask, { target: "pages", request: input.prompt, state, book: { ...ctx, chapters: input.chapters } });
-      await completeDesignAi(reserved.id, { reply: res.reply, ops: res.ops, errors: res.errors, usage: res.usage });
-      return NextResponse.json({ reply: res.reply, changed: res.changed, interior: res.state.interior, interiorStyle: res.state.style, allowance: await designAiAllowance(user.id), source: reserved.source });
+    const done = async (log: { reply: string; ops: unknown[]; errors: string[]; usage: Record<string, number> }, payload: Record<string, unknown>) => {
+      await completeDesignAi(reserved.id, log);
+      return NextResponse.json({ mode: input.mode, ...payload, allowance: await designAiAllowance(user.id), source: reserved.source });
+    };
+    if (input.mode === "variants") {
+      const res = await runDesignVariants(ask, run);
+      return done(
+        { reply: res.reply, ops: res.variants.map((v) => ({ name: v.name, ops: v.ops })), errors: res.variants.flatMap((v) => v.errors), usage: res.usage },
+        { reply: res.reply, variants: res.variants.map((v) => ({ name: v.name, idea: v.idea, patch: patchOf(input.target, v.state, own) })) },
+      );
     }
-    const photos = (await container().authoring.queries.photos(book.id)).map((p) => ({ id: p.id, width: p.width, height: p.height }));
-    const design = parseCoverDesign(input.state.design);
-    if (!design) throw new HttpError(400, "badRequest");
-    const state: CoverState = { template: isKnownCover(input.state.template) ? input.state.template : book.coverTemplate, design };
-    const res = await runDesignAi(ask, { target: "cover", request: input.prompt, state, book: { ...ctx, photos } });
-    // Фото слоёв — только фото этой книги (модель могла придумать id).
-    const own = new Set(photos.map((p) => p.id));
-    const safe = { ...res.state.design, layers: res.state.design.layers.map((l) => (l.kind === "image" && l.photoId && !own.has(l.photoId) ? { ...l, photoId: null } : l)) };
-    await completeDesignAi(reserved.id, { reply: res.reply, ops: res.ops, errors: res.errors, usage: res.usage });
-    return NextResponse.json({ reply: res.reply, changed: res.changed, coverTemplate: res.state.template, coverDesign: safe, allowance: await designAiAllowance(user.id), source: reserved.source });
+    if (input.mode === "review") {
+      const res = await runDesignReview(ask, run);
+      return done(
+        { reply: `${res.score}/10 ${res.summary}`, ops: res.tips.map((t) => ({ title: t.title, ops: t.ops })), errors: [], usage: res.usage },
+        { score: res.score, summary: res.summary, strengths: res.strengths, tips: res.tips.map((t) => ({ title: t.title, why: t.why, ops: t.state ? t.ops : [], patch: t.state ? patchOf(input.target, t.state, own) : null })) },
+      );
+    }
+    const res = await runDesignAi(ask, run);
+    return done({ reply: res.reply, ops: res.ops, errors: res.errors, usage: res.usage }, { reply: res.reply, changed: res.changed, patch: patchOf(input.target, res.state, own) });
   } catch (err) {
     await failDesignAi(reserved.id, err instanceof Error ? err.message : String(err));
     if (err instanceof HttpError) throw err;

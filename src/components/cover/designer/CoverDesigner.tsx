@@ -34,7 +34,7 @@ import {
   ZoomOut,
 } from "lucide-react";
 import { useMessages } from "@/i18n/client";
-import { backgroundBase, boardSize, canvasGeometry, decorDrawing, inkOn, safeArea, type CoverBackground, type CoverDesign, type CoverLayer, type CoverTexts, type DecorId, type ShapeKind, type TextBind } from "@/lib/book/cover-design";
+import { backgroundBase, boardSize, canvasGeometry, decorDrawing, inkOn, parseCoverDesign, safeArea, type CoverBackground, type CoverDesign, type CoverLayer, type CoverTexts, type DecorId, type ShapeKind, type TextBind } from "@/lib/book/cover-design";
 import type { PhotoRef } from "@/lib/book/covers/svg-kit";
 import { getFormat } from "@/lib/book/formats";
 import { getCoverTemplate } from "@/lib/book/covers";
@@ -46,6 +46,8 @@ import { addLayer, alignBox, designColors, duplicateLayer, findLayer, moveZ, new
 import { COVER_SWATCHES, PropertiesPanel } from "./PropertiesPanel";
 import { useDesigner } from "./useDesigner";
 import { DesignAiPanel } from "@/components/design/DesignAiPanel";
+import { applyCoverOps } from "@/lib/book/design-ai/ops";
+import { DesignedCover } from "../DesignedCover";
 
 type Tab = "ai" | "add" | "layouts" | "background" | "properties" | "layers";
 
@@ -205,7 +207,21 @@ export function CoverDesigner({ bookId, template, format: formatId, initial, tex
         target="cover"
         editable={editable}
         payload={() => ({ state: { template, design } })}
-        onApply={(res) => res.coverDesign && pickLayout(res.coverDesign as CoverDesign, res.coverTemplate)}
+        onApply={(patch) => {
+          const d = parseCoverDesign(patch.coverDesign);
+          if (d) pickLayout(d, patch.coverTemplate);
+        }}
+        applyOps={(ops) => {
+          const r = applyCoverOps({ template, design }, ops, format, { texts, photos: bookPhotos });
+          if (JSON.stringify(r.state) === JSON.stringify({ template, design })) return false;
+          pickLayout(r.state.design, r.state.template);
+          return true;
+        }}
+        renderPreview={(patch, key) => {
+          const d = parseCoverDesign(patch.coverDesign);
+          return d ? <DesignedCover template={patch.coverTemplate ?? template} format={formatId} design={d} texts={texts} photos={templatePhotos} uid={`ai${key}`} lite className="shadow-soft" /> : null;
+        }}
+        previewMin={110}
         onUndo={dz.undo}
       />
     ),

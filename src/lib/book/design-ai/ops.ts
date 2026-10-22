@@ -9,13 +9,14 @@
  * по нему модель исправляет ответ (harness.ts).
  */
 import { isKnownCover } from "../covers";
-import { newLayerId, parseCoverDesign, safeArea, type CoverDesign, type CoverLayer } from "../cover-design";
+import { coverLayouts, newLayerId, parseCoverDesign, safeArea, type CoverDesign, type CoverLayer, type CoverTexts } from "../cover-design";
 import type { BookFormat } from "../formats";
-import { getInteriorDesign, isInteriorId, luminance, parseInteriorStyle, PAPER, applyInteriorStyle, type InteriorId, type InteriorStyle } from "../interiors";
+import { getInteriorDesign, isInteriorId, parseInteriorStyle, PAPER, applyInteriorStyle, type InteriorId, type InteriorStyle } from "../interiors";
+import { contrastRatio } from "./critic";
 
 export type DesignTarget = "pages" | "cover";
 
-export const DESIGN_OPS = ["set", "unset", "set_interior", "set_template", "add_layer", "remove_layer", "move_layer"] as const;
+export const DESIGN_OPS = ["set", "unset", "set_interior", "set_template", "apply_layout", "add_layer", "remove_layer", "move_layer"] as const;
 export type DesignOpKind = (typeof DESIGN_OPS)[number];
 
 export interface DesignOp {
@@ -46,6 +47,48 @@ export const designAiSchema = {
     },
   },
   required: ["reply", "ops"],
+  additionalProperties: false,
+} as const;
+
+const opsSchema = designAiSchema.properties.ops;
+
+/** Режим «варианты»: три цельных направления, у каждого — название, идея и операции. */
+export const variantsSchema = {
+  type: "object",
+  properties: {
+    reply: { type: "string", description: "Одна фраза клиенту: что за три варианта." },
+    variants: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: { name: { type: "string" }, idea: { type: "string" }, ops: opsSchema },
+        required: ["name", "idea", "ops"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["reply", "variants"],
+  additionalProperties: false,
+} as const;
+
+/** Режим «оценка»: балл, вывод, сильные стороны и советы с операциями. */
+export const reviewSchema = {
+  type: "object",
+  properties: {
+    score: { type: "integer", description: "1–10" },
+    summary: { type: "string" },
+    strengths: { type: "array", items: { type: "string" } },
+    tips: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: { title: { type: "string" }, why: { type: "string" }, ops: opsSchema },
+        required: ["title", "why", "ops"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["score", "summary", "strengths", "tips"],
   additionalProperties: false,
 } as const;
 
@@ -100,12 +143,6 @@ export interface PagesState {
 
 const PAGE_ROOTS = new Set(["fonts", "body", "heading", "display", "label", "colors", "elements", "chapters"]);
 
-/** Контраст двух цветов по WCAG. */
-function contrast(a: string, b: string) {
-  const [x, y] = [luminance(a), luminance(b)].sort((p, q) => q - p);
-  return (x + 0.05) / (y + 0.05);
-}
-
 /**
  * Операции над оформлением страниц. Смена стиля (set_interior) сбрасывает свои настройки, кроме оформления глав, —
  * как в студии: настройки подбирались к прежнему стилю. Замечания — что не применилось и почему.
@@ -151,11 +188,14 @@ export function applyPagesOps(state: PagesState, ops: readonly DesignOp[]): { st
   }
   // Читаемость: текст на бумаге.
   const design = applyInteriorStyle(getInteriorDesign(interior), style);
-  if (contrast(design.palette.ink, design.paper ?? PAPER) < 4.5) errors.push(`цвет текста ${design.palette.ink} плохо читается на бумаге ${design.paper ?? PAPER} — нужен контраст не меньше 4.5`);
+  if (contrastRatio(design.palette.ink, design.paper ?? PAPER) < 4.5) errors.push(`цвет текста ${design.palette.ink} плохо читается на бумаге ${design.paper ?? PAPER} — нужен контраст не меньше 4.5`);
   return { state: { interior, style }, errors };
 }
 
 // ─── обложка ───────────────────────────────────────────────────────────────
+
+const BINDS = new Set(["title", "subtitle", "names"]);
+const LAYER_KINDS = new Set(["text", "image", "shape", "decor"]);
 
 export interface CoverState {
   template: string;
@@ -171,17 +211,27 @@ function outsideSafe(design: CoverDesign, format: BookFormat): string[] {
     .map((l) => l.id);
 }
 
+/** Для готовых макетов: тексты книги и её фото (макет раскладывает их сам). */
+export interface CoverLayoutContext {
+  texts: CoverTexts;
+  photos: { id: string; width: number; height: number }[];
+}
+
 /**
- * Операции над обложкой из слоёв: фон, свойства слоёв, новые слои, удаление и порядок, смена шаблона-фона.
- * Новому слою без id или с занятым id даётся свой.
+ * Операции над обложкой из слоёв: фон, свойства слоёв, новые слои, удаление и порядок, смена шаблона-фона, готовый
+ * макет целиком (apply_layout — дальше операции правят уже его слои). Новому слою без id или с занятым id даётся свой.
  */
-export function applyCoverOps(state: CoverState, ops: readonly DesignOp[], format: BookFormat): { state: CoverState; errors: string[] } {
+export function applyCoverOps(state: CoverState, ops: readonly DesignOp[], format: BookFormat, layoutCtx?: CoverLayoutContext): { state: CoverState; errors: string[] } {
   const errors: string[] = [];
   let template = state.template;
   const draft = clone(state.design) as unknown as Obj & { layers: Obj[] };
   const wanted: { path: string; id: string | null; keys: string[]; value: unknown }[] = [];
   const added: string[] = [];
-  const find = (id: string) => draft.layers.findIndex((l) => l.id === id);
+  // Текст книги находится и по привязке: в готовых макетах у названия свой id, а модель пишет layers.title.
+  const find = (id: string) => {
+    const i = draft.layers.findIndex((l) => l.id === id);
+    return i >= 0 || !BINDS.has(id) ? i : draft.layers.findIndex((l) => l.kind === "text" && l.bind === id);
+  };
   for (const o of ops.slice(0, MAX_OPS)) {
     const v = opValue(o.value);
     if (!v.ok) {
@@ -193,6 +243,19 @@ export function applyCoverOps(state: CoverState, ops: readonly DesignOp[], forma
         const id = typeof v.value === "string" ? v.value : o.path;
         if (!isKnownCover(id)) errors.push(`set_template: нет шаблона «${id}»`);
         else template = id;
+        break;
+      }
+      case "apply_layout": {
+        const id = typeof v.value === "string" ? v.value : o.path;
+        const layout = coverLayouts.find((l) => l.id === id);
+        if (!layout) {
+          errors.push(`apply_layout: нет макета «${id}»`);
+          break;
+        }
+        const built = layout.build({ texts: layoutCtx?.texts ?? { title: "", subtitle: "", names: "" }, format, photos: layoutCtx?.photos ?? [] }) as unknown as Obj & { layers: Obj[] };
+        for (const k of Object.keys(draft)) delete draft[k];
+        Object.assign(draft, clone(built));
+        if (layout.template) template = layout.template;
         break;
       }
       case "add_layer": {
@@ -235,6 +298,18 @@ export function applyCoverOps(state: CoverState, ops: readonly DesignOp[], forma
         if (keys[0] === "background") {
           setIn(draft, keys, value);
           if (o.op === "set") wanted.push({ path: o.path, id: null, keys, value });
+        } else if (keys[0] === "layers" && keys.length >= 3 && keys[1].startsWith("@")) {
+          // Группа слоёв одного вида: layers.@decor.color — все украшения сразу.
+          const kind = keys[1].slice(1);
+          const group = draft.layers.filter((l) => l.kind === kind);
+          if (!LAYER_KINDS.has(kind)) errors.push(`${o.op} ${o.path}: группа — @text, @image, @shape или @decor`);
+          else if (!group.length) errors.push(`${o.op} ${o.path}: на обложке нет слоёв вида ${kind}`);
+          else if (keys[2] === "id" || keys[2] === "kind") errors.push(`${o.op} ${o.path}: id и вид слоя менять нельзя`);
+          else
+            for (const l of group) {
+              setIn(l, keys.slice(2), value);
+              if (o.op === "set") wanted.push({ path: o.path, id: l.id as string, keys: keys.slice(2), value });
+            }
         } else if (keys[0] === "layers" && keys.length >= 3) {
           const i = find(keys[1]);
           if (i < 0) {
@@ -246,7 +321,7 @@ export function applyCoverOps(state: CoverState, ops: readonly DesignOp[], forma
             break;
           }
           setIn(draft.layers[i], keys.slice(2), value);
-          if (o.op === "set") wanted.push({ path: o.path, id: keys[1], keys: keys.slice(2), value });
+          if (o.op === "set") wanted.push({ path: o.path, id: draft.layers[i].id as string, keys: keys.slice(2), value });
         } else errors.push(`${o.op} ${o.path}: неизвестный путь (background… или layers.<id>.…)`);
         break;
       }
@@ -271,3 +346,36 @@ export function applyCoverOps(state: CoverState, ops: readonly DesignOp[], forma
 
 /** Поменяло ли что-нибудь (для ответа «ничего не изменено»). */
 export const changed = (a: unknown, b: unknown) => !same(a, b);
+
+// ─── краткое описание — для контекста «другой стороны» книги ───────────────
+
+/** Оформление страниц в двух строках: стиль, шрифты, бумага и акцент. */
+export function describePages(state: PagesState): string {
+  const d = applyInteriorStyle(getInteriorDesign(state.interior), state.style);
+  return `стиль ${state.interior}; шрифты: заголовки ${d.display.font}, текст ${d.type.body}; бумага ${d.paper ?? PAPER}, текст ${d.palette.ink}, акцент ${d.palette.accent}, украшения ${d.palette.ornament}`;
+}
+
+/** Обложка в двух строках: фон, шрифт и цвет названия, что на ней есть. */
+export function describeCover(state: CoverState): string {
+  const bg = state.design.background;
+  const fon = bg.kind === "color" ? `фон ${bg.color}` : bg.kind === "gradient" ? `фон-градиент ${bg.from}→${bg.to}` : `фон — рисунок шаблона ${state.template}`;
+  const title = state.design.layers.find((l) => l.kind === "text" && l.bind === "title");
+  const t = title?.kind === "text" ? `название шрифтом ${title.style.font} цвета ${title.style.color}` : "без названия";
+  const kinds = [...new Set(state.design.layers.filter((l) => !l.hidden).map((l) => (l.kind === "decor" ? `декор ${l.motif}` : l.kind === "image" ? "фото" : l.kind === "shape" ? `фигура ${l.shape}` : "")))].filter(Boolean);
+  return `${fon}; ${t}${kinds.length ? `; ещё: ${kinds.join(", ")}` : ""}`;
+}
+
+/** Обложка-шаблон без своих слоёв: id и настроение рисунка. */
+export const describeTemplate = (id: string, mood: string) => `шаблон ${id} (${mood})`;
+
+export type Rgb = [number, number, number];
+
+/** Общий тон фото словами (для модели): яркость, теплота, насыщенность. */
+export function photoTone(colors: Rgb[]): string {
+  if (!colors.length) return "";
+  const avg = colors.reduce((a, c) => [a[0] + c[0], a[1] + c[1], a[2] + c[2]] as Rgb, [0, 0, 0] as Rgb).map((v) => v / colors.length) as Rgb;
+  const light = 0.2126 * avg[0] + 0.7152 * avg[1] + 0.0722 * avg[2];
+  const warm = avg[0] - avg[2];
+  const sat = Math.max(...avg) - Math.min(...avg);
+  return [light > 170 ? "светлые" : light < 85 ? "тёмные" : "средние по яркости", warm > 18 ? "тёплые" : warm < -12 ? "холодные" : "нейтральные", sat < 25 ? "приглушённые" : "насыщенные"].join(", ");
+}

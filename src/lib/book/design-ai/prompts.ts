@@ -8,8 +8,10 @@ import { coverTemplates } from "../covers";
 import { DECOR_IDS, safeArea, stockGroups, stockPhotos } from "../cover-design";
 import { fontFaces, fontKeys, fontWeights } from "../fonts";
 import type { BookFormat } from "../formats";
+import { coverLayouts, type CoverTexts } from "../cover-design";
 import { interiorDesigns, interiorDirection, interiorStyleOptions as O, LIMITS } from "../interiors";
 import type { DesignTarget } from "./ops";
+import { playbookText } from "./playbook";
 
 const list = (xs: readonly string[]) => xs.join(", ");
 
@@ -24,13 +26,24 @@ function fontsRef() {
 }
 
 const RULES = `Правила:
-- Отвечай только JSON по схеме: reply — одна-две фразы клиенту на его языке (что изменено), ops — операции.
-- Меняй только то, о чём просит клиент; остальное не трогай. Если просьба расплывчатая («сделай красивее», «как в романе») —
-  выбери цельное решение: стиль или пару шрифтов, интервалы и цвета, которые сочетаются.
+- Отвечай только JSON по схеме режима (режим назван в запросе). Тексты для клиента — на его языке, тепло и по делу,
+  как дизайнер, который объясняет решение: что сделал и почему это хорошо для этой книги (без технических путей и кодов цветов).
+- Режим «правка»: меняй то, о чём просят; остальное не трогай. Расплывчатая просьба («сделай красивее», «как в романе») —
+  цельное решение по плейбуку: настроение → стиль или макет, пара шрифтов, палитра, украшения. Учитывай прошлые просьбы
+  сессии: «ещё», «верни», «не то» — относятся к ним.
+- Режим «варианты»: ровно 3 заметно разных направления под просьбу (разные настроения, стили или макеты, палитры) —
+  каждое цельное и законченное; name — 2–4 слова, idea — одна фраза, чем вариант хорош. Операции каждого варианта
+  применяются к текущему оформлению независимо.
+- Режим «оценка»: честная оценка текущего оформления 1–10 (10 — как у лучших издательств), summary — одна-две фразы,
+  strengths — 1–3 сильные стороны, tips — 2–4 конкретных совета: title (что сделать), why (почему станет лучше), ops —
+  операции, которые это делают (пусто, если совет нельзя выполнить операциями). Не льсти: 9–10 — только безупречному.
 - value — JSON-литерал строкой: строки в кавычках ("\\"literata\\""), числа и true/false без кавычек ("11.5", "true"), объекты — "{...}".
 - Используй только перечисленные значения. Чего нет в справочнике — того сделать нельзя: скажи об этом в reply и не придумывай.
 - Печать: текст должен читаться (тёмный текст на светлой бумаге или наоборот), основной текст — только шрифтами для основного текста.
-- Просьбы, не связанные с оформлением книги, не выполняй: ops пустой, в reply — вежливо, что ты помогаешь только с оформлением.`;
+- Просьбы, не связанные с оформлением книги, не выполняй: операций нет, в ответе — вежливо, что ты помогаешь только с оформлением.
+- Фото и цвета фото из запроса — подстраивай палитру под них: акцент из фото, фон — спокойный и контрастный к названию.
+- Есть оформление другой стороны книги (обложка или страницы) — по умолчанию держи с ним единый стиль: те же шрифты
+  заголовков и родственная палитра, если клиент не просит иначе.`;
 
 /** Справочник для оформления страниц. */
 export function pagesSystemPrompt(): string {
@@ -57,6 +70,8 @@ ${styles}
 Шрифты (ключ: название — группа):
 ${fontsRef()}
 
+${playbookText("pages")}
+
 ${RULES}
 
 Пример. Просьба «сделай как классический роман с буквицей»:
@@ -80,6 +95,11 @@ export function coverSystemPrompt(): string {
 - add_layer, value = слой целиком (path "" — наверх, "back" — под остальные).
 - remove_layer, path = id; move_layer, path = id, value = "front" | "back" | "up" | "down".
 - set_template, value = id шаблона (его рисунок — фон при background {"kind":"template"}).
+- apply_layout, value = id готового макета: обложка целиком собирается по макету (с текстами и фото книги), прежние
+  слои заменяются; ставь первой операцией, дальше правь результат.
+- Адресация слоёв: layers.<id>; тексты книги — всегда layers.title, layers.subtitle, layers.names (в любом макете);
+  группа слоёв одного вида — layers.@decor, layers.@shape, layers.@image, layers.@text (например, layers.@decor.color —
+  все украшения сразу).
 
 Поля слоёв:
 - Общие: id (латиница/цифры), kind, x, y, w, h, rotate (−180…180), opacity (0–1), locked, hidden, name.
@@ -90,9 +110,12 @@ export function coverSystemPrompt(): string {
 
 Снимки коллекции (stock): ${stock}.
 Шаблоны (id): ${templates}.
+Готовые макеты (id — жанр): ${coverLayouts.map((l) => `${l.id} — ${l.genre}${l.template ? ` (на шаблоне ${l.template})` : ""}`).join(", ")}.
 
 Шрифты (ключ: название — группа):
 ${fontsRef()}
+
+${playbookText("cover")}
 
 ${RULES}
 - Важный текст (название, имена) держи в безопасной зоне — её границы даны в запросе. Название — крупно и контрастно к фону.
@@ -106,33 +129,80 @@ export function systemPrompt(target: DesignTarget) {
   return target === "pages" ? pagesSystemPrompt() : coverSystemPrompt();
 }
 
+/** Режим просьбы: правка, три варианта или оценка текущего оформления. */
+export type DesignMode = "edit" | "variants" | "review";
+
 export interface DesignBookContext {
   title: string;
   kind: string;
+  /** Тема книги (love, mom, dad, friend, teacher, autobiography, blank) — подсказка к настроению. */
+  theme?: string;
+  /** Повод (день рождения, свадьба…), получатель и автор — для тона. */
+  occasion?: string | null;
+  recipient?: string;
+  author?: string;
   /** Язык книги — на нём тексты книги. */
   language: Locale;
   format: BookFormat;
-  /** Язык интерфейса — на нём reply. */
+  /** Язык интерфейса — на нём ответ. */
   ui: Locale;
   /** Главы книги (ключ и название) — для оформления отдельной главы. */
   chapters?: { key: string; title: string }[];
   /** Фото книги — для слоёв обложки. */
   photos?: { id: string; width: number; height: number }[];
+  /** Цвета фото книги (обложечного первым): основные цвета и общий тон. */
+  palette?: { colors: string[]; tone: string } | null;
+  /** Оформление другой стороны книги (для обложки — страницы, для страниц — обложка), коротко. */
+  other?: string | null;
+  /** Тексты обложки — чтобы модель знала длину названия (и для готовых макетов). */
+  texts?: CoverTexts;
 }
 
 const replyLanguage: Record<Locale, string> = { ru: "по-русски", kk: "по-казахски" };
+const MODE_LINE: Record<DesignMode, string> = {
+  edit: "Режим: правка — верни {reply, ops}.",
+  variants: "Режим: варианты — верни {reply, variants: [3 × {name, idea, ops}]}; reply — одна фраза, что за варианты.",
+  review: "Режим: оценка — верни {score, summary, strengths, tips}; просьба клиента ниже — на что смотреть особенно (может быть пустой).",
+};
 
-/** Пользовательская часть: книга, текущее оформление, просьба; при исправлении — прошлый ответ и замечания. */
-export function userPrompt(target: DesignTarget, book: DesignBookContext, state: unknown, request: string, retry?: { ops: unknown; errors: string[] }) {
+/** Ход прошлой беседы в этой сессии редактора: просьба и что ответил дизайнер. */
+export interface DesignTurn {
+  prompt: string;
+  reply: string;
+}
+
+/** Пользовательская часть: книга, текущее оформление, история, просьба; при исправлении — прошлый ответ и замечания. */
+export function userPrompt(
+  target: DesignTarget,
+  book: DesignBookContext,
+  state: unknown,
+  request: string,
+  retry?: { answer: unknown; errors: string[] },
+  opts: { mode?: DesignMode; history?: DesignTurn[] } = {},
+) {
+  const mode = opts.mode ?? "edit";
   const s = safeArea(book.format);
+  const about = [
+    `Книга: «${book.title}» (${book.kind}${book.theme ? `, тема ${book.theme}` : ""}), формат ${book.format.id}, язык книги ${book.language}.`,
+    book.occasion ? `Повод: ${book.occasion}.` : "",
+    book.recipient ? `Для кого: ${book.recipient}.` : "",
+    book.author ? `Автор: ${book.author}.` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
   const lines = [
-    `Книга: «${book.title}» (${book.kind}), формат ${book.format.id}, язык книги ${book.language}. reply пиши ${replyLanguage[book.ui]}.`,
+    MODE_LINE[mode],
+    `${about} Тексты для клиента пиши ${replyLanguage[book.ui]}.`,
+    target === "cover" && book.texts ? `Тексты обложки: название «${book.texts.title}»${book.texts.subtitle ? `, подзаголовок «${book.texts.subtitle}»` : ""}${book.texts.names ? `, имена «${book.texts.names}»` : ""}.` : "",
     target === "cover" ? `Безопасная зона крышки: x ${s.x.toFixed(3)}–${(s.x + s.w).toFixed(3)}, y ${s.y.toFixed(3)}–${(s.y + s.h).toFixed(3)}.` : "",
     target === "pages" && book.chapters?.length ? `Главы (ключ: название): ${book.chapters.map((c) => `${c.key}: ${c.title}`).join("; ")}.` : "",
     target === "cover" && book.photos?.length ? `Фото книги (photoId, ширина×высота): ${book.photos.map((p) => `${p.id} ${p.width}×${p.height}`).join("; ")}.` : target === "cover" ? "Своих фото в книге нет — для снимков используй stock." : "",
+    book.palette?.colors.length ? `Цвета фото книги: ${book.palette.colors.join(", ")} (${book.palette.tone}).` : "",
+    book.other ? `${target === "cover" ? "Страницы книги" : "Обложка книги"} сейчас: ${book.other}.` : "",
     `Текущее оформление:\n${JSON.stringify(state)}`,
+    opts.history?.length ? `Прошлые просьбы в этой сессии (текущее оформление уже их учитывает):\n${opts.history.map((h, i) => `${i + 1}. «${h.prompt}» → ${h.reply}`).join("\n")}` : "",
     `Просьба клиента:\n<request>\n${request}\n</request>`,
-    retry ? `Твой прошлый ответ применился не полностью:\n${retry.errors.map((e) => `- ${e}`).join("\n")}\nПрошлые операции: ${JSON.stringify(retry.ops)}\nВерни полный исправленный ответ (все операции заново).` : "",
+    retry ? `Твой прошлый ответ применился не полностью или его можно улучшить:\n${retry.errors.map((e) => `- ${e}`).join("\n")}\nПрошлый ответ: ${JSON.stringify(retry.answer)}\nВерни полный исправленный ответ (все операции заново).` : "",
   ];
   return lines.filter(Boolean).join("\n\n");
 }
