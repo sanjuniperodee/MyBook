@@ -6,7 +6,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import { AlarmClock, AtSign, Bell, BellRing, CheckCheck, MessageCircle, Phone, PhoneIncoming, TriangleAlert, Handshake, ListTodo, Volume2, VolumeX, X } from "lucide-react";
 import { apiFetch } from "@/lib/client-api";
 import { toast } from "@/components/ui/overlays";
-import { coalesce, liveChannel, soundFor } from "./liveRules";
+import { coalesce, iosNeedsInstall, liveChannel, soundFor } from "./liveRules";
 import { playSound, setSoundMuted, soundMuted, unlockAudio } from "./sound";
 import type { LiveState } from "@/modules/reporting";
 import { cn } from "@/lib/class-names";
@@ -340,10 +340,20 @@ function PushToggle({ perm, onPerm }: { perm: string; onPerm: (p: string) => voi
   const supported = typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window;
   const [state, setState] = useState<"unknown" | "on" | "off" | "unsupported">(supported ? "unknown" : "unsupported");
   const [busy, setBusy] = useState(false);
+  // Вкладка Safari на iPhone: push придут только после «На экран „Домой“» — подсказка вместо кнопки.
+  const iosTab =
+    typeof window !== "undefined" &&
+    iosNeedsInstall({ userAgent: navigator.userAgent, maxTouchPoints: navigator.maxTouchPoints, standalone: window.matchMedia?.("(display-mode: standalone)").matches || !!(navigator as Navigator & { standalone?: boolean }).standalone });
   useEffect(() => {
     if (!supported) return;
     navigator.serviceWorker.ready.then((reg) => reg.pushManager.getSubscription()).then((sub) => setState(sub ? "on" : "off"), () => setState("off"));
   }, [supported]);
+  if (iosTab)
+    return (
+      <p className="border-t border-line px-4 py-2.5 text-xs text-ink-soft" data-testid="push-ios-hint">
+        Чтобы push приходили на iPhone, откройте CRM в Safari → «Поделиться» → «На экран „Домой“» и войдите с иконки — там включите push.
+      </p>
+    );
   if (state === "unsupported") {
     return perm === "default" ? (
       <button className="w-full border-t border-line px-4 py-2.5 text-xs text-wine hover:bg-cream/50" onClick={async () => onPerm(await Notification.requestPermission())}>

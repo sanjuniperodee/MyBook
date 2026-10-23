@@ -5,6 +5,15 @@
 
 export type LiveSound = "reminder" | "message" | null;
 
+/**
+ * iPhone и iPad присылают push только CRM, добавленной на экран «Домой» (platform-d3): во вкладке Safari кнопки
+ * «включить push» нет смысла показывать — вместо неё подсказка, как установить. iPadOS притворяется Mac — смотрим касания.
+ */
+export function iosNeedsInstall(env: { userAgent: string; maxTouchPoints: number; standalone: boolean }) {
+  const ios = /iPhone|iPad|iPod/.test(env.userAgent) || (/Macintosh/.test(env.userAgent) && env.maxTouchPoints > 1);
+  return ios && !env.standalone;
+}
+
 export interface SoundContext {
   /** Звук выключен на этом устройстве. */
   muted: boolean;

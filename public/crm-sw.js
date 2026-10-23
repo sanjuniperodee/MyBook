@@ -54,8 +54,8 @@ self.addEventListener("notificationclick", (event) => {
 
 // Офлайн: кэшируем только оболочку — статику Next (имена с хешем, одинаковы для всех) и страницу «нет связи».
 // Страницы CRM и ответы API не кэшируем: там данные сотрудника и доступы, без сети они просто не откроются.
-const SHELL_CACHE = "crm-shell-v1";
-const SHELL_ASSETS = ["/crm-offline.html", "/crm-icon-192.png", "/crm-icon-512.png", "/crm.webmanifest"];
+const SHELL_CACHE = "crm-shell-v2";
+const SHELL_ASSETS = ["/crm-offline.html", "/crm-icon-192.png", "/crm-icon-512.png", "/crm-icon-maskable-512.png", "/crm-badge-96.png", "/crm.webmanifest"];
 
 self.addEventListener("install", (event) => {
   // Ошибка кэша не должна ломать установку воркера: без него пуши всё равно работают.
