@@ -7,6 +7,11 @@ import { channelOf, channels, toAttribution } from "@/shared/domain/channels";
 import { formatPrice } from "@/config/site";
 import { BarList, StatTile } from "@/components/admin/charts";
 import { cn } from "@/lib/class-names";
+import { formatDate } from "@/lib/dates";
+import { getSetting } from "@/modules/workspace";
+import { parseWorkHours } from "@/shared/domain/schedule";
+import { responseStats, type ResponseGroup } from "@/modules/reporting/ui/response-stats";
+import { shiftMinutes, slaMinutes, waitLabel } from "@/modules/reporting/ui/response-wait";
 
 export const metadata = { title: "Аналитика продаж" };
 
@@ -24,11 +29,25 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
   const pipelines = await container().sales.queries.listPipelines();
   const pipeline = pipelines.find((x) => x.id === pipelineParam) ?? pipelines[0];
   const period = periods.find((p) => String(p) === raw) ?? 30;
-  const [stages, admins, { totals, prevTotals, received, bySource, byStage, lost, managers, responses, calls, awaiting, reached, stageTime }] = await Promise.all([
+  const [stages, admins, { totals, prevTotals, received, bySource, byStage, lost, managers, responses, calls, awaiting, reached, stageTime }, hoursRaw, slaRaw] = await Promise.all([
     container().sales.queries.listStages(pipeline.id),
     container().access.queries.allStaff(),
     container().reporting.salesAnalytics(pipeline.id, period),
+    getSetting("crm.workHours"),
+    getSetting("crm.slaMinutes"),
   ]);
+  // Скорость ответа людей в рабочих минутах (analytics-2): бот и правила — отдельно, заметки — не ответ, итог — по всем.
+  const hours = parseWorkHours(hoursRaw);
+  const sla = slaMinutes(slaRaw);
+  const shift = shiftMinutes(hours);
+  const resp = responseStats(
+    responses.rows.map((r) => ({ conversationId: r.conversation_id, asked: new Date(r.asked), human: r.human ? new Date(r.human) : null, author: r.author_id, bot: r.bot ? new Date(r.bot) : null })),
+    hours,
+    sla,
+    new Date(),
+  );
+  const workMins = (m: number | null) => (m === null ? "—" : waitLabel(Math.round(m), shift));
+  const share = (x: number | null) => (x === null ? "—" : `${Math.round(x * 100)}%`);
   const reachedStage = (st: { kind: string; position: number }) => reached.rows.filter((r) => r.won || (st.kind === "open" && r.max_open !== null && r.max_open >= st.position)).length;
   const plans = await container().sales.queries.planProgress(currentMonth());
   const timeByStage = new Map(stageTime.rows.map((r) => [r.stage_id, r]));
@@ -37,8 +56,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
   const p = prevTotals.rows[0] ?? {};
   const change = (a: number, b: number) => (b ? (a - b) / b : a ? null : 0);
   const names = new Map(admins.map((a) => [a.id, staffLabel(a)]));
-  const respByAuthor = new Map(responses.rows.filter((r) => r.author_id).map((r) => [String(r.author_id), r]));
-  const respAll = responses.rows.find((r) => r.author_id === null);
+
   // Каналы привлечения сделок: по UTM, если есть, иначе по источнику сделки (чат, звонок).
   const channelRows = [
     ...bySource.rows
@@ -61,7 +79,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
   const stageRows = new Map(byStage.rows.map((r) => [String(r.stage_id), r]));
   const c = calls.rows[0] ?? {};
   const team = managers.rows
-    .map((r): Row & { name: string; resp: Row | undefined } => ({ ...r, name: names.get(String(r.id)) ?? "—", resp: respByAuthor.get(String(r.id)) }))
+    .map((r: Row): Row & { name: string; resp: ResponseGroup | undefined } => ({ ...r, name: names.get(String(r.id)) ?? "—", resp: resp.byAuthor.get(String(r.id)) }))
     .filter((r) => num(r.deals) || num(r.won) || num(r.messages) || num(r.calls) || num(r.open) || num(r.received))
     .sort((a, b) => num(b.revenue) - num(a.revenue) || num(b.won) - num(a.won));
 
@@ -98,7 +116,12 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
         <StatTile label="Конверсия в продажу" value={pct(num(t.won), num(t.created))} />
         <StatTile label="Выручка по сделкам" value={formatPrice(num(t.revenue))} delta={change(num(t.revenue), num(p.revenue))} hint={`суммы договорённостей по успешным сделкам; от повторных — ${formatPrice(num(t.repeat_revenue))}`} />
         <StatTile label="Получено деньгами" value={formatPrice(num(received.rows[0]?.cur))} delta={change(num(received.rows[0]?.cur), num(received.rows[0]?.prev))} hint="оплаченные заказы и платежи менеджеров" />
-        <StatTile label="Первый ответ (медиана)" value={mins(respAll?.median === undefined || respAll?.median === null ? null : num(respAll.median))} goodWhenUp={false} hint={`ждут ответа сейчас: ${num(awaiting.rows[0]?.n)}`} />
+        <StatTile
+          label="Первый ответ людей (медиана)"
+          value={workMins(resp.total.median)}
+          goodWhenUp={false}
+          hint={`рабочих минут; в норматив ${sla} мин — ${share(resp.total.inSla)}; бот ответил первым ${resp.bot.first} раз${resp.bot.median !== null ? ` (медиана ${mins(resp.bot.median * 60)})` : ""}; ждут сейчас: ${num(awaiting.rows[0]?.n)}`}
+        />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -201,7 +224,9 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
                 <td className="py-2.5 text-right tabular-nums">{formatPrice(num(r.received))}</td>
                 <td className="py-2.5 text-right tabular-nums">{num(r.open)}</td>
                 <td className="py-2.5 text-right tabular-nums">{num(r.messages)}</td>
-                <td className="py-2.5 text-right tabular-nums">{r.resp ? mins(num(r.resp.median)) : "—"}</td>
+                <td className="py-2.5 text-right tabular-nums" title={r.resp ? `ответов ${r.resp.answered}, в норматив ${share(r.resp.inSla)}` : undefined}>
+                  {r.resp ? `${workMins(r.resp.median)} · ${share(r.resp.inSla)}` : "—"}
+                </td>
                 <td className="py-2.5 text-right tabular-nums">{num(r.calls)}</td>
                 <td className="py-2.5 text-right tabular-nums">{Math.round(num(r.talk) / 60)} мин</td>
                 <td className={cn("py-2.5 text-right tabular-nums", num(r.tasks_overdue) && "text-red-700")}>
@@ -220,6 +245,23 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
         {team.length === 0 ? <p className="py-4 text-sm text-muted">Активности за период нет.</p> : null}
       </section>
 
+      {resp.longest.length ? (
+        <section className="rounded-2xl border border-line bg-white p-5" data-testid="longest-waits">
+          <h2 className="mb-1 font-semibold">Дольше всего ждали ответа</h2>
+          <p className="mb-3 text-xs text-muted">Рабочих минут до первого ответа человека (из CRM или с телефона); бот и правила не в счёт.</p>
+          <ul className="divide-y divide-line text-sm">
+            {resp.longest.map((w) => (
+              <li key={`${w.conversationId}:${w.asked.toISOString()}`}>
+                <Link href={`/admin/chats?c=${w.conversationId}`} className="flex items-center gap-3 py-2 hover:text-wine">
+                  <span className="w-40 shrink-0 text-xs text-muted">{formatDate(w.asked, true)}</span>
+                  <span className={cn("flex-1", !w.answered && "text-red-700")}>{waitLabel(w.minutes, shift)}{w.answered ? "" : " — без ответа"}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="rounded-2xl border border-line bg-white p-5">
           <h2 className="mb-4 font-semibold">Причины отказов</h2>
@@ -233,7 +275,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
             <Metric label="Пропущено" value={`${num(c.missed)} (${pct(num(c.missed), num(c.incoming))})`} warn={num(c.missed) > 0} />
             <Metric label="Обработано пропущенных" value={pct(num(c.handled), num(c.missed))} />
             <Metric label="Минут на линии" value={Math.round(num(c.talk) / 60)} />
-            <Metric label="Чаты без ответа" value={`${num(respAll?.unanswered)} из ${num(respAll?.n)}`} warn={num(respAll?.unanswered) > 0} />
+            <Metric label="Вопросы без ответа людей" value={`${resp.total.unanswered} из ${resp.total.asked}`} warn={resp.total.unanswered > 0} />
           </dl>
         </section>
       </div>

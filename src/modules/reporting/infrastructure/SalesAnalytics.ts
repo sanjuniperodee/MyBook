@@ -52,32 +52,36 @@ export async function salesAnalytics(pipelineId: string, period: number) {
         (select coalesce(sum(d.amount), 0) from crm_deals d join crm_stages s on s.id = d.stage_id where d.assignee_id = u.id and s.kind = 'won' and d.closed_at >= ${since})::int as revenue,
         (select coalesce(sum(e.amount), 0) from revenue_events e where e.manager_id = u.id and e.at >= ${since})::int as received,
         (select count(*) from crm_deals d join crm_stages s on s.id = d.stage_id where d.assignee_id = u.id and s.kind = 'open')::int as open,
-        (select count(*) from crm_messages m where m.author_id = u.id and m.created_at >= ${since})::int as messages,
+        (select count(*) from crm_messages m where m.author_id = u.id and m.created_at >= ${since} and m.internal = false)::int as messages,
         (select count(*) from crm_calls c where c.staff_id = u.id and c.started_at >= ${since} and c.status = 'answered')::int as calls,
         (select coalesce(sum(c.duration_sec), 0) from crm_calls c where c.staff_id = u.id and c.started_at >= ${since})::int as talk,
         (select count(*) from crm_tasks t where t.assignee_id = u.id and t.done_at >= ${since})::int as tasks_done,
         (select count(*) from crm_tasks t where t.assignee_id = u.id and t.done_at is null and t.due_at < now())::int as tasks_overdue
       from users u where u.role = 'admin'`),
-    // Время первого ответа: от входящего, открывшего «ожидание», до ближайшего исходящего.
-    db.execute<Row>(sql`
+    // Первый ответ на вопрос клиента (analytics-2): от входящего, открывшего ожидание (первое после нашего ответа или
+    // первое вообще), до первого ответа человека (source is null — из CRM или эхо с телефона) и отдельно — бота или правила.
+    // Заметки (internal) — не ответ и не ожидание. Ожидание в рабочих минутах считает responseStats.
+    db.execute<{ conversation_id: string; asked: Date; human: Date | null; author_id: string | null; bot: Date | null }>(sql`
       with m as (
-        select id, conversation_id, direction, created_at, lag(direction) over (partition by conversation_id order by created_at) as prev
-        from crm_messages where created_at >= ${prevSince}
+        select conversation_id, direction, created_at, lag(direction) over (partition by conversation_id order by created_at) as prev
+        from crm_messages where created_at >= ${prevSince} and internal = false
       ), asks as (
         select conversation_id, created_at from m where direction = 'in' and (prev is null or prev = 'out') and created_at >= ${since}
-      ), answers as (
-        select a.created_at as asked, o.created_at as answered, o.author_id
-        from asks a
-        left join lateral (
-          select created_at, author_id from crm_messages x
-          where x.conversation_id = a.conversation_id and x.direction = 'out' and x.created_at > a.created_at
-          order by x.created_at limit 1
-        ) o on true
       )
-      select author_id, count(*)::int as n,
-        percentile_cont(0.5) within group (order by extract(epoch from answered - asked)) as median,
-        count(*) filter (where answered is null)::int as unanswered
-      from answers group by rollup(author_id)`),
+      select a.conversation_id, a.created_at as asked, h.created_at as human, h.author_id, b.created_at as bot
+      from asks a
+      left join lateral (
+        select created_at, author_id from crm_messages x
+        where x.conversation_id = a.conversation_id and x.direction = 'out' and x.internal = false and x.source is null and x.created_at > a.created_at
+        order by x.created_at limit 1
+      ) h on true
+      left join lateral (
+        select created_at from crm_messages x
+        where x.conversation_id = a.conversation_id and x.direction = 'out' and x.internal = false and x.source is not null and x.created_at > a.created_at
+        order by x.created_at limit 1
+      ) b on true
+      order by a.created_at desc
+      limit 5000`),
     db.execute<Row>(sql`
       select count(*) filter (where direction = 'in')::int as incoming,
         count(*) filter (where direction = 'out')::int as outgoing,
