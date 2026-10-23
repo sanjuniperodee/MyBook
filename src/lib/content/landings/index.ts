@@ -12,6 +12,12 @@ import { podarokDevushke } from "./podarok-devushke";
 import { podarokNaYubilejMame } from "./podarok-na-yubilej-mame";
 import { podarokNaYubilejPape } from "./podarok-na-yubilej-pape";
 import { podarokPapeNa23Fevralya } from "./podarok-pape-na-23-fevralya";
+import { podarokBabushke } from "./podarok-babushke";
+import { podarokDedushke } from "./podarok-dedushke";
+import { podarokUchitelyuNaDenUchitelya } from "./podarok-uchitelyu-na-den-uchitelya";
+import { podarokUchitelyuNaVypusknoj } from "./podarok-uchitelyu-na-vypusknoj";
+import { podarokNaSvadbu } from "./podarok-na-svadbu";
+import { podarokPodruge } from "./podarok-podruge";
 import { knigaOSvoejZhizni } from "./kniga-o-svoej-zhizni";
 import { svoyaKnigaSNulya } from "./svoya-kniga-s-nulya";
 import type { Landing } from "./types";
@@ -23,9 +29,10 @@ export type * from "./types";
  * «подарок на годовщину» и т.п. Тексты уникальные для каждого языка (не дословный перевод —
  * казахская версия написана под казахские запросы), вопросы — из настоящего банка вопросов темы.
  * Автобиография и своя книга стоят сразу за темами-подарками: футер берёт первые восемь.
+ * Новые посадочные добавляйте в конец массива: порядок первых восьми задаёт футер.
  * Адрес общий: /kniga/<slug> и /kk/kniga/<slug>, связаны через hreflang.
  */
-export const landings: Landing[] = [podarokLyubimomu, knigaMame, knigaPape, knigaDrugu, knigaOSvoejZhizni, svoyaKnigaSNulya, podarokNaGodovshchinu, podarokNa14Fevralya, podarokNa8Marta, podarokMuzhu, podarokZhene, podarokParnyu, podarokDevushke, podarokNaYubilejMame, podarokNaYubilejPape, podarokPapeNa23Fevralya];
+export const landings: Landing[] = [podarokLyubimomu, knigaMame, knigaPape, knigaDrugu, knigaOSvoejZhizni, svoyaKnigaSNulya, podarokNaGodovshchinu, podarokNa14Fevralya, podarokNa8Marta, podarokMuzhu, podarokZhene, podarokParnyu, podarokDevushke, podarokNaYubilejMame, podarokNaYubilejPape, podarokPapeNa23Fevralya, podarokBabushke, podarokDedushke, podarokUchitelyuNaDenUchitelya, podarokUchitelyuNaVypusknoj, podarokNaSvadbu, podarokPodruge];
 
 export function getLanding(slug: string) {
   return landings.find((l) => l.slug === slug);

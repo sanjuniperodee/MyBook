@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { articles } from "@/lib/content/articles";
 import { landings } from "@/lib/content/landings";
+import { tools } from "@/lib/content/tools";
 import { absoluteUrl, ogImage } from "@/lib/seo";
 
 /** Адрес сайта и список страниц берутся при запросе, а не при сборке: образ Docker собирается без .env. */
@@ -13,6 +14,8 @@ const pages: Entry[] = [
   { path: "/", changeFrequency: "weekly", priority: 1 },
   { path: "/kniga", changeFrequency: "weekly", priority: 0.8 },
   ...landings.map((l): Entry => ({ path: `/kniga/${l.slug}`, changeFrequency: "monthly", priority: 0.8, image: l.slug })),
+  { path: "/instrumenty", changeFrequency: "weekly", priority: 0.7 },
+  ...tools.map((t): Entry => ({ path: `/instrumenty/${t.slug}`, changeFrequency: "monthly", priority: 0.7, image: t.slug })),
   { path: "/blog", changeFrequency: "weekly", priority: 0.7 },
   ...articles.map((a): Entry => ({ path: `/blog/${a.slug}`, changeFrequency: "monthly", priority: 0.6, lastModified: a.updated ?? a.published, image: a.slug })),
   { path: "/gift", changeFrequency: "monthly", priority: 0.7 },

@@ -176,3 +176,22 @@ export function articleLd(opts: { title: string; description: string; url: strin
     publisher: { "@type": "Organization", "@id": ORG_ID, name: site.name, url: env.appUrl, logo: { "@type": "ImageObject", url: `${env.appUrl}/logo.png` } },
   };
 }
+
+/** Бесплатный инструмент (калькулятор, тест, генератор): поисковик показывает его как приложение. */
+export function toolLd(opts: { name: string; description: string; url: string; locale: Locale }): Json {
+  return {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "@id": `${opts.url}#tool`,
+    name: opts.name,
+    description: opts.description,
+    url: opts.url,
+    applicationCategory: "LifestyleApplication",
+    operatingSystem: "Any",
+    browserRequirements: "Requires JavaScript",
+    inLanguage: localeMeta[opts.locale].intl,
+    isAccessibleForFree: true,
+    offers: { "@type": "Offer", price: 0, priceCurrency: site.currency },
+    publisher: { "@id": ORG_ID },
+  };
+}

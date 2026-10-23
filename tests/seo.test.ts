@@ -43,13 +43,13 @@ describe("посадочные новых видов книг", () => {
       expect(isThemeId(l.theme), l.slug).toBe(true);
       if (bookKind(l.theme) === "gift") expect(l.recipientGender, l.slug).toBeDefined();
     }
-    expect(byKind("autobiography")).toHaveLength(1);
+    expect(byKind("autobiography")).toHaveLength(3);
     expect(byKind("blank")).toHaveLength(1);
   });
 
   it("автобиография и своя книга попадают в первые восемь — их показывает футер", () => {
     const top = landings.slice(0, 8).map((l) => l.slug);
-    for (const l of [...byKind("autobiography"), ...byKind("blank")]) expect(top, l.slug).toContain(l.slug);
+    for (const slug of ["kniga-o-svoej-zhizni", "svoya-kniga-s-nulya"]) expect(top, slug).toContain(slug);
   });
 
   it("свою книгу строят без банка вопросов: у неё нет примеров, их место занимает блок о редакторе", () => {

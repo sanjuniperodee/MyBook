@@ -62,6 +62,7 @@ export const common = {
   },
   footer: {
     ideas: "Идеи подарков",
+    tools: "Инструменты",
     allIdeas: "Все идеи подарков",
     blog: "Блог",
     customers: "Покупателям",

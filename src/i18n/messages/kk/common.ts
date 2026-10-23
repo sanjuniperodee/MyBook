@@ -68,6 +68,7 @@ export const common: Messages["common"] = {
   },
   footer: {
     ideas: "Сыйлық идеялары",
+    tools: "Құралдар",
     allIdeas: "Барлық сыйлық идеялары",
     blog: "Блог",
     customers: "Сатып алушыларға",

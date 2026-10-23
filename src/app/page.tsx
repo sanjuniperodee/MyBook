@@ -30,6 +30,8 @@ import { CoverPreview } from "@/components/cover/CoverPreview";
 import { coverTemplates } from "@/lib/book/covers";
 import { countQuestions, getTheme, giftThemes } from "@/lib/content/themes";
 import { getLanding, landings, type Landing } from "@/lib/content/landings";
+import { getTool } from "@/lib/content/tools";
+import { toolsPageUi } from "@/lib/content/tools/ui";
 import { getCurrentUser } from "@/server/auth";
 import { siteReviews } from "@/server/reviews";
 import { invitedBy } from "@/server/invite";
@@ -443,6 +445,36 @@ export default async function HomePage() {
               ))}
             </div>
             <TrustList className="reveal-stagger mx-auto mt-16 max-w-5xl" />
+          </div>
+        </section>
+
+        {/* ─── FREE TOOLS ─── */}
+        <section className="below-fold border-t border-line/70 py-20 sm:py-28">
+          <div className="container-x">
+            <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
+              <div className="max-w-2xl">
+                <div className="eyebrow">{toolsPageUi[locale].homeEyebrow}</div>
+                <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight sm:text-5xl">{toolsPageUi[locale].homeTitle}</h2>
+              </div>
+              <p className="max-w-sm text-muted">{toolsPageUi[locale].homeNote}</p>
+            </div>
+            <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+              {["dni-vmeste", "generator-pozdravlenij", "test-znaesh-li-ty-mamu", "uspet-k-date"].map((slug) => {
+                const tool = getTool(slug);
+                return tool ? (
+                  <Link key={slug} href={`/instrumenty/${slug}`} className="card card-hover flex flex-col p-6">
+                    <h3 className="font-serif text-xl leading-snug font-medium">{tool.content[locale].label}</h3>
+                    <p className="mt-3 flex-1 text-sm leading-relaxed text-muted">{tool.content[locale].teaser}</p>
+                    <span className="mt-4 text-sm font-medium text-wine">{toolsPageUi[locale].open} →</span>
+                  </Link>
+                ) : null;
+              })}
+            </div>
+            <p className="mt-6 text-sm">
+              <Link href="/instrumenty" className="font-medium text-wine hover:underline">
+                {toolsPageUi[locale].all} →
+              </Link>
+            </p>
           </div>
         </section>
 

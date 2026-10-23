@@ -22,6 +22,7 @@ export function LandingHeader({ loggedIn }: { loggedIn: boolean }) {
     { href: "/#how", label: m.how },
     { href: "/#inside", label: m.sample },
     { href: "/kniga", label: common.footer.ideas },
+    { href: "/instrumenty", label: common.footer.tools },
     { href: "/#pricing", label: m.pricing },
     { href: "/gift", label: m.gift },
     { href: "/#faq", label: m.faq },
@@ -43,9 +44,9 @@ export function LandingHeader({ loggedIn }: { loggedIn: boolean }) {
     >
       <div className="container-x flex h-16 items-center justify-between gap-4 sm:h-18">
         <Logo />
-        <nav className="hidden items-center gap-1 lg:flex">
+        <nav className="hidden items-center gap-1 xl:flex">
           {nav.map((n) => (
-            <a key={n.href} href={lp(n.href)} className="rounded-full px-3.5 py-2 text-[15px] text-ink-soft transition hover:bg-ink/5 hover:text-ink">
+            <a key={n.href} href={lp(n.href)} className="rounded-full px-3 py-2 text-[15px] whitespace-nowrap text-ink-soft transition hover:bg-ink/5 hover:text-ink">
               {n.label}
             </a>
           ))}
@@ -71,12 +72,12 @@ export function LandingHeader({ loggedIn }: { loggedIn: boolean }) {
           )}
         </div>
         <ShopThemeToggle className="sm:hidden" />
-        <button className="btn btn-ghost btn-sm -mr-2 px-2 lg:hidden sm:ml-0" onClick={() => setOpen((v) => !v)} aria-label={m.menu} aria-expanded={open}>
+        <button className="btn btn-ghost btn-sm -mr-2 px-2 xl:hidden sm:ml-0" onClick={() => setOpen((v) => !v)} aria-label={m.menu} aria-expanded={open}>
           {open ? <X className="size-6" /> : <Menu className="size-6" />}
         </button>
       </div>
       {open ? (
-        <div className="container-x pb-6 lg:hidden">
+        <div className="container-x pb-6 xl:hidden">
           <nav className="flex flex-col">
             {nav.map((n) => (
               <a key={n.href} href={lp(n.href)} onClick={() => setOpen(false)} className="border-b border-line/60 py-3.5 text-lg">
