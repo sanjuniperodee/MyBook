@@ -226,13 +226,13 @@ export function NewClientForm({ canDeal, stages, defaultStageId, admins, me, can
               </div>
               <div>
                 <label className="label">Цена одной книги по договорённости, ₸ *</label>
-                <input name="agreed" type="number" min={0} step={100} required value={agreed} onChange={(e) => setAgreed(e.target.value)} className="input h-11" placeholder="20000" />
+                <input name="agreed" type="number" min={0} step={1} required value={agreed} onChange={(e) => setAgreed(e.target.value)} className="input h-11" placeholder="20000" />
                 <p className="mt-1 text-xs text-muted">Доставка и допы считаются сверху при оформлении заказа.</p>
                 <PlanDiscountHint plan={planId || v.plan || ""} price={Number(agreed) || 0} maxPercent={maxDiscountPercent} />
               </div>
               <div>
                 <label className="label">{n > 1 ? "Предоплата за все книги, ₸" : "Предоплата, ₸"}</label>
-                <input name="prepaid" type="number" min={0} step={100} value={prepaid} onChange={(e) => setPrepaid(e.target.value)} className="input h-11" placeholder="10000" />
+                <input name="prepaid" type="number" min={0} step={1} value={prepaid} onChange={(e) => setPrepaid(e.target.value)} className="input h-11" placeholder="10000" />
               </div>
               <AgreementGiftsField values={v} />
               {p > 0 ? (

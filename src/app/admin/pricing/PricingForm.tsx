@@ -34,7 +34,7 @@ function Price({ name, label, value, factory, hint, optional = false }: { name: 
         {label}
       </label>
       <div className="relative">
-        <input id={name} name={name} type="number" inputMode="numeric" min={0} step={100} required={!optional} defaultValue={value ?? ""} placeholder={optional ? "индивидуально" : undefined} className="input h-11 pr-9" />
+        <input id={name} name={name} type="number" inputMode="numeric" min={0} step={1} required={!optional} defaultValue={value ?? ""} placeholder={optional ? "индивидуально" : undefined} className="input h-11 pr-9" />
         <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-sm text-muted">₸</span>
       </div>
       <p className="mt-1 text-xs text-muted">{hint ?? (factory === value ? "заводская цена" : `заводская: ${formatPrice(factory)}`)}</p>
