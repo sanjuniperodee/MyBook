@@ -12,10 +12,11 @@ import { parseHolidays } from "../domain";
  * уведомления — рабочее пространство; их подключает корень композиции.
  */
 export const crmEffects = (
-  ports: Pick<AutomationEffects, "createTask" | "sendMessage" | "canMessageNow" | "addNote">,
-  notifier: StaffNotifier<"deals.view">,
+  ports: Pick<AutomationEffects, "createTask" | "sendMessage" | "canMessageNow" | "addNote" | "whatsappStaff">,
+  notifier: StaffNotifier<"deals.view" | "team.manage">,
 ): AutomationEffects => ({
   createTask: ports.createTask,
+  whatsappStaff: ports.whatsappStaff,
   sendMessage: ports.sendMessage,
   canMessageNow: ports.canMessageNow,
   addNote: ports.addNote,
@@ -23,7 +24,7 @@ export const crmEffects = (
     await executor().update(crmConversations).set({ assigneeId: userId }).where(eq(crmConversations.id, conversationId));
   },
   async notify(userIds, n) {
-    await (userIds === "staff" ? notifier.notifyAllWith("deals.view", n) : notifier.notify(userIds, n));
+    await (userIds === "staff" ? notifier.notifyAllWith("deals.view", n) : userIds === "managers" ? notifier.notifyAllWith("team.manage", n) : notifier.notify(userIds, n));
   },
 });
 

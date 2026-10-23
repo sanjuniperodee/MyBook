@@ -299,15 +299,20 @@ export class AutomationEngine {
         return ok;
       }
       case "notify": {
-        const to = a.userId ? [a.userId] : s.assigneeId ? [s.assigneeId] : "staff";
+        const to = a.userId ? [a.userId] : a.to === "managers" ? "managers" : s.assigneeId ? [s.assigneeId] : "staff";
         const fallback = s.conversation ? `${s.name || "Клиент"}: ${s.conversation.lastMessageText}` : s.deal ? `№${s.deal.number} ${s.deal.title}` : rule.name;
-        await this.effects.notify(to, {
-          kind: rule.trigger === "message.unanswered" ? "sla" : "system",
+        const n = {
+          kind: rule.trigger === "message.unanswered" ? ("sla" as const) : ("system" as const),
           title: fillTemplate(a.title || triggerLabel(rule.trigger) || rule.name, vars),
           body: a.text ? fillTemplate(a.text, vars) : fallback,
           link: linkFor(ctx, s),
-        });
-        return ok;
+        };
+        await this.effects.notify(to, n);
+        if (!a.whatsapp || !this.effects.whatsappStaff) return ok;
+        // Дубль в WhatsApp (automation-22): ночью не будим — только в рабочее время.
+        if (!(await this.schedule.isWorkTime(this.clock.now()))) return { result: "ok", note: "в WhatsApp — нет: вне рабочего времени" };
+        const sent = await this.effects.whatsappStaff(to, [n.title, n.body, n.link].filter(Boolean).join("\n"));
+        return sent ? ok : { result: "ok", note: "в WhatsApp — нет: у сотрудника не указан телефон" };
       }
     }
     return skipped("неизвестное действие");

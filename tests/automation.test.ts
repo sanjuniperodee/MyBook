@@ -52,6 +52,8 @@ function setup(
     holidays?: Holiday[];
     /** Переписка клиента в WhatsApp (сообщения о заказе); null — её нет. */
     whatsapp?: string | null;
+    /** Сколько сотрудников получили дубль уведомления в WhatsApp. */
+    whatsappSent?: number;
   } = {},
 ) {
   const claimed = new Set<string>();
@@ -116,6 +118,7 @@ function setup(
     assignConversation: async () => {},
     addNote: async (n) => void log.push(`note:${n.dealId}:${n.text}`),
     notify: async (to, n) => void log.push(`notify:${Array.isArray(to) ? to.join(",") : to}:${n.title}`),
+    whatsappStaff: async (to, text) => (log.push(`wa:${Array.isArray(to) ? to.join(",") : to}:${text.split("\n")[0]}`), opts.whatsappSent ?? 1),
   };
   const sales: SalesGateway = {
     nextRoundRobin: async () => "m2",
@@ -240,6 +243,28 @@ describe("журнал срабатываний правила (automation-13)",
     const t = setup([r], { subject: { deal: null } });
     await t.engine.run("occasion.holiday" as never, { subject: "holiday:x", clientId: "c1" });
     expect([...t.runs.values()][0].details?.ctx.dealId).toBe("d9");
+  });
+});
+
+describe("«Уведомить»: руководителям и дубль в WhatsApp (automation-22)", () => {
+  it("руководителям — уведомление по праву team.manage; дубль в WhatsApp — в рабочее время, ночью — только в CRM", async () => {
+    const r = rule({ trigger: "deal.created", actions: [{ type: "notify", title: "Крупная сделка", to: "managers", whatsapp: true }] });
+    const day = setup([r], { workTime: true });
+    await day.engine.run("deal.created", { subject: "deal:d1", dealId: "d1" });
+    expect(day.log).toEqual(["notify:managers:Крупная сделка", "wa:managers:Крупная сделка", "run:r1"]);
+    const night = setup([r], { workTime: false });
+    await night.engine.run("deal.created", { subject: "deal:d1", dealId: "d1" });
+    expect(night.log).toEqual(["notify:managers:Крупная сделка", "run:r1"]);
+    expect([...night.runs.values()][0].details?.steps[0].note).toBe("в WhatsApp — нет: вне рабочего времени");
+  });
+
+  it("без галочки — только CRM; у сотрудника нет номера — шаг сделан с пометкой", async () => {
+    const plain = setup([rule({ actions: [{ type: "notify", title: "Х", userId: "m5" }] })]);
+    await plain.engine.run("deal.created", { subject: "deal:d1", dealId: "d1" });
+    expect(plain.log).toEqual(["notify:m5:Х", "run:r1"]);
+    const nophone = setup([rule({ actions: [{ type: "notify", title: "Х", userId: "m5", whatsapp: true }] })], { whatsappSent: 0 });
+    await nophone.engine.run("deal.created", { subject: "deal:d1", dealId: "d1" });
+    expect([...nophone.runs.values()][0].details?.steps[0].note).toBe("в WhatsApp — нет: у сотрудника не указан телефон");
   });
 });
 

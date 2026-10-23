@@ -71,8 +71,13 @@ export interface AutomationEffects {
   assignConversation(conversationId: string, userId: string): Promise<void>;
   /** Запись CRM в истории сделки (без автора, одна с таким текстом на сделку): готовый текст клиенту. */
   addNote(note: { dealId: string; clientId: string | null; text: string }): Promise<void>;
-  /** Уведомить сотрудников; без адресатов — всех с правом deals.view. */
-  notify(userIds: string[] | "staff", n: { kind: "task" | "sla" | "system"; title: string; body: string; link: string | null }): Promise<void>;
+  /** Уведомить сотрудников; без адресатов — всех с правом deals.view, managers — руководителей (team.manage). */
+  notify(userIds: string[] | "staff" | "managers", n: { kind: "task" | "sla" | "system"; title: string; body: string; link: string | null }): Promise<void>;
+  /**
+   * То же уведомление личным сообщением в WhatsApp на номер сотрудника (automation-22): только в рабочее время — так
+   * решил владелец для напоминаний (P0-5); сотрудник без номера — пропускается. Сколько ушло.
+   */
+  whatsappStaff?(userIds: string[] | "staff" | "managers", text: string): Promise<number>;
 }
 
 /** Продажи (контекст Sales) — через узкий порт. */

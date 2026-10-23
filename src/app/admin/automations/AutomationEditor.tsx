@@ -440,10 +440,28 @@ function Editor({ rule, ctx, onClose }: { rule: Rule | null; ctx: Ctx; onClose: 
                 ))}
               </select>
             ) : (
-              <div className="grid gap-2 sm:grid-cols-[1fr_1fr_180px]">
-                <input className="input h-9 text-sm" placeholder="Заголовок" value={a.title ?? ""} onChange={(e) => setAction(i, { title: e.target.value })} />
-                <input className="input h-9 text-sm" placeholder="Текст" value={a.text ?? ""} onChange={(e) => setAction(i, { text: e.target.value })} />
-                {staffSelect(a.userId, (v) => setAction(i, { userId: v }), "ответственному")}
+              <div className="space-y-2">
+                <div className="grid gap-2 sm:grid-cols-[1fr_1fr_180px]">
+                  <input className="input h-9 text-sm" placeholder="Заголовок" value={a.title ?? ""} onChange={(e) => setAction(i, { title: e.target.value })} />
+                  <input className="input h-9 text-sm" placeholder="Текст" value={a.text ?? ""} onChange={(e) => setAction(i, { text: e.target.value })} />
+                  <select
+                    className="input h-9 text-sm"
+                    value={a.userId ?? (a.to === "managers" ? "managers" : "")}
+                    onChange={(e) => setAction(i, e.target.value === "managers" ? { userId: null, to: "managers" } : { userId: e.target.value || null, to: undefined })}
+                  >
+                    <option value="">ответственному</option>
+                    <option value="managers">руководителям</option>
+                    {ctx.staff.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <label className="flex items-center gap-2 text-xs text-muted">
+                  <input type="checkbox" className="accent-wine" checked={!!a.whatsapp} onChange={(e) => setAction(i, { whatsapp: e.target.checked || undefined })} />
+                  ещё в WhatsApp на номер сотрудника — только в рабочее время
+                </label>
               </div>
             )}
           </div>

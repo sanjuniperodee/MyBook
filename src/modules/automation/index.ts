@@ -28,7 +28,8 @@ export class AutomationModule {
       sendMessage: AutomationEffects["sendMessage"];
       canMessageNow: AutomationEffects["canMessageNow"];
       addNote: AutomationEffects["addNote"];
-      notifier: StaffNotifier<"deals.view">;
+      whatsappStaff?: AutomationEffects["whatsappStaff"];
+      notifier: StaffNotifier<"deals.view" | "team.manage">;
       schedule: WorkSchedule;
       fields: CustomFieldsReader;
       settings: SettingsReader<AutomationSettingKey>;

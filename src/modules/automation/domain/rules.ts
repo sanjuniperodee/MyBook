@@ -18,6 +18,10 @@ export interface RuleAction {
   dueMinutes?: number;
   userId?: string | null;
   stageId?: string;
+  /** «Уведомить сотрудников» без конкретного сотрудника: руководителям (managers), иначе — ответственному. */
+  to?: "managers";
+  /** «Уведомить» — ещё и личным сообщением в WhatsApp на номер сотрудника (только в рабочее время). */
+  whatsapp?: boolean;
 }
 
 /**

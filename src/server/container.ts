@@ -21,7 +21,7 @@ import { MarketingModule } from "@/modules/marketing";
 import { AssistantModule } from "@/modules/assistant";
 import { ClientsModule } from "@/modules/clients";
 import { ReportingModule } from "@/modules/reporting";
-import { WorkspaceModule, smtpConfig } from "@/modules/workspace";
+import { WorkspaceModule, smtpConfig, staffWith } from "@/modules/workspace";
 import { FeedbackModule, reviewUrl, THANK_YOU } from "@/modules/feedback";
 import { ReferralsModule } from "@/modules/referrals";
 import { AutomationModule } from "@/modules/automation";
@@ -89,6 +89,16 @@ export class Container {
       canMessageNow: async () => !(await this.messaging.chats.ruleSendBlock()),
       // Готовый текст клиенту (правило «праздник») — запись CRM в истории сделки: клиенту не уходит, отправит менеджер.
       addNote: async (n) => void (await this.clients.notes.addSystemOnce(n)),
+      // «Уведомить» с дублем в WhatsApp (automation-22): личным сообщением на номер сотрудника, ссылка — абсолютная.
+      whatsappStaff: async (to, text) => {
+        const ids = Array.isArray(to) ? to : await staffWith(to === "managers" ? "team.manage" : "deals.view");
+        let sent = 0;
+        for (const id of [...new Set(ids)]) {
+          const phone = (await this.identity.accounts.account(id))?.phone;
+          if (phone && (await this.messaging.sendToPhone(phone, text.replace(/\n(\/admin\S*)$/, `\n${env.appUrl}$1`)))) sent++;
+        }
+        return sent;
+      },
       // Праздники для повторных продаж — «Интеграции» → CRM.
       settings: this.workspace.settings,
       sales: {
