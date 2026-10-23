@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, MessageCircle, MessagesSquare, PhoneCall, SendHorizontal, X } from "lucide-react";
 import { useMessages } from "@/i18n/client";
 import { cn } from "@/lib/class-names";
+import { widgetCode } from "@/modules/marketing/domain/links";
 
 interface Msg {
   id: string;
@@ -16,6 +17,7 @@ type View = "menu" | "callback" | "chat";
 
 const STARTED_KEY = "mb_chat_started";
 const SEEN_KEY = "mb_chat_seen";
+const CAMPAIGN_KEY = "mb_utm_campaign";
 
 function store(key: string, value?: string) {
   try {
@@ -119,6 +121,13 @@ export function SiteWidget({ whatsapp, chat }: { whatsapp: string; chat: boolean
   };
 
   const wa = whatsapp ? `https://wa.me/${whatsapp}?text=${encodeURIComponent(t.whatsappText)}` : null;
+  // Кампания визита — из utm_campaign страницы входа (запоминается в браузере): по коду в сообщении CRM узнает источник заявки.
+  useEffect(() => {
+    const campaign = new URLSearchParams(location.search).get("utm_campaign");
+    if (campaign) store(CAMPAIGN_KEY, campaign);
+  }, []);
+  /** Ссылка в WhatsApp с кодом источника в тексте (chats-19): «… #site-<кампания или страница>» — на любом языке. */
+  const waWithCode = () => (whatsapp ? `https://wa.me/${whatsapp}?text=${encodeURIComponent(`${t.whatsappText} #${widgetCode(store(CAMPAIGN_KEY), location.pathname)}`)}` : "");
   const go = (v: View) => {
     setView(v);
     setError(null);
@@ -147,7 +156,15 @@ export function SiteWidget({ whatsapp, chat }: { whatsapp: string; chat: boolean
           {view === "menu" ? (
             <div className="space-y-2 p-4">
               {wa ? (
-                <a href={wa} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 rounded-2xl border border-line px-4 py-3 hover:border-emerald-300 hover:bg-emerald-50">
+                <a
+                  href={wa}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => {
+                    e.currentTarget.href = waWithCode() || e.currentTarget.href;
+                  }}
+                  className="flex items-center gap-3 rounded-2xl border border-line px-4 py-3 hover:border-emerald-300 hover:bg-emerald-50"
+                >
                   <MessageCircle className="size-5 text-emerald-600" /> {t.whatsapp}
                 </a>
               ) : null}

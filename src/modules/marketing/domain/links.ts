@@ -65,6 +65,24 @@ export function whatsappLink(whatsappNumber: string, text: string, code: string)
 }
 
 /** Код ссылки в первом сообщении WhatsApp: «… (код: insta-bio)» или «#insta-bio». */
+/**
+ * Код источника в сообщении из виджета сайта (chats-19): «site-<кампания>» — по utm_campaign визита, иначе
+ * «site-<страница>» («site-gift», «site-home»). Латиница, цифры и дефис, не длиннее, чем берёт linkCodeFromText.
+ */
+export function widgetCode(campaign: string | null | undefined, path: string): string {
+  const slug = (v: string) =>
+    v
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 34);
+  const page = path.replace(/^\/(kk)(\/|$)/, "/").replace(/^\/+|\/+$/g, "") || "home";
+  return `site-${slug(campaign ?? "") || slug(page) || "home"}`;
+}
+
+/** Код из виджета сайта — что после «site-» (кампания или страница); другой код — null. */
+export const widgetCodeTail = (code: string) => (code.startsWith("site-") && code.length > 5 ? code.slice(5) : null);
+
 export function linkCodeFromText(text: string): string | null {
   const m = /\(\s*код:?\s*([a-z0-9][a-z0-9-]{1,40})\s*\)|(?:^|\s)#([a-z0-9][a-z0-9-]{1,40})(?=\s|$)/i.exec(text);
   return (m?.[1] ?? m?.[2])?.toLowerCase() ?? null;

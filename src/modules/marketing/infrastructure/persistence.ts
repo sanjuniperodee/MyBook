@@ -46,6 +46,10 @@ export const drizzleLinks: LinkRepository = {
     const [l] = await executor().select().from(crmLinks).where(eq(crmLinks.slug, slug.toLowerCase())).limit(1);
     return l ?? null;
   },
+  async byCampaign(campaign) {
+    const [l] = await executor().select().from(crmLinks).where(sql`lower(${crmLinks.utmCampaign}) = ${campaign.toLowerCase()}`).orderBy(desc(crmLinks.createdAt)).limit(1);
+    return l ?? null;
+  },
   all: () => executor().select().from(crmLinks).orderBy(desc(crmLinks.createdAt)),
   add: async (link) => void (await executor().insert(crmLinks).values(link)),
   setArchived: async (id, archived) => void (await executor().update(crmLinks).set({ archived }).where(eq(crmLinks.id, id))),

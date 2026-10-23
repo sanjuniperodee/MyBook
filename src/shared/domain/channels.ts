@@ -65,6 +65,8 @@ export function channelOf(a: Attribution | null | undefined, dealSource?: string
   if (src || med) {
     // Ссылка-приглашение друга (/r/<код>): source=invite, medium=referral.
     if (src === "invite" || med === "referral") return "recommendation";
+    // Написали из виджета сайта, а кампания визита неизвестна (chats-19): пришли на сайт сами.
+    if (src === "site" && med === "widget") return "direct";
     if (/^(blog|influenc)/.test(src) || /^(blogger|influencer|influence)$/.test(med)) return "bloggers";
     if (/^(ig|insta)/.test(src)) return "instagram";
     if (/^(tiktok|tt)$/.test(src)) return "tiktok";

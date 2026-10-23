@@ -1,6 +1,6 @@
 import type { Clock } from "@/shared/application";
 import { normalizeSlug } from "@/shared/domain/slug";
-import { DISCOUNT_HOURS, buildChannelReport, discountCap, isPreviewBot, isValidSlug, linkAttribution, linkCodeFromText, linkTarget, offerTexts, type ChatOffers, type OfferRequest, type TrackedLink } from "../domain";
+import { DISCOUNT_HOURS, buildChannelReport, discountCap, isPreviewBot, isValidSlug, linkAttribution, linkCodeFromText, linkTarget, offerTexts, widgetCodeTail, type ChatOffers, type OfferRequest, type TrackedLink } from "../domain";
 import type { AppLinks, ClientContext, LinkRepository, MarketingSettings, PromoCodeGenerator, PromoIssuer, ReportSource } from "./ports";
 
 /** Каналы привлечения, короткие ссылки и предложения клиенту из чата. */
@@ -60,7 +60,13 @@ export class MarketingService {
   async attributionFromText(text: string) {
     const code = linkCodeFromText(text);
     const link = code ? await this.links.bySlug(code) : null;
-    return link ? (linkAttribution(link) as Record<string, string>) : null;
+    if (link) return linkAttribution(link) as Record<string, string>;
+    // Код виджета сайта (chats-19): кампания визита — метки её ссылки; иначе — сайт, виджет и кампания или страница.
+    const tail = code ? widgetCodeTail(code) : null;
+    if (!tail) return null;
+    const byCampaign = (await this.links.byCampaign?.(tail)) ?? null;
+    if (byCampaign) return { ...(linkAttribution(byCampaign) as Record<string, string>), content: "site-widget" };
+    return { source: "site", medium: "widget", campaign: tail };
   }
 
   async chatOffers(clientId: string | null, canDiscount: boolean): Promise<ChatOffers> {
