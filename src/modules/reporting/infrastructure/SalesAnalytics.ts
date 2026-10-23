@@ -20,6 +20,10 @@ export async function salesAnalytics(pipelineId: string, period: number) {
         count(*) filter (where s.kind = 'won')::int as won,
         count(*) filter (where s.kind = 'lost')::int as lost,
         coalesce(sum(d.amount) filter (where s.kind = 'won'), 0)::int as revenue,
+        -- Новые и повторные клиенты (deals-24): повторный — у клиента были покупки до сделки.
+        count(*) filter (where d.repeat_count > 0)::int as repeat_created,
+        count(*) filter (where s.kind = 'won' and d.repeat_count > 0)::int as repeat_won,
+        coalesce(sum(d.amount) filter (where s.kind = 'won' and d.repeat_count > 0), 0)::int as repeat_revenue,
         percentile_cont(0.5) within group (order by extract(epoch from d.closed_at - d.created_at)) filter (where s.kind = 'won') as cycle
       from crm_deals d join crm_stages s on s.id = d.stage_id where d.created_at >= ${since} and ${inPipeline}`),
     db.execute<Row>(sql`

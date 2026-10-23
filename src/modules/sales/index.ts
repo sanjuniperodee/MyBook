@@ -2,7 +2,7 @@ import type { Clock, Logger, SettingsReader, UnitOfWork, WorkSchedule } from "@/
 import { readGifts, type AgreementGift } from "@/shared/domain/agreementGifts";
 import { DealsService, LeadRoutingService, PaymentIntakeService, PipelinesService, SiteFunnelService, noDealInvoices, type DealInvoicesPort, type PaymentEffects, type RoutingNotifier } from "./application";
 import { storeTimeZone } from "@/shared/domain/time";
-import { crmSalesSettings, drizzleClients, roundRobinRouter, sqlBookProgress, type SalesSettingKey } from "./infrastructure/adapters";
+import { crmSalesSettings, drizzleClients, orderOrigin, roundRobinRouter, sqlBookProgress, type SalesSettingKey } from "./infrastructure/adapters";
 import { agreementForClient, attachAgreementOrder, dealMoney } from "./infrastructure/agreements";
 import { setClientDealsAttribution } from "./infrastructure/attribution";
 import { dealAgreedGifts, dealAgreedPlan, dealBatch, dealBatchMoney, markBatchMembers, setDealAgreedGifts, setDealAgreedPlan, setDealBatch } from "./infrastructure/agreedPlan";
@@ -111,6 +111,6 @@ export class SalesModule {
     this.deals = new DealsService(repo, funnels, drizzleClients, settings, router, deps.uow, deps.clock, deps.invoices ?? noDealInvoices, this.agreedPlan);
     this.routing = new LeadRoutingService(repo, router, settings, deps.notifier, deps.uow, deps.clock, deps.logger);
     this.pipelines = new PipelinesService(new DrizzlePipelineRepository(), () => this.deals.defaultPipelineId());
-    this.funnel = new SiteFunnelService(repo, funnels, drizzleClients, settings, sqlBookProgress, this.deals, deps.logger, dealMoney);
+    this.funnel = new SiteFunnelService(repo, funnels, drizzleClients, settings, sqlBookProgress, this.deals, deps.logger, dealMoney, orderOrigin);
   }
 }

@@ -39,6 +39,8 @@ export interface DealProps {
   createdAt?: Date;
   /** Правило автоматизации, которое создало сделку (повторная продажа): статистика правила «создано / выиграно / сумма». */
   automationId?: string | null;
+  /** Покупок клиента до этой сделки (выигранные сделки и оплаченные заказы); больше нуля — повторный клиент. */
+  repeatCount?: number;
 }
 
 /** Запись в ленту сделки (история, звонки, сообщения, заметки менеджеров). */
@@ -91,7 +93,7 @@ export class Deal extends AggregateRoot<DealProps> {
       createdAt: now,
     });
     deal.#stageChanges.push({ fromStageId: null, toStageId: stage.id, actorId: input.createdById });
-    deal.note(`Создана сделка №${number} «${deal.props.title}» (${dealSourceLabels[input.source]})`, input.createdById);
+    deal.note(`Создана сделка №${number} «${deal.props.title}» (${dealSourceLabels[input.source]}${(input.repeatCount ?? 0) > 0 ? ", повторный клиент" : ""})`, input.createdById);
     deal.record(SalesEvents.dealCreated({ ...deal.ref(), source: input.source, stageId: stage.id, createdById: input.createdById, title: deal.props.title }));
     return deal;
   }
@@ -116,6 +118,21 @@ export class Deal extends AggregateRoot<DealProps> {
   }
   get source() {
     return this.props.source;
+  }
+  /** Клиент уже покупал до этой сделки (deals-24). */
+  get isRepeat() {
+    return (this.props.repeatCount ?? 0) > 0;
+  }
+
+  /**
+   * Источник по промокоду заказа (deals-24): сертификат или код-приглашение друга. Меняется только «Сайт» — источник,
+   * который CRM поставила сама; выбранный менеджером и UTM не трогаем. false — менять не нужно.
+   */
+  markOrigin(origin: "gift" | "referral"): boolean {
+    if (this.props.source !== "site") return false;
+    this.props.source = origin;
+    this.note(`Источник — «${dealSourceLabels[origin]}»: заказ оформлен по ${origin === "gift" ? "подарочному сертификату" : "коду-приглашению друга"}`, null);
+    return true;
   }
 
   ref() {

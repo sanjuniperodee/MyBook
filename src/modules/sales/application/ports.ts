@@ -7,7 +7,12 @@ export interface ClientDirectory {
   profile(clientId: string): Promise<{ name: string; email: string; phone: string | null; managerId: string | null; utm: Record<string, string> | null } | null>;
   /** Ответственный сделки становится ответственным клиента, если у клиента его ещё нет. */
   adoptManager(clientId: string, managerId: string): Promise<void>;
+  /** Сколько покупок у клиента сейчас (deals-24): выигранные сделки и оплаченные не отменённые заказы без такой сделки. */
+  purchases(clientId: string): Promise<number>;
 }
+
+/** Промокод заказа (контекст «Заказы»): подарочный сертификат или код-приглашение друга; null — обычный или без кода. */
+export type OrderOrigin = (orderId: string) => Promise<"gift" | "referral" | null>;
 
 export interface SalesSettings {
   /** Заявки с новых номеров попадают в «Неразобранное». */

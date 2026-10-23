@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { AggregateRoot, DomainEvent } from "@/shared/domain";
 import type { UnitOfWork } from "@/shared/application";
 import { Deal, Funnel, mergeRefusal, type DealRepository, type FunnelRepository, type Stage } from "@/modules/sales/domain";
-import { DealsService, LeadRoutingService, SiteFunnelService, type AgreedPlans, type ClientDirectory, type DealInvoicesPort, type DealMoney } from "@/modules/sales/application";
+import { DealsService, LeadRoutingService, SiteFunnelService, type AgreedPlans, type ClientDirectory, type DealInvoicesPort, type DealMoney, type OrderOrigin } from "@/modules/sales/application";
 
 const now = new Date("2026-10-01T10:00:00Z");
 const stages: Stage[] = [
@@ -235,7 +235,7 @@ class MemInvoices implements DealInvoicesPort {
   purgeClosed = async (dealId: string) => void this.calls.push(`purge:${dealId}`);
 }
 
-function setup(autoFrom: "off" | "registered" | "book_started" = "book_started", money: (dealId: string) => Promise<DealMoney> = async () => ({ paid: 0, agreement: false })) {
+function setup(autoFrom: "off" | "registered" | "book_started" = "book_started", money: (dealId: string) => Promise<DealMoney> = async () => ({ paid: 0, agreement: false }), origin: OrderOrigin = async () => null) {
   const deals = new MemDeals();
   const uow = new FakeUow();
   const funnels: FunnelRepository = { load: async () => funnel };
@@ -243,7 +243,10 @@ function setup(autoFrom: "off" | "registered" | "book_started" = "book_started",
     findByPhone: async () => null,
     profile: async (id) => (id === "c1" ? { name: "Айгерим", email: "a@test.kz", phone: "77011234567", managerId: "m1", utm: { source: "instagram" } } : null),
     adoptManager: async () => {},
+    // Покупки клиента: выигранные сделки в памяти и оплаченные заказы без сделки (paidOrders).
+    purchases: async (id) => [...deals.rows.values()].filter((d) => d.clientId === id && funnel.stage(d.stageId)?.kind === "won").length + (paidOrders.get(id) ?? 0),
   };
+  const paidOrders = new Map<string, number>();
   const mergeWindow = { days: 14 };
   const entryStages: Record<string, string> = {};
   const settings = { unsortedEnabled: async () => true, autoDealFrom: async () => autoFrom, reassignMinutes: async () => 15, mergeClosedDays: async () => mergeWindow.days, entryStageId: async (source: string) => entryStages[source] ?? null };
@@ -258,12 +261,42 @@ function setup(autoFrom: "off" | "registered" | "book_started" = "book_started",
   const bookState = { value: { theme: "love", answered: 26, total: 40, words: 900 } };
   const books = { progress: async () => bookState.value };
   const logger = { info: () => {}, warn: () => {}, error: () => {} };
-  const site = new SiteFunnelService(deals, funnels, clients, settings, books, service, logger, money);
+  const site = new SiteFunnelService(deals, funnels, clients, settings, books, service, logger, money, origin);
   const sent: { to: string; title: string }[] = [];
   const notifier = { notify: async (ids: string[], n: { title: string }) => void ids.forEach((to) => sent.push({ to, title: n.title })), owners: async (n: { title: string }) => void sent.push({ to: "owners", title: n.title }) };
   const routing = new LeadRoutingService(deals, router, settings, notifier, uow, clock, logger);
-  return { deals, uow, service, site, router, routing, clock, sent, invoices, bookState, plans, mergeWindow, entryStages };
+  return { deals, uow, service, site, router, routing, clock, sent, invoices, bookState, plans, mergeWindow, entryStages, paidOrders };
 }
+
+describe("Повторный клиент и источник по промокоду (deals-24, contacts-15)", () => {
+  it("сделка помнит, сколько покупок было у клиента до неё; новый клиент — 0", async () => {
+    const t = setup();
+    const first = await t.service.create({ title: "Сайт", source: "site", clientId: "c1" });
+    expect(first.repeatCount).toBe(0);
+    const won = funnel.firstOfKind("won", funnel.defaultPipelineId)!;
+    await t.service.move(first.id, won.id, null);
+    t.paidOrders.set("c1", 1);
+    const again = await t.service.create({ title: "WhatsApp", source: "whatsapp", clientId: "c1" });
+    expect(again.repeatCount).toBe(2);
+    expect(t.deals.notes.some((n) => n.includes("повторный клиент"))).toBe(true);
+    expect((await t.service.create({ title: "Новый", source: "whatsapp", contactPhone: "77009998877" })).repeatCount).toBe(0);
+  });
+
+  it("заказ по сертификату — источник «Сертификат», по приглашению — «Рекомендация»; выбранный менеджером источник не меняется", async () => {
+    const origins: Record<string, "gift" | "referral" | null> = { o1: "gift", o2: "referral" };
+    const t = setup("book_started", undefined, async (id) => origins[id] ?? null);
+    const d = await t.site.orderCreated({ id: "o1", userId: "c1", number: 7, amount: 25000 });
+    expect((await t.deals.findById(d!.id))?.source).toBe("gift");
+    expect(t.deals.notes.some((n) => n.includes("по подарочному сертификату"))).toBe(true);
+    const t2 = setup("book_started", undefined, async (id) => origins[id] ?? null);
+    const manual = await t2.service.create({ title: "Инстаграм", source: "instagram", clientId: "c1" });
+    await t2.site.orderCreated({ id: "o2", userId: "c1", number: 8, amount: 25000 });
+    expect((await t2.deals.findById(manual.id))?.source).toBe("instagram");
+    const t3 = setup("book_started", undefined, async (id) => origins[id] ?? null);
+    const r = await t3.site.orderCreated({ id: "o2", userId: "c1", number: 9, amount: 25000 });
+    expect((await t3.deals.findById(r!.id))?.source).toBe("referral");
+  });
+});
 
 describe("Круг: распределение заявок", () => {
   const lead = { title: "WhatsApp", source: "whatsapp" as const, contactPhone: "77001112233", unsorted: true };

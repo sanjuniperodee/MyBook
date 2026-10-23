@@ -88,6 +88,11 @@ export const crmDeals = pgTable(
     createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
     /** Правило автоматизации, которое создало сделку (повторная продажа): «создано / выиграно / сумма» в «Автоматизациях». */
     automationId: uuid("automation_id").references(() => crmAutomations.id, { onDelete: "set null" }),
+    /**
+     * Сколько покупок было у клиента до этой сделки (deals-24, contacts-15): выигранные сделки и оплаченные заказы без
+     * сделки. Ставится при создании; больше нуля — «повторный клиент» на плитке, в карточке, у продажника и в аналитике.
+     */
+    repeatCount: integer("repeat_count").notNull().default(0),
     stageChangedAt: timestamp("stage_changed_at", { withTimezone: true }).notNull().defaultNow(),
     closedAt: timestamp("closed_at", { withTimezone: true }),
     ...timestamps,

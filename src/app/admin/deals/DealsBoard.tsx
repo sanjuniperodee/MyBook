@@ -32,6 +32,8 @@ export interface DealCard {
   book: { theme: string; answered: number; total: number; words: number } | null;
   /** Дата события из своего поля «Дата события» (YYYY-MM-DD). */
   eventDate: string | null;
+  /** Покупок клиента до этой сделки (deals-24): больше нуля — «повторный». */
+  repeat?: number;
 }
 
 interface Stage {
@@ -244,6 +246,11 @@ function Card({ card: c, draggable, bare }: { card: DealCard; draggable: boolean
           </span>
         ) : null}
         {c.eventDate ? <EventChip date={c.eventDate} /> : null}
+        {c.repeat ? (
+          <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[11px] text-violet-800" title={`Покупок до этой сделки: ${c.repeat}`}>
+            ↻ повторный
+          </span>
+        ) : null}
         {c.task ? (
           <span className={cn("flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px]", c.task.overdue ? "bg-red-100 text-red-700" : "bg-cream text-ink-soft")}>
             <CalendarClock className="size-3" /> {c.task.label}

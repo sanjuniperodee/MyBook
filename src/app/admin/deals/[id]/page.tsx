@@ -128,6 +128,11 @@ export default async function DealPage({ params, searchParams }: { params: Promi
       <div>
         <h1 className="text-2xl font-semibold break-words">
           <span className="text-muted">№{deal.number}</span> {deal.title}
+          {deal.repeatCount > 0 ? (
+            <span className="ml-2 inline-block rounded-full bg-violet-50 px-2 py-0.5 align-middle text-xs font-normal text-violet-800" title={`Покупок до этой сделки: ${deal.repeatCount}`} data-testid="deal-repeat">
+              повторный клиент
+            </span>
+          ) : null}
         </h1>
         <p className="mt-1 text-sm text-muted lg:hidden">
           создана {formatDate(deal.createdAt, true)} · {dealSourceLabels[deal.source]}

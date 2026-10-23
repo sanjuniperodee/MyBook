@@ -1,6 +1,6 @@
 import "server-only";
 import { and, desc, eq, isNull, or, sql } from "drizzle-orm";
-import { orders, users } from "@/shared/infrastructure/db/schema";
+import { crmDeals, crmStages, orders, users } from "@/shared/infrastructure/db/schema";
 import { phoneKey, normalizePhone } from "@/shared/domain/phone";
 import { toAttribution } from "@/shared/domain/channels";
 import type { SettingsReader, WorkSchedule } from "@/shared/application";
@@ -33,7 +33,32 @@ export const drizzleClients: ClientDirectory = {
   async adoptManager(clientId, managerId) {
     await executor().update(users).set({ managerId }).where(and(eq(users.id, clientId), isNull(users.managerId)));
   },
+  /** По индексам crm_deals_client_idx и orders_user_idx; покупка из чата с заказом считается один раз. */
+  async purchases(clientId) {
+    const { rows } = await executor().execute<{ n: number }>(sql`
+      select (
+        (select count(*) from ${crmDeals} d join ${crmStages} s on s.id = d.stage_id where d.client_id = ${clientId} and s.kind = 'won')
+        + (select count(*) from ${orders} o where o.user_id = ${clientId} and o.paid_at is not null and o.status <> 'cancelled'
+            and not exists (select 1 from ${crmDeals} d join ${crmStages} s on s.id = d.stage_id where d.order_id = o.id and s.kind = 'won'))
+      )::int as n`);
+    return Math.min(99, Number(rows[0]?.n ?? 0));
+  },
 };
+
+/**
+ * Промокод заказа (deals-24): код подарочного сертификата (gift_cards.promo_code_id) — «Сертификат», код-приглашение
+ * клиента (promo_codes.owner_user_id) — «Рекомендация».
+ */
+export async function orderOrigin(orderId: string): Promise<"gift" | "referral" | null> {
+  const { rows } = await executor().execute<{ owner: string | null; gift: boolean }>(sql`
+    select p.owner_user_id as owner, exists (select 1 from gift_cards g where g.promo_code_id = p.id) as gift
+    from orders o join promo_codes p on p.code = upper(o.promo_code)
+    where o.id = ${orderId}
+    limit 1`);
+  const r = rows[0];
+  if (!r) return null;
+  return r.gift ? "gift" : r.owner ? "referral" : null;
+}
 
 /** Настройки CRM, которые читают продажи: «Неразобранное», с какого действия клиента заводить сделку, круг и слияние. */
 export type SalesSettingKey = "crm.unsorted" | "crm.autoDealFrom" | "crm.reassignMinutes" | "crm.mergeClosedDays" | "crm.entryStages";

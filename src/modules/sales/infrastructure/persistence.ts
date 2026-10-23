@@ -40,6 +40,7 @@ function toDomain(r: Row): Deal {
     closedAt: r.closedAt,
     createdAt: r.createdAt,
     automationId: r.automationId,
+    repeatCount: r.repeatCount,
   });
 }
 
@@ -169,7 +170,7 @@ export class DrizzleDealRepository implements DealRepository {
   async add(deal: Deal) {
     await executor()
       .insert(crmDeals)
-      .values({ id: deal.id, number: deal.number, createdById: deal.snapshot().createdById, automationId: deal.snapshot().automationId ?? null, ...this.columns(deal) });
+      .values({ id: deal.id, number: deal.number, createdById: deal.snapshot().createdById, automationId: deal.snapshot().automationId ?? null, repeatCount: deal.snapshot().repeatCount ?? 0, ...this.columns(deal) });
     await this.writeJournal(deal);
   }
 

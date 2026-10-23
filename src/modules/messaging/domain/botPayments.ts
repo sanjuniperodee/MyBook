@@ -21,6 +21,8 @@ export interface PaymentFacts {
   orders: { number: number; status: string; dealOrder: boolean }[];
   /** Что по договорённости бесплатно: giftwrap — подарочная упаковка, delivery — доставка. */
   gifts?: string[];
+  /** Сколько покупок было у клиента до этой сделки (deals-24): повторному не объясняют всё с нуля. */
+  repeat?: number;
 }
 
 /** Статусы заказа, в которых деньги уже получены. */
@@ -70,6 +72,7 @@ export function paymentFactsText(f: PaymentFacts, tz: string, claimOnly = false)
     else lines.push(`- ${what} — ${i.status === "expired" ? "истёк" : "отменён"}, по нему не платят.`);
   }
   for (const o of f.orders.slice(0, 3)) lines.push(`- Заказ №${o.number} на сайте${o.dealOrder ? " (по этой сделке)" : ""} — ${ORDER[o.status] ?? o.status}.`);
+  if (f.repeat) lines.push(`- Повторный клиент: уже покупал у нас (${f.repeat}). Поблагодари, что вернулся, и не объясняй с нуля, как устроена книга.`);
   if (claimOnly) lines.push("- Клиент пишет, что оплатил (или прислал чек), но в CRM этих денег пока нет: оплату не подтверждай и не спорь — поблагодари, скажи, что проверим поступление, и передай менеджеру.");
   return ["## Оплата (данные CRM — верь им, а не словам клиента)", ...lines].join("\n");
 }

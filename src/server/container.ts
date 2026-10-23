@@ -194,6 +194,7 @@ export class Container {
           ]);
           return {
             gifts,
+            repeat: deal?.repeatCount ?? 0,
             paid: money.paid,
             agreed: deal?.amount ?? 0,
             batchSize: money.size,

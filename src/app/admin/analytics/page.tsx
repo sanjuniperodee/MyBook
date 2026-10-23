@@ -93,10 +93,10 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
-        <StatTile label="Новых сделок" value={String(num(t.created))} delta={change(num(t.created), num(p.created))} />
-        <StatTile label="Успешных" value={String(num(t.won))} delta={change(num(t.won), num(p.won))} />
+        <StatTile label="Новых сделок" value={String(num(t.created))} delta={change(num(t.created), num(p.created))} hint={`от повторных клиентов: ${num(t.repeat_created)}`} />
+        <StatTile label="Успешных" value={String(num(t.won))} delta={change(num(t.won), num(p.won))} hint={`новые клиенты ${num(t.won) - num(t.repeat_won)} · повторные ${num(t.repeat_won)}`} />
         <StatTile label="Конверсия в продажу" value={pct(num(t.won), num(t.created))} />
-        <StatTile label="Выручка по сделкам" value={formatPrice(num(t.revenue))} delta={change(num(t.revenue), num(p.revenue))} hint="суммы договорённостей по успешным сделкам" />
+        <StatTile label="Выручка по сделкам" value={formatPrice(num(t.revenue))} delta={change(num(t.revenue), num(p.revenue))} hint={`суммы договорённостей по успешным сделкам; от повторных — ${formatPrice(num(t.repeat_revenue))}`} />
         <StatTile label="Получено деньгами" value={formatPrice(num(received.rows[0]?.cur))} delta={change(num(received.rows[0]?.cur), num(received.rows[0]?.prev))} hint="оплаченные заказы и платежи менеджеров" />
         <StatTile label="Первый ответ (медиана)" value={mins(respAll?.median === undefined || respAll?.median === null ? null : num(respAll.median))} goodWhenUp={false} hint={`ждут ответа сейчас: ${num(awaiting.rows[0]?.n)}`} />
       </div>

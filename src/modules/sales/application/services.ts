@@ -4,7 +4,7 @@ import type { StageMilestone } from "@/shared/domain/stageMilestones";
 import { bookKind, progressOf } from "@/lib/content/kinds";
 import { checkDealPrice, Deal, Funnel, SalesError, type DealPrice, type DealRepository, type FunnelRepository, type NoteKind, type RejectionKind } from "../domain";
 import type { DealSource } from "@/shared/domain/dealSources";
-import { heldMoney, noAgreedPlans, noDealInvoices, type AgreedPlans, type BookProgress, type ClientDirectory, type DealInvoicesPort, type DealMoney, type SalesSettings, type StaffRouter } from "./ports";
+import { heldMoney, noAgreedPlans, noDealInvoices, type AgreedPlans, type BookProgress, type ClientDirectory, type DealInvoicesPort, type DealMoney, type OrderOrigin, type SalesSettings, type StaffRouter } from "./ports";
 
 /** Почему сделку нельзя удалить: по ней приняты деньги или есть счёт из чата, по которому клиент заплатил или ещё может заплатить. */
 type DeleteBlocker = { code: "dealHasPayments" } | { code: "dealHasInvoice"; label: string; reason: "open" | "paid" | "kaspi" };
@@ -101,6 +101,8 @@ export class DealsService {
     let clientId = input.clientId ?? null;
     if (!clientId && input.contactPhone) clientId = await this.clients.findByPhone(input.contactPhone);
     const profile = clientId ? await this.clients.profile(clientId) : null;
+    // Повторный клиент (deals-24): покупки до этой сделки — одним запросом при создании.
+    const repeatCount = clientId ? await this.clients.purchases(clientId) : 0;
     const unsorted = !!input.unsorted && !clientId && (await this.settings.unsortedEnabled());
     const { id, number } = await this.deals.nextIdentity();
     const deal = await this.uow.run(async () => {
@@ -132,6 +134,7 @@ export class DealsService {
           customFields: input.customFields ?? {},
           utm: (input.utm as Record<string, string> | null | undefined) ?? profile?.utm ?? null,
           automationId: input.automationId ?? null,
+          repeatCount,
         },
         stage,
         this.clock.now(),
@@ -458,6 +461,8 @@ export class SiteFunnelService {
      * держит деньги клиента, при отмене заказа возвращается в работу, а её сумма — цена договорённости — заказом не переписывается.
      */
     private readonly money: (dealId: string) => Promise<DealMoney> = async () => ({ paid: 0, agreement: false }),
+    /** Сертификат или приглашение в промокоде заказа — источник сделки (deals-24). */
+    private readonly origin: OrderOrigin = async () => null,
   ) {}
 
   /** Сделка держит деньги клиента (договорённость с предоплатой): сколько. */
@@ -551,8 +556,18 @@ export class SiteFunnelService {
     if (deal) await this.service.fillEmptyFields(deal.id, fields);
   }
 
-  orderCreated(order: { id: string; userId: string; number: number; amount: number; dealId?: string | null }) {
-    return this.advance(order.userId, "order_created", { title: `Заказ №${order.number}`, orderId: order.id, amount: order.amount, dealId: order.dealId });
+  async orderCreated(order: { id: string; userId: string; number: number; amount: number; dealId?: string | null }) {
+    const deal = await this.advance(order.userId, "order_created", { title: `Заказ №${order.number}`, orderId: order.id, amount: order.amount, dealId: order.dealId });
+    if (!deal) return deal;
+    // Заказ по сертификату или по приглашению друга — источник сделки «Сертификат» / «Рекомендация» (deals-24).
+    try {
+      const origin = await this.origin(order.id);
+      const d = origin ? await this.deals.findById(deal.id) : null;
+      if (origin && d?.markOrigin(origin)) await this.deals.save(d);
+    } catch (err) {
+      this.logger.error("order origin", err);
+    }
+    return deal;
   }
 
   /** Оплата: сумма сделки — по заказу (кроме сделки, которая держит деньги клиента: там — цена договорённости), сделка — на этап «оплачен». Возвращает сделку заказа. */

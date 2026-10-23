@@ -51,6 +51,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
     unsorted: deal.unsorted,
     book,
     eventDate: typeof deal.customFields.event_date === "string" ? deal.customFields.event_date : null,
+    repeat: deal.repeatCount,
   }));
 
   const params = (patch: Record<string, string | undefined>) => {

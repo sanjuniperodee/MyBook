@@ -165,5 +165,8 @@ describe("AI-продажник знает о подарках", () => {
   it("строка о бесплатном — только когда оно есть", () => {
     expect(paymentFactsText({ ...facts, gifts: ["giftwrap", "delivery"] }, "Asia/Almaty")).toContain("По договорённости бесплатно: подарочная упаковка, доставка");
     expect(paymentFactsText(facts, "Asia/Almaty")).not.toContain("бесплатно");
+    // Повторный клиент (deals-24) — строка в досье продажника; новый — без неё.
+    expect(paymentFactsText({ ...facts, repeat: 2 }, "Asia/Almaty")).toContain("Повторный клиент: уже покупал у нас (2)");
+    expect(paymentFactsText(facts, "Asia/Almaty")).not.toContain("Повторный клиент");
   });
 });
