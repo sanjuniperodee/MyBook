@@ -2,6 +2,7 @@ import "server-only";
 import { and, asc, desc, eq, gt, gte, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { crmBlocklist, crmBotEvents, crmConversations, crmMessages, users } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
+import { storeTimeZone } from "@/shared/domain/time";
 import type { Blocklist, BotRecord, BotStore, ConversationRepository, MessageMediaStore, MessageRepository, MessageSource, OutgoingExtra, StoredMessage } from "../application";
 import { BOT_TRACE_KEEP_DAYS, llmMetrics, readBotState, readBotTrace, splitHandoffs, type LlmMetrics, type BotEvent, type BotState, type BotTurnTrace, type Conversation, type InboundMessage } from "../domain";
 
@@ -547,6 +548,15 @@ export interface BotMetrics {
   converted: number;
   /** Модель продажника: доли Haiku / Sonnet / Opus, эскалации, токены, стоимость на 1 000 ходов. */
   llm?: LlmMetrics;
+  /** Беседы продажника по дням (ГГГГ-ММ-ДД по поясу магазина): начатые и подхваченные (bots-2). */
+  daily?: { day: string; started: number; takeover: number }[];
+  /**
+   * Ответил ли клиент за 24 часа (bots-6) — по типу сообщения продажника: ответ, подборка материалов, 1-е, 2-е и 3-е
+   * напоминание молчащему (3+ — вместе). Только сообщения старше суток: у свежих ответ ещё может прийти.
+   */
+  touches?: Record<string, { sent: number; replied: number }>;
+  /** Последние вопросы клиентов, на которые продажник не ответил (передал менеджеру), — пробелы базы знаний (analytics-26). */
+  gaps?: { conversationId: string; at: Date; text: string }[];
 }
 
 const tally = (rows: { key: string | null; n: number }[]) => Object.fromEntries(rows.filter((r) => r.key).map((r) => [r.key!, Number(r.n)]));
@@ -579,6 +589,7 @@ export async function botMetrics(days = 30): Promise<BotMetrics> {
         and (d.agreed_plan is not null or d.order_id is not null or exists (select 1 from crm_payments p where p.deal_id = d.id))`),
     llmStats(days),
   ]);
+  const [daily, touches, gaps] = await Promise.all([sellerDaily(days), sellerTouches(days), sellerGaps(days)]);
   const o = tally(outcomes.rows);
   const { handoffs, failures } = splitHandoffs(tally(handoff.rows));
   return {
@@ -594,7 +605,56 @@ export async function botMetrics(days = 30): Promise<BotMetrics> {
     replyMinutes: reply.rows[0]?.m == null ? null : Math.round(Number(reply.rows[0].m)),
     converted: Number(converted.rows[0]?.n ?? 0),
     llm,
+    daily,
+    touches,
+    gaps,
   };
+}
+
+/** Начатые и подхваченные продажником беседы по дням магазина — по crm_bot_events_at_idx. */
+async function sellerDaily(days: number) {
+  const tz = storeTimeZone();
+  const { rows } = await executor().execute<{ day: string; started: number; takeover: number }>(sql`
+    select to_char((created_at at time zone ${tz})::date, 'YYYY-MM-DD') as day,
+      count(distinct conversation_id) filter (where kind = 'started')::int as started,
+      count(distinct conversation_id) filter (where kind = 'takeover')::int as takeover
+    from crm_bot_events where kind in ('started', 'takeover') and created_at >= now() - make_interval(days => ${days})
+    group by 1 order by 1`);
+  return rows.map((r) => ({ day: r.day, started: Number(r.started), takeover: Number(r.takeover) }));
+}
+
+/**
+ * Ответ клиента за 24 часа по типу сообщения продажника — из следа хода (kind = turn, purpose, materials): напоминание
+ * N-е по счёту после последнего сообщения клиента. По частичному индексу crm_bot_events_turn_at_idx, сообщения — по
+ * crm_messages_conv_idx.
+ */
+async function sellerTouches(days: number) {
+  const { rows } = await executor().execute<{ key: string; sent: number; replied: number }>(sql`
+    with k as (
+      select e.conversation_id, e.created_at, coalesce(e.meta->>'purpose', 'reply') as purpose,
+        coalesce((e.meta->'materials'->>'files')::int, 0) > 0 as materials,
+        (select max(m.created_at) from crm_messages m where m.conversation_id = e.conversation_id and m.direction = 'in' and m.created_at < e.created_at) as last_in,
+        exists (select 1 from crm_messages m where m.conversation_id = e.conversation_id and m.direction = 'in' and m.created_at > e.created_at and m.created_at <= e.created_at + interval '24 hours') as replied
+      from crm_bot_events e
+      where e.kind = 'turn' and e.message_id is not null and e.created_at >= now() - make_interval(days => ${days}) and e.created_at <= now() - interval '24 hours'
+    ), f as (
+      select k.*, row_number() over (partition by conversation_id, last_in, purpose order by created_at) as nth from k
+    )
+    select case when materials then 'materials' when purpose = 'follow_up' then 'remind' || least(nth, 3) else 'reply' end as key,
+      count(*)::int as sent, count(*) filter (where replied)::int as replied
+    from f group by 1`);
+  return Object.fromEntries(rows.map((r) => [r.key, { sent: Number(r.sent), replied: Number(r.replied) }]));
+}
+
+/** Вопросы клиента, на которые продажник промолчал и передал менеджеру (handoff unanswered): последние 10 с текстом. */
+async function sellerGaps(days: number) {
+  const { rows } = await executor().execute<{ conversation_id: string; at: Date; text: string | null }>(sql`
+    select e.conversation_id, e.created_at as at,
+      (select m.text from crm_messages m where m.conversation_id = e.conversation_id and m.direction = 'in' and m.created_at <= e.created_at order by m.created_at desc limit 1) as text
+    from crm_bot_events e
+    where e.kind = 'handoff' and e.reason = 'unanswered' and e.created_at >= now() - make_interval(days => ${days})
+    order by e.created_at desc limit 10`);
+  return rows.map((r) => ({ conversationId: r.conversation_id, at: new Date(r.at), text: (r.text ?? "").slice(0, 200) }));
 }
 
 /** Есть ли в стоп-листе один из номеров (spam — только спам; без reason — любая отметка). Поиск по первичному ключу. */

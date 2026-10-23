@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { BotMetrics } from "@/modules/messaging";
 import { byLabel, failureReasonLabels, handoffReasonLabels } from "@/modules/messaging/domain/botStats";
 
@@ -30,6 +31,35 @@ const TIERS: [string, string][] = [
   ["fallback", "запасная модель"],
 ];
 const pct = (n: number, of: number) => `${Math.round((n / of) * 100)}%`;
+
+const TOUCHES: [string, string][] = [
+  ["reply", "ответ на сообщение"],
+  ["materials", "подборка материалов"],
+  ["remind1", "1-е напоминание"],
+  ["remind2", "2-е напоминание"],
+  ["remind3", "3-е и дальше"],
+];
+
+/** Беседы продажника за 7 и 30 дней, по дням недели — последние 7 (bots-2). */
+function Daily({ daily }: { daily: NonNullable<BotMetrics["daily"]> }) {
+  const sum = (rows: typeof daily) => rows.reduce((a, r) => ({ started: a.started + r.started, takeover: a.takeover + r.takeover }), { started: 0, takeover: 0 });
+  const week = daily.slice(-7);
+  const w = sum(week);
+  const m = sum(daily);
+  return (
+    <div data-testid="bot-daily">
+      <div className="mb-1 text-muted">Беседы продажника</div>
+      <div>{`7 дней: начал ${w.started}, подхватил ${w.takeover} · 30 дней: начал ${m.started}, подхватил ${m.takeover}`}</div>
+      <div className="mt-1 flex flex-wrap gap-1 text-muted">
+        {week.map((r) => (
+          <span key={r.day} className="rounded bg-cream px-1.5 py-0.5 tabular-nums" title={`${r.day}: начал ${r.started}, подхватил ${r.takeover}`}>
+            {r.day.slice(8, 10)}.{r.day.slice(5, 7)} · {r.started + r.takeover}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
 const usd = (n: number) => `$${n < 1 ? n.toFixed(4) : n.toFixed(2)}`;
 
 /** Модель продажника: доли уровней (ответили / выбрал код), эскалации, расходы на 1 000 ходов, кэш, сбои и запасные. */
@@ -103,6 +133,26 @@ export function BotStats({ m, questions, skipLabels }: { m: BotMetrics; question
             <div className="mb-1 text-muted">Почему передал менеджеру</div>
             {handoffs.map(([label, n]) => (
               <div key={label}>{`${label}: ${n}`}</div>
+            ))}
+          </div>
+        ) : null}
+        {m.daily?.length ? <Daily daily={m.daily} /> : null}
+        {m.touches && Object.keys(m.touches).length ? (
+          <div data-testid="bot-touches">
+            <div className="mb-1 text-muted">Клиент ответил за 24 часа</div>
+            {TOUCHES.map(([k, label]) => {
+              const t = m.touches?.[k];
+              return t?.sent ? <div key={k}>{`${label}: ${t.replied} из ${t.sent} (${pct(t.replied, t.sent)})`}</div> : null;
+            })}
+          </div>
+        ) : null}
+        {m.gaps?.length ? (
+          <div className="sm:col-span-2" data-testid="bot-gaps">
+            <div className="mb-1 text-muted">Вопросы без ответа продажника — что добавить в базу знаний</div>
+            {m.gaps.map((g) => (
+              <Link key={`${g.conversationId}:${g.at.toISOString()}`} href={`/admin/chats?c=${g.conversationId}`} className="block truncate hover:text-wine">
+                «{g.text || "без текста"}»
+              </Link>
             ))}
           </div>
         ) : null}
