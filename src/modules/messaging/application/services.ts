@@ -76,6 +76,10 @@ const NO_MESSAGES_NOTE =
 /** Бот в инбоксе: входящие, ответ человека, автоответ правил. */
 type InboxBot = Pick<QualifierBot, "onIncoming" | "stopByHuman" | "isActive">;
 
+/** Автосообщение клиенту без почты не уходит, если бот или правило писали ему за сутки, а менеджер — за двое суток. */
+const RECENT_AUTO_MS = 24 * 3_600_000;
+const RECENT_HUMAN_MS = 48 * 3_600_000;
+
 /** Единый инбокс: входящие из всех каналов, отправка ответов, статусы доставки. */
 export class MessagingService {
   /** День, за который руководители уже узнали, что лимит сообщений от правил исчерпан (одно уведомление в сутки). */
@@ -511,6 +515,24 @@ export class MessagingService {
       }
     }
     return this.send(conversationId, text, null, "rule");
+  }
+
+  /**
+   * Автосообщение клиенту без почты (automation-16): дедлайн к празднику, «книга почти готова», «оплатите», отзыв — в
+   * его последнюю переписку WhatsApp, как сообщение правила (sendAutomated: бот ведёт — молчим, стоп-лист, реквизиты,
+   * окно и лимит). Первым на новый номер не пишем: переписки нет — no_chat. Клиенту не пишут втроём: за сутки писали бот
+   * или правило, а за двое — менеджер (из CRM или с телефона магазина) — recent. skipped — не пропустил sendAutomated.
+   */
+  async sendToClient(clientId: string, text: string, opts: { rule: string }): Promise<"sent" | "no_chat" | "recent" | "skipped"> {
+    const conv = await this.conversations.latestWhatsappOfClient(clientId);
+    if (!conv) return "no_chat";
+    const now = this.clock.now().getTime();
+    const last = await this.messages.lastOutgoing(conv.id, new Date(now - RECENT_HUMAN_MS));
+    if (last.human || (last.auto && now - last.auto.getTime() < RECENT_AUTO_MS)) return "recent";
+    // Вне окна и сверх лимита — молча: автописьма пробуют каждые 15 минут, заметка в сделку на каждый проход не нужна.
+    if ((await this.ruleBlockNow()).block) return "skipped";
+    const sent = await this.sendAutomated(conv.id, text, { rule: opts.rule });
+    return sent && sent.status !== "error" ? "sent" : "skipped";
   }
 
   /**

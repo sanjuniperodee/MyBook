@@ -149,6 +149,7 @@ export function setup(
       return true;
     },
     latestWhatsapp: async (chatId) => [...convs.values()].filter((c) => c.channel === "whatsapp" && c.chatId === chatId).at(-1) ?? null,
+    latestWhatsappOfClient: async (clientId) => [...convs.values()].filter((c) => (c.channel === "whatsapp" || c.channel === "wapi") && c.clientId === clientId).at(-1) ?? null,
     assignByDeal: async () => {},
     chatIdsByDeal: async (dealId) => [...convs.values()].filter((c) => c.dealId === dealId).map((c) => c.chatId),
     chatIdsByClient: async (clientId) => [...convs.values()].filter((c) => c.clientId === clientId).map((c) => c.chatId),
@@ -189,6 +190,11 @@ export function setup(
       return m ? { id: m.id, status: m.status, conversationId: m.conv } : null;
     },
     countRuleSince: async (since, cap) => Math.min(cap, msgs.filter((m) => m.source === "rule" && !m.internal && m.at >= since && m.status !== "error").length),
+    lastOutgoing: async (conv, since) => {
+      const out = msgs.filter((m) => m.conv === conv && m.dir === "out" && !m.internal && m.at >= since);
+      const max = (list: Msg[]) => list.reduce<Date | null>((a, m) => (!a || m.at > a ? m.at : a), null);
+      return { auto: max(out.filter((m) => m.source)), human: max(out.filter((m) => !m.source)) };
+    },
   };
   const sales: SalesGateway = {
     findClientByPhone: async (phone) => opts.clients?.[phone] ?? null,

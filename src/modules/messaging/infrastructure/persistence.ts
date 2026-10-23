@@ -164,6 +164,16 @@ export class DrizzleConversationRepository implements ConversationRepository {
       .limit(1);
     return r ? toConversation(r) : null;
   }
+
+  async latestWhatsappOfClient(clientId: string) {
+    const [r] = await executor()
+      .select()
+      .from(crmConversations)
+      .where(and(eq(crmConversations.clientId, clientId), sql`${crmConversations.channel} in ('whatsapp', 'wapi')`))
+      .orderBy(sql`${crmConversations.lastMessageAt} desc nulls last`, desc(crmConversations.id))
+      .limit(1);
+    return r ? toConversation(r) : null;
+  }
 }
 
 export class DrizzleMessageRepository implements MessageRepository, MessageMediaStore {
@@ -335,6 +345,18 @@ export class DrizzleMessageRepository implements MessageRepository, MessageMedia
         limit ${cap}
       ) t`);
     return Number(rows[0]?.n ?? 0);
+  }
+
+  /** По индексу crm_messages_conv_idx (conversation_id, created_at): только сообщения диалога с since. */
+  async lastOutgoing(conversationId: string, since: Date) {
+    const [r] = await executor()
+      .select({
+        auto: sql<Date | null>`max(${crmMessages.createdAt}) filter (where ${crmMessages.source} is not null)`.mapWith((v) => (v ? new Date(v) : null)),
+        human: sql<Date | null>`max(${crmMessages.createdAt}) filter (where ${crmMessages.source} is null)`.mapWith((v) => (v ? new Date(v) : null)),
+      })
+      .from(crmMessages)
+      .where(and(eq(crmMessages.conversationId, conversationId), gte(crmMessages.createdAt, since), eq(crmMessages.direction, "out"), eq(crmMessages.internal, false)));
+    return { auto: r?.auto ?? null, human: r?.human ?? null };
   }
 }
 

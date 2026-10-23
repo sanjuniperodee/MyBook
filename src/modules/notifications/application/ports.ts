@@ -1,5 +1,5 @@
 import type { Locale } from "@/i18n/config";
-import type { DraftEmail, DraftProgress } from "../domain";
+import type { DraftEmail, DraftProgress, LifecycleChatKind } from "../domain";
 
 /** Получатель писем (клиент). */
 export interface Recipient {
@@ -76,6 +76,19 @@ export interface ComposedEmail {
   html: string;
   /** Запись в ленту клиента в CRM. */
   note: string;
+  /** То же сообщение для WhatsApp — клиенту без почты (automation-16); нет — только письмом. */
+  chat?: { kind: LifecycleChatKind; text: string };
+}
+
+/**
+ * Переписка клиента в WhatsApp (контекст Messaging): автописьмо клиенту без почты уходит сообщением в существующий
+ * диалог — с окном, лимитом и стоп-листом сообщений правил. no_chat — переписки нет (первым на номер не пишем), recent —
+ * клиенту недавно писали бот, правило или менеджер, skipped — не пропустили защита номера или бот.
+ */
+export interface ClientChat {
+  send(clientId: string, text: string, rule: string): Promise<"sent" | "no_chat" | "recent" | "skipped">;
+  /** Какие автописьма включены в WhatsApp («Интеграции» → «Мессенджеры»). */
+  kinds(): Promise<ReadonlySet<LifecycleChatKind>>;
 }
 
 /** Форма отзыва и благодарность за него (контекст Feedback) — для письма с просьбой об отзыве. */

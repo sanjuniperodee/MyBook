@@ -33,6 +33,8 @@ export interface ConversationRepository {
   /** Шаг бота from → to атомарно; false — менеджер уже ответил или параллельный вебхук. */
   advanceBot(id: string, from: number | null, to: number): Promise<boolean>;
   latestWhatsapp(chatId: string): Promise<Conversation | null>;
+  /** Последняя по времени переписка клиента в WhatsApp (GOWA или Wazzup) — по индексу crm_conv_client_idx. */
+  latestWhatsappOfClient(clientId: string): Promise<Conversation | null>;
   /** Диалоги сделки: назначить ответственного (заявку приняли). */
   linkClientByDeal(dealId: string, clientId: string): Promise<void>;
   assignByDeal(dealId: string, userId: string): Promise<void>;
@@ -117,6 +119,8 @@ export interface MessageRepository {
   byExternalId(externalId: string): Promise<{ id: string; status: string; conversationId: string } | null>;
   /** Сколько сообщений правил ушло клиентам начиная с since (заметки не в счёт); дальше cap не считаем. */
   countRuleSince(since: Date, cap: number): Promise<number>;
+  /** Когда в диалог последний раз писали начиная с since: бот или правило (auto) и человек — из CRM или эхо (human). */
+  lastOutgoing(conversationId: string, since: Date): Promise<{ auto: Date | null; human: Date | null }>;
 }
 
 /** Почему номер в стоп-листе: спам или «не писать первым». */

@@ -3,6 +3,24 @@ import { bookKind, progressOf } from "@/lib/content/kinds";
 import { zonedParts } from "@/shared/domain/time";
 
 export const DAY = 86_400_000;
+
+/**
+ * Автописьма, которые клиенту без почты (адрес-заглушка из WhatsApp) уходят сообщением в его переписку WhatsApp
+ * (automation-16): дедлайн к празднику, «книга почти готова», «заказ ждёт оплаты», просьба об отзыве. Советы «как начать»
+ * и «напоминание дописать» — только письмом: в чате их ведёт бот и менеджер.
+ */
+export const LIFECYCLE_CHAT_KINDS = ["deadline", "almost", "unpaid", "review"] as const;
+export type LifecycleChatKind = (typeof LIFECYCLE_CHAT_KINDS)[number];
+
+/** Включённые автописьма в WhatsApp из настройки (JSON-список); мусор и незнакомое — выключено. */
+export function parseChatKinds(raw: string | null | undefined): Set<LifecycleChatKind> {
+  try {
+    const v: unknown = JSON.parse(raw || "[]");
+    return new Set(Array.isArray(v) ? LIFECYCLE_CHAT_KINDS.filter((k) => v.includes(k)) : []);
+  } catch {
+    return new Set();
+  }
+}
 /** Ручное напоминание из CRM — не чаще раза в столько дней. */
 export const REMINDER_COOLDOWN_DAYS = 3;
 

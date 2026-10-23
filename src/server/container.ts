@@ -341,7 +341,14 @@ export class Container {
   }
 
   get notifications(): NotificationsModule {
-    return (this.#notifications ??= new NotificationsModule({ mailer: this.mailer, clock: this.clock, reviews: { url: reviewUrl, thankYouPercent: THANK_YOU.percent } }));
+    return (this.#notifications ??= new NotificationsModule({
+      mailer: this.mailer,
+      clock: this.clock,
+      reviews: { url: reviewUrl, thankYouPercent: THANK_YOU.percent },
+      // Автописьма клиентам без почты — в их переписку WhatsApp, как сообщения правил (окно, лимит, стоп-лист).
+      chat: { send: (clientId, text, rule) => this.messaging.chats.sendToClient(clientId, text, { rule }) },
+      settings: this.workspace.settings,
+    }));
   }
 
   get authoring(): AuthoringModule {

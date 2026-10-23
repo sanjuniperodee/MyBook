@@ -9,6 +9,8 @@ import { unsubscribeUrl } from "./unsubscribe";
 
 const msg = (r: Pick<Recipient, "locale">) => messagesFor(r.locale);
 const hello = (r: Recipient) => msg(r).mail.hello(escapeHtml(r.name));
+/** Сообщение в WhatsApp: приветствие по имени, без HTML. */
+const chatText = (r: Recipient, text: string) => `${msg(r).mail.hello(r.name.trim())} ${text}`;
 
 function footnote(r: Recipient) {
   const m = msg(r).mail;
@@ -48,6 +50,7 @@ const baseTemplates: Omit<EmailTemplates, "review"> = {
             button: { label: ready ? t.preview : t.continue, url: ready ? previewLink(c) : bookLink(c) },
           }),
           note: `Автописьмо: напоминание о дедлайне (${ru.occasions[email.occasion as keyof typeof ru.occasions].label}, заказать ${ru.until(by)})`,
+          chat: { kind: "deadline", text: chatText(r, (email.premiumOnly ? m.mail.lifecycle.chat.deadlinePremium : m.mail.lifecycle.chat.deadline)(c.book.title, until, ready ? previewLink(c) : bookLink(c))) },
         };
       }
       case "almost": {
@@ -58,6 +61,7 @@ const baseTemplates: Omit<EmailTemplates, "review"> = {
           subject: t.subject(c.book.title),
           html: emailLayout({ ...base, title: t.title, paragraphs: [hello(r), blank ? t.textWords(title, c.book.words) : t.text(title, c.book.answered), t.next], button: { label: t.button, url: previewLink(c) } }),
           note: `Автописьмо: книга почти готова (${blank ? `${c.book.words} слов` : `${c.book.answered} ответов`})`,
+          chat: { kind: "almost", text: chatText(r, m.mail.lifecycle.chat.almost(c.book.title, previewLink(c))) },
         };
       }
       case "start": {
@@ -98,6 +102,7 @@ const baseTemplates: Omit<EmailTemplates, "review"> = {
         footnote: footnote(r),
       }),
       note: `Автописьмо: напоминание об оплате заказа №${o.number}`,
+      chat: { kind: "unpaid", text: chatText(r, msg(r).mail.lifecycle.chat.unpaid(o.number, formatPrice(o.amount), appLink(`/orders/${o.orderId}`, r.locale))) },
     };
   },
 
@@ -126,6 +131,7 @@ const reviewMail = (reviews: ReviewLinks) => (o: OrderReminder) => {
   const t = msg(r).mail.lifecycle.review;
   // Просьба об отзыве по виду книги: подарок — «как прошло вручение», автобиография и своя книга — без «подарка».
   const kind = bookKind(o.theme);
+  const url = reviews.url(o.orderId, r.locale);
   return {
     to: o.contactEmail,
     subject: t.subject,
@@ -133,10 +139,11 @@ const reviewMail = (reviews: ReviewLinks) => (o: OrderReminder) => {
       locale: r.locale,
       title: t.title,
       paragraphs: [hello(r), kind === "autobiography" ? t.textAutobiography : kind === "blank" ? t.textBlank : t.text, t.thanks(reviews.thankYouPercent), (kind === "autobiography" ? t.giftAutobiography : t.gift)(appLink("/gift", r.locale))],
-      button: { label: t.button, url: reviews.url(o.orderId, r.locale) },
+      button: { label: t.button, url },
       footnote: footnote(r),
     }),
     note: `Автописьмо: просьба об отзыве по заказу №${o.number}`,
+    chat: { kind: "review" as const, text: chatText(r, msg(r).mail.lifecycle.chat.review(reviews.thankYouPercent, url)) },
   };
 };
 

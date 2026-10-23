@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { GowaError, RULE_DAILY_LIMIT_MAX } from "@/modules/messaging";
 import { saveSettings } from "@/modules/workspace";
+import { LIFECYCLE_CHAT_KINDS } from "@/modules/notifications";
 import { isValidTime } from "@/shared/domain/schedule";
 import { admin } from "@/i18n/admin";
 import { assertStaff, audit } from "@/server/access";
@@ -100,6 +101,19 @@ export async function saveRuleSendingAction(input: z.input<typeof ruleSendingSch
   const { from, to, dailyLimit } = parsed.data;
   await saveSettings({ "whatsapp.rulesWindow": JSON.stringify({ from, to }), "whatsapp.rulesDailyLimit": String(dailyLimit) }, staff.user.id);
   await audit(staff, "settings.update", "settings", "whatsapp", { rulesWindow: `${from}–${to}`, rulesDailyLimit: dailyLimit });
+  revalidatePath("/admin/settings");
+  return { ok: true };
+}
+
+/**
+ * Какие автописьма клиентам без почты уходят сообщением в их переписку WhatsApp (automation-16). Все приезжают
+ * выключенными.
+ */
+export async function saveLifecycleChatAction(kinds: string[]): Promise<Result> {
+  const staff = await assertStaff("settings.manage");
+  const list = LIFECYCLE_CHAT_KINDS.filter((k) => z.array(z.string().max(20)).max(10).parse(kinds).includes(k));
+  await saveSettings({ "notify.whatsapp": JSON.stringify(list) }, staff.user.id);
+  await audit(staff, "settings.update", "settings", "whatsapp", { lifecycleChat: list });
   revalidatePath("/admin/settings");
   return { ok: true };
 }

@@ -12,6 +12,13 @@ export const mail: typeof ru = {
     footnote: "Егер сіз қалпына келтіруді сұрамаған болсаңыз, бұл хатты елемеңіз.",
   },
   lifecycle: {
+    chat: {
+      deadline: (book: string, until: string, url: string) => `«${book}» кітабы уақытында жетуі үшін тапсырысты ${until} рәсімдеңіз. Үлгермесеңіз — экспресс-баспаны қосыңыз, ол кезексіз басылады. Кітап осында: ${url}`,
+      deadlinePremium: (book: string, until: string, url: string) => `Қарапайым өндіріс мерекеге енді үлгермейді, бірақ экспресс-баспа кезексіз басылады: тапсырысты ${until} рәсімдесеңіз, «${book}» кітабы уақытында жетеді. Кітап осында: ${url}`,
+      almost: (book: string, url: string) => `«${book}» кітабы дайын болуға жақын. Макетті парақтаңыз — беттер дәл басылатындай етіп беттелген. Бәрі ұнаса, тапсырыс беріңіз: ${url}`,
+      unpaid: (n: number, amount: string, url: string) => `${amount} сомасына №${n} тапсырыс рәсімделді, бірақ әлі төленбеді. Төлем түсісімен кітап баспаға жіберіледі: ${url}\nТөлемде қиындық туса — осында жазыңыз, көмектесеміз.`,
+      review: (percent: number, url: string) => `Кітап ұнады ма? Пікір қалдырыңызшы — бір минут қана алады, ал алғыс ретінде келесі кітапқа ${percent}% жеңілдік беретін промокод жібереміз: ${url}`,
+    },
     deadline: {
       subject: (occasion: string, until: string) => `«${occasion}» мерекесіне үлгеру үшін кітапқа ${until} тапсырыс беріңіз`,
       title: (untilOccasion: string, when: string) => `${untilOccasion.charAt(0).toUpperCase()}${untilOccasion.slice(1)} ${when}`,
