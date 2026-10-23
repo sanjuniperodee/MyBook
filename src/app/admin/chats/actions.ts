@@ -192,6 +192,15 @@ export async function editMessageAction(conversationId: string, messageId: strin
   return r && typeof r === "object" && "error" in r ? r : { ok: true };
 }
 
+/** «Повторить» неотправленное сообщение (chats-22): тот же текст в тот же диалог. */
+export async function resendMessageAction(conversationId: string, messageId: string): Promise<{ ok?: true; error?: string }> {
+  const staff = await assertStaff("chats.view", "chats.send");
+  const conv = await loadOwnConv(staff, conversationId);
+  const r = await messageAction(() => container().messaging.chats.resend(conv.id, uuid.parse(messageId)));
+  revalidatePath("/admin/chats");
+  return "error" in r ? { error: r.error } : { ok: true };
+}
+
 /** Удалить своё сообщение (у клиента — «удалить для всех») или свою заметку. */
 export async function deleteMessageAction(conversationId: string, messageId: string): Promise<{ ok?: true; error?: string }> {
   const staff = await assertStaff("chats.view", "chats.send");

@@ -547,6 +547,13 @@
       "when": 1792765789127,
       "tag": "0077_message_attributed_to",
       "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "7",
+      "when": 1792766424905,
+      "tag": "0078_message_error_idx",
+      "breakpoints": true
     }
   ]
 }

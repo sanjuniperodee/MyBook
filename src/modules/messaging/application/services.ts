@@ -14,6 +14,9 @@ import {
   localDayStart,
   preview,
   redactSecrets,
+  hasRedactedSecret,
+  isGatewayDown,
+  RESEND_MARK,
   sensitiveWhat,
   ruleSendBlock,
   ruleSendBlockText,
@@ -453,6 +456,60 @@ export class MessagingService {
     }
     await this.messages.editText(m.id, redactSecrets(body), this.clock.now());
     this.live.chatChanged(conversationId);
+  }
+
+  /**
+   * «Повторить» у сообщения, которое шлюз не принял (chats-22): тот же текст в тот же диалог, запись та же — статус
+   * «отправлено» или новая ошибка. Только текст (файл отправляют заново) и не со ссылкой доступа: в CRM она под маской.
+   */
+  async resend(conversationId: string, messageId: string): Promise<{ ok: true } | { ok: false; error: string }> {
+    const m = await this.messages.findOne(messageId);
+    if (!m || m.conversationId !== conversationId || m.direction !== "out" || m.internal || m.status !== "error" || m.deletedAt) throw new MessageActionError("Повторить можно только неотправленное сообщение");
+    if (m.type !== "text") throw new MessageActionError("Файл отправьте заново");
+    if (hasRedactedSecret(m.text)) throw new MessageActionError("В сообщении ссылка доступа — отправьте её заново из счёта или карточки клиента");
+    const conv = await this.conversations.findById(conversationId);
+    if (!conv) throw new MessageActionError("Диалог не найден");
+    const r = await this.transport.send(conv, m.id, m.text, { replyTo: null });
+    if (!r.ok) {
+      await this.messages.setStatus(m.id, "error", r.error);
+      this.live.chatChanged(conversationId);
+      return { ok: false, error: r.error };
+    }
+    await this.messages.setStatus(m.id, "sent", null);
+    await this.messages.attachExternalId(m.id, r.externalId);
+    this.live.chatChanged(conversationId);
+    return { ok: true };
+  }
+
+  /**
+   * Минутный проход (chats-22): сообщение бота или правила, которое не ушло из-за шлюза, — один автоповтор через 5–30
+   * минут; не ушло снова, ошибка другая («номер не в WhatsApp») или прошло больше 30 минут — ответственному уведомление.
+   * Отметка у ошибки — повтор и уведомление однократны. Сколько ушло со второй попытки.
+   */
+  async retryFailedAutomated(): Promise<number> {
+    const now = this.clock.now().getTime();
+    let sent = 0;
+    for (const f of await this.messages.failedAutomated(new Date(now - 86_400_000), 20)) {
+      const age = now - f.createdAt.getTime();
+      const retry = isGatewayDown(f.error) && age < 30 * 60_000;
+      if (retry && age < 5 * 60_000) continue; // дать шлюзу подняться
+      const res = retry ? await this.resend(f.conversationId, f.id).catch((err: unknown) => ({ ok: false as const, error: err instanceof Error ? err.message : String(err) })) : null;
+      if (res?.ok) {
+        sent++;
+        continue;
+      }
+      const error = res?.error ?? f.error ?? "ошибка отправки";
+      await this.messages.setStatus(f.id, "error", `${error}${RESEND_MARK}`);
+      const conv = await this.conversations.findById(f.conversationId);
+      if (conv)
+        await this.notifier.notify(conv.assigneeId, "chats.view", {
+          kind: "message",
+          title: `Не ушло сообщение бота: ${conv.contactName || phoneTail(conv.chatId) || conv.chatId}`,
+          body: `${error}. Откройте чат и нажмите «Повторить» или напишите сами.`,
+          link: `/admin/chats?c=${conv.id}`,
+        });
+    }
+    return sent;
   }
 
   /** Удалить своё сообщение: у клиента — «удалить для всех» (около двух суток), заметку — в любое время. */

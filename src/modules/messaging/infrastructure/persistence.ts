@@ -4,7 +4,7 @@ import { crmBlocklist, crmBotEvents, crmConversations, crmMessages, users } from
 import { executor } from "@/shared/infrastructure/database";
 import { storeTimeZone } from "@/shared/domain/time";
 import type { Blocklist, BotRecord, BotStore, ConversationRepository, MessageMediaStore, MessageRepository, MessageSource, OutgoingExtra, StoredMessage } from "../application";
-import { BOT_TRACE_KEEP_DAYS, llmMetrics, readBotState, readBotTrace, splitHandoffs, type LlmMetrics, type BotEvent, type BotState, type BotTurnTrace, type Conversation, type InboundMessage } from "../domain";
+import { BOT_TRACE_KEEP_DAYS, RESEND_MARK, llmMetrics, readBotState, readBotTrace, splitHandoffs, type LlmMetrics, type BotEvent, type BotState, type BotTurnTrace, type Conversation, type InboundMessage } from "../domain";
 
 type Row = typeof crmConversations.$inferSelect;
 
@@ -346,6 +346,15 @@ export class DrizzleMessageRepository implements MessageRepository, MessageMedia
         limit ${cap}
       ) t`);
     return Number(rows[0]?.n ?? 0);
+  }
+
+  async failedAutomated(since: Date, limit: number) {
+    return executor()
+      .select({ id: crmMessages.id, conversationId: crmMessages.conversationId, error: crmMessages.error, createdAt: crmMessages.createdAt })
+      .from(crmMessages)
+      .where(and(eq(crmMessages.status, "error"), gte(crmMessages.createdAt, since), sql`${crmMessages.source} is not null`, eq(crmMessages.internal, false), eq(crmMessages.type, "text"), isNull(crmMessages.deletedAt), sql`coalesce(${crmMessages.error}, '') not like ${`%${RESEND_MARK}%`}`))
+      .orderBy(asc(crmMessages.createdAt))
+      .limit(limit);
   }
 
   /** По индексу crm_messages_conv_idx (conversation_id, created_at): только сообщения диалога с since. */

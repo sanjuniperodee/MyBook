@@ -82,6 +82,9 @@ export async function crmTick() {
     // Бот-квалификатор: ходы, не сделанные таймером (перезапуск процесса), ожидание менеджера, брошенные опросы.
     const botTurns = await step("bot", () => container().messaging.bot.sweep(), 0);
     if (botTurns) console.log(`[scheduler] crm bot turns=${botTurns}`);
+    // Сообщения бота и правил, не ушедшие из-за шлюза: один автоповтор, иначе — ответственному (chats-22).
+    const resent = await step("message retry", () => container().messaging.chats.retryFailedAutomated(), 0);
+    if (resent) console.log(`[scheduler] messages resent=${resent}`);
     // Звонки WhatsApp, о конце которых никто не сообщил: звонят больше полутора минут или вкладка сотрудника пропала.
     const calls = await step("whatsapp calls", () => container().telephony.whatsapp.sweep(), 0);
     if (calls) console.log(`[scheduler] whatsapp calls closed=${calls}`);

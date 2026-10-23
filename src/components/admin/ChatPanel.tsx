@@ -6,7 +6,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, use
 import { ArrowDown, BadgePercent, BookOpen, Check, Mic, FileText, Forward, Trash2, LoaderCircle, Lock, MessageSquareQuote, Paperclip, Pencil, Receipt, ReceiptText, Reply, SendHorizontal, Sparkles, Wallet, X } from "lucide-react";
 import { aiSuggestReplyAction, aiTemplateDraftAction } from "@/app/admin/ai-actions";
 import { TemplateEditor } from "@/app/admin/templates/TemplateEditor";
-import { deleteMessageAction, editMessageAction, markReadAction, sendInternalNoteAction, sendMessageAction, sendOfferAction } from "@/app/admin/chats/actions";
+import { deleteMessageAction, editMessageAction, markReadAction, resendMessageAction, sendInternalNoteAction, sendMessageAction, sendOfferAction } from "@/app/admin/chats/actions";
 import { ask } from "@/components/ui/overlays";
 import { AUDIO_EVENT, type AudioEvent } from "./chat/VoicePlayer";
 import { ForwardDialog } from "./chat/ForwardDialog";
@@ -350,8 +350,14 @@ export function ChatPanel({
       });
     })();
 
-  const onAction = (kind: "reply" | "forward" | "edit" | "remove" | "copy" | "select" | "template", m: Msg) => {
-    if (kind === "template") {
+  const onAction = (kind: "retry" | "reply" | "forward" | "edit" | "remove" | "copy" | "select" | "template", m: Msg) => {
+    if (kind === "retry") {
+      start(async () => {
+        const r = await resendMessageAction(conversationId, m.id);
+        toast(r.error ?? "Отправлено", r.error ? "error" : "success");
+        router.refresh();
+      });
+    } else if (kind === "template") {
       setTplDraft({ loading: true });
       void aiTemplateDraftAction(conversationId, m.id)
         .then((r) => {

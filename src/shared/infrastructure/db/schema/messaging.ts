@@ -127,6 +127,8 @@ export const crmMessages = pgTable(
     index("crm_messages_conv_idx").on(t.conversationId, t.createdAt),
     // Суточный лимит сообщений клиентам от правил (automation-15): счёт за сегодня — по этому индексу, без обхода переписки.
     index("crm_messages_rule_idx").on(t.createdAt).where(sql`${t.source} = 'rule' and ${t.internal} = false`),
+    // Неотправленные (шлюз не принял): автоповтор сообщений бота и правил в минутном проходе (chats-22) — их единицы.
+    index("crm_messages_error_idx").on(t.createdAt).where(sql`${t.status} = 'error'`),
   ],
 );
 

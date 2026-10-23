@@ -42,6 +42,7 @@ export type Msg = {
   editedAt?: Date | null;
   deletedAt?: Date | null;
   transcript?: string | null;
+  error?: string | null;
 };
 
 export function setup(
@@ -92,6 +93,8 @@ export function setup(
   const deals: { id: string; title: string; unsorted: boolean; fields: Record<string, unknown>; tags: string[] }[] = [];
   const sent: string[] = [];
   const sendOpts: { replyTo?: string | null; forwarded?: boolean }[] = [];
+  /** Ошибка шлюза для отправки; null — шлюз работает. */
+  const gateway: { down: string | null } = { down: null };
   const files: { name: string; kind: string; caption: string; forwarded: boolean; replyTo: string | null }[] = [];
   const edits: { externalId: string; text: string }[] = [];
   const revokes: string[] = [];
@@ -176,7 +179,7 @@ export function setup(
       msgs.push(m);
       return { id: m.id, conversationId: conv, text, authorId, createdAt: now };
     },
-    setStatus: async (id, status) => void (msgs.find((m) => m.id === id)!.status = status),
+    setStatus: async (id, status, error) => void Object.assign(msgs.find((m) => m.id === id)!, { status, error: error ?? null }),
     findOne: async (id) => {
       const m = msgs.find((x) => x.id === id);
       return m
@@ -192,6 +195,11 @@ export function setup(
       return m ? { id: m.id, status: m.status, conversationId: m.conv } : null;
     },
     countRuleSince: async (since, cap) => Math.min(cap, msgs.filter((m) => m.source === "rule" && !m.internal && m.at >= since && m.status !== "error").length),
+    failedAutomated: async (since, limit) =>
+      msgs
+        .filter((m) => m.status === "error" && m.source && !m.internal && m.type === "text" && !m.deletedAt && m.at >= since && !String(m.error ?? "").includes(" · повтор"))
+        .slice(0, limit)
+        .map((m) => ({ id: m.id, conversationId: m.conv, error: m.error ?? null, createdAt: m.at })),
     lastOutgoing: async (conv, since) => {
       const out = msgs.filter((m) => m.conv === conv && m.dir === "out" && !m.internal && m.at >= since);
       const max = (list: Msg[]) => list.reduce<Date | null>((a, m) => (!a || m.at > a ? m.at : a), null);
@@ -282,7 +290,13 @@ export function setup(
       remove: async (values, reason) => values.forEach((v) => (!reason || blocklist.get(v)?.reason === reason) && blocklist.delete(v)),
     },
     {
-      send: async (_c, _id, text, o) => (sent.push(text), sendOpts.push(o ?? {}), { ok: true, externalId: opts.noExternalId ? null : `wz-${sent.length}` }),
+      send: async (_c, _id, text, o) => {
+        // Шлюз «лежит» (gateway.down): сообщение не уходит — ошибка, как у настоящего транспорта.
+        if (gateway.down) return { ok: false as const, error: gateway.down };
+        sent.push(text);
+        sendOpts.push(o ?? {});
+        return { ok: true as const, externalId: opts.noExternalId ? null : `wz-${sent.length}` };
+      },
       sendFile: async (_c, file, o) => (files.push({ name: file.name, kind: file.kind, caption: o.caption, forwarded: !!o.forwarded, replyTo: o.replyTo ?? null }), { ok: true, externalId: `wzf-${files.length}` }),
       edit: async (_c, externalId, text) => (edits.push({ externalId, text }), { ok: true }),
       revoke: async (_c, externalId) => (revokes.push(externalId), { ok: true }),
@@ -366,7 +380,7 @@ export function setup(
       await new Promise((r) => setTimeout(r, 0));
     }
   };
-  return { service, bot, deps, crmState, blocklist, convs, msgs, deals, sent, sendOpts, files, edits, revokes, claims, notes, dealNotes, notified, alerts, tasks, events, settings, advance, scheduled, changed, setNow: (d: Date) => (now = d), conv: () => [...convs.values()][0] };
+  return { service, bot, deps, crmState, blocklist, convs, msgs, deals, sent, sendOpts, gateway, files, edits, revokes, claims, notes, dealNotes, notified, alerts, tasks, events, settings, advance, scheduled, changed, setNow: (d: Date) => (now = d), conv: () => [...convs.values()][0] };
 }
 
 let ext = 0;

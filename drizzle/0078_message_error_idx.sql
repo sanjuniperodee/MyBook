@@ -1,0 +1,1 @@
+CREATE INDEX "crm_messages_error_idx" ON "crm_messages" USING btree ("created_at") WHERE "crm_messages"."status" = 'error';

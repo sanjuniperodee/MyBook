@@ -16,7 +16,7 @@ const fake = {
   automation: { engine: { runScheduled: stepFn("automations", 0) } },
   clients: { tasks: { remindDue: stepFn("reminders", 0) } },
   sales: { routing: { run: stepFn("routing", 0) } },
-  messaging: { bot: { sweep: stepFn("bot", 0) }, email: { pollImap: stepFn("imap", 0) }, syncGowaHistory: stepFn("history", 0), coach: { run: stepFn("coach", null) }, purgeBotTraces: stepFn("traces", 0) },
+  messaging: { chats: { retryFailedAutomated: stepFn("retry", 0) }, bot: { sweep: stepFn("bot", 0) }, email: { pollImap: stepFn("imap", 0) }, syncGowaHistory: stepFn("history", 0), coach: { run: stepFn("coach", null) }, purgeBotTraces: stepFn("traces", 0) },
   invoiceAccess: { run: stepFn("access", { processed: 0, failed: 0 }), expire: stepFn("expire", 0) },
   ordering: { deliverDueGifts: stepFn("gifts", 0), kaspiWatch: { check: stepFn("kaspi watch", null) } },
   notifications: { lifecycle: { run: stepFn("lifecycle", 0) } },
@@ -48,7 +48,7 @@ describe("scheduler: шаг упал — проход идёт дальше", ()
   it("минутный проход: правила CRM и круг заявок упали — напоминания, бот, звонки WhatsApp, почта, доступ по счетам и проверка кассира Kaspi всё равно выполняются", async () => {
     failing.add("automations").add("routing");
     await crmTick();
-    expect(calls).toEqual(["automations", "reminders", "routing", "bot", "whatsapp calls", "imap", "access", "expire", "kaspi watch", "digest"]);
+    expect(calls).toEqual(["automations", "reminders", "routing", "bot", "retry", "whatsapp calls", "imap", "access", "expire", "kaspi watch", "digest"]);
     expect(errors.map((e) => e[0])).toEqual(['[scheduler] step "crm automations" failed', '[scheduler] step "lead routing" failed']);
   });
 
@@ -57,7 +57,7 @@ describe("scheduler: шаг упал — проход идёт дальше", ()
     await crmTick();
     expect(calls.at(-2)).toBe("kaspi watch");
     expect(calls.at(-1)).toBe("digest");
-    expect(calls).toHaveLength(10);
+    expect(calls).toHaveLength(11);
     expect(errors.map((e) => e[0])).toEqual(['[scheduler] step "kaspi watch" failed']);
   });
 

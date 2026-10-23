@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useEffect, useRef, useState } from "react";
-import { AlertCircle, Ban, Bot, Check, CheckCheck, CheckSquare, ChevronDown, Slash, Clock, Copy, Download, FileText, Forward, Lock, Pencil, Play, Reply, Trash2 } from "lucide-react";
+import { AlertCircle, Ban, Bot, Check, CheckCheck, CheckSquare, ChevronDown, Slash, Clock, Copy, Download, FileText, Forward, Lock, Pencil, Play, Reply, RotateCw, Trash2 } from "lucide-react";
 import type { ChatMessage } from "@/modules/messaging";
 import { cn } from "@/lib/class-names";
 import { VoicePlayer } from "./VoicePlayer";
@@ -130,6 +130,7 @@ export const canForward = (m: Msg) => selectable(m) && !m.internal && (!!m.text 
 export const canRemove = (m: Msg, me: string, now: number) => selectable(m) && m.direction === "out" && !!m.authorId && m.authorId === me && (m.internal || m.status === "error" || now - new Date(m.at).getTime() < DELETE_MS);
 
 export interface BubbleActions {
+  retry?: () => void;
   reply?: () => void;
   forward?: () => void;
   edit?: () => void;
@@ -193,6 +194,8 @@ function Bubble({
   const temp = isTemp(m);
   const items: { key: keyof BubbleActions | "copy"; label: string; icon: typeof Reply; danger?: boolean }[] = [];
   if (!m.deleted && !temp && !selecting) {
+    // Не ушло (шлюз не принял) — повторить тем же текстом (chats-22).
+    if (canSend && out && !m.internal && m.status === "error" && m.type === "text") items.push({ key: "retry", label: "Повторить отправку", icon: RotateCw });
     if (canSend && !m.internal) items.push({ key: "reply", label: "Ответить", icon: Reply });
     if (canSend && canForward(m)) items.push({ key: "forward", label: "Переслать", icon: Forward });
     if (m.text) items.push({ key: "copy", label: "Копировать текст", icon: Copy });

@@ -54,6 +54,15 @@ export const channelLabel = (c: string) => channelLabels[c] ?? c;
  */
 export const redactSecrets = (t: string) => t.replace(/(\/reset\/)[A-Za-z0-9_-]{8,}/g, "$1••••");
 
+/** В CRM сообщение хранится с маской ссылки доступа — заново его не отправить, клиент получил бы «••••». */
+export const hasRedactedSecret = (t: string) => /\/reset\/••••/.test(t);
+
+/** Отметка у ошибки отправки, что автоповтор уже был или ответственному сообщили (chats-22): второй раз не трогаем. */
+export const RESEND_MARK = " · повтор";
+
+/** Шлюз не ответил (недоступен, таймаут) — такое сообщение имеет смысл отправить ещё раз; «номер не в WhatsApp» — нет. */
+export const isGatewayDown = (error: string | null | undefined) => /недоступен|unreachable|econnrefused|etimedout|timeout|socket hang up|502|503|504/i.test(error ?? "");
+
 /** Строка для списка чатов (без секретов). */
 export const preview = (t: string) => redactSecrets(t).replace(/\s+/g, " ").trim().slice(0, 160);
 

@@ -120,6 +120,8 @@ export interface MessageRepository {
   byExternalId(externalId: string): Promise<{ id: string; status: string; conversationId: string } | null>;
   /** Сколько сообщений правил ушло клиентам начиная с since (заметки не в счёт); дальше cap не считаем. */
   countRuleSince(since: Date, cap: number): Promise<number>;
+  /** Неотправленные сообщения бота и правил с since (по crm_messages_error_idx), без отметки повтора, не больше limit. */
+  failedAutomated(since: Date, limit: number): Promise<{ id: string; conversationId: string; error: string | null; createdAt: Date }[]>;
   /** Когда в диалог последний раз писали начиная с since: бот или правило (auto) и человек — из CRM или эхо (human). */
   lastOutgoing(conversationId: string, since: Date): Promise<{ auto: Date | null; human: Date | null }>;
 }
