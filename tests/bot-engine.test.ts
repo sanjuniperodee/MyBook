@@ -169,6 +169,14 @@ describe("бот: для кого → тема и ссылка", () => {
     expect(findRecipient("учителю", { themes: site.themes })).toMatchObject({ key: "teacher", theme: null });
   });
 
+  it("дочери или сыну — своя тема; детям и внукам вместе — своя книга", () => {
+    const themes = [...site.themes, "child"];
+    for (const text of ["книгу дочке на выпускной", "для сына на 18 лет", "қызыма туған күнге", "ұлыма сыйлық"])
+      expect(findRecipient(text, { themes }), text).toMatchObject({ key: "child", theme: "child", label: { ru: "Дочери или сыну" } });
+    expect(findRecipient("детям и внукам", { themes })).toMatchObject({ key: "children", theme: "blank" });
+    expect(findRecipient("сыну", { themes: site.themes })).toMatchObject({ key: "child", theme: null });
+  });
+
   it("ссылка: регистрация закрыта — пример книги, открыта — начать книгу, клиент с аккаунтом — новая книга", () => {
     const mom = findRecipient("маме", { themes: site.themes })!;
     expect(bookLink(mom, site, "ru", false)).toEqual({ url: "https://mybook.kz/kniga/kniga-mame", kind: "example" });

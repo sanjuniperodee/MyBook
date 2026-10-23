@@ -53,6 +53,6 @@ export const review: typeof ru = {
     eyebrow: "Пікірлер",
     title: "Кітапты сыйлап үлгергендер не дейді",
     summary: (avg: string, count: number) => `5-тен ${avg} · ${kkCount(count, "пікір")}`,
-    theme: { love: "Сүйікті адамға кітап", mom: "Анаға кітап", dad: "Әкеге кітап", friend: "Досқа кітап", teacher: "Ұстазға кітап", autobiography: "Өз өмірі туралы кітап", blank: "Өз кітабы" } as Record<string, string>,
+    theme: { love: "Сүйікті адамға кітап", mom: "Анаға кітап", dad: "Әкеге кітап", child: "Қызға не ұлға кітап", friend: "Досқа кітап", teacher: "Ұстазға кітап", autobiography: "Өз өмірі туралы кітап", blank: "Өз кітабы" } as Record<string, string>,
   },
 };
