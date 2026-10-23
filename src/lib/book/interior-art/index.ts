@@ -10,3 +10,4 @@ export type { Shape, Drawing } from "./geometry";
 export { glyphDrawing, vignetteDrawing, dividerDrawing } from "./glyphs";
 export { frameShapes, type PageBox } from "./frames";
 export { openerArtShapes, type ArtContext } from "./opener-art";
+export { openerEmblemShapes, titleEmblemShapes } from "./emblem";

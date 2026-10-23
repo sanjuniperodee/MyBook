@@ -1,4 +1,4 @@
-import type { BotCatalog, BotConfig, BotLesson, CoachConversation, CoachRun, HistoryMessage, BotEvent, BotInput, BotLang, BotMode, BotState, Conversation, ConversationMeta, DealField, FaqIntent, HandoffKind, InboundMessage, PaymentFacts, RouteTier } from "../domain";
+import type { BookFact, BotCatalog, BotConfig, BotLesson, CoachConversation, CoachRun, HistoryMessage, BotEvent, BotInput, BotLang, BotMode, BotState, Conversation, ConversationMeta, DealField, FaqIntent, HandoffKind, InboundMessage, PaymentFacts, RouteTier } from "../domain";
 
 /**
  * Диалоги. Счётчики (непрочитанные, «ждёт ответа», шаг бота) меняются параллельными вебхуками,
@@ -265,6 +265,8 @@ export interface BotCrm {
   tag(dealId: string, tag: string): Promise<void>;
   /** Оплата клиента для AI: платежи (ручные и онлайн по счетам, у пакета — все), счета из чата, заказы на сайте. */
   payments?(deal: { id: string; clientId: string | null; orderId: string | null }): Promise<PaymentFacts>;
+  /** Книги клиента в личном кабинете (название, вид, прогресс, фото, статус) — чтобы бот отвечал «как это сделать у вас в кабинете». */
+  books?(clientId: string): Promise<BookFact[]>;
   /** Была ли переписка с этим номером до CRM (история шлюза WhatsApp) — тогда это не новый клиент; историю — в диалог. */
   priorChat(conv: Conversation, before: Date): Promise<boolean>;
 }

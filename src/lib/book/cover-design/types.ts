@@ -7,6 +7,7 @@
  * Слой может заходить за край — в загиб под обрез (до SAFE.bleed доли). Размер текста и толщины — доли ширины крышки.
  */
 import type { FontKey } from "../fonts";
+import type { Drawing } from "../interior-art";
 import type { PhotoFrame } from "../photo-frame";
 
 export type LayerKind = "text" | "image" | "shape" | "decor";
@@ -112,6 +113,10 @@ export interface DecorLayer extends LayerBase {
   kind: "decor";
   motif: DecorId;
   color: string;
+  /** Второй цвет рисунка (роль accent); нет — рисунок одноцветный. Только у motif = "art". */
+  accent?: string;
+  /** Свой рисунок (его нарисовал ИИ-дизайнер): фигуры с цветами-ролями main и accent. Только у motif = "art". */
+  art?: Drawing;
 }
 
 export type CoverLayer = TextLayer | ImageLayer | ShapeLayer | DecorLayer;
@@ -147,7 +152,9 @@ export type DecorId =
   | "confetti"
   | "hedera"
   | "peaks"
-  | "botanical";
+  | "botanical"
+  /** Не из библиотеки: рисунок слоя лежит в DecorLayer.art. */
+  | "art";
 
 /** Слой с текстом из книги: что подставить в привязанные слои. */
 export interface CoverTexts {

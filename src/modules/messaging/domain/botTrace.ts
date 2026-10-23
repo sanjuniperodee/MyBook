@@ -18,7 +18,7 @@ export const BOT_TRACE_KEEP_DAYS = 90;
  * (blocked_twice), убрал повторное «Здравствуйте» (greeting_removed), добавил представление (intro_added), потолок беседы
  * (limit), повтор прошлого сообщения (loop), модель промолчала на вопрос (unanswered), цену спросили в N-й раз (price_asks),
  * N-е возражение (objections), счёт не по правилам (invoice_blocked), счёт не выставился (invoice_failed), клиент уже
- * платил (already_paid), срок пересчитан по названной дате (deadline_recheck), в тексте номер или карта — не отправлен
+ * платил (already_paid), срок пересчитан по названной дате (deadline_recheck), вопрос о сайте — ответ по справочнику платформы (platform), в тексте номер или карта — не отправлен
  * (sensitive), менеджер ответил посреди хода (stopped), модель не ответила (ai_error), голосовое или файл без распознавания
  * (voice, media), модель не ответила на напоминание (follow_up_skipped); повторное сообщение (bots-5): договорились
  * написать в названный день (remind_set), клиент её подтвердил (remind_kept), вернулся к разговору раньше срока — снята
@@ -40,6 +40,7 @@ export const TRACE_NOTE_CODES = [
   "invoice_failed",
   "already_paid",
   "deadline_recheck",
+  "platform",
   "sensitive",
   "stopped",
   "ai_error",

@@ -1,4 +1,5 @@
 import "server-only";
+import { bookKind } from "@/lib/content/kinds";
 import { consoleLogger, systemClock, type Clock, type EventBus, type Mailer, type UnitOfWork } from "@/shared/application";
 import { DrizzleUnitOfWork, InProcessEventBus, OutboxDispatcher } from "@/shared/infrastructure";
 import { rootDb } from "@/shared/infrastructure/database";
@@ -191,6 +192,20 @@ export class Container {
           return { orders: orders.length, books: books.length, locale: null, name: profile?.name ?? null };
         },
         tag: async (dealId, tag) => void (await this.sales.deals.addTag(dealId, tag)),
+        // Книги клиента в кабинете — для ответов бота «как это сделать у вас» (без текста книги: название и счётчики).
+        books: async (clientId) =>
+          (await this.authoring.queries.userBooks(clientId)).slice(0, 5).map(({ book, answered, total, words, photos }) => ({
+            title: book.title,
+            kind: bookKind(book.theme),
+            theme: book.theme,
+            status: book.status,
+            answered: Number(answered) || 0,
+            total: Number(total) || 0,
+            words: Number(words) || 0,
+            photos: Number(photos) || 0,
+            coverDesigned: !!book.coverDesign,
+            language: book.language,
+          })),
         // Оплата для AI: платежи сделки — и ручные (менеджер), и онлайн по счетам из чата; у пакета книг — по всем его сделкам.
         payments: async ({ id, clientId, orderId }) => {
           const batch = await this.sales.batch.of(id);

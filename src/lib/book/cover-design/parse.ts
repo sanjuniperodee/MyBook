@@ -1,4 +1,5 @@
 /** Проверка обложки из слоёв: из базы и из запроса приходит что угодно — оставляем только допустимое. */
+import { drawingWeight, sanitizeDrawing } from "../art";
 import { isFontKey } from "../fonts";
 import { normalizeFrame } from "../photo-frame";
 import { DECOR_IDS } from "./decor";
@@ -8,6 +9,8 @@ import type { CoverBackground, CoverDesign, CoverLayer, CoverTexts, DecorLayer, 
 /** Пределы: слоёв, длина текста и имени, на сколько слой может заходить за край крышки (в загиб). */
 export const COVER_LIMITS = {
   layers: 40,
+  /** Все свои рисунки обложки вместе — не больше стольких знаков пути. */
+  artWeight: 120_000,
   text: 300,
   name: 40,
   /** Рамка слоя — от −bleed до 1 + bleed долей крышки. */
@@ -132,8 +135,14 @@ function layer(raw: unknown, id: string): CoverLayer | null {
         radius: opt(o.radius, [0, 0.5]),
       }) as ShapeLayer;
     }
-    case "decor":
+    case "decor": {
+      if (o.motif === "art") {
+        // Свой рисунок: без допустимых фигур слоя нет.
+        const art = sanitizeDrawing(o.art);
+        return art ? (clean({ ...b, kind: "decor" as const, motif: "art" as const, color: color(o.color, "#B8925A"), accent: colorOrNull(o.accent) ?? undefined, art }) as DecorLayer) : null;
+      }
       return DECOR_IDS.includes(o.motif as never) ? (clean({ ...b, kind: "decor" as const, motif: o.motif, color: color(o.color, "#B8925A") }) as DecorLayer) : null;
+    }
     default:
       return null;
   }
@@ -163,7 +172,14 @@ export function parseCoverDesign(raw: unknown): CoverDesign | null {
       layers.push(parsed);
     }
   });
-  return { v: 1, background: background(o.background), layers };
+  // Свои рисунки — не больше ART_WEIGHT знаков на обложку: хвост лишнего убираем, чтобы запись в базе не разрасталась.
+  let weight = 0;
+  const kept = layers.filter((l) => {
+    if (l.kind !== "decor" || !l.art) return true;
+    weight += drawingWeight(l.art);
+    return weight <= COVER_LIMITS.artWeight;
+  });
+  return { v: 1, background: background(o.background), layers: kept };
 }
 
 /** Фото книги в слоях обложки. */

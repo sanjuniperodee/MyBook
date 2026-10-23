@@ -9,11 +9,36 @@
  */
 import type { BookFormat } from "../formats";
 import { critiqueCover, critiquePages, newAdvice, type Advice } from "./critic";
+import { polishDesigns, type PreviewImage } from "./polish";
 import { applyCoverOps, applyPagesOps, changed, DESIGN_OPS, designAiSchema, MAX_OPS, reviewSchema, variantsSchema, type CoverLayoutContext, type CoverState, type DesignOp, type DesignTarget, type PagesState } from "./ops";
 import { systemPrompt, userPrompt, type DesignBookContext, type DesignMode, type DesignTurn } from "./prompts";
 
 /** Модель Claude для дизайнера — Haiku: быстрый и дешёвый, а плейбук, проверки и исправление держат качество. */
 export const DESIGN_AI_MODEL = "claude-haiku-5-5";
+
+/**
+ * Модель для рисунков и оценки — Sonnet. Мелкие правки («шрифт покрупнее») остаются на Haiku: быстро и дёшево
+ * (designTier); «Придумать» и «3 варианта» — Opus (DESIGN_AI_MODEL_MAX).
+ */
+export const DESIGN_AI_MODEL_PRO = "claude-sonnet-5-5";
+
+/** Просьба о рисунке или «придумай»: такие запросы Haiku решает хуже — их берёт Sonnet. */
+const CREATIVE_ASK = /нарису|рису|рисова|иллюстрац|эмблем|логотип|орнамент|узор|пейзаж|придума|с нуля|заново|удиви|креатив|необычн|эксклюзив|мотив|юрт|тюльпан|горы|горн|гору|звёзд|звезд|солнц|луна|луну|картин|өрнек|сурет|ою/i;
+
+/** Самая сильная модель — для «Придумать» и «3 варианта», где решает вкус арт-директора: Opus. */
+export const DESIGN_AI_MODEL_MAX = "claude-opus-5-5";
+
+export type DesignTier = "fast" | "pro" | "max";
+
+/**
+ * Какая модель отвечает на просьбу: «Придумать» и «3 варианта» — max (Opus), оценка и просьбы о рисунке — pro (Sonnet),
+ * мелкие правки — fast (Haiku).
+ */
+export function designTier(mode: DesignMode, prompt: string): DesignTier {
+  if (mode === "create" || mode === "variants") return "max";
+  if (mode === "review") return "pro";
+  return prompt.length > 160 || CREATIVE_ASK.test(prompt) ? "pro" : "fast";
+}
 
 /** Сколько раз спрашиваем модель за одну просьбу клиента: ответ и одно исправление. */
 export const MAX_ATTEMPTS = 2;
@@ -26,12 +51,14 @@ export interface AskResult {
   usage?: { inputTokens?: number; outputTokens?: number; cacheReadTokens?: number; cacheWriteTokens?: number };
 }
 
-export type Ask = (req: { system: string; user: string; effort: "low" | "medium" | "high"; schema: Record<string, unknown>; cachePrefix: string }) => Promise<AskResult>;
+export type Ask = (req: { system: string; user: string; effort: "low" | "medium" | "high"; schema: Record<string, unknown>; cachePrefix: string; images?: PreviewImage[] }) => Promise<AskResult>;
 
 export type DesignState<T extends DesignTarget> = T extends "pages" ? PagesState : CoverState;
 
 export interface DesignAiInput<T extends DesignTarget> {
   target: T;
+  /** edit — правка по просьбе, create — придумать дизайн заново (по умолчанию edit). */
+  mode?: "edit" | "create";
   request: string;
   state: DesignState<T>;
   book: DesignBookContext;
@@ -39,6 +66,11 @@ export interface DesignAiInput<T extends DesignTarget> {
   history?: DesignTurn[];
   /** Тексты и фото книги для готовых макетов обложки (apply_layout). */
   layout?: CoverLayoutContext;
+  /**
+   * Нарисовать оформление картинкой (обложка — сама обложка, страницы — лист первых страниц): после ответа модель смотрит
+   * на неё и правит недостатки (polish.ts). Не задано — осмотра нет. null вместо картинки — осмотр пропускается.
+   */
+  preview?: (state: DesignState<T>) => Promise<PreviewImage | null>;
 }
 
 type Usage = { inputTokens: number; outputTokens: number; cacheReadTokens: number; cacheWriteTokens: number };
@@ -48,12 +80,16 @@ interface Run {
 }
 
 export interface DesignAiResult<T extends DesignTarget> extends Run {
+  /** Идея дизайна, как её объясняет дизайнер (пустая у мелких правок). */
+  concept: string;
   reply: string;
   state: DesignState<T>;
   ops: DesignOp[];
   /** Что так и не применилось (после исправления) — для журнала и честного ответа. */
   errors: string[];
   changed: boolean;
+  /** Что нашёл осмотр готовой обложки и применено ли исправление. */
+  polish?: { defects: string[]; fixed: boolean };
 }
 
 export interface DesignVariant<T extends DesignTarget> {
@@ -82,6 +118,13 @@ export interface DesignReviewResult<T extends DesignTarget> extends Run {
   summary: string;
   strengths: string[];
   tips: DesignTip<T>[];
+}
+
+function addUsage(into: Usage, more: Usage) {
+  into.inputTokens += more.inputTokens;
+  into.outputTokens += more.outputTokens;
+  into.cacheReadTokens += more.cacheReadTokens;
+  into.cacheWriteTokens += more.cacheWriteTokens;
 }
 
 // ─── разбор ответа ─────────────────────────────────────────────────────────
@@ -175,21 +218,33 @@ async function converse<T extends DesignTarget, A>(
  */
 export async function runDesignAi<T extends DesignTarget>(ask: Ask, input: DesignAiInput<T>): Promise<DesignAiResult<T>> {
   const apply = applier(input);
+  const mode = input.mode === "create" ? "create" : "edit";
   const run = await converse(
     ask,
     input,
-    "edit",
+    mode,
     designAiSchema as unknown as Record<string, unknown>,
-    "medium",
-    (raw) => (isObj(raw) ? { reply: str(raw.reply, 600), ops: opsOf(raw.ops) } : null),
+    mode === "create" ? "high" : "medium",
+    (raw) => (isObj(raw) ? { concept: str(raw.concept, 400), reply: str(raw.reply, 600), ops: opsOf(raw.ops) } : null),
     (a) => {
       const r = apply(a.ops);
       return [...r.errors, ...r.advice];
     },
   );
-  if (!run.answer) return { reply: "", state: input.state, ops: [], errors: ["нет ответа по схеме"], changed: false, attempts: run.attempts, usage: run.usage };
+  if (!run.answer) return { concept: "", reply: "", state: input.state, ops: [], errors: ["нет ответа по схеме"], changed: false, attempts: run.attempts, usage: run.usage };
   const r = apply(run.answer.ops);
-  return { reply: run.answer.reply, state: r.state, ops: run.answer.ops, errors: r.errors, changed: changed(r.state, input.state), attempts: run.attempts, usage: run.usage };
+  let state = r.state;
+  let polish: DesignAiResult<T>["polish"];
+  if (input.preview && changed(state, input.state)) {
+    const image = await input.preview(state).catch(() => null);
+    if (image) {
+      const p = await polishDesigns(ask, { target: input.target, book: input.book, request: input.request, layout: input.layout }, [state], [image]);
+      state = p.results[0].state;
+      polish = { defects: p.results[0].defects, fixed: p.results[0].fixed };
+      addUsage(run.usage, p.usage);
+    }
+  }
+  return { concept: run.answer.concept, reply: run.answer.reply, state, ops: run.answer.ops, errors: r.errors, changed: changed(state, input.state), polish, attempts: run.attempts + (polish ? 1 : 0), usage: run.usage };
 }
 
 // ─── три варианта ──────────────────────────────────────────────────────────
@@ -228,7 +283,20 @@ export async function runDesignVariants<T extends DesignTarget>(ask: Ask, input:
     variants.push({ name: v.name, idea: v.idea, state: r.state, ops: v.ops, errors: r.errors });
     if (variants.length === VARIANTS) break;
   }
-  return { reply: run.answer?.reply ?? "", variants, attempts: run.attempts, usage: run.usage };
+  // Осмотр глазами: все варианты — одним запросом (картинки по порядку); исправляются те, где нашлись недостатки.
+  let polished = false;
+  if (input.preview && variants.length) {
+    const images = await Promise.all(variants.map((v) => input.preview!(v.state).catch(() => null)));
+    if (images.every((i): i is PreviewImage => !!i)) {
+      const p = await polishDesigns(ask, { target: input.target, book: input.book, request: input.request, layout: input.layout }, variants.map((v) => v.state), images);
+      p.results.forEach((x, i) => {
+        if (x.fixed) variants[i] = { ...variants[i], state: x.state };
+      });
+      addUsage(run.usage, p.usage);
+      polished = true;
+    }
+  }
+  return { reply: run.answer?.reply ?? "", variants, attempts: run.attempts + (polished ? 1 : 0), usage: run.usage };
 }
 
 // ─── оценка ────────────────────────────────────────────────────────────────

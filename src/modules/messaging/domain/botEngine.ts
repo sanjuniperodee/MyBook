@@ -6,6 +6,7 @@
  */
 import { fillTemplate } from "@/shared/domain/templates";
 import type { PaymentFacts } from "./botPayments";
+import type { BookFact } from "./botPlatform";
 import { zonedDay } from "@/shared/domain/time";
 import { humanDate, whenText, type DealField } from "./bot";
 import { botText, faqFor, mentionsMonth, promoFor, optionLabel, parseDateAnswer, matchOption, questionFor, questionText, type BotConfig, type BotTextKey } from "./botConfig";
@@ -189,6 +190,8 @@ export interface BotEnv {
   paid?: boolean;
   /** Что CRM знает об оплате: платежи (ручные и онлайн по счетам), счета из чата, заказы клиента. */
   payments?: PaymentFacts | null;
+  /** Книги клиента на сайте (личный кабинет): название, вид, прогресс, фото, статус; null — клиента на сайте нет или данных нет. */
+  books?: BookFact[] | null;
 }
 
 export interface BotTurn {

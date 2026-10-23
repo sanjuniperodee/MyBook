@@ -73,6 +73,7 @@ export const design_cover = {
       ram: "Қошқар мүйіз",
       shanyrak: "Шаңырақ",
       confetti: "Конфетти",
+      art: "Рисунок ИИ",
     },
     limit: "Больше слоёв добавить нельзя",
   },
@@ -154,7 +155,7 @@ export const design_cover = {
       strokeWidth: "Толщина линии",
       radius: "Скругление",
     },
-    decor: { title: "Декор", motif: "Мотив", color: "Цвет" },
+    decor: { title: "Декор", motif: "Мотив", color: "Цвет", accent: "Второй цвет", artNote: "Рисунок нарисовал ИИ-дизайнер. Цвета можно поменять, мотив — выбрать из библиотеки." },
     background: {
       title: "Фон",
       kinds: { template: "Рисунок шаблона", color: "Цвет", gradient: "Градиент" },

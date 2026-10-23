@@ -10,7 +10,7 @@
 import type { CSSProperties } from "react";
 import { bookMessagesFor } from "@/i18n/messages/partial";
 import { chapterMark, PHOTO_COLORS, type InteriorPalette } from "@/lib/book/interiors";
-import { openerArtShapes } from "@/lib/book/interior-art";
+import { openerArtShapes, openerEmblemShapes, titleEmblemShapes } from "@/lib/book/interior-art";
 import { openerFlow, textArea, pageSide } from "@/lib/book/page-geometry";
 import { openerFit } from "@/lib/book/opener-fit";
 import { print } from "@/lib/book/formats";
@@ -91,6 +91,7 @@ export function OpenerPage({ kit, number, title, epigraph, photo, className, sty
   const fit = openerFit(format, design, { title, epigraph, number, photo: !!shot });
   const shapes = [
     ...(art ? openerArtShapes(art, { w: format.widthMm, h: format.heightMm, flowTop: flow.top, k: flow.k, palette: colors, seed: number ?? 0 }) : []),
+    ...(shot ? [] : openerEmblemShapes(design.emblem, { w: format.widthMm, h: format.heightMm, flowTop: flow.top, k: flow.k, palette: colors })),
     ...pageFrame(kit, colors),
     ...(shot?.under ?? []),
   ];
@@ -164,7 +165,7 @@ export function PhotoPage({ kit, photos, scene = 0, className, style }: PageProp
 
 /** Титульный лист; композиция — по дизайну (titlePage.layout), как в PDF. */
 export function TitlePage({ kit, title, subtitle, author, year, className, style }: PageProps & { title: string; subtitle: string; author: string; year: number }) {
-  const { design, sizes: S, u } = kit;
+  const { design, format, sizes: S, u } = kit;
   const P = design.palette;
   const layout = design.titlePage?.layout ?? "center";
   const scale = metricsOf(kit).scale;
@@ -225,7 +226,7 @@ export function TitlePage({ kit, title, subtitle, author, year, className, style
       </>
     );
   return (
-    <PageSurface kit={kit} shapes={pageFrame(kit, P)} className={className} style={style}>
+    <PageSurface kit={kit} shapes={[...titleEmblemShapes(design.emblem, layout, { w: format.widthMm, h: format.heightMm, palette: P }), ...pageFrame(kit, P)]} className={className} style={style}>
       <TextArea kit={kit} className="flex flex-col">
         {body}
       </TextArea>

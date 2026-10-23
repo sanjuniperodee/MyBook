@@ -1,6 +1,8 @@
 import "server-only";
 import { Page, Text, View } from "@react-pdf/renderer";
+import { titleEmblemShapes } from "@/lib/book/interior-art";
 import { DISPLAY_TOP, FRONT, TITLE_LAYOUT, VIGNETTE_RULE } from "@/lib/book/typesetting";
+import { PdfPageLayer } from "../art";
 import { labelStyle, noHyphens, pageMark, textFace, type PdfKit } from "./kit";
 import { Frame, Placed, Vignette } from "./parts";
 
@@ -9,7 +11,7 @@ import { Frame, Placed, Vignette } from "./parts";
  * линейкой, название внизу полосы (имя автора — сверху) или крупный набор сверху с выходными строками внизу.
  */
 export function TitlePage({ kit }: { kit: PdfKit }) {
-  const { content, design, sizes: S, italicBody, scale } = kit;
+  const { content, design, sizes: S, italicBody, scale, box } = kit;
   const P = design.palette;
   const layout = design.titlePage?.layout ?? "center";
   const title = (size: number, align: "left" | "center") => (
@@ -21,12 +23,15 @@ export function TitlePage({ kit }: { kit: PdfKit }) {
     content.subtitle ? <Text hyphenationCallback={noHyphens} style={{ ...italicBody, fontSize: S.subtitle, marginTop: FRONT.subtitle.before, textAlign: align, color: P.muted }}>{content.subtitle}</Text> : null;
   const author = (align: "left" | "center") => (content.authorName ? <Text hyphenationCallback={noHyphens} style={{ ...labelStyle(kit, P.muted), textAlign: align }}>{content.authorName}</Text> : null);
   const year = (align: "left" | "center" | "right") => <Text style={{ ...labelStyle(kit, P.muted, S.year), textAlign: align }}>{content.year}</Text>;
+  // Рисунок книги (ИИ-дизайнер) над названием: общая графика полосы рядом с рамкой.
+  const emblem = <PdfPageLayer shapes={titleEmblemShapes(design.emblem, layout, { w: box.w, h: box.h, palette: P })} box={box} />;
   const bar = <View style={{ width: TITLE_LAYOUT.bar * scale, height: TITLE_LAYOUT.barThickness, backgroundColor: P.accent, marginVertical: S.vignetteGap }} />;
 
   if (layout === "left")
     return (
       <Page {...pageMark("front")} size={kit.pageSize} style={kit.pagePadding}>
         <Frame kit={kit} colors={P} />
+        {emblem}
         <Placed top={DISPLAY_TOP.title} align="left">
           {title(S.title, "left")}
           {subtitle("left")}
@@ -40,6 +45,7 @@ export function TitlePage({ kit }: { kit: PdfKit }) {
     return (
       <Page {...pageMark("front")} size={kit.pageSize} style={kit.pagePadding}>
         <Frame kit={kit} colors={P} />
+        {emblem}
         {author("left")}
         <View style={{ flexGrow: 1 }} />
         {title(S.title, "left")}
@@ -52,6 +58,7 @@ export function TitlePage({ kit }: { kit: PdfKit }) {
     return (
       <Page {...pageMark("front")} size={kit.pageSize} style={kit.pagePadding}>
         <Frame kit={kit} colors={P} />
+        {emblem}
         <View style={{ height: `${TITLE_LAYOUT.stackTop * 100}%` }} />
         {title(S.title * TITLE_LAYOUT.stackScale, "left")}
         {subtitle("left")}
@@ -66,6 +73,7 @@ export function TitlePage({ kit }: { kit: PdfKit }) {
   return (
     <Page {...pageMark("front")} size={kit.pageSize} style={kit.pagePadding}>
       <Frame kit={kit} colors={P} />
+        {emblem}
       <Placed top={DISPLAY_TOP.title}>
         {title(S.title, "center")}
         {subtitle("center")}

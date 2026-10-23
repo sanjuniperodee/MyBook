@@ -1,4 +1,4 @@
-// Прогон ИИ-дизайнера на настоящей модели (Claude Haiku 5.5): набор просьб с проверками результата. Тратит деньги —
+// Прогон ИИ-дизайнера на настоящих моделях (Haiku 5.5 — мелкие правки, Sonnet 5.5 — рисунки и творческие просьбы): набор просьб с проверками результата. Тратит деньги —
 // запускать вручную: ANTHROPIC_API_KEY=… npx tsx --import ./scripts/preload.mjs scripts/design-ai-eval.ts [--only=<id>] [--runs=<n>]
 // Ничего не пишет в базу. Итог — какие просьбы выполнены, сколько понадобилось попыток и токенов.
 import Anthropic from "@anthropic-ai/sdk";
@@ -6,7 +6,7 @@ import { designFromTemplate, type CoverDesign } from "@/lib/book/cover-design";
 import { getCoverTemplate } from "@/lib/book/covers";
 import { coverMeta } from "@/lib/book/covers/meta";
 import { formats } from "@/lib/book/formats";
-import { DESIGN_AI_MODEL, runDesignAi, runDesignReview, runDesignVariants, type Ask, type CoverState, type DesignBookContext, type PagesState } from "@/lib/book/design-ai";
+import { DESIGN_AI_MODEL, DESIGN_AI_MODEL_MAX, DESIGN_AI_MODEL_PRO, designTier, runDesignAi, runDesignReview, runDesignVariants, type Ask, type CoverState, type DesignBookContext, type PagesState } from "@/lib/book/design-ai";
 
 const apiKey = process.env.ANTHROPIC_API_KEY;
 if (!apiKey) {
@@ -17,9 +17,10 @@ const only = process.argv.find((a) => a.startsWith("--only="))?.slice(7);
 const runs = Number(process.argv.find((a) => a.startsWith("--runs="))?.slice(7) ?? 1);
 
 const client = new Anthropic({ apiKey, maxRetries: 2, timeout: 90_000 });
-const ask: Ask = async ({ system, user, effort, schema }) => {
+/** Модель по уровню просьбы — как в route.ts: рисунки и творческие режимы на Sonnet, мелкие правки на Haiku. */
+const askOf = (model: string): Ask => async ({ system, user, effort, schema }) => {
   const res = await client.messages.create({
-    model: DESIGN_AI_MODEL,
+    model,
     max_tokens: 16000,
     output_config: { effort, format: { type: "json_schema", schema } },
     system: [{ type: "text", text: system, cache_control: { type: "ephemeral", ttl: "1h" } }],
@@ -28,6 +29,8 @@ const ask: Ask = async ({ system, user, effort, schema }) => {
   const text = res.content.map((b) => (b.type === "text" ? b.text : "")).join("");
   return { text, usage: { inputTokens: res.usage.input_tokens, outputTokens: res.usage.output_tokens, cacheReadTokens: res.usage.cache_read_input_tokens ?? 0, cacheWriteTokens: res.usage.cache_creation_input_tokens ?? 0 } };
 };
+const ask = askOf(DESIGN_AI_MODEL_MAX);
+const askFor = (request: string) => askOf({ fast: DESIGN_AI_MODEL, pro: DESIGN_AI_MODEL_PRO, max: DESIGN_AI_MODEL_MAX }[designTier("edit", request)]);
 
 const texts = { title: "Там, где ты", subtitle: "", names: "Элия & Олжас" };
 const book: DesignBookContext = { title: "Там, где ты", kind: "gift", theme: "love", occasion: "Годовщина", recipient: "Олжас", language: "ru", format: formats.a5, ui: "ru", chapters: [{ key: "childhood", title: "Детство" }, { key: "love", title: "Как мы познакомились" }], texts, palette: { colors: ["#C9A27E", "#3B4A5C"], tone: "средние по яркости, тёплые, приглушённые" } };
@@ -51,6 +54,9 @@ const cases: Case[] = [
   { id: "navy-gold", target: "cover", request: "тёмно-синий фон, а название крупнее и золотом", check: (s) => (s.design.background.kind === "color" && dark(s.design.background.color) && titleOf(s.design) ? null : "фон не тёмный") },
   { id: "frame", target: "cover", request: "добавь тонкую рамку по краю", check: (s) => (s.design.layers.some((l) => l.kind === "shape" && ["frame", "double", "rect", "corners"].includes(l.shape)) ? null : "нет рамки") },
   { id: "pastel", target: "cover", request: "сделай нежно, в пастельных тонах", check: (s) => (JSON.stringify(s.design) !== JSON.stringify(cover().design) ? null : "ничего не поменялось") },
+  { id: "draw-mountains", target: "cover", request: "нарисуй внизу горы с луной", check: (s) => (s.design.layers.some((l) => l.kind === "decor" && l.motif === "art") ? null : "нет своего рисунка") },
+  { id: "draw-koshkar", target: "cover", request: "добавь казахский орнамент рамкой по краям", check: (s) => (s.design.layers.some((l) => l.kind === "decor" && l.motif === "art") ? null : "нет своего рисунка") },
+  { id: "draw-emblem", target: "pages", request: "нарисуй эмблему для глав — цветок", check: (s) => (s.style.elements?.emblem ? null : "нет эмблемы") },
   { id: "layout", target: "cover", request: "хочу как премиальное издание, тёмное с золотом", check: (s) => (s.design.background.kind !== "template" || s.template !== "linen" ? null : "обложка не сменила настроение") },
 ];
 
@@ -68,7 +74,7 @@ for (const c of cases.filter((x) => !only || x.id === only)) {
   for (let i = 0; i < runs; i++) {
     total++;
     const started = Date.now();
-    const res = c.target === "pages" ? await runDesignAi(ask, { target: "pages", request: c.request, state: pages(), book }) : await runDesignAi(ask, { target: "cover", request: c.request, state: cover(), book, layout: { texts, photos: [] } });
+    const res = c.target === "pages" ? await runDesignAi(askFor(c.request), { target: "pages", request: c.request, state: pages(), book }) : await runDesignAi(askFor(c.request), { target: "cover", request: c.request, state: cover(), book, layout: { texts, photos: [] } });
     const fail = c.target === "pages" ? c.check(res.state as PagesState) : c.check(res.state as CoverState);
     if (!fail) pass++;
     tokens.input += res.usage.inputTokens;

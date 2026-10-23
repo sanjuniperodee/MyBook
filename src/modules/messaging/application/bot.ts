@@ -470,6 +470,9 @@ export class QualifierBot {
       this.d.settings.site(),
     ]);
     const locale: BotLang | null = client?.locale === "kk" ? "kk" : null;
+    // Книги клиента в кабинете: бот отвечает «у вас книга готова на 40%, фото загружены», а не вообще. Сбой — просто без них.
+    const clientId = conv.clientId ?? deal?.clientId ?? null;
+    const books = clientId && this.d.crm.books ? await this.d.crm.books(clientId).catch((err) => (this.d.logger.warn("bot books", { error: String(err) }), null)) : null;
     // Оплата — из CRM: ручные платежи и онлайн-оплаты счетов (у пакета — по всему пакету), счета из чата, заказы.
     const payments = deal && this.d.crm.payments ? await this.d.crm.payments({ id: conv.dealId!, clientId: conv.clientId ?? deal.clientId, orderId: deal.orderId }).catch((err) => (this.d.logger.warn("bot payments", { error: String(err) }), null)) : null;
     return {
@@ -487,6 +490,7 @@ export class QualifierBot {
       // Оплата уже вносилась (деньги по сделке или оплаченный заказ): предоплату бот не предлагает.
       paid: payments ? factsPaid(payments) : (deal?.paid ?? 0) > 0 || !!deal?.orderId,
       payments,
+      books: books?.length ? books : null,
     };
   }
 

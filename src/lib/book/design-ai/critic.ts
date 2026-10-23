@@ -88,6 +88,15 @@ export function critiqueCover(state: CoverState, texts?: CoverTexts): Advice[] {
     const bigger = textLayers.find(({ l }) => l.bind !== "title" && l.style.size > title.l.style.size * 0.95);
     if (bigger) push(`hierarchy:${bigger.l.id}`, `слой ${bigger.l.id} не меньше названия — сделайте название главным (больше остальных текстов)`);
   }
+  // Свой рисунок поверх названия (выше по порядку слоёв, заметный, закрывает заметную часть текста) — название теряется.
+  if (title) {
+    for (const { l, i } of shown) {
+      if (l.kind !== "decor" || l.motif !== "art" || i < title.i || (l.opacity ?? 1) < 0.45) continue;
+      if (overlap(title.l, l) > 0.25) push(`art-over-title:${l.id}`, `рисунок ${l.id} лежит поверх названия и закрывает его — поставьте рисунок под текст (move_layer back) или уберите с названия`);
+    }
+  }
+  const arts = shown.filter(({ l }) => l.kind === "decor" && l.motif === "art").length;
+  if (arts > 5) push("art-many", `своих рисунков на обложке ${arts} — оставьте 2–3: один главный и один-два акцента`);
   const families = new Set(textLayers.map(({ l }) => fontFaces[l.style.font as FontKey]?.family ?? l.style.font));
   if (families.size > 3) push("fonts", `на обложке ${families.size} разных шрифта — оставьте 2, максимум 3`);
   if (shown.length > 14) push("crowded", `слоёв ${shown.length} — обложка перегружена, уберите лишнее`);

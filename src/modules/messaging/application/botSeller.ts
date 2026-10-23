@@ -38,6 +38,8 @@ import {
   materialsSummary,
   deadlineCheck,
   selectKnowledge,
+  selectPlatform,
+  stallProblems,
   turnTrace,
   parseRemindAt,
   humanDate,
@@ -434,7 +436,7 @@ export class AiSeller {
     };
   }
 
-  private ctx(conv: Conversation, env: BotEnv, config: BotConfig, inputs: BotInput[], history: HistoryMessage[], second: boolean, rules: Awaited<ReturnType<AiSeller["rules"]>>, materials = false) {
+  private ctx(conv: Conversation, env: BotEnv, config: BotConfig, inputs: BotInput[], history: HistoryMessage[], second: boolean, rules: Awaited<ReturnType<AiSeller["rules"]>>, materials = false, platform: { matched: boolean; titles: string[] } | null = null) {
     // Мы (бот или менеджер) писали за последние 6 часов — уже поздоровались; через сутки «Добрый день!» снова уместно.
     const lastOurs = [...history].reverse().find((m) => m.from !== "client");
     const now = this.d.clock.now().getTime();
@@ -442,7 +444,7 @@ export class AiSeller {
     // Представляется только в новом чате: если клиенту уже писали мы (бот или менеджер — подхват, запуск кнопкой), бот не
     // представляется, а продолжает от лица компании (владелец, 18.10: «не обязательно представляться при подхвате»).
     const intro = lastOurs ? null : { greet: true };
-    return { inputs, clientText: inputs.map((i) => i.text).join("\n"), priceInHistory: priceMentioned(history), rules, second, lastBotText: lastBotTurn(history), greeted, intro, materials, materialsSeen: materialsAlreadySent(history) };
+    return { inputs, clientText: inputs.map((i) => i.text).join("\n"), priceInHistory: priceMentioned(history), rules, second, lastBotText: lastBotTurn(history), greeted, intro, materials, materialsSeen: materialsAlreadySent(history), platform };
   }
 
   /**
@@ -500,6 +502,11 @@ export class AiSeller {
       .join("\n")
       .slice(0, 1500);
 
+    // Справочник по платформе (кабинет, обложка, фото, заказ): статьи под тему разговора. Клиенту, который уже платит,
+    // статей больше; совпадение слов — основание не принимать от модели «уточню и вернусь» (domain/botPlatform.ts).
+    const pick = purpose === "follow_up" ? { articles: [], matched: false } : selectPlatform(knowledgeQuery, { writing: paid });
+    const platform = { matched: pick.matched, titles: pick.articles.map((x) => x.title) };
+
     // След хода: токены всех запросов, вердикт по сроку, правки кода, уроки и база знаний в инструкции.
     const picked = selectKnowledge(knowledge, knowledgeQuery);
     const trace: TraceContext = {
@@ -509,6 +516,7 @@ export class AiSeller {
       lessons: lessons.map((l) => ({ id: l.id, text: l.text })),
       knowledge: knowledge.trim() ? { all: !picked.filtered, titles: picked.titles } : null,
     };
+    if (pick.matched) trace.notes.push({ code: "platform", detail: platform.titles.join("; ").slice(0, 160) });
     // Уровень модели — по признакам сложности хода, без отдельного запроса к модели (domain/botRoute.ts).
     trace.deadline = knownDate ? deadlineCheck(knownDate, env, ai.city) : null;
     const policy = (await this.d.seller!.policy?.().catch(() => null)) ?? null;
@@ -552,7 +560,7 @@ export class AiSeller {
       this.d.logger.info("llm call", { conversation: conv.id, purpose, why, tier: call.tier, provider: call.provider, model: call.model, input: call.input, output: call.output, cacheRead: call.cacheRead, cacheWrite: call.cacheWrite, costUsd: call.costUsd, ms: call.ms, fallback: call.fallback, retries: call.retries, ...(call.failed ? { failed: call.failed } : {}) });
     };
     const ask = async (extraFact: string | null, retry: ReplyProblem[] | null, deadline: string | null, why: TraceRouteCall["why"] = "first"): Promise<SellerDecision | { error: string; context?: boolean }> => {
-      const parts = sellerSystemPromptParts({ env, state: base, questions: base.questions, knowledge, knowledgeQuery, brand: this.d.settings.brand(), known, deadline, takeoverMinutes: ai.takeover ? ai.waitedMinutes : null, chatManager, purpose, extraFact, retry, paid, paidClaimOnly, followUps: ai.followUps, lessons, voice, materials, remind, touch: a.touch ?? null, warm: paid || ai.priceQuoted || ai.warmedUp || materialsSent || priceMentioned(history) });
+      const parts = sellerSystemPromptParts({ env, state: base, questions: base.questions, knowledge, knowledgeQuery, brand: this.d.settings.brand(), known, deadline, takeoverMinutes: ai.takeover ? ai.waitedMinutes : null, chatManager, purpose, extraFact, retry, paid, paidClaimOnly, platform: pick, followUps: ai.followUps, lessons, voice, materials, remind, touch: a.touch ?? null, warm: paid || ai.priceQuoted || ai.warmedUp || materialsSent || priceMentioned(history) });
       let raw: string;
       try {
         // Инструкция и переписка одни и те же на любом уровне: смена модели не теряет контекст хода.
@@ -586,9 +594,13 @@ export class AiSeller {
     if ("error" in first) return { error: first.error, trace };
     let decision = first;
     // Модель не уверена в ответе («не знаю — менеджеру»): прежде чем звать человека, тот же ход на уровне выше.
-    if (purpose !== "follow_up" && !a.quick && decision.action === "handoff" && decision.handoff === "unsure" && raise("unsure")) {
-      const again = await ask(null, null, deadline, "unsure");
-      if (!("error" in again)) decision = again;
+    // Вопрос про сайт и кабинет, на который в справочнике есть ответ, — тот же ход ещё раз, даже если уровень выше недоступен.
+    if (purpose !== "follow_up" && !a.quick && decision.action === "handoff" && decision.handoff === "unsure") {
+      const hint = platform.matched ? `Вопрос клиента про сайт и кабинет: ответ есть в блоке «Справочник по платформе» (${platform.titles.join("; ")}). Ответь по нему сам: action=reply, handoff_reason=none, без «уточню и вернусь».` : null;
+      if (raise("unsure") || hint) {
+        const again = await ask(hint, null, deadline, "unsure");
+        if (!("error" in again)) decision = again;
+      }
     }
 
     // Клиент назвал дату или город — срок пересчитан кодом (по Алматы доставка в день готовности), ответ — с учётом вердикта.
@@ -611,7 +623,7 @@ export class AiSeller {
     };
     // Дата повторного сообщения из ответа модели — проверка кодом: график, срок, дата события, стоп-лист, лимит.
     const remindCheck = (d: SellerDecision): Promise<RemindCheck | null> => (asksRemind ? this.remindCheck(d, { env, ai, eventDate: d.eventDate ?? knownDate, noMarketing, sell: config.sell }) : Promise.resolve(null));
-    return { decision, env, rules, history, rewrite, remindCheck, materials: !!materials && !materials.sent && purpose === "reply", trace };
+    return { decision, env, rules, history, platform, rewrite, remindCheck, materials: !!materials && !materials.sent && purpose === "reply", trace };
   }
 
   /** remind_at модели → принять (момент в рабочее время), отменить договорённость или отказать с замечанием модели. */
@@ -644,14 +656,14 @@ export class AiSeller {
     if (c.error !== undefined) return { error: c.error, trace: c.trace };
     const { conv, base, config, fresh: inputs } = a;
     let decision = c.decision;
-    let turn = resolveSellerTurn(base, decision, c.env, { ...this.ctx(conv, c.env, config, inputs, c.history, false, c.rules, c.materials), remind: await c.remindCheck(decision) });
+    let turn = resolveSellerTurn(base, decision, c.env, { ...this.ctx(conv, c.env, config, inputs, c.history, false, c.rules, c.materials, c.platform), remind: await c.remindCheck(decision) });
     if (turn.retry) {
       // Первый ответ не прошёл проверку — в следе, что именно код вернул модели на переписывание.
       c.trace.notes.push({ code: "rewrite", detail: problemsText(turn.retry) });
       const rewritten = await c.rewrite(turn.retry);
       if ("error" in rewritten) return rewritten;
       decision = rewritten;
-      turn = resolveSellerTurn(base, rewritten, c.env, { ...this.ctx(conv, c.env, config, inputs, c.history, true, c.rules, c.materials), remind: await c.remindCheck(rewritten) });
+      turn = resolveSellerTurn(base, rewritten, c.env, { ...this.ctx(conv, c.env, config, inputs, c.history, true, c.rules, c.materials, c.platform), remind: await c.remindCheck(rewritten) });
     }
     return { turn, decision, trace: c.trace };
   }
@@ -677,7 +689,7 @@ export class AiSeller {
     let decision = c.decision;
     // Только оценка «ждёт ли клиент ответа» (triage): текст никуда не уходит — проверять и переписывать его незачем.
     if (opts.quick) return { text: decision.action === "wait" ? "" : decision.reply, summary: decision.summary, stage: decision.stage };
-    const check = (d: SellerDecision) => (d.reply ? checkSellerReply(d.reply, c.rules) : []);
+    const check = (d: SellerDecision) => (d.reply ? [...checkSellerReply(d.reply, c.rules), ...stallProblems(d.reply, { action: d.action, handoff: d.handoff }, c.platform)] : []);
     let problems = check(decision);
     if (problems.length) {
       const again = await c.rewrite(problems);

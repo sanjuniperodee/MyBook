@@ -309,6 +309,12 @@ function DecorPanel({ layer, patch, swatches }: PropertiesProps & { layer: Decor
         <DecorGrid value={layer.motif} color={layer.color} onPick={(motif) => patch((l) => ({ ...(l as DecorLayer), motif }), "motif")} names={m.add.decorNames} />
       </div>
       <ColorField label={t.color} value={layer.color} swatches={swatches} onChange={(c) => c && patch((l) => ({ ...(l as DecorLayer), color: c }), "color")} />
+      {layer.motif === "art" ? (
+        <>
+          <ColorField label={t.accent} value={layer.accent ?? layer.color} swatches={swatches} onChange={(c) => c && patch((l) => ({ ...(l as DecorLayer), accent: c }), "accent")} />
+          <p className="text-xs text-muted">{t.artNote}</p>
+        </>
+      ) : null}
     </PanelSection>
   );
 }

@@ -7,8 +7,9 @@ import { idParams } from "@/server/input";
 import { AssistantError } from "@/modules/assistant";
 import { completeDesignAi, designAiAllowance, failDesignAi, reserveDesignAi } from "@/server/designAiStore";
 import { designAiPacks } from "@/server/designAiPacks";
+import { renderCoverPreview, renderPagesPreview } from "@/modules/production";
 import { photoPalette } from "@/server/photoPalette";
-import { describeCover, describePages, describeTemplate, runDesignAi, runDesignReview, runDesignVariants, type Ask, type CoverState, type DesignAiInput, type DesignBookContext, type DesignTarget, type PagesState } from "@/lib/book/design-ai";
+import { describeCover, describePages, describeTemplate, designTier, runDesignAi, runDesignReview, runDesignVariants, type Ask, type CoverState, type DesignAiInput, type DesignBookContext, type DesignTarget, type PagesState } from "@/lib/book/design-ai";
 import { parseCoverDesign, type CoverDesign } from "@/lib/book/cover-design";
 import { coverNames } from "@/lib/book/cover-names";
 import { getFormat } from "@/lib/book/formats";
@@ -20,7 +21,7 @@ import { getLocale, getMessages } from "@/i18n/server";
 export const maxDuration = 120;
 
 const common = {
-  mode: z.enum(["edit", "variants", "review"]).default("edit"),
+  mode: z.enum(["edit", "create", "variants", "review"]).default("edit"),
   prompt: z.string().trim().max(500),
   history: z.array(z.object({ prompt: z.string().max(500), reply: z.string().max(600) })).max(4).default([]),
 };
@@ -68,8 +69,10 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
   const { id } = idParams(await params, "id");
   const { user, book } = await apiBook(req, id, { editable: true });
   const input = body.parse(await req.json());
-  if (input.mode !== "review" && input.prompt.length < 2) throw new HttpError(400, "badRequest");
-  const designer = container().assistant.designer;
+  if (input.mode === "edit" && input.prompt.length < 2) throw new HttpError(400, "badRequest");
+  // «Придумать» и «3 варианта» — Opus, рисунки и оценка — Sonnet, мелкие правки — Haiku.
+  const tier = designTier(input.mode, input.prompt);
+  const designer = tier === "max" ? container().assistant.designerMax : tier === "pro" ? container().assistant.designerPro : container().assistant.designer;
   if (!(await designer.configured())) throw new HttpError(503, "designAiOff");
   // Защита от очереди кликов: не чаще раза в 5 секунд (лимит считается отдельно).
   if (!(await rateLimit(`design-ai:${user.id}`, 1, 5_000))) throw new HttpError(429, "writeAiRate");
@@ -120,7 +123,25 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
     const res = await designer.ask(r);
     return { text: res.text, usage: { inputTokens: res.usage.input, outputTokens: res.usage.output, cacheReadTokens: res.usage.cacheRead, cacheWriteTokens: res.usage.cacheWrite } };
   };
-  const run: DesignAiInput<DesignTarget> = { target: input.target, request: input.prompt, state, book: ctx, history: input.history, layout: { texts, photos } };
+  // Осмотр глазами (не для мелких правок и не для оценки): оформление рисуется той же вёрсткой, что идёт в печать
+  // (обложка или лист первых страниц), и модель правит недостатки, которые видно только на картинке. Нет растра
+  // или вёрстка не вышла — осмотра нет.
+  let bundle: ReturnType<ReturnType<typeof container>["authoring"]["queries"]["bundle"]> | null = null;
+  const preview =
+    tier !== "fast" && input.mode !== "review"
+      ? async (s: PagesState | CoverState) => {
+          bundle ??= container().authoring.queries.bundle(book.id);
+          const b = await bundle;
+          if (!b) return null;
+          if (input.target === "cover") {
+            const cs = s as CoverState;
+            return renderCoverPreview({ ...b, book: { ...b.book, coverTemplate: cs.template, coverDesign: cs.design as unknown as Record<string, unknown> } } as Parameters<typeof renderCoverPreview>[0]);
+          }
+          const ps = s as PagesState;
+          return renderPagesPreview({ ...b, book: { ...b.book, interior: ps.interior, interiorStyle: ps.style } } as Parameters<typeof renderPagesPreview>[0]);
+        }
+      : undefined;
+  const run: DesignAiInput<DesignTarget> = { target: input.target, mode: input.mode === "create" ? "create" : "edit", request: input.prompt, state, book: ctx, history: input.history, layout: { texts, photos }, preview };
   try {
     const done = async (log: { reply: string; ops: unknown[]; errors: string[]; usage: Record<string, number> }, payload: Record<string, unknown>) => {
       await completeDesignAi(reserved.id, log);
@@ -141,7 +162,7 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
       );
     }
     const res = await runDesignAi(ask, run);
-    return done({ reply: res.reply, ops: res.ops, errors: res.errors, usage: res.usage }, { reply: res.reply, changed: res.changed, patch: patchOf(input.target, res.state, own) });
+    return done({ reply: res.reply, ops: res.ops, errors: res.errors, usage: res.usage }, { reply: res.reply, concept: res.concept, changed: res.changed, patch: patchOf(input.target, res.state, own) });
   } catch (err) {
     await failDesignAi(reserved.id, err instanceof Error ? err.message : String(err));
     if (err instanceof HttpError) throw err;

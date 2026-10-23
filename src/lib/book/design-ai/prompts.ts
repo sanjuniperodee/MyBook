@@ -4,8 +4,10 @@
  * оформление и просьба клиента.
  */
 import type { Locale } from "@/i18n/config";
+import { ART_REFERENCE, artExamplesText } from "../art/reference";
+import { coverExamplesText } from "./examples";
 import { coverTemplates } from "../covers";
-import { DECOR_IDS, safeArea, stockGroups, stockPhotos } from "../cover-design";
+import { boardSize, DECOR_IDS, safeArea, stockGroups, stockPhotos } from "../cover-design";
 import { fontFaces, fontKeys, fontWeights } from "../fonts";
 import type { BookFormat } from "../formats";
 import { coverLayouts, type CoverTexts } from "../cover-design";
@@ -24,6 +26,16 @@ function fontsRef() {
     })
     .join("\n");
 }
+
+const CREATIVE = `Арт-дирекция. Ты работаешь на уровне лучших издательств (Penguin, Taschen, Folio, Phaidon): профессиональный вид — это сдержанность и точность. «Детский» вид — много цветов, толстые линии, крупные картинки, всё по центру и вперемешку; его нужно избегать, если книга не детская.
+Когда просят придумать, нарисовать, оформить «с нуля», «красиво», «удиви», «как в журнале»:
+1. Идея. Образная и короткая («ночные горы тонкой золотой линией на глубоком синем»); из книги: тема, повод, для кого, фото, имена. Запиши в concept — одной-двумя фразами для клиента.
+2. Палитра: один основной тон, один акцент, нейтрали. Не больше трёх цветов на обложке. Тёмный фон — глубокий и приглушённый (не чисто чёрный и не кислотный), светлый — тёплая бумага (#F2EBDD, #EEE5D8), а не чисто белый. Акцент — старое золото (#B9A06A), латунь, терракота (#B4552F), бордо (#7B2230), хвойный зелёный (#2F5D4E). Радуга и яркие пятна — нет.
+3. Типографика — главный инструмент. Название — самый крупный и контрастный элемент (кегль не меньше чем в 2.5 раза больше подзаголовка). Шрифт с характером: засечный (cormorant, ebgaramond, forum, cormorantsc) для классики и романтики, гротеск (intertight, oswald, geologica) для современного. Мелкие надписи (имена, подзаголовок) — ПРОПИСНЫМИ с разрядкой (tracking 0.2–0.35) и маленьким кеглем (0.018–0.026). Не больше двух шрифтов; одна выключка на всю обложку — всё по центру или всё по левому краю.
+4. Композиция. Поля не меньше 8% ширины. Один главный мотив, не больше трети площади (либо тонкий узор-фон); пустое пространство — часть дизайна. Рамки и линии — тонкие. Название всегда на спокойном поле, не на узоре. Выравнивай по общей оси или по линии поля, а не «где поместилось».
+5. Рисунок — тонкой линией и в один-два цвета: горы и звёзды линией, гильош, меандр, арки, лавр, топографические линии, узоры. Мультяшные сцены (tulip, yurt, cloud, tree, bird, sun с лучами) — только для детской и тёплой семейной книги.
+6. Слой ornament из шаблона скрывай (set layers.ornament.hidden true), если ставишь свой мотив; лишние шаблонные слои тоже.
+7. Проверь себя до ответа: название читается издалека; цветов не больше трёх; нет двух конкурирующих «героев»; всё внутри безопасной зоны; можно убрать ещё один элемент — убери.`;
 
 const RULES = `Правила:
 - Отвечай только JSON по схеме режима (режим назван в запросе). Тексты для клиента — на его языке, тепло и по делу,
@@ -53,6 +65,7 @@ export function pagesSystemPrompt(): string {
 Оформление = стиль (interior) + настройки поверх него (style). Операции:
 - set_interior, value = id стиля: сменить стиль целиком (свои настройки при этом сбрасываются, кроме оформления глав).
 - set, path = путь в style, value = значение; unset, path — вернуть «как в стиле».
+- set_emblem, path "", value = описание рисунка {"w","h","items"} (см. «Рисунки»): свой рисунок книги — встаёт над названием главы и на титульный лист (цвета: main — украшения оформления, accent — акцент). Убрать — unset elements.emblem. Холст 200×200, рисунок простой и сдержанный: он живёт на каждой начальной полосе.
 
 Стили (id, направление, шрифты):
 ${styles}
@@ -72,12 +85,18 @@ ${fontsRef()}
 
 ${playbookText("pages")}
 
+${ART_REFERENCE}
+
+${CREATIVE}
+
 ${RULES}
 
 Пример. Просьба «сделай как классический роман с буквицей»:
 {"reply":"Поставил стиль «Роман»: Garamond, красная строка и буквица на три строки.","ops":[{"op":"set_interior","path":"","value":"\\"novel\\""}]}
 Пример. «шрифт покрупнее и тёплый бордовый акцент»:
-{"reply":"Увеличил текст до 11.5 pt и сделал акцент бордовым.","ops":[{"op":"set","path":"body.size","value":"11.5"},{"op":"set","path":"colors.accent","value":"\\"#7A1F2B\\""},{"op":"set","path":"colors.ornament","value":"\\"#9A3A45\\""}]}`;
+{"reply":"Увеличил текст до 11.5 pt и сделал акцент бордовым.","ops":[{"op":"set","path":"body.size","value":"11.5"},{"op":"set","path":"colors.accent","value":"\\"#7A1F2B\\""},{"op":"set","path":"colors.ornament","value":"\\"#9A3A45\\""}]}
+Пример. «нарисуй эмблему — горы и луна» (concept — идея; value — описание рисунка JSON-строкой):
+{"concept":"Горы под лунным серпом — спокойная эмблема для книги о путешествиях","reply":"Нарисовал эмблему: вершины и серп луны над ними — она появится на титуле и над названием каждой главы.","ops":[{"op":"set_emblem","path":"","value":"{\\"w\\":200,\\"h\\":140,\\"items\\":[{\\"t\\":\\"moon\\",\\"cx\\":150,\\"cy\\":36,\\"r\\":18,\\"fill\\":\\"accent\\"},{\\"t\\":\\"mountains\\",\\"y\\":50,\\"h\\":90,\\"peaks\\":3,\\"layers\\":2,\\"seed\\":5,\\"fill\\":\\"main\\"}]}"}]}`;
 }
 
 /** Справочник для обложки из слоёв. */
@@ -97,6 +116,7 @@ export function coverSystemPrompt(): string {
 - set_template, value = id шаблона (его рисунок — фон при background {"kind":"template"}).
 - apply_layout, value = id готового макета: обложка целиком собирается по макету (с текстами и фото книги), прежние
   слои заменяются; ставь первой операцией, дальше правь результат.
+- add_art, path "" (наверх) или "back" (под остальные), value = {"art": описание рисунка {"w","h","items"} (см. «Рисунки»), "x","y","w","h" (рамка слоя; можно не указывать — встанет по центру безопасной зоны), "color" (цвет main), "accent" (цвет accent), "opacity", "rotate", "name"}: свой рисунок на обложке. Слой — вид decor с motif "art"; его цвета потом меняются как у любого декора. Удалить — remove_layer.
 - Адресация слоёв: layers.<id>; тексты книги — всегда layers.title, layers.subtitle, layers.names (в любом макете);
   группа слоёв одного вида — layers.@decor, layers.@shape, layers.@image, layers.@text (например, layers.@decor.color —
   все украшения сразу).
@@ -117,12 +137,25 @@ ${fontsRef()}
 
 ${playbookText("cover")}
 
+${ART_REFERENCE}
+
+Образцы рисунков (проверены; адаптируй под книгу, меняй цвета и числа):
+${artExamplesText()}
+
+Образцы законченных обложек — вот планка качества (адаптируй под книгу и просьбу, не копируй дословно; значения value — JSON-литералы строками):
+${coverExamplesText()}
+
+${CREATIVE}
+
 ${RULES}
 - Важный текст (название, имена) держи в безопасной зоне — её границы даны в запросе. Название — крупно и контрастно к фону.
-- Новые слои — с понятными id: "title2", "tagline", "frame1".
+- Новые слои — с понятными id: "title2", "tagline", "frame1", "art1".
+- Рисунок на всю обложку — холст с пропорциями крышки (даны в запросе), x:0, y:0, w:1, h:1; рисунок-фон ставь add_art с path "back" и затем пиши название поверх. Рисунок не должен перекрывать название: он ниже текста по порядку слоёв или обходит его.
 
 Пример. «название крупнее и золотом, фон тёмно-синий»:
-{"reply":"Сделал фон тёмно-синим, а название — крупнее и золотым.","ops":[{"op":"set","path":"background","value":"{\\"kind\\":\\"color\\",\\"color\\":\\"#1D2A44\\"}"},{"op":"set","path":"layers.title.style.size","value":"0.11"},{"op":"set","path":"layers.title.style.color","value":"\\"#D8B46A\\""}]}`;
+{"reply":"Сделал фон тёмно-синим, а название — крупнее и золотым.","ops":[{"op":"set","path":"background","value":"{\\"kind\\":\\"color\\",\\"color\\":\\"#1D2A44\\"}"},{"op":"set","path":"layers.title.style.size","value":"0.11"},{"op":"set","path":"layers.title.style.color","value":"\\"#D8B46A\\""}]}
+Пример. «нарисуй внизу горы с луной» (concept — идея; рамка слоя — доли крышки):
+{"concept":"Ночные горы у подножия обложки: глубокий синий и золотая луна","reply":"Нарисовал горы с луной внизу обложки — название осталось наверху, на спокойном небе.","ops":[{"op":"add_art","path":"back","value":"{\\"art\\":{\\"w\\":300,\\"h\\":200,\\"items\\":[{\\"t\\":\\"moon\\",\\"cx\\":225,\\"cy\\":52,\\"r\\":20,\\"fill\\":\\"accent\\"},{\\"t\\":\\"mountains\\",\\"y\\":70,\\"h\\":130,\\"peaks\\":4,\\"layers\\":3,\\"seed\\":7,\\"fill\\":\\"main\\"}]},\\"x\\":0,\\"y\\":0.62,\\"w\\":1,\\"h\\":0.38,\\"color\\":\\"#0F2A4A\\",\\"accent\\":\\"#E7C98A\\"}"}]}`;
 }
 
 export function systemPrompt(target: DesignTarget) {
@@ -130,7 +163,7 @@ export function systemPrompt(target: DesignTarget) {
 }
 
 /** Режим просьбы: правка, три варианта или оценка текущего оформления. */
-export type DesignMode = "edit" | "variants" | "review";
+export type DesignMode = "edit" | "create" | "variants" | "review";
 
 export interface DesignBookContext {
   title: string;
@@ -160,8 +193,9 @@ export interface DesignBookContext {
 
 const replyLanguage: Record<Locale, string> = { ru: "по-русски", kk: "по-казахски" };
 const MODE_LINE: Record<DesignMode, string> = {
-  edit: "Режим: правка — верни {reply, ops}.",
-  variants: "Режим: варианты — верни {reply, variants: [3 × {name, idea, ops}]}; reply — одна фраза, что за варианты.",
+  edit: "Режим: правка — верни {concept, reply, ops}; concept — пустая строка, если это мелкая правка без новой идеи.",
+  create: "Режим: создание — придумай дизайн заново по книге (и просьбе, если она есть), работая как арт-директор (раздел «Творческая работа»): верни {concept, reply, ops}. Операции могут менять всё: макет или стиль, шрифты, палитру, свои рисунки.",
+  variants: "Режим: варианты — верни {reply, variants: [3 × {name, idea, ops}]}; reply — одна фраза, что за варианты. Хотя бы в одном варианте нарисуй собственный рисунок (если уместно для книги).",
   review: "Режим: оценка — верни {score, summary, strengths, tips}; просьба клиента ниже — на что смотреть особенно (может быть пустой).",
 };
 
@@ -182,6 +216,7 @@ export function userPrompt(
 ) {
   const mode = opts.mode ?? "edit";
   const s = safeArea(book.format);
+  const board = boardSize(book.format);
   const about = [
     `Книга: «${book.title}» (${book.kind}${book.theme ? `, тема ${book.theme}` : ""}), формат ${book.format.id}, язык книги ${book.language}.`,
     book.occasion ? `Повод: ${book.occasion}.` : "",
@@ -194,7 +229,7 @@ export function userPrompt(
     MODE_LINE[mode],
     `${about} Тексты для клиента пиши ${replyLanguage[book.ui]}.`,
     target === "cover" && book.texts ? `Тексты обложки: название «${book.texts.title}»${book.texts.subtitle ? `, подзаголовок «${book.texts.subtitle}»` : ""}${book.texts.names ? `, имена «${book.texts.names}»` : ""}.` : "",
-    target === "cover" ? `Безопасная зона крышки: x ${s.x.toFixed(3)}–${(s.x + s.w).toFixed(3)}, y ${s.y.toFixed(3)}–${(s.y + s.h).toFixed(3)}.` : "",
+    target === "cover" ? `Безопасная зона крышки: x ${s.x.toFixed(3)}–${(s.x + s.w).toFixed(3)}, y ${s.y.toFixed(3)}–${(s.y + s.h).toFixed(3)}. Крышка ${Math.round(board.w)}×${Math.round(board.h)} мм: для рисунка на всю обложку бери холст w:300, h:${Math.round((300 * board.h) / board.w)}.` : "",
     target === "pages" && book.chapters?.length ? `Главы (ключ: название): ${book.chapters.map((c) => `${c.key}: ${c.title}`).join("; ")}.` : "",
     target === "cover" && book.photos?.length ? `Фото книги (photoId, ширина×высота): ${book.photos.map((p) => `${p.id} ${p.width}×${p.height}`).join("; ")}.` : target === "cover" ? "Своих фото в книге нет — для снимков используй stock." : "",
     book.palette?.colors.length ? `Цвета фото книги: ${book.palette.colors.join(", ")} (${book.palette.tone}).` : "",

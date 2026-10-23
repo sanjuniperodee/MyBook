@@ -8,15 +8,16 @@
  * parseCoverDesign): в книгу попадает только допустимое. Что разбор отбросил или поправил — возвращается как замечание,
  * по нему модель исправляет ответ (harness.ts).
  */
+import { compileArt } from "../art";
 import { isKnownCover } from "../covers";
-import { coverLayouts, newLayerId, parseCoverDesign, safeArea, type CoverDesign, type CoverLayer, type CoverTexts } from "../cover-design";
+import { boardSize, coverLayouts, newLayerId, parseCoverDesign, safeArea, type CoverDesign, type CoverLayer, type CoverTexts } from "../cover-design";
 import type { BookFormat } from "../formats";
 import { getInteriorDesign, isInteriorId, parseInteriorStyle, PAPER, applyInteriorStyle, type InteriorId, type InteriorStyle } from "../interiors";
 import { contrastRatio } from "./critic";
 
 export type DesignTarget = "pages" | "cover";
 
-export const DESIGN_OPS = ["set", "unset", "set_interior", "set_template", "apply_layout", "add_layer", "remove_layer", "move_layer"] as const;
+export const DESIGN_OPS = ["set", "unset", "set_interior", "set_template", "apply_layout", "add_layer", "remove_layer", "move_layer", "add_art", "set_emblem"] as const;
 export type DesignOpKind = (typeof DESIGN_OPS)[number];
 
 export interface DesignOp {
@@ -31,6 +32,7 @@ export interface DesignOp {
 export const designAiSchema = {
   type: "object",
   properties: {
+    concept: { type: "string", description: "Идея дизайна: одна-две фразы клиенту, образно (для мелкой правки — пустая строка). На языке клиента." },
     reply: { type: "string", description: "Одна-две фразы клиенту: что изменено. На языке клиента." },
     ops: {
       type: "array",
@@ -46,7 +48,7 @@ export const designAiSchema = {
       },
     },
   },
-  required: ["reply", "ops"],
+  required: ["concept", "reply", "ops"],
   additionalProperties: false,
 } as const;
 
@@ -152,6 +154,7 @@ export function applyPagesOps(state: PagesState, ops: readonly DesignOp[]): { st
   let interior = state.interior;
   let draft: Obj = clone(state.style) as Obj;
   const wanted: { path: string; keys: string[]; value: unknown }[] = [];
+  let emblem = false;
   for (const o of ops.slice(0, MAX_OPS)) {
     const v = opValue(o.value);
     if (!v.ok) {
@@ -168,8 +171,18 @@ export function applyPagesOps(state: PagesState, ops: readonly DesignOp[]): { st
       draft = isObj(draft.chapters) ? { chapters: draft.chapters } : {};
       continue;
     }
+    if (o.op === "set_emblem") {
+      // Рисунок книги: описание → фигуры; встаёт в оформление как elements.emblem (титул и начальные полосы глав).
+      const r = compileArt(isObj(v.value) && isObj(v.value.art) ? v.value.art : v.value);
+      for (const e of r.errors) errors.push(`set_emblem: ${e}`);
+      if (r.drawing) {
+        setIn(draft, ["elements", "emblem"], r.drawing);
+        emblem = true;
+      }
+      continue;
+    }
     if (o.op !== "set" && o.op !== "unset") {
-      errors.push(`${o.op}: для страниц есть только set, unset и set_interior`);
+      errors.push(`${o.op}: для страниц есть только set, unset, set_interior и set_emblem`);
       continue;
     }
     const keys = segments(o.path);
@@ -181,6 +194,7 @@ export function applyPagesOps(state: PagesState, ops: readonly DesignOp[]): { st
     if (o.op === "set") wanted.push({ path: o.path, keys, value: v.value });
   }
   const style = parseInteriorStyle(draft);
+  if (emblem && !style.elements?.emblem) errors.push("set_emblem: рисунок не принят — слишком большой или повреждён");
   for (const w of wanted) {
     const got = getIn(style, w.keys);
     if (got === undefined && w.value !== null) errors.push(`set ${w.path}: значение ${JSON.stringify(w.value).slice(0, 80)} недопустимо — не применено`);
@@ -215,6 +229,22 @@ function outsideSafe(design: CoverDesign, format: BookFormat): string[] {
 export interface CoverLayoutContext {
   texts: CoverTexts;
   photos: { id: string; width: number; height: number }[];
+}
+
+/** Слой-рисунок из описания модели: рамка по умолчанию — по центру безопасной зоны с пропорциями рисунка. */
+function placeArt(rest: Obj, d: { w: number; h: number }, format: BookFormat): Obj {
+  const safe = safeArea(format);
+  const board = boardSize(format);
+  const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
+  const ratio = d.w / d.h;
+  let w = num(rest.w);
+  let h = num(rest.h);
+  if (w === undefined && h === undefined) w = Math.min(safe.w * 0.8, (safe.h * 0.8 * board.h * ratio) / board.w);
+  if (w === undefined) w = (h! * board.h * ratio) / board.w;
+  if (h === undefined) h = (w * board.w) / (ratio * board.h);
+  const x = num(rest.x) ?? safe.x + (safe.w - w) / 2;
+  const y = num(rest.y) ?? safe.y + (safe.h - h) / 2;
+  return { ...rest, kind: "decor", motif: "art", x, y, w, h };
 }
 
 /**
@@ -265,6 +295,25 @@ export function applyCoverOps(state: CoverState, ops: readonly DesignOp[], forma
         }
         const layer = { ...v.value } as Obj;
         if (typeof layer.id !== "string" || find(layer.id) >= 0) layer.id = newLayerId(draft as unknown as CoverDesign);
+        if (o.path === "back") draft.layers.unshift(layer);
+        else draft.layers.push(layer);
+        added.push(layer.id as string);
+        break;
+      }
+      case "add_art": {
+        // Модель иногда кладёт описание рисунка прямо в значение (без обёртки art) — принимаем и так, рамку тогда выбираем сами.
+        const bare = isObj(v.value) && !isObj(v.value.art) && Array.isArray(v.value.items);
+        if (!isObj(v.value) || (!bare && !isObj(v.value.art))) {
+          errors.push('add_art: значение — {"art": {w, h, items}, x, y, w, h, color, accent}');
+          break;
+        }
+        const { art: spec, ...rest } = bare ? { art: v.value } : v.value;
+        const r = compileArt(spec);
+        for (const e of r.errors) errors.push(`add_art: ${e}`);
+        if (!r.drawing) break;
+        const layer = placeArt(rest, r.drawing, format);
+        if (typeof layer.id !== "string" || find(layer.id) >= 0) layer.id = newLayerId(draft as unknown as CoverDesign);
+        layer.art = r.drawing;
         if (o.path === "back") draft.layers.unshift(layer);
         else draft.layers.push(layer);
         added.push(layer.id as string);
@@ -327,6 +376,9 @@ export function applyCoverOps(state: CoverState, ops: readonly DesignOp[], forma
       }
       case "set_interior":
         errors.push("set_interior: это для страниц, у обложки — set_template");
+        break;
+      case "set_emblem":
+        errors.push("set_emblem: это для страниц, у обложки рисунок добавляет add_art");
         break;
     }
   }

@@ -12,6 +12,8 @@ export type PdfTask =
   | { task: "layout"; bundle: BookBundle; pageCount: number; cover: Uint8Array }
   | { task: "reading"; bundle: BookBundle }
   | { task: "preview"; bundle: BookBundle }
+  | { task: "coverPreview"; bundle: BookBundle }
+  | { task: "pagesPreview"; bundle: BookBundle }
   | { task: "watermark"; pdf: Uint8Array; language: Locale; format: string };
 
 export interface PrintPackageResult {
@@ -52,6 +54,12 @@ export async function runPdfTask(t: PdfTask, report?: RenderReport): Promise<Pri
       return r.renderReadingPdf(t.bundle, report);
     case "preview":
       return r.renderScreenBuild(t.bundle, report);
+    case "coverPreview":
+      // Лицевая крышка одной страницей — ИИ-дизайнер показывает её модели, чтобы та проверила свою работу глазами.
+      return new Uint8Array((await r.renderCover(t.bundle, 0, "preview", true)).pdf);
+    case "pagesPreview":
+      // Короткая выборка книги на настоящей вёрстке — ИИ-дизайнер осматривает страницы глазами.
+      return new Uint8Array((await r.renderScreenBuild(t.bundle)).pdf);
     case "watermark":
       // pdf-lib разбирает и пересобирает весь файл — тоже в потоке PDF, чтобы не держать сайт.
       return (await import("./watermark")).watermarkPdf(t.pdf, t.language, t.format);

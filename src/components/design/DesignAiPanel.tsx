@@ -34,11 +34,12 @@ export interface DesignPatch {
   coverDesign?: unknown;
 }
 
-type Mode = "edit" | "variants" | "review";
-const MODES: Mode[] = ["edit", "variants", "review"];
+type Mode = "edit" | "create" | "variants" | "review";
+const MODES: Mode[] = ["edit", "create", "variants", "review"];
 
 type Answer =
-  | { mode: "edit"; reply: string; changed: boolean; patch: DesignPatch; allowance: DesignAiAllowance }
+  | { mode: "edit"; reply: string; concept?: string; changed: boolean; patch: DesignPatch; allowance: DesignAiAllowance }
+  | { mode: "create"; reply: string; concept?: string; changed: boolean; patch: DesignPatch; allowance: DesignAiAllowance }
   | { mode: "variants"; reply: string; variants: { name: string; idea: string; patch: DesignPatch }[]; allowance: DesignAiAllowance }
   | { mode: "review"; score: number; summary: string; strengths: string[]; tips: { title: string; why: string; ops: DesignOp[]; patch: DesignPatch | null }[]; allowance: DesignAiAllowance };
 
@@ -90,7 +91,7 @@ export function DesignAiPanel({
   const [mode, setMode] = useState<Mode>("edit");
   const [prompt, setPrompt] = useState("");
   const [busy, setBusy] = useState<Mode | null>(null);
-  const [log, setLog] = useState<{ prompt: string; reply: string; changed: boolean }[]>([]);
+  const [log, setLog] = useState<{ prompt: string; reply: string; concept?: string; changed: boolean }[]>([]);
   const [variants, setVariants] = useState<{ reply: string; items: { name: string; idea: string; patch: DesignPatch }[]; picked: number | null } | null>(null);
   const [review, setReview] = useState<(Extract<Answer, { mode: "review" }> & { applied: number[] }) | null>(null);
   const [showPacks, setShowPacks] = useState(false);
@@ -135,15 +136,15 @@ export function DesignAiPanel({
 
   const send = async () => {
     if (!canSend) return;
-    const asked = mode === "variants" && text.length < 2 ? t.variantsDefault : text;
+    const asked = text.length >= 2 ? text : mode === "variants" ? t.variantsDefault : mode === "create" ? t.createDefault : text;
     setBusy(mode);
     try {
-      const history = mode === "edit" ? log.filter((x) => x.changed).slice(-4).map((x) => ({ prompt: x.prompt, reply: x.reply })) : [];
+      const history = mode === "edit" || mode === "create" ? log.filter((x) => x.changed).slice(-4).map((x) => ({ prompt: x.prompt, reply: x.reply })) : [];
       const res = await apiFetch<Answer>(`/api/books/${bookId}/design-ai`, { method: "POST", json: { target, mode, prompt: asked, history, ...payload() } });
       setAllowance(res.allowance);
-      if (res.mode === "edit") {
+      if (res.mode === "edit" || res.mode === "create") {
         if (res.changed) onApply(res.patch);
-        setLog((l) => [...l.slice(-5), { prompt: asked, reply: res.reply || (res.changed ? "" : t.noChange), changed: res.changed }]);
+        setLog((l) => [...l.slice(-5), { prompt: asked, reply: res.reply || (res.changed ? "" : t.noChange), concept: res.concept || undefined, changed: res.changed }]);
       } else if (res.mode === "variants") setVariants({ reply: res.reply, items: res.variants, picked: null });
       else setReview({ ...res, applied: [] });
       setPrompt("");
@@ -178,12 +179,16 @@ export function DesignAiPanel({
         : allowance.remaining === 2 && allowance.credits === 0
           ? t.lowFree(allowance.remaining)
           : null;
-  const ideas = [
-    ...(book && t.themeIdeas[book.theme] ? [t.themeIdeas[book.theme][target]] : []),
-    ...(book?.hasPhotos ? [t.photoIdea] : []),
-    t.matchIdea[target],
-    ...t.examples[target].slice(0, 2),
-  ];
+  const ideas =
+    mode === "create"
+      ? [...t.drawIdeas[target].slice(0, 3), ...(book && t.themeIdeas[book.theme] ? [t.themeIdeas[book.theme][target]] : [])]
+      : [
+          ...(book && t.themeIdeas[book.theme] ? [t.themeIdeas[book.theme][target]] : []),
+          ...(book?.hasPhotos ? [t.photoIdea] : []),
+          t.matchIdea[target],
+          ...t.examples[target].slice(0, 2),
+          ...t.drawIdeas[target].slice(0, 1),
+        ];
   const last = log.at(-1);
 
   return (
@@ -226,7 +231,7 @@ export function DesignAiPanel({
         </div>
       ) : (
         <>
-          <div role="tablist" aria-label={t.modesAria} className="grid grid-cols-3 gap-1 rounded-2xl bg-cream/80 p-1">
+          <div role="tablist" aria-label={t.modesAria} className="grid grid-cols-2 gap-1 rounded-2xl bg-cream/80 p-1 sm:grid-cols-4">
             {MODES.map((k) => (
               <button
                 key={k}
@@ -253,7 +258,7 @@ export function DesignAiPanel({
               rows={mode === "review" ? 2 : 3}
               maxLength={PROMPT_MAX}
               disabled={!editable || !!busy}
-              placeholder={mode === "edit" ? t.placeholder[target] : mode === "variants" ? t.variantsPlaceholder[target] : t.reviewPlaceholder}
+              placeholder={mode === "edit" ? t.placeholder[target] : mode === "create" ? t.createPlaceholder[target] : mode === "variants" ? t.variantsPlaceholder[target] : t.reviewPlaceholder}
               aria-label={t.modes[mode]}
               className="input min-h-16 w-full resize-y py-2.5 text-[15px]"
             />
@@ -283,20 +288,26 @@ export function DesignAiPanel({
       )}
 
       {/* Правки: беседа с дизайнером. */}
-      {mode === "edit" && log.length ? (
+      {(mode === "edit" || mode === "create") && log.length ? (
         <ol className="space-y-2 text-sm">
           {log.map((x, i) => (
             <li key={i} className="space-y-1.5">
               <p className="ml-8 rounded-2xl rounded-br-md bg-ink/5 px-3 py-2">{x.prompt}</p>
               <p className="mr-8 rounded-2xl rounded-bl-md bg-rose/60 px-3 py-2 text-ink-soft">
                 <span className="sr-only">{t.ai}: </span>
+                {x.concept ? (
+                  <>
+                    <b className="font-medium text-ink">{t.concept}:</b> {x.concept}
+                    <br />
+                  </>
+                ) : null}
                 {x.reply}
               </p>
             </li>
           ))}
         </ol>
       ) : null}
-      {mode === "edit" && last?.changed && onUndo ? (
+      {(mode === "edit" || mode === "create") && last?.changed && onUndo ? (
         <button type="button" onClick={onUndo} disabled={!editable || !!busy} className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-ink">
           <Undo2 className="size-3.5" /> {t.undo}
         </button>

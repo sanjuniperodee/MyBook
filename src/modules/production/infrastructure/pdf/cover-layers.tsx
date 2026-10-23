@@ -3,7 +3,7 @@ import "server-only";
 import { Circle, Defs, Image, LinearGradient, Path, Rect, Stop, Svg, Text, View } from "@react-pdf/renderer";
 import type { Style } from "@react-pdf/stylesheet";
 import {
-  decorDrawing,
+  layerDrawing,
   GRADIENT_FILL,
   gradientVector,
   layerRect,
@@ -135,7 +135,7 @@ function ShapeLayerPdf({ layer, w, h, boardW, o }: { layer: Extract<CoverLayer, 
 }
 
 function DecorLayerPdf({ layer, w, h, o }: { layer: Extract<CoverLayer, { kind: "decor" }>; w: number; h: number; o: number }) {
-  const d = decorDrawing(layer.motif, layer.color);
+  const d = layerDrawing(layer);
   // Вписать с сохранением пропорций, по центру рамки (как preserveAspectRatio="xMidYMid meet" в HTML).
   const k = Math.min(w / d.w, h / d.h);
   const dw = d.w * k;

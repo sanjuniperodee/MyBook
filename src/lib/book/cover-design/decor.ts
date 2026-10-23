@@ -4,10 +4,11 @@
  * Одни и те же фигуры рисуют редактор (HTML <svg>) и PDF (react-pdf <Svg>).
  */
 import { n } from "../covers/svg-kit";
+import { resolveDrawing } from "../art";
 import { glyphDrawing, vignetteDrawing, type Drawing, type Shape } from "../interior-art";
 import { circlePath, leaf } from "../interior-art/geometry";
 import { FLEURON, HEART, SPARKLE } from "../motifs";
-import type { DecorId } from "./types";
+import type { DecorId, DecorLayer } from "./types";
 
 export const DECOR_IDS: DecorId[] = [
   "vignette",
@@ -64,9 +65,17 @@ function laurelBranch(cx: number, cy: number, R: number, a0: number, a1: number,
   return shapes;
 }
 
+/** Рисунок слоя: свой (ИИ-дизайнер) с подставленными цветами или мотив библиотеки. */
+export function layerDrawing(layer: Pick<DecorLayer, "motif" | "color" | "accent" | "art">): Drawing {
+  return layer.motif === "art" && layer.art ? resolveDrawing(layer.art, layer.color, layer.accent ?? layer.color) : decorDrawing(layer.motif, layer.color);
+}
+
 /** Рисунок мотива цвета color. */
 export function decorDrawing(id: DecorId, color: string): Drawing {
   switch (id) {
+    case "art":
+      // Свой рисунок хранится в слое (layerDrawing); здесь — пустая заглушка для мест, где есть только id.
+      return { w: 100, h: 100, shapes: [{ kind: "circle", cx: 50, cy: 50, r: 30, fill: color, opacity: 0.25 }] };
     case "heart":
       return glyphDrawing("heart", 100, color);
     case "hearts":

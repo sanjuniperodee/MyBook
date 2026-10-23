@@ -75,6 +75,7 @@ export const design_cover: Messages["design"]["cover"] = {
       ram: "Қошқар мүйіз",
       shanyrak: "Шаңырақ",
       confetti: "Конфетти",
+      art: "ЖИ суреті",
     },
     limit: "Бұдан артық қабат қосуға болмайды",
   },
@@ -156,7 +157,7 @@ export const design_cover: Messages["design"]["cover"] = {
       strokeWidth: "Сызық қалыңдығы",
       radius: "Дөңгелектеу",
     },
-    decor: { title: "Сәндік", motif: "Өрнек", color: "Түсі" },
+    decor: { title: "Сәндік", motif: "Өрнек", color: "Түсі", accent: "Екінші түс", artNote: "Суретті ЖИ-дизайнер салды. Түстерін өзгертуге, өрнекті кітапханадан таңдауға болады." },
     background: {
       title: "Фон",
       kinds: { template: "Үлгі суреті", color: "Түс", gradient: "Градиент" },

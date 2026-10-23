@@ -10,6 +10,7 @@ export { themeLabel } from "./botThemes";
 export { mediaCaption } from "./wazzup";
 export * from "./botSeller";
 export * from "./botKnowledge";
+export * from "./botPlatform";
 export * from "./botPayments";
 export * from "./botCoach";
 export * from "./botMaterials";

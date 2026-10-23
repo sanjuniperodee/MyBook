@@ -1,5 +1,6 @@
 /** Типы оформлений блока: шрифты, палитра, начальные полосы, заголовки, колонтитулы, фото. */
 import type { FontKey, Typography } from "../fonts";
+import type { Drawing } from "../interior-art";
 import type { PhotoCaption, PhotoFrame } from "../photo-pages";
 
 export type InteriorId =
@@ -213,6 +214,8 @@ export interface InteriorDesign {
   paper?: string;
   /** Титул: композиция и кегль названия, pt (по умолчанию 30). */
   titlePage?: { layout?: TitleLayout; size?: number };
+  /** Свой рисунок книги (нарисовал ИИ-дизайнер): на титуле и над названием главы; цвета — роли main и accent. */
+  emblem?: Drawing;
   /** Своё оформление отдельных глав по ключу главы. */
   chapters?: Record<string, ChapterOverride>;
 }

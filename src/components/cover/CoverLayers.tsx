@@ -9,7 +9,7 @@ import { cssFont } from "@/lib/book/fonts";
 import { hexAlpha } from "@/lib/color";
 import { cssFrame } from "@/lib/book/photo-frame";
 import {
-  decorDrawing,
+  layerDrawing,
   GRADIENT_FILL,
   gradientVector,
   layerText,
@@ -160,7 +160,7 @@ function ShapeView({ layer, board, uid }: { layer: ShapeLayer; board: { w: numbe
 }
 
 function DecorView({ layer }: { layer: Extract<CoverLayer, { kind: "decor" }> }) {
-  const d = decorDrawing(layer.motif, layer.color);
+  const d = layerDrawing(layer);
   return (
     <svg aria-hidden viewBox={`0 0 ${d.w} ${d.h}`} preserveAspectRatio="xMidYMid meet" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", overflow: "visible" }}>
       {d.shapes.map((s, i) => (

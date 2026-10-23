@@ -1,4 +1,4 @@
-import { DEFAULT_RULE_SENDING, defaultBotConfig, type RuleSendingPolicy, type BotConfig, type BotEvent, type BotMode, type BotState, type Conversation, type DealField, type InboundMessage, type PaymentFacts, type BotMaterial } from "@/modules/messaging/domain";
+import { DEFAULT_RULE_SENDING, defaultBotConfig, type RuleSendingPolicy, type BotConfig, type BotEvent, type BotMode, type BotState, type Conversation, type DealField, type InboundMessage, type PaymentFacts, type BotMaterial, type BookFact } from "@/modules/messaging/domain";
 import { isWorkTime, nextWorkStart, type WorkHours } from "@/shared/domain/schedule";
 import { MessagingService, QualifierBot, type BotCrm, type BotInvoices, type BotSellerModel, type BotStore, type ConversationRepository, type MessageRepository, type SalesGateway, type StaffLine, type AnsweredTasks } from "@/modules/messaging/application";
 
@@ -71,6 +71,8 @@ export function setup(
     assignee?: string | null;
     /** Что CRM знает об оплате (платежи, счета, заказы) — для AI. */
     payments?: PaymentFacts;
+    /** Книги клиента в личном кабинете — для AI. */
+    books?: BookFact[];
     /** Подборка материалов продажника (фото, видео, пример книги). */
     materials?: BotMaterial[];
     /** Номер WhatsApp магазина (его в сообщениях писать можно). */
@@ -264,6 +266,7 @@ export function setup(
     tag: async (dealId, tag) => void deals.find((d) => d.id === dealId)?.tags.push(tag),
     priorChat: async () => !!opts.priorChat,
     ...(opts.payments ? { payments: async () => opts.payments! } : {}),
+    ...(opts.books ? { books: async () => opts.books! } : {}),
   };
   const quiet = { info: () => {}, warn: () => {}, error: () => {} };
   const notified: { title: string; kind: string }[] = [];

@@ -4,7 +4,7 @@ import { Image, Page, Text, View } from "@react-pdf/renderer";
 import { mm } from "@/lib/book/formats";
 import type { PhotoItem } from "@/lib/book/layout";
 import { chapterMark, PHOTO_COLORS, type InteriorPalette } from "@/lib/book/interiors";
-import { frameShapes, openerArtShapes } from "@/lib/book/interior-art";
+import { frameShapes, openerArtShapes, openerEmblemShapes } from "@/lib/book/interior-art";
 import { openerFit } from "@/lib/book/opener-fit";
 import { openerPhotoPlan, type OpenerPhotoPlan } from "@/lib/book/photo-pages";
 import { OPENER, VIGNETTE_RULE } from "@/lib/book/typesetting";
@@ -73,9 +73,12 @@ export function Opener({ kit, chapterKey, number, title, epigraph, photo }: { ki
   const { design, format, box, sizes: S, options, openerAt, italicBody } = kit;
   const { fill, align, art } = design.opener;
   const colors = fill ?? design.palette;
-  const artShapes = art ? openerArtShapes(art, { w: box.w, h: box.h, flowTop: openerAt.top, k: openerAt.k, palette: colors, seed: number ?? 0 }) : [];
   const image = photo ? options.images.get(photo.id) : undefined;
   const shot = image ? openerPhotoPlan(format, design) : null;
+  const artShapes = [
+    ...(art ? openerArtShapes(art, { w: box.w, h: box.h, flowTop: openerAt.top, k: openerAt.k, palette: colors, seed: number ?? 0 }) : []),
+    ...(shot ? [] : openerEmblemShapes(design.emblem, { w: box.w, h: box.h, flowTop: openerAt.top, k: openerAt.k, palette: colors })),
+  ];
   // Длинное название и эпиграф своей книги не должны выталкивать начальную полосу на вторую (то же правило — в HTML).
   const fit = openerFit(format, design, { title, epigraph, number, photo: !!shot });
   return (

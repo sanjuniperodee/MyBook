@@ -14,6 +14,7 @@ export {
 export { RenderProgress, type RenderEvent, type RenderKind, type RenderReport, type RenderSnapshot, type RenderStage } from "./application/RenderProgress";
 export { pdfRenderQueue, reactPdfRenderer, storageFileStore } from "./infrastructure/adapters";
 export { pdfPageRaster } from "./infrastructure/pageRaster";
+export { renderCoverPreview, renderPagesPreview, sampleBundle, type PreviewPicture } from "./infrastructure/coverPreview";
 export { coverPhotoDataUrl, coverPhotoResized, isCoverPhotoKey } from "./infrastructure/coverPhotos";
 
 /** PDF подарочного сертификата. Рендерер тяжёлый, поэтому загружается только при первом вызове. */

@@ -7,7 +7,9 @@
  * типографии и HTML-превью, поэтому всё, что видно в дизайнере, уходит в печать. Пустые настройки возвращают тот
  * же объект дизайна: книги без настроек верстаются ровно как раньше.
  */
+import { drawingWeight, sanitizeDrawing } from "../art";
 import { isFontKey, type FontKey } from "../fonts";
+import type { Drawing } from "../interior-art";
 import type { PhotoCaption, PhotoFrame } from "../photo-pages";
 import type {
   BodyText,
@@ -65,6 +67,8 @@ export interface InteriorStyle {
     caption?: PhotoCaption;
     /** Рисунок начальных полос; null — без рисунка. */
     art?: OpenerArt | null;
+    /** Свой рисунок книги от ИИ-дизайнера: на титуле и начальных полосах глав. */
+    emblem?: Drawing;
   };
   /** Отдельные главы по ключу. */
   chapters?: Record<string, ChapterOverride>;
@@ -118,6 +122,13 @@ const oneOf = <T,>(v: unknown, list: readonly T[]) => (list.includes(v as T) ? (
 const HEX = /^#[0-9a-fA-F]{6}$/;
 export const isHexColor = (v: unknown): v is string => typeof v === "string" && HEX.test(v);
 const color = (v: unknown) => (isHexColor(v) ? v.toUpperCase() : undefined);
+
+/** Эмблема книги повторяется на каждой главе: тяжёлый рисунок не принимаем (в настройках — не больше EMBLEM_WEIGHT знаков). */
+export const EMBLEM_WEIGHT = 30_000;
+const emblemOf = (raw: unknown): Drawing | undefined => {
+  const d = sanitizeDrawing(raw);
+  return d && drawingWeight(d) <= EMBLEM_WEIGHT ? d : undefined;
+};
 
 /** Убирает ключи со значением undefined; пустой объект — undefined. */
 function compact<T extends Obj>(o: T): T | undefined {
@@ -247,6 +258,7 @@ export function parseInteriorStyle(raw: unknown): InteriorStyle {
             photoFrame: oneOf(e.photoFrame, PHOTO_FRAMES),
             caption: oneOf(e.caption, CAPTIONS),
             art: e.art === null ? null : oneOf(e.art, ARTS),
+            emblem: emblemOf(e.emblem),
           })
         : undefined,
       chapters,
@@ -366,6 +378,7 @@ export function applyInteriorStyle(design: InteriorDesign, raw: InteriorStyle | 
     dropCap,
     ...(s.colors?.paper ? { paper: s.colors.paper } : {}),
     ...(titlePage ? { titlePage } : {}),
+    ...(el.emblem ? { emblem: el.emblem } : {}),
     ...(s.chapters ? { chapters: { ...design.chapters, ...s.chapters } } : {}),
   };
 }
