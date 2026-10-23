@@ -622,3 +622,16 @@ describe("подписчики счёта: заметки и уведомлен�
     expect(w.tasks.map((t) => t.title)).toEqual(["Счёт P20 истёк неоплаченным — свяжитесь с клиентом"]);
   });
 });
+
+describe("клиент открыл счёт (deals-12)", () => {
+  it("запись в ленту сделки одна, сколько бы раз событие ни пришло", async () => {
+    const w = world();
+    await w.access.viewed({ invoiceId: "i1", number: 12, dealId: "d1", amount: 15000 });
+    await w.access.viewed({ invoiceId: "i1", number: 12, dealId: "d1", amount: 15000 });
+    const viewed = w.notes.filter((n) => n.text.includes("Клиент открыл счёт P12"));
+    expect(viewed).toHaveLength(1);
+    expect(viewed[0].text).toContain("15 000 ₸");
+    await w.access.viewed({ invoiceId: "i2", number: 13, dealId: "нет-такой", amount: 1 });
+    expect(w.notes.some((n) => n.text.includes("P13"))).toBe(false);
+  });
+});

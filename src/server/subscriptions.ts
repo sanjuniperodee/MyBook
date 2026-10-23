@@ -5,6 +5,7 @@ import {
   type DealInvoiceClaimed,
   type DealInvoiceExtraMoney,
   type DealInvoicePaid,
+  type DealInvoiceViewed,
   type OrderCancelled,
   type OrderOverpaid,
   type OrderPaid,
@@ -127,6 +128,7 @@ export function registerSubscriptions(c: Container) {
   c.bus.subscribe<DealInvoicePaid>("ordering.deal_invoice_paid", (e) => runInBackground(() => access().process(e.payload.invoiceId)), "crm.invoice.access_now");
   c.bus.subscribe<DealInvoiceExtraMoney>("ordering.deal_invoice_extra_money", (e) => access().extraMoney(e.payload), "crm.invoice.extra_money");
   c.bus.subscribe<DealInvoiceClaimed>("ordering.deal_invoice_claimed", (e) => access().claimed(e.payload), "crm.invoice.claimed");
+  c.bus.subscribe<DealInvoiceViewed>("ordering.deal_invoice_viewed", (e) => access().viewed(e.payload), "crm.invoice.viewed");
 
   // ─── заказы → приглашения: друг оплатил заказ по коду-приглашению — награда тому, кто пригласил ──
   c.bus.subscribe<OrderPaid>(

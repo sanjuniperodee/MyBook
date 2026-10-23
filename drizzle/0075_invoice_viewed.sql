@@ -1,0 +1,1 @@
+ALTER TABLE "deal_invoices" ADD COLUMN "viewed_at" timestamp with time zone;

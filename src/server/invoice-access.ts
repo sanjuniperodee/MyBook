@@ -8,7 +8,7 @@ import type { Clock, Logger, StaffNotification } from "@/shared/application";
 import { maskEmail, maskPhone } from "@/modules/access/domain";
 import { IdentityError, isPhoneEmail } from "@/modules/identity/domain";
 import { planLabels } from "@/modules/ordering/ui/labels";
-import type { AccessStatus, DealInvoice, DealInvoiceClaimed, DealInvoiceExtraMoney, DealInvoicePaid } from "@/modules/ordering";
+import type { AccessStatus, DealInvoice, DealInvoiceClaimed, DealInvoiceExtraMoney, DealInvoicePaid, DealInvoiceViewed } from "@/modules/ordering";
 import type { Container } from "./container";
 
 /**
@@ -468,6 +468,13 @@ export class InvoiceAccess {
     const body = e.recorded ? "Деньги записаны в сделку" : "В сделку деньги не записаны";
     if (deal) await this.alert({ issuedById }, deal, title, { body });
     else await this.p.crm.notifyEditors({ kind: "task", title, body, link: "/admin/deals" });
+  }
+
+  /** Клиент впервые открыл ссылку на оплату (deals-12): запись в ленту сделки — менеджер видит, что счёт дошёл. */
+  async viewed(e: DealInvoiceViewed["payload"]) {
+    const deal = await this.p.deals.find(e.dealId);
+    if (!deal) return;
+    await this.p.crm.noteOnce({ dealId: deal.id, clientId: deal.clientId, text: `Клиент открыл счёт ${label(e.number)} на ${formatPrice(e.amount)} — пока не оплатил` });
   }
 
   /** Клиент нажал «Я оплатил(а)»: ответственному — проверить поступление перевода. */

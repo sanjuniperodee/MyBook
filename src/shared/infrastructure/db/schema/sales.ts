@@ -191,6 +191,8 @@ export const dealInvoices = pgTable(
     paidRef: text("paid_ref"),
     paidAt: timestamp("paid_at", { withTimezone: true }),
     claimedAt: timestamp("claimed_at", { withTimezone: true }),
+    /** Клиент открыл ссылку на оплату (первый показ /pay не сотруднику и не сборщику превью) — deals-12. */
+    viewedAt: timestamp("viewed_at", { withTimezone: true }),
     closedReason: text("closed_reason"),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     issuedById: uuid("issued_by_id").references(() => users.id, { onDelete: "set null" }),

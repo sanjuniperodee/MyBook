@@ -32,6 +32,7 @@ const toDomain = (r: Row) =>
     paidRef: r.paidRef,
     paidAt: r.paidAt,
     claimedAt: r.claimedAt,
+    viewedAt: r.viewedAt,
     closedReason: r.closedReason,
     expiresAt: r.expiresAt,
     issuedById: r.issuedById,

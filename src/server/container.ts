@@ -202,7 +202,7 @@ export class Container {
             payments: rows.map((p) => ({ amount: p.amount, kind: p.kind, method: p.method, at: p.paidAt.toISOString() })),
             invoices: invoices.map((inv) => {
               const s = inv.snapshot();
-              return { number: s.number, amount: s.amount, purpose: s.purpose, status: s.status, method: s.paidMethod, at: s.createdAt.toISOString(), paidAt: s.paidAt?.toISOString() ?? null };
+              return { number: s.number, amount: s.amount, purpose: s.purpose, status: s.status, method: s.paidMethod, at: s.createdAt.toISOString(), paidAt: s.paidAt?.toISOString() ?? null, viewedAt: s.viewedAt?.toISOString() ?? null };
             }),
             orders: orders.map((o) => ({ number: o.number, status: o.status, dealOrder: o.id === orderId })),
           };

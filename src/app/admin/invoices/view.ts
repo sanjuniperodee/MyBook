@@ -27,6 +27,7 @@ export function invoiceViews(invoices: DealInvoice[], opts: { now: Date; withLin
       paidRef: s.paidMethod === "manual" ? null : s.paidRef,
       closedReason: s.closedReason,
       claimedLabel: s.claimedAt ? formatDate(s.claimedAt, true) : null,
+      viewedLabel: s.viewedAt ? formatDate(s.viewedAt, true) : null,
       access: s.accessStatus,
       hasChat: !!s.conversationId,
       link: opts.withLink && s.status === "pending_payment" ? payLink(invoice) : null,

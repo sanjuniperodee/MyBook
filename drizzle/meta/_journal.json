@@ -526,6 +526,13 @@
       "when": 1792762480872,
       "tag": "0074_deal_repeat_count",
       "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1792763980106,
+      "tag": "0075_invoice_viewed",
+      "breakpoints": true
     }
   ]
 }

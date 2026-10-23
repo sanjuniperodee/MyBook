@@ -389,3 +389,34 @@ describe("Стыки зон: счёт из чата", () => {
     expect([(await t.dealInvoice(old.id)).status, (await t.dealInvoice(fresh.id)).status]).toEqual(["paid", "cancelled"]);
   });
 });
+
+describe("«клиент открыл счёт» (deals-12, chats-20)", () => {
+  it("первый показ ждущего счёта — отметка и событие один раз; оплаченный — не отмечается", async () => {
+    const t = dealSetup();
+    const inv = await t.issue();
+    expect(await t.invoices.viewed(inv.snapshot().token)).toBe(true);
+    expect(await t.invoices.viewed(inv.snapshot().token)).toBe(false);
+    expect((await t.dealInvoice(inv.id)).viewedAt).toBeInstanceOf(Date);
+    expect(t.count("ordering.deal_invoice_viewed")).toBe(1);
+    expect(await t.invoices.viewed("x".repeat(43))).toBe(false);
+  });
+
+  it("сборщики превью мессенджеров и роботы — не человек; телефон и браузер — человек", async () => {
+    const { isLinkPreviewAgent } = await import("@/modules/ordering/domain");
+    for (const ua of ["WhatsApp/2.23.20.0 A", "TelegramBot (like TwitterBot)", "facebookexternalhit/1.1", "Mozilla/5.0 (compatible; Googlebot/2.1)", "curl/8.4.0", "", null])
+      expect(isLinkPreviewAgent(ua), String(ua)).toBe(true);
+    for (const ua of [
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1",
+      "Mozilla/5.0 (Linux; Android 14; SM-A546E) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Mobile Safari/537.36",
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Instagram 345.0.0",
+    ])
+      expect(isLinkPreviewAgent(ua), ua).toBe(false);
+  });
+
+  it("продажник знает, что клиент открывал ссылку и не оплатил", async () => {
+    const { paymentFactsText } = await import("@/modules/messaging/domain/botPayments");
+    const facts = { paid: 0, agreed: 30000, batchSize: null, payments: [], orders: [], invoices: [{ number: 7, amount: 15000, purpose: "prepayment", status: "pending_payment" as const, method: null, at: "2026-10-01T05:00:00Z", paidAt: null, viewedAt: "2026-10-01T08:00:00Z" }] };
+    expect(paymentFactsText(facts, "Asia/Almaty")).toContain("Клиент открывал ссылку");
+    expect(paymentFactsText({ ...facts, invoices: [{ ...facts.invoices[0], viewedAt: null }] }, "Asia/Almaty")).not.toContain("открывал ссылку");
+  });
+});

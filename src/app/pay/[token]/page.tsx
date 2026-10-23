@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import { CheckCircle2, MessageCircle, XCircle } from "lucide-react";
 import { Link } from "@/i18n/client";
 import { LandingHeader } from "@/components/landing/Header";
@@ -7,7 +8,7 @@ import { Footer } from "@/components/landing/Footer";
 import { getCurrentUser } from "@/server/auth";
 import { container } from "@/server/container";
 import { transferRequisites } from "@/server/requisites";
-import { isOnlinePayment, isPayToken, payComment } from "@/modules/ordering";
+import { isLinkPreviewAgent, isOnlinePayment, isPayToken, payComment } from "@/modules/ordering";
 import { env } from "@/config/env";
 import { formatPrice, site } from "@/config/site";
 import { getLocale, getMessages } from "@/i18n/server";
@@ -38,6 +39,9 @@ export default async function PayPage({ params }: { params: Promise<{ token: str
   const state = s.status === "paid" ? "paid" : deal?.orderId ? "ordered" : invoice.isPayable(new Date()) ? "payable" : s.status === "cancelled" ? "cancelled" : "expired";
   const until = new Intl.DateTimeFormat(locale === "kk" ? "kk-KZ" : "ru-RU", { timeZone: storeTimeZone(), day: "numeric", month: "long" }).format(s.expiresAt);
   const [kaspi, transfer] = state === "payable" ? await Promise.all([dealInvoiceKaspiProps(invoice.id, s.phone), transferRequisites()]) : [null, null];
+  // «Клиент открыл счёт» (deals-12): не сотрудник (проверяет ссылку из CRM) и не сборщик превью мессенджера.
+  if (state === "payable" && !s.viewedAt && user?.role !== "admin" && !isLinkPreviewAgent((await headers()).get("user-agent")))
+    await c.ordering.invoices.viewed(token).catch((err) => console.error("[pay] viewed", err));
 
   return (
     <>

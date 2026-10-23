@@ -16,7 +16,7 @@ export interface PaymentFacts {
   /** Пакет: сколько книг оплачивается вместе (null — одна сделка). */
   batchSize: number | null;
   payments: { amount: number; kind: "prepayment" | "payment" | "refund"; method: PaymentMethod; at: string }[];
-  invoices: { number: number; amount: number; purpose: string; status: "pending_payment" | "paid" | "cancelled" | "expired"; method: PaymentMethod | null; at: string; paidAt: string | null }[];
+  invoices: { number: number; amount: number; purpose: string; status: "pending_payment" | "paid" | "cancelled" | "expired"; method: PaymentMethod | null; at: string; paidAt: string | null; viewedAt?: string | null }[];
   /** Заказы клиента на сайте; dealOrder — заказ этой сделки. */
   orders: { number: number; status: string; dealOrder: boolean }[];
   /** Что по договорённости бесплатно: giftwrap — подарочная упаковка, delivery — доставка. */
@@ -68,7 +68,8 @@ export function paymentFactsText(f: PaymentFacts, tz: string, claimOnly = false)
   for (const i of f.invoices.slice(0, 4)) {
     const what = `Счёт №${i.number} на ${kzt(i.amount)} (${PURPOSE[i.purpose] ?? "оплата"}) от ${day(i.at)}`;
     if (i.status === "paid") lines.push(`- ${what} — оплачен${i.paidAt ? ` ${day(i.paidAt)}` : ""}${i.method ? `, ${METHOD[i.method]}` : ""}.`);
-    else if (i.status === "pending_payment") lines.push(`- ${what} — выставлен и ждёт оплаты: ссылка уже у клиента, новый счёт не нужен. Спросит, как оплатить, — напомни про ссылку из счёта.`);
+    else if (i.status === "pending_payment")
+      lines.push(`- ${what} — выставлен и ждёт оплаты: ссылка уже у клиента, новый счёт не нужен.${i.viewedAt ? ` Клиент открывал ссылку ${day(i.viewedAt)}, но не оплатил — можно мягко спросить, получилось ли и удобен ли способ оплаты.` : ""} Спросит, как оплатить, — напомни про ссылку из счёта.`);
     else lines.push(`- ${what} — ${i.status === "expired" ? "истёк" : "отменён"}, по нему не платят.`);
   }
   for (const o of f.orders.slice(0, 3)) lines.push(`- Заказ №${o.number} на сайте${o.dealOrder ? " (по этой сделке)" : ""} — ${ORDER[o.status] ?? o.status}.`);

@@ -36,6 +36,8 @@ export interface InvoiceView {
   closedReason: string | null;
   /** Клиент нажал «Я оплатил(а)» на странице оплаты. */
   claimedLabel: string | null;
+  /** Клиент открыл ссылку на оплату (deals-12). */
+  viewedLabel?: string | null;
   access: InvoiceAccess;
   /** У счёта есть диалог — «Отправить ещё раз» уйдёт туда. */
   hasChat: boolean;

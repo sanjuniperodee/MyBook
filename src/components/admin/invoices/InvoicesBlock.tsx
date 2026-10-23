@@ -61,6 +61,7 @@ export function InvoicesBlock({ dealId, invoices, perms, onPaid, compact = false
               </div>
               <p className={cn("mt-1 inline-block rounded-full px-2 py-0.5 text-[11px]", tones[status.tone])}>{status.text}</p>
               {v.paidRef ? <p className="mt-0.5 text-[11px] text-muted">операция {v.paidRef}</p> : null}
+              {v.viewedLabel && v.status === "pending_payment" && !v.claimedLabel ? <p className="mt-1 text-xs text-muted" data-testid="invoice-viewed">👁 Клиент открыл счёт {v.viewedLabel}, но пока не оплатил</p> : null}
               {v.claimedLabel && v.status !== "paid" ? <p className="mt-1 text-xs text-amber-800">Клиент сообщил об оплате переводом {v.claimedLabel} — проверьте поступление и примите оплату с чеком.</p> : null}
               {access ? <p className={cn("mt-1 text-xs", v.access === "failed" || v.access === "needs_manager" ? "text-red-700" : "text-muted")}>{access}</p> : null}
               <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-xs">

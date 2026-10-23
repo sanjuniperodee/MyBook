@@ -166,6 +166,19 @@ export class DealInvoicesService {
     return open ? this.cancel(open.id, reason) : null;
   }
 
+  /** Клиент открыл ссылку на оплату (deals-12): отметка и событие — один раз на счёт. */
+  async viewed(token: string) {
+    return this.uow.run(async () => {
+      const found = await this.invoices.findByToken(token);
+      if (!found || found.snapshot().viewedAt || !found.isPayable(this.clock.now())) return false;
+      const invoice = await this.invoices.lockById(found.id);
+      if (!invoice?.markViewed(this.clock.now())) return false;
+      await this.invoices.save(invoice);
+      this.uow.track(invoice);
+      return true;
+    });
+  }
+
   /** Клиент сообщил, что оплатил переводом: ответственному — проверить поступление. */
   async claim(token: string) {
     return this.uow.run(async () => {

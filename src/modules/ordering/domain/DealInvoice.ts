@@ -34,6 +34,8 @@ export interface DealInvoiceProps {
   paidRef: string | null;
   paidAt: Date | null;
   claimedAt: Date | null;
+  /** Клиент открыл ссылку на оплату (deals-12): первый показ /pay клиенту. */
+  viewedAt?: Date | null;
   closedReason: string | null;
   expiresAt: Date;
   issuedById: string | null;
@@ -59,11 +61,13 @@ export interface DealInvoiceRef {
 export type DealInvoicePaid = DomainEvent<"ordering.deal_invoice_paid", DealInvoiceRef & { method: DealInvoiceMethod; ref: string | null; conversationId: string | null; phone: string | null; clientName: string; locale: "ru" | "kk"; channel: string; issuedById: string | null }>;
 /** Деньги пришли по закрытому счёту (повторная оплата, после заказа, по отменённому) — нужен возврат или зачёт. */
 export type DealInvoiceExtraMoney = DomainEvent<"ordering.deal_invoice_extra_money", DealInvoiceRef & { method: DealInvoiceMethod; ref: string; paid: number; recorded: boolean; reason: "overpaid" | "closed" | "order" | "mismatch" }>;
+/** Клиент впервые открыл ссылку на оплату (deals-12). */
+export type DealInvoiceViewed = DomainEvent<"ordering.deal_invoice_viewed", DealInvoiceRef>;
 /** Клиент сообщил, что оплатил переводом. */
 export type DealInvoiceClaimed = DomainEvent<"ordering.deal_invoice_claimed", DealInvoiceRef>;
 /** Счёт закрыт без оплаты (отменён, истёк): ждущую попытку Kaspi по нему — отменить (сначала сверив с Kaspi). */
 export type DealInvoiceClosed = DomainEvent<"ordering.deal_invoice_closed", DealInvoiceRef & { reason: string }>;
-export type DealInvoiceEvent = DealInvoicePaid | DealInvoiceExtraMoney | DealInvoiceClaimed | DealInvoiceClosed;
+export type DealInvoiceEvent = DealInvoicePaid | DealInvoiceExtraMoney | DealInvoiceViewed | DealInvoiceClaimed | DealInvoiceClosed;
 
 /**
  * Счёт из чата: менеджер просит клиента оплатить часть договорённости (предоплата, остаток) по ссылке. Один открытый
@@ -76,7 +80,7 @@ export class DealInvoice extends AggregateRoot<DealInvoiceProps> {
   }
 
   static issue(id: string, input: Omit<DealInvoiceProps, "status" | "paidMethod" | "paidRef" | "paidAt" | "claimedAt" | "closedReason" | "expiresAt" | "accessStatus" | "accessUserId" | "accessMessageId" | "accessAttemptedAt" | "createdAt" | "booksCount" | "gifts"> & { booksCount?: number; gifts?: AgreementGift[] }, now: Date) {
-    return new DealInvoice(id, { ...input, booksCount: input.booksCount ?? 1, gifts: input.gifts ?? [], status: "pending_payment", paidMethod: null, paidRef: null, paidAt: null, claimedAt: null, closedReason: null, expiresAt: new Date(now.getTime() + DEAL_INVOICE_TTL_MS), accessStatus: "none", accessUserId: null, accessMessageId: null, accessAttemptedAt: null, createdAt: now });
+    return new DealInvoice(id, { ...input, booksCount: input.booksCount ?? 1, gifts: input.gifts ?? [], status: "pending_payment", paidMethod: null, paidRef: null, paidAt: null, claimedAt: null, viewedAt: null, closedReason: null, expiresAt: new Date(now.getTime() + DEAL_INVOICE_TTL_MS), accessStatus: "none", accessUserId: null, accessMessageId: null, accessAttemptedAt: null, createdAt: now });
   }
 
   get number() {
@@ -130,6 +134,14 @@ export class DealInvoice extends AggregateRoot<DealInvoiceProps> {
   /** Деньги, которые нельзя засчитать этим счётом: повтор оплаты, оплата закрытого счёта или после заказа. */
   extraMoney(method: DealInvoiceMethod, ref: string, paid: number, recorded: boolean, reason: DealInvoiceExtraMoney["payload"]["reason"]) {
     this.record(domainEvent("ordering.deal_invoice_extra_money", { ...this.ref(), method, ref, paid, recorded, reason }) satisfies DealInvoiceExtraMoney);
+  }
+
+  /** Клиент открыл ждущий счёт — отметка один раз (повторные показы и закрытый счёт — ничего). */
+  markViewed(now: Date): boolean {
+    if (!this.isPayable(now) || this.props.viewedAt) return false;
+    this.props.viewedAt = now;
+    this.record(domainEvent("ordering.deal_invoice_viewed", this.ref()) satisfies DealInvoiceViewed);
+    return true;
   }
 
   claim(now: Date): boolean {
