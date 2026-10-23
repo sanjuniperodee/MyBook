@@ -40,6 +40,11 @@ export interface CallSideEffects {
   notifyMissed(assigneeId: string | null, n: { title: string; body: string; link: string }): Promise<void>;
   callChanged(): void;
   missedRules(ctx: { subject: string; callId: string; dealId: string | null; clientId: string | null }): Promise<void>;
+  /**
+   * Пропущенный звонок в WhatsApp — строкой в переписку с клиентом (platform-d11): менеджер видит его в чате, а бот ночью
+   * отвечает «перезвоним». Нет — только журнал звонков.
+   */
+  missedChat?(call: { externalId: string; clientPhone: string; at: Date }): Promise<void>;
 }
 
 /** API провайдера (Zadarma). */

@@ -81,7 +81,7 @@ function setup(opts: { answerFails?: boolean; openDeal?: string; duringAnswer?: 
     { byExtension: async () => null, byId: async () => ({ name: "Айгерим", email: "a@mybook.kz" }) },
     sales,
     { record: async (e) => void log.push(`note:${e.text}`) },
-    { isBlocked: async () => false, notifyMissed: async (to, n) => void log.push(`notify:${to}:${n.title}`), callChanged: () => {}, missedRules: async () => {} },
+    { isBlocked: async () => false, notifyMissed: async (to, n) => void log.push(`notify:${to}:${n.title}`), callChanged: () => {}, missedRules: async () => {}, missedChat: async (c) => void log.push(`chat:${c.externalId}:${c.clientPhone}`) },
     clock,
   );
   let enabled = true;
@@ -225,6 +225,9 @@ describe("WhatsappCallsService: зависшие звонки (планиров�
     tick(15);
     expect(await service.sweep()).toBe(1);
     expect(log).toContain(`finished:${lost.id}:missed:0`);
+    // Пропущенный — и строкой в переписку WhatsApp (platform-d11), разговор — нет.
+    expect(log).toContain("chat:IN1:77011234567");
+    expect(log.some((l) => l.startsWith("chat:IN2"))).toBe(false);
     tick(50);
     // Вкладка молчит больше 45 с — разговор закрыт: 80 с до последнего признака жизни.
     expect(await service.sweep()).toBe(1);
@@ -283,5 +286,19 @@ describe("Звонки WhatsApp: сообщения шлюза", () => {
     expect(text(new GowaError('WhatsApp: call not found: "X"', null, 500))).toBe("Звонок уже завершён");
     expect(text(new GowaError("WhatsApp: failed to place call: timeout", null, 500))).toBe("Звонок WhatsApp не удался: failed to place call: timeout");
     expect(() => whatsappCallError(new Error("boom"))).toThrow("boom");
+  });
+});
+
+describe("пропущенный звонок WhatsApp в переписке (platform-d11)", () => {
+  it("строка звонка ложится в чат без второго уведомления, повтор события — один раз", async () => {
+    const { setup: chatSetup } = await import("./doubles/botHarness");
+    const { missedCallMessage } = await import("@/modules/messaging/domain/gowa");
+    const chat = chatSetup();
+    const call = { externalId: "WA9", clientPhone: "77011234567", at: new Date("2026-10-01T18:00:00Z") };
+    await chat.service.ingest(missedCallMessage(call), { anyWhatsappChannel: true, silent: true });
+    await chat.service.ingest(missedCallMessage(call), { anyWhatsappChannel: true, silent: true });
+    expect(chat.msgs.filter((m) => m.type === "missing_call")).toHaveLength(1);
+    expect(chat.conv()).toMatchObject({ chatId: "77011234567", channel: "whatsapp" });
+    expect(chat.notified.filter((n) => n.kind === "message")).toEqual([]);
   });
 });

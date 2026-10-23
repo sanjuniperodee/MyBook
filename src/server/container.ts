@@ -14,6 +14,7 @@ import { AuthoringModule } from "@/modules/authoring";
 import { NotificationsModule } from "@/modules/notifications";
 import { SalesModule, sourceFromChannel } from "@/modules/sales";
 import { MessagingModule } from "@/modules/messaging";
+import { missedCallMessage } from "@/modules/messaging/domain/gowa";
 import { botInvoices } from "./deal-invoices";
 import { TelephonyModule } from "@/modules/telephony";
 import { MarketingModule } from "@/modules/marketing";
@@ -236,6 +237,8 @@ export class Container {
       whatsapp: whatsappCallGateway(() => this.messaging.gowa, whatsappSettings.callsEnabled),
       isBlocked: (phone) => this.messaging.chats.isBlocked(phone),
       missedRules: (ctx) => this.automation.engine.run("call.missed", ctx),
+      // Пропущенный звонок WhatsApp — строкой в переписку: бот ночью ответит «перезвоним» (о звонке уже уведомили).
+      missedChat: (call) => this.messaging.chats.ingest(missedCallMessage(call), { anyWhatsappChannel: true, silent: true }),
       sales: {
         findClientByPhone: (phone) => this.sales.deals.findClientByPhone(phone),
         findOpenDealId: async (opts) => (await this.sales.deals.findOpen(opts))?.id ?? null,

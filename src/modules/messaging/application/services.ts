@@ -57,6 +57,8 @@ export interface IngestExtra {
    * при переходе с Wazzup история переписки с клиентом не разрывается.
    */
   anyWhatsappChannel?: boolean;
+  /** Без уведомления о сообщении: о пропущенном звонке сотрудник уже узнал из журнала звонков. */
+  silent?: boolean;
 }
 
 /** Карточка клиента или сделки: её телефоны и (по id) идентификаторы собеседников её диалогов. */
@@ -253,7 +255,7 @@ export class MessagingService {
     const fresh = (await this.conversations.findById(conv.id)) ?? conv;
     // Пока бот ведёт опрос, отдельное уведомление на каждое сообщение не нужно: менеджер получит итог бота.
     const { quiet } = await this.bot.onIncoming(fresh, m, { created, dealCreated }).catch((err) => (this.logger.error("bot", err), { quiet: false }));
-    if (!quiet)
+    if (!quiet && !extra.silent)
       await this.notifier.notify(conv.assigneeId, "chats.view", {
         kind: "message",
         title: `${conv.contactName || m.contactName || phoneTail(conv.chatId) || conv.chatId} · ${channelLabel(conv.channel)}`,

@@ -73,6 +73,9 @@ export class CallsService {
         link: call.dealId ? `/admin/deals/${call.dealId}` : "/admin/calls",
       });
       await this.effects.missedRules({ subject: call.id, callId: call.id, dealId: call.dealId, clientId: call.clientId });
+      // Звонок в WhatsApp — и строкой в переписку: сбой чата журнал звонков не ломает.
+      if (call.provider === "whatsapp" && call.clientPhone && this.effects.missedChat)
+        await this.effects.missedChat({ externalId: call.externalId, clientPhone: call.clientPhone, at: this.clock.now() }).catch((err) => console.error("[telephony] missed chat", err));
     }
     return call;
   }

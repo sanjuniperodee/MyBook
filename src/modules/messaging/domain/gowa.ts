@@ -169,6 +169,27 @@ export function parseGowaCall(body: unknown, opts: { native: boolean }): Whatsap
 const ownJid = (deviceId: string) => deviceId.split("@")[0].split(":")[0];
 
 /** Вебхук GOWA → входящие (и отправленные с телефона — эхо) и статусы доставки в формате инбокса. */
+/**
+ * Пропущенный звонок WhatsApp через свой шлюз — строкой в переписку (platform-d11), как Wazzup присылает missing_call:
+ * бот ночью отвечает «перезвоним», менеджер видит звонок среди сообщений. Повтор события — тот же externalId.
+ */
+export function missedCallMessage(call: { externalId: string; clientPhone: string; at: Date }): InboundMessage {
+  return {
+    externalId: `call:${call.externalId}`,
+    channelId: GOWA_CHANNEL,
+    chatType: "whatsapp",
+    chatId: call.clientPhone.replace(/\D/g, ""),
+    at: call.at,
+    isEcho: false,
+    type: "missing_call",
+    text: "📞 Пропущенный звонок в WhatsApp",
+    mediaUrl: null,
+    contactName: "",
+    avatarUrl: null,
+    status: null,
+  };
+}
+
 export function parseGowaWebhook(body: unknown): { messages: InboundMessage[]; statuses: DeliveryStatus[] } {
   const b = record(body);
   const event = str(b.event);

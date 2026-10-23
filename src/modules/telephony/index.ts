@@ -18,7 +18,7 @@ export class TelephonyModule {
 
   /** Настройки АТС, уведомления о пропущенных и живое обновление журнала — порты рабочего пространства. */
   constructor(
-    deps: { clock: Clock; sales: SalesGateway; settings: SettingsReader<TelephonySettingKey>; notifier: StaffNotifier<"calls.view">; live: LiveFeed; whatsapp: WhatsappCallGateway } & Pick<CallSideEffects, "isBlocked" | "missedRules">,
+    deps: { clock: Clock; sales: SalesGateway; settings: SettingsReader<TelephonySettingKey>; notifier: StaffNotifier<"calls.view">; live: LiveFeed; whatsapp: WhatsappCallGateway } & Pick<CallSideEffects, "isBlocked" | "missedRules" | "missedChat">,
   ) {
     const repo = new DrizzleCallRepository();
     this.phone = new TelephonyService(zadarmaProvider(deps.settings));

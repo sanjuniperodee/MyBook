@@ -48,6 +48,7 @@ function setup(opts: { blocked?: boolean; client?: string; staff?: { name: strin
     notifyMissed: async (to, n) => void log.push(`notify:${to}:${n.title}`),
     callChanged: () => {},
     missedRules: async (ctx) => void log.push(`rules:${ctx.callId}`),
+    missedChat: async (c) => void log.push(`chat:${c.clientPhone}`),
   };
   const service = new CallsService(repo, { byExtension: async (e) => (e ? "m1" : null), byId: async () => opts.staff ?? { name: "Менеджер", email: "manager@mybook.kz" } }, sales, { record: async (e) => void log.push(`note:${e.text}`) }, effects, { now: () => now });
   return { service, log };
@@ -129,5 +130,29 @@ describe("CallsService", () => {
     await service.handle(event({}));
     await service.handle(event({ stage: "end" }));
     expect(log).toEqual(["finished:c1"]);
+  });
+});
+
+describe("пропущенный звонок WhatsApp — строкой в переписку (platform-3, platform-d11)", () => {
+  it("пропущенный WhatsApp — строкой в переписку, пропущенный через АТС — нет", async () => {
+    const atc = setup();
+    await atc.service.handle(event({}));
+    await atc.service.handle(event({ stage: "end" }));
+    expect(atc.log.some((l) => l.startsWith("chat:"))).toBe(false);
+    const wa = setup();
+    await wa.service.handle(event({ provider: "whatsapp", externalId: "WA7" }));
+    await wa.service.handle(event({ provider: "whatsapp", externalId: "WA7", stage: "end" }));
+    expect(wa.log).toContain("chat:77011234567");
+  });
+
+  it("строка «Пропущенный звонок» для чата: id по звонку, номер цифрами", async () => {
+    const { missedCallMessage } = await import("@/modules/messaging/domain/gowa");
+    expect(missedCallMessage({ externalId: "WA7", clientPhone: "+7 701 123 45 67", at: new Date("2026-10-23T18:00:00Z") })).toMatchObject({
+      externalId: "call:WA7",
+      chatType: "whatsapp",
+      chatId: "77011234567",
+      type: "missing_call",
+      isEcho: false,
+    });
   });
 });
