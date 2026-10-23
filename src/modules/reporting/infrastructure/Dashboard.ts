@@ -36,7 +36,9 @@ export async function dashboard(period: number, viewer: Viewer) {
         cur: sql<number>`count(*) filter (where ${users.createdAt} >= ${start})::int`,
         prev: sql<number>`count(*) filter (where ${users.createdAt} >= ${prevStart} and ${users.createdAt} < ${start})::int`,
       })
-      .from(users),
+      .from(users)
+      // «Новые клиенты» — только клиенты: заведённые сотрудники в показатель не входят (analytics-d5).
+      .where(eq(users.role, "user")),
     // Воронка по когорте зарегистрировавшихся в периоде
     db.execute<{ registered: number; with_book: number; engaged: number; ordered: number; paid: number }>(sql`
       select
