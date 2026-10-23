@@ -1,7 +1,9 @@
 import { container } from "@/server/container";
 import Link from "next/link";
 import { can, requireStaff } from "@/server/access";
-import { conversion } from "@/modules/marketing";
+import { conversion, costPerLead, romi } from "@/modules/marketing";
+import { SpendForm } from "./SpendForm";
+import { channels as channelLabels } from "@/shared/domain/channels";
 import { channelLabel } from "@/shared/domain/channels";
 import { landings } from "@/lib/content/landings";
 import { env } from "@/config/env";
@@ -28,7 +30,11 @@ export default async function MarketingPage({ searchParams }: { searchParams: Pr
   const sp = await searchParams;
   const period = periods.find(([d]) => String(d) === sp.period)?.[0] ?? 30;
   const marketing = container().marketing;
-  const [report, links, waNumber] = await Promise.all([marketing.service.report(period || null), marketing.links.all(), marketing.service.shopWhatsapp()]);
+  const [report, links, waNumber, spendRows] = await Promise.all([marketing.service.report(period || null), marketing.links.all(), marketing.service.shopWhatsapp(), can(staff, "promo.manage") ? marketing.spend.recent(15) : Promise.resolve([])]);
+  const romiLabel = (m: Parameters<typeof romi>[0]) => {
+    const r = romi(m);
+    return r === null ? "—" : `${r >= 0 ? "+" : ""}${Math.round(r * 100)}%`;
+  };
   const visibleLinks = links.filter((l) => (sp.archived === "1" ? l.archived : !l.archived));
   const targets = new Map(await Promise.all(visibleLinks.map(async (l) => [l.id, await marketing.service.target(l)] as const)));
   const showAnalytics = can(staff, "analytics.view");
@@ -71,6 +77,9 @@ export default async function MarketingPage({ searchParams }: { searchParams: Pr
                   <th className="pb-2 text-right font-medium">Продажи</th>
                   <th className="pb-2 text-right font-medium">Конверсия</th>
                   <th className="pb-2 text-right font-medium">Выручка</th>
+                  <th className="pb-2 text-right font-medium">Расход</th>
+                  <th className="pb-2 text-right font-medium">Заявка</th>
+                  <th className="pb-2 text-right font-medium">ROMI</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
@@ -84,6 +93,9 @@ export default async function MarketingPage({ searchParams }: { searchParams: Pr
                     <td className="py-2 text-right tabular-nums">{c.sales}</td>
                     <td className="py-2 text-right tabular-nums">{pct(conversion(c))}</td>
                     <td className="py-2 text-right tabular-nums">{formatPrice(c.revenue)}</td>
+                    <td className="py-2 text-right tabular-nums">{c.spend ? formatPrice(c.spend) : "—"}</td>
+                    <td className="py-2 text-right tabular-nums">{costPerLead(c) !== null ? formatPrice(costPerLead(c)!) : "—"}</td>
+                    <td className={cn("py-2 text-right tabular-nums", (romi(c) ?? 0) < 0 && "text-red-700")}>{romiLabel(c)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -98,13 +110,17 @@ export default async function MarketingPage({ searchParams }: { searchParams: Pr
                     <td className="py-2 text-right tabular-nums">{report.total.sales}</td>
                     <td className="py-2 text-right tabular-nums">{pct(conversion(report.total))}</td>
                     <td className="py-2 text-right tabular-nums">{formatPrice(report.total.revenue)}</td>
+                    <td className="py-2 text-right tabular-nums">{report.total.spend ? formatPrice(report.total.spend) : "—"}</td>
+                    <td className="py-2 text-right tabular-nums">{costPerLead(report.total) !== null ? formatPrice(costPerLead(report.total)!) : "—"}</td>
+                    <td className="py-2 text-right tabular-nums">{romiLabel(report.total)}</td>
                   </tr>
                 </tfoot>
               ) : null}
             </table>
             {report.channels.length === 0 ? <p className="py-4 text-sm text-muted">За период нет новых клиентов и заявок.</p> : null}
             <p className="mt-3 text-xs text-muted">
-              Регистрации — новые аккаунты на сайте по источнику первого визита. Заявки — сделки (сайт, чаты, звонки). Продажи — оплатившие клиенты и успешные сделки без заказа на сайте.
+              Регистрации — новые аккаунты на сайте по источнику первого визита. Заявки — сделки (сайт, чаты, звонки). Продажи — оплатившие клиенты и успешные сделки без заказа на сайте. Выручка
+              когортная: деньги клиентов и заявок, пришедших за период, поэтому ROMI занижен — часть оплат придёт позже, а продажи без метки канала уходят в «Прямые» и «Сарафан». Стоимость заявки — расход на регистрации и заявки канала.
             </p>
           </section>
           <section className="rounded-2xl border border-line bg-white p-5">
@@ -116,6 +132,13 @@ export default async function MarketingPage({ searchParams }: { searchParams: Pr
             )}
           </section>
         </div>
+      ) : null}
+
+      {can(staff, "promo.manage") ? (
+        <SpendForm
+          channels={Object.entries(channelLabels).map(([key, label]) => ({ key, label }))}
+          recent={spendRows.map((r) => ({ id: r.id, label: `${r.day.slice(8, 10)}.${r.day.slice(5, 7)} · ${channelLabels[r.channel as keyof typeof channelLabels] ?? r.channel} · ${formatPrice(r.amount)}${r.note ? ` · ${r.note}` : ""}` }))}
+        />
       ) : null}
 
       <section className="rounded-2xl border border-line bg-white p-5">

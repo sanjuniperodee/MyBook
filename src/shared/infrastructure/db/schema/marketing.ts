@@ -1,5 +1,5 @@
 /** Рекламные ссылки с UTM-метками и их переходы (модуль marketing). */
-import { boolean, integer, pgTable, primaryKey, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, index, integer, pgTable, primaryKey, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { users } from "./identity";
 
 /** Рекламные ссылки с UTM-метками: короткий адрес /go/код ведёт на страницу сайта или в WhatsApp. */
@@ -33,4 +33,24 @@ export const crmLinkClicks = pgTable(
     clicks: integer("clicks").notNull().default(0),
   },
   (t) => [primaryKey({ columns: [t.linkId, t.day] })],
+);
+
+/**
+ * Расходы на рекламу по каналам (analytics-7): сколько потратили на канал в день — для ROMI и стоимости заявки в отчёте
+ * по каналам. Вводит сотрудник с правом promo.manage, каждая запись — в журнале.
+ */
+export const marketingSpend = pgTable(
+  "marketing_spend",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** Канал привлечения (ChannelKey: instagram, tiktok, bloggers…). */
+    channel: text("channel").notNull(),
+    /** День расхода по поясу магазина: ГГГГ-ММ-ДД. */
+    day: text("day").notNull(),
+    amount: integer("amount").notNull(),
+    note: text("note").notNull().default(""),
+    createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("marketing_spend_day_idx").on(t.day)],
 );

@@ -1,9 +1,16 @@
 import type { Locale } from "@/i18n/config";
-import type { ClickRow, ClientRow, DealRow, TrackedLink } from "../domain";
+import type { ClickRow, ClientRow, DealRow, SpendRow, TrackedLink } from "../domain";
 
 export interface ReportSource {
   /** since — null за всё время. */
-  rows(since: Date | null): Promise<{ clients: ClientRow[]; deals: DealRow[]; clicks: ClickRow[] }>;
+  rows(since: Date | null): Promise<{ clients: ClientRow[]; deals: DealRow[]; clicks: ClickRow[]; spend?: SpendRow[] }>;
+}
+
+/** Расходы на рекламу (analytics-7). */
+export interface SpendRepository {
+  add(row: { channel: string; day: string; amount: number; note: string; createdById: string }): Promise<string>;
+  recent(limit: number): Promise<{ id: string; channel: string; day: string; amount: number; note: string; createdAt: Date }[]>;
+  remove(id: string): Promise<{ channel: string; day: string; amount: number } | null>;
 }
 
 export interface LinkRepository {

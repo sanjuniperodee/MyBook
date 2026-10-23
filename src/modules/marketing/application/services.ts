@@ -20,7 +20,7 @@ export class MarketingService {
   async report(days: number | null) {
     const since = days ? new Date(this.clock.now().getTime() - days * 86_400_000) : null;
     const rows = await this.source.rows(since);
-    return buildChannelReport(rows.clients, rows.deals, rows.clicks);
+    return buildChannelReport(rows.clients, rows.deals, rows.clicks, rows.spend ?? []);
   }
 
   shopWhatsapp() {

@@ -1,6 +1,8 @@
 import { channelOf, channels, toAttribution, type Attribution, type ChannelKey } from "@/shared/domain/channels";
 
 export interface Metrics {
+  /** Расход на рекламу канала за период, ₸ (analytics-7). */
+  spend?: number;
   clicks: number;
   registrations: number;
   startedBook: number;
@@ -42,6 +44,24 @@ export interface DealRow {
   /** Принято денег по сделке (платежи менеджера), ₸. */
   paid?: number;
 }
+/** Расход на канал за период. */
+export interface SpendRow {
+  channel: string;
+  amount: number;
+}
+
+/**
+ * Стоимость заявки и ROMI (analytics-7): заявка — регистрация или сделка; ROMI = (выручка − расход) / расход. Без расхода —
+ * null. Выручка когортная (клиенты и заявки периода), поэтому ROMI занижен: часть денег придёт позже.
+ */
+export function costPerLead(m: Metrics) {
+  const leads = m.registrations + m.leads;
+  return m.spend && leads ? Math.round(m.spend / leads) : null;
+}
+export function romi(m: Metrics) {
+  return m.spend ? (m.revenue - m.spend) / m.spend : null;
+}
+
 export interface ClickRow {
   slug: string;
   source: string;
@@ -54,7 +74,7 @@ export interface ClickRow {
  * Отчёт по каналам привлечения. Клиенты — по источнику первого визита; заявки — по их UTM;
  * выручка — оплаченные заказы клиентов когорты плюс успешные сделки без заказа (продажи в мессенджерах).
  */
-export function buildChannelReport(clients: ClientRow[], deals: DealRow[], clicks: ClickRow[]): Report {
+export function buildChannelReport(clients: ClientRow[], deals: DealRow[], clicks: ClickRow[], spend: SpendRow[] = []): Report {
   const byChannel = new Map<ChannelKey, CohortMetrics>();
   const byCampaign = new Map<string, CohortMetrics & { source: string; medium: string; campaign: string; channel: string }>();
   const byLink = new Map<string, CohortMetrics>();
@@ -104,6 +124,15 @@ export function buildChannelReport(clients: ClientRow[], deals: DealRow[], click
     bump({ source: l.source, medium: l.medium || undefined, campaign: l.campaign || undefined, link: l.slug }, null, (m) => {
       m.clicks += l.clicks;
     });
+  }
+
+  for (const s of spend) {
+    if (!s.amount || !(s.channel in channels)) continue;
+    const key = s.channel as ChannelKey;
+    if (!byChannel.has(key)) byChannel.set(key, empty());
+    const m = byChannel.get(key)!;
+    m.spend = (m.spend ?? 0) + s.amount;
+    total.spend = (total.spend ?? 0) + s.amount;
   }
 
   return {
