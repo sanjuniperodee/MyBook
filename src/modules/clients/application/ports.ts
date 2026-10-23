@@ -35,6 +35,11 @@ export interface TaskRepository {
    * со сроком раньше него (вне смены: остальные не забираются и дождутся её начала).
    */
   claimDueReminders(now: Date, staleMin: number, limit: number, dueBefore?: Date | null): Promise<{ id: string; title: string; kind: TaskKind; dueAt: Date; assigneeId: string | null; dealId: string | null; orderId: string | null }[]>;
+  /**
+   * Застолбить просроченные (tasks-4): открытые, срок прошёл больше graceMin минут назад, но не раньше недели, о просрочке
+   * ещё не говорили; ранние первыми, не больше limit. Сразу отмечаются — второй проход их не возьмёт.
+   */
+  claimOverdue(now: Date, graceMin: number, limit: number): Promise<{ id: string; title: string; dueAt: Date; assigneeId: string | null; dealId: string | null; orderId: string | null }[]>;
   /** Есть ли открытая задача с таким заголовком по сделке (служебные задачи CRM не дублируются при повторе). */
   existsOpen(t: { dealId: string; title: string }): Promise<boolean>;
   /**

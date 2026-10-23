@@ -45,6 +45,8 @@ export const crmTasks = pgTable(
     remindBeforeMin: integer("remind_before_min"),
     /** Когда напоминание ушло: одно на задачу. */
     remindedAt: timestamp("reminded_at", { withTimezone: true }),
+    /** Когда ответственному (или всем — у ничьей) сказали, что задача просрочена (tasks-4): одно на задачу. */
+    overdueNotifiedAt: timestamp("overdue_notified_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [

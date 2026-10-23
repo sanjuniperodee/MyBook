@@ -65,6 +65,29 @@ export const drizzleTasks: TaskRepository = {
       .returning({ id: crmTasks.id, title: crmTasks.title, kind: crmTasks.kind, dueAt: crmTasks.dueAt, assigneeId: crmTasks.assigneeId, dealId: crmTasks.dealId, orderId: crmTasks.orderId });
     return rows.map((r) => ({ ...r, dueAt: r.dueAt as Date })).sort((a, b) => a.dueAt.getTime() - b.dueAt.getTime());
   },
+  // По индексу crm_tasks_due_idx (done_at, due_at): открытые со сроком в окне «неделя назад — graceMin назад».
+  async claimOverdue(now, graceMin, limit) {
+    const db = executor();
+    const due = db
+      .select({ id: crmTasks.id })
+      .from(crmTasks)
+      .where(
+        and(
+          isNull(crmTasks.doneAt),
+          isNull(crmTasks.overdueNotifiedAt),
+          sql`${crmTasks.dueAt} <= ${now}::timestamptz - ${graceMin} * interval '1 minute'`,
+          sql`${crmTasks.dueAt} > ${now}::timestamptz - interval '7 days'`,
+        ),
+      )
+      .orderBy(asc(crmTasks.dueAt))
+      .limit(limit);
+    const rows = await db
+      .update(crmTasks)
+      .set({ overdueNotifiedAt: now })
+      .where(and(inArray(crmTasks.id, due), isNull(crmTasks.overdueNotifiedAt), isNull(crmTasks.doneAt)))
+      .returning({ id: crmTasks.id, title: crmTasks.title, dueAt: crmTasks.dueAt, assigneeId: crmTasks.assigneeId, dealId: crmTasks.dealId, orderId: crmTasks.orderId });
+    return rows.map((r) => ({ ...r, dueAt: r.dueAt as Date })).sort((a, b) => a.dueAt.getTime() - b.dueAt.getTime());
+  },
   setDone: async (id, doneAt, doneById = null) => void (await executor().update(crmTasks).set({ doneAt, doneById: doneAt ? doneById : null }).where(eq(crmTasks.id, id))),
   // Один UPDATE на ответ клиенту — по частичному индексу crm_tasks_open_deal_idx (открытые задачи сделки). Только задачи
   // CRM (автора нет): ручные «Написать» сотрудников ответ в чате не закрывает.

@@ -76,6 +76,9 @@ export async function crmTick() {
     // Напоминания о задачах: ответственному — в CRM со звуком и в WhatsApp.
     const reminded = await step("task reminders", () => container().clients.tasks.remindDue(), 0);
     if (reminded) console.log(`[scheduler] task reminders=${reminded}`);
+    // Просроченные задачи: одно уведомление ответственному, в рабочее время (tasks-4).
+    const overdue = await step("overdue tasks", () => container().clients.tasks.escalateOverdue(), 0);
+    if (overdue) console.log(`[scheduler] overdue tasks=${overdue}`);
     // Круг: ночные заявки — утром первым на смене, не взятые вовремя — следующему.
     const routed = await step("lead routing", () => container().sales.routing.run(), 0);
     if (routed) console.log(`[scheduler] crm leads routed=${routed}`);

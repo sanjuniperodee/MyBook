@@ -48,7 +48,7 @@ class MemClients implements ClientRepository {
 }
 
 class MemTasks implements TaskRepository {
-  rows = new Map<string, Task & { remindBeforeMin?: number | null; remindedAt?: Date | null; result?: string | null; doneById?: string | null }>();
+  rows = new Map<string, Task & { remindBeforeMin?: number | null; remindedAt?: Date | null; result?: string | null; doneById?: string | null; overdueNotifiedAt?: Date | null }>();
   private seq = 0;
   async find(id: string) {
     const t = this.rows.get(id);
@@ -68,6 +68,17 @@ class MemTasks implements TaskRepository {
       if (t.dueAt!.getTime() - t.remindBeforeMin! * 60_000 > now.getTime() || t.dueAt!.getTime() <= now.getTime() - staleMin * 60_000) continue;
       this.rows.set(id, { ...t, remindedAt: now });
       out.push({ id, title: t.title, kind: t.kind, dueAt: t.dueAt!, assigneeId: t.assigneeId, dealId: t.dealId, orderId: t.orderId });
+    }
+    return out;
+  }
+  async claimOverdue(now: Date, graceMin: number, limit: number) {
+    const out: Awaited<ReturnType<TaskRepository["claimOverdue"]>> = [];
+    const open = [...this.rows]
+      .filter(([, t]) => !t.doneAt && !t.overdueNotifiedAt && t.dueAt && t.dueAt.getTime() <= now.getTime() - graceMin * 60_000 && t.dueAt.getTime() > now.getTime() - 7 * 86_400_000)
+      .sort(([, a], [, b]) => a.dueAt!.getTime() - b.dueAt!.getTime());
+    for (const [id, t] of open.slice(0, limit)) {
+      this.rows.set(id, { ...t, overdueNotifiedAt: now });
+      out.push({ id, title: t.title, dueAt: t.dueAt!, assigneeId: t.assigneeId, dealId: t.dealId, orderId: t.orderId });
     }
     return out;
   }

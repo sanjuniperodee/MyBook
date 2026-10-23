@@ -11,6 +11,8 @@ export const DEFAULT_REMIND_MIN = 60;
 const REMIND_STALE_MIN = 60;
 /** Сколько напоминаний забирает один минутный проход (остальные — в следующем). */
 const REMIND_BATCH = 200;
+/** О просрочке — через полчаса после срока: «срок наступил» уже пришёл напоминанием. */
+const OVERDUE_GRACE_MIN = 30;
 /** Итог задачи «ответить», закрытой ответом клиенту из CRM или с телефона магазина. */
 export const ANSWERED_RESULT = "ответили в чате";
 
@@ -155,6 +157,26 @@ export class TasksService {
       if (whatsapp) await this.messenger?.send(t.assigneeId, `⏰ ${title}\nСрок: ${when}\n${link}`).catch(() => false);
     }
     return due.length;
+  }
+
+  /**
+   * Просрочка (tasks-4): задача, срок которой прошёл полчаса назад, а она открыта, — одно уведомление ответственному
+   * («Просрочена задача»), по ничьей — всем, кто ведёт сделки. Только в рабочее время: ночная просрочка ждёт смены. Не
+   * старше недели. Сколько уведомлений.
+   */
+  async escalateOverdue(): Promise<number> {
+    const now = this.clock.now();
+    if (this.schedule && !(await this.schedule.isWorkTime(now).catch(() => false))) return 0;
+    const overdue = await this.tasks.claimOverdue(now, OVERDUE_GRACE_MIN, REMIND_BATCH);
+    for (const t of overdue) {
+      const link = t.dealId ? `/admin/deals/${t.dealId}` : t.orderId ? `/admin/orders/${t.orderId}` : "/admin/tasks";
+      const p = zonedParts(t.dueAt);
+      const body = `Срок был ${pad(p.d)}.${pad(p.m)} ${pad(Math.floor(p.minutes / 60))}:${pad(p.minutes % 60)}`;
+      const n = { kind: "task" as const, title: `Просрочена задача: ${t.title}`, link };
+      if (t.assigneeId && (await this.staff.isActiveStaff(t.assigneeId))) await this.notifier.notify([t.assigneeId], { ...n, body }).catch(() => {});
+      else await this.notifier.dealsTeam({ ...n, body: `${body} · задача ничья — возьмите её` }).catch(() => {});
+    }
+    return overdue.length;
   }
 
   /**

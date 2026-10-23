@@ -305,6 +305,32 @@ describe("TasksService: напоминание о сроке задачи", () =
   });
 });
 
+describe("TasksService: уведомление о просрочке (tasks-4)", () => {
+  it("через полчаса после срока — одно уведомление ответственному; ничья — всем; отключённому — как ничья; неделя назад — нет", async () => {
+    const t = setup();
+    const now = t.c.now().getTime();
+    const add = async (title: string, assigneeId: string | null, minutesAgo: number) => {
+      await t.tasks.create(head, { title, kind: "task" });
+      const row = t.mem.tasks.last();
+      t.mem.tasks.rows.set(row.id, { ...row, assigneeId, dueAt: new Date(now - minutesAgo * 60_000) });
+    };
+    await add("Мой просроченный", "m1", 40);
+    await add("Ничей", null, 120);
+    await add("Бывшего", "x1", 60);
+    await add("Только что", "m1", 10);
+    await add("Давний", "m1", 8 * 24 * 60);
+    const before = t.notifier.sent.length;
+    expect(await t.tasks.escalateOverdue()).toBe(3);
+    const sent = t.notifier.sent.slice(before);
+    expect(sent.map((x) => [x.userIds.join(","), x.n.title])).toEqual([
+      ["deals.view", "Просрочена задача: Ничей"],
+      ["deals.view", "Просрочена задача: Бывшего"],
+      ["m1", "Просрочена задача: Мой просроченный"],
+    ]);
+    expect(await t.tasks.escalateOverdue()).toBe(0);
+  });
+});
+
 describe("TasksService: задачи от CRM (бот, правила, «Перезвоните мне») — tasks-d2", () => {
   const at = (iso: string) => new Date(iso);
 
