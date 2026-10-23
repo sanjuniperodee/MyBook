@@ -9,6 +9,16 @@ export interface PrintJob {
   orderId: string;
   bookId: string;
   number: number;
+  /** Тариф и тираж — в техзадание (deals-d11); нет — техзадание без них. */
+  plan?: string;
+  quantity?: number;
+}
+
+/** Что из заказа идёт в техзадание для типографии. */
+export interface PrintOrderInfo {
+  number: number;
+  plan?: string;
+  quantity?: number;
 }
 
 export interface PrintSpec {
@@ -22,7 +32,7 @@ export interface PrintSpec {
 
 /** Порт рендера: PDF блока, обложки и читательской версии. report — рендер докладывает, какой этап начался (RenderProgress). */
 export interface BookRenderer {
-  renderPrintPackage(bookId: string, orderNumber: number, report?: RenderReport): Promise<{ interior: Buffer; cover: Buffer; layout: Buffer; spec: Buffer; printSpec: PrintSpec } | null>;
+  renderPrintPackage(bookId: string, order: PrintOrderInfo, report?: RenderReport): Promise<{ interior: Buffer; cover: Buffer; layout: Buffer; spec: Buffer; printSpec: PrintSpec } | null>;
   /** Каркас — готовая обложка с рамками крышек и корешка — по готовым PDF блока и обложки (для заказов, собранных до появления каркаса). */
   renderLayout(bookId: string, block: Buffer, cover: Buffer, report?: RenderReport): Promise<Buffer | null>;
   renderReading(bookId: string, report?: RenderReport): Promise<Buffer | null>;
@@ -113,7 +123,7 @@ export class PrintFilesService {
     const keys = { block: this.key(job.orderId, "block"), cover: this.key(job.orderId, "cover"), spec: this.key(job.orderId, "spec") };
     if (!opts.force && (await this.files.exists(keys.block)) && (await this.files.exists(keys.cover)) && (await this.files.exists(keys.spec))) return null;
     return this.render(`print:${job.orderId}`, "package", async (report) => {
-      const pkg = await this.renderer.renderPrintPackage(job.bookId, job.number, report);
+      const pkg = await this.renderer.renderPrintPackage(job.bookId, { number: job.number, plan: job.plan, quantity: job.quantity }, report);
       if (!pkg) throw new Error(`book ${job.bookId} not found`);
       await this.files.put(keys.block, pkg.interior);
       await this.files.put(keys.cover, pkg.cover);

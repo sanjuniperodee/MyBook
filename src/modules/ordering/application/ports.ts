@@ -35,6 +35,9 @@ export interface PrintJob {
   orderId: string;
   bookId: string;
   number: number;
+  /** Тариф и тираж — в техзадание для типографии (deals-d11). */
+  plan?: string;
+  quantity?: number;
 }
 
 /** Файлы для типографии (контекст Production). */

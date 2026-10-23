@@ -50,10 +50,10 @@ type BookBundleSource = (bookId: string) => Promise<BookBundle | null>;
 export function reactPdfRenderer(load: BookBundleSource): BookRenderer {
   const pdf = () => import("@/modules/production/infrastructure/pdf/render");
   return {
-    async renderPrintPackage(bookId, orderNumber, report) {
+    async renderPrintPackage(bookId, order, report) {
       const bundle = await load(bookId);
       if (!bundle) return null;
-      const pkg = await inPdfThread({ task: "printPackage", bundle, orderNumber }, report);
+      const pkg = await inPdfThread({ task: "printPackage", bundle, order }, report);
       const printSpec: PrintSpec = { format: bundle.book.format, pageCount: pkg.pageCount, spineMm: pkg.spineMm, coverWidthMm: pkg.coverWidthMm, coverHeightMm: pkg.coverHeightMm, generatedAt: new Date().toISOString() };
       return { interior: buf(pkg.interior), cover: buf(pkg.cover), layout: buf(pkg.layout), spec: buf(pkg.spec), printSpec };
     },

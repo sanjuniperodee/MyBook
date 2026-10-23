@@ -121,7 +121,8 @@ export class OrderingModule {
         if (e.payload.settled) return;
         // Файлы для типографии готовим в фоне, чтобы не задерживать ответ платёжной системе.
         runInBackground(async () => {
-          const { spec } = await this.deps.printFiles.warmUp({ orderId: e.payload.orderId, bookId: e.payload.bookId, number: e.payload.number });
+          const quantity = (await this.orders.findByNumber(e.payload.number))?.snapshot().quantity;
+          const { spec } = await this.deps.printFiles.warmUp({ orderId: e.payload.orderId, bookId: e.payload.bookId, number: e.payload.number, plan: e.payload.plan, quantity });
           if (spec) await this.orders.recordPrintSpec(e.payload.orderId, spec);
         }, this.deps.logger);
       },
@@ -133,7 +134,8 @@ export class OrderingModule {
       async (e) => {
         if (e.payload.from !== "pending_payment" || e.payload.to !== "in_production") return;
         runInBackground(async () => {
-          const { spec } = await this.deps.printFiles.warmUp({ orderId: e.payload.orderId, bookId: e.payload.bookId, number: e.payload.number });
+          const quantity = (await this.orders.findByNumber(e.payload.number))?.snapshot().quantity;
+          const { spec } = await this.deps.printFiles.warmUp({ orderId: e.payload.orderId, bookId: e.payload.bookId, number: e.payload.number, plan: e.payload.plan, quantity });
           if (spec) await this.orders.recordPrintSpec(e.payload.orderId, spec);
         }, this.deps.logger);
       },

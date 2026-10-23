@@ -31,7 +31,7 @@ export const GET = api(async (req, { params }: { params: Promise<{ id: string; k
   if (access === "notReady") throw new HttpError(403, "fileNotReady");
   const query = new URL(req.url).searchParams;
   const force = access === "staff" && query.get("regenerate") === "1";
-  const job = { orderId: order.id, bookId: order.bookId, number: order.number };
+  const job = { orderId: order.id, bookId: order.bookId, number: order.number, plan: order.plan, quantity: order.quantity };
   // prepare=1 — только собрать файл: страница ждёт готовности, показывая ход сборки (render-progress), а скачивание потом идёт из кэша.
   if (query.get("prepare") === "1") {
     await c.printFiles.ensure(job, kind as OrderFileKind, { force });

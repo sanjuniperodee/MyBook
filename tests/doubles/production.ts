@@ -78,8 +78,8 @@ class FakeRenderer implements BookRenderer {
     if (this.crash.has(kind)) throw new Error(`${kind} crashed`);
     return this.books.has(bookId) ? ++this.n : null;
   }
-  async renderPrintPackage(bookId: string, orderNumber: number, report?: RenderReport) {
-    this.calls.push(`package:${bookId}:${orderNumber}`);
+  async renderPrintPackage(bookId: string, order: { number: number; plan?: string; quantity?: number }, report?: RenderReport) {
+    this.calls.push(`package:${bookId}:${order.number}`);
     await this.onReport?.(report);
     const n = this.step("package", bookId);
     if (n === null) return null;

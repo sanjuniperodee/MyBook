@@ -64,7 +64,7 @@ async function main() {
   await fs.writeFile(path.join(out, "block.pdf"), pkg.interior);
   await fs.writeFile(path.join(out, "cover.pdf"), pkg.cover);
   await fs.writeFile(path.join(out, "layout.pdf"), pkg.layout);
-  await fs.writeFile(path.join(out, "spec.txt"), printSpecText(bundle, pkg, 1));
+  await fs.writeFile(path.join(out, "spec.txt"), printSpecText(bundle, pkg, { number: 1, plan: "hardcover", quantity: 1 }));
   t = Date.now();
   const preview = await renderInterior(bundle, "preview");
   console.log("preview", Date.now() - t, "ms");

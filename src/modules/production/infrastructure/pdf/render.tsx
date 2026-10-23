@@ -529,7 +529,16 @@ export async function renderPrintPackage(bundle: BookBundle, report?: RenderRepo
   };
 }
 
-export function printSpecText(bundle: BookBundle, pkg: PrintPackage, orderNumber?: number) {
+/** Переплёт и материалы по тарифу (deals-d11): «Премиум» печатают на дизайнерской бумаге и кладут в подарочную коробку. */
+const PLAN_SPEC: Record<string, { name: string; binding: string }> = {
+  hardcover: { name: "Твёрдая обложка", binding: "твёрдый, 7БЦ, шитьё нитками" },
+  premium: { name: "Премиум", binding: "твёрдый, 7БЦ, шитьё нитками; дизайнерская бумага, подарочная коробка" },
+};
+
+export function printSpecText(bundle: BookBundle, pkg: PrintPackage, order?: { number: number; plan?: string; quantity?: number }) {
+  const orderNumber = order?.number;
+  const plan = order?.plan ? PLAN_SPEC[order.plan] : undefined;
+  const copies = Math.max(1, Math.floor(order?.quantity ?? 1));
   const format = getFormat(bundle.book.format);
   const g = coverSpreadGeometry(format, pkg.pageCount);
   const zones = coverSpreadZones(format, pkg.pageCount);
@@ -538,11 +547,13 @@ export function printSpecText(bundle: BookBundle, pkg: PrintPackage, orderNumber
     `ТЕХНИЧЕСКОЕ ЗАДАНИЕ НА ПЕЧАТЬ${orderNumber ? ` — ЗАКАЗ №${orderNumber}` : ""}`,
     ``,
     `Издание: «${coverText(bundle.book).title}»`,
+    ...(plan ? [`Тариф: ${plan.name}`] : []),
+    `Тираж: ${copies} экз.${copies > 1 ? " — одинаковые" : ""}`,
     `Каркас: layout.pdf — развёртка обложки с дизайном и красными рамками крышек и корешка, 1:1`,
     `Формат блока (обрезной): ${format.widthMm}×${format.heightMm} мм`,
     `Объём блока: ${pkg.pageCount} полос (${pkg.pageCount / 2} листов), 4+4`,
     `Вылеты блока: ${print.bleedMm} мм с каждой стороны (TrimBox/BleedBox заданы в PDF)`,
-    `Переплёт: твёрдый, 7БЦ, шитьё нитками`,
+    `Переплёт: ${(plan ?? PLAN_SPEC.hardcover).binding}`,
     ``,
     `ОБЛОЖКА (развёртка): ${r(g.width)}×${r(g.height)} мм, 4+0`,
     `  Отступ по периметру (загиб на картон, включает вылет): ${print.cover.wrapMm} мм`,

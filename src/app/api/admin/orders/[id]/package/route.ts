@@ -14,7 +14,7 @@ export const GET = api(async (req, { params }: { params: Promise<{ id: string }>
   const c = container();
   const order = await c.ordering.queries.orderDetails(id);
   if (!order || !(await canSeeOrder(staff, order.id))) throw new HttpError(404, "orderNotFound");
-  const job = { orderId: order.id, bookId: order.bookId, number: order.number };
+  const job = { orderId: order.id, bookId: order.bookId, number: order.number, plan: order.plan, quantity: order.quantity };
   await c.printFiles.prepare(job);
   const [block, cover, layout, spec] = await Promise.all([c.printFiles.getFile(job, "block"), c.printFiles.getFile(job, "cover"), c.printFiles.getFile(job, "layout"), c.printFiles.getFile(job, "spec")]);
   const zip = new ZipArchive({ zlib: { level: 6 } });

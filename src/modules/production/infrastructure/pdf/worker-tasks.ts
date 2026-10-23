@@ -8,7 +8,7 @@ import type { BookBundle, ScreenLayout } from "./render";
  * готовым из основного процесса — воркер не ходит в базу, только читает фото из хранилища.
  */
 export type PdfTask =
-  | { task: "printPackage"; bundle: BookBundle; orderNumber: number }
+  | { task: "printPackage"; bundle: BookBundle; order: { number: number; plan?: string; quantity?: number } }
   | { task: "layout"; bundle: BookBundle; pageCount: number; cover: Uint8Array }
   | { task: "reading"; bundle: BookBundle }
   | { task: "preview"; bundle: BookBundle }
@@ -43,7 +43,7 @@ export async function runPdfTask(t: PdfTask, report?: RenderReport): Promise<Pri
   switch (t.task) {
     case "printPackage": {
       const pkg = await r.renderPrintPackage(t.bundle, report);
-      const spec = Buffer.from(r.printSpecText(t.bundle, pkg, t.orderNumber), "utf8");
+      const spec = Buffer.from(r.printSpecText(t.bundle, pkg, t.order), "utf8");
       return { interior: pkg.interior, cover: pkg.cover, layout: pkg.layout, spec, pageCount: pkg.pageCount, spineMm: pkg.spineMm, coverWidthMm: pkg.coverWidthMm, coverHeightMm: pkg.coverHeightMm };
     }
     case "layout":
