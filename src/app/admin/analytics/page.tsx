@@ -115,7 +115,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
         <StatTile label="Успешных" value={String(num(t.won))} delta={change(num(t.won), num(p.won))} hint={`новые клиенты ${num(t.won) - num(t.repeat_won)} · повторные ${num(t.repeat_won)}`} />
         <StatTile label="Конверсия в продажу" value={pct(num(t.won), num(t.created))} />
         <StatTile label="Выручка по сделкам" value={formatPrice(num(t.revenue))} delta={change(num(t.revenue), num(p.revenue))} hint={`суммы договорённостей по успешным сделкам; от повторных — ${formatPrice(num(t.repeat_revenue))}`} />
-        <StatTile label="Получено деньгами" value={formatPrice(num(received.rows[0]?.cur))} delta={change(num(received.rows[0]?.cur), num(received.rows[0]?.prev))} hint="оплаченные заказы и платежи менеджеров" />
+        <StatTile label="Получено деньгами" value={formatPrice(num(received.rows[0]?.cur))} delta={change(num(received.rows[0]?.cur), num(received.rows[0]?.prev))} hint={`оплаченные заказы и платежи менеджеров${num(received.rows[0]?.agreed) ? `; в т.ч. ${formatPrice(num(received.rows[0]?.agreed))} — успешные сделки без платежа в журнале` : ""}`} />
         <StatTile
           label="Первый ответ людей (медиана)"
           value={workMins(resp.total.median)}
@@ -221,7 +221,10 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
                 <td className="py-2.5 text-right tabular-nums">{num(r.deals)}</td>
                 <td className="py-2.5 text-right tabular-nums">{num(r.won)}</td>
                 <td className="py-2.5 text-right tabular-nums">{formatPrice(num(r.revenue))}</td>
-                <td className="py-2.5 text-right tabular-nums">{formatPrice(num(r.received))}</td>
+                <td className="py-2.5 text-right tabular-nums" title={num(r.received_agreed) ? `в т.ч. ${formatPrice(num(r.received_agreed))} — успешные сделки без платежа в журнале` : undefined}>
+                  {formatPrice(num(r.received))}
+                  {num(r.received_agreed) ? <div className="text-[11px] text-amber-700">без платежа {formatPrice(num(r.received_agreed))}</div> : null}
+                </td>
                 <td className="py-2.5 text-right tabular-nums">{num(r.open)}</td>
                 <td className="py-2.5 text-right tabular-nums">
                   {num(r.messages)} / {num(r.phone_messages)}

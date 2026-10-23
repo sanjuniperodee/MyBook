@@ -27,8 +27,10 @@ export async function dashboard(period: number, viewer: Viewer) {
     db.execute<{ d: string; sum: number; n: number }>(sql`
       select to_char((e.at at time zone ${tz})::date, 'YYYY-MM-DD') as d, sum(e.amount)::int as sum, count(distinct e.sale_id)::int as n
       from revenue_events e where e.at >= ${start} group by 1`),
-    db.execute<{ sum: number; n: number }>(sql`
-      select coalesce(sum(e.amount), 0)::int as sum, count(distinct e.sale_id)::int as n from revenue_events e where e.at >= ${start}`),
+    // agreed — часть выручки без денег в журнале: успешные сделки без заказа и без платежей (analytics-d6, подписываем).
+    db.execute<{ sum: number; n: number; agreed: number }>(sql`
+      select coalesce(sum(e.amount), 0)::int as sum, count(distinct e.sale_id)::int as n, coalesce(sum(e.amount) filter (where e.kind = 'deal'), 0)::int as agreed
+      from revenue_events e where e.at >= ${start}`),
     db.execute<{ sum: number; n: number }>(sql`
       select coalesce(sum(e.amount), 0)::int as sum, count(distinct e.sale_id)::int as n from revenue_events e where e.at >= ${prevStart} and e.at < ${start}`),
     db
@@ -80,6 +82,6 @@ export async function dashboard(period: number, viewer: Viewer) {
       .orderBy(desc(orderEvents.createdAt))
       .limit(10),
   ]);
-  const zero = { sum: 0, n: 0 };
+  const zero = { sum: 0, n: 0, agreed: 0 };
   return { daily: dailyRes.rows, cur: curRes.rows[0] ?? zero, prev: prevRes.rows[0] ?? zero, newUsers, funnelRows, byPlan: byPlanRes.rows, deadlines, dealDeadlines: dealDeadlines.rows, attention, events };
 }

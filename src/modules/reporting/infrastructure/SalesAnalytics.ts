@@ -29,10 +29,12 @@ export async function salesAnalytics(pipelineId: string, period: number) {
     db.execute<Row>(sql`
       select count(*)::int as created, count(*) filter (where s.kind = 'won')::int as won, coalesce(sum(d.amount) filter (where s.kind = 'won'), 0)::int as revenue
       from crm_deals d join crm_stages s on s.id = d.stage_id where d.created_at >= ${prevSince} and d.created_at < ${since} and ${inPipeline}`),
-    // Деньги, реально полученные по сделкам воронки (оплаченные заказы и платежи менеджеров) — в отличие от «выручки по сделкам»,
-    // которая считает суммы договорённостей по успешным сделкам.
+    // Деньги по сделкам воронки (оплаченные заказы и платежи менеджеров) — в отличие от «выручки по сделкам», которая
+    // считает суммы договорённостей по успешным сделкам. Успешная сделка без заказа и без платежей входит в журнал своей
+    // суммой — agreed, подписываем на экране (analytics-d6).
     db.execute<Row>(sql`
       select coalesce(sum(e.amount) filter (where e.at >= ${since}), 0)::int as cur,
+        coalesce(sum(e.amount) filter (where e.at >= ${since} and e.kind = 'deal'), 0)::int as agreed,
         coalesce(sum(e.amount) filter (where e.at >= ${prevSince} and e.at < ${since}), 0)::int as prev
       from revenue_events e join crm_deals d on d.id = e.deal_id join crm_stages s on s.id = d.stage_id
       where e.at >= ${prevSince} and ${inPipeline}`),
@@ -51,6 +53,7 @@ export async function salesAnalytics(pipelineId: string, period: number) {
         (select count(*) from crm_deals d join crm_stages s on s.id = d.stage_id where d.assignee_id = u.id and s.kind = 'won' and d.closed_at >= ${since})::int as won,
         (select coalesce(sum(d.amount), 0) from crm_deals d join crm_stages s on s.id = d.stage_id where d.assignee_id = u.id and s.kind = 'won' and d.closed_at >= ${since})::int as revenue,
         (select coalesce(sum(e.amount), 0) from revenue_events e where e.manager_id = u.id and e.at >= ${since})::int as received,
+        (select coalesce(sum(e.amount), 0) from revenue_events e where e.manager_id = u.id and e.at >= ${since} and e.kind = 'deal')::int as received_agreed,
         (select count(*) from crm_deals d join crm_stages s on s.id = d.stage_id where d.assignee_id = u.id and s.kind = 'open')::int as open,
         (select count(*) from crm_messages m where m.author_id = u.id and m.created_at >= ${since} and m.internal = false)::int as messages,
         -- Ответы с телефона магазина, пока телефон был у сотрудника (analytics-1, analytics-d3).

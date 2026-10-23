@@ -96,6 +96,7 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
           <div className="text-xs text-white/70">
             за {period} дней · прошлые {period} — {formatPrice(prev.sum)}
           </div>
+          {cur.agreed ? <div className="text-xs text-white/70">в т.ч. {formatPrice(cur.agreed)} — сделки без платежа</div> : null}
           <div className="mt-3 flex h-16 items-end gap-[2px]" aria-hidden>
             {series.map((p) => {
               const max = Math.max(1, ...series.map((x) => x.value));
@@ -120,7 +121,7 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
         </div>
       </div>
       <div className="hidden gap-4 sm:grid-cols-2 lg:grid xl:grid-cols-4">
-        <StatTile label="Выручка" value={formatPrice(cur.sum)} delta={change(cur.sum, prev.sum)} />
+        <StatTile label="Выручка" value={formatPrice(cur.sum)} delta={change(cur.sum, prev.sum)} hint={cur.agreed ? `в т.ч. ${formatPrice(cur.agreed)} — успешные сделки без платежа в журнале` : undefined} />
         <StatTile label="Оплаченные продажи" value={cur.n.toLocaleString("ru-RU")} delta={change(cur.n, prev.n)} />
         <StatTile label="Средний чек" value={formatPrice(avg)} delta={change(avg, prevAvg)} />
         <StatTile label="Новые клиенты" value={newUsers.cur.toLocaleString("ru-RU")} delta={change(newUsers.cur, newUsers.prev)} />
