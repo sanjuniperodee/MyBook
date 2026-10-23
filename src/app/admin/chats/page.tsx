@@ -14,12 +14,14 @@ import { getSetting } from "@/modules/workspace";
 import { responseWait, slaMinutes } from "@/modules/reporting/ui/response-wait";
 import { formatPrice } from "@/config/site";
 import { ChatPanel } from "@/components/admin/ChatPanel";
+import { ChatNavProvider, ChatSlot } from "@/components/admin/chat/ChatNav";
 import { ChatsLive } from "@/components/admin/chat/ChatsLive";
 import { DetailsPanel } from "@/components/admin/chat/DetailsPanel";
 import { InvoicesBlock } from "@/components/admin/invoices/InvoicesBlock";
 import { invoiceViews } from "@/app/admin/invoices/view";
 import { BotBanner, ChatSideControls } from "./ChatControls";
 import { PhoneHolder } from "./PhoneHolder";
+import { WhatsappCallButton } from "@/components/admin/WhatsappCall";
 import { CHAT_FILTERS, ChatAvatar, ChatHeader, ChatListPane, SideSection, type ChatFilter, type ChatListItem } from "@/components/admin/chat/Inbox";
 
 export const metadata = { title: "Чаты" };
@@ -80,7 +82,7 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
     const chat = container().messaging.view;
     const [messages, templates, vars, blocker, { dealRow, client }, offers, mentionables, ai, invoiceRows, bot, kaspiWarning] = await Promise.all([
       chat.messages(conv.id),
-      chat.templates(),
+      chat.templates(staff.user.id),
       chat.vars(conv, staffLabel(staff.user)),
       chat.sendBlocker(conv),
       container().reporting.conversationContext(conv),
@@ -123,6 +125,7 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
           backHref={`/admin/chats?f=${f}${q ? `&q=${encodeURIComponent(q)}` : ""}`}
           deal={dealRow ? { href: `/admin/deals/${dealRow.deal.id}`, number: dealRow.deal.number, stage: dealRow.stage.name, color: dealRow.stage.color } : null}
           assignee={conv.assigneeId ? (names.get(conv.assigneeId) ?? null) : null}
+          call={can(staff, "calls.make") && conv.channel === "whatsapp" && /^\d{10,15}$/.test(conv.chatId) ? <WhatsappCallButton iconOnly target={{ conversationId: conv.id }} title={title(conv)} /> : null}
         />
         {!mine ? <p className="border-b border-amber-100 bg-amber-50 px-4 py-2 text-xs text-amber-800">Заявку распределяет круг — ответит менеджер, которому она достанется. Назначить вручную может руководитель.</p> : null}
         <BotBanner conversationId={conv.id} status={bot} canControl={canReply} hasDeal={!!conv.dealId} />
@@ -225,11 +228,12 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
       waitLabel: wait?.label ?? null,
       overdue: !!wait?.overdue,
       bot: phase === "active" || phase === "waiting",
+      pinned: !!c.pinnedAt,
     };
   });
   const href = (p: { f?: Filter; c?: string }) => `/admin/chats?f=${p.f ?? f}${q ? `&q=${encodeURIComponent(q)}` : ""}${p.c ? `&c=${p.c}` : ""}`;
   return (
-    <div className="-mx-4 -my-6 flex h-[calc(100dvh-3.5rem)] overflow-hidden bg-white sm:-mx-6 lg:-my-8">
+    <ChatNavProvider className="crm-chat-root -mx-4 -my-5 flex overflow-hidden bg-white sm:-mx-6 lg:-my-8 lg:h-[calc(100dvh-3.5rem)]" data-chat-root>
       <ChatsLive />
       <ChatListPane
         items={items}
@@ -247,8 +251,10 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
           ) : null
         }
       />
-      {panel}
-      {side}
-    </div>
+      <ChatSlot currentId={conv?.id ?? null}>
+        {panel}
+        {side}
+      </ChatSlot>
+    </ChatNavProvider>
   );
 }

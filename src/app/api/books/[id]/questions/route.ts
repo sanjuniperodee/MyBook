@@ -29,7 +29,7 @@ const sectionSchema = z
  */
 export const POST = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = idParams(await params, "id");
-  const { viewer } = await apiViewer(req);
+  const { viewer } = await apiViewer(req, id);
   const body: unknown = await req.json();
   const authoring = container().authoring;
   if (body && typeof body === "object" && "chapterKey" in body) {

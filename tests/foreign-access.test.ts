@@ -59,6 +59,7 @@ describe("Доступ к чужой книге", () => {
       deletePhoto: () => t.photos.delete("b1", stranger, "p1"),
       reorder: () => t.photos.reorder("b1", stranger, ["p1"]),
       rotate: () => t.photos.rotate("b1", stranger, "p1"),
+      layout: () => t.photos.upgradeLayout("b1", stranger),
       letter: () => t.letters.edit("b1", stranger, "l1", { status: "approved" }),
       deleteLetter: () => t.letters.delete("b1", stranger, "l1"),
     };

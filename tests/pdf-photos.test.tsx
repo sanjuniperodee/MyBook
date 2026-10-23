@@ -20,7 +20,7 @@ beforeAll(async () => {
     const jpg = await sharp({ create: { width: w, height: h, channels: 3, background: { r: 40 * i, g: 120, b: 200 - 20 * i } } }).jpeg().toBuffer();
     writeFileSync(path.join(dir, `photos/b/${i}.jpg`), jpg);
     writeFileSync(path.join(dir, `photos/b/${i}_t.jpg`), jpg);
-    photos.push({ id: `00000000-0000-0000-0000-0000000000${10 + i}`, bookId: "b", position: i, storageKey: `photos/b/${i}.jpg`, thumbKey: `photos/b/${i}_t.jpg`, width: w, height: h, caption: i % 2 ? "Наше первое лето" : "", layout: i < 4 ? "grid" : i === 4 ? "half" : "full", questionId: null, inline: null, createdAt: now, updatedAt: now });
+    photos.push({ id: `00000000-0000-0000-0000-0000000000${10 + i}`, bookId: "b", position: i, storageKey: `photos/b/${i}.jpg`, thumbKey: `photos/b/${i}_t.jpg`, width: w, height: h, caption: i % 2 ? "Наше первое лето" : "", layout: i < 4 ? "grid" : i === 4 ? "half" : "full", questionId: null, inline: null, crop: null, chapter: null, opener: false, createdAt: now, updatedAt: now });
   }
 });
 
@@ -47,11 +47,14 @@ const book: Book = {
   backPhotoExtra: [], photoFrames: {},
   dedication: "",
   interior: "photobook",
+  interiorStyle: {},
+  coverDesign: null,
   format: "a5",
   photoPlacement: "chapters",
   showToc: false,
   tocMode: "chapters",
   tocLines: {},
+  layoutRev: 1,
   inviteToken: null,
   occasion: null,
   occasionDate: null,

@@ -1,7 +1,10 @@
 import type { AiField, AiMessage, AiProvider, AiSummary, DealDossier } from "../domain";
 
-/** Расход токенов запроса (пишется в журнал действий). */
-export type Usage = { input: number; output: number };
+/**
+ * Расход токенов запроса (пишется в журнал действий). input — без кэша; cacheRead / cacheWrite — чтение и запись кэша
+ * префикса (Claude); model — модель, которая фактически ответила (после серверного резерва может отличаться).
+ */
+export type Usage = { input: number; output: number; cacheRead?: number; cacheWrite?: number; model?: string };
 
 /**
  * Языковая модель (Claude, ChatGPT, DeepSeek или свой OpenAI-совместимый сервер — выбирается в «Интеграциях»).
@@ -15,7 +18,7 @@ export interface LanguageModel {
    * cachePrefix — стабильное начало system (одинаковое между запросами): провайдер с кэшем префикса (Claude) хранит его
    * и не тарифицирует заново; должно быть именно началом строки system.
    */
-  ask(req: { system: string; user: string; effort: "low" | "medium"; schema?: Record<string, unknown>; timeoutMs?: number; cachePrefix?: string }): Promise<{ text: string; usage: Usage }>;
+  ask(req: { system: string; user: string; effort: "low" | "medium" | "high"; schema?: Record<string, unknown>; timeoutMs?: number; cachePrefix?: string }): Promise<{ text: string; usage: Usage }>;
   configured(): Promise<boolean>;
 }
 

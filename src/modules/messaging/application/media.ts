@@ -60,11 +60,18 @@ export class ChatMediaService {
     private readonly files: ChatFileStore | null = null,
   ) {}
 
-  /** Файл из хранилища сайта целиком (Range не нужен: файлы небольшие). */
-  private async stored(mediaUrl: string): Promise<MediaFile | null> {
+  /** Файл из хранилища сайта; Range браузера (голосовые, видео, перемотка) — нужный кусок, а не файл целиком. */
+  private async stored(mediaUrl: string, range?: string | null): Promise<MediaFile | null> {
     const f = await this.files?.read(mediaUrl);
     if (!f) return null;
-    return { body: new Blob([f.data as BlobPart]).stream(), contentType: f.mime, size: String(f.data.length), range: null };
+    const total = f.data.length;
+    const m = range ? /^bytes=(\d*)-(\d*)$/.exec(range) : null;
+    if (m && (m[1] || m[2]) && total) {
+      const start = m[1] ? Number(m[1]) : Math.max(0, total - Number(m[2]));
+      const end = m[1] && m[2] ? Math.min(Number(m[2]), total - 1) : total - 1;
+      if (start <= end && start < total) return { body: new Blob([f.data.subarray(start, end + 1) as BlobPart]).stream(), contentType: f.mime, size: String(end - start + 1), range: `bytes ${start}-${end}/${total}` };
+    }
+    return { body: new Blob([f.data as BlobPart]).stream(), contentType: f.mime, size: String(total), range: null };
   }
 
   async find(messageId: string): Promise<Attachment | null> {
@@ -80,7 +87,7 @@ export class ChatMediaService {
    * а следующие MEDIA_RETRY_MS по этому сообщению сразу MediaUnavailableError, без запроса к шлюзу.
    */
   async open({ message, conversation }: Attachment, range?: string | null): Promise<MediaFile | null> {
-    if (this.files?.owns(message.mediaUrl)) return this.stored(message.mediaUrl!);
+    if (this.files?.owns(message.mediaUrl)) return this.stored(message.mediaUrl!, range);
     const saved = gowaMediaPath(message.mediaUrl);
     if (message.mediaUrl && !saved) return null;
     const file = saved ? await this.gateway.file(saved, range) : null;

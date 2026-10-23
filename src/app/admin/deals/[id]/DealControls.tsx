@@ -48,7 +48,7 @@ export function StageBar({ dealId, current, stages, disabled }: { dealId: string
   };
   return (
     <>
-      <div className="flex gap-1 overflow-x-auto pb-1" data-testid="stage-bar">
+      <div className="no-scrollbar -mx-4 flex snap-x scroll-px-4 gap-1 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0" data-testid="stage-bar">
         {stages.map((s, i) => {
           const passed = cur?.kind === "open" ? s.kind === "open" && i <= idx : s.id === value;
           return (
@@ -58,7 +58,7 @@ export function StageBar({ dealId, current, stages, disabled }: { dealId: string
               disabled={disabled || pending || s.id === value}
               onClick={() => (s.kind === "lost" ? setLost(s.id) : go(s.id))}
               className={cn(
-                "min-w-24 flex-1 truncate rounded-lg px-3 py-2 text-xs font-medium transition disabled:cursor-default",
+                "min-w-24 flex-1 snap-start rounded-lg px-3 py-2 lg:truncate max-lg:shrink-0 max-lg:px-4 max-lg:whitespace-nowrap text-xs font-medium transition disabled:cursor-default max-lg:min-h-11 max-lg:text-sm",
                 passed ? "text-white" : "bg-white text-ink-soft hover:bg-cream",
                 s.id === value && "ring-2 ring-ink/20",
               )}
@@ -283,7 +283,7 @@ export function UnsortedBanner({ dealId, canEdit, canDecide, request }: { dealId
         </div>
       </div>
       {canEdit ? (
-        <div className="flex gap-2">
+        <div className="flex gap-2 max-lg:w-full max-lg:[&>*]:flex-1">
           {request && canDecide ? (
             <button className="btn btn-sm" disabled={pending} onClick={() => run(() => declineRejectionAction(dealId))}>
               Оставить в работе

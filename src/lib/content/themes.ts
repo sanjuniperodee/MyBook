@@ -3,10 +3,12 @@ import { autobiographyChapters } from "./autobiography";
 import { friendChapters } from "./friend";
 import { loveChapters } from "./love";
 import { parentChapters } from "./parent";
+import { teacherChapters } from "./teacher";
 import { autobiographyChapters as autobiographyChaptersKk } from "./kk/autobiography";
 import { friendChapters as friendChaptersKk } from "./kk/friend";
 import { loveChapters as loveChaptersKk } from "./kk/love";
 import { parentChapters as parentChaptersKk } from "./kk/parent";
+import { teacherChapters as teacherChaptersKk } from "./kk/teacher";
 import type { ChapterDef, GiftThemeId, ThemeDef, ThemeId } from "./types";
 
 /**
@@ -26,6 +28,8 @@ const base: ThemeBase[] = [
   { id: "mom", kind: "gift", recipient: "required", emoji: "✿", recipientGender: "f", defaultRecipientGender: "f", defaultCover: "tenderness", defaultInterior: "herbarium" },
   { id: "dad", kind: "gift", recipient: "required", emoji: "✦", recipientGender: "m", defaultRecipientGender: "m", defaultCover: "alatau", defaultInterior: "stars" },
   { id: "friend", kind: "gift", recipient: "required", emoji: "☀", defaultRecipientGender: "f", defaultCover: "party", defaultInterior: "confetti" },
+  // Учителю: чаще дарят учительнице; осенняя обложка — к Дню учителя.
+  { id: "teacher", kind: "gift", recipient: "required", emoji: "✐", defaultRecipientGender: "f", defaultCover: "autumn", defaultInterior: "editorial" },
   // Род получателя у автобиографии и своей книги не используется: в их текстах нет [..|..].
   { id: "autobiography", kind: "autobiography", recipient: "none", emoji: "❦", defaultRecipientGender: "m", defaultCover: "leather", defaultInterior: "vintage" },
   { id: "blank", kind: "blank", recipient: "optional", emoji: "✎", defaultRecipientGender: "m", defaultCover: "linen", defaultInterior: "classic" },
@@ -68,6 +72,15 @@ const text: Record<Locale, Record<ThemeId, ThemeText>> = {
       recipientPlaceholder: "Например, Дана",
       titleSuggestions: ["Книга о нашей дружбе", "Друзья навсегда", "Ты и я", "Просто мы"],
       chapters: friendChapters,
+    },
+    teacher: {
+      name: "Учителю",
+      short: "Учителю",
+      description: "Книга благодарности учителю: первые уроки, школьные истории и слова, которые запомнились на всю жизнь. Можно написать от себя или всем классом.",
+      recipientLabel: "Как зовут учителя",
+      recipientPlaceholder: "Например, Сауле Кайратовна",
+      titleSuggestions: ["Спасибо, учитель", "Уроки на всю жизнь", "Нашему учителю", "Вы научили нас главному"],
+      chapters: teacherChapters,
     },
     autobiography: {
       name: "Автобиография",
@@ -123,6 +136,15 @@ const text: Record<Locale, Record<ThemeId, ThemeText>> = {
       recipientPlaceholder: "Мысалы, Дана",
       titleSuggestions: ["Достығымыз туралы кітап", "Мәңгілік достар", "Сен және мен", "Жай ғана біз"],
       chapters: friendChaptersKk,
+    },
+    teacher: {
+      name: "Ұстазға",
+      short: "Ұстазға",
+      description: "Ұстазға алғыс кітабы: алғашқы сабақтар, мектеп оқиғалары және өмір бойы есте қалған сөздер. Өзіңізден не бүкіл сыныппен жазуға болады.",
+      recipientLabel: "Ұстазыңыздың есімі",
+      recipientPlaceholder: "Мысалы, Сәуле апай",
+      titleSuggestions: ["Рахмет, ұстазым", "Өмірлік сабақтар", "Ұстазымызға", "Сіз бізге ең бастысын үйреттіңіз"],
+      chapters: teacherChaptersKk,
     },
     autobiography: {
       name: "Өмірбаян",

@@ -7,7 +7,7 @@ import { head, setup } from "./doubles/clients";
  * «Завести клиента» (E1): ClientOnboardingService вместо 90 строк в действии формы. Фейки записывают команды
  * по порядку — тот же порядок и те же тексты заметки и задач, что были в createClientAction.
  */
-function harness() {
+function harness(absorbed: number[] = []) {
   const t = setup();
   const log: string[] = [];
   t.mem.clients.rows.set("new-client", { id: "new-client", name: "Айжан", email: "", phone: "77011234567", managerId: null, source: null, customFields: {} });
@@ -20,6 +20,8 @@ function harness() {
     tagDeal: async (id, tag) => void log.push(`sales.tagDeal ${id} ${tag}`),
     addPayment: async (p) => (log.push(`sales.addPayment ${p.dealId} ${p.amount}`), { id: "pay-1" }),
     linkClient: async (dealId, clientId) => void log.push(`sales.linkClient ${dealId} ${clientId}`),
+    absorbRequests: async (dealId) => (log.push(`sales.absorbRequests ${dealId}`), absorbed),
+    linkRequests: async (clientId, phone) => void log.push(`sales.linkRequests ${clientId} ${phone}`),
   };
   const service = new ClientOnboardingService(
     { provisionClient: async (i) => (log.push(`accounts.provisionClient ${i.name} ${i.phone} ${i.email ?? "—"}`), { id: "new-client", login: "77011234567" }) },
@@ -58,6 +60,7 @@ describe("ClientOnboardingService.onboard", () => {
       "sales.tagDeal deal-9 вручную",
       "sales.tagDeal deal-9 предоплата",
       "sales.tagDeal deal-9 алматы",
+      "sales.absorbRequests deal-9",
       "sales.addPayment deal-9 10000",
     ]);
     const client = t.mem.clients.rows.get("new-client")!;
@@ -85,7 +88,8 @@ describe("ClientOnboardingService.onboard", () => {
     const { t, log, service } = harness();
     const r = await service.onboard(input(null), head);
     expect(r).toEqual({ clientId: "new-client", login: "77011234567", deal: null, paymentId: null, parts: [], tasks: 0 });
-    expect(log).toEqual(["accounts.provisionClient Айжан +7 701 123 45 67 —"]);
+    // Заявки этого номера из чата и звонков привязываются к новому аккаунту.
+    expect(log).toEqual(["accounts.provisionClient Айжан +7 701 123 45 67 —", "sales.linkRequests new-client 77011234567"]);
     expect(t.mem.notes.rows.size).toBe(0);
     expect(t.mem.tasks.rows.size).toBe(0);
   });
@@ -117,6 +121,22 @@ describe("ClientOnboardingService: лимит скидки от прайса т�
     await expect(deals(10_000, 15)).rejects.toMatchObject({ code: "discountOverLimit" });
     expect(log.filter((l) => l.startsWith("sales.createDeal"))).toEqual([]);
     expect((await deals(10_000, null)).parts).toHaveLength(2);
+  });
+});
+
+describe("ClientOnboardingService: заявка клиента из чата не дублируется", () => {
+  it("сделка с договорённостью поглощает пустые заявки клиента; номера влитых — в заметке с условиями", async () => {
+    const { t, log, service } = harness([64, 82]);
+    await service.onboard(input({ agreed: 29_000, prepaid: 10_000, deadline: "", stageId: "", comment: "", plan: "hardcover", planLabel: "твёрдая обложка", maxDiscountPercent: null }), head);
+    expect(log.filter((l) => l.startsWith("sales.absorbRequests"))).toEqual(["sales.absorbRequests deal-9"]);
+    const [note] = [...t.mem.notes.rows.values()];
+    expect(note.text).toContain("Объединено с заявками: №64, №82 (переписка и история перенесены сюда).");
+  });
+
+  it("пакет из нескольких книг: заявки вливаются один раз — в первую сделку", async () => {
+    const { log, service } = harness();
+    await service.onboard(input({ agreed: 29_000, count: 3, prepaid: 30_000, deadline: "", stageId: "", comment: "", plan: "hardcover", planLabel: "твёрдая обложка", maxDiscountPercent: null }), head);
+    expect(log.filter((l) => l.startsWith("sales.absorbRequests"))).toHaveLength(1);
   });
 });
 

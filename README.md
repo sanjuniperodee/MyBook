@@ -63,7 +63,7 @@
 - **Источники клиентов:** UTM-метки и сайт-источник первого визита сохраняются в профиле; на дашборде — регистрации, покупки, конверсия и выручка по источникам.
 - **Автописьма** (каждые 15 минут, с 10 до 20 по Алматы, с отпиской): советы, как начать; напоминание дописать; «книга почти готова»; дедлайн к празднику; неоплаченный заказ; просьба об отзыве после доставки. Каждое письмо уходит один раз и попадает в историю клиента в CRM.
 - **Аналитика:** Яндекс Метрика, GA4 и Meta Pixel включаются переменными окружения; цели `sign_up`, `book_created`, `begin_checkout`, `order_created`, `purchase`, `gift_checkout`, `gift_purchase`.
-- Файлы для типографии собираются в фоне сразу после оплаты; генерация PDF идёт через очередь (`PDF_CONCURRENCY`, по умолчанию 2), предпросмотр кэшируется.
+- Файлы для типографии собираются в фоне сразу после оплаты; генерация PDF идёт через очередь (`PDF_CONCURRENCY`, по умолчанию 1), предпросмотр кэшируется.
 - `/api/health` — проверка базы и хранилища для мониторинга.
 
 ## Файлы для типографии
@@ -125,6 +125,7 @@ createdb mybook                         # или через psql: CREATE DATABAS
 git clone -b <ветка> https://github.com/sanjuniperodee/MyBook ~/mybook && cd ~/mybook
 cp .env.example .env                    # APP_URL, DATABASE_URL, ADMIN_EMAILS, STORAGE_DIR=/home/<user>/mybook-storage
 sudo cp deploy/nginx-mybook.conf /etc/nginx/sites-available/mybook   # поправьте server_name
+sudo cp deploy/nginx-wa-call.conf /etc/nginx/snippets/mybook-wa-call.conf   # звук звонков WhatsApp (docs/features/whatsapp-calls.md)
 sudo ln -s /etc/nginx/sites-available/mybook /etc/nginx/sites-enabled/ && sudo nginx -t && sudo systemctl reload nginx
 sudo certbot --nginx -d <домен>
 
@@ -177,6 +178,7 @@ bash deploy/rollback.sh <релиз>      # на конкретный, спис�
 - `GOOGLE_SITE_VERIFICATION`, `YANDEX_VERIFICATION` — коды подтверждения сайта для Google Search Console и Яндекс Вебмастера (только значение `content`). После подтверждения отправьте `APP_URL/sitemap.xml` в оба сервиса.
 - `REDIS_URL` — необязательно: нужен только при нескольких экземплярах приложения (общие лимиты частоты и защита кодов 2FA); в Docker — `docker compose --profile scale up -d`. Почему без Kafka/RabbitMQ — `docs/adr/0001-messaging-queues-cache.md`.
 - AI-помощник: провайдер (Claude, ChatGPT, DeepSeek или любой OpenAI-совместимый API — OpenRouter, Qwen, своя модель), ключ и модель выбираются в «Интеграциях». Можно и переменными: `CRM_AI_PROVIDER`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `DEEPSEEK_API_KEY`.
+- Бот-продажник: основная модель — Claude по уровням (Haiku — обычные сообщения, Sonnet — возражения и подбор, Opus — редкие сложные случаи), остальные провайдеры — запасные. «Интеграции» → AI → «Маршрутизация» или переменные `AI_SELLER_ROUTING`, `AI_MODEL_*`, `AI_ROUTE_*`, `AI_SELLER_FALLBACKS` — [docs/features/bot-llm-routing.md](docs/features/bot-llm-routing.md).
 - `CRM_IMAP_HOST`, `CRM_IMAP_PORT`, `CRM_IMAP_USER`, `CRM_IMAP_PASSWORD` — входящий ящик для почтового канала (или в «Интеграциях»); `CRM_REPLY_TO` — адрес для ответов, если он отличается от `MAIL_FROM`.
 - `ZADARMA_PBX_ID` — номер АТС Zadarma для веб-телефона.
 - Список разрешённых IP проверяется по заголовку `X-Real-IP` от вашего прокси (nginx: `proxy_set_header X-Real-IP $remote_addr;`), без него — по последнему адресу в `X-Forwarded-For`.

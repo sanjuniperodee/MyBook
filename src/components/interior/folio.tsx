@@ -9,6 +9,7 @@ import { labelCss } from "./typography";
 /** Колонцифра. recto — правая (нечётная) полоса: «снаружи» значит справа. */
 export function Folio({ kit, children, recto }: { kit: PageKit; children: ReactNode; recto: boolean }) {
   const { design, sizes: S, u } = kit;
+  if (design.folio.align === "none") return null;
   const outer = design.folio.align === "outer";
   const font =
     design.folio.font === "label"

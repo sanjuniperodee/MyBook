@@ -1,8 +1,10 @@
+import { ChatListLink } from "./ChatNav";
 import Link from "next/link";
-import { ArrowLeft, Bot, Camera, Globe, Handshake, Mail, MessageCircle, MessagesSquare, Search, Send } from "lucide-react";
+import { ArrowLeft, Bot, Camera, Globe, Handshake, Mail, MessageCircle, MessagesSquare, Send } from "lucide-react";
 import { cn } from "@/lib/class-names";
 import { waitLabel, waitTone } from "@/modules/reporting/ui/response-wait";
 import { DetailsToggle } from "./DetailsPanel";
+import { ChatListHeader } from "./ListHeader";
 
 /**
  * Каркас «Чатов» без данных: список диалогов, шапка переписки, аватар. Страница (src/app/admin/chats/page.tsx) отдаёт
@@ -62,6 +64,8 @@ export interface ChatListItem {
   /** Норматив ответа вышел. */
   overdue: boolean;
   bot: boolean;
+  /** Закреплён у текущего сотрудника — стоит вверху списка. */
+  pinned: boolean;
 }
 
 /** Колонка списка: заголовок, поиск, вкладки фильтров, диалоги. */
@@ -82,23 +86,12 @@ export function ChatListPane({
   hidden: boolean;
   href: (p: { f?: ChatFilter; c?: string }) => string;
   emptyCta?: React.ReactNode;
-  /** Под поиском: например, «Телефон WhatsApp у …». */
+  /** Раскрывается иконкой в шапке: например, «Телефон WhatsApp у …». */
   toolbar?: React.ReactNode;
 }) {
   return (
     <div className={cn("flex w-full shrink-0 flex-col border-r border-line bg-white lg:w-[360px]", hidden && "hidden lg:flex")}>
-      <div className="px-4 pt-4">
-        <div className="mb-3 flex items-center justify-between">
-          <h1 className="text-xl font-semibold tracking-tight">Чаты</h1>
-          {items.length ? <span className="rounded-full bg-[#f3efe9] px-2.5 py-0.5 text-xs font-medium text-ink-soft tabular-nums">{items.length >= 200 ? "200+" : items.length}</span> : null}
-        </div>
-        <form action="/admin/chats" className="relative">
-          <input type="hidden" name="f" value={filter} />
-          <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted" />
-          <input name="q" defaultValue={q} placeholder="Поиск по имени, номеру, тексту" className="h-10 w-full rounded-full bg-[#f3efe9] pr-4 pl-10 text-sm outline-none transition placeholder:text-muted focus:bg-white focus:ring-2 focus:ring-wine/20" />
-        </form>
-        {toolbar ? <div className="mt-2">{toolbar}</div> : null}
-      </div>
+      <ChatListHeader count={items.length} filter={filter} q={q} toolbar={toolbar} />
       <nav className="no-scrollbar mt-2 flex gap-4 overflow-x-auto border-b border-line px-4" aria-label="Фильтр чатов">
         {(Object.keys(CHAT_FILTERS) as ChatFilter[]).map((k) => (
           <Link key={k} href={href({ f: k })} className={cn("-mb-px shrink-0 border-b-2 py-2.5 text-[13px] font-medium transition", filter === k ? "border-wine text-wine" : "border-transparent text-muted hover:text-ink")}>
@@ -117,8 +110,7 @@ export function ChatListPane({
         {items.map((c) => {
           const active = c.id === selectedId;
           return (
-            <Link key={c.id} href={href({ c: c.id })} className={cn("relative flex gap-3 px-4 py-3 transition", active ? "bg-[#f7ecee]" : "hover:bg-[#faf8f5]")} aria-current={active ? "true" : undefined}>
-              {active ? <span className="absolute inset-y-0 left-0 w-[3px] bg-wine" /> : null}
+            <ChatListLink key={c.id} id={c.id} href={href({ c: c.id })} active={active} pinned={c.pinned}>
               <ChatAvatar name={c.title} url={c.avatarUrl} channel={c.channel} />
               <div className="min-w-0 flex-1 border-b border-line/0">
                 <div className="flex items-baseline gap-2">
@@ -143,7 +135,7 @@ export function ChatListPane({
                   <div className="mt-1 truncate text-[11px] text-muted">{c.assignee}</div>
                 )}
               </div>
-            </Link>
+            </ChatListLink>
           );
         })}
       </div>
@@ -160,6 +152,7 @@ export function ChatHeader({
   backHref,
   deal,
   assignee,
+  call = null,
 }: {
   title: string;
   avatarUrl: string | null;
@@ -168,11 +161,13 @@ export function ChatHeader({
   backHref: string;
   deal: { href: string; number: number; stage: string; color: string } | null;
   assignee: string | null;
+  /** Кнопка звонка клиенту (WhatsApp), если звонки включены и у сотрудника есть право. */
+  call?: React.ReactNode;
 }) {
   return (
-    <div className="flex h-[68px] shrink-0 items-center gap-3 border-b border-line bg-white px-4">
-      <Link href={backHref} className="-ml-1 rounded-full p-2 text-muted hover:bg-[#f3efe9] lg:hidden" aria-label="К списку">
-        <ArrowLeft className="size-5" />
+    <div className="flex h-[calc(68px+env(safe-area-inset-top))] shrink-0 items-center gap-3 border-b border-line bg-white px-4 pt-[env(safe-area-inset-top)] lg:h-[68px] lg:pt-0">
+      <Link href={backHref} className="-ml-2 flex size-11 items-center justify-center rounded-full text-wine hover:bg-[#f3efe9] lg:hidden" aria-label="К списку">
+        <ArrowLeft className="size-6" />
       </Link>
       <ChatAvatar name={title} url={avatarUrl} channel={channel} size={40} />
       <div className="min-w-0 flex-1">
@@ -188,6 +183,7 @@ export function ChatHeader({
           </span>
         </Link>
       ) : null}
+      {call}
       <DetailsToggle />
     </div>
   );

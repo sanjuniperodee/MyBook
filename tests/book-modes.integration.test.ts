@@ -307,7 +307,7 @@ run("своя книга и прогресс (PostgreSQL)", () => {
 
     // Те же фрагменты в запросах CRM, воронки и автописем: запросы выполняются и считают по виду книги.
     expect(await sqlBookProgress.progress(blank.id)).toEqual({ theme: "blank", answered: 1, total: 1, words: 1500 });
-    const ready = await bookList("ready", { q: tag, staleDays: 7, now: Date.now() });
+    const ready = await bookList("ready", { q: tag, staleDays: 7, now: Date.now(), viewer: { userId: "", seesAll: true } });
     expect(ready.map((r) => r.book.id)).toEqual([gift.id]);
     // 40 ответов, из них 12 — одни пробелы и переводы строк: 28 с текстом — «почти готова» (порог 25).
     expect(ready[0]).toMatchObject({ answered: 28, total: giftRows.length });
@@ -315,7 +315,7 @@ run("своя книга и прогресс (PostgreSQL)", () => {
     expect(mine).toMatchObject({ answered: 1, total: 1, words: 1500 });
     const drafts = (await new DrizzleLifecycleSource().draftCandidates(new Date(Date.now() + 60_000))).filter((d) => d.recipient.id === viewer.userId);
     expect(drafts.find((d) => d.book.bookId === blank.id)?.book).toMatchObject({ theme: "blank", answered: 1, words: 1500 });
-    await dashboard(7);
+    await dashboard(7, { userId: viewer.userId, seesAll: true });
     // Карточка клиента в CRM считает ответы тем же фрагментом (пробелы и переводы строк — не ответ).
     const card = await clientCard(viewer.userId, { deals: false });
     expect(card.bookRows.find((r) => r.book.id === gift.id)).toMatchObject({ answered: 28, total: giftRows.length });

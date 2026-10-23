@@ -82,17 +82,21 @@ async function post(c: AiConnection, payload: unknown, timeoutMs?: number): Prom
 function toAssistantError(c: AiConnection, err: unknown): Error {
   const name = aiProviders[c.provider].label === "AI" ? "AI-сервис" : aiProviders[c.provider].label;
   if (err instanceof HttpError) {
-    if (err.status === 401) return new AssistantError("notConfigured", `Ключ ${name} неверный или отозван — проверьте его в «Интеграциях».`);
-    if (err.status === 402) return new AssistantError("notConfigured", `На счёте ${name} закончились средства — пополните баланс у провайдера.`);
-    if (err.status === 403) return new AssistantError("notConfigured", `У ключа ${name} нет доступа к модели ${c.model}.`);
-    if (err.status === 404) return new AssistantError("notConfigured", `Модель «${c.model}» или адрес API не найдены — проверьте их в «Интеграциях».`);
-    if (err.status === 429) return new AssistantError("unavailable", `Слишком много запросов к ${name} — попробуйте через минуту.`);
+    if (err.status === 401) return new AssistantError("notConfigured", `Ключ ${name} неверный или отозван — проверьте его в «Интеграциях».`, ["auth"]);
+    if (err.status === 402) return new AssistantError("notConfigured", `На счёте ${name} закончились средства — пополните баланс у провайдера.`, ["auth"]);
+    if (err.status === 403) return new AssistantError("notConfigured", `У ключа ${name} нет доступа к модели ${c.model}.`, ["auth"]);
+    if (err.status === 404) return new AssistantError("notConfigured", `Модель «${c.model}» или адрес API не найдены — проверьте их в «Интеграциях».`, ["not_found"]);
+    if (err.status === 429) return new AssistantError("unavailable", `Слишком много запросов к ${name} — попробуйте через минуту.`, ["rate_limit"]);
     console.error("[ai]", c.provider, err.status, err.message);
-    if (err.status === 400 || err.status === 422) return new AssistantError("unavailable", `${name} отклонил запрос. Подробности — в логах сервера.`);
-    return new AssistantError("unavailable", `${name} временно недоступен (${err.status}). Попробуйте позже.`);
+    if (err.status === 400 || err.status === 422) {
+      const context = /context|too long|maximum.*tokens/i.test(err.message);
+      return new AssistantError("unavailable", `${name} отклонил запрос. Подробности — в логах сервера.`, [context ? "context" : "bad_request"]);
+    }
+    return new AssistantError("unavailable", `${name} временно недоступен (${err.status}). Попробуйте позже.`, [err.status === 408 ? "timeout" : "server"]);
   }
   console.error("[ai]", c.provider, err);
-  return new AssistantError("unavailable", `Нет связи с ${name}. Попробуйте позже.`);
+  const timeout = err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError");
+  return new AssistantError("unavailable", timeout ? `${name} не ответил вовремя. Попробуйте позже.` : `Нет связи с ${name}. Попробуйте позже.`, [timeout ? "timeout" : "connection"]);
 }
 
 /** Текст ответа без рассуждений локальных моделей (<think>…</think>) и markdown-обёртки JSON. */
@@ -119,8 +123,8 @@ export async function askOpenAiCompatible(c: AiConnection, req: Request) {
     throw toAssistantError(c, err);
   }
   const choice = res.choices?.[0];
-  if (choice?.message?.refusal || choice?.finish_reason === "content_filter") throw new AssistantError("refused", "Модель отказалась отвечать на этот запрос. Попробуйте переформулировать или ответьте вручную.");
+  if (choice?.message?.refusal || choice?.finish_reason === "content_filter") throw new AssistantError("refused", "Модель отказалась отвечать на этот запрос. Попробуйте переформулировать или ответьте вручную.", ["refused"]);
   const text = cleanModelText(choice?.message?.content ?? "", !!req.schema);
-  if (!text) throw new AssistantError("badResponse", "Модель вернула пустой ответ — попробуйте ещё раз.");
+  if (!text) throw new AssistantError("badResponse", "Модель вернула пустой ответ — попробуйте ещё раз.", ["empty"]);
   return { text, usage: { input: res.usage?.prompt_tokens ?? 0, output: res.usage?.completion_tokens ?? 0 } };
 }

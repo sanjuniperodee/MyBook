@@ -125,3 +125,23 @@ export async function aiNextStepTaskAction(dealId: string) {
   revalidatePath(`/admin/deals/${deal.id}`);
   return { ok: true as const };
 }
+
+/**
+ * «Создать шаблон» из сообщения: текст с подстановками вместо данных клиента (имя, номер заказа, менеджер, ссылка) и
+ * название. Только черновик — сотрудник правит и сохраняет сам. Без подключённой модели замены делает код.
+ */
+export async function aiTemplateDraftAction(conversationId: string, messageId: string): Promise<Result<{ title: string; text: string; replaced: { was: string; with: string }[]; ai: boolean }>> {
+  const staff = await assertStaff("chats.view");
+  const conv = await container().messaging.queries.conversation(uuid.parse(conversationId));
+  if (!conv) return { ok: false, message: "Диалог не найден" };
+  assertVisible(staff, conv.assigneeId);
+  const id = uuid.parse(messageId);
+  const view = container().messaging.view;
+  const msg = (await view.messages(conv.id)).find((m) => m.id === id);
+  if (!msg || msg.deleted || msg.internal || !msg.text.trim()) return { ok: false, message: "У этого сообщения нет текста для шаблона" };
+  const [vars, fields] = await Promise.all([view.vars(conv, staffLabel(staff.user)), listFields("deal")]);
+  return guard(staff.user.id, async () => {
+    const d = await container().assistant.service.draftTemplate(msg.text, { name: vars.name, manager: vars.manager, order: vars.order, recipient: vars.recipient, link: vars.link }, fields.map((f) => f.label));
+    return { title: d.title, text: d.text, replaced: d.replaced, ai: d.ai };
+  });
+}

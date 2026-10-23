@@ -8,6 +8,7 @@
 import {
   applyDecision,
   FLOW_KINDS,
+  linesOffset,
   type FlowBlock,
   type FlowDecisions,
   type FlowKind,
@@ -19,6 +20,9 @@ import {
 
 /** Пометка блока в раскладке: `<вид>:<ответ>[:…]`, у концовки главы — `t:<глава>`; виды — `FlowKind`. */
 export const FLOW_MARK = "flowMark";
+
+/** Пометка колонки строк рядом с буквицей: значение — пометка абзаца (ключ в FlowDecisions.dropSplit). */
+export const DROP_MARK = "dropMark";
 
 interface Box {
   top: number;
@@ -32,6 +36,8 @@ interface LayoutNode {
   box?: Box;
   props?: Record<string, unknown>;
   children?: LayoutNode[];
+  /** Строки текста (у узлов Text). */
+  lines?: { string?: string }[];
 }
 
 interface Placed {
@@ -102,4 +108,27 @@ export function refineFlow(layout: unknown, flow: FlowDecisions, rowHeights: Rea
   const decisions = nextDecisions(readLayout(layout, chapterOf), flow, rowHeights, minLead);
   for (const decision of decisions) applyDecision(flow, decision);
   return decisions.length > 0;
+}
+
+/**
+ * Буквицы: сколько знаков встало в строки рядом с каждой (по раскладке прохода) — записывает в flow.dropSplit.
+ * columns — текст колонки рядом с буквицей и число строк по пометке абзаца (их собирает сама вёрстка).
+ * Возвращает true, если место продолжения текста поменялось: нужен ещё проход.
+ */
+export function refineDropCaps(layout: unknown, flow: FlowDecisions, columns: ReadonlyMap<string, { text: string; lines: number }>): boolean {
+  let changed = false;
+  const walk = (node: LayoutNode) => {
+    const mark = node.props?.[DROP_MARK];
+    const column = typeof mark === "string" ? columns.get(mark) : undefined;
+    if (typeof mark === "string" && column && node.lines) {
+      const at = linesOffset(column.text, node.lines.map((l) => l.string ?? ""), column.lines);
+      if (at !== null && flow.dropSplit.get(mark) !== at) {
+        flow.dropSplit.set(mark, at);
+        changed = true;
+      }
+    }
+    for (const c of node.children ?? []) walk(c);
+  };
+  walk(layout as LayoutNode);
+  return changed;
 }

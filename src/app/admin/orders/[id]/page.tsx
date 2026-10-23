@@ -2,8 +2,8 @@ import { addonName, coverName, deliveryName, formatName, interiorName, planName 
 import { channelLabel, describeAttribution, toAttribution } from "@/shared/domain/channels";
 import { localeMeta } from "@/i18n/config";
 import Link from "next/link";
+import { BackLink } from "@/components/admin/BackLink";
 import { notFound } from "next/navigation";
-import { Download, FileArchive } from "lucide-react";
 import { container } from "@/server/container";
 import { formatPrice, getPlan, isQuotedDelivery } from "@/config/site";
 import { deliveryAddress } from "@/modules/ordering/ui/labels";
@@ -13,12 +13,12 @@ import { bookKind } from "@/lib/content/kinds";
 import { getFormat } from "@/lib/book/formats";
 import { cn } from "@/lib/class-names";
 import { formatDate } from "@/lib/dates";
-import { DetailsForm, GenerateButton, LockButton, NoteForm, OrderMoney, StatusForm } from "./OrderControls";
+import { DetailsForm, LockButton, NoteForm, OrderMoney, PrintFileActions, StatusForm } from "./OrderControls";
 import { AssigneeSelect, NotesTimeline, TaskList, type NoteItem, type TaskItem } from "@/components/admin/CrmWidgets";
 import { staffOptions } from "@/modules/access/ui";
 import { staffLabel } from "@/shared/domain/staff";
 import { ClipboardList, UserRound } from "lucide-react";
-import { can, contactView, requireStaff } from "@/server/access";
+import { can, canSeeOrder, contactView, requireStaff } from "@/server/access";
 import { ContactActions } from "@/components/admin/ContactActions";
 import { formatPhone } from "@/shared/domain/phone";
 import { pageId } from "@/server/input";
@@ -46,15 +46,18 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
   const staff = await requireStaff("orders.view");
   const id = pageId((await params).id);
   const order = await container().ordering.queries.orderDetails(id);
-  if (!order) notFound();
+  // Чужой заказ у роли «только свои» — как будто его нет.
+  if (!order || !(await canSeeOrder(staff, order.id))) notFound();
   const plan = getPlan(order.plan);
   const book = order.book;
-  const [stats, admins, { taskRows, noteRows, clientStats }, kaspiInvoices, moneyRows] = await Promise.all([
+  const [stats, admins, { taskRows, noteRows, clientStats }, kaspiInvoices, moneyRows, built] = await Promise.all([
     container().authoring.queries.stats(book),
     container().access.queries.allStaff(),
     container().reporting.orderCrm(order),
     container().ordering.queries.paymentInvoices("order", order.id),
     container().ordering.payments.list(order.id),
+    // Макет, который видит клиент (экранная сборка текущей книги), — если собран.
+    container().previews.current(book.id).catch(() => null),
   ]);
   const adminOptions = staffOptions(admins);
   const adminName = new Map(admins.map((a) => [a.id, staffLabel(a)]));
@@ -81,11 +84,10 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
   const canEdit = can(staff, "orders.edit");
   const notice = canEdit ? await noticeFacts(order) : null;
   const canClients = can(staff, "clients.view");
-  const file = (kind: string) => `/api/orders/${order.id}/files/${kind}`;
 
   return (
     <div className="space-y-6">
-      <Link href="/admin/orders" className="text-sm text-muted hover:text-ink">← Заказы</Link>
+      <BackLink href="/admin/orders">Заказы</BackLink>
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-semibold">Заказ №{order.number}</h1>
         <span className={cn("rounded-full px-3 py-1 text-sm", orderStatusColors[order.status])}>{orderStatusLabel(order.status, "ru", isPrintedPlan(order.plan))}</span>
@@ -110,15 +112,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
         <div className="space-y-6">
           {can(staff, "orders.files") ? (
           <Card title="Файлы для типографии">
-            <div className="flex flex-wrap gap-2">
-              <a href={`/api/admin/orders/${order.id}/package`} className="btn btn-primary btn-sm"><FileArchive className="size-4" /> Скачать всё (ZIP)</a>
-              <a href={file("block")} className="btn btn-outline btn-sm"><Download className="size-4" /> Блок</a>
-              <a href={file("cover")} className="btn btn-outline btn-sm"><Download className="size-4" /> Обложка</a>
-              <a href={file("layout")} className="btn btn-outline btn-sm"><Download className="size-4" /> Каркас обложки</a>
-              <a href={file("spec")} className="btn btn-outline btn-sm"><Download className="size-4" /> Техзадание</a>
-              <a href={file("reading")} className="btn btn-ghost btn-sm"><Download className="size-4" /> PDF для чтения</a>
-              <GenerateButton orderId={order.id} hasFiles={!!spec} />
-            </div>
+            <PrintFileActions orderId={order.id} hasFiles={!!spec} />
             {spec ? (
               <dl className="mt-5 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
                 <Spec label="Формат" value={getFormat(spec.format).short} />
@@ -130,6 +124,12 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
               <p className="mt-4 text-sm text-muted">Файлы ещё не генерировались. Они будут созданы при первом скачивании (≈ 15–60 секунд).</p>
             )}
             {spec ? <p className="mt-3 text-xs text-muted">Сгенерировано {formatDate(spec.generatedAt, true)}</p> : null}
+            {/* Блок собран раньше правок книги или прежней вёрсткой (длинные книги после смены числа проходов) — в типографию ушли бы не те полосы, что видит клиент. */}
+            {spec && built && spec.pageCount !== built.pageCount ? (
+              <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                Клиент видит макет на {built.pageCount} стр., а файлы для печати собраны на {spec.pageCount} стр. Пересоберите их перед отправкой в типографию.
+              </p>
+            ) : null}
           </Card>
           ) : null}
 
@@ -139,7 +139,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
               <dt className="text-muted">Тема</dt><dd>{getTheme(book.theme).name}</dd>
               <dt className="text-muted">{bookKind(book.theme) === "autobiography" ? "Рассказчик" : "Автор → адресат"}</dt><dd>{book.authorName}{book.recipientName && bookKind(book.theme) !== "autobiography" ? ` → ${book.recipientName}` : ""}{book.recordedBy ? ` · записано: ${book.recordedBy}` : ""}</dd>
               <dt className="text-muted">Оформление</dt><dd>{formatName(book.format)} · обложка «{coverName(book.coverTemplate)}» · страницы «{interiorName(book.interior)}» · язык книги: {localeMeta[book.language]?.label ?? book.language}</dd>
-              <dt className="text-muted">Наполнение</dt><dd>{bookKind(book.theme) === "blank" ? `${stats.answered} разделов с текстом` : `${stats.answered} ответов`} · {stats.words} слов · {stats.photos} фото · ≈ {stats.printedPages} стр.</dd>
+              <dt className="text-muted">Наполнение</dt><dd>{bookKind(book.theme) === "blank" ? `${stats.answered} разделов с текстом` : `${stats.answered} ответов`} · {stats.words} слов · {stats.photos} фото · {built ? `${built.pageCount} стр. по макету` : `≈ ${stats.printedPages} стр.`}</dd>
               <dt className="text-muted">Редактирование</dt><dd>{book.status === "draft" ? "открыто для клиента" : "закрыто"}</dd>
             </dl>
             <div className="mt-4 flex flex-wrap gap-2">

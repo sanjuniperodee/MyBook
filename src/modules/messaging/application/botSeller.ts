@@ -67,11 +67,17 @@ import {
   type RemindCheck,
   type RemindReject,
   type SellerRemind,
+  chooseSellerTier,
+  escalateTier,
+  type EscalationCause,
+  type RouteTier,
+  type TraceRoute,
+  type TraceRouteCall,
 } from "../domain";
 import { BOT_ABANDON_MS, BOT_PAUSE_MS } from "./botTiming";
 import type { BotPreviewInput, BotPreviewResult } from "./botPreview";
 import type { QualifierBotDeps } from "./bot";
-import type { BotSettings } from "./ports";
+import type { BotSettings, RoutePolicyView, RouteServed } from "./ports";
 
 /** Сколько модель думает над одним ответом: клиент ждёт в чате. */
 export const SELLER_TIMEOUT_MS = 30_000;
@@ -95,6 +101,12 @@ export const SELLER_MAX_FAILURES = 2;
 const HISTORY_LIMIT = 60;
 /** Сколько последних сообщений клиента задают тему для выбора кусков базы знаний. */
 const KNOWLEDGE_QUERY_MESSAGES = 3;
+/** Переписка не влезла в окно модели — повтор с последними сообщениями (раннее — в заметке и известных полях сделки). */
+const SHORT_HISTORY = 20;
+/** Ответ модели не разобрался по схеме — так ask сообщает об этом (эскалация «не по схеме», а не «сбой API»). */
+const NOT_BY_SCHEMA = "ответ модели не по схеме";
+/** Политика маршрутизации, если порт модели её не сообщает (двойники в тестах, старое подключение): один уровень. */
+const NO_ROUTING: RoutePolicyView = { mode: "off", defaultTier: "haiku", sonnetAt: 2, opusAt: 6, maxExtra: 0, budgetUsd: null, dailyBudgetUsd: null };
 
 /** Черновик ответа для менеджера («Подсказать ответ» в чате): текст, заметка о клиенте и этап — или почему не вышло. */
 export type CopilotSuggestion = { text: string; summary: string; stage: SellerStage } | { error: string };
@@ -126,6 +138,10 @@ const parseJson = (text: string): unknown => {
   }
 };
 
+/** Расходы хода на модель — в состояние беседы (потолок на беседу) — и уровень, который ответил. */
+const spent = (ai: SellerAiState, trace: TraceContext | null | undefined): SellerAiState =>
+  trace?.route ? { ...ai, llmCostUsd: Math.round((ai.llmCostUsd + trace.route.costUsd) * 1e8) / 1e8, lastTier: trace.route.final ?? ai.lastTier } : ai;
+
 /** Записанные поля сделки для следа хода — подписями, как в карточке сделки. */
 const fieldLabels = (values: Record<string, string | number>, fields: DealField[]) => Object.fromEntries(Object.entries(values).map(([k, v]) => [fields.find((f) => f.key === k)?.label ?? k, v]));
 
@@ -145,6 +161,9 @@ export async function workStartOn(settings: Pick<BotSettings, "isWorkTime" | "ne
  * проверяет код (domain/botSeller.ts). Клиент никогда не остаётся без ответа: сбой модели или спорный ответ — менеджеру.
  */
 export class AiSeller {
+  /** Расходы на модель за сегодня (суточный потолок): из журнала, не чаще раза в минуту. */
+  #spentToday: { at: number; day: string; usd: number } | null = null;
+
   constructor(
     private readonly d: QualifierBotDeps,
     private readonly hooks: SellerHooks,
@@ -203,7 +222,7 @@ export class AiSeller {
       history = await this.d.history!(conv.id, HISTORY_LIMIT);
     }
     const decided = await this.decide({ conv, base, env, config, fields, history, fresh: inputs2, purpose: "reply" });
-    if ("error" in decided) return this.failed(conv, base, state, decided.error, env, fields, now, opening);
+    if ("error" in decided) return this.failed(conv, base, state, decided.error, env, fields, now, opening, decided.trace);
 
     // Клиент дописал, пока модель думала: ответ был бы на устаревшее — повторяем ход со всеми сообщениями.
     const latest = await this.d.store.incoming(conv.id, new Date(state.since));
@@ -212,7 +231,7 @@ export class AiSeller {
     const result = decided.turn;
     // Подхват: модель решила, что клиент ответа не ждёт («Аха» после ответа менеджера) — бот не вмешивается.
     if (start && readSellerAi(state.ai).takeover && decided.decision.action === "wait" && result.state.phase !== "done") return this.quietTakeover(conv, state, result.state);
-    const next: BotState = { ...result.state, engine: "ai", ai: { ...readSellerAi(result.state.ai), failures: 0 } };
+    const next: BotState = { ...result.state, engine: "ai", ai: { ...spent(readSellerAi(result.state.ai), decided.trace), failures: 0 } };
     result.state = next;
     // Тёплый клиент: «Ознакомились?» через 20 минут — следующий ход раньше обычных получаса тишины.
     const idle = isWarmLead(next.ai) && config.sell.followUpHours > 0 ? Math.min(WARM_FIRST_FOLLOW_UP_MS, BOT_ABANDON_MS) : BOT_ABANDON_MS;
@@ -278,7 +297,7 @@ export class AiSeller {
       const decided = await this.decide({ conv, base: state, env, config, fields, history, fresh: [], purpose: "follow_up", touch });
       // Напоминание — необязательная любезность: ошибка модели или спорный текст = молчим, не зовём менеджера.
       const decision = "turn" in decided ? decided.decision : null;
-      why = "turn" in decided ? { decision, context: decided.trace, notes: [] } : { decision: null, context: null, notes: [{ code: "ai_error" }], error: decided.error };
+      why = "turn" in decided ? { decision, context: decided.trace, notes: [] } : { decision: null, context: decided.trace?.route ? decided.trace : null, notes: [{ code: "ai_error" }], error: decided.error };
       if (decision && decision.action !== "wait" && decision.reply) {
         const turn = resolveSellerTurn(state, { ...decision, action: "reply", agreed: false, handoff: "none" }, env, this.ctx(conv, env, config, [], history, false, await this.rules(conv, env, config)));
         why.notes.push(...(turn.notes ?? []));
@@ -294,8 +313,8 @@ export class AiSeller {
       followedUp: true,
       lastBotAt: reply ? now.toISOString() : state.lastBotAt,
       ai: touch
-        ? { ...ai, closeAsked: reply ? false : ai.closeAsked, remind: null, touches: reply ? ai.touches + 1 : ai.touches, followUps: SELLER_MAX_FOLLOW_UPS }
-        : { ...ai, closeAsked: reply ? false : ai.closeAsked, followUps: reply ? ai.followUps + 1 : SELLER_MAX_FOLLOW_UPS },
+        ? { ...spent(ai, why?.context), closeAsked: reply ? false : ai.closeAsked, remind: null, touches: reply ? ai.touches + 1 : ai.touches, followUps: SELLER_MAX_FOLLOW_UPS }
+        : { ...spent(ai, why?.context), closeAsked: reply ? false : ai.closeAsked, followUps: reply ? ai.followUps + 1 : SELLER_MAX_FOLLOW_UPS },
       version: state.version + 1,
     };
     if (!(await this.d.store.save(conv.id, state.version, { botStep: 0, state: next, dueAt: new Date(now.getTime() + 60_000) }))) return true;
@@ -466,6 +485,8 @@ export class AiSeller {
     const materials = materialsFor(materialList, base.lang).length ? { summary: materialsSummary(materialList), sent: materialsSent } : null;
     const transcript = sellerTranscript(history, fresh.length, env.tz);
     const user = sellerUserPrompt(transcript, purpose, fresh.length > 0, a.touch?.kind ?? null);
+    // Переписка не влезла в окно модели: последние сообщения (раннее — в заметке, известных полях и состоянии беседы).
+    const shortUser = () => sellerUserPrompt(sellerTranscript(history.slice(-SHORT_HISTORY), fresh.length, env.tz), purpose, fresh.length > 0, a.touch?.kind ?? null);
     // С кем договариваться о повторном сообщении нельзя: просил не писать первым, уже платил, лимит таких сообщений.
     const asksRemind = remindOn && purpose === "reply";
     const noMarketing = asksRemind ? await this.noMarketing(conv) : false;
@@ -488,29 +509,87 @@ export class AiSeller {
       lessons: lessons.map((l) => ({ id: l.id, text: l.text })),
       knowledge: knowledge.trim() ? { all: !picked.filtered, titles: picked.titles } : null,
     };
-    const ask = async (extraFact: string | null, retry: ReplyProblem[] | null, deadline: string | null): Promise<SellerDecision | { error: string }> => {
+    // Уровень модели — по признакам сложности хода, без отдельного запроса к модели (domain/botRoute.ts).
+    trace.deadline = knownDate ? deadlineCheck(knownDate, env, ai.city) : null;
+    const policy = (await this.d.seller!.policy?.().catch(() => null)) ?? null;
+    const p = policy ?? NO_ROUTING;
+    const lastClient = history.filter((m) => m.from === "client").slice(-2).map((m) => m.text).join("\n");
+    const choice = chooseSellerTier({
+      purpose,
+      quick: a.quick,
+      clientText: fresh.length ? fresh.map((i) => i.text).join("\n") : lastClient,
+      history,
+      ai,
+      deadline: trace.deadline?.kind ?? null,
+      policy: p,
+      overBudget: policy ? await this.overBudget(p, ai) : false,
+    });
+    let tier: RouteTier = choice.tier;
+    // Эскалации — только в режиме on (в shadow и off ответ дал бы та же модель) и не больше maxExtra за ход.
+    const maxExtra = p.mode === "on" && !choice.capped ? p.maxExtra : 0;
+    const route: TraceRoute = { mode: p.mode, chosen: choice.tier, score: choice.score, reasons: choice.reasons, final: null, escalations: [], calls: [], costUsd: 0, capped: choice.capped };
+    if (policy) trace.route = route;
+    const raise = (cause: EscalationCause): boolean => {
+      if (route.escalations.length >= maxExtra) return false;
+      const to = escalateTier(tier, choice, cause, p);
+      if (!to) return false;
+      route.escalations.push({ from: tier, to, cause });
+      tier = to;
+      return true;
+    };
+    let short = false;
+    const record = (why: TraceRouteCall["why"], served: RouteServed | null | undefined, err: unknown) => {
+      if (!policy) return;
+      const failedAttempts = served?.attempts ?? (err as { attempts?: RouteServed["attempts"] } | null)?.attempts ?? [];
+      const lastTry = failedAttempts.at(-1);
+      const call: TraceRouteCall = served
+        ? { why, tier: served.tier, provider: served.provider, model: served.model, ...served.usage, costUsd: served.costUsd, ms: served.ms + failedAttempts.reduce((n, x) => n + x.ms, 0), fallback: served.fallback, retries: failedAttempts.length }
+        : { why, tier, provider: lastTry?.provider ?? "", model: lastTry?.model ?? "", input: 0, output: 0, cacheRead: 0, cacheWrite: 0, costUsd: 0, ms: failedAttempts.reduce((n, x) => n + x.ms, 0), fallback: false, retries: failedAttempts.length, failed: String((err as { kind?: string } | null)?.kind ?? "error") };
+      route.calls.push(call);
+      route.costUsd = Math.round((route.costUsd + (call.costUsd ?? 0)) * 1e8) / 1e8;
+      if (served) route.final = served.tier;
+      // Метрики вызова — в лог сервера, без текстов и номеров: уровень, модель, токены, стоимость, задержка, сбои.
+      this.d.logger.info("llm call", { conversation: conv.id, purpose, why, tier: call.tier, provider: call.provider, model: call.model, input: call.input, output: call.output, cacheRead: call.cacheRead, cacheWrite: call.cacheWrite, costUsd: call.costUsd, ms: call.ms, fallback: call.fallback, retries: call.retries, ...(call.failed ? { failed: call.failed } : {}) });
+    };
+    const ask = async (extraFact: string | null, retry: ReplyProblem[] | null, deadline: string | null, why: TraceRouteCall["why"] = "first"): Promise<SellerDecision | { error: string; context?: boolean }> => {
       const parts = sellerSystemPromptParts({ env, state: base, questions: base.questions, knowledge, knowledgeQuery, brand: this.d.settings.brand(), known, deadline, takeoverMinutes: ai.takeover ? ai.waitedMinutes : null, chatManager, purpose, extraFact, retry, paid, paidClaimOnly, followUps: ai.followUps, lessons, voice, materials, remind, touch: a.touch ?? null, warm: paid || ai.priceQuoted || ai.warmedUp || materialsSent || priceMentioned(history) });
       let raw: string;
       try {
-        const res = await this.d.seller!.complete({ system: `${parts.stable}\n${parts.dynamic}`, cachePrefix: parts.stable, user, schema: schema as unknown as Record<string, unknown>, timeoutMs: SELLER_TIMEOUT_MS });
+        // Инструкция и переписка одни и те же на любом уровне: смена модели не теряет контекст хода.
+        const res = await this.d.seller!.complete({ system: `${parts.stable}\n${parts.dynamic}`, cachePrefix: parts.stable, user: short ? shortUser() : user, schema: schema as unknown as Record<string, unknown>, timeoutMs: SELLER_TIMEOUT_MS, ...(policy ? { tier } : {}) });
         raw = res.text;
         trace.tokens.calls += 1;
         trace.tokens.input += res.usage?.input ?? 0;
         trace.tokens.output += res.usage?.output ?? 0;
+        record(why, res.served, null);
       } catch (err) {
-        return { error: err instanceof Error ? err.message : String(err) };
+        record(why, null, err);
+        return { error: err instanceof Error ? err.message : String(err), context: (err as { kind?: string } | null)?.kind === "context" };
       }
       const decision = parseSellerDecision(parseJson(raw), schemaFields, env.now, env.tz);
-      return decision ?? { error: "ответ модели не по схеме" };
+      return decision ?? { error: NOT_BY_SCHEMA };
     };
 
     let deadline = knownDate ? deadlineFact(knownDate, env, ai.city) : null;
-    trace.deadline = knownDate ? deadlineCheck(knownDate, env, ai.city) : null;
     let first = await ask(null, null, deadline);
-    // Одна повторная попытка на случай неверного JSON: клиент ждёт, но пустой ход хуже.
-    if ("error" in first) first = await ask(null, null, deadline);
-    if ("error" in first) return first;
+    if ("error" in first) {
+      if (first.context) {
+        // Переписка длиннее окна модели — та же модель, последние сообщения.
+        short = true;
+        first = await ask(null, null, deadline, "context");
+      } else {
+        // Одна повторная попытка: неверный JSON или сбой — на уровень выше, если можно (клиент ждёт, но пустой ход хуже).
+        raise(first.error === NOT_BY_SCHEMA ? "invalid" : "error");
+        first = await ask(null, null, deadline, "retry");
+      }
+    }
+    if ("error" in first) return { error: first.error, trace };
     let decision = first;
+    // Модель не уверена в ответе («не знаю — менеджеру»): прежде чем звать человека, тот же ход на уровне выше.
+    if (purpose !== "follow_up" && !a.quick && decision.action === "handoff" && decision.handoff === "unsure" && raise("unsure")) {
+      const again = await ask(null, null, deadline, "unsure");
+      if (!("error" in again)) decision = again;
+    }
 
     // Клиент назвал дату или город — срок пересчитан кодом (по Алматы доставка в день готовности), ответ — с учётом вердикта.
     const date = decision.eventDate ?? knownDate;
@@ -521,11 +600,15 @@ export class AiSeller {
         deadline = fact;
         trace.deadline = deadlineCheck(date, env, decision.city || ai.city);
         trace.notes.push({ code: "deadline_recheck" });
-        const again = await ask(null, null, fact);
+        const again = await ask(null, null, fact, "deadline");
         if (!("error" in again)) decision = { ...again, eventDate: again.eventDate ?? decision.eventDate, city: again.city || decision.city, fields: { ...decision.fields, ...again.fields } };
       }
     }
-    const rewrite = (problems: ReplyProblem[]) => ask(null, problems, deadline);
+    // Ответ не прошёл проверку кода — переписывает уровень выше (если можно): Haiku → Sonnet, Sonnet → Opus для сложных ходов.
+    const rewrite = (problems: ReplyProblem[]) => {
+      raise("rejected");
+      return ask(null, problems, deadline, "rewrite");
+    };
     // Дата повторного сообщения из ответа модели — проверка кодом: график, срок, дата события, стоп-лист, лимит.
     const remindCheck = (d: SellerDecision): Promise<RemindCheck | null> => (asksRemind ? this.remindCheck(d, { env, ai, eventDate: d.eventDate ?? knownDate, noMarketing, sell: config.sell }) : Promise.resolve(null));
     return { decision, env, rules, history, rewrite, remindCheck, materials: !!materials && !materials.sent && purpose === "reply", trace };
@@ -556,9 +639,9 @@ export class AiSeller {
    * Ход бота: решение модели → проверка кодом (суммы, ссылки, номера, право на счёт); нарушение — один раз просим
    * переписать. Возвращает ход или ошибку модели.
    */
-  private async decide(a: { conv: Conversation; base: BotState; env: BotEnv; config: BotConfig; fields: DealField[]; history: HistoryMessage[]; fresh: BotInput[]; purpose: "reply" | "follow_up"; touch?: SellerRemind | null }): Promise<{ turn: SellerTurn; decision: SellerDecision; trace: TraceContext } | { error: string }> {
+  private async decide(a: { conv: Conversation; base: BotState; env: BotEnv; config: BotConfig; fields: DealField[]; history: HistoryMessage[]; fresh: BotInput[]; purpose: "reply" | "follow_up"; touch?: SellerRemind | null }): Promise<{ turn: SellerTurn; decision: SellerDecision; trace: TraceContext } | { error: string; trace?: TraceContext }> {
     const c = await this.consult(a);
-    if ("error" in c) return c;
+    if (c.error !== undefined) return { error: c.error, trace: c.trace };
     const { conv, base, config, fresh: inputs } = a;
     let decision = c.decision;
     let turn = resolveSellerTurn(base, decision, c.env, { ...this.ctx(conv, c.env, config, inputs, c.history, false, c.rules, c.materials), remind: await c.remindCheck(decision) });
@@ -590,7 +673,7 @@ export class AiSeller {
     const history = await this.d.history(conv.id, HISTORY_LIMIT);
     if (!history.some((m) => m.from === "client" && m.text.trim())) return { error: "Клиент ещё ничего не написал — подсказывать нечего." };
     const c = await this.consult({ conv, base, env, config, fields, history, fresh: [], purpose: "copilot", voice: { manager }, quick: opts.quick });
-    if ("error" in c) return c;
+    if (c.error !== undefined) return { error: c.error };
     let decision = c.decision;
     // Только оценка «ждёт ли клиент ответа» (triage): текст никуда не уходит — проверять и переписывать его незачем.
     if (opts.quick) return { text: decision.action === "wait" ? "" : decision.reply, summary: decision.summary, stage: decision.stage };
@@ -825,15 +908,18 @@ export class AiSeller {
   }
 
   /** Модель не ответила: повтор через минуту; на второй сбой беседу берёт менеджер (клиент получает обычное «передала менеджеру»). */
-  private async failed(conv: Conversation, base: BotState, prev: BotState, why: string, env: BotEnv, fields: DealField[], now: Date, opening: (lang: BotLang) => BotEvent[]): Promise<boolean> {
-    const ai = readSellerAi(base.ai);
+  private async failed(conv: Conversation, base: BotState, prev: BotState, why: string, env: BotEnv, fields: DealField[], now: Date, opening: (lang: BotLang) => BotEvent[], trace: TraceContext | null = null): Promise<boolean> {
+    const ai = spent(readSellerAi(base.ai), trace);
     ai.failures += 1;
     this.d.logger.warn("bot ai", { error: why });
     if (ai.failures < SELLER_MAX_FAILURES) {
       const due = new Date(now.getTime() + SELLER_RETRY_MS);
       const s: BotState = { ...base, ai, version: prev.version + 1 };
       if (!(await this.d.store.save(conv.id, prev.version, { botStep: prev.phase === "waiting" ? null : 0, state: s, dueAt: due }))) return true;
-      await this.d.store.log(conv.id, conv.dealId, s.lang, [...opening(s.lang), { kind: "blocked", reason: `ai_error: ${why}`.slice(0, 200) }]);
+      const events: BotEvent[] = [...opening(s.lang), { kind: "blocked", reason: `ai_error: ${why}`.slice(0, 200) }];
+      // Неудачные запросы — в след (без сообщения клиенту): по нему видно, какие модели пробовали и почему не вышло.
+      if (trace?.route) events.push(this.traceEvent("reply", null, trace, s, events, [], { notes: [{ code: "ai_error" }], error: why }));
+      await this.d.store.log(conv.id, conv.dealId, s.lang, events);
       await this.hooks.later(conv.id, due);
       return false;
     }
@@ -842,9 +928,27 @@ export class AiSeller {
     const text = botSellText(s, env, "handoff");
     const sent = text ? [await this.send(conv, text)] : [];
     const events: BotEvent[] = [...opening(s.lang), { kind: "blocked", reason: `ai_error: ${why}`.slice(0, 200) }, { kind: "handoff", reason: "ai_error" }];
-    events.push(this.traceEvent("reply", null, null, s, events, sent, { notes: [{ code: "ai_error" }], error: why }));
+    // След — с маршрутом модели (какие модели пробовали), если он есть; без маршрута — как раньше, без токенов.
+    events.push(this.traceEvent("reply", null, trace?.route ? trace : null, s, events, sent, { notes: [{ code: "ai_error" }], error: why }));
     await this.d.store.log(conv.id, conv.dealId, s.lang, events);
     await this.hooks.finish(conv, s, fields);
     return false;
+  }
+
+  /**
+   * Потолок расходов на модель: на беседу (по состоянию) или на сутки (по журналу, не чаще раза в минуту). На потолке
+   * ход идёт на Haiku без эскалаций; сбой подсчёта — потолок не считается достигнутым (клиент без ответа не остаётся).
+   */
+  private async overBudget(p: RoutePolicyView, ai: SellerAiState): Promise<boolean> {
+    if (p.budgetUsd !== null && ai.llmCostUsd >= p.budgetUsd) return true;
+    if (p.dailyBudgetUsd === null || !this.d.store.llmSpentSince) return false;
+    const now = this.d.clock.now();
+    const tz = this.d.settings.timeZone();
+    const day = zonedDay(now, tz);
+    if (!this.#spentToday || this.#spentToday.day !== day || now.getTime() - this.#spentToday.at > 60_000) {
+      const usd = await this.d.store.llmSpentSince(fromZonedTime(`${day}T00:00:00`, tz)).catch(() => 0);
+      this.#spentToday = { at: now.getTime(), day, usd };
+    }
+    return this.#spentToday.usd >= p.dailyBudgetUsd;
   }
 }

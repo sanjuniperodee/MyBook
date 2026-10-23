@@ -97,6 +97,7 @@ const decision = (p: Partial<SellerDecision> = {}): SellerDecision => ({
   agreedQuote: "",
   city: "",
   sendMaterials: false,
+  payment: "unknown",
   remindAt: null,
   remindWhy: "",
   ...p,
@@ -685,9 +686,18 @@ describe("AI-продажник: цены разрешены — продажу 
     const p = sellerSystemPrompt(base).replace(/ /g, " ");
     expect(p).toContain("назови цену «от X ₸» из фактов сама");
     expect(p).toContain("Продажу закрываешь ты");
-    expect(p).toContain("Оформляем? Начать можно с предоплаты");
+    // Закрытие — выбором способа оплаты, а не «да / нет».
+    expect(p).toContain("Вам как удобнее — полной оплатой, предоплатой или в рассрочку?");
+    expect(p).toContain("перед печатью мы присылаем электронный вариант на утверждение");
     const examples = p.slice(p.indexOf("## Примеры"), p.indexOf("## Жёсткие запреты"));
     expect(checkSellerReply(examples, rulesFor()).filter((x) => x.kind === "price")).toEqual([]);
+  });
+
+  it("способ оплаты: полной — счёт на всю сумму; предоплата, рассрочка, Kaspi Red — обычный счёт на предоплату", () => {
+    const e = env();
+    e.config = { ...e.config, sell: { ...e.config.sell, prepay: 10000 } };
+    expect(sellerInvoice("hardcover", e, "full")).toMatchObject({ total: 30000, amount: 30000 });
+    for (const pay of ["prepay", "installment", "unknown"] as const) expect(sellerInvoice("hardcover", e, pay)).toMatchObject({ total: 30000, amount: 10000 });
   });
 
   it("бота перезапустили вручную — он ведёт беседу по нынешним правилам, а не по прежнему «менеджер свяжется»", () => {

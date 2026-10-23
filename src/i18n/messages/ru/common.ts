@@ -16,6 +16,10 @@ export const common = {
     switchTo: "Қазақша",
     label: "Язык",
   },
+  theme: {
+    dark: "Тёмная тема",
+    light: "Светлая тема",
+  },
   nav: {
     how: "Как это работает",
     sample: "Пример книги",
@@ -58,6 +62,7 @@ export const common = {
   },
   footer: {
     ideas: "Идеи подарков",
+    tools: "Инструменты",
     allIdeas: "Все идеи подарков",
     blog: "Блог",
     customers: "Покупателям",
@@ -192,6 +197,7 @@ export const common = {
     wedding: { label: "Свадьба", until: "свадьбы" },
     parents: { label: "Юбилей родителей", until: "юбилея" },
     graduation: { label: "Выпускной", until: "выпускного" },
+    teachersday: { label: "День учителя", until: "Дня учителя" },
     other: { label: "Другой повод", until: "праздника" },
   },
   occasion: {

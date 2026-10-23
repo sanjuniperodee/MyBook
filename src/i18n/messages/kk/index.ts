@@ -16,5 +16,6 @@ import { review } from "./review";
 import { invite } from "./invite";
 import { pay } from "./pay";
 import { access } from "./access";
+import { design } from "./design";
 
-export const kk: Messages = { common, book, catalog, landing, auth, books, editor, checkout, orders, review, invite, gift, legal, mail, api, pay, access };
+export const kk: Messages = { common, book, catalog, landing, auth, books, editor, checkout, orders, review, invite, gift, legal, mail, api, pay, access, design };

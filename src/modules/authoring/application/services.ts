@@ -1,6 +1,7 @@
 import type { Clock, UnitOfWork } from "@/shared/application";
 import type { Locale } from "@/i18n/config";
 import { CHAPTER_EPIGRAPH_MAX, CHAPTER_TITLE_MAX, hasOutline, MAX_CHAPTERS, progressChanged, SECTION_PROMPT_MAX, SECTION_TITLE_MAX } from "@/lib/content/kinds";
+import { LAYOUT_REV_2 } from "@/lib/book/layout";
 import {
   AuthoringError,
   Book,
@@ -25,6 +26,7 @@ import {
   type StartInput,
 } from "../domain";
 import type { FileStore, IdGenerator, ImageProcessor, OrdersLookup, ThemeCatalog } from "./ports";
+import type { LayoutUpgrade } from "./layout-rev2";
 
 /**
  * Загрузка книги с проверкой доступа: чужая книга (для правки — и книга, которую сотруднику менять нельзя) — как будто её нет.
@@ -49,6 +51,8 @@ export class BooksService {
     private readonly uow: UnitOfWork,
     private readonly clock: Clock,
     private readonly chapters: ChapterRepository,
+    /** Перевод на правила раскладки фото 2 при смене оформления (выпуск 2); нет — не переводить. */
+    private readonly layout?: LayoutUpgrade,
   ) {}
 
   /** Новая книга. Тема проверяется: незнакомая — unknownTheme (молчаливый откат на «любимому» — только для показа). */
@@ -64,11 +68,19 @@ export class BooksService {
   }
 
   /** Настройки из редактора (включая смену языка книги). */
-  async updateSettings(bookId: string, viewer: BookViewer, patch: BookSettings & { language?: Locale; coverPhotoId?: string | null; backPhotoId?: string | null; coverPhotoExtra?: string[]; backPhotoExtra?: string[]; photoFrames?: unknown; tocLines?: unknown }, photos: PhotoRepository) {
+  async updateSettings(
+    bookId: string,
+    viewer: BookViewer,
+    patch: BookSettings & { language?: Locale; coverPhotoId?: string | null; backPhotoId?: string | null; coverPhotoExtra?: string[]; backPhotoExtra?: string[]; photoFrames?: unknown; tocLines?: unknown; interiorStyle?: unknown; coverDesign?: unknown },
+    photos: PhotoRepository,
+  ) {
     return this.uow.run(async () => {
       // Блокировка: save пишет снимок книги целиком (и статус) — заказ, оформленный посреди правки, не откатится в черновик.
       const book = await loadBook(this.books, bookId, viewer, { editable: true, lock: true });
-      const { language, coverPhotoId, backPhotoId, coverPhotoExtra, backPhotoExtra, photoFrames, tocLines, ...settings } = patch;
+      const { language, coverPhotoId, backPhotoId, coverPhotoExtra, backPhotoExtra, photoFrames, tocLines, interiorStyle, coverDesign, ...settings } = patch;
+      // Смена оформления на книге с прежними правилами раскладки фото — сначала перевод на правила 2 (выпуск 2), по
+      // книге как она есть в базе, до остальных правок этого запроса.
+      if (this.layout?.onTouch && settings.interior !== undefined && settings.interior !== book.interior && book.layoutRev !== LAYOUT_REV_2) await this.layout.upgrade(book.id);
       for (const [side, ids] of [
         ["cover", coverPhotoExtra],
         ["back", backPhotoExtra],
@@ -87,6 +99,13 @@ export class BooksService {
       }
       if (photoFrames !== undefined) book.setPhotoFrames(photoFrames);
       if (tocLines !== undefined) book.setTocLines(tocLines);
+      if (interiorStyle !== undefined) book.setInteriorStyle(interiorStyle);
+      if (coverDesign !== undefined) {
+        // Фото в слоях обложки — только фото этой книги.
+        const ids = coverDesign === null ? [] : book.coverDesignPhotos(coverDesign);
+        if (ids.length && !(await photos.belongToBook(book.id, ids))) throw new AuthoringError("photoNotFound");
+        book.setCoverDesign(coverDesign);
+      }
       if (language && language !== book.language) {
         const from = this.themes.get(book.theme, book.language);
         const to = this.themes.get(book.theme, language);
@@ -101,13 +120,14 @@ export class BooksService {
     });
   }
 
-  /** Удалить книгу можно, пока по ней нет заказов; файлы фото и кэш предпросмотра — тоже. */
+  /** Удалить книгу можно, пока по ней нет заказов; файлы фото, кэш предпросмотра и картинки полос — тоже. */
   async delete(bookId: string, viewer: BookViewer) {
     const book = await loadBook(this.books, bookId, viewer, { editable: true });
     if (await this.orders.bookHasOrders(book.id)) throw new AuthoringError("bookHasOrders");
     await this.books.delete(book.id);
     await this.files.deletePrefix(`photos/${book.id}`);
     await this.files.deletePrefix(`cache/preview/${book.id}`);
+    await this.files.deletePrefix(`cache/pages/${book.id}`);
   }
 
   async setLetterInvite(bookId: string, viewer: BookViewer, enabled: boolean, regenerate: boolean) {
@@ -395,6 +415,11 @@ export class BookOutlineService {
   }
 }
 
+/** Правка фото, по которой оно может сменить место: глава, фото начала главы, ответ. */
+const touchesPlace = (patch: PhotoPatch) => patch.chapter !== undefined || patch.opener !== undefined || patch.questionId !== undefined;
+
+export type PhotoPatch = Parameters<Photo["update"]>[0];
+
 export class PhotosService {
   constructor(
     private readonly books: BookRepository,
@@ -403,7 +428,23 @@ export class PhotosService {
     private readonly images: ImageProcessor,
     private readonly files: FileStore,
     private readonly ids: IdGenerator,
+    /** Транзакция пакетной правки; нет — запросы по одному (двойники в тестах). */
+    private readonly uow?: UnitOfWork,
+    /** Перевод на правила раскладки фото 2 при правке мест (выпуск 2); нет — не переводить. */
+    private readonly layout?: LayoutUpgrade,
   ) {}
+
+
+  /** Одна правка фото по правилам Photo.update: ответ — из этой книги, фото начала главы у главы одно. */
+  private async apply(book: Book, photoId: string, patch: PhotoPatch) {
+    if (patch.questionId && !(await this.questions.findInBook(book.id, patch.questionId))) throw new AuthoringError("questionNotFound");
+    const photo = await this.photos.findInBook(book.id, photoId);
+    if (!photo) throw new AuthoringError("photoNotFound");
+    photo.update(patch);
+    await this.photos.save(photo);
+    if (patch.opener && photo.snapshot().opener && photo.chapter) await this.photos.clearOpeners(book.id, photo.chapter, photo.id);
+    return photo;
+  }
 
   /** Загрузка пачки фото: каждое обрабатывается отдельно, ошибки по файлам возвращаются списком. */
   async upload(bookId: string, viewer: BookViewer, files: { name: string; size: number; bytes: () => Promise<Buffer> }[]) {
@@ -438,15 +479,37 @@ export class PhotosService {
     return { created, failed };
   }
 
-  async update(bookId: string, viewer: BookViewer, photoId: string, patch: Parameters<Photo["update"]>[0]) {
-    const book = await loadBook(this.books, bookId, viewer, { editable: true });
-    if (patch.questionId && !(await this.questions.findInBook(book.id, patch.questionId))) throw new AuthoringError("questionNotFound");
-    const photo = await this.photos.findInBook(book.id, photoId);
-    if (!photo) throw new AuthoringError("photoNotFound");
-    photo.update(patch);
-    await this.photos.save(photo);
-    await this.books.touch(book.id);
-    return photo;
+  /**
+   * Правка одного фото. Книга блокируется до конца транзакции: save пишет снимок фото целиком (с главой, отметкой и
+   * позицией), а перевод на правила 2 (скрипт или при правке) пишет их под той же блокировкой — снимок, прочитанный до
+   * перевода, его не затрёт. Правка места (выпуск 2) сначала переводит книгу с прежними правилами — как пакет.
+   */
+  async update(bookId: string, viewer: BookViewer, photoId: string, patch: PhotoPatch) {
+    if (this.layout?.onTouch && touchesPlace(patch)) return (await this.batch(bookId, viewer, [{ id: photoId, patch }]))[0];
+    const work = async () => {
+      const book = await loadBook(this.books, bookId, viewer, { editable: true, lock: true });
+      const photo = await this.apply(book, photoId, patch);
+      await this.books.touch(book.id);
+      return photo;
+    };
+    return this.uow ? this.uow.run(work) : work();
+  }
+
+  /**
+   * Правки нескольких фото одной транзакцией по тем же правилам, что update (убрать из альбома, «показать целиком»
+   * пачкой, подсказки): ошибка в любой — не меняется ни одно. Книга блокируется, заказанную править нельзя. Книгу
+   * с прежними правилами пакет сначала переводит на правила 2 (выпуск 2: перевод при правке).
+   */
+  async batch(bookId: string, viewer: BookViewer, updates: readonly { id: string; patch: PhotoPatch }[]) {
+    const work = async () => {
+      const book = await loadBook(this.books, bookId, viewer, { editable: true, lock: true });
+      if (this.layout?.onTouch && book.layoutRev !== LAYOUT_REV_2) await this.layout.upgrade(book.id);
+      const out: Photo[] = [];
+      for (const { id, patch } of updates) out.push(await this.apply(book, id, patch));
+      await this.books.touch(book.id);
+      return out;
+    };
+    return this.uow ? this.uow.run(work) : work();
   }
 
   async delete(bookId: string, viewer: BookViewer, photoId: string) {
@@ -468,7 +531,13 @@ export class PhotosService {
     await this.photos.reorder(book.id, ids);
   }
 
-  /** Поворот самого файла на 90°. Новые ключи — чтобы браузер и кэш предпросмотра не показали старую ориентацию. */
+  /**
+   * Поворот самого файла на 90°. Новые ключи — чтобы браузер и кэш предпросмотра не показали старую ориентацию.
+   * Файлы обрабатываются без блокировки (это секунды), а запись — под блокировкой книги по строке, перечитанной после
+   * обработки, и только полей поворота (файлы, размеры, кадр и вид в ответе): правка места или перевод на правила 2,
+   * записанные за это время, не откатываются. Фото успели повернуть или заменить файл — поворот не по тому снимку,
+   * новые файлы удаляются (photosOutdated).
+   */
   async rotate(bookId: string, viewer: BookViewer, photoId: string) {
     const book = await loadBook(this.books, bookId, viewer, { editable: true });
     const photo = await this.photos.findInBook(book.id, photoId);
@@ -478,11 +547,41 @@ export class PhotosService {
     const rev = this.ids.revision();
     const keys = { storageKey: `photos/${book.id}/${photo.id}_${rev}.jpg`, thumbKey: `photos/${book.id}/${photo.id}_${rev}_thumb.jpg` };
     await Promise.all([this.files.put(keys.storageKey, out.full), this.files.put(keys.thumbKey, out.thumb)]);
-    const previous = photo.rotated(keys);
-    await this.photos.save(photo);
-    await Promise.all([this.files.delete(previous.storageKey), this.files.delete(previous.thumbKey)]).catch(() => {});
-    await this.books.touch(book.id);
-    return photo;
+    const dropNew = () => Promise.all([this.files.delete(keys.storageKey), this.files.delete(keys.thumbKey)]).catch(() => {});
+    const work = async () => {
+      await loadBook(this.books, bookId, viewer, { editable: true, lock: true });
+      const fresh = await this.photos.findInBook(book.id, photoId);
+      if (!fresh) throw new AuthoringError("photoNotFound");
+      if (fresh.storageKey !== photo.storageKey) throw new AuthoringError("photosOutdated");
+      const previous = fresh.rotated(keys);
+      await this.photos.saveRotation(fresh);
+      await this.books.touch(book.id);
+      return { fresh, previous };
+    };
+    let saved: Awaited<ReturnType<typeof work>>;
+    try {
+      saved = await (this.uow ? this.uow.run(work) : work());
+    } catch (err) {
+      await dropNew();
+      throw err;
+    }
+    await Promise.all([this.files.delete(saved.previous.storageKey), this.files.delete(saved.previous.thumbKey)]).catch(() => {});
+    return saved.fresh;
+  }
+
+  /**
+   * Явный перевод книги на правила раскладки фото 2 — редактор зовёт его перед первой правкой мест (POST …/layout),
+   * чтобы его превью, счётчик и снимки для «Отменить» сразу шли по строкам и правилам, которые запишет правка.
+   * Права — как у правки фото, книга заблокирована до конца транзакции. Возвращает версию правил после него: прежнюю,
+   * если перевод не повторяет вёрстку (правка тогда идёт по правилам 1, как раньше) или выпуск 2 выключен.
+   */
+  async upgradeLayout(bookId: string, viewer: BookViewer): Promise<number> {
+    const work = async () => {
+      const book = await loadBook(this.books, bookId, viewer, { editable: true, lock: true });
+      if (book.layoutRev === LAYOUT_REV_2 || !this.layout?.onTouch) return book.layoutRev;
+      return (await this.layout.upgrade(book.id)) ? LAYOUT_REV_2 : book.layoutRev;
+    };
+    return this.uow ? this.uow.run(work) : work();
   }
 }
 

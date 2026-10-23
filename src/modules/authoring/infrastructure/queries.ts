@@ -86,6 +86,13 @@ export class DrizzleAuthoringQueries {
       .orderBy(desc(books.updatedAt));
   }
 
+  /** Книга фото — чтобы решить доступ сотрудника «только свои» до отдачи файла. */
+  async photoBookId(photoId: string): Promise<string | null> {
+    if (!/^[0-9a-f-]{36}$/i.test(photoId)) return null;
+    const [row] = await rootDb.select({ bookId: photos.bookId }).from(photos).where(eq(photos.id, photoId));
+    return row?.bookId ?? null;
+  }
+
   /** Фото и владелец книги — для отдачи файла с проверкой доступа. */
   async photoFor(photoId: string, viewer: BookViewer) {
     if (!/^[0-9a-f-]{36}$/i.test(photoId)) return null;

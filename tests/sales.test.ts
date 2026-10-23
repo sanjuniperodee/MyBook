@@ -170,6 +170,15 @@ class MemDeals implements DealRepository {
     const r = [...this.rows.values()].find((d) => d.clientId === o.clientId && funnel.stage(d.stageId)?.kind === "open");
     return r ? this.load(r.id) : null;
   };
+  findRequests = async (o: { clientId?: string | null }, excludeId?: string) =>
+    [...this.rows.values()]
+      .filter((d) => d.id !== excludeId && d.clientId === o.clientId && funnel.stage(d.stageId)?.kind === "open" && !d.orderId && d.amount === 0 && !this.money.has(d.id))
+      .map((r) => this.load(r.id)!);
+  findUnlinked = async (phone: string) => [...this.rows.values()].filter((d) => !d.clientId && d.contactPhone === phone && funnel.stage(d.stageId)?.kind === "open").map((r) => this.load(r.id)!);
+  findRecentWon = async (clientId: string) => {
+    const r = [...this.rows.values()].find((d) => d.clientId === clientId && d.orderId && funnel.stage(d.stageId)?.kind === "won");
+    return r ? this.load(r.id) : null;
+  };
   /** Лента сделок (записи агрегата и заметки сервисов) — по порядку. */
   notes: string[] = [];
   private keep = (d: Deal) => {
@@ -236,7 +245,8 @@ function setup(autoFrom: "off" | "registered" | "book_started" = "book_started",
     adoptManager: async () => {},
   };
   const mergeWindow = { days: 14 };
-  const settings = { unsortedEnabled: async () => true, autoDealFrom: async () => autoFrom, reassignMinutes: async () => 15, mergeClosedDays: async () => mergeWindow.days };
+  const entryStages: Record<string, string> = {};
+  const settings = { unsortedEnabled: async () => true, autoDealFrom: async () => autoFrom, reassignMinutes: async () => 15, mergeClosedDays: async () => mergeWindow.days, entryStageId: async (source: string) => entryStages[source] ?? null };
   const router = new MemRouter();
   const clock = { at: now, now: () => clock.at };
   const invoices = new MemInvoices();
@@ -252,7 +262,7 @@ function setup(autoFrom: "off" | "registered" | "book_started" = "book_started",
   const sent: { to: string; title: string }[] = [];
   const notifier = { notify: async (ids: string[], n: { title: string }) => void ids.forEach((to) => sent.push({ to, title: n.title })), owners: async (n: { title: string }) => void sent.push({ to: "owners", title: n.title }) };
   const routing = new LeadRoutingService(deals, router, settings, notifier, uow, clock, logger);
-  return { deals, uow, service, site, router, routing, clock, sent, invoices, bookState, plans, mergeWindow };
+  return { deals, uow, service, site, router, routing, clock, sent, invoices, bookState, plans, mergeWindow, entryStages };
 }
 
 describe("Круг: распределение заявок", () => {
@@ -377,6 +387,70 @@ describe("DealsService", () => {
     const stranger = await service.create({ title: "WhatsApp", source: "whatsapp", contactPhone: "77001112233", unsorted: true });
     expect(stranger.unsorted).toBe(true);
     expect(uow.events.map((e) => e.type)).toEqual(["sales.deal_created", "sales.deal_created"]);
+  });
+});
+
+describe("DealsService: заявки клиента вливаются в сделку с договорённостью (дубли)", () => {
+  it("«пустая» заявка из чата вливается в новую сделку клиента; сделки с суммой, деньгами или заказом остаются отдельными", async () => {
+    const { service, deals } = setup();
+    const request = await service.create({ title: "Заявка из WhatsApp", source: "whatsapp", clientId: "c1" });
+    const paid = await service.create({ title: "Другая книга", source: "manual", clientId: "c1" });
+    deals.money.add(paid.id);
+    const priced = await service.create({ title: "С суммой", source: "manual", clientId: "c1", amount: 9000 });
+    const target = await service.create({ title: "Книга — Айжан", source: "manual", clientId: "c1", amount: 29000 });
+    expect(await service.absorbRequests(target.id, "m1")).toEqual([request.number]);
+    expect(await service.findById(request.id)).toBeNull();
+    expect(await service.findById(paid.id)).not.toBeNull();
+    expect(await service.findById(priced.id)).not.toBeNull();
+    expect(await service.findById(target.id)).not.toBeNull();
+  });
+
+  it("заявок нет — ничего не делает; повторный вызов безопасен", async () => {
+    const { service } = setup();
+    const target = await service.create({ title: "Книга", source: "manual", clientId: "c1", amount: 29000 });
+    expect(await service.absorbRequests(target.id, "m1")).toEqual([]);
+    expect(await service.absorbRequests("нет-такой", "m1")).toEqual([]);
+  });
+
+  it("клиента завели по номеру — открытые заявки этого номера без клиента привязываются к нему", async () => {
+    const { service, deals } = setup();
+    const lead = await service.create({ title: "Заявка", source: "whatsapp", contactPhone: "77001112233" });
+    const other = await service.create({ title: "Чужая", source: "whatsapp", contactPhone: "77009998877" });
+    expect(await service.linkRequests("c1", "77001112233")).toEqual([lead.id]);
+    expect(deals.rows.get(lead.id)?.clientId).toBe("c1");
+    expect(deals.rows.get(other.id)?.clientId).toBeNull();
+  });
+});
+
+describe("SiteFunnelService: книга после выигранного заказа — та же покупка", () => {
+  it("книга начата, когда по заказу сделка уже выиграна, — новой сделки нет, поля книги ложатся в выигранную", async () => {
+    const { site, service, deals } = setup();
+    const won = await service.create({ title: "Книга — Айжан", source: "manual", clientId: "c1", amount: 29000, orderId: "o1" });
+    await service.move(won.id, "won", null);
+    await site.bookStarted("c1", { title: "Ты — моё всё", recipientName: "Марат" }, { recipient: "Марат" });
+    expect(deals.rows.size).toBe(1);
+    expect(deals.rows.get(won.id)).toMatchObject({ stageId: "won", customFields: { recipient: "Марат" } });
+  });
+});
+
+describe("DealsService: куда падает новая заявка (настройка воронки)", () => {
+  it("по источнику: сообщение мессенджера и звонок — на выбранные этапы, остальные — на первый", async () => {
+    const { service, entryStages } = setup();
+    entryStages.whatsapp = "book";
+    entryStages.call = "ready";
+    expect((await service.create({ title: "WA", source: "whatsapp", contactPhone: "77001112233" })).stageId).toBe("book");
+    expect((await service.create({ title: "Звонок", source: "call", contactPhone: "77001112244" })).stageId).toBe("ready");
+    expect((await service.create({ title: "Вручную", source: "manual", clientId: "c1" })).stageId).toBe("new");
+  });
+
+  it("этап задан явно — настройка не вмешивается; закрывающий или чужой этап в настройке игнорируется", async () => {
+    const { service, entryStages } = setup();
+    entryStages.whatsapp = "won";
+    expect((await service.create({ title: "WA", source: "whatsapp", contactPhone: "77001112233" })).stageId).toBe("new");
+    entryStages.whatsapp = "book";
+    expect((await service.create({ title: "WA2", source: "whatsapp", contactPhone: "77001112255", stageId: "ready" })).stageId).toBe("ready");
+    entryStages.whatsapp = "нет-такого";
+    expect((await service.create({ title: "WA3", source: "whatsapp", contactPhone: "77001112266" })).stageId).toBe("new");
   });
 });
 

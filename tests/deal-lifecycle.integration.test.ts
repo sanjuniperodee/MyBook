@@ -42,7 +42,7 @@ run("жизнь сделки: деньги и счета (PostgreSQL)", () => {
   const funnels = new DrizzleFunnelRepository();
   const lifecycle = new DealInvoiceLifecycle(new DrizzleDealInvoiceLifecycleStore(), uow);
   const port: DealInvoicesPort = { moveAll: (i) => lifecycle.moveAll(i), holdForDelete: (id) => lifecycle.holdForDelete(id), purgeClosed: (id) => lifecycle.purgeClosed(id) };
-  const settings = { unsortedEnabled: async () => true, autoDealFrom: async () => "off" as const, reassignMinutes: async () => 15, mergeClosedDays: async () => 14 };
+  const settings = { unsortedEnabled: async () => true, autoDealFrom: async () => "off" as const, reassignMinutes: async () => 15, mergeClosedDays: async () => 14, entryStageId: async () => null };
   const router = { isWorkTime: async () => false, lock: async () => {}, next: async () => null, isActive: async () => false };
   const deals = new DealsService(repo, funnels, drizzleClients, settings, router, uow, systemClock, port);
   const site = new SiteFunnelService(repo, funnels, drizzleClients, settings, { progress: async () => null }, deals, { info: () => {}, warn: () => {}, error: () => {} }, dealMoney);

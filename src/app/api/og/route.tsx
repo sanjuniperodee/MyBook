@@ -6,6 +6,7 @@ import { isLocale } from "@/i18n/config";
 import { messagesFor } from "@/i18n/messages";
 import { getArticle } from "@/lib/content/articles";
 import { getLanding } from "@/lib/content/landings";
+import { getTool } from "@/lib/content/tools";
 
 const OG_SIZE = { width: 1200, height: 630 };
 
@@ -21,9 +22,10 @@ export async function GET(req: Request) {
   const slug = params.get("s") ?? "";
   const landing = getLanding(slug)?.content[locale];
   const article = getArticle(slug)?.content[locale];
+  const tool = getTool(slug)?.content[locale];
 
-  const headline = landing ? `${landing.h1} ${landing.accent}` : (article?.title ?? m.common.meta.tagline);
-  const subtitle = landing || article ? m.common.meta.tagline : m.landing.og.subtitle;
+  const headline = landing ? `${landing.h1} ${landing.accent}` : tool ? `${tool.h1} ${tool.accent}` : (article?.title ?? m.common.meta.tagline);
+  const subtitle = landing || article || tool ? m.common.meta.tagline : m.landing.og.subtitle;
   const coverText = landing?.cover.title ?? m.landing.og.cover;
   const size = headline.length > 70 ? 54 : headline.length > 40 ? 64 : 80;
 

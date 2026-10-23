@@ -127,6 +127,62 @@ export async function saveSellerAction(_: SettingsState, form: FormData): Promis
   return { ok: "Сохранено" };
 }
 
+// ─── маршрутизация модели AI-продажника ────────────────────────────────────
+
+const number = (min: number, max: number) => formText.transform((v) => v.trim()).refine((v) => !v || (/^\d+$/.test(v) && Number(v) >= min && Number(v) <= max), `Число от ${min} до ${max}`);
+const dollars = formText.transform((v) => v.trim().replace(",", ".")).refine((v) => !v || /^\d+(?:\.\d+)?$/.test(v), "Сумма в долларах, например 0.5 (0 — без потолка)");
+const routingForm = z.object({
+  mode: z.enum(["on", "shadow", "off"]).default("on"),
+  defaultTier: z.enum(["haiku", "sonnet", "opus"]).default("haiku"),
+  model_haiku: modelName,
+  model_sonnet: modelName,
+  model_opus: modelName,
+  sonnetAt: number(1, 20),
+  opusAt: number(2, 30),
+  maxExtra: number(0, 4),
+  budget: dollars,
+  dailyBudget: dollars,
+  prices: formText.transform((v) => v.trim()),
+});
+
+export async function saveRoutingAction(_: SettingsState, form: FormData): Promise<SettingsState> {
+  const staff = await assertStaff("settings.manage");
+  const parsed = parseForm(routingForm, form);
+  if (parsed.error !== undefined) return { error: parsed.error };
+  const d = parsed.data;
+  if (d.prices) {
+    try {
+      const v: unknown = JSON.parse(d.prices);
+      if (!v || typeof v !== "object" || Array.isArray(v)) throw new Error();
+    } catch {
+      return { error: "Прайс — JSON-объект: { \"модель\": { \"input\": 0.1, \"output\": 0.5 } }" };
+    }
+  }
+  if (d.sonnetAt && d.opusAt && Number(d.opusAt) <= Number(d.sonnetAt)) return { error: "Порог Opus должен быть выше порога Sonnet" };
+  // Запасные — только не-Claude провайдеры, по порядку списка.
+  const fallbacks = form.getAll("fallback").map(String).filter((p) => isAiProvider(p) && p !== "anthropic");
+  await saveSettings(
+    {
+      ...unlessEnv("seller.route", d.mode),
+      ...unlessEnv("seller.route.default", d.defaultTier),
+      ...unlessEnv("seller.route.haiku", d.model_haiku),
+      ...unlessEnv("seller.route.sonnet", d.model_sonnet),
+      ...unlessEnv("seller.route.opus", d.model_opus),
+      ...unlessEnv("seller.route.sonnetAt", d.sonnetAt),
+      ...unlessEnv("seller.route.opusAt", d.opusAt),
+      ...unlessEnv("seller.route.maxExtra", d.maxExtra),
+      ...unlessEnv("seller.route.budget", d.budget),
+      ...unlessEnv("seller.route.dailyBudget", d.dailyBudget),
+      ...unlessEnv("seller.route.prices", d.prices),
+      ...unlessEnv("seller.fallbacks", fallbacks.join(",")),
+    },
+    staff.user.id,
+  );
+  await audit(staff, "settings.update", "settings", "seller.route", { mode: d.mode, defaultTier: d.defaultTier, fallbacks });
+  revalidatePath("/admin/settings");
+  return { ok: "Сохранено" };
+}
+
 // ─── распознавание голосовых и фото для AI-продажника ───────────────────────
 
 const mediaForm = z.object({

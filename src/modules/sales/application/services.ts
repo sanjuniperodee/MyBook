@@ -90,7 +90,10 @@ export class DealsService {
    */
   async create(input: NewDeal): Promise<DealView> {
     const funnel = await this.funnels.load();
-    const stage = input.stageId ? funnel.stage(input.stageId) : funnel.firstOfKind("open", input.pipelineId ?? funnel.defaultPipelineId);
+    // Куда падает новая заявка этого источника — по настройке воронки (этап должен быть «в работе» в основной воронке).
+    const entryId = !input.stageId && !input.pipelineId ? await this.settings.entryStageId(input.source) : null;
+    const entry = entryId ? funnel.stage(entryId) : null;
+    const stage = input.stageId ? funnel.stage(input.stageId) : entry && entry.kind === "open" && entry.pipelineId === funnel.defaultPipelineId ? entry : funnel.firstOfKind("open", input.pipelineId ?? funnel.defaultPipelineId);
     if (!stage) throw new SalesError(input.stageId ? "stageNotFound" : "noOpenStage");
     // Сделка «вручную» или с тарифом договорённости и суммой — уже договорённость (клиент купит по этой цене): лимит скидки до создания.
     const plan = input.agreedPlan ?? null;
@@ -270,6 +273,39 @@ export class DealsService {
     await this.deals.save(deal);
   }
 
+  /**
+   * Клиенту завели сделку с договорённостью (предоплата, тариф, цена) — его «пустые» заявки (из чата, звонка, сайта) вливаются
+   * в неё: переписка, звонки, задачи и лента переходят, заявка исчезает, и клиент не живёт в двух карточках. Заявки, по
+   * которым уже есть заказ, деньги, тариф или сумма, не трогаем — это отдельные покупки. Возвращает номера влитых заявок.
+   */
+  async absorbRequests(targetId: string, actorId: string | null): Promise<number[]> {
+    const target = await this.deals.findById(targetId);
+    if (!target) return [];
+    const s = target.snapshot();
+    const merged: number[] = [];
+    for (const r of await this.deals.findRequests({ clientId: s.clientId, phone: s.contactPhone }, targetId)) {
+      try {
+        await this.merge(targetId, r.id, actorId);
+        merged.push(r.number);
+      } catch (err) {
+        // Нельзя влить (например, цель закрыта) — заявка остаётся как есть, менеджер объединит вручную.
+        if (!SalesError.is(err)) throw err;
+      }
+    }
+    return merged;
+  }
+
+  /** Клиента завели по номеру — его открытые заявки без клиента привязываются к аккаунту. Возвращает id привязанных. */
+  async linkRequests(clientId: string, phone: string): Promise<string[]> {
+    const ids: string[] = [];
+    for (const d of await this.deals.findUnlinked(phone)) {
+      d.linkClient(clientId);
+      await this.deals.save(d);
+      ids.push(d.id);
+    }
+    return ids;
+  }
+
   async linkClient(dealId: string, clientId: string | null) {
     const deal = await this.load(dealId);
     deal.linkClient(clientId);
@@ -435,13 +471,26 @@ export class SiteFunnelService {
       // Заказ по договорённости — к её сделке (даже если её вручную перевели в «успех» до заказа; оформление уже могло
       // привязать к ней этот заказ в своей транзакции), иначе — открытая сделка клиента.
       const agreed = opts.dealId ? await this.deals.findById(opts.dealId) : null;
-      let deal = agreed && agreed.clientId === clientId && (!agreed.orderId || agreed.orderId === opts.orderId) ? agreed : await this.deals.findOpen({ clientId });
+      // Открытую сделку ищем и по номеру клиента: заявка из WhatsApp или звонок пришли раньше, чем он зарегистрировался.
+      const known = await this.clients.profile(clientId);
+      let deal = agreed && agreed.clientId === clientId && (!agreed.orderId || agreed.orderId === opts.orderId) ? agreed : await this.deals.findOpen({ clientId, phone: known?.phone });
+      if (deal && !deal.clientId) {
+        deal.linkClient(clientId);
+        await this.deals.save(deal);
+      }
+      // Книга пошла после заказа, который уже выигран (клиент ввёл договорённость и оплатил): это та же покупка — новую
+      // сделку не заводим, поля книги (повод, дата, адресат) ложатся в выигранную. Окно — как у слияния дублей.
+      if (!deal && (milestone === "book_started" || milestone === "book_half" || milestone === "book_ready")) {
+        const days = await this.settings.mergeClosedDays();
+        const won = days > 0 ? await this.deals.findRecentWon(clientId, new Date(Date.now() - days * 86_400_000)) : null;
+        if (won) return { id: won.id };
+      }
       // Этап-цель ищем в воронке сделки; новая сделка с сайта — в основной воронке.
       const pipelineId = deal ? (funnel.stage(deal.stageId)?.pipelineId ?? null) : funnel.defaultPipelineId;
       const target = funnel.milestoneStage(milestone, pipelineId);
       if (!deal) {
         if (!Funnel.createsDeal(milestone, await this.settings.autoDealFrom())) return null;
-        const client = await this.clients.profile(clientId);
+        const client = known;
         if (!client) return null;
         const created = await this.service.create({
           title: opts.title ?? `Сайт: ${client.name || client.email.split("@")[0]}`,

@@ -3,7 +3,8 @@
 import { useState, useTransition } from "react";
 import { toast } from "@/components/ui/overlays";
 import { cn } from "@/lib/class-names";
-import { Section } from "../ui";
+import { Intro } from "@/components/admin/Intro";
+import { Section, Status } from "../ui";
 import { addBlocklistAction, unblockAction } from "../../deals/actions";
 
 type Reason = "spam" | "no_marketing";
@@ -29,10 +30,10 @@ export function Blocklist({ items }: { items: { value: string; label: string; da
       }
     });
   return (
-    <Section title="Стоп-лист">
-      <p className="mb-4 text-sm text-muted">
+    <Section defaultOpen={false} title="Стоп-лист" badge={items.length ? <Status on={false} label={String(items.length)} /> : undefined}>
+      <Intro className="mb-4">
         «Спам» — с номера не заводятся заявки и не приходят уведомления. «Не писать первым» — клиент пишет и получает ответы как обычно, но бот не напоминает о себе, а правила автоматизаций ему не пишут. Клиент сам написал «не пишите мне» — номер попадает сюда сам; отметить можно и в карточке клиента или сделки.
-      </p>
+      </Intro>
       <form
         className="mb-4 flex flex-wrap items-end gap-2"
         onSubmit={(e) => {

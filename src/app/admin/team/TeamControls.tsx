@@ -76,16 +76,16 @@ export function StaffRow({ member: m, roles, isSelf, canTouchOwner, isOwner }: {
     });
 
   return (
-    <tr className={cn(m.disabled && "bg-cream/40 text-muted")}>
-      <td className="px-4 py-3">
+    <tr className={cn("max-lg:block max-lg:space-y-2.5 max-lg:p-4", m.disabled && "bg-cream/40 text-muted")}>
+      <td className="px-4 py-3 max-lg:block max-lg:p-0">
         <div className="font-medium">
           {m.name || "—"} {isSelf ? <span className="ml-1 rounded-full bg-cream px-2 py-0.5 text-[11px] font-normal text-muted">это вы</span> : null}
           {m.disabled ? <span className="ml-1 rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-normal text-red-700">отключён</span> : null}
         </div>
         <div className="text-xs text-muted">{m.email}</div>
       </td>
-      <td className="px-4 py-3">
-        <select className="input h-9 min-w-40 text-sm" value={m.roleId} disabled={locked || pending} onChange={(e) => run(() => setStaffRoleAction(m.id, e.target.value), "Роль изменена")} aria-label="Роль">
+      <td className="px-4 py-3 max-lg:block max-lg:p-0">
+        <select className="input h-9 min-w-40 text-sm max-lg:w-full" value={m.roleId} disabled={locked || pending} onChange={(e) => run(() => setStaffRoleAction(m.id, e.target.value), "Роль изменена")} aria-label="Роль">
           {roles.map((r) => (
             <option key={r.id} value={r.id}>
               {r.name}
@@ -93,9 +93,10 @@ export function StaffRow({ member: m, roles, isSelf, canTouchOwner, isOwner }: {
           ))}
         </select>
       </td>
-      <td className="px-4 py-3">
+      <td className="px-4 py-3 max-lg:block max-lg:p-0">
+        <span className="mb-1 block text-xs text-muted lg:hidden">Внутренний номер</span>
         <input
-          className="input h-9 w-24 text-sm"
+          className="input h-9 w-24 text-sm max-lg:w-full"
           inputMode="numeric"
           value={ext}
           maxLength={10}
@@ -106,9 +107,10 @@ export function StaffRow({ member: m, roles, isSelf, canTouchOwner, isOwner }: {
           aria-label="Внутренний номер"
         />
       </td>
-      <td className="px-4 py-3">
+      <td className="px-4 py-3 max-lg:block max-lg:p-0">
+        <span className="mb-1 block text-xs text-muted lg:hidden">Телефон (WhatsApp)</span>
         <input
-          className="input h-9 w-40 text-sm"
+          className="input h-9 w-40 text-sm max-lg:w-full"
           inputMode="tel"
           value={phone}
           maxLength={20}
@@ -119,14 +121,14 @@ export function StaffRow({ member: m, roles, isSelf, canTouchOwner, isOwner }: {
           aria-label="Телефон сотрудника для напоминаний в WhatsApp"
         />
       </td>
-      <td className="px-4 py-3 text-xs text-muted">{m.load}</td>
-      <td className="px-4 py-3 text-xs text-muted">{m.lastSeen}</td>
-      <td className="px-4 py-3">
+      <td className="px-4 py-3 text-xs text-muted max-lg:block max-lg:p-0">{m.load}</td>
+      <td className="px-4 py-3 text-xs text-muted max-lg:block max-lg:p-0">Последний вход: {m.lastSeen}</td>
+      <td className="px-4 py-3 max-lg:block max-lg:p-0">
         {locked ? null : (
-          <div className="flex flex-col items-end gap-1.5">
-            <div className="flex flex-wrap justify-end gap-3">
+          <div className="flex flex-col items-end gap-1.5 max-lg:items-stretch">
+            <div className="flex flex-wrap justify-end gap-x-4 gap-y-1 max-lg:justify-start">
               <button
-                className="flex items-center gap-1.5 text-xs text-muted hover:text-ink"
+                className="flex min-h-11 items-center gap-1.5 text-xs text-muted hover:text-ink lg:min-h-0"
                 disabled={pending}
                 onClick={async () => {
                   if (await ask("Сбросить пароль? Сотрудник будет разлогинен, новый пароль покажем здесь один раз."))
@@ -139,21 +141,21 @@ export function StaffRow({ member: m, roles, isSelf, canTouchOwner, isOwner }: {
                 {pending ? <LoaderCircle className="size-3.5 animate-spin" /> : <KeyRound className="size-3.5" />} Пароль
               </button>
               <button
-                className="flex items-center gap-1.5 text-xs text-muted hover:text-ink"
+                className="flex min-h-11 items-center gap-1.5 text-xs text-muted hover:text-ink lg:min-h-0"
                 disabled={pending}
                 onClick={async () => (await ask(m.disabled ? "Включить доступ обратно?" : "Отключить сотрудника? Он сразу потеряет доступ к CRM, данные останутся.")) && run(() => setStaffDisabledAction(m.id, !m.disabled))}
               >
                 <Power className="size-3.5" /> {m.disabled ? "Включить" : "Отключить"}
               </button>
               <button
-                className="flex items-center gap-1.5 text-xs text-red-700 hover:text-red-900"
+                className="flex min-h-11 items-center gap-1.5 text-xs text-red-700 hover:text-red-900 lg:min-h-0"
                 disabled={pending}
                 onClick={async () => (await ask("Забрать доступ к CRM? Аккаунт станет обычным клиентским.", true)) && run(() => revokeStaffAction(m.id), "Доступ снят")}
               >
                 <ShieldOff className="size-3.5" /> Убрать из команды
               </button>
             </div>
-            {msg ? <p className="max-w-xs text-right text-xs break-all text-emerald-700 select-all">{msg}</p> : null}
+            {msg ? <p className="max-w-xs text-right max-lg:text-left text-xs break-all text-emerald-700 select-all">{msg}</p> : null}
           </div>
         )}
       </td>

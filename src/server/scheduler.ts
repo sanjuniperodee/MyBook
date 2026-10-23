@@ -21,7 +21,7 @@ async function step<T>(name: string, run: () => Promise<T>, fallback: T): Promis
   }
 }
 
-/** Медленный проход (раз в 15 минут): сертификаты, автописьма, чистка outbox, история WhatsApp, ночной разбор бота, чистка следов бота. Экспорт — для тестов. */
+/** Медленный проход (раз в 15 минут): сертификаты, автописьма, чистка outbox, история WhatsApp, ночной разбор бота, чистка следов бота и кэша предпросмотров. Экспорт — для тестов. */
 export async function tick() {
   // Блокировка живёт в сессии, поэтому держим одно соединение на весь проход.
   const client = await pool.connect();
@@ -43,6 +43,9 @@ export async function tick() {
     // След ходов бота («Почему так?») хранится 90 дней: старые записи — порциями по частичному индексу.
     const traces = await step("bot traces purge", () => container().messaging.purgeBotTraces(), 0);
     if (traces) console.log(`[scheduler] bot traces purged=${traces}`);
+    // Кэш предпросмотров (сборки книг и картинки полос) пересобирается по запросу: давно не нужное — удаляем, раз в сутки.
+    const previews = await step("preview cache sweep", () => container().previews.sweep(), 0);
+    if (previews) console.log(`[scheduler] preview cache removed=${previews}`);
   } catch (err) {
     console.error("[scheduler] tick failed", err);
   } finally {
@@ -74,6 +77,9 @@ export async function crmTick() {
     // Бот-квалификатор: ходы, не сделанные таймером (перезапуск процесса), ожидание менеджера, брошенные опросы.
     const botTurns = await step("bot", () => container().messaging.bot.sweep(), 0);
     if (botTurns) console.log(`[scheduler] crm bot turns=${botTurns}`);
+    // Звонки WhatsApp, о конце которых никто не сообщил: звонят больше полутора минут или вкладка сотрудника пропала.
+    const calls = await step("whatsapp calls", () => container().telephony.whatsapp.sweep(), 0);
+    if (calls) console.log(`[scheduler] whatsapp calls closed=${calls}`);
     // Входящие письма по IMAP (если ящик подключён в «Интеграциях»).
     const mails = await step("imap", () => container().messaging.email.pollImap(), 0);
     if (mails) console.log(`[scheduler] crm emails=${mails}`);

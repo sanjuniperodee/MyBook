@@ -1,7 +1,10 @@
 import { container } from "@/server/container";
 import Link from "next/link";
+import { BackLink } from "@/components/admin/BackLink";
 import { requireStaff } from "@/server/access";
 import { NewPipeline, NewStage, PipelineHeader, StageRow } from "./StageEditor";
+import { RoutingPanel } from "./RoutingPanel";
+import { getSetting } from "@/modules/workspace";
 import { cn } from "@/lib/class-names";
 
 export const metadata = { title: "Этапы воронки" };
@@ -13,11 +16,15 @@ export default async function StagesPage({ searchParams }: { searchParams: Promi
   const pipeline = pipelines.find((x) => x.id === p) ?? pipelines[0];
   const [stages, counts] = await Promise.all([container().sales.queries.listStages(pipeline.id), container().reporting.stageCounts()]);
   const byStage = new Map(counts.map((c) => [c.stageId, c.n]));
+  let entry: Record<string, string> = {};
+  try {
+    entry = JSON.parse((await getSetting("crm.entryStages")) || "{}") as Record<string, string>;
+  } catch {
+    entry = {};
+  }
   return (
     <div className="mx-auto max-w-2xl space-y-5">
-      <Link href={`/admin/deals?p=${pipeline.id}`} className="text-sm text-muted hover:text-ink">
-        ← Сделки
-      </Link>
+      <BackLink href={`/admin/deals?p=${pipeline.id}`}>Сделки</BackLink>
       <div className="flex flex-wrap items-center gap-2" data-testid="pipeline-tabs">
         {pipelines.map((x) => (
           <Link key={x.id} href={`/admin/deals/stages?p=${x.id}`} className={cn("rounded-full px-3 py-1.5 text-sm", x.id === pipeline.id ? "bg-ink text-white" : "bg-white text-ink-soft hover:bg-cream")}>
@@ -43,6 +50,12 @@ export default async function StagesPage({ searchParams }: { searchParams: Promi
         ))}
       </div>
       <NewStage pipelineId={pipeline.id} />
+      <RoutingPanel
+        pipelineId={pipeline.id}
+        stages={stages.map((s) => ({ id: s.id, name: s.name, color: s.color, kind: s.kind, milestone: s.milestone }))}
+        entry={entry}
+        showEntry={pipeline.id === pipelines[0].id}
+      />
     </div>
   );
 }

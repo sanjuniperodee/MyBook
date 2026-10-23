@@ -1,18 +1,18 @@
-import { createContext, Fragment, useContext, type CSSProperties, type HTMLAttributes, type ImgHTMLAttributes, type ReactNode } from "react";
+import { Fragment, type CSSProperties, type HTMLAttributes, type ImgHTMLAttributes, type ReactNode } from "react";
 import { mm, MM_TO_PT, PT_TO_MM } from "@/lib/book/formats";
 import { cssFont } from "@/lib/book/fonts";
 import { answerBlocks, rowsByBlock, type AnswerBlock } from "@/lib/book/answer-blocks";
 import { layoutMedia, mediaCardBox, mediaIcon, mediaSource, qrDrawing, qrInk, type AnswerMedia } from "@/lib/book/answer-media";
 import { framedBox, layoutInline, normalizeStyle, objectPosition, polaroidFontSize, ROW_GAP, type InlinePhotoStyle } from "@/lib/book/inline-photo";
-import { dividerDrawing, vignetteDrawing } from "@/lib/book/interior-art";
+import { dividerDrawing } from "@/lib/book/interior-art";
 import { PHOTO_COLORS } from "@/lib/book/interiors";
 import { textArea } from "@/lib/book/page-geometry";
 import { bookMessagesFor } from "@/i18n/messages/partial";
-import { CHAPTER_TAIL, DIVIDER, HEADING, HTML_LINE_HEIGHT, INLINE_ROW, MEDIA_CARD, VIGNETTE_RULE } from "@/lib/book/typesetting";
+import { DIVIDER, HEADING, headingFace, HTML_LINE_HEIGHT, INLINE_ROW, MEDIA_CARD } from "@/lib/book/typesetting";
 import { AnswerBlockView } from "./answer-block";
 import { InlineDrawing } from "./graphics";
 import { metricsOf, type PageKit } from "./kit";
-import { italicBody, labelCss } from "./typography";
+import { faceCss, italicBody, labelCss, measureCss } from "./typography";
 
 /** Фото внутри ответа (как в PDF: после нужного абзаца, узкие — в ряд). */
 interface EntryPhoto {
@@ -36,15 +36,6 @@ export interface SampleEntry {
   continued?: boolean;
 }
 
-/** Концовка главы — небольшая виньетка после последнего ответа, как в PDF. */
-export function ChapterTail({ kit }: { kit: PageKit }) {
-  return (
-    <div style={{ display: "flex", justifyContent: "center", breakBefore: "avoid", breakInside: "avoid", marginTop: kit.u.pt(kit.sizes.beforeHeading * CHAPTER_TAIL.before) }}>
-      <InlineDrawing drawing={vignetteDrawing(kit.design.ornament, VIGNETTE_RULE.end, kit.design.palette)} u={kit.u} />
-    </div>
-  );
-}
-
 /** Заголовок вопроса в тексте главы (с акцентной линейкой, если она есть в дизайне). */
 export function QuestionHeading({ kit, children, style, ...rest }: { kit: PageKit; children: ReactNode; style?: CSSProperties } & React.HTMLAttributes<HTMLDivElement>) {
   const { design, sizes: S, u } = kit;
@@ -53,13 +44,14 @@ export function QuestionHeading({ kit, children, style, ...rest }: { kit: PageKi
   return (
     <div style={{ breakInside: "avoid", breakAfter: "avoid", ...style }} {...rest}>
       {heading.bar ? (
-        <div style={{ width: u.pt(HEADING.bar.width * scale), height: u.pt(HEADING.bar.thickness), background: design.palette.accent, marginBottom: u.pt(HEADING.bar.after * scale), marginInline: heading.align === "center" ? "auto" : undefined }} />
+        <div style={{ ...measureCss(kit), width: u.pt(HEADING.bar.width * scale), height: u.pt(HEADING.bar.thickness), background: design.palette.accent, marginBottom: u.pt(HEADING.bar.after * scale), ...(heading.align === "center" ? { marginInline: "auto" } : {}) }} />
       ) : null}
       <div
         style={{
-          fontFamily: cssFont(design.type.heading),
-          fontWeight: design.type.headingWeight,
-          fontStyle: design.type.headingItalic ? "italic" : "normal",
+          ...(heading.face
+            ? faceCss(headingFace(design), S.heading, u)
+            : { fontFamily: cssFont(design.type.heading), fontWeight: design.type.headingWeight, fontStyle: design.type.headingItalic ? "italic" : "normal" }),
+          ...measureCss(kit),
           fontSize: u.pt(S.heading),
           lineHeight: HEADING.lineHeight,
           color: heading.accent ? design.palette.accent : design.palette.ink,
@@ -76,6 +68,7 @@ export function QuestionHeading({ kit, children, style, ...rest }: { kit: PageKi
 /** Разделитель между ответами без заголовка: «* * *», глиф или линейка. */
 export function Divider({ kit, style }: { kit: PageKit; style?: CSSProperties }) {
   const { design, sizes: S, u } = kit;
+  if (design.divider === "space") return <div style={{ height: u.pt(S.body * 0.8), marginBottom: u.pt(S.beforeHeadless), breakAfter: "avoid", ...style }} />;
   if (design.divider === "stars")
     return <div style={{ textAlign: "center", color: design.palette.rule, fontSize: u.pt(S.body), lineHeight: HTML_LINE_HEIGHT.stars, marginBottom: u.pt(S.beforeHeadless), breakAfter: "avoid", ...style }}>* * *</div>;
   // flow-root: отступ обёртки и собственный отступ глифа складываются, как в PDF, а не схлопываются.
@@ -106,13 +99,6 @@ export interface RowPhotoLayer {
   overlay?: ReactNode;
 }
 
-/**
- * Какие фото рисовать картинкой: в листаемой 3D-книге каждая полоса держит весь текст главы (колонки со сдвигом), и
- * без отбора каждая хранила бы все снимки главы — Safari на iPhone, упираясь в память под 3D-слои, перестаёт их рисовать
- * (пустые страницы). Нет провайдера — рисуются все; невидимое фото — пустое место того же размера (вёрстка та же).
- */
-export const VisiblePhotos = createContext<((id: string) => boolean) | null>(null);
-
 /** Фото в ряду: рамка или поляроид со своей подписью, размеры — как в PDF (inline-photo.ts). */
 function RowPhoto<P extends EntryPhoto>({ kit, item, rowSize, layer }: { kit: PageKit; item: RowItem<P>; rowSize: number; layer?: (item: RowItem<P>, box: RowPhotoBox) => RowPhotoLayer }) {
   const { design, sizes: S, u } = kit;
@@ -122,8 +108,6 @@ function RowPhoto<P extends EntryPhoto>({ kit, item, rowSize, layer }: { kit: Pa
   const polaroid = style.frame === "polaroid";
   const bw = polaroid ? INLINE_ROW.polaroidBorder : style.frame === "line" ? INLINE_ROW.lineBorder : 0;
   const extra = layer?.(item, b);
-  const visible = useContext(VisiblePhotos);
-  const shown = !visible || visible(p.id);
   return (
     <figure {...extra?.figure} style={{ width: u.mm(b.outerW), margin: 0, flex: "none", ...extra?.figure?.style }}>
       <div
@@ -141,19 +125,14 @@ function RowPhoto<P extends EntryPhoto>({ kit, item, rowSize, layer }: { kit: Pa
           ...extra?.frame,
         }}
       >
-        {shown ? (
-          // eslint-disable-next-line @next/next/no-img-element -- фото клиента в вёрстке страницы
-          <img
-            alt=""
-            {...extra?.img}
-            src={p.url}
-            data-photo-id={p.id}
-            draggable={false}
-            style={{ display: "block", width: "100%", height: u.mm(b.imgH - bw * 2 * PT_TO_MM), objectFit: "cover", objectPosition: objectPosition(p, style), borderRadius: u.mm(b.radius), maxWidth: "none" }}
-          />
-        ) : (
-          <div data-photo-id={p.id} style={{ width: "100%", height: u.mm(b.imgH - bw * 2 * PT_TO_MM) }} />
-        )}
+        {/* eslint-disable-next-line @next/next/no-img-element -- фото клиента в вёрстке страницы */}
+        <img
+          alt=""
+          {...extra?.img}
+          src={p.url}
+          draggable={false}
+          style={{ display: "block", width: "100%", height: u.mm(b.imgH - bw * 2 * PT_TO_MM), objectFit: "cover", objectPosition: objectPosition(p, style), borderRadius: u.mm(b.radius), maxWidth: "none" }}
+        />
         {polaroid && p.caption ? (
           <div
             style={{
@@ -290,7 +269,7 @@ const KEEP_WITH_HEAD_CHARS = 700;
  * head — заголовок или разделитель ответа: он ставится в одну неразрывную обёртку с первым блоком (рядом фото или
  * коротким абзацем). Так заголовок не остаётся внизу полосы и в Safari, где break-after: avoid в колонках не работает.
  */
-export function EntryBody({ kit, entry, leadIn, links = false, head }: { kit: PageKit; entry: SampleEntry; leadIn: boolean; links?: boolean; head?: ReactNode }) {
+export function EntryBody({ kit, entry, leadIn, start = false, links = false, head }: { kit: PageKit; entry: SampleEntry; leadIn: boolean; /** Ответ открывает главу: буквица. */ start?: boolean; links?: boolean; head?: ReactNode }) {
   const blocks = answerBlocks(entry.paragraphs);
   const items = (entry.photos ?? []).map((p) => ({ p, style: normalizeStyle(p.inline) }));
   const rows = rowsByBlock(blocks, layoutInline(items, entry.paragraphs.length));
@@ -305,7 +284,7 @@ export function EntryBody({ kit, entry, leadIn, links = false, head }: { kit: Pa
   const keep: "rows" | "block" | "tail" | null = !head ? null : before.length ? "rows" : blocks.length ? (blockChars(blocks[0]) <= KEEP_WITH_HEAD_CHARS ? "block" : null) : tail.length ? "tail" : null;
   const block = (b: AnswerBlock, j: number) => (
     // Под заголовком на той же полосе — не меньше трёх строк (как в PDF), иначе заголовок с абзацем — на следующую.
-    <AnswerBlockView kit={kit} block={b} leadIn={leadIn && j === 0} style={j === 0 && entry.heading && !before.length ? { orphans: 3 } : undefined} />
+    <AnswerBlockView kit={kit} block={b} leadIn={leadIn && j === 0} dropCap={start && j === 0} first={j === 0} style={j === 0 && entry.heading && !before.length ? { orphans: 3 } : undefined} />
   );
   return (
     <>

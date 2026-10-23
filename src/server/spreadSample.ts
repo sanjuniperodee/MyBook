@@ -4,11 +4,11 @@ import { applyGender } from "@/lib/content/gender";
 import { bookKind } from "@/lib/content/kinds";
 import { getTheme } from "@/lib/content/themes";
 import { getFormat } from "@/lib/book/formats";
-import { getInteriorDesign } from "@/lib/book/interiors";
+import { bookInterior } from "@/lib/book/interiors";
 import { estimateChapterPages, sectionPageOffsets, textMetrics } from "@/lib/book/estimate";
 import { GALLERY_KEY, sampleToc, tocCandidates } from "@/lib/book/toc";
 import { buildBookContent } from "@/lib/book/book-content";
-import { printableText } from "@/lib/book/layout";
+import { LAYOUT_REV_2, printableText, toPhotoItem, type ContentChapter } from "@/lib/book/layout";
 import { splitParagraphs } from "@/lib/book/inline-photo";
 import { photoUrl } from "@/lib/urls";
 
@@ -27,7 +27,9 @@ export function bookSpreadSample(
   chapters: Parameters<typeof buildBookContent>[3],
   dedicationPlaceholder: string,
   /** Фото книги: в примерах фотостраниц и начала главы показываем их, а не пейзажи-заглушки. */
-  photos: { id: string; width: number; height: number; caption: string }[] = [],
+  photos: (Parameters<typeof toPhotoItem>[0] & { caption: string })[] = [],
+  /** Номера страниц готового макета этой книги (BookBuild.chapterPages: ключи — pageKey оглавления); нет — оценка. */
+  realPages?: Record<string, number> | null,
 ) {
   const format = getFormat(book.format);
   const content = buildBookContent(book, questions, [], chapters);
@@ -64,9 +66,10 @@ export function bookSpreadSample(
     entries.push({ heading: s.h1, paragraphs: [s.p1, s.p2] }, { heading: s.h2, paragraphs: [s.p3, s.p4] });
   }
 
-  // Оглавление: все строки, которые могут в него попасть, с примерными номерами страниц (пока ответов нет — главы
-  // темы). Режим и свои названия применяет selectToc — здесь и в редакторе «Страницы», где их меняют на лету.
-  const metrics = textMetrics(format, getInteriorDesign(book.interior));
+  // Оглавление: все строки, которые могут в него попасть, с номерами страниц — из готового макета, а каких там нет
+  // (макет не собран, раздел в оглавлении по главам) — примерными (пока ответов нет — главы темы). Режим и свои
+  // названия применяет selectToc — здесь и в редакторе «Страницы», где их меняют на лету.
+  const metrics = textMetrics(format, bookInterior(book));
   const start = 3 + (book.dedication.trim() ? 1 : 0) + 1; // титул, оборот, посвящение, оглавление
   const pageOf = new Map<string, number>();
   let page = start;
@@ -76,6 +79,7 @@ export function bookSpreadSample(
     page += estimateChapterPages(c, metrics);
   }
   pageOf.set(GALLERY_KEY, page);
+  for (const [key, n] of Object.entries(realPages ?? {})) if (pageOf.has(key)) pageOf.set(key, n);
   const tocAll = content.chapters.length
     ? tocCandidates(content).map((c) => ({ ...c, page: pageOf.get(c.pageKey) ?? start }))
     : planned.map((c, i) => ({ key: `c:planned-${i}`, pageKey: `planned-${i}`, kind: "chapter" as const, number: i + 1, label: c.title, page: start + i * 6 }));
@@ -105,6 +109,20 @@ export function bookSpreadSample(
     showToc: book.showToc,
     captions: own?.photos,
     photos: photos.filter((p) => p.id !== book.coverPhotoId).slice(0, 4).map((p) => ({ url: photoUrl(p.id, "full"), width: p.width, height: p.height, caption: p.caption })),
+    // Правила 2: начало главы — как в книге, выбранное автором фото главы или страница с названием (не «первое фото»).
+    ...(book.layoutRev === LAYOUT_REV_2 ? { opener: sampleOpener(first ? buildBookContent(book, questions, photos.map(toPhotoItem), chapters).chapters.find((c) => c.key === first.key) : undefined) } : {}),
   };
+}
+
+/**
+ * Фото главы первой главы по правилам 2: выбранное автором (его кадр — тоже). Оформление книги может быть и без фото
+ * главы — тогда отмеченное фото стоит после главы (R5), а разворот других оформлений всё равно покажет его в начале.
+ */
+function sampleOpener(ch: ContentChapter | undefined): { url: string; crop?: NonNullable<ContentChapter["openerPhoto"]>["crop"] } | null {
+  if (!ch) return null;
+  const keys = [ch.key, ...(ch.folded ?? []).map((f) => f.key)];
+  const marked = ch.photos.filter((p) => p.opener && keys.includes(p.chapter!));
+  const photo = ch.openerPhoto ?? marked.find((p) => p.chapter === ch.key) ?? marked[0];
+  return photo ? { url: photoUrl(photo.id, "view"), ...(photo.crop ? { crop: photo.crop } : {}) } : null;
 }
 

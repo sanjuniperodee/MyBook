@@ -1,7 +1,7 @@
 node_modules
 .next
 out
-build
+/build
 next-env.d.ts
 *.tsbuildinfo
 .env
@@ -15,3 +15,6 @@ coverage
 
 # Визуальные снимки и диффы (scripts/visual)
 tests/visual/out/
+
+# Сборка шлюза WhatsApp со звонками (deploy/gowa-beta-build.sh)
+/dist/

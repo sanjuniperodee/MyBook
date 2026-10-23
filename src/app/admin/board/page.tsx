@@ -2,11 +2,12 @@ import { planName } from "@/i18n/labels";
 import { nowMs } from "@/lib/dates";
 import Link from "next/link";
 import { container } from "@/server/container";
-import { requireStaff } from "@/server/access";
+import { requireStaff, staffViewer } from "@/server/access";
 import { staffOptions } from "@/modules/access/ui";
 import { staffLabel } from "@/shared/domain/staff";
 import { formatPrice, getPlan } from "@/config/site";
 import { Board, type BoardCard } from "./Board";
+import { OrdersMobile } from "./OrdersMobile";
 
 export const metadata = { title: "Производство" };
 
@@ -15,7 +16,7 @@ export default async function BoardPage() {
   const admin = staff.user;
   const monthAgo = new Date(nowMs() - 30 * 86_400_000);
   const [rows, admins] = await Promise.all([
-    container().reporting.productionBoard(monthAgo),
+    container().reporting.productionBoard(monthAgo, staffViewer(staff)),
     container().access.queries.allStaff(),
   ]);
   const byId = new Map(admins.map((a) => [a.id, staffLabel(a)]));
@@ -49,13 +50,16 @@ export default async function BoardPage() {
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">Производство</h1>
-          <p className="text-sm text-muted">Перетаскивайте карточки между колонками — клиент получит письмо о смене статуса.</p>
+          <p className="hidden text-sm text-muted lg:block">Перетаскивайте карточки между колонками — клиент получит письмо о смене статуса.</p>
         </div>
         <Link href="/admin/orders" className="btn btn-outline btn-sm">
           Таблица заказов
         </Link>
       </div>
-      <Board initial={cards} admins={staffOptions(admins)} me={admin.id} />
+      <OrdersMobile cards={cards} />
+      <div className="hidden lg:block">
+        <Board initial={cards} admins={staffOptions(admins)} me={admin.id} />
+      </div>
     </div>
   );
 }

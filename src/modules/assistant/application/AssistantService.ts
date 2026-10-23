@@ -1,5 +1,5 @@
 import type { Clock } from "@/shared/application";
-import { AssistantError, botUnderstandPrompt, botUnderstandSchema, cleanReply, dossierText, extractableFields, extractionSource, extractSchema, extractSystemPrompt, normalizeExtracted, parseBotUnderstanding, parseSummary, replySystemPrompt, summarySchema, summarySystemPrompt, transcript, type AiField, type AiSummary, type BotUnderstanding } from "../domain";
+import { AssistantError, parseTemplateDraft, substituteKnown, templateDraftPrompt, templateDraftSchema, titleFromText, type TemplateDraft, type TemplateFacts, botUnderstandPrompt, botUnderstandSchema, cleanReply, dossierText, extractableFields, extractionSource, extractSchema, extractSystemPrompt, normalizeExtracted, parseBotUnderstanding, parseSummary, replySystemPrompt, summarySchema, summarySystemPrompt, transcript, type AiField, type AiSummary, type BotUnderstanding } from "../domain";
 import type { AssistantData, LanguageModel, Usage } from "./ports";
 
 function parseJson(text: string): unknown {
@@ -92,6 +92,32 @@ export class AssistantService {
         return { key, label: f.label, type: f.type, value, current: current[key] === undefined || current[key] === null ? null : String(current[key]) };
       });
     return { proposals, usage };
+  }
+
+  /**
+   * Шаблон из сообщения: данные этого клиента (имя, номер заказа, имя менеджера, ссылка) заменяются подстановками.
+   * Известные значения подставляются без модели; модель, если подключена, находит остальное (ссылку на оплату,
+   * повод, дату) и придумывает название. Модель не подключена, ошибка или она «переписала» текст — остаётся
+   * результат без модели; текст без данных клиента возвращается как есть. Исключений не бросает.
+   */
+  async draftTemplate(original: string, facts: TemplateFacts & { link?: string | null }, fieldLabels: string[] = []): Promise<TemplateDraft & { ai: boolean }> {
+    const base = substituteKnown(original.trim(), facts);
+    // Ссылки на оплату и на заказ — всегда {ссылка}: у каждого клиента своя.
+    const linkRe = /https?:\/\/\S+/g;
+    const links = base.text.match(linkRe) ?? [];
+    const plain: TemplateDraft = { title: titleFromText(base.text), text: base.text.slice(0, 2000), replaced: base.replaced };
+    try {
+      if (!(await this.model.configured())) return { ...plain, ai: false };
+      const user = [`Сообщение:\n${base.text}`, "", "Известные данные диалога:", `- имя клиента: ${facts.name || "неизвестно"}`, `- имя менеджера: ${facts.manager || "неизвестно"}`, `- номер заказа: ${facts.order ?? "нет"}`, links.length ? `- ссылки в тексте: ${links.join(", ")}` : ""].filter(Boolean).join("\n");
+      const { text } = await this.model.ask({ system: templateDraftPrompt(fieldLabels), user, effort: "low", schema: templateDraftSchema, timeoutMs: 25_000 });
+      const draft = parseTemplateDraft(parseJson(text), base.text, fieldLabels);
+      if (!draft) return { ...plain, ai: false };
+      // Замены без модели тоже показываем (модель могла их не перечислить).
+      const seen = new Set(draft.replaced.map((r) => r.with + r.was));
+      return { ...draft, replaced: [...base.replaced.filter((r) => !seen.has(r.with + r.was)), ...draft.replaced], ai: true };
+    } catch {
+      return { ...plain, ai: false };
+    }
   }
 
   /** Проверка ключа из «Интеграций»: короткий запрос к модели. */

@@ -14,7 +14,7 @@ export function WazzupForm({ saved, env, webhookUrl }: { saved: { apiKey: string
   const [pending, start] = useTransition();
   const connected = !!saved.apiKey || env.apiKey;
   return (
-    <Section title="WhatsApp, Instagram, Telegram — Wazzup" badge={<Status on={connected} label={connected ? "ключ сохранён" : "не подключено"} />}>
+    <Section defaultOpen={false} title="WhatsApp, Instagram, Telegram — Wazzup" badge={<Status on={connected} label={connected ? "ключ сохранён" : "не подключено"} />}>
       <ol className="mb-4 list-decimal space-y-1 pl-5 text-sm text-ink-soft">
         <li>В личном кабинете Wazzup откройте «Интеграции → API» и скопируйте ключ.</li>
         <li>Вставьте ключ ниже и сохраните, затем нажмите «Проверить» и выберите канал WhatsApp для исходящих.</li>

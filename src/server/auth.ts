@@ -1,6 +1,6 @@
 import "server-only";
 import { cache } from "react";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { lredirect } from "@/i18n/server";
 import { isSecureCookie } from "@/config/env";
 import { signValue, verifySigned } from "@/shared/crypto";
@@ -17,8 +17,12 @@ const TICKET_TTL_MS = 5 * 60_000;
 
 export type { CurrentUser as User } from "@/modules/identity";
 
+/** Токен сессии: cookie браузера, а у мобильного приложения — заголовок Authorization: Bearer (тот же токен из таблицы sessions). */
 export async function sessionToken(): Promise<string | null> {
-  return (await cookies()).get(SESSION_COOKIE)?.value ?? null;
+  const cookie = (await cookies()).get(SESSION_COOKIE)?.value;
+  if (cookie) return cookie;
+  const bearer = (await headers()).get("authorization")?.match(/^Bearer ([A-Za-z0-9_-]{20,200})$/);
+  return bearer ? bearer[1] : null;
 }
 
 export async function startSession(token: string, expiresAt: Date) {

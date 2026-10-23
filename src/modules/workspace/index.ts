@@ -1,5 +1,6 @@
 import { CustomFieldsService } from "./application";
-import { drizzleFields, drizzleInbox, drizzleTemplates } from "./infrastructure/persistence";
+import { drizzleFields, drizzleInbox, drizzleTemplates, personalTemplates } from "./infrastructure/persistence";
+import { pinnedChats } from "./infrastructure/pinnedChats";
 import { settingsStore } from "./infrastructure/settings";
 import { customFieldsReader } from "./infrastructure/fields";
 import { staffNotifier } from "./infrastructure/notify";
@@ -13,13 +14,18 @@ export { notify, staffNotifier } from "./infrastructure/notify";
 export { subscribe, type LiveEvent } from "./infrastructure/realtime";
 export { mentionableStaff, notifyMentions } from "./infrastructure/mentions";
 export { vapidKeys } from "./infrastructure/push";
+export { pinnedChats } from "./infrastructure/pinnedChats";
+export { mobileDevices } from "./infrastructure/mobileDevices";
+export { staffNotifications } from "./infrastructure/notificationsList";
 export { smtpConfig, smtpFromEnvironment } from "./infrastructure/mail";
 
 /** Публичный фасад «Рабочего пространства CRM»: свои поля, шаблоны ответов, уведомления и push сотрудников. */
 export class WorkspaceModule {
   readonly fields = new CustomFieldsService(drizzleFields);
   readonly templates = drizzleTemplates;
+  readonly personalTemplates = personalTemplates;
   readonly inbox = drizzleInbox;
+  readonly pinnedChats = pinnedChats;
 
   // Порты для других модулей (src/shared/application): модули получают их из корня композиции, а не импортом.
   /** Настройки «Интеграций»: модуль видит только объявленные им ключи. */

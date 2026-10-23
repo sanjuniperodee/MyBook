@@ -14,6 +14,8 @@ import { alternates } from "@/i18n/seo";
 import { articles, getArticle } from "@/lib/content/articles";
 import { applyGender } from "@/lib/content/gender";
 import { getLanding } from "@/lib/content/landings";
+import { getTool } from "@/lib/content/tools";
+import { toolsPageUi } from "@/lib/content/tools/ui";
 import { countQuestions, getTheme } from "@/lib/content/themes";
 import { absoluteUrl, articleLd, breadcrumbLd, faqLd, ogImage, socialMeta } from "@/lib/seo";
 
@@ -64,6 +66,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
 
   const related = a.landings.map((slug) => getLanding(slug)).filter((l) => !!l);
   const others = articles.filter((x) => x.slug !== a.slug).slice(0, 3);
+  const relatedTools = (a.tools ?? []).map((slug) => getTool(slug)).filter((t) => !!t);
 
   const jsonLd = [
     articleLd({ title: c.title, description: c.description, url: absoluteUrl(path, locale), image: ogImage(locale, a.slug), locale, published: a.published, modified: a.updated }),
@@ -179,6 +182,18 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
                   {m.common.footer.allIdeas} →
                 </Link>
               </div>
+              {relatedTools.length ? (
+                <>
+                  <div className="mt-8 text-sm font-semibold">{toolsPageUi[locale].others}</div>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {relatedTools.map((tool) => (
+                      <Link key={tool.slug} href={`/instrumenty/${tool.slug}`} className="rounded-full border border-wine/30 bg-white px-4 py-1.5 text-sm text-wine hover:border-wine">
+                        {tool.content[locale].label}
+                      </Link>
+                    ))}
+                  </div>
+                </>
+              ) : null}
             </div>
             <div>
               <div className="text-sm font-semibold">{t.moreArticles}</div>

@@ -2,8 +2,8 @@
 
 import { useMessages } from "@/i18n/client";
 import type { Locale } from "@/i18n/config";
-import { memo, useCallback, useLayoutEffect, useMemo, useRef, type MouseEvent } from "react";
-import type { PreviewChapter } from "@/lib/book/editor-model";
+import { memo, useCallback, useLayoutEffect, useMemo, useRef, type MouseEvent, type ReactNode } from "react";
+import type { PreviewChapter, PreviewGallery } from "@/lib/book/editor-model";
 import type { BookFormat } from "@/lib/book/formats";
 import type { InteriorDesign } from "@/lib/book/interiors";
 import { normalizeStyle, splitParagraphs, type InlinePhotoStyle } from "@/lib/book/inline-photo";
@@ -11,8 +11,10 @@ import { interiorMetrics, pageSide, textArea } from "@/lib/book/page-geometry";
 import { pageKit } from "@/components/interior/kit";
 import { pxUnits } from "@/components/interior/units";
 import { ChapterPages, chapterContentKey } from "./ChapterPages";
+import { PreviewOpener, PreviewPhotoPages } from "./book-pages";
 import { anchorLabel } from "./drag";
-import { usePageWidth, usePreviewPages } from "./layout-hooks";
+import { NO_PHOTO_PAGES, usePageWidth, usePreviewPages } from "./layout-hooks";
+import type { OnPreviewTarget, PreviewTarget } from "./targets";
 import { usePhotoDrag } from "./usePhotoDrag";
 
 /**
@@ -23,17 +25,21 @@ import { usePhotoDrag } from "./usePhotoDrag";
  * не отрисовываются, а при смене `currentId` список прокручивается к началу этого ответа.
  *
  * Если передан onChange, фото текущего ответа интерактивны: щелчок выделяет, уголок меняет размер,
- * перетаскивание переносит фото в другое место текста.
+ * перетаскивание переносит фото в другое место текста. Начальные полосы глав (фото главы), страницы фото после глав
+ * и альбом в конце (gallery) — как в PDF; с onTarget они нажимаются: что нажали — ключами полос сборки (PreviewTarget).
  */
 function PagePreviewView({
   format,
   design,
   bookTitle,
   chapters,
+  gallery = null,
   currentId,
   selectedId = null,
   onSelect,
   onChange,
+  onTarget,
+  header,
   className,
   language,
 }: {
@@ -44,13 +50,20 @@ function PagePreviewView({
   /** Название книги — в колонтитуле левых полос. */
   bookTitle: string;
   chapters: PreviewChapter[];
+  /** Альбом в конце книги; null — его нет. */
+  gallery?: PreviewGallery | null;
   currentId: string;
   selectedId?: string | null;
   onSelect?: (id: string | null) => void;
   onChange?: (id: string, patch: Partial<InlinePhotoStyle>) => void;
+  onTarget?: OnPreviewTarget;
+  /** Над страницами, в той же прокрутке (превью на весь экран: подпись и объяснение мест фото). */
+  header?: ReactNode;
   className?: string;
 }) {
-  const t = useMessages().editor.preview;
+  const messages = useMessages().editor;
+  const t = messages.preview;
+  const tp = messages.previewPhotos;
   const W = format.widthMm;
   const H = format.heightMm;
   const area = textArea(format);
@@ -76,7 +89,7 @@ function PagePreviewView({
     onChange,
   });
 
-  const { scroll, pagesBy, setMeasureRef, measure } = usePreviewPages({ chapters, currentId, textW, gap, marginTop: interiorMetrics[format.id].marginTop * px });
+  const { scroll, pagesBy, photoPagesBy, setMeasureRef, measure } = usePreviewPages({ chapters, currentId, textW, gap, marginTop: interiorMetrics[format.id].marginTop * px });
 
   // Щелчок по полосе мимо фото снимает выделение. Обработчик стабилен (через ref), чтобы не перерисовывать главы.
   const clickState = useRef({ interactive, selectedId, onSelect, suppressUntil: drag.suppressClickUntil });
@@ -89,11 +102,21 @@ function PagePreviewView({
     if (c.interactive && c.selectedId && !(e.target as HTMLElement).closest("[data-photo]")) c.onSelect?.(null);
   }, []);
 
+  // Нажатие на полосу — стабильным обработчиком: главы превью не перерисовываются из-за нового обработчика.
+  const targetRef = useRef(onTarget);
+  useLayoutEffect(() => {
+    targetRef.current = onTarget;
+  });
+  const hasTarget = !!onTarget;
+  const tapTarget = useCallback((target: PreviewTarget) => targetRef.current?.(target), []);
+  const toTarget = hasTarget ? tapTarget : undefined;
+
   const { moving } = drag;
   const dragged = moving ? chapters.flatMap((c) => c.entries).flatMap((e) => e.photos).find((p) => p.id === moving.id) : null;
 
   return (
     <div ref={scroll} className={className}>
+      {header}
       <div ref={wrap} className="space-y-4">
         {pageW ? (
           chapters.map((ch) => {
@@ -109,7 +132,10 @@ function PagePreviewView({
                 bookTitle={bookTitle}
                 language={language}
                 t={t}
+                tp={tp}
+                onTarget={toTarget}
                 pages={pagesBy[ch.key] ?? 1}
+                photoPages={photoPagesBy[ch.key] ?? NO_PHOTO_PAGES}
                 currentId={current ? currentId : null}
                 selectedId={current ? selectedId : null}
                 interactive={interactive}
@@ -125,6 +151,13 @@ function PagePreviewView({
         ) : (
           <div className="bg-white" style={{ aspectRatio: `${W} / ${H}` }} />
         )}
+        {pageW && gallery ? (
+          // Альбом в конце — после всех глав, как в PDF: начальная полоса без номера и страницы фото.
+          <>
+            <PreviewOpener kit={kit} number={null} title={gallery.title} style={{ width: pageW, height: H * px }} tp={tp} target={{ kind: "gallery" }} label={tp.albumChip} chip={hasTarget ? tp.albumChip : undefined} onTarget={toTarget} />
+            <PreviewPhotoPages kit={kit} pages={gallery.pages} pageW={pageW} pageH={H * px} scroll={scroll} idPrefix="album" tp={tp} target={() => ({ kind: "gallery" })} label={tp.albumChip} onTarget={toTarget} />
+          </>
+        ) : null}
         {dragged && moving ? (
           <div className="pointer-events-none fixed z-50 flex items-center gap-2 rounded-xl bg-ink/90 p-1.5 pr-3 text-xs text-white shadow-xl" style={{ left: moving.x + 12, top: moving.y + 12 }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}

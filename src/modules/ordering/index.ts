@@ -2,7 +2,7 @@ import "server-only";
 import type { Clock, EventBus, Logger, Mailer, SettingsStore, StaffNotifier, UnitOfWork } from "@/shared/application";
 import { toIsoDay } from "@/lib/occasions";
 import { runInBackground } from "@/shared/infrastructure/background";
-import { DealInvoiceLifecycle, DealInvoicesService, GiftsService, KaspiPaymentsService, KaspiSetupService, KaspiWatchService, OrderPaymentsService, OrdersService, PromoService, type InvoiceSales, type KaspiWatchSettingKey, type AgreementGateway, type BookGateway, type GiftPdfRenderer, type KaspiConfigStore, type PrintFiles } from "./application";
+import { DealInvoiceLifecycle, DealInvoicesService, GiftsService, KaspiPaymentsService, KaspiSetupService, KaspiWatchService, OrderPaymentsService, OrdersService, PromoService, type InvoiceSales, type KaspiAiPacks, type KaspiWatchSettingKey, type AgreementGateway, type BookGateway, type GiftPdfRenderer, type KaspiConfigStore, type PrintFiles } from "./application";
 import type { OrderingEvent } from "./domain";
 import { DrizzleGiftCardRepository } from "./infrastructure/persistence/DrizzleGiftCardRepository";
 import { DrizzleOrderRepository } from "./infrastructure/persistence/DrizzleOrderRepository";
@@ -20,7 +20,7 @@ import { CloudPaymentsWebhook } from "./infrastructure/payments/CloudPayments";
 import { KaspiPosClient, verifyKaspiSignature } from "./infrastructure/payments/KaspiPosClient";
 
 export * from "./domain";
-export type { InvoiceOwner, KaspiConfigStore, KaspiSession, KaspiWatchSettingKey, PlaceOrderCommand, PromoCheck, PromoView, PurchaseGiftCommand, UpdateOrderCommand } from "./application";
+export type { InvoiceOwner, KaspiAiPacks, KaspiConfigStore, KaspiSession, KaspiWatchSettingKey, PlaceOrderCommand, PromoCheck, PromoView, PurchaseGiftCommand, UpdateOrderCommand } from "./application";
 export type { OrderDetailsView, GiftView } from "./infrastructure/persistence/DrizzleOrderingQueries";
 export { isOnlinePayment } from "./infrastructure/payments/CloudPayments";
 export { redeemUrl } from "./infrastructure/notifications/OrderingMailer";
@@ -52,6 +52,8 @@ export interface OrderingDeps {
   settings: SettingsStore<KaspiWatchSettingKey>;
   /** Тревога «кассир Kaspi отключён» руководителям: CRM и push. */
   notifier: StaffNotifier<"settings.manage">;
+  /** Покупки пакетов ИИ-дизайнера — цель оплаты ai_pack в Kaspi. */
+  aiPacks?: KaspiAiPacks;
 }
 
 /** Публичный фасад контекста «Заказы». Остальной код видит только его. */
@@ -90,7 +92,7 @@ export class OrderingModule {
     this.cloudPayments = new CloudPaymentsWebhook(this.orders, this.gifts, undefined, dealInvoices);
     const kaspiPos = new KaspiPosClient(deps.kaspiConfig);
     const kaspiEnabled = async () => (await deps.kaspiConfig.config()).enabled;
-    this.kaspi = new KaspiPaymentsService(new DrizzlePaymentInvoiceRepository(), orderRepo, giftRepo, this.orders, this.gifts, kaspiPos, kaspiEnabled, deps.uow, deps.clock, deps.logger, dealInvoices);
+    this.kaspi = new KaspiPaymentsService(new DrizzlePaymentInvoiceRepository(), orderRepo, giftRepo, this.orders, this.gifts, kaspiPos, kaspiEnabled, deps.uow, deps.clock, deps.logger, dealInvoices, deps.aiPacks ?? null);
     this.kaspiSetup = new KaspiSetupService(kaspiPos, deps.kaspiConfig);
     this.kaspiWatch = new KaspiWatchService(deps.kaspiConfig, kaspiPos, deps.settings, deps.notifier, deps.clock);
     this.mailer = new OrderingMailer(this.queries, this.gifts, deps.mailer, deps.giftPdf);

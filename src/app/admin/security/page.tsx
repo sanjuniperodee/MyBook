@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/admin/PageHeader";
 import { container } from "@/server/container";
 import { can, requireStaffShell } from "@/server/access";
 import { getSetting } from "@/modules/workspace";
@@ -20,11 +21,8 @@ export default async function SecurityPage() {
       : Promise.resolve([]),
   ]);
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Безопасность</h1>
-        <p className="mt-1 text-sm text-muted">Двухфакторный вход защищает CRM, даже если пароль утёк: кроме пароля нужен код из приложения на телефоне.</p>
-      </div>
+    <div className="mx-auto max-w-5xl space-y-6">
+      <PageHeader title="Безопасность">Двухфакторный вход защищает CRM, даже если пароль утёк: кроме пароля нужен код из приложения на телефоне.</PageHeader>
       {gate === "2fa" ? (
         <p className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900" data-testid="require-2fa">
           Руководитель сделал двухфакторный вход обязательным. Настройте его ниже — после этого откроется вся CRM.

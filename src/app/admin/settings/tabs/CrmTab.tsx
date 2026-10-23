@@ -5,6 +5,8 @@ import { templateVars } from "@/shared/domain/templates";
 import { formatPhone } from "@/shared/domain/phone";
 import { staffLabel } from "@/shared/domain/staff";
 import { formatDate } from "@/lib/dates";
+import { Intro } from "@/components/admin/Intro";
+import { Section, Status } from "../ui";
 import { CrmSettingsForm } from "../crm/CrmSettingsForm";
 import { Blocklist } from "../crm/Blocklist";
 import { TemplateEditor } from "../crm/TemplateEditor";
@@ -43,16 +45,15 @@ export async function CrmTab() {
 
       <HolidaysForm holidays={parseHolidays(holidays)} defaults={[...DEFAULT_HOLIDAYS]} max={HOLIDAYS_MAX} />
 
-      <section className="rounded-2xl border border-line bg-white p-5">
-        <h2 className="font-semibold">Шаблоны быстрых ответов</h2>
-        <p className="mt-1 mb-4 text-sm text-muted">Вставляются в чат одной кнопкой. Переменные: {templateVars.join(", ")}.</p>
+      <Section title="Шаблоны быстрых ответов" defaultOpen={false} badge={<Status on={templates.length > 0} label={String(templates.length)} />}>
+        <Intro className="mb-4">Вставляются в чат одной кнопкой. Переменные: {templateVars.join(", ")}.</Intro>
         <div className="space-y-3">
           {templates.map((t) => (
             <TemplateEditor key={t.id} template={{ id: t.id, title: t.title, text: t.text }} />
           ))}
           <TemplateEditor template={null} />
         </div>
-      </section>
+      </Section>
     </>
   );
 }

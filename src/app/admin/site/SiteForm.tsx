@@ -9,14 +9,14 @@ export function SiteForm({ registration }: { registration: boolean }) {
   const [state, action] = useActionState<SiteState, FormData>(setRegistrationAction, {});
   const [open, setOpen] = useState(registration);
   return (
-    <form action={action} className="space-y-5" data-testid="site-form">
+    <form action={action} className="space-y-4 rounded-2xl border border-line bg-white p-5" data-testid="site-form">
       {state.error ? <Alert>{state.error}</Alert> : null}
       {state.ok ? (
         <p className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-900" role="status" data-testid="site-saved">
           {state.ok}
         </p>
       ) : null}
-      <section className="rounded-2xl border border-line bg-white p-5">
+      <section>
         <label className="flex cursor-pointer items-start gap-3">
           <input type="checkbox" name="registration" defaultChecked={registration} onChange={(e) => setOpen(e.target.checked)} className="mt-1 size-5 accent-wine" />
           <span>

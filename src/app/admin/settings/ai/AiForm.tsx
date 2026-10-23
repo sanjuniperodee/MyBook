@@ -4,6 +4,7 @@ import { useActionState, useState, useTransition } from "react";
 import { CheckCircle2, LoaderCircle, PlugZap } from "lucide-react";
 import { aiProviderIds, aiProviders, type AiProvider } from "@/modules/assistant/domain/providers";
 import { SubmitButton } from "@/components/ui/SubmitButton";
+import { Intro } from "@/components/admin/Intro";
 import { Section, Status, Result, SecretInput, CheckMessage, Choice } from "../ui";
 import type { SettingsState } from "../state";
 import { saveAiAction, testAiAction } from "./actions";
@@ -35,10 +36,10 @@ export function AiForm({
       title="AI-помощник"
       badge={<Status on={connected && enabled} label={!connected ? "не подключён" : enabled ? `${aiProviders[provider].label === "AI" ? "свой сервер" : aiProviders[provider].label} · включён` : "выключен"} />}
     >
-      <p className="mb-3 text-sm text-ink-soft">
+      <Intro className="mb-4">
         Подсказывает ответ клиенту в чате, делает резюме сделки со следующим шагом и сам заполняет поля (повод, дата, для кого) из переписки. Можно подключить Claude, ChatGPT, DeepSeek или любой сервис с
         OpenAI-совместимым API (OpenRouter, Qwen, своя модель). Ключи разных провайдеров хранятся отдельно — переключаться можно в любой момент.
-      </p>
+      </Intro>
       <form action={action} className="space-y-3">
         <div className="flex flex-wrap gap-2 text-sm">
           {aiProviderIds.map((id) => (

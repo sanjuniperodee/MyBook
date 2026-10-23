@@ -8,7 +8,7 @@ import Link from "next/link";
 import { getTheme, getThemes } from "@/lib/content/themes";
 import { STALLED_DAYS } from "@/modules/reporting";
 import { RemindAll } from "./RemindAll";
-import { requireStaff } from "@/server/access";
+import { requireStaff, staffViewer } from "@/server/access";
 import { bookLine, progressRatio, progressShort, progressText } from "@/lib/content/crm-labels";
 
 const themes = getThemes("ru");
@@ -27,10 +27,10 @@ const filters = {
 type Filter = keyof typeof filters;
 
 export default async function AdminBooks({ searchParams }: { searchParams: Promise<{ f?: string; q?: string; theme?: string }> }) {
-  await requireStaff("clients.view");
+  const staff = await requireStaff("clients.view");
   const sp = await searchParams;
   const f = (sp.f && sp.f in filters ? sp.f : "all") as Filter;
-  const rows = await container().reporting.bookList(f, { q: sp.q, theme: sp.theme && themes.some((t) => t.id === sp.theme) ? sp.theme : undefined, staleDays: STALLED_DAYS, now: nowMs() });
+  const rows = await container().reporting.bookList(f, { q: sp.q, theme: sp.theme && themes.some((t) => t.id === sp.theme) ? sp.theme : undefined, staleDays: STALLED_DAYS, now: nowMs(), viewer: staffViewer(staff) });
   const remindable = [...new Set(rows.filter((r) => r.book.status === "draft" && !r.hasOrder).map((r) => r.owner.id))];
   const link = (patch: Record<string, string | undefined>) =>
     `/admin/books?${new URLSearchParams(Object.entries({ f, q: sp.q, theme: sp.theme, ...patch }).filter(([, v]) => v && v !== "all") as [string, string][])}`;
@@ -64,7 +64,42 @@ export default async function AdminBooks({ searchParams }: { searchParams: Promi
         </select>
         <button className="btn btn-dark btn-sm h-10">Найти</button>
       </form>
-      <div className="overflow-x-auto rounded-2xl border border-line bg-white">
+      <ul className="space-y-2.5 lg:hidden" data-testid="books-cards">
+        {rows.map((r) => {
+          const idle = Math.floor((nowMs() - r.book.updatedAt.getTime()) / 86_400_000);
+          return (
+            <li key={r.book.id} className="rounded-2xl border border-line bg-white p-3.5 shadow-soft">
+              <div className="flex items-start gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-[16px] font-semibold">{r.book.title}</div>
+                  <div className="truncate text-sm text-muted">
+                    {bookLine({ theme: r.book.theme, themeShort: getTheme(r.book.theme).short, authorName: r.book.authorName, recipientName: r.book.recipientName })}
+                  </div>
+                  <Link href={`/admin/clients/${r.owner.id}`} className="block truncate text-sm text-ink-soft">
+                    {r.owner.name || r.owner.email}
+                  </Link>
+                </div>
+                <span className={cn("shrink-0 rounded-full px-2.5 py-1 text-xs", r.book.status === "draft" ? "bg-cream text-ink-soft" : "bg-emerald-100 text-emerald-800")}>{r.book.status === "draft" ? "Пишется" : "Заказана"}</span>
+              </div>
+              <div className="mt-2.5 flex items-center gap-2">
+                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-cream">
+                  <div className="h-full rounded-full bg-wine" style={{ width: `${progressRatio({ theme: r.book.theme, ...r }) * 100}%` }} />
+                </div>
+                <span className="text-xs text-muted tabular-nums">{progressShort({ theme: r.book.theme, ...r })}</span>
+              </div>
+              <div className="mt-2 flex items-center gap-3 text-xs">
+                <span className={r.book.status === "draft" && idle >= STALLED_DAYS ? "text-red-700" : "text-muted"}>{idle <= 0 ? "сегодня" : `${idle} дн. назад`}</span>
+                <span className="text-muted">{r.photos} фото</span>
+                <Link href={`/books/${r.book.id}/preview`} className="ml-auto inline-flex min-h-10 items-center font-medium text-wine">
+                  Макет
+                </Link>
+              </div>
+            </li>
+          );
+        })}
+        {rows.length === 0 ? <li className="rounded-2xl border border-dashed border-line bg-white px-4 py-10 text-center text-sm text-muted">Книг не найдено</li> : null}
+      </ul>
+      <div className="hidden overflow-x-auto rounded-2xl border border-line bg-white lg:block">
         <table className="w-full min-w-[900px] text-sm">
           <thead className="border-b border-line text-left text-muted">
             <tr>

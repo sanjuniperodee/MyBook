@@ -51,21 +51,17 @@ PDF и HTML-страницы книги, и попиксельная сверк�
 |---|---|---|
 | `chapter`, `front`, `toc`, `photos` | `InteriorSpread` — развороты страницы `books/[id]/pages`, шириной 960 px | разворот |
 | `preview` | `PagePreview` — превью в редакторе вопросов | каждая полоса, 480 px |
-| `flipbook` | полосы 3D-книги `books/[id]/preview`: раскладка `usePagedBook` и `FaceView` из `book3d/pages.tsx` | каждая полоса, 480 px |
 | `back` | `CoverBackPreview` — оборот обложки в редакторе `books/[id]/cover` | оборот, 480 px |
 
-3D-книга снимается без WebGL: `BookViewer3D` строит листы из тех же DOM-полос (`FaceView`) в CSS 3D, а
-`BookViewerGL` растрирует их в текстуры (`RasterHost`, html-to-image). Снимаются полосы блока по порядку (без
-обложки, форзацев и тени у корешка — их добавляют просмотрщики), каждая в рамке листа (формат блока). Оборот:
+Своего HTML-вида у 3D-книги нет: её листы (`BookViewerGL`, `BookViewer3D`) — картинки полос экранной сборки,
+растр того же PDF, поэтому её страницы сверяет pdf-snapshot. Снимки `html:flipbook:*` эталонов, снятых до этого,
+в сверке с ними — отличие «нет в текущем». Оборот:
 фон — `/api/covers/<шаблон>-<формат>-back.svg|webp`, текст и фото — `CoverBackLayer`, тот же, что у оборота
 3D-книги.
 
 Данные готовятся так же, как на страницах сайта (`scripts/visual/html-data.ts`): развороты — `bookSpreadSample`;
 превью — `editorModel` из `lib/book/editor-data` и `previewChapters` из `lib/book/editor-model`, те же, что у `books/[id]/questions/page.tsx`
-и `QuestionsEditor`; 3D-книга — `FlipbookData`, как в `books/[id]/preview/page.tsx`; оборот — `backContent` и
-`backPhotoRefs`, как в редакторе обложки. Сборка `FlipbookData` в `src` не экспортирована, поэтому в стенде — её
-копия одной функцией (`flipbookData`); перевести на экспорт из `src` в D1. До тех пор правка этого кода в `src`
-без правки копии даёт у `html:flipbook` ложное «0 отличий».
+и `QuestionsEditor`; оборот — `backContent` и `backPhotoRefs`, как в редакторе обложки.
 
 Стенд собирается из `src`: JS — esbuild (вход `scripts/visual/html-stand.tsx`, пути `@/` из tsconfig, `next/link` и
 `next/navigation` — заглушка, `process.env.COVER_ART_VERSION` подставляется при сборке, как в `next.config.ts`),
@@ -184,12 +180,11 @@ WOFF2-подмножеств). Сравнивать можно только сн
 ## Ограничения
 
 - `check.sh` берёт инструменты из текущего дерева. Если рефакторинг переносит модуль, который импортирует стенд
-  (`pdf/render`, `components/interior/InteriorSpread`, `components/editor/PagePreview`, `components/book3d/pages`,
+  (`pdf/render`, `components/interior/InteriorSpread`, `components/editor/PagePreview`,
   `components/cover/CoverBackPreview`, `server/spreadSample`, `app/fonts`, `app/api/covers/[file]/route`,
   `app/api/cover-photos/[key]/route`, `modules/authoring/infrastructure/photoView`, а также модули `lib`, которые
   зовут копии в `html-data.ts`), коммиты до переноса сверяются с `--ref-tools` (инструменты в них уже должны быть) —
   при условии, что набор книг между ними не менялся. Если инструменты `ref` старше сводки PDF и видов `flipbook`,
   `back`, сводка не сверяется (строка в итоге), а ключи новых видов и вариантов — отличие «нет в эталоне».
-- Копия из `src` в `html-data.ts` (`flipbookData`) не следит за оригиналом — см. «Что снимается».
 - В vitest долгих прогонов нет: `tests/visual-compare.test.ts` проверяет сверку и сводку PDF. Весь набор в
   `tests/pdf-critical.test.ts` — `npm run test:pdf-all`.

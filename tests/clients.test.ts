@@ -405,7 +405,8 @@ describe("TasksService: напоминание сотруднику в WhatsApp 
     t.c.set("2026-10-01T18:00:00Z"); // 23:00
     await t.tasks.createSystem({ title: "Перезвонить: пропущенный звонок", kind: "call", dueAt: at("2026-10-02T04:15:00Z"), dealId: "deal-1", assigneeId: "m1" });
     // Ручная задача со сроком 09:30 (напомнить за час — в 08:30) и ночная задача бота без ответственного (срок 09:05).
-    await t.tasks.create(manager, { title: "Позвонить по макету", kind: "call", dueAt: "2026-10-02T09:30" });
+    // Срок из формы разбирается в поясе процесса (на проде TZ=Asia/Almaty); в тесте пояс явный — на GitHub процесс в UTC.
+    await t.tasks.create(manager, { title: "Позвонить по макету", kind: "call", dueAt: "2026-10-02T09:30:00+05:00" });
     await t.tasks.createSystem({ title: "Назвать цену: Айгерим (бот)", kind: "message", dueAt: at("2026-10-02T04:05:00Z"), dealId: "deal-7", assigneeId: null });
     expect([...t.mem.tasks.rows.values()].map((r) => r.remindBeforeMin)).toEqual([60, 60, 60]);
     for (const iso of ["2026-10-02T03:05:00Z", "2026-10-02T03:15:00Z", "2026-10-02T03:30:00Z", "2026-10-02T03:59:00Z"]) {

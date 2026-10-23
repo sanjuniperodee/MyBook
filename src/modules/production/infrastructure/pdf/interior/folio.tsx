@@ -9,6 +9,7 @@ import { labelStyle, type PdfKit } from "./kit";
 /** Колонцифра на каждой полосе текста; «снаружи» — у внешнего края (чётные полосы — слева, нечётные — справа). */
 export function Folio({ kit }: { kit: PdfKit }) {
   const { design, sizes: S, bleed: B, side, format } = kit;
+  if (design.folio.align === "none") return null;
   const outer = design.folio.align === "outer";
   const style: Style = {
     ...(design.folio.font === "label" ? labelStyle(kit, design.palette.muted, S.folio * FOLIO.labelSize) : { ...face(design.type.body, 400), fontSize: S.folio, color: design.palette.muted }),

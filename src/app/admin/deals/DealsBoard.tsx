@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { DndContext, PointerSensor, TouchSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { DndContext, MouseSensor, TouchSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { BookOpen, CalendarClock, Check, Inbox, MessageCircle, Ban, X } from "lucide-react";
 import { formatPrice } from "@/config/site";
 import { toast, toastError } from "@/components/ui/overlays";
@@ -50,7 +50,7 @@ export function DealsBoard({ stages, initial, canEdit, canDecide, meId }: { stag
   const [cards, setCards] = useState(initial);
   const [lost, setLost] = useState<{ id: string; stageId: string } | null>(null);
   const [, start] = useTransition();
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }), useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 6 } }));
+  const sensors = useSensors(useSensor(MouseSensor, { activationConstraint: { distance: 6 } }), useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 6 } }));
 
   const move = (id: string, stageId: string, reason?: string) => {
     const prev = cards;
@@ -76,8 +76,8 @@ export function DealsBoard({ stages, initial, canEdit, canDecide, meId }: { stag
 
   return (
     <>
-      <DndContext sensors={sensors} onDragEnd={canEdit ? onDragEnd : undefined}>
-        <div className="no-scrollbar -mx-4 flex gap-3 overflow-x-auto px-4 pb-4 sm:-mx-6 sm:px-6" data-testid="deals-board">
+      <DndContext id="deals-board" sensors={sensors} onDragEnd={canEdit ? onDragEnd : undefined}>
+        <div className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-px-4 px-4 pb-4 sm:-mx-6 sm:px-6 lg:snap-none" data-testid="deals-board">
           {cards.some((c) => c.unsorted) ? (
             <UnsortedColumn
               cards={cards.filter((c) => c.unsorted)}
@@ -144,7 +144,7 @@ export function DealsBoard({ stages, initial, canEdit, canDecide, meId }: { stag
 
 function UnsortedColumn({ cards, canEdit, canWork, onAccept, onReject }: { cards: DealCard[]; canEdit: boolean; canWork: (c: DealCard) => boolean; onAccept: (id: string) => void; onReject: (id: string, spam: boolean) => void }) {
   return (
-    <section className="flex w-72 shrink-0 flex-col rounded-2xl border-2 border-dashed border-wine/30 bg-rose/30 p-2" data-stage="Неразобранное">
+    <section className="flex w-[85vw] max-w-80 shrink-0 snap-center flex-col rounded-2xl border-2 lg:w-72 lg:snap-align-none border-dashed border-wine/30 bg-rose/30 p-2" data-stage="Неразобранное">
       <header className="px-2 pt-1 pb-3">
         <div className="flex items-baseline justify-between gap-2">
           <h2 className="flex items-center gap-1.5 text-sm font-semibold">
@@ -154,19 +154,19 @@ function UnsortedColumn({ cards, canEdit, canWork, onAccept, onReject }: { cards
         </div>
         <div className="text-xs text-muted">новые номера — ответственный принимает или отклоняет</div>
       </header>
-      <div className="flex max-h-[calc(100dvh-17rem)] min-h-24 flex-col gap-2 overflow-y-auto pr-0.5">
+      <div className="flex max-h-[calc(100dvh-20rem)] lg:max-h-[calc(100dvh-17rem)] min-h-24 flex-col gap-2 overflow-y-auto pr-0.5">
         {cards.map((c) => (
           <div key={c.id} className="rounded-xl border border-line bg-white p-3 text-sm shadow-sm" data-deal={c.number} data-unsorted="1">
             <Card card={c} draggable={canEdit} bare />
             {canEdit && canWork(c) ? (
               <div className="mt-2 flex gap-1.5 border-t border-line pt-2">
-                <button className="btn btn-sm h-8 flex-1" onClick={() => onAccept(c.id)}>
+                <button className="btn btn-sm h-8 flex-1 max-lg:h-11" onClick={() => onAccept(c.id)}>
                   <Check className="size-3.5" /> Принять
                 </button>
-                <button className="btn btn-ghost btn-sm h-8 px-2" onClick={() => onReject(c.id, false)} title="Отклонить">
+                <button className="btn btn-ghost btn-sm h-8 px-2 max-lg:size-11" onClick={() => onReject(c.id, false)} title="Отклонить">
                   <X className="size-3.5" />
                 </button>
-                <button className="btn btn-ghost btn-sm h-8 px-2 text-red-700" onClick={() => onReject(c.id, true)} title="Спам">
+                <button className="btn btn-ghost btn-sm h-8 px-2 text-red-700 max-lg:size-11" onClick={() => onReject(c.id, true)} title="Спам">
                   <Ban className="size-3.5" />
                 </button>
               </div>
@@ -182,7 +182,7 @@ function Column({ stage, cards, draggable }: { stage: Stage; cards: DealCard[]; 
   const { setNodeRef, isOver } = useDroppable({ id: stage.id });
   const sum = cards.reduce((s, c) => s + c.amount, 0);
   return (
-    <section ref={setNodeRef} className={cn("flex w-72 shrink-0 flex-col rounded-2xl bg-[#efe9df] p-2 transition", isOver && "ring-2 ring-wine/50")} data-stage={stage.name}>
+    <section ref={setNodeRef} className={cn("flex w-[85vw] max-w-80 shrink-0 snap-center flex-col rounded-2xl bg-[#efe9df] lg:w-72 lg:snap-align-none p-2 transition", isOver && "ring-2 ring-wine/50")} data-stage={stage.name}>
       <header className="px-2 pt-1 pb-3">
         <div className="mb-2 h-1 rounded-full" style={{ background: stage.color }} />
         <div className="flex items-baseline justify-between gap-2">
@@ -191,7 +191,7 @@ function Column({ stage, cards, draggable }: { stage: Stage; cards: DealCard[]; 
         </div>
         <div className="text-xs text-muted tabular-nums">{sum ? formatPrice(sum) : "—"}</div>
       </header>
-      <div className="flex max-h-[calc(100dvh-17rem)] min-h-24 flex-col gap-2 overflow-y-auto pr-0.5">
+      <div className="flex max-h-[calc(100dvh-20rem)] lg:max-h-[calc(100dvh-17rem)] min-h-24 flex-col gap-2 overflow-y-auto pr-0.5">
         {cards.map((c) => (
           <Card key={c.id} card={c} draggable={draggable} />
         ))}
@@ -278,9 +278,9 @@ function Card({ card: c, draggable, bare }: { card: DealCard; draggable: boolean
 export function LostDialog({ onCancel, onSubmit }: { onCancel: () => void; onSubmit: (reason: string) => void }) {
   const [reason, setReason] = useState("");
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/30 p-4" onClick={onCancel}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/30 p-0 sm:items-center sm:p-4" onClick={onCancel}>
       <form
-        className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl"
+        className="w-full max-w-sm rounded-t-3xl bg-white p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-xl sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
         onSubmit={(e) => {
           e.preventDefault();
@@ -295,7 +295,7 @@ export function LostDialog({ onCancel, onSubmit }: { onCancel: () => void; onSub
         </div>
         <div className="mt-3 flex flex-wrap gap-1.5">
           {lostReasons.map((r) => (
-            <button type="button" key={r} onClick={() => setReason(r)} className={cn("rounded-full border px-2.5 py-1 text-xs", reason === r ? "border-ink bg-ink text-white" : "border-line hover:bg-cream")}>
+            <button type="button" key={r} onClick={() => setReason(r)} className={cn("rounded-full border px-3 py-2 text-sm lg:px-2.5 lg:py-1 lg:text-xs", reason === r ? "border-ink bg-ink text-white" : "border-line hover:bg-cream")}>
               {r}
             </button>
           ))}

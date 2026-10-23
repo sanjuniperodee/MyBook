@@ -1,6 +1,8 @@
-import { storeTimeZone } from "@/shared/domain/time";
+import { storeTimeZone, zonedDay } from "@/shared/domain/time";
 import {
   BOT_DONE,
+  SELLER_MAX_FOLLOW_UPS,
+  humanDate,
   readSellerAi,
   remindLabel,
   botSummary,
@@ -120,7 +122,14 @@ export interface BotStatus {
   canStart: boolean;
 }
 
-export function botStatus(rec: BotRecord | null, fields: DealField[]): BotStatus {
+/** Время для статуса: сегодня — «10:00», другой день — «21 октября в 10:00» (по часовому поясу магазина). */
+function statusTime(at: Date, now: Date, tz: string): string {
+  const time = new Intl.DateTimeFormat("ru-RU", { timeZone: tz, hour: "2-digit", minute: "2-digit" }).format(at);
+  const day = zonedDay(at, tz);
+  return day === zonedDay(now, tz) ? `в ${time}` : `${humanDate(day, "ru")} в ${time}`;
+}
+
+export function botStatus(rec: BotRecord | null, fields: DealField[], now = new Date()): BotStatus {
   const s = rec?.state;
   if (!s) {
     if (rec?.botStep != null && rec.botStep >= 0) return { label: `Бот (прежняя версия): вопрос ${rec.botStep + 1}`, tone: "active", canStop: true, canStart: false };
@@ -131,6 +140,15 @@ export function botStatus(rec: BotRecord | null, fields: DealField[]): BotStatus
     // Договорились написать повторно (bots-5): до этого дня бот молчит, менеджеру видно когда и почему.
     const remind = readSellerAi(s.ai).remind;
     if (remind) return { label: `Бот напишет клиенту ${remindLabel(remind, storeTimeZone())}`, tone: "waiting", canStop: true, canStart: false };
+    // Клиент не ответил на последнее сообщение бота, и следующий шаг назначен на потом (ночью — на начало рабочего дня):
+    // без этого статус часами показывал «ведёт диалог», будто бот завис. Срок в пределах минуты — это пауза перед ответом.
+    const lastBotAt = s.lastBotAt ? new Date(s.lastBotAt) : null;
+    if (lastBotAt && rec?.dueAt && rec.dueAt.getTime() - now.getTime() > 60_000 && rec.dueAt > lastBotAt) {
+      const tz = storeTimeZone();
+      const next = readSellerAi(s.ai).followUps < SELLER_MAX_FOLLOW_UPS ? "бот напомнит" : "итог менеджеру";
+      const since = statusTime(lastBotAt, now, tz).replace(/^в /, "").replace(" в ", " ");
+      return { label: `Клиент молчит с ${since} — ${next} ${statusTime(rec.dueAt, now, tz)}`, tone: "waiting", canStop: true, canStart: false };
+    }
     const stage = s.ai.stage === "offer" || s.ai.stage === "closing" ? ", предложение сделано" : s.ai.stage === "objection" ? ", снимает возражение" : "";
     return { label: `${s.ai.takeover ? "Бот подхватил переписку" : "AI-продажник ведёт диалог"}${stage}`, tone: "active", canStop: true, canStart: false };
   }

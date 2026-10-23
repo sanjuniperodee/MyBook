@@ -12,6 +12,7 @@ import { ensureCatalog } from "@/server/catalog";
 import { CatalogSync } from "@/components/CatalogSync";
 import { messagesFor } from "@/i18n/messages";
 import { localeMeta } from "@/i18n/config";
+import { SHOP_THEME_SCRIPT, ShopThemeSync } from "@/components/ShopTheme";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getLocale();
@@ -50,8 +51,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const locale = await getLocale();
   await ensureCatalog();
   return (
-    <html lang={locale} className={fontVariables} data-scroll-behavior="smooth">
+    <html lang={locale} suppressHydrationWarning className={fontVariables} data-scroll-behavior="smooth">
       <body className="min-h-dvh">
+        <script dangerouslySetInnerHTML={{ __html: SHOP_THEME_SCRIPT }} />
+        <ShopThemeSync />
+        {/* Открыто как установленное приложение (иконка на экране «Домой») — сразу в CRM, а не на лендинг; без входа CRM сама отправит на экран входа. */}
+        <script dangerouslySetInnerHTML={{ __html: `try{if((matchMedia("(display-mode: standalone)").matches||navigator.standalone===true)&&(location.pathname==="/"||location.pathname==="/kk"))location.replace("/admin")}catch(e){}` }} />
         <CatalogSync overrides={getCatalogOverrides()} registration={registrationOpen()} seller={getSellerOverrides()} />
         <I18nProvider locale={locale}>
           {children}

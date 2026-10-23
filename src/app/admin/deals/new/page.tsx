@@ -1,5 +1,5 @@
 import { container } from "@/server/container";
-import Link from "next/link";
+import { BackLink } from "@/components/admin/BackLink";
 import { canAssignOthers, requireStaff } from "@/server/access";
 import { staffOptions } from "@/modules/access/ui";
 import { NewDealForm } from "./NewDealForm";
@@ -21,9 +21,7 @@ export default async function NewDealPage({ searchParams }: { searchParams: Prom
   const options = canAssignOthers(staff) ? staffOptions(admins) : staffOptions(admins).filter((a) => a.id === staff.user.id);
   return (
     <div className="mx-auto max-w-2xl space-y-5">
-      <Link href="/admin/deals" className="text-sm text-muted hover:text-ink">
-        ← Сделки
-      </Link>
+      <BackLink href="/admin/deals">Сделки</BackLink>
       <h1 className="text-2xl font-semibold">Новая сделка</h1>
       <NewDealForm
         stages={stages.filter((s) => s.kind === "open").map((s) => ({ id: s.id, name: pipelines.length > 1 ? `${pipelines.find((x) => x.id === s.pipelineId)?.name} · ${s.name}` : s.name }))}

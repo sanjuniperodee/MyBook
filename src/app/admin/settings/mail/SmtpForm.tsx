@@ -3,6 +3,7 @@
 import { useActionState, useState, useTransition } from "react";
 import { LoaderCircle, PlugZap, Send } from "lucide-react";
 import { SubmitButton } from "@/components/ui/SubmitButton";
+import { Intro } from "@/components/admin/Intro";
 import { Section, Status, Result, SecretInput, CheckMessage } from "../ui";
 import type { SettingsState } from "../state";
 import { saveSmtpAction, testSmtpAction, sendTestMailAction } from "./actions";
@@ -33,10 +34,10 @@ export function SmtpForm({
   const run = (fn: () => Promise<{ ok: boolean; message: string }>) => start(async () => setCheck(await fn()));
   return (
     <Section title="Почта для отправки — SMTP" badge={<Status on={configured} label={configured ? "настроена" : "не настроена — письма пишутся в лог"} />}>
-      <p className="mb-3 text-sm text-ink-soft">
+      <Intro className="mb-4">
         Через этот ящик уходят письма клиентам (заказ оформлен и оплачен, сертификаты, сброс пароля, напоминания) и письма менеджеров из CRM. Подойдёт любой почтовый сервис; для Яндекса, Gmail и Mail.ru нужен
         «пароль приложения», а не обычный пароль от ящика.
-      </p>
+      </Intro>
       {fromEnv ? <p className="mb-3 rounded-xl bg-cream px-3 py-2 text-xs text-muted">Почта задана переменными окружения сервера (SMTP_HOST и др.) — здесь только для просмотра и проверки.</p> : null}
       <form action={action} className="space-y-3">
         {!env.host ? (

@@ -41,7 +41,7 @@ export function LinkBuilder({ pages, baseUrl }: { pages: { path: string; label: 
         </button>
         <span className="text-xs text-muted">{kind === "whatsapp" ? "Откроет чат с готовым сообщением и кодом ссылки — заявка в CRM получит этот канал" : "Откроет страницу сайта с UTM-метками"}</span>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 max-sm:grid-cols-[minmax(0,1fr)] sm:grid-cols-2">
         <label className="block">
           <span className="mb-1 block text-xs text-muted">Название (для себя)</span>
           <input name="name" value={name} onChange={(e) => setName(e.target.value)} required maxLength={80} placeholder="Instagram — шапка профиля" className="input h-10 text-sm" />
@@ -108,7 +108,7 @@ export function LinkBuilder({ pages, baseUrl }: { pages: { path: string; label: 
       <div className="flex flex-wrap items-end gap-3">
         <label className="block">
           <span className="mb-1 block text-xs text-muted">Короткая ссылка</span>
-          <span className="flex items-center gap-1 font-mono text-sm">
+          <span className="flex flex-wrap items-center gap-1 font-mono text-sm">
             <span className="text-muted">{origin}/go/</span>
             <input
               value={finalSlug}
@@ -117,7 +117,7 @@ export function LinkBuilder({ pages, baseUrl }: { pages: { path: string; label: 
                 setSlug(e.target.value);
               }}
               maxLength={40}
-              className="input h-9 w-52 font-mono text-sm"
+              className="input h-9 w-52 max-w-full font-mono text-sm"
               aria-label="Код ссылки"
             />
           </span>
@@ -162,9 +162,9 @@ export function WhatsappNumberForm({ value }: { value: string }) {
   const [state, action] = useActionState<LinkState, FormData>(saveWhatsappNumberAction, {});
   return (
     <form action={action} className="mt-5 flex flex-wrap items-end gap-2 border-t border-line pt-4 text-sm">
-      <label className="block">
+      <label className="block max-lg:w-full">
         <span className="mb-1 block text-xs text-muted">WhatsApp магазина: ссылки «Сразу в WhatsApp» и реквизиты на сайте</span>
-        <input name="number" defaultValue={value} inputMode="tel" maxLength={20} className="input h-9 w-52 font-mono text-sm" />
+        <input name="number" defaultValue={value} inputMode="tel" maxLength={20} className="input h-9 w-52 max-w-full font-mono text-sm" />
       </label>
       <SubmitButton className="btn-outline btn-sm h-9">Сохранить</SubmitButton>
       {state.error ? <span className="text-xs text-red-700">{state.error}</span> : state.ok ? <span className="text-xs text-emerald-700">{state.ok}</span> : null}

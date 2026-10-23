@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "@/components/ui/overlays";
+import { Intro } from "@/components/admin/Intro";
 import { Section } from "../ui";
 import { saveRuleSendingAction } from "./actions";
 
@@ -21,10 +22,10 @@ export function RuleSendingForm(props: { from: string; to: string; dailyLimit: n
       toast(r.ok ? "Сохранено" : r.error, r.ok ? "success" : "error");
     });
   return (
-    <Section title="Сообщения от правил: окно и лимит">
-      <p className="mb-4 text-sm text-muted">
+    <Section defaultOpen={false} title="Сообщения от правил: окно и лимит">
+      <Intro className="mb-4">
         Номер WhatsApp один — ночные и массовые автоматические сообщения ведут к жалобам и блокировке. Правила автоматизаций пишут клиентам первыми только в это время (Алматы) и не больше лимита в сутки; «забросил книгу», годовщина и праздник вне окна и сверх лимита сработают позже, остальные правила срабатывают сразу (уведомления и задачи), а сообщение пропускают с заметкой в сделке. Автоответ на сообщение клиента уходит в любое время. 0 — правила первыми не пишут.
-      </p>
+      </Intro>
       <form
         className="flex flex-wrap items-end gap-3"
         onSubmit={(e) => {

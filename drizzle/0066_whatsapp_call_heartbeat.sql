@@ -1,0 +1,1 @@
+ALTER TABLE "crm_calls" ADD COLUMN "heartbeat_at" timestamp with time zone;

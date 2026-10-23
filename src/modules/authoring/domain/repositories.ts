@@ -75,6 +75,8 @@ export interface PhotoRepository {
   belongToBook(bookId: string, ids: string[]): Promise<boolean>;
   add(photo: Photo): Promise<void>;
   save(photo: Photo): Promise<void>;
+  /** Только поля поворота (Photo.rotated): ключи файлов, размеры, вид в ответе и кадр — место и подпись не трогает. */
+  saveRotation(photo: Photo): Promise<void>;
   delete(photo: Photo): Promise<void>;
   reorder(bookId: string, ids: string[]): Promise<void>;
   /**
@@ -82,6 +84,8 @@ export interface PhotoRepository {
    * «в тексте» сбрасываются в той же транзакции до удаления (FK SET NULL оформление не сбросил бы).
    */
   detachFromQuestions(bookId: string, questionIds: readonly string[]): Promise<void>;
+  /** Снять отметку «снимок начала» с остальных фото главы: у главы снимок начала один. */
+  clearOpeners(bookId: string, chapter: string, exceptId: string): Promise<void>;
 }
 
 export interface LetterRepository {

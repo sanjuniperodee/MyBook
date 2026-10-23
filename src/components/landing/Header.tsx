@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Menu, X } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
+import { ShopThemeToggle } from "@/components/ShopTheme";
 import { Link, useLocalizePath, useMessages } from "@/i18n/client";
 import { cn } from "@/lib/class-names";
 import { registrationOpen } from "@/config/site";
@@ -21,9 +22,10 @@ export function LandingHeader({ loggedIn }: { loggedIn: boolean }) {
     { href: "/#how", label: m.how },
     { href: "/#inside", label: m.sample },
     { href: "/kniga", label: common.footer.ideas },
+    { href: "/instrumenty", label: common.footer.tools },
     { href: "/#pricing", label: m.pricing },
-    { href: "/gift", label: m.gift },
-    { href: "/#faq", label: m.faq },
+    { href: "/gift", label: m.gift, wide: true },
+    { href: "/#faq", label: m.faq, wide: true },
   ];
 
   useEffect(() => {
@@ -42,14 +44,15 @@ export function LandingHeader({ loggedIn }: { loggedIn: boolean }) {
     >
       <div className="container-x flex h-16 items-center justify-between gap-4 sm:h-18">
         <Logo />
-        <nav className="hidden items-center gap-1 lg:flex">
+        <nav className="hidden items-center gap-0.5 min-[1400px]:ml-6 min-[1400px]:flex">
           {nav.map((n) => (
-            <a key={n.href} href={lp(n.href)} className="rounded-full px-3.5 py-2 text-[15px] text-ink-soft transition hover:bg-ink/5 hover:text-ink">
+            <a key={n.href} href={lp(n.href)} className={cn("rounded-full px-2.5 py-2 text-[15px] whitespace-nowrap text-ink-soft transition hover:bg-ink/5 hover:text-ink", "wide" in n && "hidden min-[1640px]:block")}>
               {n.label}
             </a>
           ))}
         </nav>
         <div className="hidden items-center gap-2 sm:flex">
+          <ShopThemeToggle />
           <LanguageSwitch className="mr-1" />
           {loggedIn ? (
             <Link href="/books" className="btn btn-primary btn-sm">
@@ -68,12 +71,13 @@ export function LandingHeader({ loggedIn }: { loggedIn: boolean }) {
             </>
           )}
         </div>
-        <button className="btn btn-ghost btn-sm -mr-2 px-2 lg:hidden sm:ml-0" onClick={() => setOpen((v) => !v)} aria-label={m.menu} aria-expanded={open}>
+        <ShopThemeToggle className="sm:hidden" />
+        <button className="btn btn-ghost btn-sm -mr-2 px-2 min-[1400px]:hidden sm:ml-0" onClick={() => setOpen((v) => !v)} aria-label={m.menu} aria-expanded={open}>
           {open ? <X className="size-6" /> : <Menu className="size-6" />}
         </button>
       </div>
       {open ? (
-        <div className="container-x pb-6 lg:hidden">
+        <div className="container-x pb-6 min-[1400px]:hidden">
           <nav className="flex flex-col">
             {nav.map((n) => (
               <a key={n.href} href={lp(n.href)} onClick={() => setOpen(false)} className="border-b border-line/60 py-3.5 text-lg">

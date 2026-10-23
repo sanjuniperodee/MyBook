@@ -18,11 +18,19 @@ export const isTocMode = (v: unknown): v is TocMode => (TOC_MODES as readonly un
 export interface TocLineSetting {
   title?: string;
   hidden?: boolean;
+  /** Свой эпиграф главы (только у строк глав) — на начальной полосе вместо эпиграфа темы. */
+  epigraph?: string;
+  /**
+   * Автор решил начать главу без фото (только у строк глав): редактор больше не предлагает выбрать фото главы.
+   * Не вёрстка — в содержимое книги не идёт (layout.ts, tocSettings) и не действует, когда фото главы выбрано.
+   */
+  noOpenerPhoto?: boolean;
 }
 /** Настройки строк по ключу строки (tocKey). */
 export type TocLines = Record<string, TocLineSetting>;
 
 export const TOC_TITLE_MAX = 200;
+export const TOC_EPIGRAPH_MAX = 300;
 /** Строк с настройками в одной книге — с запасом: в книге сотни разделов не бывает. */
 export const TOC_LINES_MAX = 400;
 
@@ -54,6 +62,8 @@ export interface TocCandidate {
   folded?: boolean;
   /** Первая глава: убрать её некуда — скрытие действует только на оглавление. */
   first?: boolean;
+  /** Эпиграф главы по книге (до своего) — подсказка редактору; у разделов нет. */
+  epigraph?: string;
 }
 
 /** Строка, которая печатается: level 1 — раздел под главой в режиме «главы и заголовки». */
@@ -70,7 +80,8 @@ export function tocCandidates(content: Pick<BookContent, "chapters" | "galleryPh
   const out: TocCandidate[] = [];
   content.chapters.forEach((ch, i) => {
     let parent = tocKey.chapter(ch.key);
-    out.push({ key: parent, pageKey: ch.key, kind: "chapter", number: ch.number, label: ch.defaultTitle ?? ch.title, ...(i === 0 ? { first: true } : {}) });
+    const epigraph = ch.defaultEpigraph ?? ch.epigraph;
+    out.push({ key: parent, pageKey: ch.key, kind: "chapter", number: ch.number, label: ch.defaultTitle ?? ch.title, ...(i === 0 ? { first: true } : {}), ...(epigraph ? { epigraph } : {}) });
     ch.items.forEach((it, at) => {
       for (const f of ch.folded ?? []) {
         if (f.at !== at) continue;
@@ -120,6 +131,12 @@ export function isRemovedChapter(c: Pick<TocCandidate, "kind" | "key" | "pageKey
   return c.kind === "chapter" && !!lines[c.key]?.hidden && !c.first && c.pageKey !== GALLERY_KEY;
 }
 
+/**
+ * Название альбома в конце, как его печатает книга: своё (название строки альбома в оглавлении) или по умолчанию.
+ * Одно на начальную полосу альбома в PDF, строку оглавления, образец «Страниц» и превью редактора.
+ */
+export const printedGalleryTitle = (content: Pick<BookContent, "galleryTitle" | "tocLines">) => content.tocLines?.[tocKey.chapter(GALLERY_KEY)]?.title || content.galleryTitle;
+
 /** Оглавление книги по её настройкам. */
 export function bookToc(content: BookContent): TocLine[] {
   return selectToc(tocCandidates(content), content.tocMode ?? "chapters", content.tocLines ?? {});
@@ -140,11 +157,13 @@ export function parseTocLines(raw: unknown): TocLines {
   const out: TocLines = {};
   for (const [key, v] of Object.entries(raw as Record<string, unknown>).slice(0, TOC_LINES_MAX)) {
     if (!KEY.test(key) || !v || typeof v !== "object") continue;
-    const { title, hidden } = v as Record<string, unknown>;
+    const { title, hidden, epigraph, noOpenerPhoto } = v as Record<string, unknown>;
     const s: TocLineSetting = {};
     if (typeof title === "string" && title.trim()) s.title = title.trim().slice(0, TOC_TITLE_MAX);
     if (hidden === true) s.hidden = true;
-    if (s.title !== undefined || s.hidden) out[key] = s;
+    if (key.startsWith("c:") && typeof epigraph === "string" && epigraph.trim()) s.epigraph = epigraph.trim().slice(0, TOC_EPIGRAPH_MAX);
+    if (key.startsWith("c:") && noOpenerPhoto === true) s.noOpenerPhoto = true;
+    if (s.title !== undefined || s.hidden || s.epigraph !== undefined || s.noOpenerPhoto) out[key] = s;
   }
   return out;
 }

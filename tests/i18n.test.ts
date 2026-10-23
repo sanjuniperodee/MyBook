@@ -104,7 +104,7 @@ describe("адреса", () => {
 describe("нет русских строк вне словарей", () => {
   const root = path.join(__dirname, "..", "src");
   // CRM и вебхуки интеграций — внутренние инструменты команды, они на русском.
-  const skipDirs = [/^i18n\//, /^app\/admin\//, /^app\/admin-denied\//, /^app\/api\/admin\//, /^app\/api\/integrations\//, /^app\/print\//, /^components\/admin\//, /^lib\/content\//, /^modules\/access\//, /^modules\/sales\//, /^modules\/automation\//, /^modules\/messaging\//, /^modules\/telephony\//, /^modules\/marketing\//, /^modules\/assistant\//, /^modules\/clients\//, /^modules\/reporting\//, /^modules\/workspace\//, /^server\/access\.ts$/];
+  const skipDirs = [/^i18n\//, /^app\/admin\//, /^app\/admin-denied\//, /^app\/crm\//, /^app\/api\/admin\//, /^app\/api\/integrations\//, /^app\/print\//, /^components\/admin\//, /^lib\/content\//, /^lib\/tools\//, /^modules\/access\//, /^modules\/sales\//, /^modules\/automation\//, /^modules\/messaging\//, /^modules\/telephony\//, /^modules\/marketing\//, /^modules\/assistant\//, /^lib\/book\/design-ai\//, /^modules\/clients\//, /^modules\/reporting\//, /^modules\/workspace\//, /^server\/access\.ts$/];
   // Файлы, где кириллица допустима целиком: внутренние инструменты и сам механизм языков.
   const skipFiles = new Set([
     "modules/production/infrastructure/pdf/render.tsx", // техзадание для типографии — на русском
@@ -132,6 +132,7 @@ describe("нет русских строк вне словарей", () => {
     "modules/ordering/application/KaspiWatchService.ts", // «кассир Kaspi отключён»: уведомления руководителям и плашка менеджеру — в CRM
     "server/invoice-access.ts", // после оплаты счёта: заметки, задачи и уведомления команде (клиенту — словарь access)
     "server/deal-invoices.ts", // счёт из чата и от бота: ошибки для менеджера (клиенту — словарь pay)
+    "server/whatsapp-calls.ts", // звонки WhatsApp из CRM: ошибки шлюза — сотруднику
   ]);
   // Строки для команды, а не для клиента.
   const internalLine = /legalName:|Заказ создан|по договорённости с менеджером|учтена как аванс|книга почти готова \(|советы, как начать книгу|addOrderEvent\(|ordersNotifyEmail|crmNotes|console\.|logToCrm|return `напоминание|reason:|Автописьмо|Новая сделка №|Отправлено напоминание дописать|Платёж |Оплата подтверждена|Отменён клиентом|Клиент сообщил|Неуспешная оплата|без причины|Подарочный сертификат №\$\{|this\.log\(|\.addNote\(|promoNote = |staffNotFound|Оплачен (заказ|сертификат)|Новый заказ|Открыть в админке|Проверьте (оплату|поступление)|Клиент оплатил|Клиент оформил заказ|засчитана оплата электронной|Сертификаты"|Тариф: \$\{planName|Сумма: \$\{format|Сертификат №\$\{gift\.number\} оплачен|оплачен\?|→ \$\{escapeHtml|note: `Спасибо за отзыв к заказу|note: `Приглашения от|note: `Награда за друга|title: `Отзыв \$\{r\.rating\}|this\.logger\.(warn|error)\(|new OrderingError\("kaspi(Unavailable|NotConnected)", |ORDER_MONEY_LABELS|new OrderingError\("paymentRule", |orderTask\(e\.payload/;

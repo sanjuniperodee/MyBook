@@ -16,9 +16,11 @@ export function romanNumeral(n: number): string {
   return out;
 }
 
-/** Номер главы для начальной полосы: подпись («Глава 1») или крупная цифра. */
-export function chapterMark(design: InteriorDesign, n: number, label: (n: number) => string): { kind: "label" | "numeral"; text: string } {
+/** Номер главы для начальной полосы: подпись («Глава 1») или крупная цифра; null — дизайн без номера. */
+export function chapterMark(design: InteriorDesign, n: number, label: (n: number) => string): { kind: "label" | "numeral"; text: string } | null {
   switch (design.opener.number) {
+    case "none":
+      return null;
     case "digits":
       return { kind: "numeral", text: String(n) };
     case "padded":

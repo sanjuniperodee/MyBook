@@ -13,7 +13,7 @@ const schema = z.object({ sections: z.array(z.object({ id: uuid, chapter: uuid }
  */
 export const PUT = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = idParams(await params, "id");
-  const { viewer } = await apiViewer(req);
+  const { viewer } = await apiViewer(req, id);
   const { sections } = schema.parse(await req.json());
   const outline = await container().authoring.outline.reorderSections(id, viewer, sections);
   return NextResponse.json({ outline });

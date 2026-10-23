@@ -8,26 +8,27 @@
  * folio (колонцифра и колонтитул), surface (страница и полоса набора), kit (дизайн, формат, единицы).
  */
 import type { CSSProperties } from "react";
-import { site } from "@/config/site";
 import { bookMessagesFor } from "@/i18n/messages/partial";
 import { chapterMark, PHOTO_COLORS, type InteriorPalette } from "@/lib/book/interiors";
 import { openerArtShapes } from "@/lib/book/interior-art";
 import { openerFlow, textArea, pageSide } from "@/lib/book/page-geometry";
 import { openerFit } from "@/lib/book/opener-fit";
-import { openerPhotoPlan, photoArea, photoPagePlan, type OpenerPhotoPlan } from "@/lib/book/photo-pages";
-import { DISPLAY_TOP, FRONT, HTML_LINE_HEIGHT, OPENER, photoCaptionFace, TOC, VIGNETTE_RULE } from "@/lib/book/typesetting";
+import { print } from "@/lib/book/formats";
+import { cropOr, fillFocus, type PhotoCrop } from "@/lib/book/photo-crop";
+import { OPENER_FOCUS, openerPhotoPlan, photoArea, photoPagePlan, type OpenerPhotoPlan } from "@/lib/book/photo-pages";
+import { DISPLAY_TOP, FRONT, HTML_LINE_HEIGHT, OPENER, photoCaptionFace, TITLE_LAYOUT, TOC, VIGNETTE_RULE } from "@/lib/book/typesetting";
 import { cssFont } from "@/lib/book/fonts";
 import { cn } from "@/lib/class-names";
 import { hexAlpha } from "@/lib/color";
 import { PageLayer, pageFrame, Vignette } from "./graphics";
-import { ChapterTail, Divider, EntryBody, QuestionHeading, type SampleEntry } from "./entry";
+import { Divider, EntryBody, QuestionHeading, type SampleEntry } from "./entry";
 import { Folio, folioText, RunningHead } from "./folio";
 import { metricsOf, type PageKit } from "./kit";
 import { PageImage, PageSurface, Placed, TextArea, type PageProps } from "./surface";
 import { faceCss, italicBody, labelCss } from "./typography";
 
 /** Снимок на начальной полосе: карточка с поворотом или снимок под обрез, затемнение внизу и графика поверх. */
-function OpenerShot({ kit, shot, url, scene }: { kit: PageKit; shot: OpenerPhotoPlan; url?: string; scene: number }) {
+function OpenerShot({ kit, shot, url, scene, crop }: { kit: PageKit; shot: OpenerPhotoPlan; url?: string; scene: number; crop?: PhotoCrop }) {
   const { format, u } = kit;
   return (
     <>
@@ -44,10 +45,10 @@ function OpenerShot({ kit, shot, url, scene }: { kit: PageKit; shot: OpenerPhoto
             transform: `rotate(${shot.card.rotate}deg)`,
           }}
         >
-          <PageImage kit={kit} rect={{ x: shot.img.x - shot.card.x - OPENER.cardInsetHtml, y: shot.img.y - shot.card.y - OPENER.cardInsetHtml, w: shot.img.w, h: shot.img.h }} url={url} scene={scene} />
+          <PageImage kit={kit} rect={{ x: shot.img.x - shot.card.x - OPENER.cardInsetHtml, y: shot.img.y - shot.card.y - OPENER.cardInsetHtml, w: shot.img.w, h: shot.img.h }} url={url} scene={scene} focus={cropOr(crop, OPENER_FOCUS)} />
         </div>
       ) : (
-        <PageImage kit={kit} rect={shot.img} url={url} scene={scene} mask={shot.mask} />
+        <PageImage kit={kit} rect={shot.img} url={url} scene={scene} mask={shot.mask} focus={cropOr(crop, OPENER_FOCUS)} />
       )}
       {shot.shade ? (
         <div
@@ -81,7 +82,7 @@ function ChapterMark({ kit, colors, number }: { kit: PageKit; colors: InteriorPa
  * Начальная полоса главы: номер, название, виньетка, эпиграф и рисунок дизайна. photo — снимок главы
  * в оформлениях, где глава открывается фото (без url — пейзаж-заглушка для примеров).
  */
-export function OpenerPage({ kit, number, title, epigraph, photo, className, style }: PageProps & { number: number | null; title: string; epigraph?: string; photo?: { url?: string } }) {
+export function OpenerPage({ kit, number, title, epigraph, photo, className, style }: PageProps & { number: number | null; title: string; epigraph?: string; photo?: { url?: string; crop?: PhotoCrop } }) {
   const { design, format, sizes: S, u } = kit;
   const { fill, align, art } = design.opener;
   const colors = fill ?? design.palette;
@@ -95,12 +96,12 @@ export function OpenerPage({ kit, number, title, epigraph, photo, className, sty
   ];
   return (
     <PageSurface kit={kit} paper={fill?.paper} shapes={shapes} className={className} style={style}>
-      {shot ? <OpenerShot kit={kit} shot={shot} url={photo?.url} scene={number ?? 0} /> : null}
+      {shot ? <OpenerShot kit={kit} shot={shot} url={photo?.url} scene={number ?? 0} crop={photo?.crop} /> : null}
       <TextArea kit={kit} className="flex flex-col">
         <Placed top={shot?.textTop ?? design.opener.top} align={align}>
           <ChapterMark kit={kit} colors={colors} number={number} />
           <div style={{ ...faceCss(design.display, fit.titleSize, u), lineHeight: OPENER.title.lineHeight, color: colors.ink, maxWidth: OPENER.title.maxWidth, overflowWrap: "anywhere" }}>{title}</div>
-          <Vignette kit={kit} rule={VIGNETTE_RULE.opener} colors={colors} align={align} />
+          {design.opener.vignette === false ? <div style={{ height: u.pt(S.vignetteGap) }} /> : <Vignette kit={kit} rule={VIGNETTE_RULE.opener} colors={colors} align={align} />}
           {epigraph ? <div style={{ ...italicBody(kit, S.epigraph), lineHeight: OPENER.epigraph.lineHeight, color: colors.muted, maxWidth: OPENER.epigraph.maxWidth[align], ...(fit.epigraphLines ? { display: "-webkit-box", WebkitBoxOrient: "vertical" as const, WebkitLineClamp: fit.epigraphLines, overflow: "hidden" } : {}) }}>{epigraph}</div> : null}
         </Placed>
       </TextArea>
@@ -116,11 +117,25 @@ export interface PagePhoto {
   height: number;
   caption: string;
   layout: "full" | "bleed" | "half" | "grid";
+  /** Кадр автора (photo-crop.ts); нет — по центру. */
+  crop?: PhotoCrop;
+  /** Фото на всю страницу целиком, без обрезки. */
+  contain?: boolean;
+  /** Точка кадра из редактора фото в ответе (фото на всю страницу из истории). */
+  inline?: { focusX?: number; focusY?: number } | null;
 }
 
 /** Фотостраница: снимки, рамки и подписи по раскладке photo-pages — как в PDF. */
 export function PhotoPage({ kit, photos, scene = 0, className, style }: PageProps & { photos: PagePhoto[]; /** С какого пейзажа-заглушки начинать. */ scene?: number }) {
   const { design, format, sizes: S, u } = kit;
+  // Один снимок «под обрез» — на весь лист, как в PDF (photo-page.tsx), а не в полосе фотостраницы.
+  if (photos.length === 1 && photos[0].layout === "bleed")
+    return (
+      <PageSurface kit={kit} className={className} style={style}>
+        {/* С вылетами, как лист PDF (154×216 при A5): кадр совпадает до миллиметра, лишнее срезает край страницы. */}
+        <PageImage kit={kit} rect={{ x: -print.bleedMm, y: -print.bleedMm, w: format.widthMm + print.bleedMm * 2, h: format.heightMm + print.bleedMm * 2 }} url={photos[0].url} scene={scene} focus={photos[0].contain ? undefined : fillFocus(photos[0])} contain={photos[0].contain} />
+      </PageSurface>
+    );
   const plan = photoPagePlan(photos, photoArea(format), design, S);
   const face = photoCaptionFace(design);
   const caption = (size: number): CSSProperties =>
@@ -129,7 +144,7 @@ export function PhotoPage({ kit, photos, scene = 0, className, style }: PageProp
     <PageSurface kit={kit} paper={design.photos.paper} shapes={plan.under} className={className} style={style}>
       {plan.cells.map((c, i) => {
         const p = photos.find((x) => x.id === c.id)!;
-        return <PageImage key={c.id} kit={kit} rect={c.img} url={p.url} scene={scene + i} />;
+        return <PageImage key={c.id} kit={kit} rect={c.img} url={p.url} scene={scene + i} focus={c.fit === "cover" ? fillFocus(p) : p.crop} contain={p.contain} />;
       })}
       <PageLayer shapes={plan.over} format={format} />
       {plan.cells.map((c) =>
@@ -147,38 +162,72 @@ export function PhotoPage({ kit, photos, scene = 0, className, style }: PageProp
   );
 }
 
-/** Титульный лист. */
+/** Титульный лист; композиция — по дизайну (titlePage.layout), как в PDF. */
 export function TitlePage({ kit, title, subtitle, author, year, className, style }: PageProps & { title: string; subtitle: string; author: string; year: number }) {
   const { design, sizes: S, u } = kit;
   const P = design.palette;
+  const layout = design.titlePage?.layout ?? "center";
+  const scale = metricsOf(kit).scale;
+  const titleEl = (size: number) => (
+    <div style={{ ...faceCss(design.display, size, u), lineHeight: layout === "stack" ? TITLE_LAYOUT.stackLineHeight : FRONT.title.lineHeight, color: P.ink, overflowWrap: "anywhere" }}>{title}</div>
+  );
+  const subtitleEl = subtitle ? <div style={{ ...italicBody(kit, S.subtitle), color: P.muted, marginTop: u.pt(FRONT.subtitle.before), lineHeight: HTML_LINE_HEIGHT.subtitle }}>{subtitle}</div> : null;
+  const authorEl = author ? <div style={labelCss(kit, P.muted)}>{author}</div> : null;
+  const yearEl = <div style={labelCss(kit, P.muted, S.year)}>{year}</div>;
+  let body: React.ReactNode;
+  if (layout === "left")
+    body = (
+      <>
+        <Placed top={DISPLAY_TOP.title} align="left">
+          {titleEl(S.title)}
+          {subtitleEl}
+          <div style={{ width: u.pt(TITLE_LAYOUT.bar * scale), height: u.pt(TITLE_LAYOUT.barThickness), background: P.accent, margin: `${u.pt(S.vignetteGap)} 0` }} />
+          {authorEl}
+        </Placed>
+        {yearEl}
+      </>
+    );
+  else if (layout === "bottom")
+    body = (
+      <>
+        {authorEl}
+        <div className="flex-1" />
+        {titleEl(S.title)}
+        {subtitleEl}
+        <div style={{ height: u.pt(S.vignetteGap * 2) }} />
+        {yearEl}
+      </>
+    );
+  else if (layout === "stack")
+    body = (
+      <>
+        <div className="shrink-0" style={{ height: `${TITLE_LAYOUT.stackTop * 100}%` }} />
+        {titleEl(S.title * TITLE_LAYOUT.stackScale)}
+        {subtitleEl}
+        <div className="flex-1" />
+        <div style={{ height: u.pt(TITLE_LAYOUT.ruleThickness), background: P.ink, marginBottom: u.pt(S.vignetteGap * 0.7) }} />
+        <div className="flex justify-between">
+          {authorEl ?? <span />}
+          {yearEl}
+        </div>
+      </>
+    );
+  else
+    body = (
+      <>
+        <Placed top={DISPLAY_TOP.title}>
+          {titleEl(S.title)}
+          {subtitleEl}
+          <Vignette kit={kit} rule={VIGNETTE_RULE.title} colors={P} />
+          {authorEl}
+        </Placed>
+        <div className="text-center">{yearEl}</div>
+      </>
+    );
   return (
     <PageSurface kit={kit} shapes={pageFrame(kit, P)} className={className} style={style}>
       <TextArea kit={kit} className="flex flex-col">
-        <Placed top={DISPLAY_TOP.title}>
-          <div style={{ ...faceCss(design.display, S.title, u), lineHeight: FRONT.title.lineHeight, color: P.ink, overflowWrap: "anywhere" }}>{title}</div>
-          {subtitle ? <div style={{ ...italicBody(kit, S.subtitle), color: P.muted, marginTop: u.pt(FRONT.subtitle.before), lineHeight: HTML_LINE_HEIGHT.subtitle }}>{subtitle}</div> : null}
-          <Vignette kit={kit} rule={VIGNETTE_RULE.title} colors={P} />
-          {author ? <div style={labelCss(kit, P.muted)}>{author}</div> : null}
-        </Placed>
-        <div className="text-center" style={labelCss(kit, P.muted, S.year)}>
-          {year}
-        </div>
-      </TextArea>
-    </PageSurface>
-  );
-}
-
-/** Оборот титула: копирайт и выходные данные внизу полосы — как в PDF (pdf/interior/colophon.tsx). */
-export function ColophonPage({ kit, year, author, recordedBy, className, style }: PageProps & { year: number; author: string; recordedBy?: string }) {
-  const { design, sizes: S, u } = kit;
-  const t = bookMessagesFor(kit.language);
-  return (
-    <PageSurface kit={kit} className={className} style={style}>
-      <TextArea kit={kit} className="flex flex-col">
-        <div className="flex-1" />
-        <div style={{ fontFamily: cssFont(design.type.body), fontSize: u.pt(S.colophon), lineHeight: FRONT.colophon.lineHeight, color: design.palette.muted, whiteSpace: "pre-line" }}>
-          {`${t.copyright(year, author)}\n${recordedBy ? `${t.recordedBy(recordedBy)}\n` : ""}${t.colophon(site.name)}`}
-        </div>
+        {body}
       </TextArea>
     </PageSurface>
   );
@@ -246,7 +295,7 @@ export function EndPage({ kit, year, className, style }: PageProps & { year: num
  * Страница текста главы для миниатюр: заголовки, абзацы, колонтитул и колонцифра. Текст режется
  * по строкам как в книге — через CSS-колонки размером с полосу набора (видна только первая).
  */
-export function TextPage({ kit, entries, folio, bookTitle, chapterTitle, recto, leadIn, part = 0, tail = false, className, style }: PageProps & {
+export function TextPage({ kit, entries, folio, bookTitle, chapterTitle, recto, leadIn, className, style }: PageProps & {
   entries: SampleEntry[];
   folio: number;
   bookTitle: string;
@@ -254,10 +303,6 @@ export function TextPage({ kit, entries, folio, bookTitle, chapterTitle, recto, 
   recto: boolean;
   /** Это первая страница главы: капитель в начале первого ответа. */
   leadIn: boolean;
-  /** Какая по счёту полоса текста главы (с 0): колонки сдвигаются, и видна именно она. */
-  part?: number;
-  /** Концовка главы после последнего ответа (в листаемой книге — да, в образцах разворота — нет). */
-  tail?: boolean;
 }) {
   const { design, sizes: S, u } = kit;
   const area = textArea(kit.format);
@@ -268,7 +313,6 @@ export function TextPage({ kit, entries, folio, bookTitle, chapterTitle, recto, 
       <RunningHead kit={kit} bookTitle={bookTitle} chapterTitle={chapterTitle} recto={recto} />
       <TextArea kit={kit} className="overflow-hidden">
         <div
-          data-flow
           style={{
             width: u.mm(textW),
             height: u.mm(area.h),
@@ -279,7 +323,6 @@ export function TextPage({ kit, entries, folio, bookTitle, chapterTitle, recto, 
             // абзаца в следующую колонку, ставит следующий абзац на строку выше — строки налезают друг на друга.
             widows: 1,
             orphans: 1,
-            transform: part ? `translateX(calc(${-part} * (${u.mm(textW)} + ${u.mm(side * 2)})))` : undefined,
           }}
         >
           {entries.map((e, i) => (
@@ -288,11 +331,11 @@ export function TextPage({ kit, entries, folio, bookTitle, chapterTitle, recto, 
                 kit={kit}
                 entry={e}
                 leadIn={leadIn && design.leadIn && i === 0 && !e.continued}
+                start={leadIn && i === 0 && !e.continued}
                 head={e.heading ? <QuestionHeading kit={kit}>{e.heading}</QuestionHeading> : i > 0 && !e.continued ? <Divider kit={kit} /> : undefined}
               />
             </div>
           ))}
-          {tail ? <ChapterTail kit={kit} /> : null}
         </div>
       </TextArea>
       <Folio kit={kit} recto={recto}>

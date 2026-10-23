@@ -42,6 +42,8 @@ export const settingDefs = {
   "pay.transferName": { env: "TRANSFER_NAME" },
   /** Через сколько минут не взятая заявка переходит следующему менеджеру по кругу; 0 — не передавать. */
   "crm.reassignMinutes": { default: "15" },
+  /** Куда падает новая заявка по источнику: JSON { messenger | call | site | repeat: id этапа }; нет записи — первый этап воронки. */
+  "crm.entryStages": { default: "{}" },
   /** В успешную сделку заказа можно влить заявку того же контакта, пришедшую не дальше N дней от её закрытия; 0 — нельзя (sales mergeRefusal). */
   "crm.mergeClosedDays": { default: "14" },
   /** Заявки с новых номеров сначала попадают в «Неразобранное»: on | off. */
@@ -108,6 +110,30 @@ export const settingDefs = {
   /** Модель AI-продажника бота (режим «Продаёт», движок AI): свой провайдер и модель или (пусто) — как у AI-помощника. */
   "seller.provider": {},
   "seller.model": {},
+  /**
+   * Маршрутизация продажника (docs/features/bot-llm-routing.md): Claude — основная модель по уровням, остальные провайдеры —
+   * запасные. on — Haiku / Sonnet / Opus по сложности хода; shadow — всегда уровень по умолчанию, выбор только в след и
+   * метрики; off — как раньше: одна модель seller.provider / seller.model без запасных.
+   */
+  "seller.route": { env: "AI_SELLER_ROUTING", default: "on" },
+  /** Модели уровней Claude (пусто — claude-haiku-5-5 / claude-sonnet-5-5 / claude-opus-5-5). */
+  "seller.route.haiku": { env: "AI_MODEL_HAIKU" },
+  "seller.route.sonnet": { env: "AI_MODEL_SONNET" },
+  "seller.route.opus": { env: "AI_MODEL_OPUS" },
+  /** Уровень по умолчанию: haiku | sonnet | opus. */
+  "seller.route.default": { env: "AI_ROUTE_DEFAULT_TIER", default: "haiku" },
+  /** Пороги очков сложности хода для Sonnet и Opus. */
+  "seller.route.sonnetAt": { env: "AI_ROUTE_SONNET_AT", default: "2" },
+  "seller.route.opusAt": { env: "AI_ROUTE_OPUS_AT", default: "6" },
+  /** Сколько дополнительных запросов-эскалаций можно за один ход клиента (0–4). */
+  "seller.route.maxExtra": { env: "AI_ROUTE_MAX_EXTRA", default: "2" },
+  /** Потолок расходов на беседу (пусто — $0.50) и на сутки (пусто — без потолка), $; 0 — без потолка. На потолке — только Haiku. */
+  "seller.route.budget": { env: "AI_ROUTE_BUDGET_USD" },
+  "seller.route.dailyBudget": { env: "AI_ROUTE_DAILY_BUDGET_USD" },
+  /** Прайс, $ за 1M токенов: JSON { "модель": { input, output, cacheRead, cacheWrite } } поверх цен по умолчанию. */
+  "seller.route.prices": { env: "AI_ROUTE_PRICES" },
+  /** Запасные провайдеры продажника по порядку: «openai,deepseek»; пусто — прежний провайдер продажника, если не Claude. */
+  "seller.fallbacks": { env: "AI_SELLER_FALLBACKS" },
   /** Распознавание голосовых и фото клиента для AI-продажника: свой провайдер и модель или (пусто) — как у продажника. */
   "media.provider": {},
   "media.model": {},
@@ -175,6 +201,11 @@ export const settingDefs = {
   "gowa.callbackUrl": { envDefault: "GOWA_CALLBACK_URL" },
   /** Секрет подписи вебхука: сайт сам передаёт его шлюзу при подключении устройства. */
   "gowa.webhookSecret": { secret: true },
+  /**
+   * Звонки WhatsApp из CRM («on»): сотрудники звонят клиентам и отвечают на входящие прямо в браузере. Нужен шлюз со
+   * звонками (deploy/gowa-beta-build.sh) и прокси аудиопотока в nginx (deploy/nginx-mybook.conf, /wa-call/audio).
+   */
+  "gowa.calls": { default: "off" },
   /** Когда история чатов шлюза последний раз загружалась в CRM (ISO): следующий проход берёт только обновившиеся чаты. */
   "gowa.historySyncedAt": {},
 } satisfies Record<string, Def>;

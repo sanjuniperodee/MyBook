@@ -7,7 +7,7 @@ import { container } from "@/server/container";
 import { MAX_EXTRA_PHOTOS } from "@/modules/authoring/domain/Book";
 import { NAMES_ON_COVER_MAX } from "@/lib/book/cover-names";
 import { RECORDED_BY_MAX } from "@/lib/content/kinds";
-import { TOC_LINES_MAX, TOC_MODES, TOC_TITLE_MAX } from "@/lib/book/toc";
+import { TOC_EPIGRAPH_MAX, TOC_LINES_MAX, TOC_MODES, TOC_TITLE_MAX } from "@/lib/book/toc";
 
 const patchSchema = z
   .object({
@@ -32,13 +32,21 @@ const patchSchema = z
     photoFrames: z.record(z.string().max(12), z.object({ zoom: z.number(), x: z.number(), y: z.number() })).refine((o) => Object.keys(o).length <= 12),
     dedication: z.string().trim().max(600),
     interior: z.string().max(40),
+    // Настройки дизайнера страниц и обложка из слоёв: поля и числа проверяет домен (parseInteriorStyle, parseCoverDesign),
+    // здесь — только что это объект разумного размера.
+    interiorStyle: z.record(z.string(), z.unknown()).refine((o) => JSON.stringify(o).length <= 24_000, "tooLarge"),
+    coverDesign: z
+      .record(z.string(), z.unknown())
+      .nullable()
+      .refine((o) => o === null || JSON.stringify(o).length <= 60_000, "tooLarge"),
     format: z.string().max(20),
-    photoPlacement: z.enum(["chapters", "end"]),
+    photoPlacement: z.enum(["chapters", "end", "none"]),
     showToc: z.boolean(),
     tocMode: z.enum(TOC_MODES),
     // Строки оглавления: вид ключей и длину названий проверяет домен (parseTocLines), здесь — только размер.
+    // noOpenerPhoto — «глава без фото» (решение автора для редактора, в вёрстку не идёт).
     tocLines: z
-      .record(z.string().max(90), z.object({ title: z.string().max(TOC_TITLE_MAX).optional(), hidden: z.boolean().optional() }))
+      .record(z.string().max(90), z.object({ title: z.string().max(TOC_TITLE_MAX).optional(), hidden: z.boolean().optional(), epigraph: z.string().max(TOC_EPIGRAPH_MAX).optional(), noOpenerPhoto: z.boolean().optional() }))
       .refine((o) => Object.keys(o).length <= TOC_LINES_MAX),
     occasion: z.string().max(40).nullable(),
     occasionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
@@ -50,7 +58,7 @@ const patchSchema = z
 /** Настройки книги из редактора. Каталоги обложек, оформлений и поводов проверяет домен. */
 export const PATCH = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = idParams(await params, "id");
-  const { viewer } = await apiViewer(req);
+  const { viewer } = await apiViewer(req, id);
   const { language, ...rest } = patchSchema.parse(await req.json());
   const authoring = container().authoring;
   await authoring.books.updateSettings(id, viewer, { ...rest, language: language && isLocale(language) ? language : undefined }, authoring.photoRepository);
@@ -59,7 +67,7 @@ export const PATCH = api(async (req, { params }: { params: Promise<{ id: string 
 
 export const DELETE = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = idParams(await params, "id");
-  const { viewer } = await apiViewer(req);
+  const { viewer } = await apiViewer(req, id);
   await container().authoring.books.delete(id, viewer);
   return NextResponse.json({ ok: true });
 });

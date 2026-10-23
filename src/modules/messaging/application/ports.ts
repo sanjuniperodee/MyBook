@@ -1,4 +1,4 @@
-import type { BotCatalog, BotConfig, BotLesson, CoachConversation, CoachRun, HistoryMessage, BotEvent, BotInput, BotLang, BotMode, BotState, Conversation, ConversationMeta, DealField, FaqIntent, HandoffKind, InboundMessage, PaymentFacts } from "../domain";
+import type { BotCatalog, BotConfig, BotLesson, CoachConversation, CoachRun, HistoryMessage, BotEvent, BotInput, BotLang, BotMode, BotState, Conversation, ConversationMeta, DealField, FaqIntent, HandoffKind, InboundMessage, PaymentFacts, RouteTier } from "../domain";
 
 /**
  * Диалоги. Счётчики (непрочитанные, «ждёт ответа», шаг бота) меняются параллельными вебхуками,
@@ -246,6 +246,8 @@ export interface BotStore {
   incoming(conversationId: string, since: Date): Promise<BotInput[]>;
   /** Журнал бота (метрики в настройках). */
   log(conversationId: string, dealId: string | null, lang: string | null, events: BotEvent[]): Promise<void>;
+  /** Сколько долларов ушло на запросы продажника с момента since (по следам ходов) — суточный потолок расходов. */
+  llmSpentSince?(since: Date): Promise<number>;
 }
 
 /** Что бот узнаёт о клиенте и сделке перед опросом (контексты Sales, Ordering, Authoring — через контейнер). */
@@ -273,14 +275,44 @@ export interface BotSellerModel {
   configured(): Promise<boolean>;
   /**
    * Один запрос со схемой JSON-ответа; возвращает текст ответа модели и токены (для следа хода; провайдер не сообщил —
-   * без них). cachePrefix — стабильное начало system (кэш провайдера).
+   * без них). cachePrefix — стабильное начало system (кэш провайдера). tier — уровень Claude, который выбрал бот по
+   * сложности хода (domain/botRoute.ts); served — кто ответил и во что обошлось (метрики). Ошибка может нести kind (вид
+   * сбоя: context — переписка не влезла в окно модели) и attempts — неудачные попытки.
    */
-  complete(input: { system: string; user: string; schema: Record<string, unknown>; timeoutMs: number; cachePrefix?: string }): Promise<{ text: string; usage?: { input: number; output: number } | null }>;
+  complete(input: { system: string; user: string; schema: Record<string, unknown>; timeoutMs: number; cachePrefix?: string; tier?: RouteTier }): Promise<{ text: string; usage?: { input: number; output: number } | null; served?: RouteServed | null }>;
+  /** Политика маршрутизации (пороги, лимит эскалаций, потолки расходов); нет — один уровень, без эскалаций. */
+  policy?(): Promise<RoutePolicyView>;
   /**
    * Распознать вложение (голосовое → расшифровка, фото → описание). { unsupported } — модель распознавания такое не умеет
    * (больше не пробовать в этой беседе); null — временный сбой.
    */
   media?(input: { system: string; parts: { kind: "image" | "audio"; data: string; mime: string }[]; timeoutMs: number }): Promise<{ text: string } | { unsupported: true; reason?: string } | null>;
+}
+
+/** Что бот знает о маршрутизации из настроек модели продажника. */
+export interface RoutePolicyView {
+  /** on — уровни по сложности; shadow — отвечает уровень по умолчанию, выбор только записывается; off — одна прежняя модель. */
+  mode: "on" | "shadow" | "off";
+  defaultTier: RouteTier;
+  sonnetAt: number;
+  opusAt: number;
+  maxExtra: number;
+  budgetUsd: number | null;
+  dailyBudgetUsd: number | null;
+}
+
+/** Кто ответил на запрос продажника: провайдер, модель, уровень, токены (с кэшем), стоимость, задержка, неудачные попытки. */
+export interface RouteServed {
+  mode: "on" | "shadow" | "off";
+  provider: string;
+  model: string;
+  tier: RouteTier | null;
+  wanted: RouteTier | null;
+  fallback: boolean;
+  usage: { input: number; output: number; cacheRead: number; cacheWrite: number };
+  costUsd: number | null;
+  ms: number;
+  attempts: { provider: string; model: string; tier: RouteTier | null; kind: string; ms: number }[];
 }
 
 /** Файл вложения по id сообщения — для распознавания голосовых и фото моделью продажника. */

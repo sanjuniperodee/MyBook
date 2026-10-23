@@ -2,6 +2,8 @@ import { container } from "@/server/container";
 import { requireStaff } from "@/server/access";
 import { staffOptions } from "@/modules/access/ui";
 import { formatDate } from "@/lib/dates";
+import { ChevronRight } from "lucide-react";
+import { PageHeader } from "@/components/admin/PageHeader";
 import { AutomationCard } from "./AutomationEditor";
 import { getSetting } from "@/modules/workspace";
 import { RULE_STATS_DAYS } from "@/modules/reporting";
@@ -33,26 +35,38 @@ export default async function AutomationsPage() {
     staff: staffOptions(admins),
     holidays: parseHolidays(holidays).map((h) => ({ id: h.id, label: `${h.ru} (${h.date.slice(3)}.${h.date.slice(0, 2)})` })),
   };
+  const card = (r: (typeof rules)[number]) => (
+    <AutomationCard
+      key={r.id}
+      rule={{ id: r.id, name: r.name, trigger: r.trigger, conditions: r.conditions, actions: r.actions, active: r.active }}
+      stats={{ runs: r.runs, last: r.lastRunAt ? formatDate(r.lastRunAt, true) : null, sales: salesLabel(r) }}
+      ctx={ctx}
+    />
+  );
+  const on = rules.filter((r) => r.active);
+  const off = rules.filter((r) => !r.active);
   return (
-    <div className="mx-auto max-w-4xl space-y-5">
-      <div>
-        <h1 className="text-2xl font-semibold">Автоматизации</h1>
-        <p className="mt-1 max-w-2xl text-sm text-muted">
-          Цифровая воронка: событие → условие → действия. Например, «пропущенный звонок → задача перезвонить за 15 минут» или «новая заявка → назначить менеджера по кругу». Каждое правило срабатывает для
-          объекта один раз.
-        </p>
-      </div>
-      <div className="space-y-3">
-        {rules.map((r) => (
-          <AutomationCard
-            key={r.id}
-            rule={{ id: r.id, name: r.name, trigger: r.trigger, conditions: r.conditions, actions: r.actions, active: r.active }}
-            stats={{ runs: r.runs, last: r.lastRunAt ? formatDate(r.lastRunAt, true) : null, sales: salesLabel(r) }}
-            ctx={ctx}
-          />
-        ))}
+    <div className="mx-auto max-w-5xl space-y-6">
+      <PageHeader title="Автоматизации">
+        Цифровая воронка: событие → условие → действия. Например, «пропущенный звонок → задача перезвонить за 15 минут» или «новая заявка → назначить менеджера по кругу». Каждое правило срабатывает для
+        объекта один раз.
+      </PageHeader>
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold">
+          Работают <span className="font-normal text-muted tabular-nums">· {on.length}</span>
+        </h2>
+        {on.map(card)}
         <AutomationCard rule={null} stats={null} ctx={ctx} />
-      </div>
+      </section>
+      {off.length ? (
+        <details className="group space-y-3">
+          <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-semibold marker:hidden [&::-webkit-details-marker]:hidden">
+            <ChevronRight className="size-4 text-muted transition-transform group-open:rotate-90" aria-hidden />
+            Выключены <span className="font-normal text-muted tabular-nums">· {off.length}</span>
+          </summary>
+          <div className="mt-3 space-y-3">{off.map(card)}</div>
+        </details>
+      ) : null}
     </div>
   );
 }

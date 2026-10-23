@@ -37,6 +37,10 @@ export interface OnboardingSales {
   addPayment(input: { dealId: string; clientId: string; amount: number; createdById: string }): Promise<{ id: string }>;
   /** Привязать сделку (и её переписку) к аккаунту клиента. */
   linkClient(dealId: string, clientId: string): Promise<void>;
+  /** Влить «пустые» заявки клиента (из чата, звонка, сайта) в сделку с договорённостью; номера влитых. */
+  absorbRequests(dealId: string, actorId: string): Promise<number[]>;
+  /** Открытые заявки этого номера без клиента — к новому аккаунту (вместе с перепиской). */
+  linkRequests(clientId: string, phone: string): Promise<void>;
 }
 
 /** Клиент из сделки: контакт уже есть в сделке, договорённость и деньги — тоже. */
@@ -171,7 +175,11 @@ export class ClientOnboardingService {
     // Канал привлечения ставим до сделки: она подхватывает метки клиента, и отчёты по каналам сразу видят эту продажу.
     await this.clients.setSource(account.id, manualAttribution(input.channel) as Record<string, string>);
 
-    if (!d) return { clientId: account.id, login: account.login, deal: null, paymentId: null, parts: [], tasks: 0 };
+    // Аккаунт без сделки: заявки этого номера из чата и звонков не остаются «чужими» — привязываются к клиенту.
+    if (!d) {
+      await this.sales.linkRequests(account.id, normalizePhone(input.phone)).catch(() => {});
+      return { clientId: account.id, login: account.login, deal: null, paymentId: null, parts: [], tasks: 0 };
+    }
 
     const { parts, tasks } = await this.openDeals(input, d, account.id, actor);
     return { clientId: account.id, login: account.login, deal: { id: parts[0].dealId, number: parts[0].dealNumber }, paymentId: parts[0].paymentId, parts, tasks };
@@ -199,6 +207,8 @@ export class ClientOnboardingService {
       const deal = await this.openDeal(input, { ...d, agreed: prices[i], prepaid: prepaids[i] }, clientId, actor, count > 1 ? `${i + 1} из ${count}` : null);
       if (batchId) await this.sales.setBatch(deal.id, batchId, i, count);
       // Предоплата — деньги: записываем платёж. Он сразу попадает в выручку (обзор, аналитика, планы, карточка клиента).
+      // Договорённость внесена — заявка клиента из чата или звонка (пустая) вливается в эту сделку, а не живёт рядом (дубль).
+      const absorbed = i === 0 ? await this.sales.absorbRequests(deal.id, actor.userId).catch(() => [] as number[]) : [];
       const paymentId = prepaids[i] > 0 ? (await this.sales.addPayment({ dealId: deal.id, clientId, amount: prepaids[i], createdById: actor.userId })).id : null;
       parts.push({ dealId: deal.id, dealNumber: deal.number, agreed: prices[i], prepaid: prepaids[i], paymentId });
 
@@ -215,6 +225,7 @@ export class ClientOnboardingService {
         count > 1 ? `Всего по пакету: ${count} × ${formatPrice(d.agreed)} = ${formatPrice(total)}; предоплата ${formatPrice(d.prepaid)}.` : null,
         d.comment || null,
         input.password !== undefined && !input.email ? "Почты нет: клиент входит по телефону." : null,
+        absorbed.length ? `Объединено с заявками: №${absorbed.join(", №")} (переписка и история перенесены сюда).` : null,
       ].filter(Boolean) as string[];
       await this.notes.add(actor, { kind: "note", text: terms.join("\n"), clientId, dealId: deal.id });
 

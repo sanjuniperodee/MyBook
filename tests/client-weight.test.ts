@@ -48,7 +48,7 @@ describe("вес клиентских модулей: виды книг", () => 
 
 describe("вес клиентских модулей: банки вопросов", () => {
   /** Банки вопросов всех тем (ru и kk) и каталог тем — сотни строк текста, браузеру они не нужны. */
-  const bank = (f: string) => /^src\/lib\/content\/(themes|love|parent|friend|autobiography|kk\/)/.test(f);
+  const bank = (f: string) => /^src\/lib\/content\/(themes|love|parent|friend|teacher|autobiography|kk\/)/.test(f);
 
   it.each(["src/components/editor/QuestionsEditor.tsx", "src/components/editor/preview/PagePreview.tsx", "src/components/editor/questions/ChapterNav.tsx", "src/components/editor/questions/SectionFields.tsx", "src/components/editor/questions/EmptyEditor.tsx", "src/app/(app)/books/new/NewBookWizard.tsx"])("%s не тянет банки вопросов (вид книги — только из kinds.ts)", (entry) => {
     const seen = [...reach(entry)];

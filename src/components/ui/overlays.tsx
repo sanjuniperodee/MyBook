@@ -8,14 +8,22 @@ import { useMessages } from "@/i18n/client";
 /**
  * Тосты и диалог подтверждения вместо alert/confirm.
  * Вызываются откуда угодно в клиентском коде: toast("Сохранено"), await confirmDialog({...}).
- * Отрисовывает их один компонент <Overlays /> в корневом layout.
+ * Отрисовывает их один компонент <Overlays /> в корневом layout — поверх листов и диалогов страниц.
  */
 
 type ToastKind = "success" | "error" | "info";
+/** Кнопка в тосте: «Отменить» после правки и т. п. Нажали — тост закрывается и выполняется run. */
+export interface ToastAction {
+  label: string;
+  run: () => unknown;
+}
 interface Toast {
   id: number;
   text: string;
   kind: ToastKind;
+  action?: ToastAction;
+  /** Второе действие — рядом, потише (например, «Не печатать его» рядом с «Отменить»). */
+  alt?: ToastAction;
   leaving?: boolean;
 }
 interface ConfirmRequest {
@@ -23,11 +31,16 @@ interface ConfirmRequest {
   text?: string;
   confirmLabel?: string;
   cancelLabel?: string;
+  /** Третья кнопка — другой ответ на вопрос (например, «Не печатать» рядом с «Разложить после глав»): промис вернёт "alt". */
+  altLabel?: string;
   danger?: boolean;
   /** Короткий вопрос: кнопки «Да» / «Да, удалить». */
   short?: boolean;
-  resolve: (ok: boolean) => void;
+  resolve: (ok: boolean | "alt") => void;
 }
+
+/** Сколько живёт тост с действием: успеть прочитать и нажать «Отменить». */
+export const ACTION_TOAST_MS = 7000;
 
 let toasts: Toast[] = [];
 let confirmReq: ConfirmRequest | null = null;
@@ -39,11 +52,19 @@ const emit = () => {
 };
 let seq = 0;
 
-export function toast(text: string, kind: ToastKind = "success") {
+export function toast(text: string, kind: ToastKind = "success", opts: { action?: ToastAction; alt?: ToastAction } = {}) {
   const id = ++seq;
-  toasts = [...toasts.slice(-3), { id, text, kind }];
+  toasts = [...toasts.slice(-3), { id, text, kind, ...(opts.action ? { action: opts.action } : {}), ...(opts.alt ? { alt: opts.alt } : {}) }];
   emit();
-  setTimeout(() => dismiss(id), kind === "error" ? 6000 : 3200);
+  setTimeout(() => dismiss(id), opts.action || opts.alt ? ACTION_TOAST_MS : kind === "error" ? 6000 : 3200);
+}
+
+/** Нажали кнопку в тосте: тост уходит, действие выполняется; ошибка действия — тостом. */
+function runAction(id: number, action: ToastAction) {
+  dismiss(id);
+  Promise.resolve()
+    .then(action.run)
+    .catch((e) => toastError(e));
 }
 
 /** Сообщение об ошибке из исключения (или запасной текст). */
@@ -62,7 +83,9 @@ function dismiss(id: number) {
   }, 180);
 }
 
-export function confirmDialog(opts: Omit<ConfirmRequest, "resolve">): Promise<boolean> {
+export function confirmDialog(opts: Omit<ConfirmRequest, "resolve" | "altLabel">): Promise<boolean>;
+export function confirmDialog(opts: Omit<ConfirmRequest, "resolve"> & { altLabel: string }): Promise<boolean | "alt">;
+export function confirmDialog(opts: Omit<ConfirmRequest, "resolve">): Promise<boolean | "alt"> {
   confirmReq?.resolve(false);
   return new Promise((resolve) => {
     confirmReq = { ...opts, resolve };
@@ -75,7 +98,7 @@ export function ask(title: string, danger = false) {
   return confirmDialog({ title, danger, short: true });
 }
 
-function answer(ok: boolean) {
+function answer(ok: boolean | "alt") {
   const req = confirmReq;
   confirmReq = null;
   emit();
@@ -100,7 +123,10 @@ export function Overlays() {
     const prev = document.activeElement as HTMLElement | null;
     okButton.current?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") answer(false);
+      if (e.key !== "Escape") return;
+      // Escape закрывает только вопрос: лист под ним (closesOnKey) видит, что событие уже обработано.
+      e.preventDefault();
+      answer(false);
     };
     document.addEventListener("keydown", onKey);
     return () => {
@@ -111,20 +137,36 @@ export function Overlays() {
 
   return (
     <>
-      <div className="pointer-events-none fixed inset-x-0 bottom-4 z-[70] flex flex-col items-center gap-2 px-4 sm:bottom-6" role="status" aria-live="polite">
+      <div className="pointer-events-none fixed inset-x-0 bottom-[calc(var(--tabbar-h,0px)+1rem)] z-[110] flex flex-col items-center gap-2 px-4 sm:bottom-[calc(var(--tabbar-h,0px)+1.5rem)] lg:bottom-6" role="status" aria-live="polite">
         {list.map((t) => {
           const Icon = icons[t.kind];
           return (
             <div
               key={t.id}
               className={cn(
-                "pointer-events-auto flex max-w-md items-center gap-3 rounded-2xl py-3 pr-2 pl-4 text-sm shadow-lift transition duration-150",
+                "pointer-events-auto flex max-w-md min-w-0 items-center gap-3 rounded-2xl py-3 pr-2 pl-4 text-sm shadow-lift transition duration-150",
+                // Два действия — второй строкой под текстом: в одну строку на телефоне текст сжимался до слога в строке.
+                t.alt && "flex-wrap gap-y-1",
                 t.kind === "error" ? "bg-[#3b1a1e] text-white" : "bg-ink text-white",
                 t.leaving ? "translate-y-2 opacity-0" : "animate-[toast-in_220ms_var(--ease-out-soft)_both]",
               )}
             >
               <Icon className={cn("size-4 shrink-0", t.kind === "success" ? "text-emerald-300" : t.kind === "error" ? "text-[#f3a7b0]" : "text-white/70")} />
-              <span className="leading-snug">{t.text || m.errors.generic}</span>
+              <span className={cn("min-w-0 leading-snug [overflow-wrap:anywhere]", t.alt && "flex-1")}>{t.text || m.errors.generic}</span>
+              {t.alt || t.action ? (
+                <span className={cn("-my-2 flex shrink-0 items-center", t.alt && "order-last my-0 basis-full justify-end")}>
+                  {t.alt ? (
+                    <button onClick={() => runAction(t.id, t.alt!)} className="min-h-11 rounded-full px-2.5 text-[13px] text-white/75 hover:bg-white/10 hover:text-white">
+                      {t.alt.label}
+                    </button>
+                  ) : null}
+                  {t.action ? (
+                    <button onClick={() => runAction(t.id, t.action!)} className="min-h-11 rounded-full px-3 font-semibold text-white underline decoration-white/40 underline-offset-4 hover:bg-white/10">
+                      {t.action.label}
+                    </button>
+                  ) : null}
+                </span>
+              ) : null}
               <button onClick={() => dismiss(t.id)} className="rounded-full p-1.5 text-white/60 hover:bg-white/10 hover:text-white" aria-label={m.actions.close}>
                 <X className="size-3.5" />
               </button>
@@ -134,9 +176,10 @@ export function Overlays() {
       </div>
 
       {req ? (
-        <div className="fixed inset-0 z-[80] flex items-end justify-center p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+        <div className="fixed inset-0 z-[105] flex items-end justify-center p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
           <div className="absolute inset-0 animate-[vt-fade_180ms_ease-out_both] bg-ink/40 backdrop-blur-[2px]" onClick={() => answer(false)} />
           <div className="relative w-full max-w-sm animate-[toast-in_220ms_var(--ease-out-soft)_both] rounded-3xl bg-white p-6 shadow-lift">
+            <span className="mx-auto -mt-3 mb-3 block h-1 w-9 rounded-full bg-line sm:hidden" aria-hidden />
             {req.danger ? (
               <span className="mb-4 flex size-11 items-center justify-center rounded-2xl bg-red-50 text-red-700">
                 <AlertTriangle className="size-5" />
@@ -150,6 +193,11 @@ export function Overlays() {
               <button className="btn btn-outline" onClick={() => answer(false)}>
                 {req.cancelLabel ?? m.actions.cancel}
               </button>
+              {req.altLabel ? (
+                <button className="btn btn-outline" onClick={() => answer("alt")}>
+                  {req.altLabel}
+                </button>
+              ) : null}
               <button ref={okButton} className={cn("btn", req.danger ? "bg-red-700 text-white hover:bg-red-800" : "btn-primary")} onClick={() => answer(true)}>
                 {req.confirmLabel ?? (req.short ? (req.danger ? m.actions.yesDelete : m.actions.yes) : m.actions.confirm)}
               </button>

@@ -7,6 +7,13 @@ import { AdminNav } from "@/components/admin/AdminNav";
 import { CrmLiveProvider, IncomingCall, NotificationBell } from "@/components/admin/CrmLive";
 import { Webphone } from "@/components/admin/Webphone";
 import { can } from "@/server/access";
+import { autoShiftOnVisit } from "@/server/shift";
+import { THEME_SCRIPT, ThemeSync, ThemeToggle } from "@/components/admin/Theme";
+import { WhatsappCallProvider } from "@/components/admin/WhatsappCall";
+import { NavMotion } from "@/components/admin/NavMotion";
+import { MobileTabBar } from "@/components/admin/MobileTabBar";
+import { PullToRefresh } from "@/components/admin/PullToRefresh";
+import { layoutTabs, mobileLayout } from "@/shared/domain/mobileLayout";
 
 export const metadata = {
   title: { default: "CRM", template: "%s · CRM" },
@@ -16,7 +23,11 @@ export const metadata = {
   appleWebApp: { capable: true, title: "MyBooks CRM", statusBarStyle: "default" as const },
 };
 
-export const viewport = { themeColor: "#7a1f2b" };
+// viewport-fit=cover — экран до краёв (вырез и «домашняя» полоска iPhone учитываются отступами env(safe-area-inset-*)); клавиатура ужимает страницу, а не перекрывает её.
+export const viewport = { themeColor: "#7a1f2b", viewportFit: "cover" as const, interactiveWidget: "resizes-content" as const };
+
+// Открыто как установленное приложение — страница не «резинится» при протяжке (см. .crm-shell в globals.css).
+const STANDALONE_SCRIPT = `try{if(matchMedia("(display-mode: standalone)").matches||navigator.standalone===true)document.documentElement.dataset.standalone="1"}catch(e){}`;
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const { staff, gate } = await requireStaffShell();
@@ -24,6 +35,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     // Владелец включил обязательную 2FA: пока сотрудник её не настроит, доступна только страница «Безопасность».
     return (
       <div className="min-h-dvh bg-[#f7f4ef]">
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+        <ThemeSync />
         <header className="flex h-14 items-center justify-between border-b border-line bg-white px-4 sm:px-6">
           <span className="font-semibold">MyBooks CRM</span>
           <form action={logoutAction}>
@@ -34,28 +47,50 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       </div>
     );
   }
-  const [live, phone] = await Promise.all([container().reporting.live(staff.context), can(staff, "calls.make") ? container().telephony.phone.webphoneAvailable(staff.user.sipExtension) : false]);
-  const nav = { adminName: staffLabel(staff.user), roleName: staff.roleName, perms: [...staff.permissions], onShift: staff.user.onShift };
+  // Зашёл в рабочее время — сразу «в сети».
+  const onShift = await autoShiftOnVisit(staff);
+  const calls = can(staff, "calls.make");
+  // Звонки WhatsApp из CRM — кнопки «WhatsApp», ответ на входящие и панель звонка (если включены в «Интеграциях»).
+  const [live, phone, waCalls, pbx] = await Promise.all([
+    container().reporting.live(staff.context),
+    calls ? container().telephony.phone.webphoneAvailable(staff.user.sipExtension) : false,
+    calls ? container().telephony.whatsapp.enabled() : false,
+    // Звонок через АТС есть только с Zadarma и внутренним номером; нет — «Позвонить» звонит в WhatsApp.
+    calls && staff.user.sipExtension ? container().telephony.phone.currentProvider().then((p) => p === "zadarma") : false,
+  ]);
+  const nav = { adminName: staffLabel(staff.user), roleName: staff.roleName, perms: [...staff.permissions], onShift };
+  // Нижняя панель на телефоне — по роли, как в приложении.
+  const layout = mobileLayout((p) => can(staff, p), staff.isOwner);
+  const tabs = layoutTabs(layout, (p) => can(staff, p));
   return (
     <CrmLiveProvider initial={live}>
-      <div className="flex min-h-dvh bg-[#f7f4ef]">
-        <AdminNav variant="sidebar" {...nav} />
-        <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-line bg-white/85 px-4 backdrop-blur sm:px-6">
-            <AdminNav variant="mobile" {...nav} />
-            <form action="/admin/search" className="relative w-full max-w-md">
-              <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" />
-              <input name="q" placeholder="Поиск: сделка, заказ, имя, телефон, книга" className="h-9 w-full rounded-xl border border-line bg-[#f7f4ef] pr-3 pl-9 text-sm outline-none focus:border-wine/40 focus:bg-white" />
-            </form>
-            <div className="ml-auto flex items-center gap-1">
-              {phone ? <Webphone /> : null}
-              <NotificationBell />
-            </div>
-          </header>
-          <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:py-8">{children}</main>
+      <WhatsappCallProvider enabled={waCalls} pbx={pbx}>
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: STANDALONE_SCRIPT }} />
+        <ThemeSync />
+        <div className="crm-shell flex min-h-dvh bg-[#f7f4ef]">
+          <AdminNav variant="sidebar" {...nav} />
+          <div className="flex min-w-0 flex-1 flex-col">
+            <header style={{ viewTransitionName: "crm-topbar" }} className="crm-topbar sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-line bg-white/85 px-4 backdrop-blur sm:px-6">
+              <form action="/admin/search" className="relative w-full max-w-md">
+                <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" />
+                <input name="q" placeholder="Поиск: сделка, заказ, имя, телефон, книга" className="h-9 w-full rounded-xl border border-line bg-[#f7f4ef] pr-3 pl-9 text-sm outline-none focus:border-wine/40 focus:bg-white" />
+              </form>
+              <div className="ml-auto flex items-center gap-1">
+                <ThemeToggle />
+                {phone ? <Webphone /> : null}
+                <NotificationBell />
+              </div>
+            </header>
+            <main className="crm-main min-w-0 flex-1 px-4 py-5 sm:px-6 lg:py-8">
+              <PullToRefresh>{children}</PullToRefresh>
+            </main>
+          </div>
         </div>
-      </div>
-      <IncomingCall />
+        <NavMotion />
+        <MobileTabBar tabs={tabs} profileLabel={layout === "leader" ? "Ещё" : "Профиль"} />
+        <IncomingCall />
+      </WhatsappCallProvider>
     </CrmLiveProvider>
   );
 }

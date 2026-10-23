@@ -6,6 +6,7 @@
 import { messagesFor } from "@/i18n/messages";
 import { bookKind } from "../content/kinds";
 import { getTheme } from "../content/themes";
+import { withCoverPhotos, type CoverSettings } from "./cover-photos";
 import { assembleBookContent, type BookLike, type BookTexts, type ChapterLike, type LetterLike, type PhotoItem, type QuestionLike } from "./layout";
 
 /**
@@ -36,8 +37,9 @@ export function bookTexts(book: Pick<BookLike, "theme" | "language">, chapters: 
 
 /**
  * Книга для печати, превью, оценки объёма и отпечатка кэша. Главы автора — обязательный вход (у книг с банком — []),
- * чтобы ни одна точка сборки не напечатала свою книгу без её глав.
+ * чтобы ни одна точка сборки не напечатала свою книгу без её глав. Снимки, которые обложка печатает на самом деле
+ * (шаблон, вариант оборота), считаются здесь по полной строке книги — каталог обложек в браузер не идёт.
  */
-export function buildBookContent(book: BookLike, questions: QuestionLike[], photos: PhotoItem[], chapters: readonly ChapterLike[], year = new Date().getFullYear(), letters: LetterLike[] = []) {
-  return assembleBookContent(book, questions, photos, bookTexts(book, chapters), year, letters);
+export function buildBookContent(book: BookLike & Partial<CoverSettings>, questions: QuestionLike[], photos: PhotoItem[], chapters: readonly ChapterLike[], year = new Date().getFullYear(), letters: LetterLike[] = []) {
+  return assembleBookContent(withCoverPhotos(book, photos.map((p) => p.id)), questions, photos, bookTexts(book, chapters), year, letters);
 }

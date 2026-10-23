@@ -2,7 +2,7 @@ import "server-only";
 import { and, eq, gt, isNotNull, ne, or, sql } from "drizzle-orm";
 import { crmCalls, crmConversations, crmDeals, crmTasks, orders, reviews } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
-import { missedCalls, todayTasks, visibleTo } from "./conditions";
+import { missedCalls, ownClientOrders, todayTasks, visibleTo } from "./conditions";
 import type { StaffView } from "./Staff";
 
 export interface CrmCounters {
@@ -28,7 +28,7 @@ export async function crmCounters(staff: Pick<StaffView, "userId" | "scope" | "c
       ? db
           .select({ n: count })
           .from(orders)
-          .where(or(and(eq(orders.status, "paid"), ne(orders.plan, "digital")), and(eq(orders.status, "pending_payment"), isNotNull(orders.paymentClaimedAt))))
+          .where(and(or(and(eq(orders.status, "paid"), ne(orders.plan, "digital")), and(eq(orders.status, "pending_payment"), isNotNull(orders.paymentClaimedAt))), ownClientOrders(viewer)))
       : zero,
     db.select({ n: count }).from(crmTasks).where(todayTasks(staff.userId)),
     staff.can("chats.view")

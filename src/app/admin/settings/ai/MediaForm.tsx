@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import { CheckCircle2 } from "lucide-react";
 import { aiProviderIds, aiProviders, type AiProvider } from "@/modules/assistant/domain/providers";
 import { SubmitButton } from "@/components/ui/SubmitButton";
+import { Intro } from "@/components/admin/Intro";
 import { Section, Status, Result, SecretInput, Choice } from "../ui";
 import type { SettingsState } from "../state";
 import { saveMediaAction } from "./actions";
@@ -42,11 +43,11 @@ export function MediaForm({
   const cannot = savedEffective === "deepseek";
   const connected = ready(savedEffective) && !cannot;
   return (
-    <Section title="Голосовые и фото клиента (бот)" badge={<Status on={connected} label={cannot ? "DeepSeek не слушает голосовые — выберите OpenRouter" : !connected ? "не подключено — голосовые бот не слушает" : `${aiProviders[savedEffective].label} · ${shownModel}`} />}>
-      <p className="mb-3 text-sm text-ink-soft">
+    <Section defaultOpen={false} title="Голосовые и фото клиента (бот)" badge={<Status on={connected} label={cannot ? "DeepSeek не слушает голосовые — выберите OpenRouter" : !connected ? "не подключено — голосовые бот не слушает" : `${aiProviders[savedEffective].label} · ${shownModel}`} />}>
+      <Intro className="mb-4">
         Этой моделью AI-продажник расшифровывает голосовые и описывает фото клиента (Бот → Продажи → «Слушать голосовые и смотреть фото»), а дальше отвечает на них, как на текст. Нужна модель, которая понимает аудио и изображения:
         лучше всего <code className="rounded bg-cream px-1">{OPENROUTER_MEDIA_MODEL}</code> через OpenRouter — слушает голосовые и видит фото, около 0,3 ₸ за голосовое, но OpenRouter принимает аудио только при балансе от $0.50 (бесплатные модели аудио не берут). Бесплатно — Groq: ключ на console.groq.com, модель Whisper расшифровывает голосовые (фото — нет). Claude видит фото, но не слушает голосовые; DeepSeek не умеет ни то, ни другое.
-      </p>
+      </Intro>
       <form action={action} className="space-y-3">
         <div className="flex flex-wrap gap-2 text-sm">
           <Choice active={p === ""}>

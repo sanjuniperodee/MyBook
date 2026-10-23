@@ -4,13 +4,22 @@
  */
 import { getDeliveryOptions, productionWorkdays, type DeliveryId, type PlanId } from "@/config/site";
 
-export type OccasionId = "anniversary" | "birthday" | "valentine" | "march8" | "newyear" | "wedding" | "parents" | "graduation" | "other";
+export type OccasionId = "anniversary" | "birthday" | "valentine" | "march8" | "newyear" | "wedding" | "parents" | "graduation" | "teachersday" | "other";
 
 /** Названия поводов на обоих языках — в словаре: common.occasions[id]. */
 interface Occasion {
   id: OccasionId;
   /** Фиксированная дата праздника (месяц 1–12, день). */
   fixed?: { month: number; day: number };
+  /** Праздник без постоянного числа: дата в заданном году. */
+  floating?: (year: number) => Date;
+}
+
+/** День учителя в Казахстане — первое воскресенье октября. */
+function firstSundayOfOctober(year: number): Date {
+  const d = new Date(year, 9, 1);
+  d.setDate(1 + ((7 - d.getDay()) % 7));
+  return d;
 }
 
 const occasions: Occasion[] = [
@@ -22,6 +31,7 @@ const occasions: Occasion[] = [
   { id: "wedding" },
   { id: "parents" },
   { id: "graduation" },
+  { id: "teachersday", floating: firstSundayOfOctober },
   { id: "other" },
 ];
 
@@ -35,6 +45,7 @@ const themeOccasions: Record<string, OccasionId[]> = {
   mom: ["birthday", "march8", "parents", "graduation", "wedding", "newyear", "other"],
   dad: ["birthday", "parents", "newyear", "graduation", "wedding", "other"],
   friend: ["birthday", "wedding", "graduation", "newyear", "march8", "other"],
+  teacher: ["teachersday", "graduation", "birthday", "march8", "newyear", "other"],
   // Автобиография — к юбилею рассказчика, к празднику семьи; своя книга (blank) — любой повод.
   autobiography: ["birthday", "parents", "newyear", "other"],
 };
@@ -74,12 +85,14 @@ export function startOfDay(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
 
-/** Ближайшая дата праздника с фиксированной датой (сегодня — ещё считается). */
+/** Ближайшая дата праздника с известной датой — постоянной или по правилу (сегодня — ещё считается). */
 export function nextFixedDate(o: Occasion, now: Date): string | null {
-  if (!o.fixed) return null;
+  const { fixed, floating } = o;
+  const at = fixed ? (year: number) => new Date(year, fixed.month - 1, fixed.day) : floating;
+  if (!at) return null;
   const today = startOfDay(now);
-  let d = new Date(today.getFullYear(), o.fixed.month - 1, o.fixed.day);
-  if (d < today) d = new Date(today.getFullYear() + 1, o.fixed.month - 1, o.fixed.day);
+  let d = at(today.getFullYear());
+  if (d < today) d = at(today.getFullYear() + 1);
   return toIsoDay(d);
 }
 

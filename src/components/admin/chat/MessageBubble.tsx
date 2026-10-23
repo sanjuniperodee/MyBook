@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { AlertCircle, Ban, Bot, Check, CheckCheck, ChevronDown, Clock, Copy, Download, FileText, Forward, Lock, Pencil, Play, Reply, Trash2 } from "lucide-react";
+import { memo, useEffect, useRef, useState } from "react";
+import { AlertCircle, Ban, Bot, Check, CheckCheck, CheckSquare, ChevronDown, Slash, Clock, Copy, Download, FileText, Forward, Lock, Pencil, Play, Reply, Trash2 } from "lucide-react";
 import type { ChatMessage } from "@/modules/messaging";
 import { cn } from "@/lib/class-names";
 import { VoicePlayer } from "./VoicePlayer";
@@ -14,7 +14,19 @@ export type Msg = ChatMessage & { localSrc?: string; fileName?: string };
 const EDIT_MS = 15 * 60_000;
 const DELETE_MS = 48 * 3_600_000;
 
-export const time = (iso: string, tz: string) => new Intl.DateTimeFormat("ru-RU", { timeZone: tz, hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
+/**
+ * Intl.DateTimeFormat дорог в создании (на телефоне — доли миллисекунды), а лента зовёт его по нескольку раз на каждое
+ * сообщение при каждой перерисовке. Поэтому форматтеры создаются один раз на (локаль, пояс, вид).
+ */
+const formatters = new Map<string, Intl.DateTimeFormat>();
+export function formatter(locale: string, tz: string, kind: string, options: Intl.DateTimeFormatOptions) {
+  const key = `${locale}|${tz}|${kind}`;
+  let f = formatters.get(key);
+  if (!f) formatters.set(key, (f = new Intl.DateTimeFormat(locale, { timeZone: tz, ...options })));
+  return f;
+}
+
+export const time = (iso: string, tz: string) => formatter("ru-RU", tz, "time", { hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
 
 /** Адрес вложения: через наш сервер (файл шлюза или хранилища, с проверкой доступа), ссылка канала или локальное превью. */
 export const mediaSrc = (m: Msg) => m.localSrc ?? (m.gateway ? `/api/admin/chats/messages/${m.id}/media` : m.mediaUrl);
@@ -91,13 +103,13 @@ function Attachment({ m, conversationId, onOpen, onVoiceEnded }: { m: Msg; conve
     return (
       <button type="button" onClick={onOpen} className="mb-1 block overflow-hidden rounded-xl" aria-label="Открыть фото">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={src} alt="" className="max-h-72 min-h-24 max-w-full min-w-24 object-cover" loading="lazy" onError={() => setBroken(true)} />
+        <img src={src} alt="" className="max-h-72 min-h-24 max-w-full min-w-24 object-cover" loading="lazy" decoding="async" onError={() => setBroken(true)} />
       </button>
     );
   if (m.type === "video")
     return (
       <button type="button" onClick={onOpen} className="relative mb-1 block overflow-hidden rounded-xl bg-black" aria-label="Открыть видео">
-        <video src={src} preload="metadata" muted playsInline className="max-h-72 max-w-full" onError={() => setBroken(true)} />
+        <video src={src} preload="none" muted playsInline className="max-h-72 max-w-full" onError={() => setBroken(true)} />
         <span className="absolute inset-0 flex items-center justify-center">
           <span className="flex size-12 items-center justify-center rounded-full bg-black/55 text-white">
             <Play className="ml-0.5 size-6" fill="currentColor" />
@@ -108,11 +120,22 @@ function Attachment({ m, conversationId, onOpen, onVoiceEnded }: { m: Msg; conve
   return file;
 }
 
+/** Сообщение можно выбрать для пересылки или удаления (не удалённое и не ещё отправляемое). */
+export const selectable = (m: Msg) => !m.deleted && !isTemp(m);
+
+/** Можно переслать: не заметка, есть текст или вложение. */
+export const canForward = (m: Msg) => selectable(m) && !m.internal && (!!m.text || m.type !== "text");
+
+/** Можно удалить: своё, в окне WhatsApp (заметка и неотправленное — всегда). */
+export const canRemove = (m: Msg, me: string, now: number) => selectable(m) && m.direction === "out" && !!m.authorId && m.authorId === me && (m.internal || m.status === "error" || now - new Date(m.at).getTime() < DELETE_MS);
+
 export interface BubbleActions {
   reply?: () => void;
   forward?: () => void;
   edit?: () => void;
   remove?: () => void;
+  select?: () => void;
+  template?: () => void;
 }
 
 /**
@@ -120,7 +143,7 @@ export interface BubbleActions {
  * карточкой), цитата ответа, «пересланное», «изменено», удалённое. Меню — по наведению (⌄), правому клику или
  * долгому нажатию: ответить, переслать, копировать, изменить и удалить своё.
  */
-export function MessageBubble({
+function Bubble({
   m,
   me,
   now,
@@ -130,6 +153,7 @@ export function MessageBubble({
   conversationId,
   canSend,
   highlighted,
+  selecting = false,
   onAction,
   onOpenMedia,
   onJump,
@@ -146,6 +170,8 @@ export function MessageBubble({
   conversationId: string;
   canSend: boolean;
   highlighted: boolean;
+  /** Идёт выбор сообщений: меню не нужно, клик отмечает сообщение (обрабатывает лента). */
+  selecting?: boolean;
   onAction: (kind: keyof BubbleActions | "copy", m: Msg) => void;
   onOpenMedia: (id: string) => void;
   onJump: (id: string) => void;
@@ -166,12 +192,14 @@ export function MessageBubble({
   const age = now - new Date(m.at).getTime();
   const temp = isTemp(m);
   const items: { key: keyof BubbleActions | "copy"; label: string; icon: typeof Reply; danger?: boolean }[] = [];
-  if (!m.deleted && !temp) {
+  if (!m.deleted && !temp && !selecting) {
     if (canSend && !m.internal) items.push({ key: "reply", label: "Ответить", icon: Reply });
-    if (canSend && !m.internal && (m.text || m.type !== "text")) items.push({ key: "forward", label: "Переслать", icon: Forward });
+    if (canSend && canForward(m)) items.push({ key: "forward", label: "Переслать", icon: Forward });
     if (m.text) items.push({ key: "copy", label: "Копировать текст", icon: Copy });
+    if (!m.internal && hasCaption(m)) items.push({ key: "template", label: "Создать шаблон (/)", icon: Slash });
     if (own && m.type === "text" && m.status !== "error" && (m.internal || age < EDIT_MS)) items.push({ key: "edit", label: "Изменить", icon: Pencil });
-    if (own && (m.internal || m.status === "error" || age < DELETE_MS)) items.push({ key: "remove", label: m.internal || m.status === "error" ? "Удалить" : "Удалить у всех", icon: Trash2, danger: true });
+    if (canRemove(m, me, now)) items.push({ key: "remove", label: m.internal || m.status === "error" ? "Удалить" : "Удалить у всех", icon: Trash2, danger: true });
+    items.push({ key: "select", label: "Выбрать", icon: CheckSquare });
   }
 
   useEffect(() => {
@@ -318,7 +346,7 @@ export function MessageBubble({
           {out ? <StatusIcon status={m.status} /> : null}
         </div>
         <div className="clear-both" />
-        {failed && m.error ? <div className="mt-1 flex items-center gap-1 text-[12px] text-red-700"><AlertCircle className="size-3.5" /> {m.error}</div> : null}
+        {failed && m.error ? <div className="mt-1 flex items-start gap-1 text-[12px] text-red-700"><AlertCircle className="mt-0.5 size-3.5 shrink-0" /> <span className="min-w-0 [overflow-wrap:anywhere]">{m.error}</span></div> : null}
         {/* Ответ AI-продажника: что решила модель и что сделал код. */}
         {isBot && m.trace && !m.deleted && !temp ? <BotTraceButton conversationId={conversationId} messageId={m.id} /> : null}
         {menuEl}
@@ -326,3 +354,21 @@ export function MessageBubble({
     </div>
   );
 }
+
+/** Для сравнения перерисовок: «сейчас» важно лишь тем, что от него зависят окна правки и удаления сообщения. */
+const windows = (m: Msg, now: number) => {
+  const age = now - new Date(m.at).getTime();
+  return (age < EDIT_MS ? 1 : 0) + (age < DELETE_MS ? 2 : 0);
+};
+
+/**
+ * Лента на 150 сообщений не должна перерисовываться целиком из-за таймера «сейчас» (раз в полминуты), набора текста,
+ * выделения одного сообщения или обновления страницы: пузырь перерисовывается, только если изменилось его сообщение или
+ * то, что он показывает. Ссылки на сообщения ChatPanel сохраняет между обновлениями, обработчики у него стабильные.
+ */
+export const MessageBubble = memo(Bubble, (a, b) => {
+  const { now: an, ...ar } = a;
+  const { now: bn, ...br } = b;
+  for (const k of Object.keys(ar) as (keyof typeof ar)[]) if (ar[k] !== br[k]) return false;
+  return windows(a.m, an) === windows(b.m, bn);
+});

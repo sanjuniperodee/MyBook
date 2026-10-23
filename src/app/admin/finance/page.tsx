@@ -58,9 +58,9 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
           </p>
         </div>
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-          <div className="flex rounded-xl border border-line bg-white p-1 text-sm">
+          <div className="flex max-w-full overflow-x-auto rounded-xl border border-line bg-white p-1 text-sm">
             {PRESETS.map(([key, label]) => (
-              <Link key={key} href={`/admin/finance?p=${key}`} className={cn("rounded-lg px-3 py-1.5", period.preset === key ? "bg-ink text-white" : "text-ink-soft hover:bg-cream")}>
+              <Link key={key} href={`/admin/finance?p=${key}`} className={cn("inline-flex min-h-10 items-center rounded-lg px-3 whitespace-nowrap lg:min-h-0 lg:py-1.5", period.preset === key ? "bg-ink text-white" : "text-ink-soft hover:bg-cream")}>
                 {label}
               </Link>
             ))}
@@ -199,7 +199,7 @@ function Received({ s }: { s: FinanceScreen }) {
           {s.recent.length > RECENT ? <span className="text-xs text-muted">показаны {RECENT} из {s.recent.length}</span> : null}
         </div>
         {s.recent.length ? (
-          <table className="w-full min-w-[960px] text-sm" data-testid="finance-recent">
+          <table className="w-full min-w-[960px] [&_tr>*:first-child]:sticky [&_tr>*:first-child]:left-0 [&_tr>*:first-child]:bg-white [&_tr>*:first-child]:z-[1] text-sm" data-testid="finance-recent">
             <thead className="text-left text-xs text-muted">
               <tr>
                 <th className="pb-2 font-medium">Когда</th>
@@ -272,7 +272,7 @@ function Expected({ s }: { s: FinanceScreen }) {
       </div>
       <div className="overflow-x-auto rounded-2xl border border-line bg-white p-5">
         {rows.length ? (
-          <table className="w-full min-w-[980px] text-sm" data-testid="finance-expected">
+          <table className="w-full min-w-[980px] [&_tr>*:first-child]:sticky [&_tr>*:first-child]:left-0 [&_tr>*:first-child]:bg-white [&_tr>*:first-child]:z-[1] text-sm" data-testid="finance-expected">
             <thead className="text-left text-xs text-muted">
               <tr>
                 <th className="pb-2 font-medium">Клиент</th>
@@ -326,7 +326,7 @@ function Issues({ s }: { s: FinanceScreen }) {
     >
       <div className="overflow-x-auto rounded-2xl border border-line bg-white p-5">
         {s.issues.length ? (
-          <table className="w-full min-w-[860px] text-sm" data-testid="finance-issues">
+          <table className="w-full min-w-[860px] [&_tr>*:first-child]:sticky [&_tr>*:first-child]:left-0 [&_tr>*:first-child]:bg-white [&_tr>*:first-child]:z-[1] text-sm" data-testid="finance-issues">
             <thead className="text-left text-xs text-muted">
               <tr>
                 <th className="pb-2 font-medium">Что случилось</th>
@@ -395,7 +395,7 @@ function Review({ s, canReview }: { s: FinanceScreen; canReview: { deal: boolean
     >
       <div className="overflow-x-auto rounded-2xl border border-line bg-white p-5">
         {s.review.length ? (
-          <table className="w-full min-w-[860px] text-sm" data-testid="finance-review-list">
+          <table className="w-full min-w-[860px] [&_tr>*:first-child]:sticky [&_tr>*:first-child]:left-0 [&_tr>*:first-child]:bg-white [&_tr>*:first-child]:z-[1] text-sm" data-testid="finance-review-list">
             <thead className="text-left text-xs text-muted">
               <tr>
                 <th className="pb-2 font-medium">Когда</th>

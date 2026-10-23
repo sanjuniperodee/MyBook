@@ -1,6 +1,6 @@
 import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { GOWA_MESSAGE_ID, gowaDownloadPhone, gowaJid, isGowaMediaPath } from "../domain/gowa";
+import { GOWA_CALL_ID, GOWA_MESSAGE_ID, gowaDownloadPhone, gowaJid, isGowaMediaPath } from "../domain/gowa";
 
 const GOWA_ERROR = Symbol.for("mybook.gowa-error");
 
@@ -11,6 +11,8 @@ export class GowaError extends Error {
     message: string,
     /** Код ошибки шлюза (DEVICE_NOT_FOUND, INVALID_JID…), если он его прислал. */
     readonly code: string | null = null,
+    /** HTTP-статус ответа шлюза; null — шлюз не ответил. */
+    readonly status: number | null = null,
   ) {
     super(message);
   }
@@ -52,8 +54,11 @@ export const GOWA_DEVICE = "mybooks";
 /** Больше записей за запрос шлюз не отдаёт («limit: must be no greater than 100»). */
 export const GOWA_PAGE_LIMIT = 100;
 
-/** События, которые нужны CRM: сообщения и отметки о доставке. */
-const WEBHOOK_EVENTS = "message,message.ack";
+/**
+ * События, которые нужны CRM: сообщения, отметки о доставке и входящие звонки — call.offer обычного шлюза и call.incoming
+ * шлюза со звонками (какое из них в работе, решает настройка «Звонки WhatsApp»).
+ */
+const WEBHOOK_EVENTS = "message,message.ack,call.offer,call.incoming";
 
 type Method = "GET" | "POST" | "PATCH";
 
@@ -108,7 +113,9 @@ export class GowaClient {
     form.set("phone", gowaJid(chatId));
     if (opts.caption && file.kind !== "audio") form.set("caption", opts.caption);
     if (opts.forwarded) form.set("is_forwarded", "true");
-    form.set(field, new Blob([file.data as BlobPart], { type: file.mime || "application/octet-stream" }), file.name || "file");
+    // Шлюз сверяет Content-Type с точным списком («audio/ogg»), а «audio/ogg; codecs=opus» отвергает как неразрешённый тип — параметры отбрасываем.
+    const type = file.mime.split(";")[0].trim().toLowerCase() || "application/octet-stream";
+    form.set(field, new Blob([file.data as BlobPart], { type }), file.name || "file");
     const res = await this.json<{ results?: { message_id?: string } }>("POST", `/send/${field}`, form, 120_000);
     return res.results?.message_id ?? null;
   }
@@ -124,6 +131,26 @@ export class GowaClient {
     if (!GOWA_MESSAGE_ID.test(messageId)) throw new GowaError("Неверный id сообщения");
     await this.json("POST", `/message/${encodeURIComponent(messageId)}/revoke`, { phone: gowaJid(chatId) });
   }
+
+  /**
+   * Состояние шлюза для экрана чата: открытие чата и каждое его обновление спрашивали шлюз заново, а он обрабатывает
+   * события номера по очереди (история, медиа) и может отвечать долго. Ответ живёт maxAgeMs, параллельные вызовы
+   * ждут один общий запрос. Настройки и проверки после действий берут свежее status().
+   */
+  cachedStatus(maxAgeMs = 10_000, now: () => number = Date.now): Promise<GowaStatus> {
+    const hit = this.statusCache;
+    if (hit && now() - hit.at < maxAgeMs) return hit.value;
+    const value = this.status();
+    const entry = { at: now(), value };
+    this.statusCache = entry;
+    // Ответ, который не дошёл до шлюза, не держим — следующий вызов спросит снова.
+    void value.then((s) => {
+      if (!s.reachable && this.statusCache === entry) this.statusCache = null;
+    });
+    return value;
+  }
+
+  private statusCache: { at: number; value: Promise<GowaStatus> } | null = null;
 
   async status(): Promise<GowaStatus> {
     const off = { registered: false, connected: false, loggedIn: false, phone: "" };
@@ -159,6 +186,7 @@ export class GowaClient {
 
   /** Отвязать номер: сессия WhatsApp удаляется, устройство и его вебхук остаются — номер можно привязать заново. */
   async logout() {
+    this.statusCache = null;
     await this.json("POST", `/devices/${GOWA_DEVICE}/logout`);
   }
 
@@ -195,11 +223,57 @@ export class GowaClient {
     return { messages: res.results?.data ?? [], total: res.results?.pagination?.total ?? 0 };
   }
 
+  // ─── звонки (шлюз со звонками, WHATSAPP_BETA_CALL_ENABLED=true) ───────────
+
+  /**
+   * Шлюз умеет звонки: у сборки со звонками пустой id звонка — ошибка проверки (400), у обычной маршрута нет (404 без кода).
+   * null — не понять (номер не заведён в шлюзе, шлюз недоступен).
+   */
+  async callsSupported(): Promise<boolean | null> {
+    try {
+      await this.json("POST", "/call/hangup", { call_id: "" });
+      return true;
+    } catch (err) {
+      if (!GowaError.is(err)) throw err;
+      if (err.status === 400) return true;
+      if (err.status === 404 && !err.code) return false;
+      return null;
+    }
+  }
+
+  /** Позвонить клиенту (голосом, 1:1). Возвращает id звонка WhatsApp — по нему аудиопоток, ответ и «положить трубку». */
+  async callStart(phone: string): Promise<string> {
+    const digits = phone.replace(/\D/g, "");
+    if (digits.length < 10) throw new GowaError("Неверный номер телефона");
+    const res = await this.json<{ results?: { call_id?: unknown } }>("POST", "/call/start", { target: gowaJid(digits) }, 30_000);
+    const id = typeof res.results?.call_id === "string" ? res.results.call_id : "";
+    if (!GOWA_CALL_ID.test(id)) throw new GowaError("Шлюз не вернул id звонка");
+    return id;
+  }
+
+  /** Ответить на входящий звонок (он звонит, пока звонящий не положит трубку). */
+  async callAnswer(callId: string) {
+    if (!GOWA_CALL_ID.test(callId)) throw new GowaError("Неверный id звонка");
+    await this.json("POST", "/call/answer", { call_id: callId });
+  }
+
+  /** Положить трубку: завершить разговор, отменить набор или отклонить входящий. */
+  async callHangup(callId: string) {
+    if (!GOWA_CALL_ID.test(callId)) throw new GowaError("Неверный id звонка");
+    await this.json("POST", "/call/hangup", { call_id: callId });
+  }
+
+  /** Заголовок Authorization для запросов к шлюзу (аудиопоток звонка идёт через nginx — он берёт заголовок у сайта). */
+  async authorization(): Promise<string | null> {
+    const { basicAuth } = await this.config();
+    return basicAuth ? `Basic ${Buffer.from(basicAuth).toString("base64")}` : null;
+  }
+
   // ─── внутреннее ──────────────────────────────────────────────────────────
 
   private async headers(): Promise<Record<string, string>> {
-    const { basicAuth } = await this.config();
-    return { "X-Device-Id": GOWA_DEVICE, ...(basicAuth ? { Authorization: `Basic ${Buffer.from(basicAuth).toString("base64")}` } : {}) };
+    const auth = await this.authorization();
+    return { "X-Device-Id": GOWA_DEVICE, ...(auth ? { Authorization: auth } : {}) };
   }
 
   /**
@@ -245,8 +319,8 @@ export class GowaClient {
     }
     if (!res.ok) {
       const code = typeof data.code === "string" ? data.code : null;
-      if (res.status === 401) throw new GowaError("Шлюз WhatsApp не принял логин и пароль", code ?? "UNAUTHORIZED");
-      throw new GowaError(`WhatsApp: ${String(data.message ?? data.code ?? `HTTP ${res.status}`)}`, code);
+      if (res.status === 401) throw new GowaError("Шлюз WhatsApp не принял логин и пароль", code ?? "UNAUTHORIZED", 401);
+      throw new GowaError(`WhatsApp: ${String(data.message ?? data.code ?? (text.trim().slice(0, 200) || `HTTP ${res.status}`))}`, code, res.status);
     }
     return data as T;
   }

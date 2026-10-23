@@ -1,45 +1,24 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
-import { idParams, uuid } from "@/server/input";
+import { idParams } from "@/server/input";
 import { api, apiViewer } from "@/server/api";
 import { container } from "@/server/container";
+import { photoPatchSchema } from "../patch";
 
 type Ctx = { params: Promise<{ id: string; pid: string }> };
 
-const schema = z
-  .object({
-    caption: z.string().trim().max(200),
-    layout: z.enum(["full", "bleed", "half", "grid"]),
-    questionId: uuid.nullable(),
-    inline: z
-      .object({
-        width: z.number().min(25).max(100),
-        align: z.enum(["left", "center", "right"]),
-        anchor: z.number().int().min(-1).max(10_000).nullable(),
-        aspect: z.enum(["original", "1:1", "4:3", "3:4", "16:9"]),
-        focusX: z.number().min(0).max(1),
-        focusY: z.number().min(0).max(1),
-        frame: z.enum(["none", "line", "polaroid", "round"]),
-        page: z.boolean().optional(),
-      })
-      .strict()
-      .nullable(),
-  })
-  .partial()
-  .strict();
-
-const row = async (bookId: string, photoId: string) => (await container().authoring.queries.photos(bookId)).find((p) => p.id === photoId);
-
+/** В ответ правки — строка фото и версия правил раскладки книги: правка места могла перевести книгу на правила 2. */
 export const PATCH = api(async (req, { params }: Ctx) => {
   const { id, pid } = idParams(await params, "id", "pid");
-  const { viewer } = await apiViewer(req);
-  await container().authoring.photos.update(id, viewer, pid, schema.parse(await req.json()));
-  return NextResponse.json({ photo: await row(id, pid) });
+  const { viewer } = await apiViewer(req, id);
+  const authoring = container().authoring;
+  await authoring.photos.update(id, viewer, pid, photoPatchSchema.parse(await req.json()));
+  const [rows, book] = await Promise.all([authoring.queries.photos(id), authoring.queries.book(id)]);
+  return NextResponse.json({ photo: rows.find((p) => p.id === pid), layoutRev: book?.layoutRev });
 });
 
 export const DELETE = api(async (req, { params }: Ctx) => {
   const { id, pid } = idParams(await params, "id", "pid");
-  const { viewer } = await apiViewer(req);
+  const { viewer } = await apiViewer(req, id);
   await container().authoring.photos.delete(id, viewer, pid);
   return NextResponse.json({ ok: true });
 });

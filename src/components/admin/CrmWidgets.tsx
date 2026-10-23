@@ -196,11 +196,11 @@ export function NotesTimeline({ notes, clientId, orderId, dealId, mentionables, 
         {orderId ? <input type="hidden" name="orderId" value={orderId} /> : null}
         {dealId ? <input type="hidden" name="dealId" value={dealId} /> : null}
         <input type="hidden" name="kind" value={kind} />
-        <div className="mb-2 flex gap-1">
+        <div className="mb-2 flex flex-wrap gap-1">
           {manualKinds.map((k) => {
             const K = kinds[k];
             return (
-              <button type="button" key={k} onClick={() => setKind(k)} className={cn("flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs", kind === k ? "bg-ink text-white" : "text-muted hover:bg-cream")}>
+              <button type="button" key={k} onClick={() => setKind(k)} className={cn("flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs max-lg:min-h-10 max-lg:px-3 max-lg:text-sm", kind === k ? "bg-ink text-white" : "text-muted hover:bg-cream")}>
                 <K.icon className="size-3.5" /> {K.label}
               </button>
             );

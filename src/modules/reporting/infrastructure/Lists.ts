@@ -28,6 +28,35 @@ export function taskList(viewer: Viewer, opts: { who: "mine" | "all" | (string &
     .limit(300);
 }
 
+/**
+ * Одна задача с тем, к чему она привязана: сделка, заказ, клиент — и с номером и теми, кто их ведёт (для «Позвонить» и
+ * «Открыть чат», как в «Моём дне»). Для карточки задачи. Видимость проверяет вызывающий.
+ */
+export async function taskById(id: string) {
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
+  const [row] = await executor()
+    .select({
+      task: crmTasks,
+      clientName: users.name,
+      clientEmail: users.email,
+      orderNumber: orders.number,
+      dealTitle: crmDeals.title,
+      dealContact: crmDeals.contactName,
+      dealNumber: crmDeals.number,
+      phone: sql<string | null>`coalesce(nullif(${crmDeals.contactPhone}, ''), nullif(${orders.contactPhone}, ''), nullif(${users.phone}, ''))`,
+      dealAssigneeId: crmDeals.assigneeId,
+      orderAssigneeId: orders.assigneeId,
+      clientManagerId: users.managerId,
+    })
+    .from(crmTasks)
+    .leftJoin(users, eq(crmTasks.clientId, users.id))
+    .leftJoin(orders, eq(crmTasks.orderId, orders.id))
+    .leftJoin(crmDeals, eq(crmTasks.dealId, crmDeals.id))
+    .where(eq(crmTasks.id, id))
+    .limit(1);
+  return row ?? null;
+}
+
 type CallFilter = "all" | "missed" | "in" | "out" | "mine";
 
 /** Журнал звонков за N дней с фильтром и сводкой (видимость «только свои»). */

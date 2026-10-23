@@ -31,6 +31,8 @@ const mmss = (s: number) => (Number.isFinite(s) && s >= 0 ? `${Math.floor(s / 60
  * Голосовое как в мессенджере: кнопка, волна с перемоткой (клик и перетаскивание), время, скорость 1×/1.5×/2×,
  * расшифровка (готовая или по кнопке «Расшифровать»). Играет одно голосовое за раз; закончилось — следующее подряд.
  * Браузер не смог (голосовые WhatsApp — Ogg Opus, старый Safari) — ссылка на файл.
+ * Файл не грузится, пока голосовое не появилось на экране (а при экономии трафика — пока его не включили): в ленте
+ * их десятки, и каждое тянуло бы файл с сервера и из шлюза WhatsApp.
  */
 export function VoicePlayer({
   id,
@@ -63,6 +65,19 @@ export function VoicePlayer({
   const [err, setErr] = useState<string | null>(null);
   const [busy, start] = useTransition();
   const heights = useMemo(() => bars(id), [id]);
+  // «Рядом с экраном» — тогда подгружаем метаданные (длительность); без этого файл не трогаем до нажатия.
+  const [near, setNear] = useState(false);
+  useEffect(() => {
+    const el = wave.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const conn = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
+    if (conn?.saveData || /^(slow-2g|2g|3g)$/.test(conn?.effectiveType ?? "")) return;
+    const io = new IntersectionObserver((e) => e.some((x) => x.isIntersecting) && (setNear(true), io.disconnect()), { rootMargin: "100px" });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  // Перемотка до загрузки: запоминаем долю и применяем, когда браузер узнает длительность.
+  const pendingSeek = useRef<number | null>(null);
 
   useEffect(() => {
     const on = (e: Event) => {
@@ -88,10 +103,23 @@ export function VoicePlayer({
   const seekTo = (clientX: number) => {
     const a = audio.current;
     const el = wave.current;
-    if (!a || !el || !duration) return;
+    if (!a || !el) return;
     const r = el.getBoundingClientRect();
+    if (!duration) {
+      if (pendingSeek.current === null && a.readyState === 0) a.load();
+      pendingSeek.current = Math.max(0, Math.min(1, (clientX - r.left) / r.width));
+      return;
+    }
     a.currentTime = Math.max(0, Math.min(1, (clientX - r.left) / r.width)) * duration;
     setTime(a.currentTime);
+  };
+
+  const onMeta = (a: HTMLAudioElement) => {
+    if (Number.isFinite(a.duration)) setDuration(a.duration);
+    if (pendingSeek.current !== null && Number.isFinite(a.duration)) {
+      a.currentTime = pendingSeek.current * a.duration;
+      pendingSeek.current = null;
+    }
   };
 
   const transcribe = () =>
@@ -112,9 +140,9 @@ export function VoicePlayer({
       <audio
         ref={audio}
         src={src}
-        preload="metadata"
-        onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
-        onDurationChange={(e) => Number.isFinite(e.currentTarget.duration) && setDuration(e.currentTarget.duration)}
+        preload={near ? "metadata" : "none"}
+        onLoadedMetadata={(e) => onMeta(e.currentTarget)}
+        onDurationChange={(e) => onMeta(e.currentTarget)}
         onTimeUpdate={(e) => setTime(e.currentTarget.currentTime)}
         onPlay={(e) => {
           e.currentTarget.playbackRate = speed;

@@ -1,5 +1,5 @@
 /** Книги: сама книга, вопросы с ответами, фото и письма близких (модуль authoring). */
-import { boolean, index, integer, jsonb, pgTable, text, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { boolean, index, integer, jsonb, pgTable, serial, smallint, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import type { Locale } from "@/i18n/config";
 import { timestamps } from "./columns";
 import { users } from "./identity";
@@ -19,6 +19,8 @@ export interface InlinePhotoStyle {
   frame: "none" | "line" | "polaroid" | "round";
   /** На всю страницу: история прерывается, снимок — отдельной страницей под обрез, текст продолжается после него. */
   page?: boolean;
+  /** На всю страницу целиком, без обрезки: вписать в лист (по другой стороне — поля); нет — заполнить лист. */
+  pageFit?: "contain";
 }
 
 /**
@@ -44,7 +46,7 @@ export const books = pgTable(
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    /** Тема и вид книги (lib/content/kinds): love | mom | dad | friend — подарки, autobiography, blank — своя книга. */
+    /** Тема и вид книги (lib/content/kinds): love | mom | dad | friend | teacher — подарки, autobiography, blank — своя книга. */
     theme: text("theme").notNull(),
     status: text("status", { enum: ["draft", "ordered"] }).notNull().default("draft"),
     title: text("title").notNull().default(""),
@@ -74,13 +76,23 @@ export const books = pgTable(
     dedication: text("dedication").notNull().default(""),
     /** Оформление страниц — id из src/lib/book/interiors. */
     interior: text("interior").notNull().default("classic"),
+    /** Настройки дизайнера страниц поверх стиля (шрифты, кегли, интервалы, цвета, элементы, главы) — src/lib/book/interiors/style.ts. */
+    interiorStyle: jsonb("interior_style").$type<Record<string, unknown>>().notNull().default({}),
+    /** Обложка из слоёв (текст, фото, фигуры, декор) поверх шаблона; null — обложка шаблона — src/lib/book/cover-design. */
+    coverDesign: jsonb("cover_design").$type<Record<string, unknown> | null>(),
     format: text("format").notNull().default("a5"),
-    photoPlacement: text("photo_placement", { enum: ["chapters", "end"] }).notNull().default("chapters"),
+    /** Фото, не вставленные в истории: между главами, отдельным разделом в конце или не печатать (none). */
+    photoPlacement: text("photo_placement", { enum: ["chapters", "end", "none"] }).notNull().default("chapters"),
     showToc: boolean("show_toc").notNull().default(true),
     /** Оглавление: по главам, по заголовкам разделов или главы с разделами — src/lib/book/toc.ts. */
     tocMode: text("toc_mode", { enum: ["chapters", "sections", "both"] }).notNull().default("chapters"),
     /** Свои названия и скрытые строки оглавления по ключу строки (`c:<глава>`, `q:<раздел>`) — src/lib/book/toc.ts. */
-    tocLines: jsonb("toc_lines").$type<Record<string, { title?: string; hidden?: boolean }>>().notNull().default({}),
+    tocLines: jsonb("toc_lines").$type<Record<string, { title?: string; hidden?: boolean; epigraph?: string; noOpenerPhoto?: boolean }>>().notNull().default({}),
+    /**
+     * Правила раскладки фото (src/lib/book/layout.ts): 1 — прежние, 2 — у каждого фото одно место (фото главы выбирает
+     * автор, снимки обложки внутрь сами не идут). Меняется только переводом книги (authoring/application/layout-rev2.ts).
+     */
+    layoutRev: smallint("layout_rev").notNull().default(2),
     /** Токен публичной ссылки для писем от близких; null — приём писем выключен. */
     inviteToken: text("invite_token"),
     /** Язык книги: вопросы, заголовки глав и служебные страницы PDF (ru | kk). */
@@ -169,6 +181,12 @@ export const photos = pgTable(
     questionId: uuid("question_id").references(() => bookQuestions.id, { onDelete: "set null" }),
     /** Оформление фото внутри ответа: размер, выравнивание, место в тексте, кадр, рамка. */
     inline: jsonb("inline").$type<InlinePhotoStyle>(),
+    /** Кадр, выбранный автором: точка и приближение (lib/book/photo-crop); null — по правилу места. */
+    crop: jsonb("crop").$type<{ x: number; y: number; zoom: number }>(),
+    /** Глава, которую автор выбрал для фото вне историй (ключ главы); null — раскладка по правилу книги. */
+    chapter: text("chapter"),
+    /** Снимок начала этой главы (в оформлениях, где глава открывается фото). */
+    opener: boolean("opener").notNull().default(false),
     ...timestamps,
   },
   (t) => [index("photos_book_idx").on(t.bookId, t.position)],
@@ -193,3 +211,64 @@ export const bookLetters = pgTable(
 );
 
 export type BookLetter = typeof bookLetters.$inferSelect;
+
+/**
+ * Просьбы к ИИ-дизайнеру (оформление страниц и обложка): по ним считается бесплатный лимит клиента (5 за всё время), они же — журнал для
+ * разбора качества (просьба, операции, замечания, токены). pending — запрос идёт; failed — модель не ответила (не в лимите).
+ */
+export const designAiRequests = pgTable(
+  "design_ai_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    bookId: uuid("book_id")
+      .notNull()
+      .references(() => books.id, { onDelete: "cascade" }),
+    target: text("target", { enum: ["pages", "cover"] }).notNull(),
+    prompt: text("prompt").notNull(),
+    status: text("status", { enum: ["pending", "ok", "failed"] }).notNull().default("pending"),
+    /** Из чего списан запрос: бесплатный лимит или купленный пакет. */
+    source: text("source", { enum: ["free", "credit"] }).notNull().default("free"),
+    reply: text("reply").notNull().default(""),
+    ops: jsonb("ops").$type<unknown[]>().notNull().default([]),
+    errors: jsonb("errors").$type<string[]>().notNull().default([]),
+    usage: jsonb("usage").$type<Record<string, number>>().notNull().default({}),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("design_ai_requests_user_idx").on(t.userId, t.createdAt)],
+);
+
+/** Купленные запросы к ИИ-дизайнеру: остаток на клиента. Тратятся, когда бесплатный лимит исчерпан. */
+export const designAiCredits = pgTable("design_ai_credits", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  balance: integer("balance").notNull().default(0),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * Покупки пакетов запросов к ИИ-дизайнеру. Число запросов и сумма — как в каталоге на момент покупки; оплата через Kaspi
+ * (цель ai_pack, в комментарии «MyBooks A<number>»). Запросы начисляются в той же транзакции, что и отметка «оплачено».
+ */
+export const designAiPurchases = pgTable(
+  "design_ai_purchases",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    number: serial("number").notNull(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    packId: text("pack_id").notNull(),
+    requests: integer("requests").notNull(),
+    amount: integer("amount").notNull(),
+    status: text("status", { enum: ["pending_payment", "paid", "cancelled"] }).notNull().default("pending_payment"),
+    /** Операция оплаты («kaspi:<id>» или «manual:<сотрудник>»). */
+    paymentId: text("payment_id"),
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("design_ai_purchases_number_idx").on(t.number), index("design_ai_purchases_user_idx").on(t.userId, t.createdAt)],
+);

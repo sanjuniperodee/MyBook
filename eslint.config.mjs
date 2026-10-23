@@ -56,7 +56,8 @@ const zones = [
 const config = [
   ...nextVitals,
   ...nextTs,
-  { ignores: [".next/**", "node_modules/**", "storage/**", "drizzle/**", "next-env.d.ts", ".claude/**"] },
+  // promo/**/dist — собранные бандлы роликов, .cc — локальные черновики (исключены из git): не наш исходный код.
+  { ignores: [".next/**", "node_modules/**", "storage/**", "drizzle/**", "next-env.d.ts", ".claude/**", "mobile/**", "promo/**/dist/**", ".cc/**"] },
   { files: ["src/**/*.{ts,tsx}"], rules: { "import/no-restricted-paths": ["error", { basePath: fileURLToPath(new URL(".", import.meta.url)), zones }] } },
   // В flat config одноимённое правило из более позднего блока заменяет раннее, поэтому для каждого слоя
   // собираем полный список ограничений в одном блоке.

@@ -123,7 +123,7 @@ describe("BooksService", () => {
     await rejectsWith(service.delete("b1", stranger), "bookNotFound");
   });
 
-  it("книгу с заказами удалить нельзя; без заказов — удаляются и файлы", async () => {
+  it("книгу с заказами удалить нельзя; без заказов — удаляются и файлы: фото, кэш предпросмотра, картинки полос", async () => {
     const withOrders = setup(true);
     await withOrders.service.start("u1", { theme: "love", language: "ru", authorName: "А", authorGender: "f", recipientName: "М", recipientGender: "m" });
     await rejectsWith(withOrders.service.delete("b1", owner), "bookHasOrders");
@@ -132,6 +132,7 @@ describe("BooksService", () => {
     await clean.service.start("u1", { theme: "love", language: "ru", authorName: "А", authorGender: "f", recipientName: "М", recipientGender: "m" });
     await clean.files.put("photos/b1/x.jpg", Buffer.from("x"));
     await clean.files.put("cache/preview/b1/f.pdf", Buffer.from("x"));
+    await clean.files.put("cache/pages/b1/f/1-480.webp", Buffer.from("x"));
     await clean.service.delete("b1", owner);
     expect(clean.books.rows.size).toBe(0);
     expect(clean.files.data.size).toBe(0);

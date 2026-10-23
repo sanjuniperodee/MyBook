@@ -89,7 +89,7 @@ export class BookScene {
   private readonly groundY: number;
   private aperture: number = APERTURE.default;
   private readonly leaves: Leaf[] = [];
-  private readonly textures = new Map<FaceKey, THREE.CanvasTexture>();
+  private readonly textures = new Map<FaceKey, THREE.Texture>();
   private readonly frontMats: THREE.MeshStandardMaterial[];
   private readonly backMats: THREE.MeshStandardMaterial[];
   private readonly spineMat: THREE.MeshStandardMaterial;
@@ -323,27 +323,42 @@ export class BookScene {
     this.requestRender();
   }
 
-  /** Привязывает загруженную картинку к стороне обложки или полосе листа; null снимает её. */
-  setTexture(key: FaceKey, canvas: HTMLCanvasElement | null) {
+  /**
+   * Привязывает картинку к стороне обложки (холст вёрстки) или полосе листа (ImageBitmap картинки полосы); null
+   * снимает её. ImageBitmap сразу уходит в видеопамять и закрывается: копии пикселей в памяти страницы не остаётся.
+   */
+  setTexture(key: FaceKey, source: HTMLCanvasElement | ImageBitmap | null) {
     const old = this.textures.get(key);
     if (old) {
       old.dispose();
       this.textures.delete(key);
     }
-    let texture: THREE.CanvasTexture | null = null;
-    if (canvas) {
-      texture = new THREE.CanvasTexture(canvas);
+    let texture: THREE.Texture | null = null;
+    if (source) {
+      const bitmap = source instanceof HTMLCanvasElement ? null : source;
+      texture = bitmap ? new THREE.Texture(bitmap) : new THREE.CanvasTexture(source);
       texture.colorSpace = THREE.SRGBColorSpace;
       texture.anisotropy = this.maxAnisotropy;
       texture.generateMipmaps = true;
       texture.minFilter = THREE.LinearMipmapLinearFilter;
+      // К ImageBitmap флаг UNPACK_FLIP_Y по стандарту не применяется, но не все браузеры это соблюдают: флаг
+      // выключаем, а переворачиваем координатами текстуры — картинка встаёт одинаково везде.
+      if (bitmap) {
+        texture.flipY = false;
+        texture.repeat.y = -1;
+        texture.offset.y = 1;
+      }
       // Оборотная сторона листа видна «с изнанки»: зеркалим по горизонтали, чтобы страница читалась.
       if (key.endsWith(":b")) {
-        texture.wrapS = THREE.RepeatWrapping;
         texture.repeat.x = -1;
         texture.offset.x = 1;
       }
+      texture.needsUpdate = true;
       this.textures.set(key, texture);
+      if (bitmap) {
+        texture.onUpdate = () => bitmap.close();
+        this.renderer.initTexture(texture);
+      }
     }
     const mat = this.materialFor(key);
     if (mat) {

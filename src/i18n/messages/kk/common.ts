@@ -22,6 +22,10 @@ export const common: Messages["common"] = {
     switchTo: "Русский",
     label: "Тіл",
   },
+  theme: {
+    dark: "Қараңғы тема",
+    light: "Жарық тема",
+  },
   nav: {
     how: "Қалай жұмыс істейді",
     sample: "Кітап үлгісі",
@@ -64,6 +68,7 @@ export const common: Messages["common"] = {
   },
   footer: {
     ideas: "Сыйлық идеялары",
+    tools: "Құралдар",
     allIdeas: "Барлық сыйлық идеялары",
     blog: "Блог",
     customers: "Сатып алушыларға",
@@ -192,6 +197,7 @@ export const common: Messages["common"] = {
     wedding: { label: "Үйлену тойы", until: "тойға" },
     parents: { label: "Ата-ананың мерейтойы", until: "мерейтойға" },
     graduation: { label: "Бітіру кеші", until: "бітіру кешіне" },
+    teachersday: { label: "Ұстаздар күні", until: "Ұстаздар күніне" },
     other: { label: "Басқа мереке", until: "мерекеге" },
   },
   occasion: {

@@ -1,0 +1,43 @@
+--- a/engine.go
++++ b/engine.go
+@@ -76,6 +76,11 @@
+ 
+ 	// The callee <accept> is deferred until the caller's <mute_v2> arrives.
+ 	acceptPending bool
++	// The caller's first <mute_v2> already arrived (the call was still ringing): a later
++	// Answer sends the deferred <accept> right away instead of waiting for another one.
++	muteSeen    bool
++	muteFrom    types.JID
++	muteCreator types.JID
+ }
+ 
+ // newEngine creates the engine for a Client.
+@@ -683,10 +688,16 @@
+ 	}
+ 	e.mu.Lock()
+ 	m.acceptPending = true
++	seen, from, creator := m.muteSeen, m.muteFrom, m.muteCreator
+ 	e.mu.Unlock()
+ 
+ 	c.setPhase(CallPhaseConnecting)
+ 	e.maybeStartMedia(c.id)
++	// Answered after the caller's first <mute_v2> (a person clicked Answer seconds into the
++	// ring): no further mute_v2 will come, so accept now or the caller keeps ringing.
++	if seen {
++		e.sendAccept(c.id, from, creator)
++	}
+ 	return nil
+ }
+ 
+@@ -1086,6 +1097,11 @@
+ 		e.mu.Lock()
+ 		m := e.calls[callID]
+ 		pending := m != nil && m.acceptPending
++		if m != nil && !m.muteSeen {
++			m.muteSeen = true
++			m.muteFrom = callNode.AttrGetter().JID("from")
++			m.muteCreator = mv.JID("call-creator")
++		}
+ 		e.mu.Unlock()
+ 		if m != nil && m.call != nil {
+ 			if fn := m.call.onMuteStateFn(); fn != nil {

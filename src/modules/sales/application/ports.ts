@@ -18,6 +18,8 @@ export interface SalesSettings {
   reassignMinutes(): Promise<number>;
   /** Окно в днях от закрытия успешной сделки заказа, в которое заявку можно влить в неё (mergeRefusal); 0 — нельзя. */
   mergeClosedDays(): Promise<number>;
+  /** Этап, куда падает новая заявка этого источника (настройка воронки); null — первый этап воронки. */
+  entryStageId(source: string): Promise<string | null>;
 }
 
 /** Распределение заявок между менеджерами (круг). */

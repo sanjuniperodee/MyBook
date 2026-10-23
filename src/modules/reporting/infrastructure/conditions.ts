@@ -1,8 +1,8 @@
 import "server-only";
 import { and, eq, gte, isNotNull, isNull, lt, or, sql, type SQL } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
-import { crmCalls, crmConversations, crmTasks } from "@/shared/infrastructure/db/schema";
-import { crmDealsId } from "@/shared/infrastructure/db/refs";
+import { crmCalls, crmConversations, crmTasks, orders, users } from "@/shared/infrastructure/db/schema";
+import { booksUserId, crmDealsId, ordersUserId } from "@/shared/infrastructure/db/refs";
 import { localDay } from "./time";
 
 /**
@@ -20,6 +20,23 @@ export interface Viewer {
 export function visibleTo(viewer: Viewer, column: AnyPgColumn): SQL | undefined {
   if (viewer.seesAll) return undefined;
   return or(eq(column, viewer.userId), isNull(column));
+}
+
+/**
+ * Книги и заказы для роли «только свои»: только своих клиентов (users.manager_id = я), заказы — ещё и где я
+ * ответственный. Неразобранных клиентов (без менеджера) роль не видит — в отличие от visibleTo для сделок и чатов.
+ */
+export function ownClientOrders(viewer: Viewer): SQL | undefined {
+  if (viewer.seesAll) return undefined;
+  const me = viewer.userId;
+  return or(eq(orders.assigneeId, me), sql`exists (select 1 from ${users} u where u.id = ${ordersUserId} and u.manager_id = ${me})`);
+}
+
+/** Книги своих клиентов (см. ownClientOrders) — для выборок из books без join на users. */
+export function ownClientBooks(viewer: Viewer): SQL | undefined {
+  if (viewer.seesAll) return undefined;
+  const me = viewer.userId;
+  return sql`exists (select 1 from ${users} u where u.id = ${booksUserId} and u.manager_id = ${me})`;
 }
 
 /** Задачи на сегодня: мои и ничьи открытые со сроком до конца дня магазина (просроченные — тоже). Как бейдж «Задачи». */

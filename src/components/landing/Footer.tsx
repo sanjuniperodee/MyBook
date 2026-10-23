@@ -44,6 +44,7 @@ export async function Footer() {
             <li><Link href="/gift" className="hover:text-ink">{f.gift}</Link></li>
             <li><Link href="/redeem" className="hover:text-ink">{f.redeem}</Link></li>
             <li><Link href="/#faq" className="hover:text-ink">{f.faq}</Link></li>
+            <li><Link href="/instrumenty" className="hover:text-ink">{f.tools}</Link></li>
             <li><Link href="/blog" className="hover:text-ink">{f.blog}</Link></li>
             <li><Link href="/offer" className="hover:text-ink">{f.offer}</Link></li>
             <li><Link href="/privacy" className="hover:text-ink">{f.privacy}</Link></li>

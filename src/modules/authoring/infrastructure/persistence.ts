@@ -1,6 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { and, asc, eq, gt, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, ne, sql } from "drizzle-orm";
 import { bookChapters, bookLetters, bookQuestions, books, photos } from "@/shared/infrastructure/db/schema";
 import { wordsSql } from "@/shared/infrastructure/db/bookProgress";
 import { executor } from "@/shared/infrastructure/database";
@@ -64,9 +64,12 @@ export class DrizzleBookRepository implements BookRepository {
         .values(questions.map((q, position) => ({ bookId: id, position, chapter: q.chapter, questionKey: q.key, prompt: q.prompt, title: q.title, hint: q.hint })));
   }
   async save(book: Book) {
-    const { id, createdAt: _c, userId: _u, ...props } = book.snapshot();
+    // Правила раскладки фото снимок не пишет: их меняет только перевод книги (layoutRevStore), и книга, загруженная до
+    // него, не вернёт прежние.
+    const { id, createdAt: _c, userId: _u, layoutRev: _r, ...props } = book.snapshot();
     void _c;
     void _u;
+    void _r;
     await executor().update(books).set({ ...props, updatedAt: new Date() }).where(eq(books.id, id));
   }
   async touch(bookId: string) {
@@ -246,7 +249,7 @@ export class DrizzleChapterRepository implements ChapterRepository {
 }
 
 const photoToDomain = (r: typeof photos.$inferSelect) =>
-  Photo.restore(r.id, { bookId: r.bookId, position: r.position, storageKey: r.storageKey, thumbKey: r.thumbKey, width: r.width, height: r.height, caption: r.caption, layout: r.layout, questionId: r.questionId, inline: r.inline });
+  Photo.restore(r.id, { bookId: r.bookId, position: r.position, storageKey: r.storageKey, thumbKey: r.thumbKey, width: r.width, height: r.height, caption: r.caption, layout: r.layout, questionId: r.questionId, inline: r.inline, crop: r.crop ?? null, chapter: r.chapter ?? null, opener: r.opener ?? false });
 
 export class DrizzlePhotoRepository implements PhotoRepository {
   async findInBook(bookId: string, photoId: string) {
@@ -275,11 +278,21 @@ export class DrizzlePhotoRepository implements PhotoRepository {
     void _b;
     await executor().update(photos).set({ ...p, updatedAt: new Date() }).where(eq(photos.id, id));
   }
+  async saveRotation(photo: Photo) {
+    const { id, storageKey, thumbKey, width, height, inline, crop } = photo.snapshot();
+    await executor().update(photos).set({ storageKey, thumbKey, width, height, inline, crop, updatedAt: new Date() }).where(eq(photos.id, id));
+  }
   async delete(photo: Photo) {
     await executor().delete(photos).where(eq(photos.id, photo.id));
   }
   async reorder(_bookId: string, ids: string[]) {
     for (let i = 0; i < ids.length; i++) await executor().update(photos).set({ position: i }).where(eq(photos.id, ids[i]));
+  }
+  async clearOpeners(bookId: string, chapter: string, exceptId: string) {
+    await executor()
+      .update(photos)
+      .set({ opener: false, updatedAt: new Date() })
+      .where(and(eq(photos.bookId, bookId), eq(photos.chapter, chapter), eq(photos.opener, true), ne(photos.id, exceptId)));
   }
   async detachFromQuestions(bookId: string, questionIds: readonly string[]) {
     if (!questionIds.length) return;

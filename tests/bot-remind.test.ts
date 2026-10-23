@@ -122,6 +122,7 @@ describe("Повторное сообщение: решение модели и 
     agreedQuote: "",
     city: "",
     sendMaterials: false,
+    payment: "unknown",
     remindAt: "2026-10-12",
     remindWhy: "после зарплаты",
     ...p,

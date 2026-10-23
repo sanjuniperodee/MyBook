@@ -1,5 +1,7 @@
 import "server-only";
+import { readFileSync } from "node:fs";
 import path from "node:path";
+import * as fontkit from "fontkit";
 import type { ReactElement } from "react";
 import { Font, renderToBuffer, type DocumentProps } from "@react-pdf/renderer";
 import hyphenRu from "hyphen/ru/index.js";
@@ -37,22 +39,48 @@ export function ensureFonts() {
 
 let renderQueue: Promise<unknown> = Promise.resolve();
 
+/** Байты файлов шрифтов: свежий объект fontkit для каждого документа создаётся из них без чтения диска. */
+const fontBytes = new Map<string, Buffer>();
+
+/**
+ * Каждому документу — свои объекты шрифтов. fontkit хранит в объекте шрифта состояние подмножества, и составной глиф
+ * одного документа (Ғ в Geologica = Г + штрих) портил другой: в следующем документе с тем же шрифтом буква пропадала
+ * («үлнар» вместо «Гүлнар»). Загруженные шрифты остаются загруженными — заменяется только объект, из тех же байтов
+ * (fontkit разбирает таблицы лениво, это дёшево). Font.reset не подходит: react-pdf 4.9 после него шрифт не перечитывает.
+ */
+function freshFonts() {
+  const families = Font.getRegisteredFonts() as Record<string, { sources: { src: unknown; data: unknown }[] }>;
+  for (const family of Object.values(families))
+    for (const source of family.sources) {
+      if (!source.data || typeof source.src !== "string" || !source.src.endsWith(".ttf")) continue;
+      let bytes = fontBytes.get(source.src);
+      if (!bytes) fontBytes.set(source.src, (bytes = readFileSync(source.src)));
+      source.data = fontkit.create(bytes);
+    }
+}
+
 /**
  * Собирает PDF строго по одному на процесс. Шрифты react-pdf общие для всех документов, и две сборки
  * одновременно портят подмножество шрифта: из надписей пропадают буквы (заказ №14 — «ИТАЛИЙ» на титуле).
  */
 export function renderPdf(document: ReactElement<DocumentProps>): Promise<Buffer> {
-  const run = renderQueue.then(() => renderToBuffer(document));
+  // Каждый документ — со своими объектами шрифтов (freshFonts): иначе буквы пропадают и при сборках по очереди.
+  const run = renderQueue.then(() => {
+    freshFonts();
+    return renderToBuffer(document);
+  });
   renderQueue = run.catch(() => undefined);
   return run;
 }
 
 /** Подбирает ближайшее зарегистрированное начертание, чтобы react-pdf не падал на отсутствующем весе. */
-export function face(key: FontKey, weight = 400, italic = false) {
+export function face(key: FontKey, weight = 400, italic = false): { fontFamily: string | string[]; fontWeight: number; fontStyle: "normal" | "italic" } {
   const def = fontFaces[key];
   const style = italic ? "italic" : "normal";
   const candidates = def.faces.filter((f) => f.style === style);
   const pool = candidates.length ? candidates : def.faces;
   const best = pool.reduce((a, b) => (Math.abs(b.weight - weight) < Math.abs(a.weight - weight) ? b : a));
-  return { fontFamily: def.family, fontWeight: best.weight, fontStyle: best.style } as const;
+  // Знаки, которых нет в шрифте (₸, №, многоточие), react-pdf берёт из запасного — он идёт вторым в списке.
+  const fontFamily: string | string[] = def.fallback ? [def.family, fontFaces[def.fallback].family] : def.family;
+  return { fontFamily, fontWeight: best.weight, fontStyle: best.style };
 }

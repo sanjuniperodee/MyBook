@@ -1,14 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { useMessages } from "@/i18n/client";
 import { designBack } from "@/lib/book/cover-back";
 import { getCoverTemplate } from "@/lib/book/covers";
+import { parseCoverDesign, templateForDesign } from "@/lib/book/cover-design";
 import { getFormat } from "@/lib/book/formats";
 import { APERTURE, apertureDegrees, bookDims, clamp } from "@/lib/book/book-model";
-import { RENDER_WINDOW, visibleSpread } from "@/lib/book/flipbook";
+import { leafCount, pageLeaf, pagesNear, sheetCount, visibleSpread } from "@/lib/book/flipbook";
 import { cn } from "@/lib/class-names";
-import { FaceView, usePagedBook, type FlipbookData } from "./pages";
+import { BuildNotice, BuildPlaceholder, leafImage, leafImageWidth, NEAR_SPREADS, useFlipbookPages, type FlipbookData } from "./pages";
 import { photoHref, type PhotoRef } from "@/lib/book/covers/svg-kit";
 import { buildCoverArt } from "./cover-art";
 import { useCoverImage, useCoverSamples } from "./useCoverImage";
@@ -17,6 +18,7 @@ import { useBookKeys, useFullscreen } from "./hooks";
 import { RasterHost, type RasterJob } from "./webgl/RasterHost";
 import { CoverBackFace, CoverFrontFace, CoverSpineFace } from "./webgl/cover-faces";
 import { BookScene, type FaceKey } from "./webgl/BookScene";
+import { fetchBitmap, PageTextures, type PageFailure } from "./webgl/page-textures";
 
 /** Ракурсы осмотра: азимут и полярный угол камеры в радианах. */
 const VIEW_ANGLES: Record<ViewId, { azimuth: number; polar: number }> = {
@@ -29,10 +31,14 @@ const VIEW_ANGLES: Record<ViewId, { azimuth: number; polar: number }> = {
 };
 const INITIAL = { azimuth: -0.49, polar: 1.33 };
 const READ = { azimuth: 0, polar: 1.36, zoom: 1.04 };
-/** Листы вокруг читаемой страницы, для которых держим текстуры: окно отрисовки плюс запас на следующий переворот. */
-const KEEP = RENDER_WINDOW + 1;
+const COVER_KEYS = ["front", "back", "spine"] as const;
 /** Сколько ждём снимки обложки (фото, снимки-примеры), прежде чем снять обложку с тем, что есть. */
 const ART_WAIT_MS = 6000;
+/**
+ * Окно загрузки полос передаём загрузчику с задержкой: ползунок и быстрое листание меняют цель много раз в секунду,
+ * а каждый запрос картинки, пока его не отменили, — растр на сервере, общий для всех.
+ */
+const WINDOW_DELAY_MS = 120;
 
 const prefersReducedMotion = () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -67,25 +73,31 @@ async function toDataUrl(url: string) {
 
 /**
  * Книга в WebGL (Three.js): вращается со всех сторон, обложка откидывается, листы гнутся при перевороте. Страницы —
- * та же вёрстка, что в PDF: HTML-компоненты растеризуются в текстуры лениво, только для листов возле читаемой страницы.
+ * картинки полос экранной сборки, того же PDF, что уйдёт в типографию; грузятся только для разворотов возле
+ * читаемого. Обложка — вёрстка переплёта, растеризованная в текстуры (RasterHost).
  */
-export function BookViewerGL({ data, onUnsupported, className }: { data: FlipbookData; onUnsupported?: () => void; className?: string }) {
+export function BookViewerGL({ data, bookId, onUnsupported, className }: { data: FlipbookData; bookId: string; onUnsupported?: () => void; className?: string }) {
   const m = useMessages().books.preview;
   const f = m.flip;
   const mm = m.model;
   const format = getFormat(data.formatId);
-  const template = getCoverTemplate(data.cover.template);
-  const { pageCount, brand, back, backPhotos } = data.model;
-  const { sheets, ctx, measure } = usePagedBook(data);
-  const count = sheets.length;
+  // Обложка из конструктора: слои на лице; корешок и оборот — по шаблону (со своим фоном — контрастным цветом).
+  const design = useMemo(() => (data.cover.design ? parseCoverDesign(data.cover.design) : null), [data.cover.design]);
+  const template = useMemo(() => templateForDesign(getCoverTemplate(data.cover.template), design), [data.cover.template, design]);
+  const { brand, back, backPhotos } = data.model;
+  const pages = useFlipbookPages(bookId);
+  const { build } = pages;
+  // Пока сборки нет, книгу не строим (заглушка): толщина корешка и число листов — по её полосам.
+  const pageCount = build?.pageCount ?? 0;
+  const count = build ? sheetCount(pageCount) : 0;
   /** Листов блока между обложкой и задней крышкой. */
-  const M = Math.max(1, count - 2);
+  const M = leafCount(pageCount);
   const dims = useMemo(() => bookDims(format, pageCount), [format, pageCount]);
   const backDesign = useMemo(() => designBack(template, dims.w, dims.h, back), [template, dims, back]);
 
   // Размер текстуры: на телефонах поменьше, чтобы уложиться в память.
   const texW = useMemo(() => (typeof window !== "undefined" && Math.min(window.innerWidth, window.innerHeight) < 700 ? 768 : 1024), []);
-  const pageH = Math.round((texW * dims.block.h) / dims.block.w);
+  const imageW = useMemo(() => leafImageWidth(), []);
   const boardH = Math.round((texW * dims.h) / dims.w);
   const spineW = Math.max(48, Math.round((dims.d * texW) / dims.w));
 
@@ -113,8 +125,8 @@ export function BookViewerGL({ data, onUnsupported, className }: { data: Flipboo
   const imageHref = useCoverImage(template);
   const samples = useCoverSamples(template);
   // Фото, снимок обложки и снимки-примеры приходят позже первой отрисовки: по этой версии пересоздаём текстуры обложки.
-  const artVersion = `${template.id}:${photoHrefs ? photoHrefs.map((h) => (h ? 1 : 0)).join("") : "-"}:${hash(photoKey)}:${imageHref ? 1 : 0}:${samples ? 1 : 0}:${backDesign.plainArt ? 1 : 0}`;
-  const art = useMemo(() => buildCoverArt(template, format, pageCount, dims, { photos: photoHrefs, imageHref, plainBack: backDesign.plainArt, samples }), [template, format, pageCount, dims, photoHrefs, imageHref, backDesign.plainArt, samples]);
+  const artVersion = `${template.id}:${design ? hash(JSON.stringify(design)) : "-"}:${photoHrefs ? photoHrefs.map((h) => (h ? 1 : 0)).join("") : "-"}:${hash(photoKey)}:${imageHref ? 1 : 0}:${samples ? 1 : 0}:${backDesign.plainArt ? 1 : 0}`;
+  const art = useMemo(() => buildCoverArt(template, format, pageCount, dims, { photos: photoHrefs, imageHref, plainBack: backDesign.plainArt, samples, design }), [template, format, pageCount, dims, photoHrefs, imageHref, backDesign.plainArt, samples, design]);
   // Пока снимки обложки ещё грузятся, растеризация даёт пустую (чёрную) текстуру: до их прихода обложку не снимаем,
   // а на случай медленной сети или сбоя ждём не дольше нескольких секунд — потом рисуем с тем, что есть.
   const pendingArt = (!!template.photo && !imageHref) || (!!template.samples && !samples) || (template.requiresPhoto && !!data.cover.photos?.some(Boolean) && !photoHrefs);
@@ -128,14 +140,27 @@ export function BookViewerGL({ data, onUnsupported, className }: { data: Flipboo
 
   const wrapper = useRef<HTMLDivElement>(null);
   const stage = useRef<HTMLDivElement>(null);
-  const canvas = useRef<HTMLCanvasElement>(null);
+  const canvasHost = useRef<HTMLDivElement>(null);
   const scene = useRef<BookScene | null>(null);
+  const pageTextures = useRef<PageTextures<FaceKey, ImageBitmap> | null>(null);
   const countRef = useRef(count);
   const target = useRef(0);
   const slotRef = useRef(0);
   const have = useRef(new Set<FaceKey>());
   const [slot, setSlot] = useState(0);
+  // Куда листаем и откуда: окно загрузки — у цели (и у начала, пока лист летит), а не у каждой полосы по пути.
+  const [dest, setDest] = useState(0);
+  const origin = useRef(0);
+  // Сцена пересоздаётся, когда новая сборка с другим числом полос: ракурс, приближение и вращение переносим в новую.
+  const savedView = useRef<{ azimuth: number; polar: number; zoom: number } | null>(null);
+  // Снятые стороны обложки и цвет кромки: новая сцена сразу ставит их, пока растеризация не сняла заново.
+  const coverShots = useRef(new Map<FaceKey, HTMLCanvasElement>());
+  const edgeColor = useRef<string | null>(null);
+  // Картинки полос этой сборки не грузятся и после повторов — строка с повтором поверх книги.
+  const [failedFp, setFailedFp] = useState<string | null>(null);
+  const recover = useRef(pages.recover);
   const [auto, setAuto] = useState(() => !prefersReducedMotion());
+  const autoRef = useRef(auto);
   const [active, setActive] = useState<string | null>("front");
   const [jobs, setJobs] = useState<RasterJob[]>([]);
   const [ready, setReady] = useState(false);
@@ -145,6 +170,8 @@ export function BookViewerGL({ data, onUnsupported, className }: { data: Flipboo
   useEffect(() => {
     countRef.current = count;
     unsupported.current = onUnsupported;
+    autoRef.current = auto;
+    recover.current = pages.recover;
   });
 
   /** Листает к позиции n; открывая закрытую книгу, разворачивает её к читателю. */
@@ -154,6 +181,8 @@ export function BookViewerGL({ data, onUnsupported, className }: { data: Flipboo
     const to = Math.round(clamp(n, 0, Math.max(0, countRef.current - 1)));
     const from = s.position;
     target.current = to;
+    origin.current = Math.round(from);
+    setDest(to);
     if (from < 0.5 && to >= 1) {
       const v = s.getView();
       // Открытую книгу удобно читать только лицом к себе: если смотрели сбоку, сверху или снизу, разворачиваем.
@@ -167,20 +196,39 @@ export function BookViewerGL({ data, onUnsupported, className }: { data: Flipboo
 
   // ── Сцена: создаётся, когда известно число листов; пересоздаётся, если оно или размеры изменились ──
   useEffect(() => {
-    const el = canvas.current;
+    const host = canvasHost.current;
     const box = stage.current;
-    if (!el || !box || !count) return;
+    if (!host || !box || !count) return;
+    // Холст у каждой сцены свой: закрываясь, сцена теряет контекст WebGL (освобождает видеопамять), и на старом
+    // холсте новый контекст уже не получить — а новая сборка с другим числом полос пересоздаёт сцену.
+    const el = document.createElement("canvas");
+    el.className = "absolute inset-0 block size-full cursor-grab touch-none active:cursor-grabbing";
+    host.append(el);
     let s: BookScene;
     try {
       s = new BookScene({ canvas: el, dims, leaves: M, reducedMotion: prefersReducedMotion() });
     } catch {
+      el.remove();
       unsupported.current?.();
       return;
     }
     scene.current = s;
     have.current.clear();
+    // Не загрузилась полоса — сборку, может, заменили (и прошлую удалили): переспрашиваем; совсем не грузится — строка.
+    const onFailure = (f: PageFailure<FaceKey>) => {
+      recover.current?.();
+      if (f.final) setFailedFp(f.id.split(":")[0]);
+    };
+    const textures = new PageTextures<FaceKey, ImageBitmap>((key, image) => s.setTexture(key, image), fetchBitmap, undefined, onFailure);
+    pageTextures.current = textures;
     s.setAperture(apertureRef.current);
     s.setPosition(target.current);
+    // Пересоздана (другое число полос): тот же ракурс и приближение, вращение — как на кнопке, обложка — прежняя до новой.
+    const saved = savedView.current;
+    if (saved) s.setView({ azimuth: saved.azimuth, polar: saved.polar, distance: s.baseDistance * saved.zoom }, 0);
+    s.setAutoRotate(autoRef.current);
+    for (const [key, shot] of coverShots.current) s.setTexture(key, shot);
+    if (edgeColor.current) s.setEdgeColor(edgeColor.current);
     s.onPosition = (p) => {
       const r = Math.round(p);
       if (r !== slotRef.current) {
@@ -201,6 +249,7 @@ export function BookViewerGL({ data, onUnsupported, className }: { data: Flipboo
       have.current.clear();
       setJobs([]);
       setSlot((v) => v);
+      textures.reset();
     };
     const ro = new ResizeObserver(([entry]) => s.resize(entry.contentRect.width, entry.contentRect.height));
     ro.observe(box);
@@ -215,87 +264,82 @@ export function BookViewerGL({ data, onUnsupported, className }: { data: Flipboo
     io.observe(box);
     document.addEventListener("visibilitychange", sync);
     return () => {
+      const v = s.getView();
+      savedView.current = { azimuth: v.azimuth, polar: v.polar, zoom: v.distance / s.baseDistance };
       document.removeEventListener("visibilitychange", sync);
       io.disconnect();
       ro.disconnect();
+      textures.dispose();
+      pageTextures.current = null;
       s.dispose();
+      el.remove();
       scene.current = null;
     };
   }, [dims, count, M, goTo]);
 
-  // ── Текстуры: нужны обложка и страницы возле читаемой; остальное освобождаем ──
-  const wanted = useMemo(() => {
-    const keys: FaceKey[] = ["front", "back", "spine"];
-    if (!ctx) return keys;
-    const lo = Math.max(1, slot - KEEP);
-    const hi = Math.min(M, slot + KEEP);
-    const order: FaceKey[] = [];
-    for (let i = lo; i <= hi; i++) order.push(`leaf:${i}:f`, `leaf:${i}:b`);
-    // Сначала то, что видно на развороте: оборот листа слева и лицо листа справа, потом соседние.
-    const dist = (k: FaceKey) => Math.abs(Number(k.split(":")[1]) - (slot + (k.endsWith(":b") ? -1 : 0)));
-    order.sort((a, b) => dist(a) - dist(b));
-    return [...keys, ...order];
-  }, [ctx, slot, M]);
+  // ── Полосы: картинки сборки для разворотов у цели листания; ушедшие из окна отменяются и освобождаются ──
+  const settled = slot === dest;
+  useEffect(() => {
+    const textures = pageTextures.current;
+    if (!textures) return;
+    if (!build) {
+      textures.want([]);
+      return;
+    }
+    // Пока лист летит, полосы, с которых ушли, ещё видны (и уже загружены) — их держим; промежуточные не грузим вовсе.
+    const near = new Set([...pagesNear(dest, build.pageCount, NEAR_SPREADS), ...(settled ? [] : pagesNear(origin.current, build.pageCount, NEAR_SPREADS))]);
+    const jobs = [...near].map((n) => {
+      const { leaf, side } = pageLeaf(n);
+      return { key: `leaf:${leaf}:${side}` as const, id: `${build.fp}:${n}`, url: leafImage(build, n, imageW) };
+    });
+    const id = window.setTimeout(() => textures.want(jobs), WINDOW_DELAY_MS);
+    return () => window.clearTimeout(id);
+    // Сцена пересоздаётся вместе с dims и count — а с ней и загрузчик: окно нужно передать новому.
+  }, [build, dest, settled, imageW, dims, count]);
+  const reloadPages = () => {
+    setFailedFp(null);
+    pageTextures.current?.retryFailed();
+  };
 
+  // ── Обложка: стороны переплёта растеризуются из вёрстки ──
   const nodeFor = useCallback(
-    (key: FaceKey): RasterJob | null => {
+    (key: (typeof COVER_KEYS)[number]): RasterJob => {
       const title = data.cover.title || data.title;
       if (key === "front")
-        return { key, version: artVersion, width: texW, height: boardH, pixelRatio: 1.5, node: <CoverFrontFace template={template} art={art} title={data.cover.title} subtitle={data.cover.subtitle} names={data.cover.names} titlePlaceholder={data.cover.titlePlaceholder} width={texW} height={boardH} widthMm={dims.w} /> };
+        return { key, version: artVersion, width: texW, height: boardH, pixelRatio: 1.5, node: <CoverFrontFace template={template} art={art} title={data.cover.title} subtitle={data.cover.subtitle} names={data.cover.names} titlePlaceholder={data.cover.titlePlaceholder} width={texW} height={boardH} widthMm={dims.w} design={design} format={data.formatId} /> };
       if (key === "back") return { key, version: artVersion, width: texW, height: boardH, pixelRatio: 1.5, node: <CoverBackFace art={art} design={backDesign} photos={backPhotos} brand={brand} width={texW} height={boardH} widthMm={dims.w} heightMm={dims.h} /> };
-      if (key === "spine") return { key, version: artVersion, width: spineW, height: boardH, pixelRatio: 2, node: <CoverSpineFace template={template} art={art} title={title} names={data.cover.names} width={spineW} height={boardH} widthMm={dims.d} heightMm={dims.h} /> };
-      if (!ctx) return null;
-      const [, index, side] = key.split(":");
-      const sheet = sheets[Number(index)];
-      if (!sheet || sheet.kind !== "pages") return null;
-      const face = side === "f" ? sheet.front : sheet.back;
-      const no = side === "f" ? sheet.frontNo : sheet.backNo;
-      // У корешка страница темнеет (складка) — это запекаем в текстуру: сцена считает свет, но не тень в сгибе.
-      const gutter = side === "f" ? "right" : "left";
-      const node: ReactNode = (
-        <div style={{ position: "relative", width: texW, height: pageH }}>
-          <FaceView face={face} no={no} ctx={ctx} />
-          <div aria-hidden style={{ position: "absolute", inset: 0, background: `linear-gradient(to ${gutter}, rgba(0,0,0,.22), rgba(0,0,0,.05) 7%, rgba(0,0,0,0) 18%)` }} />
-        </div>
-      );
-      return { key, width: texW, height: pageH, node };
+      return { key, version: artVersion, width: spineW, height: boardH, pixelRatio: 2, node: <CoverSpineFace template={template} art={art} title={title} names={data.cover.names} width={spineW} height={boardH} widthMm={dims.d} heightMm={dims.h} /> };
     },
-    [art, artVersion, backDesign, backPhotos, boardH, brand, ctx, data.cover.names, data.cover.subtitle, data.cover.title, data.cover.titlePlaceholder, data.title, dims, pageH, sheets, spineW, template, texW],
+    [art, artVersion, backDesign, backPhotos, boardH, brand, data.cover.names, data.cover.subtitle, data.cover.title, data.cover.titlePlaceholder, data.title, dims, spineW, template, texW, design, data.formatId],
   );
 
   // Версия арта, для которой текстуры обложки уже учтены как готовые.
   const coverVersion = useRef(artVersion);
   useEffect(() => {
-    const s = scene.current;
-    if (!s) return;
+    if (!scene.current) return;
     // Фото обложки догрузились — текстуры обложки, снятые с заглушкой, устарели: снимаем заново.
     if (coverVersion.current !== artVersion) {
       coverVersion.current = artVersion;
-      for (const k of ["front", "back", "spine"] as const) have.current.delete(k);
+      for (const k of COVER_KEYS) have.current.delete(k);
     }
-    // Освобождаем текстуры дальних листов (память и видеопамять), оставляя обложку и окно вокруг страницы.
-    const keep = new Set<FaceKey>(wanted);
-    for (const key of s.textureKeys()) {
-      if (!keep.has(key)) {
-        s.setTexture(key, null);
-        have.current.delete(key);
-      }
-    }
-    const missing = wanted.filter((k) => !have.current.has(k) && (coverReady || (k !== "front" && k !== "back" && k !== "spine")));
-    const next = missing.flatMap((k) => nodeFor(k) ?? []);
+    const next = coverReady ? COVER_KEYS.filter((k) => !have.current.has(k)).map(nodeFor) : [];
     setJobs((prev) => (prev.length === next.length && prev.every((j, i) => j.key === next[i].key && j.version === next[i].version) ? prev : next));
-  }, [wanted, nodeFor, count, artVersion, coverReady]);
+  }, [nodeFor, count, artVersion, coverReady]);
 
   const onRasterDone = useCallback((key: string, source: HTMLCanvasElement, version?: string) => {
     const s = scene.current;
     const k = key as FaceKey;
     if (s) {
       s.setTexture(k, source);
+      coverShots.current.set(k, source);
       // Снимок старой версии (пока шло фото) ставим как временный, но готовым не считаем — следом придёт новый.
       if (!version || version === coverVersion.current) have.current.add(k);
       if (k === "front") {
         const color = averageColor(source);
-        if (color) s.setEdgeColor(color);
+        if (color) {
+          edgeColor.current = color;
+          s.setEdgeColor(color);
+        }
         setReady(true);
       }
     }
@@ -344,7 +388,6 @@ export function BookViewerGL({ data, onUnsupported, className }: { data: Flipboo
 
   return (
     <div ref={wrapper} className={cn("flex flex-col items-center gap-4", full && "justify-center bg-paper p-4", className)}>
-      {measure}
       <RasterHost jobs={jobs} onDone={onRasterDone} onError={(key, e) => console.warn("book texture failed", key, e)} />
       <div
         ref={stage}
@@ -356,10 +399,11 @@ export function BookViewerGL({ data, onUnsupported, className }: { data: Flipboo
         className="relative w-full overflow-hidden rounded-3xl bg-[radial-gradient(ellipse_at_50%_35%,#fffdf9,#efe7da_72%)] focus-visible:outline-offset-4"
         style={full ? { height: "calc(100dvh - 12rem)" } : { maxWidth: "48rem", aspectRatio: "5 / 4" }}
       >
-        <canvas ref={canvas} className="absolute inset-0 block size-full cursor-grab touch-none active:cursor-grabbing" />
+        <div ref={canvasHost} className="absolute inset-0" />
         {/* Лёгкая виньетка: взгляд уходит к книге, края студии мягко темнеют */}
         <div aria-hidden className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(ellipse at 50% 44%, transparent 56%, rgba(72,50,26,.16) 100%)" }} />
-        {!ready ? <div aria-hidden className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-muted">{f.loading}</div> : null}
+        {!build ? <BuildPlaceholder pages={pages} /> : !ready ? <div aria-hidden className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-muted">{f.loading}</div> : null}
+        <BuildNotice pages={{ ...pages, pagesFailed: !!build && failedFp === build.fp }} onReloadPages={reloadPages} />
       </div>
       <ViewerControls
         count={count}
@@ -381,7 +425,7 @@ export function BookViewerGL({ data, onUnsupported, className }: { data: Flipboo
             scene.current?.setAperture(v);
           },
         }}
-        dimsText={mm.dims(Math.round(format.widthMm), Math.round(format.heightMm), Math.round(dims.d * 10) / 10, pageCount)}
+        dimsText={build ? mm.dims(Math.round(format.widthMm), Math.round(format.heightMm), Math.round(dims.d * 10) / 10, pageCount) : ""}
         onPrev={() => {
           stopAuto();
           goTo(target.current - 1);

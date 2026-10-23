@@ -59,7 +59,8 @@ describe("банк вопросов", () => {
 
 describe("виды книг", () => {
   it("вид и политика получателя — по теме; незнакомая тема — подарок", () => {
-    expect(["love", "mom", "dad", "friend", "autobiography", "blank", "nope"].map((t) => [bookKind(t), recipientPolicy(t), hasQuestionBank(t), hasOutline(t)])).toEqual([
+    expect(["love", "mom", "dad", "friend", "teacher", "autobiography", "blank", "nope"].map((t) => [bookKind(t), recipientPolicy(t), hasQuestionBank(t), hasOutline(t)])).toEqual([
+      ["gift", "required", true, false],
       ["gift", "required", true, false],
       ["gift", "required", true, false],
       ["gift", "required", true, false],
@@ -70,13 +71,13 @@ describe("виды книг", () => {
     ]);
   });
 
-  it("каталог: шесть тем, у каждой вид и получатель как в kinds; подарки — первые четыре, любимому — первой", () => {
+  it("каталог: семь тем, у каждой вид и получатель как в kinds; подарки — первые пять, любимому — первой", () => {
     for (const lang of ["ru", "kk"] as const) {
       const all = getThemes(lang);
-      expect(all.map((t) => t.id)).toEqual(["love", "mom", "dad", "friend", "autobiography", "blank"]);
+      expect(all.map((t) => t.id)).toEqual(["love", "mom", "dad", "friend", "teacher", "autobiography", "blank"]);
       for (const t of all) expect([t.id, t.kind, t.recipient]).toEqual([t.id, bookKind(t.id), recipientPolicy(t.id)]);
-      expect(giftThemes(lang).map((t) => t.id)).toEqual(["love", "mom", "dad", "friend"]);
-      expect(bankThemes(lang).map((t) => t.id)).toEqual(["love", "mom", "dad", "friend", "autobiography"]);
+      expect(giftThemes(lang).map((t) => t.id)).toEqual(["love", "mom", "dad", "friend", "teacher"]);
+      expect(bankThemes(lang).map((t) => t.id)).toEqual(["love", "mom", "dad", "friend", "teacher", "autobiography"]);
     }
   });
 
@@ -104,6 +105,21 @@ describe("виды книг", () => {
     for (const lang of ["ru", "kk"] as const) expect(countQuestions(getTheme("autobiography", lang)), lang).toBeGreaterThanOrEqual(60);
     expect(getTheme("autobiography", "ru").chapters[0].questions[0][2]).toContain("пишите его словами, от первого лица");
     expect(getTheme("autobiography", "kk").chapters[0].questions[0][2]).toBeTruthy();
+  });
+
+  it("учителю: подарок с банком на обоих языках, обращение «Вы» в заголовках, род учителя подставляется", () => {
+    for (const lang of ["ru", "kk"] as const) {
+      const t = getTheme("teacher", lang);
+      expect([t.kind, t.recipient, t.defaultRecipientGender, t.defaultCover]).toEqual(["gift", "required", "f", "autumn"]);
+      expect(countQuestions(t), lang).toBeGreaterThanOrEqual(45);
+      expect(t.recipientLabel).toBeTruthy();
+    }
+    expect(themeChaptersByLocale("teacher").ru.map((c) => c.key)).toEqual(["intro", "meet", "lessons", "portrait", "class", "support", "legacy", "thanks"]);
+    const letter = getTheme("teacher", "ru").chapters.at(-1)!.questions.at(-1)!;
+    expect(applyGender(letter[0], "m", "f")).toBe("Напишите письмо своей учительнице от всего сердца.");
+    expect(applyGender(letter[0], "f", "m")).toBe("Напишите письмо своему учителю от всего сердца.");
+    expect(letter[1]).toBe("Письмо Вам");
+    expect(applyGender(getTheme("teacher", "kk").chapters.at(-1)!.questions[0][1], "m", "f")).toBe("Рахмет Сізге, апай…");
   });
 
   it("варианты названий ru и kk одной длины — смена языка сопоставляет их по индексу", () => {

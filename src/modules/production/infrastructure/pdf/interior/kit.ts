@@ -1,15 +1,17 @@
 import "server-only";
 import type { Style } from "@react-pdf/stylesheet";
 import { messagesFor, type Messages } from "@/i18n/messages";
+import type { BookPageKind } from "@/lib/book/book-build";
 import { mm, type BookFormat } from "@/lib/book/formats";
 import { emptyFlow, type FlowDecisions } from "@/lib/book/flow-decisions";
 import type { BookContent } from "@/lib/book/layout";
 import { interiorMetrics, openerFlow, pageBox, pageSide, textArea } from "@/lib/book/page-geometry";
 import type { PageBox } from "@/lib/book/interior-art";
-import { PAPER, type InteriorDesign, type TextFace } from "@/lib/book/interiors";
-import { interiorSizes, trackingPt, type InteriorSizes } from "@/lib/book/typesetting";
+import { chapterDesign, PAPER, type InteriorDesign, type TextFace } from "@/lib/book/interiors";
+import { bodyAlign, bodyWeight, interiorSizes, measureInsets, quoteFace, trackingPt, type InteriorSizes } from "@/lib/book/typesetting";
 import { face } from "@/modules/production/infrastructure/pdf/fonts";
 import { FLOW_MARK } from "@/modules/production/infrastructure/pdf/flow";
+import { PAGE_MARK } from "@/modules/production/infrastructure/pdf/pages";
 
 export interface PreparedImage {
   data: Buffer;
@@ -19,7 +21,6 @@ export interface PreparedImage {
 
 export interface InteriorOptions {
   bleedMm: number;
-  watermark: boolean;
   /** Номера страниц глав для оглавления (из первого прохода). */
   tocPages?: Record<string, number>;
   onChapterPage?: (key: string, page: number) => void;
@@ -32,6 +33,8 @@ export interface InteriorOptions {
   rowHeights?: Map<string, number>;
   /** Электронная версия: QR-коды в ответах ещё и ссылки (в печатных файлах ссылок нет). */
   links?: boolean;
+  /** Сюда записывается текст колонки рядом с каждой буквицей и число её строк — для доводки (pdf/flow.ts refineDropCaps). */
+  dropColumns?: Map<string, { text: string; lines: number }>;
 }
 
 /** Всё, что нужно любой полосе блока: содержимое, дизайн, кегли, поля, стили основного текста и решения доводки. */
@@ -63,7 +66,12 @@ export interface PdfKit {
   pagePadding: Style;
   /** Основной текст. */
   body: Style;
+  /** Начертание цитат, лида, эпиграфов, посвящения и подзаголовка (по умолчанию курсив основного шрифта). */
   italicBody: Style;
+  /** Бумага полос. */
+  paper: string;
+  /** Узкая колонка текста: поля слева и справа внутри полосы набора, pt (без узкой колонки — пусто). */
+  measure: Style;
 }
 
 export function pdfKit(content: BookContent, options: InteriorOptions): PdfKit {
@@ -74,6 +82,9 @@ export function pdfKit(content: BookContent, options: InteriorOptions): PdfKit {
   const typeArea = textArea(format);
   const typo = design.type;
   const sizes = interiorSizes(design, scale);
+  const paper = design.paper ?? PAPER;
+  const inset = measureInsets(design);
+  const q = quoteFace(design);
   return {
     content,
     options,
@@ -95,21 +106,27 @@ export function pdfKit(content: BookContent, options: InteriorOptions): PdfKit {
       paddingBottom: mm(bleed + marginBottom),
       paddingLeft: mm(bleed + side),
       paddingRight: mm(bleed + side),
-      backgroundColor: PAPER,
+      backgroundColor: paper,
     },
     body: {
-      ...face(typo.body, 400),
+      ...face(typo.body, bodyWeight(design)),
       fontSize: sizes.body,
       lineHeight: typo.lineHeight,
       color: design.palette.ink,
-      textAlign: "justify",
+      textAlign: bodyAlign(design),
+      ...(design.text?.tracking ? { letterSpacing: design.text.tracking * sizes.body } : {}),
     },
-    italicBody: face(typo.body, 400, true),
+    italicBody: { ...face(q.font, q.weight, q.italic), ...(q.upper ? { textTransform: "uppercase" as const } : {}) },
+    paper,
+    measure: inset.left || inset.right ? { marginLeft: mm(typeArea.w) * inset.left, marginRight: mm(typeArea.w) * inset.right } : {},
   };
 }
 
 /** Пометка блока для доводки вёрстки (react-pdf сохраняет её в раскладке). */
 export const mark = (id: string) => ({ [FLOW_MARK]: id }) as object;
+
+/** Пометка страницы блока: вид полосы и глава — для манифеста сборки (pdf/pages.ts). Нужна у каждой <Page>. */
+export const pageMark = (kind: BookPageKind, chapterKey?: string) => ({ [PAGE_MARK]: chapterKey === undefined ? { kind } : { kind, chapterKey } }) as object;
 
 /** Без переносов: в крупных надписях (название, главы, заголовки, подписи) и выделенных строках перенос выглядит как ошибка — переносы только в основном тексте. */
 export const noHyphens = (word: string) => [word];
@@ -134,4 +151,10 @@ export function labelStyle(kit: PdfKit, color: string, size = kit.sizes.label): 
     textTransform: label.upper ? "uppercase" : undefined,
     color,
   };
+}
+
+/** Набор для главы со своим оформлением (design.chapters); у остальных глав — тот же набор. */
+export function chapterKit(kit: PdfKit, chapterKey: string): PdfKit {
+  const design = chapterDesign(kit.design, chapterKey);
+  return design === kit.design ? kit : pdfKit({ ...kit.content, interior: design }, kit.options);
 }

@@ -12,6 +12,11 @@ function resolveKey(key: string) {
   return full;
 }
 
+/** Полный путь к файлу хранилища — для программ, которым нужен путь (ffmpeg), и потоковой отдачи. */
+export function storagePath(key: string) {
+  return resolveKey(key);
+}
+
 export async function putFile(key: string, data: Buffer | Uint8Array | string) {
   const full = resolveKey(key);
   await fs.mkdir(path.dirname(full), { recursive: true });

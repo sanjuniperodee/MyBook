@@ -74,18 +74,18 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
             Поступления денег, CSV
           </a>
           {pipelines.length > 1 ? (
-            <div className="flex rounded-xl border border-line bg-white p-0.5 text-sm">
+            <div className="flex max-w-full overflow-x-auto rounded-xl border border-line bg-white p-0.5 text-sm">
               {pipelines.map((x) => (
-                <Link key={x.id} href={`/admin/analytics?period=${period}&p=${x.id}`} className={cn("rounded-lg px-3 py-1", x.id === pipeline.id ? "bg-ink text-white" : "text-ink-soft")}>
+                <Link key={x.id} href={`/admin/analytics?period=${period}&p=${x.id}`} className={cn("inline-flex min-h-10 items-center rounded-lg px-3 whitespace-nowrap lg:min-h-0 lg:py-1", x.id === pipeline.id ? "bg-ink text-white" : "text-ink-soft")}>
                   {x.name}
                 </Link>
               ))}
             </div>
           ) : null}
         </div>
-        <div className="flex rounded-xl border border-line bg-white p-1 text-sm">
+        <div className="flex max-w-full overflow-x-auto rounded-xl border border-line bg-white p-1 text-sm">
           {periods.map((x) => (
-            <Link key={x} href={`/admin/analytics?period=${x}${pipelineParam ? `&p=${pipelineParam}` : ""}`} className={cn("rounded-lg px-3 py-1.5", x === period ? "bg-ink text-white" : "text-ink-soft hover:bg-cream")}>
+            <Link key={x} href={`/admin/analytics?period=${x}${pipelineParam ? `&p=${pipelineParam}` : ""}`} className={cn("inline-flex min-h-10 items-center rounded-lg px-3 whitespace-nowrap lg:min-h-0 lg:py-1.5", x === period ? "bg-ink text-white" : "text-ink-soft hover:bg-cream")}>
               {x} дней
             </Link>
           ))}
@@ -174,7 +174,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
 
       <section className="overflow-x-auto rounded-2xl border border-line bg-white p-5">
         <h2 className="mb-4 font-semibold">Менеджеры</h2>
-        <table className="w-full min-w-[980px] text-sm" data-testid="leaderboard">
+        <table className="w-full min-w-[980px] [&_tr>*:first-child]:sticky [&_tr>*:first-child]:left-0 [&_tr>*:first-child]:bg-white [&_tr>*:first-child]:z-[1] text-sm" data-testid="leaderboard">
           <thead className="text-left text-xs text-muted">
             <tr>
               <th className="pb-2 font-medium">Сотрудник</th>

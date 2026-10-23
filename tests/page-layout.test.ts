@@ -4,7 +4,6 @@ import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { buildBookContent } from "@/lib/book/book-content";
 import { estimatePages } from "@/lib/book/estimate";
-import { planFaces } from "@/lib/book/flipbook";
 import { mm, print } from "@/lib/book/formats";
 import { chapterRuns, toPhotoItem, type BookContent } from "@/lib/book/layout";
 import { bookToc } from "@/lib/book/toc";
@@ -12,7 +11,8 @@ import { fixtureBook, type FixtureBook } from "./fixtures/books";
 import { photoNames, useFixtureStorage } from "./fixtures/photos";
 import { edgeMax, grayPage, hasTool, textRows } from "./pdf-inspect";
 
-// «С новой страницы» для истории и фото на всю страницу прямо в истории: содержимое, 3D-раскладка и настоящий PDF.
+// «С новой страницы» для истории и фото на всю страницу прямо в истории: содержимое, настоящий PDF и его манифест
+// (по нему листается 3D-книга).
 
 const contentOf = (fb: FixtureBook): BookContent => buildBookContent(fb.bundle.book, fb.bundle.questions, fb.bundle.photos.map(toPhotoItem), fb.bundle.chapters, 2026, fb.bundle.letters);
 
@@ -63,11 +63,6 @@ describe("фото на всю страницу: история делится �
     expect(runs[1].photo).toBeUndefined();
     expect(runs.flatMap((r) => r.items).length).toBe(ch.items.length);
   });
-
-  it("3D-раскладка: страница фото после куска, текст продолжается после неё", () => {
-    const { faces } = planFaces({ hasDedication: false, hasToc: false, textPages: [3], runs: [[{ pages: 2, photo: true }, { pages: 1, photo: false }]] });
-    expect(faces.map((f) => (f.kind === "text" ? `text${f.run}.${f.part}` : f.kind))).toEqual(["title", "colophon", "opener", "text0.0", "text0.1", "pagePhoto", "text1.0", "end"]);
-  });
 });
 
 // ─── PDF ───────────────
@@ -101,6 +96,9 @@ describe.skipIf(textless)("PDF: фото на всю страницу и «с н
       expect(pages[photoPage].length).toBe(0);
       const white = Object.entries(edgeMax(grayPage(file, photoPage + 1, 24, sheet))).flatMap(([edge, v]) => (v >= 250 ? [edge] : []));
       expect(white).toEqual([]);
+      // Манифест (3D-книга, картинки полос): эта полоса — фото той же главы, что текст до и после неё.
+      const chapter = res.pages[contAt].chapterKey;
+      expect([res.pages[photoPage - 1], res.pages[photoPage], res.pages[contAt]].map((p) => `${p.kind}:${p.chapterKey}`)).toEqual([`text:${chapter}`, `photo:${chapter}`, `text:${chapter}`]);
 
       // «С новой страницы»: заголовок истории — первая строка текста на своей полосе (под колонтитулом).
       const heading = content.chapters.flatMap((c) => c.items).find((it) => it.id === q6)!.heading!;
@@ -115,4 +113,40 @@ describe.skipIf(textless)("PDF: фото на всю страницу и «с н
       expect(Math.abs(estimatePages(content) - res.contentPages)).toBeLessThanOrEqual(1);
     }, 120_000);
   }
+});
+
+describe("фото вне историй: «Не печатать»", () => {
+  it("ни галереи, ни фотостраниц между главами; фото в историях остаются", () => {
+    const fb = fixtureBook("classic", "a5", "ru");
+    const book = (photoPlacement: "chapters" | "end" | "none") => buildBookContent({ ...fb.bundle.book, photoPlacement }, fb.bundle.questions, fb.bundle.photos.map(toPhotoItem), [], 2026, fb.bundle.letters);
+    const inline = (c: BookContent) => c.chapters.flatMap((ch) => ch.items.flatMap((it) => it.photos ?? [])).length;
+    const none = book("none");
+    expect(none.galleryPhotos).toEqual([]);
+    expect(none.chapters.every((ch) => ch.photos.length === 0 && !ch.openerPhoto)).toBe(true);
+    expect(inline(none)).toBe(inline(book("chapters")));
+    expect(book("end").galleryPhotos.length).toBeGreaterThan(0);
+  });
+});
+
+describe.skipIf(textless)("PDF: фото на всю страницу «целиком, без обрезки»", () => {
+  it("снимок вписан в лист: страница без текста, по одной из сторон — поля бумаги", async () => {
+    const fb = fixtureBook("classic", "a5", "ru");
+    const q2 = fb.bundle.questions[2].id;
+    const photos = fb.bundle.photos.map((p) => (p.questionId === q2 && p.inline ? { ...p, inline: { ...p.inline, page: true, pageFit: "contain" as const } } : p));
+    const bundle = { ...fb.bundle, photos };
+    const res = await render.renderInterior(bundle, "print");
+    const file = path.join(dir, "contain.pdf");
+    writeFileSync(file, res.pdf);
+    const content = contentOf({ ...fb, bundle });
+    const cont = content.chapters.flatMap((c) => c.items).find((it) => it.continued)!;
+    expect(cont.photoBefore?.inline?.pageFit).toBe("contain");
+    const pages = textRows(file);
+    const contAt = pages.findIndex((rows) => rows.some((r) => norm(cont.answer).startsWith(norm(r.text).replace(/-$/, "")) && norm(r.text).length > 10));
+    const photoPage = contAt - 1;
+    expect(pages[photoPage].length).toBe(0);
+    const sheet = { width: mm(content.format.widthMm + print.bleedMm * 2), height: mm(content.format.heightMm + print.bleedMm * 2) };
+    const white = Object.entries(edgeMax(grayPage(file, photoPage + 1, 24, sheet))).flatMap(([edge, v]) => (v >= 250 ? [edge] : []));
+    // Поля бумаги по краям, где снимок не достаёт до края листа (у «заполнить страницу» их нет — тест выше).
+    expect(white.length, JSON.stringify(white)).toBeGreaterThanOrEqual(2);
+  }, 120_000);
 });

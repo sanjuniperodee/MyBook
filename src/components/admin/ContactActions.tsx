@@ -6,6 +6,7 @@ import { LoaderCircle, Mail, MessageCircle, PhoneOutgoing } from "lucide-react";
 import { toast, toastError } from "@/components/ui/overlays";
 import { callAction, openChatAction, sendEmailAction } from "@/app/admin/crm-actions";
 import { cn } from "@/lib/class-names";
+import { useWhatsappCall, WhatsappCallButton } from "./WhatsappCall";
 
 type Target = { clientId?: string; dealId?: string; orderId?: string; callId?: string };
 
@@ -16,6 +17,9 @@ export function ContactActions({ target, canCall, canChat, canEmail = false, cla
   const [mailing, startMail] = useTransition();
   const [mail, setMail] = useState<{ subject: string; text: string } | null>(null);
   const router = useRouter();
+  const wa = useWhatsappCall();
+  // АТС нет, а звонки WhatsApp включены — «Позвонить» звонит в WhatsApp, отдельная кнопка не нужна.
+  const viaWhatsapp = !!wa && !wa.pbx;
   if (!canCall && !canChat && !canEmail) return null;
   return (
     <div className={cn("flex flex-wrap gap-2", className)}>
@@ -23,17 +27,21 @@ export function ContactActions({ target, canCall, canChat, canEmail = false, cla
         <button
           type="button"
           className="btn btn-outline btn-sm flex-1"
-          disabled={calling}
+          disabled={calling || (viaWhatsapp && wa.busy)}
+          data-testid={viaWhatsapp ? "wa-call-button" : undefined}
           onClick={() =>
-            startCall(async () => {
-              const r = await callAction(target);
-              toast(r.message ?? "Звоним", r.ok ? "success" : "error");
-            })
+            viaWhatsapp
+              ? wa.dial(target)
+              : startCall(async () => {
+                  const r = await callAction(target);
+                  toast(r.message ?? "Звоним", r.ok ? "success" : "error");
+                })
           }
         >
           {calling ? <LoaderCircle className="size-4 animate-spin" /> : <PhoneOutgoing className="size-4" />} Позвонить
         </button>
       ) : null}
+      {canCall && !viaWhatsapp ? <WhatsappCallButton target={target} className="flex-1" /> : null}
       {canChat ? (
         <button
           type="button"

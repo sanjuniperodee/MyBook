@@ -12,6 +12,7 @@ import { landing } from "./landing";
 import { orders } from "./orders";
 import { pay } from "./pay";
 import { review } from "./review";
+import { design } from "./design";
 
 /** Словарь для браузера: без серверных пространств — писем (mail), юридических текстов (legal) и ошибок API (api). */
-export const kkClient: ClientMessages = { common, book, catalog, landing, auth, books, editor, checkout, orders, review, invite, gift, pay };
+export const kkClient: ClientMessages = { common, book, catalog, landing, auth, books, editor, checkout, orders, review, invite, gift, pay, design };

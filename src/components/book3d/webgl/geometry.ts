@@ -2,16 +2,31 @@ import * as THREE from "three";
 import type { BookDims } from "@/lib/book/book-model";
 import { curlCurve, CURL_LAG, CURL_SEGMENTS } from "@/lib/book/page-curl";
 
-/** Лист блока: полоса из CURL_SEGMENTS сегментов по ширине; форму задаёт bendLeaf. */
+/**
+ * Тень у корешка на странице — как у раскрытой книги: от сгиба (u = 0) к полю светлеет и к 18% ширины сходит
+ * на нет (те же ступени, что у тени разворота в CSS-версии). Множитель цвета в линейном пространстве: затемнение
+ * на долю a в sRGB — это (1 − a)^2,2.
+ */
+export function gutterShade(u: number) {
+  const a = u < 0.07 ? 0.22 - (0.17 * u) / 0.07 : u < 0.18 ? 0.05 * (1 - (u - 0.07) / 0.11) : 0;
+  return Math.pow(1 - a, 2.2);
+}
+
+/**
+ * Лист блока: полоса из CURL_SEGMENTS сегментов по ширине; форму задаёт bendLeaf. Корешок — у u = 0 с обеих
+ * сторон листа (картинка оборота отзеркалена текстурой), поэтому тень у корешка — общие для сторон цвета вершин.
+ */
 export function leafGeometry() {
   const n = CURL_SEGMENTS;
   const g = new THREE.BufferGeometry();
   const positions = new Float32Array((n + 1) * 2 * 3);
   const uvs = new Float32Array((n + 1) * 2 * 2);
+  const colors = new Float32Array((n + 1) * 2 * 3);
   const index: number[] = [];
   for (let k = 0; k <= n; k++) {
     const u = k / n;
     uvs.set([u, 1, u, 0], k * 4);
+    colors.fill(gutterShade(u), k * 6, k * 6 + 6);
     if (k < n) {
       const a = 2 * k;
       index.push(a, a + 1, a + 3, a, a + 3, a + 2);
@@ -19,6 +34,7 @@ export function leafGeometry() {
   }
   g.setAttribute("position", new THREE.BufferAttribute(positions, 3));
   g.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
+  g.setAttribute("color", new THREE.BufferAttribute(colors, 3));
   g.setIndex(index);
   return g;
 }

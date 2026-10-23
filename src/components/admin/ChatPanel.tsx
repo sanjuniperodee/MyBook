@@ -1,15 +1,19 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
-import { ArrowDown, BadgePercent, BookOpen, FileText, LoaderCircle, Lock, MessageSquareQuote, Paperclip, Pencil, Receipt, ReceiptText, Reply, SendHorizontal, Sparkles, Wallet, X } from "lucide-react";
-import { aiSuggestReplyAction } from "@/app/admin/ai-actions";
+import { ArrowDown, BadgePercent, BookOpen, Check, Mic, FileText, Forward, Trash2, LoaderCircle, Lock, MessageSquareQuote, Paperclip, Pencil, Receipt, ReceiptText, Reply, SendHorizontal, Sparkles, Wallet, X } from "lucide-react";
+import { aiSuggestReplyAction, aiTemplateDraftAction } from "@/app/admin/ai-actions";
+import { TemplateEditor } from "@/app/admin/templates/TemplateEditor";
 import { deleteMessageAction, editMessageAction, markReadAction, sendInternalNoteAction, sendMessageAction, sendOfferAction } from "@/app/admin/chats/actions";
 import { ask } from "@/components/ui/overlays";
 import { AUDIO_EVENT, type AudioEvent } from "./chat/VoicePlayer";
 import { ForwardDialog } from "./chat/ForwardDialog";
+import { TemplateDialog } from "./chat/TemplateDialog";
+import { VoiceRecorder, canRecordVoice } from "./chat/VoiceRecorder";
 import { MediaViewer, type ViewerItem } from "./chat/MediaViewer";
-import { MessageBubble, isTemp, mediaSrc, snippet, time, type Msg } from "./chat/MessageBubble";
+import { MessageBubble, formatter, hasCaption, canForward, canRemove, isTemp, mediaSrc, selectable, snippet, time, type Msg } from "./chat/MessageBubble";
 import { MentionTextarea } from "./MentionTextarea";
 import { InvoiceDialog } from "./invoices/InvoiceDialog";
 import { newIssueKey } from "./invoices/model";
@@ -33,7 +37,7 @@ type Draft = { id: string; file: File; url: string | null };
  * Пояс приходит от сервера (storeTimeZone): в браузере TZ процесса нет. День — та же формула, что zonedDay
  * из shared/domain/time, но без импорта: модуль не попадает в клиентские чанки чатов.
  */
-const dayKey = (d: Date, tz: string) => new Intl.DateTimeFormat("en-CA", { timeZone: tz }).format(d);
+const dayKey = (d: Date, tz: string) => formatter("en-CA", tz, "day", {}).format(d);
 
 function dayLabel(iso: string, tz: string) {
   const d = new Date(iso);
@@ -41,7 +45,19 @@ function dayLabel(iso: string, tz: string) {
   const key = dayKey(d, tz);
   if (key === dayKey(today, tz)) return "Сегодня";
   if (key === dayKey(new Date(today.getTime() - 86_400_000), tz)) return "Вчера";
-  return new Intl.DateTimeFormat("ru-RU", { timeZone: tz, day: "numeric", month: "long", year: key.slice(0, 4) === dayKey(today, tz).slice(0, 4) ? undefined : "numeric" }).format(d);
+  const sameYear = key.slice(0, 4) === dayKey(today, tz).slice(0, 4);
+  return formatter("ru-RU", tz, sameYear ? "date" : "date-year", { day: "numeric", month: "long", year: sameYear ? undefined : "numeric" }).format(d);
+}
+
+/** Те же поля — то же сообщение: ссылку на прежний объект оставляем, чтобы пузырь не перерисовывался впустую. */
+function sameMsg(a: Msg, b: Msg) {
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]) as Set<keyof Msg>;
+  for (const k of keys) {
+    if (a[k] === b[k]) continue;
+    if (k === "replyTo" && a.replyTo && b.replyTo && (Object.keys(a.replyTo) as (keyof NonNullable<Msg["replyTo"]>)[]).every((f) => a.replyTo![f] === b.replyTo![f])) continue;
+    return false;
+  }
+  return true;
 }
 
 
@@ -70,7 +86,7 @@ export function ChatPanel({
   conversationId: string;
   messages: Msg[];
   canSend: boolean;
-  templates: { id: string; title: string; text: string }[];
+  templates: { id: string; title: string; text: string; own?: boolean }[];
   vars: { name: string; order: number | null; link: string; manager: string; fields?: Record<string, string> };
   sendDisabledReason?: string | null;
   /** Оплата сейчас не работает (кассир Kaspi отключён) — жёлтая плашка над полем ввода; сообщения при этом уходят. */
@@ -100,7 +116,20 @@ export function ChatPanel({
   const [invoiceKey, setInvoiceKey] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<Msg | null>(null);
   const [editing, setEditing] = useState<Msg | null>(null);
-  const [forwarding, setForwarding] = useState<Msg | null>(null);
+  /** Режим выбора (как в WhatsApp): отмеченные сообщения для пересылки и удаления; null — обычная лента. */
+  const [selected, setSelected] = useState<Set<string> | null>(null);
+  const [forwarding, setForwarding] = useState(false);
+  const [templating, setTemplating] = useState(false);
+  /** Идёт запись голосового. */
+  const [recording, setRecording] = useState(false);
+  /** «Создать шаблон» из сообщения: ИИ готовит черновик (loading), потом открывается редактор. */
+  const [tplDraft, setTplDraft] = useState<{ loading: true } | { loading: false; title: string; text: string; replaced: { was: string; with: string }[]; ai: boolean } | null>(null);
+  // Микрофон есть не везде (и не на http): узнаём после монтирования, чтобы разметка сервера и клиента совпала.
+  const [micOk, setMicOk] = useState(false);
+  // Узкий экран: короткая подсказка в поле ввода (длинная переносилась на три строки).
+  const [narrow, setNarrow] = useState(false);
+  useEffect(() => setNarrow(window.matchMedia("(max-width: 639px)").matches), []);
+  useEffect(() => setMicOk(canRecordVoice()), []);
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [dragging, setDragging] = useState(false);
   const [viewer, setViewer] = useState<number | null>(null);
@@ -123,11 +152,25 @@ export function ChatPanel({
   const lastCount = useRef(0);
   const forceBottom = useRef(true);
 
+  // Каждое обновление страницы приносит все сообщения новыми объектами. Неизменившиеся берём прежними — на них держится memo пузыря.
+  const known = useRef(new Map<string, Msg>());
+  const fresh = useMemo(() => {
+    const next = new Map<string, Msg>();
+    const list = messages.map((m) => {
+      const prev = known.current.get(m.id);
+      const same = prev && sameMsg(prev, m) ? prev : m;
+      next.set(m.id, same);
+      return same;
+    });
+    known.current = next;
+    return list;
+  }, [messages]);
+
   // Серверная версия сообщения вытесняет локальную копию.
   const all = useMemo(() => {
-    const ids = new Set(messages.map((m) => m.id));
-    return [...messages, ...local.filter((m) => !ids.has(m.id))].sort((a, b) => a.at.localeCompare(b.at));
-  }, [messages, local]);
+    const ids = new Set(fresh.map((m) => m.id));
+    return [...fresh, ...local.filter((m) => !ids.has(m.id))].sort((a, b) => a.at.localeCompare(b.at));
+  }, [fresh, local]);
 
   // Фото и видео диалога — для просмотра во весь экран с листанием.
   const gallery = useMemo<ViewerItem[]>(
@@ -254,24 +297,82 @@ export function ChatPanel({
     requestAnimationFrame(() => input.current?.focus());
   };
 
-  const onAction = (kind: "reply" | "forward" | "edit" | "remove" | "copy", m: Msg) => {
-    if (kind === "reply") {
+  // Шаблоны для «/» в поле ввода — с уже подставленными данными диалога.
+  const slashItems = useMemo(() => templates.map((t) => ({ id: t.id, title: t.title, own: t.own, text: fillTemplate(t.text, vars) })), [templates, vars]);
+
+  const toggleSelected = (id: string) =>
+    setSelected((s) => {
+      if (!s) return s;
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+
+  const stopSelecting = useCallback(() => {
+    setSelected(null);
+    setForwarding(false);
+    setTemplating(false);
+  }, []);
+
+  // Отмеченные сообщения в порядке ленты (удалённые и пропавшие отсеиваются).
+  const picked = useMemo(() => (selected ? all.filter((m) => selected.has(m.id) && selectable(m)) : []), [all, selected]);
+  const canForwardPicked = canSend && picked.length > 0 && picked.every(canForward);
+  // Текст для шаблона: тексты отмеченных сообщений клиентов и менеджеров (не заметок) по порядку, без заглушек вложений.
+  const templateText = picked
+    .filter((m) => !m.internal && hasCaption(m))
+    .map((m) => m.text.trim())
+    .join("\n");
+  const canRemovePicked = canSend && picked.length > 0 && picked.every((m) => canRemove(m, me, now));
+
+  useEffect(() => {
+    if (!selected) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && !forwarding && !templating && stopSelecting();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selected, forwarding, templating, stopSelecting]);
+
+  const removePicked = () =>
+    void (async () => {
+      const list = picked;
+      const one = list.length === 1 ? list[0] : null;
+      const question = one ? (one.internal ? "Удалить заметку?" : one.status === "error" ? "Удалить неотправленное сообщение?" : "Удалить сообщение у всех? Клиент увидит «Сообщение удалено».") : `Удалить сообщения (${list.length})? Клиент увидит «Сообщение удалено».`;
+      if (!(await ask(question, true))) return;
+      start(async () => {
+        const errors = new Set<string>();
+        for (const m of list) {
+          const r = await deleteMessageAction(conversationId, m.id);
+          if (r.error) errors.add(r.error);
+        }
+        if (errors.size) toast([...errors].join("; "), "error");
+        stopSelecting();
+        router.refresh();
+      });
+    })();
+
+  const onAction = (kind: "reply" | "forward" | "edit" | "remove" | "copy" | "select" | "template", m: Msg) => {
+    if (kind === "template") {
+      setTplDraft({ loading: true });
+      void aiTemplateDraftAction(conversationId, m.id)
+        .then((r) => {
+          if (!r.ok) {
+            toast(r.message, "error");
+            return setTplDraft(null);
+          }
+          setTplDraft({ loading: false, title: r.title, text: r.text, replaced: r.replaced, ai: r.ai });
+        })
+        .catch((err) => {
+          toastError(err);
+          setTplDraft(null);
+        });
+    } else if (kind === "forward" || kind === "remove" || kind === "select") setSelected(new Set([m.id]));
+    else if (kind === "reply") {
       setEditing(null);
       setReplyTo(m);
       setMode("client");
       input.current?.focus();
-    } else if (kind === "forward") setForwarding(m);
-    else if (kind === "copy") void navigator.clipboard?.writeText(m.text).then(() => toast("Скопировано", "success"));
+    } else if (kind === "copy") void navigator.clipboard?.writeText(m.text).then(() => toast("Скопировано", "success"));
     else if (kind === "edit") startEdit(m);
-    else if (kind === "remove")
-      void (async () => {
-        if (!(await ask(m.internal ? "Удалить заметку?" : m.status === "error" ? "Удалить неотправленное сообщение?" : "Удалить сообщение у всех? Клиент увидит «Сообщение удалено».", true))) return;
-        start(async () => {
-          const r = await deleteMessageAction(conversationId, m.id);
-          if (r.error) toast(r.error, "error");
-          router.refresh();
-        });
-      })();
   };
 
   /** Голосовое закончилось — следующее голосовое подряд (как в мессенджере). */
@@ -280,6 +381,78 @@ export function ChatPanel({
     const next = all[i + 1];
     if (next && next.type === "audio" && !next.deleted) window.dispatchEvent(new CustomEvent<AudioEvent>(AUDIO_EVENT, { detail: { id: next.id, action: "play" } }));
   };
+
+  // Набор текста перерисовывает панель на каждую букву — ленту не трогаем: обработчики стабильные, строки в useMemo.
+  const latest = useRef({ onAction, jump, onVoiceEnded, toggleSelected, gallery });
+  latest.current = { onAction, jump, onVoiceEnded, toggleSelected, gallery };
+  const h = useMemo(
+    () => ({
+      onAction: (kind: Parameters<typeof onAction>[0], m: Msg) => latest.current.onAction(kind, m),
+      jump: (id: string) => latest.current.jump(id),
+      onVoiceEnded: (id: string) => latest.current.onVoiceEnded(id),
+      toggleSelected: (id: string) => latest.current.toggleSelected(id),
+      openMedia: (id: string) => setViewer(Math.max(0, latest.current.gallery.findIndex((g) => g.id === id))),
+    }),
+    [],
+  );
+
+  const rows = useMemo(() => {
+    let lastDay = "";
+    return all.map((m, i) => {
+            const day = dayLabel(m.at, timeZone);
+            const sep = day !== lastDay;
+            lastDay = day;
+            // Подряд от одного отправителя в пределах 5 минут — одной группой: плотнее, хвостик у последнего.
+            const prev = all[i - 1];
+            const next = all[i + 1];
+            const same = (a?: Msg, b?: Msg) => !!a && !!b && a.direction === b.direction && !!a.internal === !!b.internal && a.author === b.author && Math.abs(new Date(b.at).getTime() - new Date(a.at).getTime()) < 5 * 60_000 && dayLabel(a.at, timeZone) === dayLabel(b.at, timeZone);
+            const first = sep || !same(prev, m);
+            const last = !same(m, next);
+            return (
+              <div
+                key={m.id}
+                className={cn(first ? "mt-3" : "mt-0.5", selected && selectable(m) && "relative -mx-3 cursor-pointer py-0.5 pr-3 pl-10 transition-colors sm:-mx-6 sm:pr-6", selected?.has(m.id) && "bg-wine/10")}
+                // Идёт выбор: клик в любом месте сообщения отмечает его, а не открывает фото или ссылку.
+                onClickCapture={
+                  selected && selectable(m)
+                    ? (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        h.toggleSelected(m.id);
+                      }
+                    : undefined
+                }
+              >
+                {selected && selectable(m) ? (
+                  <span aria-hidden className={cn("absolute top-1/2 left-3 flex size-5 -translate-y-1/2 items-center justify-center rounded-full border sm:left-6", selected.has(m.id) ? "border-wine bg-wine text-white" : "border-line bg-white")}>
+                    {selected.has(m.id) ? <Check className="size-3.5" /> : null}
+                  </span>
+                ) : null}
+                {sep ? (
+                  <div className="sticky top-1 z-10 mb-3 text-center">
+                    <span className="rounded-full bg-white/95 px-3 py-1 text-[11px] font-medium text-ink-soft shadow-sm ring-1 ring-line">{day}</span>
+                  </div>
+                ) : null}
+                <MessageBubble
+                  first={first}
+                  last={last}
+                  m={m}
+                  me={me}
+                  now={now}
+                  timeZone={timeZone}
+                  conversationId={conversationId}
+                  canSend={canSend}
+                  highlighted={highlight === m.id}
+                  selecting={!!selected}
+                  onAction={h.onAction}
+                  onOpenMedia={h.openMedia}
+                  onJump={h.jump}
+                  onVoiceEnded={h.onVoiceEnded}
+                />
+              </div>
+            );
+          });
+  }, [all, timeZone, selected, highlight, me, now, conversationId, canSend, h]);
 
   const sendFiles = (caption: string, reply: Msg | null) => {
     const list = drafts;
@@ -316,6 +489,33 @@ export function ChatPanel({
         router.refresh();
       } catch (err) {
         setLocal((l) => l.map((m) => (temps.some((t) => t.id === m.id) ? { ...m, status: "error", error: (err as Error).message } : m)));
+        toastError(err);
+      }
+    });
+  };
+
+  /** Голосовое: запись браузера уходит на сервер, тот перекодирует её в формат голосовых WhatsApp. Сразу показываем своё, со звуком. */
+  const sendVoice = ({ blob, mime, ms }: { blob: Blob; mime: string; ms: number }) => {
+    const reply = replyTo;
+    setRecording(false);
+    setReplyTo(null);
+    const url = URL.createObjectURL(blob);
+    const tempId = `tmp-${Date.now()}`;
+    setLocal((l) => [...l, { id: tempId, direction: "out", type: "audio", text: "", mediaUrl: null, localSrc: url, status: "pending", error: null, author: vars.manager || "Вы", at: new Date().toISOString(), authorId: me, replyTo: reply ? { id: reply.id, text: reply.text, type: reply.type, direction: reply.direction, author: reply.author } : null }]);
+    start(async () => {
+      const form = new FormData();
+      form.set("voice", blob, `voice.${/mp4|aac/.test(mime) ? "m4a" : /ogg/.test(mime) ? "ogg" : "webm"}`);
+      form.set("durationMs", String(ms));
+      if (reply) form.set("replyToId", reply.id);
+      try {
+        const res = await fetch(`/api/admin/chats/${conversationId}/voice`, { method: "POST", body: form });
+        const data = (await res.json().catch(() => ({}))) as { error?: string | null };
+        if (!res.ok) throw new Error(data.error ?? "Голосовое не отправилось");
+        if (data.error) toast(data.error, "error");
+        setLocal((l) => l.filter((m) => m.id !== tempId));
+        router.refresh();
+      } catch (err) {
+        setLocal((l) => l.map((m) => (m.id === tempId ? { ...m, status: "error", error: (err as Error).message } : m)));
         toastError(err);
       }
     });
@@ -399,7 +599,6 @@ export function ChatPanel({
     });
   };
 
-  let lastDay = "";
   const canAttach = canSend && mode === "client" && !editing;
   return (
     <div
@@ -436,41 +635,7 @@ export function ChatPanel({
           {all.length === 0 ? (
             <div className="mx-auto mt-16 max-w-xs rounded-2xl bg-white/80 px-5 py-6 text-center text-sm text-muted shadow-sm">Сообщений пока нет — напишите первым 👋</div>
           ) : null}
-          {all.map((m, i) => {
-            const day = dayLabel(m.at, timeZone);
-            const sep = day !== lastDay;
-            lastDay = day;
-            // Подряд от одного отправителя в пределах 5 минут — одной группой: плотнее, хвостик у последнего.
-            const prev = all[i - 1];
-            const next = all[i + 1];
-            const same = (a?: Msg, b?: Msg) => !!a && !!b && a.direction === b.direction && !!a.internal === !!b.internal && a.author === b.author && Math.abs(new Date(b.at).getTime() - new Date(a.at).getTime()) < 5 * 60_000 && dayLabel(a.at, timeZone) === dayLabel(b.at, timeZone);
-            const first = sep || !same(prev, m);
-            const last = !same(m, next);
-            return (
-              <div key={m.id} className={first ? "mt-3" : "mt-0.5"}>
-                {sep ? (
-                  <div className="sticky top-1 z-10 mb-3 text-center">
-                    <span className="rounded-full bg-white/95 px-3 py-1 text-[11px] font-medium text-ink-soft shadow-sm ring-1 ring-line">{day}</span>
-                  </div>
-                ) : null}
-                <MessageBubble
-                  first={first}
-                  last={last}
-                  m={m}
-                  me={me}
-                  now={now}
-                  timeZone={timeZone}
-                  conversationId={conversationId}
-                  canSend={canSend}
-                  highlighted={highlight === m.id}
-                  onAction={onAction}
-                  onOpenMedia={(id) => setViewer(Math.max(0, gallery.findIndex((g) => g.id === id)))}
-                  onJump={jump}
-                  onVoiceEnded={onVoiceEnded}
-                />
-              </div>
-            );
-          })}
+          {rows}
         </div>
       </div>
       {!atBottom ? (
@@ -480,26 +645,87 @@ export function ChatPanel({
         </button>
       ) : null}
       {viewer !== null && gallery.length ? <MediaViewer items={gallery} index={Math.min(viewer, gallery.length - 1)} onIndex={setViewer} onClose={() => setViewer(null)} /> : null}
-      {forwarding ? <ForwardDialog conversationId={conversationId} messageId={forwarding.id} preview={snippet(forwarding)} onClose={() => setForwarding(null)} /> : null}
+      {forwarding && picked.length ? <ForwardDialog conversationId={conversationId} messageIds={picked.map((m) => m.id)} preview={picked.length === 1 ? snippet(picked[0]) : `Сообщений: ${picked.length}`} onClose={() => setForwarding(false)} onDone={stopSelecting} /> : null}
+      {templating && templateText ? <TemplateDialog initialText={templateText.slice(0, 2000)} onClose={() => setTemplating(false)} onDone={stopSelecting} /> : null}
+      {tplDraft?.loading ? (
+        <div className="fixed inset-x-0 bottom-24 z-[90] flex justify-center" role="status">
+          <div className="flex items-center gap-2 rounded-full bg-ink px-4 py-2.5 text-sm text-white shadow-xl">
+            <Sparkles className="size-4 animate-pulse" /> Готовлю шаблон…
+          </div>
+        </div>
+      ) : null}
+      {tplDraft && !tplDraft.loading ? (
+        <TemplateEditor
+          tpl={null}
+          initial={{ title: tplDraft.title, text: tplDraft.text }}
+          manager={vars.manager}
+          onClose={() => setTplDraft(null)}
+          onSaved={() => {
+            setTplDraft(null);
+            router.refresh();
+          }}
+          notice={
+            <div className="rounded-xl border border-violet-200 bg-violet-50 px-3.5 py-2.5 text-sm text-violet-900">
+              <p className="flex items-center gap-1.5 font-medium">
+                <Sparkles className="size-4" /> {tplDraft.replaced.length ? "Данные клиента заменены подстановками" : "Подстановки не понадобились"}
+              </p>
+              {tplDraft.replaced.length ? (
+                <p className="mt-1 text-xs">{tplDraft.replaced.map((r) => `«${r.was}» → ${r.with}`).join(" · ")}</p>
+              ) : (
+                <p className="mt-1 text-xs">В этом сообщении нет данных конкретного клиента — шаблон получился обычным текстом. Подстановки можно добавить кнопками ниже.</p>
+              )}
+              <p className="mt-1 text-xs opacity-80">Проверьте текст и название — потом нажмите «Создать шаблон». В чате он будет по «/».</p>
+            </div>
+          }
+        />
+      ) : null}
       {invoice && invoiceKey ? <InvoiceDialog issueKey={invoiceKey} dealId={invoice.dealId} conversationId={conversationId} onClose={() => setInvoiceKey(null)} /> : null}
-      <div className={cn("relative border-t px-3 pt-2.5 pb-3 sm:px-4", mode === "note" ? "border-amber-200 bg-amber-50/70" : "border-line bg-white")}>
-        {showTemplates && templates.length && mode === "client" ? (
-          <div className="absolute right-3 bottom-full left-3 z-20 mb-2 max-h-64 overflow-y-auto rounded-xl border border-line bg-white shadow-xl">
-            {templates.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                className="block w-full px-4 py-2.5 text-left hover:bg-cream/60"
-                onClick={() => {
-                  setText(fillTemplate(t.text, vars));
-                  setShowTemplates(false);
-                  input.current?.focus();
-                }}
-              >
-                <span className="block text-sm font-medium">{t.title}</span>
-                <span className="line-clamp-1 text-xs text-muted">{t.text}</span>
-              </button>
-            ))}
+      {selected ? (
+        <div className="flex items-center gap-2 border-t border-line bg-white px-3 py-3 sm:px-4" data-testid="chat-selection-bar">
+          <button type="button" onClick={stopSelecting} className="rounded-full p-2 text-muted hover:bg-cream hover:text-ink" aria-label="Отменить выбор">
+            <X className="size-5" />
+          </button>
+          <span className="flex-1 text-sm font-medium">{picked.length ? `Выбрано: ${picked.length}` : "Выберите сообщения"}</span>
+          {canSend ? (
+            <button type="button" className="btn btn-sm btn-outline" disabled={!templateText || sending} onClick={() => setTemplating(true)} title={templateText ? "Сохранить текст выбранных сообщений как шаблон быстрого ответа" : "В выбранных нет текста"}>
+              <MessageSquareQuote className="size-4" /> В шаблон
+            </button>
+          ) : null}
+          <button type="button" className="btn btn-sm" disabled={!canForwardPicked || sending} onClick={() => setForwarding(true)} title={canForwardPicked || !picked.length ? undefined : "Заметки пересылать нельзя"}>
+            <Forward className="size-4" /> Переслать
+          </button>
+          <button type="button" className="btn btn-sm text-red-700" disabled={!canRemovePicked || sending} onClick={removePicked} title={canRemovePicked || !picked.length ? undefined : "Удалить можно только свои сообщения за последние двое суток"}>
+            <Trash2 className="size-4" /> Удалить
+          </button>
+        </div>
+      ) : null}
+      <div className={cn("relative border-t px-3 pt-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-4", selected && "hidden", mode === "note" ? "border-amber-200 bg-amber-50/70" : "border-line bg-white")}>
+        {showTemplates && mode === "client" ? (
+          <div className="absolute right-3 bottom-full left-3 z-20 mb-2 flex max-h-72 flex-col overflow-hidden rounded-xl border border-line bg-white shadow-xl">
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              {templates.length === 0 ? <p className="px-4 py-5 text-center text-sm text-muted">Шаблонов пока нет</p> : null}
+              {templates.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  className="block w-full px-4 py-2.5 text-left hover:bg-cream/60"
+                  onClick={() => {
+                    setText(fillTemplate(t.text, vars));
+                    setShowTemplates(false);
+                    input.current?.focus();
+                  }}
+                >
+                  <span className="flex items-center gap-2 text-sm font-medium">
+                    {t.title}
+                    {t.own ? <span className="rounded-full bg-rose px-1.5 py-px text-[10px] font-medium text-wine">мой</span> : null}
+                  </span>
+                  <span className="line-clamp-1 text-xs text-muted">{t.text}</span>
+                </button>
+              ))}
+            </div>
+            <Link href="/admin/templates" className="flex items-center gap-2 border-t border-line bg-cream/40 px-4 py-2 text-xs font-medium text-wine hover:bg-cream">
+              <Pencil className="size-3.5" /> Мои шаблоны — создать и изменить
+            </Link>
           </div>
         ) : null}
         {showOffers && offers ? (
@@ -600,8 +826,13 @@ export function ChatPanel({
           </div>
           <span className="ml-auto hidden truncate text-[11px] text-muted 2xl:inline">Enter — отправить · Shift+Enter — новая строка</span>
         </div>
-        <div className="flex items-end gap-2">
-          <div className={cn("flex min-w-0 flex-1 items-end gap-0.5 rounded-[22px] border px-1.5 py-1 transition focus-within:ring-2", mode === "note" ? "border-amber-300 bg-white focus-within:ring-amber-200" : "border-line bg-[#fbf9f5] focus-within:border-wine/40 focus-within:ring-wine/10")}>
+        {recording ? (
+          <div className="flex items-center gap-2">
+            <VoiceRecorder onSend={sendVoice} onCancel={() => setRecording(false)} />
+          </div>
+        ) : null}
+        <div className={cn("flex items-end gap-2", recording && "hidden")}>
+          <div className={cn("flex min-w-0 flex-1 flex-wrap items-end gap-0.5 rounded-[22px] border px-1.5 py-1 transition focus-within:ring-2 sm:flex-nowrap", mode === "note" ? "border-amber-300 bg-white focus-within:ring-amber-200" : "border-line bg-[#fbf9f5] focus-within:border-wine/40 focus-within:ring-wine/10")}>
           {mode === "client" && !editing ? (
             <>
               <input ref={fileInput} type="file" multiple accept={ACCEPT} className="hidden" onChange={(e) => (e.target.files?.length && addFiles(e.target.files), (e.target.value = ""))} />
@@ -634,7 +865,9 @@ export function ChatPanel({
             ref={input}
             value={text}
             onValueChange={setText}
+            wrapperClassName="order-first basis-full sm:order-none sm:basis-auto"
             mentionables={mentionables}
+            slashItems={mode === "client" && !editing && canSend ? slashItems : undefined}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
                 e.preventDefault();
@@ -660,20 +893,26 @@ export function ChatPanel({
             }}
             rows={1}
             maxLength={4000}
-            placeholder={editing ? "Новый текст… (Esc — отмена)" : mode === "note" ? "Заметка видна только сотрудникам. @имя — позвать коллегу" : drafts.length ? "Подпись к файлам (необязательно)…" : "Написать сообщение…"}
+            placeholder={editing ? "Новый текст… (Esc — отмена)" : mode === "note" ? "Заметка видна только сотрудникам. @имя — позвать коллегу" : drafts.length ? "Подпись к файлам (необязательно)…" : narrow ? "Сообщение…" : "Написать сообщение… (/ — шаблоны)"}
             className="max-h-40 min-h-9 w-full resize-none border-0 bg-transparent px-2 py-2 text-[14px] outline-none field-sizing-content placeholder:text-muted/80"
             aria-label="Текст сообщения"
           />
           </div>
-          <button
-            type="button"
-            className={cn("flex size-11 shrink-0 items-center justify-center rounded-full text-white shadow-md transition disabled:opacity-40 disabled:shadow-none", mode === "note" ? "bg-amber-500 hover:bg-amber-600" : "bg-wine hover:bg-wine-dark")}
-            disabled={(!text.trim() && !(drafts.length && mode === "client")) || sending}
-            onClick={send}
-            aria-label={editing ? "Сохранить" : "Отправить"}
-          >
-            {sending ? <LoaderCircle className="size-5 animate-spin" /> : editing ? <Pencil className="size-5" /> : <SendHorizontal className="ml-0.5 size-5" />}
-          </button>
+          {canSend && micOk && mode === "client" && !editing && !text.trim() && !drafts.length ? (
+            <button type="button" className="flex size-11 shrink-0 items-center justify-center rounded-full bg-wine text-white shadow-md transition hover:bg-wine-dark disabled:opacity-40" disabled={sending} onClick={() => setRecording(true)} aria-label="Записать голосовое" title="Записать голосовое сообщение">
+              <Mic className="size-5" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              className={cn("flex size-11 shrink-0 items-center justify-center rounded-full text-white shadow-md transition disabled:opacity-40 disabled:shadow-none", mode === "note" ? "bg-amber-500 hover:bg-amber-600" : "bg-wine hover:bg-wine-dark")}
+              disabled={(!text.trim() && !(drafts.length && mode === "client")) || sending}
+              onClick={send}
+              aria-label={editing ? "Сохранить" : "Отправить"}
+            >
+              {sending ? <LoaderCircle className="size-5 animate-spin" /> : editing ? <Pencil className="size-5" /> : <SendHorizontal className="ml-0.5 size-5" />}
+            </button>
+          )}
         </div>
       </div>
     </div>

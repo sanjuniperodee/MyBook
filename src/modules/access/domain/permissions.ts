@@ -7,7 +7,8 @@ export const systemRoles: Record<string, { name: string; scope: RoleScope; permi
     name: "Менеджер продаж",
     scope: "own",
         // Полных номеров нет: писать и звонить — через CRM, открыть номер своего клиента — кнопкой с записью в журнал.
-    permissions: ["deals.view", "deals.edit", "chats.view", "chats.send", "calls.view", "calls.make", "calls.recordings", "clients.view", "clients.edit", "clients.create", "clients.reveal", "orders.view", "promo.give"],
+    // Записи разговоров слушает руководитель (право можно выдать роли в «Команде»).
+    permissions: ["deals.view", "deals.edit", "chats.view", "chats.send", "calls.view", "calls.make", "clients.view", "clients.edit", "clients.create", "clients.reveal", "orders.view", "promo.give"],
   },
   production: {
     name: "Производство",

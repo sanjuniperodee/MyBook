@@ -74,7 +74,8 @@ export class BotCoach {
     const { system, user } = coachPrompt({ conversations, lessons, botName: config.sell.botName, managerName: config.sell.managerName, pricesByBot: !config.sell.hidePrices, speaksAs: config.sell.speaksAs });
     let raw: string;
     try {
-      raw = (await this.d.seller.complete({ system, user, schema: coachSchema() as unknown as Record<string, unknown>, timeoutMs: COACH_TIMEOUT_MS })).text;
+      // Ночной разбор редкий и требует суждения — уровень Sonnet (клиент не ждёт).
+      raw = (await this.d.seller.complete({ system, user, schema: coachSchema() as unknown as Record<string, unknown>, timeoutMs: COACH_TIMEOUT_MS, tier: "sonnet" })).text;
     } catch (err) {
       this.d.logger.warn("bot coach", { error: String(err) });
       return record({ at: now.toISOString(), reviewed: conversations.length, added: [], removed: [], summary: "", error: `модель не ответила: ${String(err).slice(0, 200)}` });

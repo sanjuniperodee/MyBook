@@ -117,7 +117,7 @@ run("CRM и автописьма по видам книг (PostgreSQL)", () => {
 
     // «Почти готовы» в списке книг: 3000 слов у своей книги, а не 25 «ответов».
     await sections.edit(own.id, viewer, rows[0].id, { answer: "слово ".repeat(3000) });
-    const ready = await bookList("ready", { q: tag, staleDays: 7, now: Date.now() });
+    const ready = await bookList("ready", { q: tag, staleDays: 7, now: Date.now(), viewer: { userId: "", seesAll: true } });
     expect(ready.map((r) => r.book.id)).toContain(own.id);
   });
 });

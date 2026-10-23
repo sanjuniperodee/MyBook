@@ -112,15 +112,19 @@ export async function createDealFromChatAction(conversationId: string) {
   const conv = await loadOwnConv(staff, conversationId);
   if (conv.dealId) return { id: conv.dealId };
   const phone = isPhoneLike(conv.chatId) ? normalizePhone(conv.chatId) : null;
-  const deal = await container().sales.deals.create({
-    title: `Заявка из ${channelLabel(conv.channel)}${conv.contactName ? `: ${conv.contactName}` : ""}`,
-    source: sourceFromChannel(conv.channel),
-    clientId: conv.clientId,
-    contactName: conv.contactName,
-    contactPhone: phone,
-    assigneeId: conv.assigneeId ?? staff.user.id,
-    createdById: staff.user.id,
-  });
+  // У клиента уже есть открытая сделка — диалог привязывается к ней, а не заводится вторая.
+  const open = await container().sales.deals.findOpen({ clientId: conv.clientId, phone });
+  const deal =
+    open ??
+    (await container().sales.deals.create({
+      title: `Заявка из ${channelLabel(conv.channel)}${conv.contactName ? `: ${conv.contactName}` : ""}`,
+      source: sourceFromChannel(conv.channel),
+      clientId: conv.clientId,
+      contactName: conv.contactName,
+      contactPhone: phone,
+      assigneeId: conv.assigneeId ?? staff.user.id,
+      createdById: staff.user.id,
+    }));
   await container().messaging.chats.linkCreatedDeal(conv.id, deal);
   revalidatePath("/admin/chats");
   return { id: deal.id };
@@ -196,6 +200,26 @@ export async function deleteMessageAction(conversationId: string, messageId: str
   if (!(r && typeof r === "object" && "error" in r)) await audit(staff, "chat.message.delete", "conversation", conv.id, { messageId });
   revalidatePath("/admin/chats");
   return r && typeof r === "object" && "error" in r ? r : { ok: true };
+}
+
+/** Закрепить чат вверху списка или открепить: закрепление личное, у каждого сотрудника своё. */
+export async function pinChatAction(conversationId: string, pinned: boolean): Promise<{ ok?: true; error?: string }> {
+  const staff = await assertStaff("chats.view");
+  const conv = await loadConv(staff, uuid.parse(conversationId));
+  await container().workspace.pinnedChats.set(staff.user.id, conv.id, !!pinned);
+  revalidatePath("/admin/chats");
+  return { ok: true };
+}
+
+/** Личный шаблон быстрого ответа из выбранных сообщений: виден только создателю (правка — на странице «Шаблоны»). */
+export async function createTemplateAction(title: string, text: string): Promise<{ ok?: true; error?: string }> {
+  const staff = await assertStaff("chats.view");
+  const parsed = z.object({ title: z.string().trim().min(1, "Название шаблона").max(60), text: z.string().trim().min(1, "Текст шаблона").max(2000, "Текст шаблона — не больше 2000 знаков") }).safeParse({ title, text });
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  await container().workspace.personalTemplates.add(staff.user.id, parsed.data);
+  revalidatePath("/admin/chats");
+  revalidatePath("/admin/templates");
+  return { ok: true };
 }
 
 /** Куда переслать: диалоги, которые сотрудник ведёт (поиск по имени и номеру). */

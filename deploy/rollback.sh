@@ -17,6 +17,10 @@ echo "→ Откат: $CUR → $TARGET"
 ln -sfn "$BASE/releases/$TARGET" current
 # PM2 при reload не перечитывает cwd, поэтому процесс пересоздаётся
 pm2 delete mybook >/dev/null 2>&1 || true
+# Кэш предпросмотров — пока процесс остановлен (пересоберётся по запросу): с 22.10 cache/preview/<книга>/<отпечаток>.pdf —
+# сборка без водяного знака, а код до этого отдаёт тот же файл как предпросмотр со знаком.
+STORAGE_DIR="$({ sed -n 's/^STORAGE_DIR=//p' "$ROOT/.env" 2>/dev/null || true; } | tail -n 1 | tr -d "\"'\r")"
+case "$STORAGE_DIR" in /*) rm -rf "$STORAGE_DIR/cache/preview" "$STORAGE_DIR/cache/pages" && echo "  кэш предпросмотров удалён" ;; esac
 pm2 start "$ROOT/deploy/ecosystem.config.cjs" --only mybook
 pm2 save
 

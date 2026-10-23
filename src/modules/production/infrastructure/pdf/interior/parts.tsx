@@ -1,37 +1,10 @@
 import "server-only";
 import type { ReactNode } from "react";
-import { Text, View } from "@react-pdf/renderer";
+import { View } from "@react-pdf/renderer";
 import type { InteriorPalette } from "@/lib/book/interiors";
 import { frameShapes, vignetteDrawing } from "@/lib/book/interior-art";
-import { face } from "@/modules/production/infrastructure/pdf/fonts";
 import { PdfDrawing, PdfPageLayer } from "@/modules/production/infrastructure/pdf/art";
 import type { PdfKit } from "./kit";
-
-/** Водяной знак превью — на каждой полосе блока (fixed). */
-export function Watermark({ kit }: { kit: PdfKit }) {
-  if (!kit.options.watermark) return null;
-  const { pageSize, scale, t } = kit;
-  return (
-    <Text
-      fixed
-      style={{
-        position: "absolute",
-        top: pageSize.height / 2 - 30,
-        left: -40,
-        width: pageSize.width + 80,
-        textAlign: "center",
-        fontSize: 44 * scale,
-        color: "#000000",
-        opacity: 0.05,
-        transform: "rotate(-35deg)",
-        ...face("montserrat", 600),
-        letterSpacing: 6,
-      }}
-    >
-      {t.previewMark}
-    </Text>
-  );
-}
 
 /** Рамка дизайна вокруг полосы. */
 export function Frame({ kit, colors }: { kit: PdfKit; colors: InteriorPalette }) {

@@ -1,6 +1,6 @@
 import { listFields } from "@/modules/workspace";
 import { nowMs } from "@/lib/dates";
-import Link from "next/link";
+import { BackLink } from "@/components/admin/BackLink";
 import { notFound } from "next/navigation";
 import { container } from "@/server/container";
 import { staffOptions } from "@/modules/access/ui";
@@ -12,7 +12,7 @@ import { ClientBooks, ClientDeals, ClientOrders, ClientPayments, ClientProfile }
 import { ClientAccess } from "./ClientAccess";
 import { staffLogin } from "@/app/admin/clients/new/access-message";
 import { isPhoneEmail } from "@/modules/identity/domain";
-import { can, canAssignOthers, canSeeAssigned, contactView, requireStaff } from "@/server/access";
+import { can, canAssignOthers, canSeeAssigned, contactView, requireStaff, canSeeClientRecords } from "@/server/access";
 import { pageId } from "@/server/input";
 
 export const metadata = { title: "Клиент" };
@@ -31,7 +31,9 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
   ]);
 
   const adminOptions = staffOptions(admins);
-  const screen = clientScreen({ client, staff: admins, tasks: taskRows, notes: noteRows, orders: orderRows, books: bookRows, money, remindAllowed: canRemind(client.remindedAt, new Date(nowMs())), now: new Date() });
+  // Неразобранный клиент виден роли «только свои», но его книги и заказы — только своим клиентам.
+  const ownRecords = canSeeClientRecords(staff, client.managerId);
+  const screen = clientScreen({ client, staff: admins, tasks: taskRows, notes: noteRows, orders: ownRecords ? orderRows : [], books: ownRecords ? bookRows : [], money, remindAllowed: canRemind(client.remindedAt, new Date(nowMs())), now: new Date() });
   const { tasks, notes } = screen;
   const contact = contactView(staff, { phone: screen.rawPhone, email: client.email });
   const canEdit = can(staff, "clients.edit");
@@ -40,20 +42,18 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
 
   return (
     <div className="space-y-6">
-      <Link href="/admin/clients" className="text-sm text-muted hover:text-ink">
-        ← Клиенты
-      </Link>
-      <div className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
+      <BackLink href="/admin/clients">Клиенты</BackLink>
+      <div className="grid gap-6 max-lg:grid-cols-[minmax(0,1fr)] lg:grid-cols-[320px_minmax(0,1fr)]">
         {/* Профиль */}
-        <aside className="space-y-4">
+        <aside className="min-w-0 space-y-4 max-lg:order-2">
           <ClientProfile client={client} screen={screen} contact={contact} canEdit={canEdit} can={(p) => can(staff, p)} managerOptions={managerOptions} noMarketing={noMarketing} />
           {clientFields.length ? (
-            <section className="rounded-2xl border border-line bg-white p-5">
+            <section className="rounded-2xl border border-line bg-white p-4 sm:p-5">
               <h2 className="mb-3 text-sm font-semibold">Поля клиента</h2>
               <ClientFields clientId={client.id} fields={clientFields.map((f) => ({ key: f.key, label: f.label, type: f.type, options: f.options }))} values={client.customFields} disabled={!canEdit} />
             </section>
           ) : null}
-          <section className="rounded-2xl border border-line bg-white p-5">
+          <section className="rounded-2xl border border-line bg-white p-4 sm:p-5">
             <h2 className="mb-3 text-sm font-semibold">Теги</h2>
             {canEdit ? (
               <TagEditor clientId={client.id} tags={client.tags} />
@@ -64,13 +64,13 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
             )}
           </section>
           {can(staff, "clients.create") && client.role === "user" ? (
-            <section className="rounded-2xl border border-line bg-white p-5">
+            <section className="rounded-2xl border border-line bg-white p-4 sm:p-5">
               <h2 className="mb-3 text-sm font-semibold">Доступ в кабинет</h2>
               <ClientAccess clientId={client.id} loginText={staffLogin(isPhoneEmail(client.email) ? (client.phone ?? "") : client.email, can(staff, "clients.contacts"))} />
             </section>
           ) : null}
           {canEdit ? (
-            <section className="space-y-3 rounded-2xl border border-line bg-white p-5">
+            <section className="space-y-3 rounded-2xl border border-line bg-white p-4 sm:p-5">
               <RemindButton clientId={client.id} disabled={screen.remind.disabled} hint={screen.remind.hint} />
             </section>
           ) : null}
@@ -83,12 +83,12 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
 
           <ClientOrders orders={orderRows} />
 
-          <section className="rounded-2xl border border-line bg-white p-5">
+          <section className="rounded-2xl border border-line bg-white p-4 sm:p-5">
             <h2 className="mb-2 font-semibold">Задачи</h2>
             <TaskList tasks={tasks} admins={adminOptions} clientId={client.id} />
           </section>
 
-          <section className="rounded-2xl border border-line bg-white p-5">
+          <section className="rounded-2xl border border-line bg-white p-4 sm:p-5">
             <h2 className="mb-4 font-semibold">История общения</h2>
             <NotesTimeline notes={notes} clientId={client.id} mentionables={staffOptions(admins).filter((a) => a.id !== staff.user.id).map((a) => a.label)} />
           </section>

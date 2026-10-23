@@ -92,7 +92,7 @@ export function Board({ initial, admins, me }: { initial: BoardCard[]; admins: {
         ))}
         {error ? <span className="text-sm text-red-700">{error}</span> : null}
       </div>
-      <DndContext sensors={sensors} onDragEnd={onDragEnd}>
+      <DndContext id="orders-board" sensors={sensors} onDragEnd={onDragEnd}>
         <div className="no-scrollbar -mx-4 flex gap-4 overflow-x-auto px-4 pb-4 sm:-mx-6 sm:px-6">
           {columns.map((col) => (
             <Column key={col.status} status={col.status} hint={col.hint} cards={visible.filter((c) => c.status === col.status)} />

@@ -1,6 +1,7 @@
 export * from "./Book";
 export * from "./errors";
 export * from "./events";
+export * from "./layout-rev";
 export * from "./Letter";
 export * from "./outline";
 export * from "./Photo";

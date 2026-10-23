@@ -58,6 +58,33 @@ export async function saveWhatsappSettingsAction(input: z.input<typeof settingsS
   }
 }
 
+/**
+ * Звонки WhatsApp из CRM. Включить можно только со своим шлюзом, который умеет звонки: обычная сборка шлюза ответила бы на
+ * звонок ошибкой у каждого менеджера. Шлюзу заново передаётся список событий устройства (в нём входящие звонки).
+ */
+export async function saveWhatsappCallsAction(enabled: boolean): Promise<Result<{ warning: string | null }>> {
+  const staff = await assertStaff("settings.manage");
+  const on = z.boolean().parse(enabled);
+  let warning: string | null = null;
+  if (on) {
+    if ((await container().messaging.whatsappProvider()) !== "gowa") return { ok: false, error: "Звонки работают только через свой шлюз GOWA — выберите его выше" };
+    const supported = await container().messaging.gowa.callsSupported().catch(() => null);
+    if (supported === false) return { ok: false, error: "Шлюз WhatsApp не умеет звонки: нужна сборка со звонками (deploy/gowa-beta-build.sh) и WHATSAPP_BETA_CALL_ENABLED=true" };
+    if (supported === null) warning = "Включено, но шлюз не удалось проверить: убедитесь, что он запущен, номер привязан и это сборка со звонками";
+  }
+  await saveSettings({ "gowa.calls": on ? "on" : "off" }, staff.user.id);
+  await audit(staff, "settings.update", "settings", "whatsapp", { calls: on });
+  if (on) {
+    try {
+      await container().messaging.connectGowa();
+    } catch (err) {
+      warning ??= `Включено, но шлюз не подключён: ${gowaError(err).error}`;
+    }
+  }
+  revalidatePath("/admin", "layout");
+  return { ok: true, warning };
+}
+
 const ruleSendingSchema = z.object({ from: z.string().refine(isValidTime), to: z.string().refine(isValidTime), dailyLimit: z.number().int().min(0).max(RULE_DAILY_LIMIT_MAX) });
 
 /**

@@ -5,31 +5,42 @@ import type { Messages } from "@/i18n/messages";
 import type { Locale } from "@/i18n/config";
 import { answerBlocks, rowsByBlock, type AnswerBlock } from "@/lib/book/answer-blocks";
 import { layoutMedia, type AnswerMedia } from "@/lib/book/answer-media";
-import type { PreviewChapter, PreviewEntry, PreviewPhoto } from "@/lib/book/editor-model";
+import type { PreviewChapter, PreviewEntry, PreviewPagePhoto, PreviewPhoto } from "@/lib/book/editor-model";
 import { cssFont } from "@/lib/book/fonts";
-import { PT_TO_MM } from "@/lib/book/formats";
+import { print, PT_TO_MM } from "@/lib/book/formats";
 import { layoutInline, normalizeStyle, splitParagraphs, type InlinePhotoStyle } from "@/lib/book/inline-photo";
 import { interiorMetrics, pageSide, textArea } from "@/lib/book/page-geometry";
 import { AnswerBlockView } from "@/components/interior/answer-block";
 import { Divider, InlineRow, MediaCard, QuestionHeading } from "@/components/interior/entry";
-import { Folio, RunningHead } from "@/components/interior/folio";
+import { RunningHead } from "@/components/interior/folio";
 import type { PageKit } from "@/components/interior/kit";
-import { OpenerPage } from "@/components/interior/pages";
 import { LazyPage } from "./LazyPage";
+import { PAGE_SHADOW, PreviewOpener, PreviewPhotoPages } from "./book-pages";
+import { fillFocus } from "@/lib/book/photo-crop";
 import { previewPhotoLayer } from "./photo-layer";
+import type { PhotoPages } from "./layout-hooks";
+import type { OnPreviewTarget } from "./targets";
 import type { usePhotoDrag } from "./usePhotoDrag";
 
 const END = Number.POSITIVE_INFINITY;
-const PAGE_SHADOW = "shadow-[0_1px_3px_rgba(0,0,0,.06),0_20px_40px_-20px_rgba(0,0,0,.25)]";
 
 type Item = { p: PreviewPhoto; style: InlinePhotoStyle };
 
 /**
- * Содержимое главы для сравнения: заголовки, ответы, фото с их видом и QR-коды. Глава превью перерисовывается и
- * перемеряется, только когда оно меняется (или когда в ней текущий ответ).
+ * Содержимое главы для сравнения: заголовки, ответы, фото с их видом и QR-коды, фото главы и страницы фото после
+ * неё. Глава превью перерисовывается и перемеряется, только когда оно меняется (или когда в ней текущий ответ).
  */
 export function chapterContentKey(ch: PreviewChapter) {
-  return [ch.key, ch.number, ch.title, ch.epigraph ?? "", ...ch.entries.map((e) => `${e.id}:${e.heading}:${e.answer}:` + e.photos.map((p) => `${p.id}:${p.url}:${p.caption}:` + JSON.stringify(normalizeStyle(p.inline))).join(",") + `:${JSON.stringify(e.media)}`)].join("|");
+  const pagePhoto = (p: PreviewPagePhoto) => `${p.id}:${p.url}:${p.caption}:${p.layout}:${p.auto ? 1 : 0}:${JSON.stringify(p.crop ?? null)}:${p.contain ? 1 : 0}`;
+  return [
+    ch.key,
+    ch.number,
+    ch.title,
+    ch.epigraph ?? "",
+    ch.openerPhoto ? pagePhoto(ch.openerPhoto) : "",
+    (ch.photoPages ?? []).map((g) => g.map(pagePhoto).join("+")).join(","),
+    ...ch.entries.map((e) => `${e.id}:${e.heading}:${e.answer}:` + e.photos.map((p) => `${p.id}:${p.url}:${p.caption}:` + JSON.stringify(normalizeStyle(p.inline))).join(",") + `:${JSON.stringify(e.media)}`),
+  ].join("|");
 }
 
 export interface ChapterPagesProps {
@@ -42,8 +53,14 @@ export interface ChapterPagesProps {
   bookTitle: string;
   language: Locale;
   t: Messages["editor"]["preview"];
+  /** Подписи мест фото в превью; нет (стенд снимков, тесты) — полосы без чипов и пунктирного места. */
+  tp?: Messages["editor"]["previewPhotos"];
+  /** Нажатие на начальную полосу и страницы фото (ключи — как у полос сборки); нет — превью только смотрят. */
+  onTarget?: OnPreviewTarget;
   /** Полос текста в главе (по замеру). */
   pages: number;
+  /** На какой полосе текста каждое фото «на всю страницу» (по замеру; тот же объект, пока не изменилось). */
+  photoPages: PhotoPages;
   /** Текущий ответ, если он в этой главе, иначе null. */
   currentId: string | null;
   /** Выделенное фото, если глава текущая. */
@@ -60,7 +77,7 @@ export interface ChapterPagesProps {
 }
 
 /** Начальная полоса главы, полосы текста и невидимая копия главы для замера. */
-function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, language, t, pages, currentId, selectedId, interactive, drag, onChange, scroll, setMeasureRef, measure, onPageClick }: ChapterPagesProps) {
+function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, language, t, tp, onTarget, pages, photoPages, currentId, selectedId, interactive, drag, onChange, scroll, setMeasureRef, measure, onPageClick }: ChapterPagesProps) {
   const { format, design } = kit;
   const m = interiorMetrics[format.id];
   const side = pageSide(format);
@@ -77,16 +94,25 @@ function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, 
 
   // Ряды фото по блокам набора (answer-blocks): −1 — перед текстом, i — после блока i, END — в конце.
   const info = useMemo(() => {
-    const out = new Map<string, { paragraphs: string[]; blocks: AnswerBlock[]; layout: Map<number, Item[][]>; media: Map<number, AnswerMedia[]> }>();
+    const out = new Map<string, { paragraphs: string[]; blocks: AnswerBlock[]; layout: Map<number, Item[][]>; pages: Map<number, Item[][]>; media: Map<number, AnswerMedia[]> }>();
     for (const e of ch.entries) {
       const paragraphs = splitParagraphs(e.answer);
-      const items = e.photos.map((p) => {
+      const all = e.photos.map((p) => {
         const style = normalizeStyle(p.inline);
         if (resizing?.id === p.id) style.width = resizing.width;
         return { p, style };
       });
+      // Фото «на всю страницу» — не в ряду текста, а своей полосой (как в книге: история прерывается и продолжается после).
+      const items = all.filter((x) => !x.style.page);
+      const pageItems = all.filter((x) => x.style.page);
       const blocks = answerBlocks(paragraphs);
-      out.set(e.id, { paragraphs, blocks, layout: rowsByBlock(blocks, layoutInline(items, paragraphs.length)), media: rowsByBlock(blocks, layoutMedia(e.media, paragraphs.length)) });
+      out.set(e.id, {
+        paragraphs,
+        blocks,
+        layout: rowsByBlock(blocks, layoutInline(items, paragraphs.length)),
+        pages: rowsByBlock(blocks, layoutInline(pageItems, paragraphs.length)),
+        media: rowsByBlock(blocks, layoutMedia(e.media, paragraphs.length)),
+      });
     }
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- содержимое главы описывает contentKey
@@ -97,8 +123,55 @@ function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, 
     measure(ch.key);
   }, [measure, ch.key, contentKey, resizing?.width]);
 
+  // Фото на всю страницу главы — с ответом и местом в тексте: их рисуют полосы поверх колонок.
+  const pagePhotos = useMemo(
+    () =>
+      ch.entries.flatMap((e) => {
+        const d = info.get(e.id)!;
+        return [...d.pages].flatMap(([key, rows]) => rows.flat().map((item) => ({ item, entryId: e.id, anchor: key === END ? "end" : key < 0 ? key : d.blocks[key].to })));
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- содержимое главы описывает contentKey (через info)
+    [info],
+  );
+
   const moving = drag?.moving ?? null;
   const hint = drag?.hint ?? (() => undefined);
+
+  /** Фото на всю страницу поверх полосы: лист целиком, с вылетами, как в PDF, — лишнее срезает край страницы. */
+  const pagePhoto = ({ item, entryId, anchor }: (typeof pagePhotos)[number]) => {
+    const layer = previewPhotoLayer({ t, kit, live: entryId === currentId && interactive && !!drag, isMeasure: false, measure: measureThis, selectedId, drag: drag!, onChange });
+    const fig = layer(item, { outerW: 0, outerH: 0 } as Parameters<typeof layer>[1]);
+    return (
+      <div
+        key={`pg-${item.p.id}`}
+        {...fig.figure}
+        data-entry={entryId}
+        data-row-anchor={anchor}
+        className="absolute inset-0 overflow-hidden"
+        // Рамка выделения — внутри листа: снаружи её срежет край страницы.
+        style={{ ...fig.figure?.style, position: "absolute", ...(fig.frame ? { ...fig.frame, outlineOffset: -3 } : null) }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element -- фото клиента на всю страницу в превью */}
+        <img
+          src={item.p.url}
+          alt={fig.img?.alt ?? ""}
+          draggable={false}
+          style={{
+            position: "absolute",
+            left: -print.bleedMm * px,
+            top: -print.bleedMm * px,
+            width: pageW + print.bleedMm * 2 * px,
+            height: (format.heightMm + print.bleedMm * 2) * px,
+            maxWidth: "none",
+            objectFit: item.style.pageFit === "contain" ? "contain" : "cover",
+            // Кадр — как в PDF (fillFocus): точка из редактора фото, иначе 30% от верха.
+            objectPosition: (({ x, y }) => `${x * 100}% ${y * 100}%`)(fillFocus({ inline: item.style })),
+            background: "#fff",
+          }}
+        />
+      </div>
+    );
+  };
 
   const renderRows = (entry: PreviewEntry, key: number, isMeasure: boolean) => {
     const d = info.get(entry.id)!;
@@ -108,6 +181,18 @@ function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, 
     const layer = previewPhotoLayer({ t, kit, live: entry.id === currentId && interactive && !!drag, isMeasure, measure: measureThis, selectedId, drag: drag!, onChange });
     return [
       ...(d.layout.get(key) ?? []).map((row, r) => <InlineRow key={`${anchor}-${r}`} kit={kit} row={row} layer={layer} data-entry={entry.id} data-row-anchor={anchor === END ? "end" : anchor} />),
+      // Фото на всю страницу — целая колонка (разрыв до и после): здесь только пустая заглушка, снимок рисуется поверх
+      // полосы, на которую она попала (pagePhoto). Внутри колонок его не нарисовать: Chrome ставит абсолютный блок
+      // в элементе с break-before по месту до разрыва — внизу прошлой полосы, а своя остаётся пустой.
+      ...(d.pages.get(key) ?? []).flat().map((item) => (
+        <div
+          key={`pg-${item.p.id}`}
+          data-page-photo={item.p.id}
+          data-entry={entry.id}
+          data-row-anchor={anchor === END ? "end" : anchor}
+          style={{ height: textH, breakBefore: "column", breakAfter: "column", breakInside: "avoid" }}
+        />
+      )),
       // QR-коды — после фото того же места; в превью без ссылки (клик по странице выбирает ответ).
       ...(d.media.get(key) ?? []).map((m) => <MediaCard key={`${anchor}-m-${m.id}`} kit={kit} media={m} data-entry={entry.id} data-media={m.id} />),
     ];
@@ -184,25 +269,52 @@ function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, 
           {ch.entries.map((e, i) => renderEntry(e, i === 0, true))}
         </div>
       </div>
-      <OpenerPage kit={kit} number={ch.number} title={ch.title} epigraph={ch.epigraph} className={PAGE_SHADOW} style={{ width: pageW, height: format.heightMm * px }} />
+      {/* Начальная полоса: фото главы, как в печати, — или полоса с названием и пунктирное место фото (только здесь). */}
+      <PreviewOpener
+        kit={kit}
+        number={ch.number}
+        title={ch.title}
+        epigraph={ch.epigraph}
+        photo={ch.openerPhoto}
+        placeholder={!!design.opener.photo && !!onTarget}
+        style={{ width: pageW, height: format.heightMm * px }}
+        tp={tp}
+        target={{ kind: "opener", chapterKey: ch.key }}
+        label={tp?.openerAria(ch.title) ?? ""}
+        onTarget={design.opener.photo ? onTarget : undefined}
+      />
       {Array.from({ length: pages }, (_, k) => (
-        <LazyPage key={k} root={scroll} pageId={`${ch.key}:${k}`} className={`relative bg-white ${PAGE_SHADOW}`} style={{ width: pageW, height: format.heightMm * px }} onClick={onPageClick}>
+        <LazyPage key={k} root={scroll} pageId={`${ch.key}:${k}`} className={`relative overflow-hidden bg-white ${PAGE_SHADOW}`} style={{ width: pageW, height: format.heightMm * px }} onClick={onPageClick}>
           {() => (
             <>
               {/* Начальная полоса считается правой, поэтому первая полоса текста — левая. */}
               <RunningHead kit={kit} bookTitle={bookTitle} chapterTitle={ch.title} recto={k % 2 === 1} />
-              <div className="absolute overflow-clip" style={{ left: side * px, top: m.marginTop * px, width: textW, height: textH }}>
+              {/* Соседние колонки — за краем листа (его обрезает сама страница). */}
+              <div className="absolute" style={{ left: side * px, top: m.marginTop * px, width: textW, height: textH }}>
                 {flow(k)}
               </div>
-              {pages > 1 ? (
-                <Folio kit={kit} recto={k % 2 === 1}>
-                  {k + 1} / {pages}
-                </Folio>
-              ) : null}
+              {pagePhotos.filter((x) => photoPages[x.item.p.id] === k).map(pagePhoto)}
+              {/* Номера страниц нет: здесь вёрстка браузера, а номер в книге — у полосы макета (растр PDF). */}
             </>
           )}
         </LazyPage>
       ))}
+      {/* Страницы фото после главы — как в PDF: после всего текста главы. */}
+      {ch.photoPages?.length ? (
+        <PreviewPhotoPages
+          kit={kit}
+          pages={ch.photoPages}
+          pageW={pageW}
+          pageH={format.heightMm * px}
+          scroll={scroll}
+          idPrefix={ch.key}
+          tp={tp}
+          target={(group) => ({ kind: "photo", chapterKey: ch.key, ...(group.length === 1 ? { photoId: group[0].id } : {}) })}
+          label={tp?.photoPageAria ?? ""}
+          chip={onTarget ? tp?.afterChip(ch.photoPages.flat().length) : undefined}
+          onTarget={onTarget}
+        />
+      ) : null}
     </>
   );
 }

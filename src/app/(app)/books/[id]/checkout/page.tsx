@@ -18,6 +18,8 @@ import { coverNames } from "@/lib/book/cover-names";
 import { getFormat } from "@/lib/book/formats";
 import { coverName, interiorName } from "@/i18n/labels";
 import { coverPhotoRefs } from "@/lib/book/photo-refs";
+import { buildBookContent } from "@/lib/book/book-content";
+import { toPhotoItem } from "@/lib/book/layout";
 import { CheckoutForm } from "./CheckoutForm";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -33,9 +35,23 @@ export default async function CheckoutPage({ params, searchParams }: { params: P
   const upgrade = upgradeParam && /^[0-9a-f-]{36}$/i.test(upgradeParam) ? await container().ordering.orders.upgradeOffer(upgradeParam, user.id) : null;
   const upgradeOk = !!upgrade && upgrade.bookId === book.id;
   if (book.status !== "draft" && !upgradeOk) return lredirect(`/books/${book.id}`);
-  const [stats, photos, locale, m] = await Promise.all([container().authoring.queries.stats(book), container().authoring.queries.photos(book.id), getLocale(), getMessages()]);
+  const q = container().authoring.queries;
+  const [stats, photos, questions, chapters, letters, locale, m, built] = await Promise.all([
+    q.stats(book),
+    q.photos(book.id),
+    q.questions(book.id),
+    q.chapters(book.id),
+    q.approvedLetters(book.id),
+    getLocale(),
+    getMessages(),
+    // Готовый макет — точное число страниц, то же, что в предпросмотре рядом; нет (макет не открывали) — оценка.
+    container().previews.current(book.id).catch(() => null),
+  ]);
   const t = m.checkout;
-  const issues = checkReadiness(book, stats, photos, locale);
+  // Сборка книги, как у PDF (оформление, формат, оглавление, правила раскладки, места и кадры фото): по ней —
+  // предупреждения о главах без фото в оформлении с фото главы и о сильной обрезке фото.
+  const content = buildBookContent(book, questions, photos.map(toPhotoItem), chapters, undefined, letters);
+  const issues = checkReadiness(book, built ? { ...stats, estimatedPages: built.contentPages } : stats, photos, locale, content);
   const blocked = issues.some((i) => i.level === "error");
   // Код активированного сертификата, персональный промокод из ссылки менеджера или приглашение друга подставляем сразу.
   const jar = await cookies();
@@ -61,13 +77,14 @@ export default async function CheckoutPage({ params, searchParams }: { params: P
             subtitle={book.subtitle}
             names={coverNames(book)}
             photos={coverPhotoRefs(coverPhotoIds(book), photos, book, "thumb")}
+            design={book.coverDesign}
             lite
             className="rounded-[3px] shadow-book"
           />
         </div>
         <div>
           <h1 className="font-serif text-3xl font-medium sm:text-5xl">{t.title}</h1>
-          <p className="mt-2 text-muted">{t.summary(book.title, stats.printedPages, stats.answered, stats.photos)}</p>
+          <p className="mt-2 text-muted">{t.summary(book.title, built?.pageCount ?? stats.printedPages, stats.answered, stats.photos, !!built)}</p>
           {/* Последний взгляд на оформление перед оплатой — с быстрым переходом к правке */}
           <p className="mt-1 text-sm text-muted">
             <Link href={`/books/${book.id}/cover`} className="underline-offset-2 hover:text-ink hover:underline">

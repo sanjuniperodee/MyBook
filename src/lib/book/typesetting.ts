@@ -7,8 +7,9 @@
  * формата из interiorMetrics), em — доля кегля основного текста, «доля полосы» — доля ширины полосы набора,
  * мм — от обреза.
  */
+import { fontFaces, fontMetrics } from "./fonts";
 import type { BookFormat } from "./formats";
-import type { InteriorDesign, TextFace } from "./interiors";
+import type { InteriorDesign, QuoteStyle, TextAlign, TextFace } from "./interiors";
 import { interiorMetrics } from "./page-geometry";
 
 // ─── кегли и отбивки оформления ─────────────────────────────────────────────
@@ -55,7 +56,7 @@ export function interiorSizes(design: InteriorDesign, scale: number): InteriorSi
     kicker: (opener.kicker?.size ?? design.label.size) * scale,
     epigraph: 10 * scale,
     vignetteGap: 14 * scale,
-    title: 30 * scale,
+    title: (design.titlePage?.size ?? 30) * scale,
     subtitle: 12 * scale,
     dedication: 13 * scale,
     tocTitle: 22 * scale,
@@ -163,6 +164,111 @@ export const MEDIA_CARD = {
 /** Концовка главы: отбивка перед виньеткой — доля отбивки перед заголовком. */
 export const CHAPTER_TAIL = { before: 1.1 } as const;
 
+// ─── дизайнер: основной текст, цитаты, заголовки, буквица ───────────────────
+// Без настроек дизайнера (design.text, quote, heading.face, dropCap) всё ниже возвращает прежние значения.
+
+/** Выключка основного текста. */
+export const bodyAlign = (design: InteriorDesign): TextAlign => design.text?.align ?? "justify";
+
+/** Отбивка после абзаца, em. */
+export const paraAfter = (design: InteriorDesign) => design.text?.paraGap ?? ANSWER.para.after;
+
+/** Красная строка, em (0 — нет). */
+export const indentEm = (design: InteriorDesign) => design.text?.indent ?? 0;
+
+/** Насыщенность основного текста. */
+export const bodyWeight = (design: InteriorDesign) => design.text?.weight ?? 400;
+
+/**
+ * Узкая колонка текста: поля слева и справа внутри полосы набора, доли её ширины. Текст влево — колонка у левого края
+ * (асимметричная вёрстка), вправо — у правого, иначе — по центру.
+ */
+export function measureInsets(design: InteriorDesign): { left: number; right: number } {
+  const m = design.text?.measure ?? 1;
+  if (m >= 1) return { left: 0, right: 0 };
+  const side = 1 - m;
+  const align = bodyAlign(design);
+  if (align === "left") return { left: 0, right: side };
+  if (align === "right") return { left: side, right: 0 };
+  return { left: side / 2, right: side / 2 };
+}
+
+/** Начертание цитат, лида, эпиграфов, посвящения и подзаголовка: своё или курсив основного шрифта. */
+export const quoteFace = (design: InteriorDesign): TextFace => design.quote?.face ?? { font: design.type.body, weight: 400, italic: true };
+
+/** Вид выделенной цитаты; по умолчанию — как раньше: по центру у центрованных заголовков, иначе с линейкой. */
+export const quoteStyle = (design: InteriorDesign): QuoteStyle => design.quote?.style ?? (design.heading.align === "center" ? "center" : "rule");
+
+/** Крупная кавычка у цитаты «mark»: кегль и сдвиг, em кегля цитаты. */
+export const QUOTE_MARK = { size: 2.6, lineHeight: 0.9, after: -0.2 } as const;
+
+/** Начертание заголовков разделов. */
+export const headingFace = (design: InteriorDesign): TextFace =>
+  design.heading.face ?? { font: design.type.heading, weight: design.type.headingWeight, italic: design.type.headingItalic };
+
+/** План буквицы: кегль, отступ сверху (PDF и HTML считают базовую линию по-разному), промежуток до текста и высота. */
+export interface DropCapPlan {
+  style: "drop" | "raised";
+  lines: number;
+  face: TextFace;
+  color: string;
+  /** Кегль буквицы, pt. */
+  size: number;
+  /** Интерлиньяж строки буквицы (множитель): строка высотой с выносной элемент — базовая линия на её нижнем крае. */
+  lineHeight: number;
+  /** Сдвиг буквицы от верха абзаца, pt: в PDF (react-pdf ставит базовую линию на ascent от верха строки)… */
+  top: number;
+  /** …и в HTML (браузер центрирует шрифт в строке). */
+  topHtml: number;
+  /** Промежуток между буквицей и текстом, pt. */
+  gap: number;
+  /** Высота строк рядом с буквицей, pt (lines строк основного текста). */
+  height: number;
+}
+
+/** Буквица в начале главы по дизайну; нет буквицы — null. */
+export function dropCapPlan(design: InteriorDesign, sizes: InteriorSizes): DropCapPlan | null {
+  const dc = design.dropCap;
+  if (!dc) return null;
+  const face = dc.face ?? design.display;
+  const color = dc.color === "ink" ? design.palette.ink : design.palette.accent;
+  const lines = Math.min(4, Math.max(2, Math.round(dc.lines)));
+  const S = sizes.body;
+  const lineH = S * design.type.lineHeight;
+  const cap = fontMetrics(face.font);
+  const body = fontMetrics(design.type.body);
+  if (dc.style === "raised") {
+    const size = S * (1.5 + 0.55 * (lines - 1));
+    // Строка с буквицей выше обычной ровно на выносной элемент буквы: react-pdf ставит базовую линию на ascent от верха
+    // строки, и следующая строка должна стоять на обычном интерлиньяже от неё, а не прижиматься.
+    const lineHeight = (cap.ascent * size + lineH - body.ascent * S) / size;
+    return { style: "raised", lines, face, color, size, lineHeight, top: 0, topHtml: 0, gap: 0, height: lineH };
+  }
+  // Верх прописной буквицы — на высоте прописных первой строки, базовая линия — на базовой линии строки lines.
+  const size = ((lines - 1) * lineH + body.cap * S) / cap.cap;
+  const pdfBase = (lines - 1) * lineH + body.ascent * S;
+  const htmlBase = (lines - 1) * lineH + (lineH - (body.ascent + body.descent) * S) / 2 + body.ascent * S;
+  // В браузере строка буквицы высотой cap.ascent·size: шрифт в ней центрирован, базовая линия — на (ascent − descent/2)·size.
+  return {
+    style: "drop",
+    lines,
+    face,
+    color,
+    size,
+    lineHeight: cap.ascent,
+    top: pdfBase - cap.ascent * size,
+    topHtml: htmlBase - (cap.ascent - cap.descent / 2) * size,
+    gap: S * 0.35,
+    height: lines * lineH,
+  };
+}
+
+/** Буква для буквицы и остаток абзаца; абзац начинается не с буквы или цифры (тире, кавычка) — буквицы нет. */
+export function splitInitial(text: string): [string, string] | null {
+  const m = /^[\p{L}\p{N}]/u.exec(text);
+  return m ? [m[0], text.slice(m[0].length)] : null;
+}
+
 // ─── подписи к снимкам на фотостранице ──────────────────────────────────────
 
 /** Начертание подписи; label — служебной надписью оформления (разрядка — от её базового кегля, как у колонтитула). */
@@ -179,6 +285,7 @@ export interface PhotoCaptionFace {
  */
 export function photoCaptionFace(design: InteriorDesign): PhotoCaptionFace {
   const P = design.palette;
+  if (design.photos.captionFace) return { face: design.photos.captionFace, label: false, lineHeight: 1.3, color: P.muted };
   if (design.photos.caption === "hand") return { face: { font: "caveat", weight: 500 }, label: false, lineHeight: 1.15, color: P.ink };
   if (design.photos.caption === "label") return { face: design.label, label: true, lineHeight: 1.3, color: P.muted };
   return { face: { font: design.type.body, weight: 400, italic: true }, label: false, lineHeight: 1.3, color: P.muted };
@@ -186,6 +293,8 @@ export function photoCaptionFace(design: InteriorDesign): PhotoCaptionFace {
 
 /** Кегль подписи на фотостранице, pt. */
 export function photoCaptionSize(design: InteriorDesign, S: InteriorSizes) {
+  // Своё начертание подписи: рукописное — крупнее, как подпись от руки, остальные — кеглем подписи.
+  if (design.photos.captionFace) return fontFaces[design.photos.captionFace.font].category === "script" ? S.caption * 1.4 : S.caption;
   return design.photos.caption === "hand" ? S.caption * 1.5 : design.photos.caption === "label" ? S.caption * 0.8 : S.caption;
 }
 
@@ -226,6 +335,12 @@ export const OPENER = {
   cardBorder: 0.4,
   cardInsetHtml: 0.14,
 } as const;
+
+/**
+ * Композиции титула (titlePage.layout): акцентная линейка «влево» — длина pt × scale и толщина pt; «крупный набор» —
+ * отступ сверху (доля полосы набора), кегль относительно названия, интерлиньяж и толщина линейки над выходными строками, pt.
+ */
+export const TITLE_LAYOUT = { bar: 24, barThickness: 1.2, stackTop: 0.04, stackScale: 1.45, stackLineHeight: 1.02, ruleThickness: 0.6 } as const;
 
 /** Титул, оборот титула, посвящение и финал: интерлиньяж, наибольшая ширина и отбивки (pt). */
 export const FRONT = {

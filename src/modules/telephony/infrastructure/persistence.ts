@@ -1,9 +1,9 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { and, eq, gte, isNull, sql } from "drizzle-orm";
+import { and, eq, gte, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import { crmCalls, crmNotes, users } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
-import type { CallRepository, CallTimeline, StaffDirectory } from "../application";
+import { WHATSAPP, type CallRepository, type CallTimeline, type LiveCallRepository, type StaffDirectory } from "../application";
 import { Call } from "../domain";
 
 type Row = typeof crmCalls.$inferSelect;
@@ -26,7 +26,9 @@ const toDomain = (r: Row) =>
     recordingRef: r.recordingRef,
   });
 
-export class DrizzleCallRepository implements CallRepository {
+const UUID = /^[0-9a-f-]{36}$/i;
+
+export class DrizzleCallRepository implements CallRepository, LiveCallRepository {
   nextId() {
     return randomUUID();
   }
@@ -42,6 +44,11 @@ export class DrizzleCallRepository implements CallRepository {
     const { id, ...props } = call.snapshot();
     await executor().update(crmCalls).set(props).where(eq(crmCalls.id, id));
   }
+  async update(call: Call) {
+    const { id, ...props } = call.snapshot();
+    const rows = await executor().update(crmCalls).set(props).where(and(eq(crmCalls.id, id), isNull(crmCalls.endedAt))).returning({ id: crmCalls.id });
+    return rows.length > 0;
+  }
   async finish(call: Call) {
     const { id, ...props } = call.snapshot();
     const rows = await executor().update(crmCalls).set(props).where(and(eq(crmCalls.id, id), isNull(crmCalls.endedAt))).returning({ id: crmCalls.id });
@@ -52,6 +59,58 @@ export class DrizzleCallRepository implements CallRepository {
       .update(crmCalls)
       .set({ handledAt: now, staffId: sql`coalesce(${crmCalls.staffId}, ${staffId}::uuid)` })
       .where(eq(crmCalls.id, callId));
+  }
+  async findById(id: string) {
+    if (!UUID.test(id)) return null;
+    const [r] = await executor().select().from(crmCalls).where(eq(crmCalls.id, id)).limit(1);
+    return r ? toDomain(r) : null;
+  }
+  async claimAnswer(id: string, staffId: string, at: Date) {
+    const rows = await executor()
+      .update(crmCalls)
+      .set({ staffId, heartbeatAt: at })
+      .where(and(eq(crmCalls.id, id), eq(crmCalls.provider, WHATSAPP), eq(crmCalls.status, "ringing"), isNull(crmCalls.endedAt), isNull(crmCalls.answeredAt), or(isNull(crmCalls.staffId), eq(crmCalls.staffId, staffId))))
+      .returning({ id: crmCalls.id });
+    return rows.length > 0;
+  }
+  async releaseClaim(id: string, staffId: string) {
+    await executor()
+      .update(crmCalls)
+      .set({ staffId: null, heartbeatAt: null })
+      .where(and(eq(crmCalls.id, id), eq(crmCalls.staffId, staffId), isNull(crmCalls.answeredAt), isNull(crmCalls.endedAt)));
+  }
+  async markRecorded(id: string) {
+    await executor()
+      .update(crmCalls)
+      .set({ hasRecording: true, recordingRef: "local" })
+      .where(and(eq(crmCalls.id, id), eq(crmCalls.provider, WHATSAPP)));
+  }
+  async heartbeat(id: string, staffId: string, at: Date) {
+    if (!UUID.test(id)) return false;
+    const rows = await executor()
+      .update(crmCalls)
+      .set({ heartbeatAt: at })
+      .where(and(eq(crmCalls.id, id), eq(crmCalls.provider, WHATSAPP), eq(crmCalls.staffId, staffId), isNull(crmCalls.endedAt)))
+      .returning({ id: crmCalls.id });
+    return rows.length > 0;
+  }
+  async stale(now: Date, opts: { ringMs: number; silentMs: number }) {
+    const rows = await executor()
+      .select()
+      .from(crmCalls)
+      .where(
+        and(
+          eq(crmCalls.provider, WHATSAPP),
+          isNull(crmCalls.endedAt),
+          or(
+            // Без ответа дольше ringMs — если и вкладка не отмечается (исходящий с живой вкладкой ограничивает гудки сама).
+            and(isNull(crmCalls.answeredAt), lt(crmCalls.startedAt, new Date(now.getTime() - opts.ringMs)), lt(sql`coalesce(${crmCalls.heartbeatAt}, ${crmCalls.startedAt})`, new Date(now.getTime() - opts.silentMs))),
+            and(isNotNull(crmCalls.answeredAt), lt(sql`coalesce(${crmCalls.heartbeatAt}, ${crmCalls.answeredAt})`, new Date(now.getTime() - opts.silentMs))),
+          ),
+        ),
+      )
+      .limit(50);
+    return rows.map((r) => ({ call: toDomain(r), lastSeen: r.heartbeatAt }));
   }
   async markMissedHandled(phone: string, now: Date) {
     await executor()
@@ -81,6 +140,37 @@ export const crmCallTimeline: CallTimeline = {
 
 /** Read-модель звонков. */
 export class DrizzleCallQueries {
+  /**
+   * Идущие сейчас разговоры WhatsApp (ответили, не завершены, вкладка сотрудника на связи) — для прослушки руководителем.
+   * Имя — клиента CRM или контакта сделки.
+   */
+  async liveWhatsapp(now: Date, silentMs: number) {
+    return executor()
+      .select({
+        id: crmCalls.id,
+        externalId: crmCalls.externalId,
+        direction: crmCalls.direction,
+        clientPhone: crmCalls.clientPhone,
+        clientId: crmCalls.clientId,
+        dealId: crmCalls.dealId,
+        staffId: crmCalls.staffId,
+        answeredAt: crmCalls.answeredAt,
+        clientName: users.name,
+      })
+      .from(crmCalls)
+      .leftJoin(users, eq(users.id, crmCalls.clientId))
+      .where(
+        and(
+          eq(crmCalls.provider, WHATSAPP),
+          isNull(crmCalls.endedAt),
+          isNotNull(crmCalls.answeredAt),
+          gte(sql`coalesce(${crmCalls.heartbeatAt}, ${crmCalls.answeredAt})`, new Date(now.getTime() - silentMs)),
+        ),
+      )
+      .orderBy(crmCalls.answeredAt)
+      .limit(20);
+  }
+
   async byId(id: string) {
     if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
     const [r] = await executor().select().from(crmCalls).where(eq(crmCalls.id, id)).limit(1);

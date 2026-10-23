@@ -61,9 +61,30 @@ export interface FlowDecisions {
   rowOffset: Map<string, number>;
   /** Главы без концовки. */
   noTail: Set<string>;
+  /**
+   * Буквица: сколько знаков абзаца (после буквы буквицы) встало в строки рядом с ней — по пометке блока. Текст под
+   * буквицей продолжается с этого места; до первого замера — с оценки по ширине знаков.
+   */
+  dropSplit: Map<string, number>;
 }
 
-export const emptyFlow = (): FlowDecisions => ({ breakBefore: new Set(), rowScale: new Map(), rowOffset: new Map(), noTail: new Set() });
+export const emptyFlow = (): FlowDecisions => ({ breakBefore: new Set(), rowScale: new Map(), rowOffset: new Map(), noTail: new Set(), dropSplit: new Map() });
+
+/**
+ * Сколько знаков исходного текста заняли первые count строк раскладки. react-pdf переводит регистр (капитель) и ставит
+ * дефис в месте переноса — такой дефис знаком текста не считается. Строки не совпали с текстом — null (оставляем оценку).
+ */
+export function linesOffset(source: string, lines: readonly string[], count: number): number | null {
+  let pos = 0;
+  for (const line of lines.slice(0, count))
+    for (const ch of line) {
+      const src = source[pos];
+      if (src !== undefined && (src === ch || src.toUpperCase() === ch.toUpperCase())) pos++;
+      else if (ch === "-" || ch === "\u00AD" || ch === "\u2010") continue;
+      else return null;
+    }
+  return pos;
+}
 
 /** Одно решение: что поменять в `FlowDecisions` (применяет `applyDecision`). */
 type FlowDecision =

@@ -9,11 +9,11 @@ import { SETTINGS_TABS, type SettingsTabId } from "./tabs";
 export function SettingsNav({ active }: { active: SettingsTabId }) {
   const groups = [...new Set(SETTINGS_TABS.map((t) => t.group))];
   return (
-    <nav aria-label="Разделы интеграций">
-      <ul className="flex gap-1 overflow-x-auto pb-1 md:hidden">
+    <nav aria-label="Разделы интеграций" className="min-w-0">
+      <ul className="m-hscroll flex gap-2 overflow-x-auto pb-1 md:hidden">
         {SETTINGS_TABS.map((t) => (
           <li key={t.id} className="shrink-0">
-            <Link href={`/admin/settings?tab=${t.id}`} aria-current={t.id === active ? "page" : undefined} className={cn("flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm whitespace-nowrap", t.id === active ? "border-wine/40 bg-rose/40 font-medium text-wine" : "border-line bg-white text-ink-soft")}>
+            <Link href={`/admin/settings?tab=${t.id}`} aria-current={t.id === active ? "page" : undefined} className={cn("flex items-center gap-1.5 min-h-10 rounded-full border px-3.5 py-1.5 text-sm whitespace-nowrap", t.id === active ? "border-wine/40 bg-rose/40 font-medium text-wine" : "border-line bg-white text-ink-soft")}>
               <t.icon className="size-4" /> {t.label}
             </Link>
           </li>

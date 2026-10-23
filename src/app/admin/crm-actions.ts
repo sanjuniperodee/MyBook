@@ -5,7 +5,7 @@ import { container } from "@/server/container";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { uuid } from "@/server/input";
-import { assertStaff, assertVisible, assertWorkable, audit, canAssignOthers, ForbiddenError, workRefusal } from "@/server/access";
+import { assertStaff, assertVisible, assertWorkable, audit, canAssignOthers, contactView, ForbiddenError, workRefusal } from "@/server/access";
 import { TelephonyError } from "@/modules/telephony";
 import { ClientsError, type ContactTarget } from "@/modules/clients";
 import { getSetting } from "@/modules/workspace";
@@ -104,6 +104,54 @@ export async function callAction(target: Target): Promise<ActionResult> {
     throw err;
   }
   return { ok: true, message: "Сейчас зазвонит ваш телефон — возьмите трубку, и АТС соединит с клиентом" };
+}
+
+/** Собеседник диалога WhatsApp в «Чатах» — звонок именно на номер этого чата (у сделки может быть указан другой). */
+async function conversationContact(id: string) {
+  const conv = await container().messaging.queries.conversation(uuid.parse(id));
+  if (!conv || conv.channel !== "whatsapp") return null;
+  return { phone: conv.chatId, name: conv.contactName, assigneeId: conv.assigneeId, clientId: conv.clientId, dealId: conv.dealId };
+}
+
+/** Звонок WhatsApp, который открывает панель звонка в браузере: id в журнале, id звонка шлюза (аудиопоток), кому звоним. */
+export type WhatsappCallStart = { ok: true; id: string; callId: string; title: string; phone: string; clientId: string | null; dealId: string | null } | { ok: false; message: string };
+
+/**
+ * Позвонить клиенту в WhatsApp прямо из CRM: шлюз номера магазина набирает клиента, звук идёт через браузер сотрудника
+ * (панель звонка, WhatsappCall). Отказ — ответом, как у звонка через АТС.
+ */
+export async function whatsappDialAction(target: Target & { conversationId?: string }): Promise<WhatsappCallStart> {
+  const staff = await assertStaff("calls.make");
+  const c = target.conversationId ? await conversationContact(target.conversationId) : await resolveContact(target);
+  const phone = normalizePhone(c?.phone ?? "");
+  if (!c || phone.length < 10) return { ok: false, message: "У клиента нет номера телефона" };
+  const refusal = workRefusal(staff, c.assigneeId);
+  if (refusal) return { ok: false, message: refusal };
+  try {
+    const call = await container().telephony.whatsapp.dial({ staffId: staff.user.id, phone });
+    revalidatePath("/admin/calls");
+    const shown = contactView(staff, { phone: formatPhone(phone) }).phone;
+    return { ok: true, ...call, title: c.name || shown || "Клиент", phone: c.name ? shown : "", clientId: c.clientId, dealId: c.dealId };
+  } catch (err) {
+    if (TelephonyError.is(err)) return { ok: false, message: err.message };
+    throw err;
+  }
+}
+
+/** Ответить на входящий звонок WhatsApp из карточки звонка. Первый ответивший забирает звонок, остальным — отказ. */
+export async function whatsappAnswerAction(id: string): Promise<WhatsappCallStart> {
+  const staff = await assertStaff("calls.make");
+  const callId = uuid.parse(id);
+  try {
+    const { callId: externalId } = await container().telephony.whatsapp.answer(callId, staff.user.id);
+    const c = await resolveContact({ callId });
+    revalidatePath("/admin/calls");
+    const shown = contactView(staff, { phone: formatPhone(c?.phone ?? "") }).phone;
+    return { ok: true, id: callId, callId: externalId, title: shown || "Скрытый номер", phone: "", clientId: c?.clientId ?? null, dealId: c?.dealId ?? null };
+  } catch (err) {
+    if (TelephonyError.is(err)) return { ok: false, message: err.message };
+    throw err;
+  }
 }
 
 /** Открыть чат WhatsApp с клиентом (существующий или новый) — возвращает id диалога. */

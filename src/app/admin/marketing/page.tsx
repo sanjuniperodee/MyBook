@@ -60,7 +60,7 @@ export default async function MarketingPage({ searchParams }: { searchParams: Pr
         <div className="grid gap-6 2xl:grid-cols-[minmax(0,1fr)_360px]">
           <section className="overflow-x-auto rounded-2xl border border-line bg-white p-5" data-testid="channels">
             <h2 className="mb-4 font-semibold">Откуда приходят клиенты</h2>
-            <table className="w-full min-w-[760px] text-sm">
+            <table className="w-full min-w-[760px] [&_tr>*:first-child]:sticky [&_tr>*:first-child]:left-0 [&_tr>*:first-child]:bg-white [&_tr>*:first-child]:z-[1] text-sm">
               <thead className="text-left text-xs text-muted">
                 <tr>
                   <th className="pb-2 font-medium">Канал</th>
@@ -127,7 +127,7 @@ export default async function MarketingPage({ searchParams }: { searchParams: Pr
         </div>
         {can(staff, "promo.manage") ? <LinkBuilder pages={pages} baseUrl={env.appUrl} /> : null}
         <div className="mt-5 overflow-x-auto">
-          <table className="w-full min-w-[980px] text-sm" data-testid="links">
+          <table className="w-full min-w-[980px] [&_tr>*:first-child]:sticky [&_tr>*:first-child]:left-0 [&_tr>*:first-child]:bg-white [&_tr>*:first-child]:z-[1] text-sm" data-testid="links">
             <thead className="text-left text-xs text-muted">
               <tr>
                 <th className="pb-2 font-medium">Ссылка</th>
@@ -183,7 +183,7 @@ export default async function MarketingPage({ searchParams }: { searchParams: Pr
       {showAnalytics && report.campaigns.length ? (
         <section className="overflow-x-auto rounded-2xl border border-line bg-white p-5">
           <h2 className="mb-4 font-semibold">Кампании (utm_source / medium / campaign)</h2>
-          <table className="w-full min-w-[760px] text-sm">
+          <table className="w-full min-w-[760px] [&_tr>*:first-child]:sticky [&_tr>*:first-child]:left-0 [&_tr>*:first-child]:bg-white [&_tr>*:first-child]:z-[1] text-sm">
             <thead className="text-left text-xs text-muted">
               <tr>
                 <th className="pb-2 font-medium">Метки</th>

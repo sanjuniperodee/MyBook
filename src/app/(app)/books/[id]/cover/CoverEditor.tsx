@@ -2,7 +2,8 @@
 
 import { Link, useLocale, useMessages } from "@/i18n/client";
 import { useMemo, useRef, useState } from "react";
-import { ArrowRight, Check, ImagePlus, Sparkles } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowRight, Check, ImagePlus, Layers, Sparkles } from "lucide-react";
 import { CoverPreview } from "@/components/cover/CoverPreview";
 import { backPreviewLayout, CoverBackPreview } from "@/components/cover/CoverBackPreview";
 import { FrameControls, FrameLayer, type FrameSlot } from "@/components/cover/FrameEditor";
@@ -23,6 +24,20 @@ import { getFormat } from "@/lib/book/formats";
 import { getInteriorDesign, interiorsForCover } from "@/lib/book/interiors";
 import { photoUrl, photoUrls } from "@/lib/urls";
 import { cn } from "@/lib/class-names";
+import type { PhotoPlace } from "@/lib/book/photo-place";
+import { PlaceBadge } from "@/components/editor/photos/PlaceBadge";
+import { placeNames, type PlaceNames } from "@/components/editor/photos/model";
+import { coverFillOrder, withCoverNow } from "./cover-fill";
+
+/** Фото книги для обложки: размеры и отметка «фото главы» (подпись места в оформлении без фото главы). */
+type CoverPhoto = { id: string; width: number; height: number; opener?: boolean };
+
+/** Снимки обложки и оборота в настройках книги: правка любого — сервер пересобирает книгу и места фото. */
+const PHOTO_FIELDS = ["coverTemplate", "coverPhotoId", "coverPhotoExtra", "backLayout", "backPhotoId", "backPhotoExtra"] as const;
+import { designFromTemplate, type CoverDesign, type TextBind } from "@/lib/book/cover-design";
+import { coverMeta } from "@/lib/book/covers/meta";
+import { CoverDesigner } from "@/components/cover/designer/CoverDesigner";
+import { CoverLayoutPicker } from "@/components/cover/CoverLayoutPicker";
 
 interface CoverState {
   coverTemplate: string;
@@ -47,6 +62,8 @@ interface CoverState {
   interior: string;
   /** Кадры фото на обложке (масштаб и положение) по местам: «cover:0», «back:1». */
   photoFrames: FrameMap;
+  /** Обложка из конструктора (слои поверх шаблона); null — обложка шаблона. */
+  coverDesign: CoverDesign | null;
 }
 
 export function CoverEditor({
@@ -59,6 +76,9 @@ export function CoverEditor({
   sample,
   theme,
   year,
+  places: placeList = [],
+  placeNames: nameLists = { chapters: [], answers: [] },
+  blank = false,
 }: {
   bookId: string;
   format: string;
@@ -69,11 +89,20 @@ export function CoverEditor({
   initial: CoverState;
   /** Содержимое книги для мини-разворота «страницы в пару». */
   sample: SpreadSample;
-  photos: { id: string; width: number; height: number }[];
+  photos: CoverPhoto[];
   recipientLabel: string;
   editable: boolean;
+  /** Где каждое фото в книге (photoPlaceOf по сборке сервера) — парами [id, место]. */
+  places?: [string, PhotoPlace][];
+  /** Названия глав и ответов для подписей мест. */
+  placeNames?: { chapters: { key: string; title: string }[]; answers: { id: string; title: string }[] };
+  /** Своя книга: «раздел» вместо «ответ». */
+  blank?: boolean;
 }) {
   const [state, setState] = useState(initial);
+  const router = useRouter();
+  const places = useMemo(() => new Map(placeList), [placeList]);
+  const names = useMemo(() => placeNames(nameLists.chapters, nameLists.answers), [nameLists]);
   const m = useMessages();
   const locale = useLocale();
   const t = m.books.cover;
@@ -89,6 +118,8 @@ export function CoverEditor({
       changes.current = { ...patch, ...changes.current };
       throw e;
     }
+    // Другие снимки на обложке — сервер пересоберёт книгу: подписи мест под фото снова точные.
+    if (PHOTO_FIELDS.some((k) => k in patch)) router.refresh();
   }, 700);
 
   /** Поставили другое фото на место — прежний кадр (масштаб, сдвиг) к нему не подходит: сбрасываем, как это делает и сервер. */
@@ -129,11 +160,13 @@ export function CoverEditor({
   const choices = pickerCovers();
   const label = (t: { id: string }) => coverLabel(getCoverTemplate(t.id), m.catalog.covers, locale);
 
+  // Порядок фото для пустых мест: сначала без выбранного места, фото главы и фото в ответах — никогда (не повторятся на обложке).
+  const fillOrder = useMemo(() => coverFillOrder(photos, places), [photos, places]);
   /** Места под фото шаблона: выбранные снимки, пустые — заполняем ещё не занятыми фото книги. */
   const fillSlots = (templateId: string, s: Pick<CoverState, "coverPhotoId" | "coverPhotoExtra">) => {
     const n = coverPhotoSlots(getCoverTemplate(templateId));
     const ids: (string | null)[] = [s.coverPhotoId, ...s.coverPhotoExtra];
-    const free = photos.map((p) => p.id).filter((id) => !ids.includes(id));
+    const free = fillOrder.filter((id) => !ids.includes(id));
     for (let i = 0; i < n; i++) if (!ids[i]) ids[i] = free.shift() ?? null;
     return { coverPhotoId: ids[0] ?? null, coverPhotoExtra: ids.slice(1).filter((id): id is string => !!id) };
   };
@@ -153,7 +186,7 @@ export function CoverEditor({
   const slots = coverPhotoSlots(template);
   const [mood, setMood] = useState<CoverMood | "all">("all");
   const kind = bookKind(theme);
-  const names = coverNames({ theme, ...state });
+  const coverNamesLine = coverNames({ theme, ...state });
   const coverIds = [state.coverPhotoId, ...state.coverPhotoExtra].slice(0, slots);
   const coverPhotos = coverPhotoRefs(coverIds, photos, state, "view");
   const [side, setSide] = useState<"front" | "back">("front");
@@ -163,7 +196,7 @@ export function CoverEditor({
     layout: state.backLayout,
     text: state.backText,
     signature: state.authorName.trim(),
-    names,
+    names: coverNamesLine,
     year,
     photos: backPhotos.map((p) => ({ width: p.width, height: p.height })),
   };
@@ -180,7 +213,8 @@ export function CoverEditor({
     const key = frameKey("back", b.slot);
     return p ? [{ ...b, key, photo: { width: p.width, height: p.height }, frame: state.photoFrames[key] ?? DEFAULT_FRAME }] : [];
   });
-  const frameSlots = side === "back" ? backSlots : frontSlots;
+  // Обложка из конструктора: кадр фото в местах шаблона правится в самом конструкторе — здесь только оборот.
+  const frameSlots = side === "back" ? backSlots : state.coverDesign ? [] : frontSlots;
   const frameSelected = frameSlots.some((s) => s.key === frameSel) ? frameSel : (frameSlots[0]?.key ?? null);
   const bigPreview = useRef<HTMLDivElement>(null);
   const scrolled = useScrolledPast(bigPreview);
@@ -195,13 +229,14 @@ export function CoverEditor({
         format={format}
         title={state.title}
         subtitle={state.subtitle}
-        names={names}
+        names={coverNamesLine}
         photos={coverPhotos}
         className={className}
         uid={uid}
         lite={lite}
         titlePlaceholder={t.bookTitle}
         photoHint={t.uploadFirst}
+        design={state.coverDesign}
       />
     );
   const sideToggle = (className?: string) => (
@@ -221,7 +256,31 @@ export function CoverEditor({
     </div>
   );
 
-  return (
+  // ─── конструктор ──────────────────────────────────────────────────────────
+  const d = m.design.cover;
+  const [view, setView] = useState<"template" | "designer">(initial.coverDesign ? "designer" : "template");
+  /** Новый ключ — конструктор начинается заново (после сброса или новой обложки из шаблона). */
+  const [designerKey, setDesignerKey] = useState(0);
+  const designTexts = { title: state.title, subtitle: state.subtitle, names: coverNamesLine };
+  /** Правка привязанной надписи на обложке — это правка поля книги. */
+  const setBookText = (bind: TextBind, value: string) => update(bind === "names" ? { namesOnCover: value } : bind === "title" ? { title: value.slice(0, 80) } : { subtitle: value.slice(0, 80) });
+  /** В конструктор: обложки из слоёв ещё нет — она собирается из текущего шаблона, на тех же местах. */
+  const openDesigner = () => {
+    if (!state.coverDesign) {
+      if (!editable) return;
+      update({ coverDesign: designFromTemplate(coverMeta(template), { title: state.title, subtitle: state.subtitle, names: coverNamesLine }, getFormat(format)) });
+      setDesignerKey((k) => k + 1);
+    }
+    setView("designer");
+  };
+  const resetDesign = () => {
+    if (!window.confirm(d.active.confirmReset)) return;
+    update({ coverDesign: null });
+    setDesignerKey((k) => k + 1);
+    setView("template");
+  };
+
+  const templateView = (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)] lg:gap-14">
       <PreviewDock show={scrolled}>
         <div className="shrink-0" style={{ width: 68 }}>{renderSide("rounded-[3px] shadow-soft", "mini", true)}</div>
@@ -241,7 +300,7 @@ export function CoverEditor({
               {editable && frameSlots.length ? <FrameLayer slots={frameSlots} selected={frameSelected} onSelect={setFrameSel} onChange={setFrame} ariaLabel={t.frame.aria} /> : null}
             </div>
           </div>
-          {editable && frameSlots.length ? <FrameControls slots={frameSlots} selected={frameSelected} onSelect={setFrameSel} onChange={setFrame} labels={t.frame} /> : null}
+          {editable && frameSlots.length ? <FrameControls slots={frameSlots} selected={frameSelected} onSelect={setFrameSel} onChange={setFrame} labels={{ ...t.frame, hintTouch: m.books.coverPhotos.frameHintTouch }} /> : null}
           <div className="mt-4 flex items-center justify-center gap-3 text-sm text-muted">
             <span className="font-medium text-ink">{label(template)}</span>·<SaveIndicator status={status} error={error} />
           </div>
@@ -249,6 +308,35 @@ export function CoverEditor({
       </div>
 
       <div className="space-y-8">
+        {state.coverDesign ? (
+          <section className="flex flex-col gap-3 rounded-2xl border border-wine/20 bg-rose/40 p-5 sm:flex-row sm:items-center">
+            <Layers className="size-6 shrink-0 text-wine" />
+            <p className="min-w-0 flex-1 text-sm text-ink-soft">{d.active.text}</p>
+            <div className="flex shrink-0 flex-wrap gap-2">
+              <button type="button" className="btn btn-primary btn-sm" onClick={openDesigner}>
+                {d.active.open}
+              </button>
+              {editable ? (
+                <button type="button" className="btn btn-ghost btn-sm" onClick={resetDesign}>
+                  {d.active.reset}
+                </button>
+              ) : null}
+            </div>
+          </section>
+        ) : editable ? (
+          <section className="flex flex-col gap-4 rounded-2xl border border-line bg-white p-5 sm:flex-row sm:items-center">
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-rose text-wine">
+              <Layers className="size-5" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="font-semibold">{d.cta.title}</div>
+              <p className="mt-0.5 text-sm text-muted">{d.cta.text}</p>
+            </div>
+            <button type="button" className="btn btn-dark btn-sm shrink-0" onClick={openDesigner}>
+              {d.cta.open}
+            </button>
+          </section>
+        ) : null}
         <section>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-lg font-semibold">{t.design}</h2>
@@ -288,7 +376,7 @@ export function CoverEditor({
                     template={t.id}
                     format={format}
                     title={state.title}
-                    names={names}
+                    names={coverNamesLine}
                     photos={t.requiresPhoto ? slotUrls(t.id) : undefined}
                     lite
                     uid={`pick-${t.id}`}
@@ -328,6 +416,10 @@ export function CoverEditor({
             slots={slots}
             chosen={[state.coverPhotoId, ...state.coverPhotoExtra].slice(0, slots)}
             photos={photos}
+            place={(id) => withCoverNow(places.get(id), id, coverIds, backPhotos.slice(0, BACK_PHOTO_SLOTS[state.backLayout] ?? 0).map((p) => p.id))}
+            names={names}
+            blank={blank}
+            openerDesign={!!getInteriorDesign(state.interior).opener.photo}
             editable={editable}
             onChange={(ids) => update({ coverPhotoId: ids[0] ?? null, coverPhotoExtra: ids.slice(1).filter((id): id is string => !!id) })}
           />
@@ -372,14 +464,14 @@ export function CoverEditor({
           photoIds={backPhotos.map((p) => p.id)}
           photos={photos}
           signature={state.authorName.trim()}
-          names={names}
+          names={coverNamesLine}
           year={year}
           editable={editable}
           onChange={(patch) => {
             // Вариант с фото без выбранных снимков — сразу подставляем первые фото книги.
             const need = patch.backLayout ? (BACK_PHOTO_SLOTS[patch.backLayout] ?? 0) : 0;
             if (need && backPhotos.length < Math.min(need, photos.length)) {
-              const ids = [...backPhotos.map((p) => p.id), ...photos.map((p) => p.id).filter((id) => !backPhotos.some((p) => p.id === id))].slice(0, need);
+              const ids = [...backPhotos.map((p) => p.id), ...fillOrder.filter((id) => !backPhotos.some((p) => p.id === id))].slice(0, need);
               update({ ...patch, backPhotoId: ids[0] ?? null, backPhotoExtra: ids.slice(1) });
             } else update(patch);
           }}
@@ -388,28 +480,87 @@ export function CoverEditor({
       </div>
     </div>
   );
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div role="tablist" aria-label={d.tabs.aria} className="inline-flex rounded-2xl bg-cream/80 p-1">
+          {(["template", "designer"] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              role="tab"
+              aria-selected={view === v}
+              onClick={() => (v === "designer" ? openDesigner() : setView("template"))}
+              disabled={v === "designer" && !editable && !state.coverDesign}
+              className={cn("inline-flex h-10 items-center gap-2 rounded-xl px-4 text-sm transition", view === v ? "bg-white font-medium text-ink shadow-soft" : "text-muted hover:text-ink")}
+            >
+              {v === "designer" ? <Layers className="size-4" /> : null}
+              {d.tabs[v]}
+            </button>
+          ))}
+        </div>
+        {view === "designer" && state.coverDesign && editable ? (
+          <button type="button" className="text-sm text-muted hover:text-wine hover:underline" onClick={resetDesign}>
+            {d.active.reset}
+          </button>
+        ) : null}
+      </div>
+      {view === "designer" && state.coverDesign ? (
+        <CoverDesigner
+          key={designerKey}
+          bookId={bookId}
+          template={state.coverTemplate}
+          format={format}
+          initial={state.coverDesign}
+          texts={designTexts}
+          templatePhotos={coverPhotos}
+          bookPhotos={photos}
+          editable={editable}
+          onChange={(coverDesign) => update({ coverDesign })}
+          onBookText={setBookText}
+          onTemplate={(coverTemplate) => update({ coverTemplate })}
+          layouts={(onPick) => <CoverLayoutPicker format={format} texts={designTexts} photos={photos} currentTemplate={state.coverTemplate} onPick={onPick} />}
+          status={<SaveIndicator status={status} error={error} className="text-xs" />}
+        />
+      ) : (
+        templateView
+      )}
+    </div>
+  );
 }
 
 /**
  * Фото для обложки: у шаблонов на несколько снимков — по местам. Щелчок по месту делает его текущим,
  * щелчок по фото ставит снимок в текущее место (если фото уже стоит в другом месте — они меняются).
+ * Под каждым фото — где оно в книге (PlaceBadge): обложка снимки со страниц не забирает, а сама внутрь не повторяется.
  */
-function CoverPhotoPicker({
+export function CoverPhotoPicker({
   bookId,
   slots,
   chosen,
   photos,
+  place,
+  names,
+  blank,
+  openerDesign,
   editable,
   onChange,
 }: {
   bookId: string;
   slots: number;
   chosen: (string | null)[];
-  photos: { id: string; width: number; height: number }[];
+  photos: CoverPhoto[];
+  /** Где фото в книге — со снимками обложки, выбранными сейчас. */
+  place: (id: string) => PhotoPlace | undefined;
+  names: PlaceNames;
+  blank: boolean;
+  openerDesign: boolean;
   editable: boolean;
   onChange: (ids: (string | null)[]) => void;
 }) {
-  const t = useMessages().books.cover;
+  const m = useMessages();
+  const t = m.books.cover;
   const [active, setActive] = useState(0);
   const current = Math.min(active, slots - 1);
   const ids = Array.from({ length: slots }, (_, i) => chosen[i] ?? null);
@@ -452,30 +603,35 @@ function CoverPhotoPicker({
         </div>
       ) : null}
       {photos.length ? (
-        <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
-          {photos.map((p) => {
-            const slot = ids.indexOf(p.id);
-            return (
-              <button
-                key={p.id}
-                type="button"
-                disabled={!editable}
-                onClick={() => pick(p.id)}
-                aria-pressed={slot >= 0}
-                className={cn("relative aspect-square overflow-hidden rounded-xl ring-offset-2", slot >= 0 ? "ring-2 ring-wine" : "ring-1 ring-line")}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={photoUrl(p.id)} alt="" className="h-full w-full object-cover" />
-                {slot >= 0 ? (
-                  <span className="absolute top-1 right-1 flex size-5 items-center justify-center rounded-full bg-wine text-[11px] font-medium text-white">
-                    {slots > 1 ? slot + 1 : <Check className="size-3" />}
-                  </span>
-                ) : null}
-                {p.width < 1800 ? <span className="absolute inset-x-0 bottom-0 bg-amber-500/90 py-0.5 text-[10px] text-white">{t.lowQuality}</span> : null}
-              </button>
-            );
-          })}
-        </div>
+        <>
+          <ul className="grid grid-cols-3 gap-x-2 gap-y-3 sm:grid-cols-4">
+            {photos.map((p) => {
+              const slot = ids.indexOf(p.id);
+              return (
+                <li key={p.id} className="min-w-0">
+                  <button
+                    type="button"
+                    disabled={!editable}
+                    onClick={() => pick(p.id)}
+                    aria-pressed={slot >= 0}
+                    className={cn("relative block aspect-square w-full overflow-hidden rounded-xl ring-offset-2", slot >= 0 ? "ring-2 ring-wine" : "ring-1 ring-line")}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={photoUrl(p.id)} alt="" className="h-full w-full object-cover" />
+                    {slot >= 0 ? (
+                      <span className="absolute top-1 right-1 flex size-5 items-center justify-center rounded-full bg-wine text-[11px] font-medium text-white">
+                        {slots > 1 ? slot + 1 : <Check className="size-3" />}
+                      </span>
+                    ) : null}
+                    {p.width < 1800 ? <span className="absolute inset-x-0 bottom-0 bg-amber-500/90 py-0.5 text-[10px] text-white">{t.lowQuality}</span> : null}
+                  </button>
+                  <PlaceBadge place={place(p.id)} names={names} blank={blank} marked={p.opener} openerDesign={openerDesign} className="mt-1 text-[11px]" />
+                </li>
+              );
+            })}
+          </ul>
+          <p className="mt-3 text-xs text-muted">{m.books.coverPhotos.note}</p>
+        </>
       ) : null}
       <Link href={`/books/${bookId}/photos`} className="mt-2 inline-flex items-center gap-1.5 text-sm text-wine hover:underline">
         <ImagePlus className="size-4" /> {photos.length ? t.uploadMore : t.uploadFirst}

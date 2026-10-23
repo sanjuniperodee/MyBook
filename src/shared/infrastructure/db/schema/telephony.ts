@@ -27,6 +27,11 @@ export const crmCalls = pgTable(
     /** Есть ли запись у провайдера (ссылку запрашиваем по требованию — она временная). */
     hasRecording: boolean("has_recording").notNull().default(false),
     recordingRef: text("recording_ref"),
+    /**
+     * Живой звонок WhatsApp из браузера: когда вкладка сотрудника последний раз сообщила, что разговор идёт. Шлюз не сообщает
+     * о конце звонка вебхуком — по этой отметке планировщик закрывает звонок, если вкладка пропала (сон, сеть, закрыли).
+     */
+    heartbeatAt: timestamp("heartbeat_at", { withTimezone: true }),
     /** Звонок обработан (перезвонили / закрыли задачу) — для пропущенных. */
     handledAt: timestamp("handled_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

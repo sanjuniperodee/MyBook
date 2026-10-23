@@ -1,7 +1,7 @@
 import { Link } from "@/i18n/client";
 import { Confetti } from "@/components/motion/Confetti";
 import { CelebrateArt } from "@/components/illustrations";
-import { Check, Download, Gift, Star } from "lucide-react";
+import { Check, Gift, Star } from "lucide-react";
 import { formatPrice, isQuotedDelivery, site } from "@/config/site";
 import { deliveryAddress } from "@/modules/ordering/ui/labels";
 import type { getMessages } from "@/i18n/server";
@@ -16,6 +16,7 @@ import { photoUrls } from "@/lib/urls";
 import { cn } from "@/lib/class-names";
 import { formatDate } from "@/lib/dates";
 import type { container } from "@/server/container";
+import { FileButtons } from "./FileButtons";
 
 type Messages = Awaited<ReturnType<typeof getMessages>>;
 type T = Messages["orders"]["order"];
@@ -61,24 +62,7 @@ export function OrderFiles({ order, printed, t }: { order: { id: string; trackin
       <section className="card p-6 sm:p-8">
         <h2 className="text-xl font-semibold">{t.files}</h2>
         <p className="mt-1 text-sm text-muted">{t.filesNote}</p>
-        <div className="mt-5 flex flex-wrap gap-3">
-          <a href={`/api/orders/${order.id}/files/reading`} className="btn btn-primary">
-            <Download className="size-4" /> {t.reading}
-          </a>
-          {!printed ? (
-            <>
-              <a href={`/api/orders/${order.id}/files/block`} className="btn btn-outline">
-                <Download className="size-4" /> {t.block}
-              </a>
-              <a href={`/api/orders/${order.id}/files/cover`} className="btn btn-outline">
-                <Download className="size-4" /> {t.cover}
-              </a>
-              <a href={`/api/orders/${order.id}/files/spec`} className="btn btn-ghost">
-                {t.spec}
-              </a>
-            </>
-          ) : null}
-        </div>
+        <FileButtons orderId={order.id} printed={printed} />
         {order.trackingNumber ? (
           <p className="mt-6 text-sm">
             {t.tracking} <b>{order.trackingNumber}</b>
@@ -177,6 +161,7 @@ export function BookAside({ book, t }: { book: OrderView["book"]; t: T }) {
             subtitle={book.subtitle}
             names={coverNames(book)}
             photos={photoUrls(coverPhotoIds(book))}
+            design={book.coverDesign}
             className="rounded-[3px] shadow-book"
           />
         </div>

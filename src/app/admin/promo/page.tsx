@@ -15,7 +15,28 @@ export default async function AdminPromo() {
         <PromoForm />
         <p className="mt-3 text-xs text-muted">Скидка применяется к стоимости книг, доставка оплачивается полностью. Заказ со 100% скидкой сразу считается оплаченным.</p>
       </section>
-      <div className="overflow-x-auto rounded-2xl border border-line bg-white">
+      <ul className="space-y-2.5 lg:hidden" data-testid="promo-cards">
+        {list.map(({ promo, revenue, paid }) => (
+          <li key={promo.id} className="rounded-2xl border border-line bg-white p-3.5 shadow-soft">
+            <div className="flex items-start gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="truncate font-mono text-[16px] font-semibold">{promo.code}</div>
+                {promo.note ? <div className="truncate text-sm text-muted">{promo.note}</div> : null}
+              </div>
+              <div className="text-[15px] font-semibold whitespace-nowrap tabular-nums">{promo.kind === "percent" ? `${promo.value}%` : formatPrice(promo.value)}</div>
+            </div>
+            <div className="mt-2 text-xs text-muted">
+              Использован {promo.usedCount}
+              {promo.maxUses ? ` / ${promo.maxUses}` : ""} · оплачено {paid} · {formatPrice(revenue)} · {promo.expiresAt ? `до ${formatDate(promo.expiresAt)}` : "бессрочно"}
+            </div>
+            <div className="mt-2">
+              <PromoToggle id={promo.id} active={promo.active} />
+            </div>
+          </li>
+        ))}
+        {list.length === 0 ? <li className="rounded-2xl border border-dashed border-line bg-white px-4 py-10 text-center text-sm text-muted">Промокодов пока нет</li> : null}
+      </ul>
+      <div className="hidden overflow-x-auto rounded-2xl border border-line bg-white lg:block">
         <table className="w-full min-w-[760px] text-sm">
           <thead className="border-b border-line text-left text-muted">
             <tr>

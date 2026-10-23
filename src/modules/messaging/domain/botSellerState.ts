@@ -1,4 +1,6 @@
 /** Состояние AI-беседы продажника (внутри BotState.ai). Отдельный файл: его читают и движок, и продажник. */
+import type { RouteTier } from "./botRoute";
+
 export const SELLER_STAGES = ["greeting", "discovery", "offer", "objection", "closing", "agreed", "handoff", "lost"] as const;
 export type SellerStage = (typeof SELLER_STAGES)[number];
 
@@ -50,6 +52,10 @@ export interface SellerAiState {
   remind: SellerRemind | null;
   /** Сколько раз бот уже писал повторно по договорённости или в последний день (потолок — sell.remindTouches). */
   touches: number;
+  /** Сколько долларов ушло на модель в этой беседе (по прайсу маршрутизации) — потолок расходов на беседу. */
+  llmCostUsd: number;
+  /** Уровень модели, которая ответила в прошлом ходе: переговоры на Sonnet не роняются на Haiku посреди возражения. */
+  lastTier: RouteTier | null;
 }
 
 /**
@@ -114,6 +120,8 @@ export const newSellerAiState = (): SellerAiState => ({
   touches: 0,
   warmedUp: false,
   digitalAsked: false,
+  llmCostUsd: 0,
+  lastTier: null,
 });
 
 /** Состояние из базы: недостающее — по умолчанию (запись сделана прежней версией). */

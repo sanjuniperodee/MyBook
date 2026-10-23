@@ -5,6 +5,9 @@
 #   kaspi    — kaspi-pos-automation (MIT, github.com/tapter-dev/kaspi-pos-automation): счета и QR Kaspi Pay от имени кассира.
 #   whatsapp — GOWA, go-whatsapp-web-multidevice (MIT, github.com/aldinokemal/go-whatsapp-web-multidevice): номер магазина
 #              привязывается по QR, переписка идёт в инбокс CRM.
+#              Звонки WhatsApp из CRM: GOWA_BETA_BIN=<файл> — вместо релиза ставится сборка со звонками
+#              (deploy/gowa-beta-build.sh, рядом whatsapp.sha256) и включается WHATSAPP_BETA_CALL_ENABLED. Без переменной —
+#              снова релиз v$GOWA_VERSION, звонки шлюза выключены (откат). Сессия номера сохраняется в обоих случаях.
 #
 # Оба слушают только localhost (держат сессию кассира и номера магазина), секреты создаются при первой установке и
 # лежат рядом с сервисом. Версии зафиксированы, архив GOWA сверяется с checksums.txt релиза. Повторный запуск обновляет
@@ -66,33 +69,55 @@ if has whatsapp; then
   if ! command -v ffmpeg >/dev/null; then
     sudo -n apt-get install -y -qq ffmpeg >/dev/null 2>&1 || echo "  ⚠ Нет ffmpeg — видео в WhatsApp уйдут файлом. Установите: sudo apt-get install -y ffmpeg"
   fi
-  echo "→ GOWA v$GOWA_VERSION"
   G="$DIR/gowa"
-  case "$(uname -m)" in
-    x86_64 | amd64) arch=amd64 ;;
-    aarch64 | arm64) arch=arm64 ;;
-    armv7l) arch=armv7 ;;
-    *) echo "GOWA: нет сборки для $(uname -m)"; exit 1 ;;
-  esac
-  command -v unzip >/dev/null || { echo "Нужен unzip (sudo apt install unzip)"; exit 1; }
-  zip="whatsapp_${GOWA_VERSION}_linux_${arch}.zip"
-  base="https://github.com/aldinokemal/go-whatsapp-web-multidevice/releases/download/v${GOWA_VERSION}"
-  tmp="$(mktemp -d)"
-  trap 'rm -rf "$tmp"' EXIT
-  curl -fsSL -o "$tmp/$zip" "$base/$zip"
-  curl -fsSL -o "$tmp/checksums.txt" "$base/checksums.txt"
-  (cd "$tmp" && grep " $zip\$" checksums.txt | sha256sum -c --quiet -) || { echo "GOWA: контрольная сумма архива не совпала"; exit 1; }
-  mkdir -p "$tmp/x" "$G"
-  unzip -q "$tmp/$zip" -d "$tmp/x"
-  bin="$(find "$tmp/x" -type f -name 'linux-*' | head -n 1)"
-  [ -n "$bin" ] || { echo "GOWA: в архиве нет программы"; exit 1; }
+  mkdir -p "$G"
+  if [ -n "${GOWA_BETA_BIN:-}" ]; then
+    echo "→ GOWA со звонками (бета, PR #892): $GOWA_BETA_BIN"
+    [ -f "$GOWA_BETA_BIN" ] || { echo "GOWA: нет файла $GOWA_BETA_BIN"; exit 1; }
+    sum="${GOWA_BETA_BIN}.sha256"
+    [ -f "$sum" ] || { echo "GOWA: рядом нет $(basename "$sum") — соберите заново deploy/gowa-beta-build.sh"; exit 1; }
+    [ "$(sha256sum "$GOWA_BETA_BIN" | cut -d' ' -f1)" = "$(cut -d' ' -f1 "$sum")" ] || { echo "GOWA: контрольная сумма сборки не совпала"; exit 1; }
+    "$GOWA_BETA_BIN" --help >/dev/null 2>&1 || { echo "GOWA: сборка не запускается на этом сервере (архитектура, glibc)"; exit 1; }
+    bin="$GOWA_BETA_BIN"
+    beta_call=true
+  else
+    echo "→ GOWA v$GOWA_VERSION"
+    case "$(uname -m)" in
+      x86_64 | amd64) arch=amd64 ;;
+      aarch64 | arm64) arch=arm64 ;;
+      armv7l) arch=armv7 ;;
+      *) echo "GOWA: нет сборки для $(uname -m)"; exit 1 ;;
+    esac
+    command -v unzip >/dev/null || { echo "Нужен unzip (sudo apt install unzip)"; exit 1; }
+    zip="whatsapp_${GOWA_VERSION}_linux_${arch}.zip"
+    base="https://github.com/aldinokemal/go-whatsapp-web-multidevice/releases/download/v${GOWA_VERSION}"
+    tmp="$(mktemp -d)"
+    trap 'rm -rf "$tmp"' EXIT
+    curl -fsSL -o "$tmp/$zip" "$base/$zip"
+    curl -fsSL -o "$tmp/checksums.txt" "$base/checksums.txt"
+    (cd "$tmp" && grep " $zip\$" checksums.txt | sha256sum -c --quiet -) || { echo "GOWA: контрольная сумма архива не совпала"; exit 1; }
+    mkdir -p "$tmp/x"
+    unzip -q "$tmp/$zip" -d "$tmp/x"
+    bin="$(find "$tmp/x" -type f -name 'linux-*' | head -n 1)"
+    [ -n "$bin" ] || { echo "GOWA: в архиве нет программы"; exit 1; }
+    beta_call=false
+  fi
+  # Сессия номера и история — в storages: копия перед сменой программы, чтобы откат был без повторной привязки по QR.
+  # Шлюз на время копии останавливается (его базы SQLite в режиме WAL на ходу копировать нельзя) — ниже он всё равно
+  # перезапускается. Хранятся три последние копии.
+  if [ -d "$G/storages" ] && ! cmp -s "$bin" "$G/whatsapp"; then
+    pm2 stop mybook-gowa >/dev/null 2>&1 || true
+    tar -C "$G" -czf "$G/storages-$(date +%Y%m%d-%H%M%S).tgz" storages || { pm2 start mybook-gowa >/dev/null 2>&1 || true; echo "GOWA: копия storages не снята — шлюз оставлен как был"; exit 1; }
+    ls -1t "$G"/storages-*.tgz | tail -n +4 | xargs -r rm -f
+  fi
   install -m 755 "$bin" "$G/whatsapp.new" && mv -f "$G/whatsapp.new" "$G/whatsapp"
   touch "$G/.env" && chmod 600 "$G/.env"
   grep -q '^APP_BASIC_AUTH=' "$G/.env" || echo "APP_BASIC_AUTH=mybooks:$(secret 16)" >>"$G/.env"
   # Остальное — наши значения при каждом запуске скрипта. Вебхук устройства магазина сайт настраивает сам.
   # Скорость: фото статусов (истории контактов телефона магазина) не качаем — шлюз качает фото до вебхука и держит очередь
   # событий; группы, каналы и рассылки на сайт не шлём.
-  sed -i -E '/^(APP_PORT|APP_HOST|APP_OS|APP_UI_ENABLED|MCP_ENABLED|WHATSAPP_WEBHOOK_IGNORE_JIDS|WHATSAPP_AUTO_DOWNLOAD_MEDIA|WHATSAPP_IGNORE_STATUS_MEDIA|WHATSAPP_ACCOUNT_VALIDATION)=/d' "$G/.env"
+  # Звонки (только сборка со звонками): входящий звонит в CRM, а не сбрасывается; ответ, набор и звук — через API шлюза.
+  sed -i -E '/^(APP_PORT|APP_HOST|APP_OS|APP_UI_ENABLED|MCP_ENABLED|WHATSAPP_WEBHOOK_IGNORE_JIDS|WHATSAPP_AUTO_DOWNLOAD_MEDIA|WHATSAPP_IGNORE_STATUS_MEDIA|WHATSAPP_ACCOUNT_VALIDATION|WHATSAPP_BETA_CALL_ENABLED)=/d' "$G/.env"
   cat >>"$G/.env" <<EOF
 APP_PORT=$GOWA_PORT
 APP_HOST=127.0.0.1
@@ -103,6 +128,7 @@ WHATSAPP_WEBHOOK_IGNORE_JIDS=@g.us,@newsletter,@broadcast
 WHATSAPP_AUTO_DOWNLOAD_MEDIA=true
 WHATSAPP_IGNORE_STATUS_MEDIA=true
 WHATSAPP_ACCOUNT_VALIDATION=false
+WHATSAPP_BETA_CALL_ENABLED=$beta_call
 EOF
   started+=(mybook-gowa)
 fi
@@ -120,4 +146,7 @@ if has whatsapp; then
   echo "  WhatsApp — свой шлюз: адрес http://127.0.0.1:$GOWA_PORT, логин:пароль — $(grep '^APP_BASIC_AUTH=' "$G/.env" | cut -d= -f2-)"
   echo "  (сохранён в $G/.env), «Куда шлюз отправляет входящие» — http://localhost:$APP_PORT/api/integrations/gowa;"
   echo "  выбрать «Свой шлюз GOWA», сохранить и привязать номер по QR."
+  if [ "$beta_call" = true ]; then
+    echo "  Звонки: шлюз умеет звонки. Прокси звука — bash deploy/wa-calls-nginx.sh, затем «Интеграции» → «Звонки WhatsApp из CRM»."
+  fi
 fi

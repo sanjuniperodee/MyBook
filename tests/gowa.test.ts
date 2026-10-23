@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createHmac } from "node:crypto";
-import { gowaChatId, gowaJid, gowaMediaUrl, parseGowaWebhook } from "@/modules/messaging/domain/gowa";
+import { gowaAudioCallId, gowaChatId, gowaJid, gowaMediaUrl, parseGowaCall, parseGowaWebhook } from "@/modules/messaging/domain/gowa";
 import type { Conversation } from "@/modules/messaging/domain";
 import { GOWA_DEVICE, GowaClient, GowaError, verifyGowaSignature } from "@/modules/messaging/infrastructure/gowa";
 import { channelTransport, whatsappTransport } from "@/modules/messaging/infrastructure/adapters";
@@ -78,6 +78,83 @@ describe("GOWA: протокол вебхуков", () => {
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
 const config = async () => ({ baseUrl: "http://gowa:3000/", basicAuth: "admin:pass" });
 
+describe("GOWA: входящие звонки", () => {
+  const offer = (payload: Record<string, unknown>, event = "call.offer") => ({ event, device_id: device, timestamp: "2026-10-13T10:30:00Z", payload: { call_id: "ABC123", from: "77011234567:5@s.whatsapp.net", auto_rejected: false, ...payload } });
+  const plain = { native: false };
+  const native = { native: true };
+  it("обычный шлюз: call.offer → пропущенный входящий с номером клиента", () => {
+    expect(parseGowaCall(offer({}), plain)).toEqual({ provider: "whatsapp", externalId: "ABC123", stage: "end", direction: "in", clientPhone: "77011234567", extension: null, at: new Date("2026-10-13T10:30:00Z"), status: "missed", durationSec: 0 });
+    expect(parseGowaCall(offer({}, "call.incoming"), plain)).toBeNull();
+  });
+  it("шлюз со звонками: call.incoming → звонит в CRM; call.offer того же звонка пропускаем", () => {
+    expect(parseGowaCall(offer({}, "call.incoming"), native)).toEqual({ provider: "whatsapp", externalId: "ABC123", stage: "start", direction: "in", clientPhone: "77011234567", extension: null, at: new Date("2026-10-13T10:30:00Z") });
+    expect(parseGowaCall(offer({}), native)).toBeNull();
+  });
+  it("скрытый номер (LID) — без телефона; групповые звонки, чужие символы в id и прочие события — не звонок", () => {
+    expect(parseGowaCall(offer({ from: "1234567890@lid" }), plain)?.clientPhone).toBe("");
+    expect(parseGowaCall(offer({ group_jid: "120363@g.us" }), plain)).toBeNull();
+    expect(parseGowaCall(offer({ call_id: "A&device_id=x" }, "call.incoming"), native)).toBeNull();
+    expect(parseGowaCall(offer({ call_id: "" }), plain)).toBeNull();
+    expect(parseGowaCall(message({}), plain)).toBeNull();
+    expect(parseGowaWebhook(offer({})).messages).toEqual([]);
+  });
+  it("id звонка из адреса аудиопотока — только строка запроса, ровно один call_id (без учёта регистра); %-коды и пустой — отказ", () => {
+    expect(gowaAudioCallId("/wa-call/audio?call_id=3A5F00B2C1")).toBe("3A5F00B2C1");
+    expect(gowaAudioCallId("/wa-call/audio?x=1&CALL_ID=AB")).toBe("AB");
+    // Два id (в том числе в разном регистре) — непонятно, какой имелся в виду: отказ.
+    expect(gowaAudioCallId("/wa-call/audio?call_id=AB&call_id=CD")).toBeNull();
+    expect(gowaAudioCallId("/wa-call/audio?CALL_ID=VICTIM&call_id=MINE")).toBeNull();
+    // call_id в пути (обход через «..») не считается.
+    expect(gowaAudioCallId("/x&call_id=MINE&/../wa-call/audio?call_id=VICTIM")).toBe("VICTIM");
+    expect(gowaAudioCallId("/wa-call/audio?call_id=AB%26device_id%3Dother")).toBeNull();
+    expect(gowaAudioCallId("/wa-call/audio?xcall_id=AB")).toBeNull();
+    expect(gowaAudioCallId("/wa-call/audio?call_id=")).toBeNull();
+    expect(gowaAudioCallId(null)).toBeNull();
+  });
+});
+
+describe("GOWA: звонки через шлюз", () => {
+  it("набрать, ответить, положить трубку: запросы шлюза и id звонка", async () => {
+    const calls: { path: string; body: unknown }[] = [];
+    const client = new GowaClient(config, async (url, init) => {
+      calls.push({ path: new URL(String(url)).pathname, body: JSON.parse(String(init?.body)) });
+      return json({ code: "SUCCESS", results: new URL(String(url)).pathname === "/call/start" ? { call_id: "3A5F00B2C1", target: "77011234567" } : null });
+    });
+    expect(await client.callStart("+7 701 123-45-67")).toBe("3A5F00B2C1");
+    await client.callAnswer("ABC");
+    await client.callHangup("ABC");
+    expect(calls).toEqual([
+      { path: "/call/start", body: { target: "77011234567@s.whatsapp.net" } },
+      { path: "/call/answer", body: { call_id: "ABC" } },
+      { path: "/call/hangup", body: { call_id: "ABC" } },
+    ]);
+    await expect(client.callHangup("A B")).rejects.toThrow("Неверный id звонка");
+    await expect(client.callStart("123")).rejects.toThrow("Неверный номер");
+    expect(await client.authorization()).toBe(`Basic ${Buffer.from("admin:pass").toString("base64")}`);
+  });
+
+  it("шлюз не вернул id или вернул ошибку — GowaError с кодом и статусом", async () => {
+    await expect(new GowaClient(config, async () => json({ results: {} })).callStart("77011234567")).rejects.toThrow("Шлюз не вернул id звонка");
+    const err = await new GowaClient(config, async () => json({ code: "INVALID_WA_CLI", message: "your WhatsApp CLI is invalid or empty" }, 500))
+      .callStart("77011234567")
+      .catch((e) => e);
+    expect(GowaError.is(err) && [err.code, err.status, err.message]).toEqual(["INVALID_WA_CLI", 500, "WhatsApp: your WhatsApp CLI is invalid or empty"]);
+  });
+
+  it("умеет ли шлюз звонки: сборка со звонками — 400 на пустой id, обычная — 404 без кода, иначе не понять", async () => {
+    const answer = (res: () => Response) => new GowaClient(config, async () => res()).callsSupported();
+    expect(await answer(() => json({ code: "VALIDATION_ERROR", message: "CallID: cannot be blank." }, 400))).toBe(true);
+    expect(await answer(() => new Response("Not Found", { status: 404 }))).toBe(false);
+    expect(await answer(() => json({ code: "DEVICE_NOT_FOUND", message: "device not found" }, 404))).toBeNull();
+    expect(await answer(() => new Response("Unauthorized", { status: 401 }))).toBeNull();
+    expect(
+      await new GowaClient(config, async () => {
+        throw new TypeError("fetch failed");
+      }).callsSupported(),
+    ).toBeNull();
+  });
+});
+
 describe("GOWA: клиент шлюза", () => {
   it("отправка текста: JID, логин шлюза, id сообщения для статусов", async () => {
     const calls: { url: string; init: RequestInit }[] = [];
@@ -104,6 +181,33 @@ describe("GOWA: клиент шлюза", () => {
     expect(await down.status()).toMatchObject({ reachable: false, registered: false, loggedIn: false, phone: "" });
   });
 
+  it("кэш состояния: повторные вызовы в пределах срока не ходят в шлюз; недоступный шлюз не кэшируется; свежее status() кэш не использует", async () => {
+    let hits = 0;
+    let down = false;
+    let t = 0;
+    const client = new GowaClient(config, async () => {
+      hits++;
+      if (down) throw new TypeError("fetch failed");
+      return json({ results: { is_connected: true, is_logged_in: true, jid: "77001112233:5@s.whatsapp.net" } });
+    });
+    const [a, b] = await Promise.all([client.cachedStatus(10_000, () => t), client.cachedStatus(10_000, () => t)]);
+    expect(a).toBe(b);
+    t = 5_000;
+    await client.cachedStatus(10_000, () => t);
+    expect(hits).toBe(1);
+    await client.status();
+    expect(hits).toBe(2);
+    t = 11_000;
+    await client.cachedStatus(10_000, () => t);
+    expect(hits).toBe(3);
+    down = true;
+    t = 30_000;
+    expect((await client.cachedStatus(10_000, () => t)).reachable).toBe(false);
+    await new Promise((r) => setTimeout(r));
+    await client.cachedStatus(10_000, () => t);
+    expect(hits).toBe(5);
+  });
+
   it("подключение: сайт сам заводит устройство магазина с вебхуком, повторно — обновляет вебхук", async () => {
     const calls: { method: string; path: string; body: unknown }[] = [];
     let devices: { id: string }[] = [];
@@ -115,10 +219,10 @@ describe("GOWA: клиент шлюза", () => {
     });
     const hook = { url: "https://mybooks.kz/api/integrations/gowa", secret: "s3cret" };
     await client.connect(hook);
-    expect(calls.slice(-1)[0]).toEqual({ method: "POST", path: "/devices", body: { device_id: GOWA_DEVICE, webhook_url: hook.url, webhook_secret: "s3cret", webhook_events: "message,message.ack" } });
+    expect(calls.slice(-1)[0]).toEqual({ method: "POST", path: "/devices", body: { device_id: GOWA_DEVICE, webhook_url: hook.url, webhook_secret: "s3cret", webhook_events: "message,message.ack,call.offer,call.incoming" } });
     devices = [{ id: "other" }, { id: GOWA_DEVICE }];
     await client.connect({ ...hook, url: "http://127.0.0.1:3040/api/integrations/gowa" });
-    expect(calls.slice(-1)[0]).toEqual({ method: "PATCH", path: `/devices/${GOWA_DEVICE}/webhook`, body: { webhook_url: "http://127.0.0.1:3040/api/integrations/gowa", webhook_secret: "s3cret", webhook_events: "message,message.ack" } });
+    expect(calls.slice(-1)[0]).toEqual({ method: "PATCH", path: `/devices/${GOWA_DEVICE}/webhook`, body: { webhook_url: "http://127.0.0.1:3040/api/integrations/gowa", webhook_secret: "s3cret", webhook_events: "message,message.ack,call.offer,call.incoming" } });
     await client.logout();
     expect(calls.slice(-1)[0]).toMatchObject({ method: "POST", path: `/devices/${GOWA_DEVICE}/logout` });
   });
@@ -134,6 +238,16 @@ describe("GOWA: клиент шлюза", () => {
     const qr = await client.loginQr();
     expect(paths).toEqual(["/app/login", "/statics/images/qrcode/scan-qr-1.png"]);
     expect(qr).toEqual({ image: "data:image/png;base64,iVBORw==", seconds: 30 });
+  });
+
+  it("голосовое уходит с Content-Type без параметров: шлюз отвергает «audio/ogg; codecs=opus»", async () => {
+    let sent: FormDataEntryValue | null = null;
+    const client = new GowaClient(config, async (_url, init) => {
+      sent = (init?.body as FormData).get("audio");
+      return json({ results: { message_id: "g1" } });
+    });
+    await client.sendFile("77011234567", { data: new Uint8Array([1]), name: "voice.ogg", mime: "audio/ogg; codecs=opus", kind: "audio" });
+    expect((sent as unknown as File).type).toBe("audio/ogg");
   });
 
   it("ошибки шлюза — понятным текстом; файл — только из каталога вложений", async () => {

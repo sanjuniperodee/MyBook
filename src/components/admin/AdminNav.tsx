@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
@@ -16,8 +16,10 @@ import {
   Kanban,
   Link2,
   LayoutDashboard,
+  LoaderCircle,
   LockKeyhole,
   Menu,
+  MessageSquareQuote,
   MessagesSquare,
   Package,
   PhoneCall,
@@ -37,7 +39,7 @@ import type { CrmCounters } from "@/modules/reporting";
 import { useLive } from "./CrmLive";
 import { cn } from "@/lib/class-names";
 
-interface Item {
+export interface Item {
   href: string;
   label: string;
   icon: LucideIcon;
@@ -47,7 +49,7 @@ interface Item {
   perm?: Permission[];
 }
 
-const sections: { title?: string; items: Item[] }[] = [
+export const navSections: { title?: string; items: Item[] }[] = [
   {
     items: [
       { href: "/admin", label: "Обзор", icon: LayoutDashboard, exact: true },
@@ -59,6 +61,7 @@ const sections: { title?: string; items: Item[] }[] = [
     items: [
       { href: "/admin/deals", label: "Сделки", icon: Handshake, badge: "deals", perm: ["deals.view"] },
       { href: "/admin/chats", label: "Чаты", icon: MessagesSquare, badge: "chats", perm: ["chats.view"] },
+      { href: "/admin/templates", label: "Шаблоны", icon: MessageSquareQuote, perm: ["chats.view"] },
       { href: "/admin/calls", label: "Звонки", icon: PhoneCall, badge: "calls", perm: ["calls.view"] },
       { href: "/admin/clients", label: "Клиенты", icon: Users, perm: ["clients.view"] },
     ],
@@ -84,19 +87,38 @@ const sections: { title?: string; items: Item[] }[] = [
     ],
   },
   {
-    title: "Управление",
+    title: "Настройки",
     items: [
       { href: "/admin/automations", label: "Автоматизации", icon: Workflow, perm: ["settings.manage"] },
-      { href: "/admin/team", label: "Команда", icon: ShieldCheck, perm: ["team.manage"] },
       { href: "/admin/pricing", label: "Цены и тарифы", icon: Coins, perm: ["settings.manage"] },
       { href: "/admin/site", label: "Сайт", icon: Globe, perm: ["settings.manage"] },
       { href: "/admin/settings", label: "Интеграции", icon: Settings, perm: ["settings.manage"] },
+    ],
+  },
+  {
+    title: "Доступ",
+    items: [
+      { href: "/admin/team", label: "Команда", icon: ShieldCheck, perm: ["team.manage"] },
       { href: "/admin/security", label: "Безопасность", icon: LockKeyhole },
     ],
   },
 ];
 
-function ShiftToggle({ initial }: { initial: boolean }) {
+/**
+ * Отклик на клик по пункту меню: страницы CRM собираются на сервере и заранее не подгружаются, поэтому с момента
+ * нажатия до ответа пункт показывает, что переход идёт. Иконка занимает то же место — ничего не прыгает.
+ */
+function NavIcon({ icon: Icon, active }: { icon: LucideIcon; active: boolean }) {
+  const { pending } = useLinkStatus();
+  return (
+    <span className="relative size-4 shrink-0">
+      <Icon className={cn("size-4 transition-opacity", pending && "opacity-0", active ? "text-wine" : "text-muted")} strokeWidth={1.8} />
+      <LoaderCircle className={cn("absolute inset-0 size-4 animate-spin text-wine transition-opacity", pending ? "opacity-100" : "opacity-0")} strokeWidth={2} aria-hidden />
+    </span>
+  );
+}
+
+export function ShiftToggle({ initial }: { initial: boolean }) {
   const [on, setOn] = useState(initial);
   const [pending, start] = useTransition();
   return (
@@ -140,7 +162,7 @@ export function AdminNav({ adminName, roleName, perms, variant, onShift }: { adm
   }, [open, variant]);
 
   const allowed = new Set(perms);
-  const visible = sections.map((s) => ({ ...s, items: s.items.filter((it) => !it.perm || it.perm.some((p) => allowed.has(p))) })).filter((s) => s.items.length);
+  const visible = navSections.map((s) => ({ ...s, items: s.items.filter((it) => !it.perm || it.perm.some((p) => allowed.has(p))) })).filter((s) => s.items.length);
   const nav = (
     <nav className="flex flex-col gap-4">
       {visible.map((s, i) => (
@@ -156,7 +178,7 @@ export function AdminNav({ adminName, roleName, perms, variant, onShift }: { adm
                 onClick={() => setOpen(false)}
                 className={cn("flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition", active ? "bg-white font-medium text-ink shadow-soft" : "text-ink-soft hover:bg-white/60")}
               >
-                <it.icon className={cn("size-4", active ? "text-wine" : "text-muted")} strokeWidth={1.8} />
+                <NavIcon icon={it.icon} active={active} />
                 <span className="flex-1">{it.label}</span>
                 {badge ? (
                   <span className="rounded-full bg-wine px-1.5 py-0.5 text-[11px] leading-none font-semibold text-white tabular-nums" data-badge={it.badge}>

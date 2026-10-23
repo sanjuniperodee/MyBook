@@ -23,8 +23,9 @@ export function usePageWidth(wrap: RefObject<HTMLDivElement | null>) {
  * Полосы превью и прокрутка к текущему ответу.
  *
  * Полос в каждой главе: невидимая копия главы раскладывается CSS-колонками шириной в полосу набора, и полосы
- * считаются по её ширине. Каждая глава перемеряет себя сама, когда меняется её содержимое (measure(key));
- * все главы — при смене ширины и после загрузки шрифтов.
+ * считаются по её ширине. Там же — на какой полосе фото «на всю страницу» (колонка его заглушки, data-page-photo):
+ * снимок рисуется поверх этой полосы, а не внутри колонок. Каждая глава перемеряет себя сама, когда меняется её
+ * содержимое (measure(key)); все главы — при смене ширины и после загрузки шрифтов.
  * К началу текущего ответа превью прокручивается сразу при смене ответа и пока полосы ещё дорисовываются.
  */
 export function usePreviewPages({
@@ -45,6 +46,7 @@ export function usePreviewPages({
   const scroll = useRef<HTMLDivElement>(null);
   const measureRefs = useRef(new Map<string, HTMLDivElement>());
   const [pagesBy, setPagesBy] = useState<Record<string, number>>({});
+  const [photoPagesBy, setPhotoPagesBy] = useState<Record<string, PhotoPages>>({});
 
   const setMeasureRef = useCallback((key: string, el: HTMLDivElement | null) => {
     if (el) measureRefs.current.set(key, el);
@@ -55,18 +57,29 @@ export function usePreviewPages({
   const measureKeys = useCallback(
     (keys?: string[]) => {
       if (!textW) return;
+      const measured = [...(keys ?? measureRefs.current.keys())].flatMap((key) => {
+        const el = measureRefs.current.get(key);
+        return el ? [{ key, pages: columnPages(el.scrollWidth, textW, gap), photos: photoColumns(el, textW, gap) }] : [];
+      });
       setPagesBy((prev) => {
         let changed = false;
         const next = { ...prev };
-        for (const key of keys ?? measureRefs.current.keys()) {
-          const el = measureRefs.current.get(key);
-          if (!el) continue;
-          const n = columnPages(el.scrollWidth, textW, gap);
-          if (next[key] !== n) {
-            next[key] = n;
+        for (const { key, pages } of measured)
+          if (next[key] !== pages) {
+            next[key] = pages;
             changed = true;
           }
-        }
+        return changed ? next : prev;
+      });
+      // Тот же объект, пока полосы фото не изменились: глава превью перерисовывается только из-за настоящих перемен.
+      setPhotoPagesBy((prev) => {
+        let changed = false;
+        const next = { ...prev };
+        for (const { key, photos } of measured)
+          if (!samePhotoPages(next[key], photos)) {
+            next[key] = photos;
+            changed = true;
+          }
         return changed ? next : prev;
       });
     },
@@ -109,5 +122,25 @@ export function usePreviewPages({
     if (Date.now() < settleUntil.current || !scrolledOnce.current) if (scrollToCurrent("auto")) scrolledOnce.current = true;
   }, [pagesBy, scrollToCurrent]);
 
-  return { scroll, pagesBy, setMeasureRef, measure };
+  return { scroll, pagesBy, photoPagesBy, setMeasureRef, measure };
+}
+
+/** Фото «на всю страницу» главы → номер полосы текста (с 0), на которой оно стоит. */
+export type PhotoPages = Readonly<Record<string, number>>;
+export const NO_PHOTO_PAGES: PhotoPages = Object.freeze({});
+
+/** Колонка каждой заглушки фото на всю страницу в копии главы для замера — так же, как колонка начала ответа. */
+export function photoColumns(flowEl: Pick<HTMLElement, "querySelectorAll" | "getBoundingClientRect">, textW: number, gap: number): PhotoPages {
+  const holders = flowEl.querySelectorAll<HTMLElement>("[data-page-photo]");
+  if (!holders.length) return NO_PHOTO_PAGES;
+  const left = flowEl.getBoundingClientRect().left;
+  const out: Record<string, number> = {};
+  for (const el of holders) out[el.dataset.pagePhoto!] = Math.max(0, Math.floor((el.getBoundingClientRect().left - left + 1) / (textW + gap)));
+  return out;
+}
+
+export function samePhotoPages(a: PhotoPages | undefined, b: PhotoPages) {
+  if (!a) return b === NO_PHOTO_PAGES;
+  const ka = Object.keys(a);
+  return ka.length === Object.keys(b).length && ka.every((k) => a[k] === b[k]);
 }

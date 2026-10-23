@@ -3,7 +3,7 @@ import { Link } from "@/i18n/client";
 import { TrackOnce } from "@/components/analytics/TrackOnce";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/server/auth";
-import { can, getStaff } from "@/server/access";
+import { can, getStaff, canSeeOrder } from "@/server/access";
 import { container } from "@/server/container";
 import { manualPaymentProps } from "@/server/requisites";
 import { formatPrice, getPlan } from "@/config/site";
@@ -30,8 +30,10 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
   const user = await requireUser(`/orders/${id}`);
   pageId(id);
   const order = await container().ordering.queries.orderDetails(id);
-  // Чужой заказ — только сотруднику с правом «Видеть заказы», вошедшему по правилам «Безопасности» (V1).
-  if (!order || (order.userId !== user.id && !can(await getStaff(), "orders.view"))) notFound();
+  // Чужой заказ — только сотруднику с правом «Видеть заказы», вошедшему по правилам «Безопасности» (V1); роли «только
+  // свои» — только заказ своего клиента.
+  const staff = order && order.userId !== user.id ? await getStaff() : null;
+  if (!order || (order.userId !== user.id && !(staff && can(staff, "orders.view") && (await canSeeOrder(staff, order.id))))) notFound();
   const own = order.userId === user.id;
   const [locale, m, review] = await Promise.all([getLocale(), getMessages(), own ? container().feedback.queries.byOrder(order.id) : null]);
   const t = m.orders.order;

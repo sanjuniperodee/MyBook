@@ -33,5 +33,7 @@ export interface Article {
   bank?: { afterSection: number; perChapter: number; skip: string[]; author: "m" | "f"; recipient: "m" | "f" };
   /** Посадочные страницы /kniga/<slug>, на которые ведёт статья. */
   landings: string[];
+  /** Бесплатные инструменты /instrumenty/<slug>, на которые ведёт статья. */
+  tools?: string[];
   content: Record<Locale, ArticleContent>;
 }

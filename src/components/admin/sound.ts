@@ -62,6 +62,19 @@ export function playSound(kind: Exclude<LiveSound, null>) {
   }
 }
 
+/** Звонок телефона: двойная трель (входящий звонок WhatsApp звонит в CRM — другого телефона у него нет). */
+export function playRing() {
+  try {
+    const c = audio();
+    if (!c) return;
+    if (c.state === "suspended") void c.resume();
+    const t = c.currentTime + 0.02;
+    for (const d of [0, 0.5]) for (let i = 0; i < 8; i++) tone(c, t + d + i * 0.05, i % 2 ? 480 : 440, 0.05, 0.22);
+  } catch {
+    // звук недоступен — остаётся карточка звонка
+  }
+}
+
 /** Звук выключен на этом устройстве. Хранилище браузера может быть недоступно — тогда звук включён. */
 export function soundMuted(): boolean {
   if (mutedHere !== null) return mutedHere;

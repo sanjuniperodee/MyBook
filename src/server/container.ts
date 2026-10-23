@@ -24,13 +24,15 @@ import { WorkspaceModule, smtpConfig } from "@/modules/workspace";
 import { FeedbackModule, reviewUrl, THANK_YOU } from "@/modules/feedback";
 import { ReferralsModule } from "@/modules/referrals";
 import { AutomationModule } from "@/modules/automation";
-import { BookPreviewService, PrintFilesService, pdfRenderQueue, reactPdfRenderer, renderGiftPdf, storageFileStore, type BookRenderer } from "@/modules/production";
+import { BookPreviewService, PrintFilesService, RenderProgress, pdfPageRaster, pdfRenderQueue, reactPdfRenderer, renderGiftPdf, storageFileStore, type BookRenderer } from "@/modules/production";
 import { registerSubscriptions } from "./subscriptions";
 import { createInvoiceAccess, type InvoiceAccess } from "./invoice-access";
 import { kaspiConfig, whatsappSettings } from "./integration-settings";
+import { whatsappCallGateway } from "./whatsapp-calls";
 import { botSiteInfo } from "./bot-site";
 import { referralPromos } from "./promo-ports";
 import { requestOrigin } from "./rateLimit";
+import { confirmDesignAiPurchase, findDesignAiPurchase } from "@/server/designAiStore";
 
 /**
  * Корень композиции: единственное место, где модули собираются из реализаций.
@@ -203,7 +205,13 @@ export class Container {
       },
       botSite: botSiteInfo,
       // Режим «Продаёт» с движком AI: отдельная модель продажника («Интеграции» → AI → «Модель продажника»).
-      sellerModel: { configured: () => this.assistant.seller.configured(), complete: (input) => this.assistant.seller.complete(input), media: (input) => this.assistant.seller.media(input) },
+      // Claude — основная модель по уровням (Haiku / Sonnet / Opus), остальные провайдеры — запасные.
+      sellerModel: {
+        configured: () => this.assistant.seller.configured(),
+        complete: (input) => this.assistant.seller.complete(input),
+        policy: () => this.assistant.seller.policy(),
+        media: (input) => this.assistant.seller.media(input),
+      },
       // Квалификатор: AI только понимает ответ, который бот не разобрал сам; тексты клиенту — шаблоны из настроек.
       brain: {
         understand: async (input) => {
@@ -214,13 +222,14 @@ export class Container {
     }));
   }
 
-  /** Звонки создают сделки через порт продаж; спам-лист — из переписки, правила на пропущенные — из автоматизаций. */
+  /** Звонки создают сделки через порт продаж; спам-лист и шлюз звонков WhatsApp — из переписки, правила на пропущенные — из автоматизаций. */
   get telephony(): TelephonyModule {
     return (this.#telephony ??= new TelephonyModule({
       clock: this.clock,
       settings: this.workspace.settings,
       notifier: this.workspace.notifier,
       live: this.workspace.live,
+      whatsapp: whatsappCallGateway(() => this.messaging.gowa, whatsappSettings.callsEnabled),
       isBlocked: (phone) => this.messaging.chats.isBlocked(phone),
       missedRules: (ctx) => this.automation.engine.run("call.missed", ctx),
       sales: {
@@ -290,6 +299,10 @@ export class Container {
           await this.sales.deals.linkClient(dealId, clientId);
           await this.messaging.chats.linkDealClient(dealId, clientId);
         },
+        absorbRequests: (dealId, actorId) => this.sales.deals.absorbRequests(dealId, actorId),
+        linkRequests: async (clientId, phone) => {
+          for (const id of await this.sales.deals.linkRequests(clientId, phone)) await this.messaging.chats.linkDealClient(id, clientId);
+        },
       },
       // Заметка «звонок/сообщение/письмо» в сделке — менеджер связался с клиентом: заявка принята в работу.
       deals: { accept: (dealId, staffId, how) => this.sales.deals.acceptUnsorted(dealId, staffId, how) },
@@ -356,18 +369,24 @@ export class Container {
   #printFiles?: PrintFilesService;
   #previews?: BookPreviewService;
   #renderer?: BookRenderer;
+  #renderProgress?: RenderProgress;
 
   /** Рендер PDF читает книгу через read-модель Authoring, а не таблицы напрямую. */
   private get renderer(): BookRenderer {
     return (this.#renderer ??= reactPdfRenderer((bookId) => this.authoring.queries.bundle(bookId)));
   }
 
+  /** Ход сборок PDF — один на процесс: его показывают экраны заказа и предпросмотра. */
+  get renderProgress(): RenderProgress {
+    return (this.#renderProgress ??= new RenderProgress(storageFileStore));
+  }
+
   get printFiles(): PrintFilesService {
-    return (this.#printFiles ??= new PrintFilesService(this.renderer, storageFileStore, pdfRenderQueue, consoleLogger("production")));
+    return (this.#printFiles ??= new PrintFilesService(this.renderer, storageFileStore, pdfRenderQueue, consoleLogger("production"), this.renderProgress));
   }
 
   get previews(): BookPreviewService {
-    return (this.#previews ??= new BookPreviewService(this.renderer, storageFileStore, pdfRenderQueue, (bookId) => this.ordering.queries.bookPaid(bookId)));
+    return (this.#previews ??= new BookPreviewService(this.renderer, storageFileStore, pdfRenderQueue, pdfPageRaster, consoleLogger("production"), (bookId) => this.ordering.queries.bookPaid(bookId), undefined, this.renderProgress));
   }
 
   get ordering(): OrderingModule {
@@ -387,6 +406,8 @@ export class Container {
       },
       agreements: { agreementFor: (userId) => this.sales.agreementFor(userId), attachOrder: (dealId, orderId) => this.sales.attachAgreementOrder(dealId, orderId) },
       kaspiConfig,
+      // Пакеты ИИ-дизайнера: покупка и начисление запросов — у дизайнера, оплата — общая через Kaspi.
+      aiPacks: { find: findDesignAiPurchase, confirm: confirmDesignAiPurchase },
       // Слежка за кассиром Kaspi: состояние и порог тревоги — в настройках, тревога — руководителям.
       settings: this.workspace.settings,
       notifier: this.workspace.notifier,

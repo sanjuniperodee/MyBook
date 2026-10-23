@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./dark.css";
 
 @theme {
   --color-paper: #faf7f2;
@@ -295,4 +296,269 @@ body {
 .marquee-reverse { animation-direction: reverse; }
 @media (prefers-reduced-motion: reduce) {
   .marquee { animation: none; }
+}
+
+/*
+ * Телефон и установленная CRM (PWA): приложение, а не сайт. Нижняя панель разделов (MobileTabBar), чат на весь экран,
+ * отступы под «домашнюю» полоску iPhone, без задержки нажатия и случайного масштаба, без «резинки» страницы вверх.
+ */
+@media (max-width: 1023.98px) {
+  :root {
+    --tabbar-h: calc(3.6rem + env(safe-area-inset-bottom));
+    --topbar-h: calc(3.25rem + env(safe-area-inset-top));
+  }
+  .crm-main {
+    padding-bottom: calc(var(--tabbar-h) + 1.25rem);
+  }
+  /* Чат: высота экрана минус шапка и панель; открытый диалог — весь экран без шапки и панели. */
+  .crm-chat-root {
+    height: calc(100dvh - var(--topbar-h) - var(--tabbar-h));
+  }
+  html[data-chat-open] .crm-topbar {
+    display: none;
+  }
+  html[data-chat-open] .crm-main {
+    padding-bottom: 0;
+  }
+  html[data-chat-open] .crm-chat-root {
+    height: 100dvh;
+  }
+  body {
+    overscroll-behavior-y: contain;
+  }
+}
+@media (pointer: coarse) {
+  a,
+  button,
+  summary,
+  [role="button"],
+  select,
+  label {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  /* Палец крупнее курсора: основные кнопки не ниже 40 пикселей. */
+  .btn-sm {
+    min-height: 2.5rem;
+  }
+  .input {
+    min-height: 2.75rem;
+  }
+}
+
+/*
+ * Мобильный вид CRM по гайдлайнам Apple (HIG): крупный заголовок экрана, зоны нажатия не меньше 44 pt, шапка под вырезом,
+ * списки — карточками на всю ширину, ленты фильтров листаются вбок, а не переносятся. Только телефон и планшет (< lg).
+ */
+@media (max-width: 1023.98px) {
+  .crm-topbar {
+    height: var(--topbar-h);
+    padding-top: env(safe-area-inset-top);
+    gap: 0.5rem;
+  }
+  /* Строка поиска, как в iOS: серое скруглённое поле высотой 40, подсказка короче. */
+  .crm-topbar input[name="q"] {
+    height: 2.5rem;
+    border-radius: 0.75rem;
+    border-color: transparent;
+    background: rgb(120 113 108 / 0.12);
+  }
+  .crm-topbar input[name="q"]:focus {
+    background: var(--color-white);
+    border-color: color-mix(in oklab, var(--color-wine) 40%, transparent);
+  }
+  .crm-topbar :is(button, a) {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
+  /* Крупный заголовок экрана (Large Title): 28 pt, жирный, плотный. */
+  .crm-main h1 {
+    font-size: 1.75rem;
+    line-height: 2.05rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  .crm-main h2 {
+    letter-spacing: -0.01em;
+  }
+  /* Зоны нажатия — 44 pt. */
+  .crm-main :is(.btn, .btn-sm) {
+    min-height: 2.75rem;
+  }
+  .crm-main :is(input:not([type="checkbox"], [type="radio"], [type="hidden"], [type="range"], [type="color"], [type="file"]), select) {
+    min-height: 2.75rem;
+    border-radius: 0.85rem;
+  }
+  .crm-main :is(input[type="checkbox"], input[type="radio"]) {
+    width: 1.35rem;
+    height: 1.35rem;
+  }
+  .crm-main label:has(> input[type="checkbox"], > input[type="radio"]) {
+    min-height: 2.75rem;
+  }
+  /* «Пилюли» и фильтры-чипсы — не ниже 40, чтобы попадать пальцем. */
+  .crm-main :is(a, button).rounded-full:not(.btn, [class*="size-"]) {
+    min-height: 2.5rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+  }
+  /* Лента вбок: фильтры, этапы, чипсы не переносятся на 3 строки, а листаются пальцем. */
+  .m-hscroll {
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    margin-inline: -1rem;
+    padding-inline: 1rem;
+    scroll-snap-type: x proximity;
+    scroll-padding-inline: 1rem;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .m-hscroll::-webkit-scrollbar {
+    display: none;
+  }
+  .m-hscroll > * {
+    flex-shrink: 0;
+    scroll-snap-align: start;
+  }
+  /* Карточка списка: отклик на нажатие, как в iOS (лёгкое затемнение, без «подпрыгивания»). */
+  .m-card {
+    transition: background-color 0.12s ease, transform 0.12s ease;
+  }
+  .m-card:active {
+    background-color: var(--color-cream);
+    transform: scale(0.992);
+  }
+  /* Таблицы, которые остались таблицами: плавная прокрутка вбок, без «резинки» страницы. */
+  .crm-main .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+  /* Панель массовых действий — над нижней панелью, а не под ней. */
+  .m-sticky-actions {
+    position: sticky;
+    bottom: calc(var(--tabbar-h) + 0.5rem);
+    z-index: 20;
+  }
+}
+@media (pointer: coarse) and (max-width: 1023.98px) {
+  /* Системные шрифты Apple: на iPhone — SF Pro, цифры одинаковой ширины. */
+  .crm-main {
+    font-family: -apple-system, BlinkMacSystemFont, var(--font-onest), system-ui, sans-serif;
+  }
+}
+@media (hover: none) {
+  .crm-main .hover\:bg-cream\/40:hover {
+    background-color: transparent;
+  }
+}
+
+/*
+ * Переходы между экранами CRM на телефоне — как в iOS. Направление ставит NavMotion (<html data-nav>), экран — div.crm-page в
+ * admin/template.tsx. Вглубь: новый экран въезжает справа, старый чуть сдвигается влево; назад — наоборот; вкладки — растворение.
+ * Шапка и нижняя панель — отдельные группы, остаются на месте поверх экранов.
+ */
+.crm-page {
+  min-height: 100%;
+  background-color: #f7f4ef;
+}
+.dark .crm-page {
+  background-color: #14110f;
+}
+::view-transition-group(crm-topbar),
+::view-transition-group(crm-tabbar) {
+  animation: none;
+  z-index: 100;
+}
+::view-transition-old(crm-topbar),
+::view-transition-old(crm-tabbar) {
+  display: none;
+}
+::view-transition-new(crm-topbar),
+::view-transition-new(crm-tabbar) {
+  animation: none;
+}
+::view-transition {
+  pointer-events: none;
+}
+:root {
+  --ios-ease: cubic-bezier(0.32, 0.72, 0, 1);
+}
+::view-transition-old(.crm-page) {
+  animation: 140ms ease-out both crm-fade-out;
+}
+::view-transition-new(.crm-page) {
+  animation: 220ms ease-out both crm-fade-in;
+}
+:root[data-nav="forward"]::view-transition-old(.crm-page) {
+  animation: 380ms var(--ios-ease) both crm-push-out;
+}
+:root[data-nav="forward"]::view-transition-new(.crm-page) {
+  animation: 380ms var(--ios-ease) both crm-push-in;
+  box-shadow: -8px 0 24px rgb(0 0 0 / 0.12);
+}
+:root[data-nav="back"]::view-transition-old(.crm-page) {
+  animation: 380ms var(--ios-ease) both crm-pop-out;
+  z-index: 2;
+  box-shadow: -8px 0 24px rgb(0 0 0 / 0.12);
+}
+:root[data-nav="back"]::view-transition-new(.crm-page) {
+  animation: 380ms var(--ios-ease) both crm-pop-in;
+}
+:root[data-nav="tab"]::view-transition-old(.crm-page) {
+  animation: 120ms ease-out both crm-fade-out;
+}
+:root[data-nav="tab"]::view-transition-new(.crm-page) {
+  animation: 200ms ease-out 40ms both crm-fade-in;
+}
+@keyframes crm-fade-out { to { opacity: 0; } }
+@keyframes crm-fade-in { from { opacity: 0; } }
+@keyframes crm-push-in { from { transform: translateX(100%); } }
+@keyframes crm-push-out { to { transform: translateX(-28%); opacity: 0.6; } }
+@keyframes crm-pop-in { from { transform: translateX(-28%); opacity: 0.6; } }
+@keyframes crm-pop-out { to { transform: translateX(100%); } }
+
+/* Заготовка страницы появляется не сразу, а через 160 мс: быстрые переходы проходят без мерцания скелета, медленные — с ним. */
+@keyframes sk-in { to { opacity: 1; } }
+.sk-delay {
+  opacity: 0;
+  animation: sk-in 0.25s ease 160ms forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sk-delay { opacity: 1; }
+}
+
+/* Телефон: вертикальные промежутки между блоками плотнее, чем на широком экране — на экране помещается больше. */
+@media (max-width: 1023.98px) {
+  .crm-main .space-y-8 > :not(:last-child) { margin-block-end: 1.5rem; }
+  .crm-main .space-y-6 > :not(:last-child) { margin-block-end: 1.125rem; }
+  .crm-main .space-y-5 > :not(:last-child) { margin-block-end: 1rem; }
+  .crm-main .space-y-4 > :not(:last-child) { margin-block-end: 0.875rem; }
+}
+
+/*
+ * Протяжка сверху/снизу не тянет интерфейс. В браузере — overscroll-behavior: none на корне. В установленном приложении (iOS
+ * всё равно «резинит» окно) страницу прокручивает оболочка .crm-shell, а окно неподвижно; тянуть вниз для обновления — своим
+ * жестом (PullToRefresh). Прокрутку читает scroller.ts.
+ */
+@media (max-width: 1023.98px) {
+  html:has(.crm-shell),
+  html:has(.crm-shell) body {
+    overscroll-behavior: none;
+  }
+  html[data-standalone]:has(.crm-shell),
+  html[data-standalone]:has(.crm-shell) body {
+    height: 100%;
+    overflow: hidden;
+  }
+  html[data-standalone] .crm-shell {
+    display: block; /* колонка растёт по содержимому — иначе шапка (sticky) уезжает вместе с растянутой колонкой */
+    position: fixed;
+    inset: 0;
+    height: 100dvh;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
+  }
 }

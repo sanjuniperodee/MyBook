@@ -2,7 +2,7 @@
 
 import { useActionState, useTransition } from "react";
 import { LoaderCircle } from "lucide-react";
-import { formatPrice, type AddonId, type DeliveryId, type PlanId } from "@/config/site";
+import { formatPrice, MAX_AI_PACK_REQUESTS, type AddonId, type AiPackId, type DeliveryId, type PlanId } from "@/config/site";
 import { addonLabels, deliveryLabels, planLabels } from "@/modules/ordering/ui/labels";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { Alert } from "@/components/ui/Alert";
@@ -17,7 +17,13 @@ interface Props {
   addons: { id: AddonId; price: number }[];
   /** price null — «рассчитывается индивидуально» (optional: поле можно оставить пустым). */
   delivery: { id: DeliveryId; price: number | null; optional: boolean }[];
-  factory: { plans: Record<string, { price: number; extraCopyPrice: number; visible: boolean }>; addons: Record<string, number>; delivery: Record<string, number> };
+  aiPacks: { id: AiPackId; price: number; requests: number; visible: boolean }[];
+  factory: {
+    plans: Record<string, { price: number; extraCopyPrice: number; visible: boolean }>;
+    addons: Record<string, number>;
+    delivery: Record<string, number>;
+    aiPacks: Record<string, { price: number; requests: number }>;
+  };
   changed: boolean;
 }
 
@@ -36,7 +42,7 @@ function Price({ name, label, value, factory, hint, optional = false }: { name: 
   );
 }
 
-export function PricingForm({ plans, addons, delivery, factory, changed }: Props) {
+export function PricingForm({ plans, addons, delivery, aiPacks, factory, changed }: Props) {
   const [state, action] = useActionState<PricingState, FormData>(savePricingAction, {});
   const [resetting, startReset] = useTransition();
   return (
@@ -87,11 +93,42 @@ export function PricingForm({ plans, addons, delivery, factory, changed }: Props
         <p className="text-xs text-muted sm:col-span-3">Пустое поле — стоимость доставки рассчитывается индивидуально: в сумму заказа не входит, клиент видит «рассчитывается индивидуально», менеджер получает задачу рассчитать её и согласовать. Доставка в другую страну — всегда так.</p>
       </section>
 
+      <section className="space-y-4 rounded-2xl border border-line bg-white p-5" data-testid="pricing-ai-packs">
+        <div>
+          <h2 className="text-sm font-semibold">Пакеты запросов к ИИ-дизайнеру</h2>
+          <p className="mt-1 text-xs text-muted">5 запросов бесплатно на клиента (за всё время). Когда они кончаются, клиенту предлагают пакеты ниже; купленные запросы не сгорают и тратятся после бесплатных.</p>
+        </div>
+        <div className="grid gap-3 lg:grid-cols-3">
+          {aiPacks.map((p, i) => {
+            const f = factory.aiPacks[p.id];
+            return (
+              <div key={p.id} className="space-y-3 rounded-xl border border-line p-4" data-testid={`ai-pack-${p.id}`}>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="font-medium">Пакет {i + 1}</div>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" name={`ai_${p.id}_visible`} defaultChecked={p.visible} className="size-4 accent-wine" /> Продаётся
+                  </label>
+                </div>
+                <div>
+                  <label className="label" htmlFor={`ai_${p.id}_requests`}>
+                    Запросов
+                  </label>
+                  <input id={`ai_${p.id}_requests`} name={`ai_${p.id}_requests`} type="number" inputMode="numeric" min={1} max={MAX_AI_PACK_REQUESTS} step={1} required defaultValue={p.requests} className="input h-11" />
+                  <p className="mt-1 text-xs text-muted">{f.requests === p.requests ? "заводское число" : `заводское: ${f.requests}`}</p>
+                </div>
+                <Price name={`ai_${p.id}_price`} label="Цена" value={p.price} factory={f.price} />
+                <p className="text-xs text-muted">≈ {formatPrice(Math.round(p.price / Math.max(1, p.requests)))} за запрос</p>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
       <div className="rounded-2xl bg-cream/70 p-4 text-xs leading-relaxed text-ink-soft">
         Уже оформленные заказы и сертификаты не пересчитываются. Цена книги, о которой менеджер договорился с клиентом, остаётся в сделке как указана; доставка и допы по договорённости считаются сверху по ценам отсюда.
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="sticky bottom-4 z-10 flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-white/90 p-3 shadow-soft backdrop-blur">
         <SubmitButton className="btn btn-primary">Сохранить цены</SubmitButton>
         {changed ? (
           <button

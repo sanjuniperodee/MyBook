@@ -8,7 +8,10 @@ describe("спецификация набора", () => {
     for (const d of interiorDesigns) {
       const S = interiorSizes(d, 1);
       const face = photoCaptionFace(d);
-      if (d.photos.caption === "hand") {
+      if (d.photos.captionFace) {
+        // Своё начертание подписи (дизайнер): им и набирается, цветом подписей.
+        expect(face).toEqual({ face: d.photos.captionFace, label: false, lineHeight: 1.3, color: d.palette.muted });
+      } else if (d.photos.caption === "hand") {
         expect(face).toEqual({ face: { font: "caveat", weight: 500 }, label: false, lineHeight: 1.15, color: d.palette.ink });
         expect(photoCaptionSize(d, S)).toBe(S.caption * 1.5);
       } else if (d.photos.caption === "label") {
