@@ -185,3 +185,99 @@ describe("реестр инструментов", () => {
     for (const a of articles) for (const slug of a.tools ?? []) expect(getTool(slug), `${a.slug} → ${slug}`).toBeTruthy();
   });
 });
+
+describe("проверка фото для печати", () => {
+  it("тот же расчёт, что у редактора: 12 Мп хватает на всю страницу A5, 1600 px — нет", async () => {
+    const { analyzePhoto, looksMessengerCompressed } = await import("@/lib/tools/photos");
+    const big = analyzePhoto({ width: 4000, height: 3000 }, "a5");
+    expect(big.uses.find((u) => u.id === "bleed")!.verdict).not.toBe("low");
+    expect(big.uses.find((u) => u.id === "half")!.verdict).toBe("great");
+    const small = analyzePhoto({ width: 1600, height: 1200 }, "a5");
+    expect(small.worst).toBe("low");
+    expect(small.uses.find((u) => u.id === "bleed")!.dpi).toBeLessThan(150);
+    expect(analyzePhoto({ width: 4000, height: 3000 }, "square").uses).toHaveLength(5);
+    expect(big.maxCm.sharp).toBeLessThan(big.maxCm.soft);
+    expect(looksMessengerCompressed("IMG-20240101-WA0001.jpg", { width: 1600, height: 1200 })).toBe(true);
+    expect(looksMessengerCompressed("IMG_1234.jpg", { width: 4000, height: 3000 })).toBe(false);
+  });
+});
+
+describe("объём книги", () => {
+  it("минимум 24 полосы, кратно четырём, больше материала — больше полос и толще корешок", async () => {
+    const { estimateBook, answersToGood } = await import("@/lib/tools/pages");
+    const base = { format: "a5", length: "medium", photos: 0, letters: 0 } as const;
+    const a = estimateBook({ ...base, answers: 5 });
+    const b = estimateBook({ ...base, answers: 30 });
+    const c = estimateBook({ ...base, answers: 60, photos: 20 });
+    for (const s of [a, b, c]) {
+      expect(s.pages).toBeGreaterThanOrEqual(24);
+      expect(s.pages % 4).toBe(0);
+    }
+    expect(b.raw).toBeGreaterThan(a.raw);
+    expect(c.pages).toBeGreaterThan(b.pages);
+    expect(c.spineMm).toBeGreaterThan(a.spineMm);
+    expect(estimateBook({ ...base, answers: 30, length: "long" }).raw).toBeGreaterThan(b.raw);
+    expect(estimateBook({ ...base, answers: 0 }).pages).toBe(0);
+    expect(answersToGood({ ...base, answers: 100 })).toBe(0);
+    expect(answersToGood({ ...base, answers: 3 })).toBeGreaterThan(0);
+  });
+});
+
+describe("календарь .ics", () => {
+  it("события на весь день, экранирование и перенос длинных строк по байтам", async () => {
+    const { buildIcs, icsEscape, icsFold } = await import("@/lib/tools/ics");
+    expect(icsEscape("а, б; в\nг\\д")).toBe("а\\, б\\; в\\nг\\\\д");
+    const long = "SUMMARY:" + "я".repeat(80);
+    const folded = icsFold(long);
+    for (const line of folded.split("\r\n")) expect(new TextEncoder().encode(line).length).toBeLessThanOrEqual(75);
+    expect(folded.replace(/\r\n /g, "")).toBe(long);
+    const ics = buildIcs([{ uid: "a@x", date: new Date(2026, 11, 31), summary: "Заказать, книгу" }], { calendarName: "План", now: new Date(Date.UTC(2026, 9, 23, 7, 0, 0)) });
+    expect(ics).toContain("DTSTART;VALUE=DATE:20261231");
+    expect(ics).toContain("DTEND;VALUE=DATE:20270101");
+    expect(ics).toContain("DTSTAMP:20261023T070000Z");
+    expect(ics.startsWith("BEGIN:VCALENDAR\r\n")).toBe(true);
+    expect(ics.endsWith("END:VCALENDAR\r\n")).toBe(true);
+  });
+});
+
+describe("план книги к дате", () => {
+  const now = new Date(2026, 9, 23);
+  const base = { delivery: "courier", now, goal: "normal", letters: true, expressAvailable: true } as const;
+  it("вердикты по запасу времени", async () => {
+    const { planFor } = await import("@/lib/tools/plan");
+    expect(planFor({ ...base, target: "2026-09-01" })?.verdict).toBe("past");
+    const calm = planFor({ ...base, target: "2027-03-08" })!;
+    expect(calm.verdict).toBe("calm");
+    expect(calm.perDay).toBeLessThanOrEqual(2);
+    expect(planFor({ ...base, target: "2026-11-20", goal: "big" })!.verdict).not.toBe("calm");
+    expect(planFor({ ...base, target: "2026-10-25", expressAvailable: false })!.verdict).toBe("digital");
+    expect(planFor({ ...base, target: "не дата" })).toBeNull();
+  });
+  it("шаги идут по порядку, не раньше сегодня и не позже дня заказа", async () => {
+    const { planFor } = await import("@/lib/tools/plan");
+    for (const target of ["2026-11-10", "2026-12-31", "2027-03-08", "2026-10-30"]) {
+      const p = planFor({ ...base, target })!;
+      const t = p.steps.map((s) => s.date.getTime());
+      expect(t).toEqual([...t].sort((a, b) => a - b));
+      expect(p.steps[0].date.getTime()).toBe(now.getTime());
+      const order = p.steps.find((s) => s.id === "order")!.date.getTime();
+      expect(p.steps.filter((s) => s.id !== "target").every((s) => s.date.getTime() <= order)).toBe(true);
+    }
+    expect(planFor({ ...base, target: "2027-03-08", letters: false })!.steps.some((s) => s.id === "letters")).toBe(false);
+  });
+});
+
+describe("шежіре", () => {
+  it("сохранённое читается устойчиво", async () => {
+    const { parseShezhire, emptyShezhire, knownChain, filled, GENERATIONS } = await import("@/lib/tools/shezhire");
+    expect(parseShezhire(null)).toEqual(emptyShezhire());
+    expect(parseShezhire("{не json")).toEqual(emptyShezhire());
+    expect(parseShezhire("42")).toEqual(emptyShezhire());
+    const s = parseShezhire(JSON.stringify({ owner: "А".repeat(500), father: [{ name: "Серік" }, { name: "" }, { name: "Қали" }], mother: "мусор" }));
+    expect(s.owner).toHaveLength(80);
+    expect(s.father).toHaveLength(GENERATIONS);
+    expect(s.mother).toHaveLength(GENERATIONS);
+    expect(knownChain(s.father)).toBe(1);
+    expect(filled(s.father)).toBe(2);
+  });
+});

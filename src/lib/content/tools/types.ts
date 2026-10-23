@@ -2,7 +2,7 @@ import type { Locale } from "@/i18n/config";
 import type { ThemeId } from "../types";
 import type { QuizId } from "@/lib/tools/quiz";
 
-export type ToolKind = "together" | "deadline" | "price" | "greeting" | "cards" | "quiz";
+export type ToolKind = "together" | "deadline" | "price" | "greeting" | "cards" | "quiz" | "photo" | "pages" | "planner" | "shezhire";
 
 export interface ToolSection {
   heading: string;

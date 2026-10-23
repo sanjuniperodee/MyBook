@@ -459,7 +459,7 @@ export default async function HomePage() {
               <p className="max-w-sm text-muted">{toolsPageUi[locale].homeNote}</p>
             </div>
             <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-              {["dni-vmeste", "generator-pozdravlenij", "test-znaesh-li-ty-mamu", "uspet-k-date"].map((slug) => {
+              {["proverka-foto-dlya-pechati", "plan-knigi-k-date", "shezhire-zheti-ata", "skolko-stranits-v-knige"].map((slug) => {
                 const tool = getTool(slug);
                 return tool ? (
                   <Link key={slug} href={`/instrumenty/${slug}`} className="card card-hover flex flex-col p-6">
