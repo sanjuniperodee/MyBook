@@ -104,7 +104,7 @@ export class DrizzleSubjectLoader implements SubjectLoader {
     const [order] = orderId ? await db.select({ id: orders.id, number: orders.number, status: orders.status, trackingNumber: orders.trackingNumber, bookId: orders.bookId }).from(orders).where(eq(orders.id, orderId)).limit(1) : [];
     const clientId = ctx.clientId ?? deal?.clientId ?? conv?.clientId ?? call?.clientId ?? null;
     const [client] = clientId ? await db.select({ name: users.name, managerId: users.managerId, locale: users.locale }).from(users).where(eq(users.id, clientId)).limit(1) : [];
-    const locale = client?.locale === "kk" ? "kk" : "ru";
+    const locale = client?.locale === "kk" || (await this.chatLang(conv ?? null, deal?.id ?? null, clientId)) === "kk" ? "kk" : "ru";
     return {
       deal: deal ? { id: deal.id, number: deal.number, title: deal.title, assigneeId: deal.assigneeId, orderId: deal.orderId, clientId: deal.clientId, customFields: deal.customFields } : null,
       conversation: conv ? { id: conv.id, assigneeId: conv.assigneeId, contactName: conv.contactName, lastMessageText: conv.lastMessageText, clientId: conv.clientId } : null,
@@ -117,6 +117,24 @@ export class DrizzleSubjectLoader implements SubjectLoader {
       assigneeId: deal?.assigneeId ?? conv?.assigneeId ?? call?.staffId ?? client?.managerId ?? null,
       locale,
     };
+  }
+
+  /**
+   * Язык переписки (automation-14): у клиента из WhatsApp нет учётной записи на казахском, но бот-продажник уже понял,
+   * на каком языке он пишет (bot_state.lang). Диалог объекта, иначе последний диалог сделки или клиента с языком.
+   */
+  private async chatLang(conv: { botState: Record<string, unknown> | null } | null, dealId: string | null, clientId: string | null) {
+    const own = conv?.botState?.lang;
+    if (typeof own === "string") return own;
+    const of = [dealId ? eq(crmConversations.dealId, dealId) : undefined, clientId ? eq(crmConversations.clientId, clientId) : undefined].filter((c) => c !== undefined);
+    if (!of.length) return null;
+    const [r] = await executor()
+      .select({ lang: sql<string | null>`${crmConversations.botState}->>'lang'` })
+      .from(crmConversations)
+      .where(and(or(...of), sql`${crmConversations.botState} ? 'lang'`))
+      .orderBy(sql`${crmConversations.lastMessageAt} desc nulls last`)
+      .limit(1);
+    return r?.lang ?? null;
   }
 
   /**

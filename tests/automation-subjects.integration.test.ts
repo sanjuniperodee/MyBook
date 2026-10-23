@@ -55,6 +55,15 @@ run("automation: переписка для сообщения правила (Po
     expect(await loader.latestConversation(null, null)).toBeNull();
   });
 
+  it("язык клиента без казахской учётной записи — по языку переписки, который понял бот (automation-14)", async () => {
+    expect((await loader.load({ subject: "x", dealId: ids.withChat })).locale).toBe("ru");
+    await q(sql`update crm_conversations set bot_state = '{"phase":"done","lang":"kk"}'::jsonb where id = ${ids.dealChat}`);
+    expect((await loader.load({ subject: "x", dealId: ids.withChat })).locale).toBe("kk");
+    expect((await loader.load({ subject: "x", conversationId: ids.dealChat })).locale).toBe("kk");
+    expect((await loader.load({ subject: "x", clientId: ids.client })).locale).toBe("kk");
+    await q(sql`update crm_conversations set bot_state = null where id = ${ids.dealChat}`);
+  });
+
   it("сообщение о заказе — в WhatsApp, и через Wazzup (wapi) тоже; письмо — не WhatsApp", async () => {
     expect(await loader.latestWhatsapp(ids.withChat, ids.client)).toBe(ids.wapi);
     expect(await loader.latestWhatsapp(ids.fresh, null)).toBeNull();
