@@ -27,6 +27,7 @@ export type { OrderFilters } from "./infrastructure/Orders";
 export type { CrmCounters } from "./infrastructure/Counters";
 export type { LiveState } from "./infrastructure/Live";
 export { STALLED_DAYS, type ClientSort } from "./infrastructure/Clients";
+export { CLIENT_OCCASIONS, clientFiltersFrom, clientFiltersQuery, type ClientFilters } from "./ui/clientFilters";
 export { RULE_STATS_DAYS, type RuleSalesStats } from "./infrastructure/Automations";
 
 export class ReportingModule {

@@ -6,6 +6,9 @@ import { users } from "@/shared/infrastructure/db/schema";
 import { answeredSql, wordsSql } from "@/shared/infrastructure/db/bookProgress";
 import type { ClientSegment } from "@/shared/domain/segments";
 import { isManualChannel, MANUAL_MEDIUM } from "@/shared/domain/channels";
+import { getOccasion } from "@/lib/occasions";
+import { messagesFor } from "@/i18n/messages";
+import { CLIENT_OCCASIONS, monthAfter, type ClientFilters } from "../ui/clientFilters";
 
 export const STALLED_DAYS = 14;
 
@@ -92,6 +95,35 @@ function channelWhere(ch: string | undefined): SQL | undefined {
   }
 }
 
+/** Повод: код в книге (books.occasion) или подпись в сделке из чата (поле «Повод» — текстом, по-русски). */
+function occasionWhere(code: string): SQL {
+  const label = (messagesFor("ru").common.occasions as Record<string, { label: string }>)[code]?.label ?? code;
+  return sql`(exists (select 1 from books b where b.user_id = ${usersId} and b.occasion = ${code})
+    or exists (select 1 from crm_deals d where d.client_id = ${usersId} and lower(d.custom_fields->>'occasion') = lower(${label})))`;
+}
+
+/** Месяц повода: дата в книге или «Дата события» сделки (ГГГГ-ММ-ДД текстом); праздник с постоянной датой — его месяц. */
+function monthWhere(month: number): SQL {
+  const mm = String(month).padStart(2, "0");
+  const fixed = CLIENT_OCCASIONS.filter((id) => (getOccasion(id)?.fixed?.month ?? (id === "teachersday" ? 10 : 0)) === month);
+  return sql`(exists (select 1 from books b where b.user_id = ${usersId} and (substring(b.occasion_date from 6 for 2) = ${mm}${fixed.length ? sql` or b.occasion in (${sql.join(fixed.map((f) => sql`${f}`), sql`, `)})` : sql``}))
+    or exists (select 1 from crm_deals d where d.client_id = ${usersId} and substring(d.custom_fields->>'event_date' from 6 for 2) = ${mm}))`;
+}
+
+/** Фильтры ручной добивки (contacts-13) — всё через exists по индексам клиента. */
+function filtersWhere(f: ClientFilters): SQL[] {
+  const w: SQL[] = [];
+  if (f.occasion) w.push(occasionWhere(f.occasion));
+  if (f.month) w.push(monthWhere(f.month));
+  if (f.boughtFrom || f.boughtTo) {
+    const from = f.boughtFrom ? sql` and e.at >= ${`${f.boughtFrom}-01`}::date` : sql``;
+    const to = f.boughtTo ? sql` and e.at < ${monthAfter(f.boughtTo)}::date` : sql``;
+    w.push(sql`exists (select 1 from revenue_events e where e.client_id = ${usersId}${from}${to})`);
+  }
+  if (f.noOpenDeal) w.push(sql`not exists (select 1 from crm_deals d join crm_stages s on s.id = d.stage_id where d.client_id = ${usersId} and s.kind = 'open')`);
+  return w;
+}
+
 export async function queryClients(opts: {
   segment: ClientSegment;
   q?: string;
@@ -102,8 +134,9 @@ export async function queryClients(opts: {
   scopeManagerId?: string | null;
   onlyMine?: boolean;
   channel?: string;
+  filters?: ClientFilters;
 }) {
-  const w: SQL[] = [eq(users.role, "user")];
+  const w: SQL[] = [eq(users.role, "user"), ...filtersWhere(opts.filters ?? {})];
   const ch = channelWhere(opts.channel);
   if (ch) w.push(ch);
   const scope = managerScope(opts.scopeManagerId, opts.onlyMine);

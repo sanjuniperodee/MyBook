@@ -3,7 +3,8 @@ import { MobileFilters } from "@/components/admin/MobileFilters";
 import { channelLabel, channels, toAttribution } from "@/shared/domain/channels";
 import { Download, UserPlus } from "lucide-react";
 import { clientSegments, type ClientSegment } from "@/shared/domain/segments";
-import type { ClientSort } from "@/modules/reporting";
+import { CLIENT_OCCASIONS, clientFiltersFrom, clientFiltersQuery, type ClientSort } from "@/modules/reporting";
+import { messagesFor } from "@/i18n/messages";
 import { formatPrice } from "@/config/site";
 import { cn } from "@/lib/class-names";
 import { formatDate } from "@/lib/dates";
@@ -13,6 +14,8 @@ import { container } from "@/server/container";
 
 export const metadata = { title: "Клиенты" };
 const PAGE = 50;
+const occasionLabels = messagesFor("ru").common.occasions;
+const MONTHS = ["январь", "февраль", "март", "апрель", "май", "июнь", "июль", "август", "сентябрь", "октябрь", "ноябрь", "декабрь"];
 
 function relative(d: Date | null) {
   if (!d) return "—";
@@ -23,7 +26,7 @@ function relative(d: Date | null) {
   return formatDate(d);
 }
 
-export default async function ClientsPage({ searchParams }: { searchParams: Promise<{ segment?: string; q?: string; tag?: string; sort?: string; page?: string; mine?: string; ch?: string }> }) {
+export default async function ClientsPage({ searchParams }: { searchParams: Promise<{ segment?: string; q?: string; tag?: string; sort?: string; page?: string; mine?: string; ch?: string; occ?: string; month?: string; from?: string; to?: string; noDeal?: string }> }) {
   const staff = await requireStaff("clients.view");
   const sp = await searchParams;
   const segment = (sp.segment && sp.segment in clientSegments ? sp.segment : "all") as ClientSegment;
@@ -32,17 +35,20 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
   // Роль «только свои» видит своих клиентов и неразобранных (без ответственного).
   const scopeManagerId = staff.scope === "own" ? staff.user.id : null;
   const onlyMine = sp.mine === "1";
+  // Ручная добивка к праздникам (contacts-13): повод, месяц повода, когда покупали, без открытой сделки.
+  const filters = clientFiltersFrom((k) => sp[k as keyof typeof sp]);
+  const filterQs = clientFiltersQuery(filters);
   const [{ rows, total }, counts, admins] = await Promise.all([
-    container().reporting.clients({ segment, q: sp.q, tag: sp.tag, sort, channel: sp.ch, limit: PAGE, offset: (page - 1) * PAGE, scopeManagerId: scopeManagerId ?? (onlyMine ? staff.user.id : null), onlyMine }),
+    container().reporting.clients({ segment, q: sp.q, tag: sp.tag, sort, channel: sp.ch, limit: PAGE, offset: (page - 1) * PAGE, scopeManagerId: scopeManagerId ?? (onlyMine ? staff.user.id : null), onlyMine, filters }),
     container().reporting.segmentCounts(scopeManagerId),
     container().access.queries.allStaff(),
   ]);
   const managerName = new Map(admins.map((a) => [a.id, staffLabel(a)]));
   const link = (patch: Record<string, string | undefined>) => {
-    const p = new URLSearchParams(Object.entries({ segment, q: sp.q, tag: sp.tag, sort, ch: sp.ch, mine: onlyMine ? "1" : undefined, ...patch }).filter(([, v]) => v && v !== "all" && v !== "new") as [string, string][]);
+    const p = new URLSearchParams(Object.entries({ segment, q: sp.q, tag: sp.tag, sort, ch: sp.ch, mine: onlyMine ? "1" : undefined, ...filterQs, ...patch }).filter(([, v]) => v && v !== "all" && v !== "new") as [string, string][]);
     return `/admin/clients?${p}`;
   };
-  const exportQs = new URLSearchParams(Object.entries({ segment, q: sp.q, tag: sp.tag }).filter(([, v]) => v) as [string, string][]);
+  const exportQs = new URLSearchParams(Object.entries({ segment, q: sp.q, tag: sp.tag, ...filterQs }).filter(([, v]) => v) as [string, string][]);
 
   return (
     <div className="space-y-5">
@@ -93,6 +99,31 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
         <label className="flex h-10 items-center gap-2 px-2 text-sm text-ink-soft">
           <input type="checkbox" name="mine" value="1" defaultChecked={onlyMine} className="accent-wine" /> Только мои
         </label>
+        <div className="flex w-full flex-wrap items-center gap-2 max-lg:[&>*]:w-full" data-testid="clients-repeat-filters">
+          <select name="occ" defaultValue={filters.occasion ?? ""} className="input h-10 w-44 text-sm" aria-label="Повод">
+            <option value="">Любой повод</option>
+            {CLIENT_OCCASIONS.map((o) => (
+              <option key={o} value={o}>
+                {occasionLabels[o].label}
+              </option>
+            ))}
+          </select>
+          <select name="month" defaultValue={filters.month ? String(filters.month) : ""} className="input h-10 w-40 text-sm" aria-label="Месяц повода">
+            <option value="">Месяц повода</option>
+            {MONTHS.map((m, i) => (
+              <option key={m} value={i + 1}>
+                {m}
+              </option>
+            ))}
+          </select>
+          <span className="text-sm text-muted">покупали с</span>
+          <input type="month" name="from" defaultValue={filters.boughtFrom} className="input h-10 w-40 text-sm" aria-label="Покупали с" />
+          <span className="text-sm text-muted">по</span>
+          <input type="month" name="to" defaultValue={filters.boughtTo} className="input h-10 w-40 text-sm" aria-label="Покупали по" />
+          <label className="flex h-10 items-center gap-2 px-2 text-sm text-ink-soft">
+            <input type="checkbox" name="noDeal" value="1" defaultChecked={!!filters.noOpenDeal} className="accent-wine" /> Без открытой сделки
+          </label>
+        </div>
         <button className="btn btn-dark btn-sm h-10">Найти</button>
       </form>
       </MobileFilters>
