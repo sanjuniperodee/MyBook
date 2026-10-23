@@ -45,13 +45,13 @@ export class DrizzleOrderingQueries {
     return rootDb.query.giftCards.findFirst({ where: eq(giftCards.promoCodeId, promoId) });
   }
 
-  /** Промокоды с выручкой и числом оплаченных заказов — экран «Промокоды». */
+  /** Промокоды с выручкой и числом оплаченных заказов — экран «Промокоды». Отменённые после оплаты не считаются (analytics-d7). */
   promoStats() {
     return rootDb
       .select({
         promo: promoCodes,
-        revenue: sql<number>`coalesce((select sum(${orders.amount}) from ${orders} where ${orders.promoCode} = ${promoCodes.code} and ${orders.paidAt} is not null), 0)::int`,
-        paid: sql<number>`(select count(*)::int from ${orders} where ${orders.promoCode} = ${promoCodes.code} and ${orders.paidAt} is not null)`,
+        revenue: sql<number>`coalesce((select sum(${orders.amount}) from ${orders} where ${orders.promoCode} = ${promoCodes.code} and ${paidOrder}), 0)::int`,
+        paid: sql<number>`(select count(*)::int from ${orders} where ${orders.promoCode} = ${promoCodes.code} and ${paidOrder})`,
       })
       .from(promoCodes)
       .orderBy(desc(promoCodes.createdAt));
