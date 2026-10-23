@@ -103,6 +103,7 @@ const ROUTING_LOCK = 7_310_460;
  */
 export const roundRobinRouter = (schedule: WorkSchedule, timeZone: () => string): StaffRouter => ({
   isWorkTime: () => schedule.isWorkTime(new Date()),
+  workMinutesBetween: (from, to) => schedule.workMinutesBetween(from, to),
   async lock() {
     await executor().execute(sql`select pg_advisory_xact_lock(${ROUTING_LOCK})`);
   },

@@ -208,6 +208,9 @@ class MemRouter {
   lock = async () => void this.locks++;
   next = async (exclude: readonly string[]) => this.queue.find((m) => !exclude.includes(m)) ?? null;
   isActive = async (id: string) => this.active.has(id);
+  /** Рабочих минут между моментами; null — календарные (график не подключён). */
+  workMinutes: ((from: Date, to: Date) => number) | null = null;
+  workMinutesBetween = async (from: Date, to: Date) => (this.workMinutes ? this.workMinutes(from, to) : Math.floor((to.getTime() - from.getTime()) / 60_000));
 }
 
 class FakeUow implements UnitOfWork {
@@ -350,6 +353,20 @@ describe("Круг: распределение заявок", () => {
     expect(await service.findById(a.id)).toMatchObject({ assigneeId: "m3", routeTried: ["m2", "m3"], assignedAt: clock.at });
     expect((await service.findById(b.id))?.assigneeId).toBe("m2");
     expect(sent.map((s) => s.to)).toEqual(["m3", "m2"]);
+  });
+
+  it("время на заявку — рабочее (tasks-d7): ночью таймер стоит, утром заявку не отдают первым же проходом", async () => {
+    const { service, routing, router, clock } = setup();
+    router.queue = ["m2", "m3"];
+    const d = await service.create(lead);
+    // Назначили в 20:55, сейчас 09:01 следующего дня: календарных минут много, рабочих — 6.
+    router.workMinutes = () => 6;
+    clock.at = new Date(now.getTime() + 12 * 3_600_000);
+    expect(await routing.run()).toBe(0);
+    expect((await service.findById(d.id))?.assigneeId).toBe("m2");
+    router.workMinutes = () => 16;
+    expect(await routing.run()).toBe(1);
+    expect((await service.findById(d.id))?.assigneeId).toBe("m3");
   });
 
   it("обошла всех — остаётся у последнего, руководителям напоминание, отсчёт заново", async () => {

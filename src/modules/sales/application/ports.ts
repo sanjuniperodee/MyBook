@@ -40,6 +40,8 @@ export interface StaffRouter {
   next(exclude: readonly string[]): Promise<string | null>;
   /** Сотрудник ещё работает (не отключён) — постоянный клиент идёт к своему ответственному. */
   isActive(userId: string): Promise<boolean>;
+  /** Сколько рабочих минут прошло (tasks-d7): ночь не «съедает» время на заявку. Нет — календарные минуты. */
+  workMinutesBetween?(from: Date, to: Date): Promise<number>;
 }
 
 /** Прогресс книги клиента (контекст Authoring): тема (вид книги), ответы, всего вопросов и слова — для progressOf. */

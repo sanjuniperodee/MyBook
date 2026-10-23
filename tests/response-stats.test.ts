@@ -57,3 +57,17 @@ describe("ответ с телефона магазина — тому, у ко�
     expect(free.msgs.find((m) => m.externalId === "echo-2")?.attributedTo).toBeNull();
   });
 });
+
+describe("ответ с телефона без отметки держателя принимает заявку (chats-d2)", () => {
+  it("заявка становится взятой на её ответственного — круг её больше не отнимет", async () => {
+    const { setup, inbound } = await import("./doubles/botHarness");
+    const t = setup();
+    await t.service.ingest(inbound({ text: "Здравствуйте" }));
+    const conv = t.conv();
+    conv.assigneeId = "m3";
+    const deal = t.deals.find((d) => d.id === conv.dealId)!;
+    expect(deal.unsorted).toBe(true);
+    await t.service.ingest(inbound({ externalId: "echo-9", isEcho: true, text: "Добрый день!", contactName: "" }));
+    expect(deal.unsorted).toBe(false);
+  });
+});

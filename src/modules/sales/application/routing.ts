@@ -82,6 +82,8 @@ export class LeadRoutingService {
       const deal = await this.deals.findById(dealId);
       // Пока ждали блокировку, заявку могли взять или передать вручную.
       if (!deal || !deal.isUnsorted || !deal.assigneeId || !deal.assignedAt || deal.assignedAt > before) return null;
+      // Время на заявку — рабочее (tasks-d7): назначенную в 20:55 утром первым же проходом не отдают другому.
+      if (this.router.workMinutesBetween && (await this.router.workMinutesBetween(deal.assignedAt, this.clock.now())) < minutes) return null;
       const prev = deal.assigneeId;
       const next = await this.router.next([...deal.routeTried, prev]);
       if (next) {

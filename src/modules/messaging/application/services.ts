@@ -153,7 +153,12 @@ export class MessagingService {
    */
   private async claimByPhone(conv: Conversation) {
     const holder = await this.phoneHolder().catch(() => null);
-    if (!holder) return;
+    // Не отмечено, у кого телефон (chats-d2): ответ с него всё равно принимает заявку — на её нынешнего ответственного,
+    // иначе круг через N минут отдал бы уже отвеченную заявку другому и прислал «никто не взял».
+    if (!holder) {
+      if (conv.dealId && conv.assigneeId) await this.sales.acceptUnsorted(conv.dealId, conv.assigneeId, "ответ клиенту с телефона магазина");
+      return;
+    }
     let from: string | null = null;
     if (conv.dealId && this.sales.claimNewLead) {
       const r = await this.sales.claimNewLead(conv.dealId, holder.id, "ответ клиенту с телефона магазина");

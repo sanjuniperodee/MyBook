@@ -65,6 +65,31 @@ run("sales: круг (PostgreSQL)", () => {
     expect([await router.isActive(ids.a), await router.isActive(ids.gone)]).toEqual([true, false]);
   });
 
+  it("notTakenSince: заявку, которой уже ответил человек (в том числе с телефона), круг не отнимает (chats-d2)", async () => {
+    const [stage] = await q<{ id: string }>(sql`select id from crm_stages where kind = 'open' order by position limit 1`);
+    const mk = async (key: string) =>
+      (await q<{ id: string }>(sql`insert into crm_deals (title, stage_id, contact_name, unsorted, assignee_id, assigned_at) values (${tag + key}, ${stage.id}, 'К', true, ${ids.a}, now() - interval '1 hour') returning id`))[0].id;
+    const silent = await mk("silent");
+    const echoed = await mk("echoed");
+    const botOnly = await mk("bot");
+    const conv = async (dealId: string, o: { source?: string | null; ago: string }) => {
+      const [c] = await q<{ id: string }>(sql`insert into crm_conversations (channel, channel_id, chat_id, deal_id) values ('whatsapp', ${tag}, ${tag + dealId}, ${dealId}) returning id`);
+      await q(sql`insert into crm_messages (conversation_id, direction, text, source, created_at) values (${c.id}, 'out', 'x', ${o.source ?? null}, now() - ${o.ago}::interval)`);
+    };
+    await conv(echoed, { ago: "30 minutes" });
+    await conv(botOnly, { source: "bot", ago: "30 minutes" });
+    await conv(silent, { ago: "2 hours" }); // ответили до назначения — не в счёт
+    try {
+      const got = await new DrizzleDealRepository().notTakenSince(new Date(Date.now() - 15 * 60_000), 100000);
+      expect(got).toContain(silent);
+      expect(got).toContain(botOnly);
+      expect(got).not.toContain(echoed);
+    } finally {
+      await q(sql`delete from crm_conversations where channel_id = ${tag}`);
+      await q(sql`delete from crm_deals where title like ${tag + "%"} and assignee_id = ${ids.a}`);
+    }
+  });
+
   it("waitingForRoute: только свежие неразобранные без ответственного, без «спам/отклонить»", async () => {
     const [stage] = await q<{ id: string }>(sql`select id from crm_stages where kind = 'open' order by position limit 1`);
     const mk = async (key: string, o: { unsorted?: boolean; ago?: string; tags?: string } = {}) =>

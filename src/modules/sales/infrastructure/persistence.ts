@@ -2,6 +2,7 @@ import "server-only";
 import { and, asc, desc, eq, inArray, isNotNull, isNull, gt, lt, ne, or, sql, type SQL } from "drizzle-orm";
 import { crmCalls, crmConversations, crmDeals, crmNotes, crmPipelines, crmPlans, crmSavedViews, crmStageHistory, crmStages, crmTasks, crmPayments, crmReceipts } from "@/shared/infrastructure/db/schema";
 import { phoneKey } from "@/shared/domain/phone";
+import { crmDealsId } from "@/shared/infrastructure/db/refs";
 import { storeTimeZone } from "@/shared/domain/time";
 import { executor } from "@/shared/infrastructure/database";
 import type { PipelineRepository } from "../application";
@@ -191,7 +192,19 @@ export class DrizzleDealRepository implements DealRepository {
       .select({ id: crmDeals.id })
       .from(crmDeals)
       .innerJoin(crmStages, eq(crmStages.id, crmDeals.stageId))
-      .where(and(eq(crmStages.kind, "open"), eq(crmDeals.unsorted, true), isNotNull(crmDeals.assigneeId), lt(crmDeals.assignedAt, before), sql`not (${crmDeals.tags} && ${`{"${REJECTION_TAGS.spam}","${REJECTION_TAGS.reject}"}`}::text[])`))
+      .where(
+        and(
+          eq(crmStages.kind, "open"),
+          eq(crmDeals.unsorted, true),
+          isNotNull(crmDeals.assigneeId),
+          lt(crmDeals.assignedAt, before),
+          sql`not (${crmDeals.tags} && ${`{"${REJECTION_TAGS.spam}","${REJECTION_TAGS.reject}"}`}::text[])`,
+          // Клиенту уже ответил человек (из CRM или с телефона магазина) после назначения — заявка взята, даже если
+          // «принять» не отметили (chats-d2): по crm_conv_deal_idx и crm_messages_conv_idx.
+          sql`not exists (select 1 from crm_conversations c join crm_messages m on m.conversation_id = c.id
+            where c.deal_id = ${crmDealsId} and m.direction = 'out' and m.internal = false and m.source is null and m.created_at > ${sql.raw(`"crm_deals"."assigned_at"`)})`,
+        ),
+      )
       .orderBy(asc(crmDeals.assignedAt))
       .limit(limit);
     return rows.map((r) => r.id);
