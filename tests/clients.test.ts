@@ -195,6 +195,22 @@ describe("«Что сделали?» — итог задачи (tasks-1)", () =>
   });
 });
 
+describe("сделка проиграна — её задачи закрываются (tasks-6)", () => {
+  it("все открытые задачи сделки — выполнены с причиной; уже выполненные и чужих сделок — без изменений", async () => {
+    const t = setup();
+    await t.tasks.create(manager, { title: "Перезвонить", kind: "call", dealId: "deal-1" });
+    await t.tasks.create(manager, { title: "Отправить макет", kind: "task", dealId: "deal-1" });
+    await t.tasks.create(manager, { title: "Другая сделка", kind: "task", dealId: "deal-2" });
+    const [a, b, other] = [...t.mem.tasks.rows.keys()];
+    await t.tasks.complete(manager, b, "Отправил");
+    expect(await t.tasks.closeForLostDeal("deal-1", "Дорого")).toBe(1);
+    expect(t.mem.tasks.rows.get(a)).toMatchObject({ result: "Сделка проиграна: Дорого" });
+    expect(t.mem.tasks.rows.get(a)?.doneAt).toBeInstanceOf(Date);
+    expect(t.mem.tasks.rows.get(b)?.result).toBe("Отправил");
+    expect(t.mem.tasks.rows.get(other)?.doneAt).toBeNull();
+  });
+});
+
 describe("NotesService: заметки и @упоминания", () => {
   it("звонок, сообщение или письмо в сделке — менеджер связался с клиентом: заявка принята в работу; простая заметка и записи вне сделки — нет", async () => {
     const t = setup();

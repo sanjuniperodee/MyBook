@@ -77,6 +77,15 @@ export const drizzleTasks: TaskRepository = {
     return rows.length;
   },
   // По частичному индексу crm_tasks_open_deal_idx (открытые задачи сделки).
+  async closeOpenOfDeal({ dealId, result, at }) {
+    const rows = await executor()
+      .update(crmTasks)
+      .set({ doneAt: at, result: sql`coalesce(${crmTasks.result}, ${result})` })
+      .where(and(eq(crmTasks.dealId, dealId), isNull(crmTasks.doneAt)))
+      .returning({ id: crmTasks.id });
+    return rows.length;
+  },
+  // По частичному индексу crm_tasks_open_deal_idx (открытые задачи сделки).
   async reassignOpenOfDeal({ dealId, from, to }) {
     const rows = await executor()
       .update(crmTasks)

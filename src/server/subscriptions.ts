@@ -212,6 +212,18 @@ export function registerSubscriptions(c: Container) {
     },
     "ordering.invoices.cancel_on_deal_closed",
   );
+  // Сделка проиграна — её открытые задачи закрываются с итогом (tasks-6); повтор из outbox по вернувшейся в работу — нет.
+  c.bus.subscribe<DealClosed>(
+    "sales.deal_closed",
+    async (e) => {
+      const p = e.payload;
+      if (p.outcome !== "lost") return;
+      const deal = await c.sales.deals.findById(p.dealId);
+      if (!deal || (await c.sales.deals.stage(deal.stageId))?.kind !== "lost") return;
+      await c.clients.tasks.closeForLostDeal(p.dealId, p.reason);
+    },
+    "crm.tasks.close_on_deal_lost",
+  );
   c.bus.subscribe<DealStageChanged>(
     "sales.deal_stage_changed",
     async (e) => rules().run("deal.stage_changed", { subject: `${e.payload.dealId}:${e.payload.stageId}:${e.payload.at}`, dealId: e.payload.dealId, clientId: e.payload.clientId, stageId: e.payload.stageId, source: e.payload.source }),

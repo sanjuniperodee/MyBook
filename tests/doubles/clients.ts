@@ -83,6 +83,15 @@ class MemTasks implements TaskRepository {
     }
     return n;
   }
+  async closeOpenOfDeal({ dealId, result, at }: { dealId: string; result: string; at: Date }) {
+    let n = 0;
+    for (const [id, t] of this.rows) {
+      if (t.dealId !== dealId || t.doneAt) continue;
+      this.rows.set(id, { ...t, doneAt: at, result: t.result ?? result });
+      n++;
+    }
+    return n;
+  }
   async closeOpenByPrefix({ dealId, prefix, keepTitle, at }: { dealId: string; prefix: string; keepTitle?: string | null; at: Date }) {
     let n = 0;
     for (const [id, t] of this.rows) {

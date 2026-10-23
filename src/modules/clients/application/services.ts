@@ -187,6 +187,14 @@ export class TasksService {
     return this.tasks.closeOpenOfKind({ dealId, kind: "message", result: ANSWERED_RESULT, at: this.clock.now() });
   }
 
+  /**
+   * Сделка проиграна (tasks-6): её открытые задачи больше не нужны — закрываются с итогом «сделка проиграна» (и причиной),
+   * чтобы не висели просроченными в «Моём дне». Успешную сделку не трогаем: по ней идёт онбординг. Сколько закрыто.
+   */
+  closeForLostDeal(dealId: string, reason: string | null) {
+    return this.tasks.closeOpenOfDeal({ dealId, result: reason ? `Сделка проиграна: ${reason}` : "Сделка проиграна", at: this.clock.now() });
+  }
+
   /** Служебные задачи CRM устарели (остаток оплачен или изменился): прежние открытые закрываются. */
   closeOpenByPrefix(input: { dealId: string; prefix: string; keepTitle?: string | null }) {
     return this.tasks.closeOpenByPrefix({ ...input, at: new Date() });

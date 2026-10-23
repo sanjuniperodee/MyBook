@@ -211,6 +211,7 @@ describe("Подписчики жизни сделки", () => {
         tasks: {
           createSystem: async (t: { title: string; assigneeId: string | null; dueAt: Date | null; once?: boolean }) => (calls.push(`task:${t.assigneeId}:${t.title}`), tasks.push(t), true),
           followDeal: async (t: { dealId: string; from: string | null; to: string }) => (calls.push(`follow:${t.dealId}:${t.from}>${t.to}`), 1),
+          closeForLostDeal: async (dealId: string, reason: string | null) => (calls.push(`close-tasks:${dealId}:${reason}`), 1),
         },
       },
       messaging: { chats: { assignDealConversations: async (dealId: string, to: string) => void calls.push(`chats:${dealId}>${to}`) } },
@@ -228,11 +229,19 @@ describe("Подписчики жизни сделки", () => {
     await bus.publish([closed("deal-9", "lost", "Дорого")]);
     await bus.publish([closed("deal-0", "won", null)]);
     await bus.publish([closed("deal-5", "lost", null)]);
-    expect(calls).toEqual([
+    expect(calls.filter((c) => !c.startsWith("close-tasks:"))).toEqual([
       "cancel:deal-9:сделка проиграна (Дорого)",
       expect.stringMatching(new RegExp(`^note:deal-9:Счёт ${cancelled.label} на 10\\s000 ₸ отменён: сделка проиграна \\(Дорого\\)$`)),
       `cancel:deal-0:${DEAL_INVOICE_CLOSE_REASONS.dealWon}`,
     ]);
+  });
+
+  it("сделка проиграна — её открытые задачи закрываются с причиной (tasks-6); успешная и вернувшаяся в работу — нет", async () => {
+    const { bus, calls } = await wire();
+    await bus.publish([closed("deal-9", "lost", "Дорого")]);
+    await bus.publish([closed("deal-0", "won", null)]);
+    await bus.publish([closed("deal-5", "lost", null)]);
+    expect(calls.filter((c) => c.startsWith("close-tasks:"))).toEqual(["close-tasks:deal-9:Дорого"]);
   });
 
   it("заказ с переплатой по договорённости — задача ответственному «оформите возврат»", async () => {

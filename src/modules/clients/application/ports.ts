@@ -43,6 +43,8 @@ export interface TaskRepository {
    * Сколько закрыто.
    */
   closeOpenOfKind(t: { dealId: string; kind: TaskKind; result: string; at: Date }): Promise<number>;
+  /** Все открытые задачи сделки — выполнены с итогом (сделка проиграна, tasks-6). Сколько закрыто. */
+  closeOpenOfDeal(t: { dealId: string; result: string; at: Date }): Promise<number>;
   /** Закрыть открытые служебные задачи сделки, заголовок которых начинается с prefix (кроме keepTitle); сколько закрыто. */
   closeOpenByPrefix(t: { dealId: string; prefix: string; keepTitle?: string | null; at: Date }): Promise<number>;
   /** doneById — кто отметил (снятие отметки его стирает). */
