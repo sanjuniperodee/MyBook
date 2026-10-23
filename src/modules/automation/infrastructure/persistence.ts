@@ -11,8 +11,18 @@ import { executor } from "@/shared/infrastructure/database";
 import { filledBelowSql, progressCols } from "@/shared/infrastructure/db/bookProgress";
 import type { CustomFieldsReader } from "@/shared/application";
 import { fieldVars } from "@/shared/domain/customFields";
-import type { RuleRepository, ScheduledSource, SubjectLoader } from "../application";
-import type { AutomationRule, Holiday, RuleSubject, TriggerContext } from "../domain";
+import type { RuleRepository, ScheduledSource, StoredRun, SubjectLoader } from "../application";
+import { readRunDetails, type AutomationRule, type Holiday, type RuleSubject, type RunDetails, type RunStatus, type TriggerContext } from "../domain";
+
+const runCols = {
+  id: crmAutomationRuns.id,
+  ruleId: crmAutomationRuns.automationId,
+  subject: crmAutomationRuns.subject,
+  status: crmAutomationRuns.status,
+  details: crmAutomationRuns.details,
+  createdAt: crmAutomationRuns.createdAt,
+};
+const toRun = (r: { id: string; ruleId: string; subject: string; status: RunStatus; details: unknown; createdAt: Date }): StoredRun => ({ ...r, details: readRunDetails(r.details) });
 
 /** Переписка в WhatsApp: шлюз GOWA (whatsapp) и WhatsApp API через Wazzup (wapi). */
 const WHATSAPP_CHANNELS = ["whatsapp", "wapi"];
@@ -30,8 +40,49 @@ export class DrizzleRuleRepository implements RuleRepository {
       .where(and(eq(crmAutomations.active, true), trigger ? eq(crmAutomations.trigger, trigger) : undefined));
   }
   async claim(ruleId: string, subject: string) {
-    const rows = await executor().insert(crmAutomationRuns).values({ automationId: ruleId, subject }).onConflictDoNothing().returning({ id: crmAutomationRuns.id });
+    const rows = await executor().insert(crmAutomationRuns).values({ automationId: ruleId, subject, status: "running" }).onConflictDoNothing().returning({ id: crmAutomationRuns.id });
     return rows.length > 0;
+  }
+  async finish(ruleId: string, subject: string, status: RunStatus, details: RunDetails) {
+    await executor()
+      .update(crmAutomationRuns)
+      .set({ status, details: details as unknown as Record<string, unknown> })
+      .where(and(eq(crmAutomationRuns.automationId, ruleId), eq(crmAutomationRuns.subject, subject)));
+  }
+  async findRun(id: string) {
+    const [r] = await executor().select(runCols).from(crmAutomationRuns).where(eq(crmAutomationRuns.id, id)).limit(1);
+    return r ? toRun(r) : null;
+  }
+  async restart(id: string, from: readonly RunStatus[], staleBefore?: Date) {
+    const others = from.filter((st) => st !== "running");
+    const cond = or(
+      others.length ? inArray(crmAutomationRuns.status, others) : undefined,
+      from.includes("running") && staleBefore ? and(eq(crmAutomationRuns.status, "running"), lte(crmAutomationRuns.createdAt, staleBefore)) : undefined,
+    );
+    if (!cond) return false;
+    const rows = await executor().update(crmAutomationRuns).set({ status: "running" }).where(and(eq(crmAutomationRuns.id, id), cond)).returning({ id: crmAutomationRuns.id });
+    return rows.length > 0;
+  }
+  /** По частичному индексу crm_auto_runs_deferred_idx. */
+  async deferredRuns(limit: number) {
+    const rows = await executor().select(runCols).from(crmAutomationRuns).where(eq(crmAutomationRuns.status, "deferred")).orderBy(asc(crmAutomationRuns.createdAt)).limit(limit);
+    return rows.map(toRun);
+  }
+  async find(id: string) {
+    const [r] = await executor()
+      .select({ id: crmAutomations.id, name: crmAutomations.name, trigger: crmAutomations.trigger, conditions: crmAutomations.conditions, actions: crmAutomations.actions, active: crmAutomations.active })
+      .from(crmAutomations)
+      .where(eq(crmAutomations.id, id))
+      .limit(1);
+    return r ?? null;
+  }
+  /** Порциями по частичному индексу crm_auto_runs_details_idx: строки остаются, по ним правило не срабатывает дважды. */
+  async purgeDetails(before: Date, limit: number) {
+    const { rowCount } = await executor().execute(sql`
+      update crm_automation_runs set details = null
+      where id in (select id from crm_automation_runs where details is not null and created_at < ${before} order by created_at limit ${limit})
+        and status not in ('deferred', 'error')`);
+    return rowCount ?? 0;
   }
   async markRun(ruleId: string, at: Date) {
     await executor()

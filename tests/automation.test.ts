@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { AutomationEngine, type AutomationEffects, type RuleRepository, type SalesGateway, type ScheduledSource, type SubjectLoader } from "@/modules/automation/application";
+import { AutomationEngine, type AutomationEffects, type RuleRepository, type SalesGateway, type ScheduledSource, type SendOutcome, type StoredRun, type SubjectLoader } from "@/modules/automation/application";
 import { isTrigger } from "@/modules/automation/domain/meta";
 import {
   ANNIVERSARY_LIMITS,
@@ -43,8 +43,8 @@ function setup(
     scheduled?: Partial<ScheduledSource>;
     active?: RuleRepository["active"];
     canMessage?: () => boolean;
-    /** Отправка после записи в лог — например, настоящий sendAutomated из botHarness. */
-    sendMessage?: AutomationEffects["sendMessage"];
+    /** Отправка после записи в лог — например, настоящий sendAutomated из botHarness; вернула итог — он и уйдёт в журнал. */
+    sendMessage?: (...a: Parameters<AutomationEffects["sendMessage"]>) => Promise<unknown>;
     /** Рабочих минут, сколько клиент ждёт ответа («клиенту не ответили»). */
     workMinutes?: number;
     createTask?: AutomationEffects["createTask"];
@@ -57,10 +57,32 @@ function setup(
   const claimed = new Set<string>();
   const log: string[] = [];
   const tasks: Parameters<AutomationEffects["createTask"]>[0][] = [];
+  /** Журнал срабатываний: ключ — правило и объект. */
+  const runs = new Map<string, StoredRun>();
+  let runSeq = 0;
   const repo: RuleRepository = {
     active: opts.active ?? (async (trigger) => rules.filter((r) => !trigger || r.trigger === trigger)),
-    claim: async (id, subject) => !claimed.has(`${id}:${subject}`) && !!claimed.add(`${id}:${subject}`),
+    claim: async (id, subject) => {
+      if (claimed.has(`${id}:${subject}`)) return false;
+      claimed.add(`${id}:${subject}`);
+      runs.set(`${id}:${subject}`, { id: `run${++runSeq}`, ruleId: id, subject, status: "running", details: null, createdAt: opts.now ?? now });
+      return true;
+    },
     markRun: async (id) => void log.push(`run:${id}`),
+    finish: async (id, subject, status, details) => void Object.assign(runs.get(`${id}:${subject}`)!, { status, details: structuredClone(details) }),
+    findRun: async (id) => [...runs.values()].find((r) => r.id === id) ?? null,
+    restart: async (id, from, staleBefore) => {
+      const r = [...runs.values()].find((x) => x.id === id);
+      if (!r || !from.includes(r.status) || (r.status === "running" && (!staleBefore || r.createdAt > staleBefore))) return false;
+      r.status = "running";
+      return true;
+    },
+    deferredRuns: async (limit) => [...runs.values()].filter((r) => r.status === "deferred").slice(0, limit),
+    find: async (id) => {
+      const r = rules.find((x) => x.id === id);
+      return r ? { ...r, active: (r as { active?: boolean }).active ?? true } : null;
+    },
+    purgeDetails: async () => 0,
   };
   const subject = (): RuleSubject => ({ deal: { id: "d1", number: 5, title: "Заявка", assigneeId: null, orderId: null, clientId: "c1", customFields: {} }, clientId: "c1", name: "Айгерим", assigneeId: null, ...opts.subject });
   const loaded: Parameters<SubjectLoader["load"]>[0][] = [];
@@ -87,7 +109,8 @@ function setup(
     // Название правила уходит в отправку: текст с реквизитами не отправится, а в заметке будет видно, какое правило.
     sendMessage: async (id, text, o) => {
       log.push(`msg:${id}:${text}${o ? ` (${o.rule}${o.reply ? ", ответ" : ""}${o.transactional ? ", о заказе" : ""}${o.allow?.length ? `, можно: ${o.allow.join(" ")}` : ""})` : ""}`);
-      await opts.sendMessage?.(id, text, o);
+      const r = await opts.sendMessage?.(id, text, o);
+      return typeof r === "string" ? (r as SendOutcome) : "sent";
     },
     canMessageNow: async () => (log.push("gate"), opts.canMessage?.() ?? true),
     assignConversation: async () => {},
@@ -117,7 +140,7 @@ function setup(
   const quiet = { info: () => {}, warn: () => {}, error: (m: string) => void errors.push(m) };
   const holidays = { list: async () => opts.holidays ?? [...DEFAULT_HOLIDAYS] };
   const engine = new AutomationEngine(repo, loader, effects, sales, schedule, scheduled, { url: "https://mybook.kz" }, { now: () => opts.now ?? now }, quiet, holidays);
-  return { engine, log, errors, tasks, claimed, loaded };
+  return { engine, log, errors, tasks, claimed, loaded, runs };
 }
 
 const rule = (p: Partial<AutomationRule>): AutomationRule => ({ id: "r1", name: "Правило", trigger: "deal.created", conditions: {}, actions: [], ...p });
@@ -156,6 +179,67 @@ describe("AutomationEngine", () => {
     ref.engine = ctx.engine;
     await ctx.engine.run("deal.stage_changed", { subject: "d1:0" });
     expect(moves).toBe(3);
+  });
+});
+
+describe("журнал срабатываний правила (automation-13)", () => {
+  it("шаги пишутся в журнал: сделано и пропущено с причиной", async () => {
+    const r = rule({ actions: [{ type: "create_task", title: "Позвонить" }, { type: "move_stage" }, { type: "notify", title: "Новая сделка" }] });
+    const t = setup([r], { createTask: async () => false });
+    await t.engine.run("deal.created", { subject: "deal:d1", dealId: "d1" });
+    const run = [...t.runs.values()][0];
+    expect(run.status).toBe("done");
+    expect(run.details?.ctx).toMatchObject({ subject: "deal:d1", dealId: "d1" });
+    expect(run.details?.steps).toEqual([
+      { i: 0, action: "create_task", result: "skipped", note: "такая задача по сделке уже открыта" },
+      { i: 1, action: "move_stage", result: "skipped", note: "нет сделки" },
+      { i: 2, action: "notify", result: "ok" },
+    ]);
+  });
+
+  it("исключение в действии — ошибка с номером действия; «Повторить» продолжает с него, сделанное не повторяет", async () => {
+    let fail = true;
+    const r = rule({ actions: [{ type: "notify", title: "Сначала уведомить" }, { type: "create_task", title: "Потом задача" }] });
+    const t = setup([r], {
+      createTask: async () => {
+        if (fail) throw new Error("база недоступна");
+        return true;
+      },
+    });
+    await t.engine.run("deal.created", { subject: "deal:d1", dealId: "d1" });
+    const run = [...t.runs.values()][0];
+    expect(run.status).toBe("error");
+    expect(run.details).toMatchObject({ error: "база недоступна", failedAt: 1 });
+    expect(t.errors).toContain("«Правило»");
+    fail = false;
+    const notified = t.log.filter((l) => l.startsWith("notify:staff:Сначала")).length;
+    expect(await t.engine.retry(run.id)).toBe("ok");
+    expect(run.status).toBe("done");
+    expect(run.details?.steps.map((st) => `${st.i}:${st.result}`)).toEqual(["0:ok", "1:ok"]);
+    expect(t.log.filter((l) => l.startsWith("notify:staff:Сначала")).length).toBe(notified);
+    // Уже выполненное повторить нельзя.
+    expect(await t.engine.retry(run.id)).toBe("notFailed");
+    expect(await t.engine.retry("нет-такого")).toBe("notFound");
+  });
+
+  it("шлюз не принял сообщение — тоже ошибка, которую можно повторить", async () => {
+    let outcome: SendOutcome = "failed";
+    const r = rule({ trigger: "deal.created", actions: [{ type: "send_message", text: "Здравствуйте" }] });
+    const t = setup([r], { sendMessage: async () => outcome });
+    await t.engine.run("deal.created", { subject: "deal:d1", dealId: "d1" });
+    const run = [...t.runs.values()][0];
+    expect(run.status).toBe("error");
+    expect(run.details?.error).toBe("шлюз не принял сообщение");
+    outcome = "sent";
+    expect(await t.engine.retry(run.id)).toBe("ok");
+    expect(run.status).toBe("done");
+  });
+
+  it("сделка, созданная правилом, — в контексте журнала: повтор работает в ней", async () => {
+    const r = rule({ trigger: "occasion.holiday", actions: [{ type: "create_deal", title: "Повторная продажа" }, { type: "draft_message", text: "Привет" }] });
+    const t = setup([r], { subject: { deal: null } });
+    await t.engine.run("occasion.holiday" as never, { subject: "holiday:x", clientId: "c1" });
+    expect([...t.runs.values()][0].details?.ctx.dealId).toBe("d9");
   });
 });
 
@@ -640,12 +724,12 @@ describe("Статус заказа и трек-номер для правил (
 
   it("пропуск сообщения о заказе — заметкой в сделку заказа, а не в прошлую сделку, к которой привязана переписка", async () => {
     // Повторный клиент: переписка привязана к прошлогодней выигранной сделке, новый заказ завёл новую сделку.
-    const chat = chatSetup();
+    const chat = chatSetup({ noMarketing: ["77011234567"] });
     await chat.service.ingest(inbound());
     const conv = chat.conv();
     const oldDeal = conv.dealId!;
     chat.deals.push({ id: "deal-200", title: "Заказ №42", unsorted: false, fields: {}, tags: [] });
-    chat.setNow(new Date("2026-10-01T21:30:00+05:00")); // 21:30 по Алматы — окно 09–21 закрыто
+    chat.setNow(new Date("2026-10-01T12:30:00+05:00"));
     const print = rule({ id: "print", name: "Книга в печати", trigger: "order.status_changed", conditions: { orderStatus: "in_production" }, actions: [{ type: "send_message", text: "Ваша книга в печати" }] });
     const sends: Parameters<AutomationEffects["sendMessage"]>[2][] = [];
     const { engine } = setup([print], {
@@ -653,10 +737,60 @@ describe("Статус заказа и трек-номер для правил (
       sendMessage: async (convId, text, o) => void (sends.push(o), await chat.service.sendAutomated(convId, text, o)),
     });
     await engine.run("order.status_changed", { subject: "order:status:o1:in_production", orderId: "o1", dealId: "deal-200", orderStatus: "in_production" });
-    expect(sends).toEqual([expect.objectContaining({ transactional: true, noteDealId: "deal-200" })]);
+    expect(sends).toEqual([expect.objectContaining({ transactional: true, noteDealId: "deal-200", defer: true })]);
     expect(chat.sent).toEqual([]);
-    expect(chat.dealNotes).toEqual([{ dealId: "deal-200", text: expect.stringContaining("Правило «Книга в печати» не отправило клиенту сообщение: вне окна 09:00–21:00 (Алматы).") }]);
+    expect(chat.dealNotes).toEqual([{ dealId: "deal-200", text: expect.stringContaining("Правило «Книга в печати» не отправило клиенту сообщение о заказе: клиент просил не писать первым") }]);
     expect(chat.dealNotes.some((n) => n.dealId === oldDeal)).toBe(false);
+  });
+
+  it("вне окна сообщение о заказе не теряется: ждёт в журнале и уходит, когда окно открылось (automation-d1)", async () => {
+    const chat = chatSetup();
+    await chat.service.ingest(inbound());
+    const conv = chat.conv();
+    chat.setNow(new Date("2026-10-01T21:30:00+05:00")); // 21:30 по Алматы — окно 09–21 закрыто
+    const print = rule({ id: "print", name: "Книга в печати", trigger: "order.status_changed", conditions: { orderStatus: "in_production" }, actions: [{ type: "create_task", title: "Проверить макет" }, { type: "send_message", text: "Ваша книга в печати" }] });
+    let gate = false;
+    const t = setup([print], {
+      whatsapp: conv.id,
+      now: new Date("2026-10-01T21:30:00+05:00"),
+      canMessage: () => gate,
+      sendMessage: async (convId, text, o) => {
+        const r = await chat.service.sendAutomated(convId, text, o);
+        return !r ? "skipped" : r.status === "deferred" ? "deferred" : "sent";
+      },
+    });
+    await t.engine.run("order.status_changed", { subject: "order:status:o1:in_production", orderId: "o1", dealId: "deal-200", orderStatus: "in_production" });
+    expect(chat.sent).toEqual([]);
+    expect(chat.dealNotes).toEqual([]);
+    const run = [...t.runs.values()][0];
+    expect(run.status).toBe("deferred");
+    expect(run.details?.steps.map((st) => st.result)).toEqual(["ok", "deferred"]);
+    expect(run.details?.deferred).toEqual([1]);
+    // Ночью окно закрыто — проход ничего не досылает.
+    await t.engine.runScheduled({ force: true });
+    expect(chat.sent).toEqual([]);
+    // Утром окно открылось: досылается только сообщение, задача второй раз не ставится.
+    chat.setNow(new Date("2026-10-02T09:30:00+05:00"));
+    gate = true;
+    const tasks = t.tasks.length;
+    await t.engine.runScheduled({ force: true });
+    expect(chat.sent).toEqual(["Ваша книга в печати"]);
+    expect(t.tasks.length).toBe(tasks);
+    expect(run.status).toBe("done");
+    expect(run.details?.steps.map((st) => st.result)).toEqual(["ok", "ok"]);
+  });
+
+  it("отложенное сообщение ждёт не дольше суток: потом ошибка в журнале и заметка в сделку", async () => {
+    const send = rule({ id: "won", name: "Сделка выиграна", trigger: "deal.stage_changed", actions: [{ type: "send_message", text: "Спасибо за заказ" }] });
+    const t = setup([send], { canMessage: () => false, sendMessage: async () => "deferred" });
+    await t.engine.run("deal.stage_changed", { subject: "deal:d1:won", dealId: "d1", clientId: "c1" });
+    const run = [...t.runs.values()][0];
+    expect(run.status).toBe("deferred");
+    run.createdAt = new Date(now.getTime() - 25 * 3_600_000);
+    await t.engine.runScheduled({ force: true });
+    expect(run.status).toBe("error");
+    expect(run.details?.error).toContain("не открылось за сутки");
+    expect(t.log.some((l) => l.startsWith("note:d1:Правило «Сделка выиграна» не отправило клиенту сообщение: за сутки"))).toBe(true);
   });
 
   it("{трек}, {ссылка_на_заказ}, {ссылка_на_книгу}, {ссылка_на_оплату}; {ссылка} — заказ, иначе книга, иначе сайт", async () => {
@@ -752,15 +886,15 @@ describe("Стартовые правила о статусе заказа и п
     expect(orderNotice(facts(), change("in_production", "shipped"))).toEqual({ text: "Клиент получит письмо. В WhatsApp не уйдёт: трек-номер не вписан, а без него правило о трек-номере не пишет.", warn: false });
   });
 
-  it("подпись: вне окна или сверх суточного лимита — жёлтая «в WhatsApp не уйдёт», даже если уйдёт письмо", () => {
+  it("подпись: вне окна или сверх суточного лимита — сообщение в WhatsApp уйдёт позже (automation-d1)", () => {
     const night = facts({ pause: "вне окна 09:00–21:00 (Алматы)" });
     expect(orderNotice(night, change("paid", "in_production"))).toEqual({
-      text: "Клиент получит письмо. В WhatsApp не уйдёт: сейчас вне окна 09:00–21:00 (Алматы), правило сработает без сообщения и повторно его не отправит. Напишите ему сами или сохраните статус позже.",
-      warn: true,
+      text: "Клиент получит письмо и сообщение в WhatsApp («В производстве») — позже: сейчас вне окна 09:00–21:00 (Алматы), оно уйдёт, когда окно откроется.",
+      warn: false,
     });
     expect(orderNotice(facts({ realEmail: false, pause: "лимит 40 сообщений от правил в сутки исчерпан" }), change("in_production", "shipped", "RR123456789KZ"))).toEqual({
-      text: "Клиент ничего не получит: у клиента нет почты, в WhatsApp — сейчас лимит 40 сообщений от правил в сутки исчерпан, правило сработает без сообщения и повторно его не отправит. Напишите ему сами или сохраните статус позже.",
-      warn: true,
+      text: "Клиент получит сообщение в WhatsApp (трек-номер) — позже: сейчас лимит 40 сообщений от правил в сутки исчерпан, оно уйдёт, когда окно откроется. Письма не будет — у клиента нет почты.",
+      warn: false,
     });
     // Правилу и так нечего писать (статус без правила) — окно не упоминается.
     expect(orderNotice(night, change("shipped", "delivered"))).toEqual({ text: "Клиент получит письмо.", warn: false });

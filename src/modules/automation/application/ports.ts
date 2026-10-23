@@ -1,10 +1,35 @@
-import type { AutomationRule, Holiday, RuleSubject, TriggerContext } from "../domain";
+import type { AutomationRule, Holiday, RuleSubject, RunDetails, RunStatus, TriggerContext } from "../domain";
+
+/** Срабатывание из журнала — для «Повторить» и отложенной отправки. */
+export interface StoredRun {
+  id: string;
+  ruleId: string;
+  subject: string;
+  status: RunStatus;
+  details: RunDetails | null;
+  createdAt: Date;
+}
 
 export interface RuleRepository {
   active(trigger?: string): Promise<AutomationRule[]>;
-  /** Отметка о срабатывании до действий: при гонке двух вебхуков выполнит только один. */
+  /** Отметка о срабатывании до действий (статус running): при гонке двух вебхуков выполнит только один. */
   claim(ruleId: string, subject: string): Promise<boolean>;
   markRun(ruleId: string, at: Date): Promise<void>;
+  /** Итог срабатывания в журнал (automation-13). */
+  finish(ruleId: string, subject: string, status: RunStatus, details: RunDetails): Promise<void>;
+  /** Срабатывание по id (для «Повторить»). */
+  findRun(id: string): Promise<StoredRun | null>;
+  /**
+   * Взять срабатывание в работу (status → running), если оно в одном из статусов from; running — только если оно
+   * «выполняется» с раньше staleBefore. false — его уже взял другой проход или клик.
+   */
+  restart(id: string, from: readonly RunStatus[], staleBefore?: Date): Promise<boolean>;
+  /** Отложенные до окна сообщения — самые старые первыми, не больше limit. */
+  deferredRuns(limit: number): Promise<StoredRun[]>;
+  /** Правило по id, даже выключенное (повтор и досылка проверяют, включено ли оно). */
+  find(id: string): Promise<(AutomationRule & { active: boolean }) | null>;
+  /** Очистить подробности срабатываний старше before (отметки остаются); сколько очищено. */
+  purgeDetails(before: Date, limit: number): Promise<number>;
 }
 
 /** Загрузка объекта срабатывания: сделка, диалог, звонок, заказ, клиент. */
@@ -20,6 +45,13 @@ export interface SubjectLoader {
   clientContact(clientId: string): Promise<{ name: string; email: string; phone: string | null; managerId: string | null } | null>;
 }
 
+/**
+ * Чем кончилась отправка сообщения правила: sent; failed — шлюз не принял; skipped — не пропустили бот, стоп-лист,
+ * реквизиты, окно или лимит (заметка в сделке); deferred — с defer окно или лимит закрыты, сообщение не ушло и заметки нет:
+ * правило дошлёт его позже (automation-d1).
+ */
+export type SendOutcome = "sent" | "failed" | "skipped" | "deferred";
+
 /** Действия правил в других частях CRM. */
 export interface AutomationEffects {
   /**
@@ -33,7 +65,7 @@ export interface AutomationEffects {
    * уходит и в диалог, который ведёт бот; allow — значения, которые в тексте не реквизиты (трек-номер из цифр);
    * noteDealId — куда заметка, если сообщение не ушло (сделка заказа), без него — в сделку диалога.
    */
-  sendMessage(conversationId: string, text: string, opts?: { rule: string; reply?: boolean; transactional?: boolean; allow?: string[]; noteDealId?: string | null }): Promise<void>;
+  sendMessage(conversationId: string, text: string, opts?: { rule: string; reply?: boolean; transactional?: boolean; allow?: string[]; noteDealId?: string | null; defer?: boolean }): Promise<SendOutcome>;
   /** Можно ли сейчас написать клиенту первым: окно и суточный лимит сообщений от правил (automation-15). */
   canMessageNow(): Promise<boolean>;
   assignConversation(conversationId: string, userId: string): Promise<void>;

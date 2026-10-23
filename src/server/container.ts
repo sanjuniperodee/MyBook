@@ -81,7 +81,10 @@ export class Container {
       // Автоответ правила молчит, если диалог ведёт бот-квалификатор (иначе клиенту два автоответа подряд); текст с
       // реквизитами не уходит — заметка в сделку и руководителю. Первым правило пишет только в окне и в пределах
       // суточного лимита («Интеграции» → «Мессенджеры»).
-      sendMessage: async (conversationId, text, opts) => void (await this.messaging.chats.sendAutomated(conversationId, text, opts)),
+      sendMessage: async (conversationId, text, opts) => {
+        const r = await this.messaging.chats.sendAutomated(conversationId, text, opts);
+        return !r ? "skipped" : r.status === "deferred" ? "deferred" : r.status === "error" ? "failed" : "sent";
+      },
       canMessageNow: async () => !(await this.messaging.chats.ruleSendBlock()),
       // Готовый текст клиенту (правило «праздник») — запись CRM в истории сделки: клиенту не уходит, отправит менеджер.
       addNote: async (n) => void (await this.clients.notes.addSystemOnce(n)),

@@ -1,5 +1,6 @@
 /** Правила автоматизации CRM и журнал их срабатываний (модуль automation). */
-import { boolean, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { boolean, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { timestamps } from "./columns";
 
 export interface AutomationAction {
@@ -36,7 +37,22 @@ export const crmAutomationRuns = pgTable(
       .notNull()
       .references(() => crmAutomations.id, { onDelete: "cascade" }),
     subject: text("subject").notNull(),
+    /**
+     * Чем кончилось срабатывание (automation-13): running — действия идут или процесс упал посреди них, done, error,
+     * deferred — сообщение клиенту ждёт окна (automation-d1). Старые отметки — done.
+     */
+    status: text("status", { enum: ["running", "done", "error", "deferred"] }).notNull().default("done"),
+    /** Контекст и шаги срабатывания (RunDetails); через 90 дней чистится, отметка остаётся. */
+    details: jsonb("details").$type<Record<string, unknown>>(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [uniqueIndex("crm_auto_runs_idx").on(t.automationId, t.subject)],
+  (t) => [
+    uniqueIndex("crm_auto_runs_idx").on(t.automationId, t.subject),
+    // Журнал на странице правила — последние срабатывания.
+    index("crm_auto_runs_rule_time_idx").on(t.automationId, t.createdAt),
+    // Отложенные сообщения для 30-минутного прохода — их единицы.
+    index("crm_auto_runs_deferred_idx").on(t.createdAt).where(sql`${t.status} = 'deferred'`),
+    // Чистка подробностей старше 90 дней — порциями по этому индексу.
+    index("crm_auto_runs_details_idx").on(t.createdAt).where(sql`${t.details} is not null`),
+  ],
 );

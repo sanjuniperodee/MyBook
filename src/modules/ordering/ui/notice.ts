@@ -93,8 +93,9 @@ function whatsappPlan(f: OrderNoticeFacts, c: OrderChange, e: ReturnType<typeof 
 /**
  * Подпись под формой статуса: что реально уйдёт клиенту, если сохранить форму (статус и трек-номер в ней), — письмо
  * (если почта настоящая) и/или WhatsApp (правило включено, подходит по статусу и времени суток, ещё не писало об этом,
- * есть переписка, клиент не просил не писать первым, окно и суточный лимит открыты). warn — клиент ничего не узнает или
- * сообщение в WhatsApp сейчас пропадёт (окно, лимит): менеджеру написать самому.
+ * есть переписка, клиент не просил не писать первым). Вне окна и сверх суточного лимита сообщение ждёт в журнале правила и
+ * уходит, когда окно откроется (automation-d1), — подпись говорит «позже». warn — клиент ничего не узнает: менеджеру
+ * написать самому.
  */
 export function orderNotice(f: OrderNoticeFacts, c: OrderChange): { text: string; warn: boolean } {
   const e = changeEvents(c);
@@ -107,16 +108,15 @@ export function orderNotice(f: OrderNoticeFacts, c: OrderChange): { text: string
       ? "клиент просил не писать первым"
       : !f.whatsappChat
         ? "с клиентом нет переписки в WhatsApp, а первым CRM не пишет"
-        : paused
-          ? `сейчас ${f.pause}, правило сработает без сообщения и повторно его не отправит`
-          : null;
-  const channels = [f.realEmail && e.mail ? "письмо" : null, wa.topics.length && !block ? `сообщение в WhatsApp (${wa.topics.join(", ")})` : null].filter(Boolean);
+        : null;
+  const whatsapp = wa.topics.length && !block ? `сообщение в WhatsApp (${wa.topics.join(", ")})${paused ? ` — позже: сейчас ${f.pause}, оно уйдёт, когда окно откроется` : ""}` : null;
+  const channels = [f.realEmail && e.mail ? "письмо" : null, whatsapp].filter(Boolean);
   const noEmail = e.mail && !f.realEmail ? "у клиента нет почты" : null;
   const whatsappWhy = [block, ...wa.skipped].filter(Boolean).join("; ");
-  const writeYourself = paused ? "Напишите ему сами или сохраните статус позже." : "Напишите ему сами.";
+  const writeYourself = "Напишите ему сами.";
   if (channels.length) {
-    const text = [`Клиент получит ${channels.join(" и ")}.`, noEmail ? `Письма не будет — ${noEmail}.` : null, whatsappWhy ? `В WhatsApp не уйдёт: ${whatsappWhy}.` : null, paused ? writeYourself : null];
-    return { text: text.filter(Boolean).join(" "), warn: paused };
+    const text = [`Клиент получит ${channels.join(" и ")}.`, noEmail ? `Письма не будет — ${noEmail}.` : null, whatsappWhy ? `В WhatsApp не уйдёт: ${whatsappWhy}.` : null];
+    return { text: text.filter(Boolean).join(" "), warn: false };
   }
   if (!e.mail && !wa.expected) return { text: "Клиенту ничего не уйдёт.", warn: false };
   // Ничего не уйдёт, хотя клиенту стоит знать: почты нет, а WhatsApp — выключен, заблокирован или о таком не пишет.

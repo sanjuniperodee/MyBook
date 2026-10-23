@@ -476,9 +476,10 @@ export class MessagingService {
    * самого клиента и магазина, значения allow (трек-номер) — можно. Вне окна по Алматы или сверх суточного лимита
    * сообщений от правил — не уходит, заметка в сделку (automation-15); автоответ на сообщение клиента (reply) окно и
    * лимит не держат. Заметка о пропуске — в noteDealId (сделка заказа: диалог мог остаться привязан к прошлой сделке
-   * клиента или ни к какой), без него — в сделку диалога. null — не отправлено.
+   * клиента или ни к какой), без него — в сделку диалога. null — не отправлено. defer — событийное правило дошлёт
+   * сообщение само, когда окно откроется (automation-d1): вне окна и сверх лимита — status deferred, без заметки.
    */
-  async sendAutomated(conversationId: string, text: string, opts: { rule?: string; reply?: boolean; transactional?: boolean; allow?: readonly string[]; noteDealId?: string | null } = {}) {
+  async sendAutomated(conversationId: string, text: string, opts: { rule?: string; reply?: boolean; transactional?: boolean; allow?: readonly string[]; noteDealId?: string | null; defer?: boolean } = {}) {
     if (!opts.transactional && (await this.bot.isActive(conversationId))) return null;
     const conv = await this.conversations.findById(conversationId);
     if (!conv) throw new Error("Диалог не найден");
@@ -508,6 +509,7 @@ export class MessagingService {
     if (!opts.reply) {
       const { block, policy } = await this.ruleGate();
       if (block) {
+        if (opts.defer) return { status: "deferred" as const };
         const why = ruleSendBlockText(block, policy);
         this.logger.warn(`${rule}: сообщение в диалог ${conv.id} не отправлено — ${why}`);
         await note(`${rule} не отправило клиенту сообщение: ${why}. Если нужно — напишите клиенту сами. Окно и лимит — «Интеграции» → «Мессенджеры».`);

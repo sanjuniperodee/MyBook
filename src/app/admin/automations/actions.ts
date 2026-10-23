@@ -8,6 +8,7 @@ import { assertStaff, audit } from "@/server/access";
 import { automationTriggers, orderRuleStatuses } from "@/modules/automation/domain/meta";
 import { EVENT_DATE_LIMITS, HOLIDAY_LIMITS, IDLE_LIMITS, isStaffOnlyTrigger, SILENT_LIMITS } from "@/modules/automation/domain";
 import { dealSources } from "@/shared/domain/dealSources";
+import type { RetryResult } from "@/modules/automation";
 import { admin } from "@/i18n/admin";
 
 const optUuid = z.union([uuid, z.literal(""), z.null()]).transform((v) => v || null);
@@ -90,6 +91,22 @@ export async function toggleAutomationAction(id: string, active: boolean) {
   await container().automation.rules.setActive(uuid.parse(id), active);
   await audit(staff, "automation.save", "automation", id, { active });
   revalidatePath("/admin/automations");
+}
+
+const retryRefusal: Record<Exclude<RetryResult, "ok">, string> = {
+  notFound: "Срабатывание не найдено или его подробности уже очищены",
+  notFailed: "Срабатывание уже выполнено или выполняется",
+  ruleOff: "Правило выключено — включите его, чтобы повторить",
+};
+
+/** «Повторить» срабатывание с ошибкой в журнале правила (automation-13). */
+export async function retryAutomationRunAction(runId: string): Promise<{ ok: boolean; message: string }> {
+  const staff = await assertStaff("settings.manage");
+  const res = await container().automation.engine.retry(uuid.parse(runId));
+  if (res !== "ok") return { ok: false, message: retryRefusal[res] };
+  await audit(staff, "automation.save", "automation", runId, { retry: true });
+  revalidatePath("/admin/automations");
+  return { ok: true, message: "Повторено — итог в журнале" };
 }
 
 export async function deleteAutomationAction(id: string) {

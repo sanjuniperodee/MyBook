@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { ArrowRight, Plus, Trash2, X, Zap } from "lucide-react";
 import { ask, toast, toastError } from "@/components/ui/overlays";
@@ -84,6 +85,14 @@ export function AutomationCard({ rule, stats, ctx }: { rule: Rule | null; stats:
         {stats ? (
           <div className="mt-1 text-[11px] text-muted">
             сработало {stats.runs} раз{stats.last ? ` · последний ${stats.last}` : ""}
+            {stats.runs ? (
+              <>
+                {" · "}
+                <Link href={`/admin/automations/${rule.id}`} className="text-wine hover:underline">
+                  журнал
+                </Link>
+              </>
+            ) : null}
           </div>
         ) : null}
         {stats?.sales ? (

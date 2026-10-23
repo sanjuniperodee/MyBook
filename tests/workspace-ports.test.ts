@@ -141,7 +141,7 @@ describe("telephony: настройки АТС, уведомления и жив
 describe("automation: уведомления и свои поля", () => {
   it("«staff» — всем с deals.view, список — адресатам", async () => {
     const notifier = new SpyStaffNotifier({ "deals.view": ["m1", "h1"] });
-    const effects = crmEffects({ createTask: async () => true, sendMessage: async () => {}, canMessageNow: async () => true, addNote: async () => {} }, notifier);
+    const effects = crmEffects({ createTask: async () => true, sendMessage: async () => "sent" as const, canMessageNow: async () => true, addNote: async () => {} }, notifier);
     await effects.notify("staff", { kind: "sla", title: "Клиенту не ответили 15 минут", body: "", link: null });
     await effects.notify(["m2"], { kind: "task", title: "Задача", body: "", link: null });
     expect(notifier.sent.map((s) => s.to)).toEqual([["m1", "h1"], ["m2"]]);

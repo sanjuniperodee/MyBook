@@ -5,6 +5,9 @@ import {
   clientText,
   conditionNumber,
   DEFAULT_HOLIDAYS,
+  DEFER_MAX_MS,
+  DEFERRED_BATCH,
+  RUN_DETAILS_KEEP_DAYS,
   eventDateQuery,
   eventDateSubject,
   HOLIDAY_DEFAULTS,
@@ -31,11 +34,28 @@ import {
   type AutomationTrigger,
   type RuleAction,
   type RuleSubject,
+  type RunDetails,
+  type RunStatus,
+  type RunStep,
   type TriggerContext,
 } from "../domain";
 import { draftNote, fillTemplate } from "@/shared/domain/templates";
 import { zonedDay } from "@/shared/domain/time";
-import type { AppInfo, AutomationEffects, HolidayCalendar, RuleRepository, SalesGateway, ScheduledSource, SubjectLoader } from "./ports";
+import type { AppInfo, AutomationEffects, HolidayCalendar, RuleRepository, SalesGateway, ScheduledSource, SendOutcome, SubjectLoader } from "./ports";
+
+/** Что сделало действие — шаг журнала без номера. */
+type Step = Omit<RunStep, "i" | "action">;
+const ok: Step = { result: "ok" };
+const skipped = (note: string): Step => ({ result: "skipped", note });
+
+/** Итог отправки сообщения правила — шаг журнала. */
+const sendStep = (o: SendOutcome): Step =>
+  o === "sent" ? ok : o === "deferred" ? { result: "deferred", note: "ждёт окна сообщений от правил" } : o === "failed" ? { result: "error", note: "шлюз не принял сообщение" } : skipped("не отправлено — причина в заметке сделки");
+
+/** «Повторить» срабатывание, которое «выполняется» дольше этого, — процесс упал посреди действий. */
+const STALE_RUN_MS = 10 * 60_000;
+
+export type RetryResult = "ok" | "notFound" | "notFailed" | "ruleOff";
 
 /** Защита от зацикливания: правило двигает сделку → срабатывает правило на этап → … */
 const MAX_DEPTH = 3;
@@ -78,17 +98,105 @@ export class AutomationEngine {
       if (ctx.workTime === undefined && needsWorkTime(rules)) ctx = { ...ctx, workTime: await this.schedule.isWorkTime(this.clock.now()) };
       for (const rule of rules) {
         if (!matches(rule, ctx)) continue;
-        await this.execute(rule, ctx).catch((err) => this.logger.error(`«${rule.name}»`, err));
+        // Событийное правило: сообщение вне окна или сверх лимита ждёт и уходит позже (automation-d1).
+        await this.execute(rule, ctx, { defer: !isReplyTrigger(rule.trigger) }).catch((err) => this.logger.error(`«${rule.name}»`, err));
       }
     });
   }
 
-  private async execute(rule: AutomationRule, ctx: TriggerContext): Promise<boolean> {
-    if (!(await this.rules.claim(rule.id, ctx.subject.slice(0, 200)))) return false;
-    const subject = await this.subjects.load(ctx);
-    for (const action of rule.actions ?? []) await this.perform(rule, action, ctx, subject);
-    await this.rules.markRun(rule.id, this.clock.now());
+  private async execute(rule: AutomationRule, ctx: TriggerContext, opts: { defer?: boolean } = {}): Promise<boolean> {
+    const key = ctx.subject.slice(0, 200);
+    if (!(await this.rules.claim(rule.id, key))) return false;
+    try {
+      await this.runActions(rule, ctx, key, { defer: !!opts.defer });
+    } finally {
+      await this.rules.markRun(rule.id, this.clock.now());
+    }
     return true;
+  }
+
+  /**
+   * Действия правила с записью в журнал (automation-13): шаг на действие, итог — done, error (исключение или шлюз не
+   * принял сообщение) или deferred (сообщение ждёт окна). from — повтор с упавшего действия, only — досылка отложенных;
+   * prev — шаги прошлого раза (остальные действия не повторяются). Исключение пишется в журнал и летит дальше.
+   */
+  private async runActions(rule: AutomationRule, ctx: TriggerContext, key: string, opts: { defer: boolean; from?: number; only?: readonly number[] }, prev: readonly RunStep[] = []): Promise<RunStatus> {
+    const redo = (i: number) => i >= (opts.from ?? 0) && (!opts.only || opts.only.includes(i));
+    const steps: RunStep[] = prev.filter((st) => !redo(st.i));
+    let at = opts.from ?? 0;
+    let failure: unknown = null;
+    let subject: RuleSubject | null = null;
+    try {
+      subject = await this.subjects.load(ctx);
+      for (const [i, action] of (rule.actions ?? []).entries()) {
+        if (!redo(i)) continue;
+        at = i;
+        steps.push({ i, action: action.type, ...(await this.perform(rule, action, ctx, subject, opts.defer)) });
+      }
+    } catch (err) {
+      failure = err;
+    }
+    steps.sort((a, b) => a.i - b.i);
+    const stepError = steps.find((st) => st.result === "error");
+    const deferred = steps.filter((st) => st.result === "deferred").map((st) => st.i);
+    const status: RunStatus = failure || stepError ? "error" : deferred.length ? "deferred" : "done";
+    // Сделка, созданная правилом, — в контекст: повтор и досылка работают в ней, а не создают новую.
+    const saved = subject?.deal && !ctx.dealId ? { ...ctx, dealId: subject.deal.id } : ctx;
+    const details: RunDetails = {
+      ctx: saved,
+      steps,
+      ...(failure ? { error: failure instanceof Error ? failure.message : String(failure), failedAt: at } : stepError ? { error: stepError.note, failedAt: stepError.i } : {}),
+      ...(deferred.length ? { deferred } : {}),
+    };
+    await this.rules.finish(rule.id, key, status, details).catch((err) => this.logger.error(`«${rule.name}»: журнал срабатывания`, err));
+    if (failure) throw failure;
+    return status;
+  }
+
+  /**
+   * «Повторить» на странице правила: срабатывание с ошибкой (или «выполняется» дольше 10 минут — процесс упал) — с
+   * упавшего действия, прошлые шаги не повторяются. Правило должно быть включено.
+   */
+  async retry(runId: string): Promise<RetryResult> {
+    const run = await this.rules.findRun(runId);
+    if (!run?.details) return "notFound";
+    const rule = await this.rules.find(run.ruleId);
+    if (!rule?.active) return "ruleOff";
+    if (!(await this.rules.restart(run.id, ["error", "running"], new Date(this.clock.now().getTime() - STALE_RUN_MS)))) return "notFailed";
+    const d = run.details;
+    await this.runActions(rule, d.ctx, run.subject, { defer: !isReplyTrigger(rule.trigger), from: d.failedAt ?? 0 }, d.steps).catch((err) => this.logger.error(`«${rule.name}»: повтор`, err));
+    await this.rules.markRun(rule.id, this.clock.now());
+    return "ok";
+  }
+
+  /**
+   * Отложенные сообщения событийных правил (automation-d1): окно открылось и лимит не выбран — дослать (только
+   * отложенные действия). Ждут не дольше суток: потом — ошибка в журнале и заметка в сделку, менеджер напишет сам.
+   */
+  private async resendDeferred(now: Date) {
+    const runs = await this.rules.deferredRuns(DEFERRED_BATCH);
+    if (!runs.length) return;
+    let open: boolean | null = null;
+    for (const run of runs) {
+      const d = run.details;
+      const rule = await this.rules.find(run.ruleId);
+      const expired = now.getTime() - run.createdAt.getTime() > DEFER_MAX_MS;
+      if (!d || !rule?.active || expired) {
+        if (!(await this.rules.restart(run.id, ["deferred"]))) continue;
+        const why = !rule?.active ? "правило выключено — сообщение не отправлено" : "окно сообщений от правил не открылось за сутки — сообщение не отправлено";
+        const steps = (d?.steps ?? []).map((st) => (st.result === "deferred" ? { ...st, result: "error" as const, note: why } : st));
+        await this.rules.finish(run.ruleId, run.subject, "error", { ctx: d?.ctx ?? { subject: run.subject }, steps, error: why, failedAt: d?.deferred?.[0] });
+        if (expired && rule?.active && d?.ctx.dealId)
+          await this.effects.addNote({ dealId: d.ctx.dealId, clientId: d.ctx.clientId ?? null, text: `Правило «${rule.name}» не отправило клиенту сообщение: за сутки так и не открылось окно сообщений от правил (или лимит был исчерпан). Если нужно — напишите клиенту сами.` });
+        continue;
+      }
+      open ??= await this.effects.canMessageNow();
+      if (!open) return;
+      if (!(await this.rules.restart(run.id, ["deferred"]))) continue;
+      const status = await this.runActions(rule, d.ctx, run.subject, { defer: true, only: d.deferred ?? [] }, d.steps).catch((err) => (this.logger.error(`«${rule.name}»: отложенное сообщение`, err), "error" as const));
+      // Лимит кончился посреди досылки — остальные подождут следующего прохода.
+      if (status === "deferred") return;
+    }
   }
 
   private async vars(ctx: TriggerContext, s: RuleSubject) {
@@ -110,7 +218,7 @@ export class AutomationEngine {
     };
   }
 
-  private async perform(rule: AutomationRule, a: RuleAction, ctx: TriggerContext, s: RuleSubject) {
+  private async perform(rule: AutomationRule, a: RuleAction, ctx: TriggerContext, s: RuleSubject, defer = false): Promise<Step> {
     const vars = await this.vars(ctx, s);
     switch (a.type) {
       case "create_task": {
@@ -128,41 +236,46 @@ export class AutomationEngine {
           assigneeId,
           once: true,
         });
-        if (!created) return;
+        if (!created) return skipped("такая задача по сделке уже открыта");
         await this.effects.notify(assigneeId ? [assigneeId] : "staff", { kind: "task", title: `Задача: ${title}`, body: rule.name, link: linkFor(ctx, s) ?? "/admin/tasks" });
-        return;
+        return ok;
       }
       case "send_message": {
         // Правило для сотрудников (забытая сделка): клиенту не пишет, даже если действие попало в правило мимо редактора.
-        if (isStaffOnlyTrigger(rule.trigger)) return this.logger.warn(`«${rule.name}»: правило для сотрудников — сообщение клиенту не отправлено`);
+        if (isStaffOnlyTrigger(rule.trigger)) {
+          this.logger.warn(`«${rule.name}»: правило для сотрудников — сообщение клиенту не отправлено`);
+          return skipped("правило для сотрудников — клиенту не пишет");
+        }
         const text = clientText(a, s.locale, vars, ctx.clientVars);
-        if (!text) return;
-        if (isTransactionalTrigger(rule.trigger)) return this.sendTransactional(rule, text, s);
+        if (!text) return skipped("пустой текст");
+        if (isTransactionalTrigger(rule.trigger)) return this.sendTransactional(rule, text, s, defer);
         const convId = s.conversation?.id ?? (await this.subjects.latestConversation(s.deal?.id ?? null, s.clientId));
-        if (convId) await this.effects.sendMessage(convId, text, { rule: rule.name, reply: isReplyTrigger(rule.trigger) });
-        return;
+        if (!convId) return skipped("у клиента нет переписки");
+        return sendStep(await this.effects.sendMessage(convId, text, { rule: rule.name, reply: isReplyTrigger(rule.trigger), ...(defer ? { defer } : {}) }));
       }
       case "assign": {
         const userId = a.userId || (await this.sales.nextRoundRobin());
-        if (!userId) return;
+        if (!userId) return skipped("некого назначить: никого нет на смене");
         if (s.deal && !s.deal.assigneeId) await this.sales.assign(s.deal.id, userId);
         if (s.conversation && !s.conversation.assigneeId) await this.effects.assignConversation(s.conversation.id, userId);
         s.assigneeId = s.assigneeId ?? userId;
-        return;
+        return ok;
       }
       case "move_stage": {
-        if (s.deal && a.stageId) await this.sales.move(s.deal.id, a.stageId);
-        return;
+        if (!s.deal || !a.stageId) return skipped("нет сделки");
+        await this.sales.move(s.deal.id, a.stageId);
+        return ok;
       }
       case "create_deal": {
-        if (s.deal || !s.clientId) return; // открытая сделка уже есть — работаем в ней
+        if (s.deal) return skipped("сделка уже есть"); // открытая сделка уже есть — работаем в ней
+        if (!s.clientId) return skipped("нет клиента");
         const open = await this.sales.findOpenDealId(s.clientId);
         if (open) {
           s.deal = (await this.subjects.load({ subject: "", dealId: open })).deal;
-          return;
+          return skipped("у клиента есть открытая сделка");
         }
         const client = await this.subjects.clientContact(s.clientId);
-        if (!client) return;
+        if (!client) return skipped("клиент не найден");
         const deal = await this.sales.createDeal({
           title: fillTemplate(a.title || rule.name, vars) || rule.name,
           source: isRepeatTrigger(rule.trigger) ? "repeat" : "manual",
@@ -175,14 +288,15 @@ export class AutomationEngine {
         });
         s.deal = (await this.subjects.load({ subject: "", dealId: deal.id })).deal;
         s.assigneeId = s.assigneeId ?? deal.assigneeId;
-        return;
+        return ok;
       }
       case "draft_message": {
         // Текст кладётся в историю сделки — без сделки его негде показать (поставьте раньше «Создать сделку»).
-        if (!s.deal) return;
+        if (!s.deal) return skipped("нет сделки — текст негде показать");
         const text = clientText(a, s.locale, vars, ctx.clientVars);
-        if (text) await this.effects.addNote({ dealId: s.deal.id, clientId: s.clientId, text: draftNote(rule.name, text) });
-        return;
+        if (!text) return skipped("пустой текст");
+        await this.effects.addNote({ dealId: s.deal.id, clientId: s.clientId, text: draftNote(rule.name, text) });
+        return ok;
       }
       case "notify": {
         const to = a.userId ? [a.userId] : s.assigneeId ? [s.assigneeId] : "staff";
@@ -193,9 +307,10 @@ export class AutomationEngine {
           body: a.text ? fillTemplate(a.text, vars) : fallback,
           link: linkFor(ctx, s),
         });
-        return;
+        return ok;
       }
     }
+    return skipped("неизвестное действие");
   }
 
   /**
@@ -204,11 +319,12 @@ export class AutomationEngine {
    * Пропуск при отправке (стоп-лист, реквизиты, окно, лимит) — тоже заметкой в сделку заказа: переписка, найденная по
    * клиенту, может быть привязана к его прошлой сделке или ни к какой.
    */
-  private async sendTransactional(rule: AutomationRule, text: string, s: RuleSubject) {
+  private async sendTransactional(rule: AutomationRule, text: string, s: RuleSubject, defer: boolean): Promise<Step> {
     const convId = await this.subjects.latestWhatsapp(s.deal?.id ?? null, s.clientId);
-    if (convId) return this.effects.sendMessage(convId, text, { rule: rule.name, transactional: true, allow: s.trackingNumber ? [s.trackingNumber] : [], noteDealId: s.deal?.id ?? null });
+    if (convId) return sendStep(await this.effects.sendMessage(convId, text, { rule: rule.name, transactional: true, allow: s.trackingNumber ? [s.trackingNumber] : [], noteDealId: s.deal?.id ?? null, ...(defer ? { defer } : {}) }));
     if (s.deal) await this.effects.addNote({ dealId: s.deal.id, clientId: s.clientId, text: noWhatsappNote(rule.name) });
     else this.logger.info(`«${rule.name}»: нет ни переписки в WhatsApp, ни сделки — сообщение о заказе не отправлено`);
+    return skipped("нет переписки в WhatsApp");
   }
 
   /**
@@ -273,6 +389,10 @@ export class AutomationEngine {
 
     if (!opts.force && now.getTime() - this.#lastSlowRun < 30 * 60_000) return fired;
     this.#lastSlowRun = now.getTime();
+
+    // Журнал: отложенные сообщения событийных правил и чистка подробностей старше 90 дней.
+    await this.resendDeferred(now).catch((err) => this.logger.error("правила: отложенные сообщения", err));
+    await this.rules.purgeDetails(new Date(now.getTime() - RUN_DETAILS_KEEP_DAYS * 86_400_000), 500).catch((err) => this.logger.error("правила: чистка журнала", err));
 
     await each("client.inactive", async (rule) => {
       for (const r of await this.scheduled.inactiveClients(rule.id, conditionNumber(rule, "days", 5))) {
