@@ -78,7 +78,8 @@ export function ChatListLink({ id, href, active, pinned = false, children }: { i
 
   return (
     <div
-      className="relative"
+      // Чаты за экраном не раскладываем и не рисуем: в списке до 150 диалогов, на телефоне это заметно.
+      className="relative [contain-intrinsic-size:auto_68px] [content-visibility:auto]"
       onContextMenu={(e) => {
         e.preventDefault();
         setMenu({ x: Math.min(e.clientX, window.innerWidth - 220), y: Math.min(e.clientY, window.innerHeight - 70) });

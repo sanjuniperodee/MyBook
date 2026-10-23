@@ -121,6 +121,9 @@ class MessageBubble extends StatelessWidget {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: children);
   }
 
+  /// Ширина картинки в пикселях экрана: фото из WhatsApp в 2–4 Мп декодируются сразу в размер пузыря, а не целиком.
+  int _px(BuildContext context, double logical) => (logical * MediaQuery.devicePixelRatioOf(context)).round();
+
   bool _placeholder(String t) => RegExp(r'^[🎤🎬📷📎🖼️🎵\s]*(Голосовое|Видео|Фото|Файл|Аудио|Документ|Изображение)').hasMatch(t) && t.length < 24;
 
   Widget? _attachment(BuildContext context, bool imageOnly) {
@@ -130,10 +133,10 @@ class MessageBubble extends StatelessWidget {
     switch (m.type) {
       case 'image':
         final Widget? image = m.localPath != null
-            ? Image.file(File(m.localPath!), width: 250, fit: BoxFit.cover)
+            ? Image.file(File(m.localPath!), width: 250, cacheWidth: _px(context, 250), fit: BoxFit.cover)
             : url == null
                 ? null
-                : Image.network(url, headers: api.headers, width: 250, fit: BoxFit.cover, errorBuilder: (_, _, _) => _tile(context, LucideIcons.imageOff, 'Фото недоступно'), loadingBuilder: (_, child, p) => p == null ? child : SizedBox(width: 250, height: 170, child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: c.brand))));
+                : Image.network(url, headers: api.headers, width: 250, cacheWidth: _px(context, 250), fit: BoxFit.cover, errorBuilder: (_, _, _) => _tile(context, LucideIcons.imageOff, 'Фото недоступно'), loadingBuilder: (_, child, p) => p == null ? child : SizedBox(width: 250, height: 170, child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: c.brand))));
         if (image == null) return _tile(context, LucideIcons.image, 'Фото');
         return Padding(
           padding: const EdgeInsets.only(bottom: 4),

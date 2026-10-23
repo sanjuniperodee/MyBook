@@ -13,7 +13,7 @@ import { ForwardDialog } from "./chat/ForwardDialog";
 import { TemplateDialog } from "./chat/TemplateDialog";
 import { VoiceRecorder, canRecordVoice } from "./chat/VoiceRecorder";
 import { MediaViewer, type ViewerItem } from "./chat/MediaViewer";
-import { MessageBubble, hasCaption, canForward, canRemove, isTemp, mediaSrc, selectable, snippet, time, type Msg } from "./chat/MessageBubble";
+import { MessageBubble, formatter, hasCaption, canForward, canRemove, isTemp, mediaSrc, selectable, snippet, time, type Msg } from "./chat/MessageBubble";
 import { MentionTextarea } from "./MentionTextarea";
 import { InvoiceDialog } from "./invoices/InvoiceDialog";
 import { newIssueKey } from "./invoices/model";
@@ -37,7 +37,7 @@ type Draft = { id: string; file: File; url: string | null };
  * Пояс приходит от сервера (storeTimeZone): в браузере TZ процесса нет. День — та же формула, что zonedDay
  * из shared/domain/time, но без импорта: модуль не попадает в клиентские чанки чатов.
  */
-const dayKey = (d: Date, tz: string) => new Intl.DateTimeFormat("en-CA", { timeZone: tz }).format(d);
+const dayKey = (d: Date, tz: string) => formatter("en-CA", tz, "day", {}).format(d);
 
 function dayLabel(iso: string, tz: string) {
   const d = new Date(iso);
@@ -45,7 +45,19 @@ function dayLabel(iso: string, tz: string) {
   const key = dayKey(d, tz);
   if (key === dayKey(today, tz)) return "Сегодня";
   if (key === dayKey(new Date(today.getTime() - 86_400_000), tz)) return "Вчера";
-  return new Intl.DateTimeFormat("ru-RU", { timeZone: tz, day: "numeric", month: "long", year: key.slice(0, 4) === dayKey(today, tz).slice(0, 4) ? undefined : "numeric" }).format(d);
+  const sameYear = key.slice(0, 4) === dayKey(today, tz).slice(0, 4);
+  return formatter("ru-RU", tz, sameYear ? "date" : "date-year", { day: "numeric", month: "long", year: sameYear ? undefined : "numeric" }).format(d);
+}
+
+/** Те же поля — то же сообщение: ссылку на прежний объект оставляем, чтобы пузырь не перерисовывался впустую. */
+function sameMsg(a: Msg, b: Msg) {
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]) as Set<keyof Msg>;
+  for (const k of keys) {
+    if (a[k] === b[k]) continue;
+    if (k === "replyTo" && a.replyTo && b.replyTo && (Object.keys(a.replyTo) as (keyof NonNullable<Msg["replyTo"]>)[]).every((f) => a.replyTo![f] === b.replyTo![f])) continue;
+    return false;
+  }
+  return true;
 }
 
 
@@ -140,11 +152,25 @@ export function ChatPanel({
   const lastCount = useRef(0);
   const forceBottom = useRef(true);
 
+  // Каждое обновление страницы приносит все сообщения новыми объектами. Неизменившиеся берём прежними — на них держится memo пузыря.
+  const known = useRef(new Map<string, Msg>());
+  const fresh = useMemo(() => {
+    const next = new Map<string, Msg>();
+    const list = messages.map((m) => {
+      const prev = known.current.get(m.id);
+      const same = prev && sameMsg(prev, m) ? prev : m;
+      next.set(m.id, same);
+      return same;
+    });
+    known.current = next;
+    return list;
+  }, [messages]);
+
   // Серверная версия сообщения вытесняет локальную копию.
   const all = useMemo(() => {
-    const ids = new Set(messages.map((m) => m.id));
-    return [...messages, ...local.filter((m) => !ids.has(m.id))].sort((a, b) => a.at.localeCompare(b.at));
-  }, [messages, local]);
+    const ids = new Set(fresh.map((m) => m.id));
+    return [...fresh, ...local.filter((m) => !ids.has(m.id))].sort((a, b) => a.at.localeCompare(b.at));
+  }, [fresh, local]);
 
   // Фото и видео диалога — для просмотра во весь экран с листанием.
   const gallery = useMemo<ViewerItem[]>(

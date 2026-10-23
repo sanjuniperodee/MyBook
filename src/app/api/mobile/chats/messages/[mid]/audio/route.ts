@@ -1,16 +1,19 @@
 import { apiStaff, HttpError } from "@/server/api";
 import { canSeeAssigned, ForbiddenError } from "@/server/access";
-import { convertAudio } from "@/server/audio-convert";
+import { chatAudioFile } from "@/server/chat-audio";
 import { container } from "@/server/container";
 import { idParams } from "@/server/input";
 import { mobile } from "@/server/mobile-api";
+import { serveFile } from "@/server/range-file";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 /**
- * Голосовое или аудио сообщения в AAC (m4a): голосовые WhatsApp приходят в Ogg Opus, а iPhone его не играет. Права — как
- * у вложения в веб-версии (диалог виден сотруднику или сделка диалога). Без ffmpeg на сервере отдаётся исходный файл.
+ * Голосовое или аудио сообщения для телефона: голосовые WhatsApp приходят в Ogg Opus, а iPhone его не играет, поэтому
+ * один раз переводим в AAC (m4a) и кладём на диск. Дальше файл отдаётся потоком с Range (перемотка, докачка) и ETag —
+ * в память он не читается и не перекодируется заново. Права — как у вложения в веб-версии (диалог виден сотруднику или
+ * сделка диалога).
  */
 export const GET = mobile(async (req, { params }: { params: Promise<{ mid: string }> }) => {
   const staff = await apiStaff(req, "chats.view");
@@ -23,9 +26,7 @@ export const GET = mobile(async (req, { params }: { params: Promise<{ mid: strin
     const deal = dealId ? await container().sales.deals.findById(dealId) : null;
     if (!deal || !canSeeAssigned(staff, deal.assigneeId)) throw new ForbiddenError();
   }
-  const file = await media.bytes(mid, 25_000_000);
+  const file = await chatAudioFile(mid);
   if (!file) throw new HttpError(404, "notFound");
-  const converted = await convertAudio(file.data, "m4a");
-  const out = converted ?? file;
-  return new Response(out.data as BodyInit, { headers: { "Content-Type": converted?.mime ?? (file.mime || "application/octet-stream"), "Content-Length": String(out.data.length), "Cache-Control": "private, max-age=86400", "Content-Security-Policy": "sandbox", "X-Content-Type-Options": "nosniff" } });
+  return serveFile(file.path, file.mime, req, { "Cache-Control": "private, max-age=86400", "Content-Security-Policy": "sandbox", "X-Content-Type-Options": "nosniff" });
 });

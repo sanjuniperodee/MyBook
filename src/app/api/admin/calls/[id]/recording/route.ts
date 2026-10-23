@@ -3,35 +3,7 @@ import { audit, canSeeAssigned } from "@/server/access";
 import { TelephonyError } from "@/modules/telephony";
 import { container } from "@/server/container";
 import { idParams } from "@/server/input";
-import { createReadStream, promises as fs } from "node:fs";
-import { Readable } from "node:stream";
-
-/** Файл записи с диска сайта, с перемоткой: Safari без ответа на Range аудио не играет. */
-async function localFile(path: string, mime: string, range: string | null) {
-  const { size } = await fs.stat(path);
-  const m = range ? /^bytes=(\d*)-(\d*)$/.exec(range) : null;
-  let start = 0;
-  let end = size - 1;
-  if (m && (m[1] || m[2])) {
-    if (m[1]) {
-      start = Number(m[1]);
-      if (m[2]) end = Math.min(Number(m[2]), size - 1);
-    } else start = Math.max(0, size - Number(m[2]));
-    if (start > end || start >= size) return new Response(null, { status: 416, headers: { "Content-Range": `bytes */${size}` } });
-  }
-  const partial = !!m && (start > 0 || end < size - 1 || !!range);
-  const body = Readable.toWeb(createReadStream(path, { start, end })) as ReadableStream;
-  return new Response(body, {
-    status: partial ? 206 : 200,
-    headers: {
-      "Content-Type": mime,
-      "Content-Length": String(end - start + 1),
-      "Accept-Ranges": "bytes",
-      "Cache-Control": "private, no-store",
-      ...(partial ? { "Content-Range": `bytes ${start}-${end}/${size}` } : {}),
-    },
-  });
-}
+import { serveFile } from "@/server/range-file";
 
 /**
  * Запись разговора через наш сервер: ссылка провайдера не попадает в браузер,
@@ -54,7 +26,7 @@ export const GET = api(async (req, { params }: { params: Promise<{ id: string }>
     }
     if (!file) throw new HttpError(404, "notFound");
     if (firstRequest) await audit(staff, "call.recording", "call", call.id, { phone: call.clientPhone });
-    return localFile(file.path, file.mime, req.headers.get("range"));
+    return serveFile(file.path, file.mime, req, { "Cache-Control": "private, no-cache" });
   }
   let url: string | null;
   try {
@@ -64,14 +36,20 @@ export const GET = api(async (req, { params }: { params: Promise<{ id: string }>
     throw err;
   }
   if (!url) throw new HttpError(404, "notFound");
-  const upstream = await fetch(url, { signal: AbortSignal.timeout(30_000) }).catch(() => null);
+  // Range плеера передаём провайдеру: перемотка и «метаданные» не тянут запись целиком через наш сервер.
+  const range = req.headers.get("range");
+  const upstream = await fetch(url, { signal: AbortSignal.timeout(30_000), headers: range && /^bytes=\d*-\d*$/.test(range) ? { Range: range } : {} }).catch(() => null);
   if (!upstream?.ok || !upstream.body) return new Response("Запись недоступна у провайдера", { status: 502 });
   if (firstRequest) await audit(staff, "call.recording", "call", call.id, { phone: call.clientPhone });
+  const pass = (name: string) => upstream.headers.get(name);
   return new Response(upstream.body, {
+    status: upstream.status === 206 ? 206 : 200,
     headers: {
-      "Content-Type": upstream.headers.get("content-type") ?? "audio/mpeg",
+      "Content-Type": pass("content-type") ?? "audio/mpeg",
       "Cache-Control": "private, no-store",
-      ...(upstream.headers.get("content-length") ? { "Content-Length": upstream.headers.get("content-length")! } : {}),
+      "Accept-Ranges": "bytes",
+      ...(pass("content-length") ? { "Content-Length": pass("content-length")! } : {}),
+      ...(pass("content-range") ? { "Content-Range": pass("content-range")! } : {}),
     },
   });
 });

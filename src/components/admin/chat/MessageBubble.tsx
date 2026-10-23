@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { AlertCircle, Ban, Bot, Check, CheckCheck, CheckSquare, ChevronDown, Slash, Clock, Copy, Download, FileText, Forward, Lock, Pencil, Play, Reply, Trash2 } from "lucide-react";
 import type { ChatMessage } from "@/modules/messaging";
 import { cn } from "@/lib/class-names";
@@ -14,7 +14,19 @@ export type Msg = ChatMessage & { localSrc?: string; fileName?: string };
 const EDIT_MS = 15 * 60_000;
 const DELETE_MS = 48 * 3_600_000;
 
-export const time = (iso: string, tz: string) => new Intl.DateTimeFormat("ru-RU", { timeZone: tz, hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
+/**
+ * Intl.DateTimeFormat дорог в создании (на телефоне — доли миллисекунды), а лента зовёт его по нескольку раз на каждое
+ * сообщение при каждой перерисовке. Поэтому форматтеры создаются один раз на (локаль, пояс, вид).
+ */
+const formatters = new Map<string, Intl.DateTimeFormat>();
+export function formatter(locale: string, tz: string, kind: string, options: Intl.DateTimeFormatOptions) {
+  const key = `${locale}|${tz}|${kind}`;
+  let f = formatters.get(key);
+  if (!f) formatters.set(key, (f = new Intl.DateTimeFormat(locale, { timeZone: tz, ...options })));
+  return f;
+}
+
+export const time = (iso: string, tz: string) => formatter("ru-RU", tz, "time", { hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
 
 /** Адрес вложения: через наш сервер (файл шлюза или хранилища, с проверкой доступа), ссылка канала или локальное превью. */
 export const mediaSrc = (m: Msg) => m.localSrc ?? (m.gateway ? `/api/admin/chats/messages/${m.id}/media` : m.mediaUrl);
@@ -91,13 +103,13 @@ function Attachment({ m, conversationId, onOpen, onVoiceEnded }: { m: Msg; conve
     return (
       <button type="button" onClick={onOpen} className="mb-1 block overflow-hidden rounded-xl" aria-label="Открыть фото">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={src} alt="" className="max-h-72 min-h-24 max-w-full min-w-24 object-cover" loading="lazy" onError={() => setBroken(true)} />
+        <img src={src} alt="" className="max-h-72 min-h-24 max-w-full min-w-24 object-cover" loading="lazy" decoding="async" onError={() => setBroken(true)} />
       </button>
     );
   if (m.type === "video")
     return (
       <button type="button" onClick={onOpen} className="relative mb-1 block overflow-hidden rounded-xl bg-black" aria-label="Открыть видео">
-        <video src={src} preload="metadata" muted playsInline className="max-h-72 max-w-full" onError={() => setBroken(true)} />
+        <video src={src} preload="none" muted playsInline className="max-h-72 max-w-full" onError={() => setBroken(true)} />
         <span className="absolute inset-0 flex items-center justify-center">
           <span className="flex size-12 items-center justify-center rounded-full bg-black/55 text-white">
             <Play className="ml-0.5 size-6" fill="currentColor" />
@@ -131,7 +143,7 @@ export interface BubbleActions {
  * карточкой), цитата ответа, «пересланное», «изменено», удалённое. Меню — по наведению (⌄), правому клику или
  * долгому нажатию: ответить, переслать, копировать, изменить и удалить своё.
  */
-export function MessageBubble({
+function Bubble({
   m,
   me,
   now,
@@ -342,3 +354,21 @@ export function MessageBubble({
     </div>
   );
 }
+
+/** Для сравнения перерисовок: «сейчас» важно лишь тем, что от него зависят окна правки и удаления сообщения. */
+const windows = (m: Msg, now: number) => {
+  const age = now - new Date(m.at).getTime();
+  return (age < EDIT_MS ? 1 : 0) + (age < DELETE_MS ? 2 : 0);
+};
+
+/**
+ * Лента на 150 сообщений не должна перерисовываться целиком из-за таймера «сейчас» (раз в полминуты), набора текста,
+ * выделения одного сообщения или обновления страницы: пузырь перерисовывается, только если изменилось его сообщение или
+ * то, что он показывает. Ссылки на сообщения ChatPanel сохраняет между обновлениями, обработчики у него стабильные.
+ */
+export const MessageBubble = memo(Bubble, (a, b) => {
+  const { now: an, ...ar } = a;
+  const { now: bn, ...br } = b;
+  for (const k of Object.keys(ar) as (keyof typeof ar)[]) if (ar[k] !== br[k]) return false;
+  return windows(a.m, an) === windows(b.m, bn);
+});

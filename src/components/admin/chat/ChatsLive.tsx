@@ -9,6 +9,8 @@ const POLL_MS = 15_000;
 const POLL_MS_LIVE = 60_000;
 /** Сообщение, статусы доставки и действия бота подряд — одно обновление в секунду, последнее не теряется. */
 const GAP_MS = 1_000;
+/** На телефоне и планшете обновление дороже (тот же ответ сервера по мобильной сети, слабый процессор) — реже. */
+const GAP_MS_TOUCH = 2_500;
 
 /**
  * Страница чатов обновляется сама по событию о любом диалоге: новый чат и счётчик в списке появляются сразу, даже
@@ -20,6 +22,7 @@ export function ChatsLive() {
   const router = useRouter();
   useEffect(() => {
     let stale = false;
+    const gap = window.matchMedia("(pointer: coarse)").matches ? GAP_MS_TOUCH : GAP_MS;
     const refresh = coalesce(() => {
       if (document.visibilityState !== "visible") {
         stale = true;
@@ -27,7 +30,7 @@ export function ChatsLive() {
       }
       stale = false;
       router.refresh();
-    }, GAP_MS);
+    }, gap);
     const onLive = (e: Event) => {
       const d = (e as CustomEvent<{ type?: string }>).detail;
       if (d?.type === "chat") void refresh();

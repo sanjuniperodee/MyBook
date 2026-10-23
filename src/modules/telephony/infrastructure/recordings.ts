@@ -34,6 +34,8 @@ function toM4a(input: string, output: string): Promise<boolean> {
   });
 }
 
+const assembling = new Map<string, Promise<{ path: string; mime: string } | null>>();
+
 /**
  * Записи разговоров WhatsApp на диске сайта (STORAGE_DIR/call-recordings/<id звонка>/). Браузер присылает запись кусками
  * по 10 с (куски одного потока MediaRecorder, склеиваются по порядку); при первом прослушивании законченного звонка куски
@@ -48,29 +50,38 @@ export const localCallRecordings: CallRecordingStore = {
     await deleteFile(`${dir(callId)}/${FINAL}`);
   },
 
-  async file(callId) {
-    const base = dir(callId);
-    const final = storagePath(`${base}/${FINAL}`);
-    if (await fs.stat(final).then((s) => s.size > 0, () => false)) return { path: final, mime: "audio/mp4" };
-    const list = await parts(callId);
-    if (!list.length) return null;
-    const ext = path.extname(list[0]).slice(1);
-    const mime = Object.keys(EXT).find((m) => EXT[m] === ext)!;
-    // Склейка и перекодирование — во временные файлы, на место — переименованием: два одновременных прослушивания не мешают друг другу.
-    const tmp = randomUUID();
-    const raw = storagePath(`${base}/raw-${tmp}.${ext}`);
-    const out = storagePath(`${base}/${FINAL}.${tmp}.m4a`);
-    const write = createWriteStream(raw);
-    for (const f of list) await pipeline(createReadStream(storagePath(`${base}/parts/${f}`)), write, { end: false });
-    await new Promise<void>((resolve, reject) => write.end((err?: Error | null) => (err ? reject(err) : resolve())));
-    if (await toM4a(raw, out)) {
-      await fs.rename(out, final);
-      await fs.rm(raw, { force: true });
-      return { path: final, mime: "audio/mp4" };
-    }
-    await fs.rm(out, { force: true });
-    const fallback = storagePath(`${base}/call.${ext}`);
-    await fs.rename(raw, fallback);
-    return { path: fallback, mime };
+  /** Плеер шлёт несколько Range-запросов подряд: сборку файла делаем один раз на звонок, остальные ждут её. */
+  file(callId) {
+    const running = assembling.get(callId);
+    if (running) return running;
+    const job = assemble(callId).finally(() => assembling.delete(callId));
+    assembling.set(callId, job);
+    return job;
   },
 };
+
+async function assemble(callId: string): Promise<{ path: string; mime: string } | null> {
+  const base = dir(callId);
+  const final = storagePath(`${base}/${FINAL}`);
+  if (await fs.stat(final).then((s) => s.size > 0, () => false)) return { path: final, mime: "audio/mp4" };
+  const list = await parts(callId);
+  if (!list.length) return null;
+  const ext = path.extname(list[0]).slice(1);
+  const mime = Object.keys(EXT).find((m) => EXT[m] === ext)!;
+  // Склейка и перекодирование — во временные файлы, на место — переименованием: два одновременных прослушивания не мешают друг другу.
+  const tmp = randomUUID();
+  const raw = storagePath(`${base}/raw-${tmp}.${ext}`);
+  const out = storagePath(`${base}/${FINAL}.${tmp}.m4a`);
+  const write = createWriteStream(raw);
+  for (const f of list) await pipeline(createReadStream(storagePath(`${base}/parts/${f}`)), write, { end: false });
+  await new Promise<void>((resolve, reject) => write.end((err?: Error | null) => (err ? reject(err) : resolve())));
+  if (await toM4a(raw, out)) {
+    await fs.rename(out, final);
+    await fs.rm(raw, { force: true });
+    return { path: final, mime: "audio/mp4" };
+  }
+  await fs.rm(out, { force: true });
+  const fallback = storagePath(`${base}/call.${ext}`);
+  await fs.rename(raw, fallback);
+  return { path: fallback, mime };
+}
