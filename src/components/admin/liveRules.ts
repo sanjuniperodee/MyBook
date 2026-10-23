@@ -21,13 +21,16 @@ export function conversationOfLink(link: string | null | undefined): string | nu
 }
 
 /**
- * Звук на свежие уведомления: напоминание о задаче — тройной сигнал, сообщение клиента и упоминание — короткий.
- * Сообщение в диалоге, который сотрудник читает прямо сейчас, — без звука: оно и так на экране.
+ * Звук на свежие уведомления: напоминание о задаче — тройной сигнал; сообщение клиента, упоминание, клиенту не ответили
+ * вовремя (sla), новая заявка (deal) и пропущенный звонок (call) — короткий (tasks-22). Сообщение в диалоге, который
+ * сотрудник читает прямо сейчас, — без звука: оно и так на экране.
  */
+const AUDIBLE = new Set(["message", "mention", "sla", "deal", "call"]);
+
 export function soundFor(fresh: readonly { kind: string; link: string | null }[], ctx: SoundContext): LiveSound {
   if (ctx.muted) return null;
   if (fresh.some((n) => n.kind === "reminder")) return "reminder";
-  const audible = fresh.filter((n) => n.kind === "message" || n.kind === "mention");
+  const audible = fresh.filter((n) => AUDIBLE.has(n.kind));
   if (!audible.length) return null;
   const onScreen = (n: { kind: string; link: string | null }) => ctx.focused && n.kind === "message" && !!ctx.openConversation && conversationOfLink(n.link) === ctx.openConversation;
   return audible.every(onScreen) ? null : "message";

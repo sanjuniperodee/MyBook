@@ -45,6 +45,8 @@ export const users = pgTable(
     managerId: uuid("manager_id").references((): AnyPgColumn => users.id, { onDelete: "set null" }),
     /** Внутренний номер сотрудника в АТС (для звонков из CRM и привязки входящих). */
     sipExtension: text("sip_extension"),
+    /** Личные настройки push сотрудника: тихие часы, push о сообщениях клиентов (NotifyPrefs в workspace). */
+    notifyPrefs: jsonb("notify_prefs").$type<Record<string, unknown>>().notNull().default({}),
     /** Сотрудник на смене: только такие получают новые заявки по кругу. */
     onShift: boolean("on_shift").notNull().default(true),
     /** Дополнительные телефоны клиента (второй номер, WhatsApp на другой SIM) — для поиска по звонкам и чатам. */

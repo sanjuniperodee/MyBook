@@ -11,6 +11,8 @@ import { playSound, setSoundMuted, soundMuted, unlockAudio } from "./sound";
 import type { LiveState } from "@/modules/reporting";
 import { cn } from "@/lib/class-names";
 import { useWhatsappRing, WaIcon, WhatsappIncomingActions } from "./WhatsappCall";
+import { myNotifyPrefsAction, saveMyNotifyPrefsAction } from "@/app/admin/notify-actions";
+import type { NotifyPrefs } from "@/modules/workspace/domain/notifyPrefs";
 
 const POLL_MS = 8_000;
 /** При живом SSE-соединении опрос нужен только как страховка. */
@@ -225,8 +227,39 @@ export function NotificationBell() {
           </div>
           <SoundToggle />
           <PushToggle perm={perm} onPerm={setPerm} />
+          <PushPrefs />
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * Мои push (tasks-19, tasks-22): тихие часы — ночью push не будит (напоминания о задачах приходят всегда, колокольчик —
+ * всё), и push о сообщениях клиентов — можно выключить, если WhatsApp и так на телефоне магазина. Для всех устройств.
+ */
+function PushPrefs() {
+  const [p, setP] = useState<NotifyPrefs | null>(null);
+  useEffect(() => {
+    void myNotifyPrefsAction().then(setP, () => setP(null));
+  }, []);
+  if (!p) return null;
+  const save = (next: NotifyPrefs) => {
+    setP(next);
+    void saveMyNotifyPrefsAction(next).then((r) => (r.ok ? undefined : toast(r.error, "error")));
+  };
+  return (
+    <div className="space-y-1.5 border-t border-line px-4 py-2.5 text-xs text-ink-soft" data-testid="push-prefs">
+      <label className="flex items-center gap-2">
+        <input type="checkbox" className="accent-wine" checked={p.quiet} onChange={(e) => save({ ...p, quiet: e.target.checked })} />
+        Тихие часы push
+        <input type="time" className="input h-7 w-24 text-xs" value={p.quietFrom} disabled={!p.quiet} onChange={(e) => e.target.value && save({ ...p, quietFrom: e.target.value })} aria-label="С" />—
+        <input type="time" className="input h-7 w-24 text-xs" value={p.quietTo} disabled={!p.quiet} onChange={(e) => e.target.value && save({ ...p, quietTo: e.target.value })} aria-label="До" />
+      </label>
+      <label className="flex items-center gap-2">
+        <input type="checkbox" className="accent-wine" checked={p.pushMessages} onChange={(e) => save({ ...p, pushMessages: e.target.checked })} />
+        Push о сообщениях клиентов
+      </label>
     </div>
   );
 }

@@ -85,11 +85,12 @@ describe("звук в CRM", () => {
     expect(conversationOfLink(null)).toBeNull();
   });
 
-  it("сообщение клиента и упоминание — короткий сигнал, напоминание — тройной, остальное — без звука", () => {
+  it("сообщение, упоминание, норматив, новая заявка и пропущенный — короткий сигнал, напоминание — тройной, остальное — без звука", () => {
     expect(soundFor([msg()], away)).toBe("message");
     expect(soundFor([{ kind: "mention", link: null }], away)).toBe("message");
     expect(soundFor([msg(), { kind: "reminder", link: null }], away)).toBe("reminder");
-    expect(soundFor([{ kind: "deal", link: null }, { kind: "task", link: null }], away)).toBeNull();
+    for (const kind of ["sla", "deal", "call"]) expect(soundFor([{ kind, link: null }], away)).toBe("message");
+    expect(soundFor([{ kind: "task", link: null }, { kind: "system", link: null }], away)).toBeNull();
     expect(soundFor([], away)).toBeNull();
   });
 

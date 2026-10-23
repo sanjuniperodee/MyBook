@@ -34,3 +34,4 @@ export function fieldKey(label: string, taken: (key: string) => boolean) {
   for (let i = 2; taken(key); i++) key = `${base.replace(/_\d+$/, "")}_${i}`;
   return key;
 }
+export * from "./notifyPrefs";

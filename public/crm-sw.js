@@ -13,10 +13,26 @@ self.addEventListener("push", (event) => {
     self.registration.showNotification(data.title || "MyBooks CRM", {
       body: data.body || "",
       icon: "/crm-icon-192.png",
-      badge: "/crm-icon-192.png",
+      // Android рисует значок в строке состояния по прозрачности — нужен одноцветный, цветной превращается в квадрат.
+      badge: "/crm-badge-96.png",
+      // Тег — по объекту (чат, сделка): новое о том же заменяет прежнее, а renotify всё равно звенит.
       tag: data.tag || undefined,
+      renotify: !!data.tag,
       data: { link: data.link || "/admin" },
     }),
+  );
+});
+
+// Браузер сменил подписку (истекла, сбросили ключи) — подписываемся заново тем же ключом и сообщаем CRM, иначе push
+// молча перестают приходить до ручного «включить».
+self.addEventListener("pushsubscriptionchange", (event) => {
+  const options = event.oldSubscription && event.oldSubscription.options;
+  if (!options) return;
+  event.waitUntil(
+    self.registration.pushManager
+      .subscribe({ userVisibleOnly: true, applicationServerKey: options.applicationServerKey })
+      .then((sub) => fetch("/api/admin/push", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "same-origin", body: JSON.stringify(sub.toJSON()) }))
+      .catch(() => {}),
   );
 });
 
