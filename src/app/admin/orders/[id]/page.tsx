@@ -50,7 +50,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
   if (!order || !(await canSeeOrder(staff, order.id))) notFound();
   const plan = getPlan(order.plan);
   const book = order.book;
-  const [stats, admins, { taskRows, noteRows, clientStats }, kaspiInvoices, moneyRows, built] = await Promise.all([
+  const [stats, admins, { taskRows, noteRows, clientStats, deal: orderDeal }, kaspiInvoices, moneyRows, built] = await Promise.all([
     container().authoring.queries.stats(book),
     container().access.queries.allStaff(),
     container().reporting.orderCrm(order),
@@ -94,7 +94,21 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
         {order.paymentClaimedAt && order.status === "pending_payment" ? (
           <span className="rounded-full bg-amber-100 px-3 py-1 text-sm text-amber-800">Клиент сообщил об оплате {formatDate(order.paymentClaimedAt, true)}</span>
         ) : null}
-        <div className="ml-auto flex gap-2">
+        <div className="ml-auto flex flex-wrap gap-2">
+          {orderDeal ? (
+            // Сделка заказа (deals-14): номер, ответственный и переписка — из заказа видно, кто ведёт клиента.
+            <span className="flex items-center gap-1.5 rounded-xl border border-line bg-white px-3 py-1.5 text-sm" data-testid="order-deal">
+              <Link href={`/admin/deals/${orderDeal.id}`} className="font-medium hover:text-wine">
+                Сделка №{orderDeal.number}
+              </Link>
+              <span className="text-muted">· {orderDeal.assigneeId ? (adminName.get(orderDeal.assigneeId) ?? "—") : "без ответственного"}</span>
+              {orderDeal.conversationId ? (
+                <Link href={`/admin/chats?c=${orderDeal.conversationId}`} className="text-wine hover:underline">
+                  · чат
+                </Link>
+              ) : null}
+            </span>
+          ) : null}
           {canClients ? (
             <Link href={`/admin/clients/${order.userId}`} className="btn btn-outline btn-sm">
               <UserRound className="size-4" /> Клиент · {clientStats.n} зак. · {formatPrice(clientStats.ltv)}

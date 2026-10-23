@@ -1,4 +1,5 @@
 import "server-only";
+import { systemActor } from "@/shared/application";
 import {
   DEAL_INVOICE_CLOSE_REASONS,
   dealInvoiceCancelledNote,
@@ -39,6 +40,16 @@ export function registerSubscriptions(c: Container) {
   // У заказа может быть несколько сделок (пакет книг): byOrder отдаёт их по порядку создания — берём первую, всегда одну и ту же.
   const orderDeal = async (orderId: string) => (await c.sales.deals.byOrder(orderId))[0]?.id ?? null;
   c.bus.subscribe<OrderPlaced>("ordering.order_placed", (e) => c.sales.funnel.orderCreated({ id: e.payload.orderId, ...e.payload, amount: e.payload.amount + (e.payload.prepaid ?? 0), dealId: e.payload.agreementDealId ?? null }).then(() => undefined), "crm.deal.order_created");
+  // Ответственный заказа — ответственный его сделки (deals-d15): фильтр «мои» в заказах и на доске производства. Только
+  // что оформленный заказ ничей; сотрудник, которого уже нет, — заказ остаётся ничьим.
+  c.bus.subscribe<OrderPlaced>(
+    "ordering.order_placed",
+    async (e) => {
+      const deal = (await c.sales.deals.byOrder(e.payload.orderId))[0];
+      if (deal?.assigneeId) await c.ordering.orders.assign(e.payload.orderId, deal.assigneeId, systemActor("crm")).catch((err) => console.error("[crm] order assignee", err));
+    },
+    "crm.order.assignee",
+  );
   // После привязки заказа к сделке (подписчики — по порядку регистрации).
   c.bus.subscribe<OrderPlaced>(
     "ordering.order_placed",

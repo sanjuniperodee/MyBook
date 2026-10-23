@@ -108,6 +108,7 @@ export default async function AdminBooks({ searchParams }: { searchParams: Promi
               <th className="px-3 py-3 font-medium">Прогресс</th>
               <th className="px-3 py-3 font-medium">Изменена</th>
               <th className="px-3 py-3 font-medium">Статус</th>
+              <th className="px-3 py-3 font-medium">Сделка</th>
               <th className="px-3 py-3" />
             </tr>
           </thead>
@@ -148,6 +149,15 @@ export default async function AdminBooks({ searchParams }: { searchParams: Promi
                   <td className={cn("px-3 py-3", r.book.status === "draft" && idle >= STALLED_DAYS ? "text-red-700" : "text-muted")}>{idle <= 0 ? "сегодня" : `${idle} дн. назад`}</td>
                   <td className="px-3 py-3">
                     <span className={cn("rounded-full px-2.5 py-1 text-xs", r.book.status === "draft" ? "bg-cream text-ink-soft" : "bg-emerald-100 text-emerald-800")}>{r.book.status === "draft" ? "Пишется" : "Заказана"}</span>
+                  </td>
+                  <td className="px-3 py-3">
+                    {r.deal ? (
+                      <Link href={`/admin/deals/${r.deal.id}`} className="text-xs text-wine hover:underline">
+                        №{r.deal.number}
+                      </Link>
+                    ) : (
+                      <span className="text-muted">—</span>
+                    )}
                   </td>
                   <td className="px-3 py-3 text-right">
                     <Link href={`/books/${r.book.id}/preview`} className="text-xs text-wine hover:underline">

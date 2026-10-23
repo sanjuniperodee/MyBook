@@ -1,7 +1,7 @@
 import "server-only";
 import { and, desc, eq, ilike, lt, or, sql, type SQL } from "drizzle-orm";
 import { books, orders, photos, users } from "@/shared/infrastructure/db/schema";
-import { booksId } from "@/shared/infrastructure/db/refs";
+import { booksId, booksUserId } from "@/shared/infrastructure/db/refs";
 import { progressCols, readySql } from "@/shared/infrastructure/db/bookProgress";
 import { executor } from "@/shared/infrastructure/database";
 import type { Viewer } from "./conditions";
@@ -37,6 +37,11 @@ export function bookList(f: BookFilter, opts: { q?: string; theme?: string; stal
       photos: sql<number>`(select count(*)::int from ${photos} p where p.book_id = ${booksId})`,
       // Есть заказ — любой, кроме отменённого, в том числе ещё не оплаченный.
       hasOrder: sql<boolean>`exists (select 1 from ${orders} o where o.book_id = ${booksId} and o.status <> 'cancelled')`,
+      // Сделка книги (deals-14): сделка её заказа, иначе последняя сделка клиента (открытые — первыми).
+      deal: sql<{ id: string; number: number } | null>`coalesce(
+        (select json_build_object('id', d.id, 'number', d.number) from crm_deals d join ${orders} o on o.id = d.order_id where o.book_id = ${booksId} order by d.created_at limit 1),
+        (select json_build_object('id', d.id, 'number', d.number) from crm_deals d join crm_stages s on s.id = d.stage_id where d.client_id = ${booksUserId}
+          order by (s.kind = 'open') desc, d.created_at desc limit 1))`,
     })
     .from(books)
     .innerJoin(users, eq(books.userId, users.id))

@@ -1,5 +1,6 @@
 import "server-only";
-import { and, desc, eq, gte, ilike, inArray, isNull, lt, ne, or, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, getTableColumns, gte, ilike, inArray, isNull, lt, ne, or, sql, type SQL } from "drizzle-orm";
+import { ordersId } from "@/shared/infrastructure/db/refs";
 import { ORDER_STATUSES, orderRuleSubject } from "@/shared/domain/orders";
 import { books, crmAutomationRuns, crmAutomations, crmConversations, crmDeals, crmNotes, crmTasks, orders, users } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
@@ -56,7 +57,8 @@ export function orderExport(f: OrderFilters, viewer: Viewer) {
 /** Канбан производства: не отменённые, доставленные — только за последний месяц. Электронные версии печати не требуют — их здесь нет. */
 export function productionBoard(deliveredSince: Date, viewer: Viewer) {
   return executor()
-    .select()
+    // Номер сделки заказа на карточке (deals-14): первая по времени сделка с этим заказом — по crm_deals_order_idx.
+    .select({ ...getTableColumns(orders), dealNumber: sql<number | null>`(select d.number from crm_deals d where d.order_id = ${ordersId} order by d.created_at limit 1)` })
     .from(orders)
     .where(and(ne(orders.status, "cancelled"), ne(orders.plan, "digital"), or(ne(orders.status, "delivered"), gte(orders.updatedAt, deliveredSince)), ownClientOrders(viewer)))
     .orderBy(sql`${orders.desiredDate} asc nulls last`, desc(orders.createdAt))
@@ -66,15 +68,21 @@ export function productionBoard(deliveredSince: Date, viewer: Viewer) {
 /** CRM в карточке заказа: задачи по заказу, лента клиента, число заказов и LTV клиента. */
 export async function orderCrm(order: { id: string; userId: string }) {
   const db = executor();
-  const [taskRows, noteRows, [clientStats]] = await Promise.all([
+  const orderId = order.id;
+  const [taskRows, noteRows, [clientStats], [deal]] = await Promise.all([
     db.select().from(crmTasks).where(eq(crmTasks.orderId, order.id)).orderBy(sql`${crmTasks.doneAt} nulls first`, crmTasks.dueAt),
     db.select().from(crmNotes).where(eq(crmNotes.clientId, order.userId)).orderBy(desc(crmNotes.createdAt)).limit(30),
     db
       .select({ n: sql<number>`count(*)::int`, ltv: sql<number>`coalesce(sum(${orders.amount}) filter (where ${orders.paidAt} is not null),0)::int` })
       .from(orders)
       .where(and(eq(orders.userId, order.userId), ne(orders.status, "cancelled"))),
+    // Сделка заказа (deals-14): номер, ответственный и переписка — блок в карточке заказа.
+    db.execute<{ id: string; number: number; title: string; assignee_id: string | null; conversation_id: string | null }>(sql`
+      select d.id, d.number, d.title, d.assignee_id,
+        (select c.id from crm_conversations c where c.deal_id = d.id order by c.last_message_at desc nulls last limit 1) as conversation_id
+      from crm_deals d where d.order_id = ${orderId} order by d.created_at limit 1`).then((r) => r.rows),
   ]);
-  return { taskRows, noteRows, clientStats };
+  return { taskRows, noteRows, clientStats, deal: deal ? { id: deal.id, number: deal.number, title: deal.title, assigneeId: deal.assignee_id, conversationId: deal.conversation_id } : null };
 }
 
 /**

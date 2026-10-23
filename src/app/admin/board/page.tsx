@@ -43,6 +43,7 @@ export default async function BoardPage() {
       assigneeId: o.assigneeId,
       assigneeLabel: o.assigneeId ? (byId.get(o.assigneeId) ?? null) : null,
       ageDays: Math.floor((nowMs() - o.createdAt.getTime()) / 86_400_000),
+      dealNumber: o.dealNumber,
     };
   });
   return (

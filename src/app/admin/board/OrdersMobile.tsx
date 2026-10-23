@@ -90,6 +90,7 @@ export function OrdersMobile({ cards }: { cards: BoardCard[] }) {
                         {c.daysLeft < 0 ? `просрочен на ${-c.daysLeft} дн.` : c.daysLeft === 0 ? "нужен сегодня" : `нужен через ${c.daysLeft} дн.`}
                       </span>
                     ) : null}
+                    {c.dealNumber ? <span className="rounded-md bg-cream px-2 py-1 text-ink-soft">Сделка №{c.dealNumber}</span> : null}
                     {c.assigneeLabel ? (
                       <span className="flex items-center gap-1 rounded-md bg-cream px-2 py-1 text-ink-soft">
                         <User className="size-3" /> {c.assigneeLabel}

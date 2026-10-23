@@ -29,6 +29,8 @@ export interface BoardCard {
   assigneeId: string | null;
   assigneeLabel: string | null;
   ageDays: number;
+  /** Номер сделки заказа (deals-14). */
+  dealNumber?: number | null;
 }
 
 const columns: { status: OrderStatus; hint: string }[] = [
@@ -158,6 +160,11 @@ function Card({ card: c }: { card: BoardCard }) {
         {c.giftNote || c.surprise ? (
           <span className="flex items-center gap-1 rounded-full bg-rose px-2 py-0.5 text-[11px] text-wine">
             <Gift className="size-3" /> {c.surprise ? "сюрприз" : "открытка"}
+          </span>
+        ) : null}
+        {c.dealNumber ? (
+          <span className="rounded-full bg-cream px-2 py-0.5 text-[11px] text-ink-soft" title="Сделка заказа">
+            Д{c.dealNumber}
           </span>
         ) : null}
         {c.assigneeLabel ? (

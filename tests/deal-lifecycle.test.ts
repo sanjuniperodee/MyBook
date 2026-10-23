@@ -203,7 +203,10 @@ describe("Подписчики жизни сделки", () => {
           note: async (deal: { id: string }, text: string) => void calls.push(`note:${deal.id}:${text}`),
         },
       },
-      ordering: { invoices: { cancelOpenFor: async (dealId: string, reason: string) => (calls.push(`cancel:${dealId}:${reason}`), dealId === "deal-9" ? cancelled : null) } },
+      ordering: {
+        invoices: { cancelOpenFor: async (dealId: string, reason: string) => (calls.push(`cancel:${dealId}:${reason}`), dealId === "deal-9" ? cancelled : null) },
+        orders: { assign: async (orderId: string, assigneeId: string | null, actor: { label: string }) => void calls.push(`assign:${orderId}:${assigneeId}:${actor.label}`) },
+      },
       clients: {
         tasks: {
           createSystem: async (t: { title: string; assigneeId: string | null; dueAt: Date | null; once?: boolean }) => (calls.push(`task:${t.assigneeId}:${t.title}`), tasks.push(t), true),
@@ -240,6 +243,14 @@ describe("Подписчики жизни сделки", () => {
     expect(calls.filter((c) => c.startsWith("task:"))).toEqual([]);
     await bus.publish([placed(30000)]);
     expect(calls.filter((c) => c.startsWith("task:"))).toEqual([expect.stringMatching(/^task:m1:Переплата 30\s000 ₸ по договорённости \(заказ №12\) — оформите возврат$/)]);
+  });
+
+  it("ответственный нового заказа — ответственный его сделки (deals-d15); у сделки нет ответственного — заказ ничей", async () => {
+    const { bus, calls } = await wire();
+    const ref = { number: 12, userId: "u1", bookId: "b1", plan: "hardcover", amount: 20000, contactName: "", contactPhone: "", contactEmail: "", promoCode: null };
+    await bus.publish([{ type: "ordering.order_placed", occurredAt: now, payload: { ...ref, orderId: "o1", estimatedPages: 40, quantity: 1 } }]);
+    await bus.publish([{ type: "ordering.order_placed", occurredAt: now, payload: { ...ref, orderId: "o-night", estimatedPages: 40, quantity: 1 } }]);
+    expect(calls.filter((c) => c.startsWith("assign:"))).toEqual(["assign:o1:m1:crm"]);
   });
 
   it("денежная задача по заказу — со сроком «2 рабочих часа» и без дублей; у сделки нет ответственного — ничья задача, а не только уведомление (tasks-d4)", async () => {
