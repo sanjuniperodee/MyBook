@@ -22,6 +22,7 @@ export function CrmSettingsForm({
   maxDiscount,
   mergeClosedDays,
   widget,
+  digest,
 }: {
   slaMinutes: number;
   reassignMinutes: number;
@@ -31,6 +32,8 @@ export function CrmSettingsForm({
   maxDiscount: number;
   mergeClosedDays: number;
   widget: { enabled: boolean; chat: boolean };
+  /** Утренняя сводка сотрудникам (bots-11). */
+  digest: boolean;
 }) {
   const [state, action] = useActionState<SettingsState, FormData>(saveCrmSettingsAction, {});
   const offRef = useRef<HTMLTextAreaElement>(null);
@@ -99,6 +102,10 @@ export function CrmSettingsForm({
               <input name="mergeClosedDays" type="number" min={0} max={MERGE_CLOSED_DAYS_MAX} defaultValue={mergeClosedDays} className="input h-10 text-sm" />
             </Field>
           </div>
+          <label className="mt-4 flex items-start gap-2 text-sm">
+            <input type="checkbox" name="digest" defaultChecked={digest} className="mt-0.5 size-4 accent-wine" />
+            <span>Утренняя сводка в начале смены (с 09:00, в рабочий день): чаты без ответа, «я оплатил», даты событий на 3 дня, ночь бота — в колокольчик и push всем, кто ведёт сделки</span>
+          </label>
           <label className="mt-4 flex items-start gap-2 text-sm">
             <input type="checkbox" name="unsorted" defaultChecked={unsorted} className="mt-0.5 size-4 accent-wine" />
             <span>

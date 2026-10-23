@@ -27,6 +27,7 @@ const fake = {
 
 vi.mock("@/server/container", () => ({ container: () => fake }));
 vi.mock("@/server/ai-autofill", () => ({ aiAutofill: () => stepFn("autofill", 0)(), aiAutofillDeps: () => ({}) }));
+vi.mock("@/server/morning-digest", () => ({ morningDigestTick: () => stepFn("digest", false)(), morningDigestDeps: () => ({}) }));
 vi.mock("@/shared/infrastructure/db", () => ({
   pool: { connect: async () => ({ query: async (q: string) => ({ rows: q.includes("try_advisory") ? [{ locked: true }] : [] }), release: () => {} }) },
 }));
@@ -47,15 +48,16 @@ describe("scheduler: шаг упал — проход идёт дальше", ()
   it("минутный проход: правила CRM и круг заявок упали — напоминания, бот, звонки WhatsApp, почта, доступ по счетам и проверка кассира Kaspi всё равно выполняются", async () => {
     failing.add("automations").add("routing");
     await crmTick();
-    expect(calls).toEqual(["automations", "reminders", "routing", "bot", "whatsapp calls", "imap", "access", "expire", "kaspi watch"]);
+    expect(calls).toEqual(["automations", "reminders", "routing", "bot", "whatsapp calls", "imap", "access", "expire", "kaspi watch", "digest"]);
     expect(errors.map((e) => e[0])).toEqual(['[scheduler] step "crm automations" failed', '[scheduler] step "lead routing" failed']);
   });
 
   it("минутный проход: проверка кассира Kaspi упала (kaspi-pos завис) — в логе её имя, остальные шаги уже выполнены", async () => {
     failing.add("kaspi watch");
     await crmTick();
-    expect(calls.at(-1)).toBe("kaspi watch");
-    expect(calls).toHaveLength(9);
+    expect(calls.at(-2)).toBe("kaspi watch");
+    expect(calls.at(-1)).toBe("digest");
+    expect(calls).toHaveLength(10);
     expect(errors.map((e) => e[0])).toEqual(['[scheduler] step "kaspi watch" failed']);
   });
 

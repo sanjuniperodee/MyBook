@@ -3,6 +3,7 @@ import type { PoolClient } from "pg";
 import { pool } from "@/shared/infrastructure/db";
 import { container } from "@/server/container";
 import { aiAutofill, aiAutofillDeps } from "@/server/ai-autofill";
+import { morningDigestDeps, morningDigestTick } from "@/server/morning-digest";
 
 const INTERVAL_MS = 15 * 60_000;
 /** Номер advisory-блокировки: при нескольких инстансах проход выполняет только один. */
@@ -96,6 +97,8 @@ export async function crmTick() {
     // Здесь, а не в сверке платежей: та выходит, пока нет сессии, и пропускает ход, когда занята пятисекундная сверка.
     const kaspi = await step("kaspi watch", () => container().ordering.kaspiWatch.check(), null);
     if (kaspi) console.warn(`[scheduler] kaspi cashier ${kaspi === "down" ? "disconnected" : "reconnected"}`);
+    // Утренняя сводка сотрудникам: с 09:00 в рабочий день, одна в сутки.
+    if (await step("morning digest", () => morningDigestTick(morningDigestDeps()), false)) console.log("[scheduler] morning digest sent");
   } catch (err) {
     console.error("[scheduler] crm tick failed", err);
   } finally {

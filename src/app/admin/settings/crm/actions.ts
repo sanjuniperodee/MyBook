@@ -51,6 +51,7 @@ export async function saveCrmSettingsAction(_: SettingsState, form: FormData): P
       "crm.workHours": JSON.stringify({ days: [...new Set(days)].sort(), from: d.from, to: d.to, ...(off.dates.length ? { off: off.dates } : {}) }),
       "crm.autoDealFrom": d.autoDealFrom,
       "crm.unsorted": form.get("unsorted") === "on" ? "on" : "off",
+      "crm.digest": form.get("digest") === "on" ? "on" : "off",
       "crm.maxDiscount": String(d.maxDiscount),
       "crm.mergeClosedDays": String(d.mergeClosedDays),
       "widget.enabled": form.get("widgetEnabled") === "on" ? "on" : "off",
