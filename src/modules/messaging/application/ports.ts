@@ -105,7 +105,8 @@ export interface MessageRepository {
   knownExternal(externalIds: string[]): Promise<Set<string>>;
   /** Эхо нашего же сообщения, отправленного только что: дописать ему внешний ID. */
   claimPendingEcho(conversationId: string, text: string, since: Date, externalId: string): Promise<boolean>;
-  insertEcho(conversationId: string, m: InboundMessage): Promise<boolean>;
+  /** attributedTo — у кого был телефон магазина (отчёт по менеджерам); история задним числом — без него. */
+  insertEcho(conversationId: string, m: InboundMessage, attributedTo?: string | null): Promise<boolean>;
   /** source — кто отправил без сотрудника: бот или правило (в чате подписываются «бот» / «автоматически»). */
   insertOutgoing(conversationId: string, text: string, authorId: string | null, internal?: boolean, source?: MessageSource, extra?: OutgoingExtra): Promise<OutgoingMessage>;
   /** Сообщение для правки, удаления, ответа и пересылки. */

@@ -43,3 +43,17 @@ describe("скорость ответа людей в рабочих минут�
     ]);
   });
 });
+
+describe("ответ с телефона магазина — тому, у кого телефон (analytics-1, analytics-d3)", () => {
+  it("эхо записывается с держателем телефона; без отметки держателя — ни на кого", async () => {
+    const { setup, inbound } = await import("./doubles/botHarness");
+    const held = setup({ phoneHolder: { id: "m7", name: "Айгерим" } });
+    await held.service.ingest(inbound({ text: "Здравствуйте" }));
+    await held.service.ingest(inbound({ externalId: "echo-1", isEcho: true, text: "Добрый день!", contactName: "" }));
+    expect(held.msgs.find((m) => m.externalId === "echo-1")).toMatchObject({ dir: "out", attributedTo: "m7" });
+    const free = setup();
+    await free.service.ingest(inbound({ text: "Здравствуйте" }));
+    await free.service.ingest(inbound({ externalId: "echo-2", isEcho: true, text: "Добрый день!", contactName: "" }));
+    expect(free.msgs.find((m) => m.externalId === "echo-2")?.attributedTo).toBeNull();
+  });
+});

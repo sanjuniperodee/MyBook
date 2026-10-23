@@ -34,6 +34,8 @@ export type Msg = {
   source?: string | null;
   internal?: boolean;
   authorId?: string | null;
+  /** Эхо с телефона магазина: у кого был телефон. */
+  attributedTo?: string | null;
   mediaUrl?: string | null;
   replyToId?: string | null;
   forwarded?: boolean;
@@ -168,7 +170,7 @@ export function setup(
       if (p) p.externalId = ext;
       return !!p;
     },
-    insertEcho: async (conv, m) => !!msgs.push({ id: `m${++seq}`, conv, dir: "out", text: m.text, type: m.type, at: m.at, externalId: m.externalId, status: "sent" }),
+    insertEcho: async (conv, m, attributedTo) => !!msgs.push({ id: `m${++seq}`, conv, dir: "out", text: m.text, type: m.type, at: m.at, externalId: m.externalId, status: "sent", attributedTo: attributedTo ?? null }),
     insertOutgoing: async (conv, text, authorId, internal, source, extra = {}) => {
       const m: Msg = { id: `m${++seq}`, conv, dir: "out", text, type: extra.type ?? "text", at: now, externalId: null, status: "pending", source: source ?? null, internal: !!internal, authorId, mediaUrl: extra.mediaUrl ?? null, replyToId: extra.replyToId ?? null, forwarded: !!extra.forwarded };
       msgs.push(m);

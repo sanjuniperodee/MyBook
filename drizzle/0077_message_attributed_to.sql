@@ -1,0 +1,2 @@
+ALTER TABLE "crm_messages" ADD COLUMN "attributed_to" uuid;--> statement-breakpoint
+ALTER TABLE "crm_messages" ADD CONSTRAINT "crm_messages_attributed_to_users_id_fk" FOREIGN KEY ("attributed_to") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;

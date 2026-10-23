@@ -25,6 +25,10 @@ run("reporting: скорость ответа (PostgreSQL)", () => {
     await msg("out", "59 minutes", { source: "bot" });
     await msg("out", "55 minutes", { author: ids.m, internal: true });
     await msg("out", "50 minutes", { author: ids.m });
+    // Второй разговор: ответили с телефона, пока он был у сотрудника.
+    ids.c2 = await one(sql`insert into crm_conversations (channel, channel_id, chat_id) values ('whatsapp', ${tag}, ${tag + "2"}) returning id`);
+    await q(sql`insert into crm_messages (conversation_id, direction, text, created_at) values (${ids.c2}, 'in', 'x', now() - interval '30 minutes')`);
+    await q(sql`insert into crm_messages (conversation_id, direction, text, attributed_to, created_at) values (${ids.c2}, 'out', 'x', ${ids.m}, now() - interval '25 minutes')`);
   });
 
   afterAll(async () => {
@@ -41,5 +45,8 @@ run("reporting: скорость ответа (PostgreSQL)", () => {
     expect(row.author_id).toBe(ids.m);
     expect(Math.round((new Date(row.bot!).getTime() - new Date(row.asked).getTime()) / 60_000)).toBe(1);
     expect(a.managers.rows.find((r) => r.id === ids.m)?.messages).toBe(1);
+    // Ответ с телефона — тому, у кого был телефон: и в скорости ответа, и в колонке «с телефона».
+    expect(a.responses.rows.find((r) => r.conversation_id === ids.c2)?.author_id).toBe(ids.m);
+    expect(a.managers.rows.find((r) => r.id === ids.m)?.phone_messages).toBe(1);
   });
 });

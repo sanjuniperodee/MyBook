@@ -94,6 +94,11 @@ export const crmMessages = pgTable(
       .references(() => crmConversations.id, { onDelete: "cascade" }),
     direction: text("direction", { enum: ["in", "out"] }).notNull(),
     authorId: uuid("author_id").references(() => users.id, { onDelete: "set null" }),
+    /**
+     * Ответ с телефона магазина (эхо): у кого был телефон в ту минуту («Телефон WhatsApp у …») — отчёт по менеджерам
+     * считает его ответы (analytics-d3). Автором (author_id) не становится: писал не из CRM.
+     */
+    attributedTo: uuid("attributed_to").references(() => users.id, { onDelete: "set null" }),
     type: text("type").notNull().default("text"),
     text: text("text").notNull().default(""),
     mediaUrl: text("media_url"),

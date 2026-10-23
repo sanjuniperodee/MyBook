@@ -53,6 +53,8 @@ export async function salesAnalytics(pipelineId: string, period: number) {
         (select coalesce(sum(e.amount), 0) from revenue_events e where e.manager_id = u.id and e.at >= ${since})::int as received,
         (select count(*) from crm_deals d join crm_stages s on s.id = d.stage_id where d.assignee_id = u.id and s.kind = 'open')::int as open,
         (select count(*) from crm_messages m where m.author_id = u.id and m.created_at >= ${since} and m.internal = false)::int as messages,
+        -- Ответы с телефона магазина, пока телефон был у сотрудника (analytics-1, analytics-d3).
+        (select count(*) from crm_messages m where m.author_id is null and m.attributed_to = u.id and m.source is null and m.created_at >= ${since} and m.internal = false)::int as phone_messages,
         (select count(*) from crm_calls c where c.staff_id = u.id and c.started_at >= ${since} and c.status = 'answered')::int as calls,
         (select coalesce(sum(c.duration_sec), 0) from crm_calls c where c.staff_id = u.id and c.started_at >= ${since})::int as talk,
         (select count(*) from crm_tasks t where t.assignee_id = u.id and t.done_at >= ${since})::int as tasks_done,
@@ -68,10 +70,10 @@ export async function salesAnalytics(pipelineId: string, period: number) {
       ), asks as (
         select conversation_id, created_at from m where direction = 'in' and (prev is null or prev = 'out') and created_at >= ${since}
       )
-      select a.conversation_id, a.created_at as asked, h.created_at as human, h.author_id, b.created_at as bot
+      select a.conversation_id, a.created_at as asked, h.created_at as human, coalesce(h.author_id, h.attributed_to) as author_id, b.created_at as bot
       from asks a
       left join lateral (
-        select created_at, author_id from crm_messages x
+        select created_at, author_id, attributed_to from crm_messages x
         where x.conversation_id = a.conversation_id and x.direction = 'out' and x.internal = false and x.source is null and x.created_at > a.created_at
         order by x.created_at limit 1
       ) h on true

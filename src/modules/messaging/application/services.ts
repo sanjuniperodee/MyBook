@@ -217,7 +217,9 @@ export class MessagingService {
       if (await this.messages.existsExternal(m.externalId)) return;
       // Окно «только что отправили» — от времени самого сообщения: эхо, догнанное сверкой со шлюзом, приходит позже.
       if (await this.messages.claimPendingEcho(base.id, m.text, new Date(Math.min(this.clock.now().getTime(), m.at.getTime()) - 120_000), m.externalId)) return;
-      if (!(await this.messages.insertEcho(base.id, m))) return;
+      // Ответ с телефона магазина — в отчёт по менеджерам тому, у кого сейчас телефон (analytics-d3).
+      const holder = await this.phoneHolder().catch(() => null);
+      if (!(await this.messages.insertEcho(base.id, m, holder?.id ?? null))) return;
       await this.conversations.recordEcho(base.id, preview(m.text), m.at);
       // Ответ с телефона магазина — в открытых вкладках CRM сразу, а не со следующим опросом.
       this.live.chatChanged(base.id);

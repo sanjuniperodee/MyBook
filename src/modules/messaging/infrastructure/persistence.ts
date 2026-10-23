@@ -228,10 +228,10 @@ export class DrizzleMessageRepository implements MessageRepository, MessageMedia
     return true;
   }
 
-  async insertEcho(conversationId: string, m: InboundMessage) {
+  async insertEcho(conversationId: string, m: InboundMessage, attributedTo: string | null = null) {
     const rows = await executor()
       .insert(crmMessages)
-      .values({ conversationId, direction: "out", type: m.type, text: m.text, mediaUrl: m.mediaUrl, externalId: m.externalId, status: "sent", createdAt: m.at })
+      .values({ conversationId, direction: "out", type: m.type, text: m.text, mediaUrl: m.mediaUrl, externalId: m.externalId, status: "sent", createdAt: m.at, attributedTo })
       .onConflictDoNothing()
       .returning({ id: crmMessages.id });
     return rows.length > 0;

@@ -80,7 +80,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
   const c = calls.rows[0] ?? {};
   const team = managers.rows
     .map((r: Row): Row & { name: string; resp: ResponseGroup | undefined } => ({ ...r, name: names.get(String(r.id)) ?? "—", resp: resp.byAuthor.get(String(r.id)) }))
-    .filter((r) => num(r.deals) || num(r.won) || num(r.messages) || num(r.calls) || num(r.open) || num(r.received))
+    .filter((r) => num(r.deals) || num(r.won) || num(r.messages) || num(r.phone_messages) || num(r.calls) || num(r.open) || num(r.received))
     .sort((a, b) => num(b.revenue) - num(a.revenue) || num(b.won) - num(a.won));
 
   return (
@@ -206,7 +206,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
               <th className="pb-2 text-right font-medium">Выручка</th>
               <th className="pb-2 text-right font-medium">Получено</th>
               <th className="pb-2 text-right font-medium">В работе</th>
-              <th className="pb-2 text-right font-medium">Сообщений</th>
+              <th className="pb-2 text-right font-medium" title="Из CRM / с телефона магазина">Сообщений: CRM / телефон</th>
               <th className="pb-2 text-right font-medium">Первый ответ</th>
               <th className="pb-2 text-right font-medium">Разговоров</th>
               <th className="pb-2 text-right font-medium">На линии</th>
@@ -223,7 +223,9 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
                 <td className="py-2.5 text-right tabular-nums">{formatPrice(num(r.revenue))}</td>
                 <td className="py-2.5 text-right tabular-nums">{formatPrice(num(r.received))}</td>
                 <td className="py-2.5 text-right tabular-nums">{num(r.open)}</td>
-                <td className="py-2.5 text-right tabular-nums">{num(r.messages)}</td>
+                <td className="py-2.5 text-right tabular-nums">
+                  {num(r.messages)} / {num(r.phone_messages)}
+                </td>
                 <td className="py-2.5 text-right tabular-nums" title={r.resp ? `ответов ${r.resp.answered}, в норматив ${share(r.resp.inSla)}` : undefined}>
                   {r.resp ? `${workMins(r.resp.median)} · ${share(r.resp.inSla)}` : "—"}
                 </td>
@@ -243,6 +245,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
           </tbody>
         </table>
         {team.length === 0 ? <p className="py-4 text-sm text-muted">Активности за период нет.</p> : null}
+        <p className="mt-3 text-xs text-muted">Ответы с телефона магазина засчитываются тому, у кого был телефон («Телефон WhatsApp у …» в «Чатах»), — приблизительно: кто держал телефон, тот и отвечал.</p>
       </section>
 
       {resp.longest.length ? (
