@@ -505,6 +505,13 @@
       "when": 1792692118947,
       "tag": "0071_layout_rev_default",
       "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1792760165067,
+      "tag": "0072_stub_email_opt_out",
+      "breakpoints": true
     }
   ]
 }

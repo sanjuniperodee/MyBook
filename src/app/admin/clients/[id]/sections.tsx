@@ -12,7 +12,7 @@ import { bookLine, progressRatio, progressText } from "@/lib/content/crm-labels"
 import { formatPrice } from "@/config/site";
 import { orderStatusColors, orderStatusLabel, isPrintedPlan } from "@/modules/ordering/ui/status";
 import type { clientScreen } from "@/modules/reporting/ui/client-screen";
-import { formatPhone } from "@/shared/domain/phone";
+import { formatPhone, isPhoneStubEmail } from "@/shared/domain/phone";
 import { ContactActions } from "@/components/admin/ContactActions";
 import { NoMarketingToggle } from "@/components/admin/NoMarketingToggle";
 import { ClientChannel, ClientLocale, ClientManager, ExtraPhones } from "./ClientControls";
@@ -128,7 +128,7 @@ export function ClientProfile({
         </div>
         <div className="flex justify-between">
           <dt>Автописьма</dt>
-          <dd className={client.emailOptOut ? "text-red-700" : "text-ink"}>{client.emailOptOut ? "отписан" : "получает"}</dd>
+          <dd className={client.emailOptOut ? "text-red-700" : "text-ink"}>{isPhoneStubEmail(client.email) ? "нет почты — автописьма в WhatsApp" : client.emailOptOut ? "отписан" : "получает"}</dd>
         </div>
         <div className="flex items-center justify-between gap-3">
           <dt title="Клиент просил не писать: бот не напоминает о себе, правила автоматизаций не пишут. На его сообщения отвечать можно.">Писать первым</dt>

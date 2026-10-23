@@ -3,7 +3,8 @@ import nodemailer, { type Transporter } from "nodemailer";
 import { site } from "@/config/site";
 import { localizePath, type Locale } from "@/i18n/config";
 import { env } from "@/config/env";
-import type { MailAttachment, Mailer } from "../application/Mailer";
+import type { MailAttachment, MailResult, Mailer } from "../application/Mailer";
+import { isPhoneStubEmail } from "../domain/phone";
 
 /** Настройки SMTP (из админки или переменных окружения); null — не настроено. */
 export interface SmtpConfig {
@@ -119,26 +120,29 @@ export class SmtpMailer implements Mailer {
   async sendOrThrow(to: string, subject: string, html: string) {
     const t = await this.transport();
     if (!t) throw Object.assign(new Error("SMTP is not configured"), { code: "ENOCONFIG" });
-    await t.transport.sendMail({ from: t.config.from, to, subject, html });
+    await t.transport.sendMail({ from: t.config.from, replyTo: t.config.replyTo || undefined, to, subject, html });
     return t.config;
   }
 
-  async send(to: string, subject: string, html: string, attachments?: MailAttachment[]) {
+  async send(to: string, subject: string, html: string, attachments?: MailAttachment[]): Promise<MailResult> {
     // Клиент без почты заведён с адресом-заглушкой (@phone.invalid) — письма ему не уходят и в лог не попадают.
-    if (to.trim().toLowerCase().endsWith(".invalid")) return;
+    if (isPhoneStubEmail(to) || to.trim().toLowerCase().endsWith(".invalid")) return "skipped_stub";
     const t = await this.transport().catch((err) => {
       console.error("[mail] settings", err);
       return null;
     });
     if (!t) {
       console.log(`[mail] SMTP не настроен. Письмо для ${to}: «${subject}»${attachments?.length ? ` (+${attachments.length} влож.)` : ""}\n${html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").slice(0, 800)}`);
-      return;
+      return "unconfigured";
     }
     try {
-      await t.transport.sendMail({ from: t.config.from, to, subject, html, attachments });
+      // «Просто ответьте на это письмо» — ответ уходит на адрес из «Интеграций» (CRM_REPLY_TO), а не на noreply-отправителя.
+      await t.transport.sendMail({ from: t.config.from, replyTo: t.config.replyTo || undefined, to, subject, html, attachments });
+      return "sent";
     } catch (err) {
       // Почта не должна ломать основной сценарий (оформление заказа и т.п.).
       console.error("[mail] send failed", err);
+      return "failed";
     }
   }
 }

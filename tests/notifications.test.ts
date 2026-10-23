@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
-import type { Mailer } from "@/shared/application";
+import type { MailResult, Mailer } from "@/shared/application";
 import { BANK_READY, BLANK_READY_WORDS } from "@/lib/content/kinds";
 import { canRemind, draftEmails, isSendingHour, type DraftProgress } from "@/modules/notifications/domain";
 import { emailTemplates } from "@/modules/notifications/infrastructure/templates";
 import { BookRemindersService, LifecycleService, SubscriptionsService, type DraftCandidate, type EmailTemplates, type LifecycleSource, type OrderReminder, type Recipient, type RecipientRepository } from "@/modules/notifications/application";
 import { storeTimeZoneIs } from "./doubles/time";
+import { SmtpMailer, type SmtpConfig } from "@/shared/infrastructure/mail";
 
 const DAY = 86_400_000;
 const now = new Date("2026-10-01T08:00:00Z"); // 13:00 в Алматы
@@ -63,7 +64,7 @@ describe("правила автописем", () => {
 
 // ─── сценарии ──────────────────────────────────────────────────────────────
 
-const recipient = (id: string): Recipient => ({ id, email: `${id}@test.local`, name: id, locale: "ru", remindedAt: null });
+const recipient = (id: string): Recipient => ({ id, email: `${id}@test.local`, name: id, locale: "ru", remindedAt: null, optOut: false });
 const order = (id: string, r: Recipient, theme = "love"): OrderReminder => ({ recipient: r, theme, orderId: id, number: 1, amount: 1000, contactEmail: r.email });
 
 const templates: EmailTemplates = {
@@ -73,13 +74,20 @@ const templates: EmailTemplates = {
   reminder: (r) => ({ to: r.email, subject: "reminder", html: "", note: "reminder" }),
 };
 
-function setup(data: { drafts?: DraftCandidate[]; unpaid?: OrderReminder[]; delivered?: OrderReminder[] }) {
+function setup(data: { drafts?: DraftCandidate[]; unpaid?: OrderReminder[]; delivered?: OrderReminder[]; mail?: () => MailResult; configured?: boolean }) {
   const sent: { to: string; subject: string }[] = [];
   const notes: string[] = [];
   const claimed = new Set<string>();
   const reminded = new Map<string, Date>();
   const people = new Map<string, Recipient>();
-  const mailer: Mailer = { configured: async () => true, send: async (to, subject) => void sent.push({ to, subject }) };
+  const mailer: Mailer = {
+    configured: async () => data.configured ?? true,
+    send: async (to, subject) => {
+      const res = data.mail?.() ?? "sent";
+      if (res === "sent") sent.push({ to, subject });
+      return res;
+    },
+  };
   const source: LifecycleSource = {
     draftCandidates: async () => data.drafts ?? [],
     unpaidOrders: async () => data.unpaid ?? [],
@@ -91,12 +99,16 @@ function setup(data: { drafts?: DraftCandidate[]; unpaid?: OrderReminder[]; deli
     markReminded: async (id, at) => void reminded.set(id, at),
     optOut: async (id) => void people.delete(id),
   };
-  const journal = { claim: async (userId: string, key: string) => !claimed.has(`${userId}:${key}`) && !!claimed.add(`${userId}:${key}`) };
+  const journal = {
+    claim: async (userId: string, key: string) => !claimed.has(`${userId}:${key}`) && !!claimed.add(`${userId}:${key}`),
+    release: async (userId: string, key: string) => void claimed.delete(`${userId}:${key}`),
+  };
   const timeline = { emailSent: async (_c: string, _a: string | null, note: string) => void notes.push(note) };
   const clock = { now: () => now };
   return {
     sent,
     notes,
+    claimed,
     reminded,
     people,
     lifecycle: new LifecycleService(source, journal, recipients, templates, mailer, timeline, clock),
@@ -121,10 +133,10 @@ describe("LifecycleService", () => {
     const s = setup({ drafts: [{ recipient: recipient("u1"), book: book() }] });
     const night = new LifecycleService(
       { draftCandidates: async () => [{ recipient: recipient("u1"), book: book() }], unpaidOrders: async () => [], reviewDue: async () => [], latestDraft: async () => null },
-      { claim: async () => true },
+      { claim: async () => true, release: async () => {} },
       { find: async () => null, markReminded: async () => {}, optOut: async () => {} },
       templates,
-      { configured: async () => true, send: async () => {} },
+      { configured: async () => true, send: async () => "sent" },
       { emailSent: async () => {} },
       { now: () => new Date("2026-10-01T18:00:00Z") },
     );
@@ -137,6 +149,86 @@ describe("LifecycleService", () => {
     const s = setup({ drafts: [{ recipient: recipient("u1"), book: book({ answered: 5 }) }] });
     await s.lifecycle.run();
     expect(s.reminded.get("u1")).toEqual(now);
+  });
+});
+
+describe("честный результат отправки писем (automation-d9, automation-d10)", () => {
+  it("ошибка SMTP: в ленте и журнале ничего, следующий проход пробует снова", async () => {
+    let res: MailResult = "failed";
+    const s = setup({ drafts: [{ recipient: recipient("u1"), book: book({ answered: 5 }) }], mail: () => res });
+    expect(await s.lifecycle.run()).toBe(0);
+    expect(s.notes).toEqual([]);
+    expect(s.claimed.size).toBe(0);
+    expect(s.reminded.has("u1")).toBe(false);
+    res = "sent";
+    expect(await s.lifecycle.run()).toBe(1);
+    expect(s.notes).toEqual(["nudge"]);
+    expect(s.reminded.get("u1")).toEqual(now);
+  });
+
+  it("SMTP не настроен — письма не «уходят» и не занимают журнал", async () => {
+    const s = setup({ drafts: [{ recipient: recipient("u1"), book: book() }], configured: false });
+    expect(await s.lifecycle.run()).toBe(0);
+    expect(s.claimed.size).toBe(0);
+    expect(s.notes).toEqual([]);
+  });
+
+  it("почта-заглушка клиента из WhatsApp: письма не шлём и не отмечаем", async () => {
+    const stub = { ...recipient("u1"), email: "77011234567@phone.invalid" };
+    const s = setup({ drafts: [{ recipient: stub, book: book() }], unpaid: [order("o1", stub)] });
+    expect(await s.lifecycle.run()).toBe(0);
+    expect(s.sent).toEqual([]);
+    expect(s.claimed.size).toBe(0);
+  });
+
+  it("ручное напоминание: заглушка, отписка, выключенная почта и ошибка SMTP — отказ без отметки", async () => {
+    let res: MailResult = "unconfigured";
+    const s = setup({ mail: () => res });
+    s.people.set("u1", { ...recipient("u1"), email: "77011234567@phone.invalid" });
+    expect(await s.reminders.send("u1", "admin")).toEqual({ ok: false, reason: "noEmail" });
+    s.people.set("u1", { ...recipient("u1"), optOut: true });
+    expect(await s.reminders.send("u1", "admin")).toEqual({ ok: false, reason: "optedOut" });
+    s.people.set("u1", recipient("u1"));
+    expect(await s.reminders.send("u1", "admin")).toEqual({ ok: false, reason: "mailOff" });
+    res = "failed";
+    expect(await s.reminders.send("u1", "admin")).toEqual({ ok: false, reason: "mailFailed" });
+    expect(s.notes).toEqual([]);
+    expect(s.reminded.has("u1")).toBe(false);
+    res = "sent";
+    expect(await s.reminders.send("u1", "admin")).toEqual({ ok: true });
+    expect(s.notes).toEqual(["reminder"]);
+  });
+
+  it("SmtpMailer говорит, чем кончилась отправка, и ставит Reply-To из настроек", async () => {
+    const config: SmtpConfig = { host: "smtp.test", port: 587, secure: false, user: "", password: "", from: "MyBooks <noreply@mybooks.kz>", replyTo: "hello@mybooks.kz" };
+    const mails: Record<string, unknown>[] = [];
+    let fail = false;
+    class FakeSmtp extends SmtpMailer {
+      override async transport() {
+        const transport = { sendMail: async (o: Record<string, unknown>) => (fail ? Promise.reject(new Error("550")) : void mails.push(o)) };
+        return { transport: transport as never, config };
+      }
+    }
+    const mailer = new FakeSmtp(async () => config);
+    expect(await mailer.send("77011234567@phone.invalid", "t", "<p>x</p>")).toBe("skipped_stub");
+    expect(await mailer.send("a@b.kz", "t", "<p>x</p>")).toBe("sent");
+    expect(mails[0]).toMatchObject({ to: "a@b.kz", replyTo: "hello@mybooks.kz", from: config.from });
+    fail = true;
+    const err = console.error;
+    console.error = () => {};
+    expect(await mailer.send("a@b.kz", "t", "<p>x</p>")).toBe("failed");
+    console.error = err;
+    const log = console.log;
+    console.log = () => {};
+    expect(await new SmtpMailer(async () => null).send("a@b.kz", "t", "<p>x</p>")).toBe("unconfigured");
+    console.log = log;
+  });
+
+  it("в ручном напоминании есть ссылка отписки", () => {
+    const templates = emailTemplates({ url: () => "", thankYouPercent: 15 });
+    const mail = templates.reminder(recipient("00000000-0000-4000-8000-000000000001"), { bookId: "b9", title: "Маме", theme: "mom", answered: 7, total: 40, words: 900, firstEmpty: null });
+    expect(mail.html).toContain("/unsubscribe");
+    expect(mail.html).toContain("Не присылать такие письма");
   });
 });
 

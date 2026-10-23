@@ -8,6 +8,8 @@ export interface Recipient {
   name: string;
   locale: Locale;
   remindedAt: Date | null;
+  /** Отписался от писем по ссылке — ни автописьма, ни ручного напоминания. */
+  optOut: boolean;
 }
 
 export interface DraftCandidate {
@@ -53,6 +55,8 @@ export interface LifecycleSource {
 export interface EmailJournal {
   /** false — такое письмо уже было. */
   claim(userId: string, key: string): Promise<boolean>;
+  /** Письмо не ушло (ошибка SMTP) — снять отметку, чтобы следующий проход попробовал снова. */
+  release(userId: string, key: string): Promise<void>;
 }
 
 export interface RecipientRepository {

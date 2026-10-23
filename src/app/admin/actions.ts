@@ -390,6 +390,10 @@ const reminderRefusal: Record<Exclude<ReminderResult, { ok: true }>["reason"], s
   clientNotFound: "Клиент не найден",
   cooldown: `Напоминание уже отправлялось менее ${REMINDER_COOLDOWN_DAYS} дней назад`,
   noDraft: "У клиента нет незавершённых книг",
+  noEmail: "У клиента нет почты — напишите ему в WhatsApp",
+  optedOut: "Клиент отписался от писем",
+  mailOff: "Почта не настроена («Интеграции» → «Почта») — письмо не ушло",
+  mailFailed: "Почтовый сервер не принял письмо — попробуйте позже",
 };
 
 export async function remindClientAction(clientId: string): Promise<{ ok: boolean; message: string }> {

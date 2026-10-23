@@ -17,7 +17,7 @@ const gift = {
 
 function mailer(render: GiftPdfRenderer["render"]) {
   // Запросы и сертификаты письму здесь не нужны: проверяем только путь к рендереру.
-  return new OrderingMailer({} as never, {} as never, { configured: async () => true, send: async () => {} }, { render });
+  return new OrderingMailer({} as never, {} as never, { configured: async () => true, send: async () => "sent" as const }, { render });
 }
 
 describe("OrderingMailer: PDF сертификата через порт GiftPdfRenderer", () => {

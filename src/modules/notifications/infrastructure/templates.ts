@@ -113,7 +113,7 @@ const baseTemplates: Omit<EmailTemplates, "review"> = {
         title: m.reminder.title,
         paragraphs: [hello(r), blank ? (book.words ? m.reminder.progressWords(title, book.words) : m.reminder.empty(title)) : book.answered ? m.reminder.progress(title, book.answered, book.total) : m.reminder.empty(title), m.reminder.autosave],
         button: { label: m.reminder.button, url: appLink(editorPath(book.bookId, book.firstEmpty), r.locale) },
-        footnote: m.reminder.footnote,
+        footnote: `${m.reminder.footnote} <a href="${unsubscribeUrl(r.id, r.locale)}" style="color:#7a7068">${m.unsubscribe}</a>`,
       }),
       note: `Отправлено напоминание дописать книгу «${book.title}» (${blank ? `${book.words} слов` : `${book.answered}/${book.total}`})`,
     };

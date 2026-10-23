@@ -6,7 +6,7 @@ import { WORD_PATTERN, answeredSql, totalSql, wordsSql } from "@/shared/infrastr
 import { executor } from "@/shared/infrastructure/database";
 import type { ClientTimeline, EmailJournal, LifecycleSource, Recipient, RecipientRepository } from "../application";
 
-const recipientCols = { id: users.id, email: users.email, name: users.name, locale: users.locale, remindedAt: users.remindedAt };
+const recipientCols = { id: users.id, email: users.email, name: users.name, locale: users.locale, remindedAt: users.remindedAt, optOut: users.emailOptOut };
 const answered = answeredSql(booksId);
 // Первый раздел без текста — по позиции (позиции подряд), «без текста» — как в answeredSql (пробелы и переводы строк не в счёт).
 const firstEmpty = sql<string | null>`(select q.id::text from ${bookQuestions} q where q.book_id = ${booksId} and q.answer !~ ${WORD_PATTERN} order by q.position limit 1)`;
@@ -34,6 +34,7 @@ export class DrizzleLifecycleSource implements LifecycleSource {
       .from(books)
       .innerJoin(users, eq(users.id, books.userId))
       .where(and(eq(books.status, "draft"), eq(users.emailOptOut, false), eq(users.role, "user"), lte(books.createdAt, createdBefore)))
+      .orderBy(desc(books.updatedAt))
       .limit(500);
     return rows.map(({ recipient, ...b }) => ({ recipient, book: { ...b, remindedAt: recipient.remindedAt } }));
   }
@@ -83,6 +84,9 @@ export class DrizzleEmailJournal implements EmailJournal {
   async claim(userId: string, key: string) {
     const rows = await executor().insert(emailLog).values({ userId, key }).onConflictDoNothing().returning({ id: emailLog.id });
     return rows.length > 0;
+  }
+  async release(userId: string, key: string) {
+    await executor().delete(emailLog).where(and(eq(emailLog.userId, userId), eq(emailLog.key, key)));
   }
 }
 

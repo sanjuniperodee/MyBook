@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { and, eq, gt, isNull, lt, ne, sql } from "drizzle-orm";
 import { passwordResets, sessions, users } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
-import { isPhoneEmail, User, type LinkPurpose, type PasswordResetRepository, type SessionRepository, type UserRepository } from "../domain";
+import { User, type LinkPurpose, type PasswordResetRepository, type SessionRepository, type UserRepository } from "../domain";
 
 type Row = typeof users.$inferSelect;
 
@@ -58,7 +58,7 @@ export class DrizzleUserRepository implements UserRepository {
     const s = user.snapshot();
     await executor()
       .insert(users)
-      .values({ id: user.id, email: s.email, name: s.name, phone: s.phone, passwordHash: s.passwordHash, role: s.role, locale: s.locale, source: s.source, emailOptOut: isPhoneEmail(s.email), createdAt: s.createdAt });
+      .values({ id: user.id, email: s.email, name: s.name, phone: s.phone, passwordHash: s.passwordHash, role: s.role, locale: s.locale, source: s.source, createdAt: s.createdAt });
   }
 
   async save(user: User) {

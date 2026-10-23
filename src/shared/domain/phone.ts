@@ -25,6 +25,12 @@ export function formatPhone(raw: string | null | undefined): string {
   return `+${d}`;
 }
 
+/**
+ * Адрес-заглушка клиента без почты: учётную запись из WhatsApp или по телефону заводят с «<телефон>@phone.invalid».
+ * Писем на него не шлём; это не отписка (automation-d10) — автописьма такому клиенту уходят в WhatsApp.
+ */
+export const isPhoneStubEmail = (email: string | null | undefined) => !!email && email.trim().toLowerCase().endsWith("@phone.invalid");
+
 /** Последние 10 цифр — ключ для сравнения номеров, записанных по-разному. */
 export const phoneKey = (raw: string | null | undefined) => normalizePhone(raw).slice(-10);
 
