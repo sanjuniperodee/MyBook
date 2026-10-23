@@ -1,6 +1,7 @@
 import { dashboard } from "./infrastructure/Dashboard";
 import { attentionDeals } from "./infrastructure/Attention";
 import { morningDigest } from "./infrastructure/Digest";
+import { vcardClients } from "./infrastructure/Vcard";
 import { paymentsExport } from "./infrastructure/PaymentsExport";
 import { myDay } from "./infrastructure/MyDay";
 import { search } from "./infrastructure/Search";
@@ -41,6 +42,8 @@ export class ReportingModule {
   readonly attention = attentionDeals;
   /** Цифры утренней сводки сотрудникам. */
   readonly morningDigest = morningDigest;
+  /** Клиенты для адресной книги телефона магазина (vCard). */
+  readonly vcardClients = vcardClients;
   readonly paymentsExport = paymentsExport;
   readonly myDay = myDay;
   readonly search = search;

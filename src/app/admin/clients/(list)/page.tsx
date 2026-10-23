@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { MobileFilters } from "@/components/admin/MobileFilters";
 import { channelLabel, channels, toAttribution } from "@/shared/domain/channels";
-import { Download, UserPlus } from "lucide-react";
+import { Contact, Download, UserPlus } from "lucide-react";
 import { clientSegments, type ClientSegment } from "@/shared/domain/segments";
 import { CLIENT_OCCASIONS, clientFiltersFrom, clientFiltersQuery, type ClientSort } from "@/modules/reporting";
 import { messagesFor } from "@/i18n/messages";
 import { formatPrice } from "@/config/site";
 import { cn } from "@/lib/class-names";
-import { formatDate } from "@/lib/dates";
+import { formatDate, nowMs } from "@/lib/dates";
 import { can, contactView, requireStaff } from "@/server/access";
 import { staffLabel } from "@/shared/domain/staff";
 import { container } from "@/server/container";
@@ -39,11 +39,15 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
   // Ручная добивка к праздникам (contacts-13): повод, месяц повода, когда покупали, без открытой сделки.
   const filters = clientFiltersFrom((k) => sp[k as keyof typeof sp]);
   const filterQs = clientFiltersQuery(filters);
-  const [{ rows, total }, counts, admins] = await Promise.all([
+  const [{ rows, total }, counts, admins, phoneHolder] = await Promise.all([
     container().reporting.clients({ segment, q: sp.q, tag: sp.tag, sort, channel: sp.ch, limit: PAGE, offset: (page - 1) * PAGE, scopeManagerId: scopeManagerId ?? (onlyMine ? staff.user.id : null), onlyMine, filters }),
     container().reporting.segmentCounts(scopeManagerId),
     container().access.queries.allStaff(),
+    container().messaging.phoneHolder(),
   ]);
+  // Контакты для адресной книги телефона магазина (contacts-10) — тому, у кого сейчас телефон, и руководителю.
+  const canVcard = can(staff, "clients.export", "clients.contacts") && (phoneHolder?.id === staff.user.id || can(staff, "team.manage"));
+  const weekAgo = new Date(nowMs() - 7 * 86_400_000).toISOString().slice(0, 10);
   const managerName = new Map(admins.map((a) => [a.id, staffLabel(a)]));
   const link = (patch: Record<string, string | undefined>) => {
     const p = new URLSearchParams(Object.entries({ segment, q: sp.q, tag: sp.tag, sort, ch: sp.ch, mine: onlyMine ? "1" : undefined, ...filterQs, ...patch }).filter(([, v]) => v && v !== "all" && v !== "new") as [string, string][]);
@@ -63,6 +67,16 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
           {can(staff, "clients.export", "clients.contacts") ? (
             <a href={`/api/admin/export/clients?${exportQs}`} className="btn btn-outline btn-sm">
               <Download className="size-4" /> CSV
+            </a>
+          ) : null}
+          {canVcard ? (
+            <a href="/api/admin/export/vcard" className="btn btn-outline btn-sm" title="Файл .vcf для контактов телефона магазина: WhatsApp покажет имя, номер сделки и повод вместо номера">
+              <Contact className="size-4" /> Контакты для телефона
+            </a>
+          ) : null}
+          {canVcard ? (
+            <a href={`/api/admin/export/vcard?since=${weekAgo}`} className="text-xs text-muted hover:text-wine" title="Только клиенты, изменённые за 7 дней">
+              новые за неделю
             </a>
           ) : null}
           {can(staff, "clients.create") ? (

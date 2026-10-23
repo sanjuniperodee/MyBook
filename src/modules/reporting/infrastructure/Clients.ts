@@ -23,6 +23,10 @@ const bestAnswered = sql<number>`coalesce((select max(${answeredSql(sql`b.id`)})
 const bestWords = sql<number>`coalesce((select max(${wordsSql(sql`b.id`)}) from books b where b.user_id = ${usersId} and b.theme = 'blank'), 0)::int`;
 const lastBookUpdate = sql<Date | null>`(select max(b.updated_at) from books b where b.user_id = ${usersId})`;
 const lastOrderAt = sql<Date | null>`(select max(o.created_at) from orders o where o.user_id = ${usersId})`;
+// Повод клиента (contacts-10): последней сделки с поводом, иначе последней книги — для выгрузки CSV.
+const occasionOf = sql<string | null>`coalesce(
+  (select nullif(d.custom_fields->>'occasion', '') from crm_deals d where d.client_id = ${usersId} and coalesce(d.custom_fields->>'occasion', '') <> '' order by d.created_at desc limit 1),
+  (select b.occasion from books b where b.user_id = ${usersId} and b.occasion is not null order by b.updated_at desc limit 1))`;
 
 const hasPaid = sql`exists (select 1 from revenue_events e where e.client_id = ${usersId})`;
 // «Оформил»: есть заказ или принятые деньги — такой клиент уже не «пишет книгу» и не «застрял».
@@ -157,7 +161,7 @@ export async function queryClients(opts: {
   const order = opts.sort === "ltv" ? desc(ltv) : opts.sort === "active" ? sql`${users.lastSeenAt} desc nulls last` : desc(users.createdAt);
   const [rows, [{ n }]] = await Promise.all([
     db
-      .select({ user: users, ltv, ordersCount, booksCount, bestAnswered, bestWords, lastBookUpdate, lastOrderAt })
+      .select({ user: users, ltv, ordersCount, booksCount, bestAnswered, bestWords, lastBookUpdate, lastOrderAt, occasion: occasionOf })
       .from(users)
       .where(where)
       .orderBy(order)
