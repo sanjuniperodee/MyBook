@@ -26,6 +26,16 @@ run("automation: журнал срабатываний (PostgreSQL)", () => {
     await pool.end();
   });
 
+  it("правила одного события — в порядке создания, как в списке (automation-11)", async () => {
+    const { rows } = await db.execute<{ id: string }>(sql`
+      insert into crm_automations (name, trigger, active, created_at) values
+        (${`${tag}-b`}, 'deal.created', true, now() - interval '1 day'), (${`${tag}-a`}, 'deal.created', true, now() - interval '2 days')
+      returning id`);
+    const order = (await repo.active("deal.created")).map((r) => r.id).filter((id) => rows.some((x) => x.id === id) || id === ruleId);
+    expect(order).toEqual([rows[1].id, rows[0].id, ruleId]);
+    await db.execute(sql`delete from crm_automations where name in (${`${tag}-a`}, ${`${tag}-b`})`);
+  });
+
   it("claim пишет running, finish — итог и шаги; второй claim того же объекта — нет", async () => {
     expect(await repo.claim(ruleId, "deal:1")).toBe(true);
     expect(await repo.claim(ruleId, "deal:1")).toBe(false);

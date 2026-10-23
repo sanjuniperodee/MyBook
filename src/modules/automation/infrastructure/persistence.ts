@@ -37,7 +37,10 @@ export class DrizzleRuleRepository implements RuleRepository {
     return executor()
       .select({ id: crmAutomations.id, name: crmAutomations.name, trigger: crmAutomations.trigger, conditions: crmAutomations.conditions, actions: crmAutomations.actions })
       .from(crmAutomations)
-      .where(and(eq(crmAutomations.active, true), trigger ? eq(crmAutomations.trigger, trigger) : undefined));
+      .where(and(eq(crmAutomations.active, true), trigger ? eq(crmAutomations.trigger, trigger) : undefined))
+      // Правила одного события выполняются в порядке создания, как в списке «Автоматизаций» (automation-11): «назначить
+      // по кругу» раньше «поставить задачу ответственному», а не как вернёт база.
+      .orderBy(asc(crmAutomations.createdAt), asc(crmAutomations.id));
   }
   async claim(ruleId: string, subject: string) {
     const rows = await executor().insert(crmAutomationRuns).values({ automationId: ruleId, subject, status: "running" }).onConflictDoNothing().returning({ id: crmAutomationRuns.id });
