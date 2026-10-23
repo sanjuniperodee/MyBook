@@ -59,7 +59,12 @@ export function channelOf(a: Attribution | null | undefined, dealSource?: string
   const ref = (a?.referrer ?? "").toLowerCase().trim();
   // Канал выбрал менеджер — это он и есть, без догадок по тексту метки.
   if (med === MANUAL_MEDIUM && isManualChannel(src)) return src;
+  // Повторная продажа и сделка «по рекомендации» — их канал, даже если у клиента остались метки первого визита (analytics-d4).
+  if (dealSource === "repeat") return "repeat";
+  if (dealSource === "referral") return "recommendation";
   if (src || med) {
+    // Ссылка-приглашение друга (/r/<код>): source=invite, medium=referral.
+    if (src === "invite" || med === "referral") return "recommendation";
     if (/^(blog|influenc)/.test(src) || /^(blogger|influencer|influence)$/.test(med)) return "bloggers";
     if (/^(ig|insta)/.test(src)) return "instagram";
     if (/^(tiktok|tt)$/.test(src)) return "tiktok";
@@ -94,8 +99,6 @@ export function channelOf(a: Attribution | null | undefined, dealSource?: string
       return "telegram";
     case "call":
       return "call";
-    case "referral":
-      return "referral";
     default:
       return "direct";
   }

@@ -364,6 +364,16 @@ describe("каналы привлечения и UTM-ссылки", () => {
     expect(channelOf({ source: "partner-shop" })).toBe("other");
   });
 
+  it("приглашение друга — «Рекомендация», повторная продажа — «Повторный клиент», даже с метками первого визита (analytics-d4)", () => {
+    expect(channelOf({ source: "invite", medium: "referral", campaign: "AIGERIM-7" })).toBe("recommendation");
+    expect(channelOf(null, "referral")).toBe("recommendation");
+    expect(channelOf({ source: "instagram", medium: "cpc" }, "repeat")).toBe("repeat");
+    expect(channelOf({ source: "instagram", medium: "cpc" }, "referral")).toBe("recommendation");
+    expect(channelOf(null, "repeat")).toBe("repeat");
+    // Канал, выбранный менеджером, — главнее источника сделки.
+    expect(channelOf({ source: "tiktok", medium: "manual" }, "repeat")).toBe("tiktok");
+  });
+
   it("находит код ссылки в первом сообщении WhatsApp", () => {
     expect(linkCodeFromText("Здравствуйте! Хочу книгу (код: insta-bio)")).toBe("insta-bio");
     expect(linkCodeFromText("Привет #TikTok-NY")).toBe("tiktok-ny");

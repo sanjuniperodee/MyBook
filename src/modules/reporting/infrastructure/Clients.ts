@@ -90,6 +90,9 @@ function channelWhere(ch: string | undefined): SQL | undefined {
       return sql`(${notBlogger} and (${s} ~ '^(fb|facebook|meta)' or (${s} = '' and ${r} ~ '(^|\.)(facebook|fb)\.com$')))`;
     case "direct":
       return sql`(${s} = '' and ${m} = '' and ${r} = '')`;
+    case "recommendation":
+      // Ссылка-приглашение друга (source=invite, medium=referral) или канал, выбранный менеджером.
+      return sql`((${m} = ${MANUAL_MEDIUM} and ${s} = 'recommendation') or ${s} = 'invite' or ${m} = 'referral')`;
     default:
       // Остальные каналы выбирает менеджер вручную: метка {source: канал, medium: manual}.
       return isManualChannel(ch) ? sql`(${m} = ${MANUAL_MEDIUM} and ${s} = ${ch})` : undefined;
