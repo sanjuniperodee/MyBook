@@ -7,6 +7,7 @@ import { ArrowUpRight, Bot, ChevronDown, LoaderCircle, MessageCircle, MessagesSq
 import { ask, toast, toastError } from "@/components/ui/overlays";
 import { deleteTaskAction, snoozeTaskAction, toggleTaskAction, updateTaskAction } from "@/app/admin/actions";
 import { CompleteTask } from "@/components/admin/CompleteTask";
+import { DuePresets } from "@/components/admin/DuePresets";
 import { callAction, openChatAction } from "@/app/admin/crm-actions";
 import { taskKinds } from "@/components/admin/CrmWidgets";
 import { cn } from "@/lib/class-names";
@@ -86,6 +87,13 @@ function Row({ task, staff, canAssign, compact }: { task: TaskRow; staff: { id: 
     });
 
   const [completing, setCompleting] = useState(false);
+  // Срок в поле — свой, пока его крутят; новый срок с сервера («+1 ч», «Завтра», пресет) — заменяет его.
+  const [due, setDue] = useState(task.due);
+  const [serverDue, setServerDue] = useState(task.due);
+  if (task.due !== serverDue) {
+    setServerDue(task.due);
+    setDue(task.due);
+  }
   // Отметить выполненной — через «Что сделали?» (tasks-1); снять отметку — сразу.
   const toggle = () =>
     t.done
@@ -177,13 +185,24 @@ function Row({ task, staff, canAssign, compact }: { task: TaskRow; staff: { id: 
             <>
               <input
                 type="datetime-local"
-                value={t.due}
+                value={due}
                 disabled={ro}
-                onChange={(e) => save({ due: e.target.value, overdue: false }, { dueAt: e.target.value })}
+                // На iPhone колесо даты шлёт изменение на каждый поворот — сохраняем, когда поле отпустили (tasks-3).
+                onChange={(e) => setDue(e.target.value)}
+                onBlur={() => due !== t.due && save({ due, overdue: false }, { dueAt: due })}
                 className={cn("input h-8 w-[11.5rem] text-xs", t.overdue && !t.done && "border-red-300 text-red-700")}
                 aria-label="Срок"
                 title={t.dueLabel ?? "Без срока"}
               />
+              {ro || t.done ? null : (
+                <DuePresets
+                  className="flex flex-wrap gap-1"
+                  onPick={(local) => {
+                    setDue(local);
+                    save({ due: local, overdue: false }, { dueAt: local });
+                  }}
+                />
+              )}
               <select
                 value={t.assigneeId ?? ""}
                 disabled={ro || !canAssign}

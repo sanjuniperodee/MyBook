@@ -424,3 +424,25 @@ describe("бот-квалификатор", () => {
     ]);
   });
 });
+
+describe("пресеты срока задачи (tasks-3)", () => {
+  storeTimeZoneIs("Asia/Almaty");
+  const hours = parseWorkHours('{"days":[1,2,3,4,5],"from":"09:00","to":"18:00","off":["2026-10-02"]}');
+
+  it("днём: через час — в рабочем времени, завтра утром — начало смены, праздник и выходные пропускаются", async () => {
+    const { duePresets } = await import("@/shared/domain/schedule");
+    // Чт 01.10 15:00 по Алматы; пятница 02.10 — выходной по графику.
+    expect(duePresets(new Date("2026-10-01T10:00:00Z"), hours, "Asia/Almaty")).toEqual({
+      hour: "2026-10-01T16:00",
+      morning: "2026-10-05T09:00",
+      days3: "2026-10-05T09:00",
+      week: "2026-10-08T09:00",
+    });
+  });
+
+  it("вечером «через час» — к началу следующей смены, а не ночью", async () => {
+    const { duePresets } = await import("@/shared/domain/schedule");
+    // Ср 30.09 17:30: полчаса сегодня и полчаса утром в четверг.
+    expect(duePresets(new Date("2026-09-30T12:30:00Z"), hours, "Asia/Almaty").hour).toBe("2026-10-01T09:30");
+  });
+});

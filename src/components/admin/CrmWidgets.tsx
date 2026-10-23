@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useActionState, useEffect, useOptimistic, useRef, useState, useTransition } from "react";
 import { Copy, Mail, MessageCircle, MessageSquare, Phone, Sparkles, StickyNote, Trash2 } from "lucide-react";
 import { CompleteTask } from "./CompleteTask";
+import { DuePresets } from "./DuePresets";
 import { addNoteAction, assignOrderAction, createTaskAction, deleteNoteAction, deleteTaskAction, toggleTaskAction, type AdminState } from "@/app/admin/actions";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { MentionTextarea } from "./MentionTextarea";
@@ -48,6 +49,13 @@ export function TaskList({
   // «Что сделали?» при отметке (tasks-1): какая задача сейчас закрывается.
   const [completing, setCompleting] = useState<string | null>(null);
   const form = useRef<HTMLFormElement>(null);
+  const dueDate = useRef<HTMLInputElement>(null);
+  const dueTime = useRef<HTMLInputElement>(null);
+  /** Пресет срока (tasks-3) — в поля даты и времени формы. */
+  const pickDue = (local: string) => {
+    if (dueDate.current) dueDate.current.value = local.slice(0, 10);
+    if (dueTime.current) dueTime.current.value = local.slice(11, 16);
+  };
   useEffect(() => {
     if (state.ok) form.current?.reset();
   }, [state]);
@@ -107,8 +115,8 @@ export function TaskList({
             ))}
           </select>
           <input name="title" required maxLength={300} placeholder="Новая задача: перезвонить, уточнить адрес…" className="input h-10 text-sm" />
-          <input name="dueAt" type="date" className="input h-10 text-sm" title="Срок" />
-          <input name="dueTime" type="time" className="input h-10 text-sm" title="Время (без времени — до 18:00)" />
+          <input ref={dueDate} name="dueAt" type="date" className="input h-10 text-sm" title="Срок" />
+          <input ref={dueTime} name="dueTime" type="time" className="input h-10 text-sm" title="Время (без времени — до 18:00)" />
           <select name="remindBeforeMin" className="input h-10 text-sm" defaultValue="60" title="Напомнить в CRM со звуком и в WhatsApp" aria-label="Напомнить заранее">
             <option value="none">Не напоминать</option>
             <option value="0">В срок</option>
@@ -126,6 +134,7 @@ export function TaskList({
             ))}
           </select>
           <SubmitButton className="btn-sm h-10">Добавить</SubmitButton>
+          <DuePresets onPick={pickDue} className="flex flex-wrap gap-1.5 sm:col-span-7" />
           {state.error ? <p className="text-xs text-red-700 sm:col-span-7">{state.error}</p> : null}
         </form>
       ) : null}

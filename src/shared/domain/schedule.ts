@@ -168,3 +168,29 @@ export function addWorkMinutes(date: Date, minutes: number, hours: WorkHours, tz
   }
   return new Date(start + total);
 }
+
+/** Местное время магазина «ГГГГ-ММ-ДДTЧЧ:ММ» — как в поле datetime-local и в сроке задачи. */
+export function localStamp(date: Date, tz = storeTimeZone()) {
+  const p = zonedParts(date, tz);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${p.y}-${pad(p.m)}-${pad(p.d)}T${pad(Math.floor(p.minutes / 60))}:${pad(p.minutes % 60)}`;
+}
+
+export type DuePresetKey = "hour" | "morning" | "days3" | "week";
+
+/**
+ * Пресеты срока задачи (tasks-3): «через час» — в рабочем времени (вечером — к началу следующей смены), «завтра утром» —
+ * начало ближайшей смены после полуночи (выходные и праздники пропускаются), «через 3 дня» и «через неделю» — начало
+ * смены в тот день или ближайший рабочий после. Время — местное время магазина «ГГГГ-ММ-ДДTЧЧ:ММ».
+ */
+export function duePresets(now: Date, hours: WorkHours, tz = storeTimeZone()): Record<DuePresetKey, string> {
+  const p = zonedParts(now, tz);
+  const midnight = (days: number) => new Date(Date.UTC(p.y, p.m - 1, p.d + days) - timeZoneOffset(now, tz) * 60_000);
+  const startFrom = (at: Date) => nextWorkStart(at, hours, tz) ?? at;
+  return {
+    hour: localStamp(addWorkMinutes(now, 60, hours, tz), tz),
+    morning: localStamp(startFrom(midnight(1)), tz),
+    days3: localStamp(startFrom(midnight(3)), tz),
+    week: localStamp(startFrom(midnight(7)), tz),
+  };
+}
