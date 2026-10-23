@@ -1,13 +1,17 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useRef } from "react";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { Section, Result, Group, Field } from "../ui";
 import type { SettingsState } from "../state";
 import { saveCrmSettingsAction } from "./actions";
 import { MERGE_CLOSED_DAYS_MAX } from "@/modules/sales/domain/merge";
+import { kzHolidays, parseOffDates } from "@/shared/domain/schedule";
 
 const weekdays = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
+
+/** «2026-12-16» → «16.12.2026»: так даты видит и набирает сотрудник. */
+const ruDate = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`;
 
 export function CrmSettingsForm({
   slaMinutes,
@@ -21,7 +25,7 @@ export function CrmSettingsForm({
 }: {
   slaMinutes: number;
   reassignMinutes: number;
-  workHours: { days: number[]; from: string; to: string };
+  workHours: { days: number[]; from: string; to: string; off?: string[] };
   autoDealFrom: string;
   unsorted: boolean;
   maxDiscount: number;
@@ -29,6 +33,16 @@ export function CrmSettingsForm({
   widget: { enabled: boolean; chat: boolean };
 }) {
   const [state, action] = useActionState<SettingsState, FormData>(saveCrmSettingsAction, {});
+  const offRef = useRef<HTMLTextAreaElement>(null);
+  const year = new Date().getFullYear();
+  /** Дописывает в список праздники РК года, которых там ещё нет; прошедшие даты не добавляет. */
+  const addHolidays = (y: number) => {
+    const el = offRef.current;
+    if (!el) return;
+    const today = new Date().toISOString().slice(0, 10);
+    const { dates } = parseOffDates(`${el.value} ${kzHolidays(y).filter((d) => d >= today).join(" ")}`);
+    el.value = dates.map(ruDate).join("\n");
+  };
   return (
     <Section title="Отдел продаж">
       <form action={action} className="space-y-6">
@@ -43,6 +57,21 @@ export function CrmSettingsForm({
             <input name="from" type="time" defaultValue={workHours.from} className="input h-9 w-28 text-sm" aria-label="С" />
             <span className="text-muted">—</span>
             <input name="to" type="time" defaultValue={workHours.to} className="input h-9 w-28 text-sm" aria-label="До" />
+          </div>
+          <div className="mt-4 max-w-sm">
+            <Field
+              label="Праздничные выходные"
+              hint="Даты, в которые отдел не работает, хотя день недели рабочий: по одной в строке, «16.12.2026». В эти дни заявки ждут утра, норматив ответа и сроки задач не идут, бот в режиме «вне рабочего времени» отвечает сам. Курбан айт и переносы выходных добавьте руками."
+            >
+              <textarea ref={offRef} name="off" rows={4} defaultValue={(workHours.off ?? []).map(ruDate).join("\n")} className="input text-sm" placeholder="16.12.2026" />
+            </Field>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {[year, year + 1].map((y) => (
+                <button key={y} type="button" onClick={() => addHolidays(y)} className="btn btn-ghost btn-sm h-8 border border-line">
+                  + Праздники РК {y}
+                </button>
+              ))}
+            </div>
           </div>
         </Group>
 

@@ -8,7 +8,7 @@ import { parseGenericEvent, parseZadarmaEvent, zadarmaRequestAuth, zadarmaSign, 
 import { mapStatus, parseWazzupWebhook, statusRank } from "@/modules/messaging/domain/wazzup";
 import { automationActions, automationTriggers, isTrigger } from "@/modules/automation/domain/meta";
 import { fillTemplate } from "@/shared/domain/templates";
-import { addWorkMinutes, isWorkTime, nextWorkStart, parseWorkHours, workMinutesBetween } from "@/shared/domain/schedule";
+import { addWorkMinutes, isWorkTime, kzHolidays, nextWorkStart, parseOffDates, parseWorkHours, workMinutesBetween } from "@/shared/domain/schedule";
 import { storeTimeZoneIs } from "./doubles/time";
 import { findMentions } from "@/shared/domain/mentions";
 import { milestoneOrder, stageMilestones } from "@/modules/sales/domain/meta";
@@ -256,6 +256,62 @@ describe("рабочее время", () => {
     // круглосуточно и без рабочих дней — календарные минуты
     expect(addWorkMinutes(at("2026-09-30T18:00:00Z"), 90, parseWorkHours('{"days":[1,2,3,4,5,6,7],"from":"00:00","to":"00:00"}'))).toEqual(at("2026-09-30T19:30:00Z"));
     expect(addWorkMinutes(at("2026-09-30T18:00:00Z"), 90, { days: [], from: "09:00", to: "18:00" })).toEqual(at("2026-09-30T19:30:00Z"));
+  });
+});
+
+describe("праздничные выходные в графике (tasks-23)", () => {
+  storeTimeZoneIs("Asia/Almaty");
+  const at = (iso: string) => new Date(iso);
+  // Каждый день 09–21, 16.12.2026 (среда) — выходной.
+  const hours = parseWorkHours('{"days":[1,2,3,4,5,6,7],"from":"09:00","to":"21:00","off":["2026-12-16","мусор","2026-12-16"]}');
+
+  it("разбирает даты, мусор и повторы отбрасывает; без дат поля нет", () => {
+    expect(hours.off).toEqual(["2026-12-16"]);
+    expect(parseWorkHours('{"days":[1],"from":"09:00","to":"18:00","off":[]}')).toEqual({ days: [1], from: "09:00", to: "18:00" });
+    expect(parseOffDates("16.12.2026, 2027-01-01\n1.1.2027 31.02.2027 завтра")).toEqual({ dates: ["2026-12-16", "2027-01-01"], bad: ["31.02.2027", "завтра"] });
+  });
+
+  it("в праздник не рабочее время, накануне и на следующий день — рабочее", () => {
+    expect(isWorkTime(at("2026-12-15T06:00:00Z"), hours)).toBe(true); // 15.12 11:00
+    expect(isWorkTime(at("2026-12-16T06:00:00Z"), hours)).toBe(false); // 16.12 11:00
+    expect(isWorkTime(at("2026-12-17T06:00:00Z"), hours)).toBe(true); // 17.12 11:00
+    // Граница пояса: 16.12 03:00 UTC — это уже 08:00 16.12 по Алматы, а 15.12 18:00 UTC — ещё 23:00 15.12.
+    expect(isWorkTime(at("2026-12-16T04:30:00Z"), hours)).toBe(false);
+    expect(isWorkTime(at("2026-12-15T15:30:00Z"), hours)).toBe(true); // 15.12 20:30
+  });
+
+  it("смена через полночь: ночь после праздника — тоже выходная, ночь перед ним — рабочая", () => {
+    const night = parseWorkHours('{"days":[1,2,3,4,5,6,7],"from":"20:00","to":"02:00","off":["2026-12-16"]}');
+    expect(isWorkTime(at("2026-12-15T20:00:00Z"), night)).toBe(true); // 16.12 01:00 — смена 15.12
+    expect(isWorkTime(at("2026-12-16T16:00:00Z"), night)).toBe(false); // 16.12 21:00
+    expect(isWorkTime(at("2026-12-16T20:00:00Z"), night)).toBe(false); // 17.12 01:00 — смена 16.12
+    expect(isWorkTime(at("2026-12-17T16:00:00Z"), night)).toBe(true); // 17.12 21:00
+  });
+
+  it("начало смены, рабочие минуты и сроки пропускают праздник", () => {
+    // 15.12 22:00 → 17.12 09:00
+    expect(nextWorkStart(at("2026-12-15T17:00:00Z"), hours)).toEqual(at("2026-12-17T04:00:00Z"));
+    // 15.12 20:50 → 17.12 09:10: 10 минут вечером + 10 утром, праздник не считается
+    expect(workMinutesBetween(at("2026-12-15T15:50:00Z"), at("2026-12-17T04:10:00Z"), hours)).toBe(20);
+    // 15.12 20:30 + 2 ч → 30 мин 15.12 и 1,5 ч 17.12 → 10:30
+    expect(addWorkMinutes(at("2026-12-15T15:30:00Z"), 120, hours)).toEqual(at("2026-12-17T05:30:00Z"));
+  });
+
+  it("длинные праздники подряд: Новый год с выходными и Наурыз — до первого рабочего дня", () => {
+    const off = kzHolidays(2027);
+    const weekdays = parseWorkHours(JSON.stringify({ days: [1, 2, 3, 4, 5], from: "09:00", to: "18:00", off: [...off, "2027-03-24", "2027-03-25", "2027-03-26"] }));
+    // 31.12.2026 (чт) 19:00 → 1–2.01 праздник, 3.01 вс → понедельник 4.01, а 7.01 (чт) снова выходной
+    expect(nextWorkStart(at("2026-12-31T14:00:00Z"), weekdays)).toEqual(at("2027-01-04T04:00:00Z"));
+    // 20.03.2027 (сб) → 21–26.03 выходные, 27–28.03 суббота и воскресенье → 29.03 (пн)
+    expect(nextWorkStart(at("2027-03-20T06:00:00Z"), weekdays)).toEqual(at("2027-03-29T04:00:00Z"));
+  });
+
+  it("заготовка праздников РК: 14 дат с фиксированным днём", () => {
+    const list = kzHolidays(2026);
+    expect(list).toHaveLength(14);
+    expect(list).toContain("2026-12-16");
+    expect(list).toContain("2026-10-25");
+    expect(parseOffDates(list.join(" "))).toEqual({ dates: list, bad: [] });
   });
 });
 

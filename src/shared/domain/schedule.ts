@@ -10,6 +10,47 @@ export interface WorkHours {
   /** «09:00» — начало, «21:00» — конец. Если конец раньше начала — смена через полночь. */
   from: string;
   to: string;
+  /**
+   * Выходные по датам магазина «2026-12-16» (tasks-23): праздники, в которые отдел не работает, хотя день недели рабочий.
+   * Смена через полночь принадлежит дню начала: выходной 16.12 снимает и ночь на 17.12. Нет поля — праздников нет.
+   */
+  off?: string[];
+}
+
+/** Сколько дат-исключений хранит график: праздники РК — около 15 в год, с запасом на два года. */
+export const WORK_OFF_MAX = 60;
+
+/** Местная дата «ГГГГ-ММ-ДД»; день за пределами месяца переносится (32.12 → 01.01 следующего года). */
+const ymd = (y: number, m: number, d: number) => {
+  const t = new Date(Date.UTC(y, m - 1, d));
+  return `${t.getUTCFullYear()}-${String(t.getUTCMonth() + 1).padStart(2, "0")}-${String(t.getUTCDate()).padStart(2, "0")}`;
+};
+
+const dateRe = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
+export const isValidOffDate = (d: string) => dateRe.test(d);
+
+/**
+ * Праздники Казахстана с фиксированной датой (Трудовой кодекс РК, ст. 84–85) на год — заготовка для графика. Курбан айт
+ * и переносы выходных правительство объявляет каждый год отдельно: их добавляют руками.
+ */
+export function kzHolidays(year: number): string[] {
+  // Новый год (2), Рождество, 8 Марта, Наурыз (3), 1, 7 и 9 Мая, День столицы, Конституции, Республики, Независимости.
+  const days = ["01-01", "01-02", "01-07", "03-08", "03-21", "03-22", "03-23", "05-01", "05-07", "05-09", "07-06", "08-30", "10-25", "12-16"];
+  return days.map((md) => `${year}-${md}`);
+}
+
+/** Даты-исключения из ввода: «2026-12-16», «16.12.2026», по одной в строке или через запятую; без повторов, по порядку. */
+export function parseOffDates(raw: string): { dates: string[]; bad: string[] } {
+  const dates = new Set<string>();
+  const bad: string[] = [];
+  for (const part of raw.split(/[\s,;]+/).map((x) => x.trim()).filter(Boolean)) {
+    const ru = /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/.exec(part);
+    const iso = ru ? `${ru[3]}-${ru[2].padStart(2, "0")}-${ru[1].padStart(2, "0")}` : part;
+    // 31.02 и подобные Date.UTC переносит на март — такая дата не та, что ввели.
+    if (isValidOffDate(iso) && ymd(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)), Number(iso.slice(8, 10))) === iso) dates.add(iso);
+    else bad.push(part);
+  }
+  return { dates: [...dates].sort(), bad };
 }
 
 const defaultWorkHours: WorkHours = { days: [1, 2, 3, 4, 5, 6, 7], from: "09:00", to: "21:00" };
@@ -23,7 +64,8 @@ export function parseWorkHours(raw: string | null | undefined): WorkHours {
     const days = Array.isArray(v.days) ? [...new Set(v.days.map(Number).filter((d) => d >= 1 && d <= 7))].sort() : defaultWorkHours.days;
     const from = typeof v.from === "string" && timeRe.test(v.from) ? v.from : defaultWorkHours.from;
     const to = typeof v.to === "string" && timeRe.test(v.to) ? v.to : defaultWorkHours.to;
-    return { days, from, to };
+    const off = Array.isArray(v.off) ? [...new Set(v.off.filter((x): x is string => typeof x === "string" && isValidOffDate(x)))].sort().slice(-WORK_OFF_MAX) : [];
+    return off.length ? { days, from, to, off } : { days, from, to };
   } catch {
     return defaultWorkHours;
   }
@@ -31,15 +73,22 @@ export function parseWorkHours(raw: string | null | undefined): WorkHours {
 
 export const isValidTime = (t: string) => timeRe.test(t);
 
+/** Рабочий ли местный день: день недели в графике и дата не в выходных. shift — сдвиг в днях (−1 — вчера). */
+function workDay(hours: WorkHours, p: { y: number; m: number; d: number; weekday: number }, shift = 0) {
+  const weekday = ((((p.weekday - 1 + shift) % 7) + 7) % 7) + 1;
+  if (!hours.days.includes(weekday)) return false;
+  return !hours.off?.length || !hours.off.includes(ymd(p.y, p.m, p.d + shift));
+}
+
 export function isWorkTime(date: Date, hours: WorkHours, tz = storeTimeZone()) {
   const p = zonedParts(date, tz);
   const from = toMin(hours.from);
   const to = toMin(hours.to);
-  if (from === to) return hours.days.includes(p.weekday); // круглосуточно в рабочие дни
-  if (from < to) return hours.days.includes(p.weekday) && p.minutes >= from && p.minutes < to;
+  if (from === to) return workDay(hours, p); // круглосуточно в рабочие дни
+  if (from < to) return workDay(hours, p) && p.minutes >= from && p.minutes < to;
   // Через полночь: вечер относится к текущему дню, ночь — к предыдущему.
-  if (p.minutes >= from) return hours.days.includes(p.weekday);
-  if (p.minutes < to) return hours.days.includes(p.weekday === 1 ? 7 : p.weekday - 1);
+  if (p.minutes >= from) return workDay(hours, p);
+  if (p.minutes < to) return workDay(hours, p, -1);
   return false;
 }
 
@@ -52,11 +101,12 @@ export function nextWorkStart(date: Date, hours: WorkHours, tz = storeTimeZone()
   if (isWorkTime(date, hours, tz)) return date;
   const p = zonedParts(date, tz);
   const from = toMin(hours.from);
-  for (let i = 0; i <= 8; i++) {
+  // Неделя графика плюс самые длинные праздники подряд (Новый год, Наурыз с выходными) — с запасом.
+  for (let i = 0; i <= 8 + (hours.off?.length ?? 0); i++) {
     // Полдень местного дня i — от него берём дату и смещение пояса (переход на летнее время не сдвигает день).
     const noon = new Date(Date.UTC(p.y, p.m - 1, p.d + i, 12) - timeZoneOffset(date, tz) * 60_000);
     const day = zonedParts(noon, tz);
-    if (!hours.days.includes(day.weekday)) continue;
+    if (!workDay(hours, day)) continue;
     const start = new Date(Date.UTC(day.y, day.m - 1, day.d, Math.floor(from / 60), from % 60) - timeZoneOffset(noon, tz) * 60_000);
     if (start.getTime() > date.getTime()) return start;
   }
@@ -80,7 +130,7 @@ export function workMinutesBetween(a: Date, b: Date, hours: WorkHours, tz = stor
     const p = zonedParts(noon, tz);
     const midnight = Date.UTC(p.y, p.m - 1, p.d) - timeZoneOffset(noon, tz) * 60_000;
     if (midnight > end) break;
-    if (!hours.days.includes(p.weekday)) continue;
+    if (!workDay(hours, p)) continue;
     const winStart = midnight + from * 60_000;
     const winEnd = midnight + (from === toMin(hours.to) ? from + 24 * 60 : to) * 60_000;
     total += Math.max(0, Math.min(end, winEnd) - Math.max(start, winStart));
@@ -108,7 +158,7 @@ export function addWorkMinutes(date: Date, minutes: number, hours: WorkHours, tz
   for (let i = -1; i <= 62; i++) {
     const noon = new Date(firstMidnight + i * 86_400_000 + 12 * 3_600_000);
     const p = zonedParts(noon, tz);
-    if (!hours.days.includes(p.weekday)) continue;
+    if (!workDay(hours, p)) continue;
     const midnight = Date.UTC(p.y, p.m - 1, p.d) - timeZoneOffset(noon, tz) * 60_000;
     const winStart = Math.max(start, midnight + from * 60_000);
     const winEnd = midnight + from * 60_000 + span;

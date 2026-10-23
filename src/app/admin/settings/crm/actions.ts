@@ -6,7 +6,7 @@ import { z } from "zod";
 import { uuid } from "@/server/input";
 import { assertStaff, audit } from "@/server/access";
 import { saveSettings } from "@/modules/workspace";
-import { isValidTime } from "@/shared/domain/schedule";
+import { WORK_OFF_MAX, isValidTime, parseOffDates } from "@/shared/domain/schedule";
 import { findSensitive, sensitiveLabels, type BotPreviewResult } from "@/modules/messaging";
 import { BOT_CHANNELS, BOT_LANGS, MAX_QUESTIONS, REMIND_TOUCHES_MAX, defaultBotConfig, type BotTexts } from "@/modules/messaging/domain/botConfig";
 import { faqIntentLabels, pricesOutsideCatalog, promoAmounts } from "@/modules/messaging/domain/botFaq";
@@ -40,12 +40,15 @@ export async function saveCrmSettingsAction(_: SettingsState, form: FormData): P
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const days = form.getAll("days").map(Number).filter((d) => d >= 1 && d <= 7);
   if (!days.length) return { error: "Выберите хотя бы один рабочий день" };
+  const off = parseOffDates(String(form.get("off") ?? ""));
+  if (off.bad.length) return { error: `Не понял даты выходных: ${off.bad.slice(0, 3).join(", ")}. Пишите «16.12.2026»` };
+  if (off.dates.length > WORK_OFF_MAX) return { error: `Праздничных выходных — не больше ${WORK_OFF_MAX}; уберите прошедшие` };
   const d = parsed.data;
   await saveSettings(
     {
       "crm.slaMinutes": String(d.slaMinutes),
       "crm.reassignMinutes": String(d.reassignMinutes),
-      "crm.workHours": JSON.stringify({ days: [...new Set(days)].sort(), from: d.from, to: d.to }),
+      "crm.workHours": JSON.stringify({ days: [...new Set(days)].sort(), from: d.from, to: d.to, ...(off.dates.length ? { off: off.dates } : {}) }),
       "crm.autoDealFrom": d.autoDealFrom,
       "crm.unsorted": form.get("unsorted") === "on" ? "on" : "off",
       "crm.maxDiscount": String(d.maxDiscount),
@@ -55,7 +58,7 @@ export async function saveCrmSettingsAction(_: SettingsState, form: FormData): P
     },
     staff.user.id,
   );
-  await audit(staff, "settings.update", "settings", "crm", { ...d, days });
+  await audit(staff, "settings.update", "settings", "crm", { ...d, days, off: off.dates });
   revalidatePath("/admin/settings");
   return { ok: "Сохранено" };
 }
