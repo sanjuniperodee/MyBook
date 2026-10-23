@@ -106,7 +106,10 @@ export class OrdersService {
     const identity = await this.orders.nextIdentity();
     const build = (found: typeof seen) => {
       // По договорённости тариф фиксирован (даже если форму подменили); «с нуля» — клиент выбирает любой.
-      const { plan, agreement } = checkoutTerms({ plan: cmd.plan, agreement: found && { agreedTotal: found.agreedTotal, prepaid: found.prepaid, plan: found.plan as PlanId | null, gifts: found.gifts }, mode: cmd.agreementMode, upgradeCredit: upgrade?.credit });
+      const { plan, agreement, lockedPlan } = checkoutTerms({ plan: cmd.plan, agreement: found && { agreedTotal: found.agreedTotal, prepaid: found.prepaid, plan: found.plan as PlanId | null, gifts: found.gifts }, mode: cmd.agreementMode, upgradeCredit: upgrade?.credit });
+      // Скрытый тариф продаётся только по договорённости (deals-d17): клиент выбрал его, а его скрыли, пока оформлял, —
+      // ошибка, а не молчаливая подмена другим тарифом за другие деньги.
+      if (getPlan(plan)?.hidden && plan !== lockedPlan) throw new OrderingError("planUnavailable");
       return Order.place(
         {
           ...identity,

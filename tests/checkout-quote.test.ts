@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { quoteCheckout } from "@/modules/ordering/domain/Pricing";
-import type { DeliveryId, PlanId } from "@/config/site";
+import { applyCatalog, getPlan, type DeliveryId, type PlanId } from "@/config/site";
 import { addPromo, admin, setup } from "./doubles/ordering";
 
 /**
@@ -27,8 +27,14 @@ describe("Оформление: форма и сервер считают оди
                 const t = setup();
                 if (promo) await addPromo(t.promos, promo.code, { kind: promo.kind, value: promo.value });
                 t.setAgreement(agreement && { dealId: "d1", dealNumber: 6, deadline: null, ...agreement });
-                const order = await t.place({ plan, quantity, delivery: deliveryOf(delivery), addons: [...addons], promoCode: promo?.code, agreementMode: mode });
+                const input = { plan, quantity, delivery: deliveryOf(delivery), addons: [...addons], promoCode: promo?.code, agreementMode: mode };
                 const quote = quoteCheckout({ plan, quantity, delivery, discount: promo && { kind: promo.kind, value: promo.value }, addons, agreement, mode });
+                // Скрытый тариф — только по договорённости, где он закреплён; иначе ошибка, а не подмена (deals-d17).
+                if (getPlan(quote.plan)?.hidden && quote.lockedPlan !== quote.plan) {
+                  await expect(t.place(input)).rejects.toMatchObject({ code: "planUnavailable" });
+                  continue;
+                }
+                const order = await t.place(input);
                 const server = order.snapshot();
                 expect({ plan: quote.plan, price: quote.price }, JSON.stringify({ plan, delivery, agreement, mode, promo, quantity })).toEqual({ plan: server.plan, price: { prepaidAmount: undefined, ...server.price } });
                 cases++;
@@ -46,5 +52,20 @@ describe("Оформление: форма и сервер считают оди
     const quote = quoteCheckout({ plan: "hardcover", quantity: 1, delivery: "courier", discount: null, addons: ["giftwrap"], agreement: null, upgradeCredit: credit });
     expect({ plan: quote.plan, price: quote.price }).toEqual({ plan: order.snapshot().plan, price: order.snapshot().price });
     expect(quote.price.prepaidAmount).toBe(credit);
+  });
+
+  it("deals-d17: тариф скрыли, пока клиент оформлял, — ошибка «тариф недоступен», а не заказ с другим тарифом", async () => {
+    try {
+      applyCatalog({ plans: { hardcover: { hidden: true } } });
+      const t = setup();
+      await expect(t.place({ plan: "hardcover", delivery: deliveryOf("courier") })).rejects.toMatchObject({ code: "planUnavailable" });
+      t.setAgreement({ dealId: "d1", dealNumber: 6, deadline: null, agreedTotal: 20_000, prepaid: 0, plan: "hardcover" });
+      expect((await t.place({ plan: "digital", delivery: deliveryOf("courier"), agreementMode: "agreed" })).snapshot().plan).toBe("hardcover");
+      const advance = setup();
+      advance.setAgreement({ dealId: "d1", dealNumber: 6, deadline: null, agreedTotal: 20_000, prepaid: 0, plan: "hardcover" });
+      await expect(advance.place({ plan: "hardcover", delivery: deliveryOf("courier"), agreementMode: "advance" })).rejects.toMatchObject({ code: "planUnavailable" });
+    } finally {
+      applyCatalog(null);
+    }
   });
 });

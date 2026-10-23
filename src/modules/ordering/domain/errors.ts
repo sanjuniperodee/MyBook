@@ -8,6 +8,7 @@ export type OrderingErrorCode =
   | "bookNotFound"
   | "alreadyOrdered"
   | "upgradeUnavailable"
+  | "planUnavailable"
   | "notReady"
   | "promoGone"
   | "empty"

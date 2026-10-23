@@ -82,6 +82,7 @@ function orderingText(m: Messages, err: DomainError): string | null {
     bookNotFound: errors.bookNotFound,
     alreadyOrdered: errors.alreadyOrdered,
     upgradeUnavailable: errors.upgradeUnavailable,
+    planUnavailable: errors.planUnavailable,
     notReady: err.message,
     promoGone: errors.promoGone,
     empty: promo.empty,
