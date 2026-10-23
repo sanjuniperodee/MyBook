@@ -4,6 +4,7 @@
  */
 import type { Locale } from "@/i18n/config";
 import { ruPlural } from "@/i18n/plural";
+import type { Animal } from "@/lib/tools/mushel";
 
 const n = (v: number) => v.toLocaleString("ru-RU");
 const ruDays = (v: number) => `${n(v)} ${ruPlural(v, "день", "дня", "дней")}`;
@@ -440,16 +441,16 @@ export const toolsPageUi: Record<Locale, ToolsPageUi> = {
     faqTitle: "Вопросы",
     open: "Открыть",
     hubMeta: {
-      title: "Бесплатные инструменты: проверка фото для печати, шежіре, план книги",
-      description: "Проверка фото для печати, план книги к дате с календарём, объём и толщина книги, шежіре до седьмого колена, расчёт цены, счётчик дней вместе. Бесплатно и без регистрации.",
+      title: "Бесплатные инструменты: шежіре онлайн, мүшел жас, календарь дней рождения",
+      description: "Шежіре до седьмого колена, мүшел жас, календарь дней рождения с напоминаниями, проверка фото для печати, анкета для интервью, план книги к дате. Бесплатно и без регистрации.",
     },
     hubH1: "Бесплатные инструменты",
     hubAccent: "для тех, кто дарит со смыслом",
-    hubLead: "Проверьте, подойдут ли фото для печати, составьте план книги к дате, узнайте, сколько страниц получится, и соберите родословную до седьмого колена. Ещё — счётчик дней вместе, поздравления и тесты. Всё работает в браузере, бесплатно и без регистрации.",
+    hubLead: "Соберите шежіре до седьмого колена, узнайте свой мүшел жас, заведите календарь дней рождения близких, проверьте, подойдут ли фото для печати, и распечатайте анкету для беседы с бабушкой. Всё работает в браузере, бесплатно и без регистрации.",
     hubGuides: "Статьи по теме",
     homeEyebrow: "Бесплатно",
     homeTitle: "Бесплатные инструменты для тех, кто делает книгу",
-    homeNote: "Без регистрации: проверка фото, план книги, объём, шежіре и другие.",
+    homeNote: "Без регистрации: шежіре, мүшел жас, календарь близких, проверка фото и другие.",
     all: "Все инструменты",
     appName: (label) => label,
   },
@@ -465,16 +466,16 @@ export const toolsPageUi: Record<Locale, ToolsPageUi> = {
     faqTitle: "Сұрақтар",
     open: "Ашу",
     hubMeta: {
-      title: "Тегін құралдар: суретті тексеру, шежіре, кітап жоспары",
-      description: "Басып шығаруға суретті тексеру, күнтізбесі бар кітап жоспары, кітаптың көлемі мен қалыңдығы, жеті атаға дейінгі шежіре, баға есебі, бірге өткен күндер санағышы. Тегін және тіркелусіз.",
+      title: "Тегін құралдар: шежіре онлайн, мүшел жас, туған күндер күнтізбесі",
+      description: "Жеті атаға дейінгі шежіре, мүшел жас, ескертулері бар туған күндер күнтізбесі, суретті басып шығаруға тексеру, сұхбатқа анкета, күнге кітап жоспары. Тегін және тіркелусіз.",
     },
     hubH1: "Тегін құралдар",
     hubAccent: "мәнді сыйлайтындарға арналған",
-    hubLead: "Суреттердің басып шығаруға жарайтынын тексеріңіз, күнге кітап жоспарын құрыңыз, неше бет шығатынын біліңіз және жетінші буынға дейін шежіре жинаңыз. Тағы — бірге өткен күндер санағышы, құттықтаулар және тесттер. Бәрі браузерде, тегін және тіркелусіз жұмыс істейді.",
+    hubLead: "Жетінші буынға дейін шежіре жинаңыз, мүшел жасыңызды біліңіз, жақындардың туған күндер күнтізбесін жасаңыз, суреттердің басып шығаруға жарайтынын тексеріңіз және әжемен әңгімеге анкета басып шығарыңыз. Бәрі браузерде, тегін және тіркелусіз жұмыс істейді.",
     hubGuides: "Тақырып бойынша мақалалар",
     homeEyebrow: "Тегін",
     homeTitle: "Кітап жасайтындарға арналған тегін құралдар",
-    homeNote: "Тіркелусіз: суретті тексеру, кітап жоспары, көлем, шежіре және басқалар.",
+    homeNote: "Тіркелусіз: шежіре, мүшел жас, жақындар күнтізбесі, суретті тексеру және басқалар.",
     all: "Барлық құралдар",
     appName: (label) => label,
   },
@@ -571,6 +572,14 @@ export interface ShezhireUi {
   clanPrefix: string;
   you: string;
   privacy: string;
+  details: string;
+  pasteLabel: string;
+  pastePlaceholder: string;
+  pasteApply: string;
+  download: string;
+  posterTitle: string;
+  posterTagline: string;
+  fileName: string;
 }
 
 const ruLen = (n: number, one: string, few: string, many: string) => `${n} ${ruPlural(n, one, few, many)}`;
@@ -694,6 +703,14 @@ const usefulRu = {
     clanPrefix: "Род",
     you: "Вы",
     privacy: "Всё, что вы вводите, остаётся в вашем браузере и никуда не отправляется.",
+    details: "Добавить годы жизни и место",
+    pasteLabel: "Или вставьте список имён",
+    pastePlaceholder: "Серік, Қали, Омар, Төлеген",
+    pasteApply: "Заполнить по списку",
+    download: "Скачать картинкой",
+    posterTitle: "ШЕЖІРЕ",
+    posterTagline: "жеті ата",
+    fileName: "shezhire.png",
   } satisfies ShezhireUi,
 };
 
@@ -816,7 +833,247 @@ const usefulKk = {
     clanPrefix: "Ру",
     you: "Сіз",
     privacy: "Сіз енгізгеннің бәрі браузеріңізде қалады және ешқайда жіберілмейді.",
+    details: "Өмір сүрген жылдары мен жерін қосу",
+    pasteLabel: "Немесе аттар тізімін қойыңыз",
+    pastePlaceholder: "Серік, Қали, Омар, Төлеген",
+    pasteApply: "Тізім бойынша толтыру",
+    download: "Сурет ретінде жүктеу",
+    posterTitle: "ШЕЖІРЕ",
+    posterTagline: "жеті ата",
+    fileName: "shezhire.png",
   } satisfies ShezhireUi,
 };
 
 export const usefulUi: Record<Locale, { photo: PhotoUi; pages: PagesUi; plan: PlanUi; shezhire: ShezhireUi }> = { ru: usefulRu, kk: usefulKk };
+
+/* ───────── Мүшел жас, семейный календарь, анкета для интервью ───────── */
+
+export interface MushelUi {
+  birthLabel: string;
+  empty: string;
+  future: string;
+  animal: Record<Animal, string>;
+  yourAnimal: string;
+  age: (full: number, traditional: number) => string;
+  currentMushel: (traditional: number) => string;
+  nextMushel: (year: number, traditional: number, years: number) => string;
+  noMore: string;
+  tableTitle: string;
+  round: (n: number, traditional: number) => string;
+  roundMeta: (year: number, full: number) => string;
+  state: Record<"past" | "current" | "future", string>;
+  note: string;
+  copy: string;
+  copied: string;
+  shareText: (animal: string, next: string) => string;
+}
+
+export interface FamilyUi {
+  nameLabel: string;
+  namePlaceholder: string;
+  relationLabel: string;
+  relation: Record<string, string>;
+  birthLabel: string;
+  add: string;
+  remove: string;
+  empty: string;
+  full: string;
+  cols: { who: string; age: string; birthday: string; animal: string; mushel: string };
+  turning: (age: number) => string;
+  inDays: (d: number) => string;
+  mushelCell: (year: number, traditional: number, days: number) => string;
+  noMushel: string;
+  leadLabel: string;
+  lead: Record<"7" | "14" | "30", string>;
+  download: string;
+  icsName: string;
+  saved: string;
+  clear: string;
+  clearConfirm: string;
+  ics: {
+    calendarName: string;
+    birthday: (name: string, turning: number) => string;
+    birthdayDescription: (name: string, animal: string) => string;
+    alarmWeeks: (name: string) => string;
+    alarmDay: (name: string) => string;
+    mushel: (name: string, age: number) => string;
+    mushelAlarm: (name: string, age: number) => string;
+  };
+  privacy: string;
+}
+
+export interface AnketaUi {
+  themeLabel: string;
+  theme: Record<string, string>;
+  nameLabel: string;
+  namePlaceholder: string;
+  pickTitle: (chosen: number, total: number) => string;
+  random: string;
+  all: string;
+  none: string;
+  print: string;
+  copy: string;
+  copied: string;
+  sheetTitle: (name: string) => string;
+  sheetDate: string;
+  sheetBy: string;
+  sheetHint: string;
+  tipsTitle: string;
+  tips: string[];
+  nothing: string;
+}
+
+const usefulRu2 = {
+  mushel: {
+    birthLabel: "Дата рождения",
+    empty: "Укажите дату рождения — покажем животное года и ближайший мүшел жас.",
+    future: "Эта дата ещё впереди. Выберите прошедшую.",
+    animal: { rat: "Крыса (тышқан)", ox: "Бык (сиыр)", tiger: "Тигр (барыс)", rabbit: "Кролик (қоян)", dragon: "Дракон (ұлу)", snake: "Змея (жылан)", horse: "Лошадь (жылқы)", goat: "Коза (қой)", monkey: "Обезьяна (мешін)", rooster: "Петух (тауық)", dog: "Собака (ит)", pig: "Свинья (доңыз)" },
+    yourAnimal: "Год рождения",
+    age: (f, t) => `Сейчас ${f} ${ruPlural(f, "год", "года", "лет")} (по традиционному счёту — ${t}).`,
+    currentMushel: (t) => `В этом году мүшел жас: ${t} лет по традиционному счёту. Время для праздника!`,
+    nextMushel: (y, t, n) => `Ближайший мүшел жас — ${t} лет, в ${y} году (${n === 0 ? "в этом году" : `через ${n} ${ruPlural(n, "год", "года", "лет")}`}).`,
+    noMore: "Все семь кругов мүшел уже пройдены.",
+    tableTitle: "Все мүшел жас",
+    round: (n, t) => `${n}-й мүшел — ${t} лет`,
+    roundMeta: (y, f) => `${y} год, полных лет — ${f}`,
+    state: { past: "уже было", current: "в этом году", future: "впереди" },
+    note: "Мүшел жас — каждые 12 лет, когда снова наступает год вашего животного. В традиционном счёте год рождения считается первым, поэтому мүшел — 13, 25, 37, 49, 61, 73 и 85 лет (полных лет — 12, 24, 36…). Год рождения берётся календарный.",
+    copy: "Скопировать результат",
+    copied: "Скопировано",
+    shareText: (a, n) => `Мой год — ${a}. ${n}`,
+  } satisfies MushelUi,
+  family: {
+    nameLabel: "Имя",
+    namePlaceholder: "Например, Гульнара",
+    relationLabel: "Кем приходится",
+    relation: { "": "Не указано", mom: "Мама", dad: "Папа", grandma: "Бабушка", grandpa: "Дедушка", spouse: "Супруг(а)", partner: "Любимый человек", sister: "Сестра", brother: "Брат", child: "Ребёнок", friend: "Друг, подруга", other: "Другое" },
+    birthLabel: "Дата рождения",
+    add: "Добавить",
+    remove: "Убрать",
+    empty: "Добавьте близких — получите календарь дней рождения и мүшел с напоминаниями.",
+    full: "Достигнут предел списка. Уберите кого-нибудь, чтобы добавить нового.",
+    cols: { who: "Кто", age: "Возраст", birthday: "Ближайший день рождения", animal: "Год", mushel: "Мүшел жас" },
+    turning: (a) => `исполнится ${a}`,
+    inDays: (d) => (d === 0 ? "сегодня!" : d === 1 ? "завтра" : `через ${d} ${ruPlural(d, "день", "дня", "дней")}`),
+    mushelCell: (y, t, d) => {
+      const years = Math.round(d / 365);
+      return `${t} лет, ${y} (${d === 0 ? "сегодня" : d >= 365 ? `через ${years} ${ruPlural(years, "год", "года", "лет")}` : `через ${d} ${ruPlural(d, "день", "дня", "дней")}`})`;
+    },
+    noMushel: "—",
+    leadLabel: "Напоминать заранее",
+    lead: { "7": "за неделю", "14": "за 2 недели", "30": "за месяц" },
+    download: "Скачать календарь (.ics)",
+    icsName: "dni-rozhdeniya.ics",
+    saved: "Список хранится только в этом браузере.",
+    clear: "Очистить список",
+    clearConfirm: "Удалить всех из списка?",
+    ics: {
+      calendarName: "Дни рождения близких",
+      birthday: (n, t) => `День рождения: ${n} (${t})`,
+      birthdayDescription: (n, a) => `${n}. Год рождения — ${a}. Подарок лучше выбрать заранее.`,
+      alarmWeeks: (n) => `Скоро день рождения: ${n}. Пора выбрать подарок.`,
+      alarmDay: (n) => `Завтра день рождения: ${n}.`,
+      mushel: (n, a) => `Мүшел жас: ${n} (${a})`,
+      mushelAlarm: (n, a) => `Скоро мүшел жас (${a}): ${n}. Подготовьте особенный подарок.`,
+    },
+    privacy: "Даты не отправляются на сервер: список хранится в вашем браузере, а файл календаря создаётся на вашем устройстве.",
+  } satisfies FamilyUi,
+  anketa: {
+    themeLabel: "С кем беседа",
+    theme: { mom: "С мамой", dad: "С папой", love: "С любимым человеком", friend: "С другом", autobiography: "С бабушкой, дедушкой" },
+    nameLabel: "Имя собеседника",
+    namePlaceholder: "Например, бабушка Айша",
+    pickTitle: (c, t) => `Выбрано ${c} из ${t}`,
+    random: "10 случайных",
+    all: "Выбрать все",
+    none: "Снять выбор",
+    print: "Распечатать анкету",
+    copy: "Скопировать список",
+    copied: "Скопировано",
+    sheetTitle: (n) => (n ? `Вопросы для беседы: ${n}` : "Вопросы для беседы"),
+    sheetDate: "Дата беседы",
+    sheetBy: "Записал(а)",
+    sheetHint: "Задавайте по одному вопросу, не перебивайте, уточняйте: «А что было потом?» Ответы можно записать здесь или на диктофон.",
+    tipsTitle: "Как провести беседу",
+    tips: ["Выберите спокойное время и пригласите на чай: беседа не должна быть допросом.", "Начните с лёгких вопросов о детстве, а к трудным переходите, когда человек уже разговорился.", "Не торопите паузы: самые ценные слова часто звучат после молчания.", "Включите диктофон на телефоне и спросите разрешения. Запись пригодится, когда будете писать книгу."],
+    nothing: "Выберите хотя бы один вопрос.",
+  } satisfies AnketaUi,
+};
+
+const usefulKk2 = {
+  mushel: {
+    birthLabel: "Туған күні",
+    empty: "Туған күнді көрсетіңіз — жыл жануарын және ең жақын мүшел жасты көрсетеміз.",
+    future: "Бұл күн әлі келмеген. Өткен күнді таңдаңыз.",
+    animal: { rat: "Тышқан", ox: "Сиыр", tiger: "Барыс", rabbit: "Қоян", dragon: "Ұлу", snake: "Жылан", horse: "Жылқы", goat: "Қой", monkey: "Мешін", rooster: "Тауық", dog: "Ит", pig: "Доңыз" },
+    yourAnimal: "Туған жылы",
+    age: (f, t) => `Қазір ${f} жаста (дәстүрлі есеп бойынша — ${t}).`,
+    currentMushel: (t) => `Биыл мүшел жас: дәстүрлі есеп бойынша ${t} жас. Той жасайтын уақыт!`,
+    nextMushel: (y, t, n) => `Ең жақын мүшел жас — ${t} жас, ${y} жылы (${n === 0 ? "биыл" : `${n} жылдан кейін`}).`,
+    noMore: "Жеті мүшелдің бәрі өтіп кеткен.",
+    tableTitle: "Барлық мүшел жас",
+    round: (n, t) => `${n}-ші мүшел — ${t} жас`,
+    roundMeta: (y, f) => `${y} жыл, толық жасы — ${f}`,
+    state: { past: "өтті", current: "биыл", future: "алда" },
+    note: "Мүшел жас — жыл жануарыңыз қайта келетін әр 12 жыл. Дәстүрлі есепте туған жыл бірінші болып саналады, сондықтан мүшел — 13, 25, 37, 49, 61, 73 және 85 жас (толық жасы — 12, 24, 36…). Туған жыл күнтізбелік жыл болып алынады.",
+    copy: "Нәтижені көшіру",
+    copied: "Көшірілді",
+    shareText: (a, n) => `Менің жылым — ${a}. ${n}`,
+  } satisfies MushelUi,
+  family: {
+    nameLabel: "Аты",
+    namePlaceholder: "Мысалы, Гүлнар",
+    relationLabel: "Кім болады",
+    relation: { "": "Көрсетілмеген", mom: "Ана", dad: "Әке", grandma: "Әже", grandpa: "Ата", spouse: "Жұбай", partner: "Сүйікті адам", sister: "Әпке, қарындас", brother: "Аға, іні", child: "Бала", friend: "Дос", other: "Басқа" },
+    birthLabel: "Туған күні",
+    add: "Қосу",
+    remove: "Алып тастау",
+    empty: "Жақындарды қосыңыз — ескертулері бар туған күндер мен мүшел күнтізбесін аласыз.",
+    full: "Тізім шегіне жеттіңіз. Жаңасын қосу үшін біреуін алып тастаңыз.",
+    cols: { who: "Кім", age: "Жасы", birthday: "Ең жақын туған күні", animal: "Жылы", mushel: "Мүшел жас" },
+    turning: (a) => `${a} жасқа толады`,
+    inDays: (d) => (d === 0 ? "бүгін!" : d === 1 ? "ертең" : `${d} күннен кейін`),
+    mushelCell: (y, t, d) => `${t} жас, ${y} (${d === 0 ? "бүгін" : d >= 365 ? `${Math.round(d / 365)} жылдан кейін` : `${d} күннен кейін`})`,
+    noMushel: "—",
+    leadLabel: "Алдын ала ескерту",
+    lead: { "7": "бір апта бұрын", "14": "2 апта бұрын", "30": "бір ай бұрын" },
+    download: "Күнтізбені жүктеу (.ics)",
+    icsName: "tugan-kunder.ics",
+    saved: "Тізім тек осы браузерде сақталады.",
+    clear: "Тізімді тазалау",
+    clearConfirm: "Тізімдегілердің бәрін жою керек пе?",
+    ics: {
+      calendarName: "Жақындардың туған күндері",
+      birthday: (n, t) => `Туған күн: ${n} (${t})`,
+      birthdayDescription: (n, a) => `${n}. Туған жылы — ${a}. Сыйлықты алдын ала таңдаған жөн.`,
+      alarmWeeks: (n) => `Жақында туған күн: ${n}. Сыйлық таңдайтын кез.`,
+      alarmDay: (n) => `Ертең туған күн: ${n}.`,
+      mushel: (n, a) => `Мүшел жас: ${n} (${a})`,
+      mushelAlarm: (n, a) => `Жақында мүшел жас (${a}): ${n}. Ерекше сыйлық дайындаңыз.`,
+    },
+    privacy: "Күндер серверге жіберілмейді: тізім браузеріңізде сақталады, ал күнтізбе файлы құрылғыңызда жасалады.",
+  } satisfies FamilyUi,
+  anketa: {
+    themeLabel: "Кіммен әңгіме",
+    theme: { mom: "Анамен", dad: "Әкемен", love: "Сүйікті адаммен", friend: "Доспен", autobiography: "Әжемен, атамен" },
+    nameLabel: "Әңгімелесушінің аты",
+    namePlaceholder: "Мысалы, Айша әже",
+    pickTitle: (c, t) => `${t} ішінен ${c} таңдалды`,
+    random: "10 кездейсоқ",
+    all: "Бәрін таңдау",
+    none: "Таңдауды алу",
+    print: "Анкетаны басып шығару",
+    copy: "Тізімді көшіру",
+    copied: "Көшірілді",
+    sheetTitle: (n) => (n ? `Әңгімеге арналған сұрақтар: ${n}` : "Әңгімеге арналған сұрақтар"),
+    sheetDate: "Әңгіме күні",
+    sheetBy: "Жазып алған",
+    sheetHint: "Сұрақтарды біртіндеп қойыңыз, бөлмеңіз, нақтылаңыз: «Ал содан кейін не болды?» Жауаптарды осында немесе дауыс жазғышқа жазуға болады.",
+    tipsTitle: "Әңгімені қалай өткізу керек",
+    tips: ["Тыныш уақыт таңдап, шайға шақырыңыз: әңгіме жауап алу болмауы керек.", "Балалық туралы жеңіл сұрақтардан бастаңыз, ал адам әңгімелесіп кеткенде қиындарына көшіңіз.", "Үзілістерді асықтырмаңыз: ең құнды сөздер көбіне үнсіздіктен кейін айтылады.", "Телефондағы дауыс жазғышты қосып, рұқсат сұраңыз. Жазба кітап жазғанда керек болады."],
+    nothing: "Кемінде бір сұрақ таңдаңыз.",
+  } satisfies AnketaUi,
+};
+
+export const usefulUi2: Record<Locale, { mushel: MushelUi; family: FamilyUi; anketa: AnketaUi }> = { ru: usefulRu2, kk: usefulKk2 };

@@ -9,6 +9,9 @@ import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { DeadlineCalculator } from "@/components/tools/DeadlineCalculator";
 import { GreetingGenerator } from "@/components/tools/GreetingGenerator";
+import { FamilyCalendar } from "@/components/tools/FamilyCalendar";
+import { InterviewSheet } from "@/components/tools/InterviewSheet";
+import { MushelCalculator } from "@/components/tools/MushelCalculator";
 import { BookPlanner } from "@/components/tools/BookPlanner";
 import { PagesCalculator } from "@/components/tools/PagesCalculator";
 import { PhotoChecker } from "@/components/tools/PhotoChecker";
@@ -161,6 +164,15 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
       break;
     case "shezhire":
       widget = <ShezhireBuilder />;
+      break;
+    case "mushel":
+      widget = <MushelCalculator />;
+      break;
+    case "family":
+      widget = <FamilyCalendar />;
+      break;
+    case "anketa":
+      widget = <InterviewSheet themes={cardThemes(locale)} />;
       break;
     case "quiz":
       widget = <Quiz quiz={quizData[locale][tool.quiz!]} ctaHref={create} ctaLabel={pg.create} />;

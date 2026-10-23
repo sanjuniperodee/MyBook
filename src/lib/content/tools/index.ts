@@ -5,6 +5,7 @@ import { generatorPozdravlenij } from "./greeting";
 import { voprosyDlyaRazgovora } from "./cards";
 import { testMama, testPapa, testBabushka, testLyubimyj } from "./quizzes";
 import { proverkaFoto, skolkoStranits, planKnigi, shezhire } from "./useful";
+import { mushelZhas, semejnyjKalendar, anketaIntervyu } from "./family";
 import type { ToolDef } from "./types";
 
 export type * from "./types";
@@ -15,7 +16,7 @@ export type * from "./types";
  * книги (проверка фото, план, объём, родословная), затем остальные. Каждый ведёт к книге на подходящую тему.
  * Расчёты выполняются в браузере и ничего не сохраняют; адрес общий для двух языков (/kk/instrumenty/<slug>).
  */
-export const tools: ToolDef[] = [proverkaFoto, planKnigi, skolkoStranits, shezhire, uspetKDate, skolkoStoitKniga, dniVmeste, generatorPozdravlenij, voprosyDlyaRazgovora, testMama, testPapa, testBabushka, testLyubimyj];
+export const tools: ToolDef[] = [shezhire, proverkaFoto, planKnigi, semejnyjKalendar, mushelZhas, anketaIntervyu, skolkoStranits, uspetKDate, skolkoStoitKniga, dniVmeste, generatorPozdravlenij, voprosyDlyaRazgovora, testMama, testPapa, testBabushka, testLyubimyj];
 
 export function getTool(slug: string) {
   return tools.find((t) => t.slug === slug);

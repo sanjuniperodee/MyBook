@@ -281,3 +281,74 @@ describe("шежіре", () => {
     expect(filled(s.father)).toBe(2);
   });
 });
+
+describe("шежіре: список имён и глубина плаката", () => {
+  it("разбирает вставленный текст", async () => {
+    const { parseNames, posterDepth, emptyShezhire } = await import("@/lib/tools/shezhire");
+    expect(parseNames("Серік, Қали; Омар\nТөлеген")).toEqual(["Серік", "Қали", "Омар", "Төлеген"]);
+    expect(parseNames("Серік Қали Омар")).toEqual(["Серік", "Қали", "Омар"]);
+    expect(parseNames("Серік → Қали → Омар")).toEqual(["Серік", "Қали", "Омар"]);
+    expect(parseNames("Нұрлан Серікұлы, Қали")).toEqual(["Нұрлан Серікұлы", "Қали"]);
+    expect(parseNames("")).toEqual([]);
+    expect(parseNames("а б в г д е ж з и")).toHaveLength(7);
+    const s = emptyShezhire();
+    expect(posterDepth(s.father)).toBe(0);
+    s.father[2].name = "Омар";
+    expect(posterDepth(s.father)).toBe(3);
+  });
+});
+
+describe("мүшел жас", () => {
+  it("животное года: 2000 — дракон, 1996 — крыса, 2007 — свинья, до нашей эры не ломается", async () => {
+    const { animalOf, mushelInfo } = await import("@/lib/tools/mushel");
+    expect(animalOf(2000)).toBe("dragon");
+    expect(animalOf(1996)).toBe("rat");
+    expect(animalOf(2007)).toBe("pig");
+    expect(animalOf(1900)).toBe("rat");
+    expect(animalOf(-100)).toBeTruthy();
+    const info = mushelInfo(1977, 5, 14, new Date(2026, 9, 23));
+    expect(info.age).toBe(49);
+    expect(info.traditionalAge).toBe(50);
+    expect(info.rounds.map((r) => r.year).slice(0, 5)).toEqual([1989, 2001, 2013, 2025, 2037]);
+    expect(info.rounds[3].traditionalAge).toBe(49);
+    expect(info.next?.year).toBe(2037);
+    expect(mushelInfo(1990, 12, 1, new Date(2026, 9, 23)).age).toBe(35);
+    expect(mushelInfo(1938, 1, 1, new Date(2026, 9, 23)).next).toBeNull();
+  });
+});
+
+describe("семейный календарь", () => {
+  const now = new Date(2026, 9, 23);
+  it("читает сохранённое устойчиво", async () => {
+    const { parsePeople } = await import("@/lib/tools/family");
+    expect(parsePeople(null)).toEqual([]);
+    expect(parsePeople("не json")).toEqual([]);
+    expect(parsePeople(JSON.stringify([{ name: "Мама", birth: "1970-02-30" }, { name: "Папа", birth: "1968-04-01", id: "x" }, 5]))).toHaveLength(1);
+  });
+  it("ближайший день рождения и мүшел", async () => {
+    const { personRow, nextBirthday } = await import("@/lib/tools/family");
+    const r = personRow({ id: "a", name: "Мама", relation: "mom", birth: "1977-05-14" }, now)!;
+    expect(r.age).toBe(49);
+    expect(r.turning).toBe(50);
+    expect(r.nextBirthday.getFullYear()).toBe(2027);
+    expect(r.daysToBirthday).toBeGreaterThan(0);
+    expect(r.mushel?.year).toBe(2037);
+    // день рождения сегодня — «через 0 дней»
+    expect(nextBirthday(new Date(1990, 9, 23), now).date.getFullYear()).toBe(2026);
+    // 29 февраля
+    expect(nextBirthday(new Date(2000, 1, 29), new Date(2026, 9, 23)).date).toEqual(new Date(2027, 1, 28));
+  });
+  it("события календаря: годовое повторение и напоминания", async () => {
+    const { personRow, familyEvents, rowsFor } = await import("@/lib/tools/family");
+    const { buildIcs } = await import("@/lib/tools/ics");
+    const rows = rowsFor([{ id: "a", name: "Мама", relation: "mom", birth: "1977-05-14" }, { id: "b", name: "Лея", relation: "", birth: "2000-02-29" }], now);
+    const ev = familyEvents(rows, { birthday: (n, a) => `ДР ${n} ${a}`, birthdayDescription: () => "", alarmWeeks: (n) => `скоро ${n}`, alarmDay: (n) => `завтра ${n}`, mushel: (n, a) => `мүшел ${n} ${a}`, mushelAlarm: () => "готовьтесь", animal: (a) => a }, 14);
+    expect(ev.filter((e) => e.rrule).map((e) => e.rrule)).toContain("FREQ=YEARLY");
+    expect(ev.find((e) => e.uid === "bd-b@mybook.kz")?.rrule).toBe("FREQ=YEARLY;BYMONTH=2;BYMONTHDAY=-1");
+    const ics = buildIcs(ev, { calendarName: "Семья", now });
+    expect(ics).toContain("RRULE:FREQ=YEARLY");
+    expect(ics).toContain("TRIGGER;RELATED=START:-P14D");
+    expect(ics.match(/BEGIN:VALARM/g)!.length).toBe(ev.reduce((n, e) => n + (e.alarms?.length ?? 1), 0));
+    expect(personRow({ id: "z", name: "?", relation: "", birth: "нет" }, now)).toBeNull();
+  });
+});

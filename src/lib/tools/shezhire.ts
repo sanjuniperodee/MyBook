@@ -3,6 +3,7 @@
  * на сервер ничего не уходит. Модуль — модель, проверка сохранённого и текст для копирования.
  */
 export const GENERATIONS = 7;
+const FIELD_MAX = 80;
 export const STORAGE_KEY = "mb_shezhire_v1";
 
 export interface Ancestor {
@@ -24,7 +25,6 @@ export interface Shezhire {
 export const emptyAncestor = (): Ancestor => ({ name: "", years: "", place: "" });
 export const emptyShezhire = (): Shezhire => ({ owner: "", clan: "", father: Array.from({ length: GENERATIONS }, emptyAncestor), mother: Array.from({ length: GENERATIONS }, emptyAncestor) });
 
-const FIELD_MAX = 80;
 const clean = (v: unknown) => (typeof v === "string" ? v.slice(0, FIELD_MAX) : "");
 
 function ancestors(v: unknown): Ancestor[] {
@@ -62,4 +62,22 @@ export const filled = (list: readonly Ancestor[]) => list.filter((a) => a.name.t
 export function ancestorLine(a: Ancestor): string {
   const extra = [a.years.trim(), a.place.trim()].filter(Boolean).join(", ");
   return extra ? `${a.name.trim()} (${extra})` : a.name.trim();
+}
+
+/**
+ * Список имён из вставленного текста: через запятую, точку с запятой, перенос строки, тире или стрелку. Если разделителей нет,
+ * а слов от двух до семи, каждое слово — отдельное имя («Серік Қали Омар»). Лишнее после седьмого колена отбрасывается.
+ */
+export function parseNames(text: string): string[] {
+  const t = text.trim();
+  if (!t) return [];
+  const bySeparator = t.split(/[\n,;→>—–]+|\s-\s/).map((s) => s.trim());
+  const parts = bySeparator.length > 1 ? bySeparator : t.split(/\s+/);
+  return parts.filter(Boolean).map((s) => s.slice(0, FIELD_MAX)).slice(0, GENERATIONS);
+}
+
+/** Сколько колен показывает плакат: до последнего известного имени (пробелы между ними остаются «—»). */
+export function posterDepth(list: readonly Ancestor[]): number {
+  for (let i = list.length - 1; i >= 0; i--) if (list[i].name.trim()) return i + 1;
+  return 0;
 }

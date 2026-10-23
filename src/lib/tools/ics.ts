@@ -8,6 +8,10 @@ export interface IcsEvent {
   date: Date;
   summary: string;
   description?: string;
+  /** Правило повторения, например «FREQ=YEARLY» (для дней рождения). */
+  rrule?: string;
+  /** Напоминания: триггер по RFC 5545 («-P14D» — за 14 дней, «PT9H» — в 9 утра в день события) и их текст. Нет — одно в 9 утра. */
+  alarms?: { trigger: string; text?: string }[];
 }
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -53,15 +57,12 @@ export function buildIcs(events: readonly IcsEvent[], opts: { calendarName: stri
       `DTSTAMP:${stamp(now)}`,
       `DTSTART;VALUE=DATE:${day(e.date)}`,
       `DTEND;VALUE=DATE:${day(next)}`,
+      ...(e.rrule ? [`RRULE:${e.rrule}`] : []),
       `SUMMARY:${icsEscape(e.summary)}`,
       ...(e.description ? [`DESCRIPTION:${icsEscape(e.description)}`] : []),
-      "BEGIN:VALARM",
-      "ACTION:DISPLAY",
-      `DESCRIPTION:${icsEscape(e.summary)}`,
-      "TRIGGER;RELATED=START:PT9H",
-      "END:VALARM",
-      "END:VEVENT",
     );
+    for (const a of e.alarms ?? [{ trigger: "PT9H" }]) lines.push("BEGIN:VALARM", "ACTION:DISPLAY", `DESCRIPTION:${icsEscape(a.text ?? e.summary)}`, `TRIGGER;RELATED=START:${a.trigger}`, "END:VALARM");
+    lines.push("END:VEVENT");
   }
   lines.push("END:VCALENDAR");
   return lines.map(icsFold).join("\r\n") + "\r\n";
