@@ -1,0 +1,2 @@
+ALTER TABLE "crm_tasks" ADD COLUMN "done_by_id" uuid;--> statement-breakpoint
+ALTER TABLE "crm_tasks" ADD CONSTRAINT "crm_tasks_done_by_id_users_id_fk" FOREIGN KEY ("done_by_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;

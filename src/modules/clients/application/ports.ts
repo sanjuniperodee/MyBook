@@ -45,7 +45,8 @@ export interface TaskRepository {
   closeOpenOfKind(t: { dealId: string; kind: TaskKind; result: string; at: Date }): Promise<number>;
   /** Закрыть открытые служебные задачи сделки, заголовок которых начинается с prefix (кроме keepTitle); сколько закрыто. */
   closeOpenByPrefix(t: { dealId: string; prefix: string; keepTitle?: string | null; at: Date }): Promise<number>;
-  setDone(id: string, doneAt: Date | null): Promise<void>;
+  /** doneById — кто отметил (снятие отметки его стирает). */
+  setDone(id: string, doneAt: Date | null, doneById?: string | null): Promise<void>;
   /**
    * Сделка перешла к другому: её открытые задачи прежнего ответственного (from) и ничьи — новому (to), напоминание
    * взводится заново. Задачи, поставленные на третьих сотрудников, не трогаются. Сколько задач перешло.

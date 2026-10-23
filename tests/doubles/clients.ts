@@ -48,7 +48,7 @@ class MemClients implements ClientRepository {
 }
 
 class MemTasks implements TaskRepository {
-  rows = new Map<string, Task & { remindBeforeMin?: number | null; remindedAt?: Date | null; result?: string | null }>();
+  rows = new Map<string, Task & { remindBeforeMin?: number | null; remindedAt?: Date | null; result?: string | null; doneById?: string | null }>();
   private seq = 0;
   async find(id: string) {
     const t = this.rows.get(id);
@@ -92,9 +92,9 @@ class MemTasks implements TaskRepository {
     }
     return n;
   }
-  async setDone(id: string, doneAt: Date | null) {
+  async setDone(id: string, doneAt: Date | null, doneById: string | null = null) {
     const t = this.rows.get(id);
-    if (t) this.rows.set(id, { ...t, doneAt });
+    if (t) this.rows.set(id, { ...t, doneAt, doneById: doneAt ? doneById : null });
   }
   async delete(id: string) {
     this.rows.delete(id);

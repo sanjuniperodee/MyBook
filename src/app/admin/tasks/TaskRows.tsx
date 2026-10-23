@@ -6,6 +6,7 @@ import { useOptimistic, useState, useTransition } from "react";
 import { ArrowUpRight, Bot, ChevronDown, LoaderCircle, MessageCircle, MessagesSquare, Phone, PhoneOutgoing, Trash2 } from "lucide-react";
 import { ask, toast, toastError } from "@/components/ui/overlays";
 import { deleteTaskAction, snoozeTaskAction, toggleTaskAction, updateTaskAction } from "@/app/admin/actions";
+import { CompleteTask } from "@/components/admin/CompleteTask";
 import { callAction, openChatAction } from "@/app/admin/crm-actions";
 import { taskKinds } from "@/components/admin/CrmWidgets";
 import { cn } from "@/lib/class-names";
@@ -84,11 +85,15 @@ function Row({ task, staff, canAssign, compact }: { task: TaskRow; staff: { id: 
       setError(res.error ?? null);
     });
 
+  const [completing, setCompleting] = useState(false);
+  // Отметить выполненной — через «Что сделали?» (tasks-1); снять отметку — сразу.
   const toggle = () =>
-    start(async () => {
-      patchLocal({ done: !t.done });
-      await toggleTaskAction(t.id);
-    });
+    t.done
+      ? start(async () => {
+          patchLocal({ done: false });
+          await toggleTaskAction(t.id);
+        })
+      : setCompleting(true);
 
   // Новый срок считает сервер (по времени магазина); строка обновится вместе со страницей.
   const snooze = (by: "hour" | "tomorrow") =>
@@ -249,6 +254,7 @@ function Row({ task, staff, canAssign, compact }: { task: TaskRow; staff: { id: 
         </div>
       ) : null}
       {error ? <p className="mt-1 ml-7 text-xs text-red-700">{error}</p> : null}
+      {completing ? <CompleteTask taskId={t.id} kind={t.kind} onClose={() => setCompleting(false)} /> : null}
     </li>
   );
 }

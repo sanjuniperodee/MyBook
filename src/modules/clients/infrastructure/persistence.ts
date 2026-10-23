@@ -65,7 +65,7 @@ export const drizzleTasks: TaskRepository = {
       .returning({ id: crmTasks.id, title: crmTasks.title, kind: crmTasks.kind, dueAt: crmTasks.dueAt, assigneeId: crmTasks.assigneeId, dealId: crmTasks.dealId, orderId: crmTasks.orderId });
     return rows.map((r) => ({ ...r, dueAt: r.dueAt as Date })).sort((a, b) => a.dueAt.getTime() - b.dueAt.getTime());
   },
-  setDone: async (id, doneAt) => void (await executor().update(crmTasks).set({ doneAt }).where(eq(crmTasks.id, id))),
+  setDone: async (id, doneAt, doneById = null) => void (await executor().update(crmTasks).set({ doneAt, doneById: doneAt ? doneById : null }).where(eq(crmTasks.id, id))),
   // Один UPDATE на ответ клиенту — по частичному индексу crm_tasks_open_deal_idx (открытые задачи сделки). Только задачи
   // CRM (автора нет): ручные «Написать» сотрудников ответ в чате не закрывает.
   async closeOpenOfKind({ dealId, kind, result, at }) {

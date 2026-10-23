@@ -4,6 +4,7 @@ import { ask, toast } from "@/components/ui/overlays";
 import Link from "next/link";
 import { useActionState, useEffect, useOptimistic, useRef, useState, useTransition } from "react";
 import { Copy, Mail, MessageCircle, MessageSquare, Phone, Sparkles, StickyNote, Trash2 } from "lucide-react";
+import { CompleteTask } from "./CompleteTask";
 import { addNoteAction, assignOrderAction, createTaskAction, deleteNoteAction, deleteTaskAction, toggleTaskAction, type AdminState } from "@/app/admin/actions";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { MentionTextarea } from "./MentionTextarea";
@@ -44,6 +45,8 @@ export function TaskList({
   const [, start] = useTransition();
   const [state, action] = useActionState<AdminState, FormData>(createTaskAction, {});
   const [optimistic, setOptimistic] = useOptimistic(tasks, (list: TaskItem[], id: string) => list.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
+  // «Что сделали?» при отметке (tasks-1): какая задача сейчас закрывается.
+  const [completing, setCompleting] = useState<string | null>(null);
   const form = useRef<HTMLFormElement>(null);
   useEffect(() => {
     if (state.ok) form.current?.reset();
@@ -54,16 +57,18 @@ export function TaskList({
       {tasks.length === 0 ? <p className="py-3 text-sm text-muted">{emptyText}</p> : null}
       <ul className="divide-y divide-line">
         {optimistic.map((t) => (
-          <li key={t.id} className="group flex items-start gap-3 py-2.5 text-sm">
+          <li key={t.id} className="group flex flex-wrap items-start gap-3 py-2.5 text-sm">
             <input
               type="checkbox"
               className="mt-0.5 size-4 accent-wine"
               checked={t.done}
               onChange={() =>
-                start(async () => {
-                  setOptimistic(t.id);
-                  await toggleTaskAction(t.id);
-                })
+                t.done
+                  ? start(async () => {
+                      setOptimistic(t.id);
+                      await toggleTaskAction(t.id);
+                    })
+                  : setCompleting(t.id)
               }
               aria-label="Выполнено"
             />
@@ -85,6 +90,7 @@ export function TaskList({
             <button className="text-muted opacity-0 transition group-hover:opacity-100 hover:text-red-700" onClick={async () => (await ask("Удалить задачу?", true)) && start(() => deleteTaskAction(t.id))} aria-label="Удалить">
               <Trash2 className="size-4" />
             </button>
+            {completing === t.id ? <CompleteTask taskId={t.id} kind={t.kind ?? "task"} onClose={() => setCompleting(null)} /> : null}
           </li>
         ))}
       </ul>

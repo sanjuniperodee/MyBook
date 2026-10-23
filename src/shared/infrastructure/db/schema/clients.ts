@@ -39,6 +39,8 @@ export const crmTasks = pgTable(
     /** Результат выполнения (как в amoCRM: «дозвонился, договорились…»). */
     result: text("result"),
     doneAt: timestamp("done_at", { withTimezone: true }),
+    /** Кто отметил выполненной (tasks-1): в отчётах — кто делал, а не на кого стояла. */
+    doneById: uuid("done_by_id").references(() => users.id, { onDelete: "set null" }),
     /** За сколько минут до срока напомнить ответственному (CRM со звуком и WhatsApp); null — не напоминать. */
     remindBeforeMin: integer("remind_before_min"),
     /** Когда напоминание ушло: одно на задачу. */

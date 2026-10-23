@@ -289,6 +289,31 @@ export async function toggleTaskAction(taskId: string) {
 }
 
 /**
+ * «Что сделали?» (tasks-1): выполнить задачу с итогом и следующим шагом. Итог — в задачу и заметкой в ленту сделки или
+ * клиента; следующий шаг — новая задача на того же клиента и сделку, на себя.
+ */
+export async function completeTaskAction(taskId: string, raw: { result?: string; nextTitle?: string; nextDue?: string }): Promise<{ error?: string }> {
+  const staff = await assertStaff();
+  const d = z
+    .object({
+      result: z.string().trim().max(500).optional(),
+      nextTitle: z.string().trim().max(300).optional(),
+      nextDue: z.string().trim().max(20).optional(),
+    })
+    .parse(raw);
+  const actor = crmActor(staff);
+  const { task: t, completed } = await clientsCommand(() => container().clients.tasks.complete(actor, uuid.parse(taskId), d.result ?? null));
+  if (completed && d.result && (t.dealId || t.clientId))
+    await container().clients.notes.add(actor, { kind: "note", text: `Задача «${t.title}» выполнена: ${d.result}`, dealId: t.dealId ?? undefined, clientId: t.clientId ?? undefined, orderId: t.orderId ?? undefined });
+  if (completed && d.nextTitle && d.nextTitle.length >= 2)
+    await clientsCommand(() =>
+      container().clients.tasks.create(actor, { title: d.nextTitle!, kind: t.kind, dueAt: d.nextDue || undefined, clientId: t.clientId ?? undefined, dealId: t.dealId ?? undefined, orderId: t.orderId ?? undefined }),
+    );
+  revalidateCrm(t.clientId, t.orderId, t.dealId);
+  return {};
+}
+
+/**
  * Правка задачи со страницы «Задачи» (поле за полем): заголовок, тип, срок («ГГГГ-ММ-ДД» или с временем; "" — без срока),
  * напоминание, ответственный, результат. Ошибка — текстом для строки задачи.
  */

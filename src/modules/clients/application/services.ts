@@ -201,8 +201,21 @@ export class TasksService {
   async toggle(actor: Actor, taskId: string) {
     const t = await this.load(actor, taskId);
     if (!t) throw new ClientsError("taskNotFound", "Задача не найдена");
-    await this.tasks.setDone(t.id, t.doneAt ? null : this.clock.now());
+    await this.tasks.setDone(t.id, t.doneAt ? null : this.clock.now(), actor.userId);
     return t;
+  }
+
+  /**
+   * «Что сделали?» (tasks-1): отметить выполненной с итогом. Итог пишется в задачу; заметку в ленту сделки и следующий
+   * шаг ставит вызывающий (действие CRM). Уже выполненная — без изменений.
+   */
+  async complete(actor: Actor, taskId: string, result: string | null) {
+    const t = await this.load(actor, taskId);
+    if (!t) throw new ClientsError("taskNotFound", "Задача не найдена");
+    if (t.doneAt) return { task: t, completed: false };
+    await this.tasks.setDone(t.id, this.clock.now(), actor.userId);
+    if (result?.trim()) await this.tasks.update(t.id, { result: result.trim().slice(0, 500) });
+    return { task: t, completed: true };
   }
 
   async delete(actor: Actor, taskId: string) {

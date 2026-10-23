@@ -171,6 +171,30 @@ describe("TasksService: задачи менеджеров", () => {
   });
 });
 
+describe("«Что сделали?» — итог задачи (tasks-1)", () => {
+  it("выполнить с итогом: отметка, кто отметил и итог; второй раз — без изменений; снять отметку стирает «кто»", async () => {
+    const t = setup();
+    await t.tasks.create(manager, { title: "Перезвонить", kind: "call", dealId: "deal-1" });
+    const id = [...t.mem.tasks.rows.keys()][0];
+    expect((await t.tasks.complete(manager, id, "  Дозвонился, договорились на пятницу  ")).completed).toBe(true);
+    expect(t.mem.tasks.rows.get(id)).toMatchObject({ result: "Дозвонился, договорились на пятницу", doneById: "m1" });
+    expect(t.mem.tasks.rows.get(id)?.doneAt).toBeInstanceOf(Date);
+    expect((await t.tasks.complete(manager, id, "другое")).completed).toBe(false);
+    expect(t.mem.tasks.rows.get(id)?.result).toBe("Дозвонился, договорились на пятницу");
+    await t.tasks.toggle(manager, id);
+    expect(t.mem.tasks.rows.get(id)).toMatchObject({ doneAt: null, doneById: null });
+  });
+
+  it("без итога — просто отметка; чужую задачу «только свои» не закрывает", async () => {
+    const t = setup();
+    await t.tasks.create(lead, { title: "Проверить макет", kind: "task", assigneeId: "m2" });
+    const id = [...t.mem.tasks.rows.keys()][0];
+    await expect(t.tasks.complete(manager, id, null)).rejects.toMatchObject({ code: "forbidden" });
+    expect((await t.tasks.complete(lead, id, null)).completed).toBe(true);
+    expect(t.mem.tasks.rows.get(id)?.result ?? null).toBeNull();
+  });
+});
+
 describe("NotesService: заметки и @упоминания", () => {
   it("звонок, сообщение или письмо в сделке — менеджер связался с клиентом: заявка принята в работу; простая заметка и записи вне сделки — нет", async () => {
     const t = setup();
