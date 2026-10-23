@@ -21,21 +21,40 @@ export interface ReferralPromos {
   status(codes: string[]): Promise<Map<string, { used: boolean; expiresAt: Date | null }>>;
 }
 
-/** Награда за друга: одна на оплаченный заказ. */
+/** Награда за друга: одна на оплаченный заказ сайта и одна на сделку (покупка из чата по счёту). */
 export interface RewardRecord {
-  orderId: string;
+  orderId: string | null;
+  dealId: string | null;
+  /** Номер заказа, а у покупки из чата — номер сделки. */
   orderNumber: number;
   referrerId: string;
-  friendId: string;
+  /** Друг; у покупки из чата аккаунта может ещё не быть. */
+  friendId: string | null;
   code: string | null;
   createdAt: Date;
 }
 
 export interface RewardLedger {
-  /** Занять награду за заказ; false — уже выдана (повтор события). */
-  claim(record: Omit<RewardRecord, "code">): Promise<boolean>;
-  setCode(orderId: string, code: string): Promise<void>;
+  /** Занять награду за покупку: ключ записи; null — уже выдана (повтор события, награда за эту сделку уже была). */
+  claim(record: Omit<RewardRecord, "code">): Promise<string | null>;
+  setCode(rewardId: string, code: string): Promise<void>;
   forReferrer(userId: string): Promise<RewardRecord[]>;
+}
+
+/** Покупка из чата глазами приглашений (контекст Sales): сделка, по которой оплачен счёт. */
+export interface ChatPurchase {
+  number: number;
+  /** Имя клиента в сделке — для письма, если аккаунта ещё нет. */
+  name: string;
+  clientId: string | null;
+  /** Код-приглашение, по которому пришёл клиент: метки сделки или первого визита клиента (source=invite). */
+  inviteCode: string | null;
+  /** У клиента уже были покупки до этой сделки — скидка друга и награда только за первую. */
+  repeat: boolean;
+}
+
+export interface FriendPurchases {
+  deal(dealId: string): Promise<ChatPurchase | null>;
 }
 
 export interface ReferralPerson {

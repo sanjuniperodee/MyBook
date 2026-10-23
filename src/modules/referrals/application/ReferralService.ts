@@ -1,6 +1,6 @@
 import type { Clock, Logger } from "@/shared/application";
 import { inviteCode, latinName, REFERRAL } from "../domain";
-import type { ReferralMail, ReferralPeople, ReferralPromos, RewardLedger, SuffixGenerator } from "./ports";
+import type { FriendPurchases, ReferralMail, ReferralPeople, ReferralPromos, RewardLedger, RewardRecord, SuffixGenerator } from "./ports";
 
 /** Оплаченный заказ глазами приглашений. */
 export interface PaidOrder {
@@ -8,6 +8,8 @@ export interface PaidOrder {
   number: number;
   userId: string;
   promoCode: string | null;
+  /** Сделка заказа: награда за сделку одна — за заказ и счёт из чата по ней не дважды. */
+  dealId?: string | null;
 }
 
 /**
@@ -24,6 +26,7 @@ export class ReferralService {
     private readonly suffix: SuffixGenerator,
     private readonly clock: Clock,
     private readonly logger: Logger,
+    private readonly purchases: FriendPurchases | null = null,
   ) {}
 
   /** Код-приглашение клиента: прежний или новый (с его именем латиницей). */
@@ -56,9 +59,34 @@ export class ReferralService {
     const promo = await this.promos.lookup(order.promoCode);
     const referrerId = promo?.ownerId;
     if (!referrerId || referrerId === order.userId) return;
-    if (!(await this.ledger.claim({ orderId: order.orderId, orderNumber: order.number, referrerId, friendId: order.userId, createdAt: this.clock.now() }))) return;
+    await this.reward(
+      { orderId: order.orderId, dealId: order.dealId ?? null, orderNumber: order.number, referrerId, friendId: order.userId, createdAt: this.clock.now() },
+      { note: `Награда за друга: заказ №${order.number}` },
+    );
+  }
 
-    const [referrer, friend] = await Promise.all([this.people.get(referrerId), this.people.get(order.userId)]);
+  /**
+   * Друг купил из чата — оплатил счёт по сделке (contacts-d7). «От друга» — по коду-приглашению в метках сделки или
+   * первого визита клиента (ссылка /r/<код>, код в сообщении из виджета сайта). Как и на сайте, — только первая покупка
+   * друга и действующий код; награда за сделку одна, сколько бы счетов по ней ни оплатили.
+   */
+  async onDealPaid(dealId: string) {
+    const deal = await this.purchases?.deal(dealId);
+    if (!deal?.inviteCode || deal.repeat) return;
+    const promo = await this.promos.lookup(deal.inviteCode);
+    const referrerId = promo?.usable ? promo.ownerId : null;
+    if (!referrerId || referrerId === deal.clientId) return;
+    await this.reward(
+      { orderId: null, dealId, orderNumber: deal.number, referrerId, friendId: deal.clientId, createdAt: this.clock.now() },
+      { note: `Награда за друга: покупка из чата, сделка №${deal.number}`, friendName: deal.name },
+    );
+  }
+
+  private async reward(record: Omit<RewardRecord, "code">, { note, friendName = "" }: { note: string; friendName?: string }) {
+    const rewardId = await this.ledger.claim(record);
+    if (!rewardId) return;
+    const { referrerId, friendId } = record;
+    const [referrer, friend] = await Promise.all([this.people.get(referrerId), friendId ? this.people.get(friendId) : null]);
     let code: string | null = null;
     for (let attempt = 0; attempt < 3 && !code; attempt++) {
       const base = latinName(referrer?.name ?? "") || "THANKS";
@@ -66,17 +94,17 @@ export class ReferralService {
         code: `${base}-${this.suffix()}${this.suffix()}`.slice(0, 40),
         percent: REFERRAL.rewardPercent,
         validHours: REFERRAL.rewardValidDays * 24,
-        note: `Награда за друга: заказ №${order.number}`,
+        note,
       });
     }
     if (!code) {
-      this.logger.error("referral reward: no free code", undefined, { orderId: order.orderId });
+      this.logger.error("referral reward: no free code", undefined, { orderId: record.orderId, dealId: record.dealId });
       return;
     }
-    await this.ledger.setCode(order.orderId, code);
+    await this.ledger.setCode(rewardId, code);
     if (referrer && !referrer.optOut)
       await this.mail
-        .rewarded(referrer, { code, percent: REFERRAL.rewardPercent, validDays: REFERRAL.rewardValidDays, friendName: friend?.name.trim().split(/\s+/)[0] ?? "" })
+        .rewarded(referrer, { code, percent: REFERRAL.rewardPercent, validDays: REFERRAL.rewardValidDays, friendName: (friend?.name || friendName).trim().split(/\s+/)[0] ?? "" })
         .catch((err) => this.logger.error("referral reward mail", err));
   }
 
@@ -88,7 +116,7 @@ export class ReferralService {
     return {
       code: promo?.code ?? null,
       friends: rewards.length,
-      rewards: rewards.flatMap((r) => (r.code ? [{ code: r.code, orderNumber: r.orderNumber, createdAt: r.createdAt, ...(status.get(r.code) ?? { used: false, expiresAt: null }) }] : [])),
+      rewards: rewards.flatMap((r) => (r.code ? [{ code: r.code, orderNumber: r.orderNumber, chat: !r.orderId, createdAt: r.createdAt, ...(status.get(r.code) ?? { used: false, expiresAt: null }) }] : [])),
     };
   }
 }

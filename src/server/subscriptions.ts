@@ -24,6 +24,7 @@ import { recipientPolicy } from "@/lib/content/kinds";
 import { orderRuleSubject } from "@/shared/domain/orders";
 import { isOrderRuleStatus } from "@/modules/automation/domain/meta";
 import { runInBackground } from "@/shared/infrastructure/background";
+import { getSetting } from "@/modules/workspace";
 import type { Container } from "./container";
 
 /**
@@ -144,8 +145,17 @@ export function registerSubscriptions(c: Container) {
   // ─── заказы → приглашения: друг оплатил заказ по коду-приглашению — награда тому, кто пригласил ──
   c.bus.subscribe<OrderPaid>(
     "ordering.order_paid",
-    (e) => c.referrals.service.onOrderPaid({ orderId: e.payload.orderId, number: e.payload.number, userId: e.payload.userId, promoCode: e.payload.promoCode }),
+    async (e) => c.referrals.service.onOrderPaid({ orderId: e.payload.orderId, number: e.payload.number, userId: e.payload.userId, promoCode: e.payload.promoCode, dealId: await orderDeal(e.payload.orderId) }),
     "referrals.reward",
+  );
+  // Друг купил из чата — оплатил счёт по сделке, пришёл по приглашению (contacts-d7): награда за сделку одна.
+  // Пишет клиенту (письмо владельцу кода), поэтому за выключателем «Интеграции» → CRM, по умолчанию выключено.
+  c.bus.subscribe<DealInvoicePaid>(
+    "ordering.deal_invoice_paid",
+    async (e) => {
+      if ((await getSetting("referral.chatReward")) === "on") await c.referrals.service.onDealPaid(e.payload.dealId);
+    },
+    "referrals.reward_chat",
   );
 
   // ─── клиент и книга → воронка (после ответа: клиент не ждёт CRM, ошибка CRM не ломает его сценарий) ──

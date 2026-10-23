@@ -8,7 +8,7 @@ import { canRemind } from "@/modules/notifications";
 import { NotesTimeline, TaskList } from "@/components/admin/CrmWidgets";
 import { clientScreen } from "@/modules/reporting/ui/client-screen";
 import { ClientFields, RemindButton, TagEditor } from "./ClientControls";
-import { ClientBooks, ClientDeals, ClientOrders, ClientPayments, ClientProfile } from "./sections";
+import { ClientBooks, ClientDeals, ClientOrders, ClientPayments, ClientProfile, ClientReferrals } from "./sections";
 import { ClientAccess } from "./ClientAccess";
 import { staffLogin } from "@/app/admin/clients/new/access-message";
 import { isPhoneEmail } from "@/modules/identity/domain";
@@ -23,11 +23,12 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
   const client = await container().reporting.clientById(id);
   if (!client || !canSeeAssigned(staff, client.managerId)) notFound();
 
-  const [{ bookRows, orderRows, taskRows, noteRows, dealRows, paymentRows, money }, admins, clientFields, noMarketing] = await Promise.all([
+  const [{ bookRows, orderRows, taskRows, noteRows, dealRows, paymentRows, money }, admins, clientFields, noMarketing, referrals] = await Promise.all([
     container().reporting.clientCard(id, { deals: can(staff, "deals.view") }),
     container().access.queries.allStaff(),
     listFields("client"),
     container().messaging.chats.noMarketingFor({ clientId: client.id, phones: [client.phone, ...client.extraPhones] }),
+    container().reporting.clientReferrals(id),
   ]);
 
   const adminOptions = staffOptions(admins);
@@ -63,6 +64,7 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
               </div>
             )}
           </section>
+          {referrals.code || referrals.invitedBy || referrals.friends.length ? <ClientReferrals data={referrals} /> : null}
           {can(staff, "clients.create") && client.role === "user" ? (
             <section className="rounded-2xl border border-line bg-white p-4 sm:p-5">
               <h2 className="mb-3 text-sm font-semibold">Доступ в кабинет</h2>

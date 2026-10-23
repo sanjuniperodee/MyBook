@@ -63,7 +63,7 @@ export default async function InvitePage() {
                       <div className="min-w-0 flex-1">
                         <code className="font-mono text-sm tracking-wider">{r.code}</code>
                         <div className="text-xs text-muted">
-                          {t.rewardFor(r.orderNumber)} · {r.used ? t.used : expired ? t.expired : r.expiresAt ? t.until(formatDate(r.expiresAt, false, locale)) : ""}
+                          {r.chat ? t.rewardForChat(r.orderNumber) : t.rewardFor(r.orderNumber)} · {r.used ? t.used : expired ? t.expired : r.expiresAt ? t.until(formatDate(r.expiresAt, false, locale)) : ""}
                         </div>
                       </div>
                     </li>

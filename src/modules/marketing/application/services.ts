@@ -1,6 +1,6 @@
 import type { Clock } from "@/shared/application";
 import { normalizeSlug } from "@/shared/domain/slug";
-import { DISCOUNT_HOURS, buildChannelReport, discountCap, isPreviewBot, isValidSlug, linkAttribution, linkCodeFromText, linkTarget, offerTexts, widgetCodeTail, type ChatOffers, type OfferRequest, type TrackedLink } from "../domain";
+import { DISCOUNT_HOURS, buildChannelReport, discountCap, isPreviewBot, isValidSlug, linkAttribution, linkCodeFromText, linkTarget, offerTexts, widgetCodeTail, inviteFromWidgetTail, type ChatOffers, type OfferRequest, type TrackedLink } from "../domain";
 import type { AppLinks, ClientContext, LinkRepository, MarketingSettings, PromoCodeGenerator, PromoIssuer, ReportSource } from "./ports";
 
 /** Каналы привлечения, короткие ссылки и предложения клиенту из чата. */
@@ -64,6 +64,9 @@ export class MarketingService {
     // Код виджета сайта (chats-19): кампания визита — метки её ссылки; иначе — сайт, виджет и кампания или страница.
     const tail = code ? widgetCodeTail(code) : null;
     if (!tail) return null;
+    // Пришёл по ссылке-приглашению друга: источник — приглашение с его кодом, награда другу за покупку из чата (contacts-d7).
+    const invite = inviteFromWidgetTail(tail);
+    if (invite) return { source: "invite", medium: "referral", campaign: invite, content: "site-widget" };
     const byCampaign = (await this.links.byCampaign?.(tail)) ?? null;
     if (byCampaign) return { ...(linkAttribution(byCampaign) as Record<string, string>), content: "site-widget" };
     return { source: "site", medium: "widget", campaign: tail };

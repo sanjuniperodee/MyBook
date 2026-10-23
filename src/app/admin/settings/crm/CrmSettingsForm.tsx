@@ -23,6 +23,7 @@ export function CrmSettingsForm({
   mergeClosedDays,
   widget,
   digest,
+  chatReward,
 }: {
   slaMinutes: number;
   reassignMinutes: number;
@@ -34,6 +35,7 @@ export function CrmSettingsForm({
   widget: { enabled: boolean; chat: boolean };
   /** Утренняя сводка сотрудникам (bots-11). */
   digest: boolean;
+  chatReward: boolean;
 }) {
   const [state, action] = useActionState<SettingsState, FormData>(saveCrmSettingsAction, {});
   const offRef = useRef<HTMLTextAreaElement>(null);
@@ -105,6 +107,12 @@ export function CrmSettingsForm({
           <label className="mt-4 flex items-start gap-2 text-sm">
             <input type="checkbox" name="digest" defaultChecked={digest} className="mt-0.5 size-4 accent-wine" />
             <span>Утренняя сводка в начале смены (с 09:00, в рабочий день): чаты без ответа, «я оплатил», даты событий на 3 дня, ночь бота — в колокольчик и push всем, кто ведёт сделки</span>
+          </label>
+          <label className="mt-4 flex items-start gap-2 text-sm">
+            <input type="checkbox" name="chatReward" defaultChecked={chatReward} className="mt-0.5 size-4 accent-wine" />
+            <span>
+              Награда за друга и за покупку из чата: клиент пришёл по ссылке-приглашению и оплатил счёт — владельцу кода промокод и письмо, как за заказ на сайте (одна награда на сделку, только первая покупка друга)
+            </span>
           </label>
           <label className="mt-4 flex items-start gap-2 text-sm">
             <input type="checkbox" name="unsorted" defaultChecked={unsorted} className="mt-0.5 size-4 accent-wine" />

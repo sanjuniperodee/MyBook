@@ -10,6 +10,7 @@ import { formatDate } from "@/lib/dates";
 import { getTheme } from "@/lib/content/themes";
 import { bookLine, progressRatio, progressText } from "@/lib/content/crm-labels";
 import { formatPrice } from "@/config/site";
+import type { ClientReferralsData } from "@/modules/reporting";
 import { orderStatusColors, orderStatusLabel, isPrintedPlan } from "@/modules/ordering/ui/status";
 import type { clientScreen } from "@/modules/reporting/ui/client-screen";
 import { formatPhone, isPhoneStubEmail } from "@/shared/domain/phone";
@@ -193,6 +194,47 @@ export function ClientPayments({ payments }: { payments: { id: string; deal_id: 
           </Link>
         ))}
       </div>
+    </section>
+  );
+}
+
+/** Приглашения (contacts-d7): код клиента для друзей, друзья с покупками и наградами, кто пригласил его самого. */
+export function ClientReferrals({ data }: { data: ClientReferralsData }) {
+  return (
+    <section className="rounded-2xl border border-line bg-white p-4 sm:p-5" data-testid="client-referrals">
+      <h2 className="mb-3 text-sm font-semibold">Приглашения</h2>
+      <dl className="space-y-1 text-sm">
+        {data.invitedBy ? (
+          <div className="flex justify-between gap-2">
+            <dt className="text-muted">Пригласил(а)</dt>
+            <dd>
+              <Link href={`/admin/clients/${data.invitedBy.id}`} className="underline">{data.invitedBy.name || "клиент"}</Link>
+            </dd>
+          </div>
+        ) : null}
+        {data.code ? (
+          <div className="flex justify-between gap-2">
+            <dt className="text-muted">Код для друзей</dt>
+            <dd className={cn("font-mono text-xs", !data.code.active && "text-muted line-through")}>{data.code.code}</dd>
+          </div>
+        ) : null}
+      </dl>
+      {data.friends.length ? (
+        <ul className="mt-3 space-y-1.5 border-t border-line pt-2 text-xs">
+          {data.friends.map((f) => (
+            <li key={`${f.kind}${f.refId}`} className="flex flex-wrap items-baseline justify-between gap-x-2">
+              <span>
+                {f.friendId ? <Link href={`/admin/clients/${f.friendId}`} className="underline">{f.name || "друг"}</Link> : f.name || "друг"}
+                {" · "}
+                <Link href={f.kind === "order" ? `/admin/orders/${f.refId}` : `/admin/deals/${f.refId}`} className="underline">{f.kind === "order" ? `заказ №${f.number}` : `сделка №${f.number} (чат)`}</Link>
+              </span>
+              <span className="text-muted">{f.rewardCode ? `награда ${f.rewardCode}${f.rewardUsed ? " · использована" : ""}` : "награда не выдана"}</span>
+            </li>
+          ))}
+        </ul>
+      ) : data.code ? (
+        <p className="mt-2 text-xs text-muted">По коду пока никто не купил.</p>
+      ) : null}
     </section>
   );
 }

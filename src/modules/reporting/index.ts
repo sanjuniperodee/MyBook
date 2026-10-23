@@ -19,6 +19,8 @@ import { getLive } from "./infrastructure/Live";
 import { queryClients, segmentCounts } from "./infrastructure/Clients";
 import { financeReport } from "./infrastructure/Finance";
 import { automationStats } from "./infrastructure/Automations";
+import { clientReferrals } from "./infrastructure/Referrals";
+export type { ClientReferralsData, InvitedFriend } from "./infrastructure/Referrals";
 
 /**
  * Отчёты CRM — сторона чтения (CQRS): сводные выборки по нескольким контекстам для страниц
@@ -52,6 +54,7 @@ export class ReportingModule {
   readonly clientBrief = clientBrief;
   readonly clientById = clientById;
   readonly clientCard = clientCard;
+  readonly clientReferrals = clientReferrals;
   readonly inbox = inbox;
   readonly conversationContext = conversationContext;
   readonly taskList = taskList;

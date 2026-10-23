@@ -61,4 +61,19 @@ describe("код источника в сообщении из виджета с
     expect(channelOf(plain)).toBe("direct");
     expect(await svc.attributionFromText("Сколько стоит?")).toBeNull();
   });
+
+  it("contacts-d7: пришёл по ссылке-приглашению — в сообщении код приглашения, источник «приглашение»", async () => {
+    const { MarketingService } = await import("@/modules/marketing/application");
+    const { INVITE_CAMPAIGN_PREFIX, inviteFromWidgetTail, widgetCode } = await import("@/modules/marketing/domain");
+    const { channelOf } = await import("@/shared/domain/channels");
+    const links = { bySlug: async () => null, byCampaign: async () => null };
+    const svc = new MarketingService({} as never, links as never, {} as never, {} as never, {} as never, {} as never, {} as never, { now: () => new Date() });
+    // /r/ASEL-7K2Q ведёт на главную с utm_campaign=invite-ASEL-7K2Q — виджет допишет код к сообщению.
+    const text = `Здравствуйте! Хочу книгу #${widgetCode(`${INVITE_CAMPAIGN_PREFIX}ASEL-7K2Q`, "/")}`;
+    const a = await svc.attributionFromText(text);
+    expect(a).toEqual({ source: "invite", medium: "referral", campaign: "ASEL-7K2Q", content: "site-widget" });
+    expect(channelOf(a)).toBe("recommendation");
+    expect(inviteFromWidgetTail("bloggers-nov")).toBeNull();
+    expect(inviteFromWidgetTail("invite-")).toBeNull();
+  });
 });

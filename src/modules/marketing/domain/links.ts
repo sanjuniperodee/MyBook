@@ -83,6 +83,13 @@ export function widgetCode(campaign: string | null | undefined, path: string): s
 /** Код из виджета сайта — что после «site-» (кампания или страница); другой код — null. */
 export const widgetCodeTail = (code: string) => (code.startsWith("site-") && code.length > 5 ? code.slice(5) : null);
 
+/** Кампания визита по ссылке-приглашению /r/<код> (contacts-d7): так виджет сайта передаёт код в первом сообщении. */
+export const INVITE_CAMPAIGN_PREFIX = "invite-";
+
+/** Код-приглашение из хвоста кода виджета («invite-asel-7k2q» → ASEL-7K2Q); не приглашение — null. */
+export const inviteFromWidgetTail = (tail: string) =>
+  tail.startsWith(INVITE_CAMPAIGN_PREFIX) && /^[a-z0-9-]{3,40}$/.test(tail.slice(INVITE_CAMPAIGN_PREFIX.length)) ? tail.slice(INVITE_CAMPAIGN_PREFIX.length).toUpperCase() : null;
+
 export function linkCodeFromText(text: string): string | null {
   const m = /\(\s*код:?\s*([a-z0-9][a-z0-9-]{1,40})\s*\)|(?:^|\s)#([a-z0-9][a-z0-9-]{1,40})(?=\s|$)/i.exec(text);
   return (m?.[1] ?? m?.[2])?.toLowerCase() ?? null;

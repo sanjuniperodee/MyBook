@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { inviteCode, latinName, REFERRAL } from "@/modules/referrals/domain";
-import { ReferralService, type InvitePromo, type ReferralPerson, type RewardRecord } from "@/modules/referrals/application";
+import { ReferralService, type ChatPurchase, type InvitePromo, type ReferralPerson, type RewardRecord } from "@/modules/referrals/application";
 
 describe("код-приглашение", () => {
   it("имя латиницей — русские и казахские буквы", () => {
@@ -21,10 +21,12 @@ describe("код-приглашение", () => {
   });
 });
 
-function setup(opts: { taken?: string[]; optOut?: boolean } = {}) {
+function setup(opts: { taken?: string[]; optOut?: boolean; deals?: Record<string, ChatPurchase> } = {}) {
   const promos = new Map<string, InvitePromo & { used?: boolean; expiresAt?: Date | null }>();
   for (const code of opts.taken ?? []) promos.set(code, { code, ownerId: "someone", percent: 10, usable: true });
   const ledger = new Map<string, RewardRecord>();
+  // Как уникальные order_id и deal_id в referral_rewards: награда за заказ одна и за сделку одна.
+  const taken = new Set<string>();
   const people: Record<string, ReferralPerson> = {
     asel: { name: "Асель Нурланова", email: "asel@x.kz", locale: "ru", optOut: !!opts.optOut },
     dana: { name: "Дана", email: "dana@x.kz", locale: "kk", optOut: false },
@@ -50,11 +52,14 @@ function setup(opts: { taken?: string[]; optOut?: boolean } = {}) {
     },
     {
       claim: async (r) => {
-        if (ledger.has(r.orderId)) return false;
-        ledger.set(r.orderId, { ...r, code: null });
-        return true;
+        const keys = [r.orderId && `o:${r.orderId}`, r.dealId && `d:${r.dealId}`].filter((k): k is string => !!k);
+        if (keys.some((k) => taken.has(k))) return null;
+        const id = `r${ledger.size + 1}`;
+        ledger.set(id, { ...r, code: null });
+        keys.forEach((k) => taken.add(k));
+        return id;
       },
-      setCode: async (orderId, code) => void (ledger.get(orderId)!.code = code),
+      setCode: async (id, code) => void (ledger.get(id)!.code = code),
       forReferrer: async (userId) => [...ledger.values()].filter((r) => r.referrerId === userId),
     },
     { get: async (id) => people[id] ?? null },
@@ -62,8 +67,10 @@ function setup(opts: { taken?: string[]; optOut?: boolean } = {}) {
     () => suffixes[n++ % suffixes.length],
     { now: () => new Date("2026-10-01T10:00:00Z") },
     { info() {}, warn() {}, error() {} },
+    { deal: async (id) => opts.deals?.[id] ?? null },
   );
-  return { service, promos, ledger, mails };
+  const byOrder = (orderId: string) => [...ledger.values()].find((r) => r.orderId === orderId);
+  return { service, promos, ledger, mails, byOrder };
 }
 
 describe("ReferralService", () => {
@@ -85,13 +92,13 @@ describe("ReferralService", () => {
   });
 
   it("друг оплатил — награда и письмо один раз; свой код и заказ без кода — без награды", async () => {
-    const { service, mails, ledger } = setup();
+    const { service, mails, ledger, byOrder } = setup();
     const code = await service.invite("asel");
     const paid = { orderId: "o1", number: 1042, userId: "dana", promoCode: code };
     await service.onOrderPaid(paid);
     await service.onOrderPaid(paid); // повтор события
     expect(mails).toEqual([{ to: "asel@x.kz", code: expect.stringMatching(/^ASEL-/), friendName: "Дана" }]);
-    expect(ledger.get("o1")?.code).toBe(mails[0].code);
+    expect(byOrder("o1")?.code).toBe(mails[0].code);
 
     await service.onOrderPaid({ orderId: "o2", number: 1043, userId: "asel", promoCode: code });
     await service.onOrderPaid({ orderId: "o3", number: 1044, userId: "dana", promoCode: null });
@@ -108,6 +115,35 @@ describe("ReferralService", () => {
     expect(summary).toMatchObject({ code, friends: 1, rewards: [{ orderNumber: 7, used: false }] });
     promos.get(summary.rewards[0].code)!.used = true;
     expect((await service.summary("asel")).rewards[0].used).toBe(true);
+  });
+
+  it("contacts-d7: друг купил из чата по приглашению — награда за сделку одна, сколько бы счетов ни оплатили", async () => {
+    const deal = (o: Partial<ChatPurchase> = {}): ChatPurchase => ({ number: 88, name: "Дана Серикова", clientId: null, inviteCode: "ASEL-AAAA", repeat: false, ...o });
+    const { service, mails, ledger, promos } = setup({
+      deals: { d1: deal(), d2: deal({ number: 89, inviteCode: null }), d3: deal({ number: 90, repeat: true }), d4: deal({ number: 91, clientId: "asel" }), d5: deal({ number: 92, inviteCode: "PLAIN" }), d6: deal({ number: 93 }) },
+    });
+    expect(await service.invite("asel")).toBe("ASEL-AAAA");
+    promos.set("PLAIN", { code: "PLAIN", ownerId: null, percent: 10, usable: true });
+    await service.onDealPaid("d1"); // предоплата
+    await service.onDealPaid("d1"); // остаток — та же покупка
+    expect(mails).toEqual([{ to: "asel@x.kz", code: expect.stringMatching(/^ASEL-/), friendName: "Дана" }]);
+    expect([...ledger.values()]).toEqual([expect.objectContaining({ dealId: "d1", orderId: null, orderNumber: 88, referrerId: "asel", friendId: null, code: mails[0].code })]);
+    // Без кода, повторная покупка, сам себя, не приглашение, неизвестная сделка — без награды.
+    for (const id of ["d2", "d3", "d4", "d5", "nope"]) await service.onDealPaid(id);
+    expect(ledger.size).toBe(1);
+    // Код отключили — новых наград из чата нет.
+    promos.get("ASEL-AAAA")!.usable = false;
+    await service.onDealPaid("d6");
+    expect(ledger.size).toBe(1);
+    expect((await service.summary("asel")).rewards).toEqual([expect.objectContaining({ orderNumber: 88, chat: true })]);
+  });
+
+  it("contacts-d7: заказ сайта по сделке, за которую уже наградили из чата, — второй награды нет", async () => {
+    const { service, ledger } = setup({ deals: { d1: { number: 88, name: "Дана", clientId: "dana", inviteCode: "ASEL-AAAA", repeat: false } } });
+    const code = await service.invite("asel");
+    await service.onDealPaid("d1");
+    await service.onOrderPaid({ orderId: "o1", number: 1050, userId: "dana", promoCode: code, dealId: "d1" });
+    expect(ledger.size).toBe(1);
   });
 });
 

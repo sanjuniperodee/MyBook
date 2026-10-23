@@ -5,6 +5,7 @@ import { INVITE_COOKIE } from "@/modules/referrals";
 import { container } from "@/server/container";
 import { trustedClientIp, rateLimit } from "@/server/rateLimit";
 import { SOURCE_COOKIE } from "@/proxy";
+import { INVITE_CAMPAIGN_PREFIX } from "@/modules/marketing/domain/links";
 
 const MONTH = 60 * 60 * 24 * 30;
 
@@ -17,10 +18,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ code
   const { code } = await params;
   // /kk/r/<код> (ссылка от казахоязычного клиента) ведёт на казахскую главную.
   const home = localizePath("/", req.headers.get(LOCALE_HEADER) === "kk" ? "kk" : "ru");
-  const res = NextResponse.redirect(new URL(home, env.appUrl), { status: 302, headers: { "Cache-Control": "no-store" } });
-  if (!/^[A-Za-z0-9_-]{3,40}$/.test(code) || !(await rateLimit(`invite:${await trustedClientIp()}`, 60, 600_000))) return res;
+  const plain = NextResponse.redirect(new URL(home, env.appUrl), { status: 302, headers: { "Cache-Control": "no-store" } });
+  if (!/^[A-Za-z0-9_-]{3,40}$/.test(code) || !(await rateLimit(`invite:${await trustedClientIp()}`, 60, 600_000))) return plain;
   const welcome = await container().referrals.service.welcome(code);
-  if (!welcome) return res;
+  if (!welcome) return plain;
+  // Кампания визита — код-приглашение: виджет сайта передаст его в первом сообщении WhatsApp, и покупка из чата тоже
+  // принесёт награду другу (contacts-d7).
+  const landing = new URL(home, env.appUrl);
+  landing.searchParams.set("utm_campaign", `${INVITE_CAMPAIGN_PREFIX}${welcome.code}`);
+  const res = NextResponse.redirect(landing, { status: 302, headers: { "Cache-Control": "no-store" } });
   res.cookies.set(INVITE_COOKIE, welcome.code, { httpOnly: true, sameSite: "lax", secure: isSecureCookie, maxAge: MONTH, path: "/" });
   if (!req.cookies.has(SOURCE_COOKIE))
     res.cookies.set(SOURCE_COOKIE, JSON.stringify({ source: "invite", medium: "referral", campaign: welcome.code, landing: "/r", at: new Date().toISOString().slice(0, 10) }), {

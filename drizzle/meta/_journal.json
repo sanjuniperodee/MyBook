@@ -589,6 +589,13 @@
       "when": 1792771890052,
       "tag": "0083_gift_receipt",
       "breakpoints": true
+    },
+    {
+      "idx": 84,
+      "version": "7",
+      "when": 1792772676684,
+      "tag": "0084_referral_deals",
+      "breakpoints": true
     }
   ]
 }
