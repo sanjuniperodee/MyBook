@@ -133,6 +133,7 @@ describe("нет русских строк вне словарей", () => {
     "server/invoice-access.ts", // после оплаты счёта: заметки, задачи и уведомления команде (клиенту — словарь access)
     "server/deal-invoices.ts", // счёт из чата и от бота: ошибки для менеджера (клиенту — словарь pay)
     "server/whatsapp-calls.ts", // звонки WhatsApp из CRM: ошибки шлюза — сотруднику
+    "server/repeat-sale.ts", // ручная добивка из CRM: названия задач и текст-черновик, который менеджер правит сам
   ]);
   // Строки для команды, а не для клиента.
   const internalLine = /legalName:|Заказ создан|по договорённости с менеджером|учтена как аванс|книга почти готова \(|советы, как начать книгу|addOrderEvent\(|ordersNotifyEmail|crmNotes|console\.|logToCrm|return `напоминание|reason:|Автописьмо|Новая сделка №|Отправлено напоминание дописать|Платёж |Оплата подтверждена|Отменён клиентом|Клиент сообщил|Неуспешная оплата|без причины|Подарочный сертификат №\$\{|this\.log\(|\.addNote\(|promoNote = |staffNotFound|Оплачен (заказ|сертификат)|Новый заказ|Открыть в админке|Проверьте (оплату|поступление)|Клиент оплатил|Клиент оформил заказ|засчитана оплата электронной|Сертификаты"|Тариф: \$\{planName|Сумма: \$\{format|Сертификат №\$\{gift\.number\} оплачен|оплачен\?|→ \$\{escapeHtml|note: `Спасибо за отзыв к заказу|note: `Приглашения от|note: `Награда за друга|title: `Отзыв \$\{r\.rating\}|this\.logger\.(warn|error)\(|new OrderingError\("kaspi(Unavailable|NotConnected)", |ORDER_MONEY_LABELS|new OrderingError\("paymentRule", |orderTask\(e\.payload/;

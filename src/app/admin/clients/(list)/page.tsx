@@ -11,6 +11,7 @@ import { formatDate } from "@/lib/dates";
 import { can, contactView, requireStaff } from "@/server/access";
 import { staffLabel } from "@/shared/domain/staff";
 import { container } from "@/server/container";
+import { REPEAT_FORM, RepeatSale } from "./RepeatSale";
 
 export const metadata = { title: "Клиенты" };
 const PAGE = 50;
@@ -48,6 +49,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
     const p = new URLSearchParams(Object.entries({ segment, q: sp.q, tag: sp.tag, sort, ch: sp.ch, mine: onlyMine ? "1" : undefined, ...filterQs, ...patch }).filter(([, v]) => v && v !== "all" && v !== "new") as [string, string][]);
     return `/admin/clients?${p}`;
   };
+  const canRepeat = can(staff, "clients.edit", "deals.edit");
   const exportQs = new URLSearchParams(Object.entries({ segment, q: sp.q, tag: sp.tag, ...filterQs }).filter(([, v]) => v) as [string, string][]);
 
   return (
@@ -165,10 +167,17 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
         {rows.length === 0 ? <li className="rounded-2xl border border-dashed border-line bg-white px-4 py-10 text-center text-sm text-muted">Никого не нашли</li> : null}
       </ul>
 
+      {canRepeat && rows.length ? (
+        <div className="max-lg:hidden">
+          <RepeatSale occasionTitle={filters.occasion ? occasionLabels[filters.occasion].label : "праздник"} />
+        </div>
+      ) : null}
+
       <div className="hidden overflow-x-auto rounded-2xl border border-line bg-white lg:block">
         <table className="w-full min-w-[900px] text-sm">
           <thead className="border-b border-line text-left text-muted">
             <tr>
+              {canRepeat ? <th className="w-8 px-3 py-3" aria-label="Выбор" /> : null}
               <th className="px-4 py-3 font-medium">Клиент</th>
               <th className="px-3 py-3 font-medium">Книги</th>
               <th className="px-3 py-3 text-right font-medium">Заказы</th>
@@ -180,6 +189,11 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
           <tbody className="divide-y divide-line">
             {rows.map((r) => (
               <tr key={r.user.id} className="hover:bg-cream/40">
+                {canRepeat ? (
+                  <td className="px-3 py-3">
+                    <input type="checkbox" name="ids" value={r.user.id} form={REPEAT_FORM} className="size-4 accent-wine" aria-label={`Выбрать ${r.user.name || r.user.email}`} />
+                  </td>
+                ) : null}
                 <td className="px-4 py-3">
                   <Link href={`/admin/clients/${r.user.id}`} className="font-medium hover:text-wine hover:underline">
                     {r.user.name || r.user.email.split("@")[0]}

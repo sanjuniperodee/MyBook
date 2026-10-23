@@ -10,6 +10,8 @@ export interface ClientProfile {
   /** Откуда пришёл клиент: UTM-метки, реферер или канал, выбранный менеджером. */
   source: Record<string, string> | null;
   customFields: Record<string, string | number | boolean | null>;
+  /** Язык клиента на сайте: казахскому — текст на казахском. */
+  locale?: "ru" | "kk";
 }
 
 export interface ClientRepository {
