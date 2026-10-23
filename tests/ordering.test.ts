@@ -435,3 +435,32 @@ describe("Ordering: доступ к файлам заказа", () => {
     expect(canDownloadFile(order("paid"), digital, "reading", stranger)).toBe("notFound");
   });
 });
+
+describe("смена доставки пересчитывает неоплаченный заказ (deals-d10)", () => {
+  const contact = { name: "Айгерим", phone: "77011234567", email: "a@test.kz" };
+  const courier = { method: "courier" as const, city: "Алматы", address: "ул. Абая 1", postalCode: null };
+  const pickup = { method: "pickup" as const, city: null, address: null, postalCode: null };
+
+  it("самовывоз → курьер: «к оплате» растёт на цену доставки, обратно — уменьшается; запись в журнале", async () => {
+    const { place } = setup();
+    const o = await place({ delivery: pickup });
+    const before = o.snapshot().price.amount;
+    o.updateDetails(contact, courier, { desiredDate: null, giftNote: null }, "admin", new Date());
+    expect(o.snapshot().price).toMatchObject({ deliveryAmount: 2000, amount: before + 2000 });
+    o.updateDetails(contact, pickup, { desiredDate: null, giftNote: null }, "admin", new Date());
+    expect(o.snapshot().price).toMatchObject({ deliveryAmount: 0, amount: before });
+  });
+
+  it("оплаченный заказ — сумма не меняется, разница — пометкой; та же доставка — без пересчёта", async () => {
+    const { place } = setup();
+    const o = await place({ delivery: pickup });
+    expect(o.markPaid("pay-1", "admin", new Date())).toBe(true);
+    const amount = o.snapshot().price.amount;
+    o.updateDetails(contact, courier, { desiredDate: null, giftNote: null }, "admin", new Date());
+    expect(o.snapshot().price.amount).toBe(amount);
+    const same = await setup().place({ delivery: courier });
+    const a2 = same.snapshot().price.amount;
+    same.updateDetails(contact, { ...courier, address: "ул. Абая 2" }, { desiredDate: null, giftNote: null }, "admin", new Date());
+    expect(same.snapshot().price.amount).toBe(a2);
+  });
+});

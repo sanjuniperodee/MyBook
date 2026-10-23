@@ -1,5 +1,5 @@
 import { AggregateRoot } from "@/shared/domain";
-import { formatPrice, getPlan, isAbroadDelivery, isQuotedDelivery, type DeliveryId, type PlanId } from "@/config/site";
+import { formatPrice, getDeliveryOptions, getPlan, isAbroadDelivery, isQuotedDelivery, type DeliveryId, type PlanId } from "@/config/site";
 import { calculatePrice, type Agreement, type PriceBreakdown } from "./Pricing";
 import { OrderingError } from "./errors";
 import { OrderingEvents, type OrderRef } from "./events";
@@ -393,11 +393,34 @@ export class Order extends AggregateRoot<OrderProps> {
   }
 
   updateDetails(contact: OrderContact, delivery: OrderDelivery, extra: { desiredDate: string | null; giftNote: string | null }, actor: string, now: Date) {
+    const before = this.props.delivery.method;
     this.props.contact = contact;
     this.props.delivery = { ...delivery, country: isAbroadDelivery(delivery.method) ? delivery.country?.trim() || null : null };
     this.props.desiredDate = extra.desiredDate;
     this.props.giftNote = extra.giftNote;
     this.log(null, "Контакты и доставка изменены", actor, now);
+    if (delivery.method !== before) this.repriceDelivery(actor, now);
+  }
+
+  /**
+   * Сменили способ доставки (deals-d10): у неоплаченного заказа «к оплате» пересчитывается на разницу в цене доставки —
+   * иначе клиент заплатил бы старую сумму. Доставка в подарок по договорённости остаётся бесплатной. Оплаченный заказ
+   * не трогаем: деньги уже получены, разницу менеджер решает сам — пометка в журнале.
+   */
+  private repriceDelivery(actor: string, now: Date) {
+    const plan = getPlan(this.props.plan);
+    if (!plan?.printed) return;
+    const price = this.props.price;
+    const free = price.gifted?.includes("delivery") ?? false;
+    const next = free ? 0 : (getDeliveryOptions().find((d) => d.id === this.props.delivery.method)?.price ?? 0);
+    const diff = next - price.deliveryAmount;
+    if (!diff) return;
+    if (this.props.status !== "pending_payment") {
+      this.log(null, `Доставка стоит ${diff > 0 ? "дороже" : "дешевле"} на ${formatPrice(Math.abs(diff))}, но заказ уже оплачен — сумма не пересчитана`, actor, now);
+      return;
+    }
+    this.props.price = { ...price, deliveryAmount: next, amount: Math.max(0, price.amount + diff) };
+    this.log(null, `Сумма пересчитана за доставку: ${formatPrice(price.amount)} → ${formatPrice(this.props.price.amount)}`, actor, now);
   }
 
   recordPrintSpec(spec: OrderPrintSpec) {
