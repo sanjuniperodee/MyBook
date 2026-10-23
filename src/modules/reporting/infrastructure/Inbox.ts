@@ -1,4 +1,5 @@
 import "server-only";
+import { phoneMatch } from "./phoneSearch";
 import { and, eq, getTableColumns, gt, ilike, isNotNull, or, sql, type SQL } from "drizzle-orm";
 import { crmConversations, crmDeals, crmPinnedChats, crmStages, users } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
@@ -16,7 +17,7 @@ export async function inbox(viewer: Viewer, f: InboxFilter, q: string | undefine
   if (f === "mine") w.push(eq(crmConversations.assigneeId, viewer.userId));
   if (f === "unread") w.push(gt(crmConversations.unread, 0));
   if (f === "waiting") w.push(isNotNull(crmConversations.awaitingSince));
-  if (q) w.push(or(ilike(crmConversations.contactName, `%${q}%`), ilike(crmConversations.chatId, `%${q.replace(/\D/g, "") || q}%`), ilike(crmConversations.lastMessageText, `%${q}%`))!);
+  if (q) w.push(or(ilike(crmConversations.contactName, `%${q}%`), phoneMatch(crmConversations.chatId, q), ilike(crmConversations.chatId, `%${q}%`), ilike(crmConversations.lastMessageText, `%${q}%`))!);
   return executor()
     .select({ ...getTableColumns(crmConversations), pinnedAt: crmPinnedChats.pinnedAt })
     .from(crmConversations)

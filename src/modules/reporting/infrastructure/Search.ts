@@ -4,15 +4,16 @@ import { books, crmConversations, crmDeals, crmStages, orders, users } from "@/s
 import { executor } from "@/shared/infrastructure/database";
 import { visibleTo, type Viewer } from "./MyDay";
 import { ownClientBooks, ownClientOrders } from "./conditions";
+import { extraPhoneMatch, phoneMatch, tagMatch } from "./phoneSearch";
 
 /** Поиск по CRM: заказы, клиенты, книги, сделки, переписка — с учётом видимости «только свои». */
 export async function search(term: string, viewer: Viewer, sections: { orders: boolean; clients: boolean; deals: boolean; chats: boolean }) {
   const db = executor();
   const like = `%${term}%`;
   const num = Number(term.replace(/[^\d]/g, ""));
-  const digits = term.replace(/\D/g, "");
   const none = Promise.resolve([]);
-  const phoneLike = (col: unknown) => (digits.length >= 4 ? sql`regexp_replace(coalesce(${col}, ''), '\\D', '', 'g') like ${"%" + digits + "%"}` : undefined);
+  // Телефон — по последним 10 цифрам: «8 701…» находит «7701…» (contacts-d1).
+  const phoneLike = (col: unknown) => phoneMatch(col, term);
   const [orderRows, clientRows, bookRows, dealRows, chatRows] = await Promise.all([
     !sections.orders ? none : db
       .select()
@@ -23,7 +24,7 @@ export async function search(term: string, viewer: Viewer, sections: { orders: b
             ilike(orders.contactName, like),
             ilike(orders.contactEmail, like),
             ilike(orders.address, like),
-            digits.length >= 4 ? sql`regexp_replace(${orders.contactPhone}, '\\D', '', 'g') like ${"%" + digits + "%"}` : undefined,
+            phoneLike(orders.contactPhone),
             num && term.length < 8 ? eq(orders.number, num) : undefined,
           ),
           // Роль «только свои» — заказы только своих клиентов.
@@ -37,7 +38,7 @@ export async function search(term: string, viewer: Viewer, sections: { orders: b
       : db
           .select()
           .from(users)
-          .where(and(or(ilike(users.name, like), ilike(users.email, like), phoneLike(users.phone)), visibleTo(viewer, users.managerId)))
+          .where(and(or(ilike(users.name, like), ilike(users.email, like), phoneLike(users.phone), extraPhoneMatch(users.extraPhones, term), tagMatch(users.tags, term)), visibleTo(viewer, users.managerId)))
           .limit(20),
     !sections.clients
       ? none
@@ -56,7 +57,15 @@ export async function search(term: string, viewer: Viewer, sections: { orders: b
           .innerJoin(crmStages, eq(crmStages.id, crmDeals.stageId))
           .where(
             and(
-              or(ilike(crmDeals.title, like), ilike(crmDeals.contactName, like), ilike(crmDeals.contactEmail, like), phoneLike(crmDeals.contactPhone), num && term.length < 8 ? eq(crmDeals.number, num) : undefined),
+              or(
+                ilike(crmDeals.title, like),
+                ilike(crmDeals.contactName, like),
+                ilike(crmDeals.contactEmail, like),
+                phoneLike(crmDeals.contactPhone),
+                extraPhoneMatch(crmDeals.extraPhones, term),
+                tagMatch(crmDeals.tags, term),
+                num && term.length < 8 ? eq(crmDeals.number, num) : undefined,
+              ),
               visibleTo(viewer, crmDeals.assigneeId),
             ),
           )
@@ -67,7 +76,7 @@ export async function search(term: string, viewer: Viewer, sections: { orders: b
       : db
           .select()
           .from(crmConversations)
-          .where(and(or(ilike(crmConversations.contactName, like), phoneLike(crmConversations.chatId), ilike(crmConversations.chatId, like)), visibleTo(viewer, crmConversations.assigneeId)))
+          .where(and(or(ilike(crmConversations.contactName, like), phoneLike(crmConversations.chatId), phoneLike(sql`${crmConversations.meta}->>'phone'`), ilike(crmConversations.chatId, like)), visibleTo(viewer, crmConversations.assigneeId)))
           .orderBy(desc(crmConversations.lastMessageAt))
           .limit(20),
   ]);

@@ -9,6 +9,7 @@ import { isManualChannel, MANUAL_MEDIUM } from "@/shared/domain/channels";
 import { getOccasion } from "@/lib/occasions";
 import { messagesFor } from "@/i18n/messages";
 import { CLIENT_OCCASIONS, monthAfter, type ClientFilters } from "../ui/clientFilters";
+import { extraPhoneMatch, phoneMatch, tagMatch } from "./phoneSearch";
 
 export const STALLED_DAYS = 14;
 
@@ -147,7 +148,7 @@ export async function queryClients(opts: {
   const q = opts.q?.trim();
   if (q) {
     const s = `%${q}%`;
-    w.push(or(ilike(users.name, s), ilike(users.email, s), ilike(users.phone, s))!);
+    w.push(or(ilike(users.name, s), ilike(users.email, s), ilike(users.phone, s), phoneMatch(users.phone, q), extraPhoneMatch(users.extraPhones, q), tagMatch(users.tags, q))!);
   }
   const where = and(...w);
   const order = opts.sort === "ltv" ? desc(ltv) : opts.sort === "active" ? sql`${users.lastSeenAt} desc nulls last` : desc(users.createdAt);

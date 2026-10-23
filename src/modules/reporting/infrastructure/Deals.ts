@@ -1,4 +1,5 @@
 import "server-only";
+import { extraPhoneMatch, phoneMatch, tagMatch } from "./phoneSearch";
 import { and, desc, eq, gte, ilike, isNull, or, sql, type SQL } from "drizzle-orm";
 import { crmDeals, crmSavedViews, crmStages } from "@/shared/infrastructure/db/schema";
 import { dealSources, type DealSource } from "@/shared/domain/dealSources";
@@ -43,12 +44,14 @@ export async function dealList(
   const q = sp.q?.trim();
   if (q) {
     const like = `%${q}%`;
-    const digits = q.replace(/\D/g, "");
     w.push(
       or(
         ilike(crmDeals.title, like),
         ilike(crmDeals.contactName, like),
-        digits.length >= 4 ? sql`regexp_replace(coalesce(${crmDeals.contactPhone}, ''), '\\D', '', 'g') like ${"%" + digits + "%"}` : undefined,
+        ilike(crmDeals.contactEmail, like),
+        phoneMatch(crmDeals.contactPhone, q),
+        extraPhoneMatch(crmDeals.extraPhones, q),
+        tagMatch(crmDeals.tags, q),
         /^\d{1,7}$/.test(q) ? eq(crmDeals.number, Number(q)) : undefined,
       )!,
     );
