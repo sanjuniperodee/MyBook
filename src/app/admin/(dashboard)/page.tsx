@@ -12,7 +12,9 @@ import { layoutTabs, mobileLayout } from "@/shared/domain/mobileLayout";
 import { MyDay } from "../MyDay";
 import { BarList, RevenueColumns, StatTile, type DayPoint } from "@/components/admin/charts";
 import { cn } from "@/lib/class-names";
-import { formatDate } from "@/lib/dates";
+import { formatDate, nowMs } from "@/lib/dates";
+import { getSetting } from "@/modules/workspace";
+import type { AttentionRow } from "@/modules/reporting";
 
 export const metadata = { title: "Обзор" };
 
@@ -53,7 +55,10 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
   const period = periods.find((p) => String(p) === raw) ?? 30;
   const channelsReport = await container().marketing.service.report(period);
   const sources = { rows: channelsReport.channels.filter((c) => c.registrations || c.leads || c.sales).slice(0, 8) };
-  const { daily, cur, prev, newUsers, funnelRows, byPlan, deadlines, dealDeadlines, attention, events } = await container().reporting.dashboard(period, staffViewer(staff));
+  const [{ daily, cur, prev, newUsers, funnelRows, byPlan, deadlines, dealDeadlines, attention, events }, dealAttention] = await Promise.all([
+    container().reporting.dashboard(period, staffViewer(staff)),
+    getSetting("crm.slaMinutes").then((sla) => container().reporting.attention(staffViewer(staff), Number(sla) || 15)),
+  ]);
 
   const byDay = new Map(daily.map((r) => [r.d, r]));
   const series: DayPoint[] = Array.from({ length: period }, (_, i) => {
@@ -230,7 +235,9 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Panel title="Требуют внимания" icon={AlertCircle} href="/admin/board" empty="Всё обработано">
-          {attention.map((o) => (
+          {[
+            ...dealAttention.map((a) => <AttentionLine key={`${a.kind}:${a.dealId}:${a.conversationId ?? ""}`} row={a} />),
+            ...attention.map((o) => (
             <Link key={o.id} href={`/admin/orders/${o.id}`} className="flex items-center gap-3 px-5 py-2.5 text-sm hover:bg-cream/40">
               <span className="w-12 font-medium">№{o.number}</span>
               <span className="min-w-0 flex-1 truncate">
@@ -240,7 +247,8 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
                 {o.status === "paid" ? "передать в печать" : "проверить оплату"}
               </span>
             </Link>
-          ))}
+            )),
+          ]}
         </Panel>
         <Panel title="Последние события" icon={ArrowRight} href="/admin/orders" empty="Событий пока нет">
           {events.map(({ e, number, orderId }) => (
@@ -256,6 +264,31 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
         </Panel>
       </div>
     </div>
+  );
+}
+
+/** Строка «Требуют внимания» по сделке (bots-11): что случилось и куда идти. */
+function AttentionLine({ row: a }: { row: AttentionRow }) {
+  const now = nowMs();
+  const mins = Math.max(0, Math.round((now - new Date(a.at).getTime()) / 60_000));
+  const days = a.kind === "deadline_unpaid" ? Math.round((new Date(`${a.at}T00:00:00`).getTime() - localDay(0).getTime()) / 86_400_000) : 0;
+  const label =
+    a.kind === "handoff"
+      ? `бот передал — ждёт ответа ${mins < 120 ? `${mins} мин` : `${Math.round(mins / 60)} ч`}`
+      : a.kind === "invoice_expiring"
+        ? `счёт ${a.amount ? formatPrice(a.amount) : ""} истекает ${formatDate(a.at, true).replace(/ \d{4} г\./, "")}`
+        : a.kind === "invoice_expired"
+          ? "счёт истёк — выставьте новый"
+          : days === 0
+            ? "событие сегодня — не оплачено"
+            : `до события ${days} дн. — не оплачено`;
+  const href = a.kind === "handoff" && a.conversationId ? `/admin/chats?c=${a.conversationId}` : `/admin/deals/${a.dealId}`;
+  return (
+    <Link href={href} className="flex items-center gap-3 px-5 py-2.5 text-sm hover:bg-cream/40" data-testid={`attention-${a.kind}`}>
+      <span className="w-12 font-medium">Д{a.number}</span>
+      <span className="min-w-0 flex-1 truncate">{a.contact || "без имени"}</span>
+      <span className={cn("rounded-full px-2 py-0.5 text-xs", a.kind === "handoff" || a.kind === "invoice_expired" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-800")}>{label}</span>
+    </Link>
   );
 }
 

@@ -1,4 +1,5 @@
 import { dashboard } from "./infrastructure/Dashboard";
+import { attentionDeals } from "./infrastructure/Attention";
 import { paymentsExport } from "./infrastructure/PaymentsExport";
 import { myDay } from "./infrastructure/MyDay";
 import { search } from "./infrastructure/Search";
@@ -27,12 +28,15 @@ export type { OrderFilters } from "./infrastructure/Orders";
 export type { CrmCounters } from "./infrastructure/Counters";
 export type { LiveState } from "./infrastructure/Live";
 export { STALLED_DAYS, type ClientSort } from "./infrastructure/Clients";
+export { ATTENTION_DEADLINE_DAYS, type AttentionKind, type AttentionRow } from "./infrastructure/Attention";
 export { CLIENT_OCCASIONS, clientFiltersFrom, clientFiltersQuery, type ClientFilters } from "./ui/clientFilters";
 export { RULE_STATS_DAYS, type RuleSalesStats } from "./infrastructure/Automations";
 
 export class ReportingModule {
   readonly salesAnalytics = salesAnalytics;
   readonly dashboard = dashboard;
+  /** «Требуют внимания» на главной: бот передал — не ответили, счёт истекает, дата близко — денег нет. */
+  readonly attention = attentionDeals;
   readonly paymentsExport = paymentsExport;
   readonly myDay = myDay;
   readonly search = search;
