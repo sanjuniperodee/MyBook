@@ -26,6 +26,7 @@ const fake = {
 };
 
 vi.mock("@/server/container", () => ({ container: () => fake }));
+vi.mock("@/server/ai-autofill", () => ({ aiAutofill: () => stepFn("autofill", 0)(), aiAutofillDeps: () => ({}) }));
 vi.mock("@/shared/infrastructure/db", () => ({
   pool: { connect: async () => ({ query: async (q: string) => ({ rows: q.includes("try_advisory") ? [{ locked: true }] : [] }), release: () => {} }) },
 }));
@@ -61,7 +62,7 @@ describe("scheduler: шаг упал — проход идёт дальше", ()
   it("медленный проход: сертификаты упали — автописьма, чистка outbox, история WhatsApp, разбор бота, чистка его следов и кэша предпросмотров выполняются", async () => {
     failing.add("gifts").add("purge");
     await tick();
-    expect(calls).toEqual(["gifts", "lifecycle", "purge", "history", "coach", "traces", "previews"]);
+    expect(calls).toEqual(["gifts", "lifecycle", "purge", "history", "coach", "autofill", "traces", "previews"]);
     expect(errors.map((e) => e[0])).toEqual(['[scheduler] step "gifts" failed', '[scheduler] step "outbox purge" failed']);
   });
 
@@ -70,6 +71,13 @@ describe("scheduler: шаг упал — проход идёт дальше", ()
     await tick();
     expect(calls.slice(-2)).toEqual(["traces", "previews"]);
     expect(errors.map((e) => e[0])).toEqual(['[scheduler] step "bot coach" failed']);
+  });
+
+  it("медленный проход: автозаполнение полей AI упало (провайдер недоступен) — следы бота и кэш всё равно чистятся", async () => {
+    failing.add("autofill");
+    await tick();
+    expect(calls.slice(-3)).toEqual(["autofill", "traces", "previews"]);
+    expect(errors.map((e) => e[0])).toEqual(['[scheduler] step "ai autofill" failed']);
   });
 
   it("медленный проход: уборка кэша предпросмотров упала — в логе её имя, проход не оборван", async () => {

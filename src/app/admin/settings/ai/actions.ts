@@ -41,11 +41,12 @@ export async function saveAiAction(_: SettingsState, form: FormData): Promise<Se
       ...unlessEnv(keys.baseUrl, baseUrl),
       [keys.model]: model,
       "ai.enabled": form.get("enabled") === "on" ? "on" : "off",
+      "ai.autofill": form.get("autofill") === "on" ? "on" : "off",
       "ai.knowledge": knowledge,
     },
     staff.user.id,
   );
-  await audit(staff, "settings.update", "settings", "ai", { provider: p, model: model || null, enabled: form.get("enabled") === "on", knowledge: knowledge.length });
+  await audit(staff, "settings.update", "settings", "ai", { provider: p, model: model || null, enabled: form.get("enabled") === "on", autofill: form.get("autofill") === "on", knowledge: knowledge.length });
   revalidatePath("/admin/settings");
   // Сумма из базы знаний — разрешённая для бота: старая цена ушла бы клиенту (deals-d13). Сохраняем, но предупреждаем.
   const warning = botPriceWarning(await botPriceDrift({ knowledge, faq: false }).catch(() => [])) ?? undefined;

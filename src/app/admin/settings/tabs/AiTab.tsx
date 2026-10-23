@@ -23,7 +23,7 @@ const ROUTE_KEYS = [
 ] as const;
 
 export async function AiTab() {
-  const [aiProvider, aiEnabled, aiKnowledge, pr, sellerSettings, media, route] = await Promise.all([
+  const [aiProvider, aiEnabled, aiKnowledge, pr, sellerSettings, media, route, autofill] = await Promise.all([
     getSetting("ai.provider"),
     getSetting("ai.enabled"),
     getSetting("ai.knowledge"),
@@ -31,6 +31,7 @@ export async function AiTab() {
     getSettings(["seller.provider", "seller.model"]),
     getSettings(["media.provider", "media.model"]),
     getSettings([...ROUTE_KEYS]),
+    getSetting("ai.autofill"),
   ]);
   const aiSaved = Object.fromEntries(
     await Promise.all(
@@ -46,7 +47,7 @@ export async function AiTab() {
   const assistant: AiProvider = isAiProvider(aiProvider) ? aiProvider : "anthropic";
   return (
     <>
-      <AiForm provider={assistant} providerFromEnv={fromEnv("ai.provider")} providers={aiSaved} enabled={aiEnabled !== "off"} knowledge={aiKnowledge} />
+      <AiForm provider={assistant} providerFromEnv={fromEnv("ai.provider")} providers={aiSaved} enabled={aiEnabled !== "off"} autofill={autofill !== "off"} knowledge={aiKnowledge} />
       <RoutingForm
         saved={{
           mode: (["on", "shadow", "off"].includes(route["seller.route"]) ? route["seller.route"] : "on") as RouteMode,

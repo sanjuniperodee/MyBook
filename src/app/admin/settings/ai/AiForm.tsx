@@ -15,12 +15,15 @@ export function AiForm({
   providerFromEnv,
   providers,
   enabled,
+  autofill,
   knowledge,
 }: {
   provider: AiProvider;
   providerFromEnv: boolean;
   providers: Record<AiProvider, AiProviderSaved>;
   enabled: boolean;
+  /** Автозаполнение пустых полей сделки из переписки (bots-4). */
+  autofill: boolean;
   knowledge: string;
 }) {
   const [state, action] = useActionState<SettingsState, FormData>(saveAiAction, {});
@@ -81,6 +84,12 @@ export function AiForm({
         </label>
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" name="enabled" defaultChecked={enabled} className="accent-wine" /> Показывать AI-кнопки менеджерам
+        </label>
+        <label className="flex items-start gap-2 text-sm">
+          <input type="checkbox" name="autofill" defaultChecked={autofill} className="mt-0.5 accent-wine" />
+          <span>
+            Заполнять сам пустые «Дату события», «Для кого» и «Повод» в сделке из переписки менеджера — раз в 15 минут, когда разговор затих, до 100 диалогов в сутки. Текст переписки уходит провайдеру модели; что заполнено — видно в ленте сделки.
+          </span>
         </label>
         <div className="flex flex-wrap items-center gap-2">
           <SubmitButton className="btn-sm">Сохранить</SubmitButton>

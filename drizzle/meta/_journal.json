@@ -533,6 +533,13 @@
       "when": 1792763980106,
       "tag": "0075_invoice_viewed",
       "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "7",
+      "when": 1792764341717,
+      "tag": "0076_conversation_ai_parsed",
+      "breakpoints": true
     }
   ]
 }

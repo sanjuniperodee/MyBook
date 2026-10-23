@@ -206,7 +206,7 @@ describe("AI-помощник и корректор", () => {
     expect(w.saved).toHaveLength(1);
     expect(w.saved[0]).toMatchObject({ "ai.provider": "openrouter", "ai.enabled": "on", "ai.knowledge": "правила" });
     expect(Object.values(w.saved[0])).toEqual(expect.arrayContaining(["sk", "qwen/qwen3", "https://openrouter.ai/api/v1"]));
-    expect(w.audits).toEqual([["settings.update", "settings", "ai", { provider: "openrouter", model: "qwen/qwen3", enabled: true, knowledge: 7 }]]);
+    expect(w.audits).toEqual([["settings.update", "settings", "ai", { provider: "openrouter", model: "qwen/qwen3", enabled: true, autofill: false, knowledge: 7 }]]);
     expect(await actions.saveAiAction({}, form({ ...ok, provider: "skynet" }))).toEqual({ error: "Выберите провайдера" });
     expect(await actions.saveAiAction({}, form({ ...ok, aiBaseUrl: "openrouter.ai" }))).toEqual({ error: "Адрес API должен начинаться с https://" });
     expect(await actions.saveAiAction({}, form({ ...ok, aiModel: "модель" }))).toEqual({ error: "Название модели — латиница, цифры и символы . : / - _" });
@@ -231,7 +231,7 @@ describe("AI-помощник и корректор", () => {
     w.stored = { "ai.provider": "anthropic" };
     await actions.saveAiAction({}, form({ provider: "openrouter", aiModel: "" }));
     expect(w.saved[0]).not.toHaveProperty("ai.provider");
-    expect(w.audits).toEqual([["settings.update", "settings", "ai", { provider: "anthropic", model: null, enabled: false, knowledge: 0 }]]);
+    expect(w.audits).toEqual([["settings.update", "settings", "ai", { provider: "anthropic", model: null, enabled: false, autofill: false, knowledge: 0 }]]);
   });
 
   it("корректор: свой провайдер или как у помощника (ключ — провайдера помощника), модель, включение", async () => {

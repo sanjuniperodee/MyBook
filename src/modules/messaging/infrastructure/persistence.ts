@@ -491,6 +491,41 @@ export async function purgeBotTraces(keepDays = BOT_TRACE_KEEP_DAYS): Promise<nu
   return res.rowCount ?? 0;
 }
 
+/** Сколько диалогов автозаполнение берёт за проход (bots-4) и сколько ждёт тишины после последнего сообщения. */
+const AUTOFILL_QUIET_MIN = 45;
+
+/**
+ * Переписка менеджера для автозаполнения пустых полей сделки (bots-4): открытая сделка, у которой пусто хоть одно из
+ * полей «Дата события», «Для кого», «Повод»; человек уже отвечал клиенту; бот диалог не ведёт; последнее сообщение —
+ * от 45 минут до недели назад (разговор затих) и новее прошлого разбора. Свежие — первыми; по индексу crm_conv_last_idx.
+ */
+export async function autofillCandidates(limit: number, now: Date): Promise<{ conversationId: string; dealId: string }[]> {
+  const { rows } = await executor().execute<{ conversation_id: string; deal_id: string }>(sql`
+    select c.id as conversation_id, c.deal_id
+    from crm_conversations c
+    join crm_deals d on d.id = c.deal_id
+    join crm_stages s on s.id = d.stage_id and s.kind = 'open'
+    where c.last_message_at <= ${new Date(now.getTime() - AUTOFILL_QUIET_MIN * 60_000)}
+      and c.last_message_at > ${new Date(now.getTime() - 7 * 86_400_000)}
+      and c.last_outgoing_at is not null
+      and (c.ai_parsed_at is null or c.ai_parsed_at < c.last_message_at)
+      and (c.bot_state is null or c.bot_state->>'phase' = 'done' or c.bot_step = -1)
+      and (coalesce(d.custom_fields->>'event_date', '') = '' or coalesce(d.custom_fields->>'recipient', '') = '' or coalesce(d.custom_fields->>'occasion', '') = '')
+    order by c.last_message_at desc
+    limit ${limit}`);
+  return rows.map((r) => ({ conversationId: r.conversation_id, dealId: r.deal_id }));
+}
+
+export async function markAiParsed(conversationId: string, at: Date) {
+  await executor().update(crmConversations).set({ aiParsedAt: at }).where(eq(crmConversations.id, conversationId));
+}
+
+/** Сколько диалогов разобрано с since — по частичному индексу crm_conv_ai_parsed_idx. */
+export async function aiParsedSince(since: Date): Promise<number> {
+  const [r] = await executor().select({ n: sql<number>`count(*)::int` }).from(crmConversations).where(gte(crmConversations.aiParsedAt, since));
+  return r?.n ?? 0;
+}
+
 /** Метрики бота за период (настройки бота). */
 export interface BotMetrics {
   started: number;

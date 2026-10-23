@@ -61,6 +61,8 @@ export const crmConversations = pgTable(
     botState: jsonb("bot_state").$type<Record<string, unknown>>(),
     /** Когда бот должен сделать следующий ход: пауза после сообщения клиента, ожидание менеджера, проверка «клиент замолчал». */
     botDueAt: timestamp("bot_due_at", { withTimezone: true }),
+    /** Когда AI последний раз разбирал переписку менеджера в пустые поля сделки (bots-4): новые сообщения — разобрать снова. */
+    aiParsedAt: timestamp("ai_parsed_at", { withTimezone: true }),
     /** Служебные данные канала: для чата с сайта — страница и контакты посетителя, для почты — тема письма. */
     meta: jsonb("meta").$type<ConversationMeta>().notNull().default({}),
     ...timestamps,
@@ -76,6 +78,8 @@ export const crmConversations = pgTable(
     // Переписка сделки и клиента: куда правило пишет о заказе, диалоги карточек сделки и клиента.
     index("crm_conv_deal_idx").on(t.dealId),
     index("crm_conv_client_idx").on(t.clientId),
+    // Автозаполнение полей сделки: сколько диалогов разобрано за сегодня (дневной лимит).
+    index("crm_conv_ai_parsed_idx").on(t.aiParsedAt).where(sql`${t.aiParsedAt} is not null`),
   ],
 );
 

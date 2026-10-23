@@ -2,6 +2,7 @@ import "server-only";
 import type { PoolClient } from "pg";
 import { pool } from "@/shared/infrastructure/db";
 import { container } from "@/server/container";
+import { aiAutofill, aiAutofillDeps } from "@/server/ai-autofill";
 
 const INTERVAL_MS = 15 * 60_000;
 /** Номер advisory-блокировки: при нескольких инстансах проход выполняет только один. */
@@ -40,6 +41,9 @@ export async function tick() {
     // Работа над ошибками AI-продажника: раз в сутки ночью разбор бесед за день → уроки в его инструкции.
     const coach = await step("bot coach", () => container().messaging.coach.run(), null);
     if (coach) console.log(`[scheduler] bot coach reviewed=${coach.reviewed} added=${coach.added.length} removed=${coach.removed.length}${coach.error ? ` error=${coach.error}` : ""}`);
+    // Пустые поля сделки (дата события, для кого, повод) из переписки менеджера — AI, до 5 диалогов за проход (bots-4).
+    const autofilled = await step("ai autofill", () => aiAutofill(aiAutofillDeps()), 0);
+    if (autofilled) console.log(`[scheduler] ai autofill deals=${autofilled}`);
     // След ходов бота («Почему так?») хранится 90 дней: старые записи — порциями по частичному индексу.
     const traces = await step("bot traces purge", () => container().messaging.purgeBotTraces(), 0);
     if (traces) console.log(`[scheduler] bot traces purged=${traces}`);

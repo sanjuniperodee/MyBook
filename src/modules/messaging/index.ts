@@ -13,7 +13,7 @@ import { chatFiles } from "./infrastructure/chatFiles";
 import { staffLine } from "./infrastructure/staffLine";
 import { MATERIAL_MAX_BYTES, MAX_MATERIALS, mediaLine, parseCoachLog, parseLessons, parseMaterials, type BotLesson, type BotMaterial, type CoachRun, type MaterialKind, type MaterialLang } from "./domain";
 import { getFile, putFile } from "@/shared/infrastructure/storage";
-import { DrizzleBotStore, DrizzleConversationRepository, DrizzleMessageRepository, DrizzleMessagingQueries, drizzleBlocklist, purgeBotTraces } from "./infrastructure/persistence";
+import { DrizzleBotStore, DrizzleConversationRepository, DrizzleMessageRepository, DrizzleMessagingQueries, aiParsedSince, autofillCandidates, drizzleBlocklist, markAiParsed, purgeBotTraces } from "./infrastructure/persistence";
 import { botPreview, botStatus, type BotPreviewInput } from "./application/botPreview";
 import { contactPhone, parseRuleSending, type Conversation, type HistoryMessage, type InboundMessage } from "./domain";
 import { normalizePhone } from "@/shared/domain/phone";
@@ -432,6 +432,9 @@ export class MessagingModule {
   purgeBotTraces() {
     return purgeBotTraces();
   }
+
+  /** Автозаполнение полей сделки из переписки менеджера (bots-4): кого разобрать, отметка разбора и счёт за день. */
+  readonly autofill = { candidates: autofillCandidates, markParsed: markAiParsed, parsedSince: aiParsedSince };
 
   /**
    * Завести в шлюзе устройство магазина и направить его события на сайт — при сохранении настроек и перед привязкой

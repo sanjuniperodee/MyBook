@@ -1,0 +1,2 @@
+ALTER TABLE "crm_conversations" ADD COLUMN "ai_parsed_at" timestamp with time zone;--> statement-breakpoint
+CREATE INDEX "crm_conv_ai_parsed_idx" ON "crm_conversations" USING btree ("ai_parsed_at") WHERE "crm_conversations"."ai_parsed_at" is not null;
