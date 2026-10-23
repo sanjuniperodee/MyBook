@@ -24,6 +24,7 @@ export const admin = {
   refundNoReason: "Укажите причину возврата",
   refundTooBig: "Нельзя вернуть больше, чем принято",
   receiptRequired: "Приложите чек: платёж без чека не принимается",
+  giftNotPending: "Сертификат уже не ждёт оплаты — обновите страницу",
   receiptPick: "Выберите файл чека",
   receiptNotSaved: "Не удалось сохранить чек",
   receiptEmpty: "Файл пустой",

@@ -86,7 +86,7 @@ export class OrderingModule {
     this.invoiceLifecycle = new DealInvoiceLifecycle(new DrizzleDealInvoiceLifecycleStore(), deps.uow);
     this.orders = new OrdersService(orderRepo, promoRepo, deps.books, new DrizzlePeopleGateway(), deps.printFiles, envPaymentSettings, deps.agreements, deps.uow, deps.clock, this.payments, this.invoiceLifecycle);
     this.promos = new PromoService(promoRepo, orderRepo, deps.clock);
-    this.gifts = new GiftsService(giftRepo, promoRepo, randomCodes, envPaymentSettings, deps.uow, deps.clock, () => toIsoDay(deps.clock.now()));
+    this.gifts = new GiftsService(giftRepo, promoRepo, randomCodes, envPaymentSettings, deps.uow, deps.clock, () => toIsoDay(deps.clock.now()), storageReceiptFiles);
     // Счета из чата для платёжных систем: P<n> в CloudPayments и цель deal_invoice в Kaspi.
     const dealInvoices = { repo: new DrizzleDealInvoiceRepository(), service: this.invoices, sales: deps.invoiceSales, clock: deps.clock };
     this.cloudPayments = new CloudPaymentsWebhook(this.orders, this.gifts, undefined, dealInvoices);

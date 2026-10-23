@@ -73,6 +73,9 @@ const actions: Record<string, string> = {
   "order.postpay": "Отправил заказ в печать с постоплатой",
   "order.payment_review": "Проверил оплату по заказу",
   "receipt.view": "Открыл чек",
+  "gift.paid": "Подтвердил оплату сертификата по чеку",
+  "gift.resend": "Отправил сертификат получателю",
+  "gift.cancel": "Отменил сертификат",
 };
 
 export default async function AuditPage({ searchParams }: { searchParams: Promise<{ actor?: string; entity?: string }> }) {

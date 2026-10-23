@@ -582,6 +582,13 @@
       "when": 1792769130987,
       "tag": "0082_marketing_spend",
       "breakpoints": true
+    },
+    {
+      "idx": 83,
+      "version": "7",
+      "when": 1792771890052,
+      "tag": "0083_gift_receipt",
+      "breakpoints": true
     }
   ]
 }

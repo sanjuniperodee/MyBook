@@ -174,6 +174,11 @@ export const giftCards = pgTable(
     sendAt: text("send_at"),
     sentAt: timestamp("sent_at", { withTimezone: true }),
     promoCodeId: uuid("promo_code_id").references(() => promoCodes.id, { onDelete: "set null" }),
+    /** Чек перевода, если оплату подтвердил сотрудник вручную (gifts/<сертификат>/receipt.<тип>). */
+    receiptStorageKey: text("receipt_storage_key"),
+    receiptFileName: text("receipt_file_name"),
+    receiptMime: text("receipt_mime"),
+    receiptSize: integer("receipt_size"),
     ...timestamps,
   },
   (t) => [uniqueIndex("gift_cards_number_idx").on(t.number), uniqueIndex("gift_cards_token_idx").on(t.token), index("gift_cards_status_idx").on(t.status)],

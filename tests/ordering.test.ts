@@ -357,6 +357,25 @@ describe("Ordering: промокоды и сертификаты", () => {
     await svc.cancel(gift.id);
     expect((await promos.findByCode("GIFT-TEST-0001"))!.active).toBe(false);
   });
+
+  it("GiftsService: «Оплачен» сотрудником — только с чеком, чек хранится у сертификата (analytics-d8)", async () => {
+    const promos = new MemPromos();
+    const gifts = new MemGifts();
+    const files = new Map<string, Buffer>();
+    const storage = { put: async (k: string, b: Buffer) => void files.set(k, b), remove: async (k: string) => void files.delete(k), read: async (k: string) => files.get(k) ?? null };
+    const svc = new GiftsService(gifts, promos, { giftCode: () => "GIFT-TEST-0002", giftToken: () => "r".repeat(24) }, { provider: () => "manual", currency: () => "KZT" }, new FakeUow([promos, gifts]), clock(), () => "2026-10-01", storage);
+    const gift = await svc.purchase({ plan: "hardcover", buyerUserId: null, buyerName: "А", buyerEmail: "a@b.kz", buyerPhone: "", recipientName: "Б", recipientEmail: null, sendAt: null, message: "", locale: "ru", buyerLocale: "ru" });
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
+    await expect(svc.confirmManual(gift.id, { bytes: Buffer.from("not a receipt"), fileName: "x.txt" }, admin)).rejects.toMatchObject({ code: "receiptInvalid" });
+    expect((await gifts.findById(gift.id))!.status).toBe("pending_payment");
+    const paid = await svc.confirmManual(gift.id, { bytes: png, fileName: "перевод.png" }, admin);
+    expect(paid!.snapshot()).toMatchObject({ status: "paid", receipt: { fileName: "перевод.png", mime: "image/png", size: png.length } });
+    expect([...files.keys()]).toEqual([paid!.snapshot().receipt!.storageKey]);
+    expect((await svc.receipt(gift.id))!.bytes).toEqual(png);
+    // Повтор (двойной клик, вторая вкладка): код не выпускается заново, лишний файл убран.
+    expect(await svc.confirmManual(gift.id, { bytes: png, fileName: "ещё.png" }, admin)).toBeNull();
+    expect(files.size).toBe(1);
+  });
 });
 
 // Тип шины используется контейнером; здесь — проверка, что фейк удовлетворяет интерфейсу событий.

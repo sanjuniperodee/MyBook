@@ -32,15 +32,16 @@ const toDomain = (r: Row) =>
     sendAt: r.sendAt,
     sentAt: r.sentAt,
     promoCodeId: r.promoCodeId,
+    receipt: r.receiptStorageKey ? { storageKey: r.receiptStorageKey, fileName: r.receiptFileName ?? "", mime: r.receiptMime ?? "application/octet-stream", size: r.receiptSize ?? 0 } : null,
     createdAt: r.createdAt,
   });
 
 function toRow(g: GiftCard) {
-  const { id: _id, number: _n, createdAt: _c, ...rest } = g.snapshot();
+  const { id: _id, number: _n, createdAt: _c, receipt, ...rest } = g.snapshot();
   void _id;
   void _n;
   void _c;
-  return rest;
+  return { ...rest, receiptStorageKey: receipt?.storageKey ?? null, receiptFileName: receipt?.fileName ?? null, receiptMime: receipt?.mime ?? null, receiptSize: receipt?.size ?? null };
 }
 
 export class DrizzleGiftCardRepository implements GiftCardRepository {

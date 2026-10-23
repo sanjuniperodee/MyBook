@@ -66,6 +66,7 @@ export default async function AdminGifts() {
               <span className={cn("rounded-full px-2.5 py-1 font-medium whitespace-nowrap", g.status === "paid" ? "bg-emerald-50 text-emerald-700" : g.status === "cancelled" ? "bg-cream text-muted" : "bg-amber-50 text-amber-800")}>{statusLabel[g.status]}</span>
               {g.status === "pending_payment" && g.paymentClaimedAt ? <span className="rounded-md bg-amber-50 px-2 py-1 font-medium text-amber-800">сообщил об оплате</span> : null}
               {g.promo ? <span className="rounded-md bg-cream px-2 py-1 font-mono text-ink-soft">{g.promo.code}</span> : null}
+              {g.receiptStorageKey ? <a href={`/api/admin/gifts/${g.id}/receipt`} target="_blank" rel="noopener noreferrer" className="underline">чек</a> : null}
               {g.promo && g.promo.usedCount > 0 ? <span className="text-emerald-700">использован</span> : null}
               <span className="ml-auto text-muted">{formatDate(g.createdAt)}</span>
             </div>
@@ -118,6 +119,11 @@ export default async function AdminGifts() {
                   <span className={cn("rounded-full px-2 py-0.5 text-xs", g.status === "paid" ? "bg-emerald-50 text-emerald-700" : g.status === "cancelled" ? "bg-cream text-muted" : "bg-amber-50 text-amber-800")}>
                     {statusLabel[g.status]}
                   </span>
+                  {g.receiptStorageKey ? (
+                    <a href={`/api/admin/gifts/${g.id}/receipt`} target="_blank" rel="noopener noreferrer" className="ml-2 text-xs underline">
+                      чек
+                    </a>
+                  ) : null}
                   {g.status === "pending_payment" && g.paymentClaimedAt ? <div className="mt-1 text-xs text-amber-800">сообщил об оплате</div> : null}
                 </td>
                 <td className="px-3 py-3">

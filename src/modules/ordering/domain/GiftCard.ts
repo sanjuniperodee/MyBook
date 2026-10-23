@@ -29,7 +29,16 @@ export interface GiftCardProps {
   sendAt: string | null;
   sentAt: Date | null;
   promoCodeId: string | null;
+  /** Чек перевода при ручном подтверждении оплаты. */
+  receipt: GiftReceipt | null;
   createdAt: Date;
+}
+
+export interface GiftReceipt {
+  storageKey: string;
+  fileName: string;
+  mime: string;
+  size: number;
 }
 
 /** Срок действия выпущенного кода. */
@@ -43,13 +52,13 @@ export class GiftCard extends AggregateRoot<GiftCardProps> {
 
   static purchase(
     id: string,
-    input: Omit<GiftCardProps, "status" | "paymentId" | "paymentClaimedAt" | "paidAt" | "sentAt" | "promoCodeId" | "createdAt" | "sendAt"> & { sendAt: string | null; today: string },
+    input: Omit<GiftCardProps, "status" | "paymentId" | "paymentClaimedAt" | "paidAt" | "sentAt" | "promoCodeId" | "receipt" | "createdAt" | "sendAt"> & { sendAt: string | null; today: string },
     now: Date,
   ) {
     if (input.sendAt && input.sendAt < input.today) throw new OrderingError("giftPastDate");
     const { today: _today, ...props } = input;
     void _today;
-    const gift = new GiftCard(id, { ...props, sendAt: props.recipientEmail ? props.sendAt : null, status: "pending_payment", paymentId: null, paymentClaimedAt: null, paidAt: null, sentAt: null, promoCodeId: null, createdAt: now });
+    const gift = new GiftCard(id, { ...props, sendAt: props.recipientEmail ? props.sendAt : null, status: "pending_payment", paymentId: null, paymentClaimedAt: null, paidAt: null, sentAt: null, promoCodeId: null, receipt: null, createdAt: now });
     gift.record(OrderingEvents.giftPurchased({ giftId: id }));
     return gift;
   }
@@ -85,13 +94,14 @@ export class GiftCard extends AggregateRoot<GiftCardProps> {
     return !!this.props.recipientEmail && (!this.props.sendAt || this.props.sendAt <= today);
   }
 
-  /** Оплата подтверждена: привязываем выпущенный промокод. Повторное подтверждение — false. */
-  markPaid(promoCodeId: string, paymentId: string | null, actor: string, now: Date): boolean {
+  /** Оплата подтверждена: привязываем выпущенный промокод (и чек, если подтвердил сотрудник). Повторное подтверждение — false. */
+  markPaid(promoCodeId: string, paymentId: string | null, actor: string, now: Date, receipt: GiftReceipt | null = null): boolean {
     if (this.props.status !== "pending_payment") return false;
     this.props.status = "paid";
     this.props.paidAt = now;
     this.props.promoCodeId = promoCodeId;
     if (paymentId) this.props.paymentId = paymentId;
+    if (receipt) this.props.receipt = receipt;
     this.record(OrderingEvents.giftPaid({ giftId: this.id, actor }));
     return true;
   }
