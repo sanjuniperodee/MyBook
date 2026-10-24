@@ -6,7 +6,7 @@ import type { PhotoItem } from "@/lib/book/layout";
 import { chapterMark, PHOTO_COLORS, type InteriorPalette } from "@/lib/book/interiors";
 import { frameShapes, openerArtShapes, openerEmblemShapes } from "@/lib/book/interior-art";
 import { openerFit } from "@/lib/book/opener-fit";
-import { openerPhotoPlan, type OpenerPhotoPlan } from "@/lib/book/photo-pages";
+import { openerPhotoPlan, openerTextColors, type OpenerPhotoPlan } from "@/lib/book/photo-pages";
 import { OPENER, VIGNETTE_RULE } from "@/lib/book/typesetting";
 import { PdfPageLayer } from "@/modules/production/infrastructure/pdf/art";
 import { labelStyle, noHyphens, pageMark, textFace, type PdfKit } from "./kit";
@@ -72,9 +72,10 @@ function ChapterMark({ kit, colors, number }: { kit: PdfKit; colors: InteriorPal
 export function Opener({ kit, chapterKey, number, title, epigraph, photo }: { kit: PdfKit; chapterKey: string; number: number | null; title: string; epigraph?: string; photo?: PhotoItem }) {
   const { design, format, box, sizes: S, options, openerAt, italicBody } = kit;
   const { fill, align, art } = design.opener;
-  const colors = fill ?? design.palette;
   const image = photo ? options.images.get(photo.id) : undefined;
   const shot = image ? openerPhotoPlan(format, design) : null;
+  // Название на снимке — светлым, что бы ни стояло в заливке главы (openerTextColors).
+  const colors = openerTextColors(design, shot);
   const artShapes = [
     ...(art ? openerArtShapes(art, { w: box.w, h: box.h, flowTop: openerAt.top, k: openerAt.k, palette: colors, seed: number ?? 0 }) : []),
     ...(shot ? [] : openerEmblemShapes(design.emblem, { w: box.w, h: box.h, flowTop: openerAt.top, k: openerAt.k, palette: colors })),

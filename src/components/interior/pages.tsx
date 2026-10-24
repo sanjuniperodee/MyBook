@@ -15,7 +15,7 @@ import { openerFlow, textArea, pageSide } from "@/lib/book/page-geometry";
 import { openerFit } from "@/lib/book/opener-fit";
 import { print } from "@/lib/book/formats";
 import { cropOr, fillFocus, type PhotoCrop } from "@/lib/book/photo-crop";
-import { OPENER_FOCUS, openerPhotoPlan, photoArea, photoPagePlan, type OpenerPhotoPlan } from "@/lib/book/photo-pages";
+import { OPENER_FOCUS, openerPhotoPlan, openerTextColors, photoArea, photoPagePlan, type OpenerPhotoPlan } from "@/lib/book/photo-pages";
 import { DISPLAY_TOP, FRONT, HTML_LINE_HEIGHT, OPENER, photoCaptionFace, TITLE_LAYOUT, TOC, VIGNETTE_RULE } from "@/lib/book/typesetting";
 import { cssFont } from "@/lib/book/fonts";
 import { cn } from "@/lib/class-names";
@@ -85,9 +85,10 @@ function ChapterMark({ kit, colors, number }: { kit: PageKit; colors: InteriorPa
 export function OpenerPage({ kit, number, title, epigraph, photo, className, style }: PageProps & { number: number | null; title: string; epigraph?: string; photo?: { url?: string; crop?: PhotoCrop } }) {
   const { design, format, sizes: S, u } = kit;
   const { fill, align, art } = design.opener;
-  const colors = fill ?? design.palette;
   const flow = openerFlow(format, design);
   const shot = photo ? openerPhotoPlan(format, design) : null;
+  // Название на снимке — светлым, что бы ни стояло в заливке главы (как в PDF).
+  const colors = openerTextColors(design, shot);
   const fit = openerFit(format, design, { title, epigraph, number, photo: !!shot });
   const shapes = [
     ...(art ? openerArtShapes(art, { w: format.widthMm, h: format.heightMm, flowTop: flow.top, k: flow.k, palette: colors, seed: number ?? 0 }) : []),

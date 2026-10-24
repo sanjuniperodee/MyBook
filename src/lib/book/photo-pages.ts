@@ -5,7 +5,7 @@
  * обрезного формата; рамки — фигуры interior-art (under — под снимком, over — поверх).
  */
 import { print, PT_TO_MM, type BookFormat, type Rect } from "./formats";
-import { PHOTO_COLORS, type InteriorDesign } from "./interiors";
+import { luminance, PHOTO_COLORS, type InteriorDesign, type InteriorPalette } from "./interiors";
 import { interiorSizes, photoCaptionFace, photoCaptionSize, type InteriorSizes } from "./typesetting";
 import type { Shape } from "./interior-art";
 import { n } from "./covers/svg-kit";
@@ -249,6 +249,20 @@ export const OPENER_POLAROID_RATIO = 1.15;
  * части кадра). Одно правило для PDF (render.tsx) и превью (object-position), чтобы снимок сел одинаково.
  */
 export const OPENER_FOCUS = { x: 0.5, y: 0.3 } as const;
+
+/** Цвета номера, названия и эпиграфа главы по затемнённому снимку на всю полосу — светлые, как у «Кадра» из каталога. */
+export const OPENER_ON_PHOTO: InteriorPalette = { ink: "#FFFFFF", muted: "#E4DED8", accent: "#F2EAE0", rule: "#8C847C", ornament: "#F2EAE0" };
+
+/**
+ * Цвета текста начальной полосы: заливки главы, иначе книги. Но если название лежит на снимке (снимок на всю полосу
+ * с затемнением снизу — shot.shade), фон под ним — снимок: заливка там не видна, и текст светлый, даже если заливку
+ * убрали в дизайнере или она светлая (тёмный текст на затемнении не читается). Одно правило для PDF и превью.
+ */
+export function openerTextColors(design: Pick<InteriorDesign, "opener" | "palette">, shot: Pick<OpenerPhotoPlan, "shade"> | null): InteriorPalette {
+  const base = design.opener.fill ?? design.palette;
+  if (!shot?.shade) return base;
+  return luminance(base.ink) > 0.6 ? base : OPENER_ON_PHOTO;
+}
 
 export function openerPhotoPlan(format: BookFormat, design: InteriorDesign): OpenerPhotoPlan | null {
   const kind = design.opener.photo;
