@@ -4,7 +4,9 @@ import { db } from "@/shared/infrastructure/db";
 import { executor } from "@/shared/infrastructure/database";
 import { designAiCredits, designAiPurchases, designAiRequests } from "@/shared/infrastructure/db/schema";
 import type { AiPack } from "@/config/site";
-import { DESIGN_AI_FREE_LIMIT, type DesignTarget } from "@/lib/book/design-ai";
+import { parseFreeLimit, type DesignTarget } from "@/lib/book/design-ai";
+import { getSetting } from "@/modules/workspace";
+import { DEFAULT_PRICES } from "@/modules/assistant";
 
 /**
  * Учёт просьб к ИИ-дизайнеру: 5 бесплатных на клиента за всё время и купленные запросы сверх них. Резерв берётся под
@@ -22,6 +24,19 @@ export interface DesignAiAllowance {
 
 const LOCK = 7_301_224;
 
+/** Стоимость ответа по прайсу Anthropic в долларах (токены из журнала ИИ-дизайнера); модели нет в прайсе — null. */
+export function designAiCostUsd(usage: Record<string, number>, model: string): number | null {
+  const p = DEFAULT_PRICES[model];
+  if (!p) return null;
+  const usd = ((usage.inputTokens ?? 0) * p.input + (usage.outputTokens ?? 0) * p.output + (usage.cacheReadTokens ?? 0) * p.cacheRead + (usage.cacheWriteTokens ?? 0) * p.cacheWrite) / 1_000_000;
+  return Math.round(usd * 1e6) / 1e6;
+}
+
+/** Сколько бесплатных запросов на клиента сейчас — настройка «ИИ-дизайнер» в админке. */
+export async function designAiFreeLimit(): Promise<number> {
+  return parseFreeLimit(await getSetting("designAi.freeLimit"));
+}
+
 async function usedFree(tx: Pick<typeof db, "select">, userId: string) {
   const [r] = await tx
     .select({ n: count() })
@@ -36,16 +51,17 @@ async function creditsOf(tx: Pick<typeof db, "select">, userId: string) {
 }
 
 export async function designAiAllowance(userId: string): Promise<DesignAiAllowance> {
-  const [used, credits] = await Promise.all([usedFree(db, userId), creditsOf(db, userId)]);
-  return { limit: DESIGN_AI_FREE_LIMIT, remaining: Math.max(0, DESIGN_AI_FREE_LIMIT - used), credits };
+  const [used, credits, limit] = await Promise.all([usedFree(db, userId), creditsOf(db, userId), designAiFreeLimit()]);
+  return { limit, remaining: Math.max(0, limit - used), credits };
 }
 
 /** Взять запрос: бесплатный, если остались, иначе купленный. Нет ни того ни другого — null. */
-export async function reserveDesignAi(input: { userId: string; bookId: string; target: DesignTarget; prompt: string }, now = new Date()): Promise<{ id: string; source: "free" | "credit" } | null> {
+export async function reserveDesignAi(input: { userId: string; bookId: string; target: DesignTarget; prompt: string; mode?: string }, now = new Date()): Promise<{ id: string; source: "free" | "credit" } | null> {
+  const limit = await designAiFreeLimit();
   return db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(${LOCK}, hashtext(${input.userId}))`);
     let source: "free" | "credit" | null = null;
-    if ((await usedFree(tx, input.userId)) < DESIGN_AI_FREE_LIMIT) source = "free";
+    if ((await usedFree(tx, input.userId)) < limit) source = "free";
     else {
       const taken = await tx
         .update(designAiCredits)
@@ -55,14 +71,17 @@ export async function reserveDesignAi(input: { userId: string; bookId: string; t
       if (taken.length) source = "credit";
     }
     if (!source) return null;
-    const [row] = await tx.insert(designAiRequests).values({ userId: input.userId, bookId: input.bookId, target: input.target, prompt: input.prompt, source }).returning({ id: designAiRequests.id });
+    const [row] = await tx.insert(designAiRequests).values({ userId: input.userId, bookId: input.bookId, target: input.target, prompt: input.prompt, source, mode: input.mode ?? null }).returning({ id: designAiRequests.id });
     return { id: row.id, source };
   });
 }
 
 /** Модель ответила: запрос в журнал (и в лимит). */
-export async function completeDesignAi(id: string, result: { reply: string; ops: unknown[]; errors: string[]; usage: Record<string, number> }) {
-  await db.update(designAiRequests).set({ status: "ok", reply: result.reply.slice(0, 2000), ops: result.ops, errors: result.errors, usage: result.usage }).where(eq(designAiRequests.id, id));
+export async function completeDesignAi(id: string, result: { reply: string; ops: unknown[]; errors: string[]; usage: Record<string, number>; model?: string; costUsd?: number | null; ms?: number; polish?: "ok" | "fixed" | null }) {
+  await db
+    .update(designAiRequests)
+    .set({ status: "ok", reply: result.reply.slice(0, 2000), ops: result.ops, errors: result.errors, usage: result.usage, model: result.model ?? null, costUsd: result.costUsd ?? null, ms: result.ms ?? null, polish: result.polish ?? null })
+    .where(eq(designAiRequests.id, id));
 }
 
 /** Модель не ответила: попытка не считается, купленный запрос возвращается на баланс. */

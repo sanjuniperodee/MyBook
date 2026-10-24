@@ -1,5 +1,5 @@
 /** Книги: сама книга, вопросы с ответами, фото и письма близких (модуль authoring). */
-import { boolean, index, integer, jsonb, pgTable, serial, smallint, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { boolean, doublePrecision, index, integer, jsonb, pgTable, serial, smallint, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import type { Locale } from "@/i18n/config";
 import { timestamps } from "./columns";
 import { users } from "./identity";
@@ -235,9 +235,15 @@ export const designAiRequests = pgTable(
     ops: jsonb("ops").$type<unknown[]>().notNull().default([]),
     errors: jsonb("errors").$type<string[]>().notNull().default([]),
     usage: jsonb("usage").$type<Record<string, number>>().notNull().default({}),
+    /** Режим просьбы (edit, create, variants, review), модель, стоимость по прайсу в долларах, время ответа и осмотр картинкой (ok — без правок, fixed — поправил); у записей до 24.10.2026 пусто. */
+    mode: text("mode"),
+    model: text("model"),
+    costUsd: doublePrecision("cost_usd"),
+    ms: integer("ms"),
+    polish: text("polish"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("design_ai_requests_user_idx").on(t.userId, t.createdAt)],
+  (t) => [index("design_ai_requests_user_idx").on(t.userId, t.createdAt), index("design_ai_requests_created_idx").on(t.createdAt)],
 );
 
 /** Купленные запросы к ИИ-дизайнеру: остаток на клиента. Тратятся, когда бесплатный лимит исчерпан. */

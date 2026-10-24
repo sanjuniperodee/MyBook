@@ -5,11 +5,11 @@ import { rateLimit } from "@/server/rateLimit";
 import { container } from "@/server/container";
 import { idParams } from "@/server/input";
 import { AssistantError } from "@/modules/assistant";
-import { completeDesignAi, designAiAllowance, failDesignAi, reserveDesignAi } from "@/server/designAiStore";
+import { completeDesignAi, designAiAllowance, designAiCostUsd, failDesignAi, reserveDesignAi } from "@/server/designAiStore";
 import { designAiPacks } from "@/server/designAiPacks";
 import { renderCoverPreview, renderPagesPreview } from "@/modules/production";
 import { photoPalette } from "@/server/photoPalette";
-import { describeCover, describePages, describeTemplate, designTier, runDesignAi, runDesignReview, runDesignVariants, type Ask, type CoverState, type DesignAiInput, type DesignBookContext, type DesignTarget, type PagesState } from "@/lib/book/design-ai";
+import { DESIGN_AI_MODEL, DESIGN_AI_MODEL_MAX, DESIGN_AI_MODEL_PRO, describeCover, describePages, describeTemplate, designTier, runDesignAi, runDesignReview, runDesignVariants, type Ask, type CoverState, type DesignAiInput, type DesignBookContext, type DesignTarget, type PagesState } from "@/lib/book/design-ai";
 import { parseCoverDesign, type CoverDesign } from "@/lib/book/cover-design";
 import { coverNames } from "@/lib/book/cover-names";
 import { getFormat } from "@/lib/book/formats";
@@ -115,7 +115,9 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
     texts,
   };
 
-  const reserved = await reserveDesignAi({ userId: user.id, bookId: book.id, target: input.target, prompt: input.prompt || `(${input.mode})` });
+  const startedAt = Date.now();
+  const model = { fast: DESIGN_AI_MODEL, pro: DESIGN_AI_MODEL_PRO, max: DESIGN_AI_MODEL_MAX }[tier];
+  const reserved = await reserveDesignAi({ userId: user.id, bookId: book.id, target: input.target, prompt: input.prompt || `(${input.mode})`, mode: input.mode });
   // Лимит и купленные кончились — редактор сам покажет пакеты (GET).
   if (!reserved) throw new HttpError(402, "designAiLimit");
 
@@ -143,8 +145,8 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
       : undefined;
   const run: DesignAiInput<DesignTarget> = { target: input.target, mode: input.mode === "create" ? "create" : "edit", request: input.prompt, state, book: ctx, history: input.history, layout: { texts, photos }, preview };
   try {
-    const done = async (log: { reply: string; ops: unknown[]; errors: string[]; usage: Record<string, number> }, payload: Record<string, unknown>) => {
-      await completeDesignAi(reserved.id, log);
+    const done = async (log: { reply: string; ops: unknown[]; errors: string[]; usage: Record<string, number> }, payload: Record<string, unknown>, polish: "ok" | "fixed" | null = null) => {
+      await completeDesignAi(reserved.id, { ...log, model, costUsd: designAiCostUsd(log.usage, model), ms: Date.now() - startedAt, polish });
       return NextResponse.json({ mode: input.mode, ...payload, allowance: await designAiAllowance(user.id), source: reserved.source });
     };
     if (input.mode === "variants") {
@@ -152,6 +154,7 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
       return done(
         { reply: res.reply, ops: res.variants.map((v) => ({ name: v.name, ops: v.ops })), errors: res.variants.flatMap((v) => v.errors), usage: res.usage },
         { reply: res.reply, variants: res.variants.map((v) => ({ name: v.name, idea: v.idea, patch: patchOf(input.target, v.state, own) })) },
+        res.polish ?? null,
       );
     }
     if (input.mode === "review") {
@@ -162,7 +165,7 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
       );
     }
     const res = await runDesignAi(ask, run);
-    return done({ reply: res.reply, ops: res.ops, errors: res.errors, usage: res.usage }, { reply: res.reply, concept: res.concept, changed: res.changed, patch: patchOf(input.target, res.state, own) });
+    return done({ reply: res.reply, ops: res.ops, errors: res.errors, usage: res.usage }, { reply: res.reply, concept: res.concept, changed: res.changed, patch: patchOf(input.target, res.state, own) }, res.polish ? (res.polish.fixed ? "fixed" : "ok") : null);
   } catch (err) {
     await failDesignAi(reserved.id, err instanceof Error ? err.message : String(err));
     if (err instanceof HttpError) throw err;

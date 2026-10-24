@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ART_EXAMPLES, ART_REFERENCE, compileArt, resolveDrawing, sanitizeDrawing } from "@/lib/book/art";
 import { compose, mirrorM, parsePath, rotateM, scaleM, transformSegs, translateM, writePath } from "@/lib/book/art/path";
 import { COVER_EXAMPLES } from "@/lib/book/design-ai/examples";
+import { DESIGN_AI_FREE_LIMIT, parseFreeLimit } from "@/lib/book/design-ai";
 import { applyCoverOps, applyPagesOps, coverSystemPrompt, critiqueCover, designTier, pagesSystemPrompt, type DesignOp } from "@/lib/book/design-ai";
 import { designFromTemplate, layerDrawing, parseCoverDesign, type CoverDesign } from "@/lib/book/cover-design";
 import { coverMeta } from "@/lib/book/covers/meta";
@@ -279,5 +280,14 @@ describe("ИИ-дизайнер: образцы обложек — планка 
     const p = coverSystemPrompt();
     for (const e of COVER_EXAMPLES) expect(p).toContain(`«${e.id}»`);
     expect(p).toContain("Арт-дирекция");
+  });
+});
+
+describe("бесплатный лимит ИИ-дизайнера из настройки", () => {
+  it("целое от 0 до 100; всё остальное — по умолчанию", () => {
+    expect(parseFreeLimit("12")).toBe(12);
+    expect(parseFreeLimit("0")).toBe(0);
+    expect(parseFreeLimit("100")).toBe(100);
+    for (const bad of ["", null, undefined, "101", "-1", "2,5", "много", "1e2"]) expect(parseFreeLimit(bad as string)).toBe(DESIGN_AI_FREE_LIMIT);
   });
 });

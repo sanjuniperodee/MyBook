@@ -103,6 +103,8 @@ export interface DesignVariant<T extends DesignTarget> {
 export interface DesignVariantsResult<T extends DesignTarget> extends Run {
   reply: string;
   variants: DesignVariant<T>[];
+  /** Осмотр картинкой: fixed — хоть один вариант поправлен, ok — смотрели, правок нет; нет поля — осмотра не было. */
+  polish?: "ok" | "fixed";
 }
 
 export interface DesignTip<T extends DesignTarget> {
@@ -285,18 +287,22 @@ export async function runDesignVariants<T extends DesignTarget>(ask: Ask, input:
   }
   // Осмотр глазами: все варианты — одним запросом (картинки по порядку); исправляются те, где нашлись недостатки.
   let polished = false;
+  let anyFixed = false;
   if (input.preview && variants.length) {
     const images = await Promise.all(variants.map((v) => input.preview!(v.state).catch(() => null)));
     if (images.every((i): i is PreviewImage => !!i)) {
       const p = await polishDesigns(ask, { target: input.target, book: input.book, request: input.request, layout: input.layout }, variants.map((v) => v.state), images);
       p.results.forEach((x, i) => {
-        if (x.fixed) variants[i] = { ...variants[i], state: x.state };
+        if (x.fixed) {
+          variants[i] = { ...variants[i], state: x.state };
+          anyFixed = true;
+        }
       });
       addUsage(run.usage, p.usage);
       polished = true;
     }
   }
-  return { reply: run.answer?.reply ?? "", variants, attempts: run.attempts + (polished ? 1 : 0), usage: run.usage };
+  return { reply: run.answer?.reply ?? "", variants, polish: polished ? (anyFixed ? "fixed" : "ok") : undefined, attempts: run.attempts + (polished ? 1 : 0), usage: run.usage };
 }
 
 // ─── оценка ────────────────────────────────────────────────────────────────
