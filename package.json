@@ -36,6 +36,7 @@
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.3",
     "fontkit": "^2.0.4",
+    "heic-decode": "^2.1.0",
     "html-to-image": "^1.11.13",
     "hunspell-asm": "^4.0.2",
     "hyphen": "^1.14.1",

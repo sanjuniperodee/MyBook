@@ -29,6 +29,7 @@ export const api = {
   photosLimit: (max: number) => `В книгу можно добавить до ${max} фото`,
   photoTooBig: (name: string) => `${name}: файл больше 25 МБ`,
   photoFormat: (name: string) => `${name}: формат не поддерживается`,
+  photoDamaged: (name: string) => `${name}: на фото видны зелёные квадраты. Так бывает, когда телефон готовит много больших снимков сразу, — это не ваша вина. Удалите это фото и загрузите его ещё раз отдельно.`,
   onlyOwnQuestions: "Удалять можно только собственные вопросы",
   questionsLimit: "Достигнут предел количества вопросов",
   questionEmpty: "Напишите вопрос",

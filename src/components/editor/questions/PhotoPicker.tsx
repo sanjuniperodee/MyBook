@@ -10,7 +10,7 @@ import type { PhotoPlace } from "@/lib/book/photo-place";
 import { photoUrl } from "@/lib/urls";
 import { cn } from "@/lib/class-names";
 import { MAX_PHOTOS } from "@/modules/authoring/domain/Photo";
-import { patchPhotos, uploadPhotos } from "../photos/api";
+import { patchPhotos, uploadPhotos, PHOTO_ACCEPT } from "../photos/api";
 import type { PlaceNames } from "../photos/model";
 import { PlaceBadge } from "../photos/PlaceBadge";
 import { Sheet } from "../photos/Sheet";
@@ -187,7 +187,7 @@ export function PhotoPicker({
       }
     >
       <p className="text-sm leading-snug text-muted">{(blank ? t.introBlank : t.intro)(questionLabel)}</p>
-      <input ref={input} type="file" accept="image/*" multiple className="hidden" onChange={(e) => void send([...(e.target.files ?? [])])} />
+      <input ref={input} type="file" accept={PHOTO_ACCEPT} multiple className="hidden" onChange={(e) => void send([...(e.target.files ?? [])])} />
       <button
         type="button"
         className="mt-4 flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-line bg-cream/30 px-4 text-sm font-medium text-ink hover:bg-cream/60 disabled:opacity-60"

@@ -83,6 +83,13 @@ export async function patchBook(bookId: string, patch: { tocLines?: TocLines; ph
   return { tocLines: res.book.tocLines ?? {}, photoPlacement: res.book.photoPlacement };
 }
 
+/**
+ * Что выбирать в окне загрузки фото. Явные image/heic и .heic нужны iPhone: без них Safari сам превращает фото в JPEG, и на
+ * больших снимках в этом превращении иногда появляются зелёные квадраты. С ними телефон отдаёт оригинал, а сервер
+ * раскодирует его сам (infrastructure/heic.ts).
+ */
+export const PHOTO_ACCEPT = "image/*,image/heic,image/heif,.heic,.heif";
+
 /** Сколько файлов уходит одним запросом загрузки (как в выборе фото редактора). */
 const UPLOAD_CHUNK = 6;
 

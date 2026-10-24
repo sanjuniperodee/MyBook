@@ -454,6 +454,8 @@ export class PhotosService {
     if (count + files.length > MAX_PHOTOS) throw new AuthoringError("photosLimit", undefined, [MAX_PHOTOS]);
     const created: Photo[] = [];
     const failed: { name: string; reason: "tooBig" | "format" }[] = [];
+    // Фото загружено, но, похоже, повреждено телефоном (зелёные квадраты): автору скажем загрузить его ещё раз.
+    const damaged: string[] = [];
     let position = maxPosition + 1;
     for (const file of files) {
       if (file.size > this.images.maxUploadBytes) {
@@ -470,13 +472,14 @@ export class PhotosService {
         const photo = Photo.uploaded(id, { bookId: book.id, position: position++, storageKey, thumbKey, width: img.width, height: img.height });
         await this.photos.add(photo);
         created.push(photo);
+        if (img.damaged) damaged.push(file.name);
       } catch (err) {
         console.error("[photos] upload failed", err);
         failed.push({ name: file.name, reason: "format" });
       }
     }
     await this.books.touch(book.id);
-    return { created, failed };
+    return { created, failed, damaged };
   }
 
   /**

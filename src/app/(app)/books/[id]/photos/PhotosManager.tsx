@@ -16,7 +16,7 @@ import type { PlaceFrame } from "@/lib/book/photo-pages";
 import { cn } from "@/lib/class-names";
 import { PhotosArt } from "@/components/illustrations";
 import { CropDialog } from "@/components/editor/CropDialog";
-import { patchPhotos } from "@/components/editor/photos/api";
+import { patchPhotos, PHOTO_ACCEPT } from "@/components/editor/photos/api";
 import { albumPhotos, galleryTitleOf, type PlaceData, type SheetPhoto } from "@/components/editor/photos/model";
 import { GallerySheet } from "@/components/editor/photos/GallerySheet";
 import { PhotoIntroCard } from "@/components/editor/photos/PhotoIntro";
@@ -159,7 +159,7 @@ export function PhotosManager({ data, initialFilter }: { data: PhotosTabData; in
         </div>
         {editable ? (
           <>
-            <input ref={input} type="file" accept="image/*" multiple className="hidden" onChange={(e) => void upload([...(e.target.files ?? [])])} />
+            <input ref={input} type="file" accept={PHOTO_ACCEPT} multiple className="hidden" onChange={(e) => void upload([...(e.target.files ?? [])])} />
             <button className="btn btn-primary btn-lg max-sm:w-full" onClick={() => input.current?.click()} disabled={!!ed.uploading}>
               {ed.uploading ? <LoaderCircle className="size-5 animate-spin" /> : <ImagePlus className="size-5" />}
               {ed.uploading ? t.uploading(ed.uploading.done, ed.uploading.total) : t.add}

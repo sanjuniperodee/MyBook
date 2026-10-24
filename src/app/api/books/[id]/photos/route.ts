@@ -19,5 +19,5 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
   const t = (await getMessages()).api;
   const rows = await authoring.queries.photos(id);
   const createdIds = new Set(result.created.map((p) => p.id));
-  return NextResponse.json({ photos: rows.filter((p) => createdIds.has(p.id)), errors: result.failed.map((f) => (f.reason === "tooBig" ? t.photoTooBig(f.name) : t.photoFormat(f.name))) });
+  return NextResponse.json({ photos: rows.filter((p) => createdIds.has(p.id)), errors: [...result.failed.map((f) => (f.reason === "tooBig" ? t.photoTooBig(f.name) : t.photoFormat(f.name))), ...result.damaged.map((name) => t.photoDamaged(name))] });
 });

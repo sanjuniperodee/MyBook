@@ -10,7 +10,7 @@ export interface ThemeCatalog {
 /** Обработка загруженных фото: нормализация, превью, поворот. */
 export interface ImageProcessor {
   readonly maxUploadBytes: number;
-  process(input: Buffer): Promise<{ full: Buffer; thumb: Buffer; width: number; height: number }>;
+  process(input: Buffer): Promise<{ full: Buffer; thumb: Buffer; width: number; height: number; damaged?: boolean }>;
   rotate(full: Buffer, thumb: Buffer): Promise<{ full: Buffer; thumb: Buffer }>;
 }
 

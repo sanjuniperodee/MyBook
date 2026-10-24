@@ -26,6 +26,7 @@ export const api: typeof ru = {
   photosLimit: (max: number) => `Кітапқа ${max} суретке дейін қосуға болады`,
   photoTooBig: (name: string) => `${name}: файл 25 МБ-тан үлкен`,
   photoFormat: (name: string) => `${name}: бұл форматқа қолдау көрсетілмейді`,
+  photoDamaged: (name: string) => `${name}: фотода жасыл шаршылар көрінеді. Телефон бірден көп үлкен суретті дайындағанда осылай болады — бұл сіздің кінәңіз емес. Бұл фотоны жойып, қайта бөлек жүктеңіз.`,
   onlyOwnQuestions: "Тек өз сұрақтарыңызды жоюға болады",
   questionsLimit: "Сұрақтар санының шегіне жеттіңіз",
   questionEmpty: "Сұрақты жазыңыз",

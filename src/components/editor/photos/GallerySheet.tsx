@@ -14,6 +14,7 @@ import { PlaceBadge, placeText } from "./PlaceBadge";
 import { PlaceSheet } from "./PlaceSheet";
 import { Sheet } from "./Sheet";
 import { usePlaceEditing } from "./usePlaceEditing";
+import { PHOTO_ACCEPT } from "./api";
 
 /**
  * Лист «Альбом в конце» (S9): что такое альбом, его название в книге (строка оглавления альбома), фото альбома —
@@ -115,7 +116,7 @@ export function GallerySheet({ data, on, onClose, layer }: { data: PlaceData; on
         )
       }
     >
-      <input ref={input} type="file" accept="image/*" multiple className="hidden" onChange={(e) => void upload([...(e.target.files ?? [])])} />
+      <input ref={input} type="file" accept={PHOTO_ACCEPT} multiple className="hidden" onChange={(e) => void upload([...(e.target.files ?? [])])} />
       {ed.error ? <p className="mb-3 text-sm text-wine">{cp.error}</p> : null}
       {ed.note ? <p className="mb-3 text-sm text-amber-800">{ed.note}</p> : null}
 

@@ -24,6 +24,7 @@ import { PhotoChooser, type ChooserMode } from "./PhotoChooser";
 import { PlaceSheet } from "./PlaceSheet";
 import { Sheet } from "./Sheet";
 import { usePlaceEditing } from "./usePlaceEditing";
+import { PHOTO_ACCEPT } from "./api";
 
 /** Мало точек для рамки: чёткость в кадре с приближением ниже SUGGEST_MIN_DPI. */
 export const lowResIn = (photo: { width: number; height: number }, frame: Pick<PlaceFrame, "w" | "h">, zoom = 1) => effectiveDpi(photo, { w: frame.w, h: frame.h }, "cover") / zoom < SUGGEST_MIN_DPI;
@@ -210,7 +211,7 @@ export function ChapterPhotoSheet({
         )
       }
     >
-      <input ref={input} type="file" accept="image/*" multiple className="hidden" onChange={(e) => void upload([...(e.target.files ?? [])])} />
+      <input ref={input} type="file" accept={PHOTO_ACCEPT} multiple className="hidden" onChange={(e) => void upload([...(e.target.files ?? [])])} />
       {ed.error ? <p className="mb-3 text-sm text-wine">{cp.error}</p> : null}
       {ed.note ? <p className="mb-3 text-sm text-amber-800">{ed.note}</p> : null}
 
