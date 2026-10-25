@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { api, apiBook, HttpError } from "@/server/api";
 import { rateLimit } from "@/server/rateLimit";
+import { clientAiLimits } from "@/server/clientAiLimits";
 import { container } from "@/server/container";
 import { AssistantError, rewriteModes } from "@/modules/assistant";
 import { bookKind } from "@/lib/content/kinds";
@@ -15,17 +16,19 @@ const schema = z
 
 /**
  * AI-помощник при письме: оформить, улучшить, сделать больше или короче, переписать по просьбе автора.
- * Модель та же, что у корректора («Интеграции» → «Проверка текста»), лимиты — свои.
+ * Свои провайдер, модель, флажок и лимиты — «Интеграции» → AI → «AI-помощник при письме у клиента» (пока там пусто — как у
+ * корректора).
  */
 export const POST = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = idParams(await params, "id");
   const { user, book } = await apiBook(req, id);
   const { text, mode, prompt } = schema.parse(await req.json());
-  const proofreader = container().assistant.proofreader;
-  if (!(await proofreader.configured())) throw new HttpError(503, "writeAiOff");
-  if (!(await rateLimit(`write-ai:${user.id}`, 10, 600_000)) || !(await rateLimit(`write-ai-day:${user.id}`, 60, 86_400_000))) throw new HttpError(429, "writeAiRate");
+  const writer = container().assistant.writer;
+  if (!(await writer.configured())) throw new HttpError(503, "writeAiOff");
+  const limits = (await clientAiLimits()).writer;
+  if (!(await rateLimit(`write-ai:${user.id}`, limits.perTenMin, 600_000)) || !(await rateLimit(`write-ai-day:${user.id}`, limits.perDay, 86_400_000))) throw new HttpError(429, "writeAiRate");
   try {
-    const result = await proofreader.rewrite(text, mode, book.language, { kind: bookKind(book.theme), instruction: prompt });
+    const result = await writer.rewrite(text, mode, book.language, { kind: bookKind(book.theme), instruction: prompt });
     return NextResponse.json({ text: result });
   } catch (err) {
     if (!AssistantError.is(err)) throw err;

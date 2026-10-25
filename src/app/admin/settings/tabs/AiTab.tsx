@@ -6,6 +6,8 @@ import { SellerForm } from "../ai/SellerForm";
 import { RoutingForm } from "../ai/RoutingForm";
 import { isSellerTier, type RouteMode } from "@/modules/assistant/domain/routing";
 import { MediaForm } from "../ai/MediaForm";
+import { WriterForm } from "../ai/WriterForm";
+import { AiMap } from "../ai/AiMap";
 
 const ROUTE_KEYS = [
   "seller.route",
@@ -27,7 +29,7 @@ export async function AiTab() {
     getSetting("ai.provider"),
     getSetting("ai.enabled"),
     getSetting("ai.knowledge"),
-    getSettings(["proofread.provider", "proofread.model", "proofread.enabled"]),
+    getSettings(["proofread.provider", "proofread.model", "proofread.enabled", "proofread.perTenMin", "proofread.perDay", "writer.provider", "writer.model", "writer.enabled", "writer.perTenMin", "writer.perDay"]),
     getSettings(["seller.provider", "seller.model"]),
     getSettings(["media.provider", "media.model"]),
     getSettings([...ROUTE_KEYS]),
@@ -47,6 +49,7 @@ export async function AiTab() {
   const assistant: AiProvider = isAiProvider(aiProvider) ? aiProvider : "anthropic";
   return (
     <>
+      <AiMap />
       <AiForm provider={assistant} providerFromEnv={fromEnv("ai.provider")} providers={aiSaved} enabled={aiEnabled !== "off"} autofill={autofill !== "off"} knowledge={aiKnowledge} />
       <RoutingForm
         saved={{
@@ -78,6 +81,18 @@ export async function AiTab() {
         assistantProvider={assistant}
         model={pr["proofread.model"]}
         enabled={pr["proofread.enabled"] !== "off"}
+        perTenMin={pr["proofread.perTenMin"]}
+        perDay={pr["proofread.perDay"]}
+        providers={aiSaved}
+      />
+      <WriterForm
+        provider={isAiProvider(pr["writer.provider"]) ? pr["writer.provider"] : ""}
+        proofreadProvider={isAiProvider(pr["proofread.provider"]) ? pr["proofread.provider"] : assistant}
+        model={pr["writer.model"]}
+        // Пока флажок помощника не сохранён, он выключается вместе с корректором — как было раньше.
+        enabled={(pr["writer.enabled"] || pr["proofread.enabled"]) !== "off"}
+        perTenMin={pr["writer.perTenMin"]}
+        perDay={pr["writer.perDay"]}
         providers={aiSaved}
       />
     </>

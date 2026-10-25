@@ -1,5 +1,6 @@
 import "server-only";
 import type { SettingsReader } from "@/shared/application";
+import type { DesignSettingKey } from "@/lib/book/design-ai";
 import { ROUTE_SETTING_KEYS, aiProviders, isAiProvider, readRoutePolicy, type AiConnection, type AiProvider, type RouteSettingKey } from "../domain";
 
 const keys = {
@@ -20,7 +21,7 @@ export const MEDIA_GROQ_MODEL = "whisper-large-v3";
 export const providerSettingKeys = keys;
 
 /** Настройки CRM, которые читает AI-помощник: провайдеры, база знаний и AI-корректор. */
-export type AssistantSettingKey = (typeof keys)[AiProvider][keyof (typeof keys)[AiProvider]] | "ai.provider" | "ai.enabled" | "ai.knowledge" | "proofread.enabled" | "proofread.provider" | "proofread.model" | "seller.provider" | "seller.model" | "seller.fallbacks" | "media.provider" | "media.model" | RouteSettingKey;
+export type AssistantSettingKey = (typeof keys)[AiProvider][keyof (typeof keys)[AiProvider]] | "ai.provider" | "ai.enabled" | "ai.knowledge" | "proofread.enabled" | "proofread.provider" | "proofread.model" | "seller.provider" | "seller.model" | "seller.fallbacks" | "media.provider" | "media.model" | "writer.enabled" | "writer.provider" | "writer.model" | DesignSettingKey | RouteSettingKey;
 
 /** Подключение к модели: пустые модель и адрес заменены значениями по умолчанию. */
 export type Connection = () => Promise<AiConnection & { enabled: boolean }>;
@@ -63,6 +64,22 @@ export function aiConnections(settings: SettingsReader<AssistantSettingKey>) {
     return { ...(await connectionOf(provider, model)), enabled: enabled !== "off" };
   };
 
+  /** Провайдер AI-помощника при письме: свой или (пусто) — как у корректора. */
+  async function writerProvider(): Promise<{ provider: AiProvider; own: boolean }> {
+    const p = await settings.get("writer.provider");
+    return isAiProvider(p) ? { provider: p, own: true } : { provider: (await proofreadProvider()).provider, own: false };
+  }
+
+  /**
+   * Подключение AI-помощника при письме у клиента (оформить, улучшить, короче, длиннее, по просьбе): свой провайдер, модель
+   * и флажок. Пока ничего не задано, всё как у корректора — так было, пока настройки были общими.
+   */
+  const writer: Connection = async () => {
+    const [{ provider }, model, proofModel, enabled, proofEnabled] = await Promise.all([writerProvider(), settings.get("writer.model"), settings.get("proofread.model"), settings.get("writer.enabled"), settings.get("proofread.enabled")]);
+    const own = (await settings.get("writer.provider")) !== "";
+    return { ...(await connectionOf(provider, model || (own ? "" : proofModel))), enabled: (enabled || proofEnabled) !== "off" };
+  };
+
   /**
    * Подключение AI-продажника бота: свой провайдер и модель (или как у помощника). Отдельно от помощника: продающая беседа
    * требует сильной модели с надёжным JSON-ответом, а подсказки менеджеру могут идти и на лёгкой.
@@ -101,6 +118,14 @@ export function aiConnections(settings: SettingsReader<AssistantSettingKey>) {
     return readRoutePolicy(await settings.getMany([...ROUTE_SETTING_KEYS]));
   }
 
+  /**
+   * Claude для ИИ-дизайнера с заданной моделью: ключ и адрес Anthropic из «Интеграций», а включён ли дизайнер — своя
+   * настройка («ИИ-дизайнер» в админке), а не флажок AI-помощника CRM.
+   */
+  const designer =
+    (model: string): Connection =>
+    async () => ({ ...(await connectionOf("anthropic", model)), enabled: (await settings.get("designAi.enabled")) !== "off" });
+
   /** Claude с заданной моделью: ключ и адрес Anthropic из «Интеграций». */
   const claude =
     (model: string): Connection =>
@@ -123,5 +148,5 @@ export function aiConnections(settings: SettingsReader<AssistantSettingKey>) {
     return order.map((provider) => ({ provider, connection: () => connectionOf(provider, provider === legacy.provider ? model : "") }));
   }
 
-  return { active, proofread, proofreadProvider, seller, sellerProvider, sellerPolicy, sellerFallbacks, claude, media, mediaProvider };
+  return { active, proofread, proofreadProvider, writer, writerProvider, designer, seller, sellerProvider, sellerPolicy, sellerFallbacks, claude, media, mediaProvider };
 }

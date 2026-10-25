@@ -9,7 +9,7 @@ import { completeDesignAi, designAiAllowance, designAiCostUsd, failDesignAi, res
 import { designAiPacks } from "@/server/designAiPacks";
 import { renderCoverPreview, renderPagesPreview } from "@/modules/production";
 import { photoPalette } from "@/server/photoPalette";
-import { DESIGN_AI_MODEL, DESIGN_AI_MODEL_MAX, DESIGN_AI_MODEL_PRO, describeCover, describePages, describeTemplate, designTier, runDesignAi, runDesignReview, runDesignVariants, type Ask, type CoverState, type DesignAiInput, type DesignBookContext, type DesignTarget, type PagesState } from "@/lib/book/design-ai";
+import { describeCover, describePages, describeTemplate, designPlan, runDesignAi, runDesignReview, runDesignVariants, type Ask, type CoverState, type DesignAiInput, type DesignBookContext, type DesignTarget, type PagesState } from "@/lib/book/design-ai";
 import { parseCoverDesign, type CoverDesign } from "@/lib/book/cover-design";
 import { coverNames } from "@/lib/book/cover-names";
 import { getFormat } from "@/lib/book/formats";
@@ -70,9 +70,11 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
   const { user, book } = await apiBook(req, id, { editable: true });
   const input = body.parse(await req.json());
   if (input.mode === "edit" && input.prompt.length < 2) throw new HttpError(400, "badRequest");
-  // «Придумать» и «3 варианта» — Opus, рисунки и оценка — Sonnet, мелкие правки — Haiku.
-  const tier = designTier(input.mode, input.prompt);
-  const designer = tier === "max" ? container().assistant.designerMax : tier === "pro" ? container().assistant.designerPro : container().assistant.designer;
+  // Какая модель отвечает и нужен ли осмотр картинкой — настройки «ИИ-дизайнер» в админке (по умолчанию: мелкие правки —
+  // Haiku, остальное — Sonnet; Opus — только если выбран).
+  const plan = designPlan(await container().assistant.designSettings(), input.mode, input.prompt);
+  const designer = container().assistant.designerFor(plan.model);
+  // Выключен в админке или нет ключа Claude — «недоступен».
   if (!(await designer.configured())) throw new HttpError(503, "designAiOff");
   // Защита от очереди кликов: не чаще раза в 5 секунд (лимит считается отдельно).
   if (!(await rateLimit(`design-ai:${user.id}`, 1, 5_000))) throw new HttpError(429, "writeAiRate");
@@ -116,21 +118,22 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
   };
 
   const startedAt = Date.now();
-  const model = { fast: DESIGN_AI_MODEL, pro: DESIGN_AI_MODEL_PRO, max: DESIGN_AI_MODEL_MAX }[tier];
+  const model = plan.model;
   const reserved = await reserveDesignAi({ userId: user.id, bookId: book.id, target: input.target, prompt: input.prompt || `(${input.mode})`, mode: input.mode });
   // Лимит и купленные кончились — редактор сам покажет пакеты (GET).
   if (!reserved) throw new HttpError(402, "designAiLimit");
 
   const ask: Ask = async (r) => {
-    const res = await designer.ask(r);
+    // Кэш инструкции на 5 минут: запросы дизайнера редкие, час кэша стоил бы вдвое дороже входа и почти не окупался.
+    const res = await designer.ask({ ...r, cacheTtl: "5m" });
     return { text: res.text, usage: { inputTokens: res.usage.input, outputTokens: res.usage.output, cacheReadTokens: res.usage.cacheRead, cacheWriteTokens: res.usage.cacheWrite } };
   };
-  // Осмотр глазами (не для мелких правок и не для оценки): оформление рисуется той же вёрсткой, что идёт в печать
+  // Осмотр глазами (включён в настройках; не для мелких правок на Haiku и не для оценки): оформление рисуется той же вёрсткой, что идёт в печать
   // (обложка или лист первых страниц), и модель правит недостатки, которые видно только на картинке. Нет растра
   // или вёрстка не вышла — осмотра нет.
   let bundle: ReturnType<ReturnType<typeof container>["authoring"]["queries"]["bundle"]> | null = null;
   const preview =
-    tier !== "fast" && input.mode !== "review"
+    plan.polish
       ? async (s: PagesState | CoverState) => {
           bundle ??= container().authoring.queries.bundle(book.id);
           const b = await bundle;

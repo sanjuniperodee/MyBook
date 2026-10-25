@@ -3,7 +3,8 @@ import { AssistantError, DEFAULT_PRICES, costUsd, failureKindOf, parsePrices, re
 import { sellerModel, type SellerRoute } from "@/modules/assistant/application/SellerModel";
 import type { LanguageModel } from "@/modules/assistant/application";
 import { askClaude } from "@/modules/assistant/infrastructure/claude";
-import { aiConnections } from "@/modules/assistant/infrastructure/connection";
+import { aiConnections, type AssistantSettingKey } from "@/modules/assistant/infrastructure/connection";
+import { MemSettings } from "./doubles/workspace";
 
 // ─── прайс и политика ───────────────────────────────────────────────────────
 
@@ -253,6 +254,16 @@ describe("Claude через Anthropic SDK: уровни маршрута", () =>
     expect(res.usage).toEqual({ input: 120, output: 30, cacheRead: 4000, cacheWrite: 0, model: "claude-haiku-5-5" });
   });
 
+  it("кэш инструкции: час по умолчанию, пять минут — по просьбе (ИИ-дизайнер); картинки уходят перед текстом", async () => {
+    const bodies = mockAnthropic(json(message()), json(message()));
+    await askClaude(conn("claude-haiku-5-5"), { system: sys, user: "u", effort: "medium", timeoutMs: 5000, cachePrefix: sys });
+    await askClaude(conn("claude-sonnet-5-5"), { system: sys, user: "u", effort: "medium", cachePrefix: sys, cacheTtl: "5m", images: [{ mime: "image/png", data: "AAAA" }] });
+    const cacheOf = (b: Record<string, unknown>) => (b.system as { cache_control?: unknown }[]).find((x) => x.cache_control)?.cache_control;
+    expect(cacheOf(bodies[0])).toEqual({ type: "ephemeral", ttl: "1h" });
+    expect(cacheOf(bodies[1])).toEqual({ type: "ephemeral" });
+    expect((bodies[1].messages as { content: unknown }[])[0].content).toEqual([{ type: "image", source: { type: "base64", media_type: "image/png", data: "AAAA" } }, { type: "text", text: "u" }]);
+  });
+
   it("Sonnet и Opus — с серверным резервом на отказ (fallbacks: default)", async () => {
     const bodies = mockAnthropic(json(message({ model: "claude-sonnet-5-5" })), json(message({ model: "claude-opus-5-5" })));
     await askClaude(conn("claude-sonnet-5-5"), { system: "s", user: "u", effort: "medium", timeoutMs: 5000 });
@@ -312,5 +323,31 @@ describe("запасные провайдеры продажника", () => {
     const ai = aiConnections(settingsOf({ "ai.apiKey": "sk-ant", "seller.route.sonnet": "claude-sonnet-5", "seller.route": "shadow" }));
     expect(await ai.claude("claude-haiku-5-5")()).toMatchObject({ provider: "anthropic", apiKey: "sk-ant", model: "claude-haiku-5-5", baseUrl: "https://api.anthropic.com", enabled: true });
     expect(await ai.sellerPolicy()).toMatchObject({ mode: "shadow", models: { sonnet: "claude-sonnet-5" } });
+  });
+});
+
+// ─── подключения ИИ-дизайнера и помощника при письме ────────────────────────
+
+describe("подключения: ИИ-дизайнер и AI-помощник при письме — свои флажки", () => {
+  it("дизайнер включается своей настройкой, а не флажком AI-помощника CRM; ключ — Anthropic", async () => {
+    const settings = new MemSettings<AssistantSettingKey>({ "ai.apiKey": "ak", "ai.enabled": "off" });
+    const ai = aiConnections(settings);
+    expect(await ai.designer("claude-sonnet-5-5")()).toMatchObject({ provider: "anthropic", apiKey: "ak", model: "claude-sonnet-5-5", enabled: true });
+    settings.values.set("designAi.enabled", "off");
+    expect((await ai.designer("claude-sonnet-5-5")()).enabled).toBe(false);
+    // Продажник и прочие по-прежнему зависят от общего флажка.
+    expect((await ai.claude("claude-haiku-5-5")()).enabled).toBe(false);
+  });
+
+  it("помощник при письме: пока ничего не задано — как корректор; со своими настройками — отвязан от него", async () => {
+    const same = aiConnections(new MemSettings<AssistantSettingKey>({ "proofread.provider": "openrouter", "proofread.model": "openrouter/free", "proofread.enabled": "off", "ai.openrouter.apiKey": "or" }));
+    expect(await same.writer()).toMatchObject({ provider: "openrouter", model: "openrouter/free", enabled: false });
+    const own = aiConnections(new MemSettings<AssistantSettingKey>({ "proofread.provider": "openrouter", "proofread.model": "openrouter/free", "proofread.enabled": "off", "writer.provider": "deepseek", "writer.model": "deepseek-chat", "writer.enabled": "on", "ai.deepseek.apiKey": "ds" }));
+    expect(await own.writer()).toMatchObject({ provider: "deepseek", apiKey: "ds", model: "deepseek-chat", enabled: true });
+    expect(await own.proofread()).toMatchObject({ provider: "openrouter", enabled: false });
+    expect(await own.writerProvider()).toEqual({ provider: "deepseek", own: true });
+    // Свой провайдер без своей модели — модель провайдера, а не корректора.
+    const noModel = aiConnections(new MemSettings<AssistantSettingKey>({ "proofread.model": "openrouter/free", "writer.provider": "deepseek" }));
+    expect((await noModel.writer()).model).not.toBe("openrouter/free");
   });
 });

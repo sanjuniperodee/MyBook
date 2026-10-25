@@ -17,9 +17,11 @@ export interface LanguageModel {
    * timeoutMs — для быстрых запросов (бот в чате): без повторов, по истечении — ошибка. По умолчанию 90 секунд.
    * cachePrefix — стабильное начало system (одинаковое между запросами): провайдер с кэшем префикса (Claude) хранит его
    * и не тарифицирует заново; должно быть именно началом строки system.
+   * cacheTtl — сколько живёт кэш префикса: 1h (по умолчанию; запись стоит вдвое дороже входа, окупается частыми запросами,
+   * как у бота) или 5m (запись в 1,25 раза; для редких запросов, как у ИИ-дизайнера).
    * images — картинки к запросу (base64; ИИ-дизайнер показывает модели готовую обложку); провайдеры без зрения их игнорируют.
    */
-  ask(req: { system: string; user: string; effort: "low" | "medium" | "high"; schema?: Record<string, unknown>; timeoutMs?: number; cachePrefix?: string; images?: { mime: string; data: string }[] }): Promise<{ text: string; usage: Usage }>;
+  ask(req: { system: string; user: string; effort: "low" | "medium" | "high"; schema?: Record<string, unknown>; timeoutMs?: number; cachePrefix?: string; cacheTtl?: "5m" | "1h"; images?: { mime: string; data: string }[] }): Promise<{ text: string; usage: Usage }>;
   configured(): Promise<boolean>;
 }
 

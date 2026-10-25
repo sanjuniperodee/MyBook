@@ -6,7 +6,7 @@ import { designFromTemplate, type CoverDesign } from "@/lib/book/cover-design";
 import { getCoverTemplate } from "@/lib/book/covers";
 import { coverMeta } from "@/lib/book/covers/meta";
 import { formats } from "@/lib/book/formats";
-import { DESIGN_AI_MODEL, DESIGN_AI_MODEL_MAX, DESIGN_AI_MODEL_PRO, designTier, runDesignAi, runDesignReview, runDesignVariants, type Ask, type CoverState, type DesignBookContext, type PagesState } from "@/lib/book/design-ai";
+import { DEFAULT_DESIGN_TIERS, DESIGN_MODELS, designScenario, runDesignAi, runDesignReview, runDesignVariants, type Ask, type CoverState, type DesignBookContext, type PagesState } from "@/lib/book/design-ai";
 
 const apiKey = process.env.ANTHROPIC_API_KEY;
 if (!apiKey) {
@@ -29,8 +29,8 @@ const askOf = (model: string): Ask => async ({ system, user, effort, schema }) =
   const text = res.content.map((b) => (b.type === "text" ? b.text : "")).join("");
   return { text, usage: { inputTokens: res.usage.input_tokens, outputTokens: res.usage.output_tokens, cacheReadTokens: res.usage.cache_read_input_tokens ?? 0, cacheWriteTokens: res.usage.cache_creation_input_tokens ?? 0 } };
 };
-const ask = askOf(DESIGN_AI_MODEL_MAX);
-const askFor = (request: string) => askOf({ fast: DESIGN_AI_MODEL, pro: DESIGN_AI_MODEL_PRO, max: DESIGN_AI_MODEL_MAX }[designTier("edit", request)]);
+const ask = askOf(DESIGN_MODELS[DEFAULT_DESIGN_TIERS.variants]);
+const askFor = (request: string) => askOf(DESIGN_MODELS[DEFAULT_DESIGN_TIERS[designScenario("edit", request)]]);
 
 const texts = { title: "Там, где ты", subtitle: "", names: "Элия & Олжас" };
 const book: DesignBookContext = { title: "Там, где ты", kind: "gift", theme: "love", occasion: "Годовщина", recipient: "Олжас", language: "ru", format: formats.a5, ui: "ru", chapters: [{ key: "childhood", title: "Детство" }, { key: "love", title: "Как мы познакомились" }], texts, palette: { colors: ["#C9A27E", "#3B4A5C"], tone: "средние по яркости, тёплые, приглушённые" } };

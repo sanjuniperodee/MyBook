@@ -67,6 +67,8 @@ export interface QuestionsEditorProps {
   editable: boolean;
   /** AI-корректор подключён в «Интеграциях» — показываем кнопку «Проверить грамотность». */
   proofreadAi?: boolean;
+  /** AI-помощник при письме (оформить, улучшить, короче…): свой флажок в «Интеграциях», независимо от корректора. */
+  writerAi?: boolean;
 }
 
 /**
@@ -124,6 +126,7 @@ function EditorBody({
   letters,
   editable,
   proofreadAi = false,
+  writerAi = false,
   resumeId,
   onResync,
 }: QuestionsEditorProps & { resumeId: string | null; onResync: (currentId: string | null) => void }) {
@@ -642,7 +645,7 @@ function EditorBody({
                       void proofread.runAi().catch((e) => toastError(e));
                     }}
                   >
-                    {proofreadAi ? <AiWriter bookId={book.id} docId={q.id} text={q.answer} textarea={textarea} onText={(answer) => patchQuestion(q.id, { answer })} onBusy={setAiWriting} /> : null}
+                    {writerAi ? <AiWriter bookId={book.id} docId={q.id} text={q.answer} textarea={textarea} onText={(answer) => patchQuestion(q.id, { answer })} onBusy={setAiWriting} /> : null}
                   </ProofBar>
                 ) : null}
                 {dictation.listening ? <DictationStatus dictation={dictation} /> : null}

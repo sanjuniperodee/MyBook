@@ -65,19 +65,26 @@ export async function testAiAction(): Promise<{ ok: boolean; message: string }> 
   }
 }
 
+/** Лимит на клиента из поля формы: целое от 1 до 1000. */
+function limit(label: string, fallback: string) {
+  return formText.transform((v) => v.trim() || fallback).refine((v) => /^\d{1,4}$/.test(v) && Number(v) >= 1 && Number(v) <= 1000, `${label}: целое число от 1 до 1000`);
+}
+
 // ─── проверка текста в редакторе (AI-корректор) ────────────────────────────
 
 /** Форма AI-корректора: провайдер ("" — как у помощника) и модель. */
 const proofreadForm = z.object({
   provider: formText.refine((v) => !v || isAiProvider(v), "Выберите провайдера"),
   model: modelName,
+  perTenMin: limit("Проверок за 10 минут", "10"),
+  perDay: limit("Проверок в сутки", "80"),
 });
 
 export async function saveProofreadAction(_: SettingsState, form: FormData): Promise<SettingsState> {
   const staff = await assertStaff("settings.manage");
   const parsed = parseForm(proofreadForm, form);
   if (parsed.error !== undefined) return { error: parsed.error };
-  const { provider, model } = parsed.data;
+  const { provider, model, perTenMin, perDay } = parsed.data;
   // Ключ вводится здесь же для выбранного провайдера — тот же, что у помощника (хранится один раз).
   const keyFor = isAiProvider(provider) ? provider : (await container().assistant.proofreadProvider()).provider;
   await saveSettings(
@@ -85,11 +92,13 @@ export async function saveProofreadAction(_: SettingsState, form: FormData): Pro
       "proofread.provider": provider,
       "proofread.model": model,
       "proofread.enabled": form.get("enabled") === "on" ? "on" : "off",
+      "proofread.perTenMin": perTenMin,
+      "proofread.perDay": perDay,
       ...secretValue(form, "key", providerSettingKeys[keyFor].apiKey),
     },
     staff.user.id,
   );
-  await audit(staff, "settings.update", "settings", "proofread", { provider: provider || "assistant", model: model || null, enabled: form.get("enabled") === "on" });
+  await audit(staff, "settings.update", "settings", "proofread", { provider: provider || "assistant", model: model || null, enabled: form.get("enabled") === "on", perTenMin, perDay });
   revalidatePath("/admin/settings");
   return { ok: "Сохранено" };
 }
@@ -103,6 +112,53 @@ export async function testProofreadAction(): Promise<{ ok: boolean; message: str
     const fixes = await proofreader.test();
     const took = ((Date.now() - t0) / 1000).toFixed(1);
     return { ok: true, message: `${label} · ${model} отвечает за ${took} с. В проверочной фразе исправил: ${fixes || "ничего (слабая модель — попробуйте другую)"}` };
+  } catch (err) {
+    return { ok: false, message: AssistantError.is(err) ? err.message : "Не удалось связаться с AI-сервисом" };
+  }
+}
+
+// ─── AI-помощник при письме у клиента ──────────────────────────────────────
+
+/** Форма AI-помощника при письме: провайдер ("" — как у корректора), модель ("" — как у корректора) и лимиты на клиента. */
+const writerForm = z.object({
+  provider: formText.refine((v) => !v || isAiProvider(v), "Выберите провайдера"),
+  model: modelName,
+  perTenMin: limit("Запросов за 10 минут", "10"),
+  perDay: limit("Запросов в сутки", "60"),
+});
+
+export async function saveWriterAction(_: SettingsState, form: FormData): Promise<SettingsState> {
+  const staff = await assertStaff("settings.manage");
+  const parsed = parseForm(writerForm, form);
+  if (parsed.error !== undefined) return { error: parsed.error };
+  const { provider, model, perTenMin, perDay } = parsed.data;
+  const keyFor = isAiProvider(provider) ? provider : (await container().assistant.writerProvider()).provider;
+  await saveSettings(
+    {
+      "writer.provider": provider,
+      "writer.model": model,
+      // Сохранённый флажок отвязывает помощника от корректора: дальше он включается и выключается сам.
+      "writer.enabled": form.get("enabled") === "on" ? "on" : "off",
+      "writer.perTenMin": perTenMin,
+      "writer.perDay": perDay,
+      ...secretValue(form, "key", providerSettingKeys[keyFor].apiKey),
+    },
+    staff.user.id,
+  );
+  await audit(staff, "settings.update", "settings", "writer", { provider: provider || "proofread", model: model || null, enabled: form.get("enabled") === "on", perTenMin, perDay });
+  revalidatePath("/admin/settings");
+  return { ok: "Сохранено" };
+}
+
+export async function testWriterAction(): Promise<{ ok: boolean; message: string }> {
+  await assertStaff("settings.manage");
+  const writer = container().assistant.writer;
+  const { label, model } = await writer.describe();
+  try {
+    const t0 = Date.now();
+    const out = await writer.rewrite("Мама очень любила готовить. Она готовила всегда по воскресеньям и мы все собирались за столом.", "improve", "ru");
+    const took = ((Date.now() - t0) / 1000).toFixed(1);
+    return { ok: true, message: `${label} · ${model} ответил за ${took} с: «${out.slice(0, 200)}»` };
   } catch (err) {
     return { ok: false, message: AssistantError.is(err) ? err.message : "Не удалось связаться с AI-сервисом" };
   }

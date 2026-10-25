@@ -1,6 +1,6 @@
 import type { Clock, CustomFieldsReader, SettingsReader } from "@/shared/application";
 import { AssistantService, ProofreadService, type ConversationReader, type LanguageModel } from "./application";
-import { DESIGN_AI_MODEL, DESIGN_AI_MODEL_MAX, DESIGN_AI_MODEL_PRO } from "@/lib/book/design-ai";
+import { DESIGN_SETTING_KEYS, parseDesignAiSettings, type DesignAiSettings } from "@/lib/book/design-ai";
 import { modelOf } from "./infrastructure/models";
 import { aiConnections, type AssistantSettingKey } from "./infrastructure/connection";
 import { crmAssistantData } from "./infrastructure/data";
@@ -16,23 +16,18 @@ export class AssistantModule {
   readonly service: AssistantService;
   /** AI-корректор ответов в редакторе книги — со своей моделью («Интеграции» → «Проверка текста»). */
   readonly proofreader: ProofreadService;
-  /** ИИ-дизайнер оформления страниц и обложки: мелкие правки — Claude Haiku. */
-  readonly designer: LanguageModel;
-  /** Он же для творческих просьб — придумать, нарисовать, варианты, оценка: Claude Sonnet. */
-  readonly designerPro: LanguageModel;
-  /** И для «Придумать» и «3 варианта» — Claude Opus. */
-  readonly designerMax: LanguageModel;
+  /** AI-помощник при письме у клиента (оформить, улучшить, короче, длиннее) — свои провайдер, модель и флажок («Интеграции» → AI). */
+  readonly writer: ProofreadService;
   readonly #ai: ReturnType<typeof aiConnections>;
+  readonly #settings: SettingsReader<AssistantSettingKey>;
 
   /** Настройки «Интеграций» и свои поля сделки — порты рабочего пространства, переписка диалога — порт Messaging. */
   constructor(deps: { clock: Clock; settings: SettingsReader<AssistantSettingKey>; fields: CustomFieldsReader; conversations: ConversationReader }) {
+    this.#settings = deps.settings;
     this.#ai = aiConnections(deps.settings);
     this.service = new AssistantService(modelOf(this.#ai.active), crmAssistantData(deps.settings, deps.fields, deps.conversations), deps.clock);
     this.proofreader = new ProofreadService(modelOf(this.#ai.proofread));
-    // ИИ-дизайнер книги: Claude Haiku с ключом Anthropic из «Интеграций» (harness — lib/book/design-ai).
-    this.designer = modelOf(this.#ai.claude(DESIGN_AI_MODEL));
-    this.designerPro = modelOf(this.#ai.claude(DESIGN_AI_MODEL_PRO));
-    this.designerMax = modelOf(this.#ai.claude(DESIGN_AI_MODEL_MAX));
+    this.writer = new ProofreadService(modelOf(this.#ai.writer));
     // Продажник: Claude по уровням (Haiku / Sonnet / Opus) — основной, остальные провайдеры — запасные; режим off — прежняя одна модель.
     this.seller = sellerModel(
       {
@@ -48,6 +43,24 @@ export class AssistantModule {
 
   /** Модель AI-продажника бота («Интеграции» → AI → «Модель продажника»): маршрутизация Claude и запасные провайдеры. */
   readonly seller: ReturnType<typeof sellerModel>;
+
+  /** Настройки ИИ-дизайнера из админки («ИИ-дизайнер»): включён ли, модели по сценариям, осмотр картинкой. */
+  async designSettings(): Promise<DesignAiSettings> {
+    return parseDesignAiSettings(await this.#settings.getMany([...DESIGN_SETTING_KEYS]));
+  }
+
+  /**
+   * ИИ-дизайнер книги с этой моделью Claude (ключ Anthropic из «Интеграций»; включён ли — настройка «ИИ-дизайнер», а не
+   * флажок AI-помощника CRM). Harness — lib/book/design-ai.
+   */
+  designerFor(model: string): LanguageModel {
+    return modelOf(this.#ai.designer(model));
+  }
+
+  /** Провайдер AI-помощника при письме: свой или (пусто) — как у корректора. */
+  writerProvider() {
+    return this.#ai.writerProvider();
+  }
 
   /** Провайдер AI-корректора: свой или (пусто) — как у помощника. */
   proofreadProvider() {

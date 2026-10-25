@@ -36,11 +36,11 @@ export function AiForm({
   const connected = ready(provider);
   return (
     <Section
-      title="AI-помощник"
+      title="AI-помощник менеджеров (CRM) и ключи провайдеров"
       badge={<Status on={connected && enabled} label={!connected ? "не подключён" : enabled ? `${aiProviders[provider].label === "AI" ? "свой сервер" : aiProviders[provider].label} · включён` : "выключен"} />}
     >
       <Intro className="mb-4">
-        Подсказывает ответ клиенту в чате, делает резюме сделки со следующим шагом и сам заполняет поля (повод, дата, для кого) из переписки. Можно подключить Claude, ChatGPT, DeepSeek или любой сервис с
+        Для менеджеров, не для клиентов: подсказывает ответ клиенту в чате, делает резюме сделки со следующим шагом и сам заполняет поля (повод, дата, для кого) из переписки. Можно подключить Claude, ChatGPT, DeepSeek или любой сервис с
         OpenAI-совместимым API (OpenRouter, Qwen, своя модель). Ключи разных провайдеров хранятся отдельно — переключаться можно в любой момент.
       </Intro>
       <form action={action} className="space-y-3">

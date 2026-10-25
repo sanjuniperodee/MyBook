@@ -11,14 +11,16 @@ import { saveProofreadAction, testProofreadAction } from "./actions";
 import { providerReady, type AiProviderSaved } from "./saved";
 
 /**
- * AI-корректор в редакторе книги: свой провайдер и модель, независимо от AI-помощника CRM —
- * например, бесплатная модель OpenRouter для клиентов и Claude для менеджеров.
+ * AI-корректор в редакторе книги (кнопка «Проверить грамотность»): свой провайдер и модель, независимо от AI-помощника CRM —
+ * например, бесплатная модель OpenRouter для клиентов и Claude для менеджеров. Помощник при письме (WriterForm) — отдельно.
  */
 export function ProofreadForm({
   provider,
   assistantProvider,
   model,
   enabled,
+  perTenMin,
+  perDay,
   providers,
 }: {
   /** "" — как у AI-помощника. */
@@ -26,6 +28,8 @@ export function ProofreadForm({
   assistantProvider: AiProvider;
   model: string;
   enabled: boolean;
+  perTenMin: string;
+  perDay: string;
   providers: Record<AiProvider, AiProviderSaved>;
 }) {
   const [state, action] = useActionState<SettingsState, FormData>(saveProofreadAction, {});
@@ -38,7 +42,7 @@ export function ProofreadForm({
   const ready = (id: AiProvider) => providerReady(providers, id);
   const connected = ready(provider || assistantProvider);
   return (
-    <Section defaultOpen={false} title="Проверка текста в редакторе" badge={<Status on={connected && enabled} label={!connected ? "AI не подключён — работают словарь и правила" : enabled ? `${aiProviders[provider || assistantProvider].label} · включена` : "AI выключен"} />}>
+    <Section defaultOpen={false} title="AI-корректор у клиента: «Проверить грамотность»" badge={<Status on={connected && enabled} label={!connected ? "AI не подключён — работают словарь и правила" : enabled ? `${aiProviders[provider || assistantProvider].label} · включена` : "AI выключен"} />}>
       <Intro className="mb-4">
         Клиенты видят ошибки прямо в тексте ответа, как в Grammarly. Орфография по словарю и правила оформления (пробелы, тире, кавычки, эмодзи) работают всегда и бесплатно. Кнопка «Проверить грамотность» —
         AI-корректор: запятые, согласование, опечатки. Ему можно дать отдельную, например бесплатную, модель: OpenRouter → <code className="rounded bg-cream px-1">openrouter/free</code> сам выбирает доступную бесплатную модель.
@@ -76,6 +80,16 @@ export function ProofreadForm({
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" name="enabled" defaultChecked={enabled} className="accent-wine" /> Показывать клиентам кнопку «Проверить грамотность»
         </label>
+        <div className="flex flex-wrap gap-3">
+          <label className="block">
+            <span className="mb-1 block text-xs text-muted">Проверок на клиента за 10 минут</span>
+            <input name="perTenMin" type="number" inputMode="numeric" min={1} max={1000} defaultValue={perTenMin} className="input h-10 w-28 text-sm" />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-xs text-muted">Проверок на клиента в сутки</span>
+            <input name="perDay" type="number" inputMode="numeric" min={1} max={1000} defaultValue={perDay} className="input h-10 w-28 text-sm" />
+          </label>
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           <SubmitButton className="btn-sm">Сохранить</SubmitButton>
           <button type="button" className="btn btn-outline btn-sm" disabled={pending || !connected} onClick={() => start(async () => setCheck(await testProofreadAction()))}>
@@ -84,7 +98,7 @@ export function ProofreadForm({
           <Result state={state} />
         </div>
         <CheckMessage check={check} wrap />
-        <p className="text-xs text-muted">«Проверить корректор» отправляет сохранённой модели фразу с ошибками и показывает, что она исправила. Лимит для клиента — 10 проверок за 10 минут и 80 в день.</p>
+        <p className="text-xs text-muted">«Проверить корректор» отправляет сохранённой модели фразу с ошибками и показывает, что она исправила. Лимиты считаются на клиента; у бесплатных моделей свой общий дневной лимит — подстройте их под модель.</p>
       </form>
     </Section>
   );

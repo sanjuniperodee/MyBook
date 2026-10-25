@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { api, apiBook, HttpError } from "@/server/api";
 import { rateLimit } from "@/server/rateLimit";
+import { clientAiLimits } from "@/server/clientAiLimits";
 import { container } from "@/server/container";
 import { AssistantError } from "@/modules/assistant";
 import { isLocale } from "@/i18n/config";
@@ -13,7 +14,7 @@ export const maxDuration = 120;
 const schema = z.object({ text: z.string().min(1).max(20_000), ui: z.string().optional() });
 
 /**
- * AI-корректор: запятые, грамматика, опечатки в ответе. Модель — из «Интеграций» → «Проверка текста».
+ * AI-корректор: запятые, грамматика, опечатки в ответе. Модель и лимиты — «Интеграции» → AI → «AI-корректор у клиента».
  * Лимиты на пользователя: у бесплатных моделей общий дневной лимит запросов.
  */
 export const POST = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
@@ -22,7 +23,8 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
   const { text, ui } = schema.parse(await req.json());
   const proofreader = container().assistant.proofreader;
   if (!(await proofreader.configured())) throw new HttpError(503, "proofreadOff");
-  if (!(await rateLimit(`proofread:${user.id}`, 10, 600_000)) || !(await rateLimit(`proofread-day:${user.id}`, 80, 86_400_000))) throw new HttpError(429, "proofreadRate");
+  const limits = (await clientAiLimits()).proofread;
+  if (!(await rateLimit(`proofread:${user.id}`, limits.perTenMin, 600_000)) || !(await rateLimit(`proofread-day:${user.id}`, limits.perDay, 86_400_000))) throw new HttpError(429, "proofreadRate");
   try {
     const issues = await proofreader.check(text, book.language, isLocale(ui) ? ui : book.language, { kind: bookKind(book.theme) });
     return NextResponse.json({ issues });

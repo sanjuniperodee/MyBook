@@ -7,8 +7,10 @@ import { cn } from "@/lib/class-names";
 import { formatDate } from "@/lib/dates";
 import { can, requireStaff } from "@/server/access";
 import { designAiFreeLimit } from "@/server/designAiStore";
+import { container } from "@/server/container";
+import { fromEnv, getSetting } from "@/modules/workspace";
 import { designAiStats } from "@/server/designAiStats";
-import { FreeLimitForm, GrantForm } from "./Forms";
+import { DesignerSettingsForm, FreeLimitForm, GrantForm } from "./Forms";
 
 export const metadata = { title: "ИИ-дизайнер" };
 
@@ -33,10 +35,12 @@ export default async function AiDesignerPage({ searchParams }: { searchParams: P
   const { days: raw } = await searchParams;
   const days = PERIODS.find(([d]) => String(d) === raw)?.[0] ?? 30;
   const limit = await designAiFreeLimit();
-  const s = await designAiStats(days, limit);
+  const [s, settings, apiKey] = await Promise.all([designAiStats(days, limit), container().assistant.designSettings(), getSetting("ai.apiKey")]);
   const canEdit = can(staff, "settings.manage");
   const t = s.totals;
   const perRequest = t.ok ? t.costUsd / t.ok : 0;
+  // Средний расход на запрос по режиму за период — подсказка рядом с выбором модели (рисунки считаются в «Изменить» вместе с мелкими правками).
+  const modeHints = Object.fromEntries(s.byMode.map((m) => [m.key, `${usd(m.costUsd / Math.max(1, m.requests))} за запрос, ${m.requests} шт.`]));
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -49,6 +53,11 @@ export default async function AiDesignerPage({ searchParams }: { searchParams: P
           </Link>
         ))}
       </div>
+
+      <section className="rounded-2xl border border-line bg-white p-5">
+        <h2 className="mb-3 font-semibold">Настройки ИИ-дизайнера</h2>
+        <DesignerSettingsForm settings={settings} hints={modeHints} keyReady={!!apiKey || fromEnv("ai.apiKey")} canEdit={canEdit} />
+      </section>
 
       <section className="rounded-2xl border border-line bg-white p-5">
         <h2 className="mb-3 font-semibold">Бесплатный лимит</h2>

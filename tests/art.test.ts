@@ -3,7 +3,7 @@ import { ART_EXAMPLES, ART_REFERENCE, compileArt, resolveDrawing, sanitizeDrawin
 import { compose, mirrorM, parsePath, rotateM, scaleM, transformSegs, translateM, writePath } from "@/lib/book/art/path";
 import { COVER_EXAMPLES } from "@/lib/book/design-ai/examples";
 import { DESIGN_AI_FREE_LIMIT, parseFreeLimit } from "@/lib/book/design-ai";
-import { applyCoverOps, applyPagesOps, coverSystemPrompt, critiqueCover, designTier, pagesSystemPrompt, type DesignOp } from "@/lib/book/design-ai";
+import { applyCoverOps, applyPagesOps, coverSystemPrompt, critiqueCover, designPlan, designScenario, parseDesignAiSettings, pagesSystemPrompt, type DesignOp } from "@/lib/book/design-ai";
 import { designFromTemplate, layerDrawing, parseCoverDesign, type CoverDesign } from "@/lib/book/cover-design";
 import { coverMeta } from "@/lib/book/covers/meta";
 import { getCoverTemplate } from "@/lib/book/covers";
@@ -250,16 +250,34 @@ describe("ИИ-дизайнер: промпты и выбор модели", () 
     expect(pages).toContain(ART_REFERENCE.slice(0, 80));
   });
 
-  it("мелкие правки — Haiku, творческие просьбы и режимы — Sonnet", () => {
-    expect(designTier("edit", "шрифт покрупнее")).toBe("fast");
-    expect(designTier("edit", "сделай название золотым")).toBe("fast");
-    expect(designTier("edit", "Нарисуй внизу горы с луной")).toBe("pro");
-    expect(designTier("edit", "добавь казахский орнамент")).toBe("pro");
-    expect(designTier("edit", "x".repeat(200))).toBe("pro");
-    expect(designTier("review", "")).toBe("pro");
-    // Придумать и варианты — вкус арт-директора: самая сильная модель.
-    for (const m of ["create", "variants"] as const) expect(designTier(m, "")).toBe("max");
+  it("сценарий по просьбе: мелкая правка, рисунок или длинная просьба, «Придумать», варианты, оценка", () => {
+    expect(designScenario("edit", "шрифт покрупнее")).toBe("edit");
+    expect(designScenario("edit", "сделай название золотым")).toBe("edit");
+    expect(designScenario("edit", "Нарисуй внизу горы с луной")).toBe("draw");
+    expect(designScenario("edit", "добавь казахский орнамент")).toBe("draw");
+    expect(designScenario("edit", "x".repeat(200))).toBe("draw");
+    for (const m of ["create", "variants", "review"] as const) expect(designScenario(m, "")).toBe(m);
   });
+
+  it("по умолчанию Opus не используется: мелкие правки — Haiku, остальное — Sonnet; осмотр у всего, кроме Haiku и оценки", () => {
+    const d = parseDesignAiSettings({});
+    expect(d).toMatchObject({ enabled: true, polish: true });
+    expect(designPlan(d, "edit", "шрифт покрупнее")).toMatchObject({ tier: "haiku", model: "claude-haiku-5-5", polish: false });
+    expect(designPlan(d, "edit", "нарисуй горы")).toMatchObject({ tier: "sonnet", model: "claude-sonnet-5-5", polish: true });
+    expect(designPlan(d, "create", "")).toMatchObject({ tier: "sonnet", polish: true });
+    expect(designPlan(d, "variants", "")).toMatchObject({ tier: "sonnet", polish: true });
+    expect(designPlan(d, "review", "")).toMatchObject({ tier: "sonnet", polish: false });
+  });
+
+  it("настройки из админки: уровни по сценариям, свои id моделей, выключатели; мусор — по умолчанию", () => {
+    const s = parseDesignAiSettings({ "designAi.enabled": "off", "designAi.tier.variants": "opus", "designAi.tier.edit": "sonnet", "designAi.tier.create": "gpt-5", "designAi.model.opus": "claude-opus-9-9", "designAi.model.sonnet": "плохо !!", "designAi.polish": "off" });
+    expect(s.enabled).toBe(false);
+    expect(s.tiers).toMatchObject({ variants: "opus", edit: "sonnet", create: "sonnet" });
+    expect(s.models).toEqual({ haiku: "claude-haiku-5-5", sonnet: "claude-sonnet-5-5", opus: "claude-opus-9-9" });
+    expect(designPlan(s, "variants", "")).toMatchObject({ tier: "opus", model: "claude-opus-9-9", polish: false });
+    expect(designPlan(s, "edit", "шрифт")).toMatchObject({ tier: "sonnet", model: "claude-sonnet-5-5" });
+  });
+
 });
 
 describe("ИИ-дизайнер: образцы обложек — планка качества", () => {

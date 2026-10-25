@@ -17,12 +17,13 @@ export default async function QuestionsPage({ params, searchParams }: { params: 
   const { q, s } = await searchParams;
   const user = await requireUser(`/books/${id}/questions`);
   const book = await getAccessibleBook(id, user);
-  const [rows, chapters, photos, letters, proofreadAi] = await Promise.all([
+  const [rows, chapters, photos, letters, proofreadAi, writerAi] = await Promise.all([
     container().authoring.queries.questions(book.id),
     container().authoring.queries.chapters(book.id),
     container().authoring.queries.photos(book.id),
     container().authoring.queries.approvedLetters(book.id),
     book.status === "draft" ? container().assistant.proofreader.configured() : false,
+    book.status === "draft" ? container().assistant.writer.configured() : false,
   ]);
   // Все фото книги, снимок обложки тоже; какие снимки обложка и оборот печатают на самом деле, считается здесь
   // (cover-photos.ts через editorModel): каталог обложек в браузер не идёт, а редактор собирает книгу, как PDF.
@@ -34,6 +35,7 @@ export default async function QuestionsPage({ params, searchParams }: { params: 
       epigraphs={model.epigraphs}
       book={editorBook(book, model.coverPhotos)}
       proofreadAi={proofreadAi}
+      writerAi={writerAi}
       initialQuestions={model.questions}
       chapters={model.chapters}
       initialIndex={sectionIndex(

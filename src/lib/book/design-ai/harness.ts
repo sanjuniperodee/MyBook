@@ -13,33 +13,6 @@ import { polishDesigns, type PreviewImage } from "./polish";
 import { applyCoverOps, applyPagesOps, changed, DESIGN_OPS, designAiSchema, MAX_OPS, reviewSchema, variantsSchema, type CoverLayoutContext, type CoverState, type DesignOp, type DesignTarget, type PagesState } from "./ops";
 import { systemPrompt, userPrompt, type DesignBookContext, type DesignMode, type DesignTurn } from "./prompts";
 
-/** Модель Claude для дизайнера — Haiku: быстрый и дешёвый, а плейбук, проверки и исправление держат качество. */
-export const DESIGN_AI_MODEL = "claude-haiku-5-5";
-
-/**
- * Модель для рисунков и оценки — Sonnet. Мелкие правки («шрифт покрупнее») остаются на Haiku: быстро и дёшево
- * (designTier); «Придумать» и «3 варианта» — Opus (DESIGN_AI_MODEL_MAX).
- */
-export const DESIGN_AI_MODEL_PRO = "claude-sonnet-5-5";
-
-/** Просьба о рисунке или «придумай»: такие запросы Haiku решает хуже — их берёт Sonnet. */
-const CREATIVE_ASK = /нарису|рису|рисова|иллюстрац|эмблем|логотип|орнамент|узор|пейзаж|придума|с нуля|заново|удиви|креатив|необычн|эксклюзив|мотив|юрт|тюльпан|горы|горн|гору|звёзд|звезд|солнц|луна|луну|картин|өрнек|сурет|ою/i;
-
-/** Самая сильная модель — для «Придумать» и «3 варианта», где решает вкус арт-директора: Opus. */
-export const DESIGN_AI_MODEL_MAX = "claude-opus-5-5";
-
-export type DesignTier = "fast" | "pro" | "max";
-
-/**
- * Какая модель отвечает на просьбу: «Придумать» и «3 варианта» — max (Opus), оценка и просьбы о рисунке — pro (Sonnet),
- * мелкие правки — fast (Haiku).
- */
-export function designTier(mode: DesignMode, prompt: string): DesignTier {
-  if (mode === "create" || mode === "variants") return "max";
-  if (mode === "review") return "pro";
-  return prompt.length > 160 || CREATIVE_ASK.test(prompt) ? "pro" : "fast";
-}
-
 /** Сколько раз спрашиваем модель за одну просьбу клиента: ответ и одно исправление. */
 export const MAX_ATTEMPTS = 2;
 

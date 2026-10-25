@@ -33,6 +33,32 @@ export const settingDefs = {
   "zadarma.webphone": { default: "off" },
   /** Сколько бесплатных запросов к ИИ-дизайнеру на клиента за всё время (админка «ИИ-дизайнер»); 0 — только купленные. */
   "designAi.freeLimit": { default: "5" },
+  /** ИИ-дизайнер включён: on | off (клиент видит «недоступен»). Отдельно от AI-помощника CRM. */
+  "designAi.enabled": { default: "on" },
+  /** Уровень модели Claude по сценариям: haiku | sonnet | opus (lib/book/design-ai/settings.ts); пусто — по умолчанию. */
+  "designAi.tier.edit": {},
+  "designAi.tier.draw": {},
+  "designAi.tier.create": {},
+  "designAi.tier.variants": {},
+  "designAi.tier.review": {},
+  /** Свои идентификаторы моделей по уровням (когда вышла новая модель); пусто — по умолчанию. */
+  "designAi.model.haiku": {},
+  "designAi.model.sonnet": {},
+  "designAi.model.opus": {},
+  /** Осмотр готовой работы картинкой: on | off. */
+  "designAi.polish": { default: "on" },
+  /**
+   * AI-помощник при письме у клиента (оформить, улучшить, короче, длиннее, по просьбе): отдельно от корректора. Пустые
+   * провайдер и модель — как у корректора; пустой флажок — как у корректора (так было, пока настройки были общими).
+   */
+  "writer.enabled": {},
+  "writer.provider": {},
+  "writer.model": {},
+  /** Лимиты на клиента: за 10 минут и за сутки (помощник при письме и корректор). */
+  "writer.perTenMin": { default: "10" },
+  "writer.perDay": { default: "60" },
+  "proofread.perTenMin": { default: "10" },
+  "proofread.perDay": { default: "80" },
   /** Через сколько минут без ответа клиенту чат считается просроченным. */
   "crm.slaMinutes": { default: "15" },
   /** Рабочее время: JSON { days: [1..7], from: "09:00", to: "21:00" }. */
