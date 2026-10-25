@@ -20,6 +20,7 @@ import { DISPLAY_TOP, FRONT, HTML_LINE_HEIGHT, OPENER, photoCaptionFace, TITLE_L
 import { cssFont } from "@/lib/book/fonts";
 import { cn } from "@/lib/class-names";
 import { hexAlpha } from "@/lib/color";
+import { titleLineText } from "@/lib/book/title-line";
 import { PageLayer, pageFrame, Vignette } from "./graphics";
 import { Divider, EntryBody, QuestionHeading, type SampleEntry } from "./entry";
 import { Folio, folioText, RunningHead } from "./folio";
@@ -174,7 +175,8 @@ export function TitlePage({ kit, title, subtitle, author, year, className, style
     <div style={{ ...faceCss(design.display, size, u), lineHeight: layout === "stack" ? TITLE_LAYOUT.stackLineHeight : FRONT.title.lineHeight, color: P.ink, overflowWrap: "anywhere" }}>{title}</div>
   );
   const subtitleEl = subtitle ? <div style={{ ...italicBody(kit, S.subtitle), color: P.muted, marginTop: u.pt(FRONT.subtitle.before), lineHeight: HTML_LINE_HEIGHT.subtitle }}>{subtitle}</div> : null;
-  const authorEl = author && design.titlePage?.author !== false ? <div style={labelCss(kit, P.muted)}>{author}</div> : null;
+  const line = titleLineText(design, author);
+  const authorEl = line ? <div style={labelCss(kit, P.muted)}>{line}</div> : null;
   const yearEl = <div style={labelCss(kit, P.muted, S.year)}>{year}</div>;
   let body: React.ReactNode;
   if (layout === "left")

@@ -3,10 +3,11 @@
 import { useMessages } from "@/i18n/client";
 import { InlineDrawing } from "@/components/interior/graphics";
 import { pxUnits } from "@/components/interior/units";
-import { NumberField, PanelSection, Segmented, Toggle } from "@/components/design/controls";
+import { NumberField, PanelSection, Segmented, TextField, Toggle } from "@/components/design/controls";
 import { dividerDrawing, vignetteDrawing } from "@/lib/book/interior-art";
 import { interiorStyleOptions, type GlyphId, type InteriorDesign, type InteriorStyle } from "@/lib/book/interiors";
 import { cssFont } from "@/lib/book/fonts";
+import { TITLE_LINE_MAX } from "@/lib/book/title-line";
 import { quoteStyle } from "@/lib/book/typesetting";
 import { cn } from "@/lib/class-names";
 import { patchSection } from "./style-edit";
@@ -115,6 +116,8 @@ export function ElementsTab({ design, style, set, onFocus }: { design: InteriorD
       <PanelSection title={t.titlePage}>
         <Segmented value={design.titlePage?.layout ?? "center"} options={O.titles.map((v) => ({ value: v, label: t.titlePages[v] }))} onChange={(v) => el({ titlePage: v }, "front")} onReset={r("titlePage", "front")} resetLabel={reset} />
         <Toggle label={t.titleAuthor} checked={design.titlePage?.author !== false} onChange={(v) => el({ titleAuthor: v }, "front")} />
+        <TextField label={t.titleLine} value={e.titleLine ?? ""} placeholder={t.titleLinePlaceholder} max={TITLE_LINE_MAX} onChange={(v) => el({ titleLine: v }, "front")} onReset={r("titleLine", "front")} resetLabel={reset} />
+        <p className="text-xs text-muted">{t.titleLineHint}</p>
       </PanelSection>
 
       <PanelSection title={t.photoFrame}>

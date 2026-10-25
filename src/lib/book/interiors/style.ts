@@ -65,6 +65,8 @@ export interface InteriorStyle {
     titlePage?: TitleLayout;
     /** Имя автора на титульном листе; false — титул без имени (так просят, когда имя уже на обложке или книга без автора). */
     titleAuthor?: boolean;
+    /** Свой текст под названием на титульном листе вместо имени автора («Для любимой мамы»); до 80 знаков, одна строка. */
+    titleLine?: string;
     photoFrame?: PhotoFrame;
     caption?: PhotoCaption;
     /** Рисунок начальных полос; null — без рисунка. */
@@ -130,6 +132,12 @@ export const EMBLEM_WEIGHT = 30_000;
 const emblemOf = (raw: unknown): Drawing | undefined => {
   const d = sanitizeDrawing(raw);
   return d && drawingWeight(d) <= EMBLEM_WEIGHT ? d : undefined;
+};
+
+/** Свой текст титульного листа: одна строка, без лишних пробелов, не длиннее TITLE_LINE_MAX; пустой — undefined. */
+const titleLineOf = (v: unknown): string | undefined => {
+  const t = typeof v === "string" ? v.replace(/\s+/g, " ").trim().slice(0, 80).trim() : "";
+  return t || undefined;
 };
 
 /** Убирает ключи со значением undefined; пустой объект — undefined. */
@@ -258,6 +266,7 @@ export function parseInteriorStyle(raw: unknown): InteriorStyle {
             quote: oneOf(e.quote, QUOTES),
             titlePage: oneOf(e.titlePage, TITLES),
             titleAuthor: bool(e.titleAuthor),
+            titleLine: titleLineOf(e.titleLine),
             photoFrame: oneOf(e.photoFrame, PHOTO_FRAMES),
             caption: oneOf(e.caption, CAPTIONS),
             art: e.art === null ? null : oneOf(e.art, ARTS),
@@ -352,7 +361,7 @@ export function applyInteriorStyle(design: InteriorDesign, raw: InteriorStyle | 
     ...(f.caption ? { captionFace: withFace(design.photos.captionFace ?? { font: type.body, weight: 400, italic: true }, f.caption) } : {}),
   };
 
-  const titlePage = el.titlePage || el.titleAuthor !== undefined || s.display?.titleSize !== undefined ? { ...design.titlePage, ...(el.titlePage ? { layout: el.titlePage } : {}), ...(s.display?.titleSize !== undefined ? { size: s.display.titleSize } : {}), ...(el.titleAuthor !== undefined ? { author: el.titleAuthor } : {}) } : design.titlePage;
+  const titlePage = el.titlePage || el.titleAuthor !== undefined || el.titleLine !== undefined || s.display?.titleSize !== undefined ? { ...design.titlePage, ...(el.titlePage ? { layout: el.titlePage } : {}), ...(s.display?.titleSize !== undefined ? { size: s.display.titleSize } : {}), ...(el.titleAuthor !== undefined ? { author: el.titleAuthor } : {}), ...(el.titleLine !== undefined ? { line: el.titleLine } : {}) } : design.titlePage;
 
   return {
     ...design,

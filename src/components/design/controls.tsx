@@ -34,6 +34,45 @@ export function FieldLabel({ label, htmlFor, onReset, resetLabel, children }: { 
 }
 
 /**
+ * Строка текста: меняется в поле, а в оформление уходит, когда поле отпустили или нажали Enter (каждая буква не должна
+ * становиться шагом отмены). Пустая строка — «как в стиле» (onChange(undefined)).
+ */
+export function TextField({ label, value, placeholder, max, onChange, onReset, resetLabel }: { label: string; value: string; placeholder?: string; max: number; onChange: (v: string | undefined) => void; onReset?: () => void; resetLabel?: string }) {
+  const [draft, setDraft] = useState(value);
+  const [seen, setSeen] = useState(value);
+  // Значение сменилось снаружи (отмена, сброс) — поле показывает его.
+  if (seen !== value) {
+    setSeen(value);
+    setDraft(value);
+  }
+  const id = useId();
+  const commit = () => {
+    const next = draft.replace(/\s+/g, " ").trim();
+    if (next !== value) onChange(next || undefined);
+  };
+  return (
+    <div>
+      <FieldLabel label={label} htmlFor={id} onReset={onReset} resetLabel={resetLabel} />
+      <input
+        id={id}
+        value={draft}
+        maxLength={max}
+        placeholder={placeholder}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            commit();
+          }
+        }}
+        className="input h-10 w-full text-sm"
+      />
+    </div>
+  );
+}
+
+/**
  * Число: «−», поле ввода, «+» и ползунок. Ввод с клавиатуры применяется по Enter или уходу из поля; стрелки ↑/↓ — шаг
  * (с Shift — десять шагов). display — как показать значение (например, в процентах).
  */
