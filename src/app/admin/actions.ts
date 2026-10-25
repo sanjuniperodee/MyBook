@@ -11,6 +11,9 @@ import type { Actor } from "@/shared/application";
 import { container } from "@/server/container";
 import { staffActionError } from "@/server/errors";
 import { admin } from "@/i18n/admin";
+import { getPlan, type PlanId } from "@/config/site";
+import { discountLimit } from "@/server/discount";
+import { DiscountError, DiscountPolicy } from "@/shared/domain/discount";
 import { REMINDER_COOLDOWN_DAYS, type ReminderResult } from "@/modules/notifications";
 
 export interface AdminState {
@@ -230,6 +233,43 @@ export async function updateOrderDetailsAction(_: AdminState, form: FormData): P
   if (failed) return failed;
   revalidatePath(`/admin/orders/${orderId}`);
   return { ok: "Сохранено" };
+}
+
+/**
+ * Тариф и договорённая цена книги неоплаченного заказа. Пустая цена — по прайсу тарифа; ниже прайса сверх лимита скидки
+ * сотрудника — отказ (как у бюджета сделки и счёта из чата).
+ */
+export async function changeOrderTermsAction(_: AdminState, form: FormData): Promise<AdminState> {
+  const staff = await assertStaff("orders.edit");
+  const parsed = z
+    .object({
+      orderId: uuid,
+      plan: z.string().refine((p) => !!getPlan(p), "Выберите тариф из списка"),
+      agreedTotal: z.union([z.literal(""), z.coerce.number("Сумма — число").int("Сумма — целое число тенге").min(1, "Сумма — больше нуля").max(100_000_000, "Слишком большая сумма")]).optional(),
+    })
+    .safeParse(Object.fromEntries(form));
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const { orderId, plan } = parsed.data;
+  const agreedTotal = parsed.data.agreedTotal === "" || parsed.data.agreedTotal === undefined ? null : parsed.data.agreedTotal;
+  await assertOrderVisible(staff, orderId);
+  const limit = await discountLimit(staff);
+  let percent = 0;
+  const list = getPlan(plan)!.price;
+  if (agreedTotal !== null) {
+    try {
+      percent = DiscountPolicy.check({ listPrice: list, price: agreedTotal, maxPercent: limit });
+    } catch (err) {
+      const message = staffActionError(err, DiscountError);
+      if (message) return { error: message };
+      throw err;
+    }
+  }
+  const failed = await orderCommand(() => container().ordering.orders.changeTerms({ orderId, plan: plan as PlanId, agreedTotal }, staffActor(staff)));
+  if (failed) return failed;
+  await audit(staff, "order.terms", "order", orderId, { plan, agreedTotal, listPrice: list, percent });
+  revalidatePath(`/admin/orders/${orderId}`);
+  revalidatePath("/admin/orders");
+  return { ok: "Тариф и сумма сохранены" };
 }
 
 // ─── CRM: задачи и заметки ─────────────────────────────────────────────────

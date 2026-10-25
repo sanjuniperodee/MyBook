@@ -13,7 +13,9 @@ import { bookKind } from "@/lib/content/kinds";
 import { getFormat } from "@/lib/book/formats";
 import { cn } from "@/lib/class-names";
 import { formatDate } from "@/lib/dates";
-import { DetailsForm, LockButton, NoteForm, OrderMoney, PrintFileActions, StatusForm } from "./OrderControls";
+import { DetailsForm, LockButton, NoteForm, OrderMoney, PrintFileActions, StatusForm, TermsForm } from "./OrderControls";
+import { discountLimit } from "@/server/discount";
+import { getPlans } from "@/config/site";
 import { AssigneeSelect, NotesTimeline, TaskList, type NoteItem, type TaskItem } from "@/components/admin/CrmWidgets";
 import { staffOptions } from "@/modules/access/ui";
 import { staffLabel } from "@/shared/domain/staff";
@@ -84,6 +86,11 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
   const canEdit = can(staff, "orders.edit");
   const notice = canEdit ? await noticeFacts(order) : null;
   const canClients = can(staff, "clients.view");
+  // Тариф и цену меняют, пока заказ не оплачен: дальше деньги уже учтены.
+  const termsOpen = canEdit && order.status !== "cancelled" && !order.paidAt;
+  const maxDiscount = termsOpen ? await discountLimit(staff) : null;
+  // Договорённая цена первого экземпляра: скидка заказа без промокода — это и есть договорённость.
+  const agreedNow = order.discountAmount > 0 && !order.promoCode && plan ? order.itemsAmount - order.discountAmount - (order.itemsAmount - plan.price) : null;
 
   return (
     <div className="space-y-6">
@@ -252,6 +259,18 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
               </div>
             ) : null}
           </Card>
+          {termsOpen ? (
+            <Card title="Тариф и сумма">
+              <TermsForm
+                key={`${order.plan}:${order.amount}`}
+                orderId={order.id}
+                plan={order.plan}
+                agreed={agreedNow}
+                plans={getPlans().map((p) => ({ id: p.id, label: planName(p.id) + (p.hidden ? " (скрыт)" : ""), price: p.price }))}
+                maxPercent={maxDiscount}
+              />
+            </Card>
+          ) : null}
           <Card title="Деньги по заказу" id="money">
             <OrderMoney
               orderId={order.id}

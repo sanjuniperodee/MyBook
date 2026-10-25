@@ -5,6 +5,7 @@ import { staffLabel } from "@/shared/domain/staff";
 import type { DeliveryId, PlanId } from "@/config/site";
 import { formatPrice, getPlan } from "@/config/site";
 import type { Locale } from "@/i18n/config";
+import { planName } from "@/i18n/labels";
 import { checkoutTerms, Order, OrderingError, type OrderContact, type OrderDelivery, type OrderRepository, type PromoCodeRepository } from "../domain";
 import type { AgreementGateway, BookGateway, PaymentSettings, PeopleGateway, PrintFiles } from "./ports";
 import type { OrderPaymentsService } from "./OrderPaymentsService";
@@ -250,6 +251,15 @@ export class OrdersService {
 
   async updateDetails(cmd: { orderId: string; contact: OrderContact; delivery: OrderDelivery; desiredDate: string | null; giftNote: string | null }, actor: Actor) {
     return this.mutate(cmd.orderId, (order, now) => order.updateDetails(cmd.contact, cmd.delivery, { desiredDate: cmd.desiredDate, giftNote: cmd.giftNote }, actor.label, now));
+  }
+
+  /** Менеджер меняет тариф и договорённую цену книги неоплаченного заказа (null — по прайсу тарифа). Промокод заказа остаётся в силе. */
+  async changeTerms(cmd: { orderId: string; plan: PlanId; agreedTotal: number | null }, actor: Actor) {
+    return this.mutate(cmd.orderId, async (order, now) => {
+      const code = order.promoCode;
+      const promo = code ? await this.promos.findByCode(code) : null;
+      order.changeTerms({ plan: cmd.plan, agreedTotal: cmd.agreedTotal, discount: promo?.discount ?? null, planName: (id) => planName(id) }, actor.label, now);
+    });
   }
 
   async toggleBookEditing(orderId: string, actor: Actor) {

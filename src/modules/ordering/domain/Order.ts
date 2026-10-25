@@ -1,6 +1,6 @@
 import { AggregateRoot } from "@/shared/domain";
 import { formatPrice, getDeliveryOptions, getPlan, isAbroadDelivery, isQuotedDelivery, type DeliveryId, type PlanId } from "@/config/site";
-import { calculatePrice, type Agreement, type PriceBreakdown } from "./Pricing";
+import { calculatePrice, type Agreement, type Discount, type PriceBreakdown } from "./Pricing";
 import { OrderingError } from "./errors";
 import { OrderingEvents, type OrderRef } from "./events";
 import { isPaid } from "./OrderStatus";
@@ -421,6 +421,63 @@ export class Order extends AggregateRoot<OrderProps> {
     }
     this.props.price = { ...price, deliveryAmount: next, amount: Math.max(0, price.amount + diff) };
     this.log(null, `Сумма пересчитана за доставку: ${formatPrice(price.amount)} → ${formatPrice(this.props.price.amount)}`, actor, now);
+  }
+
+  /**
+   * Сотрудник меняет тариф и договорённую цену книги неоплаченного заказа: цена пересчитывается как при оформлении
+   * (доставка, допы и экземпляры сверху, скидка промокода и внесённая предоплата сохраняются). agreedTotal — null: по прайсу тарифа.
+   * Оплаченный и отменённый заказ не трогаем: деньги уже учтены. Если полученное покрывает новую сумму — заказ оплачен,
+   * если больше — задача «возврат или зачёт».
+   */
+  changeTerms(input: { plan: PlanId; agreedTotal: number | null; discount: Discount | null; planName: (id: PlanId) => string }, actor: string, now: Date) {
+    if (this.props.status === "cancelled") throw new OrderingError("paymentRule", "Заказ отменён: тариф и сумму не изменить");
+    if (this.props.paidAt) throw new OrderingError("paymentRule", "Заказ уже оплачен: тариф и сумму не изменить");
+    const plan = getPlan(input.plan);
+    if (!plan) throw new OrderingError("paymentRule", `Тариф «${input.plan}» не найден`);
+    const agreedTotal = input.agreedTotal;
+    if (agreedTotal !== null && !(Number.isInteger(agreedTotal) && agreedTotal > 0)) throw new OrderingError("paymentRule", "Договорённая сумма — целое число тенге больше нуля");
+    const before = this.props.price;
+    const prepaid = before.prepaidAmount ?? 0;
+    // Договорённая цена — со своими подарками; без неё — прайс тарифа (предоплата остаётся авансом).
+    const agreement: Agreement | null = agreedTotal !== null ? { agreedTotal, prepaid, plan: plan.id, gifts: before.gifted } : prepaid > 0 ? { agreedTotal: Number.POSITIVE_INFINITY, prepaid } : null;
+    // У электронной версии нет печати и доставки; у печатной они задаются в «Правке данных».
+    const delivery: OrderDelivery = plan.printed ? this.props.delivery : { method: null, country: null, city: null, address: null, postalCode: null };
+    const price = calculatePrice(plan.id, this.props.quantity, delivery.method, input.discount, this.props.price.addons, agreement);
+    const planBefore = this.props.plan;
+    this.props.plan = plan.id;
+    this.props.quantity = plan.printed ? this.props.quantity : 1;
+    this.props.delivery = delivery;
+    if (!plan.printed) {
+      this.props.giftNote = null;
+      this.props.desiredDate = null;
+      this.props.surprise = false;
+    }
+    this.props.price = price;
+    const parts = [
+      planBefore !== plan.id ? `тариф ${input.planName(planBefore)} → ${input.planName(plan.id)}` : null,
+      `к оплате ${formatPrice(before.amount)} → ${formatPrice(price.amount)}`,
+      agreedTotal !== null ? `договорённая цена книги ${formatPrice(agreedTotal)}` : "цена по прайсу тарифа",
+    ].filter(Boolean);
+    this.log(null, `Условия изменены: ${parts.join(", ")}`, actor, now);
+    // Внесённая предоплата больше нового итога: зачёт не больше итога, разницу нужно вернуть клиенту.
+    const prepaidExcess = Math.max(0, prepaid - (price.prepaidAmount ?? 0));
+    if (prepaidExcess > 0) this.notePrepaidExcess(prepaidExcess, now);
+    if (planBefore !== plan.id || before.amount !== price.amount) this.record(OrderingEvents.orderRepriced({ ...this.ref(), previousAmount: before.amount, previousPlan: planBefore, actor }));
+    this.settleIfCovered(actor, now);
+  }
+
+  /** Полученные деньги уже покрывают «к оплате» (сумму снизили): заказ оплачен; больше — переплата к возврату. */
+  private settleIfCovered(actor: string, now: Date) {
+    const due = this.props.price.amount;
+    const received = this.props.receivedAmount;
+    if (received < due || this.props.status === "cancelled") return;
+    if (this.props.status === "pending_payment") this.markPaid(null, actor, now);
+    else if (!this.props.paidAt) {
+      this.props.paidAt = now;
+      this.log(null, "Постоплата получена полностью", actor, now);
+      this.record(OrderingEvents.orderPaid({ ...this.ref(), paymentId: null, actor, settled: true }));
+    }
+    if (received > due) this.record(OrderingEvents.orderOverpaid({ ...this.ref(), overpaid: received - due, method: "reprice" }));
   }
 
   recordPrintSpec(spec: OrderPrintSpec) {

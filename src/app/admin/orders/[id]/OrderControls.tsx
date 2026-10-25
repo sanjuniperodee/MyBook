@@ -4,7 +4,7 @@ import { ask } from "@/components/ui/overlays";
 import { useActionState, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Download, FileArchive, LoaderCircle, RefreshCw } from "lucide-react";
-import { generateFilesAction, reviewOrderPaymentAction, saveAdminNoteAction, startPostpayAction, toggleBookLockAction, updateOrderAction, updateOrderDetailsAction, type AdminState } from "../../actions";
+import { changeOrderTermsAction, generateFilesAction, reviewOrderPaymentAction, saveAdminNoteAction, startPostpayAction, toggleBookLockAction, updateOrderAction, updateOrderDetailsAction, type AdminState } from "../../actions";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { Alert } from "@/components/ui/Alert";
 import { prepareAndDownload, RenderStatus, useRenderJob } from "@/components/ui/RenderProgress";
@@ -13,6 +13,7 @@ import type { RenderKind } from "@/modules/production";
 import { orderStatusLabel } from "@/modules/ordering/ui/status";
 import { orderNotice, type OrderNoticeFacts } from "@/modules/ordering/ui/notice";
 import { deliveryLabels } from "@/modules/ordering/ui/labels";
+import { DiscountHint } from "@/components/admin/DiscountHint";
 import { ORDER_STATUSES as orderStatuses, type OrderStatus } from "@/shared/domain/orders";
 
 /** У электронной версии нет печати и доставки: только «ждёт оплаты → выполнен» и отмена. */
@@ -206,6 +207,55 @@ export function DetailsForm({
         </div>
       </form>
     </details>
+  );
+}
+
+/**
+ * Тариф и договорённая цена книги, пока заказ не оплачен. Пустая сумма — по прайсу тарифа; промокод, доставка, допы и внесённая
+ * предоплата остаются. Открытый счёт Kaspi на старую сумму закроется — выставьте новый.
+ */
+export function TermsForm({
+  orderId,
+  plan,
+  agreed,
+  plans,
+  maxPercent,
+}: {
+  orderId: string;
+  plan: string;
+  /** Договорённая цена первого экземпляра сейчас (пусто — по прайсу). */
+  agreed: number | null;
+  plans: { id: string; label: string; price: number }[];
+  /** Лимит скидки сотрудника, %; null — без лимита. */
+  maxPercent: number | null;
+}) {
+  const [state, action] = useActionState<AdminState, FormData>(changeOrderTermsAction, {});
+  const [planId, setPlanId] = useState(plan);
+  const [price, setPrice] = useState(agreed === null ? "" : String(agreed));
+  const list = plans.find((p) => p.id === planId)?.price ?? 0;
+  return (
+    <form action={action} className="space-y-3" data-testid="order-terms">
+      <input type="hidden" name="orderId" value={orderId} />
+      <div>
+        <label className="label">Тариф</label>
+        <select name="plan" value={planId} onChange={(e) => setPlanId(e.target.value)} className="input h-11">
+          {plans.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.label} · {p.price.toLocaleString("ru-RU")} ₸
+            </option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <label className="label">Договорённая цена книги, ₸</label>
+        <input name="agreedTotal" type="number" min={1} step={1} value={price} onChange={(e) => setPrice(e.target.value)} placeholder={`по прайсу: ${list.toLocaleString("ru-RU")}`} className="input h-11" />
+        <DiscountHint list={{ listPrice: list, planless: false }} price={Number(price) || 0} maxPercent={maxPercent} />
+      </div>
+      {state.error ? <Alert>{state.error}</Alert> : null}
+      {state.ok ? <Alert kind="success">{state.ok}</Alert> : null}
+      <SubmitButton className="w-full">Сохранить</SubmitButton>
+      <p className="text-xs text-muted">Доставка, допы, промокод и внесённая предоплата остаются. Открытый счёт Kaspi закроется — выставьте новый на новую сумму.</p>
+    </form>
   );
 }
 

@@ -322,7 +322,7 @@ export function PaymentsPanel({
           <a href={`/admin/orders/${order.id}`} className="font-medium underline">
             заказ №{order.number}
           </a>
-          : внесённая предоплата вычтена из его «к оплате». Остаток и постоплату принимайте в заказе — кнопкой ниже.
+          : внесённая предоплата вычтена из его «к оплате». Тариф и договорённую сумму, пока заказ не оплачен, меняйте в заказе; остаток и постоплату принимайте там же.
           {orderMoney?.rows.length ? (
             <span className="mt-2 block space-y-0.5">
               {orderMoney.rows.map((r) => (
