@@ -21,7 +21,7 @@ export function TitlePage({ kit }: { kit: PdfKit }) {
   );
   const subtitle = (align: "left" | "center") =>
     content.subtitle ? <Text hyphenationCallback={noHyphens} style={{ ...italicBody, fontSize: S.subtitle, marginTop: FRONT.subtitle.before, textAlign: align, color: P.muted }}>{content.subtitle}</Text> : null;
-  const author = (align: "left" | "center") => (content.authorName ? <Text hyphenationCallback={noHyphens} style={{ ...labelStyle(kit, P.muted), textAlign: align }}>{content.authorName}</Text> : null);
+  const author = (align: "left" | "center") => (content.authorName && design.titlePage?.author !== false ? <Text hyphenationCallback={noHyphens} style={{ ...labelStyle(kit, P.muted), textAlign: align }}>{content.authorName}</Text> : null);
   const year = (align: "left" | "center" | "right") => <Text style={{ ...labelStyle(kit, P.muted, S.year), textAlign: align }}>{content.year}</Text>;
   // Рисунок книги (ИИ-дизайнер) над названием: общая графика полосы рядом с рамкой.
   const emblem = <PdfPageLayer shapes={titleEmblemShapes(design.emblem, layout, { w: box.w, h: box.h, palette: P })} box={box} />;

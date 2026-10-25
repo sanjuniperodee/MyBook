@@ -114,6 +114,7 @@ export function ElementsTab({ design, style, set, onFocus }: { design: InteriorD
 
       <PanelSection title={t.titlePage}>
         <Segmented value={design.titlePage?.layout ?? "center"} options={O.titles.map((v) => ({ value: v, label: t.titlePages[v] }))} onChange={(v) => el({ titlePage: v }, "front")} onReset={r("titlePage", "front")} resetLabel={reset} />
+        <Toggle label={t.titleAuthor} checked={design.titlePage?.author !== false} onChange={(v) => el({ titleAuthor: v }, "front")} />
       </PanelSection>
 
       <PanelSection title={t.photoFrame}>

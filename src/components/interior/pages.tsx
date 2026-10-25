@@ -174,7 +174,7 @@ export function TitlePage({ kit, title, subtitle, author, year, className, style
     <div style={{ ...faceCss(design.display, size, u), lineHeight: layout === "stack" ? TITLE_LAYOUT.stackLineHeight : FRONT.title.lineHeight, color: P.ink, overflowWrap: "anywhere" }}>{title}</div>
   );
   const subtitleEl = subtitle ? <div style={{ ...italicBody(kit, S.subtitle), color: P.muted, marginTop: u.pt(FRONT.subtitle.before), lineHeight: HTML_LINE_HEIGHT.subtitle }}>{subtitle}</div> : null;
-  const authorEl = author ? <div style={labelCss(kit, P.muted)}>{author}</div> : null;
+  const authorEl = author && design.titlePage?.author !== false ? <div style={labelCss(kit, P.muted)}>{author}</div> : null;
   const yearEl = <div style={labelCss(kit, P.muted, S.year)}>{year}</div>;
   let body: React.ReactNode;
   if (layout === "left")

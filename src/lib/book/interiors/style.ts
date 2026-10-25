@@ -63,6 +63,8 @@ export interface InteriorStyle {
     folioDashes?: boolean;
     quote?: QuoteStyle;
     titlePage?: TitleLayout;
+    /** Имя автора на титульном листе; false — титул без имени (так просят, когда имя уже на обложке или книга без автора). */
+    titleAuthor?: boolean;
     photoFrame?: PhotoFrame;
     caption?: PhotoCaption;
     /** Рисунок начальных полос; null — без рисунка. */
@@ -255,6 +257,7 @@ export function parseInteriorStyle(raw: unknown): InteriorStyle {
             folioDashes: bool(e.folioDashes),
             quote: oneOf(e.quote, QUOTES),
             titlePage: oneOf(e.titlePage, TITLES),
+            titleAuthor: bool(e.titleAuthor),
             photoFrame: oneOf(e.photoFrame, PHOTO_FRAMES),
             caption: oneOf(e.caption, CAPTIONS),
             art: e.art === null ? null : oneOf(e.art, ARTS),
@@ -349,7 +352,7 @@ export function applyInteriorStyle(design: InteriorDesign, raw: InteriorStyle | 
     ...(f.caption ? { captionFace: withFace(design.photos.captionFace ?? { font: type.body, weight: 400, italic: true }, f.caption) } : {}),
   };
 
-  const titlePage = el.titlePage || s.display?.titleSize !== undefined ? { ...design.titlePage, ...(el.titlePage ? { layout: el.titlePage } : {}), ...(s.display?.titleSize !== undefined ? { size: s.display.titleSize } : {}) } : design.titlePage;
+  const titlePage = el.titlePage || el.titleAuthor !== undefined || s.display?.titleSize !== undefined ? { ...design.titlePage, ...(el.titlePage ? { layout: el.titlePage } : {}), ...(s.display?.titleSize !== undefined ? { size: s.display.titleSize } : {}), ...(el.titleAuthor !== undefined ? { author: el.titleAuthor } : {}) } : design.titlePage;
 
   return {
     ...design,

@@ -113,6 +113,7 @@ export const design_pages: Messages["design"]["pages"] = {
     quotes: { rule: "Сызықпен", center: "Ортада", mark: "Тырнақшамен" },
     titlePage: "Титул беті",
     titlePages: { center: "Ортада", left: "Солға", bottom: "Төменде", stack: "Ірі" },
+    titleAuthor: "Титул бетінде автордың аты",
     photoFrame: "Сурет жиегі",
     photoFrames: { none: "Жиексіз", hairline: "Жіңішке", double: "Қос", polaroid: "Полароид", corners: "Бұрыштар", tape: "Скотч", mat: "Паспарту", shadow: "Көлеңке" },
     caption: "Суреттердің жазулары",

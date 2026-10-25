@@ -111,6 +111,7 @@ export const design_pages = {
     quotes: { rule: "С линейкой", center: "По центру", mark: "С кавычкой" },
     titlePage: "Титульный лист",
     titlePages: { center: "По центру", left: "Влево", bottom: "Внизу", stack: "Крупно" },
+    titleAuthor: "Имя автора на титульном листе",
     photoFrame: "Рамка фото",
     photoFrames: { none: "Без рамки", hairline: "Тонкая", double: "Двойная", polaroid: "Полароид", corners: "Уголки", tape: "Скотч", mat: "Паспарту", shadow: "Тень" },
     caption: "Подписи к фото",
