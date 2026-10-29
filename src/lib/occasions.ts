@@ -44,6 +44,7 @@ const themeOccasions: Record<string, OccasionId[]> = {
   love: ["anniversary", "valentine", "birthday", "wedding", "march8", "newyear", "other"],
   mom: ["birthday", "march8", "parents", "graduation", "wedding", "newyear", "other"],
   dad: ["birthday", "parents", "newyear", "graduation", "wedding", "other"],
+  grandma: ["birthday", "march8", "parents", "newyear", "other"],
   child: ["birthday", "graduation", "wedding", "newyear", "other"],
   friend: ["birthday", "wedding", "graduation", "newyear", "march8", "other"],
   teacher: ["teachersday", "graduation", "birthday", "march8", "newyear", "other"],

@@ -10,7 +10,7 @@ import { ensureCatalog } from "./catalog";
  * Виды книг, которые бот предлагает в «для кого» (lib/content/kinds.ts): подарки по темам, «Автобиография»
  * (autobiography) и «Вручную — своя книга» (blank). Тема, которой сайт не знает (isThemeId), не предлагается.
  */
-const BOT_THEMES = ["love", "mom", "dad", "child", "friend", "teacher", "autobiography", "blank"];
+const BOT_THEMES = ["love", "mom", "dad", "grandma", "child", "friend", "teacher", "autobiography", "blank"];
 
 /** Что бот берёт с сайта: действующие цены и сроки («Цены и тарифы»), адрес, регистрация, темы, посадочные страницы. */
 export const botSiteInfo: BotSiteInfo = {

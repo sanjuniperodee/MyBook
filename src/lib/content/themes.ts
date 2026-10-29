@@ -2,12 +2,14 @@ import type { Locale } from "@/i18n/config";
 import { autobiographyChapters } from "./autobiography";
 import { childChapters } from "./child";
 import { friendChapters } from "./friend";
+import { grandmaChapters } from "./grandma";
 import { loveChapters } from "./love";
 import { parentChapters } from "./parent";
 import { teacherChapters } from "./teacher";
 import { autobiographyChapters as autobiographyChaptersKk } from "./kk/autobiography";
 import { childChapters as childChaptersKk } from "./kk/child";
 import { friendChapters as friendChaptersKk } from "./kk/friend";
+import { grandmaChapters as grandmaChaptersKk } from "./kk/grandma";
 import { loveChapters as loveChaptersKk } from "./kk/love";
 import { parentChapters as parentChaptersKk } from "./kk/parent";
 import { teacherChapters as teacherChaptersKk } from "./kk/teacher";
@@ -29,6 +31,7 @@ const base: ThemeBase[] = [
   { id: "love", kind: "gift", recipient: "required", emoji: "❤", defaultRecipientGender: "m", defaultCover: "peony", defaultInterior: "romance" },
   { id: "mom", kind: "gift", recipient: "required", emoji: "✿", recipientGender: "f", defaultRecipientGender: "f", defaultCover: "tenderness", defaultInterior: "herbarium" },
   { id: "dad", kind: "gift", recipient: "required", emoji: "✦", recipientGender: "m", defaultRecipientGender: "m", defaultCover: "alatau", defaultInterior: "stars" },
+  { id: "grandma", kind: "gift", recipient: "required", emoji: "✾", recipientGender: "f", defaultRecipientGender: "f", defaultCover: "postcards", defaultInterior: "vintage" },
   // Дочери или сыну: род ребёнка выбирают в мастере.
   { id: "child", kind: "gift", recipient: "required", emoji: "❀", defaultRecipientGender: "f", defaultCover: "clouds", defaultInterior: "watercolor" },
   { id: "friend", kind: "gift", recipient: "required", emoji: "☀", defaultRecipientGender: "f", defaultCover: "party", defaultInterior: "confetti" },
@@ -67,6 +70,15 @@ const text: Record<Locale, Record<ThemeId, ThemeText>> = {
       recipientPlaceholder: "Например, Ерлан",
       titleSuggestions: ["Папа, это для тебя", "Мой папа", "Спасибо, папа", "Мой герой"],
       chapters: parentChapters,
+    },
+    grandma: {
+      name: "Бабушке",
+      short: "Бабушке",
+      description: "Книга от внуков: бабушкин дом и дастархан, сказки и забота, её жизнь, мудрость и слова благодарности.",
+      recipientLabel: "Как зовут бабушку",
+      recipientPlaceholder: "Например, Роза",
+      titleSuggestions: ["Бабушка, это для тебя", "Моя бабушка", "Спасибо, бабушка", "Бабушкин дом"],
+      chapters: grandmaChapters,
     },
     child: {
       name: "Дочери или сыну",
@@ -140,6 +152,15 @@ const text: Record<Locale, Record<ThemeId, ThemeText>> = {
       recipientPlaceholder: "Мысалы, Ерлан",
       titleSuggestions: ["Әке, бұл саған", "Менің әкем", "Рахмет, әке", "Менің батырым"],
       chapters: parentChaptersKk,
+    },
+    grandma: {
+      name: "Әжеге",
+      short: "Әжеге",
+      description: "Немерелерден кітап: әженің үйі мен дастарқаны, ертегілері мен қамқорлығы, оның өмірі, даналығы және алғыс сөздер.",
+      recipientLabel: "Әжеңіздің есімі",
+      recipientPlaceholder: "Мысалы, Роза",
+      titleSuggestions: ["Әже, бұл саған", "Менің әжем", "Рахмет, әже", "Әженің үйі"],
+      chapters: grandmaChaptersKk,
     },
     child: {
       name: "Қызға немесе ұлға",

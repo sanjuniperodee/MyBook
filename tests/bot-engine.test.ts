@@ -169,6 +169,13 @@ describe("бот: для кого → тема и ссылка", () => {
     expect(findRecipient("учителю", { themes: site.themes })).toMatchObject({ key: "teacher", theme: null });
   });
 
+  it("бабушке — своя тема; без темы на сайте — только подпись", () => {
+    const themes = [...site.themes, "grandma"];
+    for (const text of ["книгу бабушке на юбилей", "для бабушки", "әжеме сыйлық"])
+      expect(findRecipient(text, { themes }), text).toMatchObject({ key: "grandma", theme: "grandma", label: { ru: "Бабушке" } });
+    expect(findRecipient("бабушке", { themes: site.themes })).toMatchObject({ key: "grandma", theme: null });
+  });
+
   it("дочери или сыну — своя тема; детям и внукам вместе — своя книга", () => {
     const themes = [...site.themes, "child"];
     for (const text of ["книгу дочке на выпускной", "для сына на 18 лет", "қызыма туған күнге", "ұлыма сыйлық"])
@@ -187,8 +194,10 @@ describe("бот: для кого → тема и ссылка", () => {
     expect(bookLink(findRecipient("себе", { themes: site.themes })!, site, "ru", false)).toEqual({ url: "https://mybook.kz/kniga", kind: "example" });
     expect(bookLink(findRecipient("себе", { themes: site.themes })!, { ...site, themeLandings: { autobiography: "avtobiografiya" } }, "kk", false)?.url).toBe("https://mybook.kz/kk/kniga/avtobiografiya");
     expect(bookLink(findRecipient("своя книга с нуля", { themes: site.themes })!, { ...site, registrationOpen: true }, "ru", false)?.url).toBe("https://mybook.kz/register?theme=blank");
-    // «Бабушке» — тема «маме», своей страницы нет: страница этой темы.
-    expect(bookLink(findRecipient("бабушке", { themes: site.themes })!, { ...site, themeLandings: { mom: "kniga-mame" } }, "ru", false)?.url).toBe("https://mybook.kz/kniga/kniga-mame");
+    // «Бабушке» — своя тема без посадочной: каталог примеров, при открытой регистрации — начать книгу этой темы.
+    const grandma = findRecipient("бабушке", { themes: [...site.themes, "grandma"] })!;
+    expect(bookLink(grandma, { ...site, themeLandings: { mom: "kniga-mame" } }, "ru", false)?.url).toBe("https://mybook.kz/kniga");
+    expect(bookLink(grandma, { ...site, registrationOpen: true }, "ru", false)?.url).toBe("https://mybook.kz/register?theme=grandma");
     // Тема, которой сайт не знает, — без ссылки.
     expect(bookLink(findRecipient("себе", { themes: ["love", "mom"] })!, site, "ru", false)).toBeNull();
   });
