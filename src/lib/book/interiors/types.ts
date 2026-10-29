@@ -190,6 +190,8 @@ export interface InteriorDesign {
   divider: DividerKind;
   /** Первые слова главы — капителью (как в романах). */
   leadIn: boolean;
+  /** Каждый вопрос начинается с новой страницы; нет — вопросы идут подряд. */
+  questionPage?: boolean;
   /** Колонцифра: по центру, у внешнего края или без неё. */
   folio: { align: "center" | "outer" | "none"; dashes?: boolean; font?: "body" | "label" };
   /** Колонтитул: на левой полосе — название книги, на правой — глава. */

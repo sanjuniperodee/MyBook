@@ -113,6 +113,7 @@ export const design_pages: Messages["design"]["pages"] = {
     quotes: { rule: "Сызықпен", center: "Ортада", mark: "Тырнақшамен" },
     titlePage: "Титул беті",
     titlePages: { center: "Ортада", left: "Солға", bottom: "Төменде", stack: "Ірі" },
+    questionPage: "Әр сұрақ жаңа беттен",
     titleAuthor: "Титул бетінде автордың аты",
     titleLine: "Автордың орнына өз мәтініңіз",
     titleLinePlaceholder: "Мысалы: Сүйікті анама",

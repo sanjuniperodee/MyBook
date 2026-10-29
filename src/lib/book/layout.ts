@@ -267,6 +267,7 @@ export function assembleBookContent(
   const byChapter = new Map<string, ContentItem[]>();
   // Правила раскладки фото: 1 (и книга без версии) — прежние, 2 — у каждого фото одно место (LAYOUT_REV_2).
   const rev2 = book.layoutRev === LAYOUT_REV_2;
+  const everyNewPage = !!bookInterior(book).questionPage;
   // Фото, вставленные в конкретные ответы. Прежние правила прячут снимок обложки и в ответе, правила 2 — печатают.
   const inline = new Map<string, PhotoItem[]>();
   for (const p of photos) {
@@ -288,7 +289,7 @@ export function assembleBookContent(
         answer: printableText(q.answer.trim()),
         photos: qPhotos,
         ...(media.length ? { media } : {}),
-        ...(q.pageBreak ? { pageBreak: true as const } : {}),
+        ...(q.pageBreak || everyNewPage ? { pageBreak: true as const } : {}),
       }),
     );
   }

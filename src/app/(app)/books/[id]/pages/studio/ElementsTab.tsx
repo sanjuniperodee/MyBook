@@ -70,6 +70,7 @@ export function ElementsTab({ design, style, set, onFocus }: { design: InteriorD
       </PanelSection>
 
       <PanelSection title={t.divider}>
+        <Toggle label={t.questionPage} checked={!!design.questionPage} onChange={(v) => el({ questionPage: v })} />
         <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
           {O.dividers.map((k) => (
             <button

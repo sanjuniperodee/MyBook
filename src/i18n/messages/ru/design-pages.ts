@@ -90,6 +90,7 @@ export const design_pages = {
     dropCap: "Буквица",
     dropCaps: { none: "Без буквицы", drop: "Опущенная", raised: "Поднятая" },
     dropLines: "На сколько строк",
+    questionPage: "Каждый вопрос с новой страницы",
     leadIn: "Первые слова главы капителью",
     number: "Номер главы",
     numbers: { label: "«Глава 1»", digits: "1", padded: "01", roman: "I", none: "Без номера" },
