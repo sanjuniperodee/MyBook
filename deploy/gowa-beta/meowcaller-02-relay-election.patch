@@ -1,5 +1,5 @@
 diff --git a/engine.go b/engine.go
-index 9b930f6..fd53f1e 100644
+index 9ab85c1..fba7508 100644
 --- a/engine.go
 +++ b/engine.go
 @@ -15,6 +15,7 @@ import (
@@ -10,7 +10,7 @@ index 9b930f6..fd53f1e 100644
  	"go.mau.fi/whatsmeow"
  	waBinary "go.mau.fi/whatsmeow/binary"
  	"go.mau.fi/whatsmeow/proto/waE2E"
-@@ -81,6 +82,11 @@ type engineCall struct {
+@@ -91,6 +92,11 @@ type engineCall struct {
  	muteSeen    bool
  	muteFrom    types.JID
  	muteCreator types.JID
@@ -22,7 +22,7 @@ index 9b930f6..fd53f1e 100644
  }
  
  // newEngine creates the engine for a Client.
-@@ -157,6 +163,7 @@ func (e *engine) install() {
+@@ -167,6 +173,7 @@ func (e *engine) install() {
  		e.c.log.Error().Err(err).Msg("raw call adapter is unavailable")
  	}
  	e.c.wa.AddEventHandler(func(evt any) {
@@ -30,7 +30,7 @@ index 9b930f6..fd53f1e 100644
  		switch ev := evt.(type) {
  		case *events.CallOffer:
  			e.onOffer(ev)
-@@ -760,6 +767,42 @@ func (e *engine) hangup(c *Call) error {
+@@ -835,6 +842,42 @@ func (e *engine) hangup(c *Call) error {
  	return nil
  }
  
@@ -73,7 +73,7 @@ index 9b930f6..fd53f1e 100644
  // onRelay records relay data from a relaylatency/transport/ack stanza and starts media
  // once both the callKey and the relay endpoint are known.
  func (e *engine) onRelay(callID string, data *waBinary.Node) {
-@@ -797,11 +840,12 @@ func (e *engine) onRelay(callID string, data *waBinary.Node) {
+@@ -872,11 +915,12 @@ func (e *engine) onRelay(callID string, data *waBinary.Node) {
  	e.maybeStartMedia(callID)
  }
  
@@ -89,7 +89,7 @@ index 9b930f6..fd53f1e 100644
  		return
  	}
  	rl := findChild(ev.Data, "relaylatency")
-@@ -821,12 +865,50 @@ func (e *engine) onRelayLatency(ev *events.CallRelayLatency) {
+@@ -917,12 +961,50 @@ func (e *engine) onRelayLatency(ev *events.CallRelayLatency) {
  			addr:      nodeBytes(te),
  		})
  	}
@@ -141,7 +141,7 @@ index 9b930f6..fd53f1e 100644
  			RelayName:    p.relayName,
  			AddressBytes: p.addr,
  		})
-@@ -838,6 +920,37 @@ func (e *engine) onRelayLatency(ev *events.CallRelayLatency) {
+@@ -934,6 +1016,37 @@ func (e *engine) onRelayLatency(ev *events.CallRelayLatency) {
  	}
  }
  
@@ -179,7 +179,7 @@ index 9b930f6..fd53f1e 100644
  // onPreAccept records that the peer's device received and started preparing an outgoing call.
  func (e *engine) onPreAccept(ev *events.CallPreAccept) {
  	m := e.lookup(ev.CallID)
-@@ -1514,6 +1627,7 @@ type relayEndpoint struct {
+@@ -1617,6 +1730,7 @@ type relayEndpoint struct {
  	tokenID     uint32
  	authTokenID uint32
  	isFNA       bool
@@ -187,7 +187,7 @@ index 9b930f6..fd53f1e 100644
  	addresses   []relayAddress
  }
  
-@@ -1522,6 +1636,8 @@ type relayData struct {
+@@ -1625,6 +1739,8 @@ type relayData struct {
  	relayTokens   [][]byte // indexed <token id=…>
  	endpoints     []relayEndpoint
  	peerJID       types.JID
@@ -196,7 +196,7 @@ index 9b930f6..fd53f1e 100644
  }
  
  func nodeBytes(n *waBinary.Node) []byte {
-@@ -1580,12 +1696,14 @@ func findChild(n *waBinary.Node, tag string) *waBinary.Node {
+@@ -1683,12 +1799,14 @@ func findChild(n *waBinary.Node, tag string) *waBinary.Node {
  }
  
  // decodeLatency reverses the relay-latency wire encoding (0x2000000 + rttMs).
@@ -213,7 +213,7 @@ index 9b930f6..fd53f1e 100644
  }
  
  func attrUint(n *waBinary.Node, key string) uint32 {
-@@ -1653,6 +1771,7 @@ func parseRelayData(node *waBinary.Node) *relayData {
+@@ -1756,6 +1874,7 @@ func parseRelayData(node *waBinary.Node) *relayData {
  			tokenID:     attrUint(child, "token_id"),
  			authTokenID: attrUint(child, "auth_token_id"),
  			isFNA:       child.AttrGetter().String("is_fna") == "1",
@@ -221,7 +221,7 @@ index 9b930f6..fd53f1e 100644
  			addresses: []relayAddress{{
  				ipv4: fmt.Sprintf("%d.%d.%d.%d", ab[0], ab[1], ab[2], ab[3]),
  				port: binary.BigEndian.Uint16(ab[4:6]),
-@@ -1674,6 +1793,30 @@ func getMediaRelayEndpoint(rd *relayData, inbound bool) *relayEndpoint {
+@@ -1777,6 +1896,30 @@ func getMediaRelayEndpoint(rd *relayData, inbound bool) *relayEndpoint {
  				return e
  			}
  		}
@@ -253,7 +253,7 @@ index 9b930f6..fd53f1e 100644
  	for i := range rd.endpoints {
  		if e := &rd.endpoints[i]; !e.isFNA && e.authTokenID != 0 {
 diff --git a/engine_media.go b/engine_media.go
-index ec5fd56..44a46ca 100644
+index 35ffd09..d6a7995 100644
 --- a/engine_media.go
 +++ b/engine_media.go
 @@ -93,6 +93,27 @@ func (e *engine) maybeStartMedia(callID string) {
@@ -284,18 +284,18 @@ index ec5fd56..44a46ca 100644
  	e.mu.Unlock()
  
  	if call != nil {
-@@ -113,6 +134,11 @@ func (e *engine) maybeStartMedia(callID string) {
+@@ -118,6 +139,11 @@ func (e *engine) maybeStartMedia(callID string) {
+ //
  // NOT VALIDATED: live-relay only.
- func (e *engine) connectAndAllocate(ctx context.Context, rd *relayData, streamSsrcs [9]uint32, inbound bool) (*relay.RelayMediaChannel, []byte, error) {
- 	log := e.c.log
+ func (e *engine) connectAndAllocateAll(ctx context.Context, rd *relayData, streamSsrcs [9]uint32, inbound bool, multi bool) (*relayFanout, error) {
 +	for _, cand := range rd.endpoints {
-+		log.Debug().Str("relay_name", cand.relayName).Uint32("token_id", cand.tokenID).Uint32("auth_token_id", cand.authTokenID).
++		e.c.log.Debug().Str("relay_name", cand.relayName).Uint32("token_id", cand.tokenID).Uint32("auth_token_id", cand.authTokenID).
 +			Bool("is_fna", cand.isFNA).Uint32("c2r_rtt", cand.c2rRTT).Bool("inbound", inbound).Str("caller_relay", rd.electedRelay).
 +			Msg("relay candidate")
 +	}
- 	ep := getMediaRelayEndpoint(rd, inbound)
- 	if ep == nil || len(ep.addresses) == 0 {
- 		return nil, nil, fmt.Errorf("relay has no usable endpoint")
+ 	primary := getMediaRelayEndpoint(rd, inbound)
+ 	if primary == nil || len(primary.addresses) == 0 {
+ 		return nil, fmt.Errorf("relay has no usable endpoint")
 diff --git a/relay_select_extra_test.go b/relay_select_extra_test.go
 new file mode 100644
 index 0000000..2d885c9

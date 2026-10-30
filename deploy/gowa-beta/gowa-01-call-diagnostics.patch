@@ -1,5 +1,5 @@
 diff --git a/src/infrastructure/whatsapp/caller.go b/src/infrastructure/whatsapp/caller.go
-index ed5498e..b6b8799 100644
+index 09f64da..a6d85e2 100644
 --- a/src/infrastructure/whatsapp/caller.go
 +++ b/src/infrastructure/whatsapp/caller.go
 @@ -12,6 +12,7 @@ import (
@@ -29,20 +29,24 @@ index ed5498e..b6b8799 100644
  	c := &Caller{
  		deviceID: deviceID,
  		client:   mc,
-@@ -138,9 +149,14 @@ func CallerForInstance(inst *DeviceInstance) *Caller {
+@@ -138,13 +149,15 @@ func CallerForInstance(inst *DeviceInstance) *Caller {
  }
  
- // callerLogger adapts logrus to the zerolog logger meowcaller expects. Only
--// warnings and above are surfaced so call media logs do not flood the server.
-+// warnings and above are surfaced so call media logs do not flood the server;
-+// WHATSAPP_CALL_LOG_LEVEL (debug, info, …) opens up the call stack for diagnosis.
+ // callerLogger adapts logrus to the zerolog logger meowcaller expects. Warnings
+-// and above are always surfaced so call media logs do not flood the server, but
+-// APP_DEBUG=true or WHATSAPP_LOG_LEVEL=DEBUG raises it to the library's relay and
+-// media diagnostics, which is the only way to tell "no inbound RTP" from a local
+-// audio problem.
++// and above are always surfaced so call media logs do not flood the server.
++// WHATSAPP_CALL_LOG_LEVEL (debug, info, …) — an environment variable of the
++// gateway process — sets the call stack's level on its own; otherwise APP_DEBUG=true
++// or WHATSAPP_LOG_LEVEL=DEBUG raises it to the library's relay and media diagnostics.
  func callerLogger() zerolog.Logger {
--	return zerolog.New(callerLogWriter{}).Level(zerolog.WarnLevel).With().Timestamp().Logger()
-+	level := zerolog.WarnLevel
+ 	level := zerolog.WarnLevel
+-	if parsed, err := zerolog.ParseLevel(strings.ToLower(config.WhatsappLogLevel)); err == nil && parsed < level {
 +	if parsed, err := zerolog.ParseLevel(strings.TrimSpace(os.Getenv("WHATSAPP_CALL_LOG_LEVEL"))); err == nil && parsed != zerolog.NoLevel {
 +		level = parsed
-+	}
-+	return zerolog.New(callerLogWriter{}).Level(level).With().Timestamp().Logger()
- }
- 
- type callerLogWriter struct{}
++	} else if parsed, err := zerolog.ParseLevel(strings.ToLower(config.WhatsappLogLevel)); err == nil && parsed < level {
+ 		level = parsed
+ 	}
+ 	return zerolog.New(callerLogWriter{}).Level(level).With().Timestamp().Logger()

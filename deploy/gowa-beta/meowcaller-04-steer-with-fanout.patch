@@ -1,0 +1,84 @@
+diff --git a/engine.go b/engine.go
+index 6a67e00..fd97727 100644
+--- a/engine.go
++++ b/engine.go
+@@ -77,16 +77,6 @@ type engineCall struct {
+ 
+ 	// The callee <accept> is deferred until the caller's <mute_v2> arrives.
+ 	acceptPending bool
+-	// acceptSent flips once the <accept> is actually on the wire. Video-state
+-	// stanzas sent before it are a sequence no real client produces, and phones
+-	// react badly (observed: the caller's microphone goes silent while their
+-	// camera keeps streaming). pendingVideoEnable and pendingVideoOrientation
+-	// hold toggles that arrived early; they are applied right after the accept
+-	// goes out.
+-	acceptSent              bool
+-	pendingVideoEnable      *bool
+-	pendingVideoOrientation *int
+-
+ 	// The caller's first <mute_v2> already arrived (the call was still ringing): a later
+ 	// Answer sends the deferred <accept> right away instead of waiting for another one.
+ 	muteSeen    bool
+@@ -97,6 +87,16 @@ type engineCall struct {
+ 	// onRelayLatency). Inbound: the offer's is_fna relay, else our offered relay the
+ 	// caller measured as closest. Outbound: the relay we allocated on at media start.
+ 	electedRelay string
++
++	// acceptSent flips once the <accept> is actually on the wire. Video-state
++	// stanzas sent before it are a sequence no real client produces, and phones
++	// react badly (observed: the caller's microphone goes silent while their
++	// camera keeps streaming). pendingVideoEnable and pendingVideoOrientation
++	// hold toggles that arrived early; they are applied right after the accept
++	// goes out.
++	acceptSent              bool
++	pendingVideoEnable      *bool
++	pendingVideoOrientation *int
+ }
+ 
+ // newEngine creates the engine for a Client.
+@@ -951,14 +951,11 @@ func (e *engine) onRelayLatency(ev *events.CallRelayLatency) {
+ 		}
+ 		ag := te.AttrGetter()
+ 		name := ag.String("relay_name")
+-		if len(offered) > 0 && !offered[name] {
+-			e.c.log.Debug().Str("call_id", ev.CallID).Str("relay_name", name).Msg("skipping latency response for relay outside the offer")
+-			continue
+-		}
+ 		probes = append(probes, rlProbe{
+ 			latency:   decodeLatency(ag.String("latency")),
+ 			relayName: name,
+ 			addr:      nodeBytes(te),
++			foreign:   len(offered) > 0 && !offered[name],
+ 		})
+ 	}
+ 	// The callee's half of the relay election. Echoing the caller's own numbers claims
+@@ -990,6 +987,20 @@ func (e *engine) onRelayLatency(ev *events.CallRelayLatency) {
+ 		// Media has not started yet (no relay): nothing to steer to — stay silent as before.
+ 		return
+ 	}
++	if target == "" {
++		// Nothing to steer to: at least never endorse a relay outside the offer (we hold
++		// no tokens for it). With a target, foreign relays are answered as far instead —
++		// an explicit "avoid", which is what made outbound calls to Kazakhstan carry audio.
++		kept := probes[:0]
++		for _, p := range probes {
++			if p.foreign {
++				e.c.log.Debug().Str("call_id", ev.CallID).Str("relay_name", p.relayName).Msg("skipping latency response for relay outside the offer")
++				continue
++			}
++			kept = append(kept, p)
++		}
++		probes = kept
++	}
+ 	for _, p := range probes {
+ 		latency := p.latency
+ 		if target != "" {
+@@ -1222,6 +1233,8 @@ type rlProbe struct {
+ 	latency   uint32
+ 	relayName string
+ 	addr      []byte
++	// foreign: the relay is not in the offer (no tokens for us).
++	foreign bool
+ }
+ 
+ // applyVoipSettingsCodec finds the <voip_settings> blob under node (an inbound

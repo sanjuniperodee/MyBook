@@ -18,7 +18,7 @@ index 05d0cd5..8cdef49 100644
  	return rest
  }
 diff --git a/src/ui/rest/call_audio.go b/src/ui/rest/call_audio.go
-index 8c511ec..50ef6ad 100644
+index 343097a..391ca59 100644
 --- a/src/ui/rest/call_audio.go
 +++ b/src/ui/rest/call_audio.go
 @@ -78,11 +78,13 @@ func (controller *Call) AudioStream(conn *websocket.Conn) {

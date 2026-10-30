@@ -1,0 +1,37 @@
+diff --git a/engine.go b/engine.go
+index fba7508..6a67e00 100644
+--- a/engine.go
++++ b/engine.go
+@@ -1191,9 +1191,32 @@ func (e *engine) onReject(ev *events.CallReject) {
+ 	e.c.diag.Emit("meta", map[string]any{
+ 		"event": "peer_reject", "call_id": ev.CallID, "from": ev.From.String(),
+ 	})
++	// An inbound call rings on every device of our account. A decline from one of them
++	// (a Meta-hosted Business device, @hosted.lid, declines calls it cannot take) only
++	// stops it there: the caller keeps ringing and the call stays answerable here.
++	// WhatsApp ends it for us with <terminate> (accepted_elsewhere / rejected_elsewhere)
++	// when the phone takes or declines it, or the caller hangs up.
++	if m.direction == CallDirectionIncoming && e.isOwnAccount(ev.From) {
++		e.c.log.Info().Str("call_id", ev.CallID).Str("from", ev.From.String()).
++			Msg("own device declined incoming call; still ringing here")
++		return
++	}
+ 	e.finishCall(ev.CallID, "rejected")
+ }
+ 
++// isOwnAccount reports whether jid is a device of our own account (phone number or LID
++// user, any device and server — s.whatsapp.net, lid, hosted, hosted.lid).
++func (e *engine) isOwnAccount(jid types.JID) bool {
++	if jid.User == "" {
++		return false
++	}
++	if id := e.c.wa.Store.ID; id != nil && id.User == jid.User {
++		return true
++	}
++	lid := e.c.wa.Store.GetLID()
++	return !lid.IsEmpty() && lid.User == jid.User
++}
++
+ // rlProbe is one relay candidate from a relaylatency probe.
+ type rlProbe struct {
+ 	latency   uint32

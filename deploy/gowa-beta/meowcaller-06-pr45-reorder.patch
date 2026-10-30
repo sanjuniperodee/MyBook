@@ -1,0 +1,617 @@
+diff --git a/audio_reorder.go b/audio_reorder.go
+new file mode 100644
+index 0000000..3aeeb6f
+--- /dev/null
++++ b/audio_reorder.go
+@@ -0,0 +1,297 @@
++package meowcaller
++
++import (
++	"context"
++	"time"
++
++	"github.com/purpshell/meowcaller/relay"
++	"github.com/purpshell/meowcaller/rtp"
++)
++
++// DefaultAudioReorderWindow is how long an audio packet that arrived ahead of a
++// missing one is held for the missing one to show up.
++const DefaultAudioReorderWindow = 200 * time.Millisecond
++
++// audioReorderMaxHeld bounds the packets held behind one gap: 60 ms each for
++// audio, a couple of frames' worth for video.
++const audioReorderMaxHeld = 32
++
++// AudioReorderReport is what the reorder stage did to one kind of inbound media
++// (audio, or video) of one call.
++type AudioReorderReport struct {
++	// Packets is every RTP packet of that kind that arrived.
++	Packets uint64
++	// Reordered is how many arrived ahead of an earlier packet and were held.
++	Reordered uint64
++	// Recovered is how many gaps closed in time: the earlier packet arrived
++	// within the window and the stream went on in order.
++	Recovered uint64
++	// Skipped is how many gaps were given up on: the window ran out and the held
++	// packets were released without the missing one.
++	Skipped uint64
++	// Late is how many packets arrived after their gap was given up on, or
++	// twice, and were dropped.
++	Late uint64
++	// MaxHold is the longest a packet was held.
++	MaxHold time.Duration
++}
++
++type reorderInput struct {
++	pkt []byte
++	err error
++}
++
++type heldAudioPacket struct {
++	pkt []byte
++	at  time.Time
++}
++
++type audioReorderStream struct {
++	report   *AudioReorderReport
++	started  bool
++	expected uint16
++	held     map[uint16]heldAudioPacket
++}
++
++// reorderingReceiver sits between the relay channel and the media loop. A media
++// path that reorders datagrams (a SOCKS5 UDP proxy does, heavily) hands the loop
++// packets out of sequence, and video arrives reordered from the relay even on a
++// direct path. The audio decoder and playout buffer need audio in sequence, and the
++// H.264 assembler drops everything up to the next keyframe on any gap. Audio and
++// video RTP are released in sequence-number order, each stream on its own: a packet that
++// arrives ahead of a missing one waits up to window for it, then the gap is
++// skipped. In-order media and every other packet (STUN, RTCP, app data) pass
++// straight through, so a clean path pays no delay.
++//
++// Recv is called by one goroutine, the media loop; all reorder state lives there.
++type reorderingReceiver struct {
++	ctx      context.Context
++	in       chan reorderInput
++	window   time.Duration
++	observe  func(ssrc uint32, seq uint16, timestamp uint32)
++	streams  map[uint32]*audioReorderStream
++	ready    [][]byte
++	timer    *time.Timer
++	pending  error
++	report   AudioReorderReport
++	video    AudioReorderReport
++	nowFunc  func() time.Time
++	deadline time.Time
++}
++
++// newReorderingReceiver starts reading recv. The reader stops when recv fails or
++// ctx ends.
++func newReorderingReceiver(
++	ctx context.Context,
++	recv func([]byte) (int, error),
++	window time.Duration,
++	observe func(ssrc uint32, seq uint16, timestamp uint32),
++) *reorderingReceiver {
++	r := &reorderingReceiver{
++		ctx: ctx, in: make(chan reorderInput, 256), window: window, observe: observe,
++		streams: map[uint32]*audioReorderStream{}, nowFunc: time.Now,
++	}
++	r.timer = time.NewTimer(time.Hour)
++	r.timer.Stop()
++	go func() {
++		buf := make([]byte, 1500)
++		for {
++			n, err := recv(buf)
++			item := reorderInput{err: err}
++			if err == nil {
++				item.pkt = append([]byte(nil), buf[:n]...)
++			}
++			select {
++			case r.in <- item:
++			case <-ctx.Done():
++				return
++			}
++			if err != nil {
++				return
++			}
++		}
++	}()
++	return r
++}
++
++// Recv returns the next packet for the media loop, like RelayMediaChannel.Recv.
++func (r *reorderingReceiver) Recv(buf []byte) (int, error) {
++	for {
++		if len(r.ready) > 0 {
++			pkt := r.ready[0]
++			r.ready = r.ready[1:]
++			return copy(buf, pkt), nil
++		}
++		if r.pending != nil {
++			return 0, r.pending
++		}
++		select {
++		case item := <-r.in:
++			if item.err != nil {
++				// Nothing more is coming: release what is held, then fail.
++				r.flush(true)
++				r.pending = item.err
++				continue
++			}
++			r.push(item.pkt)
++		case <-r.timer.C:
++			r.deadline = time.Time{}
++			r.flush(false)
++		case <-r.ctx.Done():
++			return 0, r.ctx.Err()
++		}
++		r.arm()
++	}
++}
++
++// Report returns the audio counters so far.
++func (r *reorderingReceiver) Report() AudioReorderReport { return r.report }
++
++// VideoReport returns the video counters so far.
++func (r *reorderingReceiver) VideoReport() AudioReorderReport { return r.video }
++
++func (r *reorderingReceiver) push(raw []byte) {
++	pkt, _, valid := relay.UnwrapGroupForwardingPacket(raw)
++	if !valid || relay.ClassifyRelayPacket(pkt) != relay.RelayPacketRtp {
++		r.ready = append(r.ready, raw)
++		return
++	}
++	header, ok := rtp.ParseRtpHeader(pkt)
++	if !ok {
++		r.ready = append(r.ready, raw)
++		return
++	}
++	var report *AudioReorderReport
++	switch classifyMediaPayload(header) {
++	case mediaPayloadAudio:
++		report = &r.report
++		if r.observe != nil {
++			r.observe(header.Ssrc, header.SequenceNumber, header.Timestamp)
++		}
++	case mediaPayloadVideo:
++		report = &r.video
++	default:
++		r.ready = append(r.ready, raw)
++		return
++	}
++	report.Packets++
++	if r.window <= 0 {
++		r.ready = append(r.ready, raw)
++		return
++	}
++	st := r.streams[header.Ssrc]
++	if st == nil {
++		st = &audioReorderStream{report: report, held: map[uint16]heldAudioPacket{}}
++		r.streams[header.Ssrc] = st
++	}
++	seq := header.SequenceNumber
++	if !st.started {
++		st.started = true
++		st.expected = seq + 1
++		r.ready = append(r.ready, raw)
++		return
++	}
++	switch ahead := int16(seq - st.expected); {
++	case ahead == 0:
++		if len(st.held) > 0 {
++			report.Recovered++
++		}
++		r.ready = append(r.ready, raw)
++		st.expected++
++		r.drain(st)
++	case ahead < 0:
++		report.Late++
++	default:
++		if _, dup := st.held[seq]; dup {
++			report.Late++
++			return
++		}
++		report.Reordered++
++		st.held[seq] = heldAudioPacket{pkt: raw, at: r.nowFunc()}
++		if len(st.held) > audioReorderMaxHeld {
++			r.skip(st)
++		}
++	}
++}
++
++// drain releases the held packets that now follow in sequence.
++func (r *reorderingReceiver) drain(st *audioReorderStream) {
++	for {
++		held, ok := st.held[st.expected]
++		if !ok {
++			return
++		}
++		if hold := r.nowFunc().Sub(held.at); hold > st.report.MaxHold {
++			st.report.MaxHold = hold
++		}
++		delete(st.held, st.expected)
++		r.ready = append(r.ready, held.pkt)
++		st.expected++
++	}
++}
++
++// skip gives up on the missing packet: the stream resumes at the earliest held one.
++func (r *reorderingReceiver) skip(st *audioReorderStream) {
++	if len(st.held) == 0 {
++		return
++	}
++	first := true
++	var next uint16
++	for seq := range st.held {
++		if first || int16(seq-next) < 0 {
++			next, first = seq, false
++		}
++	}
++	st.report.Skipped++
++	st.expected = next
++	r.drain(st)
++}
++
++// oldest is when the longest-waiting held packet of st arrived.
++func (st *audioReorderStream) oldest() (time.Time, bool) {
++	var at time.Time
++	for _, held := range st.held {
++		if at.IsZero() || held.at.Before(at) {
++			at = held.at
++		}
++	}
++	return at, !at.IsZero()
++}
++
++// flush skips every gap whose held packets have waited out the window, or all of
++// them when everything is true.
++func (r *reorderingReceiver) flush(everything bool) {
++	now := r.nowFunc()
++	for _, st := range r.streams {
++		for {
++			at, ok := st.oldest()
++			if !ok || (!everything && now.Sub(at) < r.window) {
++				break
++			}
++			r.skip(st)
++		}
++	}
++}
++
++// arm sets the timer for the next held packet to run out of window.
++func (r *reorderingReceiver) arm() {
++	var next time.Time
++	for _, st := range r.streams {
++		if at, ok := st.oldest(); ok && (next.IsZero() || at.Before(next)) {
++			next = at
++		}
++	}
++	if next.IsZero() {
++		if !r.deadline.IsZero() {
++			r.timer.Stop()
++			r.deadline = time.Time{}
++		}
++		return
++	}
++	next = next.Add(r.window)
++	if next.Equal(r.deadline) {
++		return
++	}
++	r.deadline = next
++	r.timer.Reset(time.Until(next))
++}
+diff --git a/audio_reorder_test.go b/audio_reorder_test.go
+new file mode 100644
+index 0000000..a732a44
+--- /dev/null
++++ b/audio_reorder_test.go
+@@ -0,0 +1,178 @@
++package meowcaller
++
++import (
++	"context"
++	"encoding/binary"
++	"errors"
++	"testing"
++	"time"
++)
++
++// audioPacket is a minimal audio RTP packet (payload type 120) with the given
++// sequence number.
++func audioPacket(seq uint16) []byte {
++	pkt := make([]byte, 20)
++	pkt[0] = 0x80
++	pkt[1] = 120
++	binary.BigEndian.PutUint16(pkt[2:4], seq)
++	binary.BigEndian.PutUint32(pkt[4:8], uint32(seq)*960)
++	binary.BigEndian.PutUint32(pkt[8:12], 0xfeedbeef)
++	return pkt
++}
++
++type reorderHarness struct {
++	t    *testing.T
++	feed chan reorderInput
++	rx   *reorderingReceiver
++}
++
++func newReorderHarness(t *testing.T, window time.Duration) *reorderHarness {
++	t.Helper()
++	ctx, cancel := context.WithCancel(context.Background())
++	t.Cleanup(cancel)
++	h := &reorderHarness{t: t, feed: make(chan reorderInput, 64)}
++	recv := func(buf []byte) (int, error) {
++		select {
++		case item := <-h.feed:
++			return copy(buf, item.pkt), item.err
++		case <-ctx.Done():
++			return 0, ctx.Err()
++		}
++	}
++	h.rx = newReorderingReceiver(ctx, recv, window, nil)
++	return h
++}
++
++func (h *reorderHarness) send(seqs ...uint16) {
++	for _, seq := range seqs {
++		h.feed <- reorderInput{pkt: audioPacket(seq)}
++	}
++}
++
++// next returns the sequence number of the next packet the media loop would read.
++func (h *reorderHarness) next() uint16 {
++	h.t.Helper()
++	buf := make([]byte, 1500)
++	n, err := h.rx.Recv(buf)
++	if err != nil {
++		h.t.Fatalf("Recv: %v", err)
++	}
++	if n < 4 {
++		h.t.Fatalf("short packet: %d bytes", n)
++	}
++	return binary.BigEndian.Uint16(buf[2:4])
++}
++
++func (h *reorderHarness) expect(want ...uint16) {
++	h.t.Helper()
++	for i, w := range want {
++		if got := h.next(); got != w {
++			h.t.Fatalf("packet %d: seq %d, want %d", i, got, w)
++		}
++	}
++}
++
++func TestReorderPassesInOrderAudioThrough(t *testing.T) {
++	h := newReorderHarness(t, time.Hour)
++	h.send(65534, 65535, 0, 1)
++	h.expect(65534, 65535, 0, 1)
++	if r := h.rx.Report(); r.Packets != 4 || r.Reordered != 0 || r.Late != 0 {
++		t.Fatalf("report %+v", r)
++	}
++}
++
++func TestReorderRestoresSwappedPackets(t *testing.T) {
++	// The window never expires here: only the missing packet can release the held ones.
++	h := newReorderHarness(t, time.Hour)
++	h.send(10, 12, 13, 11, 14)
++	h.expect(10, 11, 12, 13, 14)
++	if r := h.rx.Report(); r.Reordered != 2 || r.Recovered != 1 || r.Skipped != 0 || r.Late != 0 {
++		t.Fatalf("report %+v", r)
++	}
++}
++
++func TestReorderSkipsAGapAfterTheWindowAndDropsTheLatecomer(t *testing.T) {
++	h := newReorderHarness(t, 40*time.Millisecond)
++	h.send(1, 3)
++	h.expect(1)
++	start := time.Now()
++	h.expect(3) // released by the timer, with no further packet arriving
++	if waited := time.Since(start); waited < 30*time.Millisecond {
++		t.Fatalf("held packet released after %s, before the window", waited)
++	}
++	h.send(2, 4)
++	h.expect(4)
++	if r := h.rx.Report(); r.Skipped != 1 || r.Late != 1 || r.Recovered != 0 {
++		t.Fatalf("report %+v", r)
++	}
++}
++
++func TestReorderDoesNotDelayOtherPackets(t *testing.T) {
++	h := newReorderHarness(t, time.Hour)
++	h.send(1, 3)
++	h.expect(1)
++	stun := []byte{0x00, 0x01, 0x00, 0x00, 0x21, 0x12, 0xa4, 0x42, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}
++	h.feed <- reorderInput{pkt: stun}
++	buf := make([]byte, 1500)
++	n, err := h.rx.Recv(buf)
++	if err != nil || n != len(stun) || buf[4] != 0x21 {
++		t.Fatalf("got %d bytes, err %v: the STUN packet did not pass ahead of held audio", n, err)
++	}
++}
++
++func TestReorderReleasesHeldAudioBeforeTheReadError(t *testing.T) {
++	h := newReorderHarness(t, time.Hour)
++	h.send(1, 3)
++	h.expect(1)
++	gone := errors.New("relay gone")
++	h.feed <- reorderInput{err: gone}
++	h.expect(3)
++	if _, err := h.rx.Recv(make([]byte, 1500)); !errors.Is(err, gone) {
++		t.Fatalf("err = %v, want the read error", err)
++	}
++}
++
++func TestReorderOffKeepsArrivalOrder(t *testing.T) {
++	h := newReorderHarness(t, 0)
++	h.send(1, 3, 2)
++	h.expect(1, 3, 2)
++}
++
++func TestReorderBoundsWhatItHolds(t *testing.T) {
++	h := newReorderHarness(t, time.Hour)
++	h.send(1)
++	h.expect(1)
++	for seq := uint16(3); seq <= 3+audioReorderMaxHeld; seq++ {
++		h.send(seq)
++	}
++	// One more than the bound is held: the gap is given up on without the timer.
++	h.expect(3, 4, 5)
++	if r := h.rx.Report(); r.Skipped != 1 {
++		t.Fatalf("report %+v", r)
++	}
++}
++
++// videoPacket is a minimal H.264 RTP packet (payload type 97).
++func videoPacket(seq uint16) []byte {
++	pkt := audioPacket(seq)
++	pkt[1] = 97
++	binary.BigEndian.PutUint32(pkt[8:12], 0xcafef00d)
++	return pkt
++}
++
++func TestReorderRestoresVideoOnItsOwnStream(t *testing.T) {
++	h := newReorderHarness(t, time.Hour)
++	// Video 3 arrives before video 2 while audio flows in order around it.
++	h.feed <- reorderInput{pkt: videoPacket(1)}
++	h.feed <- reorderInput{pkt: videoPacket(3)}
++	h.send(50, 51)
++	h.feed <- reorderInput{pkt: videoPacket(2)}
++	h.expect(1, 50, 51, 2, 3)
++	audio, video := h.rx.Report(), h.rx.VideoReport()
++	if audio.Packets != 2 || audio.Reordered != 0 {
++		t.Fatalf("audio report %+v", audio)
++	}
++	if video.Packets != 3 || video.Reordered != 1 || video.Recovered != 1 || video.Late != 0 {
++		t.Fatalf("video report %+v", video)
++	}
++}
+diff --git a/client.go b/client.go
+index c1e41d3..a287550 100644
+--- a/client.go
++++ b/client.go
+@@ -6,6 +6,7 @@ import (
+ 	"fmt"
+ 	"strings"
+ 	"sync"
++	"time"
+ 
+ 	"github.com/purpshell/meowcaller/diag"
+ 	"github.com/rs/zerolog"
+@@ -24,6 +25,10 @@ type Client struct {
+ 	diag *diag.Recorder
+ 	eng  *engine
+ 
++	audioRTP      func(callID string, ssrc uint32, seq uint16, timestamp uint32)
++	reorderWindow time.Duration
++	reorderReport func(callID string, audio, video AudioReorderReport)
++
+ 	getGroupInfo func(context.Context, types.JID) (*types.GroupInfo, error)
+ 	ownGroupJIDs func() []types.JID
+ 
+@@ -53,7 +58,10 @@ func NewClient(wa *whatsmeow.Client, opts ...Option) *Client {
+ 	cfg := resolveConfig(opts)
+ 	c := &Client{
+ 		wa: wa, log: cfg.log, diag: cfg.diag,
+-		getGroupInfo: wa.GetGroupInfo,
++		audioRTP:      cfg.audioRTP,
++		reorderWindow: cfg.reorderWindow,
++		reorderReport: cfg.reorderReport,
++		getGroupInfo:  wa.GetGroupInfo,
+ 		ownGroupJIDs: func() []types.JID {
+ 			return []types.JID{wa.Store.GetJID(), wa.Store.GetLID()}
+ 		},
+diff --git a/engine_media.go b/engine_media.go
+index d6a7995..6586cae 100644
+--- a/engine_media.go
++++ b/engine_media.go
+@@ -898,6 +898,28 @@ func (e *engine) runMedia(ctx context.Context, callID string, call *Call, callKe
+ 		}
+ 	}()
+ 
++	// Inbound audio and video go through the reorder stage before the loop sees them.
++	var observeAudio func(ssrc uint32, seq uint16, timestamp uint32)
++	if fn := e.c.audioRTP; fn != nil {
++		observeAudio = func(ssrc uint32, seq uint16, timestamp uint32) { fn(callID, ssrc, seq, timestamp) }
++	}
++	rx := newReorderingReceiver(ctx, ch.Recv, e.c.reorderWindow, observeAudio)
++	defer func() {
++		report := rx.Report()
++		log.Info().Uint64("packets", report.Packets).Uint64("reordered", report.Reordered).
++			Uint64("recovered", report.Recovered).Uint64("skipped", report.Skipped).Uint64("late", report.Late).
++			Dur("max_hold", report.MaxHold).Dur("window", e.c.reorderWindow).Msg("inbound audio reorder summary")
++		video := rx.VideoReport()
++		if video.Packets > 0 {
++			log.Info().Uint64("packets", video.Packets).Uint64("reordered", video.Reordered).
++				Uint64("recovered", video.Recovered).Uint64("skipped", video.Skipped).Uint64("late", video.Late).
++				Dur("max_hold", video.MaxHold).Msg("inbound video reorder summary")
++		}
++		if fn := e.c.reorderReport; fn != nil {
++			fn(callID, report, video)
++		}
++	}()
++
+ 	buf := make([]byte, 1500)
+ 	rtpDedup := newRtpReplayFilter()
+ 	var rtpIn, rtpSeen, unprotectFail, rtpInspect, vidIn, appDataIn, appDataUnprotectFail, videoUnprotectFail, videoFrameIn, videoSinkMissing, rtcpIn, rtcpAuthFail, groupForwardingInvalid uint64
+@@ -905,7 +927,7 @@ func (e *engine) runMedia(ctx context.Context, callID string, call *Call, callKe
+ 		if ctx.Err() != nil {
+ 			return ctx.Err()
+ 		}
+-		n, err := ch.Recv(buf)
++		n, err := rx.Recv(buf)
+ 		if err != nil {
+ 			return fmt.Errorf("relay recv: %w", err)
+ 		}
+diff --git a/logging.go b/logging.go
+index 365fc49..c152aa3 100644
+--- a/logging.go
++++ b/logging.go
+@@ -1,6 +1,8 @@
+ package meowcaller
+ 
+ import (
++	"time"
++
+ 	"github.com/purpshell/meowcaller/diag"
+ 	"github.com/rs/zerolog"
+ )
+@@ -12,10 +14,14 @@ type Option func(*config)
+ type config struct {
+ 	log  zerolog.Logger
+ 	diag *diag.Recorder
++
++	audioRTP      func(callID string, ssrc uint32, seq uint16, timestamp uint32)
++	reorderWindow time.Duration
++	reorderReport func(callID string, audio, video AudioReorderReport)
+ }
+ 
+ func resolveConfig(opts []Option) config {
+-	c := config{log: zerolog.Nop()}
++	c := config{log: zerolog.Nop(), reorderWindow: DefaultAudioReorderWindow}
+ 	for _, opt := range opts {
+ 		opt(&c)
+ 	}
+@@ -37,3 +43,23 @@ func WithLogger(l zerolog.Logger) Option {
+ func WithDiagnostics(rec *diag.Recorder) Option {
+ 	return func(c *config) { c.diag = rec }
+ }
++
++// WithAudioRTPObserver calls fn for every audio RTP packet a call receives from the
++// relay, in arrival order, before the reorder stage and before decryption, so a consumer can measure loss,
++// duplicates and reordering on the media path. fn runs on the receive loop: keep it short.
++func WithAudioRTPObserver(fn func(callID string, ssrc uint32, seq uint16, timestamp uint32)) Option {
++	return func(c *config) { c.audioRTP = fn }
++}
++
++// WithAudioReorderWindow sets how long inbound audio or video that arrived ahead of a missing
++// packet waits for it (DefaultAudioReorderWindow when unset). Zero or less turns the
++// reorder stage off: packets reach the decoder in arrival order.
++func WithAudioReorderWindow(window time.Duration) Option {
++	return func(c *config) { c.reorderWindow = window }
++}
++
++// WithAudioReorderReport calls fn once per call, when its media ends, with what the
++// reorder stage did to the call's inbound audio and video.
++func WithAudioReorderReport(fn func(callID string, audio, video AudioReorderReport)) Option {
++	return func(c *config) { c.reorderReport = fn }
++}
