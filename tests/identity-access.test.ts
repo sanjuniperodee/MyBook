@@ -25,7 +25,8 @@ class Uow implements UnitOfWork {
   }
 }
 
-const fixedClock = (ms = Date.UTC(2026, 9, 1, 10)): Clock & { tick(sec: number): void } => {
+const T0 = new Date(Date.UTC(2026, 9, 1, 10));
+const fixedClock = (ms = T0.getTime()): Clock & { tick(sec: number): void } => {
   let now = ms;
   return { now: () => new Date(now), tick: (s) => (now += s * 1000) };
 };
@@ -134,7 +135,7 @@ describe("Identity: регистрация и вход", () => {
     const r = await auth.register({ email: " Aliya@Mail.KZ ", name: "Алия", password: "secret123", locale: "kk", source: { source: "instagram" } });
     expect(r.user.email).toBe("aliya@mail.kz");
     expect(uow.events.map((e) => e.type)).toEqual(["identity.user_registered"]);
-    expect(await sessions.findUserId(`#${r.token}`, new Date())).toBe(r.user.id);
+    expect(await sessions.findUserId(`#${r.token}`, T0)).toBe(r.user.id);
     await expect(auth.register({ email: "aliya@mail.kz", name: "x", password: "secret123", locale: "ru", source: null })).rejects.toMatchObject({ code: "exists" });
     await expect(auth.register({ email: "bad", name: "x", password: "secret123", locale: "ru", source: null })).rejects.toMatchObject({ code: "email" });
     await expect(auth.register({ email: "a@b.kz", name: "x", password: "short", locale: "ru", source: null })).rejects.toMatchObject({ code: "password" });
@@ -209,7 +210,7 @@ describe("Identity: клиент, которого завёл менеджер",
     if (first.kind !== "session") throw new Error("ожидалась сессия");
     const issued = await accounts.issueClientPassword(made.id, "Новый-пароль-77");
     expect(issued.login).toBe("77010001122");
-    expect(await sessions.findUserId(`#${first.token}`, new Date())).toBeNull();
+    expect(await sessions.findUserId(`#${first.token}`, T0)).toBeNull();
     await expect(auth.login({ login: "87010001122", password: "Pass12345", locale: "ru" })).rejects.toMatchObject({ code: "credentials" });
     expect((await auth.login({ login: "87010001122", password: "Новый-пароль-77", locale: "ru" })).kind).toBe("session");
   });
@@ -273,8 +274,8 @@ describe("Identity: двухфакторный вход сотрудника", (
     const b = await auth.login({ login: "a@b.kz", password: "secret123", locale: "ru" });
     await expect(accounts.changePassword(a.user.id, "wrong", "newsecret1", a.token)).rejects.toMatchObject({ code: "credentials" });
     await accounts.changePassword(a.user.id, "secret123", "newsecret1", a.token);
-    expect(await sessions.findUserId(`#${a.token}`, new Date())).toBe(a.user.id);
-    expect(await sessions.findUserId(`#${(b as { token: string }).token}`, new Date())).toBeNull();
+    expect(await sessions.findUserId(`#${a.token}`, T0)).toBe(a.user.id);
+    expect(await sessions.findUserId(`#${(b as { token: string }).token}`, T0)).toBeNull();
   });
 });
 
@@ -393,8 +394,8 @@ describe("Identity: ссылка доступа в кабинет после о�
     for (let i = 0; i < 3; i++) expect(await auth.linkInfo(token)).toEqual({ purpose: "access", valid: true });
     const r = await auth.redeemAccessLink(token, "MyNewPass1");
     expect(r.user.id).toBe(id);
-    expect(await sessions.findUserId(`#${r.token}`, new Date())).toBe(id);
-    expect(await sessions.findUserId(`#${(old as { token: string }).token}`, new Date())).toBeNull();
+    expect(await sessions.findUserId(`#${r.token}`, T0)).toBe(id);
+    expect(await sessions.findUserId(`#${(old as { token: string }).token}`, T0)).toBeNull();
     expect(await auth.linkInfo(token)).toEqual({ purpose: "access", valid: false });
     await expect(auth.redeemAccessLink(token, "Another123")).rejects.toMatchObject({ code: "resetExpired" });
     expect((await auth.login({ login: "+7 701 123 45 67", password: "MyNewPass1", locale: "ru" })).kind).toBe("session");
