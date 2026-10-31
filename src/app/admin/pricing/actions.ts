@@ -49,7 +49,7 @@ export async function savePricingAction(_: PricingState, form: FormData): Promis
         hidden: form.get(`plan_${p.id}_visible`) !== "on",
       };
     }
-    for (const a of factoryCatalog.addons) next.addons![a.id] = { price: money(form, `addon_${a.id}_price`, addonLabels[a.id]) };
+    for (const a of factoryCatalog.addons) next.addons![a.id] = { price: money(form, `addon_${a.id}_price`, addonLabels[a.id]), hidden: form.get(`addon_${a.id}_visible`) !== "on" };
     // Доставку в другую страну считает менеджер — цены у неё нет. Курьер и по Казахстану: пустое поле — «рассчитывается
     // индивидуально», вписанная цена — фиксированная.
     for (const d of factoryCatalog.delivery) {

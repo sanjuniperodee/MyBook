@@ -5,7 +5,7 @@ import { getLocale, getMessages, lredirect } from "@/i18n/server";
 import { z } from "zod";
 import { uuid } from "@/server/input";
 import { requireUser } from "@/server/auth";
-import { getDeliveryOptions, getPlan, getPlans, isAbroadDelivery, type DeliveryId } from "@/config/site";
+import { getDeliveryOptions, getPlan, getPlans, isAbroadDelivery, soldAddons, type DeliveryId } from "@/config/site";
 import { OrderingError } from "@/modules/ordering";
 import { container } from "@/server/container";
 import { actionError } from "@/server/errors";
@@ -82,7 +82,7 @@ export async function createOrderAction(_: CheckoutState, form: FormData): Promi
       plan: plan.id,
       quantity: d.quantity,
       delivery: { method: plan.printed ? (d.delivery as DeliveryId) : null, country: d.country || null, city: d.city || null, address: d.address || null, postalCode: d.postalCode || null },
-      addons: d.addons ? d.addons.split(",") : [],
+      addons: d.addons ? d.addons.split(",").filter((id) => soldAddons(plan.id).some((a) => a.id === id)) : [],
       contact: { name: d.contactName, phone: d.contactPhone, email: d.contactEmail },
       promoCode: d.promoCode || undefined,
       customerComment: d.comment,

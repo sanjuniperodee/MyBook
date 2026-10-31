@@ -73,6 +73,8 @@ export interface Addon {
   id: AddonId;
   price: number;
   hiddenFor: PlanId[];
+  /** Снят с продажи в админке: клиенты его не видят и выбрать не могут. */
+  hidden?: boolean;
 }
 
 /*
@@ -141,7 +143,7 @@ export const isAbroadDelivery = (id: string | null | undefined): boolean => id =
 /** Что владелец поменял в админке: только цены и видимость тарифов, остальное (сроки, состав) — в коде и словарях. */
 export interface CatalogOverrides {
   plans?: Partial<Record<PlanId, { price?: number; extraCopyPrice?: number; hidden?: boolean }>>;
-  addons?: Partial<Record<AddonId, { price?: number }>>;
+  addons?: Partial<Record<AddonId, { price?: number; hidden?: boolean }>>;
   /**
    * Цена доставки. У способов «по расчёту» (курьер, по Казахстану) цена действует только с fixed: true — её владелец
    * вписал сам в «Ценах и тарифах»; старые сохранённые цены без отметки не возвращают фиксированную доставку.
@@ -168,8 +170,11 @@ export function sanitizeOverrides(raw: unknown): CatalogOverrides {
     if (Object.keys(e).length) (out.plans ??= {})[d.id] = e;
   }
   for (const d of defaultAddons) {
-    const v = price(o.addons?.[d.id]?.price);
-    if (v !== undefined) (out.addons ??= {})[d.id] = { price: v };
+    const r = o.addons?.[d.id];
+    const e: { price?: number; hidden?: boolean } = {};
+    if (price(r?.price) !== undefined) e.price = price(r?.price);
+    if (typeof r?.hidden === "boolean") e.hidden = r.hidden;
+    if (Object.keys(e).length) (out.addons ??= {})[d.id] = e;
   }
   for (const d of defaultDelivery) {
     // В другую страну — всегда по расчёту менеджера.
@@ -329,6 +334,11 @@ export const isQuotedDelivery = (id: string | null | undefined, gifts: readonly 
 
 export function availableAddons(plan: PlanId) {
   return getAddons().filter((a) => !a.hiddenFor.includes(plan));
+}
+
+/** Допы, которые клиент может выбрать при оформлении: доступные на тарифе и не снятые с продажи. */
+export function soldAddons(plan: PlanId) {
+  return availableAddons(plan).filter((a) => !a.hidden);
 }
 
 /**

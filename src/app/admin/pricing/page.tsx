@@ -16,8 +16,8 @@ export default async function PricingPage() {
     delivery: Object.fromEntries(factoryCatalog.delivery.map((d) => [d.id, d.price])),
     aiPacks: Object.fromEntries(factoryCatalog.aiPacks.map((p) => [p.id, { price: p.price, requests: p.requests }])),
   };
-  const changed = JSON.stringify({ plans: getPlans().map((p) => [p.price, p.extraCopyPrice, p.hidden]), a: getAddons().map((a) => a.price), d: getDeliveryOptions().map((d) => [d.price, !!d.quoted]), ai: getAiPacks().map((p) => [p.price, p.requests, !!p.hidden]) }) !==
-    JSON.stringify({ plans: factoryCatalog.plans.map((p) => [p.price, p.extraCopyPrice, p.hidden]), a: factoryCatalog.addons.map((a) => a.price), d: factoryCatalog.delivery.map((d) => [d.price, !!d.quoted]), ai: factoryCatalog.aiPacks.map((p) => [p.price, p.requests, !!p.hidden]) });
+  const changed = JSON.stringify({ plans: getPlans().map((p) => [p.price, p.extraCopyPrice, p.hidden]), a: getAddons().map((a) => [a.price, a.hidden]), d: getDeliveryOptions().map((d) => [d.price, !!d.quoted]), ai: getAiPacks().map((p) => [p.price, p.requests, !!p.hidden]) }) !==
+    JSON.stringify({ plans: factoryCatalog.plans.map((p) => [p.price, p.extraCopyPrice, p.hidden]), a: factoryCatalog.addons.map((a) => [a.price, a.hidden]), d: factoryCatalog.delivery.map((d) => [d.price, !!d.quoted]), ai: factoryCatalog.aiPacks.map((p) => [p.price, p.requests, !!p.hidden]) });
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <PageHeader title="Цены и тарифы">
@@ -26,7 +26,7 @@ export default async function PricingPage() {
       </PageHeader>
       <PricingForm
         plans={plans}
-        addons={getAddons().map((a) => ({ id: a.id, price: a.price }))}
+        addons={getAddons().map((a) => ({ id: a.id, price: a.price, visible: !a.hidden }))}
         delivery={getDeliveryOptions()
           .filter((d) => d.id !== "abroad")
           .map((d) => ({ id: d.id, price: d.quoted ? null : d.price, optional: !!factoryCatalog.delivery.find((f) => f.id === d.id)?.quoted }))}

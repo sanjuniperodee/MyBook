@@ -19,7 +19,7 @@ export const botSiteInfo: BotSiteInfo = {
     return {
       plans: getPlans().map((p) => ({ id: p.id, price: p.price, extraCopyPrice: p.extraCopyPrice, hidden: p.hidden })),
       delivery: getDeliveryOptions().map((d) => ({ id: d.id, price: d.price, quoted: d.quoted })),
-      addons: getAddons().map((a) => ({ id: a.id, price: a.price })),
+      addons: getAddons().filter((a) => !a.hidden).map((a) => ({ id: a.id, price: a.price })),
       productionDays,
     };
   },

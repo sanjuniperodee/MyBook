@@ -14,7 +14,7 @@ const addonNotes: Partial<Record<AddonId, string>> = { express: " (приори�
 
 interface Props {
   plans: { id: PlanId; printed: boolean; price: number; extraCopyPrice: number; visible: boolean }[];
-  addons: { id: AddonId; price: number }[];
+  addons: { id: AddonId; price: number; visible: boolean }[];
   /** price null — «рассчитывается индивидуально» (optional: поле можно оставить пустым). */
   delivery: { id: DeliveryId; price: number | null; optional: boolean }[];
   aiPacks: { id: AiPackId; price: number; requests: number; visible: boolean }[];
@@ -81,7 +81,13 @@ export function PricingForm({ plans, addons, delivery, aiPacks, factory, changed
       <section className="grid gap-4 rounded-2xl border border-line bg-white p-5 sm:grid-cols-2">
         <h2 className="text-sm font-semibold sm:col-span-2">Допы к печатному заказу</h2>
         {addons.map((a) => (
-          <Price key={a.id} name={`addon_${a.id}_price`} label={addonLabels[a.id] + (addonNotes[a.id] ?? "")} value={a.price} factory={factory.addons[a.id]} />
+          <div key={a.id} className="space-y-2">
+            <Price name={`addon_${a.id}_price`} label={addonLabels[a.id] + (addonNotes[a.id] ?? "")} value={a.price} factory={factory.addons[a.id]} />
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" name={`addon_${a.id}_visible`} defaultChecked={a.visible} className="size-4 accent-wine" /> Продаётся
+            </label>
+            {!a.visible ? <p className="text-xs text-amber-800">Скрыт: клиенты не видят его при оформлении заказа. Старые заказы остаются как были.</p> : null}
+          </div>
         ))}
       </section>
 

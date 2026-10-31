@@ -4,7 +4,7 @@ import { useMessages } from "@/i18n/client";
 import { useActionState, useEffect, useState, useTransition } from "react";
 import { track } from "@/lib/analytics-client";
 import { checkPromoAction, createOrderAction, type CheckoutState, type PromoPreview } from "./actions";
-import { availableAddons, getPlan, getPlans, getVisiblePlans, isQuotedDelivery, type AddonId, type DeliveryId, type PlanId } from "@/config/site";
+import { soldAddons, getPlan, getPlans, getVisiblePlans, isQuotedDelivery, type AddonId, type DeliveryId, type PlanId } from "@/config/site";
 import { nowMs } from "@/lib/dates";
 import { toIsoDay } from "@/lib/occasions";
 import { quoteCheckout } from "@/modules/ordering/domain/Pricing";
@@ -78,7 +78,7 @@ export function CheckoutForm({
   const plan = getPlans().find((p) => p.id === planId)!;
   // Бесплатное по договорённости действует, только пока клиент продолжает по ней (не «с нуля»).
   const gifts: AgreementGift[] = agreement && mode === "agreed" && !upgrade ? (agreement.gifts ?? []) : [];
-  const offered = availableAddons(planId);
+  const offered = soldAddons(planId);
   // Какие тарифы предлагаем: зафиксированный договорённостью; при дозаказе печатной версии — только печатные; иначе все, что продаются.
   const shownPlans = lockedPlan ? getPlans().filter((x) => x.id === lockedPlan) : upgrade ? getVisiblePlans().filter((x) => x.printed) : getVisiblePlans();
   const toggleAddon = (id: AddonId) => setAddonIds((a) => (a.includes(id) ? a.filter((x) => x !== id) : [...a, id]));

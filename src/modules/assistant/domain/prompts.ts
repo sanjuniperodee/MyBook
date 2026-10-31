@@ -71,7 +71,7 @@ export function businessContext(knowledge = ""): string {
     `Доставка: ${getDeliveryOptions()
       .map((d) => (d.quoted ? `${deliveryNames[d.id] ?? d.id} — стоимость${d.id === "abroad" ? " и срок" : ""} рассчитывается индивидуально (зависит от города и способа: СДЭК, Казпочта, InDriver), её считает менеджер по адресу, в сумму заказа не входит (цену доставки не называй)${d.id !== "abroad" && d.maxDays ? `, до ${d.maxDays} дн.` : ""}` : `${deliveryNames[d.id] ?? d.id} — ${d.price ? kzt(d.price) : "бесплатно"}${d.maxDays ? `, до ${d.maxDays} дн.` : ""}`))
       .join("; ")}.`,
-    `Допы: ${getAddons().map((a) => `${addonNames[a.id] ?? a.id} — ${kzt(a.price)}`).join("; ")}.`,
+    `Допы: ${getAddons().filter((a) => !a.hidden).map((a) => `${addonNames[a.id] ?? a.id} — ${kzt(a.price)}`).join("; ")}.`,
     knowledge.trim() ? `Правила и ответы на частые вопросы от владельца:\n${knowledge.trim().slice(0, 6000)}` : "",
   ]
     .filter(Boolean)
