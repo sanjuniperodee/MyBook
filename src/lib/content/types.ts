@@ -12,7 +12,7 @@ export interface ChapterDef {
 }
 
 /** Темы-подарки (банк вопросов о близком человеке). */
-export type GiftThemeId = "love" | "mom" | "dad" | "grandma" | "child" | "friend" | "teacher";
+export type GiftThemeId = "love" | "mom" | "dad" | "grandma" | "child" | "sibling" | "friend" | "teacher";
 /** Все темы: подарки, автобиография (банк вопросов о жизни рассказчика) и своя книга с чистого листа (без банка). */
 export type ThemeId = GiftThemeId | "autobiography" | "blank";
 

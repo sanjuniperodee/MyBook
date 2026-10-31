@@ -46,7 +46,7 @@ export const books = pgTable(
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    /** Тема и вид книги (lib/content/kinds): love | mom | dad | grandma | child | friend | teacher — подарки, autobiography, blank — своя книга. */
+    /** Тема и вид книги (lib/content/kinds): love | mom | dad | grandma | child | sibling | friend | teacher — подарки, autobiography, blank — своя книга. */
     theme: text("theme").notNull(),
     status: text("status", { enum: ["draft", "ordered"] }).notNull().default("draft"),
     title: text("title").notNull().default(""),

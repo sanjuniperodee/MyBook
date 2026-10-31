@@ -1,11 +1,11 @@
 /**
- * «Для кого книга» → тема книги и ссылка. Темы: love | mom | dad | grandma | child | friend | teacher и режимы «Автобиография» (autobiography)
+ * «Для кого книга» → тема книги и ссылка. Темы: love | mom | dad | grandma | child | sibling | friend | teacher и режимы «Автобиография» (autobiography)
  * и «Вручную — своя книга с нуля» (blank, docs/features/book-modes.md). Режимы предлагаются, только когда сайт их уже
  * знает (список тем передаёт адаптер настроек). Ссылки — только на свой сайт.
  */
 import { norm, rx, type BotLang } from "./botNlu";
 
-export type BookTheme = "love" | "mom" | "dad" | "grandma" | "child" | "friend" | "teacher" | "autobiography" | "blank";
+export type BookTheme = "love" | "mom" | "dad" | "grandma" | "child" | "sibling" | "friend" | "teacher" | "autobiography" | "blank";
 type Localized = Record<BotLang, string>;
 
 interface RecipientDef {
@@ -112,9 +112,17 @@ const RECIPIENTS: RecipientDef[] = [
   ),
   def(
     "sibling",
-    ["\\bбрату\\b", "\\bсестре\\b", "\\bсестренке\\b", "\\bколлег(?:е|ам)\\b", "\\bәпкеме\\b", "\\bапкеме\\b", "\\bағама\\b", "\\bагама\\b", "\\bініме\\b", "\\bқарындасыма\\b", "\\bсіңліме\\b", "\\bбауырыма\\b"],
-    ["\\bбрат\\S*", "\\bсестр\\S*", "\\bколлег\\S*"],
-    { ru: "Брату, сестре или коллеге", kk: "Бауырыңызға не әріптесіңізге" },
+    ["\\bбрату\\b", "\\bбратишке\\b", "\\bдля\\s+брата\\b", "\\bсестре\\b", "\\bсестренке\\b", "\\bдля\\s+сестры\\b", "\\bәпкеме\\b", "\\bапкеме\\b", "\\bағама\\b", "\\bагама\\b", "\\bініме\\b", "\\bқарындасыма\\b", "\\bсіңліме\\b", "\\bбауырыма\\b"],
+    ["\\bбрат\\S*", "\\bсестр\\S*"],
+    { ru: "Брату или сестре", kk: "Бауырыңызға" },
+    "sibling",
+    null,
+  ),
+  def(
+    "colleague",
+    ["\\bколлег(?:е|ам)\\b", "\\bәріптесіме\\b", "\\bәріптестеріме\\b"],
+    ["\\bколлег\\S*", "\\bәріптес\\S*"],
+    { ru: "Коллеге", kk: "Әріптесіңізге" },
     "friend",
     null,
   ),
@@ -127,6 +135,7 @@ const MENU: { theme: BookTheme; label: Localized; menu: Localized }[] = [
   { theme: "dad", label: { ru: "Папе", kk: "Әкеңізге" }, menu: { ru: "папе", kk: "әкеңізге" } },
   { theme: "grandma", label: { ru: "Бабушке", kk: "Әжеңізге" }, menu: { ru: "бабушке", kk: "әжеңізге" } },
   { theme: "child", label: { ru: "Дочери или сыну", kk: "Қызыңызға не ұлыңызға" }, menu: { ru: "дочери или сыну", kk: "қызыңызға не ұлыңызға" } },
+  { theme: "sibling", label: { ru: "Брату или сестре", kk: "Бауырыңызға" }, menu: { ru: "брату или сестре", kk: "бауырыңызға (ағаңызға, әпкеңізге, ініңізге, сіңліңізге)" } },
   { theme: "friend", label: { ru: "Другу или подруге", kk: "Досыңызға не құрбыңызға" }, menu: { ru: "другу или подруге", kk: "досыңызға не құрбыңызға" } },
   { theme: "teacher", label: { ru: "Учителю", kk: "Ұстазыңызға" }, menu: { ru: "учителю", kk: "ұстазыңызға" } },
   { theme: "autobiography", label: { ru: "О себе (автобиография)", kk: "Өзіңіз туралы (өмірбаян)" }, menu: { ru: "о себе или о близком с его слов (автобиография)", kk: "өзіңіз туралы не жақыныңыздың айтуымен (өмірбаян)" } },

@@ -176,6 +176,13 @@ describe("бот: для кого → тема и ссылка", () => {
     expect(findRecipient("бабушке", { themes: site.themes })).toMatchObject({ key: "grandma", theme: null });
   });
 
+  it("брату или сестре — своя тема, коллеге — по-прежнему «другу»", () => {
+    const themes = [...site.themes, "sibling"];
+    for (const text of ["книгу брату на свадьбу", "для сестры", "сестренке на др", "ағама сыйлық", "сіңліме кітап"])
+      expect(findRecipient(text, { themes }), text).toMatchObject({ key: "sibling", theme: "sibling", label: { ru: "Брату или сестре" } });
+    expect(findRecipient("коллеге на юбилей", { themes })).toMatchObject({ key: "colleague", theme: "friend" });
+  });
+
   it("дочери или сыну — своя тема; детям и внукам вместе — своя книга", () => {
     const themes = [...site.themes, "child"];
     for (const text of ["книгу дочке на выпускной", "для сына на 18 лет", "қызыма туған күнге", "ұлыма сыйлық"])

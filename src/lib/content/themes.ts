@@ -5,6 +5,7 @@ import { friendChapters } from "./friend";
 import { grandmaChapters } from "./grandma";
 import { loveChapters } from "./love";
 import { parentChapters } from "./parent";
+import { siblingChapters } from "./sibling";
 import { teacherChapters } from "./teacher";
 import { autobiographyChapters as autobiographyChaptersKk } from "./kk/autobiography";
 import { childChapters as childChaptersKk } from "./kk/child";
@@ -12,6 +13,7 @@ import { friendChapters as friendChaptersKk } from "./kk/friend";
 import { grandmaChapters as grandmaChaptersKk } from "./kk/grandma";
 import { loveChapters as loveChaptersKk } from "./kk/love";
 import { parentChapters as parentChaptersKk } from "./kk/parent";
+import { siblingChapters as siblingChaptersKk } from "./kk/sibling";
 import { teacherChapters as teacherChaptersKk } from "./kk/teacher";
 import type { ChapterDef, GiftThemeId, ThemeDef, ThemeId } from "./types";
 
@@ -34,6 +36,7 @@ const base: ThemeBase[] = [
   { id: "grandma", kind: "gift", recipient: "required", emoji: "✾", recipientGender: "f", defaultRecipientGender: "f", defaultCover: "postcards", defaultInterior: "vintage" },
   // Дочери или сыну: род ребёнка выбирают в мастере.
   { id: "child", kind: "gift", recipient: "required", emoji: "❀", defaultRecipientGender: "f", defaultCover: "clouds", defaultInterior: "watercolor" },
+  { id: "sibling", kind: "gift", recipient: "required", emoji: "✧", defaultRecipientGender: "f", defaultCover: "lemons", defaultInterior: "album" },
   { id: "friend", kind: "gift", recipient: "required", emoji: "☀", defaultRecipientGender: "f", defaultCover: "party", defaultInterior: "confetti" },
   // Учителю: чаще дарят учительнице; осенняя обложка — к Дню учителя.
   { id: "teacher", kind: "gift", recipient: "required", emoji: "✐", defaultRecipientGender: "f", defaultCover: "autumn", defaultInterior: "editorial" },
@@ -88,6 +91,15 @@ const text: Record<Locale, Record<ThemeId, ThemeText>> = {
       recipientPlaceholder: "Например, Амина",
       titleSuggestions: ["Тебе, мой ребёнок", "Ты — наше счастье", "История твоего детства", "Письма тебе"],
       chapters: childChapters,
+    },
+    sibling: {
+      name: "Брату или сестре",
+      short: "Брату/сестре",
+      description: "Книга о том, как вы росли вместе: одна комната на двоих, ссоры и примирения, семейные истории и то, что связывает вас всю жизнь.",
+      recipientLabel: "Как зовут брата или сестру",
+      recipientPlaceholder: "Например, Айдана",
+      titleSuggestions: ["Мы выросли вместе", "Ты и я", "Наше детство", "Родная душа"],
+      chapters: siblingChapters,
     },
     friend: {
       name: "Другу или подруге",
@@ -170,6 +182,15 @@ const text: Record<Locale, Record<ThemeId, ThemeText>> = {
       recipientPlaceholder: "Мысалы, Әмина",
       titleSuggestions: ["Саған, балам", "Сен — біздің бақытымыз", "Балалық шағыңның тарихы", "Саған хаттар"],
       chapters: childChaptersKk,
+    },
+    sibling: {
+      name: "Бауырға",
+      short: "Бауырға",
+      description: "Бірге қалай өскеніңіз туралы кітап: екеуге бір бөлме, ұрыс пен татуласу, отбасылық оқиғалар және өмір бойы байланыстырып тұрған нәрсе.",
+      recipientLabel: "Бауырыңыздың есімі",
+      recipientPlaceholder: "Мысалы, Айдана",
+      titleSuggestions: ["Біз бірге өстік", "Сен және мен", "Біздің балалық шақ", "Туған жан"],
+      chapters: siblingChaptersKk,
     },
     friend: {
       name: "Досқа немесе құрбыға",

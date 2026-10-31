@@ -54,6 +54,6 @@ export const review = {
     eyebrow: "Отзывы",
     title: "Что говорят те, кто уже подарил книгу",
     summary: (avg: string, count: number) => `${avg} из 5 · ${ruCount(count, "отзыв", "отзыва", "отзывов")}`,
-    theme: { love: "Книга любимому человеку", mom: "Книга маме", dad: "Книга папе", grandma: "Книга бабушке", child: "Книга дочери или сыну", friend: "Книга другу", teacher: "Книга учителю", autobiography: "Книга о своей жизни", blank: "Своя книга" } as Record<string, string>,
+    theme: { love: "Книга любимому человеку", mom: "Книга маме", dad: "Книга папе", grandma: "Книга бабушке", child: "Книга дочери или сыну", sibling: "Книга брату или сестре", friend: "Книга другу", teacher: "Книга учителю", autobiography: "Книга о своей жизни", blank: "Своя книга" } as Record<string, string>,
   },
 };
