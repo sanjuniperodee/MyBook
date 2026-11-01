@@ -21,15 +21,24 @@ for item in mybook:$HOME/mybook/.env mystudy:$HOME/mystudy/.env mytest:$HOME/bil
     say "⚠ бэкап $name не снялся: $(head -c 300 "$DIR/.err")"; rm -f "$out"; fail=1; continue
   fi
   send="$out"
+  # MyStudy — в личные сообщения (TG_STUDY_CHAT), остальное — в группу
+  chat="$TG_CHAT"; [ "$name" = mystudy ] && chat="${TG_STUDY_CHAT:-$TG_CHAT}"
   if [ -n "${BACKUP_PASSPHRASE:-}" ]; then
     gpg --batch --yes --pinentry-mode loopback --passphrase "$BACKUP_PASSPHRASE" -c -o "$out.gpg" "$out" && send="$out.gpg"
   fi
   if [ "$(stat -c%s "$send")" -gt 49000000 ]; then say "⚠ бэкап $name ($(du -h "$send" | cut -f1)) больше лимита Telegram 50 МБ — остался только на сервере"; fail=1; continue; fi
-  if ! curl -s -m 300 "$API/sendDocument" -F chat_id="$TG_CHAT" -F document=@"$send" -F caption="$name $(date '+%F %H:%M') · $(du -h "$send" | cut -f1)" | grep -q '"ok":true'; then
+  if ! curl -s -m 300 "$API/sendDocument" -F chat_id="$chat" -F document=@"$send" -F caption="$name $(date '+%F %H:%M') · $(du -h "$send" | cut -f1)" | grep -q '"ok":true'; then
     say "⚠ бэкап $name снят, но не отправился в Telegram (файл $send на сервере)"; fail=1
   fi
   [ "$send" = "$out" ] || rm -f "$send"
 done
+# файлы MyStudy (мелочь) — тем же получателем, что и его база
+if [ -d "$HOME/mystudy-storage" ] && [ -n "${TG_STUDY_CHAT:-}" ]; then
+  tar -C "$HOME" -czf "$DIR/mystudy-files-$STAMP.tar.gz" --exclude=mystudy-storage/cache mystudy-storage 2>/dev/null
+  if [ "$(stat -c%s "$DIR/mystudy-files-$STAMP.tar.gz")" -lt 49000000 ]; then
+    curl -s -m 300 "$API/sendDocument" -F chat_id="$TG_STUDY_CHAT" -F document=@"$DIR/mystudy-files-$STAMP.tar.gz" -F caption="mystudy файлы $(date '+%F %H:%M')" | grep -q '"ok":true' || { say "⚠ файлы mystudy не отправились в личные сообщения (нужно нажать Start у бота)"; fail=1; }
+  fi
+fi
 # актуальная неделя: всё старше 7 суток удаляется
 find "$DIR" -name '*.sql.gz*' -mtime +7 -delete
 exit $fail

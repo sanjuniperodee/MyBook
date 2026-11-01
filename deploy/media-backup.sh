@@ -16,7 +16,7 @@ START="$(mktemp "$HOME/.media-backup.start.XXXXXX")"
 
 # Относительные пути от домашней папки: у каждого проекта свой каталог хранилища
 : > "$WORK/list"
-for d in mybook-storage mystudy-storage dosewear-storage; do
+for d in mybook-storage dosewear-storage; do   # файлы MyStudy уходят с его базой в личку (daily-backup.sh)
   [ -d "$HOME/$d" ] || continue
   if [ -f "$MARK" ]; then find "$HOME/$d" -path "$HOME/$d/cache" -prune -o -type f -newer "$MARK" -printf '%P\n' | sed "s|^|$d/|" >> "$WORK/list"
   else find "$HOME/$d" -path "$HOME/$d/cache" -prune -o -type f -printf '%P\n' | sed "s|^|$d/|" >> "$WORK/list"; fi
