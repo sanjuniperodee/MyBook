@@ -78,6 +78,25 @@ function List({ kit, block, style, ...rest }: BlockProps<"list">) {
   );
 }
 
+function Strong({ kit, block, style, ...rest }: BlockProps<"strong">) {
+  const { sizes: S, u } = kit;
+  return (
+    <p
+      style={{
+        ...paragraphCss(kit),
+        fontWeight: ANSWER.strong.weight,
+        textAlign: "left",
+        marginTop: u.pt(S.body * ANSWER.strong.before),
+        marginBottom: u.pt(S.body * ANSWER.strong.after),
+        ...style,
+      }}
+      {...rest}
+    >
+      {block.text}
+    </p>
+  );
+}
+
 function Verse({ kit, block, style, ...rest }: BlockProps<"verse">) {
   const { design, sizes: S, u } = kit;
   const centered = design.heading.align === "center";
@@ -100,7 +119,7 @@ function Verse({ kit, block, style, ...rest }: BlockProps<"verse">) {
 }
 
 /**
- * Блок набора ответа — как в PDF (answer-blocks): абзац, лид, выделенный короткий ответ, список, стихи.
+ * Блок набора ответа — как в PDF (answer-blocks): абзац, лид, выделенный короткий ответ, список, стихи, выделенная строка.
  * Остальные атрибуты (data-*) — на корневом элементе блока.
  */
 export function AnswerBlockView({
@@ -123,5 +142,7 @@ export function AnswerBlockView({
       return <List kit={kit} block={b} style={style} {...rest} />;
     case "verse":
       return <Verse kit={kit} block={b} style={style} {...rest} />;
+    case "strong":
+      return <Strong kit={kit} block={b} style={style} {...rest} />;
   }
 }

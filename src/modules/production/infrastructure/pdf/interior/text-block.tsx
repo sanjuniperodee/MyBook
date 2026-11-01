@@ -156,7 +156,7 @@ function List({ kit, block, id }: BlockProps<"list">) {
 }
 
 /**
- * Блок набора ответа: абзац, лид, выделенный короткий ответ, список или стихи (см. answer-blocks).
+ * Блок набора ответа: абзац, лид, выделенный короткий ответ, список, стихи или выделенная строка (см. answer-blocks).
  * leadIn — капитель в начале главы, dropCap — здесь начинается глава (буквица, если она есть в дизайне),
  * first — первый блок ответа (без красной строки).
  */
@@ -188,6 +188,17 @@ export function TextBlock({ kit, block: b, id, leadIn, dropCap = false, first = 
           widows={2}
         >
           {b.lines.join("\n")}
+        </Text>
+      );
+    case "strong":
+      return (
+        <Text
+          {...mark(id)}
+          style={{ ...kit.body, ...kit.measure, fontWeight: ANSWER.strong.weight, textAlign: "left", marginTop: S.body * ANSWER.strong.before, marginBottom: S.body * ANSWER.strong.after }}
+          orphans={2}
+          widows={2}
+        >
+          {b.text}
         </Text>
       );
   }

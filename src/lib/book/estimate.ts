@@ -92,6 +92,8 @@ function blockHeight(b: AnswerBlock, m: TextMetrics, first = true): number {
       const n = b.items.reduce((sum, it) => sum + lines(it.text.length, w, S.body, charEm), 0);
       return n * line + (b.items.length - 1) * S.body * ANSWER.list.gap + S.body * ANSWER.list.after;
     }
+    case "strong":
+      return lines(b.text.length, column, S.body, charEm) * line + S.body * (ANSWER.strong.before + ANSWER.strong.after);
     case "verse": {
       const w = centered ? column : column * (1 - ANSWER.verse.indent);
       return b.lines.reduce((n, l) => n + lines(l.length, w, S.body, charEm), 0) * line + S.body * (ANSWER.verse.before + ANSWER.verse.after);

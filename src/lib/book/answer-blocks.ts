@@ -1,6 +1,6 @@
 /**
  * Типографика ответа: абзацы ответа (splitParagraphs) превращаются в блоки набора — обычный абзац,
- * лид, выделенный короткий ответ, список, стихи. Общая для PDF, листаемой книги и превью в редакторе,
+ * лид, выделенный короткий ответ, список, стихи, выделенная строка. Общая для PDF, листаемой книги и превью в редакторе,
  * поэтому все три выглядят одинаково. Номера абзацев сохраняются: фото, вставленное «после абзаца n»,
  * встаёт после блока, в который попал абзац n.
  */
@@ -15,7 +15,9 @@ export type AnswerBlock =
   | { kind: "quote"; lines: string[]; from: number; to: number }
   | { kind: "list"; ordered: boolean; items: { marker: string; text: string }[]; from: number; to: number }
   /** Короткие строки подряд — стихи, песня, перечисление в столбик. */
-  | { kind: "verse"; lines: string[]; from: number; to: number };
+  | { kind: "verse"; lines: string[]; from: number; to: number }
+  /** Строка, которую автор или менеджер обернул в **…**, — жирным, с отбивкой после (подпись под пожеланием). */
+  | { kind: "strong"; text: string; from: number; to: number };
 
 /** Весь ответ не длиннее и не больше двух предложений — выделенный короткий ответ. */
 export const QUOTE_MAX_CHARS = 140;
@@ -31,6 +33,9 @@ const BULLET = /^[•·▪●◦○■□▸►✓✔*]\s*/u;
 const NUMBERED = /^(\d{1,3})[.)]\s+/;
 /** Дефис в начале строки — набранное с клавиатуры тире прямой речи или пункта: «- Привет» → «— Привет». */
 const HYPHEN_DASH = /^[-–]\s+/;
+/** Выделенная строка: абзац целиком в двойных звёздочках. */
+const STRONG = /^\*\*\s*(.+?)\s*\*\*$/u;
+const isStrong = (s: string) => STRONG.test(s);
 
 /**
  * Типографская чистка строки: тире вместо дефиса в начале, без двойных пробелов, без пробела перед знаком
@@ -72,7 +77,7 @@ export function answerBlocks(paragraphs: string[]): AnswerBlock[] {
   const n = lines.length;
   if (!n) return [];
   const total = lines.reduce((s, l) => s + l.length, 0);
-  const listy = lines.some((l) => BULLET.test(l));
+  const listy = lines.some((l) => BULLET.test(l) || isStrong(l));
   const text = lines.join(" ");
   if (total <= QUOTE_MAX_CHARS && sentences(text) <= QUOTE_MAX_SENTENCES && !listy && !isDialogue(lines[0])) {
     const joined = joinBroken(lines);
@@ -83,6 +88,12 @@ export function answerBlocks(paragraphs: string[]): AnswerBlock[] {
   let i = 0;
   while (i < n) {
     const line = lines[i];
+    const strong = line.match(STRONG);
+    if (strong) {
+      blocks.push({ kind: "strong", text: strong[1], from: i, to: i });
+      i++;
+      continue;
+    }
     // Маркированный список: строки с «•» и т. п. подряд.
     if (BULLET.test(line)) {
       const from = i;
@@ -104,7 +115,7 @@ export function answerBlocks(paragraphs: string[]): AnswerBlock[] {
     }
     // Стихи: от трёх коротких строк подряд (не диалог), большинство — без точки в конце.
     let j = i;
-    while (j < n && lines[j].length <= VERSE_LINE_MAX && !isDialogue(lines[j]) && !BULLET.test(lines[j]) && !NUMBERED.test(lines[j])) j++;
+    while (j < n && lines[j].length <= VERSE_LINE_MAX && !isDialogue(lines[j]) && !isStrong(lines[j]) && !BULLET.test(lines[j]) && !NUMBERED.test(lines[j])) j++;
     if (j - i >= VERSE_MIN_LINES && looksLikeVerse(lines.slice(i, j))) {
       blocks.push({ kind: "verse", lines: lines.slice(i, j), from: i, to: j - 1 });
       i = j;
@@ -113,7 +124,7 @@ export function answerBlocks(paragraphs: string[]): AnswerBlock[] {
     // Абзац: строки, перенесённые посреди фразы (Enter вместо пробела), склеиваются в один абзац.
     const from = i;
     const group = [line];
-    while (i + 1 < n && continues(lines[i], lines[i + 1]) && !BULLET.test(lines[i + 1]) && !NUMBERED.test(lines[i + 1])) group.push(lines[++i]);
+    while (i + 1 < n && continues(lines[i], lines[i + 1]) && !isStrong(lines[i + 1]) && !BULLET.test(lines[i + 1]) && !NUMBERED.test(lines[i + 1])) group.push(lines[++i]);
     i++;
     blocks.push({ kind: "para", text: group.join(" "), from, to: i - 1 });
   }

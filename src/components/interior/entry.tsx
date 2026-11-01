@@ -311,6 +311,7 @@ function blockChars(b: AnswerBlock): number {
   switch (b.kind) {
     case "para":
     case "lede":
+    case "strong":
       return b.text.length;
     case "quote":
     case "verse":

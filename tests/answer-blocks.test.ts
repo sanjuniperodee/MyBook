@@ -25,6 +25,19 @@ describe("типографика ответа", () => {
     expect(answerBlocks([...short, long]).map((b) => b.kind)).not.toContain("verse");
   });
 
+  it("строка в **…** — выделенная (подпись под пожеланием), соседние строки к ней не приклеиваются", () => {
+    const blocks = answerBlocks([long, "**Ізгі тілекпен: Айдос**", "асыл әжеміз, 85 жасыңыз құтты болсын!", "**Ізгі ниетпен: Мөлдір**"]);
+    expect(blocks).toEqual([
+      { kind: "para", text: long, from: 0, to: 0 },
+      { kind: "strong", text: "Ізгі тілекпен: Айдос", from: 1, to: 1 },
+      { kind: "para", text: "асыл әжеміз, 85 жасыңыз құтты болсын!", from: 2, to: 2 },
+      { kind: "strong", text: "Ізгі ниетпен: Мөлдір", from: 3, to: 3 },
+    ]);
+    // Короткий ответ с выделенной строкой — не «цитата»; звёздочки внутри фразы не трогаются.
+    expect(answerBlocks(["Спасибо!", "**Айдос**"]).map((b) => b.kind)).toEqual(["para", "strong"]);
+    expect(answerBlocks([`Это **очень** важно. ${long}`])[0]).toMatchObject({ kind: "para" });
+  });
+
   it("стихи — короткие строки без точек в конце", () => {
     const blocks = answerBlocks([long, "Ты и я — одна дорога,", "Судьбы связаны навсегда,", "Даже если мир в тревогах,", "Мы найдём свой рай всегда."]);
     expect(blocks.map((b) => b.kind)).toEqual(["para", "verse"]);
