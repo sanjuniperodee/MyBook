@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Ежедневный бэкап баз (MyBooks, MyStudy, my-test, DoseWear) → Telegram-группа через бота. Запускает cron в 04:00.
+# Бэкап баз дважды в сутки (12:00 и 00:00) (MyBooks, MyStudy, my-test, DoseWear) → Telegram-группа через бота. Запускает cron.
 # Настройки — в ~/.backup.env (chmod 600): TG_TOKEN, TG_CHAT, необязательно BACKUP_PASSPHRASE (шифрование gpg).
-# На диске остаются 7 последних копий в ~/db-backups; сбой или неотправленный файл — сообщение в ту же группу.
+# На диске копии за последние 7 суток в ~/db-backups; сбой или неотправленный файл — сообщение в ту же группу.
 set -uo pipefail
 . "$HOME/.backup.env"
 DIR="$HOME/db-backups"; mkdir -p "$DIR"; chmod 700 "$DIR"
@@ -30,6 +30,6 @@ for item in mybook:$HOME/mybook/.env mystudy:$HOME/mystudy/.env mytest:$HOME/bil
   fi
   [ "$send" = "$out" ] || rm -f "$send"
 done
-# хранить 7 последних копий каждой базы
-for name in mybook mystudy mytest dosewear; do ls -1t "$DIR/$name-"*.sql.gz 2>/dev/null | tail -n +8 | xargs -r rm -f; done
+# актуальная неделя: всё старше 7 суток удаляется
+find "$DIR" -name '*.sql.gz*' -mtime +7 -delete
 exit $fail
