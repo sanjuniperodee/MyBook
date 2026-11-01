@@ -38,9 +38,20 @@ export function substituteKnown(text: string, facts: TemplateFacts): { text: str
   const replaced: TemplateDraft["replaced"] = [];
   for (const [value, variable] of pairs) {
     if (value.length < 3) continue;
-    const re = new RegExp(`(?<![\\p{L}\\p{N}])${esc(value)}(?![\\p{L}\\p{N}])`, "giu");
-    if (!re.test(out)) continue;
-    out = out.replace(re, variable);
+    // Без lookbehind «(?<![\p{L}\p{N}])»: его нет в Safari до 16.4 — что стоит перед значением, проверяем сами.
+    const re = new RegExp(`${esc(value)}(?![\\p{L}\\p{N}])`, "giu");
+    let next = "";
+    let from = 0;
+    for (let m = re.exec(out); m; m = re.exec(out)) {
+      if (/[\p{L}\p{N}]$/u.test(out.slice(Math.max(0, m.index - 2), m.index))) {
+        re.lastIndex = m.index + 1;
+        continue;
+      }
+      next += out.slice(from, m.index) + variable;
+      from = re.lastIndex;
+    }
+    if (!next) continue;
+    out = next + out.slice(from);
     replaced.push({ was: value, with: variable });
   }
   return { text: out, replaced };

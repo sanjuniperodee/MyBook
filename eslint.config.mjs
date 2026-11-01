@@ -72,6 +72,23 @@ const config = [
     ]),
   },
   {
+    // Lookbehind «(?<=…)», «(?<!…)» Safari до 16.4 не знает: литерал роняет при разборе весь чанк, new RegExp — бросает ошибку.
+    // Так на iPhone с iOS 16.3 редактор вопросов перестал сохранять ответы. Что стоит перед совпадением — проверяйте кодом
+    // (см. matches в src/lib/proofread/rules.ts). Исключение — понимание сообщений бота: оно работает только на сервере,
+    // а что в браузер оно не попало, после сборки проверяет scripts/check-browser-support.mjs.
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: ["src/modules/messaging/domain/{bot,botNlu,botParse,botEngine,botSeller}.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...["Literal[regex.pattern=/\\(\\?<[=!]/]", "Literal[value=/\\(\\?<[=!]/]", "TemplateElement[value.raw=/\\(\\?<[=!]/]"].map((selector) => ({
+          selector,
+          message: "Lookbehind (?<= / (?<! не работает в Safari до 16.4 (iOS 16.3): проверьте знак перед совпадением кодом.",
+        })),
+      ],
+    },
+  },
+  {
     // src/lib — чистые библиотеки (вёрстка книги, контент, помощники UI): без БД и ввода-вывода.
     files: ["src/lib/**/*.{ts,tsx}"],
     rules: restrict([

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { defaultBotConfig, matchOption, parseBotConfig, parseDateAnswer, type BotConfig } from "@/modules/messaging/domain/botConfig";
+import { defaultBotConfig, parseBotConfig, type BotConfig } from "@/modules/messaging/domain/botConfig";
+import { matchOption, parseDateAnswer } from "@/modules/messaging/domain/botParse";
 import { detectLang, faqIntents, handoffIntent, isAgree, isDontKnow, langRequest, looksLikeContinuation, objectionKind } from "@/modules/messaging/domain/botNlu";
 import { bookLink, findRecipient } from "@/modules/messaging/domain/botThemes";
 import { catalogVars, fillFaqLines, pricesOutsideCatalog, promoAmounts, type BotCatalog } from "@/modules/messaging/domain/botFaq";

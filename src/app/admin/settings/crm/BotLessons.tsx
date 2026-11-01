@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { GraduationCap, LoaderCircle, Plus, Trash2 } from "lucide-react";
-import { MAX_LESSONS, type BotLesson, type CoachRun } from "@/modules/messaging/domain/botCoach";
+import { MAX_LESSONS, type BotLesson, type CoachRun } from "@/modules/messaging/domain/botLesson";
 import { addBotLessonAction, deleteBotLessonAction, runBotCoachAction } from "./actions";
 import { cn } from "@/lib/class-names";
 

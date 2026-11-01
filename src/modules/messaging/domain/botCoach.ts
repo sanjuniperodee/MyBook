@@ -7,31 +7,9 @@
  */
 import { amountsIn, percentsIn, redactForModel, type HistoryMessage } from "./botSeller";
 import { findSensitive } from "./sensitive";
+import { COACH_LOG, LESSON_MAX, MAX_LESSONS, type BotLesson, type CoachRun } from "./botLesson";
 
-export interface BotLesson {
-  id: string;
-  /** Правило для продажника: что делать иначе (до LESSON_MAX знаков). */
-  text: string;
-  /** Откуда урок: какая ошибка в какой беседе (для владельца). */
-  why: string;
-  at: string;
-  source: "auto" | "owner";
-}
-
-/** Запуск разбора: когда, сколько бесед, что добавлено и убрано, вывод модели. */
-export interface CoachRun {
-  at: string;
-  reviewed: number;
-  added: string[];
-  removed: string[];
-  summary: string;
-  error?: string;
-}
-
-export const MAX_LESSONS = 30;
-export const LESSON_MAX = 220;
-/** Сколько последних запусков помним (журнал в настройках). */
-export const COACH_LOG = 14;
+export { COACH_LOG, LESSON_MAX, MAX_LESSONS, type BotLesson, type CoachRun };
 
 /** Беседа бота за сутки — для разбора. */
 export interface CoachConversation {

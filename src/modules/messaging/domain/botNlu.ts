@@ -4,11 +4,9 @@
  * (в том числе казахский без казахских букв: «туган кунге», «рахмет»). Покрыто тестами tests/bot-engine.test.ts.
  */
 
-export type BotLang = "ru" | "kk";
+import { FAQ_INTENTS, type BotLang, type FaqIntent } from "./botLang";
 
-/** Частые вопросы, на которые бот отвечает шаблоном из настроек. */
-export type FaqIntent = "price" | "delivery" | "timing" | "how" | "payment" | "examples" | "language";
-export const FAQ_INTENTS: readonly FaqIntent[] = ["price", "how", "timing", "delivery", "payment", "examples", "language"];
+export { FAQ_INTENTS, type BotLang, type FaqIntent };
 
 /** Просьбы, после которых бот замолкает и зовёт человека. */
 export type HandoffKind = "call" | "manager" | "paid" | "pay" | "complaint";

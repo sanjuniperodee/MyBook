@@ -3,10 +3,10 @@
  * на русском и казахском. Читается и старый формат { greeting, questions: [{ text, field }], finish } — он становится
  * русскими текстами, казахские берутся заводские. Без обращения к БД (покрыто тестами).
  */
-import { FAQ_INTENTS, type BotLang, type FaqIntent } from "./botNlu";
+// Только botLang, не botNlu/botParse: файл открывают настройки бота в браузере, а там регулярные выражения бота не нужны.
+import { FAQ_INTENTS, type BotLang, type FaqIntent } from "./botLang";
 
-export { matchOption, parseDateAnswer, mentionsMonth, monthOf } from "./botParse";
-export type { BotLang, FaqIntent } from "./botNlu";
+export type { BotLang, FaqIntent } from "./botLang";
 
 export const BOT_LANGS: readonly BotLang[] = ["ru", "kk"];
 export type Localized = Record<BotLang, string>;
