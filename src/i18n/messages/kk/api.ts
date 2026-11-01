@@ -21,6 +21,7 @@ export const api: typeof ru = {
   orderNotFound: "Тапсырыс табылмады",
   fileNotReady: "Файл әзірге қолжетімсіз",
   photosOutdated: "Суреттер тізімі ескірген, бетті жаңартыңыз",
+  photoEditInvalid: "Фото өңдеуін сақтау мүмкін болмады. Қайталап көріңіз",
   photosPick: "Сурет таңдаңыз",
   photosRate: "Қатарынан тым көп жүктеу. Біраз күтіңіз.",
   photosLimit: (max: number) => `Кітапқа ${max} суретке дейін қосуға болады`,

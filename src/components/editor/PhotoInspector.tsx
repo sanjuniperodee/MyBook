@@ -1,6 +1,6 @@
 "use client";
 
-import { AlignCenter, AlignLeft, AlignRight, ArrowRightLeft, ChevronDown, ChevronUp, LoaderCircle, Move, RotateCcw, RotateCw, X } from "lucide-react";
+import { AlignCenter, AlignLeft, AlignRight, ArrowRightLeft, ChevronDown, ChevronUp, LoaderCircle, Move, RotateCcw, RotateCw, SlidersHorizontal, X } from "lucide-react";
 import { useState, useSyncExternalStore, type ReactNode } from "react";
 import { getFormat } from "@/lib/book/formats";
 import { cropRect, normalizeStyle, splitParagraphs } from "@/lib/book/inline-photo";
@@ -228,6 +228,7 @@ export function PhotoInspector({
   blank = false,
   onCrop,
   onMove,
+  onEdit,
   badge,
 }: {
   photo: InspectorPhoto;
@@ -246,6 +247,8 @@ export function PhotoInspector({
   onCrop?: (crop: PhotoCrop | null) => void;
   /** «Перенести…» — лист «Где стоит фото». */
   onMove?: () => void;
+  /** «Редактировать» — редактор фото (текст, рисунок, кадр, цвет). */
+  onEdit?: () => void;
   /** Подпись места фото в книге (PlaceBadge) — под заголовком. */
   badge?: ReactNode;
 }) {
@@ -470,6 +473,12 @@ export function PhotoInspector({
         )}
 
         <div className="flex flex-wrap gap-2 border-t border-line pt-4">
+          {onEdit ? (
+            <button type="button" onClick={onEdit} className="flex h-11 items-center gap-1.5 rounded-full bg-ink px-4 text-sm font-medium text-white hover:bg-ink-soft sm:h-9" data-testid="photo-edit">
+              <SlidersHorizontal className="size-4" />
+              {m.editor.photoEditor.open}
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={async () => {

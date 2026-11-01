@@ -1,6 +1,6 @@
 import "server-only";
 import { and, asc, desc, eq, sql } from "drizzle-orm";
-import { bookChapters, bookLetters, bookQuestions, books, photos } from "@/shared/infrastructure/db/schema";
+import { bookChapters, bookLetters, bookQuestions, books, photoEdits, photos } from "@/shared/infrastructure/db/schema";
 import { booksId } from "@/shared/infrastructure/db/refs";
 import { answeredSql, totalSql, wordsSql } from "@/shared/infrastructure/db/bookProgress";
 import { rootDb } from "@/shared/infrastructure/database";
@@ -48,6 +48,12 @@ export class DrizzleAuthoringQueries {
 
   photos(bookId: string) {
     return rootDb.select().from(photos).where(eq(photos.bookId, bookId)).orderBy(asc(photos.position));
+  }
+
+  /** Фото книги, правленные в редакторе фото (у них есть оригинал и «Вернуть оригинал»). */
+  async editedPhotoIds(bookId: string): Promise<Set<string>> {
+    const rows = await rootDb.select({ id: photoEdits.photoId }).from(photoEdits).innerJoin(photos, eq(photos.id, photoEdits.photoId)).where(eq(photos.bookId, bookId));
+    return new Set(rows.map((r) => r.id));
   }
 
   letters(bookId: string) {

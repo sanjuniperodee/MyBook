@@ -15,7 +15,14 @@ import type { TocLines } from "@/lib/book/toc";
 export type PhotoLayout = NonNullable<SheetPhoto["layout"]>;
 
 /** Фото на вкладке: место, кадр, подпись и вид на странице. */
-export type TabPhoto = SheetPhoto & { caption: string; layout: PhotoLayout };
+export type TabPhoto = SheetPhoto & {
+  caption: string;
+  layout: PhotoLayout;
+  /** Версия файла (меняется при повороте и правке) — в адресе картинки, чтобы браузер не показал прежнюю. */
+  version?: string;
+  /** Правлено в редакторе фото. */
+  edited?: boolean;
+};
 
 /** Что страница посчитала на сервере (та же сборка, что у PDF): места фото, обрезка на месте, главы и ответы для листов. */
 export interface PhotosTabData {

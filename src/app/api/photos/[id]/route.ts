@@ -9,8 +9,9 @@ export const GET = api(async (req, { params }: { params: Promise<{ id: string }>
   const photo = await container().authoring.queries.photoFor(id, viewer);
   if (!photo) throw new HttpError(404, "notFound");
   const param = new URL(req.url).searchParams.get("size");
-  const size = param === "full" || param === "view" ? param : "thumb";
-  const key = size === "thumb" ? photo.thumbKey : photo.storageKey;
+  const size = param === "full" || param === "view" || param === "original" ? param : "thumb";
+  // «original» — исходный снимок для редактора фото: у правленого фото файл уже с правкой.
+  const key = size === "thumb" ? photo.thumbKey : size === "original" ? await container().authoring.photos.originalKey(photo) : photo.storageKey;
   // Файл может смениться (поворот), поэтому кэш проверяется по ключу хранилища.
   const etag = `"${createHash("sha1").update(`${size}:${key}`).digest("hex").slice(0, 16)}"`;
   // «view» запрашивается пачкой (3D-книга снимает одно фото на несколько сторон) — минуты кэша убирают повторные загрузки.

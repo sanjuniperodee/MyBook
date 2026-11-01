@@ -36,6 +36,7 @@ export function PhotoStrip({
   onPatch,
   onUndo,
   onMove,
+  onEdit,
 }: {
   photos: EditorPhoto[];
   selected: EditorPhoto | null;
@@ -62,6 +63,8 @@ export function PhotoStrip({
   onUndo?: (undo: PhotoUndo) => unknown;
   /** «Перенести…» и нажатие на подпись места — лист «Где стоит фото». */
   onMove?: (id: string) => void;
+  /** «Редактировать» — редактор фото. */
+  onEdit?: (id: string) => void;
 }) {
   const m = useMessages();
   const t = m.editor;
@@ -121,6 +124,7 @@ export function PhotoStrip({
           onClose={() => onSelect(null)}
           onCrop={onPatch ? (crop) => void onPatch(selected.id, { crop }) : undefined}
           onMove={onMove ? () => onMove(selected.id) : undefined}
+          onEdit={onEdit && editable ? () => onEdit(selected.id) : undefined}
           badge={
             selectedPlace && names ? (
               <PlaceBadge place={selectedPlace} names={names} blank={blank} marked={selected.opener} onOpen={onMove && editable ? () => onMove(selected.id) : undefined} className="-ml-1 px-1" />

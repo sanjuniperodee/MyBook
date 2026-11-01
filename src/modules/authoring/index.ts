@@ -5,7 +5,7 @@ import { checkReadiness, UPGRADE_ON_TOUCH } from "./domain";
 import type { LetterSubmitted } from "./domain";
 import { contentThemes, randomIds, sharpImages, storageFiles } from "./infrastructure/adapters";
 import { notifyOwnerAboutLetter } from "./infrastructure/LetterMailer";
-import { DrizzleBookRepository, DrizzleChapterRepository, DrizzleLetterRepository, DrizzlePhotoRepository, DrizzleQuestionRepository } from "./infrastructure/persistence";
+import { DrizzleBookRepository, DrizzleChapterRepository, DrizzleLetterRepository, DrizzlePhotoEditRepository, DrizzlePhotoRepository, DrizzleQuestionRepository } from "./infrastructure/persistence";
 import { DrizzleLayoutRevStore } from "./infrastructure/layoutRevStore";
 import { photoViewFile } from "./infrastructure/photoView";
 import { DrizzleAuthoringQueries } from "./infrastructure/queries";
@@ -47,7 +47,7 @@ export class AuthoringModule {
     this.books = new BooksService(books, questions, contentThemes, deps.orders, storageFiles, randomIds, deps.uow, deps.clock, chapters, layout);
     this.questions = new QuestionsService(books, questions, deps.uow, this.photoRepository, chapters);
     this.outline = new BookOutlineService(books, questions, chapters, this.photoRepository, randomIds, deps.uow);
-    this.photos = new PhotosService(books, this.photoRepository, questions, sharpImages, storageFiles, randomIds, deps.uow, layout);
+    this.photos = new PhotosService(books, this.photoRepository, questions, sharpImages, storageFiles, randomIds, deps.uow, layout, new DrizzlePhotoEditRepository());
     this.letters = new LettersService(books, new DrizzleLetterRepository(), randomIds, deps.uow);
     this.ordering = new BookOrderingService(books, async (bookId, locale) => {
       const book = await this.queries.book(bookId);

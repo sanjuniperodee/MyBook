@@ -12,6 +12,7 @@ export type AuthoringErrorCode =
   | "photosPick"
   | "photosLimit"
   | "photosOutdated"
+  | "photoEditInvalid"
   | "unknownCover"
   | "unknownInterior"
   | "unknownBackLayout"

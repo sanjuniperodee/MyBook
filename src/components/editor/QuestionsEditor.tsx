@@ -16,6 +16,7 @@ import { DictationControl, DictationStatus } from "./questions/DictationControl"
 import { HeadingField } from "./questions/HeadingField";
 import { MediaStrip } from "./questions/MediaStrip";
 import { PhotoStrip, removePatch } from "./questions/PhotoStrip";
+import { PhotoEditor } from "@/components/photo-editor/PhotoEditor";
 import { BlankProgress, ProgressCard, QuestionPager } from "./questions/QuestionPager";
 import { SectionFields } from "./questions/SectionFields";
 import { AnswerToolbar, EditorTopBar } from "./questions/Toolbars";
@@ -162,6 +163,8 @@ function EditorBody({
   const inlinePhotos = useInlinePhotos({ bookId: book.id, editable, initialPhotos, maxPhotos, layoutRev: book.layoutRev, onLayoutRev });
   const { photos, selectedPhotoId, setSelectedPhotoId, updateInline, rotatePhoto, patchPhoto, applyUndo, editCaption, detachQuestions } = inlinePhotos;
   const [picker, setPicker] = useState(false);
+  // Фото, открытое в редакторе фото (надписи, рисунок, кадр, цвет).
+  const [editingPhoto, setEditingPhoto] = useState<string | null>(null);
   // Открытый лист фото: «Фото главы», «Где стоит фото» или «Альбом в конце» — с превью, карточки главы, оглавления.
   const [sheet, setSheet] = useState<PhotoSheetTarget | null>(null);
   const [addingMedia, setAddingMedia] = useState(false);
@@ -668,6 +671,7 @@ function EditorBody({
                   onPatch={patchPhoto}
                   onUndo={applyUndo}
                   onMove={openPlace}
+                  onEdit={setEditingPhoto}
                 />
               ) : null}
 
@@ -848,6 +852,8 @@ function EditorBody({
           }}
         />
       ) : null}
+
+      {editingPhoto ? <PhotoEditor bookId={book.id} photoId={editingPhoto} onClose={() => setEditingPhoto(null)} onSaved={(r) => inlinePhotos.applyEdited(r.photo)} /> : null}
 
       {sheet ? <PhotoSheetHost src={src} target={sheet} editable={editable} on={photoEvents} onLeave={() => void flush()} onClose={() => setSheet(null)} /> : null}
 

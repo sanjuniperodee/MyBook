@@ -3,6 +3,7 @@ import type { Letter } from "./Letter";
 import type { Outline } from "./outline";
 import type { Photo } from "./Photo";
 import type { Question } from "./Question";
+import type { PhotoEdit } from "@/lib/photo-edit/doc";
 
 export interface BookRepository {
   nextId(): string;
@@ -75,7 +76,7 @@ export interface PhotoRepository {
   belongToBook(bookId: string, ids: string[]): Promise<boolean>;
   add(photo: Photo): Promise<void>;
   save(photo: Photo): Promise<void>;
-  /** Только поля поворота (Photo.rotated): ключи файлов, размеры, вид в ответе и кадр — место и подпись не трогает. */
+  /** Только поля файла (Photo.rotated, Photo.replaceFiles): ключи файлов, размеры, вид в ответе и кадр — место и подпись не трогает. */
   saveRotation(photo: Photo): Promise<void>;
   delete(photo: Photo): Promise<void>;
   reorder(bookId: string, ids: string[]): Promise<void>;
@@ -86,6 +87,18 @@ export interface PhotoRepository {
   detachFromQuestions(bookId: string, questionIds: readonly string[]): Promise<void>;
   /** Снять отметку «снимок начала» с остальных фото главы: у главы снимок начала один. */
   clearOpeners(bookId: string, chapter: string, exceptId: string): Promise<void>;
+}
+
+/** Правка фото в редакторе фото: оригинал снимка и описание правки (photo_edits); нет строки — фото не правили. */
+export interface PhotoEditRecord {
+  originalKey: string;
+  doc: PhotoEdit;
+}
+
+export interface PhotoEditRepository {
+  find(photoId: string): Promise<PhotoEditRecord | null>;
+  save(photoId: string, edit: PhotoEditRecord): Promise<void>;
+  delete(photoId: string): Promise<void>;
 }
 
 export interface LetterRepository {

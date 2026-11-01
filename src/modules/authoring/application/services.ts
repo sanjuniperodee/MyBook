@@ -19,6 +19,7 @@ import {
   type LetterRepository,
   type LetterStatus,
   type Outline,
+  type PhotoEditRepository,
   type PhotoProps,
   type PhotoRepository,
   type QuestionPatch,
@@ -27,6 +28,7 @@ import {
 } from "../domain";
 import type { FileStore, IdGenerator, ImageProcessor, OrdersLookup, ThemeCatalog } from "./ports";
 import type { LayoutUpgrade } from "./layout-rev2";
+import { photoVersion, rotateEditCW, type PhotoEdit } from "@/lib/photo-edit/doc";
 
 /**
  * Загрузка книги с проверкой доступа: чужая книга (для правки — и книга, которую сотруднику менять нельзя) — как будто её нет.
@@ -432,6 +434,8 @@ export class PhotosService {
     private readonly uow?: UnitOfWork,
     /** Перевод на правила раскладки фото 2 при правке мест (выпуск 2); нет — не переводить. */
     private readonly layout?: LayoutUpgrade,
+    /** Правки редактора фото (оригинал и описание); нет — редактор фото выключен (двойники в тестах). */
+    private readonly edits?: PhotoEditRepository,
   ) {}
 
 
@@ -519,12 +523,14 @@ export class PhotosService {
     const book = await loadBook(this.books, bookId, viewer, { editable: true });
     const photo = await this.photos.findInBook(book.id, photoId);
     if (!photo) throw new AuthoringError("photoNotFound");
+    // Оригинал правки редактора фото (строка правки удалится вместе с фото).
+    const edit = await this.edits?.find(photo.id);
     await this.photos.delete(photo);
     if (book.usesPhoto(photo.id)) {
       book.forgetPhoto(photo.id);
       await this.books.save(book);
     }
-    await Promise.all([this.files.delete(photo.storageKey), this.files.delete(photo.thumbKey)]);
+    await Promise.all([this.files.delete(photo.storageKey), this.files.delete(photo.thumbKey), ...(edit ? [this.files.delete(edit.originalKey)] : [])]);
     await this.books.touch(book.id);
   }
 
@@ -558,6 +564,10 @@ export class PhotosService {
       if (fresh.storageKey !== photo.storageKey) throw new AuthoringError("photosOutdated");
       const previous = fresh.rotated(keys);
       await this.photos.saveRotation(fresh);
+      // Правленое фото: оригинал не трогаем, а правка поворачивается на четверть вместе с готовой картинкой —
+      // открытая снова, она соберёт ту же картинку, что теперь в файле.
+      const edit = await this.edits?.find(fresh.id);
+      if (edit) await this.edits!.save(fresh.id, { ...edit, doc: rotateEditCW(edit.doc) });
       await this.books.touch(book.id);
       return { fresh, previous };
     };
@@ -566,6 +576,103 @@ export class PhotosService {
       saved = await (this.uow ? this.uow.run(work) : work());
     } catch (err) {
       await dropNew();
+      throw err;
+    }
+    await Promise.all([this.files.delete(saved.previous.storageKey), this.files.delete(saved.previous.thumbKey)]).catch(() => {});
+    return saved.fresh;
+  }
+
+  /** Правка из редактора фото: описание (null — фото не правили) и версия файла — её редактор вернёт при сохранении. */
+  async editState(bookId: string, viewer: BookViewer, photoId: string) {
+    const book = await loadBook(this.books, bookId, viewer, { editable: true });
+    const photo = await this.photos.findInBook(book.id, photoId);
+    if (!photo) throw new AuthoringError("photoNotFound");
+    const edit = (await this.edits?.find(photo.id)) ?? null;
+    return { edit: edit?.doc ?? null, version: photoVersion(photo.storageKey) };
+  }
+
+  /** Ключ оригинала фото: у правленого — сохранённый оригинал, иначе — сам файл. */
+  async originalKey(photo: { id: string; storageKey: string }) {
+    return (await this.edits?.find(photo.id))?.originalKey ?? photo.storageKey;
+  }
+
+  /**
+   * Сохранить правку редактора фото: готовая картинка (собрана в браузере по описанию) становится файлом фото, а
+   * оригинал и описание остаются в photo_edits — правку можно продолжить или отменить. version — версия файла, с
+   * которого редактор начал: фото успели повернуть или поправить в другом окне — правка не записывается
+   * (photosOutdated). Как и поворот: картинка обрабатывается без блокировки, запись — под блокировкой книги.
+   */
+  async saveEdit(bookId: string, viewer: BookViewer, photoId: string, input: { bytes: Buffer; doc: PhotoEdit; version: string }) {
+    if (!this.edits) throw new AuthoringError("photoEditInvalid");
+    const edits = this.edits;
+    const book = await loadBook(this.books, bookId, viewer, { editable: true });
+    const photo = await this.photos.findInBook(book.id, photoId);
+    if (!photo) throw new AuthoringError("photoNotFound");
+    if (photoVersion(photo.storageKey) !== input.version) throw new AuthoringError("photosOutdated");
+    if (!input.bytes.length || input.bytes.length > this.images.maxUploadBytes) throw new AuthoringError("photoEditInvalid");
+    let img: Awaited<ReturnType<ImageProcessor["process"]>>;
+    try {
+      img = await this.images.process(input.bytes);
+    } catch {
+      throw new AuthoringError("photoEditInvalid");
+    }
+    const rev = this.ids.revision();
+    const keys = { storageKey: `photos/${book.id}/${photo.id}_${rev}.jpg`, thumbKey: `photos/${book.id}/${photo.id}_${rev}_thumb.jpg` };
+    await Promise.all([this.files.put(keys.storageKey, img.full), this.files.put(keys.thumbKey, img.thumb)]);
+    const dropNew = () => Promise.all([this.files.delete(keys.storageKey), this.files.delete(keys.thumbKey)]).catch(() => {});
+    const work = async () => {
+      await loadBook(this.books, bookId, viewer, { editable: true, lock: true });
+      const fresh = await this.photos.findInBook(book.id, photoId);
+      if (!fresh) throw new AuthoringError("photoNotFound");
+      if (fresh.storageKey !== photo.storageKey) throw new AuthoringError("photosOutdated");
+      // Первая правка: прежний файл и есть оригинал — он остаётся; следующие — оригинал тот же.
+      const originalKey = (await edits.find(fresh.id))?.originalKey ?? fresh.storageKey;
+      const previous = fresh.replaceFiles({ ...keys, width: img.width, height: img.height });
+      await this.photos.saveRotation(fresh);
+      await edits.save(fresh.id, { originalKey, doc: input.doc });
+      await this.books.touch(book.id);
+      return { fresh, previous, originalKey };
+    };
+    let saved: Awaited<ReturnType<typeof work>>;
+    try {
+      saved = await (this.uow ? this.uow.run(work) : work());
+    } catch (err) {
+      await dropNew();
+      throw err;
+    }
+    const stale = [saved.previous.thumbKey, ...(saved.previous.storageKey !== saved.originalKey ? [saved.previous.storageKey] : [])];
+    await Promise.all(stale.map((k) => this.files.delete(k))).catch(() => {});
+    return saved.fresh;
+  }
+
+  /** «Вернуть оригинал»: файлом фото снова становится оригинал, правка удаляется. Фото не правили — ничего не меняется. */
+  async revertEdit(bookId: string, viewer: BookViewer, photoId: string) {
+    const book = await loadBook(this.books, bookId, viewer, { editable: true });
+    const photo = await this.photos.findInBook(book.id, photoId);
+    if (!photo) throw new AuthoringError("photoNotFound");
+    const edit = await this.edits?.find(photo.id);
+    if (!edit || !this.edits) return photo;
+    const edits = this.edits;
+    // Миниатюра и размеры — по оригиналу (сам файл не перекодируется).
+    const img = await this.images.process(await this.files.get(edit.originalKey));
+    const thumbKey = `photos/${book.id}/${photo.id}_${this.ids.revision()}_thumb.jpg`;
+    await this.files.put(thumbKey, img.thumb);
+    const work = async () => {
+      await loadBook(this.books, bookId, viewer, { editable: true, lock: true });
+      const fresh = await this.photos.findInBook(book.id, photoId);
+      if (!fresh) throw new AuthoringError("photoNotFound");
+      if (fresh.storageKey !== photo.storageKey) throw new AuthoringError("photosOutdated");
+      const previous = fresh.replaceFiles({ storageKey: edit.originalKey, thumbKey, width: img.width, height: img.height });
+      await this.photos.saveRotation(fresh);
+      await edits.delete(fresh.id);
+      await this.books.touch(book.id);
+      return { fresh, previous };
+    };
+    let saved: Awaited<ReturnType<typeof work>>;
+    try {
+      saved = await (this.uow ? this.uow.run(work) : work());
+    } catch (err) {
+      await this.files.delete(thumbKey).catch(() => {});
       throw err;
     }
     await Promise.all([this.files.delete(saved.previous.storageKey), this.files.delete(saved.previous.thumbKey)]).catch(() => {});

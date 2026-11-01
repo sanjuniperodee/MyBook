@@ -16,6 +16,7 @@ import type { PlaceFrame } from "@/lib/book/photo-pages";
 import { cn } from "@/lib/class-names";
 import { PhotosArt } from "@/components/illustrations";
 import { CropDialog } from "@/components/editor/CropDialog";
+import { PhotoEditor } from "@/components/photo-editor/PhotoEditor";
 import { patchPhotos, PHOTO_ACCEPT } from "@/components/editor/photos/api";
 import { albumPhotos, galleryTitleOf, type PlaceData, type SheetPhoto } from "@/components/editor/photos/model";
 import { GallerySheet } from "@/components/editor/photos/GallerySheet";
@@ -55,6 +56,8 @@ export function PhotosManager({ data, initialFilter }: { data: PhotosTabData; in
   const [placeFor, setPlaceFor] = useState<string | null>(null);
   const [gallery, setGallery] = useState(false);
   const [cropping, setCropping] = useState<{ photo: SheetPhoto; frame: PlaceFrame } | null>(null);
+  // Фото в редакторе фото; после сохранения страница пересобирается — размеры, обрезка и места снова точные.
+  const [editing, setEditing] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
 
   const sensors = useSensors(
@@ -265,6 +268,9 @@ export function PhotosManager({ data, initialFilter }: { data: PhotosTabData; in
                           onCaption={(caption) => void ed.edit(p.id, { caption })}
                           onCrop={() => frame && setCropping({ photo: p, frame })}
                           onShowWhole={() => void showWhole([p.id])}
+                          onEditPhoto={() => setEditing(p.id)}
+                          version={server.get(p.id)?.version}
+                          edited={server.get(p.id)?.edited}
                         />
                       )}
                     </SortablePhoto>
@@ -278,6 +284,7 @@ export function PhotosManager({ data, initialFilter }: { data: PhotosTabData; in
 
       {placeFor ? <PlaceSheet data={ed.view} on={ed.relay} photoId={placeFor} onClose={() => setPlaceFor(null)} /> : null}
       {gallery ? <GallerySheet data={ed.view} on={ed.relay} onClose={() => setGallery(false)} /> : null}
+      {editing ? <PhotoEditor bookId={book.id} photoId={editing} onClose={() => setEditing(null)} onSaved={refresh} /> : null}
       {cropping ? (
         <CropDialog
           photo={cropping.photo}

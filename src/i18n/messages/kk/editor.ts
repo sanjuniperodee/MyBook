@@ -1,4 +1,5 @@
 import type { editor as ru } from "../ru/editor";
+import { photoEditor } from "./photo-editor";
 
 export const editor: typeof ru = {
   milestones: [
@@ -505,4 +506,5 @@ export const editor: typeof ru = {
     unknown: (code: string) => `Сөзді тану мүмкін болмады (${code})`,
     start: "Микрофонды қосу мүмкін болмады. Бетті жаңартып, қайталап көріңіз.",
   },
+  photoEditor,
 };

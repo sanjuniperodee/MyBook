@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Crop, GripVertical, Maximize2, Trash2, TriangleAlert } from "lucide-react";
+import { Crop, GripVertical, Maximize2, SlidersHorizontal, Trash2, TriangleAlert } from "lucide-react";
 import { useMessages } from "@/i18n/client";
 import type { PhotoPlace } from "@/lib/book/photo-place";
 import { cn } from "@/lib/class-names";
@@ -36,6 +36,9 @@ export function PhotoCard({
   onCaption,
   onCrop,
   onShowWhole,
+  onEditPhoto,
+  version,
+  edited,
 }: {
   photo: SheetPhoto;
   /** Номер фото по порядку вкладки. */
@@ -58,6 +61,12 @@ export function PhotoCard({
   onCaption: (caption: string) => void;
   onCrop: () => void;
   onShowWhole: () => void;
+  /** Редактор фото: надписи, рисунок, кадр, свет и цвет. */
+  onEditPhoto?: () => void;
+  /** Версия файла — в адресе картинки (после правки и поворота браузер берёт новую). */
+  version?: string;
+  /** Правлено в редакторе фото. */
+  edited?: boolean;
 }) {
   const m = useMessages();
   const t = m.books.photos;
@@ -83,8 +92,17 @@ export function PhotoCard({
     <div className="card min-w-0 overflow-hidden max-sm:flex">
       <div className="relative bg-cream max-sm:w-28 max-sm:shrink-0 sm:aspect-[4/3]">
         {/* eslint-disable-next-line @next/next/no-img-element -- фото клиента */}
-        <img src={photoUrl(photo.id)} alt={photo.caption ?? ""} className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
-        <span className="absolute top-2 left-2 rounded-full bg-black/55 px-2 py-0.5 text-xs text-white sm:top-3 sm:left-3 sm:px-2.5 sm:py-1">{index + 1}</span>
+        <img src={photoUrl(photo.id) + (version ? `&v=${encodeURIComponent(version)}` : "")} alt={photo.caption ?? ""} className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
+        {/* Нажатие на снимок открывает редактор фото. */}
+        {editable && onEditPhoto ? (
+          <button type="button" onClick={onEditPhoto} aria-label={m.editor.photoEditor.open} className="group absolute inset-0 flex items-end justify-end p-2 outline-offset-[-3px] sm:p-3">
+            <span className="flex size-9 items-center justify-center rounded-full bg-white/90 text-ink shadow transition group-hover:scale-105 group-hover:bg-white">
+              <SlidersHorizontal className="size-4" />
+            </span>
+          </button>
+        ) : null}
+        <span className="pointer-events-none absolute top-2 left-2 rounded-full bg-black/55 px-2 py-0.5 text-xs text-white sm:top-3 sm:left-3 sm:px-2.5 sm:py-1">{index + 1}</span>
+        {edited ? <span className="pointer-events-none absolute bottom-2 left-2 rounded-full bg-wine px-2 py-0.5 text-[11px] font-medium text-white sm:bottom-3 sm:left-3">{m.editor.photoEditor.edited}</span> : null}
         {actions ? <div className="absolute top-3 right-3 flex gap-1.5 max-sm:hidden">{actions}</div> : null}
       </div>
       <div className="min-w-0 flex-1 space-y-2.5 p-3 sm:space-y-3 sm:p-4">
@@ -141,11 +159,20 @@ export function PhotoCard({
           </>
         ) : null}
 
-        {canCrop ? (
-          <button type="button" disabled={!editable} onClick={onCrop} className="flex min-h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-line text-xs font-medium text-ink-soft hover:bg-cream disabled:opacity-50">
-            <Crop className="size-3.5" aria-hidden /> {m.editor.crop.edit}
-            {photo.crop ? " ✓" : ""}
-          </button>
+        {(editable && onEditPhoto) || canCrop ? (
+          <div className="flex gap-2">
+            {editable && onEditPhoto ? (
+              <button type="button" onClick={onEditPhoto} title={m.editor.photoEditor.openHint} className="flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-xl bg-ink px-3 text-xs font-medium text-white hover:bg-ink-soft">
+                <SlidersHorizontal className="size-3.5" aria-hidden /> {m.editor.photoEditor.open}
+              </button>
+            ) : null}
+            {canCrop ? (
+              <button type="button" disabled={!editable} onClick={onCrop} className="flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-xl border border-line px-3 text-xs font-medium text-ink-soft hover:bg-cream disabled:opacity-50">
+                <Crop className="size-3.5" aria-hidden /> {m.editor.crop.edit}
+                {photo.crop ? " ✓" : ""}
+              </button>
+            ) : null}
+          </div>
         ) : null}
       </div>
     </div>

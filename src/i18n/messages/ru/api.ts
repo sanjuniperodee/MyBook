@@ -24,6 +24,7 @@ export const api = {
   orderNotFound: "Заказ не найден",
   fileNotReady: "Файл пока недоступен",
   photosOutdated: "Список фото устарел, обновите страницу",
+  photoEditInvalid: "Не удалось сохранить правку фото. Попробуйте ещё раз",
   photosPick: "Выберите фото",
   photosRate: "Слишком много загрузок подряд. Подождите немного.",
   photosLimit: (max: number) => `В книгу можно добавить до ${max} фото`,

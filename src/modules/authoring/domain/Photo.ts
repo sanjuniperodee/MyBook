@@ -76,6 +76,16 @@ export class Photo extends AggregateRoot<PhotoProps> {
     }
   }
 
+  /**
+   * Новый файл того же снимка (правка в редакторе фото или её отмена): ключи и размеры; кадр и вид в ответе остаются —
+   * они в долях снимка. Возвращает прежние ключи (их файлы удаляет вызывающий).
+   */
+  replaceFiles(files: { storageKey: string; thumbKey: string; width: number; height: number }) {
+    const previous = { storageKey: this.props.storageKey, thumbKey: this.props.thumbKey };
+    this.props = { ...this.props, ...files };
+    return previous;
+  }
+
   /** Поворот на 90° по часовой: меняются размеры и ключи файлов, точка фокуса поворачивается вместе с кадром. */
   rotated(files: { storageKey: string; thumbKey: string }) {
     const previous = { storageKey: this.props.storageKey, thumbKey: this.props.thumbKey };

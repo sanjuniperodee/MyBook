@@ -1,7 +1,7 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { and, asc, eq, gt, inArray, ne, sql } from "drizzle-orm";
-import { bookChapters, bookLetters, bookQuestions, books, photos } from "@/shared/infrastructure/db/schema";
+import { bookChapters, bookLetters, bookQuestions, books, photoEdits, photos } from "@/shared/infrastructure/db/schema";
 import { wordsSql } from "@/shared/infrastructure/db/bookProgress";
 import { executor } from "@/shared/infrastructure/database";
 import {
@@ -15,6 +15,8 @@ import {
   type ChapterSeed,
   type LetterRepository,
   type Outline,
+  type PhotoEditRecord,
+  type PhotoEditRepository,
   type PhotoRepository,
   type QuestionRepository,
   type QuestionTemplate,
@@ -300,6 +302,23 @@ export class DrizzlePhotoRepository implements PhotoRepository {
       .update(photos)
       .set({ questionId: null, inline: null, updatedAt: new Date() })
       .where(and(eq(photos.bookId, bookId), inArray(photos.questionId, [...questionIds])));
+  }
+}
+
+export class DrizzlePhotoEditRepository implements PhotoEditRepository {
+  async find(photoId: string) {
+    if (!isUuid(photoId)) return null;
+    const [r] = await executor().select({ originalKey: photoEdits.originalKey, doc: photoEdits.doc }).from(photoEdits).where(eq(photoEdits.photoId, photoId)).limit(1);
+    return r ?? null;
+  }
+  async save(photoId: string, edit: PhotoEditRecord) {
+    await executor()
+      .insert(photoEdits)
+      .values({ photoId, ...edit })
+      .onConflictDoUpdate({ target: photoEdits.photoId, set: { ...edit, updatedAt: new Date() } });
+  }
+  async delete(photoId: string) {
+    await executor().delete(photoEdits).where(eq(photoEdits.photoId, photoId));
   }
 }
 

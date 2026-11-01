@@ -12,6 +12,7 @@ import { questionTexts, toPhotoItem } from "@/lib/book/layout";
 import { photoLosses } from "@/lib/book/photo-loss";
 import { photoPlaceOf } from "@/lib/book/photo-place";
 import { tocKey } from "@/lib/book/toc";
+import { photoVersion } from "@/lib/photo-edit/doc";
 import type { PlaceChapter } from "@/components/editor/photos/model";
 import { PhotosManager } from "./PhotosManager";
 import { isPhotoFilter, type PhotosTabData } from "./photos-tab";
@@ -27,7 +28,7 @@ export default async function PhotosPage({ params, searchParams }: { params: Pro
   const user = await requireUser(`/books/${id}/photos`);
   const book = await getAccessibleBook(id, user);
   const q = container().authoring.queries;
-  const [photos, questions, chapters, letters, m] = await Promise.all([q.photos(book.id), q.questions(book.id), q.chapters(book.id), q.approvedLetters(book.id), getMessages()]);
+  const [photos, questions, chapters, letters, m, edited] = await Promise.all([q.photos(book.id), q.questions(book.id), q.chapters(book.id), q.approvedLetters(book.id), getMessages(), q.editedPhotoIds(book.id)]);
   // Та же сборка, что у PDF: снимки обложки — видные на ней (cover-photos.ts), письма близких — последней главой.
   const covered = withCoverPhotos(book, photos.map((p) => p.id));
   const content = buildBookContent(covered, questions, photos.map(toPhotoItem), chapters, undefined, letters);
@@ -60,7 +61,7 @@ export default async function PhotosPage({ params, searchParams }: { params: Pro
       // Правила раскладки фото: на прежних первая правка места сначала переводит книгу (листы, ensureLayoutRev2).
       layoutRev: book.layoutRev,
     },
-    photos: photos.map((p) => ({ id: p.id, width: p.width, height: p.height, caption: p.caption, layout: p.layout, questionId: p.questionId, chapter: p.chapter ?? null, opener: p.opener ?? false, crop: p.crop ?? null })),
+    photos: photos.map((p) => ({ id: p.id, width: p.width, height: p.height, caption: p.caption, layout: p.layout, questionId: p.questionId, chapter: p.chapter ?? null, opener: p.opener ?? false, crop: p.crop ?? null, version: photoVersion(p.storageKey), edited: edited.has(p.id) })),
     places: [...places],
     chapters: placeChapters,
     // Заголовок вопроса в книге: свой текст автора — без подстановки рода; пустой заголовок раздела — общая подпись.

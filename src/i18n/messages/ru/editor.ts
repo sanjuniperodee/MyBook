@@ -1,4 +1,5 @@
 import { ruCount } from "../../plural";
+import { photoEditor } from "./photo-editor";
 
 /** Редактор ответов: лист вопроса, навигация по главам, фото в ответе, превью страницы и диктовка. */
 export const editor = {
@@ -545,4 +546,5 @@ export const editor = {
     unknown: (code: string) => `Не удалось распознать речь (${code})`,
     start: "Не удалось включить микрофон. Обновите страницу и попробуйте снова.",
   },
+  photoEditor,
 };

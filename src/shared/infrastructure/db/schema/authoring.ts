@@ -1,6 +1,7 @@
 /** Книги: сама книга, вопросы с ответами, фото и письма близких (модуль authoring). */
 import { boolean, doublePrecision, index, integer, jsonb, pgTable, serial, smallint, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import type { Locale } from "@/i18n/config";
+import type { PhotoEdit } from "@/lib/photo-edit/doc";
 import { timestamps } from "./columns";
 import { users } from "./identity";
 
@@ -193,6 +194,19 @@ export const photos = pgTable(
 );
 
 export type Photo = typeof photos.$inferSelect;
+
+/**
+ * Правка фото в редакторе фото (lib/photo-edit/doc.ts): оригинал снимка и описание правки. Сам файл фото
+ * (photos.storage_key) — уже готовая картинка; оригинал хранится, чтобы правку можно было продолжить или отменить.
+ */
+export const photoEdits = pgTable("photo_edits", {
+  photoId: uuid("photo_id")
+    .primaryKey()
+    .references(() => photos.id, { onDelete: "cascade" }),
+  originalKey: text("original_key").notNull(),
+  doc: jsonb("doc").$type<PhotoEdit>().notNull(),
+  ...timestamps,
+});
 
 export const bookLetters = pgTable(
   "book_letters",

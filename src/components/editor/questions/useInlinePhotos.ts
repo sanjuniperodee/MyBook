@@ -100,6 +100,11 @@ export function useInlinePhotos({
     }
   };
 
+  /** Фото сохранили в редакторе фото (или вернули оригинал): новый файл — размеры и кадр с сервера, превью перечитывается. */
+  const applyEdited = useCallback((row: EditorPhotoRow) => {
+    setPhotos((ps) => ps.map((p) => (p.id === row.id ? { ...p, width: row.width, height: row.height, inline: row.inline, crop: row.crop ?? null, rev: (p.rev ?? 0) + 1 } : p)));
+  }, []);
+
   /** Перевод или сверка правил раскладки: все строки фото — новый список (сразу и в photosRef), версия — редактору. */
   const applyLayout = useCallback((sync: LayoutSync) => {
     photosRef.current = layoutPhotoRows(photosRef.current, sync.photos);
@@ -218,5 +223,5 @@ export function useInlinePhotos({
     setPhotos((ps) => ps.map((p) => (p.questionId && ids.has(p.questionId) ? { ...p, questionId: null, inline: null } : p)));
   }, []);
 
-  return { photos, selectedPhotoId, setSelectedPhotoId, updateInline, rotatePhoto, patchPhoto, patchMany, applyUndo, replace, reorder, upload, editCaption, addUploaded, detachQuestions, applyLayout };
+  return { photos, selectedPhotoId, setSelectedPhotoId, updateInline, rotatePhoto, applyEdited, patchPhoto, patchMany, applyUndo, replace, reorder, upload, editCaption, addUploaded, detachQuestions, applyLayout };
 }

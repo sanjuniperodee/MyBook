@@ -130,6 +130,14 @@ body {
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { scrollbar-width: none; }
 
+/* Ползунки редактора фото: дорожку рисует разметка (заливка от нуля), здесь — только крупный бегунок под палец. */
+.pe-range::-webkit-slider-runnable-track { background: transparent; height: 2.25rem; }
+.pe-range::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; margin-top: calc((2.25rem - 22px) / 2); width: 22px; height: 22px; border-radius: 9999px; background: #fff; box-shadow: 0 1px 5px rgb(0 0 0 / 0.55); transition: transform 0.12s; }
+.pe-range:active::-webkit-slider-thumb { transform: scale(1.15); }
+.pe-range::-moz-range-track { background: transparent; }
+.pe-range::-moz-range-thumb { width: 22px; height: 22px; border: 0; border-radius: 9999px; background: #fff; box-shadow: 0 1px 5px rgb(0 0 0 / 0.55); }
+.pe-range:focus-visible { outline: 2px solid #e9b8bf; outline-offset: 2px; border-radius: 0.5rem; }
+
 /* 3D-книга: лицо лежит в плоскости экрана, толщина книги уходит назад (−z). Корешок слева виден при положительном наклоне. */
 .book-3d {
   perspective: 1600px;
