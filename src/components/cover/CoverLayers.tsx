@@ -12,7 +12,7 @@ import {
   layerDrawing,
   GRADIENT_FILL,
   gradientVector,
-  layerText,
+  printedLayerText,
   shapeElements,
   textCopies,
   type CoverDesign,
@@ -178,7 +178,7 @@ export function CoverLayers({ design, texts, board, photoSrc, stockSrc, placehol
         if (l.hidden && !placeholders) return null;
         let body: ReactNode;
         if (l.kind === "text") {
-          const text = layerText(l, texts);
+          const text = printedLayerText(l, texts);
           if (!text.trim() && !placeholders) return null;
           body = <TextView layer={l} text={text} placeholder={placeholders?.text(l)} />;
         } else if (l.kind === "image") {

@@ -7,7 +7,7 @@ import {
   GRADIENT_FILL,
   gradientVector,
   layerRect,
-  layerText,
+  printedLayerText,
   printedLayers,
   shapeElements,
   textCopies,
@@ -158,7 +158,7 @@ export function CoverLayersPdf({ design, texts, front, images }: { design: Cover
         const r = layerRect(l, front);
         let body: React.ReactNode = null;
         const o = l.opacity ?? 1;
-        if (l.kind === "text") body = <TextLayerPdf layer={l} text={layerText(l, texts)} w={r.w} h={r.h} boardW={front.w} o={o} />;
+        if (l.kind === "text") body = <TextLayerPdf layer={l} text={printedLayerText(l, texts)} w={r.w} h={r.h} boardW={front.w} o={o} />;
         else if (l.kind === "image") {
           const data = images.get(l.id);
           if (!data) return null;

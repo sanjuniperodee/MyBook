@@ -2,6 +2,7 @@
 import { drawingWeight, sanitizeDrawing } from "../art";
 import { isFontKey } from "../fonts";
 import { normalizeFrame } from "../photo-frame";
+import { printableText } from "../printable";
 import { DECOR_IDS } from "./decor";
 import { isStockPhoto } from "./stock";
 import type { CoverBackground, CoverDesign, CoverLayer, CoverTexts, DecorLayer, ImageLayer, LayerBase, ShapeLayer, TextLayer, TextStyle } from "./types";
@@ -197,11 +198,16 @@ export function layerText(layer: TextLayer, texts: CoverTexts): string {
   return layer.bind ? texts[layer.bind] : layer.text;
 }
 
+/** Текст слоя, как он печатается и виден на обложке: без эмодзи (в шрифтах обложки их нет). */
+export function printedLayerText(layer: TextLayer, texts: CoverTexts): string {
+  return printableText(layerText(layer, texts));
+}
+
 /** Слои, которые печатаются: видимые; пустой привязанный текст и место под фото без снимка не печатаются. */
 export function printedLayers(design: CoverDesign, texts: CoverTexts): CoverLayer[] {
   return design.layers.filter((l) => {
     if (l.hidden) return false;
-    if (l.kind === "text") return !!layerText(l, texts).trim();
+    if (l.kind === "text") return !!printedLayerText(l, texts).trim();
     if (l.kind === "image") return !!(l.photoId || l.stock);
     return true;
   });

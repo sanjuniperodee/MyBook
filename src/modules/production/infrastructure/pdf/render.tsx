@@ -21,6 +21,7 @@ import {
   type CoverGeometry,
 } from "@/lib/book/formats";
 import { photoAreaMm, photoPages, toPhotoItem, type BookContent, type PhotoItem } from "@/lib/book/layout";
+import { printableText } from "@/lib/book/printable";
 import { buildBookContent } from "@/lib/book/book-content";
 import { estimatePages } from "@/lib/book/estimate";
 import { emptyFlow } from "@/lib/book/flow-decisions";
@@ -428,7 +429,7 @@ export function coverText(book: Book) {
   const content = buildBookContent(book, [], [], []);
   return {
     title: content.title,
-    subtitle: book.subtitle.trim(),
+    subtitle: printableText(book.subtitle.trim()),
     names: coverNames(book),
   };
 }

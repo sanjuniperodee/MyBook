@@ -5,6 +5,7 @@
  */
 import type { CoverTemplate } from "./covers";
 import { coverNames } from "./cover-names";
+import { printableText } from "./printable";
 import { photoHref, photoImage, type PhotoRef } from "./covers/svg-kit";
 import { fontWidth, type FontKey } from "./fonts";
 import { PT_TO_MM, type Rect } from "./formats";
@@ -148,7 +149,9 @@ export function resolveBackLayout(layout: BackLayout, text: string, photos: numb
 }
 
 /** Раскладка задней стороны крышки размером W×H мм. */
-export function designBack(template: CoverTemplate, W: number, H: number, content: BackContent): BackDesign {
+export function designBack(template: CoverTemplate, W: number, H: number, raw: BackContent): BackDesign {
+  // Эмодзи на обороте не печатаются (в шрифтах обложки их нет) — и в превью их тоже нет.
+  const content = { ...raw, text: printableText(raw.text), signature: printableText(raw.signature), names: printableText(raw.names) };
   const fr = frame(template, W, H);
   const { font } = fr;
   let { area, main, soft, accent } = fr;

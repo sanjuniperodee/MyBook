@@ -19,6 +19,7 @@ import { useAutosave } from "@/hooks/useAutosave";
 import { apiFetch } from "@/lib/client-api";
 import { coverLabel, coverMoods, coverPhotoSlots, getCoverTemplate, pickerCovers, type CoverMood } from "@/lib/book/covers";
 import { coverNames, NAMES_ON_COVER_MAX } from "@/lib/book/cover-names";
+import { EmojiNote } from "./EmojiNote";
 import { bookKind, RECORDED_BY_MAX } from "@/lib/content/kinds";
 import { getFormat } from "@/lib/book/formats";
 import { getInteriorDesign, interiorsForCover } from "@/lib/book/interiors";
@@ -647,6 +648,7 @@ function NamesOnCover({ value, auto, swapped, onChange, disabled }: { value: str
     <div>
       <label className="label">{t.namesOnCover}</label>
       <input className="input" value={value} maxLength={NAMES_ON_COVER_MAX} placeholder={auto} onChange={(e) => onChange(e.target.value)} disabled={disabled} />
+      <EmojiNote text={value} />
       <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
         <span className="text-muted">{t.namesOnCoverText}</span>
         {swapped && value.trim() !== swapped ? (
@@ -669,6 +671,7 @@ function Field({ label, value, onChange, max, placeholder, disabled }: { label: 
     <div>
       <label className="label">{label}</label>
       <input className="input" value={value} maxLength={max} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} disabled={disabled} />
+      <EmojiNote text={value} />
     </div>
   );
 }

@@ -5,6 +5,7 @@
  * Чистые функции без React и DOM — проверяются юнит-тестами.
  */
 import { coverSpreadGeometry, print, PT_TO_MM, type BookFormat, type Rect } from "./formats";
+import { printableText } from "./printable";
 
 /** Толщина картонной крышки, мм (картон + покровный материал; вместе с отставом даёт spineExtraMm). */
 export const BOARD_MM = print.cover.spineExtraMm / 2;
@@ -127,10 +128,10 @@ export function spineFontMm(spineWidth: number): number | null {
 
 /**
  * Надписи корешка по порядку сверху вниз: название, затем имена. Корешок делится между ними поровну,
- * каждая стоит по центру своей части; одна надпись — по центру всего корешка. Текст читается сверху вниз.
+ * каждая стоит по центру своей части; одна надпись — по центру всего корешка. Текст читается сверху вниз. Без эмодзи.
  */
 export function spineParts(title: string, names?: string): string[] {
-  return [title, names ?? ""].map((s) => s.trim()).filter(Boolean);
+  return [title, names ?? ""].map((s) => printableText(s.trim())).filter(Boolean);
 }
 
 /** Ракурс для чтения раскрытой книги: почти сверху, корешок по центру. */

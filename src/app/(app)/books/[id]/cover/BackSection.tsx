@@ -6,6 +6,7 @@ import { BACK_PHOTO_SLOTS, BACK_TEXT_MAX, backLayouts, type BackLayout } from "@
 import { photoUrl } from "@/lib/urls";
 import { cn } from "@/lib/class-names";
 import { bookKind } from "@/lib/content/kinds";
+import { EmojiNote } from "./EmojiNote";
 
 /** Схематичная миниатюра варианта — как он ляжет на заднюю крышку. */
 function LayoutIcon({ layout }: { layout: BackLayout }) {
@@ -186,6 +187,7 @@ export function BackSection({
             onChange={(e) => onChange({ backText: e.target.value })}
             disabled={!editable}
           />
+          <EmojiNote text={text} />
           <div className="mt-1 flex justify-between gap-3 text-xs text-muted">
             <span>{layout !== "photo" && signature ? t.signed(signature) : ""}</span>
             <span className="tabular-nums">

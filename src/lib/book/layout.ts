@@ -12,6 +12,7 @@ import { bookInterior, type InteriorDesign } from "./interiors";
 import { textArea } from "./page-geometry";
 import { GALLERY_KEY, isCustomToc, type TocLines, type TocMode } from "./toc";
 import type { PhotoCrop } from "./photo-crop";
+import { printableText } from "./printable";
 
 export interface ContentItem {
   id: string;
@@ -190,20 +191,7 @@ export function questionHeading(q: Pick<BookQuestion, "title" | "displayText" | 
   return q.displayText ?? (q.questionKey === CUSTOM_KEY ? q.title : applyGender(q.title, book.authorGender, book.recipientGender));
 }
 
-/** Эмодзи (кроме ©, ®, ™), их модификаторы, склейки и флаги: в книжных шрифтах их нет — в печати они превращаются в мусор. */
-const EMOJI = /(?![©®™])\p{Extended_Pictographic}|\p{Emoji_Modifier}|[\u200D\uFE0E\uFE0F\u20E3]|[\u{1F1E6}-\u{1F1FF}]/gu;
-
-/** Текст для печати: без эмодзи и оставшихся после них лишних пробелов. */
-export function printableText(text: string) {
-  if (!EMOJI.test(text)) return text;
-  EMOJI.lastIndex = 0;
-  return text
-    .replace(EMOJI, "")
-    .replace(/[ \t]{2,}/g, " ")
-    .replace(/[ \t]+([,.!?…:;)»”])/g, "$1")
-    .replace(/[ \t]+$/gm, "")
-    .trim();
-}
+export { printableText };
 
 export function toPhotoItem(p: Pick<Photo, "id" | "caption" | "layout" | "width" | "height" | "storageKey" | "thumbKey" | "questionId" | "inline"> & { crop?: PhotoCrop | null; chapter?: string | null; opener?: boolean }): PhotoItem {
   return {

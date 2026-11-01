@@ -3,7 +3,7 @@
  * эффекты — geometry.ts, декор — decor.ts, снимки коллекции — stock.ts, перевод шаблона в слои — from-template.ts.
  */
 export * from "./types";
-export { COVER_LIMITS, coverDesignPhotoIds, dropCoverPhoto, emptyImageLayers, layerText, newLayerId, parseCoverDesign, printedLayers } from "./parse";
+export { COVER_LIMITS, coverDesignPhotoIds, dropCoverPhoto, emptyImageLayers, layerText, newLayerId, parseCoverDesign, printedLayers, printedLayerText } from "./parse";
 export { backgroundArt, backgroundBase, boardSize, canvasGeometry, COVER_SAFE, GRADIENT_FILL, gradientVector, inkOn, layerRect, OUTLINE_STEPS, safeArea, shapeElements, textCopies } from "./geometry";
 export { templateForDesign } from "./template";
 export { DECOR_IDS, decorDrawing, layerDrawing } from "./decor";

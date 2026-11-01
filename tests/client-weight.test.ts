@@ -42,7 +42,7 @@ describe("вес клиентских модулей: виды книг", () => 
   });
 
   it("имена на обложке (cover-names) — без каталога обложек и тем", () => {
-    expect([...reach("src/lib/book/cover-names.ts")].sort()).toEqual(["src/lib/book/cover-names.ts", "src/lib/content/kinds.ts"]);
+    expect([...reach("src/lib/book/cover-names.ts")].sort()).toEqual(["src/lib/book/cover-names.ts", "src/lib/book/printable.ts", "src/lib/content/kinds.ts"]);
   });
 });
 
