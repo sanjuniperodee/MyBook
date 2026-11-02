@@ -89,7 +89,7 @@ export function PhotoCard({
   ) : null;
 
   return (
-    <div className="card min-w-0 overflow-hidden max-sm:flex">
+    <div data-help={`photo:${photo.id}`} className="card min-w-0 overflow-hidden max-sm:flex">
       <div className="relative bg-cream max-sm:w-28 max-sm:shrink-0 sm:aspect-[4/3]">
         {/* eslint-disable-next-line @next/next/no-img-element -- фото клиента */}
         <img src={photoUrl(photo.id) + (version ? `&v=${encodeURIComponent(version)}` : "")} alt={photo.caption ?? ""} className="absolute inset-0 h-full w-full object-cover" loading="lazy" />

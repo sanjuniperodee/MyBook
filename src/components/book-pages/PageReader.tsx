@@ -69,6 +69,7 @@ function BookPage({ build, n, side, onFailed, onLoaded }: { build: BookBuild; n:
             loading="lazy"
             decoding="async"
             alt={t.page(n)}
+            data-help={`page:${n}`}
             className="block h-auto w-full"
             onLoad={() => onLoaded?.(n)}
             onError={() => {

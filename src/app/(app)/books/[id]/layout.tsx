@@ -10,6 +10,7 @@ import { photoUrls } from "@/lib/urls";
 import { container } from "@/server/container";
 import { BookTabs } from "./BookTabs";
 import { OrderButton } from "./OrderButton";
+import { HelpChat } from "@/components/help/HelpChat";
 import { getLocale, getMessages } from "@/i18n/server";
 
 /** Шапка «студии» книги: мини-обложка, название и вкладки разделов. */
@@ -66,6 +67,8 @@ export default async function BookLayout({ children, params }: { children: React
         </div>
       </div>
       {children}
+      {/* Помощник — у владельца книги (сотрудник, открывший книгу клиента, в беседу клиента не пишет). */}
+      {book.userId === user.id ? <HelpChat bookId={book.id} /> : null}
     </>
   );
 }

@@ -570,3 +570,8 @@ body {
     -webkit-overflow-scrolling: touch;
   }
 }
+
+/* Помощник в кабинете: шторка чата и режим «указать на экране» (курсор-прицел над всей страницей). */
+@keyframes sheet-up { from { opacity: 0; transform: translateY(16px); } }
+@keyframes fade-in { from { opacity: 0; } }
+.help-picking, .help-picking * { cursor: crosshair !important; }

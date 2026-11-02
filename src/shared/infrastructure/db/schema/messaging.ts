@@ -22,6 +22,8 @@ export interface ConversationMeta {
   page?: string;
   phone?: string;
   email?: string;
+  /** Беседа помощника в кабинете книги (чат на сайте клиента, вошедшего в аккаунт). */
+  help?: boolean;
   /** Почта: тема последнего письма и Message-ID для In-Reply-To. */
   subject?: string;
   lastMessageId?: string;

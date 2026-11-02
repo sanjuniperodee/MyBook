@@ -562,7 +562,7 @@ function EditorBody({
             <ChapterStart {...src} chapterKey={group.key} fallbackTitle={chapterTitle} editable={editable} onAction={(action) => onChapterStart(group.key, action)} />
           ) : null}
           {q && group ? (
-            <article className="relative overflow-hidden rounded-[28px] border border-line/70 bg-white shadow-soft">
+            <article data-help={`question:${q.id}`} className="relative overflow-hidden rounded-[28px] border border-line/70 bg-white shadow-soft">
               {/* Прогресс по главе — тонкая линия сверху */}
               <div className="absolute inset-x-0 top-0 h-0.5 bg-cream" aria-hidden>
                 <div className="h-full bg-wine/70 transition-[width] duration-500 ease-out" style={{ width: `${((posInChapter + 1) / group.items.length) * 100}%` }} />

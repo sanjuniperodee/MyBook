@@ -210,6 +210,7 @@ export const settingDefs = {
   /** Виджет на сайте: кнопки WhatsApp и «Перезвоните мне», онлайн-чат. */
   "widget.enabled": { default: "on" },
   "widget.chat": { default: "on" },
+  "widget.help": { default: "on" },
   /** Безопасность CRM: обязательная 2FA для сотрудников и список разрешённых IP (по строке на адрес/подсеть). */
   "security.require2fa": { default: "off" },
   "security.ipAllowlist": {},

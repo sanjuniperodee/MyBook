@@ -57,6 +57,7 @@ export async function saveCrmSettingsAction(_: SettingsState, form: FormData): P
       "crm.mergeClosedDays": String(d.mergeClosedDays),
       "widget.enabled": form.get("widgetEnabled") === "on" ? "on" : "off",
       "widget.chat": form.get("widgetChat") === "on" ? "on" : "off",
+      "widget.help": form.get("widgetHelp") === "on" ? "on" : "off",
     },
     staff.user.id,
   );

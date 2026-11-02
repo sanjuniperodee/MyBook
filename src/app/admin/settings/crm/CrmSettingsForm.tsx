@@ -32,7 +32,7 @@ export function CrmSettingsForm({
   unsorted: boolean;
   maxDiscount: number;
   mergeClosedDays: number;
-  widget: { enabled: boolean; chat: boolean };
+  widget: { enabled: boolean; chat: boolean; help: boolean; helpStats: { total: number; answered: number; costUsd: number } | null };
   /** Утренняя сводка сотрудникам (bots-11). */
   digest: boolean;
   chatReward: boolean;
@@ -141,6 +141,18 @@ export function CrmSettingsForm({
           <label className="mt-2 flex items-start gap-2 pl-6 text-sm">
             <input type="checkbox" name="widgetChat" defaultChecked={widget.chat} className="mt-0.5 size-4 accent-wine" />
             <span>Онлайн-чат в виджете — сообщения приходят в «Чаты», отвечать оттуда же</span>
+          </label>
+          <label className="mt-3 flex items-start gap-2 text-sm">
+            <input type="checkbox" name="widgetHelp" defaultChecked={widget.help} className="mt-0.5 size-4 accent-wine" />
+            <span>
+              Помощник в кабинете книги — кнопка «Помощь» у клиента: AI отвечает по справочнику кабинета и данным его книги (модель — как у AI-продажника), не знает или вопрос о цене, оплате, сроках, правке — передаёт менеджеру в «Чаты» и заметкой в WhatsApp-чат клиента
+              {widget.helpStats?.total ? (
+                <span className="mt-0.5 block text-xs text-muted">
+                  За 30 дней: вопросов {widget.helpStats.total}, ответил сам {widget.helpStats.answered}, менеджеру {widget.helpStats.total - widget.helpStats.answered}
+                  {widget.helpStats.costUsd ? `, расход на модель $${widget.helpStats.costUsd}` : ""}
+                </span>
+              ) : null}
+            </span>
           </label>
         </Group>
 

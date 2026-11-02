@@ -95,6 +95,8 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
       // Кассир Kaspi отключён — плашка над полем ввода (без запроса к Kaspi: сохранённое состояние проверки).
       container().ordering.kaspiWatch.warning().catch(() => null),
     ]);
+    // Вопросы клиента помощнику в кабинете — рядом с его WhatsApp (в самой беседе помощника — не нужно).
+    const help = conv.clientId && !conv.meta.help ? await container().messaging.helpQuestionsOf(conv.clientId).catch(() => null) : null;
     const options = canAssignOthers(staff) ? staffOptions(admins) : staffOptions(admins).filter((a) => a.id === staff.user.id || a.id === conv.assigneeId);
     // Ничей диалог менеджер только читает: ответит тот, кому его отдаст круг (или назначит руководитель).
     const mine = canWork(staff, conv.assigneeId);
@@ -118,6 +120,7 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
             channelLabel(conv.channel),
             conv.contactName && /^\d{10,15}$/.test(conv.chatId) ? contactView(staff, { phone: formatPhone(conv.chatId) }).phone : "",
             conv.channel === "email" && conv.contactName ? contactView(staff, { email: conv.chatId }).email : "",
+            conv.meta.help ? "Помощник в кабинете" : "",
             conv.channel === "site" && conv.meta.page ? conv.meta.page : "",
           ]
             .filter(Boolean)
@@ -187,6 +190,25 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
             <p className="rounded-2xl bg-white p-3.5 text-sm text-muted ring-1 ring-line">Чат не привязан к сделке</p>
           )}
         </SideSection>
+        {help?.questions.length ? (
+          <SideSection title="Вопросы в кабинете">
+            <Link href={`/admin/chats?c=${help.conversationId}`} className="block rounded-2xl bg-white p-3.5 ring-1 ring-line transition hover:ring-wine/30">
+              <div className="flex items-center justify-between gap-2 text-xs text-muted">
+                <span>Помощник на сайте{help.handoffs30d ? ` · менеджеру за 30 дней: ${help.handoffs30d}` : ""}</span>
+                {help.waiting ? <span className="rounded-full bg-amber-100 px-2 py-0.5 font-medium text-amber-800">ждёт ответа</span> : null}
+              </div>
+              <ul className="mt-2 space-y-1.5 text-sm">
+                {help.questions.map((qn) => (
+                  <li key={qn.id} className="line-clamp-2">
+                    <span className="text-muted">{shortTime(qn.at)} · </span>
+                    {qn.text.replace(/^📍[^\n]*\n?/, "") || qn.text}
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-2 text-xs font-medium text-wine">Открыть переписку с помощником →</div>
+            </Link>
+          </SideSection>
+        ) : null}
         {dealRow && invoices.length ? (
           <SideSection title="Счета">
             <div className="rounded-2xl bg-white p-3 ring-1 ring-line">

@@ -159,7 +159,7 @@ describe("Отдел продаж", () => {
     const ok = { slaMinutes: "15", reassignMinutes: "10", from: "09:00", to: "18:00", autoDealFrom: "book_started", maxDiscount: "10", days: ["5", "1", "1", "9"], unsorted: "on", widgetChat: "on" };
     expect(await actions.saveCrmSettingsAction({}, form(ok))).toEqual({ ok: "Сохранено" });
     expect(w.saved).toEqual([
-      { "crm.slaMinutes": "15", "crm.reassignMinutes": "10", "crm.workHours": JSON.stringify({ days: [1, 5], from: "09:00", to: "18:00" }), "crm.autoDealFrom": "book_started", "crm.unsorted": "on", "crm.digest": "off", "referral.chatReward": "off", "crm.maxDiscount": "10", "crm.mergeClosedDays": "14", "widget.enabled": "off", "widget.chat": "on" },
+      { "crm.slaMinutes": "15", "crm.reassignMinutes": "10", "crm.workHours": JSON.stringify({ days: [1, 5], from: "09:00", to: "18:00" }), "crm.autoDealFrom": "book_started", "crm.unsorted": "on", "crm.digest": "off", "referral.chatReward": "off", "crm.maxDiscount": "10", "crm.mergeClosedDays": "14", "widget.enabled": "off", "widget.chat": "on", "widget.help": "off" },
     ]);
     // Праздничные выходные (tasks-23) — в том же графике; непонятная дата — ошибка с ней.
     expect(await actions.saveCrmSettingsAction({}, form({ ...ok, off: "16.12.2026\n2027-01-01", digest: "on", chatReward: "on" }))).toEqual({ ok: "Сохранено" });

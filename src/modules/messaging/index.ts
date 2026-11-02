@@ -1,7 +1,7 @@
 import type { Clock, CustomFieldsReader, LiveFeed, SettingsStore, StaffNotifier, WorkSchedule } from "@/shared/application";
 import { consoleLogger } from "@/shared/application";
 import type { SmtpConfigSource } from "@/shared/infrastructure/mail";
-import { BotCoach, ChatMediaService, MessageActionError, MessagingService, QualifierBot, SELLER_MEDIA_PROMPT, SiteChatService, type AnsweredTasks, type BotBrain, type BotCrm, type BotInvoices, type BotSellerModel, type IncomingRules, type LinkAttribution, type SalesGateway, type Tasks } from "./application";
+import { BotCoach, CabinetHelpService, ChatMediaService, MessageActionError, MessagingService, QualifierBot, SELLER_MEDIA_PROMPT, SiteChatService, type AnsweredTasks, type BotBrain, type BotCrm, type BotInvoices, type BotSellerModel, type IncomingRules, type LinkAttribution, type SalesGateway, type Tasks } from "./application";
 import { channelTransport, crmBotSettings, crmNotifier, gowaMediaGateway, processTimers, realtimeUpdates, siteIds, whatsappTransport, widgetSettings, type BotSiteInfo, type MessagingPermission } from "./infrastructure/adapters";
 import { ChatView } from "./infrastructure/chatView";
 import { EmailChannel, type EmailSettingKey, type MailTransport } from "./infrastructure/email";
@@ -9,6 +9,7 @@ import { GOWA_PAGE_LIMIT, GowaClient, verifyGowaSignature, type GowaConfig, type
 import { GOWA_CHANNEL, gowaCatchUpRange, gowaJid, isGowaPersonalJid, parseGowaHistory } from "./domain/gowa";
 import { WazzupClient } from "./infrastructure/wazzup";
 import { drizzleCoachSource } from "./infrastructure/botCoach";
+import { drizzleHelpStore, helpChatId, helpQuestionsOf, helpStats } from "./infrastructure/cabinetHelp";
 import { chatFiles } from "./infrastructure/chatFiles";
 import { staffLine } from "./infrastructure/staffLine";
 import { MATERIAL_MAX_BYTES, MAX_MATERIALS, mediaLine, parseCoachLog, parseLessons, parseMaterials, type BotLesson, type BotMaterial, type CoachRun, type MaterialKind, type MaterialLang } from "./domain";
@@ -29,11 +30,12 @@ export { EDIT_WINDOW_MS, MessageActionError, REVOKE_WINDOW_MS } from "./applicat
 export { GOWA_DEVICE, GowaError, type GowaConfig, type GowaStatus, type GowaWebhook } from "./infrastructure/gowa";
 export type { Attachment, BlockReason, ContactsTarget, IngestExtra, SalesGateway as MessagingSalesGateway, IncomingRules, BotBrain, BotCrm, BotInvoices, BotSellerModel } from "./application";
 export type { BotSiteInfo } from "./infrastructure/adapters";
+export type { HelpThreadMessage, HelpResult, HelpOutcome } from "./application/cabinetHelp";
 export type { BotMetrics } from "./infrastructure/persistence";
 export type { BotPreviewInput, BotPreviewResult, BotStatus } from "./application/botPreview";
 
 /** Настройки CRM, которые читает и пишет переписка: бот, виджет, Wazzup и почтовый ящик. */
-type MessagingSettingKey = "bot.mode" | "bot.config" | "bot.lessons" | "bot.coach" | "bot.materials" | "whatsapp.phoneHolder" | "whatsapp.rulesWindow" | "whatsapp.rulesDailyLimit" | "crm.workHours" | "widget.enabled" | "widget.chat" | "wazzup.apiKey" | "wazzup.baseUrl" | "wazzup.channelId" | "gowa.historySyncedAt" | "ai.knowledge" | EmailSettingKey;
+type MessagingSettingKey = "bot.mode" | "bot.config" | "bot.lessons" | "bot.coach" | "bot.materials" | "whatsapp.phoneHolder" | "whatsapp.rulesWindow" | "whatsapp.rulesDailyLimit" | "crm.workHours" | "widget.enabled" | "widget.chat" | "widget.help" | "wazzup.apiKey" | "wazzup.baseUrl" | "wazzup.channelId" | "gowa.historySyncedAt" | "ai.knowledge" | EmailSettingKey;
 
 /** Порты рабочего пространства и почты: настройки, уведомления, живое обновление, график, свои поля, SMTP. */
 interface WorkspacePorts {
@@ -79,6 +81,8 @@ export const VISITOR_COOKIE = "mb_chat";
 export class MessagingModule {
   readonly chats: MessagingService;
   readonly site: SiteChatService;
+  /** Помощник в кабинете книги: ответы по справочнику кабинета и книге клиента, передача вопроса менеджеру. */
+  readonly help: CabinetHelpService;
   readonly queries = new DrizzleMessagingQueries();
   /** Свой шлюз WhatsApp (GOWA): привязка номера, состояние, вложения. */
   readonly gowa: GowaClient;
@@ -183,6 +187,30 @@ export class MessagingModule {
     this.chats = new MessagingService(conversations, messages, drizzleBlocklist, transport, deps.sales, deps.links, notifier, live, deps.rules, bot, deps.clock, consoleLogger("chats"), deps.whatsapp, () => this.phoneHolder(), ruleSending, this.staffLine, deps.tasks);
     this.media = new ChatMediaService(conversations, messages, gowaMediaGateway(this.gowa), async () => (await deps.whatsappSettings.provider()) === "gowa", Date.now, chatFiles);
     this.site = new SiteChatService(this.chats, deps.sales, deps.tasks, notifier, live, deps.clock, siteIds, deps.schedule);
+    this.help = new CabinetHelpService({
+      conversations,
+      messages,
+      chats: { send: (id, text) => this.chats.send(id, text, null, "bot"), addInternalNote: (id, text) => this.chats.addInternalNote(id, text, null, "bot") },
+      model: deps.sellerModel ?? null,
+      store: drizzleHelpStore,
+      sales: deps.sales,
+      notifier,
+      live,
+      clock: deps.clock,
+      logger: consoleLogger("help"),
+      chatId: helpChatId,
+      uuid: () => crypto.randomUUID(),
+    });
+  }
+
+  /** Вопросы клиента помощнику в кабинете — для чата WhatsApp и карточки клиента в CRM. */
+  helpQuestionsOf(clientId: string, limit?: number) {
+    return helpQuestionsOf(clientId, limit);
+  }
+
+  /** Сколько вопросов помощнику за период, сколько ушло менеджеру и во что обошлось. */
+  helpStats(days?: number) {
+    return helpStats(days);
   }
 
   /** Файл от сотрудника (фото, видео, аудио, документ): сохраняется у нас (чтобы открыть в CRM) и уходит клиенту. */
@@ -550,6 +578,12 @@ export class MessagingModule {
   /** Настройки виджета на сайте (кнопка WhatsApp, онлайн-чат). */
   widgetConfig() {
     return widgetSettings(this.deps.settings, this.deps.whatsapp);
+  }
+
+  /** Помощник в кабинете книги: включён ли (настройка «Помощник в кабинете», по умолчанию да) и номер WhatsApp для кнопки «Написать в WhatsApp». */
+  async helpConfig() {
+    const on = (await this.deps.settings.get("widget.help")) !== "off";
+    return { enabled: on, whatsapp: on ? await this.deps.whatsapp().catch(() => "") : "" };
   }
 
   /** Переписка посетителя для виджета. */

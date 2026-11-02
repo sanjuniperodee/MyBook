@@ -480,7 +480,7 @@ export function Summary({ plan, qty, price, promo, upgrade, offered, error, bloc
 export function MobileBar({ total, deliveryQuoted = false }: { total: number; deliveryQuoted?: boolean }) {
   const t = useMessages().checkout;
   return (
-  <div className="fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 border-t border-line bg-white/95 px-4 py-3 backdrop-blur-md lg:hidden" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
+  <div data-bottom-bar className="fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 border-t border-line bg-white/95 px-4 py-3 backdrop-blur-md lg:hidden" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
     <div className="min-w-0 flex-1">
       <div className="text-xs text-muted">{t.toPay}</div>
       <div className="font-serif text-2xl leading-none tabular-nums">{formatPrice(total)}</div>
