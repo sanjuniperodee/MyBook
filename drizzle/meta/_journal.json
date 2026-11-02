@@ -617,6 +617,13 @@
       "when": 1793612251374,
       "tag": "0087_chapter_opener_left",
       "breakpoints": true
+    },
+    {
+      "idx": 88,
+      "version": "7",
+      "when": 1793643841730,
+      "tag": "0088_invite_text",
+      "breakpoints": true
     }
   ]
 }

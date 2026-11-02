@@ -7,6 +7,7 @@ import { container } from "@/server/container";
 import { MAX_EXTRA_PHOTOS } from "@/modules/authoring/domain/Book";
 import { NAMES_ON_COVER_MAX } from "@/lib/book/cover-names";
 import { RECORDED_BY_MAX } from "@/lib/content/kinds";
+import { INVITE_TEXT_MAX } from "@/lib/content/letter-invite";
 import { TOC_EPIGRAPH_MAX, TOC_LINES_MAX, TOC_MODES, TOC_TITLE_MAX } from "@/lib/book/toc";
 
 const patchSchema = z
@@ -51,6 +52,8 @@ const patchSchema = z
     tocLines: z
       .record(z.string().max(90), z.object({ title: z.string().max(TOC_TITLE_MAX).optional(), hidden: z.boolean().optional(), epigraph: z.string().max(TOC_EPIGRAPH_MAX).optional(), noOpenerPhoto: z.boolean().optional() }))
       .refine((o) => Object.keys(o).length <= TOC_LINES_MAX),
+    // Свой текст приглашения близких (страница письма и сообщение со ссылкой); пусто — по умолчанию.
+    inviteText: z.string().trim().max(INVITE_TEXT_MAX),
     occasion: z.string().max(40).nullable(),
     occasionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
     language: z.string().refine(isLocale, "unknownLanguage"),

@@ -12,6 +12,9 @@ import { useLocale, useMessages } from "@/i18n/client";
 import { localizePath, type Locale } from "@/i18n/config";
 import { letterShareFor } from "@/i18n/messages/partial";
 import type { BookKind } from "@/lib/content/kinds";
+import { INVITE_TEXT_MAX, inviteRecipient } from "@/lib/content/letter-invite";
+import { useAutosave } from "@/hooks/useAutosave";
+import { SaveIndicator } from "@/components/SaveIndicator";
 
 interface ManagedLetter {
   id: string;
@@ -37,8 +40,8 @@ export function LettersManager({
   initialToken: string | null;
   initialLetters: ManagedLetter[];
   appUrl: string;
-  /** О какой книге просим письма: вид, автор, название, получатель (у автобиографии его нет). */
-  invitation: { kind: BookKind; author: string; title: string; recipient: string };
+  /** О какой книге просим письма: вид, автор, название, получатель (у автобиографии его нет), свой текст приглашения. */
+  invitation: { kind: BookKind; author: string; title: string; recipient: string; inviteText: string };
   bookLanguage: Locale;
   editable: boolean;
 }) {
@@ -54,7 +57,14 @@ export function LettersManager({
   const [editing, setEditing] = useState<string | null>(null);
   // Близкие пишут для книги — страница письма и текст приглашения на языке книги.
   const link = token ? `${appUrl}${localizePath(`/letters/${token}`, bookLanguage)}` : "";
-  const shareText = letterShareFor(bookLanguage)(invitation, link);
+  // Свой текст приглашения: близкие видят его на странице письма и в сообщении со ссылкой вместо текста по умолчанию.
+  const [inviteText, setInviteText] = useState(invitation.inviteText);
+  const shareText = letterShareFor(bookLanguage)({ ...invitation, inviteText }, link);
+  const lt = msgs.gift.letter;
+  const defaultInvite = invitation.kind === "gift" ? lt.text(invitation.recipient.trim(), invitation.title) : lt.textByKind[invitation.kind](invitation.title);
+  const inviteSave = useAutosave<string>(async (text) => {
+    await apiFetch(`/api/books/${bookId}`, { method: "PATCH", json: { inviteText: text } });
+  }, 700);
 
   const setInvite = async (enabled: boolean, regenerate = false) => {
     setBusy(true);
@@ -132,7 +142,29 @@ export function LettersManager({
                   {t.close}
                 </button>
               </div>
-              <p className="mt-4 text-xs text-muted">{t.privacy(!!invitation.recipient.trim())}</p>
+              <div className="mt-5">
+                <div className="flex items-center justify-between gap-2">
+                  <label htmlFor="invite-text" className="text-sm font-medium">
+                    {t.inviteText}
+                  </label>
+                  <SaveIndicator status={inviteSave.status} error={inviteSave.error} className="text-xs" />
+                </div>
+                <textarea
+                  id="invite-text"
+                  className="input mt-1.5 text-sm"
+                  rows={4}
+                  maxLength={INVITE_TEXT_MAX}
+                  value={inviteText}
+                  placeholder={defaultInvite}
+                  disabled={!editable}
+                  onChange={(e) => {
+                    setInviteText(e.target.value);
+                    inviteSave.schedule(e.target.value);
+                  }}
+                />
+                <p className="mt-1 text-xs text-muted">{t.inviteTextHint}</p>
+              </div>
+              <p className="mt-4 text-xs text-muted">{t.privacy(!!inviteRecipient(invitation.kind, invitation.recipient, inviteText))}</p>
             </>
           ) : (
             <button className="btn btn-primary mt-5 w-full" onClick={() => setInvite(true)} disabled={busy || !editable}>

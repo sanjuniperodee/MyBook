@@ -10,6 +10,7 @@ import { NAMES_ON_COVER_MAX } from "@/lib/book/cover-names";
 import { isTocMode, parseTocLines, type TocLines, type TocMode } from "@/lib/book/toc";
 import { PAGINATION_REV_2 } from "@/lib/book/layout";
 import { getOccasion } from "@/lib/occasions";
+import { INVITE_TEXT_MAX } from "@/lib/content/letter-invite";
 import { bookKind, CHAPTER_TITLE_MAX, RECORDED_BY_MAX, type BookKind, type RecipientPolicy } from "@/lib/content/kinds";
 import { AuthoringError } from "./errors";
 import { AuthoringEvents, type BookRef } from "./events";
@@ -71,6 +72,8 @@ export interface BookProps {
    */
   paginationRev: number;
   inviteToken: string | null;
+  /** Свой текст приглашения на странице письма близких; пусто — по умолчанию (с «её получит …» у подарка). */
+  inviteText: string;
   language: Locale;
   occasion: string | null;
   occasionDate: string | null;
@@ -94,7 +97,7 @@ export const isBookEditableBy = (ownerId: string, viewer: BookViewer) => (viewer
 
 /** Настройки книги, которые клиент меняет в редакторе. */
 export type BookSettings = Partial<
-  Pick<BookProps, "title" | "subtitle" | "authorName" | "authorGender" | "recordedBy" | "recipientName" | "recipientGender" | "hideRecipientOnCover" | "namesOnCover" | "coverTemplate" | "backText" | "backLayout" | "dedication" | "interior" | "format" | "photoPlacement" | "showToc" | "tocMode" | "occasion" | "occasionDate">
+  Pick<BookProps, "title" | "subtitle" | "authorName" | "authorGender" | "recordedBy" | "recipientName" | "recipientGender" | "hideRecipientOnCover" | "namesOnCover" | "coverTemplate" | "backText" | "backLayout" | "dedication" | "interior" | "format" | "photoPlacement" | "showToc" | "tocMode" | "occasion" | "occasionDate" | "inviteText">
 >;
 
 /** Вопрос из банка темы, который копируется в книгу при создании. */
@@ -203,6 +206,7 @@ export class Book extends AggregateRoot<BookProps> {
       layoutRev: NEW_BOOK_LAYOUT_REV,
       paginationRev: NEW_BOOK_PAGINATION_REV,
       inviteToken: null,
+      inviteText: "",
       language: input.language,
       occasion,
       occasionDate: occasion ? input.occasionDate || null : null,
@@ -298,6 +302,7 @@ export class Book extends AggregateRoot<BookProps> {
       else delete clean.recordedBy;
     }
     if (clean.namesOnCover !== undefined) clean.namesOnCover = clip(clean.namesOnCover, NAMES_ON_COVER_MAX);
+    if (clean.inviteText !== undefined) clean.inviteText = clip(clean.inviteText, INVITE_TEXT_MAX);
     if (kind === "autobiography") delete clean.recipientName;
     if (kind !== "gift") delete clean.recipientGender;
     this.props = { ...this.props, ...clean };

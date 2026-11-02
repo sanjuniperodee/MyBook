@@ -181,6 +181,7 @@ function bookRow(key: string, design: InteriorId, format: FormatId, language: Lo
     // Прежние полосы глав: снимки вёрстки не меняются; начальную полосу слева проверяют pdf-critical и chapter-opener-left.
     paginationRev: 1,
     inviteToken: null,
+    inviteText: "",
     occasion: null,
     occasionDate: null,
     language,

@@ -39,6 +39,7 @@ const book: Book = {
   layoutRev: 1,
   paginationRev: 1,
   inviteToken: null,
+  inviteText: "",
   occasion: null,
   occasionDate: null,
   language: "ru",

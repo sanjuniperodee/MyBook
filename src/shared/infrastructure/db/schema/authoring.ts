@@ -101,6 +101,11 @@ export const books = pgTable(
     paginationRev: smallint("pagination_rev").notNull().default(2),
     /** Токен публичной ссылки для писем от близких; null — приём писем выключен. */
     inviteToken: text("invite_token"),
+    /**
+     * Свой текст приглашения на странице письма близких (вместо «Её получит …»): например, книга в память о человеке.
+     * Пусто — текст по умолчанию по виду книги.
+     */
+    inviteText: text("invite_text").notNull().default(""),
     /** Язык книги: вопросы, заголовки глав и служебные страницы PDF (ru | kk). */
     language: text("language").$type<Locale>().notNull().default("ru"),
     /** Повод подарка (см. lib/occasions) и дата, к которой нужна книга. */

@@ -6,10 +6,14 @@ export interface LetterShareBook {
   author: string;
   title: string;
   recipient: string;
+  /** Свой текст приглашения (books.invite_text); пусто — текст по виду книги. */
+  inviteText?: string;
 }
 
 /** Просьба написать письмо в книгу — для мессенджера, на языке книги. Текст зависит от вида книги. */
-export const share = ({ kind, author, title, recipient }: LetterShareBook, link: string) => {
+export const share = ({ kind, author, title, recipient, inviteText }: LetterShareBook, link: string) => {
+  // Свой текст приглашения автора — как есть, со ссылкой.
+  if (inviteText?.trim()) return `${inviteText.trim()}\n${link}`;
   const who = author.trim() || "автор";
   if (kind === "autobiography") return `Мы готовим книгу жизни — автор: ${who}. Напишите, пожалуйста, пару тёплых слов или воспоминание — они войдут в книгу: ${link}`;
   if (kind === "blank") return `${who} пишет книгу «${title}». Напишите, пожалуйста, пару тёплых слов или воспоминание — они могут войти в книгу: ${link}`;

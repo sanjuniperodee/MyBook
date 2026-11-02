@@ -24,7 +24,7 @@ export default async function LettersPage({ params }: { params: Promise<{ id: st
         bookId={book.id}
         initialToken={book.inviteToken}
         appUrl={env.appUrl}
-        invitation={{ kind: bookKind(book.theme), author: book.authorName, title: book.title, recipient: book.recipientName }}
+        invitation={{ kind: bookKind(book.theme), author: book.authorName, title: book.title, recipient: book.recipientName, inviteText: book.inviteText }}
         bookLanguage={book.language}
         editable={book.status === "draft"}
         initialLetters={letters.map((l) => ({ id: l.id, authorName: l.authorName, relation: l.relation, text: l.text, status: l.status, createdAt: l.createdAt.toISOString() }))}

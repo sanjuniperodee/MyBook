@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { container } from "@/server/container";
 import { bookKind } from "@/lib/content/kinds";
+import { inviteRecipient } from "@/lib/content/letter-invite";
 import { Logo } from "@/components/Logo";
 import { CoverPreview } from "@/components/cover/CoverPreview";
 import { getCoverTemplate } from "@/lib/book/covers";
@@ -21,8 +22,10 @@ export default async function LetterPage({ params }: { params: Promise<{ token: 
   const t = (await getMessages()).gift.letter;
   const author = book.authorName.trim();
   const kind = bookKind(book.theme);
+  // Свой текст приглашения автора — вместо текста по умолчанию; с ним имя получателя не подставляем нигде.
+  const custom = book.inviteText.trim();
   // У автобиографии получателя нет; у своей книги он необязателен.
-  const recipient = kind === "autobiography" ? "" : book.recipientName.trim();
+  const recipient = inviteRecipient(kind, book.recipientName, book.inviteText);
   // Фото-обложку не показываем посторонним — только дизайнерский шаблон.
   const template = getCoverTemplate(book.coverTemplate).requiresPhoto ? "linen" : book.coverTemplate;
 
@@ -40,10 +43,11 @@ export default async function LetterPage({ params }: { params: Promise<{ token: 
           <div>
             <div className="eyebrow">{t.invite}</div>
             <h1 className="mt-2 font-serif text-4xl leading-tight font-medium sm:text-5xl">
-              {kind === "gift" ? t.headline(author || t.author) : t.headlineByKind[kind](author || t.author)}
+              {/* Со своим текстом у подарка — без «книги-сюрприза»: автор сам говорит, о какой книге речь. */}
+              {kind === "gift" && !custom ? t.headline(author || t.author) : t.headlineByKind[kind === "gift" ? "blank" : kind](author || t.author)}
             </h1>
-            <p className="mt-3 text-lg text-muted">
-              {kind === "gift" ? t.text(recipient, book.title) : t.textByKind[kind](book.title)}
+            <p className="mt-3 text-lg whitespace-pre-line text-muted">
+              {custom || (kind === "gift" ? t.text(recipient, book.title) : t.textByKind[kind](book.title))}
             </p>
           </div>
         </div>
