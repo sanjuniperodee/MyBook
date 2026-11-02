@@ -67,12 +67,11 @@ export class DrizzleBookRepository implements BookRepository {
   }
   async save(book: Book) {
     // Правила раскладки фото снимок не пишет: их меняет только перевод книги (layoutRevStore), и книга, загруженная до
-    // него, не вернёт прежние. Полосы глав — тоже: их задаёт миграция, правка книги их не трогает.
-    const { id, createdAt: _c, userId: _u, layoutRev: _r, paginationRev: _p, ...props } = book.snapshot();
+    // него, не вернёт прежние.
+    const { id, createdAt: _c, userId: _u, layoutRev: _r, ...props } = book.snapshot();
     void _c;
     void _u;
     void _r;
-    void _p;
     await executor().update(books).set({ ...props, updatedAt: new Date() }).where(eq(books.id, id));
   }
   async touch(bookId: string) {

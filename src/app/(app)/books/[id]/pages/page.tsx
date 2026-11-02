@@ -10,7 +10,7 @@ import { bookKind } from "@/lib/content/kinds";
 import { getFormat } from "@/lib/book/formats";
 import { getInteriorDesign, interiorsForCover, parseInteriorStyle } from "@/lib/book/interiors";
 import { bookSpreadSample } from "@/server/spreadSample";
-import { questionTexts, toPhotoItem } from "@/lib/book/layout";
+import { PAGINATION_REV_2, questionTexts, toPhotoItem } from "@/lib/book/layout";
 import { buildBookContent } from "@/lib/book/book-content";
 import { withCoverPhotos } from "@/lib/book/cover-photos";
 import { editorModel } from "@/lib/book/editor-data";
@@ -96,7 +96,7 @@ export default async function PagesPage({ params }: { params: Promise<{ id: stri
         photos={photoData}
         theme={book.theme}
         cover={{ name: coverName(book.coverTemplate, locale), pairs: interiorsForCover(book.coverTemplate).map((d) => d.id) }}
-        initial={{ interior: getInteriorDesign(book.interior).id, interiorStyle: parseInteriorStyle(book.interiorStyle), dedication: book.dedication, showToc: book.showToc, tocMode: book.tocMode, tocLines: book.tocLines, photoPlacement: book.photoPlacement }}
+        initial={{ interior: getInteriorDesign(book.interior).id, interiorStyle: parseInteriorStyle(book.interiorStyle), dedication: book.dedication, showToc: book.showToc, tocMode: book.tocMode, tocLines: book.tocLines, photoPlacement: book.photoPlacement, openersLeft: book.paginationRev === PAGINATION_REV_2 }}
       />
     </main>
   );

@@ -3,6 +3,9 @@ import { estimatePages, openerPage } from "@/lib/book/estimate";
 import { emptyFlow, refineBlanks } from "@/lib/book/flow-decisions";
 import { contentFingerprint, contentFor, renderInterior, type BookBundle } from "@/modules/production/infrastructure/pdf/render";
 import type { Book, BookQuestion } from "@/shared/infrastructure/db/schema";
+import { AuthoringError, Book as BookAggregate } from "@/modules/authoring/domain";
+import { BooksService } from "@/modules/authoring/application/services";
+import { FakeUow, ids, MemBooks, MemFiles, noChapters, noQuestions, now as testNow, owner, startBook, themes } from "./doubles/authoring";
 
 // 02.11.2026: клиентка спросила, почему в 3D-макете глава стоит рядом с содержанием, а не с текстом, как на развороте
 // в «Страницах». Начальная полоса главы вставала, куда выпадет по счёту: с посвящением оглавление на 4-й (слева),
@@ -149,5 +152,44 @@ describe("блок с начальной полосой главы слева", 
     // С посвящением первая глава встала бы на 5-ю — значит, хотя бы одна пустая полоса.
     expect(left).toBeGreaterThan(old);
     expect(left - old).toBeLessThanOrEqual(5);
+  });
+});
+
+// 02.11.2026: у клиентки (книга на казахском) пять пустых полос перед главами, убрать их сама она не могла. Владелец:
+// «добавь просто кнопку которая регулирует это правило» — «Страницы» → «Элементы» → «Глава всегда с левой страницы».
+describe("переключатель «Глава всегда с левой страницы»", () => {
+  it("новая книга — включено; выключение и включение меняют полосы глав книги", () => {
+    const book = startBook();
+    expect(book.snapshot().paginationRev).toBe(2);
+    book.setOpenersLeft(false);
+    expect(book.snapshot().paginationRev).toBe(1);
+    book.setOpenersLeft(true);
+    expect(book.snapshot().paginationRev).toBe(2);
+  });
+
+  it("у заказанной книги не меняется", () => {
+    const book = BookAggregate.restore("b1", { ...startBook().snapshot(), status: "ordered", paginationRev: 1 });
+    try {
+      book.setOpenersLeft(true);
+      expect.unreachable();
+    } catch (e) {
+      expect(AuthoringError.is(e) && e.code).toBe("bookLocked");
+    }
+  });
+
+  it("настройка из редактора сохраняется вместе с книгой", async () => {
+    const books = new MemBooks();
+    const service = new BooksService(books, noQuestions, themes, { bookHasOrders: async () => false }, new MemFiles(), ids, new FakeUow(), { now: () => testNow }, noChapters);
+    await service.start("u1", { theme: "love", language: "ru", authorName: "Алия", authorGender: "f", recipientName: "Марат", recipientGender: "m" });
+    await service.updateSettings("b1", owner, { openersLeft: false }, undefined as never);
+    expect(books.rows.get("b1")!.snapshot().paginationRev).toBe(1);
+  });
+
+  it("выключено — вёрстка и отпечаток сборки как у прежних книг: без пустых полос, глава 1 напротив оглавления", async () => {
+    const off = bundleOf({ paginationRev: 1 });
+    expect(contentFor(off)).toEqual(contentFor({ ...off, book: { ...off.book, paginationRev: undefined as never } }));
+    const res = await renderInterior(off, "preview");
+    expect(res.pages.filter((p) => p.kind === "blank")).toEqual([]);
+    expect(res.contentPages).toBeLessThan((await renderInterior(bundleOf({}), "preview")).contentPages);
   });
 });

@@ -31,7 +31,22 @@ export function GlyphTile({ glyph, design, active, onClick, label }: { glyph: Gl
 }
 
 /** Элементы: буквица и капитель, номер главы, орнамент и виньетка, разделители, рамки и рисунки, колонтитулы и колонцифры, цитаты, титул, фото. */
-export function ElementsTab({ design, style, set, onFocus }: { design: InteriorDesign; style: InteriorStyle; set: (s: InteriorStyle) => void; onFocus: (kind: "chapter" | "front" | "photos" | "toc") => void }) {
+export function ElementsTab({
+  design,
+  style,
+  set,
+  onFocus,
+  openersLeft,
+  onOpenersLeft,
+}: {
+  design: InteriorDesign;
+  style: InteriorStyle;
+  set: (s: InteriorStyle) => void;
+  onFocus: (kind: "chapter" | "front" | "photos" | "toc") => void;
+  /** «Глава всегда с левой страницы» — настройка книги (books.pagination_rev), не стиля: сброс стиля её не трогает. */
+  openersLeft: boolean;
+  onOpenersLeft: (v: boolean) => void;
+}) {
   const m = useMessages().design;
   const t = m.pages.elements;
   const reset = m.ui.reset;
@@ -58,6 +73,7 @@ export function ElementsTab({ design, style, set, onFocus }: { design: InteriorD
 
       <PanelSection title={t.number}>
         <Segmented value={design.opener.number} options={O.numbers.map((v) => ({ value: v, label: t.numbers[v] }))} onChange={(v) => el({ number: v })} onReset={r("number")} resetLabel={reset} wrap />
+        <Toggle label={t.openersLeft} hint={t.openersLeftHint} checked={openersLeft} onChange={onOpenersLeft} />
       </PanelSection>
 
       <PanelSection title={t.ornament}>

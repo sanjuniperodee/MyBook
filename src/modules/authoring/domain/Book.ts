@@ -8,6 +8,7 @@ import { DEFAULT_BACK_LAYOUT, isBackLayout } from "@/lib/book/cover-back";
 import { frameKey, parseFrames, type FrameMap } from "@/lib/book/photo-frame";
 import { NAMES_ON_COVER_MAX } from "@/lib/book/cover-names";
 import { isTocMode, parseTocLines, type TocLines, type TocMode } from "@/lib/book/toc";
+import { PAGINATION_REV_2 } from "@/lib/book/layout";
 import { getOccasion } from "@/lib/occasions";
 import { bookKind, CHAPTER_TITLE_MAX, RECORDED_BY_MAX, type BookKind, type RecipientPolicy } from "@/lib/content/kinds";
 import { AuthoringError } from "./errors";
@@ -65,8 +66,8 @@ export interface BookProps {
    */
   layoutRev: number;
   /**
-   * Полосы глав (lib/book/layout.ts PAGINATION_REV_2): 2 — начальная полоса главы всегда слева. Снимок книги её не пишет:
-   * заказанные до выпуска книги остаются на 1 (миграция 0087), новые — сразу 2.
+   * Полосы глав (lib/book/layout.ts PAGINATION_REV_2): 2 — начальная полоса главы всегда слева (перед ней может встать
+   * пустая полоса), 1 — где выпадет. Новые книги — 2; автор переключает в «Страницах» → «Элементы» (setOpenersLeft).
    */
   paginationRev: number;
   inviteToken: string | null;
@@ -344,6 +345,12 @@ export class Book extends AggregateRoot<BookProps> {
   setTocLines(raw: unknown) {
     this.assertEditable();
     this.props.tocLines = parseTocLines(raw);
+  }
+
+  /** «Глава всегда с левой страницы»: включено — полосы глав 2 (пустая полоса перед главой, если нужна), выключено — 1. */
+  setOpenersLeft(on: boolean) {
+    this.assertEditable();
+    this.props.paginationRev = on ? PAGINATION_REV_2 : 1;
   }
 
   /** Настройки дизайнера страниц: принимаются только известные поля, числа — в допустимых пределах, цвета — #RRGGBB. */

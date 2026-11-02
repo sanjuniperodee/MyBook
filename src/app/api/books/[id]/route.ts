@@ -43,6 +43,8 @@ const patchSchema = z
     format: z.string().max(20),
     photoPlacement: z.enum(["chapters", "end", "none"]),
     showToc: z.boolean(),
+    // «Глава всегда с левой страницы» (books.pagination_rev 2 / 1).
+    openersLeft: z.boolean(),
     tocMode: z.enum(TOC_MODES),
     // Строки оглавления: вид ключей и длину названий проверяет домен (parseTocLines), здесь — только размер.
     // noOpenerPhoto — «глава без фото» (решение автора для редактора, в вёрстку не идёт).

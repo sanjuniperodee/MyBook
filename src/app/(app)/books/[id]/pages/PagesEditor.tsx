@@ -33,6 +33,8 @@ interface PagesState {
   tocMode: TocMode;
   tocLines: TocLines;
   photoPlacement: "chapters" | "end" | "none";
+  /** «Глава всегда с левой страницы» (books.pagination_rev 2): перед главой может встать пустая страница. */
+  openersLeft: boolean;
 }
 
 const spreads: SpreadKind[] = ["chapter", "photos", "front", "toc"];
@@ -101,7 +103,8 @@ export function PagesEditor({
       throw e;
     }
     // Новое оформление — сервер пересоберёт книгу: места фото (фото главы или после главы), подсказки формы, разворот.
-    if (patch.interior) router.refresh();
+    // Сторона глав — номера страниц в оглавлении разворота.
+    if (patch.interior || patch.openersLeft !== undefined) router.refresh();
   }, 600);
   const update = (patch: Partial<PagesState>) => {
     if (!editable) return;
@@ -140,6 +143,7 @@ export function PagesEditor({
       state.interior !== initial.interior ||
       JSON.stringify(state.interiorStyle) !== JSON.stringify(initial.interiorStyle) ||
       state.showToc !== initial.showToc ||
+      state.openersLeft !== initial.openersLeft ||
       state.tocMode !== initial.tocMode ||
       !!state.dedication.trim() !== !!initial.dedication.trim() ||
       JSON.stringify(state.tocLines ?? {}) !== JSON.stringify(initial.tocLines ?? {});
@@ -267,6 +271,8 @@ export function PagesEditor({
             setSpread(kind);
             setPreviewChapter(chapterKey ?? null);
           }}
+          openersLeft={state.openersLeft}
+          onOpenersLeft={(openersLeft) => update({ openersLeft })}
         />
 
         <FormSection title={t.dedication} description={dedicationHint.text}>

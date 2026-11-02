@@ -48,6 +48,8 @@ export function DesignStudio({
   chapters,
   editable,
   onPreview,
+  openersLeft,
+  onOpenersLeft,
 }: {
   bookId: string;
   interior: InteriorId;
@@ -63,6 +65,9 @@ export function DesignStudio({
   editable: boolean;
   /** Какой разворот показать (и какую главу — для вкладки «Главы»). */
   onPreview: (kind: SpreadKind, chapterKey?: string | null) => void;
+  /** «Глава всегда с левой страницы» (вкладка «Элементы»): настройка книги, вне отмены правок стиля. */
+  openersLeft: boolean;
+  onOpenersLeft: (v: boolean) => void;
 }) {
   const m = useMessages().design;
   const t = m.pages;
@@ -200,7 +205,7 @@ export function DesignStudio({
         {tab === "styles" ? <StylesTab current={interior} format={format} sample={sample} pairs={cover.pairs} coverName={cover.name} editable={editable} onPick={pickStyle} /> : null}
         {tab === "fonts" ? <FontsTab design={design} style={style} set={setStyle} sample={sample.title} onFocus={focus} /> : null}
         {tab === "text" ? <TextTab design={design} style={style} set={setStyle} onFocus={focus} /> : null}
-        {tab === "elements" ? <ElementsTab design={design} style={style} set={setStyle} onFocus={focus} /> : null}
+        {tab === "elements" ? <ElementsTab design={design} style={style} set={setStyle} onFocus={focus} openersLeft={openersLeft} onOpenersLeft={onOpenersLeft} /> : null}
         {tab === "colors" ? <ColorsTab design={design} base={base} style={style} set={setStyle} onFocus={focus} /> : null}
         {tab === "chapters" ? (
           <ChaptersTab
