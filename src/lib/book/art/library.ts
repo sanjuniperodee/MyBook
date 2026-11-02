@@ -379,7 +379,7 @@ export function pattern(f: Fields): Shape[] {
 
 // ─── рамки ─────────────────────────────────────────────────────────────────
 
-export const BORDERS = [...PATTERNS, "line", "double", "chamfer", "brackets"] as const;
+export const BORDERS = [...PATTERNS, "line", "double", "chamfer", "brackets", "regency"] as const;
 
 /** Рамка по краям холста: на каждой стороне — полоса узора, в углах — розетки. */
 export function border(f: Fields): Shape[] {
@@ -398,6 +398,19 @@ export function border(f: Fields): Shape[] {
     const cut = band * 1.4;
     const chamfer = (i: number, c: number) => poly([{ x: i + c, y: i }, { x: w - i - c, y: i }, { x: w - i, y: i + c }, { x: w - i, y: h - i - c }, { x: w - i - c, y: h - i }, { x: i + c, y: h - i }, { x: i, y: h - i - c }, { x: i, y: i + c }]);
     return [shape(chamfer(inset, cut), { ...line, width: n(f.num("width", ctx.unit * 0.006, 0.1, 50)) }), shape(chamfer(inset + band * 0.5, cut * 0.7), { ...line, width: n(Math.max(ctx.unit * 0.0028, 0.2)) })];
+  }
+  if (kind === "regency") {
+    // Двойная тонкая рамка с вогнутыми углами и точками в углах — как в книгах и афишах эпохи Регентства.
+    const r = band * 0.9;
+    const notched = (i: number, rr: number) =>
+      `M${n(i + rr)},${n(i)} L${n(w - i - rr)},${n(i)} A${n(rr)},${n(rr)} 0 0 0 ${n(w - i)},${n(i + rr)} L${n(w - i)},${n(h - i - rr)} A${n(rr)},${n(rr)} 0 0 0 ${n(w - i - rr)},${n(h - i)} L${n(i + rr)},${n(h - i)} A${n(rr)},${n(rr)} 0 0 0 ${n(i)},${n(h - i - rr)} L${n(i)},${n(i + rr)} A${n(rr)},${n(rr)} 0 0 0 ${n(i + rr)},${n(i)}Z`;
+    const gap = band * 0.32;
+    const dots = [[inset, inset], [w - inset, inset], [inset, h - inset], [w - inset, h - inset]].map(([x, y]) => circlePath(x, y, Math.max(band * 0.14, 0.4))).join(" ");
+    return [
+      shape(notched(inset, r), { ...line, width: n(f.num("width", ctx.unit * 0.0045, 0.1, 50)) }),
+      shape(notched(inset + gap, Math.max(0.5, r - gap)), { ...line, width: n(Math.max(ctx.unit * 0.0018, 0.15)), opacity: 0.85 }),
+      shape(dots, { ...st, stroke: null, fill: st.stroke ?? st.fill ?? "main" }),
+    ];
   }
   if (kind === "brackets") {
     // Тонкие угловые метки: четыре уголка.

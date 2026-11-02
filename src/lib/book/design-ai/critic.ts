@@ -4,7 +4,7 @@
  * подложки, рукописный шрифт в основном тексте. Замечания уходят модели в круг исправления, как и ошибки операций.
  */
 import { getCoverTemplate } from "../covers";
-import { layerText, type CoverDesign, type CoverLayer, type CoverTexts, type TextLayer } from "../cover-design";
+import { layerText, type CoverDesign, type CoverLayer, type CoverTexts, type DecorLayer, type TextLayer } from "../cover-design";
 import { fontFaces, type FontKey } from "../fonts";
 import { applyInteriorStyle, getInteriorDesign } from "../interiors";
 import type { CoverState, PagesState } from "./ops";
@@ -41,13 +41,39 @@ const overlap = (a: CoverLayer, b: CoverLayer) => {
   return w > 0 && h > 0 ? (w * h) / Math.max(1e-6, a.w * a.h) : 0;
 };
 
-/** Сплошная подложка под текстом: фигура с заливкой ниже слоя, закрывающая его. */
+/**
+ * Затемнение рисунка (fade) под серединой текста: насколько плотно прямоугольники рисунка закрывают точку и каким
+ * цветом. Рисунок вписан в рамку слоя — для оценки этого хватает, пропорции здесь не важны.
+ */
+function shadeAt(l: DecorLayer, x: number, y: number): { color: string; cover: number } | null {
+  if (!l.art || l.w <= 0 || l.h <= 0) return null;
+  const px = ((x - l.x) / l.w) * l.art.w;
+  const py = ((y - l.y) / l.h) * l.art.h;
+  let clear = 1;
+  let color: string | null = null;
+  for (const s of l.art.shapes) {
+    if (s.kind !== "rect" || !s.fill) continue;
+    if (px < s.x || px > s.x + s.w || py < s.y || py > s.y + s.h) continue;
+    const c = s.fill === "main" ? l.color : s.fill === "accent" ? (l.accent ?? l.color) : s.fill;
+    if (!HEX.test(c)) continue;
+    clear *= 1 - (s.opacity ?? 1) * (l.opacity ?? 1);
+    color = c;
+  }
+  return color ? { color, cover: 1 - clear } : null;
+}
+
+/** Сплошная подложка под текстом: фигура с заливкой ниже слоя, закрывающая его, или плотное затемнение рисунком. */
 function solidUnder(design: CoverDesign, i: number, text: TextLayer): string | null {
   for (let j = i - 1; j >= 0; j--) {
     const l = design.layers[j];
     if (l.hidden) continue;
     if (overlap(text, l) < 0.85) continue;
     if (l.kind === "shape" && l.fill && HEX.test(l.fill) && (l.opacity ?? 1) > 0.8 && l.shape !== "line" && l.shape !== "frame" && l.shape !== "corners" && l.shape !== "double") return l.fill;
+    if (l.kind === "decor" && l.motif === "art") {
+      // Затемнение под текстом на фото: середина строки закрыта хотя бы на 55% — текст читается, считаем его фоном.
+      const shade = shadeAt(l, text.x + text.w / 2, text.y + text.h / 2);
+      if (shade && shade.cover >= 0.55) return shade.color;
+    }
     if (l.kind === "image") return "image";
   }
   return null;

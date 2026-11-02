@@ -30,6 +30,9 @@ function shapeOf(raw: unknown): Shape | null {
   if (!o) return null;
   const L = DRAWING_LIMITS;
   const opacity = finite(o.opacity, 1) && o.opacity >= 0 ? (o.opacity === 1 ? undefined : round(o.opacity)) : undefined;
+  // Невидимая фигура (прозрачность округлилась до нуля) не хранится: react-pdf принял бы fillOpacity 0 за «нет» и залил
+  // бы её сплошным цветом.
+  if (opacity === 0) return null;
   const width = finite(o.width, L.width) && o.width >= 0 ? round(o.width) : undefined;
   const fill = paint(o.fill);
   const stroke = paint(o.stroke);

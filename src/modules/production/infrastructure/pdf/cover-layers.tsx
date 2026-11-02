@@ -35,6 +35,8 @@ const OVERFLOW = 2000;
  */
 function shapeEl(s: Shape, i: number, gradientId?: string, o = 1) {
   const k = (s.opacity ?? 1) * o;
+  // Нулевую прозрачность react-pdf не отличает от отсутствующей (рисует сплошным) — такую фигуру просто не рисуем.
+  if (k <= 0) return null;
   const op = k === 1 ? undefined : k;
   if (s.kind === "circle") return <Circle key={i} cx={s.cx} cy={s.cy} r={s.r} fill={s.fill} fillOpacity={op} />;
   if (s.kind === "rect")

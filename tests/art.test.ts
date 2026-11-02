@@ -309,3 +309,99 @@ describe("бесплатный лимит ИИ-дизайнера из наст�
     for (const bad of ["", null, undefined, "101", "-1", "2,5", "много", "1e2"]) expect(parseFreeLimit(bad as string)).toBe(DESIGN_AI_FREE_LIMIT);
   });
 });
+
+describe("рисунки: приёмы дорогой обложки", () => {
+  const art = (items: Record<string, unknown>[], w = 300, h = 429) => compileArt({ w, h, items });
+
+  it("fade — полосы одной прозрачности не меньше 0.01, не больше 140, плотность у края ≈ opacity", () => {
+    for (const opacity of [0.3, 0.6, 0.94]) {
+      const r = art([{ t: "fade", x: 0, y: 150, w: 300, h: 279, to: "bottom", opacity, fill: "#1B241E" }]);
+      expect(r.errors).toEqual([]);
+      const rects = r.drawing!.shapes.filter((s) => s.kind === "rect");
+      expect(rects.length).toBe(r.drawing!.shapes.length);
+      expect(rects.length).toBeLessThanOrEqual(140);
+      const steps = new Set(rects.map((s) => s.opacity));
+      expect(steps.size).toBe(1);
+      expect([...steps][0]!).toBeGreaterThanOrEqual(0.01);
+      // У нижнего края закрывают все полосы, у верхнего — почти ни одной.
+      const cover = (y: number) => 1 - rects.filter((s) => s.kind === "rect" && y >= s.y && y <= s.y + s.h).reduce((k, s) => k * (1 - (s.opacity ?? 1)), 1);
+      expect(cover(428.9)).toBeGreaterThan(opacity - 0.03);
+      expect(cover(428.9)).toBeLessThanOrEqual(opacity + 1e-9);
+      expect(cover(152)).toBeLessThan(0.05);
+      // Плотность растёт сверху вниз.
+      expect(cover(250)).toBeLessThan(cover(350));
+    }
+  });
+
+  it("fade к верху и к боку кладёт полосы от того края", () => {
+    const top = art([{ t: "fade", x: 0, y: 0, w: 300, h: 100, to: "top", opacity: 0.6 }]).drawing!.shapes;
+    expect(top.every((s) => s.kind === "rect" && s.y === 0)).toBe(true);
+    const left = art([{ t: "fade", x: 0, y: 0, w: 100, h: 200, to: "left", opacity: 0.6 }], 200, 200).drawing!.shapes;
+    expect(left.every((s) => s.kind === "rect" && s.x === 0)).toBe(true);
+  });
+
+  it("lattice и loops укладываются в пределы пути и рисунка", () => {
+    const r = art([
+      { t: "loops", cx: 150, cy: 150, r: 76, amp: 3, count: 64 },
+      { t: "lattice", cx: 150, cy: 150, r: 88, amp: 5, waves: 26, lines: 10 },
+    ], 300, 300);
+    expect(r.errors).toEqual([]);
+    expect(r.drawing!.shapes).toHaveLength(11);
+    for (const s of r.drawing!.shapes) if (s.kind === "path") expect(s.d.length).toBeLessThanOrEqual(16_000);
+    expect(art([{ t: "lattice", cx: 150, cy: 150, r: 88, waves: 36, lines: 12 }], 300, 300).errors[0]).toMatch(/слишком плотная/);
+  });
+
+  it("pen и flourish — залитые контуры без обводки, длинный мазок не превышает предел пути", () => {
+    const pts = Array.from({ length: 60 }, (_, i) => [10 + i * 4.5, 100 + Math.sin(i / 3) * 20]);
+    const r = art([
+      { t: "pen", points: pts, width: 3, taper: "both", fill: "accent" },
+      { t: "flourish", cx: 150, cy: 300, w: 90 },
+    ]);
+    expect(r.errors).toEqual([]);
+    for (const s of r.drawing!.shapes) {
+      expect(s.kind).toBe("path");
+      if (s.kind === "path") {
+        expect(s.fill).toBeTruthy();
+        expect(s.stroke).toBeUndefined();
+        expect(s.d.length).toBeLessThanOrEqual(16_000);
+      }
+    }
+    expect(art([{ t: "pen", points: [[1, 2]] }]).errors[0]).toMatch(/2–60 точек/);
+  });
+
+  it("рамка regency собирается и остаётся внутри холста", () => {
+    const r = compileArt({ w: 200, h: 280, items: [{ t: "border", kind: "regency", inset: 12, size: 8 }] });
+    expect(r.errors).toEqual([]);
+    expect(r.drawing!.shapes).toHaveLength(3);
+  });
+
+  it("фигура с прозрачностью, округлённой до нуля, не хранится (react-pdf залил бы её сплошным)", () => {
+    const d = sanitizeDrawing({ w: 100, h: 100, shapes: [{ kind: "rect", x: 0, y: 0, w: 10, h: 10, fill: "#000000", opacity: 0.002 }, { kind: "circle", cx: 5, cy: 5, r: 2, opacity: 0.4 }] });
+    expect(d!.shapes).toHaveLength(1);
+    expect(d!.shapes[0].kind).toBe("circle");
+  });
+});
+
+describe("критик: название на фото с затемнением", () => {
+  const texts = { title: "Spend My Life With You", subtitle: "", names: "Бекхан & Томирис" };
+  const base = (): CoverDesign => ({
+    v: 1,
+    background: { kind: "color", color: "#1B241E" },
+    layers: [
+      { id: "photo1", kind: "image", x: 0, y: 0, w: 1, h: 1, stock: "couple", mask: "rect" },
+      { id: "title", kind: "text", bind: "title", text: "", x: 0.13, y: 0.68, w: 0.74, h: 0.14, style: { font: "forum", weight: 400, upper: true, size: 0.072, color: "#F1E7D3", align: "center", valign: "bottom" } },
+    ],
+  });
+
+  it("без затемнения — замечание «on-photo», с fade под названием — замечаний нет", () => {
+    expect(critiqueCover({ template: "film", design: base() }, texts).map((a) => a.code)).toContain("on-photo:title");
+    const fade = compileArt({ w: 300, h: 429, items: [{ t: "fade", x: 0, y: 150, w: 300, h: 279, to: "bottom", opacity: 0.94, fill: "main" }] }).drawing!;
+    const d = base();
+    d.layers.splice(1, 0, { id: "shade", kind: "decor", motif: "art", color: "#1B241E", art: fade, x: 0, y: 0, w: 1, h: 1 });
+    expect(critiqueCover({ template: "film", design: d }, texts)).toEqual([]);
+    // Слабое затемнение (до 30%) текст не спасает.
+    const weak = compileArt({ w: 300, h: 429, items: [{ t: "fade", x: 0, y: 150, w: 300, h: 279, to: "bottom", opacity: 0.3, fill: "main" }] }).drawing!;
+    d.layers[1] = { ...d.layers[1], art: weak } as CoverDesign["layers"][number];
+    expect(critiqueCover({ template: "film", design: d }, texts).map((a) => a.code)).toContain("on-photo:title");
+  });
+});
