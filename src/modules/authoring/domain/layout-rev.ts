@@ -20,3 +20,6 @@ export const UPGRADE_ON_TOUCH: boolean = true;
  * книги жили бы по правилам 2 под интерфейсом, подсказками и счётчиком полос выпуска 1. Пробный проход и откат — всегда.
  */
 export const LAYOUT_REV2_APPLY: boolean = (NEW_BOOK_LAYOUT_REV as LayoutRev) === 2 && UPGRADE_ON_TOUCH;
+
+/** Полосы глав новой книги (books.pagination_rev): начальная полоса главы всегда слева — как разворот в «Страницах». */
+export const NEW_BOOK_PAGINATION_REV = 2;

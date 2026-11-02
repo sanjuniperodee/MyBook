@@ -178,6 +178,8 @@ function bookRow(key: string, design: InteriorId, format: FormatId, language: Lo
     tocLines: {},
     // Прежние правила раскладки фото: снимки вёрстки и отпечатки набора не меняются (правила 2 — tests/layout-rev2.test.ts).
     layoutRev: 1,
+    // Прежние полосы глав: снимки вёрстки не меняются; начальную полосу слева проверяют pdf-critical и chapter-opener-left.
+    paginationRev: 1,
     inviteToken: null,
     occasion: null,
     occasionDate: null,

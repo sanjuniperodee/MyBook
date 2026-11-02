@@ -66,9 +66,37 @@ export interface FlowDecisions {
    * буквицей продолжается с этого места; до первого замера — с оценки по ширине знаков.
    */
   dropSplit: Map<string, number>;
+  /** Главы (и альбом, "__gallery"), перед начальной полосой которых стоит пустая полоса: начальная полоса — слева (BookContent.openersLeft). */
+  blankBefore: Set<string>;
 }
 
-export const emptyFlow = (): FlowDecisions => ({ breakBefore: new Set(), rowScale: new Map(), rowOffset: new Map(), noTail: new Set(), dropSplit: new Map() });
+export const emptyFlow = (): FlowDecisions => ({ breakBefore: new Set(), rowScale: new Map(), rowOffset: new Map(), noTail: new Set(), dropSplit: new Map(), blankBefore: new Set() });
+
+/**
+ * Пустые полосы перед начальными полосами (BookContent.openersLeft): начальная полоса главы и альбома встаёт слева —
+ * на чётную страницу, а первая полоса текста напротив неё, справа. order — главы по порядку книги (с альбомом в конце),
+ * pages — где встали их начальные полосы в этом проходе (с 1). Решение пересчитывается целиком: пустая полоса перед
+ * главой сдвигает все следующие на одну, поэтому каждая глава смотрит на страницу с учётом решений по главам выше.
+ * Длина глав от стороны полосы не зависит, так что следующий проход обычно уже сходится. Вернёт, поменялось ли решение.
+ */
+export function refineBlanks(order: readonly string[], pages: Readonly<Record<string, number>>, flow: FlowDecisions): boolean {
+  const next = new Set<string>();
+  let shift = 0;
+  for (const key of order) {
+    const at = pages[key];
+    if (at === undefined) continue;
+    const had = flow.blankBefore.has(key);
+    // Страница начальной полосы без её пустой полосы — после решений по главам выше.
+    const bare = at + shift - (had ? 1 : 0);
+    const need = bare % 2 === 1;
+    if (need) next.add(key);
+    shift += Number(need) - Number(had);
+  }
+  const changed = next.size !== flow.blankBefore.size || [...next].some((k) => !flow.blankBefore.has(k));
+  flow.blankBefore.clear();
+  for (const k of next) flow.blankBefore.add(k);
+  return changed;
+}
 
 /**
  * Сколько знаков исходного текста заняли первые count строк раскладки. react-pdf переводит регистр (капитель) и ставит

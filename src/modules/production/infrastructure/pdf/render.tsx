@@ -24,7 +24,7 @@ import { photoAreaMm, photoPages, toPhotoItem, type BookContent, type PhotoItem 
 import { printableText } from "@/lib/book/printable";
 import { buildBookContent } from "@/lib/book/book-content";
 import { estimatePages } from "@/lib/book/estimate";
-import { emptyFlow } from "@/lib/book/flow-decisions";
+import { emptyFlow, refineBlanks } from "@/lib/book/flow-decisions";
 import { interiorMetrics, textArea } from "@/lib/book/page-geometry";
 import { interiorSizes } from "@/lib/book/typesetting";
 import { OPENER_FOCUS, openerPhotoPlan, photoArea, photoPagePlan, type PhotoCell } from "@/lib/book/photo-pages";
@@ -40,7 +40,7 @@ import { ensureFonts, renderPdf } from "@/modules/production/infrastructure/pdf/
 import { InteriorDocument, type PreparedImage } from "@/modules/production/infrastructure/pdf/interior";
 import { readLayout, refineDropCaps, refineFlow } from "@/modules/production/infrastructure/pdf/flow";
 import { readPages } from "@/modules/production/infrastructure/pdf/pages";
-import { tocKey } from "@/lib/book/toc";
+import { GALLERY_KEY, tocKey } from "@/lib/book/toc";
 import type { BookBuildManifest, BookBuildPage } from "@/lib/book/book-build";
 import type { RenderReport } from "../../application/RenderProgress";
 
@@ -238,6 +238,9 @@ export async function renderInterior(bundle: BookBundle, mode: RenderMode, repor
   const draftImages = new Map([...images].map(([id, img]) => [id, { ...img, data: stub }]));
   const chapterOf = new Map(content.chapters.flatMap((c) => c.items.map((it) => [it.id, c.key] as const)));
   const flow = emptyFlow();
+  // Начальные полосы по порядку книги — для пустых полос перед ними (content.openersLeft: начальная полоса всегда слева).
+  const openers = [...content.chapters.map((c) => c.key), ...(content.galleryPhotos.length ? [GALLERY_KEY] : [])];
+  const blanks = (pages: Record<string, number>) => !!content.openersLeft && refineBlanks(openers, pages, flow);
   const typo = content.interior.type;
   const minLead = interiorSizes(content.interior, interiorMetrics[content.format.id].scale).body * typo.lineHeight * 2.6;
   /** Номера для оглавления по раскладке прохода: к начальным полосам глав — в оглавлении по разделам полосы разделов. */
@@ -264,12 +267,15 @@ export async function renderInterior(bundle: BookBundle, mode: RenderMode, repor
     if (!layout) break;
     // Буквицы: где кончились строки рядом с ними — с этого знака продолжается абзац (обычно сходится за один проход).
     const drops = refineDropCaps(layout, flow, dropColumns);
-    if (!refineFlow(layout, flow, rowHeights, chapterOf, minLead) && !drops) break;
+    // Пустые полосы — по страницам этого прохода: начальная полоса справа получает пустую перед собой.
+    const moved = blanks(captured);
+    if (!refineFlow(layout, flow, rowHeights, chapterOf, minLead) && !drops && !moved) break;
   }
   // Итоговая сборка с настоящими фото; её раскладка — виды полос для манифеста (на раскладку влияют только размеры фото).
   // Номера оглавления — из прошлого прохода, а главы могли встать иначе: вёрстку поправили после последнего замера
   // (кончились проходы) или настоящие номера вместо «00» поменяли высоту оглавления. Тогда собираем ещё раз с номерами
   // этой сборки (не больше FINAL_RETRIES раз); не сошлось и так — номера глав для экрана берём из самой сборки.
+  // Так же — если начальная полоса главы встала справа (нужна другая пустая полоса перед ней).
   let final: unknown;
   let raw: Buffer;
   let chapters: Record<string, number> = {};
@@ -284,7 +290,8 @@ export async function renderInterior(bundle: BookBundle, mode: RenderMode, repor
     );
     chapters = captured;
     const real = withSections(final, captured);
-    const settled = samePages(real, tocPages ?? {});
+    const moved = blanks(captured);
+    const settled = samePages(real, tocPages ?? {}) && !moved;
     tocPages = real;
     if (settled || retry >= FINAL_RETRIES) break;
   }
@@ -296,6 +303,8 @@ export async function renderInterior(bundle: BookBundle, mode: RenderMode, repor
   // Переход к главе (3D-книга, превью) идёт по chapterPages: каждая глава должна указывать на свою начальную полосу.
   for (const [key, n] of Object.entries(chapters))
     if (pages[n - 1]?.kind !== "opener" || pages[n - 1].chapterKey !== key) throw new Error(`PDF: chapter ${key} starts on page ${n}, which is not its opener`);
+  // Начальная полоса слева (content.openersLeft) не сошлась за все проходы — книга всё равно собирается, но это видно в логе.
+  if (content.openersLeft) for (const [key, n] of Object.entries(chapters)) if (n % 2) console.warn(`PDF: opener of ${key} is on the right page ${n}`);
   const width = mm(content.format.widthMm + bleed * 2);
   const height = mm(content.format.heightMm + bleed * 2);
   let pageCount = contentPages;

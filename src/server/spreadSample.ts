@@ -5,7 +5,7 @@ import { bookKind } from "@/lib/content/kinds";
 import { getTheme } from "@/lib/content/themes";
 import { getFormat } from "@/lib/book/formats";
 import { bookInterior } from "@/lib/book/interiors";
-import { estimateChapterPages, sectionPageOffsets, textMetrics } from "@/lib/book/estimate";
+import { estimateChapterPages, openerPage, sectionPageOffsets, textMetrics } from "@/lib/book/estimate";
 import { GALLERY_KEY, sampleToc, tocCandidates } from "@/lib/book/toc";
 import { buildBookContent } from "@/lib/book/book-content";
 import { LAYOUT_REV_2, printableText, toPhotoItem, type ContentChapter } from "@/lib/book/layout";
@@ -74,11 +74,13 @@ export function bookSpreadSample(
   const pageOf = new Map<string, number>();
   let page = start;
   for (const c of content.chapters) {
+    // Начальная полоса слева (книги на полосах глав 2): перед ней может встать пустая.
+    page = openerPage(content, page);
     pageOf.set(c.key, page);
     sectionPageOffsets(c, metrics).forEach((offset, i) => pageOf.set(`q:${c.items[i].id}`, page + offset));
     page += estimateChapterPages(c, metrics);
   }
-  pageOf.set(GALLERY_KEY, page);
+  pageOf.set(GALLERY_KEY, openerPage(content, page));
   for (const [key, n] of Object.entries(realPages ?? {})) if (pageOf.has(key)) pageOf.set(key, n);
   const tocAll = content.chapters.length
     ? tocCandidates(content).map((c) => ({ ...c, page: pageOf.get(c.pageKey) ?? start }))

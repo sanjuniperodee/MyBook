@@ -610,6 +610,13 @@
       "when": 1793553146196,
       "tag": "0086_photo_edits",
       "breakpoints": true
+    },
+    {
+      "idx": 87,
+      "version": "7",
+      "when": 1793612251374,
+      "tag": "0087_chapter_opener_left",
+      "breakpoints": true
     }
   ]
 }

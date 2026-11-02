@@ -243,14 +243,21 @@ function sectionStarts(ch: Pick<ContentChapter, "items">, m: TextMetrics) {
   return { starts, total };
 }
 
+/**
+ * Страница начальной полосы главы или альбома, если следующая свободная — next (с 1). У книги с openersLeft начальная
+ * полоса всегда слева, на чётной: нечётная следующая уходит под пустую полосу (как в PDF, flow-decisions.ts refineBlanks).
+ */
+export const openerPage = (content: Pick<BookContent, "openersLeft">, next: number) => (content.openersLeft && next % 2 ? next + 1 : next);
+
 /** Оценка количества страниц в готовой книге (до добивки до кратности). */
 export function estimatePages(content: BookContent): number {
   const m = textMetrics(content.format, content.interior);
   let pages = 2; // титульный лист + оборот
   if (content.dedication) pages += 1;
   pages += estimateTocPages(content, m);
-  for (const ch of content.chapters) pages += estimateChapterPages(ch, m);
-  if (content.galleryPhotos.length) pages += 1 + photoPages(content.galleryPhotos).length;
+  // Перед начальной полосой — пустая, если она должна встать слева, а выпала бы справа.
+  for (const ch of content.chapters) pages = openerPage(content, pages + 1) - 1 + estimateChapterPages(ch, m);
+  if (content.galleryPhotos.length) pages = openerPage(content, pages + 1) + photoPages(content.galleryPhotos).length;
   pages += 1; // финальная страница
   return pages;
 }

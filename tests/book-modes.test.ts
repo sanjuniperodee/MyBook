@@ -441,6 +441,7 @@ const bookRow = (p: Partial<BookRow> = {}): BookRow => ({
   tocMode: "chapters",
   tocLines: {},
   layoutRev: 1,
+  paginationRev: 1,
   inviteToken: null,
   language: "ru",
   occasion: null,

@@ -59,6 +59,8 @@ export interface ChapterPagesProps {
   onTarget?: OnPreviewTarget;
   /** Полос текста в главе (по замеру). */
   pages: number;
+  /** Начальная полоса слева (BookContent.openersLeft): первая полоса текста — правая; иначе начальная справа. */
+  openersLeft?: boolean;
   /** На какой полосе текста каждое фото «на всю страницу» (по замеру; тот же объект, пока не изменилось). */
   photoPages: PhotoPages;
   /** Текущий ответ, если он в этой главе, иначе null. */
@@ -77,7 +79,7 @@ export interface ChapterPagesProps {
 }
 
 /** Начальная полоса главы, полосы текста и невидимая копия главы для замера. */
-function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, language, t, tp, onTarget, pages, photoPages, currentId, selectedId, interactive, drag, onChange, scroll, setMeasureRef, measure, onPageClick }: ChapterPagesProps) {
+function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, language, t, tp, onTarget, pages, openersLeft = false, photoPages, currentId, selectedId, interactive, drag, onChange, scroll, setMeasureRef, measure, onPageClick }: ChapterPagesProps) {
   const { format, design } = kit;
   const m = interiorMetrics[format.id];
   const side = pageSide(format);
@@ -287,8 +289,8 @@ function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, 
         <LazyPage key={k} root={scroll} pageId={`${ch.key}:${k}`} className={`relative overflow-hidden bg-white ${PAGE_SHADOW}`} style={{ width: pageW, height: format.heightMm * px }} onClick={onPageClick}>
           {() => (
             <>
-              {/* Начальная полоса считается правой, поэтому первая полоса текста — левая. */}
-              <RunningHead kit={kit} bookTitle={bookTitle} chapterTitle={ch.title} recto={k % 2 === 1} />
+              {/* Первая полоса текста — напротив начальной: правая, если та слева (как в PDF), иначе левая. */}
+              <RunningHead kit={kit} bookTitle={bookTitle} chapterTitle={ch.title} recto={k % 2 === (openersLeft ? 0 : 1)} />
               {/* Соседние колонки — за краем листа (его обрезает сама страница). */}
               <div className="absolute" style={{ left: side * px, top: m.marginTop * px, width: textW, height: textH }}>
                 {flow(k)}

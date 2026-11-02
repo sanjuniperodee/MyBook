@@ -94,6 +94,11 @@ export const books = pgTable(
      * автор, снимки обложки внутрь сами не идут). Меняется только переводом книги (authoring/application/layout-rev2.ts).
      */
     layoutRev: smallint("layout_rev").notNull().default(2),
+    /**
+     * Полосы глав (src/lib/book/layout.ts PAGINATION_REV_2): 1 — начальная полоса главы там, куда выпадет, 2 — всегда
+     * слева, напротив первой полосы текста (перед ней при необходимости пустая полоса). Заказанные до выпуска книги — 1.
+     */
+    paginationRev: smallint("pagination_rev").notNull().default(2),
     /** Токен публичной ссылки для писем от близких; null — приём писем выключен. */
     inviteToken: text("invite_token"),
     /** Язык книги: вопросы, заголовки глав и служебные страницы PDF (ru | kk). */

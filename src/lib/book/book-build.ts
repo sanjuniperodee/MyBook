@@ -4,7 +4,8 @@
  * читают и сервер, и клиент. Сборку делает production (BookPreviewService), отдают /api/books/[id]/build и /pages.
  */
 
-export type BookPageKind = "front" | "toc" | "opener" | "text" | "photo" | "gallery" | "end" | "pad";
+/** blank — пустая полоса перед начальной полосой главы (она всегда слева, BookContent.openersLeft); pad — добивка в конце. */
+export type BookPageKind = "front" | "toc" | "opener" | "text" | "photo" | "gallery" | "end" | "blank" | "pad";
 
 export interface BookBuildPage {
   /** Номер полосы, с 1. */

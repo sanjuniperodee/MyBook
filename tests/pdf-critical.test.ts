@@ -24,7 +24,9 @@ import { edgeMax, grayPage, hasTool, textRows, type TextRow } from "./pdf-inspec
  */
 
 const variants = fixtureVariants();
-const books: FixtureBook[] = [...(process.env.PDF_CRITICAL === "all" ? fixtureBooks() : fixtureSample()), ...variants];
+/** Полосы глав — как у всех незаказанных книг (pagination_rev 2): начальная полоса главы слева, при нужде с пустой полосой перед ней. */
+const openersLeft = (fb: FixtureBook): FixtureBook => ({ ...fb, bundle: { ...fb.bundle, book: { ...fb.bundle.book, paginationRev: 2 } } });
+const books: FixtureBook[] = [...(process.env.PDF_CRITICAL === "all" ? fixtureBooks() : fixtureSample()), ...variants].map(openersLeft);
 
 const missing = (["pdftotext", "pdftoppm"] as const).filter((tool) => !hasTool(tool));
 const textless = missing.includes("pdftotext");
@@ -92,10 +94,10 @@ function wrongBoxes({ doc, content }: Rendered) {
 }
 
 /**
- * Полосы (с 0) с фото «под обрез». Фотостраницы главы стоят перед начальной полосой следующей главы,
- * у последней главы — перед галереей или финалом; фото галереи — сразу после её начальной полосы.
+ * Полосы (с 0) с фото «под обрез». Фотостраницы главы стоят перед начальной полосой следующей главы (и пустой полосой
+ * перед ней, если она есть), у последней главы — перед галереей или финалом; фото галереи — сразу после её начальной полосы.
  */
-function bleedPages({ content: c, pages, openers }: Rendered) {
+function bleedPages({ content: c, pages, openers, res }: Rendered) {
   const t = messagesFor(c.language).book;
   const find = (text: string) => pages.findIndex((rows) => findRows(rows, text));
   const gallery = c.galleryPhotos.length ? find(c.galleryTitle) : -1;
@@ -103,7 +105,8 @@ function bleedPages({ content: c, pages, openers }: Rendered) {
   const result: number[] = [];
   c.chapters.forEach((ch, i) => {
     const groups = photoPages(ch.photos);
-    const next = openers[i + 1]?.[0] ?? (gallery >= 0 ? gallery : find(t.theEnd));
+    const opener = openers[i + 1]?.[0] ?? (gallery >= 0 ? gallery : find(t.theEnd));
+    const next = res.pages[opener - 1]?.kind === "blank" ? opener - 1 : opener;
     groups.forEach((g, k) => isBleed(g) && result.push(next - groups.length + k));
   });
   photoPages(c.galleryPhotos).forEach((g, k) => isBleed(g) && result.push(gallery + 1 + k));
@@ -208,7 +211,17 @@ describe.each(books.map((b) => [b.key, b] as const))("блок %s", (_key, fb) =
     const { dedication, showToc } = fb.bundle.book;
     const hasDedication = !!dedication.trim();
     const next = 2 + Number(hasDedication);
-    expect(frontMatter(b)).toEqual({ dedication: hasDedication ? 2 : -1, toc: showToc ? next : -1, opener: next + Number(showToc) });
+    // Начальная полоса — слева (с 0 — нечётный индекс): после нечётного числа полос перед ней пустая.
+    const opener = next + Number(showToc);
+    expect(frontMatter(b)).toEqual({ dedication: hasDedication ? 2 : -1, toc: showToc ? next : -1, opener: opener % 2 ? opener : opener + 1 });
+  });
+
+  it("начальные полосы глав и альбома — слева, напротив первой полосы своей главы; пустые полосы — только перед ними", () => {
+    const { pages, chapterPages } = b.res;
+    const report = Object.entries(chapterPages).map(([key, n]) => ({ key, left: n % 2 === 0, next: ["text", "photo", "gallery"].includes(pages[n]?.kind) }));
+    expect(report).toEqual(report.map(({ key }) => ({ key, left: true, next: true })));
+    const blanks = pages.filter((p) => p.kind === "blank").map((p) => ({ n: p.n, right: p.n % 2 === 1, next: pages[p.n]?.kind }));
+    expect(blanks).toEqual(blanks.map(({ n }) => ({ n, right: true, next: "opener" })));
   });
 });
 
@@ -224,9 +237,10 @@ describe("варианты набора: крайние случаи дейст�
     expect(paddingWithContent(b)).toEqual([]);
   });
 
-  it.skipIf(textless)("bare: ни посвящения, ни оглавления — первая глава сразу за оборотом титула", async () => {
+  it.skipIf(textless)("bare: ни посвящения, ни оглавления — первая глава за оборотом титула и пустой полосой (начальная слева)", async () => {
     const b = await variant("bare");
     expect(b.content).toMatchObject({ dedication: "", showToc: false });
-    expect(frontMatter(b)).toEqual({ dedication: -1, toc: -1, opener: 2 });
+    expect(frontMatter(b)).toEqual({ dedication: -1, toc: -1, opener: 3 });
+    expect(b.res.pages[2].kind).toBe("blank");
   });
 });

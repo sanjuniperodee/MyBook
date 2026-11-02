@@ -13,7 +13,7 @@ import { bookKind, CHAPTER_TITLE_MAX, RECORDED_BY_MAX, type BookKind, type Recip
 import { AuthoringError } from "./errors";
 import { AuthoringEvents, type BookRef } from "./events";
 import { CUSTOM_QUESTION } from "./Question";
-import { NEW_BOOK_LAYOUT_REV } from "./layout-rev";
+import { NEW_BOOK_LAYOUT_REV, NEW_BOOK_PAGINATION_REV } from "./layout-rev";
 
 export type Gender = "m" | "f";
 
@@ -64,6 +64,11 @@ export interface BookProps {
    * книги (application/layout-rev2.ts) прямым SQL: снимок книги (BookRepository.save) её не пишет.
    */
   layoutRev: number;
+  /**
+   * Полосы глав (lib/book/layout.ts PAGINATION_REV_2): 2 — начальная полоса главы всегда слева. Снимок книги её не пишет:
+   * заказанные до выпуска книги остаются на 1 (миграция 0087), новые — сразу 2.
+   */
+  paginationRev: number;
   inviteToken: string | null;
   language: Locale;
   occasion: string | null;
@@ -195,6 +200,7 @@ export class Book extends AggregateRoot<BookProps> {
       tocMode: "chapters",
       tocLines: {},
       layoutRev: NEW_BOOK_LAYOUT_REV,
+      paginationRev: NEW_BOOK_PAGINATION_REV,
       inviteToken: null,
       language: input.language,
       occasion,

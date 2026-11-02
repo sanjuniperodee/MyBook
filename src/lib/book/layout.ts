@@ -93,6 +93,11 @@ export interface BookContent {
   /** Название раздела фото в конце книги (начальная полоса и строка оглавления) — по виду книги. */
   galleryTitle: string;
   year: number;
+  /**
+   * Начальная полоса главы и альбома — всегда слева, текст справа, как разворот главы в «Страницах» (PAGINATION_REV_2);
+   * где по счёту она выпала бы справа, перед ней пустая полоса. Нет — прежняя вёрстка (отпечаток кэша прежних книг не меняется).
+   */
+  openersLeft?: true;
 }
 
 export type QuestionLike = Pick<BookQuestion, "id" | "chapter" | "position" | "title" | "displayText" | "hideHeading" | "answer" | "questionKey"> & {
@@ -124,7 +129,9 @@ export type BookLike = Pick<
    * Правила раскладки фото (LAYOUT_REV_2) и остальные снимки обложки и оборота: правила 2 не ставят их внутрь сами.
    * Полная строка книги их даёт; нет — прежние правила, других снимков обложки нет.
    */
-  Partial<Pick<Book, "layoutRev" | "coverPhotoExtra" | "backPhotoId" | "backPhotoExtra">> & {
+  Partial<Pick<Book, "layoutRev" | "coverPhotoExtra" | "backPhotoId" | "backPhotoExtra">> &
+  /** Полосы глав (PAGINATION_REV_2); нет — прежние: начальная полоса главы там, куда выпадет. */
+  Partial<Pick<Book, "paginationRev">> & {
     /**
      * Снимки, которые обложка и оборот печатают на самом деле (buildBookContent считает их по полной строке книги);
      * нет — обложкой считаются все выбранные для неё снимки.
@@ -152,6 +159,13 @@ export type CoverRefs = Partial<Pick<BookLike, "coverPhotoId" | "coverPhotoExtra
  * 1 (и книга без версии) — прежние правила.
  */
 export const LAYOUT_REV_2 = 2;
+
+/**
+ * Полосы глав (books.pagination_rev = 2): начальная полоса главы и альбома всегда слева (чётная), текст — справа, как
+ * разворот главы в «Страницах»; где по счёту она выпала бы справа, перед ней пустая полоса. 1 (и книга без версии) —
+ * прежние: начальная полоса там, куда выпадет. Заказанные до выпуска книги остаются на 1: их печатные файлы уже собраны.
+ */
+export const PAGINATION_REV_2 = 2;
 
 /** Фото не печатается внутри книги — выбор автора (photos.chapter); у обложки свои снимки. */
 export const PHOTO_OFF_KEY = "__off";
@@ -373,6 +387,7 @@ export function assembleBookContent(
     galleryPhotos,
     galleryTitle: texts.galleryTitle,
     year,
+    ...(book.paginationRev === PAGINATION_REV_2 ? { openersLeft: true as const } : {}),
   };
 }
 

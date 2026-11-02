@@ -34,6 +34,7 @@ function PagePreviewView({
   bookTitle,
   chapters,
   gallery = null,
+  openersLeft = false,
   currentId,
   selectedId = null,
   onSelect,
@@ -52,6 +53,8 @@ function PagePreviewView({
   chapters: PreviewChapter[];
   /** Альбом в конце книги; null — его нет. */
   gallery?: PreviewGallery | null;
+  /** Начальная полоса главы слева, первая полоса текста справа (BookContent.openersLeft); нет — начальная справа. */
+  openersLeft?: boolean;
   currentId: string;
   selectedId?: string | null;
   onSelect?: (id: string | null) => void;
@@ -135,6 +138,7 @@ function PagePreviewView({
                 tp={tp}
                 onTarget={toTarget}
                 pages={pagesBy[ch.key] ?? 1}
+                openersLeft={openersLeft}
                 photoPages={photoPagesBy[ch.key] ?? NO_PHOTO_PAGES}
                 currentId={current ? currentId : null}
                 selectedId={current ? selectedId : null}

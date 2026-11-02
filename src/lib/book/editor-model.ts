@@ -107,6 +107,8 @@ export interface EditorBook {
   recipientGender: Book["recipientGender"];
   /** Правила раскладки фото (layout.ts, LAYOUT_REV_2); нет — прежние. Редактор собирает книгу по ним, как PDF. */
   layoutRev?: Book["layoutRev"];
+  /** Полосы глав (layout.ts, PAGINATION_REV_2): начальная полоса главы слева — пустые полосы в объёме и стороны полос в превью. */
+  paginationRev?: Book["paginationRev"];
   /** Снимки обложки и оборота (ссылки книги): правила 2 не ставят их внутрь сами. */
   coverPhotoId?: string | null;
   coverPhotoExtra?: string[];

@@ -8,7 +8,7 @@ import type { BookBuildPage, BookPageKind } from "@/lib/book/book-build";
 /** Пометка страницы react-pdf: { kind, chapterKey }. */
 export const PAGE_MARK = "bookPage";
 
-const KINDS: readonly BookPageKind[] = ["front", "toc", "opener", "text", "photo", "gallery", "end", "pad"];
+const KINDS: readonly BookPageKind[] = ["front", "toc", "opener", "text", "photo", "gallery", "end", "blank", "pad"];
 
 interface PageNode {
   box?: unknown;

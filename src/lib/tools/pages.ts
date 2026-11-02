@@ -82,6 +82,8 @@ export function planContent(p: BookPlan) {
     authorGender: "f",
     recipientGender: "f",
     layoutRev: 2,
+    // Новые книги: начальная полоса главы слева (пустые полосы перед ней — в объёме).
+    paginationRev: 2,
   };
   return { book, questions, photos, letters };
 }
