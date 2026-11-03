@@ -1,5 +1,5 @@
 import { coverPhotoSlots, getCoverTemplate } from "@/lib/book/covers";
-import { emptyImageLayers, parseCoverDesign } from "@/lib/book/cover-design";
+import { emptyImageLayers, parseCoverBack, parseCoverDesign } from "@/lib/book/cover-design";
 import { getFormat, print } from "@/lib/book/formats";
 import { effectiveDpi, isChapterPhotoKey, photoAreaMm, type BookContent } from "@/lib/book/layout";
 import { photoLosses, WARN_LOSS } from "@/lib/book/photo-loss";
@@ -16,7 +16,7 @@ export interface ReadinessIssue {
 }
 
 /** tocLines — решение автора «без фото» у главы (noOpenerPhoto): сборка книги его не несёт. */
-type ReadinessBook = { id: string; theme: string; coverTemplate: string; coverPhotoId: string | null; coverPhotoExtra: string[]; authorName: string; format: string; tocLines?: TocLines | null; /** Обложка из слоёв (конструктор); нет — обложка шаблона. */ coverDesign?: unknown };
+type ReadinessBook = { id: string; theme: string; coverTemplate: string; coverPhotoId: string | null; coverPhotoExtra: string[]; authorName: string; format: string; tocLines?: TocLines | null; /** Обложка из слоёв (конструктор); нет — обложка шаблона. */ coverDesign?: unknown; /** Оборот из слоёв. */ coverBack?: unknown };
 type ReadinessPhoto = { width: number; height: number; layout: "full" | "bleed" | "half" | "grid" };
 /**
  * Собранная книга (buildBookContent: оформление, формат, оглавление, правила раскладки и места фото — та же сборка,
@@ -38,7 +38,8 @@ export function checkReadiness(book: ReadinessBook, stats: BookStats, photos: Re
   const slots = design && design.background.kind !== "template" ? 0 : coverPhotoSlots(template);
   const chosen = [book.coverPhotoId, ...book.coverPhotoExtra.slice(0, slots - 1)].filter(Boolean).length;
   if (slots && chosen < slots) issues.push({ level: "error", text: t.coverPhoto(messagesFor(locale).catalog.covers[template.id] ?? template.id, slots), href: `${base}/cover` });
-  const empty = design ? emptyImageLayers(design).length : 0;
+  const back = parseCoverBack(book.coverBack);
+  const empty = (design ? emptyImageLayers(design).length : 0) + (back?.layers ? emptyImageLayers({ layers: back.layers }).length : 0);
   if (empty) issues.push({ level: "error", text: messagesFor(locale).design.readiness.coverLayers(empty), href: `${base}/cover` });
   if (!book.authorName.trim()) issues.push({ level: "warning", text: kind === "autobiography" ? t.narratorName : t.authorName, href: `${base}/cover` });
   // «Короткая» — по тем же порогам, что шаг «Текст» на хабе и воронка CRM (progressOf): ответы, у своей книги — слова.

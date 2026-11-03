@@ -3,11 +3,11 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from "react";
 import { useMessages } from "@/i18n/client";
 import { CoverText } from "@/components/cover/CoverPreview";
-import { designBack } from "@/lib/book/cover-back";
+import { designBack, layeredBack } from "@/lib/book/cover-back";
 import { CoverBackLayer } from "@/components/cover/CoverBack";
 import { CoverSpineText } from "@/components/cover/CoverSpine";
 import { getCoverTemplate } from "@/lib/book/covers";
-import { parseCoverDesign, templateForDesign } from "@/lib/book/cover-design";
+import { parseCoverBack, parseCoverDesign, templateForCover } from "@/lib/book/cover-design";
 import { getFormat } from "@/lib/book/formats";
 import {
   BOARD_MM,
@@ -187,7 +187,9 @@ export function BookViewer3D({ data, bookId, className }: { data: FlipbookData; 
   const format = getFormat(data.formatId);
   // Обложка из конструктора: слои на лице; корешок и оборот — по шаблону (со своим фоном — контрастным цветом).
   const design = useMemo(() => (data.cover.design ? parseCoverDesign(data.cover.design) : null), [data.cover.design]);
-  const template = useMemo(() => templateForDesign(getCoverTemplate(data.cover.template), design), [data.cover.template, design]);
+  // Оборот: свой фон и слои; надписи корешка и оборота — контрастно фону, который на них лежит.
+  const backSide = useMemo(() => parseCoverBack(data.cover.back), [data.cover.back]);
+  const template = useMemo(() => templateForCover(getCoverTemplate(data.cover.template), design, backSide), [data.cover.template, design, backSide]);
   const { brand, back, backPhotos } = data.model;
   const pages = useFlipbookPages(bookId);
   const { build } = pages;
@@ -196,7 +198,7 @@ export function BookViewer3D({ data, bookId, className }: { data: FlipbookData; 
   const imageW = useMemo(() => leafImageWidth(), []);
 
   const dims = useMemo(() => bookDims(format, pageCount), [format, pageCount]);
-  const backDesign = useMemo(() => designBack(template, dims.w, dims.h, back), [template, dims, back]);
+  const backDesign = useMemo(() => (backSide?.layers ? layeredBack(template, dims.h) : designBack(template, dims.w, dims.h, back)), [template, dims, back, backSide]);
   const extent = modelExtent(dims);
   const count = build ? sheetCount(pageCount) : 0;
   /** Листов блока: между обложкой и задней крышкой. */
@@ -206,8 +208,8 @@ export function BookViewer3D({ data, bookId, className }: { data: FlipbookData; 
   const imageHref = useCoverImage(template);
   const samples = useCoverSamples(template);
   const art = useMemo(
-    () => buildCoverArt(template, format, pageCount, dims, { photos: data.cover.photos, imageHref, plainBack: backDesign.plainArt, samples, design }),
-    [template, format, pageCount, dims, data.cover.photos, imageHref, backDesign.plainArt, samples, design],
+    () => buildCoverArt(template, format, pageCount, dims, { photos: data.cover.photos, imageHref, plainBack: backDesign.plainArt, samples, design, back: backSide }),
+    [template, format, pageCount, dims, data.cover.photos, imageHref, backDesign.plainArt, samples, design, backSide],
   );
 
   // ── Состояние просмотра хранится вне React: каждый кадр обновляет стили напрямую ──
@@ -587,6 +589,7 @@ export function BookViewer3D({ data, bookId, className }: { data: FlipbookData; 
   const backNode = (
     <>
       <div className="absolute inset-0" style={{ backgroundImage: art.back, backgroundSize: "100% 100%" }} />
+      {backSide?.layers ? <DesignFace design={{ layers: backSide.layers }} format={data.formatId} title={data.cover.title || data.cover.titlePlaceholder || ""} subtitle={data.cover.subtitle} names={data.cover.names} uid="b3b" /> : null}
       <CoverBackLayer design={backDesign} widthMm={dims.w} heightMm={dims.h} photos={backPhotos} brand={brand} />
       <div aria-hidden className="pointer-events-none absolute inset-0" style={{ background: "linear-gradient(115deg, transparent calc(var(--sheen-b, 50%) - 14%), rgba(255,255,255,.14) var(--sheen-b, 50%), transparent calc(var(--sheen-b, 50%) + 14%))" }} />
     </>

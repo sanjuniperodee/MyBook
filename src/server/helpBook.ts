@@ -7,7 +7,7 @@ import { countWords, questionHeading, toPhotoItem, type BookContent } from "@/li
 import { bookInterior } from "@/lib/book/interiors/resolve";
 import { parseInteriorStyle } from "@/lib/book/interiors";
 import { coverPhotoSlots, getCoverTemplate } from "@/lib/book/covers";
-import { parseCoverDesign } from "@/lib/book/cover-design";
+import { parseCoverBack, parseCoverDesign } from "@/lib/book/cover-design";
 import { coverNames } from "@/lib/book/cover-names";
 import { getFormat } from "@/lib/book/formats";
 import { photoAreaMm, effectiveDpi } from "@/lib/book/layout";
@@ -102,6 +102,7 @@ export async function helpBookFacts(book: BookRow): Promise<HelpBookFacts> {
   const style = parseInteriorStyle(book.interiorStyle);
   const coverTpl = getCoverTemplate(book.coverTemplate);
   const design = book.coverDesign ? parseCoverDesign(book.coverDesign) : null;
+  const back = parseCoverBack(book.coverBack);
   const slots = design && design.background.kind !== "template" ? 0 : coverPhotoSlots(coverTpl);
   const coverIds = new Set([book.coverPhotoId, ...book.coverPhotoExtra.slice(0, Math.max(0, slots - 1)), book.backPhotoId, ...book.backPhotoExtra].filter((x): x is string => !!x));
   const places = photoPlaces(content, coverIds);
@@ -173,7 +174,7 @@ export async function helpBookFacts(book: BookRow): Promise<HelpBookFacts> {
   const chosen = [book.coverPhotoId, ...book.coverPhotoExtra.slice(0, Math.max(0, slots - 1))].filter(Boolean).length;
   L.push(
     "",
-    `Обложка: ${design ? "собрана в «Конструкторе»" : `шаблон «${coverName(book.coverTemplate, "ru")}»`}${slots ? `, мест под фото ${slots}, выбрано ${chosen}` : ""}; имена на обложке ${q(coverNames(book), 80)}${book.hideRecipientOnCover ? " (получатель скрыт)" : ""}; задняя сторона — вариант «${book.backLayout}».`,
+    `Обложка: ${design ? "собрана в «Конструкторе»" : `шаблон «${coverName(book.coverTemplate, "ru")}»`}${slots ? `, мест под фото ${slots}, выбрано ${chosen}` : ""}; имена на обложке ${q(coverNames(book), 80)}${book.hideRecipientOnCover ? " (получатель скрыт)" : ""}; задняя сторона — ${back?.layers ? "собрана в «Конструкторе» (Оборот)" : `вариант «${book.backLayout}»`}, фон оборота ${back && back.background.kind !== "template" ? "свой" : "как спереди"}.`,
   );
 
   // Оформление страниц.

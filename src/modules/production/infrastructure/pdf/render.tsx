@@ -1,13 +1,13 @@
 import "server-only";
 import { createHash, randomBytes } from "node:crypto";
 import { PDFDocument, rgb } from "pdf-lib";
-import sharp from "sharp";
+import sharp, { type OverlayOptions } from "sharp";
 import type { Book, BookChapter, BookLetter, BookQuestion, Photo } from "@/shared/infrastructure/db/schema";
 import { messagesFor } from "@/i18n/messages";
 import { coverPhotoIds, getCoverTemplate, renderCoverSvg } from "@/lib/book/covers";
 import { coverNames } from "@/lib/book/cover-names";
 import { coverPhotoDataUrl, coverPhotoResized } from "../coverPhotos";
-import { backgroundArt, layerRect, parseCoverDesign, printedLayers, templateForDesign, type CoverDesign, type CoverTexts } from "@/lib/book/cover-design";
+import { layerRect, ownSpreadArt, parseCoverBack, parseCoverDesign, printedLayers, templateForCover, type CoverBack, type CoverDesign, type CoverTexts } from "@/lib/book/cover-design";
 import type { CoverTemplate } from "@/lib/book/covers";
 import {
   coverFrontGeometry,
@@ -34,7 +34,7 @@ import { getFile } from "@/shared/infrastructure/storage";
 import { bakeFrame } from "./frame";
 import { frameKey, parseFrames } from "@/lib/book/photo-frame";
 import type { PhotoSpec } from "@/lib/book/covers/svg-kit";
-import { backArtSvg, backContent, backPhotoIds, designBack, type BackDesign } from "@/lib/book/cover-back";
+import { backArtSvg, backContent, backPhotoIds, designBack, layeredBack, type BackDesign } from "@/lib/book/cover-back";
 import { CoverDocument } from "@/modules/production/infrastructure/pdf/cover";
 import { ensureFonts, renderPdf } from "@/modules/production/infrastructure/pdf/fonts";
 import { InteriorDocument, type PreparedImage } from "@/modules/production/infrastructure/pdf/interior";
@@ -349,11 +349,19 @@ async function coverPhotoHref(p: Photo, source: "full" | "thumb") {
   return `data:image/jpeg;base64,${data.toString("base64")}`;
 }
 
-async function coverBackground(bundle: BookBundle, geometry: CoverGeometry, dpi: number, source: "full" | "thumb", back: { design: BackDesign; photos: Photo[] }, layered: CoverDesign | null) {
+export async function coverBackground(
+  bundle: BookBundle,
+  geometry: CoverGeometry,
+  dpi: number,
+  source: "full" | "thumb",
+  back: { design: BackDesign; photos: Photo[] },
+  layered: CoverDesign | null,
+  backSide: CoverBack | null,
+) {
   const template = getCoverTemplate(bundle.book.coverTemplate);
   const frames = parseFrames(bundle.book.photoFrames);
-  // Обложка из конструктора со своим фоном: рисунок шаблона не нужен — цвет или градиент на всю развёртку.
-  const own = layered && layered.background.kind !== "template" ? layered.background : null;
+  // Свой фон лица из конструктора (base) — вместо рисунка шаблона на всю развёртку; свой фон оборота (over) — поверх.
+  const own = ownSpreadArt(layered, backSide, geometry, "c");
   const photos = await Promise.all(
     coverPhotoIds(bundle.book).map(async (id, i): Promise<PhotoSpec | undefined> => {
       const p = id ? bundle.photos.find((x) => x.id === id) : undefined;
@@ -363,21 +371,22 @@ async function coverBackground(bundle: BookBundle, geometry: CoverGeometry, dpi:
   // Обложка на снимке: для печати — оригинал, для превью — уменьшенная копия.
   const imageHref = template.photo ? await coverPhotoDataUrl(template.photo.photo.key, source === "full" ? undefined : 2400) : undefined;
   const px = dpi / 25.4;
-  let svg = own
-    ? `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${geometry.width} ${geometry.height}" width="${Math.round(geometry.width * px)}" height="${Math.round(geometry.height * px)}">${backgroundArt(own, geometry, "c")}</svg>`
-    : renderCoverSvg(template, geometry, { uid: "c", photos, imageHref }, { pxPerMm: px, noTexture: true, plainBack: back.design.plainArt });
-  // Фото оборота «во всю», затемнение и тени под карточками — частью рисунка развёртки.
+  const sized = (body: string) =>
+    `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${geometry.width} ${geometry.height}" width="${Math.round(geometry.width * px)}" height="${Math.round(geometry.height * px)}">${body}</svg>`;
+  const svg = own.base !== null ? sized(own.base) : renderCoverSvg(template, geometry, { uid: "c", photos, imageHref }, { pxPerMm: px, noTexture: true, plainBack: back.design.plainArt });
+  const base = await sharp(Buffer.from(svg), { limitInputPixels: false, density: 72 }).flatten({ background: "#ffffff" }).png({ compressionLevel: 1 }).toBuffer({ resolveWithObject: true });
+  let img = sharp(base.data, { limitInputPixels: false });
+  const layers: OverlayOptions[] = [];
+  if (template.texture && own.base === null) layers.push({ input: await textureLayer(template.texture.kind, template.texture.opacity, base.info.width, base.info.height, dpi / 25.4) });
+  // Поверх рисунка и его фактуры, как на экране: свой фон оборота и корешка, фото оборота «во всю», затемнение и тени карточек.
+  let over = own.over;
   if (geometry.back) {
     const bleed = new Set(back.design.blocks.flatMap((b) => (b.kind === "photo" && b.frame === "bleed" ? [b.slot] : [])));
     const hrefs = await Promise.all(back.photos.map(async (p, i): Promise<PhotoSpec | undefined> => (bleed.has(i) ? { href: await coverPhotoHref(p, source), width: p.width, height: p.height, frame: frames[frameKey("back", i)] } : undefined)));
-    svg = svg.replace(/<\/svg>$/, `${backArtSvg(back.design, geometry.back, hrefs, "cb")}</svg>`);
+    over += backArtSvg(back.design, geometry.back, hrefs, "cb");
   }
-  const base = await sharp(Buffer.from(svg), { limitInputPixels: false, density: 72 }).flatten({ background: "#ffffff" }).png({ compressionLevel: 1 }).toBuffer({ resolveWithObject: true });
-  let img = sharp(base.data, { limitInputPixels: false });
-  if (template.texture && !own) {
-    const tex = await textureLayer(template.texture.kind, template.texture.opacity, base.info.width, base.info.height, dpi / 25.4);
-    img = img.composite([{ input: tex, blend: "multiply" }]);
-  }
+  if (over) layers.push({ input: await sharp(Buffer.from(sized(over)), { limitInputPixels: false, density: 72 }).png({ compressionLevel: 1 }).toBuffer() });
+  if (layers.length) img = sharp(await img.composite(layers).png({ compressionLevel: 1 }).toBuffer(), { limitInputPixels: false });
   return img.jpeg({ quality: 92, chromaSubsampling: "4:4:4" }).toBuffer();
 }
 
@@ -388,36 +397,46 @@ function noise(width: number, height: number) {
 }
 
 /**
- * Слой фактуры для режима multiply: 255 — без изменений, темнее — затемнение.
- * Аналог SVG-фильтров grain/linen из шаблонов, но в десятки раз быстрее на 300 dpi.
+ * Слой фактуры поверх рисунка — та же формула, что у SVG-фильтров grain/linen превью (covers/svg-kit): цвет фильтра
+ * (у зерна чёрный, у льна серо-коричневый) с прозрачностью по шуму, умноженной на opacity шаблона. Шум — свой, а не
+ * feTurbulence (в 300 dpi это в десятки раз быстрее), но в среднем такой же: тон фона в печати — как на экране.
+ * (До 03.11.2026 фактура в печати только умножала фон, и лён на тёмных шаблонах выходил темнее превью.)
  */
 async function textureLayer(kind: "grain" | "linen", opacity: number, width: number, height: number, pxPerMm: number) {
-  const strength = opacity * 0.85;
   const up = (n: { buf: Buffer; w: number; h: number }) =>
     sharp(n.buf, { raw: { width: n.w, height: n.h, channels: 1 }, limitInputPixels: false }).resize(width, height, { fit: "fill", kernel: "cubic" });
-  let layer: Buffer;
+  const alpha = Buffer.alloc(width * height);
   if (kind === "grain") {
+    // grainFilter: альфа = 0,85 × шум.
     const cell = Math.max(1, pxPerMm / 3);
-    layer = await up(noise(width / cell, height / cell)).raw().toBuffer();
+    const a = await up(noise(width / cell, height / cell)).raw().toBuffer();
+    const k = 0.85 * opacity;
+    for (let i = 0; i < alpha.length; i++) alpha[i] = a[i] * k;
   } else {
+    // linenFilter: два шума (поперёк и вдоль нити) смешаны умножением — альфа 1 − (1 − a)(1 − b), затем × 0,9.
     const fine = Math.max(1, pxPerMm / 2);
     const coarse = pxPerMm * 12;
     const vertical = await up(noise(width / fine, height / coarse)).raw().toBuffer();
     const horizontal = await up(noise(width / coarse, height / fine)).raw().toBuffer();
-    layer = Buffer.alloc(vertical.length);
-    for (let i = 0; i < layer.length; i++) layer[i] = (vertical[i] * horizontal[i]) >> 8;
+    const k = 0.9 * opacity;
+    for (let i = 0; i < alpha.length; i++) alpha[i] = (255 - ((255 - vertical[i]) * (255 - horizontal[i])) / 255) * k;
   }
-  return sharp(layer, { raw: { width, height, channels: 1 }, limitInputPixels: false })
-    .linear(-strength, 255)
-    .toColourspace("srgb")
+  // Цвет льна в фильтре (0,3 0,25 0,18) задан в линейном RGB (так считают фильтры SVG по умолчанию) — на экране это #958976.
+  const color = kind === "linen" ? { r: 149, g: 137, b: 118 } : { r: 0, g: 0, b: 0 };
+  return sharp({ create: { width, height, channels: 3, background: color }, limitInputPixels: false })
+    .joinChannel(alpha, { raw: { width, height, channels: 1 } })
     .png({ compressionLevel: 1 })
     .toBuffer();
 }
 
-/** Задняя сторона: раскладка и снимки, которые на ней стоят (по порядку мест). Фото «во всю» рисуется в фоне. */
-async function backSide(bundle: BookBundle, geometry: CoverGeometry, source: "full" | "thumb", template: CoverTemplate) {
-  const list = backPhotoIds(bundle.book).flatMap((id) => bundle.photos.filter((x) => x.id === id));
+/**
+ * Задняя сторона: раскладка и снимки, которые на ней стоят (по порядку мест). Фото «во всю» рисуется в фоне. Оборот из
+ * слоёв конструктора — без раскладки: только марка, слои рисует CoverDocument.
+ */
+export async function backSide(bundle: BookBundle, geometry: CoverGeometry, source: "full" | "thumb", template: CoverTemplate, layered: boolean) {
   const b = geometry.back ?? { w: geometry.front.w, h: geometry.front.h };
+  if (layered) return { design: layeredBack(template, b.h), photos: [] as Photo[], buffers: [] as (Buffer | null)[] };
+  const list = backPhotoIds(bundle.book).flatMap((id) => bundle.photos.filter((x) => x.id === id));
   const design = designBack(template, b.w, b.h, backContent(bundle.book, list.map((p) => ({ width: p.width, height: p.height })), new Date()));
   const cards = new Set(design.blocks.flatMap((x) => (x.kind === "photo" && x.frame !== "bleed" ? [x.slot] : [])));
   const frames = parseFrames(bundle.book.photoFrames);
@@ -447,7 +466,7 @@ export function coverText(book: Book) {
  * Снимки слоёв обложки из конструктора: фото книги (для печати — оригинал) или снимок коллекции, ч/б и кадр — в самом
  * файле (react-pdf не умеет ни того, ни другого). По id слоя.
  */
-async function layerImages(bundle: BookBundle, design: CoverDesign, texts: CoverTexts, front: { w: number; h: number }, source: "full" | "thumb") {
+async function layerImages(bundle: BookBundle, design: Pick<CoverDesign, "layers">, texts: CoverTexts, front: { w: number; h: number }, source: "full" | "thumb") {
   const out = new Map<string, Buffer>();
   for (const l of printedLayers(design, texts)) {
     if (l.kind !== "image") continue;
@@ -469,14 +488,19 @@ export async function renderCover(bundle: BookBundle, pageCount: number, mode: R
   const format = getFormat(bundle.book.format);
   const geometry = frontOnly ? coverFrontGeometry(format) : coverSpreadGeometry(format, pageCount);
   const { dpi, source } = modeSettings[mode];
-  // Обложка из конструктора: слои поверх фона, корешок и оборот — по шаблону (со своим фоном — контрастным цветом).
+  // Обложка из конструктора: слои поверх фона. Оборот: свой фон и слои или вариант оборота; цвета надписей корешка и
+  // оборота — по фону, который на них лежит (templateForCover).
   const layered = bundle.book.coverDesign ? parseCoverDesign(bundle.book.coverDesign) : null;
-  const template = templateForDesign(getCoverTemplate(bundle.book.coverTemplate), layered);
-  const back = await backSide(bundle, geometry, source, template);
-  const background = await coverBackground(bundle, geometry, dpi, source, back, layered);
+  const backDesign = frontOnly ? null : parseCoverBack(bundle.book.coverBack);
+  const template = templateForCover(getCoverTemplate(bundle.book.coverTemplate), layered, backDesign);
+  const back = await backSide(bundle, geometry, source, template, !!backDesign?.layers);
+  const background = await coverBackground(bundle, geometry, dpi, source, back, layered, backDesign);
   const text = coverText(bundle.book);
   const layers = layered ? { design: layered, images: await layerImages(bundle, layered, text, geometry.front, source) } : undefined;
-  const pdf = await renderPdf(<CoverDocument template={template} geometry={geometry} background={background} text={text} back={{ design: back.design, photos: back.buffers }} layers={layers} title={text.title} language={bundle.book.language} />);
+  const backLayers = backDesign?.layers && geometry.back ? { layers: backDesign.layers, images: await layerImages(bundle, { layers: backDesign.layers }, text, geometry.back, source) } : undefined;
+  const pdf = await renderPdf(
+    <CoverDocument template={template} geometry={geometry} background={background} text={text} back={{ design: back.design, photos: back.buffers, layers: backLayers }} layers={layers} title={text.title} language={bundle.book.language} />,
+  );
   return { pdf: Buffer.from(pdf), geometry };
 }
 

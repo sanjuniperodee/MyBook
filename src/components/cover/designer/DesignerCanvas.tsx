@@ -9,7 +9,9 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type 
 import { ImagePlus, Lock, RotateCw } from "lucide-react";
 import { DesignedCover } from "@/components/cover/DesignedCover";
 import { textCss } from "@/components/cover/CoverLayers";
-import { boardSize, layerText, safeArea, type CoverLayer, type CoverTexts, type ImageLayer, type TextBind, type TextLayer } from "@/lib/book/cover-design";
+import { boardSize, layerText, safeArea, type CoverLayer, type CoverSide, type CoverTexts, type ImageLayer, type TextBind, type TextLayer } from "@/lib/book/cover-design";
+import type { BackDesign } from "@/lib/book/cover-back";
+import { CoverBackLayer } from "@/components/cover/CoverBack";
 import type { PhotoRef } from "@/lib/book/covers/svg-kit";
 import { getFormat } from "@/lib/book/formats";
 import { coverPhotoUrl } from "@/lib/book/photo-cover";
@@ -38,6 +40,7 @@ export interface CanvasLabels {
   editText: string;
   image: string;
   placeholders: Record<TextBind | "text", string>;
+  spine: string;
 }
 
 const cursorOf: Record<Handle, string> = { n: "ns-resize", s: "ns-resize", e: "ew-resize", w: "ew-resize", ne: "nesw-resize", sw: "nesw-resize", nw: "nwse-resize", se: "nwse-resize" };
@@ -71,6 +74,9 @@ export function DesignerCanvas({
   setCropping,
   onBookText,
   labels,
+  side = "front",
+  backdrop,
+  brand,
 }: {
   dz: Designer;
   template: string;
@@ -89,10 +95,16 @@ export function DesignerCanvas({
   setCropping: (id: string | null) => void;
   onBookText: (bind: TextBind, value: string) => void;
   labels: CanvasLabels;
+  /** Какая сторона на холсте: у оборота корешок справа (безопасная зона шире справа). */
+  side?: CoverSide;
+  /** Фон холста оборота (SVG окна с загибом) — см. DesignedCover. */
+  backdrop?: string;
+  /** Оборот: марка внизу печатается всегда — на холсте её видно, но она не слой. */
+  brand?: { design: BackDesign; name: string };
 }) {
   const format = getFormat(formatId);
   const board = boardSize(format);
-  const safe = safeArea(format);
+  const safe = safeArea(format, side);
   const boardRef = useRef<HTMLDivElement>(null);
   const gesture = useRef<Gesture | null>(null);
   const [guides, setGuides] = useState<Guides>({ x: [], y: [] });
@@ -279,10 +291,23 @@ export function DesignerCanvas({
 
   const overlay = (
     <>
+      {brand ? (
+        <div aria-hidden className="pointer-events-none absolute inset-0">
+          <CoverBackLayer design={brand.design} widthMm={board.w} heightMm={board.h} brand={brand.name} />
+        </div>
+      ) : null}
       {/* Всё вне крышки — загиб: приглушаем, край крышки — линией. */}
       <div aria-hidden className="pointer-events-none absolute inset-0" style={{ boxShadow: "0 0 0 100vmax rgba(250,247,242,.55)", outline: "1px solid rgba(30,25,22,.35)" }} />
       <div aria-hidden className="pointer-events-none absolute left-0 -translate-y-full pb-0.5 text-[10px] tracking-wide text-ink/60 uppercase">
         {labels.wrap}
+      </div>
+      {/* С какой стороны корешок: у лица слева, у оборота справа. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute top-1/2 text-[10px] tracking-[0.2em] whitespace-nowrap text-ink/60 uppercase"
+        style={{ writingMode: "vertical-rl", [side === "back" ? "left" : "right"]: "100%", margin: "0 3px", transform: side === "back" ? "translateY(-50%)" : "translateY(-50%) rotate(180deg)" }}
+      >
+        {labels.spine}
       </div>
       {showGrid ? (
         <div
@@ -360,7 +385,8 @@ export function DesignerCanvas({
         texts={texts}
         photos={photos}
         wrap={8}
-        uid="designer"
+        uid={`designer${side}`}
+        backdrop={backdrop}
         boardRef={boardRef}
         className="rounded-[3px] shadow-book"
         overlay={overlay}

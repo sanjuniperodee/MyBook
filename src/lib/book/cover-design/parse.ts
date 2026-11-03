@@ -5,7 +5,7 @@ import { normalizeFrame } from "../photo-frame";
 import { printableText } from "../printable";
 import { DECOR_IDS } from "./decor";
 import { isStockPhoto } from "./stock";
-import type { CoverBackground, CoverDesign, CoverLayer, CoverTexts, DecorLayer, ImageLayer, LayerBase, ShapeLayer, TextLayer, TextStyle } from "./types";
+import type { CoverBack, CoverBackground, CoverDesign, CoverLayer, CoverTexts, DecorLayer, ImageLayer, LayerBase, ShapeLayer, TextLayer, TextStyle } from "./types";
 
 /** Пределы: слоёв, длина текста и имени, на сколько слой может заходить за край крышки (в загиб). */
 export const COVER_LIMITS = {
@@ -183,13 +183,26 @@ export function parseCoverDesign(raw: unknown): CoverDesign | null {
   return { v: 1, background: background(o.background), layers: kept };
 }
 
-/** Фото книги в слоях обложки. */
-export function coverDesignPhotoIds(design: CoverDesign): string[] {
+/**
+ * Оборот из базы или запроса. Как спереди и без слоёв — null: это и есть оборот по умолчанию, хранить нечего.
+ * Слои — те же, что у лица (тот же разбор и пределы).
+ */
+export function parseCoverBack(raw: unknown): CoverBack | null {
+  const o = obj(raw);
+  if (!o) return null;
+  const hasLayers = Array.isArray(o.layers);
+  const d = parseCoverDesign({ background: o.background, layers: hasLayers ? o.layers : [] })!;
+  if (d.background.kind === "template" && !hasLayers) return null;
+  return hasLayers ? { v: 1, background: d.background, layers: d.layers } : { v: 1, background: d.background };
+}
+
+/** Фото книги в слоях обложки (или оборота). */
+export function coverDesignPhotoIds(design: Pick<CoverDesign, "layers">): string[] {
   return [...new Set(design.layers.flatMap((l) => (l.kind === "image" && l.photoId ? [l.photoId] : [])))];
 }
 
 /** Удалённое фото уходит из слоёв: место остаётся (со снимком коллекции, если он был). */
-export function dropCoverPhoto(design: CoverDesign, photoId: string): CoverDesign {
+export function dropCoverPhoto<T extends Pick<CoverDesign, "layers">>(design: T, photoId: string): T {
   return { ...design, layers: design.layers.map((l) => (l.kind === "image" && l.photoId === photoId ? { ...l, photoId: null } : l)) };
 }
 
@@ -204,7 +217,7 @@ export function printedLayerText(layer: TextLayer, texts: CoverTexts): string {
 }
 
 /** Слои, которые печатаются: видимые; пустой привязанный текст и место под фото без снимка не печатаются. */
-export function printedLayers(design: CoverDesign, texts: CoverTexts): CoverLayer[] {
+export function printedLayers(design: Pick<CoverDesign, "layers">, texts: CoverTexts): CoverLayer[] {
   return design.layers.filter((l) => {
     if (l.hidden) return false;
     if (l.kind === "text") return !!printedLayerText(l, texts).trim();
@@ -214,7 +227,7 @@ export function printedLayers(design: CoverDesign, texts: CoverTexts): CoverLaye
 }
 
 /** Места под фото без снимка — книгу с такой обложкой рано отдавать в печать. */
-export function emptyImageLayers(design: CoverDesign): ImageLayer[] {
+export function emptyImageLayers(design: Pick<CoverDesign, "layers">): ImageLayer[] {
   return design.layers.filter((l): l is ImageLayer => l.kind === "image" && !l.hidden && !l.photoId && !l.stock);
 }
 

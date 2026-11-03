@@ -5,7 +5,7 @@ import { getAccessibleBook } from "@/server/books";
 import { container } from "@/server/container";
 import { getTheme } from "@/lib/content/themes";
 import { parseFrames } from "@/lib/book/photo-frame";
-import { parseCoverDesign } from "@/lib/book/cover-design";
+import { parseCoverBack, parseCoverDesign } from "@/lib/book/cover-design";
 import { bookSpreadSample } from "@/server/spreadSample";
 import { bookKind } from "@/lib/content/kinds";
 import { buildBookContent } from "@/lib/book/book-content";
@@ -20,8 +20,9 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getMessages()).books.cover.meta };
 }
 
-export default async function CoverPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function CoverPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ side?: string }> }) {
   const { id } = await params;
+  const { side } = await searchParams;
   const user = await requireUser(`/books/${id}/cover`);
   const book = await getAccessibleBook(id, user);
   const [photos, questions, chapters, locale, m] = await Promise.all([
@@ -77,7 +78,9 @@ export default async function CoverPage({ params }: { params: Promise<{ id: stri
           photoFrames: parseFrames(book.photoFrames),
           interior: book.interior,
           coverDesign: parseCoverDesign(book.coverDesign),
+          coverBack: parseCoverBack(book.coverBack),
         }}
+        initialSide={side === "back" ? "back" : "front"}
       />
     </main>
   );

@@ -130,6 +130,7 @@ describe("картинка обложки для осмотра (настоящ�
     interior: "classic",
     interiorStyle: {},
     coverDesign: null,
+    coverBack: null,
     format: "a5",
     photoPlacement: "chapters",
     showToc: false,

@@ -43,6 +43,8 @@ export const COVER_SWATCHES = ["#1F1A17", "#FFFFFF", "#FBF7F1", "#7A1F2B", "#B89
 type Patch = (fn: (l: CoverLayer) => CoverLayer, field: string) => void;
 
 export interface PropertiesProps {
+  /** Сторона обложки: у оборота фон «как спереди» вместо рисунка шаблона. */
+  side?: "front" | "back";
   layer: CoverLayer | null;
   design: CoverDesign;
   texts: CoverTexts;
@@ -389,21 +391,22 @@ function GeometryPanel({ layer, board, patch }: PropertiesProps & { layer: Cover
 
 // ─── фон ───────────────────────────────────────────────────────────────────
 
-function BackgroundPanel({ design, setBackground, swatches }: PropertiesProps) {
+function BackgroundPanel({ design, setBackground, swatches, side = "front" }: PropertiesProps) {
   const t = useMessages().design.cover.props.background;
   const bg = design.background;
-  const base = bg.kind === "color" ? bg.color : bg.kind === "gradient" ? bg.from : "#F4EEE6";
+  const back = side === "back";
+  const base = bg.kind === "color" ? bg.color : bg.kind === "gradient" ? bg.from : (swatches[0] ?? "#F4EEE6");
   return (
-    <PanelSection title={t.title}>
+    <PanelSection title={back ? t.titleBack : t.title}>
       <Segmented
         value={bg.kind}
-        options={(["template", "color", "gradient"] as const).map((k) => ({ value: k, label: t.kinds[k] }))}
+        options={(["template", "color", "gradient"] as const).map((k) => ({ value: k, label: back && k === "template" ? t.likeFront : t.kinds[k] }))}
         onChange={(kind) =>
           setBackground(kind === "template" ? { kind } : kind === "color" ? { kind, color: base } : { kind, from: base, to: bg.kind === "gradient" ? bg.to : "#D9C7B3", angle: bg.kind === "gradient" ? bg.angle : 120 }, "bgKind")
         }
         wrap
       />
-      {bg.kind === "template" ? <p className="text-xs text-muted">{t.templateNote}</p> : null}
+      {bg.kind === "template" ? <p className="text-xs text-muted">{back ? t.likeFrontNote : t.templateNote}</p> : null}
       {bg.kind === "color" ? <ColorField label={t.color} value={bg.color} swatches={[...swatches, "#F4EEE6", "#141414", "#E9DCCB"]} onChange={(c) => c && setBackground({ kind: "color", color: c }, "bgColor")} /> : null}
       {bg.kind === "gradient" ? (
         <>

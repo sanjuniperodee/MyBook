@@ -49,6 +49,7 @@ const book: Book = {
   interior: "photobook",
   interiorStyle: {},
   coverDesign: null,
+  coverBack: null,
   format: "a5",
   photoPlacement: "chapters",
   showToc: false,

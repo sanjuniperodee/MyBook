@@ -5,7 +5,7 @@
 import { n } from "../covers/svg-kit";
 import { print, type BookFormat, type CoverGeometry, type Rect } from "../formats";
 import type { Shape } from "../interior-art";
-import type { CoverBackground, ShapeLayer, TextStyle } from "./types";
+import type { CoverBackground, CoverSide, ShapeLayer, TextStyle } from "./types";
 
 /** Лицевая крышка (картон): как в развёртке для типографии — на кант больше блока сверху, снизу и снаружи. */
 export function boardSize(format: BookFormat) {
@@ -30,12 +30,13 @@ export function layerRect(l: { x: number; y: number; w: number; h: number }, fro
   return { x: front.x + l.x * front.w, y: front.y + l.y * front.h, w: l.w * front.w, h: l.h * front.h };
 }
 
-/** Безопасная зона крышки в долях: слева (у корешка) поле шире. */
-export function safeArea(format: BookFormat): Rect {
+/** Безопасная зона крышки в долях: у корешка поле шире — у лица он слева, у оборота справа. */
+export function safeArea(format: BookFormat, side: CoverSide = "front"): Rect {
   const b = boardSize(format);
-  const x = COVER_SAFE.hinge / b.w;
+  const hinge = COVER_SAFE.hinge / b.w;
+  const edge = COVER_SAFE.edge / b.w;
   const y = COVER_SAFE.edge / b.h;
-  return { x, y, w: 1 - x - COVER_SAFE.edge / b.w, h: 1 - y * 2 };
+  return { x: side === "back" ? edge : hinge, y, w: 1 - hinge - edge, h: 1 - y * 2 };
 }
 
 // ─── текст: тень и контур ───────────────────────────────────────────────────
@@ -130,24 +131,83 @@ export function shapeElements(layer: ShapeLayer, w: number, h: number, boardW: n
 
 // ─── фон ───────────────────────────────────────────────────────────────────
 
+type OwnBackground = Exclude<CoverBackground, { kind: "template" }>;
+
+const rgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+/** Цвет между a и b: t от 0 до 1 — как интерполирует SVG-градиент (в sRGB). */
+export function mixColor(a: string, b: string, t: number) {
+  const [x, y] = [rgb(a), rgb(b)];
+  return `#${x.map((v, i) => Math.round(v + (y[i] - v) * Math.min(1, Math.max(0, t))).toString(16).padStart(2, "0")).join("").toUpperCase()}`;
+}
+
+/**
+ * Доля градиента в точке (u, v) рамки в долях — как у SVG-градиента в единицах рамки (objectBoundingBox): проекция на
+ * его вектор, за концами — крайние цвета.
+ */
+function gradientAt(angle: number, u: number, v: number) {
+  const g = gradientVector(angle);
+  const [dx, dy] = [g.x2 - g.x1, g.y2 - g.y1];
+  const len = dx * dx + dy * dy;
+  return len ? Math.min(1, Math.max(0, ((u - g.x1) * dx + (v - g.y1) * dy) / len)) : 0;
+}
+
+/** Зеркальный угол градиента (слева направо ↔ справа налево): оборот повторяет лицо от корешка. */
+export const mirrorAngle = (angle: number) => (((180 - angle) % 360) + 360) % 360;
+
+const gradientRect = (bg: Extract<CoverBackground, { kind: "gradient" }>, angle: number, r: Rect, id: string) => {
+  const v = gradientVector(angle);
+  return `<defs><linearGradient id="${id}" x1="${v.x1}" y1="${v.y1}" x2="${v.x2}" y2="${v.y2}"><stop offset="0" stop-color="${bg.from}"/><stop offset="1" stop-color="${bg.to}"/></linearGradient></defs><rect x="${n(r.x)}" y="${n(r.y)}" width="${n(r.w)}" height="${n(r.h)}" fill="url(#${id})"/>`;
+};
+
+/** Корешок между крышками: цвет края соседней крышки сверху вниз (u — сторона рамки крышки у корешка: 0 — левая, 1 — правая). */
+function spineArt(bg: OwnBackground, angle: number, u: number, g: CoverGeometry, id: string) {
+  if (!g.spine) return "";
+  const r = { x: g.spine.x, y: 0, w: g.spine.w, h: g.height };
+  if (bg.kind === "color") return `<rect x="${n(r.x)}" y="0" width="${n(r.w)}" height="${n(r.h)}" fill="${bg.color}"/>`;
+  const [top, bottom] = [gradientAt(angle, u, 0), gradientAt(angle, u, 1)].map((t) => mixColor(bg.from, bg.to, t));
+  return `<defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${top}"/><stop offset="1" stop-color="${bottom}"/></linearGradient></defs><rect x="${n(r.x)}" y="0" width="${n(r.w)}" height="${n(r.h)}" fill="url(#${id})"/>`;
+}
+
+/** Части развёртки под свой фон: оборот — с левым загибом и шарниром, лицо — с шарниром и правым загибом. */
+export function spreadPanels(g: CoverGeometry) {
+  const hinge = print.cover.hingeMm;
+  const front = g.spine ? { x: g.front.x - hinge, y: 0, w: g.width - (g.front.x - hinge), h: g.height } : { x: 0, y: 0, w: g.width, h: g.height };
+  const back = g.back ? { x: 0, y: 0, w: g.back.x + g.back.w + hinge, h: g.height } : null;
+  return { front, back };
+}
+
 /**
  * Свой фон обложки (цвет или градиент) — SVG-фрагмент на весь холст в мм, как рисунок шаблона. Градиент лежит на
- * лицевой стороне вместе с загибом и канавкой у корешка; корешок и оборот — цветом начала градиента.
+ * лицевой стороне вместе с загибом и канавкой у корешка; на развёртке оборот — тот же градиент зеркально, а корешок —
+ * цветом края лица, поэтому книга целиком без шва.
  */
-export function backgroundArt(bg: Exclude<CoverBackground, { kind: "template" }>, g: CoverGeometry, uid: string): string {
+export function backgroundArt(bg: OwnBackground, g: CoverGeometry, uid: string): string {
   const base = bg.kind === "color" ? bg.color : bg.from;
   let out = `<rect x="0" y="0" width="${n(g.width)}" height="${n(g.height)}" fill="${base}"/>`;
   if (bg.kind === "gradient") {
-    const v = gradientVector(bg.angle);
-    const x0 = g.spine ? g.front.x - print.cover.hingeMm : 0;
-    out += `<defs><linearGradient id="${uid}bg" x1="${v.x1}" y1="${v.y1}" x2="${v.x2}" y2="${v.y2}"><stop offset="0" stop-color="${bg.from}"/><stop offset="1" stop-color="${bg.to}"/></linearGradient></defs>`;
-    out += `<rect x="${n(x0)}" y="0" width="${n(g.width - x0)}" height="${n(g.height)}" fill="url(#${uid}bg)"/>`;
+    const p = spreadPanels(g);
+    out += gradientRect(bg, bg.angle, p.front, `${uid}bg`);
+    if (p.back) out += gradientRect(bg, mirrorAngle(bg.angle), p.back, `${uid}bgb`) + spineArt(bg, bg.angle, 0, g, `${uid}bgs`);
   }
   return out;
 }
 
-/** Цвет фона для подсказок контраста (корешок, оборот, текст на нём). */
+/**
+ * Свой фон оборота поверх развёртки: задняя крышка с загибом и шарниром и корешок — цветом её края у корешка. Градиент —
+ * как его видит редактор оборота (угол 0 — слева направо по задней крышке).
+ */
+export function backOwnArt(bg: OwnBackground, g: CoverGeometry, uid: string): string {
+  const p = spreadPanels(g);
+  if (!p.back) return "";
+  const panel = bg.kind === "color" ? `<rect x="0" y="0" width="${n(p.back.w)}" height="${n(p.back.h)}" fill="${bg.color}"/>` : gradientRect(bg, bg.angle, p.back, `${uid}ob`);
+  return panel + spineArt(bg, bg.kind === "gradient" ? bg.angle : 0, 1, g, `${uid}os`);
+}
+
+/** Цвет фона для подсказок контраста (корешок, оборот, текст на нём): у градиента — его середина. */
 export const backgroundBase = (bg: CoverBackground) => (bg.kind === "color" ? bg.color : bg.kind === "gradient" ? bg.from : null);
+
+/** Средний цвет фона — по нему светлый или тёмный текст поверх (у градиента — середина). */
+export const backgroundMid = (bg: OwnBackground) => (bg.kind === "color" ? bg.color : mixColor(bg.from, bg.to, 0.5));
 
 /** Светлый или тёмный текст на фоне цвета bg (корешок и оборот обложки со своим фоном). */
 export function inkOn(bg: string) {

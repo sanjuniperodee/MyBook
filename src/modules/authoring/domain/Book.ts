@@ -3,7 +3,7 @@ import type { Locale } from "@/i18n/config";
 import { isKnownCover } from "@/lib/book/covers";
 import { formats } from "@/lib/book/formats";
 import { DEFAULT_INTERIOR, isInteriorId, parseInteriorStyle } from "@/lib/book/interiors";
-import { coverDesignPhotoIds, dropCoverPhoto, parseCoverDesign } from "@/lib/book/cover-design";
+import { coverDesignPhotoIds, dropCoverPhoto, parseCoverBack, parseCoverDesign } from "@/lib/book/cover-design";
 import { DEFAULT_BACK_LAYOUT, isBackLayout } from "@/lib/book/cover-back";
 import { frameKey, parseFrames, type FrameMap } from "@/lib/book/photo-frame";
 import { NAMES_ON_COVER_MAX } from "@/lib/book/cover-names";
@@ -55,6 +55,8 @@ export interface BookProps {
   interiorStyle: Record<string, unknown>;
   /** Обложка из слоёв поверх шаблона (src/lib/book/cover-design); null — обложка шаблона. */
   coverDesign: Record<string, unknown> | null;
+  /** Оборот: свой фон и слои из конструктора (src/lib/book/cover-design, CoverBack); null — как спереди. */
+  coverBack: Record<string, unknown> | null;
   format: string;
   photoPlacement: "chapters" | "end" | "none";
   showToc: boolean;
@@ -198,6 +200,7 @@ export class Book extends AggregateRoot<BookProps> {
       interior: isInteriorId(theme.defaultInterior) ? theme.defaultInterior : DEFAULT_INTERIOR,
       interiorStyle: {},
       coverDesign: null,
+      coverBack: null,
       format: "a5",
       photoPlacement: "chapters",
       showToc: true,
@@ -379,6 +382,18 @@ export class Book extends AggregateRoot<BookProps> {
     return design ? coverDesignPhotoIds(design) : [];
   }
 
+  /** Оборот: свой фон и слои (null — как спереди, вариант оборота из «Шаблон и текст»). Фото слоёв проверяет сервис. */
+  setCoverBack(raw: unknown) {
+    this.assertEditable();
+    this.props.coverBack = parseCoverBack(raw) as unknown as Record<string, unknown> | null;
+  }
+
+  /** Фото, которые стоят в слоях оборота. */
+  coverBackPhotos(raw: unknown = this.props.coverBack): string[] {
+    const back = parseCoverBack(raw);
+    return back?.layers ? coverDesignPhotoIds({ layers: back.layers }) : [];
+  }
+
   /** Кадры фото на обложке (масштаб и положение по местам). Принимаются только известные места и допустимые числа. */
   setPhotoFrames(raw: unknown) {
     this.assertEditable();
@@ -388,7 +403,7 @@ export class Book extends AggregateRoot<BookProps> {
   /** Использует ли обложка (лицо или оборот) это фото. */
   usesPhoto(photoId: string) {
     const p = this.props;
-    return p.coverPhotoId === photoId || p.backPhotoId === photoId || p.coverPhotoExtra.includes(photoId) || p.backPhotoExtra.includes(photoId) || this.coverDesignPhotos().includes(photoId);
+    return p.coverPhotoId === photoId || p.backPhotoId === photoId || p.coverPhotoExtra.includes(photoId) || p.backPhotoExtra.includes(photoId) || this.coverDesignPhotos().includes(photoId) || this.coverBackPhotos().includes(photoId);
   }
 
   /** Удалённое фото не должно оставаться на обложке — ни спереди, ни сзади. */
@@ -405,6 +420,10 @@ export class Book extends AggregateRoot<BookProps> {
     if (this.props.coverDesign && this.coverDesignPhotos().includes(photoId)) {
       const design = parseCoverDesign(this.props.coverDesign);
       if (design) this.props.coverDesign = dropCoverPhoto(design, photoId) as unknown as Record<string, unknown>;
+    }
+    if (this.coverBackPhotos().includes(photoId)) {
+      const back = parseCoverBack(this.props.coverBack);
+      if (back?.layers) this.props.coverBack = { ...back, layers: dropCoverPhoto({ layers: back.layers }, photoId).layers } as unknown as Record<string, unknown>;
     }
   }
 

@@ -25,7 +25,8 @@ import {
 import { ShapeElement } from "@/components/interior/graphics";
 
 export interface CoverLayersProps {
-  design: CoverDesign;
+  /** Слои лица или оборота. */
+  design: Pick<CoverDesign, "layers">;
   texts: CoverTexts;
   /** Крышка, мм — пропорции фигур и скругления. */
   board: { w: number; h: number };

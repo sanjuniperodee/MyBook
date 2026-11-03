@@ -37,6 +37,23 @@ describe("Book", () => {
     }
   });
 
+  it("оборот: свой фон и слои; фото слоёв оборота учитываются и уходят при удалении фото", () => {
+    const book = startBook();
+    const photo = "11111111-1111-4111-8111-111111111111";
+    book.setCoverBack({ background: { kind: "color", color: "#e78496" }, layers: [{ id: "p1", kind: "image", photoId: photo, x: 0, y: 0, w: 1, h: 1 }] });
+    expect(book.snapshot().coverBack).toMatchObject({ background: { kind: "color", color: "#E78496" } });
+    expect(book.coverBackPhotos()).toEqual([photo]);
+    expect(book.usesPhoto(photo)).toBe(true);
+    book.forgetPhoto(photo);
+    expect(book.coverBackPhotos()).toEqual([]);
+    expect((book.snapshot().coverBack as { layers: { photoId: unknown }[] }).layers[0].photoId).toBeNull();
+    // Как спереди и без слоёв — хранить нечего.
+    book.setCoverBack({ background: { kind: "template" } });
+    expect(book.snapshot().coverBack).toBeNull();
+    const ordered = Book.restore("b1", { ...book.snapshot(), status: "ordered" });
+    expect(() => ordered.setCoverBack(null)).toThrow();
+  });
+
   it("смена языка переводит предложенное название, но не своё", () => {
     const book = startBook();
     const texts = book.switchLanguage("kk", theme("ru"), theme("kk"));

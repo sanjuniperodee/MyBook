@@ -41,6 +41,10 @@ const patchSchema = z
       .record(z.string(), z.unknown())
       .nullable()
       .refine((o) => o === null || JSON.stringify(o).length <= 150_000, "tooLarge"),
+    coverBack: z
+      .record(z.string(), z.unknown())
+      .nullable()
+      .refine((o) => o === null || JSON.stringify(o).length <= 150_000, "tooLarge"),
     format: z.string().max(20),
     photoPlacement: z.enum(["chapters", "end", "none"]),
     showToc: z.boolean(),

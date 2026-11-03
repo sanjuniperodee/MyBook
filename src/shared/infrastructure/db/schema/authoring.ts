@@ -84,6 +84,8 @@ export const books = pgTable(
     interiorStyle: jsonb("interior_style").$type<Record<string, unknown>>().notNull().default({}),
     /** Обложка из слоёв (текст, фото, фигуры, декор) поверх шаблона; null — обложка шаблона — src/lib/book/cover-design. */
     coverDesign: jsonb("cover_design").$type<Record<string, unknown> | null>(),
+    /** Оборот: свой фон и слои из конструктора; null — как спереди и вариант оборота (back_layout) — src/lib/book/cover-design. */
+    coverBack: jsonb("cover_back").$type<Record<string, unknown> | null>(),
     format: text("format").notNull().default("a5"),
     /** Фото, не вставленные в истории: между главами, отдельным разделом в конце или не печатать (none). */
     photoPlacement: text("photo_placement", { enum: ["chapters", "end", "none"] }).notNull().default("chapters"),

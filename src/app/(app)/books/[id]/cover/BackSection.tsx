@@ -9,7 +9,7 @@ import { bookKind } from "@/lib/content/kinds";
 import { EmojiNote } from "./EmojiNote";
 
 /** Схематичная миниатюра варианта — как он ляжет на заднюю крышку. */
-function LayoutIcon({ layout }: { layout: BackLayout }) {
+export function LayoutIcon({ layout }: { layout: BackLayout }) {
   const line = (y: number, w: number, x = (40 - w) / 2) => <rect x={x} y={y} width={w} height={1.6} rx={0.8} fill="currentColor" opacity={0.55} />;
   return (
     <svg viewBox="0 0 40 54" className="h-14 w-auto" aria-hidden>

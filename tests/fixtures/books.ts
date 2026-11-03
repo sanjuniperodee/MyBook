@@ -171,6 +171,7 @@ function bookRow(key: string, design: InteriorId, format: FormatId, language: Lo
     interior: design,
     interiorStyle: {},
     coverDesign: null,
+    coverBack: null,
     format,
     photoPlacement: language === "kk" && format === "square" ? "end" : "chapters",
     showToc: true,

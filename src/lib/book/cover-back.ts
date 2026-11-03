@@ -279,6 +279,14 @@ export function designBack(template: CoverTemplate, W: number, H: number, raw: B
 }
 
 /**
+ * Оборот из слоёв конструктора: вариантов и блоков нет, остаётся только марка внизу — цветом, как у варианта на этом
+ * фоне (на повторе композиции лица — как имена).
+ */
+export function layeredBack(template: CoverTemplate, H: number): BackDesign {
+  return { layout: "minimal", plainArt: false, blocks: [], brand: { y: H - 16, size: 6.5 * PT_TO_MM, color: template.back.mirror ? template.names.color : template.back.color } };
+}
+
+/**
  * Часть оборота, которая рисуется в растровом фоне развёртки (в PDF): фото «во всю» с затемнением —
  * под загибы сверху, снизу и с внешнего края — и мягкие тени под карточками. В браузере то же
  * рисуют <img>, CSS-градиент и box-shadow (components/cover/CoverBack). back — задняя крышка на развёртке, мм.

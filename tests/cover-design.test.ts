@@ -12,7 +12,7 @@ import {
   parseCoverDesign,
   printedLayers,
   shapeElements,
-  templateForDesign,
+  templateForCover,
   textCopies,
   type CoverDesign,
 } from "@/lib/book/cover-design";
@@ -119,11 +119,11 @@ describe("обложка из слоёв: шаблоны, эффекты, дек
 
   it("свой фон: корешок и оборот — контрастным цветом, без повтора композиции лица", () => {
     const linen = getCoverTemplate("linen");
-    expect(templateForDesign(linen, null)).toBe(linen);
-    expect(templateForDesign(linen, { v: 1, background: { kind: "template" }, layers: [] })).toBe(linen);
-    const dark = templateForDesign(linen, { v: 1, background: { kind: "color", color: "#141414" }, layers: [] });
+    expect(templateForCover(linen, null)).toBe(linen);
+    expect(templateForCover(linen, { v: 1, background: { kind: "template" }, layers: [] })).toBe(linen);
+    const dark = templateForCover(linen, { v: 1, background: { kind: "color", color: "#141414" }, layers: [] });
     expect(dark.spine.color).toBe("#FBF7F1");
     expect(dark.back.mirror).toBe(false);
-    expect(templateForDesign(linen, { v: 1, background: { kind: "color", color: "#F4EEE6" }, layers: [] }).spine.color).toBe("#1F1A17");
+    expect(templateForCover(linen, { v: 1, background: { kind: "color", color: "#F4EEE6" }, layers: [] }).spine.color).toBe("#1F1A17");
   });
 });

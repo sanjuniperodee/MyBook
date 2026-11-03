@@ -45,13 +45,15 @@ export interface DesignedCoverProps extends Partial<Pick<CoverLayersProps, "plac
   overlay?: React.ReactNode;
   /** Ref элемента крышки — редактор считает по нему координаты. */
   boardRef?: React.Ref<HTMLDivElement>;
+  /** Свой фон холста (SVG на всё окно с загибом) — у оборота: его фон считается по развёртке (cover-sides). */
+  backdrop?: string;
 }
 
-export function DesignedCover({ template, format: formatId = "a5", design, texts, photos, wrap = 0, uid = "dc", lite, className, overlay, boardRef, placeholders, layerProps }: DesignedCoverProps) {
+export function DesignedCover({ template, format: formatId = "a5", design, texts, photos, wrap = 0, uid = "dc", lite, className, overlay, boardRef, placeholders, layerProps, backdrop }: DesignedCoverProps) {
   const format = getFormat(formatId);
   const board = boardSize(format);
   const g = canvasGeometry(format, wrap);
-  const svg = designBackgroundSvg(template, format.id, design, { wrap, uid, photos, lite });
+  const svg = backdrop ?? designBackgroundSvg(template, format.id, design, { wrap, uid, photos, lite });
   return (
     <div className={cn("relative overflow-hidden select-none", className)} style={{ aspectRatio: `${g.width} / ${g.height}`, background: "#EEE8E0" }}>
       <div className="absolute inset-0 [&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: svg }} />

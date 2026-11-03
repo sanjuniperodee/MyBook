@@ -65,8 +65,8 @@ export function CoverDocument({
   geometry: CoverGeometry;
   background: Buffer;
   text: CoverTextContent;
-  /** Раскладка задней стороны (src/lib/book/cover-back.ts) и её фото по порядку. */
-  back: { design: BackDesign; photos: (Buffer | null)[] };
+  /** Раскладка задней стороны (src/lib/book/cover-back.ts) и её фото по порядку; оборот из конструктора — его слои. */
+  back: { design: BackDesign; photos: (Buffer | null)[]; layers?: { layers: CoverDesign["layers"]; images: Map<string, Buffer> } };
   /** Обложка из конструктора: слои вместо текста шаблона на лицевой стороне; снимки слоёв — по id слоя. */
   layers?: { design: CoverDesign; images: Map<string, Buffer> };
   title: string;
@@ -151,7 +151,12 @@ export function CoverDocument({
           </View>
         ) : null}
 
-        {/* Задняя сторона */}
+        {/* Задняя сторона: слои конструктора не заходят на корешок — справа их обрезает канавка шарнира. */}
+        {g.back && back.layers ? (
+          <View fixed style={{ position: "absolute", left: 0, top: 0, width: mm(g.back.x + g.back.w + print.cover.hingeMm), height: mm(g.height) - 0.01, overflow: "hidden" }}>
+            <CoverLayersPdf design={{ layers: back.layers.layers }} texts={text} front={g.back} images={back.layers.images} />
+          </View>
+        ) : null}
         {g.back ? <BackSide rect={g.back} design={back.design} photos={back.photos} /> : null}
       </Page>
     </Document>

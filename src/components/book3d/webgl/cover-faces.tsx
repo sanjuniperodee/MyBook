@@ -18,8 +18,8 @@ import type { CoverArt } from "../cover-art";
  */
 const box = (width: number, height: number): CSSProperties => ({ position: "relative", width, height, overflow: "hidden", containerType: "inline-size" });
 
-/** Слои обложки из конструктора на лицевой стороне 3D-книги (вместо текста шаблона). */
-export function DesignFace({ design, format, title, subtitle, names }: { design: CoverDesign; format?: string; title: string; subtitle?: string; names?: string }) {
+/** Слои обложки из конструктора на стороне 3D-книги: на лице — вместо текста шаблона, на обороте — вместо варианта. */
+export function DesignFace({ design, format, title, subtitle, names, uid = "b3" }: { design: Pick<CoverDesign, "layers">; format?: string; title: string; subtitle?: string; names?: string; uid?: string }) {
   return (
     <CoverLayers
       design={design}
@@ -27,7 +27,7 @@ export function DesignFace({ design, format, title, subtitle, names }: { design:
       board={boardSize(getFormat(format ?? "a5"))}
       photoSrc={(id) => photoUrl(id, "view")}
       stockSrc={(key) => coverPhotoUrl(key, 1400)}
-      uid="b3"
+      uid={uid}
     />
   );
 }
@@ -53,10 +53,36 @@ export function CoverFrontFace({ template, art, title, subtitle, names, titlePla
   );
 }
 
-export function CoverBackFace({ art, design, photos, brand, width, height, widthMm, heightMm }: { art: CoverArt; design: BackDesign; photos?: (PhotoRef | undefined)[]; brand: string; width: number; height: number; widthMm: number; heightMm: number }) {
+export function CoverBackFace({
+  art,
+  design,
+  layers,
+  texts,
+  format,
+  photos,
+  brand,
+  width,
+  height,
+  widthMm,
+  heightMm,
+}: {
+  art: CoverArt;
+  design: BackDesign;
+  /** Оборот из конструктора: его слои (вместо варианта оборота). */
+  layers?: CoverDesign["layers"];
+  texts?: { title: string; subtitle: string; names: string };
+  format?: string;
+  photos?: (PhotoRef | undefined)[];
+  brand: string;
+  width: number;
+  height: number;
+  widthMm: number;
+  heightMm: number;
+}) {
   return (
     <div style={box(width, height)}>
       <div className="absolute inset-0" style={{ backgroundImage: art.back, backgroundSize: "100% 100%" }} />
+      {layers ? <DesignFace design={{ layers }} format={format} title={texts?.title ?? ""} subtitle={texts?.subtitle} names={texts?.names} uid="b3b" /> : null}
       <CoverBackLayer design={design} widthMm={widthMm} heightMm={heightMm} photos={photos} brand={brand} />
     </div>
   );

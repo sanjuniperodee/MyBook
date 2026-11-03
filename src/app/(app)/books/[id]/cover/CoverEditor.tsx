@@ -5,12 +5,13 @@ import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Check, ImagePlus, Layers, Sparkles } from "lucide-react";
 import { CoverPreview } from "@/components/cover/CoverPreview";
-import { backPreviewLayout, CoverBackPreview } from "@/components/cover/CoverBackPreview";
+import { backPreviewLayout, CoverBackPreview, PREVIEW_PAGES } from "@/components/cover/CoverBackPreview";
+import { backCanvasSvg, spineSvg } from "@/components/cover/cover-sides";
 import { FrameControls, FrameLayer, type FrameSlot } from "@/components/cover/FrameEditor";
 import { DEFAULT_FRAME, frameKey, isDefaultFrame, type FrameMap, type PhotoFrame } from "@/lib/book/photo-frame";
 import { backSlotBoxes, frontSlotBoxes } from "@/lib/book/photo-slots";
 import { backPhotoRefs, coverPhotoRefs } from "@/lib/book/photo-refs";
-import { BACK_PHOTO_SLOTS, type BackLayout } from "@/lib/book/cover-back";
+import { BACK_PHOTO_SLOTS, layeredBack, type BackLayout } from "@/lib/book/cover-back";
 import { BackSection } from "./BackSection";
 import { InteriorSpread, type SpreadSample } from "@/components/interior/InteriorSpread";
 import { SaveIndicator } from "@/components/SaveIndicator";
@@ -21,7 +22,7 @@ import { coverLabel, coverMoods, coverPhotoSlots, getCoverTemplate, pickerCovers
 import { coverNames, NAMES_ON_COVER_MAX } from "@/lib/book/cover-names";
 import { EmojiNote } from "./EmojiNote";
 import { bookKind, RECORDED_BY_MAX } from "@/lib/content/kinds";
-import { getFormat } from "@/lib/book/formats";
+import { coverSpreadGeometry, getFormat } from "@/lib/book/formats";
 import { getInteriorDesign, interiorsForCover } from "@/lib/book/interiors";
 import { photoUrl, photoUrls } from "@/lib/urls";
 import { cn } from "@/lib/class-names";
@@ -35,7 +36,21 @@ type CoverPhoto = { id: string; width: number; height: number; opener?: boolean 
 
 /** Снимки обложки и оборота в настройках книги: правка любого — сервер пересобирает книгу и места фото. */
 const PHOTO_FIELDS = ["coverTemplate", "coverPhotoId", "coverPhotoExtra", "backLayout", "backPhotoId", "backPhotoExtra"] as const;
-import { designFromTemplate, type CoverDesign, type TextBind } from "@/lib/book/cover-design";
+import {
+  backFill,
+  backgroundMid,
+  backLayersFromLayout,
+  designFromTemplate,
+  templateForCover,
+  type CoverBack,
+  type CoverBackground,
+  type CoverDesign,
+  type CoverSide,
+  type TextBind,
+} from "@/lib/book/cover-design";
+import { designColors } from "@/components/cover/designer/logic";
+import { site } from "@/config/site";
+import { BackFillSection, BackLayoutsPanel, SideSwitch, SpreadStrip } from "./CoverSides";
 import { coverMeta } from "@/lib/book/covers/meta";
 import { CoverDesigner } from "@/components/cover/designer/CoverDesigner";
 import { CoverLayoutPicker } from "@/components/cover/CoverLayoutPicker";
@@ -65,7 +80,20 @@ interface CoverState {
   photoFrames: FrameMap;
   /** Обложка из конструктора (слои поверх шаблона); null — обложка шаблона. */
   coverDesign: CoverDesign | null;
+  /** Оборот: свой фон и слои из конструктора; null — как спереди и вариант оборота. */
+  coverBack: CoverBack | null;
 }
+
+/** Образцы цвета оборота после цветов лица: тёмные, светлые и розовые — чтобы «в тон» находился сразу. */
+const BACK_SWATCHES = ["#111111", "#1F1A17", "#FFFFFF", "#FBF7F1", "#E9DCCB", "#F4E4E1", "#E78496", "#D9466E", "#7A1F2B", "#2B1B2E", "#1F3A5F", "#1F3A36", "#7D8B6A", "#B8925A"];
+
+/** Цвета шаблона (образец, надписи, украшение) — первыми в образцах цвета оборота у обложки шаблона. */
+function templateColors(t: { swatch: string; title: { color: string }; names: { color: string }; ornament?: { color: string } }) {
+  return [...new Set([...(t.swatch.match(/#[0-9a-fA-F]{6}/g) ?? []), t.title.color, t.names.color, ...(t.ornament ? [t.ornament.color] : [])].map((c) => c.toUpperCase()))];
+}
+
+/** Оборот без своего фона и слоёв не хранится: это и есть «как спереди» по умолчанию. */
+const normalBack = (b: CoverBack | null): CoverBack | null => (!b || (b.background.kind === "template" && !b.layers) ? null : b);
 
 export function CoverEditor({
   bookId,
@@ -80,6 +108,7 @@ export function CoverEditor({
   places: placeList = [],
   placeNames: nameLists = { chapters: [], answers: [] },
   blank = false,
+  initialSide = "front",
 }: {
   bookId: string;
   format: string;
@@ -99,6 +128,8 @@ export function CoverEditor({
   placeNames?: { chapters: { key: string; title: string }[]; answers: { id: string; title: string }[] };
   /** Своя книга: «раздел» вместо «ответ». */
   blank?: boolean;
+  /** Сторона из адреса (?side=back) — ссылка ведёт сразу на оборот. */
+  initialSide?: CoverSide;
 }) {
   const [state, setState] = useState(initial);
   const router = useRouter();
@@ -190,7 +221,7 @@ export function CoverEditor({
   const coverNamesLine = coverNames({ theme, ...state });
   const coverIds = [state.coverPhotoId, ...state.coverPhotoExtra].slice(0, slots);
   const coverPhotos = coverPhotoRefs(coverIds, photos, state, "view");
-  const [side, setSide] = useState<"front" | "back">("front");
+  const [side, setSideState] = useState<CoverSide>(initialSide);
   const [frameSel, setFrameSel] = useState<string | null>(null);
   const backPhotos = [state.backPhotoId, ...state.backPhotoExtra].flatMap((id) => photos.filter((p) => p.id === id));
   const backContent = {
@@ -208,14 +239,15 @@ export function CoverEditor({
     const key = frameKey("cover", b.slot);
     return p ? [{ ...b, key, photo: { width: p.width, height: p.height }, frame: state.photoFrames[key] ?? DEFAULT_FRAME }] : [];
   });
-  const backLayoutInfo = backPreviewLayout(state.coverTemplate, format, backContent);
+  const backLayoutInfo = backPreviewLayout(state.coverTemplate, format, backContent, state.coverDesign, state.coverBack);
+  const backLayered = !!state.coverBack?.layers;
   const backSlots: FrameSlot[] = backSlotBoxes(backLayoutInfo.design, backLayoutInfo.back.w, backLayoutInfo.back.h).flatMap((b) => {
     const p = backPhotos[b.slot];
     const key = frameKey("back", b.slot);
     return p ? [{ ...b, key, photo: { width: p.width, height: p.height }, frame: state.photoFrames[key] ?? DEFAULT_FRAME }] : [];
   });
   // Обложка из конструктора: кадр фото в местах шаблона правится в самом конструкторе — здесь только оборот.
-  const frameSlots = side === "back" ? backSlots : state.coverDesign ? [] : frontSlots;
+  const frameSlots = side === "back" ? (backLayered ? [] : backSlots) : state.coverDesign ? [] : frontSlots;
   const frameSelected = frameSlots.some((s) => s.key === frameSel) ? frameSel : (frameSlots[0]?.key ?? null);
   const bigPreview = useRef<HTMLDivElement>(null);
   const scrolled = useScrolledPast(bigPreview);
@@ -223,7 +255,18 @@ export function CoverEditor({
   /** Обложка или оборот (без управления кадром) — для большого превью и для мини-копии под шапкой. */
   const renderSide = (className: string, uid: string, lite = false) =>
     side === "back" ? (
-      <CoverBackPreview template={state.coverTemplate} format={format} content={backContent} photos={backPhotoRefs(backPhotos, state, "view")} className={className} />
+      <CoverBackPreview
+        template={state.coverTemplate}
+        format={format}
+        content={backContent}
+        photos={backPhotoRefs(backPhotos, state, "view")}
+        design={state.coverDesign}
+        back={state.coverBack}
+        texts={{ title: state.title || t.bookTitle, subtitle: state.subtitle, names: coverNamesLine }}
+        uid={`bp${uid}`}
+        lite={lite}
+        className={className}
+      />
     ) : (
       <CoverPreview
         template={state.coverTemplate}
@@ -240,39 +283,66 @@ export function CoverEditor({
         design={state.coverDesign}
       />
     );
-  const sideToggle = (className?: string) => (
-    <div className={cn("inline-flex rounded-full bg-cream p-1 text-sm", className)} role="radiogroup" aria-label={t.side.aria}>
-      {(["front", "back"] as const).map((s) => (
-        <button
-          key={s}
-          type="button"
-          role="radio"
-          aria-checked={side === s}
-          onClick={() => setSide(s)}
-          className={cn("rounded-full px-4 py-1.5 transition max-lg:min-h-9", side === s ? "bg-white font-medium text-ink shadow-soft" : "text-muted hover:text-ink")}
-        >
-          {t.side[s]}
-        </button>
-      ))}
-    </div>
-  );
-
   // ─── конструктор ──────────────────────────────────────────────────────────
   const d = m.design.cover;
-  const [view, setView] = useState<"template" | "designer">(initial.coverDesign ? "designer" : "template");
+  const tb = t.backDesigner;
+  const [view, setView] = useState<"template" | "designer">(initial.coverDesign && initialSide === "front" ? "designer" : initial.coverBack?.layers && initialSide === "back" ? "designer" : "template");
   /** Новый ключ — конструктор начинается заново (после сброса или новой обложки из шаблона). */
   const [designerKey, setDesignerKey] = useState(0);
+  const [backKey, setBackKey] = useState(0);
   const designTexts = { title: state.title, subtitle: state.subtitle, names: coverNamesLine };
   /** Правка привязанной надписи на обложке — это правка поля книги. */
   const setBookText = (bind: TextBind, value: string) => update(bind === "names" ? { namesOnCover: value } : bind === "title" ? { title: value.slice(0, 80) } : { subtitle: value.slice(0, 80) });
-  /** В конструктор: обложки из слоёв ещё нет — она собирается из текущего шаблона, на тех же местах. */
-  const openDesigner = () => {
-    if (!state.coverDesign) {
-      if (!editable) return;
+
+  // ─── оборот ───────────────────────────────────────────────────────────────
+  const backBg: CoverBackground = state.coverBack?.background ?? { kind: "template" };
+  const setBack = (next: CoverBack | null) => update({ coverBack: normalBack(next) });
+  /** Цвета лица — первыми в образцах цвета оборота. */
+  const frontColors = state.coverDesign ? designColors(state.coverDesign) : templateColors(template);
+  const backColors = [...new Set([...frontColors, ...BACK_SWATCHES])].slice(0, 18);
+  /** Чем залит оборот «как спереди»: фон лица из конструктора или образец шаблона. */
+  const linkedFill = backFill(state.coverDesign, null);
+  const likeFrontCss = linkedFill ? (linkedFill.bg.kind === "color" ? linkedFill.bg.color : `linear-gradient(90deg, ${linkedFill.bg.to}, ${linkedFill.bg.from})`) : template.swatch;
+  const likeFrontBase = linkedFill ? backgroundMid(linkedFill.bg) : (/#[0-9a-fA-F]{6}/.exec(template.swatch)?.[0] ?? null);
+  /**
+   * Вариант оборота слоями — на тех же местах, что в превью и PDF. Варианту с фото без выбранных снимков — первые
+   * свободные фото книги, как в «Шаблон и текст».
+   */
+  const backLayersFor = (layout: BackLayout) => {
+    const need = BACK_PHOTO_SLOTS[layout] ?? 0;
+    const ids = backPhotos.map((p) => p.id);
+    for (const id of fillOrder) if (ids.length < need && !ids.includes(id)) ids.push(id);
+    const list = ids.flatMap((id) => photos.filter((p) => p.id === id));
+    const info = backPreviewLayout(state.coverTemplate, format, { ...backContent, layout, photos: list.map((p) => ({ width: p.width, height: p.height })) }, state.coverDesign, { v: 1, background: backBg });
+    return backLayersFromLayout(info.design, info.back.w, info.back.h, { photoIds: ids, frames: ids.map((_, i) => state.photoFrames[frameKey("back", i)]), names: coverNamesLine });
+  };
+
+  /** Сторона: в конструкторе у неё должны быть слои — лицо собирается из шаблона, оборот — из своего варианта. */
+  const ensureLayers = (s: CoverSide) => {
+    if (!editable) return;
+    if (s === "front" && !state.coverDesign) {
       update({ coverDesign: designFromTemplate(coverMeta(template), { title: state.title, subtitle: state.subtitle, names: coverNamesLine }, getFormat(format)) });
       setDesignerKey((k) => k + 1);
     }
-    setView("designer");
+    if (s === "back" && !state.coverBack?.layers) {
+      setBack({ v: 1, background: backBg, layers: backLayersFor(state.backLayout) });
+      setBackKey((k) => k + 1);
+    }
+  };
+  const setSide = (s: CoverSide) => {
+    setSideState(s);
+    if (view === "designer") ensureLayers(s);
+    // Ссылка на страницу ведёт на ту же сторону (?side=back), истории браузера не добавляем.
+    const url = new URL(window.location.href);
+    if (s === "back") url.searchParams.set("side", "back");
+    else url.searchParams.delete("side");
+    window.history.replaceState(window.history.state, "", url);
+  };
+  /** В конструктор — той стороной, что выбрана (или s). */
+  const openDesigner = (s: CoverSide = side) => {
+    if (s !== side) setSide(s);
+    ensureLayers(s);
+    if ((s === "front" && (state.coverDesign || editable)) || (s === "back" && (state.coverBack?.layers || editable))) setView("designer");
   };
   const resetDesign = () => {
     if (!window.confirm(d.active.confirmReset)) return;
@@ -280,41 +350,50 @@ export function CoverEditor({
     setDesignerKey((k) => k + 1);
     setView("template");
   };
+  const resetBack = () => {
+    if (!window.confirm(tb.confirmReset)) return;
+    setBack({ v: 1, background: backBg });
+    setBackKey((k) => k + 1);
+    setView("template");
+  };
 
-  const templateView = (
-    <div className="grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)] lg:gap-14">
-      <PreviewDock show={scrolled}>
-        <div className="shrink-0" style={{ width: 68 }}>{renderSide("rounded-[3px] shadow-soft", "mini", true)}</div>
-        <div className="min-w-0 flex-1 space-y-1.5">
-          <div className="flex items-center gap-2 text-sm text-muted">
-            <span className="truncate font-medium text-ink">{label(template)}</span>·<SaveIndicator status={status} error={error} className="shrink-0 text-xs" />
-          </div>
-          {sideToggle()}
-        </div>
-      </PreviewDock>
-      <div>
-        <div className="lg:sticky lg:top-24">
-          <div className="mb-4 flex justify-center">{sideToggle()}</div>
-          <div ref={bigPreview} className="mx-auto w-full max-w-[300px] rounded-[28px] bg-cream/70 p-5 sm:max-w-[340px] sm:p-8">
-            <div className="relative">
-              {renderSide("rounded-[4px] shadow-book", "editor")}
-              {editable && frameSlots.length ? <FrameLayer slots={frameSlots} selected={frameSelected} onSelect={setFrameSel} onChange={setFrame} ariaLabel={t.frame.aria} /> : null}
-            </div>
-          </div>
-          {editable && frameSlots.length ? <FrameControls slots={frameSlots} selected={frameSelected} onSelect={setFrameSel} onChange={setFrame} labels={{ ...t.frame, hintTouch: m.books.coverPhotos.frameHintTouch }} /> : null}
-          <div className="mt-4 flex items-center justify-center gap-3 text-sm text-muted">
-            <span className="font-medium text-ink">{label(template)}</span>·<SaveIndicator status={status} error={error} />
-          </div>
-        </div>
-      </div>
+  // ─── обложка целиком ──────────────────────────────────────────────────────
+  const spread = coverSpreadGeometry(getFormat(format), PREVIEW_PAGES);
+  const spineHtml = useMemo(() => spineSvg(state.coverTemplate, format, state.coverDesign, state.coverBack, "sp", coverPhotos), [state.coverTemplate, format, state.coverDesign, state.coverBack, coverPhotos]);
+  const spreadStrip = (className: string, uid: string) => (
+    <SpreadStrip
+      side={side}
+      onSelect={setSide}
+      className={className}
+      widths={{ back: spread.back!.w, spine: spread.spine!.w, front: spread.front.w, height: spread.front.h }}
+      back={
+        <CoverBackPreview
+          template={state.coverTemplate}
+          format={format}
+          content={backContent}
+          photos={backPhotoRefs(backPhotos, state, "view")}
+          design={state.coverDesign}
+          back={state.coverBack}
+          texts={{ title: state.title || t.bookTitle, subtitle: state.subtitle, names: coverNamesLine }}
+          uid={`s${uid}`}
+          lite
+        />
+      }
+      spine={<div className="[&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: spineHtml }} />}
+      front={<CoverPreview template={state.coverTemplate} format={format} title={state.title} subtitle={state.subtitle} names={coverNamesLine} photos={coverPhotos} uid={`s${uid}f`} lite titlePlaceholder={t.bookTitle} design={state.coverDesign} />}
+    />
+  );
+  const backTemplate = templateForCover(template, state.coverDesign, state.coverBack);
+  const backBoard = spread.back!;
 
-      <div className="space-y-8">
+  const frontSettings = (
+    <>
         {state.coverDesign ? (
           <section className="flex flex-col gap-3 rounded-2xl border border-wine/20 bg-rose/40 p-5 sm:flex-row sm:items-center">
             <Layers className="size-6 shrink-0 text-wine" />
             <p className="min-w-0 flex-1 text-sm text-ink-soft">{d.active.text}</p>
             <div className="flex shrink-0 flex-wrap gap-2">
-              <button type="button" className="btn btn-primary btn-sm" onClick={openDesigner}>
+              <button type="button" className="btn btn-primary btn-sm" onClick={() => openDesigner("front")}>
                 {d.active.open}
               </button>
               {editable ? (
@@ -333,7 +412,7 @@ export function CoverEditor({
               <div className="font-semibold">{d.cta.title}</div>
               <p className="mt-0.5 text-sm text-muted">{d.cta.text}</p>
             </div>
-            <button type="button" className="btn btn-dark btn-sm shrink-0" onClick={openDesigner}>
+            <button type="button" className="btn btn-dark btn-sm shrink-0" onClick={() => openDesigner("front")}>
               {d.cta.open}
             </button>
           </section>
@@ -457,34 +536,117 @@ export function CoverEditor({
           onChange={(v) => update({ namesOnCover: v })}
           disabled={!editable}
         />
-        <BackSection
-          bookId={bookId}
-          theme={theme}
-          layout={state.backLayout}
-          text={state.backText}
-          photoIds={backPhotos.map((p) => p.id)}
-          photos={photos}
-          signature={state.authorName.trim()}
-          names={coverNamesLine}
-          year={year}
-          editable={editable}
-          onChange={(patch) => {
-            // Вариант с фото без выбранных снимков — сразу подставляем первые фото книги.
-            const need = patch.backLayout ? (BACK_PHOTO_SLOTS[patch.backLayout] ?? 0) : 0;
-            if (need && backPhotos.length < Math.min(need, photos.length)) {
-              const ids = [...backPhotos.map((p) => p.id), ...fillOrder.filter((id) => !backPhotos.some((p) => p.id === id))].slice(0, need);
-              update({ ...patch, backPhotoId: ids[0] ?? null, backPhotoExtra: ids.slice(1) });
-            } else update(patch);
-          }}
-          onFocusBack={() => setSide("back")}
-        />
+    </>
+  );
+
+  const backSettings = (
+    <>
+      <BackFillSection
+        background={backBg}
+        likeFront={likeFrontCss}
+        colors={backColors}
+        editable={editable}
+        onChange={(background) => setBack({ v: 1, ...state.coverBack, background })}
+        onMore={editable || backLayered ? () => openDesigner("back") : undefined}
+      />
+      {backLayered ? (
+        <section className="flex flex-col gap-3 rounded-2xl border border-wine/20 bg-rose/40 p-5 sm:flex-row sm:items-center">
+          <Layers className="size-6 shrink-0 text-wine" />
+          <p className="min-w-0 flex-1 text-sm text-ink-soft">{tb.active}</p>
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => openDesigner("back")}>
+              {tb.openActive}
+            </button>
+            {editable ? (
+              <button type="button" className="btn btn-ghost btn-sm" onClick={resetBack}>
+                {tb.reset}
+              </button>
+            ) : null}
+          </div>
+        </section>
+      ) : (
+          <BackSection
+            bookId={bookId}
+            theme={theme}
+            layout={state.backLayout}
+            text={state.backText}
+            photoIds={backPhotos.map((p) => p.id)}
+            photos={photos}
+            signature={state.authorName.trim()}
+            names={coverNamesLine}
+            year={year}
+            editable={editable}
+            onChange={(patch) => {
+              // Вариант с фото без выбранных снимков — сразу подставляем первые фото книги.
+              const need = patch.backLayout ? (BACK_PHOTO_SLOTS[patch.backLayout] ?? 0) : 0;
+              if (need && backPhotos.length < Math.min(need, photos.length)) {
+                const ids = [...backPhotos.map((p) => p.id), ...fillOrder.filter((id) => !backPhotos.some((p) => p.id === id))].slice(0, need);
+                update({ ...patch, backPhotoId: ids[0] ?? null, backPhotoExtra: ids.slice(1) });
+              } else update(patch);
+            }}
+            onFocusBack={() => undefined}
+          />
+      )}
+      {!backLayered && editable ? (
+        <section className="flex flex-col gap-4 rounded-2xl border border-line bg-white p-5 sm:flex-row sm:items-center">
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-rose text-wine">
+            <Layers className="size-5" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="font-semibold">{tb.title}</div>
+            <p className="mt-0.5 text-sm text-muted">{tb.text}</p>
+          </div>
+          <button type="button" className="btn btn-dark btn-sm shrink-0" onClick={() => openDesigner("back")}>
+            {tb.open}
+          </button>
+        </section>
+      ) : null}
+    </>
+  );
+
+  const templateView = (
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)] lg:gap-14">
+      <PreviewDock show={scrolled}>
+        <div className="shrink-0" style={{ width: 68 }}>{renderSide("rounded-[3px] shadow-soft", "mini", true)}</div>
+        <div className="min-w-0 flex-1 space-y-1.5">
+          <div className="flex items-center gap-2 text-sm text-muted">
+            <span className="truncate font-medium text-ink">{label(template)}</span>·<SaveIndicator status={status} error={error} className="shrink-0 text-xs" />
+          </div>
+          <SideSwitch side={side} onChange={setSide} />
+        </div>
+      </PreviewDock>
+      <div>
+        <div className="lg:sticky lg:top-24">
+          <div ref={bigPreview} className="mx-auto w-full max-w-[300px] rounded-[28px] bg-cream/70 p-5 sm:max-w-[340px] sm:p-8">
+            <div className="relative">
+              {renderSide("rounded-[4px] shadow-book", "editor")}
+              {editable && frameSlots.length ? <FrameLayer slots={frameSlots} selected={frameSelected} onSelect={setFrameSel} onChange={setFrame} ariaLabel={t.frame.aria} /> : null}
+            </div>
+          </div>
+          {editable && frameSlots.length ? <FrameControls slots={frameSlots} selected={frameSelected} onSelect={setFrameSel} onChange={setFrame} labels={{ ...t.frame, hintTouch: m.books.coverPhotos.frameHintTouch }} /> : null}
+          <div className="mt-4 flex items-center justify-center gap-3 text-sm text-muted">
+            <span className="font-medium text-ink">{label(template)}</span>·<SaveIndicator status={status} error={error} />
+          </div>
+          {/* Обложка целиком: видно, сочетаются ли оборот и корешок с лицом; нажатие по стороне — её правка. */}
+          <div className="mx-auto mt-6 w-full max-w-[260px] sm:max-w-[340px]">
+            <div className="mb-2 text-center text-xs font-medium text-muted">{t.side.spread}</div>
+            {spreadStrip("", "tv")}
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-8">
+        <h2 className="font-serif text-2xl font-medium">{t.side.title[side]}</h2>
+        {side === "back" ? backSettings : frontSettings}
       </div>
     </div>
   );
 
+  const frontLayers = !!state.coverDesign;
+  const designerOn = view === "designer" && (side === "front" ? frontLayers : backLayered);
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <div role="tablist" aria-label={d.tabs.aria} className="inline-flex rounded-2xl bg-cream/80 p-1">
           {(["template", "designer"] as const).map((v) => (
             <button
@@ -493,37 +655,81 @@ export function CoverEditor({
               role="tab"
               aria-selected={view === v}
               onClick={() => (v === "designer" ? openDesigner() : setView("template"))}
-              disabled={v === "designer" && !editable && !state.coverDesign}
-              className={cn("inline-flex h-10 items-center gap-2 rounded-xl px-4 text-sm transition", view === v ? "bg-white font-medium text-ink shadow-soft" : "text-muted hover:text-ink")}
+              disabled={v === "designer" && !editable && !(side === "front" ? frontLayers : backLayered)}
+              className={cn("inline-flex h-10 items-center gap-2 rounded-xl px-4 text-sm transition max-lg:h-11", view === v ? "bg-white font-medium text-ink shadow-soft" : "text-muted hover:text-ink")}
             >
               {v === "designer" ? <Layers className="size-4" /> : null}
               {d.tabs[v]}
             </button>
           ))}
         </div>
-        {view === "designer" && state.coverDesign && editable ? (
-          <button type="button" className="text-sm text-muted hover:text-wine hover:underline" onClick={resetDesign}>
-            {d.active.reset}
+        {/* Какую сторону правишь — одна для «Шаблон и текст» и конструктора. */}
+        <SideSwitch side={side} onChange={setSide} />
+        {designerOn && editable ? (
+          <button type="button" className="ml-auto text-sm text-muted hover:text-wine hover:underline" onClick={side === "front" ? resetDesign : resetBack}>
+            {side === "front" ? d.active.reset : tb.reset}
           </button>
         ) : null}
       </div>
-      {view === "designer" && state.coverDesign ? (
-        <CoverDesigner
-          key={designerKey}
-          bookId={bookId}
-          template={state.coverTemplate}
-          format={format}
-          initial={state.coverDesign}
-          texts={designTexts}
-          templatePhotos={coverPhotos}
-          bookPhotos={photos}
-          editable={editable}
-          onChange={(coverDesign) => update({ coverDesign })}
-          onBookText={setBookText}
-          onTemplate={(coverTemplate) => update({ coverTemplate })}
-          layouts={(onPick) => <CoverLayoutPicker format={format} texts={designTexts} photos={photos} currentTemplate={state.coverTemplate} onPick={onPick} />}
-          status={<SaveIndicator status={status} error={error} className="text-xs" />}
-        />
+      {view === "designer" ? (
+        <>
+          {/* Обложка целиком над холстом: какую сторону правишь и как она сочетается с другой. */}
+          <div className="mx-auto w-full max-w-[240px] sm:max-w-[320px]">{spreadStrip("", "dz")}</div>
+          {frontLayers ? (
+            <div hidden={side !== "front"}>
+              <CoverDesigner
+                key={designerKey}
+                bookId={bookId}
+                template={state.coverTemplate}
+                format={format}
+                initial={state.coverDesign!}
+                texts={designTexts}
+                templatePhotos={coverPhotos}
+                bookPhotos={photos}
+                editable={editable}
+                active={side === "front"}
+                onChange={(coverDesign) => update({ coverDesign })}
+                onBookText={setBookText}
+                onTemplate={(coverTemplate) => update({ coverTemplate })}
+                layouts={(onPick) => <CoverLayoutPicker format={format} texts={designTexts} photos={photos} currentTemplate={state.coverTemplate} onPick={onPick} />}
+                status={<SaveIndicator status={status} error={error} className="text-xs" />}
+                toolbarStart={<SideSwitch compact side={side} onChange={setSide} />}
+              />
+            </div>
+          ) : null}
+          {state.coverBack?.layers ? (
+            <div hidden={side !== "back"}>
+              <CoverDesigner
+                key={`back${backKey}`}
+                bookId={bookId}
+                template={state.coverTemplate}
+                format={format}
+                initial={{ v: 1, background: backBg, layers: state.coverBack.layers }}
+                texts={designTexts}
+                bookPhotos={photos}
+                editable={editable}
+                side="back"
+                active={side === "back"}
+                backdrop={backCanvasSvg(state.coverTemplate, format, state.coverDesign, state.coverBack, 8, "bkc")}
+                baseColor={likeFrontBase}
+                colors={frontColors}
+                brand={{ design: layeredBack(backTemplate, backBoard.h), name: site.name }}
+                onChange={(back) => setBack({ v: 1, background: back.background, layers: back.layers })}
+                onBookText={setBookText}
+                layouts={(onPick) => <BackLayoutsPanel disabled={!editable} onPick={(layout) => onPick({ v: 1, background: backBg, layers: backLayersFor(layout) })} />}
+                status={<SaveIndicator status={status} error={error} className="text-xs" />}
+                toolbarStart={<SideSwitch compact side={side} onChange={setSide} />}
+              />
+            </div>
+          ) : null}
+          {!designerOn ? (
+            // Книга заказана, а слоёв у этой стороны нет: показываем как есть.
+            <div className="mx-auto max-w-[340px] space-y-3 text-center">
+              <p className="rounded-xl bg-cream px-4 py-3 text-sm text-ink-soft">{side === "back" ? tb.readonly : d.readonly}</p>
+              {renderSide("rounded-[4px] shadow-book", "ro")}
+            </div>
+          ) : null}
+        </>
       ) : (
         templateView
       )}

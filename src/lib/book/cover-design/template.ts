@@ -1,14 +1,44 @@
 import type { CoverTemplate } from "../covers/types";
-import { backgroundBase, inkOn } from "./geometry";
-import type { CoverDesign } from "./types";
+import { backgroundMid, inkOn } from "./geometry";
+import type { CoverBack, CoverBackground, CoverDesign } from "./types";
+
+type OwnBackground = Exclude<CoverBackground, { kind: "template" }>;
+
+const own = (bg?: CoverBackground | null): OwnBackground | null => (bg && bg.kind !== "template" ? bg : null);
 
 /**
- * Шаблон, по которому рисуются корешок и оборот обложки из конструктора. С фоном шаблона — сам шаблон; со своим цветом
- * или градиентом рисунка шаблона нет — оборот без повтора композиции лица, текст корешка и оборота — контрастным цветом.
+ * Чем залит оборот: свой фон оборота, иначе фон лица из конструктора (градиент — зеркально), иначе null — рисунок
+ * оборота шаблона. Одно правило для PDF, 3D-книги, превью в кабинете и холста конструктора.
  */
-export function templateForDesign(template: CoverTemplate, design: CoverDesign | null): CoverTemplate {
-  const base = design ? backgroundBase(design.background) : null;
-  if (!base) return template;
-  const ink = inkOn(base);
-  return { ...template, back: { ...template.back, color: ink, mirror: false }, spine: { ...template.spine, color: ink }, texture: undefined, swatch: base };
+export function backFill(front: CoverDesign | null, back: CoverBack | null): { bg: OwnBackground; mirror: boolean } | null {
+  const b = own(back?.background);
+  if (b) return { bg: b, mirror: false };
+  const f = own(front?.background);
+  return f ? { bg: f, mirror: true } : null;
+}
+
+/** Корешок — в цвет оборота, если у оборота свой фон, иначе в цвет лица; null — корешок шаблона. */
+export function spineFill(front: CoverDesign | null, back: CoverBack | null): OwnBackground | null {
+  return own(back?.background) ?? own(front?.background);
+}
+
+/**
+ * Шаблон, по которому рисуются корешок и оборот: цвета надписей — контрастные фону, который на них на самом деле
+ * лежит. С фоном шаблона — сам шаблон; со своим фоном лица или оборота рисунка шаблона там нет — оборот без повтора
+ * композиции лица, текст корешка и оборота — светлый или тёмный по фону.
+ */
+export function templateForCover(template: CoverTemplate, front: CoverDesign | null, back: CoverBack | null = null): CoverTemplate {
+  const fill = backFill(front, back);
+  const spine = spineFill(front, back);
+  const frontOwn = own(front?.background);
+  if (!fill && !spine) return template;
+  const out: CoverTemplate = { ...template };
+  if (fill) out.back = { ...template.back, color: inkOn(backgroundMid(fill.bg)), mirror: false };
+  if (spine) out.spine = { ...template.spine, color: inkOn(backgroundMid(spine)) };
+  // Свой фон лица: рисунка шаблона нет вовсе — ни фактуры, ни образца шаблона.
+  if (frontOwn) {
+    out.texture = undefined;
+    out.swatch = backgroundMid(frontOwn);
+  }
+  return out;
 }

@@ -153,7 +153,7 @@ function DecorLayerPdf({ layer, w, h, o }: { layer: Extract<CoverLayer, { kind: 
  * Слои обложки из конструктора на лицевой крышке front (мм развёртки): по порядку, каждый — в своей рамке с поворотом
  * вокруг центра и прозрачностью. images — готовые снимки слоёв (кадр и ч/б уже в файле) по id слоя.
  */
-export function CoverLayersPdf({ design, texts, front, images }: { design: CoverDesign; texts: CoverTexts; front: MmRect; images: Map<string, Buffer> }) {
+export function CoverLayersPdf({ design, texts, front, images }: { design: Pick<CoverDesign, "layers">; texts: CoverTexts; front: MmRect; images: Map<string, Buffer> }) {
   return (
     <>
       {printedLayers(design, texts).map((l) => {

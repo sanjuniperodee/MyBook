@@ -34,7 +34,8 @@ import {
   ZoomOut,
 } from "lucide-react";
 import { useMessages } from "@/i18n/client";
-import { backgroundBase, boardSize, canvasGeometry, decorDrawing, inkOn, parseCoverDesign, safeArea, type CoverBackground, type CoverDesign, type CoverLayer, type CoverTexts, type DecorId, type ShapeKind, type TextBind } from "@/lib/book/cover-design";
+import { backgroundBase, boardSize, canvasGeometry, decorDrawing, inkOn, parseCoverDesign, safeArea, type CoverBackground, type CoverDesign, type CoverLayer, type CoverSide, type CoverTexts, type DecorId, type ShapeKind, type TextBind } from "@/lib/book/cover-design";
+import type { BackDesign } from "@/lib/book/cover-back";
 import type { PhotoRef } from "@/lib/book/covers/svg-kit";
 import { getFormat } from "@/lib/book/formats";
 import { getCoverTemplate } from "@/lib/book/covers";
@@ -74,17 +75,56 @@ export interface CoverDesignerProps {
   onTemplate?: (id: string) => void;
   /** Строка над холстом справа (сохранение). */
   status?: ReactNode;
+  /** Сторона: лицо или оборот (у оборота свой фон холста, безопасная зона у корешка справа, ИИ нет). */
+  side?: CoverSide;
+  /**
+   * Конструктор на экране. Конструкторы лица и оборота живут одновременно (у каждого своя история отмены), горячие
+   * клавиши слушает только видимый.
+   */
+  active?: boolean;
+  /** Фон холста оборота: SVG окна с загибом (cover-sides). */
+  backdrop?: string;
+  /** Цвет, на котором лежат новые надписи, если фон — «как спереди» (рисунок шаблона или фон лица). */
+  baseColor?: string | null;
+  /** Марка на обороте — видна на холсте, но не слой. */
+  brand?: { design: BackDesign; name: string };
+  /** Цвета другой стороны — первыми в образцах (оборот в тон лица). */
+  colors?: string[];
+  /** В начале липкой панели инструментов (переключатель сторон — виден, пока правишь холст). */
+  toolbarStart?: ReactNode;
 }
 
-export function CoverDesigner({ bookId, template, format: formatId, initial, texts, templatePhotos, bookPhotos, editable, onChange, onBookText, layouts, onTemplate, status }: CoverDesignerProps) {
+export function CoverDesigner({
+  bookId,
+  template,
+  format: formatId,
+  initial,
+  texts,
+  templatePhotos,
+  bookPhotos,
+  editable,
+  onChange,
+  onBookText,
+  layouts,
+  onTemplate,
+  status,
+  side = "front",
+  active = true,
+  backdrop,
+  baseColor,
+  brand,
+  colors = [],
+  toolbarStart,
+}: CoverDesignerProps) {
   const m = useMessages().design.cover;
   const tb = m.toolbar;
   const dz = useDesigner(initial, onChange, texts);
   const { design, selected } = dz;
   const format = getFormat(formatId);
   const board = boardSize(format);
-  const safe = safeArea(format);
+  const safe = safeArea(format, side);
   const g = canvasGeometry(format, 8);
+  const back = side === "back";
   const layer = findLayer(design, selected);
   const [tab, setTab] = useState<Tab>("add");
   const [editing, setEditing] = useState<string | null>(null);
@@ -92,12 +132,12 @@ export function CoverDesigner({ bookId, template, format: formatId, initial, tex
   const [showSafe, setShowSafe] = useState(true);
   const [showGrid, setShowGrid] = useState(false);
   const [zoom, setZoom] = useState(1);
-  const swatches = [...new Set([...designColors(design), ...COVER_SWATCHES])].slice(0, 14);
+  const swatches = [...new Set([...colors, ...designColors(design), ...COVER_SWATCHES])].slice(0, 16);
   const unsafe = unsafeTextLayers(design, safe, texts, board);
   const full = design.layers.length >= 40;
   // Новые надписи — контрастным к своему фону цветом; на рисунке шаблона — тёмным.
   // Рисунок шаблона — по основному цвету его образца (swatch), свой фон — по его цвету.
-  const base = backgroundBase(design.background) ?? /#[0-9a-fA-F]{6}/.exec(getCoverTemplate(template).swatch)?.[0] ?? null;
+  const base = backgroundBase(design.background) ?? baseColor ?? /#[0-9a-fA-F]{6}/.exec(getCoverTemplate(template).swatch)?.[0] ?? null;
   const accent = base && inkOn(base) !== "#1F1A17" ? "#F3D9A4" : "#1F1A17";
 
   /** Новый слой — поверх, выбран. */
@@ -142,17 +182,17 @@ export function CoverDesigner({ bookId, template, format: formatId, initial, tex
   };
 
   // Горячие клавиши — пока конструктор открыт и фокус не в поле ввода.
-  const keys = useRef({ dz, act, layer, editable, cropping });
+  const keys = useRef({ dz, act, layer, editable, cropping, active });
   useLayoutEffect(() => {
-    keys.current = { dz, act, layer, editable, cropping };
+    keys.current = { dz, act, layer, editable, cropping, active };
   });
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (typing(e.target)) return;
-      const { dz: d, act: a, layer: l, editable: ok, cropping: crop } = keys.current;
+      const { dz: d, act: a, layer: l, editable: ok, cropping: crop, active: on } = keys.current;
       const mod = e.metaKey || e.ctrlKey;
       const k = e.key.toLowerCase();
-      if (!ok) return;
+      if (!ok || !on) return;
       if (mod && k === "z") {
         e.preventDefault();
         if (e.shiftKey) d.redo();
@@ -228,10 +268,11 @@ export function CoverDesigner({ bookId, template, format: formatId, initial, tex
     add: <AddPanel bookId={bookId} bookPhotos={bookPhotos} disabled={full || !editable} onText={onText} onImage={onImage} onShape={onShape} onDecor={onDecor} />,
     layouts: layouts ? layouts(pickLayout) : null,
     background: (
-      <PropertiesPanel layer={null} design={design} texts={texts} board={board} bookId={bookId} bookPhotos={bookPhotos} swatches={swatches} patch={() => {}} setBackground={setBackground} onBookText={onBookText} onCrop={setCropping} />
+      <PropertiesPanel side={side} layer={null} design={design} texts={texts} board={board} bookId={bookId} bookPhotos={bookPhotos} swatches={swatches} patch={() => {}} setBackground={setBackground} onBookText={onBookText} onCrop={setCropping} />
     ),
     properties: (
       <PropertiesPanel
+        side={side}
         layer={layer}
         design={design}
         texts={texts}
@@ -257,8 +298,9 @@ export function CoverDesigner({ bookId, template, format: formatId, initial, tex
       />
     ),
   };
-  const leftTabs: Tab[] = layouts ? ["add", "ai", "layouts", "background"] : ["add", "ai", "background"];
-  const mobileTabs: Tab[] = layouts ? ["add", "ai", "properties", "layers", "layouts", "background"] : ["add", "ai", "properties", "layers", "background"];
+  // ИИ-дизайнер правит лицо: на обороте его вкладки нет.
+  const leftTabs = (["add", "ai", "layouts", "background"] as Tab[]).filter((k) => (k !== "layouts" || layouts) && (k !== "ai" || !back));
+  const mobileTabs = (["add", "ai", "properties", "layers", "layouts", "background"] as Tab[]).filter((k) => (k !== "layouts" || layouts) && (k !== "ai" || !back));
   const tabLabel = (k: Tab) => m.panels[k];
   const tabBar = (list: Tab[], current: Tab, className?: string) => (
     <div role="tablist" aria-label={m.panels.aria} className={cn("no-scrollbar flex gap-1 overflow-x-auto rounded-2xl bg-cream/80 p-1", className)}>
@@ -292,6 +334,12 @@ export function CoverDesigner({ bookId, template, format: formatId, initial, tex
       {!editable ? <p className="rounded-xl bg-cream px-4 py-3 text-sm text-ink-soft">{m.readonly}</p> : null}
       {/* Панель инструментов */}
       <div className="no-scrollbar sticky top-16 z-20 flex items-center gap-0.5 overflow-x-auto rounded-2xl border border-line bg-white/95 p-1 shadow-soft backdrop-blur">
+        {toolbarStart ? (
+          <>
+            {toolbarStart}
+            {sep}
+          </>
+        ) : null}
         {tool(tb.undo, <Undo2 className="size-4" />, dz.undo, !dz.canUndo || !editable)}
         {tool(tb.redo, <Redo2 className="size-4" />, dz.redo, !dz.canRedo || !editable)}
         {sep}
@@ -370,7 +418,10 @@ export function CoverDesigner({ bookId, template, format: formatId, initial, tex
                   if (id) dz.select(id);
                 }}
                 onBookText={onBookText}
-                labels={{ aria: m.canvas.aria, wrap: m.canvas.wrap, rotate: m.canvas.rotate, resize: m.canvas.resize, editText: m.canvas.editText, image: m.canvas.image, placeholders: m.canvas.placeholders }}
+                side={side}
+                backdrop={backdrop}
+                brand={brand}
+                labels={{ aria: back ? m.canvas.ariaBack : m.canvas.aria, wrap: m.canvas.wrap, spine: m.canvas.spine, rotate: m.canvas.rotate, resize: m.canvas.resize, editText: m.canvas.editText, image: m.canvas.image, placeholders: m.canvas.placeholders }}
               />
             </div>
           </div>
