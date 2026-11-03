@@ -9,12 +9,13 @@ import { idParams } from "@/server/input";
 /**
  * Автосохранение. title и prompt — заголовок в книге и подсказка для себя у разделов своей книги (в остальных книгах —
  * 409 outlineNotAllowed); displayText и hideHeading своя книга не использует — сервер их там пропускает.
- * media — список QR-кодов ответа целиком (видео и музыка); ссылки приводит к одному виду домен (normalizeMedia).
+ * media — список QR-кодов ответа целиком (видео, музыка, свои файлы); ссылки приводит к одному виду домен (normalizeMedia).
  */
 const media = z.object({
   id: z.string().min(1).max(64),
-  kind: z.enum(["video", "music"]),
+  kind: z.enum(["video", "music", "audio"]),
   url: z.string().trim().min(1).max(MEDIA_URL_MAX * 2),
+  fileId: z.string().uuid().optional(),
   title: z.string().max(MEDIA_TITLE_MAX * 2),
   anchor: z.number().int().min(-1).max(10_000).nullable(),
 });

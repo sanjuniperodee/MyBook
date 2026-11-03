@@ -2,7 +2,8 @@
 
 import { useActionState, useTransition } from "react";
 import { LoaderCircle } from "lucide-react";
-import { formatPrice, MAX_AI_PACK_REQUESTS, type AddonId, type AiPackId, type DeliveryId, type PlanId } from "@/config/site";
+import { formatPrice, MAX_AI_PACK_REQUESTS, type AddonId, type AiPackId, type DeliveryId, type MediaPackId, type PlanId } from "@/config/site";
+import { MAX_FREE_MINUTES, MAX_PACK_MINUTES, MAX_SECONDS } from "@/lib/book/answer-files";
 import { addonLabels, deliveryLabels, planLabels } from "@/modules/ordering/ui/labels";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { Alert } from "@/components/ui/Alert";
@@ -18,11 +19,15 @@ interface Props {
   /** price null — «рассчитывается индивидуально» (optional: поле можно оставить пустым). */
   delivery: { id: DeliveryId; price: number | null; optional: boolean }[];
   aiPacks: { id: AiPackId; price: number; requests: number; visible: boolean }[];
+  mediaPacks: { id: MediaPackId; price: number; minutes: number; visible: boolean }[];
+  mediaFreeMinutes: number;
   factory: {
     plans: Record<string, { price: number; extraCopyPrice: number; visible: boolean }>;
     addons: Record<string, number>;
     delivery: Record<string, number>;
     aiPacks: Record<string, { price: number; requests: number }>;
+    mediaPacks: Record<string, { price: number; minutes: number }>;
+    mediaFreeMinutes: number;
   };
   changed: boolean;
 }
@@ -42,7 +47,7 @@ function Price({ name, label, value, factory, hint, optional = false }: { name: 
   );
 }
 
-export function PricingForm({ plans, addons, delivery, aiPacks, factory, changed }: Props) {
+export function PricingForm({ plans, addons, delivery, aiPacks, mediaPacks, mediaFreeMinutes, factory, changed }: Props) {
   const [state, action] = useActionState<PricingState, FormData>(savePricingAction, {});
   const [resetting, startReset] = useTransition();
   return (
@@ -124,6 +129,47 @@ export function PricingForm({ plans, addons, delivery, aiPacks, factory, changed
                 </div>
                 <Price name={`ai_${p.id}_price`} label="Цена" value={p.price} factory={f.price} />
                 <p className="text-xs text-muted">≈ {formatPrice(Math.round(p.price / Math.max(1, p.requests)))} за запрос</p>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="space-y-4 rounded-2xl border border-line bg-white p-5" data-testid="pricing-media">
+        <div>
+          <h2 className="text-sm font-semibold">Свои видео и аудио по QR-коду</h2>
+          <p className="mt-1 text-xs text-muted">
+            Клиент загружает к ответу своё видео (до {MAX_SECONDS.video / 60} мин) или аудио (до {MAX_SECONDS.audio / 60} мин), в книге печатается QR-код страницы с файлом. Бесплатные минуты — на каждую книгу. Пока ни один пакет не
+            продаётся, клиент не видит цен: сверх бесплатных минут загрузить просто нельзя. Отметьте «Продаётся» — и когда минуты кончатся, клиенту предложат пакет с оплатой Kaspi; купленные минуты добавляются книге.
+          </p>
+        </div>
+        <div className="max-w-xs">
+          <label className="label" htmlFor="media_free_minutes">
+            Бесплатно на книгу, минут
+          </label>
+          <input id="media_free_minutes" name="media_free_minutes" type="number" inputMode="numeric" min={0} max={MAX_FREE_MINUTES} step={1} required defaultValue={mediaFreeMinutes} className="input h-11" />
+          <p className="mt-1 text-xs text-muted">{factory.mediaFreeMinutes === mediaFreeMinutes ? "заводское число" : `заводское: ${factory.mediaFreeMinutes}`}</p>
+        </div>
+        <div className="grid gap-3 lg:grid-cols-3">
+          {mediaPacks.map((p, i) => {
+            const f = factory.mediaPacks[p.id];
+            return (
+              <div key={p.id} className="space-y-3 rounded-xl border border-line p-4" data-testid={`media-pack-${p.id}`}>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="font-medium">Пакет минут {i + 1}</div>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" name={`media_${p.id}_visible`} defaultChecked={p.visible} className="size-4 accent-wine" /> Продаётся
+                  </label>
+                </div>
+                <div>
+                  <label className="label" htmlFor={`media_${p.id}_minutes`}>
+                    Минут
+                  </label>
+                  <input id={`media_${p.id}_minutes`} name={`media_${p.id}_minutes`} type="number" inputMode="numeric" min={1} max={MAX_PACK_MINUTES} step={1} required defaultValue={p.minutes} className="input h-11" />
+                  <p className="mt-1 text-xs text-muted">{f.minutes === p.minutes ? "заводское число" : `заводское: ${f.minutes}`}</p>
+                </div>
+                <Price name={`media_${p.id}_price`} label="Цена" value={p.price} factory={f.price} />
+                <p className="text-xs text-muted">≈ {formatPrice(Math.round(p.price / Math.max(1, p.minutes)))} за минуту</p>
               </div>
             );
           })}

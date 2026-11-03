@@ -5,6 +5,7 @@
 
 import { AGREEMENT_GIFTS, readGifts, type AgreementGift } from "@/shared/domain/agreementGifts";
 import { formatPhone, normalizePhone } from "@/shared/domain/phone";
+import { DEFAULT_FREE_MINUTES, MAX_FREE_MINUTES, MAX_PACK_MINUTES } from "@/lib/book/answer-files";
 
 export const site = {
   name: "MyBooks",
@@ -137,6 +138,25 @@ const defaultAiPacks: readonly AiPack[] = [
 ];
 export const MAX_AI_PACK_REQUESTS = 1000;
 
+/**
+ * Свои видео и аудио к ответам (lib/book/answer-files.ts): бесплатные минуты на книгу и пакеты минут сверх них. Пока пакеты
+ * не продаются (hidden), сверх бесплатных загрузить нельзя, а клиент не видит ни цен, ни предложений купить. Пакет
+ * включает владелец галочкой «Продаётся» в «Ценах и тарифах»; купленные минуты добавляются книге и не сгорают.
+ */
+export type MediaPackId = "small" | "medium" | "large";
+export interface MediaPack {
+  id: MediaPackId;
+  minutes: number;
+  price: number;
+  featured?: boolean;
+  hidden?: boolean;
+}
+const defaultMediaPacks: readonly MediaPack[] = [
+  { id: "small", minutes: 30, price: 1990, hidden: true },
+  { id: "medium", minutes: 60, price: 2990, featured: true, hidden: true },
+  { id: "large", minutes: 180, price: 6990, hidden: true },
+];
+
 /** Доставка в другую страну: нужны страна и индекс, стоимость всегда считает менеджер. */
 export const isAbroadDelivery = (id: string | null | undefined): boolean => id === "abroad";
 
@@ -150,6 +170,9 @@ export interface CatalogOverrides {
    */
   delivery?: Partial<Record<DeliveryId, { price?: number; fixed?: boolean }>>;
   aiPacks?: Partial<Record<AiPackId, { price?: number; requests?: number; hidden?: boolean }>>;
+  mediaPacks?: Partial<Record<MediaPackId, { price?: number; minutes?: number; hidden?: boolean }>>;
+  /** Бесплатные минуты своих видео и аудио на книгу. */
+  mediaFree?: { minutes?: number };
 }
 
 export const MAX_PRICE = 10_000_000;
@@ -193,6 +216,17 @@ export function sanitizeOverrides(raw: unknown): CatalogOverrides {
     if (typeof r.hidden === "boolean") e.hidden = r.hidden;
     if (Object.keys(e).length) (out.aiPacks ??= {})[d.id] = e;
   }
+  for (const d of defaultMediaPacks) {
+    const r = o.mediaPacks?.[d.id];
+    if (!r || typeof r !== "object") continue;
+    const e: { price?: number; minutes?: number; hidden?: boolean } = {};
+    if (price(r.price) !== undefined) e.price = price(r.price);
+    if (typeof r.minutes === "number" && Number.isInteger(r.minutes) && r.minutes >= 1 && r.minutes <= MAX_PACK_MINUTES) e.minutes = r.minutes;
+    if (typeof r.hidden === "boolean") e.hidden = r.hidden;
+    if (Object.keys(e).length) (out.mediaPacks ??= {})[d.id] = e;
+  }
+  const free = (o.mediaFree as Record<string, unknown> | undefined)?.minutes;
+  if (typeof free === "number" && Number.isInteger(free) && free >= 0 && free <= MAX_FREE_MINUTES) out.mediaFree = { minutes: free };
   // Хотя бы один тариф должен продаваться: иначе оформить заказ нельзя.
   if (defaultPlans.every((d) => (out.plans?.[d.id]?.hidden ?? d.hidden) === true)) delete out.plans;
   return out;
@@ -206,6 +240,8 @@ interface Effective {
   addons: Addon[];
   delivery: DeliveryOption[];
   aiPacks: AiPack[];
+  mediaPacks: MediaPack[];
+  mediaFreeMinutes: number;
 }
 
 function build(overrides: CatalogOverrides): Effective {
@@ -222,6 +258,8 @@ function build(overrides: CatalogOverrides): Effective {
       return o ? { id: d.id, maxDays: d.maxDays, price: o.price ?? d.price, ...(d.quoted && !o.fixed ? { quoted: true } : {}) } : { ...d };
     }),
     aiPacks: defaultAiPacks.map((d) => ({ ...d, ...overrides.aiPacks?.[d.id] })),
+    mediaPacks: defaultMediaPacks.map((d) => ({ ...d, ...overrides.mediaPacks?.[d.id] })),
+    mediaFreeMinutes: overrides.mediaFree?.minutes ?? DEFAULT_FREE_MINUTES,
   };
 }
 
@@ -241,7 +279,7 @@ export function applyCatalog(raw: CatalogOverrides | null | undefined) {
 
 export const getCatalogOverrides = (): CatalogOverrides => current().overrides;
 /** Заводские значения — для подсказок в админке. */
-export const factoryCatalog = { plans: defaultPlans, addons: defaultAddons, delivery: defaultDelivery, aiPacks: defaultAiPacks };
+export const factoryCatalog = { plans: defaultPlans, addons: defaultAddons, delivery: defaultDelivery, aiPacks: defaultAiPacks, mediaPacks: defaultMediaPacks, mediaFreeMinutes: DEFAULT_FREE_MINUTES };
 
 /**
  * Переключатели сайта из админки («Сайт»). Живут в globalThis по той же причине, что и каталог цен: общие для всех слоёв
@@ -324,6 +362,11 @@ export const getAddons = (): readonly Addon[] => current().addons;
 /** Все пакеты ИИ-запросов, включая снятые с продажи (оплаченные покупки читаются по ним). */
 export const getAiPacks = (): readonly AiPack[] => current().aiPacks;
 export const getAiPack = (id: string): AiPack | undefined => current().aiPacks.find((p) => p.id === id);
+/** Все пакеты минут для своих видео и аудио, включая снятые с продажи (оплаченные покупки читаются по ним). */
+export const getMediaPacks = (): readonly MediaPack[] => current().mediaPacks;
+export const getMediaPack = (id: string): MediaPack | undefined => current().mediaPacks.find((p) => p.id === id);
+/** Бесплатные минуты своих видео и аудио на книгу. */
+export const getFreeMediaMinutes = (): number => current().mediaFreeMinutes;
 export const getDeliveryOptions = (): readonly DeliveryOption[] => current().delivery;
 /**
  * Стоимость доставки рассчитывается индивидуально: в заказе 0 ₸, клиенту — «рассчитывается индивидуально». Доставку по

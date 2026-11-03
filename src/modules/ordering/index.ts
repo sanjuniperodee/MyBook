@@ -54,6 +54,8 @@ export interface OrderingDeps {
   notifier: StaffNotifier<"settings.manage">;
   /** Покупки пакетов ИИ-дизайнера — цель оплаты ai_pack в Kaspi. */
   aiPacks?: KaspiAiPacks;
+  /** Покупки минут для своих видео и аудио в книге — цель media_pack. */
+  mediaPacks?: KaspiAiPacks;
 }
 
 /** Публичный фасад контекста «Заказы». Остальной код видит только его. */
@@ -92,7 +94,7 @@ export class OrderingModule {
     this.cloudPayments = new CloudPaymentsWebhook(this.orders, this.gifts, undefined, dealInvoices);
     const kaspiPos = new KaspiPosClient(deps.kaspiConfig);
     const kaspiEnabled = async () => (await deps.kaspiConfig.config()).enabled;
-    this.kaspi = new KaspiPaymentsService(new DrizzlePaymentInvoiceRepository(), orderRepo, giftRepo, this.orders, this.gifts, kaspiPos, kaspiEnabled, deps.uow, deps.clock, deps.logger, dealInvoices, deps.aiPacks ?? null);
+    this.kaspi = new KaspiPaymentsService(new DrizzlePaymentInvoiceRepository(), orderRepo, giftRepo, this.orders, this.gifts, kaspiPos, kaspiEnabled, deps.uow, deps.clock, deps.logger, dealInvoices, deps.aiPacks ?? null, deps.mediaPacks ?? null);
     this.kaspiSetup = new KaspiSetupService(kaspiPos, deps.kaspiConfig);
     this.kaspiWatch = new KaspiWatchService(deps.kaspiConfig, kaspiPos, deps.settings, deps.notifier, deps.clock);
     this.mailer = new OrderingMailer(this.queries, this.gifts, deps.mailer, deps.giftPdf);

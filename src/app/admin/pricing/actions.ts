@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { factoryCatalog, getCatalogOverrides, isAbroadDelivery, MAX_AI_PACK_REQUESTS, MAX_PRICE, type CatalogOverrides } from "@/config/site";
+import { MAX_FREE_MINUTES, MAX_PACK_MINUTES } from "@/lib/book/answer-files";
 import { assertStaff, audit } from "@/server/access";
 import { ensureCatalog, saveCatalog } from "@/server/catalog";
 import { addonLabels, deliveryLabels, planLabels } from "@/modules/ordering/ui/labels";
@@ -31,6 +32,14 @@ function requests(form: FormData, name: string, label: string): number {
 }
 
 const aiPackLabel = (n: number) => `Пакет ИИ ${n}`;
+const mediaPackLabel = (n: number) => `Пакет минут ${n}`;
+
+/** Минуты (бесплатные на книгу или в пакете): целое число от min до max. */
+function minutes(form: FormData, name: string, label: string, min: number, max: number): number {
+  const n = Number(String(form.get(name) ?? "").replace(/\s/g, ""));
+  if (!Number.isInteger(n) || n < min || n > max) throw new Error(`${label}: укажите целое число минут от ${min} до ${max}`);
+  return n;
+}
 
 /**
  * Цены и видимость тарифов. Действуют сразу на витрине, в оформлении, сертификатах, в ответах помощника и бота, в счёте
@@ -40,7 +49,7 @@ const aiPackLabel = (n: number) => `Пакет ИИ ${n}`;
 export async function savePricingAction(_: PricingState, form: FormData): Promise<PricingState> {
   const staff = await assertStaff("settings.manage");
   if (!textForm(form).success) return { error: BAD_FORM };
-  const next: CatalogOverrides = { plans: {}, addons: {}, delivery: {}, aiPacks: {} };
+  const next: CatalogOverrides = { plans: {}, addons: {}, delivery: {}, aiPacks: {}, mediaPacks: {} };
   try {
     for (const p of factoryCatalog.plans) {
       next.plans![p.id] = {
@@ -67,6 +76,21 @@ export async function savePricingAction(_: PricingState, form: FormData): Promis
       }
       next.aiPacks![p.id] = { requests: requests(form, `ai_${p.id}_requests`, aiPackLabel(i + 1)), price: money(form, `ai_${p.id}_price`, `${aiPackLabel(i + 1)}: цена`, 100), hidden: form.get(`ai_${p.id}_visible`) !== "on" };
     });
+    // Свои видео и аудио: форма без этого раздела (старая вкладка) — прежние значения не трогаем.
+    if (form.get("media_free_minutes") === null) {
+      const kept = getCatalogOverrides();
+      if (kept.mediaPacks) next.mediaPacks = kept.mediaPacks;
+      if (kept.mediaFree) next.mediaFree = kept.mediaFree;
+    } else {
+      next.mediaFree = { minutes: minutes(form, "media_free_minutes", "Бесплатные минуты на книгу", 0, MAX_FREE_MINUTES) };
+      factoryCatalog.mediaPacks.forEach((p, i) => {
+        next.mediaPacks![p.id] = {
+          minutes: minutes(form, `media_${p.id}_minutes`, mediaPackLabel(i + 1), 1, MAX_PACK_MINUTES),
+          price: money(form, `media_${p.id}_price`, `${mediaPackLabel(i + 1)}: цена`, 100),
+          hidden: form.get(`media_${p.id}_visible`) !== "on",
+        };
+      });
+    }
   } catch (err) {
     return { error: (err as Error).message };
   }

@@ -677,6 +677,7 @@ function EditorBody({
 
               <MediaStrip
                 key={`media-${q.id}`}
+                bookId={book.id}
                 media={q.media}
                 answer={q.answer}
                 editable={editable}

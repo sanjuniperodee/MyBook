@@ -1,4 +1,4 @@
-import { factoryCatalog, getAddons, getAiPacks, getDeliveryOptions, getPlans } from "@/config/site";
+import { factoryCatalog, getAddons, getAiPacks, getDeliveryOptions, getFreeMediaMinutes, getMediaPacks, getPlans } from "@/config/site";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { requireStaff } from "@/server/access";
 import { ensureCatalog } from "@/server/catalog";
@@ -15,9 +15,11 @@ export default async function PricingPage() {
     addons: Object.fromEntries(factoryCatalog.addons.map((a) => [a.id, a.price])),
     delivery: Object.fromEntries(factoryCatalog.delivery.map((d) => [d.id, d.price])),
     aiPacks: Object.fromEntries(factoryCatalog.aiPacks.map((p) => [p.id, { price: p.price, requests: p.requests }])),
+    mediaPacks: Object.fromEntries(factoryCatalog.mediaPacks.map((p) => [p.id, { price: p.price, minutes: p.minutes }])),
+    mediaFreeMinutes: factoryCatalog.mediaFreeMinutes,
   };
-  const changed = JSON.stringify({ plans: getPlans().map((p) => [p.price, p.extraCopyPrice, p.hidden]), a: getAddons().map((a) => [a.price, a.hidden]), d: getDeliveryOptions().map((d) => [d.price, !!d.quoted]), ai: getAiPacks().map((p) => [p.price, p.requests, !!p.hidden]) }) !==
-    JSON.stringify({ plans: factoryCatalog.plans.map((p) => [p.price, p.extraCopyPrice, p.hidden]), a: factoryCatalog.addons.map((a) => [a.price, a.hidden]), d: factoryCatalog.delivery.map((d) => [d.price, !!d.quoted]), ai: factoryCatalog.aiPacks.map((p) => [p.price, p.requests, !!p.hidden]) });
+  const changed = JSON.stringify({ plans: getPlans().map((p) => [p.price, p.extraCopyPrice, p.hidden]), a: getAddons().map((a) => [a.price, a.hidden]), d: getDeliveryOptions().map((d) => [d.price, !!d.quoted]), ai: getAiPacks().map((p) => [p.price, p.requests, !!p.hidden]), m: getMediaPacks().map((p) => [p.price, p.minutes, !!p.hidden]), mf: getFreeMediaMinutes() }) !==
+    JSON.stringify({ plans: factoryCatalog.plans.map((p) => [p.price, p.extraCopyPrice, p.hidden]), a: factoryCatalog.addons.map((a) => [a.price, a.hidden]), d: factoryCatalog.delivery.map((d) => [d.price, !!d.quoted]), ai: factoryCatalog.aiPacks.map((p) => [p.price, p.requests, !!p.hidden]), m: factoryCatalog.mediaPacks.map((p) => [p.price, p.minutes, !!p.hidden]), mf: factoryCatalog.mediaFreeMinutes });
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <PageHeader title="Цены и тарифы">
@@ -31,6 +33,8 @@ export default async function PricingPage() {
           .filter((d) => d.id !== "abroad")
           .map((d) => ({ id: d.id, price: d.quoted ? null : d.price, optional: !!factoryCatalog.delivery.find((f) => f.id === d.id)?.quoted }))}
         aiPacks={getAiPacks().map((p) => ({ id: p.id, price: p.price, requests: p.requests, visible: !p.hidden }))}
+        mediaPacks={getMediaPacks().map((p) => ({ id: p.id, price: p.price, minutes: p.minutes, visible: !p.hidden }))}
+        mediaFreeMinutes={getFreeMediaMinutes()}
         factory={factory}
         changed={changed}
       />

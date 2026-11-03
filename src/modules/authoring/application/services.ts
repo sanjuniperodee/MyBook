@@ -129,6 +129,8 @@ export class BooksService {
     if (await this.orders.bookHasOrders(book.id)) throw new AuthoringError("bookHasOrders");
     await this.books.delete(book.id);
     await this.files.deletePrefix(`photos/${book.id}`);
+    // Свои видео и аудио к ответам (записи в базе удаляются вместе с книгой).
+    await this.files.deletePrefix(`answer-media/${book.id}`);
     await this.files.deletePrefix(`cache/preview/${book.id}`);
     await this.files.deletePrefix(`cache/pages/${book.id}`);
   }

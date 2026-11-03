@@ -22,17 +22,17 @@ const noop = () => {};
 
 describe("редактор: видео и музыка", () => {
   it("без кодов и без формы — блока нет", () => {
-    expect(html(<MediaStrip media={[]} answer="" editable adding={false} onAdding={noop} update={noop} />)).toBe("");
+    expect(html(<MediaStrip bookId="b1" media={[]} answer="" editable adding={false} onAdding={noop} update={noop} />)).toBe("");
   });
 
   it("форма ссылки с подсказкой про доступ «по ссылке»", () => {
-    const out = html(<MediaStrip media={[]} answer="" editable adding onAdding={noop} update={noop} />, kk);
+    const out = html(<MediaStrip bookId="b1" media={[]} answer="" editable adding onAdding={noop} update={noop} />, kk);
     expect(out).toContain(kk.editor.media.howTo);
     expect(out).toContain('type="url"');
   });
 
   it("карточки: обложка ролика YouTube, QR-код, подпись, место в тексте, площадка", () => {
-    const out = html(<MediaStrip media={media} answer={"Первый абзац\nВторой"} editable adding={false} onAdding={noop} update={noop} />);
+    const out = html(<MediaStrip bookId="b1" media={media} answer={"Первый абзац\nВторой"} editable adding={false} onAdding={noop} update={noop} />);
     expect(out.match(/data-testid="answer-media-item"/g)).toHaveLength(2);
     expect(out).toContain("i.ytimg.com/vi/dQw4w9WgXcQ");
     expect(out).toContain('value="Пожелание от бабушки"');
@@ -41,8 +41,29 @@ describe("редактор: видео и музыка", () => {
     expect(out).toContain(ru.editor.inspector.beforeText);
   });
 
+  it("форма: загрузка своего видео или аудио, подсказка про длительность, затем — ссылка", () => {
+    const out = html(<MediaStrip bookId="b1" media={[]} answer="" editable adding onAdding={noop} update={noop} />);
+    expect(out).toContain(ru.editor.media.upload.button);
+    expect(out).toContain('type="file"');
+    expect(out).toContain(ru.editor.media.upload.hint(10, 30));
+    expect(out.indexOf('type="file"')).toBeLessThan(out.indexOf('type="url"'));
+  });
+
+  it("свой файл: ссылка на страницу файла; у аудио выбор «Аудио» / «Музыка», у видео — без выбора", () => {
+    const own: AnswerMedia[] = [
+      { id: "v", kind: "video", url: "https://mybooks.kz/v/Ab3dE9xK2m", title: "", anchor: null, fileId: "00000000-0000-4000-8000-000000000001" },
+      { id: "a", kind: "audio", url: "https://mybooks.kz/v/Zz3dE9xK2m", title: "", anchor: null, fileId: "00000000-0000-4000-8000-000000000002" },
+    ];
+    const out = html(<MediaStrip bookId="b1" media={own} answer="" editable adding={false} onAdding={noop} update={noop} />, kk);
+    expect(out.match(new RegExp(kk.editor.media.file.open, "g"))?.length).toBeGreaterThanOrEqual(2);
+    expect(out).toContain(kk.editor.media.kinds.audio);
+    expect(out).toContain(kk.editor.media.captionPlaceholder.audio);
+    // Переключатель вида — только у аудио: «Бейне» как вариант выбора не предлагается.
+    expect(out.match(/role="radio"/g)).toHaveLength(2);
+  });
+
   it("только просмотр: без кнопок «убрать», подпись не правится", () => {
-    const out = html(<MediaStrip media={media} answer="" editable={false} adding onAdding={noop} update={noop} />);
+    const out = html(<MediaStrip bookId="b1" media={media} answer="" editable={false} adding onAdding={noop} update={noop} />);
     expect(out).not.toContain(ru.editor.media.remove);
     expect(out).toContain("readOnly");
     expect(out).not.toContain('type="url"');

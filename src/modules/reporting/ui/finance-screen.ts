@@ -82,7 +82,7 @@ export interface FinanceOrderRow {
 
 export interface UnrecordedRow {
   id: string;
-  target: "deal_invoice" | "order" | "gift" | "ai_pack";
+  target: "deal_invoice" | "order" | "gift" | "ai_pack" | "media_pack";
   externalId: string;
   /** Сумма оплаты не совпала со счётом — платёж не засчитан (amount — сколько заплатили). */
   mismatch: boolean;
@@ -96,6 +96,8 @@ export interface UnrecordedRow {
   giftNumber: number | null;
   /** Покупка пакета ИИ-дизайнера (A<n>). */
   aiPackNumber?: number | null;
+  /** Покупка минут для своих видео и аудио (M<n>). */
+  mediaPackNumber?: number | null;
   managerId: string | null;
   client: string;
 }
@@ -460,7 +462,7 @@ export function financeScreen(input: {
 
   for (const u of input.unrecorded) {
     if (!visible(u.managerId)) continue;
-    const what = u.target === "deal_invoice" ? `счёт P${u.invoiceNumber ?? "?"}${u.dealNumber !== null ? `, сделка №${u.dealNumber}` : ""}` : u.target === "order" ? `заказ №${u.orderNumber ?? "?"}` : u.target === "ai_pack" ? `пакет ИИ A${u.aiPackNumber ?? "?"}` : `сертификат №${u.giftNumber ?? "?"}`;
+    const what = u.target === "deal_invoice" ? `счёт P${u.invoiceNumber ?? "?"}${u.dealNumber !== null ? `, сделка №${u.dealNumber}` : ""}` : u.target === "order" ? `заказ №${u.orderNumber ?? "?"}` : u.target === "ai_pack" ? `пакет ИИ A${u.aiPackNumber ?? "?"}` : u.target === "media_pack" ? `минуты видео M${u.mediaPackNumber ?? "?"}` : `сертификат №${u.giftNumber ?? "?"}`;
     const href = u.dealId ? `/admin/deals/${u.dealId}` : u.orderId ? `/admin/orders/${u.orderId}` : u.target === "gift" ? "/admin/gifts" : null;
     issues.push({
       key: `un:${u.id}`,

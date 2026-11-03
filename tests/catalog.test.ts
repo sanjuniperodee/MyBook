@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { applyCatalog, applySiteFlags, getAiPack, getAiPacks, registrationOpen, availableAddons, getAddons, getCatalogOverrides, getDeliveryOptions, getPlan, getPlans, getVisiblePlans, sanitizeOverrides } from "@/config/site";
+import { applyCatalog, applySiteFlags, getAiPack, getAiPacks, getFreeMediaMinutes, getMediaPack, getMediaPacks, registrationOpen, availableAddons, getAddons, getCatalogOverrides, getDeliveryOptions, getPlan, getPlans, getVisiblePlans, sanitizeOverrides } from "@/config/site";
 import { calculatePrice } from "@/modules/ordering/domain/Pricing";
 import { addonLabels, deliveryLabels, planLabels } from "@/modules/ordering/ui/labels";
 
@@ -80,6 +80,29 @@ describe("подписи каталога в CRM", () => {
     expect(Object.keys(planLabels).sort()).toEqual(getPlans().map((p) => p.id).sort());
     expect(Object.keys(addonLabels).sort()).toEqual(getAddons().map((a) => a.id).sort());
     expect(Object.keys(deliveryLabels).sort()).toEqual(getDeliveryOptions().map((d) => d.id).sort());
+  });
+});
+
+describe("минуты для своих видео и аудио", () => {
+  it("по умолчанию: 30 бесплатных минут на книгу, пакеты не продаются", () => {
+    expect(getFreeMediaMinutes()).toBe(30);
+    expect(getMediaPacks().map((p) => [p.id, p.minutes, !!p.hidden])).toEqual([
+      ["small", 30, true],
+      ["medium", 60, true],
+      ["large", 180, true],
+    ]);
+  });
+
+  it("минуты, цена и продажа — из админки; неверное отбрасывается", () => {
+    expect(sanitizeOverrides({ mediaPacks: { small: { price: 990, minutes: 20, hidden: false }, large: { minutes: 0 }, giant: { price: 1 } }, mediaFree: { minutes: 10 } })).toEqual({
+      mediaPacks: { small: { price: 990, minutes: 20, hidden: false } },
+      mediaFree: { minutes: 10 },
+    });
+    expect(sanitizeOverrides({ mediaFree: { minutes: -1 } })).toEqual({});
+    applyCatalog({ mediaPacks: { small: { price: 990, minutes: 20, hidden: false } }, mediaFree: { minutes: 0 } });
+    expect(getMediaPack("small")).toMatchObject({ price: 990, minutes: 20, hidden: false });
+    expect(getMediaPack("medium")?.hidden).toBe(true);
+    expect(getFreeMediaMinutes()).toBe(0);
   });
 });
 

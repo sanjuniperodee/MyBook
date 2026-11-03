@@ -1,13 +1,95 @@
 "use client";
 
-import { useRef, useState, type FormEvent } from "react";
-import { ExternalLink, Music, QrCode, Video, X } from "lucide-react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { Check, ExternalLink, LoaderCircle, Mic, Music, QrCode, TriangleAlert, Video, X } from "lucide-react";
 import { useMessages } from "@/i18n/client";
 import { MAX_MEDIA, MEDIA_TITLE_MAX, parseMediaUrl, qrDrawing, youtubeThumb, type AnswerMedia, type MediaKind } from "@/lib/book/answer-media";
+import { formatDuration, type AnswerFileView } from "@/lib/book/answer-files";
 import { splitParagraphs } from "@/lib/book/inline-photo";
-import { apiFetch } from "@/lib/client-api";
+import { ApiError, apiFetch } from "@/lib/client-api";
 import { cn } from "@/lib/class-names";
+import { toastError } from "@/components/ui/overlays";
 import { Field, Segmented } from "../PhotoInspector";
+import { FileUpload } from "./FileUpload";
+
+/** Состояние своего файла: с сервера или «удалён». */
+type FileState = AnswerFileView | "gone";
+const POLL_MS = 5000;
+const settled = (s: FileState | undefined) => s === "gone" || s?.status === "ready" || s?.status === "failed";
+
+/**
+ * Свои файлы ответа: состояние каждого с сервера; пока файл обрабатывается — спрашиваем раз в 5 секунд. seed — файл,
+ * который только что загрузили (его состояние уже известно).
+ */
+function useFileStates(bookId: string, ids: string[]) {
+  const [states, setStates] = useState<Record<string, FileState>>({});
+  const current = useRef(states);
+  useEffect(() => {
+    current.current = states;
+  }, [states]);
+  const key = ids.join(",");
+  useEffect(() => {
+    if (!key) return;
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const tick = async () => {
+      const pending = key.split(",").filter((id) => !settled(current.current[id]));
+      if (!pending.length) return;
+      const got = await Promise.all(
+        pending.map((id) =>
+          apiFetch<{ file: AnswerFileView }>(`/api/books/${bookId}/files/${id}`).then(
+            (r) => [id, r.file] as const,
+            (e: unknown) => (e instanceof ApiError && e.status === 404 ? ([id, "gone"] as const) : null),
+          ),
+        ),
+      );
+      if (stopped) return;
+      setStates((s) => ({ ...s, ...Object.fromEntries(got.filter((g) => g !== null)) }));
+      timer = setTimeout(() => void tick(), POLL_MS);
+    };
+    void tick();
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+    };
+  }, [bookId, key]);
+  const seed = (file: AnswerFileView) => setStates((s) => ({ ...s, [file.id]: file }));
+  return { states, seed };
+}
+
+/** Строка состояния своего файла под заголовком карточки. */
+function FileStatus({ state }: { state: FileState | undefined }) {
+  const t = useMessages().editor.media.file;
+  if (!state)
+    return (
+      <p className="flex items-center gap-1.5 text-xs text-muted">
+        <LoaderCircle className="size-3.5 animate-spin" />
+      </p>
+    );
+  if (state === "gone" || state.status === "failed")
+    return (
+      <div className="flex items-start gap-1.5 text-xs leading-snug text-red-700" role="alert">
+        <TriangleAlert className="mt-px size-3.5 shrink-0" />
+        <span>
+          {state === "gone" ? t.errors.gone : t.errors[state.error ?? "server"]} {t.reupload}
+        </span>
+      </div>
+    );
+  if (state.status === "ready")
+    return (
+      <p className="flex items-center gap-1.5 text-xs text-emerald-700">
+        <Check className="size-3.5" /> {t.ready(formatDuration(state.durationSec ?? 0))}
+      </p>
+    );
+  return (
+    <div className="space-y-0.5 text-xs leading-snug" role="status">
+      <p className="flex items-center gap-1.5 font-medium text-ink">
+        <LoaderCircle className="size-3.5 animate-spin text-wine" /> {state.status === "processing" ? t.processing : t.queued}
+      </p>
+      <p className="text-muted">{t.wait}</p>
+    </div>
+  );
+}
 
 /** Площадки, где ссылку скорее слушают, чем смотрят: вид по умолчанию — «Музыка». */
 const MUSIC_SOURCES = new Set(["YouTube Music", "Spotify", "Apple Music", "Yandex Music", "SoundCloud"]);
@@ -32,13 +114,35 @@ function usePositions(answer: string) {
   return { positions, label, indexOf };
 }
 
-function MediaItem({ media, answer, editable, onChange, onRemove }: { media: AnswerMedia; answer: string; editable: boolean; onChange: (patch: Partial<AnswerMedia>) => void; onRemove: () => void }) {
+function MediaItem({
+  media,
+  answer,
+  editable,
+  file,
+  onChange,
+  onRemove,
+}: {
+  media: AnswerMedia;
+  answer: string;
+  editable: boolean;
+  /** Свой файл (media.fileId): состояние обработки. */
+  file?: FileState;
+  onChange: (patch: Partial<AnswerMedia>) => void;
+  onRemove: () => void;
+}) {
   const t = useMessages().editor.media;
   const parsed = parseMediaUrl(media.url);
   const { positions, label, indexOf } = usePositions(answer);
   // Обложка ролика не загрузилась (закрыт, удалён, нет сети) — показываем крупно сам QR-код.
   const [thumbFailed, setThumbFailed] = useState(false);
-  const thumb = parsed?.youtubeId && !thumbFailed ? youtubeThumb(parsed.youtubeId) : null;
+  // Свой файл удаляется насовсем — сначала переспрашиваем.
+  const [confirming, setConfirming] = useState(false);
+  const own = !!media.fileId;
+  const poster = own && file && file !== "gone" ? file.poster : null;
+  const thumb = poster ?? (parsed?.youtubeId && !thumbFailed ? youtubeThumb(parsed.youtubeId) : null);
+  // Вид своего файла задан самим файлом: у видео выбора нет, аудио — «Аудио» или «Музыка».
+  const kinds: MediaKind[] = own ? (media.kind === "video" ? [] : ["audio", "music"]) : ["video", "music"];
+  const icons = { video: Video, music: Music, audio: Mic };
   return (
     <li className="enter flex gap-3 rounded-3xl border border-line bg-white p-3 sm:gap-4 sm:p-4" data-testid="answer-media-item">
       <div className="relative shrink-0 self-start">
@@ -63,42 +167,73 @@ function MediaItem({ media, answer, editable, onChange, onRemove }: { media: Ans
       </div>
       <div className="min-w-0 flex-1 space-y-3">
         <div className="flex items-start gap-2">
-          <div className="w-44 max-w-full min-w-0 max-sm:flex-1">
-            <Segmented<MediaKind>
-              label={t.kind}
-              value={media.kind}
-              disabled={!editable}
-              onChange={(kind) => onChange({ kind })}
-              options={[
-                {
-                  id: "video",
-                  label: (
-                    <>
-                      <Video className="mr-1 size-3.5 max-sm:hidden" /> {t.kinds.video}
-                    </>
-                  ),
-                },
-                {
-                  id: "music",
-                  label: (
-                    <>
-                      <Music className="mr-1 size-3.5 max-sm:hidden" /> {t.kinds.music}
-                    </>
-                  ),
-                },
-              ]}
-            />
-          </div>
-          <a href={media.url} target="_blank" rel="noopener noreferrer" className="ml-auto inline-flex min-w-0 items-center gap-1 rounded-full p-2 text-xs text-wine hover:underline sm:px-0 sm:py-1.5" title={t.open} aria-label={t.open}>
-            <span className="truncate max-sm:hidden">{parsed?.source || media.url}</span>
+          {kinds.length ? (
+            <div className="w-44 max-w-full min-w-0 max-sm:flex-1">
+              <Segmented<MediaKind>
+                label={t.kind}
+                value={media.kind}
+                disabled={!editable}
+                onChange={(kind) => onChange({ kind })}
+                options={kinds.map((k) => {
+                  const Icon = icons[k];
+                  return {
+                    id: k,
+                    label: (
+                      <>
+                        <Icon className="mr-1 size-3.5 max-sm:hidden" /> {t.kinds[k]}
+                      </>
+                    ),
+                  };
+                })}
+              />
+            </div>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 py-1.5 text-sm font-medium">
+              <Video className="size-4 text-wine" /> {t.kinds.video}
+            </span>
+          )}
+          <a
+            href={media.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ml-auto inline-flex min-w-0 items-center gap-1 rounded-full p-2 text-xs text-wine hover:underline sm:px-0 sm:py-1.5"
+            title={own ? t.file.open : t.open}
+            aria-label={own ? t.file.open : t.open}
+          >
+            <span className="truncate max-sm:hidden">{own ? t.file.open : parsed?.source || media.url}</span>
             <ExternalLink className="size-3.5 shrink-0" />
           </a>
           {editable ? (
-            <button type="button" onClick={onRemove} className="-mr-1 rounded-full p-2 text-muted hover:bg-cream hover:text-red-700" aria-label={t.removeAria(media.title)} title={t.remove}>
+            <button
+              type="button"
+              onClick={() => (own && file !== "gone" ? setConfirming(true) : onRemove())}
+              className="-mr-1 rounded-full p-2 text-muted hover:bg-cream hover:text-red-700"
+              aria-label={t.removeAria(media.title)}
+              title={t.remove}
+            >
               <X className="size-4" />
             </button>
           ) : null}
         </div>
+        {own ? <FileStatus state={file} /> : null}
+        {confirming ? (
+          <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-red-50 p-3 text-sm" role="alert">
+            <span className="min-w-0 flex-1">{t.file.removeConfirm}</span>
+            <button
+              type="button"
+              className="btn btn-sm h-9 bg-red-700 text-white hover:bg-red-800"
+              onClick={() => {
+                setConfirming(false);
+                onRemove();
+              }}
+            >
+              {t.file.removeYes}
+            </button>
+            <button type="button" className="btn btn-ghost btn-sm h-9" onClick={() => setConfirming(false)}>
+              {t.file.removeNo}
+            </button>
+          </div>
+        ) : null}
         <Field label={t.caption}>
           <input
             value={media.title}
@@ -137,6 +272,7 @@ function MediaItem({ media, answer, editable, onChange, onRemove }: { media: Ans
  * update получает функцию от актуального списка: название приходит позже, а автор за это время мог что-то поменять.
  */
 export function MediaStrip({
+  bookId,
   media,
   answer,
   editable,
@@ -144,6 +280,7 @@ export function MediaStrip({
   onAdding,
   update,
 }: {
+  bookId: string;
   media: AnswerMedia[];
   answer: string;
   editable: boolean;
@@ -156,6 +293,38 @@ export function MediaStrip({
   const [url, setUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
+  const files = useFileStates(
+    bookId,
+    media.flatMap((m) => (m.fileId ? [m.fileId] : [])),
+  );
+
+  // Видео без картинки сервер сделал аудио — карточка в книге тоже «Аудио».
+  useEffect(() => {
+    const changed = media.filter((m) => {
+      const s = m.fileId ? files.states[m.fileId] : undefined;
+      return s && s !== "gone" && s.kind === "audio" && m.kind === "video";
+    });
+    if (changed.length && editable) update((list) => list.map((m) => (changed.some((c) => c.id === m.id) ? { ...m, kind: "audio" } : m)));
+  }, [media, files.states, editable, update]);
+
+  const uploaded = (file: AnswerFileView) => {
+    files.seed(file);
+    if (media.length >= MAX_MEDIA) return setError(t.limit(MAX_MEDIA));
+    update((list) => [...list, { id: crypto.randomUUID(), kind: file.kind, url: file.url, title: "", anchor: null, fileId: file.id }]);
+    setError(null);
+    onAdding(false);
+  };
+
+  /** Убрать карточку; свой файл — удалить и с сервера (страница по QR-коду перестанет открываться). */
+  const remove = (m: AnswerMedia) => {
+    if (!m.fileId) return update((list) => list.filter((x) => x.id !== m.id));
+    void apiFetch(`/api/books/${bookId}/files/${m.fileId}`, { method: "DELETE" })
+      .catch((e: unknown) => {
+        if (!(e instanceof ApiError && e.status === 404)) throw e;
+      })
+      .then(() => update((list) => list.filter((x) => x.id !== m.id)))
+      .catch((e: unknown) => toastError(e));
+  };
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -194,8 +363,9 @@ export function MediaStrip({
               media={m}
               answer={answer}
               editable={editable}
+              file={m.fileId ? files.states[m.fileId] : undefined}
               onChange={(patch) => update((list) => list.map((x) => (x.id === m.id ? { ...x, ...patch } : x)))}
-              onRemove={() => update((list) => list.filter((x) => x.id !== m.id))}
+              onRemove={() => remove(m)}
             />
           ))}
         </ul>
@@ -203,6 +373,10 @@ export function MediaStrip({
       {adding && editable ? (
         <form onSubmit={submit} className="enter space-y-3 rounded-3xl bg-cream/70 p-4 sm:p-5">
           <p className="text-sm leading-snug text-ink-soft">{t.intro}</p>
+          {media.length < MAX_MEDIA ? <FileUpload bookId={bookId} onUploaded={uploaded} /> : null}
+          <div className="flex items-center gap-3 pt-1 text-xs text-muted" aria-hidden>
+            <span className="h-px flex-1 bg-line" /> {t.upload.orLink} <span className="h-px flex-1 bg-line" />
+          </div>
           <p className="text-xs leading-snug text-muted">{t.howTo}</p>
           <label className="block">
             <span className="mb-1.5 block text-xs font-medium text-muted">{t.urlLabel}</span>

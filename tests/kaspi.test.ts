@@ -119,6 +119,7 @@ function memPacks() {
 function kaspiSetup() {
   const base = setup();
   const packs = memPacks();
+  const media = memPacks();
   const invoices = new MemInvoices();
   const promos = new MemPromos();
   const gifts = new MemGifts();
@@ -127,9 +128,9 @@ function kaspiSetup() {
   const kaspi = new FakeKaspi();
   let enabled = true;
   const logger = { ...consoleLogger("test"), warn: () => {}, error: () => {} };
-  const svc = new KaspiPaymentsService(invoices, base.orders, gifts, base.svc, giftsService, kaspi, async () => enabled, uow, base.c, logger, null, packs);
+  const svc = new KaspiPaymentsService(invoices, base.orders, gifts, base.svc, giftsService, kaspi, async () => enabled, uow, base.c, logger, null, packs, media);
   // kaspiUow — события сервиса Kaspi и сертификатов; события заказов — в uow из setup().
-  return { ...base, kaspiUow: uow, invoices, kaspi, svc, giftsService, gifts, promos, packs, setEnabled: (v: boolean) => void (enabled = v) };
+  return { ...base, kaspiUow: uow, invoices, kaspi, svc, giftsService, gifts, promos, packs, media, setEnabled: (v: boolean) => void (enabled = v) };
 }
 
 describe("Kaspi: оплата заказа", () => {
@@ -289,6 +290,26 @@ describe("Kaspi: пакет запросов к ИИ-дизайнеру", () => 
     const inv = await t.svc.payAiPack(id, "user-1", { method: "qr" });
     await t.svc.onWebhook({ event: "payment.success", externalId: inv.externalId, method: "qr", status: "Processed", amount: 100 }, true);
     expect(t.packs.credits.get("user-1")).toBeUndefined();
+  });
+});
+
+describe("Kaspi: минуты для своих видео и аудио", () => {
+  it("платит только покупатель, комментарий M<n>; оплата засчитывается один раз и не путается с пакетами ИИ", async () => {
+    const t = kaspiSetup();
+    const id = "00000000-0000-4000-8000-0000000000b1";
+    t.media.add(id, "user-1", 2990, 60);
+    await expect(t.svc.payMediaPack(id, "user-2", { method: "qr" })).rejects.toMatchObject({ code: "invoiceNotFound" });
+    await expect(t.svc.payAiPack(id, "user-1", { method: "qr" })).rejects.toMatchObject({ code: "invoiceNotFound" });
+    const inv = await t.svc.payMediaPack(id, "user-1", { method: "invoice", phone: "+7 701 000 00 00" });
+    expect(t.kaspi.created.at(-1)).toEqual({ method: "invoice", phone: "77010000000", amount: 2990, comment: "MyBooks M1" });
+    await expect(t.svc.status(inv.id, { userId: "user-2" })).rejects.toMatchObject({ code: "invoiceNotFound" });
+    const hook = { event: "payment.success", externalId: inv.externalId, method: "invoice", status: "Processed", amount: 2990 } as const;
+    await t.svc.onWebhook(hook, true);
+    expect(t.media.rows.get(id)).toMatchObject({ status: "paid", paymentId: `kaspi:${inv.externalId}` });
+    await t.svc.onWebhook(hook, true);
+    expect(t.media.credits.get("user-1")).toBe(60);
+    expect(t.packs.credits.get("user-1")).toBeUndefined();
+    await expect(t.svc.payMediaPack(id, "user-1", { method: "qr" })).rejects.toMatchObject({ code: "notPayable" });
   });
 });
 

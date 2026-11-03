@@ -35,6 +35,7 @@ import { botSiteInfo } from "./bot-site";
 import { referralPromos } from "./promo-ports";
 import { requestOrigin } from "./rateLimit";
 import { confirmDesignAiPurchase, findDesignAiPurchase } from "@/server/designAiStore";
+import { confirmMediaPurchase, findMediaPurchase } from "@/server/answerFiles";
 
 /**
  * Корень композиции: единственное место, где модули собираются из реализаций.
@@ -447,6 +448,8 @@ export class Container {
       kaspiConfig,
       // Пакеты ИИ-дизайнера: покупка и начисление запросов — у дизайнера, оплата — общая через Kaspi.
       aiPacks: { find: findDesignAiPurchase, confirm: confirmDesignAiPurchase },
+      // Минуты для своих видео и аудио: покупка и лимит — у файлов книги, оплата — общая через Kaspi.
+      mediaPacks: { find: findMediaPurchase, confirm: confirmMediaPurchase },
       // Слежка за кассиром Kaspi: состояние и порог тревоги — в настройках, тревога — руководителям.
       settings: this.workspace.settings,
       notifier: this.workspace.notifier,

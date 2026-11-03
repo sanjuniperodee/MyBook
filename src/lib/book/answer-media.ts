@@ -113,6 +113,7 @@ const SOURCES: [RegExp, string][] = [
   [/(^|\.)music\.yandex\.(ru|kz|com)$/, "Yandex Music"],
   [/(^|\.)soundcloud\.com$/, "SoundCloud"],
   [/(^|\.)(drive|docs)\.google\.com$/, "Google Drive"],
+  [/(^|\.)mybooks\.kz$/, "MyBooks"],
 ];
 
 /** Название площадки по ссылке; незнакомая — её домен без www. */
@@ -126,6 +127,8 @@ export function mediaSource(href: string): string {
 /** Обложка ролика YouTube для карточки в редакторе (в печать не идёт). */
 export const youtubeThumb = (id: string) => `https://i.ytimg.com/vi/${id}/mqdefault.jpg`;
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /** Список из базы или запроса в рабочем виде: без битых записей и дублей id, не длиннее MAX_MEDIA. */
 export function normalizeMedia(list: readonly Partial<AnswerMedia>[] | null | undefined): AnswerMedia[] {
   const seen = new Set<string>();
@@ -135,10 +138,12 @@ export function normalizeMedia(list: readonly Partial<AnswerMedia>[] | null | un
     const parsed = parseMediaUrl(m.url);
     if (!parsed) continue;
     seen.add(m.id);
+    const fileId = typeof m.fileId === "string" && UUID.test(m.fileId) ? m.fileId : undefined;
     out.push({
       id: m.id,
-      kind: m.kind === "music" ? "music" : "video",
+      kind: m.kind === "music" || m.kind === "audio" ? m.kind : "video",
       url: parsed.url,
+      ...(fileId ? { fileId } : {}),
       title: (typeof m.title === "string" ? m.title : "").replace(/\s+/g, " ").trim().slice(0, MEDIA_TITLE_MAX),
       anchor: typeof m.anchor === "number" && Number.isFinite(m.anchor) ? Math.max(-1, Math.round(m.anchor)) : null,
     });
@@ -220,9 +225,21 @@ export function qrDrawing(url: string, size: number, color: string): Drawing {
   return { w: size, h: size, shapes };
 }
 
-/** Значок вида рядом с подписью «Видео» / «Музыка»: круг с треугольником «play» или нота, size pt. */
+/** Значок вида рядом с подписью «Видео» / «Музыка» / «Аудио»: круг с треугольником «play», нота или круг со звуковой волной, size pt. */
 export function mediaIcon(kind: MediaKind, size: number, color: string): Drawing {
   const s = (v: number) => n(v * size);
+  if (kind === "audio")
+    return {
+      w: size,
+      h: size,
+      shapes: [
+        { kind: "circle", cx: size / 2, cy: size / 2, r: size / 2, fill: color },
+        ...[0.2, 0.36, 0.26].flatMap((h, i) => {
+          const x = size * (0.3 + i * 0.17);
+          return [{ kind: "rect" as const, x: x - size * 0.045, y: size * (0.5 - h), w: size * 0.09, h: size * h * 2, fill: "#FFFFFF" }];
+        }),
+      ],
+    };
   if (kind === "video")
     return {
       w: size,

@@ -16,4 +16,7 @@ export async function registerNode() {
   startScheduler();
   const { startWhatsappCallWatcher } = await import("@/server/whatsapp-call-watcher");
   startWhatsappCallWatcher();
+  // Свои видео и аудио, которые ждали обработки при перезапуске: через минуту, когда выкатка закончит проверки.
+  const { kickAnswerFiles } = await import("@/server/answerFilesWorker");
+  setTimeout(kickAnswerFiles, 60_000).unref();
 }

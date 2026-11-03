@@ -31,9 +31,12 @@ export interface InlinePhotoStyle {
 export interface AnswerMedia {
   /** Ключ в списке ответа (создаётся в редакторе). */
   id: string;
-  kind: "video" | "music";
-  /** Ссылка, которую кодирует QR (уже приведённая: youtu.be/… для YouTube). */
+  /** audio — запись голоса и другое аудио, загруженное на сайт (answer_files). */
+  kind: "video" | "music" | "audio";
+  /** Ссылка, которую кодирует QR (уже приведённая: youtu.be/… для YouTube; свой файл — страница /v/<токен>). */
   url: string;
+  /** Свой файл, загруженный на сайт (answer_files.id): редактор показывает его обработку, QR ведёт на страницу файла. */
+  fileId?: string;
   /** Подпись в книге: «Пожелание от бабушки», «Кюй „Адай“». */
   title: string;
   /** После какого абзаца стоит карточка: -1 — перед текстом, null — в конце (как у фото в ответе). */
@@ -301,4 +304,77 @@ export const designAiPurchases = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("design_ai_purchases_number_idx").on(t.number), index("design_ai_purchases_user_idx").on(t.userId, t.createdAt)],
+);
+
+/**
+ * Свои видео и аудио к ответам (lib/book/answer-files.ts): клиент загружает файл, сервер по одному пережимает его ffmpeg
+ * (видео — H.264/AAC до 720p, аудио — AAC 128 кбит/с), QR-код в книге ведёт на страницу /v/<token>. Токен не угадать
+ * и он не меняется: ссылка из напечатанной книги работает и после заказа. Исходник лежит в кэше до конца обработки,
+ * готовый файл — в answer-media/<book_id>/<id>/ (входит в бэкап хранилища).
+ */
+export const answerFiles = pgTable(
+  "answer_files",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    token: text("token").notNull(),
+    bookId: uuid("book_id")
+      .notNull()
+      .references(() => books.id, { onDelete: "cascade" }),
+    /** Кто загрузил (владелец книги или сотрудник). */
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    kind: text("kind", { enum: ["video", "audio"] }).notNull(),
+    status: text("status", { enum: ["uploading", "queued", "processing", "ready", "failed"] }).notNull().default("uploading"),
+    /** Имя файла на телефоне — только для редактора. */
+    name: text("name").notNull().default(""),
+    sourceMime: text("source_mime").notNull().default(""),
+    sourceBytes: integer("source_bytes").notNull(),
+    receivedBytes: integer("received_bytes").notNull().default(0),
+    /** Длительность, которую сообщил браузер до загрузки (для лимита, пока файл не разобран); null — браузер не смог прочитать. */
+    declaredSec: integer("declared_sec"),
+    /** Настоящая длительность после разбора ffprobe. */
+    durationSec: integer("duration_sec"),
+    width: integer("width"),
+    height: integer("height"),
+    /** Размер готового файла. */
+    bytes: integer("bytes"),
+    hasPoster: boolean("has_poster").notNull().default(false),
+    /** Код ошибки обработки (словарь editor.media.fileErrors). */
+    error: text("error"),
+    attempts: smallint("attempts").notNull().default(0),
+    /** Когда обработку взял процесс сайта: зависшую (процесс перезапустили) берём заново. */
+    lockedAt: timestamp("locked_at", { withTimezone: true }),
+    readyAt: timestamp("ready_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("answer_files_token_idx").on(t.token), index("answer_files_book_idx").on(t.bookId, t.createdAt), index("answer_files_status_idx").on(t.status, t.createdAt)],
+);
+
+export type AnswerFileRow = typeof answerFiles.$inferSelect;
+
+/**
+ * Покупки пакетов минут для своих видео и аудио сверх бесплатных на книгу. Минуты и сумма — как в каталоге на момент
+ * покупки; оплата через Kaspi (цель media_pack, в комментарии «MyBooks M<number>»). Минуты книги = бесплатные + оплаченные.
+ */
+export const answerFilePurchases = pgTable(
+  "answer_file_purchases",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    number: serial("number").notNull(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    bookId: uuid("book_id")
+      .notNull()
+      .references(() => books.id, { onDelete: "cascade" }),
+    packId: text("pack_id").notNull(),
+    minutes: integer("minutes").notNull(),
+    amount: integer("amount").notNull(),
+    status: text("status", { enum: ["pending_payment", "paid", "cancelled"] }).notNull().default("pending_payment"),
+    /** Операция оплаты («kaspi:<id>»). */
+    paymentId: text("payment_id"),
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("answer_file_purchases_number_idx").on(t.number), index("answer_file_purchases_book_idx").on(t.bookId, t.createdAt)],
 );

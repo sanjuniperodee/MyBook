@@ -16,6 +16,8 @@ const schema = z.discriminatedUnion("target", [
   z.object({ target: z.literal("deal_invoice"), token: z.string().regex(PAY_TOKEN), method, phone }),
   // Пакет запросов к ИИ-дизайнеру — платит сам покупатель после входа.
   z.object({ target: z.literal("ai_pack"), purchaseId: uuid, method, phone }),
+  // Минуты для своих видео и аудио в книге — тоже платит сам покупатель.
+  z.object({ target: z.literal("media_pack"), purchaseId: uuid, method, phone }),
 ]);
 
 /** Выставить счёт Kaspi (в приложение по номеру) или QR на оплату заказа клиента, сертификата или счёта из чата по ссылке. */
@@ -36,6 +38,7 @@ export const POST = api(async (req) => {
       throw err;
     }
   }
+  if (body.target === "media_pack") return NextResponse.json({ invoice: await invoiceView(await kaspi.payMediaPack(body.purchaseId, (await apiUser(req)).id, body)) });
   if (body.target === "ai_pack") return NextResponse.json({ invoice: await invoiceView(await kaspi.payAiPack(body.purchaseId, (await apiUser(req)).id, body)) });
   const invoice = body.target === "order" ? await kaspi.payOrder(body.orderId, (await apiUser(req)).id, body) : await kaspi.payGift(body.token, body);
   return NextResponse.json({ invoice: await invoiceView(invoice) });

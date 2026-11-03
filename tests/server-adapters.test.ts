@@ -93,6 +93,7 @@ describe("api(): перевод ошибок в HTTP", () => {
       reviewNotFound: 404,
       invoiceNotFound: 404,
       chapterNotFound: 404,
+      fileNotFound: 404,
     };
     const statuses: Record<string, number> = {};
     for (const code of Object.keys(ru)) statuses[code] = (await failWith(new DomainError(code))).status;

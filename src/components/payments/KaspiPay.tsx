@@ -9,7 +9,7 @@ import { formatPhone } from "@/shared/domain/phone";
 import { Alert } from "@/components/ui/Alert";
 import type { KaspiInvoiceView as InvoiceView } from "@/modules/ordering/ui/kaspi";
 
-export type KaspiTarget = { kind: "order"; orderId: string } | { kind: "gift"; token: string } | { kind: "deal_invoice"; token: string } | { kind: "ai_pack"; purchaseId: string };
+export type KaspiTarget = { kind: "order"; orderId: string } | { kind: "gift"; token: string } | { kind: "deal_invoice"; token: string } | { kind: "ai_pack"; purchaseId: string } | { kind: "media_pack"; purchaseId: string };
 
 /** Подсказки блока для оплаты по ссылке: получатель и комментарий, номер по умолчанию (с маской) — тексты уже на языке страницы. */
 export interface KaspiHints {
@@ -41,7 +41,8 @@ function requestBody(target: KaspiTarget, method: "invoice" | "qr", phone: strin
       // Пустое поле — номер из счёта (его знает только сервер).
       return { target: "deal_invoice", token: target.token, method, phone: phone.trim() || undefined };
     case "ai_pack":
-      return { target: "ai_pack", purchaseId: target.purchaseId, method, phone };
+    case "media_pack":
+      return { target: target.kind, purchaseId: target.purchaseId, method, phone };
   }
 }
 

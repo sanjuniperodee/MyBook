@@ -27,6 +27,9 @@ const fake = {
 
 vi.mock("@/server/container", () => ({ container: () => fake }));
 vi.mock("@/server/ai-autofill", () => ({ aiAutofill: () => stepFn("autofill", 0)(), aiAutofillDeps: () => ({}) }));
+// Свои видео и аудио: уборка и очередь — свои тесты (answer-files*.test.ts); здесь — тихие заглушки.
+vi.mock("@/server/answerFiles", () => ({ sweepAbandonedUploads: async () => 0 }));
+vi.mock("@/server/answerFilesWorker", () => ({ kickAnswerFiles: () => {} }));
 vi.mock("@/server/morning-digest", () => ({ morningDigestTick: () => stepFn("digest", false)(), morningDigestDeps: () => ({}) }));
 vi.mock("@/shared/infrastructure/db", () => ({
   pool: { connect: async () => ({ query: async (q: string) => ({ rows: q.includes("try_advisory") ? [{ locked: true }] : [] }), release: () => {} }) },

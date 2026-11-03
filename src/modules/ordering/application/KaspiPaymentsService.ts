@@ -71,6 +71,8 @@ export class KaspiPaymentsService {
     private readonly dealInvoices: KaspiDealInvoices | null = null,
     /** Пакеты ИИ-дизайнера (цель ai_pack); не подключены — такие попытки оплаты считаются ошибкой. */
     private readonly aiPacks: KaspiAiPacks | null = null,
+    /** Пакеты минут для своих видео и аудио (цель media_pack); устроены так же, как пакеты ИИ. */
+    private readonly mediaPacks: KaspiAiPacks | null = null,
   ) {}
 
   /** Показывать ли клиенту оплату через Kaspi: включена и кассир подключён. */
@@ -99,6 +101,14 @@ export class KaspiPaymentsService {
     if (!purchase || purchase.userId !== userId) throw new OrderingError("invoiceNotFound");
     if (purchase.status !== "pending_payment") throw new OrderingError("notPayable");
     return this.issue({ kind: "ai_pack", id: purchase.id }, purchase.amount, `MyBooks A${purchase.number}`, input);
+  }
+
+  /** Пакет минут для своих видео и аудио в книге: платит сам покупатель, комментарий «MyBooks M<n>». */
+  async payMediaPack(purchaseId: string, userId: string, input: { method: KaspiMethod; phone?: string | null }) {
+    const purchase = await this.media().find(purchaseId);
+    if (!purchase || purchase.userId !== userId) throw new OrderingError("invoiceNotFound");
+    if (purchase.status !== "pending_payment") throw new OrderingError("notPayable");
+    return this.issue({ kind: "media_pack", id: purchase.id }, purchase.amount, `MyBooks M${purchase.number}`, input);
   }
 
   /**
@@ -226,6 +236,11 @@ export class KaspiPaymentsService {
     return this.aiPacks;
   }
 
+  private media(): KaspiAiPacks {
+    if (!this.mediaPacks) throw new OrderingError("invoiceNotFound");
+    return this.mediaPacks;
+  }
+
   /** Счёт из чата можно оплатить: ждёт оплаты, не истёк, сделка есть и по ней ещё нет заказа. */
   private async payable(invoice: DealInvoice) {
     if (!invoice.isPayable(this.clock.now())) return false;
@@ -282,6 +297,8 @@ export class KaspiPaymentsService {
         return "dealInvoiceToken" in owner && (await this.deals().repo.findById(target.id))?.token === owner.dealInvoiceToken;
       case "ai_pack":
         return "userId" in owner && (await this.packs().find(target.id))?.userId === owner.userId;
+      case "media_pack":
+        return "userId" in owner && (await this.media().find(target.id))?.userId === owner.userId;
       default:
         return unknownTarget(target);
     }
@@ -347,6 +364,9 @@ export class KaspiPaymentsService {
       }
       case "ai_pack":
         if (!(await this.packs().confirm(target.id, paymentId))) this.logger.warn("оплата Kaspi пришла по уже закрытой покупке пакета ИИ — нужен возврат", { purchaseId: target.id, externalId: invoice.externalId });
+        return;
+      case "media_pack":
+        if (!(await this.media().confirm(target.id, paymentId))) this.logger.warn("оплата Kaspi пришла по уже закрытой покупке минут видео — нужен возврат", { purchaseId: target.id, externalId: invoice.externalId });
         return;
       default:
         unknownTarget(target);

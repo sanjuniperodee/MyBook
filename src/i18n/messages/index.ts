@@ -9,7 +9,7 @@ export type Messages = typeof ru;
  * Словарь в браузере (useMessages): без серверных пространств (письма, юр. тексты, ошибки API, сообщения доступа в WhatsApp). Страница получает словарь только своего языка
  * (i18n/dictionary/*), а части на другом языке — из messages/partial.ts.
  */
-export type ClientMessages = Omit<Messages, "mail" | "legal" | "api" | "access">;
+export type ClientMessages = Omit<Messages, "mail" | "legal" | "api" | "access" | "answerFile">;
 
 const dictionaries: Record<Locale, Messages> = { ru, kk };
 

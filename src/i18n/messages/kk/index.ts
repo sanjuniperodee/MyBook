@@ -18,5 +18,6 @@ import { pay } from "./pay";
 import { access } from "./access";
 import { design } from "./design";
 import { help } from "./help";
+import { answerFile } from "./answer-file";
 
-export const kk: Messages = { common, book, catalog, landing, auth, books, editor, checkout, orders, review, invite, gift, legal, mail, api, pay, access, design, help };
+export const kk: Messages = { common, book, catalog, landing, auth, books, editor, checkout, orders, review, invite, gift, legal, mail, api, pay, access, design, help, answerFile };

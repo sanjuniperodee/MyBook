@@ -109,6 +109,14 @@ describe("PDF: QR-коды видео и музыки", () => {
     expect(await linkUris((await renderInterior(bundle, "print")).pdf)).toEqual([]);
   });
 
+  it("свой файл (аудио) — карточка «Аудио» с QR-кодом страницы файла на сайте, объём совпадает с оценкой", async () => {
+    const own: AnswerMedia = { id: "own", kind: "audio", url: "https://mybooks.kz/v/Ab3dE9xK2m", title: "Атамның дауысы", anchor: null, fileId: "00000000-0000-4000-8000-000000000009" };
+    const bundle: BookBundle = { book, questions: [{ ...questions[2], media: [own] }], chapters: [], photos: [] };
+    const res = await renderInterior(bundle, "reading");
+    expect(res.contentPages).toBe(estimatePages(contentFor(bundle)));
+    expect(await linkUris(res.pdf)).toEqual(["https://mybooks.kz/v/Ab3dE9xK2m"]);
+  });
+
   it("книги без QR-кодов: содержимое и отпечаток кэша прежние", () => {
     const plain: BookBundle = { book, questions: questions.map((q) => ({ ...q, media: [] })), chapters: [], photos: [] };
     expect(JSON.stringify(contentFor(plain))).not.toContain("media");
