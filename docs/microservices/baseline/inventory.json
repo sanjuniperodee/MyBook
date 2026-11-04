@@ -1,0 +1,746 @@
+{
+  "generatedAt": "2026-11-04T22:29:14.195Z",
+  "git": {
+    "branch": "refactor/microservices",
+    "commit": "896a123f511ccbcb8fbb7edbe646a52eb99b6e76",
+    "shortCommit": "896a123f"
+  },
+  "summary": {
+    "sourceFiles": 1587,
+    "sourceTsFiles": 1583,
+    "sourceLoc": 166199,
+    "testFiles": 275,
+    "tests": 2824,
+    "apiRoutes": 138,
+    "pages": 81,
+    "serverActions": 38,
+    "modules": 17,
+    "tables": 54,
+    "migrations": 91,
+    "containerFiles": 202,
+    "containerCalls": 643,
+    "crossSchemaReferences": 66
+  },
+  "areas": {
+    "app": {
+      "files": 474,
+      "codeFiles": 470,
+      "loc": 40480
+    },
+    "components": {
+      "files": 220,
+      "codeFiles": 220,
+      "loc": 34019
+    },
+    "modules": {
+      "files": 373,
+      "codeFiles": 373,
+      "loc": 43546
+    },
+    "lib": {
+      "files": 313,
+      "codeFiles": 313,
+      "loc": 30448
+    },
+    "shared": {
+      "files": 70,
+      "codeFiles": 70,
+      "loc": 3739
+    },
+    "server": {
+      "files": 48,
+      "codeFiles": 48,
+      "loc": 4739
+    },
+    "i18n": {
+      "files": 78,
+      "codeFiles": 78,
+      "loc": 8398
+    },
+    "config": {
+      "files": 2,
+      "codeFiles": 2,
+      "loc": 426
+    }
+  },
+  "modules": {
+    "messaging": {
+      "files": 50,
+      "loc": 13999
+    },
+    "ordering": {
+      "files": 46,
+      "loc": 5156
+    },
+    "production": {
+      "files": 39,
+      "loc": 4181
+    },
+    "authoring": {
+      "files": 25,
+      "loc": 3058
+    },
+    "reporting": {
+      "files": 35,
+      "loc": 2932
+    },
+    "sales": {
+      "files": 27,
+      "loc": 2769
+    },
+    "assistant": {
+      "files": 22,
+      "loc": 2052
+    },
+    "automation": {
+      "files": 16,
+      "loc": 1917
+    },
+    "clients": {
+      "files": 9,
+      "loc": 1129
+    },
+    "workspace": {
+      "files": 17,
+      "loc": 1107
+    },
+    "telephony": {
+      "files": 13,
+      "loc": 1083
+    },
+    "identity": {
+      "files": 17,
+      "loc": 1037
+    },
+    "access": {
+      "files": 16,
+      "loc": 866
+    },
+    "notifications": {
+      "files": 9,
+      "loc": 681
+    },
+    "feedback": {
+      "files": 12,
+      "loc": 641
+    },
+    "marketing": {
+      "files": 10,
+      "loc": 580
+    },
+    "referrals": {
+      "files": 10,
+      "loc": 358
+    }
+  },
+  "apiRoutesByPrefix": {
+    "mobile": 54,
+    "books": 30,
+    "admin": 29,
+    "integrations": 5,
+    "payments": 4,
+    "chat": 2,
+    "orders": 2,
+    "reviews": 2,
+    "cover-photos": 1,
+    "covers": 1,
+    "design-ai": 1,
+    "gifts": 1,
+    "health": 1,
+    "letters": 1,
+    "locale": 1,
+    "media": 1,
+    "photos": 1,
+    "v": 1
+  },
+  "pagesByPrefix": {
+    "admin": 39,
+    "(app)": 15,
+    "(auth)": 5,
+    "blog": 2,
+    "gift": 2,
+    "instrumenty": 2,
+    "kniga": 2,
+    "admin-denied": 1,
+    "crm": 1,
+    "dev": 1,
+    "letters": 1,
+    "love": 1,
+    "offer": 1,
+    "page.tsx": 1,
+    "pay": 1,
+    "print": 1,
+    "privacy": 1,
+    "redeem": 1,
+    "review": 1,
+    "unsubscribe": 1,
+    "v": 1
+  },
+  "actionsByPrefix": {
+    "admin": 30,
+    "(app)": 4,
+    "(auth)": 1,
+    "gift": 1,
+    "pay": 1,
+    "redeem": 1
+  },
+  "schema": {
+    "schemaFiles": 17,
+    "tableCount": 54,
+    "uniqueTables": 54,
+    "perSchema": {
+      "access": {
+        "tables": [
+          "crm_roles",
+          "crm_audit"
+        ],
+        "declarations": 2
+      },
+      "authoring": {
+        "tables": [
+          "books",
+          "book_questions",
+          "book_chapters",
+          "photos",
+          "photo_edits",
+          "book_letters",
+          "design_ai_requests",
+          "design_ai_credits",
+          "design_ai_purchases",
+          "answer_files",
+          "answer_file_purchases"
+        ],
+        "declarations": 11
+      },
+      "automation": {
+        "tables": [
+          "crm_automations",
+          "crm_automation_runs"
+        ],
+        "declarations": 2
+      },
+      "clients": {
+        "tables": [
+          "crm_notes",
+          "crm_tasks"
+        ],
+        "declarations": 2
+      },
+      "columns": {
+        "tables": [],
+        "declarations": 0
+      },
+      "feedback": {
+        "tables": [
+          "reviews"
+        ],
+        "declarations": 1
+      },
+      "identity": {
+        "tables": [
+          "users",
+          "sessions",
+          "password_resets"
+        ],
+        "declarations": 3
+      },
+      "marketing": {
+        "tables": [
+          "crm_links",
+          "crm_link_clicks",
+          "marketing_spend"
+        ],
+        "declarations": 3
+      },
+      "messaging": {
+        "tables": [
+          "crm_conversations",
+          "crm_messages",
+          "crm_bot_events",
+          "crm_blocklist"
+        ],
+        "declarations": 4
+      },
+      "notifications": {
+        "tables": [
+          "email_log"
+        ],
+        "declarations": 1
+      },
+      "ordering": {
+        "tables": [
+          "orders",
+          "order_payments",
+          "promo_codes",
+          "gift_cards",
+          "payment_invoices",
+          "order_events"
+        ],
+        "declarations": 6
+      },
+      "outbox": {
+        "tables": [
+          "outbox_events"
+        ],
+        "declarations": 1
+      },
+      "referrals": {
+        "tables": [
+          "referral_rewards"
+        ],
+        "declarations": 1
+      },
+      "relations": {
+        "tables": [],
+        "declarations": 0
+      },
+      "sales": {
+        "tables": [
+          "crm_pipelines",
+          "crm_stages",
+          "crm_deals",
+          "crm_payments",
+          "deal_invoices",
+          "crm_receipts",
+          "crm_stage_history",
+          "crm_saved_views",
+          "crm_plans"
+        ],
+        "declarations": 9
+      },
+      "telephony": {
+        "tables": [
+          "crm_calls"
+        ],
+        "declarations": 1
+      },
+      "workspace": {
+        "tables": [
+          "crm_notifications",
+          "crm_templates",
+          "crm_fields",
+          "crm_mobile_devices",
+          "crm_pinned_chats",
+          "crm_push_subscriptions",
+          "crm_settings"
+        ],
+        "declarations": 7
+      }
+    },
+    "crossSchemaReferences": 66,
+    "crossSchemaMatrix": {
+      "sales -> identity": 13,
+      "authoring -> identity": 6,
+      "clients -> identity": 6,
+      "ordering -> identity": 6,
+      "workspace -> identity": 6,
+      "messaging -> identity": 5,
+      "clients -> ordering": 2,
+      "clients -> sales": 2,
+      "marketing -> identity": 2,
+      "messaging -> sales": 2,
+      "referrals -> identity": 2,
+      "telephony -> identity": 2,
+      "access -> identity": 1,
+      "feedback -> ordering": 1,
+      "feedback -> identity": 1,
+      "identity -> access": 1,
+      "notifications -> identity": 1,
+      "ordering -> authoring": 1,
+      "referrals -> ordering": 1,
+      "referrals -> sales": 1,
+      "sales -> ordering": 1,
+      "sales -> automation": 1,
+      "telephony -> sales": 1,
+      "workspace -> messaging": 1
+    },
+    "crossSchemaDetails": [
+      {
+        "fromSchema": "access",
+        "toSchema": "identity",
+        "targetTable": "users"
+      },
+      {
+        "fromSchema": "authoring",
+        "toSchema": "identity",
+        "targetTable": "users"
+      },
+      {
+        "fromSchema": "authoring",
+        "toSchema": "identity",
+        "targetTable": "users"
+      },
+      {
+        "fromSchema": "authoring",
+        "toSchema": "identity",
+        "targetTable": "users"
+      },
+      {
+        "fromSchema": "authoring",
+        "toSchema": "identity",
+        "targetTable": "users"
+      },
+      {
+        "fromSchema": "authoring",
+        "toSchema": "identity",
+        "targetTable": "users"
+      },
+      {
+        "fromSchema": "authoring",
+        "toSchema": "identity",
+        "targetTable": "users"
+      },
+      {
+        "fromSchema": "clients",
+        "toSchema": "sales",
+        "targetTable": "crm_deals"
+      },
+      {
+        "fromSchema": "clients",
+        "toSchema": "sales",
+        "targetTable": "crm_deals"
+      },
+      {
+        "fromSchema": "clients",
+        "toSchema": "ordering",
+        "targetTable": "orders"
+      },
+      {
+        "fromSchema": "clients",
+        "toSchema": "ordering",
+        "targetTable": "orders"
+      },
+      {
+        "fromSchema": "clients",
+        "toSchema": "identity",
+        "targetTable": "users"
+      },
+      {
+        "fromSchema": "clients",
+        "toSchema": "identity",
+        "targetTable": "users"
+      },
+      {
+        "fromSchema": "clients",
+        "toSchema": "identity",
+        "targetTable": "users"
+      },
+      {
+        "fromSchema": "clients",
+        "toSchema": "identity",
+        "targetTable": "users"
+      },
+      {
+        "fromSchema": "clients",
+        "toSchema": "identity",
+        "targetTable": "users"
+      },
+      {
+        "fromSchema": "clients",
+        "toSchema": "identity",
+        "targetTable": "users"
+      },
+      {
+        "fromSchema": "feedback",
+        "toSchema": "ordering",
+        "targetTable": "orders"
+      },
+      {
+        "fromSchema": "feedback",
+        "toSchema": "identity",
+        "targetTable": "users"
+      },
+      {
+        "fromSchema": "identity",
+        "toSchema": "access",
+        "targetTable": "crm_roles"
+      },
+      {
+        "fromSchema": "marketing",
+        "toSchema": "identity",
+        "targetTable": "users"
+      },
+      {
+        "fromSchema": "marketing",
+        "toSchema": "identity",
+        "targetTable": "users"
+      },
+      {
+        "fromSchema": "messaging",
+        "toSchema": "sales",
+        "targetTable": "crm_deals"
+      },
+      {
+        "fromSchema": "messaging",
+        "toSchema": "sales",
+        "targetTable": "crm_deals"
+      },
+      {
+        "fromSchema": "messaging",
+        "toSchema": "identity",
+        "targetTable": "users"
+      },
+      {
+        "fromSchema": "messaging",
+        "toSchema": "identity",
+        "targetTable": "users"
+      },
+      {
+        "fromSchema": "messaging",
+        "toSchema": "identity",
+        "targetTable": "users"
+      },
+      {
+        "fromSchema": "messaging",
+        "toSchema": "identity",
+        "targetTable": "users"
+      },
+      {
+        "fromSchema": "messaging",
+        "toSchema": "identity",
+        "targetTable": "users"
+      },
+      {
+        "fromSchema": "notifications",
+        "toSchema": "identity",
+        "targetTable": "users"
+      },
+      {
+        "fromSchema": "ordering",
+        "toSchema": "authoring",
+        "targetTable": "books"
+      },
+      {
+        "fromSchema": "ordering",
+        "toSchema": "identity",
+        "targetTable": "users"
+      },
+      {
+        "fromSchema": "ordering",
+        "toSchema": "identity",
+        "targetTable": "users"
+      },
+      {
+        "fromSchema": "ordering",
+        "toSchema": "identity",
+        "targetTable": "users"
+      },
+      {
+        "fromSchema": "ordering",
+        "toSchema": "identity",
+        "targetTable": "users"
+      },
+      {
+        "fromSchema": "ordering",
+        "toSchema": "identity",
+        "targetTable": "users"
+      },
+      {
+        "fromSchema": "ordering",
+        "toSchema": "identity",
+        "targetTable": "users"
+      },
+      {
+        "fromSchema": "referrals",
+        "toSchema": "sales",
+        "targetTable": "crm_deals"
+      },
+      {
+        "fromSchema": "referrals",
+        "toSchema": "ordering",
+        "targetTable": "orders"
+      },
+      {
+        "fromSchema": "referrals",
+        "toSchema": "identity",
+        "targetTable": "users"
+      },
+      {
+        "fromSchema": "referrals",
+        "toSchema": "identity",
+        "targetTable": "users"
+      },
+      {
+        "fromSchema": "sales",
+        "toSchema": "automation",
+        "targetTable": "crm_automations"
+      },
+      {
+        "fromSchema": "sales",
+        "toSchema": "ordering",
+        "targetTable": "orders"
+      },
+      {
+        "fromSchema": "sales",
+        "toSchema": "identity",
+        "targetTable": "users"
+      },
+      {
+        "fromSchema": "sales",
+        "toSchema": "identity",
+        "targetTable": "users"
+      },
+      {
+        "fromSchema": "sales",
+        "toSchema": "identity",
+        "targetTable": "users"
+      },
+      {
+        "fromSchema": "sales",
+        "toSchema": "identity",
+        "targetTable": "users"
+      },
+      {
+        "fromSchema": "sales",
+        "toSchema": "identity",
+        "targetTable": "users"
+      },
+      {
+        "fromSchema": "sales",
+        "toSchema": "identity",
+        "targetTable": "users"
+      },
+      {
+        "fromSchema": "sales",
+        "toSchema": "identity",
+        "targetTable": "users"
+      },
+      {
+        "fromSchema": "sales",
+        "toSchema": "identity",
+        "targetTable": "users"
+      },
+      {
+        "fromSchema": "sales",
+        "toSchema": "identity",
+        "targetTable": "users"
+      },
+      {
+        "fromSchema": "sales",
+        "toSchema": "identity",
+        "targetTable": "users"
+      },
+      {
+        "fromSchema": "sales",
+        "toSchema": "identity",
+        "targetTable": "users"
+      },
+      {
+        "fromSchema": "sales",
+        "toSchema": "identity",
+        "targetTable": "users"
+      },
+      {
+        "fromSchema": "sales",
+        "toSchema": "identity",
+        "targetTable": "users"
+      },
+      {
+        "fromSchema": "telephony",
+        "toSchema": "sales",
+        "targetTable": "crm_deals"
+      },
+      {
+        "fromSchema": "telephony",
+        "toSchema": "identity",
+        "targetTable": "users"
+      },
+      {
+        "fromSchema": "telephony",
+        "toSchema": "identity",
+        "targetTable": "users"
+      },
+      {
+        "fromSchema": "workspace",
+        "toSchema": "messaging",
+        "targetTable": "crm_conversations"
+      },
+      {
+        "fromSchema": "workspace",
+        "toSchema": "identity",
+        "targetTable": "users"
+      },
+      {
+        "fromSchema": "workspace",
+        "toSchema": "identity",
+        "targetTable": "users"
+      },
+      {
+        "fromSchema": "workspace",
+        "toSchema": "identity",
+        "targetTable": "users"
+      },
+      {
+        "fromSchema": "workspace",
+        "toSchema": "identity",
+        "targetTable": "users"
+      },
+      {
+        "fromSchema": "workspace",
+        "toSchema": "identity",
+        "targetTable": "users"
+      },
+      {
+        "fromSchema": "workspace",
+        "toSchema": "identity",
+        "targetTable": "users"
+      }
+    ]
+  },
+  "dependencies": {
+    "runtime": {
+      "@anthropic-ai/sdk": "^0.129.0",
+      "@dnd-kit/core": "^6.3.1",
+      "@dnd-kit/sortable": "^10.0.0",
+      "@dnd-kit/utilities": "^3.2.2",
+      "@react-pdf/renderer": "^4.9.0",
+      "archiver": "^8.0.0",
+      "bcryptjs": "^3.0.3",
+      "clsx": "^2.1.1",
+      "drizzle-orm": "^0.45.3",
+      "fontkit": "^2.0.4",
+      "heic-decode": "^2.1.0",
+      "html-to-image": "^1.11.13",
+      "hunspell-asm": "^4.0.2",
+      "hyphen": "^1.14.1",
+      "imapflow": "^2.1.2",
+      "ioredis": "^6.0.0",
+      "lucide-react": "^1.48.0",
+      "mailparser": "^3.9.32",
+      "next": "^16.3.6",
+      "nodemailer": "^10.0.12",
+      "pdf-lib": "^1.17.1",
+      "pg": "^8.23.0",
+      "qrcode": "^1.5.4",
+      "react": "^19.3.0",
+      "react-dom": "^19.3.0",
+      "server-only": "^0.0.1",
+      "sharp": "^0.35.5",
+      "three": "^0.186.1",
+      "web-push": "^3.6.7",
+      "zod": "^4.6.5"
+    },
+    "dev": {
+      "@tailwindcss/postcss": "^4.3.3",
+      "@types/archiver": "^8.0.0",
+      "@types/mailparser": "^3.9.0",
+      "@types/node": "^26.6.3",
+      "@types/nodemailer": "^8.0.2",
+      "@types/pg": "^8.23.1",
+      "@types/qrcode": "^1.5.6",
+      "@types/react": "^19.3.0",
+      "@types/react-dom": "^19.3.0",
+      "@types/three": "^0.186.0",
+      "@types/web-push": "^3.6.4",
+      "drizzle-kit": "^0.31.11",
+      "esbuild": "^0.28.2",
+      "eslint": "^9.39.5",
+      "eslint-config-next": "^16.3.6",
+      "playwright": "^1.63.0",
+      "tailwindcss": "^4.3.3",
+      "tsx": "^4.23.15",
+      "typescript": "^6.0.3",
+      "vitest": "^5.0.2"
+    }
+  }
+}
