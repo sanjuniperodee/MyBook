@@ -1,5 +1,5 @@
 ---
-updated: 2026-11-05T04:10:00+05:00
+updated: 2026-11-05T04:40:00+05:00
 branch: refactor/microservices
 wave: 0
 task: M0.4
@@ -72,7 +72,7 @@ blockers:
 |---|---|---|---|---|---|
 | M0.1 | Inventory + baseline | `done` | `refactor/microservices` | скрипт отработал, JSON/MD созданы | 2026-11-05 |
 | M0.2 | План, ADR, PROGRESS, HANDOFF | `done` | `refactor/microservices` `05729c23` | документы linked, `tsc`/`vitest` не трогались | 2026-11-05 |
-| M0.3 | Playwright-скриншоты админки/кабинета | `done` | `refactor/microservices` | 40/40 два прогона; diff-пиксель ловится | 2026-11-05 |
+| M0.3 | Playwright-скриншоты админки/кабинета | `done` | `refactor/microservices` `8c268531` | 40/40 два прогона; diff-пиксель ловится | 2026-11-05 |
 | M0.4 | Golden DTO + parity shadow | `pending` | — | 0 mismatches на неизменённом коде | **следующая** |
 | M0.5 | Каркас монорепо (без переноса) | `pending` | — | `npm test`/`build` зелёные | после M0.3 |
 | M0.6 | CI-гейты | `pending` | — | PR-blocking checks | после M0.5 |
@@ -166,7 +166,7 @@ blockers:
 |---|---|---|---|---|
 | 2026-11-05 | DeepSeek (DSH) | Baseline, inventory, план, ADR, PROGRESS, HANDOFF; ветка `refactor/microservices`, коммит `05729c23` | `tsc` 0, `vitest` 4010 passed / 135 skipped, `eslint` 0 ошибок | M0.3 Playwright |
 | 2026-11-05 | DeepSeek (DSH) | M0.3: Playwright-стенд страниц, seed, фиксированные часы, 40 эталонов | 40/40 два прогона, diff-пиксель ловится, `tsc`/`eslint` зелёные | M0.4 golden DTO + parity |
-| 2026-11-05 | DeepSeek (DSH) | S3: Yandex Object Storage, профиль `yc-storage`, `.env.local`, ADR 0008, `07-storage-s3.md` | ключи вне git, права 600; CLI-проверка доступа | M0.8 close, затем M0.4 |
+| 2026-11-05 | DeepSeek (DSH) | S3: Yandex Object Storage, профиль `yc-storage`, `.env.local`, ADR 0008, `07-storage-s3.md`; коммит `8c268531` | ключи вне git, права 600; Yandex вернул 403 SignatureDoesNotMatch | M0.8 blocked (ключи), затем M0.4 |
 
 ## Как обновлять этот файл
 
