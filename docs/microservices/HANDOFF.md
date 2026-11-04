@@ -16,7 +16,8 @@
   14 тестов; `golden:check` — 0 mismatch дважды.
 - **S3:** выбран Yandex Object Storage (бакет `mybooks`), профиль `yc-storage` и `S3_*` в `.env.local`
   настроены, ключи вне git. Проверка доступа вернула `403 SignatureDoesNotMatch` — ключи нужно
-  перепроверить/перевыпустить. До этого publishing/медиа на S3 не переключать. См. `07-storage-s3.md`.
+  перепроверить/перевыпустить; новые ключи, AWS CLI и AWS SDK v3 с `forcePathStyle: true` дают тот же
+  `SignatureDoesNotMatch`. До этого publishing/медиа на S3 не переключать. См. `07-storage-s3.md`.
 
 ## 2. Что уже решено
 

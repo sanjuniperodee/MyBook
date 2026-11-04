@@ -80,11 +80,34 @@ aws --profile yc-storage \
 Профиль `yc-storage` создан, ключи лежат локально с правами `600`. Проверка доступа вернула:
 
 - `head-bucket` → `403 Forbidden`;
-- `list-buckets` / `s3 ls` → `403 SignatureDoesNotMatch`.
+- `list-buckets` / `s3 ls` → `403 SignatureDoesNotMatch`;
+- AWS SDK v3 (`forcePathStyle: true`, `ListObjectsV2`) — тот же `SignatureDoesNotMatch` (request id
+  `2735c87ce47c28dd`).
+- После замены ключей на новые — снова `SignatureDoesNotMatch` и в CLI, и в SDK v3; проверены
+  signing regions `ru-central1`, `kz1`, `ru-central2`, `kz2`, `eu-central-1`, `us-east-1`.
 
-Подпись не сходится: это неверный секрет/ключ, опечатка или ключ от другого аккаунта. До проверки
-и перевыпуска ключей publishing/медиа на S3 не переключать. Профиль и документы при этом готовы:
-после замены ключей достаточно повторить команды из раздела 4.
+CLI и SDK получают одну и ту же ошибку, значит дело не в стиле адресации, не в регионе и не в сети:
+сервер знает access key, но HMAC не совпадает. Это неверный секрет, опечатка при копировании,
+ключ от другого сервисного аккаунта или у ключа нет роли на бакет. До перевыпуска ключей и проверки
+прав publishing/медиа на S3 не переключать. Профиль и документы готовы: после замены ключей
+достаточно повторить команды из раздела 4.
+
+### Проверка через AWS SDK v3
+
+```js
+import { S3Client, ListObjectsV2Command } from "@aws-sdk/client-s3";
+
+const client = new S3Client({
+  endpoint: "https://storage.yandexcloud.net",
+  region: "ru-central1",
+  forcePathStyle: true,
+});
+
+const result = await client.send(new ListObjectsV2Command({ Bucket: "mybooks", MaxKeys: 10 }));
+console.log(result.Contents ?? []);
+```
+
+Ключи — из env, не хардкодить.
 
 ## 5. Ключи объектов
 
