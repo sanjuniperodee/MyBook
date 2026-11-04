@@ -1,5 +1,5 @@
 ---
-updated: 2026-11-05T03:30:00+05:00
+updated: 2026-11-05T03:45:00+05:00
 branch: refactor/microservices
 wave: 0
 task: M0.3
@@ -65,7 +65,7 @@ blockers:
 | ID | Задача | Статус | Ветка/PR | Проверка | Заметка |
 |---|---|---|---|---|---|
 | M0.1 | Inventory + baseline | `done` | `refactor/microservices` | скрипт отработал, JSON/MD созданы | 2026-11-05 |
-| M0.2 | План, ADR, PROGRESS, HANDOFF | `done` | `refactor/microservices` | документы linked, `tsc`/`vitest` не трогались | 2026-11-05 |
+| M0.2 | План, ADR, PROGRESS, HANDOFF | `done` | `refactor/microservices` `05729c23` | документы linked, `tsc`/`vitest` не трогались | 2026-11-05 |
 | M0.3 | Playwright-скриншоты админки/кабинета | `pending` | — | 0 diff на неизменённом коде | **следующая** |
 | M0.4 | Golden DTO + parity shadow | `pending` | — | 0 mismatches на неизменённом коде | после M0.3 |
 | M0.5 | Каркас монорепо (без переноса) | `pending` | — | `npm test`/`build` зелёные | после M0.3 |
@@ -156,7 +156,7 @@ blockers:
 
 | Дата | Агент | Что сделано | Проверки | Следующее |
 |---|---|---|---|---|
-| 2026-11-05 | DeepSeek (DSH) | Baseline, inventory, план, ADR, PROGRESS, HANDOFF; ветка `refactor/microservices` | `tsc` 0, `vitest` 4010 passed / 135 skipped | M0.3 Playwright, затем G0 |
+| 2026-11-05 | DeepSeek (DSH) | Baseline, inventory, план, ADR, PROGRESS, HANDOFF; ветка `refactor/microservices`, коммит `05729c23` | `tsc` 0, `vitest` 4010 passed / 135 skipped, `eslint` 0 ошибок | M0.3 Playwright, затем G0 |
 
 ## Как обновлять этот файл
 
