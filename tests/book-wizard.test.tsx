@@ -67,6 +67,7 @@ const wizardThemes = (locale: "ru" | "kk"): WizardTheme[] =>
     recipientLabel: t.recipientLabel,
     recipientPlaceholder: t.recipientPlaceholder,
     recipientGender: t.recipientGender,
+    recipientGenderChoice: t.recipientGenderChoice,
     defaultRecipientGender: t.defaultRecipientGender,
     titleSuggestions: Object.fromEntries(locales.map((l) => [l, getTheme(t.id, l).titleSuggestions])) as WizardTheme["titleSuggestions"],
     firstChapterTitle: Object.fromEntries(locales.map((l) => [l, getTheme(t.id, l).firstChapterTitle ?? ""])) as WizardTheme["firstChapterTitle"],
@@ -84,7 +85,7 @@ describe("мастер: разметка", () => {
   it("первый шаг: четыре подарка и отдельный ряд «о себе» и «вручную»", () => {
     const html = render("ru");
     expect(html).toContain("Какую книгу пишете?");
-    for (const id of ["love", "mom", "dad", "friend", "autobiography", "blank"]) expect(html).toContain(`data-theme="${id}"`);
+    for (const id of ["love", "mom", "dad", "parents", "grandma", "grandpa", "friend", "autobiography", "blank"]) expect(html).toContain(`data-theme="${id}"`);
     expect(html.indexOf('data-theme="friend"')).toBeLessThan(html.indexOf("Книга о себе или своя"));
     expect(html.indexOf("Книга о себе или своя")).toBeLessThan(html.indexOf('data-theme="autobiography"'));
     expect(html).toContain("Вручную — своя книга с чистого листа");
@@ -98,6 +99,28 @@ describe("мастер: разметка", () => {
     expect(html).toContain('name="recipientGender"');
     expect(html).not.toContain('id="firstChapterTitle"');
     expect(html).not.toContain('id="dedication"');
+  });
+
+  it("дедушке: своя карточка и поле имени, род адресата зафиксирован", () => {
+    const html = render("ru", "grandpa");
+    expect(html).toContain("Как зовут дедушку");
+    expect(html).toContain('placeholder="Например, Кайрат"');
+    expect(html).toMatch(/name="recipientGender" value="m"/);
+    // Род адресата зафиксирован — переключателя «Него / Неё» в шаге нет.
+    expect(html).not.toContain("Неё");
+  });
+
+  it("родителям: оба имени в одном поле, род адресата не спрашивают", () => {
+    const html = render("ru", "parents");
+    expect(html).toContain("Имена родителей");
+    expect(html).toContain('placeholder="Например, Гульнара и Ерлан"');
+    expect(html).toMatch(/id="recipientName"[^>]*required/);
+    // Род адресата — скрытым полем: вопросы книги во множественном числе, у них нет рода.
+    expect(html).toMatch(/name="recipientGender" value="m"/);
+    expect(html).not.toContain("Неё");
+    const mode = wizardThemes("ru").find((t) => t.id === "parents")!;
+    expect(mode.titleSuggestions.ru[0]).toBe("Маме и папе");
+    expect(mode.titleSuggestions.kk[0]).toBe("Анама және әкеме");
   });
 
   it("автобиография: «Чья это история?», посвящение, без получателя и без его рода", () => {

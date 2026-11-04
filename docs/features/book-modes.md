@@ -24,8 +24,10 @@ export const hasQuestionBank = (theme: string) => bookKind(theme) !== "blank";
 export const hasOutline = (theme: string) => bookKind(theme) === "blank"; // свои главы и разделы
 ```
 
-**1.2. Темы.** `ThemeId` = love | mom | dad | friend | autobiography | blank. В `ThemeDef` — `kind` и `recipient`;
-`recipientLabel`/`recipientPlaceholder` — необязательные (у автобиографии их нет). `getThemes(lang)` — все шесть
+**1.2. Темы.** `ThemeId` = love | mom | dad | parents | grandma | grandpa | child | sibling | friend | teacher | autobiography | blank. В `ThemeDef` — `kind` и `recipient`;
+`recipientLabel`/`recipientPlaceholder` — необязательные (у автобиографии их нет); `recipientGender` — фиксированный род
+адресата (мама, папа, бабушка, дедушка), `recipientGenderChoice: false` — род не спрашивать (книга «Родителям»: адресат
+во множественном числе, в банке вопросов рода нет). `getThemes(lang)` — все темы
 (мастер, CRM); `giftThemes(lang)` / темы с банком — для главной, /kniga, статей и теста «> 40 вопросов».
 `BooksService.start` проверяет тему (`AuthoringError("unknownTheme")`), молчаливый откат на love остаётся только для
 показа старых строк.

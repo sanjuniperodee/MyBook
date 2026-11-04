@@ -34,7 +34,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
           bookId={book.id}
           theme={book.theme}
           editable={book.status === "draft"}
-          fixedRecipientGender={!!theme.recipientGender}
+          fixedRecipientGender={!!theme.recipientGender || theme.recipientGenderChoice === false}
           initial={{
             format: getFormat(book.format).id,
             authorName: book.authorName,

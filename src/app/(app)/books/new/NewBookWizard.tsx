@@ -29,6 +29,8 @@ export interface WizardTheme {
   recipientLabel?: string;
   recipientPlaceholder?: string;
   recipientGender?: Gender;
+  /** Спрашивать ли род адресата; у книги родителям — нет (их двое, банк во множественном числе). */
+  recipientGenderChoice?: boolean;
   defaultRecipientGender: Gender;
   /** Варианты названия на каждом из языков книги. */
   titleSuggestions: Record<Locale, string[]>;
@@ -220,6 +222,9 @@ export function NewBookWizard({ themes, defaultTheme, defaultAuthor, defaultLang
           ) : null}
           {theme.recipient !== "required" ? null : theme.recipientGender ? (
             <input type="hidden" name="recipientGender" value={theme.recipientGender} />
+          ) : theme.recipientGenderChoice === false ? (
+            // Родителям — вдвоём: род адресата не спрашиваем, в банке вопросов его нет.
+            <input type="hidden" name="recipientGender" value={theme.defaultRecipientGender} />
           ) : (
             <div>
               <span className="label">{t.recipientFor}</span>

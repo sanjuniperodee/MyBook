@@ -3,16 +3,20 @@ import { autobiographyChapters } from "./autobiography";
 import { childChapters } from "./child";
 import { friendChapters } from "./friend";
 import { grandmaChapters } from "./grandma";
+import { grandpaChapters } from "./grandpa";
 import { loveChapters } from "./love";
 import { parentChapters } from "./parent";
+import { parentsChapters } from "./parents";
 import { siblingChapters } from "./sibling";
 import { teacherChapters } from "./teacher";
 import { autobiographyChapters as autobiographyChaptersKk } from "./kk/autobiography";
 import { childChapters as childChaptersKk } from "./kk/child";
 import { friendChapters as friendChaptersKk } from "./kk/friend";
 import { grandmaChapters as grandmaChaptersKk } from "./kk/grandma";
+import { grandpaChapters as grandpaChaptersKk } from "./kk/grandpa";
 import { loveChapters as loveChaptersKk } from "./kk/love";
 import { parentChapters as parentChaptersKk } from "./kk/parent";
+import { parentsChapters as parentsChaptersKk } from "./kk/parents";
 import { siblingChapters as siblingChaptersKk } from "./kk/sibling";
 import { teacherChapters as teacherChaptersKk } from "./kk/teacher";
 import type { ChapterDef, GiftThemeId, ThemeDef, ThemeId } from "./types";
@@ -25,7 +29,7 @@ import type { ChapterDef, GiftThemeId, ThemeDef, ThemeId } from "./types";
  * автор создаёт сам (book_chapters), поэтому её chapters пусты.
  */
 
-type ThemeBase = Pick<ThemeDef, "id" | "kind" | "recipient" | "emoji" | "recipientGender" | "defaultRecipientGender" | "defaultCover" | "defaultInterior">;
+type ThemeBase = Pick<ThemeDef, "id" | "kind" | "recipient" | "emoji" | "recipientGender" | "recipientGenderChoice" | "defaultRecipientGender" | "defaultCover" | "defaultInterior">;
 type ThemeText = Omit<ThemeDef, keyof ThemeBase>;
 
 /** Порядок важен: любимому — первой (главная считает вопросы по первой теме), новые виды — в конце. */
@@ -33,7 +37,10 @@ const base: ThemeBase[] = [
   { id: "love", kind: "gift", recipient: "required", emoji: "❤", defaultRecipientGender: "m", defaultCover: "peony", defaultInterior: "romance" },
   { id: "mom", kind: "gift", recipient: "required", emoji: "✿", recipientGender: "f", defaultRecipientGender: "f", defaultCover: "tenderness", defaultInterior: "herbarium" },
   { id: "dad", kind: "gift", recipient: "required", emoji: "✦", recipientGender: "m", defaultRecipientGender: "m", defaultCover: "alatau", defaultInterior: "stars" },
+  // Родителям — сразу вдвоём: один получатель — оба имени, род адресата не спрашиваем (банк во множественном числе).
+  { id: "parents", kind: "gift", recipient: "required", emoji: "❧", recipientGenderChoice: false, defaultRecipientGender: "m", defaultCover: "flax", defaultInterior: "classic" },
   { id: "grandma", kind: "gift", recipient: "required", emoji: "✾", recipientGender: "f", defaultRecipientGender: "f", defaultCover: "postcards", defaultInterior: "vintage" },
+  { id: "grandpa", kind: "gift", recipient: "required", emoji: "✶", recipientGender: "m", defaultRecipientGender: "m", defaultCover: "saddle", defaultInterior: "novel" },
   // Дочери или сыну: род ребёнка выбирают в мастере.
   { id: "child", kind: "gift", recipient: "required", emoji: "❀", defaultRecipientGender: "f", defaultCover: "clouds", defaultInterior: "watercolor" },
   { id: "sibling", kind: "gift", recipient: "required", emoji: "✧", defaultRecipientGender: "f", defaultCover: "lemons", defaultInterior: "album" },
@@ -74,6 +81,15 @@ const text: Record<Locale, Record<ThemeId, ThemeText>> = {
       titleSuggestions: ["Папа, это для тебя", "Мой папа", "Спасибо, папа", "Мой герой"],
       chapters: parentChapters,
     },
+    parents: {
+      name: "Родителям",
+      short: "Родителям",
+      description: "Книга для мамы и папы вместе: дом, в котором вы выросли, их история, уроки, семейные традиции и слова благодарности обоим.",
+      recipientLabel: "Имена родителей",
+      recipientPlaceholder: "Например, Гульнара и Ерлан",
+      titleSuggestions: ["Маме и папе", "Спасибо, родители", "Дорогие родители", "Наша семья"],
+      chapters: parentsChapters,
+    },
     grandma: {
       name: "Бабушке",
       short: "Бабушке",
@@ -82,6 +98,15 @@ const text: Record<Locale, Record<ThemeId, ThemeText>> = {
       recipientPlaceholder: "Например, Роза",
       titleSuggestions: ["Бабушка, это для тебя", "Моя бабушка", "Спасибо, бабушка", "Бабушкин дом"],
       chapters: grandmaChapters,
+    },
+    grandpa: {
+      name: "Дедушке",
+      short: "Дедушке",
+      description: "Книга от внуков: дедушкин дом и мастерская, его дело и дороги, история любви к бабушке, мудрость и слова благодарности.",
+      recipientLabel: "Как зовут дедушку",
+      recipientPlaceholder: "Например, Кайрат",
+      titleSuggestions: ["Дедушка, это для тебя", "Мой дедушка", "Спасибо, дедушка", "Дедушкин дом"],
+      chapters: grandpaChapters,
     },
     child: {
       name: "Дочери или сыну",
@@ -165,6 +190,15 @@ const text: Record<Locale, Record<ThemeId, ThemeText>> = {
       titleSuggestions: ["Әке, бұл саған", "Менің әкем", "Рахмет, әке", "Менің батырым"],
       chapters: parentChaptersKk,
     },
+    parents: {
+      name: "Ата-анаға",
+      short: "Ата-анаға",
+      description: "Ана мен әкеге бірге арналған кітап: сіз өскен үй, олардың тарихы, сабақтары, отбасылық дәстүрлері және екеуіне де алғыс.",
+      recipientLabel: "Ата-анаңыздың есімдері",
+      recipientPlaceholder: "Мысалы, Гүлнар және Ерлан",
+      titleSuggestions: ["Анама және әкеме", "Ата-анам, рахмет", "Қымбатты ата-анам", "Біздің отбасымыз"],
+      chapters: parentsChaptersKk,
+    },
     grandma: {
       name: "Әжеге",
       short: "Әжеге",
@@ -173,6 +207,15 @@ const text: Record<Locale, Record<ThemeId, ThemeText>> = {
       recipientPlaceholder: "Мысалы, Роза",
       titleSuggestions: ["Әже, бұл саған", "Менің әжем", "Рахмет, әже", "Әженің үйі"],
       chapters: grandmaChaptersKk,
+    },
+    grandpa: {
+      name: "Атаға",
+      short: "Атаға",
+      description: "Немерелерден кітап: атаның үйі мен шеберханасы, оның ісі мен жолдары, ата мен әженің махаббаты, оның даналығы және алғыс сөздер.",
+      recipientLabel: "Атаңыздың есімі",
+      recipientPlaceholder: "Мысалы, Қайрат",
+      titleSuggestions: ["Ата, бұл саған", "Менің атам", "Рахмет, ата", "Атамның үйі"],
+      chapters: grandpaChaptersKk,
     },
     child: {
       name: "Қызға немесе ұлға",

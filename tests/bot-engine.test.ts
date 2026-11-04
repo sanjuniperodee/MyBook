@@ -177,6 +177,25 @@ describe("бот: для кого → тема и ссылка", () => {
     expect(findRecipient("бабушке", { themes: site.themes })).toMatchObject({ key: "grandma", theme: null });
   });
 
+  it("дедушке — своя тема; без темы на сайте — только подпись", () => {
+    const themes = [...site.themes, "grandpa"];
+    for (const text of ["книгу дедушке на юбилей", "для дедушки", "атаға сыйлық", "атама туған күнге"])
+      expect(findRecipient(text, { themes }), text).toMatchObject({ key: "grandpa", theme: "grandpa", label: { ru: "Дедушке" } });
+    expect(findRecipient("дедушке", { themes: site.themes })).toMatchObject({ key: "grandpa", theme: null });
+    // «История дедушки» — по-прежнему автобиография, которую записывают с его слов.
+    expect(findRecipient("хочу записать историю дедушки", { themes })?.theme).toBe("autobiography");
+  });
+
+  it("родителям вдвоём — своя тема; «маме и папе» не уходит одной маме", () => {
+    const themes = [...site.themes, "parents"];
+    for (const text of ["книгу родителям на юбилей", "для родителей", "маме и папе", "папе и маме", "папы и мамы", "ата-анама сыйлық"])
+      expect(findRecipient(text, { themes }), text).toMatchObject({ key: "parents", theme: "parents", label: { ru: "Родителям" } });
+    expect(findRecipient("родителям", { themes: site.themes })).toMatchObject({ key: "parents", theme: null });
+    // Один родитель — по-прежнему своя тема, а не «родителям».
+    expect(findRecipient("для мамы", { themes })?.theme).toBe("mom");
+    expect(findRecipient("папе на юбилей", { themes })?.theme).toBe("dad");
+  });
+
   it("брату или сестре — своя тема, коллеге — по-прежнему «другу»", () => {
     const themes = [...site.themes, "sibling"];
     for (const text of ["книгу брату на свадьбу", "для сестры", "сестренке на др", "ағама сыйлық", "сіңліме кітап"])

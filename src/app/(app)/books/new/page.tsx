@@ -27,6 +27,7 @@ export default async function NewBookPage({ searchParams }: { searchParams: Prom
     recipientLabel: t.recipientLabel,
     recipientPlaceholder: t.recipientPlaceholder,
     recipientGender: t.recipientGender,
+    recipientGenderChoice: t.recipientGenderChoice,
     defaultRecipientGender: t.defaultRecipientGender,
     titleSuggestions: Object.fromEntries(locales.map((l) => [l, getTheme(t.id, l).titleSuggestions])) as WizardTheme["titleSuggestions"],
     firstChapterTitle: Object.fromEntries(locales.map((l) => [l, getTheme(t.id, l).firstChapterTitle ?? ""])) as WizardTheme["firstChapterTitle"],

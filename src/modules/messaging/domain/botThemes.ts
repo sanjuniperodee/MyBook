@@ -1,11 +1,11 @@
 /**
- * «Для кого книга» → тема книги и ссылка. Темы: love | mom | dad | grandma | child | sibling | friend | teacher и режимы «Автобиография» (autobiography)
+ * «Для кого книга» → тема книги и ссылка. Темы: love | mom | dad | parents | grandma | grandpa | child | sibling | friend | teacher и режимы «Автобиография» (autobiography)
  * и «Вручную — своя книга с нуля» (blank, docs/features/book-modes.md). Режимы предлагаются, только когда сайт их уже
  * знает (список тем передаёт адаптер настроек). Ссылки — только на свой сайт.
  */
 import { norm, rx, type BotLang } from "./botNlu";
 
-export type BookTheme = "love" | "mom" | "dad" | "grandma" | "child" | "sibling" | "friend" | "teacher" | "autobiography" | "blank";
+export type BookTheme = "love" | "mom" | "dad" | "parents" | "grandma" | "grandpa" | "child" | "sibling" | "friend" | "teacher" | "autobiography" | "blank";
 type Localized = Record<BotLang, string>;
 
 interface RecipientDef {
@@ -60,6 +60,23 @@ const RECIPIENTS: RecipientDef[] = [
     "podarok-lyubimomu",
   ),
   def("grandma", ["\\bбабушке\\b", "\\bбабуле\\b", "\\bдля\\s+бабушки\\b", "\\bәжеме\\b", "\\bажеме\\b", "\\bәжеге\\b"], ["\\bбабушк\\S*", "\\bбабул\\S*", "\\bәжем\\b"], { ru: "Бабушке", kk: "Әжеңізге" }, "grandma", null),
+  def(
+    "grandpa",
+    ["\\bдедушке\\b", "\\bдеду\\b", "\\bдля\\s+дедушки\\b", "\\bатама\\b", "\\bатаға\\b", "\\bатайыма\\b"],
+    ["\\bдедушк\\S*", "\\bдедул\\S*", "\\bдед\\b", "\\bатам\\b"],
+    { ru: "Дедушке", kk: "Атаңызға" },
+    "grandpa",
+    null,
+  ),
+  // Родителям вдвоём — до мамы и папы: «маме и папе» не должно уйти одной маме.
+  def(
+    "parents",
+    ["\\bродителям\\b", "\\bдля\\s+родителей\\b", "\\bмаме\\s+и\\s+папе\\b", "\\bпапе\\s+и\\s+маме\\b", "\\bмамы\\s+и\\s+папы\\b", "\\bпапы\\s+и\\s+мамы\\b", "\\bотцу\\s+и\\s+матери\\b", "\\bматери\\s+и\\s+отцу\\b", "\\bата-анама\\b", "\\bата-анаға\\b", "\\bәке-шешеме\\b", "\\bанама\\s+және\\s+әкеме\\b", "\\bәкеме\\s+және\\s+анама\\b", "\\bата-аналарыма\\b"],
+    ["\\bродител\\S*", "\\bата-анам\\b", "\\bата-ана\\b", "\\bәке-шешем\\b"],
+    { ru: "Родителям", kk: "Ата-анаңызға" },
+    "parents",
+    null,
+  ),
   def("grandpa", ["\\bдедушке\\b", "\\bдеду\\b", "\\bдля\\s+дедушки\\b", "\\bатама\\b", "\\bатаға\\b"], ["\\bдедушк\\S*", "\\bдед\\b", "\\bатам\\b"], { ru: "Дедушке", kk: "Атаңызға" }, "dad", null),
   def(
     "mom",
@@ -133,7 +150,9 @@ const MENU: { theme: BookTheme; label: Localized; menu: Localized }[] = [
   { theme: "love", label: { ru: "Любимому человеку", kk: "Сүйікті адамыңызға" }, menu: { ru: "любимому человеку (мужу, жене, девушке, парню)", kk: "сүйікті адамыңызға (күйеуіңізге, әйеліңізге, сүйген қызыңызға не жігітіңізге)" } },
   { theme: "mom", label: { ru: "Маме", kk: "Анаңызға" }, menu: { ru: "маме", kk: "анаңызға" } },
   { theme: "dad", label: { ru: "Папе", kk: "Әкеңізге" }, menu: { ru: "папе", kk: "әкеңізге" } },
+  { theme: "parents", label: { ru: "Родителям", kk: "Ата-анаңызға" }, menu: { ru: "родителям (маме и папе вместе)", kk: "ата-анаңызға (анаңыз бен әкеңізге бірге)" } },
   { theme: "grandma", label: { ru: "Бабушке", kk: "Әжеңізге" }, menu: { ru: "бабушке", kk: "әжеңізге" } },
+  { theme: "grandpa", label: { ru: "Дедушке", kk: "Атаңызға" }, menu: { ru: "дедушке", kk: "атаңызға" } },
   { theme: "child", label: { ru: "Дочери или сыну", kk: "Қызыңызға не ұлыңызға" }, menu: { ru: "дочери или сыну", kk: "қызыңызға не ұлыңызға" } },
   { theme: "sibling", label: { ru: "Брату или сестре", kk: "Бауырыңызға" }, menu: { ru: "брату или сестре", kk: "бауырыңызға (ағаңызға, әпкеңізге, ініңізге, сіңліңізге)" } },
   { theme: "friend", label: { ru: "Другу или подруге", kk: "Досыңызға не құрбыңызға" }, menu: { ru: "другу или подруге", kk: "досыңызға не құрбыңызға" } },

@@ -12,7 +12,7 @@ export interface ChapterDef {
 }
 
 /** Темы-подарки (банк вопросов о близком человеке). */
-export type GiftThemeId = "love" | "mom" | "dad" | "grandma" | "child" | "sibling" | "friend" | "teacher";
+export type GiftThemeId = "love" | "mom" | "dad" | "parents" | "grandma" | "grandpa" | "child" | "sibling" | "friend" | "teacher";
 /** Все темы: подарки, автобиография (банк вопросов о жизни рассказчика) и своя книга с чистого листа (без банка). */
 export type ThemeId = GiftThemeId | "autobiography" | "blank";
 
@@ -31,6 +31,8 @@ export interface ThemeDef {
   recipientPlaceholder?: string;
   /** Если задан — род адресата фиксирован (мама/папа). */
   recipientGender?: Gender;
+  /** Спрашивать ли род адресата в мастере. У книги родителям его не спрашивают: их двое, банк во множественном числе. */
+  recipientGenderChoice?: boolean;
   defaultRecipientGender: Gender;
   /** Варианты названия: ru и kk одной длины — смена языка сопоставляет их по индексу. */
   titleSuggestions: string[];
