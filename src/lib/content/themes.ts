@@ -98,7 +98,7 @@ const text: Record<Locale, Record<ThemeId, ThemeText>> = {
       name: "Семье",
       short: "Семье",
       description: "Книга для всей семьи: корни и род, дом и традиции, старшие и дети, праздники, испытания и то, что держит вас вместе.",
-      recipientLabel: "Имя семьи",
+      recipientLabel: "Название семьи",
       recipientPlaceholder: "Например, семья Ахметовых",
       titleSuggestions: ["История нашей семьи", "Семейная книга", "Наш род", "Дом, где мы вместе"],
       chapters: familyChapters,
