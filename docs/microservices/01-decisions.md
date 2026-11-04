@@ -14,6 +14,7 @@
 | D5 | Postgres FTS/trgm сейчас; Meilisearch позже; без Elasticsearch | ES съедает 1–2 ГБ и не нужен на текущем объёме | поиск остаётся в core/insights | [0005](adr/0005-search.md) |
 | D6 | Свои сессии + internal JWT; без Keycloak | Свои 2FA/права/IP уже работают; миграция дороже | JWKS, introspection, кэш | [0006](adr/0006-auth.md) |
 | D7 | Визуальный контракт + golden DTO + shadow | Скриншоты не ловят DTO/API; нужны все четыре уровня | Playwright, golden, parity, флаги | [0007](adr/0007-ui-parity.md) |
+| D8 | Yandex Object Storage, бакет `mybooks` | Уже создан; не занимает RAM; S3 API, versioning/lifecycle | Ключи вне git; подписанные URL; миграция `storage/` | [0008](adr/0008-object-storage.md) |
 
 ## Открытые вопросы (нужно решение пользователя)
 
@@ -21,7 +22,7 @@
 |---|---|---|---|---|
 | Q1 | Target | A / B / монолит+воркеры | **A** | Определяет объём и сроки |
 | Q2 | RAM | +4–8 ГБ / вторая машина / внешний S3 + лимиты | +8 ГБ или вторая машина к волне 3 | target A ~5.2–7.3 ГБ RSS |
-| Q3 | S3 | MinIO на хосте / внешний S3/R2 | MinIO, если RAM хватает; иначе внешний | Фото/PDF, бэкапы, несколько сервисов |
+| Q3 | S3 | ~~MinIO / внешний~~ | **Решено: Yandex Object Storage**, бакет `mybooks` | Фото/PDF, бэкапы, несколько сервисов |
 | Q4 | Деплой | PM2 / Docker Compose | PM2 на волне 1, Compose позже | Скорость и риск выкатки |
 
 ## Когда пересматривать

@@ -18,3 +18,8 @@ tests/visual/out/
 
 # Сборка шлюза WhatsApp со звонками (deploy/gowa-beta-build.sh)
 /dist/
+# Визуальные тесты: состояния входа, seed и артефакты (эталоны скриншотов коммитятся)
+tests/visual/.auth/
+tests/visual/.seed.json
+tests/visual/.artifacts/
+tests/visual/.report/

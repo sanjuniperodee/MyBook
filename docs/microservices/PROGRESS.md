@@ -1,12 +1,13 @@
 ---
-updated: 2026-11-05T03:45:00+05:00
+updated: 2026-11-05T04:10:00+05:00
 branch: refactor/microservices
 wave: 0
-task: M0.3
+task: M0.4
 status: pending
-next: "Собрать Playwright-стенд ключевых страниц админки и кабинета (M0.3), затем parity/golden DTO (M0.4)"
+next: "Сделать golden DTO и parity-стенд (M0.4), затем каркас монорепо (M0.5)"
 blockers:
-  - "G0: нужно подтверждение target A и бюджета RAM/S3/деплоя"
+  - "G0: нужно подтверждение target A и бюджета RAM/деплоя (S3 решён)"
+  - "S3: Yandex отвечает 403 SignatureDoesNotMatch — перепроверить/перевыпустить ключи"
 ---
 
 # PROGRESS — рефакторинг MyBooks на сервисы
@@ -20,11 +21,11 @@ blockers:
 |---|---|
 | Ветка | `refactor/microservices` |
 | Волна | 0 — страховочная сетка |
-| Текущая задача | **M0.3 — Playwright-скриншоты админки и кабинета** |
+| Текущая задача | **M0.4 — golden DTO и parity-стенд** |
 | Статус | `pending` |
-| Следующее действие | Добавить `playwright.config.ts`, seed-скрипт и `tests/visual/pages.spec.ts`; снять эталоны на неизменённом коде |
-| Блокер | Гейт G0: подтверждение target A и бюджета RAM/S3/деплоя |
-| Последнее обновление | 2026-11-05 03:30 Asia/Almaty |
+| Следующее действие | Снять golden-снимки ключевых read-моделей и добавить `PARITY_MODE=shadow` для сравнения in-process и HTTP |
+| Блокер | G0: target A + RAM/деплой; S3: Yandex 403 SignatureDoesNotMatch |
+| Последнее обновление | 2026-11-05 04:10 Asia/Almaty |
 
 ### Что уже сделано в этой сессии
 
@@ -34,7 +35,12 @@ blockers:
 - Написаны: README, 00-baseline, 02-target-architecture, 03-migration-plan, 04-stack-decisions,
   05-contracts-and-parity, 06-operations, ADR 0001–0007.
 - Baseline-проверки: `tsc` — 0, `vitest` — 4010 passed / 135 skipped / 0 failed.
-- Код приложения **не менялся**; в прод ничего не выкатывалось.
+- **M0.3:** Playwright-стенд страниц, seed, фиксированные часы, 40 эталонов (20 страниц × desktop/mobile).
+  Два прогона подряд — 40/40; подмена пикселя в эталоне роняет тест. Подробно — `tests/visual/pages.README.md`.
+- **S3:** выбран Yandex Object Storage (бакет `mybooks`), профиль `yc-storage` и `S3_*` в `.env.local`
+  (ключи вне git). Документы — `07-storage-s3.md`, ADR 0008.
+- Код приложения менялся только в тестовой обвязке (`src/instrumentation-node.ts` — часы под `VISUAL_NOW`);
+  бизнес-логика и UI не тронуты; в прод ничего не выкатывалось.
 
 ## Легенда
 
@@ -50,7 +56,7 @@ blockers:
 
 | Волна | Статус | Гейт | Заметка |
 |---|---|---|---|
-| 0 — страховочная сетка | `in_progress` | G0 | baseline и план готовы; визуал/parity/монорепо впереди |
+| 0 — страховочная сетка | `in_progress` | G0 | baseline, план и визуал готовы; parity/монорепо впереди |
 | 1 — web + api | `todo` | G1 | нельзя начинать без G0 |
 | 2 — publishing + render | `todo` | G2 | нужен бюджет RAM и S3 |
 | 3 — conversations | `todo` | G3 | после стабилизации волны 2 |
@@ -66,11 +72,12 @@ blockers:
 |---|---|---|---|---|---|
 | M0.1 | Inventory + baseline | `done` | `refactor/microservices` | скрипт отработал, JSON/MD созданы | 2026-11-05 |
 | M0.2 | План, ADR, PROGRESS, HANDOFF | `done` | `refactor/microservices` `05729c23` | документы linked, `tsc`/`vitest` не трогались | 2026-11-05 |
-| M0.3 | Playwright-скриншоты админки/кабинета | `pending` | — | 0 diff на неизменённом коде | **следующая** |
-| M0.4 | Golden DTO + parity shadow | `pending` | — | 0 mismatches на неизменённом коде | после M0.3 |
+| M0.3 | Playwright-скриншоты админки/кабинета | `done` | `refactor/microservices` | 40/40 два прогона; diff-пиксель ловится | 2026-11-05 |
+| M0.4 | Golden DTO + parity shadow | `pending` | — | 0 mismatches на неизменённом коде | **следующая** |
 | M0.5 | Каркас монорепо (без переноса) | `pending` | — | `npm test`/`build` зелёные | после M0.3 |
 | M0.6 | CI-гейты | `pending` | — | PR-blocking checks | после M0.5 |
 | M0.7 | Релизный манифест и откат | `pending` | — | smoke/rollback описаны | до волны 1 |
+| M0.8 | Yandex S3: профиль, ключи, документы | `blocked` | `refactor/microservices` | `head-bucket` → 403 SignatureDoesNotMatch | ключи вне git; нужен перевыпуск/проверка |
 
 ### Волна 1 (не начинать без G0)
 
@@ -109,7 +116,7 @@ blockers:
 |---|---|---|---|---|
 | Q1 | Target | A (6 деплойментов) / B (8) / монолит+воркеры | **A** | ждёт |
 | Q2 | Память | +4–8 ГБ / вторая машина / внешний S3 + лимиты | +8 ГБ или вторая машина к волне 3 | ждёт |
-| Q3 | S3 | MinIO на хосте / внешний S3/R2 | MinIO, если RAM хватает; иначе внешний | ждёт |
+| Q3 | S3 | ~~MinIO / внешний~~ | **Решено: Yandex Object Storage**, бакет `mybooks`; доступ ждёт проверки ключей | `blocked` |
 | Q4 | Деплой | PM2 (как сейчас) / Docker Compose | PM2 на волне 1, Compose — позже | ждёт |
 
 Пока ответов нет, **не начинать волну 1**. Волна 0 (тесты, каркас) безопасна.
@@ -125,6 +132,7 @@ blockers:
 | 5 | Postgres FTS/trgm; Meilisearch позже; без Elasticsearch | [0005](adr/0005-search.md) |
 | 6 | Свои сессии + internal JWT; без Keycloak | [0006](adr/0006-auth.md) |
 | 7 | Визуальный контракт + golden DTO + shadow | [0007](adr/0007-ui-parity.md) |
+| 8 | Yandex Object Storage, бакет `mybooks` | [0008](adr/0008-object-storage.md) |
 
 ## Метрики
 
@@ -156,7 +164,9 @@ blockers:
 
 | Дата | Агент | Что сделано | Проверки | Следующее |
 |---|---|---|---|---|
-| 2026-11-05 | DeepSeek (DSH) | Baseline, inventory, план, ADR, PROGRESS, HANDOFF; ветка `refactor/microservices`, коммит `05729c23` | `tsc` 0, `vitest` 4010 passed / 135 skipped, `eslint` 0 ошибок | M0.3 Playwright, затем G0 |
+| 2026-11-05 | DeepSeek (DSH) | Baseline, inventory, план, ADR, PROGRESS, HANDOFF; ветка `refactor/microservices`, коммит `05729c23` | `tsc` 0, `vitest` 4010 passed / 135 skipped, `eslint` 0 ошибок | M0.3 Playwright |
+| 2026-11-05 | DeepSeek (DSH) | M0.3: Playwright-стенд страниц, seed, фиксированные часы, 40 эталонов | 40/40 два прогона, diff-пиксель ловится, `tsc`/`eslint` зелёные | M0.4 golden DTO + parity |
+| 2026-11-05 | DeepSeek (DSH) | S3: Yandex Object Storage, профиль `yc-storage`, `.env.local`, ADR 0008, `07-storage-s3.md` | ключи вне git, права 600; CLI-проверка доступа | M0.8 close, затем M0.4 |
 
 ## Как обновлять этот файл
 

@@ -238,8 +238,10 @@ service (core/publishing/...)
 
 ## 9. Визуальная регрессия
 
-- Playwright `toHaveScreenshot` с `maxDiffPixelRatio: 0`.
-- Эталоны — в `tests/visual/screenshots/`; обновление только осознанно, с записью в PROGRESS.
+- Playwright `toHaveScreenshot` с `maxDiffPixels: 0`.
+- Эталоны — в `tests/visual/pages.spec.ts-snapshots/`; обновление только осознанно, с записью в PROGRESS.
+- Стенд собирает production-сборку и поднимает её на 3210; серверные часы фиксируются `VISUAL_NOW`.
+  Подробно — `tests/visual/pages.README.md`.
 - Маски: время, относительные даты, счётчики, аватары, QR, случайные обложки.
 - Прогон: ru и kk, desktop/mobile, ключевые маршруты (см. M0.3).
 - CI: отдельный job с Postgres; при падении — артефакт с diff.

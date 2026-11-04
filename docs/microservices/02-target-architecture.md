@@ -39,7 +39,7 @@ flowchart TB
   PL --> DB2[("Postgres: platform")]
   PB --> DB3[("Postgres: publishing")]
   CV --> DB4[("Postgres: conversations")]
-  PB --> S3[("S3 / MinIO")]
+  PB --> S3[("Yandex Object Storage")]
   CO <--> MQ[("NATS JetStream")]
   PL <--> MQ
   PB <--> MQ
@@ -247,9 +247,9 @@ flowchart TB
 Сейчас: локальный `storage/` на одном томе, общий для веба и PDF. При нескольких сервисах это
 превращается в «все видят один диск» и мешает вынести worker.
 
-Target:
-
-- S3-совместимое хранилище (MinIO на том же хосте или внешний S3/R2).
+Target: **Yandex Object Storage**, бакет `mybooks` (S3 API, endpoint `https://storage.yandexcloud.net`,
+region `ru-central1`). Ключи — вне репозитория; локально — профиль `yc-storage` и `S3_*` в
+`.env.local`. MinIO допускается только для локальных тестов. Подробно — [07-storage-s3.md](07-storage-s3.md).
 - Ключи: `books/<bookId>/...`, `photos/<bookId>/<photoId>.<ext>`, `pdf/<bookId>/<version>/...`,
   `receipts/<...>`, `publish/<...>`.
 - Метаданные — в БД владельца; объект — по ключу.
@@ -323,16 +323,15 @@ nginx :443
 | Redis | 128 МБ |
 | NATS | 128 МБ |
 | Postgres (shared buffers + connections) | 800–1200 МБ |
-| MinIO | 200–300 МБ |
 | ОС + прочее | ~1000 МБ |
-| **Итого** | **~5.2–7.3 ГБ** |
+| **Итого** | **~5.1–7.1 ГБ** |
 
 На 8 ГБ с чужими проектами это впритык. До волны 3 нужно одно из:
 
 - +4–8 ГБ RAM на сервере;
 - вторая машина под publishing/render;
-- ограничение PDF-воркера (`PDF_CONCURRENCY=1`, `max_memory_restart`, cgroup) и отказ от MinIO в
-  пользу внешнего S3.
+- ограничение PDF-воркера (`PDF_CONCURRENCY=1`, `max_memory_restart`, cgroup). S3 уже внешний —
+  MinIO на хосте не занимает память.
 
 Это решение фиксируется в PROGRESS как блокер, а не «потом разберёмся».
 

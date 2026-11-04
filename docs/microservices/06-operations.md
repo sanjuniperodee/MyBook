@@ -44,9 +44,23 @@ npm run dev                                      # web:3000 + api:3050 (concurre
 
 `npm run dev` поднимает web + api + зависимости; `npm run dev:all` — все сервисы (после волны 2).
 
-### 1.3. Тестовая БД
+### 1.3. Визуальные тесты страниц
+
+```sh
+createdb mybook_visual
+DATABASE_URL=postgres://…/mybook_visual npx tsx --import ./scripts/preload.mjs scripts/migrate.ts
+npx playwright install chromium
+VISUAL_DATABASE_URL=postgres://…/mybook_visual npx playwright test
+```
+
+Стенд сам собирает production-сборку и поднимает её на 3210; 40 эталонов (20 страниц × desktop/mobile).
+Обновление эталонов — только после согласованного изменения вида. Подробно — `tests/visual/pages.README.md`.
+
+### 1.4. Тестовая БД
 
 - Отдельная база `mybook_test`; миграции — `npm run db:migrate`.
+- S3: внешний Yandex Object Storage; локальные ключи — `~/.aws/credentials` (профиль `yc-storage`)
+  и `S3_*` в `.env.local` (оба `chmod 600`, в git не попадают). Проверка — [07-storage-s3.md](07-storage-s3.md).
 - Seed для визуальных тестов: `npm run seed:visual` (фиксированные UUID/даты).
 - Интеграционные тесты: `INTEGRATION=1 npm run test:integration` (Postgres; Redis — `REDIS_TEST_URL`).
 - Не использовать прод-базу для тестов; не коммитить дампы с PII.
@@ -167,7 +181,8 @@ PM2:
 
 - Postgres: ежедневный `pg_dump` + WAL-архив (если возможно); хранить 7–14 дней; проверять
   восстановление раз в месяц.
-- S3/MinIO: версионирование + ежедневный snapshot; проверять выборочно.
+- Yandex Object Storage: versioning + lifecycle; ежедневная сверка списка объектов; выборочная
+  проверка восстановления файла раз в месяц. Ключи — профиль `yc-storage`, не в git.
 - `.env`/секреты: не в бэкапе БД; хранить отдельно (менеджер секретов/зашифрованный архив).
 - Runbook восстановления: остановить сервисы → восстановить БД → восстановить S3 → миграции →
   запуск → smoke. Время цели — < 2 ч, точка — 24 ч.
