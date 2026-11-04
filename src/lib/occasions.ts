@@ -46,6 +46,8 @@ const themeOccasions: Record<string, OccasionId[]> = {
   dad: ["birthday", "parents", "newyear", "graduation", "wedding", "other"],
   // Родителям вместе — семейный праздник («Юбилей родителей») и годовщина их свадьбы.
   parents: ["parents", "anniversary", "birthday", "wedding", "newyear", "other"],
+  // Семье — семейный праздник, Новый год, юбилей кого-то из семьи; годовщина свадьбы родителей.
+  family: ["parents", "newyear", "anniversary", "birthday", "other"],
   grandma: ["birthday", "march8", "parents", "newyear", "other"],
   grandpa: ["birthday", "parents", "newyear", "other"],
   child: ["birthday", "graduation", "wedding", "newyear", "other"],

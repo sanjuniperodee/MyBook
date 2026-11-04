@@ -59,7 +59,8 @@ describe("банк вопросов", () => {
 
 describe("виды книг", () => {
   it("вид и политика получателя — по теме; незнакомая тема — подарок", () => {
-    expect(["love", "mom", "dad", "parents", "grandma", "grandpa", "child", "sibling", "friend", "teacher", "autobiography", "blank", "nope"].map((t) => [bookKind(t), recipientPolicy(t), hasQuestionBank(t), hasOutline(t)])).toEqual([
+    expect(["love", "mom", "dad", "parents", "family", "grandma", "grandpa", "child", "sibling", "friend", "teacher", "autobiography", "blank", "nope"].map((t) => [bookKind(t), recipientPolicy(t), hasQuestionBank(t), hasOutline(t)])).toEqual([
+      ["gift", "required", true, false],
       ["gift", "required", true, false],
       ["gift", "required", true, false],
       ["gift", "required", true, false],
@@ -76,13 +77,13 @@ describe("виды книг", () => {
     ]);
   });
 
-  it("каталог: двенадцать тем, у каждой вид и получатель как в kinds; подарки — первые десять, любимому — первой", () => {
+  it("каталог: тринадцать тем, у каждой вид и получатель как в kinds; подарки — первые одиннадцать, любимому — первой", () => {
     for (const lang of ["ru", "kk"] as const) {
       const all = getThemes(lang);
-      expect(all.map((t) => t.id)).toEqual(["love", "mom", "dad", "parents", "grandma", "grandpa", "child", "sibling", "friend", "teacher", "autobiography", "blank"]);
+      expect(all.map((t) => t.id)).toEqual(["love", "mom", "dad", "parents", "family", "grandma", "grandpa", "child", "sibling", "friend", "teacher", "autobiography", "blank"]);
       for (const t of all) expect([t.id, t.kind, t.recipient]).toEqual([t.id, bookKind(t.id), recipientPolicy(t.id)]);
-      expect(giftThemes(lang).map((t) => t.id)).toEqual(["love", "mom", "dad", "parents", "grandma", "grandpa", "child", "sibling", "friend", "teacher"]);
-      expect(bankThemes(lang).map((t) => t.id)).toEqual(["love", "mom", "dad", "parents", "grandma", "grandpa", "child", "sibling", "friend", "teacher", "autobiography"]);
+      expect(giftThemes(lang).map((t) => t.id)).toEqual(["love", "mom", "dad", "parents", "family", "grandma", "grandpa", "child", "sibling", "friend", "teacher"]);
+      expect(bankThemes(lang).map((t) => t.id)).toEqual(["love", "mom", "dad", "parents", "family", "grandma", "grandpa", "child", "sibling", "friend", "teacher", "autobiography"]);
     }
   });
 
@@ -160,6 +161,20 @@ describe("виды книг", () => {
     expect(applyGender(getTheme("parents", "ru").chapters.at(-1)!.questions[1][1], "f", "m")).toBe("То, что я не сказала");
     expect(getTheme("parents", "ru").titleSuggestions[0]).toBe("Маме и папе");
     expect(getTheme("parents", "kk").titleSuggestions[0]).toBe("Анама және әкеме");
+  });
+
+  it("семье: подарок о всей семье — без [..|..] и без вопроса о роде адресата, род автора подставляется", () => {
+    for (const lang of ["ru", "kk"] as const) {
+      const t = getTheme("family", lang);
+      expect([t.kind, t.recipient, t.recipientGender, t.recipientGenderChoice]).toEqual(["gift", "required", undefined, false]);
+      expect(countQuestions(t), lang).toBeGreaterThan(40);
+      expect(t.recipientLabel).toBeTruthy();
+      for (const ch of t.chapters) for (const s of [ch.title, ch.epigraph ?? "", ...ch.questions.flat()] as string[]) expect(s, `${lang}.${ch.key}`).not.toMatch(/\[[^\]]*\|[^\]]*\]/);
+    }
+    expect(themeChaptersByLocale("family").ru.map((c) => c.key)).toEqual(["intro", "roots", "home", "traditions", "people", "lessons", "hard", "thanks"]);
+    expect(applyGender(getTheme("family", "ru").chapters.at(-1)!.questions[1][1], "f", "m")).toBe("То, что я не сказала");
+    expect(getTheme("family", "ru").titleSuggestions[0]).toBe("История нашей семьи");
+    expect(getTheme("family", "kk").titleSuggestions[0]).toBe("Біздің отбасымыздың тарихы");
   });
 
   it("брату или сестре: подарок с банком на обоих языках, род адресата подставляется", () => {

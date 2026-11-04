@@ -267,7 +267,7 @@ export const landing: typeof ru = {
     surf: { title: "Біздің теңіз", names: "Ілияс & Камила" },
     party: { title: "Мәңгі достар", names: "Мадина & Жанель" },
     autumn: { title: "Бес жыл махаббат", names: "Саша & Ника" },
-    steppe: { title: "Әже, рахмет", names: "Немерелерің" },
+    steppe: { title: "Біздің отбасымыз", names: "Ахметовтер отбасы" },
     blossom: { title: "Сен — менің бәрімсің", names: "Әлия & Марғұлан" },
     linen: { title: "Біздің тарихымыз", names: "Дана & Тимур" },
     midnight: { title: "Әке, рахмет", names: "Арнұрдан" },

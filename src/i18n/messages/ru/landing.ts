@@ -275,7 +275,7 @@ export const landing = {
     surf: { title: "Наше море", names: "Ильяс & Камила" },
     party: { title: "Друзья навсегда", names: "Мадина & Жанель" },
     autumn: { title: "Пять лет любви", names: "Саша & Ника" },
-    steppe: { title: "Әже, рахмет", names: "Немерелерің" },
+    steppe: { title: "Наша семья", names: "Семья Ахметовых" },
     blossom: { title: "Ты — моё всё", names: "Алия & Марғұлан" },
     linen: { title: "Наша история", names: "Дана & Тимур" },
     midnight: { title: "Папа, спасибо", names: "от Арнура" },

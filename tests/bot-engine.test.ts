@@ -196,6 +196,16 @@ describe("бот: для кого → тема и ссылка", () => {
     expect(findRecipient("папе на юбилей", { themes })?.theme).toBe("dad");
   });
 
+  it("семье — своя тема; «история семьи» больше не автобиография", () => {
+    const themes = [...site.themes, "family"];
+    for (const text of ["книгу семье на юбилей", "для семьи", "семейную книгу", "о нашей семье", "отбасыға сыйлық", "шежіре кітабы"])
+      expect(findRecipient(text, { themes }), text).toMatchObject({ key: "family", theme: "family", label: { ru: "Семье" } });
+    expect(findRecipient("семье", { themes: site.themes })).toMatchObject({ key: "family", theme: null });
+    expect(findRecipient("историю семьи", { themes })?.theme).toBe("family");
+    // Автобиография дедушки — по-прежнему о нём, не о семье.
+    expect(findRecipient("историю дедушки", { themes })?.theme).toBe("autobiography");
+  });
+
   it("брату или сестре — своя тема, коллеге — по-прежнему «другу»", () => {
     const themes = [...site.themes, "sibling"];
     for (const text of ["книгу брату на свадьбу", "для сестры", "сестренке на др", "ағама сыйлық", "сіңліме кітап"])

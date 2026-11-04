@@ -1,6 +1,7 @@
 import type { Locale } from "@/i18n/config";
 import { autobiographyChapters } from "./autobiography";
 import { childChapters } from "./child";
+import { familyChapters } from "./family";
 import { friendChapters } from "./friend";
 import { grandmaChapters } from "./grandma";
 import { grandpaChapters } from "./grandpa";
@@ -11,6 +12,7 @@ import { siblingChapters } from "./sibling";
 import { teacherChapters } from "./teacher";
 import { autobiographyChapters as autobiographyChaptersKk } from "./kk/autobiography";
 import { childChapters as childChaptersKk } from "./kk/child";
+import { familyChapters as familyChaptersKk } from "./kk/family";
 import { friendChapters as friendChaptersKk } from "./kk/friend";
 import { grandmaChapters as grandmaChaptersKk } from "./kk/grandma";
 import { grandpaChapters as grandpaChaptersKk } from "./kk/grandpa";
@@ -39,6 +41,8 @@ const base: ThemeBase[] = [
   { id: "dad", kind: "gift", recipient: "required", emoji: "✦", recipientGender: "m", defaultRecipientGender: "m", defaultCover: "alatau", defaultInterior: "stars" },
   // Родителям — сразу вдвоём: один получатель — оба имени, род адресата не спрашиваем (банк во множественном числе).
   { id: "parents", kind: "gift", recipient: "required", emoji: "❧", recipientGenderChoice: false, defaultRecipientGender: "m", defaultCover: "flax", defaultInterior: "classic" },
+  // Семье — о всей семье: адресат во множественном числе, получатель — имя семьи.
+  { id: "family", kind: "gift", recipient: "required", emoji: "✤", recipientGenderChoice: false, defaultRecipientGender: "m", defaultCover: "steppe", defaultInterior: "journal" },
   { id: "grandma", kind: "gift", recipient: "required", emoji: "✾", recipientGender: "f", defaultRecipientGender: "f", defaultCover: "postcards", defaultInterior: "vintage" },
   { id: "grandpa", kind: "gift", recipient: "required", emoji: "✶", recipientGender: "m", defaultRecipientGender: "m", defaultCover: "saddle", defaultInterior: "novel" },
   // Дочери или сыну: род ребёнка выбирают в мастере.
@@ -89,6 +93,15 @@ const text: Record<Locale, Record<ThemeId, ThemeText>> = {
       recipientPlaceholder: "Например, Гульнара и Ерлан",
       titleSuggestions: ["Маме и папе", "Спасибо, родители", "Дорогие родители", "Наша семья"],
       chapters: parentsChapters,
+    },
+    family: {
+      name: "Семье",
+      short: "Семье",
+      description: "Книга для всей семьи: корни и род, дом и традиции, старшие и дети, праздники, испытания и то, что держит вас вместе.",
+      recipientLabel: "Имя семьи",
+      recipientPlaceholder: "Например, семья Ахметовых",
+      titleSuggestions: ["История нашей семьи", "Семейная книга", "Наш род", "Дом, где мы вместе"],
+      chapters: familyChapters,
     },
     grandma: {
       name: "Бабушке",
@@ -198,6 +211,15 @@ const text: Record<Locale, Record<ThemeId, ThemeText>> = {
       recipientPlaceholder: "Мысалы, Гүлнар және Ерлан",
       titleSuggestions: ["Анама және әкеме", "Ата-анам, рахмет", "Қымбатты ата-анам", "Біздің отбасымыз"],
       chapters: parentsChaptersKk,
+    },
+    family: {
+      name: "Отбасыға",
+      short: "Отбасыға",
+      description: "Бүкіл отбасыға арналған кітап: түп-тамыр мен шежіре, үй мен дәстүр, үлкендер мен балалар, мерекелер, сынақтар және сізді біріктіретін нәрсе.",
+      recipientLabel: "Отбасының атауы",
+      recipientPlaceholder: "Мысалы, Ахметовтер отбасы",
+      titleSuggestions: ["Біздің отбасымыздың тарихы", "Отбасылық кітап", "Біздің шежіре", "Бірге тұрған үйіміз"],
+      chapters: familyChaptersKk,
     },
     grandma: {
       name: "Әжеге",
