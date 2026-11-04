@@ -205,9 +205,9 @@ service (core/publishing/...)
 
 ### 8.2. Что сравниваем
 
-- Read-модели: `reporting.dashboard`, `reporting.dealCard`, `reporting.clientCard`,
-  `reporting.lists`, `authoring.queries.bookForEditor`, `ordering.queries.orderDetails`,
-  `messaging.view.chat`, `workspace.settings`.
+- Read-модели: `authoring.queries.bundle`, `authoring.queries.userBooks`,
+  `ordering.queries.orderDetails`, `ordering.queries.userOrders`, `reporting.dealCard`,
+  `reporting.clientCard`, `reporting.inbox`, `messaging.queries.conversation`.
 - Команды: результат (ID/статус) и побочные эффекты в БД (сравнение снимков таблиц до/после).
 - Страницы: HTML после нормализации (убрать nonce, timestamp, requestId, случайные ID).
 - API-роуты: статус, заголовки, JSON.
@@ -235,6 +235,21 @@ service (core/publishing/...)
 ```
 
 Гейт: 0 mismatches на ключевых путях; остальные — объяснены и закрыты.
+
+### 8.5. Реализация (M0.4)
+
+- **Golden DTO:** `scripts/microservices/golden.ts` — прогоняет тот же seed, что и скриншоты, зовёт
+  `container()` и пишет 8 снимков в `tests/microservices/golden/`. UUID заменяются на роли
+  (`<client>`, `<book>`, `<order>`…), секреты и хеши вырезаются.
+- **Проверка:** `npm run golden:check` (нужен `VISUAL_DATABASE_URL`) — 0 mismatch; тест
+  `tests/microservices/golden.test.ts` запускается только при заданной тестовой БД.
+- **Parity:** `src/server/parity.ts` — `off|shadow|strict`, `ParityTransport`,
+  `createInProcessTransport(root)`, `createHttpTransport({ baseUrl })`, `parityCall()` и `ParityError`.
+  `createHttpTransport` уже умеет `POST /internal/v1/parity` — endpoint появится в волне 1.
+- **Тесты parity:** `tests/microservices/parity.test.ts` — нормализация, diff, this-контекст,
+  shadow/strict, падение remote.
+- **Ограничение:** `parityCall` — только чтение. Команды нельзя звать дважды: побочные эффекты удвоятся.
+- **Флаг:** `PARITY_MODE=off|shadow|strict` (по умолчанию `off`; в `.env.example`).
 
 ## 9. Визуальная регрессия
 

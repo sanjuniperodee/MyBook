@@ -1,0 +1,90 @@
+{
+  "bookRows": [
+    {
+      "answered": 3,
+      "authorName": "Алия",
+      "id": "<book>",
+      "photos": 0,
+      "recipientName": "Марғұлан",
+      "status": "draft",
+      "theme": "love",
+      "title": "История нашей любви",
+      "total": 176,
+      "updatedAt": "2026-10-26T04:00:00.000Z",
+      "words": 67
+    }
+  ],
+  "callRows": [],
+  "client": {
+    "email": "client@visual.local",
+    "id": "<client>",
+    "lastSeenAt": null,
+    "name": "Алия Сапарова",
+    "phone": "+7 700 123 45 67"
+  },
+  "convs": [
+    {
+      "aiParsedAt": null,
+      "assigneeId": "<admin>",
+      "avatarUrl": null,
+      "awaitingSince": "2026-11-04T13:20:00.000Z",
+      "botDueAt": null,
+      "botState": null,
+      "botStep": null,
+      "channel": "whatsapp",
+      "channelId": "visual",
+      "chatId": "77001234567",
+      "clientId": "<client>",
+      "contactName": "Алия Сапарова",
+      "createdAt": "2026-10-26T04:00:00.000Z",
+      "dealId": "<deal>",
+      "id": "<conversation>",
+      "lastMessageAt": "2026-11-04T13:20:00.000Z",
+      "lastMessageText": "Спасибо! А когда книгу отправят?",
+      "lastOutgoingAt": null,
+      "meta": {},
+      "status": "open",
+      "unread": 1,
+      "updatedAt": "2026-11-04T13:20:00.000Z"
+    }
+  ],
+  "noteRows": [
+    {
+      "authorId": "<admin>",
+      "clientId": "<client>",
+      "createdAt": "2026-10-29T05:00:00.000Z",
+      "dealId": "<deal>",
+      "id": "<uuid>",
+      "kind": "note",
+      "orderId": "<order>",
+      "text": "Клиент просил успеть к годовщине 20 декабря. Обсудили доставку курьером."
+    }
+  ],
+  "order": {
+    "amount": 30000,
+    "id": "<order>",
+    "number": 1,
+    "plan": "hardcover",
+    "status": "in_production"
+  },
+  "taskRows": [
+    {
+      "assigneeId": "<admin>",
+      "clientId": "<client>",
+      "createdAt": "2026-10-29T05:00:00.000Z",
+      "createdById": "<admin>",
+      "dealId": "<deal>",
+      "doneAt": null,
+      "doneById": null,
+      "dueAt": "2026-11-06T07:00:00.000Z",
+      "id": "<uuid>",
+      "kind": "call",
+      "orderId": "<order>",
+      "overdueNotifiedAt": null,
+      "remindBeforeMin": null,
+      "remindedAt": null,
+      "result": null,
+      "title": "Позвонить Алие и подтвердить адрес доставки"
+    }
+  ]
+}

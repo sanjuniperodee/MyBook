@@ -24,7 +24,9 @@
     "test:visual": "playwright test",
     "test:visual:update": "playwright test --update-snapshots",
     "seed:visual": "tsx --import ./scripts/preload.mjs scripts/visual/seed.ts",
-    "build:visual": "MYBOOK_SKIP_TYPECHECK=1 NEXT_TELEMETRY_DISABLED=1 next build"
+    "build:visual": "MYBOOK_SKIP_TYPECHECK=1 NEXT_TELEMETRY_DISABLED=1 next build",
+    "golden:check": "tsx --import ./scripts/preload.mjs scripts/microservices/golden.ts --check",
+    "golden:update": "tsx --import ./scripts/preload.mjs scripts/microservices/golden.ts"
   },
   "engines": {
     "node": ">=20.9"

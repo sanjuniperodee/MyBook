@@ -12,6 +12,8 @@
 - Baseline: `tsc` 0, `vitest` 4010 passed / 135 skipped / 0 failed.
 - **M0.3 готов:** 40 визуальных эталонов (20 страниц × desktop/mobile), два прогона подряд 40/40.
   Подробно — `tests/visual/pages.README.md`.
+- **M0.4 готов:** 8 golden DTO (`tests/microservices/golden/`), parity-скелет `src/server/parity.ts`,
+  14 тестов; `golden:check` — 0 mismatch дважды.
 - **S3:** выбран Yandex Object Storage (бакет `mybooks`), профиль `yc-storage` и `S3_*` в `.env.local`
   настроены, ключи вне git. Проверка доступа вернула `403 SignatureDoesNotMatch` — ключи нужно
   перепроверить/перевыпустить. До этого publishing/медиа на S3 не переключать. См. `07-storage-s3.md`.
@@ -64,6 +66,15 @@ VISUAL_DATABASE_URL=postgres://…/mybook_visual npx playwright test
 Стенд сам собирает production-сборку и поднимает её на 3210; первый прогон ~3 мин, повторный ~2.
 Подробно — `tests/visual/pages.README.md`.
 
+Golden DTO и parity:
+
+```sh
+VISUAL_DATABASE_URL=postgres://…/mybook_visual npm run golden:check
+npx vitest run tests/microservices/parity.test.ts
+```
+
+`golden:check` сам прогоняет seed и сравнивает 8 read-моделей; parity-тесты не требуют БД.
+
 Старая PDF/HTML-сверка книги (не путать):
 
 ```sh
@@ -71,50 +82,34 @@ brew install poppler
 bash scripts/visual/check.sh HEAD --quick
 ```
 
-## 5. Следующая задача: M0.4 — golden DTO + parity
+## 5. Следующая задача: M0.5 — каркас монорепо без переноса кода
 
-**Цель:** зафиксировать форму данных, которую сегодня получают страницы, и подготовить сравнение
-`in-process` vs `HTTP`, чтобы волна 1 не пронесла дрейф DTO.
+**Цель:** подготовить структуру `apps/` + `packages/`, не двигая код и не меняя поведение.
 
-Две части; вторую можно сделать скелетом до появления HTTP-бэкенда.
+Шаги:
 
-### 5.1. Golden DTO (сделать сейчас)
+1. Зафиксировать baseline: `npx tsc --noEmit`, `npm test`, `npm run build` — зелёные.
+2. Создать заготовки:
+   - `apps/README.md` — будущие `web` и `api`;
+   - `packages/contracts/package.json` — `@mybook/contracts`, private, type module, пустой `src/index.ts`;
+   - `packages/platform-kit/` — заготовка env/logger/otel (можно только README);
+   - `infra/compose/` — README, без запуска.
+3. Решить, добавлять ли `workspaces` в корневой `package.json` сейчас. Если добавлять —
+   только `apps/*`, `packages/*`, без переноса `src`; `npm install` должен обновить lockfile
+   предсказуемо, а `npm test`/`npm run build` — остаться зелёными. Если это ломает Next/tsc —
+   отложить workspaces до M1.1 и ограничиться папками/документами.
+4. Не добавлять Turborepo/pnpm «на будущее», пока нет второго приложения: лишняя зависимость
+   и lockfile-шум. Turborepo — в M1.1, когда появятся `apps/web` и `apps/api`.
+5. Обновить PROGRESS: M0.5 `done`, следующая M0.6.
 
-1. Выбери 5–7 read-моделей, которые чаще всего используются страницами:
-   `reporting.dashboard`, `reporting.dealCard`, `reporting.clientCard`, `reporting.lists`,
-   `authoring.queries.bookForEditor`, `ordering.queries.orderDetails`, `messaging.view.chat`.
-2. Добавь `scripts/microservices/golden.ts`:
-   - работает на тестовой БД из `scripts/visual/seed.ts` (те же фиксированные ID/даты);
-   - вызывает `container()` напрямую, как страница;
-   - нормализует `Date` → ISO, сортирует массивы по ID, убирает `requestId`/`now`;
-   - пишет `tests/microservices/golden/<path>.json`.
-3. Добавь `tests/microservices/golden.test.ts` (или скрипт `--check`), который перегенерирует
-   ответы и сравнивает с коммитнутыми снимками. Падение — изменение DTO.
-4. Не коммить реальные PII/секреты: только seed-данные.
+Критерий готовности:
 
-### 5.2. Parity-скелет (можно без HTTP)
+- `npx tsc --noEmit`, `npm test`, `npm run build` — зелёные.
+- В `src/` ничего не переехало; UI/поведение не менялись.
+- Структура и правило «что куда поедет в M1.1» описаны в `docs/microservices/08-monorepo.md`.
 
-1. Добавь `src/server/parity.ts` (или `packages/...` позже):
-   - интерфейс `ParityTransport { call(path, args): Promise<unknown> }`;
-   - `InProcessTransport` (реальный container) и `HttpTransport` (заглушка `throw new Error("wave 1")`);
-   - `compare(path, inprocess, remote)` с нормализацией из 5.1 и отчётом `{path, field, inprocess, remote}`.
-2. Флаг `PARITY_MODE=off|shadow|strict`:
-   - `off` — ничего;
-   - `shadow` — вызвать оба, расхождения в лог, пользователю отдать in-process;
-   - `strict` — расхождение = ошибка (только тесты/staging).
-3. Тест: на неизменённом коде `shadow` даёт 0 расхождений (оба транспорта — in-process).
-4. Не включать в прод до волны 1.
+## 6. После M0.5
 
-### Критерий готовности
-
-- `npx tsc --noEmit` и `npm test` зелёные.
-- Golden-снимки воспроизводятся на чистом seed; изменение поля в DTO ломает тест.
-- Parity-скелет компилируется и на `shadow` не меняет ответы.
-- PROGRESS обновлён: M0.4 `done`, следующая M0.5.
-
-## 6. После M0.4
-
-- M0.5: каркас монорепо **без переноса кода**.
 - M0.6: CI-гейты (включая визуальный job с Postgres; эталоны для Linux-раннера снять отдельно).
 - M0.7: релизный манифест/откат.
 - Затем **остановиться и спросить G0**: target A? RAM? деплой? Доступ к S3 — проверить отдельно.
@@ -134,6 +129,8 @@ bash scripts/visual/check.sh HEAD --quick
 | Визуальная сверка PDF/HTML | `scripts/visual/check.sh`, `scripts/visual/compare.ts` |
 | Визуальные тесты страниц | `playwright.config.ts`, `tests/visual/pages.spec.ts`, `tests/visual/pages.README.md` |
 | Seed для визуальных тестов | `scripts/visual/seed.ts` |
+| Golden DTO | `scripts/microservices/golden.ts`, `tests/microservices/golden/` |
+| Parity | `src/server/parity.ts`, `tests/microservices/parity.test.ts` |
 | Деплой | `deploy/deploy.sh`, `deploy/ecosystem.config.cjs`, `deploy/nginx-mybook.conf` |
 | CI | `.github/workflows/deploy.yml` |
 
@@ -144,16 +141,14 @@ bash scripts/visual/check.sh HEAD --quick
 docs/microservices. Сначала прочитай docs/microservices/HANDOFF.md и PROGRESS.md,
 затем docs/microservices/02-target-architecture.md и 03-migration-plan.md.
 
-Сейчас волна 0, задача M0.4: golden DTO и parity-скелет.
-Код приложения не меняй (кроме тестовой обвязки). Прод не выкатывай.
-Не начинай волну 1 без гейта G0.
+Сейчас волна 0, задача M0.5: каркас монорепо без переноса кода.
+Код приложения не меняй. Прод не выкатывай. Не начинай волну 1 без гейта G0.
 
 Сделай:
-1. scripts/microservices/golden.ts + golden-снимки 5–7 read-моделей на seed;
-2. тест/скрипт проверки golden;
-3. src/server/parity.ts с off/shadow/strict и двумя транспортами (HTTP — заглушка);
-4. тест, что на неизменённом коде shadow даёт 0 расхождений;
-5. обнови PROGRESS.md (M0.4 done, следующая M0.5).
+1. apps/ и packages/ заготовки, infra/compose/README;
+2. реши вопрос с workspaces: добавляй только если npm test/build остаются зелёными;
+3. docs/microservices/08-monorepo.md с раскладкой и планом M1.1;
+4. обнови PROGRESS.md (M0.5 done, следующая M0.6).
 
 Ограничения: не трогай чужие untracked-папки, не делай git add ., секреты не коммить.
 ```

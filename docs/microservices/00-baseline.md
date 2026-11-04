@@ -161,12 +161,12 @@ Baseline нужен не для красоты отчёта, а чтобы ло�
 | `tests/pdf-critical.test.ts` | Критичные PDF-сценарии | Есть |
 | `tests/characterization/*` | Характеристические снимки вёрстки | Есть |
 | Playwright-скриншоты админки/кабинета | 20 страниц, desktop/mobile, 40 эталонов | **Есть (M0.3)**, `tests/visual/pages.README.md` |
-| DTO golden tests | Форма данных, которую получает страница | **Следующая (M0.4)** |
-| Parity shadow | Сравнение in-process и HTTP ответов | **Нужно добавить (M0.4)** |
+| DTO golden tests | 8 read-моделей, `tests/microservices/golden/` | **Есть (M0.4)**, `npm run golden:check` |
+| Parity shadow | Сравнение in-process и HTTP ответов | **Скелет (M0.4)**, HTTP-транспорт — волна 1 |
 
 Playwright-стенд страниц уже закрывает волну 1 по визуальной части: 40 эталонов, два прогона подряд
-без диффов. DTO golden и parity — следующая задача (M0.4); до их появления «фронт не изменился»
-подтверждён скриншотами, но не формой данных для Flutter/клиентских fetch-вызовов.
+без диффов. Golden DTO и parity-скелет готовы (M0.4): 8 read-моделей, 0 mismatch, 14 тестов.
+HTTP-транспорт parity включится в волне 1 вместе с `apps/api`.
 
 ## 6. Как воспроизвести
 

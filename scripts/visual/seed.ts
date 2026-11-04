@@ -125,6 +125,9 @@ async function main() {
   for (let i = 0; i < Math.min(answers.length, bookQuestions.length); i++) {
     await db.update(t.bookQuestions).set({ answer: answers[i], updatedAt: BOOK_CREATED }).where(eq(t.bookQuestions.id, bookQuestions[i].id));
   }
+  // Вопросы создаёт BooksService, а createdAt/updatedAt у них — DEFAULT now() базы.
+  // Для детерминированных снимков фиксируем и их.
+  await db.update(t.bookQuestions).set({ createdAt: BOOK_CREATED, updatedAt: BOOK_CREATED }).where(eq(t.bookQuestions.bookId, book.id));
 
   const [order] = await db
     .insert(t.orders)

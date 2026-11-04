@@ -1,10 +1,10 @@
 ---
-updated: 2026-11-05T04:40:00+05:00
+updated: 2026-11-05T04:55:00+05:00
 branch: refactor/microservices
 wave: 0
-task: M0.4
+task: M0.5
 status: pending
-next: "Сделать golden DTO и parity-стенд (M0.4), затем каркас монорепо (M0.5)"
+next: "Создать каркас монорепо (apps/packages) без переноса кода (M0.5)"
 blockers:
   - "G0: нужно подтверждение target A и бюджета RAM/деплоя (S3 решён)"
   - "S3: Yandex отвечает 403 SignatureDoesNotMatch — перепроверить/перевыпустить ключи"
@@ -21,11 +21,11 @@ blockers:
 |---|---|
 | Ветка | `refactor/microservices` |
 | Волна | 0 — страховочная сетка |
-| Текущая задача | **M0.4 — golden DTO и parity-стенд** |
+| Текущая задача | **M0.5 — каркас монорепо без переноса кода** |
 | Статус | `pending` |
-| Следующее действие | Снять golden-снимки ключевых read-моделей и добавить `PARITY_MODE=shadow` для сравнения in-process и HTTP |
+| Следующее действие | Добавить npm workspaces/Turborepo, `apps/` и `packages/` заготовки; `npm test`/`build` не ломать |
 | Блокер | G0: target A + RAM/деплой; S3: Yandex 403 SignatureDoesNotMatch |
-| Последнее обновление | 2026-11-05 04:10 Asia/Almaty |
+| Последнее обновление | 2026-11-05 04:55 Asia/Almaty |
 
 ### Что уже сделано в этой сессии
 
@@ -37,6 +37,8 @@ blockers:
 - Baseline-проверки: `tsc` — 0, `vitest` — 4010 passed / 135 skipped / 0 failed.
 - **M0.3:** Playwright-стенд страниц, seed, фиксированные часы, 40 эталонов (20 страниц × desktop/mobile).
   Два прогона подряд — 40/40; подмена пикселя в эталоне роняет тест. Подробно — `tests/visual/pages.README.md`.
+- **M0.4:** golden DTO (8 read-моделей, `tests/microservices/golden/`) + parity-скелет
+  (`src/server/parity.ts`, 14 тестов). `golden:check` — 0 mismatch дважды; `PARITY_MODE` в `.env.example`.
 - **S3:** выбран Yandex Object Storage (бакет `mybooks`), профиль `yc-storage` и `S3_*` в `.env.local`
   (ключи вне git). Документы — `07-storage-s3.md`, ADR 0008.
 - Код приложения менялся только в тестовой обвязке (`src/instrumentation-node.ts` — часы под `VISUAL_NOW`);
@@ -73,8 +75,8 @@ blockers:
 | M0.1 | Inventory + baseline | `done` | `refactor/microservices` | скрипт отработал, JSON/MD созданы | 2026-11-05 |
 | M0.2 | План, ADR, PROGRESS, HANDOFF | `done` | `refactor/microservices` `05729c23` | документы linked, `tsc`/`vitest` не трогались | 2026-11-05 |
 | M0.3 | Playwright-скриншоты админки/кабинета | `done` | `refactor/microservices` `8c268531` | 40/40 два прогона; diff-пиксель ловится | 2026-11-05 |
-| M0.4 | Golden DTO + parity shadow | `pending` | — | 0 mismatches на неизменённом коде | **следующая** |
-| M0.5 | Каркас монорепо (без переноса) | `pending` | — | `npm test`/`build` зелёные | после M0.3 |
+| M0.4 | Golden DTO + parity shadow | `done` | `refactor/microservices` | 8 golden, 0 mismatch дважды; 14 parity-тестов | 2026-11-05 |
+| M0.5 | Каркас монорепо (без переноса) | `pending` | — | `npm test`/`build` зелёные | **следующая** |
 | M0.6 | CI-гейты | `pending` | — | PR-blocking checks | после M0.5 |
 | M0.7 | Релизный манифест и откат | `pending` | — | smoke/rollback описаны | до волны 1 |
 | M0.8 | Yandex S3: профиль, ключи, документы | `blocked` | `refactor/microservices` | `head-bucket` → 403 SignatureDoesNotMatch | ключи вне git; нужен перевыпуск/проверка |
@@ -167,6 +169,7 @@ blockers:
 | 2026-11-05 | DeepSeek (DSH) | Baseline, inventory, план, ADR, PROGRESS, HANDOFF; ветка `refactor/microservices`, коммит `05729c23` | `tsc` 0, `vitest` 4010 passed / 135 skipped, `eslint` 0 ошибок | M0.3 Playwright |
 | 2026-11-05 | DeepSeek (DSH) | M0.3: Playwright-стенд страниц, seed, фиксированные часы, 40 эталонов | 40/40 два прогона, diff-пиксель ловится, `tsc`/`eslint` зелёные | M0.4 golden DTO + parity |
 | 2026-11-05 | DeepSeek (DSH) | S3: Yandex Object Storage, профиль `yc-storage`, `.env.local`, ADR 0008, `07-storage-s3.md`; коммит `8c268531` | ключи вне git, права 600; Yandex вернул 403 SignatureDoesNotMatch | M0.8 blocked (ключи), затем M0.4 |
+| 2026-11-05 | DeepSeek (DSH) | M0.4: golden DTO 8 моделей, parity-скелет, тесты; проверка S3 повторно — тот же 403 | 8/8 golden дважды, 14 parity-тестов, `tsc` 0 | M0.5 каркас монорепо |
 
 ## Как обновлять этот файл
 
