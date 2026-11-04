@@ -88,6 +88,8 @@ export interface CoverDesignerProps {
   baseColor?: string | null;
   /** Марка на обороте — видна на холсте, но не слой. */
   brand?: { design: BackDesign; name: string };
+  /** Под слоями холста (оборот «как спереди» — фото, фигуры и украшения лица). */
+  underlay?: CoverLayer[];
   /** Цвета другой стороны — первыми в образцах (оборот в тон лица). */
   colors?: string[];
   /** В начале липкой панели инструментов (переключатель сторон — виден, пока правишь холст). */
@@ -115,6 +117,7 @@ export function CoverDesigner({
   brand,
   colors = [],
   toolbarStart,
+  underlay,
 }: CoverDesignerProps) {
   const m = useMessages().design.cover;
   const tb = m.toolbar;
@@ -420,6 +423,7 @@ export function CoverDesigner({
                 onBookText={onBookText}
                 side={side}
                 backdrop={backdrop}
+                underlay={underlay}
                 brand={brand}
                 labels={{ aria: back ? m.canvas.ariaBack : m.canvas.aria, wrap: m.canvas.wrap, spine: m.canvas.spine, rotate: m.canvas.rotate, resize: m.canvas.resize, editText: m.canvas.editText, image: m.canvas.image, placeholders: m.canvas.placeholders }}
               />

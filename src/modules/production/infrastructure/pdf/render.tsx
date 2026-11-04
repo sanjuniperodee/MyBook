@@ -7,7 +7,7 @@ import { messagesFor } from "@/i18n/messages";
 import { coverPhotoIds, getCoverTemplate, renderCoverSvg } from "@/lib/book/covers";
 import { coverNames } from "@/lib/book/cover-names";
 import { coverPhotoDataUrl, coverPhotoResized } from "../coverPhotos";
-import { layerRect, ownSpreadArt, parseCoverBack, parseCoverDesign, printedLayers, templateForCover, type CoverBack, type CoverDesign, type CoverTexts } from "@/lib/book/cover-design";
+import { layerRect, ownSpreadArt, parseCoverBack, parseCoverDesign, printedLayers, repeatedFrontLayers, templateForCover, type CoverBack, type CoverDesign, type CoverTexts } from "@/lib/book/cover-design";
 import type { CoverTemplate } from "@/lib/book/covers";
 import {
   coverFrontGeometry,
@@ -498,8 +498,20 @@ export async function renderCover(bundle: BookBundle, pageCount: number, mode: R
   const text = coverText(bundle.book);
   const layers = layered ? { design: layered, images: await layerImages(bundle, layered, text, geometry.front, source) } : undefined;
   const backLayers = backDesign?.layers && geometry.back ? { layers: backDesign.layers, images: await layerImages(bundle, { layers: backDesign.layers }, text, geometry.back, source) } : undefined;
+  // Оборот «как спереди» повторяет фото, фигуры и украшения лица на тех же местах (снимки — те же файлы: крышки равны).
+  const repeated = geometry.back && layers ? repeatedFrontLayers(layered, backDesign) : [];
+  const backArt = repeated.length && layers ? { layers: repeated, images: layers.images } : undefined;
   const pdf = await renderPdf(
-    <CoverDocument template={template} geometry={geometry} background={background} text={text} back={{ design: back.design, photos: back.buffers, layers: backLayers }} layers={layers} title={text.title} language={bundle.book.language} />,
+    <CoverDocument
+      template={template}
+      geometry={geometry}
+      background={background}
+      text={text}
+      back={{ design: back.design, photos: back.buffers, layers: backLayers, art: backArt }}
+      layers={layers}
+      title={text.title}
+      language={bundle.book.language}
+    />,
   );
   return { pdf: Buffer.from(pdf), geometry };
 }

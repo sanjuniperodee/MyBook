@@ -76,6 +76,7 @@ export function DesignerCanvas({
   labels,
   side = "front",
   backdrop,
+  underlay,
   brand,
 }: {
   dz: Designer;
@@ -99,6 +100,8 @@ export function DesignerCanvas({
   side?: CoverSide;
   /** Фон холста оборота (SVG окна с загибом) — см. DesignedCover. */
   backdrop?: string;
+  /** Под слоями холста, не выбираются (оборот «как спереди» — фото и украшения лица). */
+  underlay?: CoverLayer[];
   /** Оборот: марка внизу печатается всегда — на холсте её видно, но она не слой. */
   brand?: { design: BackDesign; name: string };
 }) {
@@ -387,6 +390,7 @@ export function DesignerCanvas({
         wrap={8}
         uid={`designer${side}`}
         backdrop={backdrop}
+        underlay={underlay}
         boardRef={boardRef}
         className="rounded-[3px] shadow-book"
         overlay={overlay}

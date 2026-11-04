@@ -17,6 +17,7 @@ import {
   mirrorAngle,
   parseCoverBack,
   parseCoverDesign,
+  repeatedFrontLayers,
   spineFill,
   templateForCover,
   type CoverBack,
@@ -147,6 +148,35 @@ describe("цвет оборота: превью = печать", () => {
     // Корешок: у горизонтального градиента — цвет края лица у корешка.
     const spine = await printed(b, { x: g.spine!.x + 1, y: g.spine!.y, w: g.spine!.w - 2, h: g.spine!.h });
     expect(dist(spine, rgb("#2B1B2E"))).toBeLessThan(6);
+  });
+
+  it.skipIf(!hasTool("pdftoppm"))("лицо — фото поверх светлого фона (как у Айтқали 04.11): «как спереди» повторяет фото на обороте, без надписей", async () => {
+    const d = parseCoverDesign({
+      background: { kind: "color", color: "#FBF7F1" },
+      layers: [
+        { id: "c", kind: "image", stock: "clouds", x: 0, y: 0, w: 1, h: 1, frame: { x: 0.5, y: 1, zoom: 1 } },
+        { id: "t", kind: "text", text: "Жүрекке жазылған аманат", x: 0.08, y: 0.26, w: 0.85, h: 0.42, style: { font: "yeseva", size: 0.085, color: "#F3D9A4", align: "center", valign: "middle" } },
+      ],
+    })!;
+    expect(repeatedFrontLayers(d, null).map((l) => l.id)).toEqual(["c"]);
+    expect(repeatedFrontLayers(d, { v: 1, background: { kind: "color", color: "#111111" } })).toEqual([]);
+    // Превью оборота в кабинете рисует снимок лица.
+    const html = renderToStaticMarkup(createElement(CoverBackPreview, { template: "letter", content: backContent(book(), [], now), design: d }));
+    expect(html).toContain("clouds");
+    expect(html).not.toContain("Жүрекке");
+    // PDF: оборот того же тона, что лицо (розовые облака), а не кремовый фон.
+    const { pdf, geometry } = await renderCover({ book: book({ coverTemplate: "letter", coverDesign: asRow(d) }), questions: [], chapters: [], photos: [] }, 120, "preview");
+    const dir = mkdtempSync(path.join(tmpdir(), "cover-back-"));
+    const file = path.join(dir, "cover.pdf");
+    writeFileSync(file, pdf);
+    spawnSync("pdftoppm", ["-r", "20", "-png", "-singlefile", file, path.join(dir, "page")]);
+    const png = readFileSync(path.join(dir, "page.png"));
+    const k = (await sharp(png).metadata()).width! / geometry.width;
+    const at = (r: Rect) => mean(png, { left: Math.round(r.x * k), top: Math.round(r.y * k), width: Math.round(r.w * k), height: Math.round(r.h * k) });
+    const back = await at({ ...geometry.back!, y: geometry.back!.y + geometry.back!.h * 0.75, h: geometry.back!.h * 0.2 });
+    const front = await at({ ...geometry.front, y: geometry.front.y + geometry.front.h * 0.75, h: geometry.front.h * 0.2 });
+    expect(dist(back, front)).toBeLessThan(6);
+    expect(dist(back, rgb("#FBF7F1"))).toBeGreaterThan(20);
   });
 
   it("свой цвет оборота: оборот и корешок в этот цвет, надписи — контрастные", async () => {

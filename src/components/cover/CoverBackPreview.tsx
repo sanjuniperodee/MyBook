@@ -1,7 +1,7 @@
 import { designBack, layeredBack, type BackContent } from "@/lib/book/cover-back";
 import { getCoverTemplate } from "@/lib/book/covers";
 import type { PhotoRef } from "@/lib/book/covers/svg-kit";
-import { backFaceSvg, boardSize, templateForCover, type CoverBack, type CoverDesign, type CoverTexts } from "@/lib/book/cover-design";
+import { backFaceSvg, boardSize, repeatedFrontLayers, templateForCover, type CoverBack, type CoverDesign, type CoverTexts } from "@/lib/book/cover-design";
 import { coverSpreadGeometry, getFormat } from "@/lib/book/formats";
 import { coverPhotoUrl } from "@/lib/book/photo-cover";
 import { coverArtUrl, photoUrl } from "@/lib/urls";
@@ -59,6 +59,7 @@ export function CoverBackPreview({
   const { template, g } = layout;
   const rect = layout.back;
   const own = backFaceSvg(design, back, g, rect, uid);
+  const repeated = repeatedFrontLayers(design, back);
   return (
     <div className={cn("relative overflow-hidden select-none", className)} style={{ aspectRatio: `${rect.w} / ${rect.h}`, containerType: "inline-size", background: template.swatch }}>
       {own ? (
@@ -67,6 +68,17 @@ export function CoverBackPreview({
         // eslint-disable-next-line @next/next/no-img-element -- SVG-фон кэширует браузер
         <img src={coverArtUrl(template, format.id, false, layout.design.plainArt ? "backPlain" : "back")} alt="" aria-hidden draggable={false} decoding="async" className="absolute inset-0 h-full w-full" />
       )}
+      {repeated.length ? (
+        // «Как спереди»: фото, фигуры и украшения лица на тех же местах, без надписей — как в PDF.
+        <CoverLayers
+          design={{ layers: repeated }}
+          texts={texts ?? { title: "", subtitle: "", names: content.names }}
+          board={boardSize(format)}
+          photoSrc={(id) => photoUrl(id, lite ? "thumb" : "view")}
+          stockSrc={(key) => coverPhotoUrl(key, lite ? 900 : 1600)}
+          uid={`${uid}r`}
+        />
+      ) : null}
       {back?.layers ? (
         <CoverLayers
           design={{ layers: back.layers }}

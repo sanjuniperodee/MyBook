@@ -66,7 +66,13 @@ export function CoverDocument({
   background: Buffer;
   text: CoverTextContent;
   /** Раскладка задней стороны (src/lib/book/cover-back.ts) и её фото по порядку; оборот из конструктора — его слои. */
-  back: { design: BackDesign; photos: (Buffer | null)[]; layers?: { layers: CoverDesign["layers"]; images: Map<string, Buffer> } };
+  back: {
+    design: BackDesign;
+    photos: (Buffer | null)[];
+    layers?: { layers: CoverDesign["layers"]; images: Map<string, Buffer> };
+    /** «Как спереди»: фото, фигуры и украшения лица, повторённые на обороте (под его текстом). */
+    art?: { layers: CoverDesign["layers"]; images: Map<string, Buffer> };
+  };
   /** Обложка из конструктора: слои вместо текста шаблона на лицевой стороне; снимки слоёв — по id слоя. */
   layers?: { design: CoverDesign; images: Map<string, Buffer> };
   title: string;
@@ -152,9 +158,10 @@ export function CoverDocument({
         ) : null}
 
         {/* Задняя сторона: слои конструктора не заходят на корешок — справа их обрезает канавка шарнира. */}
-        {g.back && back.layers ? (
+        {g.back && (back.layers || back.art) ? (
           <View fixed style={{ position: "absolute", left: 0, top: 0, width: mm(g.back.x + g.back.w + print.cover.hingeMm), height: mm(g.height) - 0.01, overflow: "hidden" }}>
-            <CoverLayersPdf design={{ layers: back.layers.layers }} texts={text} front={g.back} images={back.layers.images} />
+            {back.art ? <CoverLayersPdf design={{ layers: back.art.layers }} texts={text} front={g.back} images={back.art.images} /> : null}
+            {back.layers ? <CoverLayersPdf design={{ layers: back.layers.layers }} texts={text} front={g.back} images={back.layers.images} /> : null}
           </View>
         ) : null}
         {g.back ? <BackSide rect={g.back} design={back.design} photos={back.photos} /> : null}

@@ -5,7 +5,7 @@
  */
 import { getCoverTemplate, renderCoverSvg } from "@/lib/book/covers";
 import type { PhotoRef } from "@/lib/book/covers/svg-kit";
-import { backgroundArt, boardSize, canvasGeometry, type CoverDesign, type CoverTexts } from "@/lib/book/cover-design";
+import { backgroundArt, boardSize, canvasGeometry, type CoverDesign, type CoverLayer, type CoverTexts } from "@/lib/book/cover-design";
 import { getFormat } from "@/lib/book/formats";
 import { coverPhotoUrl } from "@/lib/book/photo-cover";
 import { n } from "@/lib/book/covers/svg-kit";
@@ -47,9 +47,11 @@ export interface DesignedCoverProps extends Partial<Pick<CoverLayersProps, "plac
   boardRef?: React.Ref<HTMLDivElement>;
   /** Свой фон холста (SVG на всё окно с загибом) — у оборота: его фон считается по развёртке (cover-sides). */
   backdrop?: string;
+  /** Под слоями, не выбираются: на обороте «как спереди» — фото, фигуры и украшения лица. */
+  underlay?: CoverLayer[];
 }
 
-export function DesignedCover({ template, format: formatId = "a5", design, texts, photos, wrap = 0, uid = "dc", lite, className, overlay, boardRef, placeholders, layerProps, backdrop }: DesignedCoverProps) {
+export function DesignedCover({ template, format: formatId = "a5", design, texts, photos, wrap = 0, uid = "dc", lite, className, overlay, boardRef, placeholders, layerProps, backdrop, underlay }: DesignedCoverProps) {
   const format = getFormat(formatId);
   const board = boardSize(format);
   const g = canvasGeometry(format, wrap);
@@ -62,6 +64,18 @@ export function DesignedCover({ template, format: formatId = "a5", design, texts
         className="absolute"
         style={{ left: `${(g.front.x / g.width) * 100}%`, top: `${(g.front.y / g.height) * 100}%`, width: `${(board.w / g.width) * 100}%`, height: `${(board.h / g.height) * 100}%`, containerType: "inline-size" }}
       >
+        {underlay?.length ? (
+          <div aria-hidden className="pointer-events-none absolute inset-0">
+            <CoverLayers
+              design={{ layers: underlay }}
+              texts={texts}
+              board={board}
+              photoSrc={(id) => photoUrl(id, lite ? "thumb" : "view")}
+              stockSrc={(key) => coverPhotoUrl(key, lite ? 900 : 1600)}
+              uid={`${uid}u`}
+            />
+          </div>
+        ) : null}
         <CoverLayers
           design={design}
           texts={texts}

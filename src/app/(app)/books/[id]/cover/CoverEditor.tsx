@@ -41,6 +41,7 @@ import {
   backgroundMid,
   backLayersFromLayout,
   designFromTemplate,
+  repeatedFrontLayers,
   templateForCover,
   type CoverBack,
   type CoverBackground,
@@ -711,6 +712,7 @@ export function CoverEditor({
                 side="back"
                 active={side === "back"}
                 backdrop={backCanvasSvg(state.coverTemplate, format, state.coverDesign, state.coverBack, 8, "bkc")}
+                underlay={repeatedFrontLayers(state.coverDesign, state.coverBack)}
                 baseColor={likeFrontBase}
                 colors={frontColors}
                 brand={{ design: layeredBack(backTemplate, backBoard.h), name: site.name }}

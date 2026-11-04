@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent }
 import { useMessages } from "@/i18n/client";
 import { designBack, layeredBack } from "@/lib/book/cover-back";
 import { getCoverTemplate } from "@/lib/book/covers";
-import { parseCoverBack, parseCoverDesign, templateForCover } from "@/lib/book/cover-design";
+import { parseCoverBack, parseCoverDesign, repeatedFrontLayers, templateForCover } from "@/lib/book/cover-design";
 import { getFormat } from "@/lib/book/formats";
 import { APERTURE, apertureDegrees, bookDims, clamp } from "@/lib/book/book-model";
 import { leafCount, pageLeaf, pagesNear, sheetCount, visibleSpread } from "@/lib/book/flipbook";
@@ -86,6 +86,8 @@ export function BookViewerGL({ data, bookId, onUnsupported, className }: { data:
   // Оборот: свой фон и слои; надписи корешка и оборота — контрастно фону, который на них лежит.
   const backSide = useMemo(() => parseCoverBack(data.cover.back), [data.cover.back]);
   const template = useMemo(() => templateForCover(getCoverTemplate(data.cover.template), design, backSide), [data.cover.template, design, backSide]);
+  // «Как спереди»: фото, фигуры и украшения лица повторяются на обороте (под его текстом).
+  const repeated = useMemo(() => repeatedFrontLayers(design, backSide), [design, backSide]);
   const { brand, back, backPhotos } = data.model;
   const pages = useFlipbookPages(bookId);
   const { build } = pages;
@@ -309,10 +311,10 @@ export function BookViewerGL({ data, bookId, onUnsupported, className }: { data:
       const title = data.cover.title || data.title;
       if (key === "front")
         return { key, version: artVersion, width: texW, height: boardH, pixelRatio: 1.5, node: <CoverFrontFace template={template} art={art} title={data.cover.title} subtitle={data.cover.subtitle} names={data.cover.names} titlePlaceholder={data.cover.titlePlaceholder} width={texW} height={boardH} widthMm={dims.w} design={design} format={data.formatId} /> };
-      if (key === "back") return { key, version: artVersion, width: texW, height: boardH, pixelRatio: 1.5, node: <CoverBackFace art={art} design={backDesign} layers={backSide?.layers} texts={{ title: data.cover.title || data.cover.titlePlaceholder || "", subtitle: data.cover.subtitle ?? "", names: data.cover.names ?? "" }} format={data.formatId} photos={backPhotos} brand={brand} width={texW} height={boardH} widthMm={dims.w} heightMm={dims.h} /> };
+      if (key === "back") return { key, version: artVersion, width: texW, height: boardH, pixelRatio: 1.5, node: <CoverBackFace art={art} design={backDesign} underlay={repeated} layers={backSide?.layers} texts={{ title: data.cover.title || data.cover.titlePlaceholder || "", subtitle: data.cover.subtitle ?? "", names: data.cover.names ?? "" }} format={data.formatId} photos={backPhotos} brand={brand} width={texW} height={boardH} widthMm={dims.w} heightMm={dims.h} /> };
       return { key, version: artVersion, width: spineW, height: boardH, pixelRatio: 2, node: <CoverSpineFace template={template} art={art} title={title} names={data.cover.names} width={spineW} height={boardH} widthMm={dims.d} heightMm={dims.h} /> };
     },
-    [art, artVersion, backDesign, backPhotos, boardH, brand, data.cover.names, data.cover.subtitle, data.cover.title, data.cover.titlePlaceholder, data.title, dims, spineW, template, texW, design, data.formatId, backSide],
+    [art, artVersion, backDesign, backPhotos, boardH, brand, data.cover.names, data.cover.subtitle, data.cover.title, data.cover.titlePlaceholder, data.title, dims, spineW, template, texW, design, data.formatId, backSide, repeated],
   );
 
   // Версия арта, для которой текстуры обложки уже учтены как готовые.

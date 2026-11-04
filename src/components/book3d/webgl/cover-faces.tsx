@@ -57,6 +57,7 @@ export function CoverBackFace({
   art,
   design,
   layers,
+  underlay,
   texts,
   format,
   photos,
@@ -70,6 +71,8 @@ export function CoverBackFace({
   design: BackDesign;
   /** Оборот из конструктора: его слои (вместо варианта оборота). */
   layers?: CoverDesign["layers"];
+  /** «Как спереди»: фото, фигуры и украшения лица под текстом оборота. */
+  underlay?: CoverDesign["layers"];
   texts?: { title: string; subtitle: string; names: string };
   format?: string;
   photos?: (PhotoRef | undefined)[];
@@ -82,6 +85,7 @@ export function CoverBackFace({
   return (
     <div style={box(width, height)}>
       <div className="absolute inset-0" style={{ backgroundImage: art.back, backgroundSize: "100% 100%" }} />
+      {underlay?.length ? <DesignFace design={{ layers: underlay }} format={format} title="" uid="b3r" /> : null}
       {layers ? <DesignFace design={{ layers }} format={format} title={texts?.title ?? ""} subtitle={texts?.subtitle} names={texts?.names} uid="b3b" /> : null}
       <CoverBackLayer design={design} widthMm={widthMm} heightMm={heightMm} photos={photos} brand={brand} />
     </div>

@@ -1,6 +1,6 @@
 import type { CoverTemplate } from "../covers/types";
 import { backgroundMid, inkOn } from "./geometry";
-import type { CoverBack, CoverBackground, CoverDesign } from "./types";
+import type { CoverBack, CoverBackground, CoverDesign, CoverLayer } from "./types";
 
 type OwnBackground = Exclude<CoverBackground, { kind: "template" }>;
 
@@ -15,6 +15,15 @@ export function backFill(front: CoverDesign | null, back: CoverBack | null): { b
   if (b) return { bg: b, mirror: false };
   const f = own(front?.background);
   return f ? { bg: f, mirror: true } : null;
+}
+
+/**
+ * Что из лица повторяется на обороте «как спереди»: фото, фигуры и украшения на тех же местах — без надписей (на
+ * обороте свой текст). Как у шаблонов, которые повторяют композицию лица на задней крышке. Со своим фоном оборота — ничего.
+ */
+export function repeatedFrontLayers(front: CoverDesign | null, back: CoverBack | null): CoverLayer[] {
+  if (!front || own(back?.background)) return [];
+  return front.layers.filter((l) => !l.hidden && l.kind !== "text" && (l.kind !== "image" || !!(l.photoId || l.stock)));
 }
 
 /** Корешок — в цвет оборота, если у оборота свой фон, иначе в цвет лица; null — корешок шаблона. */

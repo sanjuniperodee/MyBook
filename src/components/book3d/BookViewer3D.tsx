@@ -7,7 +7,7 @@ import { designBack, layeredBack } from "@/lib/book/cover-back";
 import { CoverBackLayer } from "@/components/cover/CoverBack";
 import { CoverSpineText } from "@/components/cover/CoverSpine";
 import { getCoverTemplate } from "@/lib/book/covers";
-import { parseCoverBack, parseCoverDesign, templateForCover } from "@/lib/book/cover-design";
+import { parseCoverBack, parseCoverDesign, repeatedFrontLayers, templateForCover } from "@/lib/book/cover-design";
 import { getFormat } from "@/lib/book/formats";
 import {
   BOARD_MM,
@@ -190,6 +190,8 @@ export function BookViewer3D({ data, bookId, className }: { data: FlipbookData; 
   // Оборот: свой фон и слои; надписи корешка и оборота — контрастно фону, который на них лежит.
   const backSide = useMemo(() => parseCoverBack(data.cover.back), [data.cover.back]);
   const template = useMemo(() => templateForCover(getCoverTemplate(data.cover.template), design, backSide), [data.cover.template, design, backSide]);
+  // «Как спереди»: фото, фигуры и украшения лица повторяются на обороте (под его текстом).
+  const repeated = useMemo(() => repeatedFrontLayers(design, backSide), [design, backSide]);
   const { brand, back, backPhotos } = data.model;
   const pages = useFlipbookPages(bookId);
   const { build } = pages;
@@ -589,6 +591,7 @@ export function BookViewer3D({ data, bookId, className }: { data: FlipbookData; 
   const backNode = (
     <>
       <div className="absolute inset-0" style={{ backgroundImage: art.back, backgroundSize: "100% 100%" }} />
+      {repeated.length ? <DesignFace design={{ layers: repeated }} format={data.formatId} title="" uid="b3r" /> : null}
       {backSide?.layers ? <DesignFace design={{ layers: backSide.layers }} format={data.formatId} title={data.cover.title || data.cover.titlePlaceholder || ""} subtitle={data.cover.subtitle} names={data.cover.names} uid="b3b" /> : null}
       <CoverBackLayer design={backDesign} widthMm={dims.w} heightMm={dims.h} photos={backPhotos} brand={brand} />
       <div aria-hidden className="pointer-events-none absolute inset-0" style={{ background: "linear-gradient(115deg, transparent calc(var(--sheen-b, 50%) - 14%), rgba(255,255,255,.14) var(--sheen-b, 50%), transparent calc(var(--sheen-b, 50%) + 14%))" }} />
