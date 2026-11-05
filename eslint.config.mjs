@@ -53,6 +53,15 @@ const zones = [
   },
 ];
 
+/**
+ * src/server — корень композиции и веб-адаптеры, не место для запросов к БД: новые таблицы и запросы — в модулях.
+ * Корень композиции (container, планировщик с advisory-блокировками) — исключение по смыслу. Ниже — храповик:
+ * файлы, которые ходили в БД мимо модулей до правила (ADR 0009, P2). Список только убывает: перенесли файл в модуль —
+ * уберите его отсюда (tests/server-db-boundary.test.ts напомнит). Типы строк из схемы (import type) — можно везде.
+ */
+export const serverDbRoots = ["src/server/container.ts", "src/server/scheduler.ts"];
+export const serverDbLegacy = ["src/server/answerFiles.ts", "src/server/answerFilesWorker.ts", "src/server/designAiStore.ts", "src/server/designAiStats.ts", "src/server/client-mail.ts"];
+
 const config = [
   ...nextVitals,
   ...nextTs,
@@ -87,6 +96,17 @@ const config = [
         })),
       ],
     },
+  },
+  {
+    files: ["src/server/**/*.{ts,tsx}"],
+    ignores: [...serverDbRoots, ...serverDbLegacy],
+    rules: restrict([
+      {
+        group: ["drizzle-orm", "drizzle-orm/*", "pg", "@/shared/infrastructure/db", "@/shared/infrastructure/db/*", "@/shared/infrastructure/database"],
+        allowTypeImports: true,
+        message: "src/server не ходит в БД: запросы и таблицы — в модуле (репозиторий/queries), сюда — через фасад и container(). Типы строк (import type) — можно.",
+      },
+    ]),
   },
   {
     // src/lib — чистые библиотеки (вёрстка книги, контент, помощники UI): без БД и ввода-вывода.

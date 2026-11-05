@@ -1,4 +1,4 @@
-# Проверки и выкатка на прод. Проверки (типы, линтер, тесты в трёх частях, сборка) идут параллельно; выкатка ждёт
+# Проверки и выкатка на прод. Проверки (типы, линтер, тесты в пяти частях, сборка) идут параллельно; выкатка ждёт
 # все и запускается только для master: при пуше или вручную. На pull request — только проверки, без выкатки.
 # Сервер (общий с другими сайтами) не собирает: сборка не помещалась в его память и тормозила сайты — на сервер
 # уезжает готовый архив (deploy/ci-run.sh). Нужен секрет DEPLOY_SSH_KEY — закрытый ключ, открытая часть которого
@@ -44,9 +44,10 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npm run lint
 
-  # Тесты в трёх частях. Четыре PDF-файла занимают половину времени всех тестов, поэтому они идут отдельно, а третья
-  # часть — всё остальное (через --exclude): новый тестовый файл попадает в неё сам и не может выпасть из проверки.
-  # Переименовали PDF-файл — его часть упадёт с «No test files found», а не пропустит тесты молча.
+  # Тесты в пяти частях. Пять PDF-файлов — две части (characterization/render верстает все книги набора в beforeAll);
+  # остальные файлы (через --exclude) делятся на три шарда: новый тестовый файл попадает в них сам и не выпадет из
+  # проверки. Переименовали PDF-файл — его часть упадёт с «No test files found», а не пропустит тесты молча.
+  # Замер 05.11: одной частью «остальные» шли 306 с; локально теперь шарды по 13–17 с, PDF-части по 41–53 с.
   test:
     name: Тесты (${{ matrix.part }})
     runs-on: ubuntu-24.04
@@ -54,15 +55,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        part: [PDF 1, PDF 2, 1/3, 2/3, 3/3]
         include:
-          - part: PDF, границы раскрытия
-            files: tests/pdf-opener-limits.test.ts
-          - part: PDF, вёрстка
-            files: tests/pdf-critical.test.ts tests/pdf.test.tsx tests/cover-back-color.test.tsx
-          - part: остальные
-            files: >-
-              --exclude tests/pdf-opener-limits.test.ts --exclude tests/pdf-critical.test.ts
-              --exclude tests/pdf.test.tsx --exclude tests/cover-back-color.test.tsx
+          - part: PDF 1
+            args: tests/characterization/render.test.ts tests/pdf.test.tsx
+          - part: PDF 2
+            args: tests/pdf-opener-limits.test.ts tests/pdf-critical.test.ts tests/cover-back-color.test.tsx
+          - part: 1/3
+            args: --shard=1/3
+          - part: 2/3
+            args: --shard=2/3
+          - part: 3/3
+            args: --shard=3/3
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -71,7 +75,14 @@ jobs:
       # PDF-тесты сверяют текст и растр полос через pdftotext и pdftoppm.
       - name: poppler-utils для PDF-тестов
         run: sudo apt-get update -qq && sudo apt-get install -y -qq poppler-utils
-      - run: npx vitest run ${{ matrix.files }}
+      - name: vitest
+        run: |
+          if [[ "${{ matrix.part }}" == PDF* ]]; then
+            npx vitest run ${{ matrix.args }}
+          else
+            npx vitest run ${{ matrix.args }} --exclude tests/pdf-opener-limits.test.ts --exclude tests/pdf-critical.test.ts \
+              --exclude tests/pdf.test.tsx --exclude tests/cover-back-color.test.tsx --exclude tests/characterization/render.test.ts
+          fi
 
   # Сборка и архив релиза. Кэш .next/cache не сохраняем: это кэш Turbopack на гигабайты, а сборка (~1 мин) короче
   # тестов и общее время не задаёт.

@@ -14,6 +14,16 @@ import { runPdfTask, type PdfTask, type PdfTaskResult } from "./worker-tasks";
  */
 const WORKER_FILE = process.env.PDF_WORKER_FILE || path.join(process.cwd(), "pdf-worker.mjs");
 
+/**
+ * Предел кучи потока вёрстки, МБ. Без resourceLimits переполнение кучи в потоке валит весь процесс сайта (fatal OOM),
+ * с ним — только поток: задача получает ошибку ERR_WORKER_OUT_OF_MEMORY, следующая поднимет новый поток.
+ * 2048 — как неявный предел V8 на сервере (8 ГБ: heap_size_limit 2096 МБ), чтобы большие книги собирались как раньше.
+ */
+export function pdfWorkerHeapMb(value = process.env.PDF_WORKER_HEAP_MB): number {
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 16 ? Math.floor(n) : 2048;
+}
+
 let worker: Worker | null = null;
 let seq = 0;
 const pending = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void; report?: RenderReport }>();
@@ -28,7 +38,7 @@ function getWorker(): Worker | null {
   if (process.env.PDF_WORKER === "off" || !existsSync(WORKER_FILE)) return null;
   // Конструктор — через Reflect: увидев `new Worker(…)`, Turbopack пытается собрать воркер сам и падает при сборке.
   // Файл воркера собирает scripts/build-pdf-worker.mjs.
-  const w: Worker = Reflect.construct(Reflect.get(threads, "Worker") as typeof Worker, [WORKER_FILE]);
+  const w: Worker = Reflect.construct(Reflect.get(threads, "Worker") as typeof Worker, [WORKER_FILE, { resourceLimits: { maxOldGenerationSizeMb: pdfWorkerHeapMb() } }]);
   w.on("message", (m: { id: number; ok?: boolean; result?: unknown; error?: string; progress?: RenderEvent }) => {
     const p = pending.get(m.id);
     if (!p) return;

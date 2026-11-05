@@ -32,6 +32,27 @@ const sidecars = [
   },
 ].filter(Boolean);
 
+/**
+ * Фоновая работа (планировщик, сверка Kaspi, outbox, бот, IMAP, очередь видео) — отдельным процессом mybook-worker
+ * (ADR 0009), если он есть в релизе (worker.mjs рядом с server.js). Тогда сайту ставится MYBOOK_BACKGROUND=worker, и он
+ * фон не запускает. Откат на «всё в одном процессе» — MYBOOK_WORKER=off при запуске PM2 (deploy/deploy.sh делает это
+ * сам, если воркер не поднялся) или релиз без worker.mjs.
+ */
+const workerFile = path.join(releasesDir, "current", "worker.mjs");
+const useWorker = process.env.MYBOOK_WORKER !== "off" && fs.existsSync(workerFile);
+
+const worker = useWorker && {
+  name: "mybook-worker",
+  cwd: path.join(releasesDir, "current"),
+  script: "worker.mjs",
+  node_args: `--env-file=${path.join(root, ".env")}`,
+  env: { NODE_ENV: "production", TZ: "Asia/Almaty" },
+  // Фон рисует PDF подарочных сертификатов и предпросмотры (поток вёрстки — до ~1 ГБ на пике); обычно ~200–300 МБ.
+  max_memory_restart: "1500M",
+  kill_timeout: 5000,
+  time: true,
+};
+
 module.exports = {
   apps: [
     {
@@ -47,6 +68,7 @@ module.exports = {
         // rewrite считается внешним и за https-прокси падает с EPROTO. Слушает localhost на ::1 или 127.0.0.1 — nginx обращается к localhost.
         HOSTNAME: "localhost",
         TZ: "Asia/Almaty",
+        ...(useWorker ? { MYBOOK_BACKGROUND: "worker" } : {}),
       },
       // Сборка PDF книги с фото занимает до ~1 ГБ сверх обычных ~0,5 ГБ: при 1500M PM2 убивал процесс посреди генерации,
       // и сайт на секунды отдавал 502. Сервер 8 ГБ, остальные процессы ~2,4 ГБ; запас ~1,5 ГБ — копии на время выкатки
@@ -58,6 +80,7 @@ module.exports = {
       kill_timeout: 3000,
       time: true,
     },
+    ...(worker ? [worker] : []),
     ...sidecars,
   ],
 };

@@ -44,11 +44,8 @@ export async function registerNode() {
   }
   const { startCatalogSync } = await import("@/server/catalog");
   startCatalogSync();
-  const { startScheduler } = await import("@/server/scheduler");
-  startScheduler();
-  const { startWhatsappCallWatcher } = await import("@/server/whatsapp-call-watcher");
-  startWhatsappCallWatcher();
-  // Свои видео и аудио, которые ждали обработки при перезапуске: через минуту, когда выкатка закончит проверки.
-  const { kickAnswerFiles } = await import("@/server/answerFilesWorker");
-  setTimeout(kickAnswerFiles, 60_000).unref();
+  // Фон — здесь же или в отдельном процессе mybook-worker (deploy/ecosystem.config.cjs ставит MYBOOK_BACKGROUND=worker).
+  const { backgroundInWorker, startBackground } = await import("@/server/background");
+  if (backgroundInWorker()) console.log("[mybook] background jobs run in mybook-worker");
+  else await startBackground();
 }

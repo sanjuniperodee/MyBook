@@ -116,10 +116,27 @@ else
 fi
 
 # PM2 при reload не перечитывает cwd, поэтому процесс пересоздаётся (для fork-режима это тот же перезапуск, 1–2 с).
+# Фон — отдельным процессом mybook-worker, если он есть в релизе и не выключен MYBOOK_WORKER=off (решает ecosystem.config.cjs).
+has_worker() {
+  node -e 'process.exit(require("./deploy/ecosystem.config.cjs").apps.some((a) => a.name === "mybook-worker") ? 0 : 1)'
+}
 pm2_apply() {
   pm2 delete mybook >/dev/null 2>&1 || true
+  pm2 delete mybook-worker >/dev/null 2>&1 || true
   pm2 start deploy/ecosystem.config.cjs --only mybook
+  if has_worker; then pm2 start deploy/ecosystem.config.cjs --only mybook-worker; fi
   pm2 save
+}
+
+# Воркер жив: online и не перезапускался 15 секунд. 0 — всё хорошо (или воркера в релизе нет).
+check_worker() {
+  has_worker || return 0
+  sleep 15
+  pm2 jlist | node -e '
+    let s = ""; process.stdin.on("data", (d) => (s += d)).on("end", () => {
+      const w = JSON.parse(s).find((p) => p.name === "mybook-worker");
+      process.exit(w && w.pm2_env.status === "online" && w.pm2_env.restart_time === 0 ? 0 : 1);
+    });'
 }
 
 # Кэш предпросмотров при откате удаляем (пересоберётся по запросу): с 22.10 cache/preview/<книга>/<отпечаток>.pdf — сборка
@@ -184,6 +201,14 @@ if ! check_app "$PORT" 30; then
   exit 1
 fi
 echo "✓ MyBooks отвечает на localhost:$PORT ($(basename "$REL"))"
+# Без живого воркера стоят сверка Kaspi, бот и почта: тогда возвращаем фон в процесс сайта (запасная копия ещё отвечает).
+if ! check_worker; then
+  echo "✗ mybook-worker не поднялся — фон возвращён в процесс сайта (MYBOOK_WORKER=off). Логи: pm2 logs mybook-worker --nostream --lines 100"
+  MYBOOK_WORKER=off pm2_apply
+  check_app "$PORT" 30 || echo "✗ После возврата фона сайт не ответил — смотрите pm2 logs mybook"
+elif has_worker; then
+  echo "✓ mybook-worker работает: фон отдельно от сайта"
+fi
 # Основная версия отвечает — запасная больше не нужна.
 kill "$SMOKE_PID" 2>/dev/null || true
 # Next при SIGTERM ждёт открытые соединения (например, поток событий CRM) — не дольше 10 секунд, потом добиваем:

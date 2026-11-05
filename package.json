@@ -9,7 +9,7 @@
   ],
   "scripts": {
     "dev": "next dev",
-    "build": "next build && node scripts/build-pdf-worker.mjs && node scripts/check-browser-support.mjs",
+    "build": "next build && node scripts/build-pdf-worker.mjs && node scripts/build-worker.mjs && node scripts/check-browser-support.mjs",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
