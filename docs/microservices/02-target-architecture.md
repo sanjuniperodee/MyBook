@@ -1,5 +1,10 @@
 # 02. Целевая архитектура
 
+> **2026-11-05: направление изменено.** Ближайшая цель — модульный монолит + отдельные процессы
+> (render, messaging, scheduler) и быстрый CI, без микросервисов и без смены языка:
+> [ADR 0009](adr/0009-modular-monolith-with-workers.md). Ниже — target A, он остаётся справкой и
+> вариантом на случай триггеров из ADR 0009 §5.
+
 > Решения зафиксированы в ADR: [топология](adr/0001-target-topology.md),
 > [вынос бэкенда](adr/0002-backend-extraction-strategy.md),
 > [данные](adr/0003-data-ownership.md), [события/очереди](adr/0004-events-jobs-cache.md),
