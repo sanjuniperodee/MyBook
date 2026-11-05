@@ -30,6 +30,36 @@ describe("поток вёрстки PDF", () => {
     expect(pdfWorkerHeapMb("1536")).toBe(1536);
   });
 
+  it("простой: по умолчанию 10 мин, PDF_WORKER_IDLE_MIN меняет, 0 — не закрывать", async () => {
+    const { pdfWorkerIdleMs } = await import("@/modules/production/infrastructure/pdf/pool");
+    expect(pdfWorkerIdleMs(undefined)).toBe(600_000);
+    expect(pdfWorkerIdleMs("")).toBe(600_000);
+    expect(pdfWorkerIdleMs("abc")).toBe(600_000);
+    expect(pdfWorkerIdleMs("-1")).toBe(600_000);
+    expect(pdfWorkerIdleMs("0")).toBe(0);
+    expect(pdfWorkerIdleMs("0.01")).toBe(600);
+  });
+
+  it("после простоя поток закрывается, следующая задача поднимает новый", async () => {
+    vi.resetModules();
+    vi.stubEnv("PDF_WORKER_FILE", file);
+    vi.stubEnv("PDF_WORKER_IDLE_MIN", "0.005"); // 300 мс
+    vi.stubEnv("PDF_WORKER", "");
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    const { inPdfThread } = await import("@/modules/production/infrastructure/pdf/pool");
+    const run = inPdfThread as unknown as (job: { kind: string }) => Promise<unknown>;
+    await expect(run({ kind: "one" })).resolves.toBe("one");
+    await expect(run({ kind: "two" })).resolves.toBe("two");
+    const said = () => log.mock.calls.map((c) => String(c[0]));
+    expect(said().filter((m) => m.includes("запущен"))).toHaveLength(1);
+    await new Promise((r) => setTimeout(r, 700));
+    expect(said().some((m) => m.includes("закрыт после простоя"))).toBe(true);
+    await expect(run({ kind: "three" })).resolves.toBe("three");
+    expect(said().filter((m) => m.includes("запущен"))).toHaveLength(2);
+    log.mockRestore();
+    vi.unstubAllEnvs();
+  }, 30_000);
+
   it("переполнение кучи — ошибка задачи, процесс жив, следующая задача идёт в новом потоке", async () => {
     vi.resetModules();
     vi.stubEnv("PDF_WORKER_FILE", file);
