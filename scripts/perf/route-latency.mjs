@@ -4,7 +4,8 @@
 // Идентификаторы в путях (uuid, токены, числа) сводятся к :id/:token/:n, статика — в одну строку.
 //
 //   ssh <сервер> 'sudo cat /var/log/nginx/mybook-timing.log' | node scripts/perf/route-latency.mjs [--min 5] [--top 40]
-//   node scripts/perf/route-latency.mjs --file mybook-timing.log
+//   node scripts/perf/route-latency.mjs --file mybook-timing.log [--skip <regex>]
+// По умолчанию пропускаются долгие потоки (SSE /live/stream): они открыты минутами по замыслу и только портят p95.
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -33,7 +34,9 @@ function quantile(sorted, q) {
 }
 
 /** Строки лога → таблица по маршрутам (секунды). Строки другого формата пропускаются. */
-export function summarize(text, { min = 5 } = {}) {
+export const DEFAULT_SKIP = /\/stream$/;
+
+export function summarize(text, { min = 5, skip = DEFAULT_SKIP } = {}) {
   const by = new Map();
   let skipped = 0;
   for (const line of text.split("\n")) {
@@ -44,6 +47,7 @@ export function summarize(text, { min = 5 } = {}) {
       continue;
     }
     const [, , status, method, uri, total] = m;
+    if (skip && skip.test(uri)) continue;
     const key = `${method} ${routeOf(uri)}`;
     const r = by.get(key) ?? { key, times: [], errors: 0 };
     r.times.push(Number(total));
@@ -67,7 +71,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   };
   const file = arg("--file", null);
   const text = file ? readFileSync(file, "utf8") : readFileSync(0, "utf8");
-  const { rows, skipped, total } = summarize(text, { min: Number(arg("--min", 5)) });
+  const skipArg = arg("--skip", null);
+  const { rows, skipped, total } = summarize(text, { min: Number(arg("--min", 5)), skip: skipArg === null ? DEFAULT_SKIP : skipArg ? new RegExp(skipArg) : null });
   const top = Number(arg("--top", 40));
   const ms = (s) => Math.round(s * 1000);
   console.log(`Запросов: ${total}, маршрутов (≥ ${arg("--min", 5)} запросов): ${rows.length}, пропущено строк: ${skipped}\n`);

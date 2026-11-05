@@ -85,7 +85,7 @@ brew install poppler
 bash scripts/visual/check.sh HEAD --quick
 ```
 
-## 5. Где мы: P0–P6 на проде, P7 копит данные
+## 5. Где мы: план P0–P7 закрыт и на проде
 
 Направление — [ADR 0009](adr/0009-modular-monolith-with-workers.md): модульный монолит + процесс `mybook-worker`,
 TypeScript на Node. Сделано и выкачено 2026-11-05:
@@ -99,15 +99,16 @@ TypeScript на Node. Сделано и выкачено 2026-11-05:
 - **Поток PDF** с пределом кучи 2048 МБ (`PDF_WORKER_HEAP_MB`): переполнение роняет поток, а не сайт.
 - **Границы**: ESLint запрещает БД в `src/server` (кроме `container.ts`, `scheduler.ts`); дизайнер, свои видео/аудио,
   письмо о платеже — в модулях. Карта модулей — `docs/modules.md` (генерируется, тест свежести).
-- **Замер**: `docs/microservices/perf.md`; лог таймингов nginx `/var/log/nginx/mybook-timing.log`.
+- **Замер** (`docs/microservices/perf.md`): публичные страницы ~12 мс сервера, редактор и CRM p95 ≤ 65 мс; узкого
+  места нет. Лог таймингов nginx `/var/log/nginx/mybook-timing.log` пишется постоянно.
 
 Daiyn на сервере остановлен по просьбе владельца (PM2 `daiyn` удалён; файлы на месте).
 
 ## 6. Дальше
 
 - Неделя наблюдения: `pm2 logs mybook-worker`, сверка Kaspi/бот/почта идут; `pm2 jlist` — память воркера.
-- После недели: `ssh … 'sudo cat /var/log/nginx/mybook-timing.log' | node scripts/perf/route-latency.mjs` → таблица в
-  perf.md → оптимизировать только то, что медленно по цифрам.
+- Повторный замер по желанию: `ssh … 'sudo cat /var/log/nginx/mybook-timing.log' | node scripts/perf/route-latency.mjs`;
+  оптимизировать только маршрут с p95 > 300 мс вне окна выкатки.
 - Находка из perf.md: двойной адрес upstream `localhost:3040` (шум в error.log) — отдельной задачей.
 - Пересмотр ADR 0009 — только по его триггерам (§5).
 
@@ -139,7 +140,7 @@ docs/microservices. Сначала прочитай docs/microservices/HANDOFF.m
 затем docs/microservices/02-target-architecture.md и 03-migration-plan.md.
 
 Направление — ADR 0009: модульный монолит + mybook-worker, без микросервисов и смены языка.
-P0–P6 на проде; текущая задача — P7 (замеры) из PROGRESS.md. Пуш в master = выкатка на прод:
+План P0–P7 закрыт; новые задачи — только по триггерам ADR 0009 §5. Пуш в master = выкатка на прод:
 пушь только по явному «да» владельца в этой сессии. Обнови PROGRESS.md после задачи.
 
 Ограничения: не трогай чужие untracked-папки, не делай git add ., секреты не коммить.
