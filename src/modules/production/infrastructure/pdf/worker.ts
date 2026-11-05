@@ -3,12 +3,16 @@
  * (scripts/build-pdf-worker.mjs) и выполняет задачи из worker-tasks.ts по одной, пока основной поток отвечает сайту.
  */
 import { parentPort } from "node:worker_threads";
+import { configureSharpMemory } from "@/shared/infrastructure/sharpMemory";
 import { runPdfTask, type PdfTask } from "./worker-tasks";
 
 if (!parentPort) throw new Error("pdf-worker must run as a worker thread");
 const port = parentPort;
+// Поток грузит sharp заново, и его загрузка снова включает кэш libvips — общий с сайтом (ADR 0010).
+const ready = configureSharpMemory().catch((err) => console.error("[pdf-worker] sharp memory", err));
 
 port.on("message", async (msg: { id: number; job: PdfTask }) => {
+  await ready;
   try {
     // Ход работы — отдельными сообщениями с тем же id: ответ придёт после них.
     const result = await runPdfTask(msg.job, (progress) => port.postMessage({ id: msg.id, progress }));

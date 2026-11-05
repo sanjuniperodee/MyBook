@@ -41,6 +41,28 @@ describe("deploy/ecosystem.config.cjs", () => {
   it("MYBOOK_WORKER=off — фон возвращается в процесс сайта", () => {
     expect(apps({ MYBOOK_WORKER: "off" })).toEqual([{ name: "mybook" }]);
   });
+
+  const preload = (env: Record<string, string>) => {
+    const out = execFileSync(
+      process.execPath,
+      ["-e", 'const c = require("./deploy/ecosystem.config.cjs"); console.log(JSON.stringify(c.apps.filter((a) => a.name.startsWith("mybook")).map((a) => [a.name, a.env.LD_PRELOAD || null, a.env.MALLOC_CONF || null])))'],
+      { env: { PATH: process.env.PATH, MYBOOK_RELEASES_DIR: dir, MYBOOK_SIDECARS_DIR: path.join(dir, "none"), ...env } as unknown as NodeJS.ProcessEnv, encoding: "utf8" },
+    );
+    return JSON.parse(out) as [string, string | null, string | null][];
+  };
+
+  it("jemalloc (ADR 0010): есть библиотека — сайт и воркер с LD_PRELOAD, нет или off — обычный malloc", () => {
+    const lib = path.join(dir, "libjemalloc.so.2");
+    writeFileSync(lib, "");
+    const on = preload({ MYBOOK_JEMALLOC: lib });
+    expect(on.map(([name]) => name)).toEqual(["mybook", "mybook-worker"]);
+    for (const [, ld, conf] of on) {
+      expect(ld).toBe(lib);
+      expect(conf).toMatch(/background_thread:true/);
+    }
+    expect(preload({ MYBOOK_JEMALLOC: path.join(dir, "missing.so") }).every(([, ld]) => ld === null)).toBe(true);
+    expect(preload({ MYBOOK_JEMALLOC: "off" }).every(([, ld]) => ld === null)).toBe(true);
+  });
 });
 
 describe("заглушка next/* в воркере", () => {

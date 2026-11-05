@@ -32,6 +32,8 @@ function installVisualClock() {
 
 export async function registerNode() {
   installVisualClock();
+  const { configureSharpMemory } = await import("@/shared/infrastructure/sharpMemory");
+  await configureSharpMemory();
   if (process.env.SKIP_AUTO_MIGRATE !== "1") {
     const { runMigrations } = await import("@/shared/infrastructure/db/migrate");
     try {

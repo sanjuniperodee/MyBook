@@ -97,6 +97,7 @@ TypeScript на Node. Сделано и выкачено 2026-11-05:
   `MYBOOK_WORKER=off pm2 start deploy/ecosystem.config.cjs --only mybook` (или релиз без `worker.mjs`).
   `deploy.sh` сам возвращает фон в сайт, если воркер не поднялся за 15 с.
 - **Поток PDF** с пределом кучи 2048 МБ (`PDF_WORKER_HEAP_MB`): переполнение роняет поток, а не сайт; после 10 мин простоя поток закрывается и отдаёт память (`PDF_WORKER_IDLE_MIN`).
+- **Память sharp** (ADR 0010): кэш libvips выключен, сайт и воркер — на jemalloc (`MYBOOK_JEMALLOC=off` — откат).
 - **Границы**: ESLint запрещает БД в `src/server` (кроме `container.ts`, `scheduler.ts`); дизайнер, свои видео/аудио,
   письмо о платеже — в модулях. Карта модулей — `docs/modules.md` (генерируется, тест свежести).
 - **Замер** (`docs/microservices/perf.md`): публичные страницы ~12 мс сервера, редактор и CRM p95 ≤ 65 мс; узкого

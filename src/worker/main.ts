@@ -11,6 +11,7 @@ import path from "node:path";
 import { pool } from "@/shared/infrastructure/db";
 import { startCatalogSync } from "@/server/catalog";
 import { startBackground } from "@/server/background";
+import { configureSharpMemory } from "@/shared/infrastructure/sharpMemory";
 
 const MIGRATIONS_WAIT_MS = 10 * 60_000;
 
@@ -42,6 +43,7 @@ async function waitForMigrations() {
 }
 
 async function main() {
+  await configureSharpMemory();
   await waitForMigrations();
   startCatalogSync();
   // Видео, ждавшие обработки: сразу — выкатка сайта воркер не ждёт.

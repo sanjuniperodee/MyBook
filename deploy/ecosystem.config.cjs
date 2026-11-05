@@ -33,6 +33,18 @@ const sidecars = [
 ].filter(Boolean);
 
 /**
+ * Распределитель памяти jemalloc вместо malloc glibc для сайта и mybook-worker (ADR 0010): sharp/libvips и вёрстка PDF
+ * выделяют сотни МБ на короткое время, а malloc glibc почти не возвращает их системе — после прогрева фото-обложек сайт
+ * держал ~1,2 ГБ. jemalloc с фоновым потоком отдаёт освободившееся через ~1 с. Нет библиотеки (apt install libjemalloc2)
+ * или MYBOOK_JEMALLOC=off — обычный malloc, как раньше.
+ */
+const jemallocLib = process.env.MYBOOK_JEMALLOC || "/usr/lib/x86_64-linux-gnu/libjemalloc.so.2";
+const allocatorEnv =
+  process.env.MYBOOK_JEMALLOC !== "off" && fs.existsSync(jemallocLib)
+    ? { LD_PRELOAD: jemallocLib, MALLOC_CONF: "background_thread:true,dirty_decay_ms:1000,muzzy_decay_ms:0" }
+    : {};
+
+/**
  * Фоновая работа (планировщик, сверка Kaspi, outbox, бот, IMAP, очередь видео) — отдельным процессом mybook-worker
  * (ADR 0009), если он есть в релизе (worker.mjs рядом с server.js). Тогда сайту ставится MYBOOK_BACKGROUND=worker, и он
  * фон не запускает. Откат на «всё в одном процессе» — MYBOOK_WORKER=off при запуске PM2 (deploy/deploy.sh делает это
@@ -46,7 +58,7 @@ const worker = useWorker && {
   cwd: path.join(releasesDir, "current"),
   script: "worker.mjs",
   node_args: `--env-file=${path.join(root, ".env")}`,
-  env: { NODE_ENV: "production", TZ: "Asia/Almaty" },
+  env: { NODE_ENV: "production", TZ: "Asia/Almaty", ...allocatorEnv },
   // Фон рисует PDF подарочных сертификатов и предпросмотры (поток вёрстки — до ~1 ГБ на пике); обычно ~200–300 МБ.
   max_memory_restart: "1500M",
   kill_timeout: 5000,
@@ -69,6 +81,7 @@ module.exports = {
         HOSTNAME: "localhost",
         TZ: "Asia/Almaty",
         ...(useWorker ? { MYBOOK_BACKGROUND: "worker" } : {}),
+        ...allocatorEnv,
       },
       // Сборка PDF книги с фото занимает до ~1 ГБ сверх обычных ~0,5 ГБ: при 1500M PM2 убивал процесс посреди генерации,
       // и сайт на секунды отдавал 502. Сервер 8 ГБ, остальные процессы ~2,4 ГБ; запас ~1,5 ГБ — копии на время выкатки
