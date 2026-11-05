@@ -1,10 +1,10 @@
 ---
-updated: 2026-11-05T12:00:00+05:00
+updated: 2026-11-05T07:00:00+05:00
 branch: refactor/microservices
 wave: P
-task: P1
-status: todo
-next: "P1: быстрый CI — параллельные job-ы, шарды тестов, кэш .next (меняет deploy.yml → нужно «да» владельца на пуш)"
+task: P7
+status: in_progress
+next: "Через неделю: таблица p50/p95 по логу таймингов nginx (perf.md) и решение, что оптимизировать; наблюдать mybook-worker"
 blockers:
   - "S3: Yandex отвечает 403 SignatureDoesNotMatch — проверить секрет (нужен только волне 2, G0 не блокирует)"
 ---
@@ -20,10 +20,10 @@ blockers:
 |---|---|
 | Ветка | `refactor/microservices` |
 | Волна | P — модульный монолит + процессы ([ADR 0009](adr/0009-modular-monolith-with-workers.md)) |
-| Текущая задача | **P1 — быстрый CI** |
-| Статус | `todo` |
-| Следующее действие | P1 → P6 → P4 → P2 → P3 → P7 → P0 по таблице ниже; всё в ветке, пуш в master = выкатка — только по «да» |
-| Блокер | S3: Yandex 403 SignatureDoesNotMatch (нужен только P4) |
+| Текущая задача | **P7 — накопить замеры** (P0–P6 выкачены) |
+| Статус | `in_progress` |
+| Следующее действие | Неделя наблюдения: `pm2 logs mybook-worker`, сверка Kaspi и бот идут из воркера; затем таблица p95 в perf.md |
+| Блокер | нет (S3: Yandex 403 — для текущего плана не нужен) |
 | Последнее обновление | 2026-11-05 12:00 Asia/Almaty |
 
 ### Что уже сделано в этой сессии
@@ -68,13 +68,13 @@ TypeScript на Node, без Go и Bun/Deno. Target A (волны 1–6 ниже
 
 | ID | Задача | Шаги | Проверка | Статус |
 |---|---|---|---|---|
-| P1 | Быстрый CI | `deploy.yml`: job-ы `types`, `lint`, `test` (3 шарда, `vitest --shard`), `build` параллельно; `deploy` зависит от всех и идёт только при пуше в master; `pull_request` — проверки без выкатки; кэш `.next/cache` | прогон на PR без выкатки; время до готовности архива ≤ 4 мин | `todo` |
-| P6 | Процесс `mybook-worker` (бывшие P5+P6) | `src/worker/main.ts`: миграции не трогает, запускает планировщик, сверку каталога, сторож звонков WhatsApp, очередь видео; сборка esbuild как `pdf-worker`; `MYBOOK_WORKER=1` в web выключает фон; PM2-приложение `mybook-worker`; откат — убрать флаг | воркер поднимается на локальной БД и проходит тики; web без фона; тесты | `todo` |
-| P4 | Лимит памяти потока PDF | `resourceLimits` для потока вёрстки (env `PDF_WORKER_HEAP_MB`), падение потока = ошибка задачи, а не процесса сайта | тест: поток с крошечным лимитом падает, задача получает ошибку, следующая проходит | `todo` |
-| P2 | Границы `src/server` | правило линтера: в `src/server` БД только в корне композиции (`container.ts`, `scheduler.ts`) и в списке-храповике; дизайнер и свои видео — переносом в модуль `authoring` без изменения логики | линтер падает на новом прямом импорте; integration-тесты дизайнера и видео зелёные | `todo` |
-| P3 | Карта модулей | `scripts/microservices/module-map.mjs` генерирует `docs/modules.md`: назначение, фасад, таблицы, тесты; тест, что карта свежая | агент находит модуль по одному файлу | `todo` |
-| P7 | Замер скорости | внешний замер TTFB ключевых страниц прода; `log_format` с `$request_time` в `deploy/nginx-mybook.conf` и скрипт p50/p95 по маршрутам | таблица в `docs/microservices/perf.md` | `todo` |
-| P0 | Влить в master | PR `refactor/microservices` → master, CI на PR зелёный; слияние = выкатка, только по «да» | зелёный прогон PR | `todo` |
+| P1 | Быстрый CI | job-ы `types`, `lint`, `test` (5 частей: 2 PDF + 3 шарда), `build` параллельно; `deploy` ждёт все и только для master; на PR — без выкатки | прогон 1: 6,9 мин (было 8–15); узкое место «остальные» 306 с → шарды | `done` (`e7b11711`, `edee0e88`) |
+| P6 | Процесс `mybook-worker` (бывшие P5+P6) | `src/worker/main.ts` + `scripts/build-worker.mjs` (заглушка next/*); `MYBOOK_BACKGROUND=worker` у сайта; PM2 `mybook-worker`; `deploy.sh` возвращает фон в сайт, если воркер не поднялся; `MYBOOK_WORKER=off` — откат | воркер + сервер вместе на тестовой базе; тесты конфигурации PM2 | `done` (`edee0e88`) |
+| P4 | Лимит памяти потока PDF | `resourceLimits.maxOldGenerationSizeMb` = 2048 (как неявный предел V8 на сервере, 2096), `PDF_WORKER_HEAP_MB` | тест: поток с 32 МБ падает, задача — ошибка, следующая идёт | `done` (`edee0e88`) |
+| P2 | Границы `src/server` | ESLint: `src/server` не ходит в БД (кроме `container.ts`, `scheduler.ts`); дизайнер → authoring + reporting, письмо о платеже → identity, свои видео/аудио → authoring (`HttpError` → `AuthoringError`, те же статусы) | храповик пуст; интеграционные тесты дизайнера и видео на базе; статусы 415/413/503/409/422/402 | `done` |
+| P3 | Карта модулей | `scripts/microservices/module-map.mjs` → `docs/modules.md`, тест свежести | `tests/module-map.test.ts` | `done` |
+| P7 | Замер скорости | внешний TTFB (perf.md: сервер 10–45 мс на публичных страницах); nginx пишет `/var/log/nginx/mybook-timing.log`; `scripts/perf/route-latency.mjs` | таблица p95 — после недели данных | `in_progress` |
+| P0 | Влить в master | владелец разрешил пуш в master 05.11; выкатка поэтапно | прогоны CI зелёные, прод отвечает | `done` |
 
 ## Легенда
 
@@ -177,7 +177,7 @@ TypeScript на Node, без Go и Bun/Deno. Target A (волны 1–6 ниже
 | FK между схемами | 66 | 66 | 0 к волне 4 |
 | Файлов с `container()` | 202 | 202 | 202 (но транспорт HTTP) |
 | API-роутов | 138 | 138 | 138 |
-| Тестов | 4010 passed | 4023 passed | ≥ 4010 |
+| Тестов | 4010 passed | 4042+ passed | ≥ 4010 |
 | `tsc` | 0 | 0 | 0 |
 | Визуальные диффы | — | — | 0 |
 
@@ -202,6 +202,7 @@ TypeScript на Node, без Go и Bun/Deno. Target A (волны 1–6 ниже
 | 2026-11-05 | DeepSeek (DSH) | M0.3: Playwright-стенд страниц, seed, фиксированные часы, 40 эталонов | 40/40 два прогона, diff-пиксель ловится, `tsc`/`eslint` зелёные | M0.4 golden DTO + parity |
 | 2026-11-05 | DeepSeek (DSH) | S3: Yandex Object Storage, профиль `yc-storage`, `.env.local`, ADR 0008, `07-storage-s3.md`; коммит `8c268531` | ключи вне git, права 600; Yandex вернул 403 SignatureDoesNotMatch | M0.8 blocked (ключи), затем M0.4 |
 | 2026-11-05 | DeepSeek (DSH) | M0.4: golden DTO 8 моделей, parity-скелет, тесты; коммит `08ac5a7e`; S3: новые ключи, CLI и AWS SDK path-style — снова 403 | 8/8 golden дважды, 14 parity-тестов, `tsc` 0, полный `vitest` 4023 passed | M0.5 каркас монорепо |
+| 2026-11-05 | Claude Opus 5.5 | P0–P6 выкачены: параллельный CI, `mybook-worker`, лимит потока PDF, границы `src/server` (5 файлов → модули), карта модулей, лог таймингов nginx; Daiyn на сервере остановлен по просьбе владельца | tsc 0, eslint 0 ошибок, vitest 4042+ на чистом TMPDIR, интеграционные тесты дизайнера и видео, next build | P7: неделя наблюдения |
 | 2026-11-05 | Claude Opus 5.5 | Замер CI (тесты 224–351 с из 8–15 мин, сборка ~1 мин); решение ADR 0009: монолит + процессы, без Go/Bun; ADR 0001/0002 отложены; новый план P0–P7 | только документы | P1 быстрый CI (нужно «да» на пуш) |
 | 2026-11-05 | Claude Opus 5.5 | Ревью плана (`09-review-2026-11-05.md`), правки расхождений в 01–06 (Turborepo, RAM, порт 3060 занят Daiyn, G0 без S3); M0.5 доведён и закоммичен | `tsc` 0, `vitest` 4023 passed / 136 skipped, `next build` зелёный | G0 — решение владельца; без него — M0.6 |
 

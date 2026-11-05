@@ -29,7 +29,15 @@ export type AuthoringErrorCode =
   | "outlineNotAllowed"
   | "outlineOutdated"
   | "chaptersLimit"
-  | "chapterNotFound";
+  | "chapterNotFound"
+  // Свои видео и аудио к ответам (infrastructure/answerFiles.ts); HTTP-статусы — STATUS_BY_CODE в src/server/errors.ts.
+  | "fileType"
+  | "fileTooBig"
+  | "fileBusy"
+  | "fileLimit"
+  | "fileTooLong"
+  | "fileQuota"
+  | "fileChunk";
 
 export const AuthoringError = contextError<AuthoringErrorCode>("authoring", "AuthoringError");
 export type AuthoringError = InstanceType<typeof AuthoringError>;

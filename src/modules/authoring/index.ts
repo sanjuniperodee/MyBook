@@ -15,6 +15,9 @@ export * from "./domain";
 export type { BookBundle, BookRow, ChapterRow, LetterRow, PhotoRow, QuestionRow } from "./infrastructure/queries";
 export type { LayoutRev2Result, LayoutRevBackupBook } from "./application";
 export type { DesignAiAllowance, DesignAiPack, DesignAiPurchase } from "./infrastructure/designAiStore";
+/** Свои видео и аудио к ответам: загрузка, квота минут, покупки пакетов, очередь обработки (ffmpeg). Обёртки — src/server/answerFiles*.ts. */
+export * as answerFiles from "./infrastructure/answerFiles";
+export * as answerFilesWorker from "./infrastructure/answerFilesWorker";
 
 /** Публичный фасад контекста Authoring: книги, вопросы, оглавление своей книги, фото, письма близких. */
 export class AuthoringModule {

@@ -85,22 +85,31 @@ brew install poppler
 bash scripts/visual/check.sh HEAD --quick
 ```
 
-## 5. Следующий шаг: P1 — быстрый CI
+## 5. Где мы: P0–P6 на проде, P7 копит данные
 
-**Направление изменено** ([ADR 0009](adr/0009-modular-monolith-with-workers.md)): не микросервисы, а
-модульный монолит + отдельные процессы PM2 (`mybook-worker` для фона, PDF — в потоке с лимитом памяти) из той же кодовой базы;
-TypeScript на Node, без Go и Bun/Deno. Волны 1–6 и target A — справка, не план. Задачи — P0–P7 в
-[PROGRESS.md](PROGRESS.md).
+Направление — [ADR 0009](adr/0009-modular-monolith-with-workers.md): модульный монолит + процесс `mybook-worker`,
+TypeScript на Node. Сделано и выкачено 2026-11-05:
 
-P1: в `.github/workflows/deploy.yml` разнести типы/линтер/тесты/сборку на параллельные job-ы,
-тесты — `vitest --shard` (PDF-тесты отдельно, они ~150 с из 290), кэш `.next/cache`; выкатка — job,
-зависящий от всех. Цель — пуш → прод ≤ 4–5 мин. **Пуш в master = выкатка на прод: без «да»
-владельца не пушить.** Проверять можно на отдельной ветке через `workflow_dispatch` без шага выкатки.
+- **CI** (`.github/workflows/deploy.yml`): типы, линтер, тесты в 5 частях, сборка — параллельно; выкатка ждёт всё и
+  только для master; на PR — без выкатки. Новый тестовый файл сам попадает в шарды.
+- **`mybook-worker`**: фон (планировщик, сверка Kaspi, outbox, бот, IMAP, звонки WhatsApp, очередь видео) — отдельный
+  PM2-процесс из `worker.mjs` того же релиза. Сайт с `MYBOOK_BACKGROUND=worker` фон не запускает. Откат:
+  `MYBOOK_WORKER=off pm2 start deploy/ecosystem.config.cjs --only mybook` (или релиз без `worker.mjs`).
+  `deploy.sh` сам возвращает фон в сайт, если воркер не поднялся за 15 с.
+- **Поток PDF** с пределом кучи 2048 МБ (`PDF_WORKER_HEAP_MB`): переполнение роняет поток, а не сайт.
+- **Границы**: ESLint запрещает БД в `src/server` (кроме `container.ts`, `scheduler.ts`); дизайнер, свои видео/аудио,
+  письмо о платеже — в модулях. Карта модулей — `docs/modules.md` (генерируется, тест свежести).
+- **Замер**: `docs/microservices/perf.md`; лог таймингов nginx `/var/log/nginx/mybook-timing.log`.
+
+Daiyn на сервере остановлен по просьбе владельца (PM2 `daiyn` удалён; файлы на месте).
 
 ## 6. Дальше
 
-P2 (границы модулей) и P3 (карта модулей) — без риска для прода. P6 (`mybook-worker`) и P4 (лимит потока PDF), с
-откатом на «всё в одном процессе» через env-флаг.
+- Неделя наблюдения: `pm2 logs mybook-worker`, сверка Kaspi/бот/почта идут; `pm2 jlist` — память воркера.
+- После недели: `ssh … 'sudo cat /var/log/nginx/mybook-timing.log' | node scripts/perf/route-latency.mjs` → таблица в
+  perf.md → оптимизировать только то, что медленно по цифрам.
+- Находка из perf.md: двойной адрес upstream `localhost:3040` (шум в error.log) — отдельной задачей.
+- Пересмотр ADR 0009 — только по его триггерам (§5).
 
 ## 7. Карта важных файлов
 
@@ -129,9 +138,9 @@ P2 (границы модулей) и P3 (карта модулей) — без 
 docs/microservices. Сначала прочитай docs/microservices/HANDOFF.md и PROGRESS.md,
 затем docs/microservices/02-target-architecture.md и 03-migration-plan.md.
 
-Направление — ADR 0009: модульный монолит + отдельные процессы, без микросервисов и смены
-языка. Волну 1 (web/api + RPC) не начинай. Текущая задача — P1 (быстрый CI) из PROGRESS.md.
-Прод не выкатывай и в master не пушь без «да» владельца. Обнови PROGRESS.md после задачи.
+Направление — ADR 0009: модульный монолит + mybook-worker, без микросервисов и смены языка.
+P0–P6 на проде; текущая задача — P7 (замеры) из PROGRESS.md. Пуш в master = выкатка на прод:
+пушь только по явному «да» владельца в этой сессии. Обнови PROGRESS.md после задачи.
 
 Ограничения: не трогай чужие untracked-папки, не делай git add ., секреты не коммить.
 ```

@@ -16,7 +16,7 @@ describe("src/server и БД", () => {
       expect(DB_IMPORT.test(readFileSync(p, "utf8")), `${file} больше не ходит в БД — уберите его из списка в eslint.config.mjs`).toBe(true);
     });
   }
-  it("список исключений не растёт", () => {
-    expect((serverDbLegacy as string[]).length).toBeLessThanOrEqual(2);
+  it("исключений нет: все запросы к БД — в модулях", () => {
+    expect((serverDbLegacy as string[]).length).toBe(0);
   });
 });

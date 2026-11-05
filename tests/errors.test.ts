@@ -5,7 +5,7 @@ import { PaymentError, ReceiptError } from "@/modules/sales";
 import { SalesError } from "@/modules/sales/domain";
 import { WazzupError } from "@/modules/messaging";
 import { OrderingError, type OrderingErrorCode } from "@/modules/ordering/domain";
-import type { AuthoringErrorCode } from "@/modules/authoring/domain";
+import { AuthoringError, type AuthoringErrorCode } from "@/modules/authoring/domain";
 import { messagesFor } from "@/i18n/messages";
 import { domainStatus } from "@/server/errors";
 import { actionError, staffActionError } from "@/server/errors";
@@ -113,6 +113,7 @@ describe("ошибки Authoring: у каждого кода — текст api 
     bookNotFound: 1, bookLocked: 1, bookHasOrders: 1, questionNotFound: 1, questionsLimit: 1, onlyOwnQuestions: 1, photoNotFound: 1, photosPick: 1, photosLimit: 1, photosOutdated: 1, photoEditInvalid: 1,
     unknownCover: 1, unknownInterior: 1, unknownBackLayout: 1, unknownFormat: 1, unknownOccasion: 1, unknownTocMode: 1, unknownLanguage: 1, letterNotFound: 1, letterInvalid: 1, letterClosed: 1, letterPrinted: 1, letterLimit: 1,
     unknownTheme: 1, outlineNotAllowed: 1, outlineOutdated: 1, chaptersLimit: 1, chapterNotFound: 1,
+    fileType: 1, fileTooBig: 1, fileBusy: 1, fileLimit: 1, fileTooLong: 1, fileQuota: 1, fileChunk: 1,
   } satisfies Record<AuthoringErrorCode, 1>;
 
   it("текст есть на ru и kk (роуты отдают его по коду домена)", () => {
@@ -121,6 +122,13 @@ describe("ошибки Authoring: у каждого кода — текст api 
       for (const code of Object.keys(codes)) expect([locale, code, typeof api[code]]).not.toEqual([locale, code, "undefined"]);
     }
     expect(messagesFor("ru").api.chaptersLimit(50)).toBe("В книге может быть до 50 глав");
+  });
+
+  it("свои видео и аудио: те же статусы, что отдавал HttpError до переноса в модуль (ADR 0009 P2)", () => {
+    expect(["fileType", "fileTooBig", "fileBusy", "fileLimit", "fileTooLong", "fileQuota", "fileChunk"].map(domainStatus)).toEqual([415, 413, 503, 409, 422, 402, 409]);
+    const tooBig = new AuthoringError("fileTooBig", undefined, [2]);
+    expect([tooBig.code, [...tooBig.params], AuthoringError.is(tooBig)]).toEqual(["fileTooBig", [2], true]);
+    expect(messagesFor("ru").api.fileTooBig(2)).toMatch(/2/);
   });
 
   it("оглавление своей книги: не та книга и устаревший вид — 409, нет главы — 404, лимит и тема — 400", () => {

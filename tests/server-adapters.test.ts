@@ -83,6 +83,14 @@ describe("api(): перевод ошибок в HTTP", () => {
       // Оглавление своей книги: не та книга и устаревший вид у клиента — конфликт состояния.
       outlineNotAllowed: 409,
       outlineOutdated: 409,
+      // Свои видео и аудио (authoring, ADR 0009 P2): те же статусы, что отдавал HttpError до переноса в модуль.
+      fileType: 415,
+      fileTooBig: 413,
+      fileBusy: 503,
+      fileLimit: 409,
+      fileTooLong: 422,
+      fileQuota: 402,
+      fileChunk: 409,
       // …NotFound и «notFound» (регистр не важен, B10) → 404
       notFound: 404,
       bookNotFound: 404,

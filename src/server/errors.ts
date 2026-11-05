@@ -41,6 +41,14 @@ export function errorText(t: ApiMessages, key: string, params: unknown[] = []): 
  * Статус HTTP для кода ошибки домена. Код, которого нет в реестре, — 400; «notFound» и коды «…NotFound» — 404.
  */
 const STATUS_BY_CODE = new Map<string, number>([
+  // Свои видео и аудио (authoring/infrastructure/answerFiles.ts): те же статусы, что отдавал прежний HttpError.
+  ["fileType", 415],
+  ["fileTooBig", 413],
+  ["fileBusy", 503],
+  ["fileLimit", 409],
+  ["fileTooLong", 422],
+  ["fileQuota", 402],
+  ["fileChunk", 409],
   ["bookLocked", 409],
   ["bookHasOrders", 409],
   ["letterPrinted", 409],

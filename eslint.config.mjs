@@ -60,7 +60,7 @@ const zones = [
  * уберите его отсюда (tests/server-db-boundary.test.ts напомнит). Типы строк из схемы (import type) — можно везде.
  */
 export const serverDbRoots = ["src/server/container.ts", "src/server/scheduler.ts"];
-export const serverDbLegacy = ["src/server/answerFiles.ts", "src/server/answerFilesWorker.ts"];
+export const serverDbLegacy = [];
 
 const config = [
   ...nextVitals,
