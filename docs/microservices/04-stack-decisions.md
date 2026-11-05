@@ -22,7 +22,7 @@
 | Метрики | Prometheus + Grafana | Стандарт; алерты по RED/очередям/outbox |
 | Ошибки | Sentry | Фронт + сервисы, release/commit |
 | Контракты | OpenAPI 3.1 + `openapi-typescript`/`openapi-fetch` | Понятно вне TS, генерация клиента |
-| Монорепо | npm workspaces + Turborepo | Прод на npm; меньше миграции, чем pnpm; кэш сборки |
+| Монорепо | npm workspaces; Turborepo — с M1.1 | Прод на npm; меньше миграции, чем pnpm; кэш сборки нужен, когда появятся два приложения |
 | Локально | Docker Compose (PG, Redis, NATS, MinIO, Mailpit) | Одинаково у всех; прод — PM2/Compose по решению |
 | Прод | PM2 + nginx (сейчас), Docker Compose (позже) | Уже работает; K8s не нужен |
 
@@ -233,6 +233,6 @@
 
 ## 6. Бюджет памяти (напоминание)
 
-Полный target A — ~5.2–7.3 ГБ RSS. На 8 ГБ с чужими проектами это впритык. До волны 2 нужно
+Полный target A — ~5.1–7.1 ГБ RSS. На 8 ГБ с чужими проектами это впритык. До волны 2 нужно
 решение: +RAM, вторая машина или внешний S3 + жёсткие лимиты. См.
 [02-target-architecture.md](02-target-architecture.md#11-деплой-и-сеть).

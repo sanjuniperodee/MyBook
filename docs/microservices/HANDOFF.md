@@ -12,6 +12,8 @@
 - Baseline: `tsc` 0, `vitest` 4010 passed / 135 skipped / 0 failed.
 - **M0.3 готов:** 40 визуальных эталонов (20 страниц × desktop/mobile), два прогона подряд 40/40.
   Подробно — `tests/visual/pages.README.md`.
+- **M0.5 готов:** npm workspaces + заготовки пакетов, `08-monorepo.md`; `next build` зелёный.
+- **Ревью плана:** `09-review-2026-11-05.md` — вопросы к G0.
 - **M0.4 готов:** 8 golden DTO (`tests/microservices/golden/`), parity-скелет `src/server/parity.ts`,
   14 тестов; `golden:check` — 0 mismatch дважды.
 - **S3:** выбран Yandex Object Storage (бакет `mybooks`), профиль `yc-storage` и `S3_*` в `.env.local`
@@ -83,37 +85,31 @@ brew install poppler
 bash scripts/visual/check.sh HEAD --quick
 ```
 
-## 5. Следующая задача: M0.5 — каркас монорепо без переноса кода
+## 5. Следующий шаг: гейт G0 (решение владельца)
 
-**Цель:** подготовить структуру `apps/` + `packages/`, не двигая код и не меняя поведение.
+M0.5 закрыт: npm workspaces, заготовки `@mybook/contracts` и `@mybook/platform-kit`, README в
+`apps/` и `infra/compose/`, раскладка — `08-monorepo.md`. Код не переносился.
 
-Шаги:
+Перед G0 владельцу передано ревью плана — [09-review-2026-11-05.md](09-review-2026-11-05.md). Главное:
+план не называет продуктовую причину; волна 1 (web/api + RPC) дорогая и почти без пользы; сервер
+общий с DoseWear/my-test/Daiyn и может уменьшиться до 4 ГБ; рекомендуется сначала «монолит +
+воркеры» (render, conversations) и слияние волны 0 в master. **Не начинай волну 1, пока владелец не
+ответил на G0-a…e.**
 
-1. Зафиксировать baseline: `npx tsc --noEmit`, `npm test`, `npm run build` — зелёные.
-2. Создать заготовки:
-   - `apps/README.md` — будущие `web` и `api`;
-   - `packages/contracts/package.json` — `@mybook/contracts`, private, type module, пустой `src/index.ts`;
-   - `packages/platform-kit/` — заготовка env/logger/otel (можно только README);
-   - `infra/compose/` — README, без запуска.
-3. Решить, добавлять ли `workspaces` в корневой `package.json` сейчас. Если добавлять —
-   только `apps/*`, `packages/*`, без переноса `src`; `npm install` должен обновить lockfile
-   предсказуемо, а `npm test`/`npm run build` — остаться зелёными. Если это ломает Next/tsc —
-   отложить workspaces до M1.1 и ограничиться папками/документами.
-4. Не добавлять Turborepo/pnpm «на будущее», пока нет второго приложения: лишняя зависимость
-   и lockfile-шум. Turborepo — в M1.1, когда появятся `apps/web` и `apps/api`.
-5. Обновить PROGRESS: M0.5 `done`, следующая M0.6.
+Без ответа владельца безопасно:
 
-Критерий готовности:
+- **M0.6 — CI на PR:** отдельный workflow (не трогать `deploy.yml`, он катит прод): typecheck, lint,
+  vitest, architecture test; визуальный job с Postgres — эталоны для Linux снимать отдельно.
+- **S3:** проверить секрет без вывода значений (длина, пробелы/переносы, тип ключа — нужен
+  статический ключ доступа, не API-ключ).
+- **Границы:** предложить расширение `tests/architecture.test.ts` на `src/server` и `src/lib`
+  (сейчас 17 файлов вне `src/app/api` ходят в БД напрямую).
 
-- `npx tsc --noEmit`, `npm test`, `npm run build` — зелёные.
-- В `src/` ничего не переехало; UI/поведение не менялись.
-- Структура и правило «что куда поедет в M1.1» описаны в `docs/microservices/08-monorepo.md`.
+## 6. После G0
 
-## 6. После M0.5
-
-- M0.6: CI-гейты (включая визуальный job с Postgres; эталоны для Linux-раннера снять отдельно).
-- M0.7: релизный манифест/откат.
-- Затем **остановиться и спросить G0**: target A? RAM? деплой? Доступ к S3 — проверить отдельно.
+- Если «монолит + воркеры»: render-worker отдельным PM2-процессом из той же кодовой базы, затем
+  conversations-worker; план 03 переписать под это (ADR).
+- Если target A: закрыть пункты 09 §3 до M1.2; publishing на порт 3065; M1.1 — маленькими PR в master.
 
 ## 7. Карта важных файлов
 
@@ -142,14 +138,12 @@ bash scripts/visual/check.sh HEAD --quick
 docs/microservices. Сначала прочитай docs/microservices/HANDOFF.md и PROGRESS.md,
 затем docs/microservices/02-target-architecture.md и 03-migration-plan.md.
 
-Сейчас волна 0, задача M0.5: каркас монорепо без переноса кода.
-Код приложения не меняй. Прод не выкатывай. Не начинай волну 1 без гейта G0.
+Волна 0 почти закрыта (M0.1–M0.5). Прочитай docs/microservices/09-review-2026-11-05.md:
+волна 1 не начинается, пока владелец не ответил на вопросы G0.
+Код приложения не меняй. Прод не выкатывай.
 
-Сделай:
-1. apps/ и packages/ заготовки, infra/compose/README;
-2. реши вопрос с workspaces: добавляй только если npm test/build остаются зелёными;
-3. docs/microservices/08-monorepo.md с раскладкой и планом M1.1;
-4. обнови PROGRESS.md (M0.5 done, следующая M0.6).
+Если G0 не решён — делай M0.6 (CI на PR отдельным workflow, deploy.yml не трогать).
+Обнови PROGRESS.md после задачи.
 
 Ограничения: не трогай чужие untracked-папки, не делай git add ., секреты не коммить.
 ```

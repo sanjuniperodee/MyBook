@@ -1,13 +1,13 @@
 ---
-updated: 2026-11-05T05:00:00+05:00
+updated: 2026-11-05T12:00:00+05:00
 branch: refactor/microservices
 wave: 0
-task: M0.5
-status: pending
-next: "Создать каркас монорепо (apps/packages) без переноса кода (M0.5)"
+task: G0
+status: blocked
+next: "G0: владелец выбирает направление (target A или монолит+воркеры, см. 09-review); волна 0 безопасна — M0.6 можно делать"
 blockers:
-  - "G0: нужно подтверждение target A и бюджета RAM/деплоя (S3 решён)"
-  - "S3: Yandex отвечает 403 SignatureDoesNotMatch — перепроверить/перевыпустить ключи"
+  - "G0: решение владельца по направлению, памяти сервера (8 или 4 ГБ) и деплою — см. 09-review-2026-11-05.md"
+  - "S3: Yandex отвечает 403 SignatureDoesNotMatch — проверить секрет (нужен только волне 2, G0 не блокирует)"
 ---
 
 # PROGRESS — рефакторинг MyBooks на сервисы
@@ -21,11 +21,11 @@ blockers:
 |---|---|
 | Ветка | `refactor/microservices` |
 | Волна | 0 — страховочная сетка |
-| Текущая задача | **M0.5 — каркас монорепо без переноса кода** |
-| Статус | `pending` |
-| Следующее действие | Добавить npm workspaces/Turborepo, `apps/` и `packages/` заготовки; `npm test`/`build` не ломать |
-| Блокер | G0: target A + RAM/деплой; S3: Yandex 403 SignatureDoesNotMatch |
-| Последнее обновление | 2026-11-05 04:55 Asia/Almaty |
+| Текущая задача | **G0 — решение владельца** (M0.5 закрыт) |
+| Статус | `blocked` |
+| Следующее действие | Владелец читает [09-review-2026-11-05.md](09-review-2026-11-05.md) и отвечает на G0-a…e; без ответа можно делать M0.6 (CI на PR) |
+| Блокер | G0: направление, память сервера, деплой; S3: Yandex 403 SignatureDoesNotMatch (только для волны 2) |
+| Последнее обновление | 2026-11-05 12:00 Asia/Almaty |
 
 ### Что уже сделано в этой сессии
 
@@ -43,6 +43,9 @@ blockers:
   (ключи вне git). Документы — `07-storage-s3.md`, ADR 0008.
 - Код приложения менялся только в тестовой обвязке (`src/instrumentation-node.ts` — часы под `VISUAL_NOW`);
   бизнес-логика и UI не тронуты; в прод ничего не выкатывалось.
+- **M0.5:** npm workspaces (`apps/*`, `packages/*`), заготовки `@mybook/contracts`, `@mybook/platform-kit`,
+  README в `apps/` и `infra/compose/`; `08-monorepo.md`. Код не переносился.
+- **Ревью плана:** [09-review-2026-11-05.md](09-review-2026-11-05.md) — вопросы к G0; расхождения в 01–06 поправлены.
 
 ## Легенда
 
@@ -58,7 +61,7 @@ blockers:
 
 | Волна | Статус | Гейт | Заметка |
 |---|---|---|---|
-| 0 — страховочная сетка | `in_progress` | G0 | baseline, план и визуал готовы; parity/монорепо впереди |
+| 0 — страховочная сетка | `in_progress` | G0 | baseline, визуал, golden/parity, каркас готовы; CI и манифест впереди |
 | 1 — web + api | `todo` | G1 | нельзя начинать без G0 |
 | 2 — publishing + render | `todo` | G2 | нужен бюджет RAM и S3 |
 | 3 — conversations | `todo` | G3 | после стабилизации волны 2 |
@@ -76,9 +79,9 @@ blockers:
 | M0.2 | План, ADR, PROGRESS, HANDOFF | `done` | `refactor/microservices` `05729c23` | документы linked, `tsc`/`vitest` не трогались | 2026-11-05 |
 | M0.3 | Playwright-скриншоты админки/кабинета | `done` | `refactor/microservices` `8c268531` | 40/40 два прогона; diff-пиксель ловится | 2026-11-05 |
 | M0.4 | Golden DTO + parity shadow | `done` | `refactor/microservices` `08ac5a7e` | 8 golden, 0 mismatch дважды; 14 parity-тестов | 2026-11-05 |
-| M0.5 | Каркас монорепо (без переноса) | `pending` | — | `npm test`/`build` зелёные | **следующая** |
-| M0.6 | CI-гейты | `pending` | — | PR-blocking checks | после M0.5 |
-| M0.7 | Релизный манифест и откат | `pending` | — | smoke/rollback описаны | до волны 1 |
+| M0.5 | Каркас монорепо (без переноса) | `done` | `refactor/microservices` | `tsc` 0, `vitest` 4023 passed, `next build` зелёный | 2026-11-05; Turborepo отложен до M1.1 |
+| M0.6 | CI-гейты | `todo` | — | PR-blocking checks | после M0.5 |
+| M0.7 | Релизный манифест и откат | `todo` | — | smoke/rollback описаны | до волны 1 |
 | M0.8 | Yandex S3: профиль, ключи, документы | `blocked` | `refactor/microservices` | `head-bucket` → 403 SignatureDoesNotMatch | ключи вне git; нужен перевыпуск/проверка |
 
 ### Волна 1 (не начинать без G0)
@@ -116,7 +119,7 @@ blockers:
 
 | # | Вопрос | Варианты | Рекомендация | Статус |
 |---|---|---|---|---|
-| Q1 | Target | A (6 деплойментов) / B (8) / монолит+воркеры | **A** | ждёт |
+| Q1 | Target | A (6 деплойментов) / B (8) / монолит+воркеры | план: **A**; ревью: **монолит+воркеры** сначала (09 §5) | ждёт |
 | Q2 | Память | +4–8 ГБ / вторая машина / внешний S3 + лимиты | +8 ГБ или вторая машина к волне 3 | ждёт |
 | Q3 | S3 | ~~MinIO / внешний~~ | **Решено: Yandex Object Storage**, бакет `mybooks`; доступ ждёт проверки ключей | `blocked` |
 | Q4 | Деплой | PM2 (как сейчас) / Docker Compose | PM2 на волне 1, Compose — позже | ждёт |
@@ -145,7 +148,7 @@ blockers:
 | FK между схемами | 66 | 66 | 0 к волне 4 |
 | Файлов с `container()` | 202 | 202 | 202 (но транспорт HTTP) |
 | API-роутов | 138 | 138 | 138 |
-| Тестов | 4010 passed | 4010 passed | ≥ 4010 |
+| Тестов | 4010 passed | 4023 passed | ≥ 4010 |
 | `tsc` | 0 | 0 | 0 |
 | Визуальные диффы | — | — | 0 |
 
@@ -170,6 +173,7 @@ blockers:
 | 2026-11-05 | DeepSeek (DSH) | M0.3: Playwright-стенд страниц, seed, фиксированные часы, 40 эталонов | 40/40 два прогона, diff-пиксель ловится, `tsc`/`eslint` зелёные | M0.4 golden DTO + parity |
 | 2026-11-05 | DeepSeek (DSH) | S3: Yandex Object Storage, профиль `yc-storage`, `.env.local`, ADR 0008, `07-storage-s3.md`; коммит `8c268531` | ключи вне git, права 600; Yandex вернул 403 SignatureDoesNotMatch | M0.8 blocked (ключи), затем M0.4 |
 | 2026-11-05 | DeepSeek (DSH) | M0.4: golden DTO 8 моделей, parity-скелет, тесты; коммит `08ac5a7e`; S3: новые ключи, CLI и AWS SDK path-style — снова 403 | 8/8 golden дважды, 14 parity-тестов, `tsc` 0, полный `vitest` 4023 passed | M0.5 каркас монорепо |
+| 2026-11-05 | Claude Opus 5.5 | Ревью плана (`09-review-2026-11-05.md`), правки расхождений в 01–06 (Turborepo, RAM, порт 3060 занят Daiyn, G0 без S3); M0.5 доведён и закоммичен | `tsc` 0, `vitest` 4023 passed / 136 skipped, `next build` зелёный | G0 — решение владельца; без него — M0.6 |
 
 ## Как обновлять этот файл
 

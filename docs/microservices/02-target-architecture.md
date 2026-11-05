@@ -295,7 +295,7 @@ region `ru-central1`). Ключи — вне репозитория; локал�
 ```
 nginx :443
   /                 → web:3040
-  /api/books/...    → publishing:3060
+  /api/books/...    → publishing:3065   (3060/3061 на сервере заняты Daiyn)
   /api/payments/... → core:3050
   /api/integrations/... → conversations:3070
   /api/...          → core:3050 (пока)
@@ -325,6 +325,10 @@ nginx :443
 | Postgres (shared buffers + connections) | 800–1200 МБ |
 | ОС + прочее | ~1000 МБ |
 | **Итого** | **~5.1–7.1 ГБ** |
+
+> В таблице только MyBooks. На том же сервере живут DoseWear, my-test, Daiyn, kaspi-pos и GOWA
+> (~3 ГБ занято без нагрузки), а мониторинг (Prometheus/Grafana/OTel collector) не учтён. См.
+> [09-review-2026-11-05.md](09-review-2026-11-05.md).
 
 На 8 ГБ с чужими проектами это впритык. До волны 3 нужно одно из:
 

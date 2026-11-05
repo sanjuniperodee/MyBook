@@ -32,7 +32,7 @@ npm run dev                                      # web:3000 + api:3050 (concurre
 |---|---:|
 | web | 3000 |
 | api | 3050 |
-| publishing | 3060 |
+| publishing | 3065 (3060/3061 на проде заняты Daiyn) |
 | conversations | 3070 |
 | platform | 3080 |
 | ai | 3090 |

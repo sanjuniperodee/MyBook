@@ -139,6 +139,8 @@ ai (LLM gateway)
 | [05-contracts-and-parity.md](05-contracts-and-parity.md) | API, события, auth, идемпотентность, визуальная и DTO-совместимость |
 | [06-operations.md](06-operations.md) | Локальный стенд, деплой, миграции, наблюдаемость, бэкапы |
 | [07-storage-s3.md](07-storage-s3.md) | Yandex Object Storage: бакет, профиль, переменные, миграция файлов |
+| [08-monorepo.md](08-monorepo.md) | Каркас монорепо (M0.5) и что куда поедет в M1.1 |
+| [09-review-2026-11-05.md](09-review-2026-11-05.md) | Критика плана перед G0: зачем, порядок волн, дыры волны 1, процесс |
 | [PROGRESS.md](PROGRESS.md) | Живой журнал: статус, доска, решения, следующий шаг |
 | [HANDOFF.md](HANDOFF.md) | Передача смены: как подхватить и что нельзя ломать |
 | [adr/](adr/) | Принятые решения (ADR) |
