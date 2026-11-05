@@ -1,28 +1,21 @@
 import "server-only";
-import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
-import { db } from "@/shared/infrastructure/db";
-import { executor } from "@/shared/infrastructure/database";
-import { designAiCredits, designAiPurchases, designAiRequests } from "@/shared/infrastructure/db/schema";
 import type { AiPack } from "@/config/site";
 import { parseFreeLimit, type DesignTarget } from "@/lib/book/design-ai";
-import { getSetting } from "@/modules/workspace";
+import type { DesignAiAllowance, DesignAiPurchase } from "@/modules/authoring";
 import { DEFAULT_PRICES } from "@/modules/assistant";
+import { getSetting } from "@/modules/workspace";
+import type { Database } from "@/shared/infrastructure/database";
+import { container } from "@/server/container";
 
 /**
- * Учёт просьб к ИИ-дизайнеру: 5 бесплатных на клиента за всё время и купленные запросы сверх них. Резерв берётся под
- * блокировкой клиента — две вкладки не потратят один последний запрос дважды; если модель не ответила, резерв
- * возвращается (бесплатный — не считается, купленный — возвращается на баланс).
+ * ИИ-дизайнер для роутов, действий и container: учёт запросов и покупок — в модуле authoring
+ * (container().authoring.designAi), здесь — то, что связывает его с соседями: лимит бесплатных из настроек
+ * рабочего пространства и стоимость ответа по прайсу assistant (ADR 0009 P2: src/server в БД не ходит).
  */
 
-export interface DesignAiAllowance {
-  limit: number;
-  /** Бесплатных осталось. */
-  remaining: number;
-  /** Купленных запросов на балансе. */
-  credits: number;
-}
+export type { DesignAiAllowance, DesignAiPurchase };
 
-const LOCK = 7_301_224;
+const store = () => container().authoring.designAi;
 
 /** Стоимость ответа по прайсу Anthropic в долларах (токены из журнала ИИ-дизайнера); модели нет в прайсе — null. */
 export function designAiCostUsd(usage: Record<string, number>, model: string): number | null {
@@ -37,105 +30,40 @@ export async function designAiFreeLimit(): Promise<number> {
   return parseFreeLimit(await getSetting("designAi.freeLimit"));
 }
 
-async function usedFree(tx: Pick<typeof db, "select">, userId: string) {
-  const [r] = await tx
-    .select({ n: count() })
-    .from(designAiRequests)
-    .where(and(eq(designAiRequests.userId, userId), eq(designAiRequests.source, "free"), inArray(designAiRequests.status, ["pending", "ok"])));
-  return r?.n ?? 0;
-}
-
-async function creditsOf(tx: Pick<typeof db, "select">, userId: string) {
-  const [r] = await tx.select({ balance: designAiCredits.balance }).from(designAiCredits).where(eq(designAiCredits.userId, userId));
-  return r?.balance ?? 0;
-}
-
 export async function designAiAllowance(userId: string): Promise<DesignAiAllowance> {
-  const [used, credits, limit] = await Promise.all([usedFree(db, userId), creditsOf(db, userId), designAiFreeLimit()]);
-  return { limit, remaining: Math.max(0, limit - used), credits };
+  return store().allowance(userId, await designAiFreeLimit());
 }
 
 /** Взять запрос: бесплатный, если остались, иначе купленный. Нет ни того ни другого — null. */
-export async function reserveDesignAi(input: { userId: string; bookId: string; target: DesignTarget; prompt: string; mode?: string }, now = new Date()): Promise<{ id: string; source: "free" | "credit" } | null> {
-  const limit = await designAiFreeLimit();
-  return db.transaction(async (tx) => {
-    await tx.execute(sql`select pg_advisory_xact_lock(${LOCK}, hashtext(${input.userId}))`);
-    let source: "free" | "credit" | null = null;
-    if ((await usedFree(tx, input.userId)) < limit) source = "free";
-    else {
-      const taken = await tx
-        .update(designAiCredits)
-        .set({ balance: sql`${designAiCredits.balance} - 1`, updatedAt: now })
-        .where(and(eq(designAiCredits.userId, input.userId), sql`${designAiCredits.balance} > 0`))
-        .returning({ balance: designAiCredits.balance });
-      if (taken.length) source = "credit";
-    }
-    if (!source) return null;
-    const [row] = await tx.insert(designAiRequests).values({ userId: input.userId, bookId: input.bookId, target: input.target, prompt: input.prompt, source, mode: input.mode ?? null }).returning({ id: designAiRequests.id });
-    return { id: row.id, source };
-  });
+export async function reserveDesignAi(input: { userId: string; bookId: string; target: DesignTarget; prompt: string; mode?: string }, now = new Date()) {
+  return store().reserve(input, await designAiFreeLimit(), now);
 }
 
 /** Модель ответила: запрос в журнал (и в лимит). */
-export async function completeDesignAi(id: string, result: { reply: string; ops: unknown[]; errors: string[]; usage: Record<string, number>; model?: string; costUsd?: number | null; ms?: number; polish?: "ok" | "fixed" | null }) {
-  await db
-    .update(designAiRequests)
-    .set({ status: "ok", reply: result.reply.slice(0, 2000), ops: result.ops, errors: result.errors, usage: result.usage, model: result.model ?? null, costUsd: result.costUsd ?? null, ms: result.ms ?? null, polish: result.polish ?? null })
-    .where(eq(designAiRequests.id, id));
+export function completeDesignAi(id: string, result: Parameters<ReturnType<typeof store>["complete"]>[1]) {
+  return store().complete(id, result);
 }
 
 /** Модель не ответила: попытка не считается, купленный запрос возвращается на баланс. */
-export async function failDesignAi(id: string, error: string) {
-  await db.transaction(async (tx) => {
-    const [row] = await tx.update(designAiRequests).set({ status: "failed", errors: [error.slice(0, 500)] }).where(and(eq(designAiRequests.id, id), eq(designAiRequests.status, "pending"))).returning({ userId: designAiRequests.userId, source: designAiRequests.source });
-    if (row?.source === "credit") await tx.update(designAiCredits).set({ balance: sql`${designAiCredits.balance} + 1`, updatedAt: new Date() }).where(eq(designAiCredits.userId, row.userId));
-  });
+export function failDesignAi(id: string, error: string) {
+  return store().fail(id, error);
 }
 
-/** Начислить купленные запросы (оплата пакета). */
-export async function addDesignAiCredits(userId: string, n: number, tx: Pick<typeof db, "insert"> = db) {
-  await tx
-    .insert(designAiCredits)
-    .values({ userId, balance: n })
-    .onConflictDoUpdate({ target: designAiCredits.userId, set: { balance: sql`${designAiCredits.balance} + ${n}`, updatedAt: new Date() } });
+/** Начислить купленные запросы (оплата пакета, ручное начисление в админке). */
+export function addDesignAiCredits(userId: string, n: number, tx?: Pick<Database, "insert">) {
+  return store().addCredits(userId, n, tx);
 }
-
-export type DesignAiPurchase = typeof designAiPurchases.$inferSelect;
 
 /** Покупка пакета: сумма и число запросов фиксируются по каталогу сейчас; оплатить — Kaspi (цель ai_pack). */
-export async function createDesignAiPurchase(userId: string, pack: AiPack): Promise<DesignAiPurchase> {
-  // Незаоплаченная покупка того же пакета по той же цене — та же (повторный клик, возврат на страницу).
-  const [open] = await db
-    .select()
-    .from(designAiPurchases)
-    .where(and(eq(designAiPurchases.userId, userId), eq(designAiPurchases.packId, pack.id), eq(designAiPurchases.status, "pending_payment"), eq(designAiPurchases.amount, pack.price), eq(designAiPurchases.requests, pack.requests)))
-    .orderBy(desc(designAiPurchases.createdAt))
-    .limit(1);
-  if (open) return open;
-  const [row] = await db.insert(designAiPurchases).values({ userId, packId: pack.id, requests: pack.requests, amount: pack.price }).returning();
-  return row;
+export function createDesignAiPurchase(userId: string, pack: AiPack): Promise<DesignAiPurchase> {
+  return store().createPurchase(userId, pack);
 }
 
-export async function findDesignAiPurchase(id: string): Promise<DesignAiPurchase | null> {
-  const [row] = await executor().select().from(designAiPurchases).where(eq(designAiPurchases.id, id));
-  return row ?? null;
+export function findDesignAiPurchase(id: string): Promise<DesignAiPurchase | null> {
+  return store().findPurchase(id);
 }
 
-/**
- * Оплата пакета пришла: отметка «оплачено» и начисление запросов — одной записью в текущей транзакции (Unit of Work платежа,
- * если он открыт). Повтор ничего не делает: false — покупка уже оплачена или отменена.
- */
-export async function confirmDesignAiPurchase(id: string, paymentId: string): Promise<boolean> {
-  const run = async (tx: ReturnType<typeof executor>) => {
-    const [row] = await tx
-      .update(designAiPurchases)
-      .set({ status: "paid", paymentId, paidAt: new Date() })
-      .where(and(eq(designAiPurchases.id, id), eq(designAiPurchases.status, "pending_payment")))
-      .returning({ userId: designAiPurchases.userId, requests: designAiPurchases.requests });
-    if (!row) return false;
-    await addDesignAiCredits(row.userId, row.requests, tx);
-    return true;
-  };
-  const tx = executor();
-  return tx === db ? db.transaction((t) => run(t)) : run(tx);
+/** Оплата пакета пришла: «оплачено» и начисление — в текущей транзакции платежа. Повтор — false. */
+export function confirmDesignAiPurchase(id: string, paymentId: string): Promise<boolean> {
+  return store().confirmPurchase(id, paymentId);
 }

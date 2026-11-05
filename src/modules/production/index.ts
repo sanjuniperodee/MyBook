@@ -1,3 +1,4 @@
+/** Публичный фасад контекста «Производство»: вёрстка PDF книги и сертификатов, предпросмотры полос и обложек, файлы для типографии, очередь сборки. В container — previews (BookPreviewService) и printFiles. */
 export {
   BookPreviewService,
   PrintFilesService,

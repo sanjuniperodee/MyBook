@@ -17,6 +17,6 @@ describe("src/server и БД", () => {
     });
   }
   it("список исключений не растёт", () => {
-    expect((serverDbLegacy as string[]).length).toBeLessThanOrEqual(5);
+    expect((serverDbLegacy as string[]).length).toBeLessThanOrEqual(2);
   });
 });

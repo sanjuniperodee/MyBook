@@ -12,7 +12,7 @@
 |---|---|---:|---:|
 | [access](#access) | Access: сотрудники, роли и права, правила безопасности, журнал. | 16 / 866 | 41 |
 | [assistant](#assistant) | AI-помощник (Claude, ChatGPT, DeepSeek или свой OpenAI-совместимый сервер). | 22 / 2052 | 24 |
-| [authoring](#authoring) | Authoring: книги, вопросы, оглавление своей книги, фото, письма близких. | 25 / 3058 | 63 |
+| [authoring](#authoring) | Authoring: книги, вопросы, оглавление своей книги, фото, письма близких. | 26 / 3199 | 65 |
 | [automation](#automation) | Автоматизации (цифровая воронка CRM). | 16 / 1917 | 9 |
 | [clients](#clients) | Клиенты CRM: профиль клиента, задачи и заметки менеджеров. | 9 / 1129 | 30 |
 | [feedback](#feedback) | Отзывы: отзыв клиента о книге, благодарность автору, модерация и витрина. | 12 / 641 | 7 |
@@ -21,12 +21,12 @@
 | [messaging](#messaging) | Переписка: единый инбокс, бот-квалификатор, виджет на сайте. | 50 / 13999 | 118 |
 | [notifications](#notifications) | Уведомления: автописьма, напоминания из CRM, отписка. | 9 / 681 | 5 |
 | [ordering](#ordering) | Заказы. Остальной код видит только его. | 46 / 5156 | 83 |
-| [production](#production) | PDF подарочного сертификата. Рендерер тяжёлый, поэтому загружается только при первом вызове. | 39 / 4191 | 0 |
+| [production](#production) | Производство: вёрстка PDF книги и сертификатов, предпросмотры полос и обложек, файлы для типографии, очередь сборки. В container — previews (BookPreviewService) и printFiles. | 39 / 4192 | 0 |
 | [referrals](#referrals) | Приглашения: код для друзей, награда за их заказы и покупки из чата. | 10 / 358 | 3 |
-| [reporting](#reporting) | Отчёты CRM — сторона чтения (CQRS): сводные выборки по нескольким контекстам для страниц (дашборд, аналитика, поиск, «Мой день»). Только чтение, без бизнес-правил: команды идут через модули контекстов. | 35 / 2932 | 48 |
+| [reporting](#reporting) | Отчёты CRM — сторона чтения (CQRS): сводные выборки по нескольким контекстам для страниц (дашборд, аналитика, поиск, «Мой день»). Только чтение, без бизнес-правил: команды идут через модули контекстов. | 36 / 3040 | 49 |
 | [sales](#sales) | Продажи: сделки, воронки, этапы, дубли, воронка по действиям на сайте. | 27 / 2769 | 84 |
 | [telephony](#telephony) | Телефония: журнал звонков из АТС, звонки из CRM, веб-телефон, записи, звонки WhatsApp. | 13 / 1083 | 27 |
-| [workspace](#workspace) | Рабочего пространства CRM: свои поля, шаблоны ответов, уведомления и push сотрудников. | 17 / 1107 | 17 |
+| [workspace](#workspace) | Рабочее пространство CRM: свои поля, шаблоны ответов, уведомления и push сотрудников. | 17 / 1107 | 17 |
 
 ## access
 
@@ -54,7 +54,7 @@ Authoring: книги, вопросы, оглавление своей книг�
 
 - Папка: `src/modules/authoring` (domain, application, infrastructure)
 - Фасад: `AuthoringModule` → `container().authoring`
-- Публичное: `books`, `questions`, `outline`, `photos`, `letters`, `ordering`, `layoutRev`, `queries`, `photoRepository`, `themes`, `photoFile`, `photoViewFile`
+- Публичное: `books`, `questions`, `outline`, `photos`, `letters`, `ordering`, `layoutRev`, `queries`, `photoRepository`, `themes`, `designAi`, `photoFile`, `photoViewFile`
 - Таблицы: `books`, `book_questions`, `book_chapters`, `photos`, `photo_edits`, `book_letters`, `design_ai_requests`, `design_ai_credits`, `design_ai_purchases`, `answer_files`, `answer_file_purchases`
 - Тесты (21): `authoring.test.ts`, `book-modes.integration.test.ts`, `book-modes.test.ts`, `book-wizard.test.tsx`, `chapter-opener-left.test.tsx`, `crm-modes.integration.test.ts`, `editor-book-content.test.ts`, `editor-outline.test.ts`, `errors.test.ts`, `foreign-access.test.ts`, `layout-rev2-property.test.ts`, `layout-rev2.integration.test.ts`, `layout-rev2.test.ts`, `pages-photos.test.tsx`, `photo-crop.test.ts`, `photo-damage.test.ts`, `photo-edit.test.ts`, `photo-pages.test.ts`, `photo-rotate.test.ts`, `server-adapters-access.test.ts`, `server-adapters.test.ts`
 
@@ -140,7 +140,7 @@ Identity: учётные записи, вход, пароли, второй фа
 
 ## production
 
-PDF подарочного сертификата. Рендерер тяжёлый, поэтому загружается только при первом вызове.
+Производство: вёрстка PDF книги и сертификатов, предпросмотры полос и обложек, файлы для типографии, очередь сборки. В container — previews (BookPreviewService) и printFiles.
 
 - Папка: `src/modules/production` (application, infrastructure)
 - Фасад: нет класса-фасада (функции из index.ts)
@@ -163,7 +163,7 @@ PDF подарочного сертификата. Рендерер тяжёлы
 
 - Папка: `src/modules/reporting` (infrastructure, ui)
 - Фасад: `ReportingModule` → `container().reporting`
-- Публичное: `salesAnalytics`, `dashboard`, `attention`, `morningDigest`, `vcardClients`, `paymentsExport`, `myDay`, `search`, `dealById`, `dealCard`, `clientBrief`, `clientById`, `clientCard`, `clientReferrals`, `inbox`, `conversationContext`, `taskList`, `taskById`, `callJournal`, `orderList`, `orderExport`, `productionBoard`, `orderOwnership`, `bookOwnership`, `orderCrm`, `orderNotice`, `dealList`, `savedViews`, `stageCounts`, `duplicateGroups`, `bookList`, `counters`, `live`, `clients`, `segmentCounts`, `finance`, `automationStats`
+- Публичное: `salesAnalytics`, `dashboard`, `attention`, `morningDigest`, `vcardClients`, `paymentsExport`, `myDay`, `search`, `dealById`, `dealCard`, `clientBrief`, `clientById`, `clientCard`, `clientReferrals`, `inbox`, `conversationContext`, `taskList`, `taskById`, `callJournal`, `orderList`, `orderExport`, `productionBoard`, `orderOwnership`, `bookOwnership`, `orderCrm`, `orderNotice`, `dealList`, `savedViews`, `stageCounts`, `duplicateGroups`, `bookList`, `counters`, `live`, `clients`, `segmentCounts`, `finance`, `automationStats`, `designAi`
 - Таблицы: своих нет
 - Тесты (23): `attention.integration.test.ts`, `automation-stats.integration.test.ts`, `book-modes.integration.test.ts`, `clients-filters.integration.test.ts`, `clients-filters.test.ts`, `crm-modes.integration.test.ts`, `dashboard-new-clients.integration.test.ts`, `deal-lifecycle.integration.test.ts`, `finance-screen.test.ts`, `finance.integration.test.ts`, `invoice-crm.integration.test.ts`, `morning-digest.integration.test.ts`, `my-day.integration.test.ts`, `order-deal.integration.test.ts`, `phone-search.integration.test.ts`, `phone-search.test.ts`, `referral-chat.integration.test.ts`, `reporting-screens.test.ts`, `response-stats.test.ts`, `revenue-agreed.integration.test.ts`, `sales-analytics.integration.test.ts`, `time.test.ts`, `vcard.integration.test.ts`
 
@@ -189,7 +189,7 @@ PDF подарочного сертификата. Рендерер тяжёлы
 
 ## workspace
 
-Рабочего пространства CRM: свои поля, шаблоны ответов, уведомления и push сотрудников.
+Рабочее пространство CRM: свои поля, шаблоны ответов, уведомления и push сотрудников.
 
 - Папка: `src/modules/workspace` (domain, application, infrastructure)
 - Фасад: `WorkspaceModule` → `container().workspace`

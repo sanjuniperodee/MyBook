@@ -1,7 +1,4 @@
 import "server-only";
-import { eq } from "drizzle-orm";
-import { users } from "@/shared/infrastructure/db/schema";
-import { rootDb } from "@/shared/infrastructure/database";
 import { appLink, emailLayout } from "@/shared/infrastructure/mail";
 import { formatPrice } from "@/config/site";
 import { messagesFor } from "@/i18n/messages";
@@ -14,7 +11,8 @@ import type { Container } from "./container";
 export async function mailPaymentToClient(c: Container, input: { clientId: string | null; dealNumber: number; kind: "payment" | "refund"; amount: number; left: number }) {
   if (!input.clientId) return;
   try {
-    const [u] = await rootDb.select({ email: users.email, locale: users.locale }).from(users).where(eq(users.id, input.clientId)).limit(1);
+    // Почта и язык клиента — из модуля Identity (src/server в БД не ходит, ADR 0009 P2).
+    const u = await c.identity.accounts.account(input.clientId);
     if (!u) return;
     const m = messagesFor(u.locale).mail.payment;
     const amount = formatPrice(input.amount);

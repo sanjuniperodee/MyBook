@@ -4,7 +4,7 @@ import { estimatePages } from "@/lib/book/estimate";
 import { getInteriorDesign } from "@/lib/book/interiors";
 import { leafPages, pageLeaf } from "@/lib/book/flipbook";
 import { GALLERY_KEY } from "@/lib/book/toc";
-import { useFixtureStorage } from "../fixtures/photos";
+import { photoNames, useFixtureStorage, variantPhotoNames } from "../fixtures/photos";
 import { characterizationBooks, contentOf, pdfContentPages } from "./books";
 
 /**
@@ -30,7 +30,8 @@ interface Pages {
 const pages = new Map<string, Pages>();
 
 beforeAll(async () => {
-  await useFixtureStorage();
+  // Набор — матрица и варианты: фото вариантов (big_t и др.) готовим сами, а не надеемся, что их положил другой тест.
+  await useFixtureStorage(undefined, [...photoNames, ...variantPhotoNames]);
   const { renderInterior } = await import("@/modules/production/infrastructure/pdf/render");
   const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
   for (const fb of books) {

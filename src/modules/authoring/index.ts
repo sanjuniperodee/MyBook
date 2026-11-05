@@ -9,10 +9,12 @@ import { DrizzleBookRepository, DrizzleChapterRepository, DrizzleLetterRepositor
 import { DrizzleLayoutRevStore } from "./infrastructure/layoutRevStore";
 import { photoViewFile } from "./infrastructure/photoView";
 import { DrizzleAuthoringQueries } from "./infrastructure/queries";
+import { DrizzleDesignAiStore } from "./infrastructure/designAiStore";
 
 export * from "./domain";
 export type { BookBundle, BookRow, ChapterRow, LetterRow, PhotoRow, QuestionRow } from "./infrastructure/queries";
 export type { LayoutRev2Result, LayoutRevBackupBook } from "./application";
+export type { DesignAiAllowance, DesignAiPack, DesignAiPurchase } from "./infrastructure/designAiStore";
 
 /** Публичный фасад контекста Authoring: книги, вопросы, оглавление своей книги, фото, письма близких. */
 export class AuthoringModule {
@@ -37,6 +39,8 @@ export class AuthoringModule {
   }
   readonly photoRepository = new DrizzlePhotoRepository();
   readonly themes = contentThemes;
+  /** ИИ-дизайнер книги: бесплатные и купленные запросы, журнал, покупки пакетов. */
+  readonly designAi = new DrizzleDesignAiStore();
 
   constructor(deps: { uow: UnitOfWork; clock: Clock; bus: EventBus; orders: OrdersLookup; mailer: Mailer }) {
     const books = new DrizzleBookRepository();

@@ -20,6 +20,8 @@ import { queryClients, segmentCounts } from "./infrastructure/Clients";
 import { financeReport } from "./infrastructure/Finance";
 import { automationStats } from "./infrastructure/Automations";
 import { clientReferrals } from "./infrastructure/Referrals";
+import { designAiStats } from "./infrastructure/DesignAi";
+export type { DesignAiStats, TokenPrices } from "./infrastructure/DesignAi";
 export type { ClientReferralsData, InvitedFriend } from "./infrastructure/Referrals";
 
 /**
@@ -80,4 +82,6 @@ export class ReportingModule {
   readonly finance = financeReport;
   /** «Автоматизации»: повторные продажи правила — создано, выиграно, оплачено за 90 дней. */
   readonly automationStats = automationStats;
+  /** Статистика ИИ-дизайнера для админки: просьбы, режимы, модели, стоимость, лимиты и покупки пакетов. */
+  readonly designAi = designAiStats;
 }

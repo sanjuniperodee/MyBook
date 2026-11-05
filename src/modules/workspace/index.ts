@@ -20,7 +20,7 @@ export { mobileDevices } from "./infrastructure/mobileDevices";
 export { staffNotifications } from "./infrastructure/notificationsList";
 export { smtpConfig, smtpFromEnvironment } from "./infrastructure/mail";
 
-/** Публичный фасад «Рабочего пространства CRM»: свои поля, шаблоны ответов, уведомления и push сотрудников. */
+/** Публичный фасад контекста «Рабочее пространство CRM»: свои поля, шаблоны ответов, уведомления и push сотрудников. */
 export class WorkspaceModule {
   readonly fields = new CustomFieldsService(drizzleFields);
   readonly templates = drizzleTemplates;
