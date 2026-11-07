@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
-import { ArrowDown, BadgePercent, BookOpen, Check, Mic, FileText, Forward, Trash2, LoaderCircle, Lock, MessageSquareQuote, MessagesSquare, Paperclip, Pencil, Receipt, ReceiptText, Reply, SendHorizontal, Sparkles, TriangleAlert, Wallet, X } from "lucide-react";
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
+import { ArrowDown, BadgePercent, BookOpen, Camera, Check, Mic, Plus, FileText, Forward, Trash2, LoaderCircle, Lock, MessageSquareQuote, MessagesSquare, Paperclip, Pencil, Receipt, ReceiptText, Reply, SendHorizontal, Sparkles, TriangleAlert, Wallet, X } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { aiSuggestReplyAction, aiTemplateDraftAction } from "@/app/admin/ai-actions";
 import { TemplateEditor } from "@/app/admin/templates/TemplateEditor";
@@ -22,6 +22,7 @@ import type { ChatOffers } from "@/modules/marketing";
 import { fillTemplate } from "@/shared/domain/templates";
 import { toast, toastError } from "@/components/ui/overlays";
 import { cn } from "@/lib/class-names";
+import { liveChannel } from "./liveRules";
 
 /** Ближе стольких пикселей к низу — «внизу»: новые сообщения прокручивают ленту, дальше — только кнопка «↓». */
 const NEAR_BOTTOM = 160;
@@ -157,11 +158,28 @@ export function ChatPanel({
   useEffect(() => setTouch(window.matchMedia("(pointer: coarse)").matches), []);
   useEffect(() => setMicOk(canRecordVoice()), []);
   const [drafts, setDrafts] = useState<Draft[]>([]);
+  /** Телефон: шторка «+» (файлы, камера, шаблоны, оплата, счёт, заметка) и раскрытое предупреждение над полем. */
+  const [sheet, setSheet] = useState(false);
+  const [warnOpen, setWarnOpen] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [viewer, setViewer] = useState<number | null>(null);
   const [highlight, setHighlight] = useState<string | null>(null);
   const [atBottom, setAtBottom] = useState(true);
   const [unseen, setUnseen] = useState(0);
+  /**
+   * Лента без пересборки страницы: страница отдаёт последние сообщения при открытии, дальше — older (история, подгруженная
+   * прокруткой вверх) и live (свежее окно из живых обновлений: последние 60 с новыми статусами). Одно сообщение — по id,
+   * свежее значение побеждает. Обновление всей страницы (props) приносит всё новое — тогда окно live больше не нужно.
+   */
+  const [older, setOlder] = useState<Msg[]>([]);
+  const [live, setLive] = useState<Msg[]>([]);
+  const [hasMore, setHasMore] = useState(messages.length >= 150);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [seenProps, setSeenProps] = useState(messages);
+  if (seenProps !== messages) {
+    setSeenProps(messages);
+    setLive([]);
+  }
   // Время для окон правки и удаления («изменить» пропадает через 15 минут) — обновляется раз в полминуты.
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -174,6 +192,7 @@ export function ChatPanel({
   const content = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  const cameraInput = useRef<HTMLInputElement>(null);
   const stick = useRef(true);
   const lastCount = useRef(0);
   const forceBottom = useRef(true);
@@ -215,11 +234,20 @@ export function ChatPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const source = useMemo(() => {
+    if (!older.length && !live.length) return messages;
+    const map = new Map<string, Msg>();
+    for (const m of older) map.set(m.id, m);
+    for (const m of messages) map.set(m.id, m);
+    for (const m of live) map.set(m.id, m);
+    return [...map.values()].sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
+  }, [older, messages, live]);
+
   // Каждое обновление страницы приносит все сообщения новыми объектами. Неизменившиеся берём прежними — на них держится memo пузыря.
   const known = useRef(new Map<string, Msg>());
   const fresh = useMemo(() => {
     const next = new Map<string, Msg>();
-    const list = messages.map((m) => {
+    const list = source.map((m) => {
       const prev = known.current.get(m.id);
       const same = prev && sameMsg(prev, m) ? prev : m;
       next.set(m.id, same);
@@ -227,7 +255,7 @@ export function ChatPanel({
     });
     known.current = next;
     return list;
-  }, [messages]);
+  }, [source]);
 
   // Серверная версия сообщения вытесняет локальную копию.
   const all = useMemo(() => {
@@ -265,9 +293,81 @@ export function ChatPanel({
     [all, timeZone],
   );
 
+  // Новое входящее в открытом диалоге — прочитано (счётчики в меню и списке обновятся сами).
+  const incoming = useMemo(() => source.reduce((n, m) => n + (m.direction === "in" ? 1 : 0), 0), [source]);
   useEffect(() => {
+    if (document.visibilityState !== "visible") return;
     void markReadAction(conversationId).then(() => window.dispatchEvent(new Event("crm:refresh")));
-  }, [conversationId, messages.length]);
+  }, [conversationId, incoming]);
+
+  /** Свежее окно ленты — маленьким JSON, без пересборки страницы (та на телефоне весит ~250 КБ и ходит в базу 12 раз). */
+  const reload = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/admin/chats/${conversationId}/messages?limit=60`, { cache: "no-store" });
+      if (!res.ok) return;
+      const data = (await res.json()) as { messages: Msg[] };
+      setLive(data.messages);
+    } catch {
+      // нет сети — догоним следующим событием или опросом
+    }
+  }, [conversationId]);
+
+  // Живые обновления этого диалога: событие SSE (склеиваем пачку статусов в один запрос), возврат во вкладку и опрос-страховка.
+  useEffect(() => {
+    let timer: number | undefined;
+    let stale = false;
+    const schedule = (ms: number) => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => void reload(), ms);
+    };
+    const onLive = (e: Event) => {
+      const d = (e as CustomEvent<{ type?: string; conversationId?: string | null }>).detail;
+      if (d?.type !== "chat" || (d.conversationId && d.conversationId !== conversationId)) return;
+      if (document.visibilityState !== "visible") return void (stale = true);
+      schedule(250);
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible" && stale) {
+        stale = false;
+        schedule(0);
+      }
+    };
+    const poll = window.setInterval(() => document.visibilityState === "visible" && !liveChannel.connected() && void reload(), 15_000);
+    window.addEventListener("crm:live", onLive);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearTimeout(timer);
+      window.clearInterval(poll);
+      window.removeEventListener("crm:live", onLive);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [conversationId, reload]);
+
+  /** Подгрузка истории при прокрутке к началу: по 60 сообщений старше самого раннего в ленте. */
+  const prepend = useRef<{ height: number; top: number } | null>(null);
+  const loadingRef = useRef(false);
+  const loadOlder = useCallback(async () => {
+    if (loadingRef.current || !hasMore) return;
+    const oldest = all.find((m) => !isTemp(m));
+    if (!oldest) return;
+    loadingRef.current = true;
+    setLoadingOlder(true);
+    try {
+      const res = await fetch(`/api/admin/chats/${conversationId}/messages?limit=60&before=${encodeURIComponent(oldest.at)}`, { cache: "no-store" });
+      if (!res.ok) throw new Error();
+      const data = (await res.json()) as { messages: Msg[]; more: boolean };
+      const el = scroller.current;
+      // Safari не держит позицию сам (overflow-anchor): запоминаем высоту и восстанавливаем после вставки сверху.
+      prepend.current = el ? { height: el.scrollHeight, top: el.scrollTop } : null;
+      setOlder((o) => [...data.messages, ...o]);
+      setHasMore(data.more);
+    } catch {
+      toast("Не удалось загрузить историю — попробуйте ещё раз", "error");
+    } finally {
+      loadingRef.current = false;
+      setLoadingOlder(false);
+    }
+  }, [all, conversationId, hasMore]);
 
   const toBottom = useCallback((smooth: boolean) => {
     const el = scroller.current;
@@ -282,6 +382,12 @@ export function ChatPanel({
   useLayoutEffect(() => {
     const added = all.length - lastCount.current;
     lastCount.current = all.length;
+    if (prepend.current) {
+      const el = scroller.current;
+      if (el) el.scrollTop = el.scrollHeight - prepend.current.height + prepend.current.top;
+      prepend.current = null;
+      return;
+    }
     if (forceBottom.current) {
       forceBottom.current = false;
       toBottom(false);
@@ -300,6 +406,8 @@ export function ChatPanel({
     if (!el || typeof ResizeObserver === "undefined") return;
     const ro = new ResizeObserver(() => stick.current && scroller.current && (scroller.current.scrollTop = scroller.current.scrollHeight));
     ro.observe(el);
+    // Поднялась клавиатура или выросло поле ввода — лента ниже; были внизу — остаёмся у последнего сообщения.
+    if (scroller.current) ro.observe(scroller.current);
     return () => ro.disconnect();
   }, []);
 
@@ -310,16 +418,53 @@ export function ChatPanel({
     stick.current = near;
     setAtBottom(near);
     if (near) setUnseen(0);
+    if (el.scrollTop < 600 && hasMore && !loadingRef.current) void loadOlder();
   };
 
-  // Новые сообщения приносит обновление страницы чатов (ChatsLive): событие SSE о любом диалоге, опрос — страховка.
+  // Новые сообщения приносит reload (выше): событие SSE об этом диалоге, возврат во вкладку, опрос без живого канала.
 
-  const jump = (id: string) => {
+  const reveal = (id: string) => {
     const el = scroller.current?.querySelector(`[data-mid="${id}"]`);
-    if (!el) return toast("Сообщение выше, чем загружено в ленту", "error");
+    if (!el) return false;
     el.scrollIntoView({ behavior: "smooth", block: "center" });
     setHighlight(id);
     window.setTimeout(() => setHighlight((h) => (h === id ? null : h)), 1600);
+    return true;
+  };
+
+  /** К цитируемому сообщению: если оно старше загруженного — догружаем историю страницами (до 10), пока не найдём. */
+  const jump = (id: string) => {
+    if (reveal(id)) return;
+    const oldest = all.find((m) => !isTemp(m));
+    if (!hasMore || !oldest || loadingRef.current) return toast("Сообщение выше, чем загружено в ленту", "error");
+    loadingRef.current = true;
+    setLoadingOlder(true);
+    void (async () => {
+      const pages: Msg[][] = [];
+      let before = oldest.at;
+      let more = true;
+      try {
+        for (let i = 0; i < 10 && more; i++) {
+          const res = await fetch(`/api/admin/chats/${conversationId}/messages?limit=100&before=${encodeURIComponent(before)}`, { cache: "no-store" });
+          if (!res.ok) throw new Error();
+          const data = (await res.json()) as { messages: Msg[]; more: boolean };
+          pages.unshift(data.messages);
+          more = data.more;
+          if (!data.messages.length || data.messages.some((m) => m.id === id)) break;
+          before = data.messages[0].at;
+        }
+        const el = scroller.current;
+        prepend.current = el ? { height: el.scrollHeight, top: el.scrollTop } : null;
+        setOlder((o) => [...pages.flat(), ...o]);
+        setHasMore(more);
+        requestAnimationFrame(() => requestAnimationFrame(() => reveal(id) || toast("Сообщение не найдено — возможно, оно удалено", "error")));
+      } catch {
+        toast("Не удалось загрузить историю — попробуйте ещё раз", "error");
+      } finally {
+        loadingRef.current = false;
+        setLoadingOlder(false);
+      }
+    })();
   };
 
   const addFiles = (list: FileList | File[]) => {
@@ -342,7 +487,7 @@ export function ChatPanel({
       try {
         const r = await sendOfferAction(conversationId, req);
         toast(r.message, r.ok ? "success" : "error");
-        router.refresh();
+        void reload();
       } catch (err) {
         toastError(err);
       }
@@ -428,7 +573,7 @@ export function ChatPanel({
         }
         if (errors.size) toast([...errors].join("; "), "error");
         stopSelecting();
-        router.refresh();
+        void reload();
       });
     })();
 
@@ -444,7 +589,7 @@ export function ChatPanel({
       start(async () => {
         const r = await resendMessageAction(conversationId, m.id);
         toast(r.error ?? "Отправлено", r.error ? "error" : "success");
-        router.refresh();
+        void reload();
       });
     } else if (kind === "template") {
       setTplDraft({ loading: true });
@@ -504,8 +649,17 @@ export function ChatPanel({
             const first = sep || !same(prev, m);
             const last = !same(m, next);
             return (
+              <Fragment key={m.id}>
+                {/* Дата — на уровне ленты, а не внутри строки: прилипает к верху при прокрутке (как в мессенджере). */}
+                {sep ? (
+                  <div className="pointer-events-none sticky top-2 z-10 mt-3 text-center">
+                    {/* «Сегодня/Вчера» считают сервер и браузер — около полуночи они могут разойтись на день. */}
+                    <span className="inline-block rounded-md border border-line bg-white/95 px-2.5 py-0.5 text-xs font-medium text-ink-soft shadow-[0_1px_2px_rgb(0_0_0/0.06)]" suppressHydrationWarning>
+                      {day}
+                    </span>
+                  </div>
+                ) : null}
               <div
-                key={m.id}
                 className={cn(first ? "mt-3" : "mt-0.5", selected && selectable(m) && "relative -mx-3 cursor-pointer py-0.5 pr-3 pl-10 transition-colors sm:-mx-6 sm:pr-6", selected?.has(m.id) && "bg-rose/60")}
                 // Идёт выбор: клик в любом месте сообщения отмечает его, а не открывает фото или ссылку.
                 onClickCapture={
@@ -522,14 +676,6 @@ export function ChatPanel({
                   <span aria-hidden className={cn("absolute top-1/2 left-3 flex size-5 -translate-y-1/2 items-center justify-center rounded-full border sm:left-6", selected.has(m.id) ? "border-wine bg-wine text-white" : "border-line-strong bg-white")}>
                     {selected.has(m.id) ? <Check className="size-3.5" /> : null}
                   </span>
-                ) : null}
-                {sep ? (
-                  <div className="sticky top-2 z-10 mb-3 text-center">
-                    {/* «Сегодня/Вчера» считают сервер и браузер — около полуночи они могут разойтись на день. */}
-                    <span className="inline-block rounded-md border border-line bg-white px-2.5 py-0.5 text-xs font-medium text-ink-soft" suppressHydrationWarning>
-                      {day}
-                    </span>
-                  </div>
                 ) : null}
                 <MessageBubble
                   first={first}
@@ -548,6 +694,7 @@ export function ChatPanel({
                   onVoiceEnded={h.onVoiceEnded}
                 />
               </div>
+              </Fragment>
             );
           });
   }, [all, timeZone, selected, highlight, me, now, conversationId, canSend, h]);
@@ -616,7 +763,7 @@ export function ChatPanel({
           toast(`${d.file.name}: ${message}`, "error");
         }
       }
-      router.refresh();
+      void reload();
     };
     uploads.current = uploads.current.then(run).catch(toastError);
   };
@@ -642,7 +789,7 @@ export function ChatPanel({
         // Копия со звуком остаётся до серверного сообщения (тогда и освобождается запись), а не пропадает до обновления.
         if (data.id) setLocal((l) => l.map((m) => (m.id === tempId ? { ...m, id: data.id!, status: data.status ?? "sent", error: data.error ?? null } : m)));
         else setLocal((l) => l.filter((m) => m.id !== tempId));
-        router.refresh();
+        void reload();
       } catch (err) {
         setLocal((l) => l.map((m) => (m.id === tempId ? { ...m, status: "error", error: (err as Error).message } : m)));
         toastError(err);
@@ -666,7 +813,7 @@ export function ChatPanel({
           setEditing(target);
           setText(body);
         }
-        router.refresh();
+        void reload();
       });
       return;
     }
@@ -707,7 +854,7 @@ export function ChatPanel({
         if (internal) {
           const res = await sendInternalNoteAction(conversationId, body);
           setLocal((l) => l.map((m) => (m.id === tempId ? { ...m, id: res.id } : m)));
-          router.refresh();
+          void reload();
           return;
         }
         let res = await sendMessageAction(conversationId, body, undefined, reply?.id ?? null);
@@ -729,7 +876,7 @@ export function ChatPanel({
         }
         const sent = res;
         setLocal((l) => l.map((m) => (m.id === tempId ? { ...m, id: sent.id, status: sent.status, error: sent.error } : m)));
-        router.refresh();
+        void reload();
       } catch (err) {
         setLocal((l) => l.map((m) => (m.id === tempId ? { ...m, status: "error", error: (err as Error).message } : m)));
         // Текст не пропал: снова в поле ввода, если оно пустое; у копии в ленте — «Повторить» и «Убрать».
@@ -773,6 +920,17 @@ export function ChatPanel({
       <div className="relative flex min-h-0 flex-1 flex-col">
         <div ref={scroller} onScroll={onScroll} className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain bg-canvas px-3 pt-2 pb-4 sm:px-6" data-testid="chat-messages">
           <div ref={content} className="mx-auto max-w-3xl">
+            {all.length && (hasMore || loadingOlder) ? (
+              <div className="flex h-10 items-center justify-center text-xs text-muted" aria-live="polite">
+                {loadingOlder ? <LoaderCircle className="size-4 animate-spin" aria-label="Загружаю историю" /> : (
+                  <button type="button" onClick={() => void loadOlder()} className="rounded-md px-2 py-1 hover:bg-sunken hover:text-ink">
+                    Показать раньше
+                  </button>
+                )}
+              </div>
+            ) : all.length > 30 ? (
+              <p className="py-3 text-center text-xs text-muted">Начало переписки</p>
+            ) : null}
             {all.length === 0 ? (
               <EmptyState compact icon={MessagesSquare} title="Сообщений пока нет" className="mt-10">
                 {canSend ? "Напишите первым — ответ уйдёт клиенту в его мессенджер." : "Когда клиент напишет, переписка появится здесь."}
@@ -849,7 +1007,7 @@ export function ChatPanel({
           </button>
         </div>
       ) : null}
-      <div className={cn("relative border-t border-line bg-white px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-4", selected && "hidden")}>
+      <div className={cn("relative border-t border-line bg-white px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] max-lg:px-1.5 max-lg:pt-2 max-lg:pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:px-4", selected && "hidden")}>
         <div className="relative mx-auto max-w-3xl">
           {showTemplates && mode === "client" ? (
             <div className="absolute right-0 bottom-full left-0 z-20 mb-2 flex max-h-80 flex-col overflow-hidden rounded-[14px] border border-line bg-white shadow-soft" role="dialog" aria-label="Шаблоны ответов">
@@ -919,20 +1077,41 @@ export function ChatPanel({
               ) : null}
             </div>
           ) : null}
-          {sendDisabledReason && mode === "client" ? (
-            <p className="mb-2 flex items-start gap-2 rounded-[10px] bg-warning-bg px-3 py-2 text-xs text-warning">
-              <TriangleAlert className="mt-px size-3.5 shrink-0" aria-hidden />
-              {sendDisabledReason}
-            </p>
+          {/* Предупреждения: на телефоне — одна тонкая строка (по нажатию — целиком), чтобы не съедать переписку. */}
+          {[sendDisabledReason && mode === "client" ? { key: "send", text: sendDisabledReason } : null, paymentWarning && mode === "client" ? { key: "pay", text: paymentWarning } : null]
+            .filter((w): w is { key: string; text: string } => !!w)
+            .map((w) => (
+              <button
+                key={w.key}
+                type="button"
+                onClick={() => setWarnOpen((v) => !v)}
+                aria-expanded={warnOpen}
+                className="mb-2 flex w-full items-start gap-2 rounded-[10px] bg-warning-bg px-3 py-2 text-left text-xs text-warning lg:cursor-default"
+                data-testid={w.key === "pay" ? "chat-payment-warning" : undefined}
+              >
+                <TriangleAlert className="mt-px size-3.5 shrink-0" aria-hidden />
+                <span className={cn("min-w-0", !warnOpen && "max-lg:truncate")}>{w.text}</span>
+              </button>
+            ))}
+          {note ? (
+            <div className="mb-2 flex items-center gap-2 rounded-[10px] bg-warning-bg py-1 pr-1 pl-3 text-xs font-medium text-warning lg:hidden">
+              <Lock className="size-3.5 shrink-0" aria-hidden />
+              <span className="flex-1">Заметка для коллег — клиент её не увидит</span>
+              {canSend ? (
+                <button type="button" onClick={() => setMode("client")} className="flex size-9 items-center justify-center rounded-md hover:bg-white/60" aria-label="Писать клиенту">
+                  <X className="size-4" />
+                </button>
+              ) : null}
+            </div>
           ) : null}
-          {paymentWarning && mode === "client" ? (
-            <p className="mb-2 flex items-start gap-2 rounded-[10px] bg-warning-bg px-3 py-2 text-xs text-warning" data-testid="chat-payment-warning">
-              <TriangleAlert className="mt-px size-3.5 shrink-0" aria-hidden />
-              {paymentWarning}
-            </p>
-          ) : null}
-          <div className={cn("rounded-[14px] border transition-[border-color,box-shadow,background-color] duration-150", note ? "border-warning/40 bg-warning-bg focus-within:ring-[3px] focus-within:ring-warning/15" : "border-line-strong bg-white focus-within:border-wine/60 focus-within:ring-[3px] focus-within:ring-wine/12")} data-mode={mode}>
-            <div className="flex items-center gap-1 px-1.5 pt-1.5" role="group" aria-label="Кому сообщение">
+          <div
+            className={cn(
+              "transition-[border-color,box-shadow,background-color] duration-150 lg:rounded-[14px] lg:border",
+              note ? "lg:border-warning/40 lg:bg-warning-bg lg:focus-within:ring-[3px] lg:focus-within:ring-warning/15" : "lg:border-line-strong lg:bg-white lg:focus-within:border-wine/60 lg:focus-within:ring-[3px] lg:focus-within:ring-wine/12",
+            )}
+            data-mode={mode}
+          >
+            <div className="flex items-center gap-1 px-1.5 pt-1.5 max-lg:hidden" role="group" aria-label="Кому сообщение">
               {canSend ? (
                 <button type="button" aria-pressed={mode === "client"} onClick={() => setMode("client")} className={tab(mode === "client")}>
                   Клиенту
@@ -994,7 +1173,19 @@ export function ChatPanel({
                 <VoiceRecorder onSend={sendVoice} onCancel={() => setRecording(false)} />
               </div>
             ) : null}
-            <div className={cn(recording && "hidden")}>
+            <div className={cn("max-lg:flex max-lg:items-end max-lg:gap-1.5", recording && "hidden")}>
+              {/* Телефон: «+» — всё, что не помещается в строку (как вложения в мессенджере). */}
+              <button
+                type="button"
+                onClick={() => setSheet(true)}
+                className="flex size-11 shrink-0 items-center justify-center rounded-full text-ink-soft active:bg-sunken lg:hidden"
+                aria-label="Вложения и действия"
+                aria-haspopup="dialog"
+                aria-expanded={sheet}
+              >
+                <Plus className="size-6" strokeWidth={1.8} />
+              </button>
+              <div className={cn("relative min-w-0 max-lg:flex max-lg:flex-1 max-lg:items-end max-lg:rounded-[22px] max-lg:border", note ? "max-lg:border-warning/40 max-lg:bg-warning-bg" : "max-lg:border-line-strong max-lg:bg-white")}>
               <MentionTextarea
                 ref={input}
                 value={text}
@@ -1029,10 +1220,28 @@ export function ChatPanel({
                 rows={1}
                 maxLength={4000}
                 placeholder={editing ? "Новый текст (Esc — отмена)" : note ? (narrow ? "Заметка для коллег…" : "Заметка видна только сотрудникам. @имя — позвать коллегу") : drafts.length ? "Подпись к файлам (необязательно)" : narrow ? "Сообщение…" : "Написать клиенту… (/ — шаблоны)"}
-                className="block max-h-40 min-h-11 w-full resize-none border-0 bg-transparent px-3 py-2.5 text-[14px] leading-relaxed outline-none field-sizing-content placeholder:text-muted"
+                className="block max-h-40 min-h-11 w-full resize-none border-0 bg-transparent px-3 py-2.5 text-[14px] leading-relaxed outline-none field-sizing-content placeholder:text-muted max-lg:max-h-36 max-lg:px-4 max-lg:text-[16px] max-lg:leading-snug"
                 aria-label="Текст сообщения"
               />
-              <div className="flex items-center gap-0.5 px-1.5 pb-1.5">
+              {/* Телефон: камера в поле, пока текста нет — снять фото и отправить в одно касание. */}
+              {canAttach && empty ? (
+                <button type="button" onClick={() => cameraInput.current?.click()} className="flex size-11 shrink-0 items-center justify-center rounded-full text-ink-soft active:bg-sunken lg:hidden" aria-label="Снять фото">
+                  <Camera className="size-[22px]" strokeWidth={1.8} />
+                </button>
+              ) : null}
+              </div>
+              <input ref={cameraInput} type="file" accept="image/*,video/*" capture="environment" className="hidden" onChange={(e) => (e.target.files?.length && addFiles(e.target.files), (e.target.value = ""))} />
+              {/* Телефон: круглая кнопка — микрофон, пока поле пустое, иначе отправить. */}
+              {canSend && micOk && mode === "client" && !editing && empty ? (
+                <button type="button" className="flex size-11 shrink-0 items-center justify-center rounded-full bg-wine text-white active:bg-wine-dark disabled:opacity-50 lg:hidden" disabled={sending} onClick={() => setRecording(true)} aria-label="Записать голосовое">
+                  <Mic className="size-5" />
+                </button>
+              ) : (
+                <button type="button" className={cn("flex size-11 shrink-0 items-center justify-center rounded-full text-white disabled:opacity-40 lg:hidden", note ? "bg-ink active:bg-ink-soft" : "bg-wine active:bg-wine-dark")} disabled={empty || sending} onClick={send} aria-label={editing ? "Сохранить" : note ? "Добавить заметку" : "Отправить"}>
+                  {sending ? <LoaderCircle className="size-5 animate-spin" /> : editing ? <Check className="size-5" /> : <SendHorizontal className="size-5" />}
+                </button>
+              )}
+              <div className="flex items-center gap-0.5 px-1.5 pb-1.5 max-lg:hidden">
                 {mode === "client" && !editing ? (
                   <>
                     <input ref={fileInput} type="file" multiple accept={ACCEPT} className="hidden" onChange={(e) => (e.target.files?.length && addFiles(e.target.files), (e.target.value = ""))} />
@@ -1077,6 +1286,53 @@ export function ChatPanel({
           </div>
         </div>
       </div>
+      {sheet ? (
+        <ActionSheet onClose={() => setSheet(false)}>
+          {canAttach ? <SheetItem icon={Paperclip} label="Фото, видео или файл" onClick={() => (setSheet(false), fileInput.current?.click())} /> : null}
+          {canAttach ? <SheetItem icon={Camera} label="Камера" onClick={() => (setSheet(false), cameraInput.current?.click())} /> : null}
+          {mode === "client" && !editing ? <SheetItem icon={MessageSquareQuote} label="Шаблоны ответов" onClick={() => (setSheet(false), setShowOffers(false), setShowTemplates(true))} /> : null}
+          {offers && mode === "client" && !editing ? <SheetItem icon={Wallet} label="Оплата и скидка" onClick={() => (setSheet(false), setShowTemplates(false), setShowOffers(true))} /> : null}
+          {invoice && mode === "client" && !editing ? <SheetItem icon={ReceiptText} label="Счёт на оплату" onClick={() => (setSheet(false), setInvoiceKey(newIssueKey()))} /> : null}
+          {ai && mode === "client" && !editing ? <SheetItem icon={Sparkles} label="Подсказать ответ (AI)" onClick={() => (setSheet(false), suggest())} /> : null}
+          {note ? (
+            canSend ? <SheetItem icon={SendHorizontal} label="Писать клиенту" onClick={() => (setSheet(false), setMode("client"))} /> : null
+          ) : (
+            <SheetItem icon={Lock} label="Заметка для коллег" hint="Клиент не увидит; @имя — позвать коллегу" onClick={() => (setSheet(false), setMode("note"), setReplyTo(null))} />
+          )}
+        </ActionSheet>
+      ) : null}
     </div>
+  );
+}
+
+/** Шторка действий на телефоне (кнопка «+» у поля ввода): снизу, с подложкой, закрывается тапом мимо и Escape. */
+function ActionSheet({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
+  useEffect(() => {
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", esc);
+    return () => window.removeEventListener("keydown", esc);
+  }, [onClose]);
+  return (
+    <div className="fixed inset-0 z-[70] lg:hidden" role="dialog" aria-modal="true" aria-label="Вложения и действия">
+      <button type="button" aria-label="Закрыть" tabIndex={-1} onClick={onClose} className="absolute inset-0 bg-ink/30 motion-safe:animate-[vt-fade_150ms_ease-out_both]" />
+      <div className="absolute inset-x-0 bottom-0 rounded-t-[20px] bg-white px-2 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-lift motion-safe:animate-[toast-in_200ms_var(--ease-out-soft)_both]">
+        <span className="mx-auto mb-1 block h-1 w-9 rounded-full bg-line" aria-hidden />
+        <div className="flex flex-col">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function SheetItem({ icon: Icon, label, hint, onClick }: { icon: typeof Paperclip; label: string; hint?: string; onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} className="flex min-h-13 items-center gap-3.5 rounded-[12px] px-3 text-left active:bg-sunken">
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-sunken text-ink-soft">
+        <Icon className="size-5" strokeWidth={1.8} aria-hidden />
+      </span>
+      <span className="min-w-0">
+        <span className="block text-[16px]">{label}</span>
+        {hint ? <span className="block text-xs text-muted">{hint}</span> : null}
+      </span>
+    </button>
   );
 }

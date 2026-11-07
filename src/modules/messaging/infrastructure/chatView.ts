@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, inArray, isNull, or } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, lt, or } from "drizzle-orm";
 import { db } from "@/shared/infrastructure/db";
 import { crmBotEvents, crmConversations, crmDeals, crmMessages, crmTemplates, orders, users, type CrmConversation } from "@/shared/infrastructure/db/schema";
 import { env } from "@/config/env";
@@ -52,12 +52,12 @@ function outgoingAuthor(m: Pick<typeof crmMessages.$inferSelect, "internal" | "s
 }
 
 /** Последние сообщения диалога в виде, готовом для ChatPanel. gateway — вложение открывается через шлюз GOWA. */
-async function loadChatMessages(conversationId: string, limit: number, gateway: (m: typeof crmMessages.$inferSelect) => boolean): Promise<ChatMessage[]> {
+async function loadChatMessages(conversationId: string, limit: number, gateway: (m: typeof crmMessages.$inferSelect) => boolean, before?: Date): Promise<ChatMessage[]> {
   const rows = await db
     .select({ m: crmMessages, author: { name: users.name, email: users.email } })
     .from(crmMessages)
     .leftJoin(users, eq(users.id, crmMessages.authorId))
-    .where(eq(crmMessages.conversationId, conversationId))
+    .where(before ? and(eq(crmMessages.conversationId, conversationId), lt(crmMessages.createdAt, before)) : eq(crmMessages.conversationId, conversationId))
     .orderBy(desc(crmMessages.createdAt))
     .limit(limit);
   // Цитаты ответов — одним запросом по id.
@@ -122,11 +122,12 @@ export class ChatView {
     },
   ) {}
 
-  async messages(conversationId: string, limit = 150) {
+  /** before — страница истории старше этого момента (подгрузка при прокрутке вверх). */
+  async messages(conversationId: string, limit = 150, before?: Date) {
     const [conv] = await db.select({ channel: crmConversations.channel, channelId: crmConversations.channelId, chatId: crmConversations.chatId }).from(crmConversations).where(eq(crmConversations.id, conversationId)).limit(1);
     const viaGowa = conv?.channel === "whatsapp" && (await this.deps.whatsappProvider()) === "gowa";
     // Файл шлюза, файл, который шлюз скачает, или файл из хранилища сайта (отправлен из CRM) — через наш адрес.
-    return loadChatMessages(conversationId, limit, (m) => !!conv && (gowaMediaPath(m.mediaUrl) !== null || (m.mediaUrl?.startsWith("store:") ?? false) || gowaDownloadable(conv, viaGowa, m)));
+    return loadChatMessages(conversationId, limit, (m) => !!conv && (gowaMediaPath(m.mediaUrl) !== null || (m.mediaUrl?.startsWith("store:") ?? false) || gowaDownloadable(conv, viaGowa, m)), before);
   }
 
   /** Быстрые ответы для сотрудника: его личные сверху, затем общие. */

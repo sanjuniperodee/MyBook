@@ -190,6 +190,9 @@ function Bubble({
   };
   const box = useRef<HTMLDivElement>(null);
   const press = useRef<number | null>(null);
+  /** Свайп вправо — ответить (как в WhatsApp): пузырь едет за пальцем через style, без перерисовки React. */
+  const swipe = useRef<{ x: number; y: number; dx: number; on: boolean } | null>(null);
+  const row = useRef<HTMLDivElement>(null);
   const out = m.direction === "out";
   const own = out && !!m.authorId && m.authorId === me;
   const age = now - new Date(m.at).getTime();
@@ -285,12 +288,62 @@ function Bubble({
     );
 
   const failed = m.status === "error";
+  const canReply = items.some((i) => i.key === "reply");
+  // Сдвиг — CSS-переменными строки (--sx, --sh): пузырь и стрелка читают их сами, React не перерисовывает.
+  const moveTo = (dx: number, animate: boolean) => {
+    const el = row.current;
+    if (!el) return;
+    el.dataset.anim = animate ? "1" : "";
+    el.style.setProperty("--sx", `${dx}px`);
+    el.style.setProperty("--sh", String(Math.min(1, dx / 56)));
+  };
   return (
-    <div className={cn("flex", out ? "justify-end" : "justify-start")} data-mid={m.id}>
+    <div
+      ref={row}
+      className={cn("group/row relative flex touch-pan-y", out ? "justify-end" : "justify-start")}
+      data-mid={m.id}
+      onTouchStart={(e) => {
+        if (!canReply || selecting) return;
+        const t = e.touches[0];
+        swipe.current = { x: t.clientX, y: t.clientY, dx: 0, on: false };
+      }}
+      onTouchMove={(e) => {
+        const s0 = swipe.current;
+        if (!s0) return;
+        const t = e.touches[0];
+        const dx = t.clientX - s0.x;
+        const dy = Math.abs(t.clientY - s0.y);
+        if (!s0.on) {
+          // Вертикально — прокрутка ленты, не свайп; горизонтально вправо — свайп (долгое нажатие отменяется).
+          if (dy > 10 || dx < -6) return void (swipe.current = null);
+          if (dx < 10) return;
+          s0.on = true;
+          if (press.current) window.clearTimeout(press.current);
+        }
+        s0.dx = Math.max(0, Math.min(80, dx));
+        moveTo(s0.dx, false);
+      }}
+      onTouchEnd={() => {
+        const s0 = swipe.current;
+        swipe.current = null;
+        if (!s0?.on) return;
+        moveTo(0, true);
+        if (s0.dx >= 56) {
+          navigator.vibrate?.(10);
+          onAction("reply", m);
+        }
+      }}
+    >
+      {canReply ? (
+        <span className="pointer-events-none absolute top-1/2 left-1 flex size-8 -translate-y-1/2 items-center justify-center rounded-full bg-white text-ink-soft shadow-soft lg:hidden" style={{ opacity: "var(--sh, 0)" }} aria-hidden>
+          <Reply className="size-4" />
+        </span>
+      ) : null}
       <div
         ref={box}
+        style={{ transform: "translateX(var(--sx, 0px))" }}
         className={cn(
-          "group relative max-w-[min(82%,560px)] rounded-[14px] border px-3 pt-1.5 pb-1.5 text-[14px] leading-[1.45] text-ink sm:max-w-[min(72%,560px)]",
+          "group relative max-w-[min(82%,560px)] rounded-[14px] border px-3 pt-1.5 pb-1.5 text-[14px] leading-[1.45] text-ink group-data-[anim=1]/row:transition-transform group-data-[anim=1]/row:duration-200 sm:max-w-[min(72%,560px)] max-lg:text-[15px]",
           out ? (failed ? "border-danger/30 bg-danger-bg" : m.deleted ? "border-line bg-white/60" : isBot ? "border-transparent bg-info-bg" : "border-transparent bg-rose") : "border-line bg-white",
           last && (out ? "rounded-br-[4px]" : "rounded-bl-[4px]"),
           highlighted && "ring-2 ring-wine/40",
@@ -314,7 +367,8 @@ function Bubble({
             <ChevronDown className="size-4" />
           </button>
         ) : null}
-        {first && out && m.author ? (
+        {/* Своё имя над своими сообщениями не нужно (как в мессенджере); коллега или бот — подписаны. */}
+        {first && out && m.author && !own ? (
           <div className={cn("flex items-center gap-1 pt-0.5 text-xs font-semibold", isBot ? "text-info" : "text-wine")}>
             {isBot ? <Bot className="size-3.5" /> : null}
             {isBot ? "Бот" : m.author}

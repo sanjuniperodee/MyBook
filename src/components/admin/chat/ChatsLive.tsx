@@ -2,56 +2,50 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { coalesce, liveChannel } from "../liveRules";
 
-/** Пока живой канал (SSE) открыт, опрос — только страховка; без него — как раньше, раз в 15 секунд. */
-const POLL_MS = 15_000;
-const POLL_MS_LIVE = 60_000;
-/** Сообщение, статусы доставки и действия бота подряд — одно обновление в секунду, последнее не теряется. */
-const GAP_MS = 1_000;
-/** На телефоне и планшете обновление дороже (тот же ответ сервера по мобильной сети, слабый процессор) — реже. */
-const GAP_MS_TOUCH = 2_500;
+/** Полная пересборка страницы — не чаще раза в минуту: она тянет список, сделку, шаблоны, счета (~250 КБ на телефоне). */
+const FULL_REFRESH_MS = 60_000;
+/** Вкладка была скрыта дольше — при возврате обновляем всё (бот мог взять диалог, сменился ответственный). */
+const HIDDEN_MS = 60_000;
 
 /**
- * Страница чатов обновляется сама по событию о любом диалоге: новый чат и счётчик в списке появляются сразу, даже
- * когда диалог не открыт, открытая переписка — тоже. Список и переписка рисуются на сервере, поэтому обновление —
- * router.refresh(), склеенное по времени. Скрытая вкладка не перерисовывается: событие запоминается, и экран
- * обновляется один раз, когда вкладку открывают, — а не на каждое сообщение и статус доставки в фоне.
+ * Живое обновление страницы чатов. Ленту открытого диалога и список обновляют сами ChatPanel и ChatRows маленькими
+ * JSON-запросами по событию SSE — здесь только редкая полная пересборка для того, что рисует сервер вокруг: шапка,
+ * плашка бота, боковая колонка (сделка, ответственный, счета). По событию открытого диалога — не чаще раза в минуту;
+ * при возврате во вкладку после долгого отсутствия — сразу.
  */
-export function ChatsLive() {
+export function ChatsLive({ open }: { open: string | null }) {
   const router = useRouter();
   useEffect(() => {
-    let stale = false;
-    const gap = window.matchMedia("(pointer: coarse)").matches ? GAP_MS_TOUCH : GAP_MS;
-    const refresh = coalesce(() => {
-      if (document.visibilityState !== "visible") {
-        stale = true;
-        return;
-      }
-      stale = false;
+    let last = Date.now();
+    let hiddenAt = 0;
+    let timer: number | undefined;
+    const full = () => {
+      last = Date.now();
       router.refresh();
-    }, gap);
+    };
     const onLive = (e: Event) => {
-      const d = (e as CustomEvent<{ type?: string }>).detail;
-      if (d?.type === "chat") void refresh();
+      const d = (e as CustomEvent<{ type?: string; conversationId?: string | null }>).detail;
+      if (d?.type !== "chat" || !open || (d.conversationId && d.conversationId !== open) || document.visibilityState !== "visible" || timer) return;
+      timer = window.setTimeout(
+        () => {
+          timer = undefined;
+          if (document.visibilityState === "visible") full();
+        },
+        Math.max(0, FULL_REFRESH_MS - (Date.now() - last)),
+      );
     };
     const onVisible = () => {
-      if (stale && document.visibilityState === "visible") void refresh();
-    };
-    let lastPoll = Date.now();
-    const poll = () => {
-      if (document.visibilityState !== "visible" || Date.now() - lastPoll < (liveChannel.connected() ? POLL_MS_LIVE : POLL_MS)) return;
-      lastPoll = Date.now();
-      void refresh();
+      if (document.visibilityState === "hidden") hiddenAt = Date.now();
+      else if (hiddenAt && Date.now() - hiddenAt > HIDDEN_MS) full();
     };
     window.addEventListener("crm:live", onLive);
     document.addEventListener("visibilitychange", onVisible);
-    const id = window.setInterval(poll, 5_000);
     return () => {
+      window.clearTimeout(timer);
       window.removeEventListener("crm:live", onLive);
       document.removeEventListener("visibilitychange", onVisible);
-      window.clearInterval(id);
     };
-  }, [router]);
+  }, [router, open]);
   return null;
 }

@@ -82,7 +82,7 @@ export function ChatListLink({ id, href, active, pinned = false, children }: { i
   return (
     <div
       // Чаты за экраном не раскладываем и не рисуем: в списке до 150 диалогов, на телефоне это заметно.
-      className="relative [contain-intrinsic-size:auto_84px] [content-visibility:auto]"
+      className="relative [contain-intrinsic-size:auto_76px] [content-visibility:auto]"
       onContextMenu={(e) => {
         e.preventDefault();
         setMenu({ x: Math.min(e.clientX, window.innerWidth - 220), y: Math.min(e.clientY, window.innerHeight - 70) });
@@ -98,14 +98,15 @@ export function ChatListLink({ id, href, active, pinned = false, children }: { i
     >
       <Link
         href={href}
-        className={cn("relative mx-2 flex gap-3 rounded-[10px] px-2.5 py-2.5 transition-colors duration-150", active || going ? "bg-rose/70" : "hover:bg-sunken/70 active:bg-sunken", going && "opacity-80")}
+        // Телефон — как в мессенджере: строка на всю ширину, разделитель под текстом; ноутбук — строки-карточки в колонке.
+        className={cn("relative flex gap-3 transition-colors duration-150 max-lg:items-center max-lg:pl-4 lg:mx-2 lg:rounded-[10px] lg:px-2.5 lg:py-2.5", active || going ? "bg-rose/70" : "hover:bg-sunken/70 active:bg-sunken", going && "opacity-80")}
         aria-current={active ? "true" : undefined}
         aria-busy={going || undefined}
       >
-        {active || going ? <span className={cn("absolute inset-y-2.5 -left-2 w-[3px] rounded-r-full bg-wine", going && "animate-pulse")} aria-hidden /> : null}
+        {active || going ? <span className={cn("absolute inset-y-2.5 -left-2 w-[3px] rounded-r-full bg-wine max-lg:hidden", going && "animate-pulse")} aria-hidden /> : null}
         <Reporter id={id} />
         {children}
-        {on ? <Pin className="pointer-events-none absolute right-2.5 bottom-3 size-3.5 text-wine" fill="currentColor" aria-label="Закреплён" /> : null}
+        {on ? <Pin className="pointer-events-none absolute right-4 bottom-3 size-3.5 text-wine lg:right-2.5" fill="currentColor" aria-label="Закреплён" /> : null}
         {going ? <LoaderCircle className="absolute right-8 bottom-3 size-4 animate-spin text-wine" aria-label="Открываем диалог" /> : null}
       </Link>
       {menu

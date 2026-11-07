@@ -11,9 +11,6 @@ import { channelLabel as acquisitionChannel, toAttribution } from "@/shared/doma
 import { mentionableStaff } from "@/modules/workspace";
 import { formatPhone } from "@/shared/domain/phone";
 import { storeTimeZone } from "@/shared/domain/time";
-import { parseWorkHours } from "@/shared/domain/schedule";
-import { getSetting } from "@/modules/workspace";
-import { responseWait, slaMinutes } from "@/modules/reporting/ui/response-wait";
 import { formatPrice } from "@/config/site";
 import { ChatPanel } from "@/components/admin/ChatPanel";
 import { ChatNavProvider, ChatSlot } from "@/components/admin/chat/ChatNav";
@@ -24,18 +21,14 @@ import { invoiceViews } from "@/app/admin/invoices/view";
 import { BotBanner, ChatSideControls } from "./ChatControls";
 import { PhoneHolder } from "./PhoneHolder";
 import { WhatsappCallButton } from "@/components/admin/WhatsappCall";
-import { CHAT_FILTERS, ChatAvatar, ChatHeader, ChatListPane, SideSection, type ChatFilter, type ChatListItem } from "@/components/admin/chat/Inbox";
+import { CHAT_FILTERS, ChatAvatar, ChatHeader, ChatListPane, SideSection, type ChatFilter } from "@/components/admin/chat/Inbox";
+import { chatTitle, inboxItems, shortTime } from "./inbox-items";
 
 export const metadata = { title: "Чаты" };
 
 const filters = CHAT_FILTERS;
 type Filter = ChatFilter;
 
-const shortTime = (d: Date | null) => {
-  if (!d) return "";
-  const today = new Date();
-  return d.toDateString() === today.toDateString() ? d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit", timeZone: storeTimeZone() }) : d.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
-};
 
 export default async function ChatsPage({ searchParams }: { searchParams: Promise<{ c?: string; f?: string; q?: string }> }) {
   const staff = await requireStaff("chats.view");
@@ -44,23 +37,17 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
   const q = sp.q?.trim();
 
   const selectedId = sp.c && /^[0-9a-f-]{36}$/.test(sp.c) ? sp.c : null;
-  const [list, admins, slaRaw, hoursRaw, selected, phoneHolder] = await Promise.all([
-    container().reporting.inbox({ userId: staff.user.id, seesAll: staff.scope === "all" }, f, q),
+  // Строки списка — та же сборка, что у живого обновления списка (/api/admin/chats/inbox).
+  const [items, admins, selected, phoneHolder] = await Promise.all([
+    inboxItems(staff, f, q),
     container().access.queries.allStaff(),
-    getSetting("crm.slaMinutes"),
-    getSetting("crm.workHours"),
     selectedId ? container().messaging.queries.conversation(selectedId) : null,
     container().messaging.phoneHolder(),
   ]);
-  // Ожидание и норматив — в рабочих минутах, как в «Моём дне» и в правиле «нет ответа».
-  const sla = slaMinutes(slaRaw);
-  const hours = parseWorkHours(hoursRaw);
-  const now = new Date();
+  const list = items;
   const names = new Map(admins.map((a) => [a.id, staffLabel(a)]));
   const conv = selected && canSeeAssigned(staff, selected.assigneeId) ? selected : null;
-  const title = (c: { contactName: string; chatId: string; channel: string; meta: { phone?: string } }) =>
-    c.contactName ||
-    (c.channel === "email" ? contactView(staff, { email: c.chatId }).email : c.channel === "site" ? (c.meta.phone ? contactView(staff, { phone: formatPhone(c.meta.phone) }).phone : "Посетитель сайта") : contactView(staff, { phone: formatPhone(c.chatId) }).phone || c.chatId);
+  const title = (c: { contactName: string; chatId: string; channel: string; meta: { phone?: string } }) => chatTitle(staff, c);
 
   let panel: React.ReactNode = (
     <div className="hidden min-w-0 flex-1 items-center justify-center bg-canvas lg:flex">
@@ -241,29 +228,11 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
     );
   }
 
-  const items: ChatListItem[] = list.map((c) => {
-    const wait = c.awaitingSince ? responseWait(c.awaitingSince, now, hours, sla) : null;
-    const phase = (c.botState as { phase?: string } | null)?.phase;
-    return {
-      id: c.id,
-      title: title(c),
-      avatarUrl: c.avatarUrl,
-      channel: c.channel,
-      time: shortTime(c.lastMessageAt),
-      preview: c.lastMessageText,
-      unread: c.unread,
-      assignee: c.assigneeId ? (names.get(c.assigneeId) ?? null) : null,
-      waitMinutes: wait?.minutes ?? null,
-      waitLabel: wait?.label ?? null,
-      overdue: !!wait?.overdue,
-      bot: phase === "active" || phase === "waiting",
-      pinned: !!c.pinnedAt,
-    };
-  });
+
   const href = (p: { f?: Filter; c?: string }) => `/admin/chats?f=${p.f ?? f}${q ? `&q=${encodeURIComponent(q)}` : ""}${p.c ? `&c=${p.c}` : ""}`;
   return (
-    <ChatNavProvider className="crm-chat-root -mx-4 -my-5 flex overflow-hidden bg-white sm:-mx-6 lg:-my-7 lg:h-[calc(100dvh-3.5rem)] 2xl:-mx-8" data-chat-root>
-      <ChatsLive />
+    <ChatNavProvider className="crm-chat-root -mx-4 -my-5 flex overflow-hidden bg-white sm:-mx-6 lg:my-0 lg:h-[calc(100dvh-var(--topbar-h))] 2xl:-mx-8" data-chat-root>
+      <ChatsLive open={conv?.id ?? null} />
       <ChatListPane
         items={items}
         filter={f}

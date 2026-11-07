@@ -1,10 +1,10 @@
-import { ChatListLink } from "./ChatNav";
+import { ChatAvatar } from "./ChatAvatar";
+import { ChatRows } from "./ChatRows";
+export { ChatAvatar } from "./ChatAvatar";
 import Link from "next/link";
-import { ArrowLeft, Bot, Camera, Globe, Mail, MessagesSquare, Send, UserRound } from "lucide-react";
+import { ArrowLeft, MessagesSquare, UserRound } from "lucide-react";
 import { cn } from "@/lib/class-names";
-import { waitLabel } from "@/modules/reporting/ui/response-wait";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { WaIcon } from "../WhatsappCall";
 import { DetailsToggle } from "./DetailsPanel";
 import { ChatListHeader } from "./ListHeader";
 import { textOn } from "@/lib/readable-text";
@@ -17,17 +17,8 @@ import { textOn } from "@/lib/readable-text";
  * по кнопке в шапке); телефон — список на весь экран, открытый диалог — на весь экран без шапки и панели CRM.
  */
 
-export const CHAT_FILTERS = { open: "Открытые", mine: "Мои", unread: "Непрочитанные", waiting: "Ждут ответа", closed: "Закрытые" } as const;
-export type ChatFilter = keyof typeof CHAT_FILTERS;
-
-/** Значок канала на аватаре: белый кружок со знаком канала его цветом-токеном (без фирменных заливок — одна палитра). */
-const CHANNEL_BADGE: Record<string, { icon: React.ComponentType<{ className?: string; strokeWidth?: number }>; tone: string; label: string }> = {
-  whatsapp: { icon: WaIcon, tone: "text-success", label: "WhatsApp" },
-  instagram: { icon: Camera, tone: "text-wine", label: "Instagram" },
-  telegram: { icon: Send, tone: "text-info", label: "Telegram" },
-  site: { icon: Globe, tone: "text-wine", label: "Сайт" },
-  email: { icon: Mail, tone: "text-ink-soft", label: "Почта" },
-};
+export { CHAT_FILTERS, type ChatFilter, type ChatListItem } from "./inbox-model";
+import { CHAT_FILTERS, type ChatFilter, type ChatListItem } from "./inbox-model";
 
 /**
  * Цвет текста на плашке этапа: этап красят в «Воронке» любым цветом, и белый на светло-жёлтом не читался. Тёмный или
@@ -37,65 +28,7 @@ export function readableOn(color: string) {
   return textOn(color) === "#000000" ? "#17130f" : "#fff";
 }
 
-/**
- * Аватар без фото — буква на тонированной подложке. Тон стабилен по имени (собеседников легче различать в списке) и
- * берётся из статусных пар токенов: в тёмной теме они сами становятся тёмными.
- */
-const TONES = ["bg-rose text-wine", "bg-success-bg text-success", "bg-info-bg text-info", "bg-warning-bg text-warning", "bg-sunken text-ink-soft"];
-const toneOf = (name: string) => TONES[[...name].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7) % TONES.length];
 
-const SIZES = {
-  40: { box: "size-10 text-sm", badge: "size-4", icon: "size-2.5" },
-  44: { box: "size-11 text-[15px]", badge: "size-[18px]", icon: "size-3" },
-  48: { box: "size-12 text-base", badge: "size-[18px]", icon: "size-3" },
-  56: { box: "size-14 text-lg", badge: "size-5", icon: "size-3" },
-  72: { box: "size-[72px] text-2xl", badge: "size-6", icon: "size-3.5" },
-} as const;
-
-export function ChatAvatar({ name, url, channel, size = 44 }: { name: string; url: string | null; channel?: string; size?: keyof typeof SIZES }) {
-  const s = SIZES[size];
-  const badge = channel ? CHANNEL_BADGE[channel] : undefined;
-  // Первая буква имени; у номера телефона букв нет — значок человека.
-  const letter = /\p{L}/u.exec(name)?.[0] ?? null;
-  return (
-    <span className={cn("relative inline-block shrink-0", s.box)}>
-      {url ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={url} alt="" className={cn("rounded-full object-cover", s.box)} loading="lazy" />
-      ) : (
-        <span className={cn("flex items-center justify-center rounded-full font-semibold uppercase", s.box, toneOf(name))} aria-hidden>
-          {letter ?? <UserRound className="size-[45%]" strokeWidth={1.8} />}
-        </span>
-      )}
-      {badge ? (
-        <span className={cn("absolute -right-0.5 -bottom-0.5 flex items-center justify-center rounded-full bg-white ring-2 ring-white", s.badge, badge.tone)} title={badge.label}>
-          <badge.icon className={s.icon} strokeWidth={2.4} />
-        </span>
-      ) : null}
-    </span>
-  );
-}
-
-export interface ChatListItem {
-  id: string;
-  title: string;
-  avatarUrl: string | null;
-  channel: string;
-  time: string;
-  preview: string;
-  unread: number;
-  /** Кто ведёт; null — не назначен. */
-  assignee: string | null;
-  /** Ждёт ответа столько рабочих минут (responseWait); null — не ждёт. */
-  waitMinutes: number | null;
-  /** Подпись ожидания (responseWait: «1 ч 5 мин», «2 раб. дн») — та же, что в «Моём дне»; нет — из waitMinutes. */
-  waitLabel?: string | null;
-  /** Норматив ответа вышел. */
-  overdue: boolean;
-  bot: boolean;
-  /** Закреплён у текущего сотрудника — стоит вверху списка. */
-  pinned: boolean;
-}
 
 /**
  * Колонка «Входящие»: заголовок с поиском, фильтры лентой чипов, диалоги. Строка диалога — три уровня: кто и когда;
@@ -131,51 +64,13 @@ export function ChatListPane({
           </Link>
         ))}
       </nav>
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-1" data-testid="chat-list">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain lg:py-1" data-testid="chat-list">
         {items.length === 0 ? (
           <EmptyState compact icon={MessagesSquare} title={q ? "По запросу ничего не нашлось" : filter === "open" ? "Открытых диалогов нет" : "В этом списке пусто"} action={emptyCta}>
             {q ? "Проверьте написание или поищите по номеру телефона." : filter === "open" ? "Новые сообщения из WhatsApp, Instagram, Telegram, сайта и почты появятся здесь." : "Попробуйте другой фильтр."}
           </EmptyState>
         ) : null}
-        {items.map((c) => {
-          const active = c.id === selectedId;
-          const needs = c.waitMinutes !== null || c.bot || !c.assignee;
-          return (
-            <ChatListLink key={c.id} id={c.id} href={href({ c: c.id })} active={active} pinned={c.pinned}>
-              <ChatAvatar name={c.title} url={c.avatarUrl} channel={c.channel} />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-baseline gap-2">
-                  <span className={cn("min-w-0 flex-1 truncate text-[15px] leading-5 text-ink", c.unread ? "font-semibold" : "font-medium")}>{c.title}</span>
-                  <span className={cn("shrink-0 text-xs tabular-nums", c.unread ? "font-semibold text-wine" : "text-muted")}>{c.time}</span>
-                </div>
-                <div className="mt-0.5 flex items-center gap-2">
-                  <span className={cn("min-w-0 flex-1 truncate text-[13px] leading-5", c.unread ? "text-ink" : "text-muted")}>{c.preview || "Без текста"}</span>
-                  {c.unread ? (
-                    <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-wine px-1.5 text-xs font-semibold text-white tabular-nums" aria-label={`Непрочитанных: ${c.unread}`}>
-                      {c.unread > 99 ? "99+" : c.unread}
-                    </span>
-                  ) : null}
-                </div>
-                <div className={cn("mt-1.5 flex min-w-0 items-center gap-1.5", !needs && "mt-1")}>
-                  {c.waitMinutes !== null ? <span className={cn("badge", c.overdue ? "badge-danger" : "badge-warning")}>ждёт {c.waitLabel || waitLabel(c.waitMinutes)}</span> : null}
-                  {c.bot ? (
-                    <span className="badge badge-info">
-                      <Bot className="size-3" aria-hidden /> бот ведёт
-                    </span>
-                  ) : null}
-                  {c.assignee ? (
-                    <span className="flex min-w-0 items-center gap-1 text-xs text-muted">
-                      <UserRound className="size-3 shrink-0" aria-hidden />
-                      <span className="truncate">{c.assignee}</span>
-                    </span>
-                  ) : (
-                    <span className="badge">без ответственного</span>
-                  )}
-                </div>
-              </div>
-            </ChatListLink>
-          );
-        })}
+        <ChatRows initial={items} selectedId={selectedId} filter={filter} q={q} />
       </div>
     </div>
   );

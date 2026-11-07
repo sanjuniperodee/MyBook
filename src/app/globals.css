@@ -181,6 +181,14 @@ body {
   }
 }
 
+/* Чаты на ноутбуке — на всю область под шапкой: у основной области со страницей чатов нет вертикальных полей
+   (страница не зависит от того, какие поля у .crm-main). */
+@media (min-width: 1024px) {
+  .crm-main:has([data-chat-root]) {
+    padding-block: 0;
+  }
+}
+
 /* Скрытая полоса прокрутки для горизонтальных лент */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { scrollbar-width: none; }
@@ -383,8 +391,23 @@ body {
   html[data-chat-open] .crm-main {
     padding-bottom: 0;
   }
+  /*
+   * Открытый диалог на телефоне — как в мессенджере: прибит к видимой области экрана. Когда iOS поднимает клавиатуру,
+   * видимая область уменьшается и сдвигается (--vvh, --vvt из visualViewport, MobileTabBar): шапка и поле ввода остаются
+   * на месте, а не уезжают вместе со страницей.
+   */
   html[data-chat-open] .crm-chat-root {
-    height: 100dvh;
+    position: fixed;
+    inset-inline: 0;
+    top: var(--vvt, 0px);
+    height: var(--vvh, 100dvh);
+    margin: 0;
+    z-index: 30;
+  }
+  html[data-chat-open],
+  html[data-chat-open] body {
+    overflow: hidden;
+    overscroll-behavior: none;
   }
   body {
     overscroll-behavior-y: contain;

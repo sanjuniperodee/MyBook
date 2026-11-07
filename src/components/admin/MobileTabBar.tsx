@@ -42,10 +42,32 @@ export function MobileTabBar({ tabs, profileLabel }: { tabs: MobileTabKey[]; pro
   // Открытый чат — на весь экран: шапка CRM и нижняя панель скрываются (стили — globals.css, [data-chat-open]).
   useEffect(() => {
     const root = document.documentElement;
-    if (chatOpen) root.dataset.chatOpen = "1";
-    else delete root.dataset.chatOpen;
-    return () => {
+    if (!chatOpen) {
       delete root.dataset.chatOpen;
+      return;
+    }
+    root.dataset.chatOpen = "1";
+    // Видимая область (без клавиатуры) — в CSS-переменные: открытый чат прибит к ней (globals.css, [data-chat-open]).
+    const vv = window.visualViewport;
+    let frame = 0;
+    const sync = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        if (!vv) return;
+        root.style.setProperty("--vvh", `${Math.round(vv.height)}px`);
+        root.style.setProperty("--vvt", `${Math.round(vv.offsetTop)}px`);
+      });
+    };
+    sync();
+    vv?.addEventListener("resize", sync);
+    vv?.addEventListener("scroll", sync);
+    return () => {
+      cancelAnimationFrame(frame);
+      vv?.removeEventListener("resize", sync);
+      vv?.removeEventListener("scroll", sync);
+      delete root.dataset.chatOpen;
+      root.style.removeProperty("--vvh");
+      root.style.removeProperty("--vvt");
     };
   }, [chatOpen]);
 
