@@ -3,6 +3,19 @@
 export const CHAT_FILTERS = { open: "Открытые", mine: "Мои", unread: "Непрочитанные", waiting: "Ждут ответа", closed: "Закрытые" } as const;
 export type ChatFilter = keyof typeof CHAT_FILTERS;
 
+/** Событие окна от открытой переписки: сервер снял «непрочитано» с диалога (detail: { conversationId }). */
+export const CHAT_READ_EVENT = "crm:chat-read";
+
+/**
+ * Строки без счётчика у диалогов, прочитанных в этой вкладке. Страница чатов из кэша роутера (staleTimes, до 30 с)
+ * приносит строки, снятые до отметки, — на телефоне после «назад» счётчик возвращался. Свежие строки с сервера
+ * (/api/admin/chats/inbox) после события о диалоге верны сами — для них набор уже пуст.
+ */
+export function withoutRead(items: ChatListItem[], read: ReadonlySet<string>): ChatListItem[] {
+  if (!read.size) return items;
+  return items.map((c) => (c.unread && read.has(c.id) ? { ...c, unread: 0 } : c));
+}
+
 export interface ChatListItem {
   id: string;
   title: string;

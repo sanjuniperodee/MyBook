@@ -23,6 +23,7 @@ import { fillTemplate } from "@/shared/domain/templates";
 import { toast, toastError } from "@/components/ui/overlays";
 import { cn } from "@/lib/class-names";
 import { liveChannel } from "./liveRules";
+import { CHAT_READ_EVENT } from "./chat/inbox-model";
 
 /** Ближе стольких пикселей к низу — «внизу»: новые сообщения прокручивают ленту, дальше — только кнопка «↓». */
 const NEAR_BOTTOM = 160;
@@ -297,7 +298,11 @@ export function ChatPanel({
   const incoming = useMemo(() => source.reduce((n, m) => n + (m.direction === "in" ? 1 : 0), 0), [source]);
   useEffect(() => {
     if (document.visibilityState !== "visible") return;
-    void markReadAction(conversationId).then(() => window.dispatchEvent(new Event("crm:refresh")));
+    void markReadAction(conversationId).then(({ read }) => {
+      // Счётчики меню — через /api/admin/live; строке списка сообщаем сами: страница из кэша роутера ещё помнит старый счётчик.
+      window.dispatchEvent(new Event("crm:refresh"));
+      if (read) window.dispatchEvent(new CustomEvent(CHAT_READ_EVENT, { detail: { conversationId } }));
+    });
   }, [conversationId, incoming]);
 
   /** Свежее окно ленты — маленьким JSON, без пересборки страницы (та на телефоне весит ~250 КБ и ходит в базу 12 раз). */

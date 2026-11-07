@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Bot, UserRound } from "lucide-react";
 import { cn } from "@/lib/class-names";
 import { waitLabel } from "@/modules/reporting/ui/response-wait";
 import { liveChannel } from "../liveRules";
 import { ChatListLink } from "./ChatNav";
 import { ChatAvatar } from "./ChatAvatar";
-import type { ChatFilter, ChatListItem } from "./inbox-model";
+import { CHAT_READ_EVENT, withoutRead, type ChatFilter, type ChatListItem } from "./inbox-model";
 
 /** Склейка событий: пачка сообщений и статусов — один запрос списка. На телефоне реже (сеть и процессор дороже). */
 const GAP_MS = 800;
@@ -27,6 +27,12 @@ export function ChatRows({ initial, selectedId, filter, q }: { initial: ChatList
     setSeen(initial);
     setItems(initial);
   }
+  /**
+   * Диалоги, прочитанные в этой вкладке (ChatPanel отметил на сервере): строки из кэша роутера ещё помнят их счётчик.
+   * Событие о диалоге (новое сообщение) или опрос без живого канала снимают запись — дальше верим серверу.
+   */
+  const [read, setRead] = useState<ReadonlySet<string>>(() => new Set());
+  const rows = useMemo(() => withoutRead(items, read), [items, read]);
 
   useEffect(() => {
     let timer: number | undefined;
@@ -45,9 +51,17 @@ export function ChatRows({ initial, selectedId, filter, q }: { initial: ChatList
       timer = window.setTimeout(() => void load(), ms);
     };
     const onLive = (e: Event) => {
-      if ((e as CustomEvent<{ type?: string }>).detail?.type !== "chat") return;
+      const d = (e as CustomEvent<{ type?: string; conversationId?: string | null }>).detail;
+      if (d?.type !== "chat") return;
+      // В диалоге что-то произошло (или канал переподключился — без id): его счётчик снова берём с сервера.
+      const id = d.conversationId;
+      setRead((r) => (id ? (r.has(id) ? new Set([...r].filter((x) => x !== id)) : r) : r.size ? new Set() : r));
       if (document.visibilityState !== "visible") return void (stale = true);
       schedule(gap);
+    };
+    const onRead = (e: Event) => {
+      const id = (e as CustomEvent<{ conversationId?: string }>).detail?.conversationId;
+      if (id) setRead((r) => (r.has(id) ? r : new Set(r).add(id)));
     };
     const onVisible = () => {
       if (document.visibilityState === "visible" && stale) {
@@ -55,13 +69,20 @@ export function ChatRows({ initial, selectedId, filter, q }: { initial: ChatList
         schedule(0);
       }
     };
-    const poll = window.setInterval(() => document.visibilityState === "visible" && !liveChannel.connected() && void load(), 15_000);
+    // Без живого канала события о диалогах не приходят — опрос берёт все счётчики с сервера как есть.
+    const poll = window.setInterval(() => {
+      if (document.visibilityState !== "visible" || liveChannel.connected()) return;
+      setRead((r) => (r.size ? new Set() : r));
+      void load();
+    }, 15_000);
     window.addEventListener("crm:live", onLive);
+    window.addEventListener(CHAT_READ_EVENT, onRead);
     document.addEventListener("visibilitychange", onVisible);
     return () => {
       window.clearTimeout(timer);
       window.clearInterval(poll);
       window.removeEventListener("crm:live", onLive);
+      window.removeEventListener(CHAT_READ_EVENT, onRead);
       document.removeEventListener("visibilitychange", onVisible);
     };
   }, [filter, q]);
@@ -69,7 +90,7 @@ export function ChatRows({ initial, selectedId, filter, q }: { initial: ChatList
   const href = (id: string) => `/admin/chats?f=${filter}${q ? `&q=${encodeURIComponent(q)}` : ""}&c=${id}`;
   return (
     <>
-      {items.map((c) => {
+      {rows.map((c) => {
         const active = c.id === selectedId;
         const unread = active ? 0 : c.unread;
         const needs = c.waitMinutes !== null || c.bot || !c.assignee;

@@ -58,13 +58,16 @@ export async function sendMessageAction(conversationId: string, text: string, ov
   return { id: msg.id, status: msg.status, error: "error" in msg ? (msg.error ?? null) : null };
 }
 
-export async function markReadAction(conversationId: string) {
+/** Открыл диалог — прочитано. read — счётчик у этого сотрудника снят (или и не стоял): список в браузере может его спрятать. */
+export async function markReadAction(conversationId: string): Promise<{ read: boolean }> {
   const staff = await assertStaff("chats.view");
   const conv = await loadConv(staff, conversationId);
-  // «Прочитано» ставит тот, кто ведёт диалог; руководитель, открывший чужой чат, счётчик менеджера не сбрасывает.
-  // Ничей — тот, кто может его взять (менеджер «только свои» ничей только смотрит).
-  const reader = conv.assigneeId ? conv.assigneeId === staff.user.id : canWork(staff, null);
-  if (conv.unread && reader) await container().messaging.chats.markRead(conv.id);
+  // Счётчик непрочитанного — у диалога, не у сотрудника: его снимает любой, кто может с диалогом работать, — ответственный
+  // или роль «все записи». Ответы с телефона магазина записывают диалоги на того, у кого телефон; если бы «прочитано»
+  // ставил только он, у остальных счётчики копились бы навсегда. Ничей диалог менеджер «только свои» только смотрит.
+  const read = canWork(staff, conv.assigneeId);
+  if (conv.unread && read) await container().messaging.chats.markRead(conv.id);
+  return { read };
 }
 
 export async function assignConversationAction(conversationId: string, userId: string | null) {
