@@ -171,6 +171,8 @@ export function SpreadViewer({
   const stage = useRef<HTMLDivElement>(null);
   const [full, setFull] = useState(false);
   const swipe = useRef<number | null>(null);
+  // Свайп уже перелистнул — щелчок, который браузер пришлёт следом, страницу не листает.
+  const swiped = useRef(false);
 
   // Единицы листания: развороты или отдельные полосы; текущая единица — та, где лежит страница page.
   const units = useMemo<Spread[]>(() => (wide ? bookSpreads(build.pageCount) : Array.from({ length: build.pageCount }, (_, i): Spread => [null, i + 1])), [wide, build.pageCount]);
@@ -208,8 +210,21 @@ export function SpreadViewer({
     swipe.current = null;
     if (from === null) return;
     const dx = e.clientX - from;
-    if (Math.abs(dx) > 48) go(index + (dx < 0 ? 1 : -1));
+    if (Math.abs(dx) > 48) {
+      swiped.current = true;
+      go(index + (dx < 0 ? 1 : -1));
+    }
   };
+  /** Щелчок по левой или правой половине разворота — назад или вперёд, как в книге. */
+  const tap = (step: -1 | 1) => () => {
+    if (swiped.current) {
+      swiped.current = false;
+      return;
+    }
+    go(index + step);
+  };
+  // Разворот целиком в окне: ширина — по высоте сцены (две полосы на компьютере, одна на телефоне).
+  const ratio = ((wide ? 2 : 1) * build.trimMm.w) / build.trimMm.h;
   const label = t.flip.pages(left, right);
   const last = index >= units.length - 1;
   // Одиночная полоса (телефон) листается как правая страница.
@@ -228,12 +243,31 @@ export function SpreadViewer({
         onPointerDown={(e) => (swipe.current = e.clientX)}
         onPointerUp={onUp}
         onPointerCancel={() => (swipe.current = null)}
-        className={cn("flex min-h-[40vh] touch-pan-y items-center justify-center rounded-[14px] border border-line bg-sunken px-4 py-6 outline-none select-none focus-visible:ring-2 focus-visible:ring-wine/40 sm:px-6 sm:py-8", full && "h-dvh rounded-none border-0")}
+        style={{ containerType: "size" }}
+        className={cn(
+          "group/stage relative flex h-[max(22rem,calc(100dvh-19rem))] touch-pan-y items-center justify-center rounded-[14px] border border-line bg-sunken outline-none select-none focus-visible:ring-2 focus-visible:ring-wine/40 md:h-[max(26rem,calc(100dvh-21.5rem))]",
+          full && "h-dvh! rounded-none border-0",
+        )}
       >
-        <div className={cn("flex w-full max-w-4xl flex-col items-center transition-opacity duration-300 md:flex-row md:items-start md:gap-0", dimmed && "opacity-50")} data-spread={[left, right].filter(Boolean).join("-")}>
+        <div
+          className={cn("flex flex-row items-start transition-opacity duration-300", dimmed && "opacity-50")}
+          style={{ width: `min(calc(100cqw - 2.5rem), calc((100cqh - 2.5rem) * ${ratio}))` }}
+          data-spread={[left, right].filter(Boolean).join("-")}
+        >
           {slot(left, "left")}
           {slot(right, "right")}
         </div>
+        {/* Листать можно, нажав на страницу: левая половина — назад, правая — вперёд; стрелка у края подсказывает. */}
+        <button type="button" tabIndex={-1} aria-hidden onClick={tap(-1)} disabled={index <= 0} className="group/prev absolute inset-y-0 left-0 w-1/2 cursor-w-resize disabled:cursor-default">
+          <span className="absolute top-1/2 left-3 flex size-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-ink shadow-soft transition-opacity group-disabled/prev:hidden pointer-coarse:opacity-70 pointer-fine:opacity-0 pointer-fine:group-hover/prev:opacity-100">
+            <ChevronLeft className="size-5" />
+          </span>
+        </button>
+        <button type="button" tabIndex={-1} aria-hidden onClick={tap(1)} disabled={last} className="group/next absolute inset-y-0 right-0 w-1/2 cursor-e-resize disabled:cursor-default">
+          <span className="absolute top-1/2 right-3 flex size-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-ink shadow-soft transition-opacity group-disabled/next:hidden pointer-coarse:opacity-70 pointer-fine:opacity-0 pointer-fine:group-hover/next:opacity-100">
+            <ChevronRight className="size-5" />
+          </span>
+        </button>
       </div>
       <div className="flex items-center gap-2 sm:gap-3">
         <button type="button" className="btn btn-outline btn-icon shrink-0" onClick={() => go(index - 1)} disabled={index <= 0} aria-label={t.flip.prev}>
@@ -315,6 +349,7 @@ export function PageReaderView({
   mode = "scroll",
   onMode,
   end,
+  lead,
 }: {
   bookId: string;
   state: BookBuildState | null;
@@ -335,6 +370,8 @@ export function PageReaderView({
   onMode?: (mode: "scroll" | "spread") => void;
   /** Что показать после последней страницы читалки (заказ). */
   end?: ReactNode;
+  /** Начало панели над страницами (вкладки «Читать / 3D-книга» и т. п.): одна строка вместо двух, развороту — место. */
+  lead?: ReactNode;
 }) {
   const m = useMessages();
   const t = m.books.preview.reader;
@@ -402,15 +439,16 @@ export function PageReaderView({
 
   return (
     <div>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <p className="max-w-2xl text-sm text-muted">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        {lead}
+        <p className={cn("max-w-2xl text-sm text-muted", lead && "max-md:hidden")}>
           {mode === "spread" ? null : t.note}
           {build ? <span className="whitespace-nowrap">{mode === "spread" ? "" : " · "}{t.pages(build.pageCount)}</span> : null}
         </p>
         {onMode ? (
-          <button type="button" className="btn btn-ghost btn-sm" onClick={() => onMode(mode === "spread" ? "scroll" : "spread")}>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => onMode(mode === "spread" ? "scroll" : "spread")} aria-label={mode === "spread" ? rd.scrollMode : rd.spreadMode}>
             {mode === "spread" ? <LayoutList className="size-4" aria-hidden /> : <BookOpen className="size-4" aria-hidden />}
-            {mode === "spread" ? rd.scrollMode : rd.spreadMode}
+            <span className="max-sm:hidden">{mode === "spread" ? rd.scrollMode : rd.spreadMode}</span>
           </button>
         ) : null}
         {state?.status === "ready" ? (
@@ -470,7 +508,7 @@ export function PageReaderView({
  * Предпросмотр книги страницами настоящего PDF: картинки полос экранной сборки (тот же рендер, что и файл для
  * скачивания). Пока сборка обновляется после правок — прошлые страницы приглушены, поверх строка состояния.
  */
-export function PageReader({ bookId, end }: { bookId: string; end?: ReactNode }) {
+export function PageReader({ bookId, end, lead }: { bookId: string; end?: ReactNode; lead?: ReactNode }) {
   const { state, error, slow, retryAt, retry, recover } = useBookBuild(bookId);
   const [retrying, setRetrying] = useState(false);
   const [mode, setMode] = useState<"scroll" | "spread">("spread");
@@ -479,5 +517,5 @@ export function PageReader({ bookId, end }: { bookId: string; end?: ReactNode })
     setRetrying(true);
     void retry().finally(() => setRetrying(false));
   };
-  return <PageReaderView bookId={bookId} state={state} error={error} slow={slow} retryAt={retryAt} retrying={retrying} progress={progress} onRetry={onRetry} onPageError={recover} mode={mode} onMode={setMode} end={end} />;
+  return <PageReaderView bookId={bookId} state={state} error={error} slow={slow} retryAt={retryAt} retrying={retrying} progress={progress} onRetry={onRetry} onPageError={recover} mode={mode} onMode={setMode} end={end} lead={lead} />;
 }

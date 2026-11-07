@@ -96,7 +96,8 @@ export function BookTabs({ bookId, nav: initial, kind }: { bookId: string; nav: 
       active: activeStep("preview") || activeStep("order"),
     },
   ];
-  const tab = (active: boolean, quiet = false) => cn("relative flex h-12 shrink-0 items-center gap-2 px-2.5 text-sm font-medium whitespace-nowrap transition-colors max-sm:h-[52px]", active ? "text-ink" : quiet ? "text-muted hover:text-ink" : "text-ink-soft hover:text-ink");
+  // Фокус с клавиатуры — подложкой вкладки, а не рамкой вокруг неё: рамка поверх ленты читалась как сбой.
+  const tab = (active: boolean, quiet = false) => cn("relative flex h-12 shrink-0 items-center gap-2 rounded-t-[8px] px-2.5 text-sm font-medium whitespace-nowrap transition-colors focus-visible:bg-ink/[0.06] focus-visible:outline-none max-sm:h-[52px]", active ? "text-ink" : quiet ? "text-muted hover:text-ink" : "text-ink-soft hover:text-ink");
   const overviewActive = pathname === base;
   const mask = `linear-gradient(90deg, ${edges.left ? "transparent" : "#000"} 0, #000 28px, #000 calc(100% - 28px), ${edges.right ? "transparent" : "#000"} 100%)`;
 

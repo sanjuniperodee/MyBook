@@ -38,33 +38,48 @@ export function PreviewTabs({ bookId, flipbook, orderHref }: { bookId: string; f
     { id: "read", label: rd.tabs.read, icon: BookOpen },
     { id: "book", label: rd.tabs.model, icon: Box },
   ];
+  const switcher = (
+    <div role="tablist" className="inline-flex max-w-full rounded-[12px] bg-sunken p-1">
+      {tabs.map(({ id, label, icon: Icon }) => (
+        <button
+          key={id}
+          role="tab"
+          id={`preview-tab-${id}`}
+          aria-selected={tab === id}
+          aria-controls={`preview-panel-${id}`}
+          onClick={() => setTab(id)}
+          className={cn("flex min-h-11 items-center gap-2 rounded-[10px] px-4 text-sm font-medium transition-colors sm:min-h-9", tab === id ? "bg-white text-ink shadow-soft" : "text-muted hover:text-ink")}
+        >
+          <Icon className="size-4" />
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+  const changeCover = (
+    <Link href={`/books/${bookId}/cover`} className="text-sm text-wine hover:underline">
+      {t.changeCover}
+    </Link>
+  );
   return (
     <div>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <div role="tablist" className="inline-flex max-w-full rounded-[12px] bg-sunken p-1">
-          {tabs.map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              role="tab"
-              id={`preview-tab-${id}`}
-              aria-selected={tab === id}
-              aria-controls={`preview-panel-${id}`}
-              onClick={() => setTab(id)}
-              className={cn("flex min-h-11 items-center gap-2 rounded-[10px] px-4 text-sm font-medium transition-colors sm:min-h-9", tab === id ? "bg-white text-ink shadow-soft" : "text-muted hover:text-ink")}
-            >
-              <Icon className="size-4" />
-              {label}
-            </button>
-          ))}
+      {/* В читалке вкладки стоят в одной строке с её панелью (страницы, «Все подряд», PDF) — развороту больше места. */}
+      {tab === "book" ? (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          {switcher}
+          {changeCover}
         </div>
-        <Link href={`/books/${bookId}/cover`} className="text-sm text-wine hover:underline">
-          {t.changeCover}
-        </Link>
-      </div>
+      ) : null}
       {tab === "read" ? (
         <div role="tabpanel" id="preview-panel-read" aria-labelledby="preview-tab-read">
           <PageReader
             bookId={bookId}
+            lead={
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                {switcher}
+                {changeCover}
+              </div>
+            }
             end={
               orderHref ? (
                 <Link href={orderHref} className="btn btn-primary btn-lg">

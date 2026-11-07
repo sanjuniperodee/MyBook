@@ -125,7 +125,8 @@ export function Board({ initial, admins, me }: { initial: BoardCard[]; admins: {
 export const urgency = (c: BoardCard) => (c.daysLeft === null || c.status === "delivered" || c.status === "shipped" ? null : c.daysLeft < 0 ? "danger" : c.daysLeft <= 3 ? "warning" : null);
 
 /** Подпись срока на карточке: «просрочен на 3 дн.», «нужна сегодня», «через 12 дн.». */
-export const dueText = (c: BoardCard) => (c.daysLeft === null ? null : c.daysLeft < 0 ? `просрочен на ${-c.daysLeft} дн.` : c.daysLeft === 0 ? "нужна сегодня" : `через ${c.daysLeft} дн.`);
+// Отправленному и доставленному срок не пишем: «просрочен на 22 дн.» у доставленной книги читалось как тревога.
+export const dueText = (c: BoardCard) => (c.daysLeft === null || c.status === "delivered" || c.status === "shipped" ? null : c.daysLeft < 0 ? `просрочен на ${-c.daysLeft} дн.` : c.daysLeft === 0 ? "нужна сегодня" : `через ${c.daysLeft} дн.`);
 
 /** Порядок в колонке: сначала те, у кого срок ближе; без срока — после, в прежнем порядке. */
 const byDeadline = (a: BoardCard, b: BoardCard) => (a.daysLeft ?? Infinity) - (b.daysLeft ?? Infinity);
@@ -139,7 +140,8 @@ function Column({ status, hint, cards }: { status: OrderStatus; hint: string; ca
     <section
       ref={setNodeRef}
       aria-label={orderStatusLabels[status]}
-      className={cn("flex min-w-[14rem] flex-1 basis-0 flex-col rounded-[var(--r-panel)] border border-transparent bg-sunken/70 transition-colors", isOver && "border-wine/50 bg-rose/40")}
+      // Пустая колонка уже: место — колонкам, где есть заказы (пустая остаётся целью для перетаскивания).
+      className={cn("flex min-w-[12.5rem] basis-0 flex-col rounded-[var(--r-panel)]", cards.length ? "flex-[1.4]" : "flex-1", "border border-transparent bg-sunken/70 transition-colors", isOver && "border-wine/50 bg-rose/40")}
     >
       <header className="px-3 pt-3 pb-2.5">
         <div className="flex items-center gap-2">
@@ -176,7 +178,7 @@ function Card({ card: c }: { card: BoardCard }) {
       {...listeners}
       style={transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` } : undefined}
       className={cn(
-        "relative cursor-grab overflow-hidden rounded-[var(--r-ctl)] border border-line bg-white p-3 text-sm transition-shadow hover:border-line-strong active:cursor-grabbing",
+        "relative shrink-0 cursor-grab overflow-hidden rounded-[var(--r-ctl)] border border-line bg-white p-3 text-sm transition-shadow hover:border-line-strong active:cursor-grabbing",
         isDragging && "z-10 rotate-1 shadow-lift",
       )}
     >
