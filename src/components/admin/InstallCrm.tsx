@@ -46,7 +46,7 @@ export function InstallCrm() {
 
   return (
     <div className="space-y-4">
-      {done ? <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">Готово — найдите «MyBooks CRM» на экране телефона и откройте оттуда.</p> : null}
+      {done ? <p className="rounded-[var(--r-ctl)] bg-success-bg px-4 py-3 text-sm text-success">Готово — найдите «MyBooks CRM» на экране телефона и откройте оттуда.</p> : null}
       {event && !done ? (
         <button
           type="button"
@@ -62,7 +62,7 @@ export function InstallCrm() {
         </button>
       ) : null}
 
-      <ol className="space-y-3 rounded-2xl border border-line bg-white p-4 text-sm">
+      <ol className="panel space-y-3 p-4 text-sm">
         {ios ? (
           <>
             <li className="flex gap-3">
@@ -87,7 +87,7 @@ export function InstallCrm() {
             <li className="flex gap-3">
               <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-rose font-semibold text-wine">1</span>
               <span>
-                В <b>Chrome</b> нажмите <b>⋮</b> → <b>«Установить приложение»</b> (или кнопку выше).
+                В <b>Chrome</b> нажмите <b>⋮</b>, затем <b>«Установить приложение»</b> (или кнопку выше).
               </span>
             </li>
             <li className="flex gap-3">

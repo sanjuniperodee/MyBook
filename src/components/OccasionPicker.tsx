@@ -64,10 +64,7 @@ export function OccasionPicker({
             type="button"
             onClick={() => pick(x.id)}
             aria-pressed={occasion === x.id}
-            className={cn(
-              "flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm transition",
-              occasion === x.id ? "border-wine bg-wine/5 text-wine" : "border-line bg-white hover:border-ink/30",
-            )}
+            className={cn("chip h-9", occasion === x.id && "border-wine bg-wine/5 text-wine aria-pressed:border-wine aria-pressed:bg-wine/5 aria-pressed:text-wine")}
           >
             {occasion === x.id ? <Check className="size-3.5" /> : null}
             {m.occasions[x.id].label}
@@ -75,7 +72,7 @@ export function OccasionPicker({
         ))}
       </div>
       {o ? (
-        <div className="mt-4 flex flex-col gap-3 rounded-2xl bg-cream/60 p-4 sm:flex-row sm:items-center">
+        <div className="mt-4 flex flex-col gap-3 rounded-(--r-panel) bg-cream/60 p-4 sm:flex-row sm:items-center">
           <label className="flex items-center gap-3">
             <CalendarHeart className="size-5 shrink-0 text-wine" />
             <span className="text-sm whitespace-nowrap">{m.occasion.date}</span>

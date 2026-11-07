@@ -100,8 +100,8 @@ export function ReviewForm({
   };
 
   return (
-    <form onSubmit={submit} className="card space-y-7 p-6 sm:p-8">
-      {initial ? <p className="rounded-xl bg-cream/70 px-4 py-2.5 text-sm text-ink-soft">{t.editable}</p> : null}
+    <form onSubmit={submit} className="space-y-8">
+      {initial ? <p className="border-l-[3px] border-line-strong bg-sunken px-4 py-2.5 text-sm text-ink-soft">{t.editable}</p> : null}
 
       <div className="text-center">
         <div role="radiogroup" aria-label={t.ratingAria} className="inline-flex gap-1" onMouseLeave={() => setHover(0)}>
@@ -114,9 +114,9 @@ export function ReviewForm({
               aria-label={`${n} — ${t.ratings[n - 1]}`}
               onClick={() => setRating(n)}
               onMouseEnter={() => setHover(n)}
-              className="rounded-full p-1 transition hover:scale-110"
+              className="grid min-h-12 min-w-11 place-items-center rounded-[10px] p-1 transition-transform hover:scale-110 sm:min-w-14"
             >
-              <Star className={cn("size-10 transition-colors sm:size-12", n <= shown ? "fill-amber-400 text-amber-400" : "text-line")} strokeWidth={1.5} />
+              <Star className={cn("size-10 transition-colors sm:size-12", n <= shown ? "fill-gold text-gold" : "text-line-strong")} strokeWidth={1.5} />
             </button>
           ))}
         </div>
@@ -149,15 +149,15 @@ export function ReviewForm({
           <div className="flex items-center gap-4">
             {photo ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={photo.url} alt="" className="size-24 rounded-xl object-cover ring-1 ring-line" />
+              <img src={photo.url} alt="" className="size-24 rounded-[10px] object-cover ring-1 ring-line" />
             ) : (
-              <span className="inline-flex items-center gap-2 rounded-xl bg-cream/70 px-4 py-3 text-sm">
+              <span className="inline-flex items-center gap-2 rounded-[10px] bg-sunken px-4 py-3 text-sm">
                 <Check className="size-4 text-wine" /> {t.photoAttached}
               </span>
             )}
             <button
               type="button"
-              className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-ink"
+              className="inline-flex min-h-11 items-center gap-1.5 text-sm text-muted hover:text-ink"
               onClick={() => {
                 choosePhoto(null);
                 setHadPhoto(false);
@@ -190,7 +190,7 @@ export function ReviewForm({
         </div>
       </div>
 
-      <label className="flex items-start gap-3 text-sm text-ink-soft">
+      <label className="flex min-h-11 items-start gap-3 text-sm text-ink-soft">
         <input type="checkbox" className="mt-0.5 size-4 accent-wine" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
         {t.consent}
       </label>
@@ -220,20 +220,20 @@ function Thanks({
   onCopy: (v: boolean) => void;
 }) {
   return (
-    <div className="card p-8 text-center sm:p-10">
-      <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-rose/60 text-wine">
+    <div className="py-4 text-center sm:py-6">
+      <div className="mx-auto grid size-14 place-items-center rounded-[10px] bg-rose text-wine">
         <Check className="size-7" />
       </div>
       <h2 className="mt-5 font-serif text-3xl font-medium">{t.thanksTitle}</h2>
       <p className="mx-auto mt-3 max-w-md text-muted">{lead}</p>
       {code ? (
-        <div className="mx-auto mt-8 max-w-md rounded-2xl border border-dashed border-wine/40 bg-rose/20 p-5 sm:p-6">
+        <div className="mx-auto mt-8 max-w-md rounded-[10px] border border-dashed border-wine/50 bg-rose p-5 sm:p-6">
           <p className="text-sm font-medium text-balance text-wine">
             <Gift className="mr-1.5 inline size-4 align-[-3px]" />
             {t.promoTitle(thankYou.percent)}
           </p>
           <div className="mt-3 flex flex-wrap items-center justify-center gap-3">
-            <code className="rounded-lg bg-white px-4 py-2 font-mono text-lg tracking-wider whitespace-nowrap ring-1 ring-line">{code}</code>
+            <code className="rounded-[8px] bg-white px-4 py-2 font-mono text-lg tracking-wider whitespace-nowrap ring-1 ring-line">{code}</code>
             <button
               type="button"
               className="btn btn-outline btn-sm"

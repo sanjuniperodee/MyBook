@@ -37,6 +37,8 @@ export const common = {
     profileMenu: "Меню профиля",
     invite: "Пригласить друга",
     noName: "Без имени",
+    account: "Аккаунт",
+    sections: "Разделы кабинета",
   },
   widget: {
     open: "Связаться с нами",

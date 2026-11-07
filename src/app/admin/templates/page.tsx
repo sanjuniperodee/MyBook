@@ -10,7 +10,7 @@ export default async function TemplatesPage() {
   const staff = await requireStaff("chats.view");
   const all = await container().messaging.view.templates(staff.user.id);
   return (
-    <div className="flex max-w-5xl flex-col gap-6">
+    <div className="flex flex-col gap-5">
       <PageHeader title="Шаблоны ответов">
         Быстрые ответы для чатов: в поле ввода наберите «/» и начало названия. Ваши шаблоны видны только вам и стоят первыми; общие шаблоны компании ведёт руководитель — их можно скопировать себе и поправить.
       </PageHeader>

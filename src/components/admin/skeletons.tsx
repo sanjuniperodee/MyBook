@@ -24,13 +24,13 @@ export function SkHeader({ back, subtitle, actions = 0, title = "w-48" }: { back
       {back ? <Bar className="mb-3 h-3 w-20" /> : null}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-2">
-          <div className={cn("skeleton h-8", title)} />
+          <div className={cn("skeleton h-7", title)} />
           {subtitle ? <Bar className="h-3 w-72 max-w-full" /> : null}
         </div>
         {actions ? (
           <div className="flex gap-2">
             {Array.from({ length: actions }, (_, i) => (
-              <div key={i} className="skeleton h-9 w-24 rounded-xl" />
+              <div key={i} className="skeleton h-9 w-24 rounded-[var(--r-ctl)] lg:h-8" />
             ))}
           </div>
         ) : null}
@@ -54,7 +54,7 @@ export function SkTabs({ n = 4, pills }: { n?: number; pills?: boolean }) {
 export function SkStats({ n = 4, className }: { n?: number; className?: string }) {
   // Как StatRow: показатели одним листом с тонкими разделителями.
   return (
-    <div className={cn("grid grid-cols-2 gap-px overflow-hidden rounded-[14px] border border-line bg-line", n === 6 ? "sm:grid-cols-3 xl:grid-cols-6" : n === 5 ? "sm:grid-cols-3 xl:grid-cols-5" : n === 3 ? "sm:grid-cols-3" : "xl:grid-cols-4", className)}>
+    <div className={cn("grid grid-cols-2 gap-px overflow-hidden rounded-[var(--r-panel)] border border-line bg-line", n === 6 ? "sm:grid-cols-3 xl:grid-cols-6" : n === 5 ? "sm:grid-cols-3 xl:grid-cols-5" : n === 3 ? "sm:grid-cols-3" : "xl:grid-cols-4", className)}>
       {Array.from({ length: n }, (_, i) => (
         <div key={i} className="bg-white p-4 sm:p-5">
           <Bar className="w-24" />
@@ -70,9 +70,9 @@ export function SkFilters({ fields = 4 }: { fields?: number }) {
   return (
     <div className="flex flex-wrap gap-2">
       {Array.from({ length: fields }, (_, i) => (
-        <div key={i} className="skeleton h-10 w-40 rounded-xl" />
+        <div key={i} className="skeleton h-10 w-40 rounded-[var(--r-ctl)] lg:h-9" />
       ))}
-      <div className="skeleton h-10 w-20 rounded-xl" />
+      <div className="skeleton h-10 w-20 rounded-[var(--r-ctl)] lg:h-9" />
     </div>
   );
 }
@@ -80,7 +80,7 @@ export function SkFilters({ fields = 4 }: { fields?: number }) {
 /** Таблица в карточке: шапка колонок и строки; первая колонка шире (название/клиент). */
 export function SkTable({ cols = 5, rows = 8, check }: { cols?: number; rows?: number; check?: boolean }) {
   return (
-    <div className="overflow-hidden rounded-[14px] border border-line bg-white">
+    <div className="overflow-hidden rounded-[var(--r-panel)] border border-line bg-white">
       <div className="flex items-center gap-4 border-b border-line px-4 py-3.5">
         {check ? <div className="skeleton size-4 rounded" /> : null}
         {Array.from({ length: cols }, (_, i) => (
@@ -107,7 +107,7 @@ export function SkTable({ cols = 5, rows = 8, check }: { cols?: number; rows?: n
 /** Карточка с заголовком и строками текста. */
 export function SkCard({ lines = 3, title = true, className, children }: { lines?: number; title?: boolean; className?: string; children?: React.ReactNode }) {
   return (
-    <div className={cn("rounded-[14px] border border-line bg-white p-5", className)}>
+    <div className={cn("rounded-[var(--r-panel)] border border-line bg-white p-5", className)}>
       {title ? <div className="skeleton mb-4 h-5 w-40" /> : null}
       {children ?? (
         <div className="space-y-3">
@@ -125,7 +125,7 @@ export function SkField({ className }: { className?: string }) {
   return (
     <div className={cn("space-y-1.5", className)}>
       <Bar className="h-3 w-24" />
-      <div className="skeleton h-10 w-full rounded-xl" />
+      <div className="skeleton h-10 w-full rounded-[var(--r-ctl)] lg:h-9" />
     </div>
   );
 }
@@ -133,7 +133,7 @@ export function SkField({ className }: { className?: string }) {
 /** Форма в карточке: поля в одну или две колонки и кнопка. */
 export function SkForm({ fields = 6, columns = 2, button = true }: { fields?: number; columns?: 1 | 2; button?: boolean }) {
   return (
-    <div className="rounded-[14px] border border-line bg-white p-5">
+    <div className="rounded-[var(--r-panel)] border border-line bg-white p-5">
       <div className={cn("grid gap-4", columns === 2 && "sm:grid-cols-2")}>
         {Array.from({ length: fields }, (_, i) => (
           <SkField key={i} />
@@ -174,7 +174,7 @@ export function SkBoard({ columns = 4, cards = 3 }: { columns?: number; cards?: 
 export function SkChart({ title = true, className }: { title?: boolean; className?: string }) {
   const heights = [30, 55, 40, 70, 45, 85, 60, 35, 75, 50, 65, 90];
   return (
-    <div className={cn("rounded-[14px] border border-line bg-white p-5", className)}>
+    <div className={cn("rounded-[var(--r-panel)] border border-line bg-white p-5", className)}>
       {title ? <div className="skeleton mb-5 h-5 w-40" /> : null}
       <div className="flex h-44 items-end gap-2">
         {heights.map((h, i) => (
@@ -188,7 +188,7 @@ export function SkChart({ title = true, className }: { title?: boolean; classNam
 /** Список строк в карточке: значок/аватар слева, две строки текста, действие справа. */
 export function SkRows({ rows = 6, avatar, action = true }: { rows?: number; avatar?: boolean; action?: boolean }) {
   return (
-    <div className="divide-y divide-line rounded-[14px] border border-line bg-white">
+    <div className="divide-y divide-line rounded-[var(--r-panel)] border border-line bg-white">
       {Array.from({ length: rows }, (_, i) => (
         <div key={i} className="flex items-center gap-3 px-4 py-3.5">
           {avatar ? <div className="skeleton size-10 shrink-0 rounded-full" /> : null}

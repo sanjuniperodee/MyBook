@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { z } from "zod";
-import { CircleCheck, Download, FileText, HandCoins, ReceiptText, ShieldCheck, Wallet } from "lucide-react";
+import { CircleCheck, Download, FileText, HandCoins, ShieldCheck, Wallet } from "lucide-react";
 import { container } from "@/server/container";
 import { can, canWork, requireStaff } from "@/server/access";
 import { storeTimeZone } from "@/shared/domain/time";
@@ -9,6 +9,7 @@ import { BarList, StatRow, StatTile } from "@/components/admin/charts";
 import { cn } from "@/lib/class-names";
 import { Segmented } from "@/components/admin/Segmented";
 import { PageHeader } from "@/components/admin/PageHeader";
+import { SectionHead } from "@/components/admin/SectionHead";
 import { Intro } from "@/components/admin/Intro";
 import { Panel } from "@/components/ui/Panel";
 import { Badge } from "@/components/ui/Badge";
@@ -41,11 +42,10 @@ const signed = (n: number) => (n < 0 ? `−${formatPrice(-n)}` : formatPrice(n))
 const EDGE = "[&_td:first-child]:pl-4 [&_th:first-child]:pl-4 sm:[&_td:first-child]:pl-5 sm:[&_th:first-child]:pl-5 [&_td:last-child]:pr-4 [&_th:last-child]:pr-4 sm:[&_td:last-child]:pr-5 sm:[&_th:last-child]:pr-5";
 
 /**
- * «Финансы»: сколько денег пришло за период, сколько ещё ждём (остатки договорённостей — особенно у тех, чья книга
- * готова, заказы на оплате, постоплаты), что нужно вернуть и какие ручные подтверждения не проверены.
+ * «Финансы» — «Очередь + показатели» (DESIGN.md §7.2): сверху то, что требует действия — «Проверить»: ручные подтверждения
+ * оплат (сверить чек со счётом, нажать «Проверено») и деньги, которые нужно вернуть или зачесть; затем сколько пришло за
+ * период одной строкой цифр, график по дням и «по способам», затем ведомости: последние поступления, кто ещё должен, возвраты.
  * Видят сотрудники с аналитикой (analytics.view; роль «только свои» — по своим сделкам и заказам), «Проверено» — руководитель (team.manage).
- *
- * Порядок экрана (DESIGN.md §7): период → пять сумм одной строкой → «Проверить», если есть что проверять → разделы.
  */
 export default async function FinancePage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const staff = await requireStaff("analytics.view");
@@ -64,7 +64,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
   const exportHref = `/api/admin/export/finance?${new URLSearchParams(period.preset === "custom" ? { p: "custom", from: period.first, to: period.last } : { p: period.preset })}`;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5 lg:gap-6">
       <PageHeader
         title="Финансы"
         actions={
@@ -78,22 +78,24 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
         {period.label}, по времени магазина ({tz}){own ? ". Только ваши сделки и заказы" : ""}
       </PageHeader>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <Segmented label="Период" items={PRESETS.map(([key, label]) => ({ key, label, href: `/admin/finance?p=${key}`, active: period.preset === key }))} />
-        <form action="/admin/finance" className={cn("flex w-full items-center gap-1.5 rounded-xl border bg-white p-1 text-sm sm:w-auto", period.preset === "custom" ? "border-ink" : "border-line")} aria-label="Свой период">
-          <input type="hidden" name="p" value="custom" />
-          <input type="date" name="from" defaultValue={period.first} className="input h-10 min-w-0 flex-1 px-2.5 text-sm sm:w-36 sm:flex-none lg:h-8" aria-label="С даты" />
-          <span className="text-muted" aria-hidden>
-            –
-          </span>
-          <input type="date" name="to" defaultValue={period.last} className="input h-10 min-w-0 flex-1 px-2.5 text-sm sm:w-36 sm:flex-none lg:h-8" aria-label="По дату" />
-          <button className="btn btn-ghost btn-sm shrink-0 lg:h-8">Показать</button>
-        </form>
-      </div>
+      <Queue s={s} canReview={canReview} />
 
-      {badPeriod ? <Alert kind="warning">Даты не подошли (начало позже конца, будущее или период длиннее года) — показан текущий месяц.</Alert> : null}
+      <section aria-label="Итоги периода" className="space-y-3" data-testid="finance-totals">
+        <div className="flex flex-wrap items-center gap-2">
+          <Segmented label="Период" items={PRESETS.map(([key, label]) => ({ key, label, href: `/admin/finance?p=${key}`, active: period.preset === key }))} />
+          <form action="/admin/finance" className={cn("flex w-full items-center gap-1.5 rounded-[var(--r-ctl)] border bg-white p-0.5 text-sm sm:w-auto", period.preset === "custom" ? "border-ink" : "border-line")} aria-label="Свой период">
+            <input type="hidden" name="p" value="custom" />
+            <input type="date" name="from" defaultValue={period.first} className="input min-w-0 flex-1 border-0 px-2.5 text-sm sm:w-36 sm:flex-none" aria-label="С даты" />
+            <span className="text-muted" aria-hidden>
+              –
+            </span>
+            <input type="date" name="to" defaultValue={period.last} className="input min-w-0 flex-1 border-0 px-2.5 text-sm sm:w-36 sm:flex-none" aria-label="По дату" />
+            <button className="btn btn-ghost btn-sm shrink-0">Показать</button>
+          </form>
+        </div>
 
-      <section aria-label="Итоги периода" className="space-y-2" data-testid="finance-totals">
+        {badPeriod ? <Alert kind="warning">Даты не подошли (начало позже конца, будущее или период длиннее года) — показан текущий месяц.</Alert> : null}
+
         <StatRow cols={5} className="max-sm:[&>*:last-child:nth-child(odd)]:col-span-2 sm:max-xl:[&>*:last-child]:col-span-2">
           <StatTile bare label="Пришло денег" value={signed(t.net)} delta={t.delta} hint={`онлайн ${formatPrice(t.online)}, вручную ${formatPrice(t.manual)}`} />
           <StatTile bare label="Возвраты клиентам" value={formatPrice(t.refunds)} hint={t.refundCount ? `${plural(t.refundCount, ["возврат", "возврата", "возвратов"])} за период` : "за период — нет"} />
@@ -108,58 +110,10 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
         </Intro>
       </section>
 
-      {t.review.count ? (
-        <div className="flex flex-col gap-3 rounded-[14px] border border-warning/30 bg-warning-bg px-4 py-3.5 text-warning sm:flex-row sm:items-center sm:px-5" data-testid="finance-review-banner">
-          <ShieldCheck className="size-5 shrink-0 max-sm:hidden" strokeWidth={1.8} aria-hidden />
-          <p className="flex-1 text-sm">
-            <span className="font-semibold">
-              Проверить: {plural(t.review.count, ["ручное подтверждение", "ручных подтверждения", "ручных подтверждений"])} на {formatPrice(t.review.sum)}.
-            </span>{" "}
-            Сверьте чеки с поступлениями на счёт.
-          </p>
-          <a href="#review" className="btn btn-dark btn-sm shrink-0">
-            Проверить
-          </a>
-        </div>
-      ) : null}
-
-      <nav aria-label="Разделы финансов" className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-        {[
-          ["#received", "Пришло", formatPrice(t.incoming)],
-          ["#expected", "Ожидается", formatPrice(t.expectedAll)],
-          ["#refunds", "Переплаты и возвраты", s.issues.length ? String(s.issues.length) : null],
-          ["#review", "Проверить", s.review.length ? String(s.review.length) : null],
-        ].map(([href, label, note]) => (
-          <a key={href} href={href!} className="chip h-10 shrink-0 lg:h-8">
-            {label}
-            {note ? <span className="text-xs text-muted tabular-nums">{note}</span> : null}
-          </a>
-        ))}
-      </nav>
-
       <Received s={s} />
       <Expected s={s} />
-      <Issues s={s} />
-      <Review s={s} canReview={canReview} />
+      <Reports s={s} />
     </div>
-  );
-}
-
-/** Раздел страницы: заголовок, сводка справа, пояснение в две строки. */
-function Part({ id, title, note, aside, children }: { id: string; title: string; note?: string; aside?: React.ReactNode; children: React.ReactNode }) {
-  return (
-    <section id={id} aria-labelledby={`${id}-h`} className="scroll-mt-[calc(var(--topbar-h)+1rem)] space-y-3">
-      <div>
-        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-          <h2 id={`${id}-h`} className="text-lg font-semibold">
-            {title}
-          </h2>
-          {aside ? <div className="text-sm text-muted tabular-nums">{aside}</div> : null}
-        </div>
-        {note ? <Intro small className="mt-0.5 max-w-3xl">{note}</Intro> : null}
-      </div>
-      {children}
-    </section>
   );
 }
 
@@ -214,13 +168,136 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   );
 }
 
+/** Подзаголовок группы внутри очереди: на подложке, число записей и сумма справа. */
+function QueueGroup({ id, title, meta, children }: { id?: string; title: string; meta?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div id={id} className="scroll-mt-[calc(var(--topbar-h)+1rem)]">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 border-b border-line bg-sunken/70 px-4 py-2 text-xs sm:px-5">
+        <h3 className="font-semibold text-ink-soft">{title}</h3>
+        {meta ? <span className="text-muted tabular-nums">{meta}</span> : null}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+/**
+ * Очередь «Проверить»: сверху страницы то, что ждёт человека. Ручные подтверждения — строкой с кнопкой «Проверено» (чек
+ * открывается в строке), деньги к возврату или зачёту — строкой со ссылкой на сделку или заказ. Когда проверять нечего —
+ * одна спокойная строка. id review и refunds — якоря для плиток показателей и ссылок из других экранов.
+ */
+function Queue({ s, canReview }: { s: FinanceScreen; canReview: { deal: boolean; order: boolean } }) {
+  const total = s.review.length + s.issues.length;
+  if (!total)
+    return (
+      <div className="panel flex items-center gap-3 px-4 py-3 sm:px-5" data-testid="finance-queue-empty">
+        <CircleCheck className="size-5 shrink-0 text-success" strokeWidth={1.8} aria-hidden />
+        <p id="review" className="scroll-mt-[calc(var(--topbar-h)+1rem)] text-sm">
+          <span id="refunds" className="font-medium">
+            Проверять нечего.
+          </span>{" "}
+          <span className="text-muted">Ручные подтверждения оплат сверены, переплат и возвратов к оформлению нет.</span>
+        </p>
+      </div>
+    );
+  const action = (r: FinanceScreen["review"][number]) =>
+    !canReview[r.kind] ? <span className="text-xs text-muted">проверяет руководитель</span> : r.mine ? <span className="text-xs text-muted">ваша запись — проверяет другой сотрудник</span> : <ReviewButton kind={r.kind} id={r.id} />;
+  return (
+    <section aria-label="Очередь на проверку" className="panel overflow-hidden" data-testid={s.review.length ? "finance-review-banner" : undefined}>
+      <header className="panel-head">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <ShieldCheck className="size-4 shrink-0 text-wine" strokeWidth={1.8} aria-hidden />
+          <h2 className="panel-title">Проверить</h2>
+          <span className="count count-alert" aria-label={`${total} в очереди`}>
+            {total}
+          </span>
+        </div>
+        <p className="text-xs text-muted">Онлайн-оплаты подтверждает платёжная система — их проверять не нужно.</p>
+      </header>
+
+      {s.review.length ? (
+        <QueueGroup id="review" title="Ручные подтверждения" meta={<>{plural(s.review.length, ["запись", "записи", "записей"])} на {formatPrice(s.totals.review.sum)}</>}>
+          <ul className="divide-y divide-line" data-testid="finance-review-list">
+            {s.review.map((r) => (
+              <li key={r.key} className="flex flex-wrap items-center gap-x-4 gap-y-2.5 px-4 py-3 sm:px-5">
+                <div className="min-w-0 flex-1 basis-72">
+                  <div className="flex flex-wrap items-baseline gap-x-2 text-sm">
+                    <span className="font-medium">
+                      {r.what}
+                      {r.invoice ? <span className="font-normal text-muted">, {r.invoice}</span> : null}
+                    </span>
+                    {r.refund ? <span className="text-xs font-medium text-danger">возврат</span> : null}
+                  </div>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted">
+                    <span>{r.dateLabel}</span>
+                    {r.client ? <span>{r.client}</span> : null}
+                    <Refs refs={r.refs} />
+                    <span>принял {r.acceptedBy}</span>
+                    {r.note ? <span>{r.note}</span> : null}
+                  </div>
+                </div>
+                <div className="flex w-full items-center gap-x-4 max-sm:justify-between sm:w-auto">
+                  <span className={cn("text-[15px] font-semibold whitespace-nowrap tabular-nums", r.refund && "text-danger")}>{r.refund ? signed(-r.amount) : formatPrice(r.amount)}</span>
+                  <span className="min-w-20 text-xs">{r.receiptHref ? <Receipt href={r.receiptHref} /> : <Badge tone="danger">нет чека</Badge>}</span>
+                  <span className="ml-auto sm:ml-0 [&_.btn]:max-sm:min-w-32">{action(r)}</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </QueueGroup>
+      ) : null}
+
+      {s.issues.length ? (
+        <QueueGroup id="refunds" title="Нужно вернуть или зачесть" meta={plural(s.issues.length, ["случай", "случая", "случаев"])}>
+          <ul className="divide-y divide-line" data-testid="finance-issues">
+            {s.issues.map((i) => (
+              <li key={i.key} className="flex flex-wrap items-center gap-x-4 gap-y-2.5 px-4 py-3 sm:px-5">
+                <div className="min-w-0 flex-1 basis-72">
+                  <div className="text-sm font-medium">{i.title}</div>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted">
+                    {i.client ? <span>{i.client}</span> : null}
+                    <span>{i.ref}</span>
+                    <span>ведёт {i.manager}</span>
+                    {i.dateLabel ? <span>{i.dateLabel}</span> : null}
+                  </div>
+                  {i.note ? <div className="mt-0.5 text-xs text-muted">{i.note}</div> : null}
+                </div>
+                <div className="flex w-full items-center justify-between gap-x-4 sm:w-auto">
+                  <span className="text-[15px] font-semibold whitespace-nowrap tabular-nums">{formatPrice(i.amount)}</span>
+                  {i.href ? (
+                    <Link href={i.href} className="btn btn-outline btn-sm">
+                      Открыть
+                    </Link>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ul>
+          <Intro small className="border-t border-line px-4 py-2.5 sm:px-5">
+            {`Деньги, которые нужно вернуть клиенту или зачесть: оплачено больше договорённости или заказа, сделка в отказе с деньгами, отменённый заказ с оплатой, оплата Kaspi по закрытому счёту, после заказа или с суммой не по счёту (последние ${REFUND_WINDOW_DAYS} дней). Деньги по сделке (переплата, отказ, лишнее после заказа, отменённый заказ) уходят из списка, когда в сделке оформлен возврат с чеком.`}
+          </Intro>
+        </QueueGroup>
+      ) : null}
+      {s.review.length ? (
+        <Intro small className="border-t border-line px-4 py-2.5 sm:px-5">
+          Деньги и возвраты, которые записал сотрудник по чеку перевода. Откройте чек, сверьте с поступлением на счёт (Kaspi, банк) и отметьте «Проверено».
+        </Intro>
+      ) : null}
+    </section>
+  );
+}
+
+/** «Пришло»: график по дням и «по способам» одним листом; ниже — последние поступления ведомостью. */
 function Received({ s }: { s: FinanceScreen }) {
   const t = s.totals;
   const recent = s.recent.slice(0, RECENT);
   return (
-    <Part id="received" title="Пришло" aside={<>поступило {formatPrice(t.incoming)}, {plural(t.count, ["поступление", "поступления", "поступлений"])}</>}>
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-        <Panel title="По дням" description="Поступления за день магазина; красная черта внизу — в этот день был возврат">
+    <section id="received" aria-labelledby="received-h" className="scroll-mt-[calc(var(--topbar-h)+1rem)] space-y-4">
+      <SectionHead id="received-h" title="Пришло" meta={<span>поступило {formatPrice(t.incoming)}, {plural(t.count, ["поступление", "поступления", "поступлений"])}</span>} />
+      <div className="panel grid overflow-hidden xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <div className="p-4 sm:p-5">
+          <h3 className="panel-title">По дням</h3>
+          <p className="mt-0.5 text-xs text-muted">Поступления за день магазина; красная черта внизу — в этот день был возврат</p>
           {s.byDay.some((d) => d.incoming || d.refunds) ? (
             <FinanceColumns data={s.byDay} />
           ) : (
@@ -228,42 +305,14 @@ function Received({ s }: { s: FinanceScreen }) {
               Столбцы по дням появятся с первым поступлением.
             </EmptyState>
           )}
-        </Panel>
-        <Panel title="По способам" description="Сертификаты — отдельно, каким бы способом их ни оплатили">
+        </div>
+        <div className="border-t border-line p-4 sm:p-5 xl:border-t-0 xl:border-l">
+          <h3 className="panel-title">По способам</h3>
+          <p className="mt-0.5 mb-4 text-xs text-muted">Сертификаты — отдельно, каким бы способом их ни оплатили</p>
           <BarList format={formatPrice} rows={s.byMethod.map((m) => ({ label: m.label, value: m.value, note: m.count ? `${m.count} шт.` : undefined }))} />
-        </Panel>
+        </div>
       </div>
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Panel flush title="По менеджерам" description="По ответственному сделки; заказ без сделки — по ответственному заказа. Возвраты вычтены">
-          {s.byManager.length ? (
-            <table className={cn("table", EDGE)}>
-              <thead>
-                <tr>
-                  <th>Ответственный</th>
-                  <th className="text-right">Поступлений</th>
-                  <th className="text-right">Пришло</th>
-                </tr>
-              </thead>
-              <tbody className="tabular-nums">
-                {s.byManager.map((m) => (
-                  <tr key={m.id}>
-                    <td className="font-medium">{m.label}</td>
-                    <td className="text-right text-muted">{m.count}</td>
-                    <td className={cn("text-right font-medium", m.value < 0 && "text-danger")}>{signed(m.value)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <EmptyState compact icon={Wallet} title="За период денег не было">
-              Платежи по сделкам и оплаты заказов появятся здесь по ответственным.
-            </EmptyState>
-          )}
-        </Panel>
-        <Panel title="Откуда" description="Сделки — деньги менеджеров и счета из чата; заказы — оплаты на сайте и в заказе">
-          <BarList format={formatPrice} rows={s.bySource.map((m) => ({ label: m.label, value: m.value, note: m.count ? `${m.count} шт.` : undefined }))} />
-        </Panel>
-      </div>
+
       <Panel flush title="Последние поступления" description={s.recent.length > RECENT ? `Показаны ${RECENT} из ${s.recent.length} — все строки в «Скачать CSV»` : undefined}>
         {recent.length ? (
           <>
@@ -272,7 +321,7 @@ function Received({ s }: { s: FinanceScreen }) {
                 <thead>
                   <tr>
                     <th>Когда</th>
-                    <th className="text-right">Сумма</th>
+                    <th className="num">Сумма</th>
                     <th>Способ</th>
                     <th>Что</th>
                     <th>Сделка / заказ</th>
@@ -286,7 +335,7 @@ function Received({ s }: { s: FinanceScreen }) {
                   {recent.map((r) => (
                     <tr key={r.key}>
                       <td className="whitespace-nowrap text-muted">{r.dateLabel}</td>
-                      <td className={cn("text-right font-medium whitespace-nowrap tabular-nums", r.refund && "text-danger")}>{signed(r.amount)}</td>
+                      <td className={cn("num font-medium whitespace-nowrap", r.refund && "text-danger")}>{signed(r.amount)}</td>
                       <td className="whitespace-nowrap">{r.method}</td>
                       <td>{r.what}</td>
                       <td>
@@ -337,42 +386,36 @@ function Received({ s }: { s: FinanceScreen }) {
           </EmptyState>
         )}
       </Panel>
-    </Part>
+    </section>
   );
 }
 
 const BOOK_TONE = { ready: "success", progress: "warning", none: "neutral" } as const;
 
+/** «Ожидается»: остатки по группам одной строкой цифр и ведомость «Кто должен» — сначала те, у кого книга готова. */
 function Expected({ s }: { s: FinanceScreen }) {
   const t = s.totals;
   const rows = s.expected.rows.slice(0, EXPECTED);
   return (
-    <Part
-      id="expected"
-      title="Ожидается"
-      note="Сколько клиенты ещё должны: остаток договорённости по сделкам без заказа (договорённость − оплачено), заказы, ждущие оплаты, и постоплаты. Открытый счёт из чата — часть остатка своей сделки и к итогу не прибавляется. Готовность книги — по ответам (своя книга — по словам) и вехам воронки."
-      aside={
-        <>
-          всего <b className="font-semibold text-ink">{formatPrice(t.expectedAll)}</b>, книга готова <b className="font-semibold text-ink">{formatPrice(t.expectedAllReady)}</b>
-        </>
-      }
-    >
+    <section id="expected" aria-labelledby="expected-h" className="scroll-mt-[calc(var(--topbar-h)+1rem)] space-y-3">
+      <SectionHead
+        id="expected-h"
+        title="Ожидается"
+        meta={
+          <span>
+            всего <b className="font-semibold text-ink">{formatPrice(t.expectedAll)}</b>, книга готова <b className="font-semibold text-ink">{formatPrice(t.expectedAllReady)}</b>
+          </span>
+        }
+      />
+      <Intro small className="max-w-3xl">
+        Сколько клиенты ещё должны: остаток договорённости по сделкам без заказа (договорённость − оплачено), заказы, ждущие оплаты, и постоплаты. Открытый счёт из чата — часть остатка своей сделки и к итогу не прибавляется. Готовность
+        книги — по ответам (своя книга — по словам) и вехам воронки.
+      </Intro>
       <StatRow cols={s.expected.groups.length + 1 >= 5 ? 5 : 4}>
         {s.expected.groups.map((g) => (
-          <div key={g.key} className="bg-white p-4">
-            <div className="flex items-center gap-1.5 text-sm text-muted">
-              {g.key === "ready" ? <span className="size-2 rounded-full bg-success" aria-hidden /> : null}
-              {g.label}
-            </div>
-            <div className="mt-1 text-xl font-semibold tabular-nums">{formatPrice(g.value)}</div>
-            <div className="text-xs text-muted">{plural(g.count, ["клиент", "клиента", "клиентов"])}</div>
-          </div>
+          <StatTile key={g.key} bare label={g.label} value={formatPrice(g.value)} hint={plural(g.count, ["клиент", "клиента", "клиентов"])} />
         ))}
-        <div className="bg-white p-4">
-          <div className="text-sm text-muted">Открытые счета из чата</div>
-          <div className="mt-1 text-xl font-semibold tabular-nums">{formatPrice(s.expected.invoices.sum)}</div>
-          <div className="text-xs text-muted">{plural(s.expected.invoices.count, ["счёт", "счёта", "счетов"])}, входят в остатки</div>
-        </div>
+        <StatTile bare label="Открытые счета из чата" value={formatPrice(s.expected.invoices.sum)} hint={`${plural(s.expected.invoices.count, ["счёт", "счёта", "счетов"])}, входят в остатки`} />
       </StatRow>
       <Panel flush title="Кто должен" description={s.expected.rows.length > EXPECTED ? `Показаны ${EXPECTED} из ${s.expected.rows.length} — сначала те, у кого книга готова, по убыванию остатка` : "Сначала те, у кого книга готова, по убыванию остатка"}>
         {rows.length ? (
@@ -384,9 +427,9 @@ function Expected({ s }: { s: FinanceScreen }) {
                     <th>Клиент</th>
                     <th>Сделка / заказ</th>
                     <th>Ответственный</th>
-                    <th className="text-right">Договорённость</th>
-                    <th className="text-right">Оплачено</th>
-                    <th className="text-right">Остаток</th>
+                    <th className="num">Договорённость</th>
+                    <th className="num">Оплачено</th>
+                    <th className="num">Остаток</th>
                     <th>Книга</th>
                     <th>Срок</th>
                     <th>Счёт и заметки</th>
@@ -402,9 +445,9 @@ function Expected({ s }: { s: FinanceScreen }) {
                         </Link>
                       </td>
                       <td>{r.manager}</td>
-                      <td className="text-right text-muted tabular-nums">{formatPrice(r.total)}</td>
-                      <td className="text-right text-muted tabular-nums">{formatPrice(r.paid)}</td>
-                      <td className="text-right font-semibold tabular-nums">{formatPrice(r.left)}</td>
+                      <td className="num text-muted">{formatPrice(r.total)}</td>
+                      <td className="num text-muted">{formatPrice(r.paid)}</td>
+                      <td className="num font-semibold">{formatPrice(r.left)}</td>
                       <td>
                         <Badge tone={BOOK_TONE[r.group]}>{r.bookLabel}</Badge>
                       </td>
@@ -454,83 +497,46 @@ function Expected({ s }: { s: FinanceScreen }) {
           </EmptyState>
         )}
       </Panel>
-    </Part>
+    </section>
   );
 }
 
-function Issues({ s }: { s: FinanceScreen }) {
+/** Разрезы и возвраты: по менеджерам, откуда пришли деньги, оформленные возвраты. */
+function Reports({ s }: { s: FinanceScreen }) {
   return (
-    <Part
-      id="refunds"
-      title="Переплаты и возвраты"
-      note={`Деньги, которые нужно вернуть клиенту или зачесть: оплачено больше договорённости или заказа, сделка в отказе с деньгами, отменённый заказ с оплатой, оплата Kaspi по закрытому счёту, после заказа или с суммой не по счёту (последние ${REFUND_WINDOW_DAYS} дней). Деньги по сделке (переплата, отказ, лишнее после заказа, отменённый заказ) уходят из списка, когда в сделке оформлен возврат с чеком.`}
-      aside={s.issues.length ? plural(s.issues.length, ["случай", "случая", "случаев"]) : null}
-    >
-      <Panel flush title="Нужно вернуть или зачесть">
-        {s.issues.length ? (
-          <>
-            <div className="hidden overflow-x-auto lg:block">
-              <table className={cn("table min-w-[860px]", EDGE)} data-testid="finance-issues">
-                <thead>
-                  <tr>
-                    <th>Что случилось</th>
-                    <th>Сделка / заказ</th>
-                    <th>Клиент</th>
-                    <th>Ответственный</th>
-                    <th className="text-right">Сумма</th>
-                    <th>Подробности</th>
+    <section aria-label="Разрезы" className="space-y-4">
+      <SectionHead title="Разрезы" meta="по ответственным и источникам" />
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Panel flush title="По менеджерам" description="По ответственному сделки; заказ без сделки — по ответственному заказа. Возвраты вычтены">
+          {s.byManager.length ? (
+            <table className={cn("table", EDGE)}>
+              <thead>
+                <tr>
+                  <th>Ответственный</th>
+                  <th className="num">Поступлений</th>
+                  <th className="num">Пришло</th>
+                </tr>
+              </thead>
+              <tbody>
+                {s.byManager.map((m) => (
+                  <tr key={m.id}>
+                    <td className="font-medium">{m.label}</td>
+                    <td className="num text-muted">{m.count}</td>
+                    <td className={cn("num font-medium", m.value < 0 && "text-danger")}>{signed(m.value)}</td>
                   </tr>
-                </thead>
-                <tbody>
-                  {s.issues.map((i) => (
-                    <tr key={i.key}>
-                      <td className="font-medium">{i.title}</td>
-                      <td className="whitespace-nowrap">
-                        {i.href ? (
-                          <Link href={i.href} className="font-medium text-wine hover:underline">
-                            {i.ref}
-                          </Link>
-                        ) : (
-                          i.ref
-                        )}
-                      </td>
-                      <td>{i.client || "—"}</td>
-                      <td>{i.manager}</td>
-                      <td className="text-right font-semibold whitespace-nowrap tabular-nums">{formatPrice(i.amount)}</td>
-                      <td className="text-xs text-muted">
-                        {i.note}
-                        {i.dateLabel ? `, ${i.dateLabel}` : ""}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <ul className="divide-y divide-line lg:hidden">
-              {s.issues.map((i) => (
-                <MobileCard key={i.key} top={<span className="font-medium">{i.title}</span>} amount={formatPrice(i.amount)}>
-                  <Row label="Где">
-                    {i.href ? (
-                      <Link href={i.href} className="text-wine hover:underline">
-                        {i.ref}
-                      </Link>
-                    ) : (
-                      i.ref
-                    )}
-                  </Row>
-                  {i.client ? <Row label="Клиент">{i.client}</Row> : null}
-                  <Row label="Ведёт">{i.manager}</Row>
-                  {i.note || i.dateLabel ? <Row label="Подробно">{[i.note, i.dateLabel].filter(Boolean).join(", ")}</Row> : null}
-                </MobileCard>
-              ))}
-            </ul>
-          </>
-        ) : (
-          <EmptyState compact icon={CircleCheck} title="Переплат нет">
-            Если клиент заплатит больше договорённости или сделка уйдёт в отказ с деньгами, она появится здесь.
-          </EmptyState>
-        )}
-      </Panel>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <EmptyState compact icon={Wallet} title="За период денег не было">
+              Платежи по сделкам и оплаты заказов появятся здесь по ответственным.
+            </EmptyState>
+          )}
+        </Panel>
+        <Panel title="Откуда" description="Сделки — деньги менеджеров и счета из чата; заказы — оплаты на сайте и в заказе">
+          <BarList format={formatPrice} rows={s.bySource.map((m) => ({ label: m.label, value: m.value, note: m.count ? `${m.count} шт.` : undefined }))} />
+        </Panel>
+      </div>
       {s.refunds.length ? (
         <Panel flush title="Возвраты за период" description="Записаны в сделках с чеком возврата; уже вычтены из «Пришло»">
           <ul className="divide-y divide-line text-sm">
@@ -550,88 +556,6 @@ function Issues({ s }: { s: FinanceScreen }) {
           </ul>
         </Panel>
       ) : null}
-    </Part>
-  );
-}
-
-function Review({ s, canReview }: { s: FinanceScreen; canReview: { deal: boolean; order: boolean } }) {
-  const action = (r: FinanceScreen["review"][number]) =>
-    !canReview[r.kind] ? <span className="text-xs text-muted">проверяет руководитель</span> : r.mine ? <span className="text-xs text-muted">ваша запись — проверяет другой сотрудник</span> : <ReviewButton kind={r.kind} id={r.id} />;
-  return (
-    <Part
-      id="review"
-      title="Проверить"
-      note="Деньги и возвраты, которые записал сотрудник по чеку перевода. Откройте чек, сверьте с поступлением на счёт (Kaspi, банк) и отметьте «Проверено». Онлайн-оплаты подтверждает платёжная система — их проверять не нужно."
-      aside={s.review.length ? <>{plural(s.review.length, ["запись", "записи", "записей"])} на {formatPrice(s.totals.review.sum)}</> : null}
-    >
-      <Panel flush>
-        {s.review.length ? (
-          <>
-            <div className="hidden overflow-x-auto lg:block">
-              <table className={cn("table min-w-[860px]", EDGE)} data-testid="finance-review-list">
-                <thead>
-                  <tr>
-                    <th>Когда</th>
-                    <th className="text-right">Сумма</th>
-                    <th>Что</th>
-                    <th>Сделка / заказ</th>
-                    <th>Клиент</th>
-                    <th>Принял</th>
-                    <th>Чек</th>
-                    <th>
-                      <span className="sr-only">Действие</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {s.review.map((r) => (
-                    <tr key={r.key}>
-                      <td className="whitespace-nowrap text-muted">{r.dateLabel}</td>
-                      <td className={cn("text-right font-semibold whitespace-nowrap tabular-nums", r.refund && "text-danger")}>{r.refund ? signed(-r.amount) : formatPrice(r.amount)}</td>
-                      <td>
-                        {r.what}
-                        {r.invoice ? <span className="text-muted">, {r.invoice}</span> : null}
-                        {r.note ? <div className="text-xs text-muted">{r.note}</div> : null}
-                      </td>
-                      <td>
-                        <Refs refs={r.refs} />
-                      </td>
-                      <td>{r.client || "—"}</td>
-                      <td>{r.acceptedBy}</td>
-                      <td className="text-xs">{r.receiptHref ? <Receipt href={r.receiptHref} /> : <Badge tone="danger">нет чека</Badge>}</td>
-                      <td className="text-right">{action(r)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <ul className="divide-y divide-line lg:hidden">
-              {s.review.map((r) => (
-                <MobileCard key={r.key} top={<span className="text-muted">{r.dateLabel}</span>} amount={r.refund ? signed(-r.amount) : formatPrice(r.amount)} amountClass={r.refund ? "text-danger" : undefined}>
-                  <Row label="Что">
-                    {r.what}
-                    {r.invoice ? `, ${r.invoice}` : ""}
-                    {r.note ? <span className="block text-xs text-muted">{r.note}</span> : null}
-                  </Row>
-                  {r.refs.length ? (
-                    <Row label="Где">
-                      <Refs refs={r.refs} />
-                    </Row>
-                  ) : null}
-                  {r.client ? <Row label="Клиент">{r.client}</Row> : null}
-                  <Row label="Принял">{r.acceptedBy}</Row>
-                  <Row label="Чек">{r.receiptHref ? <Receipt href={r.receiptHref} /> : <Badge tone="danger">нет чека</Badge>}</Row>
-                  <dd className="col-span-2 pt-1.5 [&_.btn]:w-full [&>span]:w-full [&>span]:items-stretch">{action(r)}</dd>
-                </MobileCard>
-              ))}
-            </ul>
-          </>
-        ) : (
-          <EmptyState compact icon={ReceiptText} title="Всё проверено">
-            Ручные подтверждения оплат с чеками появятся здесь, когда их запишут сотрудники.
-          </EmptyState>
-        )}
-      </Panel>
-    </Part>
+    </section>
   );
 }

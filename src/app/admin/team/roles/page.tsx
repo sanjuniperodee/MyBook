@@ -17,17 +17,16 @@ export default async function RolesPage({ searchParams }: { searchParams: Promis
   const creating = want === "new";
   const current = creating ? null : (roles.find((r) => r.role.id === want) ?? roles.find((r) => r.role.id === staff.user.crmRoleId) ?? roles[0]);
   const item = (href: string, active: boolean, children: React.ReactNode) => (
-    <Link key={href} href={href} aria-current={active ? "page" : undefined} className={cn("flex min-h-11 shrink-0 items-center gap-2 rounded-[10px] px-3 py-2 text-sm whitespace-nowrap transition-colors max-lg:border lg:min-h-10", active ? "bg-white font-medium text-ink max-lg:border-ink lg:shadow-[inset_0_0_0_1px_var(--color-line)]" : "text-ink-soft max-lg:border-line max-lg:bg-white hover:bg-ink/[0.05] hover:text-ink")}>
+    <Link key={href} href={href} aria-current={active ? "page" : undefined} className={cn("flex min-h-10 shrink-0 items-center gap-2 rounded-[var(--r-ctl)] px-3 py-2 text-[13px] whitespace-nowrap transition-colors max-lg:border lg:min-h-9", active ? "bg-white font-medium text-ink max-lg:border-ink lg:shadow-[inset_0_0_0_1px_var(--color-line)]" : "text-ink-soft max-lg:border-line max-lg:bg-white hover:bg-ink/[0.05] hover:text-ink")}>
       {children}
     </Link>
   );
   return (
     <div className="space-y-4">
       <Intro>
-        Роль — это набор прав и видимость. «Только свои» — сотрудник видит сделки, чаты и клиентов, где он ответственный, плюс неразобранные. Руководитель всегда видит всё. Права проверяются на сервере: скрытая
-        кнопка — не единственная защита.
+        Роль — это набор прав и видимость. «Только свои» — сотрудник видит сделки, чаты и клиентов, где он ответственный, плюс неразобранные. Руководитель всегда видит всё.
       </Intro>
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[15rem_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-x-8 gap-y-4 lg:grid-cols-[13.5rem_minmax(0,1fr)]">
         <nav aria-label="Роли" className="no-scrollbar -mx-4 flex gap-1.5 overflow-x-auto px-4 sm:mx-0 sm:px-0 lg:sticky lg:top-[calc(var(--topbar-h)+1.5rem)] lg:block lg:space-y-0.5 lg:self-start">
           {roles.map(({ role, members }) =>
             item(

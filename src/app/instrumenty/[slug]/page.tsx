@@ -1,10 +1,15 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Link } from "@/i18n/client";
+import type { ReactNode } from "react";
 import { LandingHeader } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
 import { Faq } from "@/components/Faq";
-import { PageIntro } from "@/components/landing/PageIntro";
+import { PhotoPlate } from "@/components/landing/PageIntro";
+import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
+import { Flourish } from "@/components/landing/FilmFrame";
+import { themePhoto } from "@/components/landing/FilmFrame";
+import { ToolFrame } from "@/components/tools/Workbench";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { DeadlineCalculator } from "@/components/tools/DeadlineCalculator";
 import { GreetingGenerator } from "@/components/tools/GreetingGenerator";
@@ -87,56 +92,51 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
   const now = new Date();
   const fmt = dateFor(locale);
   const expressAddon = getAddons().find((a) => a.id === "express" && !a.hiddenFor.includes("hardcover"));
+  const t = m.secondary.tools;
 
-  let widget: React.ReactNode = null;
-  let extra: React.ReactNode = null;
+  let widget: ReactNode = null;
+  let extra: ReactNode = null;
   switch (tool.kind) {
     case "together":
       widget = <TogetherCounter />;
       extra = (
-        <section className="py-16 sm:py-20">
-          <div className="container-x">
-            <h2 className="max-w-2xl font-serif text-3xl font-medium tracking-tight sm:text-4xl">{ui.together.tableTitle}</h2>
-            <p className="mt-3 max-w-2xl text-muted">{ui.together.tableLead}</p>
-            <ul className="mt-8 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {weddingAnniversaries.map((a) => (
-                <li key={a.year} className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-white px-5 py-3">
-                  <span className="font-medium text-ink">{ui.together.tableYear(a.year)}</span>
-                  <span className="text-right text-ink-soft">{ui.together.tableName(a[locale])}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </section>
+        <ExtraSection title={ui.together.tableTitle} lead={ui.together.tableLead}>
+          <ul className="grid gap-x-10 border-t border-ink/80 sm:grid-cols-2 lg:grid-cols-3">
+            {weddingAnniversaries.map((a) => (
+              <li key={a.year} className="flex items-baseline justify-between gap-3 border-b border-line py-3">
+                <span className="font-serif text-xl font-medium text-ink tabular-nums">{ui.together.tableYear(a.year)}</span>
+                <span className="text-right text-ink-soft">{ui.together.tableName(a[locale])}</span>
+              </li>
+            ))}
+          </ul>
+        </ExtraSection>
       );
       break;
     case "deadline": {
       widget = <DeadlineCalculator expressPrice={expressAddon ? formatPrice(expressAddon.price) : null} />;
       const rows = upcomingHolidays(now).map((h) => ({ ...h, view: deadlineView(h.iso, now, "courier", !!expressAddon) }));
       extra = (
-        <section className="py-16 sm:py-20">
-          <div className="container-x">
-            <h2 className="max-w-2xl font-serif text-3xl font-medium tracking-tight sm:text-4xl">{ui.deadline.calendarTitle}</h2>
-            <p className="mt-3 max-w-2xl text-muted">{ui.deadline.calendarLead}</p>
-            <ul className="mt-8 grid gap-3 sm:grid-cols-2">
-              {rows.map((r) => (
-                <li key={r.id} className="rounded-2xl border border-line bg-white px-5 py-4">
-                  <div className="font-medium text-ink">{ui.deadline.holiday[r.id]}</div>
+        <ExtraSection title={ui.deadline.calendarTitle} lead={ui.deadline.calendarLead}>
+          <ul className="border-t border-ink/80">
+            {rows.map((r) => (
+              <li key={r.id} className="grid gap-x-8 gap-y-1 border-b border-line py-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] sm:items-baseline">
+                <div>
+                  <div className="font-serif text-xl font-medium text-ink">{ui.deadline.holiday[r.id]}</div>
                   <div className="text-sm text-muted">{fmt(r.date, true)}</div>
-                  <div className="mt-2 text-sm text-ink-soft">
-                    {r.view && (r.view.verdict === "digital" || r.view.verdict === "express" || r.view.verdict === "past") ? (
-                      <span className="text-wine">{ui.deadline.tooLate}</span>
-                    ) : r.view ? (
-                      <>
-                        {ui.deadline.orderBy}: <span className="font-medium text-ink">{fmt(r.view.orderBy, true)}</span> · {ui.deadline.daysLeft(r.view.daysToOrder)}
-                      </>
-                    ) : null}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </section>
+                </div>
+                <div className="text-[15px] text-ink-soft">
+                  {r.view && (r.view.verdict === "digital" || r.view.verdict === "express" || r.view.verdict === "past") ? (
+                    <span className="font-medium text-wine">{ui.deadline.tooLate}</span>
+                  ) : r.view ? (
+                    <>
+                      {ui.deadline.orderBy}: <span className="font-medium text-ink">{fmt(r.view.orderBy, true)}</span> · {ui.deadline.daysLeft(r.view.daysToOrder)}
+                    </>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </ExtraSection>
       );
       break;
     }
@@ -178,93 +178,130 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
       break;
   }
 
+  const sectionId = (i: number) => `about-${i + 1}`;
+  const photo = themePhoto[tool.theme];
+
   return (
     <>
       <LandingHeader loggedIn={!!user} />
       <JsonLd data={jsonLd} />
       <main className="overflow-x-clip">
-        <PageIntro
-          crumbs={[{ name: pg.home, href: "/" }, { name: pg.hub, href: "/instrumenty" }, { name: c.label }]}
-          title={
-            <>
-              {c.h1} <span className="italic">{c.accent}</span>
-            </>
-          }
-          lead={c.lead}
-          className="pb-10 sm:pb-14"
-        >
-          <p className="mt-4 flex flex-wrap gap-x-4 text-sm text-muted">
-            <span>{pg.free}</span>
-            <span>{pg.noSignup}</span>
-          </p>
-        </PageIntro>
+        {/* Шапка рабочего листа: что это и что получите — коротко; сам инструмент виден уже на первом экране. */}
+        <header className="pt-20 pb-6 sm:pt-32 sm:pb-9">
+          <div className="container-x">
+            <Breadcrumbs items={[{ name: pg.home, href: "/" }, { name: pg.hub, href: "/instrumenty" }, { name: c.label }]} className="max-sm:hidden" />
+            <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_16rem] lg:items-end lg:gap-14">
+              <div className="min-w-0">
+                <div className="mb-2 text-sm font-medium text-wine sm:mb-3">{m.secondary.tools.hub.kind[tool.kind]}</div>
+                <h1 className="max-w-4xl font-serif text-[34px] leading-[1.05] font-medium tracking-[-0.01em] text-balance sm:text-[56px]">
+                  {c.h1} <span className="italic">{c.accent}</span>
+                </h1>
+                <Flourish className="mt-3 text-wine/45" />
+                <p className="mt-4 max-w-2xl text-[17px] leading-relaxed text-ink-soft sm:mt-5 sm:text-lg">{c.lead}</p>
+              </div>
+              <ul className="mt-4 flex flex-wrap gap-x-5 gap-y-1 text-sm text-muted lg:mt-0 lg:block lg:space-y-1.5 lg:border-l lg:border-line lg:pl-5">
+                <li>{pg.free}</li>
+                <li>{pg.noSignup}</li>
+                {t.page.facts.map((f) => (
+                  <li key={f}>{f}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </header>
 
-        <section className="pb-16 sm:pb-20">
-          <div className="container-x max-w-4xl">{widget}</div>
+        <section id="tool" aria-label={t.page.tool} className="scroll-mt-20 pb-16 sm:pb-20">
+          <div className="container-x">
+            <ToolFrame cta={{ href: create, label: guestClosed ? m.common.nav.login : t.sheet.makeBook, note: t.sheet.makeBookNote }}>{widget}</ToolFrame>
+          </div>
         </section>
 
         {extra}
 
-        <section className="border-y border-line py-16 sm:py-20">
-          <div className="container-x grid gap-10 lg:grid-cols-2">
-            {c.sections.map((s) => (
-              <div key={s.heading} className={c.sections.length % 2 === 1 && s === c.sections[c.sections.length - 1] ? "lg:col-span-2" : undefined}>
-                <h2 className="font-serif text-3xl font-medium tracking-tight">{s.heading}</h2>
-                <div className="mt-4 space-y-3 leading-relaxed text-ink-soft">
-                  {s.paragraphs.map((p) => (
-                    <p key={p}>{p}</p>
-                  ))}
-                  {s.list ? (
-                    <ul className="list-disc space-y-1 pl-5">
-                      {s.list.map((x) => (
-                        <li key={x}>{x}</li>
-                      ))}
-                    </ul>
-                  ) : null}
-                </div>
-              </div>
-            ))}
+        {/* Объяснение: слева липкое оглавление, справа колонка ≤ 70 знаков. */}
+        <section className="border-t border-line py-14 sm:py-20">
+          <div className="container-x lg:grid lg:grid-cols-[13rem_minmax(0,40rem)] lg:gap-16">
+            <nav aria-label={t.page.onPage} className="mb-10 lg:sticky lg:top-24 lg:mb-0 lg:self-start lg:border-l lg:border-line lg:pl-5">
+              <div className="text-sm font-semibold">{t.page.onPage}</div>
+              <ol className="mt-2 space-y-0.5 text-sm text-ink-soft lg:mt-3 lg:space-y-2">
+                {c.sections.map((s, i) => (
+                  <li key={s.heading}>
+                    <a href={`#${sectionId(i)}`} className="block py-1.5 leading-snug hover:text-wine lg:py-0">
+                      {s.heading}
+                    </a>
+                  </li>
+                ))}
+                <li>
+                  <a href="#faq" className="block py-1.5 leading-snug hover:text-wine lg:py-0">
+                    {pg.faqTitle}
+                  </a>
+                </li>
+              </ol>
+            </nav>
+            <div className="space-y-12">
+              {c.sections.map((s, i) => (
+                <section key={s.heading} id={sectionId(i)} className="scroll-mt-24">
+                  <h2 className="font-serif text-[30px] leading-tight font-medium tracking-tight text-balance sm:text-[34px]">{s.heading}</h2>
+                  <div className="mt-4 space-y-4 text-[17px] leading-[1.75] text-ink-soft">
+                    {s.paragraphs.map((p) => (
+                      <p key={p}>{p}</p>
+                    ))}
+                    {s.list ? (
+                      <ul className="list-disc space-y-1.5 pl-5 marker:text-wine">
+                        {s.list.map((x) => (
+                          <li key={x}>{x}</li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </div>
+                </section>
+              ))}
+            </div>
           </div>
         </section>
 
-        <section className="bg-cream/60 py-16 sm:py-20">
-          <div className="container-x flex flex-col items-start gap-8 lg:flex-row lg:items-center lg:justify-between">
-            <div className="max-w-2xl">
-              <h2 className="font-serif text-3xl font-medium tracking-tight sm:text-4xl">{c.cta.title}</h2>
-              <p className="mt-3 text-lg leading-relaxed text-ink-soft">{c.cta.text}</p>
-            </div>
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <Link href={create} className="btn btn-primary btn-lg">
-                {guestClosed ? m.common.nav.login : pg.create}
-              </Link>
-              <Link href={landing ? `/kniga/${landing.slug}` : "/kniga"} className="btn btn-outline btn-lg">
-                {landing ? landing.content[locale].label : pg.seeIdeas}
-              </Link>
-            </div>
-          </div>
-        </section>
-
-        <section className="py-16 sm:py-20">
-          <div className="container-x grid gap-10 lg:grid-cols-[1fr_1.4fr]">
-            <h2 className="font-serif text-4xl leading-[1.05] font-medium tracking-tight sm:text-5xl">{pg.faqTitle}</h2>
+        <section id="faq" className="scroll-mt-20 border-t border-line py-14 sm:py-20">
+          <div className="container-x lg:grid lg:grid-cols-[13rem_minmax(0,40rem)] lg:gap-16">
+            <h2 className="mb-6 font-serif text-4xl leading-[1.05] font-medium tracking-tight lg:mb-0 lg:text-[40px]">{pg.faqTitle}</h2>
             <Faq items={c.faq} size="md" />
           </div>
         </section>
 
-        <section className="border-t border-line py-14">
-          <div className="container-x grid gap-10 md:grid-cols-2">
+        {/* Призыв после чтения — маленький «кадр» с темой инструмента. */}
+        <div className="container-x pb-16 sm:pb-20">
+          <PhotoPlate photo={photo.key} position={photo.position} shade="side" className="min-h-[340px] justify-center">
+            <div className="relative flex flex-col gap-7 px-5 py-10 sm:px-12 sm:py-14 lg:flex-row lg:items-center lg:justify-between">
+              <div className="max-w-2xl">
+                <h2 className="font-serif text-[32px] leading-[1.08] font-medium text-balance sm:text-5xl">{c.cta.title}</h2>
+                <p className="mt-4 text-lg leading-relaxed text-white/80">{c.cta.text}</p>
+              </div>
+              <div className="flex shrink-0 flex-col gap-3 sm:flex-row">
+                <Link href={create} className="btn btn-primary btn-lg">
+                  {guestClosed ? m.common.nav.login : pg.create}
+                </Link>
+                <Link href={landing ? `/kniga/${landing.slug}` : "/kniga"} className="btn btn-lg border border-[rgb(255_255_255/0.45)] text-white hover:border-[rgb(255_255_255/0.7)] hover:bg-[rgb(255_255_255/0.1)]">
+                  {landing ? landing.content[locale].label : pg.seeIdeas}
+                </Link>
+              </div>
+            </div>
+          </PhotoPlate>
+        </div>
+
+        <section className="border-t border-line py-12 sm:py-14">
+          <div className="container-x grid gap-10 md:grid-cols-2 md:gap-14">
             <div>
               <h2 className="text-sm font-semibold">{pg.others}</h2>
-              <ul className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm">
-                {others.map((t) => (
-                  <li key={t.slug}>
-                    <Link href={`/instrumenty/${t.slug}`} className="text-ink-soft underline decoration-line-strong underline-offset-4 hover:text-wine hover:decoration-wine">
-                      {t.content[locale].label}
+              <ul className="mt-3 divide-y divide-line border-y border-line">
+                {others.map((x) => (
+                  <li key={x.slug}>
+                    <Link href={`/instrumenty/${x.slug}`} className="flex min-h-12 items-baseline justify-between gap-4 py-3 text-ink-soft hover:text-wine">
+                      <span>{x.content[locale].label}</span>
+                      <span className="shrink-0 text-xs text-muted">{t.hub.kind[x.kind]}</span>
                     </Link>
                   </li>
                 ))}
                 <li>
-                  <Link href="/instrumenty" className="font-medium text-wine hover:underline">
+                  <Link href="/instrumenty" className="flex min-h-12 items-center py-3 font-medium text-wine hover:underline">
                     {pg.hub}
                   </Link>
                 </li>
@@ -273,10 +310,10 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
             {guides.length ? (
               <div>
                 <h2 className="text-sm font-semibold">{pg.guides}</h2>
-                <ul className="mt-4 space-y-2 text-sm">
+                <ul className="mt-3 divide-y divide-line border-y border-line">
                   {guides.map((a) => (
                     <li key={a.slug}>
-                      <Link href={`/blog/${a.slug}`} className="text-ink-soft hover:text-wine">
+                      <Link href={`/blog/${a.slug}`} className="flex min-h-12 items-center py-3 leading-snug text-ink-soft hover:text-wine">
                         {a.content[locale].title}
                       </Link>
                     </li>
@@ -289,5 +326,18 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
       </main>
       <Footer />
     </>
+  );
+}
+
+/** Таблица или календарь под инструментом: заголовок слева, ведомость справа на ноутбуке. */
+function ExtraSection({ title, lead, children }: { title: string; lead: string; children: ReactNode }) {
+  return (
+    <section className="border-t border-line pt-14 pb-14 sm:pt-16 sm:pb-16">
+      <div className="container-x">
+        <h2 className="max-w-2xl font-serif text-[32px] leading-tight font-medium tracking-tight sm:text-4xl">{title}</h2>
+        <p className="mt-3 mb-8 max-w-2xl text-muted">{lead}</p>
+        {children}
+      </div>
+    </section>
   );
 }

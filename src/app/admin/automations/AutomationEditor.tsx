@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { ArrowRight, LoaderCircle, Plus, Trash2, X, Zap } from "lucide-react";
+import { LoaderCircle, Plus, Trash2 } from "lucide-react";
 import { ask, toast, toastError } from "@/components/ui/overlays";
 import {
   automationActions,
@@ -33,6 +33,8 @@ import {
   SILENT_LIMITS,
 } from "@/modules/automation/domain/silent";
 import { cn } from "@/lib/class-names";
+import { Badge } from "@/components/ui/Badge";
+import { DrawerButton } from "../marketing/Drawer";
 import {
   deleteAutomationAction,
   saveAutomationAction,
@@ -108,120 +110,100 @@ function describe(r: Rule, ctx: Ctx) {
   };
 }
 
-export function AutomationCard({
+/** Кнопка «Новое правило»: редактор открывается в боковой панели (на телефоне — шторкой), список правил остаётся на виду. */
+export function NewRuleButton({ ctx }: { ctx: Ctx }) {
+  return (
+    <DrawerButton variant="primary" label="Новое правило" icon={<Plus className="size-4" strokeWidth={1.8} aria-hidden />} title="Новое правило" description="Когда случится событие и выполнится условие — CRM сделает действия сама" wide lazy testId="new-rule">
+      {(close) => <Editor rule={null} ctx={ctx} onClose={close} />}
+    </DrawerButton>
+  );
+}
+
+/**
+ * Строка правила в ведомости: статус (включено — точка и подпись, галочка переключает), название и сценарий «Когда → Тогда»,
+ * сколько раз сработало и когда в последний раз, «Изменить» (боковая панель), журнал и удаление.
+ */
+export function AutomationRow({
   rule,
   stats,
   ctx,
 }: {
-  rule: Rule | null;
+  rule: Rule;
   stats: { runs: number; last: string | null; sales?: string | null } | null;
   ctx: Ctx;
 }) {
-  const [editing, setEditing] = useState(false);
   const [pending, start] = useTransition();
-  if (!rule && !editing)
-    return (
-      <button
-        onClick={() => setEditing(true)}
-        className="flex min-h-14 w-full items-center justify-center gap-2 rounded-[14px] border border-dashed border-line-strong text-sm font-medium text-ink-soft transition-colors hover:border-wine/50 hover:bg-white hover:text-wine"
-      >
-        <Plus className="size-4" strokeWidth={1.8} aria-hidden /> Новое правило
-      </button>
-    );
-  if (editing || !rule)
-    return (
-      <Editor
-        rule={rule}
-        ctx={ctx}
-        onClose={() => setEditing(false)}
-        inline={!!rule}
-      />
-    );
   const d = describe(rule, ctx);
   return (
-    <div
-      className="flex flex-wrap items-center gap-x-4 gap-y-3 px-4 py-3.5 sm:px-5"
-      data-testid="automation"
-    >
-      <span
-        className={cn(
-          "flex size-10 shrink-0 items-center justify-center rounded-[10px]",
-          rule.active ? "bg-rose text-wine" : "bg-sunken text-muted",
-        )}
-      >
-        <Zap className="size-5" strokeWidth={1.8} aria-hidden />
-      </span>
-      <div className="min-w-0 flex-1">
-        <div className={cn("font-medium", !rule.active && "text-ink-soft")}>
-          {rule.name}
-        </div>
-        <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-muted">
-          <span className="rounded-md bg-sunken px-1.5 py-0.5 text-ink-soft">
-            {d.trigger}
-          </span>
-          <ArrowRight className="size-3" aria-label="затем" />
-          <span>{d.actions}</span>
-        </div>
-        {stats ? (
-          <div className="mt-1 text-xs text-muted">
-            сработало {stats.runs} раз
-            {stats.last ? `, последний ${stats.last}` : ""}
-            {stats.runs ? (
-              <>
-                {" · "}
-                <Link
-                  href={`/admin/automations/${rule.id}`}
-                  className="text-wine hover:underline"
-                >
-                  журнал
-                </Link>
-              </>
-            ) : null}
+    <li className="flex flex-col gap-2 px-4 py-3 sm:px-5 lg:grid lg:grid-cols-[7.5rem_minmax(0,1fr)_12rem_auto] lg:items-center lg:gap-x-4" data-testid="automation">
+      <div className="min-w-0 lg:col-start-2 lg:row-start-1">
+        <div className={cn("font-medium", !rule.active && "text-ink-soft")}>{rule.name}</div>
+        <dl className="mt-0.5 space-y-0.5 text-xs">
+          <div className="flex gap-2">
+            <dt className="w-11 shrink-0 text-muted">Когда</dt>
+            <dd className="min-w-0 text-ink-soft">{d.trigger}</dd>
           </div>
-        ) : null}
+          <div className="flex gap-2">
+            <dt className="w-11 shrink-0 text-muted">Тогда</dt>
+            <dd className="min-w-0 text-ink-soft">{d.actions}</dd>
+          </div>
+        </dl>
         {stats?.sales ? (
-          <div
-            className="mt-0.5 text-xs text-success"
-            data-testid="automation-sales"
-          >
+          <div className="mt-1 text-xs text-success" data-testid="automation-sales">
             {stats.sales}
           </div>
         ) : null}
       </div>
-      <div className="flex items-center gap-1 max-sm:w-full max-sm:pl-14">
-        <label className="flex min-h-9 cursor-pointer items-center gap-2 pr-2 text-xs text-muted">
+      <div className="text-xs text-muted lg:col-start-3 lg:row-start-1">
+        {stats ? (
+          <>
+            <span className="tabular-nums">сработало {stats.runs} раз</span>
+            <span className="lg:hidden">, </span>
+            <br className="max-lg:hidden" />
+            <span>{stats.last ? `последний ${stats.last}` : "ещё не срабатывало"}</span>
+            {stats.runs ? (
+              <>
+                <span className="lg:hidden">, </span>
+                <br className="max-lg:hidden" />
+                <Link href={`/admin/automations/${rule.id}`} className="text-wine hover:underline">
+                  журнал
+                </Link>
+              </>
+            ) : null}
+          </>
+        ) : null}
+      </div>
+      <div className="flex items-center justify-between gap-2 border-t border-line pt-2 lg:contents lg:border-0 lg:pt-0">
+        <label className="flex min-h-9 cursor-pointer items-center gap-2 text-xs lg:col-start-1 lg:row-start-1">
           <input
             type="checkbox"
             className="size-4 accent-wine"
             checked={rule.active}
             disabled={pending}
+            aria-label={`Правило «${rule.name}» включено`}
             onChange={(e) => {
               const v = e.target.checked;
               start(() => toggleAutomationAction(rule.id, v));
             }}
           />
-          {rule.active ? "включено" : "выключено"}
+          <Badge tone={rule.active ? "success" : "neutral"}>{rule.active ? "работает" : "выключено"}</Badge>
         </label>
-        <button
-          className="btn btn-outline btn-sm"
-          onClick={() => setEditing(true)}
-        >
-          Изменить
-        </button>
-        <button
-          className="btn btn-ghost btn-icon btn-sm text-muted hover:text-danger"
-          disabled={pending}
-          onClick={async () =>
-            (await ask(`Удалить правило «${rule.name}»?`, true)) &&
-            start(() => deleteAutomationAction(rule.id))
-          }
-          aria-label="Удалить"
-          title="Удалить"
-        >
-          <Trash2 className="size-4" strokeWidth={1.8} />
-        </button>
+        <div className="flex items-center gap-1 lg:col-start-4 lg:row-start-1">
+          <DrawerButton variant="outline" label="Изменить" title={`Правило «${rule.name}»`} description="Когда, если и тогда: сценарий правила" wide lazy>
+            {(close) => <Editor rule={rule} ctx={ctx} onClose={close} />}
+          </DrawerButton>
+          <button
+            className="btn btn-ghost btn-icon btn-sm text-muted hover:text-danger"
+            disabled={pending}
+            onClick={async () => (await ask(`Удалить правило «${rule.name}»?`, true)) && start(() => deleteAutomationAction(rule.id))}
+            aria-label="Удалить"
+            title="Удалить"
+          >
+            <Trash2 className="size-4" strokeWidth={1.8} />
+          </button>
+        </div>
       </div>
-    </div>
+    </li>
   );
 }
 
@@ -229,12 +211,10 @@ function Editor({
   rule,
   ctx,
   onClose,
-  inline,
 }: {
   rule: Rule | null;
   ctx: Ctx;
   onClose: () => void;
-  inline?: boolean;
 }) {
   const [name, setName] = useState(rule?.name ?? "");
   const [trigger, setTrigger] = useState(rule?.trigger ?? "deal.created");
@@ -288,41 +268,24 @@ function Editor({
     });
 
   return (
-    <div
-      className={cn(
-        "space-y-5",
-        inline
-          ? "bg-sunken/40 px-4 py-5 sm:px-5"
-          : "panel border-wine/30 p-4 shadow-soft sm:p-5",
-      )}
-      data-testid="automation-editor"
-    >
-      <div className="flex items-start gap-3">
-        <div className="min-w-0 flex-1">
-          <label htmlFor={`rule-name-${rule?.id ?? "new"}`} className="label">
-            {rule ? "Название правила" : "Новое правило"}
-          </label>
-          <input
-            id={`rule-name-${rule?.id ?? "new"}`}
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Например, «Пропущенный звонок — перезвонить»"
-            maxLength={100}
-            className="input h-10 font-medium"
-          />
-        </div>
-        <button
-          onClick={onClose}
-          className="btn btn-ghost btn-icon btn-sm mt-7"
-          aria-label="Закрыть"
-        >
-          <X className="size-4" strokeWidth={1.8} />
-        </button>
+    <div className="space-y-5" data-testid="automation-editor">
+      <div>
+        <label htmlFor={`rule-name-${rule?.id ?? "new"}`} className="label">
+          Название правила
+        </label>
+        <input
+          id={`rule-name-${rule?.id ?? "new"}`}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Например, «Пропущенный звонок — перезвонить»"
+          maxLength={100}
+          className="input font-medium"
+        />
       </div>
       <ol>
         <Step
-          n={1}
-          title="Когда"
+          label="Когда"
+          title="Событие"
           hint={
             automationTriggers[trigger as keyof typeof automationTriggers]?.hint
           }
@@ -341,7 +304,7 @@ function Editor({
           </select>
         </Step>
         <Step
-          n={2}
+          label="Если"
           title="Условие"
           hint="Для каких объектов и в какое время срабатывает правило"
         >
@@ -741,7 +704,7 @@ function Editor({
           </select>
         </Step>
         <Step
-          n={3}
+          label="Тогда"
           title="Что сделать"
           hint="Действия выполняются по порядку, до шести"
           last
@@ -749,7 +712,7 @@ function Editor({
           {actions.map((a, i) => (
             <div
               key={i}
-              className="space-y-2 rounded-[10px] border border-line bg-white p-3"
+              className="space-y-2 rounded-[var(--r-ctl)] border border-line bg-white p-3"
             >
               <div className="flex items-center gap-2">
                 <span
@@ -984,9 +947,9 @@ function Editor({
           ) : null}
         </Step>
       </ol>
-      <div className="flex flex-wrap gap-2 border-t border-line pt-4">
+      <div className="sticky bottom-0 -mx-5 flex flex-wrap gap-2 border-t border-line bg-white px-5 py-3">
         <button
-          className="btn btn-dark btn-sm"
+          className="btn btn-dark"
           disabled={pending}
           onClick={save}
         >
@@ -995,7 +958,7 @@ function Editor({
           ) : null}{" "}
           Сохранить правило
         </button>
-        <button className="btn btn-ghost btn-sm" onClick={onClose}>
+        <button className="btn btn-ghost" onClick={onClose}>
           Отмена
         </button>
       </div>
@@ -1003,42 +966,35 @@ function Editor({
   );
 }
 
-/** Шаг формы правила: номер, заголовок, пояснение; шаги связаны линией слева. */
+/**
+ * Шаг сценария правила: метка «Когда / Если / Тогда» на рельсе слева, карточка с полями справа; шаги связаны линией —
+ * читается как предложение: «Когда случится это, если выполнится вот это, тогда сделать так».
+ */
 function Step({
-  n,
+  label,
   title,
   hint,
   last,
   children,
 }: {
-  n: number;
+  label: string;
   title: string;
   hint?: string;
   last?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <li
-      className={cn(
-        "relative grid grid-cols-[1.75rem_minmax(0,1fr)] gap-x-3",
-        !last && "pb-6",
-      )}
-    >
-      {!last ? (
-        <span
-          className="absolute top-8 bottom-1 left-3.5 w-px bg-line-strong"
-          aria-hidden
-        />
-      ) : null}
-      <span
-        className="flex size-7 items-center justify-center rounded-full bg-ink text-xs font-semibold text-white tabular-nums"
-        aria-hidden
-      >
-        {n}
+    <li className={cn("relative grid grid-cols-[3.5rem_minmax(0,1fr)] gap-x-3", !last && "pb-4")}>
+      {!last ? <span className="absolute top-8 bottom-0 left-7 w-px -translate-x-1/2 bg-line-strong" aria-hidden /> : null}
+      <span className="relative z-[1] h-6 w-14 rounded-[var(--r-ctl)] bg-ink text-center text-xs leading-6 font-semibold text-white" aria-hidden>
+        {label}
       </span>
-      <div className="min-w-0 space-y-2.5 pt-0.5">
+      <div className="min-w-0 space-y-2.5 rounded-[var(--r-panel)] border border-line bg-sunken/40 p-3.5">
         <div>
-          <h3 className="text-sm font-semibold">{title}</h3>
+          <h3 className="text-sm font-semibold">
+            <span className="sr-only">{label}: </span>
+            {title}
+          </h3>
           {hint ? <p className="text-xs text-muted">{hint}</p> : null}
         </div>
         {children}

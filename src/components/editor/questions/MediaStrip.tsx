@@ -144,7 +144,7 @@ function MediaItem({
   const kinds: MediaKind[] = own ? (media.kind === "video" ? [] : ["audio", "music"]) : ["video", "music"];
   const icons = { video: Video, music: Music, audio: Mic };
   return (
-    <li className="enter flex gap-3 rounded-3xl border border-line bg-white p-3 sm:gap-4 sm:p-4" data-testid="answer-media-item">
+    <li className="enter flex gap-3 rounded-[12px] border border-line bg-white p-3 sm:gap-4 sm:p-4" data-testid="answer-media-item">
       <div className="relative shrink-0 self-start">
         {thumb ? (
           <>
@@ -157,12 +157,12 @@ function MediaItem({
                 if (el?.complete && !el.naturalWidth) setThumbFailed(true);
               }}
               onError={() => setThumbFailed(true)}
-              className="block aspect-video w-24 rounded-2xl bg-cream object-cover sm:w-36"
+              className="block aspect-video w-24 rounded-[10px] bg-cream object-cover sm:w-36"
             />
-            <QrPreview url={media.url} className="absolute -right-2 -bottom-2 size-10 rounded-lg bg-white p-0.5 shadow-md ring-1 ring-line sm:size-14" />
+            <QrPreview url={media.url} className="absolute -right-2 -bottom-2 size-10 rounded-lg bg-white p-0.5 ring-1 ring-line-strong sm:size-14" />
           </>
         ) : (
-          <QrPreview url={media.url} className="size-16 rounded-2xl bg-white p-1 ring-1 ring-line sm:size-24" />
+          <QrPreview url={media.url} className="size-16 rounded-[10px] bg-white p-1 ring-1 ring-line sm:size-24" />
         )}
       </div>
       <div className="min-w-0 flex-1 space-y-3">
@@ -196,7 +196,7 @@ function MediaItem({
             href={media.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="ml-auto inline-flex min-w-0 items-center gap-1 rounded-full p-2 text-xs text-wine hover:underline sm:px-0 sm:py-1.5"
+            className="ml-auto inline-flex min-w-0 items-center gap-1 rounded-lg p-2 text-xs text-wine hover:underline sm:px-0 sm:py-1.5"
             title={own ? t.file.open : t.open}
             aria-label={own ? t.file.open : t.open}
           >
@@ -207,7 +207,7 @@ function MediaItem({
             <button
               type="button"
               onClick={() => (own && file !== "gone" ? setConfirming(true) : onRemove())}
-              className="-mr-1 rounded-full p-2 text-muted hover:bg-cream hover:text-danger"
+              className="-mr-1 rounded-lg p-2 text-muted hover:bg-cream hover:text-danger max-lg:p-3"
               aria-label={t.removeAria(media.title)}
               title={t.remove}
             >
@@ -217,11 +217,11 @@ function MediaItem({
         </div>
         {own ? <FileStatus state={file} /> : null}
         {confirming ? (
-          <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-danger-bg p-3 text-sm" role="alert">
+          <div className="flex flex-wrap items-center gap-2 rounded-[10px] bg-danger-bg p-3 text-sm" role="alert">
             <span className="min-w-0 flex-1">{t.file.removeConfirm}</span>
             <button
               type="button"
-              className="btn btn-sm h-9 bg-red-700 text-white hover:bg-red-800"
+              className="btn btn-danger btn-sm"
               onClick={() => {
                 setConfirming(false);
                 onRemove();
@@ -229,7 +229,7 @@ function MediaItem({
             >
               {t.file.removeYes}
             </button>
-            <button type="button" className="btn btn-ghost btn-sm h-9" onClick={() => setConfirming(false)}>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirming(false)}>
               {t.file.removeNo}
             </button>
           </div>
@@ -241,7 +241,7 @@ function MediaItem({
             readOnly={!editable}
             maxLength={MEDIA_TITLE_MAX}
             placeholder={t.captionPlaceholder[media.kind]}
-            className="h-10 w-full rounded-xl border border-line bg-white px-3 text-sm outline-none focus:border-ink/40 sm:h-9"
+            className="input h-10 text-sm sm:h-9"
           />
         </Field>
         {positions.length > 1 ? (
@@ -251,7 +251,7 @@ function MediaItem({
               disabled={!editable}
               onChange={(e) => onChange({ anchor: positions[Number(e.target.value)] })}
               aria-label={t.placeAria}
-              className="h-10 w-full min-w-0 rounded-xl border border-line bg-white px-2 text-sm sm:h-9"
+              className="input h-10 min-w-0 px-2 text-sm sm:h-9"
             >
               {positions.map((a, i) => (
                 <option key={i} value={i}>
@@ -351,7 +351,7 @@ export function MediaStrip({
 
   if (!media.length && !adding) return null;
   return (
-    <section className="space-y-3 px-4 pb-5 sm:px-10 sm:pb-6" data-testid="answer-media" aria-label={t.title}>
+    <section className="space-y-3 border-t border-line px-5 pt-4 pb-5 sm:px-10 sm:pb-6" data-testid="answer-media" aria-label={t.title}>
       <div className="flex items-center gap-2 text-sm font-medium text-ink">
         <QrCode className="size-4 text-wine" /> {t.title}
       </div>
@@ -371,7 +371,7 @@ export function MediaStrip({
         </ul>
       ) : null}
       {adding && editable ? (
-        <form onSubmit={submit} className="enter space-y-3 rounded-3xl bg-sunken p-4 sm:p-5">
+        <form onSubmit={submit} className="enter space-y-3 rounded-[12px] bg-sunken p-4 sm:p-5">
           <p className="text-sm leading-snug text-ink-soft">{t.intro}</p>
           {media.length < MAX_MEDIA ? <FileUpload bookId={bookId} onUploaded={uploaded} /> : null}
           <div className="flex items-center gap-3 pt-1 text-xs text-muted" aria-hidden>
@@ -393,7 +393,7 @@ export function MediaStrip({
                 }}
                 placeholder={t.urlPlaceholder}
                 aria-invalid={!!error}
-                className={cn("h-11 min-w-0 flex-1 rounded-xl border bg-white px-3 text-[15px] outline-none focus:border-ink/40", error ? "border-red-400" : "border-line")}
+                className={cn("input min-w-0 flex-1", error && "border-danger")}
               />
               <div className="flex gap-2">
                 <button type="submit" className="btn btn-primary btn-sm h-11 flex-1 px-5" disabled={!url.trim()}>

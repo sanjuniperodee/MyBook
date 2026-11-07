@@ -41,6 +41,7 @@ export function ChaptersEditor({
   stories,
   editable,
   onChange,
+  accordion,
 }: {
   /** Фото глав — кнопка «Фото главы» в карточке и строка альбома. */
   photos?: ChapterPhotoRows;
@@ -54,9 +55,12 @@ export function ChaptersEditor({
   lines: TocLines;
   editable: boolean;
   onChange: (lines: TocLines) => void;
+  /** Лента глав в студии: раскрыта одна глава, остальные — строкой (номер, название, что с ней). Без него все главы раскрыты. */
+  accordion?: { open: string | null; onOpen: (key: string | null) => void };
 }) {
   const m = useMessages();
   const t = m.books.pages;
+  const sx = m.design.ui.studio.pages;
   const [open, setOpen] = useState<string | null>(null);
   const chapters = candidates.filter((c) => c.kind === "chapter" && c.pageKey !== GALLERY_KEY);
   const storiesOf = (key: string) => candidates.filter((c) => c.kind === "section" && c.parent === key);
@@ -75,10 +79,30 @@ export function ChaptersEditor({
       <ul className="space-y-2">
         {rows.map(({ c, removed, number, into, count }) => {
           const s = lines[c.key];
+          const needPhoto = !!photos && !removed && isChapterPhotoKey(c.pageKey) && chapterPhotoStatus(c.pageKey, photos.places, lines, photos.openerDesign).kind === "needed";
+          if (accordion && accordion.open !== c.key)
+            return (
+              <li key={c.key} className={cn("rounded-[var(--r-ctl)] ring-1 transition", removed ? "bg-sunken ring-line/60" : "bg-white ring-line hover:ring-ink/30")}>
+                <button type="button" aria-expanded={false} onClick={() => accordion.onOpen(c.key)} className="flex min-h-11 w-full items-center gap-2 px-3 text-left">
+                  <span className="w-6 shrink-0 text-right text-sm text-muted tabular-nums">{number ? `${number}.` : "—"}</span>
+                  <span className={cn("min-w-0 flex-1 truncate text-sm font-medium", removed && "line-through opacity-50")}>{s?.title?.trim() || c.label}</span>
+                  {removed ? <span className="badge">{sx.removed}</span> : needPhoto ? <span className="badge badge-warning">{sx.needPhoto}</span> : null}
+                  <ChevronDown className="size-4 shrink-0 text-muted" aria-hidden />
+                  <span className="sr-only">{sx.expand}</span>
+                </button>
+              </li>
+            );
           return (
-            <li key={c.key} className={cn("rounded-2xl p-3 ring-1 transition", removed ? "bg-sunken ring-line/60" : "bg-white ring-line")}>
+            <li key={c.key} className={cn("rounded-[var(--r-panel)] p-3 ring-1 transition", removed ? "bg-sunken ring-line/60" : "bg-white", accordion ? "ring-2 ring-wine/40" : "ring-line")}>
               <div className="flex items-center gap-2">
-                <span className="w-7 shrink-0 text-right text-sm text-muted tabular-nums">{number ? `${number}.` : "—"}</span>
+                {accordion ? (
+                  <button type="button" aria-expanded onClick={() => accordion.onOpen(null)} title={sx.collapse} className="flex min-h-11 w-7 shrink-0 items-center justify-end text-sm text-muted tabular-nums hover:text-ink">
+                    <span className="sr-only">{sx.collapse}</span>
+                    {number ? `${number}.` : "—"}
+                  </button>
+                ) : (
+                  <span className="w-7 shrink-0 text-right text-sm text-muted tabular-nums">{number ? `${number}.` : "—"}</span>
+                )}
                 {blank ? <span className="min-w-0 flex-1 truncate py-2 text-sm font-medium">{s?.title?.trim() || c.label}</span> : null}
                 {blank ? null : <input
                   className={cn("input h-10 min-w-0 flex-1 text-sm font-medium", removed && "line-through opacity-50")}
@@ -207,7 +231,7 @@ export function ChapterPhotoButton({ status, count, onClick }: { status: Chapter
         // eslint-disable-next-line @next/next/no-img-element -- миниатюра фото главы
         <img src={photoUrl(status.photoId)} alt="" className="size-8 shrink-0 rounded-md object-cover ring-1 ring-line" />
       ) : (
-        <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-md", status.kind === "needed" ? "border border-dashed border-amber-500 bg-warning-bg text-warning" : "bg-cream text-muted")}>
+        <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-md", status.kind === "needed" ? "border border-dashed border-warning bg-warning-bg text-warning" : "bg-cream text-muted")}>
           <ImagePlus className="size-4" aria-hidden />
         </span>
       )}

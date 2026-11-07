@@ -94,6 +94,7 @@ export function HelpChat({ bookId }: { bookId: string }) {
   const launcher = useRef<HTMLButtonElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
   const log = useRef<HTMLDivElement>(null);
+  const dragFrom = useRef<number | null>(null);
   const inset = useKeyboardInset();
   const bars = useBottomBars();
   const api = `/api/books/${bookId}/help`;
@@ -225,6 +226,19 @@ export function HelpChat({ bookId }: { bookId: string }) {
   const lastBot = [...messages].reverse().find((m) => m.from !== "client");
   const showLauncher = !picker.active && !(typingElsewhere && !open);
   const lift = Math.max(bars, inset);
+  // Лента быстрых вопросов над полем: ответ подсказал продолжение — оно, иначе частые вопросы этого раздела.
+  const ribbon = busy || place ? [] : suggestions.length ? suggestions : messages.length ? faq : [];
+
+  // Ручка шторки на телефоне: коснуться или потянуть вниз — закрыть.
+  const grab = (e: React.PointerEvent<HTMLButtonElement>) => {
+    dragFrom.current = e.clientY;
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+  const release = (e: React.PointerEvent<HTMLButtonElement>) => {
+    const from = dragFrom.current;
+    dragFrom.current = null;
+    if (from !== null && e.clientY - from > -8) close();
+  };
 
   return (
     <div data-help-widget className="print:hidden">
@@ -232,39 +246,39 @@ export function HelpChat({ bookId }: { bookId: string }) {
 
       {open && !picker.active ? (
         <>
-          <button type="button" aria-label={t.close} tabIndex={-1} onClick={close} className="fixed inset-0 z-[55] bg-ink/25 motion-safe:animate-[fade-in_150ms_ease-out] sm:hidden" />
+          <button type="button" aria-label={t.close} tabIndex={-1} onClick={close} className="fixed inset-0 z-[55] bg-ink/30 motion-safe:animate-[fade-in_150ms_ease-out] sm:hidden" />
           <section
             role="dialog"
             aria-modal="false"
             aria-labelledby="help-title"
-            className="fixed inset-x-0 z-[56] flex h-[min(86dvh,720px)] flex-col overflow-hidden rounded-t-3xl border border-line bg-paper shadow-lift motion-safe:animate-[sheet-up_220ms_cubic-bezier(.2,.8,.2,1)] sm:inset-x-auto sm:right-4 sm:bottom-20 sm:h-[min(640px,calc(100dvh-7rem))] sm:w-[400px] sm:rounded-3xl"
+            className="fixed inset-x-0 z-[56] flex h-[min(85dvh,720px)] flex-col overflow-hidden rounded-t-[var(--r-sheet)] border border-line bg-white shadow-lift motion-safe:animate-[sheet-up_220ms_cubic-bezier(.2,.8,.2,1)] sm:inset-x-auto sm:right-4 sm:bottom-20 sm:h-[min(640px,calc(100dvh-7rem))] sm:w-[400px] sm:rounded-[var(--r-sheet)]"
             style={{ bottom: typeof window !== "undefined" && window.innerWidth < 640 ? inset : undefined }}
           >
-            <header className="flex items-center gap-3 border-b border-line/80 bg-white px-4 py-3">
-              <span className="mx-auto mb-1 h-1 w-10 rounded-full bg-line sm:hidden" aria-hidden style={{ position: "absolute", top: 6, left: "50%", transform: "translateX(-50%)" }} />
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-rose text-wine">
-                <LifeBuoy className="size-5" aria-hidden />
-              </span>
+            <button type="button" aria-label={t.close} onPointerDown={grab} onPointerUp={release} onPointerCancel={() => (dragFrom.current = null)} className="flex h-6 shrink-0 touch-none items-end justify-center pb-1 sm:hidden">
+              <span className="h-1 w-10 rounded-full bg-line-strong" aria-hidden />
+            </button>
+            <header className="flex shrink-0 items-center gap-1 border-b border-line py-2 pr-2 pl-4 max-sm:pt-0 sm:pt-3">
               <div className="min-w-0 flex-1">
-                <h2 id="help-title" tabIndex={-1} className="truncate font-serif text-lg leading-tight font-medium outline-none">
+                <h2 id="help-title" tabIndex={-1} className="truncate text-[15px] leading-tight font-semibold outline-none">
                   {t.title}
                 </h2>
                 <p className="truncate text-xs text-muted">{t.subtitle}</p>
               </div>
-              <button type="button" onClick={picker.start} className="flex size-11 items-center justify-center rounded-full text-ink hover:bg-cream focus-visible:outline-2 focus-visible:outline-wine" aria-label={t.pickButton} title={t.pickButton}>
+              <button type="button" onClick={picker.start} className="btn btn-ghost btn-icon shrink-0" aria-label={t.pickButton} title={t.pickButton}>
                 <Crosshair className="size-5" aria-hidden />
               </button>
-              <button type="button" onClick={close} className="flex size-11 items-center justify-center rounded-full text-ink hover:bg-cream focus-visible:outline-2 focus-visible:outline-wine" aria-label={t.close}>
+              <button type="button" onClick={close} className="btn btn-ghost btn-icon shrink-0" aria-label={t.close} title={t.close}>
                 <X className="size-5" aria-hidden />
               </button>
             </header>
 
-            <div ref={log} role="log" aria-live="polite" aria-busy={busy} className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-4">
+            <div ref={log} role="log" aria-live="polite" aria-busy={busy} className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4">
               {!enabled ? <HandoffNote text={t.off} whatsapp={whatsapp} /> : null}
               {!loaded && !messages.length ? (
                 <div className="space-y-3" aria-hidden>
-                  <div className="skeleton h-16 w-4/5" />
-                  <div className="skeleton h-14 w-full" />
+                  <div className="skeleton h-4 w-4/5" />
+                  <div className="skeleton h-4 w-full" />
+                  <div className="skeleton h-4 w-2/3" />
                 </div>
               ) : null}
               {loaded && enabled && !messages.length ? <EmptyState faq={faq} onPick={picker.start} onAsk={(q) => void send(q, { withPlace: null })} /> : null}
@@ -274,17 +288,8 @@ export function HelpChat({ bookId }: { bookId: string }) {
               {busy ? <Typing /> : null}
               {!busy && outcome === "handoff" ? <HandoffNote text={t.handoff} whatsapp={whatsapp} /> : null}
               {!busy && outcome === "manager" ? <HandoffNote text={t.managerActive} whatsapp="" /> : null}
-              {!busy && suggestions.length ? (
-                <div className="flex flex-wrap gap-2">
-                  {suggestions.map((s) => (
-                    <Chip key={s} onClick={() => void send(s, { withPlace: null })}>
-                      {s}
-                    </Chip>
-                  ))}
-                </div>
-              ) : null}
               {!busy && outcome === "answered" && lastBot?.from === "bot" ? (
-                <button type="button" onClick={() => void send("", { human: true, withPlace: null })} className="min-h-11 text-sm text-muted underline decoration-line underline-offset-4 hover:text-wine">
+                <button type="button" onClick={() => void send("", { human: true, withPlace: null })} className="min-h-11 text-sm text-muted underline decoration-line-strong underline-offset-4 hover:text-wine focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wine">
                   {t.notHelped}
                 </button>
               ) : null}
@@ -292,63 +297,77 @@ export function HelpChat({ bookId }: { bookId: string }) {
 
             {enabled ? (
               <form
-                className="border-t border-line/80 bg-white px-3 pt-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))]"
+                className="shrink-0 border-t border-line bg-white pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
                 onSubmit={(e) => {
                   e.preventDefault();
                   void send(text);
                 }}
               >
-                {place ? (
-                  <div className="mb-2 rounded-2xl bg-rose/50 px-3 py-2">
-                    <div className="flex items-start gap-2 text-sm">
-                      <MapPin className="mt-0.5 size-4 shrink-0 text-wine" aria-hidden />
-                      <div className="min-w-0 flex-1">
-                        <div className="text-xs text-muted">{t.picked}</div>
-                        <div className="line-clamp-2 font-medium text-ink">{placeChip(place)}</div>
-                      </div>
-                      <button type="button" onClick={() => setPlace(null)} className="-m-1 flex size-8 items-center justify-center rounded-full hover:bg-white" aria-label={t.unpick}>
-                        <X className="size-4" aria-hidden />
-                      </button>
-                    </div>
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {[t.quick.what, t.quick.how, t.quick.why].map((q) => (
-                        <Chip key={q} onClick={() => void send(q)}>
-                          {q}
-                        </Chip>
-                      ))}
-                    </div>
+                {ribbon.length ? (
+                  <div className="no-scrollbar mb-2 flex gap-2 overflow-x-auto px-3" role="group" aria-label={t.faqTitle}>
+                    {ribbon.map((q) => (
+                      <Chip key={q} nowrap onClick={() => void send(q, { withPlace: null })}>
+                        {q}
+                      </Chip>
+                    ))}
                   </div>
                 ) : null}
-                {error ? (
-                  <p className="mb-2 text-sm text-danger" role="alert">
-                    {error}
-                  </p>
-                ) : null}
-                <div className="flex items-end gap-2">
-                  <button type="button" onClick={picker.start} className="flex size-11 shrink-0 items-center justify-center rounded-full border border-line text-wine hover:bg-rose/40 focus-visible:outline-2 focus-visible:outline-wine" aria-label={t.pickButton} title={t.pickButton}>
-                    <Crosshair className="size-5" aria-hidden />
-                  </button>
-                  <textarea
-                    ref={input}
-                    value={text}
-                    onChange={(e) => setText(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-                        e.preventDefault();
-                        void send(text);
-                      }
-                    }}
-                    rows={1}
-                    maxLength={1000}
-                    placeholder={t.placeholder}
-                    aria-label={t.placeholder}
-                    className="field-sizing-content max-h-32 min-h-11 w-full resize-none rounded-2xl border border-line bg-paper px-3.5 py-2.5 text-[16px] outline-none focus:border-wine/40 focus:ring-4 focus:ring-wine/10"
-                  />
-                  <button type="submit" className="btn btn-primary size-11 shrink-0 px-0" disabled={busy || (!text.trim() && !place)} aria-label={t.send}>
-                    <SendHorizontal className="size-5" aria-hidden />
-                  </button>
+                <div className="px-3">
+                  {place ? (
+                    <div className="mb-2 rounded-[var(--r-ctl)] border-l-2 border-wine bg-sunken px-3 py-2">
+                      <div className="flex items-start gap-2 text-sm">
+                        <MapPin className="mt-0.5 size-4 shrink-0 text-wine" aria-hidden />
+                        <div className="min-w-0 flex-1">
+                          <div className="text-xs text-muted">{t.picked}</div>
+                          <div className="line-clamp-2 font-medium text-ink">{placeChip(place)}</div>
+                        </div>
+                        <button type="button" onClick={() => setPlace(null)} className="-m-1.5 flex size-11 items-center justify-center rounded-[var(--r-ctl)] text-muted hover:bg-white hover:text-ink focus-visible:outline-2 focus-visible:outline-wine" aria-label={t.unpick}>
+                          <X className="size-4" aria-hidden />
+                        </button>
+                      </div>
+                      <div className="no-scrollbar -mx-1 mt-1 flex gap-2 overflow-x-auto px-1 pb-0.5">
+                        {[t.quick.what, t.quick.how, t.quick.why].map((q) => (
+                          <Chip key={q} nowrap onClick={() => void send(q)}>
+                            {q}
+                          </Chip>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                  {error ? (
+                    <div className="mb-2 flex items-center gap-2 text-sm text-danger" role="alert">
+                      <span className="min-w-0 flex-1">{error}</span>
+                      <button type="button" onClick={() => void send(text)} disabled={busy || (!text.trim() && !place)} className="btn btn-outline btn-sm shrink-0">
+                        {t.retry}
+                      </button>
+                    </div>
+                  ) : null}
+                  <div className="flex items-end gap-2">
+                    <button type="button" onClick={picker.start} className="btn btn-outline btn-icon shrink-0 text-wine" aria-label={t.pickButton} title={t.pickButton}>
+                      <Crosshair className="size-5" aria-hidden />
+                    </button>
+                    <textarea
+                      ref={input}
+                      value={text}
+                      onChange={(e) => setText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                          e.preventDefault();
+                          void send(text);
+                        }
+                      }}
+                      rows={1}
+                      maxLength={1000}
+                      placeholder={t.placeholder}
+                      aria-label={t.placeholder}
+                      className="input field-sizing-content max-h-32 min-h-11 w-full resize-none py-2.5 text-[16px] leading-snug"
+                    />
+                    <button type="submit" className="btn btn-primary btn-icon shrink-0" disabled={busy || (!text.trim() && !place)} aria-label={t.send} title={t.send}>
+                      <SendHorizontal className="size-5" aria-hidden />
+                    </button>
+                  </div>
+                  <p className="mt-1.5 text-[11px] leading-snug text-muted">{t.disclaimer}</p>
                 </div>
-                <p className="mt-1.5 px-1 text-[11px] leading-snug text-muted">{t.disclaimer}</p>
               </form>
             ) : null}
           </section>
@@ -364,15 +383,15 @@ export function HelpChat({ bookId }: { bookId: string }) {
           aria-haspopup="dialog"
           aria-label={unread ? `${t.open}. ${t.newReply}` : t.open}
           className={cn(
-            // Тихая кнопка: белая, не спорит с главной (винной) кнопкой экрана; на телефоне — круглая, без подписи, чтобы не закрывать текст.
-            "fixed right-3 z-[54] flex size-12 items-center justify-center gap-2 rounded-full border border-line bg-white text-ink shadow-lift transition hover:border-line-strong hover:bg-sunken focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wine sm:right-4 sm:bottom-4 sm:w-auto sm:pr-4 sm:pl-3.5",
+            // Тихая кнопка: белая, не спорит с главной (винной) кнопкой экрана; на телефоне — квадрат без подписи, чтобы не закрывать текст.
+            "fixed right-3 z-[54] flex size-12 items-center justify-center gap-2 rounded-[var(--r-panel)] border border-line-strong bg-white text-ink shadow-soft transition hover:bg-sunken focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wine sm:right-4 sm:bottom-4 sm:w-auto sm:pr-4 sm:pl-3.5",
             open && "max-sm:hidden",
           )}
           style={{ bottom: `calc(${lift}px + max(0.75rem, env(safe-area-inset-bottom)))` }}
         >
           {open ? <X className="size-5" aria-hidden /> : <LifeBuoy className="size-5 text-wine" aria-hidden />}
           <span className="text-[15px] font-medium max-sm:sr-only">{t.button}</span>
-          {unread && !open ? <span className="absolute -top-0.5 -right-0.5 size-3.5 rounded-full border-2 border-white bg-wine" aria-hidden /> : null}
+          {unread && !open ? <span className="absolute -top-1 -right-1 size-3.5 rounded-full border-2 border-white bg-wine" aria-hidden /> : null}
         </button>
       ) : null}
     </div>

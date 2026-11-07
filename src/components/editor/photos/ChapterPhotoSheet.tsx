@@ -223,7 +223,7 @@ export function ChapterPhotoSheet({
             <section aria-label={cp.section}>
               <h3 className="font-medium">{cp.section}</h3>
               <div className="mt-3 flex items-start gap-4">
-                <div className="w-[34%] max-w-40 shrink-0 overflow-hidden rounded-md shadow-sm ring-1 ring-line">
+                <div className="w-[34%] max-w-40 shrink-0 overflow-hidden rounded-md ring-1 ring-line">
                   <OpenerPage
                     kit={pageKit(design, format, cqwUnits(format.widthMm), book.language)}
                     number={chapter?.number ?? null}
@@ -251,7 +251,7 @@ export function ChapterPhotoSheet({
                       type="button"
                       disabled={!book.editable}
                       onClick={() => openUpload("opener")}
-                      className={cn("flex items-center justify-center border-2 border-dashed border-line bg-sunken text-muted", frame.mask === "circle" ? "rounded-full" : frame.mask === "arch" ? "rounded-t-full" : "rounded-lg")}
+                      className={cn("flex items-center justify-center border border-dashed border-line-strong bg-sunken text-muted", frame.mask === "circle" ? "rounded-full" : frame.mask === "arch" ? "rounded-t-full" : "rounded-lg")}
                       style={{ width: frameW, aspectRatio: String(frame.ratio) }}
                       aria-label={cp.upload}
                     >
@@ -261,10 +261,10 @@ export function ChapterPhotoSheet({
                 </div>
               </div>
               {printedPage !== undefined ? (
-                <div className="mt-3 flex items-center gap-3 rounded-xl bg-sunken p-2.5 text-sm">
+                <div className="mt-3 flex items-center gap-3 rounded-[10px] bg-sunken p-2.5 text-sm">
                   {printedPage ? (
                     // eslint-disable-next-line @next/next/no-img-element -- страница из сборки книги
-                    <img src={printedPage} alt="" className="w-14 shrink-0 rounded-sm shadow-sm ring-1 ring-line" />
+                    <img src={printedPage} alt="" className="w-14 shrink-0 rounded-sm ring-1 ring-line" />
                   ) : (
                     <LoaderCircle className="size-4 shrink-0 animate-spin text-muted" aria-hidden />
                   )}
@@ -278,7 +278,7 @@ export function ChapterPhotoSheet({
                 <div className="mt-3 space-y-3">
                   <p className="text-sm text-muted">{cp.hint}</p>
                   <ZoomSlider value={shown.zoom} disabled={!book.editable} onChange={(zoom) => setCrop({ id: openerPhoto.id, value: { ...shown, zoom } })} onCommit={() => void ed.edit(openerPhoto.id, { crop: { ...shown } })} />
-                  {lowResIn(openerPhoto, frame, shown.zoom) ? <p className="rounded-xl bg-warning-bg px-3 py-2 text-sm text-warning">{cp.lowRes}</p> : null}
+                  {lowResIn(openerPhoto, frame, shown.zoom) ? <p className="rounded-[10px] bg-warning-bg px-3 py-2 text-sm text-warning">{cp.lowRes}</p> : null}
                   {opener?.auto ? (
                     <button type="button" className="text-left text-sm text-wine underline underline-offset-2" onClick={() => setChooser("opener")}>
                       {cp.legacy}
@@ -323,7 +323,7 @@ export function ChapterPhotoSheet({
               )}
             </section>
           ) : (
-            <section className="rounded-2xl bg-sunken p-4 text-sm">
+            <section className="rounded-[var(--r-panel)] bg-sunken p-4 text-sm">
               <p className="leading-relaxed text-ink-soft">{cp.noOpenerDesign(designName, photoDesigns)}</p>
               {onChangeDesign ? (
                 <button type="button" className="btn btn-outline btn-sm mt-3 min-h-11" onClick={onChangeDesign}>
@@ -337,7 +337,7 @@ export function ChapterPhotoSheet({
             <h3 className="font-medium">{cp.after}</h3>
             <p className="mt-0.5 text-sm text-muted">{cp.afterHint}</p>
             {after.length ? (
-              <ul className="-mx-4 mt-3 flex snap-x gap-3 overflow-x-auto px-4 pb-2 sm:-mx-5 sm:px-5">
+              <ul className="no-scrollbar -mx-4 mt-3 flex snap-x scroll-px-4 gap-3 overflow-x-auto px-4 py-1 sm:-mx-5 sm:scroll-px-5 sm:px-5">
                 {after.map((p) => {
                   const auto = !!ed.places.get(p.id)?.auto;
                   const i = pinned.findIndex((x) => x.id === p.id);
@@ -348,15 +348,15 @@ export function ChapterPhotoSheet({
                           type="button"
                           onClick={() => setPlaceFor(p.id)}
                           aria-label={m.editor.photoPlace.aria(label(ed.places.get(p.id)))}
-                          className={cn("relative block aspect-square w-full overflow-hidden rounded-xl bg-cream", auto ? "ring-2 ring-dashed ring-wine/40" : "ring-1 ring-line")}
+                          className={cn("relative block aspect-square w-full overflow-hidden rounded-[10px] bg-cream", auto ? "outline-1 outline-offset-2 outline-line-strong outline-dashed" : "ring-1 ring-line")}
                         >
                           {/* eslint-disable-next-line @next/next/no-img-element -- фото клиента */}
                           <img src={photoUrl(p.id)} alt="" className="absolute inset-0 size-full object-cover" loading="lazy" />
                         </button>
                         {auto ? (
-                          <span className="absolute top-1.5 left-1.5 rounded-full bg-white/90 px-1.5 py-0.5 text-[10px] font-medium text-ink-soft">{cp.autoChip}</span>
+                          <span className="absolute top-1.5 left-1.5 rounded-md bg-white/95 px-1.5 py-0.5 ring-1 ring-line text-[10px] font-medium text-ink-soft">{cp.autoChip}</span>
                         ) : book.editable ? (
-                          <button type="button" onClick={() => void ed.move([{ id: p.id, target: { kind: "auto" } }], { toast: (b, a) => m.editor.placeSheet.toast(label(b.get(p.id)), label(a.get(p.id))), undoLabel: cp.undo })} className="absolute -top-1.5 -right-1.5 flex size-9 items-center justify-center rounded-full bg-white text-muted shadow ring-1 ring-line hover:text-ink" aria-label={cp.unpinAria}>
+                          <button type="button" onClick={() => void ed.move([{ id: p.id, target: { kind: "auto" } }], { toast: (b, a) => m.editor.placeSheet.toast(label(b.get(p.id)), label(a.get(p.id))), undoLabel: cp.undo })} className="absolute -top-1.5 -right-1.5 flex size-10 items-center justify-center rounded-md bg-white text-muted ring-1 ring-line hover:text-ink focus-visible:outline-2 focus-visible:outline-wine" aria-label={cp.unpinAria}>
                             <X className="size-4" />
                           </button>
                         ) : null}

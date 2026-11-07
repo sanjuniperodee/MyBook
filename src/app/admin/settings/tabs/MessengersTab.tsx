@@ -7,6 +7,8 @@ import { GowaForm } from "../whatsapp/GowaForm";
 import { WhatsappCallsForm } from "../whatsapp/WhatsappCallsForm";
 import { RuleSendingForm } from "../whatsapp/RuleSendingForm";
 import { WazzupForm } from "../wazzup/WazzupForm";
+import { SettingsFrame } from "../frame";
+import { tabAnchors } from "../tabs";
 import { hook } from "./shared";
 
 export async function MessengersTab() {
@@ -20,7 +22,7 @@ export async function MessengersTab() {
     getSetting("notify.whatsapp"),
   ]);
   return (
-    <>
+    <SettingsFrame anchors={tabAnchors("messengers")}>
       <GowaForm
         provider={gowa.provider}
         baseUrl={gowa.settings["gowa.baseUrl"]}
@@ -37,6 +39,6 @@ export async function MessengersTab() {
         env={{ apiKey: fromEnv("wazzup.apiKey"), baseUrl: fromEnv("wazzup.baseUrl"), channelId: fromEnv("wazzup.channelId") }}
         webhookUrl={webhookToken ? hook("/api/integrations/wazzup", webhookToken) : null}
       />
-    </>
+    </SettingsFrame>
   );
 }

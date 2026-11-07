@@ -2,22 +2,29 @@
 
 import { useMessages } from "@/i18n/client";
 
-/** Скелетон раздела книги — повторяет раскладку обзора (книга, название, следующий вопрос, путь), чтобы переход не «прыгал». */
+/** Скелетон раздела книги — повторяет раскладку обзора (книга слева, следующий шаг и путь справа), чтобы переход не «прыгал». */
 export default function Loading() {
   const t = useMessages().books.hub;
   return (
-    <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12" aria-busy="true" aria-label={t.loading}>
-      <div className="grid items-center gap-8 md:grid-cols-[minmax(0,260px)_minmax(0,1fr)] md:gap-12 lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)] lg:gap-16">
-        <div className="skeleton mx-auto aspect-[148/210] w-full max-w-[150px] rounded-[3px] md:max-w-[260px] lg:max-w-[300px]" />
-        <div className="space-y-4">
-          <div className="skeleton h-12 w-3/4" />
-          <div className="skeleton h-4 w-1/2" />
-          <div className="skeleton h-1.5 max-w-xl" />
-          <div className="skeleton h-44 max-w-xl rounded-[14px]" />
+    <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10" aria-busy="true" aria-label={t.loading}>
+      <div className="grid gap-x-14 gap-y-6 lg:grid-cols-[minmax(0,300px)_minmax(0,1fr)]">
+        <div className="flex items-center gap-4 lg:block">
+          <div className="skeleton aspect-[148/210] w-[92px] shrink-0 rounded-[3px] lg:w-full lg:max-w-[280px]" />
+          <div className="min-w-0 flex-1 space-y-3 lg:mt-9">
+            <div className="skeleton h-9 w-3/4" />
+            <div className="skeleton h-4 w-1/2" />
+          </div>
+        </div>
+        <div className="min-w-0 space-y-7">
+          <div className="skeleton h-44 rounded-[14px]" />
+          <div className="skeleton h-24 rounded-[14px]" />
+          <div className="space-y-px">
+            {Array.from({ length: 6 }, (_, i) => (
+              <div key={i} className="skeleton h-[4.25rem] rounded-none first:rounded-t-[14px] last:rounded-b-[14px]" />
+            ))}
+          </div>
         </div>
       </div>
-      <div className="skeleton mt-16 h-8 w-64" />
-      <div className="skeleton mt-5 h-48 rounded-[14px]" />
     </main>
   );
 }

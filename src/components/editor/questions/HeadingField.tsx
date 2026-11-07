@@ -11,9 +11,9 @@ import type { Patch } from "./draft";
 export function HeadingField({ question: q, language, typography, editable, onPatch }: { question: EditorQuestion; language: Locale; typography: Typography; editable: boolean; onPatch: (patch: Patch) => void }) {
   const t = useMessages().editor;
   return (
-    <div className="mt-6 flex items-end gap-2 border-b border-line pb-1.5 focus-within:border-wine/50 sm:mt-8">
+    <div className="mt-8 flex items-end gap-2 border-t border-line pt-4 focus-within:border-wine/50 sm:mt-10">
       <div className="min-w-0 flex-1">
-        <label htmlFor={`heading-${q.id}`} className="block text-xs text-muted">{t.headingInBook}</label>
+        <label htmlFor={`heading-${q.id}`} className="block text-xs font-medium text-muted">{t.headingInBook}</label>
         <input
           id={`heading-${q.id}`}
           value={q.hideHeading ? "" : (q.displayText ?? q.defaultTitle)}
@@ -23,7 +23,7 @@ export function HeadingField({ question: q, language, typography, editable, onPa
           onBlur={() => q.displayText !== null && !q.displayText.trim() && onPatch({ displayText: null })}
           disabled={!editable || q.hideHeading}
           maxLength={200}
-          className="fs-keep mt-0.5 w-full bg-transparent text-lg outline-none disabled:text-muted"
+          className="fs-keep mt-1 w-full rounded-[6px] bg-transparent text-lg outline-none focus-visible:bg-sunken/60 disabled:text-muted"
           style={{ fontFamily: cssFont(typography.heading), fontStyle: typography.headingItalic ? "italic" : "normal" }}
         />
       </div>

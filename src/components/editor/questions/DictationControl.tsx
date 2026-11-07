@@ -12,14 +12,14 @@ type Dictation = ReturnType<typeof useDictation>;
 export function DictationControl({ dictation, lang, onLang, onToggle, compact, className }: { dictation: Dictation; lang: string; onLang: (lang: string) => void; onToggle: () => void; compact: boolean; className: string }) {
   const t = useMessages().editor;
   return (
-    <div className={cn("flex items-center rounded-full border border-line bg-white", className)}>
+    <div className={cn("flex items-center rounded-[10px] border border-line bg-white", className)}>
       <button
-        className={cn("flex h-11 items-center gap-1.5 rounded-full text-sm sm:h-9", compact ? "px-3" : "px-3.5", dictation.listening ? "bg-wine text-white" : "hover:bg-cream")}
+        className={cn("flex h-11 items-center gap-1.5 rounded-[9px] text-sm transition-colors lg:h-8", compact ? "px-3 max-[400px]:px-2.5" : "px-3", dictation.listening ? "bg-wine text-white" : "text-ink-soft hover:bg-sunken")}
         onClick={onToggle}
         title={dictation.listening ? t.stop : t.dictateTitle}
         aria-label={dictation.listening ? t.stop : t.dictateTitle}
       >
-        {dictation.listening ? <MicOff className="size-5 sm:size-4" /> : <Mic className="size-5 sm:size-4" />}
+        {dictation.listening ? <MicOff className="size-5 lg:size-4" /> : <Mic className="size-5 lg:size-4" />}
         {compact ? (dictation.listening ? t.stop : null) : dictation.listening ? t.stop : t.dictate}
       </button>
       <select
@@ -29,7 +29,7 @@ export function DictationControl({ dictation, lang, onLang, onToggle, compact, c
           onLang(l);
           if (dictation.listening) dictation.start(l);
         }}
-        className="h-11 rounded-full bg-transparent pr-1.5 pl-0.5 text-xs text-muted outline-none sm:h-9 sm:pr-2 sm:pl-1"
+        className="h-11 rounded-[9px] bg-transparent pr-1.5 pl-0.5 text-xs text-muted outline-none focus-visible:outline-2 focus-visible:outline-wine lg:h-8 lg:pr-2 lg:pl-1"
         aria-label={t.dictationLang}
       >
         {locales.map((l) => (
@@ -46,7 +46,7 @@ export function DictationControl({ dictation, lang, onLang, onToggle, compact, c
 export function DictationStatus({ dictation }: { dictation: Dictation }) {
   const t = useMessages().editor;
   return (
-    <div className="mt-2 rounded-2xl bg-rose/50 px-4 py-3">
+    <div className="mt-3 rounded-[10px] bg-rose/60 px-4 py-3" role="status">
       <div className="flex items-center gap-2 text-xs font-medium text-wine">
         <span className="relative flex size-2.5">
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-wine opacity-60" />

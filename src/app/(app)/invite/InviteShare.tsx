@@ -30,14 +30,13 @@ export function InviteShare({ link, code, message }: { link: string; code: strin
   const btn = "btn btn-outline min-w-0 flex-1 sm:flex-none";
   return (
     <div>
-      <div className="text-sm font-medium text-muted">{t.yourLink}</div>
-      <div className="mt-2 flex flex-col gap-3 sm:flex-row">
+      <div className="flex flex-col gap-3 sm:flex-row">
         {/* Без https:// — на телефоне так видно код целиком; копируется полная ссылка. */}
-        <div className="min-w-0 flex-1 truncate rounded-xl border border-line bg-white px-4 py-3 font-mono text-sm select-all sm:text-[15px]" data-testid="invite-link" data-link={link}>
+        <div className="flex min-h-[var(--ctl-h)] min-w-0 flex-1 items-center truncate rounded-[var(--r-ctl)] border border-line-strong bg-sunken px-4 font-mono text-sm select-all sm:text-[15px]" data-testid="invite-link" data-link={link}>
           {link.replace(/^https?:\/\//, "")}
         </div>
         <button type="button" className="btn btn-primary shrink-0" onClick={copy}>
-          {copied ? <Check className="size-4" /> : <Copy className="size-4" />} {copied ? t.copied : t.copy}
+          {copied ? <Check className="size-4" aria-hidden /> : <Copy className="size-4" aria-hidden />} {copied ? t.copied : t.copy}
         </button>
       </div>
       <div className="mt-3 flex flex-wrap gap-2.5">
@@ -45,11 +44,11 @@ export function InviteShare({ link, code, message }: { link: string; code: strin
           <WhatsAppIcon /> {t.whatsapp}
         </a>
         <a className={btn} href={`https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(message.replace(link, "").trim())}`} target="_blank" rel="noopener noreferrer">
-          <Send className="size-4" /> {t.telegram}
+          <Send className="size-4" aria-hidden /> {t.telegram}
         </a>
         {native ? (
           <button type="button" className={btn} onClick={() => navigator.share({ text: message }).catch(() => undefined)}>
-            <Share2 className="size-4" /> {t.share}
+            <Share2 className="size-4" aria-hidden /> {t.share}
           </button>
         ) : null}
       </div>

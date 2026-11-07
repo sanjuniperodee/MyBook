@@ -1,12 +1,9 @@
 import { listFields } from "@/modules/workspace";
 import { nowMs } from "@/lib/dates";
-import Link from "next/link";
-import { Plus } from "lucide-react";
-import { PageHeader } from "@/components/admin/PageHeader";
+import { BackLink } from "@/components/admin/BackLink";
 import { Panel } from "@/components/ui/Panel";
 import { Badge } from "@/components/ui/Badge";
 import { ChatAvatar } from "@/components/admin/chat/Inbox";
-import { formatDate } from "@/lib/dates";
 import { notFound } from "next/navigation";
 import { container } from "@/server/container";
 import { staffOptions } from "@/modules/access/ui";
@@ -14,7 +11,8 @@ import { canRemind } from "@/modules/notifications";
 import { NotesTimeline, TaskList } from "@/components/admin/CrmWidgets";
 import { clientScreen } from "@/modules/reporting/ui/client-screen";
 import { ClientFields, RemindButton, TagEditor } from "./ClientControls";
-import { ClientBooks, ClientDeals, ClientOrders, ClientPayments, ClientProfile, ClientReferrals, ClientSummary } from "./sections";
+import { ClientBooks, ClientDeals, ClientHeader, ClientOrders, ClientPayments, ClientProfile, ClientReferrals } from "./sections";
+import { ClientTabs } from "./ClientTabs";
 import { ClientAccess } from "./ClientAccess";
 import { staffLogin } from "@/app/admin/clients/new/access-message";
 import { isPhoneEmail } from "@/modules/identity/domain";
@@ -55,99 +53,79 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
 
   const displayName = client.name || client.email.split("@")[0];
 
+  const openTasks = tasks.filter((t) => !t.done).length;
+  const can_ = (p: Parameters<typeof can>[1]) => can(staff, p);
+  const tagList = canEdit ? (
+    <TagEditor clientId={client.id} tags={client.tags} />
+  ) : (
+    <div className="flex flex-wrap gap-1.5">
+      {client.tags.length ? (
+        client.tags.map((t) => (
+          <Badge key={t} tone="accent">
+            {t}
+          </Badge>
+        ))
+      ) : (
+        <span className="text-sm text-muted">Тегов нет</span>
+      )}
+    </div>
+  );
+  const showAccess = can(staff, "clients.create") && client.role === "user";
+  const hasCabinet = showAccess || canEdit || clientFields.length > 0 || !!(referrals.code || referrals.invitedBy || referrals.friends.length);
+
   return (
     <div className="flex flex-col gap-4 lg:gap-5">
-      <PageHeader
-        back={{ href: "/admin/clients", label: "Клиенты" }}
-        title={
-          <span className="flex min-w-0 items-center gap-3">
-            <ChatAvatar name={displayName} url={null} size={48} />
-            <span className="min-w-0 break-words">{displayName}</span>
-          </span>
-        }
-        meta={
-          <>
-            <Badge>
-              {client.role === "admin" ? "Администратор" : "Клиент"} с {formatDate(client.createdAt)}
-            </Badge>
-            {client.tags.slice(0, 3).map((t) => (
-              <Badge key={t} tone="accent">
-                {t}
-              </Badge>
-            ))}
-          </>
-        }
-        actions={
-          can(staff, "deals.edit") ? (
-            <Link href={`/admin/deals/new?client=${client.id}`} className="btn btn-primary btn-sm">
-              <Plus className="size-4" aria-hidden /> Новая сделка
-            </Link>
-          ) : undefined
-        }
-      />
+      <BackLink href="/admin/clients">Клиенты</BackLink>
+      <ClientHeader client={client} displayName={displayName} screen={screen} contact={contact} can={can_} avatar={<ChatAvatar name={displayName} url={null} size={56} />} tags={client.tags} />
 
-      <ClientSummary client={client} screen={screen} contact={contact} can={(p) => can(staff, p)} />
-
-      <div className="grid gap-4 lg:gap-5 xl:grid-cols-[minmax(0,1fr)_22rem] xl:items-start">
+      <div className="grid gap-4 lg:gap-5 xl:grid-cols-[minmax(0,47rem)_minmax(0,1fr)] xl:items-start">
         <div className="flex min-w-0 flex-col gap-4 lg:gap-5">
-          {can(staff, "deals.view") ? <ClientDeals clientId={client.id} deals={deals} can={(p) => can(staff, p)} /> : null}
-
-          <Panel
-            title={
-              <>
-                Задачи {tasks.filter((t) => !t.done).length ? <span className="font-normal text-muted tabular-nums">{tasks.filter((t) => !t.done).length}</span> : null}
-              </>
-            }
-          >
-            <TaskList tasks={tasks} admins={adminOptions} clientId={client.id} emptyText="Задач нет — запланируйте следующий шаг" />
-          </Panel>
-
-          <ClientBooks books={books} />
-          <ClientOrders orders={orders} />
-          {payments.length ? <ClientPayments payments={payments} /> : null}
-
-          <Panel title="История общения">
-            <NotesTimeline notes={notes} clientId={client.id} mentionables={staffOptions(admins).filter((a) => a.id !== staff.user.id).map((a) => a.label)} />
-          </Panel>
+          <ClientProfile client={client} screen={screen} contact={contact} canEdit={canEdit} managerOptions={managerOptions} noMarketing={noMarketing} tags={tagList} />
+          <ClientTabs
+            tabs={[
+              ...(can(staff, "deals.view") ? [{ key: "deals", label: "Сделки", count: deals.length || null, node: <ClientDeals clientId={client.id} deals={deals} can={can_} /> }] : []),
+              { key: "tasks", label: "Задачи", count: openTasks || null, node: <div className="p-4 sm:p-5"><TaskList tasks={tasks} admins={adminOptions} clientId={client.id} emptyText="Задач нет — запланируйте следующий шаг" /></div> },
+              { key: "books", label: "Книги", count: books.length || null, node: <ClientBooks books={books} /> },
+              { key: "orders", label: "Заказы", count: orders.length || null, node: <ClientOrders orders={orders} /> },
+              ...(payments.length ? [{ key: "payments", label: "Платежи", count: payments.length, node: <ClientPayments payments={payments} /> }] : []),
+              ...(hasCabinet
+                ? [
+                    {
+                      key: "cabinet",
+                      label: "Кабинет",
+                      node: (
+                        <div className="space-y-6 p-4 sm:p-5">
+                          {showAccess || canEdit ? (
+                            <section className="space-y-4" aria-label="Кабинет клиента">
+                              <h2 className="text-[13px] font-semibold">Кабинет клиента</h2>
+                              {showAccess ? <ClientAccess clientId={client.id} loginText={staffLogin(isPhoneEmail(client.email) ? (client.phone ?? "") : client.email, can(staff, "clients.contacts"))} /> : null}
+                              {canEdit ? (
+                                <div className={showAccess ? "border-t border-line pt-4" : undefined}>
+                                  <RemindButton clientId={client.id} disabled={screen.remind.disabled} hint={screen.remind.hint} />
+                                </div>
+                              ) : null}
+                            </section>
+                          ) : null}
+                          {clientFields.length ? (
+                            <section className="space-y-3" aria-label="Поля клиента">
+                              <h2 className="text-[13px] font-semibold">Поля клиента</h2>
+                              <ClientFields clientId={client.id} fields={clientFields.map((f) => ({ key: f.key, label: f.label, type: f.type, options: f.options }))} values={client.customFields} disabled={!canEdit} />
+                            </section>
+                          ) : null}
+                          {referrals.code || referrals.invitedBy || referrals.friends.length ? <ClientReferrals data={referrals} /> : null}
+                        </div>
+                      ),
+                    },
+                  ]
+                : []),
+            ]}
+          />
         </div>
 
-        <aside className="flex min-w-0 flex-col gap-4 lg:gap-5" aria-label="Профиль клиента">
-          <ClientProfile client={client} screen={screen} contact={contact} canEdit={canEdit} managerOptions={managerOptions} noMarketing={noMarketing} />
-          <Panel title="Теги">
-            {canEdit ? (
-              <TagEditor clientId={client.id} tags={client.tags} />
-            ) : (
-              <div className="flex flex-wrap gap-1.5">
-                {client.tags.length ? (
-                  client.tags.map((t) => (
-                    <Badge key={t} tone="accent">
-                      {t}
-                    </Badge>
-                  ))
-                ) : (
-                  <span className="text-sm text-muted">Тегов нет</span>
-                )}
-              </div>
-            )}
+        <aside aria-label="Заметки и история" className="min-w-0 xl:sticky xl:top-[calc(var(--topbar-h)+1rem)]">
+          <Panel title="История общения" description="Заметки, звонки, письма и сообщения по клиенту">
+            <NotesTimeline notes={notes} clientId={client.id} mentionables={staffOptions(admins).filter((a) => a.id !== staff.user.id).map((a) => a.label)} />
           </Panel>
-          {clientFields.length ? (
-            <Panel title="Поля клиента">
-              <ClientFields clientId={client.id} fields={clientFields.map((f) => ({ key: f.key, label: f.label, type: f.type, options: f.options }))} values={client.customFields} disabled={!canEdit} />
-            </Panel>
-          ) : null}
-          {(can(staff, "clients.create") && client.role === "user") || canEdit ? (
-            <Panel title="Кабинет клиента">
-              <div className="space-y-4">
-                {can(staff, "clients.create") && client.role === "user" ? <ClientAccess clientId={client.id} loginText={staffLogin(isPhoneEmail(client.email) ? (client.phone ?? "") : client.email, can(staff, "clients.contacts"))} /> : null}
-                {canEdit ? (
-                  <div className={can(staff, "clients.create") && client.role === "user" ? "border-t border-line pt-4" : undefined}>
-                    <RemindButton clientId={client.id} disabled={screen.remind.disabled} hint={screen.remind.hint} />
-                  </div>
-                ) : null}
-              </div>
-            </Panel>
-          ) : null}
-          {referrals.code || referrals.invitedBy || referrals.friends.length ? <ClientReferrals data={referrals} /> : null}
         </aside>
       </div>
     </div>

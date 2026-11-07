@@ -15,4 +15,37 @@ export const design_ui = {
   italic: "Курсив",
   reset: "Как в стиле",
   none: "Нет",
+  /** Студия оформления: рама, вкладки панелей и вид сцены (components/design/studio). */
+  studio: {
+    cover: {
+      panelsAria: "Инструменты обложки",
+      tabs: { designs: "Дизайн", photo: "Фото", text: "Текст", fill: "Фон", variant: "Вариант", details: "Детали" },
+      view: { aria: "Вид обложки", flat: "Плоско", spread: "Целиком", spatial: "Объём", spatialBack: "Объём показан только у лицевой стороны" },
+      spreadHint: "Нажмите на сторону, чтобы править её.",
+      chosen: "Выбранный дизайн",
+      frameTitle: "Кадр фото",
+      designsAll: "Все дизайны",
+    },
+    pages: {
+      tabsAria: "Разделы листа",
+      tabs: { style: "Оформление", content: "Состав книги" },
+      ribbonTitle: "Состав книги",
+      start: "Начало",
+      end: "Конец",
+      front: "Титул и посвящение",
+      frontSet: "Посвящение есть",
+      frontEmpty: "Без посвящения",
+      tocOn: "Есть в книге",
+      tocOff: "Выключено",
+      tocShow: "Показать разворот",
+      chapterOf: (n: number, total: number) => `Глава ${n} из ${total}`,
+      removed: "Убрана",
+      needPhoto: "Нужно фото",
+      photosRule: "Фото без места",
+      spreadAria: "Что показать на развороте",
+      collapse: "Свернуть",
+      expand: "Развернуть",
+    },
+  },
 };
+

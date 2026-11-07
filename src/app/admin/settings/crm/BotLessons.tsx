@@ -5,6 +5,7 @@ import { GraduationCap, LoaderCircle, Plus, Trash2 } from "lucide-react";
 import { MAX_LESSONS, type BotLesson, type CoachRun } from "@/modules/messaging/domain/botLesson";
 import { addBotLessonAction, deleteBotLessonAction, runBotCoachAction } from "./actions";
 import { cn } from "@/lib/class-names";
+import { Section } from "../ui";
 
 const when = (iso: string) => new Intl.DateTimeFormat("ru-RU", { timeZone: "Asia/Almaty", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
 
@@ -20,11 +21,14 @@ export function BotLessons({ lessons, log, enabled }: { lessons: BotLesson[]; lo
   const full = lessons.length >= MAX_LESSONS;
 
   return (
-    <section className="space-y-3 rounded-[10px] border border-line p-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="flex items-center gap-2 text-sm font-semibold">
-          <GraduationCap className="size-4" /> Работа над ошибками
-        </h3>
+    <Section
+      id="bot-lessons"
+      defaultOpen={false}
+      title="Работа над ошибками"
+      description="Уроки, которые бот получил из ночных разборов и от владельца"
+      status={enabled ? { tone: "ok", label: "ночной разбор включён" } : { tone: "off", label: "ночной разбор выключен" }}
+      badge={<GraduationCap className="size-4 text-muted" aria-hidden />}
+      actions={
         <button
           type="button"
           className="btn btn-outline btn-sm"
@@ -38,8 +42,10 @@ export function BotLessons({ lessons, log, enabled }: { lessons: BotLesson[]; lo
         >
           {pending ? <LoaderCircle className="size-4 animate-spin" /> : null} Разобрать беседы сейчас
         </button>
-      </div>
-      <p className="text-xs text-muted">
+      }
+    >
+      <div className="space-y-3">
+      <p className="max-w-[40rem] text-xs text-muted">
         {enabled ? "Каждую ночь (3:00–7:00)" : "Автоматический разбор выключен (галочка выше). По кнопке"} модель разбирает беседы бота за сутки — где менеджеру пришлось вмешаться, клиент замолчал или ушёл, ответ
         заблокировала проверка — и пишет короткие уроки. Бот следует им со следующего ответа. Уроки с ценами, скидками, сроками, ссылками и номерами код не принимает; цены, факты и запреты всегда
         важнее уроков. Лишний урок удалите — он перестанет действовать сразу.
@@ -72,12 +78,12 @@ export function BotLessons({ lessons, log, enabled }: { lessons: BotLesson[]; lo
             maxLength={220}
             disabled={full}
             placeholder={full ? `Все ${MAX_LESSONS} мест заняты — удалите урок, чтобы добавить свой` : "Свой урок: например, «на «дорого» сначала спроси, к какой дате нужна книга»"}
-            className="input h-9 flex-1 text-sm"
+            className="input flex-1"
             aria-label="Свой урок"
           />
           <button
             type="button"
-            className="btn btn-outline btn-sm h-9"
+            className="btn btn-outline"
             disabled={pending || full || draft.trim().length < 10}
             onClick={() =>
               start(async () => {
@@ -123,6 +129,7 @@ export function BotLessons({ lessons, log, enabled }: { lessons: BotLesson[]; lo
           </ul>
         </details>
       ) : null}
-    </section>
+      </div>
+    </Section>
   );
 }

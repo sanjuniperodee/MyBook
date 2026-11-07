@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, ChevronRight, Crop } from "lucide-react";
+import { ChevronRight, Crop } from "lucide-react";
 import { useMessages } from "@/i18n/client";
 import { getFormat } from "@/lib/book/formats";
 import { gridCellFrame, pageFrame } from "@/lib/book/photo-pages";
@@ -82,7 +82,7 @@ export function PlaceSheet({ data, on, photoId, onClose, layer = "z-[91]" }: { d
     >
       <div className="flex items-center gap-3">
         {/* eslint-disable-next-line @next/next/no-img-element -- фото клиента */}
-        <img src={photoUrl(photo.id)} alt="" className="size-16 shrink-0 rounded-xl bg-cream object-cover ring-1 ring-line" />
+        <img src={photoUrl(photo.id)} alt="" className="size-16 shrink-0 rounded-[10px] bg-cream object-cover ring-1 ring-line" />
         <div className="min-w-0 text-sm">
           <div className="font-medium">{label(place)}</div>
           {place.onCover ? <div className="mt-0.5 text-muted">{place.onCover === "cover" ? t.coverNote : t.backNote}</div> : null}
@@ -92,7 +92,6 @@ export function PlaceSheet({ data, on, photoId, onClose, layer = "z-[91]" }: { d
 
       {step === "place" ? (
         <>
-          <PhotoIntroCard blank={book.blank} className="mt-4 rounded-2xl bg-sunken p-4" />
           <div role="radiogroup" aria-label={t.title} className="mt-4 space-y-2">
             {options.map((o) => {
               const here = o.kind === current;
@@ -104,9 +103,9 @@ export function PlaceSheet({ data, on, photoId, onClose, layer = "z-[91]" }: { d
                   aria-checked={here}
                   disabled={!book.editable}
                   onClick={() => (o.next ? setStep(o.next) : here ? undefined : void go({ kind: o.kind } as PlaceTarget))}
-                  className={cn("flex min-h-14 w-full items-center gap-3 rounded-2xl px-4 py-3 text-left ring-1 transition disabled:opacity-60", here ? "bg-wine/5 ring-2 ring-wine" : "ring-line hover:bg-sunken")}
+                  className={cn("flex min-h-14 w-full items-center gap-3 rounded-[10px] border px-3.5 py-3 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wine disabled:opacity-60", here ? "border-wine bg-rose/60" : "border-line bg-white hover:border-line-strong")}
                 >
-                  <span className={cn("flex size-5 shrink-0 items-center justify-center rounded-full border", here ? "border-wine bg-wine text-white" : "border-line")}>{here ? <Check className="size-3" /> : null}</span>
+                  <span className={cn("flex size-4 shrink-0 items-center justify-center rounded-full border-2", here ? "border-wine" : "border-line-strong")} aria-hidden>{here ? <span className="size-2 rounded-full bg-wine" /> : null}</span>
                   <span className="min-w-0 flex-1">
                     <span className="flex flex-wrap items-center gap-x-2 font-medium">
                       {o.label}
@@ -120,6 +119,8 @@ export function PlaceSheet({ data, on, photoId, onClose, layer = "z-[91]" }: { d
             })}
           </div>
 
+          <PhotoIntroCard blank={book.blank} className="mt-5 rounded-[var(--r-panel)] bg-sunken p-4" />
+
           {onPage ? (
             <section className="mt-6">
               <div className="text-sm font-medium">{t.layoutTitle}</div>
@@ -132,7 +133,7 @@ export function PlaceSheet({ data, on, photoId, onClose, layer = "z-[91]" }: { d
                     aria-checked={layout === l}
                     disabled={!book.editable}
                     onClick={() => layout !== l && void ed.edit(photoId, { layout: l })}
-                    className={cn("min-h-11 rounded-xl px-3 py-2 text-left text-sm leading-snug ring-1 transition", layout === l ? "bg-wine/5 font-medium ring-2 ring-wine" : "ring-line hover:bg-sunken")}
+                    className={cn("min-h-11 rounded-[10px] border px-3 py-2 text-left text-sm leading-snug transition focus-visible:outline-2 focus-visible:outline-wine", layout === l ? "border-wine bg-rose/60 font-medium" : "border-line bg-white hover:border-line-strong")}
                   >
                     {t.layouts[l]}
                   </button>
@@ -178,13 +179,13 @@ export function PlaceSheet({ data, on, photoId, onClose, layer = "z-[91]" }: { d
                   disabled={!book.editable}
                   aria-current={here || waiting ? "true" : undefined}
                   onClick={() => (here ? setStep("place") : void go({ kind: step as "opener" | "after", chapterKey: c.key }))}
-                  className={cn("flex min-h-14 w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left ring-1 transition", here || waiting ? "bg-wine/5 ring-2 ring-wine" : "ring-line hover:bg-sunken")}
+                  className={cn("flex min-h-14 w-full items-center gap-3 rounded-[10px] border px-3 py-2.5 text-left transition focus-visible:outline-2 focus-visible:outline-wine", here || waiting ? "border-wine bg-rose/60" : "border-line bg-white hover:border-line-strong")}
                 >
                   {opener ? (
                     // eslint-disable-next-line @next/next/no-img-element -- фото главы сейчас
-                    <img src={photoUrl(opener.id)} alt="" className="size-10 shrink-0 rounded-lg bg-cream object-cover" />
+                    <img src={photoUrl(opener.id)} alt="" className="size-10 shrink-0 rounded-md bg-cream object-cover" />
                   ) : (
-                    <span className="size-10 shrink-0 rounded-lg border border-dashed border-line bg-sunken" aria-hidden />
+                    <span className="size-10 shrink-0 rounded-md border border-dashed border-line-strong bg-sunken" aria-hidden />
                   )}
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-medium">{c.title}</span>
@@ -232,7 +233,7 @@ function AnswerList({ data, current, onPick }: { data: PlaceData; current?: stri
                   disabled={!data.book.editable}
                   aria-current={a.id === current ? "true" : undefined}
                   onClick={() => a.id !== current && onPick(a.id)}
-                  className={cn("flex min-h-12 w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm ring-1 transition", a.id === current ? "bg-wine/5 ring-2 ring-wine" : "ring-line hover:bg-sunken")}
+                  className={cn("flex min-h-12 w-full items-center gap-2 rounded-[10px] border px-3 py-2 text-left text-sm transition focus-visible:outline-2 focus-visible:outline-wine", a.id === current ? "border-wine bg-rose/60" : "border-line bg-white hover:border-line-strong")}
                 >
                   <span className="min-w-0 flex-1 truncate">{a.title}</span>
                   {a.id === current ? <span className="shrink-0 text-xs text-wine">{t.here}</span> : null}

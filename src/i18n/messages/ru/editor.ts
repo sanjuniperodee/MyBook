@@ -504,6 +504,14 @@ export const editor = {
     navThumbAria: (chapter: string) => `Фото главы «${chapter}»`,
     navNoPhotoAria: "Нет фото в начале главы",
     albumRow: (n: number) => `Альбом в конце · ${n} фото`,
+    tocShow: "Показать оглавление",
+    tocHide: "Скрыть оглавление",
+    previewShow: "Показать страницу книги",
+    previewHide: "Скрыть страницу книги",
+    barAria: "Панель редактора",
+    toolsAria: "Инструменты ответа",
+    loading: "Загружаем редактор",
+    sheetClose: "Закрыть окно",
   },
   /** Выбор фото в ответ: все фото книги с подписью места; из другого места фото переезжает сюда. */
   photoPicker: {

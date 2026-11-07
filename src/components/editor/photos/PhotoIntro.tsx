@@ -39,14 +39,14 @@ export function PhotoIntroCard({ blank, force, className }: { blank: boolean; /*
   const [isSeen, dismiss] = usePhotoIntroSeen();
   if (isSeen && !force) return null;
   return (
-    <div className={className ?? "rounded-[14px] border border-line bg-white p-4"}>
+    <div className={className ?? "rounded-[var(--r-panel)] border border-line bg-white p-4"}>
       <div className="flex items-center gap-2 font-medium">
         <Info className="size-4 shrink-0 text-wine" aria-hidden />
         {t.title}
       </div>
       <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">{blank ? t.textBlank : t.text}</p>
       {!isSeen ? (
-        <button type="button" className="btn btn-outline btn-sm mt-3 min-h-11" onClick={dismiss}>
+        <button type="button" className="btn btn-outline btn-sm mt-3" onClick={dismiss}>
           {t.ok}
         </button>
       ) : null}

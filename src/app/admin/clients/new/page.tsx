@@ -13,7 +13,7 @@ export default async function NewClientPage() {
   const open = stages.filter((s) => s.kind === "open");
   const options = canAssignOthers(staff) ? staffOptions(admins) : staffOptions(admins).filter((a) => a.id === staff.user.id);
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-5">
+    <div className="mx-auto flex w-full max-w-[40rem] flex-col gap-5">
       <PageHeader back={{ href: "/admin/clients", label: "Клиенты" }} title="Новый клиент">
         Заведите клиента с логином и паролем, укажите сумму договорённости и предоплату — сделка и задачи создадутся сами.
       </PageHeader>

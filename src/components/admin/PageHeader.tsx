@@ -25,7 +25,7 @@ export function PageHeader({
       <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
         <div className="min-w-0 max-w-3xl">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+            <h1 className="text-xl font-semibold tracking-[-0.015em] lg:text-[22px]">{title}</h1>
             {meta}
           </div>
           {children ? <Intro className="mt-1">{children}</Intro> : null}

@@ -8,6 +8,8 @@ import { isSellerTier, type RouteMode } from "@/modules/assistant/domain/routing
 import { MediaForm } from "../ai/MediaForm";
 import { WriterForm } from "../ai/WriterForm";
 import { AiMap } from "../ai/AiMap";
+import { SettingsFrame } from "../frame";
+import { tabAnchors } from "../tabs";
 
 const ROUTE_KEYS = [
   "seller.route",
@@ -48,7 +50,7 @@ export async function AiTab() {
   ) as Record<AiProvider, { apiKey: string; apiKeyEnv: boolean; model: string; baseUrl: string; baseUrlEnv: boolean }>;
   const assistant: AiProvider = isAiProvider(aiProvider) ? aiProvider : "anthropic";
   return (
-    <>
+    <SettingsFrame anchors={tabAnchors("ai")}>
       <AiMap />
       <AiForm provider={assistant} providerFromEnv={fromEnv("ai.provider")} providers={aiSaved} enabled={aiEnabled !== "off"} autofill={autofill !== "off"} knowledge={aiKnowledge} />
       <RoutingForm
@@ -95,6 +97,6 @@ export async function AiTab() {
         perDay={pr["writer.perDay"]}
         providers={aiSaved}
       />
-    </>
+    </SettingsFrame>
   );
 }

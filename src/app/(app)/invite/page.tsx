@@ -1,18 +1,23 @@
 import type { Metadata } from "next";
-import { Gift } from "lucide-react";
 import { requireUser } from "@/server/auth";
 import { container } from "@/server/container";
 import { inviteUrl, REFERRAL } from "@/modules/referrals";
 import { getLocale, getMessages } from "@/i18n/server";
+import { Panel } from "@/components/ui/Panel";
+import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/lib/class-names";
 import { formatDate } from "@/lib/dates";
+import { PageHead } from "../_components/PageHead";
 import { InviteShare } from "./InviteShare";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getMessages()).invite.meta };
 }
 
-/** Приглашения: своя ссылка для друзей, кто уже заказал и какие промокоды за это получены. */
+/**
+ * Приглашения: слева своя ссылка (скопировать, отправить) и как это работает по шагам, справа — итог: сколько друзей
+ * заказало и какие промокоды за это получены. На телефоне итог идёт сразу после ссылки.
+ */
 export default async function InvitePage() {
   const user = await requireUser("/invite");
   const referrals = container().referrals.service;
@@ -21,58 +26,55 @@ export default async function InvitePage() {
   const t = m.invite;
   const link = inviteUrl(code, locale);
   const now = new Date();
+  const steps = t.steps(REFERRAL.friendPercent, REFERRAL.rewardPercent);
 
   return (
-    <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6 sm:py-14">
-      <div className="eyebrow">{t.eyebrow}</div>
-      <h1 className="mt-3 font-serif text-4xl leading-tight font-medium text-balance sm:text-5xl">{t.title}</h1>
-      <p className="mt-4 max-w-2xl text-lg leading-relaxed text-ink-soft">{t.lead(REFERRAL.friendPercent, REFERRAL.rewardPercent)}</p>
+    <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
+      <PageHead title={t.title} lead={<span className="block max-w-2xl sm:text-base">{t.lead(REFERRAL.friendPercent, REFERRAL.rewardPercent)}</span>} />
 
-      <section className="rounded-[14px] border border-line bg-white mt-10 overflow-hidden">
-        <div className="flex flex-col gap-6 p-6 sm:p-8">
+      <div className="mt-8 grid gap-6 sm:mt-10 lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-10">
+        <Panel title={t.yourLink} className="min-w-0 lg:col-start-1 lg:row-start-1">
           <InviteShare link={link} code={code} message={t.message(link, REFERRAL.friendPercent)} />
-        </div>
-      </section>
+        </Panel>
 
-      <div className="mt-6 grid gap-6 md:grid-cols-[1.2fr_1fr]">
-        <section className="rounded-[14px] border border-line bg-white p-6 sm:p-8">
-          <h2 className="text-lg font-semibold">{t.stepsTitle}</h2>
-          <ol className="mt-5 space-y-4">
-            {t.steps(REFERRAL.friendPercent, REFERRAL.rewardPercent).map((s, i) => (
-              <li key={i} className="flex gap-3.5">
-                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-rose text-sm font-semibold text-wine">{i + 1}</span>
-                <span className="leading-relaxed text-ink-soft">{s}</span>
-              </li>
-            ))}
-          </ol>
-          <p className="mt-6 text-xs text-muted">{t.rules}</p>
-        </section>
-
-        <section className="rounded-[14px] border border-line bg-white p-6 sm:p-8">
-          <h2 className="text-lg font-semibold">{t.statsTitle}</h2>
-          <p className="mt-3 text-ink-soft">{t.friends(summary.friends)}</p>
+        <Panel title={t.statsTitle} className="min-w-0 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-start">
+          <div className="flex items-baseline gap-3">
+            <span className="font-serif text-5xl leading-none font-medium tabular-nums">{summary.friends}</span>
+          </div>
+          <p className="mt-2 text-sm text-ink-soft">{t.friends(summary.friends)}</p>
           {summary.rewards.length ? (
             <>
               <h3 className="mt-6 text-sm font-medium text-muted">{t.rewards}</h3>
-              <ul className="mt-3 space-y-2.5">
+              <ul className="mt-2 divide-y divide-line">
                 {summary.rewards.map((r) => {
                   const expired = !r.used && !!r.expiresAt && r.expiresAt < now;
+                  const status = r.used ? t.used : expired ? t.expired : r.expiresAt ? t.until(formatDate(r.expiresAt, false, locale)) : "";
                   return (
-                    <li key={r.code} className={cn("flex items-center gap-3 rounded-xl border border-line px-3.5 py-2.5", (r.used || expired) && "opacity-60")}>
-                      <Gift className="size-4 shrink-0 text-wine" />
-                      <div className="min-w-0 flex-1">
+                    <li key={r.code} className={cn("py-3", (r.used || expired) && "opacity-60")}>
+                      <div className="flex items-center justify-between gap-3">
                         <code className="font-mono text-sm tracking-wider">{r.code}</code>
-                        <div className="text-xs text-muted">
-                          {r.chat ? t.rewardForChat(r.orderNumber) : t.rewardFor(r.orderNumber)} · {r.used ? t.used : expired ? t.expired : r.expiresAt ? t.until(formatDate(r.expiresAt, false, locale)) : ""}
-                        </div>
+                        {status ? <Badge tone={r.used || expired ? "neutral" : "success"}>{status}</Badge> : null}
                       </div>
+                      <div className="mt-0.5 text-xs text-muted">{r.chat ? t.rewardForChat(r.orderNumber) : t.rewardFor(r.orderNumber)}</div>
                     </li>
                   );
                 })}
               </ul>
             </>
           ) : null}
-        </section>
+        </Panel>
+
+        <Panel title={t.stepsTitle} className="min-w-0 lg:col-start-1 lg:row-start-2">
+          <ol className="space-y-5">
+            {steps.map((s, i) => (
+              <li key={i} className={cn("relative pl-11", i < steps.length - 1 && "before:absolute before:top-8 before:-bottom-5 before:left-[13px] before:w-px before:bg-line-strong")}>
+                <span className="absolute top-0 left-0 flex size-7 items-center justify-center rounded-full bg-rose text-sm font-semibold text-wine tabular-nums">{i + 1}</span>
+                <span className="block pt-0.5 leading-relaxed text-ink-soft">{s}</span>
+              </li>
+            ))}
+          </ol>
+          <p className="mt-6 text-xs leading-relaxed text-muted">{t.rules}</p>
+        </Panel>
       </div>
     </main>
   );

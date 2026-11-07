@@ -64,9 +64,9 @@ export function ContactActions({ target, canCall, canChat, canEmail = false, cla
         </button>
       ) : null}
       {mail ? (
-        <div className="w-full space-y-2 rounded-[10px] border border-line bg-sunken/60 p-3" data-testid="email-form">
-          <input className="input h-10 text-sm" placeholder="Тема письма" value={mail.subject} maxLength={200} onChange={(e) => setMail({ ...mail, subject: e.target.value })} aria-label="Тема письма" />
-          <textarea className="input min-h-28 text-sm" placeholder="Текст письма" value={mail.text} maxLength={20000} onChange={(e) => setMail({ ...mail, text: e.target.value })} aria-label="Текст письма" />
+        <div className="w-full space-y-2 rounded-[var(--r-ctl)] border border-line bg-sunken/60 p-3" data-testid="email-form">
+          <input className="input" placeholder="Тема письма" value={mail.subject} maxLength={200} onChange={(e) => setMail({ ...mail, subject: e.target.value })} aria-label="Тема письма" />
+          <textarea className="input min-h-28" placeholder="Текст письма" value={mail.text} maxLength={20000} onChange={(e) => setMail({ ...mail, text: e.target.value })} aria-label="Текст письма" />
           <div className="flex gap-2">
             <button
               type="button"
@@ -104,7 +104,7 @@ export function ManagerSelect({ value, options, disabled, onChange }: { value: s
   const [pending, start] = useTransition();
   return (
     <select
-      className="input h-10 text-sm"
+      className="input"
       value={value ?? ""}
       disabled={disabled || pending}
       aria-label="Ответственный"

@@ -1,11 +1,10 @@
 "use client";
 
-import { Intro } from "@/components/admin/Intro";
-import { Section } from "../ui";
 import { useEffect, useState, useTransition } from "react";
 import { LoaderCircle, QrCode, RefreshCw } from "lucide-react";
-import { cn } from "@/lib/class-names";
 import type { GowaStatus } from "@/modules/messaging";
+import { Facts } from "@/components/ui/Facts";
+import { CheckMessage, Choice, Field, Group, Help, InlineActions, Section, type SheetStatus } from "../ui";
 import { gowaImportHistoryAction, gowaLogoutAction, gowaPairCodeAction, gowaQrAction, gowaStatusAction, saveWhatsappSettingsAction } from "./actions";
 
 interface GowaFormProps {
@@ -19,14 +18,17 @@ interface GowaFormProps {
   callbackDefault: string;
 }
 
-const statusLabel = (s: GowaStatus) =>
-  !s.reachable ? "шлюз недоступен" : s.problem ? "ошибка подключения" : s.loggedIn ? `номер привязан${s.phone ? ` · +${s.phone}` : ""}` : s.registered ? "номер не привязан" : "не подключён";
+const statusOf = (s: GowaStatus, provider: "wazzup" | "gowa"): SheetStatus =>
+  s.loggedIn
+    ? { tone: "ok", label: `номер привязан${s.phone ? ` · +${s.phone}` : ""}` }
+    : s.problem
+      ? { tone: "bad", label: "ошибка подключения" }
+      : !s.reachable
+        ? { tone: provider === "gowa" ? "bad" : "off", label: "шлюз недоступен" }
+        : s.registered
+          ? { tone: "warn", label: "номер не привязан" }
+          : { tone: "off", label: "не подключён" };
 
-/**
- * WhatsApp через свой шлюз GOWA (go-whatsapp-web-multidevice) вместо Wazzup: номер магазина привязывается по QR,
- * переписка идёт в единый инбокс в реальном времени, менеджеры отвечают из CRM. Всё настраивается здесь: сайт сам
- * заводит в шлюзе устройство магазина и направляет его события на себя.
- */
 export function GowaForm(props: GowaFormProps) {
   const [pending, start] = useTransition();
   const [provider, setProvider] = useState(props.provider);
@@ -100,85 +102,103 @@ export function GowaForm(props: GowaFormProps) {
       setStatus(await gowaStatusAction());
     });
 
+  const st = statusOf(status, provider);
+  const refresh = () => start(async () => setStatus(await gowaStatusAction()));
   return (
-    <Section title="WhatsApp — свой шлюз" badge={<span className={cn("badge", status.loggedIn ? "badge-success" : status.reachable ? "badge-warning" : "")}>{statusLabel(status)}</span>}>
-      <Intro>
-        Вместо Wazzup — бесплатный шлюз GOWA на вашем сервере: номер магазина привязывается по QR как «связанное устройство», входящие и ответы с телефона приходят в инбокс сразу, менеджеры отвечают из CRM. Instagram и Telegram по-прежнему идут через Wazzup.
-      </Intro>
-
-      <fieldset className="mt-4 space-y-2">
-        <legend className="mb-1 text-xs text-muted">WhatsApp работает через</legend>
-        <label className="flex items-center gap-2 text-sm">
-          <input type="radio" name="provider" className="accent-wine" checked={provider === "wazzup"} onChange={() => setProvider("wazzup")} /> Wazzup
-        </label>
-        <label className="flex items-center gap-2 text-sm">
-          <input type="radio" name="provider" className="accent-wine" checked={provider === "gowa"} onChange={() => setProvider("gowa")} /> Свой шлюз GOWA
-        </label>
-      </fieldset>
-
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <label className="block">
-          <span className="label">Адрес шлюза</span>
-          <input className="input h-10 text-sm" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder="http://127.0.0.1:3020" />
-        </label>
-        <label className="block">
-          <span className="label">Логин:пароль шлюза (APP_BASIC_AUTH)</span>
-          <input
-            className="input h-10 text-sm"
-            type="password"
-            autoComplete="off"
-            value={auth}
-            onChange={(e) => setAuth(e.target.value)}
-            placeholder={props.authSaved ? `сохранён ${props.authSaved} — оставьте пустым, чтобы не менять` : "admin:пароль"}
-          />
-        </label>
-        <label className="block sm:col-span-2">
-          <span className="label">Куда шлюз отправляет входящие (адрес сайта, доступный шлюзу)</span>
-          <input className="input h-10 text-sm" value={callbackUrl} onChange={(e) => setCallbackUrl(e.target.value)} placeholder={props.callbackDefault} />
-        </label>
-      </div>
-      <button className="btn btn-primary btn-sm mt-3" disabled={pending} onClick={save}>
-        {pending ? <LoaderCircle className="size-4 animate-spin" /> : null} Сохранить
-      </button>
-
-      <div className="mt-4 space-y-3 border-t border-line pt-4">
-        <div className="text-sm font-medium">Номер магазина</div>
-        {status.loggedIn ? (
-          <div className="flex flex-wrap items-center gap-3 text-sm">
-            Привязан {status.phone ? <b>+{status.phone}</b> : null}
-            <button className="btn btn-outline btn-sm" disabled={pending} onClick={importHistory} title="Переписка с клиентами и сделками из WhatsApp — задним числом, без уведомлений и новых заявок">
-              {pending ? <LoaderCircle className="size-4 animate-spin" /> : null} Загрузить историю переписки
+    <Section
+      id="gowa"
+      title="WhatsApp: свой шлюз"
+      description="Бесплатный шлюз GOWA на вашем сервере вместо Wazzup: номер магазина привязывается по QR как «связанное устройство»"
+      status={st}
+      actions={
+        <>
+          <button type="button" className="btn btn-ghost btn-icon btn-sm" disabled={pending} onClick={refresh} aria-label="Обновить состояние" title="Обновить состояние">
+            <RefreshCw className="size-4" strokeWidth={1.8} />
+          </button>
+          {!status.loggedIn ? (
+            <button type="button" className="btn btn-dark btn-sm" disabled={pending || !status.reachable} onClick={showQr}>
+              <QrCode className="size-4" strokeWidth={1.8} aria-hidden /> Привязать номер
             </button>
-            <button className="text-muted underline underline-offset-4 hover:text-danger" disabled={pending} onClick={logout}>
-              Отвязать
-            </button>
+          ) : null}
+        </>
+      }
+    >
+      <CheckMessage check={message ? { ok: message.ok, message: message.text } : null} wrap />
+      {status.problem ? <CheckMessage check={{ ok: false, message: status.problem }} wrap /> : null}
+
+      <div className="space-y-5">
+        <Help title="Как это работает" open={!status.loggedIn}>
+          <p>
+            Входящие и ответы с телефона приходят в инбокс сразу, менеджеры отвечают из CRM. Сайт сам заводит в шлюзе устройство магазина и направляет его события на себя. Instagram и Telegram по-прежнему идут через Wazzup.
+          </p>
+        </Help>
+
+        <Group title="Номер магазина" hint={status.loggedIn ? "Номер привязан: переписка WhatsApp идёт в CRM." : "На телефоне магазина: WhatsApp, Настройки, Связанные устройства, Привязать устройство, и отсканируйте QR."}>
+          {status.loggedIn ? (
+            <>
+              <Facts items={[{ label: "Номер", value: status.phone ? <b className="font-semibold">+{status.phone}</b> : "привязан" }]} />
+              <InlineActions>
+                <button className="btn btn-outline" disabled={pending} onClick={importHistory} title="Переписка с клиентами и сделками из WhatsApp — задним числом, без уведомлений и новых заявок">
+                  {pending ? <LoaderCircle className="size-4 animate-spin" /> : null} Загрузить историю переписки
+                </button>
+                <button className="btn btn-ghost text-danger hover:bg-danger-bg hover:text-danger" disabled={pending} onClick={logout}>
+                  Отвязать номер
+                </button>
+              </InlineActions>
+            </>
+          ) : (
+            <>
+              <InlineActions>
+                <button className="btn btn-outline" disabled={pending || !status.reachable} onClick={showQr}>
+                  <QrCode className="size-4" /> Показать QR
+                </button>
+              </InlineActions>
+              <Field label="Или код вместо QR" hint="Введите номер: получите код и введите его на телефоне («Привязать по номеру телефона»).">
+                <div className="flex gap-2">
+                  <input className="input min-w-0 flex-1" inputMode="tel" placeholder="+7 7XX XXX XX XX" value={phone} onChange={(e) => setPhone(e.target.value)} />
+                  <button className="btn btn-outline" disabled={pending || !status.reachable || !phone.trim()} onClick={pairCode}>
+                    Получить код
+                  </button>
+                </div>
+              </Field>
+              {/* eslint-disable-next-line @next/next/no-img-element -- QR от шлюза: data-URL, оптимизатор не нужен */}
+              {qr ? <img src={qr.image} alt="QR для привязки WhatsApp" className="size-56 rounded-[var(--r-ctl)] border border-line" /> : null}
+              {code ? (
+                <p className="text-sm">
+                  Код привязки: <b className="font-mono text-lg tracking-widest">{code}</b>
+                </p>
+              ) : null}
+            </>
+          )}
+        </Group>
+
+        <Group title="Канал" hint="WhatsApp работает через выбранный сервис; переключиться можно в любой момент.">
+          <div className="flex flex-wrap gap-2">
+            <Choice active={provider === "wazzup"}>
+              <input type="radio" name="provider" className="accent-wine" checked={provider === "wazzup"} onChange={() => setProvider("wazzup")} /> Wazzup
+            </Choice>
+            <Choice active={provider === "gowa"}>
+              <input type="radio" name="provider" className="accent-wine" checked={provider === "gowa"} onChange={() => setProvider("gowa")} /> Свой шлюз GOWA
+            </Choice>
           </div>
-        ) : (
-          <>
-            <p className="text-xs text-muted">На телефоне магазина: WhatsApp → Настройки → Связанные устройства → Привязать устройство — и отсканируйте QR. Или получите код и введите его там же («Привязать по номеру телефона»).</p>
-            <div className="flex flex-wrap items-end gap-2">
-              <button className="btn btn-outline btn-sm h-10" disabled={pending || !status.reachable} onClick={showQr}>
-                <QrCode className="size-4" /> Показать QR
-              </button>
-              <input className="input h-10 w-48 text-sm" inputMode="tel" placeholder="+7 7XX XXX XX XX" value={phone} onChange={(e) => setPhone(e.target.value)} />
-              <button className="btn btn-ghost btn-sm h-10" disabled={pending || !status.reachable || !phone.trim()} onClick={pairCode}>
-                Код вместо QR
-              </button>
-              <button className="btn btn-ghost btn-sm h-10" disabled={pending} onClick={() => start(async () => setStatus(await gowaStatusAction()))} aria-label="Обновить состояние">
-                <RefreshCw className="size-4" />
-              </button>
-            </div>
-            {/* eslint-disable-next-line @next/next/no-img-element -- QR от шлюза: data-URL, оптимизатор не нужен */}
-            {qr ? <img src={qr.image} alt="QR для привязки WhatsApp" className="size-56 rounded-[10px] border border-line" /> : null}
-            {code ? (
-              <p className="text-sm">
-                Код привязки: <b className="font-mono text-lg tracking-widest">{code}</b>
-              </p>
-            ) : null}
-          </>
-        )}
-        {status.problem ? <p className="text-xs text-danger">{status.problem}</p> : null}
-        {message ? <p className={cn("text-xs", message.ok ? "text-success" : "text-danger")}>{message.text}</p> : null}
+        </Group>
+
+        <Group title="Шлюз" hint="Адрес и доступ к вашему серверу GOWA.">
+          <Field label="Адрес шлюза">
+            <input className="input" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder="http://127.0.0.1:3020" />
+          </Field>
+          <Field label="Логин:пароль шлюза (APP_BASIC_AUTH)" hint={props.authSaved ? `Сохранён ${props.authSaved}. Оставьте пустым, чтобы не менять.` : undefined}>
+            <input className="input" type="password" autoComplete="off" value={auth} onChange={(e) => setAuth(e.target.value)} placeholder={props.authSaved ? "оставьте пустым, чтобы не менять" : "admin:пароль"} />
+          </Field>
+          <Field label="Куда шлюз отправляет входящие" hint="Адрес сайта, доступный шлюзу. Пусто — адрес по умолчанию.">
+            <input className="input" value={callbackUrl} onChange={(e) => setCallbackUrl(e.target.value)} placeholder={props.callbackDefault} />
+          </Field>
+          <InlineActions>
+            <button className="btn btn-dark" disabled={pending} onClick={save}>
+              {pending ? <LoaderCircle className="size-4 animate-spin" /> : null} Сохранить
+            </button>
+          </InlineActions>
+        </Group>
       </div>
     </Section>
   );

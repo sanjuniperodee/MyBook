@@ -31,12 +31,14 @@ export default async function AnswerFilePage({ params }: Props) {
   const locale = await getLocale();
   const src = `/api/v/${token}`;
   return (
-    <PlainShell className="pt-8 sm:pt-12">
-        <div className="text-sm text-muted">{t.fromBook(bookTitle.trim())}</div>
+    <PlainShell tone="dark" size="lg" className="pt-4 sm:pt-8">
+      {/* «Кинозал»: тёмная основа в обеих темах, проигрыватель по центру, подпись карточки засечками. */}
+      <div className="mx-auto max-w-4xl">
+        <div className="text-sm text-white/70">{t.fromBook(bookTitle.trim())}</div>
         {caption ? <h1 className="mt-2 font-serif text-[34px] leading-[1.08] font-medium text-balance sm:text-5xl">{caption}</h1> : null}
-        {authorName.trim() ? <p className="mt-2 text-ink-soft">{authorName.trim()}</p> : null}
+        {authorName.trim() ? <p className="mt-2 text-white/75">{authorName.trim()}</p> : null}
 
-        <div className="mt-6">
+        <div className="mt-6 sm:mt-8">
           {file.status === "ready" ? (
             file.kind === "video" ? (
               <video
@@ -44,31 +46,31 @@ export default async function AnswerFilePage({ params }: Props) {
                 playsInline
                 preload="metadata"
                 poster={file.hasPoster ? `${src}?poster=1` : undefined}
-                className="max-h-[78dvh] w-full rounded-[14px] bg-black shadow-book"
+                className="mx-auto max-h-[78dvh] w-full rounded-[10px] bg-black"
                 style={file.width && file.height ? { aspectRatio: `${file.width} / ${file.height}` } : undefined}
               >
                 <source src={src} type="video/mp4" />
                 {t.noPlayer}
               </video>
             ) : (
-              <div className="flex flex-col gap-4 rounded-[14px] border border-line bg-white p-5 sm:p-7">
-                <div className="flex items-center gap-3">
-                  <span className="grid size-12 shrink-0 place-items-center rounded-full bg-wine text-white">
-                    <Mic className="size-5" />
+              <div className="flex flex-col gap-5 rounded-[14px] border border-[rgb(255_255_255/0.2)] bg-[rgb(255_255_255/0.06)] p-5 sm:p-8">
+                <div className="flex items-center gap-4">
+                  <span className="grid size-14 shrink-0 place-items-center rounded-full bg-wine text-white">
+                    <Mic className="size-6" aria-hidden />
                   </span>
-                  {file.durationSec ? <span className="text-sm text-muted tabular-nums">{formatDuration(file.durationSec)}</span> : null}
+                  {file.durationSec ? <span className="text-sm text-white/75 tabular-nums">{formatDuration(file.durationSec)}</span> : null}
                 </div>
-                <audio controls preload="metadata" className="w-full">
+                <audio controls preload="metadata" className="h-12 w-full">
                   <source src={src} type="audio/mp4" />
                   {t.noPlayer}
                 </audio>
               </div>
             )
           ) : (
-            <div className="rounded-[14px] border border-line bg-white p-8 text-center text-muted">
+            <div className="rounded-[14px] border border-[rgb(255_255_255/0.2)] bg-[rgb(255_255_255/0.06)] p-8 text-center text-white/80">
               <p>{file.status === "failed" ? t.failed : t.processing}</p>
               {file.status !== "failed" ? (
-                <a href="" className="btn btn-ghost btn-sm mt-4 inline-flex items-center gap-2">
+                <a href="" className="btn mt-5 border border-[rgb(255_255_255/0.45)] text-white hover:bg-[rgb(255_255_255/0.1)]">
                   <RefreshCw className="size-4" /> {t.refresh}
                 </a>
               ) : null}
@@ -78,18 +80,19 @@ export default async function AnswerFilePage({ params }: Props) {
 
         {file.status === "ready" ? (
           <div className="mt-4 flex justify-end">
-            <a href={`${src}?download=1`} className="btn btn-ghost btn-sm text-wine">
+            <a href={`${src}?download=1`} className="btn border border-[rgb(255_255_255/0.45)] text-white hover:bg-[rgb(255_255_255/0.1)]">
               <Download className="size-4" /> {t.download}
             </a>
           </div>
         ) : null}
 
-        <footer className="mt-14 border-t border-line pt-6 text-sm text-muted">
+        <footer className="mt-14 border-t border-[rgb(255_255_255/0.15)] pt-6 text-sm text-white/70">
           <p>{t.madeWith}</p>
-          <Link href={localizePath("/", locale)} className="mt-1 inline-block text-wine underline decoration-wine/30 underline-offset-4 hover:decoration-wine">
+          <Link href={localizePath("/", locale)} className="mt-1 inline-flex min-h-11 items-center text-white underline decoration-[rgb(255_255_255/0.4)] underline-offset-4 hover:decoration-white">
             {t.about}
           </Link>
         </footer>
+      </div>
     </PlainShell>
   );
 }

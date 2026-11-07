@@ -119,7 +119,7 @@ export function NumberField({
     <div className={cn(disabled && "pointer-events-none opacity-50")}>
       <FieldLabel label={label} htmlFor={id} onReset={onReset} resetLabel={resetLabel} />
       <div className="flex items-center gap-2">
-        <div className="flex h-9 shrink-0 items-center rounded-lg border border-line bg-white">
+        <div className="flex h-9 shrink-0 items-center rounded-[var(--r-ctl)] border border-line-strong bg-white pointer-coarse:h-11">
           <button type="button" aria-label="−" onClick={() => nudge(-1)} className="flex h-full w-8 items-center justify-center text-muted hover:text-ink">
             <Minus className="size-3.5" />
           </button>
@@ -203,7 +203,7 @@ export function ColorField({
             onClick={() => onChange(null)}
             className={cn("relative size-7 rounded-full border bg-white", value === null ? "ring-2 ring-wine ring-offset-1" : "border-line")}
           >
-            <span className="absolute inset-x-1 top-1/2 h-px -rotate-45 bg-red-500" />
+            <span className="absolute inset-x-1 top-1/2 h-px -rotate-45 bg-danger" />
           </button>
         ) : null}
         {list.map((c) => (
@@ -219,11 +219,11 @@ export function ColorField({
           />
         ))}
         <label className="relative size-7 cursor-pointer overflow-hidden rounded-full border border-line" title={label} style={{ background: "conic-gradient(red, yellow, lime, cyan, blue, magenta, red)" }}>
-          <input type="color" className="absolute inset-0 cursor-pointer opacity-0" value={value && HEX.test(value) ? value : "#000000"} onChange={(e) => onChange(e.target.value.toUpperCase())} />
+          <input type="color" aria-label={label} className="absolute inset-0 cursor-pointer opacity-0" value={value && HEX.test(value) ? value : "#000000"} onChange={(e) => onChange(e.target.value.toUpperCase())} />
         </label>
         <input
           id={id}
-          className="h-8 w-24 rounded-lg border border-line bg-white px-2 font-mono text-xs uppercase outline-none focus:border-wine/50"
+          className="h-8 w-24 rounded-[var(--r-ctl)] border border-line-strong bg-white px-2 font-mono text-xs uppercase outline-none focus:border-wine pointer-coarse:h-11"
           value={draft ?? value ?? ""}
           maxLength={7}
           placeholder="#RRGGBB"
@@ -261,7 +261,7 @@ export function Segmented<T extends string>({
   return (
     <div>
       {label ? <FieldLabel label={label} onReset={onReset} resetLabel={resetLabel} /> : null}
-      <div role="radiogroup" aria-label={label} className={cn("inline-flex max-w-full gap-1 rounded-xl bg-sunken p-1", wrap ? "flex-wrap" : "no-scrollbar overflow-x-auto")}>
+      <div role="radiogroup" aria-label={label} className={cn("inline-flex max-w-full gap-0.5 rounded-[calc(var(--r-ctl)+2px)] bg-sunken p-0.5", wrap ? "flex-wrap" : "no-scrollbar overflow-x-auto")}>
         {options.map((o) => (
           <button
             key={o.value}
@@ -270,7 +270,7 @@ export function Segmented<T extends string>({
             aria-checked={value === o.value}
             title={o.title}
             onClick={() => onChange(o.value)}
-            className={cn("flex h-8 min-w-8 shrink-0 items-center justify-center gap-1 rounded-lg px-2.5 text-[13px] transition", value === o.value ? "bg-white font-medium text-ink shadow-soft" : "text-muted hover:text-ink")}
+            className={cn("flex h-8 min-w-8 shrink-0 items-center justify-center gap-1 rounded-[var(--r-ctl)] px-2.5 text-[13px] transition pointer-coarse:h-10", value === o.value ? "bg-white font-medium text-ink shadow-[0_1px_2px_rgb(30_25_22/0.12)]" : "text-muted hover:text-ink")}
           >
             {o.label}
           </button>
@@ -300,9 +300,9 @@ export function Toggle({ label, checked, onChange, hint }: { label: string; chec
 /** Раздел панели: заголовок и поля. */
 export function PanelSection({ title, children, action }: { title: string; children: ReactNode; action?: ReactNode }) {
   return (
-    <section className="space-y-4 border-b border-line/70 pb-5 last:border-0">
-      <div className="flex items-center justify-between gap-2">
-        <h3 className="text-xs font-semibold tracking-[0.14em] text-muted uppercase">{title}</h3>
+    <section className="space-y-3.5 border-b border-line pb-5 last:border-0 last:pb-0">
+      <div className="flex min-h-6 items-center justify-between gap-2">
+        <h3 className="text-[13px] font-semibold text-ink">{title}</h3>
         {action}
       </div>
       {children}

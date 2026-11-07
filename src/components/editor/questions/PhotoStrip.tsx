@@ -84,8 +84,8 @@ export function PhotoStrip({
 
   const selectedPlace = selected ? places?.get(selected.id) : undefined;
   return (
-    <div className="space-y-3 px-4 pb-5 sm:px-10 sm:pb-6">
-      <div className="flex flex-wrap items-center gap-2">
+    <div className="space-y-3 border-t border-line px-4 pt-4 pb-5 sm:px-10 sm:pb-6">
+      <div className="no-scrollbar -mx-4 flex items-center gap-2 overflow-x-auto px-4 py-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
         {photos.map((p) => {
           const st = normalizeStyle(p.inline);
           const off = places?.get(p.id)?.kind === "off";
@@ -94,22 +94,22 @@ export function PhotoStrip({
               key={p.id}
               type="button"
               onClick={() => onSelect(selected?.id === p.id ? null : p.id)}
-              className={cn("group relative size-16 overflow-hidden rounded-xl border-2 transition", selected?.id === p.id ? "border-wine shadow-md" : "border-transparent ring-1 ring-line hover:ring-ink/30")}
+              className={cn("group relative size-16 shrink-0 overflow-hidden rounded-[10px] bg-cream transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wine", selected?.id === p.id ? "ring-2 ring-wine ring-offset-2 ring-offset-white" : "ring-1 ring-line hover:ring-line-strong")}
               aria-pressed={selected?.id === p.id}
               aria-label={t.photoAria(p.caption)}
               data-testid="inline-photo-thumb"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={editorPhotoUrl(p)} alt="" className={cn("size-full object-cover", off && "opacity-50")} />
-              {off ? <EyeOff className="absolute top-1 right-1 size-3.5 text-white drop-shadow" aria-hidden /> : null}
-              <span className="absolute inset-x-0 bottom-0 flex items-center justify-center truncate bg-ink/60 px-0.5 py-0.5 text-center text-[10px] text-white">
+              {off ? <EyeOff className="absolute top-1 right-1 size-4 rounded-md bg-spine/75 p-0.5 text-white" aria-hidden /> : null}
+              <span className="absolute inset-x-0 bottom-0 flex items-center justify-center truncate bg-spine/75 px-0.5 py-0.5 text-center text-[10px] text-white">
                 {st.page ? <RectangleVertical className="size-3" aria-label={a.onPage} /> : a.sizes[sizeWord(st.width)]}
               </span>
             </button>
           );
         })}
-        <span className="text-xs text-muted">{selected ? "" : t.photoHint}</span>
       </div>
+      {selected ? null : <p className="text-xs text-muted">{t.photoHint}</p>}
       {selected ? (
         <PhotoInspector
           photo={{ ...selected, url: editorPhotoUrl(selected) }}

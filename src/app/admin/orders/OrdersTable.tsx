@@ -4,7 +4,7 @@ import { ask } from "@/components/ui/overlays";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { CalendarClock, CircleDollarSign, LoaderCircle, Package, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, CircleDollarSign, LoaderCircle, Package, X } from "lucide-react";
 import { bulkStatusAction } from "../actions";
 import { orderStatusLabel, orderStatusLabels, orderStatusTone } from "@/modules/ordering/ui/status";
 import { ORDER_STATUSES as orderStatuses, type OrderStatus } from "@/shared/domain/orders";
@@ -13,6 +13,13 @@ import { useRowSelection } from "@/components/admin/useRowSelection";
 import { Badge } from "@/components/ui/Badge";
 import { Alert } from "@/components/ui/Alert";
 import { EmptyState } from "@/components/ui/EmptyState";
+
+/** Срок заказа («нужна к дате»): подпись, на сколько он близок и тон — просрочен, горит, в запасе. Закрытому заказу срок не грозит. */
+export interface OrderDue {
+  label: string;
+  text: string | null;
+  tone: "danger" | "warning" | "neutral";
+}
 
 export interface OrderRow {
   id: string;
@@ -24,6 +31,7 @@ export interface OrderRow {
   /** Печатный ли тариф: у электронной версии оплаченный заказ — «Выполнен», печати нет. */
   printed: boolean;
   desiredLabel: string | null;
+  due: OrderDue | null;
   /** Полная цена книги (с предоплатой по сделке). */
   amountLabel: string;
   /** «оплачено X» или «долг Y»; null — бесплатный заказ без денег. */
@@ -32,6 +40,18 @@ export interface OrderRow {
   claimed: boolean;
   assignee: string | null;
   promoCode: string | null;
+}
+
+export interface OrdersFooter {
+  count: number;
+  /** Уже отформатированная сумма «получено, с учётом предоплат». */
+  received: string;
+  from: number;
+  to: number;
+  page: number;
+  pages: number;
+  prevHref: string | null;
+  nextHref: string | null;
 }
 
 /** Итог массовой смены статуса: сколько обновлено и сколько пропущено — по каждой причине отдельно. */
@@ -44,25 +64,50 @@ export function bulkStatusText(res: { count: number; skipped: number; reasons?: 
 const MoneyLine = ({ money }: { money: OrderRow["money"] }) =>
   money ? <div className={cn("text-xs", money.kind === "debt" ? "font-medium text-danger" : "text-success")}>{money.label}</div> : null;
 
-/** Статус и «клиент сообщил об оплате» — значками: цвет и текст вместе. */
-const StatusBadges = ({ o }: { o: OrderRow }) => (
-  <>
+/** Статус точкой и подписью; «клиент сообщил об оплате» — отдельной строкой: цвет и текст вместе. */
+const StatusCell = ({ o }: { o: OrderRow }) => (
+  <div className="flex flex-col items-start gap-0.5">
     <Badge tone={orderStatusTone[o.status]} dot>
       {orderStatusLabel(o.status, "ru", o.printed)}
     </Badge>
     {o.claimed ? (
-      <Badge tone="warning">
+      <span className="inline-flex items-center gap-1 text-xs text-warning">
         <CircleDollarSign className="size-3" aria-hidden /> сообщил об оплате
-      </Badge>
+      </span>
     ) : null}
-  </>
+  </div>
 );
 
+/** Срок: дата и, пока заказ открыт, сколько осталось; просроченный — красным. */
+const DueCell = ({ due }: { due: OrderRow["due"] }) =>
+  due ? (
+    <div className="whitespace-nowrap">
+      <div className={cn(due.tone === "danger" && "font-medium text-danger", due.tone === "warning" && "font-medium text-warning")}>{due.label}</div>
+      {due.text ? <div className={cn("text-xs", due.tone === "neutral" ? "text-muted" : due.tone === "danger" ? "text-danger" : "text-warning")}>{due.text}</div> : null}
+    </div>
+  ) : (
+    <span className="text-muted">—</span>
+  );
+
+/** Ответственный: кружок с инициалами и имя; без ответственного — прочерк. */
+const Owner = ({ name }: { name: string | null }) =>
+  name ? (
+    <span className="inline-flex max-w-40 items-center gap-2">
+      <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-sunken text-[10px] font-semibold text-ink-soft uppercase" aria-hidden>
+        {name.slice(0, 2)}
+      </span>
+      <span className="truncate text-ink-soft">{name}</span>
+    </span>
+  ) : (
+    <span className="text-muted">не назначен</span>
+  );
+
 /**
- * Список заказов: таблица с выбором и массовой сменой статуса на ноутбуке, карточки одним листом на телефоне. Панель
- * массовых действий прилипает под шапкой (var(--topbar-h)) и говорит, сколько обновлено и почему что-то пропущено.
+ * Ведомость заказов: на ноутбуке — таблица «№ / клиент / книга / сумма / статус / срок / ответственный», строка открывает
+ * заказ целиком (ссылка в № остаётся для клавиатуры), выбор строк включает панель массовой смены статуса; на телефоне —
+ * карточки одним листом. Подвал — сколько найдено, сколько получено и страницы.
  */
-export function OrdersTable({ rows, filtered = false }: { rows: OrderRow[]; filtered?: boolean }) {
+export function OrdersTable({ rows, filtered = false, footer }: { rows: OrderRow[]; filtered?: boolean; footer: OrdersFooter }) {
   const { selected, all, ids, toggle, toggleAll, clear } = useRowSelection(rows);
   const [status, setStatus] = useState<OrderStatus>("in_production");
   const [pending, start] = useTransition();
@@ -85,7 +130,7 @@ export function OrdersTable({ rows, filtered = false }: { rows: OrderRow[]; filt
 
   if (!rows.length)
     return (
-      <div className="panel">
+      <div className="rounded-[var(--r-panel)] border border-line bg-white lg:rounded-none lg:border-0">
         <EmptyState
           icon={Package}
           title={filtered ? "По этим фильтрам заказов нет" : "Заказов пока нет"}
@@ -103,10 +148,10 @@ export function OrdersTable({ rows, filtered = false }: { rows: OrderRow[]; filt
     );
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 lg:space-y-0">
       {selected.size ? (
         <div
-          className="sticky top-[calc(var(--topbar-h)+0.5rem)] z-20 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[14px] bg-ink px-3 py-2.5 text-sm text-white shadow-lift sm:px-4"
+          className="sticky top-[calc(var(--topbar-h)+0.5rem)] z-20 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[var(--r-panel)] bg-ink px-3 py-2.5 text-sm text-white shadow-lift max-lg:bottom-auto sm:px-4 lg:mx-3 lg:my-3"
           data-testid="orders-bulk-bar"
           role="region"
           aria-label="Действия с выбранными заказами"
@@ -137,7 +182,7 @@ export function OrdersTable({ rows, filtered = false }: { rows: OrderRow[]; filt
         </div>
       ) : null}
       {message ? (
-        <Alert kind={message.error ? "error" : "success"} className="items-center">
+        <Alert kind={message.error ? "error" : "success"} className="items-center lg:mx-3 lg:my-3">
           <span className="flex flex-wrap items-center justify-between gap-2">
             {message.text}
             <button type="button" className="text-xs underline opacity-80 hover:opacity-100" onClick={() => setMessage(null)}>
@@ -147,11 +192,12 @@ export function OrdersTable({ rows, filtered = false }: { rows: OrderRow[]; filt
         </Alert>
       ) : null}
 
-      {/* Телефон: карточки одним листом — номер и клиент, сумма, статус и срок; нажатие открывает заказ. */}
+      {/* Телефон: карточки одним листом — номер и клиент, сумма, книга и срок, статус и ответственный; нажатие открывает заказ. */}
       <ul className="panel divide-y divide-line overflow-hidden lg:hidden" data-testid="orders-cards">
         {rows.map((o) => (
           <li key={o.id}>
-            <Link href={`/admin/orders/${o.id}`} className="m-card block px-4 py-3.5">
+            <Link href={`/admin/orders/${o.id}`} className="m-card relative block px-4 py-3.5">
+              {o.due && o.due.tone !== "neutral" ? <span className={cn("absolute inset-y-0 left-0 w-[3px]", o.due.tone === "danger" ? "bg-danger" : "bg-warning")} aria-hidden /> : null}
               <div className="flex items-start gap-3">
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-[15px] font-semibold">
@@ -167,41 +213,52 @@ export function OrdersTable({ rows, filtered = false }: { rows: OrderRow[]; filt
                   <MoneyLine money={o.money} />
                 </div>
               </div>
-              <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-                <StatusBadges o={o} />
-                {o.desiredLabel ? (
-                  <Badge tone="accent">
-                    <CalendarClock className="size-3" aria-hidden /> к {o.desiredLabel}
-                  </Badge>
+              <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                <StatusCell o={o} />
+                {o.due ? (
+                  <span className={cn("text-[13px]", o.due.tone === "danger" ? "font-medium text-danger" : o.due.tone === "warning" ? "font-medium text-warning" : "text-muted")}>
+                    к {o.due.label}
+                    {o.due.text ? `, ${o.due.text}` : ""}
+                  </span>
                 ) : null}
-                {o.promoCode ? <Badge className="font-mono">{o.promoCode}</Badge> : null}
-                <span className="ml-auto text-xs text-muted">{o.createdLabel}</span>
+                {o.promoCode ? <span className="font-mono text-xs text-muted">{o.promoCode}</span> : null}
+                <span className="ml-auto text-xs text-muted">{o.assignee ?? o.createdLabel}</span>
               </div>
             </Link>
           </li>
         ))}
       </ul>
 
-      <div className="panel hidden overflow-x-auto lg:block">
-        <table className="table min-w-[900px] [&_td:first-child]:pl-4 [&_td:last-child]:pr-4 [&_th:first-child]:pl-4 [&_th:last-child]:pr-4">
+      <div className="hidden overflow-x-auto lg:block">
+        <table className="table min-w-[940px]">
           <thead>
             <tr>
               <th className="w-10">
                 <input type="checkbox" className="size-4 accent-wine" checked={all} onChange={toggleAll} aria-label="Выбрать все" />
               </th>
-              <th>Заказ</th>
+              <th>№</th>
               <th>Клиент</th>
               <th>Книга</th>
-              <th className="text-right">Сумма</th>
+              <th className="num">Сумма</th>
               <th>Статус</th>
-              <th>Менеджер</th>
+              <th>Срок</th>
+              <th>Ответственный</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((o) => {
               const on = selected.has(o.id);
               return (
-                <tr key={o.id} className={cn(on && "[&>td]:bg-rose/50")} aria-selected={on}>
+                <tr
+                  key={o.id}
+                  className={cn("cursor-pointer", on && "[&>td]:bg-rose/50")}
+                  aria-selected={on}
+                  onClick={(e) => {
+                    // Клик по ссылке, флажку или кнопке внутри строки — их собственное действие, а не открытие заказа.
+                    if ((e.target as HTMLElement).closest("a,button,input,label,select")) return;
+                    router.push(`/admin/orders/${o.id}`);
+                  }}
+                >
                   <td>
                     <input type="checkbox" className="size-4 accent-wine" checked={on} onChange={() => toggle(o.id)} aria-label={`Выбрать заказ ${o.number}`} />
                   </td>
@@ -212,43 +269,59 @@ export function OrdersTable({ rows, filtered = false }: { rows: OrderRow[]; filt
                     <div className="text-xs text-muted">{o.createdLabel}</div>
                   </td>
                   <td className="max-w-64">
-                    <Link href={`/admin/orders/${o.id}`} className="block truncate font-medium hover:text-wine">
-                      {o.contactName}
-                    </Link>
+                    <div className="truncate font-medium">{o.contactName}</div>
                     {o.contactLine ? <div className="truncate text-xs text-muted">{o.contactLine}</div> : null}
                   </td>
-                  <td>
-                    <div>
+                  <td className="max-w-56">
+                    <div className="truncate">
                       {o.planLabel}
                       {o.printed ? null : <span className="text-muted">, электронная</span>}
                     </div>
-                    {o.desiredLabel || o.promoCode ? (
-                      <div className="mt-1 flex flex-wrap gap-1">
-                        {o.desiredLabel ? (
-                          <Badge tone="accent">
-                            <CalendarClock className="size-3" aria-hidden /> к {o.desiredLabel}
-                          </Badge>
-                        ) : null}
-                        {o.promoCode ? <Badge className="font-mono">{o.promoCode}</Badge> : null}
-                      </div>
-                    ) : null}
+                    {o.promoCode ? <div className="font-mono text-xs text-muted">{o.promoCode}</div> : null}
                   </td>
-                  <td className="text-right whitespace-nowrap tabular-nums">
+                  <td className="num whitespace-nowrap">
                     <div className="font-medium">{o.amountLabel}</div>
                     <MoneyLine money={o.money} />
                   </td>
                   <td>
-                    <div className="flex flex-col items-start gap-1">
-                      <StatusBadges o={o} />
-                    </div>
+                    <StatusCell o={o} />
                   </td>
-                  <td className={cn("whitespace-nowrap", o.assignee ? "text-ink-soft" : "text-muted")}>{o.assignee ?? "Не назначен"}</td>
+                  <td>
+                    <DueCell due={o.due} />
+                  </td>
+                  <td className="whitespace-nowrap">
+                    <Owner name={o.assignee} />
+                  </td>
                 </tr>
               );
             })}
           </tbody>
         </table>
       </div>
+
+      <nav aria-label="Страницы" className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-1 text-sm text-muted lg:border-t lg:border-line lg:px-5 lg:py-2.5">
+        <span className="tabular-nums">
+          {footer.pages > 1 ? `${footer.from}–${footer.to} из ${footer.count.toLocaleString("ru-RU")}` : `Заказов: ${footer.count.toLocaleString("ru-RU")}`}
+          <span className="max-sm:hidden">, получено {footer.received} с учётом предоплат</span>
+        </span>
+        {footer.pages > 1 ? (
+          <div className="flex items-center gap-2">
+            {footer.prevHref ? (
+              <Link className="btn btn-outline btn-sm" href={footer.prevHref}>
+                <ChevronLeft className="size-4" aria-hidden /> Назад
+              </Link>
+            ) : null}
+            <span className="px-1 tabular-nums">
+              {footer.page} из {footer.pages}
+            </span>
+            {footer.nextHref ? (
+              <Link className="btn btn-outline btn-sm" href={footer.nextHref}>
+                Дальше <ChevronRight className="size-4" aria-hidden />
+              </Link>
+            ) : null}
+          </div>
+        ) : null}
+      </nav>
     </div>
   );
 }

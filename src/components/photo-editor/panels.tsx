@@ -48,7 +48,7 @@ import { SHAPE_IDS, SHAPES, type ShapeId } from "@/lib/photo-edit/shapes";
 import { cn } from "@/lib/class-names";
 import { nearestWeight, PRESET_STYLES, TEXT_PRESETS, type TextPreset } from "./presets";
 import { cropForAspect, type DrawStyle } from "./Stage";
-import { ActionButton, Label, Seg, Slider, Swatches } from "./ui";
+import { ActionButton, FOCUS, Label, SELECTED, Seg, Slider, Swatches } from "./ui";
 
 type T = ReturnType<typeof useMessages>["editor"]["photoEditor"];
 type SetDoc = (next: PhotoEdit | ((d: PhotoEdit) => PhotoEdit), key?: string) => void;
@@ -75,9 +75,10 @@ function PresetCard({ preset, t, onPick }: { preset: TextPreset; t: T; onPick: (
     <button
       type="button"
       onClick={onPick}
-      className="group flex min-h-[86px] flex-col overflow-hidden rounded-xl bg-white/[.06] text-left ring-1 ring-white/10 transition hover:ring-white/30 active:scale-[0.98]"
+      className={cn("group flex min-h-[86px] w-full flex-col overflow-hidden rounded-[var(--r-ctl)] border border-line bg-white text-left transition hover:border-line-strong active:scale-[0.98]", FOCUS)}
     >
-      <span className="flex flex-1 items-center justify-center bg-[linear-gradient(135deg,#6b5a4c,#2e2620_60%,#43372d)] px-2 py-3">
+      {/* Образец набран на тёмном «снимке»: надписи делают под фото, на светлом поле их не разглядеть. */}
+      <span className="flex flex-1 items-center justify-center bg-spine px-2 py-3">
         <span
           className="max-w-full truncate leading-tight"
           style={{
@@ -98,7 +99,7 @@ function PresetCard({ preset, t, onPick }: { preset: TextPreset; t: T; onPick: (
           {t.text.samples[preset]}
         </span>
       </span>
-      <span className="px-2.5 py-1.5 text-[12px] text-white/70 group-hover:text-white">{t.text.presets[preset]}</span>
+      <span className="px-2.5 py-1.5 text-xs text-muted group-hover:text-ink">{t.text.presets[preset]}</span>
     </button>
   );
 }
@@ -109,7 +110,7 @@ export function TextTools({ t, onAdd }: { t: T; onAdd: (preset: TextPreset) => v
       <button
         type="button"
         onClick={() => onAdd("caption")}
-        className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-white text-[15px] font-medium text-ink transition hover:bg-white/90 active:scale-[0.99]"
+        className="btn btn-dark w-full"
       >
         <Plus className="size-5" /> {t.text.add}
       </button>
@@ -123,7 +124,7 @@ export function TextTools({ t, onAdd }: { t: T; onAdd: (preset: TextPreset) => v
           ))}
         </div>
       </div>
-      <p className="text-[13px] leading-snug text-white/55">{t.text.hint}</p>
+      <p className="text-[13px] leading-snug text-muted">{t.text.hint}</p>
     </div>
   );
 }
@@ -137,7 +138,7 @@ function Sections<K extends string>({ tabs, active, onTab, children }: { tabs: {
       </div>
       <div className="space-y-5">
         {tabs.map((x) => (
-          <section key={x.id} className={cn("space-y-4", x.id !== active && "max-lg:hidden", "lg:border-b lg:border-white/10 lg:pb-5 lg:last:border-0")}>
+          <section key={x.id} className={cn("space-y-4", x.id !== active && "max-lg:hidden", "lg:border-b lg:border-line lg:pb-5 lg:last:border-0")}>
             {children(x.id)}
           </section>
         ))}
@@ -196,7 +197,7 @@ export function TextProps({ layer, set, t, focus, onFocused }: { layer: TextLaye
                 maxLength={500}
                 placeholder={t.text.placeholder}
                 onChange={(e) => p({ text: e.target.value }, "text")}
-                className="block w-full resize-none rounded-xl border border-white/15 bg-white/[.06] px-3 py-2.5 text-base text-white placeholder:text-white/35 focus:border-[#e9b8bf]/70 focus:outline-none"
+                className="block w-full resize-none rounded-[var(--r-ctl)] border border-line-strong bg-white px-3 py-2.5 text-base text-ink placeholder:text-muted focus:border-wine focus:outline-2 focus:outline-offset-0 focus:outline-wine/25"
               />
             </div>
             <Slider label={t.text.size} value={layer.scale} min={0.2} max={4} step={0.01} format={pct} onChange={(scale) => p({ scale }, "scale")} />
@@ -316,7 +317,7 @@ function ToggleIcon({ label, on, disabled, onClick, icon }: { label: string; on:
       aria-pressed={on}
       disabled={disabled}
       onClick={onClick}
-      className={cn("flex size-11 shrink-0 items-center justify-center rounded-xl transition disabled:opacity-30", on ? "bg-white text-ink" : "bg-white/[.07] text-white/80 hover:bg-white/15")}
+      className={cn("flex size-11 shrink-0 items-center justify-center rounded-[var(--r-ctl)] transition disabled:opacity-35", FOCUS, on ? SELECTED : "bg-sunken text-ink-soft hover:bg-cream")}
     >
       {icon}
     </button>
@@ -335,7 +336,7 @@ function FontList({ value, sample, onChange }: { value: FontKey; sample: string;
           role="radio"
           aria-checked={value === k}
           onClick={() => onChange(k)}
-          className={cn("flex min-h-14 flex-col justify-center rounded-xl px-3 py-2 text-left transition", value === k ? "bg-white text-ink" : "bg-white/[.06] text-white hover:bg-white/[.12]")}
+          className={cn("flex min-h-14 flex-col justify-center rounded-[var(--r-ctl)] px-3 py-2 text-left transition", FOCUS, value === k ? SELECTED : "bg-sunken text-ink hover:bg-cream")}
         >
           <span
             className="truncate text-[17px] leading-tight"
@@ -346,7 +347,7 @@ function FontList({ value, sample, onChange }: { value: FontKey; sample: string;
           >
             {sample.slice(0, 18)}
           </span>
-          <span className={cn("mt-0.5 truncate text-[11px]", value === k ? "text-ink/60" : "text-white/45")}>{fontFaces[k].name ?? k}</span>
+          <span className={cn("mt-0.5 truncate text-[11px]", value === k ? "text-wine/80" : "text-muted")}>{fontFaces[k].name ?? k}</span>
         </button>
       ))}
     </div>
@@ -376,14 +377,14 @@ export function ShapeTools({ t, onAdd }: { t: T; onAdd: (s: ShapeId) => void }) 
             onClick={() => onAdd(id)}
             aria-label={t.shapes.names[id]}
             title={t.shapes.names[id]}
-            className="flex aspect-square flex-col items-center justify-center gap-1 rounded-xl bg-white/[.06] text-white/90 transition hover:bg-white/[.12] active:scale-95"
+            className={cn("flex aspect-square flex-col items-center justify-center gap-1 rounded-[var(--r-ctl)] bg-sunken text-ink transition hover:bg-cream active:scale-95", FOCUS)}
           >
             <ShapeIcon id={id} className="size-7" />
-            <span className="max-w-full truncate px-1 text-[10px] text-white/55 max-sm:hidden">{t.shapes.names[id]}</span>
+            <span className="max-w-full truncate px-1 text-[10px] text-muted max-sm:hidden">{t.shapes.names[id]}</span>
           </button>
         ))}
       </div>
-      <p className="text-[13px] text-white/55">{t.shapes.hint}</p>
+      <p className="text-[13px] text-muted">{t.shapes.hint}</p>
     </div>
   );
 }
@@ -493,7 +494,7 @@ export function DrawTools({ t, style, onStyle }: { t: T; style: DrawStyle; onSty
             onChange={(width) => onStyle({ ...style, width })}
           />
         </div>
-        <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-white/[.06]" aria-hidden>
+        <span className="flex size-12 shrink-0 items-center justify-center rounded-[var(--r-ctl)] bg-sunken" aria-hidden>
           <span
             className="rounded-full"
             style={{
@@ -505,7 +506,7 @@ export function DrawTools({ t, style, onStyle }: { t: T; style: DrawStyle; onSty
           />
         </span>
       </div>
-      <p className="text-[13px] text-white/55">{t.draw.hint}</p>
+      <p className="text-[13px] text-muted">{t.draw.hint}</p>
     </div>
   );
 }
@@ -598,8 +599,9 @@ export function CropPanel({ doc, set, iw, ih, t }: { doc: PhotoEdit; set: SetDoc
               aria-checked={g.aspect === a}
               onClick={() => set((d) => cropForAspect(d, a, iw, ih), "aspect")}
               className={cn(
-                "flex h-10 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-[13px] transition",
-                g.aspect === a ? "bg-white font-medium text-ink" : "bg-white/[.07] text-white/80 hover:bg-white/15",
+                "flex h-10 shrink-0 items-center gap-1.5 rounded-[var(--r-ctl)] px-3.5 text-[13px] transition",
+                FOCUS,
+                g.aspect === a ? cn(SELECTED, "font-medium") : "bg-sunken text-ink-soft hover:bg-cream",
               )}
             >
               {/^\d+:\d+$/.test(a) ? <AspectGlyph a={a} /> : null}
@@ -637,17 +639,17 @@ export function CropPanel({ doc, set, iw, ih, t }: { doc: PhotoEdit; set: SetDoc
         <button
           type="button"
           onClick={() => set(resetGeometry)}
-          className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-white/[.06] text-[13px] text-white/80 hover:bg-white/[.12]"
+          className={cn("flex h-11 w-full items-center justify-center gap-2 rounded-[var(--r-ctl)] border border-line bg-white text-[13px] text-ink-soft hover:border-line-strong hover:bg-sunken", FOCUS)}
         >
           <RotateCcw className="size-4" /> {t.crop.reset}
         </button>
       ) : null}
       {long < 1200 ? (
-        <p className="flex gap-2 rounded-xl bg-[#FFD43B]/10 p-3 text-[13px] leading-snug text-[#FFE08A]">
+        <p className="flex gap-2 rounded-[var(--r-ctl)] bg-warning-bg p-3 text-[13px] leading-snug text-warning">
           <TriangleAlert className="mt-0.5 size-4 shrink-0" /> {t.crop.small(long)}
         </p>
       ) : null}
-      <p className="text-[13px] text-white/55">{t.crop.hint}</p>
+      <p className="text-[13px] text-muted">{t.crop.hint}</p>
     </div>
   );
 }
@@ -700,28 +702,29 @@ export function AdjustPanel({ doc, set, t, onAuto }: { doc: PhotoEdit; set: SetD
           aria-pressed={!!doc.levels}
           onClick={onAuto}
           className={cn(
-            "flex h-12 w-full items-center justify-center gap-2 rounded-xl text-[15px] font-medium transition active:scale-[0.99]",
-            doc.levels ? "bg-white text-ink" : "bg-white/[.08] text-white hover:bg-white/15",
+            "flex h-12 w-full items-center justify-center gap-2 rounded-[var(--r-ctl)] text-[15px] font-medium transition active:scale-[0.99]",
+            FOCUS,
+            doc.levels ? SELECTED : "border border-line-strong bg-white text-ink hover:bg-sunken",
           )}
         >
           <WandSparkles className="size-5" /> {t.adjust.auto}
         </button>
-        <p className="mt-2 text-[12px] leading-snug text-white/50">{t.adjust.autoHint}</p>
+        <p className="mt-2 text-xs leading-snug text-muted">{t.adjust.autoHint}</p>
       </div>
       {/* Телефон: ряд кружков и один ползунок (как в «Фото» на iPhone); широкий экран — все ползунки. */}
       <div className="lg:hidden">
         <div role="radiogroup" aria-label={t.tools.adjust} className="no-scrollbar -mx-4 flex gap-1 overflow-x-auto px-4 pb-2">
           {ADJUST_KEYS.map((k) => (
-            <button key={k} type="button" role="radio" aria-checked={active === k} onClick={() => setActive(k)} className="flex w-[68px] shrink-0 flex-col items-center gap-1">
+            <button key={k} type="button" role="radio" aria-checked={active === k} onClick={() => setActive(k)} className={cn("flex w-[68px] shrink-0 flex-col items-center gap-1 rounded-[var(--r-ctl)]", FOCUS)}>
               <span
                 className={cn(
                   "flex size-11 items-center justify-center rounded-full text-[12px] tabular-nums ring-1 transition",
-                  active === k ? "bg-white text-ink ring-white" : value(k) ? "text-[#e9b8bf] ring-[#e9b8bf]/70" : "text-white/70 ring-white/20",
+                  active === k ? "bg-wine text-white ring-wine" : value(k) ? "bg-rose text-wine ring-wine" : "text-muted ring-line-strong",
                 )}
               >
                 {value(k) ? Math.round(value(k)) : "·"}
               </span>
-              <span className={cn("max-w-full truncate text-[11px]", active === k ? "text-white" : "text-white/55")}>{t.adjust.names[k]}</span>
+              <span className={cn("max-w-full truncate text-[11px]", active === k ? "font-medium text-ink" : "text-muted")}>{t.adjust.names[k]}</span>
             </button>
           ))}
         </div>
@@ -732,7 +735,7 @@ export function AdjustPanel({ doc, set, t, onAuto }: { doc: PhotoEdit; set: SetD
         <button
           type="button"
           onClick={() => set((d) => ({ ...d, adjust: {}, levels: null }))}
-          className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-white/[.06] text-[13px] text-white/80 hover:bg-white/[.12]"
+          className={cn("flex h-11 w-full items-center justify-center gap-2 rounded-[var(--r-ctl)] border border-line bg-white text-[13px] text-ink-soft hover:border-line-strong hover:bg-sunken", FOCUS)}
         >
           <RotateCcw className="size-4" /> {t.adjust.resetAll}
         </button>
@@ -746,7 +749,7 @@ export function AdjustPanel({ doc, set, t, onAuto }: { doc: PhotoEdit; set: SetD
 export function FiltersPanel({ doc, set, t, thumbs }: { doc: PhotoEdit; set: SetDoc; t: T; thumbs: Partial<Record<FilterId, string>> }) {
   return (
     <div className="space-y-4">
-      <div role="radiogroup" aria-label={t.tools.filters} className="no-scrollbar -mx-4 flex gap-2.5 overflow-x-auto px-4 pb-1 lg:mx-0 lg:grid lg:grid-cols-3 lg:overflow-visible lg:px-0">
+      <div role="radiogroup" aria-label={t.tools.filters} className="no-scrollbar -mx-4 flex gap-2.5 overflow-x-auto px-4 py-1 lg:mx-0 lg:grid lg:grid-cols-3 lg:overflow-visible lg:px-0">
         {FILTER_IDS.map((id) => (
           <button
             key={id}
@@ -765,15 +768,15 @@ export function FiltersPanel({ doc, set, t, thumbs }: { doc: PhotoEdit; set: Set
                 "filter",
               )
             }
-            className="flex w-[76px] shrink-0 flex-col items-center gap-1.5 lg:w-auto"
+            className={cn("flex w-[76px] shrink-0 flex-col items-center gap-1.5 rounded-[var(--r-ctl)] lg:w-auto", FOCUS)}
           >
-            <span className={cn("block aspect-square w-full overflow-hidden rounded-xl bg-white/10 ring-2 transition", doc.filter.id === id ? "ring-white" : "ring-transparent")}>
+            <span className={cn("block aspect-square w-full overflow-hidden rounded-[var(--r-ctl)] bg-sunken ring-2 transition", doc.filter.id === id ? "ring-wine" : "ring-transparent")}>
               {thumbs[id] ? (
                 // eslint-disable-next-line @next/next/no-img-element -- миниатюра из холста
                 <img src={thumbs[id]} alt="" className="h-full w-full object-cover" />
               ) : null}
             </span>
-            <span className={cn("max-w-full truncate text-[12px]", doc.filter.id === id ? "font-medium text-white" : "text-white/60")}>{t.filters.names[id]}</span>
+            <span className={cn("max-w-full truncate text-xs", doc.filter.id === id ? "font-medium text-wine" : "text-muted")}>{t.filters.names[id]}</span>
           </button>
         ))}
       </div>

@@ -231,8 +231,6 @@ export function Stage({
     if (compare) {
       // «До»: исходный снимок целиком, по центру рамки.
       const k = Math.min(W / iw, H / ih);
-      ctx.fillStyle = "#141110";
-      ctx.fillRect(0, 0, W, H);
       ctx.drawImage(img, (W - iw * k) / 2, (H - ih * k) / 2, iw * k, ih * k);
       return;
     }
@@ -471,10 +469,11 @@ export function Stage({
   const sel = layer && !cropping && !compare && tool !== "draw" ? selection(layer, dw, dh, unit) : null;
 
   return (
-    <div ref={box} className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden select-none">
+    // Всё, что рисуется поверх снимка (рамки, ручки, направляющие), всегда белое — в тёмной теме токен «белый» стал бы тёмным.
+    <div ref={box} className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden select-none [--color-white:#fff]">
       {ready ? (
         <div className="relative" style={{ width: dw, height: dh }}>
-          <canvas ref={canvas} className="block shadow-[0_10px_40px_-10px_rgb(0_0_0/0.8)]" style={{ width: dw, height: dh }} />
+          <canvas ref={canvas} className="block ring-1 ring-ink/15" style={{ width: dw, height: dh }} />
           {cropping ? (
             <CropBox doc={doc} geo={{ w: geo.width, h: geo.height }} dw={dw} dh={dh} history={history} />
           ) : (
@@ -486,8 +485,8 @@ export function Stage({
               onPointerCancel={onUp}
             >
               {guides.edges ? <div className="pointer-events-none absolute border border-dashed border-white/35" style={{ inset: EDGE * unit }} /> : null}
-              {guides.v ? <div className="pointer-events-none absolute inset-y-0 left-1/2 w-px bg-[#e9b8bf]" /> : null}
-              {guides.h ? <div className="pointer-events-none absolute inset-x-0 top-1/2 h-px bg-[#e9b8bf]" /> : null}
+              {guides.v ? <div className="pointer-events-none absolute inset-y-0 left-1/2 w-px bg-white mix-blend-difference" /> : null}
+              {guides.h ? <div className="pointer-events-none absolute inset-x-0 top-1/2 h-px bg-white mix-blend-difference" /> : null}
               {live && live.length >= 2 ? <LiveStroke pts={live} unit={unit} style={drawStyle} dw={dw} dh={dh} /> : null}
             </div>
           )}
@@ -520,7 +519,7 @@ export function Stage({
                       c === "nw" || c === "se" ? "cursor-nwse-resize" : "cursor-nesw-resize",
                     )}
                   >
-                    <span className="size-3.5 rounded-full border-2 border-[#7a1f2b] bg-white shadow" />
+                    <span className="size-3.5 rounded-full border-2 border-wine bg-white" />
                   </span>
                 ))}
                 <span
@@ -533,7 +532,7 @@ export function Stage({
                   onPointerCancel={endHandle}
                   className="pointer-events-auto absolute -bottom-[54px] left-1/2 flex size-11 -translate-x-1/2 cursor-grab touch-none items-center justify-center active:cursor-grabbing"
                 >
-                  <span className="flex size-7 items-center justify-center rounded-full bg-white text-[#7a1f2b] shadow">
+                  <span className="flex size-7 items-center justify-center rounded-full bg-white text-wine ring-1 ring-black/20">
                     <RotateCw className="size-3.5" />
                   </span>
                 </span>
@@ -552,7 +551,7 @@ export function Stage({
               ) : null}
               {!guides.edges ? (
                 <div
-                  className="absolute z-10 flex -translate-x-1/2 gap-0.5 rounded-full bg-[#1e1a17]/95 p-1 shadow-lg ring-1 ring-white/10"
+                  className="absolute z-10 flex -translate-x-1/2 gap-0.5 rounded-[var(--r-ctl)] bg-spine/90 p-1"
                   style={{
                     left: clamp(sel.cx, 70, dw - 70),
                     top: sel.top > 56 ? sel.top - 52 : Math.min(dh - 48, sel.bottom + 62),
@@ -560,7 +559,7 @@ export function Stage({
                 >
                   {layer.type === "text" ? <MiniButton label={labels.editText} onClick={() => onEditText(layer.id)} icon={<Type className="size-4" />} /> : null}
                   <MiniButton label={labels.duplicate} onClick={() => duplicate(layer)} icon={<Copy className="size-4" />} />
-                  <MiniButton label={labels.delete} onClick={() => remove(layer)} icon={<Trash2 className="size-4" />} danger />
+                  <MiniButton label={labels.delete} onClick={() => remove(layer)} icon={<Trash2 className="size-4" />} />
                 </div>
               ) : null}
             </>
@@ -571,7 +570,7 @@ export function Stage({
   );
 }
 
-function MiniButton({ label, onClick, icon, danger }: { label: string; onClick: () => void; icon: React.ReactNode; danger?: boolean }) {
+function MiniButton({ label, onClick, icon }: { label: string; onClick: () => void; icon: React.ReactNode }) {
   return (
     <button
       type="button"
@@ -579,7 +578,7 @@ function MiniButton({ label, onClick, icon, danger }: { label: string; onClick: 
       title={label}
       onPointerDown={(e) => e.stopPropagation()}
       onClick={onClick}
-      className={cn("flex size-10 items-center justify-center rounded-full transition", danger ? "text-[#ff8f8f] hover:bg-[#E5484D]/20" : "text-white hover:bg-white/15")}
+      className={cn("flex size-10 items-center justify-center rounded-[calc(var(--r-ctl)-2px)] text-white transition focus-visible:outline-2 focus-visible:outline-white", "hover:bg-white/15")}
     >
       {icon}
     </button>

@@ -5,6 +5,7 @@ import { ArrowDown, ArrowUp, FileText, Images, LoaderCircle, Trash2, Upload, Vid
 import type { BotMaterial, MaterialLang } from "@/modules/messaging/domain/botMaterials";
 import { deleteBotMaterialAction, saveBotMaterialsAction } from "./actions";
 import { cn } from "@/lib/class-names";
+import { Section } from "../ui";
 
 const LANGS: [MaterialLang, string][] = [
   ["any", "всем"],
@@ -74,16 +75,16 @@ export function BotMaterials({ initial }: { initial: BotMaterial[] }) {
   const count = (k: BotMaterial["kind"]) => items.filter((m) => m.on && m.kind === k).length;
 
   return (
-    <section className="space-y-3 rounded-[10px] border border-line p-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="flex items-center gap-2 text-sm font-semibold">
-          <Images className="size-4" /> Материалы для клиента
-        </h3>
-        <span className="text-xs text-muted">
-          {count("image")} фото · {count("video")} видео · {count("document")} PDF
-        </span>
-      </div>
-      <p className="text-xs text-muted">
+    <Section
+      id="bot-materials"
+      defaultOpen={false}
+      title="Материалы для клиента"
+      description="Подборка, которую бот присылает один раз: фото, видео, пример книги"
+      status={{ tone: items.some((m) => m.on) ? "ok" : "off", label: `${count("image")} фото, ${count("video")} видео, ${count("document")} PDF` }}
+      badge={<Images className="size-4 text-muted" aria-hidden />}
+    >
+      <div className="space-y-3">
+      <p className="max-w-[40rem] text-xs text-muted">
         Как делает менеджер: когда понятно, для кого книга и к какой дате, или клиент спрашивает «как это выглядит / сколько стоит», бот один раз присылает подборку — короткая подводка, фото
         альбомом, видео, пример книги на языке клиента, потом срок, цена и вопрос. Если менеджер уже присылал файлы в этом чате, бот их не повторяет. Подпись видит клиент; «что на файле» — только
         бот, чтобы понимать, что он отправил.
@@ -110,13 +111,13 @@ export function BotMaterials({ initial }: { initial: BotMaterial[] }) {
                   <span className="shrink-0">{size(m.size)}</span>
                 </div>
                 <div className="grid gap-1.5 sm:grid-cols-2">
-                  <input value={m.caption} onChange={(e) => patch(m.id, { caption: e.target.value })} maxLength={300} placeholder={m.kind === "image" ? "Подпись (у фото обычно не нужна)" : "Подпись для клиента"} className="input h-8 text-sm" aria-label="Подпись" />
-                  <input value={m.about} onChange={(e) => patch(m.id, { about: e.target.value })} maxLength={200} placeholder="Что на файле — для бота" className="input h-8 text-sm" aria-label="Что на файле" />
+                  <input value={m.caption} onChange={(e) => patch(m.id, { caption: e.target.value })} maxLength={300} placeholder={m.kind === "image" ? "Подпись (у фото обычно не нужна)" : "Подпись для клиента"} className="input" aria-label="Подпись" />
+                  <input value={m.about} onChange={(e) => patch(m.id, { about: e.target.value })} maxLength={200} placeholder="Что на файле — для бота" className="input" aria-label="Что на файле" />
                 </div>
                 <div className="flex flex-wrap items-center gap-3 text-xs">
                   <label className="flex items-center gap-1.5">
                     Кому:
-                    <select value={m.lang} onChange={(e) => patch(m.id, { lang: e.target.value as MaterialLang })} className="input h-7 py-0 text-xs">
+                    <select value={m.lang} onChange={(e) => patch(m.id, { lang: e.target.value as MaterialLang })} className="input">
                       {LANGS.map(([v, l]) => (
                         <option key={v} value={v}>
                           {l}
@@ -165,11 +166,12 @@ export function BotMaterials({ initial }: { initial: BotMaterial[] }) {
         </button>
         <span className="text-xs text-muted">фото до 5 МБ, видео до 16 МБ, PDF до 30 МБ</span>
         {dirty ? (
-          <button type="button" className="btn btn-primary btn-sm ml-auto" disabled={pending} onClick={save}>
+          <button type="button" className="btn btn-dark btn-sm ml-auto" disabled={pending} onClick={save}>
             {pending ? <LoaderCircle className="size-4 animate-spin" /> : null} Сохранить подборку
           </button>
         ) : null}
       </div>
-    </section>
+      </div>
+    </Section>
   );
 }

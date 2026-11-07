@@ -50,7 +50,7 @@ export function InvoiceDialog({ issueKey, dealId = null, conversationId = null, 
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/30 p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="invoice-title">
-      <div className="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-[20px] bg-white p-5 text-sm shadow-lift" data-testid="invoice-dialog">
+      <div className="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-[var(--r-sheet)] bg-white p-5 text-sm shadow-lift" data-testid="invoice-dialog">
         <div className="mb-3 flex items-center justify-between gap-3">
           <h2 id="invoice-title" className="text-base font-semibold">
             Счёт на оплату{state.kind === "form" && state.info.dealNumber ? ` · сделка №${state.info.dealNumber}` : ""}
@@ -64,7 +64,7 @@ export function InvoiceDialog({ issueKey, dealId = null, conversationId = null, 
             <LoaderCircle className="size-4 animate-spin" /> Загружаем договорённость и способы оплаты…
           </p>
         ) : state.kind === "error" ? (
-          <p className="rounded-[10px] bg-danger-bg p-3 text-danger">{state.message}</p>
+          <p className="rounded-[var(--r-ctl)] bg-danger-bg p-3 text-danger">{state.message}</p>
         ) : (
           <InvoiceForm info={state.info} issueKey={issueKey} conversationId={conversationId} onClose={onClose} />
         )}
@@ -100,7 +100,7 @@ export function InvoiceForm({ info, issueKey, conversationId = null, onClose }: 
   if (info.hasOrder)
     return (
       <div className="space-y-3" data-testid="invoice-has-order">
-        <p className="rounded-[10px] bg-success-bg p-3 text-success">По сделке уже оформлен заказ — счёт не нужен: оплата и остаток идут в заказе.</p>
+        <p className="rounded-[var(--r-ctl)] bg-success-bg p-3 text-success">По сделке уже оформлен заказ — счёт не нужен: оплата и остаток идут в заказе.</p>
         {info.orderId ? (
           <Link href={`/admin/orders/${info.orderId}`} className="btn btn-dark btn-sm inline-flex">
             Открыть заказ
@@ -108,7 +108,7 @@ export function InvoiceForm({ info, issueKey, conversationId = null, onClose }: 
         ) : null}
       </div>
     );
-  if (info.closed) return <p className="rounded-[10px] bg-warning-bg p-3 text-warning">Сделка закрыта — верните её в работу, чтобы выставить счёт.</p>;
+  if (info.closed) return <p className="rounded-[var(--r-ctl)] bg-warning-bg p-3 text-warning">Сделка закрыта — верните её в работу, чтобы выставить счёт.</p>;
   if (result) return <IssuedResult result={result} onClose={onClose} />;
 
   const agreedNum = Number(agreed);
@@ -156,7 +156,7 @@ export function InvoiceForm({ info, issueKey, conversationId = null, onClose }: 
   return (
     <div className="space-y-3" data-testid="invoice-form">
       {noMethods ? (
-        <p className="flex items-start gap-2 rounded-[10px] bg-danger-bg p-3 text-danger" role="alert">
+        <p className="flex items-start gap-2 rounded-[var(--r-ctl)] bg-danger-bg p-3 text-danger" role="alert">
           <TriangleAlert className="mt-0.5 size-4 shrink-0" />
           <span>
             {noMethodsText}.{" "}
@@ -167,13 +167,13 @@ export function InvoiceForm({ info, issueKey, conversationId = null, onClose }: 
         </p>
       ) : null}
       {info.kaspiWarning ? (
-        <p className="flex items-start gap-2 rounded-[10px] bg-warning-bg p-3 text-warning" role="status" data-testid="invoice-kaspi-warning">
+        <p className="flex items-start gap-2 rounded-[var(--r-ctl)] bg-warning-bg p-3 text-warning" role="status" data-testid="invoice-kaspi-warning">
           <TriangleAlert className="mt-0.5 size-4 shrink-0" />
           <span>{info.kaspiWarning}</span>
         </p>
       ) : null}
       {info.open ? (
-        <p className="rounded-[10px] bg-warning-bg p-3 text-warning" data-testid="invoice-open-warning">
+        <p className="rounded-[var(--r-ctl)] bg-warning-bg p-3 text-warning" data-testid="invoice-open-warning">
           Открыт счёт {info.open.label} на {formatPrice(info.open.amount)} — новый счёт его заменит: прежняя ссылка перестанет работать.
         </p>
       ) : null}
@@ -182,7 +182,7 @@ export function InvoiceForm({ info, issueKey, conversationId = null, onClose }: 
         <label className="block">
           <span className="mb-1 block text-[11px] text-muted">Тариф договорённости</span>
           <select
-            className="input h-10 w-full text-sm"
+            className="input w-full text-sm"
             value={plan}
             onChange={(e) => {
               setPlan(e.target.value);
@@ -203,7 +203,7 @@ export function InvoiceForm({ info, issueKey, conversationId = null, onClose }: 
         <label className="block">
           <span className="mb-1 block text-[11px] text-muted">{countNum > 1 ? "Цена одной книги по договорённости, ₸" : "Цена книги по договорённости, ₸"}</span>
           <input
-            className="input h-10 w-full"
+            className="input w-full"
             type="number"
             min={1}
             step={100}
@@ -235,11 +235,11 @@ export function InvoiceForm({ info, issueKey, conversationId = null, onClose }: 
       ) : null}
       <label className="block">
         <span className="mb-1 block text-[11px] text-muted">Сколько книг оплачивает счёт</span>
-        <input className="input h-10 w-32" type="number" min={1} max={20} step={1} value={info.batchSize ?? count} disabled={!!info.batchSize} onChange={(e) => setCount(e.target.value)} aria-label="Количество книг" />
+        <input className="input w-32" type="number" min={1} max={20} step={1} value={info.batchSize ?? count} disabled={!!info.batchSize} onChange={(e) => setCount(e.target.value)} aria-label="Количество книг" />
         <span className="mt-1 block text-[11px] text-muted">{info.batchSize ? `Сделка уже пакет из ${info.batchSize} книг — счёт на весь пакет.` : countNum > 1 ? `Сумма договорённости: ${countNum} × ${formatPrice(agreedNum || 0)} = ${formatPrice(totalNum)}. Для остальных книг создадим отдельные сделки — клиент оформит их по очереди.` : "Одна книга. Если клиент платит сразу за несколько — укажите количество."}</span>
       </label>
       {discount ? (
-        <p className="rounded-[10px] bg-danger-bg p-2.5 text-xs text-danger" data-testid="invoice-discount">
+        <p className="rounded-[var(--r-ctl)] bg-danger-bg p-2.5 text-xs text-danger" data-testid="invoice-discount">
           {discount}
         </p>
       ) : info.maxDiscountPercent !== null ? (
@@ -254,17 +254,17 @@ export function InvoiceForm({ info, issueKey, conversationId = null, onClose }: 
         {options.prepayment ? amountChoice("prepayment", "Предоплата 50%", formatPrice(options.prepayment)) : null}
         {amountChoice("remainder", info.paid > 0 ? "Остаток" : "Полная оплата", options.left > 0 ? formatPrice(options.left) : null, options.left <= 0)}
         {amountChoice("custom", "Своя сумма", null, options.left <= 0)}
-        {kind === "custom" ? <input className="input h-10 w-full" type="number" min={1} max={options.left || undefined} step={100} value={custom} onChange={(e) => setCustom(e.target.value)} placeholder={`От 1 до ${formatPrice(options.left)}`} aria-label="Своя сумма" /> : null}
+        {kind === "custom" ? <input className="input w-full" type="number" min={1} max={options.left || undefined} step={100} value={custom} onChange={(e) => setCustom(e.target.value)} placeholder={`От 1 до ${formatPrice(options.left)}`} aria-label="Своя сумма" /> : null}
       </fieldset>
 
       <div className="grid grid-cols-2 gap-2">
         <label className="block">
           <span className="mb-1 block text-[11px] text-muted">Имя клиента</span>
-          <input className="input h-10 w-full" value={name} maxLength={100} onChange={(e) => setName(e.target.value)} aria-label="Имя клиента" />
+          <input className="input w-full" value={name} maxLength={100} onChange={(e) => setName(e.target.value)} aria-label="Имя клиента" />
         </label>
         <label className="block">
           <span className="mb-1 block text-[11px] text-muted">Откуда пришёл клиент</span>
-          <select className="input h-10 w-full text-sm" value={channel} onChange={(e) => setChannel(e.target.value)} aria-label="Откуда пришёл клиент">
+          <select className="input w-full text-sm" value={channel} onChange={(e) => setChannel(e.target.value)} aria-label="Откуда пришёл клиент">
             <option value="" disabled>
               выберите
             </option>
@@ -301,7 +301,7 @@ export function InvoiceForm({ info, issueKey, conversationId = null, onClose }: 
       {preview ? (
         <div>
           <div className="mb-1 text-[11px] text-muted">Клиент получит</div>
-          <pre className="rounded-[10px] bg-sunken p-3 font-sans text-xs whitespace-pre-wrap" data-testid="invoice-preview">
+          <pre className="rounded-[var(--r-ctl)] bg-sunken p-3 font-sans text-xs whitespace-pre-wrap" data-testid="invoice-preview">
             {preview}
           </pre>
         </div>

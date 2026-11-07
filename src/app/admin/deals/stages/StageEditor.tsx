@@ -16,7 +16,7 @@ const kindLabel = { open: "в работе", won: "успех", lost: "отка�
 function MilestoneSelect({ value, kind }: { value: string | null; kind: "open" | "won" | "lost" }) {
   if (kind === "lost") return <input type="hidden" name="milestone" value="" />;
   return (
-    <select name="milestone" defaultValue={value ?? ""} className="input h-9 w-full text-sm sm:w-48" aria-label="Переводить сюда автоматически" title="Когда клиент сделает это на сайте, сделка сама перейдёт на этот этап (только вперёд)">
+    <select name="milestone" defaultValue={value ?? ""} className="input w-full sm:w-48" aria-label="Переводить сюда автоматически" title="Когда клиент сделает это на сайте, сделка сама перейдёт на этот этап (только вперёд)">
       <option value="">вручную</option>
       {Object.entries(stageMilestones).map(([k, v]) => (
         <option key={k} value={k}>
@@ -38,7 +38,7 @@ function Save({ children, dark }: { children: React.ReactNode; dark?: boolean })
   );
 }
 
-const swatch = "size-9 shrink-0 cursor-pointer rounded-lg border border-line-strong bg-white p-1 max-lg:size-11";
+const swatch = "size-9 shrink-0 cursor-pointer rounded-[var(--r-ctl)] border border-line-strong bg-white p-1 max-lg:size-11";
 
 export function StageRow({ stage, deals, canUp, canDown }: { stage: { id: string; name: string; color: string; kind: "open" | "won" | "lost"; milestone: string | null }; deals: number; canUp: boolean; canDown: boolean }) {
   const [state, action] = useActionState<DealFormState, FormData>(saveStageAction, {});
@@ -55,7 +55,7 @@ export function StageRow({ stage, deals, canUp, canDown }: { stage: { id: string
     <form action={action} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 sm:px-5">
       <input type="hidden" name="id" value={stage.id} />
       <input type="color" name="color" defaultValue={stage.color} className={swatch} aria-label="Цвет этапа" />
-      <input name="name" defaultValue={stage.name} maxLength={40} required aria-label="Название этапа" className="input h-9 min-w-0 flex-1 basis-40 text-sm max-lg:h-11" />
+      <input name="name" defaultValue={stage.name} maxLength={40} required aria-label="Название этапа" className="input min-w-0 flex-1 basis-40" />
       <span className="flex shrink-0 items-center gap-2">
         <Badge tone={stage.kind === "won" ? "success" : stage.kind === "lost" ? "danger" : "neutral"}>{kindLabel[stage.kind]}</Badge>
         <span className="text-xs whitespace-nowrap text-muted tabular-nums" title="Сделок на этапе">
@@ -94,7 +94,7 @@ export function NewStage({ pipelineId }: { pipelineId: string }) {
     <form action={action} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 sm:px-5" aria-label="Новый этап">
       <input type="hidden" name="pipelineId" value={pipelineId} />
       <input type="color" name="color" defaultValue="#c08a5b" className={swatch} aria-label="Цвет этапа" />
-      <input name="name" maxLength={40} required placeholder="Новый этап, например «Ждём фото»" aria-label="Название нового этапа" className="input h-9 min-w-0 flex-1 basis-48 text-sm max-lg:h-11" />
+      <input name="name" maxLength={40} required placeholder="Новый этап, например «Ждём фото»" aria-label="Название нового этапа" className="input min-w-0 flex-1 basis-48" />
       <MilestoneSelect value={null} kind="open" />
       <Save dark>
         <Plus className="size-4" aria-hidden /> Добавить этап
@@ -119,7 +119,7 @@ export function NewPipeline() {
     );
   return (
     <form action={action} className="flex flex-wrap items-center gap-2">
-      <input name="name" autoFocus required maxLength={40} placeholder="Например, «Корпоративные»" aria-label="Название воронки" className="input h-9 w-56 text-sm" />
+      <input name="name" autoFocus required maxLength={40} placeholder="Например, «Корпоративные»" aria-label="Название воронки" className="input w-56" />
       <Save dark>Создать</Save>
       <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOpen(false)}>
         Отмена
@@ -143,7 +143,7 @@ export function PipelineHeader({ id, name, isDefault }: { id: string; name: stri
     });
   return (
     <div className="flex w-full flex-wrap items-center gap-2">
-      <input value={value} onChange={(e) => setValue(e.target.value)} maxLength={40} className="input h-9 w-56 max-w-full font-semibold" aria-label="Название воронки" />
+      <input value={value} onChange={(e) => setValue(e.target.value)} maxLength={40} className="input w-56 max-w-full font-semibold" aria-label="Название воронки" />
       <button type="button" className="btn btn-outline btn-sm" disabled={pending || value.trim() === name || value.trim().length < 2} onClick={() => run(() => renamePipelineAction(id, value))}>
         Переименовать
       </button>

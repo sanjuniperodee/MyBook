@@ -249,13 +249,15 @@ export function SampleBook() {
   const underLeft = flip === "prev" ? L - 2 : L;
   const underRight = flip === "next" ? L + 3 : L + 1;
 
+  // Кнопки стоят на тёмной «сцене» (bg-spine): светлый текст не зависит от темы витрины.
+  const navBtn = "flex size-12 items-center justify-center rounded-(--r-ctl) border border-white/25 text-white transition-colors hover:bg-white/10 disabled:pointer-events-none disabled:opacity-30";
   const nav = (disabledPrev: boolean, disabledNext: boolean, onPrev: () => void, onNext: () => void, label: string) => (
     <div className="mt-6 flex items-center justify-center gap-4">
-      <button type="button" onClick={onPrev} disabled={disabledPrev} className="flex size-11 items-center justify-center rounded-full border border-white/20 text-paper transition hover:bg-white/10 disabled:opacity-30" aria-label={s.prev}>
+      <button type="button" onClick={onPrev} disabled={disabledPrev} className={navBtn} aria-label={s.prev}>
         <ChevronLeft className="size-5" />
       </button>
-      <span className="min-w-24 text-center text-sm text-paper/60 tabular-nums">{label}</span>
-      <button type="button" onClick={onNext} disabled={disabledNext} className="flex size-11 items-center justify-center rounded-full border border-white/20 text-paper transition hover:bg-white/10 disabled:opacity-30" aria-label={s.next}>
+      <span className="min-w-24 text-center text-sm text-white/70 tabular-nums">{label}</span>
+      <button type="button" onClick={onNext} disabled={disabledNext} className={navBtn} aria-label={s.next}>
         <ChevronRight className="size-5" />
       </button>
     </div>
@@ -266,7 +268,7 @@ export function SampleBook() {
       {/* Развороты — от md */}
       <div className="hidden md:block">
         <div className="relative mx-auto aspect-[296/210] w-full [perspective:2400px]">
-          <div className="absolute inset-0 grid grid-cols-2 overflow-hidden rounded-[3px] shadow-[0_40px_80px_-30px_rgba(0,0,0,.75)]">
+          <div className="absolute inset-0 grid grid-cols-2 overflow-hidden rounded-[3px] shadow-[0_50px_100px_-40px_rgba(0,0,0,.85)]">
             <button type="button" className="relative cursor-w-resize" onClick={() => go("prev")} aria-label={s.back} disabled={spread === 0}>
               <Page pages={pages} index={underLeft} side="left" />
             </button>

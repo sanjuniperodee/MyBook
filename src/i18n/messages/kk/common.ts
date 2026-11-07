@@ -43,6 +43,8 @@ export const common: Messages["common"] = {
     profileMenu: "Профиль мәзірі",
     invite: "Досты шақыру",
     noName: "Аты көрсетілмеген",
+    account: "Аккаунт",
+    sections: "Кабинет бөлімдері",
   },
   widget: {
     open: "Бізбен байланысу",

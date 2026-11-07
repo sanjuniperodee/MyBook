@@ -211,7 +211,7 @@ export function FileUpload({ bookId, onUploaded }: { bookId: string; onUploaded:
         }}
       />
       {phase.kind === "uploading" ? (
-        <div className="space-y-2 rounded-2xl bg-white p-3 ring-1 ring-line" role="status">
+        <div className="space-y-2 rounded-[12px] bg-white p-3 ring-1 ring-line" role="status">
           <div className="flex items-center gap-2 text-sm">
             <LoaderCircle className="size-4 shrink-0 animate-spin text-wine" />
             <span className="min-w-0 flex-1 truncate">{phase.retrying ? t.retrying : t.progress(phase.pct)}</span>
@@ -260,7 +260,7 @@ export function FileUpload({ bookId, onUploaded }: { bookId: string; onUploaded:
           <div className="text-sm font-medium">{t.more}</div>
           <ul className="space-y-2">
             {info.packs.map((p) => (
-              <li key={p.id} className={cn("flex items-center gap-3 rounded-2xl bg-white p-3 ring-1", p.featured ? "ring-wine/40" : "ring-line")}>
+              <li key={p.id} className={cn("flex items-center gap-3 rounded-[12px] bg-white p-3 ring-1", p.featured ? "ring-wine/40" : "ring-line")}>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 text-sm font-medium">
                     {t.packMinutes(p.minutes)}
@@ -304,13 +304,13 @@ function PayDialog({ purchase, onClose, onPaid }: { purchase: Purchase; onClose:
   }, [onClose]);
   return createPortal(
     <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/40 sm:items-center sm:p-4" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-white p-5 shadow-2xl sm:rounded-3xl sm:p-6" role="dialog" aria-modal="true" aria-label={t.payTitle(p.minutes)} data-testid="answer-file-pay">
+      <div className="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-[20px] bg-white p-5 shadow-lift sm:rounded-[20px] sm:p-6" role="dialog" aria-modal="true" aria-label={t.payTitle(p.minutes)} data-testid="answer-file-pay">
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold">{t.payTitle(p.minutes)}</h2>
             <p className="mt-0.5 text-2xl font-semibold">{formatPrice(p.amount)}</p>
           </div>
-          <button type="button" onClick={onClose} aria-label={t.close} className="flex size-9 items-center justify-center rounded-full hover:bg-ink/5">
+          <button type="button" onClick={onClose} aria-label={t.close} className="flex size-11 items-center justify-center rounded-[10px] hover:bg-ink/5 sm:size-9">
             <X className="size-4" />
           </button>
         </div>

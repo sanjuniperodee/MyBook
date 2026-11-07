@@ -240,7 +240,7 @@ function ChapterNavView({ groups, kind, current, onPick, photos, actions, busy, 
                 ) : (
                   <button
                     onClick={() => setOpen(expanded && !filtering ? undefined : g.key)}
-                    className={cn("flex min-w-0 flex-1 items-center gap-2 rounded-xl px-2 py-2 text-left text-sm transition hover:bg-ink/5", g.key === currentKey && "font-medium")}
+                    className={cn("flex min-w-0 flex-1 items-center gap-2 rounded-[10px] px-2 py-2 text-left text-sm transition hover:bg-ink/5 max-lg:min-h-12", g.key === currentKey && "bg-sunken font-medium")}
                   >
                     <span
                       className={cn(
@@ -253,6 +253,11 @@ function ChapterNavView({ groups, kind, current, onPick, photos, actions, busy, 
                     <span className="min-w-0 flex-1">
                       <span className={cn("block truncate", !g.title.trim() && blank && "text-muted italic")}>{title}</span>
                       {empty ? <span className="block truncate text-[11px] font-normal text-muted">{nav.notInBook}</span> : null}
+                      {!empty && g.items.length ? (
+                        <span className="mt-1 block h-[3px] overflow-hidden rounded-[2px] bg-line" aria-hidden>
+                          <span className="block h-full bg-wine/80 transition-[width] duration-300" style={{ width: `${Math.round((answered / g.items.length) * 100)}%` }} />
+                        </span>
+                      ) : null}
                     </span>
                     {thumb ? (
                       // eslint-disable-next-line @next/next/no-img-element -- миниатюра фото главы
@@ -340,7 +345,7 @@ function ChapterNavView({ groups, kind, current, onPick, photos, actions, busy, 
                         <button
                           data-current={here}
                           onClick={() => onPick(q.id)}
-                          className={cn("flex w-full items-start gap-2 rounded-lg px-2 py-1.5 text-left text-[13px] leading-snug transition max-sm:py-2.5", here ? "bg-wine/8 text-wine" : "text-ink-soft hover:bg-ink/5")}
+                          className={cn("flex w-full items-start gap-2 rounded-lg px-2 py-1.5 text-left text-[13px] leading-snug transition max-lg:py-2.5", here ? "bg-rose font-medium text-wine" : "text-ink-soft hover:bg-ink/5")}
                         >
                           <span className={cn("mt-1.5 size-1.5 shrink-0 rounded-full", q.answer.trim() ? "bg-success" : "bg-line")} />
                           <span className="line-clamp-2">{sectionLabel(q, kind, untitled)}</span>

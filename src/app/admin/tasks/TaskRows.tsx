@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useOptimistic, useState, useTransition } from "react";
-import { ArrowUpRight, Bot, ChevronDown, LoaderCircle, MessageCircle, MessagesSquare, Phone, PhoneOutgoing, Trash2 } from "lucide-react";
+import { ArrowUpRight, Bot, CalendarClock, ChevronDown, ListChecks, LoaderCircle, MessageCircle, MessagesSquare, Phone, PhoneOutgoing, Trash2 } from "lucide-react";
 import { ask, toast, toastError } from "@/components/ui/overlays";
 import { deleteTaskAction, snoozeTaskAction, toggleTaskAction, updateTaskAction } from "@/app/admin/actions";
 import { CompleteTask } from "@/components/admin/CompleteTask";
@@ -48,37 +48,36 @@ const reminders = [
   ["1440", "За день"],
 ] as const;
 
-/** Тип задачи — значком-селектом: статусные пары токенов, тёмная тема без правок. */
-const kindTone: Record<TaskRow["kind"], string> = {
-  task: "bg-sunken text-ink-soft",
-  call: "bg-success-bg text-success",
-  message: "bg-info-bg text-info",
-  meeting: "bg-warning-bg text-warning",
-};
+/** Тип задачи значком: подпись — для экранного диктора и подсказка. */
+const kindIcon = { task: ListChecks, call: Phone, message: MessageCircle, meeting: CalendarClock } as const;
 
 /**
- * Строки задач на странице «Задачи» и в «Моём дне»: всё правится на месте — выполнено, тип, заголовок, срок («+1 ч»,
- * «Завтра» или поле), ответственный; в «Подробнее» — напоминание, результат и удаление. Изменение сохраняется сразу,
- * ошибка — под строкой. compact — для телефона («Мой день»): срок подписью, без поля срока и выбора ответственного.
- * contact — у звонка «Позвонить» (через АТС, если можно, иначе tel:), у «Написать» — WhatsApp (wa.me) и «Открыть чат».
+ * Очередь задач (страница «Задачи», карточка задачи, «Мой день»): строка — галочка, название, связанная запись, срок,
+ * ответственный. Срок и ответственный правятся прямо в строке (на телефоне — в «Подробнее»), «+1 ч» и «Завтра» — по
+ * наведению; в «Подробнее» — тип, напоминание, итог, быстрый срок и удаление. Изменение сохраняется сразу, ошибка — под
+ * строкой. compact — для телефона («Мой день»): срок подписью, без поля срока и выбора ответственного. expanded —
+ * «Подробнее» раскрыто сразу (карточка задачи). contact — у звонка «Позвонить» (через АТС, если можно, иначе tel:), у
+ * «Написать» — WhatsApp (wa.me) и «Открыть чат».
  */
-export function TaskRows({ tasks, staff, canAssign, compact = false }: { tasks: TaskRow[]; staff: { id: string; label: string }[]; canAssign: boolean; compact?: boolean }) {
+export function TaskRows({ tasks, staff, canAssign, compact = false, expanded = false }: { tasks: TaskRow[]; staff: { id: string; label: string }[]; canAssign: boolean; compact?: boolean; expanded?: boolean }) {
   return (
     <ul className="divide-y divide-line">
       {tasks.map((t) => (
-        <Row key={t.id} task={t} staff={staff} canAssign={canAssign} compact={compact} />
+        <Row key={t.id} task={t} staff={staff} canAssign={canAssign} compact={compact} expanded={expanded} />
       ))}
     </ul>
   );
 }
 
-function Row({ task, staff, canAssign, compact }: { task: TaskRow; staff: { id: string; label: string }[]; canAssign: boolean; compact: boolean }) {
+function Row({ task, staff, canAssign, compact, expanded }: { task: TaskRow; staff: { id: string; label: string }[]; canAssign: boolean; compact: boolean; expanded: boolean }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(expanded);
   const [editing, setEditing] = useState(false);
   const [t, patchLocal] = useOptimistic(task, (cur: TaskRow, p: Partial<TaskRow>) => ({ ...cur, ...p }));
   const ro = !t.editable;
+  const Kind = kindIcon[t.kind];
+  const assignee = staff.find((s) => s.id === t.assigneeId)?.label ?? (t.assigneeId ? null : "Ничья");
 
   const save = (local: Partial<TaskRow>, patch: Parameters<typeof updateTaskAction>[1]) =>
     start(async () => {
@@ -113,30 +112,30 @@ function Row({ task, staff, canAssign, compact }: { task: TaskRow; staff: { id: 
       setError(res.error ?? null);
     });
 
-  const quick = "btn btn-ghost btn-sm h-8 px-2.5 text-xs max-lg:h-11 max-lg:px-3 max-lg:text-sm";
-  const icon = "flex size-8 items-center justify-center rounded-lg text-muted transition-colors hover:bg-sunken hover:text-ink max-lg:size-11";
+  const quick = "btn btn-ghost btn-sm px-2 text-xs max-lg:h-11 max-lg:px-3 max-lg:text-sm";
+  const icon = "flex size-8 items-center justify-center rounded-[var(--r-ctl)] text-muted transition-colors hover:bg-sunken hover:text-ink max-lg:size-11";
+  // На телефоне год в сроке лишний: «до 5 ноября в 12:00».
+  const shortDue = t.dueLabel?.replace(/ \d{4} г\./, "") ?? null;
+  const dueText = shortDue ? (t.overdue && !t.done ? `просрочена · ${shortDue}` : shortDue) : null;
+  const contextLink = t.context ? (
+    <Link href={t.context.href} className="text-wine hover:underline">
+      {t.context.label}
+    </Link>
+  ) : null;
+  // Поля срока и ответственного: на компьютере — столбцами строки, на телефоне — в «Подробнее».
+  const fieldHidden = !open && "@max-3xl:hidden";
   return (
-    <li className={cn("py-3 text-sm max-lg:text-[15px]", t.done && "opacity-80")}>
-      <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
+    <li className={cn("@container group/row text-sm", t.done && "opacity-80")}>
+      <div className={cn("grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-2 px-4 py-2.5 sm:px-5 max-lg:text-[15px]", !compact && "@3xl:grid-cols-[auto_minmax(0,1fr)_minmax(0,12rem)_10.75rem_9rem_auto] @3xl:items-center")}>
         {/* Сам флажок ~20 px — нажимается вся область 44 px вокруг него. */}
-        <label className="-m-2.5 flex size-11 shrink-0 cursor-pointer items-center justify-center lg:-m-3">
+        <label className="-m-2.5 flex size-11 shrink-0 cursor-pointer items-center justify-center @max-3xl:col-start-1 @max-3xl:row-start-1 @3xl:-m-2">
           <input type="checkbox" className="size-5 accent-wine" checked={t.done} disabled={ro} onChange={toggle} aria-label="Выполнено" />
         </label>
-        <div className="min-w-0 flex-1 basis-60">
+
+        <div className="min-w-0 @max-3xl:col-start-2 @max-3xl:row-start-1">
           <div className="flex items-start gap-2">
-            <select
-              value={t.kind}
-              disabled={ro}
-              onChange={(e) => save({ kind: e.target.value as TaskRow["kind"] }, { kind: e.target.value })}
-              className={cn("fs-keep mt-px shrink-0 cursor-pointer appearance-none rounded-md! px-1.5 py-0.5 text-xs font-medium disabled:cursor-default max-lg:min-h-0! max-lg:text-[13px]", kindTone[t.kind])}
-              aria-label="Тип задачи"
-            >
-              {Object.entries(taskKinds).map(([k, v]) => (
-                <option key={k} value={k}>
-                  {v}
-                </option>
-              ))}
-            </select>
+            <Kind className="mt-[3px] size-4 shrink-0 text-muted" strokeWidth={1.8} aria-hidden />
+            <span className="sr-only">{taskKinds[t.kind]}:</span>
             {editing ? (
               <input
                 autoFocus
@@ -160,24 +159,26 @@ function Row({ task, staff, canAssign, compact }: { task: TaskRow; staff: { id: 
               </button>
             )}
           </div>
-          <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted">
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 pl-6 text-xs text-muted">
             {t.fromBot ? (
               <span className="badge">
                 <Bot className="size-3" aria-hidden /> от бота
               </span>
             ) : null}
-            {t.context ? (
-              <Link href={t.context.href} className="text-wine hover:underline">
-                {t.context.label}
-              </Link>
-            ) : null}
-            {compact && t.dueLabel && !t.done ? <span className={cn("tabular-nums", t.overdue && "font-medium text-danger")}>{t.overdue ? `просрочена · ${t.dueLabel}` : t.dueLabel}</span> : null}
+            {contextLink ? <span className={cn(!compact && "@3xl:hidden")}>{contextLink}</span> : null}
+            {dueText && !t.done ? <span className={cn("tabular-nums", t.overdue && "font-medium text-danger", !compact && "@3xl:hidden")}>{dueText}</span> : null}
+            {assignee && !compact ? <span className="@3xl:hidden">{assignee}</span> : null}
             {t.done && t.doneLabel ? <span>выполнена {t.doneLabel}</span> : null}
             {t.result && !open ? <span className="max-w-full truncate">Итог: {t.result}</span> : null}
             {pending ? <LoaderCircle className="size-3 animate-spin" aria-label="Сохраняем" /> : null}
           </div>
-          {compact ? null : (
-            <div className="mt-2 flex flex-wrap items-center gap-2">
+          {!t.done && t.contact ? <Reach kind={t.kind} contact={t.contact} /> : null}
+        </div>
+
+        {compact ? null : (
+          <>
+            <div className="min-w-0 truncate text-[13px] @max-3xl:hidden">{contextLink ?? <span className="text-muted">—</span>}</div>
+            <div className={cn("@max-3xl:col-span-2 @max-3xl:col-start-2", fieldHidden)}>
               <input
                 type="datetime-local"
                 value={due}
@@ -185,15 +186,17 @@ function Row({ task, staff, canAssign, compact }: { task: TaskRow; staff: { id: 
                 // На iPhone колесо даты шлёт изменение на каждый поворот — сохраняем, когда поле отпустили (tasks-3).
                 onChange={(e) => setDue(e.target.value)}
                 onBlur={() => due !== t.due && save({ due, overdue: false }, { dueAt: due })}
-                className={cn("input h-8 w-[11.5rem] px-2.5 text-xs tabular-nums max-lg:h-11 max-lg:min-w-44 max-lg:flex-1", t.overdue && !t.done && "border-danger/60 text-danger")}
+                className={cn("input h-8 px-2 text-xs tabular-nums max-lg:h-11 @3xl:border-transparent @3xl:bg-transparent @3xl:hover:border-line-strong @3xl:hover:bg-white", t.overdue && !t.done && "border-danger/60 text-danger")}
                 aria-label="Срок"
                 title={t.dueLabel ?? "Без срока"}
               />
+            </div>
+            <div className={cn("@max-3xl:col-span-2 @max-3xl:col-start-2", fieldHidden)}>
               <select
                 value={t.assigneeId ?? ""}
                 disabled={ro || !canAssign}
                 onChange={(e) => e.target.value && save({ assigneeId: e.target.value }, { assigneeId: e.target.value })}
-                className="input h-8 w-44 px-2.5 text-xs max-lg:h-11 max-lg:min-w-36 max-lg:flex-1"
+                className="input h-8 px-2 text-xs max-lg:h-11 @3xl:border-transparent @3xl:bg-transparent @3xl:hover:border-line-strong @3xl:hover:bg-white @3xl:disabled:bg-transparent @3xl:disabled:text-ink-soft"
                 aria-label="Ответственный"
                 title={canAssign ? "Ответственный" : "Передать задачу может руководитель"}
               >
@@ -205,18 +208,19 @@ function Row({ task, staff, canAssign, compact }: { task: TaskRow; staff: { id: 
                 ))}
               </select>
             </div>
-          )}
-        </div>
-        <div className="flex items-center gap-1 max-lg:ml-8">
+          </>
+        )}
+
+        <div className="flex items-center gap-0.5 @max-3xl:col-start-3 @max-3xl:row-start-1 @max-3xl:-mr-2">
           {!ro && !t.done ? (
-            <>
+            <span className="flex items-center gap-0.5 @max-3xl:hidden @3xl:opacity-0 @3xl:transition-opacity @3xl:group-focus-within/row:opacity-100 @3xl:group-hover/row:opacity-100 [@media(hover:none)]:opacity-100">
               <button type="button" className={quick} disabled={pending} onClick={() => snooze("hour")} title="Отложить на час">
                 +1 ч
               </button>
               <button type="button" className={quick} disabled={pending} onClick={() => snooze("tomorrow")} title="На завтра, в то же время">
                 Завтра
               </button>
-            </>
+            </span>
           ) : null}
           <Link href={`/admin/tasks/${t.id}`} className={icon} aria-label="Открыть карточку задачи" title="Карточка задачи: сделка, клиент, заказ, записи">
             <ArrowUpRight className="size-4" aria-hidden />
@@ -226,9 +230,31 @@ function Row({ task, staff, canAssign, compact }: { task: TaskRow; staff: { id: 
           </button>
         </div>
       </div>
-      {!t.done && t.contact ? <Reach kind={t.kind} contact={t.contact} /> : null}
+
+      {/* «+1 ч» и «Завтра» на узкой строке — отдельной строкой под названием (пальцем проще, чем по значкам); в очереди — в «Подробнее», чтобы строки оставались плотными. */}
+      {!ro && !t.done && (compact || open) ? (
+        <div className="flex gap-2 px-4 pb-3 pl-[3.25rem] sm:px-5 sm:pl-[3.5rem] @3xl:hidden">
+          <button type="button" className="btn btn-outline btn-sm max-lg:h-10" disabled={pending} onClick={() => snooze("hour")} title="Отложить на час">
+            +1 ч
+          </button>
+          <button type="button" className="btn btn-outline btn-sm max-lg:h-10" disabled={pending} onClick={() => snooze("tomorrow")} title="На завтра, в то же время">
+            Завтра
+          </button>
+        </div>
+      ) : null}
+
       {open ? (
-        <div className="mt-3 ml-8 grid gap-3 rounded-[10px] border border-line bg-sunken/50 p-3 sm:grid-cols-[12rem_minmax(0,1fr)] sm:p-4">
+        <div className="grid gap-3 border-t border-line bg-sunken/50 px-4 py-3 pl-[3.25rem] sm:grid-cols-[10rem_12rem_minmax(0,1fr)] sm:px-5 sm:pl-[3.5rem]">
+          <label className="block">
+            <span className="label text-xs">Тип</span>
+            <select value={t.kind} disabled={ro} onChange={(e) => save({ kind: e.target.value as TaskRow["kind"] }, { kind: e.target.value })} className="input h-9 text-sm" aria-label="Тип задачи">
+              {Object.entries(taskKinds).map(([k, v]) => (
+                <option key={k} value={k}>
+                  {v}
+                </option>
+              ))}
+            </select>
+          </label>
           <label className="block">
             <span className="label text-xs">Напомнить</span>
             <select
@@ -245,12 +271,12 @@ function Row({ task, staff, canAssign, compact }: { task: TaskRow; staff: { id: 
               ))}
             </select>
           </label>
-          <label className="block">
+          <label className="block sm:row-span-2">
             <span className="label text-xs">Итог: что сделали, о чём договорились</span>
             <textarea
               defaultValue={t.result}
               disabled={ro}
-              rows={2}
+              rows={3}
               maxLength={1000}
               className="input text-sm"
               onBlur={(e) => e.target.value.trim() !== t.result && save({ result: e.target.value.trim() }, { result: e.target.value })}
@@ -269,7 +295,7 @@ function Row({ task, staff, canAssign, compact }: { task: TaskRow; staff: { id: 
             </div>
           )}
           {!ro ? (
-            <div className="flex flex-wrap items-center gap-2 border-t border-line pt-3 sm:col-span-2">
+            <div className="flex flex-wrap items-center gap-2 border-t border-line pt-3 sm:col-span-3">
               {t.due ? (
                 <button type="button" className="btn btn-outline btn-sm" onClick={() => save({ due: "", dueLabel: null, overdue: false }, { dueAt: "" })}>
                   Убрать срок
@@ -294,11 +320,15 @@ function Row({ task, staff, canAssign, compact }: { task: TaskRow; staff: { id: 
         </div>
       ) : null}
       {error ? (
-        <p className="mt-1.5 ml-8 text-xs font-medium text-danger" role="alert">
+        <p className="px-4 pb-2 pl-[3.25rem] text-xs font-medium text-danger sm:px-5 sm:pl-[3.5rem]" role="alert">
           {error}
         </p>
       ) : null}
-      {completing ? <CompleteTask taskId={t.id} kind={t.kind} onClose={() => setCompleting(false)} /> : null}
+      {completing ? (
+        <div className="px-4 pb-3 pl-[3.25rem] sm:px-5 sm:pl-[3.5rem]">
+          <CompleteTask taskId={t.id} kind={t.kind} onClose={() => setCompleting(false)} />
+        </div>
+      ) : null}
     </li>
   );
 }
@@ -313,7 +343,7 @@ function Reach({ kind, contact }: { kind: TaskRow["kind"]; contact: NonNullable<
   const [calling, startCall] = useTransition();
   const [opening, startChat] = useTransition();
   const router = useRouter();
-  const link = "btn btn-outline btn-sm h-8 px-2.5 text-xs max-lg:h-11 max-lg:px-3.5 max-lg:text-sm";
+  const link = "btn btn-outline btn-sm px-2.5 text-xs max-lg:h-11 max-lg:px-3.5 max-lg:text-sm";
   const buttons: React.ReactNode[] = [];
   if (kind === "call") {
     if (contact.pbx)
@@ -374,5 +404,5 @@ function Reach({ kind, contact }: { kind: TaskRow["kind"]; contact: NonNullable<
         </button>,
       );
   }
-  return buttons.length ? <div className="mt-2 ml-8 flex flex-wrap gap-2" data-testid="task-reach">{buttons}</div> : null;
+  return buttons.length ? <div className="mt-1.5 flex flex-wrap gap-2 pl-6" data-testid="task-reach">{buttons}</div> : null;
 }

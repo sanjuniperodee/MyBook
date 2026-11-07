@@ -1,6 +1,7 @@
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
+import { PhotoPanel, type PhotoPanelProps } from "@/app/(app)/books/[id]/photos/PhotoPanel";
 import { PhotosManager } from "@/app/(app)/books/[id]/photos/PhotosManager";
 import {
   BANNER_MIN,
@@ -8,8 +9,10 @@ import {
   cropFrameOf,
   deleteDialogOf,
   filterCounts,
+  groupByPlace,
   lossOf,
   matchesFilter,
+  placeTotals,
   visibleFilters,
   wideBleedIds,
   type PhotosTabData,
@@ -157,6 +160,7 @@ describe("вкладка «Фото» целиком", () => {
     losses,
     ...over,
   });
+  const raw = (d: PhotosTabData, filter: Parameters<typeof PhotosManager>[0]["initialFilter"] = "all") => html(createElement(PhotosManager, { data: d, initialFilter: filter }));
   const render = (d: PhotosTabData, messages: typeof ru | typeof kk = ru, filter: Parameters<typeof PhotosManager>[0]["initialFilter"] = "all") => text(html(createElement(PhotosManager, { data: d, initialFilter: filter }), messages));
 
   it("объяснение, правило с названием альбома, фильтры со счётом, совет на два фото и места под фото", () => {
@@ -167,20 +171,25 @@ describe("вкладка «Фото» целиком", () => {
     expect(t).toContain(`${ru.books.photosTab.filters.crop} 2`);
     expect(t).toContain(ru.books.photosTab.banner(2));
     expect(t).toContain(ru.books.photosTab.bannerYes);
-    expect(t.match(new RegExp(ru.books.photosTab.placeBtn, "g"))?.length).toBeGreaterThanOrEqual(photos.length);
+    // У каждого фото — плитка с подписью места, которая открывает его настройки.
+    expect(raw(data()).match(/data-help="photo:/g)?.length).toBe(photos.length);
+    expect(raw(data()).match(/Открыть настройки/g)?.length).toBe(photos.length);
     expect(t).toContain("Фото главы «Детство»");
     expect(t).toContain(ru.editor.photoPlace.withAuto(ru.editor.photoPlace.album));
     expect(t).toContain(ru.books.photosTab.lossChip(50));
-    expect(t).toContain(ru.books.photos.inAnswerNote);
+    // Итоги над галереей и правило книги справа, пока ни одно фото не выбрано.
+    expect(t).toContain(ru.books.photosTab.summary.placed);
+    expect(t).toContain(ru.books.photosTab.views.chapters);
   });
 
   it("одно широкое фото — метка у фото, без общего совета; фильтр из ссылки показывает только фото с обрезкой", () => {
     const one = data({ losses: { wide1: 0.5 } });
     expect(render(one)).not.toContain(ru.books.photosTab.bannerYes);
-    expect(render(one)).toContain(ru.books.photosTab.showWhole);
+    expect(render(one)).toContain(ru.books.photosTab.lossChip(50));
+    // Фильтр из ссылки: в галерее остаются только фото с обрезкой.
     const crop = render(one, ru, "crop");
     expect(crop).toContain(ru.books.photosTab.lossChip(50));
-    expect(crop).not.toContain(ru.books.photos.inAnswerNote);
+    expect(raw(one, "crop").match(/data-help="photo:/g)?.length).toBe(1);
   });
 
   it("нет глав с текстом — правило «после глав» говорит, что фото соберутся в альбом; по-казахски", () => {
@@ -191,10 +200,120 @@ describe("вкладка «Фото» целиком", () => {
     expect(k).toContain(kk.books.photosTab.banner(2));
   });
 
+  it("фото ещё нет — зона загрузки с одной главной кнопкой, без итогов и галереи; для чтения — без кнопки", () => {
+    const empty = data({ photos: [], places: [], losses: {} });
+    const t = render(empty);
+    expect(t).toContain(ru.books.photos.empty);
+    expect(t).toContain(ru.books.photos.emptyText);
+    expect(t).toContain(ru.books.photos.choose);
+    expect(t).not.toContain(ru.books.photosTab.summary.placed);
+    expect(raw(empty)).not.toContain(`>${ru.books.photos.add}<`);
+    expect(render(data({ photos: [], places: [], book: { ...data().book, editable: false } }))).not.toContain(ru.books.photos.choose);
+  });
+
   it("книга только для чтения — без совета, удаления и «Показать целиком»", () => {
     const t = render(data({ book: { ...data().book, editable: false } }));
     expect(t).not.toContain(ru.books.photosTab.bannerYes);
     expect(t).not.toContain(ru.books.photosTab.showWhole);
     expect(html(createElement(PhotosManager, { data: data({ book: { ...data().book, editable: false } }), initialFilter: "all" }))).not.toContain(`aria-label="${ru.books.photos.delete}"`);
+  });
+});
+
+describe("настройки одного фото (PhotoPanel)", () => {
+  const names = { chapter: (k: string) => (k === "a" ? "Детство" : "Юность"), question: () => "Первый день" };
+  const panel = (id: string, over: Partial<PhotoPanelProps> = {}, messages: typeof ru | typeof kk = ru) =>
+    text(
+      html(
+        createElement(PhotoPanel, {
+          variant: "sheet",
+          photo: photos.find((p) => p.id === id)!,
+          index: 0,
+          place: places.get(id),
+          names,
+          blank: false,
+          openerDesign: true,
+          loss: lossById(id),
+          lowRes: null,
+          canCrop: false,
+          editable: true,
+          ruleName: ru.books.photosTab.rule.chapters.title,
+          onClose: () => {},
+          onPlace: () => {},
+          onRules: () => {},
+          onDelete: () => {},
+          onLayout: () => {},
+          onCaption: () => {},
+          onCrop: () => {},
+          onShowWhole: () => {},
+          onRotate: async () => {},
+          ...over,
+        } as PhotoPanelProps),
+        messages,
+      ),
+    );
+
+  it("фото в ответе — подсказка, что вид меняется во вкладке «Текст», и ни подписи, ни вида на странице", () => {
+    const t = panel("answer");
+    expect(t).toContain(ru.books.photos.inAnswerNote);
+    expect(t).not.toContain(ru.books.photos.layouts.bleed.label);
+    expect(panel("answer", { blank: true })).toContain(ru.books.photosTab.inAnswerNoteBlank);
+  });
+
+  it("фото после главы: подпись и четыре вида на странице; у «До краёв» подписи нет, у широкого — «Показать целиком»", () => {
+    const t = panel("auto");
+    expect(t).toContain(ru.books.photos.layouts.grid.label);
+    expect(t).toContain(ru.books.photos.layouts.full.hint);
+    expect(t).toContain(ru.books.photosTab.panel.autoNote(ru.books.photosTab.rule.chapters.title));
+    const wide = panel("wide1", { loss: 0.5 });
+    expect(wide).toContain(ru.books.photos.noCaptionBleed);
+    expect(wide).toContain(ru.books.photosTab.lossChip(50));
+    expect(wide).toContain(ru.books.photosTab.showWhole);
+  });
+
+  it("не печатается — объяснение; книга только для чтения — без удаления, поворота и редактора", () => {
+    expect(panel("off")).toContain(ru.books.photosTab.panel.offNote);
+    const ro = html(createElement(PhotoPanel, { variant: "sheet", photo: photos[0], index: 0, place: places.get("answer"), names, blank: false, openerDesign: true, loss: 0, lowRes: null, canCrop: true, editable: false, ruleName: "", onClose() {}, onPlace() {}, onRules() {}, onDelete() {}, onLayout() {}, onCaption() {}, onCrop() {}, onShowWhole() {}, onRotate: async () => {}, onEditPhoto() {} }));
+    expect(ro).not.toContain(ru.books.photos.delete);
+    expect(ro).not.toContain(ru.books.photosTab.panel.rotate);
+    expect(ro).not.toContain(ru.editor.photoEditor.open);
+  });
+
+  it("по-казахски; справа — лист с заголовком и кнопкой закрытия, в шторке заголовок у самой шторки", () => {
+    expect(panel("auto", {}, kk)).toContain(kk.books.photosTab.panel.autoNote(ru.books.photosTab.rule.chapters.title));
+    const aside = html(createElement(PhotoPanel, { variant: "aside", photo: photos[0], index: 2, place: places.get("answer"), names, blank: false, openerDesign: true, loss: 0, lowRes: null, canCrop: false, editable: true, ruleName: "", onClose() {}, onPlace() {}, onRules() {}, onDelete() {}, onLayout() {}, onCaption() {}, onCrop() {}, onShowWhole() {}, onRotate: async () => {} }));
+    expect(aside).toContain(ru.books.photosTab.panel.title(3));
+    expect(aside).toContain(`aria-label="${ru.books.photosTab.panel.close}"`);
+  });
+});
+
+describe("итоги и вид «По главам»", () => {
+  it("итоги: выбрал автор, встали сами (правило книги), не печатаются — и снимок обложки, и выбор автора", () => {
+    expect(placeTotals(photos, places)).toEqual({ total: 7, placed: 3, auto: 2, off: 2 });
+    expect(placeTotals([], places)).toEqual({ total: 0, placed: 0, auto: 0, off: 0 });
+  });
+
+  it("группы: главы по порядку книги (фото главы, ответы и после главы вместе), потом альбом и «не печатаются»; пустые пропускаются", () => {
+    const groups = groupByPlace(photos, places, ["a", "b", "c"]);
+    expect(groups.map((g) => [g.id, g.photos.map((p) => p.id)])).toEqual([
+      ["chapter:a", ["answer", "opener", "auto"]],
+      ["chapter:b", ["wide1"]],
+      ["album", ["wide2"]],
+      ["off", ["cover", "off"]],
+    ]);
+  });
+
+  it("фото, ждущее главу без текста, стоит в этой главе; глава вне порядка — после известных; без места — «не печатаются»", () => {
+    const p = new Map<string, PhotoPlace>([
+      ["w", place("album", { auto: true, waitingFor: "c" })],
+      ["x", place("after", { chapterKey: "z" })],
+      ["y", place("after", { chapterKey: "a" })],
+    ]);
+    const g = groupByPlace([photo("w"), photo("x"), photo("y"), photo("none")], p, ["a", "c"]);
+    expect(g.map((x) => [x.id, x.photos.map((q) => q.id)])).toEqual([
+      ["chapter:a", ["y"]],
+      ["chapter:c", ["w"]],
+      ["chapter:z", ["x"]],
+      ["off", ["none"]],
+    ]);
   });
 });

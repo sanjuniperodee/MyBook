@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
-import { ToolHeader } from "../ToolHeader";
 import { Link } from "@/i18n/client";
 import { requireUser } from "@/server/auth";
 import { getAccessibleBook } from "@/server/books";
-import { CoverPreview } from "@/components/cover/CoverPreview";
 import { PreviewTabs } from "./PreviewTabs";
 import { getMessages } from "@/i18n/server";
 import { container } from "@/server/container";
@@ -23,43 +21,22 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
   // Переплёт 3D-книги — из того же содержимого, что PDF (название по умолчанию, имена, фото обложки и оборота);
   // страницы книга берёт из экранной сборки.
   const bundle = await container().authoring.queries.bundle(book.id);
-  const allPhotos = bundle?.photos ?? [];
-  const flipbook = flipbookData(book, questions, bundle?.chapters ?? [], allPhotos, bundle?.letters ?? []);
-  const names = flipbook.cover.names;
-  const photos = flipbook.cover.photos;
+  const flipbook = flipbookData(book, questions, bundle?.chapters ?? [], bundle?.photos ?? [], bundle?.letters ?? []);
+  const orderHref = book.status === "draft" ? `/books/${book.id}/checkout` : null;
   return (
-    <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
-      <ToolHeader
-        title={t.title}
-        description={m.books.tools.preview}
-        actions={
-          book.status === "draft" ? (
-            <Link href={`/books/${book.id}/checkout`} className="btn btn-primary max-sm:w-full">
-              {t.order}
-            </Link>
-          ) : null
-        }
-      />
-      <div className="grid gap-8 lg:grid-cols-[220px_minmax(0,1fr)]">
-        <div className="hidden lg:block">
-          <div className="sticky top-24">
-            <CoverPreview
-              template={book.coverTemplate}
-              format={book.format}
-              title={book.title}
-              subtitle={book.subtitle}
-              names={names}
-              photos={photos}
-              design={book.coverDesign}
-              className="rounded-[3px] shadow-book"
-            />
-            <Link href={`/books/${book.id}/cover`} className="mt-3 block text-center text-sm text-wine hover:underline">
-              {t.changeCover}
-            </Link>
-          </div>
+    <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+      <header className="mb-5 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+        <div className="min-w-0">
+          <h1 className="font-serif text-[30px] leading-tight font-medium sm:text-[36px]">{t.title}</h1>
+          <p className="mt-1 max-w-2xl text-[15px] leading-relaxed text-pretty text-muted">{m.books.tools.preview}</p>
         </div>
-        <PreviewTabs bookId={book.id} flipbook={flipbook} />
-      </div>
+        {orderHref ? (
+          <Link href={orderHref} className="btn btn-primary max-sm:w-full">
+            {t.order}
+          </Link>
+        ) : null}
+      </header>
+      <PreviewTabs bookId={book.id} flipbook={flipbook} orderHref={orderHref} />
     </main>
   );
 }

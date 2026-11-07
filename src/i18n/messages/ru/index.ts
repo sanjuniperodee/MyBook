@@ -18,5 +18,7 @@ import { access } from "./access";
 import { design } from "./design";
 import { help } from "./help";
 import { answerFile } from "./answer-file";
+import { secondary } from "./secondary";
+import { bookStudio } from "./book-studio";
 
-export const ru = { common, book, catalog, landing, auth, books, editor, checkout, orders, review, invite, gift, legal, mail, api, pay, access, design, help, answerFile };
+export const ru = { common, book, catalog, landing, auth, books, editor, checkout, orders, review, invite, gift, legal, mail, api, pay, access, design, help, answerFile, secondary, bookStudio };

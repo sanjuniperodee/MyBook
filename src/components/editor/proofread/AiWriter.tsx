@@ -166,23 +166,23 @@ export function AiWriter({
   return (
     <div ref={box} className="relative flex flex-wrap items-center gap-2">
       {fresh ? (
-        <span className="animate-pop flex items-center gap-1 rounded-full bg-violet-50 py-0.5 pr-1 pl-2.5 text-violet-800 ring-1 ring-violet-200">
+        <span className="animate-pop flex items-center gap-1 rounded-[8px] bg-info-bg py-0.5 pr-1 pl-2.5 text-info ring-1 ring-info/25">
           <Sparkles className="size-3.5 shrink-0" />
           <span className="max-sm:hidden">{t.applied}</span>
-          <button type="button" onMouseDown={keep} onClick={() => void undoLast()} disabled={!!busy} className="flex items-center gap-1 rounded-full px-2 py-0.5 font-medium hover:bg-violet-100">
+          <button type="button" onMouseDown={keep} onClick={() => void undoLast()} disabled={!!busy} className="flex items-center gap-1 rounded-[8px] px-2 py-0.5 font-medium hover:bg-info/10">
             <Undo2 className="size-3.5" /> {t.undo}
           </button>
-          <button type="button" onMouseDown={keep} onClick={again} disabled={!!busy} title={t.again} aria-label={t.again} className="rounded-full p-1 hover:bg-violet-100 disabled:opacity-60">
+          <button type="button" onMouseDown={keep} onClick={again} disabled={!!busy} title={t.again} aria-label={t.again} className="rounded-[8px] p-1 hover:bg-info/10 disabled:opacity-60">
             {busy ? <LoaderCircle className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
           </button>
         </span>
       ) : last && !canRedo ? (
-        <button type="button" onMouseDown={keep} onClick={() => void undoLast()} disabled={!!busy} className="flex items-center gap-1 rounded-full px-2 py-1 text-muted hover:bg-cream hover:text-ink">
+        <button type="button" onMouseDown={keep} onClick={() => void undoLast()} disabled={!!busy} className="flex items-center gap-1 rounded-[8px] px-2 py-1 text-muted hover:bg-cream hover:text-ink">
           <Undo2 className="size-3.5" /> {t.undo}
         </button>
       ) : null}
       {canRedo ? (
-        <button type="button" onMouseDown={keep} onClick={redoLast} className="flex items-center gap-1 rounded-full px-2 py-1 text-muted hover:bg-cream hover:text-ink">
+        <button type="button" onMouseDown={keep} onClick={redoLast} className="flex items-center gap-1 rounded-[8px] px-2 py-1 text-muted hover:bg-cream hover:text-ink">
           <Redo2 className="size-3.5" /> {t.redo}
         </button>
       ) : null}
@@ -195,8 +195,8 @@ export function AiWriter({
         title={t.openTitle}
         aria-expanded={open}
         className={cn(
-          "flex items-center gap-1.5 rounded-full px-3 py-1 font-medium ring-1 transition",
-          open ? "bg-violet-100 text-violet-800 ring-violet-300" : "bg-white text-violet-700 ring-violet-200 hover:bg-violet-50",
+          "flex min-h-8 items-center gap-1.5 rounded-[8px] px-3 py-1 font-medium ring-1 transition max-lg:min-h-10",
+          open ? "bg-info-bg text-info ring-info/40" : "bg-white text-info ring-info/30 hover:bg-info-bg",
         )}
       >
         {busy ? <LoaderCircle className="size-3.5 animate-spin" /> : <WandSparkles className="size-3.5" />}
@@ -209,7 +209,7 @@ export function AiWriter({
               ref={panel}
               role="dialog"
               aria-label={t.open}
-              className="animate-pop fixed z-50 rounded-2xl border border-line bg-white p-2 text-left text-xs shadow-xl"
+              className="animate-pop fixed z-50 rounded-[14px] border border-line bg-white p-2 text-left text-xs shadow-soft"
               style={place ?? { visibility: "hidden", top: 0, left: 0 }}
             >
               <p className="px-2 pt-1 pb-2 text-[11px] font-medium tracking-wide text-muted uppercase">{sel ? t.selection : t.whole}</p>
@@ -222,9 +222,9 @@ export function AiWriter({
                       type="button"
                       disabled={!!busy}
                       onClick={() => void run(m, text, sel ?? undefined)}
-                      className="flex items-start gap-2 rounded-xl px-2.5 py-2 text-left transition hover:bg-violet-50 disabled:opacity-60"
+                      className="flex items-start gap-2 rounded-[10px] px-2.5 py-2 text-left transition hover:bg-info-bg disabled:opacity-60"
                     >
-                      {busy === m ? <LoaderCircle className="mt-0.5 size-4 shrink-0 animate-spin text-violet-600" /> : <Icon className="mt-0.5 size-4 shrink-0 text-violet-600" />}
+                      {busy === m ? <LoaderCircle className="mt-0.5 size-4 shrink-0 animate-spin text-info" /> : <Icon className="mt-0.5 size-4 shrink-0 text-info" />}
                       <span className="min-w-0">
                         <span className="block text-sm font-medium text-ink">{t.modes[m].label}</span>
                         <span className="block text-xs leading-snug text-muted">{t.modes[m].hint}</span>
@@ -252,14 +252,14 @@ export function AiWriter({
                   rows={2}
                   maxLength={500}
                   placeholder={t.promptPlaceholder}
-                  className="min-w-0 flex-1 resize-none rounded-xl bg-sunken px-3 py-2 text-sm outline-none placeholder:text-muted/70 focus:ring-2 focus:ring-violet-200"
+                  className="min-w-0 flex-1 resize-none rounded-[10px] bg-sunken px-3 py-2 text-sm outline-none placeholder:text-muted/70 focus:ring-2 focus:ring-info/30"
                 />
                 <button
                   type="submit"
                   disabled={!prompt.trim() || !!busy}
                   aria-label={t.send}
                   title={t.send}
-                  className="grid size-9 shrink-0 place-items-center rounded-full bg-violet-600 text-white transition hover:bg-violet-700 disabled:opacity-40"
+                  className="grid size-9 shrink-0 place-items-center rounded-[8px] bg-info text-white transition hover:opacity-90 disabled:opacity-40"
                 >
                   {busy === "custom" ? <LoaderCircle className="size-4 animate-spin" /> : <ArrowUp className="size-4" />}
                 </button>

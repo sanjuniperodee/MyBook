@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Link } from "@/i18n/client";
 import { notFound } from "next/navigation";
-import { CalendarHeart, Gift, PenLine } from "lucide-react";
+import { CalendarHeart, Gift } from "lucide-react";
 import { LandingHeader } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
 import { Book3D } from "@/components/cover/Book3D";
@@ -10,7 +10,8 @@ import { getCurrentUser } from "@/server/auth";
 import { siteReviews } from "@/server/reviews";
 import { Reviews } from "@/components/landing/Reviews";
 import { FilmFrame, Flourish, frameGhostBtn, themePhoto } from "@/components/landing/FilmFrame";
-import { SectionHead } from "@/components/landing/SectionHead";
+import { PriceSheet } from "@/components/landing/PriceSheet";
+import { StickyStart } from "@/components/landing/StickyStart";
 import { TrustList } from "@/components/TrustList";
 import { Faq } from "@/components/Faq";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
@@ -93,7 +94,6 @@ export default async function LandingPage({ params }: { params: Promise<{ slug: 
   ];
 
   const photo = themePhoto[l.theme];
-  const plans = [...getVisiblePlans()].sort((a, b) => Number(!!b.featured) - Number(!!a.featured));
 
   return (
     <>
@@ -118,7 +118,7 @@ export default async function LandingPage({ params }: { params: Promise<{ slug: 
           <Flourish className="mt-3 text-[rgb(255_255_255/0.6)]" />
           <p className="mt-5 max-w-[34rem] text-[17px] leading-relaxed text-white/85 sm:text-lg">{c.lead}</p>
           {dl && occasion && dl.state !== "past" ? (
-            <p className="mt-6 inline-flex max-w-full items-start gap-2.5 rounded-[10px] bg-[rgb(255_255_255/0.12)] px-4 py-2.5 text-sm text-white backdrop-blur-md">
+            <p className="mt-6 inline-flex max-w-full items-start gap-2.5 rounded-(--r-ctl) bg-[rgb(255_255_255/0.12)] px-4 py-2.5 text-sm text-white backdrop-blur-md">
               <CalendarHeart className="mt-0.5 size-4 shrink-0" aria-hidden />
               <span>
                 {dl.state === "digital"
@@ -130,7 +130,7 @@ export default async function LandingPage({ params }: { params: Promise<{ slug: 
             </p>
           ) : null}
           <div className="enter mt-8 flex flex-col gap-3 sm:flex-row" style={{ "--i": 1 } as React.CSSProperties}>
-            <Link href={cta} className="btn btn-primary btn-lg">
+            <Link href={cta} data-main-cta="" className="btn btn-primary btn-lg">
               {ctaLabel(t.hero.cta)}
             </Link>
             <Link href="/gift" className={frameGhostBtn}>
@@ -140,82 +140,76 @@ export default async function LandingPage({ params }: { params: Promise<{ slug: 
           <p className="mt-5 text-sm text-white/75">{sp.priceNote(formatPrice(minPrice))}</p>
         </FilmFrame>
 
-        {/* ─── ПОЧЕМУ: три довода строкой ─── */}
-        <section className="border-b border-line py-16 sm:py-20">
-          <div className="container-x grid gap-10 md:grid-cols-3 md:gap-0 md:divide-x md:divide-line">
-            {c.why.map((w, i) => (
-              <div key={w.title} className={i === 0 ? "md:pr-10" : i === c.why.length - 1 ? "md:pl-10" : "md:px-10"}>
-                <h2 className="font-serif text-2xl leading-snug font-medium">{w.title}</h2>
-                <p className="mt-3 leading-relaxed text-ink-soft">{w.text}</p>
-              </div>
-            ))}
+        {/* ─── ПОЧЕМУ: главный довод крупно, два других — рядом, разделены линией ─── */}
+        <section className="border-b border-line py-16 sm:py-24">
+          <div className="container-x grid gap-12 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] lg:gap-20">
+            <div>
+              <h2 className="font-serif text-[32px] leading-[1.08] font-medium tracking-tight text-balance sm:text-[48px]">{c.why[0].title}</h2>
+              <p className="mt-5 max-w-xl text-lg leading-relaxed text-ink-soft sm:text-xl">{c.why[0].text}</p>
+            </div>
+            <div className="divide-y divide-line border-y border-line lg:border-y-0 lg:border-l lg:pl-14">
+              {c.why.slice(1).map((w) => (
+                <div key={w.title} className="py-7 first:pt-0 last:pb-0 max-lg:first:pt-7 max-lg:last:pb-7 lg:py-9">
+                  <h2 className="font-serif text-2xl leading-snug font-medium">{w.title}</h2>
+                  <p className="mt-3 leading-relaxed text-ink-soft">{w.text}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 
-        {/* ─── О ЧЁМ: вопросы из книги (своя книга — как устроен редактор) ─── */}
+        {/* ─── О ЧЁМ: вопросы из книги, как оглавление анкеты (своя книга — как устроен редактор) ─── */}
         <section className="py-20 sm:py-28">
-          <div className="container-x">
+          <div className="container-x grid gap-12 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.4fr)] lg:gap-20">
+            <div className="lg:sticky lg:top-28 lg:self-start">
+              <h2 className="font-serif text-[34px] leading-[1.05] font-medium tracking-tight text-balance sm:text-5xl">{blank ? sp.editor.title : sp.aboutTitle(countQuestions(theme))}</h2>
+              <p className="mt-4 max-w-sm leading-relaxed text-muted">{blank ? sp.editor.note : sp.aboutNote}</p>
+            </div>
             {blank ? (
-              <>
-                <SectionHead title={sp.editor.title} note={sp.editor.note} />
-                <ul className="mt-12 grid border-t border-line sm:grid-cols-2">
-                  {sp.editor.items.map((it) => (
-                    <li key={it.title} className="border-b border-line py-6 sm:odd:pr-10 sm:even:border-l sm:even:pl-10">
-                      <div className="flex items-center gap-2 text-sm font-medium text-wine">
-                        <PenLine className="size-4" aria-hidden /> {it.title}
-                      </div>
-                      <p className="mt-2 text-[17px] leading-relaxed text-ink-soft">{it.text}</p>
-                    </li>
-                  ))}
-                </ul>
-              </>
+              <dl className="divide-y divide-line border-y border-line">
+                {sp.editor.items.map((it) => (
+                  <div key={it.title} className="grid gap-2 py-6 sm:grid-cols-[11rem_minmax(0,1fr)] sm:gap-8">
+                    <dt className="font-serif text-2xl leading-snug font-medium text-wine">{it.title}</dt>
+                    <dd className="text-[17px] leading-relaxed text-ink-soft">{it.text}</dd>
+                  </div>
+                ))}
+              </dl>
             ) : (
-              <>
-                <SectionHead title={sp.aboutTitle(countQuestions(theme))} note={sp.aboutNote} />
-                <ul className="mt-12 grid border-t border-line sm:grid-cols-2">
-                  {samples.map((q) => (
-                    <li key={q.prompt} className="border-b border-line py-6 sm:odd:pr-10 sm:even:border-l sm:even:pl-10">
+              <ol className="divide-y divide-line border-y border-line">
+                {samples.map((q, i) => (
+                  <li key={q.prompt} className="grid grid-cols-[2.75rem_minmax(0,1fr)] gap-x-3 py-6 sm:grid-cols-[3.5rem_minmax(0,1fr)]">
+                    <span className="font-serif text-3xl leading-none text-wine italic tabular-nums">{i + 1}</span>
+                    <div>
                       <div className="text-sm text-muted">{q.chapter}</div>
-                      <p className="mt-2 font-serif text-[22px] leading-snug text-ink">{q.prompt}</p>
-                    </li>
-                  ))}
-                </ul>
-              </>
+                      <p className="mt-1.5 font-serif text-[22px] leading-snug font-medium sm:text-[26px]">{q.prompt}</p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
             )}
           </div>
         </section>
 
-        {/* ─── КАК И СКОЛЬКО ─── */}
+        {/* ─── КАК И СКОЛЬКО: путь из четырёх шагов и ведомость тарифов ─── */}
         <section className="border-t border-line bg-cream/60 py-20 sm:py-28">
-          <div className="container-x grid gap-14 lg:grid-cols-[1.1fr_1fr] lg:gap-20">
-            <div>
-              <h2 className="font-serif text-4xl leading-[1.05] font-medium tracking-tight sm:text-5xl">{sp.howTitle}</h2>
-              <ol className="mt-10 space-y-6">
-                {sp.howSteps(coverTemplates.length, blank).map((step, i) => (
-                  <li key={step} className="grid grid-cols-[2.5rem_1fr] gap-3 border-t border-line pt-5">
-                    <span className="font-serif text-3xl leading-none text-wine tabular-nums">{i + 1}</span>
-                    <span className="leading-relaxed text-ink-soft">{step}</span>
-                  </li>
-                ))}
-              </ol>
-            </div>
-            <div className="self-start lg:sticky lg:top-24">
-              <div className="divide-y divide-line overflow-hidden rounded-[14px] border border-line bg-white">
-                {plans.map((p) => (
-                  <div key={p.id} className="relative flex items-center justify-between gap-4 px-6 py-5">
-                    {p.featured ? <span aria-hidden className="absolute inset-y-0 left-0 w-1 bg-wine" /> : null}
-                    <div className="min-w-0">
-                      <div className="font-semibold">{m.common.plans[p.id].name}</div>
-                      <div className="mt-0.5 text-sm text-muted">{m.common.plans[p.id].features[0]}</div>
-                    </div>
-                    <div className="shrink-0 font-serif text-3xl tabular-nums">{formatPrice(p.price)}</div>
-                  </div>
-                ))}
+          <div className="container-x">
+            <h2 className="max-w-2xl font-serif text-[34px] leading-[1.05] font-medium tracking-tight text-balance sm:text-5xl">{sp.howTitle}</h2>
+            <ol className="mt-14 grid gap-10 sm:grid-cols-2 lg:grid-cols-4 lg:gap-8">
+              {sp.howSteps(coverTemplates.length, blank).map((step, i) => (
+                <li key={step} className="relative border-t border-line-strong pt-6">
+                  <span aria-hidden className="absolute -top-[5px] left-0 size-[9px] rounded-full bg-wine" />
+                  <span className="font-serif text-[40px] leading-none text-wine italic tabular-nums">{i + 1}</span>
+                  <p className="mt-3 leading-relaxed text-ink-soft">{step}</p>
+                </li>
+              ))}
+            </ol>
+            <div className="mt-20">
+              <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between md:gap-12">
+                <h2 className="max-w-xl font-serif text-[30px] leading-[1.1] font-medium tracking-tight text-balance sm:text-4xl">{t.pricing.title}</h2>
+                <p className="max-w-sm leading-relaxed text-muted">{t.pricing.text}</p>
               </div>
-              <Link href={cta} className="btn btn-primary btn-lg mt-5 w-full">
-                {ctaLabel(sp.create)}
-              </Link>
-              <TrustList compact className="mt-6" />
+              <PriceSheet className="mt-8" cta={cta} ctaLabel={ctaLabel(sp.create)} />
+              <TrustList className="mt-10" />
             </div>
           </div>
         </section>
@@ -223,9 +217,9 @@ export default async function LandingPage({ params }: { params: Promise<{ slug: 
         <Reviews reviews={reviews.reviews} summary={reviews.summary} t={m.review.showcase} />
 
         <section className="border-t border-line py-20 sm:py-28">
-          <div className="container-x grid gap-10 lg:grid-cols-[1fr_1.6fr] lg:gap-16">
-            <div>
-              <h2 className="font-serif text-4xl leading-[1.05] font-medium tracking-tight sm:text-5xl">{sp.faqTitle}</h2>
+          <div className="container-x grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.7fr)] lg:gap-20">
+            <div className="lg:sticky lg:top-28 lg:self-start">
+              <h2 className="font-serif text-[34px] leading-[1.05] font-medium tracking-tight sm:text-5xl">{sp.faqTitle}</h2>
               <Link href={cta} className="btn btn-primary btn-lg mt-8 max-lg:hidden">
                 {ctaLabel(t.hero.cta)}
               </Link>
@@ -235,19 +229,19 @@ export default async function LandingPage({ params }: { params: Promise<{ slug: 
         </section>
 
         <section className="border-t border-line bg-cream/50 py-14 sm:py-16">
-          <div className="container-x grid gap-12 md:grid-cols-[1.4fr_1fr]">
+          <div className="container-x grid gap-12 md:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] md:gap-16">
             <nav aria-label={sp.more}>
               <h2 className="text-sm font-semibold">{sp.more}</h2>
-              <ul className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm">
+              <ul className="mt-4 columns-1 gap-x-10 text-[15px] sm:columns-2">
                 {ideas.map((x) => (
-                  <li key={x.slug}>
-                    <Link href={`/kniga/${x.slug}`} className="text-ink-soft underline decoration-line-strong underline-offset-4 hover:text-wine hover:decoration-wine">
+                  <li key={x.slug} className="break-inside-avoid border-b border-line">
+                    <Link href={`/kniga/${x.slug}`} className="flex min-h-11 items-center text-ink-soft hover:text-wine">
                       {x.content[locale].label}
                     </Link>
                   </li>
                 ))}
-                <li>
-                  <Link href="/kniga" className="font-medium text-wine hover:underline">
+                <li className="break-inside-avoid border-b border-line">
+                  <Link href="/kniga" className="flex min-h-11 items-center font-medium text-wine hover:underline">
                     {sp.allIdeas}
                   </Link>
                 </li>
@@ -256,10 +250,10 @@ export default async function LandingPage({ params }: { params: Promise<{ slug: 
             {guides.length ? (
               <nav aria-label={m.landing.blog.moreArticles}>
                 <h2 className="text-sm font-semibold">{m.landing.blog.moreArticles}</h2>
-                <ul className="mt-4 space-y-2.5 text-sm">
+                <ul className="mt-4 divide-y divide-line border-y border-line">
                   {guides.map((x) => (
                     <li key={x.slug}>
-                      <Link href={`/blog/${x.slug}`} className="text-ink-soft hover:text-wine">
+                      <Link href={`/blog/${x.slug}`} className="flex min-h-14 items-center py-2 font-serif text-xl leading-snug font-medium text-ink-soft hover:text-wine">
                         {x.content[locale].title}
                       </Link>
                     </li>
@@ -271,6 +265,7 @@ export default async function LandingPage({ params }: { params: Promise<{ slug: 
         </section>
       </main>
       <Footer />
+      <StickyStart href={cta} label={ctaLabel(t.hero.cta)} />
     </>
   );
 }

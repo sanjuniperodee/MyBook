@@ -35,6 +35,7 @@ export default async function BoardPage() {
       printed: !!plan?.printed,
       quantity: o.quantity,
       amountLabel: formatPrice(o.amount),
+      amount: o.amount,
       desiredDate: o.desiredDate,
       daysLeft: o.desiredDate ? Math.round((new Date(`${o.desiredDate}T00:00:00`).getTime() - today.getTime()) / 86_400_000) : null,
       claimed: o.status === "pending_payment" && !!o.paymentClaimedAt,
@@ -49,11 +50,11 @@ export default async function BoardPage() {
   });
   return (
     <div className="flex flex-col gap-5">
-      <PageHeader title="Производство" actions={<OrdersViews active="board" />}>
+      <PageHeader title="Производство" actions={<OrdersViews active="board" className="lg:hidden" />}>
         <span className="max-lg:hidden">Заказы за 30 дней по статусам. Перетащите карточку в другую колонку — клиент получит письмо о смене статуса.</span>
         <span className="lg:hidden">Заказы за 30 дней по статусам.</span>
       </PageHeader>
-      <OrdersMobile cards={cards} />
+      <OrdersMobile cards={cards} me={admin.id} />
       <div className="hidden lg:block">
         <Board initial={cards} admins={staffOptions(admins)} me={admin.id} />
       </div>

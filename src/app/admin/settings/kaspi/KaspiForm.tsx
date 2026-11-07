@@ -1,11 +1,9 @@
 "use client";
 
-import { Intro } from "@/components/admin/Intro";
-import { Section } from "../ui";
 import { useState, useTransition } from "react";
 import { LoaderCircle, RefreshCw, Smartphone } from "lucide-react";
-import { CopyField } from "../ui";
-import { cn } from "@/lib/class-names";
+import { Facts } from "@/components/ui/Facts";
+import { CheckMessage, CopyField, Field, Group, Help, Note, Section, Toggle, type SheetStatus } from "../ui";
 import { confirmKaspiCodeAction, disconnectKaspiAction, kaspiStatusAction, requestKaspiCodeAction, saveKaspiAlertAfterAction, saveKaspiApiUrlAction, setKaspiEnabledAction } from "./actions";
 
 interface KaspiStatusView {
@@ -30,8 +28,16 @@ interface KaspiFormProps extends KaspiStatusView {
   alertAfterMinutes: number;
 }
 
-const badge = (s: KaspiStatusView) =>
-  !s.reachable ? { text: "сервис недоступен", tone: "badge-danger" } : s.active ? { text: "подключено", tone: "badge-success" } : s.connected ? { text: "сессия не принимается", tone: "badge-warning" } : { text: "не подключено", tone: "" };
+const statusOf = (s: KaspiStatusView): SheetStatus =>
+  !s.reachable
+    ? { tone: "bad", label: "сервис недоступен" }
+    : s.active
+      ? s.enabled
+        ? { tone: "ok", label: "подключено" }
+        : { tone: "warn", label: "кассир подключён, оплата выключена" }
+      : s.connected
+        ? { tone: "warn", label: "сессия не принимается" }
+        : { tone: "off", label: "не подключено" };
 
 /**
  * Kaspi Pay в «Интеграциях»: адрес сервиса kaspi-pos-automation, вход кассира по SMS-коду, включение оплаты и
@@ -65,140 +71,151 @@ export function KaspiForm(props: KaspiFormProps) {
       setStatus(await kaspiStatusAction());
     });
 
-  const b = badge(status);
+  const check = () =>
+    start(async () => {
+      const s = await kaspiStatusAction();
+      setStatus(s);
+      setMessage(s.reachable ? (s.active ? { ok: true, text: "Сервис отвечает, кассир подключён" } : { ok: false, text: s.connected ? "Сервис отвечает, но Kaspi не принимает сессию кассира" : "Сервис отвечает, кассир не подключён" }) : { ok: false, text: "Сервис kaspi-pos не отвечает по указанному адресу" });
+    });
+
   return (
-    <Section title="Kaspi Pay — оплата заказов" badge={<span className={cn("badge", b.tone)}>{b.text}</span>}>
-      <Intro>
-        Клиент получает счёт в приложение Kaspi по номеру телефона или платит по QR, заказ и сертификат подтверждаются сами — менять статус вручную не нужно. Работает через сервис kaspi-pos-automation на вашем сервере и аккаунт кассира Kaspi Pay.
-      </Intro>
-
-      <div className="mt-4 flex flex-wrap items-end gap-2">
-        <label className="block min-w-0 flex-1">
-          <span className="label">Адрес сервиса kaspi-pos</span>
-          <input className="input h-10 text-sm" value={apiUrl} onChange={(e) => setApiUrl(e.target.value)} placeholder="http://127.0.0.1:3010" />
-        </label>
-        <button className="btn btn-outline btn-sm h-10" disabled={pending || !apiUrl.trim()} onClick={saveUrl}>
-          {pending ? <LoaderCircle className="size-4 animate-spin" /> : null} Сохранить
+    <Section
+      id="kaspi"
+      title="Kaspi Pay: оплата заказов"
+      description="Клиент платит счётом в приложении Kaspi или по QR, заказ и сертификат подтверждаются сами"
+      status={statusOf(status)}
+      actions={
+        <button type="button" className="btn btn-outline btn-sm" disabled={pending} onClick={check}>
+          {pending ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : <RefreshCw className="size-4" strokeWidth={1.8} aria-hidden />} Проверить
         </button>
-        <button className="btn btn-ghost btn-sm h-10" disabled={pending} onClick={() => start(async () => setStatus(await kaspiStatusAction()))} aria-label="Проверить связь">
-          <RefreshCw className="size-4" />
-        </button>
-      </div>
+      }
+    >
+      <CheckMessage check={message ? { ok: message.ok, message: message.text } : null} />
 
-      {status.connected ? (
-        <div className="mt-4 space-y-3 border-t border-line pt-4">
-          <div className="text-sm">
-            Кассир: <b>{status.orgName || "организация Kaspi Pay"}</b>
-            {status.phone ? <span className="text-muted"> · {status.phone}</span> : null}
-          </div>
-          {status.reachable && !status.active ? (
-            <p className="text-sm text-warning">
-              {status.shared
-                ? "Kaspi не принимает общую сессию кассира. Войдите заново в том проекте, где её получали, и обновите KASPI_TOKEN_SN, KASPI_VTOKEN_SECRET и KASPI_PROFILE_ID на сервере — до этого клиентам показывается перевод по номеру."
-                : "Kaspi не принимает сессию кассира (вход с другого устройства или истёк срок). Подключите кассира заново — до этого клиентам показывается перевод по номеру."}
-            </p>
-          ) : null}
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" className="accent-wine" checked={status.enabled} disabled={pending} onChange={(e) => run(() => setKaspiEnabledAction(e.target.checked))} />
-            Принимать оплату через Kaspi
-          </label>
-          <div className="flex flex-wrap items-end gap-2">
-            <label className="block">
-              <span className="label">Сообщать руководителям, если кассир не работает дольше, мин</span>
-              <input className="input h-10 w-24 text-sm" type="number" inputMode="numeric" min={0} max={240} step={1} value={alertAfter} onChange={(e) => setAlertAfter(e.target.value)} aria-label="Порог тревоги, минут" />
-            </label>
-            <button
-              className="btn btn-outline btn-sm h-10"
-              disabled={pending || !alertAfter.trim() || alertAfter.trim() === alertSaved}
-              onClick={() =>
-                start(async () => {
-                  const r = await saveKaspiAlertAfterAction(Number(alertAfter));
-                  if (r.ok) setAlertSaved(alertAfter.trim());
-                  setAlertMessage(r.ok ? { ok: true, text: "Порог сохранён" } : { ok: false, text: r.error });
-                })
+      <div className="space-y-5">
+        <Group title="Сервис" hint="Работает через kaspi-pos-automation на вашем сервере и аккаунт кассира Kaspi Pay.">
+          <Field
+            label="Адрес сервиса kaspi-pos"
+            after={
+              <button type="button" className="btn btn-outline" disabled={pending || !apiUrl.trim()} onClick={saveUrl}>
+                Сохранить адрес
+              </button>
+            }
+          >
+            <input className="input" value={apiUrl} onChange={(e) => setApiUrl(e.target.value)} placeholder="http://127.0.0.1:3010" />
+          </Field>
+        </Group>
+
+        {status.connected ? (
+          <Group title="Кассир" hint="Сайт проверяет кассира раз в 3 минуты.">
+            <Facts
+              items={[
+                { label: "Организация", value: <b className="font-semibold">{status.orgName || "организация Kaspi Pay"}</b> },
+                { label: "Телефон", value: status.phone || "—", hidden: !status.phone },
+              ]}
+            />
+            {status.reachable && !status.active ? (
+              <p className="rounded-[var(--r-ctl)] bg-warning-bg px-3 py-2 text-sm text-warning">
+                {status.shared
+                  ? "Kaspi не принимает общую сессию кассира. Войдите заново в том проекте, где её получали, и обновите KASPI_TOKEN_SN, KASPI_VTOKEN_SECRET и KASPI_PROFILE_ID на сервере — до этого клиентам показывается перевод по номеру."
+                  : "Kaspi не принимает сессию кассира (вход с другого устройства или истёк срок). Подключите кассира заново — до этого клиентам показывается перевод по номеру."}
+              </p>
+            ) : null}
+            <Toggle label="Принимать оплату через Kaspi" checked={status.enabled} disabled={pending} onChange={(on) => run(() => setKaspiEnabledAction(on))} />
+            <Field
+              label="Сообщать руководителям, если кассир не работает дольше, мин"
+              hint="Уведомление в CRM и push приходит один раз, когда кассир отключился, и один раз, когда снова подключён; пока он отключён, менеджеры видят плашку в окне счёта и над полем ввода чата. 0 — сообщать сразу."
+              after={
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  disabled={pending || !alertAfter.trim() || alertAfter.trim() === alertSaved}
+                  onClick={() =>
+                    start(async () => {
+                      const r = await saveKaspiAlertAfterAction(Number(alertAfter));
+                      if (r.ok) setAlertSaved(alertAfter.trim());
+                      setAlertMessage(r.ok ? { ok: true, text: "Порог сохранён" } : { ok: false, text: r.error });
+                    })
+                  }
+                >
+                  Сохранить порог
+                </button>
               }
             >
-              Сохранить
-            </button>
-          </div>
-          <p className="text-[11px] text-muted">
-            Сайт проверяет кассира раз в 3 минуты. Уведомление в CRM и push приходит один раз, когда кассир отключился, и один раз, когда снова подключён; пока он отключён, менеджеры видят плашку в окне счёта и над полем ввода чата. 0 — сообщать сразу.
-          </p>
-          {alertMessage ? <p className={cn("text-xs", alertMessage.ok ? "text-success" : "text-danger")}>{alertMessage.text}</p> : null}
-        </div>
-      ) : null}
+              <input className="input w-28" type="number" inputMode="numeric" min={0} max={240} step={1} value={alertAfter} onChange={(e) => setAlertAfter(e.target.value)} />
+            </Field>
+            {alertMessage ? <CheckMessage check={{ ok: alertMessage.ok, message: alertMessage.text }} /> : null}
+          </Group>
+        ) : null}
 
-      {status.shared ? (
-        <p className="mt-4 border-t border-line pt-4 text-xs text-muted" data-testid="kaspi-shared">
-          Сессия кассира общая с другим проектом на этом сервере и задана переменными окружения (KASPI_TOKEN_SN и др.). Вход по SMS здесь отключён: Kaspi держит одну сессию на кассира, и новый вход вытеснил бы её у другого проекта.
-        </p>
-      ) : (
-      <div className="mt-4 space-y-3 border-t border-line pt-4">
-        <div className="text-sm font-medium">{status.connected ? "Подключить кассира заново" : "Подключить кассира"}</div>
-        {processId ? (
-          <div className="flex flex-wrap items-end gap-2">
-            <label className="block">
-              <span className="label">Код из SMS</span>
-              <input className="input h-10 w-32 text-sm" inputMode="numeric" autoComplete="one-time-code" value={otp} onChange={(e) => setOtp(e.target.value)} />
-            </label>
-            <button
-              className="btn btn-primary btn-sm h-10"
-              disabled={pending || !otp.trim()}
-              onClick={() =>
-                run(async () => {
-                  const r = await confirmKaspiCodeAction(processId, otp);
-                  if (r.ok) setProcessId(null);
-                  return r;
-                }, "Кассир подключён, оплата через Kaspi включена")
-              }
-            >
-              {pending ? <LoaderCircle className="size-4 animate-spin" /> : null} Подтвердить
-            </button>
-            <button className="btn btn-ghost btn-sm h-10" disabled={pending} onClick={() => setProcessId(null)}>
-              Другой номер
-            </button>
-          </div>
+        {status.shared ? (
+          <Note className="border-t border-line pt-5">
+            <span data-testid="kaspi-shared">Сессия кассира общая с другим проектом на этом сервере и задана переменными окружения (KASPI_TOKEN_SN и др.). Вход по SMS здесь отключён: Kaspi держит одну сессию на кассира, и новый вход вытеснил бы её у другого проекта.</span>
+          </Note>
         ) : (
-          <div className="flex flex-wrap items-end gap-2">
-            <label className="block">
-              <span className="label">Номер кассира Kaspi Pay</span>
-              <input className="input h-10 w-56 text-sm" inputMode="tel" placeholder="+7 7XX XXX XX XX" value={phone} onChange={(e) => setPhone(e.target.value)} />
-            </label>
-            <button
-              className="btn btn-outline btn-sm h-10"
-              disabled={pending || !phone.trim() || !status.reachable}
-              onClick={() =>
-                run(async () => {
-                  const r = await requestKaspiCodeAction(phone);
-                  if (r.ok) setProcessId(r.processId);
-                  return r;
-                }, "Код отправлен по SMS")
-              }
-            >
-              {pending ? <LoaderCircle className="size-4 animate-spin" /> : <Smartphone className="size-4" />} Получить код
-            </button>
-          </div>
+          <Group title={status.connected ? "Подключить кассира заново" : "Подключить кассира"} hint="Kaspi пришлёт SMS-код на номер кассира: введите его здесь, и оплата включится.">
+            {processId ? (
+              <div className="flex flex-wrap items-end gap-2">
+                <Field label="Код из SMS" className="w-40">
+                  <input className="input" inputMode="numeric" autoComplete="one-time-code" value={otp} onChange={(e) => setOtp(e.target.value)} />
+                </Field>
+                <button
+                  className="btn btn-dark"
+                  disabled={pending || !otp.trim()}
+                  onClick={() =>
+                    run(async () => {
+                      const r = await confirmKaspiCodeAction(processId, otp);
+                      if (r.ok) setProcessId(null);
+                      return r;
+                    }, "Кассир подключён, оплата через Kaspi включена")
+                  }
+                >
+                  {pending ? <LoaderCircle className="size-4 animate-spin" /> : null} Подтвердить
+                </button>
+                <button className="btn btn-ghost" disabled={pending} onClick={() => setProcessId(null)}>
+                  Другой номер
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-wrap items-end gap-2">
+                <Field label="Номер кассира Kaspi Pay" className="w-60">
+                  <input className="input" inputMode="tel" placeholder="+7 7XX XXX XX XX" value={phone} onChange={(e) => setPhone(e.target.value)} />
+                </Field>
+                <button
+                  className="btn btn-dark"
+                  disabled={pending || !phone.trim() || !status.reachable}
+                  onClick={() =>
+                    run(async () => {
+                      const r = await requestKaspiCodeAction(phone);
+                      if (r.ok) setProcessId(r.processId);
+                      return r;
+                    }, "Код отправлен по SMS")
+                  }
+                >
+                  {pending ? <LoaderCircle className="size-4 animate-spin" /> : <Smartphone className="size-4" />} Получить код
+                </button>
+              </div>
+            )}
+          </Group>
         )}
-        {message ? <p className={cn("text-xs", message.ok ? "text-success" : "text-danger")}>{message.text}</p> : null}
-      </div>
-      )}
 
-      <details className="mt-4 border-t border-line pt-4">
-        <summary className="cursor-pointer text-sm font-medium">Вебхук kaspi-pos — необязательно</summary>
-        <div className="mt-3 space-y-3">
-          <p className="text-xs text-muted">
-            Оплата подтверждается и без вебхука: сайт сам сверяет счёт с Kaspi каждые несколько секунд. Вебхук лишь ускоряет подтверждение. В docker compose он уже настроен; иначе укажите в webhooks.json сервиса адрес ниже, events — payment.success, payment.failed, payment.expired, payment.lost. С секретом уведомление применяется сразу, без секрета — сайт перепроверяет его в Kaspi.
+        <Help title="Вебхук kaspi-pos (необязательно)">
+          <p>
+            Оплата подтверждается и без вебхука: сайт сам сверяет счёт с Kaspi каждые несколько секунд. Вебхук лишь ускоряет подтверждение. В docker compose он уже настроен; иначе укажите в webhooks.json сервиса адрес ниже, events: payment.success, payment.failed, payment.expired,
+            payment.lost. С секретом уведомление применяется сразу, без секрета сайт перепроверяет его в Kaspi.
           </p>
           <CopyField label="Адрес" value={props.webhookUrl} />
           {props.webhookSecret ? <CopyField label="Секрет подписи" value={props.webhookSecret} /> : <p className="text-xs text-muted">Секрет задан переменной окружения KASPI_WEBHOOK_SECRET.</p>}
-        </div>
-      </details>
+        </Help>
 
-      {status.connected ? (
-        <button className="mt-4 text-sm text-muted underline underline-offset-4 hover:text-danger" disabled={pending} onClick={() => run(disconnectKaspiAction, "Кассир отключён")}>
-          Отключить кассира
-        </button>
-      ) : null}
+        {status.connected ? (
+          <div className="border-t border-line pt-4">
+            <button className="btn btn-ghost btn-sm text-danger hover:bg-danger-bg hover:text-danger" disabled={pending} onClick={() => run(disconnectKaspiAction, "Кассир отключён")}>
+              Отключить кассира
+            </button>
+          </div>
+        ) : null}
+      </div>
     </Section>
   );
 }

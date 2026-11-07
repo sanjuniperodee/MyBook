@@ -14,8 +14,10 @@ import { orderStatusLabel } from "@/modules/ordering/ui/status";
 import { orderNotice, type OrderNoticeFacts } from "@/modules/ordering/ui/notice";
 import { deliveryLabels } from "@/modules/ordering/ui/labels";
 import { DiscountHint } from "@/components/admin/DiscountHint";
+import { ActionMenu, menuItemClass } from "@/components/admin/ActionMenu";
 import { Badge } from "@/components/ui/Badge";
 import { Field } from "@/components/ui/Field";
+import { Disclosure } from "./Disclosure";
 import { cn } from "@/lib/class-names";
 import { ORDER_STATUSES as orderStatuses, type OrderStatus } from "@/shared/domain/orders";
 
@@ -142,6 +144,7 @@ export function PrintFileActions({ orderId, hasFiles }: { orderId: string; hasFi
     <a
       key={id}
       href={href}
+      role={opts.className === menuItemClass ? "menuitem" : undefined}
       aria-disabled={busy !== null}
       className={`${opts.className} ${busy !== null && busy !== id ? "pointer-events-none opacity-50" : ""}`}
       onClick={(e) => {
@@ -156,13 +159,15 @@ export function PrintFileActions({ orderId, hasFiles }: { orderId: string; hasFi
   );
   return (
     <>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {link("zip", "block", `/api/admin/orders/${orderId}/package`, "Скачать всё (ZIP)", { className: "btn btn-dark btn-sm", icon: "zip" })}
-        {link("block", "block", `/api/orders/${orderId}/files/block`, "Блок", { className: "btn btn-outline btn-sm" })}
-        {link("cover", "cover", `/api/orders/${orderId}/files/cover`, "Обложка", { className: "btn btn-outline btn-sm" })}
-        {link("layout", "layout", `/api/orders/${orderId}/files/layout`, "Каркас обложки", { className: "btn btn-outline btn-sm", kinds: ["package", "layout"] })}
-        {link("spec", "spec", `/api/orders/${orderId}/files/spec`, "Техзадание", { className: "btn btn-outline btn-sm" })}
-        {link("reading", "reading", `/api/orders/${orderId}/files/reading`, "PDF для чтения", { className: "btn btn-ghost btn-sm", kinds: ["reading"] })}
+        <ActionMenu label="Отдельные файлы" className="[&>button]:w-auto">
+          {link("block", "block", `/api/orders/${orderId}/files/block`, "Блок книги", { className: menuItemClass })}
+          {link("cover", "cover", `/api/orders/${orderId}/files/cover`, "Обложка", { className: menuItemClass })}
+          {link("layout", "layout", `/api/orders/${orderId}/files/layout`, "Каркас обложки", { className: menuItemClass, kinds: ["package", "layout"] })}
+          {link("spec", "spec", `/api/orders/${orderId}/files/spec`, "Техзадание", { className: menuItemClass })}
+          {link("reading", "reading", `/api/orders/${orderId}/files/reading`, "PDF для чтения", { className: menuItemClass, kinds: ["reading"] })}
+        </ActionMenu>
         <button
           className="btn btn-ghost btn-sm"
           disabled={busy !== null}
@@ -206,13 +211,8 @@ export function DetailsForm({
 }) {
   const [state, action] = useActionState<AdminState, FormData>(updateOrderDetailsAction, {});
   return (
-    <details className="group border-t border-line">
-      <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 px-4 text-sm font-medium text-ink-soft hover:bg-sunken/60 hover:text-ink sm:px-5 [&::-webkit-details-marker]:hidden">
-        Изменить контакты и доставку
-        <span className="ml-auto text-xs text-muted group-open:hidden">открыть форму</span>
-        <span className="ml-auto hidden text-xs text-muted group-open:inline">свернуть</span>
-      </summary>
-      <form action={action} className="grid gap-3 border-t border-line p-4 sm:grid-cols-2 sm:p-5">
+    <Disclosure title="Изменить контакты и доставку" hint="получатель, адрес, дата, открытка">
+      <form action={action} className="grid gap-3 sm:grid-cols-2">
         <input type="hidden" name="orderId" value={order.id} />
         <Field label="Получатель">
           <input name="contactName" defaultValue={order.contactName} className="input" required />
@@ -257,7 +257,7 @@ export function DetailsForm({
           <SubmitButton className="btn-dark btn-sm">Сохранить изменения</SubmitButton>
         </div>
       </form>
-    </details>
+    </Disclosure>
   );
 }
 

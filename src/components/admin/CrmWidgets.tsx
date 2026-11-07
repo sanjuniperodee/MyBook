@@ -35,6 +35,7 @@ export function TaskList({
   dealId,
   showForm = true,
   emptyText = "Задач нет",
+  titleId,
 }: {
   tasks: TaskItem[];
   admins: { id: string; label: string }[];
@@ -43,6 +44,8 @@ export function TaskList({
   dealId?: string;
   showForm?: boolean;
   emptyText?: string;
+  /** id поля «Новая задача» — на него ведёт «поставьте задачу» в шапке сделки. */
+  titleId?: string;
 }) {
   const [, start] = useTransition();
   const [state, action, adding] = useActionState<AdminState, FormData>(createTaskAction, {});
@@ -102,7 +105,12 @@ export function TaskList({
                   {t.title}
                 </div>
                 <div className="mt-0.5 flex flex-wrap gap-x-2 text-xs text-muted">
-                  {t.dueLabel ? <span className={cn("tabular-nums", t.overdue && !t.done && "font-medium text-danger")}>{t.overdue && !t.done ? `просрочена, ${t.dueLabel}` : t.dueLabel}</span> : null}
+                  {t.dueLabel ? (
+                    <span className={cn("inline-flex items-center gap-1 tabular-nums", t.overdue && !t.done && "font-medium text-danger")}>
+                      {t.overdue && !t.done ? <span className="size-1.5 rounded-full bg-danger" aria-hidden /> : null}
+                      {t.overdue && !t.done ? `просрочена, ${t.dueLabel}` : t.dueLabel}
+                    </span>
+                  ) : null}
                   {t.assignee ? <span>{t.assignee}</span> : null}
                   {t.context ? (
                     <Link href={t.context.href} className="text-wine hover:underline">
@@ -130,20 +138,25 @@ export function TaskList({
           {clientId ? <input type="hidden" name="clientId" value={clientId} /> : null}
           {orderId ? <input type="hidden" name="orderId" value={orderId} /> : null}
           {dealId ? <input type="hidden" name="dealId" value={dealId} /> : null}
-          <div className="flex gap-2">
-            <select name="kind" className="input h-10 w-auto shrink-0 pr-8 text-sm" defaultValue="task" aria-label="Тип задачи">
-              {Object.entries(taskKinds).map(([k, v]) => (
-                <option key={k} value={k}>
-                  {v}
-                </option>
-              ))}
-            </select>
-            <input name="title" required maxLength={300} placeholder="Следующий шаг: перезвонить, уточнить адрес…" aria-label="Новая задача" className="input h-10 min-w-0 flex-1 text-sm" />
+          <div className="flex flex-wrap gap-2 @max-sm:flex-col">
+            <div className="flex min-w-0 flex-1 gap-2">
+              <select name="kind" className="input w-auto shrink-0 pr-8" defaultValue="task" aria-label="Тип задачи">
+                {Object.entries(taskKinds).map(([k, v]) => (
+                  <option key={k} value={k}>
+                    {v}
+                  </option>
+                ))}
+              </select>
+              <input id={titleId} name="title" required maxLength={300} placeholder="Следующий шаг: перезвонить, уточнить адрес…" aria-label="Новая задача" className="input min-w-0 flex-1" />
+            </div>
+            <button type="submit" className="btn btn-dark" disabled={adding}>
+              {adding ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : <Plus className="size-4" aria-hidden />} Добавить задачу
+            </button>
           </div>
           <div className="grid grid-cols-2 gap-2 @lg:grid-cols-4">
-            <input ref={dueDate} name="dueAt" type="date" className="input h-10 min-w-0 text-sm" title="Срок" aria-label="Срок" />
-            <input ref={dueTime} name="dueTime" type="time" className="input h-10 min-w-0 text-sm" title="Время (без времени — до 18:00)" aria-label="Время" />
-            <select name="remindBeforeMin" className="input h-10 min-w-0 text-sm" defaultValue="60" title="Напомнить в CRM со звуком и в WhatsApp" aria-label="Напомнить заранее">
+            <input ref={dueDate} name="dueAt" type="date" className="input min-w-0" title="Срок" aria-label="Срок" />
+            <input ref={dueTime} name="dueTime" type="time" className="input min-w-0" title="Время (без времени — до 18:00)" aria-label="Время" />
+            <select name="remindBeforeMin" className="input min-w-0" defaultValue="60" title="Напомнить в CRM со звуком и в WhatsApp" aria-label="Напомнить заранее">
               <option value="none">Не напоминать</option>
               <option value="0">Напомнить в срок</option>
               <option value="15">За 15 мин</option>
@@ -151,7 +164,7 @@ export function TaskList({
               <option value="180">За 3 часа</option>
               <option value="1440">За день</option>
             </select>
-            <select name="assigneeId" className="input h-10 min-w-0 text-sm" defaultValue="" aria-label="Исполнитель">
+            <select name="assigneeId" className="input min-w-0" defaultValue="" aria-label="Исполнитель">
               <option value="">Мне</option>
               {admins.map((a) => (
                 <option key={a.id} value={a.id}>
@@ -160,12 +173,7 @@ export function TaskList({
               ))}
             </select>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <DuePresets onPick={pickDue} className="flex min-w-0 flex-1 flex-wrap gap-1.5" />
-            <button type="submit" className="btn btn-dark btn-sm @max-sm:w-full" disabled={adding}>
-              {adding ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : <Plus className="size-4" aria-hidden />} Добавить задачу
-            </button>
-          </div>
+          <DuePresets onPick={pickDue} className="flex min-w-0 flex-wrap gap-1.5" />
           {state.error ? (
             <p className="text-sm text-danger" role="alert">
               {state.error}
@@ -241,7 +249,7 @@ export function NotesTimeline({ notes, clientId, orderId, dealId, mentionables, 
 
   return (
     <div>
-      <form ref={form} action={action} className="rounded-[10px] border border-line-strong bg-white transition-[border-color,box-shadow] focus-within:border-wine/60 focus-within:ring-[3px] focus-within:ring-wine/12">
+      <form ref={form} action={action} className="rounded-[var(--r-ctl)] border border-line-strong bg-white transition-[border-color,box-shadow] focus-within:border-wine/60 focus-within:ring-[3px] focus-within:ring-wine/12">
         {clientId ? <input type="hidden" name="clientId" value={clientId} /> : null}
         {orderId ? <input type="hidden" name="orderId" value={orderId} /> : null}
         {dealId ? <input type="hidden" name="dealId" value={dealId} /> : null}
@@ -330,7 +338,7 @@ export function AssigneeSelect({ orderId, value, admins }: { orderId: string; va
   return (
     <select
       aria-label="Ответственный"
-      className="input h-10 text-sm"
+      className="input"
       value={value ?? ""}
       disabled={pending}
       onChange={(e) =>

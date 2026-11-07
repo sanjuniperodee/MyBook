@@ -7,12 +7,14 @@ import { channelLabel } from "@/shared/domain/channels";
 import { landings } from "@/lib/content/landings";
 import { env } from "@/config/env";
 import { formatPrice } from "@/config/site";
-import { BarList, StatRow, StatTile } from "@/components/admin/charts";
-import { Link2, Users, Wallet } from "lucide-react";
+import { StatRow, StatTile } from "@/components/admin/charts";
+import { SectionHead } from "@/components/admin/SectionHead";
+import { BarCell, ShareBar } from "../analytics/kit";
+import { DrawerButton } from "./Drawer";
+import { Link2, Plus, Users, Wallet } from "lucide-react";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Segmented } from "@/components/admin/Segmented";
 import { Intro } from "@/components/admin/Intro";
-import { Panel } from "@/components/ui/Panel";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { cn } from "@/lib/class-names";
 import { formatPhone } from "@/shared/domain/phone";
@@ -27,8 +29,6 @@ const periods = [
   [90, "90 дней"],
   [0, "всё время"],
 ] as const;
-/** Отступы первой и последней колонки таблицы — по полям листа. */
-const EDGE = "[&_td:first-child]:pl-4 [&_th:first-child]:pl-4 sm:[&_td:first-child]:pl-5 sm:[&_th:first-child]:pl-5 [&_td:last-child]:pr-4 [&_th:last-child]:pr-4 sm:[&_td:last-child]:pr-5 sm:[&_th:last-child]:pr-5";
 const pct = (v: number | null) => (v === null ? "—" : `${Math.round(v * 1000) / 10}%`);
 
 export default async function MarketingPage({ searchParams }: { searchParams: Promise<{ period?: string; archived?: string }> }) {
@@ -54,9 +54,35 @@ export default async function MarketingPage({ searchParams }: { searchParams: Pr
   const archived = sp.archived === "1";
   const t = report.total;
 
+  const maxRevenue = Math.max(...report.channels.map((c) => c.revenue), 0);
+  const manage = can(staff, "promo.manage");
+
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Ссылки и каналы">
+      <PageHeader
+        title="Ссылки и каналы"
+        actions={
+          manage ? (
+            <>
+              <DrawerButton variant="primary" label="Создать ссылку" icon={<Link2 className="size-4" strokeWidth={1.8} aria-hidden />} title="Новая ссылка" description="Короткая ссылка с UTM-метками: CRM посчитает переходы, заявки и продажи по ней" testId="new-link">
+                <LinkBuilder pages={pages} baseUrl={env.appUrl} />
+              </DrawerButton>
+              <DrawerButton
+                variant="outline"
+                label="Расход на рекламу"
+                icon={<Plus className="size-4" strokeWidth={1.8} aria-hidden />}
+                title="Расход на рекламу"
+                testId="new-spend"
+              >
+                <SpendForm
+                  channels={Object.entries(channelLabels).map(([key, label]) => ({ key, label }))}
+                  recent={spendRows.map((r) => ({ id: r.id, day: `${r.day.slice(8, 10)}.${r.day.slice(5, 7)}`, channel: channelLabels[r.channel as keyof typeof channelLabels] ?? r.channel, amount: formatPrice(r.amount), note: r.note ?? "" }))}
+                />
+              </DrawerButton>
+            </>
+          ) : null
+        }
+      >
         Создайте ссылку с UTM-метками для каждого места, где рекламируетесь: шапка Instagram, сторис, блогер, листовка. CRM посчитает переходы, регистрации, заявки и продажи по каждой ссылке и каналу.
       </PageHeader>
 
@@ -64,261 +90,259 @@ export default async function MarketingPage({ searchParams }: { searchParams: Pr
 
       {showAnalytics ? (
         <>
-          <section aria-label="Итоги каналов" className="space-y-2">
+          <section aria-label="Итоги каналов">
             <StatRow cols={5} className="max-sm:[&>*:last-child:nth-child(odd)]:col-span-2 sm:max-xl:[&>*:last-child]:col-span-2">
+              <StatTile bare label="Выручка" value={formatPrice(t.revenue)} hint="деньги клиентов, пришедших за период" />
               <StatTile bare label="Заявки" value={t.leads.toLocaleString("ru-RU")} hint={`регистраций ${t.registrations}, переходов ${t.clicks || 0}`} />
               <StatTile bare label="Продажи" value={t.sales.toLocaleString("ru-RU")} hint={`конверсия ${pct(conversion(t))}`} />
-              <StatTile bare label="Выручка" value={formatPrice(t.revenue)} hint="деньги клиентов, пришедших за период" />
-              <StatTile bare label="Расход на рекламу" value={t.spend ? formatPrice(t.spend) : "—"} hint={costPerLead(t) !== null ? `заявка ${formatPrice(costPerLead(t)!)}` : "добавьте расходы ниже"} />
+              <StatTile bare label="Расход на рекламу" value={t.spend ? formatPrice(t.spend) : "—"} hint={costPerLead(t) !== null ? `заявка ${formatPrice(costPerLead(t)!)}` : "добавьте расходы"} />
               <StatTile bare label="ROMI" value={romiLabel(t)} hint="занижен: часть оплат придёт позже" />
             </StatRow>
           </section>
 
-          <div className="grid grid-cols-1 gap-4 2xl:grid-cols-[minmax(0,1fr)_360px]">
-            <Panel flush title="Откуда приходят клиенты" description="По источнику первого визита и каналу заявки">
-              <div data-testid="channels">
-                {report.channels.length ? (
-                  <>
-                    <div className="hidden overflow-x-auto lg:block">
-                      <table className={cn("table min-w-[860px] [&_tr>*:first-child]:sticky [&_tr>*:first-child]:left-0 [&_tr>*:first-child]:z-[1] [&_tr>*:first-child]:bg-white", EDGE)}>
-                        <thead>
-                          <tr>
-                            <th>Канал</th>
-                            <th className="text-right">Переходы</th>
-                            <th className="text-right">Регистрации</th>
-                            <th className="text-right">Начали книгу</th>
-                            <th className="text-right">Заявки</th>
-                            <th className="text-right">Продажи</th>
-                            <th className="text-right">Конверсия</th>
-                            <th className="text-right">Выручка</th>
-                            <th className="text-right">Расход</th>
-                            <th className="text-right">Заявка</th>
-                            <th className="text-right">ROMI</th>
+          <section aria-labelledby="channels-h" className="space-y-2">
+            <SectionHead id="channels-h" title="Откуда приходят клиенты" meta="По источнику первого визита и каналу заявки" />
+            <div className="panel overflow-hidden" data-testid="channels">
+              {report.channels.length ? (
+                <>
+                  <div className="hidden overflow-x-auto lg:block">
+                    <table className="table min-w-[860px] [&_tr>*:first-child]:sticky [&_tr>*:first-child]:left-0 [&_tr>*:first-child]:z-[1] [&_tr>*:first-child]:bg-white">
+                      <thead>
+                        <tr>
+                          <th>Канал</th>
+                          <th className="num">Переходы</th>
+                          <th className="num">Регистрации</th>
+                          <th className="num">Начали книгу</th>
+                          <th className="num">Заявки</th>
+                          <th className="num">Продажи</th>
+                          <th className="num">Конверсия</th>
+                          <th className="num">Выручка</th>
+                          <th className="num">Расход</th>
+                          <th className="num">Заявка</th>
+                          <th className="num">ROMI</th>
+                        </tr>
+                      </thead>
+                      <tbody className="[&_td]:whitespace-nowrap">
+                        {report.channels.map((c) => (
+                          <tr key={c.key}>
+                            <td className="font-medium">{c.label}</td>
+                            <td className="num text-muted">{c.clicks || "—"}</td>
+                            <td className="num">{c.registrations}</td>
+                            <td className="num">{c.startedBook}</td>
+                            <td className="num">{c.leads}</td>
+                            <td className="num">{c.sales}</td>
+                            <td className="num text-muted">{pct(conversion(c))}</td>
+                            <td className="num">
+                              <BarCell value={c.revenue} max={maxRevenue}>
+                                {formatPrice(c.revenue)}
+                              </BarCell>
+                            </td>
+                            <td className="num">{c.spend ? formatPrice(c.spend) : "—"}</td>
+                            <td className="num">{costPerLead(c) !== null ? formatPrice(costPerLead(c)!) : "—"}</td>
+                            <td className={cn("num", (romi(c) ?? 0) < 0 && "text-danger")}>{romiLabel(c)}</td>
                           </tr>
-                        </thead>
-                        <tbody className="tabular-nums [&_td]:whitespace-nowrap">
-                          {report.channels.map((c) => (
-                            <tr key={c.key}>
-                              <td className="font-medium">{c.label}</td>
-                              <td className="text-right text-muted">{c.clicks || "—"}</td>
-                              <td className="text-right">{c.registrations}</td>
-                              <td className="text-right">{c.startedBook}</td>
-                              <td className="text-right">{c.leads}</td>
-                              <td className="text-right">{c.sales}</td>
-                              <td className="text-right text-muted">{pct(conversion(c))}</td>
-                              <td className="text-right font-medium">{formatPrice(c.revenue)}</td>
-                              <td className="text-right">{c.spend ? formatPrice(c.spend) : "—"}</td>
-                              <td className="text-right">{costPerLead(c) !== null ? formatPrice(costPerLead(c)!) : "—"}</td>
-                              <td className={cn("text-right", (romi(c) ?? 0) < 0 && "text-danger")}>{romiLabel(c)}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                        <tfoot className="tabular-nums [&_td]:border-t [&_td]:border-line-strong [&_td]:px-3 [&_td]:py-2.5 [&_td]:font-semibold [&_td]:whitespace-nowrap">
-                          <tr>
-                            <td>Итого</td>
-                            <td className="text-right">{t.clicks || "—"}</td>
-                            <td className="text-right">{t.registrations}</td>
-                            <td className="text-right">{t.startedBook}</td>
-                            <td className="text-right">{t.leads}</td>
-                            <td className="text-right">{t.sales}</td>
-                            <td className="text-right">{pct(conversion(t))}</td>
-                            <td className="text-right">{formatPrice(t.revenue)}</td>
-                            <td className="text-right">{t.spend ? formatPrice(t.spend) : "—"}</td>
-                            <td className="text-right">{costPerLead(t) !== null ? formatPrice(costPerLead(t)!) : "—"}</td>
-                            <td className="text-right">{romiLabel(t)}</td>
-                          </tr>
-                        </tfoot>
-                      </table>
-                    </div>
-                    <ul className="divide-y divide-line lg:hidden">
-                      {report.channels.map((c) => (
-                        <li key={c.key} className="space-y-2 px-4 py-3.5">
-                          <div className="flex items-baseline justify-between gap-3">
-                            <span className="truncate font-medium">{c.label}</span>
-                            <span className="shrink-0 font-semibold tabular-nums">{formatPrice(c.revenue)}</span>
-                          </div>
-                          <dl className="grid grid-cols-3 gap-2 text-[13px] tabular-nums">
-                            <Cell label="Регистрации" value={c.registrations} />
-                            <Cell label="Заявки" value={c.leads} />
-                            <Cell label="Продажи" value={c.sales} />
-                            <Cell label="Конверсия" value={pct(conversion(c))} />
-                            <Cell label="Расход" value={c.spend ? formatPrice(c.spend) : "—"} />
-                            <Cell label="ROMI" value={romiLabel(c)} warn={(romi(c) ?? 0) < 0} />
-                          </dl>
-                        </li>
-                      ))}
-                    </ul>
-                  </>
-                ) : (
-                  <EmptyState compact icon={Users} title="За период нет новых клиентов и заявок">
-                    Создайте ссылку ниже и разместите её — регистрации и заявки по ней появятся здесь.
-                  </EmptyState>
-                )}
-              </div>
+                        ))}
+                      </tbody>
+                      <tfoot className="[&_td]:border-t [&_td]:border-line-strong [&_td]:bg-sunken/40 [&_td]:px-3 [&_td]:py-2.5 [&_td]:font-semibold [&_td]:whitespace-nowrap">
+                        <tr>
+                          <td>Итого</td>
+                          <td className="num">{t.clicks || "—"}</td>
+                          <td className="num">{t.registrations}</td>
+                          <td className="num">{t.startedBook}</td>
+                          <td className="num">{t.leads}</td>
+                          <td className="num">{t.sales}</td>
+                          <td className="num">{pct(conversion(t))}</td>
+                          <td className="num">{formatPrice(t.revenue)}</td>
+                          <td className="num">{t.spend ? formatPrice(t.spend) : "—"}</td>
+                          <td className="num">{costPerLead(t) !== null ? formatPrice(costPerLead(t)!) : "—"}</td>
+                          <td className="num">{romiLabel(t)}</td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                  <ul className="divide-y divide-line lg:hidden">
+                    {report.channels.map((c) => (
+                      <li key={c.key} className="space-y-2 px-4 py-3.5">
+                        <div className="flex items-baseline justify-between gap-3">
+                          <span className="truncate font-medium">{c.label}</span>
+                          <span className="shrink-0 font-semibold tabular-nums">{formatPrice(c.revenue)}</span>
+                        </div>
+                        <ShareBar value={c.revenue} max={maxRevenue} />
+                        <dl className="grid grid-cols-3 gap-2 text-[13px] tabular-nums">
+                          <Cell label="Регистрации" value={c.registrations} />
+                          <Cell label="Заявки" value={c.leads} />
+                          <Cell label="Продажи" value={c.sales} />
+                          <Cell label="Конверсия" value={pct(conversion(c))} />
+                          <Cell label="Расход" value={c.spend ? formatPrice(c.spend) : "—"} />
+                          <Cell label="ROMI" value={romiLabel(c)} warn={(romi(c) ?? 0) < 0} />
+                        </dl>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : (
+                <EmptyState compact icon={Users} title="За период нет новых клиентов и заявок">
+                  Создайте ссылку и разместите её — регистрации и заявки по ней появятся здесь.
+                </EmptyState>
+              )}
               <div className="border-t border-line px-4 py-3 sm:px-5">
                 <Intro small>
                   Регистрации — новые аккаунты на сайте по источнику первого визита. Заявки — сделки (сайт, чаты, звонки). Продажи — оплатившие клиенты и успешные сделки без заказа на сайте. Выручка когортная: деньги клиентов и
                   заявок, пришедших за период, поэтому ROMI занижен — часть оплат придёт позже, а продажи без метки канала уходят в «Прямые» и «Сарафан». Стоимость заявки — расход на регистрации и заявки канала.
                 </Intro>
               </div>
-            </Panel>
-            <Panel title="Выручка по каналам">
-              {report.channels.some((c) => c.revenue) ? (
-                <BarList rows={report.channels.filter((c) => c.revenue).map((c) => ({ label: c.label, value: c.revenue }))} format={formatPrice} />
-              ) : (
-                <EmptyState compact icon={Wallet} title="Продаж за период пока нет">
-                  Полосы по каналам появятся с первой оплатой.
-                </EmptyState>
-              )}
-            </Panel>
-          </div>
+            </div>
+            {!report.channels.some((c) => c.revenue) && report.channels.length ? (
+              <p className="flex items-center gap-1.5 text-xs text-muted">
+                <Wallet className="size-3.5" aria-hidden /> Продаж за период пока нет: доли выручки по каналам появятся с первой оплатой.
+              </p>
+            ) : null}
+          </section>
         </>
       ) : null}
 
-      <Panel
-        flush
-        title="Ссылки"
-        description={archived ? "Архивные ссылки не работают — верните, чтобы снова принимать переходы" : "Короткая ссылка ведёт на сайт или в WhatsApp и запоминает канал"}
-        actions={
-          <Segmented
-            label="Какие ссылки"
-            items={[
-              { key: "active", label: "Активные", href: `/admin/marketing?period=${period}`, active: !archived },
-              { key: "archived", label: "Архив", href: `/admin/marketing?period=${period}&archived=1`, active: archived },
-            ]}
-          />
-        }
-      >
-        {can(staff, "promo.manage") && !archived ? (
-          <div className="border-b border-line p-4 sm:p-5">
-            <LinkBuilder pages={pages} baseUrl={env.appUrl} />
-          </div>
-        ) : null}
-        <div data-testid="links">
-          {visibleLinks.length ? (
-            <>
-              <div className="hidden overflow-x-auto lg:block">
-                <table className={cn("table min-w-[980px]", EDGE)}>
-                  <thead>
-                    <tr>
-                      <th>Ссылка</th>
-                      <th>Метки</th>
-                      <th className="text-right">Переходы</th>
-                      <th className="text-right">Регистрации</th>
-                      <th className="text-right">Заявки</th>
-                      <th className="text-right">Продажи</th>
-                      <th className="text-right">Выручка</th>
-                      <th>
-                        <span className="sr-only">Действия</span>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {visibleLinks.map((l) => {
-                      const m = report.links.get(l.slug);
-                      return (
-                        <tr key={l.id}>
-                          <td className="max-w-72">
-                            <div className="truncate font-medium">{l.name}</div>
-                            <div className="truncate text-xs text-muted">
-                              {l.kind === "whatsapp" ? "в WhatsApp" : l.targetPath}, {channelLabel({ source: l.utmSource, medium: l.utmMedium })}, {formatDate(l.createdAt)}
-                            </div>
-                          </td>
-                          <td className="max-w-56 truncate font-mono text-[11px] text-muted">{[l.utmSource, l.utmMedium, l.utmCampaign, l.utmContent].filter(Boolean).join(" / ")}</td>
-                          <td className="text-right tabular-nums" title={`Всего переходов: ${l.clicks}`}>
-                            {m?.clicks ?? 0}
-                          </td>
-                          <td className="text-right tabular-nums">{m?.registrations ?? 0}</td>
-                          <td className="text-right tabular-nums">{m?.leads ?? 0}</td>
-                          <td className="text-right tabular-nums">{m?.sales ?? 0}</td>
-                          <td className="text-right font-medium whitespace-nowrap tabular-nums">{formatPrice(m?.revenue ?? 0)}</td>
-                          <td className="text-right">
-                            <LinkRowActions id={l.id} short={marketing.service.shortUrl(l.slug)} full={targets.get(l.id) ?? ""} archived={l.archived} canManage={can(staff, "promo.manage")} />
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-              <ul className="divide-y divide-line lg:hidden">
-                {visibleLinks.map((l) => {
-                  const m = report.links.get(l.slug);
-                  return (
-                    <li key={l.id} className="space-y-2.5 px-4 py-3.5">
-                      <div className="min-w-0">
-                        <div className="truncate font-medium">{l.name}</div>
-                        <div className="truncate text-xs text-muted">
-                          {l.kind === "whatsapp" ? "в WhatsApp" : l.targetPath}, {channelLabel({ source: l.utmSource, medium: l.utmMedium })}
-                        </div>
-                      </div>
-                      <dl className="grid grid-cols-4 gap-2 text-[13px] tabular-nums">
-                        <Cell label="Переходы" value={m?.clicks ?? 0} />
-                        <Cell label="Заявки" value={m?.leads ?? 0} />
-                        <Cell label="Продажи" value={m?.sales ?? 0} />
-                        <Cell label="Выручка" value={formatPrice(m?.revenue ?? 0)} />
-                      </dl>
-                      <LinkRowActions id={l.id} short={marketing.service.shortUrl(l.slug)} full={targets.get(l.id) ?? ""} archived={l.archived} canManage={can(staff, "promo.manage")} />
-                    </li>
-                  );
-                })}
-              </ul>
-            </>
-          ) : (
-            <EmptyState compact icon={Link2} title={archived ? "Архив пуст" : "Ссылок пока нет"}>
-              {archived ? "Сюда попадают ссылки, которые убрали в архив." : "Создайте первую — например, для шапки Instagram."}
-            </EmptyState>
-          )}
-        </div>
-        <div className="border-t border-line p-4 sm:p-5">
-          {can(staff, "settings.manage") ? (
-            <WhatsappNumberForm value={waNumber} />
-          ) : (
-            <p className="text-xs text-muted">
-              Ссылки «Сразу в WhatsApp» ведут на номер магазина {formatPhone(waNumber)}. Он же — в реквизитах на сайте, поэтому его меняет руководитель в «Сайт» → «Реквизиты продавца».
-            </p>
-          )}
-        </div>
-      </Panel>
-
-      {can(staff, "promo.manage") ? (
-        <SpendForm
-          channels={Object.entries(channelLabels).map(([key, label]) => ({ key, label }))}
-          recent={spendRows.map((r) => ({ id: r.id, day: `${r.day.slice(8, 10)}.${r.day.slice(5, 7)}`, channel: channelLabels[r.channel as keyof typeof channelLabels] ?? r.channel, amount: formatPrice(r.amount), note: r.note ?? "" }))}
+      <section aria-labelledby="links-h" className="space-y-2">
+        <SectionHead
+          id="links-h"
+          title="Ссылки"
+          meta={<span className="max-sm:hidden">{archived ? "Архивные ссылки не работают — верните, чтобы снова принимать переходы" : "Короткая ссылка ведёт на сайт или в WhatsApp и запоминает канал"}</span>}
+          actions={
+            <Segmented
+              label="Какие ссылки"
+              items={[
+                { key: "active", label: "Активные", href: `/admin/marketing?period=${period}`, active: !archived },
+                { key: "archived", label: "Архив", href: `/admin/marketing?period=${period}&archived=1`, active: archived },
+              ]}
+            />
+          }
         />
-      ) : null}
+        <div className="panel overflow-hidden">
+          <div data-testid="links">
+            {visibleLinks.length ? (
+              <>
+                <div className="hidden overflow-x-auto lg:block">
+                  <table className="table min-w-[980px]">
+                    <thead>
+                      <tr>
+                        <th>Ссылка</th>
+                        <th>Метки</th>
+                        <th className="num">Переходы</th>
+                        <th className="num">Регистрации</th>
+                        <th className="num">Заявки</th>
+                        <th className="num">Продажи</th>
+                        <th className="num">Выручка</th>
+                        <th>
+                          <span className="sr-only">Действия</span>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {visibleLinks.map((l) => {
+                        const m = report.links.get(l.slug);
+                        return (
+                          <tr key={l.id}>
+                            <td className="max-w-72">
+                              <div className="truncate font-medium">{l.name}</div>
+                              <div className="truncate text-xs text-muted">
+                                {l.kind === "whatsapp" ? "в WhatsApp" : l.targetPath}, {channelLabel({ source: l.utmSource, medium: l.utmMedium })}, {formatDate(l.createdAt)}
+                              </div>
+                            </td>
+                            <td className="max-w-56 truncate font-mono text-[11px] text-muted">{[l.utmSource, l.utmMedium, l.utmCampaign, l.utmContent].filter(Boolean).join(" / ")}</td>
+                            <td className="num" title={`Всего переходов: ${l.clicks}`}>
+                              {m?.clicks ?? 0}
+                            </td>
+                            <td className="num">{m?.registrations ?? 0}</td>
+                            <td className="num">{m?.leads ?? 0}</td>
+                            <td className="num">{m?.sales ?? 0}</td>
+                            <td className="num font-medium whitespace-nowrap">{formatPrice(m?.revenue ?? 0)}</td>
+                            <td className="num">
+                              <LinkRowActions id={l.id} short={marketing.service.shortUrl(l.slug)} full={targets.get(l.id) ?? ""} archived={l.archived} canManage={manage} />
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <ul className="divide-y divide-line lg:hidden">
+                  {visibleLinks.map((l) => {
+                    const m = report.links.get(l.slug);
+                    return (
+                      <li key={l.id} className="space-y-2.5 px-4 py-3.5">
+                        <div className="min-w-0">
+                          <div className="truncate font-medium">{l.name}</div>
+                          <div className="truncate text-xs text-muted">
+                            {l.kind === "whatsapp" ? "в WhatsApp" : l.targetPath}, {channelLabel({ source: l.utmSource, medium: l.utmMedium })}
+                          </div>
+                        </div>
+                        <dl className="grid grid-cols-4 gap-2 text-[13px] tabular-nums">
+                          <Cell label="Переходы" value={m?.clicks ?? 0} />
+                          <Cell label="Заявки" value={m?.leads ?? 0} />
+                          <Cell label="Продажи" value={m?.sales ?? 0} />
+                          <Cell label="Выручка" value={formatPrice(m?.revenue ?? 0)} />
+                        </dl>
+                        <LinkRowActions id={l.id} short={marketing.service.shortUrl(l.slug)} full={targets.get(l.id) ?? ""} archived={l.archived} canManage={manage} />
+                      </li>
+                    );
+                  })}
+                </ul>
+              </>
+            ) : (
+              <EmptyState compact icon={Link2} title={archived ? "Архив пуст" : "Ссылок пока нет"}>
+                {archived ? "Сюда попадают ссылки, которые убрали в архив." : manage ? "Нажмите «Создать ссылку» вверху — например, для шапки Instagram." : "Ссылки появятся, когда руководитель создаст первую."}
+              </EmptyState>
+            )}
+          </div>
+          <div className="border-t border-line bg-sunken/30 px-4 py-3 sm:px-5">
+            {can(staff, "settings.manage") ? (
+              <WhatsappNumberForm value={waNumber} />
+            ) : (
+              <p className="text-xs text-muted">
+                Ссылки «Сразу в WhatsApp» ведут на номер магазина {formatPhone(waNumber)}. Он же — в реквизитах на сайте, поэтому его меняет руководитель в разделе «Сайт», блок «Реквизиты продавца».
+              </p>
+            )}
+          </div>
+        </div>
+      </section>
 
       {showAnalytics && report.campaigns.length ? (
-        <Panel flush title="Кампании" description="По меткам utm_source / utm_medium / utm_campaign">
-          <div className="overflow-x-auto">
-            <table className={cn("table min-w-[760px]", EDGE)}>
-              <thead>
-                <tr>
-                  <th>Метки</th>
-                  <th>Канал</th>
-                  <th className="text-right">Переходы</th>
-                  <th className="text-right">Регистрации</th>
-                  <th className="text-right">Заявки</th>
-                  <th className="text-right">Продажи</th>
-                  <th className="text-right">Выручка</th>
-                </tr>
-              </thead>
-              <tbody className="tabular-nums">
-                {report.campaigns.map((c) => (
-                  <tr key={c.key}>
-                    <td className="font-mono text-xs">{[c.source, c.medium, c.campaign].filter(Boolean).join(" / ")}</td>
-                    <td>{c.channel}</td>
-                    <td className="text-right text-muted">{c.clicks || "—"}</td>
-                    <td className="text-right">{c.registrations}</td>
-                    <td className="text-right">{c.leads}</td>
-                    <td className="text-right">{c.sales}</td>
-                    <td className="text-right font-medium whitespace-nowrap">{formatPrice(c.revenue)}</td>
+        <section aria-labelledby="campaigns-h" className="space-y-2">
+          <SectionHead id="campaigns-h" title="Кампании" meta="По меткам utm_source / utm_medium / utm_campaign" />
+          <div className="panel overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="table min-w-[760px]">
+                <thead>
+                  <tr>
+                    <th>Метки</th>
+                    <th>Канал</th>
+                    <th className="num">Переходы</th>
+                    <th className="num">Регистрации</th>
+                    <th className="num">Заявки</th>
+                    <th className="num">Продажи</th>
+                    <th className="num">Выручка</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {report.campaigns.map((c) => (
+                    <tr key={c.key}>
+                      <td className="font-mono text-xs">{[c.source, c.medium, c.campaign].filter(Boolean).join(" / ")}</td>
+                      <td>{c.channel}</td>
+                      <td className="num text-muted">{c.clicks || "—"}</td>
+                      <td className="num">{c.registrations}</td>
+                      <td className="num">{c.leads}</td>
+                      <td className="num">{c.sales}</td>
+                      <td className="num">
+                        <BarCell value={c.revenue} max={Math.max(...report.campaigns.map((x) => x.revenue), 0)}>
+                          {formatPrice(c.revenue)}
+                        </BarCell>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </Panel>
+        </section>
       ) : null}
     </div>
   );

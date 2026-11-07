@@ -11,7 +11,7 @@ export function CopyLink({ url, text }: { url: string; text: string }) {
     <div className="flex flex-wrap gap-2">
       <button
         type="button"
-        className="btn btn-outline btn-sm"
+        className="btn btn-outline"
         onClick={async () => {
           await navigator.clipboard.writeText(url).catch(() => {});
           setCopied(true);
@@ -20,7 +20,7 @@ export function CopyLink({ url, text }: { url: string; text: string }) {
       >
         {copied ? <Check className="size-4" /> : <Copy className="size-4" />} {copied ? t.copied : t.copy}
       </button>
-      <a className="btn btn-outline btn-sm" href={`https://wa.me/?text=${encodeURIComponent(`${text} ${url}`)}`} target="_blank" rel="noopener noreferrer">
+      <a className="btn btn-outline" href={`https://wa.me/?text=${encodeURIComponent(`${text} ${url}`)}`} target="_blank" rel="noopener noreferrer">
         <MessageCircle className="size-4" /> {t.whatsapp}
       </a>
     </div>

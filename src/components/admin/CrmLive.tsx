@@ -213,7 +213,7 @@ export function NotificationBell() {
       </button>
       {open ? (
         <div
-          className="z-50 flex flex-col overflow-hidden rounded-[14px] border border-line bg-white shadow-soft max-lg:fixed max-lg:inset-x-2 max-lg:top-[calc(var(--topbar-h)+0.25rem)] max-lg:max-h-[calc(100dvh-var(--topbar-h)-var(--tabbar-h)-1rem)] lg:absolute lg:right-0 lg:mt-2 lg:max-h-[min(80vh,680px)] lg:w-[400px]"
+          className="z-50 flex flex-col overflow-hidden rounded-[var(--r-panel)] border border-line bg-white shadow-soft max-lg:fixed max-lg:inset-x-2 max-lg:top-[calc(var(--topbar-h)+0.25rem)] max-lg:max-h-[calc(100dvh-var(--topbar-h)-var(--tabbar-h)-1rem)] lg:absolute lg:right-0 lg:mt-2 lg:max-h-[min(80vh,680px)] lg:w-[400px]"
           role="dialog"
           aria-label="Уведомления"
         >
@@ -353,7 +353,7 @@ export function IncomingCall() {
   return (
     <div className="fixed inset-x-3 bottom-[calc(var(--tabbar-h,0px)+0.75rem)] z-50 flex flex-col gap-2 sm:inset-x-auto sm:right-4 sm:w-[360px] lg:bottom-4" role="status" aria-live="polite">
       {calls.map((c) => (
-        <div key={c.id} className="animate-pop overflow-hidden rounded-[14px] border border-line bg-white shadow-lift" data-testid="incoming-call">
+        <div key={c.id} className="animate-pop overflow-hidden rounded-[var(--r-panel)] border border-line bg-white shadow-lift" data-testid="incoming-call">
           <div className="flex items-start gap-3 p-4">
             <span className="relative flex size-11 shrink-0 items-center justify-center rounded-full bg-success-bg text-success">
               <span className="absolute inset-0 animate-ping rounded-full bg-success/20" aria-hidden />

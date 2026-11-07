@@ -2,9 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { LoaderCircle } from "lucide-react";
-import { Intro } from "@/components/admin/Intro";
 import { cn } from "@/lib/class-names";
-import { Section } from "../ui";
+import { CheckMessage, Group, Note, Section } from "../ui";
 import { saveWhatsappCallsAction } from "./actions";
 
 /**
@@ -24,26 +23,32 @@ export function WhatsappCallsForm(props: { enabled: boolean; gowa: boolean }) {
     });
   return (
     <Section
+      id="wa-calls"
       defaultOpen={false}
       title="Звонки WhatsApp из CRM"
-      badge={<span className={cn("badge", enabled && "badge-success")}>{enabled ? "включены · бета" : "выключены"}</span>}
-    >
-      <Intro>
-        Менеджер звонит клиенту в WhatsApp кнопкой «WhatsApp» рядом с «Позвонить» и отвечает на входящие звонки WhatsApp прямо в CRM — с номера магазина, через микрофон и динамик компьютера или телефона. Звонки попадают в «Звонки», ленту клиента и сделки, как звонки АТС; пропущенные — в уведомления и правила.
-      </Intro>
-      <ul className="mt-3 list-disc space-y-1 pl-5 text-xs text-muted">
-        <li>Бета: звонки идут по неофициальному протоколу WhatsApp Web. WhatsApp может изменить его (звонки перестанут работать до обновления шлюза) или ограничить номер — не звоните массово незнакомым номерам.</li>
-        <li>Нужен свой шлюз GOWA со звонками (сборка deploy/gowa-beta-build.sh) и прокси звука /wa-call/audio в nginx (deploy/wa-calls-nginx.sh).</li>
-        <li>Пока звонки включены, входящий звонок WhatsApp звонит в CRM, а не на телефоне магазина.</li>
-        <li>Разговоры записываются; слушать записи в «Звонках» может только сотрудник с правом «Слушать записи разговоров» — по умолчанию руководитель.</li>
-        <li>Лучше в наушниках: так собеседник не слышит эхо. Браузер спросит доступ к микрофону при первом звонке.</li>
-      </ul>
-      {!props.gowa ? <p className="mt-3 text-xs text-warning">Сначала выберите «Свой шлюз GOWA» выше — через Wazzup звонков нет.</p> : null}
-      <div className="mt-4 flex flex-wrap items-center gap-3">
-        <button className={cn("btn btn-sm", enabled ? "btn-outline" : "btn-primary")} disabled={pending || (!enabled && !props.gowa)} onClick={() => save(!enabled)} data-testid="wa-calls-toggle">
+      description="Менеджер звонит клиенту и отвечает на входящие прямо в CRM, с номера магазина"
+      status={enabled ? { tone: "ok", label: "включены · бета" } : { tone: "off", label: "выключены" }}
+      actions={
+        <button className={cn("btn btn-sm", enabled ? "btn-outline" : "btn-dark")} disabled={pending || (!enabled && !props.gowa)} onClick={() => save(!enabled)} data-testid="wa-calls-toggle">
           {pending ? <LoaderCircle className="size-4 animate-spin" /> : null} {enabled ? "Выключить звонки" : "Включить звонки"}
         </button>
-        {message ? <p className={cn("text-xs", message.ok ? "text-success" : "text-danger")}>{message.text}</p> : null}
+      }
+    >
+      <CheckMessage check={message ? { ok: message.ok, message: message.text } : null} />
+      <div className="space-y-5">
+        {!props.gowa ? <p className="max-w-[40rem] rounded-[var(--r-ctl)] bg-warning-bg px-3 py-2 text-sm text-warning">Сначала выберите «Свой шлюз GOWA» в листе выше: через Wazzup звонков нет.</p> : null}
+        <Note>
+          Менеджер звонит клиенту в WhatsApp кнопкой «WhatsApp» рядом с «Позвонить» и отвечает на входящие звонки WhatsApp прямо в CRM — с номера магазина, через микрофон и динамик компьютера или телефона. Звонки попадают в «Звонки», ленту клиента и сделки, как звонки АТС; пропущенные — в уведомления и правила.
+        </Note>
+        <Group title="Что нужно знать" hint="Это бета: прочитайте перед включением.">
+          <ul className="list-disc space-y-1.5 pl-5 text-[13px] text-ink-soft">
+            <li>Звонки идут по неофициальному протоколу WhatsApp Web. WhatsApp может изменить его (звонки перестанут работать до обновления шлюза) или ограничить номер — не звоните массово незнакомым номерам.</li>
+            <li>Нужен свой шлюз GOWA со звонками (сборка deploy/gowa-beta-build.sh) и прокси звука /wa-call/audio в nginx (deploy/wa-calls-nginx.sh).</li>
+            <li>Пока звонки включены, входящий звонок WhatsApp звонит в CRM, а не на телефоне магазина.</li>
+            <li>Разговоры записываются; слушать записи в «Звонках» может только сотрудник с правом «Слушать записи разговоров» — по умолчанию руководитель.</li>
+            <li>Лучше в наушниках: так собеседник не слышит эхо. Браузер спросит доступ к микрофону при первом звонке.</li>
+          </ul>
+        </Group>
       </div>
     </Section>
   );

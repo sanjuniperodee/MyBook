@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { ChevronDown } from "lucide-react";
 import { Link } from "@/i18n/client";
 import { LandingHeader } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
 import { Faq } from "@/components/Faq";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
-import { Flourish } from "@/components/landing/FilmFrame";
+import { Flourish, themePhoto } from "@/components/landing/FilmFrame";
+import { PhotoPlate } from "@/components/landing/PageIntro";
+import { coverPhotoUrl } from "@/lib/book/photo-cover";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { getCurrentUser } from "@/server/auth";
 import { registrationOpen, site } from "@/config/site";
@@ -82,7 +85,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
   ];
 
   const renderSection = (s: (typeof c.sections)[number], id: string) => (
-    <section key={id} id={id} className="mt-14 scroll-mt-24">
+    <section key={id} id={id} className="mt-14 scroll-mt-24 first:mt-0">
       <h2 className="font-serif text-[30px] leading-tight font-medium tracking-tight text-balance sm:text-[34px]">{s.heading}</h2>
       {s.paragraphs?.map((p) => (
         <p key={p} className="mt-5 text-[18px] leading-[1.75] text-ink-soft">
@@ -99,100 +102,143 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
     </section>
   );
 
+  const sb = m.secondary.blog;
+  const photo = themePhoto[a.theme];
+  const dateText = a.published.split("-").reverse().join(".");
+  const tocList = (
+    <ol className="text-[15px] text-ink-soft">
+      {outline.map((o) => (
+        <li key={o.id}>
+          <a href={`#${o.id}`} className="block py-2 leading-snug hover:text-wine lg:py-1.5">
+            {o.title}
+          </a>
+        </li>
+      ))}
+    </ol>
+  );
+
   return (
     <>
       <JsonLd data={jsonLd} />
       <LandingHeader loggedIn={!!user} />
       <main className="overflow-x-clip">
-        <article className="pt-28 pb-16 sm:pt-36 sm:pb-24">
-          <div className="container-x">
-            <div className="mx-auto max-w-[44rem] lg:mx-0 lg:ml-[17rem]">
+        <article className="pt-24 pb-16 sm:pt-32 sm:pb-24">
+          {/* Титр: колонка узкая, слева; под ним — снимок темы на всю ширину, как «кадр» над текстом. */}
+          <header className="container-x">
+            <div className="max-w-[48rem]">
               <Breadcrumbs items={[{ name: m.landing.seoPage.home, href: "/" }, { name: t.eyebrow, href: "/blog" }, { name: c.title }]} className="max-sm:hidden" />
               <div className="text-sm text-muted">
-                <time dateTime={a.published}>{a.published.split("-").reverse().join(".")}</time>
+                <time dateTime={a.published}>{dateText}</time>
                 <span aria-hidden className="mx-2">/</span>
                 {t.minutes(a.readMinutes)}
+                {a.updated ? (
+                  <>
+                    <span aria-hidden className="mx-2">/</span>
+                    <time dateTime={a.updated}>{sb.updated(a.updated.split("-").reverse().join("."))}</time>
+                  </>
+                ) : null}
               </div>
-              <h1 className="mt-4 font-serif text-[40px] leading-[1.06] font-medium tracking-[-0.01em] text-balance sm:text-[56px]">{c.title}</h1>
+              <h1 className="mt-4 font-serif text-[38px] leading-[1.05] font-medium tracking-[-0.01em] text-balance sm:text-[56px]">{c.title}</h1>
               <Flourish className="mt-3 text-wine/45" />
               <p className="mt-6 text-xl leading-relaxed text-ink">{c.lead}</p>
             </div>
+            <PhotoPlate photo={photo.key} position={photo.position} shade="full" priority className="mt-9 aspect-[16/10] sm:mt-12 sm:aspect-[21/9]" sizes="(min-width: 1152px) 1100px, 100vw" />
+          </header>
 
-            <div className="mt-12 lg:grid lg:grid-cols-[14rem_minmax(0,44rem)] lg:gap-12">
-              {/* Содержание: на ноутбуке — липкая колонка слева, на телефоне — список перед текстом. */}
-              <nav aria-label={t.toc} className="mx-auto max-w-[44rem] border-y border-line py-5 lg:sticky lg:top-24 lg:mx-0 lg:self-start lg:border-y-0 lg:border-l lg:py-0 lg:pl-5">
-                <div className="text-sm font-semibold">{t.toc}</div>
-                <ol className="mt-2 text-sm text-ink-soft lg:mt-3 lg:space-y-2">
-                  {outline.map((o) => (
-                    <li key={o.id}>
-                      <a href={`#${o.id}`} className="block py-2 leading-snug hover:text-wine lg:py-0">
-                        {o.title}
-                      </a>
-                    </li>
-                  ))}
-                </ol>
-              </nav>
+          <div className="container-x mt-10 lg:mt-14 lg:grid lg:grid-cols-[13rem_minmax(0,42rem)] lg:gap-16">
+            {/* Содержание: на ноутбуке — липкая колонка слева, на телефоне — раскрывающийся список перед текстом. */}
+            <nav aria-label={t.toc} className="hidden lg:sticky lg:top-24 lg:block lg:self-start lg:border-l lg:border-line lg:pl-5">
+              <div className="text-sm font-semibold">{t.toc}</div>
+              <div className="mt-2">{tocList}</div>
+            </nav>
+            <details className="group mb-10 max-w-[42rem] rounded-[10px] border border-line bg-white lg:hidden">
+              <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between px-4 text-sm font-semibold [&::-webkit-details-marker]:hidden">
+                {t.toc}
+                <ChevronDown className="size-4 text-muted transition-transform group-open:rotate-180" aria-hidden />
+              </summary>
+              <div className="border-t border-line px-4 pb-2">{tocList}</div>
+            </details>
 
-              <div className="mx-auto max-w-[44rem] lg:mx-0">
-                {before.map((s, i) => renderSection(s, `s${i + 1}`))}
+            <div className="max-w-[42rem]">
+              {before.map((s, i) => renderSection(s, `s${i + 1}`))}
 
-                {bank.length && c.questions ? (
-                  <section id="questions" className="mt-14 scroll-mt-24">
-                    <h2 className="font-serif text-[30px] leading-tight font-medium tracking-tight text-balance sm:text-[34px]">{c.questions.heading}</h2>
-                    <p className="mt-5 text-[18px] leading-[1.75] text-ink-soft">{c.questions.intro}</p>
-                    <div className="mt-8 space-y-10">
-                      {bank.map((ch) => (
-                        <div key={ch.key}>
-                          <h3 className="text-sm font-semibold text-wine">{ch.title}</h3>
-                          <ul className="mt-3 divide-y divide-line border-y border-line">
-                            {ch.questions.map((q) => (
-                              <li key={q} className="py-3 font-serif text-[21px] leading-snug text-ink">
-                                {q}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      ))}
-                    </div>
-                    <p className="mt-6 text-sm text-muted">{t.questionsCount(countQuestions(theme))}</p>
-                  </section>
-                ) : null}
+              {bank.length && c.questions ? (
+                <section id="questions" className="mt-14 scroll-mt-24">
+                  <h2 className="font-serif text-[30px] leading-tight font-medium tracking-tight text-balance sm:text-[34px]">{c.questions.heading}</h2>
+                  <p className="mt-5 text-[18px] leading-[1.75] text-ink-soft">{c.questions.intro}</p>
+                  <div className="mt-8 space-y-10">
+                    {bank.map((ch) => (
+                      <div key={ch.key}>
+                        <h3 className="text-sm font-semibold text-wine">{ch.title}</h3>
+                        <ul className="mt-3 divide-y divide-line border-y border-line">
+                          {ch.questions.map((q) => (
+                            <li key={q} className="py-3 font-serif text-[21px] leading-snug text-ink">
+                              {q}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="mt-6 text-sm text-muted">{t.questionsCount(countQuestions(theme))}</p>
+                </section>
+              ) : null}
 
-                {rest.map((s, i) => renderSection(s, `s${after + i + 1}`))}
+              {rest.map((s, i) => renderSection(s, `s${after + i + 1}`))}
 
-                {/* Призыв — маленький «кадр»: тёмная основа, тонкая рамка. */}
-                <aside className="relative mt-16 overflow-hidden rounded-[14px] bg-spine px-7 py-10 text-white sm:px-10">
-                  <div aria-hidden className="pointer-events-none absolute inset-2.5 rounded-[8px] border border-[rgb(255_255_255/0.22)]" />
-                  <h2 className="relative font-serif text-[32px] leading-tight font-medium text-balance">{c.cta.title}</h2>
-                  <p className="relative mt-3 max-w-lg text-white/80">{c.cta.text}</p>
-                  <Link href={cta} className="btn btn-primary btn-lg relative mt-7">
+              {/* Предложение книги: «кадр» темы статьи с одним действием. */}
+              <PhotoPlate photo={photo.key} position={photo.position} shade="side" className="mt-16 min-h-[360px] justify-center">
+                <aside className="relative px-6 py-10 sm:px-10 sm:py-12">
+                  <div className="text-sm font-medium text-white/75">{sb.ctaKicker}</div>
+                  <h2 className="mt-2 font-serif text-[30px] leading-[1.1] font-medium text-balance sm:text-[38px]">{c.cta.title}</h2>
+                  <p className="mt-3 max-w-lg text-white/80">{c.cta.text}</p>
+                  <Link href={cta} className="btn btn-primary btn-lg mt-7 w-full sm:w-auto">
                     {guestClosed ? m.common.nav.login : m.landing.hero.cta}
                   </Link>
                 </aside>
+              </PhotoPlate>
 
-                <section className="mt-16">
-                  <h2 className="font-serif text-[30px] leading-tight font-medium tracking-tight">{m.landing.seoPage.faqTitle}</h2>
-                  <Faq className="mt-6" items={c.faq} size="md" />
-                </section>
-              </div>
+              <section className="mt-16">
+                <h2 className="font-serif text-[30px] leading-tight font-medium tracking-tight">{m.landing.seoPage.faqTitle}</h2>
+                <Faq className="mt-6" items={c.faq} size="md" />
+              </section>
             </div>
           </div>
         </article>
 
-        <section className="border-t border-line bg-cream/50 py-14 sm:py-16">
-          <div className="container-x grid gap-12 md:grid-cols-2">
+        <section className="border-t border-line bg-cream/50 py-12 sm:py-16">
+          <div className="container-x grid gap-12 md:grid-cols-2 md:gap-16">
+            <div>
+              <h2 className="text-sm font-semibold">{t.moreArticles}</h2>
+              <ul className="mt-3 divide-y divide-line border-y border-line">
+                {others.map((x) => (
+                  <li key={x.slug}>
+                    <Link href={`/blog/${x.slug}`} className="group flex min-h-16 items-center gap-4 py-3">
+                      {/* eslint-disable-next-line @next/next/no-img-element -- готовые уменьшенные копии из /api/cover-photos */}
+                      <img src={coverPhotoUrl(themePhoto[x.theme].key, 200)} alt="" loading="lazy" decoding="async" className="size-14 shrink-0 rounded-[8px] object-cover" style={{ objectPosition: themePhoto[x.theme].position }} />
+                      <span className="leading-snug font-medium text-ink-soft group-hover:text-wine">{x.content[locale].title}</span>
+                    </Link>
+                  </li>
+                ))}
+                <li>
+                  <Link href="/blog" className="flex min-h-12 items-center py-3 text-sm font-medium text-wine hover:underline">
+                    {sb.all}
+                  </Link>
+                </li>
+              </ul>
+            </div>
             <div>
               <h2 className="text-sm font-semibold">{t.related}</h2>
-              <ul className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm">
+              <ul className="mt-3 divide-y divide-line border-y border-line">
                 {related.map((l) => (
                   <li key={l.slug}>
-                    <Link href={`/kniga/${l.slug}`} className="text-ink-soft underline decoration-line-strong underline-offset-4 hover:text-wine hover:decoration-wine">
+                    <Link href={`/kniga/${l.slug}`} className="flex min-h-12 items-center py-3 text-ink-soft hover:text-wine">
                       {l.content[locale].label}
                     </Link>
                   </li>
                 ))}
                 <li>
-                  <Link href="/kniga" className="font-medium text-wine hover:underline">
+                  <Link href="/kniga" className="flex min-h-12 items-center py-3 text-sm font-medium text-wine hover:underline">
                     {m.common.footer.allIdeas}
                   </Link>
                 </li>
@@ -200,10 +246,10 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
               {relatedTools.length ? (
                 <>
                   <h2 className="mt-8 text-sm font-semibold">{toolsPageUi[locale].others}</h2>
-                  <ul className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm">
+                  <ul className="mt-3 divide-y divide-line border-y border-line">
                     {relatedTools.map((tool) => (
                       <li key={tool.slug}>
-                        <Link href={`/instrumenty/${tool.slug}`} className="text-wine underline decoration-wine/30 underline-offset-4 hover:decoration-wine">
+                        <Link href={`/instrumenty/${tool.slug}`} className="flex min-h-12 items-center py-3 text-wine hover:underline">
                           {tool.content[locale].label}
                         </Link>
                       </li>
@@ -211,18 +257,6 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
                   </ul>
                 </>
               ) : null}
-            </div>
-            <div>
-              <h2 className="text-sm font-semibold">{t.moreArticles}</h2>
-              <ul className="mt-4 space-y-2.5 text-sm">
-                {others.map((x) => (
-                  <li key={x.slug}>
-                    <Link href={`/blog/${x.slug}`} className="text-ink-soft hover:text-wine">
-                      {x.content[locale].title}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
             </div>
           </div>
         </section>

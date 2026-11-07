@@ -210,6 +210,18 @@ export const intertight = localFont({
   preload: false,
 });
 
+/** Шрифт CRM («Тираж»): Inter Tight, два начертания — 400 и 600; средний вес (font-medium) отдаём полужирному, чтобы подписи читались чётко. */
+export const crmsans = localFont({
+  src: [
+    { path: "../../assets/fonts/web/InterTight-400.woff2", weight: "400" },
+    { path: "../../assets/fonts/web/InterTight-600.woff2", weight: "500" },
+    { path: "../../assets/fonts/web/InterTight-600.woff2", weight: "600" },
+    { path: "../../assets/fonts/web/InterTight-800.woff2", weight: "700" },
+  ],
+  variable: "--font-crm",
+  display: "swap",
+});
+
 export const geologica = localFont({
   src: [
     { path: "../../assets/fonts/web/Geologica-400.woff2", weight: "400" },
@@ -320,6 +332,6 @@ export const pangolin = localFont({
 /** Библиотека шрифтов дизайнера: @font-face объявлены всегда, файлы грузятся, только когда шрифт виден на странице. */
 const designFonts = [ebgaramond, literata, alegreya, spectral, oldstandard, notodisplay, prata, yeseva, forum, cormorantsc, raleway, intertight, geologica, oswald, montalt, pacifico, lobster, kurale, philosopher, alice, comfortaa, nunito, pangolin];
 
-export const fontVariables = [onest, cormorant, playfair, lora, ptserif, montserrat, badscript, caveat, ...designFonts]
+export const fontVariables = [onest, crmsans, cormorant, playfair, lora, ptserif, montserrat, badscript, caveat, ...designFonts]
   .map((f) => f.variable)
   .join(" ");

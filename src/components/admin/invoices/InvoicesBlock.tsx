@@ -52,7 +52,7 @@ export function InvoicesBlock({ dealId, invoices, perms, onPaid, compact = false
           const access = v.status === "paid" ? accessLabels[v.access] : null;
           const busyHere = busy?.endsWith(v.id);
           return (
-            <li key={v.id} className="rounded-[10px] border border-line px-3.5 py-2.5" data-testid="deal-invoice">
+            <li key={v.id} className="rounded-[var(--r-ctl)] border border-line px-3.5 py-2.5" data-testid="deal-invoice">
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <span className="font-medium">{v.label}</span>
                 <span className="font-semibold tabular-nums">{formatPrice(v.amount)}</span>
@@ -141,7 +141,7 @@ function AccountPicker({ invoiceId, onSend }: { invoiceId: string; onSend: (user
   }, [invoiceId]);
 
   return (
-    <div className="mt-2 space-y-2 rounded-[10px] bg-sunken p-3" data-testid="access-picker">
+    <div className="mt-2 space-y-2 rounded-[var(--r-ctl)] bg-sunken p-3" data-testid="access-picker">
       <form
         className="flex gap-2"
         onSubmit={(e) => {

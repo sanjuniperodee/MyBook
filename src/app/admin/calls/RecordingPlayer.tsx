@@ -6,7 +6,7 @@ import { cn } from "@/lib/class-names";
 
 /** Событие «играет эта запись»: остальные плееры страницы встают на паузу. */
 const PLAY_EVENT = "calls:recording";
-const BARS = 44;
+const BARS = 36;
 const SPEEDS = [1, 1.5, 2] as const;
 
 /** Псевдо-волна из id звонка: у каждой записи своя и не меняется между перерисовками. */
@@ -75,7 +75,7 @@ export function RecordingPlayer({ callId, durationSec, ext = "mp3", className }:
 
   const progress = duration ? Math.min(1, time / duration) : 0;
   return (
-    <div className={cn("flex min-w-0 items-center gap-2.5", className)} data-testid="call-recording">
+    <div className={cn("flex min-w-0 items-center gap-2", className)} data-testid="call-recording">
       <audio
         ref={audio}
         src={src}
@@ -96,65 +96,61 @@ export function RecordingPlayer({ callId, durationSec, ext = "mp3", className }:
       <button
         type="button"
         onClick={toggle}
-        className="flex size-9 shrink-0 items-center justify-center rounded-full bg-wine text-white transition-colors hover:bg-wine-dark max-lg:size-11"
+        className="flex size-8 shrink-0 items-center justify-center rounded-[var(--r-ctl)] bg-wine text-white transition-colors hover:bg-wine-dark max-lg:size-11"
         aria-label={playing ? "Пауза" : "Слушать запись"}
       >
-        {loading ? <LoaderCircle className="size-4 animate-spin" /> : playing ? <Pause className="size-4" fill="currentColor" /> : <Play className="ml-0.5 size-4" fill="currentColor" />}
+        {loading ? <LoaderCircle className="size-4 animate-spin" /> : playing ? <Pause className="size-3.5" fill="currentColor" /> : <Play className="ml-0.5 size-3.5" fill="currentColor" />}
       </button>
-      <div className="min-w-0 flex-1">
-        {error ? (
-          <div className="truncate text-xs text-danger" title={error}>
-            {error}
-          </div>
-        ) : (
-          <div
-            ref={wave}
-            className="flex h-7 cursor-pointer touch-none items-center gap-[2px]"
-            onPointerDown={(e) => {
-              e.currentTarget.setPointerCapture(e.pointerId);
-              seekTo(e.clientX);
-            }}
-            onPointerMove={(e) => e.buttons === 1 && seekTo(e.clientX)}
-            role="slider"
-            aria-label="Перемотка записи"
-            aria-valuemin={0}
-            aria-valuemax={Math.round(duration)}
-            aria-valuenow={Math.round(time)}
-            tabIndex={0}
-            onKeyDown={(e) => {
-              const a = audio.current;
-              if (!a) return;
-              if (e.key === "ArrowRight") a.currentTime = Math.min(duration, a.currentTime + 5);
-              if (e.key === "ArrowLeft") a.currentTime = Math.max(0, a.currentTime - 5);
-            }}
-          >
-            {heights.map((h, i) => (
-              <span key={i} className={cn("min-w-[2px] flex-1 rounded-full transition-colors", (i + 0.5) / BARS < progress ? "bg-wine" : "bg-wine/20")} style={{ height: `${Math.round(h * 100)}%` }} />
-            ))}
-          </div>
-        )}
-        <div className="mt-0.5 flex items-center gap-2 text-xs text-muted tabular-nums">
-          <span>
-            {playing || time ? `${mmss(time)} / ` : ""}
-            {mmss(duration)}
-          </span>
-          <button
-            type="button"
-            className="rounded px-1 font-semibold hover:bg-sunken max-lg:min-h-8"
-            onClick={() => {
-              const next = SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length];
-              setSpeed(next);
-              if (audio.current) audio.current.playbackRate = next;
-            }}
-            aria-label="Скорость"
-          >
-            {speed}×
-          </button>
-          <a href={src} download={`zvonok-${callId.slice(0, 8)}.${ext}`} className="ml-auto flex items-center gap-1 hover:text-ink max-lg:min-h-8 max-lg:px-1" aria-label="Скачать запись">
-            <Download className="size-3.5" />
-          </a>
+      {error ? (
+        <div className="min-w-0 flex-1 truncate text-xs text-danger" title={error}>
+          {error}
         </div>
-      </div>
+      ) : (
+        <div
+          ref={wave}
+          className="flex h-6 min-w-16 flex-1 cursor-pointer touch-none items-center gap-[2px]"
+          onPointerDown={(e) => {
+            e.currentTarget.setPointerCapture(e.pointerId);
+            seekTo(e.clientX);
+          }}
+          onPointerMove={(e) => e.buttons === 1 && seekTo(e.clientX)}
+          role="slider"
+          aria-label="Перемотка записи"
+          aria-valuemin={0}
+          aria-valuemax={Math.round(duration)}
+          aria-valuenow={Math.round(time)}
+          tabIndex={0}
+          onKeyDown={(e) => {
+            const a = audio.current;
+            if (!a) return;
+            if (e.key === "ArrowRight") a.currentTime = Math.min(duration, a.currentTime + 5);
+            if (e.key === "ArrowLeft") a.currentTime = Math.max(0, a.currentTime - 5);
+          }}
+        >
+          {heights.map((h, i) => (
+            <span key={i} className={cn("min-w-[2px] flex-1 rounded-full transition-colors", (i + 0.5) / BARS < progress ? "bg-wine" : "bg-wine/20")} style={{ height: `${Math.round(h * 100)}%` }} />
+          ))}
+        </div>
+      )}
+      <span className="shrink-0 text-xs text-muted tabular-nums">
+        {playing || time ? `${mmss(time)} / ` : ""}
+        {mmss(duration)}
+      </span>
+      <button
+        type="button"
+        className="shrink-0 rounded px-1 text-xs font-semibold text-muted hover:bg-sunken hover:text-ink max-lg:min-h-9"
+        onClick={() => {
+          const next = SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length];
+          setSpeed(next);
+          if (audio.current) audio.current.playbackRate = next;
+        }}
+        aria-label="Скорость"
+      >
+        {speed}×
+      </button>
+      <a href={src} download={`zvonok-${callId.slice(0, 8)}.${ext}`} className="flex shrink-0 items-center rounded p-1 text-muted hover:bg-sunken hover:text-ink max-lg:min-h-9 max-lg:px-1.5" aria-label="Скачать запись">
+        <Download className="size-3.5" />
+      </a>
     </div>
   );
 }

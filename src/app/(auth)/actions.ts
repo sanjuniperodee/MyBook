@@ -19,7 +19,12 @@ export interface FormState {
   message?: string;
   /** Ссылка доступа устарела: форма предлагает написать в WhatsApp (у клиента по телефону нет почты для «Запросить новую»). */
   expired?: boolean;
+  /** Поле, к которому относится ошибка: форма ставит сообщение под него. Без поля — общее сообщение над кнопкой. */
+  field?: "name" | "email" | "password" | "consent" | "code";
 }
+
+/** Поле формы по пути ошибки zod (name, email, password, consent). */
+const fieldOf = (path: PropertyKey[]): FormState["field"] => (["name", "email", "password", "consent"] as const).find((f) => f === path[0]);
 
 type AuthErrors = Awaited<ReturnType<typeof getMessages>>["auth"]["errors"];
 const emailSchema = (e: AuthErrors) => z.string().trim().toLowerCase().email(e.email).max(200);
@@ -39,7 +44,7 @@ export async function registerAction(_: FormState, form: FormData): Promise<Form
       consent: z.literal("on", { message: e.consent }),
     })
     .safeParse(Object.fromEntries(form));
-  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  if (!parsed.success) return { error: parsed.error.issues[0].message, field: fieldOf(parsed.error.issues[0].path) };
   if (!await rateLimit(`register:${await trustedClientIp()}`, 10, 3600_000)) return { error: e.tooMany };
   try {
     const { token, expiresAt } = await container().identity.auth.register({ ...parsed.data, locale, source: await readSource() });
@@ -47,7 +52,7 @@ export async function registerAction(_: FormState, form: FormData): Promise<Form
   } catch (err) {
     const error = await actionError(err, IdentityError);
     if (error === null) throw err;
-    return { error };
+    return { error, field: IdentityError.is(err) ? (err.code === "exists" || err.code === "email" ? "email" : err.code === "password" ? "password" : undefined) : undefined };
   }
   await queueEvent("sign_up");
   const theme = String(form.get("theme") ?? "");
@@ -62,7 +67,7 @@ export async function loginAction(_: FormState, form: FormData): Promise<FormSta
   if (!input.success) return { error: e.credentialsMissing };
   const login = input.data.email.trim().slice(0, 200);
   const password = input.data.password;
-  if (!login || !password) return { error: e.credentialsMissing };
+  if (!login || !password) return { error: e.credentialsMissing, field: login ? "password" : "email" };
   if (!await rateLimit(`login:${await trustedClientIp()}`, 30, 900_000) || !await rateLimit(`login:${login.toLowerCase()}`, 10, 900_000)) return { error: e.tooManyLogin };
   const next = safeNextPath(form.get("next"));
   try {
@@ -88,7 +93,7 @@ export async function twoFactorAction(_: FormState, form: FormData): Promise<For
   if (!userId) return { error: e.twoFactorExpired };
   if (!await rateLimit(`2fa:${userId}`, 8, 900_000) || !await rateLimit(`2fa-ip:${await trustedClientIp()}`, 30, 900_000)) return { error: e.tooManyLogin };
   const code = formText.safeParse(form.get("code") ?? undefined);
-  if (!code.success) return { error: e.twoFactorCode };
+  if (!code.success) return { error: e.twoFactorCode, field: "code" };
   try {
     const { token, expiresAt } = await container().identity.auth.completeSecondFactor(userId, code.data, locale);
     await clearTwoFactorTicket();
@@ -96,7 +101,7 @@ export async function twoFactorAction(_: FormState, form: FormData): Promise<For
   } catch (err) {
     const error = await actionError(err, IdentityError);
     if (error === null) throw err;
-    return { error };
+    return { error, field: IdentityError.is(err) && err.code === "twoFactorCode" ? "code" : undefined };
   }
   return lredirect(safeNextPath(form.get("next")));
 }
@@ -109,7 +114,7 @@ export async function logoutAction() {
 export async function forgotAction(_: FormState, form: FormData): Promise<FormState> {
   const [locale, m] = await Promise.all([getLocale(), getMessages()]);
   const email = emailSchema(m.auth.errors).safeParse(form.get("email"));
-  if (!email.success) return { error: m.auth.errors.email };
+  if (!email.success) return { error: m.auth.errors.email, field: "email" };
   if (!await rateLimit(`forgot:${await trustedClientIp()}`, 5, 3600_000)) return { error: m.auth.errors.tooManyForgot };
   await container().identity.auth.requestPasswordReset(email.data, locale);
   return { ok: true, message: m.auth.forgot.sent };
@@ -122,7 +127,7 @@ export async function forgotAction(_: FormState, form: FormData): Promise<FormSt
 export async function resetAction(_: FormState, form: FormData): Promise<FormState> {
   const m = await getMessages();
   const password = passwordSchema(m.auth.errors).safeParse(form.get("password"));
-  if (!password.success) return { error: password.error.issues[0].message };
+  if (!password.success) return { error: password.error.issues[0].message, field: "password" };
   const token = z.string().regex(/^[A-Za-z0-9_-]{20,100}$/).safeParse(form.get("token"));
   if (!token.success) return { error: m.auth.errors.resetExpired };
   const auth = container().identity.auth;

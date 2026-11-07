@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { ToolHeader } from "../ToolHeader";
 import { requireUser } from "@/server/auth";
 import { getAccessibleBook } from "@/server/books";
 import { container } from "@/server/container";
@@ -19,8 +18,11 @@ export default async function LettersPage({ params }: { params: Promise<{ id: st
   const m = await getMessages();
   const letters = await container().authoring.queries.letters(book.id);
   return (
-    <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
-      <ToolHeader title={m.books.letters.title} />
+    <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+      <header className="mb-5 max-w-2xl">
+        <h1 className="font-serif text-[30px] leading-tight font-medium sm:text-[36px]">{m.books.letters.title}</h1>
+        <p className="mt-1 text-[15px] leading-relaxed text-pretty text-muted">{m.bookStudio.letters.lead}</p>
+      </header>
       <LettersManager
         bookId={book.id}
         initialToken={book.inviteToken}

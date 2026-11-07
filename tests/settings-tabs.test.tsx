@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 vi.mock("next/link", () => ({ default: ({ href, children, ...p }: { href: string; children: React.ReactNode }) => <a href={href} {...p}>{children}</a> }));
 
-const { SETTINGS_TABS, parseTab } = await import("@/app/admin/settings/tabs");
+const { SETTINGS_TABS, parseTab, tabAnchors } = await import("@/app/admin/settings/tabs");
 const { SettingsNav } = await import("@/app/admin/settings/SettingsNav");
 
 describe("страница «Интеграции»: вкладки", () => {
@@ -20,10 +20,19 @@ describe("страница «Интеграции»: вкладки", () => {
     expect(SETTINGS_TABS.map((t) => t.id)).toEqual(["payments", "messengers", "mail", "telephony", "ai", "bot", "crm"]);
   });
 
-  it("навигация: ссылки ?tab=…, активная отмечена, группы подписаны", () => {
+  it("вкладки: ссылки ?tab=…, активная отмечена, подписи на месте", () => {
     const html = renderToStaticMarkup(<SettingsNav active="bot" />);
-    for (const t of SETTINGS_TABS) expect(html).toContain(`href="/admin/settings?tab=${t.id}"`);
-    expect(html.match(/aria-current="page"/g)).toHaveLength(2); // мобильная лента и боковое меню
-    for (const g of ["Деньги", "Каналы связи", "Автоматизация", "Работа менеджеров"]) expect(html).toContain(g);
+    for (const t of SETTINGS_TABS) {
+      expect(html).toContain(`href="/admin/settings?tab=${t.id}"`);
+      expect(html).toContain(t.label);
+    }
+    expect(html.match(/aria-current="page"/g)).toHaveLength(1);
+  });
+
+  it("якоря листов: у вкладок с несколькими листами они есть, id не повторяются", () => {
+    expect(tabAnchors("payments").map((a) => a.id)).toEqual(["kaspi", "transfer"]);
+    expect(tabAnchors("bot")).toEqual([]);
+    const ids = SETTINGS_TABS.flatMap((t) => t.sections.map((s) => s.id));
+    expect(new Set(ids).size).toBe(ids.length);
   });
 });

@@ -29,8 +29,8 @@ export function FieldEditor({ entity, field }: { entity: "deal" | "client"; fiel
       <input type="hidden" name="entity" value={entity} />
       {field ? <input type="hidden" name="id" value={field.id} /> : null}
       <div className="flex flex-wrap items-center gap-2">
-        <input name="label" defaultValue={field?.label} required maxLength={40} placeholder={field ? "" : "Новое поле, например «Бюджет клиента»"} className={cn("input h-9 min-w-0 flex-1 basis-48 text-sm max-lg:h-11", field && "font-medium")} aria-label="Название поля" />
-        <select name="type" value={type} onChange={(e) => setType(e.target.value as keyof typeof typeLabels)} className="input h-9 w-36 text-sm max-lg:h-11" aria-label="Тип поля">
+        <input name="label" defaultValue={field?.label} required maxLength={40} placeholder={field ? "" : "Новое поле, например «Бюджет клиента»"} className={cn("input min-w-0 flex-1 basis-48", field && "font-medium")} aria-label="Название поля" />
+        <select name="type" value={type} onChange={(e) => setType(e.target.value as keyof typeof typeLabels)} className="input w-36" aria-label="Тип поля">
           {Object.entries(typeLabels).map(([k, v]) => (
             <option key={k} value={k}>
               {v}
@@ -44,7 +44,7 @@ export function FieldEditor({ entity, field }: { entity: "deal" | "client"; fiel
           </button>
         ) : null}
       </div>
-      {type === "select" ? <input name="options" defaultValue={field?.options.join(", ")} maxLength={1000} placeholder="Варианты через запятую" className="input h-9 text-sm max-lg:h-11" aria-label="Варианты" /> : null}
+      {type === "select" ? <input name="options" defaultValue={field?.options.join(", ")} maxLength={1000} placeholder="Варианты через запятую" className="input" aria-label="Варианты" /> : null}
       {field || state.error || state.ok ? (
         <div className="flex flex-wrap items-center gap-3 text-xs text-muted">
           {field ? (

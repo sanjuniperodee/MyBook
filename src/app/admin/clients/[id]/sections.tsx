@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { BookOpen, Handshake, Mail, MessageCircle, Package, Phone } from "lucide-react";
+import { BookOpen, Handshake, Mail, MessageCircle, Package, Phone, Plus } from "lucide-react";
 import { Panel } from "@/components/ui/Panel";
+import { Facts } from "@/components/ui/Facts";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { StageLabel } from "@/app/admin/deals/StageLabel";
@@ -27,21 +28,66 @@ type Screen = ReturnType<typeof clientScreen>;
 type ClientRow = { id: string; name: string | null; email: string; role: string; createdAt: Date; lastSeenAt: Date | null; extraPhones: string[]; managerId: string | null; source: Record<string, string> | null; emailOptOut: boolean; locale: "ru" | "kk" };
 
 /**
- * Сводка клиента под шапкой: как связаться (контакты или маска, звонок, WhatsApp, письмо) и цифры — сколько купил,
- * сколько заказов и книг, средний чек, когда заходил. Цифры — одной строкой листа, как «Сейчас» на обзоре.
+ * Шапка разворота клиента (DESIGN.md §7.2): аватар и имя, теги, крупная сумма покупок, строка цифр (заказы, книги, средний
+ * чек, последний визит) и действия — позвонить, написать, письмо, новая сделка.
  */
-export function ClientSummary({ client, screen, contact, can }: { client: ClientRow; screen: Screen; contact: { masked: boolean; phone?: string | null; email?: string | null }; can: (p: Permission) => boolean }) {
+export function ClientHeader({
+  client,
+  displayName,
+  screen,
+  contact,
+  can,
+  avatar,
+  tags,
+}: {
+  client: ClientRow;
+  displayName: string;
+  screen: Screen;
+  contact: { masked: boolean; phone?: string | null; email?: string | null };
+  can: (p: Permission) => boolean;
+  avatar: React.ReactNode;
+  tags: string[];
+}) {
   const stats = [
-    { label: "Сумма покупок", value: formatPrice(screen.stats.ltv), strong: true },
     { label: "Заказов", value: String(screen.stats.orders) },
     { label: "Книг", value: String(screen.stats.books) },
     { label: "Средний чек", value: screen.stats.averageCheck !== null ? formatPrice(screen.stats.averageCheck) : "—" },
     { label: "Последний визит", value: client.lastSeenAt ? formatDate(client.lastSeenAt, true).replace(/ \d{4} г\./, "") : "—" },
   ];
   return (
-    <section className="panel overflow-hidden" aria-label="Сводка клиента">
-      <div className="flex flex-col gap-4 p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between">
-        <div className="min-w-0 space-y-1 text-sm">
+    <section className="panel overflow-hidden" aria-label="Клиент">
+      <div className="flex flex-wrap items-start gap-x-8 gap-y-3 p-4 sm:p-5">
+        <div className="flex min-w-0 flex-1 basis-72 items-center gap-3.5">
+          {avatar}
+          <div className="min-w-0">
+            <h1 className="text-[22px] leading-tight font-semibold tracking-[-0.015em] break-words lg:text-2xl">{displayName}</h1>
+            <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm text-muted">
+              <span>
+                {client.role === "admin" ? "Администратор" : "Клиент"} с {formatDate(client.createdAt)}
+              </span>
+              {tags.slice(0, 3).map((t) => (
+                <span key={t} className="text-wine">
+                  {t}
+                </span>
+              ))}
+            </p>
+          </div>
+        </div>
+        <div className="shrink-0 text-right max-sm:text-left" data-testid="client-ltv">
+          <div className="text-xs text-muted">Сумма покупок</div>
+          <div className="text-2xl leading-tight font-semibold tracking-[-0.02em] tabular-nums lg:text-[28px]">{formatPrice(screen.stats.ltv)}</div>
+        </div>
+      </div>
+      <dl className="grid grid-cols-2 gap-px border-t border-line bg-line sm:grid-cols-4">
+        {stats.map((s) => (
+          <div key={s.label} className="min-w-0 bg-white px-4 py-2.5 sm:px-5 sm:py-3">
+            <dt className="truncate text-xs text-muted">{s.label}</dt>
+            <dd className="mt-0.5 truncate text-[15px] font-semibold tabular-nums">{s.value}</dd>
+          </div>
+        ))}
+      </dl>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-line px-4 py-3 sm:px-5">
+        <div className="min-w-0 flex-1 basis-60 space-y-0.5 text-sm">
           {contact.masked ? (
             <>
               {screen.phoneDigits ? (
@@ -56,7 +102,7 @@ export function ClientSummary({ client, screen, contact, can }: { client: Client
           ) : (
             <>
               {screen.phoneDigits ? (
-                <a href={`tel:+${screen.phoneDigits}`} className="flex w-fit items-center gap-2 text-[15px] font-medium tabular-nums hover:text-wine">
+                <a href={`tel:+${screen.phoneDigits}`} className="flex w-fit items-center gap-2 font-medium tabular-nums hover:text-wine">
                   <Phone className="size-4 shrink-0 text-muted" aria-hidden /> {screen.rawPhone}
                 </a>
               ) : null}
@@ -72,20 +118,20 @@ export function ClientSummary({ client, screen, contact, can }: { client: Client
           )}
         </div>
         <ContactActions className="lg:w-auto lg:min-w-96" target={{ clientId: client.id }} canCall={!!screen.phoneDigits && can("calls.make")} canChat={!!screen.phoneDigits && can("chats.send")} canEmail={can("chats.send")} />
+        {can("deals.edit") ? (
+          <Link href={`/admin/deals/new?client=${client.id}`} className="btn btn-primary max-lg:w-full">
+            <Plus className="size-4" aria-hidden /> Новая сделка
+          </Link>
+        ) : null}
       </div>
-      <dl className="grid grid-cols-2 gap-px border-t border-line bg-line sm:grid-cols-5">
-        {stats.map((s, i) => (
-          <div key={s.label} className={cn("min-w-0 bg-white px-4 py-2.5 sm:px-5 sm:py-3", i === 0 && "max-sm:col-span-2")}>
-            <dt className="truncate text-xs text-muted">{s.label}</dt>
-            <dd className={cn("mt-0.5 truncate tabular-nums", s.strong ? "text-lg font-semibold" : "text-[15px] font-medium")}>{s.value}</dd>
-          </div>
-        ))}
-      </dl>
     </section>
   );
 }
 
-/** Профиль клиента: доп. телефоны, ответственный, канал, язык, автописьма, «не писать первым». */
+/**
+ * Профиль клиента листом «подпись — значение» (слева сверху под шапкой): ответственный, доп. телефоны, канал, язык,
+ * автописьма, «не писать первым» и теги — всё, что правят реже заказов, но нужно на виду.
+ */
 export function ClientProfile({
   client,
   screen,
@@ -93,6 +139,7 @@ export function ClientProfile({
   canEdit,
   managerOptions,
   noMarketing,
+  tags,
 }: {
   client: ClientRow;
   /** Стоп-лист «Не писать первым». */
@@ -101,51 +148,39 @@ export function ClientProfile({
   contact: { masked: boolean; phone?: string | null; email?: string | null };
   canEdit: boolean;
   managerOptions: { id: string; label: string }[];
+  /** Редактор тегов (или их список, если править нельзя). */
+  tags: React.ReactNode;
 }) {
-  const row = "flex min-h-11 items-center justify-between gap-3 py-1.5";
   return (
     <Panel title="Профиль" className="text-sm">
-      <div className="space-y-4">
-        <div>
-          <div className="label text-xs">Ответственный</div>
-          <ClientManager clientId={client.id} value={client.managerId} options={managerOptions} disabled={!canEdit} />
-        </div>
-        {!contact.masked && canEdit ? (
-          <div>
-            <div className="label text-xs">Дополнительные телефоны</div>
-            <ExtraPhones clientId={client.id} value={client.extraPhones.map((p) => formatPhone(p)).join(", ")} />
-          </div>
-        ) : null}
-        <dl className="divide-y divide-line border-t border-line">
-          <div className={row}>
-            <dt className="shrink-0 text-muted">Канал</dt>
-            <dd className="min-w-0 flex-1 text-right font-medium" title={client.source ? JSON.stringify(client.source) : ""} data-testid="client-channel">
-              {canEdit ? <ClientChannel clientId={client.id} value={screen.channel.value} auto={screen.channel.value === "auto" ? screen.channel.label : undefined} /> : <span className="truncate">{screen.channel.label}</span>}
-            </dd>
-          </div>
-          {screen.channel.details ? (
-            <div className={row}>
-              <dt className="shrink-0 text-muted">Метки</dt>
-              <dd className="truncate text-right">{screen.channel.details}</dd>
-            </div>
-          ) : null}
-          <div className={row}>
-            <dt className="text-muted">Язык кабинета и писем</dt>
-            <dd data-testid="client-locale">{canEdit ? <ClientLocale clientId={client.id} value={client.locale} /> : client.locale === "kk" ? "казахский" : "русский"}</dd>
-          </div>
-          <div className={row}>
-            <dt className="text-muted">Автописьма</dt>
-            <dd className={cn("text-right", client.emailOptOut ? "text-danger" : "text-ink")}>{isPhoneStubEmail(client.email) ? "нет почты — в WhatsApp" : client.emailOptOut ? "отписан" : "получает"}</dd>
-          </div>
-          <div className={row}>
-            <dt className="text-muted" title="Клиент просил не писать: бот не напоминает о себе, правила автоматизаций не пишут. На его сообщения отвечать можно.">
-              Писать первым
-            </dt>
-            <dd>
-              <NoMarketingToggle target={{ clientId: client.id }} on={noMarketing} disabled={!canEdit} />
-            </dd>
-          </div>
-        </dl>
+      <div className="grid gap-x-10 gap-y-0 lg:grid-cols-2">
+      <Facts
+        items={[
+          { label: "Ответственный", value: <ClientManager clientId={client.id} value={client.managerId} options={managerOptions} disabled={!canEdit} /> },
+          { label: "Доп. телефоны", hidden: contact.masked || !canEdit, value: <ExtraPhones clientId={client.id} value={client.extraPhones.map((p) => formatPhone(p)).join(", ")} /> },
+          {
+            label: "Канал",
+            value: (
+              <span data-testid="client-channel" title={client.source ? JSON.stringify(client.source) : ""}>
+                {canEdit ? <ClientChannel clientId={client.id} value={screen.channel.value} auto={screen.channel.value === "auto" ? screen.channel.label : undefined} /> : <span className="font-medium">{screen.channel.label}</span>}
+              </span>
+            ),
+          },
+          { label: "Метки", hidden: !screen.channel.details, value: <span className="text-muted">{screen.channel.details}</span> },
+        ]}
+      />
+      <Facts
+        className="max-lg:border-t max-lg:border-line max-lg:pt-2.5 lg:border-t-0"
+        items={[
+          { label: "Язык писем", value: <span data-testid="client-locale">{canEdit ? <ClientLocale clientId={client.id} value={client.locale} /> : client.locale === "kk" ? "казахский" : "русский"}</span> },
+          { label: "Автописьма", value: <span className={client.emailOptOut ? "text-danger" : "text-ink"}>{isPhoneStubEmail(client.email) ? "нет почты — в WhatsApp" : client.emailOptOut ? "отписан" : "получает"}</span> },
+          {
+            label: <span title="Клиент просил не писать: бот не напоминает о себе, правила автоматизаций не пишут. На его сообщения отвечать можно.">Писать первым</span>,
+            value: <NoMarketingToggle target={{ clientId: client.id }} on={noMarketing} disabled={!canEdit} />,
+          },
+          { label: "Теги", value: tags },
+        ]}
+      />
       </div>
     </Panel>
   );
@@ -154,14 +189,7 @@ export function ClientProfile({
 /** Сделки клиента; «Новая сделка» — с правом на правку сделок. */
 export function ClientDeals({ clientId, deals, can }: { clientId: string; deals: { deal: { id: string; number: number; title: string; source: DealSource; createdAt: Date; amount: number }; stage: { name: string; color: string } }[]; can: (p: Permission) => boolean }) {
   return (
-    <Panel
-      flush
-      title={
-        <>
-          Сделки {deals.length ? <span className="font-normal text-muted tabular-nums">{deals.length}</span> : null}
-        </>
-      }
-    >
+    <>
       {deals.length === 0 ? (
         <EmptyState compact icon={Handshake} title="Сделок пока нет" action={can("deals.edit") ? <Link href={`/admin/deals/new?client=${clientId}`} className="btn btn-outline btn-sm">Новая сделка</Link> : undefined}>
           Заведите сделку, когда клиент договорится о книге или оплатит.
@@ -185,14 +213,14 @@ export function ClientDeals({ clientId, deals, can }: { clientId: string; deals:
           ))}
         </ul>
       )}
-    </Panel>
+    </>
   );
 }
 
 /** Платежи менеджеру по сделкам клиента. */
 export function ClientPayments({ payments }: { payments: { id: string; deal_id: string; amount: number; kind: string; number: number; title: string; paid_at: Date | string }[] }) {
   return (
-    <Panel flush title="Платежи менеджеру">
+    <>
       <ul className="divide-y divide-line" data-testid="client-payments">
         {payments.map((p) => (
           <li key={p.id}>
@@ -210,7 +238,7 @@ export function ClientPayments({ payments }: { payments: { id: string; deal_id: 
           </li>
         ))}
       </ul>
-    </Panel>
+    </>
   );
 }
 
@@ -258,7 +286,7 @@ export function ClientReferrals({ data }: { data: ClientReferralsData }) {
 /** Книги клиента: прогресс, статус, макет и текст. */
 export function ClientBooks({ books }: { books: { book: { id: string; title: string; theme: string; authorName: string; recipientName: string; recordedBy: string; updatedAt: Date; status: string }; answered: number; total: number; words: number; photos: number; letters: number }[] }) {
   return (
-    <Panel flush title="Книги">
+    <>
       {books.length === 0 ? (
         <EmptyState compact icon={BookOpen} title="Книг пока нет">
           Книга появится, когда клиент начнёт её в кабинете.
@@ -299,20 +327,20 @@ export function ClientBooks({ books }: { books: { book: { id: string; title: str
           ))}
         </ul>
       )}
-    </Panel>
+    </>
   );
 }
 
 /** Заказы клиента. */
 export function ClientOrders({ orders }: { orders: { id: string; number: number; createdAt: Date; plan: string; quantity: number; promoCode: string | null; status: OrderStatus; amount: number }[] }) {
   return (
-    <Panel flush title="Заказы">
+    <>
       {orders.length === 0 ? (
         <EmptyState compact icon={Package} title="Заказов пока нет">
           Заказ появится, когда клиент оформит книгу на сайте.
         </EmptyState>
       ) : (
-        <ul className="max-h-[420px] divide-y divide-line overflow-y-auto">
+        <ul className="divide-y divide-line">
           {orders.map((o) => (
             <li key={o.id}>
               <Link href={`/admin/orders/${o.id}`} className="flex min-h-12 flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 text-sm hover:bg-sunken/60 sm:px-5">
@@ -333,6 +361,6 @@ export function ClientOrders({ orders }: { orders: { id: string; number: number;
           ))}
         </ul>
       )}
-    </Panel>
+    </>
   );
 }

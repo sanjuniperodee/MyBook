@@ -18,7 +18,7 @@ export function ReviewActions({ id, status, featured, publishable }: { id: strin
       }
     });
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2 lg:w-48 lg:flex-col lg:items-stretch lg:[&>.btn]:w-full">
       {status !== "published" && publishable ? (
         <button className="btn btn-dark btn-sm" disabled={pending} onClick={() => run("publish")}>
           <Globe className="size-4" aria-hidden /> Опубликовать
@@ -36,7 +36,7 @@ export function ReviewActions({ id, status, featured, publishable }: { id: strin
           {status === "new" ? "Проверен, не показывать" : "Снять с сайта"}
         </button>
       ) : null}
-      {pending ? <LoaderCircle className="size-4 animate-spin text-muted" aria-label="Сохраняем" /> : null}
+      {pending ? <LoaderCircle className="size-4 animate-spin self-center text-muted" aria-label="Сохраняем" /> : null}
     </div>
   );
 }

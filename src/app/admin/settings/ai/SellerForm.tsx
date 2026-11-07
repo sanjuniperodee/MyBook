@@ -3,9 +3,7 @@
 import { useActionState, useState, useTransition } from "react";
 import { CheckCircle2, LoaderCircle, MessagesSquare } from "lucide-react";
 import { aiProviderIds, aiProviders, type AiProvider } from "@/modules/assistant/domain/providers";
-import { SubmitButton } from "@/components/ui/SubmitButton";
-import { Intro } from "@/components/admin/Intro";
-import { Section, Status, Result, SecretInput, CheckMessage, Choice } from "../ui";
+import { Actions, CheckMessage, Choice, Field, Group, Note, Result, SaveButton, Section, SecretInput, type SheetStatus } from "../ui";
 import type { SettingsState } from "../state";
 import { saveSellerAction, testSellerAction } from "./actions";
 import { providerReady, type AiProviderSaved } from "./saved";
@@ -37,52 +35,65 @@ export function SellerForm({
   const connected = ready(provider || assistantProvider);
   const shownModel = model || providers[provider || assistantProvider].model || aiProviders[provider || assistantProvider].defaultModel;
   const weak = /free/i.test(shownModel);
+  const status: SheetStatus = !connected ? { tone: "warn", label: "не подключена: продажник на шаблонах" } : weak ? { tone: "warn", label: "бесплатная модель: ненадёжно" } : { tone: "ok", label: `${aiProviders[provider || assistantProvider].label} · ${shownModel}` };
   return (
-    <Section defaultOpen={false} title="Прежняя модель продажника (запасная)" badge={<Status on={connected && !weak} label={!connected ? "не подключена — продажник на шаблонах" : weak ? "бесплатная модель — ненадёжно" : `${aiProviders[provider || assistantProvider].label} · ${shownModel}`} />}>
-      <Intro className="mb-4">
-        Основная модель продажника — Claude по уровням (блок «Маршрутизация» выше). Эта модель — запасная, если не Claude: на неё бот переключится, когда Claude недоступен (если в маршрутизации не отмечены другие запасные), и на ней
-        бот работает при выключенной маршрутизации (Бот → Продажи → «AI-продажник»). Нужна сильная модель: Claude (Sonnet или Opus) или GPT — она надёжнее держит правила, лучше пишет по-казахски и реже ошибается в
-        сроках. Бесплатные модели (<code className="rounded bg-sunken px-1">openrouter/free</code>) для продаж не рекомендуются: они нестабильны и могут не вернуть нужный JSON — тогда клиент получит «передала менеджеру».
-      </Intro>
-      <form action={action} className="space-y-3">
-        <div className="flex flex-wrap gap-2 text-sm">
-          <Choice active={p === ""}>
-            <input type="radio" name="provider" value="" checked={p === ""} onChange={() => setP("")} className="accent-wine" />
-            Как у AI-помощника ({aiProviders[assistantProvider].label})
-          </Choice>
-          {aiProviderIds.map((id) => (
-            <Choice key={id} active={p === id}>
-              <input type="radio" name="provider" value={id} checked={p === id} onChange={() => setP(id)} className="accent-wine" />
-              {aiProviders[id].title}
-              {ready(id) ? <CheckCircle2 className="size-3.5 text-success" aria-label="ключ сохранён" /> : null}
+    <Section
+      id="ai-seller"
+      defaultOpen={false}
+      title="Прежняя модель продажника (запасная)"
+      description="Запасная модель, если не Claude; на ней же бот работает при выключенной маршрутизации"
+      status={status}
+      actions={
+        <button type="button" className="btn btn-outline btn-sm" disabled={pending || !connected} onClick={() => start(async () => setCheck(await testSellerAction()))}>
+          {pending ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : <MessagesSquare className="size-4" aria-hidden />} Пробный диалог
+        </button>
+      }
+    >
+      <CheckMessage check={check} wrap />
+      <form action={action} className="space-y-5">
+        <Note>
+          Основная модель продажника — Claude по уровням (лист «Маршрутизация» выше). Эта модель — запасная, если не Claude: на неё бот переключится, когда Claude недоступен (если в маршрутизации не отмечены другие запасные), и на ней бот работает при выключенной маршрутизации (Бот, Продажи, «AI-продажник»). Нужна сильная модель: Claude (Sonnet или Opus) или GPT — она надёжнее держит правила, лучше пишет по-казахски и реже ошибается в сроках. Бесплатные модели (<code className="rounded bg-sunken px-1">openrouter/free</code>) для продаж не рекомендуются: они нестабильны и могут не вернуть нужный JSON — тогда клиент получит «передала менеджеру». «Пробный диалог» запускает настоящий ход продажника на сохранённой модели: клиент спрашивает цену печатной книги — видно ответ, скорость и то, что модель отвечает по схеме. Клиенту ничего не отправляется.
+        </Note>
+        <Group title="Провайдер" hint="Галочка у названия — ключ уже сохранён.">
+          <div className="flex flex-wrap gap-2">
+            <Choice active={p === ""}>
+              <input type="radio" name="provider" value="" checked={p === ""} onChange={() => setP("")} className="accent-wine" />
+              Как у AI-помощника ({aiProviders[assistantProvider].label})
             </Choice>
-          ))}
-        </div>
-        <div key={effective} className="space-y-3">
-          {def.keysUrl ? (
-            <p className="text-xs text-muted">
-              Ключ создаётся в{" "}
-              <a href={def.keysUrl} target="_blank" rel="noopener noreferrer" className="text-wine underline">
-                {new URL(def.keysUrl).hostname}
-              </a>
-              . Ключ общий для всех функций AI (хранится один раз).
-            </p>
-          ) : null}
-          <SecretInput name="key" label={`Ключ ${def.label} API`} saved={saved.apiKey} fromEnv={saved.apiKeyEnv} placeholder={def.keyPlaceholder} />
-          <label className="block">
-            <span className="label">Модель продажника (пусто — {saved.model || def.defaultModel || "модель провайдера"})</span>
-            <input name="model" defaultValue={model} placeholder={effective === "openrouter" ? "например, anthropic/claude-sonnet-4.5 (точное название — в каталоге OpenRouter)" : saved.model || def.defaultModel} className="input h-10 text-sm" maxLength={100} />
-          </label>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <SubmitButton className="btn-sm">Сохранить</SubmitButton>
-          <button type="button" className="btn btn-outline btn-sm" disabled={pending || !connected} onClick={() => start(async () => setCheck(await testSellerAction()))}>
-            {pending ? <LoaderCircle className="size-4 animate-spin" /> : <MessagesSquare className="size-4" />} Пробный диалог
-          </button>
+            {aiProviderIds.map((id) => (
+              <Choice key={id} active={p === id}>
+                <input type="radio" name="provider" value={id} checked={p === id} onChange={() => setP(id)} className="accent-wine" />
+                {aiProviders[id].title}
+                {ready(id) ? <CheckCircle2 className="size-3.5 text-success" aria-label="ключ сохранён" /> : null}
+              </Choice>
+            ))}
+          </div>
+        </Group>
+        <Group
+          title="Ключ и модель"
+          hint={
+            def.keysUrl ? (
+              <>
+                Ключ создаётся в{" "}
+                <a href={def.keysUrl} target="_blank" rel="noopener noreferrer" className="text-wine underline">
+                  {new URL(def.keysUrl).hostname}
+                </a>
+                . Ключ общий для всех функций AI (хранится один раз).
+              </>
+            ) : undefined
+          }
+        >
+          <div key={effective} className="space-y-4">
+            <SecretInput name="key" label={`Ключ ${def.label} API`} saved={saved.apiKey} fromEnv={saved.apiKeyEnv} placeholder={def.keyPlaceholder} />
+            <Field label="Модель продажника" hint={`Пусто — ${saved.model || def.defaultModel || "модель провайдера"}.`}>
+              <input name="model" defaultValue={model} placeholder={effective === "openrouter" ? "например, anthropic/claude-sonnet-4.5 (точное название — в каталоге OpenRouter)" : saved.model || def.defaultModel} className="input" maxLength={100} />
+            </Field>
+          </div>
+        </Group>
+        <Actions>
+          <SaveButton />
           <Result state={state} />
-        </div>
-        <CheckMessage check={check} wrap />
-        <p className="text-xs text-muted">«Пробный диалог» запускает настоящий ход продажника на сохранённой модели: клиент спрашивает цену печатной книги — видно ответ, скорость и то, что модель отвечает по схеме. Клиенту ничего не отправляется.</p>
+        </Actions>
       </form>
     </Section>
   );

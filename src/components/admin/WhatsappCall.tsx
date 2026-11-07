@@ -336,7 +336,7 @@ function CallPanel({ call, muted, micLevel, onMute, onHangup }: { call: ActiveCa
       aria-label="Звонок WhatsApp"
       data-testid="wa-call-panel"
       data-phase={call.phase}
-      className="animate-pop fixed inset-x-3 bottom-[calc(var(--tabbar-h,0px)+0.75rem)] z-[60] rounded-[14px] border border-line bg-white p-4 shadow-lift sm:inset-x-auto sm:right-4 sm:w-[360px] lg:bottom-4"
+      className="animate-pop fixed inset-x-3 bottom-[calc(var(--tabbar-h,0px)+0.75rem)] z-[60] rounded-[var(--r-sheet)] border border-line bg-white p-4 shadow-lift sm:inset-x-auto sm:right-4 sm:w-[360px] lg:bottom-4"
     >
       <div className="flex items-center gap-3">
         <span className={cn("relative flex size-11 shrink-0 items-center justify-center rounded-full", call.phase === "ended" ? "bg-sunken text-ink-soft" : "bg-success-bg text-success", call.phase === "ringing" && "animate-pulse")}>

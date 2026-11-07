@@ -70,6 +70,15 @@
   /* Высота липкой шапки CRM (h-14) и нижней панели — для sticky-панелей и якорей (scroll-mt); на телефоне — ниже, с вырезом. */
   --topbar-h: 3.5rem;
   --tabbar-h: 0px;
+  /* Плотность и скругления поверхности (DESIGN.md §5). Сайт и кабинет — крупно; CRM на компьютере — плотнее (html.crm ниже). */
+  --ctl-h: 2.75rem;
+  --ctl-h-sm: 2.25rem;
+  --ctl-h-lg: 3.25rem;
+  --ctl-px: 1.25rem;
+  --ctl-fs: 15px;
+  --r-ctl: 10px;
+  --r-panel: 14px;
+  --r-sheet: 20px;
   /* Разрешает анимировать высоту до auto (раскрытие вопросов) */
   interpolate-size: allow-keywords;
 }
@@ -109,25 +118,34 @@ body {
 
 @layer components {
   /*
-   * Кнопки (DESIGN.md §6): всегда с вариантом. Радиус 10, без «подпрыгивания» и цветных теней — нажатие видно по цвету
-   * и лёгкому сжатию. primary — винная (одна главная на экране), dark — тушь (главная в CRM), outline, ghost, danger.
+   * Кнопки (DESIGN.md §6): всегда с вариантом. Размеры — от плотности поверхности (--ctl-*): на сайте и в кабинете 44/36/52,
+   * в CRM на компьютере 36/28/44 (на телефоне — 44, палец). primary — винная (одна главная на экране), dark — тушь
+   * (главная внутри листа), outline, ghost, danger. Нажатие видно по цвету и лёгкому сжатию.
    */
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-[10px] px-5 h-11 text-[15px] font-medium transition-[background-color,border-color,color,box-shadow,transform] duration-150 select-none whitespace-nowrap cursor-pointer disabled:opacity-50 disabled:pointer-events-none disabled:cursor-default focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wine active:scale-[0.98] active:duration-75;
+    @apply inline-flex items-center justify-center gap-2 font-medium transition-[background-color,border-color,color,box-shadow,transform] duration-150 select-none whitespace-nowrap cursor-pointer disabled:opacity-50 disabled:pointer-events-none disabled:cursor-default focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wine active:scale-[0.98] active:duration-75;
+    height: var(--ctl-h);
+    padding-inline: var(--ctl-px);
+    border-radius: var(--r-ctl);
+    font-size: var(--ctl-fs);
   }
-  .btn-sm { @apply h-9 px-3.5 text-sm gap-1.5 rounded-lg; }
-  .btn-lg { @apply h-13 px-7 text-base rounded-xl; }
-  .btn-icon { @apply px-0 w-11; }
-  .btn-icon.btn-sm { @apply w-9; }
-  .btn-primary { @apply bg-wine text-white hover:bg-wine-dark shadow-[inset_0_1px_0_rgb(255_255_255/0.12),0_1px_2px_rgb(92_21_32/0.25)]; }
+  .btn-sm { height: var(--ctl-h-sm); padding-inline: calc(var(--ctl-px) * 0.7); gap: 0.375rem; font-size: calc(var(--ctl-fs) - 1px); }
+  .btn-lg { height: var(--ctl-h-lg); padding-inline: calc(var(--ctl-px) * 1.4); font-size: calc(var(--ctl-fs) + 1px); }
+  .btn-icon { padding-inline: 0; width: var(--ctl-h); }
+  .btn-icon.btn-sm { width: var(--ctl-h-sm); }
+  .btn-primary { @apply bg-wine text-white hover:bg-wine-dark shadow-[inset_0_1px_0_rgb(255_255_255/0.14),0_1px_2px_rgb(92_21_32/0.25)]; }
   .btn-dark { @apply bg-ink text-white hover:bg-ink-soft; }
-  .btn-outline { @apply border border-line-strong bg-white text-ink hover:border-ink/35 hover:bg-sunken; }
+  .btn-outline { @apply border border-line-strong bg-white text-ink shadow-[0_1px_0_rgb(0_0_0/0.03)] hover:border-ink/35 hover:bg-sunken; }
   .btn-ghost { @apply text-ink-soft hover:bg-ink/[0.06] hover:text-ink; }
   .btn-danger { @apply bg-danger text-white hover:bg-[#93190f]; }
 
   /* Поля: подпись над полем, подсказка и ошибка под ним (DESIGN.md §6). */
   .input {
-    @apply block w-full rounded-[10px] border border-line-strong bg-white px-3.5 h-11 text-[15px] text-ink placeholder:text-muted transition-[border-color,box-shadow] duration-150 hover:border-ink/30 focus:border-wine/60 focus:outline-none focus:ring-[3px] focus:ring-wine/12 disabled:bg-sunken disabled:text-muted aria-[invalid=true]:border-danger;
+    @apply block w-full border border-line-strong bg-white text-ink placeholder:text-muted transition-[border-color,box-shadow] duration-150 hover:border-ink/30 focus:border-wine/60 focus:outline-none focus:ring-[3px] focus:ring-wine/12 disabled:bg-sunken disabled:text-muted aria-[invalid=true]:border-danger;
+    height: var(--ctl-h);
+    padding-inline: calc(var(--ctl-px) * 0.8);
+    border-radius: var(--r-ctl);
+    font-size: var(--ctl-fs);
   }
   textarea.input { @apply h-auto py-2.5 leading-relaxed; }
   select.input { @apply pr-9 appearance-none bg-[url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='16'%20height='16'%20fill='none'%20stroke='%236b625a'%20stroke-width='1.8'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d='m4%206%204%204%204-4'/%3E%3C/svg%3E")] bg-[length:16px] bg-[position:right_0.75rem_center] bg-no-repeat; }
@@ -135,37 +153,53 @@ body {
   .hint { @apply mt-1 block text-xs text-muted; }
   .field-error { @apply mt-1 block text-xs font-medium text-danger; }
 
-  /* Лист — белая панель на холсте: линия вместо тени, радиус 14. */
-  .panel { @apply rounded-[14px] border border-line bg-white; }
-  .panel-head { @apply flex min-h-13 flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-line px-4 py-3 sm:px-5; }
+  /* Лист — белая панель на холсте: линия вместо тени. Шапка листа — отдельная полоса с мелким заголовком. */
+  .panel { @apply border border-line bg-white; border-radius: var(--r-panel); }
+  .panel-head { @apply flex min-h-12 flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-line px-4 py-2.5 sm:px-5; }
   .panel-title { @apply text-[15px] font-semibold; }
   .panel-body { @apply p-4 sm:p-5; }
 
-  /* Значок статуса: цвет + текст (цвет — не единственный признак). */
+  /* Значок: цвет + текст (цвет — не единственный признак). В CRM статус — точка и подпись, без плашки (см. html.crm ниже). */
   .badge { @apply inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium whitespace-nowrap bg-sunken text-ink-soft; }
   .badge-success { @apply bg-success-bg text-success; }
   .badge-warning { @apply bg-warning-bg text-warning; }
   .badge-danger { @apply bg-danger-bg text-danger; }
   .badge-info { @apply bg-info-bg text-info; }
   .badge-accent { @apply bg-rose text-wine; }
+  /* Счётчик: число на плашке (в отличие от статуса). */
+  .count { @apply inline-flex min-w-5 items-center justify-center rounded-md bg-sunken px-1.5 py-0.5 text-[11px] leading-none font-semibold text-ink-soft tabular-nums; }
+  .count-alert { @apply bg-wine text-white; }
 
   /* Чип-фильтр: выбранный — тушью. */
   .chip {
-    @apply inline-flex h-8 items-center gap-1.5 rounded-lg border border-line bg-white px-3 text-sm text-ink-soft whitespace-nowrap transition-colors duration-150 hover:border-line-strong hover:text-ink aria-pressed:border-ink aria-pressed:bg-ink aria-pressed:text-white;
+    @apply inline-flex items-center gap-1.5 border border-line bg-white px-3 text-sm text-ink-soft whitespace-nowrap transition-colors duration-150 hover:border-line-strong hover:text-ink aria-pressed:border-ink aria-pressed:bg-ink aria-pressed:text-white;
+    height: var(--ctl-h-sm);
+    border-radius: var(--r-ctl);
   }
   .chip-on { @apply border-ink bg-ink text-white hover:text-white; }
 
-  /* Таблица CRM: шапка мелко и приглушённо, строки 44, наведение — подложкой. */
-  .table { @apply w-full border-collapse text-sm; }
-  .table th { @apply border-b border-line px-3 py-2 text-left text-xs font-medium whitespace-nowrap text-muted; }
-  .table td { @apply border-b border-line px-3 py-2.5 align-middle; }
+  /* Вкладки разделов: подчёркивание, а не плашки. Ссылки (aria-current) и кнопки (aria-selected). */
+  .tabs { @apply flex items-end gap-1 overflow-x-auto border-b border-line; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { @apply relative inline-flex h-10 shrink-0 items-center gap-1.5 px-2.5 text-[13.5px] font-medium whitespace-nowrap text-muted transition-colors hover:text-ink; }
+  .tab[aria-current="page"], .tab[aria-selected="true"] { @apply text-ink; }
+  .tab[aria-current="page"]::after, .tab[aria-selected="true"]::after { content: ""; @apply absolute inset-x-1.5 -bottom-px h-0.5 rounded-t-full bg-wine; }
+
+  /* Клавиша-подсказка (⌘K). */
+  .kbd { @apply inline-flex h-5 min-w-5 items-center justify-center rounded-[5px] border border-line-strong bg-white px-1 text-[11px] font-medium text-muted; }
+
+  /* Ведомость: шапка на подложке, строки 44, цифры одной ширины, наведение — подложкой. */
+  .table { @apply w-full border-collapse text-sm tabular-nums; }
+  .table th { @apply border-b border-line bg-sunken/70 px-3 py-2 text-left text-xs font-medium whitespace-nowrap text-muted first:pl-4 last:pr-4 sm:first:pl-5 sm:last:pr-5; }
+  .table td { @apply border-b border-line px-3 py-2.5 align-middle first:pl-4 last:pr-4 sm:first:pl-5 sm:last:pr-5; }
   .table tbody tr:last-child td { @apply border-b-0; }
   .table tbody tr:hover td { @apply bg-sunken/60; }
+  .table th.num, .table td.num { @apply text-right; }
 
   .card { @apply rounded-[20px] bg-white border border-line/70 shadow-soft; }
   /* Карточка-ссылка: приподнимается при наведении */
   .card-hover { @apply transition duration-300 hover:-translate-y-1 hover:shadow-lift; transition-timing-function: var(--ease-out-soft); }
-  .skeleton { @apply rounded-xl bg-[linear-gradient(90deg,var(--color-sunken)_25%,#e8e2d9_50%,var(--color-sunken)_75%)] bg-[length:200%_100%] animate-shimmer; }
+  .skeleton { @apply rounded-xl bg-[linear-gradient(90deg,var(--color-sunken)_25%,var(--color-line)_50%,var(--color-sunken)_75%)] bg-[length:200%_100%] animate-shimmer; }
   .eyebrow { @apply text-sm font-medium text-wine; }
   .container-x { @apply mx-auto w-full max-w-6xl px-4 sm:px-6; }
 }
@@ -546,10 +580,7 @@ body {
  */
 .crm-page {
   min-height: 100%;
-  background-color: #f7f4ef;
-}
-.dark .crm-page {
-  background-color: #14110f;
+  background-color: var(--color-canvas);
 }
 ::view-transition-group(crm-topbar),
 ::view-transition-group(crm-tabbar) {
@@ -653,3 +684,115 @@ body {
 @keyframes sheet-up { from { opacity: 0; transform: translateY(16px); } }
 @keyframes fade-in { from { opacity: 0; } }
 .help-picking, .help-picking * { cursor: crosshair !important; }
+
+/*
+ * ───────────────────────── CRM: поверхность «Тираж» (docs/design/DESIGN.md §3.2) ─────────────────────────
+ * Класс .crm ставит на <html> админка (ThemeSync + THEME_SCRIPT). Токены те же, значения другие: холодная «синька»
+ * вместо тёплой бумаги, Inter Tight, плотные органы управления на компьютере, статус точкой. Сайт и кабинет не затронуты.
+ */
+html.crm {
+  --font-sans: var(--font-crm), var(--font-onest), ui-sans-serif, system-ui, sans-serif;
+  --r-ctl: 8px;
+  --r-panel: 12px;
+  --r-sheet: 16px;
+  --shadow-soft: 0 1px 2px rgb(15 19 26 / 0.05), 0 8px 24px -12px rgb(15 19 26 / 0.14);
+  --shadow-lift: 0 2px 4px rgb(15 19 26 / 0.06), 0 24px 48px -20px rgb(15 19 26 / 0.3);
+}
+html.crm:not(.dark) {
+  --color-white: #ffffff;
+  --color-paper: #f6f7f9;
+  --color-cream: #eef0f4;
+  --color-canvas: #f3f4f7;
+  --color-sunken: #eceef3;
+  --color-ink: #0f131a;
+  --color-ink-soft: #313846;
+  --color-muted: #596273;
+  --color-line: #e1e4ea;
+  --color-line-strong: #c8cdd7;
+  --color-wine: #a01f3a;
+  --color-wine-dark: #7d1730;
+  --color-rose: #fbe8ec;
+  --color-spine: #11151c;
+  --color-success: #13703f;
+  --color-success-bg: #e2f3ea;
+  --color-warning: #8c5700;
+  --color-warning-bg: #fcf0d6;
+  --color-danger: #b3261e;
+  --color-danger-bg: #fdeae8;
+  --color-info: #1b5fa7;
+  --color-info-bg: #e5eefa;
+}
+html.crm.dark {
+  --color-white: #151922;
+  --color-paper: #0e1117;
+  --color-cream: #1d222c;
+  --color-canvas: #0e1117;
+  --color-sunken: #1c212b;
+  --color-ink: #eef1f6;
+  --color-ink-soft: #cdd3de;
+  --color-muted: #97a0b0;
+  --color-line: #272d38;
+  --color-line-strong: #394150;
+  --color-wine: #d4506d;
+  --color-wine-dark: #b83f5a;
+  --color-rose: #3a1f29;
+  --color-spine: #0a0d12;
+  --color-success: #84d3a6;
+  --color-success-bg: #12291e;
+  --color-warning: #efc376;
+  --color-warning-bg: #2f2410;
+  --color-danger: #f3a199;
+  --color-danger-bg: #361a18;
+  --color-info: #9bc3ee;
+  --color-info-bg: #14263a;
+}
+html.crm.dark .bg-ink { background-color: #e8ecf3; }
+html.crm.dark .bg-ink.text-white, html.crm.dark .bg-ink .text-white { color: #0e1117; }
+html.crm.dark .btn-dark, html.crm.dark .chip-on, html.crm.dark .chip[aria-pressed="true"] { background-color: #e8ecf3; border-color: #e8ecf3; color: #0e1117; }
+html.crm.dark .btn-dark:hover { background-color: #ffffff; }
+html.crm.dark .skeleton { background-image: linear-gradient(90deg, var(--color-sunken) 25%, var(--color-line) 50%, var(--color-sunken) 75%); }
+html.crm.dark ::selection { background: rgb(212 80 109 / 0.35); }
+html.crm ::selection { background: rgb(160 31 58 / 0.16); }
+html.crm.dark select.input { background-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='16'%20height='16'%20fill='none'%20stroke='%2397a0b0'%20stroke-width='1.8'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d='m4%206%204%204%204-4'/%3E%3C/svg%3E"); }
+
+/* Компьютер: плотные органы управления (на телефоне остаются крупными — палец). */
+@media (pointer: fine) {
+  html.crm {
+    --ctl-h: 2.25rem;
+    --ctl-h-sm: 1.75rem;
+    --ctl-h-lg: 2.75rem;
+    --ctl-px: 0.875rem;
+    --ctl-fs: 13.5px;
+  }
+}
+@media (min-width: 1024px) {
+  html.crm { --topbar-h: 3rem; }
+  html.crm body { font-size: 14px; }
+}
+
+@layer components {
+  /* Статус в CRM — точка и подпись: плашки остаются только у счётчиков (.count). */
+  html.crm .badge,
+  html.crm .badge-success,
+  html.crm .badge-warning,
+  html.crm .badge-danger,
+  html.crm .badge-info,
+  html.crm .badge-accent {
+    background: transparent;
+    padding: 0;
+    border-radius: 0;
+    gap: 0.4rem;
+    font-size: 13px;
+    color: var(--color-ink-soft);
+  }
+  html.crm .badge::before { content: ""; flex: none; width: 0.4375rem; height: 0.4375rem; border-radius: 9999px; background: currentColor; }
+  html.crm .badge-success { color: var(--color-success); }
+  html.crm .badge-warning { color: var(--color-warning); }
+  html.crm .badge-danger { color: var(--color-danger); }
+  html.crm .badge-info { color: var(--color-info); }
+  html.crm .badge-accent { color: var(--color-wine); }
+  html.crm .badge:not([class*="badge-"])::before { background: var(--color-line-strong); }
+  html.crm .badge-dot { display: none; }
+  html.crm .panel-title { font-size: 14px; letter-spacing: -0.005em; }
+  html.crm .count-alert { background: var(--color-wine); color: #fff; }
+}

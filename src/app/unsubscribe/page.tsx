@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Link } from "@/i18n/client";
-import { PlainShell } from "@/components/landing/PlainShell";
+import { PlainSheet, PlainShell } from "@/components/landing/PlainShell";
 import { getMessages, lredirect } from "@/i18n/server";
 import { container } from "@/server/container";
 
@@ -20,34 +20,24 @@ export default async function UnsubscribePage({ searchParams }: { searchParams: 
   const { u = "", t = "", done } = await searchParams;
   const valid = container().notifications.subscriptions.isValidLink(u, t);
   const m = (await getMessages()).gift.unsubscribe;
+  const title = done ? m.done : valid ? m.confirm : m.expired;
+  const text = done ? m.doneText : valid ? m.confirmText : m.expiredText;
   return (
-    <PlainShell lang={false} className="max-w-xl text-center">
-      <div className="py-10 sm:py-16">
-        {done ? (
-          <>
-            <h1 className="font-serif text-4xl leading-tight font-medium text-balance sm:text-5xl">{m.done}</h1>
-            <p className="mt-4 text-ink-soft">{m.doneText}</p>
-          </>
-        ) : valid ? (
-          <>
-            <h1 className="font-serif text-4xl leading-tight font-medium text-balance sm:text-5xl">{m.confirm}</h1>
-            <p className="mt-4 text-ink-soft">{m.confirmText}</p>
-            <form action={unsubscribeAction} className="mt-8">
-              <input type="hidden" name="u" value={u} />
-              <input type="hidden" name="t" value={t} />
-              <button className="btn btn-outline btn-lg">{m.yes}</button>
-            </form>
-          </>
-        ) : (
-          <>
-            <h1 className="font-serif text-4xl leading-tight font-medium text-balance sm:text-5xl">{m.expired}</h1>
-            <p className="mt-4 text-ink-soft">{m.expiredText}</p>
-          </>
-        )}
-        <Link href="/" className="mt-10 inline-block text-sm text-muted underline underline-offset-4 hover:text-ink">
+    <PlainShell lang={false} size="sm" className="pt-10 sm:pt-16">
+      <PlainSheet className="sm:p-12">
+        <h1 className="font-serif text-[38px] leading-[1.05] font-medium text-balance sm:text-5xl">{title}</h1>
+        <p className="mt-4 text-lg leading-relaxed text-ink-soft">{text}</p>
+        {!done && valid ? (
+          <form action={unsubscribeAction} className="mt-8">
+            <input type="hidden" name="u" value={u} />
+            <input type="hidden" name="t" value={t} />
+            <button className="btn btn-primary btn-lg w-full sm:w-auto">{m.yes}</button>
+          </form>
+        ) : null}
+        <Link href="/" className="mt-8 inline-flex min-h-11 items-center text-sm text-muted underline underline-offset-4 hover:text-ink">
           {m.home}
         </Link>
-      </div>
+      </PlainSheet>
     </PlainShell>
   );
 }

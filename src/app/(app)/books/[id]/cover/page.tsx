@@ -1,5 +1,4 @@
 import { DEFAULT_BACK_LAYOUT, isBackLayout } from "@/lib/book/cover-back";
-import { ToolHeader } from "../ToolHeader";
 import type { Metadata } from "next";
 import { requireUser } from "@/server/auth";
 import { getAccessibleBook } from "@/server/books";
@@ -47,8 +46,7 @@ export default async function CoverPage({ params, searchParams }: { params: Prom
     answers: questions.map((q) => ({ id: q.id, title: questionTexts(q, book).heading.trim() || m.books.photos.answer })),
   };
   return (
-    <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
-      <ToolHeader title={m.books.cover.title} description={m.books.tools.cover} />
+    <main className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-6">
       <CoverEditor
         bookId={book.id}
         format={book.format}

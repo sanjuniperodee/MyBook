@@ -56,7 +56,7 @@ export function ChapterStartCard({ book, title, number, epigraph, opener, dismis
   const state = opener ? "chosen" : dismissed ? "dismissed" : "prompt";
 
   return (
-    <section aria-label={t.title(title)} data-chapter-start={shape ? state : "plain"} className="mb-3 rounded-[14px] border border-line bg-white px-4 py-3 sm:mb-4 sm:px-5">
+    <section aria-label={t.title(title)} data-chapter-start={shape ? state : "plain"} className="mb-4 rounded-[14px] border border-line bg-white/60 px-4 py-3 sm:px-5">
       {shape ? (
         <div className="flex items-start gap-3 border-b border-line/60 pb-3">
           <div className="w-14 shrink-0 overflow-hidden rounded-[5px] shadow-sm ring-1 ring-line" aria-hidden>

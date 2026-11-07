@@ -203,11 +203,18 @@ export function DesignAiPanel({
       {loadError ? <Alert>{t.loadFailed}</Alert> : null}
 
       {allowance ? (
-        <div className="flex flex-wrap items-center gap-2 text-xs" data-testid="design-ai-allowance">
-          <span className={cn("rounded-full px-2.5 py-1 font-medium", allowance.remaining > 1 ? "bg-success-bg text-success" : allowance.remaining === 1 ? "bg-warning-bg text-warning" : "bg-ink/5 text-ink-soft")}>{t.left(allowance.remaining, allowance.limit)}</span>
-          {allowance.credits > 0 ? <span className="rounded-full bg-wine/10 px-2.5 py-1 font-medium text-wine">{t.credits(allowance.credits)}</span> : null}
+        <div className="space-y-2 rounded-[var(--r-panel)] bg-sunken p-3" data-testid="design-ai-allowance">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+            <span className={cn("text-sm font-semibold", allowance.remaining > 1 ? "text-success" : allowance.remaining === 1 ? "text-warning" : "text-ink-soft")}>{t.left(allowance.remaining, allowance.limit)}</span>
+            {allowance.credits > 0 ? <span className="badge badge-accent">{t.credits(allowance.credits)}</span> : null}
+          </div>
+          <div className="flex gap-1" aria-hidden>
+            {Array.from({ length: Math.min(allowance.limit, 10) }, (_, i) => (
+              <span key={i} className={cn("h-1.5 flex-1 rounded-full", i < allowance.remaining ? (allowance.remaining > 1 ? "bg-success" : "bg-warning") : "bg-line-strong")} />
+            ))}
+          </div>
           {!out && packs.length ? (
-            <button type="button" className="text-muted underline-offset-4 hover:text-ink hover:underline" onClick={() => setShowPacks((v) => !v)}>
+            <button type="button" className="min-h-8 text-xs text-muted underline-offset-4 hover:text-ink hover:underline pointer-coarse:min-h-11" onClick={() => setShowPacks((v) => !v)}>
               {showPacks ? t.hidePacks : t.buyMore}
             </button>
           ) : null}
@@ -215,7 +222,7 @@ export function DesignAiPanel({
       ) : null}
 
       {out ? (
-        <div className="space-y-3 rounded-2xl border border-wine/20 bg-rose/40 p-4" data-testid="design-ai-out">
+        <div className="space-y-3 rounded-[var(--r-panel)] bg-rose/50 p-4" data-testid="design-ai-out">
           <div>
             <p className="font-medium">{t.outTitle}</p>
             <p className="mt-1 text-sm text-ink-soft">{t.outText}</p>
@@ -231,7 +238,7 @@ export function DesignAiPanel({
         </div>
       ) : (
         <>
-          <div role="tablist" aria-label={t.modesAria} className="grid grid-cols-2 gap-1 rounded-2xl bg-sunken p-1 sm:grid-cols-4">
+          <div role="tablist" aria-label={t.modesAria} className="grid grid-cols-2 gap-0.5 rounded-[calc(var(--r-ctl)+2px)] bg-sunken p-0.5">
             {MODES.map((k) => (
               <button
                 key={k}
@@ -240,7 +247,7 @@ export function DesignAiPanel({
                 aria-selected={mode === k}
                 disabled={!!busy}
                 onClick={() => setMode(k)}
-                className={cn("min-h-9 rounded-xl px-2 py-1.5 text-xs leading-tight transition sm:text-sm", mode === k ? "bg-white font-medium text-ink shadow-soft" : "text-muted hover:text-ink")}
+                className={cn("min-h-9 rounded-[var(--r-ctl)] px-2 py-1.5 text-[13px] leading-tight transition pointer-coarse:min-h-11", mode === k ? "bg-white font-medium text-ink shadow-[0_1px_2px_rgb(30_25_22/0.12)]" : "text-muted hover:text-ink")}
               >
                 {t.modes[k]}
               </button>
@@ -266,7 +273,7 @@ export function DesignAiPanel({
               <div className="flex flex-wrap items-center gap-1.5">
                 <span className="text-xs text-muted">{t.examplesLabel}</span>
                 {ideas.map((ex) => (
-                  <button key={ex} type="button" disabled={!editable || !!busy} onClick={() => setPrompt(ex)} className="rounded-full bg-white px-2.5 py-1 text-xs text-ink-soft ring-1 ring-line hover:ring-ink/30">
+                  <button key={ex} type="button" disabled={!editable || !!busy} onClick={() => setPrompt(ex)} className="rounded-[var(--r-ctl)] bg-white px-2.5 py-1.5 text-left text-xs text-ink-soft ring-1 ring-line hover:ring-ink/30 pointer-coarse:min-h-10">
                     {ex}
                   </button>
                 ))}
@@ -274,7 +281,7 @@ export function DesignAiPanel({
             ) : null}
           </div>
           {notice ? (
-            <p className="rounded-xl bg-warning-bg px-3 py-2 text-xs text-warning" role="status" data-testid="design-ai-warning">
+            <p className="rounded-[var(--r-ctl)] bg-warning-bg px-3 py-2 text-xs text-warning" role="status" data-testid="design-ai-warning">
               {notice}
             </p>
           ) : allowance ? (
@@ -292,8 +299,8 @@ export function DesignAiPanel({
         <ol className="space-y-2 text-sm">
           {log.map((x, i) => (
             <li key={i} className="space-y-1.5">
-              <p className="ml-8 rounded-2xl rounded-br-md bg-ink/5 px-3 py-2">{x.prompt}</p>
-              <p className="mr-8 rounded-2xl rounded-bl-md bg-rose/60 px-3 py-2 text-ink-soft">
+              <p className="ml-8 rounded-[var(--r-panel)] rounded-br-sm bg-ink/5 px-3 py-2">{x.prompt}</p>
+              <p className="mr-8 rounded-[var(--r-panel)] rounded-bl-sm bg-rose/60 px-3 py-2 text-ink-soft">
                 <span className="sr-only">{t.ai}: </span>
                 {x.concept ? (
                   <>
@@ -323,7 +330,7 @@ export function DesignAiPanel({
           {variants.items.length ? (
             <ul className="grid gap-3" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(min(${previewMin}px, 100%), 1fr))` }}>
               {variants.items.map((v, i) => (
-                <li key={i} className={cn("flex flex-col gap-2 rounded-2xl bg-white p-2 ring-1 transition", variants.picked === i ? "ring-2 ring-wine" : "ring-line")}>
+                <li key={i} className={cn("flex flex-col gap-2 rounded-[var(--r-panel)] bg-white p-2 ring-1 transition", variants.picked === i ? "ring-2 ring-wine" : "ring-line")}>
                   <button
                     type="button"
                     disabled={!editable}
@@ -368,14 +375,14 @@ export function DesignAiPanel({
 
       {/* Оценка дизайна. */}
       {mode === "review" && review ? (
-        <section className="space-y-3 rounded-2xl bg-white p-4 ring-1 ring-line" data-testid="design-ai-review" aria-label={t.scoreLabel}>
+        <section className="space-y-3 rounded-[var(--r-panel)] bg-white p-4 ring-1 ring-line" data-testid="design-ai-review" aria-label={t.scoreLabel}>
           <div className="flex items-center gap-3">
             <ScoreRing score={review.score} label={t.score(review.score)} />
             <p className="text-sm text-ink-soft">{review.summary}</p>
           </div>
           {review.strengths.length ? (
             <div>
-              <h4 className="text-xs font-semibold tracking-wide text-muted uppercase">{t.strengths}</h4>
+              <h4 className="text-[13px] font-semibold">{t.strengths}</h4>
               <ul className="mt-1 space-y-1 text-sm">
                 {review.strengths.map((s) => (
                   <li key={s} className="flex items-start gap-2">
@@ -387,12 +394,12 @@ export function DesignAiPanel({
           ) : null}
           {review.tips.length ? (
             <div>
-              <h4 className="text-xs font-semibold tracking-wide text-muted uppercase">{t.tips}</h4>
+              <h4 className="text-[13px] font-semibold">{t.tips}</h4>
               <ul className="mt-1 space-y-2">
                 {review.tips.map((tip, i) => {
                   const done = review.applied.includes(i);
                   return (
-                    <li key={i} className="rounded-xl bg-sunken p-3">
+                    <li key={i} className="rounded-[var(--r-ctl)] bg-sunken p-3">
                       <div className="text-sm font-medium">{tip.title}</div>
                       <p className="mt-0.5 text-xs text-ink-soft">{tip.why}</p>
                       {tip.ops.length && tip.patch ? (
@@ -444,14 +451,14 @@ export function DesignAiPanel({
 function ScoreRing({ score, label }: { score: number; label: string }) {
   const r = 22;
   const c = 2 * Math.PI * r;
-  const color = score >= 8 ? "#059669" : score >= 6 ? "#B45309" : "#9F1239";
+  const tone = score >= 8 ? "text-success" : score >= 6 ? "text-warning" : "text-danger";
   return (
     <div className="relative size-14 shrink-0" role="img" aria-label={label}>
       <svg viewBox="0 0 56 56" className="size-14 -rotate-90">
         <circle cx="28" cy="28" r={r} fill="none" stroke="currentColor" strokeWidth="5" className="text-ink/10" />
-        <circle cx="28" cy="28" r={r} fill="none" stroke={color} strokeWidth="5" strokeLinecap="round" strokeDasharray={`${(c * score) / 10} ${c}`} />
+        <circle cx="28" cy="28" r={r} fill="none" stroke="currentColor" className={tone} strokeWidth="5" strokeLinecap="round" strokeDasharray={`${(c * score) / 10} ${c}`} />
       </svg>
-      <span className="absolute inset-0 flex items-center justify-center text-lg font-semibold" style={{ color }}>
+      <span className={cn("absolute inset-0 flex items-center justify-center text-lg font-semibold", tone)}>
         {score}
       </span>
     </div>
@@ -463,11 +470,11 @@ function Packs({ packs, opening, onBuy }: { packs: Pack[]; opening: string | nul
   return (
     <ul className="space-y-2" data-testid="design-ai-packs">
       {packs.map((p) => (
-        <li key={p.id} className={cn("flex items-center gap-3 rounded-2xl bg-white px-3 py-2.5 ring-1", p.featured ? "ring-2 ring-wine" : "ring-line")}>
+        <li key={p.id} className={cn("flex items-center gap-3 rounded-[var(--r-panel)] bg-white px-3 py-2.5 ring-1", p.featured ? "ring-2 ring-wine" : "ring-line")}>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
               <span className="font-medium">{t.packTitle(p.requests)}</span>
-              {p.featured ? <span className="rounded-full bg-wine px-2 py-0.5 text-[10px] font-semibold text-white uppercase">{t.featured}</span> : null}
+              {p.featured ? <span className="badge badge-accent">{t.featured}</span> : null}
             </div>
             <div className="text-xs text-muted">
               <b className="text-sm font-semibold text-ink">{formatPrice(p.price)}</b> · {t.perRequest(formatPrice(Math.round(p.price / p.requests)))}
@@ -492,13 +499,13 @@ function PayDialog({ purchase, onClose, onPaid }: { purchase: Purchase; onClose:
   }, [onClose]);
   return createPortal(
     <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/40 sm:items-center sm:p-4" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-white p-5 shadow-2xl sm:rounded-3xl sm:p-6" role="dialog" aria-modal="true" aria-label={t.payTitle(p.requests)} data-testid="design-ai-pay">
+      <div className="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-[var(--r-sheet)] bg-white p-5 shadow-lift sm:rounded-[var(--r-sheet)] sm:p-6" role="dialog" aria-modal="true" aria-label={t.payTitle(p.requests)} data-testid="design-ai-pay">
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold">{t.payTitle(p.requests)}</h2>
             <p className="mt-0.5 text-2xl font-semibold">{formatPrice(p.amount)}</p>
           </div>
-          <button type="button" onClick={onClose} aria-label={t.close} className="flex size-9 items-center justify-center rounded-full hover:bg-ink/5">
+          <button type="button" onClick={onClose} aria-label={t.close} className="btn btn-ghost btn-icon btn-sm">
             <X className="size-4" />
           </button>
         </div>

@@ -158,9 +158,14 @@ export function PricingForm({
   );
   const [resetting, startReset] = useTransition();
   return (
-    <form action={action} className="space-y-4" data-testid="pricing-form">
+    <form
+      action={action}
+      className="min-w-0 space-y-4"
+      data-testid="pricing-form"
+    >
       <Panel
         flush
+        id="pricing-plans"
         title="Тарифы"
         description="Что продаётся на витрине, в оформлении заказа и сертификатах"
       >
@@ -168,10 +173,10 @@ export function PricingForm({
           {plans.map((p) => (
             <div
               key={p.id}
-              className="grid gap-x-6 gap-y-3 px-4 py-4 sm:px-5 lg:grid-cols-[14rem_minmax(0,1fr)]"
+              className="space-y-3 px-4 py-4 sm:px-5"
               data-testid={`plan-${p.id}`}
             >
-              <div className="flex items-start justify-between gap-3 lg:flex-col lg:justify-start">
+              <div className="flex items-center justify-between gap-3">
                 <div className="font-medium">{planLabels[p.id]}</div>
                 <Sells name={`plan_${p.id}_visible`} on={p.visible} />
               </div>
@@ -192,7 +197,7 @@ export function PricingForm({
                 ) : null}
               </div>
               {!p.visible ? (
-                <p className="text-xs text-warning lg:col-start-2">
+                <p className="text-xs text-warning">
                   Тариф скрыт: нет на витрине, в оформлении и сертификатах.
                   Старые заказы с ним остаются как были.
                 </p>
@@ -202,7 +207,11 @@ export function PricingForm({
         </div>
       </Panel>
 
-      <Panel title="Допы к печатному заказу">
+      <Panel
+        id="pricing-addons"
+        title="Допы к печатному заказу"
+        description="Что клиент добавляет к печатной книге при оформлении"
+      >
         <div className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
           {addons.map((a) => (
             <div key={a.id} className="space-y-2">
@@ -225,10 +234,11 @@ export function PricingForm({
       </Panel>
 
       <Panel
+        id="pricing-delivery"
         title="Доставка"
         description="Пустое поле — стоимость рассчитывается индивидуально"
       >
-        <div className="grid gap-x-6 gap-y-5 sm:grid-cols-3">
+        <div className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
           {delivery.map((d) => (
             <Price
               key={d.id}
@@ -255,52 +265,56 @@ export function PricingForm({
       </Panel>
 
       <Panel
+        flush
+        id="pricing-ai"
         title="Пакеты запросов к ИИ-дизайнеру"
         description="Предлагаются, когда кончились бесплатные запросы; купленные не сгорают"
       >
-        <div className="space-y-4" data-testid="pricing-ai-packs">
-          <div className="grid gap-3 lg:grid-cols-3">
+        <div data-testid="pricing-ai-packs">
+          <div className="divide-y divide-line">
             {aiPacks.map((p, i) => {
               const f = factory.aiPacks[p.id];
               return (
                 <div
                   key={p.id}
-                  className="space-y-3 rounded-[10px] border border-line p-4"
+                  className="space-y-3 px-4 py-4 sm:px-5"
                   data-testid={`ai-pack-${p.id}`}
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div className="font-medium">Пакет {i + 1}</div>
                     <Sells name={`ai_${p.id}_visible`} on={p.visible} />
                   </div>
-                  <div>
-                    <label className="label" htmlFor={`ai_${p.id}_requests`}>
-                      Запросов
-                    </label>
-                    <input
-                      id={`ai_${p.id}_requests`}
-                      name={`ai_${p.id}_requests`}
-                      type="number"
-                      inputMode="numeric"
-                      min={1}
-                      max={MAX_AI_PACK_REQUESTS}
-                      step={1}
-                      required
-                      defaultValue={p.requests}
-                      className="input h-10 tabular-nums"
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="label" htmlFor={`ai_${p.id}_requests`}>
+                        Запросов
+                      </label>
+                      <input
+                        id={`ai_${p.id}_requests`}
+                        name={`ai_${p.id}_requests`}
+                        type="number"
+                        inputMode="numeric"
+                        min={1}
+                        max={MAX_AI_PACK_REQUESTS}
+                        step={1}
+                        required
+                        defaultValue={p.requests}
+                        className="input h-10 tabular-nums"
+                      />
+                      <p className="hint">
+                        {f.requests === p.requests
+                          ? "заводское число"
+                          : `заводское: ${f.requests}`}
+                      </p>
+                    </div>
+                    <Price
+                      name={`ai_${p.id}_price`}
+                      label="Цена"
+                      value={p.price}
+                      factory={f.price}
                     />
-                    <p className="hint">
-                      {f.requests === p.requests
-                        ? "заводское число"
-                        : `заводское: ${f.requests}`}
-                    </p>
                   </div>
-                  <Price
-                    name={`ai_${p.id}_price`}
-                    label="Цена"
-                    value={p.price}
-                    factory={f.price}
-                  />
-                  <p className="border-t border-line pt-2 text-xs text-muted tabular-nums">
+                  <p className="text-xs text-muted tabular-nums">
                     ≈{" "}
                     {formatPrice(Math.round(p.price / Math.max(1, p.requests)))}{" "}
                     за запрос
@@ -313,11 +327,13 @@ export function PricingForm({
       </Panel>
 
       <Panel
+        flush
+        id="pricing-media"
         title="Свои видео и аудио по QR-коду"
         description="Бесплатные минуты на книгу и пакеты сверх них"
       >
-        <div className="space-y-4" data-testid="pricing-media">
-          <div>
+        <div data-testid="pricing-media">
+          <div className="space-y-4 px-4 py-4 sm:px-5">
             <Intro small>
               Клиент загружает к ответу своё видео (до {MAX_SECONDS.video / 60}{" "}
               мин) или аудио (до {MAX_SECONDS.audio / 60} мин), в книге
@@ -327,71 +343,76 @@ export function PricingForm({
               когда минуты кончатся, клиенту предложат пакет с оплатой Kaspi;
               купленные минуты добавляются книге.
             </Intro>
+            <div className="max-w-xs">
+              <label className="label" htmlFor="media_free_minutes">
+                Бесплатно на книгу, минут
+              </label>
+              <input
+                id="media_free_minutes"
+                name="media_free_minutes"
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={MAX_FREE_MINUTES}
+                step={1}
+                required
+                defaultValue={mediaFreeMinutes}
+                className="input h-10 tabular-nums"
+              />
+              <p className="hint">
+                {factory.mediaFreeMinutes === mediaFreeMinutes
+                  ? "заводское число"
+                  : `заводское: ${factory.mediaFreeMinutes}`}
+              </p>
+            </div>
           </div>
-          <div className="max-w-xs">
-            <label className="label" htmlFor="media_free_minutes">
-              Бесплатно на книгу, минут
-            </label>
-            <input
-              id="media_free_minutes"
-              name="media_free_minutes"
-              type="number"
-              inputMode="numeric"
-              min={0}
-              max={MAX_FREE_MINUTES}
-              step={1}
-              required
-              defaultValue={mediaFreeMinutes}
-              className="input h-10 tabular-nums"
-            />
-            <p className="hint">
-              {factory.mediaFreeMinutes === mediaFreeMinutes
-                ? "заводское число"
-                : `заводское: ${factory.mediaFreeMinutes}`}
-            </p>
-          </div>
-          <div className="grid gap-3 lg:grid-cols-3">
+          <div className="divide-y divide-line border-t border-line">
             {mediaPacks.map((p, i) => {
               const f = factory.mediaPacks[p.id];
               return (
                 <div
                   key={p.id}
-                  className="space-y-3 rounded-[10px] border border-line p-4"
+                  className="space-y-3 px-4 py-4 sm:px-5"
                   data-testid={`media-pack-${p.id}`}
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div className="font-medium">Пакет минут {i + 1}</div>
                     <Sells name={`media_${p.id}_visible`} on={p.visible} />
                   </div>
-                  <div>
-                    <label className="label" htmlFor={`media_${p.id}_minutes`}>
-                      Минут
-                    </label>
-                    <input
-                      id={`media_${p.id}_minutes`}
-                      name={`media_${p.id}_minutes`}
-                      type="number"
-                      inputMode="numeric"
-                      min={1}
-                      max={MAX_PACK_MINUTES}
-                      step={1}
-                      required
-                      defaultValue={p.minutes}
-                      className="input h-10 tabular-nums"
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <label
+                        className="label"
+                        htmlFor={`media_${p.id}_minutes`}
+                      >
+                        Минут
+                      </label>
+                      <input
+                        id={`media_${p.id}_minutes`}
+                        name={`media_${p.id}_minutes`}
+                        type="number"
+                        inputMode="numeric"
+                        min={1}
+                        max={MAX_PACK_MINUTES}
+                        step={1}
+                        required
+                        defaultValue={p.minutes}
+                        className="input h-10 tabular-nums"
+                      />
+                      <p className="hint">
+                        {f.minutes === p.minutes
+                          ? "заводское число"
+                          : `заводское: ${f.minutes}`}
+                      </p>
+                    </div>
+                    <Price
+                      name={`media_${p.id}_price`}
+                      label="Цена"
+                      value={p.price}
+                      factory={f.price}
                     />
-                    <p className="hint">
-                      {f.minutes === p.minutes
-                        ? "заводское число"
-                        : `заводское: ${f.minutes}`}
-                    </p>
                   </div>
-                  <Price
-                    name={`media_${p.id}_price`}
-                    label="Цена"
-                    value={p.price}
-                    factory={f.price}
-                  />
-                  <p className="border-t border-line pt-2 text-xs text-muted tabular-nums">
+                  <p className="text-xs text-muted tabular-nums">
                     ≈{" "}
                     {formatPrice(Math.round(p.price / Math.max(1, p.minutes)))}{" "}
                     за минуту
@@ -421,7 +442,7 @@ export function PricingForm({
         </Alert>
       ) : null}
 
-      <div className="sticky bottom-[calc(var(--tabbar-h,0px)+0.75rem)] z-10 flex flex-wrap items-center gap-3 rounded-[14px] border border-line bg-white/95 p-3 shadow-soft backdrop-blur">
+      <div className="sticky bottom-[calc(var(--tabbar-h,0px)+0.75rem)] z-10 flex flex-wrap items-center gap-3 rounded-[var(--r-panel)] border border-line bg-white p-3 shadow-soft">
         <SubmitButton className="btn btn-primary max-sm:flex-1">
           Сохранить цены
         </SubmitButton>

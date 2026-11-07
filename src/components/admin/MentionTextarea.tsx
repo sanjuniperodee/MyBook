@@ -111,7 +111,7 @@ export const MentionTextarea = forwardRef<HTMLTextAreaElement, Props>(function M
         onBlur={() => setTimeout(() => (setQuery(null), setSlash(null)), 150)}
       />
       {templates.length ? (
-        <div className="absolute bottom-full left-0 z-20 mb-1 w-[min(26rem,calc(100vw-2rem))] overflow-hidden rounded-[10px] border border-line bg-white shadow-soft" role="listbox" aria-label="Шаблоны ответов">
+        <div className="absolute bottom-full left-0 z-20 mb-1 w-[min(26rem,calc(100vw-2rem))] overflow-hidden rounded-[var(--r-ctl)] border border-line bg-white shadow-soft" role="listbox" aria-label="Шаблоны ответов">
           <div className="border-b border-line bg-sunken px-3 py-1.5 text-[11px] text-muted">Шаблоны · ↑↓ выбрать, Enter — вставить, Esc — закрыть</div>
           {templates.map((t, i) => (
             <button
@@ -136,7 +136,7 @@ export const MentionTextarea = forwardRef<HTMLTextAreaElement, Props>(function M
         </div>
       ) : null}
       {matches.length ? (
-        <div className="absolute bottom-full left-0 z-20 mb-1 w-64 overflow-hidden rounded-[10px] border border-line bg-white shadow-soft" role="listbox">
+        <div className="absolute bottom-full left-0 z-20 mb-1 w-64 overflow-hidden rounded-[var(--r-ctl)] border border-line bg-white shadow-soft" role="listbox">
           {matches.map((m, i) => (
             <button
               key={m}

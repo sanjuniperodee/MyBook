@@ -1,9 +1,11 @@
 "use client";
 
 /**
- * Редактор фото клиента — на весь экран поверх страницы. Сверху: закрыть, отменить/вернуть, «До» (удерживать),
- * ещё (сбросить, вернуть оригинал) и «Сохранить»; в середине — сцена (Stage); инструменты — внизу на телефоне и
- * колонкой на широком экране. Правка не портит снимок: оригинал хранится на сервере, правка — описанием, а в книгу
+ * Редактор фото клиента — на весь экран поверх страницы, цвета — токены кабинета (светлая и тёмная тема сайта).
+ * Сверху: закрыть, отменить/вернуть, «До» (удерживать), ещё (сбросить, вернуть оригинал) и «Сохранить» — единственная
+ * винная кнопка. Ноутбук: рейка инструментов с подписями слева, сцена на спокойной подложке по центру, настройки
+ * инструмента колонкой справа. Телефон: снимок на всю ширину, под ним лента инструментов, ниже — настройки выбранного.
+ * Правка не портит снимок: оригинал хранится на сервере, правка — описанием, а в книгу
  * идёт картинка, собранная здесь же в полном размере (render.ts → POST …/edit).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -19,6 +21,7 @@ import type { ShapeId } from "@/lib/photo-edit/shapes";
 import { cn } from "@/lib/class-names";
 import { loadEditState, originalUrl, revertEdit, saveEdit, type EditResult } from "./api";
 import { newShape, newText, type TextPreset } from "./presets";
+import { FOCUS } from "./ui";
 import { AdjustPanel, CropPanel, DrawProps, DrawTools, FiltersPanel, LayerActions, ShapeProps, ShapeTools, TextProps, TextTools } from "./panels";
 import { nearEdge, Stage, type DrawStyle, type Tool } from "./Stage";
 import { useEditHistory } from "./useEditHistory";
@@ -78,25 +81,29 @@ export function PhotoEditor({ bookId, photoId, onClose, onSaved }: { bookId: str
     state.status === "ready" ? (
       <Editor bookId={bookId} photoId={photoId} loaded={state} onClose={onClose} onSaved={onSaved} />
     ) : (
-      <div className="fixed inset-0 z-[100] flex flex-col bg-[#141110] text-white" role="dialog" aria-modal="true" aria-label={t.title}>
-        <div className="flex h-14 shrink-0 items-center px-2 pt-[env(safe-area-inset-top)]">
-          <button type="button" onClick={onClose} aria-label={t.close} className="flex size-11 items-center justify-center rounded-full text-white/80 hover:bg-white/10">
-            <X className="size-6" />
+      <div className="fixed inset-0 z-[100] flex flex-col bg-canvas text-ink" role="dialog" aria-modal="true" aria-label={t.title}>
+        <div className="flex h-14 shrink-0 items-center border-b border-line bg-white px-2 pt-[env(safe-area-inset-top)] lg:px-4">
+          <button type="button" onClick={onClose} aria-label={t.close} title={t.close} className="btn btn-ghost btn-icon">
+            <X className="size-5" />
           </button>
         </div>
-        <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
+        <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center" aria-busy={state.status === "loading"}>
           {state.status === "loading" ? (
             <>
-              <LoaderCircle className="size-8 animate-spin text-white/70" />
-              <p className="text-white/70">{t.loading}</p>
+              <LoaderCircle className="size-8 animate-spin text-wine" />
+              <p className="text-muted" role="status">
+                {t.loading}
+              </p>
             </>
           ) : (
             <>
-              <TriangleAlert className="size-8 text-[#FFD43B]" />
-              <p className="max-w-sm text-white/80">{t.loadError}</p>
+              <TriangleAlert className="size-8 text-warning" />
+              <p className="max-w-sm text-ink-soft" role="alert">
+                {t.loadError}
+              </p>
               <button
                 type="button"
-                className="btn bg-white text-ink"
+                className="btn btn-dark"
                 onClick={() => {
                   setState({ status: "loading" });
                   setAttempt((n) => n + 1);
@@ -345,7 +352,7 @@ function Editor({ bookId, photoId, loaded, onClose, onSaved }: { bookId: string;
         <DrawProps layer={selected} set={set} t={t} />
       )}
       {edge ? (
-        <p className="flex gap-2 rounded-xl bg-[#FFD43B]/10 p-3 text-[13px] leading-snug text-[#FFE08A]">
+        <p className="flex gap-2 rounded-[var(--r-ctl)] bg-warning-bg p-3 text-[13px] leading-snug text-warning">
           <TriangleAlert className="mt-0.5 size-4 shrink-0" /> {t.edgeWarn}
         </p>
       ) : null}
@@ -365,17 +372,25 @@ function Editor({ bookId, photoId, loaded, onClose, onSaved }: { bookId: string;
     <FiltersPanel doc={doc} set={set} t={t} thumbs={thumbs} />
   );
 
-  const iconBtn = "flex size-11 shrink-0 items-center justify-center rounded-full text-white/85 transition hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-transparent";
+  const iconBtn = "btn btn-ghost btn-icon shrink-0";
 
   return (
-    <div className="fixed inset-x-0 top-0 z-[100] flex flex-col bg-[#141110] text-white" style={{ bottom: inset }} role="dialog" aria-modal="true" aria-label={t.title}>
-      {/* Верхняя полоса */}
-      <header className="flex shrink-0 items-center gap-1 px-1.5 pt-[env(safe-area-inset-top)] sm:px-3">
-        <div className="flex h-14 w-full items-center gap-1">
+    <div className="fixed inset-x-0 top-0 z-[100] flex flex-col bg-canvas text-ink" style={{ bottom: inset }} role="dialog" aria-modal="true" aria-label={t.title}>
+      {/* Верхняя полоса: закрыть и состояние слева, отмена/возврат/«До»/ещё и одна главная кнопка справа. */}
+      <header className="shrink-0 border-b border-line bg-white pt-[env(safe-area-inset-top)]">
+        <div className="flex h-14 items-center gap-0.5 px-2 lg:gap-1 lg:px-4">
           <button type="button" onClick={() => void close()} aria-label={t.close} title={t.close} className={iconBtn}>
-            <X className="size-6" />
+            <X className="size-5" />
           </button>
-          <h2 className="ml-1 hidden font-medium text-white/90 sm:block">{t.title}</h2>
+          <div className="ml-2 hidden min-w-0 items-center gap-3 lg:flex">
+            <h2 className="truncate text-[15px] font-semibold">{t.title}</h2>
+            {dirty ? (
+              <span className="flex items-center gap-1.5 text-xs text-muted" role="status">
+                <span className="size-1.5 rounded-full bg-warning" aria-hidden />
+                {t.unsaved}
+              </span>
+            ) : null}
+          </div>
           <div className="flex-1" />
           <button type="button" onClick={history.undo} disabled={!history.canUndo} aria-label={t.undo} title={t.undo} className={iconBtn}>
             <Undo2 className="size-5" />
@@ -396,16 +411,17 @@ function Editor({ bookId, photoId, loaded, onClose, onSaved }: { bookId: string;
             onKeyDown={(e) => (e.key === " " || e.key === "Enter") && setCompare(true)}
             onKeyUp={() => setCompare(false)}
             onContextMenu={(e) => e.preventDefault()}
-            className={cn(iconBtn, "touch-none select-none", compare && "bg-white text-ink hover:bg-white")}
+            className={cn("btn btn-ghost shrink-0 touch-none px-3 select-none max-sm:w-11 max-sm:px-0", compare && "bg-ink text-white hover:bg-ink")}
           >
             <Eye className="size-5" />
+            <span className="max-sm:sr-only">{t.compareShort}</span>
           </button>
           <div className="relative">
             <button type="button" onClick={() => setMenu((v) => !v)} aria-label={t.more} title={t.more} aria-expanded={menu} className={iconBtn}>
               <MoreHorizontal className="size-5" />
             </button>
             {menu ? (
-              <div className="absolute top-12 right-0 z-20 w-64 overflow-hidden rounded-2xl bg-[#26211d] py-1.5 shadow-2xl ring-1 ring-white/10">
+              <div className="absolute top-12 right-0 z-20 w-64 overflow-hidden rounded-[var(--r-panel)] border border-line bg-white py-1.5 shadow-soft">
                 <button
                   type="button"
                   disabled={isEmptyEdit(doc)}
@@ -414,25 +430,20 @@ function Editor({ bookId, photoId, loaded, onClose, onSaved }: { bookId: string;
                     setSelectedId(null);
                     setMenu(false);
                   }}
-                  className="flex min-h-11 w-full items-center px-4 text-left text-[15px] hover:bg-white/10 disabled:opacity-35"
+                  className="flex min-h-11 w-full items-center px-4 text-left text-[15px] hover:bg-sunken disabled:opacity-40"
                 >
                   {t.resetAll}
                 </button>
                 {edited ? (
-                  <button type="button" onClick={() => void revert()} className="flex min-h-11 w-full items-center px-4 text-left text-[15px] text-[#ff8f8f] hover:bg-white/10">
+                  <button type="button" onClick={() => void revert()} className="flex min-h-11 w-full items-center px-4 text-left text-[15px] text-danger hover:bg-danger-bg">
                     {t.revert}
                   </button>
                 ) : null}
-                <p className="hidden border-t border-white/10 px-4 pt-2 pb-1.5 text-[11px] leading-snug text-white/40 [@media(pointer:fine)]:block">{t.keys}</p>
+                <p className="hidden border-t border-line px-4 pt-2 pb-1.5 text-[11px] leading-snug text-muted [@media(pointer:fine)]:block">{t.keys}</p>
               </div>
             ) : null}
           </div>
-          <button
-            type="button"
-            onClick={() => void save()}
-            disabled={saving}
-            className="ml-1 flex h-10 items-center gap-2 rounded-full bg-[#7a1f2b] px-4 text-[15px] font-medium text-white shadow-[0_6px_20px_-8px_rgb(122_31_43/0.9)] transition hover:bg-[#8e2534] active:scale-[0.97] disabled:opacity-60 sm:px-5"
-          >
+          <button type="button" onClick={() => void save()} disabled={saving} className="btn btn-primary ml-1 shrink-0 px-4 lg:px-5">
             {saving ? <LoaderCircle className="size-4 animate-spin" /> : null}
             {t.save}
           </button>
@@ -440,8 +451,8 @@ function Editor({ bookId, photoId, loaded, onClose, onSaved }: { bookId: string;
       </header>
 
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-        {/* Инструменты на широком экране — колонка слева. */}
-        <nav aria-label={t.toolsAria} className="hidden w-[84px] shrink-0 flex-col gap-1 border-r border-white/10 p-2 lg:flex">
+        {/* Инструменты на широком экране — рейка слева с подписями. */}
+        <nav aria-label={t.toolsAria} className="hidden w-[88px] shrink-0 flex-col gap-1 border-r border-line bg-white p-2 lg:flex">
           {TOOLS.map(({ id, icon: Icon }) => (
             <button
               key={id}
@@ -449,8 +460,9 @@ function Editor({ bookId, photoId, loaded, onClose, onSaved }: { bookId: string;
               aria-pressed={tool === id && !selected}
               onClick={() => pickTool(id)}
               className={cn(
-                "flex h-16 flex-col items-center justify-center gap-1 rounded-xl text-[11px] transition",
-                tool === id ? "bg-white/[.12] text-white" : "text-white/55 hover:bg-white/[.06] hover:text-white",
+                "flex h-[68px] flex-col items-center justify-center gap-1 rounded-[var(--r-ctl)] text-xs font-medium transition",
+                FOCUS,
+                tool === id ? "bg-rose text-wine" : "text-muted hover:bg-sunken hover:text-ink",
               )}
             >
               <Icon className="size-5" />
@@ -459,69 +471,72 @@ function Editor({ bookId, photoId, loaded, onClose, onSaved }: { bookId: string;
           ))}
         </nav>
 
-        <Stage
-          img={img}
-          iw={iw}
-          ih={ih}
-          doc={doc}
-          tool={tool}
-          selectedId={selectedId}
-          onSelect={select}
-          history={history}
-          drawStyle={drawStyle}
-          compare={compare}
-          onEditText={(id) => {
-            setSelectedId(id);
-            setTool("text");
-            setFocusFor(id);
-          }}
-          labels={{
-            duplicate: t.layer.duplicate,
-            delete: t.layer.delete,
-            editText: t.text.editText,
-            rotate: t.layer.rotate,
-            size: t.layer.size,
-          }}
-        />
+        {/* Сцена: спокойная подложка, снимок как лист; на телефоне — на всю ширину. */}
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-sunken lg:p-6">
+          <Stage
+            img={img}
+            iw={iw}
+            ih={ih}
+            doc={doc}
+            tool={tool}
+            selectedId={selectedId}
+            onSelect={select}
+            history={history}
+            drawStyle={drawStyle}
+            compare={compare}
+            onEditText={(id) => {
+              setSelectedId(id);
+              setTool("text");
+              setFocusFor(id);
+            }}
+            labels={{
+              duplicate: t.layer.duplicate,
+              delete: t.layer.delete,
+              editText: t.text.editText,
+              rotate: t.layer.rotate,
+              size: t.layer.size,
+            }}
+          />
+        </div>
 
-        {/* Панель: на телефоне — под фото (не выше трети экрана), на широком — колонка справа. */}
-        <aside className="flex max-h-[42dvh] shrink-0 flex-col rounded-t-2xl border-t border-white/10 bg-[#1e1a17] lg:max-h-none lg:w-[360px] lg:rounded-none lg:border-t-0 lg:border-l">
-          <div className="flex h-12 shrink-0 items-center justify-between px-4">
-            <h3 className="text-[15px] font-medium">{panelTitle}</h3>
+        {/* Инструменты на телефоне — лента сразу под снимком: на месте при смене инструмента, настройки — под ней. */}
+        <nav aria-label={t.toolsAria} className={cn("no-scrollbar flex shrink-0 overflow-x-auto border-t border-line bg-white px-1 lg:hidden", inset && "hidden")}>
+          {TOOLS.map(({ id, icon: Icon }) => (
+            <button
+              key={id}
+              type="button"
+              aria-pressed={tool === id && !selected}
+              onClick={() => pickTool(id)}
+              className={cn("relative flex h-14 min-w-14 flex-1 flex-col items-center justify-center gap-0.5 rounded-[var(--r-ctl)] text-[11px] font-medium transition", FOCUS, tool === id ? "text-wine" : "text-muted")}
+            >
+              {tool === id ? <span className="absolute inset-x-3 top-0 h-0.5 rounded-b bg-wine" aria-hidden /> : null}
+              <Icon className="size-[22px]" />
+              <span className="max-w-full truncate">{t.tools[id]}</span>
+            </button>
+          ))}
+        </nav>
+
+        {/* Настройки инструмента: на телефоне — под лентой фиксированной высоты (снимок не «прыгает»), на широком — колонка справа. */}
+        <aside className={cn("flex shrink-0 flex-col border-t border-line bg-white lg:h-auto lg:w-[340px] lg:border-t-0 lg:border-l", inset ? "max-lg:h-[32dvh]" : "max-lg:h-[40dvh]")}>
+          <div className={cn("h-11 shrink-0 items-center justify-between border-b border-line px-4 lg:flex lg:h-12", selected ? "flex" : "hidden")}>
+            <h3 className="text-[15px] font-semibold">{panelTitle}</h3>
             {selected ? (
-              <button type="button" onClick={() => setSelectedId(null)} className="-mr-2 flex h-10 items-center rounded-full px-3 text-[14px] font-medium text-[#e9b8bf] hover:bg-white/10">
+              <button type="button" onClick={() => setSelectedId(null)} className="btn btn-ghost btn-sm -mr-2 text-wine">
                 {t.layer.deselect}
               </button>
             ) : null}
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4">{panel}</div>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] lg:pt-4">{panel}</div>
         </aside>
       </div>
 
-      {/* Инструменты на телефоне — нижняя полоса. */}
-      <nav
-        aria-label={t.toolsAria}
-        className={cn("flex shrink-0 justify-around border-t border-white/10 bg-[#1e1a17] px-1 pb-[max(0.25rem,env(safe-area-inset-bottom))] lg:hidden", inset && "hidden")}
-      >
-        {TOOLS.map(({ id, icon: Icon }) => (
-          <button
-            key={id}
-            type="button"
-            aria-pressed={tool === id && !selected}
-            onClick={() => pickTool(id)}
-            className={cn("flex h-14 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-[10.5px] transition", tool === id ? "text-white" : "text-white/50")}
-          >
-            <Icon className="size-[22px]" />
-            <span className="max-w-full truncate">{t.tools[id]}</span>
-          </button>
-        ))}
-      </nav>
-
       {saving ? (
-        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 bg-black/60 px-6 text-center backdrop-blur-[2px]" role="status" aria-live="polite">
-          <LoaderCircle className="size-8 animate-spin" />
-          <p className="text-[15px] font-medium">{t.saving}</p>
-          <p className="max-w-xs text-[13px] text-white/65">{t.savingHint}</p>
+        <div className="absolute inset-0 z-30 flex items-center justify-center bg-ink/30 px-6" role="status" aria-live="polite">
+          <div className="panel flex max-w-xs flex-col items-center gap-2 p-6 text-center">
+            <LoaderCircle className="size-7 animate-spin text-wine" />
+            <p className="text-[15px] font-semibold">{t.saving}</p>
+            <p className="text-[13px] text-muted">{t.savingHint}</p>
+          </div>
         </div>
       ) : null}
     </div>

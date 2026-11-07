@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Section } from "../ui";
 import type { BotMetrics } from "@/modules/messaging";
 import { byLabel, failureReasonLabels, handoffReasonLabels } from "@/modules/messaging/domain/botStats";
 
@@ -91,8 +92,8 @@ export function BotStats({ m, questions, skipLabels }: { m: BotMetrics; question
   const failures = byLabel(m.failures, failureReasonLabels);
   const langs = Object.entries(m.langs);
   return (
-    <div className="rounded-[10px] border border-line p-3 text-sm" data-testid="bot-stats">
-      <h3 className="mb-2 font-medium">За 30 дней</h3>
+    <Section id="bot-stats" title="Статистика за 30 дней" description="Беседы бота, итоги, вопросы клиентов и сбои">
+      <div className="text-sm" data-testid="bot-stats">
       {!m.started && !skipped.length ? <p className="text-xs text-muted">Бот ещё не работал.</p> : null}
       <div className="grid gap-3 text-xs sm:grid-cols-2">
         <div>
@@ -166,6 +167,7 @@ export function BotStats({ m, questions, skipLabels }: { m: BotMetrics; question
           </div>
         ) : null}
       </div>
-    </div>
+      </div>
+    </Section>
   );
 }

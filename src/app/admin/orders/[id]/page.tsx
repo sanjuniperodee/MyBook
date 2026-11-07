@@ -7,6 +7,7 @@ import { Panel } from "@/components/ui/Panel";
 import { Badge } from "@/components/ui/Badge";
 import { Alert } from "@/components/ui/Alert";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { Facts } from "@/components/ui/Facts";
 import { localDay } from "@/modules/reporting/time";
 import { notFound } from "next/navigation";
 import { container } from "@/server/container";
@@ -19,12 +20,15 @@ import { getFormat } from "@/lib/book/formats";
 import { cn } from "@/lib/class-names";
 import { formatDate } from "@/lib/dates";
 import { DetailsForm, LockButton, NextStep, NoteForm, OrderMoney, PrintFileActions, StatusForm, TermsForm } from "./OrderControls";
+import { OrderMenu } from "./OrderMenu";
+import { ProductionRuler } from "./ProductionRuler";
+import { Disclosure } from "./Disclosure";
 import { discountLimit } from "@/server/discount";
 import { getPlans } from "@/config/site";
 import { AssigneeSelect, NotesTimeline, TaskList, type NoteItem, type TaskItem } from "@/components/admin/CrmWidgets";
 import { staffOptions } from "@/modules/access/ui";
 import { staffLabel } from "@/shared/domain/staff";
-import { CalendarClock, CircleDollarSign, ClipboardList, Eye, Gift, History, UserRound } from "lucide-react";
+import { CalendarClock, CircleDollarSign, Gift, History } from "lucide-react";
 import { can, canSeeOrder, contactView, requireStaff } from "@/server/access";
 import { ContactActions } from "@/components/admin/ContactActions";
 import { formatPhone } from "@/shared/domain/phone";
@@ -52,6 +56,12 @@ async function noticeFacts(order: { id: string; userId: string; contactEmail: st
 /** Статусы счетов Kaspi в карточке заказа. */
 const invoiceStatusLabels = { pending: "ждёт оплаты", paid: "оплачен", failed: "не прошёл", cancelled: "отменён", expired: "истёк" } as const;
 
+/**
+ * Карточка заказа — «Разворот» (DESIGN.md §7.2). В шапке: номер, статус, следующий шаг и меню «Ещё»; под ней линейка
+ * производства с датами этапов и четыре главных факта. Слева — то, чем занимаются: оплата, книга и файлы для типографии,
+ * доставка со сменой статуса, получатель; справа (липкая колонка) — контекст: кто ведёт и связанная сделка, задачи, заметка,
+ * переписка и журнал. Телефон — одна колонка, контекст ниже.
+ */
 export default async function AdminOrderPage({ params }: { params: Promise<{ id: string }> }) {
   const staff = await requireStaff("orders.view");
   const id = pageId((await params).id);
@@ -107,9 +117,10 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
   const dueTone = daysLeft === null || !open ? "neutral" : daysLeft < 0 ? "danger" : daysLeft <= 3 ? "warning" : "neutral";
   const dueText = daysLeft === null ? null : daysLeft < 0 ? `просрочено на ${-daysLeft} дн.` : daysLeft === 0 ? "сегодня" : `через ${daysLeft} дн.`;
   const assignee = order.assigneeId ? (adminName.get(order.assigneeId) ?? "—") : null;
+  const paidInFull = order.receivedAmount >= order.amount && order.amount > 0;
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-4 lg:gap-5">
       <PageHeader
         back={{ href: "/admin/orders", label: "Заказы" }}
         title={`Заказ №${order.number}`}
@@ -128,193 +139,208 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
         actions={
           <>
             {canEdit && notice ? <NextStep orderId={order.id} status={order.status} printed={printed} trackingNumber={order.trackingNumber} notice={notice} /> : null}
-            {canClients ? (
-              <Link href={`/admin/clients/${order.userId}`} className="btn btn-outline btn-sm">
-                <UserRound className="size-4" aria-hidden /> Клиент
-              </Link>
-            ) : null}
-            {plan?.printed ? (
-              <a href={`/print/orders/${order.id}`} target="_blank" rel="noopener" className="btn btn-outline btn-sm">
-                <ClipboardList className="size-4" aria-hidden /> Упаковочный лист
-              </a>
-            ) : null}
+            <OrderMenu
+              clientHref={canClients ? `/admin/clients/${order.userId}` : undefined}
+              dealHref={orderDeal ? `/admin/deals/${orderDeal.id}` : undefined}
+              dealLabel={orderDeal ? `Сделка №${orderDeal.number}` : undefined}
+              chatHref={orderDeal?.conversationId ? `/admin/chats?c=${orderDeal.conversationId}` : undefined}
+              previewHref={`/books/${book.id}/preview`}
+              printHref={plan?.printed ? `/print/orders/${order.id}` : undefined}
+            />
           </>
         }
       />
 
-      {/* Главное о заказе одной строкой: деньги, книга, срок, кто ведёт. */}
-      <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-[14px] border border-line bg-line xl:grid-cols-4">
-        <Fact label="Сумма">
-          <span className="text-[20px] font-semibold tabular-nums">{formatPrice(order.amount)}</span>
-          <span className={cn("block text-xs", order.receivedAmount >= order.amount && order.amount > 0 ? "text-success" : "text-muted")}>
-            {order.amount === 0 ? "бесплатный заказ" : order.receivedAmount >= order.amount ? "оплачено полностью" : `получено ${formatPrice(order.receivedAmount)}`}
-          </span>
-        </Fact>
-        <Fact label="Книга">
-          <span className="block truncate font-medium">
-            {planName(order.plan)}
-            {order.quantity > 1 ? ` × ${order.quantity}` : ""}
-          </span>
-          <span className="block truncate text-xs text-muted">{printed ? deliveryName(order.deliveryMethod) || "доставка не выбрана" : "электронная версия"}</span>
-        </Fact>
-        <Fact label="Нужна к">
-          {order.desiredDate ? (
-            <>
-              <span className="block font-medium">{formatDate(order.desiredDate)}</span>
-              {open ? (
-                <Badge tone={dueTone} className="mt-0.5">
-                  <CalendarClock className="size-3" aria-hidden /> {dueText}
-                </Badge>
-              ) : null}
-            </>
-          ) : (
-            <span className="text-muted">срок не указан</span>
-          )}
-        </Fact>
-        <Fact label="Ведёт">
-          <span className={cn("block truncate font-medium", !assignee && "text-muted")}>{assignee ?? "не назначен"}</span>
-          {orderDeal ? (
-            // Сделка заказа (deals-14): номер, ответственный и переписка — из заказа видно, кто ведёт клиента.
-            <span className="flex flex-wrap gap-x-2 text-xs" data-testid="order-deal">
-              <Link href={`/admin/deals/${orderDeal.id}`} className="text-wine hover:underline">
-                Сделка №{orderDeal.number}
-              </Link>
-              <span className="text-muted">{orderDeal.assigneeId ? (adminName.get(orderDeal.assigneeId) ?? "—") : "без ответственного"}</span>
-              {orderDeal.conversationId ? (
-                <Link href={`/admin/chats?c=${orderDeal.conversationId}`} className="text-wine hover:underline">
-                  чат
-                </Link>
-              ) : null}
-            </span>
-          ) : canClients ? (
-            <span className="block text-xs text-muted">
-              у клиента {clientStats.n} зак. на {formatPrice(clientStats.ltv)}
-            </span>
-          ) : null}
-        </Fact>
-      </dl>
+      {order.surprise ? (
+        <Alert kind="warning">
+          <b className="font-semibold">Сюрприз.</b> Не звонить получателю, связываться с заказчиком ({accountEmail}).
+        </Alert>
+      ) : null}
 
-      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_22rem] xl:grid-cols-[minmax(0,1fr)_24rem]">
-        <div className="flex min-w-0 flex-col gap-5">
-          <Panel title="Деньги" id="money" description={order.paidAt ? `Оплачен ${formatDate(order.paidAt, true)}` : "Расчёт и журнал оплат"}>
-            <div className="grid gap-6 md:grid-cols-2">
-              <dl className="space-y-2 text-sm">
-                <Line label={`${planName(order.plan)} × ${order.quantity}`} value={formatPrice(order.itemsAmount)} />
-                {order.discountAmount ? <Line tone="success" label={order.promoCode ? `Промокод ${order.promoCode}` : "Договорённая цена"} value={`−${formatPrice(order.discountAmount)}`} /> : null}
-                {order.addons.length ? <Line label={order.addons.map((a) => addonName(a)).join(", ")} value={formatPrice(order.addonsAmount)} /> : null}
-                <Line label="Доставка" value={isQuotedDelivery(order.deliveryMethod) && !order.deliveryAmount ? "отдельно" : formatPrice(order.deliveryAmount)} />
-                {order.prepaidAmount ? <Line tone="success" label="Внесено ранее менеджеру" value={`−${formatPrice(order.prepaidAmount)}`} /> : null}
-                <div className="flex justify-between gap-3 border-t border-line pt-2.5 font-semibold">
-                  <dt>{order.prepaidAmount ? "К оплате сейчас" : "Итого"}</dt>
-                  <dd className="tabular-nums">{formatPrice(order.amount)}</dd>
-                </div>
-                <div className="flex justify-between gap-3 pt-1 text-xs text-muted">
-                  <dt>Способ оплаты</dt>
-                  <dd className="truncate">
-                    {PROVIDER_LABEL[order.paymentProvider] ?? order.paymentProvider}
-                    {order.paymentId ? `, ${order.paymentId}` : ""}
-                  </dd>
-                </div>
-              </dl>
-              <OrderMoney
-                orderId={order.id}
-                status={order.status}
-                due={order.amount}
-                received={order.receivedAmount}
-                postpay={order.postpay}
-                settled={!!order.paidAt}
-                canEdit={canEdit}
-                canReview={can(staff, "team.manage")}
-                rows={moneyRows.map((r) => ({
-                  id: r.id,
-                  amount: r.amount,
-                  method: r.method,
-                  ref: r.externalRef,
-                  paidLabel: formatDate(r.paidAt),
-                  note: r.note,
-                  receipt: !!r.receipt,
-                  reviewed: r.reviewedAt ? `${r.reviewedById ? (adminName.get(r.reviewedById) ?? "") : ""} ${formatDate(r.reviewedAt)}`.trim() : null,
-                  by: r.createdById ? (adminName.get(r.createdById) ?? null) : null,
-                }))}
-              />
-            </div>
-            {kaspiInvoices.length ? (
-              <div className="mt-5 border-t border-line pt-4">
-                <h3 className="mb-2 text-xs font-medium text-muted">Счета Kaspi</h3>
-                <ul className="divide-y divide-line text-sm">
-                  {kaspiInvoices.map((i) => (
-                    <li key={i.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2">
-                      <span className="min-w-0">
-                        {i.method === "qr" ? "QR-код" : `Счёт на ${formatPhone(i.phone) || i.phone}`} <span className="text-xs text-muted tabular-nums">№{i.externalId}</span>
-                      </span>
-                      <span className="flex items-center gap-2 text-xs text-muted" title={i.providerStatus ?? undefined}>
-                        {formatDate(i.paidAt ?? i.createdAt, true)}
-                        <Badge tone={i.status === "paid" ? "success" : i.status === "pending" ? "warning" : "neutral"}>{invoiceStatusLabels[i.status]}</Badge>
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+      {/* Линейка производства и главное о заказе одним листом: где заказ сейчас, сколько, что за книга, к какому числу, кто ведёт. */}
+      <section className="panel overflow-hidden" aria-label="Ход заказа">
+        <div className="px-4 py-4 sm:px-5 sm:py-5">
+          <ProductionRuler status={order.status} printed={printed} createdAt={order.createdAt} events={order.events.map((e) => ({ status: e.status, createdAt: e.createdAt }))} />
+        </div>
+        <dl className="grid grid-cols-2 gap-px border-t border-line bg-line lg:grid-cols-4">
+          <Fact label="Сумма">
+            <span className="text-[20px] font-semibold tabular-nums">{formatPrice(order.amount)}</span>
+            <span className={cn("block text-xs", paidInFull ? "text-success" : "text-muted")}>
+              {order.amount === 0 ? "бесплатный заказ" : paidInFull ? "оплачено полностью" : `получено ${formatPrice(order.receivedAmount)}`}
+            </span>
+          </Fact>
+          <Fact label="Книга">
+            <span className="block truncate font-medium">
+              {planName(order.plan)}
+              {order.quantity > 1 ? ` × ${order.quantity}` : ""}
+            </span>
+            <span className="block truncate text-xs text-muted">{printed ? deliveryName(order.deliveryMethod) || "доставка не выбрана" : "электронная версия"}</span>
+          </Fact>
+          <Fact label="Нужна к">
+            {order.desiredDate ? (
+              <>
+                <span className="block font-medium">{formatDate(order.desiredDate)}</span>
+                {open ? (
+                  <Badge tone={dueTone} className="mt-0.5">
+                    <CalendarClock className="size-3" aria-hidden /> {dueText}
+                  </Badge>
+                ) : null}
+              </>
+            ) : (
+              <span className="text-muted">срок не указан</span>
+            )}
+          </Fact>
+          <Fact label="Ведёт">
+            <span className={cn("block truncate font-medium", !assignee && "text-muted")}>{assignee ?? "не назначен"}</span>
+            {canClients ? (
+              <span className="block truncate text-xs text-muted">
+                у клиента {clientStats.n} зак. на {formatPrice(clientStats.ltv)}
+              </span>
+            ) : null}
+          </Fact>
+        </dl>
+      </section>
+
+      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_23rem] xl:gap-5">
+        <div className="flex min-w-0 flex-col gap-4 xl:gap-5">
+          <Panel flush title="Оплата" id="money" description={order.paidAt ? `Оплачен ${formatDate(order.paidAt, true)}` : "Расчёт и журнал оплат"}>
+            <div className="p-4 sm:p-5">
+              <div className="grid gap-6 md:grid-cols-2">
+                <dl className="space-y-2 text-sm">
+                  <Line label={`${planName(order.plan)} × ${order.quantity}`} value={formatPrice(order.itemsAmount)} />
+                  {order.discountAmount ? <Line tone="success" label={order.promoCode ? `Промокод ${order.promoCode}` : "Договорённая цена"} value={`−${formatPrice(order.discountAmount)}`} /> : null}
+                  {order.addons.length ? <Line label={order.addons.map((a) => addonName(a)).join(", ")} value={formatPrice(order.addonsAmount)} /> : null}
+                  <Line label="Доставка" value={isQuotedDelivery(order.deliveryMethod) && !order.deliveryAmount ? "отдельно" : formatPrice(order.deliveryAmount)} />
+                  {order.prepaidAmount ? <Line tone="success" label="Внесено ранее менеджеру" value={`−${formatPrice(order.prepaidAmount)}`} /> : null}
+                  <div className="flex justify-between gap-3 border-t border-line pt-2.5 font-semibold">
+                    <dt>{order.prepaidAmount ? "К оплате сейчас" : "Итого"}</dt>
+                    <dd className="tabular-nums">{formatPrice(order.amount)}</dd>
+                  </div>
+                  <div className="flex justify-between gap-3 pt-1 text-xs text-muted">
+                    <dt>Способ оплаты</dt>
+                    <dd className="truncate">
+                      {PROVIDER_LABEL[order.paymentProvider] ?? order.paymentProvider}
+                      {order.paymentId ? `, ${order.paymentId}` : ""}
+                    </dd>
+                  </div>
+                </dl>
+                <OrderMoney
+                  orderId={order.id}
+                  status={order.status}
+                  due={order.amount}
+                  received={order.receivedAmount}
+                  postpay={order.postpay}
+                  settled={!!order.paidAt}
+                  canEdit={canEdit}
+                  canReview={can(staff, "team.manage")}
+                  rows={moneyRows.map((r) => ({
+                    id: r.id,
+                    amount: r.amount,
+                    method: r.method,
+                    ref: r.externalRef,
+                    paidLabel: formatDate(r.paidAt),
+                    note: r.note,
+                    receipt: !!r.receipt,
+                    reviewed: r.reviewedAt ? `${r.reviewedById ? (adminName.get(r.reviewedById) ?? "") : ""} ${formatDate(r.reviewedAt)}`.trim() : null,
+                    by: r.createdById ? (adminName.get(r.createdById) ?? null) : null,
+                  }))}
+                />
               </div>
+              {kaspiInvoices.length ? (
+                <div className="mt-5 border-t border-line pt-4">
+                  <h3 className="mb-2 text-xs font-medium text-muted">Счета Kaspi</h3>
+                  <ul className="divide-y divide-line text-sm">
+                    {kaspiInvoices.map((i) => (
+                      <li key={i.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2">
+                        <span className="min-w-0">
+                          {i.method === "qr" ? "QR-код" : `Счёт на ${formatPhone(i.phone) || i.phone}`} <span className="text-xs text-muted tabular-nums">№{i.externalId}</span>
+                        </span>
+                        <span className="flex items-center gap-2 text-xs text-muted" title={i.providerStatus ?? undefined}>
+                          {formatDate(i.paidAt ?? i.createdAt, true)}
+                          <Badge tone={i.status === "paid" ? "success" : i.status === "pending" ? "warning" : "neutral"}>{invoiceStatusLabels[i.status]}</Badge>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </div>
+            {termsOpen ? (
+              <Disclosure title="Тариф и цена" hint="пока заказ не оплачен">
+                <div className="max-w-md">
+                  <TermsForm
+                    key={`${order.plan}:${order.amount}`}
+                    orderId={order.id}
+                    plan={order.plan}
+                    agreed={agreedNow}
+                    plans={getPlans().map((p) => ({ id: p.id, label: planName(p.id) + (p.hidden ? " (скрыт)" : ""), price: p.price }))}
+                    maxPercent={maxDiscount}
+                  />
+                </div>
+              </Disclosure>
             ) : null}
           </Panel>
 
           <Panel
+            flush
             title="Книга"
             actions={
               <Link href={`/books/${book.id}/preview`} className="btn btn-ghost btn-sm">
-                <Eye className="size-4" aria-hidden /> Предпросмотр
+                Предпросмотр
               </Link>
             }
           >
-            <dl className="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-x-4 gap-y-2.5 text-sm sm:grid-cols-[9.5rem_minmax(0,1fr)] sm:gap-x-6">
-              <Row label="Название" value={<span className="font-medium">{book.title}</span>} />
-              <Row label="Тема" value={getTheme(book.theme).name} />
-              <Row
-                label={kind === "autobiography" ? "Рассказчик" : "Автор и адресат"}
-                value={
-                  <>
-                    {book.authorName}
-                    {book.recipientName && kind !== "autobiography" ? ` → ${book.recipientName}` : ""}
-                    {book.recordedBy ? <span className="text-muted">, записано: {book.recordedBy}</span> : null}
-                  </>
-                }
-              />
-              <Row
-                label="Оформление"
-                value={
-                  <>
-                    {formatName(book.format)}
-                    <span className="block text-xs text-muted">
-                      обложка «{coverName(book.coverTemplate)}», страницы «{interiorName(book.interior)}», язык: {localeMeta[book.language]?.label ?? book.language}
+            <div className="p-4 sm:p-5">
+              <dl className="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-x-4 gap-y-2.5 text-sm sm:grid-cols-[9.5rem_minmax(0,1fr)] sm:gap-x-6">
+                <Row label="Название" value={<span className="font-medium">{book.title}</span>} />
+                <Row label="Тема" value={getTheme(book.theme).name} />
+                <Row
+                  label={kind === "autobiography" ? "Рассказчик" : "Автор и адресат"}
+                  value={
+                    <>
+                      {book.authorName}
+                      {book.recipientName && kind !== "autobiography" ? `, для ${book.recipientName}` : ""}
+                      {book.recordedBy ? <span className="text-muted">, записано: {book.recordedBy}</span> : null}
+                    </>
+                  }
+                />
+                <Row
+                  label="Оформление"
+                  value={
+                    <>
+                      {formatName(book.format)}
+                      <span className="block text-xs text-muted">
+                        обложка «{coverName(book.coverTemplate)}», страницы «{interiorName(book.interior)}», язык: {localeMeta[book.language]?.label ?? book.language}
+                      </span>
+                    </>
+                  }
+                />
+                <Row
+                  label="Наполнение"
+                  value={
+                    <span className="tabular-nums">
+                      {kind === "blank" ? `${stats.answered} разделов с текстом` : `${stats.answered} ответов`}, {stats.words} слов, {stats.photos} фото, {built ? `${built.pageCount} стр. по макету` : `≈ ${stats.printedPages} стр.`}
                     </span>
-                  </>
-                }
-              />
-              <Row
-                label="Наполнение"
-                value={
-                  <span className="tabular-nums">
-                    {kind === "blank" ? `${stats.answered} разделов с текстом` : `${stats.answered} ответов`}, {stats.words} слов, {stats.photos} фото, {built ? `${built.pageCount} стр. по макету` : `≈ ${stats.printedPages} стр.`}
-                  </span>
-                }
-              />
-              <Row
-                label="Редактирование"
-                value={
-                  <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    {book.status === "draft" ? <Badge tone="warning">открыто для клиента</Badge> : <Badge>закрыто</Badge>}
-                    {canEdit ? <LockButton orderId={order.id} locked={book.status !== "draft"} /> : null}
-                  </span>
-                }
-              />
-            </dl>
+                  }
+                />
+                <Row
+                  label="Редактирование"
+                  value={
+                    <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      {book.status === "draft" ? <Badge tone="warning">открыто для клиента</Badge> : <Badge>закрыто</Badge>}
+                      {canEdit ? <LockButton orderId={order.id} locked={book.status !== "draft"} /> : null}
+                    </span>
+                  }
+                />
+              </dl>
+            </div>
             {can(staff, "orders.files") ? (
-              <div className="mt-5 border-t border-line pt-4">
+              <div className="border-t border-line p-4 sm:p-5">
                 <h3 className="mb-3 text-sm font-semibold">Файлы для типографии</h3>
                 <PrintFileActions orderId={order.id} hasFiles={!!spec} />
                 {spec ? (
                   <>
-                    <dl className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-[10px] border border-line bg-line text-sm sm:grid-cols-4">
+                    <dl className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-[var(--r-ctl)] border border-line bg-line text-sm sm:grid-cols-4">
                       <Spec label="Формат" value={getFormat(spec.format).short} />
                       <Spec label="Страниц" value={spec.pageCount} />
                       <Spec label="Корешок" value={`${spec.spineMm} мм`} />
@@ -335,9 +361,49 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
             ) : null}
           </Panel>
 
-          <Panel title="Клиент и доставка" flush>
-            <div className="grid gap-x-8 gap-y-5 p-4 sm:p-5 md:grid-cols-2">
-              <dl className="grid content-start gap-x-4 gap-y-2.5 text-sm grid-cols-[6.5rem_minmax(0,1fr)]">
+          {/* Доставка слева, смена статуса справа: id="status" — к нему ведёт «Отметить отправленным» из шапки. */}
+          <Panel flush title="Доставка и статус" id="status">
+            <div className="grid gap-6 p-4 sm:p-5 md:grid-cols-2 md:gap-8">
+              <div className="space-y-4">
+                <dl className="grid content-start grid-cols-[6.5rem_minmax(0,1fr)] gap-x-4 gap-y-2.5 text-sm">
+                  {plan?.printed ? (
+                    <>
+                      <Row
+                        label="Доставка"
+                        value={
+                          <>
+                            {deliveryName(order.deliveryMethod) || "не выбрана"}
+                            {isQuotedDelivery(order.deliveryMethod) && !order.deliveryAmount ? <span className="block text-xs text-warning">стоимость рассчитывается отдельно, в сумму не входит</span> : null}
+                          </>
+                        }
+                      />
+                      <Row label="Адрес" value={deliveryAddress({ ...order, country: order.deliveryCountry }) || <span className="text-muted">не указан</span>} />
+                      {order.trackingNumber ? <Row label="Трек-номер" value={<span className="font-mono text-[13px]">{order.trackingNumber}</span>} /> : null}
+                    </>
+                  ) : (
+                    <Row label="Доставка" value={<span className="text-muted">не нужна, электронная версия</span>} />
+                  )}
+                  {order.desiredDate ? <Row label="Нужна к" value={<span className="font-medium text-wine">{formatDate(order.desiredDate)}</span>} /> : null}
+                  {order.customerComment ? <Row label="Комментарий" value={<span className="whitespace-pre-line">{order.customerComment}</span>} /> : null}
+                </dl>
+                {order.giftNote ? (
+                  <div className="flex gap-2.5 rounded-[var(--r-ctl)] bg-rose/60 px-3.5 py-3 text-sm">
+                    <Gift className="mt-0.5 size-4 shrink-0 text-wine" aria-hidden />
+                    <p className="whitespace-pre-line italic">«{order.giftNote}»</p>
+                  </div>
+                ) : null}
+              </div>
+              {canEdit && notice ? (
+                <div className="md:border-l md:border-line md:pl-8">
+                  <StatusForm orderId={order.id} status={order.status} trackingNumber={order.trackingNumber} printed={printed} notice={notice} />
+                </div>
+              ) : null}
+            </div>
+          </Panel>
+
+          <Panel flush title="Получатель">
+            <div className="p-4 sm:p-5">
+              <dl className="grid content-start grid-cols-[6.5rem_minmax(0,1fr)] gap-x-4 gap-y-2.5 text-sm sm:grid-cols-[9.5rem_minmax(0,1fr)] sm:gap-x-6">
                 <Row label="Получатель" value={<span className="font-medium">{order.contactName}</span>} />
                 <Row label="Телефон" value={contact.masked ? contact.phone : <a href={`tel:${order.contactPhone}`} className="text-wine hover:underline">{order.contactPhone}</a>} />
                 <Row label="E-mail" value={contact.masked ? contact.email : <a href={`mailto:${order.contactEmail}`} className="break-all text-wine hover:underline">{order.contactEmail}</a>} />
@@ -352,89 +418,55 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
                   }
                 />
               </dl>
-              <dl className="grid content-start gap-x-4 gap-y-2.5 text-sm grid-cols-[6.5rem_minmax(0,1fr)]">
-                {plan?.printed ? (
-                  <>
-                    <Row
-                      label="Доставка"
-                      value={
-                        <>
-                          {deliveryName(order.deliveryMethod) || "не выбрана"}
-                          {isQuotedDelivery(order.deliveryMethod) && !order.deliveryAmount ? <span className="block text-xs text-warning">стоимость рассчитывается отдельно, в сумму не входит</span> : null}
-                        </>
-                      }
-                    />
-                    <Row label="Адрес" value={deliveryAddress({ ...order, country: order.deliveryCountry }) || <span className="text-muted">не указан</span>} />
-                    {order.trackingNumber ? <Row label="Трек-номер" value={<span className="font-mono text-[13px]">{order.trackingNumber}</span>} /> : null}
-                  </>
-                ) : (
-                  <Row label="Доставка" value={<span className="text-muted">не нужна, электронная версия</span>} />
-                )}
-                {order.desiredDate ? <Row label="Нужна к" value={<span className="font-medium text-wine">{formatDate(order.desiredDate)}</span>} /> : null}
-                {order.customerComment ? <Row label="Комментарий" value={<span className="whitespace-pre-line">{order.customerComment}</span>} /> : null}
-              </dl>
-            </div>
-            {order.surprise || order.giftNote ? (
-              <div className="mx-4 mb-4 space-y-2 sm:mx-5 sm:mb-5">
-                {order.surprise ? (
-                  <Alert kind="warning">
-                    <b className="font-semibold">Сюрприз.</b> Не звонить получателю, связываться с заказчиком ({accountEmail}).
-                  </Alert>
-                ) : null}
-                {order.giftNote ? (
-                  <div className="flex gap-2.5 rounded-[10px] bg-rose/60 px-3.5 py-3 text-sm">
-                    <Gift className="mt-0.5 size-4 shrink-0 text-wine" aria-hidden />
-                    <p className="whitespace-pre-line italic">«{order.giftNote}»</p>
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-            <div className="px-4 pb-4 sm:px-5 sm:pb-5">
-              <ContactActions className="max-w-md" target={{ orderId: order.id }} canCall={can(staff, "calls.make")} canChat={can(staff, "chats.send")} canEmail={can(staff, "chats.send") && !!order.contactEmail} />
+              <ContactActions className="mt-4 max-w-md" target={{ orderId: order.id }} canCall={can(staff, "calls.make")} canChat={can(staff, "chats.send")} canEmail={can(staff, "chats.send") && !!order.contactEmail} />
             </div>
             {canEdit && !contact.masked ? <DetailsForm order={order} /> : null}
           </Panel>
-
-          {/* Форма задачи из CrmWidgets рассчитана на всю ширину экрана — в колонке карточки раскладываем её в три столбца. */}
-          <Panel
-            className="sm:[&_form]:grid-cols-3 sm:[&_form>p]:col-span-full sm:[&_form_input[name=title]]:col-span-2 sm:[&_[data-testid=due-presets]]:col-span-full"
-            title={<>Задачи по заказу {tasks.length ? <span className="font-normal text-muted tabular-nums">{tasks.filter((t) => !t.done).length}</span> : null}</>}>
-            <TaskList tasks={tasks} admins={adminOptions} orderId={order.id} clientId={order.userId} emptyText="Задач по заказу нет. Поставьте следующий шаг ниже." />
-          </Panel>
-
-          {canClients ? (
-            <Panel title="История общения">
-              <NotesTimeline notes={notes} clientId={order.userId} orderId={order.id} mentionables={staffOptions(admins).filter((a) => a.id !== staff.user.id).map((a) => a.label)} />
-            </Panel>
-          ) : null}
         </div>
 
-        <aside className="flex min-w-0 flex-col gap-5 lg:sticky lg:top-[calc(var(--topbar-h)+1.25rem)]">
-          <Panel title="Работа с заказом" id="status">
+        <aside className="flex min-w-0 flex-col gap-4 xl:sticky xl:top-[calc(var(--topbar-h)+1.25rem)] xl:max-h-[calc(100dvh-var(--topbar-h)-2.5rem)] xl:gap-5 xl:overflow-y-auto xl:pr-1">
+          <Panel title="Ведёт">
             <div className="space-y-4">
-              <div>
-                <span className="label">Ответственный</span>
-                {canEdit ? <AssigneeSelect orderId={order.id} value={order.assigneeId} admins={adminOptions} /> : <p className="text-sm">{assignee ?? "Не назначен"}</p>}
-              </div>
-              {canEdit && notice ? (
-                <div className="border-t border-line pt-4">
-                  <StatusForm orderId={order.id} status={order.status} trackingNumber={order.trackingNumber} printed={printed} notice={notice} />
+              {canEdit ? <AssigneeSelect orderId={order.id} value={order.assigneeId} admins={adminOptions} /> : <p className="text-sm">{assignee ?? "Не назначен"}</p>}
+              {/* Сделка заказа (deals-14): номер, ответственный и переписка — из заказа видно, кто ведёт клиента. */}
+              {orderDeal ? (
+                <div data-testid="order-deal">
+                  <Facts
+                    items={[
+                      {
+                        label: "Сделка",
+                        value: (
+                          <Link href={`/admin/deals/${orderDeal.id}`} className="text-wine hover:underline">
+                            №{orderDeal.number}
+                          </Link>
+                        ),
+                      },
+                      { label: "Ведёт сделку", value: orderDeal.assigneeId ? (adminName.get(orderDeal.assigneeId) ?? "—") : <span className="text-muted">без ответственного</span> },
+                      {
+                        label: "Переписка",
+                        hidden: !orderDeal.conversationId,
+                        value: (
+                          <Link href={`/admin/chats?c=${orderDeal.conversationId}`} className="text-wine hover:underline">
+                            открыть чат
+                          </Link>
+                        ),
+                      },
+                    ]}
+                  />
                 </div>
+              ) : canClients ? (
+                <p className="text-sm text-muted">
+                  Сделки у заказа нет. У клиента {clientStats.n} зак. на {formatPrice(clientStats.ltv)}.
+                </p>
               ) : null}
             </div>
           </Panel>
-          {termsOpen ? (
-            <Panel title="Тариф и цена" description="Пока заказ не оплачен">
-              <TermsForm
-                key={`${order.plan}:${order.amount}`}
-                orderId={order.id}
-                plan={order.plan}
-                agreed={agreedNow}
-                plans={getPlans().map((p) => ({ id: p.id, label: planName(p.id) + (p.hidden ? " (скрыт)" : ""), price: p.price }))}
-                maxPercent={maxDiscount}
-              />
-            </Panel>
-          ) : null}
+
+          {/* Форма задачи из CrmWidgets подстраивается под ширину колонки (@container). */}
+          <Panel title={<>Задачи по заказу {tasks.length ? <span className="font-normal text-muted tabular-nums">{tasks.filter((t) => !t.done).length}</span> : null}</>}>
+            <TaskList tasks={tasks} admins={adminOptions} orderId={order.id} clientId={order.userId} emptyText="Задач по заказу нет. Поставьте следующий шаг ниже." />
+          </Panel>
+
           {canEdit && notice ? (
             <Panel title="Заметка" description="Видна только сотрудникам">
               <NoteForm orderId={order.id} note={order.adminNote} />
@@ -444,6 +476,13 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
               <p className="text-sm whitespace-pre-line">{order.adminNote}</p>
             </Panel>
           ) : null}
+
+          {canClients ? (
+            <Panel title="История общения">
+              <NotesTimeline notes={notes} clientId={order.userId} orderId={order.id} mentionables={staffOptions(admins).filter((a) => a.id !== staff.user.id).map((a) => a.label)} />
+            </Panel>
+          ) : null}
+
           <Panel title="Журнал заказа" flush>
             {order.events.length ? (
               <ol className="relative space-y-4 px-4 py-4 before:absolute before:top-5 before:bottom-5 before:left-[1.4rem] before:w-px before:bg-line sm:px-5 sm:before:left-[1.65rem]">
@@ -476,7 +515,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
 /** Ячейка строки «главное о заказе». */
 function Fact({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="min-w-0 bg-white px-4 py-3.5 sm:px-5">
+    <div className="min-w-0 bg-white px-4 py-3 sm:px-5">
       <dt className="text-xs text-muted">{label}</dt>
       <dd className="mt-1 min-w-0 text-sm">{children}</dd>
     </div>

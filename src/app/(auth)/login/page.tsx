@@ -4,6 +4,7 @@ import { getMessages, lredirect } from "@/i18n/server";
 import { getCurrentUser, safeNextPath } from "@/server/auth";
 import { registrationOpen } from "@/config/site";
 import { isThemeId } from "@/lib/content/themes";
+import { AuthHead } from "../AuthHead";
 import { LoginForm } from "./LoginForm";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -24,11 +25,10 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   const t = (await getMessages()).auth.login;
   return (
     <>
-      <h1 className="font-serif text-[36px] leading-tight font-medium sm:text-4xl">{t.title}</h1>
-      <p className="mt-2 mb-8 text-[15px] leading-relaxed text-muted">{t.text}</p>
+      <AuthHead title={t.title} text={t.text} />
       <LoginForm next={next} />
       {registrationOpen() ? (
-        <p className="mt-8 text-center text-sm text-muted">
+        <p className="mt-6 border-t border-line pt-4 text-center text-sm text-muted">
           {t.noAccount}{" "}
           <Link href={registerHref(next)} className="inline-flex min-h-11 items-center font-medium text-wine hover:underline">{t.toRegister}</Link>
         </p>

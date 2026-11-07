@@ -43,7 +43,7 @@ export function AddPanel({
       <PanelSection title={t.text}>
         <div className="grid gap-2">
           {(Object.keys(PRESET_LOOK) as TextPreset[]).map((p) => (
-            <button key={p} type="button" onClick={() => onText(p)} className="rounded-xl border border-line bg-white px-3 py-2.5 text-left transition hover:border-wine/40 hover:bg-sunken">
+            <button key={p} type="button" onClick={() => onText(p)} className="rounded-[var(--r-ctl)] border border-line bg-white px-3 py-2.5 text-left transition hover:border-wine/40 hover:bg-sunken">
               <span className={PRESET_LOOK[p].className} style={{ fontFamily: cssFont(PRESET_LOOK[p].font) }}>
                 {t.presets[p]}
               </span>
@@ -57,7 +57,7 @@ export function AddPanel({
       <PanelSection title={t.shapes}>
         <div className="grid grid-cols-4 gap-1.5">
           {SHAPES.map((k) => (
-            <button key={k} type="button" title={t.shapeNames[k]} aria-label={t.shapeNames[k]} onClick={() => onShape(k)} className="flex aspect-square items-center justify-center rounded-xl border border-line bg-white p-2 transition hover:border-wine/40">
+            <button key={k} type="button" title={t.shapeNames[k]} aria-label={t.shapeNames[k]} onClick={() => onShape(k)} className="flex aspect-square items-center justify-center rounded-[var(--r-ctl)] border border-line bg-white p-2 transition hover:border-wine/40">
               <ShapeIcon shape={k} />
             </button>
           ))}

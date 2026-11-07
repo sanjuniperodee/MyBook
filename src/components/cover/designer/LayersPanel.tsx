@@ -77,7 +77,7 @@ function LayerRow({ layer: l, texts, active, editable, onSelect, onPatch }: { la
     <li
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={cn("flex items-center gap-1 rounded-xl border px-1.5 py-1 transition", active ? "border-wine/50 bg-rose/50" : "border-transparent bg-white hover:border-line", isDragging && "z-10 shadow-lift", l.hidden && "opacity-60")}
+      className={cn("flex items-center gap-1 rounded-[var(--r-ctl)] border px-1.5 py-1 transition", active ? "border-wine/50 bg-rose/50" : "border-transparent bg-white hover:border-line", isDragging && "z-10 shadow-lift", l.hidden && "opacity-60")}
     >
       <button type="button" aria-label={m.layers.drag} className="flex h-8 w-6 shrink-0 cursor-grab touch-none items-center justify-center text-muted" {...attributes} {...listeners}>
         <GripVertical className="size-4" />

@@ -5,6 +5,7 @@ import { alternates } from "@/i18n/seo";
 import { Gift } from "lucide-react";
 import { getCurrentUser } from "@/server/auth";
 import { invitedBy } from "@/server/invite";
+import { AuthHead } from "../AuthHead";
 import { RegisterForm } from "./RegisterForm";
 import { registrationOpen, site } from "@/config/site";
 import { socialMeta } from "@/lib/seo";
@@ -25,8 +26,7 @@ export default async function RegisterPage({ searchParams }: { searchParams: Pro
   if (!registrationOpen())
     return (
       <div data-testid="registration-closed">
-        <h1 className="font-serif text-[36px] leading-tight font-medium sm:text-4xl">{t.closedTitle}</h1>
-        <p className="mt-3 mb-8 text-muted">{t.closedText}</p>
+        <AuthHead title={t.closedTitle} text={t.closedText} />
         <div className="flex flex-col gap-3 sm:flex-row">
           <Link href="/login" className="btn btn-primary">
             {t.toLogin}
@@ -39,18 +39,17 @@ export default async function RegisterPage({ searchParams }: { searchParams: Pro
     );
   return (
     <>
-      <h1 className="font-serif text-[36px] leading-tight font-medium sm:text-4xl">{t.title}</h1>
-      <p className="mt-2 mb-8 text-[15px] leading-relaxed text-muted">{t.text}</p>
+      <AuthHead title={t.title} text={t.text} />
       {invited ? (
-        <p className="-mt-3 mb-7 flex items-start gap-2.5 rounded-[10px] bg-rose px-4 py-3 text-sm">
-          <Gift className="mt-0.5 size-4 shrink-0 text-wine" />
+        <p className="-mt-3 mb-6 flex items-start gap-2.5 rounded-[var(--r-ctl)] bg-rose px-4 py-3 text-sm">
+          <Gift className="mt-0.5 size-4 shrink-0 text-wine" aria-hidden />
           <span>
             <b className="font-semibold text-wine">{m.invite.welcome(invited.from, invited.percent)}</b> — {m.invite.welcomeNote.toLowerCase()}
           </span>
         </p>
       ) : null}
       <RegisterForm theme={theme} />
-      <p className="mt-8 text-center text-sm text-muted">
+      <p className="mt-6 border-t border-line pt-4 text-center text-sm text-muted">
         {t.hasAccount} <Link href="/login" className="inline-flex min-h-11 items-center font-medium text-wine hover:underline">{t.toLogin}</Link>
       </p>
     </>

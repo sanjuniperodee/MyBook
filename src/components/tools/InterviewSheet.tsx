@@ -5,7 +5,7 @@ import { Printer, Shuffle } from "lucide-react";
 import { useLocale } from "@/i18n/client";
 import { usefulUi2 } from "@/lib/content/tools/ui";
 import { cardThemeIds, type CardQuestion, type CardThemeId } from "@/lib/tools/cards";
-import { Choice, CopyButton } from "./Choice";
+import { Choice, CopyButton, ToolField, Workbench } from "./Workbench";
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
@@ -56,64 +56,67 @@ export function InterviewSheet({ themes }: { themes: Record<CardThemeId, CardQue
   };
 
   return (
-    <div className="card p-6 sm:p-8">
-      <span className="label">{ui.themeLabel}</span>
-      <Choice
-        label={ui.themeLabel}
-        value={theme}
-        onChange={(v) => {
-          setTheme(v);
-          setChosen(new Set());
-        }}
-        options={cardThemeIds.map((id) => ({ id, label: ui.theme[id] }))}
-      />
-      <div className="mt-5 max-w-md">
-        <label className="label" htmlFor="anketa-name">
-          {ui.nameLabel}
-        </label>
-        <input id="anketa-name" className="input" maxLength={60} value={name} placeholder={ui.namePlaceholder} onChange={(e) => setName(e.target.value)} />
-      </div>
-
-      <div className="mt-6 flex flex-wrap items-center gap-3">
-        <span className="text-sm font-medium text-ink">{ui.pickTitle(picked.length, all.length)}</span>
-        <button type="button" className="btn btn-outline btn-sm" onClick={random}>
-          <Shuffle className="size-4" /> {ui.random}
-        </button>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setChosen(new Set(all.map((q) => q.text)))}>
-          {ui.all}
-        </button>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setChosen(new Set())}>
-          {ui.none}
-        </button>
-      </div>
-
-      <ul className="mt-4 max-h-[26rem] space-y-1.5 overflow-y-auto rounded-[14px] border border-line bg-white p-3">
-        {all.map((q) => (
-          <li key={q.text}>
-            <label className="flex cursor-pointer items-start gap-3 rounded-xl px-2 py-2 hover:bg-cream/50 has-[:checked]:bg-rose/30">
-              <input type="checkbox" className="mt-1 size-4 shrink-0 accent-[var(--color-wine)]" checked={chosen.has(q.text)} onChange={() => toggle(q.text)} />
-              <span className="text-sm leading-relaxed">{q.text}</span>
-            </label>
-          </li>
-        ))}
-      </ul>
-
-      <div className="mt-5 flex flex-wrap items-center gap-3">
-        <button type="button" className="btn btn-primary" disabled={!picked.length} onClick={() => printSheet(ui.sheetTitle(name.trim()), picked, ui)}>
-          <Printer className="size-4" /> {ui.print}
-        </button>
-        <CopyButton text={[ui.sheetTitle(name.trim()), "", ...picked.map((q, i) => `${i + 1}. ${q}`)].join("\n")} label={ui.copy} done={ui.copied} />
-        {!picked.length ? <span className="text-sm text-muted">{ui.nothing}</span> : null}
-      </div>
-
-      <div className="mt-8 rounded-[14px] bg-cream/60 p-5">
-        <h3 className="font-medium">{ui.tipsTitle}</h3>
-        <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-relaxed text-ink-soft">
-          {ui.tips.map((t) => (
-            <li key={t}>{t}</li>
-          ))}
-        </ul>
-      </div>
-    </div>
+    <Workbench
+      stickyResult={false}
+      resultTitle={ui.pickTitle(picked.length, all.length)}
+      input={
+        <>
+          <ToolField label={ui.themeLabel}>
+            <Choice
+              label={ui.themeLabel}
+              value={theme}
+              onChange={(v) => {
+                setTheme(v);
+                setChosen(new Set());
+              }}
+              options={cardThemeIds.map((id) => ({ id, label: ui.theme[id] }))}
+            />
+          </ToolField>
+          <ToolField label={ui.nameLabel} htmlFor="anketa-name">
+            <input id="anketa-name" className="input" maxLength={60} value={name} placeholder={ui.namePlaceholder} onChange={(e) => setName(e.target.value)} />
+          </ToolField>
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" className="btn btn-outline btn-sm" onClick={random}>
+              <Shuffle className="size-4" /> {ui.random}
+            </button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setChosen(new Set(all.map((q) => q.text)))}>
+              {ui.all}
+            </button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setChosen(new Set())}>
+              {ui.none}
+            </button>
+          </div>
+          <div className="border-t border-line pt-5">
+            <h3 className="font-medium">{ui.tipsTitle}</h3>
+            <ul className="mt-2 list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-ink-soft marker:text-wine">
+              {ui.tips.map((t) => (
+                <li key={t}>{t}</li>
+              ))}
+            </ul>
+          </div>
+        </>
+      }
+      result={
+        <div>
+          <ul className="max-h-[26rem] overflow-y-auto rounded-[10px] border border-line bg-white p-1.5">
+            {all.map((q) => (
+              <li key={q.text}>
+                <label className="flex min-h-11 cursor-pointer items-start gap-3 rounded-[8px] px-2.5 py-2.5 hover:bg-sunken/60 has-[:checked]:bg-rose/60">
+                  <input type="checkbox" className="mt-1 size-4 shrink-0 accent-[var(--color-wine)]" checked={chosen.has(q.text)} onChange={() => toggle(q.text)} />
+                  <span className="text-[15px] leading-relaxed">{q.text}</span>
+                </label>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-5 flex flex-wrap items-center gap-3">
+            <button type="button" className="btn btn-dark" disabled={!picked.length} onClick={() => printSheet(ui.sheetTitle(name.trim()), picked, ui)}>
+              <Printer className="size-4" /> {ui.print}
+            </button>
+            <CopyButton text={[ui.sheetTitle(name.trim()), "", ...picked.map((q, i) => `${i + 1}. ${q}`)].join("\n")} label={ui.copy} done={ui.copied} />
+            {!picked.length ? <span className="text-sm text-muted">{ui.nothing}</span> : null}
+          </div>
+        </div>
+      }
+    />
   );
 }

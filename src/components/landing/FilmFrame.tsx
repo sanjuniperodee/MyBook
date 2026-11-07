@@ -49,8 +49,8 @@ export function FilmFrame({
   mobilePosition?: string;
   /** Первый экран: снимок — самое крупное на странице (LCP), грузится сразу. */
   priority?: boolean;
-  /** screen — первый экран целиком; band — полоса (финальный призыв, 404). */
-  size?: "screen" | "band";
+  /** screen — первый экран целиком; band — полоса (финальный призыв, 404); slim — тонкая шапка каталога под фиксированным меню. */
+  size?: "screen" | "band" | "slim";
   children: ReactNode;
   /** Справа на широком экране — например, книга с этим же снимком на обложке. */
   aside?: ReactNode;
@@ -64,7 +64,7 @@ export function FilmFrame({
       aria-label={label}
       className={cn(
         "relative isolate flex flex-col justify-end overflow-hidden bg-spine text-white",
-        size === "screen" ? "min-h-[max(620px,100svh)] lg:min-h-[min(100svh,980px)]" : "min-h-[560px] sm:min-h-[620px]",
+        size === "screen" ? "min-h-[max(620px,100svh)] lg:min-h-[min(100svh,980px)]" : size === "slim" ? "min-h-[460px] sm:min-h-[500px]" : "min-h-[560px] sm:min-h-[620px]",
         className,
       )}
     >
@@ -93,10 +93,10 @@ export function FilmFrame({
         aria-hidden
         className={cn(
           "pointer-events-none absolute inset-2.5 border border-[rgb(255_255_255/0.26)] sm:inset-4 lg:inset-5",
-          size === "screen" && "top-[68px]! sm:top-[76px]! lg:top-[76px]!",
+          size !== "band" && "top-[68px]! sm:top-[76px]! lg:top-[76px]!",
         )}
       />
-      <div className={cn("container-x relative w-full sm:px-10 xl:px-6", size === "screen" ? "pt-28 pb-12 sm:pb-16 lg:pb-20" : "py-16 sm:py-20")}>
+      <div className={cn("container-x relative w-full sm:px-10 xl:px-6", size === "screen" ? "pt-28 pb-12 sm:pb-16 lg:pb-20" : size === "slim" ? "pt-28 pb-10 sm:pb-12" : "py-16 sm:py-20")}>
         {aside ? (
           <div className="grid items-end gap-10 lg:grid-cols-[minmax(0,1fr)_auto] lg:gap-16">
             <div className="min-w-0">{children}</div>

@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
-import { Bold, Check, Italic, LoaderCircle, Sparkles, Strikethrough, X } from "lucide-react";
+import { Bold, Check, ChevronLeft, Italic, LoaderCircle, Sparkles, Strikethrough, X } from "lucide-react";
 import { ask, toast } from "@/components/ui/overlays";
 import { fillTemplate } from "@/shared/domain/templates";
 import { titleFromText } from "@/modules/assistant/domain/templateDraft";
@@ -76,11 +76,31 @@ function Wa({ text }: { text: string }) {
 /** Название по умолчанию — первые слова текста: человеку не обязательно придумывать его самому. */
 const suggest = (text: string) => (text.trim() ? titleFromText(text) : "");
 
+export interface TemplateFormProps {
+  tpl: Tpl | null;
+  /** Черновик для нового шаблона (например, из сообщения чата). */
+  initial?: { title: string; text: string };
+  /** Пояснение над формой: что и почему подставлено. */
+  notice?: React.ReactNode;
+  manager: string;
+  onClose: () => void;
+  /** id сохранённого шаблона (для нового — id созданного). */
+  onSaved: (id?: string) => void;
+  /** modal — окно поверх страницы (чат), pane — правая панель «список — редактор». */
+  variant?: "modal" | "pane";
+  /** Действия в шапке панели: порядок, копия, удаление. */
+  headerActions?: React.ReactNode;
+  onDirtyChange?: (dirty: boolean) => void;
+  /** Форма отдаёт сюда своё «закрыть с вопросом про несохранённое» — для клика по затемнению окна. */
+  registerClose?: (close: () => Promise<void>) => void;
+}
+
 /**
- * Окно шаблона. Слева — название и текст: подстановки подсвечиваются, кнопки вставляют их по клику, есть жирный/курсив
+ * Форма шаблона. Слева — название и текст: подстановки подсвечиваются, кнопки вставляют их по клику, есть жирный/курсив
  * и смайлы; для нового шаблона — готовые заготовки. Справа — как увидит клиент (разметка и подстановки применены).
+ * Одна и та же форма — в окне из чата (modal) и в правой панели страницы «Шаблоны» (pane).
  */
-export function TemplateEditor({ tpl, initial, notice, manager, onClose, onSaved }: { tpl: Tpl | null; /** Черновик для нового шаблона (например, из сообщения чата). */ initial?: { title: string; text: string }; /** Пояснение над формой: что и почему подставлено. */ notice?: React.ReactNode; manager: string; onClose: () => void; onSaved: () => void }) {
+export function TemplateForm({ tpl, initial, notice, manager, onClose, onSaved, variant = "modal", headerActions, onDirtyChange, registerClose }: TemplateFormProps) {
   const base = tpl ?? initial ?? { title: "", text: "" };
   const [title, setTitle] = useState(base.title);
   const [text, setText] = useState(base.text);
@@ -101,12 +121,17 @@ export function TemplateEditor({ tpl, initial, notice, manager, onClose, onSaved
   const closeRef = useRef(close);
   useEffect(() => {
     closeRef.current = close;
+    registerClose?.(close);
   });
   useEffect(() => {
+    if (variant !== "modal") return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && void closeRef.current();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [variant]);
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+  }, [dirty, onDirtyChange]);
 
   // Поле растёт вместе с текстом (подсветка лежит под ним и повторяет его размер).
   useLayoutEffect(() => {
@@ -142,22 +167,29 @@ export function TemplateEditor({ tpl, initial, notice, manager, onClose, onSaved
       const r = await saveMyTemplateAction(tpl?.id ?? "", finalTitle, text);
       if (r.error) return toast(r.error, "error");
       toast(tpl ? "Шаблон сохранён" : "Шаблон создан", "success");
-      onSaved();
+      onSaved(r.id);
     });
 
   const preview = text.trim() ? fillTemplate(text, { ...SAMPLE, manager }) : "";
 
-  return createPortal(
-    <div className="fixed inset-0 z-[90] flex items-end justify-center bg-ink/30 p-0 sm:items-center sm:p-4" onClick={(e) => e.target === e.currentTarget && void close()}>
-      <div className="flex max-h-[94dvh] w-full max-w-4xl flex-col rounded-t-[20px] bg-white shadow-lift sm:rounded-[20px]" role="dialog" aria-modal="true" aria-label={tpl ? "Изменить шаблон" : "Новый шаблон"}>
-        <div className="flex min-h-14 items-center gap-2 border-b border-line py-2 pr-2 pl-5">
-          <h2 className="flex-1 text-[15px] font-semibold">{tpl ? "Изменить шаблон" : "Новый шаблон"}</h2>
-          <button type="button" onClick={() => void close()} className="btn btn-ghost btn-icon btn-sm max-lg:size-11" aria-label="Закрыть">
-            <X className="size-5" />
-          </button>
+  return (
+    <div className="flex min-h-0 flex-1 flex-col lg:h-full">
+      <div className="flex min-h-14 shrink-0 items-center gap-2 border-b border-line py-2 pr-2 pl-3 sm:pl-5">
+          {variant === "pane" ? (
+            <button type="button" onClick={() => void close()} className="btn btn-ghost btn-sm -ml-1 px-2 text-wine lg:hidden" aria-label="К списку шаблонов">
+              <ChevronLeft className="size-5" aria-hidden /> Шаблоны
+            </button>
+          ) : null}
+          <h2 className={cn("flex-1 text-[15px] font-semibold", variant === "pane" && "max-lg:sr-only")}>{tpl ? "Изменить шаблон" : "Новый шаблон"}</h2>
+          {headerActions}
+          {variant === "modal" ? (
+            <button type="button" onClick={() => void close()} className="btn btn-ghost btn-icon btn-sm max-lg:size-11" aria-label="Закрыть">
+              <X className="size-5" />
+            </button>
+          ) : null}
         </div>
 
-        <div className="grid min-h-0 flex-1 gap-6 overflow-y-auto p-5 md:grid-cols-[minmax(0,1fr)_17rem]">
+        <div className={cn("grid min-h-0 flex-1 gap-6 overflow-y-auto p-4 sm:p-5", variant === "modal" ? "md:grid-cols-[minmax(0,1fr)_17rem]" : "xl:grid-cols-[minmax(0,1fr)_16rem]")}>
           <div className="min-w-0 space-y-4">
             {notice}
             {!tpl && !text.trim() ? (
@@ -197,7 +229,7 @@ export function TemplateEditor({ tpl, initial, notice, manager, onClose, onSaved
               <div className="label flex items-center justify-between">
                 Текст сообщения <span className="font-normal text-muted tabular-nums">{text.length}/2000</span>
               </div>
-              <div className="overflow-hidden rounded-[10px] border border-line-strong bg-white transition-[border-color,box-shadow] focus-within:border-wine/60 focus-within:ring-[3px] focus-within:ring-wine/12">
+              <div className="overflow-hidden rounded-[var(--r-ctl)] border border-line-strong bg-white transition-[border-color,box-shadow] focus-within:border-wine/60 focus-within:ring-[3px] focus-within:ring-wine/12">
                 <div className="flex flex-wrap items-center gap-0.5 border-b border-line bg-sunken/60 px-1.5 py-1" role="toolbar" aria-label="Оформление">
                   <ToolBtn label="Жирный (*текст*)" onClick={() => wrap("*")}>
                     <Bold className="size-4" />
@@ -253,7 +285,7 @@ export function TemplateEditor({ tpl, initial, notice, manager, onClose, onSaved
 
           <div className="min-w-0">
             <span className="label">Как увидит клиент</span>
-            <div className="rounded-[14px] border border-line bg-canvas p-3 md:sticky md:top-0">
+            <div className="rounded-[var(--r-panel)] border border-line bg-canvas p-3 md:sticky md:top-0">
               {preview ? (
                 <div className="ml-auto w-fit max-w-full rounded-[14px] rounded-br-[4px] bg-rose px-3 py-2 text-[14px] leading-snug break-words whitespace-pre-wrap text-ink">
                   <Wa text={preview} />
@@ -269,15 +301,28 @@ export function TemplateEditor({ tpl, initial, notice, manager, onClose, onSaved
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-2 border-t border-line px-5 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-3">
-          <span className="mr-auto hidden text-xs text-muted md:inline">Ctrl/⌘+Enter — сохранить, Ctrl/⌘+B — жирный</span>
-          <button type="button" className="btn btn-outline btn-sm" onClick={() => void close()}>
-            Отмена
-          </button>
-          <button type="button" className="btn btn-primary btn-sm" disabled={!valid || saving} onClick={save}>
+        <div className="flex shrink-0 items-center justify-end gap-2 border-t border-line px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-5 sm:pb-3">
+          <span className="mr-auto hidden text-xs text-muted xl:inline">Ctrl/⌘+Enter — сохранить, Ctrl/⌘+B — жирный</span>
+          {variant === "modal" ? (
+            <button type="button" className="btn btn-outline btn-sm" onClick={() => void close()}>
+              Отмена
+            </button>
+          ) : null}
+          <button type="button" className="btn btn-primary btn-sm" disabled={!valid || saving || (variant === "pane" && !dirty)} onClick={save}>
             {saving ? <LoaderCircle className="size-4 animate-spin" /> : null} {tpl ? "Сохранить" : "Создать шаблон"}
           </button>
         </div>
+    </div>
+  );
+}
+
+/** Окно шаблона поверх страницы — для чата («В шаблон», «Новый шаблон»): та же форма, что в панели страницы «Шаблоны». */
+export function TemplateEditor(props: Omit<TemplateFormProps, "variant" | "headerActions" | "onDirtyChange" | "registerClose">) {
+  const close = useRef<(() => Promise<void>) | null>(null);
+  return createPortal(
+    <div className="fixed inset-0 z-[90] flex items-end justify-center bg-ink/30 p-0 sm:items-center sm:p-4" onClick={(e) => e.target === e.currentTarget && void close.current?.()}>
+      <div className="flex max-h-[94dvh] w-full max-w-4xl flex-col rounded-t-[var(--r-sheet)] bg-white shadow-lift sm:rounded-[var(--r-sheet)]" role="dialog" aria-modal="true" aria-label={props.tpl ? "Изменить шаблон" : "Новый шаблон"}>
+        <TemplateForm {...props} variant="modal" registerClose={(fn) => (close.current = fn)} />
       </div>
     </div>,
     document.body,

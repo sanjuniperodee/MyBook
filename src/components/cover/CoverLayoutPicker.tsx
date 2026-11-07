@@ -78,12 +78,12 @@ export function CoverLayoutPicker({
     <section aria-label={t.aria}>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h3 className="text-lg font-semibold">{t.title}</h3>
-          <p className="mt-1 max-w-xl text-sm text-muted">{t.text}</p>
+          <h3 className="sr-only">{t.title}</h3>
+          <p className="max-w-xl text-[13px] leading-snug text-muted">{t.text}</p>
         </div>
-        <div className="relative w-full sm:w-60">
+        <div className="relative w-full">
           <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" />
-          <input type="search" className="h-10 w-full rounded-xl border border-line bg-white pr-3 pl-9 text-sm outline-none focus:border-wine/50" placeholder={t.search} value={query} onChange={(e) => setQuery(e.target.value)} aria-label={t.search} />
+          <input type="search" className="input h-10 w-full pl-9 text-sm" placeholder={t.search} value={query} onChange={(e) => setQuery(e.target.value)} aria-label={t.search} />
         </div>
       </div>
       <div className="no-scrollbar -mx-1 mt-4 flex gap-1.5 overflow-x-auto px-1 pb-1" role="radiogroup" aria-label={t.aria}>
@@ -94,7 +94,7 @@ export function CoverLayoutPicker({
             role="radio"
             aria-checked={genre === g}
             onClick={() => setGenre(g)}
-            className={cn("shrink-0 rounded-full px-3.5 py-1.5 text-sm transition", genre === g ? "bg-ink text-white" : "bg-white text-ink-soft ring-1 ring-line hover:ring-ink/30")}
+            className={cn("chip shrink-0", genre === g && "chip-on")}
           >
             {g === "all" ? t.all : t.genres[g]}
           </button>

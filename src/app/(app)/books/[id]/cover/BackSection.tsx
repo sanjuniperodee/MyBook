@@ -110,13 +110,13 @@ export function BackSection({
   };
 
   return (
-    <section className="space-y-5 rounded-2xl border border-line bg-white p-5" onFocusCapture={onFocusBack} onPointerDownCapture={onFocusBack}>
+    <section className="space-y-5" onFocusCapture={onFocusBack} onPointerDownCapture={onFocusBack}>
       <div>
-        <h2 className="text-lg font-semibold">{t.title}</h2>
-        <p className="mt-1 text-sm text-muted">{t.text}</p>
+        <h2 className="text-[13px] font-semibold">{t.title}</h2>
+        <p className="mt-1 text-[13px] leading-snug text-muted">{t.text}</p>
       </div>
 
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3" role="radiogroup" aria-label={t.layoutAria}>
+      <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label={t.layoutAria}>
         {backLayouts.map((id) => (
           <button
             key={id}
@@ -126,13 +126,13 @@ export function BackSection({
             disabled={!editable}
             onClick={() => onChange({ backLayout: id })}
             className={cn(
-              "flex flex-col items-center gap-2 rounded-xl px-2 py-3 text-center transition",
-              layout === id ? "bg-rose/40 text-wine ring-2 ring-wine" : "text-ink-soft ring-1 ring-line hover:ring-ink/30",
+              "flex flex-col items-center gap-1.5 rounded-[var(--r-ctl)] px-1.5 py-2.5 text-center transition",
+              layout === id ? "bg-rose/50 text-wine ring-2 ring-wine" : "text-ink-soft ring-1 ring-line hover:ring-ink/30",
             )}
           >
             <LayoutIcon layout={id} />
-            <span className="text-sm font-medium text-ink">{t.layouts[id].name}</span>
-            <span className="-mt-1.5 text-xs leading-tight text-muted">{t.layouts[id].hint}</span>
+            <span className="text-[13px] font-medium text-ink">{t.layouts[id].name}</span>
+            <span className="-mt-1 text-[11px] leading-tight text-muted">{t.layouts[id].hint}</span>
           </button>
         ))}
       </div>
@@ -141,7 +141,7 @@ export function BackSection({
         <div>
           <span className="label">{need > 1 ? t.photosPick(need) : t.photo}</span>
           {photos.length ? (
-            <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
+            <div className="grid grid-cols-4 gap-2">
               {photos.map((p) => (
                 <button
                   key={p.id}
@@ -149,7 +149,7 @@ export function BackSection({
                   disabled={!editable}
                   onClick={() => toggle(p.id)}
                   aria-pressed={photoIds.slice(0, need).includes(p.id)}
-                  className={cn("relative aspect-square overflow-hidden rounded-xl ring-offset-2", photoIds.slice(0, need).includes(p.id) ? "ring-2 ring-wine" : "ring-1 ring-line")}
+                  className={cn("relative aspect-square overflow-hidden rounded-[var(--r-ctl)] ring-offset-2", photoIds.slice(0, need).includes(p.id) ? "ring-2 ring-wine" : "ring-1 ring-line")}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={photoUrl(p.id)} alt="" className="h-full w-full object-cover" />
@@ -171,7 +171,7 @@ export function BackSection({
       ) : null}
 
       {layout === "minimal" ? (
-        <p className="rounded-xl bg-sunken px-4 py-3 text-sm text-ink-soft">{t.minimalNote(names || t.namesFallback[kind], year)}</p>
+        <p className="rounded-[var(--r-ctl)] bg-sunken px-3.5 py-3 text-sm text-ink-soft">{t.minimalNote(names || t.namesFallback[kind], year)}</p>
       ) : (
         <div>
           <label className="label" htmlFor="backText">
@@ -204,7 +204,7 @@ export function BackSection({
                     type="button"
                     disabled={!editable}
                     onClick={() => onChange({ backText: s })}
-                    className={cn("min-h-11 rounded-[10px] border px-3 py-1.5 text-left text-sm transition sm:min-h-9", text === s ? "border-wine bg-rose/40 text-wine" : "border-line-strong bg-white hover:border-ink/30")}
+                    className={cn("min-h-11 rounded-[var(--r-ctl)] border px-3 py-1.5 text-left text-sm transition pointer-fine:min-h-9", text === s ? "border-wine bg-rose/40 text-wine" : "border-line-strong bg-white hover:border-ink/30")}
                   >
                     {s}
                   </button>

@@ -3,12 +3,13 @@ import { Search } from "lucide-react";
 import { requireStaffShell } from "@/server/access";
 import { logoutAction } from "@/app/(auth)/actions";
 import { staffLabel } from "@/shared/domain/staff";
-import { AdminNav } from "@/components/admin/AdminNav";
+import { AdminNav, SectionTabs } from "@/components/admin/AdminNav";
 import { CrmLiveProvider, IncomingCall, NotificationBell } from "@/components/admin/CrmLive";
 import { Webphone } from "@/components/admin/Webphone";
 import { can } from "@/server/access";
 import { autoShiftOnVisit } from "@/server/shift";
-import { THEME_SCRIPT, ThemeSync, ThemeToggle } from "@/components/admin/Theme";
+import { THEME_SCRIPT, ThemeSync } from "@/components/admin/Theme";
+import { CommandPalette, CreateMenu, PaletteTrigger } from "@/components/admin/CommandPalette";
 import { WhatsappCallProvider } from "@/components/admin/WhatsappCall";
 import { NavMotion } from "@/components/admin/NavMotion";
 import { MobileTabBar } from "@/components/admin/MobileTabBar";
@@ -71,24 +72,32 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <div className="crm-shell flex min-h-dvh bg-canvas">
           <AdminNav {...nav} />
           <div className="flex min-w-0 flex-1 flex-col">
-            <header style={{ viewTransitionName: "crm-topbar" }} className="crm-topbar sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-line bg-canvas/85 px-4 backdrop-blur-md sm:px-6 2xl:px-8">
-              <form action="/admin/search" className="relative w-full max-w-md">
+            <header style={{ viewTransitionName: "crm-topbar" }} className="crm-topbar sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-line bg-canvas/85 px-4 backdrop-blur-md sm:px-6 lg:h-12 2xl:px-8">
+              {/* Компьютер: раздел и его страницы вкладками; телефон: строка поиска (разделы — в нижней панели). */}
+              <div className="hidden h-full min-w-0 flex-1 lg:flex">
+                <SectionTabs perms={nav.perms} />
+              </div>
+              <form action="/admin/search" className="relative w-full max-w-md lg:hidden">
                 <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" />
                 <input name="q" type="search" aria-label="Поиск по CRM" placeholder="Поиск: имя, телефон, №" className="h-9 w-full rounded-[10px] border border-line bg-white pr-3 pl-9 text-sm outline-none transition-[border-color,box-shadow] placeholder:text-muted hover:border-line-strong focus:border-wine/50 focus:ring-[3px] focus:ring-wine/12" />
               </form>
-              <div className="ml-auto flex items-center gap-1">
-                <ThemeToggle />
+              <div className="ml-auto flex shrink-0 items-center gap-1.5">
+                <div className="hidden items-center gap-2 lg:flex">
+                  <PaletteTrigger />
+                  <CreateMenu perms={nav.perms} />
+                </div>
                 {phone ? <Webphone /> : null}
                 <NotificationBell />
               </div>
             </header>
-            <main className="crm-main min-w-0 flex-1 px-4 py-5 sm:px-6 lg:py-7 2xl:px-8">
-              <div className="mx-auto w-full max-w-[1440px]">
+            <main className="crm-main min-w-0 flex-1 px-4 py-5 sm:px-6 lg:py-6 2xl:px-8">
+              <div className="mx-auto w-full max-w-[1480px]">
                 <PullToRefresh>{children}</PullToRefresh>
               </div>
             </main>
           </div>
         </div>
+        <CommandPalette perms={nav.perms} />
         <NavMotion />
         <MobileTabBar tabs={tabs} profileLabel={layout === "leader" ? "Ещё" : "Профиль"} />
         <IncomingCall />

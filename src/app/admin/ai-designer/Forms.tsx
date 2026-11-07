@@ -14,9 +14,9 @@ export function FreeLimitForm({ limit, max, canEdit }: { limit: number; max: num
         <label className="label" htmlFor="limit">
           Бесплатных запросов на клиента
         </label>
-        <input id="limit" name="limit" type="number" inputMode="numeric" min={0} max={max} step={1} defaultValue={limit} disabled={!canEdit} className="input h-10 w-32 tabular-nums" />
+        <input id="limit" name="limit" type="number" inputMode="numeric" min={0} max={max} step={1} defaultValue={limit} disabled={!canEdit} className="input w-32 tabular-nums" />
       </div>
-      {canEdit ? <SubmitButton className="h-10 text-sm">Сохранить</SubmitButton> : null}
+      {canEdit ? <SubmitButton className="btn-dark">Сохранить</SubmitButton> : null}
       <p className="hint -mt-1 w-full max-w-2xl">
         За всё время, страницы и обложка вместе. Меняется сразу и для тех, кто уже пользовался: подняли — у всех появились ещё запросы, опустили — у тех, кто уже потратил больше, бесплатные кончатся (купленные остаются).
         0 — бесплатных нет, только пакеты.
@@ -41,7 +41,7 @@ export function GrantForm({ userId }: { userId: string }) {
   return (
     <form action={action} className="flex items-center gap-1.5">
       <input type="hidden" name="userId" value={userId} />
-      <input name="count" type="number" inputMode="numeric" min={1} max={200} defaultValue={5} className="input h-9 w-16 text-sm" aria-label="Сколько запросов подарить" />
+      <input name="count" type="number" inputMode="numeric" min={1} max={200} defaultValue={5} className="input w-16" aria-label="Сколько запросов подарить" />
       <SubmitButton className="btn-outline btn-sm">Подарить</SubmitButton>
       {state.ok ? <span className="text-xs text-success">{state.ok}</span> : null}
       {state.error ? <span className="text-xs text-danger">{state.error}</span> : null}
@@ -78,7 +78,7 @@ export function DesignerSettingsForm({
         <input type="checkbox" name="enabled" defaultChecked={settings.enabled} disabled={!canEdit} className="accent-wine" /> ИИ-дизайнер включён
         <span className={keyReady ? "badge badge-success" : "badge badge-danger"}>{keyReady ? "ключ Claude подключён" : "ключ Claude не задан — клиенты увидят «недоступен»"}</span>
       </label>
-      <p className="-mt-2 text-xs text-muted">Выключатель только этого раздела: AI-помощник менеджеров и бот от него не зависят. Ключ Claude общий — вводится в «Интеграции → AI».</p>
+      <p className="-mt-2 text-xs text-muted">Выключатель только этого раздела: AI-помощник менеджеров и бот от него не зависят. Ключ Claude общий — вводится в «Интеграциях», блок «AI».</p>
 
       <div className="overflow-x-auto">
         <table className="table min-w-[640px] [&_td:first-child]:pl-0 [&_th:first-child]:pl-0">
@@ -97,7 +97,7 @@ export function DesignerSettingsForm({
                   <div className="text-xs text-muted">{SCENARIO_LABEL[sc].note}</div>
                 </td>
                 <td>
-                  <select name={`tier_${sc}`} defaultValue={settings.tiers[sc]} disabled={!canEdit} className="input h-10 text-sm">
+                  <select name={`tier_${sc}`} defaultValue={settings.tiers[sc]} disabled={!canEdit} className="input">
                     {DESIGN_MODEL_TIERS.map((t) => (
                       <option key={t} value={t}>
                         {TIER_LABEL[t]}
@@ -124,14 +124,14 @@ export function DesignerSettingsForm({
         </span>
       </label>
 
-      <details className="rounded-[10px] border border-line p-3 text-sm">
+      <details className="rounded-[var(--r-ctl)] border border-line p-3 text-sm">
         <summary className="cursor-pointer font-medium">Идентификаторы моделей</summary>
         <p className="mt-2 text-xs text-muted">Пусто — по умолчанию. Заполняйте, когда у Anthropic вышла новая модель этого уровня.</p>
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
           {DESIGN_MODEL_TIERS.map((t) => (
             <label key={t} className="block">
               <span className="label">{t === "haiku" ? "Haiku" : t === "sonnet" ? "Sonnet" : "Opus"} (по умолчанию {DESIGN_MODELS[t]})</span>
-              <input name={`model_${t}`} defaultValue={settings.models[t] === DESIGN_MODELS[t] ? "" : settings.models[t]} placeholder={DESIGN_MODELS[t]} disabled={!canEdit} className="input h-10 text-sm" maxLength={80} />
+              <input name={`model_${t}`} defaultValue={settings.models[t] === DESIGN_MODELS[t] ? "" : settings.models[t]} placeholder={DESIGN_MODELS[t]} disabled={!canEdit} className="input" maxLength={80} />
             </label>
           ))}
         </div>
@@ -139,7 +139,7 @@ export function DesignerSettingsForm({
 
       {canEdit ? (
         <div className="flex flex-wrap items-center gap-3 border-t border-line pt-4">
-          <SubmitButton className="h-10 text-sm">Сохранить настройки</SubmitButton>
+          <SubmitButton className="btn-dark">Сохранить настройки</SubmitButton>
           {state.ok ? <span className="text-sm text-success">{state.ok}</span> : null}
           {state.error ? <span className="text-sm text-danger">{state.error}</span> : null}
         </div>

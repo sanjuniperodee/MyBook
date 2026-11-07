@@ -2,6 +2,8 @@ import { fromEnv, getSettings, maskSecret, smtpConfig, smtpFromEnvironment } fro
 import { container } from "@/server/container";
 import { EmailForm } from "../mail/EmailForm";
 import { SmtpForm } from "../mail/SmtpForm";
+import { SettingsFrame } from "../frame";
+import { tabAnchors } from "../tabs";
 import { hook } from "./shared";
 
 export async function MailTab({ staffEmail }: { staffEmail: string }) {
@@ -13,7 +15,7 @@ export async function MailTab({ staffEmail }: { staffEmail: string }) {
     ? { host: smtpCfg.host, port: String(smtpCfg.port), secure: String(smtpCfg.secure), user: smtpCfg.user, password: maskSecret(smtpCfg.password), from: smtpCfg.from, replyTo: smtpCfg.replyTo }
     : { host: smtpDb["mail.smtpHost"], port: smtpDb["mail.smtpPort"], secure: smtpDb["mail.smtpSecure"], user: smtpDb["mail.smtpUser"], password: maskSecret(smtpDb["mail.smtpPassword"]), from: smtpDb["mail.from"], replyTo: smtpDb["mail.replyTo"] };
   return (
-    <>
+    <SettingsFrame anchors={tabAnchors("mail")}>
       <SmtpForm saved={smtpSaved} fromEnv={smtpEnv} staffEmail={staffEmail} />
       <EmailForm
         smtp={await container().mailer.configured()}
@@ -21,6 +23,6 @@ export async function MailTab({ staffEmail }: { staffEmail: string }) {
         env={{ imapHost: fromEnv("email.imapHost"), imapPort: fromEnv("email.imapPort"), imapUser: fromEnv("email.imapUser"), imapPassword: fromEnv("email.imapPassword") }}
         webhookUrl={em["email.webhookToken"] ? hook("/api/integrations/email", em["email.webhookToken"]) : null}
       />
-    </>
+    </SettingsFrame>
   );
 }

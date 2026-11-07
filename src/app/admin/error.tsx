@@ -14,7 +14,7 @@ export default function AdminError({ error, retry }: { error: Error & { digest?:
   }, [error]);
   return (
     <div className="flex flex-col items-center justify-center gap-3 py-20 text-center" role="alert">
-      <span className="flex size-12 items-center justify-center rounded-2xl bg-red-50 text-red-700">
+      <span className="flex size-12 items-center justify-center rounded-[var(--r-panel)] bg-danger-bg text-danger">
         <TriangleAlert className="size-6" aria-hidden />
       </span>
       <h1 className="text-lg font-semibold">Страница не открылась</h1>

@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import { Link } from "@/i18n/client";
-import { BookOpenText, Camera, Check, ChevronDown, Eye, Mail, MessageCircle, Palette, PenLine, SlidersHorizontal, Truck } from "lucide-react";
+import { Camera, ChevronRight, CircleAlert, Mail, MessageCircle, PenLine, SlidersHorizontal, TriangleAlert } from "lucide-react";
 import { requireUser } from "@/server/auth";
 import { getAccessibleBook } from "@/server/books";
 import { container } from "@/server/container";
 import { chapterTitle, getTheme } from "@/lib/content/themes";
 import { applyGender } from "@/lib/content/gender";
-import { BLANK_READY_WORDS, bookKind, progressOf } from "@/lib/content/kinds";
+import { BLANK_READY_WORDS, bookKind } from "@/lib/content/kinds";
 import { messagesFor } from "@/i18n/messages";
 import { questionTexts } from "@/lib/book/layout";
 import { sectionLabel } from "@/lib/book/editor-model";
@@ -22,27 +22,46 @@ import { getLocale, getMessages } from "@/i18n/server";
 import { coverName, interiorName } from "@/i18n/labels";
 import { localeMeta } from "@/i18n/config";
 import { site } from "@/config/site";
-import { orderStatusLabel, isPrintedPlan } from "@/modules/ordering/ui/status";
+import { isPrintedPlan, orderStatusLabel } from "@/modules/ordering/ui/status";
 import { isPaid } from "@/modules/ordering/domain";
+import { checkReadiness } from "@/modules/authoring/domain/readiness";
 import { cn } from "@/lib/class-names";
 import { BookMenu } from "./BookMenu";
 import { DeadlineBanner } from "@/components/DeadlineBanner";
 import { AgreementCard } from "@/components/AgreementCard";
+import { bookNav, stepHref, type StepKey } from "./book-nav";
+import { StepNode } from "./StepNode";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getMessages()).books.hub.meta };
 }
 
+/** Заголовок блока обзора: мелкий, тушью — как у листов кабинета. */
+function BlockTitle({ id, children, aside }: { id: string; children: React.ReactNode; aside?: React.ReactNode }) {
+  return (
+    <div className="mb-3 flex items-baseline justify-between gap-3">
+      <h2 id={id} className="text-[17px] font-semibold">
+        {children}
+      </h2>
+      {aside ? <span className="text-sm text-muted">{aside}</span> : null}
+    </div>
+  );
+}
+
+/**
+ * Штаб книги: сама книга, где мы на пути к заказу, что делать дальше и чего не хватает. Состояние шагов — bookNav,
+ * та же модель, что в ленте разделов над страницей.
+ */
 export default async function BookHubPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await requireUser(`/books/${id}`);
   const book = await getAccessibleBook(id, user);
-  const [stats, questions, ownChapters, photos, [order], letterRows, built] = await Promise.all([
+  const [stats, questions, ownChapters, photos, order, letterRows, built] = await Promise.all([
     container().authoring.queries.stats(book),
     container().authoring.queries.questions(book.id),
     container().authoring.queries.chapters(book.id),
     container().authoring.queries.photos(book.id),
-    container().ordering.queries.lastOrderOfBook(book.id).then((o) => (o ? [o] : [])),
+    container().ordering.queries.lastOrderOfBook(book.id),
     container().authoring.queries.letters(book.id),
     // Готовый макет текущей книги — точное число страниц (как в предпросмотре); нет — оценка со знаком «≈».
     container().previews.current(book.id).catch(() => null),
@@ -57,10 +76,12 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
   };
   const [locale, m] = await Promise.all([getLocale(), getMessages()]);
   const t = m.books.hub;
+  const s = m.bookStudio.hub;
+  const nv = m.bookStudio.nav;
   const c = m.common;
   // Главы и вопросы — на языке книги (это её содержимое), подписи вокруг — на языке интерфейса.
   const theme = getTheme(book.theme, book.language);
-  const g = (s: string) => applyGender(s, book.authorGender, book.recipientGender);
+  const g = (x: string) => applyGender(x, book.authorGender, book.recipientGender);
   const kind = bookKind(book.theme);
   // Главы своей книги — названия автора (без подстановки рода), остальных — из темы.
   const ownTitles = new Map(ownChapters.map((ch) => [ch.key, ch.title.trim()]));
@@ -71,13 +92,13 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
   // Полоса прогресса: у книг с банком — доля вопросов с ответом, у своей книги — путь к «почти готовой» книге по словам.
   const percent = blank ? Math.min(100, Math.round((stats.words / BLANK_READY_WORDS) * 100)) : stats.total ? Math.round((stats.answered / stats.total) * 100) : 0;
   const chapters = hubChapters(book.theme, ownChapters, questions, titleOf);
-  const sectionHref = (id: string | null) => sectionLink(book.id, id);
+  const sectionHref = (sid: string | null) => sectionLink(book.id, sid);
   const next = questions.find((q) => !q.answer.trim()) ?? null;
   const nextChapter = next ? chapters.find((ch) => ch.key === next.chapter) : null;
   // Свой вопрос и раздел своей книги — как их написал автор; пустая подсказка раздела — его заголовок.
   const nextTexts = next ? questionTexts(next, book) : null;
   const nextLabel = next && nextTexts ? sectionLabel({ prompt: nextTexts.prompt, defaultTitle: nextTexts.title, displayText: next.displayText, hideHeading: next.hideHeading }, kind, m.books.untitledSection) : "";
-  // Крупная кнопка на хабе: что делать дальше.
+  // Следующий вопрос или создание первой главы: что делать, пока текст не написан.
   const cta =
     blank && chapters.length === 0
       ? { href: `${base}/questions`, eyebrow: t.createFirstChapter, label: t.createFirstChapterText }
@@ -87,40 +108,47 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
           ? { href: sectionHref(questions[0]?.id ?? null), eyebrow: t.continueWriting, label: t.openEditor }
           : null;
 
-  const textDone = progressOf(kind, stats).textStepDone;
+  // Замечания к готовности (как перед оплатой, но без сборки макета): блокирующие и подсказки.
+  const issues = editable ? checkReadiness(book, { ...stats, estimatedPages: contentPages }, photos, locale) : [];
+  const coverIssue = issues.find((i) => i.level === "error" && i.href?.endsWith("/cover")) ?? null;
   const paid = !!order && isPaid(order.status);
-  type Step = { icon: typeof PenLine; title: string; value: string; done: boolean; href: string };
-  // Путь к книге — три этапа в порядке вкладок: написать, оформить (уже выбрано по умолчанию), проверить и заказать.
-  const stages: { key: "write" | "design" | "finish"; done: boolean; steps: Step[] }[] = [
+  const nav = bookNav({
+    kind,
+    answered: stats.answered,
+    total: stats.total,
+    words: stats.words,
+    photos: photos.length,
+    letters: letterStats,
+    coverReady: !coverIssue,
+    ordered: !editable,
+    paid,
+    order: order ? { id: order.id, number: order.number, status: order.status, plan: order.plan } : null,
+  });
+  const orderLabel = order ? orderStatusLabel(order.status, locale, isPrintedPlan(order.plan)) : "";
+
+  // До заказа не хватает: пока текст не написан, замечания о тексте повторяют карточку «Следующий шаг».
+  // Пока текста нет, остальные подсказки (объём, фото) рано: остаются только блокирующие замечания не о тексте.
+  const needs = nav.textDone ? issues : issues.filter((i) => i.level === "error" && !i.href?.endsWith("/questions"));
+  const hasErrors = needs.some((i) => i.level === "error");
+
+  // Строки пути: что сделано, что сейчас и куда вести.
+  const a = s.path.actions;
+  const rows: { key: StepKey; title: string; value: string; action: string; bar?: number }[] = [
     {
-      key: "write",
-      done: textDone,
-      steps: [
-        { icon: PenLine, title: t.steps.text, value: blank ? t.blankStats(stats.total, stats.words) : c.count.answers(stats.answered), done: textDone, href: `${base}/questions` },
-        { icon: Camera, title: t.steps.photos, value: photos.length ? c.count.photos(photos.length) : t.steps.photosNone, done: photos.length > 0, href: `${base}/photos` },
-        { icon: Mail, title: t.steps.letters, value: t.steps.lettersState(letterStats.approved, letterStats.pending, !!book.inviteToken), done: letterStats.approved > 0, href: `${base}/letters` },
-      ],
+      key: "questions",
+      title: blank ? nv.steps.text : nv.steps.questions,
+      value: blank ? t.blankStats(stats.total, stats.words) : stats.total ? `${c.count.answers(stats.answered)} ${s.facts.of(stats.total)}` : c.count.answers(stats.answered),
+      action: !editable ? a.open : nav.textDone ? a.open : stats.answered || stats.words ? a.continue : a.start,
+      bar: percent,
     },
-    {
-      key: "design",
-      done: true,
-      steps: [
-        { icon: Palette, title: t.steps.cover, value: coverName(book.coverTemplate, locale), done: true, href: `${base}/cover` },
-        { icon: BookOpenText, title: t.steps.pages, value: interiorName(book.interior, locale), done: true, href: `${base}/pages` },
-        { icon: SlidersHorizontal, title: t.steps.settings, value: `${getFormat(book.format).short}, ${localeMeta[book.language].label}`, done: true, href: `${base}/settings` },
-      ],
-    },
-    {
-      key: "finish",
-      done: paid,
-      steps: [
-        { icon: Eye, title: t.steps.preview, value: t.steps.previewValue, done: !!order, href: `${base}/preview` },
-        { icon: Truck, title: t.steps.order, value: order ? orderStatusLabel(order.status, locale, isPrintedPlan(order.plan)) : t.steps.orderLater, done: paid, href: order ? `/orders/${order.id}` : `${base}/checkout` },
-      ],
-    },
+    { key: "photos", title: nv.steps.photos, value: photos.length ? c.count.photos(photos.length) : s.path.photosHint, action: photos.length ? a.manage : a.add },
+    { key: "pages", title: nv.steps.pages, value: interiorName(book.interior, locale), action: a.change },
+    { key: "cover", title: nv.steps.cover, value: coverIssue ? coverIssue.text : coverName(book.coverTemplate, locale), action: coverIssue ? a.fix : a.change },
+    { key: "preview", title: nv.steps.preview, value: s.path.previewValue, action: a.open },
+    { key: "order", title: nv.steps.order, value: order && (!editable || order.status !== "cancelled") ? orderLabel : s.path.orderLater, action: !editable ? (paid ? a.openOrder : a.pay) : a.order },
   ];
-  const current = stages.findIndex((st) => !st.done);
-  // Главы: первые шесть на виду, остальные — под «Все главы»; длинный список больше не растягивает страницу.
+
+  // Главы: первые шесть на виду, остальные — под «Все главы»; длинный список не растягивает страницу.
   const shownChapters = chapters.slice(0, 6);
   const moreChapters = chapters.slice(6);
   const chapterRow = (ch: (typeof chapters)[number], i: number) => {
@@ -128,185 +156,279 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
     const href = ch.firstOpenId ?? ch.firstId;
     return (
       <li key={ch.key}>
-        <Link href={sectionHref(href)} className="group flex min-h-12 items-center gap-3 rounded-[10px] px-2 py-2 hover:bg-sunken/70">
-          <span
-            className={cn(
-              "flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-medium tabular-nums",
-              done ? "bg-wine text-white" : ch.answered ? "bg-rose text-wine" : "border border-line text-muted",
-            )}
-          >
-            {done ? <Check className="size-3.5" aria-label={t.chapterSections(ch.answered, ch.total)} /> : i + 1}
+        <Link href={sectionHref(href)} className="group block rounded-[10px] px-2 py-2.5 hover:bg-sunken/70">
+          <span className="flex items-baseline gap-3">
+            <span className="w-5 shrink-0 text-right text-xs text-muted tabular-nums">{i + 1}</span>
+            <span className="min-w-0 flex-1 truncate text-[15px] group-hover:text-wine" lang={book.language}>
+              {ch.title}
+            </span>
+            <span className={cn("shrink-0 text-xs tabular-nums", done ? "font-medium text-success" : "text-muted")}>{ch.total ? t.chapterSections(ch.answered, ch.total) : t.chapterEmpty}</span>
           </span>
-          <span className="min-w-0 flex-1 truncate text-[15px] group-hover:text-wine" lang={book.language}>
-            {ch.title}
+          <span aria-hidden className="mt-1.5 ml-8 block h-[3px] overflow-hidden rounded-full bg-line">
+            <span className={cn("block h-full rounded-full", done ? "bg-success" : "bg-wine")} style={{ width: `${ch.total ? Math.round((ch.answered / ch.total) * 100) : 0}%` }} />
           </span>
-          <span className="shrink-0 text-xs text-muted tabular-nums">{ch.total ? t.chapterSections(ch.answered, ch.total) : t.chapterEmpty}</span>
         </Link>
       </li>
     );
   };
-  const facts: [number, string, boolean?][] = [
-    [printedPages, c.word.pages(printedPages), !built],
-    blank ? [stats.total, t.sectionsWord(stats.total)] : [stats.answered, c.word.answers(stats.answered)],
-    [stats.words, c.word.words(stats.words)],
-    [stats.photos, c.word.photos()],
+
+  const facts: { label: string; value: string; hint?: string }[] = [
+    { label: s.facts.pages, value: `${built ? "" : "≈"}${printedPages.toLocaleString("ru-RU")}`, hint: contentPages < print.minPages ? t.minPages(print.minPages) : undefined },
+    blank ? { label: s.facts.sections, value: stats.total.toLocaleString("ru-RU") } : { label: s.facts.answers, value: stats.answered.toLocaleString("ru-RU"), hint: s.facts.of(stats.total) },
+    { label: s.facts.words, value: stats.words.toLocaleString("ru-RU") },
+    { label: s.facts.photos, value: stats.photos.toLocaleString("ru-RU") },
   ];
 
+  // Карточка «Следующий шаг»: пока пишем — вопрос; потом обложка; потом заказ; после заказа — состояние заказа.
+  const unanswered = Math.max(0, stats.total - stats.answered);
+  type Card = { eyebrow: string; title: string; text?: string; serif?: boolean; lang?: string; primary: { href: string; label: string; icon?: boolean }; secondary?: { href: string; label: string }; more?: { href: string; label: string; text: string } };
+  let card: Card | null = null;
+  if (!editable) {
+    card = order
+      ? {
+          eyebrow: s.next.orderedEyebrow(order.number),
+          title: order.status === "pending_payment" ? s.next.orderedPayTitle : orderLabel,
+          text: order.status === "pending_payment" ? `${s.next.orderedPayText} ${t.locked}` : t.locked,
+          primary: { href: `/orders/${order.id}`, label: s.next.openOrder },
+        }
+      : { eyebrow: s.next.label, title: s.next.orderedNoOrder, text: t.locked, primary: { href: `${base}/preview`, label: s.next.openPreview } };
+  } else if (!nav.textDone && cta) {
+    card = { eyebrow: cta.eyebrow, title: cta.label, serif: true, lang: book.language, primary: { href: cta.href, label: next && !blank ? t.answerCta : t.writeCta, icon: true } };
+  } else if (coverIssue) {
+    card = { eyebrow: s.next.label, title: s.next.coverTitle, text: coverIssue.text, primary: { href: `${base}/cover`, label: s.next.openCover } };
+  } else if (nav.ready || nav.textDone) {
+    card = {
+      eyebrow: s.next.readyEyebrow,
+      title: s.next.readyTitle,
+      text: s.next.readyText,
+      primary: { href: `${base}/checkout`, label: s.next.order },
+      secondary: { href: `${base}/preview`, label: s.next.openPreview },
+      more: cta && (blank || unanswered) ? { href: cta.href, label: s.next.keepWriting, text: blank ? "" : s.next.moreToWrite(unanswered) } : undefined,
+    };
+  }
+
+  const lettersHref = `${base}/letters`;
+  const letterLine = s.lower.lettersState(letterStats.approved, letterStats.pending);
+
   return (
-    <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
+    <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
       {agreement ? (
-        <div className="mb-8">
+        <div className="mb-6">
           <AgreementCard agreement={agreement} books={[{ id: book.id, status: book.status, theme: book.theme, answered: stats.answered, total: stats.total, words: stats.words }]} />
         </div>
       ) : null}
 
-      {/* Книга: сама книга, название, сколько написано и что делать дальше */}
-      <section className="grid items-center gap-8 md:grid-cols-[minmax(0,260px)_minmax(0,1fr)] md:gap-12 lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)] lg:gap-16">
-        <div className="mx-auto w-full max-w-[150px] md:max-w-[260px] lg:max-w-[300px]">
-          <Morph name={`cover-${book.id}`}>
-            <Book3D
-              template={book.coverTemplate}
-              format={book.format}
-              title={book.title}
-              subtitle={book.subtitle}
-              names={coverNames(book)}
-              photos={coverPhotoRefs(coverPhotoIds(book), photos, book, "view")}
-              design={book.coverDesign}
-              rotate={18}
-              thickness={Math.min(14, 4 + printedPages / 20)}
-            />
-          </Morph>
-        </div>
-        <div className="min-w-0">
-          <h1 className="font-serif text-4xl leading-[1.05] font-medium text-balance sm:text-6xl">{book.title}</h1>
-          {book.subtitle ? <p className="mt-2 font-serif text-xl text-muted italic">{book.subtitle}</p> : null}
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-x-14 gap-y-6 lg:grid-cols-[minmax(0,300px)_minmax(0,1fr)]">
+        {/* Книга: на телефоне — обложка слева от названия, на компьютере — крупно, закреплена, пока читаешь штаб */}
+        <header className="flex items-center gap-4 lg:sticky lg:top-[8.5rem] lg:block lg:self-start">
+          <div className="w-[92px] shrink-0 md:w-[150px] lg:mx-0 lg:w-full lg:max-w-[280px]">
+            <Morph name={`cover-${book.id}`}>
+              <Book3D
+                template={book.coverTemplate}
+                format={book.format}
+                title={book.title}
+                subtitle={book.subtitle}
+                names={coverNames(book)}
+                photos={coverPhotoRefs(coverPhotoIds(book), photos, book, "view")}
+                design={book.coverDesign}
+                rotate={18}
+                thickness={Math.min(14, 4 + printedPages / 20)}
+              />
+            </Morph>
+          </div>
+          <div className="min-w-0 lg:mt-9">
+            <h1 className="font-serif text-[28px] leading-[1.08] font-medium text-balance sm:text-4xl lg:text-[40px]">{book.title}</h1>
+            {book.subtitle ? <p className="mt-1 font-serif text-lg text-muted italic lg:mt-2 lg:text-xl">{book.subtitle}</p> : null}
+          </div>
+        </header>
 
-          <dl className="mt-5 flex flex-wrap gap-x-5 gap-y-1 text-sm text-muted" aria-label={t.stats}>
-            {facts.map(([v, l, approx], i) => (
-              <div key={i} className="flex items-baseline gap-1.5">
-                <dt className="sr-only">{l}</dt>
-                <dd className="font-medium text-ink tabular-nums">
-                  {approx ? "≈" : ""}
-                  {v.toLocaleString("ru-RU")}
-                </dd>
-                <span aria-hidden>{l}</span>
+        <div className="min-w-0 space-y-7">
+          {/* Следующий шаг — одно главное действие */}
+          {card ? (
+            <section aria-label={s.next.label} className="panel p-5 sm:p-6">
+              <div className="text-xs text-muted">{card.eyebrow}</div>
+              {card.serif ? (
+                <Link href={card.primary.href} className="mt-2 line-clamp-3 block font-serif text-[22px] leading-snug text-ink hover:text-wine sm:text-2xl" lang={card.lang}>
+                  {card.title}
+                </Link>
+              ) : (
+                <h2 className="mt-2 font-serif text-[26px] leading-tight font-medium text-balance sm:text-3xl">{card.title}</h2>
+              )}
+              {card.text ? <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-ink-soft">{card.text}</p> : null}
+              <div className="mt-5 flex flex-wrap items-center gap-2.5">
+                <Link href={card.primary.href} className="btn btn-primary max-sm:w-full">
+                  {card.primary.icon ? <PenLine className="size-4" aria-hidden /> : null}
+                  {card.primary.label}
+                </Link>
+                {card.secondary ? (
+                  <Link href={card.secondary.href} className="btn btn-outline max-sm:w-full">
+                    {card.secondary.label}
+                  </Link>
+                ) : null}
               </div>
-            ))}
-          </dl>
+              {card.more ? (
+                <p className="mt-4 border-t border-line pt-3 text-sm text-muted">
+                  {card.more.text ? `${card.more.text}. ` : null}
+                  <Link href={card.more.href} className="font-medium text-wine hover:underline">
+                    {card.more.label}
+                  </Link>
+                </p>
+              ) : null}
+            </section>
+          ) : null}
 
-          <div className="mt-4 max-w-xl">
-            <div className="h-1.5 overflow-hidden rounded-full bg-line" role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100} aria-label={blank ? t.blankPercent(percent) : t.percent(percent)}>
+          {editable ? <DeadlineBanner bookId={book.id} occasion={book.occasion} occasionDate={book.occasionDate} answered={stats.answered} flush /> : null}
+
+          {/* Сколько написано и какого объёма книга */}
+          <section aria-label={s.facts.aria}>
+            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+              <span className="text-sm text-muted">{blank ? t.blankPercent(percent) : t.percent(percent)}</span>
+            </div>
+            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-line" role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100} aria-label={blank ? t.blankPercent(percent) : t.percent(percent)}>
               <div className="bar-grow h-full rounded-full bg-wine" style={{ width: `${Math.max(percent, 1.5)}%` }} />
             </div>
-            <div className="mt-1.5 flex flex-wrap justify-between gap-x-4 text-xs text-muted">
-              <span>{blank ? t.blankPercent(percent) : t.percent(percent)}</span>
-              {contentPages < print.minPages ? <span>{t.minPages(print.minPages)}</span> : null}
-            </div>
-          </div>
-
-          {editable && cta ? (
-            // Следующий шаг — лист с вопросом, набранным как в книге, и одна главная кнопка.
-            <div className="mt-7 max-w-xl rounded-[14px] border border-line bg-white p-5 sm:p-6">
-              <div className="text-xs text-muted">{cta.eyebrow}</div>
-              <Link href={cta.href} className="mt-2 line-clamp-3 font-serif text-[22px] leading-snug text-ink hover:text-wine sm:text-2xl" lang={book.language}>
-                {cta.label}
-              </Link>
-              <Link href={cta.href} className="btn btn-primary mt-5 max-sm:w-full">
-                <PenLine className="size-4" aria-hidden /> {next && !blank ? t.answerCta : t.writeCta}
-              </Link>
-            </div>
-          ) : null}
-          {editable ? (
-            <div className="max-w-xl">
-              <DeadlineBanner bookId={book.id} occasion={book.occasion} occasionDate={book.occasionDate} answered={stats.answered} />
-            </div>
-          ) : (
-            <p className="mt-7 max-w-xl rounded-[14px] bg-sunken p-4 text-sm leading-relaxed text-ink-soft">{t.locked}</p>
-          )}
-        </div>
-      </section>
-
-      {/* Путь к готовой книге: три этапа, как группы вкладок */}
-      <section className="mt-14 sm:mt-20" aria-labelledby="book-path">
-        <h2 id="book-path" className="font-serif text-3xl font-medium">
-          {t.path}
-        </h2>
-        <ol className="mt-5 grid overflow-hidden rounded-[14px] border border-line bg-white md:grid-cols-3">
-          {stages.map((st, i) => (
-            <li key={st.key} className={cn("p-4 sm:p-5", i > 0 && "border-line max-md:border-t md:border-l")}>
-              <div className="flex items-center gap-3">
-                <span
-                  className={cn(
-                    "flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold tabular-nums",
-                    st.done ? "bg-success-bg text-success" : i === current ? "bg-wine text-white" : "border border-line-strong text-muted",
-                  )}
-                >
-                  {st.done ? <Check className="size-3.5" aria-hidden /> : i + 1}
-                </span>
-                <div className="min-w-0">
-                  <h3 className={cn("text-[15px] font-semibold", i !== current && !st.done && "text-ink-soft")}>{t.stages[st.key]}</h3>
-                  <p className="text-xs text-muted">{t.stageHint[st.key]}</p>
+            <dl className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-[14px] border border-line bg-line sm:grid-cols-4">
+              {facts.map((f) => (
+                <div key={f.label} className="bg-white px-4 py-3">
+                  <dt className="text-xs text-muted">{f.label}</dt>
+                  <dd className="mt-0.5 flex items-baseline gap-1.5">
+                    <span className="font-serif text-[28px] leading-none font-medium tabular-nums">{f.value}</span>
+                    {f.hint ? <span className="text-xs text-muted">{f.hint}</span> : null}
+                  </dd>
                 </div>
-              </div>
-              <ul className="mt-3 -mx-2 space-y-0.5">
-                {st.steps.map((s) => (
-                  <li key={s.title}>
-                    <Link href={s.href} className="group flex min-h-12 items-center gap-3 rounded-[10px] px-2 py-1.5 hover:bg-sunken/70">
-                      <s.icon className={cn("size-4 shrink-0", s.done ? "text-success" : "text-muted")} strokeWidth={1.8} aria-hidden />
+              ))}
+            </dl>
+          </section>
+
+          {/* Путь книги: шаги и их состояние */}
+          <section aria-labelledby="book-path">
+            <BlockTitle id="book-path">{s.path.title}</BlockTitle>
+            <ol aria-label={s.path.aria} className="panel divide-y divide-line overflow-hidden">
+              {rows.map((r, i) => {
+                const st = nav.steps[i];
+                const active = nav.current === r.key;
+                return (
+                  <li key={r.key}>
+                    <Link href={stepHref(book.id, r.key, nav)} className={cn("group flex min-h-[4.25rem] items-center gap-3.5 px-4 py-3 transition-colors hover:bg-sunken/60", active && "bg-rose/40 hover:bg-rose/60")}>
+                      <StepNode status={st.status} fraction={st.fraction} n={i + 1} size="lg" current={active} surface="bg-white" />
                       <span className="min-w-0 flex-1">
-                        <span className="block text-sm font-medium group-hover:text-wine">{s.title}</span>
-                        <span className="block truncate text-xs text-muted">{s.value}</span>
+                        <span className="flex items-baseline gap-2">
+                          <span className="text-[15px] font-medium group-hover:text-wine">{r.title}</span>
+                          <span className="sr-only">, {nv.state[st.status]}</span>
+                        </span>
+                        <span className={cn("block truncate text-sm", st.status === "attention" ? "text-warning" : "text-muted")}>{r.value}</span>
+                        {r.bar !== undefined && st.status !== "done" ? (
+                          <span aria-hidden className="mt-1.5 block h-[3px] max-w-56 overflow-hidden rounded-full bg-line">
+                            <span className="block h-full rounded-full bg-wine" style={{ width: `${Math.max(r.bar, 2)}%` }} />
+                          </span>
+                        ) : null}
                       </span>
-                      {s.done ? <Check className="size-4 shrink-0 text-success" aria-hidden /> : null}
+                      <span className={cn("shrink-0 text-sm font-medium max-sm:sr-only", active ? "text-wine" : "text-ink-soft group-hover:text-wine")}>{r.action}</span>
+                      <ChevronRight className="size-4 shrink-0 text-muted group-hover:text-wine" aria-hidden />
                     </Link>
+                  </li>
+                );
+              })}
+            </ol>
+          </section>
+
+          {needs.length ? (
+            <section aria-labelledby="book-needs">
+              <BlockTitle id="book-needs" aside={<span className="count">{needs.length}</span>}>
+                {hasErrors ? s.needs.errors : s.needs.warnings}
+              </BlockTitle>
+              <ul className="panel divide-y divide-line overflow-hidden">
+                {needs.map((i) => (
+                  <li key={i.text} className="flex items-start gap-3 px-4 py-3 text-sm">
+                    {i.level === "error" ? <CircleAlert className="mt-0.5 size-4 shrink-0 text-danger" aria-hidden /> : <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />}
+                    <span className="min-w-0 flex-1 text-ink-soft">{i.text}</span>
+                    {i.href ? (
+                      <Link href={i.href} className="shrink-0 font-medium text-wine hover:underline">
+                        {s.needs.fix}
+                      </Link>
+                    ) : null}
                   </li>
                 ))}
               </ul>
-            </li>
-          ))}
-        </ol>
-      </section>
+            </section>
+          ) : null}
+        </div>
+      </div>
 
-      <section className="mt-12 grid gap-8 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:gap-10">
-        {/* Главы — компактно: первые шесть, остальные по кнопке */}
-        <div>
-          <div className="flex items-baseline justify-between gap-3">
-            <h2 className="font-serif text-3xl font-medium">{t.chapters}</h2>
-            {chapters.length ? <span className="text-sm text-muted">{t.chaptersStarted(chapters.filter((ch) => ch.answered > 0).length, chapters.length)}</span> : null}
-          </div>
+      <div className="mt-10 grid grid-cols-[minmax(0,1fr)] gap-8 sm:mt-14 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:gap-12">
+        {/* Главы: первые шесть, остальные по кнопке */}
+        <section aria-labelledby="book-chapters">
+          <BlockTitle id="book-chapters" aside={chapters.length ? t.chaptersStarted(chapters.filter((ch) => ch.answered > 0).length, chapters.length) : undefined}>
+            {t.chapters}
+          </BlockTitle>
           {chapters.length === 0 ? (
-            blank ? <p className="mt-5 rounded-[14px] border border-dashed border-line-strong p-5 text-sm text-muted">{t.createFirstChapterText}</p> : null
+            blank ? <p className="rounded-[14px] border border-dashed border-line-strong p-5 text-sm text-muted">{t.createFirstChapterText}</p> : null
           ) : (
-            <div className="mt-4 -mx-2">
-              <ol className="grid gap-x-6 sm:grid-cols-2">{shownChapters.map((ch, i) => chapterRow(ch, i))}</ol>
+            <div className="-mx-2">
+              <ol className="grid gap-x-8 sm:grid-cols-2">{shownChapters.map((ch, i) => chapterRow(ch, i))}</ol>
               {moreChapters.length ? (
                 <details className="group/more">
                   <summary className="mx-2 mt-2 inline-flex min-h-11 cursor-pointer list-none items-center gap-1.5 text-sm font-medium text-wine hover:underline [&::-webkit-details-marker]:hidden">
-                    <ChevronDown className="size-4 transition group-open/more:rotate-180" aria-hidden /> {t.allChapters(chapters.length)}
+                    <ChevronRight className="size-4 transition group-open/more:rotate-90" aria-hidden /> {t.allChapters(chapters.length)}
                   </summary>
-                  <ol className="grid gap-x-6 sm:grid-cols-2" start={7}>
+                  <ol className="grid gap-x-8 sm:grid-cols-2" start={7}>
                     {moreChapters.map((ch, i) => chapterRow(ch, i + 6))}
                   </ol>
                 </details>
               ) : null}
             </div>
           )}
-        </div>
+        </section>
 
+        {/* Письма, фото, настройки и помощь — всё, что рядом с книгой */}
         <aside className="space-y-4">
-          {photos.length ? (
-            <Link href={`${base}/photos`} className="block overflow-hidden rounded-[14px] border border-line bg-white hover:border-line-strong">
-              <div className="grid grid-cols-4 gap-0.5">
-                {photos.slice(0, 8).map((p) => (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img key={p.id} src={photoUrl(p.id)} alt="" className="aspect-square w-full object-cover" />
-                ))}
-              </div>
-              <div className="px-4 py-3 text-sm text-muted">{t.photosManage(photos.length)}</div>
+          <section className="panel p-4 sm:p-5" aria-labelledby="hub-letters">
+            <h2 id="hub-letters" className="flex items-center gap-2 text-[15px] font-semibold">
+              <Mail className="size-4 text-wine" strokeWidth={1.8} aria-hidden /> {s.lower.lettersTitle}
+            </h2>
+            <p className="mt-1.5 text-sm leading-relaxed text-muted">{letterStats.approved || letterStats.pending ? letterLine : book.inviteToken ? s.lower.lettersInvited : s.lower.lettersEmpty}</p>
+            <Link href={lettersHref} className="btn btn-outline btn-sm mt-3">
+              {letterStats.pending ? s.lower.lettersReview(letterStats.pending) : book.inviteToken ? s.lower.lettersOpen : s.lower.lettersCreate}
             </Link>
-          ) : null}
+          </section>
 
-          <div className="flex items-center justify-between gap-3 rounded-[14px] border border-line bg-white p-4">
+          <section className="panel overflow-hidden" aria-labelledby="hub-photos">
+            {photos.length ? (
+              <Link href={`${base}/photos`} className="block hover:bg-sunken/50">
+                <div className="grid grid-cols-4 gap-px bg-line md:grid-cols-8 lg:grid-cols-4">
+                  {photos.slice(0, 8).map((p) => (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img key={p.id} src={photoUrl(p.id)} alt="" className="aspect-square w-full object-cover" />
+                  ))}
+                </div>
+                <h2 id="hub-photos" className="px-4 py-3 text-sm font-normal text-muted">
+                  {t.photosManage(photos.length)}
+                </h2>
+              </Link>
+            ) : (
+              <div className="p-4 sm:p-5">
+                <h2 id="hub-photos" className="flex items-center gap-2 text-[15px] font-semibold">
+                  <Camera className="size-4 text-wine" strokeWidth={1.8} aria-hidden /> {s.lower.photosTitle}
+                </h2>
+                <p className="mt-1.5 text-sm leading-relaxed text-muted">{s.lower.photosEmpty}</p>
+                <Link href={`${base}/photos`} className="btn btn-outline btn-sm mt-3">
+                  {s.lower.photosAdd}
+                </Link>
+              </div>
+            )}
+          </section>
+
+          <section className="panel p-4 sm:p-5" aria-labelledby="hub-settings">
+            <h2 id="hub-settings" className="flex items-center gap-2 text-[15px] font-semibold">
+              <SlidersHorizontal className="size-4 text-wine" strokeWidth={1.8} aria-hidden /> {s.lower.settingsTitle}
+            </h2>
+            <p className="mt-1.5 text-sm text-muted">{`${getFormat(book.format).short}, ${localeMeta[book.language].label}`}</p>
+            <Link href={`${base}/settings`} className="btn btn-outline btn-sm mt-3">
+              {s.lower.settingsOpen}
+            </Link>
+          </section>
+
+          <div className="flex items-center justify-between gap-3 px-1">
             <a href={site.contacts.whatsapp} target="_blank" rel="noopener noreferrer" className="flex min-h-11 min-w-0 items-center gap-3 text-sm">
               <span className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-sunken text-ink-soft">
                 <MessageCircle className="size-4" aria-hidden />
@@ -319,7 +441,7 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
             <BookMenu bookId={book.id} editable={editable} />
           </div>
         </aside>
-      </section>
+      </div>
     </main>
   );
 }

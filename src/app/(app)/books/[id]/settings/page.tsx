@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { ToolHeader } from "../ToolHeader";
 import { requireUser } from "@/server/auth";
 import { getAccessibleBook } from "@/server/books";
 import { getTheme } from "@/lib/content/themes";
@@ -21,35 +20,38 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
   const m = await getMessages();
   const t = m.books.settings;
   return (
-    <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
-      <ToolHeader title={t.title} description={m.books.tools.settings} />
-      {/* Оформление страниц, посвящение и оглавление переехали во вкладку «Страницы» */}
-      <Link href={`/books/${book.id}/pages`} className="group flex min-h-12 items-center gap-3 rounded-[14px] border border-line bg-white px-4 py-3 transition hover:border-line-strong">
-        <BookOpen className="size-5 shrink-0 text-wine" strokeWidth={1.8} />
-        <span className="min-w-0 flex-1 text-sm">
-          <span className="font-medium">{t.pagesLink}</span> <span className="text-muted">{t.pagesLinkText}</span>
-        </span>
-        <ChevronRight className="size-4 shrink-0 text-muted transition group-hover:text-ink" aria-hidden />
-      </Link>
-      <div className="mt-8">
-        <SettingsForm
-          bookId={book.id}
-          theme={book.theme}
-          editable={book.status === "draft"}
-          fixedRecipientGender={!!theme.recipientGender || theme.recipientGenderChoice === false}
-          initial={{
-            format: getFormat(book.format).id,
-            authorName: book.authorName,
-            authorGender: book.authorGender,
-            recordedBy: book.recordedBy,
-            recipientName: book.recipientName,
-            recipientGender: book.recipientGender,
-            occasion: book.occasion,
-            occasionDate: book.occasionDate,
-            language: book.language,
-          }}
-        />
-      </div>
+    <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+      <header className="mb-6 max-w-2xl">
+        <h1 className="font-serif text-[30px] leading-tight font-medium sm:text-[36px]">{t.title}</h1>
+        <p className="mt-1 text-[15px] leading-relaxed text-pretty text-muted">{m.books.tools.settings}</p>
+      </header>
+      <SettingsForm
+        bookId={book.id}
+        theme={book.theme}
+        editable={book.status === "draft"}
+        fixedRecipientGender={!!theme.recipientGender || theme.recipientGenderChoice === false}
+        initial={{
+          format: getFormat(book.format).id,
+          authorName: book.authorName,
+          authorGender: book.authorGender,
+          recordedBy: book.recordedBy,
+          recipientName: book.recipientName,
+          recipientGender: book.recipientGender,
+          occasion: book.occasion,
+          occasionDate: book.occasionDate,
+          language: book.language,
+        }}
+        // Оформление страниц, посвящение и оглавление переехали во вкладку «Страницы»
+        footer={
+          <Link href={`/books/${book.id}/pages`} className="group flex min-h-12 items-center gap-3 rounded-[14px] border border-line bg-white px-4 py-3 transition hover:border-line-strong">
+            <BookOpen className="size-5 shrink-0 text-wine" strokeWidth={1.8} />
+            <span className="min-w-0 flex-1 text-sm">
+              <span className="font-medium">{t.pagesLink}</span> <span className="text-muted">{t.pagesLinkText}</span>
+            </span>
+            <ChevronRight className="size-4 shrink-0 text-muted transition group-hover:text-ink" aria-hidden />
+          </Link>
+        }
+      />
     </main>
   );
 }

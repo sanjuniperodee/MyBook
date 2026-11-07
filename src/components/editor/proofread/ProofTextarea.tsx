@@ -6,17 +6,19 @@ import { useMessages } from "@/i18n/client";
 import type { Issue, IssueKind } from "@/lib/proofread/types";
 import { issueKinds } from "@/lib/proofread/types";
 import { cn } from "@/lib/class-names";
-import { hexAlpha } from "@/lib/color";
 import type { AiState } from "./useProofread";
 
-/** Цвет замечания: красный — ошибка в слове, синий — запятые и грамматика, янтарный — оформление, фиолетовый — стиль. */
+/** Цвет замечания (токены): красный — ошибка в слове, синий — запятые и грамматика, янтарный — оформление, зелёно-серый — стиль. */
 export const kindColor: Record<IssueKind, string> = {
-  spelling: "#e11d48",
-  punctuation: "#2563eb",
-  grammar: "#2563eb",
-  typography: "#d97706",
-  style: "#7c3aed",
+  spelling: "var(--color-danger)",
+  punctuation: "var(--color-info)",
+  grammar: "var(--color-info)",
+  typography: "var(--color-warning)",
+  style: "var(--color-sage)",
 };
+
+/** Подложка цвета замечания: доля цвета поверх прозрачного. */
+const tint = (color: string, share: number) => `color-mix(in srgb, ${color} ${Math.round(share * 100)}%, transparent)`;
 
 const issueId = (i: Issue) => `${i.start}:${i.key}`;
 
@@ -31,7 +33,7 @@ function markStyle(i: Issue, active: boolean): CSSProperties {
     textUnderlineOffset: "5px",
     textDecorationSkipInk: "none",
     borderRadius: 3,
-    background: active ? hexAlpha(color, 0.18) : blank ? hexAlpha(color, 0.14) : undefined,
+    background: active ? tint(color, 0.18) : blank ? tint(color, 0.14) : undefined,
   };
 }
 
@@ -194,13 +196,13 @@ export const ProofTextarea = forwardRef<HTMLTextAreaElement, Props>(function Pro
           role="dialog"
           aria-label={t.kinds[active.kind]}
           onMouseDown={keep}
-          className="animate-pop absolute z-20 w-[min(340px,100%)] rounded-2xl border border-line bg-white p-3 text-left shadow-xl"
+          className="animate-pop absolute z-20 w-[min(340px,100%)] rounded-[14px] border border-line bg-white p-3 text-left shadow-soft"
           style={{ top: pos.top, left: pos.left, borderTop: `3px solid ${color}` }}
         >
           <div className="flex items-center gap-2 text-xs font-medium" style={{ color }}>
             <span className="size-2 rounded-full" style={{ background: color }} />
             {t.kinds[active.kind]}
-            {active.source === "ai" ? <span className="rounded-full bg-violet-100 px-1.5 py-px text-[10px] font-semibold text-violet-700">{t.aiBadge}</span> : null}
+            {active.source === "ai" ? <span className="badge badge-info text-[10px]">{t.aiBadge}</span> : null}
             <button type="button" className="ml-auto rounded-md p-1 text-muted hover:bg-cream hover:text-ink" onClick={() => setActiveId(null)} aria-label={t.close}>
               <X className="size-3.5" />
             </button>
@@ -210,7 +212,7 @@ export const ProofTextarea = forwardRef<HTMLTextAreaElement, Props>(function Pro
             {active.source === "spell" ? (
               active.replacements.length ? (
                 active.replacements.map((r) => (
-                  <button key={r} type="button" onClick={() => apply(r)} className="rounded-full bg-success-bg px-3 py-1.5 text-sm font-medium text-success ring-1 ring-success/25 transition hover:bg-success-bg">
+                  <button key={r} type="button" onClick={() => apply(r)} className="rounded-[8px] bg-success-bg px-3 py-1.5 text-sm font-medium text-success ring-1 ring-success/25 transition hover:ring-success/50">
                     {r}
                   </button>
                 ))
@@ -223,7 +225,7 @@ export const ProofTextarea = forwardRef<HTMLTextAreaElement, Props>(function Pro
                   key={r}
                   type="button"
                   onClick={() => apply(r)}
-                  className="flex w-full min-w-0 items-center gap-2 rounded-xl bg-success-bg px-3 py-2 text-left text-sm ring-1 ring-success/25 transition hover:bg-success-bg"
+                  className="flex w-full min-w-0 items-center gap-2 rounded-[10px] bg-success-bg px-3 py-2 text-left text-sm ring-1 ring-success/25 transition hover:ring-success/50"
                 >
                   <Check className="size-4 shrink-0 text-success" />
                   {r === "" && !value.slice(active.start, active.end).trim() ? <span className="font-medium text-success">{t.remove}</span> : <Preview text={value} issue={active} replacement={r} />}
@@ -280,14 +282,14 @@ export function ProofBar({
   if (!hasText) return null;
   const byKind = issueKinds.map((k) => ({ k, list: issues.filter((i) => i.kind === k) })).filter((x) => x.list.length);
   return (
-    <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-2 text-xs">
+    <div className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-2 text-xs">
       {issues.length ? (
         byKind.map(({ k, list }) => (
           <button
             key={k}
             type="button"
             onClick={() => onOpen(list[0])}
-            className="flex items-center gap-1.5 rounded-full border border-line bg-white px-2.5 py-1 text-ink-soft transition hover:border-ink/30"
+            className="flex min-h-8 items-center gap-1.5 rounded-[8px] border border-line bg-white px-2.5 py-1 text-ink-soft transition hover:border-ink/30 max-lg:min-h-10"
             title={t.kinds[k]}
           >
             <span className="size-2 rounded-full" style={{ background: kindColor[k] }} />
@@ -302,7 +304,7 @@ export function ProofBar({
       <span className="ml-auto flex flex-wrap items-center gap-2">
         {children}
         {safeCount ? (
-          <button type="button" onClick={onFixAll} title={t.fixAllTitle} className="flex items-center gap-1.5 rounded-full bg-warning-bg px-3 py-1 font-medium text-warning ring-1 ring-warning/25 transition hover:bg-warning-bg">
+          <button type="button" onClick={onFixAll} title={t.fixAllTitle} className="flex min-h-8 items-center gap-1.5 rounded-[8px] bg-warning-bg px-3 py-1 font-medium text-warning ring-1 ring-warning/25 transition hover:ring-warning/50 max-lg:min-h-10">
             <Wand2 className="size-3.5" /> {t.fixAll(safeCount)}
           </button>
         ) : null}
@@ -313,8 +315,8 @@ export function ProofBar({
             disabled={aiState === "checking"}
             title={t.aiTitle}
             className={cn(
-              "flex items-center gap-1.5 rounded-full px-3 py-1 font-medium ring-1 transition",
-              aiState === "done" ? "bg-white text-violet-700 ring-violet-200 hover:bg-violet-50" : "bg-violet-600 text-white ring-violet-600 hover:bg-violet-700 disabled:opacity-80",
+              "flex min-h-8 items-center gap-1.5 rounded-[8px] px-3 py-1 font-medium ring-1 transition max-lg:min-h-10",
+              aiState === "done" ? "bg-white text-info ring-info/30 hover:bg-info-bg" : "bg-info text-white ring-info hover:opacity-90 disabled:opacity-80",
             )}
           >
             {aiState === "checking" ? <LoaderCircle className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}

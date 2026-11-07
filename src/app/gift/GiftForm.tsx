@@ -3,17 +3,18 @@
 import { Link, useMessages } from "@/i18n/client";
 import { localeMeta, locales, type Locale } from "@/i18n/config";
 import { useActionState, useState } from "react";
-import { Check, Mail, Printer } from "lucide-react";
+import { Mail, Printer } from "lucide-react";
 import { createGiftAction, type GiftFormState } from "./actions";
 import { GiftCardVisual } from "@/components/GiftCardVisual";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { Alert } from "@/components/ui/Alert";
 import { formatPrice, getPlans, getVisiblePlans, type PlanId } from "@/config/site";
+import type { ReactNode } from "react";
 import { cn } from "@/lib/class-names";
 import { nowMs } from "@/lib/dates";
 import { toIsoDay } from "@/lib/occasions";
 
-export function GiftForm({ defaults }: { defaults: { name: string; email: string; locale: Locale } }) {
+export function GiftForm({ defaults, intro }: { defaults: { name: string; email: string; locale: Locale }; intro: ReactNode }) {
   const [state, action] = useActionState<GiftFormState, FormData>(createGiftAction, {});
   const m = useMessages();
   const t = m.gift.form;
@@ -25,39 +26,54 @@ export function GiftForm({ defaults }: { defaults: { name: string; email: string
   const [message, setMessage] = useState("");
   const [delivery, setDelivery] = useState<"me" | "email">("me");
   const [today] = useState(() => toIsoDay(new Date(nowMs())));
+  const price = formatPrice(getPlans().find((p) => p.id === plan)!.price);
 
   return (
-    <form action={action} className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-14">
+    <form action={action} className="grid gap-8 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-14">
       <input type="hidden" name="plan" value={plan} />
       <input type="hidden" name="delivery" value={delivery} />
       <input type="hidden" name="locale" value={giftLocale} />
-      <div className="order-2 space-y-10 lg:order-1">
-        <section>
+
+      {/* Слева: титр и открытка. Открытка липкая — меняется на глазах, пока заполняется форма справа. */}
+      <div>
+        {intro}
+        <div className="mt-8 lg:sticky lg:top-24 lg:mt-10">
+          <GiftCardVisual locale={giftLocale} plan={plan} recipientName={recipientName} buyerName={buyerName} message={message} />
+          <p className="mt-4 text-sm leading-relaxed text-muted">{t.previewNote}</p>
+        </div>
+      </div>
+
+      {/* Справа: один лист с четырьмя шагами; итог и кнопка — в липкой полосе внизу листа. */}
+      <div className="self-start rounded-[14px] border border-line bg-white">
+        <fieldset className="min-w-0 border-b border-line p-5 sm:p-7">
+          <legend className="sr-only">{t.step1}</legend>
           <StepTitle n={1}>{t.step1}</StepTitle>
-          <div className="mt-3 grid gap-2.5">
+          <div className="mt-4 divide-y divide-line overflow-hidden rounded-[10px] border border-line-strong" role="radiogroup" aria-label={t.step1}>
             {getVisiblePlans().map((p) => (
               <button
                 key={p.id}
                 type="button"
+                role="radio"
+                aria-checked={plan === p.id}
                 onClick={() => setPlan(p.id)}
-                aria-pressed={plan === p.id}
-                className={cn("flex min-h-16 items-center gap-4 rounded-[10px] border bg-white px-4 py-3.5 text-left transition", plan === p.id ? "border-wine ring-[3px] ring-wine/12" : "border-line-strong hover:border-ink/35")}
+                className={cn("flex min-h-16 w-full items-center gap-3 px-4 py-3 text-left transition-colors", plan === p.id ? "bg-rose/60" : "bg-white hover:bg-sunken/60")}
               >
-                <span className={cn("flex size-5 shrink-0 items-center justify-center rounded-full border", plan === p.id ? "border-wine bg-wine text-white" : "border-line")}>
-                  {plan === p.id ? <Check className="size-3" /> : null}
+                <span className={cn("grid size-5 shrink-0 place-items-center rounded-full border", plan === p.id ? "border-wine" : "border-line-strong")}>
+                  {plan === p.id ? <span className="size-2.5 rounded-full bg-wine" /> : null}
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block font-medium">{m.common.plans[p.id].name}</span>
-                  <span className="block text-xs text-muted">{t.hints[p.id]}</span>
+                  <span className="block text-sm leading-snug text-muted">{t.hints[p.id]}</span>
                 </span>
-                <span className="font-serif text-2xl tabular-nums">{formatPrice(p.price)}</span>
+                <span className="shrink-0 font-serif text-2xl tabular-nums">{formatPrice(p.price)}</span>
               </button>
             ))}
           </div>
-          <p className="mt-2 text-xs text-muted">{t.planNote}</p>
-        </section>
+          <p className="mt-3 text-sm leading-relaxed text-muted">{t.planNote}</p>
+        </fieldset>
 
-        <section className="space-y-4">
+        <fieldset className="min-w-0 space-y-4 border-b border-line p-5 sm:p-7">
+          <legend className="sr-only">{t.step2}</legend>
           <StepTitle n={2}>{t.step2}</StepTitle>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
@@ -84,7 +100,7 @@ export function GiftForm({ defaults }: { defaults: { name: string; email: string
                   aria-checked={giftLocale === l}
                   lang={l}
                   onClick={() => setGiftLocale(l)}
-                  className={cn("h-10 rounded-[9px] text-sm font-medium transition", giftLocale === l ? "bg-white text-ink shadow-soft" : "text-muted hover:text-ink")}
+                  className={cn("h-11 rounded-[9px] text-sm font-medium transition sm:h-10", giftLocale === l ? "bg-white text-ink shadow-soft" : "text-muted hover:text-ink")}
                 >
                   {localeMeta[l].label}
                 </button>
@@ -92,11 +108,12 @@ export function GiftForm({ defaults }: { defaults: { name: string; email: string
             </div>
             <p className="mt-1.5 text-xs text-muted">{t.languageHint}</p>
           </div>
-        </section>
+        </fieldset>
 
-        <section className="space-y-4">
+        <fieldset className="min-w-0 space-y-4 border-b border-line p-5 sm:p-7">
+          <legend className="sr-only">{t.step3}</legend>
           <StepTitle n={3}>{t.step3}</StepTitle>
-          <div className="grid gap-2.5 sm:grid-cols-2">
+          <div className="divide-y divide-line overflow-hidden rounded-[10px] border border-line-strong" role="radiogroup" aria-label={t.step3}>
             {(
               [
                 { id: "me", icon: Printer, ...t.me },
@@ -106,14 +123,18 @@ export function GiftForm({ defaults }: { defaults: { name: string; email: string
               <button
                 key={o.id}
                 type="button"
+                role="radio"
+                aria-checked={delivery === o.id}
                 onClick={() => setDelivery(o.id)}
-                aria-pressed={delivery === o.id}
-                className={cn("flex gap-3 rounded-[10px] border bg-white p-4 text-left transition", delivery === o.id ? "border-wine ring-[3px] ring-wine/12" : "border-line-strong hover:border-ink/35")}
+                className={cn("flex min-h-16 w-full items-center gap-3 px-4 py-3 text-left transition-colors", delivery === o.id ? "bg-rose/60" : "bg-white hover:bg-sunken/60")}
               >
-                <o.icon className="mt-0.5 size-5 shrink-0 text-wine" />
-                <span>
+                <span className={cn("grid size-5 shrink-0 place-items-center rounded-full border", delivery === o.id ? "border-wine" : "border-line-strong")}>
+                  {delivery === o.id ? <span className="size-2.5 rounded-full bg-wine" /> : null}
+                </span>
+                <o.icon className="size-5 shrink-0 text-muted" aria-hidden />
+                <span className="min-w-0 flex-1">
                   <span className="block font-medium">{o.title}</span>
-                  <span className="block text-xs leading-snug text-muted">{o.text}</span>
+                  <span className="block text-sm leading-snug text-muted">{o.text}</span>
                 </span>
               </button>
             ))}
@@ -131,9 +152,10 @@ export function GiftForm({ defaults }: { defaults: { name: string; email: string
               </div>
             </div>
           ) : null}
-        </section>
+        </fieldset>
 
-        <section className="space-y-4">
+        <fieldset className="min-w-0 space-y-4 p-5 sm:p-7">
+          <legend className="sr-only">{t.step4}</legend>
           <StepTitle n={4}>{t.step4}</StepTitle>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
@@ -145,7 +167,7 @@ export function GiftForm({ defaults }: { defaults: { name: string; email: string
               <input className="input" id="buyerPhone" name="buyerPhone" type="tel" maxLength={30} autoComplete="tel" placeholder="+7 7__ ___ __ __" />
             </div>
           </div>
-          <label className="flex items-start gap-2.5 text-sm text-ink-soft">
+          <label className="flex min-h-11 items-start gap-3 py-1 text-sm text-ink-soft">
             <input type="checkbox" name="consent" className="mt-0.5 size-4 accent-wine" required />
             <span>
               {t.consentStart}{" "}
@@ -155,16 +177,16 @@ export function GiftForm({ defaults }: { defaults: { name: string; email: string
             </span>
           </label>
           {state.error ? <Alert>{state.error}</Alert> : null}
-          <SubmitButton className="btn-lg w-full sm:w-auto" pendingText={t.pending}>
-            {t.submit(formatPrice(getPlans().find((p) => p.id === plan)!.price))}
-          </SubmitButton>
-        </section>
-      </div>
+        </fieldset>
 
-      <div className="order-1 lg:order-2">
-        <div className="lg:sticky lg:top-28">
-          <GiftCardVisual locale={giftLocale} plan={plan} recipientName={recipientName} buyerName={buyerName} message={message} className="rotate-[-1.5deg]" />
-          <p className="mt-5 text-center text-sm text-muted">{t.previewNote}</p>
+        <div className="flex flex-col gap-3 rounded-b-[14px] border-t border-line bg-white/95 px-5 py-4 backdrop-blur sm:flex-row sm:items-center sm:justify-between sm:px-7 lg:sticky lg:bottom-0">
+          <div className="hidden sm:block">
+            <div className="text-xs text-muted">{t.total}</div>
+            <div className="font-serif text-3xl leading-none font-medium tabular-nums">{price}</div>
+          </div>
+          <SubmitButton className="btn-lg w-full sm:w-auto" pendingText={t.pending}>
+            {t.submit(price)}
+          </SubmitButton>
         </div>
       </div>
     </form>

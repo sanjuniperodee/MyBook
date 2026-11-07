@@ -5,8 +5,9 @@ import { templateVars } from "@/shared/domain/templates";
 import { formatPhone } from "@/shared/domain/phone";
 import { staffLabel } from "@/shared/domain/staff";
 import { formatDate } from "@/lib/dates";
-import { Intro } from "@/components/admin/Intro";
-import { Section, Status } from "../ui";
+import { Note, Section } from "../ui";
+import { SettingsFrame } from "../frame";
+import { tabAnchors } from "../tabs";
 import { CrmSettingsForm } from "../crm/CrmSettingsForm";
 import { Blocklist } from "../crm/Blocklist";
 import { TemplateEditor } from "../crm/TemplateEditor";
@@ -33,7 +34,7 @@ export async function CrmTab() {
     container().messaging.helpStats(30).catch(() => null),
   ]);
   return (
-    <>
+    <SettingsFrame anchors={tabAnchors("crm")}>
       <CrmSettingsForm slaMinutes={Number(sla) || 15} reassignMinutes={reassign === "" ? 15 : Number(reassign) || 0} workHours={parseWorkHours(workHours)} autoDealFrom={autoDealFrom} unsorted={unsorted !== "off"} maxDiscount={Number(maxDiscount) || 0} mergeClosedDays={mergeDays} widget={{ enabled: wEnabled !== "off", chat: wChat !== "off", help: wHelp !== "off", helpStats }} digest={digest !== "off"} chatReward={chatReward === "on"} />
 
       <Blocklist
@@ -49,15 +50,15 @@ export async function CrmTab() {
 
       <HolidaysForm holidays={parseHolidays(holidays)} defaults={[...DEFAULT_HOLIDAYS]} max={HOLIDAYS_MAX} />
 
-      <Section title="Шаблоны быстрых ответов" defaultOpen={false} badge={<Status on={templates.length > 0} label={String(templates.length)} />}>
-        <Intro className="mb-4">Вставляются в чат одной кнопкой. Переменные: {templateVars.join(", ")}.</Intro>
-        <div className="space-y-3">
+      <Section id="templates" title="Шаблоны быстрых ответов" defaultOpen={false} description="Вставляются в чат одной кнопкой" status={templates.length ? { tone: "ok", label: String(templates.length) } : { tone: "off", label: "нет шаблонов" }}>
+        <Note className="mb-4">Переменные: {templateVars.join(", ")}.</Note>
+        <div className="max-w-[40rem] space-y-3">
           {templates.map((t) => (
             <TemplateEditor key={t.id} template={{ id: t.id, title: t.title, text: t.text }} />
           ))}
           <TemplateEditor template={null} />
         </div>
       </Section>
-    </>
+    </SettingsFrame>
   );
 }

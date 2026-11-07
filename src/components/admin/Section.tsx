@@ -42,7 +42,7 @@ export function Section({
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-controls={body}
-        className={cn("group flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-sunken/50 sm:px-5", open ? "rounded-t-[14px]" : "rounded-[14px]")}
+        className={cn("group flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-sunken/50 sm:px-5", open ? "rounded-t-[var(--r-panel)]" : "rounded-[var(--r-panel)]")}
       >
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1">

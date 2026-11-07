@@ -19,7 +19,7 @@ import { PhotoStrip, removePatch } from "./questions/PhotoStrip";
 import { PhotoEditor } from "@/components/photo-editor/PhotoEditor";
 import { BlankProgress, ProgressCard, QuestionPager } from "./questions/QuestionPager";
 import { SectionFields } from "./questions/SectionFields";
-import { AnswerToolbar, EditorTopBar } from "./questions/Toolbars";
+import { AnswerToolbar, EditorTopBar, QuestionTicks } from "./questions/Toolbars";
 import { useInlinePhotos } from "./questions/useInlinePhotos";
 import { chapterNumbers, selectionAfterRemoval } from "./questions/outline";
 import { useOutline } from "./questions/useOutline";
@@ -36,7 +36,6 @@ import { useQuestionsDraft } from "./questions/useQuestionsDraft";
 import { ProofBar, ProofTextarea, type ProofHandle } from "./proofread/ProofTextarea";
 import { useProofread } from "./proofread/useProofread";
 import { AiWriter } from "./proofread/AiWriter";
-import { SaveIndicator } from "@/components/SaveIndicator";
 import { useDictation } from "@/hooks/useDictation";
 import { getFormat } from "@/lib/book/formats";
 import { cssFont } from "@/lib/book/fonts";
@@ -178,7 +177,12 @@ function EditorBody({
   const [showTips, setShowTips] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [focus, setFocus] = useState(false);
+  // Оглавление слева и страница справа: null — по умолчанию (оглавление — от 1281 px, страница — от 1100 px; решает CSS),
+  // иначе выбор автора, он запоминается в браузере.
+  const [tocPref, setTocPref] = useState<boolean | null>(null);
+  const [previewPref, setPreviewPref] = useState<boolean | null>(null);
   const [aiWriting, setAiWriting] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
   // Диктуют обычно на языке книги.
   const [lang, setLang] = useState<string>(localeMeta[book.language].speech);
   const textarea = useRef<HTMLTextAreaElement>(null);
@@ -213,6 +217,19 @@ function EditorBody({
       } catch {}
       return !v;
     });
+  useEffect(() => {
+    try {
+      const pref = (key: string) => (localStorage.getItem(key) === "1" ? true : localStorage.getItem(key) === "0" ? false : null);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- выбор автора хранится в браузере
+      setTocPref(pref("mb-toc"));
+      setPreviewPref(pref("mb-preview"));
+    } catch {}
+  }, []);
+  const remember = (key: string, on: boolean) => {
+    try {
+      localStorage.setItem(key, on ? "1" : "0");
+    } catch {}
+  };
 
   const dictationTarget = useRef<string | null>(null);
   const dictation = useDictation((text) => {
@@ -238,7 +255,13 @@ function EditorBody({
       setAddingMedia(false);
       setDrawer(false);
       setShowTips(false);
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      // К началу листа: полоса редактора встаёт под шапку, шапка книги остаётся выше (если автор уже прокрутил страницу).
+      const root = rootRef.current;
+      const bar = root?.querySelector<HTMLElement>("[data-editor-bar]");
+      if (root && bar) {
+        const target = root.getBoundingClientRect().top + window.scrollY - (parseFloat(getComputedStyle(bar).top) || 0);
+        if (window.scrollY > target) window.scrollTo({ top: Math.max(0, target), behavior: "smooth" });
+      } else window.scrollTo({ top: 0, behavior: "smooth" });
     },
     [flush, dictation],
   );
@@ -518,95 +541,137 @@ function EditorBody({
   const placeholder = !editable ? "" : blank ? t.blank.answerPlaceholder : kind === "autobiography" ? t.life.answerPlaceholder : t.answerPlaceholder;
   const lastChapter = chapters[chapters.length - 1];
 
+  // Столбцы по выбору автора: оглавление слева (от 1281 px) и страница справа (от 1100 px); в режиме фокуса — только лист.
+  const tocOn = !focus && tocPref !== false;
+  const prevOn = !focus && !!previewProps && previewPref !== false;
+  const columns =
+    tocOn && prevOn
+      ? "min-[1100px]:grid-cols-[minmax(0,1fr)_320px] min-[1281px]:grid-cols-[248px_minmax(0,1fr)_320px]"
+      : tocOn
+        ? "min-[1281px]:grid-cols-[248px_minmax(0,1fr)]"
+        : prevOn
+          ? "min-[1100px]:grid-cols-[minmax(0,1fr)_320px]"
+          : "";
+  /** «Главы»: на широком экране прячет и показывает столбец слева, на узком (и в режиме фокуса) — открывает шторку. */
+  const onToc = () => {
+    if (!focus && window.matchMedia("(min-width: 1281px)").matches) {
+      remember("mb-toc", !tocOn);
+      setTocPref(!tocOn);
+    } else setDrawer(true);
+  };
+  /** «Как в книге»: на широком экране прячет и показывает страницу справа, на узком открывает её на весь экран. */
+  const onPreview = () => {
+    if (window.matchMedia("(min-width: 1100px)").matches) {
+      remember("mb-preview", !prevOn);
+      setPreviewPref(!prevOn);
+    } else setShowPreview((v) => !v);
+  };
+  const ticks = group ? group.items.map((x) => !!x.q.answer.trim()) : [];
+  const progressLabel = group ? (blank ? t.blank.sectionOf(posInChapter + 1, group.items.length) : t.questionOf(posInChapter + 1, group.items.length)) : "";
+  const progress = <QuestionTicks label={progressLabel} items={ticks} current={posInChapter} />;
+  const pagesBadge = <PagesBadge book={book} questions={questions} photos={photos} letters={letters} chapters={chapters} />;
+  // «С чего начать?»: под вопросом; когда справа открыта страница книги — подсказки уходят туда, лист остаётся чистым.
+  const tipsList = (compact: boolean) =>
+    showTips ? (
+      <ul className={cn("mt-3 grid gap-2", compact ? "grid-cols-1" : "sm:grid-cols-2")}>
+        {kind === "autobiography" ? <li className={cn("enter rounded-[10px] bg-rose px-4 py-3 text-sm leading-snug text-ink-soft", !compact && "sm:col-span-2")}>{t.life.recordedNote}</li> : null}
+        {tips.map((tip, i) => (
+          <li key={tip} style={{ "--i": i } as React.CSSProperties} className={cn("enter rounded-[10px] bg-sunken text-ink-soft", compact ? "px-3 py-2 text-[13px] leading-snug" : "px-4 py-3 text-sm leading-snug")}>
+            {tip}
+          </li>
+        ))}
+      </ul>
+    ) : null;
+  const tipsToggle = (
+    <button className="-ml-1 inline-flex min-h-11 items-center gap-1.5 rounded-lg px-1 text-sm text-wine hover:underline lg:min-h-9" aria-expanded={showTips} onClick={() => setShowTips((v) => !v)}>
+      <Lightbulb className="size-4" /> {t.whereToStart}
+      <ChevronDown className={cn("size-3.5 transition", showTips && "rotate-180")} />
+    </button>
+  );
+
   return (
-    <div className={cn("mx-auto px-4 pt-3 pb-28 sm:px-6 sm:py-6 lg:py-8", focus ? "max-w-3xl" : "max-w-7xl")}>
-      <div className={cn("gap-8 xl:gap-10", !focus && "lg:grid lg:grid-cols-[240px_minmax(0,1fr)] xl:grid-cols-[240px_minmax(0,1fr)_300px]")}>
-        {/* Навигация по главам */}
-        {!focus ? (
-          <aside className="hidden lg:block">
-            <div className="sticky top-20 max-h-[calc(100dvh-6rem)] overflow-y-auto pr-1 pb-6">{sidebar}</div>
+    <div ref={rootRef} className="pb-28 lg:pb-12" style={{ "--ed-top": "calc(3.5rem + env(safe-area-inset-top))" } as React.CSSProperties}>
+      {q && group ? (
+        <EditorTopBar
+          chapterNumber={chapterNumber}
+          chapterTitle={chapterTitle}
+          language={book.language}
+          pages={pagesBadge}
+          status={status}
+          error={error}
+          progress={progress}
+          tocOpen={tocOn}
+          previewOpen={prevOn}
+          focus={focus}
+          hasPrev={!!prev}
+          hasNext={!!next}
+          onPrev={() => goTo(index - 1)}
+          onNext={() => goTo(index + 1)}
+          onToc={onToc}
+          onRename={
+            blank && editable
+              ? () => {
+                  setRenaming(group.key);
+                  // Без боковой панели (телефон, режим фокуса) поле переименования открывается в панели оглавления.
+                  if (focus || window.matchMedia("(max-width: 1280px)").matches) setDrawer(true);
+                }
+              : undefined
+          }
+          onPreview={onPreview}
+          onFocus={toggleFocus}
+        />
+      ) : (
+        <div className="mx-auto max-w-[96rem] px-4 pt-3 sm:px-6 lg:hidden">
+          <button className="btn btn-outline btn-sm" onClick={() => setDrawer(true)}>
+            <ListTree className="size-4" /> {t.chapters}
+          </button>
+        </div>
+      )}
+
+      <div className={cn("mx-auto max-w-[96rem] gap-8 px-4 pt-4 sm:px-6 sm:pt-6 xl:gap-10", columns && "grid min-[1100px]:min-h-[calc(100dvh-var(--ed-top)-3rem)]", columns)}>
+        {/* Оглавление: столбец слева (от 1281 px, его можно спрятать); на узком экране — шторка */}
+        {tocOn ? (
+          <aside className="hidden min-[1281px]:block" aria-label={blank ? t.blank.drawerTitle : t.drawerTitle}>
+            <div className="sticky top-[calc(var(--ed-top)+4rem)] max-h-[calc(100dvh-var(--ed-top)-5rem)] overflow-y-auto pr-1 pb-6">{sidebar}</div>
           </aside>
         ) : null}
 
         {/* Лист */}
-        <section className="min-w-0">
-          {q ? (
-            <EditorTopBar
-              chapterNumber={chapterNumber}
-              chapterTitle={chapterTitle}
-              language={book.language}
-              pages={<PagesBadge book={book} questions={questions} photos={photos} letters={letters} chapters={chapters} />}
-              focus={focus}
-              onChapters={() => setDrawer(true)}
-              onRename={
-                blank && editable && group
-                  ? () => {
-                      setRenaming(group.key);
-                      // Без боковой панели (телефон, режим фокуса) поле переименования открывается в панели оглавления.
-                      if (focus || window.matchMedia("(max-width: 1023px)").matches) setDrawer(true);
-                    }
-                  : undefined
-              }
-              onTogglePreview={() => setShowPreview((v) => !v)}
-              onToggleFocus={toggleFocus}
-            />
-          ) : (
-            <div className={cn("mb-3 sm:mb-4", !focus && "lg:hidden")}>
-              <button className="btn btn-outline btn-sm" onClick={() => setDrawer(true)}>
-                <ListTree className="size-4" /> {t.chapters}
-              </button>
-            </div>
-          )}
-
+        <section className="mx-auto flex w-full max-w-[46rem] min-w-0 flex-col">
+          {/* Начало главы: на компьютере над первым вопросом, на телефоне — под листом, чтобы вопрос был на первом экране */}
           {q && group && posInChapter === 0 ? (
-            <ChapterStart {...src} chapterKey={group.key} fallbackTitle={chapterTitle} editable={editable} onAction={(action) => onChapterStart(group.key, action)} />
+            <div className="max-lg:order-last max-lg:mt-4">
+              <ChapterStart {...src} chapterKey={group.key} fallbackTitle={chapterTitle} editable={editable} onAction={(action) => onChapterStart(group.key, action)} />
+            </div>
           ) : null}
           {q && group ? (
-            <article data-help={`question:${q.id}`} className="relative overflow-hidden rounded-[14px] border border-line bg-white max-sm:-mx-1">
-              {/* Прогресс по главе — тонкая линия сверху */}
-              <div className="absolute inset-x-0 top-0 h-0.5 bg-line" aria-hidden>
-                <div className="h-full bg-wine transition-[width] duration-500 ease-out" style={{ width: `${((posInChapter + 1) / group.items.length) * 100}%` }} />
-              </div>
-              <div className="flex min-h-11 items-center justify-between gap-3 border-b border-line px-4 text-xs text-muted sm:px-6">
-                <span>{blank ? t.blank.sectionOf(posInChapter + 1, group.items.length) : t.questionOf(posInChapter + 1, group.items.length)}</span>
-                <SaveIndicator status={status} error={error} className="text-xs" />
-              </div>
-
-              <div className="mx-auto max-w-[42rem] px-4 pt-6 pb-4 sm:px-8 sm:pt-12 sm:pb-6">
+            <article data-help={`question:${q.id}`} className="rounded-[14px] border border-line bg-white max-sm:-mx-4 max-sm:rounded-none max-sm:border-x-0">
+              <div className="mx-auto max-w-[40rem] px-5 pt-5 pb-4 sm:px-10 sm:pt-12 sm:pb-6 lg:pt-14">
+                {/* На телефоне прогресс и объём — над вопросом (на компьютере они в полосе) */}
+                <div className="mb-5 flex items-center justify-between gap-3 lg:hidden">
+                  {progress}
+                  {pagesBadge}
+                </div>
                 {blank ? (
                   // key — чтобы поля раздела (в том числе свёрнутая подсказка) не переносились на другой раздел
                   <SectionFields key={q.id} ref={titleField} question={q} language={book.language} typography={typography} editable={editable} onPatch={(patch) => patchQuestion(q.id, patch)} />
                 ) : (
                   <>
                     {/* key — чтобы при переходе к другому вопросу формулировка мягко проявлялась */}
-                    <h1 key={q.id} lang={book.language} className="enter font-serif text-[26px] leading-[1.15] font-medium text-balance text-ink sm:text-[36px]">
+                    <h1 key={q.id} lang={book.language} className="enter font-serif text-[28px] leading-[1.12] font-medium text-balance text-ink sm:text-[40px]">
                       {labelOf(q)}
                     </h1>
                     {q.hint ? (
-                      <p key={`h-${q.id}`} lang={book.language} style={{ "--i": 1 } as React.CSSProperties} className="enter mt-3 text-[15px] leading-relaxed text-pretty text-muted">
+                      <p key={`h-${q.id}`} lang={book.language} style={{ "--i": 1 } as React.CSSProperties} className="enter mt-3 text-[15px] leading-relaxed text-pretty text-muted sm:text-base">
                         {q.hint}
                       </p>
                     ) : null}
                   </>
                 )}
-                <button className="mt-3 -ml-1 inline-flex min-h-11 items-center gap-1.5 rounded-lg px-1 text-sm text-wine hover:underline sm:min-h-9" aria-expanded={showTips} onClick={() => setShowTips((v) => !v)}>
-                  <Lightbulb className="size-4" /> {t.whereToStart}
-                  <ChevronDown className={cn("size-3.5 transition", showTips && "rotate-180")} />
-                </button>
-                {showTips ? (
-                  <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-                    {kind === "autobiography" ? (
-                      <li className="enter rounded-[10px] bg-rose px-4 py-3 text-sm leading-snug text-ink-soft sm:col-span-2">{t.life.recordedNote}</li>
-                    ) : null}
-                    {tips.map((tip, i) => (
-                      <li key={tip} style={{ "--i": i } as React.CSSProperties} className="enter rounded-[10px] bg-sunken px-4 py-3 text-sm leading-snug text-ink-soft">
-                        {tip}
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-
-                {blank ? null : <HeadingField question={q} language={book.language} typography={typography} editable={editable} onPatch={(patch) => patchQuestion(q.id, patch)} />}
+                <div className={cn("mt-2", prevOn && "min-[1100px]:hidden")}>
+                  {tipsToggle}
+                  <div className={cn(prevOn && "min-[1100px]:hidden")}>{tipsList(false)}</div>
+                </div>
 
                 <ProofTextarea
                   ref={textarea}
@@ -623,9 +688,9 @@ function EditorBody({
                   placeholder={placeholder}
                   aria-label={t.answerAria}
                   lang={book.language}
-                  wrapperClassName="mt-5 sm:mt-6"
-                  textClassName="text-[17px] leading-[1.7] sm:text-[19px] sm:leading-[1.75]"
-                  className="fs-keep min-h-[220px] scroll-mb-40 resize-none outline-none placeholder:text-muted/60 sm:min-h-[280px]"
+                  wrapperClassName="mt-6 sm:mt-8"
+                  textClassName="text-[18px] leading-[1.7] sm:text-[20px] sm:leading-[1.75]"
+                  className="fs-keep min-h-[220px] scroll-mb-40 resize-none outline-none placeholder:text-muted/60 sm:min-h-[260px]"
                   style={{ fontFamily: cssFont(typography.body) }}
                   maxLength={40000}
                 />
@@ -652,6 +717,8 @@ function EditorBody({
                   </ProofBar>
                 ) : null}
                 {dictation.listening ? <DictationStatus dictation={dictation} /> : null}
+
+                {blank ? null : <HeadingField question={q} language={book.language} typography={typography} editable={editable} onPatch={(patch) => patchQuestion(q.id, patch)} />}
               </div>
 
               {qPhotos.length ? (
@@ -686,6 +753,16 @@ function EditorBody({
                 update={(fn) => updateMedia(q.id, fn)}
               />
 
+              {dictation.error ? (
+                <p role="alert" className="border-t border-line px-5 py-3 text-sm text-danger sm:px-10">
+                  {dictation.error}
+                </p>
+              ) : null}
+              {adding && !blank ? (
+                <div className="border-t border-line p-4 sm:px-10">
+                  <AddQuestion onAdd={addQuestion} onCancel={() => setAdding(false)} />
+                </div>
+              ) : null}
               <AnswerToolbar
                 dictation={dictateControl("max-lg:hidden", false)}
                 editable={editable}
@@ -698,12 +775,6 @@ function EditorBody({
                 onAdd={() => (blank ? void addSection(q.chapter, q.id) : setAdding((v) => !v))}
                 onRemove={removeQuestion}
               />
-              {dictation.error ? <p role="alert" className="px-4 pb-3 text-sm text-danger sm:px-6">{dictation.error}</p> : null}
-              {adding && !blank ? (
-                <div className="border-t border-line p-4 sm:px-6">
-                  <AddQuestion onAdd={addQuestion} onCancel={() => setAdding(false)} />
-                </div>
-              ) : null}
             </article>
           ) : emptyMode ? (
             <EmptyEditor
@@ -738,22 +809,24 @@ function EditorBody({
           ) : null}
         </section>
 
-        {/* Превью страницы */}
-        {!focus ? (
-          <aside className="hidden xl:block">
-            <div className="sticky top-20 space-y-3">
-              {previewProps ? (
-                <>
-                  <PreviewHeading bookId={book.id} title={t.inBook} exact={t.inBookExact} onLeave={() => void flush()} />
-                  {editable ? <PreviewIntro blank={blank} /> : null}
-                  <PreviewPane {...previewProps} className="max-h-[calc(100dvh-15rem)] overflow-y-auto rounded-[14px] bg-sunken p-3" />
-                </>
+        {/* Страница книги: живое превью справа (от 1100 px, его можно спрятать), под ним — подсказки и прогресс */}
+        {prevOn && previewProps ? (
+          <aside className="hidden min-[1100px]:block" aria-label={t.inBook}>
+            <div className="sticky top-[calc(var(--ed-top)+4rem)] flex max-h-[calc(100dvh-var(--ed-top)-5rem)] flex-col gap-4 overflow-y-auto pb-4">
+              <div className="shrink-0 space-y-3">
+                <PreviewHeading bookId={book.id} title={t.inBook} exact={t.inBookExact} onLeave={() => void flush()} />
+                {editable ? <PreviewIntro blank={blank} /> : null}
+              </div>
+              <PreviewPane {...previewProps} className="max-h-[min(36rem,calc(100dvh-var(--ed-top)-19rem))] min-h-[12rem] shrink-0 overflow-y-auto rounded-[12px] bg-sunken p-3" />
+              {q ? (
+                <div className="shrink-0">
+                  {tipsToggle}
+                  {tipsList(true)}
+                </div>
               ) : null}
-              {blank ? (
-                <BlankProgress book={book} questions={questions} photos={photos} letters={letters} chapters={chapters} />
-              ) : (
-                <ProgressCard answered={answeredCount} total={questions.length} />
-              )}
+              <div className="shrink-0 border-t border-line pt-4">
+                {blank ? <BlankProgress book={book} questions={questions} photos={photos} letters={letters} chapters={chapters} /> : <ProgressCard answered={answeredCount} total={questions.length} />}
+              </div>
             </div>
           </aside>
         ) : null}
@@ -766,7 +839,7 @@ function EditorBody({
               <button
                 onClick={() => goTo(index - 1)}
                 disabled={!prev}
-                className="flex size-11 shrink-0 items-center justify-center rounded-[10px] border border-line bg-white disabled:opacity-35"
+                className="flex size-11 shrink-0 items-center justify-center rounded-[10px] border border-line-strong bg-white transition-colors active:bg-sunken disabled:opacity-35"
                 aria-label={t.prev}
               >
                 <ArrowLeft className="size-5" />
@@ -805,7 +878,7 @@ function EditorBody({
         </MobileBar>
       ) : q && !editable ? (
         <MobileBar>
-          <button onClick={() => goTo(index - 1)} disabled={!prev} className="flex size-11 shrink-0 items-center justify-center rounded-[10px] border border-line bg-white disabled:opacity-35" aria-label={t.prev}>
+          <button onClick={() => goTo(index - 1)} disabled={!prev} className="flex size-11 shrink-0 items-center justify-center rounded-[10px] border border-line-strong bg-white transition-colors active:bg-sunken disabled:opacity-35" aria-label={t.prev}>
             <ArrowLeft className="size-5" />
           </button>
           {next ? (
@@ -860,7 +933,7 @@ function EditorBody({
       {sheet ? <PhotoSheetHost src={src} target={sheet} editable={editable} on={photoEvents} onLeave={() => void flush()} onClose={() => setSheet(null)} /> : null}
 
       {drawer ? (
-        <Drawer title={blank ? t.blank.drawerTitle : undefined} onClose={() => setDrawer(false)}>
+        <Drawer variant="sheet" title={blank ? t.blank.drawerTitle : undefined} onClose={() => setDrawer(false)}>
           <ChapterNav {...navProps} />
         </Drawer>
       ) : null}

@@ -10,7 +10,7 @@ import { buildIcs } from "@/lib/tools/ics";
 import { GOALS, planFor, type Goal } from "@/lib/tools/plan";
 import { daysBetween, parseDay } from "@/lib/tools/together";
 import { cn } from "@/lib/class-names";
-import { Choice, CopyButton } from "./Choice";
+import { Choice, CopyButton, ResultEmpty, ToolField, Verdict, Workbench } from "./Workbench";
 
 const deliveries: DeliveryId[] = ["courier", "post", "pickup", "abroad"];
 
@@ -46,77 +46,77 @@ export function BookPlanner({ expressAvailable }: { expressAvailable: boolean })
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
-  const hot = plan && (plan.verdict === "hard" || plan.verdict === "express" || plan.verdict === "digital");
-  const warm = plan?.verdict === "tight";
-  const Icon = plan?.verdict === "express" ? Zap : plan?.verdict === "calm" ? PackageCheck : plan ? Clock : CalendarDays;
+  const tone = plan && (plan.verdict === "hard" || plan.verdict === "express" || plan.verdict === "digital") ? "hot" : plan?.verdict === "tight" ? "warm" : "calm";
+  const icon = plan?.verdict === "express" ? <Zap className="size-5" aria-hidden /> : plan?.verdict === "calm" ? <PackageCheck className="size-5" aria-hidden /> : plan ? <Clock className="size-5" aria-hidden /> : <CalendarDays className="size-5" aria-hidden />;
   const text = !value ? ui.empty : !typed ? ui.invalid : plan ? ui.verdict[plan.verdict](plan.perDay) : ui.empty;
 
   return (
-    <div className="card p-6 sm:p-8">
-      <div className="grid gap-5 sm:grid-cols-[minmax(0,260px)_1fr]">
-        <div>
-          <label className="label" htmlFor="plan-date">
-            {ui.dateLabel}
+    <Workbench
+      input={
+        <>
+          <ToolField label={ui.dateLabel} htmlFor="plan-date">
+            <input
+              id="plan-date"
+              type="date"
+              className="input"
+              value={value}
+              onChange={(e) => {
+                setValue(e.target.value);
+                setNow(new Date());
+              }}
+            />
+          </ToolField>
+          <ToolField label={ui.deliveryLabel}>
+            <Choice label={ui.deliveryLabel} value={delivery} onChange={setDelivery} options={deliveries.map((d) => ({ id: d, label: ui.delivery[d] }))} />
+          </ToolField>
+          <ToolField label={ui.goalLabel}>
+            <Choice label={ui.goalLabel} value={goal} onChange={setGoal} options={(Object.keys(GOALS) as Goal[]).map((id) => ({ id, label: ui.goal[id] }))} />
+          </ToolField>
+          <label className="flex min-h-11 cursor-pointer items-center gap-3 text-[15px] text-ink-soft">
+            <input type="checkbox" className="size-4 accent-[var(--color-wine)]" checked={letters} onChange={(e) => setLetters(e.target.checked)} />
+            {ui.lettersLabel}
           </label>
-          <input
-            id="plan-date"
-            type="date"
-            className="input"
-            value={value}
-            onChange={(e) => {
-              setValue(e.target.value);
-              setNow(new Date());
-            }}
-          />
-        </div>
-        <div>
-          <span className="label">{ui.deliveryLabel}</span>
-          <Choice label={ui.deliveryLabel} value={delivery} onChange={setDelivery} options={deliveries.map((d) => ({ id: d, label: ui.delivery[d] }))} />
-        </div>
-      </div>
-      <div className="mt-5 grid gap-5 sm:grid-cols-[1fr_auto] sm:items-end">
-        <div>
-          <span className="label">{ui.goalLabel}</span>
-          <Choice label={ui.goalLabel} value={goal} onChange={setGoal} options={(Object.keys(GOALS) as Goal[]).map((id) => ({ id, label: ui.goal[id] }))} />
-        </div>
-        <label className="flex cursor-pointer items-center gap-2 text-sm text-ink-soft">
-          <input type="checkbox" className="size-4 accent-[var(--color-wine)]" checked={letters} onChange={(e) => setLetters(e.target.checked)} />
-          {ui.lettersLabel}
-        </label>
-      </div>
+        </>
+      }
+      result={
+        !value ? (
+          <ResultEmpty>{ui.empty}</ResultEmpty>
+        ) : (
+          <div className="space-y-6">
+            <Verdict tone={tone} icon={icon} testId="plan-verdict">
+              {text}
+            </Verdict>
 
-      <div aria-live="polite" className={cn("mt-6 flex items-start gap-4 rounded-[14px] border p-5", hot ? "border-wine/30 bg-rose/40" : warm ? "border-amber-200 bg-amber-50/70" : "border-line bg-cream/50")}>
-        <Icon className={cn("mt-0.5 size-6 shrink-0", hot ? "text-wine" : "text-ink-soft")} aria-hidden />
-        <p className="leading-relaxed text-ink" data-testid="plan-verdict">
-          {text}
-        </p>
-      </div>
-
-      {plan && plan.steps.length && now ? (
-        <div className="mt-8">
-          <h3 className="font-serif text-2xl font-medium">{ui.stepsTitle}</h3>
-          <ol className="mt-4 space-y-3">
-            {plan.steps.map((s, i) => (
-              <li key={`${s.id}-${i}`} className={cn("flex gap-4 rounded-[14px] border p-4", s.id === "order" ? "border-wine/40 bg-rose/30" : "border-line bg-white")}>
-                <div className="w-24 shrink-0 text-sm">
-                  <div className="font-semibold text-ink">{fmt(s.date, true)}</div>
-                  <div className="text-xs text-muted">{ui.daysLeft(daysBetween(now, s.date))}</div>
+            {plan && plan.steps.length && now ? (
+              <div>
+                <h3 className="font-serif text-2xl font-medium">{ui.stepsTitle}</h3>
+                {/* Ось времени: слева дата и «осталось дней», справа шаг; заказ выделен. */}
+                <ol className="mt-4">
+                  {plan.steps.map((s, i) => (
+                    <li key={`${s.id}-${i}`} className="grid grid-cols-[5.5rem_1fr] gap-x-4 sm:grid-cols-[6.5rem_1fr]">
+                      <div className="pt-0.5 text-sm">
+                        <div className="font-semibold text-ink">{fmt(s.date, true)}</div>
+                        <div className="text-xs text-muted">{ui.daysLeft(daysBetween(now, s.date))}</div>
+                      </div>
+                      <div className={cn("relative border-l pb-6 pl-5 last:pb-0", s.id === "order" ? "border-wine" : "border-line-strong")}>
+                        <span aria-hidden className={cn("absolute top-1.5 -left-[5px] size-2.5 rounded-full", s.id === "order" ? "bg-wine" : "bg-line-strong")} />
+                        <div className={cn("font-medium", s.id === "order" && "text-wine")}>{ui.step[s.id].title}</div>
+                        <div className="text-sm leading-relaxed text-ink-soft">{ui.step[s.id].text(plan.perDay)}</div>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <button type="button" className="btn btn-dark btn-sm" onClick={download}>
+                    <CalendarDays className="size-4" /> {ui.ics}
+                  </button>
+                  <CopyButton text={copyText} label={ui.copy} done={ui.copied} />
                 </div>
-                <div>
-                  <div className="font-medium">{ui.step[s.id].title}</div>
-                  <div className="text-sm leading-relaxed text-ink-soft">{ui.step[s.id].text(plan.perDay)}</div>
-                </div>
-              </li>
-            ))}
-          </ol>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <button type="button" className="btn btn-primary btn-sm" onClick={download}>
-              <CalendarDays className="size-4" /> {ui.ics}
-            </button>
-            <CopyButton text={copyText} label={ui.copy} done={ui.copied} />
+              </div>
+            ) : null}
           </div>
-        </div>
-      ) : null}
-    </div>
+        )
+      }
+    />
   );
 }

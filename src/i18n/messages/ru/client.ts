@@ -13,6 +13,8 @@ import { pay } from "./pay";
 import { review } from "./review";
 import { design } from "./design";
 import { help } from "./help";
+import { secondary } from "./secondary";
+import { bookStudio } from "./book-studio";
 
 /** Словарь для браузера: без серверных пространств — писем (mail), юридических текстов (legal) и ошибок API (api). */
-export const ruClient = { common, book, catalog, landing, auth, books, editor, checkout, orders, review, invite, gift, pay, design, help };
+export const ruClient = { common, book, catalog, landing, auth, books, editor, checkout, orders, review, invite, gift, pay, design, help, secondary, bookStudio };

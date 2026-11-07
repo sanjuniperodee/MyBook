@@ -138,14 +138,14 @@ export default async function LoveAdPage({ searchParams }: { searchParams: Promi
         </div>
 
         {/* ─── ВОПРОСЫ БЕГУЩЕЙ СТРОКОЙ ─── */}
-        <section className="overflow-hidden bg-spine py-10 text-paper sm:py-14" aria-label={c.questionsLabel(countQuestions(theme))}>
-          <div className="container-x text-sm text-paper/70">{c.questionsLabel(countQuestions(theme))}</div>
+        <section className="overflow-hidden bg-spine py-10 text-white sm:py-14" aria-label={c.questionsLabel(countQuestions(theme))}>
+          <div className="container-x text-sm text-white/70">{c.questionsLabel(countQuestions(theme))}</div>
           <div className="mt-6 space-y-4 sm:space-y-6">
             {rows.map((row, r) => (
               <div key={r} className="flex w-max">
                 <div className={r ? "marquee marquee-reverse flex shrink-0" : "marquee flex shrink-0"} style={{ "--marquee-s": `${row.length * 11}s` } as React.CSSProperties}>
                   {[...row, ...row].map((q, i) => (
-                    <span key={i} className="flex shrink-0 items-center font-serif text-[22px] whitespace-nowrap text-paper/90 italic sm:text-[30px]" aria-hidden={i >= row.length}>
+                    <span key={i} className="flex shrink-0 items-center font-serif text-[22px] whitespace-nowrap text-white/90 italic sm:text-[30px]" aria-hidden={i >= row.length}>
                       {q}
                       <span className="mx-7 size-1.5 rotate-45 bg-gold/80 sm:mx-10" aria-hidden />
                     </span>
@@ -160,7 +160,7 @@ export default async function LoveAdPage({ searchParams }: { searchParams: Promi
         <section className="below-fold py-20 sm:py-28">
           <div className="container-x">
             <div className="max-w-2xl">
-                            <h2 className="font-serif text-[40px] leading-[1.02] font-medium tracking-tight sm:text-5xl">{c.try.title}</h2>
+              <h2 className="font-serif text-[40px] leading-[1.02] font-medium tracking-tight text-balance sm:text-5xl">{c.try.title}</h2>
               <p className="mt-4 text-[17px] leading-relaxed text-ink-soft">{c.try.lead}</p>
             </div>
             <div className="mt-14">
@@ -186,16 +186,16 @@ export default async function LoveAdPage({ searchParams }: { searchParams: Promi
           </div>
         </section>
 
-        {/* ─── КНИГА-ПРИМЕР ─── */}
-        <section className="below-fold bg-ink py-20 text-paper sm:py-28">
-          <div className="container-x grid items-center gap-12 lg:grid-cols-[0.8fr_1.2fr]">
-            <div>
-              <h2 className=" font-serif text-[40px] leading-[1.02] font-medium tracking-tight sm:text-5xl">{c.inside.title}</h2>
-              <p className="mt-5 text-[17px] leading-relaxed text-paper/70">{c.inside.text}</p>
+        {/* ─── КНИГА-ПРИМЕР: большой разворот на тёмной «сцене» ─── */}
+        <section className="below-fold bg-spine py-20 text-white sm:py-28">
+          <div className="container-x">
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:items-end lg:gap-16">
+              <h2 className="font-serif text-[40px] leading-[1.02] font-medium tracking-tight text-balance sm:text-6xl">{c.inside.title}</h2>
+              <p className="text-[17px] leading-relaxed text-white/70">{c.inside.text}</p>
             </div>
-            <div>
+            <div className="mx-auto mt-12 max-w-[60rem] sm:mt-14">
               <SampleBook />
-              <p className="mt-3 text-center text-xs text-paper/40">
+              <p className="mt-3 text-center text-xs text-white/60">
                 <span className="hidden md:inline">{m.landing.inside.hintDesktop}</span>
                 <span className="md:hidden">{m.landing.inside.hintMobile}</span>
               </p>
@@ -215,28 +215,30 @@ export default async function LoveAdPage({ searchParams }: { searchParams: Promi
               </span>
             </div>
             <div>
-                            <h2 className="font-serif text-[40px] leading-[1.02] font-medium tracking-tight sm:text-5xl">{c.photos.title}</h2>
+              <h2 className="font-serif text-[40px] leading-[1.02] font-medium tracking-tight text-balance sm:text-5xl">{c.photos.title}</h2>
               <p className="mt-5 text-[17px] leading-relaxed text-ink-soft">{c.photos.text}</p>
             </div>
           </div>
         </section>
 
-        {/* ─── КАК ЭТО ПРОИСХОДИТ ─── */}
+        {/* ─── КАК ЭТО ПРОИСХОДИТ: оглавление из трёх шагов с крупными цифрами ─── */}
         <section className="below-fold border-y border-line bg-cream/60 py-20 sm:py-28">
-          <div className="container-x">
-                        <h2 className="max-w-2xl font-serif text-[40px] leading-[1.02] font-medium tracking-tight sm:text-5xl">{c.how.title}</h2>
-            <ol className="mt-12 grid gap-10 md:grid-cols-3 md:gap-8">
+          <div className="container-x grid gap-10 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.4fr)] lg:gap-20">
+            <div className="lg:sticky lg:top-12 lg:self-start">
+              <h2 className="max-w-md font-serif text-[40px] leading-[1.02] font-medium tracking-tight text-balance sm:text-5xl">{c.how.title}</h2>
+              <p className="mt-8 max-w-sm border-l-2 border-wine pl-5 font-serif text-2xl leading-snug text-ink italic">{c.how.secret}</p>
+            </div>
+            <ol className="divide-y divide-line border-y border-line">
               {c.how.steps.map((s, i) => (
-                <li key={s.title} className="border-t border-ink/15 pt-5">
-                  <div className="flex items-baseline gap-4">
-                    <span className="font-serif text-[56px] leading-none text-wine/90 tabular-nums italic">{String(i + 1).padStart(2, "0")}</span>
-                    <h3 className="font-serif text-[28px] font-medium">{s.title}</h3>
+                <li key={s.title} className="grid grid-cols-[3.25rem_minmax(0,1fr)] gap-x-4 py-8 sm:grid-cols-[5rem_minmax(0,1fr)] sm:py-10">
+                  <span className="font-serif text-[48px] leading-[0.9] text-wine italic tabular-nums sm:text-[64px]">{i + 1}</span>
+                  <div>
+                    <h3 className="font-serif text-[26px] leading-tight font-medium sm:text-[32px]">{s.title}</h3>
+                    <p className="mt-3 max-w-lg leading-relaxed text-ink-soft">{s.text}</p>
                   </div>
-                  <p className="mt-4 leading-relaxed text-ink-soft">{s.text}</p>
                 </li>
               ))}
             </ol>
-            <p className="mt-12 font-serif text-2xl text-ink italic">{c.how.secret}</p>
           </div>
         </section>
 
@@ -260,7 +262,7 @@ export default async function LoveAdPage({ searchParams }: { searchParams: Promi
                     ))}
                   </div>
                   <p className="mt-4 text-left text-sm text-muted">{c.price.delivery}</p>
-                  <div className="mt-8 rounded-xl bg-rose/60 px-5 py-4 text-left">
+                  <div className="mt-8 rounded-(--r-ctl) bg-rose/60 px-5 py-4 text-left">
                     <div className="font-serif text-xl">{c.price.deadline}</div>
                     <TrackedLink href={wa} goal="contact" place="deadline" className="mt-1 inline-flex items-center gap-1.5 text-[15px] font-medium text-wine underline decoration-wine/30 underline-offset-4">
                       {c.price.deadlineCta}

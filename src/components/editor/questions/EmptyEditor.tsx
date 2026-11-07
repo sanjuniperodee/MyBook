@@ -15,8 +15,8 @@ export function EmptyEditor({ mode, bookId, editable, busy, onCreateChapter, onA
   const t = useMessages().editor.empty;
   const text = t[mode];
   return (
-    <article className="rounded-[28px] border border-line/70 bg-white px-6 py-10 text-center shadow-soft sm:px-10 sm:py-14">
-      <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-rose/70 text-wine">
+    <article className="rounded-[14px] border border-line bg-white px-6 py-10 text-center sm:px-10 sm:py-14">
+      <div className="mx-auto flex size-12 items-center justify-center rounded-[12px] bg-rose text-wine">
         <BookOpen className="size-6" />
       </div>
       <h1 className="mt-4 font-serif text-2xl font-medium text-ink sm:text-3xl">{text.title}</h1>

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ChevronRight, Copy, MessageCircle, Package, PhoneIncoming, PhoneMissed, PhoneOutgoing, UserRound } from "lucide-react";
 import { Panel } from "@/components/ui/Panel";
 import { Badge } from "@/components/ui/Badge";
+import { Facts } from "@/components/ui/Facts";
 import { StageLabel } from "../StageLabel";
 import type { Permission } from "@/shared/domain/permissions";
 import { channelLabel } from "@/modules/messaging";
@@ -46,7 +47,7 @@ export function Duplicates({ dealId, closed, duplicates }: { dealId: string; clo
       </section>
     );
   return (
-    <section className="rounded-[14px] border border-warning/30 bg-warning-bg px-4 py-3.5 sm:px-5" data-testid="duplicates">
+    <section className="rounded-[var(--r-panel)] border border-warning/30 bg-warning-bg px-4 py-3.5 sm:px-5" data-testid="duplicates">
       <h2 className="flex items-start gap-2 text-[15px] font-semibold text-warning">
         <Copy className="mt-0.5 size-4 shrink-0" aria-hidden /> Похоже на дубль: у этого контакта есть другие открытые сделки
       </h2>
@@ -116,9 +117,15 @@ export function DealBooks({ books, seen }: { books: { id: string; title: string 
   );
 }
 
-/** Связи сделки: канал привлечения, клиент (или предложить связать), заказ, переписки. */
-export function DealLinks({
+/**
+ * Контакт и связи сделки одним листом «подпись — значение»: телефон и почта (или маска), ответственный, «писать первым»,
+ * клиент (или предложить связать), заказ, переписки и канал привлечения. Ответственного и переключатель передаёт страница.
+ */
+export function DealContact({
   dealId,
+  extraPhones,
+  assignee,
+  noMarketing,
   channel,
   client,
   suggested,
@@ -127,9 +134,13 @@ export function DealLinks({
   canEdit,
   can,
   emailOf,
+  actions,
   children,
 }: {
   dealId: string;
+  extraPhones: string[];
+  assignee: React.ReactNode;
+  noMarketing: React.ReactNode;
   channel: Screen["channel"];
   client: { id: string; name: string | null; email: string } | null;
   suggested: { id: string; name: string | null; email: string } | null;
@@ -139,56 +150,78 @@ export function DealLinks({
   can: (p: Permission) => boolean;
   /** E-mail с учётом прав на контакты (маска). */
   emailOf: (email: string) => string;
-  /** Под связями: «Создать клиента на сайте», если клиента ещё нет. */
+  /** Верх листа: ссылка «Карточка клиента». */
+  actions?: React.ReactNode;
+  /** Скрытый контакт или обычные телефон и почта — как их показывает страница. */
   children?: React.ReactNode;
 }) {
-  const row = "flex min-h-11 items-center gap-2.5 rounded-lg px-2 -mx-2 hover:bg-sunken/60";
+  const link = "inline-flex min-h-8 max-w-full items-center gap-1.5 hover:text-wine";
   return (
-    <Panel title="Связи" className="text-sm">
-      <div className="space-y-1">
-        <div className="flex items-baseline justify-between gap-3 pb-1.5" data-testid="deal-channel">
-          <span className="text-muted">Канал</span>
-          <span className="min-w-0 text-right">
-            <span className="font-medium">{channel.label}</span>
-            {channel.details ? <span className="block truncate text-xs text-muted">{channel.details}</span> : null}
-          </span>
-        </div>
-        {client && can("clients.view") ? (
-          <Link href={`/admin/clients/${client.id}`} className={row}>
-            <UserRound className="size-4 shrink-0 text-muted" aria-hidden />
-            <span className="min-w-0 flex-1 truncate">
-              Клиент: <span className="font-medium">{client.name || emailOf(client.email)}</span>
-            </span>
-            <ChevronRight className="size-4 shrink-0 text-muted" aria-hidden />
-          </Link>
-        ) : suggested && canEdit && can("clients.view") ? (
-          <LinkClient dealId={dealId} client={{ id: suggested.id, label: suggested.name || emailOf(suggested.email) }} />
-        ) : (
-          <p className="py-1 text-muted">Клиент ещё не зарегистрирован на сайте — свяжем автоматически по телефону, когда он оформит заказ.</p>
-        )}
-        {order && can("orders.view") ? (
-          <Link href={`/admin/orders/${order.id}`} className={row}>
-            <Package className="size-4 shrink-0 text-muted" aria-hidden />
-            <span className="min-w-0 flex-1 truncate">
-              Заказ №{order.number} · <span className="tabular-nums">{formatPrice(order.amount)}</span>
-            </span>
-            <span className={cn("badge shrink-0", orderStatusColors[order.status])}>{orderStatusLabel(order.status, "ru", isPrintedPlan(order.plan))}</span>
-          </Link>
-        ) : null}
-        {convs.map((c) => (
-          <Link key={c.id} href={`/admin/chats?c=${c.id}`} className={row}>
-            <MessageCircle className="size-4 shrink-0 text-muted" aria-hidden />
-            <span className="min-w-0 flex-1 truncate">Переписка: {channelLabel(c.channel)}</span>
-            {c.unread ? (
-              <span className="badge badge-success tabular-nums" title={`Непрочитанных сообщений: ${c.unread}`}>
-                {c.unread}
+    <Panel title="Контакт и связи" actions={actions}>
+      <Facts
+        items={[
+          { label: "Контакт", value: children },
+          { label: "Ответственный", value: assignee },
+          { label: "Писать первым", value: noMarketing },
+          {
+            label: "Клиент",
+            value:
+              client && can("clients.view") ? (
+                <Link href={`/admin/clients/${client.id}`} className={link}>
+                  <UserRound className="size-4 shrink-0 text-muted" aria-hidden />
+                  <span className="truncate font-medium">{client.name || emailOf(client.email)}</span>
+                  <ChevronRight className="size-4 shrink-0 text-muted" aria-hidden />
+                </Link>
+              ) : suggested && canEdit && can("clients.view") ? (
+                <LinkClient dealId={dealId} client={{ id: suggested.id, label: suggested.name || emailOf(suggested.email) }} />
+              ) : (
+                <span className="text-muted">Ещё не зарегистрирован на сайте — свяжем по телефону, когда оформит заказ.</span>
+              ),
+          },
+          {
+            label: "Заказ",
+            hidden: !(order && can("orders.view")),
+            value: order ? (
+              <Link href={`/admin/orders/${order.id}`} className={link}>
+                <Package className="size-4 shrink-0 text-muted" aria-hidden />
+                <span className="truncate">
+                  №{order.number} · <span className="tabular-nums">{formatPrice(order.amount)}</span>
+                </span>
+                <span className={cn("badge shrink-0", orderStatusColors[order.status])}>{orderStatusLabel(order.status, "ru", isPrintedPlan(order.plan))}</span>
+              </Link>
+            ) : null,
+          },
+          {
+            label: "Переписка",
+            hidden: convs.length === 0,
+            value: (
+              <span className="flex flex-col">
+                {convs.map((c) => (
+                  <Link key={c.id} href={`/admin/chats?c=${c.id}`} className={link}>
+                    <MessageCircle className="size-4 shrink-0 text-muted" aria-hidden />
+                    <span className="truncate">{channelLabel(c.channel)}</span>
+                    {c.unread ? (
+                      <span className="count count-alert" title={`Непрочитанных сообщений: ${c.unread}`}>
+                        {c.unread}
+                      </span>
+                    ) : null}
+                  </Link>
+                ))}
               </span>
-            ) : null}
-            <ChevronRight className="size-4 shrink-0 text-muted" aria-hidden />
-          </Link>
-        ))}
-      </div>
-      {children ? <div className="mt-3 border-t border-line pt-3">{children}</div> : null}
+            ),
+          },
+          {
+            label: "Канал",
+            value: (
+              <span data-testid="deal-channel">
+                <span className="font-medium">{channel.label}</span>
+                {channel.details ? <span className="block truncate text-xs text-muted">{channel.details}</span> : null}
+              </span>
+            ),
+          },
+        ]}
+      />
+      {extraPhones.length ? <p className="mt-2 text-xs text-muted tabular-nums">Ещё телефоны: {extraPhones.join(", ")}</p> : null}
     </Panel>
   );
 }
@@ -196,29 +229,27 @@ export function DealLinks({
 /** Звонки по сделке, с записью — если есть право слушать. */
 export function DealCalls({ calls, canListen }: { calls: Screen["calls"]; canListen: boolean }) {
   return (
-    <Panel flush title="Звонки">
-      <ul className="divide-y divide-line text-sm">
-        {calls.map((c) => {
-          const Icon = callIcons[c.icon];
-          return (
-            <li key={c.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 sm:px-5">
-              <Icon className={cn("size-4 shrink-0", c.missed ? "text-danger" : "text-muted")} aria-hidden />
-              <span className="min-w-0 flex-1">
-                <span className={cn("block", c.missed && "text-danger")}>
-                  {c.label}
-                  {c.duration ? <span className="text-muted tabular-nums"> · {c.duration}</span> : null}
-                </span>
-                <span className="block text-xs text-muted">
-                  {c.when}
-                  {c.staff !== undefined ? ` · ${c.staff}` : ""}
-                </span>
+    <ul className="divide-y divide-line overflow-y-auto text-sm">
+      {calls.map((c) => {
+        const Icon = callIcons[c.icon];
+        return (
+          <li key={c.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
+            <Icon className={cn("size-4 shrink-0", c.missed ? "text-danger" : "text-muted")} aria-hidden />
+            <span className="min-w-0 flex-1">
+              <span className={cn("block", c.missed && "text-danger")}>
+                {c.label}
+                {c.duration ? <span className="text-muted tabular-nums"> · {c.duration}</span> : null}
               </span>
-              {c.hasRecording && canListen ? <audio controls preload="none" src={`/api/admin/calls/${c.id}/recording`} className="h-9 w-full sm:w-60" /> : null}
-            </li>
-          );
-        })}
-      </ul>
-    </Panel>
+              <span className="block text-xs text-muted">
+                {c.when}
+                {c.staff !== undefined ? ` · ${c.staff}` : ""}
+              </span>
+            </span>
+            {c.hasRecording && canListen ? <audio controls preload="none" src={`/api/admin/calls/${c.id}/recording`} className="h-9 w-full" /> : null}
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 

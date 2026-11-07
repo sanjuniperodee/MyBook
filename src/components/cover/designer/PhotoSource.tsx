@@ -35,7 +35,7 @@ export function PhotoSource({
             key={g}
             type="button"
             onClick={() => setGroup(g)}
-            className={cn("shrink-0 rounded-full px-2.5 py-1 text-xs transition", group === g ? "bg-ink text-white" : "bg-sunken text-ink-soft hover:bg-cream")}
+            className={cn("shrink-0 rounded-[var(--r-ctl)] px-2.5 py-1.5 text-xs transition pointer-coarse:min-h-10", group === g ? "bg-ink text-white" : "bg-sunken text-ink-soft hover:bg-cream")}
           >
             {g === "book" ? t.bookPhotos : t.stockGroups[g]}
           </button>
@@ -55,7 +55,7 @@ export function PhotoSource({
                       <Check className="size-3" />
                     </span>
                   ) : null}
-                  {p.width < 1800 ? <span className="absolute inset-x-0 bottom-0 bg-amber-500/90 py-px text-[9px] text-white">{m.books.cover.lowQuality}</span> : null}
+                  {p.width < 1800 ? <span className="absolute inset-x-0 bottom-0 bg-warning py-px text-[9px] text-white">{m.books.cover.lowQuality}</span> : null}
                 </button>
               );
             })}

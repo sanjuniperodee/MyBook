@@ -15,7 +15,7 @@ export function ResetForm({ token, whatsappUrl }: { token: string; whatsappUrl: 
   return (
     <form action={action} className="space-y-4">
       <input type="hidden" name="token" value={token} />
-      {state.error ? (
+      {state.error && state.field !== "password" ? (
         <Alert>
           {state.error}
           {state.expired ? (
@@ -28,7 +28,7 @@ export function ResetForm({ token, whatsappUrl }: { token: string; whatsappUrl: 
           ) : null}
         </Alert>
       ) : null}
-      <Field label={f.newPassword} hint={f.passwordHint}>
+      <Field label={f.newPassword} hint={f.passwordHint} error={state.field === "password" ? state.error : undefined}>
         <PasswordInput id="password" name="password" autoComplete="new-password" minLength={8} required />
       </Field>
       <SubmitButton className="btn-lg w-full">{t.submit}</SubmitButton>

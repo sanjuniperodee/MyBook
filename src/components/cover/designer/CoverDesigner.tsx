@@ -1,9 +1,10 @@
 "use client";
 
 /**
- * Конструктор обложки: слева — что добавить, макеты и фон; в центре — холст; справа — свойства выбранного слоя и
- * список слоёв. На телефоне — холст сверху, панели вкладками под ним. Панель инструментов: отмена и повтор,
- * дублировать, удалить, порядок слоёв, выравнивание, буфер стиля, закрепить, скрыть, масштаб холста.
+ * Конструктор обложки в раме студии: слева — ИИ, что добавить, макеты и фон; в центре — холст с панелью (отмена,
+ * дублировать, удалить, безопасная зона, сетка, масштаб); справа — свойства выбранного слоя (порядок, выравнивание,
+ * стиль, закрепить и скрыть — в их начале) и список слоёв. На телефоне — холст закреплён сверху, панели — вкладками
+ * листа под ним.
  */
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import {
@@ -27,6 +28,7 @@ import {
   Paintbrush,
   Redo2,
   ScanLine,
+  Sparkles,
   Trash2,
   TriangleAlert,
   Undo2,
@@ -40,6 +42,8 @@ import type { PhotoRef } from "@/lib/book/covers/svg-kit";
 import { getFormat } from "@/lib/book/formats";
 import { getCoverTemplate } from "@/lib/book/covers";
 import { cn } from "@/lib/class-names";
+import { PanelBody, StudioFrame, StudioStage } from "@/components/design/studio/Frame";
+import { StudioTabs, type StudioTab } from "@/components/design/studio/Tabs";
 import { AddPanel } from "./AddPanel";
 import { DesignerCanvas } from "./DesignerCanvas";
 import { LayersPanel } from "./LayersPanel";
@@ -73,8 +77,12 @@ export interface CoverDesignerProps {
   layouts?: (onPick: (design: CoverDesign, template?: string) => void) => ReactNode;
   /** Макет на рисунке шаблона — сменить шаблон книги. */
   onTemplate?: (id: string) => void;
-  /** Строка над холстом справа (сохранение). */
-  status?: ReactNode;
+  /** Панель студии над колонками (заголовок, режимы, сохранение) — её рисует редактор обложки. */
+  bar: ReactNode;
+  /** Вместо холста на сцене: обложка целиком или книга в объёме (холст и история правок остаются). */
+  stageSwap?: ReactNode;
+  /** Поверх сцены сверху: переключатели стороны и вида. */
+  stageOverlay?: ReactNode;
   /** Сторона: лицо или оборот (у оборота свой фон холста, безопасная зона у корешка справа, ИИ нет). */
   side?: CoverSide;
   /**
@@ -92,8 +100,6 @@ export interface CoverDesignerProps {
   underlay?: CoverLayer[];
   /** Цвета другой стороны — первыми в образцах (оборот в тон лица). */
   colors?: string[];
-  /** В начале липкой панели инструментов (переключатель сторон — виден, пока правишь холст). */
-  toolbarStart?: ReactNode;
 }
 
 export function CoverDesigner({
@@ -109,14 +115,15 @@ export function CoverDesigner({
   onBookText,
   layouts,
   onTemplate,
-  status,
+  bar,
+  stageSwap,
+  stageOverlay,
   side = "front",
   active = true,
   backdrop,
   baseColor,
   brand,
   colors = [],
-  toolbarStart,
   underlay,
 }: CoverDesignerProps) {
   const m = useMessages().design.cover;
@@ -130,6 +137,7 @@ export function CoverDesigner({
   const back = side === "back";
   const layer = findLayer(design, selected);
   const [tab, setTab] = useState<Tab>("add");
+  const [rightTab, setRightTab] = useState<"properties" | "layers">("properties");
   const [editing, setEditing] = useState<string | null>(null);
   const [cropping, setCropping] = useState<string | null>(null);
   const [showSafe, setShowSafe] = useState(true);
@@ -149,6 +157,7 @@ export function CoverDesigner({
     dz.commit((d) => addLayer(d, l));
     dz.select(l.id);
     setTab("properties");
+    setRightTab("properties");
   };
   const onText = (p: TextPreset) => add(newTextLayer(design, p, m.add.newText[p], safe, accent));
   const onImage = (src: { photoId?: string; stock?: string; aspect: number }) => {
@@ -302,18 +311,9 @@ export function CoverDesigner({
     ),
   };
   // ИИ-дизайнер правит лицо: на обороте его вкладки нет.
-  const leftTabs = (["add", "ai", "layouts", "background"] as Tab[]).filter((k) => (k !== "layouts" || layouts) && (k !== "ai" || !back));
-  const mobileTabs = (["add", "ai", "properties", "layers", "layouts", "background"] as Tab[]).filter((k) => (k !== "layouts" || layouts) && (k !== "ai" || !back));
-  const tabLabel = (k: Tab) => m.panels[k];
-  const tabBar = (list: Tab[], current: Tab, className?: string) => (
-    <div role="tablist" aria-label={m.panels.aria} className={cn("no-scrollbar flex gap-1 overflow-x-auto rounded-2xl bg-sunken p-1", className)}>
-      {list.map((k) => (
-        <button key={k} type="button" role="tab" aria-selected={current === k} onClick={() => setTab(k)} className={cn("h-9 shrink-0 rounded-xl px-3 text-sm transition", current === k ? "bg-white font-medium text-ink shadow-soft" : "text-muted hover:text-ink")}>
-          {tabLabel(k)}
-        </button>
-      ))}
-    </div>
-  );
+  const leftTabs = (["ai", "add", "layouts", "background"] as Tab[]).filter((k) => (k !== "layouts" || layouts) && (k !== "ai" || !back));
+  const mobileTabs = (["ai", "add", "properties", "layers", "layouts", "background"] as Tab[]).filter((k) => (k !== "layouts" || layouts) && (k !== "ai" || !back));
+  const tabDef = (list: Tab[]): StudioTab<Tab>[] => list.map((k) => ({ id: k, label: m.panels[k], icon: k === "ai" ? Sparkles : undefined, count: k === "layers" && design.layers.length ? design.layers.length : undefined }));
 
   const tool = (label: string, icon: ReactNode, onClick: () => void, disabled = false, pressed?: boolean) => (
     <button
@@ -323,141 +323,169 @@ export function CoverDesigner({
       aria-pressed={pressed}
       disabled={disabled}
       onClick={onClick}
-      className={cn("flex size-9 shrink-0 items-center justify-center rounded-lg text-ink-soft transition hover:bg-cream disabled:opacity-35 disabled:hover:bg-transparent", pressed && "bg-rose/70 text-wine")}
+      className={cn("flex size-9 shrink-0 items-center justify-center rounded-[var(--r-ctl)] text-ink-soft transition hover:bg-sunken disabled:opacity-35 disabled:hover:bg-transparent pointer-coarse:size-11", pressed && "bg-rose text-wine")}
     >
       {icon}
     </button>
   );
   const sep = <span aria-hidden className="mx-0.5 h-6 w-px shrink-0 bg-line" />;
   const noLayer = !layer || !editable;
-  const leftTab = leftTabs.includes(tab) ? tab : "add";
+  const leftTab = leftTabs.includes(tab) ? tab : leftTabs.includes("add") ? "add" : leftTabs[0];
 
-  return (
-    <div className="space-y-4">
-      {!editable ? <p className="rounded-xl bg-cream px-4 py-3 text-sm text-ink-soft">{m.readonly}</p> : null}
-      {/* Панель инструментов */}
-      <div className="no-scrollbar sticky top-16 z-20 flex items-center gap-0.5 overflow-x-auto rounded-2xl border border-line bg-white/95 p-1 shadow-soft backdrop-blur">
-        {toolbarStart ? (
-          <>
-            {toolbarStart}
-            {sep}
-          </>
-        ) : null}
-        {tool(tb.undo, <Undo2 className="size-4" />, dz.undo, !dz.canUndo || !editable)}
-        {tool(tb.redo, <Redo2 className="size-4" />, dz.redo, !dz.canRedo || !editable)}
-        {sep}
-        {tool(tb.duplicate, <CopyPlus className="size-4" />, act.duplicate, noLayer || full)}
-        {tool(tb.remove, <Trash2 className="size-4" />, act.remove, noLayer)}
-        {sep}
+  /** Действия над выбранным слоем: порядок, выравнивание, стиль, закрепить и скрыть — в начале свойств, а не на панели сцены. */
+  const layerTools = layer ? (
+    <div className="mb-4 space-y-1.5 rounded-[var(--r-panel)] bg-sunken p-1.5">
+      <div className="flex flex-wrap items-center gap-0.5">
         {tool(tb.front, <ArrowUpToLine className="size-4" />, () => act.z("front"), noLayer)}
         {tool(tb.forward, <ArrowUp className="size-4" />, () => act.z("up"), noLayer)}
         {tool(tb.backward, <ArrowDown className="size-4" />, () => act.z("down"), noLayer)}
         {tool(tb.back, <ArrowDownToLine className="size-4" />, () => act.z("back"), noLayer)}
         {sep}
+        {tool(layer.locked ? tb.unlock : tb.lock, layer.locked ? <Lock className="size-4" /> : <LockOpen className="size-4" />, () => act.toggle("locked"), noLayer, !!layer.locked)}
+        {tool(layer.hidden ? tb.show : tb.hide, layer.hidden ? <EyeOff className="size-4" /> : <Eye className="size-4" />, () => act.toggle("hidden"), noLayer, !!layer.hidden)}
+        {sep}
+        {tool(tb.copyStyle, <Paintbrush className="size-4" />, dz.copyStyleOf, noLayer)}
+        {tool(tb.pasteStyle, <ClipboardPaste className="size-4" />, dz.pasteStyleTo, noLayer || dz.styleClip?.kind !== layer.kind)}
+      </div>
+      <div className="flex flex-wrap items-center gap-0.5">
         {tool(`${tb.alignTitle}: ${tb.align.left}`, <AlignStartVertical className="size-4" />, () => act.align("left"), noLayer)}
         {tool(`${tb.alignTitle}: ${tb.align.center}`, <AlignCenterVertical className="size-4" />, () => act.align("center"), noLayer)}
         {tool(`${tb.alignTitle}: ${tb.align.right}`, <AlignEndVertical className="size-4" />, () => act.align("right"), noLayer)}
+        {sep}
         {tool(`${tb.alignTitle}: ${tb.align.top}`, <AlignStartHorizontal className="size-4" />, () => act.align("top"), noLayer)}
         {tool(`${tb.alignTitle}: ${tb.align.middle}`, <AlignCenterHorizontal className="size-4" />, () => act.align("middle"), noLayer)}
         {tool(`${tb.alignTitle}: ${tb.align.bottom}`, <AlignEndHorizontal className="size-4" />, () => act.align("bottom"), noLayer)}
-        {sep}
-        {tool(tb.copyStyle, <Paintbrush className="size-4" />, dz.copyStyleOf, noLayer)}
-        {tool(tb.pasteStyle, <ClipboardPaste className="size-4" />, dz.pasteStyleTo, noLayer || dz.styleClip?.kind !== layer?.kind)}
-        {tool(layer?.locked ? tb.unlock : tb.lock, layer?.locked ? <Lock className="size-4" /> : <LockOpen className="size-4" />, () => act.toggle("locked"), noLayer, !!layer?.locked)}
-        {tool(layer?.hidden ? tb.show : tb.hide, layer?.hidden ? <EyeOff className="size-4" /> : <Eye className="size-4" />, () => act.toggle("hidden"), noLayer, !!layer?.hidden)}
-        {sep}
-        {tool(tb.safe, <ScanLine className="size-4" />, () => setShowSafe((v) => !v), false, showSafe)}
-        {tool(tb.grid, <Grid3x3 className="size-4" />, () => setShowGrid((v) => !v), false, showGrid)}
+      </div>
+    </div>
+  ) : null;
+  const propsPanel = (
+    <>
+      {layerTools}
+      {panels.properties}
+    </>
+  );
+  const sheetPanel = tab === "properties" ? propsPanel : tab === "ai" ? null : panels[tab];
+  const rightTabs: StudioTab<"properties" | "layers">[] = [
+    { id: "properties", label: layer ? m.panels.properties : m.props.background.title },
+    { id: "layers", label: m.panels.layers, count: design.layers.length || undefined },
+  ];
+
+  /** Панель над сценой: отмена и повтор, копия и удаление слоя, безопасная зона, сетка и масштаб. */
+  const toolbar = (
+    <div className="no-scrollbar flex items-center gap-0.5 overflow-x-auto rounded-[var(--r-panel)] border border-line bg-white p-1">
+      {tool(tb.undo, <Undo2 className="size-4" />, dz.undo, !dz.canUndo || !editable)}
+      {tool(tb.redo, <Redo2 className="size-4" />, dz.redo, !dz.canRedo || !editable)}
+      {sep}
+      {tool(tb.duplicate, <CopyPlus className="size-4" />, act.duplicate, noLayer || full)}
+      {tool(tb.remove, <Trash2 className="size-4" />, act.remove, noLayer)}
+      {sep}
+      {tool(tb.safe, <ScanLine className="size-4" />, () => setShowSafe((v) => !v), false, showSafe)}
+      {tool(tb.grid, <Grid3x3 className="size-4" />, () => setShowGrid((v) => !v), false, showGrid)}
+      <span className="ml-auto flex shrink-0 items-center gap-0.5 pl-2">
         {tool(tb.zoomOut, <ZoomOut className="size-4" />, () => setZoom((z) => ZOOMS[Math.max(0, ZOOMS.indexOf(z) - 1)]), zoom === ZOOMS[0])}
-        <button type="button" onClick={() => setZoom(1)} className="h-9 shrink-0 rounded-lg px-1.5 text-xs text-muted tabular-nums hover:bg-cream" title={tb.fit}>
+        <button type="button" onClick={() => setZoom(1)} className="h-9 min-w-10 shrink-0 rounded-[var(--r-ctl)] px-1.5 text-xs text-muted tabular-nums hover:bg-sunken pointer-coarse:h-11" title={tb.fit}>
           {Math.round(zoom * 100)}%
         </button>
         {tool(tb.zoomIn, <ZoomIn className="size-4" />, () => setZoom((z) => ZOOMS[Math.min(ZOOMS.length - 1, ZOOMS.indexOf(z) + 1)]), zoom === ZOOMS[ZOOMS.length - 1])}
-        {status ? <div className="ml-auto shrink-0 pr-2 pl-3">{status}</div> : null}
-      </div>
+      </span>
+    </div>
+  );
 
-      <div className="grid gap-5 lg:grid-cols-[280px_minmax(0,1fr)_320px] lg:items-start">
-        {/* Слева: добавить, макеты, фон */}
-        <aside className="hidden max-h-[calc(100dvh-9rem)] space-y-4 overflow-y-auto pr-1 lg:sticky lg:top-32 lg:block">
-          {tabBar(leftTabs, leftTab)}
-          {panels[leftTab]}
-        </aside>
-
-        {/* Холст */}
-        <div className="min-w-0">
-          {unsafe.length ? (
-            <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl bg-warning-bg px-3 py-2 text-sm text-warning">
-              <TriangleAlert className="size-4 shrink-0" />
-              <span>{m.warnings.unsafe}</span>
-              <button
-                type="button"
-                className="font-medium underline-offset-2 hover:underline"
-                onClick={() => {
-                  dz.select(unsafe[0].id);
-                  setTab("properties");
-                }}
-              >
-                {m.warnings.show}
-              </button>
-            </div>
-          ) : null}
-          <div className="overflow-auto rounded-[24px] bg-sunken px-3 pt-12 pb-6 sm:px-8">
-            <div className="mx-auto" style={{ width: `${zoom * 100}%`, maxWidth: zoom === 1 ? `calc(74dvh * ${g.width / g.height})` : undefined }}>
-              <DesignerCanvas
-                dz={dz}
-                template={template}
-                format={format.id}
-                texts={texts}
-                photos={templatePhotos}
-                bookPhotos={bookPhotos}
-                editable={editable}
-                showSafe={showSafe}
-                showGrid={showGrid}
-                editing={editing}
-                setEditing={setEditing}
-                cropping={cropping}
-                setCropping={(id) => {
-                  setCropping(id);
-                  if (id) dz.select(id);
-                }}
-                onBookText={onBookText}
-                side={side}
-                backdrop={backdrop}
-                underlay={underlay}
-                brand={brand}
-                labels={{ aria: back ? m.canvas.ariaBack : m.canvas.aria, wrap: m.canvas.wrap, spine: m.canvas.spine, rotate: m.canvas.rotate, resize: m.canvas.resize, editText: m.canvas.editText, image: m.canvas.image, placeholders: m.canvas.placeholders }}
-              />
-            </div>
-          </div>
-          {cropping ? (
-            <div className="mt-3 flex flex-wrap items-center justify-center gap-3 text-sm text-muted">
-              <span>{m.props.image.cropHint}</span>
-              <button type="button" className="btn btn-dark btn-sm" onClick={() => setCropping(null)}>
-                {m.props.image.cropDone}
-              </button>
-            </div>
-          ) : (
-            <p className="mt-3 text-center text-xs text-muted max-lg:hidden">{m.canvas.hint}</p>
-          )}
-          {/* Телефон и планшет: панели вкладками под холстом */}
-          <div className="mt-5 space-y-4 lg:hidden">
-            {tabBar(mobileTabs, tab)}
-            {panels[tab]}
-          </div>
-        </div>
-
-        {/* Справа: свойства и слои */}
-        <aside className="hidden max-h-[calc(100dvh-9rem)] space-y-6 overflow-y-auto pr-1 lg:sticky lg:top-32 lg:block">
-          <div>
-            <h3 className="mb-3 text-sm font-semibold">{layer ? m.panels.properties : m.props.background.title}</h3>
-            {layer ? panels.properties : panels.background}
-          </div>
-          <div>
-            <h3 className="mb-3 text-sm font-semibold">{m.panels.layers}</h3>
-            {panels.layers}
-          </div>
-        </aside>
+  const canvas = (
+    <div className="absolute inset-0 overflow-auto px-3 pt-14 pb-4 sm:px-6" hidden={!!stageSwap}>
+      <div className="mx-auto" style={{ width: zoom === 1 ? `min(100%, calc((100cqh - 4.5rem) * ${g.width / g.height}))` : `${zoom * 100}%` }}>
+        <DesignerCanvas
+          dz={dz}
+          template={template}
+          format={format.id}
+          texts={texts}
+          photos={templatePhotos}
+          bookPhotos={bookPhotos}
+          editable={editable}
+          showSafe={showSafe}
+          showGrid={showGrid}
+          editing={editing}
+          setEditing={setEditing}
+          cropping={cropping}
+          setCropping={(id) => {
+            setCropping(id);
+            if (id) dz.select(id);
+          }}
+          onBookText={onBookText}
+          side={side}
+          backdrop={backdrop}
+          underlay={underlay}
+          brand={brand}
+          labels={{ aria: back ? m.canvas.ariaBack : m.canvas.aria, wrap: m.canvas.wrap, spine: m.canvas.spine, rotate: m.canvas.rotate, resize: m.canvas.resize, editText: m.canvas.editText, image: m.canvas.image, placeholders: m.canvas.placeholders }}
+        />
       </div>
     </div>
+  );
+  /** Сообщения поверх сцены внизу: слой у края (может уйти под загиб) или подсказка кадрирования. */
+  const note = cropping ? (
+    <div className="absolute inset-x-3 bottom-3 flex flex-wrap items-center justify-center gap-2 rounded-[var(--r-panel)] bg-white/95 px-3 py-2 text-xs text-ink-soft">
+      <span>{m.props.image.cropHint}</span>
+      <button type="button" className="btn btn-dark btn-sm" onClick={() => setCropping(null)}>
+        {m.props.image.cropDone}
+      </button>
+    </div>
+  ) : unsafe.length ? (
+    <div className="absolute inset-x-3 bottom-3 flex flex-wrap items-center gap-2 rounded-[var(--r-panel)] bg-warning-bg px-3 py-2 text-[13px] text-warning">
+      <TriangleAlert className="size-4 shrink-0" />
+      <span>{m.warnings.unsafe}</span>
+      <button
+        type="button"
+        className="font-medium underline-offset-2 hover:underline"
+        onClick={() => {
+          dz.select(unsafe[0].id);
+          setTab("properties");
+          setRightTab("properties");
+        }}
+      >
+        {m.warnings.show}
+      </button>
+    </div>
+  ) : null;
+
+  return (
+    <StudioFrame
+      bar={bar}
+      leftWidth={320}
+      rightWidth={320}
+      leftOnMobile={!back && tab === "ai"}
+      left={
+        <PanelBody tabs={<StudioTabs tabs={tabDef(leftTabs)} value={leftTab} onChange={setTab} label={m.panels.aria} />}>
+          {!editable ? <p className="mb-3 rounded-[var(--r-ctl)] bg-cream px-3 py-2 text-[13px] text-ink-soft">{m.readonly}</p> : null}
+          {panels[leftTab]}
+        </PanelBody>
+      }
+      right={
+        <PanelBody tabs={<StudioTabs tabs={rightTabs} value={rightTab} onChange={setRightTab} label={m.panels.aria} />}>{rightTab === "layers" ? panels.layers : propsPanel}</PanelBody>
+      }
+      stage={
+        <StudioStage
+          toolbar={toolbar}
+          overlay={
+            <>
+              {stageOverlay}
+              {stageSwap}
+              {stageSwap ? null : note}
+            </>
+          }
+          foot={<p className="hidden text-center text-xs text-muted lg:block">{m.canvas.hint}</p>}
+        >
+          {canvas}
+        </StudioStage>
+      }
+      mobileTabs={<StudioTabs tabs={tabDef(mobileTabs)} value={tab} onChange={setTab} label={m.panels.aria} />}
+      sheet={
+        !back && tab === "ai" ? undefined : (
+          <>
+            {!editable ? <p className="mb-3 rounded-[var(--r-ctl)] bg-cream px-3 py-2 text-[13px] text-ink-soft">{m.readonly}</p> : null}
+            {sheetPanel}
+          </>
+        )
+      }
+    />
   );
 }

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { ArrowRight, LoaderCircle, Zap } from "lucide-react";
+import { ArrowRight, LoaderCircle } from "lucide-react";
+import { Panel } from "@/components/ui/Panel";
 import { toast } from "@/components/ui/overlays";
 import { entryGroups, stageMilestones } from "@/modules/sales/domain/meta";
 import { saveEntryStageAction, saveStageAction } from "../actions";
@@ -68,25 +69,13 @@ export function RoutingPanel({ pipelineId, stages, entry, showEntry }: { pipelin
     });
 
   return (
-    <section className="panel panel-body space-y-5" data-testid="funnel-routing">
-      <div className="flex items-start gap-3">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-rose text-wine">
-          <Zap className="size-5" strokeWidth={1.8} aria-hidden />
-        </span>
-        <div className="min-w-0 flex-1">
-          <h2 className="panel-title">Что куда падает</h2>
-          <p className="mt-0.5 text-sm text-muted">Выберите, на какой этап попадает сделка при каждом действии. Сделка по действиям клиента идёт только вперёд — назад сама не вернётся.</p>
-        </div>
-        {pending ? <LoaderCircle className="mt-1 size-4 animate-spin text-muted" aria-hidden /> : null}
-      </div>
-
+    <div className="flex flex-col gap-5" data-testid="funnel-routing">
       {showEntry ? (
-        <div>
-          <h3 className="mb-2 text-sm font-medium text-ink-soft">Новая заявка</h3>
-          <div className="divide-y divide-line rounded-[10px] border border-line">
+        <Panel id="entry" title="Новая заявка" description="На какой этап попадает сделка, когда заявка пришла из канала" actions={pending ? <LoaderCircle className="size-4 animate-spin text-muted" aria-hidden /> : null} flush>
+          <div className="divide-y divide-line">
             {Object.entries(entryGroups).map(([group, label]) => (
               <Row key={group} label={label} busy={busy === group}>
-                <select value={entryMap[group] ?? ""} onChange={(e) => setEntry(group, e.target.value)} className="input h-9 w-full text-sm sm:w-56" aria-label={label} disabled={pending}>
+                <select value={entryMap[group] ?? ""} onChange={(e) => setEntry(group, e.target.value)} className="input w-full sm:w-56" aria-label={label} disabled={pending}>
                   <option value="">первый этап воронки</option>
                   {open.map((s) => (
                     <option key={s.id} value={s.id}>
@@ -97,17 +86,16 @@ export function RoutingPanel({ pipelineId, stages, entry, showEntry }: { pipelin
               </Row>
             ))}
           </div>
-        </div>
+        </Panel>
       ) : null}
 
-      <div>
-        <h3 className="mb-2 text-sm font-medium text-ink-soft">Действия клиента на сайте</h3>
-        <div className="divide-y divide-line rounded-[10px] border border-line">
+      <Panel id="milestones" title="Действия клиента на сайте" description="Сделка по действиям клиента идёт только вперёд — назад сама не вернётся" flush>
+        <div className="divide-y divide-line">
           {Object.entries(stageMilestones).map(([milestone, label]) => {
             const current = stages.find((s) => s.milestone === milestone)?.id ?? "";
             return (
               <Row key={milestone} label={label} busy={busy === milestone}>
-                <select value={current} onChange={(e) => setMilestone(milestone, e.target.value)} className="input h-9 w-full text-sm sm:w-56" aria-label={label} disabled={pending}>
+                <select value={current} onChange={(e) => setMilestone(milestone, e.target.value)} className="input w-full sm:w-56" aria-label={label} disabled={pending}>
                   <option value="">не двигать сделку</option>
                   {forward.map((s) => (
                     <option key={s.id} value={s.id}>
@@ -120,15 +108,15 @@ export function RoutingPanel({ pipelineId, stages, entry, showEntry }: { pipelin
             );
           })}
         </div>
-        <p className="hint mt-2">На одном этапе — одно действие: выбрав занятый этап, вы переносите на него действие, а прежнее перестанет двигать сделку.</p>
-      </div>
-    </section>
+        <p className="hint border-t border-line px-4 py-2.5 sm:px-5">На одном этапе — одно действие: выбрав занятый этап, вы переносите на него действие, а прежнее перестанет двигать сделку.</p>
+      </Panel>
+    </div>
   );
 }
 
 function Row({ label, busy, children }: { label: string; busy: boolean; children: React.ReactNode }) {
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3.5 py-2.5">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5 sm:px-5">
       <span className="min-w-0 flex-1 text-sm">{label}</span>
       <ArrowRight className="hidden size-4 shrink-0 text-muted sm:block" aria-hidden />
       <div className="flex w-full items-center gap-2 sm:w-auto">

@@ -1,13 +1,11 @@
 "use client";
 
 import { useActionState } from "react";
-import { SubmitButton } from "@/components/ui/SubmitButton";
+import { CheckCircle2 } from "lucide-react";
 import { Alert } from "@/components/ui/Alert";
-import { Badge } from "@/components/ui/Badge";
-import { Field } from "@/components/ui/Field";
-import { Panel } from "@/components/ui/Panel";
 import { formatPhone } from "@/shared/domain/phone";
 import type { SellerDetails } from "@/config/site";
+import { Actions, Field, Group, SaveButton, Section } from "../settings/ui";
 import { saveSellerAction, type SiteState } from "./actions";
 
 const fields: { key: keyof SellerDetails; label: string; hint: string; inputMode?: "numeric" | "tel" }[] = [
@@ -23,37 +21,43 @@ const shown = (key: keyof SellerDetails, v: string) => (key === "phone" || key =
 export function SellerForm({ values, factory }: { values: Partial<SellerDetails>; factory: SellerDetails }) {
   const [state, action] = useActionState<SiteState, FormData>(saveSellerAction, {});
   const missing = fields.filter((f) => !values[f.key]);
+  const row = (keys: (keyof SellerDetails)[]) => keys.map((k) => fields.find((f) => f.key === k)!);
+  const field = (f: (typeof fields)[number]) => (
+    <Field key={f.key} label={f.label} hint={f.hint}>
+      <input name={f.key} defaultValue={values[f.key] ? shown(f.key, values[f.key]!) : ""} inputMode={f.inputMode} className="input" />
+    </Field>
+  );
   return (
-    <Panel
+    <Section
+      id="seller"
       title="Реквизиты продавца"
       description="Их видят клиенты: оферта, футер сайта, страница сертификата, оплата и упаковочный лист"
-      actions={missing.length ? <Badge tone="warning">не заполнено {missing.length}</Badge> : <Badge tone="success" dot>заполнены</Badge>}
+      status={missing.length ? { tone: "warn", label: `не заполнено ${missing.length}` } : { tone: "ok", label: "заполнены" }}
     >
-      <form action={action} className="space-y-4" data-testid="seller-form">
+      <form action={action} className="space-y-5" data-testid="seller-form">
         {missing.length ? (
-          <Alert kind="warning">
+          <Alert kind="warning" className="max-w-[40rem]">
             <span data-testid="seller-missing">
               Не заполнено: {missing.map((f) => f.label).join(", ")}. На сайте сейчас заглушка — {missing.map((f) => `«${shown(f.key, factory[f.key])}»`).join(", ")}.
             </span>
           </Alert>
         ) : null}
-        <div className="grid gap-x-4 gap-y-4 sm:grid-cols-2">
-          {fields.map((f) => (
-            <Field key={f.key} label={f.label} hint={f.hint}>
-              <input name={f.key} defaultValue={values[f.key] ? shown(f.key, values[f.key]!) : ""} inputMode={f.inputMode} className="input h-10 text-sm" />
-            </Field>
-          ))}
-        </div>
+        <Group title="Юридическое лицо" hint="Оферта, футер сайта, упаковочный лист.">
+          {row(["legalName", "bin"]).map(field)}
+        </Group>
+        <Group title="Связь с магазином" hint="Телефон и WhatsApp, которые видят клиенты.">
+          {row(["phone", "whatsapp"]).map(field)}
+        </Group>
         {state.error ? <Alert>{state.error}</Alert> : null}
-        {state.ok ? (
-          <Alert kind="success">
-            <span data-testid="seller-saved">{state.ok}</span>
-          </Alert>
-        ) : null}
-        <div className="border-t border-line pt-4">
-          <SubmitButton className="h-10 text-sm">Сохранить реквизиты</SubmitButton>
-        </div>
+        <Actions>
+          <SaveButton>Сохранить реквизиты</SaveButton>
+          {state.ok ? (
+            <span role="status" className="inline-flex items-center gap-1.5 text-sm text-success">
+              <CheckCircle2 className="size-4 shrink-0" aria-hidden /> <span data-testid="seller-saved">{state.ok}</span>
+            </span>
+          ) : null}
+        </Actions>
       </form>
-    </Panel>
+    </Section>
   );
 }

@@ -1,3 +1,4 @@
+import { ArrowDownRight, ArrowUpRight } from "lucide-react";
 import { formatPrice } from "@/config/site";
 import { cn } from "@/lib/class-names";
 
@@ -147,12 +148,13 @@ export function StatTile({ label, value, delta, goodWhenUp = true, hint, bare, h
   const good = hasDelta && (delta === 0 ? null : up === goodWhenUp);
   const body = (
     <>
-      <div className="text-sm text-muted">{label}</div>
-      <div className="mt-1.5 text-[26px] leading-tight font-semibold tracking-tight tabular-nums">{value}</div>
+      <div className="text-[13px] text-muted">{label}</div>
+      <div className="mt-1 text-2xl leading-tight font-semibold tracking-[-0.02em] tabular-nums">{value}</div>
       <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
         {hasDelta ? (
-          <span className={cn("badge", good === null ? "" : good ? "badge-success" : "badge-danger")}>
-            {delta! > 0 ? "+" : delta! < 0 ? "−" : ""}
+          <span className={cn("inline-flex items-center gap-0.5 font-semibold tabular-nums", good === null ? "text-muted" : good ? "text-success" : "text-danger")}>
+            {delta! > 0 ? <ArrowUpRight className="size-3.5" aria-hidden /> : delta! < 0 ? <ArrowDownRight className="size-3.5" aria-hidden /> : null}
+            {delta! < 0 ? "−" : ""}
             {Math.abs(Math.round(delta! * 100))}%
           </span>
         ) : null}
@@ -176,5 +178,5 @@ export function StatTile({ label, value, delta, goodWhenUp = true, hint, bare, h
  */
 export function StatRow({ children, cols = 4, className }: { children: React.ReactNode; cols?: 2 | 3 | 4 | 5; className?: string }) {
   const grid = { 2: "sm:grid-cols-2", 3: "sm:grid-cols-3", 4: "sm:grid-cols-2 xl:grid-cols-4", 5: "sm:grid-cols-3 xl:grid-cols-5" }[cols];
-  return <div className={cn("grid grid-cols-2 gap-px overflow-hidden rounded-[14px] border border-line bg-line", grid, className)}>{children}</div>;
+  return <div className={cn("grid grid-cols-2 gap-px overflow-hidden rounded-[var(--r-panel)] border border-line bg-line", grid, className)}>{children}</div>;
 }

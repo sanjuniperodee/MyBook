@@ -138,7 +138,7 @@ export function GallerySheet({ data, on, onClose, layer }: { data: PlaceData; on
       ) : (
         <>
           <p className="text-sm leading-relaxed text-ink-soft">{g.text}</p>
-          {noChapters ? <p className="mt-2 rounded-xl bg-sunken px-3 py-2 text-sm text-ink-soft">{book.blank ? g.noChaptersBlank : g.noChapters}</p> : null}
+          {noChapters ? <p className="mt-2 rounded-[10px] bg-sunken px-3 py-2 text-sm text-ink-soft">{book.blank ? g.noChaptersBlank : g.noChapters}</p> : null}
 
           <label className="mt-4 block">
             <span className="label">{g.field}</span>
@@ -167,17 +167,17 @@ export function GallerySheet({ data, on, onClose, layer }: { data: PlaceData; on
                           type="button"
                           onClick={() => setPlaceFor(p.id)}
                           aria-label={m.editor.photoPlace.aria(label(place))}
-                          className={cn("relative block aspect-square w-full overflow-hidden rounded-xl bg-cream", auto ? "ring-2 ring-dashed ring-wine/40" : "ring-1 ring-line")}
+                          className={cn("relative block aspect-square w-full overflow-hidden rounded-[10px] bg-cream", auto ? "outline-1 outline-offset-2 outline-line-strong outline-dashed" : "ring-1 ring-line")}
                         >
                           {/* eslint-disable-next-line @next/next/no-img-element -- фото клиента */}
                           <img src={photoUrl(p.id)} alt="" className="absolute inset-0 size-full object-cover" loading="lazy" />
                         </button>
-                        {auto ? <span className="absolute top-1.5 left-1.5 rounded-full bg-white/90 px-1.5 py-0.5 text-[10px] font-medium text-ink-soft">{cp.autoChip}</span> : null}
+                        {auto ? <span className="absolute top-1.5 left-1.5 rounded-md bg-white/95 px-1.5 py-0.5 ring-1 ring-line text-[10px] font-medium text-ink-soft">{cp.autoChip}</span> : null}
                         {book.editable ? (
                           <button
                             type="button"
                             onClick={() => removePhoto(p.id)}
-                            className="absolute -top-1.5 -right-1.5 flex size-9 items-center justify-center rounded-full bg-white text-muted shadow ring-1 ring-line hover:text-ink"
+                            className="absolute -top-1.5 -right-1.5 flex size-10 items-center justify-center rounded-md bg-white text-muted ring-1 ring-line hover:text-ink focus-visible:outline-2 focus-visible:outline-wine"
                             aria-label={g.removePhotoAria}
                           >
                             <X className="size-4" />
@@ -190,7 +190,7 @@ export function GallerySheet({ data, on, onClose, layer }: { data: PlaceData; on
                 })}
               </ul>
             ) : (
-              <p className="rounded-xl border border-dashed border-line px-4 py-6 text-center text-sm text-muted">{g.empty}</p>
+              <p className="rounded-[10px] border border-dashed border-line px-4 py-6 text-center text-sm text-muted">{g.empty}</p>
             )}
             {book.editable ? (
               <button type="button" className="btn btn-outline mt-4 w-full sm:w-auto" onClick={() => setChoosing(true)}>

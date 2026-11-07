@@ -3,7 +3,7 @@ import { Gift, TriangleAlert } from "lucide-react";
 import { LandingHeader } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
 import { GiftCardVisual } from "@/components/GiftCardVisual";
-import { Flourish } from "@/components/landing/FilmFrame";
+import { FilmFrame, Flourish } from "@/components/landing/FilmFrame";
 import { getCurrentUser } from "@/server/auth";
 import { container } from "@/server/container";
 import { getLocale, getMessages } from "@/i18n/server";
@@ -23,55 +23,58 @@ export default async function RedeemPage({ searchParams }: { searchParams: Promi
   const check = code ? await ordering.promos.check(code) : null;
   const gift = check?.ok ? await ordering.queries.giftByPromo(check.promo.id) : null;
 
+  // Подарок найден — страница-«кадр»: одно действие, ничего лишнего. Без кода — спокойный ввод на бумаге.
+  if (gift && check?.ok) {
+    const card = <GiftCardVisual locale={gift.locale} plan={gift.plan} recipientName={gift.recipientName} buyerName={gift.buyerName} message={gift.message} code={check.promo.code} className="w-full max-w-[34rem]" />;
+    return (
+      <>
+        <LandingHeader loggedIn={!!user} overlay />
+        <FilmFrame photo="postcards" position="50% 45%" priority aside={<div className="w-[30rem]">{card}</div>} label={t.title}>
+          <div className="max-w-xl">
+            <div className="text-sm font-medium text-white/75">{t.forYou}</div>
+            <h1 className="mt-3 font-serif text-[40px] leading-[1.05] font-medium text-balance sm:text-6xl">{t.headline(gift.recipientName, gift.buyerName)}</h1>
+            <Flourish className="mt-3 text-white/55" />
+            <p className="mt-5 text-[17px] leading-relaxed text-white/85 sm:text-lg">{t.text(planName(gift.plan, locale))}</p>
+            <div className="mt-8 lg:hidden">{card}</div>
+            <form action={activateGiftAction} className="mt-8">
+              <input type="hidden" name="code" value={check.promo.code} />
+              <button className="btn btn-primary btn-lg w-full sm:w-auto">
+                <Gift className="size-5" /> {t.start}
+              </button>
+            </form>
+            <p className="mt-4 text-sm text-white/70">{t.pace}</p>
+          </div>
+        </FilmFrame>
+        <Footer />
+      </>
+    );
+  }
+
   return (
     <>
       <LandingHeader loggedIn={!!user} />
       <main className="pt-28 pb-24 sm:pt-40">
-        <div className="container-x max-w-5xl">
-          {gift && check?.ok ? (
-            <div className="grid items-center gap-12 lg:grid-cols-2">
-              <GiftCardVisual locale={gift.locale} plan={gift.plan} recipientName={gift.recipientName} buyerName={gift.buyerName} message={gift.message} code={check.promo.code} className="rotate-[-1.5deg]" />
-              <div>
-                <div className="text-sm text-muted">{t.forYou}</div>
-                <h1 className="mt-3 font-serif text-[40px] leading-[1.06] font-medium text-balance sm:text-5xl">
-                  {t.headline(gift.recipientName, gift.buyerName)}
-                </h1>
-                <p className="mt-5 text-lg leading-relaxed text-ink-soft">
-                  {t.text(planName(gift.plan, locale))}
-                </p>
-                <form action={activateGiftAction} className="mt-8">
-                  <input type="hidden" name="code" value={check.promo.code} />
-                  <button className="btn btn-primary btn-lg">
-                    <Gift className="size-5" /> {t.start}
-                  </button>
-                </form>
-                <p className="mt-3 text-sm text-muted">{t.pace}</p>
-              </div>
-            </div>
+        <div className="container-x max-w-xl">
+          <h1 className="font-serif text-[40px] leading-[1.04] font-medium text-balance sm:text-6xl">{t.title}</h1>
+          <Flourish className="mt-3 text-wine/45" />
+          <p className="mt-5 text-lg leading-relaxed text-ink-soft">{t.enter}</p>
+          {code && check && !check.ok ? (
+            <p role="alert" className="mt-6 flex items-start gap-2 border-l-[3px] border-danger bg-danger-bg px-4 py-3 text-sm text-danger">
+              <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden /> {m.checkout.promo[check.error]}
+            </p>
+          ) : null}
+          {error === "limit" ? <p role="alert" className="mt-6 border-l-[3px] border-danger bg-danger-bg px-4 py-3 text-sm text-danger">{t.limit}</p> : null}
+          {check?.ok && !gift ? (
+            <form action={activateGiftAction} className="mt-8 border-y border-line py-6">
+              <input type="hidden" name="code" value={check.promo.code} />
+              <p className="leading-relaxed">{t.promoOk}</p>
+              <button className="btn btn-primary btn-lg mt-5 w-full sm:w-auto">{t.start}</button>
+            </form>
           ) : (
-            <div className="mx-auto max-w-xl text-center">
-              <h1 className="font-serif text-[42px] leading-[1.04] font-medium text-balance sm:text-6xl">{t.title}</h1>
-              <Flourish className="mx-auto mt-3 text-wine/45" />
-              <p className="mt-4 text-lg text-ink-soft">{t.enter}</p>
-              {code && check && !check.ok ? (
-                <p className="mt-6 flex items-center justify-center gap-2 text-sm text-danger">
-                  <TriangleAlert className="size-4" /> {m.checkout.promo[check.error]}
-                </p>
-              ) : null}
-              {error === "limit" ? <p className="mt-6 text-sm text-danger">{t.limit}</p> : null}
-              {check?.ok && !gift ? (
-                <form action={activateGiftAction} className="mt-8 rounded-[14px] border border-line bg-white p-6">
-                  <input type="hidden" name="code" value={check.promo.code} />
-                  <p className="text-sm">{t.promoOk}</p>
-                  <button className="btn btn-primary mt-4">{t.start}</button>
-                </form>
-              ) : (
-                <form className="mt-8 flex flex-col gap-3 sm:flex-row" action={localizePath("/redeem", locale)}>
-                  <input name="code" defaultValue={code} className="input h-13 flex-1 text-center text-base font-medium tracking-widest uppercase" placeholder="GIFT-XXXX-XXXX" required maxLength={40} aria-label={t.codeAria} />
-                  <button className="btn btn-primary btn-lg">{t.check}</button>
-                </form>
-              )}
-            </div>
+            <form className="mt-8 space-y-3" action={localizePath("/redeem", locale)}>
+              <input name="code" defaultValue={code} className="input h-14 text-center text-lg font-medium tracking-widest uppercase" placeholder="GIFT-XXXX-XXXX" required maxLength={40} aria-label={t.codeAria} autoComplete="off" autoCapitalize="characters" spellCheck={false} />
+              <button className="btn btn-primary btn-lg w-full">{t.check}</button>
+            </form>
           )}
         </div>
       </main>

@@ -165,15 +165,15 @@ export function PhotoPicker({
         asking && askedPhoto ? (
           <div className="flex items-start gap-3" role="alertdialog" aria-label={blank ? t.confirmTitleBlank : t.confirmTitle} data-testid="picker-confirm">
             {/* eslint-disable-next-line @next/next/no-img-element -- фото клиента */}
-            <img src={photoUrl(askedPhoto.id)} alt="" className="size-14 shrink-0 rounded-xl bg-cream object-cover ring-1 ring-line" />
+            <img src={photoUrl(askedPhoto.id)} alt="" className="size-14 shrink-0 rounded-[10px] bg-cream object-cover ring-1 ring-line" />
             <div className="min-w-0 flex-1">
               <div className="text-sm font-semibold">{asking.confirm.kind === "answer" ? (blank ? m.editor.chapterPhoto.confirmAnswerTitleBlank : m.editor.chapterPhoto.confirmAnswerTitle) : blank ? t.confirmTitleBlank : t.confirmTitle}</div>
               <p className="mt-0.5 text-sm leading-snug text-muted">{askText(asking.confirm)}</p>
               <div className="mt-3 flex gap-2">
-                <button type="button" className="btn btn-primary h-11 flex-1" onClick={() => void attach(asking.id)}>
+                <button type="button" className="btn btn-primary flex-1" onClick={() => void attach(asking.id)}>
                   {t.move}
                 </button>
-                <button type="button" className="btn btn-ghost h-11 flex-1" onClick={() => setAsking(null)}>
+                <button type="button" className="btn btn-ghost flex-1" onClick={() => setAsking(null)}>
                   {t.cancel}
                 </button>
               </div>
@@ -190,7 +190,7 @@ export function PhotoPicker({
       <input ref={input} type="file" accept={PHOTO_ACCEPT} multiple className="hidden" onChange={(e) => void send([...(e.target.files ?? [])])} />
       <button
         type="button"
-        className="mt-4 flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-line bg-cream/30 px-4 text-sm font-medium text-ink hover:bg-sunken disabled:opacity-60"
+        className="mt-4 flex min-h-14 w-full items-center justify-center gap-2 rounded-[10px] border border-dashed border-line-strong bg-white px-4 text-sm font-medium text-ink transition hover:border-wine/60 hover:bg-sunken focus-visible:outline-2 focus-visible:outline-wine disabled:opacity-60"
         onClick={() => input.current?.click()}
         disabled={!!progress}
       >
@@ -212,12 +212,12 @@ export function PhotoPicker({
                   type="button"
                   onClick={() => pick(p)}
                   aria-pressed={on}
-                  className={cn("relative block aspect-square w-full overflow-hidden rounded-xl bg-cream ring-offset-2 ring-offset-white transition", on ? "ring-2 ring-wine" : asking?.id === p.id ? "ring-2 ring-ink" : "ring-1 ring-line hover:ring-ink/30")}
+                  className={cn("relative block aspect-square w-full overflow-hidden rounded-[10px] bg-cream ring-offset-2 ring-offset-white transition focus-visible:outline-2 focus-visible:outline-wine", on ? "ring-2 ring-wine" : asking?.id === p.id ? "ring-2 ring-ink" : "ring-1 ring-line hover:ring-line-strong")}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element -- фото клиента */}
                   <img src={photoUrl(p.id)} alt={p.caption} className="absolute inset-0 size-full object-cover" loading="lazy" />
                   {on ? (
-                    <span className="absolute top-1.5 right-1.5 flex size-6 items-center justify-center rounded-full bg-wine text-white">
+                    <span className="absolute top-1.5 right-1.5 flex size-6 items-center justify-center rounded-md bg-wine text-white">
                       <Check className="size-3.5" />
                     </span>
                   ) : null}

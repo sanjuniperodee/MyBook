@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { cn } from "@/lib/class-names";
+import { ScrollActive } from "../settings/ScrollActive";
 
+/** Разделы «Команды»: подчёркнутая активная вкладка (стиль .tabs/.tab из кита), лента листается вбок на телефоне. */
 export function TeamTabs({ showAudit }: { showAudit: boolean }) {
   const pathname = usePathname();
   const tabs = [
@@ -13,12 +14,14 @@ export function TeamTabs({ showAudit }: { showAudit: boolean }) {
     ...(showAudit ? [{ href: "/admin/team/audit", label: "Журнал действий" }] : []),
   ];
   return (
-    <nav aria-label="Разделы команды" className="no-scrollbar -mx-4 flex gap-1 overflow-x-auto border-b border-line px-4 sm:mx-0 sm:px-0">
-      {tabs.map((t) => (
-        <Link key={t.href} href={t.href} aria-current={pathname === t.href ? "page" : undefined} className={cn("-mb-px inline-flex min-h-11 items-center border-b-2 px-3 text-sm whitespace-nowrap transition-colors", pathname === t.href ? "border-wine font-medium text-ink" : "border-transparent text-muted hover:text-ink")}>
-          {t.label}
-        </Link>
-      ))}
-    </nav>
+    <ScrollActive>
+      <nav aria-label="Разделы команды" className="tabs">
+        {tabs.map((t) => (
+          <Link key={t.href} href={t.href} aria-current={pathname === t.href ? "page" : undefined} className="tab">
+            {t.label}
+          </Link>
+        ))}
+      </nav>
+    </ScrollActive>
   );
 }

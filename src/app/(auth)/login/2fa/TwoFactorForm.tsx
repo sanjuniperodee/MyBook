@@ -13,8 +13,8 @@ export function TwoFactorForm({ next }: { next?: string }) {
   return (
     <form action={action} className="space-y-4">
       {next ? <input type="hidden" name="next" value={next} /> : null}
-      {state.error ? <Alert>{state.error}</Alert> : null}
-      <Field label={t.code}>
+      {state.error && state.field !== "code" ? <Alert>{state.error}</Alert> : null}
+      <Field label={t.code} error={state.field === "code" ? state.error : undefined}>
         <input className="input h-14 text-center text-2xl font-medium tracking-[0.3em] tabular-nums" id="code" name="code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9 -]{6,9}" maxLength={9} autoFocus required />
       </Field>
       <SubmitButton className="btn-lg w-full" pendingText={t.pending}>{t.submit}</SubmitButton>

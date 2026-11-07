@@ -4,13 +4,14 @@ import { ask } from "@/components/ui/overlays";
 import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import { DndContext, PointerSensor, TouchSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
-import { CalendarClock, CircleDollarSign, Gift, Inbox, Zap } from "lucide-react";
+import { CalendarClock, CircleDollarSign, Gift, Zap } from "lucide-react";
 import { moveOrderAction } from "../actions";
 import { orderStatusDot, orderStatusLabels } from "@/modules/ordering/ui/status";
 import { Alert } from "@/components/ui/Alert";
-import { Badge } from "@/components/ui/Badge";
 import type { OrderStatus } from "@/shared/domain/orders";
 import { cn } from "@/lib/class-names";
+import { formatPrice } from "@/config/site";
+import { OrdersViews } from "../orders/OrdersViews";
 
 export interface BoardCard {
   id: string;
@@ -22,6 +23,8 @@ export interface BoardCard {
   printed: boolean;
   quantity: number;
   amountLabel: string;
+  /** Сумма заказа в тенге — для итога колонки. */
+  amount: number;
   desiredDate: string | null;
   daysLeft: number | null;
   claimed: boolean;
@@ -89,18 +92,21 @@ export function Board({ initial, admins, me }: { initial: BoardCard[]; admins: {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Чьи заказы показать">
-        {[
-          ["all", "Все"],
-          ["mine", "Мои"],
-          ["none", "Без ответственного"],
-          ...admins.filter((a) => a.id !== me).map((a) => [a.id, a.label]),
-        ].map(([k, label]) => (
-          <button key={k} type="button" onClick={() => setFilter(k)} aria-pressed={filter === k} className="chip">
-            {label}
-          </button>
-        ))}
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Чьи заказы показать">
+          {[
+            ["all", "Все"],
+            ["mine", "Мои"],
+            ["none", "Без ответственного"],
+            ...admins.filter((a) => a.id !== me).map((a) => [a.id, a.label]),
+          ].map(([k, label]) => (
+            <button key={k} type="button" onClick={() => setFilter(k)} aria-pressed={filter === k} className="chip">
+              {label}
+            </button>
+          ))}
+        </div>
+        <OrdersViews active="board" className="ml-auto" />
       </div>
       {error ? <Alert>{error}</Alert> : null}
       <DndContext id="orders-board" sensors={sensors} onDragEnd={onDragEnd}>
@@ -115,7 +121,10 @@ export function Board({ initial, admins, me }: { initial: BoardCard[]; admins: {
 }
 
 /** Срочность карточки: просрочен, ≤ 3 дней — в работе это важнее даты создания. Доставленным и отправленным срок уже не грозит. */
-const urgency = (c: BoardCard) => (c.daysLeft === null || c.status === "delivered" || c.status === "shipped" ? null : c.daysLeft < 0 ? "danger" : c.daysLeft <= 3 ? "warning" : null);
+export const urgency = (c: BoardCard) => (c.daysLeft === null || c.status === "delivered" || c.status === "shipped" ? null : c.daysLeft < 0 ? "danger" : c.daysLeft <= 3 ? "warning" : null);
+
+/** Подпись срока на карточке: «просрочен на 3 дн.», «нужна сегодня», «через 12 дн.». */
+export const dueText = (c: BoardCard) => (c.daysLeft === null ? null : c.daysLeft < 0 ? `просрочен на ${-c.daysLeft} дн.` : c.daysLeft === 0 ? "нужна сегодня" : `через ${c.daysLeft} дн.`);
 
 /** Порядок в колонке: сначала те, у кого срок ближе; без срока — после, в прежнем порядке. */
 const byDeadline = (a: BoardCard, b: BoardCard) => (a.daysLeft ?? Infinity) - (b.daysLeft ?? Infinity);
@@ -124,33 +133,32 @@ function Column({ status, hint, cards }: { status: OrderStatus; hint: string; ca
   const { setNodeRef, isOver } = useDroppable({ id: status });
   const sorted = status === "delivered" ? cards : [...cards].sort(byDeadline);
   const hot = cards.filter((c) => urgency(c)).length;
+  const sum = cards.reduce((s, c) => s + c.amount, 0);
   return (
     <section
       ref={setNodeRef}
       aria-label={orderStatusLabels[status]}
-      className={cn("flex min-w-[13.5rem] flex-1 basis-0 flex-col rounded-[14px] border border-line bg-sunken/70 transition-colors", isOver && "border-wine/50 bg-rose/40")}
+      className={cn("flex min-w-[14rem] flex-1 basis-0 flex-col rounded-[var(--r-panel)] border border-transparent bg-sunken/70 transition-colors", isOver && "border-wine/50 bg-rose/40")}
     >
       <header className="px-3 pt-3 pb-2.5">
         <div className="flex items-center gap-2">
           <span className={cn("size-2 rounded-full", orderStatusDot[status])} aria-hidden />
           <h2 className="text-sm font-semibold">{orderStatusLabels[status]}</h2>
-          <span className="ml-auto text-sm font-medium text-ink-soft tabular-nums">{cards.length}</span>
+          <span className="count ml-auto">{cards.length}</span>
         </div>
-        <p className="mt-0.5 pl-4 text-xs text-muted">
-          {hint}
-          {hot ? <span className="font-medium text-danger">, срочных {hot}</span> : null}
-        </p>
+        <div className="mt-1 flex items-baseline justify-between gap-2 pl-4 text-xs text-muted">
+          <span className="truncate">
+            {hint}
+            {hot ? <span className="font-medium text-danger">, срочных {hot}</span> : null}
+          </span>
+          <span className="shrink-0 font-medium text-ink-soft tabular-nums">{sum ? formatPrice(sum) : ""}</span>
+        </div>
       </header>
-      <div className="flex max-h-[calc(100dvh-17rem)] min-h-28 flex-col gap-2 overflow-y-auto px-2 pb-2">
+      <div className="flex max-h-[calc(100dvh-15rem)] min-h-24 flex-col gap-2 overflow-y-auto px-2 pb-2">
         {sorted.map((c) => (
           <Card key={c.id} card={c} />
         ))}
-        {cards.length === 0 ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-1 rounded-[10px] border border-dashed border-line-strong/70 px-3 py-6 text-center text-xs text-muted">
-            <Inbox className="size-4" aria-hidden />
-            Перетащите сюда заказ
-          </div>
-        ) : null}
+        {cards.length === 0 ? <p className="flex flex-1 items-center justify-center rounded-[var(--r-ctl)] border border-dashed border-line-strong/70 px-3 py-6 text-center text-xs text-muted">Пусто. Перетащите сюда заказ</p> : null}
       </div>
     </section>
   );
@@ -159,6 +167,7 @@ function Column({ status, hint, cards }: { status: OrderStatus; hint: string; ca
 function Card({ card: c }: { card: BoardCard }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: c.id });
   const urgent = urgency(c);
+  const due = dueText(c);
   return (
     <article
       ref={setNodeRef}
@@ -166,7 +175,7 @@ function Card({ card: c }: { card: BoardCard }) {
       {...listeners}
       style={transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` } : undefined}
       className={cn(
-        "relative cursor-grab overflow-hidden rounded-[10px] border border-line bg-white p-3 text-sm transition-shadow hover:border-line-strong active:cursor-grabbing",
+        "relative cursor-grab overflow-hidden rounded-[var(--r-ctl)] border border-line bg-white p-3 text-sm transition-shadow hover:border-line-strong active:cursor-grabbing",
         isDragging && "z-10 rotate-1 shadow-lift",
       )}
     >
@@ -176,49 +185,41 @@ function Card({ card: c }: { card: BoardCard }) {
         <Link href={`/admin/orders/${c.id}`} className="font-semibold tabular-nums hover:text-wine hover:underline" onPointerDown={(e) => e.stopPropagation()}>
           №{c.number}
         </Link>
-        <span className="text-[13px] font-medium tabular-nums">{c.amountLabel}</span>
+        <span className="text-[13px] tabular-nums text-ink-soft">{c.amountLabel}</span>
       </div>
       <div className="mt-0.5 truncate font-medium">{c.contactName}</div>
-      <div className="mt-0.5 truncate text-xs text-muted">
+      <div className="truncate text-xs text-muted">
         {c.planName}
         {c.quantity > 1 ? ` × ${c.quantity}` : ""}
         {c.printed ? "" : ", электронная"}
         {", "}
         {c.ageDays ? `${c.ageDays} дн. назад` : "сегодня"}
       </div>
-      {c.claimed || (c.desiredDate && c.daysLeft !== null) || c.express || c.giftNote || c.surprise || c.dealNumber || c.assigneeLabel ? (
-        <div className="mt-2.5 flex flex-wrap items-center gap-1">
-          {c.desiredDate && c.daysLeft !== null ? (
-            <Badge tone={urgent ?? "neutral"}>
-              <CalendarClock className="size-3" aria-hidden />
-              {c.daysLeft < 0 ? `просрочен на ${-c.daysLeft} дн.` : c.daysLeft === 0 ? "нужна сегодня" : `через ${c.daysLeft} дн.`}
-            </Badge>
-          ) : null}
-          {c.express ? (
-            <Badge tone="danger">
-              <Zap className="size-3" aria-hidden /> срочно
-            </Badge>
-          ) : null}
-          {c.claimed ? (
-            <Badge tone="warning">
-              <CircleDollarSign className="size-3" aria-hidden /> оплатил
-            </Badge>
-          ) : null}
-          {c.giftNote || c.surprise ? (
-            <Badge tone="accent">
-              <Gift className="size-3" aria-hidden /> {c.surprise ? "сюрприз" : "открытка"}
-            </Badge>
-          ) : null}
+      <div className="mt-2 flex items-center gap-2">
+        {due ? (
+          <span className={cn("inline-flex min-w-0 items-center gap-1 text-xs", urgent === "danger" ? "font-medium text-danger" : urgent === "warning" ? "font-medium text-warning" : "text-muted")}>
+            <CalendarClock className="size-3.5 shrink-0" aria-hidden />
+            <span className="truncate">{due}</span>
+          </span>
+        ) : (
+          <span className="text-xs text-muted">срок не указан</span>
+        )}
+        <span className="ml-auto flex shrink-0 items-center gap-1.5 text-muted">
+          {c.express ? <Zap className="size-3.5 text-danger" aria-label="Срочное производство" role="img" /> : null}
+          {c.claimed ? <CircleDollarSign className="size-3.5 text-warning" aria-label="Клиент сообщил об оплате" role="img" /> : null}
+          {c.giftNote || c.surprise ? <Gift className="size-3.5 text-wine" aria-label={c.surprise ? "Сюрприз" : "Открытка"} role="img" /> : null}
           {c.dealNumber ? (
-            <Badge title="Сделка заказа">Д{c.dealNumber}</Badge>
+            <span className="text-[11px] font-medium" title="Сделка заказа">
+              Д{c.dealNumber}
+            </span>
           ) : null}
           {c.assigneeLabel ? (
-            <span className="ml-auto flex size-6 items-center justify-center rounded-full bg-ink text-[10px] font-semibold text-white uppercase" title={c.assigneeLabel} aria-label={`Ведёт ${c.assigneeLabel}`}>
+            <span className="flex size-6 items-center justify-center rounded-full bg-ink text-[10px] font-semibold text-white uppercase" title={c.assigneeLabel} aria-label={`Ведёт ${c.assigneeLabel}`}>
               {c.assigneeLabel.slice(0, 2)}
             </span>
           ) : null}
-        </div>
-      ) : null}
+        </span>
+      </div>
     </article>
   );
 }

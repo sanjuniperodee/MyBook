@@ -95,7 +95,7 @@ export function PhotoChooser({
         type="button"
         disabled={!editable || !!uploading}
         onClick={onUpload}
-        className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-line bg-cream/30 px-4 text-sm font-medium text-ink hover:bg-sunken disabled:opacity-60"
+        className="flex min-h-14 w-full items-center justify-center gap-2 rounded-[10px] border border-dashed border-line-strong bg-white px-4 text-sm font-medium text-ink transition hover:border-wine/60 hover:bg-sunken focus-visible:outline-2 focus-visible:outline-wine disabled:opacity-60"
       >
         {uploading ? <LoaderCircle className="size-4 animate-spin" /> : <ImagePlus className="size-4" />}
         {uploading ? (uploading.total > 1 ? m.editor.photoPicker.progress(uploading.done, uploading.total) : cp.uploading) : cp.upload}
@@ -113,13 +113,13 @@ export function PhotoChooser({
                     disabled={!editable}
                     onClick={() => onPick(p.id)}
                     aria-pressed={mode !== "opener" ? on : undefined}
-                    className={cn("relative block aspect-square w-full overflow-hidden rounded-xl bg-cream ring-offset-2 transition", on ? "ring-2 ring-wine" : "ring-1 ring-line hover:ring-ink/30")}
+                    className={cn("relative block aspect-square w-full overflow-hidden rounded-[10px] bg-cream ring-offset-2 ring-offset-white transition focus-visible:outline-2 focus-visible:outline-wine", on ? "ring-2 ring-wine" : "ring-1 ring-line hover:ring-line-strong")}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element -- фото клиента */}
                     <img src={photoUrl(p.id)} alt="" className="absolute inset-0 size-full object-cover" loading="lazy" />
-                    {g.id === "fit" ? <span className="absolute top-1.5 left-1.5 rounded-full bg-wine px-2 py-0.5 text-[10px] font-medium text-white">{cp.fitChip}</span> : null}
+                    {g.id === "fit" ? <span className="absolute top-1.5 left-1.5 rounded-md bg-wine px-1.5 py-0.5 text-[10px] font-medium text-white">{cp.fitChip}</span> : null}
                     {on ? (
-                      <span className="absolute top-1.5 right-1.5 flex size-6 items-center justify-center rounded-full bg-wine text-white">
+                      <span className="absolute top-1.5 right-1.5 flex size-6 items-center justify-center rounded-md bg-wine text-white">
                         <Check className="size-3.5" />
                       </span>
                     ) : null}

@@ -113,7 +113,7 @@ export function ClientDealsForm({ stages, defaultStageId, admins, me, canAssign,
               </p>
             </div>
           ) : null}
-          <div className={cn("rounded-[10px] px-3.5 py-2.5 text-sm tabular-nums sm:col-span-2", p > total ? "bg-danger-bg text-danger" : "bg-sunken text-ink-soft")} role="status">
+          <div className={cn("rounded-[var(--r-ctl)] px-3.5 py-2.5 text-sm tabular-nums sm:col-span-2", p > total ? "bg-danger-bg text-danger" : "bg-sunken text-ink-soft")} role="status">
             {p > total ? "Предоплата больше суммы договорённости" : total > 0 ? `${n > 1 ? `Всего ${n} × ${formatPrice(price)} = ${formatPrice(total)}. ` : ""}Остаток: ${formatPrice(total - p)} (доставка — сверху)` : "Укажите цену — посчитаем остаток"}
           </div>
         </div>
@@ -153,7 +153,7 @@ export function ClientDealsForm({ stages, defaultStageId, admins, me, canAssign,
       </Panel>
       {localError ? <Alert>{localError}</Alert> : null}
       {state.error ? <Alert>{state.error}</Alert> : null}
-      <div className="max-sm:[&>*]:w-full">
+      <div className="sticky bottom-[var(--tabbar-h)] z-10 -mx-4 border-t border-line bg-canvas/95 px-4 py-3 backdrop-blur max-sm:[&>*]:w-full lg:static lg:mx-0 lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none">
         <SubmitButton>{n > 1 ? `Создать ${ruCount(n, "сделку", "сделки", "сделок")}` : "Создать сделку"}</SubmitButton>
       </div>
     </form>

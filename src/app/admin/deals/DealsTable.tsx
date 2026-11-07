@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Bookmark, Tag, Trash2, User, Users, X } from "lucide-react";
+import { Bookmark, Tag, Trash2, Users, X } from "lucide-react";
 import { ask, toast, toastError } from "@/components/ui/overlays";
 import { bulkDealsAction, deleteViewAction, saveViewAction } from "./actions";
 import { LostDialog } from "./DealsBoard";
 import { cn } from "@/lib/class-names";
 import { useRowSelection } from "@/components/admin/useRowSelection";
 import { StageLabel } from "./StageLabel";
+import { Dot, Initials, dealNo } from "./ui";
 
 interface DealRow {
   id: string;
@@ -24,8 +25,35 @@ interface DealRow {
   amount: string;
   paid?: string | null;
   created: string;
+  /** Ближайшая задача: дата и просрочена ли; null — задачи нет. */
+  task?: { label: string; overdue: boolean } | null;
+  /** Закрытая сделка: задача уже не нужна, предупреждение «нет задачи» не показываем. */
+  closed?: boolean;
+  unread?: number;
 }
 
+/** Срок ближайшей задачи в ведомости: просрочена — красным, нет — предупреждением (у закрытой сделки — прочерк). */
+function TaskCell({ row }: { row: DealRow }) {
+  if (row.task)
+    return (
+      <span className={cn("inline-flex items-center gap-1.5 tabular-nums", row.task.overdue ? "font-medium text-danger" : "text-ink-soft")}>
+        {row.task.overdue ? <Dot className="bg-danger" /> : null}
+        {row.task.overdue ? "просрочена " : ""}
+        {row.task.label}
+      </span>
+    );
+  if (row.closed) return <span className="text-muted">—</span>;
+  return (
+    <span className="inline-flex items-center gap-1.5 text-warning">
+      <Dot className="bg-warning" /> нет задачи
+    </span>
+  );
+}
+
+/**
+ * Ведомость сделок (DESIGN.md §7.2): лист с таблицей, подвалом (сколько показано, страницы) и панелью массовых действий,
+ * которая появляется поверх шапки при выборе строк. Телефон — те же записи строками на всю ширину.
+ */
 export function DealsTable({
   rows,
   stages,
@@ -33,6 +61,7 @@ export function DealsTable({
   canEdit,
   canDelete,
   empty = null,
+  footer = null,
 }: {
   rows: DealRow[];
   stages: { id: string; name: string; kind: string }[];
@@ -41,6 +70,8 @@ export function DealsTable({
   canDelete: boolean;
   /** Что показать, когда сделок нет (подсказка «сбросить фильтры» или «создать сделку»). */
   empty?: React.ReactNode;
+  /** Подвал листа: сколько показано и страницы. */
+  footer?: React.ReactNode;
 }) {
   const { selected, all, ids, toggle, toggleAll, clear } = useRowSelection(rows);
   const [lostFor, setLostFor] = useState<string | null>(null);
@@ -60,10 +91,10 @@ export function DealsTable({
     });
 
   return (
-    <div className="space-y-3 lg:space-y-0 lg:overflow-hidden lg:rounded-[14px] lg:border lg:border-line lg:bg-white">
+    <div className="panel overflow-hidden" data-testid="deals-sheet">
       {selected.size && canEdit ? (
-        <div className="m-sticky-actions flex flex-wrap items-center gap-2 border-line bg-rose px-4 py-2.5 text-sm max-lg:rounded-[14px] max-lg:border max-lg:shadow-lift lg:sticky lg:top-0 lg:z-10 lg:border-b" data-testid="bulk-bar" role="region" aria-label="Действия с выбранными">
-          <span className="font-medium tabular-nums">Выбрано: {selected.size}</span>
+        <div className="m-sticky-actions flex flex-wrap items-center gap-2 border-line bg-rose px-4 py-2.5 text-sm max-lg:rounded-[var(--r-panel)] max-lg:border max-lg:shadow-lift lg:sticky lg:top-0 lg:z-10 lg:border-b" data-testid="bulk-bar" role="region" aria-label="Действия с выбранными">
+          <span className="font-semibold tabular-nums">Выбрано: {selected.size}</span>
           <select
             className="input h-9 w-auto min-w-44 text-sm max-lg:flex-1"
             defaultValue=""
@@ -129,42 +160,43 @@ export function DealsTable({
       ) : null}
       {rows.length ? (
         <>
-          <ul className="space-y-2 lg:hidden" data-testid="deals-cards">
+          <ul className="divide-y divide-line lg:hidden" data-testid="deals-cards">
             {rows.map((r) => (
-              <li key={r.id} className={cn("panel m-card flex items-stretch overflow-hidden", selected.has(r.id) && "border-wine/40 bg-rose/40")}>
+              <li key={r.id} className={cn("flex items-stretch", selected.has(r.id) && "bg-rose/50")}>
                 {canEdit ? (
                   <label className="flex w-11 shrink-0 cursor-pointer items-start justify-center pt-4">
                     <input type="checkbox" className="size-4 accent-wine" checked={selected.has(r.id)} onChange={() => toggle(r.id)} aria-label={`Выбрать сделку ${r.number}`} />
                   </label>
                 ) : null}
-                <Link href={`/admin/deals/${r.id}`} className={cn("block min-w-0 flex-1 py-3.5 pr-4", !canEdit && "pl-4")}>
+                <Link href={`/admin/deals/${r.id}`} className={cn("m-card block min-w-0 flex-1 py-3 pr-4", !canEdit && "pl-4")}>
                   <div className="flex items-start gap-3">
                     <div className="min-w-0 flex-1">
                       <div className="line-clamp-2 text-[15px] leading-snug font-semibold">{r.title}</div>
                       <div className="mt-0.5 truncate text-sm text-muted">
-                        {r.contactName ? `${r.contactName} · ` : ""}№{r.number} · {r.created}
+                        <span className="tabular-nums">{dealNo(r.number)}</span>
+                        {r.contactName ? ` ${r.contactName}` : ""} · {r.created}
                       </div>
                     </div>
                     <div className="shrink-0 text-right">
                       <div className="text-[15px] font-semibold whitespace-nowrap tabular-nums">{r.amount}</div>
-                      {r.paid ? <div className="text-xs text-success tabular-nums">получено {r.paid}</div> : null}
+                      {r.paid ? <div className="text-xs text-success tabular-nums">+{r.paid}</div> : null}
                     </div>
                   </div>
-                  <div className="mt-2.5 flex flex-wrap items-center gap-1.5 text-xs">
-                    <StageLabel name={r.stage.name} color={r.stage.color} />
+                  <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                    <StageLabel name={r.stage.name} color={r.stage.color} className="text-xs" />
                     {r.lostReason ? <span className="text-muted">{r.lostReason}</span> : null}
-                    {r.assignee ? (
-                      <span className="badge" title="Ответственный">
-                        <User className="size-3" aria-hidden /> {r.assignee}
-                      </span>
-                    ) : null}
+                    {r.task !== undefined ? <TaskCell row={r} /> : null}
+                    {r.unread ? <span className="count count-alert">{r.unread}</span> : null}
+                    <span className="ml-auto">
+                      <Initials label={r.assignee} />
+                    </span>
                   </div>
                 </Link>
               </li>
             ))}
           </ul>
           <div className="hidden overflow-x-auto lg:block">
-            <table className="table min-w-[860px] [&_td:first-child]:pl-5 [&_td:last-child]:pr-5 [&_th:first-child]:pl-5 [&_th:last-child]:pr-5">
+            <table className="table min-w-[980px]">
               <thead>
                 <tr>
                   {canEdit ? (
@@ -172,12 +204,13 @@ export function DealsTable({
                       <input type="checkbox" className="size-4 align-middle accent-wine" checked={all} onChange={toggleAll} aria-label="Выбрать все" />
                     </th>
                   ) : null}
-                  <th className="w-14">№</th>
+                  <th className="w-16">Номер</th>
                   <th>Сделка</th>
                   <th>Этап</th>
+                  <th>Задача</th>
                   <th>Канал</th>
                   <th>Ответственный</th>
-                  <th className="text-right">Бюджет</th>
+                  <th className="num">Бюджет</th>
                   <th>Создана</th>
                 </tr>
               </thead>
@@ -189,14 +222,15 @@ export function DealsTable({
                         <input type="checkbox" className="size-4 align-middle accent-wine" checked={selected.has(r.id)} onChange={() => toggle(r.id)} aria-label={`Выбрать сделку ${r.number}`} />
                       </td>
                     ) : null}
-                    <td className="text-muted tabular-nums">
+                    <td className="font-medium text-muted tabular-nums">
                       <Link href={`/admin/deals/${r.id}`} className="hover:text-wine">
-                        {r.number}
+                        {dealNo(r.number)}
                       </Link>
                     </td>
                     <td className="max-w-80">
-                      <Link href={`/admin/deals/${r.id}`} className="block truncate font-medium hover:text-wine">
-                        {r.title}
+                      <Link href={`/admin/deals/${r.id}`} className="flex items-center gap-2 font-medium hover:text-wine">
+                        <span className="truncate">{r.title}</span>
+                        {r.unread ? <span className="count count-alert shrink-0" title={`Непрочитанных сообщений: ${r.unread}`}>{r.unread}</span> : null}
                       </Link>
                       {r.contactName ? <span className="block truncate text-xs text-muted">{r.contactName}</span> : null}
                     </td>
@@ -204,14 +238,23 @@ export function DealsTable({
                       <StageLabel name={r.stage.name} color={r.stage.color} />
                       {r.lostReason ? <span className="mt-0.5 block max-w-48 truncate text-xs text-muted">{r.lostReason}</span> : null}
                     </td>
+                    <td className="whitespace-nowrap">{r.task !== undefined ? <TaskCell row={r} /> : null}</td>
                     <td className="text-ink-soft">
                       {r.channel}
                       {r.campaign ? <span className="block max-w-48 truncate text-xs text-muted">{r.campaign}</span> : null}
                     </td>
-                    <td>{r.assignee ?? <span className="text-muted">не назначен</span>}</td>
-                    <td className="text-right font-medium whitespace-nowrap tabular-nums">
+                    <td>
+                      {r.assignee ? (
+                        <span className="inline-flex items-center gap-2">
+                          <Initials label={r.assignee} size={20} /> {r.assignee}
+                        </span>
+                      ) : (
+                        <span className="text-muted">не назначен</span>
+                      )}
+                    </td>
+                    <td className="num font-medium whitespace-nowrap">
                       {r.amount}
-                      {r.paid ? <span className="block text-xs font-normal text-success">получено {r.paid}</span> : null}
+                      {r.paid ? <span className="block text-xs font-normal text-success">+{r.paid}</span> : null}
                     </td>
                     <td className="whitespace-nowrap text-muted">{r.created}</td>
                   </tr>
@@ -219,9 +262,10 @@ export function DealsTable({
               </tbody>
             </table>
           </div>
+          {footer ? <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-line bg-sunken/40 px-4 py-2.5 text-sm sm:px-5">{footer}</div> : null}
         </>
       ) : (
-        <div className="panel lg:rounded-none lg:border-0">{empty}</div>
+        <div>{empty}</div>
       )}
       {lostFor ? (
         <LostDialog

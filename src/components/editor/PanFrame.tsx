@@ -2,6 +2,7 @@
 
 import { useRef, useState, type CSSProperties } from "react";
 import type { PhotoCrop } from "@/lib/book/photo-crop";
+import { useMessages } from "@/i18n/client";
 import { photoUrl } from "@/lib/urls";
 import { cn } from "@/lib/class-names";
 
@@ -58,6 +59,7 @@ export function PanFrame({
   disabled?: boolean;
   className?: string;
 }) {
+  const t = useMessages().editor.crop;
   const ratio = ratioProp ?? (shape ? LEGACY[shape].ratio : 1);
   const mask = maskProp ?? (shape ? LEGACY[shape].mask : "rect");
   const W = width;
@@ -93,13 +95,30 @@ export function PanFrame({
     if (last.current) onCommit?.(last.current);
   };
 
+  /** Стрелки двигают кадр так же, как палец (Shift — крупнее): рамка доступна и без мыши. */
+  const onKey = (e: React.KeyboardEvent) => {
+    if (disabled) return;
+    const step = e.shiftKey ? 0.1 : 0.02;
+    const d = ({ ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] } as Record<string, [number, number]>)[e.key];
+    if (!d) return;
+    e.preventDefault();
+    const clamp = (v: number) => Math.round(Math.min(1, Math.max(0, v)) * 1000) / 1000;
+    const next = { ...crop, x: DW > W ? clamp(crop.x + d[0]) : crop.x, y: DH > H ? clamp(crop.y + d[1]) : crop.y };
+    onChange(next);
+    onCommit?.(next);
+  };
+
   const radius = mask === "circle" ? "9999px" : mask === "arch" ? `${W / 2}px ${W / 2}px 0 0` : card ? "0" : "4px";
   const style: CSSProperties = { width: W, height: H, borderRadius: radius };
   const pane = (
     <div
-      className={cn("relative touch-none select-none overflow-hidden bg-cream", !card && "ring-1 ring-line", disabled ? "cursor-default" : active ? "cursor-grabbing" : "cursor-grab", !card && className)}
+      className={cn("relative touch-none select-none overflow-hidden bg-cream focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wine", !card && "ring-1 ring-line", disabled ? "cursor-default" : active ? "cursor-grabbing" : "cursor-grab", !card && className)}
       style={style}
       data-frame={mask}
+      role="group"
+      aria-label={t.title}
+      tabIndex={disabled ? -1 : 0}
+      onKeyDown={onKey}
       onPointerDown={(e) => {
         if (disabled) return;
         e.currentTarget.setPointerCapture(e.pointerId);
@@ -118,7 +137,7 @@ export function PanFrame({
   if (!card) return pane;
   // Полароид: белая карточка с широким нижним полем, двигается только снимок в окне.
   return (
-    <div className={cn("w-fit bg-white shadow-[0_2px_10px_rgb(0_0_0/0.12)] ring-1 ring-line/60", className)} style={{ padding: `${W * CARD.side}px ${W * CARD.side}px ${W * CARD.bottom}px` }}>
+    <div className={cn("w-fit bg-white ring-1 ring-line", className)} style={{ padding: `${W * CARD.side}px ${W * CARD.side}px ${W * CARD.bottom}px` }}>
       {pane}
     </div>
   );

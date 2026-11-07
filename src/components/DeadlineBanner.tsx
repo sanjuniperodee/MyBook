@@ -18,19 +18,22 @@ export async function DeadlineBanner({
   occasionDate,
   answered,
   compact,
+  flush,
 }: {
   bookId: string;
   occasion: string | null;
   occasionDate: string | null;
   answered: number;
   compact?: boolean;
+  /** Без верхнего отступа: блок стоит в стопке с собственными промежутками (обзор книги). */
+  flush?: boolean;
 }) {
   const m = (await getMessages()).common;
   const o = getOccasion(occasion);
   if (!o || !occasionDate) {
     if (compact) return null;
     return (
-      <Link href={`/books/${bookId}/settings#occasion`} className="mt-4 inline-flex min-h-11 items-center gap-2 text-sm text-muted underline-offset-4 hover:text-wine hover:underline">
+      <Link href={`/books/${bookId}/settings#occasion`} className={cn("inline-flex min-h-11 items-center gap-2 text-sm text-muted underline-offset-4 hover:text-wine hover:underline", !flush && "mt-4")}>
         <CalendarHeart className="size-4" /> {m.deadline.addDate}
       </Link>
     );
@@ -48,7 +51,7 @@ export async function DeadlineBanner({
         tone === "calm" && "border-line bg-white",
         tone === "warm" && "border-warning/25 bg-warning-bg",
         tone === "hot" && "border-wine/30 bg-rose",
-        compact ? "mt-0" : "mt-4",
+        compact || flush ? "mt-0" : "mt-4",
       )}
       data-testid="deadline-banner"
     >

@@ -2,9 +2,10 @@
 
 import Script from "next/script";
 import { useRouter } from "next/navigation";
-import { useLocale } from "@/i18n/client";
+import { useLocale, useMessages } from "@/i18n/client";
 import { useState, useTransition, type ReactNode, type TransitionStartFunction } from "react";
-import { CreditCard, LoaderCircle } from "lucide-react";
+import { CreditCard, Landmark, LoaderCircle, Smartphone } from "lucide-react";
+import { cn } from "@/lib/class-names";
 import { Alert } from "@/components/ui/Alert";
 import { KaspiPay, type KaspiHints, type KaspiTarget } from "@/components/payments/KaspiPay";
 import type { KaspiInvoiceView } from "@/modules/ordering/ui/kaspi";
@@ -93,8 +94,9 @@ export function PaymentOptions(props: {
     );
   };
 
-  const manualTransfer = props.manual ? (
-    <div className="mt-5">
+  const pm = useMessages().bookStudio.pay;
+  const manualBlock = props.manual ? (
+    <div>
       <div className="font-medium">{props.manual.title}</div>
       <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-[15px] text-ink-soft">
         {props.manual.steps.map((s) => (
@@ -109,36 +111,71 @@ export function PaymentOptions(props: {
           {props.claimedText}
         </Alert>
       ) : (
-        <button className="btn btn-primary btn-lg mt-6" disabled={pending} onClick={() => start(props.onClaim)}>
+        <button className="btn btn-dark btn-lg mt-5" disabled={pending} onClick={() => start(props.onClaim)}>
           {pending ? <LoaderCircle className="size-5 animate-spin" /> : null} {t.claim}
         </button>
       )}
     </div>
-  ) : !props.kaspi && !props.online ? (
-    <p className="mt-5 text-[15px] text-ink-soft">{props.unavailable}</p>
   ) : null;
 
+  // Способы оплаты: Kaspi, карта, перевод. Перевод — отдельный способ, если он единственный или его просили показывать всегда;
+  // иначе он остаётся запасным (внутри Kaspi, если тот недоступен).
+  const methods: { id: "kaspi" | "card" | "transfer"; label: string; icon: typeof Smartphone }[] = [];
+  if (props.kaspi) methods.push({ id: "kaspi", label: pm.kaspi, icon: Smartphone });
+  if (props.online) methods.push({ id: "card", label: pm.card, icon: CreditCard });
+  if (manualBlock && (props.manualAlways || methods.length === 0)) methods.push({ id: "transfer", label: pm.transfer, icon: Landmark });
+  const [picked, setPicked] = useState<string | null>(null);
+  const method = methods.find((m) => m.id === picked)?.id ?? methods[0]?.id ?? null;
+
   return (
-    <section className="rounded-[14px] border border-line bg-white p-6 sm:p-8">
-      <h2 className="text-xl font-semibold">{t.title}</h2>
-      <p className="mt-1 text-muted">
-        {t.toPay} <b className="text-ink">{props.amountLabel}</b>
-      </p>
+    <section className="panel p-5 sm:p-6">
+      <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-1">
+        <h2 className="text-xl font-semibold">{t.title}</h2>
+        <p className="text-muted">
+          {t.toPay} <b className="font-serif text-2xl font-medium text-ink tabular-nums">{props.amountLabel}</b>
+        </p>
+      </header>
       {error ? <Alert className="mt-4">{error}</Alert> : null}
-      {props.kaspi ? <KaspiPay target={props.kaspiTarget} amountLabel={props.amountLabel} defaultPhone={props.kaspi.defaultPhone} initial={props.kaspi.initial} hints={props.kaspi.hints} fallback={props.manualAlways ? null : manualTransfer} /> : null}
-      {props.kaspi && !props.online ? null : props.online ? (
-        <>
-          <Script src="https://widget.cloudpayments.ru/bundles/cloudpayments.js" onReady={() => setReady(true)} />
-          <button className="btn btn-primary btn-lg mt-6 w-full sm:w-auto" onClick={pay} disabled={!ready}>
+      {props.online ? <Script src="https://widget.cloudpayments.ru/bundles/cloudpayments.js" onReady={() => setReady(true)} /> : null}
+
+      {methods.length > 1 ? (
+        <div role="tablist" aria-label={pm.method} className="mt-5 flex flex-wrap gap-2">
+          {methods.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              id={`pay-tab-${id}`}
+              aria-selected={method === id}
+              aria-controls={`pay-panel-${id}`}
+              onClick={() => setPicked(id)}
+              className={cn("flex min-h-11 items-center gap-2 rounded-[10px] border px-4 text-sm font-medium transition-colors", method === id ? "border-wine bg-rose/25 text-ink ring-2 ring-wine/15" : "border-line-strong bg-white text-ink-soft hover:border-ink/35")}
+            >
+              <Icon className="size-4" aria-hidden /> {label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {method === "kaspi" && props.kaspi ? (
+        <div role={methods.length > 1 ? "tabpanel" : undefined} id="pay-panel-kaspi" aria-labelledby={methods.length > 1 ? "pay-tab-kaspi" : undefined}>
+          <KaspiPay target={props.kaspiTarget} amountLabel={props.amountLabel} defaultPhone={props.kaspi.defaultPhone} initial={props.kaspi.initial} hints={props.kaspi.hints} fallback={props.manualAlways ? null : manualBlock} />
+        </div>
+      ) : null}
+      {method === "card" && props.online ? (
+        <div role={methods.length > 1 ? "tabpanel" : undefined} id="pay-panel-card" aria-labelledby={methods.length > 1 ? "pay-tab-card" : undefined} className="mt-5">
+          <button className="btn btn-primary btn-lg w-full sm:w-auto" onClick={pay} disabled={!ready}>
             {ready ? <CreditCard className="size-5" /> : <LoaderCircle className="size-5 animate-spin" />} {t.card}
           </button>
           {t.cardNote ? <p className="mt-3 text-xs text-muted">{t.cardNote}</p> : null}
-        </>
-      ) : (
-        manualTransfer
-      )}
-      {/* Перевод в дополнение к Kaspi или карте: выше его не показали. */}
-      {props.manualAlways && props.manual && (props.kaspi || props.online) ? <div className="mt-6 border-t border-line pt-1">{manualTransfer}</div> : null}
+        </div>
+      ) : null}
+      {method === "transfer" ? (
+        <div role={methods.length > 1 ? "tabpanel" : undefined} id="pay-panel-transfer" aria-labelledby={methods.length > 1 ? "pay-tab-transfer" : undefined} className="mt-5">
+          {manualBlock}
+        </div>
+      ) : null}
+      {method === null ? <p className="mt-5 text-[15px] text-ink-soft">{props.unavailable}</p> : null}
       {props.footer?.({ pending, start })}
     </section>
   );

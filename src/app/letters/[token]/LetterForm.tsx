@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { LoaderCircle } from "lucide-react";
+import { Check, LoaderCircle } from "lucide-react";
 import { Alert } from "@/components/ui/Alert";
-import { LettersArt } from "@/components/illustrations";
 import { useMessages } from "@/i18n/client";
 import { apiFetch } from "@/lib/client-api";
 
@@ -14,17 +13,19 @@ export function LetterForm({ token, recipient }: { token: string; recipient: str
 
   if (state === "sent") {
     return (
-      <div className="card animate-[toast-in_300ms_var(--ease-out-soft)_both] p-8 text-center">
-        <LettersArt className="mx-auto h-36 w-auto" />
-        <h2 className="mt-2 font-serif text-3xl">{t.thanks}</h2>
-        <p className="mt-2 text-muted">{t.sent(recipient)}</p>
+      <div className="animate-[toast-in_300ms_var(--ease-out-soft)_both] py-6 text-center" role="status">
+        <div className="mx-auto grid size-14 place-items-center rounded-[10px] bg-rose text-wine">
+          <Check className="size-7" aria-hidden />
+        </div>
+        <h2 className="mt-5 font-serif text-4xl font-medium">{t.thanks}</h2>
+        <p className="mx-auto mt-3 max-w-md text-ink-soft">{t.sent(recipient)}</p>
       </div>
     );
   }
 
   return (
     <form
-      className="card space-y-4 p-6 sm:p-8"
+      className="space-y-4"
       onSubmit={async (e) => {
         e.preventDefault();
         const form = new FormData(e.currentTarget);

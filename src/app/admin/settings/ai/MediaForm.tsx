@@ -3,9 +3,7 @@
 import { useActionState, useState } from "react";
 import { CheckCircle2 } from "lucide-react";
 import { aiProviderIds, aiProviders, type AiProvider } from "@/modules/assistant/domain/providers";
-import { SubmitButton } from "@/components/ui/SubmitButton";
-import { Intro } from "@/components/admin/Intro";
-import { Section, Status, Result, SecretInput, Choice } from "../ui";
+import { Actions, Choice, Field, Group, Note, Result, SaveButton, Section, SecretInput, type SheetStatus } from "../ui";
 import type { SettingsState } from "../state";
 import { saveMediaAction } from "./actions";
 import { providerReady, type AiProviderSaved } from "./saved";
@@ -42,39 +40,42 @@ export function MediaForm({
   const shownModel = model || fallback;
   const cannot = savedEffective === "deepseek";
   const connected = ready(savedEffective) && !cannot;
+  const status: SheetStatus = cannot ? { tone: "bad", label: "DeepSeek не слушает голосовые: выберите OpenRouter" } : !connected ? { tone: "off", label: "не подключено: голосовые бот не слушает" } : { tone: "ok", label: `${aiProviders[savedEffective].label} · ${shownModel}` };
   return (
-    <Section defaultOpen={false} title="Голосовые и фото клиента (бот)" badge={<Status on={connected} label={cannot ? "DeepSeek не слушает голосовые — выберите OpenRouter" : !connected ? "не подключено — голосовые бот не слушает" : `${aiProviders[savedEffective].label} · ${shownModel}`} />}>
-      <Intro className="mb-4">
-        Этой моделью AI-продажник расшифровывает голосовые и описывает фото клиента (Бот → Продажи → «Слушать голосовые и смотреть фото»), а дальше отвечает на них, как на текст. Нужна модель, которая понимает аудио и изображения:
-        лучше всего <code className="rounded bg-sunken px-1">{OPENROUTER_MEDIA_MODEL}</code> через OpenRouter — слушает голосовые и видит фото, около 0,3 ₸ за голосовое, но OpenRouter принимает аудио только при балансе от $0.50 (бесплатные модели аудио не берут). Бесплатно — Groq: ключ на console.groq.com, модель Whisper расшифровывает голосовые (фото — нет). Claude видит фото, но не слушает голосовые; DeepSeek не умеет ни то, ни другое.
-      </Intro>
-      <form action={action} className="space-y-3">
-        <div className="flex flex-wrap gap-2 text-sm">
-          <Choice active={p === ""}>
-            <input type="radio" name="provider" value="" checked={p === ""} onChange={() => setP("")} className="accent-wine" />
-            Как у продажника ({aiProviders[sellerProvider].label})
-          </Choice>
-          {aiProviderIds
-            .filter((id) => id !== "deepseek")
-            .map((id) => (
-              <Choice key={id} active={p === id}>
-                <input type="radio" name="provider" value={id} checked={p === id} onChange={() => setP(id)} className="accent-wine" />
-                {aiProviders[id].title}
-                {ready(id) ? <CheckCircle2 className="size-3.5 text-success" aria-label="ключ сохранён" /> : null}
-              </Choice>
-            ))}
-        </div>
-        <div key={effective} className="space-y-3">
-          <SecretInput name="key" label={`Ключ ${def.label} API`} saved={saved.apiKey} fromEnv={saved.apiKeyEnv} placeholder={def.keyPlaceholder} />
-          <label className="block">
-            <span className="label">Модель (пусто — {effective === "groq" ? "whisper-large-v3" : effective === "openrouter" ? OPENROUTER_MEDIA_MODEL : p ? saved.model || def.defaultModel : "как у продажника"})</span>
-            <input name="model" defaultValue={model} placeholder={effective === "openrouter" ? OPENROUTER_MEDIA_MODEL : saved.model || def.defaultModel} className="input h-10 text-sm" maxLength={100} />
-          </label>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <SubmitButton className="btn-sm">Сохранить</SubmitButton>
+    <Section id="ai-media" defaultOpen={false} title="Голосовые и фото клиента (бот)" description="Модель, которой AI-продажник расшифровывает голосовые и описывает фото" status={status}>
+      <form action={action} className="space-y-5">
+        <Note>
+          Этой моделью AI-продажник расшифровывает голосовые и описывает фото клиента (Бот, Продажи, «Слушать голосовые и смотреть фото»), а дальше отвечает на них, как на текст. Нужна модель, которая понимает аудио и изображения: лучше всего <code className="rounded bg-sunken px-1">{OPENROUTER_MEDIA_MODEL}</code> через OpenRouter — слушает голосовые и видит фото, около 0,3 ₸ за голосовое, но OpenRouter принимает аудио только при балансе от $0.50 (бесплатные модели аудио не берут). Бесплатно — Groq: ключ на console.groq.com, модель Whisper расшифровывает голосовые (фото — нет). Claude видит фото, но не слушает голосовые; DeepSeek не умеет ни то, ни другое.
+        </Note>
+        <Group title="Провайдер" hint="Галочка у названия — ключ уже сохранён.">
+          <div className="flex flex-wrap gap-2">
+            <Choice active={p === ""}>
+              <input type="radio" name="provider" value="" checked={p === ""} onChange={() => setP("")} className="accent-wine" />
+              Как у продажника ({aiProviders[sellerProvider].label})
+            </Choice>
+            {aiProviderIds
+              .filter((id) => id !== "deepseek")
+              .map((id) => (
+                <Choice key={id} active={p === id}>
+                  <input type="radio" name="provider" value={id} checked={p === id} onChange={() => setP(id)} className="accent-wine" />
+                  {aiProviders[id].title}
+                  {ready(id) ? <CheckCircle2 className="size-3.5 text-success" aria-label="ключ сохранён" /> : null}
+                </Choice>
+              ))}
+          </div>
+        </Group>
+        <Group title="Ключ и модель">
+          <div key={effective} className="space-y-4">
+            <SecretInput name="key" label={`Ключ ${def.label} API`} saved={saved.apiKey} fromEnv={saved.apiKeyEnv} placeholder={def.keyPlaceholder} />
+            <Field label="Модель" hint={`Пусто — ${effective === "groq" ? "whisper-large-v3" : effective === "openrouter" ? OPENROUTER_MEDIA_MODEL : p ? saved.model || def.defaultModel : "как у продажника"}.`}>
+              <input name="model" defaultValue={model} placeholder={effective === "openrouter" ? OPENROUTER_MEDIA_MODEL : saved.model || def.defaultModel} className="input" maxLength={100} />
+            </Field>
+          </div>
+        </Group>
+        <Actions>
+          <SaveButton />
           <Result state={state} />
-        </div>
+        </Actions>
       </form>
     </Section>
   );

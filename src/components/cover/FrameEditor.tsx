@@ -154,7 +154,7 @@ export function FrameControls({
   const current = slots.find((s) => s.key === selected) ?? slots[0];
   if (!current) return null;
   return (
-    <div className="mt-4 space-y-3 rounded-2xl bg-white p-3.5 text-sm shadow-soft">
+    <div className="space-y-3 rounded-[var(--r-panel)] bg-sunken p-3 text-sm">
       {slots.length > 1 ? (
         <div className="flex flex-wrap gap-1.5">
           {slots.map((s, i) => (
@@ -163,7 +163,7 @@ export function FrameControls({
               type="button"
               onClick={() => onSelect(s.key)}
               aria-pressed={s.key === current.key}
-              className={cn("rounded-full px-3 py-1 text-xs transition", s.key === current.key ? "bg-ink text-white" : "bg-cream text-ink-soft hover:bg-cream/70")}
+              className={cn("rounded-[var(--r-ctl)] px-3 py-1.5 text-xs transition", s.key === current.key ? "bg-ink text-white" : "bg-white text-ink-soft ring-1 ring-line hover:ring-ink/30")}
             >
               {labels.slot(i + 1)}
             </button>

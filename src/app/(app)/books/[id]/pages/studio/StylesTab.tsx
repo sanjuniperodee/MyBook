@@ -25,14 +25,14 @@ function StylePreview({ design, format, sample, name, description, active, onApp
   }, [onClose]);
   return (
     <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/50 sm:items-center sm:p-4" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div role="dialog" aria-modal="true" aria-label={t.previewTitle(name)} className="max-h-[94dvh] w-full max-w-5xl overflow-y-auto rounded-t-3xl bg-paper p-4 shadow-2xl sm:rounded-3xl sm:p-7">
+      <div role="dialog" aria-modal="true" aria-label={t.previewTitle(name)} className="max-h-[94dvh] w-full max-w-5xl overflow-y-auto rounded-t-[var(--r-sheet)] bg-paper p-4 shadow-lift sm:rounded-[var(--r-sheet)] sm:p-7">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="font-serif text-2xl font-medium sm:text-3xl">{t.previewTitle(name)}</h2>
             <p className="mt-1 text-sm text-muted">{description}</p>
             <p className="mt-0.5 text-xs text-muted">{t.previewText}</p>
           </div>
-          <button type="button" onClick={onClose} aria-label={t.close} className="flex size-10 shrink-0 items-center justify-center rounded-full bg-white text-ink shadow-soft hover:bg-cream">
+          <button type="button" onClick={onClose} aria-label={t.close} className="btn btn-outline btn-icon shrink-0">
             <X className="size-5" />
           </button>
         </div>
@@ -140,9 +140,9 @@ export function StylesTab({
                       </span>
                     ) : null}
                   </div>
-                  <div className="mt-2 flex items-baseline justify-between gap-2">
-                    <span className={cn("text-sm", active ? "font-semibold text-ink" : "font-medium text-ink-soft")}>{names[d.id].name}</span>
-                    <span className="shrink-0 text-[11px] text-muted">{dirNames[interiorDirection(d)]}</span>
+                  <div className="mt-2">
+                    <span className={cn("block truncate text-sm", active ? "font-semibold text-ink" : "font-medium text-ink-soft")}>{names[d.id].name}</span>
+                    <span className="block truncate text-[11px] text-muted">{dirNames[interiorDirection(d)]}</span>
                   </div>
                   {/* Есть ли в стиле фото в начале главы и какой формы — его выбирает автор (места фото, выпуск 2). */}
                   {d.opener.photo ? (

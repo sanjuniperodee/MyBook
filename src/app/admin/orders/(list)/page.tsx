@@ -1,7 +1,5 @@
 import { planName } from "@/i18n/labels";
-import Link from "next/link";
-import { MobileFilters } from "@/components/admin/MobileFilters";
-import { ChevronLeft, ChevronRight, Download, Search } from "lucide-react";
+import { Download } from "lucide-react";
 import { container } from "@/server/container";
 import { ORDER_STATUSES as orderStatuses } from "@/shared/domain/orders";
 import { contactView, requireStaff, staffViewer } from "@/server/access";
@@ -9,38 +7,75 @@ import { formatPrice, getPlans } from "@/config/site";
 import { isPrintedPlan, orderStatusDot, orderStatusLabel } from "@/modules/ordering/ui/status";
 import { orderMoney } from "@/modules/ordering/ui/money";
 import { staffLabel } from "@/shared/domain/staff";
+import { storeTimeZone } from "@/shared/domain/time";
 import type { OrderFilters } from "@/modules/reporting";
-import { formatDate } from "@/lib/dates";
-import { cn } from "@/lib/class-names";
+import { iso, localDay } from "@/modules/reporting/time";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { OrdersViews } from "../OrdersViews";
-import { OrdersTable, type OrderRow } from "../OrdersTable";
+import { OrdersTable, type OrderDue, type OrderRow } from "../OrdersTable";
+import { OrdersToolbar, type StatusChip } from "../OrdersToolbar";
 
 export const metadata = { title: "Заказы" };
 const PAGE = 50;
 
+const MS_DAY = 86_400_000;
+
+/** «20 дек» — день без года, если он в этом; иначе с годом. День — строка YYYY-MM-DD (без часового пояса). */
+function shortDay(day: string) {
+  const d = new Date(`${day}T00:00:00Z`);
+  const sameYear = d.getUTCFullYear() === new Date().getFullYear();
+  return new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "short", ...(sameYear ? {} : { year: "numeric" }), timeZone: "UTC" }).format(d).replace(/\.$/, "");
+}
+
+/** «27 окт, 09:00» по времени магазина. */
+function createdShort(d: Date) {
+  return new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: storeTimeZone() }).format(d).replace(".,", ",");
+}
+
 /**
- * Заказы: статус — вкладками над списком (одно нажатие), остальные фильтры — одной строкой; таблица с выбором и массовой
- * сменой статуса на ноутбуке, карточки на телефоне; внизу — страницы. Вид «Список · Производство» — общий с канбаном.
+ * Ведомость заказов (DESIGN.md §7.2): статус — чипами с числами, поиск, тариф, менеджер и даты — одной панелью над таблицей
+ * (применяются сразу), быстрый период и вид «Список · Производство» — рядом; таблица с выбором и массовой сменой статуса на
+ * ноутбуке, карточки на телефоне; в подвале — сколько найдено, сколько получено и страницы.
  */
 export default async function AdminOrders({ searchParams }: { searchParams: Promise<OrderFilters & { page?: string }> }) {
   const staff = await requireStaff("orders.view");
   const params = await searchParams;
   const p = Math.max(1, Number(params.page) || 1);
-  const [{ list, n, sum }, admins] = await Promise.all([container().reporting.orderList(params, staffViewer(staff), p, PAGE), container().access.queries.allStaff()]);
+  const viewer = staffViewer(staff);
+  const reporting = container().reporting;
+  // Числа на чипах — по тем же фильтрам, но без выбранного статуса (иначе у остальных чипов стояли бы нули).
+  const [{ list, n, sum }, admins, counts] = await Promise.all([
+    reporting.orderList(params, viewer, p, PAGE),
+    container().access.queries.allStaff(),
+    Promise.all(orderStatuses.map((s) => reporting.orderList({ ...params, status: s }, viewer, 1, 1).then((r) => r.n))),
+  ]);
   const names = new Map(admins.map((a) => [a.id, staffLabel(a)]));
+  const today = localDay(0).getTime();
   const rows: OrderRow[] = list.map((o) => {
     const contact = contactView(staff, { phone: o.contactPhone, email: o.contactEmail });
     const money = orderMoney(o);
+    const printed = isPrintedPlan(o.plan);
+    // Срок грозит, пока заказ не закрыт; у электронной версии — только пока ждёт оплаты.
+    const open = o.status !== "delivered" && o.status !== "cancelled" && (printed || o.status === "pending_payment");
+    let due: OrderDue | null = null;
+    if (o.desiredDate) {
+      const left = Math.round((new Date(`${o.desiredDate}T00:00:00`).getTime() - today) / MS_DAY);
+      due = {
+        label: shortDay(o.desiredDate),
+        text: !open ? null : left < 0 ? `просрочено на ${-left} дн.` : left === 0 ? "сегодня" : `через ${left} дн.`,
+        tone: !open ? "neutral" : left < 0 ? "danger" : left <= 3 ? "warning" : "neutral",
+      };
+    }
     return {
       id: o.id,
       number: o.number,
-      createdLabel: formatDate(o.createdAt, true),
+      createdLabel: createdShort(o.createdAt),
       contactName: o.contactName,
       contactLine: [contact.phone, contact.email].filter(Boolean).join(" · "),
       planLabel: `${planName(o.plan)}${o.quantity > 1 ? ` × ${o.quantity}` : ""}`,
-      printed: isPrintedPlan(o.plan),
-      desiredLabel: o.desiredDate ? formatDate(o.desiredDate) : null,
+      printed,
+      desiredLabel: o.desiredDate ? shortDay(o.desiredDate) : null,
+      due,
       amountLabel: formatPrice(money.price),
       money: money.debt > 0 ? { kind: "debt", label: `долг ${formatPrice(money.debt)}` } : money.paid > 0 ? { kind: "paid", label: `оплачено ${formatPrice(money.paid)}` } : null,
       status: o.status,
@@ -49,110 +84,76 @@ export default async function AdminOrders({ searchParams }: { searchParams: Prom
       promoCode: o.promoCode,
     };
   });
+
   const qs = new URLSearchParams(Object.entries(params).filter(([k, v]) => v && k !== "page") as [string, string][]);
-  const pageLink = (n: number) => `?${new URLSearchParams({ ...Object.fromEntries(qs), page: String(n) })}`;
-  const statusLink = (s: string) => {
-    const q = new URLSearchParams(Object.entries(params).filter(([k, v]) => v && k !== "page" && k !== "status") as [string, string][]);
-    if (s) q.set("status", s);
+  /** Адрес с теми же фильтрами, но с заменой отдельных (пусто — убрать); страница сбрасывается. */
+  const link = (patch: Record<string, string | null>) => {
+    const q = new URLSearchParams(qs);
+    for (const [k, v] of Object.entries(patch)) {
+      if (v) q.set(k, v);
+      else q.delete(k);
+    }
     return `/admin/orders${q.size ? `?${q}` : ""}`;
   };
-  // Фильтры, кроме статуса (он — вкладками): от них зависит подсветка «Фильтры» на телефоне и «Сбросить».
-  const narrowed = [...qs.keys()].some((k) => k !== "status");
+  const pageLink = (page: number) => `?${new URLSearchParams({ ...Object.fromEntries(qs), page: String(page) })}`;
   const pages = Math.ceil(n / PAGE);
+  // Фильтры, кроме статуса (он — чипами): от них зависит подсветка «Фильтры» на телефоне и «Сбросить».
+  const narrowed = [...qs.keys()].some((k) => k !== "status");
+
+  const total = counts.reduce((a, b) => a + b, 0);
+  const chips: StatusChip[] = [
+    { key: "", label: "Все", href: link({ status: null }), count: total, active: !params.status, dot: null },
+    ...orderStatuses.map((s, i) => ({ key: s, label: orderStatusLabel(s), href: link({ status: s }), count: counts[i], active: params.status === s, dot: orderStatusDot[s] })),
+  ];
+
+  const d7 = iso(localDay(-6));
+  const d30 = iso(localDay(-29));
+  const periods = [
+    { key: "all", label: "Всё время", href: link({ from: null, to: null }), active: !params.from && !params.to },
+    { key: "7", label: "7 дней", href: link({ from: d7, to: null }), active: params.from === d7 && !params.to },
+    { key: "30", label: "30 дней", href: link({ from: d30, to: null }), active: params.from === d30 && !params.to },
+  ];
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-4 lg:gap-5">
       <PageHeader
         title="Заказы"
         actions={
           <>
-            <OrdersViews active="list" />
+            <OrdersViews active="list" className="lg:hidden" />
             <a href={`/api/admin/export/orders?${qs}`} className="btn btn-outline btn-sm max-lg:hidden">
               <Download className="size-4" aria-hidden /> Выгрузить CSV
             </a>
           </>
         }
-      >
-        Найдено {n.toLocaleString("ru-RU")}, получено {formatPrice(sum)} с учётом предоплат.
-      </PageHeader>
+      />
 
-      <div className="space-y-3">
-        {/* Статус — вкладками: на ноутбуке строкой, на телефоне лентой вбок. */}
-        <nav aria-label="Статус заказа" className="m-hscroll flex flex-wrap gap-1.5" data-no-ptr>
-          {[{ key: "", label: "Все" }, ...orderStatuses.map((s) => ({ key: s, label: orderStatusLabel(s) }))].map((s) => {
-            const on = (params.status ?? "") === s.key;
-            return (
-              <Link key={s.key || "all"} href={statusLink(s.key)} aria-current={on ? "page" : undefined} className={cn("chip max-lg:h-10", on && "chip-on")}>
-                {s.key ? <span className={cn("size-1.5 rounded-full", on ? "bg-current" : orderStatusDot[s.key as keyof typeof orderStatusDot])} aria-hidden /> : null}
-                {s.label}
-              </Link>
-            );
-          })}
-        </nav>
-
-        <MobileFilters active={narrowed}>
-          <form className="panel grid gap-2 p-2.5 sm:grid-cols-2 lg:grid-cols-[minmax(14rem,2fr)_repeat(2,minmax(9rem,1fr))_repeat(2,minmax(8.5rem,10rem))_auto]">
-            {params.status ? <input type="hidden" name="status" value={params.status} /> : null}
-            <div className="relative sm:col-span-2 lg:col-span-1">
-              <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" aria-hidden />
-              <input name="q" defaultValue={params.q} placeholder="№, имя, телефон, e-mail, город" aria-label="Поиск заказов: номер, имя, телефон, e-mail, город" className="input h-10 pl-9 text-sm" />
-            </div>
-            <select name="plan" defaultValue={params.plan ?? ""} className="input h-10 text-sm" aria-label="Тариф">
-              <option value="">Все тарифы</option>
-              {getPlans().map((pl) => (
-                <option key={pl.id} value={pl.id}>
-                  {planName(pl.id)}
-                </option>
-              ))}
-            </select>
-            <select name="assignee" defaultValue={params.assignee ?? ""} className="input h-10 text-sm" aria-label="Менеджер">
-              <option value="">Любой менеджер</option>
-              <option value="me">Мои</option>
-              <option value="none">Без ответственного</option>
-              {admins.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {staffLabel(a)}
-                </option>
-              ))}
-            </select>
-            <input type="date" name="from" defaultValue={params.from} className="input h-10 text-sm" title="С даты" aria-label="Заказы с даты" />
-            <input type="date" name="to" defaultValue={params.to} className="input h-10 text-sm" title="По дату" aria-label="Заказы по дату" />
-            <div className="flex gap-2 sm:col-span-2 lg:col-span-1">
-              <button className="btn btn-dark btn-sm h-10 flex-1 lg:flex-none">Найти</button>
-              {narrowed ? (
-                <Link href={params.status ? `/admin/orders?status=${params.status}` : "/admin/orders"} className="btn btn-ghost btn-sm h-10">
-                  Сбросить
-                </Link>
-              ) : null}
-            </div>
-          </form>
-        </MobileFilters>
+      {/* Ведомость одним листом на ноутбуке (инструменты, таблица, подвал); на телефоне — инструменты над листом карточек. */}
+      <div className="flex flex-col gap-3 lg:gap-0 lg:overflow-clip lg:rounded-[var(--r-panel)] lg:border lg:border-line lg:bg-white">
+        <OrdersToolbar
+          values={{ q: params.q ?? "", plan: params.plan ?? "", assignee: params.assignee ?? "", from: params.from ?? "", to: params.to ?? "", status: params.status ?? "" }}
+          plans={getPlans().map((pl) => ({ id: pl.id, label: planName(pl.id) }))}
+          admins={admins.map((a) => ({ id: a.id, label: staffLabel(a) }))}
+          chips={chips}
+          periods={periods}
+          narrowed={narrowed}
+          resetHref={link({ q: null, plan: null, assignee: null, from: null, to: null })}
+        />
+        <OrdersTable
+          rows={rows}
+          filtered={!!qs.size}
+          footer={{
+            count: n,
+            received: formatPrice(sum),
+            from: (p - 1) * PAGE + 1,
+            to: Math.min(p * PAGE, n),
+            page: p,
+            pages,
+            prevHref: p > 1 ? pageLink(p - 1) : null,
+            nextHref: p < pages ? pageLink(p + 1) : null,
+          }}
+        />
       </div>
-
-      <OrdersTable rows={rows} filtered={!!qs.size} />
-
-      {pages > 1 ? (
-        <nav aria-label="Страницы" className="flex flex-wrap items-center justify-between gap-3 text-sm">
-          <span className="text-muted tabular-nums">
-            {(p - 1) * PAGE + 1}–{Math.min(p * PAGE, n)} из {n.toLocaleString("ru-RU")}
-          </span>
-          <div className="flex items-center gap-2">
-            {p > 1 ? (
-              <Link className="btn btn-outline btn-sm" href={pageLink(p - 1)}>
-                <ChevronLeft className="size-4" aria-hidden /> Назад
-              </Link>
-            ) : null}
-            <span className="px-1 text-muted tabular-nums">
-              {p} из {pages}
-            </span>
-            {p < pages ? (
-              <Link className="btn btn-outline btn-sm" href={pageLink(p + 1)}>
-                Дальше <ChevronRight className="size-4" aria-hidden />
-              </Link>
-            ) : null}
-          </div>
-        </nav>
-      ) : null}
     </div>
   );
 }

@@ -2,11 +2,12 @@ import { container } from "@/server/container";
 import { requireStaff } from "@/server/access";
 import { staffOptions } from "@/modules/access/ui";
 import { formatDate } from "@/lib/dates";
-import { ChevronRight, Zap } from "lucide-react";
+import { Zap } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Badge } from "@/components/ui/Badge";
-import { AutomationCard } from "./AutomationEditor";
+import { AutomationRow, NewRuleButton } from "./AutomationEditor";
+import { InlineStats } from "../analytics/kit";
 import { getSetting } from "@/modules/workspace";
 import { RULE_STATS_DAYS } from "@/modules/reporting";
 import { formatPrice } from "@/config/site";
@@ -37,8 +38,8 @@ export default async function AutomationsPage() {
     staff: staffOptions(admins),
     holidays: parseHolidays(holidays).map((h) => ({ id: h.id, label: `${h.ru} (${h.date.slice(3)}.${h.date.slice(0, 2)})` })),
   };
-  const card = (r: (typeof rules)[number]) => (
-    <AutomationCard
+  const row = (r: (typeof rules)[number]) => (
+    <AutomationRow
       key={r.id}
       rule={{ id: r.id, name: r.name, trigger: r.trigger, conditions: r.conditions, actions: r.actions, active: r.active }}
       stats={{ runs: r.runs, last: r.lastRunAt ? formatDate(r.lastRunAt, true) : null, sales: salesLabel(r) }}
@@ -47,36 +48,61 @@ export default async function AutomationsPage() {
   );
   const on = rules.filter((r) => r.active);
   const off = rules.filter((r) => !r.active);
+  const runs = rules.reduce((a, r) => a + r.runs, 0);
+  const band = (title: string, n: number) => (
+    <h2 className="flex items-center gap-2 border-y border-line bg-sunken/60 px-4 py-1.5 text-[13px] font-semibold text-ink-soft first:border-t-0 sm:px-5">
+      {title} <span className="count">{n}</span>
+    </h2>
+  );
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-6">
-      <PageHeader title="Автоматизации" meta={<Badge tone={on.length ? "success" : "neutral"} dot>{on.length ? `работают ${on.length}` : "ни одно не работает"}</Badge>}>
-        Цифровая воронка: событие → условие → действия. Например, «пропущенный звонок → задача перезвонить за 15 минут» или «новая заявка → назначить менеджера по кругу». Каждое правило срабатывает для
+    <div className="flex flex-col gap-5">
+      <PageHeader
+        title="Автоматизации"
+        actions={<NewRuleButton ctx={ctx} />}
+        meta={<Badge tone={on.length ? "success" : "neutral"} dot>{on.length ? `работают ${on.length}` : "ни одно не работает"}</Badge>}
+      >
+        Цифровая воронка: событие, условие, действия. Например, «пропущенный звонок — задача перезвонить за 15 минут» или «новая заявка — назначить менеджера по кругу». Каждое правило срабатывает для
         объекта один раз.
       </PageHeader>
-      <section aria-labelledby="on-h" className="space-y-3">
-        <h2 id="on-h" className="text-lg font-semibold">
-          Работают <span className="font-normal text-muted tabular-nums">{on.length}</span>
-        </h2>
-        {on.length ? (
-          <div className="panel divide-y divide-line overflow-hidden">{on.map(card)}</div>
-        ) : (
-          <div className="panel">
-            <EmptyState compact icon={Zap} title={off.length ? "Все правила выключены" : "Правил пока нет"}>
-              Начните с простого: пропущенный звонок — задача перезвонить; новая заявка — назначить менеджера по кругу.
-            </EmptyState>
-          </div>
-        )}
-        <AutomationCard rule={null} stats={null} ctx={ctx} />
-      </section>
-      {off.length ? (
-        <details className="group space-y-3">
-          <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 text-lg font-semibold marker:hidden [&::-webkit-details-marker]:hidden">
-            <ChevronRight className="size-4 text-muted transition-transform group-open:rotate-90" aria-hidden />
-            Выключены <span className="font-normal text-muted tabular-nums">{off.length}</span>
-          </summary>
-          <div className="panel mt-3 divide-y divide-line overflow-hidden">{off.map(card)}</div>
-        </details>
+      {rules.length ? (
+        <InlineStats
+          items={[
+            { label: "Правил", value: rules.length },
+            { label: "Работают", value: on.length, tone: on.length ? "success" : undefined },
+            { label: "Выключены", value: off.length },
+            { label: "Срабатываний", value: runs, hint: "за всё время" },
+          ]}
+        />
       ) : null}
+      <section className="panel overflow-hidden" aria-label="Правила автоматизации">
+        {rules.length ? (
+          <div className="hidden grid-cols-[7.5rem_minmax(0,1fr)_12rem_auto] gap-x-4 border-b border-line bg-sunken/70 px-5 py-2 text-xs font-medium text-muted lg:grid">
+            <span>Статус</span>
+            <span>Правило: когда и что делает</span>
+            <span>Запуски</span>
+            <span className="w-[8.5rem]" aria-hidden />
+          </div>
+        ) : null}
+        {on.length ? (
+          <>
+            {band("Работают", on.length)}
+            <ul className="divide-y divide-line">{on.map(row)}</ul>
+          </>
+        ) : null}
+        {off.length ? (
+          <>
+            {band("Выключены", off.length)}
+            <ul className="divide-y divide-line">{off.map(row)}</ul>
+          </>
+        ) : null}
+        {!rules.length ? (
+          <EmptyState icon={Zap} title="Правил пока нет">
+            Начните с простого: пропущенный звонок — задача перезвонить; новая заявка — назначить менеджера по кругу. Кнопка «Новое правило» — вверху.
+          </EmptyState>
+        ) : !on.length ? (
+          <p className="border-t border-line px-5 py-3 text-sm text-muted">Все правила выключены: включите нужные галочкой в строке.</p>
+        ) : null}
+      </section>
     </div>
   );
 }

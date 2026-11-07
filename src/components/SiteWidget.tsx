@@ -135,12 +135,13 @@ export function SiteWidget({ whatsapp, chat }: { whatsapp: string; chat: boolean
   };
 
   return (
-    <div className="fixed right-4 bottom-4 z-40 flex flex-col items-end gap-3 print:hidden" data-testid="site-widget">
+    // --cta-h: высота закреплённой внизу кнопки «Начать» на телефоне (StickyStart) — виджет стоит над ней, а не под ней.
+    <div className="fixed right-4 bottom-[calc(1rem+var(--cta-h,0px))] z-40 flex flex-col items-end gap-3 transition-[bottom] duration-300 print:hidden" data-testid="site-widget">
       {open ? (
-        <div className="flex max-h-[min(560px,calc(100dvh-6rem))] w-[min(360px,calc(100vw-2rem))] flex-col overflow-hidden rounded-3xl border border-line bg-white shadow-2xl" role="dialog" aria-label={t.title}>
+        <div className="flex max-h-[min(560px,calc(100dvh-6rem))] w-[min(360px,calc(100vw-2rem))] flex-col overflow-hidden rounded-(--r-sheet) border border-line bg-white shadow-lift" role="dialog" aria-label={t.title}>
           <div className="flex items-center gap-2 bg-wine px-4 py-3 text-white">
             {view !== "menu" ? (
-              <button type="button" onClick={() => go("menu")} aria-label={t.back} className="-ml-1 rounded-full p-1 hover:bg-white/10">
+              <button type="button" onClick={() => go("menu")} aria-label={t.back} className="-ml-1 rounded-(--r-ctl) p-1 hover:bg-white/10">
                 <ArrowLeft className="size-5" />
               </button>
             ) : null}
@@ -148,7 +149,7 @@ export function SiteWidget({ whatsapp, chat }: { whatsapp: string; chat: boolean
               <div className="font-semibold">{view === "callback" ? t.callback : view === "chat" ? t.chat : t.title}</div>
               <div className="truncate text-xs text-white/75">{t.subtitle}</div>
             </div>
-            <button type="button" onClick={() => setOpen(false)} aria-label={t.close} className="rounded-full p-1 hover:bg-white/10">
+            <button type="button" onClick={() => setOpen(false)} aria-label={t.close} className="rounded-(--r-ctl) p-1 hover:bg-white/10">
               <X className="size-5" />
             </button>
           </div>
@@ -163,18 +164,18 @@ export function SiteWidget({ whatsapp, chat }: { whatsapp: string; chat: boolean
                   onClick={(e) => {
                     e.currentTarget.href = waWithCode() || e.currentTarget.href;
                   }}
-                  className="flex items-center gap-3 rounded-2xl border border-line px-4 py-3 hover:border-emerald-300 hover:bg-emerald-50"
+                  className="flex items-center gap-3 rounded-(--r-ctl) border border-line px-4 py-3 hover:border-success/50 hover:bg-success-bg"
                 >
-                  <MessageCircle className="size-5 text-emerald-600" /> {t.whatsapp}
+                  <MessageCircle className="size-5 text-success" /> {t.whatsapp}
                 </a>
               ) : null}
-              <button type="button" onClick={() => go("callback")} className="flex w-full items-center gap-3 rounded-2xl border border-line px-4 py-3 text-left hover:border-wine/30 hover:bg-rose/30">
+              <button type="button" onClick={() => go("callback")} className="flex w-full items-center gap-3 rounded-(--r-ctl) border border-line px-4 py-3 text-left hover:border-wine/30 hover:bg-rose/30">
                 <PhoneCall className="size-5 text-wine" /> {t.callback}
               </button>
               {chat ? (
-                <button type="button" onClick={() => go("chat")} className="flex w-full items-center gap-3 rounded-2xl border border-line px-4 py-3 text-left hover:border-wine/30 hover:bg-rose/30">
+                <button type="button" onClick={() => go("chat")} className="flex w-full items-center gap-3 rounded-(--r-ctl) border border-line px-4 py-3 text-left hover:border-wine/30 hover:bg-rose/30">
                   <MessagesSquare className="size-5 text-wine" /> {t.chat}
-                  {unread ? <span className="ml-auto rounded-full bg-wine px-2 py-0.5 text-[11px] text-white">{t.newReply}</span> : null}
+                  {unread ? <span className="count count-alert ml-auto">{t.newReply}</span> : null}
                 </button>
               ) : null}
             </div>
@@ -190,7 +191,7 @@ export function SiteWidget({ whatsapp, chat }: { whatsapp: string; chat: boolean
                 <input name="name" className="input h-11" placeholder={t.name} maxLength={80} autoComplete="name" aria-label={t.name} />
                 <input name="phone" className="input h-11" placeholder={t.phone} type="tel" inputMode="tel" autoComplete="tel" required maxLength={30} aria-label={t.phone} />
                 <input name="comment" className="input h-11" placeholder={t.comment} maxLength={500} aria-label={t.comment} />
-                {error ? <p className="text-sm text-red-700">{error}</p> : null}
+                {error ? <p className="field-error">{error}</p> : null}
                 <button className="btn w-full" disabled={busy}>
                   {busy ? t.sending : t.send}
                 </button>
@@ -200,11 +201,11 @@ export function SiteWidget({ whatsapp, chat }: { whatsapp: string; chat: boolean
 
           {view === "chat" ? (
             <>
-              <div ref={scroller} className="min-h-48 flex-1 space-y-2 overflow-y-auto bg-[#f4efe7] p-3" data-testid="widget-messages">
-                <div className="max-w-[85%] rounded-2xl rounded-bl-md bg-white px-3 py-2 text-sm shadow-sm">{t.chatHello}</div>
+              <div ref={scroller} className="min-h-48 flex-1 space-y-2 overflow-y-auto bg-cream p-3" data-testid="widget-messages">
+                <div className="max-w-[85%] rounded-2xl rounded-bl-md bg-white px-3 py-2 text-sm">{t.chatHello}</div>
                 {messages.map((m) => (
                   <div key={m.id} className={cn("flex", m.mine ? "justify-end" : "justify-start")}>
-                    <div className={cn("max-w-[85%] rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap shadow-sm", m.mine ? "rounded-br-md bg-wine text-white" : "rounded-bl-md bg-white")} data-mine={m.mine ? "1" : "0"}>
+                    <div className={cn("max-w-[85%] rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap", m.mine ? "rounded-br-md bg-wine text-white" : "rounded-bl-md bg-white")} data-mine={m.mine ? "1" : "0"}>
                       {!m.mine ? <div className="mb-0.5 text-[11px] text-muted">{t.manager}</div> : null}
                       {m.text}
                     </div>
@@ -213,7 +214,7 @@ export function SiteWidget({ whatsapp, chat }: { whatsapp: string; chat: boolean
               </div>
               <div className="space-y-2 border-t border-line p-3">
                 {!started ? <input className="input h-9 text-sm" placeholder={t.chatPhone} value={phone} onChange={(e) => setPhone(e.target.value)} type="tel" inputMode="tel" maxLength={30} aria-label={t.chatPhone} /> : null}
-                {error ? <p className="text-xs text-red-700">{error}</p> : null}
+                {error ? <p className="field-error">{error}</p> : null}
                 <div className="flex items-end gap-2">
                   <textarea
                     value={text}
@@ -228,7 +229,7 @@ export function SiteWidget({ whatsapp, chat }: { whatsapp: string; chat: boolean
                     maxLength={2000}
                     placeholder={t.chatPlaceholder}
                     aria-label={t.chatPlaceholder}
-                    className="max-h-32 min-h-10 w-full resize-none rounded-xl border border-line bg-[#fbf9f5] px-3 py-2 text-sm outline-none field-sizing-content focus:border-wine/40"
+                    className="input h-auto max-h-32 min-h-10 resize-none py-2 text-sm field-sizing-content"
                   />
                   <button type="button" className="btn size-10 shrink-0 px-0" onClick={() => void sendChat()} disabled={busy || !text.trim()} aria-label={t.send}>
                     <SendHorizontal className="size-5" />
@@ -242,12 +243,12 @@ export function SiteWidget({ whatsapp, chat }: { whatsapp: string; chat: boolean
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="relative flex size-14 items-center justify-center rounded-full bg-wine text-white shadow-xl transition hover:scale-105 hover:bg-wine/90"
+        className="relative flex size-14 items-center justify-center rounded-(--r-sheet) bg-wine text-white transition hover:bg-wine-dark active:scale-95"
         aria-label={open ? t.close : t.open}
         aria-expanded={open}
       >
         {open ? <X className="size-6" /> : <MessagesSquare className="size-6" />}
-        {!open && unread ? <span className="absolute top-1 right-1 size-3 rounded-full border-2 border-white bg-emerald-500" /> : null}
+        {!open && unread ? <span className="absolute -top-1 -right-1 size-3.5 rounded-full border-2 border-paper bg-success" /> : null}
       </button>
     </div>
   );

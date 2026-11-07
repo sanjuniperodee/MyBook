@@ -34,7 +34,7 @@ export function FileButtons({ orderId, printed }: { orderId: string; printed: bo
   };
   return (
     <>
-      <div className="mt-5 flex flex-wrap gap-3">
+      <div className="flex flex-wrap gap-3 max-sm:flex-col [&>a]:max-sm:w-full">
         {file("reading", "reading", t.reading, "btn btn-primary")}
         {!printed ? (
           <>

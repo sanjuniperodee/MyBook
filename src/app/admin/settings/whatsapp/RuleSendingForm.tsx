@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { LoaderCircle } from "lucide-react";
 import { toast } from "@/components/ui/overlays";
-import { Intro } from "@/components/admin/Intro";
-import { Section } from "../ui";
+import { Actions, Field, Group, Note, Section } from "../ui";
 import { saveRuleSendingAction } from "./actions";
 
 /**
@@ -21,36 +21,48 @@ export function RuleSendingForm(props: { from: string; to: string; dailyLimit: n
       const r = await saveRuleSendingAction({ from, to, dailyLimit: Number(limit) });
       toast(r.ok ? "Сохранено" : r.error, r.ok ? "success" : "error");
     });
+  const off = props.dailyLimit === 0;
   return (
-    <Section defaultOpen={false} title="Сообщения от правил: окно и лимит">
-      <Intro className="mb-4">
-        Номер WhatsApp один — ночные и массовые автоматические сообщения ведут к жалобам и блокировке. Правила автоматизаций пишут клиентам первыми только в это время (Алматы) и не больше лимита в сутки; «забросил книгу», годовщина и праздник вне окна и сверх лимита сработают позже, остальные правила срабатывают сразу (уведомления и задачи), а сообщение пропускают с заметкой в сделке. Автоответ на сообщение клиента уходит в любое время. 0 — правила первыми не пишут.
-      </Intro>
+    <Section
+      id="rule-sending"
+      defaultOpen={false}
+      title="Сообщения от правил: окно и лимит"
+      description="Когда автоматизации пишут клиентам первыми и сколько сообщений в сутки"
+      status={off ? { tone: "off", label: "правила первыми не пишут" } : { tone: "ok", label: `${props.from}–${props.to}, до ${props.dailyLimit} в сутки` }}
+    >
       <form
-        className="flex flex-wrap items-end gap-3"
+        className="space-y-5"
         onSubmit={(e) => {
           e.preventDefault();
           save();
         }}
       >
-        <label className="block">
-          <span className="label">С</span>
-          <input type="time" className="input h-10 w-28 text-sm" value={from} onChange={(e) => setFrom(e.target.value)} aria-label="Окно: с" required />
-        </label>
-        <label className="block">
-          <span className="label">До</span>
-          <input type="time" className="input h-10 w-28 text-sm" value={to} onChange={(e) => setTo(e.target.value)} aria-label="Окно: до" required />
-        </label>
-        <label className="block">
-          <span className="label">Сообщений в сутки</span>
-          <input type="number" inputMode="numeric" min={0} max={props.max} step={1} className="input h-10 w-28 text-sm" value={limit} onChange={(e) => setLimit(e.target.value)} aria-label="Сообщений в сутки" required />
-        </label>
-        <button className="btn btn-primary btn-sm h-10" disabled={pending}>
-          Сохранить
-        </button>
-        <span className="text-xs text-muted" data-testid="rule-sending-today">
-          Сегодня ушло: {props.sentToday} из {props.dailyLimit}
-        </span>
+        <Note>
+          Номер WhatsApp один — ночные и массовые автоматические сообщения ведут к жалобам и блокировке. Правила автоматизаций пишут клиентам первыми только в это время (Алматы) и не больше лимита в сутки; «забросил книгу», годовщина и праздник вне окна и сверх лимита сработают позже, остальные правила срабатывают сразу (уведомления и задачи), а сообщение пропускают с заметкой в сделке. Автоответ на сообщение клиента уходит в любое время. 0 — правила первыми не пишут.
+        </Note>
+        <Group title="Окно отправки" hint="Время по Алматы: вне окна сообщения правил ждут утра.">
+          <div className="flex flex-wrap gap-3">
+            <Field label="С" className="w-32">
+              <input type="time" className="input" value={from} onChange={(e) => setFrom(e.target.value)} required />
+            </Field>
+            <Field label="До" className="w-32">
+              <input type="time" className="input" value={to} onChange={(e) => setTo(e.target.value)} required />
+            </Field>
+          </div>
+        </Group>
+        <Group title="Лимит" hint="Защита номера от блокировки.">
+          <Field label="Сообщений в сутки" className="w-40">
+            <input type="number" inputMode="numeric" min={0} max={props.max} step={1} className="input" value={limit} onChange={(e) => setLimit(e.target.value)} required />
+          </Field>
+          <p className="text-xs text-muted" data-testid="rule-sending-today">
+            Сегодня ушло: {props.sentToday} из {props.dailyLimit}
+          </p>
+        </Group>
+        <Actions>
+          <button className="btn btn-dark" disabled={pending}>
+            {pending ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : null} Сохранить
+          </button>
+        </Actions>
       </form>
     </Section>
   );

@@ -171,7 +171,7 @@ function TextPanel({ layer, texts, board, patch, swatches, onBookText }: Propert
 
 function ToggleChip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
-    <button type="button" aria-pressed={active} onClick={onClick} className={cn("h-9 rounded-xl border px-3 text-sm transition", active ? "border-wine bg-rose/60 text-wine" : "border-line bg-white text-ink-soft hover:border-ink/30")}>
+    <button type="button" aria-pressed={active} onClick={onClick} className={cn("h-9 rounded-[var(--r-ctl)] border px-3 text-sm transition pointer-coarse:h-11", active ? "border-wine bg-rose/60 text-wine" : "border-line bg-white text-ink-soft hover:border-ink/30")}>
       {children}
     </button>
   );
@@ -190,7 +190,7 @@ function ImagePanel({ layer, board, bookId, bookPhotos, patch, swatches, onCrop 
     <PanelSection title={t.title}>
       {!layer.photoId && !layer.stock ? <p className="text-sm text-muted">{t.empty}</p> : null}
       {photo && dpi && dpi < MIN_DPI ? (
-        <p className="flex gap-2 rounded-xl bg-warning-bg p-3 text-xs text-warning">
+        <p className="flex gap-2 rounded-[var(--r-ctl)] bg-warning-bg p-3 text-xs text-warning">
           <AlertTriangle className="size-4 shrink-0" /> {t.lowRes(dpi)}
         </p>
       ) : null}
@@ -251,7 +251,7 @@ function ShapePanel({ layer, board, patch, swatches }: PropertiesProps & { layer
               aria-label={m.add.shapeNames[k]}
               aria-pressed={layer.shape === k}
               onClick={() => set({ shape: k, ...(k === "line" || k === "frame" || k === "double" || k === "corners" ? { stroke: layer.stroke ?? layer.fill ?? "#1F1A17", strokeWidth: layer.strokeWidth ?? 0.004 } : { fill: layer.fill ?? layer.stroke ?? "#B8925A" }) }, "shape")}
-              className={cn("flex aspect-square items-center justify-center rounded-xl border bg-white p-2", layer.shape === k ? "border-wine ring-1 ring-wine" : "border-line hover:border-ink/30")}
+              className={cn("flex aspect-square items-center justify-center rounded-[var(--r-ctl)] border bg-white p-2", layer.shape === k ? "border-wine ring-1 ring-wine" : "border-line hover:border-ink/30")}
             >
               <ShapeIcon shape={k} />
             </button>
@@ -334,7 +334,7 @@ export function DecorGrid({ value, color = "#3B332E", onPick, names, cols = "gri
             aria-label={names[id]}
             aria-pressed={value === id}
             onClick={() => onPick(id)}
-            className={cn("flex aspect-square items-center justify-center rounded-xl border bg-white p-1.5 transition hover:-translate-y-px", value === id ? "border-wine ring-1 ring-wine" : "border-line hover:border-ink/30")}
+            className={cn("flex aspect-square items-center justify-center rounded-[var(--r-ctl)] border bg-white p-1.5 transition", value === id ? "border-wine ring-1 ring-wine" : "border-line hover:border-ink/30")}
           >
             <svg viewBox={`0 0 ${d.w} ${d.h}`} preserveAspectRatio="xMidYMid meet" className="size-full" aria-hidden>
               {d.shapes.map((s, i) => (

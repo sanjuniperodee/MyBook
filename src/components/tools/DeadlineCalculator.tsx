@@ -8,8 +8,7 @@ import { dateFor } from "@/i18n/messages/partial";
 import { toolUi } from "@/lib/content/tools/ui";
 import { deadlineView } from "@/lib/tools/deadline";
 import { parseDay } from "@/lib/tools/together";
-import { cn } from "@/lib/class-names";
-import { Choice } from "./Choice";
+import { Choice, Figure, ResultEmpty, ToolField, Verdict, Workbench } from "./Workbench";
 
 const deliveries: DeliveryId[] = ["courier", "post", "pickup", "abroad"];
 
@@ -27,7 +26,7 @@ export function DeadlineCalculator({ expressPrice }: { expressPrice: string | nu
 
   let tone: "calm" | "warm" | "hot" = "calm";
   let text = ui.empty;
-  let Icon = CalendarHeart;
+  let icon = <CalendarHeart className="size-5" aria-hidden />;
   if (value && !typed) {
     text = ui.invalid;
   } else if (view) {
@@ -38,22 +37,22 @@ export function DeadlineCalculator({ expressPrice }: { expressPrice: string | nu
         break;
       case "relaxed":
         text = ui.relaxed(by, view.daysToOrder);
-        Icon = PackageCheck;
+        icon = <PackageCheck className="size-5" aria-hidden />;
         break;
       case "soon":
         text = ui.soon(by, view.daysToOrder);
         tone = "warm";
-        Icon = Clock;
+        icon = <Clock className="size-5" aria-hidden />;
         break;
       case "urgent":
         text = ui.urgent(by, view.daysToOrder);
         tone = "hot";
-        Icon = Clock;
+        icon = <Clock className="size-5" aria-hidden />;
         break;
       case "express":
         text = ui.express(fmt(view.orderByExpress ?? view.orderBy, true), expressPrice);
         tone = "hot";
-        Icon = Zap;
+        icon = <Zap className="size-5" aria-hidden />;
         break;
       case "digital":
         text = ui.digital;
@@ -61,41 +60,43 @@ export function DeadlineCalculator({ expressPrice }: { expressPrice: string | nu
         break;
     }
   }
+  const showFigure = !!view && (view.verdict === "relaxed" || view.verdict === "soon" || view.verdict === "urgent");
 
   return (
-    <div className="card p-6 sm:p-8">
-      <div className="grid gap-5 sm:grid-cols-[minmax(0,260px)_1fr]">
-        <div>
-          <label className="label" htmlFor="deadline-date">
-            {ui.dateLabel}
-          </label>
-          <input id="deadline-date" type="date" className="input" value={value}
-            onChange={(e) => {
-              setValue(e.target.value);
-              setNow(new Date());
-            }} />
-        </div>
-        <div>
-          <span className="label">{ui.deliveryLabel}</span>
-          <Choice label={ui.deliveryLabel} value={delivery} onChange={setDelivery} options={deliveries.map((d) => ({ id: d, label: ui.delivery[d] }))} />
-        </div>
-      </div>
-      <div
-        aria-live="polite"
-        className={cn(
-          "mt-6 flex items-start gap-4 rounded-[14px] border p-5",
-          tone === "calm" && "border-line bg-cream/50",
-          tone === "warm" && "border-amber-200 bg-amber-50/70",
-          tone === "hot" && "border-wine/30 bg-rose/40",
-        )}
-      >
-        <Icon className={cn("mt-0.5 size-6 shrink-0", tone === "hot" ? "text-wine" : "text-ink-soft")} aria-hidden />
-        <div>
-          <p className="leading-relaxed text-ink">{text}</p>
-          {view && view.verdict !== "past" ? <p className="mt-2 text-sm text-muted">{ui.detail(view.daysToTarget)}</p> : null}
-        </div>
-      </div>
-      <p className="mt-4 text-xs leading-relaxed text-muted">{ui.note}</p>
-    </div>
+    <Workbench
+      input={
+        <>
+          <ToolField label={ui.dateLabel} htmlFor="deadline-date">
+            <input
+              id="deadline-date"
+              type="date"
+              className="input"
+              value={value}
+              onChange={(e) => {
+                setValue(e.target.value);
+                setNow(new Date());
+              }}
+            />
+          </ToolField>
+          <ToolField label={ui.deliveryLabel}>
+            <Choice label={ui.deliveryLabel} value={delivery} onChange={setDelivery} options={deliveries.map((d) => ({ id: d, label: ui.delivery[d] }))} />
+          </ToolField>
+          <p className="text-xs leading-relaxed text-muted">{ui.note}</p>
+        </>
+      }
+      result={
+        !value ? (
+          <ResultEmpty>{ui.empty}</ResultEmpty>
+        ) : (
+          <div className="space-y-5">
+            {showFigure && view ? <Figure value={fmt(view.orderBy, true)} caption={ui.orderBy} sub={ui.daysLeft(view.daysToOrder)} size="md" /> : null}
+            <Verdict tone={tone} icon={icon}>
+              <p>{text}</p>
+              {view && view.verdict !== "past" ? <p className="mt-2 text-sm text-muted">{ui.detail(view.daysToTarget)}</p> : null}
+            </Verdict>
+          </div>
+        )
+      }
+    />
   );
 }

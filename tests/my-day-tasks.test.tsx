@@ -37,7 +37,8 @@ type Reach = { pbx: boolean; chat: boolean };
 const html = (tasks: TaskRow[], reach: Reach = { pbx: false, chat: false }, compact = true) =>
   renderToStaticMarkup(<TaskRows tasks={tasks.map((t) => (t.contact ? { ...t, contact: { ...t.contact, ...reach } } : t))} staff={[]} canAssign={false} compact={compact} />);
 /** Кнопки «связаться» под строкой (в списке типов задачи тоже есть «Позвонить» и «Написать»). */
-const reachOf = (out: string) => out.split('data-testid="task-reach"')[1] ?? "";
+/** Кнопки лежат в одном <div> без вложенных: берём до его закрытия — дальше идут «+1 ч», «Завтра» и значки строки. */
+const reachOf = (out: string) => (out.split('data-testid="task-reach"')[1] ?? "").split("</div>")[0];
 
 describe("«Мой день»: задачи на сегодня", () => {
   it("строка с галочкой, «+1 ч» и «Завтра», срок подписью (просрочена — красным), без поля срока и ответственного", () => {

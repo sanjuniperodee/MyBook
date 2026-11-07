@@ -173,7 +173,8 @@ describe("(auth)/actions.ts: ошибки входа на языке польз�
     expect(await login(new IdentityError("nope" as never))).toEqual({ error: "Неверный логин или пароль" });
     request.headers.set("x-mb-locale", "kk");
     expect(await login(new IdentityError("credentials"))).toEqual({ error: "Логин немесе құпиясөз қате" });
-    expect(await login(new IdentityError("credentials"), { email: "", password: "" })).toEqual({ error: "E-mail немесе телефон мен құпиясөзді енгізіңіз" });
+    // Пустой логин — сообщение у поля логина (форма ставит его под поле).
+    expect(await login(new IdentityError("credentials"), { email: "", password: "" })).toEqual({ error: "E-mail немесе телефон мен құпиясөзді енгізіңіз", field: "email" });
     fake.rateLimiter = { hit: async () => false };
     expect(await login(new IdentityError("credentials"))).toEqual({ error: "Тым көп кіру әрекеті жасалды. 15 минут күтіңіз." });
   });

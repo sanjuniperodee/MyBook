@@ -85,7 +85,7 @@ export function Segmented<T extends string | number>({
   label: string;
 }) {
   return (
-    <div role="radiogroup" aria-label={label} className={cn("flex rounded-xl bg-cream p-0.5", disabled && "opacity-50")}>
+    <div role="radiogroup" aria-label={label} className={cn("flex rounded-[10px] bg-sunken p-0.5", disabled && "opacity-50")}>
       {options.map((o) => (
         <button
           key={String(o.id)}
@@ -96,8 +96,8 @@ export function Segmented<T extends string | number>({
           disabled={disabled}
           onClick={() => onChange(o.id)}
           className={cn(
-            "flex h-8 flex-1 items-center justify-center rounded-[10px] px-2 text-xs whitespace-nowrap transition max-sm:h-10",
-            value === o.id ? "bg-white font-medium text-ink shadow-sm" : "text-muted hover:text-ink",
+            "flex h-8 flex-1 items-center justify-center rounded-[8px] px-2 text-xs whitespace-nowrap transition focus-visible:outline-2 focus-visible:outline-wine max-sm:h-10",
+            value === o.id ? "bg-white font-medium text-ink ring-1 ring-line" : "text-muted hover:text-ink",
           )}
         >
           {o.label}
@@ -132,7 +132,7 @@ function FocusPicker({ photo, style, onChange, disabled }: { photo: InspectorPho
     });
   };
   return (
-    <div className="flex justify-center rounded-2xl bg-ink/[.04] p-3">
+    <div className="flex justify-center rounded-[10px] bg-sunken p-3">
       <div
         className={cn("relative overflow-hidden rounded-lg select-none", cropped && !disabled && "cursor-crosshair touch-none")}
         style={{ aspectRatio: `${photo.width} / ${photo.height}`, height: photo.width >= photo.height ? undefined : "14rem", width: photo.width >= photo.height ? "100%" : undefined }}
@@ -161,7 +161,7 @@ function FocusPicker({ photo, style, onChange, disabled }: { photo: InspectorPho
               }}
             />
             <div
-              className="pointer-events-none absolute size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-wine shadow"
+              className="pointer-events-none absolute size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-wine"
               style={{ left: `${style.focusX * 100}%`, top: `${style.focusY * 100}%` }}
             />
           </>
@@ -183,7 +183,7 @@ function PageFrame({ photo, format, contain, onCrop, disabled }: { photo: Inspec
   const crop = draft ?? fillFocus(photo);
   if (contain || !onCrop)
     return (
-      <div className="flex justify-center rounded-2xl bg-ink/[.04] p-3">
+      <div className="flex justify-center rounded-[10px] bg-sunken p-3">
         <div className="relative overflow-hidden rounded-[4px] bg-white ring-1 ring-line" style={{ width, aspectRatio: String(ratio) }}>
           {/* eslint-disable-next-line @next/next/no-img-element -- фото клиента на листе */}
           <img src={photo.url} alt="" draggable={false} className={cn("absolute inset-0 size-full", contain ? "object-contain" : "object-cover")} />
@@ -195,14 +195,14 @@ function PageFrame({ photo, format, contain, onCrop, disabled }: { photo: Inspec
     setDraft(null);
   };
   return (
-    <div className="space-y-3 rounded-2xl bg-ink/[.04] p-3">
+    <div className="space-y-3 rounded-[10px] bg-sunken p-3">
       <div className="flex justify-center">
         <PanFrame photo={photo} crop={crop} ratio={ratio} mask="rect" width={width} onChange={setDraft} onCommit={commit} disabled={disabled} />
       </div>
       <p className="text-center text-[11px] text-muted">{t.answerPhoto.pageCropHint}</p>
       <ZoomSlider value={crop.zoom} disabled={disabled} onChange={(zoom) => setDraft({ ...crop, zoom: Math.round(zoom * 100) / 100 })} onCommit={() => (draft ? commit(draft) : undefined)} />
       {photo.crop ? (
-        <button type="button" disabled={disabled} onClick={() => onCrop(null)} className="flex h-10 items-center gap-1.5 rounded-full px-3 text-sm text-muted hover:bg-cream hover:text-ink">
+        <button type="button" disabled={disabled} onClick={() => onCrop(null)} className="btn btn-ghost btn-sm text-muted">
           <RotateCcw className="size-4" /> {t.crop.reset}
         </button>
       ) : null}
@@ -274,13 +274,13 @@ export function PhotoInspector({
   const loss = pageLoss(photo, format);
 
   return (
-    <div className="space-y-4 rounded-3xl border border-line bg-white p-4 shadow-[0_10px_30px_-18px_rgba(0,0,0,.35)] sm:p-5" data-testid="photo-inspector">
+    <div className="space-y-4 rounded-[var(--r-panel)] border border-line bg-white p-4 sm:p-5" data-testid="photo-inspector">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <div className="text-sm font-medium">{blank ? a.titleBlank : a.title}</div>
           {badge}
         </div>
-        <button type="button" onClick={onClose} className="-mt-1.5 -mr-1.5 flex size-11 shrink-0 items-center justify-center rounded-full text-muted hover:bg-cream hover:text-ink" aria-label={t.close}>
+        <button type="button" onClick={onClose} className="-mt-1.5 -mr-1.5 flex size-11 shrink-0 items-center justify-center rounded-[10px] text-muted hover:bg-sunken hover:text-ink focus-visible:outline-2 focus-visible:outline-wine" aria-label={t.close}>
           <X className="size-4" />
         </button>
       </div>
@@ -300,7 +300,7 @@ export function PhotoInspector({
 
         {page ? (
           <>
-            <div role="radiogroup" aria-label={a.onPage} className="grid grid-cols-2 gap-1 rounded-xl bg-sunken p-1 text-xs">
+            <div role="radiogroup" aria-label={a.onPage} className="grid grid-cols-2 gap-1 rounded-[10px] bg-sunken p-1 text-xs">
               {(["contain", "fill"] as const).map((fit) => {
                 const on = fit === "contain" ? contain : !contain;
                 return (
@@ -310,7 +310,7 @@ export function PhotoInspector({
                     role="radio"
                     aria-checked={on}
                     onClick={() => onChange({ pageFit: fit === "contain" ? "contain" : undefined })}
-                    className={cn("min-h-11 rounded-lg px-2 py-2 leading-snug font-medium transition", on ? "bg-white shadow-soft" : "text-muted hover:text-ink")}
+                    className={cn("min-h-11 rounded-lg px-2 py-2 leading-snug font-medium transition focus-visible:outline-2 focus-visible:outline-wine", on ? "bg-white ring-1 ring-line" : "text-muted hover:text-ink")}
                   >
                     {a.fit[fit]}
                   </button>
@@ -339,7 +339,7 @@ export function PhotoInspector({
                     role="radio"
                     aria-checked={style.width === s.w}
                     onClick={() => onChange({ width: s.w })}
-                    className={cn("min-h-11 rounded-xl px-2 text-xs font-medium transition sm:min-h-9", style.width === s.w ? "bg-ink text-white" : "bg-cream text-muted hover:text-ink")}
+                    className={cn("min-h-11 rounded-[10px] px-2 text-xs font-medium transition focus-visible:outline-2 focus-visible:outline-wine sm:min-h-9", style.width === s.w ? "bg-ink text-white" : "bg-sunken text-muted hover:text-ink")}
                   >
                     {a.sizes[s.id]}
                   </button>
@@ -392,7 +392,7 @@ export function PhotoInspector({
               value={String(pos)}
               onChange={(e) => onChange({ anchor: positions[Number(e.target.value)] })}
               aria-label={t.placeAria}
-              className="h-11 min-w-0 flex-1 rounded-xl border border-line bg-white px-2 text-sm sm:h-9"
+              className="input min-w-0 flex-1"
             >
               {positions.map((p, i) => (
                 <option key={i} value={i}>
@@ -404,7 +404,7 @@ export function PhotoInspector({
               type="button"
               disabled={pos === 0}
               onClick={() => onChange({ anchor: positions[pos - 1] })}
-              className="flex size-11 items-center justify-center rounded-xl border border-line hover:bg-cream disabled:opacity-40 sm:size-9"
+              className="btn btn-outline btn-icon"
               aria-label={t.upAria}
               title={t.up}
             >
@@ -414,7 +414,7 @@ export function PhotoInspector({
               type="button"
               disabled={pos === positions.length - 1}
               onClick={() => onChange({ anchor: positions[pos + 1] })}
-              className="flex size-11 items-center justify-center rounded-xl border border-line hover:bg-cream disabled:opacity-40 sm:size-9"
+              className="btn btn-outline btn-icon"
               aria-label={t.downAria}
               title={t.down}
             >
@@ -438,13 +438,13 @@ export function PhotoInspector({
                     role="radio"
                     aria-checked={style.frame === id}
                     onClick={() => onChange({ frame: id })}
-                    className={cn("flex flex-col items-center gap-1.5 rounded-xl border p-2 text-[11px] leading-tight transition", style.frame === id ? "border-ink bg-sunken text-ink" : "border-line text-muted hover:border-ink/40")}
+                    className={cn("flex flex-col items-center gap-1.5 rounded-[10px] border p-2 text-[11px] leading-tight transition focus-visible:outline-2 focus-visible:outline-wine", style.frame === id ? "border-wine bg-rose/60 text-ink" : "border-line text-muted hover:border-line-strong")}
                   >
                     <span
                       className={cn(
-                        "block h-7 w-9 bg-gradient-to-br from-[#c9b8a6] to-[#8c7a6b]",
+                        "block h-7 w-9 bg-line-strong",
                         id === "line" && "outline outline-1 outline-offset-2 outline-ink",
-                        id === "polaroid" && "border-[3px] border-b-[8px] border-white shadow ring-1 ring-line",
+                        id === "polaroid" && "border-[3px] border-b-[8px] border-white ring-1 ring-line",
                         id === "round" && "rounded-md",
                       )}
                     />
@@ -463,7 +463,7 @@ export function PhotoInspector({
               onChange={(e) => onCaption(e.target.value)}
               placeholder={t.captionPlaceholder}
               maxLength={200}
-              className="h-11 w-full rounded-xl border border-line px-3 text-sm outline-none focus:border-ink/40 sm:h-9"
+              className="input"
             />
           </Field>
         ) : (
@@ -474,7 +474,7 @@ export function PhotoInspector({
 
         <div className="flex flex-wrap gap-2 border-t border-line pt-4">
           {onEdit ? (
-            <button type="button" onClick={onEdit} className="flex h-11 items-center gap-1.5 rounded-full bg-ink px-4 text-sm font-medium text-white hover:bg-ink-soft sm:h-9" data-testid="photo-edit">
+            <button type="button" onClick={onEdit} className="btn btn-dark btn-sm max-sm:h-11" data-testid="photo-edit">
               <SlidersHorizontal className="size-4" />
               {m.editor.photoEditor.open}
             </button>
@@ -490,7 +490,7 @@ export function PhotoInspector({
               }
             }}
             disabled={rotating}
-            className="flex h-11 items-center gap-1.5 rounded-full border border-line px-3.5 text-sm hover:bg-cream sm:h-9"
+            className="btn btn-outline btn-sm max-sm:h-11"
           >
             {rotating ? <LoaderCircle className="size-4 animate-spin" /> : <RotateCw className="size-4" />}
             {a.rotate}
@@ -498,18 +498,18 @@ export function PhotoInspector({
           <button
             type="button"
             onClick={() => onChange({ width: 100, align: "center", aspect: "original", focusX: 0.5, focusY: 0.5, frame: "none", page: false })}
-            className="flex h-11 items-center gap-1.5 rounded-full border border-line px-3.5 text-sm hover:bg-cream sm:h-9"
+            className="btn btn-outline btn-sm max-sm:h-11"
           >
             <RotateCcw className="size-4" />
             {a.reset}
           </button>
           {onMove ? (
-            <button type="button" onClick={onMove} className="flex h-11 items-center gap-1.5 rounded-full border border-line px-3.5 text-sm hover:bg-cream sm:h-9">
+            <button type="button" onClick={onMove} className="btn btn-outline btn-sm max-sm:h-11">
               <ArrowRightLeft className="size-4" />
               {a.move}
             </button>
           ) : null}
-          <button type="button" onClick={onRemove} className="ml-auto flex h-11 items-center rounded-full px-3.5 text-sm text-muted hover:bg-danger-bg hover:text-danger sm:h-9">
+          <button type="button" onClick={onRemove} className="btn btn-ghost btn-sm ml-auto text-muted hover:bg-danger-bg hover:text-danger max-sm:h-11">
             {blank ? a.removeBlank : a.remove}
           </button>
         </div>

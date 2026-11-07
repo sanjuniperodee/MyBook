@@ -70,7 +70,7 @@ export default async function PhotosPage({ params, searchParams }: { params: Pro
     losses: Object.fromEntries(losses),
   };
   return (
-    <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
+    <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
       <PhotosManager data={data} initialFilter={isPhotoFilter(filter) ? filter : "all"} />
     </main>
   );

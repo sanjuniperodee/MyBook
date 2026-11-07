@@ -33,7 +33,7 @@ export function StickyBar({ href, price, cta }: { href: string; price: string; c
   return (
     <div
       className={cn(
-        "fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-[#2a0d12]/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] text-paper backdrop-blur-md transition-transform duration-300 md:hidden",
+        "fixed inset-x-0 bottom-0 z-40 border-t border-[rgb(255_255_255/0.12)] bg-spine/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] text-white backdrop-blur-md transition-transform duration-300 md:hidden",
         show ? "translate-y-0" : "translate-y-full",
       )}
       aria-hidden={!show}
@@ -46,7 +46,7 @@ export function StickyBar({ href, price, cta }: { href: string; price: string; c
           rel="noopener noreferrer"
           tabIndex={show ? 0 : -1}
           onClick={() => track("contact", undefined, { place: "sticky" })}
-          className="inline-flex h-11 shrink-0 items-center gap-2 rounded-full bg-[#25d366] px-5 text-[15px] font-semibold text-[#0b2e17] active:scale-[0.97]"
+          className="btn btn-primary shrink-0"
         >
           <WhatsAppIcon className="size-5" /> {cta}
         </a>

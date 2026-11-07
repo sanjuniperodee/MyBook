@@ -133,3 +133,54 @@ export function deleteDialogOf(place: PhotoPlace | undefined, t: ClientMessages[
   if (place && place.kind !== "off") return { ...base, confirmLabel: t.confirm, altLabel: t.keep };
   return { ...base, confirmLabel: t.confirm };
 }
+
+// ─── вид «По главам» ───────────────────────────────────────────────────────
+
+/** Группа галереи «По главам»: глава (по порядку книги), альбом в конце или фото, которые не печатаются. */
+export interface PhotoGroup<T> {
+  id: string;
+  kind: "chapter" | "album" | "off";
+  /** Ключ главы — у групп-глав. */
+  chapterKey?: string;
+  photos: T[];
+}
+
+/**
+ * Фото по месту в книге: сначала главы в порядке книги (фото главы, фото в ответах и после главы — одной группой; фото,
+ * ждущее главу без текста, — в ней же), потом альбом в конце и «не печатаются». Пустые группы пропускаются; главы, которых
+ * нет в порядке (влитые автором), — после известных. Место — только из photoPlaceOf.
+ */
+export function groupByPlace<T extends { id: string }>(photos: readonly T[], places: ReadonlyMap<string, PhotoPlace>, chapterOrder: readonly string[]): PhotoGroup<T>[] {
+  const chapters = new Map<string, T[]>(chapterOrder.map((k) => [k, []]));
+  const album: T[] = [];
+  const off: T[] = [];
+  for (const p of photos) {
+    const place = places.get(p.id);
+    if (!place || place.kind === "off") off.push(p);
+    else if (place.kind === "album" && !place.waitingFor) album.push(p);
+    else {
+      const key = place.waitingFor ?? place.chapterKey;
+      if (!key) album.push(p);
+      else chapters.set(key, [...(chapters.get(key) ?? []), p]);
+    }
+  }
+  return [
+    ...[...chapters].filter(([, list]) => list.length).map(([key, list]): PhotoGroup<T> => ({ id: `chapter:${key}`, kind: "chapter", chapterKey: key, photos: list })),
+    ...(album.length ? [{ id: "album", kind: "album" as const, photos: album }] : []),
+    ...(off.length ? [{ id: "off", kind: "off" as const, photos: off }] : []),
+  ];
+}
+
+/** Сколько фото каждого вида по месту: выбрал автор, встали сами (правило книги), не печатаются внутри книги. */
+export function placeTotals(photos: readonly { id: string }[], places: ReadonlyMap<string, PhotoPlace>): { total: number; placed: number; auto: number; off: number } {
+  let placed = 0;
+  let auto = 0;
+  let off = 0;
+  for (const p of photos) {
+    const place = places.get(p.id);
+    if (!place || place.kind === "off") off++;
+    else if (place.auto) auto++;
+    else placed++;
+  }
+  return { total: photos.length, placed, auto, off };
+}

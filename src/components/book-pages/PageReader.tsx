@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, type CSSProperties, type ReactNode } from "react";
-import { Download, LoaderCircle, RotateCcw, TriangleAlert } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
+import { BookOpen, ChevronLeft, ChevronRight, Download, LayoutList, LoaderCircle, Maximize2, Minimize2, RotateCcw, TriangleAlert } from "lucide-react";
 import { useLocale, useMessages } from "@/i18n/client";
 import { localeMeta } from "@/i18n/config";
 import { pageImageUrl, type BookBuild, type BookBuildState, type BuildProgress, type PageImageWidth } from "@/lib/book/book-build";
@@ -32,7 +32,7 @@ const BOX_WIDTH = 800;
 /** Время, когда сработает повтор, — на языке страницы. */
 const clock = (ms: number, locale: keyof typeof localeMeta) => new Date(ms).toLocaleTimeString(localeMeta[locale].intl, { hour: "2-digit", minute: "2-digit" });
 
-function BookPage({ build, n, side, onFailed, onLoaded }: { build: BookBuild; n: number; side: Side; onFailed?: (n: number) => void; onLoaded?: (n: number) => void }) {
+export function BookPage({ build, n, side, onFailed, onLoaded }: { build: BookBuild; n: number; side: Side; onFailed?: (n: number) => void; onLoaded?: (n: number) => void }) {
   const m = useMessages();
   const t = m.books.preview.reader;
   // Не загрузилась — заглушка с повтором; повтор перемонтирует картинку (тот же адрес: сбой браузер не кэширует).
@@ -116,7 +116,7 @@ export function BookSpreads({
   const slot = (n: number | null, side: Side) =>
     n ? <BookPage key={`${build.fp}:${n}:${reload}`} build={build} n={n} side={side} onFailed={onPageFailed} onLoaded={onPageLoaded} /> : <div aria-hidden className="hidden md:block md:flex-1" />;
   return (
-    <section aria-label={t.group} aria-busy={dimmed} className="rounded-2xl border border-line bg-[#e9e4dc] px-4 py-6 sm:px-6 sm:py-8">
+    <section aria-label={t.group} aria-busy={dimmed} className="rounded-[14px] border border-line bg-sunken px-4 py-6 sm:px-6 sm:py-8">
       <div className={cn("mx-auto flex max-w-4xl flex-col gap-8 transition-opacity duration-300", dimmed && "opacity-50")}>
         {bookSpreads(build.pageCount).map(([left, right]) => (
           <div
@@ -135,6 +135,130 @@ export function BookSpreads({
   );
 }
 
+/** Широкий экран (планшет и выше): разворот из двух полос; уже — по одной полосе. */
+const WIDE = "(min-width: 768px)";
+const subscribeWide = (cb: () => void) => {
+  const mq = window.matchMedia(WIDE);
+  mq.addEventListener("change", cb);
+  return () => mq.removeEventListener("change", cb);
+};
+
+/**
+ * Читалка: один разворот на экране (на телефоне — одна полоса), листание стрелками, свайпом и ползунком, на весь экран.
+ * Соседние полосы подгружаются заранее. После последней — слот end (заказ). Страницы — те же картинки сборки, что в ленте.
+ */
+export function SpreadViewer({
+  build,
+  dimmed = false,
+  reload = 0,
+  onPageFailed,
+  onPageLoaded,
+  end,
+}: {
+  build: BookBuild;
+  dimmed?: boolean;
+  reload?: number;
+  onPageFailed?: (n: number) => void;
+  onPageLoaded?: (n: number) => void;
+  end?: ReactNode;
+}) {
+  const m = useMessages();
+  const t = m.books.preview;
+  const rd = m.bookStudio.reader;
+  const wide = useSyncExternalStore(subscribeWide, () => window.matchMedia(WIDE).matches, () => true);
+  const [page, setPage] = useState(1);
+  const stage = useRef<HTMLDivElement>(null);
+  const [full, setFull] = useState(false);
+  const swipe = useRef<number | null>(null);
+
+  // Единицы листания: развороты или отдельные полосы; текущая единица — та, где лежит страница page.
+  const units = useMemo<Spread[]>(() => (wide ? bookSpreads(build.pageCount) : Array.from({ length: build.pageCount }, (_, i): Spread => [null, i + 1])), [wide, build.pageCount]);
+  const current = Math.min(page, build.pageCount);
+  const index = Math.max(0, units.findIndex((u) => u[0] === current || u[1] === current));
+  const [left, right] = units[index] ?? [null, null];
+  const go = (i: number) => {
+    const u = units[Math.min(units.length - 1, Math.max(0, i))];
+    if (u) setPage((u[0] ?? u[1]) as number);
+  };
+
+  // Соседние развороты — в кеш браузера заранее, чтобы листание не ждало сети.
+  useEffect(() => {
+    for (const u of [units[index - 1], units[index + 1]]) for (const n of u ?? []) if (n) new Image().src = pageImageUrl(build, n, 800);
+  }, [units, index, build]);
+  useEffect(() => {
+    const on = () => setFull(document.fullscreenElement === stage.current);
+    document.addEventListener("fullscreenchange", on);
+    return () => document.removeEventListener("fullscreenchange", on);
+  }, []);
+
+  const onKey = (e: KeyboardEvent) => {
+    if (e.key === "ArrowRight" || e.key === "PageDown") go(index + 1);
+    else if (e.key === "ArrowLeft" || e.key === "PageUp") go(index - 1);
+    else if (e.key === "Home") go(0);
+    else if (e.key === "End") go(units.length - 1);
+    else return;
+    e.preventDefault();
+  };
+  const onUp = (e: PointerEvent) => {
+    const from = swipe.current;
+    swipe.current = null;
+    if (from === null) return;
+    const dx = e.clientX - from;
+    if (Math.abs(dx) > 48) go(index + (dx < 0 ? 1 : -1));
+  };
+  const label = t.flip.pages(left, right);
+  const last = index >= units.length - 1;
+  const slot = (n: number | null, side: Side) =>
+    n ? <BookPage key={`${build.fp}:${n}:${reload}`} build={build} n={n} side={side} onFailed={onPageFailed} onLoaded={onPageLoaded} /> : <div aria-hidden className="hidden md:block md:flex-1" />;
+
+  return (
+    <section aria-label={t.reader.group} aria-busy={dimmed} className="space-y-3">
+      <div
+        ref={stage}
+        tabIndex={0}
+        onKeyDown={onKey}
+        onPointerDown={(e) => (swipe.current = e.clientX)}
+        onPointerUp={onUp}
+        onPointerCancel={() => (swipe.current = null)}
+        className={cn("flex min-h-[40vh] touch-pan-y items-center justify-center rounded-[14px] border border-line bg-sunken px-4 py-6 outline-none select-none focus-visible:ring-2 focus-visible:ring-wine/40 sm:px-6 sm:py-8", full && "h-dvh rounded-none border-0")}
+      >
+        <div className={cn("flex w-full max-w-4xl flex-col items-center transition-opacity duration-300 md:flex-row md:items-start md:gap-0", dimmed && "opacity-50")} data-spread={[left, right].filter(Boolean).join("-")}>
+          {slot(left, "left")}
+          {slot(right, "right")}
+        </div>
+      </div>
+      <div className="flex items-center gap-2 sm:gap-3">
+        <button type="button" className="btn btn-outline btn-icon shrink-0" onClick={() => go(index - 1)} disabled={index <= 0} aria-label={t.flip.prev}>
+          <ChevronLeft className="size-4" aria-hidden />
+        </button>
+        <input type="range" min={0} max={Math.max(0, units.length - 1)} value={index} onChange={(e) => go(Number(e.target.value))} aria-label={t.flip.slider} aria-valuetext={label} className="h-11 min-w-0 flex-1 accent-wine" />
+        <button type="button" className="btn btn-outline btn-icon shrink-0" onClick={() => go(index + 1)} disabled={last} aria-label={t.flip.next}>
+          <ChevronRight className="size-4" aria-hidden />
+        </button>
+        <button
+          type="button"
+          className="btn btn-ghost btn-icon shrink-0 max-md:hidden"
+          aria-label={full ? t.flip.exitFullscreen : t.flip.fullscreen}
+          onClick={() => (full ? document.exitFullscreen() : stage.current?.requestFullscreen?.())}
+        >
+          {full ? <Minimize2 className="size-4" aria-hidden /> : <Maximize2 className="size-4" aria-hidden />}
+        </button>
+      </div>
+      <p className="text-center text-sm text-muted tabular-nums" aria-live="polite">
+        {label} {rd.of(build.pageCount)}
+      </p>
+      <p className="text-center text-xs text-muted max-md:hidden">{rd.hint}</p>
+      {last && end ? (
+        <div className="mt-2 rounded-[14px] border border-line bg-white p-5 text-center sm:p-6">
+          <h3 className="font-serif text-2xl font-medium">{rd.endTitle}</h3>
+          <p className="mx-auto mt-1 max-w-md text-sm text-muted">{rd.endText}</p>
+          <div className="mt-4 flex justify-center">{end}</div>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 /** Строка состояния сборки (над страницами и над 3D-книгой): идёт обновление или не удалось, с кнопкой повтора. */
 export function StatusLine({ tone, children, action, className }: { tone: "busy" | "warn"; children: ReactNode; action?: ReactNode; className?: string }) {
   return (
@@ -142,8 +266,8 @@ export function StatusLine({ tone, children, action, className }: { tone: "busy"
       role="status"
       aria-live="polite"
       className={cn(
-        "flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border px-4 py-3 text-sm",
-        tone === "busy" ? "border-line bg-white text-ink-soft" : "border-amber-200 bg-amber-50 text-amber-900",
+        "flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[14px] border px-4 py-3 text-sm",
+        tone === "busy" ? "border-line bg-white text-ink-soft" : "border-warning/30 bg-warning-bg text-warning",
         className,
       )}
     >
@@ -180,6 +304,9 @@ export function PageReaderView({
   progress = null,
   onRetry,
   onPageError,
+  mode = "scroll",
+  onMode,
+  end,
 }: {
   bookId: string;
   state: BookBuildState | null;
@@ -194,9 +321,16 @@ export function PageReaderView({
   onRetry: () => void;
   /** Картинка полосы не загрузилась — сборку, может, заменили: её стоит переспросить. */
   onPageError?: () => void;
+  /** scroll — все развороты подряд; spread — по одному развороту со стрелками (читалка). */
+  mode?: "scroll" | "spread";
+  /** Переключатель вида; нет — переключателя нет. */
+  onMode?: (mode: "scroll" | "spread") => void;
+  /** Что показать после последней страницы читалки (заказ). */
+  end?: ReactNode;
 }) {
   const m = useMessages();
   const t = m.books.preview.reader;
+  const rd = m.bookStudio.reader;
   const progressLabels = m.orders.order.progress;
   // Пока новая сборка не готова — показываем прошлую (во время сборки — приглушённой); вёрстки HTML здесь нет вовсе.
   const build = state?.status === "ready" ? state.build : (state?.previous ?? null);
@@ -262,9 +396,15 @@ export function PageReaderView({
     <div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <p className="max-w-2xl text-sm text-muted">
-          {t.note}
-          {build ? <span className="whitespace-nowrap"> · {t.pages(build.pageCount)}</span> : null}
+          {mode === "spread" ? null : t.note}
+          {build ? <span className="whitespace-nowrap">{mode === "spread" ? "" : " · "}{t.pages(build.pageCount)}</span> : null}
         </p>
+        {onMode ? (
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => onMode(mode === "spread" ? "scroll" : "spread")}>
+            {mode === "spread" ? <LayoutList className="size-4" aria-hidden /> : <BookOpen className="size-4" aria-hidden />}
+            {mode === "spread" ? rd.scrollMode : rd.spreadMode}
+          </button>
+        ) : null}
         {state?.status === "ready" ? (
           // download — скачать; браузеры внутри мессенджеров его не знают — откроют файл в новой вкладке.
           <a href={`/api/books/${bookId}/preview`} download target="_blank" rel="noopener" className="btn btn-outline btn-sm">
@@ -290,13 +430,18 @@ export function PageReaderView({
               <div className="pointer-events-auto flex flex-col gap-2 px-3 pt-3">{lines}</div>
             </div>
           ) : null}
-          <BookSpreads build={build} dimmed={building} reload={reload} onPageFailed={onPageFailed} onPageLoaded={onPageLoaded} />
+          {mode === "spread" ? (
+            <SpreadViewer build={build} dimmed={building} reload={reload} onPageFailed={onPageFailed} onPageLoaded={onPageLoaded} end={end} />
+          ) : (
+            <BookSpreads build={build} dimmed={building} reload={reload} onPageFailed={onPageFailed} onPageLoaded={onPageLoaded} />
+          )}
         </div>
       ) : lines.length ? (
         <div className="mb-4 flex flex-col gap-2">{lines}</div>
       ) : null}
+      {mode === "spread" && build ? <p className="mt-4 max-w-3xl text-xs leading-relaxed text-muted">{t.note}</p> : null}
       {waiting ? (
-        <div role="status" aria-live="polite" className="flex min-h-[50vh] flex-col items-center justify-center gap-2 rounded-2xl border border-line bg-[#e9e4dc] px-6 text-center text-sm text-muted">
+        <div role="status" aria-live="polite" className="flex min-h-[50vh] flex-col items-center justify-center gap-2 rounded-[14px] border border-line bg-sunken px-6 text-center text-sm text-muted">
           <LoaderCircle className="mb-1 size-8 animate-spin" />
           {state ? (
             <>
@@ -317,13 +462,14 @@ export function PageReaderView({
  * Предпросмотр книги страницами настоящего PDF: картинки полос экранной сборки (тот же рендер, что и файл для
  * скачивания). Пока сборка обновляется после правок — прошлые страницы приглушены, поверх строка состояния.
  */
-export function PageReader({ bookId }: { bookId: string }) {
+export function PageReader({ bookId, end }: { bookId: string; end?: ReactNode }) {
   const { state, error, slow, retryAt, retry, recover } = useBookBuild(bookId);
   const [retrying, setRetrying] = useState(false);
+  const [mode, setMode] = useState<"scroll" | "spread">("spread");
   const progress = useBuildProgress(bookId, state?.status === "building");
   const onRetry = () => {
     setRetrying(true);
     void retry().finally(() => setRetrying(false));
   };
-  return <PageReaderView bookId={bookId} state={state} error={error} slow={slow} retryAt={retryAt} retrying={retrying} progress={progress} onRetry={onRetry} onPageError={recover} />;
+  return <PageReaderView bookId={bookId} state={state} error={error} slow={slow} retryAt={retryAt} retrying={retrying} progress={progress} onRetry={onRetry} onPageError={recover} mode={mode} onMode={setMode} end={end} />;
 }

@@ -198,3 +198,38 @@ describe("по-казахски", () => {
     expect(text(markup)).toContain("4 бет");
   });
 });
+
+describe("читалка по разворотам", () => {
+  const spread = (state: BookBuildState, messages: typeof ru | typeof kk = ru) => html(createElement(PageReaderView, { bookId: "b1", state, error: null, onRetry: () => {}, mode: "spread", onMode: () => {} }), messages);
+
+  it("показывает один разворот — титул одиночной полосой справа, а не все 24 страницы", () => {
+    const markup = spread({ status: "ready", build: build(FP, 24) });
+    expect(spreads(markup)).toEqual(["1"]);
+    expect(images(markup)).toHaveLength(1);
+    expect(attr(images(markup)[0], "src")).toBe(`/api/books/b1/pages/${FP}/1?w=800`);
+  });
+
+  it("управление: назад (неактивна на первом развороте), вперёд, ползунок по разворотам, подпись «Страница 1 из 24»", () => {
+    const markup = spread({ status: "ready", build: build(FP, 24) });
+    expect(markup).toMatch(/<button[^>]*disabled=""[^>]*aria-label="Предыдущий разворот"/);
+    expect(markup).toContain('aria-label="Следующий разворот"');
+    expect(markup).toMatch(/<input type="range" min="0" max="12"[^>]*value="0"/);
+    expect(text(markup)).toContain("Страница 1 из 24");
+    expect(markup).toContain('aria-live="polite"');
+  });
+
+  it("переключатель вида предлагает «Все страницы подряд»; ссылка на PDF остаётся", () => {
+    const markup = spread({ status: "ready", build: build(FP, 6) });
+    expect(text(markup)).toContain("Все страницы подряд");
+    expect(markup).toContain('href="/api/books/b1/preview"');
+  });
+
+  it("пока сборка обновляется — прежний разворот приглушён; на казахском подписи из словаря", () => {
+    const busy = spread({ status: "building", previous: build(OLD, 4) });
+    expect(busy).toContain('aria-busy="true"');
+    expect(busy).toContain("opacity-50");
+    const kz = text(spread({ status: "ready", build: build(FP, 4) }, kk));
+    expect(kz).toContain(kk.bookStudio.reader.of(4));
+    expect(kz).toContain(kk.bookStudio.reader.scrollMode);
+  });
+});

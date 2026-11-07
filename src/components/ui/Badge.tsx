@@ -11,11 +11,11 @@ const TONE: Record<BadgeTone, string> = {
   accent: "badge-accent",
 };
 
-/** Значок статуса (DESIGN.md §6): цвет и текст вместе; dot — точка перед текстом для списков. */
+/** Значок статуса (DESIGN.md §6): цвет и текст вместе. В CRM — точка и подпись (стиль в globals.css), на сайте и в кабинете — плашка; dot — точка перед текстом там, где её нет. */
 export function Badge({ tone = "neutral", dot, children, className, title }: { tone?: BadgeTone; dot?: boolean; children: React.ReactNode; className?: string; title?: string }) {
   return (
     <span className={cn("badge", TONE[tone], className)} title={title}>
-      {dot ? <span className="size-1.5 rounded-full bg-current" aria-hidden /> : null}
+      {dot ? <span className="badge-dot size-1.5 rounded-full bg-current" aria-hidden /> : null}
       {children}
     </span>
   );

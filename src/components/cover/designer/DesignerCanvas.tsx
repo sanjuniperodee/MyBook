@@ -301,13 +301,13 @@ export function DesignerCanvas({
       ) : null}
       {/* Всё вне крышки — загиб: приглушаем, край крышки — линией. */}
       <div aria-hidden className="pointer-events-none absolute inset-0" style={{ boxShadow: "0 0 0 100vmax rgba(250,247,242,.55)", outline: "1px solid rgba(30,25,22,.35)" }} />
-      <div aria-hidden className="pointer-events-none absolute left-0 -translate-y-full pb-0.5 text-[10px] tracking-wide text-ink/60 uppercase">
+      <div aria-hidden className="pointer-events-none absolute left-0 -translate-y-full pb-0.5 text-[10px] text-ink/60">
         {labels.wrap}
       </div>
       {/* С какой стороны корешок: у лица слева, у оборота справа. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute top-1/2 text-[10px] tracking-[0.2em] whitespace-nowrap text-ink/60 uppercase"
+        className="pointer-events-none absolute top-1/2 text-[10px] whitespace-nowrap text-ink/60"
         style={{ writingMode: "vertical-rl", [side === "back" ? "left" : "right"]: "100%", margin: "0 3px", transform: side === "back" ? "translateY(-50%)" : "translateY(-50%) rotate(180deg)" }}
       >
         {labels.spine}

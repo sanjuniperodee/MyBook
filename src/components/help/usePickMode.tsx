@@ -107,20 +107,22 @@ export function usePickMode({ onPick, onCancel }: { onPick: (target: EventTarget
         {rect ? (
           <div
             aria-hidden
-            className="pointer-events-none fixed z-[57] rounded-lg ring-2 ring-wine ring-offset-2 ring-offset-white/80 transition-all duration-100"
-            style={{ top: rect.top - 2, left: rect.left - 2, width: rect.width + 4, height: rect.height + 4, background: "rgb(122 31 43 / 0.06)" }}
+            className="pointer-events-none fixed z-[57] rounded-[var(--r-ctl)] bg-wine/10 ring-2 ring-wine ring-offset-2 ring-offset-white/80 transition-all duration-100"
+            style={{ top: rect.top - 2, left: rect.left - 2, width: rect.width + 4, height: rect.height + 4 }}
           />
         ) : null}
         <div
           role="status"
           aria-live="assertive"
-          className="fixed inset-x-3 z-[58] mx-auto flex max-w-md items-center gap-3 rounded-2xl bg-ink px-4 py-3 text-white shadow-lift motion-safe:animate-[sheet-up_200ms_ease-out]"
+          className="fixed inset-x-3 z-[58] mx-auto flex max-w-md items-center gap-3 rounded-[var(--r-panel)] border border-line-strong bg-white px-3.5 py-2.5 text-ink shadow-lift motion-safe:animate-[sheet-up_200ms_ease-out]"
           style={{ bottom: `calc(${lift}px + max(0.75rem, env(safe-area-inset-bottom)))` }}
         >
-          <Crosshair className="size-5 shrink-0 text-rose" aria-hidden />
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-[var(--r-ctl)] bg-rose text-wine">
+            <Crosshair className="size-5" aria-hidden />
+          </span>
           <div className="min-w-0 flex-1">
             <div className="text-[15px] leading-tight font-medium">{title}</div>
-            <div className="mt-0.5 truncate text-xs text-white/70 max-sm:hidden">{rect?.label || keys}</div>
+            <div className="mt-0.5 truncate text-xs text-muted max-sm:hidden">{rect?.label || keys}</div>
           </div>
           <button
             type="button"
@@ -128,7 +130,7 @@ export function usePickMode({ onPick, onCancel }: { onPick: (target: EventTarget
               stop();
               handlers.current.onCancel();
             }}
-            className="min-h-11 shrink-0 rounded-full bg-white/10 px-4 text-sm font-medium hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-white"
+            className="btn btn-outline shrink-0"
           >
             {cancel}
           </button>

@@ -43,7 +43,7 @@ export function NewDealForm({ stages, defaultStageId, admins, me, client, canAss
     return (
       <form onSubmit={submitKeepingValues(action)} className="space-y-4">
         {client ? <input type="hidden" name="clientId" value={client.id} /> : null}
-        <Panel title="Сделка">
+        <Panel title="Сделка" description="Что за заявка и сколько она стоит — это видно на доске">
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Название" className="sm:col-span-2">
               <input name="title" required maxLength={200} className="input" placeholder="Книга для мамы к юбилею" defaultValue={client ? `Книга: ${client.name}` : ""} />
@@ -75,7 +75,7 @@ export function NewDealForm({ stages, defaultStageId, admins, me, client, canAss
             </Field>
           </div>
         </Panel>
-        <Panel title="Контакт">
+        <Panel title="Контакт" description="Как связаться с клиентом; имя и номер попадут в карточку сделки">
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Имя клиента" className="sm:col-span-2">
               <input name="contactName" maxLength={120} className="input" defaultValue={client?.name ?? ""} placeholder="Как зовут клиента" />
@@ -98,7 +98,7 @@ export function NewDealForm({ stages, defaultStageId, admins, me, client, canAss
             </Field>
           </div>
         </Panel>
-        <Panel title="Воронка">
+        <Panel title="Воронка" description="На каком этапе начать и кто ведёт сделку">
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Этап">
               <select name="stageId" className="input" defaultValue={defaultStageId ?? stages[0]?.id}>
@@ -121,11 +121,11 @@ export function NewDealForm({ stages, defaultStageId, admins, me, client, canAss
           </div>
         </Panel>
         {state.error ? <Alert>{state.error}</Alert> : null}
-        <div className="flex flex-wrap items-center gap-2 max-sm:[&>*]:flex-1">
+        <div className="flex flex-wrap items-center gap-2 sticky bottom-[var(--tabbar-h)] z-10 -mx-4 border-t border-line bg-canvas/95 px-4 py-3 backdrop-blur max-sm:[&>*]:w-full lg:static lg:mx-0 lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none">
           <button type="submit" className="btn btn-primary" disabled={pending}>
             {pending ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : null} Создать сделку
           </button>
-          <Link href={client ? `/admin/clients/${client.id}` : "/admin/deals"} className="btn btn-ghost">
+          <Link href={client ? `/admin/clients/${client.id}` : "/admin/deals"} className="btn btn-ghost max-sm:hidden">
             Отмена
           </Link>
         </div>
@@ -141,7 +141,7 @@ function DealKind({ kind, onChange }: { kind: "lead" | "agreement"; onChange: (k
       role="tab"
       aria-selected={kind === k}
       onClick={() => onChange(k)}
-      className={cn("flex flex-1 items-start gap-3 rounded-[14px] border bg-white px-4 py-3.5 text-left text-sm transition-colors", kind === k ? "border-wine ring-[3px] ring-wine/12" : "border-line hover:border-line-strong")}
+      className={cn("flex flex-1 items-start gap-3 rounded-[var(--r-panel)] border bg-white px-4 py-3.5 text-left text-sm transition-colors", kind === k ? "border-wine ring-[3px] ring-wine/12" : "border-line hover:border-line-strong")}
     >
       <span className={cn("mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border", kind === k ? "border-wine" : "border-line-strong")} aria-hidden>
         {kind === k ? <span className="size-2 rounded-full bg-wine" /> : null}

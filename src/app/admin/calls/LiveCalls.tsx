@@ -123,7 +123,7 @@ export function LiveCalls() {
           const active = listening?.call.id === c.id;
           return (
             <li key={c.id} className={cn("flex min-h-14 items-center gap-3 px-4 py-2.5 sm:px-5", active && "bg-success-bg/50")}>
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-success-bg text-success" title={c.direction === "in" ? "Входящий" : "Исходящий"}>
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-[var(--r-ctl)] bg-success-bg text-success" title={c.direction === "in" ? "Входящий" : "Исходящий"}>
                 {c.direction === "in" ? <PhoneIncoming className="size-4" strokeWidth={1.8} /> : <PhoneOutgoing className="size-4" strokeWidth={1.8} />}
               </span>
               <div className="min-w-0 flex-1">

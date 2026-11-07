@@ -4,6 +4,7 @@ import { ListPlus } from "lucide-react";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Segmented } from "@/components/admin/Segmented";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { Panel } from "@/components/ui/Panel";
 import { FieldEditor } from "./FieldEditor";
 
 export const metadata = { title: "Свои поля" };
@@ -13,7 +14,7 @@ export default async function FieldsPage({ searchParams }: { searchParams: Promi
   const entity = (await searchParams).e === "client" ? "client" : "deal";
   const fields = await listFields(entity);
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-5">
+    <div className="mx-auto flex w-full max-w-[44rem] flex-col gap-5">
       <PageHeader back={{ href: "/admin/deals", label: "Сделки" }} title="Свои поля">
         Дополнительная информация в карточке: повод, дата события, для кого книга… Поля можно использовать в шаблонах сообщений: {"{"}Название поля{"}"}. Поля сделки «Повод», «Дата события» и «Для кого» заполняются сами из книги клиента, а бот-квалификатор записывает в поля ответы клиента.
       </PageHeader>
@@ -25,12 +26,12 @@ export default async function FieldsPage({ searchParams }: { searchParams: Promi
           { key: "client", label: "Поля клиента", href: "/admin/deals/fields?e=client", active: entity === "client" },
         ]}
       />
-      <section className="panel">
-        <header className="panel-head">
-          <h2 className="panel-title">
-            {entity === "deal" ? "Поля сделки" : "Поля клиента"} <span className="font-normal text-muted tabular-nums">{fields.length || null}</span>
-          </h2>
-        </header>
+      <Panel
+        flush
+        title={entity === "deal" ? "Поля сделки" : "Поля клиента"}
+        description={`Показываются в карточке ${entity === "deal" ? "каждой сделки" : "каждого клиента"}; название можно вставить в шаблон сообщения`}
+        actions={fields.length ? <span className="count">{fields.length}</span> : null}
+      >
         {fields.length ? (
           <div className="divide-y divide-line">
             {fields.map((f) => (
@@ -42,10 +43,10 @@ export default async function FieldsPage({ searchParams }: { searchParams: Promi
             Добавьте первое ниже — оно появится в карточке {entity === "deal" ? "каждой сделки" : "каждого клиента"}.
           </EmptyState>
         )}
-        <div className="rounded-b-[14px] border-t border-line bg-sunken/40">
+        <div className="rounded-b-[var(--r-panel)] border-t border-line bg-sunken/40">
           <FieldEditor entity={entity} field={null} />
         </div>
-      </section>
+      </Panel>
     </div>
   );
 }

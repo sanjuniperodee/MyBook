@@ -38,19 +38,19 @@ function CopyButton({ text, label = "Копировать" }: { text: string; la
 /** Выданный доступ: логин, пароль и готовое сообщение клиенту. Пароль виден только сейчас. */
 export function AccessCard({ login, password, message, title = "Доступ клиента" }: { login: string; password: string; message: string; title?: string }) {
   return (
-    <div className="space-y-3 rounded-[14px] border border-success/25 bg-success-bg p-4">
+    <div className="space-y-3 rounded-[var(--r-panel)] border border-success/25 bg-success-bg p-4">
       <div className="flex items-center gap-2 text-sm font-semibold text-success">
         <KeyRound className="size-4" /> {title}
       </div>
       <div className="grid gap-2 sm:grid-cols-2">
-        <div className="min-w-0 rounded-[10px] bg-white p-3">
+        <div className="min-w-0 rounded-[var(--r-ctl)] bg-white p-3">
           <div className="text-xs text-muted">Логин</div>
           <div className="mt-0.5 flex items-center justify-between gap-2">
             <span className="font-mono text-sm select-all">{login}</span>
             <CopyButton text={login} label="" />
           </div>
         </div>
-        <div className="min-w-0 rounded-[10px] bg-white p-3">
+        <div className="min-w-0 rounded-[var(--r-ctl)] bg-white p-3">
           <div className="text-xs text-muted">Пароль (виден только сейчас)</div>
           <div className="mt-0.5 flex items-center justify-between gap-2">
             <span className="font-mono text-sm select-all">{password}</span>
@@ -144,7 +144,7 @@ export function NewClientForm({ canDeal, stages, defaultStageId, admins, me, can
         </Alert>
       ) : null}
 
-      <Panel title="Клиент" description="Логин — телефон или e-mail; пароль покажем один раз после создания.">
+      <Panel title="Клиент" description="Кто он и как войдёт в кабинет: логин — телефон или e-mail, пароль покажем один раз после создания.">
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Имя">
             <input name="name" required maxLength={100} className="input" placeholder="Насиба" defaultValue={v.name} />
@@ -236,7 +236,7 @@ export function NewClientForm({ canDeal, stages, defaultStageId, admins, me, can
                   </p>
                 </div>
               ) : null}
-              <div className={`rounded-[10px] px-3.5 py-2.5 text-sm tabular-nums sm:col-span-2 ${p > a ? "bg-danger-bg text-danger" : "bg-sunken text-ink-soft"}`} role="status">
+              <div className={`rounded-[var(--r-ctl)] px-3.5 py-2.5 text-sm tabular-nums sm:col-span-2 ${p > a ? "bg-danger-bg text-danger" : "bg-sunken text-ink-soft"}`} role="status">
                 {p > a ? "Предоплата больше суммы договорённости" : a > 0 ? `${n > 1 ? `Всего ${n} × ${formatPrice(Number(agreed) || 0)} = ${formatPrice(a)}. Остаток` : "Остаток за книгу"}: ${formatPrice(a - p)} (доставка — сверху)` : "Укажите сумму — посчитаем остаток"}
               </div>
               <Field label="Этап воронки">
@@ -267,9 +267,11 @@ export function NewClientForm({ canDeal, stages, defaultStageId, admins, me, can
         </section>
       ) : null}
 
-      <SubmitButton className="w-full sm:w-auto" pendingText="Создаём…">
-        Создать клиента и выдать доступ
-      </SubmitButton>
+      <div className="sticky bottom-[var(--tabbar-h)] z-10 -mx-4 border-t border-line bg-canvas/95 px-4 py-3 backdrop-blur max-sm:[&>*]:w-full lg:static lg:mx-0 lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none">
+        <SubmitButton className="w-full sm:w-auto" pendingText="Создаём…">
+          Создать клиента и выдать доступ
+        </SubmitButton>
+      </div>
     </form>
   );
 }

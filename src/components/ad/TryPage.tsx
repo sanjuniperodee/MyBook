@@ -121,7 +121,7 @@ export function TryPage({
             setText(e.target.value);
           }}
           placeholder={placeholder}
-          className="mt-5 block w-full resize-none rounded-2xl border border-line bg-white px-4 py-3.5 text-[16px] leading-relaxed text-ink shadow-[inset_0_1px_2px_rgb(0_0_0/0.04)] placeholder:text-muted/70 focus:border-wine/50 focus:ring-4 focus:ring-wine/10 focus:outline-none"
+          className="mt-5 block w-full resize-none rounded-[14px] border border-line-strong bg-white px-4 py-3.5 text-[16px] leading-relaxed text-ink shadow-[inset_0_1px_2px_rgb(0_0_0/0.04)] placeholder:text-muted/70 focus:border-wine/50 focus:ring-4 focus:ring-wine/10 focus:outline-none"
         />
         <p className="mt-3 text-sm text-muted">{hint}</p>
       </div>

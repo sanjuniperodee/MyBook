@@ -16,7 +16,7 @@ export function AgreementGiftsField({ values = {} }: { values?: Record<string, s
   const wrap = availableAddons("hardcover").find((a) => a.id === "giftwrap")?.price ?? 0;
   const delivery = Math.max(0, ...getDeliveryOptions().map((d) => d.price));
   return (
-    <fieldset className="rounded-[10px] border border-line px-3.5 pt-1 pb-3 sm:col-span-2" data-testid="agreement-gifts-field">
+    <fieldset className="rounded-[var(--r-ctl)] border border-line px-3.5 pt-1 pb-3 sm:col-span-2" data-testid="agreement-gifts-field">
       <legend className="px-1 text-sm font-medium text-ink-soft">Бесплатно по договорённости</legend>
       <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
         <label className="flex min-h-9 items-center gap-2">

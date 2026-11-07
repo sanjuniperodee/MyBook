@@ -5,7 +5,7 @@ import { ChevronDown, Download, Printer, Trash2, WandSparkles } from "lucide-rea
 import { useLocale } from "@/i18n/client";
 import { usefulUi } from "@/lib/content/tools/ui";
 import { filled, GENERATIONS, knownChain, parseNames, parseShezhire, posterDepth, STORAGE_KEY, type Ancestor, type Shezhire } from "@/lib/tools/shezhire";
-import { Choice, CopyButton } from "./Choice";
+import { Choice, CopyButton, ToolField, Workbench } from "./Workbench";
 import { createLocalStore } from "./localStore";
 import { posterHeight, posterText, POSTER_W, ShezhirePoster } from "./ShezhirePoster";
 
@@ -90,66 +90,66 @@ export function ShezhireBuilder() {
     setPaste("");
   };
 
+  const done = filled(list);
+
   return (
-    <div className="card p-6 sm:p-8">
-      <div className="grid gap-5 sm:grid-cols-2">
-        <div>
-          <label className="label" htmlFor="shezhire-owner">
-            {ui.ownerLabel}
-          </label>
-          <input id="shezhire-owner" className="input" maxLength={80} value={data.owner} placeholder={ui.ownerPlaceholder} onChange={(e) => save({ ...data, owner: e.target.value })} />
-        </div>
-        <div>
-          <label className="label" htmlFor="shezhire-clan">
-            {ui.clanLabel}
-          </label>
-          <input id="shezhire-clan" className="input" maxLength={80} value={data.clan} placeholder={ui.clanPlaceholder} onChange={(e) => save({ ...data, clan: e.target.value })} />
-        </div>
-      </div>
-
-      <div className="mt-6">
-        <span className="label">{ui.lineLabel}</span>
-        <Choice label={ui.lineLabel} value={line} onChange={setLine} options={(["father", "mother"] as const).map((id) => ({ id, label: ui.line[id] }))} />
-      </div>
-
-      <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
-        <div>
-          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-sm">
-            <span className="font-medium text-ink">{ui.progress(filled(list), GENERATIONS)}</span>
-            <span className="text-muted">{ui.saved}</span>
-          </div>
-          <div className="mt-2 h-1.5 rounded-full bg-cream" role="progressbar" aria-valuemin={0} aria-valuemax={GENERATIONS} aria-valuenow={filled(list)}>
-            <div className="h-full rounded-full bg-wine transition-all" style={{ width: `${(filled(list) / GENERATIONS) * 100}%` }} />
+    <Workbench
+      stickyResult
+      input={
+        <>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+            <ToolField label={ui.ownerLabel} htmlFor="shezhire-owner">
+              <input id="shezhire-owner" className="input" maxLength={80} value={data.owner} placeholder={ui.ownerPlaceholder} onChange={(e) => save({ ...data, owner: e.target.value })} />
+            </ToolField>
+            <ToolField label={ui.clanLabel} htmlFor="shezhire-clan">
+              <input id="shezhire-clan" className="input" maxLength={80} value={data.clan} placeholder={ui.clanPlaceholder} onChange={(e) => save({ ...data, clan: e.target.value })} />
+            </ToolField>
           </div>
 
-          <ol className="mt-5 space-y-2.5">
-            {list.map((a, i) => (
-              <li key={i} className="rounded-[14px] border border-line bg-white px-4 py-3">
-                <div className="flex items-center gap-3">
-                  <span className="w-7 shrink-0 font-serif text-xl text-wine">{i + 1}.</span>
-                  <div className="min-w-0 flex-1">
-                    <label className="block text-xs text-muted" htmlFor={`sh-${line}-${i}`}>
-                      {ui.generation(i, line)}
-                    </label>
-                    <input id={`sh-${line}-${i}`} className="mt-0.5 w-full bg-transparent text-[17px] outline-none placeholder:text-muted/60" placeholder={ui.nameLabel} maxLength={80} value={a.name} onChange={(e) => setAncestor(i, { name: e.target.value })} />
-                  </div>
-                </div>
-                {more ? (
-                  <div className="mt-2 grid gap-2 pl-10 sm:grid-cols-2">
-                    <input className="input !h-10 !text-sm" aria-label={`${ui.generation(i, line)}: ${ui.yearsLabel}`} placeholder={ui.yearsPlaceholder} maxLength={80} value={a.years} onChange={(e) => setAncestor(i, { years: e.target.value })} />
-                    <input className="input !h-10 !text-sm" aria-label={`${ui.generation(i, line)}: ${ui.placeLabel}`} placeholder={ui.placeLabel} maxLength={80} value={a.place} onChange={(e) => setAncestor(i, { place: e.target.value })} />
-                  </div>
-                ) : null}
-                {!a.name.trim() && i === chain ? <p className="mt-1.5 pl-10 text-xs text-muted">{ui.ask(i, line)}</p> : null}
-              </li>
-            ))}
-          </ol>
+          <ToolField label={ui.lineLabel}>
+            <Choice label={ui.lineLabel} value={line} onChange={setLine} options={(["father", "mother"] as const).map((id) => ({ id, label: ui.line[id] }))} />
+          </ToolField>
 
-          <button type="button" className="mt-3 inline-flex items-center gap-1 text-sm text-wine hover:underline" onClick={() => setMore((v) => !v)} aria-expanded={more}>
-            <ChevronDown className={`size-4 transition ${more ? "rotate-180" : ""}`} /> {ui.details}
-          </button>
+          <div>
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-sm">
+              <span className="font-medium text-ink">{ui.progress(done, GENERATIONS)}</span>
+              <span className="text-muted">{ui.saved}</span>
+            </div>
+            <div className="mt-2 h-1.5 rounded-[3px] bg-line" role="progressbar" aria-valuemin={0} aria-valuemax={GENERATIONS} aria-valuenow={done}>
+              <div className="h-full rounded-[3px] bg-wine transition-all" style={{ width: `${(done / GENERATIONS) * 100}%` }} />
+            </div>
 
-          <div className="mt-6 rounded-[14px] bg-cream/60 p-4">
+            {/* Колено за коленом: нумерованные строки на одной линии, без отдельных плиток. */}
+            <ol className="mt-4 divide-y divide-line border-y border-line">
+              {list.map((a, i) => (
+                <li key={i} className="py-2.5">
+                  <div className="flex items-center gap-3">
+                    <span className="w-7 shrink-0 font-serif text-xl text-wine tabular-nums">{i + 1}</span>
+                    <div className="min-w-0 flex-1">
+                      <label className="block text-xs text-muted" htmlFor={`sh-${line}-${i}`}>
+                        {ui.generation(i, line)}
+                      </label>
+                      <input id={`sh-${line}-${i}`} className="mt-0.5 h-8 w-full bg-transparent text-[17px] outline-none placeholder:text-muted/60 focus-visible:underline focus-visible:decoration-wine/50 focus-visible:underline-offset-4" placeholder={ui.nameLabel} maxLength={80} value={a.name} onChange={(e) => setAncestor(i, { name: e.target.value })} />
+                    </div>
+                  </div>
+                  {more ? (
+                    <div className="mt-2 grid gap-2 pl-10 sm:grid-cols-2">
+                      <input className="input !h-10 !text-sm" aria-label={`${ui.generation(i, line)}: ${ui.yearsLabel}`} placeholder={ui.yearsPlaceholder} maxLength={80} value={a.years} onChange={(e) => setAncestor(i, { years: e.target.value })} />
+                      <input className="input !h-10 !text-sm" aria-label={`${ui.generation(i, line)}: ${ui.placeLabel}`} placeholder={ui.placeLabel} maxLength={80} value={a.place} onChange={(e) => setAncestor(i, { place: e.target.value })} />
+                    </div>
+                  ) : null}
+                  {!a.name.trim() && i === chain ? <p className="mt-1.5 pl-10 text-xs text-muted">{ui.ask(i, line)}</p> : null}
+                </li>
+              ))}
+            </ol>
+
+            <button type="button" className="mt-3 inline-flex min-h-11 items-center gap-1 text-sm font-medium text-wine hover:underline sm:min-h-9" onClick={() => setMore((v) => !v)} aria-expanded={more}>
+              <ChevronDown className={`size-4 transition ${more ? "rotate-180" : ""}`} /> {ui.details}
+            </button>
+            <p className="mt-1 text-sm text-ink-soft">{ui.chain(chain)}</p>
+          </div>
+
+          <div className="border-t border-line pt-5">
             <label className="label" htmlFor="shezhire-paste">
               {ui.pasteLabel}
             </label>
@@ -158,15 +158,15 @@ export function ShezhireBuilder() {
               <WandSparkles className="size-4" /> {ui.pasteApply}
             </button>
           </div>
-          <p className="mt-4 text-sm text-ink-soft">{ui.chain(chain)}</p>
-        </div>
-
+        </>
+      }
+      result={
         <div className="min-w-0">
-          <div ref={poster} className="overflow-hidden rounded-[14px] border border-line shadow-soft">
+          <div ref={poster} className="overflow-hidden rounded-[10px] border border-line-strong">
             <ShezhirePoster data={data} ui={ui} />
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
-            <button type="button" className="btn btn-primary btn-sm" disabled={!any} onClick={() => svg() && void savePng(svg()!, height, ui.fileName)}>
+            <button type="button" className="btn btn-dark btn-sm" disabled={!any} onClick={() => svg() && void savePng(svg()!, height, ui.fileName)}>
               <Download className="size-4" /> {ui.download}
             </button>
             <button type="button" className="btn btn-outline btn-sm" disabled={!any} onClick={() => svg() && printPoster(svg()!, ui.printTitle(data.owner.trim()))}>
@@ -186,7 +186,7 @@ export function ShezhireBuilder() {
           </div>
           <p className="mt-3 text-xs leading-relaxed text-muted">{ui.privacy}</p>
         </div>
-      </div>
-    </div>
+      }
+    />
   );
 }

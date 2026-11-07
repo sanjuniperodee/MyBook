@@ -2,10 +2,11 @@ import { List, SquareKanban } from "lucide-react";
 import { Segmented } from "@/components/admin/Segmented";
 
 /** Вид заказов — список (фильтры, массовые действия) или производство (канбан по статусам): один переключатель на обоих экранах. */
-export function OrdersViews({ active }: { active: "list" | "board" }) {
+export function OrdersViews({ active, className }: { active: "list" | "board"; className?: string }) {
   return (
     <Segmented
       label="Вид заказов"
+      className={className}
       items={[
         {
           key: "list",

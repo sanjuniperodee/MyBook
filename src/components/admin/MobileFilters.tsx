@@ -20,7 +20,7 @@ export function MobileFilters({ children, active = false, label = "Фильтр�
         aria-label={compact ? label : undefined}
         title={compact ? label : undefined}
         className={cn(
-          "relative flex items-center rounded-[10px] border text-sm font-medium transition-colors lg:hidden",
+          "relative flex items-center rounded-[var(--r-ctl)] border text-sm font-medium transition-colors lg:hidden",
           compact ? "size-11 shrink-0 justify-center" : "min-h-11 w-full gap-2 px-3.5 py-2.5",
           active ? "border-wine/40 bg-rose text-wine" : "border-line-strong bg-white text-ink-soft",
           open && "border-ink/40",

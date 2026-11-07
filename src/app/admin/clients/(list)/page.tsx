@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { MobileFilters } from "@/components/admin/MobileFilters";
 import { channelLabel, channels, toAttribution } from "@/shared/domain/channels";
-import { CalendarHeart, ChevronDown, ChevronLeft, ChevronRight, Contact, Download, Search, SearchX, User, UserPlus, Users } from "lucide-react";
+import { CalendarHeart, ChevronDown, ChevronLeft, ChevronRight, Contact, Download, Search, SearchX, UserPlus, Users } from "lucide-react";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { ActionMenu, MenuLink, MenuSeparator } from "@/components/admin/ActionMenu";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -119,11 +119,11 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
           <input type="hidden" name="segment" value={segment} />
           <label className="relative min-w-0 flex-1 lg:max-w-80">
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" aria-hidden />
-            <input name="q" type="search" defaultValue={sp.q} placeholder="Имя, e-mail, телефон" aria-label="Поиск клиентов: имя, e-mail, телефон" className="input h-9 pl-9 text-sm max-lg:h-11" />
+            <input name="q" type="search" defaultValue={sp.q} placeholder="Имя, e-mail, телефон" aria-label="Поиск клиентов: имя, e-mail, телефон" className="input pl-9" />
           </label>
           <MobileFilters compact active={!!(sp.ch || onlyMine || moreActive || sort !== "new")}>
             <div className="flex flex-wrap items-center gap-2 max-lg:mt-1 max-lg:flex-col max-lg:items-stretch lg:contents">
-              <select name="ch" defaultValue={sp.ch ?? ""} className="input h-9 text-sm lg:w-44" aria-label="Канал">
+              <select name="ch" defaultValue={sp.ch ?? ""} className="input lg:w-44" aria-label="Канал">
                 <option value="">Все каналы</option>
                 {(["instagram", "tiktok", "bloggers", "whatsapp", "telegram", "youtube", "vk", "call", "recommendation", "repeat", "offline", "other", "google_ads", "google", "yandex_ads", "yandex", "facebook", "direct"] as const).map((k) => (
                   <option key={k} value={k}>
@@ -131,12 +131,12 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
                   </option>
                 ))}
               </select>
-              <select name="sort" defaultValue={sort} className="input h-9 text-sm lg:w-52" aria-label="Сортировка">
+              <select name="sort" defaultValue={sort} className="input lg:w-52" aria-label="Сортировка">
                 <option value="new">Сначала новые</option>
                 <option value="ltv">По сумме покупок</option>
                 <option value="active">По последнему визиту</option>
               </select>
-              <label className="flex h-9 items-center gap-2 px-1 text-sm whitespace-nowrap text-ink-soft max-lg:h-11">
+              <label className="flex h-[var(--ctl-h)] items-center gap-2 px-1 text-sm whitespace-nowrap text-ink-soft">
                 <input type="checkbox" name="mine" value="1" defaultChecked={onlyMine} className="size-4 accent-wine" /> Только мои
               </label>
               {/* Добивка к праздникам (contacts-13) — реже нужна: свёрнута, раскрыта, если такой фильтр уже стоит. */}
@@ -145,8 +145,8 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
                   <CalendarHeart className="size-4" aria-hidden /> Повод и покупки
                   <ChevronDown className="size-4 transition-transform group-open:rotate-180" aria-hidden />
                 </summary>
-                <div className="mt-2 flex flex-wrap items-center gap-2 rounded-[10px] bg-sunken/70 p-2.5 max-lg:flex-col max-lg:items-stretch" data-testid="clients-repeat-filters">
-                  <select name="occ" defaultValue={filters.occasion ?? ""} className="input h-9 text-sm lg:w-44" aria-label="Повод">
+                <div className="mt-2 flex flex-wrap items-center gap-2 rounded-[var(--r-ctl)] bg-sunken/70 p-2.5 max-lg:flex-col max-lg:items-stretch" data-testid="clients-repeat-filters">
+                  <select name="occ" defaultValue={filters.occasion ?? ""} className="input lg:w-44" aria-label="Повод">
                     <option value="">Любой повод</option>
                     {CLIENT_OCCASIONS.map((o) => (
                       <option key={o} value={o}>
@@ -154,7 +154,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
                       </option>
                     ))}
                   </select>
-                  <select name="month" defaultValue={filters.month ? String(filters.month) : ""} className="input h-9 text-sm lg:w-40" aria-label="Месяц повода">
+                  <select name="month" defaultValue={filters.month ? String(filters.month) : ""} className="input lg:w-40" aria-label="Месяц повода">
                     <option value="">Месяц повода</option>
                     {MONTHS.map((m, i) => (
                       <option key={m} value={i + 1}>
@@ -164,20 +164,20 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
                   </select>
                   <span className="flex items-center gap-2 text-sm text-muted">
                     покупали с
-                    <input type="month" name="from" defaultValue={filters.boughtFrom} className="input h-9 min-w-0 flex-1 text-sm lg:w-40" aria-label="Покупали с" />
+                    <input type="month" name="from" defaultValue={filters.boughtFrom} className="input min-w-0 flex-1 lg:w-40" aria-label="Покупали с" />
                   </span>
                   <span className="flex items-center gap-2 text-sm text-muted">
                     по
-                    <input type="month" name="to" defaultValue={filters.boughtTo} className="input h-9 min-w-0 flex-1 text-sm lg:w-40" aria-label="Покупали по" />
+                    <input type="month" name="to" defaultValue={filters.boughtTo} className="input min-w-0 flex-1 lg:w-40" aria-label="Покупали по" />
                   </span>
-                  <label className="flex h-9 items-center gap-2 px-1 text-sm whitespace-nowrap text-ink-soft max-lg:h-11">
+                  <label className="flex h-[var(--ctl-h)] items-center gap-2 px-1 text-sm whitespace-nowrap text-ink-soft">
                     <input type="checkbox" name="noDeal" value="1" defaultChecked={!!filters.noOpenDeal} className="size-4 accent-wine" /> Без открытой сделки
                   </label>
                 </div>
               </details>
             </div>
           </MobileFilters>
-          <button className="btn btn-outline btn-sm max-lg:h-11">Найти</button>
+          <button className="btn btn-outline">Найти</button>
         </form>
       </div>
 
@@ -194,13 +194,14 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
           )}
         </div>
       ) : (
-        <>
-          <ul className="space-y-2 lg:hidden" data-testid="clients-cards">
+        <div className="panel overflow-hidden" data-testid="clients-sheet">
+          {/* Телефон: записи строками на всю ширину листа, без отдельных карточек. */}
+          <ul className="divide-y divide-line lg:hidden" data-testid="clients-cards">
             {rows.map((r) => {
               const c = contactView(staff, r.user);
               return (
                 <li key={r.user.id}>
-                  <Link href={`/admin/clients/${r.user.id}`} className="panel m-card block p-3.5">
+                  <Link href={`/admin/clients/${r.user.id}`} className="m-card block px-4 py-3">
                     <div className="flex items-start gap-3">
                       <ChatAvatar name={name(r.user)} url={null} size={40} />
                       <div className="min-w-0 flex-1">
@@ -212,19 +213,15 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
                         <div className="text-xs text-muted">{r.ordersCount ? ruCount(r.ordersCount, "заказ", "заказа", "заказов") : "без заказов"}</div>
                       </div>
                     </div>
-                    <div className="mt-2.5 flex flex-wrap items-center gap-1.5 pl-[52px] text-xs">
-                      <span className="badge">{channelLabel(toAttribution(r.user.source))}</span>
-                      {r.user.managerId ? (
-                        <span className="badge" title="Ответственный">
-                          <User className="size-3" aria-hidden /> {managerName.get(r.user.managerId) ?? "—"}
-                        </span>
-                      ) : null}
+                    <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 pl-[52px] text-xs text-muted">
+                      <span>{channelLabel(toAttribution(r.user.source))}</span>
+                      {r.user.managerId ? <span>{managerName.get(r.user.managerId) ?? "—"}</span> : null}
                       {r.user.tags.slice(0, 3).map((t) => (
-                        <span key={t} className="badge badge-accent">
+                        <span key={t} className="text-wine">
                           {t}
                         </span>
                       ))}
-                      <span className="ml-auto text-muted">{r.booksCount ? `книг: ${r.booksCount}` : "без книги"}, был {relative(r.user.lastSeenAt)}</span>
+                      <span className="ml-auto">{r.booksCount ? `книг: ${r.booksCount}` : "без книги"}, был {relative(r.user.lastSeenAt)}</span>
                     </div>
                   </Link>
                 </li>
@@ -234,19 +231,20 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
 
           <div className="max-lg:hidden">
             {canRepeat ? (
-              <div className="rounded-t-[14px] border border-b-0 border-line bg-white px-5 py-2.5">
+              <div className="border-b border-line bg-sunken/40 px-5 py-2.5">
                 <RepeatSale occasionTitle={filters.occasion ? occasionLabels[filters.occasion].label : "праздник"} />
               </div>
             ) : null}
-            <div className={cn("overflow-x-auto border border-line bg-white", canRepeat ? "rounded-b-[14px]" : "rounded-[14px]")}>
-              <table className="table min-w-[900px] [&_td:first-child]:pl-5 [&_td:last-child]:pr-5 [&_th:first-child]:pl-5 [&_th:last-child]:pr-5">
+            <div className="overflow-x-auto">
+              <table className="table min-w-[900px]">
                 <thead>
                   <tr>
                     {canRepeat ? <th className="w-10" aria-label="Выбор" /> : null}
                     <th>Клиент</th>
+                    <th>Канал</th>
                     <th>Книги</th>
-                    <th className="text-right">Заказы</th>
-                    <th className="text-right">Сумма покупок</th>
+                    <th className="num">Заказы</th>
+                    <th className="num">Сумма покупок</th>
                     <th>Последний визит</th>
                     <th>Регистрация</th>
                   </tr>
@@ -272,24 +270,25 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
                                 <span className="tabular-nums">{c.phone || c.email}</span>
                                 {c.phone && c.email ? ` · ${c.email}` : ""}
                               </div>
-                              <div className="mt-1 flex flex-wrap items-center gap-1">
-                                <span className="badge" title={r.user.source ? JSON.stringify(r.user.source) : ""}>
-                                  {channelLabel(toAttribution(r.user.source))}
-                                </span>
-                                {r.user.managerId ? (
-                                  <span className="badge" title="Ответственный">
-                                    <User className="size-3" aria-hidden />
-                                    <span className="sr-only">Ответственный:</span> {managerName.get(r.user.managerId) ?? "—"}
-                                  </span>
-                                ) : null}
-                                {r.user.tags.map((t) => (
-                                  <Link key={t} href={link({ tag: t, page: undefined })} className="badge badge-accent hover:underline">
-                                    {t}
-                                  </Link>
-                                ))}
-                              </div>
                             </div>
                           </div>
+                        </td>
+                        <td className="max-w-56">
+                          <span className="block truncate text-ink-soft" title={r.user.source ? JSON.stringify(r.user.source) : ""}>
+                            {channelLabel(toAttribution(r.user.source))}
+                          </span>
+                          <span className="flex flex-wrap items-center gap-x-2 text-xs text-muted">
+                            {r.user.managerId ? (
+                              <span title="Ответственный">
+                                <span className="sr-only">Ответственный:</span> {managerName.get(r.user.managerId) ?? "—"}
+                              </span>
+                            ) : null}
+                            {r.user.tags.map((t) => (
+                              <Link key={t} href={link({ tag: t, page: undefined })} className="text-wine hover:underline">
+                                {t}
+                              </Link>
+                            ))}
+                          </span>
                         </td>
                         <td>
                           {r.booksCount ? (
@@ -303,8 +302,8 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
                             <span className="text-muted">—</span>
                           )}
                         </td>
-                        <td className="text-right tabular-nums">{r.ordersCount || <span className="text-muted">—</span>}</td>
-                        <td className="text-right font-medium tabular-nums">{r.ltv ? formatPrice(r.ltv) : <span className="font-normal text-muted">—</span>}</td>
+                        <td className="num">{r.ordersCount || <span className="text-muted">—</span>}</td>
+                        <td className="num font-medium">{r.ltv ? formatPrice(r.ltv) : <span className="font-normal text-muted">—</span>}</td>
                         <td className="whitespace-nowrap text-muted">{relative(r.user.lastSeenAt)}</td>
                         <td className="whitespace-nowrap text-muted">{formatDate(r.user.createdAt)}</td>
                       </tr>
@@ -314,26 +313,29 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
               </table>
             </div>
           </div>
-        </>
-      )}
 
-      {pages > 1 ? (
-        <nav className="flex items-center justify-center gap-3 text-sm max-lg:pb-2" aria-label="Страницы">
-          {page > 1 ? (
-            <Link className="btn btn-outline btn-sm" href={link({ page: String(page - 1) })}>
-              <ChevronLeft className="size-4" aria-hidden /> Назад
-            </Link>
-          ) : null}
-          <span className="text-muted tabular-nums">
-            {page} из {pages}
-          </span>
-          {page * PAGE < total ? (
-            <Link className="btn btn-outline btn-sm" href={link({ page: String(page + 1) })}>
-              Дальше <ChevronRight className="size-4" aria-hidden />
-            </Link>
-          ) : null}
-        </nav>
-      ) : null}
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-line bg-sunken/40 px-4 py-2.5 text-sm sm:px-5">
+            <span className="text-muted tabular-nums">{pages > 1 ? `Клиенты ${(page - 1) * PAGE + 1}–${(page - 1) * PAGE + rows.length} из ${total}` : `Всего: ${ruCount(total, "клиент", "клиента", "клиентов")}`}</span>
+            {pages > 1 ? (
+              <nav className="flex items-center gap-2" aria-label="Страницы">
+                {page > 1 ? (
+                  <Link className="btn btn-outline btn-sm" href={link({ page: String(page - 1) })}>
+                    <ChevronLeft className="size-4" aria-hidden /> Назад
+                  </Link>
+                ) : null}
+                <span className="text-muted tabular-nums">
+                  {page} из {pages}
+                </span>
+                {page * PAGE < total ? (
+                  <Link className="btn btn-outline btn-sm" href={link({ page: String(page + 1) })}>
+                    Дальше <ChevronRight className="size-4" aria-hidden />
+                  </Link>
+                ) : null}
+              </nav>
+            ) : null}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CircleCheck, FileText, LoaderCircle, Paperclip, ReceiptText, Trash2, Undo2 } from "lucide-react";
 import { Alert } from "@/components/ui/Alert";
+import { Panel } from "@/components/ui/Panel";
 import { ask } from "@/components/ui/overlays";
 import { cn } from "@/lib/class-names";
 import { formatPrice, getPlans } from "@/config/site";
@@ -46,7 +47,7 @@ async function send(url: string, body: FormData) {
 }
 
 /** Поле выбора файла чека: кнопка «Выбрать файл» в стиле системы, без «прыжка» высоты. */
-const fileCls = "input h-auto min-h-10 py-1.5 text-xs file:mr-3 file:rounded-md file:border-0 file:bg-sunken file:px-2.5 file:py-1.5 file:text-xs file:font-medium file:text-ink";
+const fileCls = "input h-auto min-h-9 py-1.5 text-xs file:mr-3 file:rounded-md file:border-0 file:bg-sunken file:px-2.5 file:py-1.5 file:text-xs file:font-medium file:text-ink";
 
 /** Привязать чек к платежу, у которого его нет. */
 function AttachReceipt({ dealId, payment, onDone }: { dealId: string; payment: PaymentItem; onDone: () => void }) {
@@ -260,11 +261,11 @@ export function PaymentsPanel({
   }
 
   const refundBlock = refundOpen ? (
-    <div className="space-y-2.5 rounded-[10px] border border-danger/25 bg-danger-bg/50 p-3.5" data-testid="refund-form">
+    <div className="space-y-2.5 rounded-[var(--r-ctl)] border border-danger/25 bg-danger-bg/50 p-3.5" data-testid="refund-form">
       <div className="text-sm font-medium text-danger">Возврат денег клиенту</div>
       <div className="grid gap-2 sm:grid-cols-2">
-        <input value={refundAmount} onChange={(e) => setRefundAmount(e.target.value)} type="number" min={1} max={refundMax} step={500} inputMode="numeric" placeholder={`Сумма, ₸ (до ${formatPrice(refundMax)})`} className="input h-10 text-sm tabular-nums" aria-label="Сумма возврата" />
-        <input value={refundNote} onChange={(e) => setRefundNote(e.target.value)} maxLength={300} placeholder="Причина возврата" className="input h-10 text-sm" aria-label="Причина возврата" />
+        <input value={refundAmount} onChange={(e) => setRefundAmount(e.target.value)} type="number" min={1} max={refundMax} step={500} inputMode="numeric" placeholder={`Сумма, ₸ (до ${formatPrice(refundMax)})`} className="input tabular-nums" aria-label="Сумма возврата" />
+        <input value={refundNote} onChange={(e) => setRefundNote(e.target.value)} maxLength={300} placeholder="Причина возврата" className="input" aria-label="Причина возврата" />
       </div>
       <input ref={refundFile} type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className={fileCls} aria-label="Чек возврата" />
       <div className="flex gap-2">
@@ -284,165 +285,169 @@ export function PaymentsPanel({
 
   const left = Math.max(0, target - paid);
   return (
-    <section id="deal-payments" className="panel scroll-mt-[calc(var(--topbar-h)+1rem)] text-sm" data-testid="deal-payments">
-      <header className="panel-head">
-        <h2 className="panel-title">Оплата</h2>
-        {canIssue && !locked ? (
-          <button type="button" className="btn btn-outline btn-sm" onClick={() => setInvoiceKey(newIssueKey())} data-testid="issue-invoice">
-            <ReceiptText className="size-4" aria-hidden /> Выставить счёт
-          </button>
-        ) : null}
-      </header>
-      {invoiceKey ? <InvoiceDialog issueKey={invoiceKey} dealId={dealId} onClose={() => setInvoiceKey(null)} /> : null}
+    <div id="deal-payments" className="scroll-mt-[calc(var(--topbar-h)+1rem)] space-y-4 text-sm lg:space-y-5" data-testid="deal-payments">
+      <section className="panel overflow-hidden">
+        <header className="panel-head">
+          <h2 className="panel-title">Оплата</h2>
+          {canIssue && !locked ? (
+            <button type="button" className="btn btn-outline btn-sm" onClick={() => setInvoiceKey(newIssueKey())} data-testid="issue-invoice">
+              <ReceiptText className="size-4" aria-hidden /> Выставить счёт
+            </button>
+          ) : null}
+        </header>
+        {invoiceKey ? <InvoiceDialog issueKey={invoiceKey} dealId={dealId} onClose={() => setInvoiceKey(null)} /> : null}
 
-      {/* Итог одной строкой: сколько всего, сколько пришло, сколько ждём. */}
-      <dl className="grid grid-cols-3 divide-x divide-line border-b border-line">
-        <div className="min-w-0 px-4 py-3 sm:px-5">
-          <dt className="truncate text-xs text-muted" title={orderMoney ? `Всего по заказу №${order?.number}` : "По договорённости"}>
-            {orderMoney ? (
-              <>
-                Всего<span className="max-sm:hidden"> по заказу №{order?.number}</span>
-              </>
-            ) : (
-              <>
-                <span className="sm:hidden">Сумма</span>
-                <span className="max-sm:hidden">По договорённости</span>
-              </>
-            )}
-          </dt>
-          <dd className="mt-0.5 text-[17px] font-semibold tabular-nums">{formatPrice(target)}</dd>
-        </div>
-        <div className="min-w-0 px-4 py-3 sm:px-5">
-          <dt className="truncate text-xs text-muted">Получено</dt>
-          <dd className={cn("mt-0.5 text-[17px] font-semibold tabular-nums", paid > 0 && "text-success")}>{formatPrice(paid)}</dd>
-        </div>
-        <div className="min-w-0 px-4 py-3 sm:px-5">
-          <dt className="truncate text-xs text-muted">{orderMoney?.postpay ? "Постоплата: ждём" : "Остаток"}</dt>
-          <dd className={cn("mt-0.5 text-[17px] font-semibold tabular-nums", left > 0 ? "text-ink" : "text-muted")}>{formatPrice(left)}</dd>
-        </div>
-      </dl>
-      {target > 0 ? (
-        <div className="h-1 bg-sunken" aria-hidden>
-          <div className="h-full bg-success transition-[width]" style={{ width: `${Math.min(100, Math.round((paid / target) * 100))}%` }} />
-        </div>
-      ) : null}
-
-      <div className="panel-body space-y-4">
-        {order ? (
-          <div className="rounded-[10px] bg-success-bg p-3.5 text-success" data-testid="order-linked">
-            <p>
-              Оформлен{" "}
-              <a href={`/admin/orders/${order.id}`} className="font-medium underline">
-                заказ №{order.number}
-              </a>
-              : внесённая предоплата вычтена из его «к оплате». Тариф и договорённую сумму, пока заказ не оплачен, меняйте в заказе; остаток и постоплату принимайте там же.
-            </p>
-            {orderMoney?.rows.length ? (
-              <ul className="mt-2 space-y-0.5 text-xs tabular-nums">
-                {orderMoney.rows.map((r) => (
-                  <li key={r.id}>
-                    {r.method} · {formatPrice(r.amount)} · {r.dateLabel}
-                    {r.receipt ? (
-                      <>
-                        {" "}
-                        ·{" "}
-                        <a href={`/api/admin/order-payments/${r.id}/receipt`} target="_blank" rel="noopener noreferrer" className="underline">
-                          чек
-                        </a>
-                      </>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-            {canEdit && orderMoney && orderMoney.received < orderMoney.due ? (
-              <a href={`/admin/orders/${order.id}#money`} className="btn btn-dark btn-sm mt-3">
-                Принять оплату по заказу №{order.number}
-              </a>
-            ) : null}
+        {/* Итог одной строкой: сколько всего, сколько пришло, сколько ждём. */}
+        <dl className="grid grid-cols-3 divide-x divide-line">
+          <div className="min-w-0 px-4 py-3.5 sm:px-5">
+            <dt className="truncate text-xs text-muted" title={orderMoney ? `Всего по заказу №${order?.number}` : "По договорённости"}>
+              {orderMoney ? (
+                <>
+                  Всего<span className="max-sm:hidden"> по заказу №{order?.number}</span>
+                </>
+              ) : (
+                <>
+                  <span className="sm:hidden">Сумма</span>
+                  <span className="max-sm:hidden">По договорённости</span>
+                </>
+              )}
+            </dt>
+            <dd className="mt-0.5 text-xl font-semibold tabular-nums">{formatPrice(target)}</dd>
+          </div>
+          <div className="min-w-0 px-4 py-3.5 sm:px-5">
+            <dt className="truncate text-xs text-muted">Получено</dt>
+            <dd className={cn("mt-0.5 text-xl font-semibold tabular-nums", paid > 0 && "text-success")}>{formatPrice(paid)}</dd>
+          </div>
+          <div className="min-w-0 px-4 py-3.5 sm:px-5">
+            <dt className="truncate text-xs text-muted">{orderMoney?.postpay ? "Постоплата: ждём" : "Остаток"}</dt>
+            <dd className={cn("mt-0.5 text-xl font-semibold tabular-nums", left > 0 ? "text-ink" : "text-muted")}>{formatPrice(left)}</dd>
+          </div>
+        </dl>
+        {target > 0 ? (
+          <div className="h-1 bg-sunken" aria-hidden>
+            <div className="h-full bg-success transition-[width]" style={{ width: `${Math.min(100, Math.round((paid / target) * 100))}%` }} />
           </div>
         ) : null}
 
-        {dealPaid > agreed && agreed > 0 && !locked ? <Alert kind="warning">Получено больше, чем договорились: проверьте сумму сделки или платежи.</Alert> : null}
-        {noReceipt.length ? (
-          <Alert kind="warning">Нет чека: {noReceipt.map((p) => formatPrice(p.amount)).join(", ")}. Прикрепите скриншот или фото перевода.</Alert>
-        ) : null}
-
-        <InvoicesBlock dealId={dealId} invoices={invoices} perms={invoicePerms} onPaid={canEdit && !locked ? payByInvoice : undefined} />
-
-        <div>
-          <h3 className="mb-1.5 text-xs font-medium text-muted">Платежи</h3>
-          {payments.length ? (
-            <ul className="divide-y divide-line rounded-[10px] border border-line">
-              {payments.map((p) => (
-                <li key={p.id} className="px-3.5 py-2.5">
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <span className={cn("font-semibold tabular-nums", p.kind === "refund" && "text-danger")}>
-                      {p.kind === "refund" ? "−" : ""}
-                      {formatPrice(p.amount)}
-                    </span>
-                    <span className={cn("badge", p.kind === "refund" && "badge-danger")}>{p.kind === "prepayment" ? "предоплата" : p.kind === "refund" ? "возврат" : "платёж"}</span>
-                    {p.invoice && !p.online ? <span className="badge">по счёту {p.invoice}</span> : null}
-                    {overpaid.has(p.id) ? (
-                      <span className="badge badge-danger" title="После этого платежа оплачено больше договорённости">
-                        переплата
-                      </span>
-                    ) : null}
-                    <span className="ml-auto truncate text-xs text-muted">
-                      {p.dateLabel} · {p.author}
-                    </span>
-                    {canDelete && !locked && !p.online ? (
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-icon btn-sm -my-1 -mr-1.5 size-8 text-muted hover:text-danger max-lg:size-11"
-                        aria-label="Удалить платёж"
-                        title="Удалить ошибочный платёж"
-                        onClick={async () => {
-                          if (!(await ask(`Удалить платёж ${formatPrice(p.amount)}? Он пропадёт из выручки.`, true))) return;
-                          const res = await fetch(`/api/admin/payments/${p.id}`, { method: "DELETE" });
-                          if (res.ok) refresh();
-                          else setError("Не удалось удалить платёж");
-                        }}
-                      >
-                        <Trash2 className="size-4" aria-hidden />
-                      </button>
-                    ) : null}
-                  </div>
-                  {p.note ? <p className="mt-1 text-xs text-muted">{p.note}</p> : null}
-                  {p.online ? (
-                    // Онлайн-платёж подтвердила платёжная система: вместо чека — операция и счёт.
-                    <p className="mt-1 flex items-center gap-1 text-xs text-success" data-testid="payment-online">
-                      <CircleCheck className="size-3.5 shrink-0" aria-hidden />
-                      {p.online}
-                      {p.invoice ? ` · счёт ${p.invoice}` : ""}
-                    </p>
-                  ) : p.receipts.length ? (
-                    <ul className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1">
-                      {p.receipts.map((r) => (
-                        <li key={r.id} className="flex min-w-0 items-center gap-1 text-xs">
-                          {r.isPdf ? <FileText className="size-3.5 shrink-0 text-muted" aria-hidden /> : <Paperclip className="size-3.5 shrink-0 text-muted" aria-hidden />}
-                          <a href={`/api/admin/receipts/${r.id}`} target="_blank" rel="noopener noreferrer" className="max-w-[16rem] truncate text-wine hover:underline">
-                            {r.fileName}
+        <div className="panel-body space-y-4 border-t border-line">
+          {order ? (
+            <div className="rounded-[var(--r-ctl)] bg-success-bg p-3.5 text-success" data-testid="order-linked">
+              <p>
+                Оформлен{" "}
+                <a href={`/admin/orders/${order.id}`} className="font-medium underline">
+                  заказ №{order.number}
+                </a>
+                : внесённая предоплата вычтена из его «к оплате». Тариф и договорённую сумму, пока заказ не оплачен, меняйте в заказе; остаток и постоплату принимайте там же.
+              </p>
+              {orderMoney?.rows.length ? (
+                <ul className="mt-2 space-y-0.5 text-xs tabular-nums">
+                  {orderMoney.rows.map((r) => (
+                    <li key={r.id}>
+                      {r.method} · {formatPrice(r.amount)} · {r.dateLabel}
+                      {r.receipt ? (
+                        <>
+                          {" "}
+                          ·{" "}
+                          <a href={`/api/admin/order-payments/${r.id}/receipt`} target="_blank" rel="noopener noreferrer" className="underline">
+                            чек
                           </a>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : canEdit && p.kind !== "refund" ? (
-                    <AttachReceipt dealId={dealId} payment={p} onDone={refresh} />
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="rounded-[10px] border border-dashed border-line-strong/70 px-3.5 py-3 text-sm text-muted">Платежей пока нет. Принятый платёж с чеком сразу попадает в выручку.</p>
-          )}
+                        </>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              {canEdit && orderMoney && orderMoney.received < orderMoney.due ? (
+                <a href={`/admin/orders/${order.id}#money`} className="btn btn-dark btn-sm mt-3">
+                  Принять оплату по заказу №{order.number}
+                </a>
+              ) : null}
+            </div>
+          ) : null}
+
+          {dealPaid > agreed && agreed > 0 && !locked ? <Alert kind="warning">Получено больше, чем договорились: проверьте сумму сделки или платежи.</Alert> : null}
+          {noReceipt.length ? <Alert kind="warning">Нет чека: {noReceipt.map((p) => formatPrice(p.amount)).join(", ")}. Прикрепите скриншот или фото перевода.</Alert> : null}
+
+          <InvoicesBlock dealId={dealId} invoices={invoices} perms={invoicePerms} onPaid={canEdit && !locked ? payByInvoice : undefined} />
         </div>
+      </section>
+
+      <section className="panel overflow-hidden">
+        <header className="panel-head">
+          <h2 className="panel-title">
+            Платежи {payments.length ? <span className="font-normal text-muted tabular-nums">{payments.length}</span> : null}
+          </h2>
+        </header>
+        {payments.length ? (
+          <ul className="divide-y divide-line">
+            {payments.map((p) => (
+              <li key={p.id} className="px-4 py-3 sm:px-5">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span className={cn("text-[15px] font-semibold tabular-nums", p.kind === "refund" && "text-danger")}>
+                    {p.kind === "refund" ? "−" : ""}
+                    {formatPrice(p.amount)}
+                  </span>
+                  <span className={cn("badge", p.kind === "refund" && "badge-danger")}>{p.kind === "prepayment" ? "предоплата" : p.kind === "refund" ? "возврат" : "платёж"}</span>
+                  {p.invoice && !p.online ? <span className="badge">по счёту {p.invoice}</span> : null}
+                  {overpaid.has(p.id) ? (
+                    <span className="badge badge-danger" title="После этого платежа оплачено больше договорённости">
+                      переплата
+                    </span>
+                  ) : null}
+                  <span className="ml-auto truncate text-xs text-muted">
+                    {p.dateLabel} · {p.author}
+                  </span>
+                  {canDelete && !locked && !p.online ? (
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-icon btn-sm -my-1 -mr-1.5 size-8 text-muted hover:text-danger max-lg:size-11"
+                      aria-label="Удалить платёж"
+                      title="Удалить ошибочный платёж"
+                      onClick={async () => {
+                        if (!(await ask(`Удалить платёж ${formatPrice(p.amount)}? Он пропадёт из выручки.`, true))) return;
+                        const res = await fetch(`/api/admin/payments/${p.id}`, { method: "DELETE" });
+                        if (res.ok) refresh();
+                        else setError("Не удалось удалить платёж");
+                      }}
+                    >
+                      <Trash2 className="size-4" aria-hidden />
+                    </button>
+                  ) : null}
+                </div>
+                {p.note ? <p className="mt-1 text-xs text-muted">{p.note}</p> : null}
+                {p.online ? (
+                  // Онлайн-платёж подтвердила платёжная система: вместо чека — операция и счёт.
+                  <p className="mt-1 flex items-center gap-1 text-xs text-success" data-testid="payment-online">
+                    <CircleCheck className="size-3.5 shrink-0" aria-hidden />
+                    {p.online}
+                    {p.invoice ? ` · счёт ${p.invoice}` : ""}
+                  </p>
+                ) : p.receipts.length ? (
+                  <ul className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1">
+                    {p.receipts.map((r) => (
+                      <li key={r.id} className="flex min-w-0 items-center gap-1 text-xs">
+                        {r.isPdf ? <FileText className="size-3.5 shrink-0 text-muted" aria-hidden /> : <Paperclip className="size-3.5 shrink-0 text-muted" aria-hidden />}
+                        <a href={`/api/admin/receipts/${r.id}`} target="_blank" rel="noopener noreferrer" className="max-w-[16rem] truncate text-wine hover:underline">
+                          {r.fileName}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                ) : canEdit && p.kind !== "refund" ? (
+                  <AttachReceipt dealId={dealId} payment={p} onDone={refresh} />
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="px-4 py-4 text-sm text-muted sm:px-5">Платежей пока нет. Принятый платёж с чеком сразу попадает в выручку.</p>
+        )}
 
         {canEdit && !locked ? (
-          <div ref={form} className="space-y-3 rounded-[10px] bg-sunken/70 p-3.5">
+          <div ref={form} id="deal-payment-form" className="scroll-mt-[calc(var(--topbar-h)+1rem)] space-y-3 border-t border-line bg-sunken/50 px-4 py-4 sm:px-5">
             <h3 className="text-sm font-semibold">Принять платёж</h3>
             {mustChoose ? (
-              <fieldset className="space-y-1.5 rounded-[10px] bg-warning-bg p-3 text-sm text-warning [&_input]:size-4 [&_input]:accent-wine" data-testid="payment-choice">
+              <fieldset className="space-y-1.5 rounded-[var(--r-ctl)] bg-warning-bg p-3 text-sm text-warning [&_input]:size-4 [&_input]:accent-wine" data-testid="payment-choice">
                 <legend className="sr-only">По счёту или другая оплата</legend>
                 {guard?.recentOnline.length ? <p className="mb-1">Недавно уже пришла онлайн-оплата: {guard.recentOnline.map((r) => r.text).join("; ")}. Не записывайте её второй раз.</p> : null}
                 {invoiceChoices.map((v) => (
@@ -466,7 +471,7 @@ export function PaymentsPanel({
                 </label>
               </fieldset>
             ) : null}
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid gap-3 sm:grid-cols-2">
               <label className="min-w-0">
                 <span className="label text-xs">Сумма, ₸</span>
                 <input
@@ -479,44 +484,46 @@ export function PaymentsPanel({
                   step={500}
                   inputMode="numeric"
                   placeholder="0"
-                  className="input h-10 text-sm tabular-nums read-only:bg-sunken"
+                  className="input tabular-nums read-only:bg-sunken"
                   aria-label="Сумма платежа"
                 />
               </label>
               <label className="min-w-0">
                 <span className="label text-xs">Дата оплаты</span>
-                <input value={day} onChange={(e) => setDay(e.target.value)} type="date" className="input h-10 text-sm" aria-label="Дата платежа" />
+                <input value={day} onChange={(e) => setDay(e.target.value)} type="date" className="input" aria-label="Дата платежа" />
+              </label>
+              <label className="block sm:col-span-2">
+                <span className="label text-xs">Чек: скриншот, фото или PDF</span>
+                <input ref={file} type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className={fileCls} aria-label="Чек" />
               </label>
             </div>
-            <label className="block">
-              <span className="label text-xs">Чек: скриншот, фото или PDF</span>
-              <input ref={file} type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className={fileCls} aria-label="Чек" />
-            </label>
             {error ? <Alert>{error}</Alert> : null}
-            <button type="button" className="btn btn-dark btn-sm w-full" disabled={busy || !(byInvoice || amount) || (mustChoose && !choice)} onClick={() => void add()}>
+            <button type="button" className="btn btn-dark w-full sm:w-auto" disabled={busy || !(byInvoice || amount) || (mustChoose && !choice)} onClick={() => void add()}>
               {busy ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : <Paperclip className="size-4" aria-hidden />} {byInvoice ? `Принять оплату по счёту ${byInvoice.label} с чеком` : "Принять платёж с чеком"}
             </button>
             <p className="text-xs text-muted">Платёж сразу попадает в выручку: обзор, аналитику, план менеджера и карточку клиента.</p>
           </div>
         ) : null}
-        {canEdit && !locked && refundMax > 0 ? refundBlock : null}
+        {canEdit && !locked && refundMax > 0 ? <div className="border-t border-line px-4 py-3 sm:px-5">{refundBlock}</div> : null}
         {canEdit && locked && refundMax > 0 ? (
-          <div className="space-y-2 border-t border-line pt-3" data-testid="refund-after-order">
+          <div className="space-y-2 border-t border-line px-4 py-3 sm:px-5" data-testid="refund-after-order">
             <p className="text-xs text-muted">Можно вернуть клиенту {formatPrice(refundMax)} — деньги по сделке, которые не учтены в заказе (или заказ отменён).</p>
             {refundBlock}
             {error ? <Alert>{error}</Alert> : null}
           </div>
         ) : null}
+      </section>
 
-        {/* Договорённость — что обещано клиенту; меняют редко, поэтому внизу листа. */}
-        <div className="grid gap-4 border-t border-line pt-4 sm:grid-cols-2">
+      {/* Договорённость — что обещано клиенту; меняют редко, поэтому отдельным листом ниже платежей. */}
+      <Panel title="Договорённость" description="Тариф и бесплатное по договорённости: клиент увидит это при оформлении заказа">
+        <div className="grid gap-5 sm:grid-cols-2">
           <div data-testid="agreed-plan" className="min-w-0">
             <label className="label text-xs" htmlFor="agreed-plan">
               Тариф договорённости
             </label>
             <select
               id="agreed-plan"
-              className="input h-10 text-sm"
+              className="input"
               value={planValue}
               disabled={!canEdit || locked}
               onChange={async (e) => {
@@ -558,7 +565,7 @@ export function PaymentsPanel({
             </div>
           ) : null}
         </div>
-      </div>
-    </section>
+      </Panel>
+    </div>
   );
 }

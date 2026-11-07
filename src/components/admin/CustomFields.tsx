@@ -13,13 +13,13 @@ export interface FieldDef {
 export function CustomFieldInputs({ fields, values, disabled }: { fields: FieldDef[]; values: CustomFieldValues; disabled?: boolean }) {
   if (!fields.length) return null;
   return (
-    <div className="grid grid-cols-2 gap-3" data-testid="custom-fields">
+    <div className="grid gap-4 sm:grid-cols-2" data-testid="custom-fields">
       {fields.map((f) => {
         const v = values[f.key];
         const name = `cf_${f.key}`;
-        const common = { name, disabled, className: "input h-10 text-sm", "aria-label": f.label };
+        const common = { name, disabled, className: "input", "aria-label": f.label };
         return (
-          <label key={f.key} className={f.type === "text" ? "col-span-2 block min-w-0" : "block min-w-0"}>
+          <label key={f.key} className={f.type === "text" ? "block min-w-0 sm:col-span-2" : "block min-w-0"}>
             <span className="label truncate">{f.label}</span>
             {f.type === "select" ? (
               <select {...common} defaultValue={typeof v === "string" ? v : ""}>
@@ -31,7 +31,7 @@ export function CustomFieldInputs({ fields, values, disabled }: { fields: FieldD
                 ))}
               </select>
             ) : f.type === "checkbox" ? (
-              <span className="flex h-10 items-center gap-2 text-sm text-ink-soft">
+              <span className="flex h-[var(--ctl-h)] items-center gap-2 text-sm text-ink-soft">
                 <input type="hidden" name={`${name}__present`} value="1" />
                 <input type="checkbox" name={name} defaultChecked={v === true} disabled={disabled} className="size-4 accent-wine" aria-label={f.label} /> да
               </span>

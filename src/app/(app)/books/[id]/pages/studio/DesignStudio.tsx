@@ -18,8 +18,8 @@ import { StylesTab } from "./StylesTab";
 import { TextTab } from "./TextTab";
 import { countCustom, resetStyle } from "./style-edit";
 
-type Tab = "ai" | "styles" | "fonts" | "text" | "elements" | "colors" | "chapters";
-const TABS: Tab[] = ["ai", "styles", "fonts", "text", "elements", "colors", "chapters"];
+export type StudioTabId = "ai" | "styles" | "fonts" | "text" | "elements" | "colors" | "chapters";
+export const STUDIO_TABS: StudioTabId[] = ["ai", "styles", "fonts", "text", "elements", "colors", "chapters"];
 
 interface Snapshot {
   interior: InteriorId;
@@ -50,6 +50,9 @@ export function DesignStudio({
   onPreview,
   openersLeft,
   onOpenersLeft,
+  tab,
+  chapter,
+  onChapter,
 }: {
   bookId: string;
   interior: InteriorId;
@@ -68,11 +71,13 @@ export function DesignStudio({
   /** «Глава всегда с левой страницы» (вкладка «Элементы»): настройка книги, вне отмены правок стиля. */
   openersLeft: boolean;
   onOpenersLeft: (v: boolean) => void;
+  /** Открытая вкладка и глава для вкладки «Главы»: их держит страница — вкладки лежат в панели рядом (и в листе на телефоне). */
+  tab: StudioTabId;
+  chapter: string | null;
+  onChapter: (key: string) => void;
 }) {
   const m = useMessages().design;
   const t = m.pages;
-  const [tab, setTab] = useState<Tab>("styles");
-  const [chapter, setChapter] = useState<string | null>(null);
   const [history, setHistory] = useState<{ past: Snapshot[]; future: Snapshot[] }>({ past: [], future: [] });
   const lastPush = useRef(0);
   const [kept, setKept] = useState<InteriorStyle | null>(null);
@@ -113,14 +118,13 @@ export function DesignStudio({
 
   return (
     <section aria-label={t.title}>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xl font-semibold">{t.title}</h2>
-        <div className="flex items-center gap-1">
-          {custom ? <span className="mr-1 hidden text-xs text-muted sm:inline">{t.customized(custom)}</span> : null}
-          <button type="button" onClick={undo} disabled={!history.past.length || !editable} title={t.undo} aria-label={t.undo} className="flex size-9 items-center justify-center rounded-full text-ink hover:bg-ink/5 disabled:opacity-30">
+      <div className="mb-3 flex min-h-9 items-center justify-between gap-2">
+        <span className="min-w-0 truncate text-xs text-muted">{custom ? t.customized(custom) : ""}</span>
+        <div className="flex shrink-0 items-center gap-1">
+          <button type="button" onClick={undo} disabled={!history.past.length || !editable} title={t.undo} aria-label={t.undo} className="btn btn-ghost btn-sm btn-icon disabled:opacity-30">
             <Undo2 className="size-4" />
           </button>
-          <button type="button" onClick={redo} disabled={!history.future.length || !editable} title={t.redo} aria-label={t.redo} className="flex size-9 items-center justify-center rounded-full text-ink hover:bg-ink/5 disabled:opacity-30">
+          <button type="button" onClick={redo} disabled={!history.future.length || !editable} title={t.redo} aria-label={t.redo} className="btn btn-ghost btn-sm btn-icon disabled:opacity-30">
             <Redo2 className="size-4" />
           </button>
           {custom ? (
@@ -130,35 +134,16 @@ export function DesignStudio({
               onClick={async () => {
                 if (await confirmDialog({ title: t.resetAll, text: t.resetAllConfirm })) setStyle(resetStyle(style));
               }}
-              className="ml-1 inline-flex min-h-9 items-center gap-1.5 rounded-[10px] px-3 text-sm text-muted hover:bg-ink/5 hover:text-ink"
+              className="btn btn-ghost btn-sm"
             >
               <RotateCcw className="size-3.5" /> <span className="max-sm:sr-only">{t.resetAll}</span>
             </button>
           ) : null}
         </div>
       </div>
-      <p className="mt-1 text-sm text-muted">{t.text}</p>
-
-      <div role="tablist" aria-label={t.tabsAria} className="no-scrollbar sticky top-16 z-20 -mx-1 mt-4 flex gap-1 overflow-x-auto bg-paper/95 px-1 py-2 backdrop-blur">
-        {TABS.map((id) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={tab === id}
-            onClick={() => {
-              setTab(id);
-              onPreview("chapter", id === "chapters" ? (chapter ?? chapters[0]?.key ?? null) : null);
-            }}
-            className={cn("h-9 shrink-0 rounded-xl px-3.5 text-sm font-medium transition", tab === id ? "bg-ink text-white" : "bg-white text-ink-soft ring-1 ring-line hover:ring-ink/30")}
-          >
-            {t.tabs[id]}
-          </button>
-        ))}
-      </div>
 
       {kept ? (
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-rose/60 px-4 py-3 text-sm text-ink-soft">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-[var(--r-panel)] bg-rose/60 px-3.5 py-3 text-sm text-ink-soft">
           <span>{t.styles.keptNotice}</span>
           <button
             type="button"
@@ -173,7 +158,7 @@ export function DesignStudio({
         </div>
       ) : null}
 
-      <div role="tabpanel" className={cn("mt-4", !editable && "pointer-events-none opacity-60")}>
+      <div role="tabpanel" className={cn(!editable && "pointer-events-none opacity-60")}>
         {tab === "ai" ? (
           <DesignAiPanel
             bookId={bookId}
@@ -212,7 +197,7 @@ export function DesignStudio({
             chapters={chapters}
             selected={chapter}
             onSelect={(k) => {
-              setChapter(k);
+              onChapter(k);
               onPreview("chapter", k);
             }}
             design={design}

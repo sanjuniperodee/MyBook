@@ -1,12 +1,19 @@
 "use client";
 
 /**
- * Элементы управления редактора фото — тёмная «фотостудия» (на тёмном фоне цвета снимка видны честнее): ползунок с
- * подписью и сбросом, образцы цвета, переключатель вариантов, кнопка-значок с подписью. Цели нажатия — от 44 px.
+ * Элементы управления редактора фото: ползунок с подписью и сбросом, образцы цвета, переключатель вариантов,
+ * кнопка-значок с подписью. Цвета — токены кабинета (редактор следует светлой и тёмной теме сайта), цели нажатия —
+ * от 44 px. Выбранное везде одинаково: розовая подложка, винная подпись и тонкая винная рамка.
  */
 import { useId, type ReactNode } from "react";
 import { RotateCcw } from "lucide-react";
 import { cn } from "@/lib/class-names";
+
+/** Видимая обводка фокуса — как у кнопок кита (.btn). */
+export const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wine";
+
+/** Выбранный элемент панели: цвет не единственный признак — у выбранного ещё и рамка. */
+export const SELECTED = "bg-rose text-wine ring-1 ring-wine";
 
 /** Ползунок: подпись, значение, сброс к нулю (двойной щелчок по подписи — тоже). onCommit — палец отпустили. */
 export function Slider({
@@ -40,18 +47,18 @@ export function Slider({
   return (
     <div>
       <div className="flex min-h-6 items-center justify-between gap-2 text-[13px]">
-        <label htmlFor={id} className="text-white/75 select-none" onDoubleClick={onReset}>
+        <label htmlFor={id} className="font-medium text-ink-soft select-none" onDoubleClick={onReset}>
           {label}
         </label>
         <span className="flex items-center gap-1.5">
-          <span className="tabular-nums text-white/55">{format(value)}</span>
+          <span className="text-muted tabular-nums">{format(value)}</span>
           {onReset ? (
             <button
               type="button"
               onClick={onReset}
               aria-label={resetLabel}
               title={resetLabel}
-              className="-my-2 flex size-8 items-center justify-center rounded-full text-white/45 transition hover:bg-white/10 hover:text-white"
+              className={cn("-my-2 flex size-8 items-center justify-center rounded-[var(--r-ctl)] text-muted transition hover:bg-sunken hover:text-ink", FOCUS)}
             >
               <RotateCcw className="size-3.5" />
             </button>
@@ -59,15 +66,15 @@ export function Slider({
         </span>
       </div>
       <div className="relative flex h-9 items-center">
-        <div className="absolute inset-x-0 h-1 rounded-full bg-white/15" />
+        <div className="absolute inset-x-0 h-1 rounded-full bg-line-strong" />
         <div
-          className="absolute h-1 rounded-full bg-[#e9b8bf]"
+          className="absolute h-1 rounded-full bg-wine"
           style={{
             left: `${Math.min(from, to)}%`,
             width: `${Math.abs(to - from)}%`,
           }}
         />
-        {center !== undefined ? <div className="absolute h-2.5 w-px bg-white/40" style={{ left: `${from}%` }} /> : null}
+        {center !== undefined ? <div className="absolute h-2.5 w-px bg-muted" style={{ left: `${from}%` }} /> : null}
         <input
           id={id}
           type="range"
@@ -76,15 +83,17 @@ export function Slider({
           step={step}
           value={value}
           onChange={(e) => onChange(Number(e.target.value))}
-          className="pe-range relative h-9 w-full cursor-pointer appearance-none bg-transparent"
+          className="pe-range relative h-9 w-full cursor-pointer appearance-none bg-transparent focus-visible:outline-wine! [&::-moz-range-thumb]:box-border [&::-moz-range-thumb]:border-2! [&::-moz-range-thumb]:border-solid! [&::-moz-range-thumb]:border-wine! [&::-webkit-slider-thumb]:box-border [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-solid [&::-webkit-slider-thumb]:border-wine"
         />
       </div>
     </div>
   );
 }
 
-/** Палитра надписей и рисунка: светлые, тёмные, тёплые, яркие — и свой цвет. */
+/** Палитра надписей и рисунка: светлые, тёмные, тёплые, яркие — и свой цвет. Это цвета самих надписей на снимке, а не оформления. */
 export const SWATCHES = ["#FFFFFF", "#111111", "#F3EDE3", "#7A1F2B", "#B8915A", "#E5484D", "#FF8A1F", "#FFD43B", "#2F9E44", "#1C7ED6", "#7048E8", "#F783AC"];
+
+const swatchRing = "ring-2 ring-ink ring-offset-2 ring-offset-white";
 
 export function Swatches({
   value,
@@ -103,7 +112,7 @@ export function Swatches({
 }) {
   const list = value && !SWATCHES.includes(value.toUpperCase()) ? [...SWATCHES, value.toUpperCase()] : SWATCHES;
   return (
-    <div role="radiogroup" aria-label={label} className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 py-1 lg:flex-wrap lg:overflow-visible">
+    <div role="radiogroup" aria-label={label} className="no-scrollbar -mx-1 flex gap-2.5 overflow-x-auto px-1 py-1.5 lg:flex-wrap lg:overflow-visible">
       {none ? (
         <button
           type="button"
@@ -112,9 +121,9 @@ export function Swatches({
           aria-label={noneLabel}
           title={noneLabel}
           onClick={() => onChange(null)}
-          className={cn("relative size-9 shrink-0 rounded-full border border-white/25 bg-transparent transition", value === null && "ring-2 ring-white ring-offset-2 ring-offset-[#1e1a17]")}
+          className={cn("relative size-9 shrink-0 rounded-full border border-line-strong bg-transparent transition", FOCUS, value === null && swatchRing)}
         >
-          <span className="absolute inset-x-1.5 top-1/2 h-0.5 -rotate-45 rounded bg-[#E5484D]" />
+          <span className="absolute inset-x-1.5 top-1/2 h-0.5 -rotate-45 rounded bg-danger" />
         </button>
       ) : null}
       {list.map((c) => (
@@ -126,12 +135,13 @@ export function Swatches({
           aria-label={c}
           title={c}
           onClick={() => onChange(c)}
-          className={cn("size-9 shrink-0 rounded-full border border-white/20 transition active:scale-90", value?.toUpperCase() === c && "ring-2 ring-white ring-offset-2 ring-offset-[#1e1a17]")}
+          className={cn("size-9 shrink-0 rounded-full border border-line-strong transition active:scale-90", FOCUS, value?.toUpperCase() === c && swatchRing)}
           style={{ background: c }}
         />
       ))}
+      {/* Круг «свой цвет» — цветовой круг, это сама подсказка, что откроется выбор любого цвета. */}
       <label
-        className="relative size-9 shrink-0 cursor-pointer overflow-hidden rounded-full border border-white/25"
+        className="relative size-9 shrink-0 cursor-pointer overflow-hidden rounded-full border border-line-strong focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-wine"
         title={customLabel}
         style={{
           background: "conic-gradient(#f03e3e, #ffd43b, #40c057, #22b8cf, #4c6ef5, #be4bdb, #f03e3e)",
@@ -147,7 +157,7 @@ export function Swatches({
 /** Выбор одного из вариантов. */
 export function Seg<T extends string>({ value, options, onChange, label }: { value: T; options: { id: T; label: ReactNode; title?: string }[]; onChange: (v: T) => void; label: string }) {
   return (
-    <div role="radiogroup" aria-label={label} className="flex rounded-xl bg-white/[.07] p-1">
+    <div role="radiogroup" aria-label={label} className="flex rounded-[var(--r-ctl)] bg-sunken p-1">
       {options.map((o) => (
         <button
           key={o.id}
@@ -158,8 +168,9 @@ export function Seg<T extends string>({ value, options, onChange, label }: { val
           title={o.title}
           onClick={() => onChange(o.id)}
           className={cn(
-            "flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 text-[13px] whitespace-nowrap transition",
-            value === o.id ? "bg-white font-medium text-ink shadow" : "text-white/70 hover:text-white",
+            "flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-[calc(var(--r-ctl)-3px)] px-2 text-[13px] whitespace-nowrap transition",
+            FOCUS,
+            value === o.id ? "bg-white font-medium text-ink ring-1 ring-line-strong" : "text-muted hover:text-ink",
           )}
         >
           {o.label}
@@ -173,7 +184,7 @@ export function Seg<T extends string>({ value, options, onChange, label }: { val
 export function Label({ children, aside }: { children: ReactNode; aside?: ReactNode }) {
   return (
     <div className="mb-2 flex items-center justify-between gap-2">
-      <div className="text-[11px] font-semibold tracking-[0.14em] text-white/50 uppercase">{children}</div>
+      <div className="text-xs font-medium text-muted">{children}</div>
       {aside}
     </div>
   );
@@ -188,8 +199,9 @@ export function ActionButton({ icon, label, onClick, danger, disabled, active }:
       disabled={disabled}
       aria-pressed={active}
       className={cn(
-        "flex min-h-14 min-w-16 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 text-[11px] leading-tight transition disabled:opacity-35",
-        active ? "bg-white text-ink" : danger ? "bg-white/[.06] text-[#ff8f8f] hover:bg-[#E5484D]/15" : "bg-white/[.06] text-white/85 hover:bg-white/[.12]",
+        "flex min-h-14 min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-[var(--r-ctl)] border px-1 text-[11px] leading-tight transition disabled:pointer-events-none disabled:opacity-40 sm:text-xs",
+        FOCUS,
+        active ? "border-wine bg-rose text-wine" : danger ? "border-line bg-white text-danger hover:border-danger hover:bg-danger-bg" : "border-line bg-white text-ink-soft hover:border-line-strong hover:bg-sunken hover:text-ink",
       )}
     >
       {icon}

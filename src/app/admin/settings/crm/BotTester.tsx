@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { FlaskConical, LoaderCircle, RotateCcw, Send } from "lucide-react";
 import { toast } from "@/components/ui/overlays";
 import { cn } from "@/lib/class-names";
+import { Section } from "../ui";
 import { previewBotAction } from "./actions";
 import { BotTraceView } from "@/components/admin/chat/BotTrace";
 import type { BotConfig } from "@/modules/messaging/domain/botConfig";
@@ -68,19 +69,16 @@ export function BotTester({ config }: { config: BotConfig }) {
   };
 
   return (
-    <details className="rounded-[10px] border border-line p-3" data-testid="bot-tester">
-      <summary className="flex cursor-pointer items-center gap-2 text-sm font-medium">
-        <FlaskConical className="size-4 text-wine" /> Проверить бота — без отправки клиенту
-      </summary>
-      <div className="mt-3 space-y-3">
+    <Section id="bot-tester" title="Проверить бота" description="Без отправки клиенту: пишете как клиент, бот отвечает по текущим, ещё не сохранённым настройкам" badge={<FlaskConical className="size-4 text-wine" aria-hidden />}>
+      <div className="space-y-3" data-testid="bot-tester">
         {result?.engine === "ai" ? (
-          <p className="rounded-[10px] bg-success-bg px-3 py-2 text-xs text-success">Отвечает настоящая AI-модель продажника (каждое сообщение — запрос к ней, как в чате). Цены, сроки, счёт и запреты проверяет код. Счёт здесь не выставляется — только показывается.</p>
+          <p className="rounded-[var(--r-ctl)] bg-success-bg px-3 py-2 text-xs text-success">Отвечает настоящая AI-модель продажника (каждое сообщение — запрос к ней, как в чате). Цены, сроки, счёт и запреты проверяет код. Счёт здесь не выставляется — только показывается.</p>
         ) : result ? (
-          <p className="rounded-[10px] bg-sunken/60 px-3 py-2 text-xs text-ink-soft">Отвечают шаблоны из настроек (продажник на AI выключен или модель не подключена).</p>
+          <p className="rounded-[var(--r-ctl)] bg-sunken/60 px-3 py-2 text-xs text-ink-soft">Отвечают шаблоны из настроек (продажник на AI выключен или модель не подключена).</p>
         ) : null}
         <div className="flex flex-wrap gap-1.5">
           {PRESETS.map(([label, preset]) => (
-            <button key={label} type="button" className="rounded-full bg-sunken/70 px-2.5 py-1 text-xs hover:bg-sunken" onClick={() => run(preset, { full: true })}>
+            <button key={label} type="button" className="chip" onClick={() => run(preset, { full: true })}>
               {label}
             </button>
           ))}
@@ -90,7 +88,7 @@ export function BotTester({ config }: { config: BotConfig }) {
             <input type="checkbox" className="accent-wine" checked={!workTime} onChange={(e) => (setWorkTime(!e.target.checked), turns.length && run(turns, { workTime: !e.target.checked, full: true }))} />
             нерабочее время
           </label>
-          <select value={client} onChange={(e) => (setClient(e.target.value as typeof client), turns.length && run(turns, { client: e.target.value as typeof client, full: true }))} className="input h-8 text-xs" aria-label="Кто пишет">
+          <select value={client} onChange={(e) => (setClient(e.target.value as typeof client), turns.length && run(turns, { client: e.target.value as typeof client, full: true }))} className="input" aria-label="Кто пишет">
             <option value="new">новый клиент</option>
             <option value="account">клиент с аккаунтом на сайте</option>
             <option value="order">клиент с заказом</option>
@@ -100,10 +98,10 @@ export function BotTester({ config }: { config: BotConfig }) {
           </button>
         </div>
 
-        <div className="max-h-[28rem] space-y-2 overflow-y-auto rounded-[10px] bg-sunken/60 p-3">
+        <div className="max-h-[28rem] space-y-2 overflow-y-auto rounded-[var(--r-ctl)] bg-sunken/60 p-3">
           {!result && !pending ? <p className="text-center text-xs text-muted">Напишите сообщение как клиент или выберите сценарий</p> : null}
           {messages.map((m, i) => (
-            <div key={i} className={cn("max-w-[85%] rounded-[10px] px-3 py-2 text-sm", m.from === "client" ? "bg-white" : m.text ? "ml-auto bg-success-bg" : "ml-auto bg-success-bg text-muted italic")}>
+            <div key={i} className={cn("max-w-[85%] rounded-[var(--r-ctl)] px-3 py-2 text-sm", m.from === "client" ? "bg-white" : m.text ? "ml-auto bg-success-bg" : "ml-auto bg-success-bg text-muted italic")}>
               <div className="whitespace-pre-line">{m.text || "бот промолчал"}</div>
               {/* Тот же след хода, что «Почему так?» у ответа в чате. */}
               {m.trace ? (
@@ -121,7 +119,7 @@ export function BotTester({ config }: { config: BotConfig }) {
         </div>
 
         <div className="flex flex-wrap items-end gap-2">
-          <select value={kind} onChange={(e) => setKind(e.target.value as Kind)} className="input h-9 w-32 text-xs" aria-label="Тип сообщения">
+          <select value={kind} onChange={(e) => setKind(e.target.value as Kind)} className="input w-32" aria-label="Тип сообщения">
             <option value="text">текст</option>
             <option value="audio">голосовое</option>
             <option value="image">фото</option>
@@ -132,7 +130,7 @@ export function BotTester({ config }: { config: BotConfig }) {
             onKeyDown={(e) => e.key === "Enter" && send()}
             placeholder={kind === "text" ? "Сообщение клиента" : "Подпись (необязательно)"}
             maxLength={1000}
-            className="input h-9 min-w-48 flex-1 text-sm"
+            className="input min-w-48 flex-1"
           />
           <label className={cn("flex items-center gap-1 text-xs text-muted", result?.engine === "ai" && "hidden")} title="Клиент отправил несколько сообщений подряд — бот ответит на них одним сообщением">
             <input type="checkbox" className="accent-wine" checked={together} onChange={(e) => setTogether(e.target.checked)} />
@@ -145,15 +143,15 @@ export function BotTester({ config }: { config: BotConfig }) {
 
         {result && !result.skipped ? (
           <div className="grid gap-2 text-xs sm:grid-cols-2">
-            <div className="rounded-[10px] border border-line p-2.5">
+            <div className="rounded-[var(--r-ctl)] border border-line p-2.5">
               <div className="mb-1 font-medium">В поля сделки</div>
               {result.fields.length ? result.fields.map((f) => <div key={f.label}>{`${f.label}: ${f.value}`}</div>) : <div className="text-muted">пока ничего</div>}
               <div className="mt-1 text-muted">Язык: {result.lang === "kk" ? "казахский" : "русский"}</div>
             </div>
-            {result.summary ? <pre className="rounded-[10px] border border-line p-2.5 font-sans whitespace-pre-wrap">{result.summary}</pre> : null}
+            {result.summary ? <pre className="rounded-[var(--r-ctl)] border border-line p-2.5 font-sans whitespace-pre-wrap">{result.summary}</pre> : null}
           </div>
         ) : null}
       </div>
-    </details>
+    </Section>
   );
 }

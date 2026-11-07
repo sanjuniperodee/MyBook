@@ -29,10 +29,13 @@ interface Stage {
   kind: "open" | "won" | "lost";
 }
 
-/** Этапы как в amoCRM: полоса с текущим положением; клик — перевести сделку. */
+/**
+ * Этап-линейка (DESIGN.md §7.2): ряд этапов воронки, пройденные закрашены цветом этапа, текущий — тушью, остальные приглушены.
+ * Нажатие по этапу переводит сделку; «Отказ» спрашивает причину. На телефоне линейка листается вбок, текущий этап — в середине.
+ */
 export function StageBar({ dealId, current, stages, disabled }: { dealId: string; current: string; stages: Stage[]; disabled: boolean }) {
   const [value, setValue] = useState(current);
-  // Этап сменили не здесь (доска, бот, оплата, другой сотрудник) и страница обновилась — полоса показывает новый.
+  // Этап сменили не здесь (доска, бот, оплата, другой сотрудник) и страница обновилась — линейка показывает новый.
   const [serverStage, setServerStage] = useState(current);
   if (current !== serverStage) {
     setServerStage(current);
@@ -40,7 +43,7 @@ export function StageBar({ dealId, current, stages, disabled }: { dealId: string
   }
   const [lost, setLost] = useState<string | null>(null);
   const [pending, start] = useTransition();
-  // Телефон: полоса этапов листается вбок — текущий этап сразу в середине видимой части (без прокрутки страницы).
+  // Телефон: линейка листается вбок — текущий этап сразу в середине видимой части (без прокрутки страницы).
   const strip = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const box = strip.current;
@@ -67,7 +70,7 @@ export function StageBar({ dealId, current, stages, disabled }: { dealId: string
   };
   return (
     <>
-      <div ref={strip} className="no-scrollbar -mx-4 flex gap-1 overflow-x-auto px-4 sm:mx-0 sm:px-0" data-testid="stage-bar" role="group" aria-label="Этап сделки">
+      <div ref={strip} className="no-scrollbar -mx-1 flex gap-1 overflow-x-auto px-1" data-testid="stage-bar" role="group" aria-label="Этап сделки">
         {stages.map((s, i) => {
           const passed = cur?.kind === "open" ? s.kind === "open" && i <= idx : s.id === value;
           const here = s.id === value;
@@ -79,11 +82,11 @@ export function StageBar({ dealId, current, stages, disabled }: { dealId: string
               aria-current={here ? "step" : undefined}
               disabled={disabled || pending || here}
               onClick={() => (s.kind === "lost" ? setLost(s.id) : go(s.id))}
-              className="group flex min-h-11 min-w-28 flex-1 shrink-0 flex-col justify-center gap-1.5 rounded-lg px-1.5 py-1.5 text-left transition-colors hover:bg-sunken disabled:cursor-default disabled:hover:bg-transparent lg:min-w-0 lg:shrink"
+              className="group flex min-h-11 min-w-28 flex-1 shrink-0 flex-col justify-center gap-1.5 rounded-lg px-1 py-1 text-left transition-colors hover:bg-sunken disabled:cursor-default disabled:hover:bg-transparent lg:min-h-10 lg:min-w-0 lg:shrink"
               title={here ? `Сейчас: ${s.name}` : disabled ? s.name : `Перевести на этап «${s.name}»`}
             >
-              <span className={cn("h-1.5 w-full rounded-full transition-colors", passed ? null : "bg-line group-enabled:group-hover:bg-line-strong")} style={passed ? { background: s.color } : undefined} aria-hidden />
-              <span className={cn("flex min-w-0 items-center gap-1 text-[13px] leading-tight whitespace-nowrap", here ? "font-semibold text-ink" : passed ? "text-ink-soft" : "text-muted")}>
+              <span className={cn("h-1 w-full rounded-full transition-colors", passed ? null : "bg-line group-enabled:group-hover:bg-line-strong")} style={passed ? { background: s.color } : undefined} aria-hidden />
+              <span className={cn("flex min-w-0 items-center gap-1 text-[13px] leading-tight whitespace-nowrap", here ? "w-fit max-w-full rounded-md bg-ink px-1.5 py-0.5 font-semibold text-white" : passed ? "px-0.5 text-ink-soft" : "px-0.5 text-muted")}>
                 {here ? <Check className="size-3.5 shrink-0" aria-hidden /> : null}
                 <span className="truncate">{s.name}</span>
               </span>
@@ -171,49 +174,55 @@ export function DealFields({
         setAmountDraft(null);
         setSourceDraft(null);
       }}
-      className="space-y-5"
+      className="space-y-6"
     >
       <input type="hidden" name="id" value={deal.id} />
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Название" className="sm:col-span-2">
-          <input name="title" defaultValue={deal.title} required maxLength={200} disabled={disabled} className={inputCls} />
-        </Field>
-        <div className="min-w-0">
-          <Field label="Бюджет, ₸">
-            <input key={`amount:${serverAmount}`} name="amount" type="number" min={0} step={1000} inputMode="numeric" defaultValue={serverAmount} onChange={(e) => setAmountDraft({ from: serverAmount, value: e.target.value })} disabled={disabled} className={cn(inputCls, "tabular-nums")} />
+      <FieldGroup title="Основное" hint="Название, бюджет и теги видны на доске и в списке">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Название" className="sm:col-span-2">
+            <input name="title" defaultValue={deal.title} required maxLength={200} disabled={disabled} className={inputCls} />
           </Field>
-          {pricing ? <DiscountHint list={dealListPrice(pricing.plan, draftValue(sourceDraft, deal.source))} price={Number(draftValue(amountDraft, serverAmount)) || 0} maxPercent={pricing.maxPercent} /> : null}
+          <div className="min-w-0">
+            <Field label="Бюджет, ₸">
+              <input key={`amount:${serverAmount}`} name="amount" type="number" min={0} step={1000} inputMode="numeric" defaultValue={serverAmount} onChange={(e) => setAmountDraft({ from: serverAmount, value: e.target.value })} disabled={disabled} className={cn(inputCls, "tabular-nums")} />
+            </Field>
+            {pricing ? <DiscountHint list={dealListPrice(pricing.plan, draftValue(sourceDraft, deal.source))} price={Number(draftValue(amountDraft, serverAmount)) || 0} maxPercent={pricing.maxPercent} /> : null}
+          </div>
+          <Field label="Источник">
+            <select key={`source:${deal.source}`} name="source" defaultValue={deal.source} onChange={(e) => setSourceDraft({ from: deal.source, value: e.target.value })} disabled={disabled} className={inputCls}>
+              {dealSources.map((s) => (
+                <option key={s} value={s}>
+                  {dealSourceLabels[s]}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Теги" hint="Через запятую" className="sm:col-span-2">
+            <input name="tags" defaultValue={deal.tags.join(", ")} maxLength={300} disabled={disabled} className={inputCls} placeholder="юбилей, срочно" />
+          </Field>
         </div>
-        <Field label="Источник">
-          <select key={`source:${deal.source}`} name="source" defaultValue={deal.source} onChange={(e) => setSourceDraft({ from: deal.source, value: e.target.value })} disabled={disabled} className={inputCls}>
-            {dealSources.map((s) => (
-              <option key={s} value={s}>
-                {dealSourceLabels[s]}
-              </option>
-            ))}
-          </select>
-        </Field>
-      </div>
-      <CustomFieldInputs fields={fields} values={values} disabled={disabled} />
-      <Field label="Теги" hint="Через запятую">
-        <input name="tags" defaultValue={deal.tags.join(", ")} maxLength={300} disabled={disabled} className={inputCls} placeholder="юбилей, срочно" />
-      </Field>
-      {/* Контакт виден в листе «Контакт» наверху; править его нужно редко — поля свёрнуты, но уходят с формой. */}
-      <details className="group rounded-[10px] border border-line" open={!deal.contactName}>
+      </FieldGroup>
+      {fields.length ? (
+        <FieldGroup title="Свои поля" hint="Заводятся в настройках воронки">
+          <CustomFieldInputs fields={fields} values={values} disabled={disabled} />
+        </FieldGroup>
+      ) : null}
+      {/* Контакт виден наверху карточки; править его нужно редко — поля свёрнуты, но уходят с формой. */}
+      <details className="group rounded-[var(--r-ctl)] border border-line" open={!deal.contactName}>
         <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-3.5 text-sm font-medium text-ink-soft hover:text-ink [&::-webkit-details-marker]:hidden">
           <UserRound className="size-4 text-muted" aria-hidden />
           <span className="flex-1">Контакт в сделке</span>
           <span className="truncate text-xs font-normal text-muted">{deal.contactName}</span>
           <ChevronDown className="size-4 shrink-0 text-muted transition-transform group-open:rotate-180" aria-hidden />
         </summary>
-        <div className="grid gap-3 border-t border-line p-3.5 sm:grid-cols-2">
+        <div className="grid gap-4 border-t border-line p-3.5 sm:grid-cols-2">
           <Field label="Имя" className="sm:col-span-2">
             <input name="contactName" defaultValue={deal.contactName} maxLength={120} disabled={disabled} className={inputCls} placeholder="Как зовут клиента" />
           </Field>
           {masked ? (
             <p className="text-sm text-muted sm:col-span-2" title="Контакты скрыты настройками вашей роли" data-testid="masked-contacts">
               {/* Скрытые поля не отправляем: сервер сохранит прежние значения. */}
-              Телефон и e-mail скрыты настройками вашей роли — их видно в листе «Контакт».
+              Телефон и e-mail скрыты настройками вашей роли — их видно в шапке карточки.
             </p>
           ) : (
             <>
@@ -232,7 +241,7 @@ export function DealFields({
       </details>
       {disabled ? null : (
         <div className="flex flex-wrap items-center gap-3 border-t border-line pt-4">
-          <button type="submit" className="btn btn-dark btn-sm" disabled={pending}>
+          <button type="submit" className="btn btn-dark" disabled={pending}>
             {pending ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : null} Сохранить
           </button>
           {state.error ? (
@@ -251,7 +260,20 @@ export function DealFields({
   );
 }
 
-const inputCls = "input h-10 text-sm";
+/** Группа полей формы: заголовок и пояснение одной строкой, поля ниже (DESIGN.md §7.2, «Настройки»). */
+function FieldGroup({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <fieldset className="min-w-0">
+      <legend className="mb-2 flex w-full flex-wrap items-baseline gap-x-3 text-[13px] font-semibold text-ink">
+        {title}
+        {hint ? <span className="text-xs font-normal text-muted">{hint}</span> : null}
+      </legend>
+      {children}
+    </fieldset>
+  );
+}
+
+const inputCls = "input";
 
 /** Подпись над полем и подсказка под ним (DESIGN.md §6); поле — внутри label, без лишних id. */
 function Field({ label, hint, className, children }: { label: string; hint?: string; className?: string; children: React.ReactNode }) {
@@ -338,8 +360,8 @@ export function UnsortedBanner({ dealId, canEdit, canDecide, request }: { dealId
     run(async () => toast((await rejectDealAction(dealId, spam, reason)).message));
   };
   return (
-    <section className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-[14px] border border-dashed border-wine/40 bg-rose/50 p-4 sm:px-5" data-testid="unsorted-banner">
-      <span className="flex size-10 shrink-0 items-center justify-center rounded-[10px] bg-white text-wine">
+    <section className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-[var(--r-panel)] border border-dashed border-wine/40 bg-rose/50 p-4 sm:px-5" data-testid="unsorted-banner">
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-[var(--r-ctl)] bg-white text-wine">
         <Inbox className="size-5" strokeWidth={1.8} aria-hidden />
       </span>
       <div className="min-w-0 flex-1 basis-60">
@@ -418,7 +440,7 @@ export function DuplicateRow({ targetId, intoClosed, other, merge }: { targetId:
 export function LinkClient({ dealId, client }: { dealId: string; client: { id: string; label: string } }) {
   const { pending, run } = useRun();
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-[10px] bg-info-bg p-3 text-sm text-info">
+    <div className="flex flex-wrap items-center gap-2 rounded-[var(--r-ctl)] bg-info-bg p-3 text-sm text-info">
       <UserRound className="size-4 shrink-0" aria-hidden />
       <span className="min-w-0 flex-1 basis-40">
         По номеру найден клиент на сайте: <b className="font-semibold">{client.label}</b>
@@ -493,7 +515,7 @@ export function CreateClientFromDeal({ dealId, name }: { dealId: string; name: s
       </button>
     );
   return (
-    <form action={action} className="space-y-3 rounded-[10px] border border-line p-3.5">
+    <form action={action} className="space-y-3 rounded-[var(--r-ctl)] border border-line p-3.5">
       <div>
         <h3 className="text-sm font-semibold">Новый клиент из сделки</h3>
         <p className="mt-0.5 text-xs text-muted">Логин — телефон из сделки. Сделка и переписка привяжутся к клиенту.</p>

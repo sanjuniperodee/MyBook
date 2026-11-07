@@ -65,7 +65,7 @@ export function FontPicker({
         aria-expanded={open}
         aria-controls={listId}
         onClick={() => setOpen((v) => !v)}
-        className="flex h-11 w-full items-center justify-between gap-2 rounded-xl border border-line bg-white px-3 text-left transition hover:border-ink/30"
+        className="flex h-11 w-full items-center justify-between gap-2 rounded-[var(--r-ctl)] border border-line-strong bg-white px-3 text-left transition hover:border-ink/30"
       >
         <span className="truncate text-[17px]" style={{ fontFamily: cssFont(value) }}>
           {name(value)}
@@ -73,10 +73,10 @@ export function FontPicker({
         <ChevronDown className={cn("size-4 shrink-0 text-muted transition", open && "rotate-180")} />
       </button>
       {open ? (
-        <div className="absolute inset-x-0 top-full z-40 mt-1 min-w-[300px] rounded-2xl border border-line bg-white p-2 shadow-lift">
+        <div className="absolute inset-x-0 top-full z-40 mt-1 min-w-[300px] rounded-[var(--r-panel)] border border-line bg-white p-2 shadow-lift">
           <div className="relative">
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" />
-            <input autoFocus className="h-10 w-full rounded-xl bg-sunken pr-3 pl-9 text-sm outline-none focus:bg-cream" placeholder={t.fonts.search} value={query} onChange={(e) => setQuery(e.target.value)} />
+            <input autoFocus className="h-10 w-full rounded-[var(--r-ctl)] bg-sunken pr-3 pl-9 text-sm outline-none focus:bg-cream" placeholder={t.fonts.search} value={query} onChange={(e) => setQuery(e.target.value)} />
           </div>
           <div className="no-scrollbar mt-2 flex gap-1 overflow-x-auto">
             {(["all", ...groups] as const).map((g) => (
@@ -84,7 +84,7 @@ export function FontPicker({
                 key={g}
                 type="button"
                 onClick={() => setGroup(g)}
-                className={cn("shrink-0 rounded-full px-2.5 py-1 text-xs transition", group === g ? "bg-ink text-white" : "bg-sunken text-ink-soft hover:bg-cream")}
+                className={cn("shrink-0 rounded-[var(--r-ctl)] px-2.5 py-1.5 text-xs transition", group === g ? "bg-ink text-white" : "bg-sunken text-ink-soft hover:bg-cream")}
               >
                 {g === "all" ? t.fonts.all : t.fonts.categories[g]}
               </button>
@@ -100,7 +100,7 @@ export function FontPicker({
                       onChange(k);
                       setOpen(false);
                     }}
-                    className={cn("flex w-full items-start gap-2 rounded-xl px-3 py-2 text-left transition hover:bg-sunken", k === value && "bg-rose/60")}
+                    className={cn("flex w-full items-start gap-2 rounded-[var(--r-ctl)] px-3 py-2 text-left transition hover:bg-sunken", k === value && "bg-rose/60")}
                   >
                     <span className="min-w-0 flex-1" style={{ fontFamily: cssFont(k) }}>
                       <span className="flex items-baseline gap-2">
@@ -139,7 +139,7 @@ export function FaceControls({ font, weight, italic, onChange, allowItalic = tru
           type="button"
           aria-pressed={!!italic}
           onClick={() => onChange({ italic: !italic })}
-          className={cn("h-10 rounded-xl border px-3 text-sm italic transition", italic ? "border-wine bg-rose/60 text-wine" : "border-line bg-white text-ink-soft hover:border-ink/30")}
+          className={cn("h-10 rounded-[var(--r-ctl)] border px-3 text-sm italic transition", italic ? "border-wine bg-rose/60 text-wine" : "border-line bg-white text-ink-soft hover:border-ink/30")}
         >
           {t.italic}
         </button>

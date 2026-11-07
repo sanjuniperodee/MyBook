@@ -32,20 +32,21 @@ const subscribe = (cb: () => void) => {
 const isDark = (pref: ThemePref) => pref === "dark" || (pref === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
 
 /** Скрипт до первой отрисовки: страница сразу тёмная, без белой вспышки. */
-export const THEME_SCRIPT = `try{var t=localStorage.getItem("${KEY}");if(t==="dark"||(t==="system"&&matchMedia("(prefers-color-scheme: dark)").matches))document.documentElement.classList.add("dark")}catch(e){}`;
+export const THEME_SCRIPT = `document.documentElement.classList.add("crm");try{var t=localStorage.getItem("${KEY}");if(t==="dark"||(t==="system"&&matchMedia("(prefers-color-scheme: dark)").matches))document.documentElement.classList.add("dark")}catch(e){}`;
 
-/** Держит класс .dark в соответствии с выбором и снимает его при уходе из админки. */
+/** Держит классы .crm (палитра и шрифт CRM) и .dark в соответствии с выбором и снимает их при уходе из админки. */
 export function ThemeSync() {
   const pref = useSyncExternalStore(subscribe, read, () => "light" as ThemePref);
   useEffect(() => {
     const root = document.documentElement;
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     const apply = () => root.classList.toggle("dark", isDark(pref));
+    root.classList.add("crm");
     apply();
     mq.addEventListener("change", apply);
     return () => {
       mq.removeEventListener("change", apply);
-      root.classList.remove("dark");
+      root.classList.remove("dark", "crm");
     };
   }, [pref]);
   return null;

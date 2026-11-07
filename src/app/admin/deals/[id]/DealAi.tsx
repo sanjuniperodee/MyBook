@@ -72,9 +72,7 @@ export function DealAi({ dealId, summary, summaryAt, canEdit }: { dealId: string
     <section className="panel" data-testid="deal-ai">
       <header className="panel-head">
         <h2 className="panel-title flex items-center gap-2">
-          <span className="flex size-7 items-center justify-center rounded-lg bg-rose text-wine">
-            <Sparkles className="size-4" strokeWidth={1.8} aria-hidden />
-          </span>
+          <Sparkles className="size-4 text-wine" strokeWidth={1.8} aria-hidden />
           AI-помощник
         </h2>
         <div className="flex flex-wrap gap-2">
@@ -97,7 +95,7 @@ export function DealAi({ dealId, summary, summaryAt, canEdit }: { dealId: string
             </div>
             <p className="whitespace-pre-wrap text-ink-soft">{summary.summary}</p>
             {summary.nextStep ? (
-              <div className="flex flex-wrap items-center gap-3 rounded-[10px] bg-sunken p-3">
+              <div className="flex flex-wrap items-center gap-3 rounded-[var(--r-ctl)] bg-sunken p-3">
                 <div className="min-w-0 flex-1 basis-48">
                   <div className="text-xs text-muted">Следующий шаг, {summary.dueDays === 0 ? "сегодня" : summary.dueDays === 1 ? "завтра" : `через ${summary.dueDays} дн.`}</div>
                   <div className="font-medium">{summary.nextStep}</div>
@@ -118,7 +116,7 @@ export function DealAi({ dealId, summary, summaryAt, canEdit }: { dealId: string
         )}
 
         {proposals ? (
-          <div className="rounded-[10px] border border-line p-3" data-testid="ai-fields">
+          <div className="rounded-[var(--r-ctl)] border border-line p-3" data-testid="ai-fields">
             <div className="mb-2 text-sm font-medium">Нашлось в переписке — отметьте, что записать в карточку</div>
             <ul className="space-y-1.5 text-sm">
               {proposals.map((p) => (

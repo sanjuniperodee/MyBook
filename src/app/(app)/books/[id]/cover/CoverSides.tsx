@@ -10,33 +10,15 @@ import { useMessages } from "@/i18n/client";
 import { ColorField } from "@/components/design/controls";
 import { backLayouts, type BackLayout } from "@/lib/book/cover-back";
 import type { CoverBackground, CoverSide } from "@/lib/book/cover-design";
+import { PillSwitch } from "@/components/design/studio/Tabs";
 import { cn } from "@/lib/class-names";
 import { LayoutIcon } from "./BackSection";
 
 /** Какую сторону править: лицо или оборот — общий для «Шаблон и текст» и конструктора. */
-export function SideSwitch({ side, onChange, compact, className }: { side: CoverSide; onChange: (side: CoverSide) => void; compact?: boolean; className?: string }) {
+export function SideSwitch({ side, onChange, className }: { side: CoverSide; onChange: (side: CoverSide) => void; compact?: boolean; className?: string }) {
   const t = useMessages().books.cover.side;
-  return (
-    <div role="radiogroup" aria-label={t.aria} className={cn("inline-flex shrink-0 gap-1 bg-sunken p-1", compact ? "rounded-xl" : "rounded-2xl", className)}>
-      {(["front", "back"] as const).map((s) => (
-        <button
-          key={s}
-          type="button"
-          role="radio"
-          aria-checked={side === s}
-          onClick={() => onChange(s)}
-          className={cn(
-            "inline-flex items-center gap-2 rounded-xl text-sm transition",
-            compact ? "h-7 rounded-lg px-2 text-xs" : "min-h-10 px-3 max-lg:min-h-11",
-            side === s ? "bg-white font-medium text-ink shadow-soft" : "text-muted hover:text-ink",
-          )}
-        >
-          <span aria-hidden className={cn("shrink-0 rounded-[2px] ring-1", compact ? "h-3.5 w-2.5" : "h-5 w-3.5", side === s ? "bg-wine/15 ring-wine" : "ring-line", s === "back" ? "border-r-[3px] border-r-current" : "border-l-[3px] border-l-current")} />
-          {t[s]}
-        </button>
-      ))}
-    </div>
-  );
+  const icon = (s: CoverSide) => <span aria-hidden className={cn("h-4 w-3 shrink-0 rounded-[2px] ring-1 ring-current/40", s === "back" ? "border-r-[3px] border-r-current" : "border-l-[3px] border-l-current")} />;
+  return <PillSwitch label={t.aria} value={side} onChange={onChange} className={className} options={(["front", "back"] as const).map((s) => ({ value: s, label: t[s], icon: icon(s) }))} />;
 }
 
 /**
@@ -69,7 +51,7 @@ export function SpreadStrip({
       aria-pressed={side === s}
       aria-label={t[s]}
       onClick={() => onSelect(s)}
-      className={cn("relative block overflow-hidden outline-offset-2 transition", side === s ? "z-10 ring-2 ring-wine ring-offset-2 ring-offset-paper" : "opacity-90 hover:opacity-100")}
+      className={cn("relative block overflow-hidden outline-offset-2 transition", side === s ? "z-10 ring-2 ring-wine ring-offset-2 ring-offset-sunken" : "opacity-90 hover:opacity-100")}
       style={{ width: pct(w), aspectRatio: `${w} / ${widths.height}` }}
     >
       <span className="absolute inset-0 [&>*]:h-full [&>*]:w-full">{node}</span>
@@ -128,15 +110,15 @@ export function BackFillSection({
       aria-checked={active}
       disabled={!editable}
       onClick={onClick}
-      className={cn("inline-flex min-h-11 items-center gap-2.5 rounded-xl px-3.5 text-sm transition disabled:opacity-60", active ? "bg-rose/40 font-medium text-wine ring-2 ring-wine" : "text-ink-soft ring-1 ring-line hover:ring-ink/30")}
+      className={cn("inline-flex min-h-11 w-full items-center gap-2.5 rounded-[var(--r-ctl)] px-3 text-sm transition disabled:opacity-60", active ? "bg-rose/50 font-medium text-wine ring-2 ring-wine" : "text-ink-soft ring-1 ring-line hover:ring-ink/30")}
     >
       {children}
     </button>
   );
   return (
-    <section className="space-y-4 rounded-2xl border border-line bg-white p-5">
-      <h2 className="text-lg font-semibold">{t.title}</h2>
-      <div role="radiogroup" aria-label={t.title} className="flex flex-wrap gap-2">
+    <section className="space-y-3.5">
+      <h2 className="text-[13px] font-semibold">{t.title}</h2>
+      <div role="radiogroup" aria-label={t.title} className="grid gap-2">
         {chip(
           linked,
           <>
@@ -165,7 +147,7 @@ export function BackFillSection({
         </div>
       ) : null}
       {onMore ? (
-        <button type="button" className="text-left text-sm text-wine hover:underline" onClick={onMore}>
+        <button type="button" className="min-h-11 text-left text-sm text-wine hover:underline pointer-fine:min-h-0" onClick={onMore}>
           {t.more}
         </button>
       ) : null}
@@ -181,14 +163,14 @@ export function BackLayoutsPanel({ onPick, disabled }: { onPick: (layout: BackLa
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted">{t.text}</p>
-      <div className="grid grid-cols-3 gap-2 lg:grid-cols-2">
+      <div className="grid grid-cols-3 gap-2 lg:grid-cols-3">
         {backLayouts.map((id) => (
           <button
             key={id}
             type="button"
             disabled={disabled}
             onClick={() => onPick(id)}
-            className="flex flex-col items-center gap-1.5 rounded-xl px-2 py-3 text-center text-ink-soft ring-1 ring-line transition hover:ring-ink/30 disabled:opacity-50"
+            className="flex flex-col items-center gap-1.5 rounded-[var(--r-ctl)] px-2 py-3 text-center text-ink-soft ring-1 ring-line transition hover:ring-ink/30 disabled:opacity-50"
           >
             <LayoutIcon layout={id} />
             <span className="text-sm font-medium text-ink">{names[id].name}</span>

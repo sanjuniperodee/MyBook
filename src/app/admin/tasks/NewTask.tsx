@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import { startTransition, useActionState, useEffect, useRef, useState } from "react";
 import { LoaderCircle, Plus, X } from "lucide-react";
 import { createTaskAction, type AdminState } from "@/app/admin/actions";
 import { taskKinds } from "@/components/admin/CrmWidgets";
@@ -49,7 +49,7 @@ export function NewTask({ staff, variant = "primary" }: { staff: { id: string; l
       <dialog
         ref={dialog}
         aria-labelledby="new-task-title"
-        className="m-auto w-[min(34rem,calc(100vw-2rem))] rounded-[20px] border border-line bg-white p-0 text-ink shadow-lift backdrop:bg-ink/40 max-sm:mb-0 max-sm:w-full max-sm:max-w-none max-sm:rounded-b-none"
+        className="m-auto w-[min(34rem,calc(100vw-2rem))] rounded-[var(--r-sheet)] border border-line bg-white p-0 text-ink shadow-lift backdrop:bg-ink/40 max-sm:mb-0 max-sm:w-full max-sm:max-w-none max-sm:rounded-b-none"
         onClick={(e) => e.target === e.currentTarget && e.currentTarget.close()}
       >
         <form ref={form} onSubmit={submitKeepingValues(action)} className="flex flex-col gap-4 p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:p-6">
@@ -122,5 +122,76 @@ export function NewTask({ staff, variant = "primary" }: { staff: { id: string; l
         </form>
       </dialog>
     </>
+  );
+}
+
+/** Срок быстрой задачи: «ГГГГ-ММ-ДД» по часам сотрудника через n дней; null — без срока. */
+const QUICK_DUE = [
+  ["", "Без срока", null],
+  ["today", "Сегодня", 0],
+  ["tomorrow", "Завтра", 1],
+  ["week", "Через неделю", 7],
+] as const;
+const dayAfter = (n: number) => {
+  const d = new Date(Date.now() + n * 86_400_000);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
+/**
+ * Быстрый ввод над очередью: название, тип и срок одной строкой, Enter — создать. Те же поля и то же серверное действие,
+ * что у «Новой задачи» (createTaskAction); напоминание, исполнитель и точное время — в диалоге.
+ */
+export function QuickTask() {
+  const form = useRef<HTMLFormElement>(null);
+  const [due, setDue] = useState("");
+  const [state, action, pending] = useActionState<AdminState, FormData>(createTaskAction, {});
+  useEffect(() => {
+    if (!state.ok) return;
+    form.current?.reset();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- после успешной отправки срок возвращается к «Без срока»
+    setDue("");
+    toast(state.ok);
+  }, [state]);
+  return (
+    <form
+      ref={form}
+      className="border-b border-line px-4 py-2.5 sm:px-5"
+      data-testid="quick-task"
+      onSubmit={(e) => {
+        e.preventDefault();
+        const data = new FormData(e.currentTarget);
+        const n = QUICK_DUE.find(([k]) => k === due)?.[2];
+        if (n !== null && n !== undefined) data.set("dueAt", dayAfter(n));
+        startTransition(() => action(data));
+      }}
+    >
+      <div className="flex flex-wrap items-center gap-2 max-sm:grid max-sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+        <Plus className="size-4 shrink-0 text-muted max-sm:hidden" aria-hidden />
+        <input name="title" required minLength={2} maxLength={300} placeholder="Новая задача: что сделать, Enter — добавить" aria-label="Что сделать" className="input min-w-0 flex-1 basis-56 px-2 max-sm:col-span-3 max-sm:px-3 sm:border-transparent sm:bg-transparent sm:hover:border-line-strong sm:focus:bg-white" autoComplete="off" />
+        <select name="kind" defaultValue="task" aria-label="Тип задачи" className="input w-auto min-w-0">
+          {Object.entries(taskKinds).map(([k, v]) => (
+            <option key={k} value={k}>
+              {v}
+            </option>
+          ))}
+        </select>
+        <select value={due} onChange={(e) => setDue(e.target.value)} aria-label="Срок" className="input w-auto min-w-0">
+          {QUICK_DUE.map(([k, label]) => (
+            <option key={k} value={k}>
+              {label}
+            </option>
+          ))}
+        </select>
+        <button type="submit" className="btn btn-dark" disabled={pending}>
+          {pending ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : null}
+          Добавить
+        </button>
+      </div>
+      {state.error ? (
+        <p className="field-error pl-6" role="alert">
+          {state.error}
+        </p>
+      ) : null}
+    </form>
   );
 }

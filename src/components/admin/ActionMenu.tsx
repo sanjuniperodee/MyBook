@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { Ellipsis } from "lucide-react";
 import { cn } from "@/lib/class-names";
 
-const item = "flex min-h-10 w-full items-center gap-2.5 rounded-lg px-3 text-left text-sm whitespace-nowrap text-ink-soft transition-colors hover:bg-sunken hover:text-ink max-lg:min-h-11 [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-muted";
+const item = "flex min-h-10 w-full items-center gap-2.5 rounded-[var(--r-ctl)] px-3 text-left text-sm whitespace-nowrap text-ink-soft transition-colors hover:bg-sunken hover:text-ink max-lg:min-h-11 [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-muted";
 
 /**
  * «Ещё» в шапке страницы (DESIGN.md §7.2): одна главная кнопка на экране, редкие действия — настройки раздела, выгрузки,
@@ -40,7 +40,7 @@ export function ActionMenu({ children, label = "Ещё", className }: { children
       {open ? (
         <div
           role="menu"
-          className="absolute right-0 z-30 mt-1.5 min-w-60 rounded-xl border border-line bg-white p-1 shadow-soft"
+          className="absolute right-0 z-30 mt-1.5 min-w-60 rounded-[var(--r-sheet)] border border-line bg-white p-1.5 shadow-soft"
           onClick={(e) => {
             if ((e.target as HTMLElement).closest("a,button")) setOpen(false);
           }}

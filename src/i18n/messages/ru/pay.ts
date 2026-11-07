@@ -16,6 +16,15 @@ export const pay = {
   summary: (plan: string, purpose: string, agreed: string) => `${plan}, ${purpose}. Цена книги по договорённости — ${agreed}.`,
   until: (date: string) => `Счёт действует до ${date}.`,
   toPay: "К оплате",
+  /** Квитанция слева от способов оплаты. */
+  receipt: {
+    item: "За что",
+    seller: "Продавец",
+    bin: (bin: string) => `БИН ${bin}`,
+    status: { payable: "Ждёт оплаты", paid: "Оплачено", closed: "Закрыт" },
+    secureTitle: "Оплата защищена",
+    secureText: "Карту вы вводите в окне платёжной системы — мы данные карты не видим. Kaspi открывается в приложении банка.",
+  },
   amountPaid: "Оплачено",
   amount: "Сумма счёта",
   paidTitle: "Оплата получена",
