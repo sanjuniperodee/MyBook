@@ -77,7 +77,7 @@ export default async function AdminSearch({ searchParams }: { searchParams: Prom
               <Section id="deals" title="Сделки" n={dealRows.length}>
                 {dealRows.map(({ deal, stage }) => (
                   <Link key={deal.id} href={`/admin/deals/${deal.id}`} className={row}>
-                    <span className="w-12 shrink-0 font-medium tabular-nums">№{deal.number}</span>
+                    <span className="w-12 shrink-0 font-medium tabular-nums">Д{deal.number}</span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate">{deal.title}</span>
                       {deal.contactPhone ? <span className="block truncate text-xs text-muted tabular-nums">{mask({ phone: formatPhone(deal.contactPhone) }).phone}</span> : null}

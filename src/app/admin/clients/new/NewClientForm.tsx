@@ -77,7 +77,7 @@ function Done({ d, receipt }: { d: NewClientDone; receipt: File | null }) {
         <h2 className="text-lg font-semibold">Клиент {d.clientName} создан</h2>
         {d.dealId ? (
           <p className="mt-1 text-sm text-muted">
-            {many ? `${ruCount(d.parts.length, "сделка", "сделки", "сделок")} (по книге на каждую): №${d.parts.map((p) => p.dealNumber).join(", №")}. ` : `Сделка №${d.dealNumber}: `}
+            {many ? `${ruCount(d.parts.length, "сделка", "сделки", "сделок")} (по книге на каждую): Д${d.parts.map((p) => p.dealNumber).join(", Д")}. ` : `Сделка Д${d.dealNumber}: `}
             договорились на {formatPrice(d.agreed)}{many ? " за книгу" : ""}, предоплата {formatPrice(d.prepaid)}
             {d.remainder > 0 ? `, остаток ${formatPrice(d.remainder)}` : ", оплачено полностью"}. Задач создано: {d.tasks}.
           </p>
@@ -89,7 +89,7 @@ function Done({ d, receipt }: { d: NewClientDone; receipt: File | null }) {
       <div className="flex flex-wrap gap-2">
         {d.dealId ? (
           <Link href={`/admin/deals/${d.dealId}`} className="btn btn-dark btn-sm">
-            Открыть сделку №{d.dealNumber}
+            Открыть сделку Д{d.dealNumber}
           </Link>
         ) : null}
         <Link href={`/admin/clients/${d.clientId}`} className="btn btn-outline btn-sm">

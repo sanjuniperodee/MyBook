@@ -1,5 +1,6 @@
 "use client";
 
+import { initialsOf } from "@/app/admin/deals/ui";
 import { ask } from "@/components/ui/overlays";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -94,7 +95,7 @@ const Owner = ({ name }: { name: string | null }) =>
   name ? (
     <span className="inline-flex max-w-40 items-center gap-2">
       <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-sunken text-[10px] font-semibold text-ink-soft uppercase" aria-hidden>
-        {name.slice(0, 2)}
+        {initialsOf(name)}
       </span>
       <span className="truncate text-ink-soft">{name}</span>
     </span>

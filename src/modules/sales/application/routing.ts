@@ -71,7 +71,7 @@ export class LeadRoutingService {
       return { deal, next };
     });
     if (!routed) return 0;
-    await this.notifier.notify([routed.next], { kind: "deal", title: `Новая заявка №${routed.deal.number}`, body: routed.deal.title, link: link(routed.deal) });
+    await this.notifier.notify([routed.next], { kind: "deal", title: `Новая заявка Д${routed.deal.number}`, body: routed.deal.title, link: link(routed.deal) });
     return 1;
   }
 
@@ -100,11 +100,11 @@ export class LeadRoutingService {
     if (!result) return 0;
     const { deal, prev, next } = result;
     if (!next) {
-      await this.notifier.owners({ kind: "sla", title: `Заявку №${deal.number} никто не взял`, body: `${deal.title} — все на смене получали её и не ответили за ${minutes} мин. Назначьте вручную.`, link: link(deal) });
+      await this.notifier.owners({ kind: "sla", title: `Заявку Д${deal.number} никто не взял`, body: `${deal.title} — все на смене получали её и не ответили за ${minutes} мин. Назначьте вручную.`, link: link(deal) });
       return 0;
     }
-    await this.notifier.notify([next], { kind: "deal", title: `Вам передали заявку №${deal.number}`, body: `${deal.title} — прежний менеджер не ответил за ${minutes} мин`, link: link(deal) });
-    await this.notifier.notify([prev], { kind: "sla", title: `Заявка №${deal.number} передана другому`, body: `Вы не ответили клиенту за ${minutes} мин`, link: link(deal) });
+    await this.notifier.notify([next], { kind: "deal", title: `Вам передали заявку Д${deal.number}`, body: `${deal.title} — прежний менеджер не ответил за ${minutes} мин`, link: link(deal) });
+    await this.notifier.notify([prev], { kind: "sla", title: `Заявка Д${deal.number} передана другому`, body: `Вы не ответили клиенту за ${minutes} мин`, link: link(deal) });
     return 1;
   }
 }

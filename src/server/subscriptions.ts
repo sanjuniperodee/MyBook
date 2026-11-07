@@ -95,7 +95,7 @@ export function registerSubscriptions(c: Container) {
   };
   c.bus.subscribe<OrderPlaced>(
     "ordering.order_placed",
-    (e) => tellManager(e.payload.orderId, (n) => `Клиент оформил заказ №${e.payload.number} (сделка №${n})`, (t) => `${t}${e.payload.prepaid ? ` · предоплата ${e.payload.prepaid.toLocaleString("ru-RU")} ₸ учтена` : ""}`),
+    (e) => tellManager(e.payload.orderId, (n) => `Клиент оформил заказ №${e.payload.number} (сделка Д${n})`, (t) => `${t}${e.payload.prepaid ? ` · предоплата ${e.payload.prepaid.toLocaleString("ru-RU")} ₸ учтена` : ""}`),
     "crm.notify.order_placed",
   );
   // Деньги по заказу требуют решения: переплата (возврат или зачёт) и постоплата после доставки — задача ответственному
@@ -185,7 +185,7 @@ export function registerSubscriptions(c: Container) {
     "sales.deal_created",
     async (e) => {
       const deal = await c.sales.deals.findById(e.payload.dealId);
-      if (deal?.assigneeId && deal.assigneeId !== e.payload.createdById) await (await notify()).notify([deal.assigneeId], { kind: "deal", title: `Новая сделка №${deal.number}`, body: deal.title, link: `/admin/deals/${deal.id}` });
+      if (deal?.assigneeId && deal.assigneeId !== e.payload.createdById) await (await notify()).notify([deal.assigneeId], { kind: "deal", title: `Новая сделка Д${deal.number}`, body: deal.title, link: `/admin/deals/${deal.id}` });
     },
     "crm.notify.deal_created",
   );

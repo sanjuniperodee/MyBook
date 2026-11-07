@@ -166,9 +166,9 @@ describe("financeScreen: пришло", () => {
     expect(s.recent.map((r) => r.key)).toEqual(["prepayment:p1", "order:j1", "refund:r1", "legacy:o2", "gift:g1"]);
     const [p1, j1, r1, legacy, gift] = s.recent;
     expect(p1).toMatchObject({ amount: 10000, method: "Перевод", acceptedBy: "Данияр", manager: "Айгерим", receiptHref: "/api/admin/receipts/r1", check: "pending" });
-    expect(p1.refs).toEqual([{ label: "Сделка №12", href: "/admin/deals/d1" }]);
+    expect(p1.refs).toEqual([{ label: "Сделка Д12", href: "/admin/deals/d1" }]);
     expect(j1).toMatchObject({ method: "Kaspi", acceptedBy: "онлайн", operation: "QR-1", check: null });
-    expect(j1.refs.map((r) => r.label)).toEqual(["Сделка №12", "Заказ №7"]);
+    expect(j1.refs.map((r) => r.label)).toEqual(["Сделка Д12", "Заказ №7"]);
     // Ручной возврат тоже сверяют: он уменьшает «Пришло».
     expect(r1).toMatchObject({ amount: -3000, refund: true, check: "pending" });
     // Ручная запись за выбранный день хранится как полдень — время не показываем; у онлайн-оплаты время настоящее.
@@ -212,13 +212,13 @@ describe("financeScreen: ожидается, переплаты, «Провер�
   it("остаток договорённости по готовности книги; заказы и постоплаты; «успех» без денег и лид — не ожидание", () => {
     const s = screen({ deals, orders });
     expect(s.expected.rows.map((r) => [r.ref, r.left, r.group])).toEqual([
-      ["Сделка №1", 15000, "ready"],
+      ["Сделка Д1", 15000, "ready"],
       ["Заказ №21", 6000, "ready"],
       ["Заказ №20", 5000, "ready"],
-      ["Сделка №3", 9000, "progress"],
-      ["Сделка №2", 7500, "progress"],
-      ["Сделка №4", 12000, "none"],
-      ["Сделка №5", 5000, "none"],
+      ["Сделка Д3", 9000, "progress"],
+      ["Сделка Д2", 7500, "progress"],
+      ["Сделка Д4", 12000, "none"],
+      ["Сделка Д5", 5000, "none"],
     ]);
     expect(s.expected.groups.map((g) => [g.key, g.value, g.count])).toEqual([
       ["ready", 26000, 3],
@@ -234,7 +234,7 @@ describe("financeScreen: ожидается, переплаты, «Провер�
     // Заказ: договорённость = предоплата + к оплате, оплачено = предоплата + записано.
     expect(s.expected.rows.find((r) => r.ref === "Заказ №20")).toMatchObject({ total: 18000, paid: 13000, left: 5000, kind: "order", href: "/admin/orders/wait" });
     expect(s.expected.rows.find((r) => r.ref === "Заказ №21")).toMatchObject({ kind: "postpay", bookLabel: "постоплата · доставлен" });
-    expect(s.expected.rows.find((r) => r.ref === "Сделка №4")?.bookLabel).toBe("не начата · клиент не заведён");
+    expect(s.expected.rows.find((r) => r.ref === "Сделка Д4")?.bookLabel).toBe("не начата · клиент не заведён");
   });
 
   it("переплаты и деньги к возврату — каждый случай один раз", () => {
@@ -244,16 +244,16 @@ describe("financeScreen: ожидается, переплаты, «Провер�
       unrecorded: [{ id: "pi", target: "deal_invoice", externalId: "K-9", mismatch: false, amount: 25000, at: now, invoiceNumber: 14, dealId: "withOrder", dealNumber: 10, orderId: null, orderNumber: null, giftNumber: null, managerId: "m1", client: "К" }],
     });
     expect(s.issues.map((i) => [i.kind, i.ref, i.amount])).toEqual([
-      ["deal_lost", "Сделка №8", 2000],
-      ["deal_overpaid", "Сделка №9", 2000],
-      ["deal_after_order", "Сделка №10", 2000],
+      ["deal_lost", "Сделка Д8", 2000],
+      ["deal_overpaid", "Сделка Д9", 2000],
+      ["deal_after_order", "Сделка Д10", 2000],
       ["order_overpaid", "Заказ №23", 1000],
       ["order_cancelled", "Заказ №24", 7000],
-      ["unrecorded", "счёт P14, сделка №10", 25000],
+      ["unrecorded", "счёт P14, сделка Д10", 25000],
     ]);
     expect(s.totals).toMatchObject({ overpaid: 2000 + 2000 + 2000 + 1000 + 7000 + 25000, overpaidCount: 6 });
     // Сделка с переплатой — не ожидание.
-    expect(s.expected.rows.some((r) => r.ref === "Сделка №9" || r.ref === "Сделка №10")).toBe(false);
+    expect(s.expected.rows.some((r) => r.ref === "Сделка Д9" || r.ref === "Сделка Д10")).toBe(false);
   });
 
   it("«Проверить»: чек сделки и заказа, кто принял; видимость — по ответственному", () => {
@@ -292,7 +292,7 @@ describe("financeScreen: ожидается, переплаты, «Провер�
 
   it("отменённый заказ, а деньги по сделке у нас — к возврату (а не пропадают)", () => {
     const s = screen({ deals: [deal({ id: "dc", number: 41, agreed: 10000, paid: 6000, stageKind: "lost", order: { id: "oc", number: 77, prepaid: 6000, cancelled: true } })] });
-    expect(s.issues.map((i) => [i.kind, i.ref, i.amount, i.title])).toEqual([["deal_lost", "Сделка №41", 6000, "Заказ №77 отменён — деньги по сделке у нас"]]);
+    expect(s.issues.map((i) => [i.kind, i.ref, i.amount, i.title])).toEqual([["deal_lost", "Сделка Д41", 6000, "Заказ №77 отменён — деньги по сделке у нас"]]);
   });
 
   it("«Проверить»: возврат — со знаком, своя запись помечена (проверяет другой)", () => {

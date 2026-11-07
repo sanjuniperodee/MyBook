@@ -260,7 +260,7 @@ export async function assignDealAction(dealId: string, assigneeId: string | null
       const u = await container().access.queries.activeStaff(next);
       if (!u) return { ok: false, message: "Сотрудник не найден" };
       await container().sales.deals.note(deal, `Ответственный: ${u.name || u.email}`, staff.user.id);
-      if (next !== staff.user.id) await notify([next], { kind: "deal", title: `Вам передали сделку №${deal.number}`, body: deal.title, link: `/admin/deals/${deal.id}` });
+      if (next !== staff.user.id) await notify([next], { kind: "deal", title: `Вам передали сделку Д${deal.number}`, body: deal.title, link: `/admin/deals/${deal.id}` });
     }
     await container().sales.deals.assign(deal.id, next);
     if (next !== deal.assigneeId) await audit(staff, "deal.assign", "deal", deal.id, { number: deal.number, from: deal.assigneeId, to: next });
@@ -388,7 +388,7 @@ export async function rejectDealAction(dealId: string, spam: boolean, reason = "
   if (!can(staff, "deals.delete")) {
     await container().sales.deals.requestRejection(deal.id, spam ? "spam" : "reject", staff.user.id, why);
     await audit(staff, spam ? "deal.spam_request" : "deal.reject_request", "deal", deal.id, { number: deal.number, title: deal.title, reason: why });
-    await staffNotifier.notifyAllWith("deals.delete", { kind: "deal", title: `${spam ? "Спам?" : "Отклонить?"} Заявка №${deal.number}`, body: `${staffLabel(staff.user)} предлагает ${spam ? "отметить спамом" : "отклонить"}: ${deal.title}${why ? ` — ${why}` : ""}`, link: `/admin/deals/${deal.id}` });
+    await staffNotifier.notifyAllWith("deals.delete", { kind: "deal", title: `${spam ? "Спам?" : "Отклонить?"} Заявка Д${deal.number}`, body: `${staffLabel(staff.user)} предлагает ${spam ? "отметить спамом" : "отклонить"}: ${deal.title}${why ? ` — ${why}` : ""}`, link: `/admin/deals/${deal.id}` });
     revalidateDeal(deal.id, deal.clientId);
     return { requested: true, message: "Отправлено руководителю — заявка останется у вас, пока он не решит" };
   }
@@ -408,7 +408,7 @@ export async function declineRejectionAction(dealId: string) {
   const deal = await loadDeal(staff, dealId);
   await container().sales.deals.declineRejection(deal.id, staff.user.id);
   await audit(staff, "deal.request_declined", "deal", deal.id, { number: deal.number });
-  if (deal.assigneeId) await notify([deal.assigneeId], { kind: "deal", title: `Заявка №${deal.number} остаётся в работе`, body: "Руководитель не стал её отклонять — ответьте клиенту", link: `/admin/deals/${deal.id}` });
+  if (deal.assigneeId) await notify([deal.assigneeId], { kind: "deal", title: `Заявка Д${deal.number} остаётся в работе`, body: "Руководитель не стал её отклонять — ответьте клиенту", link: `/admin/deals/${deal.id}` });
   revalidateDeal(deal.id, deal.clientId);
 }
 
@@ -562,8 +562,8 @@ export async function bulkDealsAction(ids: string[], input: z.input<typeof bulkS
   if (target && target.id !== staff.user.id && handed.length)
     await notify([target.id], {
       kind: "deal",
-      title: handed.length === 1 ? `Вам передали сделку №${handed[0].number}` : `Вам передали сделки: ${handed.length}`,
-      body: `№${handed.slice(0, 10).map((d) => d.number).join(", №")}${handed.length > 10 ? " и другие" : ""} — передал(а) ${staffLabel(staff.user)}`,
+      title: handed.length === 1 ? `Вам передали сделку Д${handed[0].number}` : `Вам передали сделки: ${handed.length}`,
+      body: `Д${handed.slice(0, 10).map((d) => d.number).join(", Д")}${handed.length > 10 ? " и другие" : ""} — передал(а) ${staffLabel(staff.user)}`,
       link: handed.length === 1 ? `/admin/deals/${handed[0].id}` : "/admin/deals?mine=1&view=list",
     });
   revalidatePath("/admin/deals");

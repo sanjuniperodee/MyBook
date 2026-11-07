@@ -118,7 +118,7 @@ export function ChatHeader({
       ) : null}
       {deal ? (
         <Link href={deal.href} className="hidden h-8 shrink-0 items-center gap-2 rounded-lg border border-line px-2.5 text-xs font-medium whitespace-nowrap transition-colors hover:border-line-strong hover:bg-sunken sm:flex xl:hidden" title="Открыть сделку">
-          <span className="tabular-nums">Сделка №{deal.number}</span>
+          <span className="tabular-nums">Сделка Д{deal.number}</span>
           <span className="flex items-center gap-1.5 font-normal text-ink-soft">
             <span className="size-2 rounded-full" style={{ background: deal.color }} aria-hidden />
             {deal.stage}

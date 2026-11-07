@@ -199,7 +199,7 @@ export function ClientDeals({ clientId, deals, can }: { clientId: string; deals:
           {deals.map(({ deal, stage }) => (
             <li key={deal.id}>
               <Link href={`/admin/deals/${deal.id}`} className="flex min-h-12 flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 text-sm hover:bg-sunken/60 sm:px-5">
-                <span className="w-12 shrink-0 text-muted tabular-nums">№{deal.number}</span>
+                <span className="w-12 shrink-0 text-muted tabular-nums">Д{deal.number}</span>
                 <span className="min-w-0 flex-1 basis-40">
                   <span className="block truncate font-medium">{deal.title}</span>
                   <span className="block text-xs text-muted">
@@ -231,7 +231,7 @@ export function ClientPayments({ payments }: { payments: { id: string; deal_id: 
               </span>
               <Badge tone={p.kind === "refund" ? "danger" : "neutral"}>{p.kind === "prepayment" ? "предоплата" : p.kind === "refund" ? "возврат" : "платёж"}</Badge>
               <span className="min-w-0 flex-1 truncate text-muted">
-                сделка №{p.number} · {p.title}
+                сделка Д{p.number} · {p.title}
               </span>
               <span className="text-xs text-muted tabular-nums">{formatDate(p.paid_at)}</span>
             </Link>
@@ -270,7 +270,7 @@ export function ClientReferrals({ data }: { data: ClientReferralsData }) {
               <span>
                 {f.friendId ? <Link href={`/admin/clients/${f.friendId}`} className="underline">{f.name || "друг"}</Link> : f.name || "друг"}
                 {" · "}
-                <Link href={f.kind === "order" ? `/admin/orders/${f.refId}` : `/admin/deals/${f.refId}`} className="underline">{f.kind === "order" ? `заказ №${f.number}` : `сделка №${f.number} (чат)`}</Link>
+                <Link href={f.kind === "order" ? `/admin/orders/${f.refId}` : `/admin/deals/${f.refId}`} className="underline">{f.kind === "order" ? `заказ №${f.number}` : `сделка Д${f.number} (чат)`}</Link>
               </span>
               <span className="text-muted">{f.rewardCode ? `награда ${f.rewardCode}${f.rewardUsed ? " · использована" : ""}` : "награда не выдана"}</span>
             </li>

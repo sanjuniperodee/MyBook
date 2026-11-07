@@ -51,7 +51,7 @@ describe("Deal", () => {
     const deal = openDeal();
     const j = deal.pullJournal();
     expect(j.stageChanges).toEqual([{ fromStageId: null, toStageId: "new", actorId: null }]);
-    expect(j.notes[0].text).toContain("Создана сделка №7");
+    expect(j.notes[0].text).toContain("Создана сделка Д7");
     expect(deal.pullEvents().map((e) => e.type)).toEqual(["sales.deal_created"]);
   });
 
@@ -113,7 +113,7 @@ describe("Deal", () => {
     const chat = Deal.restore("d3", { ...openDeal().snapshot(), number: 9, contactEmail: "a@b.kz", createdAt: new Date(lastYear.getTime() - 3 * DAY) });
     won.absorb(chat, into("new", "won", 14), "m1");
     expect(won.snapshot()).toMatchObject({ contactEmail: "a@b.kz", stageId: "won", orderId: "o-old" });
-    expect(won.pullJournal().notes.map((n) => n.text)).toContain("Объединена со сделкой №9 «Заявка»");
+    expect(won.pullJournal().notes.map((n) => n.text)).toContain("Объединена со сделкой Д9 «Заявка»");
   });
 });
 
@@ -337,7 +337,7 @@ describe("Круг: распределение заявок", () => {
     router.workTime = true;
     expect(await routing.run()).toBe(1);
     expect((await service.findById(d.id))?.assigneeId).toBe("m2");
-    expect(sent).toEqual([{ to: "m2", title: `Новая заявка №${d.number}` }]);
+    expect(sent).toEqual([{ to: "m2", title: `Новая заявка Д${d.number}` }]);
   });
 
   it("не взял за 15 минут — следующему, прежнему — уведомление; принятая заявка не уходит", async () => {
@@ -376,7 +376,7 @@ describe("Круг: распределение заявок", () => {
     clock.at = new Date(now.getTime() + 16 * 60_000);
     expect(await routing.run()).toBe(0);
     expect(await service.findById(d.id)).toMatchObject({ assigneeId: "m2", assignedAt: clock.at });
-    expect(sent).toEqual([{ to: "owners", title: `Заявку №${d.number} никто не взял` }]);
+    expect(sent).toEqual([{ to: "owners", title: `Заявку Д${d.number} никто не взял` }]);
   });
 
   it("менеджер предлагает спам — сделка остаётся с отметкой и круг её не передаёт; ответил клиенту или руководитель оставил — отметка снимается", async () => {
@@ -707,7 +707,7 @@ describe("Жизнь сделки: деньги и счета из чата не
     await service.merge(target.id, dup.id, "m1");
     expect(invoices.calls).toEqual([`move:${dup.id}>${target.id}:false`]);
     expect(deals.locked).toEqual([[target.id, dup.id]]);
-    expect(deals.notes).toContain(`Счета из чата: из сделки №${dup.number} перенесены P3, P5; отменены открытые P5 (сделки объединены)`);
+    expect(deals.notes).toContain(`Счета из чата: из сделки Д${dup.number} перенесены P3, P5; отменены открытые P5 (сделки объединены)`);
     expect(await service.findById(dup.id)).toBeNull();
   });
 

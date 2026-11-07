@@ -22,7 +22,7 @@ describe("Другие открытые сделки контакта на ка�
   it("открытая сделка — «Похоже на дубль» и «Объединить сюда» у тех, кого можно слить", () => {
     const html = renderToStaticMarkup(<Duplicates dealId="t" closed={false} duplicates={[row(455, { cancels: [] }), row(456, null)]} />);
     expect(html).toContain("Похоже на дубль");
-    expect(html).toContain("№455");
+    expect(html).toContain("Д455");
     expect(buttons(html)).toBe(1);
   });
 
@@ -45,13 +45,13 @@ describe("Другие открытые сделки контакта на ка�
 describe("Подтверждение «Объединить сюда»", () => {
   it("в закрытую сделку — прямо: заявка уйдёт из работы, плана и воронки; отменяемые счета — поимённо", () => {
     const q = mergeQuestion(455, true, ["P77 на 15 000 ₸"]);
-    expect(q).toContain("Влить заявку №455 в эту закрытую сделку?");
+    expect(q).toContain("Влить заявку Д455 в эту закрытую сделку?");
     expect(q).toContain("уйдёт из работы — в план и воронку как новая продажа она не попадёт");
     expect(q).toContain("Будет отменён открытый счёт P77 на 15 000 ₸ — ссылка на оплату у клиента перестанет работать.");
   });
 
   it("открытая сделка — без лишних предупреждений; счета, которые отменятся, — списком", () => {
-    expect(mergeQuestion(8, false, [])).toBe("Объединить сделку №8 с этой? Переписка, звонки, задачи и история перейдут сюда, №8 удалится.");
+    expect(mergeQuestion(8, false, [])).toBe("Объединить сделку Д8 с этой? Переписка, звонки, задачи и история перейдут сюда, Д8 удалится.");
     expect(mergeQuestion(8, false, ["P3 на 5 000 ₸", "P4 на 7 000 ₸"])).toContain("Будут отменены открытые счета P3 на 5 000 ₸, P4 на 7 000 ₸ — ссылки на оплату у клиента перестанут работать.");
   });
 });
@@ -65,11 +65,11 @@ describe("Прошлые сделки контакта на карточке", (
   it("роль «только свои» не видит название и сумму чужой прошлой сделки; нечего показать — блока нет", () => {
     const deals = [past(10, "m1", 30_000), past(11, "m2", 45_000)];
     const own = renderToStaticMarkup(<PastDeals deals={deals} canSee={(a) => a === "m1"} />);
-    expect(own).toContain("№10");
-    expect(own).not.toContain("№11");
+    expect(own).toContain("Д10");
+    expect(own).not.toContain("Д11");
     expect(own).not.toContain("45");
     expect(renderToStaticMarkup(<PastDeals deals={[past(11, "m2", 45_000)]} canSee={(a) => a === "m1"} />)).toBe("");
     const all = renderToStaticMarkup(<PastDeals deals={deals} canSee={() => true} />);
-    expect(all).toContain("№11");
+    expect(all).toContain("Д11");
   });
 });

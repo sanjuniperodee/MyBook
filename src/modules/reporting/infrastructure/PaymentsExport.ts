@@ -13,7 +13,7 @@ export async function paymentsExport(days: number, viewer?: { userId: string; se
     select to_char(e.at at time zone ${storeTimeZone()}, 'YYYY-MM-DD HH24:MI') as at, e.amount, e.kind,
       case when e.kind in ('payment', 'refund') then (select case p.kind when 'prepayment' then 'предоплата' when 'refund' then 'возврат' else 'платёж' end from crm_payments p where p.id = e.ref_id) else '' end as type,
       coalesce((select '№' || o.number from orders o where o.id = e.sale_id and e.kind = 'order'), '') ||
-        case when e.deal_id is not null then ' сделка №' || (select d.number from crm_deals d where d.id = e.deal_id) else '' end as ref,
+        case when e.deal_id is not null then ' сделка Д' || (select d.number from crm_deals d where d.id = e.deal_id) else '' end as ref,
       coalesce(nullif(u.name, ''), u.email, '') as client, coalesce(u.phone, '') as phone, coalesce(m.name, '') as manager,
       case when e.kind not in ('payment', 'refund') then ''
         when exists (select 1 from crm_payments p where p.id = e.ref_id and p.method <> 'manual') then 'онлайн'

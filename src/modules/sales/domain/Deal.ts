@@ -93,7 +93,7 @@ export class Deal extends AggregateRoot<DealProps> {
       createdAt: now,
     });
     deal.#stageChanges.push({ fromStageId: null, toStageId: stage.id, actorId: input.createdById });
-    deal.note(`Создана сделка №${number} «${deal.props.title}» (${dealSourceLabels[input.source]}${(input.repeatCount ?? 0) > 0 ? ", повторный клиент" : ""})`, input.createdById);
+    deal.note(`Создана сделка Д${number} «${deal.props.title}» (${dealSourceLabels[input.source]}${(input.repeatCount ?? 0) > 0 ? ", повторный клиент" : ""})`, input.createdById);
     deal.record(SalesEvents.dealCreated({ ...deal.ref(), source: input.source, stageId: stage.id, createdById: input.createdById, title: deal.props.title }));
     return deal;
   }
@@ -161,7 +161,7 @@ export class Deal extends AggregateRoot<DealProps> {
     this.props.lostReason = stage.kind === "lost" ? (lostReason ?? this.props.lostReason) : null;
     this.props.unsorted = false;
     this.#stageChanges.push({ fromStageId: from, toStageId: stage.id, actorId });
-    this.note(`Сделка №${this.props.number}: этап «${stage.name}»${stage.kind === "lost" && lostReason ? ` — ${lostReason}` : ""}`, actorId);
+    this.note(`Сделка Д${this.props.number}: этап «${stage.name}»${stage.kind === "lost" && lostReason ? ` — ${lostReason}` : ""}`, actorId);
     this.record(SalesEvents.dealStageChanged({ ...this.ref(), fromStageId: from, stageId: stage.id, source: this.props.source, at: now.toISOString() }));
     // Закрыта (успех или отказ) — платить по ней больше нельзя: её открытые счета отменит подписчик заказов.
     if (stage.kind !== "open") this.record(SalesEvents.dealClosed({ ...this.ref(), outcome: stage.kind, reason: stage.kind === "lost" ? this.props.lostReason : null }));
@@ -338,6 +338,6 @@ export class Deal extends AggregateRoot<DealProps> {
       extraPhones: [...phones],
       unsorted: false,
     };
-    this.note(`Объединена со сделкой №${s.number} «${s.title}»`, actorId);
+    this.note(`Объединена со сделкой Д${s.number} «${s.title}»`, actorId);
   }
 }

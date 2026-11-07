@@ -41,7 +41,7 @@ export function ClientDealsForm({ stages, defaultStageId, admins, me, canAssign,
       <Panel className="border-success/30" title={<span className="flex items-center gap-2"><CircleCheck className="size-5 text-success" aria-hidden />{d.parts.length > 1 ? `Создано ${ruCount(d.parts.length, "сделка", "сделки", "сделок")}` : "Сделка создана"} для {d.clientName}</span>}>
         <div className="space-y-4" data-testid="client-deals-done">
           <p className="text-sm text-ink-soft">
-            {d.parts.length > 1 ? `По книге на сделку: №${d.parts.map((x) => x.dealNumber).join(", №")}. ` : `Сделка №${d.parts[0].dealNumber}. `}
+            {d.parts.length > 1 ? `По книге на сделку: Д${d.parts.map((x) => x.dealNumber).join(", Д")}. ` : `Сделка Д${d.parts[0].dealNumber}. `}
             Договорились на {formatPrice(d.agreed)}{d.parts.length > 1 ? " за книгу" : ""}, предоплата {formatPrice(d.prepaid)}
             {d.remainder > 0 ? `, остаток ${formatPrice(d.remainder)}` : ", оплачено полностью"}. Задач создано: {d.tasks}.
           </p>
@@ -49,7 +49,7 @@ export function ClientDealsForm({ stages, defaultStageId, admins, me, canAssign,
           <p className="text-xs text-muted">В кабинете клиента это одна карточка «Ваш заказ по договорённости»: сколько книг оплачено и сколько ещё осталось оформить.</p>
           <div className="flex flex-wrap gap-2">
             <Link href={`/admin/deals/${d.parts[0].dealId}`} className="btn btn-dark btn-sm">
-              Открыть сделку №{d.parts[0].dealNumber}
+              Открыть сделку Д{d.parts[0].dealNumber}
             </Link>
             <Link href={`/admin/clients/${d.clientId}`} className="btn btn-outline btn-sm">
               Карточка клиента

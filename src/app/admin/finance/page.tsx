@@ -1,3 +1,4 @@
+import { AutoApply } from "@/components/admin/AutoApply";
 import Link from "next/link";
 import { z } from "zod";
 import { CircleCheck, Download, FileText, HandCoins, ShieldCheck, Wallet } from "lucide-react";
@@ -90,8 +91,9 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
               –
             </span>
             <input type="date" name="to" defaultValue={period.last} className="input min-w-0 flex-1 border-0 px-2.5 text-sm sm:h-[calc(var(--ctl-h-sm)-4px)] sm:w-36 sm:flex-none" aria-label="По дату" />
-            {/* На телефоне — отдельной строкой: датам нужна вся ширина, иначе год обрезается. */}
-            <button className="btn btn-ghost btn-sm shrink-0 max-sm:w-full">Показать</button>
+            {/* Период применяется, как только выбрана дата (AutoApply); кнопка — для Enter и без JS. */}
+            <button className="sr-only">Показать</button>
+            <AutoApply />
           </form>
         </div>
 

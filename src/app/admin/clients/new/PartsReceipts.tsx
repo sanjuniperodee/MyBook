@@ -60,7 +60,7 @@ export function PartsReceipts({ parts, receipt }: { parts: ReceiptPart[]; receip
       </div>
       {failed.map((p) => (
         <div key={p.dealId} className="flex items-center gap-2 text-xs">
-          <span className="flex-1">Сделка №{p.dealNumber}: {state[p.dealId]?.error}</span>
+          <span className="flex-1">Сделка Д{p.dealNumber}: {state[p.dealId]?.error}</span>
           <button type="button" className="btn btn-outline btn-sm" onClick={() => void send(p)}>
             Повторить
           </button>

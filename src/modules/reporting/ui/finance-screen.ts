@@ -352,7 +352,7 @@ export function financeScreen(input: {
     managers.set(id, cell);
   }
 
-  const dealRef = (id: string | null, n: number | null) => (id && n !== null ? { label: `Сделка №${n}`, href: `/admin/deals/${id}` } : null);
+  const dealRef = (id: string | null, n: number | null) => (id && n !== null ? { label: `Сделка Д${n}`, href: `/admin/deals/${id}` } : null);
   const orderRef = (id: string | null, n: number | null) => (id && n !== null ? { label: `Заказ №${n}`, href: `/admin/orders/${id}` } : null);
   const moneyView = (m: MoneyRow) => ({
     key: `${m.kind}:${m.id}`,
@@ -400,7 +400,7 @@ export function financeScreen(input: {
   for (const d of input.deals) {
     if (!visible(d.managerId)) continue;
     const href = `/admin/deals/${d.id}`;
-    const ref = `Сделка №${d.number}`;
+    const ref = `Сделка Д${d.number}`;
     const manager = who(d.managerId);
     if (d.order?.cancelled) {
       // Заказ отменён, а деньги по сделке у нас: вернуть клиенту (возврат оформляется в сделке) или оформить новый заказ.
@@ -474,13 +474,13 @@ export function financeScreen(input: {
       dueLabel: o.desiredDate ? `к ${dayLabel(o.desiredDate)}` : null,
       overdue: !!o.desiredDate && o.desiredDate < today,
       invoice: null,
-      note: [o.dealNumber !== null ? `сделка №${o.dealNumber}` : null, o.status === "pending_payment" ? `оформлен ${shortDate(o.createdAt)}` : null, o.claimedAt && o.status === "pending_payment" ? "клиент сообщил об оплате" : null].filter(Boolean).join(" · ") || null,
+      note: [o.dealNumber !== null ? `сделка Д${o.dealNumber}` : null, o.status === "pending_payment" ? `оформлен ${shortDate(o.createdAt)}` : null, o.claimedAt && o.status === "pending_payment" ? "клиент сообщил об оплате" : null].filter(Boolean).join(" · ") || null,
     });
   }
 
   for (const u of input.unrecorded) {
     if (!visible(u.managerId)) continue;
-    const what = u.target === "deal_invoice" ? `счёт P${u.invoiceNumber ?? "?"}${u.dealNumber !== null ? `, сделка №${u.dealNumber}` : ""}` : u.target === "order" ? `заказ №${u.orderNumber ?? "?"}` : u.target === "ai_pack" ? `пакет ИИ A${u.aiPackNumber ?? "?"}` : u.target === "media_pack" ? `минуты видео M${u.mediaPackNumber ?? "?"}` : `сертификат №${u.giftNumber ?? "?"}`;
+    const what = u.target === "deal_invoice" ? `счёт P${u.invoiceNumber ?? "?"}${u.dealNumber !== null ? `, сделка Д${u.dealNumber}` : ""}` : u.target === "order" ? `заказ №${u.orderNumber ?? "?"}` : u.target === "ai_pack" ? `пакет ИИ A${u.aiPackNumber ?? "?"}` : u.target === "media_pack" ? `минуты видео M${u.mediaPackNumber ?? "?"}` : `сертификат №${u.giftNumber ?? "?"}`;
     const href = u.dealId ? `/admin/deals/${u.dealId}` : u.orderId ? `/admin/orders/${u.orderId}` : u.target === "gift" ? "/admin/gifts" : null;
     issues.push({
       key: `un:${u.id}`,

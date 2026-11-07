@@ -1,3 +1,4 @@
+import { AutoApply } from "@/components/admin/AutoApply";
 import Link from "next/link";
 import { MobileFilters } from "@/components/admin/MobileFilters";
 import { channelLabel, channels, toAttribution } from "@/shared/domain/channels";
@@ -116,6 +117,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
         </nav>
 
         <form className="flex flex-wrap items-center gap-2" role="search">
+          <AutoApply />
           <input type="hidden" name="segment" value={segment} />
           <label className="relative min-w-0 flex-1 lg:max-w-80">
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" aria-hidden />
@@ -177,7 +179,8 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
               </details>
             </div>
           </MobileFilters>
-          <button className="btn btn-outline">Найти</button>
+          {/* Фильтры применяются сразу (AutoApply); кнопка — для Enter и без JS. */}
+          <button className="sr-only">Найти</button>
         </form>
       </div>
 

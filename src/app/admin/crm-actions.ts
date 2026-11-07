@@ -254,7 +254,7 @@ export async function setDealNoMarketingAction(dealId: string, on: boolean): Pro
   if (!deal) return { ok: false, message: admin.dealNotFound };
   assertWorkable(staff, deal.assigneeId);
   const target = { dealId: deal.id, clientId: deal.clientId, phones: [deal.contactPhone, ...deal.extraPhones] };
-  const values = await markNoMarketing(target, next, staff.user.id, `Сделка №${deal.number}`);
+  const values = await markNoMarketing(target, next, staff.user.id, `Сделка Д${deal.number}`);
   if (!values) return { ok: false, message: admin.noMarketingNoContacts };
   await audit(staff, "deal.no_marketing", "deal", deal.id, { on: next, numbers: values.length });
   revalidatePath(`/admin/deals/${deal.id}`);

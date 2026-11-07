@@ -34,7 +34,7 @@ describe("mergeDealAction", () => {
     merge = async () => {
       throw new SalesError("mergeClosed", undefined, [8]);
     };
-    expect(await mergeDealAction(TARGET, SOURCE)).toEqual({ error: expect.stringContaining("Сделка №8 закрыта") });
+    expect(await mergeDealAction(TARGET, SOURCE)).toEqual({ error: expect.stringContaining("Сделка Д8 закрыта") });
     expect(audits).toEqual([]);
   });
 
@@ -43,7 +43,7 @@ describe("mergeDealAction", () => {
       throw new SalesError("mergeIntoClosed", undefined, [7, 14]);
     };
     const r = await mergeDealAction(TARGET, SOURCE);
-    expect(r).toEqual({ error: expect.stringContaining("Сделка №7 закрыта. В неё вливают только заявку той же покупки") });
+    expect(r).toEqual({ error: expect.stringContaining("Сделка Д7 закрыта. В неё вливают только заявку той же покупки") });
     expect(r?.error).toContain("ведите её отдельно");
     expect(audits).toEqual([]);
   });

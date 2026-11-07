@@ -297,7 +297,7 @@ export function DealDelete({ id, number }: { id: string; number: number }) {
       className="btn btn-ghost btn-sm text-danger hover:text-danger"
       disabled={pending}
       onClick={async () =>
-        (await ask(`Удалить сделку №${number}? Задачи и история по ней тоже удалятся.`, true)) &&
+        (await ask(`Удалить сделку Д${number}? Задачи и история по ней тоже удалятся.`, true)) &&
         start(async () => {
           try {
             const r = await deleteDealAction(id);
@@ -405,8 +405,8 @@ export function UnsortedBanner({ dealId, canEdit, canDecide, request }: { dealId
  */
 export function mergeQuestion(number: number, intoClosed: boolean, cancels: readonly string[]) {
   const base = intoClosed
-    ? `Влить заявку №${number} в эту закрытую сделку? Переписка, звонки, задачи и история перейдут сюда, №${number} удалится и уйдёт из работы — в план и воронку как новая продажа она не попадёт. Так делают, только если это та же покупка.`
-    : `Объединить сделку №${number} с этой? Переписка, звонки, задачи и история перейдут сюда, №${number} удалится.`;
+    ? `Влить заявку Д${number} в эту закрытую сделку? Переписка, звонки, задачи и история перейдут сюда, Д${number} удалится и уйдёт из работы — в план и воронку как новая продажа она не попадёт. Так делают, только если это та же покупка.`
+    : `Объединить сделку Д${number} с этой? Переписка, звонки, задачи и история перейдут сюда, Д${number} удалится.`;
   if (!cancels.length) return base;
   return cancels.length === 1
     ? `${base} Будет отменён открытый счёт ${cancels[0]} — ссылка на оплату у клиента перестанет работать.`
@@ -423,7 +423,7 @@ export function DuplicateRow({ targetId, intoClosed, other, merge }: { targetId:
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2 py-2.5 text-sm">
       <Link href={`/admin/deals/${other.id}`} className="min-w-0 flex-1 basis-48 hover:text-wine">
         <span className="block truncate font-medium">
-          №{other.number} {other.title}
+          Д{other.number} {other.title}
         </span>
         <span className="block text-xs text-muted">создана {other.created}</span>
       </Link>

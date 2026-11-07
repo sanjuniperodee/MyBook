@@ -78,7 +78,7 @@ export class ReferralService {
     if (!referrerId || referrerId === deal.clientId) return;
     await this.reward(
       { orderId: null, dealId, orderNumber: deal.number, referrerId, friendId: deal.clientId, createdAt: this.clock.now() },
-      { note: `Награда за друга: покупка из чата, сделка №${deal.number}`, friendName: deal.name },
+      { note: `Награда за друга: покупка из чата, сделка Д${deal.number}`, friendName: deal.name },
     );
   }
 

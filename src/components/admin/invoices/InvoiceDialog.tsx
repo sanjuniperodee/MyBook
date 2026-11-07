@@ -53,7 +53,7 @@ export function InvoiceDialog({ issueKey, dealId = null, conversationId = null, 
       <div className="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-[var(--r-sheet)] bg-white p-5 text-sm shadow-lift" data-testid="invoice-dialog">
         <div className="mb-3 flex items-center justify-between gap-3">
           <h2 id="invoice-title" className="text-base font-semibold">
-            Счёт на оплату{state.kind === "form" && state.info.dealNumber ? ` · сделка №${state.info.dealNumber}` : ""}
+            Счёт на оплату{state.kind === "form" && state.info.dealNumber ? ` · сделка Д${state.info.dealNumber}` : ""}
           </h2>
           <button type="button" onClick={onClose} aria-label="Закрыть" className="btn btn-ghost btn-icon btn-sm -mr-2">
             <X className="size-4" aria-hidden />

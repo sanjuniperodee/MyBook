@@ -36,7 +36,7 @@ export interface ListedTask {
 /** Строка TaskRows для «Задач» и «Моего дня»: срок, просрочка, к чему задача, задача бота, можно ли менять. */
 export function taskRow(r: ListedTask, viewer: { userId: string; allTasks: boolean }, now: Date): TaskRow {
   const t = r.task;
-  const deal = t.dealId ? `сделка${r.dealNumber ? ` №${r.dealNumber}` : ""} · ${r.dealContact || r.dealTitle || "без имени"}` : null;
+  const deal = t.dealId ? `${r.dealNumber ? `Д${r.dealNumber}` : "сделка"} · ${r.dealContact || r.dealTitle || "без имени"}` : null;
   return {
     id: t.id,
     title: t.title.replace(/\s*\(бот\)\s*$/, ""),

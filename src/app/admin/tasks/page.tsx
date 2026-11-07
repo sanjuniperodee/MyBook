@@ -1,3 +1,4 @@
+import { AutoApply } from "@/components/admin/AutoApply";
 import Link from "next/link";
 import { MobileFilters } from "@/components/admin/MobileFilters";
 import { CheckCheck, ListChecks, Search } from "lucide-react";
@@ -150,7 +151,8 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
                   </option>
                 ))}
               </select>
-              <button className="btn btn-outline">Показать</button>
+              <button className="sr-only">Показать</button>
+              <AutoApply />
             </form>
           ) : null}
           <form action="/admin/tasks" className="flex min-w-56 flex-1 items-center lg:ml-auto lg:max-w-72">
@@ -161,6 +163,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
               <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" aria-hidden />
               <input name="q" defaultValue={q} placeholder="Задача, клиент, сделка" aria-label="Поиск задач: задача, клиент, сделка" className="input pl-9" type="search" />
             </div>
+            <AutoApply />
           </form>
         </div>
       </MobileFilters>

@@ -72,7 +72,7 @@ export function PastDeals({ deals, canSee }: { deals: RelatedDeal[]; canSee: (as
             <Link href={`/admin/deals/${d.id}`} className="flex min-h-12 items-center gap-3 px-4 py-2.5 hover:bg-sunken/60 sm:px-5">
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-medium">
-                  №{d.number} {d.title}
+                  Д{d.number} {d.title}
                 </span>
                 <span className="text-xs text-muted tabular-nums">
                   {formatDate(d.closedAt ?? d.createdAt)}

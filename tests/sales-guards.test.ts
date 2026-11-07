@@ -84,7 +84,7 @@ describe("Сделки: перенос, массовое назначение, �
     expect(await bulkDealsAction([id(1)], { op: "assign", userId: id(777) })).toEqual({ done: 0, skipped: 1, error: "Сотрудник не найден" });
     expect(log).toEqual([]);
     expect(await bulkDealsAction([id(1), id(2), id(3)], { op: "assign", userId: id(500) })).toEqual({ done: 3, skipped: 0 });
-    // Сделка №3 уже была её — без записи и уведомления о ней.
+    // Сделка Д3 уже была её — без записи и уведомления о ней.
     expect(log).toEqual([`note:1:Ответственный: Аня`, `assign:1:${id(500)}`, `note:2:Ответственный: Аня`, `assign:2:${id(500)}`, `assign:3:${id(500)}`]);
     expect(notified.calls).toEqual([{ to: [id(500)], title: "Вам передали сделки: 2", link: "/admin/deals?mine=1&view=list" }]);
   });
@@ -92,7 +92,7 @@ describe("Сделки: перенос, массовое назначение, �
   it("массовое назначение одной сделки — уведомление ведёт на её карточку", async () => {
     signIn(owner);
     await bulkDealsAction([id(1)], { op: "assign", userId: id(500) });
-    expect(notified.calls).toEqual([{ to: [id(500)], title: "Вам передали сделку №1", link: `/admin/deals/${id(1)}` }]);
+    expect(notified.calls).toEqual([{ to: [id(500)], title: "Вам передали сделку Д1", link: `/admin/deals/${id(1)}` }]);
   });
 
   it("привязать к сделке можно только видимого клиента сайта: не сотрудника и не клиента другого менеджера", async () => {

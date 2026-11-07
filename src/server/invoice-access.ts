@@ -351,7 +351,7 @@ export class InvoiceAccess {
       `Клиент на сайте: ${account.name || "без имени"}, ${login}, язык кабинета — ${s.locale === "kk" ? "казахский" : "русский"}.`,
     ].join("\n");
     await this.p.crm.noteOnce({ dealId: deal.id, clientId: account.id, text: terms });
-    const remainderTitle = left > 0 ? `${REMAINDER_TASK}${formatPrice(left)} по договорённости (сделка №${deal.number}, оплачен счёт ${label(s.number)})` : null;
+    const remainderTitle = left > 0 ? `${REMAINDER_TASK}${formatPrice(left)} по договорённости (сделка Д${deal.number}, оплачен счёт ${label(s.number)})` : null;
     // Прежние «получить остаток» устарели: остаток оплачен или стал меньше — закрываем, ставим одну актуальную.
     await this.p.crm.closeTasks({ dealId: deal.id, prefix: REMAINDER_TASK, keepTitle: remainderTitle });
     if (remainderTitle) await this.alert(s, { ...deal, clientId: account.id }, remainderTitle, { note: false, fresh: false });
@@ -447,7 +447,7 @@ export class InvoiceAccess {
   /** Оплачен (онлайн или переводом с чеком): уведомление ответственному, иначе выставившему, иначе всем с deals.edit. */
   async paidNotify(e: DealInvoicePaid["payload"]) {
     const deal = await this.p.deals.find(e.dealId);
-    const n: StaffNotification = { kind: "deal", title: `Оплачен счёт ${label(e.number)} — ${formatPrice(e.amount)} (${methodLabel(e.method)})`, body: deal ? `Сделка №${deal.number}: ${deal.title}` : "", link: deal ? `/admin/deals/${deal.id}` : "/admin/deals" };
+    const n: StaffNotification = { kind: "deal", title: `Оплачен счёт ${label(e.number)} — ${formatPrice(e.amount)} (${methodLabel(e.method)})`, body: deal ? `Сделка Д${deal.number}: ${deal.title}` : "", link: deal ? `/admin/deals/${deal.id}` : "/admin/deals" };
     const to = deal?.assigneeId ?? e.issuedById;
     if (to) await this.p.crm.notify([to], n);
     else await this.p.crm.notifyEditors(n);

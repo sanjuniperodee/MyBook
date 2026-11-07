@@ -196,7 +196,7 @@ export class DealsService {
       const [target, source] = await Promise.all([this.load(targetId), this.load(sourceId)]);
       const before = { target: target.snapshot(), source: source.snapshot() };
       target.absorb(source, stages(target, source), actorId);
-      const parts = [moved.length ? `из сделки №${source.number} перенесены ${moved.join(", ")}` : "", cancelled.length ? `отменены открытые ${cancelled.join(", ")} (сделки объединены)` : ""].filter(Boolean);
+      const parts = [moved.length ? `из сделки Д${source.number} перенесены ${moved.join(", ")}` : "", cancelled.length ? `отменены открытые ${cancelled.join(", ")} (сделки объединены)` : ""].filter(Boolean);
       if (parts.length) target.note(`Счета из чата: ${parts.join("; ")}`, actorId);
       await this.deals.mergeInto(target, source);
       await this.deals.save(target);

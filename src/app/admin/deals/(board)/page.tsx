@@ -1,3 +1,4 @@
+import { AutoApply } from "@/components/admin/AutoApply";
 import { container } from "@/server/container";
 import { listFields } from "@/modules/workspace";
 import { channelLabel, toAttribution } from "@/shared/domain/channels";
@@ -186,6 +187,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
         </div>
 
         <form className="max-lg:contents lg:order-3 lg:ml-auto lg:flex lg:items-center lg:gap-2 xl:ml-0" action="/admin/deals" role="search">
+          <AutoApply />
           {sp.p ? <input type="hidden" name="p" value={sp.p} /> : null}
           {sp.mine ? <input type="hidden" name="mine" value={sp.mine} /> : null}
           {sp.a ? <input type="hidden" name="a" value={sp.a} /> : null}
@@ -216,8 +218,8 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
                   </option>
                 ))}
               </select>
-              {/* В строке с чипами и переключателем вида — та же высота, что у них (28 px на компьютере). */}
-              <button className="btn btn-outline lg:h-(--ctl-h-sm) lg:px-3 lg:text-[13px]">Найти</button>
+              {/* Фильтры применяются сразу (AutoApply); кнопка — для Enter и без JS. */}
+              <button className="sr-only">Найти</button>
             </div>
           </MobileFilters>
         </form>

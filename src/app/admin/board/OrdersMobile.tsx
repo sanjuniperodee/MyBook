@@ -102,7 +102,7 @@ export function OrdersMobile({ cards, me }: { cards: BoardCard[]; me: string }) 
                         {c.express ? <Zap className="size-4 text-danger" aria-label="Срочное производство" role="img" /> : null}
                         {c.claimed ? <CircleDollarSign className="size-4 text-warning" aria-label="Клиент сообщил об оплате" role="img" /> : null}
                         {c.giftNote || c.surprise ? <Gift className="size-4 text-wine" aria-label={c.surprise ? "Сюрприз" : "Открытка"} role="img" /> : null}
-                        {c.dealNumber ? <span className="text-xs">Сделка №{c.dealNumber}</span> : null}
+                        {c.dealNumber ? <span className="text-xs">Сделка Д{c.dealNumber}</span> : null}
                         {c.assigneeLabel ? <span className="max-w-28 truncate text-xs">{c.assigneeLabel}</span> : null}
                       </span>
                     </div>

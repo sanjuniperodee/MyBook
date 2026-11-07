@@ -142,7 +142,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
             <OrderMenu
               clientHref={canClients ? `/admin/clients/${order.userId}` : undefined}
               dealHref={orderDeal ? `/admin/deals/${orderDeal.id}` : undefined}
-              dealLabel={orderDeal ? `Сделка №${orderDeal.number}` : undefined}
+              dealLabel={orderDeal ? `Сделка Д${orderDeal.number}` : undefined}
               chatHref={orderDeal?.conversationId ? `/admin/chats?c=${orderDeal.conversationId}` : undefined}
               previewHref={`/books/${book.id}/preview`}
               printHref={plan?.printed ? `/print/orders/${order.id}` : undefined}
@@ -437,7 +437,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
                         label: "Сделка",
                         value: (
                           <Link href={`/admin/deals/${orderDeal.id}`} className="text-wine hover:underline">
-                            №{orderDeal.number}
+                            Д{orderDeal.number}
                           </Link>
                         ),
                       },

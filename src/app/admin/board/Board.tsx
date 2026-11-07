@@ -1,5 +1,6 @@
 "use client";
 
+import { initialsOf } from "@/app/admin/deals/ui";
 import { ask } from "@/components/ui/overlays";
 import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
@@ -215,7 +216,7 @@ function Card({ card: c }: { card: BoardCard }) {
           ) : null}
           {c.assigneeLabel ? (
             <span className="flex size-6 items-center justify-center rounded-full bg-ink text-[10px] font-semibold text-white uppercase" title={c.assigneeLabel} aria-label={`Ведёт ${c.assigneeLabel}`}>
-              {c.assigneeLabel.slice(0, 2)}
+              {initialsOf(c.assigneeLabel)}
             </span>
           ) : null}
         </span>

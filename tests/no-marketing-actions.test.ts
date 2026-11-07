@@ -80,7 +80,7 @@ describe("«Добавить номер» в стоп-лист", () => {
 describe("«Не писать первым» в карточках", () => {
   it("сделка: номера сделки, её диалоги и клиент; в журнал — сколько номеров", async () => {
     expect(await setDealNoMarketingAction(DEAL, true)).toEqual({ ok: true, message: "Не пишем первыми: бот не напоминает, правила не пишут" });
-    expect(w.marked).toEqual([{ target: { dealId: DEAL, clientId: CLIENT, phones: ["77011234567", "77071112233"] }, on: true, by: "boss", where: "Сделка №5" }]);
+    expect(w.marked).toEqual([{ target: { dealId: DEAL, clientId: CLIENT, phones: ["77011234567", "77071112233"] }, on: true, by: "boss", where: "Сделка Д5" }]);
     expect(w.audits).toEqual([["deal.no_marketing", "deal", DEAL, { on: true, numbers: 2 }]]);
     expect(await setDealNoMarketingAction(DEAL, false)).toEqual({ ok: true, message: "Снова можно писать первыми" });
   });
