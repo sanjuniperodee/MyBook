@@ -6,6 +6,8 @@ export const bookStudio: typeof ru = {
     back: "Менің кітаптарым",
     overview: "Шолу",
     steps: { questions: "Сұрақтар", text: "Мәтін", photos: "Фото", pages: "Беттер", cover: "Мұқаба", preview: "Макет", order: "Тапсырыс" },
+    groups: { write: "Жазу", photos: "Фото", design: "Безендіру", order: "Тапсырыс беру" },
+    designSwitch: { aria: "Нені безендіреміз", cover: "Мұқаба", pages: "Беттер" },
     extrasAria: "Хаттар мен баптаулар",
     letters: "Хаттар",
     settings: "Баптаулар",

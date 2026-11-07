@@ -1,5 +1,6 @@
 "use client";
 
+import { DesignSwitch } from "../_design/DesignSwitch";
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ImagePlus, Sparkles } from "lucide-react";
@@ -352,7 +353,7 @@ export function PagesEditor({
   const spreadSwitch = <PillSwitch label={t.spreadsAria} size="sm" value={spread} onChange={setSpread} options={spreads.map((k) => ({ value: k, label: t.spreads[k] }))} />;
   const bar = (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-      <h1 className="font-serif text-[28px] leading-none font-medium max-sm:sr-only sm:text-[32px]">{t.title}</h1>
+      <DesignSwitch bookId={bookId} />
       <span className="max-lg:hidden">{spreadSwitch}</span>
       <div className="ml-auto">
         <SaveIndicator status={status} error={error} />

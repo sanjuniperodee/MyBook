@@ -296,11 +296,12 @@ export function ProofBar({
             <span className="tabular-nums">{list.length}</span> <span className="max-sm:hidden">{t.kinds[k].toLowerCase()}</span>
           </button>
         ))
-      ) : (
+      ) : aiState === "done" ? (
+        // Тишина — тоже ответ: «ошибок нет» показываем только после явной проверки, а не под каждым ответом.
         <span className="flex items-center gap-1.5 text-success">
-          <CheckCircle2 className="size-3.5" /> {aiState === "done" ? t.aiNothing : t.clean}
+          <CheckCircle2 className="size-3.5" /> {t.aiNothing}
         </span>
-      )}
+      ) : null}
       <span className="ml-auto flex flex-wrap items-center gap-2">
         {children}
         {safeCount ? (
@@ -315,11 +316,11 @@ export function ProofBar({
             disabled={aiState === "checking"}
             title={t.aiTitle}
             className={cn(
-              "flex min-h-8 items-center gap-1.5 rounded-[8px] px-3 py-1 font-medium ring-1 transition max-lg:min-h-10",
-              aiState === "done" ? "bg-white text-info ring-info/30 hover:bg-info-bg" : "bg-info text-white ring-info hover:opacity-90 disabled:opacity-80",
+              // Тихая кнопка: не спорит с текстом автора и с главной кнопкой экрана («Следующий»).
+              "flex min-h-8 items-center gap-1.5 rounded-[8px] px-2.5 py-1 font-medium text-ink-soft transition hover:bg-sunken hover:text-ink disabled:opacity-70 max-lg:min-h-10",
             )}
           >
-            {aiState === "checking" ? <LoaderCircle className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
+            {aiState === "checking" ? <LoaderCircle className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5 text-wine" />}
             {aiState === "checking" ? t.aiChecking : aiState === "done" ? t.aiAgain : t.ai}
           </button>
         ) : null}

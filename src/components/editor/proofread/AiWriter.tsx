@@ -195,11 +195,11 @@ export function AiWriter({
         title={t.openTitle}
         aria-expanded={open}
         className={cn(
-          "flex min-h-8 items-center gap-1.5 rounded-[8px] px-3 py-1 font-medium ring-1 transition max-lg:min-h-10",
-          open ? "bg-info-bg text-info ring-info/40" : "bg-white text-info ring-info/30 hover:bg-info-bg",
+          "flex min-h-8 items-center gap-1.5 rounded-[8px] px-2.5 py-1 font-medium transition max-lg:min-h-10",
+          open ? "bg-sunken text-ink" : "text-ink-soft hover:bg-sunken hover:text-ink",
         )}
       >
-        {busy ? <LoaderCircle className="size-3.5 animate-spin" /> : <WandSparkles className="size-3.5" />}
+        {busy ? <LoaderCircle className="size-3.5 animate-spin" /> : <WandSparkles className="size-3.5 text-wine" />}
         {busy ? t.working : t.open}
       </button>
 

@@ -177,7 +177,7 @@ function EditorBody({
   const [showTips, setShowTips] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [focus, setFocus] = useState(false);
-  // Оглавление слева и страница справа: null — по умолчанию (оглавление — от 1281 px, страница — от 1100 px; решает CSS),
+  // Оглавление слева и страница справа: null — по умолчанию (оглавление — от 1281 px; страница скрыта, пока автор её не включит),
   // иначе выбор автора, он запоминается в браузере.
   const [tocPref, setTocPref] = useState<boolean | null>(null);
   const [previewPref, setPreviewPref] = useState<boolean | null>(null);
@@ -543,12 +543,13 @@ function EditorBody({
 
   // Столбцы по выбору автора: оглавление слева (от 1281 px) и страница справа (от 1100 px); в режиме фокуса — только лист.
   const tocOn = !focus && tocPref !== false;
-  const prevOn = !focus && !!previewProps && previewPref !== false;
+  // Черновой вид главы — по выбору автора (кнопка в полосе): по умолчанию лист пишется без соседей, экран не перегружен.
+  const prevOn = !focus && !!previewProps && previewPref === true;
   const columns =
     tocOn && prevOn
       ? "min-[1100px]:grid-cols-[minmax(0,1fr)_320px] min-[1281px]:grid-cols-[248px_minmax(0,1fr)_320px]"
       : tocOn
-        ? "min-[1281px]:grid-cols-[248px_minmax(0,1fr)]"
+        ? "min-[1281px]:grid-cols-[296px_minmax(0,1fr)]"
         : prevOn
           ? "min-[1100px]:grid-cols-[minmax(0,1fr)_320px]"
           : "";

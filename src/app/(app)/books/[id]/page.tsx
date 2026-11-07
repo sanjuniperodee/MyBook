@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Link } from "@/i18n/client";
-import { Camera, ChevronRight, CircleAlert, Mail, MessageCircle, PenLine, SlidersHorizontal, TriangleAlert } from "lucide-react";
+import { ChevronRight, CircleAlert, Mail, MessageCircle, PenLine, TriangleAlert } from "lucide-react";
 import { requireUser } from "@/server/auth";
 import { getAccessibleBook } from "@/server/books";
 import { container } from "@/server/container";
@@ -15,12 +15,9 @@ import { Morph } from "@/components/motion/PageTransition";
 import { coverPhotoIds } from "@/lib/book/covers";
 import { coverNames } from "@/lib/book/cover-names";
 import { hubChapters, sectionHref as sectionLink } from "@/lib/book/hub-model";
-import { photoUrl } from "@/lib/urls";
 import { coverPhotoRefs } from "@/lib/book/photo-refs";
-import { getFormat, print } from "@/lib/book/formats";
 import { getLocale, getMessages } from "@/i18n/server";
 import { coverName, interiorName } from "@/i18n/labels";
-import { localeMeta } from "@/i18n/config";
 import { site } from "@/config/site";
 import { isPrintedPlan, orderStatusLabel } from "@/modules/ordering/ui/status";
 import { isPaid } from "@/modules/ordering/domain";
@@ -29,7 +26,7 @@ import { cn } from "@/lib/class-names";
 import { BookMenu } from "./BookMenu";
 import { DeadlineBanner } from "@/components/DeadlineBanner";
 import { AgreementCard } from "@/components/AgreementCard";
-import { bookNav, stepHref, type StepKey } from "./book-nav";
+import { bookNav, stepHref, type StepKey, type StepStatus } from "./book-nav";
 import { StepNode } from "./StepNode";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -133,19 +130,42 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
 
   // Строки пути: что сделано, что сейчас и куда вести.
   const a = s.path.actions;
-  const rows: { key: StepKey; title: string; value: string; action: string; bar?: number }[] = [
+  // Путь книги — те же пять шагов, что в шапке: обложка и страницы — «Оформить», макет и заказ — «Заказать».
+  // Цифры книги (ответы, слова, фото) — в строках шагов, без отдельной полосы и таблицы: каждая цифра один раз.
+  const stepOf = (key: StepKey) => {
+    const st = nav.steps.find((x) => x.key === key)!;
+    return { status: st.status, fraction: st.fraction };
+  };
+  const rows: { key: string; href: string; title: string; value: string; action: string; bar?: number; status: StepStatus; fraction: number; active: boolean }[] = [
     {
-      key: "questions",
-      title: blank ? nv.steps.text : nv.steps.questions,
-      value: blank ? t.blankStats(stats.total, stats.words) : stats.total ? `${c.count.answers(stats.answered)} ${s.facts.of(stats.total)}` : c.count.answers(stats.answered),
+      key: "write",
+      href: stepHref(book.id, "questions", nav),
+      title: blank ? nv.steps.text : nv.groups.write,
+      value: blank ? t.blankStats(stats.total, stats.words) : `${stats.total ? `${c.count.answers(stats.answered)} ${s.facts.of(stats.total)}` : c.count.answers(stats.answered)}, ${c.count.words(stats.words)}`,
       action: !editable ? a.open : nav.textDone ? a.open : stats.answered || stats.words ? a.continue : a.start,
       bar: percent,
+      ...stepOf("questions"),
+      active: nav.current === "questions",
     },
-    { key: "photos", title: nv.steps.photos, value: photos.length ? c.count.photos(photos.length) : s.path.photosHint, action: photos.length ? a.manage : a.add },
-    { key: "pages", title: nv.steps.pages, value: interiorName(book.interior, locale), action: a.change },
-    { key: "cover", title: nv.steps.cover, value: coverIssue ? coverIssue.text : coverName(book.coverTemplate, locale), action: coverIssue ? a.fix : a.change },
-    { key: "preview", title: nv.steps.preview, value: s.path.previewValue, action: a.open },
-    { key: "order", title: nv.steps.order, value: order && (!editable || order.status !== "cancelled") ? orderLabel : s.path.orderLater, action: !editable ? (paid ? a.openOrder : a.pay) : a.order },
+    { key: "photos", href: stepHref(book.id, "photos", nav), title: nv.groups.photos, value: photos.length ? c.count.photos(photos.length) : s.path.photosHint, action: photos.length ? a.manage : a.add, ...stepOf("photos"), active: false },
+    {
+      key: "design",
+      href: stepHref(book.id, "cover", nav),
+      title: nv.groups.design,
+      value: coverIssue ? coverIssue.text : `${coverName(book.coverTemplate, locale)}, ${interiorName(book.interior, locale)}`,
+      action: coverIssue ? a.fix : a.change,
+      ...stepOf("cover"),
+      active: nav.current === "cover",
+    },
+    {
+      key: "order",
+      href: nav.ordered ? stepHref(book.id, "order", nav) : stepHref(book.id, "preview", nav),
+      title: nv.groups.order,
+      value: order && (!editable || order.status !== "cancelled") ? orderLabel : s.path.previewValue,
+      action: !editable ? (paid ? a.openOrder : a.pay) : a.order,
+      ...stepOf("order"),
+      active: nav.current === "order",
+    },
   ];
 
   // Главы: первые шесть на виду, остальные — под «Все главы»; длинный список не растягивает страницу.
@@ -172,12 +192,6 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
     );
   };
 
-  const facts: { label: string; value: string; hint?: string }[] = [
-    { label: s.facts.pages, value: `${built ? "" : "≈"}${printedPages.toLocaleString("ru-RU")}`, hint: contentPages < print.minPages ? t.minPages(print.minPages) : undefined },
-    blank ? { label: s.facts.sections, value: stats.total.toLocaleString("ru-RU") } : { label: s.facts.answers, value: stats.answered.toLocaleString("ru-RU"), hint: s.facts.of(stats.total) },
-    { label: s.facts.words, value: stats.words.toLocaleString("ru-RU") },
-    { label: s.facts.photos, value: stats.photos.toLocaleString("ru-RU") },
-  ];
 
   // Карточка «Следующий шаг»: пока пишем — вопрос; потом обложка; потом заказ; после заказа — состояние заказа.
   const unanswered = Math.max(0, stats.total - stats.answered);
@@ -279,37 +293,16 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
 
           {editable ? <DeadlineBanner bookId={book.id} occasion={book.occasion} occasionDate={book.occasionDate} answered={stats.answered} flush /> : null}
 
-          {/* Сколько написано и какого объёма книга */}
-          <section aria-label={s.facts.aria}>
-            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-              <span className="text-sm text-muted">{blank ? t.blankPercent(percent) : t.percent(percent)}</span>
-            </div>
-            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-line" role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100} aria-label={blank ? t.blankPercent(percent) : t.percent(percent)}>
-              <div className="bar-grow h-full rounded-full bg-wine" style={{ width: `${Math.max(percent, 1.5)}%` }} />
-            </div>
-            <dl className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-[14px] border border-line bg-line sm:grid-cols-4">
-              {facts.map((f) => (
-                <div key={f.label} className="bg-white px-4 py-3">
-                  <dt className="text-xs text-muted">{f.label}</dt>
-                  <dd className="mt-0.5 flex flex-wrap items-baseline gap-x-1.5 gap-y-1">
-                    <span className="font-serif text-[28px] leading-none font-medium tabular-nums">{f.value}</span>
-                    {f.hint ? <span className="text-xs leading-snug text-muted">{f.hint}</span> : null}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          </section>
-
           {/* Путь книги: шаги и их состояние */}
           <section aria-labelledby="book-path">
             <BlockTitle id="book-path">{s.path.title}</BlockTitle>
             <ol aria-label={s.path.aria} className="panel divide-y divide-line overflow-hidden">
               {rows.map((r, i) => {
-                const st = nav.steps[i];
-                const active = nav.current === r.key;
+                const st = r;
+                const active = r.active;
                 return (
                   <li key={r.key}>
-                    <Link href={stepHref(book.id, r.key, nav)} className={cn("group flex min-h-[4.25rem] items-center gap-3.5 px-4 py-3 transition-colors hover:bg-sunken/60", active && "bg-rose/40 hover:bg-rose/60")}>
+                    <Link href={r.href} className={cn("group flex min-h-[4.25rem] items-center gap-3.5 px-4 py-3 transition-colors hover:bg-sunken/60", active && "bg-rose/40 hover:bg-rose/60")}>
                       <StepNode status={st.status} fraction={st.fraction} n={i + 1} size="lg" current={active} surface="bg-white" />
                       <span className="min-w-0 flex-1">
                         <span className="flex items-baseline gap-2">
@@ -380,7 +373,7 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
           )}
         </section>
 
-        {/* Письма, фото, настройки и помощь — всё, что рядом с книгой */}
+        {/* Рядом с книгой — письма близких и помощь; фото и настройки — в шагах и значке ленты, здесь их не повторяем */}
         <aside className="space-y-4">
           <section className="panel p-4 sm:p-5" aria-labelledby="hub-letters">
             <h2 id="hub-letters" className="flex items-center gap-2 text-[15px] font-semibold">
@@ -389,42 +382,6 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
             <p className="mt-1.5 text-sm leading-relaxed text-muted">{letterStats.approved || letterStats.pending ? letterLine : book.inviteToken ? s.lower.lettersInvited : s.lower.lettersEmpty}</p>
             <Link href={lettersHref} className="btn btn-outline btn-sm mt-3">
               {letterStats.pending ? s.lower.lettersReview(letterStats.pending) : book.inviteToken ? s.lower.lettersOpen : s.lower.lettersCreate}
-            </Link>
-          </section>
-
-          <section className="panel overflow-hidden" aria-labelledby="hub-photos">
-            {photos.length ? (
-              <Link href={`${base}/photos`} className="block hover:bg-sunken/50">
-                <div className="grid grid-cols-4 gap-px bg-line md:grid-cols-8 lg:grid-cols-4">
-                  {photos.slice(0, 8).map((p) => (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img key={p.id} src={photoUrl(p.id)} alt="" className="aspect-square w-full object-cover" />
-                  ))}
-                </div>
-                <h2 id="hub-photos" className="px-4 py-3 text-sm font-normal text-muted">
-                  {t.photosManage(photos.length)}
-                </h2>
-              </Link>
-            ) : (
-              <div className="p-4 sm:p-5">
-                <h2 id="hub-photos" className="flex items-center gap-2 text-[15px] font-semibold">
-                  <Camera className="size-4 text-wine" strokeWidth={1.8} aria-hidden /> {s.lower.photosTitle}
-                </h2>
-                <p className="mt-1.5 text-sm leading-relaxed text-muted">{s.lower.photosEmpty}</p>
-                <Link href={`${base}/photos`} className="btn btn-outline btn-sm mt-3">
-                  {s.lower.photosAdd}
-                </Link>
-              </div>
-            )}
-          </section>
-
-          <section className="panel p-4 sm:p-5" aria-labelledby="hub-settings">
-            <h2 id="hub-settings" className="flex items-center gap-2 text-[15px] font-semibold">
-              <SlidersHorizontal className="size-4 text-wine" strokeWidth={1.8} aria-hidden /> {s.lower.settingsTitle}
-            </h2>
-            <p className="mt-1.5 text-sm text-muted">{`${getFormat(book.format).short}, ${localeMeta[book.language].label}`}</p>
-            <Link href={`${base}/settings`} className="btn btn-outline btn-sm mt-3">
-              {s.lower.settingsOpen}
             </Link>
           </section>
 

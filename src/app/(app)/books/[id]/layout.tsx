@@ -1,4 +1,3 @@
-import { ChevronLeft } from "lucide-react";
 import { Link } from "@/i18n/client";
 import { isStaff, requireUser } from "@/server/auth";
 import { LogoMark } from "@/components/Logo";
@@ -17,7 +16,7 @@ import { isPrintedPlan, orderStatusLabel, orderStatusTone } from "@/modules/orde
 import type { OrderStatus } from "@/shared/domain/orders";
 import { BookTabs } from "./BookTabs";
 import { OrderButton } from "./OrderButton";
-import { BookTitleRow } from "./BookTitleRow";
+import { BookBack, BookTitleRow } from "./BookTitleRow";
 import { loadBookNav } from "./nav-data";
 import { HelpChat } from "@/components/help/HelpChat";
 import { getLocale, getMessages } from "@/i18n/server";
@@ -54,9 +53,7 @@ export default async function BookLayout({ children, params }: { children: React
       <BookTitleRow>
         <div className="mx-auto flex h-14 max-w-7xl items-center gap-2 px-4 sm:gap-3 sm:px-6">
           {/* Назад к полке: на телефоне — стрелка (44 px), на компьютере — знак и подпись «Мои книги». */}
-          <Link href="/books" aria-label={t.myBooks} className="-ml-2.5 flex size-11 shrink-0 items-center justify-center rounded-[10px] text-muted hover:bg-ink/5 hover:text-ink sm:hidden">
-            <ChevronLeft className="size-5" aria-hidden />
-          </Link>
+          <BookBack bookId={book.id} shelfLabel={t.myBooks} bookLabel={s.overview} />
           <Link href="/books" className="group hidden shrink-0 items-center gap-2.5 rounded-[10px] pr-1 text-sm text-muted hover:text-ink sm:flex">
             <LogoMark className="size-8 rounded-[8px]" />
             <span className="max-md:sr-only">{t.myBooks}</span>

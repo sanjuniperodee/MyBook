@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import type { Locale } from "@/i18n/config";
 import type { BookKind } from "@/lib/content/kinds";
 import type { Issue } from "@/lib/proofread/types";
-import { AssistantError, cleanRewrite, locateEdits, parseProofread, proofreadChunks, proofreadSchema, proofreadSystemPrompt, rewriteSystemPrompt, type RewriteMode } from "../domain";
+import { AssistantError, cleanRewrite, isMetaReply, locateEdits, parseProofread, proofreadChunks, proofreadSchema, proofreadSystemPrompt, rewriteSystemPrompt, type RewriteMode } from "../domain";
 import type { LanguageModel } from "./ports";
 
 function parseJson(text: string): unknown {
@@ -70,6 +70,8 @@ export class ProofreadService {
     const { text: reply } = await this.model.ask({ system, user: text, effort: "low" });
     const out = cleanRewrite(reply);
     if (!out) throw new AssistantError("badResponse", "Помощник вернул пустой ответ — попробуйте ещё раз.");
+    // Модель заговорила с автором вместо правки (часто на очень коротком тексте) — в книгу это не ставим.
+    if (isMetaReply(out, text)) throw new AssistantError("badResponse", "Помощник ответил репликой вместо текста — допишите пару предложений и попробуйте ещё раз.");
     return out;
   }
 

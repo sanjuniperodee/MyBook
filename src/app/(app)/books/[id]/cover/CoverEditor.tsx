@@ -1,5 +1,6 @@
 "use client";
 
+import { DesignSwitch } from "../_design/DesignSwitch";
 import { Link, useLocale, useMessages } from "@/i18n/client";
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -667,7 +668,7 @@ export function CoverEditor({
     ) : null;
   const bar = (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-      <h1 className="font-serif text-[28px] leading-none font-medium max-sm:sr-only sm:text-[32px]">{t.title}</h1>
+      <DesignSwitch bookId={bookId} />
       <PillSwitch
         label={d.tabs.aria}
         value={view}

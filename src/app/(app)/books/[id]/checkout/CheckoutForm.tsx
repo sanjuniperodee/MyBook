@@ -185,9 +185,10 @@ export function CheckoutForm({
 
       <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-10">
         <div className="min-w-0">
-          <header className="mb-5">
-            <p className="text-xs text-muted">{t.wizard.stepOf(step + 1, steps.length)}</p>
-            <h2 ref={titleRef} tabIndex={-1} className="scroll-mt-40 font-serif text-[28px] leading-tight font-medium outline-none sm:text-[32px]">
+          {/* Название шага уже в полосе шагов над формой — здесь оно для экранного диктора и фокуса при смене шага. */}
+          <header className="sr-only">
+            <p>{t.wizard.stepOf(step + 1, steps.length)}</p>
+            <h2 ref={titleRef} tabIndex={-1}>
               {steps[step].label}
             </h2>
           </header>

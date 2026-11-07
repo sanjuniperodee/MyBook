@@ -5,7 +5,7 @@ import { Fragment, useEffect, useRef, useState, ViewTransition } from "react";
 import { LayoutGrid, Mail, SlidersHorizontal } from "lucide-react";
 import { cn } from "@/lib/class-names";
 import { bookNavAction } from "./nav-action";
-import { stepHref, type BookNav, type StepKey } from "./book-nav";
+import { stepHref, type BookNav, type StepKey, type StepStatus } from "./book-nav";
 import { StepNode } from "./StepNode";
 
 /** Разделы, где лента закреплена под шапкой кабинета: свои длинные страницы. У редакторов свои липкие панели — им лента не мешает. */
@@ -77,14 +77,32 @@ export function BookTabs({ bookId, nav: initial, kind }: { bookId: string; nav: 
   const checkout = pathname.endsWith("/checkout");
   const sticky = pathname === base || STICKY_TAIL.some((tail) => pathname.endsWith(tail));
   const activeStep = (key: StepKey) => (key === "order" ? checkout : pathname.startsWith(`${base}/${key === "questions" ? "questions" : key}`));
-  const stepLabel = (key: StepKey) => (key === "questions" && kind === "blank" ? t.steps.text : t.steps[key]);
 
+  // Пять шагов вместо семи: обложка и страницы — «Оформить», макет и заказ — «Заказать» (DESIGN.md §7.3 кабинета).
+  const step = (key: StepKey) => nav.steps.find((x) => x.key === key)!;
+  const cover = step("cover");
+  const orderStep = step("order");
+  const groups: { key: string; label: string; href: string; status: StepStatus; fraction: number; active: boolean }[] = [
+    { key: "write", label: kind === "blank" ? t.steps.text : t.groups.write, href: stepHref(bookId, "questions", nav), status: step("questions").status, fraction: step("questions").fraction, active: activeStep("questions") },
+    { key: "photos", label: t.groups.photos, href: stepHref(bookId, "photos", nav), status: step("photos").status, fraction: step("photos").fraction, active: activeStep("photos") },
+    { key: "design", label: t.groups.design, href: stepHref(bookId, "cover", nav), status: cover.status, fraction: cover.fraction, active: activeStep("cover") || activeStep("pages") },
+    {
+      key: "order",
+      label: t.groups.order,
+      // До заказа — сначала макет: пролистать книгу перед оплатой; после — страница заказа.
+      href: nav.ordered ? stepHref(bookId, "order", nav) : stepHref(bookId, "preview", nav),
+      status: orderStep.status,
+      fraction: orderStep.fraction,
+      active: activeStep("preview") || activeStep("order"),
+    },
+  ];
   const tab = (active: boolean, quiet = false) => cn("relative flex h-12 shrink-0 items-center gap-2 px-2.5 text-sm font-medium whitespace-nowrap transition-colors max-sm:h-[52px]", active ? "text-ink" : quiet ? "text-muted hover:text-ink" : "text-ink-soft hover:text-ink");
   const overviewActive = pathname === base;
   const mask = `linear-gradient(90deg, ${edges.left ? "transparent" : "#000"} 0, #000 28px, #000 calc(100% - 28px), ${edges.right ? "transparent" : "#000"} 100%)`;
 
   return (
-    <div className={cn("border-b border-line/70 bg-paper/95 backdrop-blur-xl", sticky && "lg:sticky lg:top-[57px] lg:z-30")}>
+    // При письме на телефоне ленты нет: экран — вопросу и ответу, к шагам — через «назад» в обзор книги.
+    <div className={cn("border-b border-line/70 bg-paper/95 backdrop-blur-xl", sticky && "lg:sticky lg:top-[57px] lg:z-30", pathname.endsWith("/questions") && "max-sm:hidden")}>
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <nav ref={scroller} aria-label={t.aria} className="no-scrollbar -mx-4 flex items-stretch overflow-x-auto px-4 sm:mx-0 sm:px-0" style={{ maskImage: mask, WebkitMaskImage: mask }}>
           <Link href={base} aria-current={overviewActive ? "page" : undefined} className={cn(tab(overviewActive), "-ml-2.5 gap-1.5 pl-2.5")}>
@@ -94,17 +112,16 @@ export function BookTabs({ bookId, nav: initial, kind }: { bookId: string; nav: 
           </Link>
           <span aria-hidden className="mx-1.5 my-auto h-5 w-px shrink-0 bg-line-strong" />
           <ol className="flex items-stretch">
-            {nav.steps.map((s, i) => {
-              const active = activeStep(s.key);
-              const href = stepHref(bookId, s.key, nav);
+            {groups.map((g, i) => {
+              const active = g.active;
               return (
-                <Fragment key={s.key}>
-                  {i > 0 ? <li aria-hidden className={cn("my-auto h-px w-3 shrink-0 sm:w-4", nav.steps[i - 1].status === "done" ? "bg-success/45" : "bg-line-strong")} /> : null}
+                <Fragment key={g.key}>
+                  {i > 0 ? <li aria-hidden className={cn("my-auto h-px w-3 shrink-0 sm:w-4", groups[i - 1].status === "done" ? "bg-success/45" : "bg-line-strong")} /> : null}
                   <li className="flex">
-                    <Link href={href} aria-current={active ? "page" : undefined} className={tab(active)}>
-                      <StepNode status={s.status} fraction={s.fraction} n={i + 1} current={active} />
-                      {stepLabel(s.key)}
-                      <span className="sr-only">, {t.state[s.status]}</span>
+                    <Link href={g.href} aria-current={active ? "page" : undefined} className={tab(active)}>
+                      <StepNode status={g.status} fraction={g.fraction} n={i + 1} current={active} />
+                      {g.label}
+                      <span className="sr-only">, {t.state[g.status]}</span>
                       {active ? <Indicator /> : null}
                     </Link>
                   </li>
@@ -116,15 +133,15 @@ export function BookTabs({ bookId, nav: initial, kind }: { bookId: string; nav: 
           <div role="group" aria-label={t.extrasAria} className="flex items-stretch">
             {(
               [
-                ["/letters", t.letters, Mail, nav.letters.pending],
-                ["/settings", t.settings, SlidersHorizontal, 0],
+                ["/letters", t.letters, Mail, nav.letters.pending, false],
+                ["/settings", t.settings, SlidersHorizontal, 0, true],
               ] as const
-            ).map(([tail, label, Icon, count]) => {
+            ).map(([tail, label, Icon, count, iconOnly]) => {
               const active = pathname.startsWith(base + tail);
               return (
-                <Link key={tail} href={base + tail} aria-current={active ? "page" : undefined} className={tab(active, true)}>
+                <Link key={tail} href={base + tail} aria-current={active ? "page" : undefined} aria-label={iconOnly ? label : undefined} title={iconOnly ? label : undefined} className={tab(active, true)}>
                   <Icon className={cn("size-4", active && "text-wine")} strokeWidth={1.8} aria-hidden />
-                  {label}
+                  {iconOnly ? null : label}
                   {count ? <span className="count count-alert">{count}</span> : null}
                   {active ? <Indicator /> : null}
                 </Link>

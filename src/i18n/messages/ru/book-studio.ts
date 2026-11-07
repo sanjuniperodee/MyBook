@@ -10,6 +10,9 @@ export const bookStudio = {
     back: "Мои книги",
     overview: "Обзор",
     steps: { questions: "Вопросы", text: "Текст", photos: "Фото", pages: "Страницы", cover: "Обложка", preview: "Макет", order: "Заказ" },
+    /** Пять шагов в шапке книги: обложка и страницы — «Оформить», макет и заказ — «Заказать». */
+    groups: { write: "Написать", photos: "Фото", design: "Оформить", order: "Заказать" },
+    designSwitch: { aria: "Что оформляем", cover: "Обложка", pages: "Страницы" },
     extrasAria: "Письма и настройки",
     letters: "Письма",
     settings: "Настройки",

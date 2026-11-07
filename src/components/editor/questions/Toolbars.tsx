@@ -1,7 +1,8 @@
 "use client";
 
-import type { ReactNode } from "react";
-import { ChevronLeft, ChevronRight, Eye, ImagePlus, ListTree, Maximize2, Minimize2, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Plus, QrCode, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import type { LucideIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, Eye, ImagePlus, ListTree, Maximize2, Minimize2, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Plus, QrCode, Trash2, Ellipsis } from "lucide-react";
 import { SaveIndicator } from "@/components/SaveIndicator";
 import type { SaveStatus } from "@/hooks/useAutosave";
 import { useMessages } from "@/i18n/client";
@@ -202,25 +203,64 @@ export function AnswerToolbar({
           <ImagePlus className="size-4" /> {t.photoInAnswer}
         </button>
       ) : null}
+      {/* Реже нужное — видео и музыка по QR, свой вопрос, удалить свой — в одном меню «Ещё»: на виду диктовка и фото. */}
       {editable ? (
-        <button className="btn btn-ghost btn-sm text-ink-soft" onClick={onMedia} title={t.media.addTitle} data-testid="add-media">
-          <QrCode className="size-4" /> {t.media.add}
-        </button>
-      ) : null}
-      {editable ? (
-        <button className="btn btn-ghost btn-sm text-ink-soft" onClick={onAdd}>
-          <Plus className="size-4" /> {blank ? t.blank.addSection : t.ownQuestion}
-        </button>
-      ) : null}
-      {editable && custom ? (
-        <button className="btn btn-ghost btn-sm text-danger hover:bg-danger-bg hover:text-danger" onClick={onRemove}>
-          <Trash2 className="size-4" /> {t.delete}
-        </button>
+        <MoreTools
+          label={t.chrome.more}
+          items={[
+            { key: "media", label: t.media.add, title: t.media.addTitle, icon: QrCode, onClick: onMedia, testId: "add-media" },
+            { key: "add", label: blank ? t.blank.addSection : t.ownQuestion, icon: Plus, onClick: onAdd },
+            ...(custom ? [{ key: "remove", label: t.delete, icon: Trash2, onClick: onRemove, danger: true }] : []),
+          ]}
+        />
       ) : null}
       <span className="ml-auto px-2 text-xs text-muted tabular-nums">
         {t.words(words)}
         {answerPages > 0 ? t.answerPages(share(answerPages)) : ""}
       </span>
+    </div>
+  );
+}
+
+/** Меню «Ещё» нижней панели ответа: закрывается по Esc, клику снаружи и после выбора. */
+function MoreTools({ label, items }: { label: string; items: { key: string; label: string; title?: string; icon: LucideIcon; onClick: () => void; danger?: boolean; testId?: string }[] }) {
+  const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: PointerEvent) => !root.current?.contains(e.target as Node) && setOpen(false);
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("pointerdown", away);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("pointerdown", away);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [open]);
+  return (
+    <div ref={root} className="relative">
+      <button type="button" className={cn("btn btn-ghost btn-sm text-ink-soft", open && "bg-sunken text-ink")} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+        <Ellipsis className="size-4" /> {label}
+      </button>
+      {/* Пункты в разметке всегда (hidden, пока меню закрыто): data-testid и подписи доступны тестам и поиску по странице. */}
+      <div role="menu" hidden={!open} className="absolute bottom-[calc(100%+0.375rem)] left-0 z-30 w-60 rounded-[var(--r-panel)] border border-line bg-white p-1.5 shadow-soft">
+          {items.map((it) => (
+            <button
+              key={it.key}
+              role="menuitem"
+              type="button"
+              title={it.title}
+              data-testid={it.testId}
+              onClick={() => {
+                setOpen(false);
+                it.onClick();
+              }}
+              className={cn("flex min-h-10 w-full items-center gap-2.5 rounded-[8px] px-2.5 text-left text-sm hover:bg-sunken", it.danger ? "text-danger hover:bg-danger-bg" : "text-ink-soft hover:text-ink")}
+            >
+              <it.icon className="size-4 shrink-0" aria-hidden /> {it.label}
+            </button>
+          ))}
+      </div>
     </div>
   );
 }

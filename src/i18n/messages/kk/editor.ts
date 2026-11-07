@@ -462,6 +462,7 @@ export const editor: typeof ru = {
     tipOk: "Түсінікті",
   },
   chrome: {
+    more: "Тағы",
     photoBtn: "Фото",
     previewBtn: "Кітаптағыдай",
     previewTitle: "Кітапта осылай болады",

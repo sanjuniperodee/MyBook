@@ -11,9 +11,10 @@ import type { Patch } from "./draft";
 export function HeadingField({ question: q, language, typography, editable, onPatch }: { question: EditorQuestion; language: Locale; typography: Typography; editable: boolean; onPatch: (patch: Patch) => void }) {
   const t = useMessages().editor;
   return (
-    <div className="mt-8 flex items-end gap-2 border-t border-line pt-4 focus-within:border-wine/50 sm:mt-10">
-      <div className="min-w-0 flex-1">
-        <label htmlFor={`heading-${q.id}`} className="block text-xs font-medium text-muted">{t.headingInBook}</label>
+    <div className="mt-6 flex items-center gap-2 border-t border-line pt-3 focus-within:border-wine/50">
+      {/* Одна тихая строка: подпись слева, заголовок — в строку; редактируется по клику, как обычный текст. */}
+      <div className="flex min-w-0 flex-1 items-baseline gap-2">
+        <label htmlFor={`heading-${q.id}`} className="shrink-0 text-xs font-medium text-muted">{t.headingInBook}</label>
         <input
           id={`heading-${q.id}`}
           value={q.hideHeading ? "" : (q.displayText ?? q.defaultTitle)}
@@ -23,7 +24,7 @@ export function HeadingField({ question: q, language, typography, editable, onPa
           onBlur={() => q.displayText !== null && !q.displayText.trim() && onPatch({ displayText: null })}
           disabled={!editable || q.hideHeading}
           maxLength={200}
-          className="fs-keep mt-1 w-full rounded-[6px] bg-transparent text-lg outline-none focus-visible:bg-sunken/60 disabled:text-muted"
+          className="fs-keep min-w-0 flex-1 truncate rounded-[6px] bg-transparent px-1 text-[15px] outline-none hover:bg-sunken/50 focus-visible:bg-sunken/60 disabled:text-muted"
           style={{ fontFamily: cssFont(typography.heading), fontStyle: typography.headingItalic ? "italic" : "normal" }}
         />
       </div>
