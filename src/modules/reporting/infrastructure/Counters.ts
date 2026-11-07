@@ -48,7 +48,7 @@ export async function crmCounters(staff: Pick<StaffView, "userId" | "scope" | "c
     staff.can("team.manage")
       ? db
           .execute<{ n: number }>(
-            sql`select ((select count(*) from crm_payments where method = 'manual' and kind <> 'refund' and reviewed_at is null) + (select count(*) from order_payments where method = 'manual' and reviewed_at is null))::int as n`,
+            sql`select ((select count(*) from crm_payments where method = 'manual' and kind <> 'refund' and reviewed_at is null) + (select count(*) from order_payments where method = 'manual' and kind <> 'refund' and reviewed_at is null))::int as n`,
           )
           .then((r) => r.rows)
       : zero,

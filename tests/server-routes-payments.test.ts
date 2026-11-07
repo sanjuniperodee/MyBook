@@ -3,8 +3,9 @@ import { PaymentError, ReceiptError, RECEIPT_MAX_BYTES } from "@/modules/sales";
 import { POST as acceptPayment } from "@/app/api/admin/deals/[id]/payments/route";
 import { POST as attachReceipt } from "@/app/api/admin/deals/[id]/receipts/route";
 import { DELETE as removePayment } from "@/app/api/admin/payments/[id]/route";
+import { POST as refundOrder } from "@/app/api/admin/orders/[id]/refunds/route";
 import { PaymentIntakeService } from "@/modules/sales/application";
-import { DealInvoice } from "@/modules/ordering/domain";
+import { DealInvoice, OrderingError } from "@/modules/ordering/domain";
 import { anna, client, fake, owner, request, resetContainer, resetRequest, signIn } from "./doubles/web";
 
 vi.mock("next/headers", async () => (await import("./doubles/web")).nextHeaders);
@@ -249,5 +250,43 @@ describe("DELETE /api/admin/payments/[id]: онлайн-платёж не уда
     payments.find = async () => ({ id: "p1", dealId: DEAL, method: "manual", amount: 5000, paidAt: new Date() });
     expect(await del()).toMatchObject({ status: 200 });
     expect(removed).toBe(1);
+  });
+});
+
+describe("POST /api/admin/orders/[id]/refunds: возврат клиенту по заказу", () => {
+  let input: Record<string, unknown> | null;
+  let audits: Record<string, unknown>[];
+  const refund = (fields: Record<string, string | File>) =>
+    refundOrder(new Request(`http://localhost/api/admin/orders/${DEAL}/refunds`, { method: "POST", body: form(fields) }), ctx).then(async (res) => ({ status: res.status, body: (await res.json()) as Record<string, unknown> }));
+
+  beforeEach(() => {
+    input = null;
+    audits = [];
+    (fake.access as { audit: unknown }).audit = { record: async (e: Record<string, unknown>) => void audits.push(e) };
+    fake.ordering = {
+      payments: {
+        refund: async (i: Record<string, unknown>) => {
+          input = i;
+          if (Number(i.amount) > 1000) throw new OrderingError("paymentRule", "Вернуть можно не больше 1 000 ₸ — это переплата; остальное — оплата заказа");
+          return { payment: { id: "rp1", amount: i.amount, note: i.note }, refundable: 1000 - Number(i.amount) };
+        },
+      },
+    };
+  });
+
+  it("чек по желанию: без файла — возврат без чека; с файлом — чек передан сервису; журнал действий", async () => {
+    expect(await refund({ amount: "400", note: "лишний перевод" })).toMatchObject({ status: 200, body: { payment: { id: "rp1", amount: 400 }, refundable: 600 } });
+    expect(input).toMatchObject({ orderId: DEAL, amount: 400, note: "лишний перевод", receipt: null, actor: { userId: owner.id } });
+    expect(audits).toEqual([{ actorId: owner.id, action: "order.refund", entity: "order", entityId: DEAL, details: { payment: "rp1", amount: 400, receipt: false, note: "лишний перевод" } }]);
+    expect((await refund({ amount: "100", note: "ещё", file: PDF })).status).toBe(200);
+    expect(input).toMatchObject({ receipt: { fileName: "чек.pdf" } });
+  });
+
+  it("больше переплаты — 409 с текстом правила; битый чек — 400; без права orders.edit и не сотрудник — 403", async () => {
+    expect(await refund({ amount: "5000", note: "лишний" })).toMatchObject({ status: 409, body: { error: "Вернуть можно не больше 1 000 ₸ — это переплата; остальное — оплата заказа" } });
+    expect((await refund({ amount: "100", note: "лишний", file: new File([Uint8Array.from([1, 2, 3])], "x.txt") })).status).toBe(400);
+    signIn(client);
+    expect((await refund({ amount: "100", note: "лишний" })).status).toBe(403);
+    expect(audits).toEqual([]);
   });
 });

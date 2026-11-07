@@ -3,7 +3,7 @@
 import { ask, promptText, toast } from "@/components/ui/overlays";
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRightLeft, CircleCheck, CreditCard, Download, FileArchive, LoaderCircle, Printer, Receipt, RefreshCw, Truck } from "lucide-react";
+import { ArrowRightLeft, BookCopy, CircleCheck, CreditCard, Download, FileArchive, LoaderCircle, Printer, Receipt, RefreshCw, Truck, Undo2 } from "lucide-react";
 import { changeOrderTermsAction, generateFilesAction, reviewOrderPaymentAction, saveAdminNoteAction, startPostpayAction, toggleBookLockAction, updateOrderAction, updateOrderDetailsAction, type AdminState } from "../../actions";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { Alert } from "@/components/ui/Alert";
@@ -18,6 +18,7 @@ import { ActionMenu, menuItemClass } from "@/components/admin/ActionMenu";
 import { Badge } from "@/components/ui/Badge";
 import { Field } from "@/components/ui/Field";
 import { Disclosure } from "./Disclosure";
+import { RefundPanel, UpgradePanel } from "@/components/admin/money/MoneyPanels";
 import { cn } from "@/lib/class-names";
 import { ORDER_STATUSES as orderStatuses, type OrderStatus } from "@/shared/domain/orders";
 
@@ -312,6 +313,8 @@ export function TermsForm({
 
 export interface OrderMoneyRow {
   id: string;
+  /** refund — возврат клиенту (сумма больше нуля, показывается со знаком минус). */
+  kind?: "payment" | "refund";
   amount: number;
   method: "manual" | "kaspi" | "cloudpayments";
   ref: string | null;
@@ -339,11 +342,19 @@ export function OrderMoney({
   rows,
   canEdit,
   canReview,
+  orderNumber,
+  refundable = 0,
+  digital = false,
 }: {
   orderId: string;
   status: OrderStatus;
   due: number;
   received: number;
+  orderNumber: number;
+  /** Сколько можно вернуть клиенту: по отменённому — всё полученное, по живому — переплата. */
+  refundable?: number;
+  /** Электронная версия: оплаченную можно «Перевести в печатную». */
+  digital?: boolean;
   postpay: boolean;
   settled: boolean;
   rows: OrderMoneyRow[];
@@ -352,9 +363,12 @@ export function OrderMoney({
 }) {
   const [pending, start] = useTransition();
   const [open, setOpen] = useState(false);
+  const [panel, setPanel] = useState<"refund" | "upgrade" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const amount = useRef<HTMLInputElement>(null);
+  const canRefund = canEdit && refundable > 0;
+  const canUpgrade = canEdit && digital && status === "paid" && settled;
   const outstanding = Math.max(0, due - received);
   const money = (n: number) => `${n.toLocaleString("ru-RU")} ₸`;
   const canPay = canEdit && status !== "cancelled";
@@ -412,8 +426,8 @@ export function OrderMoney({
             <li key={r.id} className="flex flex-wrap items-start gap-x-3 gap-y-1 px-3 py-2.5">
               <span className="min-w-0 flex-1">
                 <span className="flex flex-wrap items-center gap-x-2">
-                  <b className="font-semibold tabular-nums">{money(r.amount)}</b>
-                  <Badge>{methodLabels[r.method]}</Badge>
+                  <b className={cn("font-semibold tabular-nums", r.kind === "refund" && "text-danger")}>{r.kind === "refund" ? `−${money(r.amount)}` : money(r.amount)}</b>
+                  {r.kind === "refund" ? <Badge tone="danger">возврат</Badge> : <Badge>{methodLabels[r.method]}</Badge>}
                   <span className="text-xs text-muted">{r.paidLabel}</span>
                 </span>
                 <span className="mt-0.5 block text-xs text-muted">
@@ -456,11 +470,23 @@ export function OrderMoney({
           ))}
         </ul>
       ) : null}
-      {canPay && !open ? (
+      {(canPay || canRefund) && !open ? (
         <div className="flex flex-wrap gap-2">
-          <button type="button" className="btn btn-dark btn-sm" onClick={() => setOpen(true)}>
-            <CreditCard className="size-4" aria-hidden /> Принять оплату
-          </button>
+          {canPay ? (
+            <button type="button" className="btn btn-dark btn-sm" onClick={() => setOpen(true)}>
+              <CreditCard className="size-4" aria-hidden /> Принять оплату
+            </button>
+          ) : null}
+          {canRefund ? (
+            <button type="button" className="btn btn-outline btn-sm" onClick={() => setPanel("refund")} data-testid="order-refund">
+              <Undo2 className="size-4" aria-hidden /> Вернуть клиенту
+            </button>
+          ) : null}
+          {canUpgrade ? (
+            <button type="button" className="btn btn-outline btn-sm" onClick={() => setPanel("upgrade")} data-testid="order-upgrade">
+              <BookCopy className="size-4" aria-hidden /> Перевести в печатную
+            </button>
+          ) : null}
           {status === "pending_payment" ? (
             <button
               type="button"
@@ -521,6 +547,8 @@ export function OrderMoney({
         </form>
       ) : null}
       {error ? <Alert>{error}</Alert> : null}
+      {canRefund ? <RefundPanel open={panel === "refund"} onClose={() => setPanel(null)} target={{ kind: "order", id: orderId, label: `Заказ №${orderNumber}`, amount: refundable, max: refundable }} /> : null}
+      {canUpgrade ? <UpgradePanel open={panel === "upgrade"} onClose={() => setPanel(null)} order={{ id: orderId, number: orderNumber, received }} /> : null}
     </div>
   );
 }

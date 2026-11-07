@@ -16,9 +16,10 @@ import { Panel } from "@/components/ui/Panel";
 import { Badge } from "@/components/ui/Badge";
 import { Alert } from "@/components/ui/Alert";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { financePeriod, financeScreen, REFUND_WINDOW_DAYS, type FinanceScreen } from "@/modules/reporting/ui/finance-screen";
+import { financePeriod, financeScreen, REFUND_WINDOW_DAYS, RESOLVED_DAYS, type FinanceScreen } from "@/modules/reporting/ui/finance-screen";
 import { FinanceColumns } from "./FinanceColumns";
 import { ReviewButton } from "./ReviewButton";
+import { IssueActions, UndoResolution, type IssuePerms } from "./IssueActions";
 
 export const metadata = { title: "Финансы" };
 
@@ -61,6 +62,8 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
   const { totals: t } = s;
   // «Проверено»: руководитель; оплату заказа отмечает действие заказов — ему нужно ещё orders.edit.
   const canReview = { deal: can(staff, "team.manage"), order: can(staff, "team.manage", "orders.edit") };
+  // Действия очереди «Нужно вернуть или зачесть»: возврат — права сделки или заказа; «Отметить решённым» — как «Проверено».
+  const issuePerms: IssuePerms = { refundDeal: can(staff, "deals.edit"), editOrder: can(staff, "orders.edit"), resolveDeal: canReview.deal, resolveOrder: canReview.order };
   const own = staff.scope !== "all";
   const exportHref = `/api/admin/export/finance?${new URLSearchParams(period.preset === "custom" ? { p: "custom", from: period.first, to: period.last } : { p: period.preset })}`;
 
@@ -79,7 +82,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
         {period.label}, по времени магазина ({tz}){own ? ". Только ваши сделки и заказы" : ""}
       </PageHeader>
 
-      <Queue s={s} canReview={canReview} />
+      <Queue s={s} canReview={canReview} issuePerms={issuePerms} />
 
       <section aria-label="Итоги периода" className="space-y-3" data-testid="finance-totals">
         <div className="flex flex-wrap items-center gap-2">
@@ -189,104 +192,156 @@ function QueueGroup({ id, title, meta, children }: { id?: string; title: string;
  * открывается в строке), деньги к возврату или зачёту — строкой со ссылкой на сделку или заказ. Когда проверять нечего —
  * одна спокойная строка. id review и refunds — якоря для плиток показателей и ссылок из других экранов.
  */
-function Queue({ s, canReview }: { s: FinanceScreen; canReview: { deal: boolean; order: boolean } }) {
+function Queue({ s, canReview, issuePerms }: { s: FinanceScreen; canReview: { deal: boolean; order: boolean }; issuePerms: IssuePerms }) {
   const total = s.review.length + s.issues.length;
   if (!total)
     return (
-      <div className="panel flex items-center gap-3 px-4 py-3 sm:px-5" data-testid="finance-queue-empty">
-        <CircleCheck className="size-5 shrink-0 text-success" strokeWidth={1.8} aria-hidden />
-        <p id="review" className="scroll-mt-[calc(var(--topbar-h)+1rem)] text-sm">
-          <span id="refunds" className="font-medium">
-            Проверять нечего.
-          </span>{" "}
-          <span className="text-muted">Ручные подтверждения оплат сверены, переплат и возвратов к оформлению нет.</span>
-        </p>
+      <div className="space-y-3">
+        <div className="panel flex items-center gap-3 px-4 py-3 sm:px-5" data-testid="finance-queue-empty">
+          <CircleCheck className="size-5 shrink-0 text-success" strokeWidth={1.8} aria-hidden />
+          <p id="review" className="scroll-mt-[calc(var(--topbar-h)+1rem)] text-sm">
+            <span id="refunds" className="font-medium">
+              Проверять нечего.
+            </span>{" "}
+            <span className="text-muted">Ручные подтверждения оплат сверены, переплат и возвратов к оформлению нет.</span>
+          </p>
+        </div>
+        <Resolved s={s} perms={issuePerms} />
       </div>
     );
   const action = (r: FinanceScreen["review"][number]) =>
     !canReview[r.kind] ? <span className="text-xs text-muted">проверяет руководитель</span> : r.mine ? <span className="text-xs text-muted">ваша запись — проверяет другой сотрудник</span> : <ReviewButton kind={r.kind} id={r.id} />;
   return (
-    <section aria-label="Очередь на проверку" className="panel overflow-hidden" data-testid={s.review.length ? "finance-review-banner" : undefined}>
-      <header className="panel-head">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <ShieldCheck className="size-4 shrink-0 text-wine" strokeWidth={1.8} aria-hidden />
-          <h2 className="panel-title">Проверить</h2>
-          <span className="count count-alert" aria-label={`${total} в очереди`}>
-            {total}
-          </span>
-        </div>
-        <p className="text-xs text-muted">Онлайн-оплаты подтверждает платёжная система — их проверять не нужно.</p>
-      </header>
+    <div className="space-y-3">
+      <section aria-label="Очередь на проверку" className="panel overflow-hidden" data-testid={s.review.length ? "finance-review-banner" : undefined}>
+        <header className="panel-head">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <ShieldCheck className="size-4 shrink-0 text-wine" strokeWidth={1.8} aria-hidden />
+            <h2 className="panel-title">Проверить</h2>
+            <span className="count count-alert" aria-label={`${total} в очереди`}>
+              {total}
+            </span>
+          </div>
+          <p className="text-xs text-muted">Онлайн-оплаты подтверждает платёжная система — их проверять не нужно.</p>
+        </header>
 
-      {s.review.length ? (
-        <QueueGroup id="review" title="Ручные подтверждения" meta={<>{plural(s.review.length, ["запись", "записи", "записей"])} на {formatPrice(s.totals.review.sum)}</>}>
-          <ul className="divide-y divide-line" data-testid="finance-review-list">
-            {s.review.map((r) => (
-              <li key={r.key} className="flex flex-wrap items-center gap-x-4 gap-y-2.5 px-4 py-3 sm:px-5">
-                <div className="min-w-0 flex-1 basis-72">
-                  <div className="flex flex-wrap items-baseline gap-x-2 text-sm">
-                    <span className="font-medium">
-                      {r.what}
-                      {r.invoice ? <span className="font-normal text-muted">, {r.invoice}</span> : null}
-                    </span>
-                    {r.refund ? <span className="text-xs font-medium text-danger">возврат</span> : null}
+        {s.review.length ? (
+          <QueueGroup id="review" title="Ручные подтверждения" meta={<>{plural(s.review.length, ["запись", "записи", "записей"])} на {formatPrice(s.totals.review.sum)}</>}>
+            <ul className="divide-y divide-line" data-testid="finance-review-list">
+              {s.review.map((r) => (
+                <li key={r.key} className="flex flex-wrap items-center gap-x-4 gap-y-2.5 px-4 py-3 sm:px-5">
+                  <div className="min-w-0 flex-1 basis-72">
+                    <div className="flex flex-wrap items-baseline gap-x-2 text-sm">
+                      <span className="font-medium">
+                        {r.what}
+                        {r.invoice ? <span className="font-normal text-muted">, {r.invoice}</span> : null}
+                      </span>
+                      {r.refund ? <span className="text-xs font-medium text-danger">возврат</span> : null}
+                    </div>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted">
+                      <span>{r.dateLabel}</span>
+                      {r.client ? <span>{r.client}</span> : null}
+                      <Refs refs={r.refs} />
+                      <span>принял {r.acceptedBy}</span>
+                      {r.note ? <span>{r.note}</span> : null}
+                    </div>
                   </div>
-                  <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted">
-                    <span>{r.dateLabel}</span>
-                    {r.client ? <span>{r.client}</span> : null}
-                    <Refs refs={r.refs} />
-                    <span>принял {r.acceptedBy}</span>
-                    {r.note ? <span>{r.note}</span> : null}
+                  <div className="flex w-full items-center gap-x-4 max-sm:justify-between sm:w-auto">
+                    <span className={cn("text-[15px] font-semibold whitespace-nowrap tabular-nums", r.refund && "text-danger")}>{r.refund ? signed(-r.amount) : formatPrice(r.amount)}</span>
+                    <span className="min-w-20 text-xs">{r.receiptHref ? <Receipt href={r.receiptHref} /> : <Badge tone="danger">нет чека</Badge>}</span>
+                    <span className="ml-auto sm:ml-0 [&_.btn]:max-sm:min-w-32">{action(r)}</span>
                   </div>
-                </div>
-                <div className="flex w-full items-center gap-x-4 max-sm:justify-between sm:w-auto">
-                  <span className={cn("text-[15px] font-semibold whitespace-nowrap tabular-nums", r.refund && "text-danger")}>{r.refund ? signed(-r.amount) : formatPrice(r.amount)}</span>
-                  <span className="min-w-20 text-xs">{r.receiptHref ? <Receipt href={r.receiptHref} /> : <Badge tone="danger">нет чека</Badge>}</span>
-                  <span className="ml-auto sm:ml-0 [&_.btn]:max-sm:min-w-32">{action(r)}</span>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </QueueGroup>
-      ) : null}
+                </li>
+              ))}
+            </ul>
+          </QueueGroup>
+        ) : null}
 
-      {s.issues.length ? (
-        <QueueGroup id="refunds" title="Нужно вернуть или зачесть" meta={plural(s.issues.length, ["случай", "случая", "случаев"])}>
-          <ul className="divide-y divide-line" data-testid="finance-issues">
-            {s.issues.map((i) => (
-              <li key={i.key} className="flex flex-wrap items-center gap-x-4 gap-y-2.5 px-4 py-3 sm:px-5">
-                <div className="min-w-0 flex-1 basis-72">
-                  <div className="text-sm font-medium">{i.title}</div>
-                  <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted">
-                    {i.client ? <span>{i.client}</span> : null}
-                    <span>{i.ref}</span>
-                    <span>ведёт {i.manager}</span>
-                    {i.dateLabel ? <span>{i.dateLabel}</span> : null}
+        {s.issues.length ? (
+          <QueueGroup id="refunds" title="Нужно вернуть или зачесть" meta={plural(s.issues.length, ["случай", "случая", "случаев"])}>
+            <ul className="divide-y divide-line" data-testid="finance-issues">
+              {s.issues.map((i) => (
+                <li key={i.key} className="flex flex-wrap items-center gap-x-4 gap-y-2.5 px-4 py-3 sm:px-5">
+                  <div className="min-w-0 flex-1 basis-72">
+                    <div className="text-sm font-medium">{i.title}</div>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted">
+                      {i.client ? <span>{i.client}</span> : null}
+                      <span>{i.ref}</span>
+                      <span>ведёт {i.manager}</span>
+                      {i.dateLabel ? <span>{i.dateLabel}</span> : null}
+                    </div>
+                    {i.note ? <div className="mt-0.5 text-xs text-muted">{i.note}</div> : null}
                   </div>
-                  {i.note ? <div className="mt-0.5 text-xs text-muted">{i.note}</div> : null}
-                </div>
-                <div className="flex w-full items-center justify-between gap-x-4 sm:w-auto">
-                  <span className="text-[15px] font-semibold whitespace-nowrap tabular-nums">{formatPrice(i.amount)}</span>
-                  {i.href ? (
-                    <Link href={i.href} className="btn btn-outline btn-sm">
-                      Открыть
-                    </Link>
-                  ) : null}
-                </div>
-              </li>
-            ))}
-          </ul>
+                  <div className="flex w-full items-center justify-between gap-x-4 sm:w-auto">
+                    <span className="text-[15px] font-semibold whitespace-nowrap tabular-nums">{formatPrice(i.amount)}</span>
+                    <IssueActions issue={i} perms={issuePerms} />
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <Intro small className="border-t border-line px-4 py-2.5 sm:px-5">
+              {`Деньги, которые нужно вернуть клиенту или зачесть: оплачено больше договорённости или заказа, сделка в отказе с деньгами, отменённый заказ с оплатой, оплата Kaspi по закрытому счёту, после заказа или с суммой не по счёту (последние ${REFUND_WINDOW_DAYS} дней). «Вернуть клиенту» оформляет возврат прямо отсюда — всю сумму или часть, с причиной (по сделке нужен чек, по заказу — по желанию); по заказу в работе вернуть можно только переплату. Оплаченную электронную версию с переплатой можно «Перевести в печатную»: полученные деньги зачтутся. Решили иначе (вернули наличными, зачли в другой заказ) — «Отметить решённым» с комментарием: случай уйдёт из списка, а если сумма изменится — вернётся.`}
+            </Intro>
+          </QueueGroup>
+        ) : null}
+        {s.review.length ? (
           <Intro small className="border-t border-line px-4 py-2.5 sm:px-5">
-            {`Деньги, которые нужно вернуть клиенту или зачесть: оплачено больше договорённости или заказа, сделка в отказе с деньгами, отменённый заказ с оплатой, оплата Kaspi по закрытому счёту, после заказа или с суммой не по счёту (последние ${REFUND_WINDOW_DAYS} дней). Деньги по сделке (переплата, отказ, лишнее после заказа, отменённый заказ) уходят из списка, когда в сделке оформлен возврат с чеком.`}
+            Деньги и возвраты, которые записал сотрудник по чеку перевода. Откройте чек, сверьте с поступлением на счёт (Kaspi, банк) и отметьте «Проверено».
           </Intro>
-        </QueueGroup>
-      ) : null}
-      {s.review.length ? (
-        <Intro small className="border-t border-line px-4 py-2.5 sm:px-5">
-          Деньги и возвраты, которые записал сотрудник по чеку перевода. Откройте чек, сверьте с поступлением на счёт (Kaspi, банк) и отметьте «Проверено».
-        </Intro>
-      ) : null}
-    </section>
+        ) : null}
+      </section>
+      <Resolved s={s} perms={issuePerms} />
+    </div>
+  );
+}
+
+/**
+ * «Решённые»: случаи «Нужно вернуть или зачесть», отмеченные решёнными за последние дни, — кто, когда и как решил; свёрнуто.
+ * «Отменить решение» вернёт случай в очередь (если деньги по нему всё ещё не сходятся).
+ */
+function Resolved({ s, perms }: { s: FinanceScreen; perms: IssuePerms }) {
+  if (!s.resolved.length) return null;
+  const may = (key: string) => (key.startsWith("oo:") || key.startsWith("oc:") ? perms.resolveOrder : perms.resolveDeal);
+  return (
+    <details className="panel group overflow-hidden" data-testid="finance-resolved">
+      <summary className="flex cursor-pointer list-none flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 px-4 py-3 text-sm sm:px-5 [&::-webkit-details-marker]:hidden">
+        <span className="font-medium">
+          Решённые <span className="font-normal text-muted">за {RESOLVED_DAYS} дней</span>
+        </span>
+        <span className="text-xs text-muted tabular-nums">
+          {plural(s.resolved.length, ["случай", "случая", "случаев"])}
+          <span className="ml-2 text-wine group-open:hidden">Показать</span>
+          <span className="ml-2 hidden text-wine group-open:inline">Скрыть</span>
+        </span>
+      </summary>
+      <ul className="divide-y divide-line border-t border-line">
+        {s.resolved.map((r) => (
+          <li key={r.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 sm:px-5">
+            <div className="min-w-0 flex-1 basis-72">
+              <div className="text-sm font-medium">{r.title}</div>
+              <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted">
+                {r.client ? <span>{r.client}</span> : null}
+                {r.href ? (
+                  <Link href={r.href} className="text-wine hover:underline">
+                    {r.ref}
+                  </Link>
+                ) : r.ref ? (
+                  <span>{r.ref}</span>
+                ) : null}
+                <span>
+                  решил {r.by}, {r.dateLabel}
+                </span>
+              </div>
+              <div className="mt-0.5 text-xs">{r.note}</div>
+            </div>
+            <div className="flex w-full items-center justify-between gap-x-4 sm:w-auto">
+              <span className="text-[15px] font-semibold whitespace-nowrap text-muted tabular-nums">{formatPrice(r.amount)}</span>
+              {may(r.key) ? <UndoResolution id={r.id} /> : null}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }
 

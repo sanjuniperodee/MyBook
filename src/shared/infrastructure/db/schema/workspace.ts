@@ -1,4 +1,4 @@
-/** Рабочее пространство CRM: уведомления, быстрые ответы, свои поля, push-подписки, настройки (модуль workspace). */
+/** Рабочее пространство CRM: уведомления, быстрые ответы, свои поля, push-подписки, настройки, решения по «Финансам» (модуль workspace). */
 import { sql } from "drizzle-orm";
 import { index, integer, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { customFieldTypes } from "@/shared/domain/customFields";
@@ -111,3 +111,34 @@ export const crmSettings = pgTable("crm_settings", {
   updatedById: uuid("updated_by_id").references(() => users.id, { onDelete: "set null" }),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/**
+ * «Финансы» → «Нужно вернуть или зачесть»: сотрудник отметил случай решённым с комментарием (вернули часть денег, зачли
+ * в другой заказ, договорились). Случай скрыт, пока есть действующее решение с тем же ключом и той же суммой; сумма
+ * изменилась — случай снова в очереди. Отмена решения не удаляет запись: undone_at (кто и когда — в журнале действий).
+ * title, ref, client, href и manager_id — снимок случая на момент решения: сам случай из очереди уже не виден.
+ */
+export const financeIssueResolutions = pgTable(
+  "finance_issue_resolutions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** Ключ случая из очереди: dc:, dl:, da:, do:, oo:, oc:, un: + id сделки, заказа или оплаты Kaspi. */
+    key: text("key").notNull(),
+    amount: integer("amount").notNull(),
+    note: text("note").notNull(),
+    title: text("title").notNull().default(""),
+    ref: text("ref").notNull().default(""),
+    client: text("client").notNull().default(""),
+    href: text("href"),
+    managerId: uuid("manager_id").references(() => users.id, { onDelete: "set null" }),
+    resolvedById: uuid("resolved_by_id").references(() => users.id, { onDelete: "set null" }),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }).notNull().defaultNow(),
+    undoneById: uuid("undone_by_id").references(() => users.id, { onDelete: "set null" }),
+    undoneAt: timestamp("undone_at", { withTimezone: true }),
+  },
+  (t) => [
+    // Одно действующее решение на случай и сумму: двойное нажатие не плодит записи.
+    uniqueIndex("finance_issue_resolutions_active_idx").on(t.key, t.amount).where(sql`${t.undoneAt} is null`),
+    index("finance_issue_resolutions_resolved_idx").on(t.resolvedAt),
+  ],
+);

@@ -88,3 +88,44 @@ describe("Order.changeTerms: тариф и договорённая цена н�
     expect(() => order.changeTerms({ plan: "nope" as never, agreedTotal: null, discount: null, planName }, "admin", now)).toThrow();
   });
 });
+
+describe("Order.upgradeToPrinted и refundMoney: электронная — в печатную, возврат переплаты", () => {
+  const digital = (agreement: Parameters<typeof Order.place>[0]["agreement"] = null) =>
+    Order.place(
+      { id: "o2", number: 2, userId: "u1", bookId: "b1", plan: "digital", quantity: 1, delivery: { method: null, city: null, address: null, postalCode: null }, addons: [], contact: { name: "A", phone: "+77010000000", email: "a@b.kz" }, promo: null, agreement, currency: "KZT", paymentProvider: "kaspi", estimatedPages: 100, formatMoney: (n) => `${n}` },
+      now,
+    );
+  const pay = (o: Order, amount: number) => o.receiveMoney({ paymentId: `m:${amount}`, amount, method: "manual", paidAt: now, label: "перевод", actor: "admin" });
+
+  it("предоплата по сделке остаётся авансом: к оплате — прайс печатной минус предоплата", () => {
+    const o = digital({ agreedTotal: Number.POSITIVE_INFINITY, prepaid: 5000 });
+    expect(o.amount).toBe(4900);
+    pay(o, 4900);
+    const r = o.upgradeToPrinted({ plan: "hardcover", discount: null, planName }, "admin", now);
+    expect(r).toEqual({ due: 25000, credited: 4900, outstanding: 20100, overpaid: 0 });
+    expect([o.plan, o.status, o.isSettled, o.snapshot().price.prepaidAmount]).toEqual(["hardcover", "pending_payment", false, 5000]);
+    expect(o.pullEvents().map((e) => e.type)).toContain("ordering.order_repriced");
+  });
+
+  it("переплата после перевода — возвращается; больше переплаты — нельзя", () => {
+    const o = digital();
+    pay(o, 32000);
+    o.upgradeToPrinted({ plan: "hardcover", discount: null, planName }, "admin", now);
+    expect([o.status, o.refundable]).toEqual(["paid", 2000]);
+    expect(() => o.refundMoney({ amount: 2001, paidAt: now, label: "перевод", reason: "лишнее", actor: "admin" })).toThrow(/не больше/);
+    expect(o.refundMoney({ amount: 2000, paidAt: now, label: "перевод", reason: "лишнее", actor: "admin" })).toEqual({ refundable: 0 });
+    expect([o.received, o.isSettled]).toEqual([30000, true]);
+  });
+
+  it("неоплаченная электронная, печатная, отменённая и не печатный тариф — отказ", () => {
+    expect(() => digital().upgradeToPrinted({ plan: "hardcover", discount: null, planName }, "admin", now)).toThrow(/не оплачена/);
+    const printed = place();
+    printed.markPaid(null, "admin", now);
+    expect(() => printed.upgradeToPrinted({ plan: "premium", discount: null, planName }, "admin", now)).toThrow(/уже на печатную/);
+    const paid = digital();
+    pay(paid, 9900);
+    expect(() => paid.upgradeToPrinted({ plan: "digital", discount: null, planName }, "admin", now)).toThrow(/печатный тариф/);
+    paid.cancel("admin", "", now);
+    expect(() => paid.upgradeToPrinted({ plan: "hardcover", discount: null, planName }, "admin", now)).toThrow(/отменён/);
+  });
+});

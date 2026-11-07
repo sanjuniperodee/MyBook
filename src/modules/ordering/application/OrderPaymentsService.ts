@@ -30,6 +30,18 @@ export interface OnlinePaymentInput {
   paidAt: Date;
 }
 
+export interface RefundInput {
+  orderId: string;
+  amount: number;
+  /** Причина — в журнал заказа и в «Проверить» (от 3 символов). */
+  note: string;
+  /** Чек перевода клиенту — по желанию: скриншот, фото, PDF до 12 МБ. */
+  receipt?: { bytes: Buffer; fileName: string } | null;
+  /** Когда вернули; по умолчанию — сейчас. */
+  paidAt?: Date;
+  actor: Actor & { userId: string };
+}
+
 /** Самая поздняя дата оплаты, которую принимаем: сегодня (дата «из будущего» — опечатка). */
 const notInFuture = (paidAt: Date, now: Date) => paidAt.getTime() <= now.getTime() + 60_000;
 
@@ -55,7 +67,7 @@ export class OrderPaymentsService {
   async summary(orderId: string) {
     const order = await this.orders.findById(orderId);
     if (!order) return null;
-    return { due: order.amount, received: order.received, postpay: order.postpay, settled: order.isSettled, rows: await this.payments.list(orderId) };
+    return { due: order.amount, received: order.received, refundable: order.refundable, postpay: order.postpay, settled: order.isSettled, rows: await this.payments.list(orderId) };
   }
 
   async acceptManual(input: ManualPaymentInput): Promise<{ payment: OrderPaymentRecord; settled: boolean; overpaid: number }> {
@@ -73,7 +85,7 @@ export class OrderPaymentsService {
         const order = await this.orders.lockById(input.orderId);
         if (!order) throw new OrderingError("orderNotFound");
         const receipt = { storageKey, fileName: safeReceiptName(input.receipt.fileName, type.ext), mime: type.mime, size: input.receipt.bytes.length };
-        const record = { id, orderId: order.id, amount: input.amount, method: "manual" as const, externalRef: null, paidAt: input.paidAt, note: input.note.trim().slice(0, 500), receipt, createdById: input.actor.userId };
+        const record = { id, orderId: order.id, kind: "payment" as const, amount: input.amount, method: "manual" as const, externalRef: null, paidAt: input.paidAt, note: input.note.trim().slice(0, 500), receipt, createdById: input.actor.userId };
         const result = order.receiveMoney({ paymentId: `manual:${id}`, amount: input.amount, method: "manual", paidAt: input.paidAt, label: `${ORDER_MONEY_LABELS.manual}, чек ${receipt.fileName}${record.note ? ` — ${record.note}` : ""}`, actor: input.actor.label });
         await this.payments.add(record);
         await this.orders.save(order);
@@ -86,13 +98,52 @@ export class OrderPaymentsService {
     }
   }
 
+  /**
+   * Возврат клиенту переводом: запись refund в журнале денег заказа (с чеком или без) и строка в журнале заказа. Сумма —
+   * не больше Order.refundable (по отменённому — всё полученное, по живому — только переплата); проверка и запись — под
+   * блокировкой заказа, чтобы два возврата одновременно не вернули больше полученного. Ручной возврат попадает в
+   * «Финансы» → «Проверить», как ручная оплата.
+   */
+  async refund(input: RefundInput): Promise<{ payment: OrderPaymentRecord; refundable: number }> {
+    const note = input.note.trim().slice(0, 500);
+    if (note.length < 3) throw new OrderingError("paymentRule", "Укажите причину возврата");
+    if (!Number.isInteger(input.amount) || input.amount <= 0) throw new OrderingError("paymentRule", "Сумма возврата — целое число тенге больше нуля");
+    const now = this.clock.now();
+    const paidAt = input.paidAt ?? now;
+    if (!notInFuture(paidAt, now)) throw new OrderingError("invalidAmount", "Дата возврата не может быть в будущем");
+    const id = this.payments.nextId();
+    let receipt: OrderPaymentRecord["receipt"] = null;
+    if (input.receipt) {
+      const problem = receiptProblem(input.receipt.bytes);
+      const type = sniffReceipt(input.receipt.bytes);
+      if (problem || !type) throw new OrderingError("receiptInvalid", problem ?? "type");
+      receipt = { storageKey: `orders/${input.orderId}/payments/${id}.${type.ext}`, fileName: safeReceiptName(input.receipt.fileName, type.ext), mime: type.mime, size: input.receipt.bytes.length };
+      await this.files.put(receipt.storageKey, input.receipt.bytes);
+    }
+    try {
+      return await this.uow.run(async () => {
+        const order = await this.orders.lockById(input.orderId);
+        if (!order) throw new OrderingError("orderNotFound");
+        const record = { id, orderId: order.id, kind: "refund" as const, amount: input.amount, method: "manual" as const, externalRef: null, paidAt, note, receipt, createdById: input.actor.userId };
+        const result = order.refundMoney({ amount: input.amount, paidAt, label: `${ORDER_MONEY_LABELS.manual}${receipt ? `, чек ${receipt.fileName}` : ", без чека"}`, reason: note, actor: input.actor.label });
+        await this.payments.add(record);
+        await this.orders.save(order);
+        this.uow.track(order);
+        return { payment: { ...record, reviewedById: null, reviewedAt: null, createdAt: now }, refundable: result.refundable };
+      });
+    } catch (err) {
+      if (receipt) await this.files.remove(receipt.storageKey).catch(() => {});
+      throw err;
+    }
+  }
+
   /** Онлайн-оплата (вебхук или сверка): "recorded" — деньги записаны, "duplicate" — эта операция уже была. */
   async recordOnline(input: OnlinePaymentInput, actor: Actor): Promise<{ status: "recorded" | "duplicate" | "notFound"; settled: boolean; overpaid: number }> {
     return this.uow.run(async () => {
       const order = await this.orders.lockById(input.orderId);
       if (!order) return { status: "notFound" as const, settled: false, overpaid: 0 };
       const id = this.payments.nextId();
-      const added = await this.payments.add({ id, orderId: order.id, amount: input.amount, method: input.method, externalRef: input.externalRef, paidAt: input.paidAt, note: "", receipt: null, createdById: null });
+      const added = await this.payments.add({ id, orderId: order.id, kind: "payment", amount: input.amount, method: input.method, externalRef: input.externalRef, paidAt: input.paidAt, note: "", receipt: null, createdById: null });
       if (!added) return { status: "duplicate" as const, settled: false, overpaid: 0 };
       const result = order.receiveMoney({ paymentId: input.paymentId ?? input.externalRef, amount: input.amount, method: input.method, paidAt: input.paidAt, label: `${ORDER_MONEY_LABELS[input.method]}, операция ${input.externalRef}`, actor: actor.label });
       await this.orders.save(order);

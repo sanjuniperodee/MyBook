@@ -71,6 +71,8 @@ export interface PaymentInvoiceRepository {
 export interface OrderPaymentRecord {
   id: string;
   orderId: string;
+  /** payment — деньги от клиента, refund — возврат клиенту (сумма больше нуля, в итогах со знаком минус). */
+  kind: "payment" | "refund";
   amount: number;
   method: "manual" | "kaspi" | "cloudpayments";
   externalRef: string | null;

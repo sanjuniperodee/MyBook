@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { sql } from "drizzle-orm";
 import { db, pool } from "@/shared/infrastructure/db";
-import { financeDeals, financeMoney, financeOrders, financeReview, financeUnrecorded } from "@/modules/reporting/infrastructure/Finance";
+import { financeDeals, financeMoney, financeOrders, financeResolutions, financeReview, financeUnrecorded } from "@/modules/reporting/infrastructure/Finance";
 import { financePeriod, financeScreen } from "@/modules/reporting/ui/finance-screen";
 import { DealPayments } from "@/modules/sales/infrastructure/payments";
 
@@ -162,12 +162,12 @@ run("Финансы: запросы (PostgreSQL)", () => {
     const n = (key: string) => deals.find((d) => d.id === ids[key])?.number;
     const on = (key: string) => orders.find((o) => o.id === ids[key])?.number;
     expect(left).toEqual({
-      [`Сделка №${n("b")}`]: [25000, "ready"],
-      [`Сделка №${n("c")}`]: [18000, "none"],
+      [`Сделка Д${n("b")}`]: [25000, "ready"],
+      [`Сделка Д${n("c")}`]: [18000, "none"],
       [`Заказ №${on("oWait")}`]: [8000, "ready"],
       [`Заказ №${on("oPost")}`]: [5000, "ready"],
     });
-    expect(s.expected.rows.find((r) => r.ref === `Сделка №${n("b")}`)?.invoice).toMatch(/^счёт P\d+ · 25/);
+    expect(s.expected.rows.find((r) => r.ref === `Сделка Д${n("b")}`)?.invoice).toMatch(/^счёт P\d+ · 25/);
     expect(s.expected.invoices).toEqual({ count: 1, sum: 25000 });
     expect(s.totals).toMatchObject({ expected: 25000 + 18000 + 8000, expectedReady: 25000 + 8000, postpay: 5000, expectedAll: 56000 });
     // Переплаты: E (+2 000), D в отказе (3 000), отменённый заказ (7 000), Kaspi вне учёта (25 000) и с чужой суммой (24 000).
@@ -204,5 +204,37 @@ run("Финансы: запросы (PostgreSQL)", () => {
     expect(await payments.review(ids.payA, ids.mgr)).toBeNull();
     expect((await financeReview()).some((r) => r.id === ids.payA)).toBe(false);
     expect((await financeMoney(range.from, range.to)).find((m) => m.id === ids.payA)?.reviewedAt).toBeInstanceOf(Date);
+  });
+
+  it("возврат по заказу: получено = оплаты − возвраты, возврат — минусом в «Пришло» и в «Проверить»; решение скрывает случай до смены суммы", async () => {
+    const at = sql`${hourAgo.toISOString()}::timestamptz`;
+    const [o] = await q<{ id: string }>(sql`
+      insert into orders (user_id, book_id, plan, items_amount, amount, currency, status, payment_provider, contact_name, contact_phone, contact_email, paid_at)
+      values (${ids.client}, ${ids.book}, 'digital', 10000, 10000, 'KZT', 'paid', 'manual', ${tag + "oRefund"}, '7', 'a@b.kz', ${at}) returning id`);
+    const [paid] = await q<{ id: string }>(sql`insert into order_payments (order_id, amount, method, paid_at, created_by_id) values (${o.id}, 12000, 'manual', ${at}, ${ids.mgr}) returning id`);
+    const [back] = await q<{ id: string }>(sql`insert into order_payments (order_id, kind, amount, method, paid_at, note, created_by_id) values (${o.id}, 'refund', 1500, 'manual', ${at}, 'лишнее', ${ids.mgr}) returning id`);
+    // Получено 12 000 − 1 500 = 10 500: переплата 500, электронная — можно «в печатную».
+    const row = (await financeOrders()).find((x) => x.id === o.id);
+    expect(row).toMatchObject({ received: 10500, amount: 10000, plan: "digital" });
+    // «Пришло»: оплата и возврат — своими строками; «заказ без записи» не появляется (записано 12 000 ≥ 10 000).
+    const money = (await financeMoney(range.from, range.to)).filter((m) => m.orderId === o.id);
+    expect(money.map((m) => [m.kind, m.amount]).sort()).toEqual([["order", 12000], ["refund", 1500]].sort());
+    const review = await financeReview();
+    expect(review.find((r) => r.id === back.id)).toMatchObject({ kind: "order", paymentKind: "refund", amount: 1500, note: "лишнее" });
+    expect(review.find((r) => r.id === paid.id)).toMatchObject({ paymentKind: "order" });
+
+    const screen = async () =>
+      financeScreen({ period: financePeriod({ preset: "today", now: new Date(), tz: "Asia/Almaty" }), money: [], deals: [], orders: (await financeOrders()).filter((x) => x.id === o.id), unrecorded: [], review: [], resolutions: await financeResolutions(), staff: [], tz: "Asia/Almaty", now: new Date() });
+    expect((await screen()).issues).toMatchObject([{ key: `oo:${o.id}`, amount: 500, canUpgrade: true }]);
+    await q(sql`insert into finance_issue_resolutions (key, amount, note, resolved_by_id) values (${`oo:${o.id}`}, 500, 'вернули наличными', ${ids.mgr})`);
+    // Повторное действующее решение на ту же сумму база не примет.
+    await expect(q(sql`insert into finance_issue_resolutions (key, amount, note) values (${`oo:${o.id}`}, 500, 'ещё раз')`)).rejects.toThrow();
+    let s = await screen();
+    expect([s.issues, s.resolved.map((r) => [r.key, r.amount, r.note])]).toEqual([[], [[`oo:${o.id}`, 500, "вернули наличными"]]]);
+    // Пришла ещё оплата — сумма другая, случай вернулся.
+    await q(sql`insert into order_payments (order_id, amount, method, paid_at) values (${o.id}, 300, 'kaspi', ${at})`);
+    s = await screen();
+    expect(s.issues.map((i) => [i.key, i.amount])).toEqual([[`oo:${o.id}`, 800]]);
+    await q(sql`delete from finance_issue_resolutions where key = ${`oo:${o.id}`}`);
   });
 });

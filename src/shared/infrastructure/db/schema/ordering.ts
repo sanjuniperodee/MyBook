@@ -95,6 +95,8 @@ export const orderPayments = pgTable(
       .notNull()
       .references(() => orders.id, { onDelete: "restrict" }),
     amount: integer("amount").notNull(),
+    /** payment — деньги от клиента; refund — возврат клиенту (сумма тоже больше нуля, в итогах со знаком минус). */
+    kind: text("kind", { enum: ["payment", "refund"] }).notNull().default("payment"),
     /** manual — перевод с чеком; kaspi, cloudpayments — онлайн, подтверждено платёжной системой. */
     method: text("method", { enum: ["manual", "kaspi", "cloudpayments"] }).notNull(),
     /** Операция платёжной системы (повтор той же операции — не новая оплата). */

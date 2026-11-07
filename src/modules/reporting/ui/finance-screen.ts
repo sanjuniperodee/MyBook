@@ -1,4 +1,4 @@
-import { formatPrice } from "@/config/site";
+import { formatPrice, getPlan } from "@/config/site";
 import { bookKind, progressOf } from "@/lib/content/kinds";
 import { fromZonedTime, zonedDay } from "@/shared/domain/time";
 import { staffLabel } from "@/shared/domain/staff";
@@ -71,12 +71,14 @@ export interface FinanceOrderRow {
   dealId: string | null;
   dealNumber: number | null;
   status: string;
+  /** Тариф заказа: у электронной версии в очереди есть «Перевести в печатную». */
+  plan?: string;
   postpay: boolean;
   /** К оплате (предоплата сделки уже вычтена). */
   amount: number;
   /** Внесено по договорённости до заказа. */
   prepaid: number;
-  /** Записано в журнал денег заказа. */
+  /** Записано в журнал денег заказа: оплаты минус возвраты клиенту. */
   received: number;
   paidAt: Date | null;
   desiredDate: string | null;
@@ -123,6 +125,27 @@ export interface ReviewRow {
   note: string;
   invoiceNumber: number | null;
 }
+
+/** Решение по случаю «Нужно вернуть или зачесть» (finance_issue_resolutions, только действующие). */
+export interface FinanceResolutionRow {
+  id: string;
+  key: string;
+  amount: number;
+  note: string;
+  title: string;
+  ref: string;
+  client: string;
+  href: string | null;
+  managerId: string | null;
+  resolvedById: string | null;
+  resolvedAt: Date;
+}
+
+/** Сколько дней решённые случаи видны в блоке «Решённые» под очередью. */
+export const RESOLVED_DAYS = 30;
+
+/** Случай скрыт, пока есть решение с тем же ключом и той же суммой; сумма изменилась — случай снова в очереди. */
+export const resolutionKey = (key: string, amount: number) => `${key}|${amount}`;
 
 /** Сколько дней показываем деньги к возврату, которые по данным не закрыть (отменённый заказ, оплата Kaspi вне учёта). */
 export const REFUND_WINDOW_DAYS = 90;
@@ -289,6 +312,8 @@ export function financeScreen(input: {
   orders: FinanceOrderRow[];
   unrecorded: UnrecordedRow[];
   review: ReviewRow[];
+  /** Действующие решения по случаям «Нужно вернуть или зачесть». */
+  resolutions?: FinanceResolutionRow[];
   staff: { id: string; name: string; email: string }[];
   visible?: (managerId: string | null) => boolean;
   /** Кто смотрит: свою ручную запись денег он проверить не может (проверяет другой сотрудник). */
@@ -394,7 +419,30 @@ export function financeScreen(input: {
     note: string | null;
   }[] = [];
   type IssueKind = "deal_overpaid" | "deal_after_order" | "deal_lost" | "order_overpaid" | "order_cancelled" | "unrecorded";
-  const issues: { key: string; kind: IssueKind; title: string; href: string | null; ref: string; client: string; manager: string; amount: number; note: string; dateLabel: string | null }[] = [];
+  /**
+   * Случай к возврату или зачёту. target — чем его закрыть: возврат по сделке (роут платежей сделки) или по заказу (журнал
+   * денег заказа); у оплаты Kaspi вне учёта — только «Отметить решённым». canUpgrade — электронная версия оплачена с
+   * переплатой: её можно перевести в печатную (деньги зачтутся).
+   */
+  type Issue = {
+    key: string;
+    kind: IssueKind;
+    title: string;
+    href: string | null;
+    ref: string;
+    client: string;
+    manager: string;
+    managerId: string | null;
+    amount: number;
+    note: string;
+    dateLabel: string | null;
+    target: { kind: "deal" | "order"; id: string; number: number } | null;
+    canUpgrade: boolean;
+    /** Получено по заказу (оплаты минус возвраты) — для «Перевести в печатную». */
+    received?: number;
+  };
+  const issues: Issue[] = [];
+  const dealIssue = (d: FinanceDealRow, i: Pick<Issue, "key" | "kind" | "title" | "amount" | "note">): Issue => ({ ...i, href: `/admin/deals/${d.id}`, ref: `Сделка Д${d.number}`, client: d.client, manager: who(d.managerId), managerId: d.managerId, dateLabel: null, target: { kind: "deal", id: d.id, number: d.number }, canUpgrade: false });
   let invoices = { count: 0, sum: 0 };
 
   for (const d of input.deals) {
@@ -404,20 +452,20 @@ export function financeScreen(input: {
     const manager = who(d.managerId);
     if (d.order?.cancelled) {
       // Заказ отменён, а деньги по сделке у нас: вернуть клиенту (возврат оформляется в сделке) или оформить новый заказ.
-      if (d.paid > 0) issues.push({ key: `dc:${d.id}`, kind: "deal_lost", title: `Заказ №${d.order.number} отменён — деньги по сделке у нас`, href, ref, client: d.client, manager, amount: d.paid, note: "оформите возврат в сделке", dateLabel: null });
+      if (d.paid > 0) issues.push(dealIssue(d, { key: `dc:${d.id}`, kind: "deal_lost", title: `Заказ №${d.order.number} отменён — деньги по сделке у нас`, amount: d.paid, note: "верните деньги клиенту (возврат по сделке)" }));
       continue;
     }
     if (d.order) {
       // Сделка с заказом: всё, что внесено сверх учтённой в заказе предоплаты, — к возврату (оформляется в сделке).
       const extra = d.paid - d.order.prepaid;
-      if (extra > 0) issues.push({ key: `da:${d.id}`, kind: "deal_after_order", title: `Внесено по сделке больше, чем учтено в заказе №${d.order.number}`, href, ref, client: d.client, manager, amount: extra, note: `по сделке ${formatPrice(d.paid)}, в заказе учтено ${formatPrice(d.order.prepaid)}`, dateLabel: null });
+      if (extra > 0) issues.push(dealIssue(d, { key: `da:${d.id}`, kind: "deal_after_order", title: `Внесено по сделке больше, чем учтено в заказе №${d.order.number}`, amount: extra, note: `по сделке ${formatPrice(d.paid)}, в заказе учтено ${formatPrice(d.order.prepaid)}` }));
       continue;
     }
     if (d.stageKind === "lost") {
-      if (d.paid > 0) issues.push({ key: `dl:${d.id}`, kind: "deal_lost", title: "Сделка в отказе — деньги клиента у нас", href, ref, client: d.client, manager, amount: d.paid, note: "верните деньги (возврат в сделке) или верните сделку в работу", dateLabel: null });
+      if (d.paid > 0) issues.push(dealIssue(d, { key: `dl:${d.id}`, kind: "deal_lost", title: "Сделка в отказе — деньги клиента у нас", amount: d.paid, note: "верните деньги клиенту или верните сделку в работу" }));
       continue;
     }
-    if (d.agreed > 0 && d.paid > d.agreed) issues.push({ key: `do:${d.id}`, kind: "deal_overpaid", title: "Оплачено больше договорённости", href, ref, client: d.client, manager, amount: d.paid - d.agreed, note: `договорённость ${formatPrice(d.agreed)}, оплачено ${formatPrice(d.paid)}`, dateLabel: null });
+    if (d.agreed > 0 && d.paid > d.agreed) issues.push(dealIssue(d, { key: `do:${d.id}`, kind: "deal_overpaid", title: "Оплачено больше договорённости", amount: d.paid - d.agreed, note: `договорённость ${formatPrice(d.agreed)}, оплачено ${formatPrice(d.paid)}` }));
     // Договорённость: сделка «вручную», с тарифом договорённости или с деньгами; «успех» без денег — уже выручка, не ожидание.
     const agreement = d.agreed > 0 && (d.source === "manual" || d.plan !== null || d.payments > 0);
     const live = d.stageKind === "open" || (d.stageKind === "won" && d.payments > 0);
@@ -452,10 +500,27 @@ export function financeScreen(input: {
     const ref = `Заказ №${o.number}`;
     const manager = who(o.managerId);
     if (o.status === "cancelled") {
-      if (o.received > 0) issues.push({ key: `oc:${o.id}`, kind: "order_cancelled", title: "Заказ отменён — деньги получены", href, ref, client: o.client, manager, amount: o.received, note: "нужен возврат клиенту (или зачёт в новый заказ)", dateLabel: null });
+      if (o.received > 0) issues.push({ key: `oc:${o.id}`, kind: "order_cancelled", title: "Заказ отменён — деньги получены", href, ref, client: o.client, manager, managerId: o.managerId, amount: o.received, note: "верните деньги клиенту или отметьте, как решили (зачёт в новый заказ)", dateLabel: null, target: { kind: "order", id: o.id, number: o.number }, canUpgrade: false });
       continue;
     }
-    if (o.received > o.amount) issues.push({ key: `oo:${o.id}`, kind: "order_overpaid", title: "Переплата по заказу", href, ref, client: o.client, manager, amount: o.received - o.amount, note: `к оплате ${formatPrice(o.amount)}, получено ${formatPrice(o.received)}`, dateLabel: null });
+    if (o.received > o.amount)
+      issues.push({
+        key: `oo:${o.id}`,
+        kind: "order_overpaid",
+        title: "Переплата по заказу",
+        href,
+        ref,
+        client: o.client,
+        manager,
+        managerId: o.managerId,
+        amount: o.received - o.amount,
+        note: `к оплате ${formatPrice(o.amount)}, получено ${formatPrice(o.received)}`,
+        dateLabel: null,
+        target: { kind: "order", id: o.id, number: o.number },
+        // Электронная версия, оплаченная с переплатой: клиент, скорее всего, доплатил за печатную.
+        canUpgrade: !!o.plan && getPlan(o.plan)?.printed === false && o.status === "paid" && !!o.paidAt,
+        received: o.received,
+      });
     const left = o.amount - o.received;
     const postpay = o.postpay && !o.paidAt && o.status !== "pending_payment";
     if (left <= 0 || !(o.status === "pending_payment" || postpay)) continue;
@@ -490,11 +555,37 @@ export function financeScreen(input: {
       ref: what,
       client: u.client,
       manager: who(u.managerId),
+      managerId: u.managerId,
       amount: u.amount,
       note: `операция ${u.externalId}: ${u.mismatch ? "платёж не засчитан" : "по закрытому счёту или после заказа"} — нужен возврат или зачёт`,
       dateLabel: shortDate(u.at, true),
+      target: null,
+      canUpgrade: false,
     });
   }
+
+  // Решённые случаи: скрыты, пока решение действует для той же суммы; ниже очереди — решённые за последние дни.
+  const resolutions = input.resolutions ?? [];
+  const resolvedKeys = new Set(resolutions.map((r) => resolutionKey(r.key, r.amount)));
+  const open = issues.filter((i) => !resolvedKeys.has(resolutionKey(i.key, i.amount)));
+  const resolvedSince = input.now.getTime() - RESOLVED_DAYS * 86_400_000;
+  const resolved = resolutions
+    .filter((r) => r.resolvedAt.getTime() >= resolvedSince && visible(r.managerId))
+    .sort((a, b) => b.resolvedAt.getTime() - a.resolvedAt.getTime())
+    .map((r) => ({
+      id: r.id,
+      key: r.key,
+      title: r.title || "Случай к возврату или зачёту",
+      ref: r.ref,
+      client: r.client,
+      href: r.href,
+      amount: r.amount,
+      note: r.note,
+      by: who(r.resolvedById),
+      dateLabel: shortDate(r.resolvedAt, true),
+      /** Случай ещё в данных (с той же суммой): после отмены решения он вернётся в очередь. */
+      stillOpen: issues.some((i) => i.key === r.key && i.amount === r.amount),
+    }));
 
   expected.sort((a, b) => GROUP_ORDER[a.group] - GROUP_ORDER[b.group] || b.left - a.left);
   const sumLeft = (list: typeof expected) => list.reduce((s, e) => s + e.left, 0);
@@ -504,7 +595,7 @@ export function financeScreen(input: {
   });
   const dueNow = expected.filter((e) => e.kind !== "postpay");
   const postpays = expected.filter((e) => e.kind === "postpay");
-  const issuesTotal = issues.reduce((s, i) => s + i.amount, 0);
+  const issuesTotal = open.reduce((s, i) => s + i.amount, 0);
 
   const review = input.review
     .filter((r) => visible(r.managerId))
@@ -514,7 +605,7 @@ export function financeScreen(input: {
       id: r.id,
       amount: r.amount,
       dateLabel: shortDate(r.at),
-      what: r.kind === "order" ? "Оплата заказа" : r.paymentKind === "prepayment" ? "Предоплата" : r.paymentKind === "refund" ? "Возврат клиенту" : "Платёж",
+      what: r.paymentKind === "refund" ? "Возврат клиенту" : r.kind === "order" ? "Оплата заказа" : r.paymentKind === "prepayment" ? "Предоплата" : "Платёж",
       refund: r.paymentKind === "refund",
       /** Запись смотрящего: себя не проверяют — сверяет другой сотрудник. */
       mine: !!input.viewerId && r.acceptedById === input.viewerId,
@@ -547,7 +638,7 @@ export function financeScreen(input: {
       expectedAll: sumLeft(expected),
       expectedAllReady: sumLeft(expected.filter((e) => e.group === "ready")),
       overpaid: issuesTotal,
-      overpaidCount: issues.length,
+      overpaidCount: open.length,
       review: { count: review.length, sum: review.reduce((s, r) => s + r.amount, 0) },
     },
     byDay: [...byDayMap.values()],
@@ -557,7 +648,8 @@ export function financeScreen(input: {
     recent: cur.map(moneyView),
     refunds: refundRows.map(moneyView),
     expected: { rows: expected, groups, invoices },
-    issues,
+    issues: open,
+    resolved,
     review,
   };
 }

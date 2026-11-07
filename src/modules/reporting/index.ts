@@ -17,7 +17,7 @@ import { salesAnalytics } from "./infrastructure/SalesAnalytics";
 import { crmCounters } from "./infrastructure/Counters";
 import { getLive } from "./infrastructure/Live";
 import { queryClients, segmentCounts } from "./infrastructure/Clients";
-import { financeReport } from "./infrastructure/Finance";
+import { financeIssueData, financeReport } from "./infrastructure/Finance";
 import { automationStats } from "./infrastructure/Automations";
 import { clientReferrals } from "./infrastructure/Referrals";
 import { designAiStats } from "./infrastructure/DesignAi";
@@ -81,6 +81,8 @@ export class ReportingModule {
   readonly segmentCounts = segmentCounts;
   /** «Финансы»: деньги за период, ожидаемые доплаты, переплаты и ручные подтверждения без проверки. */
   readonly finance = financeReport;
+  /** Случаи «Нужно вернуть или зачесть» без денег периода — действиям очереди «Финансов». */
+  readonly financeIssues = financeIssueData;
   /** «Автоматизации»: повторные продажи правила — создано, выиграно, оплачено за 90 дней. */
   readonly automationStats = automationStats;
   /** Статистика ИИ-дизайнера для админки: просьбы, режимы, модели, стоимость, лимиты и покупки пакетов. */

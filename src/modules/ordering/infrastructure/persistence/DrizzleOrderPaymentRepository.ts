@@ -10,6 +10,7 @@ type Row = typeof orderPayments.$inferSelect;
 const toRecord = (r: Row): OrderPaymentRecord => ({
   id: r.id,
   orderId: r.orderId,
+  kind: r.kind,
   amount: r.amount,
   method: r.method,
   externalRef: r.externalRef,
@@ -33,6 +34,7 @@ export class DrizzleOrderPaymentRepository implements OrderPaymentRepository {
       .values({
         id: p.id,
         orderId: p.orderId,
+        kind: p.kind,
         amount: p.amount,
         method: p.method,
         externalRef: p.externalRef,

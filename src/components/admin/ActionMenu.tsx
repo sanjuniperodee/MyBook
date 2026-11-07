@@ -11,7 +11,7 @@ const item = "flex min-h-10 w-full items-center gap-2.5 rounded-[var(--r-ctl)] p
  * «Ещё» в шапке страницы (DESIGN.md §7.2): одна главная кнопка на экране, редкие действия — настройки раздела, выгрузки,
  * удаление — в меню. Закрывается кликом мимо, Esc (фокус возвращается на кнопку) и выбором пункта.
  */
-export function ActionMenu({ children, label = "Ещё", className }: { children: React.ReactNode; label?: string; className?: string }) {
+export function ActionMenu({ children, label = "Ещё", className, iconOnly }: { children: React.ReactNode; label?: string; className?: string; /** Только «⋯» (в строке списка): подпись — для экранного диктора. */ iconOnly?: boolean }) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
@@ -34,8 +34,8 @@ export function ActionMenu({ children, label = "Ещё", className }: { children
   }, [open]);
   return (
     <div ref={root} className={cn("relative", className)}>
-      <button ref={button} type="button" className="btn btn-outline btn-sm w-full" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
-        <Ellipsis className="size-4" aria-hidden /> {label}
+      <button ref={button} type="button" className={cn("btn btn-outline btn-sm", iconOnly ? "btn-icon" : "w-full")} aria-haspopup="menu" aria-expanded={open} aria-label={iconOnly ? label : undefined} title={iconOnly ? label : undefined} onClick={() => setOpen((v) => !v)}>
+        <Ellipsis className="size-4" aria-hidden /> {iconOnly ? null : label}
       </button>
       {open ? (
         <div

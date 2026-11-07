@@ -222,6 +222,15 @@ export class Order extends AggregateRoot<OrderProps> {
   get postpay() {
     return this.props.postpay;
   }
+  /**
+   * Сколько можно вернуть клиенту: по отменённому заказу — всё полученное; по живому — только переплату (полученное сверх
+   * «к оплате»). Остальное — оплата самого заказа: вернуть её — значит отменить заказ (иначе оплаченный заказ останется
+   * без денег, а выручка — на всю сумму).
+   */
+  get refundable() {
+    const received = Math.max(0, this.props.receivedAmount);
+    return this.props.status === "cancelled" ? received : Math.max(0, received - this.props.price.amount);
+  }
   /** Выручка признана (оплачен или постоплата получена полностью). */
   get isSettled() {
     return !!this.props.paidAt && this.props.status !== "cancelled";
@@ -478,6 +487,65 @@ export class Order extends AggregateRoot<OrderProps> {
       this.record(OrderingEvents.orderPaid({ ...this.ref(), paymentId: null, actor, settled: true }));
     }
     if (received > due) this.record(OrderingEvents.orderOverpaid({ ...this.ref(), overpaid: received - due, method: "reprice" }));
+  }
+
+  /**
+   * Возврат клиенту (сотрудник, перевод): деньги заказа уменьшаются на сумму возврата. Не больше refundable — по живому
+   * заказу только переплата, поэтому оплаченный заказ остаётся оплаченным, а выручка (paid_at, «к оплате») не меняется.
+   */
+  refundMoney(r: { amount: number; paidAt: Date; label: string; reason: string; actor: string }): { refundable: number } {
+    if (!Number.isInteger(r.amount) || r.amount <= 0) throw new OrderingError("paymentRule", "Сумма возврата — целое число тенге больше нуля");
+    const cancelled = this.props.status === "cancelled";
+    const limit = this.refundable;
+    if (limit <= 0)
+      throw new OrderingError("paymentRule", cancelled ? "По заказу нет полученных денег — возвращать нечего" : "Переплаты по заказу нет. Чтобы вернуть оплату заказа, сначала отмените его");
+    if (r.amount > limit)
+      throw new OrderingError("paymentRule", cancelled ? `Вернуть можно не больше ${formatPrice(limit)} — столько получено по заказу` : `Вернуть можно не больше ${formatPrice(limit)} — это переплата; остальное — оплата заказа`);
+    this.props.receivedAmount -= r.amount;
+    this.log(null, `Возврат ${formatPrice(r.amount)} клиенту (${r.label}). Причина: ${r.reason}`, r.actor, r.paidAt);
+    return { refundable: this.refundable };
+  }
+
+  /**
+   * Электронную версию — в печатную (сотрудник): клиент доплатил или доплатит. Только оплаченный заказ в статусе «Оплачен»
+   * (неоплаченный меняют в «Условиях» — changeTerms). Цена — по прайсу печатного тарифа, как при оформлении: промокод заказа
+   * и предоплата по сделке остаются (предоплата — авансом), доставка — та, что в заказе (у электронной её нет: укажут в
+   * «Правке данных»). Полученные деньги засчитываются:
+   * - хватает — заказ остаётся оплаченным и идёт в печать обычным путём (статус «Оплачен» → «В печати»); лишнее — переплата
+   *   к возврату или решению в «Финансах»;
+   * - не хватает — заказ снова ждёт оплаты остатка (выручка — когда деньги покроют новую сумму): в печать — только после
+   *   оплаты или явной постоплаты, как любой печатный заказ.
+   */
+  upgradeToPrinted(input: { plan: PlanId; discount: Discount | null; planName: (id: PlanId) => string }, actor: string, now: Date): { due: number; credited: number; outstanding: number; overpaid: number } {
+    if (this.props.status === "cancelled") throw new OrderingError("paymentRule", "Заказ отменён: оформите новый заказ");
+    if (this.isPrinted) throw new OrderingError("paymentRule", "Заказ уже на печатную книгу");
+    if (!this.props.paidAt) throw new OrderingError("paymentRule", "Электронная версия ещё не оплачена: смените тариф в «Условиях», и клиент оплатит сразу печатную");
+    if (this.props.status !== "paid") throw new OrderingError("paymentRule", "Перевести в печатную можно заказ в статусе «Оплачен»");
+    const plan = getPlan(input.plan);
+    if (!plan?.printed) throw new OrderingError("paymentRule", "Выберите печатный тариф");
+    const before = this.props.price;
+    const prepaid = before.prepaidAmount ?? 0;
+    // Как changeTerms без договорённой цены: прайс тарифа, внесённая по сделке предоплата — авансом.
+    const agreement: Agreement | null = prepaid > 0 ? { agreedTotal: Number.POSITIVE_INFINITY, prepaid } : null;
+    const price = calculatePrice(plan.id, 1, this.props.delivery.method, input.discount, before.addons, agreement);
+    const planBefore = this.props.plan;
+    this.props.plan = plan.id;
+    this.props.quantity = 1;
+    this.props.price = price;
+    const received = this.props.receivedAmount;
+    const credited = Math.max(0, Math.min(received, price.amount));
+    const outstanding = Math.max(0, price.amount - received);
+    const overpaid = Math.max(0, received - price.amount);
+    this.log(null, `${input.planName(planBefore)} → ${input.planName(plan.id)}, зачтено ${formatPrice(credited)}, к доплате ${formatPrice(outstanding)}${prepaid > 0 ? ` (предоплата по сделке ${formatPrice(price.prepaidAmount ?? 0)} учтена)` : ""}${overpaid > 0 ? `; переплата ${formatPrice(overpaid)} — к возврату` : ""}`, actor, now);
+    if (outstanding > 0) {
+      // Новая сумма не покрыта: выручка не признана, заказ ждёт доплату (в печать — после неё или с постоплатой).
+      this.props.status = "pending_payment";
+      this.props.paidAt = null;
+      this.props.paymentClaimedAt = null;
+      this.log("pending_payment", `Ждёт доплату ${formatPrice(outstanding)}`, actor, now);
+    }
+    this.record(OrderingEvents.orderRepriced({ ...this.ref(), previousAmount: before.amount, previousPlan: planBefore, actor }));
+    return { due: price.amount, credited, outstanding, overpaid };
   }
 
   recordPrintSpec(spec: OrderPrintSpec) {

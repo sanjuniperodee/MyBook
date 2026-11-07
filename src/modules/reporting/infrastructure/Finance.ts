@@ -2,7 +2,7 @@ import "server-only";
 import { sql } from "drizzle-orm";
 import { executor } from "@/shared/infrastructure/database";
 import { answeredSql, readySql, totalSql, wordsSql } from "@/shared/infrastructure/db/bookProgress";
-import { REFUND_WINDOW_DAYS, type FinanceDealRow, type FinanceOrderRow, type MoneyRow, type ReviewRow, type UnrecordedRow } from "../ui/finance-screen";
+import { REFUND_WINDOW_DAYS, type FinanceDealRow, type FinanceResolutionRow, type FinanceOrderRow, type MoneyRow, type ReviewRow, type UnrecordedRow } from "../ui/finance-screen";
 
 type Row = Record<string, unknown>;
 
@@ -18,7 +18,7 @@ const orderDeal = sql.raw(`left join lateral (select d.id, d.number, d.assignee_
 /**
  * Деньги за период [from, to) — каждая сумма ровно один раз:
  * - платежи сделок (crm_payments): предоплаты, доплаты, возвраты; ручные с чеком и онлайн по счёту из чата;
- * - журнал денег заказов (order_payments): переводы с чеком и онлайн-оплаты; заказ по договорённости хранит только
+ * - журнал денег заказов (order_payments): переводы с чеком, онлайн-оплаты и возвраты клиенту (kind refund — со знаком минус); заказ по договорённости хранит только
  *   «к оплате», предоплата сделки в нём вычтена, — поэтому платёж сделки и оплата заказа не пересекаются;
  * - заказы, оплаченные без записи в журнале (до журнала или «подтвердить оплату» без денег): к оплате − записано
  *   в журнал, на дату paid_at; как только оплату приложат с чеком, остаток уходит в ноль — без двойного счёта;
@@ -42,7 +42,7 @@ export async function financeMoney(from: Date, to: Date): Promise<MoneyRow[]> {
       left join deal_invoices i on i.id = p.invoice_id
       where p.paid_at >= ${at(from)} and p.paid_at < ${at(to)}
       union all
-      select op.id, 'order', 'order', case op.method when 'cloudpayments' then 'card' else op.method end, op.amount, op.paid_at,
+      select op.id, 'order', case op.kind when 'refund' then 'refund' else 'order' end, case op.method when 'cloudpayments' then 'card' else op.method end, op.amount, op.paid_at,
         od.id, od.number, o.id, o.number, null,
         o.contact_name, coalesce(od.assignee_id, o.assignee_id), op.created_by_id,
         case when op.receipt_storage_key is not null then op.id end,
@@ -59,7 +59,8 @@ export async function financeMoney(from: Date, to: Date): Promise<MoneyRow[]> {
         o.contact_name, coalesce(od.assignee_id, o.assignee_id), null, null, null, null, null
       from orders o
       ${orderDeal}
-      left join lateral (select sum(x.amount)::int as sum from order_payments x where x.order_id = o.id) j on true
+      -- Оплачено без записи — к оплате минус записанные оплаты (возвраты сюда не входят: они — своими строками со знаком минус).
+      left join lateral (select (sum(x.amount) filter (where x.kind = 'payment'))::int as sum from order_payments x where x.order_id = o.id) j on true
       where o.paid_at >= ${at(from)} and o.paid_at < ${at(to)} and o.status <> 'cancelled' and o.amount > coalesce(j.sum, 0)
       union all
       select g.id, 'gift', 'gift',
@@ -182,11 +183,12 @@ export async function financeDeals(): Promise<FinanceDealRow[]> {
 export async function financeOrders(): Promise<FinanceOrderRow[]> {
   const r = await executor().execute<Row>(sql`
     select o.id, o.number, o.contact_name as client, coalesce(od.assignee_id, o.assignee_id) as manager_id, od.id as deal_id, od.number as deal_number,
-      o.status, o.postpay, o.amount, o.prepaid_amount as prepaid, o.paid_at, o.desired_date, o.created_at, o.payment_claimed_at,
+      o.status, o.plan, o.postpay, o.amount, o.prepaid_amount as prepaid, o.paid_at, o.desired_date, o.created_at, o.payment_claimed_at,
       coalesce(j.sum, 0)::int as received
     from orders o
     ${orderDeal}
-    left join lateral (select sum(x.amount)::int as sum, max(x.paid_at) as last_at from order_payments x where x.order_id = o.id) j on true
+    -- Получено — оплаты минус возвраты клиенту.
+    left join lateral (select sum(case when x.kind = 'refund' then -x.amount else x.amount end)::int as sum, max(x.paid_at) as last_at from order_payments x where x.order_id = o.id) j on true
     where (o.status = 'pending_payment' and o.amount > coalesce(j.sum, 0))
       or (o.status <> 'cancelled' and o.postpay and o.paid_at is null)
       or (o.status <> 'cancelled' and coalesce(j.sum, 0) > o.amount)
@@ -199,6 +201,7 @@ export async function financeOrders(): Promise<FinanceOrderRow[]> {
     dealId: str(x.deal_id),
     dealNumber: x.deal_number === null ? null : num(x.deal_number),
     status: String(x.status),
+    plan: String(x.plan ?? ""),
     postpay: !!x.postpay,
     amount: num(x.amount),
     prepaid: num(x.prepaid),
@@ -235,7 +238,7 @@ export async function financeUnrecorded(): Promise<UnrecordedRow[]> {
       -- Сумма оплаты не совпала со счётом: Kaspi деньги принял, мы платёж не засчитали (provider_status «AmountMismatch:<сумма>»).
       and ((pi.status = 'failed' and pi.provider_status like 'AmountMismatch:%') or (pi.status = 'paid' and case pi.target_kind
         when 'deal_invoice' then not exists (select 1 from crm_payments p where p.method = 'kaspi' and p.external_ref in (pi.external_id, 'kaspi:' || pi.external_id))
-        when 'order' then not exists (select 1 from order_payments x where x.method = 'kaspi' and x.external_ref in (pi.external_id, 'kaspi:' || pi.external_id))
+        when 'order' then not exists (select 1 from order_payments x where x.kind = 'payment' and x.method = 'kaspi' and x.external_ref in (pi.external_id, 'kaspi:' || pi.external_id))
         when 'gift' then g.payment_id is distinct from 'kaspi:' || pi.external_id
         when 'ai_pack' then ap.payment_id is distinct from 'kaspi:' || pi.external_id
         when 'media_pack' then mp.payment_id is distinct from 'kaspi:' || pi.external_id
@@ -284,7 +287,7 @@ export async function financeReview(): Promise<ReviewRow[]> {
       -- Возвраты тоже: ручной возврат уменьшает «Пришло», его чек нужно сверить так же, как поступление.
       where p.method = 'manual' and p.reviewed_at is null
       union all
-      select 'order', op.id, 'order', op.amount, op.paid_at, op.created_by_id,
+      select 'order', op.id, case op.kind when 'refund' then 'refund' else 'order' end, op.amount, op.paid_at, op.created_by_id,
         od.id, od.number, o.id, o.number, coalesce(od.assignee_id, o.assignee_id),
         o.contact_name, case when op.receipt_storage_key is not null then op.id end,
         op.note, null
@@ -314,8 +317,39 @@ export async function financeReview(): Promise<ReviewRow[]> {
   }));
 }
 
-/** Всё для страницы «Финансы»: деньги за период (вместе с прошлым — для сравнения), ожидаемые, должные и «проверить». */
+/**
+ * Решения по случаям «Нужно вернуть или зачесть» (finance_issue_resolutions): все действующие — по ним случаи скрываются
+ * (ключ и сумма совпали), и отменённые за последние дни — для блока «Решённые» они не нужны, поэтому не грузятся.
+ */
+export async function financeResolutions(): Promise<FinanceResolutionRow[]> {
+  const r = await executor().execute<Row>(sql`
+    select id, key, amount, note, title, ref, client, href, manager_id, resolved_by_id, resolved_at
+    from finance_issue_resolutions
+    where undone_at is null
+    order by resolved_at desc`);
+  return r.rows.map((x) => ({
+    id: String(x.id),
+    key: String(x.key),
+    amount: num(x.amount),
+    note: String(x.note ?? ""),
+    title: String(x.title ?? ""),
+    ref: String(x.ref ?? ""),
+    client: String(x.client ?? ""),
+    href: str(x.href),
+    managerId: str(x.manager_id),
+    resolvedById: str(x.resolved_by_id),
+    resolvedAt: date(x.resolved_at)!,
+  }));
+}
+
+/** Случаи «Нужно вернуть или зачесть» без денег периода и «проверить» — для действий очереди (сверить ключ и сумму). */
+export async function financeIssueData() {
+  const [deals, orders, unrecorded] = await Promise.all([financeDeals(), financeOrders(), financeUnrecorded()]);
+  return { deals, orders, unrecorded };
+}
+
+/** Всё для страницы «Финансы»: деньги за период (вместе с прошлым — для сравнения), ожидаемые, должные, «проверить» и решения. */
 export async function financeReport(range: { from: Date; to: Date }) {
-  const [money, deals, orders, unrecorded, review] = await Promise.all([financeMoney(range.from, range.to), financeDeals(), financeOrders(), financeUnrecorded(), financeReview()]);
-  return { money, deals, orders, unrecorded, review };
+  const [money, deals, orders, unrecorded, review, resolutions] = await Promise.all([financeMoney(range.from, range.to), financeDeals(), financeOrders(), financeUnrecorded(), financeReview(), financeResolutions()]);
+  return { money, deals, orders, unrecorded, review, resolutions };
 }

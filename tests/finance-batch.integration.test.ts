@@ -122,7 +122,7 @@ run("Финансы: пакеты книг, отменённый заказ, п�
     const { deals, s } = await screenOf();
     // Полностью оплаченные книги пакета даже не выбираются (подзапрос книги не считается зря).
     expect(deals.some((d) => [ids.b0, ids.b1, ids.b2].includes(d.id))).toBe(false);
-    const refs = (key: string) => `Сделка №${deals.find((d) => d.id === ids[key])?.number}`;
+    const refs = (key: string) => `Сделка Д${deals.find((d) => d.id === ids[key])?.number}`;
     expect(s.expected.rows.some((r) => [ids.b0, ids.b1, ids.b2].some((id) => r.href.endsWith(id)))).toBe(false);
     // Переплата второго пакета — по книгам: 12 500 − 10 000 у каждой.
     const over = s.issues.filter((i) => i.kind === "deal_overpaid").map((i) => [i.ref, i.amount]);
@@ -137,8 +137,8 @@ run("Финансы: пакеты книг, отменённый заказ, п�
   it("заказ отменён, предоплата по сделке у нас — «нужен возврат»; лишнее после живого заказа — тоже; лимит возврата", async () => {
     const { s, deals } = await screenOf();
     const n = (key: string) => deals.find((d) => d.id === ids[key])?.number;
-    expect(s.issues.find((i) => i.ref === `Сделка №${n("x")}`)).toMatchObject({ kind: "deal_lost", amount: 6000 });
-    expect(s.issues.find((i) => i.ref === `Сделка №${n("y")}`)).toMatchObject({ kind: "deal_after_order", amount: 1000 });
+    expect(s.issues.find((i) => i.ref === `Сделка Д${n("x")}`)).toMatchObject({ kind: "deal_lost", amount: 6000 });
+    expect(s.issues.find((i) => i.ref === `Сделка Д${n("y")}`)).toMatchObject({ kind: "deal_after_order", amount: 1000 });
     // Отменённый заказ — можно вернуть всё внесённое по сделке; живой — только лишнее (12 000 − 1 000 возврата − 10 000).
     expect(await dealRefundAfterOrder(ids.x)).toBe(6000);
     expect(await dealRefundAfterOrder(ids.y)).toBe(1000);

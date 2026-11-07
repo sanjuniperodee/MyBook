@@ -6,6 +6,7 @@ import { customFieldsReader } from "./infrastructure/fields";
 import { staffNotifier } from "./infrastructure/notify";
 import { liveFeed } from "./infrastructure/realtime";
 import { workSchedule } from "./infrastructure/schedule";
+import { financeResolutions } from "./infrastructure/financeResolutions";
 
 export { WorkspaceError } from "./domain";
 export { getSetting, getSettings, saveSettings, deleteSetting, ensureToken, fromEnv, maskSecret, type SettingKey } from "./infrastructure/settings";
@@ -19,6 +20,7 @@ export { pinnedChats } from "./infrastructure/pinnedChats";
 export { mobileDevices } from "./infrastructure/mobileDevices";
 export { staffNotifications } from "./infrastructure/notificationsList";
 export { smtpConfig, smtpFromEnvironment } from "./infrastructure/mail";
+export type { FinanceResolutionInput } from "./infrastructure/financeResolutions";
 
 /** Публичный фасад контекста «Рабочее пространство CRM»: свои поля, шаблоны ответов, уведомления и push сотрудников. */
 export class WorkspaceModule {
@@ -27,6 +29,8 @@ export class WorkspaceModule {
   readonly personalTemplates = personalTemplates;
   readonly inbox = drizzleInbox;
   readonly pinnedChats = pinnedChats;
+  /** «Финансы»: случаи «Нужно вернуть или зачесть», отмеченные решёнными (с комментарием), и отмена решения. */
+  readonly financeResolutions = financeResolutions;
 
   // Порты для других модулей (src/shared/application): модули получают их из корня композиции, а не импортом.
   /** Настройки «Интеграций»: модуль видит только объявленные им ключи. */

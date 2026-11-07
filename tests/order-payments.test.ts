@@ -108,3 +108,118 @@ describe("Деньги по заказу", () => {
   });
 });
 
+describe("Возврат клиенту по заказу", () => {
+  const refund = (t: ReturnType<typeof setup>, orderId: string, amount: number, extra: { note?: string; bytes?: Buffer | null } = {}) =>
+    t.money.refund({ orderId, amount, note: extra.note ?? "лишний перевод", receipt: extra.bytes === null ? null : extra.bytes ? { bytes: extra.bytes, fileName: "возврат.png" } : null, actor: staff });
+
+  it("живой заказ: вернуть можно только переплату, частями; получено уменьшается, заказ остаётся оплаченным", async () => {
+    const t = setup();
+    const o = await t.order();
+    await t.manual(o.id, o.amount + 500);
+    expect((await t.orders.findById(o.id))!.refundable).toBe(500);
+    await expect(refund(t, o.id, 600)).rejects.toMatchObject({ code: "paymentRule", message: expect.stringContaining("не больше") });
+    expect(await refund(t, o.id, 300, { bytes: PNG })).toMatchObject({ refundable: 200, payment: { kind: "refund", amount: 300, method: "manual", note: "лишний перевод" } });
+    let fresh = (await t.orders.findById(o.id))!;
+    expect([fresh.status, fresh.received, fresh.isSettled]).toEqual(["paid", o.amount + 200, true]);
+    expect(await refund(t, o.id, 200)).toMatchObject({ refundable: 0, payment: { receipt: null } });
+    fresh = (await t.orders.findById(o.id))!;
+    expect([fresh.received, fresh.refundable, fresh.outstanding]).toEqual([o.amount, 0, 0]);
+    // Переплаты больше нет — оплату самого заказа так не вернуть (только отменив заказ).
+    await expect(refund(t, o.id, 1)).rejects.toMatchObject({ code: "paymentRule", message: expect.stringContaining("Переплаты по заказу нет") });
+    expect(t.payments.rows.map((r) => [r.kind, r.amount])).toEqual([
+      ["payment", o.amount + 500],
+      ["refund", 300],
+      ["refund", 200],
+    ]);
+    // Чек возврата — только у первого; файл лежит рядом с чеками оплат.
+    expect([...t.files.keys()].filter((k) => k.includes(t.payments.rows[1].id))).toHaveLength(1);
+  });
+
+  it("отменённый заказ: вернуть можно всё полученное (и частично); больше — нельзя", async () => {
+    const t = setup();
+    const o = await t.order();
+    await t.manual(o.id, o.amount);
+    await t.svc.changeStatus({ orderId: o.id, to: "cancelled" }, admin);
+    expect((await t.orders.findById(o.id))!.refundable).toBe(o.amount);
+    await expect(refund(t, o.id, o.amount + 1)).rejects.toMatchObject({ code: "paymentRule" });
+    await refund(t, o.id, 1000);
+    expect((await t.orders.findById(o.id))!.refundable).toBe(o.amount - 1000);
+    await refund(t, o.id, o.amount - 1000);
+    const fresh = (await t.orders.findById(o.id))!;
+    expect([fresh.status, fresh.received, fresh.refundable]).toEqual(["cancelled", 0, 0]);
+    await expect(refund(t, o.id, 1)).rejects.toMatchObject({ message: expect.stringContaining("возвращать нечего") });
+  });
+
+  it("без причины, с нулём или с битым чеком — ничего не записано; запись в журнале заказа", async () => {
+    const t = setup();
+    const o = await t.order();
+    await t.manual(o.id, o.amount + 1000);
+    const files = t.files.size;
+    await expect(refund(t, o.id, 100, { note: " a " })).rejects.toMatchObject({ code: "paymentRule" });
+    await expect(refund(t, o.id, 0)).rejects.toMatchObject({ code: "paymentRule" });
+    await expect(refund(t, o.id, 100, { bytes: Buffer.from("hello") })).rejects.toMatchObject({ code: "receiptInvalid" });
+    // Отказ правила денег после сохранения чека — файл убран.
+    await expect(refund(t, o.id, 5000, { bytes: PNG })).rejects.toMatchObject({ code: "paymentRule" });
+    expect([t.payments.rows.length, t.files.size]).toEqual([1, files]);
+    await refund(t, o.id, 1000, { note: "клиент перевёл дважды" });
+    const history = t.orders.history.filter((h) => h.orderId === o.id);
+    expect(history.map((h) => h.note).at(-1)).toMatch(/^Возврат 1\s000 ₸ клиенту \(перевод, без чека\)\. Причина: клиент перевёл дважды$/);
+  });
+
+  it("сводка денег заказа: сколько можно вернуть", async () => {
+    const t = setup();
+    const o = await t.order();
+    await t.manual(o.id, o.amount + 700);
+    expect(await t.money.summary(o.id)).toMatchObject({ due: o.amount, received: o.amount + 700, refundable: 700 });
+  });
+});
+
+describe("«Перевести в печатную» (сотрудник)", () => {
+  const digital = async (t: ReturnType<typeof setup>) => {
+    t.books.books.set("book-1", { userId: "user-1", status: "draft", blocking: null });
+    return t.place({ plan: "digital", delivery: { method: null, city: null, address: null, postalCode: null } });
+  };
+
+  it("получено больше цены печатной — заказ остаётся оплаченным, лишнее — переплата; файлы — событием", async () => {
+    const t = setup();
+    const o = await digital(t);
+    await t.manual(o.id, 9900);
+    await t.manual(o.id, 22000);
+    const r = await t.svc.upgradeToPrinted({ orderId: o.id, plan: "hardcover" }, admin);
+    expect(r).toMatchObject({ due: 30000, credited: 30000, outstanding: 0, overpaid: 1900 });
+    const fresh = (await t.orders.findById(o.id))!;
+    expect([fresh.plan, fresh.amount, fresh.status, fresh.isSettled, fresh.refundable]).toEqual(["hardcover", 30000, "paid", true, 1900]);
+    expect(t.uow.types()).toContain("ordering.order_repriced");
+    const note = t.orders.history.filter((h) => h.orderId === o.id).at(-1)?.note.replace(/\s/g, " ");
+    expect(note).toMatch(/→ .+, зачтено 30 000 ₸, к доплате 0 ₸; переплата 1 900 ₸ — к возврату$/);
+  });
+
+  it("получено меньше — заказ ждёт доплату остатка; доплата пришла — оплачен и пойдёт в печать", async () => {
+    const t = setup();
+    const o = await digital(t);
+    await t.manual(o.id, 9900);
+    const r = await t.svc.upgradeToPrinted({ orderId: o.id, plan: "hardcover" }, admin);
+    expect(r).toMatchObject({ due: 30000, credited: 9900, outstanding: 20100, overpaid: 0 });
+    let fresh = (await t.orders.findById(o.id))!;
+    expect([fresh.status, fresh.isSettled, fresh.outstanding]).toEqual(["pending_payment", false, 20100]);
+    // Неоплаченный печатный — не в печать в обход оплаты.
+    await expect(t.svc.changeStatus({ orderId: o.id, to: "in_production" }, admin)).rejects.toMatchObject({ code: "paymentRule" });
+    expect(await t.manual(o.id, 20100)).toMatchObject({ settled: true, overpaid: 0 });
+    fresh = (await t.orders.findById(o.id))!;
+    expect([fresh.status, fresh.isSettled]).toEqual(["paid", true]);
+  });
+
+  it("уже печатный, отменённый и неоплаченный — отказ", async () => {
+    const t = setup();
+    const printed = await t.order();
+    await t.manual(printed.id, printed.amount);
+    await expect(t.svc.upgradeToPrinted({ orderId: printed.id, plan: "premium" }, admin)).rejects.toMatchObject({ code: "paymentRule", message: "Заказ уже на печатную книгу" });
+    const unpaid = await digital(t);
+    await expect(t.svc.upgradeToPrinted({ orderId: unpaid.id, plan: "hardcover" }, admin)).rejects.toMatchObject({ message: expect.stringContaining("ещё не оплачена") });
+    await t.manual(unpaid.id, 9900);
+    await expect(t.svc.upgradeToPrinted({ orderId: unpaid.id, plan: "digital" }, admin)).rejects.toMatchObject({ message: "Выберите печатный тариф" });
+    await t.svc.changeStatus({ orderId: unpaid.id, to: "cancelled" }, admin);
+    await expect(t.svc.upgradeToPrinted({ orderId: unpaid.id, plan: "hardcover" }, admin)).rejects.toMatchObject({ message: "Заказ отменён: оформите новый заказ" });
+  });
+});
+

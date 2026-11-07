@@ -1,6 +1,7 @@
 import "server-only";
 import type { Clock, EventBus, Logger, Mailer, SettingsStore, StaffNotifier, UnitOfWork } from "@/shared/application";
 import { toIsoDay } from "@/lib/occasions";
+import { getPlan } from "@/config/site";
 import { runInBackground } from "@/shared/infrastructure/background";
 import { DealInvoiceLifecycle, DealInvoicesService, GiftsService, KaspiPaymentsService, KaspiSetupService, KaspiWatchService, OrderPaymentsService, OrdersService, PromoService, type InvoiceSales, type KaspiAiPacks, type KaspiWatchSettingKey, type AgreementGateway, type BookGateway, type GiftPdfRenderer, type KaspiConfigStore, type PrintFiles } from "./application";
 import type { OrderingEvent } from "./domain";
@@ -131,6 +132,21 @@ export class OrderingModule {
         }, this.deps.logger);
       },
       "ordering.print.warm_up",
+    );
+    // Электронную перевели в печатную и денег хватило (заказ «Оплачен»): файлы для типографии — как после оплаты.
+    // Не хватило — заказ ждёт доплату, файлы подготовит оплата (order_paid) или постоплата.
+    on(
+      "ordering.order_repriced",
+      async (e) => {
+        if (!getPlan(e.payload.plan)?.printed || getPlan(e.payload.previousPlan)?.printed !== false) return;
+        runInBackground(async () => {
+          const order = await this.orders.findByNumber(e.payload.number);
+          if (!order || order.status !== "paid") return;
+          const { spec } = await this.deps.printFiles.warmUp({ orderId: e.payload.orderId, bookId: e.payload.bookId, number: e.payload.number, plan: e.payload.plan, quantity: order.snapshot().quantity });
+          if (spec) await this.orders.recordPrintSpec(e.payload.orderId, spec);
+        }, this.deps.logger);
+      },
+      "ordering.print.warm_up_upgrade",
     );
     // В печать с постоплатой — файлы для типографии нужны так же, как после оплаты.
     on(

@@ -262,6 +262,23 @@ export class OrdersService {
     });
   }
 
+  /**
+   * «Перевести в печатную»: оплаченную электронную версию — в печатный тариф (по умолчанию твёрдая обложка). Цена — по прайсу,
+   * полученные деньги засчитываются (Order.upgradeToPrinted). Под блокировкой заказа: одновременная оплата не потеряется.
+   */
+  async upgradeToPrinted(cmd: { orderId: string; plan: PlanId }, actor: Actor) {
+    return this.uow.run(async () => {
+      const order = await this.orders.lockById(cmd.orderId);
+      if (!order) throw new OrderingError("orderNotFound");
+      const code = order.promoCode;
+      const promo = code ? await this.promos.findByCode(code) : null;
+      const result = order.upgradeToPrinted({ plan: cmd.plan, discount: promo?.discount ?? null, planName: (id) => planName(id) }, actor.label, this.clock.now());
+      await this.orders.save(order);
+      this.uow.track(order);
+      return { order, ...result };
+    });
+  }
+
   async toggleBookEditing(orderId: string, actor: Actor) {
     return this.mutate(orderId, async (order, now) => {
       const next = await this.books.toggleEditing(order.bookId);

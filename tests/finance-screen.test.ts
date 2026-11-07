@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { financePeriod, financeScreen, type FinanceDealRow, type FinanceOrderRow, type MoneyRow, type ReviewRow } from "@/modules/reporting/ui/finance-screen";
+import { financePeriod, financeScreen, RESOLVED_DAYS, type FinanceDealRow, type FinanceOrderRow, type FinanceResolutionRow, type MoneyRow, type ReviewRow } from "@/modules/reporting/ui/finance-screen";
 
 /** Модель экрана «Финансы»: период по времени магазина, нетто и разбивки, ожидаемые доплаты, переплаты, «Проверить». */
 const TZ = "Asia/Almaty"; // UTC+5
@@ -305,5 +305,73 @@ describe("financeScreen: ожидается, переплаты, «Провер�
       ["r9", "Возврат клиенту", true, true],
       ["p9", "Платёж", false, false],
     ]);
+  });
+});
+
+describe("financeScreen: возвраты по заказу и решённые случаи", () => {
+  const resolution = (over: Partial<FinanceResolutionRow> & Pick<FinanceResolutionRow, "key" | "amount">): FinanceResolutionRow => ({
+    id: `r-${over.key}`,
+    note: "вернули наличными",
+    title: "Переплата по заказу",
+    ref: "Заказ №23",
+    client: "Клиент",
+    href: "/admin/orders/overpaid",
+    managerId: "m2",
+    resolvedById: "m1",
+    resolvedAt: new Date("2026-10-15T10:00:00Z"),
+    ...over,
+  });
+  const orders = [
+    order({ id: "overpaid", number: 23, amount: 10000, received: 11000, status: "paid", paidAt: now, plan: "hardcover" }),
+    order({ id: "digital", number: 25, amount: 9900, received: 30000, status: "paid", paidAt: now, plan: "digital" }),
+    order({ id: "cancelled", number: 24, amount: 7000, received: 7000, status: "cancelled", plan: "digital" }),
+  ];
+
+  it("возврат по заказу — минусом в «Пришло» и в возвратах; ручной — в «Проверить» как «Возврат клиенту»", () => {
+    const s = screen({
+      money: [
+        money({ id: "op1", kind: "order", amount: 11000, at: new Date("2026-10-10T07:00:00Z"), orderId: "overpaid", orderNumber: 23 }),
+        money({ id: "op2", kind: "refund", source: "order", amount: 1000, at: new Date("2026-10-12T07:00:00Z"), orderId: "overpaid", orderNumber: 23, receiptId: "op2" }),
+      ],
+      review: [{ kind: "order", id: "op2", paymentKind: "refund", amount: 1000, at: now, acceptedById: "m1", dealId: null, dealNumber: null, orderId: "overpaid", orderNumber: 23, managerId: "m2", client: "К", receiptId: null, note: "лишний перевод", invoiceNumber: null }],
+    });
+    expect(s.totals).toMatchObject({ net: 10000, incoming: 11000, refunds: 1000, refundCount: 1 });
+    expect(s.refunds).toHaveLength(1);
+    expect(s.refunds[0]).toMatchObject({ amount: -1000, refund: true, what: "Возврат клиенту", receiptHref: "/api/admin/order-payments/op2/receipt", check: "pending" });
+    expect(s.review[0]).toMatchObject({ what: "Возврат клиенту", refund: true, kind: "order" });
+  });
+
+  it("случай: чем закрыть (сделка или заказ) и «в печатную» — только у оплаченной электронной с переплатой", () => {
+    const s = screen({ orders, deals: [deal({ id: "over", number: 9, agreed: 10000, paid: 12000 })] });
+    const by = (key: string) => s.issues.find((i) => i.key === key)!;
+    expect(by("do:over")).toMatchObject({ target: { kind: "deal", id: "over", number: 9 }, canUpgrade: false, managerId: "m1" });
+    expect(by("oo:overpaid")).toMatchObject({ target: { kind: "order", id: "overpaid", number: 23 }, canUpgrade: false, amount: 1000 });
+    expect(by("oo:digital")).toMatchObject({ canUpgrade: true, amount: 20100, received: 30000 });
+    expect(by("oc:cancelled")).toMatchObject({ target: { kind: "order", id: "cancelled", number: 24 }, canUpgrade: false, amount: 7000 });
+  });
+
+  it("решённый случай скрыт, пока сумма та же; сумма изменилась — снова в очереди; «Решённые» — за последние дни", () => {
+    const resolutions = [resolution({ key: "oo:overpaid", amount: 1000 }), resolution({ key: "oc:cancelled", amount: 5000, title: "Заказ отменён — деньги получены", ref: "Заказ №24" })];
+    const s = screen({ orders, resolutions });
+    // Переплата 1 000 решена — скрыта; у отменённого решено при 5 000, а получено 7 000 — случай вернулся.
+    expect(s.issues.map((i) => i.key)).toEqual(["oo:digital", "oc:cancelled"]);
+    expect(s.totals).toMatchObject({ overpaid: 20100 + 7000, overpaidCount: 2 });
+    expect(s.resolved.map((r) => [r.key, r.amount, r.by, r.note, r.stillOpen])).toEqual([
+      ["oo:overpaid", 1000, "Айгерим", "вернули наличными", true],
+      ["oc:cancelled", 5000, "Айгерим", "вернули наличными", false],
+    ]);
+    // Переплату вернули — случая нет и без решения.
+    const after = screen({ orders: [order({ id: "overpaid", number: 23, amount: 10000, received: 10000, status: "paid", paidAt: now })], resolutions });
+    expect(after.issues).toEqual([]);
+    expect(after.resolved.find((r) => r.key === "oo:overpaid")?.stillOpen).toBe(false);
+  });
+
+  it("«Решённые»: старше срока — не показываем (а случай скрыт); роль «только свои» — только свои", () => {
+    const old = resolution({ key: "oo:overpaid", amount: 1000, resolvedAt: new Date(now.getTime() - (RESOLVED_DAYS + 1) * 86_400_000) });
+    const s = screen({ orders, resolutions: [old] });
+    expect(s.resolved).toEqual([]);
+    expect(s.issues.some((i) => i.key === "oo:overpaid")).toBe(false);
+    const mine = screen({ orders, resolutions: [resolution({ key: "oo:overpaid", amount: 1000 })], visible: (id) => id === "m1" });
+    expect(mine.resolved).toEqual([]);
   });
 });

@@ -229,12 +229,17 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
                   status={order.status}
                   due={order.amount}
                   received={order.receivedAmount}
+                  orderNumber={order.number}
+                  // Как Order.refundable: по отменённому — всё полученное, по живому — переплата (проверяет и сервер).
+                  refundable={order.status === "cancelled" ? Math.max(0, order.receivedAmount) : Math.max(0, order.receivedAmount - order.amount)}
+                  digital={!printed}
                   postpay={order.postpay}
                   settled={!!order.paidAt}
                   canEdit={canEdit}
                   canReview={can(staff, "team.manage")}
                   rows={moneyRows.map((r) => ({
                     id: r.id,
+                    kind: r.kind,
                     amount: r.amount,
                     method: r.method,
                     ref: r.externalRef,

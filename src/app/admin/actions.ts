@@ -181,6 +181,34 @@ export async function reviewOrderPaymentAction(paymentId: string): Promise<Admin
 }
 
 /**
+ * «Перевести в печатную»: оплаченную электронную версию — в печатный тариф (по умолчанию твёрдая обложка). Полученные деньги
+ * засчитываются: хватает — заказ остаётся оплаченным и идёт в печать; нет — ждёт доплату. Права — orders.edit и заказ виден.
+ */
+export async function upgradeOrderToPrintedAction(orderId: string, plan: string): Promise<AdminState> {
+  const staff = await assertStaff("orders.edit");
+  const id = uuid.parse(orderId);
+  const target = getPlan(plan);
+  if (!target?.printed) return { error: "Выберите печатный тариф" };
+  await assertOrderVisible(staff, id);
+  let result: Awaited<ReturnType<ReturnType<typeof container>["ordering"]["orders"]["upgradeToPrinted"]>>;
+  try {
+    result = await container().ordering.orders.upgradeToPrinted({ orderId: id, plan: target.id }, staffActor(staff));
+  } catch (err) {
+    const error = staffActionError(err, OrderingError);
+    if (error === null) throw err;
+    return { error };
+  }
+  await audit(staff, "order.upgrade_printed", "order", id, { plan: target.id, due: result.due, credited: result.credited, outstanding: result.outstanding, overpaid: result.overpaid });
+  revalidatePath(`/admin/orders/${id}`);
+  revalidatePath("/admin/finance");
+  revalidatePath("/admin/board");
+  const money = (n: number) => `${n.toLocaleString("ru-RU")} ₸`;
+  return {
+    ok: result.outstanding > 0 ? `Заказ переведён в печатную: зачтено ${money(result.credited)}, к доплате ${money(result.outstanding)}` : `Заказ переведён в печатную и оплачен${result.overpaid > 0 ? `, переплата ${money(result.overpaid)} — к возврату` : ""}`,
+  };
+}
+
+/**
  * Массовая смена статуса. Пропущенные — по причинам: текст отказа домена («не оплачен — в печать только с постоплатой»,
  * «из этого статуса нельзя») → сколько заказов; чужие у роли «только свои» — «нет доступа».
  */
