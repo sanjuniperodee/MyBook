@@ -381,7 +381,8 @@ export function CoverDesigner({
       {sep}
       {tool(tb.safe, <ScanLine className="size-4" />, () => setShowSafe((v) => !v), false, showSafe)}
       {tool(tb.grid, <Grid3x3 className="size-4" />, () => setShowGrid((v) => !v), false, showGrid)}
-      <span className="ml-auto flex shrink-0 items-center gap-0.5 pl-2">
+      {/* Масштаб кнопками — на компьютере; на телефоне он не помещался в полосу и уезжал за край (там масштабируют жестом). */}
+      <span className="ml-auto flex shrink-0 items-center gap-0.5 pl-2 max-sm:hidden">
         {tool(tb.zoomOut, <ZoomOut className="size-4" />, () => setZoom((z) => ZOOMS[Math.max(0, ZOOMS.indexOf(z) - 1)]), zoom === ZOOMS[0])}
         <button type="button" onClick={() => setZoom(1)} className="h-9 min-w-10 shrink-0 rounded-[var(--r-ctl)] px-1.5 text-xs text-muted tabular-nums hover:bg-sunken pointer-coarse:h-11" title={tb.fit}>
           {Math.round(zoom * 100)}%
@@ -392,8 +393,8 @@ export function CoverDesigner({
   );
 
   const canvas = (
-    <div className="absolute inset-0 overflow-auto px-3 pt-14 pb-4 sm:px-6" hidden={!!stageSwap}>
-      <div className="mx-auto" style={{ width: zoom === 1 ? `min(100%, calc((100cqh - 4.5rem) * ${g.width / g.height}))` : `${zoom * 100}%` }}>
+    <div className="absolute inset-0 overflow-auto px-3 pt-[4.25rem] pb-4 sm:px-6 sm:pt-14" hidden={!!stageSwap}>
+      <div className="mx-auto" style={{ width: zoom === 1 ? `min(100%, calc((100cqh - 5.25rem) * ${g.width / g.height}))` : `${zoom * 100}%` }}>
         <DesignerCanvas
           dz={dz}
           template={template}
