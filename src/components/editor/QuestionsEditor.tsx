@@ -18,7 +18,7 @@ import { MediaStrip } from "./questions/MediaStrip";
 import { PhotoStrip, removePatch } from "./questions/PhotoStrip";
 import { PhotoEditor } from "@/components/photo-editor/PhotoEditor";
 import { BlankProgress, ProgressCard, QuestionPager } from "./questions/QuestionPager";
-import { BookOpen } from "@/components/motion/PageTransition";
+import { Morph } from "@/components/motion/PageTransition";
 import { SectionFields } from "./questions/SectionFields";
 import { AnswerToolbar, EditorTopBar, QuestionTicks } from "./questions/Toolbars";
 import { useInlinePhotos } from "./questions/useInlinePhotos";
@@ -647,7 +647,7 @@ function EditorBody({
             </div>
           ) : null}
           {q && group ? (
-<BookOpen name={`cover-${book.id}`}>
+<Morph name={`leaf-${book.id}`}>
                         <article data-help={`question:${q.id}`} className="rounded-[14px] border border-line bg-white max-sm:-mx-4 max-sm:rounded-none max-sm:border-x-0 max-sm:border-t-0">
               <div className="mx-auto max-w-[40rem] px-5 pt-5 pb-4 sm:px-10 sm:pt-12 sm:pb-6 lg:pt-14">
                 {/* На телефоне прогресс и объём — над вопросом (на компьютере они в полосе) */}
@@ -779,7 +779,7 @@ function EditorBody({
                 onRemove={removeQuestion}
               />
             </article>
-            </BookOpen>
+            </Morph>
           ) : emptyMode ? (
             <EmptyEditor
               mode={emptyMode}

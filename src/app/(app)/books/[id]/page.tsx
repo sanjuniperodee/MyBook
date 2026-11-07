@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Link } from "@/i18n/client";
-import { LinkPending } from "@/components/motion/LinkPending";
+import { OpenBookLink } from "@/components/motion/OpenBookLink";
 import { ChevronRight, CircleAlert, Mail, MessageCircle, PenLine, TriangleAlert } from "lucide-react";
 import { requireUser } from "@/server/auth";
 import { getAccessibleBook } from "@/server/books";
@@ -239,6 +239,7 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
           <div className="w-[92px] shrink-0 md:w-[150px] lg:mx-0 lg:w-full lg:max-w-[280px]">
             <Morph name={`cover-${book.id}`}>
               <Book3D
+                bookId={book.id}
                 template={book.coverTemplate}
                 format={book.format}
                 title={book.title}
@@ -271,14 +272,17 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
               )}
               {card.text ? <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-ink-soft">{card.text}</p> : null}
               <div className="mt-5 flex flex-wrap items-center gap-2.5">
-                <Link href={card.primary.href} prefetch className="btn btn-primary max-sm:w-full">
-                  {card.primary.icon ? (
-                    <LinkPending className="size-4">
-                      <PenLine className="size-4" aria-hidden />
-                    </LinkPending>
-                  ) : null}
-                  {card.primary.label}
-                </Link>
+                {/* «Ответить» в редактор — книга слева открывается, её страница «перетекает» в лист; остальное — обычная ссылка. */}
+                {card.primary.icon ? (
+                  <OpenBookLink bookId={book.id} href={card.primary.href} className="btn btn-primary max-sm:w-full">
+                    <PenLine className="size-4" aria-hidden />
+                    {card.primary.label}
+                  </OpenBookLink>
+                ) : (
+                  <Link href={card.primary.href} prefetch className="btn btn-primary max-sm:w-full">
+                    {card.primary.label}
+                  </Link>
+                )}
                 {card.secondary ? (
                   <Link href={card.secondary.href} className="btn btn-outline max-sm:w-full">
                     {card.secondary.label}

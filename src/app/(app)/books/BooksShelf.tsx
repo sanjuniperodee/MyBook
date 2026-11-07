@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Book3D } from "@/components/cover/Book3D";
 import { CoverPreview } from "@/components/cover/CoverPreview";
 import { Morph } from "@/components/motion/PageTransition";
-import { LinkPending } from "@/components/motion/LinkPending";
+import { OpenBookLink } from "@/components/motion/OpenBookLink";
 import { coverPhotoIds } from "@/lib/book/covers";
 import { coverNames } from "@/lib/book/cover-names";
 import { photoUrls } from "@/lib/urls";
@@ -138,7 +138,7 @@ export function HeroBook({ b, m, locale }: { b: ShelfBook; m: M; locale: Locale 
       {/* prefetch — страница книги грузится заранее: переход без заготовки, обложка «перетекает» сразу. */}
       <Link href={href} prefetch tabIndex={-1} aria-hidden className="block w-full [grid-area:cover] md:self-center">
         <Morph name={`cover-${book.id}`}>
-          <Book3D {...coverProps(book)} photos={photoUrls(coverPhotoIds(book), "view")} rotate={18} />
+          <Book3D {...coverProps(book)} bookId={book.id} photos={photoUrls(coverPhotoIds(book), "view")} rotate={18} />
         </Morph>
       </Link>
       <div className="min-w-0 [grid-area:head] md:self-end">
@@ -178,12 +178,10 @@ export function HeroBook({ b, m, locale }: { b: ShelfBook; m: M; locale: Locale 
             </>
           ) : (
             <>
-              {/* «Продолжить писать» — книга открывается: обложка распахивается, под ней лист редактора (BookOpen). */}
-              <Link href={b.writeHref} prefetch className="btn btn-primary btn-lg">
-                <LinkPending>
-                  <PenLine className="size-[18px]" aria-hidden />
-                </LinkPending> {answered > 0 || words > 0 ? t.continue : t.start}
-              </Link>
+              {/* «Продолжить писать» — книга открывается на месте, её первая страница «перетекает» в лист редактора. */}
+              <OpenBookLink bookId={book.id} href={b.writeHref} className="btn btn-primary btn-lg">
+                <PenLine className="size-[18px]" aria-hidden /> {answered > 0 || words > 0 ? t.continue : t.start}
+              </OpenBookLink>
               <Link href={href} prefetch className="btn btn-outline btn-lg">
                 {t.open}
               </Link>
