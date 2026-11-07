@@ -5,7 +5,7 @@
  */
 import { norm, rx, type BotLang } from "./botNlu";
 
-export type BookTheme = "love" | "mom" | "dad" | "parents" | "family" | "grandma" | "grandpa" | "child" | "sibling" | "friend" | "teacher" | "autobiography" | "blank";
+export type BookTheme = "love" | "mom" | "dad" | "parents" | "family" | "grandma" | "grandpa" | "daughterinlaw" | "child" | "sibling" | "friend" | "teacher" | "autobiography" | "blank";
 type Localized = Record<BotLang, string>;
 
 interface RecipientDef {
@@ -53,6 +53,15 @@ const RECIPIENTS: RecipientDef[] = [
     ["\\bсемь[яиюей]\\S*", "\\bсемейн\\S*", "\\bотбасы\\S*", "\\bшежіре\\S*"],
     { ru: "Семье", kk: "Отбасыға" },
     "family",
+    null,
+  ),
+  // Раньше «девушке/невесте»: «невестке» — это сноха.
+  def(
+    "daughterinlaw",
+    ["\\bснохе\\b", "\\bдля\\s+снохи\\b", "\\bневестке\\b", "\\bдля\\s+невестки\\b", "\\bкелініме\\b", "\\bкелінге\\b", "\\bкелиниме\\b"],
+    ["\\bснох\\S*", "\\bневестк\\S*", "\\bкелін\\S*", "\\bкелин\\S*"],
+    { ru: "Снохе", kk: "Келініңізге" },
+    "daughterinlaw",
     null,
   ),
   def("husband", ["\\bмужу\\b", "\\bдля\\s+мужа\\b", "\\bсупругу\\b", "\\bкүйеуіме\\b", "\\bкүйеуге\\b", "\\bкуйеуиме\\b", "\\bжолдасыма\\b"], ["\\bмуж(?:а|ем|ик\\S*)?\\b", "\\bсупруг\\b", "\\bкүйеу\\S*", "\\bжолдасым\\b"], { ru: "Мужу", kk: "Күйеуіңізге" }, "love", "podarok-muzhu"),
@@ -162,6 +171,7 @@ const MENU: { theme: BookTheme; label: Localized; menu: Localized }[] = [
   { theme: "family", label: { ru: "Семье", kk: "Отбасыға" }, menu: { ru: "семье (наша семья, род)", kk: "отбасыға (біздің отбасымыз, шежіре)" } },
   { theme: "grandma", label: { ru: "Бабушке", kk: "Әжеңізге" }, menu: { ru: "бабушке", kk: "әжеңізге" } },
   { theme: "grandpa", label: { ru: "Дедушке", kk: "Атаңызға" }, menu: { ru: "дедушке", kk: "атаңызға" } },
+  { theme: "daughterinlaw", label: { ru: "Снохе", kk: "Келініңізге" }, menu: { ru: "снохе (невестке)", kk: "келініңізге" } },
   { theme: "child", label: { ru: "Дочери или сыну", kk: "Қызыңызға не ұлыңызға" }, menu: { ru: "дочери или сыну", kk: "қызыңызға не ұлыңызға" } },
   { theme: "sibling", label: { ru: "Брату или сестре", kk: "Бауырыңызға" }, menu: { ru: "брату или сестре", kk: "бауырыңызға (ағаңызға, әпкеңізге, ініңізге, сіңліңізге)" } },
   { theme: "friend", label: { ru: "Другу или подруге", kk: "Досыңызға не құрбыңызға" }, menu: { ru: "другу или подруге", kk: "досыңызға не құрбыңызға" } },

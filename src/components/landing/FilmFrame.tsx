@@ -19,6 +19,7 @@ export const themePhoto: Record<ThemeId, { key: string; position?: string }> = {
   family: { key: "family", position: "50% 25%" },
   grandma: { key: "familydusk", position: "50% 60%" },
   grandpa: { key: "familydusk", position: "50% 60%" },
+  daughterinlaw: { key: "family", position: "50% 25%" },
   child: { key: "newborn", position: "50% 45%" },
   sibling: { key: "laughter", position: "50% 40%" },
   friend: { key: "friends", position: "50% 30%" },

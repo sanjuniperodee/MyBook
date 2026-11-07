@@ -1,6 +1,7 @@
 import type { Locale } from "@/i18n/config";
 import { autobiographyChapters } from "./autobiography";
 import { childChapters } from "./child";
+import { daughterinlawChapters } from "./daughterinlaw";
 import { familyChapters } from "./family";
 import { friendChapters } from "./friend";
 import { grandmaChapters } from "./grandma";
@@ -12,6 +13,7 @@ import { siblingChapters } from "./sibling";
 import { teacherChapters } from "./teacher";
 import { autobiographyChapters as autobiographyChaptersKk } from "./kk/autobiography";
 import { childChapters as childChaptersKk } from "./kk/child";
+import { daughterinlawChapters as daughterinlawChaptersKk } from "./kk/daughterinlaw";
 import { familyChapters as familyChaptersKk } from "./kk/family";
 import { friendChapters as friendChaptersKk } from "./kk/friend";
 import { grandmaChapters as grandmaChaptersKk } from "./kk/grandma";
@@ -45,6 +47,8 @@ const base: ThemeBase[] = [
   { id: "family", kind: "gift", recipient: "required", emoji: "✤", recipientGenderChoice: false, defaultRecipientGender: "m", defaultCover: "steppe", defaultInterior: "journal" },
   { id: "grandma", kind: "gift", recipient: "required", emoji: "✾", recipientGender: "f", defaultRecipientGender: "f", defaultCover: "postcards", defaultInterior: "vintage" },
   { id: "grandpa", kind: "gift", recipient: "required", emoji: "✶", recipientGender: "m", defaultRecipientGender: "m", defaultCover: "saddle", defaultInterior: "novel" },
+  // Снохе — от свекрови, свёкра или мужа; адресат женского рода.
+  { id: "daughterinlaw", kind: "gift", recipient: "required", emoji: "❦", recipientGender: "f", defaultRecipientGender: "f", defaultCover: "postcards", defaultInterior: "vintage" },
   // Дочери или сыну: род ребёнка выбирают в мастере.
   { id: "child", kind: "gift", recipient: "required", emoji: "❀", defaultRecipientGender: "f", defaultCover: "clouds", defaultInterior: "watercolor" },
   { id: "sibling", kind: "gift", recipient: "required", emoji: "✧", defaultRecipientGender: "f", defaultCover: "lemons", defaultInterior: "album" },
@@ -120,6 +124,15 @@ const text: Record<Locale, Record<ThemeId, ThemeText>> = {
       recipientPlaceholder: "Например, Кайрат",
       titleSuggestions: ["Дедушка, это для тебя", "Мой дедушка", "Спасибо, дедушка", "Дедушкин дом"],
       chapters: grandpaChapters,
+    },
+    daughterinlaw: {
+      name: "Снохе",
+      short: "Снохе",
+      description: "Книга от свекрови, свёкра или мужа: как она вошла в семью, первые впечатления, её черты и заслуги, семейные традиции, благодарность и пожелания.",
+      recipientLabel: "Как зовут сноху",
+      recipientPlaceholder: "Например, Айгерим",
+      titleSuggestions: ["Тебе, наша сноха", "Добро пожаловать в семью", "Спасибо, что ты с нами", "Наша Айгерим"],
+      chapters: daughterinlawChapters,
     },
     child: {
       name: "Дочери или сыну",
@@ -238,6 +251,15 @@ const text: Record<Locale, Record<ThemeId, ThemeText>> = {
       recipientPlaceholder: "Мысалы, Қайрат",
       titleSuggestions: ["Ата, бұл саған", "Менің атам", "Рахмет, ата", "Атамның үйі"],
       chapters: grandpaChaptersKk,
+    },
+    daughterinlaw: {
+      name: "Келінге",
+      short: "Келінге",
+      description: "Енесінен, қайын атасынан немесе жолдасынан келінге арналған кітап: отбасына қалай келгені, алғашқы әсер, қасиеттері мен еңбегі, отбасы дәстүрлері, алғыс пен тілектер.",
+      recipientLabel: "Келіннің аты",
+      recipientPlaceholder: "Мысалы, Айгерім",
+      titleSuggestions: ["Саған, біздің келін", "Отбасыға қош келдің", "Бізбен болғаныңа рахмет", "Біздің Айгерім"],
+      chapters: daughterinlawChaptersKk,
     },
     child: {
       name: "Қызға немесе ұлға",

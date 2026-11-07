@@ -59,7 +59,8 @@ describe("банк вопросов", () => {
 
 describe("виды книг", () => {
   it("вид и политика получателя — по теме; незнакомая тема — подарок", () => {
-    expect(["love", "mom", "dad", "parents", "family", "grandma", "grandpa", "child", "sibling", "friend", "teacher", "autobiography", "blank", "nope"].map((t) => [bookKind(t), recipientPolicy(t), hasQuestionBank(t), hasOutline(t)])).toEqual([
+    expect(["love", "mom", "dad", "parents", "family", "grandma", "grandpa", "daughterinlaw", "child", "sibling", "friend", "teacher", "autobiography", "blank", "nope"].map((t) => [bookKind(t), recipientPolicy(t), hasQuestionBank(t), hasOutline(t)])).toEqual([
+      ["gift", "required", true, false],
       ["gift", "required", true, false],
       ["gift", "required", true, false],
       ["gift", "required", true, false],
@@ -77,13 +78,13 @@ describe("виды книг", () => {
     ]);
   });
 
-  it("каталог: тринадцать тем, у каждой вид и получатель как в kinds; подарки — первые одиннадцать, любимому — первой", () => {
+  it("каталог: четырнадцать тем, у каждой вид и получатель как в kinds; подарки — первые двенадцать, любимому — первой", () => {
     for (const lang of ["ru", "kk"] as const) {
       const all = getThemes(lang);
-      expect(all.map((t) => t.id)).toEqual(["love", "mom", "dad", "parents", "family", "grandma", "grandpa", "child", "sibling", "friend", "teacher", "autobiography", "blank"]);
+      expect(all.map((t) => t.id)).toEqual(["love", "mom", "dad", "parents", "family", "grandma", "grandpa", "daughterinlaw", "child", "sibling", "friend", "teacher", "autobiography", "blank"]);
       for (const t of all) expect([t.id, t.kind, t.recipient]).toEqual([t.id, bookKind(t.id), recipientPolicy(t.id)]);
-      expect(giftThemes(lang).map((t) => t.id)).toEqual(["love", "mom", "dad", "parents", "family", "grandma", "grandpa", "child", "sibling", "friend", "teacher"]);
-      expect(bankThemes(lang).map((t) => t.id)).toEqual(["love", "mom", "dad", "parents", "family", "grandma", "grandpa", "child", "sibling", "friend", "teacher", "autobiography"]);
+      expect(giftThemes(lang).map((t) => t.id)).toEqual(["love", "mom", "dad", "parents", "family", "grandma", "grandpa", "daughterinlaw", "child", "sibling", "friend", "teacher"]);
+      expect(bankThemes(lang).map((t) => t.id)).toEqual(["love", "mom", "dad", "parents", "family", "grandma", "grandpa", "daughterinlaw", "child", "sibling", "friend", "teacher", "autobiography"]);
     }
   });
 
@@ -136,6 +137,20 @@ describe("виды книг", () => {
       for (const ch of t.chapters) for (const s of [ch.title, ch.epigraph ?? "", ...ch.questions.flat()] as string[]) expect(s, `${lang}.${ch.key}`).not.toMatch(/\[[^\]]*\|[^\]]*\]/);
     }
     expect(themeChaptersByLocale("grandma").ru.map((c) => c.key)).toEqual(["intro", "home", "care", "life", "you", "family", "wisdom", "thanks"]);
+  });
+
+  it("снохе: подарок с банком на обоих языках, адресат всегда женского рода — без [..|..], род автора подставляется", () => {
+    for (const lang of ["ru", "kk"] as const) {
+      const t = getTheme("daughterinlaw", lang);
+      expect([t.kind, t.recipient, t.recipientGender]).toEqual(["gift", "required", "f"]);
+      expect(countQuestions(t), lang).toBeGreaterThanOrEqual(40);
+      expect(countQuestions(t), lang).toBeLessThanOrEqual(50);
+      for (const ch of t.chapters) for (const s of [ch.title, ch.epigraph ?? "", ...ch.questions.flat()] as string[]) expect(s, `${lang}.${ch.key}`).not.toMatch(/\[[^\]]*\|[^\]]*\]/);
+    }
+    expect(themeChaptersByLocale("daughterinlaw").ru.map((c) => c.key)).toEqual(["intro", "arrival", "first", "you", "together", "traditions", "thanks", "wishes"]);
+    expect(themeChaptersByLocale("daughterinlaw").kk.map((c) => c.key)).toEqual(themeChaptersByLocale("daughterinlaw").ru.map((c) => c.key));
+    expect(getTheme("daughterinlaw", "ru").titleSuggestions[0]).toBe("Тебе, наша сноха");
+    expect(getTheme("daughterinlaw", "kk").titleSuggestions[0]).toBe("Саған, біздің келін");
   });
 
   it("дедушке: подарок с банком на обоих языках, адресат всегда мужского рода — без [..|..]", () => {

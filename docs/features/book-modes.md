@@ -24,7 +24,7 @@ export const hasQuestionBank = (theme: string) => bookKind(theme) !== "blank";
 export const hasOutline = (theme: string) => bookKind(theme) === "blank"; // свои главы и разделы
 ```
 
-**1.2. Темы.** `ThemeId` = love | mom | dad | parents | family | grandma | grandpa | child | sibling | friend | teacher | autobiography | blank. В `ThemeDef` — `kind` и `recipient`;
+**1.2. Темы.** `ThemeId` = love | mom | dad | parents | family | grandma | grandpa | daughterinlaw | child | sibling | friend | teacher | autobiography | blank. В `ThemeDef` — `kind` и `recipient`;
 `recipientLabel`/`recipientPlaceholder` — необязательные (у автобиографии их нет); `recipientGender` — фиксированный род
 адресата (мама, папа, бабушка, дедушка), `recipientGenderChoice: false` — род не спрашивать (книга «Родителям»: адресат
 во множественном числе, в банке вопросов рода нет). `getThemes(lang)` — все темы

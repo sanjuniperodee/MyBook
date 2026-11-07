@@ -85,7 +85,7 @@ describe("мастер: разметка", () => {
   it("первый шаг: четыре подарка и отдельный ряд «о себе» и «вручную»", () => {
     const html = render("ru");
     expect(html).toContain("Какую книгу пишете?");
-    for (const id of ["love", "mom", "dad", "parents", "family", "grandma", "grandpa", "friend", "autobiography", "blank"]) expect(html).toContain(`data-theme="${id}"`);
+    for (const id of ["love", "mom", "dad", "parents", "family", "grandma", "grandpa", "daughterinlaw", "friend", "autobiography", "blank"]) expect(html).toContain(`data-theme="${id}"`);
     expect(html.indexOf('data-theme="friend"')).toBeLessThan(html.indexOf("Книга о себе или своя"));
     expect(html.indexOf("Книга о себе или своя")).toBeLessThan(html.indexOf('data-theme="autobiography"'));
     expect(html).toContain("Вручную — своя книга с чистого листа");
