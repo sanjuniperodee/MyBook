@@ -12,6 +12,8 @@ export const design_pages: Messages["design"]["pages"] = {
   resetAllConfirm: "Стильді бастапқы күйіне қайтарасыз ба? Қаріптер, аралықтар мен түстер тасталады, жеке тараулардың безендірілуі қалады.",
   customized: (n: number) => `${n} жеке баптау`,
   styles: {
+    inBook: "Кітапта",
+    trying: (name: string) => `Көру: «${name}». Таңдау үшін басыңыз`,
     search: "Стильді іздеу",
     all: "Барлығы",
     forCover: (cover: string) => `«${cover}» мұқабасына`,

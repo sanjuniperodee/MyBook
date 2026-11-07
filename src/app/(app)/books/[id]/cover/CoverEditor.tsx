@@ -215,11 +215,22 @@ export function CoverEditor({
     for (let i = 0; i < n; i++) if (!ids[i]) ids[i] = free.shift() ?? null;
     return { coverPhotoId: ids[0] ?? null, coverPhotoExtra: ids.slice(1).filter((id): id is string => !!id) };
   };
-  const chooseTemplate = (id: string) => {
+  const chooseTemplate = async (id: string) => {
     const filled = fillSlots(id, state);
     const changed = filled.coverPhotoId !== state.coverPhotoId || filled.coverPhotoExtra.join() !== state.coverPhotoExtra.join();
+    // Обложка из конструктора закрывает шаблон целиком: выбор шаблона без сброса ничего не менял на экране. Спрашиваем и
+    // ставим шаблон по-настоящему — тем, что автор видел в галерее и на примерке.
+    if (state.coverDesign) {
+      const name = coverLabel(getCoverTemplate(id), m.catalog.covers, locale);
+      if (!(await confirmDialog({ title: t.replaceTitle(name), text: t.replaceText, confirmLabel: t.replaceOk }))) return;
+      update({ coverTemplate: id, ...filled, coverDesign: null });
+      setDesignerKey((k) => k + 1);
+      return;
+    }
     update(changed ? { coverTemplate: id, ...filled } : { coverTemplate: id });
   };
+  /** Примерка: наведение на дизайн в галерее показывает его на сцене крупно, книгу не меняет. */
+  const [trying, setTrying] = useState<string | null>(null);
 
   /** Как шаблон выглядел бы с фото книги — для миниатюр в выборе. */
   const slotUrls = (templateId: string) => {
@@ -299,7 +310,9 @@ export function CoverEditor({
   // ─── конструктор ──────────────────────────────────────────────────────────
   const d = m.design.cover;
   const tb = t.backDesigner;
-  const [view, setView] = useState<"template" | "designer">(initial.coverDesign && initialSide === "front" ? "designer" : initial.coverBack?.layers && initialSide === "back" ? "designer" : "template");
+  // Студия открывается выбором дизайна (галерея и примерка) — главное, зачем сюда приходят; конструктор — второй вкладкой.
+  // Исключение — оборот, собранный в конструкторе: там галереи шаблонов нет.
+  const [view, setView] = useState<"template" | "designer">(initial.coverBack?.layers && initialSide === "back" ? "designer" : "template");
   /** Новый ключ — конструктор начинается заново (после сброса или новой обложки из шаблона). */
   const [designerKey, setDesignerKey] = useState(0);
   const [backKey, setBackKey] = useState(0);
@@ -414,6 +427,16 @@ export function CoverEditor({
   const designsPanel = (
     <div>
       <h2 className="sr-only">{t.design}</h2>
+      {state.coverDesign ? (
+        <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[var(--r-panel)] bg-rose/50 px-3.5 py-3 text-sm text-ink-soft">
+          <Layers className="size-4 shrink-0 text-wine" aria-hidden />
+          {/* На узком экране кнопка уходит под текст, а не сжимает его в столбик. */}
+          <span className="min-w-0 flex-1 basis-[calc(100%-2rem)] sm:basis-64">{d.active.text}</span>
+          <button type="button" className="btn btn-outline btn-sm" onClick={() => openDesigner("front")}>
+            {d.active.open}
+          </button>
+        </div>
+      ) : null}
       <div className="text-xs text-muted tabular-nums">{m.common.count.variants(choices.length)}</div>
       <div className="no-scrollbar -mx-1 mt-2.5 flex gap-1.5 overflow-x-auto px-1 pb-1" role="radiogroup" aria-label={t.moodAria}>
         {(["all", ...coverMoods] as const).map((id) => (
@@ -422,28 +445,45 @@ export function CoverEditor({
           </button>
         ))}
       </div>
-      <div ref={strip} className="mt-3 grid grid-cols-3 gap-x-2.5 gap-y-3.5">
+      {/* Обложки крупно, лицом к читателю, как на полке магазина; выбранная — первой и с подписью «На обложке».
+          Наведение (или фокус с клавиатуры) — примерка на большой сцене слева. */}
+      <div ref={strip} className="mt-4 grid grid-cols-[repeat(auto-fill,minmax(min(46%,9.5rem),1fr))] gap-x-4 gap-y-6" onMouseLeave={() => setTrying(null)}>
         {choices
           .filter((c) => mood === "all" || c.mood === mood || c.id === state.coverTemplate)
           .filter((c, i) => mood !== "all" || allDesigns || i < DESIGNS_SHOWN || c.id === state.coverTemplate)
-          .map((c) => (
-            <button key={c.id} onClick={() => chooseTemplate(c.id)} disabled={!editable} className="group text-left" aria-pressed={c.id === state.coverTemplate}>
-              <div className={cn("relative overflow-hidden rounded-[3px] ring-offset-2 ring-offset-white transition", c.id === state.coverTemplate ? "ring-2 ring-wine" : "ring-1 ring-line group-hover:ring-ink/30")}>
-                <CoverPreview template={c.id} format={format} title={state.title} names={coverNamesLine} photos={c.requiresPhoto ? slotUrls(c.id) : undefined} lite uid={`pick-${c.id}`} />
-                {c.requiresPhoto && !photos.length ? (
-                  <span className="absolute bottom-1 left-1 flex size-5 items-center justify-center rounded-full bg-black/45 text-white" aria-hidden>
-                    <ImagePlus className="size-3" />
-                  </span>
-                ) : null}
-                {c.id === state.coverTemplate ? (
-                  <span className="absolute top-1 right-1 flex size-4.5 items-center justify-center rounded-full bg-wine text-white">
-                    <Check className="size-3" />
-                  </span>
-                ) : null}
-              </div>
-              <div className={cn("mt-1.5 truncate text-xs", c.id === state.coverTemplate ? "font-medium text-ink" : "text-muted")}>{label(c)}</div>
-            </button>
-          ))}
+          .sort((a, b) => Number(b.id === state.coverTemplate) - Number(a.id === state.coverTemplate))
+          .map((c) => {
+            const on = c.id === state.coverTemplate && !state.coverDesign;
+            return (
+              <button
+                key={c.id}
+                onClick={() => void chooseTemplate(c.id)}
+                onMouseEnter={() => setTrying(c.id)}
+                onFocus={() => setTrying(c.id)}
+                onBlur={() => setTrying(null)}
+                disabled={!editable}
+                className="group rounded-[6px] text-left focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-wine"
+                aria-pressed={on}
+              >
+                <div className={cn("relative overflow-hidden rounded-[3px] transition duration-200", on ? "shadow-[0_0_0_2px_var(--color-white),0_0_0_4px_var(--color-wine)]" : "shadow-book ring-1 ring-black/5 group-hover:-translate-y-1 group-hover:shadow-soft")}>
+                  <CoverPreview template={c.id} format={format} title={state.title} names={coverNamesLine} photos={c.requiresPhoto ? slotUrls(c.id) : undefined} lite uid={`pick-${c.id}`} />
+                  {c.requiresPhoto && !photos.length ? (
+                    <span className="absolute bottom-1.5 left-1.5 flex size-6 items-center justify-center rounded-full bg-black/45 text-white" aria-hidden>
+                      <ImagePlus className="size-3.5" />
+                    </span>
+                  ) : null}
+                </div>
+                <div className="mt-2.5 truncate font-serif text-[17px] leading-tight text-ink">{label(c)}</div>
+                {on ? (
+                  <div className="mt-0.5 inline-flex items-center gap-1 text-xs font-medium text-wine">
+                    <Check className="size-3.5" aria-hidden /> {t.onCover}
+                  </div>
+                ) : (
+                  <div className="mt-0.5 truncate text-xs text-muted">{m.catalog.moods[c.mood as CoverMood] ?? ""}</div>
+                )}
+              </button>
+            );
+          })}
       </div>
       {mood === "all" && !allDesigns && choices.length > DESIGNS_SHOWN ? (
         <button type="button" className="btn btn-outline mt-4 w-full" onClick={() => setAllDesigns(true)}>
@@ -601,7 +641,6 @@ export function CoverEditor({
         ]
       : [{ id: "designs", label: sx.tabs.designs }, ...(template.requiresPhoto ? [{ id: "photo" as const, label: sx.tabs.photo }] : []), { id: "text", label: sx.tabs.text }];
   const sheetTabs: StudioTab<TplTab>[] = [...leftTabs, { id: "details", label: sx.tabs.details }];
-  const leftTab = leftTabs.some((x) => x.id === tplTab) ? tplTab : leftTabs[0].id;
   const sheetTab = sheetTabs.some((x) => x.id === tplTab) ? tplTab : leftTabs[0].id;
   const tabPanel = (id: TplTab) => (id === "designs" ? designsPanel : id === "photo" ? photoPanel : id === "text" ? textPanel : id === "fill" ? fillPanel : id === "variant" ? variantPanel : detailsPanel);
 
@@ -624,6 +663,8 @@ export function CoverEditor({
       ]}
     />
   );
+  // Примерка — только на лицевой стороне и в плоском виде, и только если это не та обложка, что уже стоит.
+  const tryOn = trying && side === "front" && stageMode === "flat" && (trying !== state.coverTemplate || !!state.coverDesign) ? trying : null;
   /** Холст сцены: выбранный вид обложки — плоско (с кадром фото), целиком или в объёме. */
   const stageArt =
     stageMode === "spread" ? (
@@ -642,8 +683,12 @@ export function CoverEditor({
     ) : (
       <div className="absolute inset-0 flex items-center justify-center px-4 pt-14 pb-5">
         <div className="relative" style={fit(side === "back" ? backBoard.w / backBoard.h : frontRatio)}>
-          {renderSide("rounded-[4px] shadow-book", "editor")}
-          {editable && frameSlots.length ? <FrameLayer slots={frameSlots} selected={frameSelected} onSelect={setFrameSel} onChange={setFrame} ariaLabel={t.frame.aria} /> : null}
+          {tryOn ? (
+            <CoverPreview template={tryOn} format={format} title={state.title} subtitle={state.subtitle} names={coverNamesLine} photos={getCoverTemplate(tryOn).requiresPhoto ? slotUrls(tryOn) : undefined} uid="try" titlePlaceholder={t.bookTitle} className="rounded-[4px] shadow-book" />
+          ) : (
+            renderSide("rounded-[4px] shadow-book", "editor")
+          )}
+          {editable && frameSlots.length && !tryOn ? <FrameLayer slots={frameSlots} selected={frameSelected} onSelect={setFrameSel} onChange={setFrame} ariaLabel={t.frame.aria} /> : null}
         </div>
       </div>
     );
@@ -654,8 +699,12 @@ export function CoverEditor({
     </div>
   );
   const stageName = (
-    <div className="hidden items-center justify-center gap-2 text-sm text-muted lg:flex">
-      <span className="font-medium text-ink">{label(template)}</span>
+    <div className="hidden min-h-7 items-center justify-center gap-2 lg:flex" aria-live="polite">
+      {tryOn ? (
+        <span className="text-sm font-medium text-wine">{t.trying(label(getCoverTemplate(tryOn)))}</span>
+      ) : (
+        <span className="font-serif text-xl leading-tight text-ink">{label(template)}</span>
+      )}
     </div>
   );
 
@@ -689,12 +738,11 @@ export function CoverEditor({
   const templateView = (
     <StudioFrame
       bar={bar}
-      leftWidth={320}
-      rightWidth={320}
-      left={<PanelBody tabs={<StudioTabs tabs={leftTabs} value={leftTab} onChange={setTplTab} label={sx.panelsAria} />}>{tabPanel(leftTab)}</PanelBody>}
-      right={
-        <PanelBody tabs={<StudioTabs tabs={[{ id: "details", label: sx.tabs.details }]} value="details" onChange={() => undefined} label={sx.panelsAria} />}>{detailsPanel}</PanelBody>
-      }
+      // Две половины: слева сцена (выбранная обложка или примерка), справа широкая панель — галерея крупно, фото,
+      // текст и «детали» вкладками.
+      rightWidth={680}
+      wideRight
+      right={<PanelBody tabs={<StudioTabs tabs={sheetTabs} value={sheetTab} onChange={setTplTab} label={sx.panelsAria} />}>{tabPanel(sheetTab)}</PanelBody>}
       stage={
         <StudioStage overlay={stageOverlay} foot={stageName}>
           {stageArt}

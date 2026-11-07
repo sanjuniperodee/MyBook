@@ -64,6 +64,7 @@ export function StylesTab({
   coverName,
   editable,
   onPick,
+  onTry,
 }: {
   current: InteriorId;
   format: BookFormat;
@@ -73,6 +74,8 @@ export function StylesTab({
   coverName: string;
   editable: boolean;
   onPick: (id: InteriorId) => void;
+  /** Примерка: наведение или фокус на стиле показывает его на большой сцене (null — снова выбранный). */
+  onTry?: (id: InteriorId | null) => void;
 }) {
   const m = useMessages();
   const t = m.design.pages.styles;
@@ -95,7 +98,9 @@ export function StylesTab({
     return `${n.name} ${n.description} ${dirNames[interiorDirection(d)]}`.toLowerCase().includes(q);
   });
   const collapsed = filter === "all" && !q && !all && shown.length > STYLES_SHOWN;
-  const visible = collapsed ? shown.filter((d, i) => i < STYLES_SHOWN || d.id === current) : shown;
+  // Выбранный стиль — первым: сразу видно, что сейчас в книге, остальные — для сравнения рядом.
+  const ordered = [...shown].sort((a, b) => Number(b.id === current) - Number(a.id === current));
+  const visible = collapsed ? ordered.filter((d, i) => i < STYLES_SHOWN || d.id === current) : ordered;
   return (
     <div>
       <div className="flex flex-wrap items-center gap-2">
@@ -121,28 +126,30 @@ export function StylesTab({
         ))}
       </div>
       {shown.length ? (
-        <div className="mt-5 grid grid-cols-2 gap-x-4 gap-y-6">
+        // Крупные развороты (по ширине панели — два в ряд, на узкой — один): стиль видно, а не угадывать по полоскам.
+        <div className="mt-5 grid grid-cols-[repeat(auto-fill,minmax(min(100%,15rem),1fr))] gap-x-5 gap-y-7" onMouseLeave={() => onTry?.(null)}>
           {visible.map((d) => {
             const active = d.id === current;
             return (
-              <div key={d.id} className="group relative text-left">
-                <button type="button" onClick={() => onPick(d.id)} disabled={!editable} aria-pressed={active} className="block w-full text-left">
-                  <div className={cn("relative rounded-[3px] ring-offset-2 ring-offset-paper transition", active ? "ring-2 ring-wine" : "ring-1 ring-line group-hover:-translate-y-0.5 group-hover:ring-ink/30")}>
+              <div key={d.id} className="group relative text-left" onMouseEnter={() => onTry?.(d.id)} onFocus={() => onTry?.(d.id)} onBlur={() => onTry?.(null)}>
+                <button type="button" onClick={() => onPick(d.id)} disabled={!editable} aria-pressed={active} className="block w-full rounded-[6px] text-left focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-wine">
+                  <div className={cn("relative rounded-[3px] transition duration-200", active ? "shadow-[0_0_0_2px_var(--color-paper),0_0_0_4px_var(--color-wine)]" : "ring-1 ring-line group-hover:-translate-y-0.5 group-hover:shadow-soft group-hover:ring-ink/25")}>
                     <InteriorSpread design={d} format={format} sample={sample} openerPlaceholder className="rounded-[3px]" />
-                    {active ? (
-                      <span className="absolute top-1.5 right-1.5 flex size-5 items-center justify-center rounded-full bg-wine text-white">
-                        <Check className="size-3" />
-                      </span>
-                    ) : null}
                     {paired.has(d.id) ? (
                       <span className="absolute top-1.5 left-1.5 inline-flex items-center gap-1 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-medium text-wine shadow-sm">
                         <Sparkles className="size-2.5" /> {m.books.pages.pairBadge}
                       </span>
                     ) : null}
                   </div>
-                  <div className="mt-2">
-                    <span className={cn("block truncate text-sm", active ? "font-semibold text-ink" : "font-medium text-ink-soft")}>{names[d.id].name}</span>
-                    <span className="block truncate text-[11px] text-muted">{dirNames[interiorDirection(d)]}</span>
+                  <div className="mt-3 flex items-baseline justify-between gap-3">
+                    <span className={cn("min-w-0 truncate font-serif text-[19px] leading-tight", active ? "text-ink" : "text-ink-soft group-hover:text-ink")}>{names[d.id].name}</span>
+                    {active ? (
+                      <span className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-wine">
+                        <Check className="size-3.5" aria-hidden /> {t.inBook}
+                      </span>
+                    ) : (
+                      <span className="shrink-0 text-xs text-muted">{dirNames[interiorDirection(d)]}</span>
+                    )}
                   </div>
                   {/* Есть ли в стиле фото в начале главы и какой формы — его выбирает автор (места фото, выпуск 2). */}
                   {d.opener.photo ? (
@@ -161,7 +168,7 @@ export function StylesTab({
                   title={t.open}
                   aria-label={`${t.open}: ${names[d.id].name}`}
                   className="absolute top-1.5 flex size-8 items-center justify-center rounded-full bg-white/95 text-ink opacity-0 shadow-soft transition group-hover:opacity-100 focus-visible:opacity-100 max-lg:opacity-100"
-                  style={{ right: active ? 30 : 6 }}
+                  style={{ right: 6 }}
                 >
                   <Maximize2 className="size-3.5" />
                 </button>

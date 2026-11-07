@@ -346,6 +346,11 @@ export const books = {
     refundLink: "Написать в WhatsApp",
   },
   cover: {
+    onCover: "На обложке",
+    trying: (name: string) => `Примерка: «${name}». Нажмите, чтобы выбрать`,
+    replaceTitle: (name: string) => `Поставить обложку «${name}»?`,
+    replaceText: "Сейчас обложка собрана в конструкторе. Шаблон заменит её надписи и фото — ваши правки в конструкторе сбросятся.",
+    replaceOk: "Поставить",
     meta: "Обложка",
     pairTitle: "Страницы в пару",
     pairSuggest: (cover: string, designs: string[]) =>

@@ -10,6 +10,8 @@ export const design_pages = {
   resetAllConfirm: "Вернуть стиль как есть? Ваши шрифты, интервалы и цвета сбросятся, оформление отдельных глав останется.",
   customized: (n: number) => (n === 1 ? "1 своя настройка" : n < 5 ? `${n} свои настройки` : `${n} своих настроек`),
   styles: {
+    inBook: "В книге",
+    trying: (name: string) => `Примерка: «${name}». Нажмите, чтобы выбрать`,
     search: "Найти стиль",
     all: "Все",
     forCover: (cover: string) => `К обложке «${cover}»`,

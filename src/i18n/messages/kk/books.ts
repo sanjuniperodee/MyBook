@@ -334,6 +334,11 @@ export const books: typeof ru = {
     refundLink: "WhatsApp-қа жазу",
   },
   cover: {
+    onCover: "Мұқабада",
+    trying: (name: string) => `Көру: «${name}». Таңдау үшін басыңыз`,
+    replaceTitle: (name: string) => `«${name}» мұқабасын қою керек пе?`,
+    replaceText: "Қазір мұқаба конструкторда жиналған. Үлгі оның жазулары мен фотоларын ауыстырады — конструктордағы өзгерістер өшеді.",
+    replaceOk: "Қою",
     meta: "Мұқаба",
     pairTitle: "Мұқабаға сай беттер",
     pairSuggest: (cover: string, designs: string[]) =>

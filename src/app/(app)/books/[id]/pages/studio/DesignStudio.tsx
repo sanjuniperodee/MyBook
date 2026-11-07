@@ -55,6 +55,7 @@ export function DesignStudio({
   chapter,
   onChapter,
   historySlots,
+  onTry,
 }: {
   bookId: string;
   interior: InteriorId;
@@ -79,6 +80,8 @@ export function DesignStudio({
   onChapter: (key: string) => void;
   /** Куда вынести «Отменить» и «Повторить»: концы лент вкладок (компьютер и телефон). Нет места — кнопки стоят в самой панели. */
   historySlots?: (HTMLElement | null)[];
+  /** Примерка стиля на сцене (наведение в «Стилях»); null — снова выбранный. */
+  onTry?: (id: InteriorId | null) => void;
 }) {
   const m = useMessages().design;
   const t = m.pages;
@@ -202,7 +205,7 @@ export function DesignStudio({
             onUndo={undo}
           />
         ) : null}
-        {tab === "styles" ? <StylesTab current={interior} format={format} sample={sample} pairs={cover.pairs} coverName={cover.name} editable={editable} onPick={pickStyle} /> : null}
+        {tab === "styles" ? <StylesTab current={interior} format={format} sample={sample} pairs={cover.pairs} coverName={cover.name} editable={editable} onPick={pickStyle} onTry={onTry} /> : null}
         {tab === "fonts" ? <FontsTab design={design} style={style} set={setStyle} sample={sample.title} onFocus={focus} /> : null}
         {tab === "text" ? <TextTab design={design} style={style} set={setStyle} onFocus={focus} /> : null}
         {tab === "elements" ? <ElementsTab design={design} style={style} set={setStyle} onFocus={focus} openersLeft={openersLeft} onOpenersLeft={onOpenersLeft} /> : null}

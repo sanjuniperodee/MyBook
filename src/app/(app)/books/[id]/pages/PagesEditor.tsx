@@ -138,8 +138,11 @@ export function PagesEditor({
     }),
     [sample, state.dedication, state.showToc, state.tocMode, state.tocLines, previewOf],
   );
+  // Примерка стиля: наведение в галерее показывает его на сцене, не меняя книгу.
+  const [trying, setTrying] = useState<InteriorId | null>(null);
+  const tryDesign = trying && trying !== state.interior ? getInteriorDesign(trying) : null;
   // Разворот главы со своим оформлением — в её оформлении.
-  const spreadDesign = previewOf ? chapterDesign(design, previewOf.key) : design;
+  const spreadDesign = tryDesign ?? (previewOf ? chapterDesign(design, previewOf.key) : design);
   // Номера в оглавлении точные, пока оформление то, по которому собран макет (правки меняют разбивку), и у каждой
   // строки номер из макета; иначе под разворотом — что они примерные.
   const tocExact = useMemo(() => {
@@ -347,6 +350,7 @@ export function PagesEditor({
       chapter={selChapter}
       onChapter={setSelChapter}
       historySlots={[slotDesk, slotMob]}
+      onTry={setTrying}
     />
   );
 
@@ -364,18 +368,21 @@ export function PagesEditor({
 
   return (
     <div>
+      {/* Две половины: слева сцена (живой разворот, при наведении — примерка), справа широкая панель — стили крупно,
+          настройки и состав книги вкладками. Студия (её история правок) остаётся в разметке и на вкладке «Состав книги». */}
       <StudioFrame
         bar={bar}
-        leftWidth={300}
-        rightWidth={340}
-        rightOnMobile={tab !== "content"}
-        left={
-          <PanelBody tabs={<StudioTabs tabs={[{ id: "content", label: sx.ribbonTitle }]} value="content" onChange={() => undefined} label={sx.tabsAria} />}>
+        rightWidth={680}
+        wideRight
+        rightOnMobile
+        mobileTabs={withHistory(<StudioTabs tabs={sheetTabs} value={tab} onChange={changeTab} label={sx.tabsAria} />, setSlotMob)}
+        right={
+          <PanelBody tabs={withHistory(<StudioTabs tabs={sheetTabs} value={tab} onChange={changeTab} label={sx.tabsAria} />, setSlotDesk)}>
             {noticeEl ? <div className="mb-4">{noticeEl}</div> : null}
-            {ribbon}
+            {tab === "content" ? ribbon : null}
+            <div hidden={tab === "content"}>{studio}</div>
           </PanelBody>
         }
-        right={<PanelBody tabs={withHistory(<StudioTabs tabs={styleTabs} value={styleTab} onChange={changeTab} label={dt.tabsAria} />, setSlotDesk)}>{studio}</PanelBody>}
         stage={
           <StudioStage
             overlay={
@@ -386,23 +393,18 @@ export function PagesEditor({
               <div style={{ width: `min(calc(100cqw - 2rem), calc((100cqh - 6rem) * ${ratio}))` }}>
                 <InteriorSpread design={spreadDesign} format={format} sample={live} kind={spread} className="rounded-[3px] shadow-book" />
               </div>
-              <div className="hidden max-w-md text-center lg:block">
-                <div className="text-sm font-medium text-ink">{names[design.id].name}</div>
-                <p className="mt-0.5 text-[13px] leading-snug text-muted">{names[design.id].description}</p>
+              <div className="hidden max-w-md text-center lg:block" aria-live="polite">
+                {tryDesign ? (
+                  <div className="text-sm font-medium text-wine">{dt.styles.trying(names[tryDesign.id].name)}</div>
+                ) : (
+                  <>
+                    <div className="font-serif text-xl leading-tight text-ink">{names[design.id].name}</div>
+                    <p className="mt-1 text-[13px] leading-snug text-muted">{names[design.id].description}</p>
+                  </>
+                )}
               </div>
             </div>
           </StudioStage>
-        }
-        mobileTabs={tab === "content" ? <StudioTabs tabs={sheetTabs} value={tab} onChange={changeTab} label={sx.tabsAria} /> : withHistory(<StudioTabs tabs={sheetTabs} value={tab} onChange={changeTab} label={sx.tabsAria} />, setSlotMob)}
-        sheet={
-          tab === "content" ? (
-            <>
-              {noticeEl ? <div className="mb-4">{noticeEl}</div> : null}
-              {ribbon}
-            </>
-          ) : noticeEl ? (
-            <div className="lg:hidden">{noticeEl}</div>
-          ) : undefined
         }
       />
 
