@@ -204,7 +204,7 @@ export async function upgradeOrderToPrintedAction(orderId: string, plan: string)
   revalidatePath("/admin/board");
   const money = (n: number) => `${n.toLocaleString("ru-RU")} ₸`;
   return {
-    ok: result.outstanding > 0 ? `Заказ переведён в печатную: зачтено ${money(result.credited)}, к доплате ${money(result.outstanding)}` : `Заказ переведён в печатную и оплачен${result.overpaid > 0 ? `, переплата ${money(result.overpaid)} — к возврату` : ""}`,
+    ok: `Заказ переведён в печатную и оплачен${result.overpaid > 0 ? `, переплата ${money(result.overpaid)} — к возврату` : ""}`,
   };
 }
 

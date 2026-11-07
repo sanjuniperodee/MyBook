@@ -97,13 +97,17 @@ describe("Order.upgradeToPrinted и refundMoney: электронная — в �
     );
   const pay = (o: Order, amount: number) => o.receiveMoney({ paymentId: `m:${amount}`, amount, method: "manual", paidAt: now, label: "перевод", actor: "admin" });
 
-  it("предоплата по сделке остаётся авансом: к оплате — прайс печатной минус предоплата", () => {
+  it("предоплата по сделке остаётся авансом; денег не хватает — отказ с суммой, заказ не меняется", () => {
     const o = digital({ agreedTotal: Number.POSITIVE_INFINITY, prepaid: 5000 });
     expect(o.amount).toBe(4900);
     pay(o, 4900);
+    expect(() => o.upgradeToPrinted({ plan: "hardcover", discount: null, planName }, "admin", now)).toThrow(/Не хватает 20/);
+    expect([o.plan, o.status, o.isSettled]).toEqual(["digital", "paid", true]);
+    // Доплату приняли — перевод проходит, заказ остаётся оплаченным, предоплата по сделке — авансом.
+    pay(o, 20100);
     const r = o.upgradeToPrinted({ plan: "hardcover", discount: null, planName }, "admin", now);
-    expect(r).toEqual({ due: 25000, credited: 4900, outstanding: 20100, overpaid: 0 });
-    expect([o.plan, o.status, o.isSettled, o.snapshot().price.prepaidAmount]).toEqual(["hardcover", "pending_payment", false, 5000]);
+    expect(r).toEqual({ due: 25000, credited: 25000, outstanding: 0, overpaid: 0 });
+    expect([o.plan, o.status, o.isSettled, o.snapshot().price.prepaidAmount]).toEqual(["hardcover", "paid", true, 5000]);
     expect(o.pullEvents().map((e) => e.type)).toContain("ordering.order_repriced");
   });
 

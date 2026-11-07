@@ -194,19 +194,19 @@ describe("«Перевести в печатную» (сотрудник)", () =
     expect(note).toMatch(/→ .+, зачтено 30 000 ₸, к доплате 0 ₸; переплата 1 900 ₸ — к возврату$/);
   });
 
-  it("получено меньше — заказ ждёт доплату остатка; доплата пришла — оплачен и пойдёт в печать", async () => {
+  it("получено меньше — отказ с суммой; доплату приняли в «Оплате» — перевод проходит, заказ оплачен и пойдёт в печать", async () => {
     const t = setup();
     const o = await digital(t);
     await t.manual(o.id, 9900);
-    const r = await t.svc.upgradeToPrinted({ orderId: o.id, plan: "hardcover" }, admin);
-    expect(r).toMatchObject({ due: 30000, credited: 9900, outstanding: 20100, overpaid: 0 });
+    await expect(t.svc.upgradeToPrinted({ orderId: o.id, plan: "hardcover" }, admin)).rejects.toMatchObject({ code: "paymentRule", message: expect.stringContaining("Не хватает 20") });
     let fresh = (await t.orders.findById(o.id))!;
-    expect([fresh.status, fresh.isSettled, fresh.outstanding]).toEqual(["pending_payment", false, 20100]);
-    // Неоплаченный печатный — не в печать в обход оплаты.
-    await expect(t.svc.changeStatus({ orderId: o.id, to: "in_production" }, admin)).rejects.toMatchObject({ code: "paymentRule" });
-    expect(await t.manual(o.id, 20100)).toMatchObject({ settled: true, overpaid: 0 });
+    expect([fresh.plan, fresh.status, fresh.isSettled]).toEqual(["digital", "paid", true]);
+    // Доплата по оплаченной электронной — переплата, затем перевод засчитывает всё полученное.
+    expect(await t.manual(o.id, 20100)).toMatchObject({ overpaid: 20100 });
+    const r = await t.svc.upgradeToPrinted({ orderId: o.id, plan: "hardcover" }, admin);
+    expect(r).toMatchObject({ due: 30000, credited: 30000, outstanding: 0, overpaid: 0 });
     fresh = (await t.orders.findById(o.id))!;
-    expect([fresh.status, fresh.isSettled]).toEqual(["paid", true]);
+    expect([fresh.plan, fresh.status, fresh.isSettled]).toEqual(["hardcover", "paid", true]);
   });
 
   it("уже печатный, отменённый и неоплаченный — отказ", async () => {

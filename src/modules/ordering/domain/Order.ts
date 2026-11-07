@@ -528,6 +528,10 @@ export class Order extends AggregateRoot<OrderProps> {
     // Как changeTerms без договорённой цены: прайс тарифа, внесённая по сделке предоплата — авансом.
     const agreement: Agreement | null = prepaid > 0 ? { agreedTotal: Number.POSITIVE_INFINITY, prepaid } : null;
     const price = calculatePrice(plan.id, 1, this.props.delivery.method, input.discount, before.addons, agreement);
+    // Денег не хватает — не переводим: иначе оплаченная электронная книга снова «ждёт оплату» (клиент теряет доступ к
+    // файлам, а страница оплаты просит полную цену). Сначала доплату принимают в «Оплате» заказа, потом переводят.
+    const short = price.amount - this.props.receivedAmount;
+    if (short > 0) throw new OrderingError("paymentRule", `Не хватает ${formatPrice(short)}: сначала примите доплату в «Оплате» заказа, потом переведите в печатную`);
     const planBefore = this.props.plan;
     this.props.plan = plan.id;
     this.props.quantity = 1;
@@ -537,13 +541,6 @@ export class Order extends AggregateRoot<OrderProps> {
     const outstanding = Math.max(0, price.amount - received);
     const overpaid = Math.max(0, received - price.amount);
     this.log(null, `${input.planName(planBefore)} → ${input.planName(plan.id)}, зачтено ${formatPrice(credited)}, к доплате ${formatPrice(outstanding)}${prepaid > 0 ? ` (предоплата по сделке ${formatPrice(price.prepaidAmount ?? 0)} учтена)` : ""}${overpaid > 0 ? `; переплата ${formatPrice(overpaid)} — к возврату` : ""}`, actor, now);
-    if (outstanding > 0) {
-      // Новая сумма не покрыта: выручка не признана, заказ ждёт доплату (в печать — после неё или с постоплатой).
-      this.props.status = "pending_payment";
-      this.props.paidAt = null;
-      this.props.paymentClaimedAt = null;
-      this.log("pending_payment", `Ждёт доплату ${formatPrice(outstanding)}`, actor, now);
-    }
     this.record(OrderingEvents.orderRepriced({ ...this.ref(), previousAmount: before.amount, previousPlan: planBefore, actor }));
     return { due: price.amount, credited, outstanding, overpaid };
   }

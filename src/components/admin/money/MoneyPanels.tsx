@@ -96,7 +96,8 @@ export function RefundPanel({ target, open, onClose, onDone }: { target: RefundT
 
 /**
  * «Перевести в печатную»: оплаченная электронная версия — в печатный тариф (по умолчанию твёрдая обложка). Полученные деньги
- * засчитываются; точные «зачтено» и «к доплате» считает сервер (промокод заказа и предоплата по сделке остаются).
+ * засчитываются; точный расчёт — на сервере (промокод заказа и предоплата по сделке остаются). Денег не хватает — сервер
+ * откажет с суммой: доплату сначала принимают в «Оплате» заказа.
  */
 export function UpgradePanel({ order, open, onClose }: { order: { id: string; number: number; received: number }; open: boolean; onClose: () => void }) {
   const router = useRouter();
@@ -131,12 +132,12 @@ export function UpgradePanel({ order, open, onClose }: { order: { id: string; nu
           <dd className="text-right tabular-nums">{formatPrice(price)}</dd>
           <dt className="text-muted">Получено по заказу</dt>
           <dd className="text-right tabular-nums">{formatPrice(order.received)}</dd>
-          <dt className="text-muted">{order.received >= price ? "Останется переплата" : "Останется доплатить"}</dt>
+          <dt className="text-muted">{order.received >= price ? "Останется переплата" : "Не хватает (по прайсу)"}</dt>
           <dd className="text-right font-semibold tabular-nums">{formatPrice(Math.abs(price - order.received))}</dd>
         </dl>
         <p className="text-xs text-muted">
-          Деньги, уже полученные по заказу, засчитаются; промокод заказа и предоплата по сделке останутся. Хватает денег — заказ остаётся оплаченным и идёт в печать. Не хватает — заказ ждёт доплату, в
-          печать — после оплаты. Доставку укажите в «Правке данных» заказа.
+          Деньги, уже полученные по заказу, засчитаются; промокод заказа и предоплата по сделке останутся. Заказ остаётся оплаченным и идёт в печать. Если денег не
+          хватает, сначала примите доплату в «Оплате» заказа. Доставку укажите в «Правке данных» заказа.
         </p>
         {error ? <Alert>{error}</Alert> : null}
         <div className="flex flex-wrap gap-2">
