@@ -6,7 +6,7 @@ import { useMessages } from "@/i18n/client";
 export default function Loading() {
   const t = useMessages().books.preview;
   return (
-    <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8" aria-busy="true" aria-label={t.meta}>
+    <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8" aria-busy="true" aria-label={t.meta}>
       <div className="mb-5 space-y-2">
         <div className="skeleton h-9 w-56" />
         <div className="skeleton h-4 w-96 max-w-full" />

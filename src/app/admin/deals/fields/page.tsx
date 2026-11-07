@@ -14,7 +14,7 @@ export default async function FieldsPage({ searchParams }: { searchParams: Promi
   const entity = (await searchParams).e === "client" ? "client" : "deal";
   const fields = await listFields(entity);
   return (
-    <div className="mx-auto flex w-full max-w-[44rem] flex-col gap-5">
+    <div className="flex w-full max-w-[44rem] flex-col gap-5">
       <PageHeader back={{ href: "/admin/deals", label: "Сделки" }} title="Свои поля">
         Дополнительная информация в карточке: повод, дата события, для кого книга… Поля можно использовать в шаблонах сообщений: {"{"}Название поля{"}"}. Поля сделки «Повод», «Дата события» и «Для кого» заполняются сами из книги клиента, а бот-квалификатор записывает в поля ответы клиента.
       </PageHeader>

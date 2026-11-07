@@ -2,11 +2,15 @@
 
 import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   BarChart3,
   Coins,
   Globe,
   BookOpen,
+  ChevronDown,
+  PanelLeftClose,
+  PanelLeftOpen,
   CheckSquare,
   Gift,
   Handshake,
@@ -36,6 +40,7 @@ import type { Permission } from "@/shared/domain/permissions";
 import type { CrmCounters } from "@/modules/reporting";
 import { useLive } from "./CrmLive";
 import { UserMenu } from "./UserMenu";
+import { NAV_RAIL_COOKIE, type NavMode } from "./nav-rail";
 
 export { ShiftToggle } from "./ShiftToggle";
 import { cn } from "@/lib/class-names";
@@ -52,7 +57,7 @@ export interface Item {
   keywords?: string;
 }
 
-/** Раздел CRM: значок на рейке слева, страницы раздела — вкладки в шапке. */
+/** Группа CRM в боковой панели: заголовок и её страницы. */
 export interface Domain {
   key: string;
   label: string;
@@ -160,102 +165,144 @@ export function activeDomain(domains: Domain[], pathname: string): { domain: Dom
 function NavIcon({ icon: Icon, className }: { icon: LucideIcon; className?: string }) {
   const { pending } = useLinkStatus();
   return (
-    <span className={cn("relative size-5 shrink-0", className)}>
-      <Icon className={cn("size-5 transition-opacity", pending && "opacity-0")} strokeWidth={1.7} aria-hidden />
-      <LoaderCircle className={cn("absolute inset-0 size-5 animate-spin transition-opacity", pending ? "opacity-100" : "opacity-0")} strokeWidth={2} aria-hidden />
+    <span className={cn("relative size-4 shrink-0", className)}>
+      <Icon className={cn("size-4 transition-opacity", pending && "opacity-0")} strokeWidth={1.8} aria-hidden />
+      <LoaderCircle className={cn("absolute inset-0 size-4 animate-spin transition-opacity", pending ? "opacity-100" : "opacity-0")} strokeWidth={2} aria-hidden />
     </span>
   );
 }
 
+/** Группы боковой панели, свёрнутые по умолчанию: настройка нужна реже ежедневной работы. */
+const FOLDED_BY_DEFAULT = ["setup"];
+const GROUPS_KEY = "crm-nav-groups";
+
 /**
- * Рейка CRM (DESIGN.md §7.1): узкая светлая колонка на ноутбуке — шесть разделов значком и подписью, на значке — сумма
- * счётчиков раздела; внизу — профиль (смена, тема, выход). Страницы раздела — вкладки в шапке (SectionTabs).
- * На телефоне вместо рейки — нижняя панель и экран «Ещё» (MobileTabBar, MoreMenu).
+ * Боковая панель CRM (DESIGN.md §7.1): все страницы подписями, по группам — без второго уровня во вкладках шапки.
+ * У каждой страницы свой живой счётчик. Группы сворачиваются (кроме «Сегодня»), выбор запоминается; группа с открытой
+ * страницей всегда раскрыта. Панель сворачивается в рейку значков (для доски сделок и широких таблиц) — режим хранится
+ * в cookie. Внизу — профиль (смена, тема, выход). На телефоне вместо панели — нижняя панель и «Ещё».
  */
-export function AdminNav({ adminName, roleName, perms, onShift }: { adminName: string; roleName: string; perms: Permission[]; onShift: boolean }) {
+export function AdminNav({ adminName, roleName, perms, onShift, mode: modeInitial = "auto" }: { adminName: string; roleName: string; perms: Permission[]; onShift: boolean; mode?: NavMode }) {
   const pathname = usePathname();
   const { counters } = useLive().live;
   const domains = visibleDomains(perms);
-  const current = activeDomain(domains, pathname)?.domain.key;
+  const current = activeDomain(domains, pathname);
+  // auto — полная панель от 1280 px, уже — рейка значков; full / rail — выбор человека (кнопка в шапке панели).
+  const [mode, setMode] = useState<NavMode>(modeInitial);
+  const rail = mode === "rail";
+  const auto = mode === "auto";
+  /** Классы: полная панель, рейка; в режиме auto — полная плюс рейка ниже xl (те же классы с max-xl:, выписаны целиком для Tailwind). */
+  const v = (full: string, railCls: string, autoRail: string) => (rail ? railCls : auto ? cn(full, autoRail) : full);
+  const [folded, setFolded] = useState<string[]>(FOLDED_BY_DEFAULT);
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(GROUPS_KEY);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- выбор человека известен только в браузере
+      if (saved) setFolded(JSON.parse(saved) as string[]);
+    } catch {}
+  }, []);
+  const toggleGroup = (key: string) =>
+    setFolded((f) => {
+      const next = f.includes(key) ? f.filter((k) => k !== key) : [...f, key];
+      try {
+        localStorage.setItem(GROUPS_KEY, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  const toggleRail = () => {
+    // Что видно сейчас: в auto это зависит от ширины окна.
+    const narrowNow = rail || (auto && window.innerWidth < 1280);
+    const next: NavMode = narrowNow ? "full" : "rail";
+    document.cookie = `${NAV_RAIL_COOKIE}=${next}; path=/; max-age=31536000; samesite=lax`;
+    setMode(next);
+  };
+
   return (
-    <aside className="crm-rail sticky top-0 hidden h-dvh w-[4.5rem] shrink-0 flex-col items-center border-r border-line bg-white py-3 lg:flex" aria-label="Разделы CRM">
-      <Link href="/admin" aria-label="MyBooks CRM, обзор" className="mb-4 flex size-10 items-center justify-center rounded-xl transition-colors hover:bg-sunken">
-        <LogoMark className="size-7" />
-      </Link>
-      <nav className="no-scrollbar flex w-full flex-1 flex-col items-center gap-1 overflow-y-auto px-2">
-        {domains.map((d) => {
-          const active = d.key === current;
-          const total = d.items.reduce((a, it) => a + (it.badge ? counters[it.badge] : 0), 0);
+    <aside
+      className={cn("crm-sidebar sticky top-0 hidden h-dvh shrink-0 flex-col border-r border-line bg-white transition-[width] duration-200 lg:flex", v("w-60", "w-16", "max-xl:w-16"))}
+      aria-label="Разделы CRM"
+    >
+      <div className={cn("flex h-12 shrink-0 items-center border-b border-line", v("gap-2.5 pr-2 pl-4", "justify-center p-0", "max-xl:justify-center max-xl:p-0"))}>
+        <Link href="/admin" aria-label="MyBooks CRM, обзор" className={cn("flex items-center gap-2.5 rounded-lg", v("", "hidden", "max-xl:hidden"))}>
+          <LogoMark className="size-7 rounded-[7px]" />
+          <span className="text-[14px] font-semibold tracking-[-0.01em]">MyBooks</span>
+        </Link>
+        <button
+          type="button"
+          onClick={toggleRail}
+          className={cn("flex size-8 items-center justify-center rounded-lg text-muted transition-colors hover:bg-sunken hover:text-ink", v("ml-auto", "ml-0", "max-xl:ml-0"))}
+          aria-label="Свернуть или развернуть панель"
+          title="Свернуть или развернуть панель"
+        >
+          <PanelLeftOpen className={cn("size-4", v("hidden", "block", "max-xl:block"))} strokeWidth={1.8} aria-hidden />
+          <PanelLeftClose className={cn("size-4", v("block", "hidden", "max-xl:hidden"))} strokeWidth={1.8} aria-hidden />
+        </button>
+      </div>
+
+      <nav className={cn("no-scrollbar flex flex-1 flex-col overflow-y-auto py-2", v("px-2.5", "items-center gap-0.5 px-2", "max-xl:items-center max-xl:gap-0.5 max-xl:px-2"))}>
+        {domains.map((d, i) => {
+          // Свёрнутая группа: на полной панели пункты скрыты, в рейке (ниже xl в auto) — видны всегда.
+          const open = i === 0 || rail || !folded.includes(d.key) || current?.domain.key === d.key;
+          const hidden = d.items.reduce((a, it) => a + (it.badge ? counters[it.badge] : 0), 0);
           return (
-            <Link
-              key={d.key}
-              href={d.items[0].href}
-              aria-current={active ? "true" : undefined}
-              title={d.label}
-              className={cn(
-                "relative flex w-full flex-col items-center gap-1 rounded-[10px] px-1 pt-2 pb-1.5 text-[10.5px] leading-none font-medium transition-colors",
-                active ? "bg-rose text-wine" : "text-muted hover:bg-sunken hover:text-ink",
-              )}
-            >
-              <NavIcon icon={d.icon} />
-              <span>{d.label}</span>
-              {total ? (
-                <span className="count count-alert absolute top-0.5 right-1 h-4 min-w-4 px-1 text-[10px]" data-badge={d.key} aria-label={`${total} требуют внимания`}>
-                  {total > 99 ? "99+" : total}
-                </span>
+            <div key={d.key} className={cn(v(i > 0 ? "mt-3" : "", "contents", "max-xl:contents"))}>
+              {i > 0 ? (
+                <>
+                  {rail || auto ? <span className={cn("my-1.5 h-px w-6 shrink-0 bg-line", auto && "xl:hidden")} aria-hidden /> : null}
+                  {!rail ? (
+                    <button
+                      type="button"
+                      onClick={() => toggleGroup(d.key)}
+                      aria-expanded={open}
+                      className={cn("group flex h-7 w-full items-center gap-1 rounded-md px-2 text-left text-xs font-semibold text-muted transition-colors hover:text-ink", auto && "max-xl:hidden")}
+                    >
+                      {d.label}
+                      <ChevronDown className={cn("size-3.5 opacity-0 transition group-hover:opacity-100", !open && "-rotate-90 opacity-100")} strokeWidth={2} aria-hidden />
+                      {!open && hidden ? (
+                        <span className="count count-alert ml-auto h-4 min-w-4 px-1 text-[10px]" aria-label={`${hidden} требуют внимания`}>
+                          {hidden > 99 ? "99+" : hidden}
+                        </span>
+                      ) : null}
+                    </button>
+                  ) : null}
+                </>
               ) : null}
-            </Link>
+              {open || auto
+                ? d.items.map((it) => {
+                    const active = current?.item.href === it.href;
+                    const n = it.badge ? counters[it.badge] : 0;
+                    return (
+                      <Link
+                        key={it.href}
+                        href={it.href}
+                        aria-current={active ? "page" : undefined}
+                        title={rail || auto ? it.label : undefined}
+                        className={cn(
+                          "relative flex shrink-0 items-center rounded-lg text-[13.5px] transition-colors",
+                          v("h-8 w-full gap-2.5 px-2", "size-10 justify-center gap-0 px-0", "max-xl:size-10 max-xl:justify-center max-xl:gap-0 max-xl:px-0"),
+                          !open && "xl:hidden",
+                          active ? "bg-sunken font-semibold text-ink" : "text-ink-soft hover:bg-sunken/70 hover:text-ink",
+                        )}
+                      >
+                        <NavIcon icon={it.icon} className={active ? "text-wine" : "text-muted"} />
+                        <span className={cn(v("min-w-0 flex-1 truncate", "sr-only", "max-xl:sr-only"))}>{it.label}</span>
+                        {n ? (
+                          <span className={cn("count count-alert h-4 min-w-4 px-1 text-[10px]", v("", "absolute top-0.5 right-0.5", "max-xl:absolute max-xl:top-0.5 max-xl:right-0.5"))} data-badge={it.badge}>
+                            {n > 99 ? "99+" : n}
+                          </span>
+                        ) : null}
+                      </Link>
+                    );
+                  })
+                : null}
+            </div>
           );
         })}
       </nav>
-      <UserMenu adminName={adminName} roleName={roleName} onShift={onShift} canShift={perms.includes("deals.edit") || perms.includes("chats.send")} />
-    </aside>
-  );
-}
 
-/**
- * Вкладки раздела в шапке: страницы активного раздела, у каждой — свой живой счётчик. У страниц вне карты (поиск и т. п.)
- * вкладок нет — только название.
- */
-export function SectionTabs({ perms, fallback }: { perms: Permission[]; fallback?: string }) {
-  const pathname = usePathname();
-  const { counters } = useLive().live;
-  const domains = visibleDomains(perms);
-  const cur = activeDomain(domains, pathname);
-  if (!cur) return <span className="text-[13px] font-semibold">{fallback ?? "CRM"}</span>;
-  const { domain, item: here } = cur;
-  return (
-    <div className="flex h-full min-w-0 items-stretch gap-4">
-      <span className="flex shrink-0 items-center text-[13px] font-semibold">{domain.label}</span>
-      {domain.items.length > 1 ? (
-        <>
-          <span className="my-3.5 w-px shrink-0 bg-line" aria-hidden />
-          <nav aria-label={`Страницы раздела «${domain.label}»`} className="no-scrollbar flex h-full min-w-0 items-stretch gap-0.5 overflow-x-auto">
-            {domain.items.map((it) => {
-              const active = it.href === here.href;
-              const n = it.badge ? counters[it.badge] : 0;
-              return (
-                <Link
-                  key={it.href}
-                  href={it.href}
-                  aria-current={active ? "page" : undefined}
-                  className={cn(
-                    "relative flex shrink-0 items-center gap-1.5 px-2.5 text-[13px] font-medium whitespace-nowrap transition-colors",
-                    active ? "text-ink after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:rounded-t-full after:bg-wine" : "text-muted hover:text-ink",
-                  )}
-                >
-                  {it.label}
-                  {n ? (
-                    <span className="count count-alert h-4 min-w-4 px-1 text-[10px]" data-badge={it.badge}>
-                      {n > 99 ? "99+" : n}
-                    </span>
-                  ) : null}
-                </Link>
-              );
-            })}
-          </nav>
-        </>
-      ) : null}
-    </div>
+      <div className={cn("shrink-0 border-t border-line p-2", v("", "flex justify-center", "max-xl:flex max-xl:justify-center"))}>
+        <UserMenu adminName={adminName} roleName={roleName} onShift={onShift} canShift={perms.includes("deals.edit") || perms.includes("chats.send")} wide={rail ? false : auto ? "xl" : true} />
+      </div>
+    </aside>
   );
 }

@@ -62,7 +62,7 @@ export default async function IdeasPage() {
       <JsonLd data={jsonLd} />
       <LandingHeader loggedIn={!!user} overlay />
       <main className="overflow-x-clip">
-        <FilmFrame photo="familydusk" position="50% 62%" size="slim" priority>
+        <FilmFrame photo="familydusk" position="50% 38%" size="slim" priority>
           <Breadcrumbs tone="dark" items={[{ name: m.landing.seoPage.home, href: "/" }, { name: m.common.footer.allIdeas }]} />
           <h1 className="max-w-3xl font-serif text-[40px] leading-[1.04] font-medium tracking-[-0.01em] text-balance text-white sm:text-6xl">{t.title}</h1>
           <Flourish className="mt-3 text-[rgb(255_255_255/0.6)]" />

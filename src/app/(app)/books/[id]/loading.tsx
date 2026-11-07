@@ -6,7 +6,7 @@ import { useMessages } from "@/i18n/client";
 export default function Loading() {
   const t = useMessages().books.hub;
   return (
-    <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10" aria-busy="true" aria-label={t.loading}>
+    <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-10" aria-busy="true" aria-label={t.loading}>
       <div className="grid gap-x-14 gap-y-6 lg:grid-cols-[minmax(0,300px)_minmax(0,1fr)]">
         <div className="flex items-center gap-4 lg:block">
           <div className="skeleton aspect-[148/210] w-[92px] shrink-0 rounded-[3px] lg:w-full lg:max-w-[280px]" />

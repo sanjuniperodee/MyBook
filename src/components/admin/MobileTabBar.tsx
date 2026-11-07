@@ -85,8 +85,11 @@ export function MobileTabBar({ tabs, profileLabel }: { tabs: MobileTabKey[]; pro
     ...tabs.map((k) => ({ key: k, ...TABS[k] })),
     { key: "more", label: profileLabel, href: "/admin/more", icon: profileLabel === "Ещё" ? Ellipsis : User, badge: undefined },
   ];
-  // «Заказы» — и список, и доска производства.
-  const active = (href: string) => (href === "/admin" ? pathname === "/admin" : pathname.startsWith(href) || (href === "/admin/orders" && pathname.startsWith("/admin/board")));
+  // «Заказы» — и список, и доска производства. Страница, которой нет среди вкладок (клиенты, финансы, команда…), открыта
+  // из «Ещё» — подсвечена «Ещё», чтобы панель всегда показывала, где человек.
+  const direct = (href: string) => (href === "/admin" ? pathname === "/admin" : pathname.startsWith(href) || (href === "/admin/orders" && pathname.startsWith("/admin/board")));
+  const elsewhere = !items.some((it) => it.key !== "more" && direct(it.href));
+  const active = (href: string) => direct(href) || (href === "/admin/more" && elsewhere);
   return (
     <nav style={{ viewTransitionName: "crm-tabbar" }} className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-white/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden" aria-label="Разделы CRM" data-testid="mobile-tabbar">
       <ul className="mx-auto flex h-[3.6rem] max-w-xl">

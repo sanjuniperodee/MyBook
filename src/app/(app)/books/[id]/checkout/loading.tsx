@@ -6,7 +6,7 @@ import { useMessages } from "@/i18n/client";
 export default function Loading() {
   const t = useMessages().checkout;
   return (
-    <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8" aria-busy="true" aria-label={t.meta}>
+    <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8" aria-busy="true" aria-label={t.meta}>
       <div className="flex items-center gap-4">
         <div className="skeleton aspect-[148/210] w-12 rounded-[3px] sm:w-14" />
         <div className="flex-1 space-y-2">

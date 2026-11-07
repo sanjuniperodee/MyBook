@@ -1,13 +1,7 @@
-"use client";
-
-import { usePathname } from "next/navigation";
-import { cn } from "@/lib/class-names";
-
 /**
- * Строка с названием книги над лентой пути. В редакторе текста на телефоне она прячется: над листом остаются только
- * лента и редактор — экран и так делят клавиатура и нижняя панель, а книга понятна из «Обзора».
+ * Шапка книги: липкая полоса 56 px сверху — на месте шапки кабинета, которая в книге не показывается. Под вырезом экрана —
+ * отступ safe-area, как у шапки кабинета: от этой высоты отсчитывают липкие панели редакторов (`--ed-top`, `top-[57px]`).
  */
 export function BookTitleRow({ children }: { children: React.ReactNode }) {
-  const writing = usePathname().endsWith("/questions");
-  return <div className={cn("flex items-center gap-2 py-2 sm:gap-3 sm:py-3", writing && "max-sm:hidden")}>{children}</div>;
+  return <header className="sticky top-0 z-40 border-b border-line bg-paper/90 pt-[env(safe-area-inset-top)] backdrop-blur-xl">{children}</header>;
 }

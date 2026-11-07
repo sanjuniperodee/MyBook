@@ -196,10 +196,10 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
             <div className="flex flex-col gap-2 max-lg:mt-1 lg:contents">
               <label className="relative min-w-0 lg:w-56">
                 <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" aria-hidden />
-                <input name="q" defaultValue={q} type="search" placeholder="Имя, телефон, №" aria-label="Поиск сделок: имя, телефон, номер" className="input pl-9" />
+                <input name="q" defaultValue={q} type="search" placeholder="Имя, телефон, №" aria-label="Поиск сделок: имя, телефон, номер" className="input pl-9 lg:h-(--ctl-h-sm) lg:text-[13px]" />
               </label>
               {selectFields.map((f) => (
-                <select key={f.key} name={`cf_${f.key}`} defaultValue={sp[`cf_${f.key}`] ?? ""} className="input lg:max-w-40" aria-label={f.label}>
+                <select key={f.key} name={`cf_${f.key}`} defaultValue={sp[`cf_${f.key}`] ?? ""} className="input lg:h-(--ctl-h-sm) lg:max-w-40 lg:text-[13px]" aria-label={f.label}>
                   <option value="">{f.label}: все</option>
                   {f.options.map((o) => (
                     <option key={o} value={o}>
@@ -208,7 +208,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
                   ))}
                 </select>
               ))}
-              <select name="src" defaultValue={sp.src ?? ""} className="input lg:w-40" aria-label="Источник">
+              <select name="src" defaultValue={sp.src ?? ""} className="input lg:h-(--ctl-h-sm) lg:w-40 lg:text-[13px]" aria-label="Источник">
                 <option value="">Все источники</option>
                 {dealSources.map((s) => (
                   <option key={s} value={s}>
@@ -216,7 +216,8 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
                   </option>
                 ))}
               </select>
-              <button className="btn btn-outline">Найти</button>
+              {/* В строке с чипами и переключателем вида — та же высота, что у них (28 px на компьютере). */}
+              <button className="btn btn-outline lg:h-(--ctl-h-sm) lg:px-3 lg:text-[13px]">Найти</button>
             </div>
           </MobileFilters>
         </form>

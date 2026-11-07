@@ -183,10 +183,13 @@ export function ExtraPhones({ clientId, value }: { clientId: string; value: stri
         });
       }}
     >
-      <input value={text} onChange={(e) => setText(e.target.value)} maxLength={200} placeholder="Второй номер, WhatsApp" className="input h-10 min-w-0 flex-1 text-sm tabular-nums" aria-label="Доп. телефоны" />
-      <button className="btn btn-outline btn-sm" disabled={pending || text === value}>
-        {pending ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : null} Сохранить
-      </button>
+      <input value={text} onChange={(e) => setText(e.target.value)} maxLength={200} placeholder="Второй номер, WhatsApp" className="input min-w-0 flex-1 tabular-nums" aria-label="Доп. телефоны" />
+      {/* Кнопка — только когда есть что сохранять: в узкой колонке профиля поле получает всю ширину. */}
+      {text !== value || pending ? (
+        <button className="btn btn-dark btn-sm shrink-0 self-center" disabled={pending}>
+          {pending ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : null} Сохранить
+        </button>
+      ) : null}
     </form>
   );
 }

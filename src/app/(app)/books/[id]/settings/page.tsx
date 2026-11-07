@@ -20,7 +20,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ id: s
   const m = await getMessages();
   const t = m.books.settings;
   return (
-    <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+    <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
       <header className="mb-6 max-w-2xl">
         <h1 className="font-serif text-[30px] leading-tight font-medium sm:text-[36px]">{t.title}</h1>
         <p className="mt-1 text-[15px] leading-relaxed text-pretty text-muted">{m.books.tools.settings}</p>

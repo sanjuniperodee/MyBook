@@ -46,7 +46,7 @@ export default async function SecurityPage() {
     </li>
   );
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-5">
+    <div className="flex max-w-6xl flex-col gap-5">
       <PageHeader title="Безопасность">Двухфакторный вход защищает CRM, даже если пароль утёк: кроме пароля нужен код из приложения на телефоне.</PageHeader>
       {gate === "2fa" ? (
         <Alert kind="warning">

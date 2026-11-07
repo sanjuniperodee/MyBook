@@ -1,3 +1,4 @@
+import { cn } from "@/lib/class-names";
 import type { Metadata } from "next";
 import { ChevronRight, Package } from "lucide-react";
 import { Link } from "@/i18n/client";
@@ -57,13 +58,14 @@ export default async function OrdersPage() {
         </div>
       ) : (
         <ul className="mt-8 space-y-4">
-          {list.map((order) => {
+          {/* Действующие заказы — сверху, отменённые — ниже и приглушены (порядок внутри групп — от новых к старым). */}
+          {[...list].sort((a, b) => Number(a.status === "cancelled") - Number(b.status === "cancelled")).map((order) => {
             const printed = isPrintedPlan(order.plan);
             const key = nowKey(order.status, printed);
             const cancelled = order.status === "cancelled";
             const waitingPayment = order.status === "pending_payment";
             return (
-              <li key={order.id} className="panel group relative transition-colors hover:border-line-strong">
+              <li key={order.id} className={cn("panel group relative transition-colors hover:border-line-strong", cancelled && "bg-white/60 [&_.shadow-book]:opacity-70")}>
                 <div className="flex gap-4 p-4 sm:gap-6 sm:p-5">
                   <div className="w-16 shrink-0 sm:w-24">
                     <CoverPreview

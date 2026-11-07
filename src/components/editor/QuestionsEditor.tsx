@@ -628,7 +628,7 @@ function EditorBody({
         </div>
       )}
 
-      <div className={cn("mx-auto max-w-[96rem] gap-8 px-4 pt-4 sm:px-6 sm:pt-6 xl:gap-10", columns && "grid min-[1100px]:min-h-[calc(100dvh-var(--ed-top)-3rem)]", columns)}>
+      <div className={cn("mx-auto max-w-[96rem] gap-8 px-4 sm:px-6 sm:pt-6 xl:gap-10", columns && "grid min-[1100px]:min-h-[calc(100dvh-var(--ed-top)-3rem)]", columns)}>
         {/* Оглавление: столбец слева (от 1281 px, его можно спрятать); на узком экране — шторка */}
         {tocOn ? (
           <aside className="hidden min-[1281px]:block" aria-label={blank ? t.blank.drawerTitle : t.drawerTitle}>
@@ -645,7 +645,7 @@ function EditorBody({
             </div>
           ) : null}
           {q && group ? (
-            <article data-help={`question:${q.id}`} className="rounded-[14px] border border-line bg-white max-sm:-mx-4 max-sm:rounded-none max-sm:border-x-0">
+            <article data-help={`question:${q.id}`} className="rounded-[14px] border border-line bg-white max-sm:-mx-4 max-sm:rounded-none max-sm:border-x-0 max-sm:border-t-0">
               <div className="mx-auto max-w-[40rem] px-5 pt-5 pb-4 sm:px-10 sm:pt-12 sm:pb-6 lg:pt-14">
                 {/* На телефоне прогресс и объём — над вопросом (на компьютере они в полосе) */}
                 <div className="mb-5 flex items-center justify-between gap-3 lg:hidden">

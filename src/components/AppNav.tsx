@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { BookOpen, ChevronDown, Gift, LayoutDashboard, LogOut, Package, UserRound } from "lucide-react";
+import { BookOpen, ChevronDown, Gift, LayoutDashboard, LifeBuoy, LogOut, Package, UserRound } from "lucide-react";
+import { HELP_OPEN_EVENT } from "@/components/help/events";
 import { logoutAction } from "@/app/(auth)/actions";
 import { cn } from "@/lib/class-names";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
@@ -21,7 +22,15 @@ const isActive = (pathname: string, href: string) => pathname === href || pathna
  * Страницы редактора книги (/books/<id>/…) ведут свои нижние панели — общая нижняя навигация на них не нужна.
  * /books/new — не книга, а мастер: нижняя навигация там остаётся.
  */
-const inBook = (pathname: string) => /^\/books\/(?!new(\/|$))[^/]+/.test(pathname);
+export const inBook = (pathname: string) => /^\/books\/(?!new(\/|$))[^/]+/.test(pathname);
+
+/**
+ * Шапка кабинета показывается везде, кроме книги: там одна шапка — шапка книги (знак, путь «Мои книги / книга», состояние,
+ * заказ, тема и профиль), а не две друг над другом. Высота у них одна (56 px), поэтому липкие панели редакторов не сдвигаются.
+ */
+export function CabinetHeaderGate({ children }: { children: React.ReactNode }) {
+  return inBook(useLocalePathname()) ? null : children;
+}
 
 /** Где мы: название раздела для шапки на телефоне. */
 function useSectionTitle(pathname: string) {
@@ -35,32 +44,13 @@ function useSectionTitle(pathname: string) {
 
 /**
  * Шапка кабинета, правая и средняя части. На компьютере — разделы вкладками с подчёркиванием активного, язык, тема, профиль.
- * На телефоне — название раздела, тема и профиль; разделы уходят в нижнюю панель (AppTabBar). На страницах книги нижней
- * панели нет, поэтому там остаются значки «Книги» и «Заказы» вверху, как раньше.
+ * На телефоне — название раздела, тема и профиль; разделы уходят в нижнюю панель (AppTabBar). В книге эта шапка не
+ * показывается совсем — её место занимает шапка книги (BookLayout), см. `CabinetHeaderGate`.
  */
 export function AppNav({ name, email, isAdmin }: { name: string; email: string; isAdmin: boolean }) {
   const pathname = useLocalePathname();
   const m = useMessages().common.nav;
   const title = useSectionTitle(pathname);
-  const book = inBook(pathname);
-  const [open, setOpen] = useState(false);
-  const menu = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: MouseEvent | KeyboardEvent) => {
-      if (e instanceof KeyboardEvent ? e.key === "Escape" : !menu.current?.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", close);
-    document.addEventListener("keydown", close);
-    return () => {
-      document.removeEventListener("mousedown", close);
-      document.removeEventListener("keydown", close);
-    };
-  }, [open]);
-
-  const initial = (name || email).trim().charAt(0).toUpperCase();
-  const itemCls = "flex min-h-11 items-center gap-2.5 rounded-[10px] px-3 text-sm hover:bg-sunken";
   return (
     <>
       {/* Компьютер: вкладки разделов. Высота шапки — 56 px, подчёркивание лежит на её нижней линии. */}
@@ -82,8 +72,8 @@ export function AppNav({ name, email, isAdmin }: { name: string; email: string; 
           );
         })}
       </nav>
-      {/* Телефон: «где я» — название раздела (на страницах книги его ведёт сама книга). */}
-      {!book ? <div className="min-w-0 flex-1 truncate pl-1 font-serif text-[22px] leading-none font-medium md:hidden">{title}</div> : <div className="flex-1 md:hidden" />}
+      {/* Телефон: «где я» — название раздела. */}
+      <div className="min-w-0 flex-1 truncate pl-1 font-serif text-[22px] leading-none font-medium md:hidden">{title}</div>
       <div className="hidden flex-1 md:block" />
 
       <div className="flex shrink-0 items-center gap-0.5 sm:gap-1.5">
@@ -92,64 +82,102 @@ export function AppNav({ name, email, isAdmin }: { name: string; email: string; 
           <LanguageSwitch />
         </div>
         <ShopThemeToggle className="size-11" />
-        {book ? (
-          <div className="flex items-center md:hidden">
-            {SECTIONS.slice(0, 2).map((s) => (
-              <Link
-                key={s.href}
-                href={s.href}
-                aria-label={m[s.key]}
-                aria-current={isActive(pathname, s.href) ? "page" : undefined}
-                className={cn("flex size-11 items-center justify-center rounded-[10px] transition-colors", isActive(pathname, s.href) ? "bg-ink/[.06] text-ink" : "text-ink-soft hover:bg-ink/5 hover:text-ink")}
-              >
-                <s.icon className="size-[18px]" strokeWidth={1.8} aria-hidden />
-              </Link>
-            ))}
-          </div>
-        ) : null}
-        <div ref={menu} className="relative">
-          <button
-            type="button"
-            onClick={() => setOpen((v) => !v)}
-            aria-expanded={open}
-            aria-haspopup="menu"
-            className="flex h-11 items-center gap-1 rounded-full py-1 pr-1.5 pl-1 transition hover:bg-ink/5"
-          >
-            <span className="flex size-8 items-center justify-center rounded-full bg-wine text-[13px] font-semibold text-white">{initial}</span>
-            <ChevronDown className={cn("size-4 text-muted transition-transform duration-200", open && "rotate-180")} aria-hidden />
-            <span className="sr-only">{m.profileMenu}</span>
-          </button>
-          {open ? (
-            <div role="menu" className="absolute right-0 mt-2 w-60 origin-top-right animate-[toast-in_180ms_var(--ease-out-soft)_both] rounded-[var(--r-panel)] border border-line bg-white p-1.5 shadow-soft">
-              <div className="px-3 py-2.5">
-                <div className="truncate text-sm font-medium">{name || m.noName}</div>
-                <div className="truncate text-xs text-muted">{email}</div>
-              </div>
-              <div className="my-1 h-px bg-line" />
-              <div className="px-3 py-1.5 md:hidden">
-                <LanguageSwitch />
-              </div>
-              <Link role="menuitem" href="/account" onClick={() => setOpen(false)} className={itemCls}>
-                <UserRound className="size-4 text-muted" aria-hidden /> {m.profile}
-              </Link>
-              <Link role="menuitem" href="/invite" onClick={() => setOpen(false)} className={itemCls}>
-                <Gift className="size-4 text-muted" aria-hidden /> {m.invite}
-              </Link>
-              {isAdmin ? (
-                <Link role="menuitem" href="/admin" onClick={() => setOpen(false)} className={cn(itemCls, "text-wine")}>
-                  <LayoutDashboard className="size-4" aria-hidden /> {m.crm}
-                </Link>
-              ) : null}
-              <form action={logoutAction}>
-                <button role="menuitem" className={cn(itemCls, "w-full")}>
-                  <LogOut className="size-4 text-muted" aria-hidden /> {m.logout}
-                </button>
-              </form>
-            </div>
-          ) : null}
-        </div>
+        <ProfileMenu name={name} email={email} isAdmin={isAdmin} />
       </div>
     </>
+  );
+}
+
+/**
+ * Меню профиля на аватаре: имя, язык (на телефоне), аккаунт, приглашение, CRM для сотрудников, выход. В книге шапка кабинета
+ * уступает место шапке книги, поэтому здесь же — путь к заказам (`orders`).
+ */
+export function ProfileMenu({ name, email, isAdmin, orders = false, help = false, className }: { name: string; email: string; isAdmin: boolean; orders?: boolean; help?: boolean; className?: string }) {
+  const msgs = useMessages();
+  const m = msgs.common.nav;
+  const [open, setOpen] = useState(false);
+  const menu = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent | KeyboardEvent) => {
+      if (e instanceof KeyboardEvent ? e.key === "Escape" : !menu.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", close);
+    document.addEventListener("keydown", close);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      document.removeEventListener("keydown", close);
+    };
+  }, [open]);
+
+  const initial = (name || email).trim().charAt(0).toUpperCase();
+  const itemCls = "flex min-h-11 items-center gap-2.5 rounded-[10px] px-3 text-sm hover:bg-sunken";
+  return (
+    <div ref={menu} className={cn("relative", className)}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        className="flex h-11 items-center gap-1 rounded-full py-1 pr-1.5 pl-1 transition hover:bg-ink/5"
+      >
+        <span className="flex size-8 items-center justify-center rounded-full bg-wine text-[13px] font-semibold text-white">{initial}</span>
+        <ChevronDown className={cn("size-4 text-muted transition-transform duration-200 max-sm:hidden", open && "rotate-180")} aria-hidden />
+        <span className="sr-only">{m.profileMenu}</span>
+      </button>
+      {open ? (
+        <div role="menu" className="absolute right-0 mt-2 w-60 origin-top-right animate-[toast-in_180ms_var(--ease-out-soft)_both] rounded-[var(--r-panel)] border border-line bg-white p-1.5 shadow-soft">
+          <div className="px-3 py-2.5">
+            <div className="truncate text-sm font-medium">{name || m.noName}</div>
+            <div className="truncate text-xs text-muted">{email}</div>
+          </div>
+          <div className="my-1 h-px bg-line" />
+          <div className="px-3 py-1.5 md:hidden">
+            <LanguageSwitch />
+          </div>
+          {orders ? (
+            <>
+              <Link role="menuitem" href="/books" onClick={() => setOpen(false)} className={itemCls}>
+                <BookOpen className="size-4 text-muted" aria-hidden /> {m.myBooks}
+              </Link>
+              <Link role="menuitem" href="/orders" onClick={() => setOpen(false)} className={itemCls}>
+                <Package className="size-4 text-muted" aria-hidden /> {m.orders}
+              </Link>
+            </>
+          ) : null}
+          {help ? (
+            <button
+              role="menuitem"
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                window.dispatchEvent(new Event(HELP_OPEN_EVENT));
+              }}
+              className={cn(itemCls, "w-full")}
+            >
+              <LifeBuoy className="size-4 text-muted" aria-hidden /> {msgs.help.button}
+            </button>
+          ) : null}
+          <Link role="menuitem" href="/account" onClick={() => setOpen(false)} className={itemCls}>
+            <UserRound className="size-4 text-muted" aria-hidden /> {m.profile}
+          </Link>
+          <Link role="menuitem" href="/invite" onClick={() => setOpen(false)} className={itemCls}>
+            <Gift className="size-4 text-muted" aria-hidden /> {m.invite}
+          </Link>
+          {isAdmin ? (
+            <Link role="menuitem" href="/admin" onClick={() => setOpen(false)} className={cn(itemCls, "text-wine")}>
+              <LayoutDashboard className="size-4" aria-hidden /> {m.crm}
+            </Link>
+          ) : null}
+          <form action={logoutAction}>
+            <button role="menuitem" className={cn(itemCls, "w-full")}>
+              <LogOut className="size-4 text-muted" aria-hidden /> {m.logout}
+            </button>
+          </form>
+        </div>
+      ) : null}
+    </div>
   );
 }
 

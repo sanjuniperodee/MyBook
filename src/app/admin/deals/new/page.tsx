@@ -28,7 +28,7 @@ export default async function NewDealPage({ searchParams }: { searchParams: Prom
   const pipeline = pipelines.find((x) => x.id === p) ?? pipelines[0];
   const options = canAssignOthers(staff) ? staffOptions(admins) : staffOptions(admins).filter((a) => a.id === staff.user.id);
   return (
-    <div className="mx-auto flex w-full max-w-[40rem] flex-col gap-5">
+    <div className="flex w-full max-w-[40rem] flex-col gap-5">
       <PageHeader back={{ href: client ? `/admin/clients/${client.id}` : "/admin/deals", label: client ? (client.name || "Клиент") : "Сделки" }} title="Новая сделка">
         {client ? "Заявка для клиента сайта или сделка по договорённости — с тарифом, ценой и предоплатой." : "Заявка, которая пришла не с сайта: звонок, встреча, рекомендация. Заявки с сайта и из чатов заводятся сами."}
       </PageHeader>

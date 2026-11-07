@@ -30,7 +30,7 @@ export default async function StagesPage({ searchParams }: { searchParams: Promi
     ["milestones", "Действия клиента"],
   ];
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-5">
+    <div className="flex w-full max-w-5xl flex-col gap-5">
       <PageHeader back={{ href: `/admin/deals?p=${pipeline.id}`, label: "Сделки" }} title="Этапы воронки">
         Этапы «в работе» можно переименовывать, менять местами и удалять. «Успех» и «Отказ» закрывают сделку — их можно только переименовать. «Авто» — сделка сама переходит на этап, когда клиент делает это на сайте (только вперёд по воронке).
       </PageHeader>

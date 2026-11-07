@@ -97,21 +97,25 @@ export default async function BooksPage() {
 
   const [hero, ...rest] = books;
   return (
-    <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
+    <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-12">
       {card ? <div className="mb-8">{card}</div> : null}
+      {/* На телефоне название раздела — в шапке, а «Новая книга» — под книгой: первый экран отдан книге и её действию. */}
       <PageHead
         title={t.title}
-        lead={t.autosave}
+        lead={<span className="max-md:hidden">{t.autosave}</span>}
         actions={
-          <Link href="/books/new" className="btn btn-outline">
+          <Link href="/books/new" className="btn btn-outline max-md:hidden">
             <Plus className="size-4" aria-hidden /> {t.newBook}
           </Link>
         }
       />
 
-      <div className="mt-8 sm:mt-12">
+      <div className="md:mt-12">
         <HeroBook b={hero} m={m} locale={locale} />
       </div>
+      <Link href="/books/new" className="btn btn-outline mt-4 w-full border-dashed md:hidden">
+        <Plus className="size-4" aria-hidden /> {t.newBook}
+      </Link>
 
       {rest.length ? (
         <section aria-labelledby="shelf" className="mt-14 border-t border-line pt-8 sm:mt-20">

@@ -67,7 +67,7 @@ export default async function CheckoutPage({ params, searchParams }: { params: P
   const giftPlan = giftCheck?.ok ? ((await ordering.queries.giftByPromo(giftCheck.promo.id))?.plan as PlanId | undefined) : undefined;
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+    <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
       <header className="flex items-center gap-4">
         <div className="w-12 shrink-0 sm:w-14">
           <CoverPreview

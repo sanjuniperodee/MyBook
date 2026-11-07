@@ -54,6 +54,14 @@ export function SiteWidget({ whatsapp, chat }: { whatsapp: string; chat: boolean
   const [unread, setUnread] = useState(false);
   const [started, setStarted] = useState(() => typeof window !== "undefined" && store(STARTED_KEY) === "1");
   const scroller = useRef<HTMLDivElement>(null);
+  // На телефоне первый экран — титр и свои кнопки; кнопка чата появляется, когда человек прокрутил дальше первого экрана.
+  const [away, setAway] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setAway(window.scrollY > window.innerHeight * 0.6);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -243,7 +251,10 @@ export function SiteWidget({ whatsapp, chat }: { whatsapp: string; chat: boolean
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="relative flex size-14 items-center justify-center rounded-(--r-sheet) bg-wine text-white transition hover:bg-wine-dark active:scale-95"
+        className={cn(
+          "relative flex size-12 items-center justify-center rounded-(--r-sheet) bg-wine text-white transition hover:bg-wine-dark active:scale-95 sm:size-14",
+          !away && !open && !unread && "max-sm:pointer-events-none max-sm:translate-y-4 max-sm:opacity-0",
+        )}
         aria-label={open ? t.close : t.open}
         aria-expanded={open}
       >

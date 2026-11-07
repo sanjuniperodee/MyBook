@@ -252,7 +252,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
           {team.length ? (
             <>
               <div className="hidden overflow-x-auto lg:block">
-                <table className="table min-w-[960px] [&_tr>*:first-child]:sticky [&_tr>*:first-child]:left-0 [&_tr>*:first-child]:z-[1] [&_tr>*:first-child]:bg-white" data-testid="leaderboard">
+                <table className="table min-w-[960px] [&_tr>*:first-child]:sticky [&_tr>*:first-child]:left-0 [&_tr>*:first-child]:z-[1] [&_td:first-child]:bg-white" data-testid="leaderboard">
                   <thead>
                     <tr>
                       <th>Сотрудник</th>

@@ -15,7 +15,7 @@ export async function generateMetadata(): Promise<Metadata> {
 /** Одна группа настроек: слева название и пояснение (на широком экране липкие), справа лист с содержимым. */
 function Group({ id, title, text, children }: { id: string; title: string; text: string; children: React.ReactNode }) {
   return (
-    <section id={id} aria-labelledby={`${id}-title`} className="grid scroll-mt-20 gap-4 py-8 first:pt-0 last:pb-0 lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-10">
+    <section id={id} aria-labelledby={`${id}-title`} className="grid scroll-mt-20 gap-4 py-8 first:pt-0 last:pb-0 lg:grid-cols-[240px_minmax(0,680px)] lg:gap-12">
       <div className="lg:sticky lg:top-24 lg:self-start">
         <h2 id={`${id}-title`} className="text-[17px] font-semibold">
           {title}
@@ -33,9 +33,10 @@ export default async function AccountPage() {
   const t = (await getMessages()).orders.account;
   const g = t.groups;
   return (
-    <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6 sm:py-12">
+    <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
       <PageHead title={t.title} lead={t.lead} />
-      <div className="mt-8 divide-y divide-line sm:mt-10">
+      {/* Левый край — по сетке кабинета (как «Мои книги» и «Заказы»), форма не шире 680 px. */}
+      <div className="mt-8 divide-y divide-line sm:mt-10 lg:max-w-[992px]">
         <Group id="profile" title={g.profile.title} text={g.profile.text}>
           <ProfileForm name={user.name} phone={user.phone ?? ""} email={user.email} />
         </Group>

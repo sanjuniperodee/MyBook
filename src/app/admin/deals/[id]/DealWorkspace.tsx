@@ -85,7 +85,7 @@ export function DealWorkspace({ left, context, initial = "overview" }: { left: W
     <div data-focus={focus}>
       {/* До 1280: все разделы одной полосой, липнет под шапкой. */}
       <div className="sticky top-[var(--topbar-h)] z-10 -mx-4 mb-4 bg-canvas px-4 pt-1 xl:hidden">{bar([...left, ...context], (k) => k === (focus === "left" ? leftTab : ctxTab))}</div>
-      <div className="xl:grid xl:grid-cols-[minmax(0,47rem)_minmax(0,1fr)] xl:items-start xl:gap-5">
+      <div className="xl:grid xl:grid-cols-[minmax(0,47rem)_minmax(20rem,1fr)] xl:items-start xl:gap-5">
         <div className="min-w-0">
           {bar(left, (k) => k === leftTab, "mb-4 max-xl:hidden")}
           <div className="space-y-4 lg:space-y-5">

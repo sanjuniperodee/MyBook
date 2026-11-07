@@ -65,9 +65,10 @@ export function LandingHeader({ loggedIn, overlay = false }: { loggedIn: boolean
         light ? "border-b border-transparent text-white" : open ? "border-b border-line/70 bg-paper text-ink" : "border-b border-line/70 bg-paper/95 text-ink backdrop-blur-xl",
       )}
     >
-      <div className="container-x flex h-16 items-center gap-4 sm:h-18 xl:gap-8">
+      <div className="container-x flex h-16 items-center gap-4 sm:h-18 xl:gap-5">
         <Logo className={light ? "text-white" : undefined} />
-        <nav className="hidden flex-1 items-center justify-center xl:ml-6 xl:flex" aria-label={m.menu}>
+        {/* Всё в одну строку в пределах сетки страницы (container-x): ссылки плотнее, чтобы «Создать книгу» не вылезала за правый край. */}
+        <nav className="hidden min-w-0 flex-1 items-center justify-center xl:flex" aria-label={m.menu}>
           {nav
             .filter((n) => !n.menuOnly)
             .map((n) => (
@@ -75,7 +76,7 @@ export function LandingHeader({ loggedIn, overlay = false }: { loggedIn: boolean
                 key={n.href}
                 href={lp(n.href)}
                 className={cn(
-                  "relative px-3.5 py-2 text-[15px] whitespace-nowrap transition-colors after:absolute after:inset-x-3.5 after:bottom-1 after:h-px after:origin-left after:scale-x-0 after:bg-current after:transition-transform hover:after:scale-x-100",
+                  "relative px-2.5 py-2 text-[15px] whitespace-nowrap transition-colors after:absolute after:inset-x-2.5 after:bottom-1 after:h-px after:origin-left after:scale-x-0 after:bg-current after:transition-transform hover:after:scale-x-100",
                   linkTone,
                 )}
               >

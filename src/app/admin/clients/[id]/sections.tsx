@@ -119,7 +119,7 @@ export function ClientHeader({
         </div>
         <ContactActions className="lg:w-auto lg:min-w-96" target={{ clientId: client.id }} canCall={!!screen.phoneDigits && can("calls.make")} canChat={!!screen.phoneDigits && can("chats.send")} canEmail={can("chats.send")} />
         {can("deals.edit") ? (
-          <Link href={`/admin/deals/new?client=${client.id}`} className="btn btn-primary max-lg:w-full">
+          <Link href={`/admin/deals/new?client=${client.id}`} className="btn btn-primary btn-sm max-lg:w-full">
             <Plus className="size-4" aria-hidden /> Новая сделка
           </Link>
         ) : null}

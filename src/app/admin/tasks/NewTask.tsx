@@ -167,7 +167,7 @@ export function QuickTask() {
     >
       <div className="flex flex-wrap items-center gap-2 max-sm:grid max-sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
         <Plus className="size-4 shrink-0 text-muted max-sm:hidden" aria-hidden />
-        <input name="title" required minLength={2} maxLength={300} placeholder="Новая задача: что сделать, Enter — добавить" aria-label="Что сделать" className="input min-w-0 flex-1 basis-56 px-2 max-sm:col-span-3 max-sm:px-3 sm:border-transparent sm:bg-transparent sm:hover:border-line-strong sm:focus:bg-white" autoComplete="off" />
+        <input name="title" required minLength={2} maxLength={300} placeholder="Новая задача: что сделать" aria-label="Что сделать" className="input min-w-0 flex-1 basis-56 px-2 max-sm:col-span-3 max-sm:px-3 sm:border-transparent sm:bg-transparent sm:hover:border-line-strong sm:focus:bg-white" autoComplete="off" />
         <select name="kind" defaultValue="task" aria-label="Тип задачи" className="input w-auto min-w-0">
           {Object.entries(taskKinds).map(([k, v]) => (
             <option key={k} value={k}>
@@ -182,9 +182,10 @@ export function QuickTask() {
             </option>
           ))}
         </select>
-        <button type="submit" className="btn btn-dark" disabled={pending}>
-          {pending ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : null}
-          Добавить
+        {/* На телефоне — квадрат с плюсом: типу и сроку нужна ширина, иначе «Задача» и «Без срока» обрезаются. */}
+        <button type="submit" className="btn btn-dark max-sm:w-(--ctl-h) max-sm:px-0" disabled={pending} aria-label="Добавить задачу">
+          {pending ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : <Plus className="size-4 sm:hidden" aria-hidden />}
+          <span className="max-sm:sr-only">Добавить</span>
         </button>
       </div>
       {state.error ? (

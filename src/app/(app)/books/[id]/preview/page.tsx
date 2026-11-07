@@ -24,7 +24,7 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
   const flipbook = flipbookData(book, questions, bundle?.chapters ?? [], bundle?.photos ?? [], bundle?.letters ?? []);
   const orderHref = book.status === "draft" ? `/books/${book.id}/checkout` : null;
   return (
-    <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+    <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
       <header className="mb-5 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
         <div className="min-w-0">
           <h1 className="font-serif text-[30px] leading-tight font-medium sm:text-[36px]">{t.title}</h1>

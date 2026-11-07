@@ -3,7 +3,7 @@ import { Bar, SkHeader, SkPage } from "@/components/admin/skeletons";
 
 export default function Loading() {
   return (
-    <SkPage className="mx-auto max-w-6xl space-y-5">
+    <SkPage className="max-w-6xl space-y-5">
       <SkHeader title="w-44" subtitle />
       <div className="panel divide-y divide-line">
         {Array.from({ length: 3 }, (_, i) => (

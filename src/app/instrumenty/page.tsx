@@ -99,7 +99,7 @@ export default async function ToolsHubPage() {
       <LandingHeader loggedIn={!!user} />
       <main className="overflow-x-clip pt-20 sm:pt-24">
         <div className="container-x">
-          <PhotoPlate photo="familydusk" position="50% 55%" shade="side" priority className="min-h-[380px] justify-between sm:min-h-[460px]">
+          <PhotoPlate photo="family" position="50% 30%" shade="side" priority className="min-h-[380px] justify-between sm:min-h-[460px]">
             <div className="relative px-5 pt-6 sm:px-10 sm:pt-9">
               <Breadcrumbs items={[{ name: pg.home, href: "/" }, { name: pg.hub }]} tone="dark" className="mb-0" />
             </div>

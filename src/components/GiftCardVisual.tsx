@@ -13,6 +13,7 @@ export function GiftCardVisual({
   code,
   className,
   locale,
+  samples,
 }: {
   locale: Locale;
   plan: string;
@@ -21,6 +22,8 @@ export function GiftCardVisual({
   message: string;
   code?: string | null;
   className?: string;
+  /** Пока поле пустое — пример бледным текстом (живое превью при покупке), а не «…». */
+  samples?: { recipient: string; buyer: string; message: string };
 }) {
   const p = getPlan(plan);
   // Карточка — копия бумажного PDF: в тёмной витрине она остаётся светлой, поэтому токены внутри — светлые.
@@ -33,9 +36,9 @@ export function GiftCardVisual({
             <div className="text-[2.3cqw] font-medium tracking-[0.25em] text-wine uppercase">{t.brandLine(site.name)}</div>
             <div className="mt-[2.5cqw] font-serif text-[6.6cqw] leading-[1.02] font-medium text-ink">{t.title}</div>
             <div className="mt-[2.2cqw] text-[1.6cqw] font-medium tracking-[0.2em] text-muted uppercase">{t.recipient}</div>
-            <div className="truncate font-serif text-[3.8cqw] leading-tight text-ink italic">{recipientName || "…"}</div>
-            {message ? <p className="mt-[2.6cqw] line-clamp-4 font-serif text-[2.6cqw] leading-snug text-ink-soft italic">«{message}»</p> : null}
-            <div className="mt-[1.8cqw] truncate font-hand text-[3.8cqw] text-wine">— {buyerName || "…"}</div>
+            <div className={cn("truncate font-serif text-[3.8cqw] leading-tight text-ink italic", !recipientName && "opacity-40")}>{recipientName || samples?.recipient || "…"}</div>
+            {message || samples?.message ? <p className={cn("mt-[2.6cqw] line-clamp-4 font-serif text-[2.6cqw] leading-snug text-ink-soft italic", !message && "opacity-40")}>«{message || samples?.message}»</p> : null}
+            <div className={cn("mt-[1.8cqw] truncate font-hand text-[3.8cqw] text-wine", !buyerName && "opacity-40")}>— {buyerName || samples?.buyer || "…"}</div>
           </div>
           <div className="flex w-[30%] shrink-0 flex-col items-center justify-center border-l border-line pl-[4%] text-center">
             <Heart className="size-[7cqw] fill-wine text-wine" />

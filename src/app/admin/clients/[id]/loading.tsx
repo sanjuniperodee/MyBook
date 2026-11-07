@@ -15,7 +15,7 @@ export default function Loading() {
         </div>
         <SkStats n={4} className="rounded-none border-x-0 border-b-0" />
       </div>
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,47rem)_minmax(0,1fr)]">
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,47rem)_minmax(20rem,1fr)]">
         <div className="min-w-0 space-y-5">
           <SkCard lines={6} />
           <SkRows rows={4} />

@@ -128,26 +128,32 @@ export function HeroBook({ b, m, locale }: { b: ShelfBook; m: M; locale: Locale 
   const { book, answered, words, photos } = b.row;
   const href = `/books/${book.id}`;
   return (
-    <section aria-labelledby={`book-${book.id}`} className="grid items-center gap-8 md:grid-cols-[minmax(0,240px)_minmax(0,1fr)] md:gap-12 lg:grid-cols-[minmax(0,300px)_minmax(0,1fr)] lg:gap-16">
-      <Link href={href} tabIndex={-1} aria-hidden className="mx-auto block w-full max-w-[170px] md:max-w-none">
+    // Телефон: обложка слева от названия, ниже — ход работы и «Продолжить писать» (действие — на первом экране).
+    // Компьютер: крупная объёмная обложка слева, всё остальное — колонкой справа.
+    <section
+      aria-labelledby={`book-${book.id}`}
+      className="grid grid-cols-[112px_minmax(0,1fr)] items-center gap-x-5 gap-y-6 [grid-template-areas:'cover_head'_'body_body'] md:grid-cols-[minmax(0,240px)_minmax(0,1fr)] md:gap-x-12 md:gap-y-0 md:[grid-template-areas:'cover_head'_'cover_body'] lg:grid-cols-[minmax(0,300px)_minmax(0,1fr)] lg:gap-x-16"
+    >
+      <Link href={href} tabIndex={-1} aria-hidden className="block w-full [grid-area:cover] md:self-center">
         <Morph name={`cover-${book.id}`}>
           <Book3D {...coverProps(book)} photos={photoUrls(coverPhotoIds(book), "view")} rotate={18} />
         </Morph>
       </Link>
-      <div className="min-w-0">
+      <div className="min-w-0 [grid-area:head] md:self-end">
         <div className="text-sm text-muted">{b.kind}</div>
-        <h2 id={`book-${book.id}`} className="mt-1 font-serif text-4xl leading-[1.05] font-medium text-balance sm:text-5xl">
+        <h2 id={`book-${book.id}`} className="mt-1 font-serif text-[30px] leading-[1.05] font-medium text-balance sm:text-5xl">
           <Link href={href} className="hover:text-wine">
             {book.title}
           </Link>
         </h2>
-        {book.subtitle ? <p className="mt-2 font-serif text-lg text-muted italic sm:text-xl">{book.subtitle}</p> : null}
-
+        {book.subtitle ? <p className="mt-2 font-serif text-base text-muted italic sm:text-xl">{book.subtitle}</p> : null}
+      </div>
+      <div className="min-w-0 [grid-area:body] md:self-start">
         {b.ordered ? (
-          <OrderState b={b} m={m} locale={locale} className="mt-6 max-w-xl" />
+          <OrderState b={b} m={m} locale={locale} className="max-w-xl md:mt-6" />
         ) : (
           <>
-            <Progress b={b} m={m} className="mt-6 max-w-xl" />
+            <Progress b={b} m={m} className="max-w-xl md:mt-6" />
             <p className="mt-3 text-sm text-muted">
               {b.blank ? null : `${m.common.count.words(words)} · `}
               {m.common.count.photos(photos)} · {b.updated}
@@ -156,7 +162,7 @@ export function HeroBook({ b, m, locale }: { b: ShelfBook; m: M; locale: Locale 
         )}
         {b.deadline && !b.ordered ? <Deadline d={b.deadline} aria={t.deadlineAria} className="mt-4 max-w-xl" /> : null}
 
-        <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="mt-6 flex flex-col gap-3 sm:mt-7 sm:flex-row sm:items-center">
           {b.ordered ? (
             <>
               {b.order ? (

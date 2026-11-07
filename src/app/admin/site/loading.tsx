@@ -3,7 +3,7 @@ import { Bar, SkHeader, SkPage } from "@/components/admin/skeletons";
 
 export default function Loading() {
   return (
-    <SkPage className="mx-auto max-w-6xl space-y-5">
+    <SkPage className="max-w-6xl space-y-5">
       <SkHeader title="w-24" subtitle />
       <div className="grid gap-x-8 gap-y-4 lg:grid-cols-[13.5rem_minmax(0,1fr)]">
         <div className="hidden space-y-2.5 lg:block">

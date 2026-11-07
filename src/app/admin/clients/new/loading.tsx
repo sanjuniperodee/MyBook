@@ -3,7 +3,7 @@ import { SkForm, SkHeader, SkPage } from "@/components/admin/skeletons";
 
 export default function Loading() {
   return (
-    <SkPage className="mx-auto w-full max-w-[40rem] space-y-5">
+    <SkPage className="w-full max-w-[40rem] space-y-5">
       <SkHeader back title="w-44" subtitle />
       <SkForm fields={8} />
       <SkForm fields={4} />

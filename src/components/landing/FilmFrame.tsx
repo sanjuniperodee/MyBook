@@ -81,12 +81,13 @@ export function FilmFrame({
         style={{ "--pos": position, "--pos-m": mobilePosition ?? position } as React.CSSProperties}
       />
       {/*
-        Затемнение. Телефон: снимок занимает верх, ниже он уходит в тёмную основу — под титр и кнопки.
+        Затемнение. Телефон: снимок занимает верх, ниже он уходит в тёмную основу — под титр и кнопки. Длинный титр на
+        телефоне поднимается на снимок, поэтому темнеть кадр начинает уже с четверти высоты: подпись над титром читается.
         Широкий экран: снимок во весь кадр, темнее слева — под титр.
       */}
       <div
         aria-hidden
-        className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,rgb(14_9_8/0.55)_0%,rgb(14_9_8/0)_15%,rgb(14_9_8/0.08)_26%,rgb(20_14_13/0.45)_37%,rgb(20_14_13/0.82)_47%,var(--color-spine)_60%)] lg:bg-[linear-gradient(90deg,rgb(14_9_8/0.86)_0%,rgb(14_9_8/0.6)_42%,rgb(14_9_8/0.12)_78%),linear-gradient(0deg,rgb(14_9_8/0.55)_0%,transparent_45%),linear-gradient(180deg,rgb(14_9_8/0.5)_0%,transparent_22%)]"
+        className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,rgb(14_9_8/0.55)_0%,rgb(14_9_8/0.05)_12%,rgb(14_9_8/0.38)_21%,rgb(20_14_13/0.66)_31%,rgb(20_14_13/0.86)_43%,var(--color-spine)_56%)] lg:bg-[linear-gradient(90deg,rgb(14_9_8/0.86)_0%,rgb(14_9_8/0.6)_42%,rgb(14_9_8/0.12)_78%),linear-gradient(0deg,rgb(14_9_8/0.55)_0%,transparent_45%),linear-gradient(180deg,rgb(14_9_8/0.5)_0%,transparent_22%)]"
       />
       {/* Тонкая рамка кадра; на первом экране — под шапкой, чтобы линия не резала меню. */}
       <div
@@ -96,7 +97,7 @@ export function FilmFrame({
           size !== "band" && "top-[68px]! sm:top-[76px]! lg:top-[76px]!",
         )}
       />
-      <div className={cn("container-x relative w-full sm:px-10 xl:px-6", size === "screen" ? "pt-28 pb-12 sm:pb-16 lg:pb-20" : size === "slim" ? "pt-28 pb-10 sm:pb-12" : "py-16 sm:py-20")}>
+      <div className={cn("container-x relative w-full max-lg:[text-shadow:0_1px_14px_rgb(0_0_0/0.4)] sm:px-10 xl:px-6", size === "screen" ? "pt-28 pb-12 sm:pb-16 lg:pb-20" : size === "slim" ? "pt-28 pb-10 sm:pb-12" : "py-16 sm:py-20")}>
         {aside ? (
           <div className="grid items-end gap-10 lg:grid-cols-[minmax(0,1fr)_auto] lg:gap-16">
             <div className="min-w-0">{children}</div>

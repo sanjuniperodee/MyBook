@@ -76,7 +76,8 @@ export function CreateMenu({ perms }: { perms: Permission[] }) {
   if (!actions.length) return null;
   return (
     <div ref={root} className="relative">
-      <button type="button" className="btn btn-primary btn-sm" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+      {/* Контурная: винная кнопка на экране одна — главное действие страницы в её шапке (DESIGN.md §3.2). */}
+      <button type="button" className="btn btn-outline btn-sm" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
         <Plus className="size-4" strokeWidth={2} aria-hidden /> Создать
       </button>
       {open ? (

@@ -78,7 +78,7 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
       <BackLink href="/admin/clients">Клиенты</BackLink>
       <ClientHeader client={client} displayName={displayName} screen={screen} contact={contact} can={can_} avatar={<ChatAvatar name={displayName} url={null} size={56} />} tags={client.tags} />
 
-      <div className="grid gap-4 lg:gap-5 xl:grid-cols-[minmax(0,47rem)_minmax(0,1fr)] xl:items-start">
+      <div className="grid gap-4 lg:gap-5 xl:grid-cols-[minmax(0,47rem)_minmax(20rem,1fr)] xl:items-start">
         <div className="flex min-w-0 flex-col gap-4 lg:gap-5">
           <ClientProfile client={client} screen={screen} contact={contact} canEdit={canEdit} managerOptions={managerOptions} noMarketing={noMarketing} tags={tagList} />
           <ClientTabs

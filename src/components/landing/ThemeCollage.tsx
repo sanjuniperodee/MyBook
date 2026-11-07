@@ -4,27 +4,33 @@ import { countQuestions, getTheme, giftThemes } from "@/lib/content/themes";
 import { getLanding, landings, type Landing } from "@/lib/content/landings";
 import { getLocale, getMessages } from "@/i18n/server";
 import { cn } from "@/lib/class-names";
+import type { GiftThemeId } from "@/lib/content/types";
 
 /**
  * «О ком будет книга» — коллаж, а не сетка: «любимому человеку» крупно слева, остальные обложки разной высоты и с
  * разным сдвигом, будто разложены на столе; внизу — отдельный лист «Не только в подарок» (автобиография и своя книга)
  * и перечень страниц-поводов. Каждая обложка — ссылка: книга сразу начинается с этой темы.
- * Телефон: две колонки со сдвигом (кирпичная кладка), «любимому» — на всю ширину.
+ * Телефон: три колонки без сдвигов (иначе каталог растягивается на шесть экранов), «любимому» — на всю ширину.
  */
 
-/** Положение обложки в коллаже: сетка 12 колонок на широком экране, 4 на планшете, 2 на телефоне. */
-const slots: Record<string, { box: string; offset: string; tilt?: string }> = {
-  love: { box: "col-span-2 md:row-span-2 lg:col-span-4", offset: "", tilt: "-rotate-[1.2deg]" },
+/**
+ * Положение обложки в коллаже: сетка 12 колонок на широком экране, 4 на планшете, 2 на телефоне. «Любимому» — 4 колонки
+ * на два ряда, справа от неё два ряда по четыре обложки; третий ряд — три обложки и лист «Не только в подарок» (6 колонок).
+ * У каждой темы свой слот: тема без слота встала бы в одну колонку и сломала ряды.
+ */
+const slots: Record<GiftThemeId, { box: string; offset: string; tilt?: string }> = {
+  love: { box: "col-span-3 md:col-span-2 md:row-span-2 lg:col-span-4", offset: "", tilt: "-rotate-[1.2deg]" },
   mom: { box: "lg:col-span-2", offset: "md:mt-10 lg:mt-14", tilt: "rotate-[0.8deg]" },
-  dad: { box: "lg:col-span-2", offset: "max-md:mt-10 lg:mt-0", tilt: "-rotate-[0.6deg]" },
+  dad: { box: "lg:col-span-2", offset: "lg:mt-0", tilt: "-rotate-[0.6deg]" },
   parents: { box: "lg:col-span-2", offset: "md:mt-4 lg:mt-8", tilt: "rotate-[1deg]" },
-  family: { box: "lg:col-span-2", offset: "max-md:mt-10 md:mt-14 lg:mt-20", tilt: "-rotate-[0.8deg]" },
+  family: { box: "lg:col-span-2", offset: "md:mt-14 lg:mt-20", tilt: "-rotate-[0.8deg]" },
   grandma: { box: "lg:col-span-2", offset: "lg:mt-4", tilt: "rotate-[0.6deg]" },
-  grandpa: { box: "lg:col-span-2", offset: "max-md:mt-10 lg:mt-16", tilt: "-rotate-[1deg]" },
-  child: { box: "lg:col-span-2", offset: "lg:mt-0", tilt: "rotate-[1.2deg]" },
-  sibling: { box: "lg:col-span-2", offset: "max-md:mt-10 lg:mt-10", tilt: "-rotate-[0.5deg]" },
-  friend: { box: "lg:col-span-2", offset: "lg:mt-2", tilt: "rotate-[0.7deg]" },
-  teacher: { box: "max-md:mt-10 lg:col-span-2", offset: "lg:mt-12", tilt: "-rotate-[1deg]" },
+  grandpa: { box: "lg:col-span-2", offset: "lg:mt-16", tilt: "-rotate-[1deg]" },
+  daughterinlaw: { box: "lg:col-span-2", offset: "md:mt-6 lg:mt-8", tilt: "rotate-[0.9deg]" },
+  child: { box: "lg:col-span-2", offset: "lg:mt-0", tilt: "-rotate-[0.7deg]" },
+  sibling: { box: "lg:col-span-2", offset: "lg:mt-6", tilt: "-rotate-[0.5deg]" },
+  friend: { box: "lg:col-span-2", offset: "lg:mt-0", tilt: "rotate-[0.7deg]" },
+  teacher: { box: "lg:col-span-2", offset: "md:mt-6 lg:mt-12", tilt: "-rotate-[1deg]" },
 };
 
 export async function ThemeCollage({ themeHref, className }: { themeHref: (id: string) => string; className?: string }) {
@@ -57,9 +63,9 @@ export async function ThemeCollage({ themeHref, className }: { themeHref: (id: s
           </div>
         </div>
 
-        <div className="mt-12 grid grid-cols-2 gap-x-4 gap-y-9 sm:mt-16 md:grid-cols-4 md:gap-x-6 md:gap-y-10 lg:grid-cols-12 lg:gap-x-6">
+        <div className="mt-12 grid grid-cols-3 gap-x-3 gap-y-8 sm:mt-16 sm:gap-x-5 md:grid-cols-4 md:gap-x-6 md:gap-y-10 lg:grid-cols-12 lg:gap-x-6">
           {gift.map((th) => {
-            const s = slots[th.id] ?? { box: "", offset: "" };
+            const s = slots[th.id] ?? { box: "lg:col-span-2", offset: "" };
             const big = th.id === "love";
             return (
               <Link key={th.id} href={themeHref(th.id)} className={cn("group block", s.box, s.offset)}>
@@ -67,22 +73,23 @@ export async function ThemeCollage({ themeHref, className }: { themeHref: (id: s
                   <CoverPreview template={th.defaultCover} title={th.titleSuggestions[0]} names={names(th.id, th.defaultCover)} lite className="rounded-[3px] shadow-book" />
                 </div>
                 <div className={cn("mt-4", big && "lg:mt-6")}>
-                  <div className={cn("leading-snug font-medium text-ink group-hover:text-wine", big ? "font-serif text-[28px] sm:text-[34px]" : "text-[15px]")}>{th.name}</div>
-                  <div className="mt-0.5 text-xs leading-snug text-muted sm:text-sm">{t.themes.meta(countQuestions(th), th.chapters.length)}</div>
+                  <div className={cn("leading-snug font-medium text-ink group-hover:text-wine", big ? "font-serif text-[28px] sm:text-[34px]" : "text-[13px] sm:text-[15px]")}>{th.name}</div>
+                  {/* В три колонки на телефоне «45 вопросов · 8 глав» переносится по словам — там только название. */}
+                  <div className={cn("mt-0.5 text-xs leading-snug text-muted sm:text-sm", !big && "max-sm:hidden")}>{t.themes.meta(countQuestions(th), th.chapters.length)}</div>
                 </div>
               </Link>
             );
           })}
 
           {/* Не только в подарок: отдельный лист рядом с последними обложками */}
-          <div className="col-span-2 mt-4 grid gap-8 rounded-(--r-sheet) bg-cream p-6 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:p-9 md:col-span-2 md:mt-0 md:grid-cols-1 md:items-start md:p-6 lg:col-span-8 lg:mt-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center lg:p-9">
+          <div className="col-span-3 mt-4 grid gap-8 self-start rounded-(--r-sheet) bg-cream p-6 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:p-9 md:col-span-4 md:mt-2 lg:col-span-6 lg:mt-6 lg:gap-6 lg:p-8">
             <div>
-              <h3 className="font-serif text-[28px] leading-[1.1] font-medium text-balance sm:text-[32px]">{t.modes.title}</h3>
-              <p className="mt-3 max-w-md leading-relaxed text-ink-soft">{t.modes.note}</p>
+              <h3 className="font-serif text-[28px] leading-[1.1] font-medium text-balance sm:text-[32px] lg:text-[28px]">{t.modes.title}</h3>
+              <p className="mt-3 max-w-md leading-relaxed text-ink-soft lg:text-[15px]">{t.modes.note}</p>
             </div>
-            <ul className="flex gap-5 sm:gap-6">
+            <ul className="flex gap-5 sm:gap-6 lg:gap-4">
               {modes.map((th, i) => (
-                <li key={th.id} className={cn("w-[132px] sm:w-[150px] md:w-[118px] lg:w-[150px]", i === 1 && "mt-6")}>
+                <li key={th.id} className={cn("w-[132px] sm:w-[150px] lg:w-[118px] xl:w-[124px]", i === 1 && "mt-6")}>
                   <Link href={themeHref(th.id)} className="group block">
                     <div className="transition-transform duration-500 ease-(--ease-out-soft) group-hover:-translate-y-1.5">
                       <CoverPreview template={th.defaultCover} title={th.titleSuggestions[0]} names={names(th.id, th.defaultCover)} lite className="rounded-[3px] shadow-book" />

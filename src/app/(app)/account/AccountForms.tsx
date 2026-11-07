@@ -30,7 +30,7 @@ export function ProfileForm({ name, phone, email }: { name: string; phone: strin
       </Field>
       {state.error && !state.field ? <Alert>{state.error}</Alert> : null}
       {state.ok ? <Alert kind="success">{state.ok}</Alert> : null}
-      <SubmitButton className="max-sm:w-full">{t.save}</SubmitButton>
+      <SubmitButton variant="dark" className="max-sm:w-full">{t.save}</SubmitButton>
     </form>
   );
 }
@@ -76,7 +76,7 @@ export function PasswordForm({ email }: { email: string }) {
       </Field>
       {state.error && !state.field ? <Alert>{state.error}</Alert> : null}
       {state.ok ? <Alert kind="success">{state.ok}</Alert> : null}
-      <SubmitButton className="max-sm:w-full">{t.change}</SubmitButton>
+      <SubmitButton variant="dark" className="max-sm:w-full">{t.change}</SubmitButton>
     </form>
   );
 }

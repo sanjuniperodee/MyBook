@@ -25,7 +25,9 @@ export const orderStatusTone: Record<OrderStatus, OrderStatusTone> = {
   pending_payment: "warning",
   paid: "success",
   in_production: "info",
-  shipped: "accent",
+  // «В пути» — тот же синий, что «в производстве» (заказ в работе, различие — в подписи): винный рядом с красным
+  // «отменён» читается как тревога.
+  shipped: "info",
   delivered: "neutral",
   cancelled: "danger",
 };
@@ -35,7 +37,7 @@ export const orderStatusColors: Record<OrderStatus, string> = {
   pending_payment: "bg-warning-bg text-warning",
   paid: "bg-success-bg text-success",
   in_production: "bg-info-bg text-info",
-  shipped: "bg-rose text-wine",
+  shipped: "bg-info-bg text-info",
   delivered: "bg-sunken text-ink-soft",
   cancelled: "bg-danger-bg text-danger",
 };
@@ -45,7 +47,7 @@ export const orderStatusDot: Record<OrderStatus, string> = {
   pending_payment: "bg-warning",
   paid: "bg-success",
   in_production: "bg-info",
-  shipped: "bg-wine",
+  shipped: "bg-info",
   delivered: "bg-muted",
   cancelled: "bg-danger",
 };

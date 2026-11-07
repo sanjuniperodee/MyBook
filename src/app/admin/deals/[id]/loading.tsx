@@ -26,7 +26,7 @@ export default function Loading() {
           ))}
         </div>
       </div>
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,47rem)_minmax(0,1fr)]">
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,47rem)_minmax(20rem,1fr)]">
         <div className="min-w-0 space-y-5">
           <div className="flex gap-5 border-b border-line pb-2.5">
             {[16, 20, 16].map((w, i) => (

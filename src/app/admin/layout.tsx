@@ -3,7 +3,9 @@ import { Search } from "lucide-react";
 import { requireStaffShell } from "@/server/access";
 import { logoutAction } from "@/app/(auth)/actions";
 import { staffLabel } from "@/shared/domain/staff";
-import { AdminNav, SectionTabs } from "@/components/admin/AdminNav";
+import { AdminNav } from "@/components/admin/AdminNav";
+import { NAV_RAIL_COOKIE, navMode } from "@/components/admin/nav-rail";
+import { cookies } from "next/headers";
 import { CrmLiveProvider, IncomingCall, NotificationBell } from "@/components/admin/CrmLive";
 import { Webphone } from "@/components/admin/Webphone";
 import { can } from "@/server/access";
@@ -60,6 +62,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     calls && staff.user.sipExtension ? container().telephony.phone.currentProvider().then((p) => p === "zadarma") : false,
   ]);
   const nav = { adminName: staffLabel(staff.user), roleName: staff.roleName, perms: [...staff.permissions], onShift };
+  // Режим боковой панели: выбор человека (cookie ставит сама панель) или авто — по ширине окна.
+  const navView = navMode((await cookies()).get(NAV_RAIL_COOKIE)?.value);
   // Нижняя панель на телефоне — по роли, как в приложении.
   const layout = mobileLayout((p) => can(staff, p), staff.isOwner);
   const tabs = layoutTabs(layout, (p) => can(staff, p));
@@ -70,12 +74,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <script dangerouslySetInnerHTML={{ __html: STANDALONE_SCRIPT }} />
         <ThemeSync />
         <div className="crm-shell flex min-h-dvh bg-canvas">
-          <AdminNav {...nav} />
+          <AdminNav {...nav} mode={navView} />
           <div className="flex min-w-0 flex-1 flex-col">
             <header style={{ viewTransitionName: "crm-topbar" }} className="crm-topbar sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-line bg-canvas/85 px-4 backdrop-blur-md sm:px-6 lg:h-12 2xl:px-8">
-              {/* Компьютер: раздел и его страницы вкладками; телефон: строка поиска (разделы — в нижней панели). */}
-              <div className="hidden h-full min-w-0 flex-1 lg:flex">
-                <SectionTabs perms={nav.perms} />
+              {/* Компьютер: поиск и переходы (⌘K) слева — страницы все в боковой панели; телефон: строка поиска (разделы — в нижней панели). */}
+              <div className="hidden min-w-0 flex-1 items-center lg:flex">
+                <PaletteTrigger />
               </div>
               <form action="/admin/search" className="relative w-full max-w-md lg:hidden">
                 <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" />
@@ -83,7 +87,6 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               </form>
               <div className="ml-auto flex shrink-0 items-center gap-1.5">
                 <div className="hidden items-center gap-2 lg:flex">
-                  <PaletteTrigger />
                   <CreateMenu perms={nav.perms} />
                 </div>
                 {phone ? <Webphone /> : null}

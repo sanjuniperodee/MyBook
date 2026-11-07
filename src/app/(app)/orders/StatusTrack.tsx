@@ -42,7 +42,7 @@ export const nowKey = (status: OrderStatus, printed: boolean) => (status === "pa
 /**
  * Линейка статуса заказа: этапы — точки на одной линии. Пройденные — винные с галочкой, текущий — с кольцом, будущие —
  * пустые. Дошедший до последнего этапа заказ (доставлен, электронная книга готова) показан пройденным целиком.
- * На узком экране подписи скрыты — «что сейчас» страница показывает отдельной строкой (nowKey).
+ * На узком экране подписан только текущий этап — остальные видны точками, а «что сейчас» страница показывает строкой (nowKey).
  */
 export function StatusTrack({ steps, status, label, size = "lg", className }: { steps: TrackStep[]; status: OrderStatus; label: string; size?: "lg" | "sm"; className?: string }) {
   const current = steps.findIndex((s) => s.status === status);
@@ -67,8 +67,8 @@ export function StatusTrack({ steps, status, label, size = "lg", className }: { 
             >
               {done ? <Check className={size === "lg" ? "size-3.5" : "size-2.5"} strokeWidth={3} /> : here ? <span className={cn("rounded-full bg-wine", size === "lg" ? "size-2" : "size-1.5")} /> : null}
             </span>
-            <span className={cn("mt-2 hidden px-0.5 text-center leading-tight text-balance sm:block", size === "lg" ? "text-[13px]" : "text-xs", here ? "font-semibold text-ink" : done ? "text-ink-soft" : "text-muted")}>{s.label}</span>
-            <span className="sr-only sm:hidden">{s.label}</span>
+            <span className={cn("mt-2 px-0.5 text-center leading-tight text-balance", here ? "block max-sm:whitespace-nowrap" : "hidden sm:block", size === "lg" ? "text-[13px]" : "text-xs", here ? "font-semibold text-ink" : done ? "text-ink-soft" : "text-muted")}>{s.label}</span>
+            {here ? null : <span className="sr-only sm:hidden">{s.label}</span>}
           </li>
         );
       })}

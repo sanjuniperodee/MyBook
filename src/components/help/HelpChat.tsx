@@ -9,6 +9,8 @@ import { Bubble, Chip, EmptyState, HandoffNote, Typing, type HelpMessage } from 
 import { describe, pickTarget, placeChip, type PickedPlace } from "./pick";
 import { usePickMode } from "./usePickMode";
 
+import { HELP_OPEN_EVENT } from "./events";
+
 type Outcome = "answered" | "handoff" | "manager" | null;
 type FaqKey = keyof ReturnType<typeof useMessages>["help"]["faq"];
 
@@ -77,7 +79,14 @@ function useBottomBars() {
 export function HelpChat({ bookId }: { bookId: string }) {
   const t = useMessages().help;
   const path = useLocalePathname();
+  const studio = /\/(questions|cover|pages|photos)(\/|$)/.test(path);
   const [open, setOpen] = useState(false);
+  // Открыть из меню профиля в шапке книги (на телефоне в студиях плавающей кнопки нет — она закрывала бы работу).
+  useEffect(() => {
+    const show = () => setOpen(true);
+    window.addEventListener(HELP_OPEN_EVENT, show);
+    return () => window.removeEventListener(HELP_OPEN_EVENT, show);
+  }, []);
   const [loaded, setLoaded] = useState(false);
   const [enabled, setEnabled] = useState(true);
   const [whatsapp, setWhatsapp] = useState("");
@@ -384,13 +393,18 @@ export function HelpChat({ bookId }: { bookId: string }) {
           aria-label={unread ? `${t.open}. ${t.newReply}` : t.open}
           className={cn(
             // Тихая кнопка: белая, не спорит с главной (винной) кнопкой экрана; на телефоне — квадрат без подписи, чтобы не закрывать текст.
-            "fixed right-3 z-[54] flex size-12 items-center justify-center gap-2 rounded-[var(--r-panel)] border border-line-strong bg-white text-ink shadow-soft transition hover:bg-sunken focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wine sm:right-4 sm:bottom-4 sm:w-auto sm:pr-4 sm:pl-3.5",
+            // В студиях (текст, обложка, страницы, фото) панели доходят до низа экрана — там тоже квадрат, подпись — по наведению.
+            "fixed right-3 z-[54] flex size-12 items-center justify-center gap-2 rounded-[var(--r-panel)] border border-line-strong bg-white text-ink shadow-soft transition hover:bg-sunken focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wine sm:right-4 sm:bottom-4",
+            !studio && "sm:w-auto sm:pr-4 sm:pl-3.5",
+            // Телефон, студия: помощник — в меню профиля; кнопка остаётся, только когда ждёт новый ответ.
+            studio && !unread && !open && "max-sm:hidden",
             open && "max-sm:hidden",
           )}
+          title={studio ? t.button : undefined}
           style={{ bottom: `calc(${lift}px + max(0.75rem, env(safe-area-inset-bottom)))` }}
         >
           {open ? <X className="size-5" aria-hidden /> : <LifeBuoy className="size-5 text-wine" aria-hidden />}
-          <span className="text-[15px] font-medium max-sm:sr-only">{t.button}</span>
+          <span className={cn("text-[15px] font-medium", studio ? "sr-only" : "max-sm:sr-only")}>{t.button}</span>
           {unread && !open ? <span className="absolute -top-1 -right-1 size-3.5 rounded-full border-2 border-white bg-wine" aria-hidden /> : null}
         </button>
       ) : null}

@@ -106,7 +106,7 @@ export default async function MarketingPage({ searchParams }: { searchParams: Pr
               {report.channels.length ? (
                 <>
                   <div className="hidden overflow-x-auto lg:block">
-                    <table className="table min-w-[860px] [&_tr>*:first-child]:sticky [&_tr>*:first-child]:left-0 [&_tr>*:first-child]:z-[1] [&_tr>*:first-child]:bg-white">
+                    <table className="table min-w-[860px] [&_tr>*:first-child]:sticky [&_tr>*:first-child]:left-0 [&_tr>*:first-child]:z-[1] [&_td:first-child]:bg-white">
                       <thead>
                         <tr>
                           <th>Канал</th>
@@ -143,7 +143,7 @@ export default async function MarketingPage({ searchParams }: { searchParams: Pr
                           </tr>
                         ))}
                       </tbody>
-                      <tfoot className="[&_td]:border-t [&_td]:border-line-strong [&_td]:bg-sunken/40 [&_td]:px-3 [&_td]:py-2.5 [&_td]:font-semibold [&_td]:whitespace-nowrap">
+                      <tfoot className="[&_td]:border-t [&_td]:border-line-strong [&_td]:bg-[color-mix(in_srgb,var(--color-sunken)_40%,var(--color-white))]! [&_td]:px-3 [&_td]:py-2.5 [&_td]:font-semibold [&_td]:whitespace-nowrap">
                         <tr>
                           <td>Итого</td>
                           <td className="num">{t.clicks || "—"}</td>

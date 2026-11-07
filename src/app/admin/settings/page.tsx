@@ -19,7 +19,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const tab = parseTab(params.tab);
   const section = [params.section].flat()[0];
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-5">
+    <div className="flex max-w-6xl flex-col gap-5">
       <PageHeader title="Интеграции и настройки">Ключи хранятся в базе в зашифрованном виде и не показываются целиком. Значения из переменных окружения сервера имеют приоритет и здесь только для чтения.</PageHeader>
       <SettingsNav active={tab} />
       <div className="min-w-0" data-testid={`settings-tab-${tab}`}>

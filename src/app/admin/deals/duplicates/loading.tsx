@@ -3,7 +3,7 @@ import { SkHeader, SkPage } from "@/components/admin/skeletons";
 
 export default function Loading() {
   return (
-    <SkPage className="mx-auto w-full max-w-5xl space-y-5">
+    <SkPage className="w-full max-w-5xl space-y-5">
       <SkHeader back title="w-44" subtitle />
       {Array.from({ length: 2 }, (_, g) => (
         <div key={g} className="overflow-hidden rounded-[var(--r-panel)] border border-line bg-white">

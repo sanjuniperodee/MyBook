@@ -28,6 +28,14 @@ export function GiftForm({ defaults, intro }: { defaults: { name: string; email:
   const [today] = useState(() => toIsoDay(new Date(nowMs())));
   const price = formatPrice(getPlans().find((p) => p.id === plan)!.price);
 
+  // Пример в пустых полях открытки — из подсказок формы (без «Например,»).
+  const samples = { recipient: t.recipientPlaceholder.replace(/^[^,]+,\s*/, ""), buyer: t.buyerPlaceholder, message: t.messagePlaceholder };
+  const preview = (
+    <>
+      <GiftCardVisual locale={giftLocale} plan={plan} recipientName={recipientName} buyerName={buyerName} message={message} samples={samples} />
+      <p className="mt-4 text-sm leading-relaxed text-muted">{t.previewNote}</p>
+    </>
+  );
   return (
     <form action={action} className="grid gap-8 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-14">
       <input type="hidden" name="plan" value={plan} />
@@ -37,10 +45,8 @@ export function GiftForm({ defaults, intro }: { defaults: { name: string; email:
       {/* Слева: титр и открытка. Открытка липкая — меняется на глазах, пока заполняется форма справа. */}
       <div>
         {intro}
-        <div className="mt-8 lg:sticky lg:top-24 lg:mt-10">
-          <GiftCardVisual locale={giftLocale} plan={plan} recipientName={recipientName} buyerName={buyerName} message={message} />
-          <p className="mt-4 text-sm leading-relaxed text-muted">{t.previewNote}</p>
-        </div>
+        {/* На телефоне открытка — после формы: первым экраном идут титр и выбор книги. */}
+        <div className="mt-8 max-lg:hidden lg:sticky lg:top-24 lg:mt-10">{preview}</div>
       </div>
 
       {/* Справа: один лист с четырьмя шагами; итог и кнопка — в липкой полосе внизу листа. */}
@@ -189,6 +195,7 @@ export function GiftForm({ defaults, intro }: { defaults: { name: string; email:
           </SubmitButton>
         </div>
       </div>
+      <div className="lg:hidden">{preview}</div>
     </form>
   );
 }

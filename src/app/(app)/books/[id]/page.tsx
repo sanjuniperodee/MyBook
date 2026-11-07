@@ -211,7 +211,7 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
   const letterLine = s.lower.lettersState(letterStats.approved, letterStats.pending);
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
+    <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-10">
       {agreement ? (
         <div className="mb-6">
           <AgreementCard agreement={agreement} books={[{ id: book.id, status: book.status, theme: book.theme, answered: stats.answered, total: stats.total, words: stats.words }]} />
@@ -291,9 +291,9 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
               {facts.map((f) => (
                 <div key={f.label} className="bg-white px-4 py-3">
                   <dt className="text-xs text-muted">{f.label}</dt>
-                  <dd className="mt-0.5 flex items-baseline gap-1.5">
+                  <dd className="mt-0.5 flex flex-wrap items-baseline gap-x-1.5 gap-y-1">
                     <span className="font-serif text-[28px] leading-none font-medium tabular-nums">{f.value}</span>
-                    {f.hint ? <span className="text-xs text-muted">{f.hint}</span> : null}
+                    {f.hint ? <span className="text-xs leading-snug text-muted">{f.hint}</span> : null}
                   </dd>
                 </div>
               ))}

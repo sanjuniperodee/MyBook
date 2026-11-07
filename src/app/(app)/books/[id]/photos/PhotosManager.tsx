@@ -342,7 +342,7 @@ export function PhotosManager({ data, initialFilter }: { data: PhotosTabData; in
       ) : (
         <>
           {/* Итоги: сколько фото выбрано автором, сколько встало само и сколько не печатается. */}
-          <dl className="flex flex-wrap items-baseline gap-x-5 gap-y-1 border-y border-line py-3 sm:items-stretch sm:gap-x-0 sm:py-3.5" aria-label={tt.summary.total}>
+          <dl className="grid grid-cols-2 gap-x-5 gap-y-1.5 border-y border-line py-3 sm:flex sm:items-stretch sm:gap-x-0 sm:py-3.5" aria-label={tt.summary.total}>
             {(
               [
                 ["total", totals.total],

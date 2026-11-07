@@ -74,7 +74,7 @@ export default async function DuplicatesPage() {
   });
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-5">
+    <div className="flex w-full max-w-5xl flex-col gap-5">
       <PageHeader back={{ href: "/admin/deals", label: "Сделки" }} title="Дубли сделок" meta={all.length ? <Badge tone="warning">{ruCount(all.length, "группа", "группы", "групп")}</Badge> : null}>
         Открытые сделки с одинаковым телефоном (включая дополнительные номера) или e-mail. Выберите, какую оставить, и нажмите «Объединить». Закрытые сделки — прошлые покупки и отказы — здесь не показываются: их не вливают в другие.
       </PageHeader>

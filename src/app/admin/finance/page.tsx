@@ -83,14 +83,15 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
       <section aria-label="Итоги периода" className="space-y-3" data-testid="finance-totals">
         <div className="flex flex-wrap items-center gap-2">
           <Segmented label="Период" items={PRESETS.map(([key, label]) => ({ key, label, href: `/admin/finance?p=${key}`, active: period.preset === key }))} />
-          <form action="/admin/finance" className={cn("flex w-full items-center gap-1.5 rounded-[var(--r-ctl)] border bg-white p-0.5 text-sm sm:w-auto", period.preset === "custom" ? "border-ink" : "border-line")} aria-label="Свой период">
+          <form action="/admin/finance" className={cn("flex w-full flex-wrap items-center gap-1.5 rounded-[var(--r-ctl)] border bg-white p-0.5 text-sm sm:w-auto sm:flex-nowrap", period.preset === "custom" ? "border-ink" : "border-line")} aria-label="Свой период">
             <input type="hidden" name="p" value="custom" />
-            <input type="date" name="from" defaultValue={period.first} className="input min-w-0 flex-1 border-0 px-2.5 text-sm sm:w-36 sm:flex-none" aria-label="С даты" />
+            <input type="date" name="from" defaultValue={period.first} className="input min-w-0 flex-1 border-0 px-2.5 text-sm sm:h-[calc(var(--ctl-h-sm)-4px)] sm:w-36 sm:flex-none" aria-label="С даты" />
             <span className="text-muted" aria-hidden>
               –
             </span>
-            <input type="date" name="to" defaultValue={period.last} className="input min-w-0 flex-1 border-0 px-2.5 text-sm sm:w-36 sm:flex-none" aria-label="По дату" />
-            <button className="btn btn-ghost btn-sm shrink-0">Показать</button>
+            <input type="date" name="to" defaultValue={period.last} className="input min-w-0 flex-1 border-0 px-2.5 text-sm sm:h-[calc(var(--ctl-h-sm)-4px)] sm:w-36 sm:flex-none" aria-label="По дату" />
+            {/* На телефоне — отдельной строкой: датам нужна вся ширина, иначе год обрезается. */}
+            <button className="btn btn-ghost btn-sm shrink-0 max-sm:w-full">Показать</button>
           </form>
         </div>
 
