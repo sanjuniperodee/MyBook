@@ -1,5 +1,6 @@
 "use client";
 
+import { PageTurn, turnPage } from "@/components/motion/PageTurn";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 import { BookOpen, ChevronLeft, ChevronRight, Download, LayoutList, LoaderCircle, Maximize2, Minimize2, RotateCcw, TriangleAlert } from "lucide-react";
 import { useLocale, useMessages } from "@/i18n/client";
@@ -176,9 +177,12 @@ export function SpreadViewer({
   const current = Math.min(page, build.pageCount);
   const index = Math.max(0, units.findIndex((u) => u[0] === current || u[1] === current));
   const [left, right] = units[index] ?? [null, null];
+  // Листание — переходом с направлением: правая страница переворачивается вокруг корешка (PageTurn).
   const go = (i: number) => {
-    const u = units[Math.min(units.length - 1, Math.max(0, i))];
-    if (u) setPage((u[0] ?? u[1]) as number);
+    const to = Math.min(units.length - 1, Math.max(0, i));
+    const u = units[to];
+    if (!u || to === index) return;
+    turnPage(to > index ? "page-forward" : "page-back", () => setPage((u[0] ?? u[1]) as number));
   };
 
   // Соседние развороты — в кеш браузера заранее, чтобы листание не ждало сети.
@@ -208,8 +212,12 @@ export function SpreadViewer({
   };
   const label = t.flip.pages(left, right);
   const last = index >= units.length - 1;
-  const slot = (n: number | null, side: Side) =>
-    n ? <BookPage key={`${build.fp}:${n}:${reload}`} build={build} n={n} side={side} onFailed={onPageFailed} onLoaded={onPageLoaded} /> : <div aria-hidden className="hidden md:block md:flex-1" />;
+  // Одиночная полоса (телефон) листается как правая страница.
+  const slot = (n: number | null, side: Side) => (
+    <PageTurn key={`${side}:${n ?? "empty"}`} side={wide ? side : "right"}>
+      {n ? <BookPage key={`${build.fp}:${n}:${reload}`} build={build} n={n} side={side} onFailed={onPageFailed} onLoaded={onPageLoaded} /> : <div aria-hidden className="hidden md:block md:flex-1" />}
+    </PageTurn>
+  );
 
   return (
     <section aria-label={t.reader.group} aria-busy={dimmed} className="space-y-3">

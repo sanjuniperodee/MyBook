@@ -16,20 +16,26 @@ export function Book3D({
   ...cover
 }: CoverPreviewProps & { rotate?: number; thickness?: number; bookId?: string }) {
   const template = getCoverTemplate(cover.template);
+  const leaf = (
+    <div className="book-3d__leaf" aria-hidden>
+      <span />
+      <span />
+      <span />
+      <span />
+      <span />
+    </div>
+  );
   return (
     <div className={cn("book-3d", className)} data-book-3d={bookId}>
       <div className="book-3d__inner" style={{ "--ry": `${rotate}deg` } as React.CSSProperties}>
+        {/* Первая страница под крышкой: видна, когда книга приоткрыта (наведение) или открывается (OpenBookLink). */}
         {bookId ? (
           <ViewTransition name={`leaf-${bookId}`} share="morph" default="none">
-            <div className="book-3d__leaf" aria-hidden>
-              <span />
-              <span />
-              <span />
-              <span />
-              <span />
-            </div>
+            {leaf}
           </ViewTransition>
-        ) : null}
+        ) : (
+          leaf
+        )}
         {/* Крышка: лицо — обложка, изнанка — форзац; при открытии крышка поворачивается вокруг корешка (.is-opening). */}
         <div className="book-3d__lid">
           <div className="book-3d__cover relative overflow-hidden rounded-r-[3px] rounded-l-[2px] shadow-book">

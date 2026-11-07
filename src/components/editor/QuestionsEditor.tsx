@@ -19,6 +19,7 @@ import { PhotoStrip, removePatch } from "./questions/PhotoStrip";
 import { PhotoEditor } from "@/components/photo-editor/PhotoEditor";
 import { BlankProgress, ProgressCard, QuestionPager } from "./questions/QuestionPager";
 import { Morph } from "@/components/motion/PageTransition";
+import { PageTurn, turnPage } from "@/components/motion/PageTurn";
 import { SectionFields } from "./questions/SectionFields";
 import { AnswerToolbar, EditorTopBar, QuestionTicks } from "./questions/Toolbars";
 import { useInlinePhotos } from "./questions/useInlinePhotos";
@@ -251,7 +252,11 @@ function EditorBody({
     (id: string | null) => {
       void flush();
       dictation.stop();
-      setCurrentId(id);
+      // Другой вопрос — лист перелистывается: вперёд или назад по порядку вопросов (PageTurn вокруг листа).
+      const from = questions.findIndex((x) => x.id === currentId);
+      const to = questions.findIndex((x) => x.id === id);
+      if (id && from >= 0 && to >= 0 && to !== from) turnPage(to > from ? "page-forward" : "page-back", () => setCurrentId(id));
+      else setCurrentId(id);
       setAdding(false);
       setAddingMedia(false);
       setDrawer(false);
@@ -264,7 +269,7 @@ function EditorBody({
         if (window.scrollY > target) window.scrollTo({ top: Math.max(0, target), behavior: "smooth" });
       } else window.scrollTo({ top: 0, behavior: "smooth" });
     },
-    [flush, dictation],
+    [flush, dictation, questions, currentId],
   );
   const goTo = useCallback(
     (i: number) => {
@@ -648,6 +653,8 @@ function EditorBody({
           ) : null}
           {q && group ? (
 <Morph name={`leaf-${book.id}`}>
+              <div>
+                <PageTurn key={q.id}>
                         <article data-help={`question:${q.id}`} className="rounded-[14px] border border-line bg-white max-sm:-mx-4 max-sm:rounded-none max-sm:border-x-0 max-sm:border-t-0">
               <div className="mx-auto max-w-[40rem] px-5 pt-5 pb-4 sm:px-10 sm:pt-12 sm:pb-6 lg:pt-14">
                 {/* На телефоне прогресс и объём — над вопросом (на компьютере они в полосе) */}
@@ -779,6 +786,8 @@ function EditorBody({
                 onRemove={removeQuestion}
               />
             </article>
+                </PageTurn>
+              </div>
             </Morph>
           ) : emptyMode ? (
             <EmptyEditor

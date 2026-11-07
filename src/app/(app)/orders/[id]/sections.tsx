@@ -9,6 +9,7 @@ import type { Locale } from "@/i18n/config";
 import { THANK_YOU } from "@/modules/feedback";
 import { REFERRAL } from "@/modules/referrals";
 import { CoverPreview } from "@/components/cover/CoverPreview";
+import { Morph } from "@/components/motion/PageTransition";
 import { Panel } from "@/components/ui/Panel";
 import { Facts, type Fact } from "@/components/ui/Facts";
 import { coverPhotoIds } from "@/lib/book/covers";
@@ -159,21 +160,26 @@ export function OrderHelp({ t, className }: { t: T; className?: string }) {
 }
 
 /** Книга заказа справа: обложка, название и ссылка на макет. Липкая на широком экране; на телефоне вместо неё — мини-обложка в шапке. */
-export function BookAside({ book, t }: { book: OrderView["book"]; t: T }) {
+export function BookAside({ book, orderId, t }: { book: OrderView["book"]; orderId: string; t: T }) {
   return (
     <aside className="hidden lg:block">
       <div className="sticky top-24 text-center">
         <div className="mx-auto w-44">
-          <CoverPreview
-            template={book.coverTemplate}
-            format={book.format}
-            title={book.title}
-            subtitle={book.subtitle}
-            names={coverNames(book)}
-            photos={photoUrls(coverPhotoIds(book))}
-            design={book.coverDesign}
-            className="rounded-[3px] shadow-book"
-          />
+          {/* Обложка «перетекает» сюда из списка заказов (Morph order-<id>). */}
+          <Morph name={`order-${orderId}`}>
+            <div>
+              <CoverPreview
+                template={book.coverTemplate}
+                format={book.format}
+                title={book.title}
+                subtitle={book.subtitle}
+                names={coverNames(book)}
+                photos={photoUrls(coverPhotoIds(book))}
+                design={book.coverDesign}
+                className="rounded-[3px] shadow-book"
+              />
+            </div>
+          </Morph>
         </div>
         <div className="mt-5 font-serif text-2xl leading-tight">{book.title}</div>
         <Link href={`/books/${book.id}/preview`} className="btn btn-outline btn-sm mt-3">

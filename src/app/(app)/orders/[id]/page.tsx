@@ -15,6 +15,7 @@ import { canReview } from "@/modules/feedback";
 import { orderStatusLabel, orderStatusTone } from "@/modules/ordering/ui/status";
 import { Badge } from "@/components/ui/Badge";
 import { CoverPreview } from "@/components/cover/CoverPreview";
+import { Morph } from "@/components/motion/PageTransition";
 import { coverNames } from "@/lib/book/cover-names";
 import { coverPhotoIds } from "@/lib/book/covers";
 import { photoUrls } from "@/lib/urls";
@@ -64,7 +65,11 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
       <header className="mt-2 flex items-start gap-4 sm:gap-6">
         {/* Телефон: обложка рядом с номером; на широком экране она в правой колонке. */}
         <div className="w-14 shrink-0 lg:hidden">
-          <CoverPreview template={book.coverTemplate} format={book.format} title={book.title} names={coverNames(book)} photos={photoUrls(coverPhotoIds(book), "thumb")} design={book.coverDesign} lite className="rounded-[3px] shadow-book" />
+          <Morph name={`order-${order.id}`}>
+            <div>
+              <CoverPreview template={book.coverTemplate} format={book.format} title={book.title} names={coverNames(book)} photos={photoUrls(coverPhotoIds(book), "thumb")} design={book.coverDesign} lite className="rounded-[3px] shadow-book" />
+            </div>
+          </Morph>
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -114,7 +119,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
           <OrderHelp t={t} className="lg:hidden" />
         </div>
 
-        <BookAside book={book} t={t} />
+        <BookAside book={book} orderId={order.id} t={t} />
       </div>
     </main>
   );

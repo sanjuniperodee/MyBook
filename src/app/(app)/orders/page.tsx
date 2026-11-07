@@ -13,6 +13,7 @@ import { orderStatusLabel, orderStatusTone, isPrintedPlan } from "@/modules/orde
 import { formatDate } from "@/lib/dates";
 import { AgreementCard } from "@/components/AgreementCard";
 import { CoverPreview } from "@/components/cover/CoverPreview";
+import { Morph } from "@/components/motion/PageTransition";
 import { coverNames } from "@/lib/book/cover-names";
 import { coverPhotoIds } from "@/lib/book/covers";
 import { photoUrls } from "@/lib/urls";
@@ -68,22 +69,26 @@ export default async function OrdersPage() {
               <li key={order.id} className={cn("panel group relative transition-colors hover:border-line-strong", cancelled && "bg-white/60 [&_.shadow-book]:opacity-70")}>
                 <div className="flex gap-4 p-4 sm:gap-6 sm:p-5">
                   <div className="w-16 shrink-0 sm:w-24">
-                    <CoverPreview
-                      template={order.book.coverTemplate}
-                      format={order.book.format}
-                      title={order.book.title}
-                      names={coverNames(order.book)}
-                      photos={photoUrls(coverPhotoIds(order.book), "thumb")}
-                      design={order.book.coverDesign}
-                      lite
-                      className="rounded-[3px] shadow-book"
-                    />
+                    <Morph name={`order-${order.id}`}>
+                      <div>
+                        <CoverPreview
+                          template={order.book.coverTemplate}
+                          format={order.book.format}
+                          title={order.book.title}
+                          names={coverNames(order.book)}
+                          photos={photoUrls(coverPhotoIds(order.book), "thumb")}
+                          design={order.book.coverDesign}
+                          lite
+                          className="rounded-[3px] shadow-book"
+                        />
+                      </div>
+                    </Morph>
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-2">
                       <div className="min-w-0">
                         {/* Вся строка — ссылка: растягиваем её на лист, кнопка внизу — просто подпись действия. */}
-                        <Link href={`/orders/${order.id}`} className="line-clamp-2 font-serif text-xl leading-tight font-medium after:absolute after:inset-0 after:content-[''] group-hover:text-wine sm:text-2xl">
+                        <Link href={`/orders/${order.id}`} prefetch className="line-clamp-2 font-serif text-xl leading-tight font-medium after:absolute after:inset-0 after:content-[''] group-hover:text-wine sm:text-2xl">
                           {order.book.title}
                         </Link>
                         <p className="mt-1 text-sm text-muted">
