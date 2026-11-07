@@ -219,7 +219,8 @@ export function AdminNav({ adminName, roleName, perms, onShift, mode: modeInitia
 
   return (
     <aside
-      className={cn("crm-sidebar sticky top-0 hidden h-dvh shrink-0 flex-col border-r border-line bg-white transition-[width] duration-200 lg:flex", v("w-60", "w-16", "max-xl:w-16"))}
+      // z-40: меню профиля открывается поверх соседних колонок (список чатов), а не под ними.
+      className={cn("crm-sidebar sticky top-0 z-40 hidden h-dvh shrink-0 flex-col border-r border-line bg-white transition-[width] duration-200 lg:flex", v("w-60", "w-16", "max-xl:w-16"))}
       aria-label="Разделы CRM"
     >
       <div className={cn("flex h-12 shrink-0 items-center border-b border-line", v("gap-2.5 pr-2 pl-4", "justify-center p-0", "max-xl:justify-center max-xl:p-0"))}>

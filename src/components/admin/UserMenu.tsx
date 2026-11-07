@@ -36,7 +36,7 @@ export function UserMenu({ adminName, roleName, onShift, canShift, wide = false 
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={`${adminName}, ${roleName}. Меню профиля`}
-        className={cn("flex items-center rounded-lg text-left transition-colors", wide ? "w-full gap-2.5 p-1.5 hover:bg-sunken" : "p-1", xl && "max-xl:w-auto max-xl:p-1", open && "bg-sunken")}
+        className={cn("flex items-center rounded-lg text-left transition-colors focus-visible:outline-offset-[-2px]", wide ? "w-full gap-2.5 p-1.5 hover:bg-sunken" : "p-1", xl && "max-xl:w-auto max-xl:p-1", open && "bg-sunken")}
       >
         <span className="relative flex size-8 shrink-0 items-center justify-center rounded-full bg-wine text-[13px] font-semibold text-white uppercase">
           {adminName.slice(0, 1) || "?"}
@@ -49,7 +49,7 @@ export function UserMenu({ adminName, roleName, onShift, canShift, wide = false 
         ) : null}
       </button>
       {open ? (
-        <div role="menu" className={cn("absolute z-50 w-72 rounded-[var(--r-sheet)] border border-line bg-white p-2 shadow-lift", wide ? cn("bottom-[calc(100%+0.5rem)] left-0", xl && "max-xl:bottom-0 max-xl:left-[calc(100%+0.75rem)]") : "bottom-0 left-[calc(100%+0.75rem)]")}>
+        <div role="menu" className={cn("absolute z-50 w-80 rounded-[var(--r-sheet)] border border-line bg-white p-2 shadow-lift", wide ? cn("bottom-[calc(100%+0.5rem)] left-0", xl && "max-xl:bottom-0 max-xl:left-[calc(100%+0.75rem)]") : "bottom-0 left-[calc(100%+0.75rem)]")}>
           <div className="px-2 pt-1.5 pb-2.5">
             <div className="truncate text-sm font-semibold">{adminName}</div>
             <div className="truncate text-xs text-muted">{roleName}</div>
