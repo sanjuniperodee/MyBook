@@ -6,6 +6,7 @@ import { aiAutofill, aiAutofillDeps } from "@/server/ai-autofill";
 import { morningDigestDeps, morningDigestTick } from "@/server/morning-digest";
 import { sweepAbandonedUploads } from "@/server/answerFiles";
 import { kickAnswerFiles } from "@/server/answerFilesWorker";
+import { dedupWhatsappMedia } from "@/server/whatsapp-media";
 
 const INTERVAL_MS = 15 * 60_000;
 /** Номер advisory-блокировки: при нескольких инстансах проход выполняет только один. */
@@ -56,6 +57,9 @@ export async function tick() {
     // Свои видео и аудио: брошенные за сутки загрузки — удалить, очередь обработки — разобрать (если её прервал сбой).
     const abandoned = await step("answer files sweep", () => sweepAbandonedUploads(), 0);
     if (abandoned) console.log(`[scheduler] abandoned answer uploads removed=${abandoned}`);
+    // Одинаковые вложения WhatsApp (одни и те же фото примеров каждому клиенту с телефона магазина) — ссылки на один файл.
+    const media = await step("whatsapp media dedup", () => dedupWhatsappMedia(), null);
+    if (media?.linked) console.log(`[scheduler] whatsapp media linked=${media.linked} freed=${(media.freed / 1_048_576).toFixed(1)}MB`);
     kickAnswerFiles();
   } catch (err) {
     console.error("[scheduler] tick failed", err);

@@ -1,6 +1,8 @@
 export const env = {
   appUrl: (process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, ""),
   storageDir: process.env.STORAGE_DIR ?? "./storage",
+  /** Каталог вложений своего шлюза WhatsApp (statics/media GOWA); пусто — рядом с хранилищем, как ставит deploy/sidecars.sh. */
+  whatsappMediaDir: process.env.WHATSAPP_MEDIA_DIR ?? "",
   adminEmails: (process.env.ADMIN_EMAILS ?? "")
     .split(",")
     .map((e) => e.trim().toLowerCase())

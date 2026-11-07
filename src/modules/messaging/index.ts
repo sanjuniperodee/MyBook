@@ -26,6 +26,7 @@ export { channelLabel, findSensitive, redactSecrets, sensitiveLabels, sensitiveW
 export type { ChatMessage } from "./infrastructure/chatView";
 export { WazzupError } from "./infrastructure/wazzup";
 export { MediaUnavailableError } from "./application/media";
+export { MediaDedup, type DedupResult } from "./infrastructure/mediaDedup";
 export { EDIT_WINDOW_MS, MessageActionError, REVOKE_WINDOW_MS } from "./application/services";
 export { GOWA_DEVICE, GowaError, type GowaConfig, type GowaStatus, type GowaWebhook } from "./infrastructure/gowa";
 export type { Attachment, BlockReason, ContactsTarget, IngestExtra, SalesGateway as MessagingSalesGateway, IncomingRules, BotBrain, BotCrm, BotInvoices, BotSellerModel } from "./application";
