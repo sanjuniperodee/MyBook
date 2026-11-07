@@ -6,8 +6,8 @@ import { PromoForm, PromoToggle } from "./PromoForm";
 import { requireStaff } from "@/server/access";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { DrawerButton } from "../marketing/Drawer";
-import { InlineStats, ShareBar } from "../analytics/kit";
+import { DrawerButton } from "@/components/admin/Drawer";
+import { InlineStats, ShareBar } from "@/components/admin/bars";
 
 export const metadata = { title: "Промокоды" };
 

@@ -4,7 +4,7 @@ import { formatPrice } from "@/config/site";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { StatRow, StatTile } from "@/components/admin/charts";
 import { SectionHead } from "@/components/admin/SectionHead";
-import { DayBars, ShareBar } from "../analytics/kit";
+import { DayBars, ShareBar } from "@/components/admin/bars";
 import { Sparkles, Users } from "lucide-react";
 import { Segmented } from "@/components/admin/Segmented";
 import { Section } from "@/components/admin/Section";

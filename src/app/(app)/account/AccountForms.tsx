@@ -1,7 +1,9 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { changePasswordAction, updateProfileAction, type AccountState } from "./actions";
+import { useFormStatus } from "react-dom";
+import { LoaderCircle } from "lucide-react";
+import { changePasswordAction, setRemindersAction, updateProfileAction, type AccountState } from "./actions";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { Alert } from "@/components/ui/Alert";
 import { Field } from "@/components/ui/Field";
@@ -29,6 +31,30 @@ export function ProfileForm({ name, phone, email }: { name: string; phone: strin
       {state.error && !state.field ? <Alert>{state.error}</Alert> : null}
       {state.ok ? <Alert kind="success">{state.ok}</Alert> : null}
       <SubmitButton className="max-sm:w-full">{t.save}</SubmitButton>
+    </form>
+  );
+}
+
+function RemindersButton({ optedOut }: { optedOut: boolean }) {
+  const { pending } = useFormStatus();
+  const t = useMessages().orders.account.notifications;
+  return (
+    <button type="submit" disabled={pending} className={optedOut ? "btn btn-dark max-sm:w-full" : "btn btn-outline max-sm:w-full"}>
+      {pending ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : null}
+      {optedOut ? t.turnOn : t.turnOff}
+    </button>
+  );
+}
+
+/** Напоминания дописать книгу: одна кнопка включает или выключает, результат — под ней. */
+export function RemindersForm({ optedOut }: { optedOut: boolean }) {
+  const [state, action] = useActionState<AccountState, FormData>(setRemindersAction, {});
+  return (
+    <form action={action} className="mt-4 space-y-3">
+      <input type="hidden" name="on" value={optedOut ? "1" : "0"} />
+      <RemindersButton optedOut={optedOut} />
+      {state.error ? <Alert>{state.error}</Alert> : null}
+      {state.ok ? <Alert kind="success">{state.ok}</Alert> : null}
     </form>
   );
 }

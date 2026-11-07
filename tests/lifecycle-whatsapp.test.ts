@@ -43,7 +43,7 @@ function lifecycle(data: { drafts?: DraftCandidate[]; unpaid?: OrderReminder[]; 
   const service = new LifecycleService(
     { draftCandidates: async () => data.drafts ?? [], unpaidOrders: async () => data.unpaid ?? [], reviewDue: async () => [], latestDraft: async () => null },
     { claim: async (u, k) => !claimed.has(`${u}:${k}`) && !!claimed.add(`${u}:${k}`), release: async (u, k) => void claimed.delete(`${u}:${k}`) },
-    { find: async () => null, markReminded: async () => {}, optOut: async () => {} },
+    { find: async () => null, markReminded: async () => {}, optOut: async () => {}, optIn: async () => {} },
     templates,
     { configured: async () => true, send: async (to) => (mails.push(to), "sent") },
     { emailSent: async () => {} },

@@ -11,7 +11,7 @@ import { Facts } from "@/components/ui/Facts";
 import { Field } from "@/components/ui/Field";
 import { cn } from "@/lib/class-names";
 import { createStaffAction, resetStaffPasswordAction, revokeStaffAction, setStaffDisabledAction, setStaffExtensionAction, setStaffPhoneAction, setStaffRoleAction, type TeamState } from "./actions";
-import { SidePanel } from "./SidePanel";
+import { SidePanel } from "@/components/admin/SidePanel";
 
 export interface Member {
   id: string;

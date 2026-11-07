@@ -34,7 +34,7 @@ import {
 } from "@/modules/automation/domain/silent";
 import { cn } from "@/lib/class-names";
 import { Badge } from "@/components/ui/Badge";
-import { DrawerButton } from "../marketing/Drawer";
+import { DrawerButton } from "@/components/admin/Drawer";
 import {
   deleteAutomationAction,
   saveAutomationAction,

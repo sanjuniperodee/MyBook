@@ -63,6 +63,8 @@ export interface RecipientRepository {
   find(userId: string): Promise<Recipient | null>;
   markReminded(userId: string, at: Date): Promise<void>;
   optOut(userId: string): Promise<void>;
+  /** Вернуть автописьма и напоминания тому, кто от них отписался. */
+  optIn(userId: string): Promise<void>;
 }
 
 /** Лента клиента в CRM: отметка, что ему ушло письмо. */

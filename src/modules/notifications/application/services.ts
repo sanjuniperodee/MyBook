@@ -130,7 +130,7 @@ export class BookRemindersService {
   }
 }
 
-/** Отписка от автописем по подписанной ссылке из письма. */
+/** Отписка от автописем по подписанной ссылке из письма и выбор клиента в кабинете. */
 export class SubscriptionsService {
   constructor(
     private readonly recipients: RecipientRepository,
@@ -145,5 +145,11 @@ export class SubscriptionsService {
     if (!this.isValidLink(userId, token)) return false;
     await this.recipients.optOut(userId);
     return true;
+  }
+
+  /** Выбор самого клиента в кабинете («Аккаунт» → «Уведомления»): включить или выключить напоминания. Право — только на свой аккаунт, вызывающий передаёт id сессии. */
+  async setReminders(userId: string, on: boolean) {
+    if (on) await this.recipients.optIn(userId);
+    else await this.recipients.optOut(userId);
   }
 }

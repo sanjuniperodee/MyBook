@@ -8,7 +8,7 @@ import { cn } from "@/lib/class-names";
 import { formatDate } from "@/lib/dates";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Segmented } from "@/components/admin/Segmented";
-import { InlineStats } from "../analytics/kit";
+import { InlineStats } from "@/components/admin/bars";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { CallRowActions } from "./CallActions";

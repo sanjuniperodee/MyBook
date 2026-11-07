@@ -34,6 +34,17 @@ export async function updateProfileAction(_: AccountState, form: FormData): Prom
   return { ok: t.saved };
 }
 
+/** Напоминания дописать книгу: клиент сам включает и выключает их (раньше вернуть можно было только через поддержку). */
+export async function setRemindersAction(_: AccountState, form: FormData): Promise<AccountState> {
+  const user = await requireUser();
+  const t = (await getMessages()).orders.account;
+  const input = z.object({ on: z.enum(["1", "0"]) }).safeParse(formObject(form));
+  if (!input.success) return { error: t.errors.wrong };
+  await container().notifications.subscriptions.setReminders(user.id, input.data.on === "1");
+  revalidatePath("/account");
+  return { ok: input.data.on === "1" ? t.notifications.savedOn : t.notifications.savedOff };
+}
+
 export async function changePasswordAction(_: AccountState, form: FormData): Promise<AccountState> {
   const user = await requireUser();
   const t = (await getMessages()).orders.account;

@@ -8,7 +8,7 @@ import { requireStaff } from "@/server/access";
 import { uuid } from "@/server/input";
 import { formatDate, nowMs } from "@/lib/dates";
 import { PageHeader } from "@/components/admin/PageHeader";
-import { InlineStats } from "../../analytics/kit";
+import { InlineStats } from "@/components/admin/bars";
 import { automationActions, automationTriggers } from "@/modules/automation/domain/meta";
 import { runStatusLabels, stepResultLabels, RUNS_LIST_LIMIT, type RunStatus } from "@/modules/automation";
 import { RetryRun } from "./RetryRun";

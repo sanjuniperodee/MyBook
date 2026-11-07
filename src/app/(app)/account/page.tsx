@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { requireUser } from "@/server/auth";
 import { site } from "@/config/site";
-import { PasswordForm, ProfileForm } from "./AccountForms";
+import { PasswordForm, ProfileForm, RemindersForm } from "./AccountForms";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
 import { Facts } from "@/components/ui/Facts";
 import { Badge } from "@/components/ui/Badge";
@@ -50,6 +50,7 @@ export default async function AccountPage() {
             ]}
           />
           <p className="mt-4 text-sm text-muted">{user.emailOptOut ? t.notifications.offHint : t.notifications.onHint}</p>
+          <RemindersForm optedOut={user.emailOptOut} />
         </Group>
         <Group id="language" title={g.language.title} text={g.language.text}>
           <LanguageSwitch />

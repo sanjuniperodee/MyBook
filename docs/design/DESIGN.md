@@ -85,7 +85,8 @@ MyBooks печатает книги о жизни людей. Интерфейс
 | Вкладки страницы | `<Tabs items label>` (admin) — подчёркнутая активная, счётчик справа; разделы CRM — `SectionTabs` в шапке |
 | Переключатель вида/периода | `<Segmented>` — белая «шашка» на подложке |
 | Ведомость | `.table` (шапка на подложке, `tabular-nums`, `td.num`/`th.num` — вправо); на телефоне — список карточек |
-| Показатели | `<StatRow cols><StatTile bare label value delta hint/></StatRow>` — одна строка цифр, без иконок |
+| Показатели | `<StatRow cols><StatTile bare label value delta hint/></StatRow>` — одна строка цифр, без иконок; в ведомостях и шапках листов — `InlineStats`, доля полосой в строке — `ShareBar`/`BarCell`, дни столбиками — `DayBars` (`admin/bars`) |
+| Боковая панель | `<DrawerButton label title>` — кнопка + панель справа (на телефоне шторка) с формой «создать» (`admin/Drawer`); управляемая — `<SidePanel open onClose title>` (`admin/SidePanel`) |
 | Запись «подпись — значение» | `<Facts items>` (`src/components/ui/Facts`) |
 | Заголовок блока на холсте | `<SectionHead title meta actions>` (admin) |
 | Шапка страницы | `<PageHeader title description actions back meta>` — одна на все страницы CRM |

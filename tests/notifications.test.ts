@@ -98,6 +98,10 @@ function setup(data: { drafts?: DraftCandidate[]; unpaid?: OrderReminder[]; deli
     find: async (id) => people.get(id) ?? null,
     markReminded: async (id, at) => void reminded.set(id, at),
     optOut: async (id) => void people.delete(id),
+    optIn: async (id) => {
+      const p = people.get(id);
+      if (p) people.set(id, { ...p, optOut: false });
+    },
   };
   const journal = {
     claim: async (userId: string, key: string) => !claimed.has(`${userId}:${key}`) && !!claimed.add(`${userId}:${key}`),
@@ -134,7 +138,7 @@ describe("LifecycleService", () => {
     const night = new LifecycleService(
       { draftCandidates: async () => [{ recipient: recipient("u1"), book: book() }], unpaidOrders: async () => [], reviewDue: async () => [], latestDraft: async () => null },
       { claim: async () => true, release: async () => {} },
-      { find: async () => null, markReminded: async () => {}, optOut: async () => {} },
+      { find: async () => null, markReminded: async () => {}, optOut: async () => {}, optIn: async () => {} },
       templates,
       { configured: async () => true, send: async () => "sent" },
       { emailSent: async () => {} },
@@ -252,6 +256,16 @@ describe("SubscriptionsService", () => {
     s.people.set(id, recipient(id));
     expect(await s.subscriptions.unsubscribe(id, "forged")).toBe(false);
     expect(await s.subscriptions.unsubscribe(id, `sig-${id}`)).toBe(true);
+    expect(s.people.has(id)).toBe(false);
+  });
+
+  it("клиент сам возвращает и выключает напоминания в кабинете (без ссылки из письма)", async () => {
+    const s = setup({});
+    const id = "00000000-0000-4000-8000-000000000002";
+    s.people.set(id, { ...recipient(id), optOut: true });
+    await s.subscriptions.setReminders(id, true);
+    expect(s.people.get(id)?.optOut).toBe(false);
+    await s.subscriptions.setReminders(id, false);
     expect(s.people.has(id)).toBe(false);
   });
 });

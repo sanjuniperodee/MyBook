@@ -8,7 +8,7 @@ import { formatPrice } from "@/config/site";
 import { BarList, StatRow, StatTile } from "@/components/admin/charts";
 import { SectionHead } from "@/components/admin/SectionHead";
 import { Facts } from "@/components/ui/Facts";
-import { BarCell, ShareBar } from "./kit";
+import { BarCell, ShareBar } from "@/components/admin/bars";
 import { CircleCheck, Download, Link2, Users } from "lucide-react";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Segmented } from "@/components/admin/Segmented";

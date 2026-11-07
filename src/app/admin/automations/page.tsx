@@ -7,7 +7,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { AutomationRow, NewRuleButton } from "./AutomationEditor";
-import { InlineStats } from "../analytics/kit";
+import { InlineStats } from "@/components/admin/bars";
 import { getSetting } from "@/modules/workspace";
 import { RULE_STATS_DAYS } from "@/modules/reporting";
 import { formatPrice } from "@/config/site";

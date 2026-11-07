@@ -101,6 +101,9 @@ export class DrizzleRecipients implements RecipientRepository {
   async optOut(userId: string) {
     await executor().update(users).set({ emailOptOut: true }).where(eq(users.id, userId));
   }
+  async optIn(userId: string) {
+    await executor().update(users).set({ emailOptOut: false }).where(eq(users.id, userId));
+  }
 }
 
 /** Лента клиента в CRM (заметка вида «письмо»). */
