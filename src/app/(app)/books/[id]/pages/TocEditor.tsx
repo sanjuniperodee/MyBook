@@ -49,7 +49,7 @@ export function TocEditor({
 
   return (
     <div className="space-y-5">
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(13rem,1fr))]">
         {TOC_MODES.map((id) => (
           <Choice
             key={id}
@@ -60,8 +60,8 @@ export function TocEditor({
             }}
             disabled={!editable}
           >
-            <div className="font-medium">{t.tocModes[id].title}</div>
-            <div className="text-sm text-muted">{t.tocModes[id].text}</div>
+            <span className="block text-[15px] leading-snug font-medium">{t.tocModes[id].title}</span>
+            <span className="mt-0.5 block text-sm leading-snug text-muted">{t.tocModes[id].text}</span>
           </Choice>
         ))}
       </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Redo2, RotateCcw, Undo2 } from "lucide-react";
 import { useMessages } from "@/i18n/client";
 import { confirmDialog } from "@/components/ui/overlays";
@@ -53,6 +54,7 @@ export function DesignStudio({
   tab,
   chapter,
   onChapter,
+  historySlots,
 }: {
   bookId: string;
   interior: InteriorId;
@@ -75,6 +77,8 @@ export function DesignStudio({
   tab: StudioTabId;
   chapter: string | null;
   onChapter: (key: string) => void;
+  /** Куда вынести «Отменить» и «Повторить»: концы лент вкладок (компьютер и телефон). Нет места — кнопки стоят в самой панели. */
+  historySlots?: (HTMLElement | null)[];
 }) {
   const m = useMessages().design;
   const t = m.pages;
@@ -114,33 +118,44 @@ export function DesignStudio({
     onPreview("chapter");
   };
   const custom = countCustom(style);
+  // Слоты заданы — кнопки истории в них (пока слотов ещё нет в разметке, не показываем нигде, чтобы они не «перепрыгивали»).
+  const slotMode = historySlots !== undefined;
+  const slots = (historySlots ?? []).filter((el): el is HTMLElement => !!el);
+  const historyButtons = (
+    <>
+      <button type="button" onClick={undo} disabled={!history.past.length || !editable} title={t.undo} aria-label={t.undo} className="btn btn-ghost btn-sm btn-icon disabled:opacity-30">
+        <Undo2 className="size-4" />
+      </button>
+      <button type="button" onClick={redo} disabled={!history.future.length || !editable} title={t.redo} aria-label={t.redo} className="btn btn-ghost btn-sm btn-icon disabled:opacity-30">
+        <Redo2 className="size-4" />
+      </button>
+    </>
+  );
   const focus = (kind: SpreadKind) => onPreview(kind, tab === "chapters" ? chapter : null);
 
   return (
     <section aria-label={t.title}>
-      <div className="mb-3 flex min-h-9 items-center justify-between gap-2">
-        <span className="min-w-0 truncate text-xs text-muted">{custom ? t.customized(custom) : ""}</span>
-        <div className="flex shrink-0 items-center gap-1">
-          <button type="button" onClick={undo} disabled={!history.past.length || !editable} title={t.undo} aria-label={t.undo} className="btn btn-ghost btn-sm btn-icon disabled:opacity-30">
-            <Undo2 className="size-4" />
-          </button>
-          <button type="button" onClick={redo} disabled={!history.future.length || !editable} title={t.redo} aria-label={t.redo} className="btn btn-ghost btn-sm btn-icon disabled:opacity-30">
-            <Redo2 className="size-4" />
-          </button>
-          {custom ? (
-            <button
-              type="button"
-              disabled={!editable}
-              onClick={async () => {
-                if (await confirmDialog({ title: t.resetAll, text: t.resetAllConfirm })) setStyle(resetStyle(style));
-              }}
-              className="btn btn-ghost btn-sm"
-            >
-              <RotateCcw className="size-3.5" /> <span className="max-sm:sr-only">{t.resetAll}</span>
-            </button>
-          ) : null}
+      {slots.map((el, i) => (el ? createPortal(historyButtons, el, `h${i}`) : null))}
+      {!slotMode || custom ? (
+        <div className="mb-3 flex min-h-9 items-center justify-between gap-2">
+          <span className="min-w-0 truncate text-xs text-muted">{custom ? t.customized(custom) : ""}</span>
+          <div className="flex shrink-0 items-center gap-1">
+            {!slotMode ? historyButtons : null}
+            {custom ? (
+              <button
+                type="button"
+                disabled={!editable}
+                onClick={async () => {
+                  if (await confirmDialog({ title: t.resetAll, text: t.resetAllConfirm })) setStyle(resetStyle(style));
+                }}
+                className="btn btn-ghost btn-sm"
+              >
+                <RotateCcw className="size-3.5" /> <span className="max-sm:sr-only">{t.resetAll}</span>
+              </button>
+            ) : null}
+          </div>
         </div>
-      </div>
+      ) : null}
 
       {kept ? (
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-[var(--r-panel)] bg-rose/60 px-3.5 py-3 text-sm text-ink-soft">

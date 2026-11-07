@@ -317,6 +317,15 @@ export function PagesEditor({
     </div>
   );
 
+  // «Отменить» и «Повторить» студии стоят в конце ленты вкладок, а не отдельной строкой под ней: слоты для них — рядом с лентами.
+  const [slotDesk, setSlotDesk] = useState<HTMLElement | null>(null);
+  const [slotMob, setSlotMob] = useState<HTMLElement | null>(null);
+  const withHistory = (tabs: React.ReactNode, ref: (el: HTMLElement | null) => void) => (
+    <div className="flex items-stretch">
+      <div className="min-w-0 flex-1">{tabs}</div>
+      <div ref={ref} className="flex shrink-0 items-center gap-0.5 border-l border-line pl-1.5" />
+    </div>
+  );
   const studio = (
     <DesignStudio
       bookId={bookId}
@@ -336,6 +345,7 @@ export function PagesEditor({
       tab={styleTab}
       chapter={selChapter}
       onChapter={setSelChapter}
+      historySlots={[slotDesk, slotMob]}
     />
   );
 
@@ -364,7 +374,7 @@ export function PagesEditor({
             {ribbon}
           </PanelBody>
         }
-        right={<PanelBody tabs={<StudioTabs tabs={styleTabs} value={styleTab} onChange={changeTab} label={dt.tabsAria} />}>{studio}</PanelBody>}
+        right={<PanelBody tabs={withHistory(<StudioTabs tabs={styleTabs} value={styleTab} onChange={changeTab} label={dt.tabsAria} />, setSlotDesk)}>{studio}</PanelBody>}
         stage={
           <StudioStage
             overlay={
@@ -382,7 +392,7 @@ export function PagesEditor({
             </div>
           </StudioStage>
         }
-        mobileTabs={<StudioTabs tabs={sheetTabs} value={tab} onChange={changeTab} label={sx.tabsAria} />}
+        mobileTabs={tab === "content" ? <StudioTabs tabs={sheetTabs} value={tab} onChange={changeTab} label={sx.tabsAria} /> : withHistory(<StudioTabs tabs={sheetTabs} value={tab} onChange={changeTab} label={sx.tabsAria} />, setSlotMob)}
         sheet={
           tab === "content" ? (
             <>

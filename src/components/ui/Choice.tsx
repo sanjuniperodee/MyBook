@@ -12,7 +12,11 @@ export function FormSection({ id, title, description, children }: { id?: string;
   );
 }
 
-/** Карточка-вариант с галочкой у выбранного. */
+/**
+ * Вариант выбора: переключатель слева (кружок, у выбранного — с галочкой), название и пояснение справа. Переключатель стоит
+ * в потоке, а не поверх текста, поэтому в узкой панели ничего не перекрывается; сетка вариантов сама решает, сколько их в ряд
+ * (grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr))).
+ */
 export function Choice({ active, onClick, children, disabled }: { active: boolean; onClick: () => void; children: React.ReactNode; disabled?: boolean }) {
   return (
     <button
@@ -20,14 +24,15 @@ export function Choice({ active, onClick, children, disabled }: { active: boolea
       onClick={onClick}
       disabled={disabled}
       aria-pressed={active}
-      className={cn("relative rounded-2xl border bg-white p-5 text-left transition", active ? "border-wine ring-4 ring-wine/10" : "border-line hover:border-ink/30")}
+      className={cn(
+        "flex min-w-0 items-start gap-3 rounded-[var(--r-panel)] border p-3.5 text-left transition-colors disabled:opacity-60",
+        active ? "border-wine bg-rose/50" : "border-line bg-white hover:border-line-strong hover:bg-sunken/50",
+      )}
     >
-      {active ? (
-        <span className="absolute top-3 right-3 flex size-6 items-center justify-center rounded-full bg-wine text-white">
-          <Check className="size-3.5" />
-        </span>
-      ) : null}
-      {children}
+      <span className={cn("mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border transition-colors", active ? "border-wine bg-wine text-white" : "border-line-strong bg-white")} aria-hidden>
+        {active ? <Check className="size-3" strokeWidth={3} /> : null}
+      </span>
+      <span className="min-w-0 flex-1">{children}</span>
     </button>
   );
 }
