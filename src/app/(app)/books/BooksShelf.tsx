@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Book3D } from "@/components/cover/Book3D";
 import { CoverPreview } from "@/components/cover/CoverPreview";
 import { Morph } from "@/components/motion/PageTransition";
+import { LinkPending } from "@/components/motion/LinkPending";
 import { coverPhotoIds } from "@/lib/book/covers";
 import { coverNames } from "@/lib/book/cover-names";
 import { photoUrls } from "@/lib/urls";
@@ -134,7 +135,8 @@ export function HeroBook({ b, m, locale }: { b: ShelfBook; m: M; locale: Locale 
       aria-labelledby={`book-${book.id}`}
       className="grid grid-cols-[112px_minmax(0,1fr)] items-center gap-x-5 gap-y-6 [grid-template-areas:'cover_head'_'body_body'] md:grid-cols-[minmax(0,240px)_minmax(0,1fr)] md:gap-x-12 md:gap-y-0 md:[grid-template-areas:'cover_head'_'cover_body'] lg:grid-cols-[minmax(0,300px)_minmax(0,1fr)] lg:gap-x-16"
     >
-      <Link href={href} tabIndex={-1} aria-hidden className="block w-full [grid-area:cover] md:self-center">
+      {/* prefetch — страница книги грузится заранее: переход без заготовки, обложка «перетекает» сразу. */}
+      <Link href={href} prefetch tabIndex={-1} aria-hidden className="block w-full [grid-area:cover] md:self-center">
         <Morph name={`cover-${book.id}`}>
           <Book3D {...coverProps(book)} photos={photoUrls(coverPhotoIds(book), "view")} rotate={18} />
         </Morph>
@@ -142,7 +144,7 @@ export function HeroBook({ b, m, locale }: { b: ShelfBook; m: M; locale: Locale 
       <div className="min-w-0 [grid-area:head] md:self-end">
         <div className="text-sm text-muted">{b.kind}</div>
         <h2 id={`book-${book.id}`} className="mt-1 font-serif text-[30px] leading-[1.05] font-medium text-balance sm:text-5xl">
-          <Link href={href} className="hover:text-wine">
+          <Link href={href} prefetch className="hover:text-wine">
             {book.title}
           </Link>
         </h2>
@@ -170,16 +172,19 @@ export function HeroBook({ b, m, locale }: { b: ShelfBook; m: M; locale: Locale 
                   {t.trackOrder}
                 </Link>
               ) : null}
-              <Link href={href} className={cn("btn btn-lg", b.order ? "btn-outline" : "btn-primary")}>
+              <Link href={href} prefetch className={cn("btn btn-lg", b.order ? "btn-outline" : "btn-primary")}>
                 {t.open}
               </Link>
             </>
           ) : (
             <>
-              <Link href={b.writeHref} className="btn btn-primary btn-lg">
-                <PenLine className="size-[18px]" aria-hidden /> {answered > 0 || words > 0 ? t.continue : t.start}
+              {/* «Продолжить писать» — книга открывается: обложка распахивается, под ней лист редактора (BookOpen). */}
+              <Link href={b.writeHref} prefetch className="btn btn-primary btn-lg">
+                <LinkPending>
+                  <PenLine className="size-[18px]" aria-hidden />
+                </LinkPending> {answered > 0 || words > 0 ? t.continue : t.start}
               </Link>
-              <Link href={href} className="btn btn-outline btn-lg">
+              <Link href={href} prefetch className="btn btn-outline btn-lg">
                 {t.open}
               </Link>
             </>

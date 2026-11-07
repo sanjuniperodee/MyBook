@@ -20,3 +20,15 @@ export function Morph({ name, children }: { name: string; children: React.ReactN
     </ViewTransition>
   );
 }
+
+/**
+ * «Книга открывается»: обложка с полки или из обзора распахивается, как крышка, и под ней проявляется лист редактора.
+ * Пара с Morph той же книги (`cover-<id>`): класс берётся у нового элемента, поэтому анимацию задаёт лист.
+ */
+export function BookOpen({ name, children }: { name: string; children: React.ReactNode }) {
+  return (
+    <ViewTransition name={name} share="book-open" default="none">
+      {children}
+    </ViewTransition>
+  );
+}

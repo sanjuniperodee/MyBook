@@ -370,6 +370,38 @@ body {
   animation-duration: 450ms;
   animation-timing-function: var(--ease-out-soft);
 }
+/* «Книга открывается» (BookOpen): обложка поворачивается вокруг корешка и уходит, под ней проявляется лист. */
+::view-transition-group(.book-open) {
+  animation-duration: 640ms;
+  animation-timing-function: cubic-bezier(0.22, 0.8, 0.24, 1);
+}
+::view-transition-image-pair(.book-open) {
+  perspective: 1800px;
+}
+::view-transition-old(.book-open) {
+  height: 100%;
+  object-fit: cover;
+  transform-origin: left center;
+  animation: 640ms cubic-bezier(0.4, 0, 0.2, 1) both vt-cover-open;
+}
+::view-transition-new(.book-open) {
+  height: 100%;
+  animation: 640ms ease-out both vt-page-in;
+}
+@keyframes vt-cover-open {
+  0% { transform: rotateY(0deg); opacity: 1; }
+  55% { opacity: 1; }
+  100% { transform: rotateY(-115deg); opacity: 0; }
+}
+@keyframes vt-page-in {
+  0%, 30% { opacity: 0; }
+  100% { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(.book-open),
+  ::view-transition-old(.book-open),
+  ::view-transition-new(.book-open) { animation-duration: 1ms; }
+}
 ::view-transition-group(.indicator) {
   animation-duration: 320ms;
   animation-timing-function: var(--ease-out-soft);
