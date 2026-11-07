@@ -45,7 +45,7 @@ export function ProofreadForm({
     <Section defaultOpen={false} title="AI-корректор у клиента: «Проверить грамотность»" badge={<Status on={connected && enabled} label={!connected ? "AI не подключён — работают словарь и правила" : enabled ? `${aiProviders[provider || assistantProvider].label} · включена` : "AI выключен"} />}>
       <Intro className="mb-4">
         Клиенты видят ошибки прямо в тексте ответа, как в Grammarly. Орфография по словарю и правила оформления (пробелы, тире, кавычки, эмодзи) работают всегда и бесплатно. Кнопка «Проверить грамотность» —
-        AI-корректор: запятые, согласование, опечатки. Ему можно дать отдельную, например бесплатную, модель: OpenRouter → <code className="rounded bg-cream px-1">openrouter/free</code> сам выбирает доступную бесплатную модель.
+        AI-корректор: запятые, согласование, опечатки. Ему можно дать отдельную, например бесплатную, модель: OpenRouter → <code className="rounded bg-sunken px-1">openrouter/free</code> сам выбирает доступную бесплатную модель.
       </Intro>
       <form action={action} className="space-y-3">
         <div className="flex flex-wrap gap-2 text-sm">
@@ -57,7 +57,7 @@ export function ProofreadForm({
             <Choice key={id} active={p === id}>
               <input type="radio" name="provider" value={id} checked={p === id} onChange={() => setP(id)} className="accent-wine" />
               {aiProviders[id].title}
-              {ready(id) ? <CheckCircle2 className="size-3.5 text-emerald-700" aria-label="ключ сохранён" /> : null}
+              {ready(id) ? <CheckCircle2 className="size-3.5 text-success" aria-label="ключ сохранён" /> : null}
             </Choice>
           ))}
         </div>
@@ -73,7 +73,7 @@ export function ProofreadForm({
           ) : null}
           <SecretInput name="key" label={`Ключ ${def.label} API`} saved={saved.apiKey} fromEnv={saved.apiKeyEnv} placeholder={def.keyPlaceholder} />
           <label className="block">
-            <span className="mb-1 block text-xs text-muted">Модель корректора (пусто — {saved.model || def.defaultModel || "модель провайдера"})</span>
+            <span className="label">Модель корректора (пусто — {saved.model || def.defaultModel || "модель провайдера"})</span>
             <input name="model" defaultValue={model} placeholder={effective === "openrouter" ? "openrouter/free или, например, google/gemma-4-31b-it:free" : saved.model || def.defaultModel} className="input h-10 text-sm" maxLength={100} />
           </label>
         </div>
@@ -82,11 +82,11 @@ export function ProofreadForm({
         </label>
         <div className="flex flex-wrap gap-3">
           <label className="block">
-            <span className="mb-1 block text-xs text-muted">Проверок на клиента за 10 минут</span>
+            <span className="label">Проверок на клиента за 10 минут</span>
             <input name="perTenMin" type="number" inputMode="numeric" min={1} max={1000} defaultValue={perTenMin} className="input h-10 w-28 text-sm" />
           </label>
           <label className="block">
-            <span className="mb-1 block text-xs text-muted">Проверок на клиента в сутки</span>
+            <span className="label">Проверок на клиента в сутки</span>
             <input name="perDay" type="number" inputMode="numeric" min={1} max={1000} defaultValue={perDay} className="input h-10 w-28 text-sm" />
           </label>
         </div>

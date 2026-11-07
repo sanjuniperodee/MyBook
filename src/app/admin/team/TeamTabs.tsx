@@ -13,9 +13,9 @@ export function TeamTabs({ showAudit }: { showAudit: boolean }) {
     ...(showAudit ? [{ href: "/admin/team/audit", label: "Журнал действий" }] : []),
   ];
   return (
-    <nav className="m-hscroll flex gap-1 border-b border-line">
+    <nav aria-label="Разделы команды" className="no-scrollbar -mx-4 flex gap-1 overflow-x-auto border-b border-line px-4 sm:mx-0 sm:px-0">
       {tabs.map((t) => (
-        <Link key={t.href} href={t.href} className={cn("-mb-px inline-flex min-h-11 items-center border-b-2 px-3 text-sm whitespace-nowrap", pathname === t.href ? "border-wine font-medium text-ink" : "border-transparent text-muted hover:text-ink")}>
+        <Link key={t.href} href={t.href} aria-current={pathname === t.href ? "page" : undefined} className={cn("-mb-px inline-flex min-h-11 items-center border-b-2 px-3 text-sm whitespace-nowrap transition-colors", pathname === t.href ? "border-wine font-medium text-ink" : "border-transparent text-muted hover:text-ink")}>
           {t.label}
         </Link>
       ))}

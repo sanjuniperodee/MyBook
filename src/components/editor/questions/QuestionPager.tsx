@@ -21,7 +21,7 @@ export function QuestionPager({ bookId, kind, prev, next, answered, onGo, onFini
       <button
         onClick={() => onGo(-1)}
         disabled={!prev}
-        className="group flex min-w-0 items-center gap-3 rounded-2xl border border-line bg-white/60 p-4 text-left transition hover:border-ink/30 disabled:opacity-40"
+        className="group flex min-w-0 items-center gap-3 rounded-[14px] border border-line bg-white p-4 text-left transition hover:border-line-strong disabled:opacity-40"
         title="Ctrl + Shift + Enter"
       >
         <ArrowLeft className="size-5 shrink-0 text-muted transition group-hover:-translate-x-0.5" />
@@ -31,7 +31,7 @@ export function QuestionPager({ bookId, kind, prev, next, answered, onGo, onFini
         </span>
       </button>
       {next ? (
-        <button onClick={() => onGo(1)} className="group flex min-w-0 items-center justify-end gap-3 rounded-2xl bg-ink p-4 text-right text-white transition hover:bg-ink-soft" title="Ctrl + Enter">
+        <button onClick={() => onGo(1)} className="group flex min-w-0 items-center justify-end gap-3 rounded-[14px] bg-ink p-4 text-right text-white transition hover:bg-ink-soft" title="Ctrl + Enter">
           <span className="min-w-0">
             <span className="block text-xs text-white/60">{kind === "blank" ? t.blank.nextSection : answered ? t.next : t.skip}</span>
             <span className="block truncate text-sm">{label(next)}</span>
@@ -39,7 +39,7 @@ export function QuestionPager({ bookId, kind, prev, next, answered, onGo, onFini
           <ArrowRight className="size-5 shrink-0 transition group-hover:translate-x-0.5" />
         </button>
       ) : (
-        <Link href={`/books/${bookId}/preview`} onClick={onFinish} className="flex items-center justify-end gap-3 rounded-2xl bg-wine p-4 text-white">
+        <Link href={`/books/${bookId}/preview`} onClick={onFinish} className="flex items-center justify-end gap-3 rounded-[14px] bg-wine p-4 text-white hover:bg-wine-dark">
           <span className="text-sm font-medium">{t.toPreview}</span>
           <ArrowRight className="size-5" />
         </Link>
@@ -52,7 +52,7 @@ export function QuestionPager({ bookId, kind, prev, next, answered, onGo, onFini
 export function ProgressCard({ answered, total }: { answered: number; total: number }) {
   const t = useMessages().editor;
   return (
-    <div className="rounded-2xl border border-line p-4 text-xs leading-relaxed text-muted">
+    <div className="rounded-[14px] border border-line p-4 text-xs leading-relaxed text-muted">
       <div className="mb-1 text-sm font-medium text-ink">{t.answeredOf(answered, total)}</div>
       {t.notAll}
       <div className="mt-3 border-t border-line pt-3">
@@ -68,7 +68,7 @@ export function BlankProgress({ book, questions, photos, letters, chapters }: { 
   const pages = useBookPages(book, questions, photos, letters, chapters);
   const written = questions.filter((q) => q.answer.trim()).length;
   return (
-    <div className="rounded-2xl border border-line p-4 text-xs leading-relaxed text-muted">
+    <div className="rounded-[14px] border border-line p-4 text-xs leading-relaxed text-muted">
       <div className="mb-1 text-sm font-medium text-ink">{t.blank.progress(written, pages.printed || 0)}</div>
       {t.blank.emptyChaptersNote}
       <div className="mt-3 border-t border-line pt-3">

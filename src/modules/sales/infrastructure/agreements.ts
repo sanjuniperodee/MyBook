@@ -80,6 +80,32 @@ export async function agreementForClient(userId: string): Promise<DealAgreement 
   return { recipient: row.recipient, dealId: row.id, dealNumber: row.number, agreedTotal: row.amount, prepaid: Math.max(0, row.paid), plan: row.plan, gifts: readGifts(row.gifts ?? []), deadline: row.deadline && /^\d{4}-\d{2}-\d{2}$/.test(row.deadline) ? row.deadline : null, batch };
 }
 
+/**
+ * Доля сделки в деньгах без потолка цены книги: у одиночной сделки — её платежи минус возвраты, у книги пакета — её часть
+ * общих денег пакета (как в paidSum, но переплата пакета остаётся видна). Тем же правилом считает «Финансы»
+ * (reporting/infrastructure/Finance.ts) — держать одинаковыми.
+ */
+const shareSum = (d: SQL) => sql`(case when ${d}.batch_id is null
+  then coalesce((select sum(case when p.kind = 'refund' then -p.amount else p.amount end) from crm_payments p where p.deal_id = ${d}.id), 0)
+  else (select (t.total / ${d}.batch_size) + case when ${d}.batch_index < (t.total % ${d}.batch_size) then 1 else 0 end
+      from (select coalesce(sum(case when p.kind = 'refund' then -p.amount else p.amount end), 0)::int as total from crm_payments p join crm_deals b on b.id = p.deal_id where b.batch_id = ${d}.batch_id) t) end)::int`;
+
+/**
+ * Сколько можно вернуть клиенту по сделке, у которой уже есть заказ: заказ отменён — всё, что внесено по сделке (её доля);
+ * заказ в работе — только внесённое сверх предоплаты, учтённой в заказе. Деньги заказа возвращаются не отсюда.
+ * null — у сделки нет заказа (возврат по обычным правилам).
+ */
+export async function dealRefundAfterOrder(dealId: string): Promise<number | null> {
+  if (!/^[0-9a-f-]{36}$/i.test(dealId)) return null;
+  const d = sql.raw("d");
+  const r = await executor().execute<{ share: number; prepaid: number; cancelled: boolean }>(sql`
+    select ${shareSum(d)} as share, o.prepaid_amount as prepaid, o.status = 'cancelled' as cancelled
+    from crm_deals d join orders o on o.id = d.order_id where d.id = ${dealId}`);
+  const row = r.rows[0];
+  if (!row) return null;
+  return Math.max(0, row.cancelled ? Number(row.share) : Number(row.share) - Number(row.prepaid));
+}
+
 /** Деньги клиента по сделке и договорённость по ней — тем же правилом, что и agreementForClient. */
 export async function dealMoney(dealId: string): Promise<DealMoney> {
   if (!/^[0-9a-f-]{36}$/i.test(dealId)) return { paid: 0, agreement: false };

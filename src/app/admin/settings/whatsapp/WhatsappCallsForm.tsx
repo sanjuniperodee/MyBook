@@ -26,7 +26,7 @@ export function WhatsappCallsForm(props: { enabled: boolean; gowa: boolean }) {
     <Section
       defaultOpen={false}
       title="Звонки WhatsApp из CRM"
-      badge={<span className={cn("rounded-full px-2.5 py-0.5 text-xs", enabled ? "bg-emerald-100 text-emerald-800" : "bg-cream text-muted")}>{enabled ? "включены · бета" : "выключены"}</span>}
+      badge={<span className={cn("badge", enabled && "badge-success")}>{enabled ? "включены · бета" : "выключены"}</span>}
     >
       <Intro>
         Менеджер звонит клиенту в WhatsApp кнопкой «WhatsApp» рядом с «Позвонить» и отвечает на входящие звонки WhatsApp прямо в CRM — с номера магазина, через микрофон и динамик компьютера или телефона. Звонки попадают в «Звонки», ленту клиента и сделки, как звонки АТС; пропущенные — в уведомления и правила.
@@ -38,12 +38,12 @@ export function WhatsappCallsForm(props: { enabled: boolean; gowa: boolean }) {
         <li>Разговоры записываются; слушать записи в «Звонках» может только сотрудник с правом «Слушать записи разговоров» — по умолчанию руководитель.</li>
         <li>Лучше в наушниках: так собеседник не слышит эхо. Браузер спросит доступ к микрофону при первом звонке.</li>
       </ul>
-      {!props.gowa ? <p className="mt-3 text-xs text-amber-800">Сначала выберите «Свой шлюз GOWA» выше — через Wazzup звонков нет.</p> : null}
+      {!props.gowa ? <p className="mt-3 text-xs text-warning">Сначала выберите «Свой шлюз GOWA» выше — через Wazzup звонков нет.</p> : null}
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <button className={cn("btn btn-sm", enabled ? "btn-outline" : "btn-primary")} disabled={pending || (!enabled && !props.gowa)} onClick={() => save(!enabled)} data-testid="wa-calls-toggle">
           {pending ? <LoaderCircle className="size-4 animate-spin" /> : null} {enabled ? "Выключить звонки" : "Включить звонки"}
         </button>
-        {message ? <p className={cn("text-xs", message.ok ? "text-emerald-700" : "text-red-700")}>{message.text}</p> : null}
+        {message ? <p className={cn("text-xs", message.ok ? "text-success" : "text-danger")}>{message.text}</p> : null}
       </div>
     </Section>
   );

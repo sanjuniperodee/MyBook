@@ -115,7 +115,7 @@ export function setup(
     findById: async (id) => convs.get(id) ?? null,
     findByChat: async (ch, chId, chat) => [...convs.values()].find((c) => c.channel === ch && c.channelId === chId && c.chatId === chat) ?? null,
     create: async (i) => {
-      const c: Conv = { ...i, id: `c${++seq}`, dealId: null, assigneeId: null, botStep: null, unread: 0, awaiting: null };
+      const c: Conv = { ...i, id: `c${++seq}`, dealId: null, assigneeId: i.assigneeId ?? null, botStep: null, unread: 0, awaiting: null };
       convs.set(c.id, c);
       return c;
     },
@@ -185,7 +185,7 @@ export function setup(
     findOne: async (id) => {
       const m = msgs.find((x) => x.id === id);
       return m
-        ? { id: m.id, conversationId: m.conv, direction: m.dir, type: m.type, text: m.text, mediaUrl: m.mediaUrl ?? null, externalId: m.externalId, internal: !!m.internal, authorId: m.authorId ?? null, source: (m.source as "bot" | "rule" | null) ?? null, status: m.status, deletedAt: m.deletedAt ?? null, transcript: m.transcript ?? null, createdAt: m.at }
+        ? { id: m.id, conversationId: m.conv, direction: m.dir, type: m.type, text: m.text, mediaUrl: m.mediaUrl ?? null, externalId: m.externalId, internal: !!m.internal, authorId: m.authorId ?? null, source: (m.source as "bot" | "rule" | null) ?? null, status: m.status, error: m.error ?? null, deletedAt: m.deletedAt ?? null, transcript: m.transcript ?? null, createdAt: m.at }
         : null;
     },
     editText: async (id, text, at) => void Object.assign(msgs.find((m) => m.id === id)!, { text, editedAt: at }),

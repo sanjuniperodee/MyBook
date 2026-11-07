@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Repeat } from "lucide-react";
+import { LoaderCircle, Repeat } from "lucide-react";
 import { toast } from "@/components/ui/overlays";
 import { repeatSaleAction } from "../actions";
 
@@ -56,40 +56,40 @@ export function RepeatSale({ occasionTitle }: { occasionTitle: string }) {
         });
       }}
     >
-      <div className="flex flex-wrap items-center gap-2 text-sm" data-testid="repeat-sale-bar">
-        <label className="flex items-center gap-2 text-ink-soft">
-          <input type="checkbox" className="size-4 accent-wine" checked={count > 0 && count === total} onChange={(e) => toggleAll(e.target.checked)} aria-label="Выбрать всех на странице" /> все на странице
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm" data-testid="repeat-sale-bar">
+        <label className="flex min-h-8 items-center gap-2 text-ink-soft">
+          <input type="checkbox" className="size-4 accent-wine" checked={count > 0 && count === total} onChange={(e) => toggleAll(e.target.checked)} aria-label="Выбрать всех на странице" /> Все на странице
         </label>
-        {count ? <span className="font-medium">Выбрано: {count}</span> : <span className="text-muted">Отметьте клиентов для повторной продажи</span>}
-        <button type="button" className="btn btn-outline btn-sm h-8" disabled={!count} onClick={() => setOpen((o) => !o)}>
-          <Repeat className="size-4" /> Повторная продажа
+        {count ? <span className="font-medium tabular-nums">Выбрано: {count}</span> : <span className="text-muted">Отметьте клиентов, чтобы завести повторные продажи</span>}
+        <button type="button" className={count ? "btn btn-dark btn-sm ml-auto" : "btn btn-outline btn-sm ml-auto"} disabled={!count} onClick={() => setOpen((o) => !o)} aria-expanded={open && !!count}>
+          <Repeat className="size-4" aria-hidden /> Повторная продажа
         </button>
       </div>
       {open && count ? (
-        <div className="space-y-3 rounded-2xl border border-line bg-white p-4">
+        <div className="space-y-3 border-t border-line pt-3 pb-1">
           <p className="text-xs text-muted">
             Каждому выбранному — сделка «Повторная продажа», готовый текст в её истории (кнопка «Открыть в WhatsApp» откроет его на телефоне магазина) и задача написать ответственному. Клиентам CRM ничего не отправляет. Кто просил не писать первым или уже в работе (открытая сделка) — пропускаются. {"{имя}"} — имя клиента.
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block text-sm">
-              <span className="mb-1 block text-xs text-muted">Название сделки</span>
+              <span className="label">Название сделки</span>
               <input name="title" defaultValue={`Повторная продажа: ${occasionTitle}`} className="input h-10 w-full text-sm" required />
             </label>
             <label className="block text-sm">
-              <span className="mb-1 block text-xs text-muted">Тег сделки (кто откликнулся)</span>
+              <span className="label">Тег сделки (кто откликнулся)</span>
               <input name="tag" defaultValue="добивка" className="input h-10 w-full text-sm" />
             </label>
           </div>
           <label className="block text-sm">
-            <span className="mb-1 block text-xs text-muted">Текст клиенту</span>
+            <span className="label">Текст клиенту</span>
             <textarea name="text" rows={3} defaultValue={DEFAULT_RU} className="input w-full text-sm" required />
           </label>
           <label className="block text-sm">
-            <span className="mb-1 block text-xs text-muted">Текст на казахском — клиентам с казахским языком (пусто — русский)</span>
+            <span className="label">Текст на казахском — клиентам с казахским языком (пусто — русский)</span>
             <textarea name="textKk" rows={3} defaultValue={DEFAULT_KK} className="input w-full text-sm" />
           </label>
-          <button className="btn btn-primary btn-sm h-10" disabled={pending}>
-            Завести {count} сделок
+          <button className="btn btn-dark btn-sm" disabled={pending}>
+            {pending ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : null} Завести {count} сделок
           </button>
         </div>
       ) : null}

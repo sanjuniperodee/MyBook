@@ -9,7 +9,7 @@ import { nowMs } from "@/lib/dates";
 import { toIsoDay } from "@/lib/occasions";
 import { quoteCheckout } from "@/modules/ordering/domain/Pricing";
 import type { AgreementGift } from "@/shared/domain/agreementGifts";
-import { AgreementChoice, ContactsSection, DeliverySection, GiftSection, MobileBar, PlanSection, Summary, UpgradeNote, type AgreementMode, type PromoField } from "./form/sections";
+import { AgreementChoice, ContactsSection, DeliverySection, GiftSection, MobileBar, PlanSection, StepsNav, Summary, UpgradeNote, type AgreementMode, type PromoField } from "./form/sections";
 
 /** Промокод или сертификат: ввод, проверка на сервере (checkPromoAction), применённый и ошибка. */
 function usePromo(initial: PromoPreview | null, failed: string): PromoField {
@@ -84,7 +84,7 @@ export function CheckoutForm({
   const toggleAddon = (id: AddonId) => setAddonIds((a) => (a.includes(id) ? a.filter((x) => x !== id) : [...a, id]));
 
   return (
-    <form action={action} className="grid gap-10 pb-24 lg:grid-cols-[minmax(0,1fr)_360px] lg:pb-0">
+    <form action={action} className="grid gap-6 pb-28 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-8 lg:pb-0">
       <input type="hidden" name="bookId" value={bookId} />
       <input type="hidden" name="plan" value={planId} />
       <input type="hidden" name="quantity" value={qty} />
@@ -93,7 +93,8 @@ export function CheckoutForm({
       <input type="hidden" name="addons" value={appliedAddons.join(",")} />
       {upgrade ? <input type="hidden" name="upgradeFrom" value={upgrade.orderId} /> : null}
 
-      <div className="space-y-10">
+      <div className="min-w-0 space-y-5">
+        <StepsNav printed={!!plan.printed} />
         {upgrade ? <UpgradeNote upgrade={upgrade} /> : null}
         {agreement ? <AgreementChoice agreement={agreement} mode={mode} onMode={setMode} /> : null}
         <PlanSection plans={shownPlans} planId={planId} lockedPlan={lockedPlan} onPlan={setPlanId} qty={qty} onQty={setQty} offered={offered} applied={appliedAddons} onToggleAddon={toggleAddon} gifts={gifts} />
@@ -113,9 +114,10 @@ export function CheckoutForm({
         offered={offered}
         error={state.error}
         blocked={blocked}
+        step={plan.printed ? 5 : 3}
       />
 
-      <MobileBar total={total} deliveryQuoted={plan.printed && isQuotedDelivery(delivery, quote.price.gifted)} />
+      <MobileBar total={total} deliveryQuoted={plan.printed && isQuotedDelivery(delivery, quote.price.gifted)} error={state.error} />
     </form>
   );
 }

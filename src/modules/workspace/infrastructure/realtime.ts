@@ -11,17 +11,33 @@ export type { LiveEvent };
  */
 
 const CHANNEL = "crm_live";
-type Bus = { subs: Set<(e: LiveEvent) => void>; client: PoolClient | null; starting: Promise<void> | null };
+type Bus = { subs: Set<(e: LiveEvent) => void>; client: PoolClient | null; starting: Promise<void> | null; retry?: ReturnType<typeof setTimeout> | null; attempt?: number };
 const g = globalThis as unknown as { __crmBus?: Bus };
 const bus: Bus = (g.__crmBus ??= { subs: new Set(), client: null, starting: null });
+
+/**
+ * Слушатель пропал (база перезапустилась, соединение оборвалось, не подключились) — снова, с паузой 1, 2, 4… до 30 с,
+ * пока кто-то слушает. Без этого живые обновления молча пропадали до перезапуска сайта.
+ */
+function reconnectLater() {
+  if (!bus.subs.size || bus.retry) return;
+  const attempt = bus.attempt ?? 0;
+  bus.attempt = attempt + 1;
+  bus.retry = setTimeout(() => {
+    bus.retry = null;
+    void ensureListener();
+  }, Math.min(30_000, 1000 * 2 ** attempt));
+}
 
 async function ensureListener() {
   if (bus.client) return;
   bus.starting ??= (async () => {
+    let client: PoolClient | null = null;
     try {
-      const client = await pool.connect();
-      await client.query(`LISTEN ${CHANNEL}`);
-      client.on("notification", (msg) => {
+      client = await pool.connect();
+      const conn = client;
+      await conn.query(`LISTEN ${CHANNEL}`);
+      conn.on("notification", (msg) => {
         if (msg.channel !== CHANNEL || !msg.payload) return;
         let e: LiveEvent;
         try {
@@ -31,17 +47,27 @@ async function ensureListener() {
         }
         for (const fn of bus.subs) fn(e);
       });
+      // «error» и «end» приходят оба — соединение освобождаем и переподключаемся один раз.
+      let gone = false;
       const reset = () => {
-        bus.client = null;
-        client.release(true);
-        // Переподключаемся, если ещё кто-то слушает.
-        if (bus.subs.size) setTimeout(() => void ensureListener(), 3000);
+        if (gone) return;
+        gone = true;
+        if (bus.client === conn) bus.client = null;
+        try {
+          conn.release(true);
+        } catch {
+          // уже освобождено
+        }
+        reconnectLater();
       };
-      client.on("error", reset);
-      client.on("end", () => (bus.client = null));
-      bus.client = client;
+      conn.on("error", reset);
+      conn.on("end", reset);
+      bus.client = conn;
+      bus.attempt = 0;
     } catch (err) {
       console.error("[realtime] listen failed", err);
+      client?.release(true);
+      reconnectLater();
     } finally {
       bus.starting = null;
     }

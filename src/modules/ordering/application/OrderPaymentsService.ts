@@ -101,6 +101,11 @@ export class OrderPaymentsService {
     });
   }
 
+  /** Оплата заказа по id — веб-слою для проверок до сверки: чей заказ и кто её записал. */
+  find(paymentId: string) {
+    return this.payments.find(paymentId);
+  }
+
   /** Руководитель сверил ручную оплату с выпиской. */
   async review(paymentId: string, reviewerId: string) {
     const p = await this.payments.find(paymentId);

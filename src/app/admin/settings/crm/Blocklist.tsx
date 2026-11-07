@@ -42,18 +42,18 @@ export function Blocklist({ items }: { items: { value: string; label: string; da
         }}
       >
         <label className="block">
-          <span className="mb-1 block text-xs text-muted">Номер телефона</span>
+          <span className="label">Номер телефона</span>
           <input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" placeholder="+7 701 234 56 78" maxLength={40} className="input h-9 w-44 text-sm" aria-label="Номер телефона" />
         </label>
         <label className="block">
-          <span className="mb-1 block text-xs text-muted">Отметка</span>
+          <span className="label">Отметка</span>
           <select value={reason} onChange={(e) => setReason(e.target.value as Reason)} className="input h-9 text-sm" aria-label="Отметка">
             <option value="no_marketing">не писать первым</option>
             <option value="spam">спам</option>
           </select>
         </label>
         <label className="block min-w-48 flex-1">
-          <span className="mb-1 block text-xs text-muted">Причина (необязательно)</span>
+          <span className="label">Причина (необязательно)</span>
           <input value={note} onChange={(e) => setNote(e.target.value)} maxLength={300} placeholder="Просил не писать по телефону" className="input h-9 w-full text-sm" aria-label="Причина" />
         </label>
         <button className="btn btn-outline btn-sm h-9" disabled={pending || !phone.trim()}>
@@ -65,7 +65,7 @@ export function Blocklist({ items }: { items: { value: string; label: string; da
         {items.map((i) => (
           <div key={i.value} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-sm">
             <span className="tabular-nums">{i.label}</span>
-            <span className={cn("rounded-full px-2 py-0.5 text-xs", i.reason === "spam" ? "bg-red-50 text-red-800" : "bg-amber-50 text-amber-900")}>{reasonLabel[i.reason]}</span>
+            <span className={cn("badge", i.reason === "spam" ? "badge-danger" : "badge-warning")}>{reasonLabel[i.reason]}</span>
             <span className="min-w-0 flex-1 truncate text-xs text-muted" title={i.note ?? ""}>
               {i.note ?? ""}
             </span>

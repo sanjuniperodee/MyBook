@@ -1,33 +1,32 @@
 import { Logo } from "@/components/Logo";
-import { LostPageArt } from "@/components/illustrations";
+import { FilmFrame, Flourish, frameGhostBtn } from "@/components/landing/FilmFrame";
 import { Link } from "@/i18n/client";
 import { getMessages } from "@/i18n/server";
 import { site } from "@/config/site";
 
+/** 404 — тот же «кадр», что на витрине: старые письма и открытки, тихий титр и два пути назад. */
 export default async function NotFound() {
   const { common: m } = await getMessages();
   return (
-    <main className="flex min-h-dvh flex-col items-center justify-center px-4 py-16 text-center">
+    <main className="relative">
       <title>{`${m.notFound.title} · ${site.name}`}</title>
-      <Logo />
-      <LostPageArt className="enter mt-10 h-48 w-auto sm:h-56" label={m.notFound.art} />
-      <div style={{ "--i": 1 } as React.CSSProperties} className="enter mt-2 font-serif text-sm tracking-[0.3em] text-wine uppercase">
-        {m.notFound.code}
+      <div className="container-x absolute inset-x-0 top-0 z-10 flex h-16 items-center sm:h-18">
+        <Logo className="text-white" />
       </div>
-      <h1 style={{ "--i": 2 } as React.CSSProperties} className="enter mt-3 font-serif text-4xl font-medium sm:text-5xl">
-        {m.notFound.title}
-      </h1>
-      <p style={{ "--i": 3 } as React.CSSProperties} className="enter mt-3 max-w-md text-muted">
-        {m.notFound.text}
-      </p>
-      <div style={{ "--i": 4 } as React.CSSProperties} className="enter mt-8 flex flex-wrap justify-center gap-3">
-        <Link href="/" className="btn btn-outline">
-          {m.actions.toHome}
-        </Link>
-        <Link href="/books" className="btn btn-primary">
-          {m.actions.toMyBooks}
-        </Link>
-      </div>
+      <FilmFrame photo="postcards" position="50% 50%" mobilePosition="50% 50%" priority>
+        <p className="text-sm text-white/70">{m.notFound.code}</p>
+        <h1 className="mt-3 max-w-[14ch] font-serif text-[44px] leading-[1.02] font-medium text-balance text-white sm:text-[64px]">{m.notFound.title}</h1>
+        <Flourish className="mt-3 text-[rgb(255_255_255/0.55)]" />
+        <p className="mt-5 max-w-md text-lg text-white/85">{m.notFound.text}</p>
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+          <Link href="/" className="btn btn-primary btn-lg">
+            {m.actions.toHome}
+          </Link>
+          <Link href="/books" className={frameGhostBtn}>
+            {m.actions.toMyBooks}
+          </Link>
+        </div>
+      </FilmFrame>
     </main>
   );
 }

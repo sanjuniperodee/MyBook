@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Link } from "@/i18n/client";
 import { LandingHeader } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
-import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
+import { PageIntro } from "@/components/landing/PageIntro";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { getCurrentUser } from "@/server/auth";
 import { site } from "@/config/site";
@@ -41,35 +41,37 @@ export default async function BlogPage() {
     },
   ];
 
+  const date = (a: (typeof articles)[number]) => (a.updated ?? a.published).split("-").reverse().join(".");
+
   return (
     <>
       <JsonLd data={jsonLd} />
       <LandingHeader loggedIn={!!user} />
-      <main className="overflow-x-clip">
-        <section className="relative pt-28 pb-20 sm:pt-36 sm:pb-24">
-          <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(60%_50%_at_75%_30%,#f4e4df_0%,transparent_70%)]" />
-          <div className="container-x">
-            <Breadcrumbs items={[{ name: m.landing.seoPage.home, href: "/" }, { name: t.eyebrow }]} />
-            <div className="eyebrow">{t.eyebrow}</div>
-            <h1 className="mt-4 max-w-3xl font-serif text-[42px] leading-[1.05] font-medium tracking-tight sm:text-6xl">{t.title}</h1>
-            <p className="mt-6 max-w-2xl text-lg leading-relaxed text-ink-soft">{t.lead}</p>
-            <div className="mt-12 grid gap-5 md:grid-cols-2">
-              {articles.map((a) => {
-                const c = a.content[locale];
-                return (
-                  <Link key={a.slug} href={`/blog/${a.slug}`} className="card card-hover flex flex-col p-7">
-                    <div className="text-xs text-muted">
-                      <time dateTime={a.updated ?? a.published}>{(a.updated ?? a.published).split("-").reverse().join(".")}</time> · {t.minutes(a.readMinutes)}
+      <main className="overflow-x-clip pb-20 sm:pb-28">
+        <PageIntro crumbs={[{ name: m.landing.seoPage.home, href: "/" }, { name: t.eyebrow }]} title={t.title} lead={t.lead} />
+        <div className="container-x">
+          {/* Оглавление журнала: дата и время чтения слева, заголовок засечками и анонс справа. */}
+          <ol className="border-t border-ink/80">
+            {articles.map((a) => {
+              const c = a.content[locale];
+              return (
+                <li key={a.slug} className="border-b border-line">
+                  <Link href={`/blog/${a.slug}`} className="group grid gap-2 py-8 sm:grid-cols-[11rem_1fr] sm:gap-10 sm:py-10">
+                    <div className="text-sm text-muted">
+                      <time dateTime={a.updated ?? a.published}>{date(a)}</time>
+                      <span className="block">{t.minutes(a.readMinutes)}</span>
                     </div>
-                    <h2 className="mt-3 font-serif text-2xl leading-snug font-medium">{c.title}</h2>
-                    <p className="mt-3 flex-1 text-sm leading-relaxed text-muted">{c.description}</p>
-                    <span className="mt-5 text-sm font-medium text-wine">{t.read} →</span>
+                    <div className="max-w-3xl">
+                      <h2 className="font-serif text-[28px] leading-[1.15] font-medium text-balance group-hover:text-wine sm:text-[34px]">{c.title}</h2>
+                      <p className="mt-3 leading-relaxed text-muted">{c.description}</p>
+                      <span className="mt-4 inline-block text-sm font-medium text-wine underline decoration-wine/30 underline-offset-4 group-hover:decoration-wine">{t.read}</span>
+                    </div>
                   </Link>
-                );
-              })}
-            </div>
-          </div>
-        </section>
+                </li>
+              );
+            })}
+          </ol>
+        </div>
       </main>
       <Footer />
     </>

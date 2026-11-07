@@ -82,7 +82,7 @@ export function PhotoCard({
           <GripVertical className="size-4" />
         </button>
       ) : null}
-      <button type="button" onClick={onDelete} className="flex size-11 items-center justify-center rounded-full bg-white/90 text-red-700 shadow max-sm:border max-sm:border-line max-sm:shadow-none sm:size-9" aria-label={t.delete}>
+      <button type="button" onClick={onDelete} className="flex size-11 items-center justify-center rounded-full bg-white/90 text-danger shadow max-sm:border max-sm:border-line max-sm:shadow-none sm:size-9" aria-label={t.delete}>
         <Trash2 className="size-4" />
       </button>
     </>
@@ -109,7 +109,7 @@ export function PhotoCard({
         {/* Подпись места — на всю ширину: рядом с кнопками на телефоне от «Фото главы «…»» оставалось два слова. */}
         <div>
           <div className="flex items-center gap-1.5">
-            <div className="min-w-0 flex-1 text-[11px] font-semibold tracking-wide text-muted uppercase">{tt.placeBtn}</div>
+            <div className="min-w-0 flex-1 text-xs font-medium text-muted">{tt.placeBtn}</div>
             {actions ? <div className="flex shrink-0 gap-1.5 sm:hidden">{actions}</div> : null}
           </div>
           <PlaceBadge place={place} names={names} blank={blank} marked={photo.opener} openerDesign={openerDesign} onOpen={onPlace} className="mt-1 px-2.5 ring-1 ring-line" />
@@ -118,17 +118,17 @@ export function PhotoCard({
         {isLossy(loss) || lowRes ? (
           <div className="flex flex-wrap items-center gap-1.5">
             {isLossy(loss) ? (
-              <span className="flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800">
+              <span className="badge badge-warning">
                 <Crop className="size-3 shrink-0" aria-hidden /> {tt.lossChip(Math.round(loss * 100))}
               </span>
             ) : null}
             {canShowWhole(photo, place, loss) && editable ? (
-              <button type="button" onClick={onShowWhole} className="flex min-h-11 items-center gap-1 rounded-full px-2 text-xs font-medium text-wine hover:bg-wine/5">
+              <button type="button" onClick={onShowWhole} className="flex min-h-11 items-center gap-1 rounded-[10px] px-2 text-xs font-medium text-wine hover:bg-wine/5">
                 <Maximize2 className="size-3.5" aria-hidden /> {tt.showWhole}
               </button>
             ) : null}
             {lowRes ? (
-              <span className="flex items-center gap-1 text-xs text-amber-700" title={lowRes}>
+              <span className="flex items-center gap-1 text-xs text-warning" title={lowRes}>
                 <TriangleAlert className="size-3 shrink-0" aria-hidden /> {t.lowRes}
               </span>
             ) : null}
@@ -140,7 +140,7 @@ export function PhotoCard({
         {pages ? (
           <>
             {layout === "bleed" ? <p className="text-xs text-muted">{t.noCaptionBleed}</p> : <CaptionField key={photo.id} value={photo.caption ?? ""} placeholder={t.caption} disabled={!editable} onSave={onCaption} />}
-            <div role="radiogroup" aria-label={m.editor.placeSheet.layoutTitle} className="grid grid-cols-2 gap-1 rounded-xl bg-cream/70 p-1">
+            <div role="radiogroup" aria-label={m.editor.placeSheet.layoutTitle} className="grid grid-cols-2 gap-1 rounded-xl bg-sunken p-1">
               {LAYOUTS.map((l) => (
                 <button
                   key={l}

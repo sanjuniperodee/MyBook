@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import { ToolHeader } from "../ToolHeader";
 import { useRouter } from "next/navigation";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, TouchSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, rectSortingStrategy, SortableContext, sortableKeyboardCoordinates, useSortable } from "@dnd-kit/sortable";
@@ -14,7 +15,6 @@ import { getFormat } from "@/lib/book/formats";
 import { effectiveDpi, photoAreaMm } from "@/lib/book/layout";
 import type { PlaceFrame } from "@/lib/book/photo-pages";
 import { cn } from "@/lib/class-names";
-import { PhotosArt } from "@/components/illustrations";
 import { CropDialog } from "@/components/editor/CropDialog";
 import { PhotoEditor } from "@/components/photo-editor/PhotoEditor";
 import { patchPhotos, PHOTO_ACCEPT } from "@/components/editor/photos/api";
@@ -155,24 +155,23 @@ export function PhotosManager({ data, initialFilter }: { data: PhotosTabData; in
         void upload([...e.dataTransfer.files]);
       }}
     >
-      <div className="flex flex-wrap items-center justify-between gap-3 sm:gap-4">
-        <div className="min-w-0 sm:max-w-2xl">
-          <h1 className="font-serif text-3xl font-medium sm:text-5xl">{t.title}</h1>
-          <p className="mt-2 text-sm text-muted sm:text-base">{photos.length ? tt.intro : t.intro}</p>
-        </div>
-        {editable ? (
-          <>
-            <input ref={input} type="file" accept={PHOTO_ACCEPT} multiple className="hidden" onChange={(e) => void upload([...(e.target.files ?? [])])} />
-            <button className="btn btn-primary btn-lg max-sm:w-full" onClick={() => input.current?.click()} disabled={!!ed.uploading}>
-              {ed.uploading ? <LoaderCircle className="size-5 animate-spin" /> : <ImagePlus className="size-5" />}
+      {editable ? <input ref={input} type="file" accept={PHOTO_ACCEPT} multiple className="hidden" onChange={(e) => void upload([...(e.target.files ?? [])])} /> : null}
+      <ToolHeader
+        title={t.title}
+        description={photos.length ? tt.intro : t.intro}
+        actions={
+          // Пока фото нет, главное действие — в самой зоне загрузки ниже: две винные кнопки на экране не нужны.
+          editable && photos.length ? (
+            <button className="btn btn-primary max-sm:w-full" onClick={() => input.current?.click()} disabled={!!ed.uploading}>
+              {ed.uploading ? <LoaderCircle className="size-4 animate-spin" /> : <ImagePlus className="size-4" />}
               {ed.uploading ? t.uploading(ed.uploading.done, ed.uploading.total) : t.add}
             </button>
-          </>
-        ) : null}
-      </div>
+          ) : null
+        }
+      />
 
       {notes.length ? (
-        <Alert className="mt-6">
+        <Alert className="mb-6">
           {notes.map((e, i) => (
             <div key={i}>{e}</div>
           ))}
@@ -184,26 +183,30 @@ export function PhotosManager({ data, initialFilter }: { data: PhotosTabData; in
           disabled={!editable}
           onClick={() => input.current?.click()}
           className={cn(
-            "mt-10 flex w-full flex-col items-center justify-center rounded-3xl border-2 border-dashed px-6 py-14 text-center transition",
-            dragOver ? "border-wine bg-wine/5" : "border-line hover:border-ink/30",
+            "flex w-full flex-col items-center justify-center rounded-[14px] border border-dashed px-6 py-14 text-center transition sm:py-20",
+            dragOver ? "border-wine bg-rose/50" : "border-line-strong bg-white/50 hover:border-ink/30",
           )}
         >
-          <PhotosArt className="h-36 w-auto" />
-          <div className="mt-3 font-serif text-2xl font-medium">{t.empty}</div>
-          <div className="mt-1 text-sm text-muted">{t.emptyText}</div>
-          <span className="btn btn-primary btn-sm mt-5">
-            <ImagePlus className="size-4" /> {t.choose}
+          <span className="flex size-12 items-center justify-center rounded-full bg-sunken text-ink-soft">
+            {ed.uploading ? <LoaderCircle className="size-5 animate-spin" aria-hidden /> : <ImagePlus className="size-5" aria-hidden />}
           </span>
+          <div className="mt-4 font-serif text-2xl font-medium">{t.empty}</div>
+          <div className="mt-1 max-w-md text-sm text-muted">{t.emptyText}</div>
+          {editable ? (
+            <span className="btn btn-primary mt-6">
+              <ImagePlus className="size-4" /> {ed.uploading ? t.uploading(ed.uploading.done, ed.uploading.total) : t.choose}
+            </span>
+          ) : null}
         </button>
       ) : (
         <>
-          <PhotoIntroCard blank={book.blank} className="mt-6 rounded-2xl bg-cream/70 p-4" />
+          <PhotoIntroCard blank={book.blank} className="rounded-[14px] border border-line bg-white p-4" />
           <div className="mt-4">
             <PlacementRule value={ed.photoPlacement} gallery={galleryTitle} blank={book.blank} noChapters={!printed} editable={editable} onChange={(photoPlacement) => void ed.saveBook({ photoPlacement })} />
           </div>
           {/* Альбом в конце — название, порядок и состав правят в его листе. */}
           {album ? (
-            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl bg-white p-3 ring-1 ring-line">
+            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-[14px] border border-line bg-white p-3">
               <Images className="size-4 shrink-0 text-wine" aria-hidden />
               <span className="min-w-0 flex-1 text-sm font-medium">{m.books.pagesPhotos.albumRow(galleryTitle, album)}</span>
               <button type="button" className="btn btn-outline btn-sm min-h-11" onClick={() => setGallery(true)}>
@@ -213,9 +216,9 @@ export function PhotosManager({ data, initialFilter }: { data: PhotosTabData; in
           ) : null}
 
           {wide.length >= BANNER_MIN && editable ? (
-            <div className="mt-4 flex flex-col gap-3 rounded-2xl bg-amber-50 p-4 ring-1 ring-amber-200 sm:flex-row sm:items-center">
-              <Maximize2 className="size-5 shrink-0 text-amber-700 max-sm:hidden" aria-hidden />
-              <p className="min-w-0 flex-1 text-sm text-amber-900">{tt.banner(wide.length)}</p>
+            <div className="mt-4 flex flex-col gap-3 rounded-[14px] bg-warning-bg p-4 sm:flex-row sm:items-center">
+              <Maximize2 className="size-5 shrink-0 text-warning max-sm:hidden" aria-hidden />
+              <p className="min-w-0 flex-1 text-sm text-warning">{tt.banner(wide.length)}</p>
               <button type="button" className="btn btn-primary btn-sm min-h-11 shrink-0" onClick={() => void showWhole(wide)}>
                 {tt.bannerYes}
               </button>
@@ -229,7 +232,7 @@ export function PhotosManager({ data, initialFilter }: { data: PhotosTabData; in
                 type="button"
                 aria-pressed={filter === f}
                 onClick={() => setFilter(f)}
-                className={cn("flex h-11 shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-medium ring-1 transition", filter === f ? "bg-ink text-white ring-ink" : "bg-white text-ink-soft ring-line hover:bg-cream/50")}
+                className={cn("flex h-11 shrink-0 items-center gap-1.5 rounded-[10px] px-4 text-sm font-medium ring-1 transition", filter === f ? "bg-ink text-white ring-ink" : "bg-white text-ink-soft ring-line hover:bg-sunken")}
               >
                 {tt.filters[f]}
                 <span className={cn("tabular-nums", filter === f ? "text-white/70" : "text-muted")}>{counts[f]}</span>

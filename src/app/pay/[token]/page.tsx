@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
-import { CheckCircle2, MessageCircle, XCircle } from "lucide-react";
+import { CheckCircle2, Gift, MessageCircle, XCircle } from "lucide-react";
 import { Link } from "@/i18n/client";
 import { LandingHeader } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
@@ -49,10 +49,10 @@ export default async function PayPage({ params }: { params: Promise<{ token: str
       <main className="pt-28 pb-20 sm:pt-32">
         <div className="container-x max-w-2xl space-y-6">
           <div>
-            <div className="eyebrow">{t.eyebrow(invoice.label)}</div>
-            <h1 className="mt-3 font-serif text-4xl font-medium sm:text-5xl">{state === "paid" ? t.paidTitle : state === "payable" ? t.meta : t.closedTitle}</h1>
+            <div className="text-sm text-muted">{t.eyebrow(invoice.label)}</div>
+            <h1 className="mt-3 font-serif text-[40px] leading-[1.06] font-medium text-balance sm:text-5xl">{state === "paid" ? t.paidTitle : state === "payable" ? t.meta : t.closedTitle}</h1>
             <p className="mt-3 text-ink-soft">{t.purposeLine(planName(s.plan, locale), t.purpose[s.purpose], s.booksCount)}</p>
-            {s.gifts.length ? <p className="mt-1 text-ink-soft" data-testid="pay-gifts">🎁 {t.gifts(s.gifts.map((g) => m.common.agreementGifts[g]).join(", "))}</p> : null}
+            {s.gifts.length ? <p className="mt-1 flex items-start gap-2 text-ink-soft" data-testid="pay-gifts"><Gift className="mt-1 size-4 shrink-0 text-wine" aria-hidden /> {t.gifts(s.gifts.map((g) => m.common.agreementGifts[g]).join(", "))}</p> : null}
             <p className="mt-1 text-ink-soft">
               {state === "paid" ? t.amountPaid : state === "payable" ? t.toPay : t.amount}: <b className="text-ink">{formatPrice(s.amount)}</b>
             </p>
@@ -87,9 +87,9 @@ export default async function PayPage({ params }: { params: Promise<{ token: str
           ) : null}
 
           {state === "paid" ? (
-            <div className="card space-y-4 p-6">
+            <div className="space-y-4 rounded-[14px] border border-line bg-white p-6">
               <div className="flex items-start gap-3">
-                <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-600" />
+                <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-success" />
                 {/* Про WhatsApp — только когда доступ действительно ушёл; иначе честно: пришлёт менеджер. */}
                 <p className="text-[15px]">{s.accessStatus === "sent" || s.accessStatus === "delivered" ? t.paidAccess : s.accessStatus === "skipped" ? t.paidAlready : t.paidManager}</p>
               </div>
@@ -100,7 +100,7 @@ export default async function PayPage({ params }: { params: Promise<{ token: str
           ) : null}
 
           {state === "ordered" || state === "cancelled" || state === "expired" ? (
-            <div className="card space-y-4 p-6">
+            <div className="space-y-4 rounded-[14px] border border-line bg-white p-6">
               <div className="flex items-start gap-3">
                 <XCircle className="mt-0.5 size-5 shrink-0 text-muted" />
                 <p className="text-[15px]">{t[state]}</p>

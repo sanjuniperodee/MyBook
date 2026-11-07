@@ -8,7 +8,7 @@ import type { PromoPreview } from "./actions";
 import { getOccasion } from "@/lib/occasions";
 import { Link } from "@/i18n/client";
 import { getLocale, getMessages, lredirect } from "@/i18n/server";
-import { ArrowRight, TriangleAlert, CircleAlert } from "lucide-react";
+import { CircleAlert, Eye, TriangleAlert } from "lucide-react";
 import { requireUser } from "@/server/auth";
 import { getAccessibleBook } from "@/server/books";
 import { checkReadiness } from "@/modules/authoring/domain/readiness";
@@ -68,8 +68,8 @@ export default async function CheckoutPage({ params, searchParams }: { params: P
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
-      <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
-        <div className="w-24 shrink-0">
+      <div className="flex items-center gap-4 sm:gap-6">
+        <div className="w-16 shrink-0 sm:w-20">
           <CoverPreview
             template={book.coverTemplate}
             format={book.format}
@@ -82,42 +82,41 @@ export default async function CheckoutPage({ params, searchParams }: { params: P
             className="rounded-[3px] shadow-book"
           />
         </div>
-        <div>
-          <h1 className="font-serif text-3xl font-medium sm:text-5xl">{t.title}</h1>
-          <p className="mt-2 text-muted">{t.summary(book.title, built?.pageCount ?? stats.printedPages, stats.answered, stats.photos, !!built)}</p>
+        <div className="min-w-0">
+          <h1 className="font-serif text-[32px] leading-tight font-medium sm:text-[40px]">{t.title}</h1>
+          <p className="mt-1 text-sm text-muted sm:text-[15px]">{t.summary(book.title, built?.pageCount ?? stats.printedPages, stats.answered, stats.photos, !!built)}</p>
           {/* Последний взгляд на оформление перед оплатой — с быстрым переходом к правке */}
-          <p className="mt-1 text-sm text-muted">
+          <p className="mt-1 flex flex-wrap gap-x-3 text-sm text-muted">
             <Link href={`/books/${book.id}/cover`} className="underline-offset-2 hover:text-ink hover:underline">
               {t.design.cover(coverName(book.coverTemplate, locale))}
             </Link>
-            {" · "}
             <Link href={`/books/${book.id}/pages`} className="underline-offset-2 hover:text-ink hover:underline">
               {t.design.pages(interiorName(book.interior, locale))}
             </Link>
-            {" · "}
-            {getFormat(book.format).short}
+            <span>{getFormat(book.format).short}</span>
           </p>
         </div>
       </div>
 
-      {staffView ? <p className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-3 text-sm text-amber-900">{t.staffView}</p> : null}
+      {staffView ? <p className="mt-6 rounded-[10px] bg-warning-bg px-4 py-3 text-sm text-warning">{t.staffView}</p> : null}
 
-      <div className="mt-8 rounded-2xl border border-line bg-white p-5">
+      {/* Проверка перед оплатой: макет и то, что стоит поправить */}
+      <div className="mt-6 rounded-[14px] border border-line bg-white p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm">{t.checkPreview}</p>
-          <Link href={`/books/${book.id}/preview`} className="btn btn-outline btn-sm">
-            {t.openPreview} <ArrowRight className="size-4" />
+          <p className="min-w-0 flex-1 text-sm text-ink-soft">{t.checkPreview}</p>
+          <Link href={`/books/${book.id}/preview`} className="btn btn-outline btn-sm shrink-0 max-sm:w-full">
+            <Eye className="size-4" aria-hidden /> {t.openPreview}
           </Link>
         </div>
         {issues.length ? (
           <ul className="mt-4 space-y-2 border-t border-line pt-4">
             {issues.map((i) => (
-              <li key={i.text} className={`flex items-start gap-2 text-sm ${i.level === "error" ? "text-red-700" : "text-amber-800"}`}>
-                {i.level === "error" ? <CircleAlert className="mt-0.5 size-4 shrink-0" /> : <TriangleAlert className="mt-0.5 size-4 shrink-0" />}
+              <li key={i.text} className={`flex items-start gap-2 text-sm ${i.level === "error" ? "text-danger" : "text-warning"}`}>
+                {i.level === "error" ? <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden /> : <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />}
                 <span>
                   {i.text}{" "}
                   {i.href ? (
-                    <Link href={i.href} className="underline underline-offset-2">
+                    <Link href={i.href} className="font-medium underline underline-offset-2">
                       {t.fix}
                     </Link>
                   ) : null}
@@ -128,7 +127,7 @@ export default async function CheckoutPage({ params, searchParams }: { params: P
         ) : null}
       </div>
 
-      <div className="mt-10">
+      <div className="mt-8">
         <CheckoutForm
           bookId={book.id}
           blocked={blocked}

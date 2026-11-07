@@ -41,7 +41,7 @@ export function QuestionCards({ themes }: { themes: Record<string, CardQuestion[
       />
 
       {current ? (
-        <div className="mt-8 rounded-3xl bg-gradient-to-br from-rose/50 to-cream p-6 sm:p-10">
+        <div className="mt-8 rounded-[14px] bg-gradient-to-br from-rose/50 to-cream p-6 sm:p-10">
           {current.chapter ? (
             <div className="text-xs font-semibold tracking-[0.18em] text-wine uppercase">
               {ui.chapter}: {current.chapter}
@@ -66,7 +66,7 @@ export function QuestionCards({ themes }: { themes: Record<string, CardQuestion[
       </div>
 
       {list.length ? (
-        <div className="mt-6 rounded-3xl border border-line p-6 print:border-0 print:p-0">
+        <div className="mt-6 rounded-[14px] border border-line p-6 print:border-0 print:p-0">
           <h3 className="font-serif text-2xl font-medium">{ui.tenTitle}</h3>
           <ol className="mt-4 list-decimal space-y-2 pl-5 leading-relaxed">
             {list.map((q) => (

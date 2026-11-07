@@ -32,15 +32,16 @@ export function EditorTopBar({
 }) {
   const t = useMessages().editor;
   return (
-    <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1.5 sm:mb-4 sm:flex-nowrap">
-      <button className={cn("btn btn-outline btn-sm shrink-0", !focus && "lg:hidden")} onClick={onChapters}>
+    <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1 sm:mb-4 sm:flex-nowrap">
+      <button className={cn("btn btn-outline btn-sm min-h-11 shrink-0 sm:min-h-9", !focus && "lg:hidden")} onClick={onChapters}>
         <ListTree className="size-4" /> {t.chapters}
       </button>
       {/* На телефоне глава — своей строкой под кнопками: рядом с «Как в книге» от названия оставалось три буквы. */}
       <div className="min-w-0 flex-1 truncate text-sm text-muted max-sm:order-last max-sm:basis-full">
         {chapterNumber === null ? null : (
           <>
-            <span className="text-ink">{t.chapter(chapterNumber)}</span> ·{" "}
+            <span className="font-medium text-ink">{t.chapter(chapterNumber)}</span>
+            <span className="mx-1.5 text-line-strong" aria-hidden>/</span>
           </>
         )}
         {onRename ? (
@@ -56,11 +57,11 @@ export function EditorTopBar({
       {pages}
       {!focus ? (
         // «Как в книге» — подписанная кнопка: на телефоне открывает превью на весь экран (на широком оно справа).
-        <button className="btn btn-outline btn-sm h-9 shrink-0 gap-1 px-2.5 text-xs xl:hidden" onClick={onTogglePreview}>
+        <button className="btn btn-outline btn-sm min-h-11 shrink-0 gap-1.5 px-3 text-[13px] sm:min-h-9 xl:hidden" onClick={onTogglePreview}>
           <Eye className="size-3.5" /> {t.chrome.previewBtn}
         </button>
       ) : null}
-      <button className="btn btn-ghost btn-sm size-9 px-0 max-lg:hidden" onClick={onToggleFocus} title={focus ? t.focusOff : t.focusOn}>
+      <button className="btn btn-ghost btn-icon btn-sm max-lg:hidden" onClick={onToggleFocus} title={focus ? t.focusOff : t.focusOn} aria-label={focus ? t.focusOff : t.focusOn} aria-pressed={focus}>
         {focus ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
       </button>
     </div>
@@ -100,7 +101,7 @@ export function AnswerToolbar({
   // (на сервере «0,9», в Chrome «0.9»), и счётчик расходился при гидратации.
   const share = (n: number) => String(Math.round(Math.max(n, 0.1) * 10) / 10).replace(".", ",");
   return (
-    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-line/60 px-3 py-2 sm:px-8 sm:py-3">
+    <div className="flex flex-wrap items-center gap-x-1 gap-y-1 border-t border-line px-3 py-2 sm:px-6 sm:py-2.5">
       {dictation}
       {editable ? (
         <button className="btn btn-ghost btn-sm text-muted max-lg:hidden" onClick={onPhoto}>
@@ -118,7 +119,7 @@ export function AnswerToolbar({
         </button>
       ) : null}
       {editable && custom ? (
-        <button className="btn btn-ghost btn-sm text-red-700" onClick={onRemove}>
+        <button className="btn btn-ghost btn-sm text-danger hover:bg-danger-bg hover:text-danger" onClick={onRemove}>
           <Trash2 className="size-4" /> {t.delete}
         </button>
       ) : null}

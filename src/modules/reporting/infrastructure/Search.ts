@@ -38,7 +38,8 @@ export async function search(term: string, viewer: Viewer, sections: { orders: b
       : db
           .select()
           .from(users)
-          .where(and(or(ilike(users.name, like), ilike(users.email, like), phoneLike(users.phone), extraPhoneMatch(users.extraPhones, term), tagMatch(users.tags, term)), visibleTo(viewer, users.managerId)))
+          // Клиенты — только покупатели (role «user»), как в списке клиентов: сотрудники в выдачу не попадают.
+          .where(and(eq(users.role, "user"), or(ilike(users.name, like), ilike(users.email, like), phoneLike(users.phone), extraPhoneMatch(users.extraPhones, term), tagMatch(users.tags, term)), visibleTo(viewer, users.managerId)))
           .limit(20),
     !sections.clients
       ? none

@@ -1,5 +1,5 @@
 import { api, apiStaff } from "@/server/api";
-import { audit, contactView } from "@/server/access";
+import { audit, contactView, staffViewer } from "@/server/access";
 import { toCsv } from "@/lib/csv";
 import { container } from "@/server/container";
 
@@ -13,7 +13,7 @@ export const GET = api(async (req) => {
   const sp = new URL(req.url).searchParams;
   const days = Math.min(3650, Math.max(1, Number(sp.get("days")) || 90));
   await audit(staff, "export", "payments", null, { days });
-  const rows = await container().reporting.paymentsExport(days);
+  const rows = await container().reporting.paymentsExport(days, staffViewer(staff));
   const csv = toCsv(
     ["Дата оплаты", "Сумма, ₸", "Откуда", "Тип", "Заказ / сделка", "Клиент", "Телефон", "Менеджер", "Чек приложен"],
     rows.map((r) => [r.at, r.amount, r.kind === "order" ? "заказ на сайте" : r.kind === "payment" ? "платёж менеджеру" : r.kind === "refund" ? "возврат клиенту" : "успешная сделка без платежа (сумма договорённости, денег в журнале нет)", r.type, r.ref, r.client, contactView(staff, { phone: r.phone }).phone, r.manager, r.receipt]),

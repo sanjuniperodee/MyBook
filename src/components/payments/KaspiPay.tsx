@@ -134,14 +134,14 @@ export function KaspiPay({
       {invoice?.status === "paid" ? <Alert kind="success">{hints?.paid || t.paid}</Alert> : null}
 
       {pending && invoice.method === "invoice" ? (
-        <div className="space-y-3 rounded-2xl bg-cream p-4 text-[15px]">
+        <div className="space-y-3 rounded-[10px] bg-sunken p-4 text-[15px]">
           <p className="font-medium">{t.sent(amountLabel, shownPhone(invoice.phone))}</p>
           <p className="text-ink-soft">{t.sentSteps}</p>
         </div>
       ) : null}
 
       {pending && invoice.method === "qr" && invoice.qrSvg ? (
-        <div className="flex flex-col items-center gap-3 rounded-2xl bg-cream p-4 text-center sm:flex-row sm:text-left">
+        <div className="flex flex-col items-center gap-3 rounded-[10px] bg-sunken p-4 text-center sm:flex-row sm:text-left">
           {/* SVG собран на сервере библиотекой qrcode из ссылки Kaspi — только пути, без текста извне. */}
           <div className="size-48 shrink-0 rounded-xl bg-white p-2" dangerouslySetInnerHTML={{ __html: invoice.qrSvg }} />
           <p className="text-[15px] text-ink-soft">{t.scanQr}</p>

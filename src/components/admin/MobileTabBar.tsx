@@ -66,7 +66,7 @@ export function MobileTabBar({ tabs, profileLabel }: { tabs: MobileTabKey[]; pro
   // «Заказы» — и список, и доска производства.
   const active = (href: string) => (href === "/admin" ? pathname === "/admin" : pathname.startsWith(href) || (href === "/admin/orders" && pathname.startsWith("/admin/board")));
   return (
-    <nav style={{ viewTransitionName: "crm-tabbar" }} className="fixed inset-x-0 bottom-0 z-40 border-t border-line/70 bg-white/85 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden" aria-label="Разделы CRM" data-testid="mobile-tabbar">
+    <nav style={{ viewTransitionName: "crm-tabbar" }} className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-white/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden" aria-label="Разделы CRM" data-testid="mobile-tabbar">
       <ul className="mx-auto flex h-[3.6rem] max-w-xl">
         {items.map((it) => {
           const on = active(it.href);
@@ -85,9 +85,9 @@ export function MobileTabBar({ tabs, profileLabel }: { tabs: MobileTabKey[]; pro
                     scrollTo(0, "smooth");
                   }
                 }}
-                className={cn("relative flex h-full flex-col items-center justify-center gap-0.5 text-[10.5px] font-medium transition active:scale-95 active:opacity-60", on ? "text-wine" : "text-muted")}>
+                className={cn("relative flex h-full flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition active:scale-95 active:opacity-60", on ? "text-wine" : "text-muted")}>
                 <span className="relative">
-                  <it.icon className={cn("size-6 transition", on && "scale-110")} strokeWidth={on ? 2.2 : 1.8} />
+                  <it.icon className="size-6" strokeWidth={on ? 2.2 : 1.8} aria-hidden />
                   {n ? <span className="absolute -top-1.5 -right-3 min-w-[18px] rounded-full bg-wine px-1 text-center text-[10.5px] leading-[18px] font-semibold text-white tabular-nums">{n > 99 ? "99+" : n}</span> : null}
                 </span>
                 {it.label}

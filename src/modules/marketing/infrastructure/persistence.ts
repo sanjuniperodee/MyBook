@@ -29,8 +29,9 @@ export const sqlReportSource: ReportSource = {
         select l.slug, l.utm_source as source, l.utm_medium as medium, l.utm_campaign as campaign, coalesce(sum(c.clicks), 0)::int as clicks
         from crm_links l left join crm_link_clicks c on c.link_id = l.id and c.day >= ${fromDay}
         group by l.id`),
-      // Расход на рекламу за период по каналам — по marketing_spend_day_idx.
-      db.execute<{ channel: string; amount: number }>(sql`select channel, coalesce(sum(amount), 0)::int as amount from marketing_spend where day >= ${fromDay} group by channel`),
+      // Расход на рекламу за период по каналам — по marketing_spend_day_idx. Ровно N дней, как у когорты (N×24 ч до сейчас):
+      // день начала окна — неполный, его не берём; будущие дни (запись наперёд) — тоже.
+      db.execute<{ channel: string; amount: number }>(sql`select channel, coalesce(sum(amount), 0)::int as amount from marketing_spend where ${since ? sql`day > ${fromDay} and ` : sql``}day <= ${zonedDay(new Date())} group by channel`),
     ]);
     return {
       clients: clients.rows,

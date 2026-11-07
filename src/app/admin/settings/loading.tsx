@@ -3,10 +3,10 @@ import { SkCard, SkHeader, SkPage } from "@/components/admin/skeletons";
 
 export default function Loading() {
   return (
-    <SkPage className="mx-auto max-w-5xl space-y-5">
+    <SkPage className="mx-auto max-w-6xl space-y-6">
       <SkHeader title="w-72" subtitle />
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-[14rem_minmax(0,1fr)]">
-        <div className="hidden space-y-3 md:block">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-8">
+        <div className="hidden space-y-3 lg:block">
           {Array.from({ length: 7 }, (_, i) => (
             <div key={i} className="skeleton h-10 w-full" />
           ))}

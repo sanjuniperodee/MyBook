@@ -28,14 +28,14 @@ export default async function InvitePage() {
       <h1 className="mt-3 font-serif text-4xl leading-tight font-medium text-balance sm:text-5xl">{t.title}</h1>
       <p className="mt-4 max-w-2xl text-lg leading-relaxed text-ink-soft">{t.lead(REFERRAL.friendPercent, REFERRAL.rewardPercent)}</p>
 
-      <section className="card mt-10 overflow-hidden">
-        <div className="flex flex-col gap-6 bg-[linear-gradient(120deg,#fbf3ef,#fff)] p-6 sm:p-8">
+      <section className="rounded-[14px] border border-line bg-white mt-10 overflow-hidden">
+        <div className="flex flex-col gap-6 p-6 sm:p-8">
           <InviteShare link={link} code={code} message={t.message(link, REFERRAL.friendPercent)} />
         </div>
       </section>
 
       <div className="mt-6 grid gap-6 md:grid-cols-[1.2fr_1fr]">
-        <section className="card p-6 sm:p-8">
+        <section className="rounded-[14px] border border-line bg-white p-6 sm:p-8">
           <h2 className="text-lg font-semibold">{t.stepsTitle}</h2>
           <ol className="mt-5 space-y-4">
             {t.steps(REFERRAL.friendPercent, REFERRAL.rewardPercent).map((s, i) => (
@@ -48,7 +48,7 @@ export default async function InvitePage() {
           <p className="mt-6 text-xs text-muted">{t.rules}</p>
         </section>
 
-        <section className="card p-6 sm:p-8">
+        <section className="rounded-[14px] border border-line bg-white p-6 sm:p-8">
           <h2 className="text-lg font-semibold">{t.statsTitle}</h2>
           <p className="mt-3 text-ink-soft">{t.friends(summary.friends)}</p>
           {summary.rewards.length ? (

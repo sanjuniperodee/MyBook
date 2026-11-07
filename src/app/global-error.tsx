@@ -11,14 +11,17 @@ import { common as ru } from "@/i18n/messages/ru/common";
 export default function GlobalError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
   const locale = clientLocale();
   const m = locale === "kk" ? kk : ru;
+  // Ни стилей, ни шрифтов сайта здесь может не быть — тёмный «кадр» на встроенных стилях.
   return (
     <html lang={locale}>
-      <body style={{ margin: 0, minHeight: "100dvh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, padding: 24, textAlign: "center", fontFamily: "system-ui, sans-serif", background: "#faf7f2", color: "#2b2420" }}>
-        <h1 style={{ margin: 0, fontSize: 28, fontWeight: 500 }}>{m.errorPage.title}</h1>
-        <p style={{ margin: 0, maxWidth: 420, color: "#7a7068" }}>{m.errorPage.text}</p>
-        <button onClick={() => (reset(), location.reload())} style={{ padding: "10px 20px", borderRadius: 999, border: 0, background: "#7a2633", color: "#fff", fontSize: 15, cursor: "pointer" }}>
-          {m.actions.retry}
-        </button>
+      <body style={{ margin: 0, minHeight: "100dvh", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, boxSizing: "border-box", fontFamily: "system-ui, sans-serif", background: "#211819", color: "#fff" }}>
+        <main style={{ width: "100%", maxWidth: 520, padding: "56px 28px", boxSizing: "border-box", textAlign: "center", border: "1px solid rgba(255,255,255,.26)" }}>
+          <h1 style={{ margin: 0, fontFamily: "Georgia, serif", fontSize: 34, lineHeight: 1.1, fontWeight: 500 }}>{m.errorPage.title}</h1>
+          <p style={{ margin: "16px auto 0", maxWidth: 400, color: "rgba(255,255,255,.8)", lineHeight: 1.6 }}>{m.errorPage.text}</p>
+          <button onClick={() => (reset(), location.reload())} style={{ marginTop: 28, height: 48, padding: "0 24px", borderRadius: 10, border: 0, background: "#7a1f2b", color: "#fff", fontSize: 16, fontWeight: 500, cursor: "pointer" }}>
+            {m.actions.retry}
+          </button>
+        </main>
       </body>
     </html>
   );

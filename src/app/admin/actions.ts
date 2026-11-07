@@ -163,10 +163,16 @@ export async function startPostpayAction(orderId: string, reason: string): Promi
   return { ok: "Заказ в печати с постоплатой" };
 }
 
-/** Руководитель сверил ручную оплату заказа с поступлением на счёт. */
+/**
+ * Руководитель сверил ручную оплату заказа с поступлением на счёт. Чужой заказ у роли «только свои» — как будто оплаты нет;
+ * свою запись проверяет другой сотрудник (руководитель — может и свою).
+ */
 export async function reviewOrderPaymentAction(paymentId: string): Promise<AdminState> {
   const staff = await assertStaff("orders.edit", "team.manage");
-  const p = await container().ordering.payments.review(uuid.parse(paymentId), staff.user.id);
+  const found = await container().ordering.payments.find(uuid.parse(paymentId));
+  if (!found || !(await canSeeOrder(staff, found.orderId))) return { error: "Оплата не найдена или уже проверена" };
+  if (found.createdById === staff.user.id && !staff.context.isOwner) return { error: "Проверяет другой сотрудник — свою запись подтвердить нельзя" };
+  const p = await container().ordering.payments.review(found.id, staff.user.id);
   if (!p) return { error: "Оплата не найдена или уже проверена" };
   await audit(staff, "order.payment_review", "order", p.orderId, { payment: p.id, amount: p.amount });
   revalidatePath(`/admin/orders/${p.orderId}`);
@@ -174,28 +180,42 @@ export async function reviewOrderPaymentAction(paymentId: string): Promise<Admin
   return { ok: "Отмечено: проверено" };
 }
 
-export async function bulkStatusAction(orderIds: string[], status: string) {
+/**
+ * Массовая смена статуса. Пропущенные — по причинам: текст отказа домена («не оплачен — в печать только с постоплатой»,
+ * «из этого статуса нельзя») → сколько заказов; чужие у роли «только свои» — «нет доступа».
+ */
+export async function bulkStatusAction(orderIds: string[], status: string): Promise<{ count: number; skipped: number; reasons: { reason: string; count: number }[] }> {
   const staff = await assertStaff("orders.edit");
   const s = z.enum(orderStatuses).parse(status);
   const ids = z.array(uuid).max(200).parse(orderIds);
-  // Неоплаченные не уходят в печать массово (правило денег) — их пропускаем и считаем.
-  let skipped = 0;
-  // Роль «только свои» меняет только заказы своих клиентов — чужие пропускаются.
-  for (const id of ids) if (!(await canSeeOrder(staff, id)) || (await orderCommand(() => container().ordering.orders.changeStatus({ orderId: id, to: s, note: "Массовое изменение" }, staffActor(staff))))) skipped++;
+  const reasons = new Map<string, number>();
+  const skip = (reason: string) => reasons.set(reason, (reasons.get(reason) ?? 0) + 1);
+  for (const id of ids) {
+    // Роль «только свои» меняет только заказы своих клиентов — чужие пропускаются.
+    if (!(await canSeeOrder(staff, id))) {
+      skip("нет доступа");
+      continue;
+    }
+    const failed = await orderCommand(() => container().ordering.orders.changeStatus({ orderId: id, to: s, note: "Массовое изменение" }, staffActor(staff)));
+    if (failed) skip(failed.error ?? "не удалось");
+  }
+  const skipped = [...reasons.values()].reduce((a, b) => a + b, 0);
   await audit(staff, "order.bulk_status", "order", null, { count: ids.length - skipped, status: s });
   revalidatePath("/admin/orders");
   revalidatePath("/admin/board");
-  return { count: ids.length - skipped, skipped };
+  return { count: ids.length - skipped, skipped, reasons: [...reasons].map(([reason, count]) => ({ reason, count })) };
 }
 
-export async function assignOrderAction(orderId: string, assigneeId: string | null) {
+/** Ответственный за заказ. Отказ (чужой заказ, сотрудник отключён) — текстом для тоста, а не исключением. */
+export async function assignOrderAction(orderId: string, assigneeId: string | null): Promise<AdminState> {
   const staff = await assertStaff("orders.edit");
   const id = uuid.parse(orderId);
-  await assertOrderVisible(staff, id);
+  if (!(await canSeeOrder(staff, id))) return { error: new ForbiddenError().message };
   const failed = await orderCommand(() => container().ordering.orders.assign(id, assigneeId ? uuid.parse(assigneeId) : null, staffActor(staff)));
-  if (failed) throw new Error(failed.error);
+  if (failed) return failed;
   revalidatePath(`/admin/orders/${id}`);
   revalidatePath("/admin/board");
+  return { ok: "Сохранено" };
 }
 
 export async function updateOrderDetailsAction(_: AdminState, form: FormData): Promise<AdminState> {
@@ -309,7 +329,15 @@ export async function createTaskAction(_: AdminState, form: FormData): Promise<A
     });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const d = parsed.data;
-  if (d.orderId) await assertOrderVisible(staff, d.orderId);
+  // Задача на чужую сделку или клиента у роли «только свои» — как у заметки: как будто их нет.
+  try {
+    if (d.clientId) await guardClient(staff, d.clientId);
+    if (d.dealId) await guardDeal(staff, d.dealId);
+    if (d.orderId) await assertOrderVisible(staff, d.orderId);
+  } catch (err) {
+    if (ForbiddenError.is(err)) return { error: err.message };
+    throw err;
+  }
   let clientId: string | null;
   try {
     ({ clientId } = await clientsCommand(() => container().clients.tasks.create(crmActor(staff), d)));
@@ -322,10 +350,17 @@ export async function createTaskAction(_: AdminState, form: FormData): Promise<A
   return { ok: "Задача добавлена" };
 }
 
-export async function toggleTaskAction(taskId: string) {
+/** Отметка «выполнено» по чекбоксу. Чужая задача — текстом (как у правки), а не исключением. */
+export async function toggleTaskAction(taskId: string): Promise<{ error?: string }> {
   const staff = await assertStaff();
-  const t = await clientsCommand(() => container().clients.tasks.toggle(crmActor(staff), uuid.parse(taskId)));
-  revalidateCrm(t.clientId, t.orderId, t.dealId);
+  try {
+    const t = await container().clients.tasks.toggle(crmActor(staff), uuid.parse(taskId));
+    revalidateCrm(t.clientId, t.orderId, t.dealId);
+    return {};
+  } catch (err) {
+    if (ClientsError.is(err)) return { error: err.code === "forbidden" ? admin.taskForbidden : err.message };
+    throw err;
+  }
 }
 
 /**
@@ -398,10 +433,16 @@ export async function snoozeTaskAction(taskId: string, by: string): Promise<{ er
   }
 }
 
-export async function deleteTaskAction(taskId: string) {
+export async function deleteTaskAction(taskId: string): Promise<{ error?: string }> {
   const staff = await assertStaff();
-  const t = await clientsCommand(() => container().clients.tasks.delete(crmActor(staff), uuid.parse(taskId)));
-  if (t) revalidateCrm(t.clientId, t.orderId, t.dealId);
+  try {
+    const t = await container().clients.tasks.delete(crmActor(staff), uuid.parse(taskId));
+    if (t) revalidateCrm(t.clientId, t.orderId, t.dealId);
+    return {};
+  } catch (err) {
+    if (ClientsError.is(err)) return { error: err.code === "forbidden" ? admin.taskForbidden : err.message };
+    throw err;
+  }
 }
 
 export async function addNoteAction(_: AdminState, form: FormData): Promise<AdminState> {

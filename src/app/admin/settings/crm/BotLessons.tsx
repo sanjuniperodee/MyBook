@@ -20,7 +20,7 @@ export function BotLessons({ lessons, log, enabled }: { lessons: BotLesson[]; lo
   const full = lessons.length >= MAX_LESSONS;
 
   return (
-    <section className="space-y-3 rounded-xl border border-line p-3">
+    <section className="space-y-3 rounded-[10px] border border-line p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="flex items-center gap-2 text-sm font-semibold">
           <GraduationCap className="size-4" /> Работа над ошибками
@@ -44,7 +44,7 @@ export function BotLessons({ lessons, log, enabled }: { lessons: BotLesson[]; lo
         заблокировала проверка — и пишет короткие уроки. Бот следует им со следующего ответа. Уроки с ценами, скидками, сроками, ссылками и номерами код не принимает; цены, факты и запреты всегда
         важнее уроков. Лишний урок удалите — он перестанет действовать сразу.
       </p>
-      {msg ? <p className={cn("text-xs", msg.ok ? "text-emerald-700" : "text-red-700")}>{msg.text}</p> : null}
+      {msg ? <p className={cn("text-xs", msg.ok ? "text-success" : "text-danger")}>{msg.text}</p> : null}
       {lessons.length ? (
         <ul className="divide-y divide-line rounded-lg border border-line bg-white">
           {lessons.map((l) => (
@@ -55,7 +55,7 @@ export function BotLessons({ lessons, log, enabled }: { lessons: BotLesson[]; lo
                   {l.source === "owner" ? "добавил владелец" : l.why || "из разбора"} · {l.at ? when(l.at) : ""}
                 </div>
               </div>
-              <button type="button" className="text-muted hover:text-red-700" disabled={pending} onClick={() => start(() => deleteBotLessonAction(l.id))} aria-label="Удалить урок">
+              <button type="button" className="text-muted hover:text-danger" disabled={pending} onClick={() => start(() => deleteBotLessonAction(l.id))} aria-label="Удалить урок">
                 <Trash2 className="size-4" />
               </button>
             </li>
@@ -97,7 +97,7 @@ export function BotLessons({ lessons, log, enabled }: { lessons: BotLesson[]; lo
             <Plus className="size-4" /> Добавить
           </button>
         </div>
-        <p className={cn("text-xs", full ? "text-red-700" : "text-muted")}>
+        <p className={cn("text-xs", full ? "text-danger" : "text-muted")}>
           Уроков {lessons.length} из {MAX_LESSONS}.{" "}
           {full ? "Чтобы добавить свой, удалите один из списка выше." : draft.trim().length < 10 && draft.length > 0 ? "Урок — не короче 10 знаков." : "Свой урок попадёт в инструкцию со следующего ответа бота."}
         </p>
@@ -110,12 +110,12 @@ export function BotLessons({ lessons, log, enabled }: { lessons: BotLesson[]; lo
           </summary>
           <ul className="mt-2 space-y-2">
             {log.map((r) => (
-              <li key={r.at} className="rounded-lg bg-[#fbf9f5] p-2">
+              <li key={r.at} className="rounded-lg bg-sunken/60 p-2">
                 <div className="font-medium">
                   {when(r.at)} · бесед {r.reviewed}
                 </div>
                 {r.summary ? <p className="mt-1 text-ink-soft">{r.summary}</p> : null}
-                {r.error ? <p className="mt-1 text-red-700">{r.error}</p> : null}
+                {r.error ? <p className="mt-1 text-danger">{r.error}</p> : null}
                 {r.added.length ? <p className="mt-1">+ {r.added.join(" · ")}</p> : null}
                 {r.removed.length ? <p className="mt-1 text-muted line-through">{r.removed.join(" · ")}</p> : null}
               </li>

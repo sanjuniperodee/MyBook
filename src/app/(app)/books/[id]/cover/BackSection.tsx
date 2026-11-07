@@ -171,7 +171,7 @@ export function BackSection({
       ) : null}
 
       {layout === "minimal" ? (
-        <p className="rounded-xl bg-cream/70 px-4 py-3 text-sm text-ink-soft">{t.minimalNote(names || t.namesFallback[kind], year)}</p>
+        <p className="rounded-xl bg-sunken px-4 py-3 text-sm text-ink-soft">{t.minimalNote(names || t.namesFallback[kind], year)}</p>
       ) : (
         <div>
           <label className="label" htmlFor="backText">
@@ -204,7 +204,7 @@ export function BackSection({
                     type="button"
                     disabled={!editable}
                     onClick={() => onChange({ backText: s })}
-                    className={cn("rounded-full border px-3 py-1.5 text-left text-sm transition", text === s ? "border-wine bg-wine/5 text-wine" : "border-line bg-white hover:border-ink/30")}
+                    className={cn("min-h-11 rounded-[10px] border px-3 py-1.5 text-left text-sm transition sm:min-h-9", text === s ? "border-wine bg-rose/40 text-wine" : "border-line-strong bg-white hover:border-ink/30")}
                   >
                     {s}
                   </button>

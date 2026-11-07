@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { ArrowRight, BookOpen, Wrench } from "lucide-react";
 import { Link } from "@/i18n/client";
 import { LandingHeader } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
 import { Faq } from "@/components/Faq";
-import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
+import { PageIntro } from "@/components/landing/PageIntro";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { DeadlineCalculator } from "@/components/tools/DeadlineCalculator";
 import { GreetingGenerator } from "@/components/tools/GreetingGenerator";
@@ -184,19 +183,21 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
       <LandingHeader loggedIn={!!user} />
       <JsonLd data={jsonLd} />
       <main className="overflow-x-clip">
-        <section className="relative pt-28 pb-10 sm:pt-36 sm:pb-14">
-          <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(60%_50%_at_75%_30%,#f4e4df_0%,transparent_70%)]" />
-          <div className="container-x">
-            <Breadcrumbs items={[{ name: pg.home, href: "/" }, { name: pg.hub, href: "/instrumenty" }, { name: c.label }]} />
-            <div className="eyebrow">
-              {pg.free} · {pg.noSignup}
-            </div>
-            <h1 className="mt-4 max-w-4xl font-serif text-[40px] leading-[1.05] font-medium tracking-tight sm:text-6xl">
-              {c.h1} <em className="text-wine">{c.accent}</em>
-            </h1>
-            <p className="mt-6 max-w-2xl text-lg leading-relaxed text-ink-soft">{c.lead}</p>
-          </div>
-        </section>
+        <PageIntro
+          crumbs={[{ name: pg.home, href: "/" }, { name: pg.hub, href: "/instrumenty" }, { name: c.label }]}
+          title={
+            <>
+              {c.h1} <span className="italic">{c.accent}</span>
+            </>
+          }
+          lead={c.lead}
+          className="pb-10 sm:pb-14"
+        >
+          <p className="mt-4 flex flex-wrap gap-x-4 text-sm text-muted">
+            <span>{pg.free}</span>
+            <span>{pg.noSignup}</span>
+          </p>
+        </PageIntro>
 
         <section className="pb-16 sm:pb-20">
           <div className="container-x max-w-4xl">{widget}</div>
@@ -204,7 +205,7 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
 
         {extra}
 
-        <section className="border-y border-line/70 bg-white/60 py-16 sm:py-20">
+        <section className="border-y border-line py-16 sm:py-20">
           <div className="container-x grid gap-10 lg:grid-cols-2">
             {c.sections.map((s) => (
               <div key={s.heading} className={c.sections.length % 2 === 1 && s === c.sections[c.sections.length - 1] ? "lg:col-span-2" : undefined}>
@@ -229,15 +230,12 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
         <section className="bg-cream/60 py-16 sm:py-20">
           <div className="container-x flex flex-col items-start gap-8 lg:flex-row lg:items-center lg:justify-between">
             <div className="max-w-2xl">
-              <div className="flex items-center gap-2 text-wine">
-                <BookOpen className="size-5" />
-              </div>
-              <h2 className="mt-3 font-serif text-3xl font-medium tracking-tight sm:text-4xl">{c.cta.title}</h2>
+              <h2 className="font-serif text-3xl font-medium tracking-tight sm:text-4xl">{c.cta.title}</h2>
               <p className="mt-3 text-lg leading-relaxed text-ink-soft">{c.cta.text}</p>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row">
               <Link href={create} className="btn btn-primary btn-lg">
-                {guestClosed ? m.common.nav.login : pg.create} <ArrowRight className="size-5" />
+                {guestClosed ? m.common.nav.login : pg.create}
               </Link>
               <Link href={landing ? `/kniga/${landing.slug}` : "/kniga"} className="btn btn-outline btn-lg">
                 {landing ? landing.content[locale].label : pg.seeIdeas}
@@ -248,7 +246,7 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
 
         <section className="py-16 sm:py-20">
           <div className="container-x grid gap-10 lg:grid-cols-[1fr_1.4fr]">
-            <h2 className="font-serif text-4xl font-medium">{pg.faqTitle}</h2>
+            <h2 className="font-serif text-4xl leading-[1.05] font-medium tracking-tight sm:text-5xl">{pg.faqTitle}</h2>
             <Faq items={c.faq} size="md" />
           </div>
         </section>
@@ -256,27 +254,25 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
         <section className="border-t border-line py-14">
           <div className="container-x grid gap-10 md:grid-cols-2">
             <div>
-              <div className="flex items-center gap-2 text-sm font-semibold">
-                <Wrench className="size-4 text-wine" /> {pg.others}
-              </div>
-              <ul className="mt-4 flex flex-wrap gap-2">
+              <h2 className="text-sm font-semibold">{pg.others}</h2>
+              <ul className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm">
                 {others.map((t) => (
                   <li key={t.slug}>
-                    <Link href={`/instrumenty/${t.slug}`} className="block rounded-full border border-line bg-white px-4 py-1.5 text-sm text-ink-soft hover:border-ink/30">
+                    <Link href={`/instrumenty/${t.slug}`} className="text-ink-soft underline decoration-line-strong underline-offset-4 hover:text-wine hover:decoration-wine">
                       {t.content[locale].label}
                     </Link>
                   </li>
                 ))}
                 <li>
-                  <Link href="/instrumenty" className="block rounded-full border border-line bg-white px-4 py-1.5 text-sm text-wine hover:border-ink/30">
-                    {pg.hub} →
+                  <Link href="/instrumenty" className="font-medium text-wine hover:underline">
+                    {pg.hub}
                   </Link>
                 </li>
               </ul>
             </div>
             {guides.length ? (
               <div>
-                <div className="text-sm font-semibold">{pg.guides}</div>
+                <h2 className="text-sm font-semibold">{pg.guides}</h2>
                 <ul className="mt-4 space-y-2 text-sm">
                   {guides.map((a) => (
                     <li key={a.slug}>

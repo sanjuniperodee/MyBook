@@ -37,19 +37,19 @@ export function CompleteTask({ taskId, kind, onClose }: { taskId: string; kind: 
       onClose(true);
     });
   return (
-    <div className="mt-2 w-full space-y-2 rounded-xl border border-line bg-cream/40 p-3 text-sm" data-testid="complete-task">
-      <div className="text-xs font-medium text-muted">Что сделали?</div>
+    <div className="mt-1 w-full space-y-2.5 rounded-[10px] border border-line bg-sunken/60 p-3 text-sm" data-testid="complete-task">
+      <div className="text-sm font-medium">Что сделали?</div>
       <div className="flex flex-wrap gap-1.5">
         {(CHIPS[kind] ?? CHIPS.default).map((c) => (
-          <button key={c} type="button" className={`rounded-full border px-2.5 py-1 text-xs ${result === c ? "border-wine bg-rose text-wine" : "border-line bg-white"}`} onClick={() => setResult(result === c ? "" : c)}>
+          <button key={c} type="button" aria-pressed={result === c} className="chip h-8 px-2.5 text-xs max-lg:h-10" onClick={() => setResult(result === c ? "" : c)}>
             {c}
           </button>
         ))}
       </div>
-      <input className="input h-9 w-full text-sm" placeholder="Итог своими словами (необязательно)" value={result} onChange={(e) => setResult(e.target.value)} maxLength={500} />
+      <input className="input h-10 w-full text-sm" aria-label="Итог" placeholder="Итог своими словами (необязательно)" value={result} onChange={(e) => setResult(e.target.value)} maxLength={500} />
       <div className="flex flex-wrap items-center gap-2">
-        <input className="input h-9 min-w-48 flex-1 text-sm" placeholder="Следующий шаг (необязательно)" value={next} onChange={(e) => setNext(e.target.value)} maxLength={300} />
-        <select className="input h-9 text-sm" value={due} onChange={(e) => setDue(Number(e.target.value))} disabled={!next.trim()} aria-label="Срок следующего шага">
+        <input className="input h-10 min-w-0 flex-1 basis-48 text-sm" aria-label="Следующий шаг" placeholder="Следующий шаг (необязательно)" value={next} onChange={(e) => setNext(e.target.value)} maxLength={300} />
+        <select className="input h-10 w-auto text-sm" value={due} onChange={(e) => setDue(Number(e.target.value))} disabled={!next.trim()} aria-label="Срок следующего шага">
           {NEXT.map(([label, n]) => (
             <option key={n} value={n}>
               {label}
@@ -58,13 +58,13 @@ export function CompleteTask({ taskId, kind, onClose }: { taskId: string; kind: 
         </select>
       </div>
       <div className="flex flex-wrap gap-2">
-        <button type="button" className="btn btn-primary btn-sm h-8" disabled={pending} onClick={() => finish(true)}>
+        <button type="button" className="btn btn-dark btn-sm" disabled={pending} onClick={() => finish(true)}>
           Готово
         </button>
-        <button type="button" className="btn btn-ghost btn-sm h-8" disabled={pending} onClick={() => finish(false)}>
+        <button type="button" className="btn btn-ghost btn-sm" disabled={pending} onClick={() => finish(false)}>
           Без итога
         </button>
-        <button type="button" className="btn btn-ghost btn-sm h-8 text-muted" disabled={pending} onClick={() => onClose(false)}>
+        <button type="button" className="btn btn-ghost btn-sm text-muted" disabled={pending} onClick={() => onClose(false)}>
           Отмена
         </button>
       </div>

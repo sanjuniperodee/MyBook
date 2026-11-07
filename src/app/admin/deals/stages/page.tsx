@@ -1,11 +1,10 @@
 import { container } from "@/server/container";
-import Link from "next/link";
-import { BackLink } from "@/components/admin/BackLink";
+import { PageHeader } from "@/components/admin/PageHeader";
+import { Segmented } from "@/components/admin/Segmented";
 import { requireStaff } from "@/server/access";
 import { NewPipeline, NewStage, PipelineHeader, StageRow } from "./StageEditor";
 import { RoutingPanel } from "./RoutingPanel";
 import { getSetting } from "@/modules/workspace";
-import { cn } from "@/lib/class-names";
 
 export const metadata = { title: "Этапы воронки" };
 
@@ -23,33 +22,33 @@ export default async function StagesPage({ searchParams }: { searchParams: Promi
     entry = {};
   }
   return (
-    <div className="mx-auto max-w-2xl space-y-5">
-      <BackLink href={`/admin/deals?p=${pipeline.id}`}>Сделки</BackLink>
+    <div className="mx-auto flex max-w-4xl flex-col gap-5">
+      <PageHeader back={{ href: `/admin/deals?p=${pipeline.id}`, label: "Сделки" }} title="Этапы воронки">
+        Этапы «в работе» можно переименовывать, менять местами и удалять. «Успех» и «Отказ» закрывают сделку — их можно только переименовать. «Авто» — сделка сама переходит на этап, когда клиент делает это на сайте (только вперёд по воронке).
+      </PageHeader>
       <div className="flex flex-wrap items-center gap-2" data-testid="pipeline-tabs">
-        {pipelines.map((x) => (
-          <Link key={x.id} href={`/admin/deals/stages?p=${x.id}`} className={cn("rounded-full px-3 py-1.5 text-sm", x.id === pipeline.id ? "bg-ink text-white" : "bg-white text-ink-soft hover:bg-cream")}>
-            {x.name}
-          </Link>
-        ))}
+        <Segmented label="Воронки" items={pipelines.map((x) => ({ key: x.id, label: x.name, href: `/admin/deals/stages?p=${x.id}`, active: x.id === pipeline.id }))} />
         <NewPipeline />
       </div>
-      <PipelineHeader id={pipeline.id} name={pipeline.name} isDefault={pipeline.id === pipelines[0].id} />
-      <div>
-        <h1 className="text-2xl font-semibold">Этапы воронки</h1>
-        <p className="mt-1 text-sm text-muted">Этапы «в работе» можно переименовывать, менять местами и удалять. «Успех» и «Отказ» закрывают сделку — их можно только переименовать. «Авто» — сделка сама переходит на этап, когда клиент делает это на сайте (только вперёд по воронке).</p>
-      </div>
-      <div className="divide-y divide-line rounded-2xl border border-line bg-white">
-        {stages.map((s, i) => (
-          <StageRow
-            key={s.id}
-            stage={{ id: s.id, name: s.name, color: s.color, kind: s.kind, milestone: s.milestone }}
-            deals={byStage.get(s.id) ?? 0}
-            canUp={s.kind === "open" && i > 0 && stages[i - 1].kind === "open"}
-            canDown={s.kind === "open" && stages[i + 1]?.kind === "open"}
-          />
-        ))}
-      </div>
-      <NewStage pipelineId={pipeline.id} />
+      <section className="panel">
+        <header className="panel-head">
+          <PipelineHeader id={pipeline.id} name={pipeline.name} isDefault={pipeline.id === pipelines[0].id} />
+        </header>
+        <div className="divide-y divide-line">
+          {stages.map((s, i) => (
+            <StageRow
+              key={s.id}
+              stage={{ id: s.id, name: s.name, color: s.color, kind: s.kind, milestone: s.milestone }}
+              deals={byStage.get(s.id) ?? 0}
+              canUp={s.kind === "open" && i > 0 && stages[i - 1].kind === "open"}
+              canDown={s.kind === "open" && stages[i + 1]?.kind === "open"}
+            />
+          ))}
+        </div>
+        <div className="border-t border-line bg-sunken/40 rounded-b-[14px]">
+          <NewStage pipelineId={pipeline.id} />
+        </div>
+      </section>
       <RoutingPanel
         pipelineId={pipeline.id}
         stages={stages.map((s) => ({ id: s.id, name: s.name, color: s.color, kind: s.kind, milestone: s.milestone }))}

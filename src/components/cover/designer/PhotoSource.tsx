@@ -35,7 +35,7 @@ export function PhotoSource({
             key={g}
             type="button"
             onClick={() => setGroup(g)}
-            className={cn("shrink-0 rounded-full px-2.5 py-1 text-xs transition", group === g ? "bg-ink text-white" : "bg-cream/70 text-ink-soft hover:bg-cream")}
+            className={cn("shrink-0 rounded-full px-2.5 py-1 text-xs transition", group === g ? "bg-ink text-white" : "bg-sunken text-ink-soft hover:bg-cream")}
           >
             {g === "book" ? t.bookPhotos : t.stockGroups[g]}
           </button>

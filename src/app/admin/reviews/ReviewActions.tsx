@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { LoaderCircle } from "lucide-react";
+import { EyeOff, Globe, LoaderCircle, Pin, PinOff } from "lucide-react";
 import { toastError } from "@/components/ui/overlays";
 import type { ModerationAction } from "@/modules/feedback";
 import type { ReviewStatus } from "@/shared/domain/reviews";
@@ -17,25 +17,26 @@ export function ReviewActions({ id, status, featured, publishable }: { id: strin
         toastError(err);
       }
     });
-  const btn = "rounded-lg border border-line px-3 py-1.5 text-xs hover:bg-cream disabled:opacity-50";
   return (
     <div className="flex flex-wrap items-center gap-2">
       {status !== "published" && publishable ? (
-        <button className="rounded-lg bg-ink px-3 py-1.5 text-xs text-white hover:bg-ink/85 disabled:opacity-50" disabled={pending} onClick={() => run("publish")}>
-          Опубликовать
+        <button className="btn btn-dark btn-sm" disabled={pending} onClick={() => run("publish")}>
+          <Globe className="size-4" aria-hidden /> Опубликовать
         </button>
       ) : null}
       {status === "published" ? (
-        <button className={btn} disabled={pending} onClick={() => run(featured ? "unfeature" : "feature")}>
+        <button className="btn btn-outline btn-sm" disabled={pending} onClick={() => run(featured ? "unfeature" : "feature")}>
+          {featured ? <PinOff className="size-4" aria-hidden /> : <Pin className="size-4" aria-hidden />}
           {featured ? "Открепить" : "Закрепить первым"}
         </button>
       ) : null}
       {status !== "hidden" ? (
-        <button className={btn} disabled={pending} onClick={() => run("hide")}>
+        <button className={status === "new" ? "btn btn-outline btn-sm" : "btn btn-ghost btn-sm"} disabled={pending} onClick={() => run("hide")}>
+          <EyeOff className="size-4" aria-hidden />
           {status === "new" ? "Проверен, не показывать" : "Снять с сайта"}
         </button>
       ) : null}
-      {pending ? <LoaderCircle className="size-4 animate-spin text-muted" /> : null}
+      {pending ? <LoaderCircle className="size-4 animate-spin text-muted" aria-label="Сохраняем" /> : null}
     </div>
   );
 }

@@ -23,11 +23,12 @@ export function GiftCardVisual({
   className?: string;
 }) {
   const p = getPlan(plan);
+  // Карточка — копия бумажного PDF: в тёмной витрине она остаётся светлой, поэтому токены внутри — светлые.
   const t = giftCardMessagesFor(locale);
   return (
-    <div className={cn("@container aspect-[210/148] w-full bg-[#fbf7f1] p-[4.3%] shadow-[0_30px_60px_-30px_rgba(60,20,20,.45),0_2px_6px_rgba(0,0,0,.06)]", className)}>
+    <div className={cn("@container aspect-[210/148] w-full bg-[#fbf7f1] p-[4.3%] text-ink shadow-[0_30px_60px_-30px_rgba(60,20,20,.45),0_2px_6px_rgba(0,0,0,.06)]", className)} style={PAPER}>
       <div className="h-full border border-wine p-[1.5%]" lang={locale}>
-        <div className="flex h-full border border-[#d9c9bc] px-[6%] py-[4.5%]">
+        <div className="flex h-full border border-line px-[6%] py-[4.5%]">
           <div className="flex min-w-0 flex-1 flex-col pr-[4%]">
             <div className="text-[2.3cqw] font-medium tracking-[0.25em] text-wine uppercase">{t.brandLine(site.name)}</div>
             <div className="mt-[2.5cqw] font-serif text-[6.6cqw] leading-[1.02] font-medium text-ink">{t.title}</div>
@@ -36,7 +37,7 @@ export function GiftCardVisual({
             {message ? <p className="mt-[2.6cqw] line-clamp-4 font-serif text-[2.6cqw] leading-snug text-ink-soft italic">«{message}»</p> : null}
             <div className="mt-[1.8cqw] truncate font-hand text-[3.8cqw] text-wine">— {buyerName || "…"}</div>
           </div>
-          <div className="flex w-[30%] shrink-0 flex-col items-center justify-center border-l border-[#d9c9bc] pl-[4%] text-center">
+          <div className="flex w-[30%] shrink-0 flex-col items-center justify-center border-l border-line pl-[4%] text-center">
             <Heart className="size-[7cqw] fill-wine text-wine" />
             <div className="mt-[2cqw] text-[2.3cqw] text-muted">{t.book}</div>
             <div className="font-serif text-[3.8cqw] leading-tight font-semibold">«{p ? plansFor(locale)[p.id as PlanId].name : plan}»</div>
@@ -51,3 +52,13 @@ export function GiftCardVisual({
     </div>
   );
 }
+
+/** Светлые значения токенов для «бумажной» карточки (не зависят от темы витрины). */
+const PAPER = {
+  "--color-ink": "#1e1916",
+  "--color-ink-soft": "#3b332e",
+  "--color-muted": "#6b625a",
+  "--color-line": "#d9c9bc",
+  "--color-wine": "#7a1f2b",
+  "--color-white": "#ffffff",
+} as React.CSSProperties;

@@ -130,11 +130,11 @@ export function VoiceRecorder({ onSend, onCancel }: { onSend: (voice: { blob: Bl
 
   return (
     <div className="flex min-w-0 flex-1 items-center gap-2" role="group" aria-label="Запись голосового сообщения">
-      <button type="button" onClick={() => stop.current(false)} className="flex size-11 shrink-0 items-center justify-center rounded-full text-muted transition hover:bg-red-50 hover:text-red-700" aria-label="Отменить запись" title="Отменить запись">
+      <button type="button" onClick={() => stop.current(false)} className="btn btn-ghost btn-icon shrink-0 hover:bg-danger-bg hover:text-danger lg:size-10" aria-label="Отменить запись" title="Отменить запись">
         <Trash2 className="size-5" />
       </button>
-      <div className="flex h-11 min-w-0 flex-1 items-center gap-3 rounded-[22px] border border-line bg-[#fbf9f5] px-4">
-        <span className={cn("size-2.5 shrink-0 rounded-full bg-red-500", ready && "animate-pulse")} aria-hidden />
+      <div className="flex h-11 min-w-0 flex-1 items-center gap-3 rounded-[10px] bg-sunken px-3.5">
+        <span className={cn("size-2.5 shrink-0 rounded-full bg-danger", ready && "animate-pulse")} aria-hidden />
         <span className="w-10 shrink-0 text-sm tabular-nums" aria-live="off">
           {mmss(elapsed)}
         </span>
@@ -144,7 +144,7 @@ export function VoiceRecorder({ onSend, onCancel }: { onSend: (voice: { blob: Bl
           ))}
         </div>
       </div>
-      <button type="button" onClick={() => stop.current(true)} disabled={!ready} className="flex size-11 shrink-0 items-center justify-center rounded-full bg-wine text-white shadow-md transition hover:bg-wine-dark disabled:opacity-40" aria-label="Отправить голосовое" title="Отправить голосовое">
+      <button type="button" onClick={() => stop.current(true)} disabled={!ready} className="btn btn-primary btn-icon shrink-0 lg:size-10" aria-label="Отправить голосовое" title="Отправить голосовое">
         <SendHorizontal className="ml-0.5 size-5" />
       </button>
     </div>

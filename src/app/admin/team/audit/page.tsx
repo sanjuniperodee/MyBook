@@ -3,6 +3,8 @@ import Link from "next/link";
 import { requireStaff } from "@/server/access";
 import { staffLabel } from "@/shared/domain/staff";
 import { formatDate } from "@/lib/dates";
+import { History } from "lucide-react";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 export const metadata = { title: "Журнал действий" };
 
@@ -83,10 +85,13 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
   const sp = await searchParams;
   const rows = await container().access.queries.auditLog({ actorId: sp.actor && /^[0-9a-f-]{36}$/.test(sp.actor) ? sp.actor : undefined, entity: sp.entity ? sp.entity.slice(0, 30) : undefined });
   return (
-    <div className="rounded-2xl border border-line bg-white lg:overflow-x-auto">
+    <div className="panel lg:overflow-x-auto">
       {sp.actor || sp.entity ? (
-        <div className="border-b border-line px-4 py-2 text-sm">
-          Фильтр включён · <Link href="/admin/team/audit" className="text-wine hover:underline">сбросить</Link>
+        <div className="flex min-h-12 items-center justify-between gap-3 border-b border-line px-4 py-2 text-sm sm:px-5">
+          <span className="text-ink-soft">Показаны записи по фильтру</span>
+          <Link href="/admin/team/audit" className="btn btn-ghost btn-sm">
+            Сбросить фильтр
+          </Link>
         </div>
       ) : null}
       <ul className="divide-y divide-line lg:hidden" data-testid="audit-cards">
@@ -101,28 +106,29 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
               ) : (
                 <span>система</span>
               )}
-              <span>· {formatDate(a.createdAt, true)}</span>
-              {a.ip ? <span>· {a.ip}</span> : null}
+              <span>{formatDate(a.createdAt, true)}</span>
+              {a.ip ? <span>{a.ip}</span> : null}
             </div>
             {a.details ? <div className="mt-1 line-clamp-2 font-mono text-[11px] break-all text-muted">{JSON.stringify(a.details)}</div> : null}
           </li>
         ))}
       </ul>
-      <table className="hidden w-full min-w-[760px] text-sm lg:table">
-        <thead className="border-b border-line text-left text-muted">
+      <div className="hidden lg:block">
+      <table className="table min-w-[760px] [&_td:first-child]:pl-5 [&_th:first-child]:pl-5 [&_td:last-child]:pr-5 [&_th:last-child]:pr-5">
+        <thead>
           <tr>
-            <th className="px-4 py-3 font-medium">Когда</th>
-            <th className="px-4 py-3 font-medium">Кто</th>
-            <th className="px-4 py-3 font-medium">Действие</th>
-            <th className="px-4 py-3 font-medium">Подробности</th>
-            <th className="px-4 py-3 font-medium">IP</th>
+            <th>Когда</th>
+            <th>Кто</th>
+            <th>Действие</th>
+            <th>Подробности</th>
+            <th>IP</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-line">
+        <tbody>
           {rows.map(({ a, actor }) => (
             <tr key={a.id}>
-              <td className="px-4 py-2.5 whitespace-nowrap text-muted">{formatDate(a.createdAt, true)}</td>
-              <td className="px-4 py-2.5">
+              <td className="whitespace-nowrap text-muted">{formatDate(a.createdAt, true)}</td>
+              <td>
                 {a.actorId ? (
                   <Link href={`/admin/team/audit?actor=${a.actorId}`} className="hover:text-wine">
                     {staffLabel(actor?.email ? { name: actor.name ?? "", email: actor.email } : null)}
@@ -131,20 +137,25 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
                   <span className="text-muted">система</span>
                 )}
               </td>
-              <td className="px-4 py-2.5">
+              <td>
                 <Link href={`/admin/team/audit?entity=${a.entity}`} className="hover:text-wine">
                   {actions[a.action] ?? a.action}
                 </Link>
               </td>
-              <td className="max-w-md truncate px-4 py-2.5 font-mono text-xs text-muted" title={a.details ? JSON.stringify(a.details) : ""}>
+              <td className="max-w-md truncate font-mono text-xs text-muted" title={a.details ? JSON.stringify(a.details) : ""}>
                 {a.details ? JSON.stringify(a.details) : "—"}
               </td>
-              <td className="px-4 py-2.5 text-xs text-muted">{a.ip ?? "—"}</td>
+              <td className="text-xs text-muted">{a.ip ?? "—"}</td>
             </tr>
           ))}
         </tbody>
       </table>
-      {rows.length === 0 ? <p className="p-6 text-center text-sm text-muted">Записей пока нет.</p> : null}
+      </div>
+      {rows.length === 0 ? (
+        <EmptyState compact icon={History} title="Записей пока нет">
+          Смена ролей, выгрузки, удаления и другие важные действия сотрудников появятся здесь.
+        </EmptyState>
+      ) : null}
     </div>
   );
 }

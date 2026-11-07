@@ -2,8 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2 } from "lucide-react";
+import { LoaderCircle, Plus, Trash2 } from "lucide-react";
 import { toast } from "@/components/ui/overlays";
+import { Field } from "@/components/ui/Field";
+import { Panel } from "@/components/ui/Panel";
 import { addSpendAction, removeSpendAction } from "./actions";
 
 const today = () => {
@@ -11,8 +13,16 @@ const today = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
+export interface SpendRow {
+  id: string;
+  day: string;
+  channel: string;
+  amount: string;
+  note: string;
+}
+
 /** «Добавить расход» на рекламу (analytics-7): канал, день, сумма; последние записи — с удалением. */
-export function SpendForm({ channels, recent }: { channels: { key: string; label: string }[]; recent: { id: string; label: string }[] }) {
+export function SpendForm({ channels, recent }: { channels: { key: string; label: string }[]; recent: SpendRow[] }) {
   const [pending, start] = useTransition();
   const router = useRouter();
   const [channel, setChannel] = useState("instagram");
@@ -29,33 +39,52 @@ export function SpendForm({ channels, recent }: { channels: { key: string; label
       router.refresh();
     });
   return (
-    <section className="rounded-2xl border border-line bg-white p-5" data-testid="spend-form">
-      <h2 className="mb-1 font-semibold">Расходы на рекламу</h2>
-      <p className="mb-3 text-xs text-muted">Сколько потратили на канал — по ним в отчёте выше считаются расход, стоимость заявки и ROMI за выбранный период.</p>
-      <div className="flex flex-wrap items-end gap-2">
-        <select className="input h-10 w-48 text-sm" value={channel} onChange={(e) => setChannel(e.target.value)} aria-label="Канал">
-          {channels.map((c) => (
-            <option key={c.key} value={c.key}>
-              {c.label}
-            </option>
-          ))}
-        </select>
-        <input type="date" className="input h-10 w-40 text-sm" value={day} onChange={(e) => setDay(e.target.value)} aria-label="День" />
-        <input type="number" inputMode="numeric" min={1} className="input h-10 w-36 text-sm" placeholder="Сумма, ₸" value={amount} onChange={(e) => setAmount(e.target.value)} aria-label="Сумма" />
-        <input className="input h-10 min-w-40 flex-1 text-sm" placeholder="Заметка: блогер, кампания" value={note} onChange={(e) => setNote(e.target.value)} maxLength={120} />
-        <button type="button" className="btn btn-primary btn-sm h-10" disabled={pending || !amount} onClick={add}>
-          Добавить расход
+    <Panel flush title="Расходы на рекламу" description="По ним в отчёте считаются расход, стоимость заявки и ROMI за выбранный период">
+      <form
+        className="grid grid-cols-2 gap-3 p-4 sm:p-5 lg:grid-cols-[12rem_10rem_9rem_minmax(0,1fr)_auto] lg:items-end"
+        data-testid="spend-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (amount) add();
+        }}
+      >
+        <Field label="Канал" className="max-lg:col-span-2">
+          <select className="input h-10 text-sm" value={channel} onChange={(e) => setChannel(e.target.value)}>
+            {channels.map((c) => (
+              <option key={c.key} value={c.key}>
+                {c.label}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="День">
+          <input type="date" className="input h-10 text-sm" value={day} onChange={(e) => setDay(e.target.value)} />
+        </Field>
+        <Field label="Сумма, ₸">
+          <input type="number" inputMode="numeric" min={1} className="input h-10 text-sm tabular-nums" placeholder="0" value={amount} onChange={(e) => setAmount(e.target.value)} />
+        </Field>
+        <Field label="Заметка" optional className="max-lg:col-span-2">
+          <input className="input h-10 text-sm" placeholder="Блогер, кампания" value={note} onChange={(e) => setNote(e.target.value)} maxLength={120} />
+        </Field>
+        <button type="submit" className="btn btn-dark h-10 text-sm max-lg:col-span-2" disabled={pending || !amount}>
+          {pending ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : <Plus className="size-4" strokeWidth={1.8} aria-hidden />} Добавить расход
         </button>
-      </div>
+      </form>
       {recent.length ? (
-        <ul className="mt-3 divide-y divide-line text-sm">
+        <ul className="divide-y divide-line border-t border-line text-sm">
           {recent.map((r) => (
-            <li key={r.id} className="flex items-center gap-2 py-1.5">
-              <span className="flex-1 text-ink-soft">{r.label}</span>
+            <li key={r.id} className="flex min-h-12 items-center gap-3 px-4 py-2 sm:px-5">
+              <span className="w-12 shrink-0 text-muted tabular-nums">{r.day}</span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate">{r.channel}</span>
+                {r.note ? <span className="block truncate text-xs text-muted">{r.note}</span> : null}
+              </span>
+              <span className="shrink-0 font-medium tabular-nums">{r.amount}</span>
               <button
                 type="button"
-                className="rounded p-1 text-muted hover:text-red-700"
-                aria-label="Удалить расход"
+                className="btn btn-ghost btn-icon btn-sm text-muted hover:text-danger"
+                aria-label={`Удалить расход ${r.amount}`}
+                disabled={pending}
                 onClick={() =>
                   start(async () => {
                     await removeSpendAction(r.id);
@@ -63,12 +92,12 @@ export function SpendForm({ channels, recent }: { channels: { key: string; label
                   })
                 }
               >
-                <Trash2 className="size-4" />
+                <Trash2 className="size-4" strokeWidth={1.8} />
               </button>
             </li>
           ))}
         </ul>
       ) : null}
-    </section>
+    </Panel>
   );
 }

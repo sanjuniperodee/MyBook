@@ -68,19 +68,19 @@ export function BotTester({ config }: { config: BotConfig }) {
   };
 
   return (
-    <details className="rounded-xl border border-line p-3" data-testid="bot-tester">
+    <details className="rounded-[10px] border border-line p-3" data-testid="bot-tester">
       <summary className="flex cursor-pointer items-center gap-2 text-sm font-medium">
         <FlaskConical className="size-4 text-wine" /> Проверить бота — без отправки клиенту
       </summary>
       <div className="mt-3 space-y-3">
         {result?.engine === "ai" ? (
-          <p className="rounded-xl bg-emerald-50 px-3 py-2 text-xs text-emerald-900">Отвечает настоящая AI-модель продажника (каждое сообщение — запрос к ней, как в чате). Цены, сроки, счёт и запреты проверяет код. Счёт здесь не выставляется — только показывается.</p>
+          <p className="rounded-[10px] bg-success-bg px-3 py-2 text-xs text-success">Отвечает настоящая AI-модель продажника (каждое сообщение — запрос к ней, как в чате). Цены, сроки, счёт и запреты проверяет код. Счёт здесь не выставляется — только показывается.</p>
         ) : result ? (
-          <p className="rounded-xl bg-cream/60 px-3 py-2 text-xs text-ink-soft">Отвечают шаблоны из настроек (продажник на AI выключен или модель не подключена).</p>
+          <p className="rounded-[10px] bg-sunken/60 px-3 py-2 text-xs text-ink-soft">Отвечают шаблоны из настроек (продажник на AI выключен или модель не подключена).</p>
         ) : null}
         <div className="flex flex-wrap gap-1.5">
           {PRESETS.map(([label, preset]) => (
-            <button key={label} type="button" className="rounded-full bg-cream/70 px-2.5 py-1 text-xs hover:bg-cream" onClick={() => run(preset, { full: true })}>
+            <button key={label} type="button" className="rounded-full bg-sunken/70 px-2.5 py-1 text-xs hover:bg-sunken" onClick={() => run(preset, { full: true })}>
               {label}
             </button>
           ))}
@@ -100,15 +100,15 @@ export function BotTester({ config }: { config: BotConfig }) {
           </button>
         </div>
 
-        <div className="max-h-[28rem] space-y-2 overflow-y-auto rounded-xl bg-[#f7f4ef] p-3">
+        <div className="max-h-[28rem] space-y-2 overflow-y-auto rounded-[10px] bg-sunken/60 p-3">
           {!result && !pending ? <p className="text-center text-xs text-muted">Напишите сообщение как клиент или выберите сценарий</p> : null}
           {messages.map((m, i) => (
-            <div key={i} className={cn("max-w-[85%] rounded-xl px-3 py-2 text-sm", m.from === "client" ? "bg-white" : m.text ? "ml-auto bg-emerald-100" : "ml-auto bg-emerald-50 text-muted italic")}>
+            <div key={i} className={cn("max-w-[85%] rounded-[10px] px-3 py-2 text-sm", m.from === "client" ? "bg-white" : m.text ? "ml-auto bg-success-bg" : "ml-auto bg-success-bg text-muted italic")}>
               <div className="whitespace-pre-line">{m.text || "бот промолчал"}</div>
               {/* Тот же след хода, что «Почему так?» у ответа в чате. */}
               {m.trace ? (
                 <details className="mt-1 not-italic" data-testid="bot-tester-trace">
-                  <summary className="cursor-pointer text-xs text-emerald-900">Почему так?</summary>
+                  <summary className="cursor-pointer text-xs text-success">Почему так?</summary>
                   <div className="mt-1 rounded-lg bg-white/80 p-2">
                     <BotTraceView trace={m.trace} />
                   </div>
@@ -116,7 +116,7 @@ export function BotTester({ config }: { config: BotConfig }) {
               ) : null}
             </div>
           ))}
-          {result?.skipped ? <p className="text-center text-xs text-amber-800">Бот не начал бы опрос: {result.skipped}</p> : null}
+          {result?.skipped ? <p className="text-center text-xs text-warning">Бот не начал бы опрос: {result.skipped}</p> : null}
           {pending ? <LoaderCircle className="mx-auto size-4 animate-spin text-muted" /> : null}
         </div>
 
@@ -138,19 +138,19 @@ export function BotTester({ config }: { config: BotConfig }) {
             <input type="checkbox" className="accent-wine" checked={together} onChange={(e) => setTogether(e.target.checked)} />
             подряд с предыдущим
           </label>
-          <button type="button" className="btn btn-sm" disabled={pending} onClick={send}>
+          <button type="button" className="btn btn-dark btn-sm" disabled={pending} onClick={send}>
             <Send className="size-4" /> Отправить
           </button>
         </div>
 
         {result && !result.skipped ? (
           <div className="grid gap-2 text-xs sm:grid-cols-2">
-            <div className="rounded-xl border border-line p-2.5">
+            <div className="rounded-[10px] border border-line p-2.5">
               <div className="mb-1 font-medium">В поля сделки</div>
               {result.fields.length ? result.fields.map((f) => <div key={f.label}>{`${f.label}: ${f.value}`}</div>) : <div className="text-muted">пока ничего</div>}
               <div className="mt-1 text-muted">Язык: {result.lang === "kk" ? "казахский" : "русский"}</div>
             </div>
-            {result.summary ? <pre className="rounded-xl border border-line p-2.5 font-sans whitespace-pre-wrap">{result.summary}</pre> : null}
+            {result.summary ? <pre className="rounded-[10px] border border-line p-2.5 font-sans whitespace-pre-wrap">{result.summary}</pre> : null}
           </div>
         ) : null}
       </div>

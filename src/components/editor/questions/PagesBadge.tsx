@@ -14,8 +14,8 @@ export function PagesBadge({ book, questions, photos, letters, chapters }: { boo
   const t = useMessages().editor;
   const pages = useBookPages(book, questions, photos, letters, chapters);
   return (
-    <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-rose/70 px-3 py-1.5 text-xs font-medium text-wine" title={t.pagesEstimate}>
-      <BookOpen className="size-3.5" /> {t.pagesShort(pages.printed || 0)}
+    <span className="flex h-8 shrink-0 items-center gap-1.5 rounded-md bg-sunken px-2.5 text-xs font-medium text-ink-soft tabular-nums" title={t.pagesEstimate}>
+      <BookOpen className="size-3.5 text-muted" aria-hidden /> {t.pagesShort(pages.printed || 0)}
     </span>
   );
 }

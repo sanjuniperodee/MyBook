@@ -83,7 +83,7 @@ export function PhotoChecker() {
           setOver(false);
           void add(e.dataTransfer.files);
         }}
-        className={cn("mt-6 flex cursor-pointer flex-col items-center gap-2 rounded-3xl border-2 border-dashed px-6 py-10 text-center transition", over ? "border-wine bg-rose/30" : "border-line bg-cream/40 hover:border-wine/40")}
+        className={cn("mt-6 flex cursor-pointer flex-col items-center gap-2 rounded-[14px] border-2 border-dashed px-6 py-10 text-center transition", over ? "border-wine bg-rose/30" : "border-line bg-cream/40 hover:border-wine/40")}
       >
         <ImagePlus className="size-8 text-wine" aria-hidden />
         <span className="font-medium">{ui.dropTitle}</span>
@@ -124,13 +124,13 @@ export function PhotoChecker() {
             {items.map((it) => {
               if (it.error)
                 return (
-                  <li key={it.id} className="rounded-2xl border border-wine/30 bg-rose/40 p-4 text-sm text-wine">
+                  <li key={it.id} className="rounded-[14px] border border-wine/30 bg-rose/40 p-4 text-sm text-wine">
                     {ui.unreadable(it.name)}
                   </li>
                 );
               const a = analyses.find((x) => x.item.id === it.id)!.a;
               return (
-                <li key={it.id} className="grid gap-4 rounded-2xl border border-line bg-white p-4 sm:grid-cols-[120px_1fr]" data-testid="photo-card">
+                <li key={it.id} className="grid gap-4 rounded-[14px] border border-line bg-white p-4 sm:grid-cols-[120px_1fr]" data-testid="photo-card">
                   {/* eslint-disable-next-line @next/next/no-img-element -- локальный снимок из blob: оптимизировать нечего */}
                   <img src={it.url} alt={it.name} className="h-28 w-full rounded-xl object-cover sm:w-[120px]" />
                   <div className="min-w-0">
@@ -162,7 +162,7 @@ export function PhotoChecker() {
         </div>
       ) : null}
 
-      <div className="mt-8 rounded-2xl bg-cream/60 p-5">
+      <div className="mt-8 rounded-[14px] bg-cream/60 p-5">
         <h3 className="font-medium">{ui.tipsTitle}</h3>
         <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-relaxed text-ink-soft">
           {ui.tips.map((t) => (

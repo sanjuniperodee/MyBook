@@ -2,11 +2,12 @@
 
 import { useDeferredValue, useEffect, useMemo, useState, type ComponentProps } from "react";
 import { createPortal } from "react-dom";
-import { X } from "lucide-react";
+import { ChevronDown, Info, X } from "lucide-react";
+import { cn } from "@/lib/class-names";
 import { useMessages } from "@/i18n/client";
 import { previewFromContent, type EditorBook, type EditorChapter, type EditorPhoto, type EditorQuestion } from "@/lib/book/editor-model";
 import type { LetterLike } from "@/lib/book/layout";
-import { PhotoIntroCard, usePhotoIntroSeen } from "../photos/PhotoIntro";
+import { usePhotoIntroSeen } from "../photos/PhotoIntro";
 import { PagePreview } from "../preview/PagePreview";
 import { closesOnKey } from "./Drawer";
 import { useBookContent } from "./useBookContent";
@@ -40,17 +41,28 @@ export function PreviewPane({ book, questions, photos, letters, chapters, epigra
 }
 
 /**
- * Объяснение «Где стоит фото» и подсказка «нажмите на фото» — один раз, при первом открытии превью (PhotoIntroCard:
- * «Понятно» прячет карточку и во вкладке «Фото», и в листе места).
+ * Объяснение «Где стоит фото» и подсказка «нажмите на фото» — пока автор не нажал «Понятно». Свёрнуто в одну строку:
+ * длинный текст над превью отодвигал саму книгу вниз; раскрывается по нажатию (PhotoIntroCard — во вкладке «Фото»).
  */
 export function PreviewIntro({ blank }: { blank: boolean }) {
-  const tp = useMessages().editor.previewPhotos;
-  const [seen] = usePhotoIntroSeen();
+  const m = useMessages().editor;
+  const [seen, dismiss] = usePhotoIntroSeen();
+  const [open, setOpen] = useState(false);
   if (seen) return null;
   return (
-    <div className="space-y-2">
-      <PhotoIntroCard blank={blank} />
-      <p className="px-1 text-xs text-muted">{tp.tip}</p>
+    <div className="rounded-[14px] border border-line bg-white px-3 py-2 text-sm">
+      <div className="flex items-center gap-2">
+        <button type="button" aria-expanded={open} onClick={() => setOpen((v) => !v)} className="flex min-h-10 min-w-0 flex-1 items-center gap-2 text-left font-medium">
+          <Info className="size-4 shrink-0 text-wine" aria-hidden />
+          <span className="truncate">{m.photoIntro.title}</span>
+          <ChevronDown className={cn("size-4 shrink-0 text-muted transition", open && "rotate-180")} aria-hidden />
+        </button>
+        <button type="button" onClick={dismiss} className="min-h-10 shrink-0 rounded-lg px-2 text-xs font-medium text-muted hover:bg-sunken hover:text-ink">
+          {m.photoIntro.ok}
+        </button>
+      </div>
+      {open ? <p className="pb-1 text-[13px] leading-relaxed text-ink-soft">{blank ? m.photoIntro.textBlank : m.photoIntro.text}</p> : null}
+      <p className="pb-1 text-xs text-muted">{m.previewPhotos.tip}</p>
     </div>
   );
 }
@@ -84,7 +96,7 @@ export function PreviewSheet({ title, onClose, children }: { title: string; onCl
     <div role="dialog" aria-modal="true" aria-label={title} className="fixed inset-0 z-[80] flex flex-col bg-paper">
       <div className="flex shrink-0 items-center gap-2 border-b border-line/70 bg-paper/95 py-1.5 pr-1.5 pl-4 pt-[max(0.375rem,env(safe-area-inset-top))] backdrop-blur-xl">
         <h2 className="min-w-0 flex-1 truncate text-base font-semibold">{title}</h2>
-        <button type="button" onClick={onClose} className="flex h-11 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-wine hover:bg-cream">
+        <button type="button" onClick={onClose} className="flex h-11 shrink-0 items-center gap-1.5 rounded-[10px] px-3 text-sm font-medium text-wine hover:bg-sunken">
           <X className="size-4" /> {t.previewClose}
         </button>
       </div>

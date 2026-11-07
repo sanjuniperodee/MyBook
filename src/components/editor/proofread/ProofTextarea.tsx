@@ -70,7 +70,7 @@ function Preview({ text, issue, replacement }: { text: string; issue: Issue; rep
     <span className="min-w-0 break-words">
       <span className="text-muted">{before.replace(/^\S*\s/, "…").replace(/\n/g, " ")}</span>
       {original && original !== replacement ? <del className="rounded bg-rose-100 px-0.5 text-rose-700 decoration-rose-400">{show(original)}</del> : null}
-      {replacement ? <ins className="rounded bg-emerald-100 px-0.5 font-medium text-emerald-800 no-underline">{show(replacement)}</ins> : null}
+      {replacement ? <ins className="rounded bg-success-bg px-0.5 font-medium text-success no-underline">{show(replacement)}</ins> : null}
       <span className="text-muted">{after.replace(/\s\S*$/, "…").replace(/\n/g, " ")}</span>
     </span>
   );
@@ -210,7 +210,7 @@ export const ProofTextarea = forwardRef<HTMLTextAreaElement, Props>(function Pro
             {active.source === "spell" ? (
               active.replacements.length ? (
                 active.replacements.map((r) => (
-                  <button key={r} type="button" onClick={() => apply(r)} className="rounded-full bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-800 ring-1 ring-emerald-200 transition hover:bg-emerald-100">
+                  <button key={r} type="button" onClick={() => apply(r)} className="rounded-full bg-success-bg px-3 py-1.5 text-sm font-medium text-success ring-1 ring-success/25 transition hover:bg-success-bg">
                     {r}
                   </button>
                 ))
@@ -223,10 +223,10 @@ export const ProofTextarea = forwardRef<HTMLTextAreaElement, Props>(function Pro
                   key={r}
                   type="button"
                   onClick={() => apply(r)}
-                  className="flex w-full min-w-0 items-center gap-2 rounded-xl bg-emerald-50/70 px-3 py-2 text-left text-sm ring-1 ring-emerald-200 transition hover:bg-emerald-100"
+                  className="flex w-full min-w-0 items-center gap-2 rounded-xl bg-success-bg px-3 py-2 text-left text-sm ring-1 ring-success/25 transition hover:bg-success-bg"
                 >
-                  <Check className="size-4 shrink-0 text-emerald-700" />
-                  {r === "" && !value.slice(active.start, active.end).trim() ? <span className="font-medium text-emerald-800">{t.remove}</span> : <Preview text={value} issue={active} replacement={r} />}
+                  <Check className="size-4 shrink-0 text-success" />
+                  {r === "" && !value.slice(active.start, active.end).trim() ? <span className="font-medium text-success">{t.remove}</span> : <Preview text={value} issue={active} replacement={r} />}
                 </button>
               ))
             )}
@@ -295,14 +295,14 @@ export function ProofBar({
           </button>
         ))
       ) : (
-        <span className="flex items-center gap-1.5 text-emerald-700">
+        <span className="flex items-center gap-1.5 text-success">
           <CheckCircle2 className="size-3.5" /> {aiState === "done" ? t.aiNothing : t.clean}
         </span>
       )}
       <span className="ml-auto flex flex-wrap items-center gap-2">
         {children}
         {safeCount ? (
-          <button type="button" onClick={onFixAll} title={t.fixAllTitle} className="flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 font-medium text-amber-800 ring-1 ring-amber-200 transition hover:bg-amber-100">
+          <button type="button" onClick={onFixAll} title={t.fixAllTitle} className="flex items-center gap-1.5 rounded-full bg-warning-bg px-3 py-1 font-medium text-warning ring-1 ring-warning/25 transition hover:bg-warning-bg">
             <Wand2 className="size-3.5" /> {t.fixAll(safeCount)}
           </button>
         ) : null}

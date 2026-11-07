@@ -75,8 +75,8 @@ function StatusIcon({ status }: { status: string }) {
   if (status === "pending") return <Clock className="size-3" />;
   if (status === "sent") return <Check className="size-3" />;
   if (status === "delivered") return <CheckCheck className="size-3" />;
-  if (status === "read") return <CheckCheck className="size-3.5 text-sky-600" />;
-  if (status === "error") return <AlertCircle className="size-3.5 text-red-600" />;
+  if (status === "read") return <CheckCheck className="size-3.5 text-info" aria-label="прочитано" />;
+  if (status === "error") return <AlertCircle className="size-3.5 text-danger" aria-label="не отправлено" />;
   return null;
 }
 
@@ -88,27 +88,27 @@ function Attachment({ m, conversationId, onOpen, onVoiceEnded }: { m: Msg; conve
   if (!src) return null;
   if (m.type === "audio") return <VoicePlayer id={m.id} src={src} conversationId={conversationId} out={out} transcript={m.transcript} download={download} onEnded={onVoiceEnded} />;
   const file = (
-    <a href={src} {...(download ? { download: m.fileName ?? true } : { target: "_blank", rel: "noopener noreferrer" })} className={cn("mb-1 flex items-center gap-3 rounded-xl p-2.5", out ? "bg-white/15" : "bg-cream/60")}>
-      <span className={cn("flex size-10 shrink-0 items-center justify-center rounded-lg", out ? "bg-white/20" : "bg-white")}>
-        <FileText className="size-5" />
+    <a href={src} {...(download ? { download: m.fileName ?? true } : { target: "_blank", rel: "noopener noreferrer" })} className="mb-1 flex min-w-52 items-center gap-3 rounded-[10px] border border-line bg-white/70 p-2 transition-colors hover:border-line-strong">
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-sunken text-ink-soft">
+        <FileText className="size-5" strokeWidth={1.8} />
       </span>
       <span className="min-w-0">
         <span className="block truncate text-sm font-medium">{m.fileName ?? (m.type === "image" ? "Фото" : m.type === "video" ? "Видео" : "Документ")}</span>
-        <span className={cn("text-xs", out ? "text-white/70" : "text-muted")}>{broken ? "не открылось — скачать" : "открыть"}</span>
+        <span className={cn("text-xs", broken ? "text-danger" : "text-muted")}>{broken ? "Не открылось — скачать файл" : "Открыть"}</span>
       </span>
     </a>
   );
   if (broken) return file;
   if (m.type === "image")
     return (
-      <button type="button" onClick={onOpen} className="mb-1 block overflow-hidden rounded-xl" aria-label="Открыть фото">
+      <button type="button" onClick={onOpen} className="-mx-1 mb-1 block overflow-hidden rounded-[10px]" aria-label="Открыть фото">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={src} alt="" className="max-h-72 min-h-24 max-w-full min-w-24 object-cover" loading="lazy" decoding="async" onError={() => setBroken(true)} />
       </button>
     );
   if (m.type === "video")
     return (
-      <button type="button" onClick={onOpen} className="relative mb-1 block overflow-hidden rounded-xl bg-black" aria-label="Открыть видео">
+      <button type="button" onClick={onOpen} className="relative -mx-1 mb-1 block overflow-hidden rounded-[10px] bg-black" aria-label="Открыть видео">
         <video src={src} preload="none" muted playsInline className="max-h-72 max-w-full" onError={() => setBroken(true)} />
         <span className="absolute inset-0 flex items-center justify-center">
           <span className="flex size-12 items-center justify-center rounded-full bg-black/55 text-white">
@@ -131,6 +131,8 @@ export const canRemove = (m: Msg, me: string, now: number) => selectable(m) && m
 
 export interface BubbleActions {
   retry?: () => void;
+  /** Убрать неотправленную локальную копию (сообщение не дошло до сервера). */
+  discard?: () => void;
   reply?: () => void;
   forward?: () => void;
   edit?: () => void;
@@ -203,6 +205,11 @@ function Bubble({
     if (own && m.type === "text" && m.status !== "error" && (m.internal || age < EDIT_MS)) items.push({ key: "edit", label: "Изменить", icon: Pencil });
     if (canRemove(m, me, now)) items.push({ key: "remove", label: m.internal || m.status === "error" ? "Удалить" : "Удалить у всех", icon: Trash2, danger: true });
     items.push({ key: "select", label: "Выбрать", icon: CheckSquare });
+  } else if (temp && !selecting && m.status === "error") {
+    // Не дошло до сервера (сеть, ошибка) — записи в CRM нет: повторить текст или убрать копию из ленты.
+    if (canSend && m.type === "text") items.push({ key: "retry", label: "Повторить отправку", icon: RotateCw });
+    if (m.text) items.push({ key: "copy", label: "Копировать текст", icon: Copy });
+    items.push({ key: "discard", label: "Убрать из ленты", icon: Trash2, danger: true });
   }
 
   useEffect(() => {
@@ -219,24 +226,24 @@ function Bubble({
 
   const menuEl =
     menu && items.length ? (
-      <div className={cn("absolute z-30 w-52 overflow-hidden rounded-xl border border-line bg-white py-1 text-sm text-ink shadow-xl", menuUp ? "bottom-full mb-1" : "top-full mt-1", out ? "right-0" : "left-0")} role="menu">
+      <div className={cn("absolute z-30 w-56 overflow-hidden rounded-[10px] border border-line bg-white p-1 text-sm font-normal text-ink shadow-soft", menuUp ? "bottom-full mb-1" : "top-full mt-1", out ? "right-0" : "left-0")} role="menu">
         {items.map((it) => (
           <button
             key={it.key}
             type="button"
             role="menuitem"
-            className={cn("flex w-full items-center gap-2.5 px-3 py-2 text-left hover:bg-cream/60", it.danger && "text-red-700")}
+            className={cn("flex min-h-9 w-full items-center gap-2.5 rounded-lg px-2.5 text-left hover:bg-sunken max-lg:min-h-11", it.danger ? "text-danger" : "text-ink")}
             onClick={() => {
               setMenu(false);
               onAction(it.key, m);
             }}
           >
-            <it.icon className="size-4" /> {it.label}
+            <it.icon className={cn("size-4", !it.danger && "text-ink-soft")} strokeWidth={1.8} /> {it.label}
           </button>
         ))}
         {mediaSrc(m) && m.type !== "text" ? (
-          <a href={mediaSrc(m)!} {...(m.gateway || m.localSrc ? { download: true } : { target: "_blank", rel: "noopener noreferrer" })} className="flex w-full items-center gap-2.5 px-3 py-2 hover:bg-cream/60" onClick={() => setMenu(false)}>
-            <Download className="size-4" /> Скачать
+          <a href={mediaSrc(m)!} {...(m.gateway || m.localSrc ? { download: true } : { target: "_blank", rel: "noopener noreferrer" })} className="flex min-h-9 w-full items-center gap-2.5 rounded-lg px-2.5 hover:bg-sunken max-lg:min-h-11" onClick={() => setMenu(false)}>
+            <Download className="size-4 text-ink-soft" strokeWidth={1.8} /> Скачать
           </a>
         ) : null}
       </div>
@@ -247,26 +254,26 @@ function Bubble({
 
   if (m.internal)
     return (
-      <div ref={box} className={cn("group relative mx-auto my-2 max-w-[min(560px,92%)]", highlighted && "rounded-xl ring-2 ring-amber-400")} data-internal="1" data-mid={m.id}>
-        <div className={cn("rounded-xl border px-3 py-2 text-[13px]", botNote ? "border-violet-200 bg-violet-50/90 text-violet-950" : "border-amber-200 bg-[#fff8e6] text-amber-950")}>
-          <div className={cn("flex items-center gap-1.5 text-[11px] font-medium", botNote ? "text-violet-700" : "text-amber-800")}>
-            {botNote ? <Bot className="size-3.5" /> : <Lock className="size-3" />}
-            {botNote ? "Итог бота" : `Заметка · ${m.author}`}
-            <span className="font-normal opacity-80">· {time(m.at, timeZone)}</span>
-            {m.edited ? <span className="font-normal opacity-80">· изменено</span> : null}
+      <div ref={box} className={cn("group relative mx-auto my-2 w-full max-w-[min(560px,94%)]", highlighted && "rounded-[10px] ring-2 ring-wine/40")} data-internal="1" data-mid={m.id}>
+        <div className={cn("rounded-[10px] border-l-[3px] px-3 py-2 text-[13px] leading-relaxed text-ink", botNote ? "border-info bg-info-bg" : "border-warning bg-warning-bg")}>
+          <div className={cn("flex min-h-5 items-center gap-1.5 text-xs font-medium", botNote ? "text-info" : "text-warning")}>
+            {botNote ? <Bot className="size-3.5 shrink-0" aria-hidden /> : <Lock className="size-3 shrink-0" aria-hidden />}
+            <span className="min-w-0 truncate">{botNote ? "Итог бота" : `Заметка для коллег, ${m.author}`}</span>
+            <span className="shrink-0 font-normal tabular-nums opacity-90">{time(m.at, timeZone)}</span>
+            {m.edited ? <span className="shrink-0 font-normal opacity-90">изменено</span> : null}
             {botNote && !m.deleted ? (
-              <button type="button" onClick={() => setOpenNote((v) => !v)} className="ml-auto rounded px-1 font-normal underline-offset-2 hover:underline">
-                {openNote ? "свернуть" : "подробнее"}
+              <button type="button" onClick={() => setOpenNote((v) => !v)} className="ml-auto shrink-0 rounded px-1 font-medium underline-offset-2 hover:underline max-lg:min-h-8" aria-expanded={openNote}>
+                {openNote ? "Свернуть" : "Подробнее"}
               </button>
             ) : null}
             {items.length ? (
-              <button type="button" className={cn("rounded p-0.5 opacity-0 group-hover:opacity-100 hover:bg-black/5 focus:opacity-100", !botNote && "ml-auto")} onClick={() => openMenu(!menu)} aria-label="Действия">
+              <button type="button" className={cn("flex size-6 shrink-0 items-center justify-center rounded-md opacity-0 group-hover:opacity-100 hover:bg-ink/[0.06] focus:opacity-100 [@media(hover:none)]:opacity-100", !botNote && "ml-auto")} onClick={() => openMenu(!menu)} aria-label="Действия с заметкой">
                 <ChevronDown className="size-3.5" />
               </button>
             ) : null}
           </div>
           {m.deleted ? (
-            <p className="mt-0.5 italic opacity-70">Заметка удалена</p>
+            <p className="mt-0.5 text-muted italic">Заметка удалена</p>
           ) : botNote && !openNote ? (
             <p className="mt-0.5 truncate">{m.text.replace(/^🤖\s*/, "").split("\n")[0]}</p>
           ) : (
@@ -283,10 +290,10 @@ function Bubble({
       <div
         ref={box}
         className={cn(
-          "group relative max-w-[min(78%,560px)] rounded-[16px] px-3 pt-1.5 pb-1.5 text-[14.5px] leading-[1.4] text-ink shadow-[0_1px_0.5px_rgba(30,25,22,0.13)]",
-          out ? (failed ? "bg-red-50 ring-1 ring-red-200" : m.deleted ? "bg-white/70" : isBot ? "bg-[#ece8fa]" : "bg-[#f7e4e7]") : "bg-white",
+          "group relative max-w-[min(82%,560px)] rounded-[14px] border px-3 pt-1.5 pb-1.5 text-[14px] leading-[1.45] text-ink sm:max-w-[min(72%,560px)]",
+          out ? (failed ? "border-danger/30 bg-danger-bg" : m.deleted ? "border-line bg-white/60" : isBot ? "border-transparent bg-info-bg" : "border-transparent bg-rose") : "border-line bg-white",
           last && (out ? "rounded-br-[4px]" : "rounded-bl-[4px]"),
-          highlighted && "ring-4 ring-amber-300",
+          highlighted && "ring-2 ring-wine/40",
         )}
         data-direction={m.direction}
         onContextMenu={(e) => {
@@ -303,30 +310,30 @@ function Bubble({
         onDoubleClick={() => items.some((i) => i.key === "reply") && onAction("reply", m)}
       >
         {items.length ? (
-          <button type="button" className="absolute top-1 right-1 z-10 rounded-full bg-white/90 p-0.5 text-muted opacity-0 shadow-sm group-hover:opacity-100 hover:text-ink focus:opacity-100" onClick={() => openMenu(!menu)} aria-label="Действия с сообщением">
+          <button type="button" className="absolute top-1 right-1 z-10 flex size-6 items-center justify-center rounded-md border border-line bg-white text-muted opacity-0 group-hover:opacity-100 hover:text-ink focus:opacity-100" onClick={() => openMenu(!menu)} aria-label="Действия с сообщением">
             <ChevronDown className="size-4" />
           </button>
         ) : null}
         {first && out && m.author ? (
-          <div className={cn("flex items-center gap-1 pt-0.5 text-[12px] font-semibold", isBot ? "text-violet-700" : "text-wine")}>
+          <div className={cn("flex items-center gap-1 pt-0.5 text-xs font-semibold", isBot ? "text-info" : "text-wine")}>
             {isBot ? <Bot className="size-3.5" /> : null}
             {isBot ? "Бот" : m.author}
           </div>
         ) : null}
         {m.forwarded && !m.deleted ? (
-          <div className="flex items-center gap-1 pt-0.5 text-[12px] text-muted italic">
+          <div className="flex items-center gap-1 pt-0.5 text-xs text-muted italic">
             <Forward className="size-3.5" /> Пересланное сообщение
           </div>
         ) : null}
         {m.replyTo && !m.deleted ? (
-          <button type="button" onClick={() => onJump(m.replyTo!.id)} className={cn("my-1 block w-full rounded-lg border-l-[3px] px-2 py-1 text-left text-[12.5px]", out ? "border-wine bg-white/60" : "border-wine bg-[#f6f2ec]")}>
-            <span className="block font-semibold text-wine">{m.replyTo.direction === "in" ? "Клиент" : (m.replyTo.author ?? "Мы")}</span>
+          <button type="button" onClick={() => onJump(m.replyTo!.id)} className={cn("my-1 block w-full rounded-lg border-l-2 border-wine px-2 py-1 text-left text-[13px] transition-colors", out ? "bg-white/60 hover:bg-white/80" : "bg-sunken hover:bg-sunken/70")}>
+            <span className="block text-xs font-semibold text-wine">{m.replyTo.direction === "in" ? "Клиент" : (m.replyTo.author ?? "Мы")}</span>
             <span className="line-clamp-2 text-ink-soft">{snippet(m.replyTo)}</span>
           </button>
         ) : null}
         {m.deleted ? (
           <p className="flex items-center gap-1.5 py-0.5 pr-14 text-muted italic">
-            <Ban className="size-4" /> Сообщение удалено
+            <Ban className="size-4" aria-hidden /> Сообщение удалено
           </p>
         ) : (
           <>
@@ -337,19 +344,23 @@ function Bubble({
               <p className="break-words whitespace-pre-wrap">
                 <Linkified text={m.text} out={false} />
                 {/* Место под время справа, чтобы оно не наезжало на последнюю строку. */}
-                <span className="inline-block w-[68px]" aria-hidden />
+                <span className="inline-block w-[74px]" aria-hidden />
               </p>
             ) : null}
           </>
         )}
         {/* С текстом время встаёт в зарезервированное место его последней строки; без текста — своей строкой под вложением. */}
-        <div className={cn("flex items-center justify-end gap-1 text-[11px] leading-none text-muted tabular-nums", hasCaption(m) ? "-mt-3.5 float-right ml-2 translate-y-0.5" : "mt-1")}>
+        <div className={cn("flex items-center justify-end gap-1 text-xs leading-none text-muted tabular-nums", hasCaption(m) ? "-mt-3.5 float-right ml-2 translate-y-0.5" : "mt-1")}>
           {m.edited && !m.deleted ? <span className="italic">изменено</span> : null}
           {time(m.at, timeZone)}
           {out ? <StatusIcon status={m.status} /> : null}
         </div>
         <div className="clear-both" />
-        {failed && m.error ? <div className="mt-1 flex items-start gap-1 text-[12px] text-red-700"><AlertCircle className="mt-0.5 size-3.5 shrink-0" /> <span className="min-w-0 [overflow-wrap:anywhere]">{m.error}</span></div> : null}
+        {failed && m.error ? (
+          <div className="mt-1 flex items-start gap-1 text-xs text-danger">
+            <AlertCircle className="mt-px size-3.5 shrink-0" aria-hidden /> <span className="min-w-0 [overflow-wrap:anywhere]">{m.error}</span>
+          </div>
+        ) : null}
         {/* Ответ AI-продажника: что решила модель и что сделал код. */}
         {isBot && m.trace && !m.deleted && !temp ? <BotTraceButton conversationId={conversationId} messageId={m.id} /> : null}
         {menuEl}

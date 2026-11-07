@@ -50,11 +50,17 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
   const deal = await c.sales.deals.findById(id);
   if (!deal) throw new HttpError(404, "dealNotFound");
   if (!canWork(staff, deal.assigneeId)) throw new HttpError(403, "forbidden");
-  // По сделке оформлен заказ — дальше деньги идут через заказ (его оплату подтверждают в заказе), иначе их посчитают дважды.
-  if (deal.orderId) throw new HttpError(409, "dealHasOrder");
-
   const form = await req.formData();
   const fields = paymentForm.parse({ kind: form.get("kind") ?? undefined, note: form.get("note") ?? undefined, amount: form.get("amount") ?? undefined, paidAt: form.get("paidAt") ?? undefined, invoiceId: form.get("invoiceId") ?? undefined, seen: form.get("seen") ?? undefined });
+  // По сделке оформлен заказ — дальше деньги идут через заказ (его оплату подтверждают в заказе), иначе их посчитают дважды.
+  // Исключение — возврат лишнего: внесённого по сделке сверх учтённого в заказе (у отменённого заказа — всего внесённого),
+  // иначе такие деньги навсегда висят в «Финансах» как «нужен возврат».
+  if (deal.orderId) {
+    if (fields.kind !== "refund" || fields.invoiceId) throw new HttpError(409, "dealHasOrder");
+    const refundable = (await c.sales.refundAfterOrder(deal.id)) ?? 0;
+    if (Number(fields.amount || 0) > refundable)
+      return NextResponse.json({ error: refundable > 0 ? `По сделке можно вернуть не больше ${formatPrice(refundable)}: остальное учтено в заказе` : "Лишних денег по сделке нет: всё учтено в заказе" }, { status: 409 });
+  }
   // «Оплата пришла» по счёту из чата: счёт этой сделки, ждёт оплаты; сумма — ровно сумма счёта.
   const invoice = fields.invoiceId ? await c.ordering.invoices.byId(fields.invoiceId) : null;
   if (fields.invoiceId && (!invoice || invoice.dealId !== deal.id)) throw new HttpError(404, "notFound");

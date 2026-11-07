@@ -17,28 +17,28 @@ export function EmailForm({ smtp, saved, env, webhookUrl }: { smtp: boolean; sav
     <Section defaultOpen={false} title="Почта — e-mail как канал" badge={<Status on={inbound} label={inbound ? "входящие подключены" : "только исходящие"} />}>
       <Intro className="mb-4">
         Менеджеры пишут клиентам из карточек сделки, клиента и заказа, а ответы приходят в «Чаты» рядом с WhatsApp. Исходящие уходят через SMTP —{" "}
-        {smtp ? <span className="text-emerald-700">настроен</span> : <span className="text-red-700">не настроен — заполните блок «Почта для отправки» выше</span>}.
+        {smtp ? <span className="text-success">настроен</span> : <span className="text-danger">не настроен — заполните блок «Почта для отправки» выше</span>}.
       </Intro>
       <form action={action} className="space-y-3">
         <div className="grid gap-3 sm:grid-cols-[1fr_110px]">
           <label className="block">
-            <span className="mb-1 block text-xs text-muted">Сервер IMAP входящего ящика</span>
+            <span className="label">Сервер IMAP входящего ящика</span>
             <input name="imapHost" defaultValue={saved.imapHost} disabled={env.imapHost} placeholder="imap.yandex.ru, imap.gmail.com…" className="input h-10 text-sm" />
           </label>
           <label className="block">
-            <span className="mb-1 block text-xs text-muted">Порт</span>
+            <span className="label">Порт</span>
             <input name="imapPort" defaultValue={saved.imapPort} disabled={env.imapPort} className="input h-10 text-sm" inputMode="numeric" />
           </label>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="block">
-            <span className="mb-1 block text-xs text-muted">Логин (адрес ящика)</span>
+            <span className="label">Логин (адрес ящика)</span>
             <input name="imapUser" defaultValue={saved.imapUser} disabled={env.imapUser} className="input h-10 text-sm" autoComplete="off" />
           </label>
           <SecretInput name="imapPassword" label="Пароль приложения" saved={saved.imapPassword} fromEnv={env.imapPassword} />
         </div>
         <label className="block">
-          <span className="mb-1 block text-xs text-muted">Папка</span>
+          <span className="label">Папка</span>
           <input name="imapMailbox" defaultValue={saved.imapMailbox} className="input h-10 w-48 text-sm" />
         </label>
         <div className="flex flex-wrap items-center gap-2">

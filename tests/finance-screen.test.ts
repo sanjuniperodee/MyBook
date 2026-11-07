@@ -11,7 +11,7 @@ const staff = [
 ];
 
 const money = (over: Partial<MoneyRow> & Pick<MoneyRow, "id" | "kind" | "amount" | "at">): MoneyRow => ({
-  source: over.kind === "gift" ? "gift" : over.kind === "order" || over.kind === "legacy" ? "order" : "deal",
+  source: over.kind === "gift" ? "gift" : over.kind === "ai_pack" || over.kind === "media_pack" ? "pack" : over.kind === "order" || over.kind === "legacy" ? "order" : "deal",
   method: "manual",
   dealId: null,
   dealNumber: null,
@@ -118,9 +118,11 @@ describe("financeScreen: пришло", () => {
     money({ id: "old", kind: "payment", amount: 20000, at: new Date("2026-09-10T08:00:00Z"), managerId: "m2" }),
   ];
 
-  it("нетто = поступления − возвраты; онлайн и вручную; изменение к тем же числам прошлого месяца", () => {
+  it("нетто = поступления − возвраты; онлайн и вручную — только поступления; изменение к тем же числам прошлого месяца", () => {
     const s = screen({ money: rows });
-    expect(s.totals).toMatchObject({ incoming: 45000, refunds: 3000, net: 42000, online: 35000, manual: 7000, count: 4, refundCount: 1, prevNet: 20000 });
+    // Возврат всегда записан «вручную» (способ возврата не хранится) — в разбивку онлайн/вручную он не входит.
+    expect(s.totals).toMatchObject({ incoming: 45000, refunds: 3000, net: 42000, online: 35000, manual: 10000, count: 4, refundCount: 1, prevNet: 20000 });
+    expect(s.totals.online + s.totals.manual).toBe(s.totals.incoming);
     expect(s.totals.delta).toBeCloseTo(1.1);
   });
 
@@ -136,6 +138,7 @@ describe("financeScreen: пришло", () => {
       ["deal", 10000],
       ["order", 23000],
       ["gift", 12000],
+      ["pack", 0],
     ]);
     expect(s.byManager.map((m) => [m.label, m.value, m.count])).toEqual([
       ["Айгерим", 10000 + 8000 - 3000, 2],
@@ -166,7 +169,11 @@ describe("financeScreen: пришло", () => {
     expect(p1.refs).toEqual([{ label: "Сделка №12", href: "/admin/deals/d1" }]);
     expect(j1).toMatchObject({ method: "Kaspi", acceptedBy: "онлайн", operation: "QR-1", check: null });
     expect(j1.refs.map((r) => r.label)).toEqual(["Сделка №12", "Заказ №7"]);
-    expect(r1).toMatchObject({ amount: -3000, refund: true, check: null });
+    // Ручной возврат тоже сверяют: он уменьшает «Пришло».
+    expect(r1).toMatchObject({ amount: -3000, refund: true, check: "pending" });
+    // Ручная запись за выбранный день хранится как полдень — время не показываем; у онлайн-оплаты время настоящее.
+    expect(p1.dateLabel).not.toMatch(/\d:\d/);
+    expect(j1.dateLabel).toMatch(/\d:\d/);
     expect(legacy).toMatchObject({ method: "Карта", what: "Заказ оплачен (без записи оплаты)", check: null });
     expect(gift.refs).toEqual([{ label: "Сертификат №4", href: "/admin/gifts" }]);
     expect(s.refunds.map((r) => r.key)).toEqual(["refund:r1"]);
@@ -267,5 +274,36 @@ describe("financeScreen: ожидается, переплаты, «Провер�
     const blank = (words: number) => deal({ id: `b${words}`, number: 30, agreed: 20000, paid: 10000, book: { theme: "blank", answered: 2, total: 3, words } });
     const groups = screen({ deals: [blank(3200), blank(900)] }).expected.rows.map((r) => [r.ref, r.group, r.bookLabel]);
     expect(groups.map(([, g, l]) => [g, String(l).replace(/\s/g, " ")])).toEqual([["ready", "готова · 3 200 слов"], ["progress", "пишется · 900 слов"]]);
+  });
+
+  it("пакет ИИ-дизайнера и минуты видео — в «Пришло», отдельным источником и строкой «Сайт: пакеты»", () => {
+    const s = screen({ money: [money({ id: "a1", kind: "ai_pack", method: "kaspi", amount: 2900, at: now, giftNumber: 17 }), money({ id: "m1", kind: "media_pack", method: "kaspi", amount: 1500, at: now, giftNumber: 3 })] });
+    expect(s.totals).toMatchObject({ incoming: 4400, online: 4400, manual: 0 });
+    expect(s.bySource.find((x) => x.key === "pack")).toMatchObject({ value: 4400, count: 2 });
+    expect(s.byManager).toEqual([{ id: "-pack", label: "Сайт: пакеты ИИ и видео", value: 4400, count: 2 }]);
+    expect(s.recent.map((r) => r.what)).toEqual(["Пакет ИИ-дизайнера A17", "Минуты своих видео и аудио M3"]);
+  });
+
+  it("прошлый период в минусе — процент изменения не показываем", () => {
+    const s = screen({ money: [money({ id: "x", kind: "refund", amount: 5000, at: new Date("2026-09-10T08:00:00Z") }), money({ id: "y", kind: "payment", amount: 1000, at: now })] });
+    expect(s.totals.prevNet).toBe(-5000);
+    expect(s.totals.delta).toBeNull();
+  });
+
+  it("отменённый заказ, а деньги по сделке у нас — к возврату (а не пропадают)", () => {
+    const s = screen({ deals: [deal({ id: "dc", number: 41, agreed: 10000, paid: 6000, stageKind: "lost", order: { id: "oc", number: 77, prepaid: 6000, cancelled: true } })] });
+    expect(s.issues.map((i) => [i.kind, i.ref, i.amount, i.title])).toEqual([["deal_lost", "Сделка №41", 6000, "Заказ №77 отменён — деньги по сделке у нас"]]);
+  });
+
+  it("«Проверить»: возврат — со знаком, своя запись помечена (проверяет другой)", () => {
+    const review: ReviewRow[] = [
+      { kind: "deal", id: "r9", paymentKind: "refund", amount: 3000, at: now, acceptedById: "m1", dealId: "d1", dealNumber: 12, orderId: null, orderNumber: null, managerId: "m1", client: "К", receiptId: "r9", note: "отказ", invoiceNumber: null },
+      { kind: "deal", id: "p9", paymentKind: "payment", amount: 5000, at: now, acceptedById: "m2", dealId: "d1", dealNumber: 12, orderId: null, orderNumber: null, managerId: "m1", client: "К", receiptId: "r8", note: "", invoiceNumber: null },
+    ];
+    const s = screen({ review, viewerId: "m1" });
+    expect(s.review.map((r) => [r.id, r.what, r.refund, r.mine])).toEqual([
+      ["r9", "Возврат клиенту", true, true],
+      ["p9", "Платёж", false, false],
+    ]);
   });
 });

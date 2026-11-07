@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { AlertTriangle, CheckCircle2, Info, X } from "lucide-react";
 import { cn } from "@/lib/class-names";
 import { useMessages } from "@/i18n/client";
@@ -36,7 +36,19 @@ interface ConfirmRequest {
   danger?: boolean;
   /** Короткий вопрос: кнопки «Да» / «Да, удалить». */
   short?: boolean;
+  /** Вопрос с ответом текстом (promptText): поле ввода и готовые варианты; ответ — в resolveText. */
+  input?: PromptInput;
+  resolveText?: (value: string | null) => void;
   resolve: (ok: boolean | "alt") => void;
+}
+export interface PromptInput {
+  placeholder?: string;
+  initial?: string;
+  /** Пустой ответ не принимается (кнопка подтверждения неактивна). */
+  required?: boolean;
+  /** Готовые ответы: нажатие подставляет текст в поле. */
+  suggestions?: string[];
+  maxLength?: number;
 }
 
 /** Сколько живёт тост с действием: успеть прочитать и нажать «Отменить». */
@@ -93,16 +105,29 @@ export function confirmDialog(opts: Omit<ConfirmRequest, "resolve">): Promise<bo
   });
 }
 
+/**
+ * Вопрос с ответом текстом вместо window.prompt: причина отказа, подпись и т. п. null — отмена; иначе обрезанный текст.
+ * await promptText({ title: "Причина отказа", input: { required: true, suggestions: ["Дорого", "Передумал"] } })
+ */
+export function promptText(opts: Omit<ConfirmRequest, "resolve" | "resolveText" | "altLabel" | "short"> & { input?: PromptInput }): Promise<string | null> {
+  confirmReq?.resolve(false);
+  return new Promise((resolveText) => {
+    confirmReq = { ...opts, input: opts.input ?? {}, resolveText, resolve: () => {} };
+    emit();
+  });
+}
+
 /** Короткая форма для однострочных подтверждений: await ask("Удалить задачу?"). */
 export function ask(title: string, danger = false) {
   return confirmDialog({ title, danger, short: true });
 }
 
-function answer(ok: boolean | "alt") {
+function answer(ok: boolean | "alt", text?: string) {
   const req = confirmReq;
   confirmReq = null;
   emit();
-  req?.resolve(ok);
+  if (req?.resolveText) req.resolveText(ok === true ? (text ?? "").trim() : null);
+  else req?.resolve(ok);
 }
 
 const subscribe = (l: () => void) => {
@@ -116,12 +141,22 @@ const icons = { success: CheckCircle2, error: AlertTriangle, info: Info };
 export function Overlays() {
   const { toasts: list, confirmReq: req } = useSyncExternalStore(subscribe, () => snapshot, () => serverSnapshot);
   const okButton = useRef<HTMLButtonElement>(null);
+  const field = useRef<HTMLTextAreaElement>(null);
   const m = useMessages().common;
+  // Текст ответа promptText: сбрасывается на начальный при каждом новом вопросе.
+  const [text, setText] = useState("");
+  const [shownReq, setShownReq] = useState(req);
+  if (shownReq !== req) {
+    setShownReq(req);
+    setText(req?.input?.initial ?? "");
+  }
+  const textOk = !req?.input?.required || text.trim().length > 0;
 
   useEffect(() => {
     if (!req) return;
     const prev = document.activeElement as HTMLElement | null;
-    okButton.current?.focus();
+    if (req.input) field.current?.focus();
+    else okButton.current?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       // Escape закрывает только вопрос: лист под ним (closesOnKey) видит, что событие уже обработано.
@@ -189,6 +224,36 @@ export function Overlays() {
               {req.title}
             </h2>
             {req.text ? <p className="mt-2 text-[15px] leading-relaxed text-muted">{req.text}</p> : null}
+            {req.input ? (
+              <div className="mt-4 space-y-2">
+                {req.input.suggestions?.length ? (
+                  <div className="flex flex-wrap gap-1.5" role="group" aria-labelledby="confirm-title">
+                    {req.input.suggestions.map((v) => (
+                      <button key={v} type="button" onClick={() => setText(v)} aria-pressed={text === v} className={cn("min-h-11 rounded-full border px-3 text-sm transition lg:min-h-9", text === v ? "border-ink bg-ink text-white" : "border-line text-ink-soft hover:border-ink/30")}>
+                        {v}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+                <textarea
+                  ref={field}
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  onKeyDown={(e) => {
+                    // Enter — ответить (Shift+Enter — новая строка), как в однострочном prompt.
+                    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing && textOk) {
+                      e.preventDefault();
+                      answer(true, text);
+                    }
+                  }}
+                  rows={2}
+                  maxLength={req.input.maxLength ?? 500}
+                  placeholder={req.input.placeholder}
+                  aria-labelledby="confirm-title"
+                  className="input resize-none"
+                />
+              </div>
+            ) : null}
             <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <button className="btn btn-outline" onClick={() => answer(false)}>
                 {req.cancelLabel ?? m.actions.cancel}
@@ -198,7 +263,7 @@ export function Overlays() {
                   {req.altLabel}
                 </button>
               ) : null}
-              <button ref={okButton} className={cn("btn", req.danger ? "bg-red-700 text-white hover:bg-red-800" : "btn-primary")} onClick={() => answer(true)}>
+              <button ref={okButton} disabled={!!req.input && !textOk} className={cn("btn", req.danger ? "bg-red-700 text-white hover:bg-red-800" : "btn-primary")} onClick={() => answer(true, text)}>
                 {req.confirmLabel ?? (req.short ? (req.danger ? m.actions.yesDelete : m.actions.yes) : m.actions.confirm)}
               </button>
             </div>

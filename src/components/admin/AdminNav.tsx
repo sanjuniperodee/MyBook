@@ -2,9 +2,9 @@
 
 import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
-import { createPortal } from "react-dom";
+import { useState, useTransition } from "react";
 import { setShiftAction } from "@/app/admin/crm-actions";
+import { logoutAction } from "@/app/(auth)/actions";
 import {
   BarChart3,
   Coins,
@@ -18,7 +18,7 @@ import {
   LayoutDashboard,
   LoaderCircle,
   LockKeyhole,
-  Menu,
+  LogOut,
   MessageSquareQuote,
   MessagesSquare,
   Package,
@@ -31,7 +31,6 @@ import {
   Users,
   Wallet,
   Workflow,
-  X,
   type LucideIcon,
 } from "lucide-react";
 import { LogoMark } from "@/components/Logo";
@@ -39,6 +38,7 @@ import type { Permission } from "@/shared/domain/permissions";
 import type { CrmCounters } from "@/modules/reporting";
 import { useLive } from "./CrmLive";
 import { cn } from "@/lib/class-names";
+import { toastError } from "@/components/ui/overlays";
 
 export interface Item {
   href: string;
@@ -114,152 +114,133 @@ function NavIcon({ icon: Icon, active }: { icon: LucideIcon; active: boolean }) 
   const { pending } = useLinkStatus();
   return (
     <span className="relative size-4 shrink-0">
-      <Icon className={cn("size-4 transition-opacity", pending && "opacity-0", active ? "text-wine" : "text-muted")} strokeWidth={1.8} />
-      <LoaderCircle className={cn("absolute inset-0 size-4 animate-spin text-wine transition-opacity", pending ? "opacity-100" : "opacity-0")} strokeWidth={2} aria-hidden />
+      <Icon className={cn("size-4 transition-opacity", pending && "opacity-0", active ? "text-[#e8a0ab]" : "text-[#a89c90]")} strokeWidth={1.8} aria-hidden />
+      <LoaderCircle className={cn("absolute inset-0 size-4 animate-spin text-[#e8a0ab] transition-opacity", pending ? "opacity-100" : "opacity-0")} strokeWidth={2} aria-hidden />
     </span>
   );
 }
 
-export function ShiftToggle({ initial }: { initial: boolean }) {
+/**
+ * «На смене»: получает ли сотрудник новые заявки по кругу. Переключатель (role="switch"); compact — строка под именем в
+ * боковом меню, row — строка на всю ширину с подписью и тумблером (экран «Ещё» на телефоне, зона нажатия 48 px).
+ * Не сохранилось — возвращаем как было и говорим об этом.
+ */
+export function ShiftToggle({ initial, variant = "compact" }: { initial: boolean; variant?: "compact" | "row" | "spine" }) {
   const [on, setOn] = useState(initial);
   const [pending, start] = useTransition();
+  const toggle = () => {
+    const next = !on;
+    setOn(next);
+    start(async () => {
+      try {
+        await setShiftAction(next);
+      } catch (e) {
+        setOn(!next);
+        toastError(e, "Не удалось сменить статус смены");
+      }
+    });
+  };
+  const hint = on ? "Вы получаете новые заявки по кругу" : "Новые заявки вам не распределяются";
+  if (variant === "row")
+    return (
+      <button type="button" role="switch" aria-checked={on} disabled={pending} onClick={toggle} className="flex min-h-12 w-full items-center gap-3 rounded-xl py-1 text-left" data-testid="shift-toggle">
+        <span className="min-w-0 flex-1">
+          <span className="block text-[15px] font-medium">{on ? "На смене" : "Не на смене"}</span>
+          <span className="block text-xs text-muted">{hint}</span>
+        </span>
+        <span className={cn("relative h-7 w-12 shrink-0 rounded-full transition-colors", on ? "bg-emerald-600" : "bg-ink/15")} aria-hidden>
+          <span className={cn("absolute top-0.5 left-0.5 size-6 rounded-full bg-white shadow-soft transition-transform", on && "translate-x-5")} style={{ backgroundColor: "#fff" }} />
+        </span>
+      </button>
+    );
   return (
     <button
       type="button"
+      role="switch"
+      aria-checked={on}
       disabled={pending}
-      onClick={() => {
-        const next = !on;
-        setOn(next);
-        start(() => setShiftAction(next));
-      }}
-      className="mt-1 flex items-center gap-1.5 text-[11px] text-muted hover:text-ink"
-      title={on ? "Вы получаете новые заявки по кругу. Нажмите, чтобы уйти со смены" : "Новые заявки вам не распределяются. Нажмите, чтобы выйти на смену"}
+      onClick={toggle}
+      className={cn("flex min-h-8 w-full items-center gap-2 rounded-lg px-1.5 text-xs", variant === "spine" ? "text-[#cfc4b8] hover:bg-[rgb(255_255_255/0.05)] hover:text-white" : "-mx-1 text-ink-soft hover:bg-ink/5 hover:text-ink")}
+      title={`${hint}. Нажмите, чтобы ${on ? "уйти со смены" : "выйти на смену"}`}
       data-testid="shift-toggle"
     >
-      <span className={cn("size-2 rounded-full", on ? "bg-emerald-500" : "bg-muted/40")} />
-      {on ? "На смене" : "Не на смене"}
+      <span className={cn("size-2 rounded-full", on ? "bg-[#4cc38a]" : variant === "spine" ? "bg-[rgb(255_255_255/0.25)]" : "bg-muted/40")} aria-hidden />
+      {on ? "На смене — заявки идут вам" : "Не на смене"}
     </button>
   );
 }
 
-export function AdminNav({ adminName, roleName, perms, variant, onShift }: { adminName: string; roleName: string; perms: Permission[]; variant: "sidebar" | "mobile"; onShift: boolean }) {
+/**
+ * Корешок CRM (DESIGN.md §1): тёмная боковая панель на всю высоту на ноутбуке — разделы по правам с живыми счётчиками,
+ * внизу — кто вошёл, смена, сайт и выход. На телефоне вместо неё — нижняя панель и экран «Ещё» (MobileTabBar, MoreMenu).
+ */
+export function AdminNav({ adminName, roleName, perms, onShift }: { adminName: string; roleName: string; perms: Permission[]; onShift: boolean }) {
   const pathname = usePathname();
   const { counters } = useLive().live;
-  const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    if (variant !== "mobile" || !open) return;
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [open, variant]);
-
   const allowed = new Set(perms);
   const visible = navSections.map((s) => ({ ...s, items: s.items.filter((it) => !it.perm || it.perm.some((p) => allowed.has(p))) })).filter((s) => s.items.length);
-  const nav = (
-    <nav className="flex flex-col gap-4">
-      {visible.map((s, i) => (
-        <div key={s.title ?? i} className="flex flex-col gap-0.5">
-          {s.title ? <div className="px-3 pb-1 text-[11px] font-semibold tracking-wide text-muted/80 uppercase">{s.title}</div> : null}
-          {s.items.map((it) => {
-            const active = it.exact ? pathname === it.href : pathname.startsWith(it.href);
-            const badge = it.badge ? counters[it.badge] : 0;
-            return (
-              <Link
-                key={it.href}
-                href={it.href}
-                onClick={() => setOpen(false)}
-                className={cn("flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition", active ? "bg-white font-medium text-ink shadow-soft" : "text-ink-soft hover:bg-white/60")}
-              >
-                <NavIcon icon={it.icon} active={active} />
-                <span className="flex-1">{it.label}</span>
-                {badge ? (
-                  <span className="rounded-full bg-wine px-1.5 py-0.5 text-[11px] leading-none font-semibold text-white tabular-nums" data-badge={it.badge}>
-                    {badge > 99 ? "99+" : badge}
-                  </span>
-                ) : null}
-              </Link>
-            );
-          })}
-        </div>
-      ))}
-    </nav>
-  );
-  const footer = (
-    <div className="space-y-1 border-t border-line pt-4 text-sm">
-      <div className="px-3">
-        <div className="truncate text-xs font-medium text-ink">{adminName}</div>
-        <div className="truncate text-[11px] text-muted">{roleName}</div>
-        {allowed.has("deals.edit") || allowed.has("chats.send") ? <ShiftToggle initial={onShift} /> : null}
-      </div>
-      <Link href="/books" className="block rounded-xl px-3 py-2 text-ink-soft hover:bg-white/60">
-        ← На сайт
-      </Link>
-    </div>
-  );
-  if (variant === "sidebar")
-    return (
-      <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col gap-6 overflow-y-auto border-r border-line bg-[#f1ece4] px-3 py-4 lg:flex">
-        <Link href="/admin" className="flex items-center gap-2.5 px-2 font-semibold">
-          <LogoMark className="size-8" /> MyBooks CRM
-        </Link>
-        {nav}
-        <div className="mt-auto">{footer}</div>
-      </aside>
-    );
   return (
-    <>
-      <button
-        type="button"
-        className="btn btn-ghost btn-sm size-9 px-0 lg:hidden"
-        onClick={() => setOpen(true)}
-        aria-label="Открыть меню"
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        aria-controls="admin-mobile-menu"
-      >
-        <Menu className="size-5" />
-      </button>
-      {open
-        ? createPortal(
-            <div className="fixed inset-0 z-50 lg:hidden">
-              <button
-                type="button"
-                className="absolute inset-0 cursor-default bg-ink/30"
-                onClick={() => setOpen(false)}
-                aria-label="Закрыть меню"
-              />
-              <div
-                id="admin-mobile-menu"
-                role="dialog"
-                aria-modal="true"
-                aria-label="Навигация CRM"
-                className="relative flex h-dvh w-72 max-w-[calc(100vw-2rem)] flex-col gap-6 overflow-y-auto bg-[#f1ece4] p-4 shadow-lift"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-2 font-semibold">
-                    <LogoMark className="size-8" /> MyBooks CRM
-                  </span>
-                  <button type="button" onClick={() => setOpen(false)} aria-label="Закрыть">
-                    <X className="size-5" />
-                  </button>
-                </div>
-                {nav}
-                <div className="mt-auto">{footer}</div>
-              </div>
-            </div>,
-            document.body,
-          )
-        : null}
-    </>
+    <aside className="crm-spine sticky top-0 hidden h-dvh w-60 shrink-0 flex-col bg-spine text-[#e9e1d7] lg:flex" aria-label="Разделы CRM">
+      <Link href="/admin" className="mx-3 mt-3 mb-2 flex h-11 items-center gap-2.5 rounded-[10px] px-2 text-[15px] font-semibold text-white hover:bg-[rgb(255_255_255/0.06)]">
+        <LogoMark className="size-7" /> MyBooks
+        <span className="ml-auto rounded-md bg-[rgb(255_255_255/0.1)] px-1.5 py-0.5 text-[11px] font-medium text-[#e9e1d7]">CRM</span>
+      </Link>
+      <nav className="no-scrollbar flex flex-1 flex-col gap-4 overflow-y-auto px-3 pt-2 pb-4">
+        {visible.map((s, i) => (
+          <div key={s.title ?? i} className="flex flex-col gap-px">
+            {s.title ? <div className="px-2.5 pb-1 text-xs text-[#a89c90]">{s.title}</div> : null}
+            {s.items.map((it) => {
+              const active = it.exact ? pathname === it.href : pathname.startsWith(it.href);
+              const badge = it.badge ? counters[it.badge] : 0;
+              return (
+                <Link
+                  key={it.href}
+                  href={it.href}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "relative flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-sm transition-colors duration-150",
+                    active ? "bg-[rgb(255_255_255/0.09)] font-medium text-white before:absolute before:inset-y-2 before:-left-3 before:w-[3px] before:rounded-r-full before:bg-[#e8a0ab]" : "text-[#cfc4b8] hover:bg-[rgb(255_255_255/0.05)] hover:text-white",
+                  )}
+                >
+                  <NavIcon icon={it.icon} active={active} />
+                  <span className="flex-1 truncate">{it.label}</span>
+                  {badge ? (
+                    <span className="min-w-5 rounded-md bg-[#c94b5f] px-1.5 py-0.5 text-center text-[11px] leading-none font-semibold text-white tabular-nums" data-badge={it.badge}>
+                      {badge > 99 ? "99+" : badge}
+                    </span>
+                  ) : null}
+                </Link>
+              );
+            })}
+          </div>
+        ))}
+      </nav>
+      <div className="border-t border-[rgb(255_255_255/0.1)] p-3">
+        <div className="flex items-center gap-2.5 px-1.5">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#c94b5f] text-sm font-semibold text-white uppercase" aria-hidden>
+            {adminName.slice(0, 1) || "?"}
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-sm font-medium text-white">{adminName}</div>
+            <div className="truncate text-xs text-[#a89c90]">{roleName}</div>
+          </div>
+        </div>
+        {allowed.has("deals.edit") || allowed.has("chats.send") ? (
+          <div className="mt-2 px-1">
+            <ShiftToggle initial={onShift} variant="spine" />
+          </div>
+        ) : null}
+        <div className="mt-2 flex gap-1">
+          <Link href="/books" className="flex h-9 flex-1 items-center gap-2 rounded-lg px-2.5 text-sm text-[#cfc4b8] hover:bg-[rgb(255_255_255/0.05)] hover:text-white">
+            <Globe className="size-4" strokeWidth={1.8} aria-hidden /> На сайт
+          </Link>
+          <form action={logoutAction}>
+            <button className="flex h-9 items-center gap-2 rounded-lg px-2.5 text-sm text-[#cfc4b8] hover:bg-[rgb(255_255_255/0.05)] hover:text-white" title="Выйти из CRM">
+              <LogOut className="size-4" strokeWidth={1.8} aria-hidden /> Выйти
+            </button>
+          </form>
+        </div>
+      </div>
+    </aside>
   );
 }

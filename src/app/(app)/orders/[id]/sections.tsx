@@ -43,7 +43,7 @@ export function OrderProgress({ steps, currentStep, paid }: { steps: { status: s
 /** Оплата получена: конфетти и что будет дальше. */
 export function PaidThanks({ orderId, printed, t }: { orderId: string; printed: boolean; t: T }) {
   return (
-      <section className="card flex flex-col items-center gap-6 overflow-hidden p-6 text-center sm:flex-row sm:p-8 sm:text-left">
+      <section className="rounded-[14px] border border-line bg-white flex flex-col items-center gap-6 overflow-hidden p-6 text-center sm:flex-row sm:p-8 sm:text-left">
         <Confetti onceKey={`paid_${orderId}`} />
         <CelebrateArt className="h-32 w-auto shrink-0" />
         <div>
@@ -59,7 +59,7 @@ export function PaidThanks({ orderId, printed, t }: { orderId: string; printed: 
 /** Файлы книги после оплаты: читательская версия, для электронного тарифа — файлы для печати; трек-номер. */
 export function OrderFiles({ order, printed, t }: { order: { id: string; trackingNumber: string | null }; printed: boolean; t: T }) {
   return (
-      <section className="card p-6 sm:p-8">
+      <section className="rounded-[14px] border border-line bg-white p-6 sm:p-8">
         <h2 className="text-xl font-semibold">{t.files}</h2>
         <p className="mt-1 text-sm text-muted">{t.filesNote}</p>
         <FileButtons orderId={order.id} printed={printed} />
@@ -75,7 +75,7 @@ export function OrderFiles({ order, printed, t }: { order: { id: string; trackin
 /** Дозаказ печатной версии к оплаченной электронной. */
 export function UpgradeCard({ upgrade, t }: { upgrade: { bookId: string; orderId: string; credit: number }; t: T }) {
   return (
-      <section className="card p-6 sm:p-8" data-testid="upgrade-card">
+      <section className="rounded-[14px] border border-line bg-white p-6 sm:p-8" data-testid="upgrade-card">
         <h2 className="text-xl font-semibold">{t.upgrade.title}</h2>
         <p className="mt-1 text-sm text-muted">{t.upgrade.text(upgrade.credit > 0 ? formatPrice(upgrade.credit) : "0")}</p>
         <Link href={`/books/${upgrade.bookId}/checkout?upgrade=${upgrade.orderId}`} className="btn btn-primary mt-5">
@@ -90,7 +90,7 @@ export function OrderDetails({ order, printed, locale, t, free }: { order: Order
   // Доставка не вошла в сумму — рассчитывается индивидуально (у старых заказов с оплаченной доставкой — её сумма).
   const deliveryQuoted = isQuotedDelivery(order.deliveryMethod) && !order.deliveryAmount;
   return (
-      <section className="card p-6 sm:p-8">
+      <section className="rounded-[14px] border border-line bg-white p-6 sm:p-8">
         <h2 className="text-xl font-semibold">{t.details}</h2>
         <dl className="mt-4 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-[160px_1fr]">
           <dt className="text-muted">{t.plan}</dt>
@@ -137,10 +137,10 @@ export function OrderDetails({ order, printed, locale, t, free }: { order: Order
         </dl>
         <div className="mt-6 space-y-1.5 border-t border-line pt-4 text-sm">
           <div className="flex justify-between"><span className="text-muted">{t.books}</span><span>{formatPrice(order.itemsAmount)}</span></div>
-          {order.discountAmount ? <div className="flex justify-between text-emerald-700"><span>{order.promoCode ? t.promo(order.promoCode) : t.agreedPrice}</span><span>−{formatPrice(order.discountAmount)}</span></div> : null}
+          {order.discountAmount ? <div className="flex justify-between text-success"><span>{order.promoCode ? t.promo(order.promoCode) : t.agreedPrice}</span><span>−{formatPrice(order.discountAmount)}</span></div> : null}
           {order.addons.length ? <div className="flex justify-between"><span className="text-muted">{order.addons.map((a) => addonName(a, locale)).join(", ")}</span><span>{formatPrice(order.addonsAmount)}</span></div> : null}
           {printed ? <div className="flex justify-between"><span className="text-muted">{t.delivery}</span><span>{order.deliveryAmount ? formatPrice(order.deliveryAmount) : deliveryQuoted ? t.quotedPrice : free}</span></div> : null}
-          {order.prepaidAmount ? <div className="flex justify-between text-emerald-700"><span>{t.prepaid}</span><span>−{formatPrice(order.prepaidAmount)}</span></div> : null}
+          {order.prepaidAmount ? <div className="flex justify-between text-success"><span>{t.prepaid}</span><span>−{formatPrice(order.prepaidAmount)}</span></div> : null}
           <div className="flex justify-between pt-2 text-base font-semibold"><span>{order.prepaidAmount ? t.toPayNow : t.total}</span><span>{formatPrice(order.amount)}</span></div>
           {printed && deliveryQuoted ? <p className="pt-2 text-xs text-muted" data-testid="abroad-order-note">{t.quotedNote}</p> : null}
         </div>
@@ -152,7 +152,7 @@ export function OrderDetails({ order, printed, locale, t, free }: { order: Order
 export function BookAside({ book, t }: { book: OrderView["book"]; t: T }) {
   return (
     <aside>
-      <div className="card sticky top-24 p-6 text-center">
+      <div className="rounded-[14px] border border-line bg-white sticky top-24 p-6 text-center">
         <div className="mx-auto w-40">
           <CoverPreview
             template={book.coverTemplate}
@@ -191,8 +191,8 @@ export function ReviewCard({
 }) {
   if (!review)
     return (
-      <section className="card flex flex-col items-start gap-5 bg-[linear-gradient(120deg,#fbf3ef,#fff)] p-6 sm:flex-row sm:items-center sm:p-8">
-        <div className="flex shrink-0 gap-0.5 text-amber-400" aria-hidden>
+      <section className="rounded-[14px] border border-line bg-white flex flex-col items-start gap-5 p-6 sm:flex-row sm:items-center sm:p-8">
+        <div className="flex shrink-0 gap-0.5 text-warning" aria-hidden>
           {[0, 1, 2, 3, 4].map((i) => (
             <Star key={i} className="size-6 fill-current" strokeWidth={1.5} />
           ))}
@@ -207,9 +207,9 @@ export function ReviewCard({
       </section>
     );
   return (
-    <section className="card flex flex-wrap items-center gap-x-6 gap-y-3 p-5 sm:px-8">
+    <section className="rounded-[14px] border border-line bg-white flex flex-wrap items-center gap-x-6 gap-y-3 p-5 sm:px-8">
       <div className="flex items-center gap-2 font-medium">
-        <span className="flex gap-0.5 text-amber-400" aria-label={`${review.rating}/5`}>
+        <span className="flex gap-0.5 text-warning" aria-label={`${review.rating}/5`}>
           {[1, 2, 3, 4, 5].map((n) => (
             <Star key={n} className={cn("size-4", n <= review.rating ? "fill-current" : "text-line")} strokeWidth={1.5} />
           ))}
@@ -233,8 +233,8 @@ export function ReviewCard({
 /** Приглашение друзей — после оплаты, когда клиент уже знает, что книга будет. */
 export function InviteCard({ t }: { t: Awaited<ReturnType<typeof getMessages>>["invite"]["card"] }) {
   return (
-    <section className="card flex flex-col items-start gap-4 p-6 sm:flex-row sm:items-center sm:px-8">
-      <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-rose text-wine">
+    <section className="rounded-[14px] border border-line bg-white flex flex-col items-start gap-4 p-6 sm:flex-row sm:items-center sm:px-8">
+      <span className="flex size-11 shrink-0 items-center justify-center rounded-[10px] bg-rose text-wine">
         <Gift className="size-5" />
       </span>
       <div className="flex-1">

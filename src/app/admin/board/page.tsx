@@ -1,6 +1,7 @@
 import { planName } from "@/i18n/labels";
 import { nowMs } from "@/lib/dates";
-import Link from "next/link";
+import { PageHeader } from "@/components/admin/PageHeader";
+import { OrdersViews } from "../orders/OrdersViews";
 import { container } from "@/server/container";
 import { requireStaff, staffViewer } from "@/server/access";
 import { staffOptions } from "@/modules/access/ui";
@@ -47,16 +48,11 @@ export default async function BoardPage() {
     };
   });
   return (
-    <div>
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">Производство</h1>
-          <p className="hidden text-sm text-muted lg:block">Перетаскивайте карточки между колонками — клиент получит письмо о смене статуса.</p>
-        </div>
-        <Link href="/admin/orders" className="btn btn-outline btn-sm">
-          Таблица заказов
-        </Link>
-      </div>
+    <div className="flex flex-col gap-5">
+      <PageHeader title="Производство" actions={<OrdersViews active="board" />}>
+        <span className="max-lg:hidden">Заказы за 30 дней по статусам. Перетащите карточку в другую колонку — клиент получит письмо о смене статуса.</span>
+        <span className="lg:hidden">Заказы за 30 дней по статусам.</span>
+      </PageHeader>
       <OrdersMobile cards={cards} />
       <div className="hidden lg:block">
         <Board initial={cards} admins={staffOptions(admins)} me={admin.id} />

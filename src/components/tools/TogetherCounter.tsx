@@ -52,12 +52,12 @@ export function TogetherCounter() {
 
       <div aria-live="polite" className="mt-8">
         {!value || !start ? (
-          <p className="rounded-2xl bg-cream/60 px-5 py-6 text-center text-muted">{ui.empty}</p>
+          <p className="rounded-[14px] bg-cream/60 px-5 py-6 text-center text-muted">{ui.empty}</p>
         ) : future ? (
-          <p className="rounded-2xl bg-rose/40 px-5 py-6 text-center text-ink-soft">{ui.future}</p>
+          <p className="rounded-[14px] bg-rose/40 px-5 py-6 text-center text-ink-soft">{ui.future}</p>
         ) : stats ? (
           <div>
-            <div className="rounded-3xl bg-gradient-to-br from-rose/60 to-cream px-6 py-8 text-center">
+            <div className="rounded-[14px] bg-gradient-to-br from-rose/60 to-cream px-6 py-8 text-center">
               <Heart className="mx-auto size-6 text-wine" aria-hidden />
               <div className="mt-3 font-serif text-6xl leading-none font-medium tracking-tight text-wine tabular-nums sm:text-7xl">{stats.days.toLocaleString("ru-RU")}</div>
               <div className="mt-2 text-lg text-ink-soft">{ui.daysTogether(stats.days)}</div>
@@ -66,7 +66,7 @@ export function TogetherCounter() {
             </div>
 
             {wedding ? (
-              <div className="mt-5 space-y-1 rounded-2xl border border-line bg-white px-5 py-4 text-sm leading-relaxed text-ink-soft">
+              <div className="mt-5 space-y-1 rounded-[14px] border border-line bg-white px-5 py-4 text-sm leading-relaxed text-ink-soft">
                 {nowName ? <p className="font-medium text-ink">{ui.weddingNow(stats.years, nowName)}</p> : null}
                 {next ? (
                   <p>
@@ -77,7 +77,7 @@ export function TogetherCounter() {
             ) : null}
 
             <h3 className="mt-8 font-serif text-2xl font-medium">{ui.nextTitle}</h3>
-            <ul className="mt-3 divide-y divide-line/70 rounded-2xl border border-line bg-white">
+            <ul className="mt-3 divide-y divide-line/70 rounded-[14px] border border-line bg-white">
               {list.map((m) => (
                 <li key={`${m.kind}-${m.value}`} className="flex items-center justify-between gap-4 px-5 py-3 text-sm">
                   <div>

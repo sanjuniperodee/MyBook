@@ -16,7 +16,9 @@ vi.mock("react", async (importOriginal) => {
     const set = (v: unknown) => void (hooks.slots[k] = typeof v === "function" ? (v as (p: unknown) => unknown)(hooks.slots[k]) : v);
     return [hooks.slots[k], set];
   };
-  return { ...real, useState, useActionState: (_action: unknown, init: unknown) => [init, () => {}, false] };
+  // Переход: сохранение здесь не вызывается — только флаг «идёт сохранение».
+  const useTransition = () => [false, (fn: () => unknown) => void fn()];
+  return { ...real, useState, useTransition, useActionState: (_action: unknown, init: unknown) => [init, () => {}, false] };
 });
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh() {}, push() {} }) }));
 vi.mock("@/app/admin/deals/actions", () => ({ updateDealAction: vi.fn() }));

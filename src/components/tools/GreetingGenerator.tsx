@@ -79,7 +79,7 @@ export function GreetingGenerator() {
         </div>
       </div>
 
-      <div className="mt-8 rounded-3xl bg-gradient-to-br from-cream to-rose/40 p-6 sm:p-8">
+      <div className="mt-8 rounded-[14px] bg-gradient-to-br from-cream to-rose/40 p-6 sm:p-8">
         <h3 className="text-xs font-semibold tracking-[0.18em] text-wine uppercase">{ui.resultTitle}</h3>
         <p className="mt-4 font-serif text-xl leading-relaxed whitespace-pre-line text-ink sm:text-2xl" data-testid="greeting-text" aria-live="polite">
           {text}

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ChevronLeft } from "lucide-react";
 import { Link } from "@/i18n/client";
 import { TrackOnce } from "@/components/analytics/TrackOnce";
 import { notFound } from "next/navigation";
@@ -60,7 +61,9 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-12">
-      <Link href="/orders" className="text-sm text-muted hover:text-ink">{t.back}</Link>
+      <Link href="/orders" className="-ml-2 inline-flex min-h-11 items-center gap-1 rounded-[10px] px-2 text-sm text-muted hover:bg-ink/5 hover:text-ink">
+        <ChevronLeft className="size-4" aria-hidden /> {t.back}
+      </Link>
       <div className="mt-4 flex flex-wrap items-center gap-4">
         <h1 className="font-serif text-3xl font-medium sm:text-5xl">{t.title(order.number)}</h1>
         <span className={cn("rounded-full px-3 py-1 text-sm font-medium", orderStatusColors[order.status])}>{orderStatusLabel(order.status, locale, !!plan?.printed)}</span>

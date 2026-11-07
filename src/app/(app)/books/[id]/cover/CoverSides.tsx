@@ -17,7 +17,7 @@ import { LayoutIcon } from "./BackSection";
 export function SideSwitch({ side, onChange, compact, className }: { side: CoverSide; onChange: (side: CoverSide) => void; compact?: boolean; className?: string }) {
   const t = useMessages().books.cover.side;
   return (
-    <div role="radiogroup" aria-label={t.aria} className={cn("inline-flex shrink-0 gap-1 bg-cream/80 p-1", compact ? "rounded-xl" : "rounded-2xl", className)}>
+    <div role="radiogroup" aria-label={t.aria} className={cn("inline-flex shrink-0 gap-1 bg-sunken p-1", compact ? "rounded-xl" : "rounded-2xl", className)}>
       {(["front", "back"] as const).map((s) => (
         <button
           key={s}
@@ -85,7 +85,7 @@ export function SpreadStrip({
         </div>
         {part("front", front, widths.front)}
       </div>
-      <figcaption className="mt-2 flex text-[11px] tracking-wide text-muted uppercase">
+      <figcaption className="mt-2 flex text-xs text-muted">
         <span className={cn("text-center", side === "back" && "font-semibold text-wine")} style={{ width: pct(widths.back) }}>
           {t.back}
         </span>

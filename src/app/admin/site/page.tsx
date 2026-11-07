@@ -14,7 +14,7 @@ export default async function SitePage() {
   await ensureCatalog();
   const apkUploaded = await hasMobileApk();
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="mx-auto flex max-w-4xl flex-col gap-5">
       <PageHeader title="Сайт">Переключатели и реквизиты публичной части сайта. Применяются сразу.</PageHeader>
       <SiteForm registration={registrationOpen()} />
       <SellerForm values={getSellerOverrides()} factory={{ ...factorySeller }} />

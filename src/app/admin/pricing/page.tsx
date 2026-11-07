@@ -21,7 +21,7 @@ export default async function PricingPage() {
   const changed = JSON.stringify({ plans: getPlans().map((p) => [p.price, p.extraCopyPrice, p.hidden]), a: getAddons().map((a) => [a.price, a.hidden]), d: getDeliveryOptions().map((d) => [d.price, !!d.quoted]), ai: getAiPacks().map((p) => [p.price, p.requests, !!p.hidden]), m: getMediaPacks().map((p) => [p.price, p.minutes, !!p.hidden]), mf: getFreeMediaMinutes() }) !==
     JSON.stringify({ plans: factoryCatalog.plans.map((p) => [p.price, p.extraCopyPrice, p.hidden]), a: factoryCatalog.addons.map((a) => [a.price, a.hidden]), d: factoryCatalog.delivery.map((d) => [d.price, !!d.quoted]), ai: factoryCatalog.aiPacks.map((p) => [p.price, p.requests, !!p.hidden]), m: factoryCatalog.mediaPacks.map((p) => [p.price, p.minutes, !!p.hidden]), mf: factoryCatalog.mediaFreeMinutes });
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="mx-auto flex max-w-5xl flex-col gap-6">
       <PageHeader title="Цены и тарифы">
         Цены, доставка, допы и то, какие тарифы продаются. Изменения сразу попадают на витрину, в оформление заказа, сертификаты, ответы AI-помощника и бота, счёт бота и лимит скидки менеджеров. Суммы, которые вы сами
         написали в базе знаний AI, бот может назвать как есть — после смены цен проверьте их.

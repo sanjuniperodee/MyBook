@@ -50,13 +50,13 @@ export function InvoiceDialog({ issueKey, dealId = null, conversationId = null, 
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/30 p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="invoice-title">
-      <div className="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-5 text-sm shadow-xl" data-testid="invoice-dialog">
+      <div className="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-[20px] bg-white p-5 text-sm shadow-lift" data-testid="invoice-dialog">
         <div className="mb-3 flex items-center justify-between gap-3">
           <h2 id="invoice-title" className="text-base font-semibold">
             Счёт на оплату{state.kind === "form" && state.info.dealNumber ? ` · сделка №${state.info.dealNumber}` : ""}
           </h2>
-          <button type="button" onClick={onClose} aria-label="Закрыть" className="text-muted hover:text-ink">
-            <X className="size-4" />
+          <button type="button" onClick={onClose} aria-label="Закрыть" className="btn btn-ghost btn-icon btn-sm -mr-2">
+            <X className="size-4" aria-hidden />
           </button>
         </div>
         {state.kind === "loading" ? (
@@ -64,7 +64,7 @@ export function InvoiceDialog({ issueKey, dealId = null, conversationId = null, 
             <LoaderCircle className="size-4 animate-spin" /> Загружаем договорённость и способы оплаты…
           </p>
         ) : state.kind === "error" ? (
-          <p className="rounded-xl bg-red-50 p-3 text-red-800">{state.message}</p>
+          <p className="rounded-[10px] bg-danger-bg p-3 text-danger">{state.message}</p>
         ) : (
           <InvoiceForm info={state.info} issueKey={issueKey} conversationId={conversationId} onClose={onClose} />
         )}
@@ -100,15 +100,15 @@ export function InvoiceForm({ info, issueKey, conversationId = null, onClose }: 
   if (info.hasOrder)
     return (
       <div className="space-y-3" data-testid="invoice-has-order">
-        <p className="rounded-xl bg-emerald-50 p-3 text-emerald-900">По сделке уже оформлен заказ — счёт не нужен: оплата и остаток идут в заказе.</p>
+        <p className="rounded-[10px] bg-success-bg p-3 text-success">По сделке уже оформлен заказ — счёт не нужен: оплата и остаток идут в заказе.</p>
         {info.orderId ? (
-          <Link href={`/admin/orders/${info.orderId}`} className="btn btn-sm inline-flex">
+          <Link href={`/admin/orders/${info.orderId}`} className="btn btn-dark btn-sm inline-flex">
             Открыть заказ
           </Link>
         ) : null}
       </div>
     );
-  if (info.closed) return <p className="rounded-xl bg-amber-50 p-3 text-amber-900">Сделка закрыта — верните её в работу, чтобы выставить счёт.</p>;
+  if (info.closed) return <p className="rounded-[10px] bg-warning-bg p-3 text-warning">Сделка закрыта — верните её в работу, чтобы выставить счёт.</p>;
   if (result) return <IssuedResult result={result} onClose={onClose} />;
 
   const agreedNum = Number(agreed);
@@ -156,7 +156,7 @@ export function InvoiceForm({ info, issueKey, conversationId = null, onClose }: 
   return (
     <div className="space-y-3" data-testid="invoice-form">
       {noMethods ? (
-        <p className="flex items-start gap-2 rounded-xl bg-red-50 p-3 text-red-800" role="alert">
+        <p className="flex items-start gap-2 rounded-[10px] bg-danger-bg p-3 text-danger" role="alert">
           <TriangleAlert className="mt-0.5 size-4 shrink-0" />
           <span>
             {noMethodsText}.{" "}
@@ -167,13 +167,13 @@ export function InvoiceForm({ info, issueKey, conversationId = null, onClose }: 
         </p>
       ) : null}
       {info.kaspiWarning ? (
-        <p className="flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-amber-900" role="status" data-testid="invoice-kaspi-warning">
+        <p className="flex items-start gap-2 rounded-[10px] bg-warning-bg p-3 text-warning" role="status" data-testid="invoice-kaspi-warning">
           <TriangleAlert className="mt-0.5 size-4 shrink-0" />
           <span>{info.kaspiWarning}</span>
         </p>
       ) : null}
       {info.open ? (
-        <p className="rounded-xl bg-amber-50 p-3 text-amber-900" data-testid="invoice-open-warning">
+        <p className="rounded-[10px] bg-warning-bg p-3 text-warning" data-testid="invoice-open-warning">
           Открыт счёт {info.open.label} на {formatPrice(info.open.amount)} — новый счёт его заменит: прежняя ссылка перестанет работать.
         </p>
       ) : null}
@@ -239,7 +239,7 @@ export function InvoiceForm({ info, issueKey, conversationId = null, onClose }: 
         <span className="mt-1 block text-[11px] text-muted">{info.batchSize ? `Сделка уже пакет из ${info.batchSize} книг — счёт на весь пакет.` : countNum > 1 ? `Сумма договорённости: ${countNum} × ${formatPrice(agreedNum || 0)} = ${formatPrice(totalNum)}. Для остальных книг создадим отдельные сделки — клиент оформит их по очереди.` : "Одна книга. Если клиент платит сразу за несколько — укажите количество."}</span>
       </label>
       {discount ? (
-        <p className="rounded-xl bg-red-50 p-2.5 text-xs text-red-800" data-testid="invoice-discount">
+        <p className="rounded-[10px] bg-danger-bg p-2.5 text-xs text-danger" data-testid="invoice-discount">
           {discount}
         </p>
       ) : info.maxDiscountPercent !== null ? (
@@ -301,12 +301,12 @@ export function InvoiceForm({ info, issueKey, conversationId = null, onClose }: 
       {preview ? (
         <div>
           <div className="mb-1 text-[11px] text-muted">Клиент получит</div>
-          <pre className="rounded-xl bg-[#f4efe7] p-3 font-sans text-xs whitespace-pre-wrap" data-testid="invoice-preview">
+          <pre className="rounded-[10px] bg-sunken p-3 font-sans text-xs whitespace-pre-wrap" data-testid="invoice-preview">
             {preview}
           </pre>
         </div>
       ) : null}
-      {error ? <p className="text-xs text-red-700" role="alert">{error}</p> : null}
+      {error ? <p className="text-xs text-danger" role="alert">{error}</p> : null}
       <div className="flex justify-end gap-2">
         <button type="button" className="btn btn-ghost btn-sm" onClick={onClose}>
           Отмена
@@ -323,7 +323,7 @@ export function InvoiceForm({ info, issueKey, conversationId = null, onClose }: 
 function IssuedResult({ result, onClose }: { result: Extract<InvoiceResult, { ok: true }>; onClose: () => void }) {
   return (
     <div className="space-y-3" data-testid="invoice-issued">
-      <p className={cn("rounded-xl p-3", result.sent ? "bg-emerald-50 text-emerald-900" : "bg-amber-50 text-amber-900")}>{result.message}</p>
+      <p className={cn("rounded-xl p-3", result.sent ? "bg-success-bg text-success" : "bg-warning-bg text-warning")}>{result.message}</p>
       <div className="flex gap-2">
         <input readOnly value={result.link} className="input h-9 min-w-0 flex-1 text-xs" aria-label="Ссылка на оплату" onFocus={(e) => e.target.select()} />
         <button type="button" className="btn btn-outline btn-sm shrink-0" onClick={() => void copyText(result.link, "Ссылка скопирована")}>

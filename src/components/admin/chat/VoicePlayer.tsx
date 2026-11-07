@@ -133,7 +133,7 @@ export function VoicePlayer({
     });
 
   const progress = duration ? time / duration : 0;
-  const tone = out ? { on: "bg-white", off: "bg-white/40", btn: "bg-white text-wine", sub: "text-white/75" } : { on: "bg-wine", off: "bg-wine/25", btn: "bg-wine text-white", sub: "text-muted" };
+  const tone = out ? { on: "bg-white", off: "bg-white/40", btn: "bg-white text-wine", sub: "text-white/75" } : { on: "bg-wine", off: "bg-wine/25", btn: "bg-wine text-white hover:bg-wine-dark", sub: "text-muted" };
 
   return (
     <div className="mb-1 w-72 max-w-full">
@@ -164,7 +164,7 @@ export function VoicePlayer({
         </a>
       ) : (
         <div className="flex items-center gap-2.5">
-          <button type="button" onClick={toggle} className={cn("flex size-10 shrink-0 items-center justify-center rounded-full shadow-sm", tone.btn)} aria-label={playing ? "Пауза" : "Слушать"}>
+          <button type="button" onClick={toggle} className={cn("flex size-10 shrink-0 items-center justify-center rounded-full transition-colors max-lg:size-11", tone.btn)} aria-label={playing ? "Пауза" : "Слушать"}>
             {loading && playing ? <LoaderCircle className="size-5 animate-spin" /> : playing ? <Pause className="size-5" fill="currentColor" /> : <Play className="ml-0.5 size-5" fill="currentColor" />}
           </button>
           <div className="min-w-0 flex-1">
@@ -193,12 +193,12 @@ export function VoicePlayer({
                 <span key={i} className={cn("w-[3px] flex-1 rounded-full transition-colors", i / BARS < progress ? tone.on : tone.off)} style={{ height: `${Math.round(h * 100)}%` }} />
               ))}
             </div>
-            <div className={cn("mt-0.5 flex items-center gap-2 text-[11px] tabular-nums", tone.sub)}>
+            <div className={cn("mt-0.5 flex items-center gap-2 text-xs tabular-nums", tone.sub)}>
               <Mic className="size-3" />
               <span>{playing || time ? mmss(time) : mmss(duration)}</span>
               <button
                 type="button"
-                className="rounded px-1 font-semibold hover:bg-black/10"
+                className="rounded px-1 font-semibold hover:bg-ink/[0.06] max-lg:min-h-8"
                 onClick={() => {
                   const next = SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length];
                   setSpeed(next);
@@ -210,15 +210,15 @@ export function VoicePlayer({
               </button>
               <span className="ml-auto flex items-center gap-2">
                 {transcript ? (
-                  <button type="button" className="underline-offset-2 hover:underline" onClick={() => setShowText((v) => !v)}>
+                  <button type="button" className="underline-offset-2 hover:underline max-lg:min-h-8" onClick={() => setShowText((v) => !v)}>
                     {showText ? "скрыть текст" : "текст"}
                   </button>
                 ) : (
-                  <button type="button" className="underline-offset-2 hover:underline" onClick={transcribe} disabled={busy}>
+                  <button type="button" className="underline-offset-2 hover:underline max-lg:min-h-8" onClick={transcribe} disabled={busy}>
                     {busy ? "расшифровываю…" : "расшифровать"}
                   </button>
                 )}
-                <a href={src} {...(download ? { download: true } : { target: "_blank", rel: "noopener noreferrer" })} aria-label="Скачать" className="hover:opacity-80">
+                <a href={src} {...(download ? { download: true } : { target: "_blank", rel: "noopener noreferrer" })} aria-label="Скачать" className="flex items-center hover:text-ink max-lg:min-h-8 max-lg:px-1">
                   <Download className="size-3.5" />
                 </a>
               </span>
@@ -227,7 +227,7 @@ export function VoicePlayer({
         </div>
       )}
       {showText && transcript ? <p className={cn("mt-1.5 border-l-2 pl-2 text-[13px] italic", out ? "border-white/40" : "border-wine/30")}>{transcript}</p> : null}
-      {err ? <p className={cn("mt-1 text-[11px]", out ? "text-white/80" : "text-red-700")}>{err}</p> : null}
+      {err ? <p className={cn("mt-1 text-xs", out ? "text-white/80" : "text-danger")}>{err}</p> : null}
     </div>
   );
 }

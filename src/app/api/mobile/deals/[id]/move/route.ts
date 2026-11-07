@@ -12,6 +12,7 @@ export const POST = mobile(async (req, { params }: { params: Promise<{ id: strin
   await apiStaff(req, "deals.edit");
   const { id } = idParams(await params, "id");
   const b = z.object({ stageId: z.string().uuid(), lostReason: z.string().max(200).optional() }).parse(await req.json());
-  await moveDealAction(id, b.stageId, b.lostReason);
-  return NextResponse.json({ ok: true });
+  // Отказ (нет причины, чужая или ничья сделка) — текстом для приложения.
+  const r = await moveDealAction(id, b.stageId, b.lostReason);
+  return r.ok ? NextResponse.json({ ok: true }) : NextResponse.json({ error: r.message }, { status: 400 });
 });

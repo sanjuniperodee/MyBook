@@ -12,7 +12,7 @@ export function DiscountHint({ list, price, maxPercent }: { list: { listPrice: n
   if (percent <= 0) return null;
   const over = !DiscountPolicy.allows({ listPrice: list.listPrice, price, maxPercent });
   return (
-    <span className={`mt-1 block text-[11px] ${over ? "text-red-700" : "text-amber-800"}`} data-testid="discount-hint">
+    <span className={`mt-1 block text-xs ${over ? "text-danger" : "text-warning"}`} data-testid="discount-hint">
       Ниже прайса{list.planless ? " самого дорогого тарифа" : ""} ({formatPrice(list.listPrice)}) на {percentLabel(percent)}
       {over ? ` — больше лимита ${maxPercent}%: ${list.planless ? "укажите тариф договорённости или " : ""}согласуйте с руководителем` : ""}
     </span>

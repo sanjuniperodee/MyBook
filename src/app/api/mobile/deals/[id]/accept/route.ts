@@ -10,6 +10,6 @@ export const dynamic = "force-dynamic";
 export const POST = mobile(async (req, { params }: { params: Promise<{ id: string }> }) => {
   await apiStaff(req, "deals.edit");
   const { id } = idParams(await params, "id");
-  await acceptDealAction(id);
-  return NextResponse.json({ ok: true });
+  const r = await acceptDealAction(id);
+  return r.ok ? NextResponse.json({ ok: true }) : NextResponse.json({ error: r.message }, { status: 400 });
 });

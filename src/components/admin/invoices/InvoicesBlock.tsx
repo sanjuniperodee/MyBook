@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Ban, Copy, HandCoins, KeyRound, LoaderCircle, Search, Send, UserSearch } from "lucide-react";
+import { Ban, Copy, Eye, HandCoins, KeyRound, LoaderCircle, Search, Send, UserSearch } from "lucide-react";
 import { cancelInvoiceAction, invoiceAccountsAction, resendInvoiceAccessAction, resendInvoiceAction, type AccessAccount } from "@/app/admin/invoices/actions";
 import { formatPrice } from "@/config/site";
 import { confirmDialog, toast, toastError } from "@/components/ui/overlays";
@@ -11,7 +11,7 @@ import { cn } from "@/lib/class-names";
 import { copyText } from "./InvoiceDialog";
 import { accessLabels, invoiceActions, invoiceStatus, purposeLabels, type InvoicePerms, type InvoiceView } from "./model";
 
-const tones = { wait: "bg-amber-50 text-amber-900", ok: "bg-emerald-50 text-emerald-800", off: "bg-cream text-muted" } as const;
+const tones = { wait: "badge-warning", ok: "badge-success", off: "" } as const;
 
 /**
  * Блок «Счета» (страница сделки и карточка сделки в чате): номер, сумма, назначение, статус, «клиент сообщил об оплате»,
@@ -44,7 +44,7 @@ export function InvoicesBlock({ dealId, invoices, perms, onPaid, compact = false
 
   return (
     <section className="space-y-2" data-testid="deal-invoices">
-      <h3 className={cn("font-semibold", compact ? "text-xs tracking-wide text-muted uppercase" : "text-xs text-ink-soft")}>Счета</h3>
+      <h3 className={cn("text-xs font-medium", compact ? "text-muted" : "text-muted")}>Счета</h3>
       <ul className="space-y-2">
         {invoices.map((v) => {
           const status = invoiceStatus(v);
@@ -52,19 +52,19 @@ export function InvoicesBlock({ dealId, invoices, perms, onPaid, compact = false
           const access = v.status === "paid" ? accessLabels[v.access] : null;
           const busyHere = busy?.endsWith(v.id);
           return (
-            <li key={v.id} className="rounded-xl border border-line px-3 py-2" data-testid="deal-invoice">
+            <li key={v.id} className="rounded-[10px] border border-line px-3.5 py-2.5" data-testid="deal-invoice">
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <span className="font-medium">{v.label}</span>
-                <span className="tabular-nums">{formatPrice(v.amount)}</span>
+                <span className="font-semibold tabular-nums">{formatPrice(v.amount)}</span>
                 <span className="text-xs text-muted">{purposeLabels[v.purpose]}</span>
-                {busyHere ? <LoaderCircle className="ml-auto size-3.5 animate-spin text-muted" /> : null}
+                {busyHere ? <LoaderCircle className="ml-auto size-3.5 animate-spin text-muted" aria-hidden /> : null}
               </div>
-              <p className={cn("mt-1 inline-block rounded-full px-2 py-0.5 text-[11px]", tones[status.tone])}>{status.text}</p>
+              <p className={cn("badge mt-1.5 whitespace-normal", tones[status.tone])}>{status.text}</p>
               {v.paidRef ? <p className="mt-0.5 text-[11px] text-muted">операция {v.paidRef}</p> : null}
-              {v.viewedLabel && v.status === "pending_payment" && !v.claimedLabel ? <p className="mt-1 text-xs text-muted" data-testid="invoice-viewed">👁 Клиент открыл счёт {v.viewedLabel}, но пока не оплатил</p> : null}
-              {v.claimedLabel && v.status !== "paid" ? <p className="mt-1 text-xs text-amber-800">Клиент сообщил об оплате переводом {v.claimedLabel} — проверьте поступление и примите оплату с чеком.</p> : null}
-              {access ? <p className={cn("mt-1 text-xs", v.access === "failed" || v.access === "needs_manager" ? "text-red-700" : "text-muted")}>{access}</p> : null}
-              <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-xs">
+              {v.viewedLabel && v.status === "pending_payment" && !v.claimedLabel ? <p className="mt-1 flex items-center gap-1 text-xs text-muted" data-testid="invoice-viewed"><Eye className="size-3.5 shrink-0" aria-hidden /> Клиент открыл счёт {v.viewedLabel}, но пока не оплатил</p> : null}
+              {v.claimedLabel && v.status !== "paid" ? <p className="mt-1 text-xs text-warning">Клиент сообщил об оплате переводом {v.claimedLabel} — проверьте поступление и примите оплату с чеком.</p> : null}
+              {access ? <p className={cn("mt-1 text-xs", v.access === "failed" || v.access === "needs_manager" ? "text-danger" : "text-muted")}>{access}</p> : null}
+              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs [&>*]:min-h-7">
                 {can.copy && v.link ? (
                   <button type="button" className="flex items-center gap-1 text-wine hover:underline" onClick={() => void copyText(v.link!, "Ссылка скопирована")}>
                     <Copy className="size-3.5" /> Скопировать ссылку
@@ -77,11 +77,11 @@ export function InvoicesBlock({ dealId, invoices, perms, onPaid, compact = false
                 ) : null}
                 {can.paid ? (
                   onPaid ? (
-                    <button type="button" className="flex items-center gap-1 text-emerald-800 hover:underline" onClick={() => onPaid(v)}>
+                    <button type="button" className="flex items-center gap-1 font-medium text-success hover:underline" onClick={() => onPaid(v)}>
                       <HandCoins className="size-3.5" /> Оплата пришла
                     </button>
                   ) : (
-                    <Link href={`/admin/deals/${dealId}?pay=${v.id}#deal-payments`} className="flex items-center gap-1 text-emerald-800 hover:underline">
+                    <Link href={`/admin/deals/${dealId}?pay=${v.id}#deal-payments`} className="flex items-center gap-1 font-medium text-success hover:underline">
                       <HandCoins className="size-3.5" /> Оплата пришла
                     </Link>
                   )
@@ -97,7 +97,7 @@ export function InvoicesBlock({ dealId, invoices, perms, onPaid, compact = false
                   </button>
                 ) : null}
                 {can.cancel ? (
-                  <button type="button" disabled={!!busy} className="ml-auto flex items-center gap-1 text-muted hover:text-red-700 disabled:opacity-50" onClick={() => void cancel(v)}>
+                  <button type="button" disabled={!!busy} className="ml-auto flex items-center gap-1 text-muted hover:text-danger disabled:opacity-50" onClick={() => void cancel(v)}>
                     <Ban className="size-3.5" /> Отменить
                   </button>
                 ) : null}
@@ -141,7 +141,7 @@ function AccountPicker({ invoiceId, onSend }: { invoiceId: string; onSend: (user
   }, [invoiceId]);
 
   return (
-    <div className="mt-2 space-y-2 rounded-xl bg-cream/50 p-2.5" data-testid="access-picker">
+    <div className="mt-2 space-y-2 rounded-[10px] bg-sunken p-3" data-testid="access-picker">
       <form
         className="flex gap-2"
         onSubmit={(e) => {
@@ -175,7 +175,7 @@ function AccountPicker({ invoiceId, onSend }: { invoiceId: string; onSend: (user
       ) : (
         <p className="text-xs text-muted">Никого не нашли. Если аккаунта нет — заведите клиента в карточке сделки.</p>
       )}
-      <button type="button" className="btn btn-sm" disabled={!chosen} onClick={() => void onSend(chosen)}>
+      <button type="button" className="btn btn-dark btn-sm" disabled={!chosen} onClick={() => void onSend(chosen)}>
         <KeyRound className="size-4" /> Отправить доступ этому клиенту
       </button>
     </div>

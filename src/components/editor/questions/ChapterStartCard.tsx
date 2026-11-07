@@ -56,7 +56,7 @@ export function ChapterStartCard({ book, title, number, epigraph, opener, dismis
   const state = opener ? "chosen" : dismissed ? "dismissed" : "prompt";
 
   return (
-    <section aria-label={t.title(title)} data-chapter-start={shape ? state : "plain"} className="mb-3 rounded-[22px] border border-line/70 bg-white px-4 py-3 shadow-soft sm:mb-4 sm:px-5">
+    <section aria-label={t.title(title)} data-chapter-start={shape ? state : "plain"} className="mb-3 rounded-[14px] border border-line bg-white px-4 py-3 sm:mb-4 sm:px-5">
       {shape ? (
         <div className="flex items-start gap-3 border-b border-line/60 pb-3">
           <div className="w-14 shrink-0 overflow-hidden rounded-[5px] shadow-sm ring-1 ring-line" aria-hidden>
@@ -69,7 +69,7 @@ export function ChapterStartCard({ book, title, number, epigraph, opener, dismis
             </div>
             {state === "prompt" ? (
               <>
-                <p className="mt-1.5 rounded-xl bg-amber-50 px-3 py-2 text-[13px] leading-snug text-amber-900">{t.prompt(m.catalog.interiors[design.id].name, m.editor.openerShape[shape])}</p>
+                <p className="mt-1.5 rounded-[10px] bg-warning-bg px-3 py-2 text-[13px] leading-snug text-warning">{t.prompt(m.catalog.interiors[design.id].name, m.editor.openerShape[shape])}</p>
                 {editable ? (
                   <div className="mt-2 flex flex-wrap gap-2">
                     <button type="button" className={cn(BTN, "border-wine/40 text-wine")} onClick={() => onAction("choose")}>

@@ -68,22 +68,22 @@ export function RoutingPanel({ pipelineId, stages, entry, showEntry }: { pipelin
     });
 
   return (
-    <section className="space-y-4 rounded-2xl border border-line bg-white p-5" data-testid="funnel-routing">
+    <section className="panel panel-body space-y-5" data-testid="funnel-routing">
       <div className="flex items-start gap-3">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-rose text-wine">
-          <Zap className="size-5" />
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-rose text-wine">
+          <Zap className="size-5" strokeWidth={1.8} aria-hidden />
         </span>
         <div className="min-w-0 flex-1">
-          <h2 className="font-semibold">Что куда падает</h2>
+          <h2 className="panel-title">Что куда падает</h2>
           <p className="mt-0.5 text-sm text-muted">Выберите, на какой этап попадает сделка при каждом действии. Сделка по действиям клиента идёт только вперёд — назад сама не вернётся.</p>
         </div>
-        {pending ? <LoaderCircle className="mt-1 size-4 animate-spin text-muted" /> : null}
+        {pending ? <LoaderCircle className="mt-1 size-4 animate-spin text-muted" aria-hidden /> : null}
       </div>
 
       {showEntry ? (
         <div>
-          <h3 className="mb-2 text-[11px] font-semibold tracking-wider text-muted uppercase">Новая заявка</h3>
-          <div className="divide-y divide-line rounded-xl border border-line">
+          <h3 className="mb-2 text-sm font-medium text-ink-soft">Новая заявка</h3>
+          <div className="divide-y divide-line rounded-[10px] border border-line">
             {Object.entries(entryGroups).map(([group, label]) => (
               <Row key={group} label={label} busy={busy === group}>
                 <select value={entryMap[group] ?? ""} onChange={(e) => setEntry(group, e.target.value)} className="input h-9 w-full text-sm sm:w-56" aria-label={label} disabled={pending}>
@@ -101,8 +101,8 @@ export function RoutingPanel({ pipelineId, stages, entry, showEntry }: { pipelin
       ) : null}
 
       <div>
-        <h3 className="mb-2 text-[11px] font-semibold tracking-wider text-muted uppercase">Действия клиента на сайте</h3>
-        <div className="divide-y divide-line rounded-xl border border-line">
+        <h3 className="mb-2 text-sm font-medium text-ink-soft">Действия клиента на сайте</h3>
+        <div className="divide-y divide-line rounded-[10px] border border-line">
           {Object.entries(stageMilestones).map(([milestone, label]) => {
             const current = stages.find((s) => s.milestone === milestone)?.id ?? "";
             return (
@@ -120,7 +120,7 @@ export function RoutingPanel({ pipelineId, stages, entry, showEntry }: { pipelin
             );
           })}
         </div>
-        <p className="mt-2 text-xs text-muted">На одном этапе — одно действие: выбрав занятый этап, вы переносите на него действие, а прежнее перестанет двигать сделку.</p>
+        <p className="hint mt-2">На одном этапе — одно действие: выбрав занятый этап, вы переносите на него действие, а прежнее перестанет двигать сделку.</p>
       </div>
     </section>
   );
@@ -130,10 +130,10 @@ function Row({ label, busy, children }: { label: string; busy: boolean; children
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3.5 py-2.5">
       <span className="min-w-0 flex-1 text-sm">{label}</span>
-      <ArrowRight className="hidden size-4 shrink-0 text-muted sm:block" />
+      <ArrowRight className="hidden size-4 shrink-0 text-muted sm:block" aria-hidden />
       <div className="flex w-full items-center gap-2 sm:w-auto">
         {children}
-        <span className="size-4 shrink-0">{busy ? <LoaderCircle className="size-4 animate-spin text-muted" /> : null}</span>
+        <span className="size-4 shrink-0">{busy ? <LoaderCircle className="size-4 animate-spin text-muted" aria-hidden /> : null}</span>
       </div>
     </div>
   );

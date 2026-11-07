@@ -8,6 +8,7 @@ export const orders = {
     emptyText: "Когда книга будет готова, пролистайте макет и нажмите «Заказать книгу» — заказ появится здесь со всеми статусами.",
     toBooks: "К моим книгам",
     item: (n: number, title: string) => `Заказ №${n} · ${title}`,
+    number: (n: number) => `Заказ №${n}`,
   },
   order: {
     upgrade: {
@@ -16,7 +17,7 @@ export const orders = {
       cta: "Заказать печатную версию",
     },
     meta: "Заказ",
-    back: "← Все заказы",
+    back: "Все заказы",
     title: (n: number) => `Заказ №${n}`,
     created: (d: string) => `от ${d}`,
     steps: {

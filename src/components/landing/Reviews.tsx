@@ -42,28 +42,22 @@ export function Reviews({
 }) {
   if (!reviews.length) return null;
   return (
-    <section id="reviews" className={cn("scroll-mt-20 bg-rose/40 py-20 sm:py-28", className)}>
+    <section id="reviews" className={cn("scroll-mt-16 py-20 sm:py-28", className)}>
       <div className="container-x">
-        <div className="mx-auto max-w-2xl text-center">
-          <div className="eyebrow">{t.eyebrow}</div>
-          <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight sm:text-5xl">{t.title}</h2>
+        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between md:gap-12">
+          <h2 className="max-w-2xl font-serif text-4xl leading-[1.05] font-medium tracking-tight text-balance sm:text-5xl">{t.title}</h2>
           {summary ? (
-            <div className="mt-5 inline-flex items-center gap-3 rounded-full bg-white/80 px-5 py-2 shadow-soft">
+            <div className="flex items-center gap-3 md:pb-1.5">
               <Stars value={summary.average} className="size-5" />
               <span className="text-sm font-medium tabular-nums">{t.summary(summary.average.toFixed(1).replace(".", ","), summary.count)}</span>
             </div>
           ) : null}
         </div>
-        {/* Три и больше — «стена» колонками; один-два отзыва — по центру, чтобы не висели у края. */}
-        <div
-          className={cn(
-            "reveal-stagger mt-12",
-            reviews.length >= 3 ? "columns-1 gap-5 sm:columns-2 lg:columns-3" : reviews.length === 2 ? "mx-auto grid max-w-4xl items-start gap-5 sm:grid-cols-2" : "mx-auto max-w-md",
-          )}
-        >
+        {/* Три и больше — «стена» колонками; один-два — в ряд слева, без растягивания на всю ширину. */}
+        <div className={cn("mt-12", reviews.length >= 3 ? "columns-1 gap-10 sm:columns-2 lg:columns-3" : "grid max-w-4xl items-start gap-10 sm:grid-cols-2")}>
           {reviews.map((r, i) => (
-            // На телефоне — три лучших: лента карточек не должна отодвигать цены и FAQ.
-            <figure key={r.id} className={cn("card break-inside-avoid overflow-hidden", reviews.length >= 3 && "mb-5", i >= 3 && "max-sm:hidden")}>
+            // На телефоне — три лучших: лента отзывов не должна отодвигать цены и FAQ.
+            <figure key={r.id} className={cn("break-inside-avoid border-t border-line pt-6", reviews.length >= 3 && "mb-10", i >= 3 && "max-sm:hidden")}>
               {r.photo ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -73,20 +67,18 @@ export function Reviews({
                   height={r.photo.height}
                   loading="lazy"
                   decoding="async"
-                  className="max-h-80 w-full object-cover"
+                  className="mb-6 max-h-80 w-full rounded-[3px] object-cover shadow-book"
                   style={{ aspectRatio: `${r.photo.width} / ${r.photo.height}` }}
                 />
               ) : null}
-              <div className="p-7">
-                <Stars value={r.rating} />
-                <span className="sr-only">{r.rating}/5</span>
-                <blockquote className="mt-4 font-serif text-xl leading-snug whitespace-pre-line">«{r.text.trim()}»</blockquote>
-                <figcaption className="mt-5 text-sm text-muted">
-                  <span className="font-medium text-ink">{r.authorName}</span>
-                  {r.city ? `, ${r.city}` : ""}
-                  {t.theme[r.theme] ? ` · ${t.theme[r.theme]}` : ""}
-                </figcaption>
-              </div>
+              <Stars value={r.rating} />
+              <span className="sr-only">{r.rating}/5</span>
+              <blockquote className="mt-4 font-serif text-[22px] leading-snug whitespace-pre-line">«{r.text.trim()}»</blockquote>
+              <figcaption className="mt-5 text-sm text-muted">
+                <span className="font-medium text-ink">{r.authorName}</span>
+                {r.city ? `, ${r.city}` : ""}
+                {t.theme[r.theme] ? <span className="block">{t.theme[r.theme]}</span> : null}
+              </figcaption>
             </figure>
           ))}
         </div>

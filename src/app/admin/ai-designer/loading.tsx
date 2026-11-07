@@ -1,19 +1,17 @@
-/** Заготовка статистики ИИ-дизайнера: период, лимит, показатели и таблицы. */
-import { SkCard, SkHeader, SkPage } from "@/components/admin/skeletons";
+/** Заготовка статистики ИИ-дизайнера: период, показатели, графики и таблицы, настройки внизу. */
+import { SkCard, SkHeader, SkPage, SkStats, SkTable, SkTabs } from "@/components/admin/skeletons";
 
 export default function Loading() {
   return (
-    <SkPage className="mx-auto max-w-6xl">
+    <SkPage>
       <SkHeader title="w-40" subtitle />
-      <SkCard>
-        <div className="h-16" />
-      </SkCard>
-      <SkCard>
-        <div className="h-40" />
-      </SkCard>
-      <SkCard>
-        <div className="h-64" />
-      </SkCard>
+      <SkTabs n={4} pills />
+      <SkStats n={4} />
+      <div className="grid gap-4 lg:grid-cols-2">
+        <SkCard lines={5} />
+        <SkCard lines={5} />
+      </div>
+      <SkTable cols={6} rows={4} />
     </SkPage>
   );
 }

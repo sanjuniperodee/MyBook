@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Download, Mic, RefreshCw } from "lucide-react";
-import { Logo } from "@/components/Logo";
-import { LanguageSwitch } from "@/components/LanguageSwitch";
+import { PlainShell } from "@/components/landing/PlainShell";
 import { getLocale, getMessages } from "@/i18n/server";
 import { localizePath } from "@/i18n/config";
 import { FILE_TOKEN, formatDuration } from "@/lib/book/answer-files";
@@ -32,15 +31,10 @@ export default async function AnswerFilePage({ params }: Props) {
   const locale = await getLocale();
   const src = `/api/v/${token}`;
   return (
-    <div className="min-h-dvh bg-[radial-gradient(60%_40%_at_50%_0%,#f4e4df,transparent)]">
-      <header className="mx-auto flex max-w-3xl items-start justify-between gap-4 px-4 py-5 sm:px-6">
-        <Logo variant="full" />
-        <LanguageSwitch />
-      </header>
-      <main className="mx-auto max-w-3xl px-4 pb-16 sm:px-6">
-        <div className="eyebrow">{t.fromBook(bookTitle.trim())}</div>
-        {caption ? <h1 className="mt-2 font-serif text-3xl leading-tight font-medium sm:text-4xl">{caption}</h1> : null}
-        {authorName.trim() ? <p className="mt-1 text-muted">{authorName.trim()}</p> : null}
+    <PlainShell className="pt-8 sm:pt-12">
+        <div className="text-sm text-muted">{t.fromBook(bookTitle.trim())}</div>
+        {caption ? <h1 className="mt-2 font-serif text-[34px] leading-[1.08] font-medium text-balance sm:text-5xl">{caption}</h1> : null}
+        {authorName.trim() ? <p className="mt-2 text-ink-soft">{authorName.trim()}</p> : null}
 
         <div className="mt-6">
           {file.status === "ready" ? (
@@ -50,14 +44,14 @@ export default async function AnswerFilePage({ params }: Props) {
                 playsInline
                 preload="metadata"
                 poster={file.hasPoster ? `${src}?poster=1` : undefined}
-                className="max-h-[78dvh] w-full rounded-3xl bg-black shadow-book"
+                className="max-h-[78dvh] w-full rounded-[14px] bg-black shadow-book"
                 style={file.width && file.height ? { aspectRatio: `${file.width} / ${file.height}` } : undefined}
               >
                 <source src={src} type="video/mp4" />
                 {t.noPlayer}
               </video>
             ) : (
-              <div className="card flex flex-col gap-4 p-5 sm:p-7">
+              <div className="flex flex-col gap-4 rounded-[14px] border border-line bg-white p-5 sm:p-7">
                 <div className="flex items-center gap-3">
                   <span className="grid size-12 shrink-0 place-items-center rounded-full bg-wine text-white">
                     <Mic className="size-5" />
@@ -71,7 +65,7 @@ export default async function AnswerFilePage({ params }: Props) {
               </div>
             )
           ) : (
-            <div className="card p-8 text-center text-muted">
+            <div className="rounded-[14px] border border-line bg-white p-8 text-center text-muted">
               <p>{file.status === "failed" ? t.failed : t.processing}</p>
               {file.status !== "failed" ? (
                 <a href="" className="btn btn-ghost btn-sm mt-4 inline-flex items-center gap-2">
@@ -84,19 +78,18 @@ export default async function AnswerFilePage({ params }: Props) {
 
         {file.status === "ready" ? (
           <div className="mt-4 flex justify-end">
-            <a href={`${src}?download=1`} className="inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-sm text-wine hover:underline">
+            <a href={`${src}?download=1`} className="btn btn-ghost btn-sm text-wine">
               <Download className="size-4" /> {t.download}
             </a>
           </div>
         ) : null}
 
         <footer className="mt-14 border-t border-line pt-6 text-sm text-muted">
-          {t.madeWith} ·{" "}
-          <Link href={localizePath("/", locale)} className="text-wine hover:underline">
+          <p>{t.madeWith}</p>
+          <Link href={localizePath("/", locale)} className="mt-1 inline-block text-wine underline decoration-wine/30 underline-offset-4 hover:decoration-wine">
             {t.about}
           </Link>
         </footer>
-      </main>
-    </div>
+    </PlainShell>
   );
 }

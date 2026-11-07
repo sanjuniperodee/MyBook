@@ -107,21 +107,28 @@ export function LiveCalls() {
 
   if (!calls.length && !listening) return null;
   return (
-    <section className="rounded-3xl border border-emerald-200 bg-white p-4" data-testid="live-calls">
-      <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
-        <span className="size-2 animate-pulse rounded-full bg-emerald-500" aria-hidden /> Идут сейчас
-      </div>
+    <section className="panel overflow-hidden" data-testid="live-calls" aria-label="Разговоры сейчас">
+      <header className="panel-head">
+        <h2 className="panel-title flex items-center gap-2">
+          <span className="relative flex size-2.5" aria-hidden>
+            <span className="absolute inset-0 animate-ping rounded-full bg-success/50" />
+            <span className="relative size-2.5 rounded-full bg-success" />
+          </span>
+          Идут сейчас <span className="font-normal text-muted tabular-nums">{calls.length}</span>
+        </h2>
+        <span className="text-xs text-muted">Прослушка — только приём, вас не слышно</span>
+      </header>
       <ul className="divide-y divide-line">
         {calls.map((c) => {
           const active = listening?.call.id === c.id;
           return (
-            <li key={c.id} className="flex items-center gap-3 py-2">
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-700">
-                {c.direction === "in" ? <PhoneIncoming className="size-4" /> : <PhoneOutgoing className="size-4" />}
+            <li key={c.id} className={cn("flex min-h-14 items-center gap-3 px-4 py-2.5 sm:px-5", active && "bg-success-bg/50")}>
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-success-bg text-success" title={c.direction === "in" ? "Входящий" : "Исходящий"}>
+                {c.direction === "in" ? <PhoneIncoming className="size-4" strokeWidth={1.8} /> : <PhoneOutgoing className="size-4" strokeWidth={1.8} />}
               </span>
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm font-medium">
-                  {c.staff} <span className="text-muted">{c.direction === "in" ? "←" : "→"}</span>{" "}
+                  {c.staff} <span className="font-normal text-muted" aria-label={c.direction === "in" ? "принял звонок от" : "звонит"}>—</span>{" "}
                   {c.dealId ? (
                     <Link href={`/admin/deals/${c.dealId}`} className="hover:underline">
                       {c.client}
@@ -134,14 +141,14 @@ export function LiveCalls() {
                     c.client
                   )}
                 </div>
-                <div className="text-xs text-muted tabular-nums">WhatsApp · {clock(now - new Date(c.since).getTime())}</div>
+                <div className="text-xs text-muted tabular-nums">WhatsApp, {clock(now - new Date(c.since).getTime())}</div>
               </div>
               {active ? (
                 <button type="button" className="btn btn-outline btn-sm" onClick={stop} data-testid="listen-stop">
                   <Square className="size-3.5" fill="currentColor" /> Остановить
                 </button>
               ) : (
-                <button type="button" className="btn btn-sm" onClick={() => listen(c)} data-testid="listen-start">
+                <button type="button" className="btn btn-dark btn-sm" onClick={() => listen(c)} data-testid="listen-start">
                   <Headphones className="size-4" /> Слушать
                 </button>
               )}
@@ -150,14 +157,14 @@ export function LiveCalls() {
         })}
       </ul>
       {listening ? (
-        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-2xl bg-[#f7f4ef] px-3 py-2 text-xs" data-testid="listen-panel" data-state={listening.state}>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-line bg-sunken/60 px-4 py-2.5 text-xs sm:px-5" data-testid="listen-panel" data-state={listening.state} role="status">
           <span className="flex items-center gap-1.5 font-medium">
             {listening.state === "connecting" || listening.state === "reconnecting" ? <LoaderCircle className="size-3.5 animate-spin" /> : <Headphones className="size-3.5" />}
             {listening.state === "connecting" ? "Подключаемся к разговору…" : listening.state === "reconnecting" ? "Восстанавливаем связь…" : listening.state === "ended" ? "Разговор закончился" : "Слушаете разговор"}
           </span>
           <Speaker label={listening.call.staff} level={levels.agent} />
           <Speaker label={listening.call.client} level={levels.peer} />
-          <span className="text-muted">вас не слышно — только приём</span>
+
         </div>
       ) : null}
     </section>
@@ -169,7 +176,7 @@ function Speaker({ label, level }: { label: string; level: number }) {
   const on = level > 0.02;
   return (
     <span className="flex min-w-0 items-center gap-1.5">
-      <span className={cn("size-2 shrink-0 rounded-full transition-colors", on ? "bg-emerald-500" : "bg-line")} aria-hidden />
+      <span className={cn("size-2 shrink-0 rounded-full transition-colors", on ? "bg-success" : "bg-line-strong")} aria-hidden />
       <span className={cn("truncate", on ? "text-ink" : "text-muted")}>{label}</span>
     </span>
   );

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
+import { Package } from "lucide-react";
 import { Link } from "@/i18n/client";
-import { EmptyState, GiftArt } from "@/components/illustrations";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { requireUser } from "@/server/auth";
 import { container } from "@/server/container";
 import { formatPrice } from "@/config/site";
@@ -10,11 +11,16 @@ import { orderStatusColors, orderStatusLabel, isPrintedPlan } from "@/modules/or
 import { cn } from "@/lib/class-names";
 import { formatDate } from "@/lib/dates";
 import { AgreementCard } from "@/components/AgreementCard";
+import { CoverPreview } from "@/components/cover/CoverPreview";
+import { coverNames } from "@/lib/book/cover-names";
+import { coverPhotoIds } from "@/lib/book/covers";
+import { photoUrls } from "@/lib/urls";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getMessages()).orders.list.meta };
 }
 
+/** Заказы автора: строка — мини-обложка, книга и номер, статус словами и сумма; на телефоне статус и сумма под названием. */
 export default async function OrdersPage() {
   const user = await requireUser("/orders");
   const [list, locale, m, agreement] = await Promise.all([container().ordering.queries.userOrders(user.id), getLocale(), getMessages(), container().ordering.orders.agreementFor(user.id)]);
@@ -22,34 +28,61 @@ export default async function OrdersPage() {
   const books = agreement ? await container().authoring.queries.userBooks(user.id) : [];
   const t = m.orders.list;
   return (
-    <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6 sm:py-14">
-      <h1 className="font-serif text-3xl font-medium sm:text-5xl">{t.title}</h1>
-      {agreement ? <div className="mt-8"><AgreementCard agreement={agreement} books={books.map((r) => ({ id: r.book.id, status: r.book.status, theme: r.book.theme, answered: r.answered, total: r.total, words: r.words }))} /></div> : null}
+    <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-12">
+      <h1 className="font-serif text-4xl font-medium sm:text-5xl">{t.title}</h1>
+      {agreement ? (
+        <div className="mt-8">
+          <AgreementCard agreement={agreement} books={books.map((r) => ({ id: r.book.id, status: r.book.status, theme: r.book.theme, answered: r.answered, total: r.total, words: r.words }))} />
+        </div>
+      ) : null}
       {list.length === 0 && agreement ? null : list.length === 0 ? (
-        <div className="card mt-10">
+        <div className="mt-8 rounded-[14px] border border-dashed border-line-strong bg-white/50">
           <EmptyState
-            art={GiftArt}
+            icon={Package}
             title={t.empty}
-            text={t.emptyText}
-            action={<Link href="/books" className="btn btn-primary">{t.toBooks}</Link>}
-          />
+            action={
+              <Link href="/books" className="btn btn-primary">
+                {t.toBooks}
+              </Link>
+            }
+          >
+            {t.emptyText}
+          </EmptyState>
         </div>
       ) : (
-        <div className="mt-8 space-y-3">
+        <ul className="mt-8 divide-y divide-line overflow-hidden rounded-[14px] border border-line bg-white">
           {list.map((o) => (
-            <Link key={o.id} href={`/orders/${o.id}`} className="card card-hover flex flex-wrap items-center gap-4 p-5">
-              <div className="min-w-0 flex-1">
-                <div className="font-semibold">{t.item(o.number, o.book.title)}</div>
-                <div className="text-sm text-muted">
-                  {formatDate(o.createdAt, false, locale)} · {planName(o.plan, locale)}
-                  {o.quantity > 1 ? ` × ${o.quantity}` : ""}
+            <li key={o.id}>
+              <Link href={`/orders/${o.id}`} className="flex items-center gap-4 p-4 transition-colors hover:bg-sunken/60 sm:px-5">
+                <div className="w-11 shrink-0 sm:w-12">
+                  <CoverPreview
+                    template={o.book.coverTemplate}
+                    format={o.book.format}
+                    title={o.book.title}
+                    names={coverNames(o.book)}
+                    photos={photoUrls(coverPhotoIds(o.book), "thumb")}
+                    design={o.book.coverDesign}
+                    lite
+                    className="rounded-[2px] shadow-sm"
+                  />
                 </div>
-              </div>
-              <span className={cn("rounded-full px-3 py-1 text-xs font-medium", orderStatusColors[o.status])}>{orderStatusLabel(o.status, locale, isPrintedPlan(o.plan))}</span>
-              <span className="w-28 text-right font-medium">{formatPrice(o.amount)}</span>
-            </Link>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-serif text-xl leading-tight font-medium">{o.book.title}</div>
+                  <div className="mt-0.5 text-sm text-muted">
+                    {t.number(o.number)}, {formatDate(o.createdAt, false, locale)}
+                  </div>
+                  <div className="mt-0.5 text-sm text-muted">
+                    {planName(o.plan, locale)}
+                    {o.quantity > 1 ? ` × ${o.quantity}` : ""}
+                  </div>
+                  <span className={cn("badge mt-2 sm:hidden", orderStatusColors[o.status])}>{orderStatusLabel(o.status, locale, isPrintedPlan(o.plan))}</span>
+                </div>
+                <span className={cn("badge shrink-0 max-sm:hidden", orderStatusColors[o.status])}>{orderStatusLabel(o.status, locale, isPrintedPlan(o.plan))}</span>
+                <span className="shrink-0 text-right font-medium tabular-nums sm:w-28">{formatPrice(o.amount)}</span>
+              </Link>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
     </main>
   );

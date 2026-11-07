@@ -164,8 +164,12 @@ export async function openChatAction(target: Target): Promise<ActionResult> {
   // Свой шлюз (GOWA) — один номер магазина; Wazzup — канал для исходящих из «Интеграций».
   const channelId = (await container().messaging.whatsappProvider()) === "gowa" ? GOWA_CHANNEL : await getSetting("wazzup.channelId");
   if (!channelId) return { ok: false, message: "Не выбран канал WhatsApp для исходящих — укажите его в разделе «Интеграции»" };
-  const conv = await container().messaging.chats.conversationForPhone(c.phone, channelId, c.clientId, c.name ?? "");
+  // Новый диалог — сразу у ответственного клиента или у того, кто нажал «Написать»: в ничьём диалоге менеджер с ролью
+  // «только свои» писать не может.
+  const conv = await container().messaging.chats.conversationForPhone(c.phone, channelId, c.clientId, c.name ?? "", c.assigneeId ?? staff.user.id);
   if (c.dealId && !conv.dealId) await container().messaging.chats.attachDeal(conv.id, c.dealId);
+  // Уже был ничей диалог с этим номером — к ответственному карточки (отказ выше гарантирует, что это свой или «все записи»).
+  else if (!conv.assigneeId && c.assigneeId) await container().messaging.chats.assign(conv.id, c.assigneeId);
   return { ok: true, id: conv.id };
 }
 

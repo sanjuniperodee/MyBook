@@ -11,6 +11,8 @@ export const auth = {
     password: "Пароль",
     newPassword: "Новый пароль",
     passwordHint: "Минимум 8 символов",
+    showPassword: "Показать пароль",
+    hidePassword: "Скрыть пароль",
   },
   login: {
     meta: "Вход",

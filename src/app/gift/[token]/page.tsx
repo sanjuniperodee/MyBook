@@ -43,8 +43,8 @@ export default async function GiftStatusPage({ params }: { params: Promise<{ tok
           </div>
           <div className="space-y-6">
             <div>
-              <div className="eyebrow">{t.number(gift.number)}</div>
-              <h1 className="mt-3 font-serif text-4xl font-medium sm:text-5xl">
+              <div className="text-sm text-muted">{t.number(gift.number)}</div>
+              <h1 className="mt-3 font-serif text-[40px] leading-[1.06] font-medium text-balance sm:text-5xl">
                 {gift.status === "cancelled" ? t.cancelled : paid ? t.ready : t.oneStep}
               </h1>
               <p className="mt-3 text-ink-soft">
@@ -71,9 +71,9 @@ export default async function GiftStatusPage({ params }: { params: Promise<{ tok
             {paid ? (
               <>
                 <TrackOnce id={`gift_${gift.id}`} name="gift_purchase" value={gift.amount} />
-                <div className="card space-y-4 p-6">
+                <div className="space-y-4 rounded-[14px] border border-line bg-white p-6">
                   <div className="flex items-start gap-3">
-                    <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-600" />
+                    <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-success" />
                     <p className="text-[15px]">
                       {t.codeBefore} <b className="tracking-wide">{gift.promo!.code}</b> {t.codeAfter(gift.buyerEmail)}
                       {gift.promo!.expiresAt ? t.validUntil(m.common.untilFull(gift.promo!.expiresAt)) : null}
@@ -87,12 +87,12 @@ export default async function GiftStatusPage({ params }: { params: Promise<{ tok
                       </p>
                     </div>
                   ) : null}
-                  {redeemed ? <p className="rounded-xl bg-cream px-4 py-3 text-sm">{t.redeemed}</p> : null}
+                  {redeemed ? <p className="rounded-[10px] bg-sunken px-4 py-3 text-sm">{t.redeemed}</p> : null}
                   <a href={`/api/gifts/${gift.token}/pdf`} className="btn btn-primary">
                     <Download className="size-4" /> {t.download}
                   </a>
                 </div>
-                <div className="card p-6">
+                <div className="rounded-[14px] border border-line bg-white p-6">
                   <div className="font-medium">{t.linkTitle}</div>
                   <p className="mt-1 text-sm text-muted">{t.linkText}</p>
                   <div className="mt-4">

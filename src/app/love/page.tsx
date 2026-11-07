@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Image from "next/image";
-import { ArrowRight } from "lucide-react";
 import { Link } from "@/i18n/client";
 import { Logo } from "@/components/Logo";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
@@ -11,6 +10,7 @@ import { TrackedLink } from "@/components/ad/TrackedLink";
 import { TryPage } from "@/components/ad/TryPage";
 import { StickyBar } from "@/components/ad/StickyBar";
 import { WhatsAppIcon } from "@/components/ad/WhatsAppIcon";
+import { FilmFrame, Flourish, frameGhostBtn } from "@/components/landing/FilmFrame";
 import { adLoveCopy } from "@/lib/content/ad-love";
 import { applyGender } from "@/lib/content/gender";
 import { chapterTitle, countQuestions, getTheme } from "@/lib/content/themes";
@@ -83,79 +83,63 @@ export default async function LoveAdPage({ searchParams }: { searchParams: Promi
   return (
     <>
       <main className="overflow-x-clip bg-paper">
-        {/* ─── ПЕРВЫЙ ЭКРАН ─── */}
-        <section className="relative lg:pt-6 lg:pb-20">
-          <div className="container-x absolute inset-x-0 top-0 z-20 flex h-16 items-center justify-between lg:static lg:mb-6">
-            <Logo />
-            <LanguageSwitch />
+        {/* ─── ПЕРВЫЙ ЭКРАН: «кадр» пары и сама книга; одно действие — WhatsApp ─── */}
+        <div className="relative">
+          <div className="container-x absolute inset-x-0 top-0 z-20 flex h-16 items-center justify-between sm:h-18">
+            <Logo className="text-white" />
+            <LanguageSwitch tone="dark" />
           </div>
-
-          <div className="lg:mx-auto lg:grid lg:max-w-6xl lg:px-6 lg:grid-cols-[1fr_0.92fr] lg:items-center lg:gap-16">
-            {/* Фото: на телефоне — во всю ширину, текст наплывает снизу */}
-            <div className="relative lg:order-2">
-              <div className="relative aspect-[1080/1250] w-full overflow-hidden lg:rotate-[1.2deg] lg:rounded-[28px] lg:shadow-[0_40px_80px_-40px_rgb(60_20_25/0.55)]">
-                <Image
-                  src="/lp/book-velvet.webp"
-                  alt={c.hero.titleStart + " " + c.hero.titleAccent}
-                  fill
-                  priority
-                  sizes="(min-width: 1024px) 520px, 100vw"
-                  className="object-cover object-top"
-                />
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[38%] bg-gradient-to-t from-paper via-paper/70 to-transparent lg:hidden" />
-                <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-paper/80 to-transparent lg:hidden" />
-              </div>
-              {/* Рукописная пометка к именам на обложке */}
-              <div className="pointer-events-none absolute top-[9.5%] right-[5%] flex lg:top-[3%] lg:right-[2%] flex-col items-end text-paper" aria-hidden>
-                <span className="enter rotate-[-5deg] font-hand text-[26px] leading-none drop-shadow-[0_1px_6px_rgb(0_0_0/0.45)] sm:text-3xl" style={{ "--i": 4 } as React.CSSProperties}>
+          <FilmFrame
+            photo="couple"
+            position="62% 30%"
+            mobilePosition="44% 30%"
+            priority
+            aside={
+              <div className="enter relative w-[260px] rotate-[3deg] xl:w-[290px]" style={{ "--i": 2 } as React.CSSProperties}>
+                <div className="relative aspect-[1080/1250] overflow-hidden rounded-[6px] shadow-[0_40px_80px_-30px_rgb(0_0_0/0.7)]">
+                  <Image src="/lp/book-velvet.webp" alt={c.hero.titleStart + " " + c.hero.titleAccent} fill priority sizes="290px" className="origin-[46%_42%] scale-[1.13] object-cover object-top" />
+                </div>
+                <span className="absolute -bottom-9 left-2 rotate-[-4deg] font-hand text-2xl text-white/90" aria-hidden>
                   {c.hero.note}
                 </span>
-                <svg className="draw mr-[16%] -mt-0.5 h-14 w-20 drop-shadow-[0_1px_4px_rgb(0_0_0/0.4)]" viewBox="0 0 80 56" fill="none">
-                  <path d="M66 4 C 70 24, 52 42, 20 46" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" style={{ "--len": 90, "--d": 900 } as React.CSSProperties} />
-                  <path d="M29 38 L 19 46 L 30 52" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ "--len": 30, "--d": 1350 } as React.CSSProperties} />
-                </svg>
               </div>
+            }
+          >
+            <p className="enter text-sm text-white/75" style={{ "--i": 0 } as React.CSSProperties}>
+              {c.hero.eyebrow}
+            </p>
+            <h1 className="mt-3 max-w-[15ch] font-serif text-[44px] leading-[1.02] font-medium tracking-[-0.01em] text-balance text-white sm:text-6xl lg:text-[76px]">
+              {c.hero.titleStart} <span className="font-normal italic">{c.hero.titleAccent}</span>
+            </h1>
+            <Flourish className="mt-3 text-[rgb(255_255_255/0.6)]" />
+            <p className="mt-5 max-w-xl text-[17px] leading-relaxed text-white/85 sm:text-lg">{c.hero.lead}</p>
+            <div id="hero-cta" className="enter mt-7 flex flex-col gap-3 sm:flex-row" style={{ "--i": 2 } as React.CSSProperties}>
+              <TrackedLink href={wa} goal="contact" place="hero" className="btn btn-primary btn-lg h-14 text-[16px]">
+                <WhatsAppIcon className="size-5" /> {c.hero.cta}
+              </TrackedLink>
+              <TrackedLink href={start} goal="lead" place="hero" className={`${frameGhostBtn} h-14 text-[16px]`}>
+                {c.hero.cta2}
+              </TrackedLink>
             </div>
-
-            <div className="container-x relative z-10 -mt-24 lg:order-1 lg:mt-0 lg:px-0">
-              <div className="enter text-[11px] font-semibold tracking-[0.24em] text-wine uppercase" style={{ "--i": 0 } as React.CSSProperties}>
-                {c.hero.eyebrow}
-              </div>
-              <h1 className="enter mt-3 font-serif text-[44px] leading-[0.98] font-medium tracking-[-0.01em] text-ink sm:text-6xl lg:text-[76px]" style={{ "--i": 1 } as React.CSSProperties}>
-                {c.hero.titleStart} <em className="text-wine">{c.hero.titleAccent}</em>
-              </h1>
-              <p className="enter mt-5 max-w-xl text-[17px] leading-relaxed text-ink-soft sm:text-lg" style={{ "--i": 2 } as React.CSSProperties}>
-                {c.hero.lead}
-              </p>
-              <div id="hero-cta" className="enter mt-7 flex flex-col gap-3 sm:flex-row" style={{ "--i": 3 } as React.CSSProperties}>
-                <TrackedLink href={wa} goal="contact" place="hero" className="btn btn-primary btn-lg h-14 text-[16px]">
-                  <WhatsAppIcon className="size-5" /> {c.hero.cta}
-                </TrackedLink>
-                <TrackedLink href={start} goal="lead" place="hero" className="btn btn-outline btn-lg h-14 text-[16px]">
-                  {c.hero.cta2}
-                </TrackedLink>
-              </div>
-              <div className="enter mt-6 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-muted" style={{ "--i": 4 } as React.CSSProperties}>
-                {reviews.summary ? (
-                  <a href="#reviews" className="inline-flex items-center gap-1.5 text-ink-soft">
+            <ul className="enter mt-6 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm text-white/80" style={{ "--i": 3 } as React.CSSProperties}>
+              {reviews.summary ? (
+                <li>
+                  <a href="#reviews" className="inline-flex items-center gap-1.5 hover:text-white">
                     <Stars value={reviews.summary.average} className="size-3.5" />
                     <b className="font-semibold tabular-nums">{reviews.summary.average.toFixed(1).replace(".", ",")}</b>
                   </a>
-                ) : null}
-                {c.hero.facts.map((f, i) => (
-                  <span key={f} className="inline-flex items-center gap-3">
-                    {i > 0 || reviews.summary ? <span className="size-1 rounded-full bg-line" aria-hidden /> : null}
-                    {f}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
+                </li>
+              ) : null}
+              {c.hero.facts.map((f) => (
+                <li key={f}>{f}</li>
+              ))}
+            </ul>
+          </FilmFrame>
+        </div>
 
         {/* ─── ВОПРОСЫ БЕГУЩЕЙ СТРОКОЙ ─── */}
-        <section className="mt-14 overflow-hidden bg-[#2a0d12] py-10 text-paper lg:mt-0 sm:py-14" aria-label={c.questionsLabel(countQuestions(theme))}>
-          <div className="container-x text-[11px] font-semibold tracking-[0.24em] text-[#e3a6ae] uppercase">{c.questionsLabel(countQuestions(theme))}</div>
+        <section className="overflow-hidden bg-spine py-10 text-paper sm:py-14" aria-label={c.questionsLabel(countQuestions(theme))}>
+          <div className="container-x text-sm text-paper/70">{c.questionsLabel(countQuestions(theme))}</div>
           <div className="mt-6 space-y-4 sm:space-y-6">
             {rows.map((row, r) => (
               <div key={r} className="flex w-max">
@@ -176,8 +160,7 @@ export default async function LoveAdPage({ searchParams }: { searchParams: Promi
         <section className="below-fold py-20 sm:py-28">
           <div className="container-x">
             <div className="max-w-2xl">
-              <div className="eyebrow">{c.try.eyebrow}</div>
-              <h2 className="mt-3 font-serif text-[40px] leading-[1.02] font-medium tracking-tight sm:text-5xl">{c.try.title}</h2>
+                            <h2 className="font-serif text-[40px] leading-[1.02] font-medium tracking-tight sm:text-5xl">{c.try.title}</h2>
               <p className="mt-4 text-[17px] leading-relaxed text-ink-soft">{c.try.lead}</p>
             </div>
             <div className="mt-14">
@@ -197,7 +180,7 @@ export default async function LoveAdPage({ searchParams }: { searchParams: Promi
             </div>
             <div className="mt-12 flex justify-center lg:justify-start">
               <TrackedLink href={start} goal="lead" place="try" className="btn btn-dark btn-lg h-14 px-7 text-[16px]">
-                {c.try.cta} <ArrowRight className="size-5" />
+                {c.try.cta}
               </TrackedLink>
             </div>
           </div>
@@ -207,8 +190,7 @@ export default async function LoveAdPage({ searchParams }: { searchParams: Promi
         <section className="below-fold bg-ink py-20 text-paper sm:py-28">
           <div className="container-x grid items-center gap-12 lg:grid-cols-[0.8fr_1.2fr]">
             <div>
-              <div className="eyebrow text-[#e3a6ae]">{c.inside.eyebrow}</div>
-              <h2 className="mt-3 font-serif text-[40px] leading-[1.02] font-medium tracking-tight sm:text-5xl">{c.inside.title}</h2>
+              <h2 className=" font-serif text-[40px] leading-[1.02] font-medium tracking-tight sm:text-5xl">{c.inside.title}</h2>
               <p className="mt-5 text-[17px] leading-relaxed text-paper/70">{c.inside.text}</p>
             </div>
             <div>
@@ -225,7 +207,7 @@ export default async function LoveAdPage({ searchParams }: { searchParams: Promi
         <section className="below-fold py-20 sm:py-28">
           <div className="container-x grid items-center gap-12 lg:grid-cols-2 lg:gap-20">
             <div className="relative">
-              <div className="relative aspect-[1080/1350] overflow-hidden rounded-[24px]">
+              <div className="relative aspect-[1080/1350] overflow-hidden rounded-[6px] shadow-book">
                 <Image src="/lp/polaroids.webp" alt="" fill sizes="(min-width: 1024px) 540px, 100vw" className="object-cover" />
               </div>
               <span className="absolute -bottom-5 left-6 rotate-[-4deg] rounded-sm bg-[#fdf6c9] px-4 py-2 font-hand text-2xl text-ink shadow-[0_8px_16px_-8px_rgb(0_0_0/0.35)]" aria-hidden>
@@ -233,8 +215,7 @@ export default async function LoveAdPage({ searchParams }: { searchParams: Promi
               </span>
             </div>
             <div>
-              <div className="eyebrow">{c.photos.eyebrow}</div>
-              <h2 className="mt-3 font-serif text-[40px] leading-[1.02] font-medium tracking-tight sm:text-5xl">{c.photos.title}</h2>
+                            <h2 className="font-serif text-[40px] leading-[1.02] font-medium tracking-tight sm:text-5xl">{c.photos.title}</h2>
               <p className="mt-5 text-[17px] leading-relaxed text-ink-soft">{c.photos.text}</p>
             </div>
           </div>
@@ -243,8 +224,7 @@ export default async function LoveAdPage({ searchParams }: { searchParams: Promi
         {/* ─── КАК ЭТО ПРОИСХОДИТ ─── */}
         <section className="below-fold border-y border-line bg-cream/60 py-20 sm:py-28">
           <div className="container-x">
-            <div className="eyebrow">{c.how.eyebrow}</div>
-            <h2 className="mt-3 max-w-2xl font-serif text-[40px] leading-[1.02] font-medium tracking-tight sm:text-5xl">{c.how.title}</h2>
+                        <h2 className="max-w-2xl font-serif text-[40px] leading-[1.02] font-medium tracking-tight sm:text-5xl">{c.how.title}</h2>
             <ol className="mt-12 grid gap-10 md:grid-cols-3 md:gap-8">
               {c.how.steps.map((s, i) => (
                 <li key={s.title} className="border-t border-ink/15 pt-5">
@@ -283,7 +263,7 @@ export default async function LoveAdPage({ searchParams }: { searchParams: Promi
                   <div className="mt-8 rounded-xl bg-rose/60 px-5 py-4 text-left">
                     <div className="font-serif text-xl">{c.price.deadline}</div>
                     <TrackedLink href={wa} goal="contact" place="deadline" className="mt-1 inline-flex items-center gap-1.5 text-[15px] font-medium text-wine underline decoration-wine/30 underline-offset-4">
-                      {c.price.deadlineCta} <ArrowRight className="size-4" />
+                      {c.price.deadlineCta}
                     </TrackedLink>
                   </div>
                 </div>
@@ -302,35 +282,31 @@ export default async function LoveAdPage({ searchParams }: { searchParams: Promi
           </div>
         </section>
 
-        {/* ─── ФИНАЛ ─── */}
-        <section id="final" className="relative overflow-hidden bg-[#2a0d12] py-20 text-paper sm:py-28">
-          <div className="pointer-events-none absolute -top-10 -right-24 w-[300px] rotate-[14deg] opacity-30 sm:w-[420px] sm:opacity-40" aria-hidden>
-            <Image src="/lp/book-velvet.webp" alt="" width={420} height={607} className="rounded-md" />
+        {/* ─── ФИНАЛ: второй кадр ─── */}
+        <FilmFrame id="final" photo="sunsetwalk" position="50% 55%" size="band">
+          <h2 className="max-w-2xl font-serif text-[44px] leading-[1] font-medium tracking-tight text-balance text-white sm:text-6xl">{c.final.title}</h2>
+          <Flourish className="mt-3 text-[rgb(255_255_255/0.55)]" />
+          <p className="mt-5 max-w-lg text-[17px] leading-relaxed text-white/85">{c.final.text}</p>
+          <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+            <TrackedLink href={wa} goal="contact" place="final" className="btn btn-lg h-14 bg-[#25d366] text-[16px] font-semibold text-[#0b2e17] hover:bg-[#2be070]">
+              <WhatsAppIcon className="size-5" /> {c.final.cta}
+            </TrackedLink>
+            <TrackedLink href={start} goal="lead" place="final" className={`${frameGhostBtn} h-14 text-[16px]`}>
+              {c.final.cta2}
+            </TrackedLink>
           </div>
-          <div className="container-x relative">
-            <h2 className="max-w-2xl font-serif text-[44px] leading-[1] font-medium tracking-tight sm:text-6xl">{c.final.title}</h2>
-            <p className="mt-5 max-w-lg text-[17px] leading-relaxed text-paper/75">{c.final.text}</p>
-            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-              <TrackedLink href={wa} goal="contact" place="final" className="btn btn-lg h-14 bg-[#25d366] text-[16px] font-semibold text-[#0b2e17] hover:bg-[#2be070]">
-                <WhatsAppIcon className="size-5" /> {c.final.cta}
-              </TrackedLink>
-              <TrackedLink href={start} goal="lead" place="final" className="btn btn-lg h-14 border border-white/25 text-[16px] text-paper hover:bg-white/10">
-                {c.final.cta2} <ArrowRight className="size-5" />
-              </TrackedLink>
-            </div>
-          </div>
-        </section>
+        </FilmFrame>
       </main>
 
       {/* Подвал без навигации: только то, что требует закон и правила рекламы Meta. */}
-      <footer className="bg-[#1d090c] pt-8 pb-28 text-xs text-paper/45 md:pb-8">
+      <footer className="bg-spine pt-8 pb-28 text-xs text-[rgb(255_255_255/0.55)] md:pb-8">
         <div className="container-x flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <span>
-            © {new Date().getFullYear()} {site.company.legalName} · {m.common.footer.bin} {site.company.bin}
+            © {new Date().getFullYear()} {site.company.legalName}. {m.common.footer.bin} {site.company.bin}
           </span>
           <span className="flex gap-5">
-            <Link href="/offer" className="hover:text-paper">{m.common.footer.offer}</Link>
-            <Link href="/privacy" className="hover:text-paper">{m.common.footer.privacy}</Link>
+            <Link href="/offer" className="hover:text-white">{m.common.footer.offer}</Link>
+            <Link href="/privacy" className="hover:text-white">{m.common.footer.privacy}</Link>
           </span>
         </div>
       </footer>

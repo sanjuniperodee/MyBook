@@ -50,9 +50,9 @@ export function TelephonyForm({
               <SecretInput name="zadarmaSecret" label="Secret" saved={zadarma.secret} fromEnv={zadarma.secretEnv} />
             </div>
             <CopyField label="Адрес для уведомлений Zadarma" value={zadarmaUrl} />
-            <div className="grid gap-3 rounded-xl border border-line p-3 sm:grid-cols-[180px_1fr] sm:items-end">
+            <div className="grid gap-3 rounded-[10px] border border-line p-3 sm:grid-cols-[180px_1fr] sm:items-end">
               <label className="block">
-                <span className="mb-1 block text-xs text-muted">Номер АТС (для веб-телефона)</span>
+                <span className="label">Номер АТС (для веб-телефона)</span>
                 <input name="pbxId" defaultValue={zadarma.pbxId} disabled={zadarma.pbxIdEnv} placeholder="например, 12345" className="input h-10 text-sm" inputMode="numeric" />
               </label>
               <label className="flex items-start gap-2 text-sm">
@@ -68,7 +68,7 @@ export function TelephonyForm({
         {p === "pbx" ? (
           <div className="space-y-3 text-sm text-ink-soft">
             <p>Любая АТС (Asterisk, FreePBX, Mango, Beeline и др. через их вебхуки) может присылать события звонков POST-запросом с JSON:</p>
-            <pre className="overflow-x-auto rounded-xl bg-[#1f1b18] p-3 text-xs text-[#f3e9dc]">{`{
+            <pre className="overflow-x-auto rounded-[10px] bg-ink p-3 text-xs text-white">{`{
   "event": "start" | "answer" | "end" | "record",
   "callId": "уникальный id звонка",
   "direction": "in" | "out",

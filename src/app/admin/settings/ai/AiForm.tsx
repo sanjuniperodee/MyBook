@@ -49,7 +49,7 @@ export function AiForm({
             <Choice key={id} active={p === id}>
               <input type="radio" name="provider" value={id} checked={p === id} onChange={() => setP(id)} disabled={providerFromEnv} className="accent-wine" />
               {aiProviders[id].title}
-              {ready(id) ? <CheckCircle2 className="size-3.5 text-emerald-700" aria-label="ключ сохранён" /> : null}
+              {ready(id) ? <CheckCircle2 className="size-3.5 text-success" aria-label="ключ сохранён" /> : null}
             </Choice>
           ))}
           {providerFromEnv ? <input type="hidden" name="provider" value={provider} /> : null}
@@ -69,17 +69,17 @@ export function AiForm({
           <SecretInput name="aiKey" label={p === "custom" ? "Ключ API (необязательно)" : `Ключ ${def.label} API`} saved={saved.apiKey} fromEnv={saved.apiKeyEnv} placeholder={def.keyPlaceholder} />
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block">
-              <span className="mb-1 block text-xs text-muted">Модель{def.defaultModel ? " (пусто — по умолчанию)" : ""}</span>
+              <span className="label">Модель{def.defaultModel ? " (пусто — по умолчанию)" : ""}</span>
               <input name="aiModel" defaultValue={saved.model} placeholder={def.defaultModel || "например, qwen/qwen3-235b-a22b"} className="input h-10 text-sm" maxLength={100} />
             </label>
             <label className="block">
-              <span className="mb-1 block text-xs text-muted">{p === "custom" ? "Адрес API" : "Адрес API (обычно не меняется)"}</span>
+              <span className="label">{p === "custom" ? "Адрес API" : "Адрес API (обычно не меняется)"}</span>
               <input name="aiBaseUrl" defaultValue={saved.baseUrl} disabled={saved.baseUrlEnv} placeholder={def.defaultBaseUrl || "https://…/v1"} className="input h-10 text-sm" />
             </label>
           </div>
         </div>
         <label className="block">
-          <span className="mb-1 block text-xs text-muted">База знаний для ответов: правила, сроки, ответы на частые вопросы (тарифы и цены AI берёт с сайта сам)</span>
+          <span className="label">База знаний для ответов: правила, сроки, ответы на частые вопросы (тарифы и цены AI берёт с сайта сам)</span>
           <textarea name="knowledge" defaultValue={knowledge} rows={5} maxLength={6000} className="input py-2 text-sm" placeholder="Например: скидки больше 15% согласовываем с руководителем; печать 5–7 рабочих дней; можно добавить до 200 фото…" />
         </label>
         <label className="flex items-center gap-2 text-sm">

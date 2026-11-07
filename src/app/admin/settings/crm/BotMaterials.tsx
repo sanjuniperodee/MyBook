@@ -74,7 +74,7 @@ export function BotMaterials({ initial }: { initial: BotMaterial[] }) {
   const count = (k: BotMaterial["kind"]) => items.filter((m) => m.on && m.kind === k).length;
 
   return (
-    <section className="space-y-3 rounded-xl border border-line p-3">
+    <section className="space-y-3 rounded-[10px] border border-line p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="flex items-center gap-2 text-sm font-semibold">
           <Images className="size-4" /> Материалы для клиента
@@ -88,13 +88,13 @@ export function BotMaterials({ initial }: { initial: BotMaterial[] }) {
         альбомом, видео, пример книги на языке клиента, потом срок, цена и вопрос. Если менеджер уже присылал файлы в этом чате, бот их не повторяет. Подпись видит клиент; «что на файле» — только
         бот, чтобы понимать, что он отправил.
       </p>
-      {msg ? <p className={cn("text-xs", msg.ok ? "text-emerald-700" : "text-red-700")}>{msg.text}</p> : null}
+      {msg ? <p className={cn("text-xs", msg.ok ? "text-success" : "text-danger")}>{msg.text}</p> : null}
 
       {items.length ? (
         <ul className="divide-y divide-line rounded-lg border border-line bg-white">
           {items.map((m, i) => (
             <li key={m.id} className={cn("flex gap-3 p-2.5", !m.on && "opacity-50")}>
-              <a href={`/api/admin/bot/materials/${m.id}`} target="_blank" rel="noreferrer" className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-lg bg-cream" title="Открыть">
+              <a href={`/api/admin/bot/materials/${m.id}`} target="_blank" rel="noreferrer" className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-lg bg-sunken" title="Открыть">
                 {m.kind === "image" ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={`/api/admin/bot/materials/${m.id}`} alt="" className="size-full object-cover" loading="lazy" />
@@ -138,7 +138,7 @@ export function BotMaterials({ initial }: { initial: BotMaterial[] }) {
                 </button>
                 <button
                   type="button"
-                  className="mt-auto text-muted hover:text-red-700"
+                  className="mt-auto text-muted hover:text-danger"
                   disabled={pending}
                   onClick={() =>
                     start(async () => {

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ToolHeader } from "../ToolHeader";
 import { requireUser } from "@/server/auth";
 import { getAccessibleBook, viewerOf } from "@/server/books";
 import { container } from "@/server/container";
@@ -85,7 +86,7 @@ export default async function PagesPage({ params }: { params: Promise<{ id: stri
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10">
-      <h1 className="mb-5 font-serif text-3xl font-medium sm:mb-8 sm:text-5xl">{t.title}</h1>
+      <ToolHeader title={t.title} description={m.books.tools.pages} />
       <PagesEditor
         bookId={book.id}
         format={format.id}

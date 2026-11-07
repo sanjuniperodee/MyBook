@@ -108,9 +108,9 @@ export function QuestionsEditor(props: QuestionsEditorProps) {
 function PreviewHeading({ bookId, title, exact, onLeave }: { bookId: string; title: string; exact: string; onLeave: () => void }) {
   return (
     <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-      <div className="text-xs font-medium tracking-wider text-muted uppercase">{title}</div>
-      <Link href={`/books/${bookId}/preview`} onClick={onLeave} className="inline-flex items-center gap-1 text-xs text-wine hover:underline">
-        {exact} <ArrowRight className="size-3" />
+      <h2 className="text-sm font-medium text-ink-soft">{title}</h2>
+      <Link href={`/books/${bookId}/preview`} onClick={onLeave} className="inline-flex min-h-8 items-center gap-1 text-xs text-wine hover:underline">
+        {exact}
       </Link>
     </div>
   );
@@ -519,8 +519,8 @@ function EditorBody({
   const lastChapter = chapters[chapters.length - 1];
 
   return (
-    <div className={cn("mx-auto px-4 pt-4 pb-28 sm:px-6 sm:py-6 lg:py-8", focus ? "max-w-3xl" : "max-w-7xl")}>
-      <div className={cn("gap-8 xl:gap-10", !focus && "lg:grid lg:grid-cols-[250px_minmax(0,1fr)] xl:grid-cols-[250px_minmax(0,1fr)_280px]")}>
+    <div className={cn("mx-auto px-4 pt-3 pb-28 sm:px-6 sm:py-6 lg:py-8", focus ? "max-w-3xl" : "max-w-7xl")}>
+      <div className={cn("gap-8 xl:gap-10", !focus && "lg:grid lg:grid-cols-[240px_minmax(0,1fr)] xl:grid-cols-[240px_minmax(0,1fr)_300px]")}>
         {/* Навигация по главам */}
         {!focus ? (
           <aside className="hidden lg:block">
@@ -562,44 +562,44 @@ function EditorBody({
             <ChapterStart {...src} chapterKey={group.key} fallbackTitle={chapterTitle} editable={editable} onAction={(action) => onChapterStart(group.key, action)} />
           ) : null}
           {q && group ? (
-            <article data-help={`question:${q.id}`} className="relative overflow-hidden rounded-[28px] border border-line/70 bg-white shadow-soft">
+            <article data-help={`question:${q.id}`} className="relative overflow-hidden rounded-[14px] border border-line bg-white max-sm:-mx-1">
               {/* Прогресс по главе — тонкая линия сверху */}
-              <div className="absolute inset-x-0 top-0 h-0.5 bg-cream" aria-hidden>
-                <div className="h-full bg-wine/70 transition-[width] duration-500 ease-out" style={{ width: `${((posInChapter + 1) / group.items.length) * 100}%` }} />
+              <div className="absolute inset-x-0 top-0 h-0.5 bg-line" aria-hidden>
+                <div className="h-full bg-wine transition-[width] duration-500 ease-out" style={{ width: `${((posInChapter + 1) / group.items.length) * 100}%` }} />
               </div>
-              <div className="flex items-center justify-between border-b border-line/60 px-4 py-2.5 text-xs text-muted sm:px-10 sm:py-3">
+              <div className="flex min-h-11 items-center justify-between gap-3 border-b border-line px-4 text-xs text-muted sm:px-6">
                 <span>{blank ? t.blank.sectionOf(posInChapter + 1, group.items.length) : t.questionOf(posInChapter + 1, group.items.length)}</span>
                 <SaveIndicator status={status} error={error} className="text-xs" />
               </div>
 
-              <div className="px-4 pt-5 pb-4 sm:px-10 sm:pt-10 sm:pb-6">
+              <div className="mx-auto max-w-[42rem] px-4 pt-6 pb-4 sm:px-8 sm:pt-12 sm:pb-6">
                 {blank ? (
                   // key — чтобы поля раздела (в том числе свёрнутая подсказка) не переносились на другой раздел
                   <SectionFields key={q.id} ref={titleField} question={q} language={book.language} typography={typography} editable={editable} onPatch={(patch) => patchQuestion(q.id, patch)} />
                 ) : (
                   <>
                     {/* key — чтобы при переходе к другому вопросу формулировка мягко проявлялась */}
-                    <h1 key={q.id} lang={book.language} className="enter font-serif text-2xl leading-tight font-medium text-ink sm:text-[38px]">
+                    <h1 key={q.id} lang={book.language} className="enter font-serif text-[26px] leading-[1.15] font-medium text-balance text-ink sm:text-[36px]">
                       {labelOf(q)}
                     </h1>
                     {q.hint ? (
-                      <p key={`h-${q.id}`} lang={book.language} style={{ "--i": 1 } as React.CSSProperties} className="enter mt-3 text-[15px] leading-relaxed text-muted">
+                      <p key={`h-${q.id}`} lang={book.language} style={{ "--i": 1 } as React.CSSProperties} className="enter mt-3 text-[15px] leading-relaxed text-pretty text-muted">
                         {q.hint}
                       </p>
                     ) : null}
                   </>
                 )}
-                <button className="mt-4 inline-flex items-center gap-1.5 py-1 text-sm text-wine hover:underline max-sm:py-2" onClick={() => setShowTips((v) => !v)}>
+                <button className="mt-3 -ml-1 inline-flex min-h-11 items-center gap-1.5 rounded-lg px-1 text-sm text-wine hover:underline sm:min-h-9" aria-expanded={showTips} onClick={() => setShowTips((v) => !v)}>
                   <Lightbulb className="size-4" /> {t.whereToStart}
                   <ChevronDown className={cn("size-3.5 transition", showTips && "rotate-180")} />
                 </button>
                 {showTips ? (
                   <ul className="mt-3 grid gap-2 sm:grid-cols-2">
                     {kind === "autobiography" ? (
-                      <li className="enter rounded-2xl bg-rose/50 px-4 py-3 text-sm leading-snug text-ink-soft sm:col-span-2">{t.life.recordedNote}</li>
+                      <li className="enter rounded-[10px] bg-rose px-4 py-3 text-sm leading-snug text-ink-soft sm:col-span-2">{t.life.recordedNote}</li>
                     ) : null}
                     {tips.map((tip, i) => (
-                      <li key={tip} style={{ "--i": i } as React.CSSProperties} className="enter rounded-2xl bg-cream/70 px-4 py-3 text-sm leading-snug text-ink-soft">
+                      <li key={tip} style={{ "--i": i } as React.CSSProperties} className="enter rounded-[10px] bg-sunken px-4 py-3 text-sm leading-snug text-ink-soft">
                         {tip}
                       </li>
                     ))}
@@ -698,9 +698,9 @@ function EditorBody({
                 onAdd={() => (blank ? void addSection(q.chapter, q.id) : setAdding((v) => !v))}
                 onRemove={removeQuestion}
               />
-              {dictation.error ? <p className="px-4 pb-3 text-sm text-red-700 sm:px-10">{dictation.error}</p> : null}
+              {dictation.error ? <p role="alert" className="px-4 pb-3 text-sm text-danger sm:px-6">{dictation.error}</p> : null}
               {adding && !blank ? (
-                <div className="border-t border-line/60 p-4 sm:px-8">
+                <div className="border-t border-line p-4 sm:px-6">
                   <AddQuestion onAdd={addQuestion} onCancel={() => setAdding(false)} />
                 </div>
               ) : null}
@@ -741,12 +741,12 @@ function EditorBody({
         {/* Превью страницы */}
         {!focus ? (
           <aside className="hidden xl:block">
-            <div className="sticky top-20 space-y-4">
+            <div className="sticky top-20 space-y-3">
               {previewProps ? (
                 <>
                   <PreviewHeading bookId={book.id} title={t.inBook} exact={t.inBookExact} onLeave={() => void flush()} />
                   {editable ? <PreviewIntro blank={blank} /> : null}
-                  <PreviewPane {...previewProps} className="max-h-[calc(100dvh-16rem)] overflow-y-auto rounded-2xl bg-cream/60 p-3" />
+                  <PreviewPane {...previewProps} className="max-h-[calc(100dvh-15rem)] overflow-y-auto rounded-[14px] bg-sunken p-3" />
                 </>
               ) : null}
               {blank ? (
@@ -766,7 +766,7 @@ function EditorBody({
               <button
                 onClick={() => goTo(index - 1)}
                 disabled={!prev}
-                className="flex size-11 shrink-0 items-center justify-center rounded-full border border-line bg-white disabled:opacity-35"
+                className="flex size-11 shrink-0 items-center justify-center rounded-[10px] border border-line bg-white disabled:opacity-35"
                 aria-label={t.prev}
               >
                 <ArrowLeft className="size-5" />
@@ -774,29 +774,30 @@ function EditorBody({
               {dictateControl("shrink-0", true)}
               <MobileBarButton icon={<ImagePlus className="size-[18px]" />} label={t.chrome.photoBtn} onClick={() => setPicker(true)} />
               {next ? (
-                <button onClick={() => goTo(index + 1)} className="flex h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-full bg-ink px-4 text-[15px] font-medium text-white active:bg-ink-soft">
+                <button onClick={() => goTo(index + 1)} className="flex h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-[10px] bg-ink px-3 text-[15px] font-medium text-white active:bg-ink-soft">
                   <span className="truncate">{blank ? t.blank.nextSection : q.answer.trim() ? t.next : t.skip}</span>
-                  <ArrowRight className="size-4 shrink-0" />
+                  {/* На узком телефоне стрелку убираем: иначе «Следующий» обрезается до «Следующ…». */}
+                  <ArrowRight className="size-4 shrink-0 max-[400px]:hidden" aria-hidden />
                 </button>
               ) : blank ? (
-                <button disabled={busy} onClick={() => void addSection(q.chapter, q.id)} className="flex h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-full bg-ink px-4 text-[15px] font-medium text-white active:bg-ink-soft disabled:opacity-60">
+                <button disabled={busy} onClick={() => void addSection(q.chapter, q.id)} className="flex h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-[10px] bg-ink px-4 text-[15px] font-medium text-white active:bg-ink-soft disabled:opacity-60">
                   <Plus className="size-4 shrink-0" />
                   <span className="truncate">{t.blank.addSection}</span>
                 </button>
               ) : (
-                <Link href={`/books/${book.id}/preview`} onClick={() => void flush()} className="flex h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-full bg-wine px-4 text-[15px] font-medium text-white">
+                <Link href={`/books/${book.id}/preview`} onClick={() => void flush()} className="flex h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-[10px] bg-wine px-4 text-[15px] font-medium text-white">
                   <span className="truncate">{t.toPreview}</span>
                   <ArrowRight className="size-4 shrink-0" />
                 </Link>
               )}
             </>
           ) : emptyMode === "noChapters" ? (
-            <button disabled={busy} onClick={() => navActions?.addChapter("")} className="flex h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-full bg-ink px-4 text-[15px] font-medium text-white active:bg-ink-soft disabled:opacity-60">
+            <button disabled={busy} onClick={() => navActions?.addChapter("")} className="flex h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-[10px] bg-ink px-4 text-[15px] font-medium text-white active:bg-ink-soft disabled:opacity-60">
               <Plus className="size-4 shrink-0" />
               <span className="truncate">{t.nav.newChapter}</span>
             </button>
           ) : lastChapter ? (
-            <button disabled={busy} onClick={() => void addSection(lastChapter.key)} className="flex h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-full bg-ink px-4 text-[15px] font-medium text-white active:bg-ink-soft disabled:opacity-60">
+            <button disabled={busy} onClick={() => void addSection(lastChapter.key)} className="flex h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-[10px] bg-ink px-4 text-[15px] font-medium text-white active:bg-ink-soft disabled:opacity-60">
               <Plus className="size-4 shrink-0" />
               <span className="truncate">{t.empty.noSections.create}</span>
             </button>
@@ -804,16 +805,16 @@ function EditorBody({
         </MobileBar>
       ) : q && !editable ? (
         <MobileBar>
-          <button onClick={() => goTo(index - 1)} disabled={!prev} className="flex size-11 shrink-0 items-center justify-center rounded-full border border-line bg-white disabled:opacity-35" aria-label={t.prev}>
+          <button onClick={() => goTo(index - 1)} disabled={!prev} className="flex size-11 shrink-0 items-center justify-center rounded-[10px] border border-line bg-white disabled:opacity-35" aria-label={t.prev}>
             <ArrowLeft className="size-5" />
           </button>
           {next ? (
-            <button onClick={() => goTo(index + 1)} className="flex h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-full bg-ink px-4 text-[15px] font-medium text-white active:bg-ink-soft">
+            <button onClick={() => goTo(index + 1)} className="flex h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-[10px] bg-ink px-4 text-[15px] font-medium text-white active:bg-ink-soft">
               <span className="truncate">{blank ? t.blank.nextSection : t.next}</span>
               <ArrowRight className="size-4 shrink-0" />
             </button>
           ) : (
-            <Link href={`/books/${book.id}/preview`} className="flex h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-full bg-wine px-4 text-[15px] font-medium text-white">
+            <Link href={`/books/${book.id}/preview`} className="flex h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-[10px] bg-wine px-4 text-[15px] font-medium text-white">
               <span className="truncate">{t.toPreview}</span>
               <ArrowRight className="size-4 shrink-0" />
             </Link>

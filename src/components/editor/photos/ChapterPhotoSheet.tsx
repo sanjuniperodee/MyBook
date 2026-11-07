@@ -213,7 +213,7 @@ export function ChapterPhotoSheet({
     >
       <input ref={input} type="file" accept={PHOTO_ACCEPT} multiple className="hidden" onChange={(e) => void upload([...(e.target.files ?? [])])} />
       {ed.error ? <p className="mb-3 text-sm text-wine">{cp.error}</p> : null}
-      {ed.note ? <p className="mb-3 text-sm text-amber-800">{ed.note}</p> : null}
+      {ed.note ? <p className="mb-3 text-sm text-warning">{ed.note}</p> : null}
 
       {chooser && (chooser === "after" || openerPhoto) ? (
         chooserView
@@ -251,7 +251,7 @@ export function ChapterPhotoSheet({
                       type="button"
                       disabled={!book.editable}
                       onClick={() => openUpload("opener")}
-                      className={cn("flex items-center justify-center border-2 border-dashed border-line bg-cream/40 text-muted", frame.mask === "circle" ? "rounded-full" : frame.mask === "arch" ? "rounded-t-full" : "rounded-lg")}
+                      className={cn("flex items-center justify-center border-2 border-dashed border-line bg-sunken text-muted", frame.mask === "circle" ? "rounded-full" : frame.mask === "arch" ? "rounded-t-full" : "rounded-lg")}
                       style={{ width: frameW, aspectRatio: String(frame.ratio) }}
                       aria-label={cp.upload}
                     >
@@ -261,7 +261,7 @@ export function ChapterPhotoSheet({
                 </div>
               </div>
               {printedPage !== undefined ? (
-                <div className="mt-3 flex items-center gap-3 rounded-xl bg-cream/50 p-2.5 text-sm">
+                <div className="mt-3 flex items-center gap-3 rounded-xl bg-sunken p-2.5 text-sm">
                   {printedPage ? (
                     // eslint-disable-next-line @next/next/no-img-element -- страница из сборки книги
                     <img src={printedPage} alt="" className="w-14 shrink-0 rounded-sm shadow-sm ring-1 ring-line" />
@@ -278,7 +278,7 @@ export function ChapterPhotoSheet({
                 <div className="mt-3 space-y-3">
                   <p className="text-sm text-muted">{cp.hint}</p>
                   <ZoomSlider value={shown.zoom} disabled={!book.editable} onChange={(zoom) => setCrop({ id: openerPhoto.id, value: { ...shown, zoom } })} onCommit={() => void ed.edit(openerPhoto.id, { crop: { ...shown } })} />
-                  {lowResIn(openerPhoto, frame, shown.zoom) ? <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">{cp.lowRes}</p> : null}
+                  {lowResIn(openerPhoto, frame, shown.zoom) ? <p className="rounded-xl bg-warning-bg px-3 py-2 text-sm text-warning">{cp.lowRes}</p> : null}
                   {opener?.auto ? (
                     <button type="button" className="text-left text-sm text-wine underline underline-offset-2" onClick={() => setChooser("opener")}>
                       {cp.legacy}
@@ -323,7 +323,7 @@ export function ChapterPhotoSheet({
               )}
             </section>
           ) : (
-            <section className="rounded-2xl bg-cream/60 p-4 text-sm">
+            <section className="rounded-2xl bg-sunken p-4 text-sm">
               <p className="leading-relaxed text-ink-soft">{cp.noOpenerDesign(designName, photoDesigns)}</p>
               {onChangeDesign ? (
                 <button type="button" className="btn btn-outline btn-sm mt-3 min-h-11" onClick={onChangeDesign}>

@@ -53,6 +53,6 @@ export const PATCH = mobile(async (req, { params }: { params: Promise<{ id: stri
 export const DELETE = mobile(async (req, { params }: { params: Promise<{ id: string }> }) => {
   await apiStaff(req);
   const { id } = idParams(await params, "id");
-  await deleteTaskAction(id);
-  return NextResponse.json({ ok: true });
+  const r = await deleteTaskAction(id);
+  return r.error ? NextResponse.json({ error: r.error }, { status: 400 }) : NextResponse.json({ ok: true });
 });

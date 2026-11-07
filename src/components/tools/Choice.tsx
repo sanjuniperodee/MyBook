@@ -16,7 +16,7 @@ export function Choice<T extends string>({ options, value, onChange, label, clas
           aria-checked={value === o.id}
           onClick={() => onChange(o.id)}
           className={cn(
-            "rounded-full border px-4 py-2 text-sm transition",
+            "rounded-lg border px-4 py-2 text-sm transition",
             value === o.id ? "border-wine bg-wine text-white shadow-[0_6px_16px_-8px_rgb(122_31_43/0.7)]" : "border-line bg-white text-ink-soft hover:border-ink/30",
           )}
         >

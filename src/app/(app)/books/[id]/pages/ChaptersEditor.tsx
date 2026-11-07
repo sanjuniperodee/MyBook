@@ -76,7 +76,7 @@ export function ChaptersEditor({
         {rows.map(({ c, removed, number, into, count }) => {
           const s = lines[c.key];
           return (
-            <li key={c.key} className={cn("rounded-2xl p-3 ring-1 transition", removed ? "bg-cream/60 ring-line/60" : "bg-white ring-line")}>
+            <li key={c.key} className={cn("rounded-2xl p-3 ring-1 transition", removed ? "bg-sunken ring-line/60" : "bg-white ring-line")}>
               <div className="flex items-center gap-2">
                 <span className="w-7 shrink-0 text-right text-sm text-muted tabular-nums">{number ? `${number}.` : "—"}</span>
                 {blank ? <span className="min-w-0 flex-1 truncate py-2 text-sm font-medium">{s?.title?.trim() || c.label}</span> : null}
@@ -207,14 +207,14 @@ export function ChapterPhotoButton({ status, count, onClick }: { status: Chapter
         // eslint-disable-next-line @next/next/no-img-element -- миниатюра фото главы
         <img src={photoUrl(status.photoId)} alt="" className="size-8 shrink-0 rounded-md object-cover ring-1 ring-line" />
       ) : (
-        <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-md", status.kind === "needed" ? "border border-dashed border-amber-500 bg-amber-50 text-amber-700" : "bg-cream text-muted")}>
+        <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-md", status.kind === "needed" ? "border border-dashed border-amber-500 bg-warning-bg text-warning" : "bg-cream text-muted")}>
           <ImagePlus className="size-4" aria-hidden />
         </span>
       )}
       <span>{pp.rowBtn(count)}</span>
       {status.kind === "noDesign" ? <span className="font-normal text-muted">· {pp.rowNoOpener}</span> : null}
       {status.kind === "none" ? <span className="font-normal text-muted">· {pp.rowNoneChosen}</span> : null}
-      {status.kind === "needed" ? <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-900">{m.editor.chapterStart.choose}</span> : null}
+      {status.kind === "needed" ? <span className="badge badge-warning">{m.editor.chapterStart.choose}</span> : null}
     </button>
   );
 }

@@ -61,8 +61,10 @@ export async function sendMessageAction(conversationId: string, text: string, ov
 export async function markReadAction(conversationId: string) {
   const staff = await assertStaff("chats.view");
   const conv = await loadConv(staff, conversationId);
-  // Ничей диалог менеджер только смотрит: «прочитано» за ответственного не ставит.
-  if (conv.unread && canWork(staff, conv.assigneeId)) await container().messaging.chats.markRead(conv.id);
+  // «Прочитано» ставит тот, кто ведёт диалог; руководитель, открывший чужой чат, счётчик менеджера не сбрасывает.
+  // Ничей — тот, кто может его взять (менеджер «только свои» ничей только смотрит).
+  const reader = conv.assigneeId ? conv.assigneeId === staff.user.id : canWork(staff, null);
+  if (conv.unread && reader) await container().messaging.chats.markRead(conv.id);
 }
 
 export async function assignConversationAction(conversationId: string, userId: string | null) {

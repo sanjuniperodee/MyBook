@@ -9,12 +9,21 @@ import { sanitizeSeller } from "@/config/site";
 import { admin } from "@/i18n/admin";
 import { BAD_FORM, textForm, uuid } from "@/server/input";
 import { channels } from "@/shared/domain/channels";
+import { zonedDay } from "@/shared/domain/time";
 
 export type LinkState = { ok?: string; error?: string; slug?: string };
 
 const spendSchema = z.object({
   channel: z.string().refine((c) => c in channels, "Выберите канал"),
-  day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Укажите день"),
+  day: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Укажите день")
+    // Настоящая дата (не 31 февраля) и не из будущего: расход наперёд исказил бы ROMI.
+    .refine((d) => {
+      const t = Date.parse(`${d}T00:00:00Z`);
+      return !Number.isNaN(t) && new Date(t).toISOString().slice(0, 10) === d;
+    }, "Такой даты нет")
+    .refine((d) => d <= zonedDay(new Date()), "Расход — за прошедший день или сегодня"),
   amount: z.coerce.number().int("Сумма — целым числом").min(1, "Сумма — больше нуля").max(100_000_000),
   note: z.string().trim().max(120).default(""),
 });

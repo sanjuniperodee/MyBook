@@ -118,7 +118,7 @@ export function GallerySheet({ data, on, onClose, layer }: { data: PlaceData; on
     >
       <input ref={input} type="file" accept={PHOTO_ACCEPT} multiple className="hidden" onChange={(e) => void upload([...(e.target.files ?? [])])} />
       {ed.error ? <p className="mb-3 text-sm text-wine">{cp.error}</p> : null}
-      {ed.note ? <p className="mb-3 text-sm text-amber-800">{ed.note}</p> : null}
+      {ed.note ? <p className="mb-3 text-sm text-warning">{ed.note}</p> : null}
 
       {choosing ? (
         <PhotoChooser
@@ -138,7 +138,7 @@ export function GallerySheet({ data, on, onClose, layer }: { data: PlaceData; on
       ) : (
         <>
           <p className="text-sm leading-relaxed text-ink-soft">{g.text}</p>
-          {noChapters ? <p className="mt-2 rounded-xl bg-cream/60 px-3 py-2 text-sm text-ink-soft">{book.blank ? g.noChaptersBlank : g.noChapters}</p> : null}
+          {noChapters ? <p className="mt-2 rounded-xl bg-sunken px-3 py-2 text-sm text-ink-soft">{book.blank ? g.noChaptersBlank : g.noChapters}</p> : null}
 
           <label className="mt-4 block">
             <span className="label">{g.field}</span>

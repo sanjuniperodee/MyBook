@@ -8,7 +8,8 @@ export interface ConversationRepository {
   findById(id: string): Promise<Conversation | null>;
   findByChat(channel: string, channelId: string, chatId: string): Promise<Conversation | null>;
   /** null — параллельный вебхук уже создал такой диалог. */
-  create(input: Pick<Conversation, "channel" | "channelId" | "chatId" | "contactName" | "avatarUrl" | "clientId" | "meta">): Promise<Conversation | null>;
+  /** assigneeId — диалог сразу у сотрудника («Написать» из карточки), иначе ничей (его раздаёт круг). */
+  create(input: Pick<Conversation, "channel" | "channelId" | "chatId" | "contactName" | "avatarUrl" | "clientId" | "meta"> & { assigneeId?: string | null }): Promise<Conversation | null>;
   updateContact(id: string, patch: { contactName: string; avatarUrl: string | null; meta: ConversationMeta; clientId: string | null }): Promise<Conversation>;
   linkDeal(id: string, link: { dealId: string; clientId: string | null; assigneeId: string | null }): Promise<Conversation>;
   /** Входящее: +1 непрочитанное, «ждёт ответа» с момента первого неотвеченного, диалог открыт. */
@@ -81,6 +82,8 @@ export interface StoredMessage {
   authorId: string | null;
   source: MessageSource | null;
   status: string;
+  /** Текст ошибки отправки (status «error»); у репозиториев без него — не известен. */
+  error?: string | null;
   deletedAt: Date | null;
   transcript: string | null;
   createdAt: Date;

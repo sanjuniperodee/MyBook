@@ -25,7 +25,7 @@ export default async function ResetPage({ params }: { params: Promise<{ token: s
   if (!info?.valid)
     return (
       <div data-testid="reset-invalid">
-        <h1 className="font-serif text-4xl font-medium">{t.invalidTitle}</h1>
+        <h1 className="font-serif text-[36px] leading-tight font-medium sm:text-4xl">{t.invalidTitle}</h1>
         <p className="mt-3 mb-8 text-muted">{access || !info ? t.invalidAccess : t.invalidReset}</p>
         <div className="flex flex-col gap-3 sm:flex-row">
           <a href={wa} target="_blank" rel="noopener noreferrer" className="btn btn-primary">
@@ -45,8 +45,8 @@ export default async function ResetPage({ params }: { params: Promise<{ token: s
     );
   return (
     <>
-      <h1 className="font-serif text-4xl font-medium">{access ? t.accessTitle : t.title}</h1>
-      <p className="mt-2 mb-8 text-muted">{access ? t.accessText : t.text}</p>
+      <h1 className="font-serif text-[36px] leading-tight font-medium sm:text-4xl">{access ? t.accessTitle : t.title}</h1>
+      <p className="mt-2 mb-8 text-[15px] leading-relaxed text-muted">{access ? t.accessText : t.text}</p>
       <ResetForm token={token} whatsappUrl={wa} />
     </>
   );

@@ -204,7 +204,7 @@ export function DesignAiPanel({
 
       {allowance ? (
         <div className="flex flex-wrap items-center gap-2 text-xs" data-testid="design-ai-allowance">
-          <span className={cn("rounded-full px-2.5 py-1 font-medium", allowance.remaining > 1 ? "bg-emerald-50 text-emerald-800" : allowance.remaining === 1 ? "bg-amber-50 text-amber-900" : "bg-ink/5 text-ink-soft")}>{t.left(allowance.remaining, allowance.limit)}</span>
+          <span className={cn("rounded-full px-2.5 py-1 font-medium", allowance.remaining > 1 ? "bg-success-bg text-success" : allowance.remaining === 1 ? "bg-warning-bg text-warning" : "bg-ink/5 text-ink-soft")}>{t.left(allowance.remaining, allowance.limit)}</span>
           {allowance.credits > 0 ? <span className="rounded-full bg-wine/10 px-2.5 py-1 font-medium text-wine">{t.credits(allowance.credits)}</span> : null}
           {!out && packs.length ? (
             <button type="button" className="text-muted underline-offset-4 hover:text-ink hover:underline" onClick={() => setShowPacks((v) => !v)}>
@@ -231,7 +231,7 @@ export function DesignAiPanel({
         </div>
       ) : (
         <>
-          <div role="tablist" aria-label={t.modesAria} className="grid grid-cols-2 gap-1 rounded-2xl bg-cream/80 p-1 sm:grid-cols-4">
+          <div role="tablist" aria-label={t.modesAria} className="grid grid-cols-2 gap-1 rounded-2xl bg-sunken p-1 sm:grid-cols-4">
             {MODES.map((k) => (
               <button
                 key={k}
@@ -274,7 +274,7 @@ export function DesignAiPanel({
             ) : null}
           </div>
           {notice ? (
-            <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900" role="status" data-testid="design-ai-warning">
+            <p className="rounded-xl bg-warning-bg px-3 py-2 text-xs text-warning" role="status" data-testid="design-ai-warning">
               {notice}
             </p>
           ) : allowance ? (
@@ -379,7 +379,7 @@ export function DesignAiPanel({
               <ul className="mt-1 space-y-1 text-sm">
                 {review.strengths.map((s) => (
                   <li key={s} className="flex items-start gap-2">
-                    <Check className="mt-0.5 size-4 shrink-0 text-emerald-600" /> {s}
+                    <Check className="mt-0.5 size-4 shrink-0 text-success" /> {s}
                   </li>
                 ))}
               </ul>
@@ -392,7 +392,7 @@ export function DesignAiPanel({
                 {review.tips.map((tip, i) => {
                   const done = review.applied.includes(i);
                   return (
-                    <li key={i} className="rounded-xl bg-cream/70 p-3">
+                    <li key={i} className="rounded-xl bg-sunken p-3">
                       <div className="text-sm font-medium">{tip.title}</div>
                       <p className="mt-0.5 text-xs text-ink-soft">{tip.why}</p>
                       {tip.ops.length && tip.patch ? (

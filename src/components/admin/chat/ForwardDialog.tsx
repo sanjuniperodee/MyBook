@@ -65,42 +65,42 @@ export function ForwardDialog({ conversationId, messageIds, preview, onClose, on
     });
 
   return createPortal(
-    <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="flex max-h-[85dvh] w-full max-w-md flex-col rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl" role="dialog" aria-modal="true" aria-label="Переслать сообщения">
-        <div className="flex items-center gap-2 border-b border-line px-4 py-3">
-          <Forward className="size-5 text-wine" />
-          <h2 className="flex-1 font-semibold">Переслать</h2>
-          <button type="button" onClick={onClose} className="rounded-full p-1 text-muted hover:bg-cream" aria-label="Закрыть">
+    <div className="fixed inset-0 z-[90] flex items-end justify-center bg-ink/30 p-0 sm:items-center sm:p-4" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="flex max-h-[85dvh] w-full max-w-md flex-col rounded-t-[20px] bg-white shadow-lift sm:rounded-[20px]" role="dialog" aria-modal="true" aria-label="Переслать сообщения">
+        <div className="flex min-h-14 items-center gap-2 border-b border-line py-2 pr-2 pl-5">
+          
+          <h2 className="flex-1 text-[15px] font-semibold">Переслать</h2>
+          <button type="button" onClick={onClose} className="btn btn-ghost btn-icon btn-sm max-lg:size-11" aria-label="Закрыть">
             <X className="size-5" />
           </button>
         </div>
-        <p className="mx-4 mt-3 line-clamp-2 rounded-lg bg-cream/60 px-3 py-2 text-xs text-ink-soft">{preview}</p>
-        <div className="relative mx-4 mt-3">
-          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" />
-          <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Имя или номер" className="h-10 w-full rounded-xl border border-line bg-[#f7f4ef] pr-3 pl-9 text-sm outline-none focus:border-wine/40" />
+        <p className="mx-5 mt-4 line-clamp-2 rounded-[10px] border-l-2 border-wine bg-sunken px-3 py-2 text-[13px] text-ink-soft">{preview}</p>
+        <div className="relative mx-5 mt-3">
+          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" aria-hidden />
+          <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Имя или номер" aria-label="Найти диалог" className="input h-10 pl-9 text-sm" />
         </div>
         {picked.size ? (
-          <div className="mx-4 mt-2 flex flex-wrap gap-1.5">
+          <div className="mx-5 mt-2 flex flex-wrap gap-1.5">
             {[...picked.values()].map((c) => (
-              <button key={c.id} type="button" onClick={() => toggle(c)} className="flex items-center gap-1 rounded-full bg-wine px-2.5 py-1 text-xs text-white">
-                {c.title} <X className="size-3" />
+              <button key={c.id} type="button" onClick={() => toggle(c)} className="chip chip-on max-lg:h-10" aria-label={`Убрать ${c.title}`}>
+                {c.title} <X className="size-3.5" />
               </button>
             ))}
           </div>
         ) : null}
-        <div className="mt-2 min-h-40 flex-1 overflow-y-auto px-2">
+        <div className="mt-2 min-h-40 flex-1 overflow-y-auto px-3">
           {list === null ? (
             <p className="flex justify-center py-8 text-muted">
               <LoaderCircle className="size-5 animate-spin" />
             </p>
           ) : list.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted">Диалогов не нашлось</p>
+            <p className="py-8 text-center text-sm text-muted">Диалогов не нашлось — поищите по номеру</p>
           ) : (
             list.map((c) => {
               const on = picked.has(c.id);
               return (
-                <button key={c.id} type="button" onClick={() => toggle(c)} className={cn("flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left hover:bg-cream/60", on && "bg-rose/40")}>
-                  <span className={cn("flex size-5 shrink-0 items-center justify-center rounded-full border", on ? "border-wine bg-wine text-white" : "border-line")}>{on ? <Check className="size-3.5" /> : null}</span>
+                <button key={c.id} type="button" onClick={() => toggle(c)} aria-pressed={on} className={cn("flex min-h-12 w-full items-center gap-3 rounded-[10px] px-2 py-2 text-left transition-colors", on ? "bg-rose/70" : "hover:bg-sunken")}>
+                  <span className={cn("flex size-5 shrink-0 items-center justify-center rounded-full border", on ? "border-wine bg-wine text-white" : "border-line-strong")}>{on ? <Check className="size-3.5" /> : null}</span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium">{c.title}</span>
                     <span className="block truncate text-xs text-muted">
@@ -113,8 +113,9 @@ export function ForwardDialog({ conversationId, messageIds, preview, onClose, on
             })
           )}
         </div>
-        <div className="border-t border-line p-3">
-          <button type="button" className="btn w-full" disabled={!picked.size || sending} onClick={send}>
+        {/* Шторка снизу на телефоне — кнопка выше полосы «домой». */}
+        <div className="border-t border-line px-5 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-4">
+          <button type="button" className="btn btn-dark w-full" disabled={!picked.size || sending} onClick={send}>
             {sending ? <LoaderCircle className="size-4 animate-spin" /> : <Forward className="size-4" />} Переслать{picked.size ? ` (${picked.size})` : ""}
           </button>
         </div>

@@ -46,7 +46,7 @@ export function MediaForm({
     <Section defaultOpen={false} title="Голосовые и фото клиента (бот)" badge={<Status on={connected} label={cannot ? "DeepSeek не слушает голосовые — выберите OpenRouter" : !connected ? "не подключено — голосовые бот не слушает" : `${aiProviders[savedEffective].label} · ${shownModel}`} />}>
       <Intro className="mb-4">
         Этой моделью AI-продажник расшифровывает голосовые и описывает фото клиента (Бот → Продажи → «Слушать голосовые и смотреть фото»), а дальше отвечает на них, как на текст. Нужна модель, которая понимает аудио и изображения:
-        лучше всего <code className="rounded bg-cream px-1">{OPENROUTER_MEDIA_MODEL}</code> через OpenRouter — слушает голосовые и видит фото, около 0,3 ₸ за голосовое, но OpenRouter принимает аудио только при балансе от $0.50 (бесплатные модели аудио не берут). Бесплатно — Groq: ключ на console.groq.com, модель Whisper расшифровывает голосовые (фото — нет). Claude видит фото, но не слушает голосовые; DeepSeek не умеет ни то, ни другое.
+        лучше всего <code className="rounded bg-sunken px-1">{OPENROUTER_MEDIA_MODEL}</code> через OpenRouter — слушает голосовые и видит фото, около 0,3 ₸ за голосовое, но OpenRouter принимает аудио только при балансе от $0.50 (бесплатные модели аудио не берут). Бесплатно — Groq: ключ на console.groq.com, модель Whisper расшифровывает голосовые (фото — нет). Claude видит фото, но не слушает голосовые; DeepSeek не умеет ни то, ни другое.
       </Intro>
       <form action={action} className="space-y-3">
         <div className="flex flex-wrap gap-2 text-sm">
@@ -60,14 +60,14 @@ export function MediaForm({
               <Choice key={id} active={p === id}>
                 <input type="radio" name="provider" value={id} checked={p === id} onChange={() => setP(id)} className="accent-wine" />
                 {aiProviders[id].title}
-                {ready(id) ? <CheckCircle2 className="size-3.5 text-emerald-700" aria-label="ключ сохранён" /> : null}
+                {ready(id) ? <CheckCircle2 className="size-3.5 text-success" aria-label="ключ сохранён" /> : null}
               </Choice>
             ))}
         </div>
         <div key={effective} className="space-y-3">
           <SecretInput name="key" label={`Ключ ${def.label} API`} saved={saved.apiKey} fromEnv={saved.apiKeyEnv} placeholder={def.keyPlaceholder} />
           <label className="block">
-            <span className="mb-1 block text-xs text-muted">Модель (пусто — {effective === "groq" ? "whisper-large-v3" : effective === "openrouter" ? OPENROUTER_MEDIA_MODEL : p ? saved.model || def.defaultModel : "как у продажника"})</span>
+            <span className="label">Модель (пусто — {effective === "groq" ? "whisper-large-v3" : effective === "openrouter" ? OPENROUTER_MEDIA_MODEL : p ? saved.model || def.defaultModel : "как у продажника"})</span>
             <input name="model" defaultValue={model} placeholder={effective === "openrouter" ? OPENROUTER_MEDIA_MODEL : saved.model || def.defaultModel} className="input h-10 text-sm" maxLength={100} />
           </label>
         </div>

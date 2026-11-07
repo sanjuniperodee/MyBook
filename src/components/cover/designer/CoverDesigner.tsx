@@ -306,7 +306,7 @@ export function CoverDesigner({
   const mobileTabs = (["add", "ai", "properties", "layers", "layouts", "background"] as Tab[]).filter((k) => (k !== "layouts" || layouts) && (k !== "ai" || !back));
   const tabLabel = (k: Tab) => m.panels[k];
   const tabBar = (list: Tab[], current: Tab, className?: string) => (
-    <div role="tablist" aria-label={m.panels.aria} className={cn("no-scrollbar flex gap-1 overflow-x-auto rounded-2xl bg-cream/80 p-1", className)}>
+    <div role="tablist" aria-label={m.panels.aria} className={cn("no-scrollbar flex gap-1 overflow-x-auto rounded-2xl bg-sunken p-1", className)}>
       {list.map((k) => (
         <button key={k} type="button" role="tab" aria-selected={current === k} onClick={() => setTab(k)} className={cn("h-9 shrink-0 rounded-xl px-3 text-sm transition", current === k ? "bg-white font-medium text-ink shadow-soft" : "text-muted hover:text-ink")}>
           {tabLabel(k)}
@@ -386,7 +386,7 @@ export function CoverDesigner({
         {/* Холст */}
         <div className="min-w-0">
           {unsafe.length ? (
-            <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl bg-warning-bg px-3 py-2 text-sm text-warning">
               <TriangleAlert className="size-4 shrink-0" />
               <span>{m.warnings.unsafe}</span>
               <button
@@ -401,7 +401,7 @@ export function CoverDesigner({
               </button>
             </div>
           ) : null}
-          <div className="overflow-auto rounded-[24px] bg-cream/70 px-3 pt-12 pb-6 sm:px-8">
+          <div className="overflow-auto rounded-[24px] bg-sunken px-3 pt-12 pb-6 sm:px-8">
             <div className="mx-auto" style={{ width: `${zoom * 100}%`, maxWidth: zoom === 1 ? `calc(74dvh * ${g.width / g.height})` : undefined }}>
               <DesignerCanvas
                 dz={dz}

@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronLeft } from "lucide-react";
+import { History } from "lucide-react";
+import { Badge, type BadgeTone } from "@/components/ui/Badge";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { container } from "@/server/container";
 import { requireStaff } from "@/server/access";
 import { uuid } from "@/server/input";
 import { formatDate, nowMs } from "@/lib/dates";
-import { cn } from "@/lib/class-names";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { automationActions, automationTriggers } from "@/modules/automation/domain/meta";
 import { runStatusLabels, stepResultLabels, RUNS_LIST_LIMIT, type RunStatus } from "@/modules/automation";
@@ -13,11 +14,11 @@ import { RetryRun } from "./RetryRun";
 
 export const metadata = { title: "Журнал правила" };
 
-const statusTone: Record<RunStatus, string> = {
-  done: "bg-emerald-50 text-emerald-800",
-  error: "bg-red-50 text-red-700",
-  deferred: "bg-amber-50 text-amber-800",
-  running: "bg-cream text-ink-soft",
+const statusTone: Record<RunStatus, BadgeTone> = {
+  done: "success",
+  error: "danger",
+  deferred: "warning",
+  running: "neutral",
 };
 
 /** Куда ведёт срабатывание: сделка, чат, заказ или клиент из контекста. */
@@ -42,33 +43,30 @@ export default async function AutomationRunsPage({ params }: { params: Promise<{
   const counts = runs.reduce<Partial<Record<RunStatus, number>>>((acc, r) => ((acc[r.status] = (acc[r.status] ?? 0) + 1), acc), {});
   const trigger = automationTriggers[rule.trigger as keyof typeof automationTriggers]?.label ?? rule.trigger;
   return (
-    <div className="mx-auto max-w-5xl space-y-5">
-      <Link href="/admin/automations" className="inline-flex items-center gap-1 text-sm text-muted hover:text-wine">
-        <ChevronLeft className="size-4" /> Автоматизации
-      </Link>
-      <PageHeader title={rule.name}>
+    <div className="mx-auto flex max-w-5xl flex-col gap-5">
+      <PageHeader title={rule.name} back={{ href: "/admin/automations", label: "Автоматизации" }} meta={<Badge tone={rule.active ? "success" : "neutral"} dot>{rule.active ? "работает" : "выключено"}</Badge>}>
         {trigger} · последние {RUNS_LIST_LIMIT} срабатываний. Каждое правило срабатывает для объекта один раз; здесь видно, что сделало каждое действие. Подробности старше 90 дней очищаются.
       </PageHeader>
       <div className="flex flex-wrap gap-2 text-xs">
         {(Object.keys(runStatusLabels) as RunStatus[]).map((st) =>
           counts[st] ? (
-            <span key={st} className={cn("rounded-full px-2.5 py-1", statusTone[st])}>
+            <Badge key={st} tone={statusTone[st]}>
               {runStatusLabels[st]}: {counts[st]}
-            </span>
+            </Badge>
           ) : null,
         )}
       </div>
       {runs.length ? (
-        <ul className="divide-y divide-line rounded-2xl border border-line bg-white" data-testid="automation-runs">
+        <ul className="panel divide-y divide-line" data-testid="automation-runs">
           {runs.map((r) => {
             const to = target(r.details?.ctx);
             const stale = r.status === "running" && now - r.createdAt.getTime() > 10 * 60_000;
             return (
-              <li key={r.id} className="flex flex-wrap items-start gap-3 p-3 text-sm">
-                <div className="w-36 shrink-0 text-xs text-muted tabular-nums">{formatDate(r.createdAt, true)}</div>
+              <li key={r.id} className="flex flex-wrap items-start gap-x-4 gap-y-2 px-4 py-3.5 text-sm sm:px-5">
+                <div className="w-full shrink-0 text-xs text-muted tabular-nums sm:w-40 sm:pt-0.5">{formatDate(r.createdAt, true)}</div>
                 <div className="min-w-0 flex-1 space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className={cn("rounded px-1.5 py-0.5 text-xs", statusTone[r.status])}>{runStatusLabels[r.status]}</span>
+                    <Badge tone={statusTone[r.status]}>{runStatusLabels[r.status]}</Badge>
                     {to ? (
                       <Link href={to.href} className="text-xs text-wine hover:underline">
                         {to.label}
@@ -80,11 +78,11 @@ export default async function AutomationRunsPage({ params }: { params: Promise<{
                     <ol className="space-y-0.5 text-xs text-ink-soft">
                       {r.details.steps.map((st) => (
                         <li key={st.i}>
-                          {st.i + 1}. {automationActions[st.action] ?? st.action} — <span className={st.result === "error" ? "text-red-700" : st.result === "deferred" ? "text-amber-800" : ""}>{stepResultLabels[st.result]}</span>
+                          {st.i + 1}. {automationActions[st.action] ?? st.action} — <span className={st.result === "error" ? "text-danger" : st.result === "deferred" ? "text-warning" : ""}>{stepResultLabels[st.result]}</span>
                           {st.note ? `: ${st.note}` : ""}
                         </li>
                       ))}
-                      {r.details.error && !r.details.steps.some((st) => st.result === "error") ? <li className="text-red-700">Ошибка: {r.details.error}</li> : null}
+                      {r.details.error && !r.details.steps.some((st) => st.result === "error") ? <li className="text-danger">Ошибка: {r.details.error}</li> : null}
                     </ol>
                   ) : (
                     <div className="text-xs text-muted">{r.status === "done" ? "подробностей нет (до журнала или старше 90 дней)" : "подробностей нет"}</div>
@@ -96,7 +94,11 @@ export default async function AutomationRunsPage({ params }: { params: Promise<{
           })}
         </ul>
       ) : (
-        <p className="text-sm text-muted">Правило ещё не срабатывало.</p>
+        <div className="panel">
+          <EmptyState compact icon={History} title="Правило ещё не срабатывало">
+            Когда случится событие из правила, здесь появится, что сделало каждое действие.
+          </EmptyState>
+        </div>
       )}
     </div>
   );

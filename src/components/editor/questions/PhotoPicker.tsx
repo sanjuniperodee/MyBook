@@ -190,7 +190,7 @@ export function PhotoPicker({
       <input ref={input} type="file" accept={PHOTO_ACCEPT} multiple className="hidden" onChange={(e) => void send([...(e.target.files ?? [])])} />
       <button
         type="button"
-        className="mt-4 flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-line bg-cream/30 px-4 text-sm font-medium text-ink hover:bg-cream/60 disabled:opacity-60"
+        className="mt-4 flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-line bg-cream/30 px-4 text-sm font-medium text-ink hover:bg-sunken disabled:opacity-60"
         onClick={() => input.current?.click()}
         disabled={!!progress}
       >

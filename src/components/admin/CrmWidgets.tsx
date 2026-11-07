@@ -1,14 +1,15 @@
 "use client";
 
-import { ask, toast } from "@/components/ui/overlays";
+import { ask, toast, toastError } from "@/components/ui/overlays";
 import Link from "next/link";
 import { useActionState, useEffect, useOptimistic, useRef, useState, useTransition } from "react";
-import { Copy, Mail, MessageCircle, MessageSquare, Phone, Sparkles, StickyNote, Trash2 } from "lucide-react";
+import { CalendarClock, Copy, LoaderCircle, Mail, MessageCircle, MessageSquare, Phone, Plus, Sparkles, StickyNote, Trash2 } from "lucide-react";
 import { CompleteTask } from "./CompleteTask";
 import { DuePresets } from "./DuePresets";
 import { addNoteAction, assignOrderAction, createTaskAction, deleteNoteAction, deleteTaskAction, toggleTaskAction, type AdminState } from "@/app/admin/actions";
-import { SubmitButton } from "@/components/ui/SubmitButton";
+import { useFormStatus } from "react-dom";
 import { MentionTextarea } from "./MentionTextarea";
+import { submitKeepingValues } from "./submitKeepingValues";
 import { cn } from "@/lib/class-names";
 import { draftFromNote, whatsappLink } from "@/shared/domain/templates";
 
@@ -44,7 +45,17 @@ export function TaskList({
   emptyText?: string;
 }) {
   const [, start] = useTransition();
-  const [state, action] = useActionState<AdminState, FormData>(createTaskAction, {});
+  const [state, action, adding] = useActionState<AdminState, FormData>(createTaskAction, {});
+  /** Действие по задаче: отказ ({ error }) и неожиданная ошибка — тостом, а не экраном ошибки вместо карточки. */
+  const runTask = (fn: () => Promise<{ error?: string }>) =>
+    start(async () => {
+      try {
+        const r = await fn();
+        if (r.error) toast(r.error, "error");
+      } catch (err) {
+        toastError(err);
+      }
+    });
   const [optimistic, setOptimistic] = useOptimistic(tasks, (list: TaskItem[], id: string) => list.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
   // «Что сделали?» при отметке (tasks-1): какая задача сейчас закрывается.
   const [completing, setCompleting] = useState<string | null>(null);
@@ -61,81 +72,105 @@ export function TaskList({
   }, [state]);
 
   return (
-    <div>
-      {tasks.length === 0 ? <p className="py-3 text-sm text-muted">{emptyText}</p> : null}
-      <ul className="divide-y divide-line">
-        {optimistic.map((t) => (
-          <li key={t.id} className="group flex flex-wrap items-start gap-3 py-2.5 text-sm">
-            <input
-              type="checkbox"
-              className="mt-0.5 size-4 accent-wine"
-              checked={t.done}
-              onChange={() =>
-                t.done
-                  ? start(async () => {
-                      setOptimistic(t.id);
-                      await toggleTaskAction(t.id);
-                    })
-                  : setCompleting(t.id)
-              }
-              aria-label="Выполнено"
-            />
-            <div className="min-w-0 flex-1">
-              <div className={cn(t.done && "text-muted line-through")}>
-                {t.kind && t.kind !== "task" ? <span className="mr-1.5 rounded bg-cream px-1.5 py-0.5 text-[11px] text-ink-soft no-underline">{taskKinds[t.kind]}</span> : null}
-                {t.title}
+    <div className="@container">
+      {tasks.length === 0 && emptyText ? (
+        <p className="flex items-center gap-2 py-1 text-sm text-muted">
+          <CalendarClock className="size-4 shrink-0" aria-hidden /> {emptyText}
+        </p>
+      ) : null}
+      {optimistic.length ? (
+        <ul className="-mt-1 divide-y divide-line">
+          {optimistic.map((t) => (
+            <li key={t.id} className="group flex flex-wrap items-start gap-3 py-2.5 text-sm">
+              <input
+                type="checkbox"
+                className="mt-0.5 size-4 shrink-0 accent-wine max-lg:size-5"
+                checked={t.done}
+                onChange={() =>
+                  t.done
+                    ? runTask(async () => {
+                        setOptimistic(t.id);
+                        return toggleTaskAction(t.id);
+                      })
+                    : setCompleting(t.id)
+                }
+                aria-label="Выполнено"
+              />
+              <div className="min-w-0 flex-1">
+                <div className={cn("leading-snug", t.done && "text-muted line-through")}>
+                  {t.kind && t.kind !== "task" ? <span className="badge mr-1.5 align-[1px] no-underline">{taskKinds[t.kind]}</span> : null}
+                  {t.title}
+                </div>
+                <div className="mt-0.5 flex flex-wrap gap-x-2 text-xs text-muted">
+                  {t.dueLabel ? <span className={cn("tabular-nums", t.overdue && !t.done && "font-medium text-danger")}>{t.overdue && !t.done ? `просрочена, ${t.dueLabel}` : t.dueLabel}</span> : null}
+                  {t.assignee ? <span>{t.assignee}</span> : null}
+                  {t.context ? (
+                    <Link href={t.context.href} className="text-wine hover:underline">
+                      {t.context.label}
+                    </Link>
+                  ) : null}
+                </div>
               </div>
-              <div className="mt-0.5 flex flex-wrap gap-x-2 text-xs text-muted">
-                {t.dueLabel ? <span className={cn(t.overdue && !t.done && "font-medium text-red-700")}>{t.dueLabel}</span> : null}
-                {t.assignee ? <span>· {t.assignee}</span> : null}
-                {t.context ? (
-                  <Link href={t.context.href} className="text-wine hover:underline">
-                    · {t.context.label}
-                  </Link>
-                ) : null}
-              </div>
-            </div>
-            <button className="text-muted opacity-0 transition group-hover:opacity-100 hover:text-red-700" onClick={async () => (await ask("Удалить задачу?", true)) && start(() => deleteTaskAction(t.id))} aria-label="Удалить">
-              <Trash2 className="size-4" />
-            </button>
-            {completing === t.id ? <CompleteTask taskId={t.id} kind={t.kind ?? "task"} onClose={() => setCompleting(null)} /> : null}
-          </li>
-        ))}
-      </ul>
+              {/* Только по наведению — на телефоне (наведения нет) кнопка не видна; там и на узких экранах — всегда. */}
+              <button
+                className="-m-1.5 flex items-center justify-center rounded-lg p-1.5 text-muted opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100 hover:text-danger focus-visible:opacity-100 max-lg:-m-3 max-lg:size-11 max-lg:opacity-100 [@media(hover:none)]:opacity-100"
+                onClick={async () => (await ask("Удалить задачу?", true)) && runTask(() => deleteTaskAction(t.id))}
+                aria-label={`Удалить задачу «${t.title}»`}
+              >
+                <Trash2 className="size-4" aria-hidden />
+              </button>
+              {completing === t.id ? <CompleteTask taskId={t.id} kind={t.kind ?? "task"} onClose={() => setCompleting(null)} /> : null}
+            </li>
+          ))}
+        </ul>
+      ) : null}
       {showForm ? (
-        <form ref={form} action={action} className="mt-3 grid gap-2 sm:grid-cols-[110px_1fr_140px_100px_150px_150px_auto]">
+        // Раскладка — по ширине листа (container query), а не экрана: в узкой колонке карточки поля не вылезают за край.
+        <form ref={form} onSubmit={submitKeepingValues(action)} className={cn("space-y-2.5", (tasks.length || emptyText) && "mt-3 border-t border-line pt-3.5")} aria-label="Новая задача">
           {clientId ? <input type="hidden" name="clientId" value={clientId} /> : null}
           {orderId ? <input type="hidden" name="orderId" value={orderId} /> : null}
           {dealId ? <input type="hidden" name="dealId" value={dealId} /> : null}
-          <select name="kind" className="input h-10 text-sm" defaultValue="task" aria-label="Тип задачи">
-            {Object.entries(taskKinds).map(([k, v]) => (
-              <option key={k} value={k}>
-                {v}
-              </option>
-            ))}
-          </select>
-          <input name="title" required maxLength={300} placeholder="Новая задача: перезвонить, уточнить адрес…" className="input h-10 text-sm" />
-          <input ref={dueDate} name="dueAt" type="date" className="input h-10 text-sm" title="Срок" />
-          <input ref={dueTime} name="dueTime" type="time" className="input h-10 text-sm" title="Время (без времени — до 18:00)" />
-          <select name="remindBeforeMin" className="input h-10 text-sm" defaultValue="60" title="Напомнить в CRM со звуком и в WhatsApp" aria-label="Напомнить заранее">
-            <option value="none">Не напоминать</option>
-            <option value="0">В срок</option>
-            <option value="15">За 15 мин</option>
-            <option value="60">За 1 час</option>
-            <option value="180">За 3 часа</option>
-            <option value="1440">За день</option>
-          </select>
-          <select name="assigneeId" className="input h-10 text-sm" defaultValue="">
-            <option value="">Мне</option>
-            {admins.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.label}
-              </option>
-            ))}
-          </select>
-          <SubmitButton className="btn-sm h-10">Добавить</SubmitButton>
-          <DuePresets onPick={pickDue} className="flex flex-wrap gap-1.5 sm:col-span-7" />
-          {state.error ? <p className="text-xs text-red-700 sm:col-span-7">{state.error}</p> : null}
+          <div className="flex gap-2">
+            <select name="kind" className="input h-10 w-auto shrink-0 pr-8 text-sm" defaultValue="task" aria-label="Тип задачи">
+              {Object.entries(taskKinds).map(([k, v]) => (
+                <option key={k} value={k}>
+                  {v}
+                </option>
+              ))}
+            </select>
+            <input name="title" required maxLength={300} placeholder="Следующий шаг: перезвонить, уточнить адрес…" aria-label="Новая задача" className="input h-10 min-w-0 flex-1 text-sm" />
+          </div>
+          <div className="grid grid-cols-2 gap-2 @lg:grid-cols-4">
+            <input ref={dueDate} name="dueAt" type="date" className="input h-10 min-w-0 text-sm" title="Срок" aria-label="Срок" />
+            <input ref={dueTime} name="dueTime" type="time" className="input h-10 min-w-0 text-sm" title="Время (без времени — до 18:00)" aria-label="Время" />
+            <select name="remindBeforeMin" className="input h-10 min-w-0 text-sm" defaultValue="60" title="Напомнить в CRM со звуком и в WhatsApp" aria-label="Напомнить заранее">
+              <option value="none">Не напоминать</option>
+              <option value="0">Напомнить в срок</option>
+              <option value="15">За 15 мин</option>
+              <option value="60">За 1 час</option>
+              <option value="180">За 3 часа</option>
+              <option value="1440">За день</option>
+            </select>
+            <select name="assigneeId" className="input h-10 min-w-0 text-sm" defaultValue="" aria-label="Исполнитель">
+              <option value="">Мне</option>
+              {admins.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <DuePresets onPick={pickDue} className="flex min-w-0 flex-1 flex-wrap gap-1.5" />
+            <button type="submit" className="btn btn-dark btn-sm @max-sm:w-full" disabled={adding}>
+              {adding ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : <Plus className="size-4" aria-hidden />} Добавить задачу
+            </button>
+          </div>
+          {state.error ? (
+            <p className="text-sm text-danger" role="alert">
+              {state.error}
+            </p>
+          ) : null}
         </form>
       ) : null}
     </div>
@@ -206,17 +241,17 @@ export function NotesTimeline({ notes, clientId, orderId, dealId, mentionables, 
 
   return (
     <div>
-      <form ref={form} action={action} className="rounded-xl border border-line bg-[#fbf9f5] p-3">
+      <form ref={form} action={action} className="rounded-[10px] border border-line-strong bg-white transition-[border-color,box-shadow] focus-within:border-wine/60 focus-within:ring-[3px] focus-within:ring-wine/12">
         {clientId ? <input type="hidden" name="clientId" value={clientId} /> : null}
         {orderId ? <input type="hidden" name="orderId" value={orderId} /> : null}
         {dealId ? <input type="hidden" name="dealId" value={dealId} /> : null}
         <input type="hidden" name="kind" value={kind} />
-        <div className="mb-2 flex flex-wrap gap-1">
+        <div className="flex flex-wrap gap-1 border-b border-line p-1.5" role="radiogroup" aria-label="Что записать">
           {manualKinds.map((k) => {
             const K = kinds[k];
             return (
-              <button type="button" key={k} onClick={() => setKind(k)} className={cn("flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs max-lg:min-h-10 max-lg:px-3 max-lg:text-sm", kind === k ? "bg-ink text-white" : "text-muted hover:bg-cream")}>
-                <K.icon className="size-3.5" /> {K.label}
+              <button type="button" role="radio" aria-checked={kind === k} key={k} onClick={() => setKind(k)} className={cn("flex min-h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium transition-colors max-lg:min-h-10 max-lg:px-3 max-lg:text-sm", kind === k ? "bg-ink text-white" : "text-ink-soft hover:bg-sunken")}>
+                <K.icon className="size-3.5" aria-hidden /> {K.label}
               </button>
             );
           })}
@@ -229,31 +264,42 @@ export function NotesTimeline({ notes, clientId, orderId, dealId, mentionables, 
           required
           maxLength={5000}
           rows={2}
+          aria-label="Текст записи"
           placeholder={mentionables?.length ? "Что обсудили, о чём договорились… @имя — позвать коллегу" : "Что обсудили, о чём договорились…"}
-          className="w-full resize-y bg-transparent text-sm outline-none"
+          className="block w-full resize-y bg-transparent px-3 py-2.5 text-sm outline-none placeholder:text-muted"
         />
-        <div className="flex items-center justify-between">
-          {state.error ? <span className="text-xs text-red-700">{state.error}</span> : <span />}
-          <SubmitButton className="btn-sm">Сохранить</SubmitButton>
+        <div className="flex items-center justify-between gap-3 px-2 pb-2">
+          {state.error ? (
+            <span className="pl-1 text-xs text-danger" role="alert">
+              {state.error}
+            </span>
+          ) : (
+            <span />
+          )}
+          <SaveNote />
         </div>
       </form>
-      <ol className="mt-4 space-y-3">
+      <ol className="relative mt-5 space-y-4 before:absolute before:top-2 before:bottom-2 before:left-[13px] before:w-px before:bg-line">
         {notes.map((n) => {
           const K = kinds[n.kind];
           return (
-            <li key={n.id} className="group flex gap-3">
-              <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-cream text-ink-soft">
-                <K.icon className="size-3.5" />
+            <li key={n.id} className="group relative flex gap-3">
+              <span className={cn("relative flex size-7 shrink-0 items-center justify-center rounded-full ring-4 ring-white", n.kind === "system" ? "bg-rose text-wine" : "bg-sunken text-ink-soft")}>
+                <K.icon className="size-3.5" aria-hidden />
               </span>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-baseline gap-2 text-xs text-muted">
+              <div className="min-w-0 flex-1 pt-0.5">
+                <div className="flex flex-wrap items-baseline gap-x-2 text-xs text-muted">
                   <span className="font-medium text-ink">{K.label}</span>
                   <span>{n.author}</span>
-                  <span>{n.dateLabel}</span>
+                  <span className="tabular-nums">{n.dateLabel}</span>
                   {n.orderLabel ? <span className="text-wine">{n.orderLabel}</span> : null}
                   {n.kind !== "system" ? (
-                    <button className="ml-auto opacity-0 transition group-hover:opacity-100 hover:text-red-700" onClick={async () => (await ask("Удалить заметку?", true)) && start(() => deleteNoteAction(n.id))} aria-label="Удалить">
-                      <Trash2 className="size-3.5" />
+                    <button
+                      className="ml-auto flex size-7 items-center justify-center rounded-md opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100 hover:text-danger focus-visible:opacity-100 max-lg:size-9 max-lg:opacity-100 [@media(hover:none)]:opacity-100"
+                      onClick={async () => (await ask("Удалить заметку?", true)) && start(() => deleteNoteAction(n.id))}
+                      aria-label="Удалить"
+                    >
+                      <Trash2 className="size-3.5" aria-hidden />
                     </button>
                   ) : null}
                 </div>
@@ -264,8 +310,18 @@ export function NotesTimeline({ notes, clientId, orderId, dealId, mentionables, 
           );
         })}
       </ol>
-      {notes.length === 0 ? <p className="mt-3 text-sm text-muted">Заметок пока нет.</p> : null}
+      {notes.length === 0 ? <p className="mt-3 text-sm text-muted">Записей пока нет: заметки, звонки и письма появятся здесь.</p> : null}
     </div>
+  );
+}
+
+/** «Сохранить» записи истории: пока форма отправляется — крутилка и disabled. */
+function SaveNote() {
+  const { pending } = useFormStatus();
+  return (
+    <button type="submit" disabled={pending} className="btn btn-dark btn-sm">
+      {pending ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : null} Сохранить
+    </button>
   );
 }
 
@@ -277,7 +333,16 @@ export function AssigneeSelect({ orderId, value, admins }: { orderId: string; va
       className="input h-10 text-sm"
       value={value ?? ""}
       disabled={pending}
-      onChange={(e) => start(() => assignOrderAction(orderId, e.target.value || null))}
+      onChange={(e) =>
+        start(async () => {
+          try {
+            const r = await assignOrderAction(orderId, e.target.value || null);
+            if (r.error) toast(r.error, "error");
+          } catch (err) {
+            toastError(err, "Не удалось сменить ответственного");
+          }
+        })
+      }
     >
       <option value="">Не назначен</option>
       {admins.map((a) => (

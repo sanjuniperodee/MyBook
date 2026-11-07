@@ -45,7 +45,7 @@ export function PlacementRule({
               aria-checked={on}
               disabled={!editable}
               onClick={() => !on && onChange(r)}
-              className={cn("flex min-h-14 items-start gap-3 rounded-2xl px-4 py-3 text-left ring-1 transition disabled:opacity-60", on ? "bg-wine/5 ring-2 ring-wine" : "ring-line hover:bg-cream/50")}
+              className={cn("flex min-h-14 items-start gap-3 rounded-2xl px-4 py-3 text-left ring-1 transition disabled:opacity-60", on ? "bg-wine/5 ring-2 ring-wine" : "ring-line hover:bg-sunken")}
             >
               <span className={cn("mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border", on ? "border-wine bg-wine text-white" : "border-line")}>{on ? <Check className="size-3" /> : null}</span>
               <span className="min-w-0">
@@ -56,7 +56,7 @@ export function PlacementRule({
           );
         })}
       </div>
-      {noChapters && value === "chapters" ? <p className="mt-3 text-sm text-amber-700">{blank ? m.noChaptersBlank : m.noChapters}</p> : null}
+      {noChapters && value === "chapters" ? <p className="mt-3 text-sm text-warning">{blank ? m.noChaptersBlank : m.noChapters}</p> : null}
     </section>
   );
 }

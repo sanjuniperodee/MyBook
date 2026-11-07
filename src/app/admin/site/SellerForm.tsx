@@ -3,6 +3,9 @@
 import { useActionState } from "react";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { Alert } from "@/components/ui/Alert";
+import { Badge } from "@/components/ui/Badge";
+import { Field } from "@/components/ui/Field";
+import { Panel } from "@/components/ui/Panel";
 import { formatPhone } from "@/shared/domain/phone";
 import type { SellerDetails } from "@/config/site";
 import { saveSellerAction, type SiteState } from "./actions";
@@ -21,32 +24,36 @@ export function SellerForm({ values, factory }: { values: Partial<SellerDetails>
   const [state, action] = useActionState<SiteState, FormData>(saveSellerAction, {});
   const missing = fields.filter((f) => !values[f.key]);
   return (
-    <form action={action} className="space-y-4 rounded-2xl border border-line bg-white p-5" data-testid="seller-form">
-      <div>
-        <h2 className="font-semibold">Реквизиты продавца</h2>
-        <p className="mt-1 text-sm text-muted">Их видят клиенты: оферта, футер сайта, страница сертификата, оплата и упаковочный лист.</p>
-      </div>
-      {missing.length ? (
-        <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900" data-testid="seller-missing">
-          Не заполнено: {missing.map((f) => f.label).join(", ")}. На сайте сейчас заглушка — {missing.map((f) => `«${shown(f.key, factory[f.key])}»`).join(", ")}.
-        </p>
-      ) : null}
-      {state.error ? <Alert>{state.error}</Alert> : null}
-      {state.ok ? (
-        <p className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-900" role="status" data-testid="seller-saved">
-          {state.ok}
-        </p>
-      ) : null}
-      <div className="grid gap-3 sm:grid-cols-2">
-        {fields.map((f) => (
-          <label key={f.key} className="block">
-            <span className="mb-1 block text-xs text-muted">{f.label}</span>
-            <input name={f.key} defaultValue={values[f.key] ? shown(f.key, values[f.key]!) : ""} inputMode={f.inputMode} className="input h-10 text-sm" />
-            <span className="mt-1 block text-[11px] text-muted">{f.hint}</span>
-          </label>
-        ))}
-      </div>
-      <SubmitButton className="btn btn-primary">Сохранить реквизиты</SubmitButton>
-    </form>
+    <Panel
+      title="Реквизиты продавца"
+      description="Их видят клиенты: оферта, футер сайта, страница сертификата, оплата и упаковочный лист"
+      actions={missing.length ? <Badge tone="warning">не заполнено {missing.length}</Badge> : <Badge tone="success" dot>заполнены</Badge>}
+    >
+      <form action={action} className="space-y-4" data-testid="seller-form">
+        {missing.length ? (
+          <Alert kind="warning">
+            <span data-testid="seller-missing">
+              Не заполнено: {missing.map((f) => f.label).join(", ")}. На сайте сейчас заглушка — {missing.map((f) => `«${shown(f.key, factory[f.key])}»`).join(", ")}.
+            </span>
+          </Alert>
+        ) : null}
+        <div className="grid gap-x-4 gap-y-4 sm:grid-cols-2">
+          {fields.map((f) => (
+            <Field key={f.key} label={f.label} hint={f.hint}>
+              <input name={f.key} defaultValue={values[f.key] ? shown(f.key, values[f.key]!) : ""} inputMode={f.inputMode} className="input h-10 text-sm" />
+            </Field>
+          ))}
+        </div>
+        {state.error ? <Alert>{state.error}</Alert> : null}
+        {state.ok ? (
+          <Alert kind="success">
+            <span data-testid="seller-saved">{state.ok}</span>
+          </Alert>
+        ) : null}
+        <div className="border-t border-line pt-4">
+          <SubmitButton className="h-10 text-sm">Сохранить реквизиты</SubmitButton>
+        </div>
+      </form>
+    </Panel>
   );
 }

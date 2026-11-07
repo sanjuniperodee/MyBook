@@ -57,9 +57,10 @@ describe("Заявки раздаёт круг: менеджер не берёт
     signIn(lena);
     await expect(sendMessageAction(CONV, "Здравствуйте")).rejects.toThrow("Заявку распределяет круг");
     await expect(assignConversationAction(CONV, "0d0d0d0d-0000-4000-8000-00000000aaaa")).rejects.toThrow();
-    await expect(acceptDealAction(DEAL)).rejects.toThrow("Заявку распределяет круг");
-    await expect(assignDealAction(DEAL, "0d0d0d0d-0000-4000-8000-00000000aaaa")).rejects.toThrow();
-    await expect(moveDealAction(DEAL, "0d0d0d0d-0000-4000-8000-0000000000e1")).rejects.toThrow("Заявку распределяет круг");
+    // Действия по кнопке отказывают текстом (тост), а не исключением: в проде от исключения остаётся только digest.
+    expect(await acceptDealAction(DEAL)).toEqual({ ok: false, message: expect.stringContaining("Заявку распределяет круг") });
+    expect(await assignDealAction(DEAL, "0d0d0d0d-0000-4000-8000-00000000aaaa")).toMatchObject({ ok: false });
+    expect(await moveDealAction(DEAL, "0d0d0d0d-0000-4000-8000-0000000000e1")).toEqual({ ok: false, message: expect.stringContaining("Заявку распределяет круг") });
     await markReadAction(CONV);
     expect([sent, read, assigned]).toEqual([0, 0, []]);
   });

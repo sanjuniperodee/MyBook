@@ -3,7 +3,7 @@ import { readGifts, type AgreementGift } from "@/shared/domain/agreementGifts";
 import { DealsService, LeadRoutingService, PaymentIntakeService, PipelinesService, SiteFunnelService, noDealInvoices, type DealInvoicesPort, type PaymentEffects, type RoutingNotifier } from "./application";
 import { storeTimeZone } from "@/shared/domain/time";
 import { crmSalesSettings, drizzleClients, orderOrigin, roundRobinRouter, sqlBookProgress, type SalesSettingKey } from "./infrastructure/adapters";
-import { agreementForClient, attachAgreementOrder, dealMoney } from "./infrastructure/agreements";
+import { agreementForClient, attachAgreementOrder, dealMoney, dealRefundAfterOrder } from "./infrastructure/agreements";
 import { setClientDealsAttribution } from "./infrastructure/attribution";
 import { dealAgreedGifts, dealAgreedPlan, dealBatch, dealBatchMoney, markBatchMembers, setDealAgreedGifts, setDealAgreedPlan, setDealBatch } from "./infrastructure/agreedPlan";
 import { DealPayments } from "./infrastructure/payments";
@@ -39,6 +39,8 @@ export class SalesModule {
   readonly attachAgreementOrder = attachAgreementOrder;
   /** Деньги клиента по сделке и действует ли по ней договорённость (то же правило, что у agreementFor). */
   readonly money = dealMoney;
+  /** Сколько можно вернуть по сделке с заказом (лишнее сверх учтённого в заказе; у отменённого — всё). null — заказа нет. */
+  readonly refundAfterOrder = dealRefundAfterOrder;
   /** Тариф договорённости по сделке: клиент оформляет заказ именно на него. */
   readonly agreedPlan = { set: setDealAgreedPlan, get: dealAgreedPlan };
   /** Что по договорённости бесплатно (упаковка, доставка): в заказе по ней они стоят 0 ₸, если клиент их выберет. */

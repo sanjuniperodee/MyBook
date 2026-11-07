@@ -3,7 +3,7 @@ import { SkCard, SkHeader, SkPage, SkRows } from "@/components/admin/skeletons";
 
 export default function Loading() {
   return (
-    <SkPage className="mx-auto max-w-5xl">
+    <SkPage className="mx-auto max-w-4xl">
       <SkHeader title="w-44" subtitle />
       <SkCard lines={3} />
       <SkCard lines={4} />

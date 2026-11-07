@@ -126,7 +126,7 @@ export function NumberField({
           <input
             id={id}
             inputMode="decimal"
-            className="h-full w-14 border-x border-line bg-transparent text-center text-sm tabular-nums outline-none focus:bg-cream/40"
+            className="h-full w-14 border-x border-line bg-transparent text-center text-sm tabular-nums outline-none focus:bg-sunken"
             value={draft ?? String(shown)}
             onFocus={() => setDraft(String(shown))}
             onChange={(e) => setDraft(e.target.value)}
@@ -261,7 +261,7 @@ export function Segmented<T extends string>({
   return (
     <div>
       {label ? <FieldLabel label={label} onReset={onReset} resetLabel={resetLabel} /> : null}
-      <div role="radiogroup" aria-label={label} className={cn("inline-flex max-w-full gap-1 rounded-xl bg-cream/80 p-1", wrap ? "flex-wrap" : "no-scrollbar overflow-x-auto")}>
+      <div role="radiogroup" aria-label={label} className={cn("inline-flex max-w-full gap-1 rounded-xl bg-sunken p-1", wrap ? "flex-wrap" : "no-scrollbar overflow-x-auto")}>
         {options.map((o) => (
           <button
             key={o.value}

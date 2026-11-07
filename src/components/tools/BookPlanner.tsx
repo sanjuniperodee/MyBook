@@ -85,7 +85,7 @@ export function BookPlanner({ expressAvailable }: { expressAvailable: boolean })
         </label>
       </div>
 
-      <div aria-live="polite" className={cn("mt-6 flex items-start gap-4 rounded-2xl border p-5", hot ? "border-wine/30 bg-rose/40" : warm ? "border-amber-200 bg-amber-50/70" : "border-line bg-cream/50")}>
+      <div aria-live="polite" className={cn("mt-6 flex items-start gap-4 rounded-[14px] border p-5", hot ? "border-wine/30 bg-rose/40" : warm ? "border-amber-200 bg-amber-50/70" : "border-line bg-cream/50")}>
         <Icon className={cn("mt-0.5 size-6 shrink-0", hot ? "text-wine" : "text-ink-soft")} aria-hidden />
         <p className="leading-relaxed text-ink" data-testid="plan-verdict">
           {text}
@@ -97,7 +97,7 @@ export function BookPlanner({ expressAvailable }: { expressAvailable: boolean })
           <h3 className="font-serif text-2xl font-medium">{ui.stepsTitle}</h3>
           <ol className="mt-4 space-y-3">
             {plan.steps.map((s, i) => (
-              <li key={`${s.id}-${i}`} className={cn("flex gap-4 rounded-2xl border p-4", s.id === "order" ? "border-wine/40 bg-rose/30" : "border-line bg-white")}>
+              <li key={`${s.id}-${i}`} className={cn("flex gap-4 rounded-[14px] border p-4", s.id === "order" ? "border-wine/40 bg-rose/30" : "border-line bg-white")}>
                 <div className="w-24 shrink-0 text-sm">
                   <div className="font-semibold text-ink">{fmt(s.date, true)}</div>
                   <div className="text-xs text-muted">{ui.daysLeft(daysBetween(now, s.date))}</div>

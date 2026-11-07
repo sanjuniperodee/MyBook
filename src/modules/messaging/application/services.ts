@@ -85,10 +85,19 @@ type InboxBot = Pick<QualifierBot, "onIncoming" | "stopByHuman" | "isActive">;
 const RECENT_AUTO_MS = 24 * 3_600_000;
 const RECENT_HUMAN_MS = 48 * 3_600_000;
 
+/** Сколько помнить статус доставки, пришедший раньше, чем отправка записала внешний ID сообщения. */
+const EARLY_STATUS_MS = 2 * 60_000;
+const EARLY_STATUS_MAX = 500;
+
 /** Единый инбокс: входящие из всех каналов, отправка ответов, статусы доставки. */
 export class MessagingService {
   /** День, за который руководители уже узнали, что лимит сообщений от правил исчерпан (одно уведомление в сутки). */
   #limitAlertDay = "";
+  /**
+   * Статусы доставки по внешнему ID, которого ещё нет в CRM: шлюз шлёт «доставлено» раньше, чем ответ на отправку
+   * записал ID (attachExternalId). Только в памяти процесса и на 2 минуты — без этого галочка терялась.
+   */
+  #earlyStatus = new Map<string, { status: DeliveryStatus["status"]; error: string | null; at: number }>();
 
   constructor(
     private readonly conversations: ConversationRepository,
@@ -113,6 +122,11 @@ export class MessagingService {
     private readonly staffLine: StaffLine | null = null,
     /** Задачи «ответить» по сделке закрываются ответом клиенту. null — не закрываются. */
     private readonly answeredTasks: AnsweredTasks | null = null,
+    /**
+     * Одна транзакция для записи сообщения и счётчиков диалога: упали между ними — откатилось всё, и повтор вебхука
+     * обработает сообщение заново, а не примет его за уже принятое. По умолчанию (тесты) — без транзакции.
+     */
+    private readonly atomic: <T>(work: () => Promise<T>) => Promise<T> = (work) => work(),
   ) {}
 
   /**
@@ -227,8 +241,12 @@ export class MessagingService {
       if (await this.messages.claimPendingEcho(base.id, m.text, new Date(Math.min(this.clock.now().getTime(), m.at.getTime()) - 120_000), m.externalId)) return;
       // Ответ с телефона магазина — в отчёт по менеджерам тому, у кого сейчас телефон (analytics-d3).
       const holder = await this.phoneHolder().catch(() => null);
-      if (!(await this.messages.insertEcho(base.id, m, holder?.id ?? null))) return;
-      await this.conversations.recordEcho(base.id, preview(m.text), m.at);
+      const inserted = await this.atomic(async () => {
+        if (!(await this.messages.insertEcho(base.id, m, holder?.id ?? null))) return false;
+        await this.conversations.recordEcho(base.id, preview(m.text), m.at);
+        return true;
+      });
+      if (!inserted) return;
       // Ответ с телефона магазина — в открытых вкладках CRM сразу, а не со следующим опросом.
       this.live.chatChanged(base.id);
       await this.answered(base);
@@ -247,17 +265,25 @@ export class MessagingService {
         });
       return;
     }
-    if (!(await this.messages.insertIncoming(base.id, m, extra.subject ?? null))) return; // повторная доставка вебхука
-
     // Спам: сообщение сохраняем (на случай ошибки), но без заявки, уведомлений и правил.
-    if (await this.blocklist.isBlocked(m.chatId, contactPhone({ chatId: m.chatId, meta: {} }))) {
-      await this.conversations.closeAsSpam(base.id, preview(m.text), m.at);
-      return;
-    }
-    const { conv, created: dealCreated } = await this.ensureDeal(base, m.contactName, m.text);
+    const spam = await this.blocklist.isBlocked(m.chatId, contactPhone({ chatId: m.chatId, meta: {} }));
+    // Сообщение и счётчики диалога — вместе: упало между ними — откатилось, и повтор вебхука примет сообщение заново.
     // Любое сообщение клиента открывает «ждёт ответа»; нужен ли ответ на «Аха» или «спасибо», решает AI (бот снимает
     // ожидание сам), а не словарь.
-    await this.conversations.recordIncoming(conv.id, preview(m.text), m.at);
+    const inserted = await this.atomic(async () => {
+      if (!(await this.messages.insertIncoming(base.id, m, extra.subject ?? null))) return false;
+      if (spam) await this.conversations.closeAsSpam(base.id, preview(m.text), m.at);
+      else await this.conversations.recordIncoming(base.id, preview(m.text), m.at);
+      return true;
+    });
+    if (!inserted) {
+      // Повторная доставка вебхука. Прошлая попытка могла упасть на заявке (после записи сообщения) — заявку заводим
+      // сейчас; уведомление и бот второй раз не запускаются.
+      if (!spam && !base.dealId) await this.ensureDeal(base, m.contactName, m.text);
+      return;
+    }
+    if (spam) return;
+    const { conv, created: dealCreated } = await this.ensureDeal(base, m.contactName, m.text);
     // «Не пишите мне» — номер в стоп-лист «Не писать первым» (до бота и правил: напоминание и сообщение правила уже не уйдут).
     if (asksNoMessages(m.text)) await this.optOut(conv, m.text).catch((err) => this.logger.error("no marketing", err));
     // Сообщение уже в базе — открытые вкладки CRM показывают его сразу, не дожидаясь бота, уведомлений и правил.
@@ -265,13 +291,16 @@ export class MessagingService {
     const fresh = (await this.conversations.findById(conv.id)) ?? conv;
     // Пока бот ведёт опрос, отдельное уведомление на каждое сообщение не нужно: менеджер получит итог бота.
     const { quiet } = await this.bot.onIncoming(fresh, m, { created, dealCreated }).catch((err) => (this.logger.error("bot", err), { quiet: false }));
+    // Сбой уведомления не отменяет правила: сообщение уже принято, повтор вебхука его не обработает.
     if (!quiet && !extra.silent)
-      await this.notifier.notify(conv.assigneeId, "chats.view", {
-        kind: "message",
-        title: `${conv.contactName || m.contactName || phoneTail(conv.chatId) || conv.chatId} · ${channelLabel(conv.channel)}`,
-        body: preview(m.text),
-        link: `/admin/chats?c=${conv.id}`,
-      });
+      await this.notifier
+        .notify(conv.assigneeId, "chats.view", {
+          kind: "message",
+          title: `${conv.contactName || m.contactName || phoneTail(conv.chatId) || conv.chatId} · ${channelLabel(conv.channel)}`,
+          body: preview(m.text),
+          link: `/admin/chats?c=${conv.id}`,
+        })
+        .catch((err) => this.logger.error("notify", err));
     // Бот мог взять диалог (плашка «ведёт бот») — ещё раз.
     this.live.chatChanged(conv.id);
     await this.rules.messageIncoming({ subject: `${conv.id}:${m.at.toISOString().slice(0, 10)}`, conversationId: conv.id, dealId: conv.dealId, clientId: conv.clientId, channel: conv.channel });
@@ -347,9 +376,29 @@ export class MessagingService {
 
   async applyStatus(s: DeliveryStatus) {
     const msg = await this.messages.byExternalId(s.externalId);
-    if (!msg || !shouldApplyStatus(msg.status, s.status)) return;
+    if (!msg) return this.rememberStatus(s);
+    if (!shouldApplyStatus(msg.status, s.status)) return;
     await this.messages.setStatus(msg.id, s.status, s.error);
     this.live.chatChanged(msg.conversationId);
+  }
+
+  /** Статус пришёл раньше внешнего ID — запомнить ненадолго (старые записи выбрасываются). */
+  private rememberStatus(s: DeliveryStatus) {
+    const now = this.clock.now().getTime();
+    for (const [id, e] of this.#earlyStatus) if (now - e.at > EARLY_STATUS_MS || this.#earlyStatus.size >= EARLY_STATUS_MAX) this.#earlyStatus.delete(id);
+    const prev = this.#earlyStatus.get(s.externalId);
+    if (prev && !shouldApplyStatus(prev.status, s.status)) return;
+    this.#earlyStatus.set(s.externalId, { status: s.status, error: s.error, at: now });
+  }
+
+  /** Отправка вернула внешний ID: записать его и применить статус, если шлюз прислал его раньше. */
+  private async attach(id: string, externalId: string | null) {
+    await this.messages.attachExternalId(id, externalId);
+    if (!externalId) return;
+    const early = this.#earlyStatus.get(externalId);
+    if (!early) return;
+    this.#earlyStatus.delete(externalId);
+    if (this.clock.now().getTime() - early.at <= EARLY_STATUS_MS && shouldApplyStatus("sent", early.status)) await this.messages.setStatus(id, early.status, early.error);
   }
 
   /** Сообщение этого диалога, на которое отвечают: его id в канале (для цитаты в WhatsApp). */
@@ -379,7 +428,7 @@ export class MessagingService {
       this.live.chatChanged(conversationId);
       return { ...msg, status: "error" as const, error: r.error };
     }
-    await this.messages.attachExternalId(msg.id, r.externalId);
+    await this.attach(msg.id, r.externalId);
     if (conv.channel === "email") this.live.chatChanged(conversationId);
     if (authorId) await this.answered(conv);
     return { ...msg, externalId: r.externalId, status: "sent" as const };
@@ -407,7 +456,7 @@ export class MessagingService {
       this.live.chatChanged(conversationId);
       return { ...msg, status: "error" as const, error: r.error };
     }
-    await this.messages.attachExternalId(msg.id, r.externalId);
+    await this.attach(msg.id, r.externalId);
     this.live.chatChanged(conversationId);
     await this.answered(conv);
     return { ...msg, externalId: r.externalId, status: "sent" as const };
@@ -431,7 +480,7 @@ export class MessagingService {
       this.live.chatChanged(conversationId);
       return false;
     }
-    await this.messages.attachExternalId(msg.id, r.externalId);
+    await this.attach(msg.id, r.externalId);
     this.live.chatChanged(conversationId);
     return true;
   }
@@ -471,6 +520,12 @@ export class MessagingService {
     const m = await this.messages.findOne(messageId);
     if (!m || m.conversationId !== conversationId || m.direction !== "out" || m.internal || m.status !== "error" || m.deletedAt) throw new MessageActionError("Повторить можно только неотправленное сообщение");
     if (m.type !== "text") throw new MessageActionError("Файл отправьте заново");
+    // Шлюз не ответил вовремя, но эхо или статус уже принесли ID сообщения в WhatsApp — оно ушло: второй раз не шлём.
+    if (m.externalId && isGatewayDown(m.error)) {
+      await this.messages.setStatus(m.id, "sent", null);
+      this.live.chatChanged(conversationId);
+      return { ok: true };
+    }
     if (hasRedactedSecret(m.text)) throw new MessageActionError("В сообщении ссылка доступа — отправьте её заново из счёта или карточки клиента");
     const conv = await this.conversations.findById(conversationId);
     if (!conv) throw new MessageActionError("Диалог не найден");
@@ -481,7 +536,7 @@ export class MessagingService {
       return { ok: false, error: r.error };
     }
     await this.messages.setStatus(m.id, "sent", null);
-    await this.messages.attachExternalId(m.id, r.externalId);
+    await this.attach(m.id, r.externalId);
     this.live.chatChanged(conversationId);
     return { ok: true };
   }
@@ -754,10 +809,12 @@ export class MessagingService {
     if (conv) await this.conversations.linkDeal(conv.id, { dealId: deal.id, clientId: conv.clientId, assigneeId: conv.assigneeId ?? deal.assigneeId });
   }
 
-  /** Привязать диалог к сделке, если он ещё ни к какой не привязан. */
+  /** Привязать диалог к сделке, если он ещё ни к какой не привязан; ничей диалог переходит к ответственному сделки. */
   async attachDeal(conversationId: string, dealId: string) {
     const conv = await this.conversations.findById(conversationId);
-    if (conv && !conv.dealId) await this.conversations.linkDeal(conv.id, { dealId, clientId: conv.clientId, assigneeId: conv.assigneeId });
+    if (!conv || conv.dealId) return;
+    const assigneeId = conv.assigneeId ?? (await this.sales.deal(dealId))?.assigneeId ?? null;
+    await this.conversations.linkDeal(conv.id, { dealId, clientId: conv.clientId, assigneeId });
   }
 
   /** Заявку приняли — её диалоги переходят к ответственному. */
@@ -782,13 +839,17 @@ export class MessagingService {
     return this.blocklist.remove([value]);
   }
 
-  /** Диалог с клиентом по телефону (кнопка «Написать» в карточке): существующий WhatsApp или новый. */
-  async conversationForPhone(phone: string, channelId: string, clientId: string | null, contactName: string) {
+  /**
+   * Диалог с клиентом по телефону (кнопка «Написать» в карточке): существующий WhatsApp или новый. Новый — сразу у
+   * assigneeId (ответственный клиента или тот, кто нажал): ничей диалог менеджер «только свои» открыть может, а
+   * написать в него — нет.
+   */
+  async conversationForPhone(phone: string, channelId: string, clientId: string | null, contactName: string, assigneeId: string | null = null) {
     const chatId = normalizePhone(phone);
     if (chatId.length < 10) throw new Error("Некорректный номер телефона");
     const existing = await this.conversations.latestWhatsapp(chatId);
     if (existing) return existing;
-    return (await this.conversations.create({ channel: "whatsapp", channelId, chatId, clientId, contactName, avatarUrl: null, meta: {} })) ?? (await this.conversations.findByChat("whatsapp", channelId, chatId))!;
+    return (await this.conversations.create({ channel: "whatsapp", channelId, chatId, clientId, contactName, avatarUrl: null, meta: {}, assigneeId })) ?? (await this.conversations.findByChat("whatsapp", channelId, chatId))!;
   }
 }
 

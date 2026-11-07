@@ -68,7 +68,7 @@ function FileStatus({ state }: { state: FileState | undefined }) {
     );
   if (state === "gone" || state.status === "failed")
     return (
-      <div className="flex items-start gap-1.5 text-xs leading-snug text-red-700" role="alert">
+      <div className="flex items-start gap-1.5 text-xs leading-snug text-danger" role="alert">
         <TriangleAlert className="mt-px size-3.5 shrink-0" />
         <span>
           {state === "gone" ? t.errors.gone : t.errors[state.error ?? "server"]} {t.reupload}
@@ -77,7 +77,7 @@ function FileStatus({ state }: { state: FileState | undefined }) {
     );
   if (state.status === "ready")
     return (
-      <p className="flex items-center gap-1.5 text-xs text-emerald-700">
+      <p className="flex items-center gap-1.5 text-xs text-success">
         <Check className="size-3.5" /> {t.ready(formatDuration(state.durationSec ?? 0))}
       </p>
     );
@@ -207,7 +207,7 @@ function MediaItem({
             <button
               type="button"
               onClick={() => (own && file !== "gone" ? setConfirming(true) : onRemove())}
-              className="-mr-1 rounded-full p-2 text-muted hover:bg-cream hover:text-red-700"
+              className="-mr-1 rounded-full p-2 text-muted hover:bg-cream hover:text-danger"
               aria-label={t.removeAria(media.title)}
               title={t.remove}
             >
@@ -217,7 +217,7 @@ function MediaItem({
         </div>
         {own ? <FileStatus state={file} /> : null}
         {confirming ? (
-          <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-red-50 p-3 text-sm" role="alert">
+          <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-danger-bg p-3 text-sm" role="alert">
             <span className="min-w-0 flex-1">{t.file.removeConfirm}</span>
             <button
               type="button"
@@ -371,7 +371,7 @@ export function MediaStrip({
         </ul>
       ) : null}
       {adding && editable ? (
-        <form onSubmit={submit} className="enter space-y-3 rounded-3xl bg-cream/70 p-4 sm:p-5">
+        <form onSubmit={submit} className="enter space-y-3 rounded-3xl bg-sunken p-4 sm:p-5">
           <p className="text-sm leading-snug text-ink-soft">{t.intro}</p>
           {media.length < MAX_MEDIA ? <FileUpload bookId={bookId} onUploaded={uploaded} /> : null}
           <div className="flex items-center gap-3 pt-1 text-xs text-muted" aria-hidden>
@@ -406,7 +406,7 @@ export function MediaStrip({
             </div>
           </label>
           {error ? (
-            <p className="text-sm text-red-700" role="alert">
+            <p className="text-sm text-danger" role="alert">
               {error}
             </p>
           ) : null}

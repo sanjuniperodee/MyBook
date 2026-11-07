@@ -20,7 +20,7 @@ export function DuePresets({ hours, onPick, className }: { hours?: WorkHours; on
         <button
           key={key}
           type="button"
-          className="rounded-full border border-line bg-white px-2.5 py-1 text-xs text-ink-soft hover:border-wine/40 hover:text-wine"
+          className="chip h-7 px-2.5 text-xs max-lg:h-9"
           onClick={() => onPick(duePresets(new Date(), hours ?? parseWorkHours(null))[key])}
         >
           {label}

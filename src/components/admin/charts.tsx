@@ -33,10 +33,11 @@ export function RevenueColumns({ data, height = 220 }: { data: DayPoint[]; heigh
   const step = niceStep(max / 4 || 1);
   const top = Math.max(step * 4, step);
   const ticks = [0, 1, 2, 3, 4].map((i) => i * step).filter((t) => t <= top);
-  const labelEvery = Math.ceil(data.length / 8);
+  // Подписи дат — не чаще шести: на телефоне восемь подписей слипались.
+  const labelEvery = Math.ceil(data.length / 6);
 
   return (
-    <div>
+    <div className="pt-2">
       <div className="flex gap-3">
         {/* ось Y */}
         <div className="relative w-11 shrink-0 text-right sm:w-14 text-[11px] text-muted tabular-nums" style={{ height }}>
@@ -62,7 +63,7 @@ export function RevenueColumns({ data, height = 220 }: { data: DayPoint[]; heigh
                   ) : null}
                   <div
                     className={cn(
-                      "pointer-events-none absolute bottom-full z-10 mb-2 hidden w-max rounded-xl bg-ink px-3 py-2 text-xs text-white shadow-lift group-hover:block group-focus:block",
+                      "pointer-events-none absolute bottom-full z-10 mb-2 hidden w-max rounded-[10px] bg-ink px-3 py-2 text-xs text-white shadow-lift group-hover:block group-focus:block",
                       alignRight ? "right-0" : "left-0",
                     )}
                   >
@@ -88,7 +89,7 @@ export function RevenueColumns({ data, height = 220 }: { data: DayPoint[]; heigh
       </div>
       <details className="mt-4 text-sm">
         <summary className="cursor-pointer text-xs text-muted hover:text-ink">Показать таблицей</summary>
-        <div className="mt-2 max-h-64 overflow-y-auto rounded-xl border border-line">
+        <div className="mt-2 max-h-64 overflow-y-auto rounded-[10px] border border-line">
           <table className="w-full text-xs">
             <thead className="sticky top-0 bg-white text-left text-muted">
               <tr>
@@ -127,7 +128,7 @@ export function BarList({ rows, format = (n) => n.toLocaleString("ru-RU") }: { r
               {r.note ? <span className="ml-1.5 text-xs text-muted">{r.note}</span> : null}
             </span>
           </div>
-          <div className="mt-1.5 h-2 rounded-full bg-cream">
+          <div className="mt-1.5 h-1.5 rounded-full bg-sunken">
             <div className="h-full rounded-full bg-wine" style={{ width: `${r.value ? Math.max((r.value / max) * 100, 1.5) : 0}%` }} />
           </div>
         </li>
@@ -136,23 +137,44 @@ export function BarList({ rows, format = (n) => n.toLocaleString("ru-RU") }: { r
   );
 }
 
-/** Карточка показателя: подпись, значение, изменение к прошлому периоду. */
-export function StatTile({ label, value, delta, goodWhenUp = true, hint }: { label: string; value: string; delta?: number | null; goodWhenUp?: boolean; hint?: string }) {
+/**
+ * Показатель: подпись, значение, изменение к прошлому периоду. Отдельно — лист с рамкой; внутри StatRow — без рамки
+ * (bare), и несколько показателей читаются одной строкой, а не сеткой одинаковых карточек.
+ */
+export function StatTile({ label, value, delta, goodWhenUp = true, hint, bare, href }: { label: string; value: string; delta?: number | null; goodWhenUp?: boolean; hint?: string; bare?: boolean; href?: string }) {
   const hasDelta = delta !== undefined && delta !== null && Number.isFinite(delta);
   const up = hasDelta && delta! > 0;
   const good = hasDelta && (delta === 0 ? null : up === goodWhenUp);
-  return (
-    <div className="rounded-2xl border border-line bg-white p-5">
+  const body = (
+    <>
       <div className="text-sm text-muted">{label}</div>
-      <div className="mt-2 text-3xl font-semibold tracking-tight">{value}</div>
-      <div className="mt-1 flex items-center gap-2 text-xs">
+      <div className="mt-1.5 text-[26px] leading-tight font-semibold tracking-tight tabular-nums">{value}</div>
+      <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
         {hasDelta ? (
-          <span className={cn("font-medium", good === null ? "text-muted" : good ? "text-emerald-700" : "text-red-700")}>
-            {delta! > 0 ? "▲" : delta! < 0 ? "▼" : "•"} {Math.abs(Math.round(delta! * 100))}%
+          <span className={cn("badge", good === null ? "" : good ? "badge-success" : "badge-danger")}>
+            {delta! > 0 ? "+" : delta! < 0 ? "−" : ""}
+            {Math.abs(Math.round(delta! * 100))}%
           </span>
         ) : null}
         <span className="text-muted">{hint ?? (hasDelta ? "к прошлому периоду" : "")}</span>
       </div>
-    </div>
+    </>
   );
+  const cls = cn(bare ? "bg-white p-4 sm:p-5" : "panel p-4 sm:p-5", href && "block transition-colors hover:bg-sunken/60");
+  return href ? (
+    <a href={href} className={cls}>
+      {body}
+    </a>
+  ) : (
+    <div className={cls}>{body}</div>
+  );
+}
+
+/**
+ * Строка показателей одним листом: тонкие разделители между ячейками (через gap-px на фоне линии) при любом переносе
+ * сетки. cols — сколько в ряд на широком экране (на телефоне — по 2).
+ */
+export function StatRow({ children, cols = 4, className }: { children: React.ReactNode; cols?: 2 | 3 | 4 | 5; className?: string }) {
+  const grid = { 2: "sm:grid-cols-2", 3: "sm:grid-cols-3", 4: "sm:grid-cols-2 xl:grid-cols-4", 5: "sm:grid-cols-3 xl:grid-cols-5" }[cols];
+  return <div className={cn("grid grid-cols-2 gap-px overflow-hidden rounded-[14px] border border-line bg-line", grid, className)}>{children}</div>;
 }

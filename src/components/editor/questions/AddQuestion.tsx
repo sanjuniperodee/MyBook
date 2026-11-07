@@ -34,7 +34,7 @@ export function AddQuestion({ onAdd, onCancel }: { onAdd: (prompt: string) => Pr
           {t.cancel}
         </button>
       </div>
-      {err ? <p className="mt-2 text-sm text-red-700">{err}</p> : null}
+      {err ? <p className="mt-2 text-sm text-danger">{err}</p> : null}
     </form>
   );
 }

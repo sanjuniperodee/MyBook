@@ -163,9 +163,9 @@ export function SettingsForm({ bookId, theme, initial, fixedRecipientGender, edi
 
 function Toggle({ value, onChange, labels, disabled }: { value: Gender; onChange: (g: Gender) => void; labels: [string, string]; disabled?: boolean }) {
   return (
-    <div className="grid grid-cols-2 gap-2 rounded-2xl bg-cream/70 p-1">
+    <div className="grid grid-cols-2 gap-1 rounded-[12px] bg-sunken p-1">
       {(["m", "f"] as const).map((g, i) => (
-        <button key={g} type="button" disabled={disabled} onClick={() => onChange(g)} className={cn("h-10 rounded-xl text-sm font-medium transition", value === g ? "bg-white shadow-soft" : "text-muted hover:text-ink")}>
+        <button key={g} type="button" disabled={disabled} onClick={() => onChange(g)} className={cn("h-11 rounded-[10px] text-sm font-medium transition sm:h-10", value === g ? "bg-white shadow-soft" : "text-muted hover:text-ink")}>
           {labels[i]}
         </button>
       ))}

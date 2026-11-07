@@ -72,7 +72,7 @@ const SELL_TEXTS: [BotTextKey, string][] = [
   ["followUp", "Напоминание, если клиент молчит"],
 ];
 
-const area = "w-full rounded-xl border border-line bg-[#fbf9f5] px-3 py-2 text-sm";
+const area = "w-full rounded-[10px] border border-line bg-sunken/60 px-3 py-2 text-sm";
 
 export function BotForm({
   mode: initialMode,
@@ -119,7 +119,7 @@ export function BotForm({
   const setSell = (p: Partial<BotConfig["sell"]>) => setCfg((c) => ({ ...c, sell: { ...c.sell, ...p } }));
   const sellNumber = (key: "prepay" | "writeDays" | "deliveryDays" | "followUpHours" | "productionDays", label: string, min: number, max: number) => (
     <label key={key} className="block">
-      <span className="mb-1 block text-xs text-muted">{label}</span>
+      <span className="label">{label}</span>
       <input type="number" min={min} max={max} value={cfg.sell[key]} onChange={(e) => setSell({ [key]: Math.max(min, Math.min(max, Math.floor(Number(e.target.value) || 0))) })} className="input h-9 w-full text-sm" aria-label={label} />
     </label>
   );
@@ -134,18 +134,18 @@ export function BotForm({
     });
   const textField = (key: BotTextKey, label: string) => (
     <label key={`${lang}-${key}`} className="block">
-      <span className="mb-1 block text-xs text-muted">{label}</span>
+      <span className="label">{label}</span>
       <textarea value={cfg.texts[lang][key]} placeholder={defaults.texts[lang][key]} onChange={(e) => setText(key, e.target.value)} rows={2} maxLength={500} className={area} />
     </label>
   );
 
   return (
-    <section className="space-y-5 rounded-2xl border border-line bg-white p-5" data-testid="bot-form">
+    <section className="space-y-5 panel p-5" data-testid="bot-form">
       <div className="flex flex-wrap items-center gap-3">
         <h2 className="flex items-center gap-2 font-semibold">
           <Bot className="size-5 text-wine" /> Бот-автоответчик
         </h2>
-        <span className={cn("rounded-full px-2.5 py-0.5 text-xs", mode === "off" ? "bg-cream text-muted" : "bg-emerald-100 text-emerald-800")}>{mode === "off" ? "выключен" : "включён"}</span>
+        <span className={cn("badge", mode !== "off" && "badge-success")}>{mode === "off" ? "выключен" : "включён"}</span>
       </div>
       <p className="text-sm text-muted">
         На первое сообщение нового клиента бот здоровается, отвечает на частые вопросы (цена, доставка, сроки) и спрашивает недостающее — ответы записывает в поля сделки. Понимает русский и казахский
@@ -171,7 +171,7 @@ export function BotForm({
         <>
       <div className="grid gap-2 sm:grid-cols-2">
         {MODES.map(([v, label, hint]) => (
-          <label key={v} className={cn("flex cursor-pointer gap-2 rounded-xl border px-3 py-2 text-sm", mode === v ? "border-wine/40 bg-rose/30" : "border-line")}>
+          <label key={v} className={cn("flex cursor-pointer gap-2 rounded-[10px] border px-3 py-2 text-sm", mode === v ? "border-wine/40 bg-rose/30" : "border-line")}>
             <input type="radio" checked={mode === v} onChange={() => setMode(v)} className="mt-0.5 accent-wine" />
             <span>
               {label}
@@ -192,7 +192,7 @@ export function BotForm({
         <legend className="mb-1.5 text-xs text-muted">Где работает бот (в почте — никогда)</legend>
         <div className="flex flex-wrap gap-2 text-sm">
           {CHANNELS.map(([v, label]) => (
-            <label key={v} className="flex items-center gap-1.5 rounded-xl border border-line px-3 py-1.5">
+            <label key={v} className="flex items-center gap-1.5 rounded-[10px] border border-line px-3 py-1.5">
               <input type="checkbox" className="accent-wine" checked={cfg.channels.includes(v)} onChange={(e) => patch({ channels: e.target.checked ? [...cfg.channels, v] : cfg.channels.filter((c) => c !== v) })} />
               {label}
             </label>
@@ -201,7 +201,7 @@ export function BotForm({
       </fieldset>
 
       {autoReplyRules.length ? (
-        <p className="flex gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900">
+        <p className="flex gap-2 rounded-[10px] bg-warning-bg px-3 py-2 text-xs text-warning">
           <AlertTriangle className="size-4 shrink-0" />
           Включены правила-автоответы: {autoReplyRules.map((r) => `«${r}»`).join(", ")}. Пока бот ведёт диалог, они клиенту не пишут — двух автоответов подряд не будет.
         </p>
@@ -231,7 +231,7 @@ export function BotForm({
         {cfg.questions.map((q, i) => {
           const f = fields.find((x) => x.key === q.field);
           return (
-            <div key={i} className="space-y-2 rounded-xl border border-line p-2.5">
+            <div key={i} className="space-y-2 rounded-[10px] border border-line p-2.5">
               <div className="flex flex-wrap items-start gap-2">
                 <span className="mt-2 w-5 text-center text-xs text-muted">{i + 1}</span>
                 <textarea
@@ -257,7 +257,7 @@ export function BotForm({
                   <button type="button" className="btn btn-ghost btn-sm size-9 px-0" disabled={i === cfg.questions.length - 1} onClick={() => move(i, 1)} aria-label="Ниже">
                     <ArrowDown className="size-4" />
                   </button>
-                  <button type="button" className="btn btn-ghost btn-sm size-9 px-0 text-red-700" onClick={() => patch({ questions: cfg.questions.filter((_, j) => j !== i) })} aria-label="Удалить вопрос">
+                  <button type="button" className="btn btn-ghost btn-sm size-9 px-0 text-danger" onClick={() => patch({ questions: cfg.questions.filter((_, j) => j !== i) })} aria-label="Удалить вопрос">
                     <Trash2 className="size-4" />
                   </button>
                 </div>
@@ -297,7 +297,7 @@ export function BotForm({
 
       <div className="grid gap-3 sm:grid-cols-2">{MAIN_TEXTS.slice(1).map(([k, label]) => textField(k, label))}</div>
 
-      <details className="rounded-xl border border-line p-3">
+      <details className="rounded-[10px] border border-line p-3">
         <summary className="cursor-pointer text-sm">Другие тексты бота</summary>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">{OTHER_TEXTS.map(([k, label]) => textField(k, label))}</div>
       </details>
@@ -311,7 +311,7 @@ export function BotForm({
           </p>
         </div>
         {FAQ.map(([intent, label]) => (
-          <div key={intent} className="rounded-xl border border-line p-2.5">
+          <div key={intent} className="rounded-[10px] border border-line p-2.5">
             <label className="mb-1.5 flex items-center gap-2 text-sm">
               <input type="checkbox" className="accent-wine" checked={cfg.faq[intent].on} onChange={(e) => patch({ faq: { ...cfg.faq, [intent]: { ...cfg.faq[intent], on: e.target.checked } } })} />
               {label}
@@ -329,12 +329,12 @@ export function BotForm({
             ) : null}
           </div>
         ))}
-        <p className="rounded-xl bg-cream/50 px-3 py-2 text-xs text-ink-soft">
+        <p className="rounded-[10px] bg-sunken/50 px-3 py-2 text-xs text-ink-soft">
           Цену бот называет «от» — по «Ценам и тарифам» ({"{цена.электронная}"}, {"{цена.печатная}"}), и добавляет строку акции. Точную сумму со скидкой называет менеджер. Скрытый тариф бот не называет: строка с пустой
           переменной не отправляется.
         </p>
         <label className="block">
-          <span className="mb-1 block text-xs text-muted">
+          <span className="label">
             Акция ({"{акция}"}) — добавляется к ответу о цене. Проценты и сроки можно, суммы в тенге — нет. Пусто — бот про акции не говорит{lang === "kk" ? "; пустая казахская — клиент увидит русскую" : ""}
           </span>
           <input
@@ -374,7 +374,7 @@ export function BotForm({
                       ["template", "По шаблонам", "Бот отвечает заготовленными текстами по сценарию: предложение → возражение → «да». Предсказуемо, но не понимает свободную речь. Обычный бот-квалификатор всегда работает по шаблонам."],
                     ] as const
                   ).map(([v, label, hint]) => (
-                    <label key={v} className={cn("flex cursor-pointer gap-2 rounded-xl border px-3 py-2 text-sm", cfg.sell.engine === v ? "border-wine/40 bg-rose/30" : "border-line")}>
+                    <label key={v} className={cn("flex cursor-pointer gap-2 rounded-[10px] border px-3 py-2 text-sm", cfg.sell.engine === v ? "border-wine/40 bg-rose/30" : "border-line")}>
                       <input type="radio" name="sell-engine" checked={cfg.sell.engine === v} onChange={() => setSell({ engine: v })} className="mt-0.5 accent-wine" />
                       <span>
                         {label}
@@ -385,12 +385,12 @@ export function BotForm({
                 </div>
                 {cfg.sell.engine === "ai" ? (
                   seller ? (
-                    <p className={cn("rounded-xl px-3 py-2 text-xs", /free/i.test(seller) ? "bg-amber-50 text-amber-900" : "bg-emerald-50 text-emerald-900")}>
+                    <p className={cn("rounded-[10px] px-3 py-2 text-xs", /free/i.test(seller) ? "bg-warning-bg text-warning" : "bg-success-bg text-success")}>
                       Модель продажника: <b>{seller}</b>.{" "}
                       {/free/i.test(seller) ? "Бесплатные модели OpenRouter нестабильны и хуже держат правила — для продаж выберите сильную модель (Claude, GPT) во вкладке «AI» страницы «Интеграции»." : "Сменить — во вкладке «AI» страницы «Интеграции»."}
                     </p>
                   ) : (
-                    <p className="flex gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                    <p className="flex gap-2 rounded-[10px] bg-warning-bg px-3 py-2 text-xs text-warning">
                       <AlertTriangle className="size-4 shrink-0" />
                       AI не подключён — пока продажник работает по шаблонам. Подключите модель во вкладке «AI» страницы «Интеграции».
                     </p>
@@ -399,7 +399,7 @@ export function BotForm({
               </fieldset>
 
               {cfg.sell.engine === "ai" ? (
-                <div className="space-y-3 rounded-xl border border-line p-3">
+                <div className="space-y-3 rounded-[10px] border border-line p-3">
                   <label className="flex items-start gap-2 text-sm">
                     <input type="checkbox" className="mt-0.5 accent-wine" checked={cfg.sell.takeover} onChange={(e) => setSell({ takeover: e.target.checked })} aria-label="Подхватывать начатую переписку" />
                     <span>
@@ -412,7 +412,7 @@ export function BotForm({
                     </span>
                   </label>
                   <label className="block text-sm">
-                    <span className="mb-1 block text-xs text-muted">Указания продажнику — тон, акценты, чего избегать (необязательно, до 1500 знаков). Цены и скидки сюда не пишите: они берутся из тарифов и строки акции.</span>
+                    <span className="label">Указания продажнику — тон, акценты, чего избегать (необязательно, до 1500 знаков). Цены и скидки сюда не пишите: они берутся из тарифов и строки акции.</span>
                     <textarea
                       value={cfg.sell.persona}
                       onChange={(e) => setSell({ persona: e.target.value })}
@@ -485,7 +485,7 @@ export function BotForm({
               </span>
             </label>
             {cfg.sell.engine === "ai" ? (
-              <div className="space-y-3 rounded-xl border border-line p-3">
+              <div className="space-y-3 rounded-[10px] border border-line p-3">
                 <fieldset className="space-y-1.5 text-sm">
                   <legend className="mb-1 text-xs text-muted">От чьего имени пишет бот</legend>
                   {(
@@ -502,12 +502,12 @@ export function BotForm({
                 </fieldset>
                 <div className="grid gap-2 text-sm sm:grid-cols-2">
                   <label className="block">
-                    <span className="mb-1 block text-xs text-muted">{cfg.sell.speaksAs === "manager" ? "Имя менеджера — от его имени пишет бот" : "Менеджер, чья она помощница (он называет цену)"}</span>
+                    <span className="label">{cfg.sell.speaksAs === "manager" ? "Имя менеджера — от его имени пишет бот" : "Менеджер, чья она помощница (он называет цену)"}</span>
                     <input value={cfg.sell.managerName} onChange={(e) => setSell({ managerName: e.target.value })} maxLength={40} className="input h-9 w-full text-sm" aria-label="Имя менеджера" />
                   </label>
                   {cfg.sell.speaksAs === "assistant" ? (
                     <label className="block">
-                      <span className="mb-1 block text-xs text-muted">Как помощница представляется (женское имя)</span>
+                      <span className="label">Как помощница представляется (женское имя)</span>
                       <input value={cfg.sell.botName} onChange={(e) => setSell({ botName: e.target.value })} maxLength={40} className="input h-9 w-full text-sm" aria-label="Имя продажника" />
                     </label>
                   ) : null}
@@ -555,7 +555,7 @@ export function BotForm({
                 </label>
               </div>
             ) : null}
-            <details className="rounded-xl border border-line p-3">
+            <details className="rounded-[10px] border border-line p-3">
               <summary className="cursor-pointer text-sm">{cfg.sell.engine === "ai" ? "Запасные тексты продаж" : "Тексты продаж"} ({lang === "ru" ? "русский" : "қазақша"})</summary>
               {cfg.sell.engine === "ai" ? <p className="mt-2 text-xs text-muted">При движке AI эти тексты нужны, только если модель недоступна или счёт выставить не вышло (например, «менеджер пришлёт счёт»).</p> : null}
               <div className="mt-3 grid gap-3 sm:grid-cols-2">{SELL_TEXTS.map(([k, label]) => textField(k, label))}</div>
@@ -599,7 +599,7 @@ export function BotForm({
       ) : null}
 
       <button
-        className="btn btn-sm"
+        className="btn btn-dark btn-sm"
         disabled={pending}
         onClick={() =>
           start(async () => {

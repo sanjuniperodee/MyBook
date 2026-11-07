@@ -5,6 +5,10 @@ import { getOccasion, parseDay } from "@/lib/occasions";
 import { messagesFor } from "@/i18n/messages";
 
 import Link from "next/link";
+import { BookOpen, Eye, Search } from "lucide-react";
+import { PageHeader } from "@/components/admin/PageHeader";
+import { Badge } from "@/components/ui/Badge";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { getTheme, getThemes } from "@/lib/content/themes";
 import { STALLED_DAYS } from "@/modules/reporting";
 import { RemindAll } from "./RemindAll";
@@ -35,142 +39,183 @@ export default async function AdminBooks({ searchParams }: { searchParams: Promi
   const link = (patch: Record<string, string | undefined>) =>
     `/admin/books?${new URLSearchParams(Object.entries({ f, q: sp.q, theme: sp.theme, ...patch }).filter(([, v]) => v && v !== "all") as [string, string][])}`;
 
+  const filteredBy = !!sp.q || !!sp.theme;
+
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">Книги</h1>
-          <p className="text-sm text-muted">Показано {rows.length}. Напоминания помогают вернуть тех, кто начал книгу и не закончил.</p>
-        </div>
-        {f === "stalled" || f === "ready" ? <RemindAll clientIds={remindable} /> : null}
-      </div>
-      <div className="flex flex-wrap gap-1.5">
-        {(Object.keys(filters) as Filter[]).map((k) => (
-          <Link key={k} href={link({ f: k })} className={cn("rounded-full px-3 py-1.5 text-sm", f === k ? "bg-ink text-white" : "bg-white text-ink-soft hover:bg-cream")}>
-            {filters[k]}
-          </Link>
-        ))}
-      </div>
-      <form className="flex flex-wrap gap-2">
-        <input type="hidden" name="f" value={f} />
-        <input name="q" defaultValue={sp.q} placeholder="Название, имена, e-mail" className="input h-10 w-72 text-sm" />
-        <select name="theme" defaultValue={sp.theme ?? ""} className="input h-10 w-52 text-sm">
-          <option value="">Все темы</option>
-          {themes.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.name}
-            </option>
+    <div className="flex flex-col gap-5">
+      <PageHeader title="Книги" actions={f === "stalled" || f === "ready" ? <RemindAll clientIds={remindable} /> : null}>
+        Найдено {rows.length}. Заброшенным и почти готовым книгам помогает напоминание автору.
+      </PageHeader>
+
+      <div className="space-y-3">
+        <nav aria-label="Этап книги" className="m-hscroll flex flex-wrap gap-1.5">
+          {(Object.keys(filters) as Filter[]).map((k) => (
+            <Link key={k} href={link({ f: k })} aria-current={f === k ? "page" : undefined} className={cn("chip max-lg:h-10", f === k && "chip-on")}>
+              {filters[k]}
+            </Link>
           ))}
-        </select>
-        <button className="btn btn-dark btn-sm h-10">Найти</button>
-      </form>
-      <ul className="space-y-2.5 lg:hidden" data-testid="books-cards">
-        {rows.map((r) => {
-          const idle = Math.floor((nowMs() - r.book.updatedAt.getTime()) / 86_400_000);
-          return (
-            <li key={r.book.id} className="rounded-2xl border border-line bg-white p-3.5 shadow-soft">
-              <div className="flex items-start gap-3">
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-[16px] font-semibold">{r.book.title}</div>
-                  <div className="truncate text-sm text-muted">
-                    {bookLine({ theme: r.book.theme, themeShort: getTheme(r.book.theme).short, authorName: r.book.authorName, recipientName: r.book.recipientName })}
-                  </div>
-                  <Link href={`/admin/clients/${r.owner.id}`} className="block truncate text-sm text-ink-soft">
-                    {r.owner.name || r.owner.email}
-                  </Link>
-                </div>
-                <span className={cn("shrink-0 rounded-full px-2.5 py-1 text-xs", r.book.status === "draft" ? "bg-cream text-ink-soft" : "bg-emerald-100 text-emerald-800")}>{r.book.status === "draft" ? "Пишется" : "Заказана"}</span>
-              </div>
-              <div className="mt-2.5 flex items-center gap-2">
-                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-cream">
-                  <div className="h-full rounded-full bg-wine" style={{ width: `${progressRatio({ theme: r.book.theme, ...r }) * 100}%` }} />
-                </div>
-                <span className="text-xs text-muted tabular-nums">{progressShort({ theme: r.book.theme, ...r })}</span>
-              </div>
-              <div className="mt-2 flex items-center gap-3 text-xs">
-                <span className={r.book.status === "draft" && idle >= STALLED_DAYS ? "text-red-700" : "text-muted"}>{idle <= 0 ? "сегодня" : `${idle} дн. назад`}</span>
-                <span className="text-muted">{r.photos} фото</span>
-                <Link href={`/books/${r.book.id}/preview`} className="ml-auto inline-flex min-h-10 items-center font-medium text-wine">
-                  Макет
+        </nav>
+        <form className="panel grid gap-2 p-2.5 sm:grid-cols-[minmax(0,1fr)_14rem_auto]">
+          <input type="hidden" name="f" value={f} />
+          <div className="relative">
+            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" aria-hidden />
+            <input name="q" defaultValue={sp.q} placeholder="Название, имена, e-mail" aria-label="Поиск книг: название, имена, e-mail" type="search" className="input h-10 pl-9 text-sm" />
+          </div>
+          <select name="theme" defaultValue={sp.theme ?? ""} className="input h-10 text-sm" aria-label="Тема">
+            <option value="">Все темы</option>
+            {themes.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </select>
+          <div className="flex gap-2">
+            <button className="btn btn-dark btn-sm h-10 flex-1 sm:flex-none">Найти</button>
+            {filteredBy ? (
+              <Link href={link({ q: undefined, theme: undefined })} className="btn btn-ghost btn-sm h-10">
+                Сбросить
+              </Link>
+            ) : null}
+          </div>
+        </form>
+      </div>
+
+      {rows.length === 0 ? (
+        <div className="panel">
+          <EmptyState
+            icon={BookOpen}
+            title={filteredBy || f !== "all" ? "Книг по этому фильтру нет" : "Книг пока нет"}
+            action={
+              filteredBy || f !== "all" ? (
+                <Link href="/admin/books" className="btn btn-outline btn-sm">
+                  Показать все книги
                 </Link>
-              </div>
-            </li>
-          );
-        })}
-        {rows.length === 0 ? <li className="rounded-2xl border border-dashed border-line bg-white px-4 py-10 text-center text-sm text-muted">Книг не найдено</li> : null}
-      </ul>
-      <div className="hidden overflow-x-auto rounded-2xl border border-line bg-white lg:block">
-        <table className="w-full min-w-[900px] text-sm">
-          <thead className="border-b border-line text-left text-muted">
-            <tr>
-              <th className="px-4 py-3 font-medium">Книга</th>
-              <th className="px-3 py-3 font-medium">Автор</th>
-              <th className="px-3 py-3 font-medium">Прогресс</th>
-              <th className="px-3 py-3 font-medium">Изменена</th>
-              <th className="px-3 py-3 font-medium">Статус</th>
-              <th className="px-3 py-3 font-medium">Сделка</th>
-              <th className="px-3 py-3" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-line">
+              ) : null
+            }
+          >
+            {filteredBy || f !== "all" ? "Измените этап, тему или строку поиска." : "Книги появятся, когда клиенты начнут их писать на сайте."}
+          </EmptyState>
+        </div>
+      ) : (
+        <>
+          <ul className="panel divide-y divide-line overflow-hidden lg:hidden" data-testid="books-cards">
             {rows.map((r) => {
               const idle = Math.floor((nowMs() - r.book.updatedAt.getTime()) / 86_400_000);
+              const stale = r.book.status === "draft" && idle >= STALLED_DAYS;
               return (
-                <tr key={r.book.id} className="hover:bg-cream/40">
-                  <td className="px-4 py-3">
-                    <div className="font-medium">{r.book.title}</div>
-                    <div className="text-xs text-muted">
-                      {bookLine({ theme: r.book.theme, themeShort: getTheme(r.book.theme).short, authorName: r.book.authorName, recipientName: r.book.recipientName })}
-                      {r.book.theme === "autobiography" && r.book.recordedBy ? ` · записано: ${r.book.recordedBy}` : ""}
-                    </div>
-                    {r.book.occasion && r.book.occasionDate ? (
-                      <div className="mt-0.5 text-xs text-wine">
-                        {ru.occasions[getOccasion(r.book.occasion)!.id].label} · {ru.date(parseDay(r.book.occasionDate))}
+                <li key={r.book.id} className="px-4 py-3.5">
+                  <div className="flex items-start gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-[15px] font-semibold">{r.book.title}</div>
+                      <div className="truncate text-sm text-muted">
+                        {bookLine({ theme: r.book.theme, themeShort: getTheme(r.book.theme).short, authorName: r.book.authorName, recipientName: r.book.recipientName })}
                       </div>
-                    ) : null}
-                  </td>
-                  <td className="px-3 py-3">
-                    <Link href={`/admin/clients/${r.owner.id}`} className="hover:text-wine hover:underline">
-                      {r.owner.name || r.owner.email}
-                    </Link>
-                    <div className="text-xs text-muted">{r.owner.remindedAt ? `напоминали ${formatDate(r.owner.remindedAt)}` : r.owner.email}</div>
-                  </td>
-                  <td className="px-3 py-3">
-                    <div className="flex items-center gap-2">
-                      <div className="h-1.5 w-24 overflow-hidden rounded-full bg-cream">
-                        <div className="h-full rounded-full bg-wine" style={{ width: `${progressRatio({ theme: r.book.theme, ...r }) * 100}%` }} />
-                      </div>
-                      <span className="text-xs text-muted tabular-nums" title={progressText({ theme: r.book.theme, ...r })}>
-                        {progressShort({ theme: r.book.theme, ...r })}
-                      </span>
-                    </div>
-                    <div className="text-xs text-muted">{r.photos} фото</div>
-                  </td>
-                  <td className={cn("px-3 py-3", r.book.status === "draft" && idle >= STALLED_DAYS ? "text-red-700" : "text-muted")}>{idle <= 0 ? "сегодня" : `${idle} дн. назад`}</td>
-                  <td className="px-3 py-3">
-                    <span className={cn("rounded-full px-2.5 py-1 text-xs", r.book.status === "draft" ? "bg-cream text-ink-soft" : "bg-emerald-100 text-emerald-800")}>{r.book.status === "draft" ? "Пишется" : "Заказана"}</span>
-                  </td>
-                  <td className="px-3 py-3">
-                    {r.deal ? (
-                      <Link href={`/admin/deals/${r.deal.id}`} className="text-xs text-wine hover:underline">
-                        №{r.deal.number}
+                      <Link href={`/admin/clients/${r.owner.id}`} className="block truncate text-sm text-wine">
+                        {r.owner.name || r.owner.email}
                       </Link>
-                    ) : (
-                      <span className="text-muted">—</span>
-                    )}
-                  </td>
-                  <td className="px-3 py-3 text-right">
-                    <Link href={`/books/${r.book.id}/preview`} className="text-xs text-wine hover:underline">
-                      Макет
+                    </div>
+                    <BookStatus draft={r.book.status === "draft"} />
+                  </div>
+                  <div className="mt-2.5 flex items-center gap-2">
+                    <Progress ratio={progressRatio({ theme: r.book.theme, ...r })} />
+                    <span className="text-xs text-muted tabular-nums">{progressShort({ theme: r.book.theme, ...r })}</span>
+                  </div>
+                  <div className="mt-1 flex items-center gap-3 text-xs">
+                    <span className={stale ? "font-medium text-danger" : "text-muted"}>{idle <= 0 ? "изменена сегодня" : `${idle} дн. без правок`}</span>
+                    <span className="text-muted">{r.photos} фото</span>
+                    <Link href={`/books/${r.book.id}/preview`} className="ml-auto inline-flex min-h-11 items-center gap-1 font-medium text-wine">
+                      <Eye className="size-3.5" aria-hidden /> Макет
                     </Link>
-                  </td>
-                </tr>
+                  </div>
+                </li>
               );
             })}
-          </tbody>
-        </table>
-        {rows.length === 0 ? <p className="py-10 text-center text-muted">Книг не найдено</p> : null}
-      </div>
+          </ul>
+          <div className="panel hidden overflow-x-auto lg:block">
+            <table className="table min-w-[900px] [&_td:first-child]:pl-4 [&_td:last-child]:pr-4 [&_th:first-child]:pl-4 [&_th:last-child]:pr-4 sm:[&_td:first-child]:pl-5 sm:[&_th:first-child]:pl-5">
+              <thead>
+                <tr>
+                  <th>Книга</th>
+                  <th>Автор</th>
+                  <th>Прогресс</th>
+                  <th>Изменена</th>
+                  <th>Статус</th>
+                  <th>Сделка</th>
+                  <th>
+                    <span className="sr-only">Макет</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => {
+                  const idle = Math.floor((nowMs() - r.book.updatedAt.getTime()) / 86_400_000);
+                  const stale = r.book.status === "draft" && idle >= STALLED_DAYS;
+                  return (
+                    <tr key={r.book.id}>
+                      <td className="max-w-80">
+                        <div className="truncate font-medium">{r.book.title}</div>
+                        <div className="truncate text-xs text-muted">
+                          {bookLine({ theme: r.book.theme, themeShort: getTheme(r.book.theme).short, authorName: r.book.authorName, recipientName: r.book.recipientName })}
+                          {r.book.theme === "autobiography" && r.book.recordedBy ? `, записано: ${r.book.recordedBy}` : ""}
+                        </div>
+                        {r.book.occasion && r.book.occasionDate ? (
+                          <Badge tone="accent" className="mt-1">
+                            {ru.occasions[getOccasion(r.book.occasion)!.id].label}, {ru.date(parseDay(r.book.occasionDate))}
+                          </Badge>
+                        ) : null}
+                      </td>
+                      <td className="max-w-56">
+                        <Link href={`/admin/clients/${r.owner.id}`} className="block truncate hover:text-wine hover:underline">
+                          {r.owner.name || r.owner.email}
+                        </Link>
+                        <div className="truncate text-xs text-muted">{r.owner.remindedAt ? `напоминали ${formatDate(r.owner.remindedAt)}` : r.owner.email}</div>
+                      </td>
+                      <td>
+                        <div className="flex items-center gap-2">
+                          <Progress ratio={progressRatio({ theme: r.book.theme, ...r })} className="w-24 flex-none" />
+                          <span className="text-xs text-muted tabular-nums" title={progressText({ theme: r.book.theme, ...r })}>
+                            {progressShort({ theme: r.book.theme, ...r })}
+                          </span>
+                        </div>
+                        <div className="text-xs text-muted">{r.photos} фото</div>
+                      </td>
+                      <td className={cn("whitespace-nowrap", stale ? "font-medium text-danger" : "text-muted")}>{idle <= 0 ? "сегодня" : `${idle} дн. назад`}</td>
+                      <td>
+                        <BookStatus draft={r.book.status === "draft"} />
+                      </td>
+                      <td>
+                        {r.deal ? (
+                          <Link href={`/admin/deals/${r.deal.id}`} className="text-wine tabular-nums hover:underline">
+                            №{r.deal.number}
+                          </Link>
+                        ) : (
+                          <span className="text-muted">—</span>
+                        )}
+                      </td>
+                      <td className="text-right">
+                        <Link href={`/books/${r.book.id}/preview`} className="btn btn-ghost btn-sm">
+                          <Eye className="size-4" aria-hidden /> Макет
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+const BookStatus = ({ draft }: { draft: boolean }) => (draft ? <Badge dot>Пишется</Badge> : <Badge tone="success" dot>Заказана</Badge>);
+
+/** Полоса прогресса книги: доля готового — винным. */
+function Progress({ ratio, className }: { ratio: number; className?: string }) {
+  return (
+    <div className={cn("h-1.5 flex-1 overflow-hidden rounded-full bg-sunken", className)} role="presentation">
+      <div className="h-full rounded-full bg-wine" style={{ width: `${Math.min(1, Math.max(0, ratio)) * 100}%` }} />
     </div>
   );
 }

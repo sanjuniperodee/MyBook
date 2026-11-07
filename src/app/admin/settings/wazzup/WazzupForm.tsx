@@ -24,7 +24,7 @@ export function WazzupForm({ saved, env, webhookUrl }: { saved: { apiKey: string
         <SecretInput name="apiKey" label="API-ключ Wazzup" saved={saved.apiKey} fromEnv={env.apiKey} />
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="block">
-            <span className="mb-1 block text-xs text-muted">Канал для первых сообщений (channelId)</span>
+            <span className="label">Канал для первых сообщений (channelId)</span>
             {channels?.length ? (
               <select name="channelId" defaultValue={saved.channelId} disabled={env.channelId} className="input h-10 text-sm">
                 <option value="">— не выбран —</option>
@@ -39,7 +39,7 @@ export function WazzupForm({ saved, env, webhookUrl }: { saved: { apiKey: string
             )}
           </label>
           <label className="block">
-            <span className="mb-1 block text-xs text-muted">Адрес API (обычно не меняется)</span>
+            <span className="label">Адрес API (обычно не меняется)</span>
             <input name="baseUrl" defaultValue={saved.baseUrl} disabled={env.baseUrl} className="input h-10 text-sm" />
           </label>
         </div>

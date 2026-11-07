@@ -234,7 +234,7 @@ export function FileUpload({ bookId, onUploaded }: { bookId: string; onUploaded:
       )}
       {phase.kind === "error" ? (
         <div className="space-y-2">
-          <p className="text-sm text-red-700" role="alert">
+          <p className="text-sm text-danger" role="alert">
             {phase.message}
           </p>
           {phase.resume ? (
@@ -264,7 +264,7 @@ export function FileUpload({ bookId, onUploaded }: { bookId: string; onUploaded:
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 text-sm font-medium">
                     {t.packMinutes(p.minutes)}
-                    {p.featured ? <span className="rounded-full bg-wine px-2 py-0.5 text-[10px] font-semibold text-white uppercase">{t.featured}</span> : null}
+                    {p.featured ? <span className="badge badge-accent">{t.featured}</span> : null}
                   </div>
                   <div className="text-xs text-muted">
                     <b className="text-sm font-semibold text-ink">{formatPrice(p.price)}</b> · {t.perMinute(formatPrice(Math.round(p.price / p.minutes)))}

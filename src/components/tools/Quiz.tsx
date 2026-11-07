@@ -32,7 +32,7 @@ export function Quiz({ quiz, ctaHref, ctaLabel }: { quiz: QuizData; ctaHref: str
     const ask = questionsToAsk(quiz.items, answers);
     return (
       <div className="card p-6 sm:p-8" aria-live="polite">
-        <div className="rounded-3xl bg-gradient-to-br from-rose/60 to-cream px-6 py-8 text-center">
+        <div className="rounded-[14px] bg-gradient-to-br from-rose/60 to-cream px-6 py-8 text-center">
           <div className="text-xs font-semibold tracking-[0.18em] text-wine uppercase">{ui.resultTitle}</div>
           <div className="mt-3 font-serif text-7xl leading-none font-medium text-wine tabular-nums" data-testid="quiz-percent">
             {ui.percent(percent)}
@@ -47,7 +47,7 @@ export function Quiz({ quiz, ctaHref, ctaLabel }: { quiz: QuizData; ctaHref: str
             <p className="mt-1 text-sm text-muted">{ui.askLead}</p>
             <ol className="mt-4 space-y-2">
               {ask.slice(0, 8).map((a, i) => (
-                <li key={a.ask} className={cn("flex gap-3 rounded-2xl border p-4 leading-relaxed", a.level === 0 ? "border-wine/25 bg-rose/30" : "border-line bg-white")}>
+                <li key={a.ask} className={cn("flex gap-3 rounded-[14px] border p-4 leading-relaxed", a.level === 0 ? "border-wine/25 bg-rose/30" : "border-line bg-white")}>
                   <span className="font-serif text-wine">{i + 1}.</span>
                   <span>{a.ask}</span>
                 </li>

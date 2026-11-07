@@ -1,6 +1,12 @@
 import { listFields } from "@/modules/workspace";
 import { nowMs } from "@/lib/dates";
-import { BackLink } from "@/components/admin/BackLink";
+import Link from "next/link";
+import { Plus } from "lucide-react";
+import { PageHeader } from "@/components/admin/PageHeader";
+import { Panel } from "@/components/ui/Panel";
+import { Badge } from "@/components/ui/Badge";
+import { ChatAvatar } from "@/components/admin/chat/Inbox";
+import { formatDate } from "@/lib/dates";
 import { notFound } from "next/navigation";
 import { container } from "@/server/container";
 import { staffOptions } from "@/modules/access/ui";
@@ -8,7 +14,7 @@ import { canRemind } from "@/modules/notifications";
 import { NotesTimeline, TaskList } from "@/components/admin/CrmWidgets";
 import { clientScreen } from "@/modules/reporting/ui/client-screen";
 import { ClientFields, RemindButton, TagEditor } from "./ClientControls";
-import { ClientBooks, ClientDeals, ClientOrders, ClientPayments, ClientProfile, ClientReferrals } from "./sections";
+import { ClientBooks, ClientDeals, ClientOrders, ClientPayments, ClientProfile, ClientReferrals, ClientSummary } from "./sections";
 import { ClientAccess } from "./ClientAccess";
 import { staffLogin } from "@/app/admin/clients/new/access-message";
 import { isPhoneEmail } from "@/modules/identity/domain";
@@ -34,67 +40,115 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
   const adminOptions = staffOptions(admins);
   // Неразобранный клиент виден роли «только свои», но его книги и заказы — только своим клиентам.
   const ownRecords = canSeeClientRecords(staff, client.managerId);
-  const screen = clientScreen({ client, staff: admins, tasks: taskRows, notes: noteRows, orders: ownRecords ? orderRows : [], books: ownRecords ? bookRows : [], money, remindAllowed: canRemind(client.remindedAt, new Date(nowMs())), now: new Date() });
+  // Заказ виден и ответственному за него; книги — только у своего клиента (как canSeeOrder / canSeeBook).
+  const orders = orderRows.filter((o) => canSeeClientRecords(staff, client.managerId, o.assigneeId));
+  const books = ownRecords ? bookRows : [];
+  // Сделки и платежи — только свои и ничьи: у неразобранного клиента могут быть сделки других менеджеров.
+  const deals = dealRows.filter((r) => canSeeAssigned(staff, r.deal.assigneeId));
+  const payments = paymentRows.filter((p) => canSeeAssigned(staff, p.deal_assignee_id));
+  const screen = clientScreen({ client, staff: admins, tasks: taskRows, notes: noteRows, orders, books, money, remindAllowed: canRemind(client.remindedAt, new Date(nowMs())), now: new Date() });
   const { tasks, notes } = screen;
   const contact = contactView(staff, { phone: screen.rawPhone, email: client.email });
   const canEdit = can(staff, "clients.edit");
   // «Только свои» может взять неразобранного клиента себе, но не отдать другому.
   const managerOptions = canAssignOthers(staff) ? adminOptions : adminOptions.filter((a) => a.id === staff.user.id || a.id === client.managerId);
 
+  const displayName = client.name || client.email.split("@")[0];
+
   return (
-    <div className="space-y-6">
-      <BackLink href="/admin/clients">Клиенты</BackLink>
-      <div className="grid gap-6 max-lg:grid-cols-[minmax(0,1fr)] lg:grid-cols-[320px_minmax(0,1fr)]">
-        {/* Профиль */}
-        <aside className="min-w-0 space-y-4 max-lg:order-2">
-          <ClientProfile client={client} screen={screen} contact={contact} canEdit={canEdit} can={(p) => can(staff, p)} managerOptions={managerOptions} noMarketing={noMarketing} />
-          {clientFields.length ? (
-            <section className="rounded-2xl border border-line bg-white p-4 sm:p-5">
-              <h2 className="mb-3 text-sm font-semibold">Поля клиента</h2>
-              <ClientFields clientId={client.id} fields={clientFields.map((f) => ({ key: f.key, label: f.label, type: f.type, options: f.options }))} values={client.customFields} disabled={!canEdit} />
-            </section>
-          ) : null}
-          <section className="rounded-2xl border border-line bg-white p-4 sm:p-5">
-            <h2 className="mb-3 text-sm font-semibold">Теги</h2>
+    <div className="flex flex-col gap-4 lg:gap-5">
+      <PageHeader
+        back={{ href: "/admin/clients", label: "Клиенты" }}
+        title={
+          <span className="flex min-w-0 items-center gap-3">
+            <ChatAvatar name={displayName} url={null} size={48} />
+            <span className="min-w-0 break-words">{displayName}</span>
+          </span>
+        }
+        meta={
+          <>
+            <Badge>
+              {client.role === "admin" ? "Администратор" : "Клиент"} с {formatDate(client.createdAt)}
+            </Badge>
+            {client.tags.slice(0, 3).map((t) => (
+              <Badge key={t} tone="accent">
+                {t}
+              </Badge>
+            ))}
+          </>
+        }
+        actions={
+          can(staff, "deals.edit") ? (
+            <Link href={`/admin/deals/new?client=${client.id}`} className="btn btn-primary btn-sm">
+              <Plus className="size-4" aria-hidden /> Новая сделка
+            </Link>
+          ) : undefined
+        }
+      />
+
+      <ClientSummary client={client} screen={screen} contact={contact} can={(p) => can(staff, p)} />
+
+      <div className="grid gap-4 lg:gap-5 xl:grid-cols-[minmax(0,1fr)_22rem] xl:items-start">
+        <div className="flex min-w-0 flex-col gap-4 lg:gap-5">
+          {can(staff, "deals.view") ? <ClientDeals clientId={client.id} deals={deals} can={(p) => can(staff, p)} /> : null}
+
+          <Panel
+            title={
+              <>
+                Задачи {tasks.filter((t) => !t.done).length ? <span className="font-normal text-muted tabular-nums">{tasks.filter((t) => !t.done).length}</span> : null}
+              </>
+            }
+          >
+            <TaskList tasks={tasks} admins={adminOptions} clientId={client.id} emptyText="Задач нет — запланируйте следующий шаг" />
+          </Panel>
+
+          <ClientBooks books={books} />
+          <ClientOrders orders={orders} />
+          {payments.length ? <ClientPayments payments={payments} /> : null}
+
+          <Panel title="История общения">
+            <NotesTimeline notes={notes} clientId={client.id} mentionables={staffOptions(admins).filter((a) => a.id !== staff.user.id).map((a) => a.label)} />
+          </Panel>
+        </div>
+
+        <aside className="flex min-w-0 flex-col gap-4 lg:gap-5" aria-label="Профиль клиента">
+          <ClientProfile client={client} screen={screen} contact={contact} canEdit={canEdit} managerOptions={managerOptions} noMarketing={noMarketing} />
+          <Panel title="Теги">
             {canEdit ? (
               <TagEditor clientId={client.id} tags={client.tags} />
             ) : (
               <div className="flex flex-wrap gap-1.5">
-                {client.tags.length ? client.tags.map((t) => <span key={t} className="rounded-full bg-rose px-2.5 py-1 text-xs text-wine">{t}</span>) : <span className="text-xs text-muted">—</span>}
+                {client.tags.length ? (
+                  client.tags.map((t) => (
+                    <Badge key={t} tone="accent">
+                      {t}
+                    </Badge>
+                  ))
+                ) : (
+                  <span className="text-sm text-muted">Тегов нет</span>
+                )}
               </div>
             )}
-          </section>
+          </Panel>
+          {clientFields.length ? (
+            <Panel title="Поля клиента">
+              <ClientFields clientId={client.id} fields={clientFields.map((f) => ({ key: f.key, label: f.label, type: f.type, options: f.options }))} values={client.customFields} disabled={!canEdit} />
+            </Panel>
+          ) : null}
+          {(can(staff, "clients.create") && client.role === "user") || canEdit ? (
+            <Panel title="Кабинет клиента">
+              <div className="space-y-4">
+                {can(staff, "clients.create") && client.role === "user" ? <ClientAccess clientId={client.id} loginText={staffLogin(isPhoneEmail(client.email) ? (client.phone ?? "") : client.email, can(staff, "clients.contacts"))} /> : null}
+                {canEdit ? (
+                  <div className={can(staff, "clients.create") && client.role === "user" ? "border-t border-line pt-4" : undefined}>
+                    <RemindButton clientId={client.id} disabled={screen.remind.disabled} hint={screen.remind.hint} />
+                  </div>
+                ) : null}
+              </div>
+            </Panel>
+          ) : null}
           {referrals.code || referrals.invitedBy || referrals.friends.length ? <ClientReferrals data={referrals} /> : null}
-          {can(staff, "clients.create") && client.role === "user" ? (
-            <section className="rounded-2xl border border-line bg-white p-4 sm:p-5">
-              <h2 className="mb-3 text-sm font-semibold">Доступ в кабинет</h2>
-              <ClientAccess clientId={client.id} loginText={staffLogin(isPhoneEmail(client.email) ? (client.phone ?? "") : client.email, can(staff, "clients.contacts"))} />
-            </section>
-          ) : null}
-          {canEdit ? (
-            <section className="space-y-3 rounded-2xl border border-line bg-white p-4 sm:p-5">
-              <RemindButton clientId={client.id} disabled={screen.remind.disabled} hint={screen.remind.hint} />
-            </section>
-          ) : null}
         </aside>
-
-        <div className="space-y-6">
-          {can(staff, "deals.view") ? <ClientDeals clientId={client.id} deals={dealRows} can={(p) => can(staff, p)} /> : null}
-          {paymentRows.length ? <ClientPayments payments={paymentRows} /> : null}
-          <ClientBooks books={bookRows} />
-
-          <ClientOrders orders={orderRows} />
-
-          <section className="rounded-2xl border border-line bg-white p-4 sm:p-5">
-            <h2 className="mb-2 font-semibold">Задачи</h2>
-            <TaskList tasks={tasks} admins={adminOptions} clientId={client.id} />
-          </section>
-
-          <section className="rounded-2xl border border-line bg-white p-4 sm:p-5">
-            <h2 className="mb-4 font-semibold">История общения</h2>
-            <NotesTimeline notes={notes} clientId={client.id} mentionables={staffOptions(admins).filter((a) => a.id !== staff.user.id).map((a) => a.label)} />
-          </section>
-        </div>
       </div>
     </div>
   );

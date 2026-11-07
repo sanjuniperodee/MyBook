@@ -3,15 +3,19 @@ import { iso, localDay } from "@/modules/reporting/time";
 import { storeTimeZone } from "@/shared/domain/time";
 import { planName } from "@/i18n/labels";
 import Link from "next/link";
-import { AlertCircle, ArrowRight, CalendarClock } from "lucide-react";
+import { CalendarClock, CircleCheck, History, Link2, type LucideIcon } from "lucide-react";
 import { formatPrice, getPlans } from "@/config/site";
-import { orderStatusColors, orderStatusLabel } from "@/modules/ordering/ui/status";
+import { orderStatusLabel } from "@/modules/ordering/ui/status";
 import { can, requireStaff, staffViewer } from "@/server/access";
 import { redirect } from "next/navigation";
 import { layoutTabs, mobileLayout } from "@/shared/domain/mobileLayout";
 import { MyDay } from "../MyDay";
-import { BarList, RevenueColumns, StatTile, type DayPoint } from "@/components/admin/charts";
+import { BarList, RevenueColumns, StatRow, StatTile, type DayPoint } from "@/components/admin/charts";
+import { PageHeader } from "@/components/admin/PageHeader";
+import { Panel } from "@/components/ui/Panel";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { cn } from "@/lib/class-names";
+import { Segmented } from "@/components/admin/Segmented";
 import { formatDate, nowMs } from "@/lib/dates";
 import { getSetting } from "@/modules/workspace";
 import type { AttentionRow } from "@/modules/reporting";
@@ -20,18 +24,6 @@ export const metadata = { title: "Обзор" };
 
 const periods = [7, 30, 90] as const;
 const change = (cur: number, prev: number) => (prev ? (cur - prev) / prev : cur ? null : 0);
-
-/** Изменение к прошлому периоду на плитке телефона: ▲ 12 % зелёным, ▼ 8 % красным (на цветной карточке — белым). */
-function Delta({ value, light = false }: { value: number | null; light?: boolean }) {
-  if (value === null) return <span className="font-semibold">новое</span>;
-  if (value === 0) return null;
-  const up = value > 0;
-  return (
-    <span className={cn("font-semibold", light ? "text-white" : up ? "text-emerald-600" : "text-red-600")}>
-      {up ? "▲" : "▼"} {Math.abs(Math.round(value * 100))}%
-    </span>
-  );
-}
 
 /** Куда ведёт первая вкладка нижней панели каждой роли — туда установленная CRM открывается при запуске с иконки (как главная вкладка приложения). */
 const LAUNCH: Record<string, string> = { chats: "/admin/chats", tasks: "/admin/tasks", deals: "/admin/deals", clients: "/admin/clients", orders: "/admin/orders", calls: "/admin/calls" };
@@ -71,133 +63,97 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
   const avg = cur.n ? Math.round(cur.sum / cur.n) : 0;
   const prevAvg = prev.n ? Math.round(prev.sum / prev.n) : 0;
 
+  const deadlineRows = [
+    ...deadlines.map((o) => ({ key: `o${o.id}`, href: `/admin/orders/${o.id}`, label: `№${o.number}`, name: o.contactName, note: null as string | null, due: o.desiredDate as string })),
+    // Сроки ручных сделок: «Д» + номер сделки; с пометкой, сколько уже получено.
+    ...dealDeadlines.map((d) => ({ key: `d${d.id}`, href: `/admin/deals/${d.id}`, label: `Д${d.number}`, name: d.contact_name || d.title, note: d.paid ? `получено ${formatPrice(d.paid)}` : null, due: d.due })),
+  ]
+    .sort((a, b) => a.due.localeCompare(b.due))
+    .slice(0, 8);
+  const manual = byPlan.find((b) => b.plan === "manual");
+
   return (
     <div className="flex flex-col gap-6">
-      <div className="order-[-2] flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">Обзор</h1>
-        <div className="flex rounded-xl border border-line bg-white p-1 text-sm">
-          {periods.map((p) => (
-            <Link key={p} href={`/admin?period=${p}`} className={cn("rounded-lg px-3 py-1.5", p === period ? "bg-ink text-white" : "text-ink-soft hover:bg-cream")}>
-              {p} дней
-            </Link>
-          ))}
-        </div>
-      </div>
+      <PageHeader title="Обзор" actions={<Segmented label="Период" items={periods.map((p) => ({ key: String(p), label: `${p} дней`, href: `/admin?period=${p}`, active: p === period }))} />} />
       <MyDay staff={staff} />
 
-      {/* Телефон — как «Обзор» в приложении: карточка выручки с графиком и три плитки. */}
-      <div className="order-[-1] space-y-3 lg:hidden" data-testid="overview-mobile">
-        <div className="rounded-3xl bg-gradient-to-br from-wine to-wine-dark p-4 text-white shadow-lift">
-          <div className="flex items-center justify-between text-sm text-white/75">
-            <span className="font-medium">Выручка</span>
-            <Delta value={change(cur.sum, prev.sum)} light />
-          </div>
-          <div className="mt-1 text-[2rem] leading-tight font-extrabold tracking-tight tabular-nums">{formatPrice(cur.sum)}</div>
-          <div className="text-xs text-white/70">
-            за {period} дней · прошлые {period} — {formatPrice(prev.sum)}
-          </div>
-          {cur.agreed ? <div className="text-xs text-white/70">в т.ч. {formatPrice(cur.agreed)} — сделки без платежа</div> : null}
-          <div className="mt-3 flex h-16 items-end gap-[2px]" aria-hidden>
-            {series.map((p) => {
-              const max = Math.max(1, ...series.map((x) => x.value));
-              return <span key={p.date} className={cn("flex-1 rounded-sm", p.value ? "bg-white/90" : "bg-white/20")} style={{ height: `${Math.max(5, (p.value / max) * 100)}%` }} />;
-            })}
-          </div>
+      <section aria-labelledby="sales-h" className="space-y-3">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 id="sales-h" className="text-lg font-semibold">
+            Продажи за {period} дней
+          </h2>
+          <span className="text-xs text-muted">к прошлым {period} дням</span>
         </div>
-        <div className="grid grid-cols-3 gap-2.5">
-          {[
-            { label: "Продажи", value: cur.n.toLocaleString("ru-RU"), d: change(cur.n, prev.n) },
-            { label: "Средний чек", value: formatPrice(avg), d: change(avg, prevAvg) },
-            { label: "Клиенты", value: newUsers.cur.toLocaleString("ru-RU"), d: change(newUsers.cur, newUsers.prev) },
-          ].map((t) => (
-            <div key={t.label} className="flex flex-col rounded-2xl border border-line bg-white p-3">
-              <div className="text-[1.05rem] leading-tight font-extrabold tabular-nums">{t.value}</div>
-              <div className="mt-0.5 text-xs text-muted">{t.label}</div>
-              <div className="mt-1 text-xs">
-                <Delta value={t.d} />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className="hidden gap-4 sm:grid-cols-2 lg:grid xl:grid-cols-4">
-        <StatTile label="Выручка" value={formatPrice(cur.sum)} delta={change(cur.sum, prev.sum)} hint={cur.agreed ? `в т.ч. ${formatPrice(cur.agreed)} — успешные сделки без платежа в журнале` : undefined} />
-        <StatTile label="Оплаченные продажи" value={cur.n.toLocaleString("ru-RU")} delta={change(cur.n, prev.n)} />
-        <StatTile label="Средний чек" value={formatPrice(avg)} delta={change(avg, prevAvg)} />
-        <StatTile label="Новые клиенты" value={newUsers.cur.toLocaleString("ru-RU")} delta={change(newUsers.cur, newUsers.prev)} />
-      </div>
+        <StatRow>
+          <StatTile bare label="Выручка" value={formatPrice(cur.sum)} delta={change(cur.sum, prev.sum)} hint={cur.agreed ? `в т.ч. ${formatPrice(cur.agreed)} по сделкам без платежа` : undefined} />
+          <StatTile bare label="Оплаченные продажи" value={cur.n.toLocaleString("ru-RU")} delta={change(cur.n, prev.n)} />
+          <StatTile bare label="Средний чек" value={formatPrice(avg)} delta={change(avg, prevAvg)} />
+          <StatTile bare label="Новые клиенты" value={newUsers.cur.toLocaleString("ru-RU")} delta={change(newUsers.cur, newUsers.prev)} />
+        </StatRow>
+      </section>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-        <section className="rounded-2xl border border-line bg-white p-5">
-          <div className="mb-5 flex items-baseline justify-between">
-            <h2 className="font-semibold">Выручка по дням</h2>
-            <span className="text-xs text-muted">по дате оплаты, {storeTimeZone()}: заказы и платежи менеджеров</span>
-          </div>
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <Panel title="Выручка по дням" description={`По дате оплаты (${storeTimeZone()}): заказы и платежи менеджеров`}>
           <RevenueColumns data={series} />
-        </section>
-        <section className="rounded-2xl border border-line bg-white p-5">
-          <h2 className="font-semibold">Воронка</h2>
-          <p className="mb-5 text-xs text-muted">Клиенты, зарегистрированные за {period} дней</p>
+        </Panel>
+        <Panel title="Воронка" description={`Клиенты, зарегистрированные за ${period} дней`}>
           <BarList
             rows={[
               { label: "Зарегистрировались", value: f.registered },
               { label: "Создали книгу", value: f.with_book, note: pct(f.with_book, f.registered) },
-              { label: "Начали писать текст книги", value: f.engaged, note: pct(f.engaged, f.registered) },
+              { label: "Начали писать текст", value: f.engaged, note: pct(f.engaged, f.registered) },
               { label: "Оформили заказ", value: f.ordered, note: pct(f.ordered, f.registered) },
               { label: "Оплатили", value: f.paid, note: pct(f.paid, f.registered) },
             ]}
           />
-        </section>
+        </Panel>
       </div>
 
-      <section className="rounded-2xl border border-line bg-white p-5">
-        <div className="mb-4 flex items-baseline justify-between">
-          <h2 className="font-semibold">Откуда приходят клиенты</h2>
-          <Link href={`/admin/marketing?period=${period}`} className="text-xs text-wine hover:underline">
-            Все каналы, ссылки и кампании →
+      <Panel
+        flush
+        title="Откуда приходят клиенты"
+        actions={
+          <Link href={`/admin/marketing?period=${period}`} className="btn btn-ghost btn-sm">
+            Все каналы и кампании
           </Link>
-        </div>
+        }
+      >
         {sources.rows.length ? (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[520px] [&_tr>*:first-child]:sticky [&_tr>*:first-child]:left-0 [&_tr>*:first-child]:bg-white [&_tr>*:first-child]:z-[1] text-sm">
-              <thead className="text-left text-xs text-muted">
+            <table className="table min-w-[560px] [&_td:first-child]:pl-4 [&_th:first-child]:pl-4 sm:[&_td:first-child]:pl-5 sm:[&_th:first-child]:pl-5 [&_td:last-child]:pr-4 [&_th:last-child]:pr-4 sm:[&_td:last-child]:pr-5 sm:[&_th:last-child]:pr-5">
+              <thead>
                 <tr>
-                  <th className="py-2 font-medium">Канал</th>
-                  <th className="py-2 text-right font-medium">Регистрации</th>
-                  <th className="py-2 text-right font-medium">Заявки</th>
-                  <th className="py-2 text-right font-medium">Продажи</th>
-                  <th className="py-2 text-right font-medium">Конверсия</th>
-                  <th className="py-2 text-right font-medium">Выручка</th>
+                  <th>Канал</th>
+                  <th className="text-right">Регистрации</th>
+                  <th className="text-right">Заявки</th>
+                  <th className="text-right">Продажи</th>
+                  <th className="text-right">Конверсия</th>
+                  <th className="text-right">Выручка</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-line">
+              <tbody className="tabular-nums">
                 {sources.rows.map((r) => (
                   <tr key={r.key}>
-                    <td className="py-2">{r.label}</td>
-                    <td className="py-2 text-right tabular-nums">{r.registrations}</td>
-                    <td className="py-2 text-right tabular-nums">{r.leads}</td>
-                    <td className="py-2 text-right tabular-nums">{r.sales}</td>
-                    <td className="py-2 text-right text-muted tabular-nums">{pct(r.sales, r.registrations + r.leadsWithoutClient)}</td>
-                    <td className="py-2 text-right tabular-nums">{formatPrice(r.revenue)}</td>
+                    <td className="font-medium">{r.label}</td>
+                    <td className="text-right">{r.registrations}</td>
+                    <td className="text-right">{r.leads}</td>
+                    <td className="text-right">{r.sales}</td>
+                    <td className="text-right text-muted">{pct(r.sales, r.registrations + r.leadsWithoutClient)}</td>
+                    <td className="text-right font-medium">{formatPrice(r.revenue)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         ) : (
-          <p className="text-sm text-muted">
-            Пока нет клиентов за период. Создайте рекламные ссылки с UTM-метками в разделе{" "}
-            <Link href="/admin/marketing" className="text-wine hover:underline">
-              «Ссылки и каналы»
-            </Link>
-            .
-          </p>
+          <EmptyState compact icon={Link2} title="Клиентов за период пока нет" action={<Link href="/admin/marketing" className="btn btn-outline btn-sm">Создать ссылку с UTM-метками</Link>}>
+            Ссылки с метками покажут, какой канал приводит клиентов и выручку.
+          </EmptyState>
         )}
-      </section>
+      </Panel>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <section className="rounded-2xl border border-line bg-white p-5">
-          <h2 className="mb-5 font-semibold">Выручка по тарифам</h2>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Panel title="Выручка по тарифам">
           <BarList
             format={formatPrice}
             rows={[
@@ -206,63 +162,56 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
                 return { label: planName(p.id), value: r?.sum ?? 0, note: r ? `${r.n} шт.` : undefined };
               }),
               // Деньги по ручным сделкам (предоплаты, доплаты, продажи в чате) — отдельной строкой, чтобы сумма сходилась с «Выручкой».
-              ...(byPlan.find((b) => b.plan === "manual") ? [{ label: "Продажи менеджеров", value: byPlan.find((b) => b.plan === "manual")!.sum, note: `${byPlan.find((b) => b.plan === "manual")!.n} шт.` }] : []),
+              ...(manual ? [{ label: "Продажи менеджеров", value: manual.sum, note: `${manual.n} шт.` }] : []),
             ]}
           />
-        </section>
-
-        <Panel title="Дедлайны клиентов" icon={CalendarClock} href="/admin/board" empty="Ближайших дедлайнов нет">
-          {[
-            ...deadlines.map((o) => ({ key: `o${o.id}`, href: `/admin/orders/${o.id}`, label: `№${o.number}`, name: o.contactName, due: o.desiredDate as string })),
-            // Сроки ручных сделок: «Д» + номер сделки; с пометкой, сколько уже получено.
-            ...dealDeadlines.map((d) => ({ key: `d${d.id}`, href: `/admin/deals/${d.id}`, label: `Д${d.number}`, name: `${d.contact_name || d.title}${d.paid ? ` · получено ${formatPrice(d.paid)}` : ""}`, due: d.due })),
-          ]
-            .sort((a, b) => a.due.localeCompare(b.due))
-            .slice(0, 8)
-            .map((o) => {
-              const days = Math.round((new Date(`${o.due}T00:00:00`).getTime() - localDay(0).getTime()) / 86_400_000);
-              return (
-                <Link key={o.key} href={o.href} className="flex items-center gap-3 px-5 py-2.5 text-sm hover:bg-cream/40">
-                  <span className="w-12 font-medium">{o.label}</span>
-                  <span className="min-w-0 flex-1 truncate">{o.name}</span>
-                  <span className={cn("rounded-full px-2 py-0.5 text-xs", days < 0 ? "bg-red-100 text-red-700" : days <= 3 ? "bg-amber-100 text-amber-800" : "bg-cream text-ink-soft")}>
-                    {days < 0 ? `просрочен ${-days} дн.` : days === 0 ? "сегодня" : `через ${days} дн.`}
-                  </span>
-                </Link>
-              );
-            })}
         </Panel>
+
+        <ListPanel title="Сроки клиентов" href="/admin/board" linkLabel="Канбан заказов" empty={{ icon: CalendarClock, title: "Ближайших сроков нет", text: "Здесь появятся заказы и сделки с датой события в ближайшие две недели." }}>
+          {deadlineRows.map((o) => {
+            const days = Math.round((new Date(`${o.due}T00:00:00`).getTime() - localDay(0).getTime()) / 86_400_000);
+            return (
+              <Link key={o.key} href={o.href} className="flex min-h-12 items-center gap-3 px-4 py-2.5 text-sm hover:bg-sunken/60 sm:px-5">
+                <span className="w-11 shrink-0 font-medium tabular-nums">{o.label}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate">{o.name}</span>
+                  {o.note ? <span className="block text-xs text-muted">{o.note}</span> : null}
+                </span>
+                <span className={cn("badge", days < 0 ? "badge-danger" : days <= 3 ? "badge-warning" : "")}>{days < 0 ? `просрочен ${-days} дн.` : days === 0 ? "сегодня" : `через ${days} дн.`}</span>
+              </Link>
+            );
+          })}
+        </ListPanel>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Panel title="Требуют внимания" icon={AlertCircle} href="/admin/board" empty="Всё обработано">
+      <div className="grid gap-4 lg:grid-cols-2">
+        <ListPanel title="Требуют внимания" href="/admin/board" linkLabel="Все" empty={{ icon: CircleCheck, title: "Всё обработано", text: "Счета, передачи от бота и оплаты, которые нужно проверить, появятся здесь." }}>
           {[
             ...dealAttention.map((a) => <AttentionLine key={`${a.kind}:${a.dealId}:${a.conversationId ?? ""}`} row={a} />),
             ...attention.map((o) => (
-            <Link key={o.id} href={`/admin/orders/${o.id}`} className="flex items-center gap-3 px-5 py-2.5 text-sm hover:bg-cream/40">
-              <span className="w-12 font-medium">№{o.number}</span>
-              <span className="min-w-0 flex-1 truncate">
-                {o.contactName} · {planName(o.plan)}
-              </span>
-              <span className={cn("rounded-full px-2 py-0.5 text-xs", o.status === "paid" ? orderStatusColors.paid : "bg-amber-100 text-amber-800")}>
-                {o.status === "paid" ? "передать в печать" : "проверить оплату"}
-              </span>
-            </Link>
+              <Link key={o.id} href={`/admin/orders/${o.id}`} className="flex min-h-12 items-center gap-3 px-4 py-2.5 text-sm hover:bg-sunken/60 sm:px-5">
+                <span className="w-11 shrink-0 font-medium tabular-nums">№{o.number}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate">{o.contactName}</span>
+                  <span className="block text-xs text-muted">{planName(o.plan)}</span>
+                </span>
+                <span className={cn("badge", o.status === "paid" ? "badge-info" : "badge-warning")}>{o.status === "paid" ? "передать в печать" : "проверить оплату"}</span>
+              </Link>
             )),
           ]}
-        </Panel>
-        <Panel title="Последние события" icon={ArrowRight} href="/admin/orders" empty="Событий пока нет">
+        </ListPanel>
+        <ListPanel title="Последние события" href="/admin/orders" linkLabel="Заказы" empty={{ icon: History, title: "Событий пока нет", text: "Смена статусов заказов будет видна здесь." }}>
           {events.map(({ e, number, orderId }) => (
-            <Link key={e.id} href={`/admin/orders/${orderId}`} className="flex items-center gap-3 px-5 py-2.5 text-sm hover:bg-cream/40">
-              <span className="w-12 font-medium">№{number}</span>
+            <Link key={e.id} href={`/admin/orders/${orderId}`} className="flex min-h-12 items-center gap-3 px-4 py-2.5 text-sm hover:bg-sunken/60 sm:px-5">
+              <span className="w-11 shrink-0 font-medium tabular-nums">№{number}</span>
               <span className="min-w-0 flex-1 truncate text-ink-soft">
-                {e.status ? <b className="font-medium text-ink">{orderStatusLabel(e.status)}. </b> : null}
+                {e.status ? <span className="font-medium text-ink">{orderStatusLabel(e.status)}. </span> : null}
                 {e.note}
               </span>
               <span className="shrink-0 text-xs text-muted">{formatDate(e.createdAt, true).replace(/ \d{4} г\./, "")}</span>
             </Link>
           ))}
-        </Panel>
+        </ListPanel>
       </div>
     </div>
   );
@@ -285,26 +234,33 @@ function AttentionLine({ row: a }: { row: AttentionRow }) {
             : `до события ${days} дн. — не оплачено`;
   const href = a.kind === "handoff" && a.conversationId ? `/admin/chats?c=${a.conversationId}` : `/admin/deals/${a.dealId}`;
   return (
-    <Link href={href} className="flex items-center gap-3 px-5 py-2.5 text-sm hover:bg-cream/40" data-testid={`attention-${a.kind}`}>
-      <span className="w-12 font-medium">Д{a.number}</span>
+    <Link href={href} className="flex min-h-12 items-center gap-3 px-4 py-2.5 text-sm hover:bg-sunken/60 sm:px-5" data-testid={`attention-${a.kind}`}>
+      <span className="w-11 shrink-0 font-medium tabular-nums">Д{a.number}</span>
       <span className="min-w-0 flex-1 truncate">{a.contact || "без имени"}</span>
-      <span className={cn("rounded-full px-2 py-0.5 text-xs", a.kind === "handoff" || a.kind === "invoice_expired" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-800")}>{label}</span>
+      <span className={cn("badge max-w-[55%] truncate", a.kind === "handoff" || a.kind === "invoice_expired" ? "badge-danger" : "badge-warning")}>{label}</span>
     </Link>
   );
 }
 
-function Panel({ title, icon: Icon, href, empty, children }: { title: string; icon: typeof ArrowRight; href: string; empty: string; children: React.ReactNode[] }) {
+/** Лист-список со ссылкой на раздел и пустым состоянием, которое объясняет, что здесь появится. */
+function ListPanel({ title, href, linkLabel, empty, children }: { title: string; href: string; linkLabel: string; empty: { icon: LucideIcon; title: string; text: string }; children: React.ReactNode[] }) {
   return (
-    <section className="overflow-hidden rounded-2xl border border-line bg-white">
-      <div className="flex items-center justify-between border-b border-line px-5 py-3.5">
-        <h2 className="flex items-center gap-2 font-semibold">
-          <Icon className="size-4 text-wine" /> {title}
-        </h2>
-        <Link href={href} className="text-xs text-muted hover:text-ink">
-          Все →
+    <Panel
+      flush
+      title={title}
+      actions={
+        <Link href={href} className="btn btn-ghost btn-sm">
+          {linkLabel}
         </Link>
-      </div>
-      {children.length ? <div className="divide-y divide-line">{children}</div> : <p className="px-5 py-8 text-center text-sm text-muted">{empty}</p>}
-    </section>
+      }
+    >
+      {children.length ? (
+        <div className="divide-y divide-line">{children}</div>
+      ) : (
+        <EmptyState compact icon={empty.icon} title={empty.title}>
+          {empty.text}
+        </EmptyState>
+      )}
+    </Panel>
   );
 }

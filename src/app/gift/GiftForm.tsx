@@ -31,9 +31,9 @@ export function GiftForm({ defaults }: { defaults: { name: string; email: string
       <input type="hidden" name="plan" value={plan} />
       <input type="hidden" name="delivery" value={delivery} />
       <input type="hidden" name="locale" value={giftLocale} />
-      <div className="order-2 space-y-8 lg:order-1">
+      <div className="order-2 space-y-10 lg:order-1">
         <section>
-          <h2 className="text-lg font-semibold">1. {t.step1}</h2>
+          <StepTitle n={1}>{t.step1}</StepTitle>
           <div className="mt-3 grid gap-2.5">
             {getVisiblePlans().map((p) => (
               <button
@@ -41,7 +41,7 @@ export function GiftForm({ defaults }: { defaults: { name: string; email: string
                 type="button"
                 onClick={() => setPlan(p.id)}
                 aria-pressed={plan === p.id}
-                className={cn("flex items-center gap-4 rounded-2xl border bg-white px-4 py-3.5 text-left transition", plan === p.id ? "border-wine ring-4 ring-wine/10" : "border-line hover:border-ink/30")}
+                className={cn("flex min-h-16 items-center gap-4 rounded-[10px] border bg-white px-4 py-3.5 text-left transition", plan === p.id ? "border-wine ring-[3px] ring-wine/12" : "border-line-strong hover:border-ink/35")}
               >
                 <span className={cn("flex size-5 shrink-0 items-center justify-center rounded-full border", plan === p.id ? "border-wine bg-wine text-white" : "border-line")}>
                   {plan === p.id ? <Check className="size-3" /> : null}
@@ -50,7 +50,7 @@ export function GiftForm({ defaults }: { defaults: { name: string; email: string
                   <span className="block font-medium">{m.common.plans[p.id].name}</span>
                   <span className="block text-xs text-muted">{t.hints[p.id]}</span>
                 </span>
-                <span className="font-serif text-xl">{formatPrice(p.price)}</span>
+                <span className="font-serif text-2xl tabular-nums">{formatPrice(p.price)}</span>
               </button>
             ))}
           </div>
@@ -58,7 +58,7 @@ export function GiftForm({ defaults }: { defaults: { name: string; email: string
         </section>
 
         <section className="space-y-4">
-          <h2 className="text-lg font-semibold">2. {t.step2}</h2>
+          <StepTitle n={2}>{t.step2}</StepTitle>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className="label" htmlFor="recipientName">{t.recipientName}</label>
@@ -75,7 +75,7 @@ export function GiftForm({ defaults }: { defaults: { name: string; email: string
           </div>
           <div>
             <span className="label">{t.language}</span>
-            <div className="grid max-w-sm grid-cols-2 gap-2 rounded-2xl bg-cream/70 p-1" role="radiogroup" aria-label={t.language}>
+            <div className="grid max-w-sm grid-cols-2 gap-1 rounded-[12px] bg-sunken p-1" role="radiogroup" aria-label={t.language}>
               {locales.map((l) => (
                 <button
                   key={l}
@@ -84,7 +84,7 @@ export function GiftForm({ defaults }: { defaults: { name: string; email: string
                   aria-checked={giftLocale === l}
                   lang={l}
                   onClick={() => setGiftLocale(l)}
-                  className={cn("h-10 rounded-xl text-sm font-medium transition", giftLocale === l ? "bg-white shadow-soft" : "text-muted hover:text-ink")}
+                  className={cn("h-10 rounded-[9px] text-sm font-medium transition", giftLocale === l ? "bg-white text-ink shadow-soft" : "text-muted hover:text-ink")}
                 >
                   {localeMeta[l].label}
                 </button>
@@ -95,7 +95,7 @@ export function GiftForm({ defaults }: { defaults: { name: string; email: string
         </section>
 
         <section className="space-y-4">
-          <h2 className="text-lg font-semibold">3. {t.step3}</h2>
+          <StepTitle n={3}>{t.step3}</StepTitle>
           <div className="grid gap-2.5 sm:grid-cols-2">
             {(
               [
@@ -108,7 +108,7 @@ export function GiftForm({ defaults }: { defaults: { name: string; email: string
                 type="button"
                 onClick={() => setDelivery(o.id)}
                 aria-pressed={delivery === o.id}
-                className={cn("flex gap-3 rounded-2xl border bg-white p-4 text-left transition", delivery === o.id ? "border-wine ring-4 ring-wine/10" : "border-line hover:border-ink/30")}
+                className={cn("flex gap-3 rounded-[10px] border bg-white p-4 text-left transition", delivery === o.id ? "border-wine ring-[3px] ring-wine/12" : "border-line-strong hover:border-ink/35")}
               >
                 <o.icon className="mt-0.5 size-5 shrink-0 text-wine" />
                 <span>
@@ -134,7 +134,7 @@ export function GiftForm({ defaults }: { defaults: { name: string; email: string
         </section>
 
         <section className="space-y-4">
-          <h2 className="text-lg font-semibold">4. {t.step4}</h2>
+          <StepTitle n={4}>{t.step4}</StepTitle>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className="label" htmlFor="buyerEmail">{t.buyerEmail}</label>
@@ -168,5 +168,15 @@ export function GiftForm({ defaults }: { defaults: { name: string; email: string
         </div>
       </div>
     </form>
+  );
+}
+
+/** Шаг формы: номер винными засечками — шаги идут по порядку. */
+function StepTitle({ n, children }: { n: number; children: React.ReactNode }) {
+  return (
+    <h2 className="flex items-baseline gap-3 text-lg font-semibold">
+      <span className="font-serif text-3xl leading-none font-medium text-wine tabular-nums">{n}</span>
+      {children}
+    </h2>
   );
 }

@@ -1,15 +1,25 @@
 import "server-only";
 import { and, asc, desc, eq, gt, gte, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { crmBlocklist, crmBotEvents, crmConversations, crmMessages, users } from "@/shared/infrastructure/db/schema";
-import { executor } from "@/shared/infrastructure/database";
+import { executor, inTransaction } from "@/shared/infrastructure/database";
 import { storeTimeZone } from "@/shared/domain/time";
 import type { Blocklist, BotRecord, BotStore, ConversationRepository, MessageMediaStore, MessageRepository, MessageSource, OutgoingExtra, StoredMessage } from "../application";
 import { BOT_TRACE_KEEP_DAYS, RESEND_MARK, llmMetrics, readBotState, readBotTrace, splitHandoffs, type LlmMetrics, type BotEvent, type BotState, type BotTurnTrace, type Conversation, type InboundMessage } from "../domain";
 
 type Row = typeof crmConversations.$inferSelect;
 
+/** Транзакция для записи сообщения вместе со счётчиками диалога (MessagingService.atomic). */
+export const atomically = <T>(work: () => Promise<T>) => inTransaction(work);
+
 /** Последний ответ человека — не назад во времени (эхо, догнанное сверкой со шлюзом, приходит позже). */
 const lastOutgoing = (at: Date) => sql`greatest(${crmConversations.lastOutgoingAt}, ${at.toISOString()}::timestamptz)`;
+/**
+ * Превью и порядок в списке — по самому новому сообщению: старое, догнанное повтором вебхука или сверкой, не
+ * перетирает свежее (в SET колонки — прежние значения строки).
+ */
+const newer = (at: Date) => sql`${crmConversations.lastMessageAt} is null or ${crmConversations.lastMessageAt} <= ${at.toISOString()}::timestamptz`;
+const latestAt = (at: Date) => sql`case when ${newer(at)} then ${at.toISOString()}::timestamptz else ${crmConversations.lastMessageAt} end`;
+const latestText = (at: Date, text: string) => sql`case when ${newer(at)} then ${text} else ${crmConversations.lastMessageText} end`;
 const toConversation = (r: Row): Conversation => ({
   id: r.id,
   channel: r.channel,
@@ -61,8 +71,8 @@ export class DrizzleConversationRepository implements ConversationRepository {
     await executor()
       .update(crmConversations)
       .set({
-        lastMessageAt: at,
-        lastMessageText: text,
+        lastMessageAt: latestAt(at),
+        lastMessageText: latestText(at, text),
         unread: sql`${crmConversations.unread} + 1`,
         awaitingSince: sql`coalesce(${crmConversations.awaitingSince}, ${at.toISOString()}::timestamptz)`,
         status: "open",
@@ -83,7 +93,7 @@ export class DrizzleConversationRepository implements ConversationRepository {
   async recordEcho(id: string, text: string, at: Date) {
     await executor()
       .update(crmConversations)
-      .set({ lastMessageAt: at, lastMessageText: text, awaitingSince: null, unread: 0, lastOutgoingAt: lastOutgoing(at), updatedAt: new Date() })
+      .set({ lastMessageAt: latestAt(at), lastMessageText: latestText(at, text), awaitingSince: null, unread: 0, lastOutgoingAt: lastOutgoing(at), updatedAt: new Date() })
       .where(eq(crmConversations.id, id));
   }
 
@@ -177,6 +187,15 @@ export class DrizzleConversationRepository implements ConversationRepository {
   }
 }
 
+/**
+ * Эхо пришло — сообщение ушло клиенту: «ждёт» и ошибка (шлюз не ответил за 15 секунд, а отправил) становятся
+ * «отправлено», иначе автоповтор отправил бы его второй раз. «Доставлено» и «прочитано» не трогаем.
+ */
+const echoSent = {
+  status: sql`case when ${crmMessages.status} in ('pending', 'error') then 'sent' else ${crmMessages.status} end`,
+  error: sql`case when ${crmMessages.status} in ('pending', 'error') then null else ${crmMessages.error} end`,
+};
+
 export class DrizzleMessageRepository implements MessageRepository, MessageMediaStore {
   async insertIncoming(conversationId: string, m: InboundMessage, subject: string | null) {
     const rows = await executor()
@@ -207,7 +226,7 @@ export class DrizzleMessageRepository implements MessageRepository, MessageMedia
       .where(and(eq(crmMessages.conversationId, conversationId), eq(crmMessages.direction, "out"), eq(crmMessages.internal, false), inArray(crmMessages.source, ["bot", "rule"]), eq(crmMessages.text, text), gte(crmMessages.createdAt, since)))
       .limit(1);
     if (own) {
-      await executor().update(crmMessages).set({ externalId }).where(and(eq(crmMessages.id, own.id), isNull(crmMessages.externalId)));
+      await executor().update(crmMessages).set({ externalId, ...echoSent }).where(and(eq(crmMessages.id, own.id), isNull(crmMessages.externalId)));
       return true;
     }
     const [pending] = await executor()
@@ -225,7 +244,7 @@ export class DrizzleMessageRepository implements MessageRepository, MessageMedia
       )
       .limit(1);
     if (!pending) return false;
-    await executor().update(crmMessages).set({ externalId }).where(eq(crmMessages.id, pending.id));
+    await executor().update(crmMessages).set({ externalId, ...echoSent }).where(eq(crmMessages.id, pending.id));
     return true;
   }
 
@@ -273,6 +292,7 @@ export class DrizzleMessageRepository implements MessageRepository, MessageMedia
         authorId: crmMessages.authorId,
         source: crmMessages.source,
         status: crmMessages.status,
+        error: crmMessages.error,
         deletedAt: crmMessages.deletedAt,
         transcript: crmMessages.transcript,
         createdAt: crmMessages.createdAt,

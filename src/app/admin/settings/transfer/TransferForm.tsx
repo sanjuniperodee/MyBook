@@ -15,11 +15,11 @@ export function TransferForm({ phone, name, fromEnv }: { phone: string; name: st
         <p className="text-xs text-muted">Клиент переводит по номеру в Kaspi и жмёт «Я оплатил(а)» — менеджер проверяет поступление и прикладывает чек. Без номера перевод не показывается (оплата — Kaspi Pay или картой).</p>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="block">
-            <span className="mb-1 block text-xs text-muted">Номер получателя Kaspi</span>
+            <span className="label">Номер получателя Kaspi</span>
             <input name="phone" defaultValue={phone} disabled={fromEnv} placeholder="+7 7__ ___ __ __" className="input h-10 text-sm" />
           </label>
           <label className="block">
-            <span className="mb-1 block text-xs text-muted">Имя получателя (как в Kaspi)</span>
+            <span className="label">Имя получателя (как в Kaspi)</span>
             <input name="name" defaultValue={name} disabled={fromEnv} placeholder="ИП «MyBooks»" className="input h-10 text-sm" />
           </label>
         </div>

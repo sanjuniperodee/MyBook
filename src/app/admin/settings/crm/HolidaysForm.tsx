@@ -48,7 +48,7 @@ export function HolidaysForm({ holidays, defaults, max }: { holidays: { id: stri
             <input value={r.day} onChange={(e) => set(i, { day: e.target.value })} placeholder="31.12" maxLength={5} inputMode="decimal" className="input h-9 w-20 text-sm" aria-label="День и месяц" required />
             <input value={r.ru} onChange={(e) => set(i, { ru: e.target.value })} placeholder="Новый год" maxLength={60} className="input h-9 min-w-40 flex-1 text-sm" aria-label="Название на русском" required />
             <input value={r.kk} onChange={(e) => set(i, { kk: e.target.value })} placeholder="Жаңа жыл" maxLength={60} className="input h-9 min-w-40 flex-1 text-sm" aria-label="Название на казахском" required />
-            <button type="button" className="text-muted hover:text-red-700" onClick={() => setRows((l) => l.filter((_, j) => j !== i))} aria-label="Убрать праздник">
+            <button type="button" className="text-muted hover:text-danger" onClick={() => setRows((l) => l.filter((_, j) => j !== i))} aria-label="Убрать праздник">
               <Trash2 className="size-4" />
             </button>
           </div>

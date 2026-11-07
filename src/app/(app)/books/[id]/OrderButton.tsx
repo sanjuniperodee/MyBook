@@ -7,7 +7,8 @@ import { usePathname } from "next/navigation";
 export function OrderButton({ bookId }: { bookId: string }) {
   const pathname = usePathname();
   const t = useMessages().books.layout;
-  if (pathname.endsWith("/checkout")) return null;
+  // На оформлении и в макете своя главная кнопка заказа — вторая в шапке не нужна.
+  if (pathname.endsWith("/checkout") || pathname.endsWith("/preview")) return null;
   return (
     <Link href={`/books/${bookId}/checkout`} className="btn btn-primary btn-sm shrink-0">
       {t.orderBook}<span className="hidden sm:inline">{t.orderBookTail}</span>

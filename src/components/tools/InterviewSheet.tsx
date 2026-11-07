@@ -87,7 +87,7 @@ export function InterviewSheet({ themes }: { themes: Record<CardThemeId, CardQue
         </button>
       </div>
 
-      <ul className="mt-4 max-h-[26rem] space-y-1.5 overflow-y-auto rounded-2xl border border-line bg-white p-3">
+      <ul className="mt-4 max-h-[26rem] space-y-1.5 overflow-y-auto rounded-[14px] border border-line bg-white p-3">
         {all.map((q) => (
           <li key={q.text}>
             <label className="flex cursor-pointer items-start gap-3 rounded-xl px-2 py-2 hover:bg-cream/50 has-[:checked]:bg-rose/30">
@@ -106,7 +106,7 @@ export function InterviewSheet({ themes }: { themes: Record<CardThemeId, CardQue
         {!picked.length ? <span className="text-sm text-muted">{ui.nothing}</span> : null}
       </div>
 
-      <div className="mt-8 rounded-2xl bg-cream/60 p-5">
+      <div className="mt-8 rounded-[14px] bg-cream/60 p-5">
         <h3 className="font-medium">{ui.tipsTitle}</h3>
         <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-relaxed text-ink-soft">
           {ui.tips.map((t) => (

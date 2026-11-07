@@ -101,7 +101,7 @@ export function GowaForm(props: GowaFormProps) {
     });
 
   return (
-    <Section title="WhatsApp — свой шлюз" badge={<span className={cn("rounded-full px-2.5 py-0.5 text-xs", status.loggedIn ? "bg-emerald-100 text-emerald-800" : status.reachable ? "bg-amber-100 text-amber-900" : "bg-cream text-muted")}>{statusLabel(status)}</span>}>
+    <Section title="WhatsApp — свой шлюз" badge={<span className={cn("badge", status.loggedIn ? "badge-success" : status.reachable ? "badge-warning" : "")}>{statusLabel(status)}</span>}>
       <Intro>
         Вместо Wazzup — бесплатный шлюз GOWA на вашем сервере: номер магазина привязывается по QR как «связанное устройство», входящие и ответы с телефона приходят в инбокс сразу, менеджеры отвечают из CRM. Instagram и Telegram по-прежнему идут через Wazzup.
       </Intro>
@@ -118,11 +118,11 @@ export function GowaForm(props: GowaFormProps) {
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <label className="block">
-          <span className="mb-1 block text-xs text-muted">Адрес шлюза</span>
+          <span className="label">Адрес шлюза</span>
           <input className="input h-10 text-sm" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder="http://127.0.0.1:3020" />
         </label>
         <label className="block">
-          <span className="mb-1 block text-xs text-muted">Логин:пароль шлюза (APP_BASIC_AUTH)</span>
+          <span className="label">Логин:пароль шлюза (APP_BASIC_AUTH)</span>
           <input
             className="input h-10 text-sm"
             type="password"
@@ -133,7 +133,7 @@ export function GowaForm(props: GowaFormProps) {
           />
         </label>
         <label className="block sm:col-span-2">
-          <span className="mb-1 block text-xs text-muted">Куда шлюз отправляет входящие (адрес сайта, доступный шлюзу)</span>
+          <span className="label">Куда шлюз отправляет входящие (адрес сайта, доступный шлюзу)</span>
           <input className="input h-10 text-sm" value={callbackUrl} onChange={(e) => setCallbackUrl(e.target.value)} placeholder={props.callbackDefault} />
         </label>
       </div>
@@ -149,7 +149,7 @@ export function GowaForm(props: GowaFormProps) {
             <button className="btn btn-outline btn-sm" disabled={pending} onClick={importHistory} title="Переписка с клиентами и сделками из WhatsApp — задним числом, без уведомлений и новых заявок">
               {pending ? <LoaderCircle className="size-4 animate-spin" /> : null} Загрузить историю переписки
             </button>
-            <button className="text-muted underline underline-offset-4 hover:text-red-700" disabled={pending} onClick={logout}>
+            <button className="text-muted underline underline-offset-4 hover:text-danger" disabled={pending} onClick={logout}>
               Отвязать
             </button>
           </div>
@@ -169,7 +169,7 @@ export function GowaForm(props: GowaFormProps) {
               </button>
             </div>
             {/* eslint-disable-next-line @next/next/no-img-element -- QR от шлюза: data-URL, оптимизатор не нужен */}
-            {qr ? <img src={qr.image} alt="QR для привязки WhatsApp" className="size-56 rounded-xl border border-line" /> : null}
+            {qr ? <img src={qr.image} alt="QR для привязки WhatsApp" className="size-56 rounded-[10px] border border-line" /> : null}
             {code ? (
               <p className="text-sm">
                 Код привязки: <b className="font-mono text-lg tracking-widest">{code}</b>
@@ -177,8 +177,8 @@ export function GowaForm(props: GowaFormProps) {
             ) : null}
           </>
         )}
-        {status.problem ? <p className="text-xs text-red-700">{status.problem}</p> : null}
-        {message ? <p className={cn("text-xs", message.ok ? "text-emerald-700" : "text-red-700")}>{message.text}</p> : null}
+        {status.problem ? <p className="text-xs text-danger">{status.problem}</p> : null}
+        {message ? <p className={cn("text-xs", message.ok ? "text-success" : "text-danger")}>{message.text}</p> : null}
       </div>
     </Section>
   );

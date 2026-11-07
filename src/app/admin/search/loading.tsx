@@ -1,18 +1,13 @@
-/** Заготовка поиска: заголовок и группы результатов (сделки, клиенты, заказы). */
-import { SkHeader, SkPage, SkRows } from "@/components/admin/skeletons";
+/** Заготовка поиска: заголовок, разделы и группы результатов (сделки, заказы, клиенты). */
+import { SkCard, SkHeader, SkPage, SkTabs } from "@/components/admin/skeletons";
 
 export default function Loading() {
   return (
-    <SkPage className="space-y-8">
-      <SkHeader title="w-56" />
-      <div className="space-y-3">
-        <div className="skeleton h-4 w-24" />
-        <SkRows rows={3} />
-      </div>
-      <div className="space-y-3">
-        <div className="skeleton h-4 w-24" />
-        <SkRows rows={3} />
-      </div>
+    <SkPage className="space-y-5">
+      <SkHeader title="w-56" subtitle />
+      <SkTabs n={3} pills />
+      <SkCard lines={3} />
+      <SkCard lines={3} />
     </SkPage>
   );
 }

@@ -16,19 +16,19 @@ export function AgreementGiftsField({ values = {} }: { values?: Record<string, s
   const wrap = availableAddons("hardcover").find((a) => a.id === "giftwrap")?.price ?? 0;
   const delivery = Math.max(0, ...getDeliveryOptions().map((d) => d.price));
   return (
-    <fieldset className="rounded-xl border border-line px-3 py-2 sm:col-span-2" data-testid="agreement-gifts-field">
-      <legend className="px-1 text-sm font-medium">Бесплатно по договорённости</legend>
-      <div className="flex flex-wrap gap-x-6 gap-y-1.5 text-sm">
-        <label className="flex items-center gap-2">
-          <input type="checkbox" name={giftFields.giftwrap} defaultChecked={values[giftFields.giftwrap] === "on"} />
+    <fieldset className="rounded-[10px] border border-line px-3.5 pt-1 pb-3 sm:col-span-2" data-testid="agreement-gifts-field">
+      <legend className="px-1 text-sm font-medium text-ink-soft">Бесплатно по договорённости</legend>
+      <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
+        <label className="flex min-h-9 items-center gap-2">
+          <input type="checkbox" className="size-4 accent-wine" name={giftFields.giftwrap} defaultChecked={values[giftFields.giftwrap] === "on"} />
           Подарочная упаковка <span className="text-muted">· обычно {formatPrice(wrap)}</span>
         </label>
-        <label className="flex items-center gap-2">
-          <input type="checkbox" name={giftFields.delivery} defaultChecked={values[giftFields.delivery] === "on"} />
+        <label className="flex min-h-9 items-center gap-2">
+          <input type="checkbox" className="size-4 accent-wine" name={giftFields.delivery} defaultChecked={values[giftFields.delivery] === "on"} />
           Доставка <span className="text-muted">· {delivery ? `до ${formatPrice(delivery)}` : "стоимость рассчитывается индивидуально"}</span>
         </label>
       </div>
-      <p className="mt-1 text-xs text-muted">Не отмечено — клиент платит по прайсу. Отмеченное клиент выбирает при оформлении сам, и оно стоит 0 ₸. У электронной книги упаковки и доставки нет.</p>
+      <p className="hint">Не отмечено — клиент платит по прайсу. Отмеченное клиент выбирает при оформлении сам, и оно стоит 0 ₸. У электронной книги упаковки и доставки нет.</p>
     </fieldset>
   );
 }

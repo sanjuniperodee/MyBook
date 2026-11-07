@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ToolHeader } from "../ToolHeader";
 import { Link } from "@/i18n/client";
 import { requireUser } from "@/server/auth";
 import { getAccessibleBook } from "@/server/books";
@@ -16,7 +17,8 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
   const { id } = await params;
   const user = await requireUser(`/books/${id}/preview`);
   const book = await getAccessibleBook(id, user);
-  const [t, questions] = await Promise.all([getMessages().then((m) => m.books.preview), container().authoring.queries.questions(book.id)]);
+  const [m, questions] = await Promise.all([getMessages(), container().authoring.queries.questions(book.id)]);
+  const t = m.books.preview;
 
   // Переплёт 3D-книги — из того же содержимого, что PDF (название по умолчанию, имена, фото обложки и оборота);
   // страницы книга берёт из экранной сборки.
@@ -27,14 +29,17 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
   const photos = flipbook.cover.photos;
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
-      <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="font-serif text-3xl font-medium sm:text-5xl">{t.title}</h1>
-        {book.status === "draft" ? (
-          <Link href={`/books/${book.id}/checkout`} className="btn btn-primary">
-            {t.order}
-          </Link>
-        ) : null}
-      </div>
+      <ToolHeader
+        title={t.title}
+        description={m.books.tools.preview}
+        actions={
+          book.status === "draft" ? (
+            <Link href={`/books/${book.id}/checkout`} className="btn btn-primary max-sm:w-full">
+              {t.order}
+            </Link>
+          ) : null
+        }
+      />
       <div className="grid gap-8 lg:grid-cols-[220px_minmax(0,1fr)]">
         <div className="hidden lg:block">
           <div className="sticky top-24">

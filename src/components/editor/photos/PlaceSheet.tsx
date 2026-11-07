@@ -92,7 +92,7 @@ export function PlaceSheet({ data, on, photoId, onClose, layer = "z-[91]" }: { d
 
       {step === "place" ? (
         <>
-          <PhotoIntroCard blank={book.blank} className="mt-4 rounded-2xl bg-cream/70 p-4" />
+          <PhotoIntroCard blank={book.blank} className="mt-4 rounded-2xl bg-sunken p-4" />
           <div role="radiogroup" aria-label={t.title} className="mt-4 space-y-2">
             {options.map((o) => {
               const here = o.kind === current;
@@ -104,7 +104,7 @@ export function PlaceSheet({ data, on, photoId, onClose, layer = "z-[91]" }: { d
                   aria-checked={here}
                   disabled={!book.editable}
                   onClick={() => (o.next ? setStep(o.next) : here ? undefined : void go({ kind: o.kind } as PlaceTarget))}
-                  className={cn("flex min-h-14 w-full items-center gap-3 rounded-2xl px-4 py-3 text-left ring-1 transition disabled:opacity-60", here ? "bg-wine/5 ring-2 ring-wine" : "ring-line hover:bg-cream/50")}
+                  className={cn("flex min-h-14 w-full items-center gap-3 rounded-2xl px-4 py-3 text-left ring-1 transition disabled:opacity-60", here ? "bg-wine/5 ring-2 ring-wine" : "ring-line hover:bg-sunken")}
                 >
                   <span className={cn("flex size-5 shrink-0 items-center justify-center rounded-full border", here ? "border-wine bg-wine text-white" : "border-line")}>{here ? <Check className="size-3" /> : null}</span>
                   <span className="min-w-0 flex-1">
@@ -132,7 +132,7 @@ export function PlaceSheet({ data, on, photoId, onClose, layer = "z-[91]" }: { d
                     aria-checked={layout === l}
                     disabled={!book.editable}
                     onClick={() => layout !== l && void ed.edit(photoId, { layout: l })}
-                    className={cn("min-h-11 rounded-xl px-3 py-2 text-left text-sm leading-snug ring-1 transition", layout === l ? "bg-wine/5 font-medium ring-2 ring-wine" : "ring-line hover:bg-cream/50")}
+                    className={cn("min-h-11 rounded-xl px-3 py-2 text-left text-sm leading-snug ring-1 transition", layout === l ? "bg-wine/5 font-medium ring-2 ring-wine" : "ring-line hover:bg-sunken")}
                   >
                     {t.layouts[l]}
                   </button>
@@ -178,18 +178,18 @@ export function PlaceSheet({ data, on, photoId, onClose, layer = "z-[91]" }: { d
                   disabled={!book.editable}
                   aria-current={here || waiting ? "true" : undefined}
                   onClick={() => (here ? setStep("place") : void go({ kind: step as "opener" | "after", chapterKey: c.key }))}
-                  className={cn("flex min-h-14 w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left ring-1 transition", here || waiting ? "bg-wine/5 ring-2 ring-wine" : "ring-line hover:bg-cream/50")}
+                  className={cn("flex min-h-14 w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left ring-1 transition", here || waiting ? "bg-wine/5 ring-2 ring-wine" : "ring-line hover:bg-sunken")}
                 >
                   {opener ? (
                     // eslint-disable-next-line @next/next/no-img-element -- фото главы сейчас
                     <img src={photoUrl(opener.id)} alt="" className="size-10 shrink-0 rounded-lg bg-cream object-cover" />
                   ) : (
-                    <span className="size-10 shrink-0 rounded-lg border border-dashed border-line bg-cream/40" aria-hidden />
+                    <span className="size-10 shrink-0 rounded-lg border border-dashed border-line bg-sunken" aria-hidden />
                   )}
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-medium">{c.title}</span>
                     {here || waiting ? <span className="block text-xs text-wine">{t.here}</span> : null}
-                    {!c.printed ? <span className="block text-xs text-muted">{t.noText}</span> : replaces && !here ? <span className="block text-xs text-amber-700">{t.replaces}</span> : null}
+                    {!c.printed ? <span className="block text-xs text-muted">{t.noText}</span> : replaces && !here ? <span className="block text-xs text-warning">{t.replaces}</span> : null}
                   </span>
                 </button>
               </li>
@@ -223,7 +223,7 @@ function AnswerList({ data, current, onPick }: { data: PlaceData; current?: stri
     <div className="mt-4 space-y-4">
       {groups.map(({ c, list }) => (
         <section key={c.key}>
-          <div className="mb-1.5 text-xs font-semibold tracking-wide text-muted uppercase">{c.title}</div>
+          <div className="mb-1.5 text-xs font-medium text-muted">{c.title}</div>
           <ul className="space-y-1.5">
             {list.map((a) => (
               <li key={a.id}>
@@ -232,7 +232,7 @@ function AnswerList({ data, current, onPick }: { data: PlaceData; current?: stri
                   disabled={!data.book.editable}
                   aria-current={a.id === current ? "true" : undefined}
                   onClick={() => a.id !== current && onPick(a.id)}
-                  className={cn("flex min-h-12 w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm ring-1 transition", a.id === current ? "bg-wine/5 ring-2 ring-wine" : "ring-line hover:bg-cream/50")}
+                  className={cn("flex min-h-12 w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm ring-1 transition", a.id === current ? "bg-wine/5 ring-2 ring-wine" : "ring-line hover:bg-sunken")}
                 >
                   <span className="min-w-0 flex-1 truncate">{a.title}</span>
                   {a.id === current ? <span className="shrink-0 text-xs text-wine">{t.here}</span> : null}

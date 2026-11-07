@@ -27,21 +27,18 @@ export function BotBanner({ conversationId, status, canControl, hasDeal }: { con
     });
   return (
     <div
-      className={cn(
-        "flex items-center gap-2 border-b border-line px-4 py-1.5 text-xs",
-        status.tone === "active" || status.tone === "waiting" ? "bg-emerald-50 text-emerald-900" : "bg-cream/40 text-muted",
-      )}
+      className={cn("flex min-h-10 items-center gap-2 border-b border-line px-4 py-1 text-xs lg:px-5", status.tone === "active" || status.tone === "waiting" ? "bg-info-bg text-info" : "bg-sunken/60 text-ink-soft")}
       data-testid="bot-banner"
     >
-      <Bot className="size-3.5 shrink-0" />
-      <span className="min-w-0 flex-1 truncate">{status.label}</span>
+      <Bot className="size-4 shrink-0" strokeWidth={1.8} aria-hidden />
+      <span className="min-w-0 flex-1 truncate font-medium">{status.label}</span>
       {canControl && status.canStop ? (
-        <button className="btn btn-ghost btn-sm h-7 px-2 text-xs" disabled={pending} onClick={() => run(() => stopBotAction(conversationId))}>
+        <button className="btn btn-ghost btn-sm h-8 px-2.5 text-xs text-current max-lg:h-11" disabled={pending} onClick={() => run(() => stopBotAction(conversationId))}>
           {pending ? <LoaderCircle className="size-3.5 animate-spin" /> : <Square className="size-3.5" />} Остановить бота
         </button>
       ) : null}
       {canControl && hasDeal && status.canStart ? (
-        <button className="btn btn-ghost btn-sm h-7 px-2 text-xs" disabled={pending} onClick={() => run(() => startBotAction(conversationId))} title="Бот поздоровается и спросит то, чего ещё нет в сделке">
+        <button className="btn btn-ghost btn-sm h-8 px-2.5 text-xs text-current max-lg:h-11" disabled={pending} onClick={() => run(() => startBotAction(conversationId))} title="Бот поздоровается и спросит то, чего ещё нет в сделке">
           {pending ? <LoaderCircle className="size-3.5 animate-spin" /> : <Play className="size-3.5" />} Запустить бота
         </button>
       ) : null}
@@ -81,10 +78,12 @@ export function ChatSideControls({
       }
     });
   return (
-    <div className="space-y-4">
-      <section>
-        <h3 className="mb-2 text-xs font-semibold tracking-wide text-muted uppercase">Ответственный</h3>
-        <select className="input h-9 text-sm" value={assigneeId ?? ""} disabled={!canSend || pending} onChange={(e) => run(() => assignConversationAction(conversationId, e.target.value || null))} aria-label="Ответственный за чат">
+    <div className="space-y-3">
+      <div>
+        <label htmlFor={`assignee-${conversationId}`} className="label text-[13px]">
+          Ответственный
+        </label>
+        <select id={`assignee-${conversationId}`} className="input h-10 text-sm" value={assigneeId ?? ""} disabled={!canSend || pending} onChange={(e) => run(() => assignConversationAction(conversationId, e.target.value || null))}>
           <option value="">Не назначен</option>
           {options.map((o) => (
             <option key={o.id} value={o.id}>
@@ -92,7 +91,7 @@ export function ChatSideControls({
             </option>
           ))}
         </select>
-      </section>
+      </div>
       <div className="flex flex-col gap-2">
         {!hasDeal && canCreateDeal ? (
           <button
@@ -113,7 +112,7 @@ export function ChatSideControls({
           </button>
         ) : null}
         {canSend && hasDeal && canStartBot ? (
-          <button className="btn btn-ghost btn-sm" disabled={pending} onClick={() => run(() => startBotAction(conversationId))} title="Бот поздоровается и спросит то, чего ещё нет в сделке">
+          <button className="btn btn-outline btn-sm" disabled={pending} onClick={() => run(() => startBotAction(conversationId))} title="Бот поздоровается и спросит то, чего ещё нет в сделке">
             <Bot className="size-4" /> Запустить бота
           </button>
         ) : null}

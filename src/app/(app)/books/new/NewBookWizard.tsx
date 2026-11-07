@@ -42,14 +42,14 @@ export interface WizardTheme {
 
 function GenderToggle({ name, value, onChange, labels }: { name: string; value: Gender; onChange: (g: Gender) => void; labels: [string, string] }) {
   return (
-    <div className="grid grid-cols-2 gap-2 rounded-2xl bg-cream/70 p-1">
+    <div className="grid grid-cols-2 gap-2 rounded-[12px] bg-sunken p-1">
       <input type="hidden" name={name} value={value} />
       {(["m", "f"] as const).map((g, i) => (
         <button
           key={g}
           type="button"
           onClick={() => onChange(g)}
-          className={cn("h-10 rounded-xl text-sm font-medium transition", value === g ? "bg-white shadow-soft" : "text-muted hover:text-ink")}
+          className={cn("h-11 rounded-[10px] text-sm font-medium transition sm:h-10", value === g ? "bg-white shadow-soft" : "text-muted hover:text-ink")}
         >
           {labels[i]}
         </button>
@@ -68,15 +68,14 @@ function themeCopy(th: WizardTheme, t: WizardMessages) {
 function ThemeCard({ th, language, t, onPick }: { th: WizardTheme; language: Locale; t: WizardMessages; onPick: (th: WizardTheme) => void }) {
   const copy = themeCopy(th, t);
   return (
-    <button type="button" onClick={() => onPick(th)} data-theme={th.id} className="card group flex items-center gap-5 p-5 text-left transition hover:-translate-y-0.5 hover:shadow-lift">
-      <div className="w-24 shrink-0">
+    // Тема — как книга на полке: обложка в настоящих пропорциях, под ней кому, о чём и сколько вопросов.
+    <button type="button" onClick={() => onPick(th)} data-theme={th.id} className="group block w-full rounded-[6px] text-left focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-wine">
+      <div className="transition-transform duration-300 ease-[var(--ease-out-soft)] group-hover:-translate-y-1">
         <CoverFace template={th.defaultCover} title={th.titleSuggestions[language][0]} lite className="rounded-[3px] shadow-book" />
       </div>
-      <div>
-        <div className="text-xl font-semibold">{copy.name}</div>
-        <p className="mt-1.5 text-sm leading-relaxed text-muted">{copy.description}</p>
-        <div className="mt-3 text-xs font-medium text-wine">{th.kind === "blank" ? t.noQuestions : t.questions(th.questions)}</div>
-      </div>
+      <div className="mt-4 text-[17px] leading-snug font-semibold group-hover:text-wine">{copy.name}</div>
+      <p className="mt-1 line-clamp-3 text-[13px] leading-relaxed text-muted">{copy.description}</p>
+      <div className="mt-1.5 text-xs text-ink-soft">{th.kind === "blank" ? t.noQuestions : t.questions(th.questions)}</div>
     </button>
   );
 }
@@ -118,18 +117,18 @@ export function NewBookWizard({ themes, defaultTheme, defaultAuthor, defaultLang
     const own = themes.filter((th) => th.kind !== "gift");
     return (
       <div>
-        <h1 className="font-serif text-3xl font-medium sm:text-5xl">{t.whoTitle}</h1>
-        <p className="mt-3 text-lg text-muted">{t.whoText}</p>
-        <h2 className="mt-8 text-sm font-semibold tracking-wide text-muted uppercase sm:mt-12">{t.groups.gift}</h2>
-        <div className="mt-3 grid gap-4 sm:grid-cols-2 sm:gap-5">
+        <h1 className="font-serif text-4xl leading-tight font-medium sm:text-5xl">{t.whoTitle}</h1>
+        <p className="mt-3 max-w-2xl text-[17px] leading-relaxed text-muted">{t.whoText}</p>
+        <h2 className="mt-10 font-serif text-2xl font-medium sm:mt-14">{t.groups.gift}</h2>
+        <div className="mt-5 grid grid-cols-2 gap-x-5 gap-y-10 sm:grid-cols-3 sm:gap-x-8 lg:grid-cols-4">
           {gifts.map((th) => (
             <ThemeCard key={th.id} th={th} language={language} t={t} onPick={selectTheme} />
           ))}
         </div>
         {own.length ? (
           <>
-            <h2 className="mt-8 text-sm font-semibold tracking-wide text-muted uppercase sm:mt-10">{t.groups.own}</h2>
-            <div className="mt-3 grid gap-4 sm:grid-cols-2 sm:gap-5">
+            <h2 className="mt-14 font-serif text-2xl font-medium sm:mt-16">{t.groups.own}</h2>
+            <div className="mt-5 grid grid-cols-2 gap-x-5 gap-y-10 sm:grid-cols-3 sm:gap-x-8 lg:grid-cols-4">
               {own.map((th) => (
                 <ThemeCard key={th.id} th={th} language={language} t={t} onPick={selectTheme} />
               ))}
@@ -149,11 +148,11 @@ export function NewBookWizard({ themes, defaultTheme, defaultAuthor, defaultLang
   return (
     <div className="grid gap-12 lg:grid-cols-[1fr_300px]">
       <form action={action} className="space-y-7">
-        <button type="button" onClick={() => setThemeId(null)} aria-label={t.back} className="flex items-center gap-1.5 text-sm text-muted hover:text-ink">
+        <button type="button" onClick={() => setThemeId(null)} aria-label={t.back} className="-ml-2 flex min-h-11 items-center gap-1.5 rounded-[10px] px-2 text-sm text-muted hover:bg-ink/5 hover:text-ink">
           <ArrowLeft className="size-4" /> {copy.name}
         </button>
         <div>
-          <h1 className="font-serif text-3xl font-medium sm:text-5xl">{t.detailsTitle}</h1>
+          <h1 className="font-serif text-4xl leading-tight font-medium sm:text-5xl">{t.detailsTitle}</h1>
           <p className="mt-3 text-muted">{kind === "blank" ? t.detailsTextBlank : t.detailsText}</p>
         </div>
         {state.error ? <Alert>{state.error}</Alert> : null}
@@ -163,7 +162,7 @@ export function NewBookWizard({ themes, defaultTheme, defaultAuthor, defaultLang
         {kind === "autobiography" ? (
           <div>
             <span className="label" id="story-label">{t.story.title}</span>
-            <div className="grid gap-2 rounded-2xl bg-cream/70 p-1 sm:grid-cols-2" role="radiogroup" aria-labelledby="story-label">
+            <div className="grid gap-2 rounded-[12px] bg-sunken p-1 sm:grid-cols-2" role="radiogroup" aria-labelledby="story-label">
               {([false, true] as const).map((other) => (
                 <button
                   key={String(other)}
@@ -171,7 +170,7 @@ export function NewBookWizard({ themes, defaultTheme, defaultAuthor, defaultLang
                   role="radio"
                   aria-checked={storyOther === other}
                   onClick={() => setStoryOther(other)}
-                  className={cn("min-h-10 rounded-xl px-3 py-2 text-sm font-medium transition", storyOther === other ? "bg-white shadow-soft" : "text-muted hover:text-ink")}
+                  className={cn("min-h-11 rounded-[10px] px-3 py-2 text-sm font-medium transition sm:min-h-10", storyOther === other ? "bg-white shadow-soft" : "text-muted hover:text-ink")}
                 >
                   {other ? t.story.other : t.story.own}
                 </button>
@@ -252,7 +251,7 @@ export function NewBookWizard({ themes, defaultTheme, defaultAuthor, defaultLang
 
         <div>
           <span className="label">{t.language}</span>
-          <div className="grid max-w-sm grid-cols-2 gap-2 rounded-2xl bg-cream/70 p-1" role="radiogroup" aria-label={t.language}>
+          <div className="grid max-w-sm grid-cols-2 gap-2 rounded-[12px] bg-sunken p-1" role="radiogroup" aria-label={t.language}>
             {locales.map((l) => (
               <button
                 key={l}
@@ -261,7 +260,7 @@ export function NewBookWizard({ themes, defaultTheme, defaultAuthor, defaultLang
                 aria-checked={language === l}
                 lang={l}
                 onClick={() => selectLanguage(l)}
-                className={cn("h-10 rounded-xl text-sm font-medium transition", language === l ? "bg-white shadow-soft" : "text-muted hover:text-ink")}
+                className={cn("h-11 rounded-[10px] text-sm font-medium transition sm:h-10", language === l ? "bg-white shadow-soft" : "text-muted hover:text-ink")}
               >
                 {localeMeta[l].label}
               </button>
@@ -280,7 +279,7 @@ export function NewBookWizard({ themes, defaultTheme, defaultAuthor, defaultLang
                 key={s}
                 type="button"
                 onClick={() => setTitle(s)}
-                className={cn("flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm transition", title === s ? "border-wine bg-wine/5 text-wine" : "border-line bg-white hover:border-ink/30")}
+                className={cn("flex min-h-11 items-center gap-1.5 rounded-[10px] border px-3.5 text-sm transition sm:min-h-9", title === s ? "border-wine bg-rose/40 text-wine" : "border-line-strong bg-white hover:border-ink/30")}
               >
                 {title === s ? <Check className="size-3.5" /> : null}
                 {s}

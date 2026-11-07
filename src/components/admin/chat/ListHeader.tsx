@@ -1,69 +1,51 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Search, Smartphone, X } from "lucide-react";
 import { cn } from "@/lib/class-names";
 
-type Panel = "search" | "phone" | null;
-
 /**
- * Шапка списка чатов: заголовок со счётчиком и две кнопки-иконки справа — поиск и «у кого телефон WhatsApp» (выбор менеджера).
- * Каждая раскрывает свою панель под шапкой (одна за раз), чтобы список начинался сразу под заголовком. Если поиск уже задан —
- * панель поиска открыта, а значок подсвечен.
+ * Шапка списка чатов: заголовок со счётчиком, поиск всегда на виду (в «Входящих» им пользуются постоянно) и кнопка
+ * «у кого телефон WhatsApp» — она раскрывает выбор менеджера под шапкой.
  */
 export function ChatListHeader({ count, filter, q, toolbar }: { count: number | null; filter: string; q: string; toolbar?: React.ReactNode }) {
-  const [open, setOpen] = useState<Panel>(q ? "search" : null);
-  const input = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    if (open === "search") input.current?.focus({ preventScroll: true });
-  }, [open]);
-  const toggle = (p: Exclude<Panel, null>) => setOpen((cur) => (cur === p ? null : p));
-  const btn = (p: Exclude<Panel, null>, label: string, active: boolean, icon: React.ReactNode) => (
-    <button
-      type="button"
-      onClick={() => toggle(p)}
-      aria-label={label}
-      aria-expanded={open === p}
-      className={cn("relative flex size-11 items-center justify-center rounded-full transition active:scale-95 lg:size-9", open === p ? "bg-wine/10 text-wine" : "text-ink-soft hover:bg-[#f3efe9]")}
-    >
-      {icon}
-      {active && open !== p ? <span className="absolute top-2.5 right-2.5 size-2 rounded-full bg-wine lg:top-1.5 lg:right-1.5" /> : null}
-    </button>
-  );
+  const [phone, setPhone] = useState(false);
   return (
-    <div className="px-4 pt-2 lg:pt-4">
-      <div className="flex items-center gap-2">
+    <div className="shrink-0 px-4 pt-3 pb-2 lg:pt-4">
+      <div className="flex min-h-11 items-center gap-2">
         <h1 className="text-xl font-semibold tracking-tight">Чаты</h1>
-        {count ? <span className="rounded-full bg-[#f3efe9] px-2.5 py-0.5 text-xs font-medium text-ink-soft tabular-nums">{count >= 200 ? "200+" : count}</span> : null}
-        <div className="ml-auto flex items-center gap-0.5">
-          {btn("search", "Поиск по чатам", !!q, <Search className="size-5" />)}
-          {toolbar ? btn("phone", "Чей телефон WhatsApp", false, <Smartphone className="size-5" />) : null}
-        </div>
+        {count ? <span className="badge tabular-nums">{count >= 200 ? "200+" : count}</span> : null}
+        {toolbar ? (
+          <button
+            type="button"
+            onClick={() => setPhone((v) => !v)}
+            aria-label="Чей телефон WhatsApp"
+            aria-expanded={phone}
+            title="Кто отвечает с телефона магазина"
+            className={cn("btn btn-ghost btn-icon btn-sm ml-auto max-lg:size-11", phone && "bg-sunken text-ink")}
+          >
+            <Smartphone className="size-[18px]" strokeWidth={1.8} />
+          </button>
+        ) : null}
       </div>
-      <div className={cn("grid transition-[grid-template-rows] duration-200 ease-out", open ? "grid-rows-[1fr]" : "grid-rows-[0fr]")}>
-        <div className="-mx-1 overflow-hidden px-1">
-          <div className={cn("pt-2 pb-1", open !== "search" && "hidden")}>
-            <form action="/admin/chats" className="relative">
-              <input type="hidden" name="f" value={filter} />
-              <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted" />
-              <input
-                ref={input}
-                name="q"
-                type="search"
-                defaultValue={q}
-                placeholder="Поиск по имени, номеру, тексту"
-                className="h-11 w-full rounded-full bg-[#f3efe9] pr-10 pl-10 text-sm outline-none transition placeholder:text-muted focus:bg-white focus:ring-2 focus:ring-wine/20 lg:h-10 [&::-webkit-search-cancel-button]:hidden"
-              />
-              {q ? (
-                <a href={`/admin/chats?f=${filter}`} aria-label="Сбросить поиск" className="absolute top-1/2 right-1.5 flex size-8 -translate-y-1/2 items-center justify-center rounded-full text-muted hover:text-ink">
-                  <X className="size-4" />
-                </a>
-              ) : null}
-            </form>
-          </div>
-          {toolbar ? <div className={cn("pt-2 pb-1", open !== "phone" && "hidden")}>{toolbar}</div> : null}
-        </div>
-      </div>
+      {toolbar && phone ? <div className="pt-1.5 pb-1">{toolbar}</div> : null}
+      <form action="/admin/chats" className="relative mt-2" role="search">
+        <input type="hidden" name="f" value={filter} />
+        <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" aria-hidden />
+        <input
+          name="q"
+          type="search"
+          defaultValue={q}
+          placeholder="Имя, номер или текст"
+          aria-label="Поиск по чатам"
+          className="input h-10 pr-10 pl-9 text-sm max-lg:h-11 [&::-webkit-search-cancel-button]:hidden"
+        />
+        {q ? (
+          <a href={`/admin/chats?f=${filter}`} aria-label="Сбросить поиск" className="absolute top-1/2 right-0.5 flex size-10 -translate-y-1/2 items-center justify-center rounded-lg text-muted hover:text-ink max-lg:size-11">
+            <X className="size-4" />
+          </a>
+        ) : null}
+      </form>
     </div>
   );
 }

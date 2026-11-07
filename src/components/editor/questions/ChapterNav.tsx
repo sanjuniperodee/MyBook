@@ -70,7 +70,7 @@ function IconBtn({ label, onClick, disabled, danger, children }: { label: string
       onClick={onClick}
       className={cn(
         "flex size-8 shrink-0 items-center justify-center rounded-lg transition hover:bg-ink/5 disabled:opacity-35 max-sm:size-10 max-sm:border max-sm:border-line",
-        danger ? "text-red-700" : "text-muted hover:text-ink",
+        danger ? "text-danger" : "text-muted hover:text-ink",
       )}
     >
       {children}
@@ -342,7 +342,7 @@ function ChapterNavView({ groups, kind, current, onPick, photos, actions, busy, 
                           onClick={() => onPick(q.id)}
                           className={cn("flex w-full items-start gap-2 rounded-lg px-2 py-1.5 text-left text-[13px] leading-snug transition max-sm:py-2.5", here ? "bg-wine/8 text-wine" : "text-ink-soft hover:bg-ink/5")}
                         >
-                          <span className={cn("mt-1.5 size-1.5 shrink-0 rounded-full", q.answer.trim() ? "bg-emerald-500" : "bg-line")} />
+                          <span className={cn("mt-1.5 size-1.5 shrink-0 rounded-full", q.answer.trim() ? "bg-success" : "bg-line")} />
                           <span className="line-clamp-2">{sectionLabel(q, kind, untitled)}</span>
                         </button>
                         {own && here && !filtering ? (

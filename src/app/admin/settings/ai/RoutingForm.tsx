@@ -67,13 +67,13 @@ export function RoutingForm({ saved, providers, legacyProvider }: { saved: Routi
         <div className="grid gap-2 sm:grid-cols-3">
           {SELLER_TIERS.map((t) => (
             <label key={t} className="block">
-              <span className="mb-1 block text-xs text-muted">Модель {TIER_LABELS[t]}</span>
+              <span className="label">Модель {TIER_LABELS[t]}</span>
               <input name={`model_${t}`} defaultValue={saved.models[t]} placeholder={DEFAULT_TIER_MODELS[t]} disabled={env(`seller.route.${t}`)} className="input h-10 text-sm" maxLength={100} />
             </label>
           ))}
         </div>
         <label className="block max-w-xs">
-          <span className="mb-1 block text-xs text-muted">Уровень по умолчанию (и в режиме наблюдения)</span>
+          <span className="label">Уровень по умолчанию (и в режиме наблюдения)</span>
           <select name="defaultTier" defaultValue={saved.defaultTier} disabled={env("seller.route.default")} className="input h-10 text-sm">
             {SELLER_TIERS.map((t) => (
               <option key={t} value={t}>
@@ -83,13 +83,13 @@ export function RoutingForm({ saved, providers, legacyProvider }: { saved: Routi
           </select>
         </label>
         <div>
-          <span className="mb-1 block text-xs text-muted">Запасные провайдеры (по порядку списка; ни один не отмечен — {legacyProvider === "anthropic" ? "запасных нет" : `прежний провайдер продажника: ${aiProviders[legacyProvider].label}`})</span>
+          <span className="label">Запасные провайдеры (по порядку списка; ни один не отмечен — {legacyProvider === "anthropic" ? "запасных нет" : `прежний провайдер продажника: ${aiProviders[legacyProvider].label}`})</span>
           <div className="flex flex-wrap gap-2 text-sm">
             {others.map((id) => (
               <Choice key={id} active={listed.includes(id)}>
                 <input type="checkbox" name="fallback" value={id} defaultChecked={listed.includes(id)} disabled={env("seller.fallbacks")} className="accent-wine" />
                 {aiProviders[id].label}
-                {providerReady(providers, id) ? <CheckCircle2 className="size-3.5 text-emerald-700" aria-label="ключ сохранён" /> : null}
+                {providerReady(providers, id) ? <CheckCircle2 className="size-3.5 text-success" aria-label="ключ сохранён" /> : null}
               </Choice>
             ))}
           </div>
@@ -105,7 +105,7 @@ export function RoutingForm({ saved, providers, legacyProvider }: { saved: Routi
             <NumberField name="dailyBudget" label="Потолок в сутки, $ (пусто или 0 — без)" value={saved.dailyBudget} placeholder="" disabled={env("seller.route.dailyBudget")} />
           </div>
           <label className="mt-2 block">
-            <span className="mb-1 block text-xs text-muted">Прайс, $ за 1M токенов (JSON; пусто — цены Anthropic по умолчанию)</span>
+            <span className="label">Прайс, $ за 1M токенов (JSON; пусто — цены Anthropic по умолчанию)</span>
             <textarea name="prices" defaultValue={saved.prices} disabled={env("seller.route.prices")} rows={3} className="input text-xs" placeholder='{"claude-haiku-5-5": {"input": 0.1, "output": 0.5, "cacheRead": 0.01, "cacheWrite": 0.2}}' maxLength={4000} />
           </label>
           <p className="mt-1 text-xs text-muted">На потолке расходов бот отвечает только на Haiku, без эскалаций. Расходы и доли моделей — в статистике бота (Бот → Статистика).</p>
@@ -123,7 +123,7 @@ export function RoutingForm({ saved, providers, legacyProvider }: { saved: Routi
 function NumberField({ name, label, value, placeholder, disabled }: { name: string; label: string; value: string; placeholder: string; disabled: boolean }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-xs text-muted">{label}</span>
+      <span className="label">{label}</span>
       <input name={name} defaultValue={value} placeholder={placeholder} disabled={disabled} inputMode="decimal" className="input h-10 text-sm" maxLength={10} />
     </label>
   );

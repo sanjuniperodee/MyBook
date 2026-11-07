@@ -49,12 +49,12 @@ export function FinanceColumns({ data, height = 200 }: { data: FinanceDay[]; hei
               <div key={d.date} className="group relative flex h-full flex-1 items-end justify-center px-[1px]" tabIndex={0} aria-label={`${dayLabel(d.date, { day: "numeric", month: "long" })}: ${formatPrice(d.incoming)}`}>
                 <div className="absolute inset-0 rounded-md group-hover:bg-ink/[0.04] group-focus:bg-ink/[0.04]" />
                 {d.incoming > 0 ? <div className="relative w-full max-w-6 rounded-t-[4px] bg-wine transition group-hover:bg-wine-dark" style={{ height: `${Math.max((d.incoming / top) * 100, 1.2)}%` }} /> : null}
-                {d.refunds > 0 ? <div className="absolute bottom-0 h-1 w-full max-w-6 rounded-full bg-red-600" title="возврат" /> : null}
-                <div className={cn("pointer-events-none absolute bottom-full z-10 mb-2 hidden w-max rounded-xl bg-ink px-3 py-2 text-xs text-white shadow-lift group-hover:block group-focus:block", i > data.length * 0.7 ? "right-0" : "left-0")}>
+                {d.refunds > 0 ? <div className="absolute bottom-0 h-1 w-full max-w-6 rounded-full bg-danger" title="возврат" /> : null}
+                <div className={cn("pointer-events-none absolute bottom-full z-10 mb-2 hidden w-max rounded-[10px] bg-ink px-3 py-2 text-xs text-white shadow-lift group-hover:block group-focus:block", i > data.length * 0.7 ? "right-0" : "left-0")}>
                   <div className="text-white/60">{dayLabel(d.date, { weekday: "short", day: "numeric", month: "long" })}</div>
                   <div className="mt-0.5 font-semibold">{formatPrice(d.incoming)}</div>
                   <div className="text-white/60">{receipts(d.count)}</div>
-                  {d.refunds ? <div className="text-red-300">возвраты −{formatPrice(d.refunds)}</div> : null}
+                  {d.refunds ? <div className="text-white">возвраты −{formatPrice(d.refunds)}</div> : null}
                 </div>
               </div>
             ))}
@@ -70,7 +70,7 @@ export function FinanceColumns({ data, height = 200 }: { data: FinanceDay[]; hei
       </div>
       <details className="mt-4 text-sm">
         <summary className="cursor-pointer text-xs text-muted hover:text-ink">Показать таблицей</summary>
-        <div className="mt-2 max-h-64 overflow-y-auto rounded-xl border border-line">
+        <div className="mt-2 max-h-64 overflow-y-auto rounded-[10px] border border-line">
           <table className="w-full text-xs">
             <thead className="sticky top-0 bg-white text-left text-muted">
               <tr>

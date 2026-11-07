@@ -26,11 +26,11 @@ export function PhoneHolder({ holder, me, staff, canPickAnyone }: { holder: { id
     });
   const mine = holder?.id === me;
   return (
-    <div className={cn("flex items-center gap-2 rounded-xl px-3 py-2 text-[13px]", holder ? "bg-emerald-50 text-emerald-900" : "bg-[#f3efe9] text-ink-soft")} title="Ответы с телефона магазина (мимо CRM) забирают новые заявки на этого сотрудника">
-      {pending ? <LoaderCircle className="size-4 shrink-0 animate-spin" /> : <Smartphone className="size-4 shrink-0" />}
+    <div className={cn("flex min-h-10 items-center gap-2 rounded-[10px] px-3 py-1.5 text-[13px]", holder ? "bg-success-bg text-success" : "bg-sunken text-ink-soft")} title="Ответы с телефона магазина (мимо CRM) забирают новые заявки на этого сотрудника">
+      {pending ? <LoaderCircle className="size-4 shrink-0 animate-spin" /> : <Smartphone className="size-4 shrink-0" strokeWidth={1.8} aria-hidden />}
       <span className="shrink-0">Телефон WhatsApp:</span>
       {canPickAnyone ? (
-        <select value={holder?.id ?? ""} onChange={(e) => set(e.target.value || null)} disabled={pending} className="min-w-0 flex-1 cursor-pointer truncate bg-transparent font-semibold outline-none" aria-label="У кого телефон WhatsApp">
+        <select value={holder?.id ?? ""} onChange={(e) => set(e.target.value || null)} disabled={pending} className="min-h-9 min-w-0 flex-1 cursor-pointer truncate bg-transparent font-semibold outline-none max-lg:min-h-11" aria-label="У кого телефон WhatsApp">
           <option value="">не указан</option>
           {staff.map((s) => (
             <option key={s.id} value={s.id}>
@@ -43,7 +43,7 @@ export function PhoneHolder({ holder, me, staff, canPickAnyone }: { holder: { id
         <>
           <span className="min-w-0 flex-1 truncate font-semibold">{holder ? (mine ? "у меня" : holder.name) : "не указан"}</span>
           {!mine ? (
-            <button type="button" disabled={pending} onClick={() => set(me)} className="shrink-0 rounded-lg bg-white px-2 py-1 text-xs font-medium shadow-sm hover:bg-cream">
+            <button type="button" disabled={pending} onClick={() => set(me)} className="btn btn-outline btn-sm h-8 shrink-0 px-2.5 text-xs">
               Телефон у меня
             </button>
           ) : null}

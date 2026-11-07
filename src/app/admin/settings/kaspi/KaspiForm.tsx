@@ -31,7 +31,7 @@ interface KaspiFormProps extends KaspiStatusView {
 }
 
 const badge = (s: KaspiStatusView) =>
-  !s.reachable ? { text: "сервис недоступен", tone: "bg-red-50 text-red-800" } : s.active ? { text: "подключено", tone: "bg-emerald-100 text-emerald-800" } : s.connected ? { text: "сессия не принимается", tone: "bg-amber-100 text-amber-900" } : { text: "не подключено", tone: "bg-cream text-muted" };
+  !s.reachable ? { text: "сервис недоступен", tone: "badge-danger" } : s.active ? { text: "подключено", tone: "badge-success" } : s.connected ? { text: "сессия не принимается", tone: "badge-warning" } : { text: "не подключено", tone: "" };
 
 /**
  * Kaspi Pay в «Интеграциях»: адрес сервиса kaspi-pos-automation, вход кассира по SMS-коду, включение оплаты и
@@ -67,14 +67,14 @@ export function KaspiForm(props: KaspiFormProps) {
 
   const b = badge(status);
   return (
-    <Section title="Kaspi Pay — оплата заказов" badge={<span className={cn("rounded-full px-2.5 py-0.5 text-xs", b.tone)}>{b.text}</span>}>
+    <Section title="Kaspi Pay — оплата заказов" badge={<span className={cn("badge", b.tone)}>{b.text}</span>}>
       <Intro>
         Клиент получает счёт в приложение Kaspi по номеру телефона или платит по QR, заказ и сертификат подтверждаются сами — менять статус вручную не нужно. Работает через сервис kaspi-pos-automation на вашем сервере и аккаунт кассира Kaspi Pay.
       </Intro>
 
       <div className="mt-4 flex flex-wrap items-end gap-2">
         <label className="block min-w-0 flex-1">
-          <span className="mb-1 block text-xs text-muted">Адрес сервиса kaspi-pos</span>
+          <span className="label">Адрес сервиса kaspi-pos</span>
           <input className="input h-10 text-sm" value={apiUrl} onChange={(e) => setApiUrl(e.target.value)} placeholder="http://127.0.0.1:3010" />
         </label>
         <button className="btn btn-outline btn-sm h-10" disabled={pending || !apiUrl.trim()} onClick={saveUrl}>
@@ -92,7 +92,7 @@ export function KaspiForm(props: KaspiFormProps) {
             {status.phone ? <span className="text-muted"> · {status.phone}</span> : null}
           </div>
           {status.reachable && !status.active ? (
-            <p className="text-sm text-amber-800">
+            <p className="text-sm text-warning">
               {status.shared
                 ? "Kaspi не принимает общую сессию кассира. Войдите заново в том проекте, где её получали, и обновите KASPI_TOKEN_SN, KASPI_VTOKEN_SECRET и KASPI_PROFILE_ID на сервере — до этого клиентам показывается перевод по номеру."
                 : "Kaspi не принимает сессию кассира (вход с другого устройства или истёк срок). Подключите кассира заново — до этого клиентам показывается перевод по номеру."}
@@ -104,7 +104,7 @@ export function KaspiForm(props: KaspiFormProps) {
           </label>
           <div className="flex flex-wrap items-end gap-2">
             <label className="block">
-              <span className="mb-1 block text-xs text-muted">Сообщать руководителям, если кассир не работает дольше, мин</span>
+              <span className="label">Сообщать руководителям, если кассир не работает дольше, мин</span>
               <input className="input h-10 w-24 text-sm" type="number" inputMode="numeric" min={0} max={240} step={1} value={alertAfter} onChange={(e) => setAlertAfter(e.target.value)} aria-label="Порог тревоги, минут" />
             </label>
             <button
@@ -124,7 +124,7 @@ export function KaspiForm(props: KaspiFormProps) {
           <p className="text-[11px] text-muted">
             Сайт проверяет кассира раз в 3 минуты. Уведомление в CRM и push приходит один раз, когда кассир отключился, и один раз, когда снова подключён; пока он отключён, менеджеры видят плашку в окне счёта и над полем ввода чата. 0 — сообщать сразу.
           </p>
-          {alertMessage ? <p className={cn("text-xs", alertMessage.ok ? "text-emerald-700" : "text-red-700")}>{alertMessage.text}</p> : null}
+          {alertMessage ? <p className={cn("text-xs", alertMessage.ok ? "text-success" : "text-danger")}>{alertMessage.text}</p> : null}
         </div>
       ) : null}
 
@@ -138,7 +138,7 @@ export function KaspiForm(props: KaspiFormProps) {
         {processId ? (
           <div className="flex flex-wrap items-end gap-2">
             <label className="block">
-              <span className="mb-1 block text-xs text-muted">Код из SMS</span>
+              <span className="label">Код из SMS</span>
               <input className="input h-10 w-32 text-sm" inputMode="numeric" autoComplete="one-time-code" value={otp} onChange={(e) => setOtp(e.target.value)} />
             </label>
             <button
@@ -161,7 +161,7 @@ export function KaspiForm(props: KaspiFormProps) {
         ) : (
           <div className="flex flex-wrap items-end gap-2">
             <label className="block">
-              <span className="mb-1 block text-xs text-muted">Номер кассира Kaspi Pay</span>
+              <span className="label">Номер кассира Kaspi Pay</span>
               <input className="input h-10 w-56 text-sm" inputMode="tel" placeholder="+7 7XX XXX XX XX" value={phone} onChange={(e) => setPhone(e.target.value)} />
             </label>
             <button
@@ -179,7 +179,7 @@ export function KaspiForm(props: KaspiFormProps) {
             </button>
           </div>
         )}
-        {message ? <p className={cn("text-xs", message.ok ? "text-emerald-700" : "text-red-700")}>{message.text}</p> : null}
+        {message ? <p className={cn("text-xs", message.ok ? "text-success" : "text-danger")}>{message.text}</p> : null}
       </div>
       )}
 
@@ -195,7 +195,7 @@ export function KaspiForm(props: KaspiFormProps) {
       </details>
 
       {status.connected ? (
-        <button className="mt-4 text-sm text-muted underline underline-offset-4 hover:text-red-700" disabled={pending} onClick={() => run(disconnectKaspiAction, "Кассир отключён")}>
+        <button className="mt-4 text-sm text-muted underline underline-offset-4 hover:text-danger" disabled={pending} onClick={() => run(disconnectKaspiAction, "Кассир отключён")}>
           Отключить кассира
         </button>
       ) : null}

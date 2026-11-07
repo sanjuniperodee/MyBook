@@ -12,15 +12,21 @@ export default async function AdminDenied() {
   if (!user || user.role !== "admin") redirect("/");
   const ip = await trustedClientIp();
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-4 px-6 text-center">
-      <ShieldAlert className="size-12 text-wine" strokeWidth={1.4} />
-      <h1 className="text-2xl font-semibold">Вход в CRM ограничен</h1>
-      <p className="text-muted">
-        Руководитель разрешил вход в CRM только из определённых сетей (например, из офиса). Ваш адрес: <b className="font-mono text-ink">{ip}</b>. Подключитесь к рабочей сети или попросите руководителя добавить этот адрес.
-      </p>
-      <form action={logoutAction}>
-        <button className="btn btn-outline btn-sm">Выйти</button>
-      </form>
+    <main className="flex min-h-dvh items-center justify-center bg-canvas px-4 py-10">
+      <div className="panel w-full max-w-md p-6 text-center sm:p-8">
+        <span className="mx-auto flex size-12 items-center justify-center rounded-xl bg-rose text-wine">
+          <ShieldAlert className="size-6" strokeWidth={1.8} aria-hidden />
+        </span>
+        <h1 className="mt-4 text-2xl font-semibold tracking-tight">Вход в CRM ограничен</h1>
+        <p className="mt-2 text-sm text-muted">Руководитель разрешил вход в CRM только из определённых сетей, например из офиса. Подключитесь к рабочей сети или попросите руководителя добавить этот адрес.</p>
+        <div className="mt-5 rounded-[10px] bg-sunken px-4 py-3">
+          <div className="text-xs text-muted">Ваш адрес</div>
+          <div className="mt-0.5 font-mono text-[15px] font-medium text-ink select-all">{ip}</div>
+        </div>
+        <form action={logoutAction} className="mt-6">
+          <button className="btn btn-outline w-full sm:w-auto">Выйти</button>
+        </form>
+      </div>
     </main>
   );
 }

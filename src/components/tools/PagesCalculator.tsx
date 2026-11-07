@@ -54,7 +54,7 @@ export function PagesCalculator({ ctaHref }: { ctaHref: string }) {
           <Slider id="pages-letters" label={ui.lettersLabel} value={letters} max={15} onChange={setLetters} />
         </div>
 
-        <aside className="self-start rounded-3xl bg-cream/70 p-6" aria-live="polite">
+        <aside className="self-start rounded-[14px] bg-cream/70 p-6" aria-live="polite">
           <div className="font-serif text-7xl leading-none font-medium text-wine tabular-nums" data-testid="pages-total">
             {size.pages}
           </div>

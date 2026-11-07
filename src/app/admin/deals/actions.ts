@@ -9,7 +9,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { uuid } from "@/server/input";
-import { assertStaff, assertWorkable, audit, can, canAssignOthers, ForbiddenError, type Staff } from "@/server/access";
+import { assertStaff, assertWorkable, audit, can, canAssignOthers, canSeeAssigned, ForbiddenError, type Staff } from "@/server/access";
 import { notify, staffNotifier } from "@/modules/workspace";
 import { staffLabel } from "@/shared/domain/staff";
 import { normalizePhone } from "@/shared/domain/phone";
@@ -31,6 +31,36 @@ import { admin } from "@/i18n/admin";
 export interface DealFormState {
   error?: string;
   ok?: string;
+}
+
+/** Итог действия по кнопке: отказ — текстом для сотрудника (тост), а не исключением (в проде от него остаётся только digest). */
+export type DealActionResult = { ok: true; message?: string } | { ok: false; message: string };
+
+/**
+ * Текст отказа для сотрудника: нет прав или запись чужая/ничья (ForbiddenError), ошибка домена продаж, своё сообщение
+ * действия по-русски (как ловит mobile()). null — неожиданная ошибка: её пробрасываем.
+ */
+function refusalText(err: unknown): string | null {
+  if (ForbiddenError.is(err)) return err.message;
+  if (err instanceof Error && err.constructor === Error && /[\u0400-\u04FF]/.test(err.message)) return err.message;
+  return staffActionError(err, SalesError);
+}
+
+/** Действие по кнопке: отказ — { ok: false, message }, редирект и технические ошибки — дальше. */
+async function refusable(run: () => Promise<DealActionResult>): Promise<DealActionResult> {
+  try {
+    return await run();
+  } catch (err) {
+    const message = refusalText(err);
+    if (message === null) throw err;
+    return { ok: false, message };
+  }
+}
+
+/** Клиент сайта (не сотрудник), которого видит сотрудник: роль «только свои» — своего или неразобранного. */
+async function visibleClient(staff: Staff, id: string) {
+  const client = await container().reporting.clientById(id);
+  return client && client.role === "user" && canSeeAssigned(staff, client.managerId) ? client : null;
 }
 
 
@@ -65,7 +95,11 @@ export async function createDealAction(_: DealFormState, form: FormData): Promis
   const parsed = dealSchema.safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const d = parsed.data;
-  const phone = d.contactPhone ? normalizePhone(d.contactPhone) : "";
+  // Сделка на клиента — только на видимого клиента сайта (не сотрудника, не чужого у роли «только свои»).
+  const client = d.clientId ? await visibleClient(staff, d.clientId) : null;
+  if (d.clientId && !client) return { error: "Клиент не найден" };
+  // Номер клиента скрыт ролью — поля телефона в форме нет: номер сервер берёт у клиента сам.
+  const phone = client && !form.has("contactPhone") ? normalizePhone(client.phone ?? "") : d.contactPhone ? normalizePhone(d.contactPhone) : "";
   if (d.contactPhone && phone.length < 10) return { error: "Проверьте номер телефона" };
   // Тариф договорённости — необязательный: с ним бюджет сравнивается с прайсом этого тарифа, а не самого дорогого.
   const plan = String(form.get("plan") ?? "") || null;
@@ -105,7 +139,15 @@ export async function createDealAction(_: DealFormState, form: FormData): Promis
 /** Правка полей карточки сделки (без этапа и ответственного — для них отдельные действия с историей). */
 export async function updateDealAction(_: DealFormState, form: FormData): Promise<DealFormState> {
   const staff = await assertStaff("deals.edit");
-  const deal = await loadDeal(staff, String(form.get("id") ?? ""));
+  let deal;
+  try {
+    deal = await loadDeal(staff, String(form.get("id") ?? ""));
+  } catch (err) {
+    // Чужая или ничья сделка — текстом под формой, а не экраном ошибки.
+    const error = refusalText(err);
+    if (error === null) throw err;
+    return { error };
+  }
   const parsed = dealSchema.pick({ title: true, contactName: true, contactPhone: true, contactEmail: true, amount: true, source: true }).safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const d = parsed.data;
@@ -180,33 +222,51 @@ export async function setDealAgreedGiftsAction(dealId: string, gifts: string[]):
   return { ok: true };
 }
 
-export async function moveDealAction(dealId: string, stageId: string, lostReason?: string) {
-  const staff = await assertStaff("deals.edit");
-  const deal = await loadDeal(staff, dealId);
-  const stage = await container().sales.deals.stage(uuid.parse(stageId));
-  if (!stage) throw new Error("Этап не найден");
-  if (stage.kind === "lost" && !lostReason?.trim()) throw new Error("Укажите причину отказа");
-  await container().sales.deals.move(deal.id, stage.id, staff.user.id, lostReason?.trim().slice(0, 200));
-  // Ничью сделку двигает только руководитель — она становится его (менеджеры ничьи себе не берут).
-  if (!deal.assigneeId) await container().sales.deals.assign(deal.id, staff.user.id);
+/** Неразобранная заявка в работу (кнопка «Принять» и перенос на её же этап): её диалоги — тому же ответственному. */
+async function acceptDeal(staff: Staff, deal: { id: string; clientId: string | null }) {
+  const accepted = await container().sales.deals.acceptByStaff(deal.id, staff.user.id);
+  if (!accepted) return;
+  await container().messaging.chats.assignDealConversations(deal.id, accepted.assigneeId ?? staff.user.id);
   revalidateDeal(deal.id, deal.clientId);
 }
 
-export async function assignDealAction(dealId: string, assigneeId: string | null) {
+export async function moveDealAction(dealId: string, stageId: string, lostReason?: string): Promise<DealActionResult> {
   const staff = await assertStaff("deals.edit");
-  const deal = await loadDeal(staff, dealId);
-  const next = assigneeId ? uuid.parse(assigneeId) : null;
-  if (!canAssignOthers(staff) && next !== staff.user.id) throw new ForbiddenError();
-  if (next) {
-    const u = await container().access.queries.activeStaff(next);
-    if (!u) throw new Error("Сотрудник не найден");
-    await container().sales.deals.note(deal, `Ответственный: ${u.name || u.email}`, staff.user.id);
-    if (next !== staff.user.id) await notify([next], { kind: "deal", title: `Вам передали сделку №${deal.number}`, body: deal.title, link: `/admin/deals/${deal.id}` });
-  }
-  await container().sales.deals.assign(deal.id, next);
-  if (next !== deal.assigneeId) await audit(staff, "deal.assign", "deal", deal.id, { number: deal.number, from: deal.assigneeId, to: next });
-  revalidateDeal(deal.id, deal.clientId);
-  return { ok: true as const };
+  return refusable(async () => {
+    const deal = await loadDeal(staff, dealId);
+    const stage = await container().sales.deals.stage(uuid.parse(stageId));
+    if (!stage) return { ok: false, message: "Этап не найден" };
+    if (stage.kind === "lost" && !lostReason?.trim()) return { ok: false, message: "Укажите причину отказа" };
+    // Неразобранную заявку бросили на её же этап — это «Принять»: move() на том же этапе ничего не меняет.
+    if (deal.unsorted && stage.id === deal.stageId) {
+      await acceptDeal(staff, deal);
+      return { ok: true };
+    }
+    await container().sales.deals.move(deal.id, stage.id, staff.user.id, lostReason?.trim().slice(0, 200));
+    // Ничью сделку двигает только руководитель — она становится его (менеджеры ничьи себе не берут).
+    if (!deal.assigneeId) await container().sales.deals.assign(deal.id, staff.user.id);
+    revalidateDeal(deal.id, deal.clientId);
+    return { ok: true };
+  });
+}
+
+export async function assignDealAction(dealId: string, assigneeId: string | null): Promise<DealActionResult> {
+  const staff = await assertStaff("deals.edit");
+  return refusable(async () => {
+    const deal = await loadDeal(staff, dealId);
+    const next = assigneeId ? uuid.parse(assigneeId) : null;
+    if (!canAssignOthers(staff) && next !== staff.user.id) throw new ForbiddenError();
+    if (next) {
+      const u = await container().access.queries.activeStaff(next);
+      if (!u) return { ok: false, message: "Сотрудник не найден" };
+      await container().sales.deals.note(deal, `Ответственный: ${u.name || u.email}`, staff.user.id);
+      if (next !== staff.user.id) await notify([next], { kind: "deal", title: `Вам передали сделку №${deal.number}`, body: deal.title, link: `/admin/deals/${deal.id}` });
+    }
+    await container().sales.deals.assign(deal.id, next);
+    if (next !== deal.assigneeId) await audit(staff, "deal.assign", "deal", deal.id, { number: deal.number, from: deal.assigneeId, to: next });
+    revalidateDeal(deal.id, deal.clientId);
+    return { ok: true };
+  });
 }
 
 /** Сделку не удалить: по ней приняты деньги или есть счёт из чата, по которому заплатили или ещё могут заплатить. */
@@ -228,11 +288,17 @@ export async function deleteDealAction(dealId: string): Promise<{ error: string 
 }
 
 /** Привязать сделку к клиенту (например, по номеру из чата нашёлся аккаунт на сайте). */
-export async function linkDealClientAction(dealId: string, clientId: string | null) {
+export async function linkDealClientAction(dealId: string, clientId: string | null): Promise<DealActionResult> {
   const staff = await assertStaff("deals.edit", "clients.view");
-  const deal = await loadDeal(staff, dealId);
-  await container().sales.deals.linkClient(deal.id, clientId ? uuid.parse(clientId) : null);
-  revalidateDeal(deal.id, clientId ?? deal.clientId);
+  return refusable(async () => {
+    const deal = await loadDeal(staff, dealId);
+    // Привязать можно только клиента сайта, которого сотрудник видит: не сотрудника и не чужого клиента у роли «только свои».
+    const client = clientId ? await visibleClient(staff, uuid.parse(clientId)) : null;
+    if (clientId && !client) return { ok: false, message: "Клиент не найден" };
+    await container().sales.deals.linkClient(deal.id, client?.id ?? null);
+    revalidateDeal(deal.id, client?.id ?? deal.clientId);
+    return { ok: true };
+  });
 }
 
 // ─── этапы воронки ─────────────────────────────────────────────────────────
@@ -302,13 +368,12 @@ export async function deleteStageAction(id: string) {
 // ─── неразобранное и дубли ─────────────────────────────────────────────────
 
 /** Принять заявку из «Неразобранного»: в работу, ответственный — тот, кто принял (если не был назначен). */
-export async function acceptDealAction(dealId: string) {
+export async function acceptDealAction(dealId: string): Promise<DealActionResult> {
   const staff = await assertStaff("deals.edit");
-  const deal = await loadDeal(staff, dealId);
-  const accepted = await container().sales.deals.acceptByStaff(deal.id, staff.user.id);
-  if (!accepted) return;
-  await container().messaging.chats.assignDealConversations(deal.id, accepted.assigneeId ?? staff.user.id);
-  revalidateDeal(deal.id, deal.clientId);
+  return refusable(async () => {
+    await acceptDeal(staff, await loadDeal(staff, dealId));
+    return { ok: true };
+  });
 }
 
 /**
@@ -446,18 +511,24 @@ const bulkSchema = z.discriminatedUnion("op", [
 ]);
 
 /** Массовое действие над выбранными сделками. Недоступные роли сделки молча пропускаются. */
-export async function bulkDealsAction(ids: string[], input: z.input<typeof bulkSchema>): Promise<{ done: number; skipped: number }> {
+export async function bulkDealsAction(ids: string[], input: z.input<typeof bulkSchema>): Promise<{ done: number; skipped: number; error?: string }> {
   const req = bulkSchema.parse(input);
   const staff = await assertStaff(req.op === "delete" ? "deals.delete" : "deals.edit");
   const list = z.array(uuid).max(500).parse(ids);
-  if (req.op === "assign" && req.userId !== staff.user.id && !canAssignOthers(staff)) throw new ForbiddenError();
+  // Отказ до начала — текстом (тост), а не исключением: в проде от исключения остаётся только digest.
+  const refuse = (error: string) => ({ done: 0, skipped: list.length, error });
+  if (req.op === "assign" && req.userId !== staff.user.id && !canAssignOthers(staff)) return refuse(new ForbiddenError().message);
   if (req.op === "stage") {
     const stage = await container().sales.deals.stage(req.stageId);
-    if (!stage) throw new Error("Этап не найден");
-    if (stage.kind === "lost" && !req.reason) throw new Error("Укажите причину отказа");
+    if (!stage) return refuse("Этап не найден");
+    if (stage.kind === "lost" && !req.reason) return refuse("Укажите причину отказа");
   }
+  // Новый ответственный — действующий сотрудник (как у одиночного назначения), проверяем один раз на всю пачку.
+  const target = req.op === "assign" && req.userId ? await container().access.queries.activeStaff(req.userId) : null;
+  if (req.op === "assign" && req.userId && !target) return refuse("Сотрудник не найден");
   let done = 0;
   let skipped = 0;
+  const handed: { id: string; number: number }[] = [];
   const deals = new Map((await container().sales.deals.findByIds(list)).map((d) => [d.id, d]));
   for (const id of list) {
     const deal = deals.get(id);
@@ -466,8 +537,14 @@ export async function bulkDealsAction(ids: string[], input: z.input<typeof bulkS
       continue;
     }
     if (req.op === "stage") await container().sales.deals.move(deal.id, req.stageId, staff.user.id, req.reason);
-    else if (req.op === "assign") await container().sales.deals.assign(deal.id, req.userId);
-    else if (req.op === "tag") await container().sales.deals.addTag(deal.id, req.tag);
+    else if (req.op === "assign") {
+      // История сделки — как у одиночного назначения; уже его сделка — без записи и уведомления.
+      if (target && deal.assigneeId !== target.id) {
+        await container().sales.deals.note(deal, `Ответственный: ${target.name || target.email}`, staff.user.id);
+        handed.push({ id: deal.id, number: deal.number });
+      }
+      await container().sales.deals.assign(deal.id, req.userId);
+    } else if (req.op === "tag") await container().sales.deals.addTag(deal.id, req.tag);
     else {
       try {
         await container().sales.deals.delete(deal.id);
@@ -481,6 +558,14 @@ export async function bulkDealsAction(ids: string[], input: z.input<typeof bulkS
     done++;
   }
   if (req.op === "delete" || req.op === "assign") await audit(staff, `deal.bulk_${req.op}`, "deal", null, { count: done, ...(req.op === "assign" ? { to: req.userId } : {}) });
+  // Одно уведомление на пачку, а не по сделке: «Вам передали 12 сделок».
+  if (target && target.id !== staff.user.id && handed.length)
+    await notify([target.id], {
+      kind: "deal",
+      title: handed.length === 1 ? `Вам передали сделку №${handed[0].number}` : `Вам передали сделки: ${handed.length}`,
+      body: `№${handed.slice(0, 10).map((d) => d.number).join(", №")}${handed.length > 10 ? " и другие" : ""} — передал(а) ${staffLabel(staff.user)}`,
+      link: handed.length === 1 ? `/admin/deals/${handed[0].id}` : "/admin/deals?mine=1&view=list",
+    });
   revalidatePath("/admin/deals");
   return { done, skipped };
 }

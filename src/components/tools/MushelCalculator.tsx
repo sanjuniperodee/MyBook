@@ -40,12 +40,12 @@ export function MushelCalculator() {
 
       <div aria-live="polite" className="mt-6">
         {!value || !birth ? (
-          <p className="rounded-2xl bg-cream/60 px-5 py-6 text-center text-muted">{ui.empty}</p>
+          <p className="rounded-[14px] bg-cream/60 px-5 py-6 text-center text-muted">{ui.empty}</p>
         ) : future ? (
-          <p className="rounded-2xl bg-rose/40 px-5 py-6 text-center text-ink-soft">{ui.future}</p>
+          <p className="rounded-[14px] bg-rose/40 px-5 py-6 text-center text-ink-soft">{ui.future}</p>
         ) : info ? (
           <div>
-            <div className="rounded-3xl bg-gradient-to-br from-rose/60 to-cream px-6 py-8 text-center">
+            <div className="rounded-[14px] bg-gradient-to-br from-rose/60 to-cream px-6 py-8 text-center">
               <Cake className="mx-auto size-6 text-wine" aria-hidden />
               <div className="mt-2 text-xs font-semibold tracking-[0.18em] text-wine uppercase">{ui.yourAnimal}</div>
               <div className="mt-1 font-serif text-4xl font-medium text-wine sm:text-5xl" data-testid="mushel-animal">
@@ -58,7 +58,7 @@ export function MushelCalculator() {
             </div>
 
             <h3 className="mt-8 font-serif text-2xl font-medium">{ui.tableTitle}</h3>
-            <ul className="mt-3 divide-y divide-line/70 rounded-2xl border border-line bg-white">
+            <ul className="mt-3 divide-y divide-line/70 rounded-[14px] border border-line bg-white">
               {info.rounds.map((r) => (
                 <li key={r.n} className={cn("flex items-center justify-between gap-4 px-5 py-3 text-sm", r.state === "current" && "bg-rose/30")}>
                   <div>

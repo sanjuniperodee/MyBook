@@ -17,10 +17,10 @@ export function CustomFieldInputs({ fields, values, disabled }: { fields: FieldD
       {fields.map((f) => {
         const v = values[f.key];
         const name = `cf_${f.key}`;
-        const common = { name, disabled, className: "input h-9 text-sm", "aria-label": f.label };
+        const common = { name, disabled, className: "input h-10 text-sm", "aria-label": f.label };
         return (
-          <label key={f.key} className={f.type === "text" ? "col-span-2 block" : "block"}>
-            <span className="mb-1 block text-xs text-muted">{f.label}</span>
+          <label key={f.key} className={f.type === "text" ? "col-span-2 block min-w-0" : "block min-w-0"}>
+            <span className="label truncate">{f.label}</span>
             {f.type === "select" ? (
               <select {...common} defaultValue={typeof v === "string" ? v : ""}>
                 <option value="">—</option>
@@ -31,9 +31,9 @@ export function CustomFieldInputs({ fields, values, disabled }: { fields: FieldD
                 ))}
               </select>
             ) : f.type === "checkbox" ? (
-              <span className="flex h-9 items-center">
+              <span className="flex h-10 items-center gap-2 text-sm text-ink-soft">
                 <input type="hidden" name={`${name}__present`} value="1" />
-                <input type="checkbox" name={name} defaultChecked={v === true} disabled={disabled} className="size-4 accent-wine" aria-label={f.label} />
+                <input type="checkbox" name={name} defaultChecked={v === true} disabled={disabled} className="size-4 accent-wine" aria-label={f.label} /> да
               </span>
             ) : (
               <input {...common} type={f.type === "number" ? "number" : f.type === "date" ? "date" : "text"} defaultValue={v === null || v === undefined ? "" : String(v)} maxLength={500} />

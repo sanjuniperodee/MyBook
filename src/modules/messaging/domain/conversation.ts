@@ -97,9 +97,15 @@ export function contactChanges(c: Conversation, m: { contactName: string; avatar
   return { contactName: m.isEcho ? c.contactName : m.contactName || c.contactName, avatarUrl: m.avatarUrl ?? c.avatarUrl, meta, clientId };
 }
 
-/** «Доставлено» не откатывается до «отправлено», если вебхуки пришли не по порядку; ошибка — всегда. */
+/**
+ * «Доставлено» не откатывается до «отправлено», если вебхуки пришли не по порядку; ошибка — всегда. Ошибку снимают
+ * «доставлено» и «прочитано»: шлюз не ответил за 15 секунд, а сообщение ушло — иначе оно навсегда «не отправлено»
+ * и автоповтор отправит его второй раз.
+ */
 export function shouldApplyStatus(current: string, next: string) {
-  return next === "error" || (statusRank[next] ?? 0) > (statusRank[current] ?? 0);
+  if (next === "error") return true;
+  if (current === "error") return next === "delivered" || next === "read";
+  return (statusRank[next] ?? 0) > (statusRank[current] ?? 0);
 }
 
 /** Имя из канала, в котором клиент записал номер («+7 701 234 56 78», «Мама 87012345678»): номер скрыт до «…5678». */

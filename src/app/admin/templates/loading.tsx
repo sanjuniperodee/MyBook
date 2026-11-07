@@ -1,15 +1,15 @@
-/** Заготовка «Шаблонов»: шапка и карточки. */
-import { SkHeader, SkPage } from "@/components/admin/skeletons";
+/** Заготовка «Шаблонов»: шапка, поиск и лист со строками шаблонов. */
+import { SkHeader, SkPage, SkRows } from "@/components/admin/skeletons";
 
 export default function Loading() {
   return (
-    <SkPage className="max-w-5xl space-y-5">
-      <SkHeader title="w-40" subtitle />
-      <div className="grid gap-4 sm:grid-cols-2">
-        {Array.from({ length: 6 }, (_, i) => (
-          <div key={i} className="skeleton h-36 rounded-2xl" />
-        ))}
+    <SkPage className="max-w-5xl space-y-6">
+      <SkHeader title="w-48" subtitle />
+      <div className="flex gap-3">
+        <div className="skeleton h-10 w-full max-w-sm rounded-[10px]" />
+        <div className="skeleton ml-auto h-10 w-36 rounded-[10px]" />
       </div>
+      <SkRows rows={6} />
     </SkPage>
   );
 }

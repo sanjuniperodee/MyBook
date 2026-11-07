@@ -83,7 +83,7 @@ export function DeadlineCalculator({ expressPrice }: { expressPrice: string | nu
       <div
         aria-live="polite"
         className={cn(
-          "mt-6 flex items-start gap-4 rounded-2xl border p-5",
+          "mt-6 flex items-start gap-4 rounded-[14px] border p-5",
           tone === "calm" && "border-line bg-cream/50",
           tone === "warm" && "border-amber-200 bg-amber-50/70",
           tone === "hot" && "border-wine/30 bg-rose/40",

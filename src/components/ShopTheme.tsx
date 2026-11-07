@@ -36,7 +36,7 @@ const subscribeClass = (cb: () => void) => {
 const isDarkNow = () => document.documentElement.classList.contains(CLASS);
 
 /** Кнопка в шапке витрины: переключает светлую и тёмную тему. */
-export function ShopThemeToggle({ className }: { className?: string }) {
+export function ShopThemeToggle({ className, tone = "light" }: { className?: string; tone?: "light" | "dark" }) {
   const t = useMessages().common.theme;
   const dark = useSyncExternalStore(subscribeClass, isDarkNow, () => false);
 
@@ -56,7 +56,12 @@ export function ShopThemeToggle({ className }: { className?: string }) {
       onClick={toggle}
       aria-label={label}
       title={label}
-      className={cn("flex size-9 shrink-0 items-center justify-center rounded-full text-ink-soft transition hover:bg-ink/5 hover:text-ink", className)}
+      className={cn(
+        "flex shrink-0 items-center justify-center rounded-[10px] transition",
+        !className?.includes("size-") && "size-9",
+        tone === "dark" ? "text-white/85 hover:bg-[rgb(255_255_255/0.1)] hover:text-white" : "text-ink-soft hover:bg-ink/5 hover:text-ink",
+        className,
+      )}
     >
       <Icon className="size-[18px]" aria-hidden />
     </button>

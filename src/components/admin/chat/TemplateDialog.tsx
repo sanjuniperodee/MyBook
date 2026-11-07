@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
-import { LoaderCircle, MessageSquareQuote, X } from "lucide-react";
+import { LoaderCircle, X } from "lucide-react";
+import { Field } from "@/components/ui/Field";
 import { createTemplateAction } from "@/app/admin/chats/actions";
 import { toast } from "@/components/ui/overlays";
 
@@ -30,28 +31,25 @@ export function TemplateDialog({ initialText, onClose, onDone }: { initialText: 
     });
 
   return createPortal(
-    <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="flex max-h-[85dvh] w-full max-w-md flex-col rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl" role="dialog" aria-modal="true" aria-label="Новый шаблон">
-        <div className="flex items-center gap-2 border-b border-line px-4 py-3">
-          <MessageSquareQuote className="size-5 text-wine" />
-          <h2 className="flex-1 font-semibold">Новый шаблон</h2>
-          <button type="button" onClick={onClose} className="rounded-full p-1 text-muted hover:bg-cream" aria-label="Закрыть">
+    <div className="fixed inset-0 z-[90] flex items-end justify-center bg-ink/30 p-0 sm:items-center sm:p-4" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="flex max-h-[85dvh] w-full max-w-md flex-col rounded-t-[20px] bg-white shadow-lift sm:rounded-[20px]" role="dialog" aria-modal="true" aria-label="Новый шаблон">
+        <div className="flex min-h-14 items-center gap-2 border-b border-line py-2 pr-2 pl-5">
+          
+          <h2 className="flex-1 text-[15px] font-semibold">Новый шаблон</h2>
+          <button type="button" onClick={onClose} className="btn btn-ghost btn-icon btn-sm max-lg:size-11" aria-label="Закрыть">
             <X className="size-5" />
           </button>
         </div>
-        <div className="space-y-3 overflow-y-auto p-4">
-          <label className="block text-xs font-medium text-ink-soft">
-            Название
-            <input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} maxLength={60} placeholder="Например, «Реквизиты доставки»" className="input mt-1 w-full text-sm" />
-          </label>
-          <label className="block text-xs font-medium text-ink-soft">
-            Текст
-            <textarea value={text} onChange={(e) => setText(e.target.value)} maxLength={2000} rows={8} className="input mt-1 w-full text-sm" />
-          </label>
-          <p className="text-[11px] text-muted">Подстановки: {"{имя}"}, {"{заказ}"}, {"{ссылка}"}. Шаблон будет только у вас — править его можно на странице «Шаблоны».</p>
+        <div className="space-y-4 overflow-y-auto p-5">
+          <Field label="Название" hint="По нему шаблон находится в чате: «/» и начало названия.">
+            <input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} maxLength={60} placeholder="Например, «Реквизиты доставки»" className="input text-sm" />
+          </Field>
+          <Field label="Текст" hint={<>Подстановки: {"{имя}"}, {"{заказ}"}, {"{ссылка}"}. Шаблон будет только у вас — править его можно на странице «Шаблоны».</>}>
+            <textarea value={text} onChange={(e) => setText(e.target.value)} maxLength={2000} rows={8} className="input text-sm" />
+          </Field>
         </div>
-        <div className="border-t border-line p-3">
-          <button type="button" className="btn w-full" disabled={!title.trim() || !text.trim() || saving} onClick={save}>
+        <div className="border-t border-line px-5 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-4">
+          <button type="button" className="btn btn-dark w-full" disabled={!title.trim() || !text.trim() || saving} onClick={save}>
             {saving ? <LoaderCircle className="size-4 animate-spin" /> : null} Создать шаблон
           </button>
         </div>

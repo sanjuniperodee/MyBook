@@ -336,15 +336,15 @@ function CallPanel({ call, muted, micLevel, onMute, onHangup }: { call: ActiveCa
       aria-label="Звонок WhatsApp"
       data-testid="wa-call-panel"
       data-phase={call.phase}
-      className="animate-pop fixed inset-x-3 bottom-[calc(var(--tabbar-h,0px)+0.75rem)] z-[60] rounded-3xl border border-line bg-white p-4 shadow-lift lg:right-4 lg:bottom-4 lg:left-auto lg:w-80"
+      className="animate-pop fixed inset-x-3 bottom-[calc(var(--tabbar-h,0px)+0.75rem)] z-[60] rounded-[14px] border border-line bg-white p-4 shadow-lift sm:inset-x-auto sm:right-4 sm:w-[360px] lg:bottom-4"
     >
       <div className="flex items-center gap-3">
-        <span className={cn("relative flex size-11 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-700", call.phase === "ringing" && "animate-pulse")}>
+        <span className={cn("relative flex size-11 shrink-0 items-center justify-center rounded-full", call.phase === "ended" ? "bg-sunken text-ink-soft" : "bg-success-bg text-success", call.phase === "ringing" && "animate-pulse")}>
           <WaIcon className="size-5" />
-          {live && !muted && micLevel > 0.02 ? <span className="absolute -inset-1 rounded-full border-2 border-emerald-400/70" style={{ opacity: Math.min(1, micLevel * 8) }} aria-hidden /> : null}
+          {live && !muted && micLevel > 0.02 ? <span className="absolute -inset-1 rounded-full border-2 border-success/60" style={{ opacity: Math.min(1, micLevel * 8) }} aria-hidden /> : null}
         </span>
         <div className="min-w-0 flex-1">
-          <div className="text-xs text-muted">{call.direction === "in" ? "Входящий WhatsApp" : "Звонок WhatsApp"}</div>
+          <div className={cn("text-xs font-medium", call.phase === "ended" ? "text-muted" : "text-success")}>{call.direction === "in" ? "Входящий WhatsApp" : "Звонок WhatsApp"}</div>
           {link ? (
             <Link href={link} className="block truncate font-semibold hover:underline">
               {call.title}
@@ -352,18 +352,18 @@ function CallPanel({ call, muted, micLevel, onMute, onHangup }: { call: ActiveCa
           ) : (
             <div className="truncate font-semibold">{call.title}</div>
           )}
-          <div className="truncate text-sm text-muted tabular-nums" data-testid="wa-call-status">
-            {call.phone ? `${call.phone} · ` : ""}
-            {status}
+          <div className="flex min-w-0 items-center gap-2 text-sm text-muted tabular-nums" data-testid="wa-call-status">
+            {call.phone ? <span className="truncate">{call.phone}</span> : null}
+            <span className={cn("shrink-0", call.phase === "talking" && "font-medium text-ink")}>{status}</span>
           </div>
         </div>
       </div>
       {live ? (
         <div className="mt-3 flex gap-2">
-          <button type="button" className={cn("btn flex-1", muted ? "btn-primary" : "btn-outline")} onClick={onMute} disabled={call.phase === "preparing"} aria-pressed={muted} data-testid="wa-call-mute">
+          <button type="button" className={cn("btn flex-1", muted ? "btn-dark" : "btn-outline")} onClick={onMute} disabled={call.phase === "preparing"} aria-pressed={muted} data-testid="wa-call-mute">
             {muted ? <MicOff className="size-4" /> : <Mic className="size-4" />} {muted ? "Микрофон выкл." : "Микрофон"}
           </button>
-          <button type="button" className="btn flex-1 bg-[#dc2626] text-white hover:bg-[#b91c1c]" onClick={onHangup} disabled={call.phase === "preparing" && !call.id} data-testid="wa-call-hangup">
+          <button type="button" className="btn flex-1 bg-danger text-danger-bg hover:bg-danger/90" onClick={onHangup} disabled={call.phase === "preparing" && !call.id} data-testid="wa-call-hangup">
             <PhoneOff className="size-4" /> Завершить
           </button>
         </div>
@@ -389,7 +389,7 @@ export function WhatsappCallButton({ target, title, className, label = "WhatsApp
     return (
       <button
         type="button"
-        className={cn("flex size-11 shrink-0 items-center justify-center rounded-full text-emerald-600 transition hover:bg-[#f3efe9] disabled:opacity-40", className)}
+        className={cn("btn btn-ghost btn-icon btn-sm shrink-0 text-success hover:text-success max-lg:size-11", className)}
         disabled={wa.busy}
         aria-label="Позвонить в WhatsApp"
         title={wa.busy ? "Сначала завершите текущий звонок" : "Позвонить в WhatsApp"}
@@ -401,7 +401,7 @@ export function WhatsappCallButton({ target, title, className, label = "WhatsApp
     );
   return (
     <button type="button" className={cn(!plain && "btn btn-outline btn-sm", "inline-flex items-center gap-1", className)} disabled={wa.busy} aria-label="Позвонить в WhatsApp" title={wa.busy ? "Сначала завершите текущий звонок" : undefined} data-testid="wa-call-button" onClick={() => wa.dial(target, title)}>
-      <WaIcon className="size-4 text-emerald-600" /> {label}
+      <WaIcon className="size-4 text-success" /> {label}
     </button>
   );
 }
@@ -436,10 +436,10 @@ export function WhatsappIncomingActions({ id, title, onDone }: { id: string; tit
   const [declining, setDeclining] = useState(false);
   if (!wa) return null;
   return (
-    <div className="mt-3 flex gap-2">
+    <div className="flex gap-2">
       <button
         type="button"
-        className="btn btn-sm flex-1 bg-[#16a34a] text-white hover:bg-[#15803d]"
+        className="btn btn-sm flex-1 bg-success text-success-bg hover:bg-success/90"
         disabled={wa.busy}
         data-testid="wa-call-answer"
         onClick={async () => {

@@ -9,6 +9,7 @@ export const orders: typeof ru = {
     emptyText: "Кітап дайын болғанда макетті парақтап, «Тапсырыс беру» батырмасын басыңыз — тапсырыс барлық мәртебесімен осында шығады.",
     toBooks: "Кітаптарыма",
     item: (n: number, title: string) => `№${n} тапсырыс · ${title}`,
+    number: (n: number) => `№${n} тапсырыс`,
   },
   order: {
     upgrade: {
@@ -17,7 +18,7 @@ export const orders: typeof ru = {
       cta: "Баспа нұсқасына тапсырыс беру",
     },
     meta: "Тапсырыс",
-    back: "← Барлық тапсырыс",
+    back: "Барлық тапсырыс",
     title: (n: number) => `№${n} тапсырыс`,
     created: (d: string) => d,
     steps: {

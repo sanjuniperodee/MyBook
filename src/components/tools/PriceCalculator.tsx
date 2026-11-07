@@ -33,7 +33,7 @@ export function PriceCalculator({ plans, addons, sign, ctaHref }: { plans: Price
                   type="button"
                   aria-pressed={p.id === plan.id}
                   onClick={() => setPlanId(p.id)}
-                  className={cn("rounded-2xl border p-4 text-left transition", p.id === plan.id ? "border-wine bg-rose/30 ring-4 ring-wine/10" : "border-line bg-white hover:border-ink/30")}
+                  className={cn("rounded-[14px] border p-4 text-left transition", p.id === plan.id ? "border-wine bg-rose/30 ring-4 ring-wine/10" : "border-line bg-white hover:border-ink/30")}
                 >
                   <div className="flex items-baseline justify-between gap-3">
                     <span className="font-medium">{planName(p.id)}</span>
@@ -67,7 +67,7 @@ export function PriceCalculator({ plans, addons, sign, ctaHref }: { plans: Price
                   <legend className="label">{ui.extrasLabel}</legend>
                   <div className="space-y-2">
                     {available.map((a) => (
-                      <label key={a.id} className="flex cursor-pointer items-start gap-3 rounded-2xl border border-line bg-white p-4 has-[:checked]:border-wine has-[:checked]:bg-rose/30">
+                      <label key={a.id} className="flex cursor-pointer items-start gap-3 rounded-[14px] border border-line bg-white p-4 has-[:checked]:border-wine has-[:checked]:bg-rose/30">
                         <input type="checkbox" className="mt-1 size-4 accent-[var(--color-wine)]" checked={chosen.includes(a.id)} onChange={(e) => setChosen(e.target.checked ? [...chosen, a.id] : chosen.filter((x) => x !== a.id))} />
                         <span className="flex-1">
                           <span className="block font-medium">{ui.addon[a.id as keyof typeof ui.addon] ?? a.id}</span>
@@ -88,7 +88,7 @@ export function PriceCalculator({ plans, addons, sign, ctaHref }: { plans: Price
           )}
         </div>
 
-        <aside className="self-start rounded-3xl bg-cream/70 p-6">
+        <aside className="self-start rounded-[14px] bg-cream/70 p-6">
           <dl className="space-y-2 text-sm">
             <div className="flex justify-between gap-3">
               <dt className="text-muted">{ui.breakdown.book}</dt>

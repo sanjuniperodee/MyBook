@@ -1,5 +1,9 @@
 import Link from "next/link";
-import { Mail, MessageCircle, Phone } from "lucide-react";
+import { BookOpen, Handshake, Mail, MessageCircle, Package, Phone } from "lucide-react";
+import { Panel } from "@/components/ui/Panel";
+import { Badge } from "@/components/ui/Badge";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { StageLabel } from "@/app/admin/deals/StageLabel";
 import type { Permission } from "@/shared/domain/permissions";
 import type { OrderStatus } from "@/shared/domain/orders";
 import type { DealSource } from "@/shared/domain/dealSources";
@@ -20,202 +24,214 @@ import { ClientChannel, ClientLocale, ClientManager, ExtraPhones } from "./Clien
 
 type Screen = ReturnType<typeof clientScreen>;
 
-/** Профиль клиента: имя, контакты (или маска), действия, доп. телефоны, ответственный, покупки, визит, канал, автописьма, «не писать первым». */
+type ClientRow = { id: string; name: string | null; email: string; role: string; createdAt: Date; lastSeenAt: Date | null; extraPhones: string[]; managerId: string | null; source: Record<string, string> | null; emailOptOut: boolean; locale: "ru" | "kk" };
+
+/**
+ * Сводка клиента под шапкой: как связаться (контакты или маска, звонок, WhatsApp, письмо) и цифры — сколько купил,
+ * сколько заказов и книг, средний чек, когда заходил. Цифры — одной строкой листа, как «Сейчас» на обзоре.
+ */
+export function ClientSummary({ client, screen, contact, can }: { client: ClientRow; screen: Screen; contact: { masked: boolean; phone?: string | null; email?: string | null }; can: (p: Permission) => boolean }) {
+  const stats = [
+    { label: "Сумма покупок", value: formatPrice(screen.stats.ltv), strong: true },
+    { label: "Заказов", value: String(screen.stats.orders) },
+    { label: "Книг", value: String(screen.stats.books) },
+    { label: "Средний чек", value: screen.stats.averageCheck !== null ? formatPrice(screen.stats.averageCheck) : "—" },
+    { label: "Последний визит", value: client.lastSeenAt ? formatDate(client.lastSeenAt, true).replace(/ \d{4} г\./, "") : "—" },
+  ];
+  return (
+    <section className="panel overflow-hidden" aria-label="Сводка клиента">
+      <div className="flex flex-col gap-4 p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0 space-y-1 text-sm">
+          {contact.masked ? (
+            <>
+              {screen.phoneDigits ? (
+                <div className="flex items-center gap-2 text-ink-soft tabular-nums" title="Контакты скрыты настройками вашей роли">
+                  <Phone className="size-4 shrink-0 text-muted" aria-hidden /> {contact.phone}
+                </div>
+              ) : null}
+              <div className="flex items-center gap-2 text-ink-soft" title="Контакты скрыты настройками вашей роли">
+                <Mail className="size-4 shrink-0 text-muted" aria-hidden /> {contact.email}
+              </div>
+            </>
+          ) : (
+            <>
+              {screen.phoneDigits ? (
+                <a href={`tel:+${screen.phoneDigits}`} className="flex w-fit items-center gap-2 text-[15px] font-medium tabular-nums hover:text-wine">
+                  <Phone className="size-4 shrink-0 text-muted" aria-hidden /> {screen.rawPhone}
+                </a>
+              ) : null}
+              <a href={`mailto:${client.email}`} className="flex w-fit max-w-full items-center gap-2 text-ink-soft hover:text-wine">
+                <Mail className="size-4 shrink-0 text-muted" aria-hidden /> <span className="truncate">{client.email}</span>
+              </a>
+              {screen.phoneDigits && !can("chats.send") ? (
+                <a href={`https://wa.me/${screen.phoneDigits}`} target="_blank" rel="noopener noreferrer" className="flex w-fit items-center gap-2 text-success hover:underline">
+                  <MessageCircle className="size-4" aria-hidden /> Написать в WhatsApp
+                </a>
+              ) : null}
+            </>
+          )}
+        </div>
+        <ContactActions className="lg:w-auto lg:min-w-96" target={{ clientId: client.id }} canCall={!!screen.phoneDigits && can("calls.make")} canChat={!!screen.phoneDigits && can("chats.send")} canEmail={can("chats.send")} />
+      </div>
+      <dl className="grid grid-cols-2 gap-px border-t border-line bg-line sm:grid-cols-5">
+        {stats.map((s, i) => (
+          <div key={s.label} className={cn("min-w-0 bg-white px-4 py-2.5 sm:px-5 sm:py-3", i === 0 && "max-sm:col-span-2")}>
+            <dt className="truncate text-xs text-muted">{s.label}</dt>
+            <dd className={cn("mt-0.5 truncate tabular-nums", s.strong ? "text-lg font-semibold" : "text-[15px] font-medium")}>{s.value}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
+
+/** Профиль клиента: доп. телефоны, ответственный, канал, язык, автописьма, «не писать первым». */
 export function ClientProfile({
   client,
   screen,
   contact,
   canEdit,
-  can,
   managerOptions,
   noMarketing,
 }: {
-  client: { id: string; name: string | null; email: string; role: string; createdAt: Date; lastSeenAt: Date | null; extraPhones: string[]; managerId: string | null; source: Record<string, string> | null; emailOptOut: boolean; locale: "ru" | "kk" };
+  client: ClientRow;
   /** Стоп-лист «Не писать первым». */
   noMarketing: boolean;
   screen: Screen;
   contact: { masked: boolean; phone?: string | null; email?: string | null };
   canEdit: boolean;
-  can: (p: Permission) => boolean;
   managerOptions: { id: string; label: string }[];
 }) {
+  const row = "flex min-h-11 items-center justify-between gap-3 py-1.5";
   return (
-    <section className="rounded-2xl border border-line bg-white p-5">
-      <div className="flex items-center gap-3">
-        <div className="flex size-12 items-center justify-center rounded-full bg-ink text-lg font-semibold text-white uppercase">{(client.name || client.email).slice(0, 1)}</div>
-        <div className="min-w-0">
-          <h1 className="truncate text-lg font-semibold">{client.name || client.email.split("@")[0]}</h1>
-          <div className="text-xs text-muted">{client.role === "admin" ? "Администратор" : "Клиент"} с {formatDate(client.createdAt)}</div>
+    <Panel title="Профиль" className="text-sm">
+      <div className="space-y-4">
+        <div>
+          <div className="label text-xs">Ответственный</div>
+          <ClientManager clientId={client.id} value={client.managerId} options={managerOptions} disabled={!canEdit} />
         </div>
-      </div>
-      <div className="mt-4 space-y-1.5 text-sm">
-        {contact.masked ? (
-          <>
-            <div className="flex items-center gap-2 text-ink-soft" title="Контакты скрыты настройками вашей роли">
-              <Mail className="size-4 text-muted" /> {contact.email}
-            </div>
-            {screen.phoneDigits ? (
-              <div className="flex items-center gap-2 text-ink-soft tabular-nums">
-                <Phone className="size-4 text-muted" /> {contact.phone}
-              </div>
-            ) : null}
-          </>
-        ) : (
-          <>
-            <a href={`mailto:${client.email}`} className="flex items-center gap-2 hover:text-wine">
-              <Mail className="size-4 text-muted" /> {client.email}
-            </a>
-            {screen.phoneDigits ? (
-              <>
-                <a href={`tel:+${screen.phoneDigits}`} className="flex items-center gap-2 hover:text-wine">
-                  <Phone className="size-4 text-muted" /> {screen.rawPhone}
-                </a>
-                {!can("chats.send") ? (
-                  <a href={`https://wa.me/${screen.phoneDigits}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-emerald-700 hover:underline">
-                    <MessageCircle className="size-4" /> Написать в WhatsApp
-                  </a>
-                ) : null}
-              </>
-            ) : null}
-          </>
-        )}
-      </div>
-      <ContactActions className="mt-3" target={{ clientId: client.id }} canCall={!!screen.phoneDigits && can("calls.make")} canChat={!!screen.phoneDigits && can("chats.send")} canEmail={can("chats.send")} />
-      {!contact.masked && canEdit ? (
-        <div className="mt-4">
-          <div className="mb-1 text-xs text-muted">Доп. телефоны (через запятую)</div>
-          <ExtraPhones clientId={client.id} value={client.extraPhones.map((p) => formatPhone(p)).join(", ")} />
-        </div>
-      ) : null}
-      <div className="mt-4">
-        <div className="mb-1 text-xs text-muted">Ответственный</div>
-        <ClientManager clientId={client.id} value={client.managerId} options={managerOptions} disabled={!canEdit} />
-      </div>
-      <div className="mt-5 grid grid-cols-2 gap-2 text-center">
-        <div className="col-span-2">
-          <Stat label="сумма покупок (LTV)" value={formatPrice(screen.stats.ltv)} />
-        </div>
-        <Stat label="заказов" value={String(screen.stats.orders)} />
-        <Stat label="книг" value={String(screen.stats.books)} />
-      </div>
-      <dl className="mt-4 space-y-1 text-xs text-muted">
-        <div className="flex justify-between">
-          <dt>Последний визит</dt>
-          <dd className="text-ink">{client.lastSeenAt ? formatDate(client.lastSeenAt, true) : "—"}</dd>
-        </div>
-        <div className="flex items-center justify-between gap-3">
-          <dt>Канал</dt>
-          <dd className="min-w-0 flex-1 text-right font-medium text-ink" title={client.source ? JSON.stringify(client.source) : ""} data-testid="client-channel">
-            {canEdit ? (
-              <ClientChannel clientId={client.id} value={screen.channel.value} auto={screen.channel.value === "auto" ? screen.channel.label : undefined} />
-            ) : (
-              <span className="truncate">{screen.channel.label}</span>
-            )}
-          </dd>
-        </div>
-        {screen.channel.details ? (
-          <div className="flex justify-between gap-3">
-            <dt>Метки</dt>
-            <dd className="truncate text-right text-ink">
-              {screen.channel.details}
-            </dd>
+        {!contact.masked && canEdit ? (
+          <div>
+            <div className="label text-xs">Дополнительные телефоны</div>
+            <ExtraPhones clientId={client.id} value={client.extraPhones.map((p) => formatPhone(p)).join(", ")} />
           </div>
         ) : null}
-        <div className="flex items-center justify-between gap-3">
-          <dt>Язык кабинета и писем</dt>
-          <dd className="text-ink" data-testid="client-locale">
-            {canEdit ? <ClientLocale clientId={client.id} value={client.locale} /> : client.locale === "kk" ? "казахский" : "русский"}
-          </dd>
-        </div>
-        <div className="flex justify-between">
-          <dt>Автописьма</dt>
-          <dd className={client.emailOptOut ? "text-red-700" : "text-ink"}>{isPhoneStubEmail(client.email) ? "нет почты — автописьма в WhatsApp" : client.emailOptOut ? "отписан" : "получает"}</dd>
-        </div>
-        <div className="flex items-center justify-between gap-3">
-          <dt title="Клиент просил не писать: бот не напоминает о себе, правила автоматизаций не пишут. На его сообщения отвечать можно.">Писать первым</dt>
-          <dd>
-            <NoMarketingToggle target={{ clientId: client.id }} on={noMarketing} disabled={!canEdit} />
-          </dd>
-        </div>
-        <div className="flex justify-between">
-          <dt>Средний чек</dt>
-          <dd className="text-ink">{screen.stats.averageCheck !== null ? formatPrice(screen.stats.averageCheck) : "—"}</dd>
-        </div>
-      </dl>
-    </section>
+        <dl className="divide-y divide-line border-t border-line">
+          <div className={row}>
+            <dt className="shrink-0 text-muted">Канал</dt>
+            <dd className="min-w-0 flex-1 text-right font-medium" title={client.source ? JSON.stringify(client.source) : ""} data-testid="client-channel">
+              {canEdit ? <ClientChannel clientId={client.id} value={screen.channel.value} auto={screen.channel.value === "auto" ? screen.channel.label : undefined} /> : <span className="truncate">{screen.channel.label}</span>}
+            </dd>
+          </div>
+          {screen.channel.details ? (
+            <div className={row}>
+              <dt className="shrink-0 text-muted">Метки</dt>
+              <dd className="truncate text-right">{screen.channel.details}</dd>
+            </div>
+          ) : null}
+          <div className={row}>
+            <dt className="text-muted">Язык кабинета и писем</dt>
+            <dd data-testid="client-locale">{canEdit ? <ClientLocale clientId={client.id} value={client.locale} /> : client.locale === "kk" ? "казахский" : "русский"}</dd>
+          </div>
+          <div className={row}>
+            <dt className="text-muted">Автописьма</dt>
+            <dd className={cn("text-right", client.emailOptOut ? "text-danger" : "text-ink")}>{isPhoneStubEmail(client.email) ? "нет почты — в WhatsApp" : client.emailOptOut ? "отписан" : "получает"}</dd>
+          </div>
+          <div className={row}>
+            <dt className="text-muted" title="Клиент просил не писать: бот не напоминает о себе, правила автоматизаций не пишут. На его сообщения отвечать можно.">
+              Писать первым
+            </dt>
+            <dd>
+              <NoMarketingToggle target={{ clientId: client.id }} on={noMarketing} disabled={!canEdit} />
+            </dd>
+          </div>
+        </dl>
+      </div>
+    </Panel>
   );
 }
 
 /** Сделки клиента; «Новая сделка» — с правом на правку сделок. */
 export function ClientDeals({ clientId, deals, can }: { clientId: string; deals: { deal: { id: string; number: number; title: string; source: DealSource; createdAt: Date; amount: number }; stage: { name: string; color: string } }[]; can: (p: Permission) => boolean }) {
   return (
-    <section className="overflow-hidden rounded-2xl border border-line bg-white">
-      <div className="flex items-center justify-between border-b border-line px-5 py-4">
-        <h2 className="font-semibold">Сделки</h2>
-        {can("deals.edit") ? (
-          <Link href={`/admin/deals/new?client=${clientId}`} className="btn btn-outline btn-sm">
-            Новая сделка
-          </Link>
-        ) : null}
-      </div>
-      {deals.length === 0 ? <p className="px-5 py-6 text-sm text-muted">Сделок нет.</p> : null}
-      <div className="divide-y divide-line">
-        {deals.map(({ deal, stage }) => (
-          <Link key={deal.id} href={`/admin/deals/${deal.id}`} className="flex flex-wrap items-center gap-3 px-5 py-3 text-sm hover:bg-cream/40">
-            <span className="w-14 font-medium">№{deal.number}</span>
-            <span className="min-w-0 flex-1 truncate">
-              {deal.title} <span className="text-muted">· {dealSourceLabels[deal.source]} · {formatDate(deal.createdAt)}</span>
-            </span>
-            <span className="rounded-full px-2.5 py-1 text-xs text-white" style={{ background: stage.color }}>
-              {stage.name}
-            </span>
-            <span className="w-24 text-right tabular-nums">{deal.amount ? formatPrice(deal.amount) : "—"}</span>
-          </Link>
-        ))}
-      </div>
-    </section>
+    <Panel
+      flush
+      title={
+        <>
+          Сделки {deals.length ? <span className="font-normal text-muted tabular-nums">{deals.length}</span> : null}
+        </>
+      }
+    >
+      {deals.length === 0 ? (
+        <EmptyState compact icon={Handshake} title="Сделок пока нет" action={can("deals.edit") ? <Link href={`/admin/deals/new?client=${clientId}`} className="btn btn-outline btn-sm">Новая сделка</Link> : undefined}>
+          Заведите сделку, когда клиент договорится о книге или оплатит.
+        </EmptyState>
+      ) : (
+        <ul className="divide-y divide-line">
+          {deals.map(({ deal, stage }) => (
+            <li key={deal.id}>
+              <Link href={`/admin/deals/${deal.id}`} className="flex min-h-12 flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 text-sm hover:bg-sunken/60 sm:px-5">
+                <span className="w-12 shrink-0 text-muted tabular-nums">№{deal.number}</span>
+                <span className="min-w-0 flex-1 basis-40">
+                  <span className="block truncate font-medium">{deal.title}</span>
+                  <span className="block text-xs text-muted">
+                    {dealSourceLabels[deal.source]} · {formatDate(deal.createdAt)}
+                  </span>
+                </span>
+                <StageLabel name={stage.name} color={stage.color} className="shrink-0" />
+                <span className="w-24 shrink-0 text-right font-medium tabular-nums">{deal.amount ? formatPrice(deal.amount) : <span className="font-normal text-muted">—</span>}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Panel>
   );
 }
 
 /** Платежи менеджеру по сделкам клиента. */
 export function ClientPayments({ payments }: { payments: { id: string; deal_id: string; amount: number; kind: string; number: number; title: string; paid_at: Date | string }[] }) {
   return (
-    <section className="overflow-hidden rounded-2xl border border-line bg-white" data-testid="client-payments">
-      <h2 className="border-b border-line px-5 py-3.5 font-semibold">Платежи менеджеру</h2>
-      <div className="divide-y divide-line">
+    <Panel flush title="Платежи менеджеру">
+      <ul className="divide-y divide-line" data-testid="client-payments">
         {payments.map((p) => (
-          <Link key={p.id} href={`/admin/deals/${p.deal_id}`} className="flex flex-wrap items-center gap-3 px-5 py-3 text-sm hover:bg-cream/40">
-            <span className={cn("w-24 font-medium tabular-nums", p.kind === "refund" && "text-red-700")}>{p.kind === "refund" ? "−" : ""}{formatPrice(p.amount)}</span>
-            <span className="rounded-full bg-cream px-2 py-0.5 text-[11px] text-ink-soft">{p.kind === "prepayment" ? "предоплата" : p.kind === "refund" ? "возврат" : "платёж"}</span>
-            <span className="min-w-0 flex-1 truncate text-muted">
-              сделка №{p.number} · {p.title}
-            </span>
-            <span className="text-xs text-muted">{formatDate(p.paid_at)}</span>
-          </Link>
+          <li key={p.id}>
+            <Link href={`/admin/deals/${p.deal_id}`} className="flex min-h-12 flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 text-sm hover:bg-sunken/60 sm:px-5">
+              <span className={cn("w-24 shrink-0 font-semibold tabular-nums", p.kind === "refund" && "text-danger")}>
+                {p.kind === "refund" ? "−" : ""}
+                {formatPrice(p.amount)}
+              </span>
+              <Badge tone={p.kind === "refund" ? "danger" : "neutral"}>{p.kind === "prepayment" ? "предоплата" : p.kind === "refund" ? "возврат" : "платёж"}</Badge>
+              <span className="min-w-0 flex-1 truncate text-muted">
+                сделка №{p.number} · {p.title}
+              </span>
+              <span className="text-xs text-muted tabular-nums">{formatDate(p.paid_at)}</span>
+            </Link>
+          </li>
         ))}
-      </div>
-    </section>
+      </ul>
+    </Panel>
   );
 }
 
 /** Приглашения (contacts-d7): код клиента для друзей, друзья с покупками и наградами, кто пригласил его самого. */
 export function ClientReferrals({ data }: { data: ClientReferralsData }) {
   return (
-    <section className="rounded-2xl border border-line bg-white p-4 sm:p-5" data-testid="client-referrals">
-      <h2 className="mb-3 text-sm font-semibold">Приглашения</h2>
+    <section className="panel panel-body" data-testid="client-referrals">
+      <h2 className="panel-title mb-3">Приглашения</h2>
       <dl className="space-y-1 text-sm">
         {data.invitedBy ? (
           <div className="flex justify-between gap-2">
             <dt className="text-muted">Пригласил(а)</dt>
             <dd>
-              <Link href={`/admin/clients/${data.invitedBy.id}`} className="underline">{data.invitedBy.name || "клиент"}</Link>
+              <Link href={`/admin/clients/${data.invitedBy.id}`} className="text-wine hover:underline">{data.invitedBy.name || "клиент"}</Link>
             </dd>
           </div>
         ) : null}
         {data.code ? (
           <div className="flex justify-between gap-2">
             <dt className="text-muted">Код для друзей</dt>
-            <dd className={cn("font-mono text-xs", !data.code.active && "text-muted line-through")}>{data.code.code}</dd>
+            <dd className={cn("rounded bg-sunken px-1.5 font-mono text-xs", !data.code.active && "text-muted line-through")}>{data.code.code}</dd>
           </div>
         ) : null}
       </dl>
@@ -242,72 +258,81 @@ export function ClientReferrals({ data }: { data: ClientReferralsData }) {
 /** Книги клиента: прогресс, статус, макет и текст. */
 export function ClientBooks({ books }: { books: { book: { id: string; title: string; theme: string; authorName: string; recipientName: string; recordedBy: string; updatedAt: Date; status: string }; answered: number; total: number; words: number; photos: number; letters: number }[] }) {
   return (
-    <section className="rounded-2xl border border-line bg-white p-5">
-      <h2 className="mb-4 font-semibold">Книги</h2>
-      {books.length === 0 ? <p className="text-sm text-muted">Книг пока нет.</p> : null}
-      <div className="space-y-3">
-        {books.map(({ book, answered, total, words, photos: ph, letters }) => (
-          <div key={book.id} className="flex flex-wrap items-center gap-4 rounded-xl border border-line p-4">
-            <div className="min-w-0 flex-1">
-              <div className="font-medium">{book.title}</div>
-              <div className="text-xs text-muted">
-                {bookLine({ theme: book.theme, themeShort: getTheme(book.theme).name, authorName: book.authorName, recipientName: book.recipientName })}
-                {book.recordedBy ? ` · записано: ${book.recordedBy}` : ""} · изм. {formatDate(book.updatedAt)}
-              </div>
-              <div className="mt-2 flex items-center gap-2">
-                <div className="h-1.5 w-40 overflow-hidden rounded-full bg-cream">
-                  <div className="h-full rounded-full bg-wine" style={{ width: `${progressRatio({ theme: book.theme, answered, total, words }) * 100}%` }} />
+    <Panel flush title="Книги">
+      {books.length === 0 ? (
+        <EmptyState compact icon={BookOpen} title="Книг пока нет">
+          Книга появится, когда клиент начнёт её в кабинете.
+        </EmptyState>
+      ) : (
+        <ul className="divide-y divide-line">
+          {books.map(({ book, answered, total, words, photos: ph, letters }) => (
+            <li key={book.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3.5 sm:px-5">
+              <div className="min-w-0 flex-1 basis-60">
+                <div className="flex items-center gap-2">
+                  <span className="truncate font-medium">{book.title}</span>
+                  <Badge tone={book.status === "draft" ? "neutral" : "success"} className="shrink-0">
+                    {book.status === "draft" ? "пишется" : "заказана"}
+                  </Badge>
                 </div>
-                <span className="text-xs text-muted tabular-nums">
-                  {progressText({ theme: book.theme, answered, total, words })} · {ph} фото{letters ? ` · ${letters} писем` : ""}
-                </span>
+                <div className="truncate text-xs text-muted">
+                  {bookLine({ theme: book.theme, themeShort: getTheme(book.theme).name, authorName: book.authorName, recipientName: book.recipientName })}
+                  {book.recordedBy ? ` · записано: ${book.recordedBy}` : ""} · изм. {formatDate(book.updatedAt)}
+                </div>
+                <div className="mt-2 flex items-center gap-2">
+                  <div className="h-1.5 w-32 shrink-0 overflow-hidden rounded-full bg-sunken">
+                    <div className="h-full rounded-full bg-wine" style={{ width: `${progressRatio({ theme: book.theme, answered, total, words }) * 100}%` }} />
+                  </div>
+                  <span className="truncate text-xs text-muted tabular-nums">
+                    {progressText({ theme: book.theme, answered, total, words })} · {ph} фото{letters ? ` · ${letters} писем` : ""}
+                  </span>
+                </div>
               </div>
-            </div>
-            <span className={cn("rounded-full px-2.5 py-1 text-xs", book.status === "draft" ? "bg-cream text-ink-soft" : "bg-emerald-100 text-emerald-800")}>{book.status === "draft" ? "Пишется" : "Заказана"}</span>
-            <div className="flex gap-2">
-              <Link href={`/books/${book.id}/preview`} className="btn btn-outline btn-sm">
-                Макет
-              </Link>
-              <a href={`/api/books/${book.id}/export`} className="btn btn-ghost btn-sm">
-                Текст
-              </a>
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
+              <div className="flex gap-2">
+                <Link href={`/books/${book.id}/preview`} className="btn btn-outline btn-sm">
+                  Макет
+                </Link>
+                <a href={`/api/books/${book.id}/export`} className="btn btn-ghost btn-sm">
+                  Текст
+                </a>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Panel>
   );
 }
 
 /** Заказы клиента. */
 export function ClientOrders({ orders }: { orders: { id: string; number: number; createdAt: Date; plan: string; quantity: number; promoCode: string | null; status: OrderStatus; amount: number }[] }) {
   return (
-    <section className="overflow-hidden rounded-2xl border border-line bg-white">
-      <h2 className="border-b border-line px-5 py-4 font-semibold">Заказы</h2>
-      {orders.length === 0 ? <p className="px-5 py-6 text-sm text-muted">Заказов нет.</p> : null}
-      <div className="max-h-[420px] divide-y divide-line overflow-y-auto">
-        {orders.map((o) => (
-          <Link key={o.id} href={`/admin/orders/${o.id}`} className="flex flex-wrap items-center gap-3 px-5 py-3 text-sm hover:bg-cream/40">
-            <span className="w-14 font-medium">№{o.number}</span>
-            <span className="min-w-0 flex-1 truncate text-muted">
-              {formatDate(o.createdAt)} · {planName(o.plan)}
-              {o.quantity > 1 ? ` × ${o.quantity}` : ""}
-              {o.promoCode ? ` · ${o.promoCode}` : ""}
-            </span>
-            <span className={cn("rounded-full px-2.5 py-1 text-xs", orderStatusColors[o.status])}>{orderStatusLabel(o.status, "ru", isPrintedPlan(o.plan))}</span>
-            <span className="w-24 text-right tabular-nums">{formatPrice(o.amount)}</span>
-          </Link>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl bg-cream/60 px-2 py-2.5">
-      <div className="truncate text-sm font-semibold">{value}</div>
-      <div className="text-[11px] text-muted">{label}</div>
-    </div>
+    <Panel flush title="Заказы">
+      {orders.length === 0 ? (
+        <EmptyState compact icon={Package} title="Заказов пока нет">
+          Заказ появится, когда клиент оформит книгу на сайте.
+        </EmptyState>
+      ) : (
+        <ul className="max-h-[420px] divide-y divide-line overflow-y-auto">
+          {orders.map((o) => (
+            <li key={o.id}>
+              <Link href={`/admin/orders/${o.id}`} className="flex min-h-12 flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 text-sm hover:bg-sunken/60 sm:px-5">
+                <span className="w-12 shrink-0 text-muted tabular-nums">№{o.number}</span>
+                <span className="min-w-0 flex-1 basis-40 truncate">
+                  {planName(o.plan)}
+                  {o.quantity > 1 ? ` × ${o.quantity}` : ""}
+                  <span className="text-muted">
+                    {" "}
+                    · {formatDate(o.createdAt)}
+                    {o.promoCode ? ` · ${o.promoCode}` : ""}
+                  </span>
+                </span>
+                <span className={cn("badge shrink-0", orderStatusColors[o.status])}>{orderStatusLabel(o.status, "ru", isPrintedPlan(o.plan))}</span>
+                <span className="w-24 shrink-0 text-right font-medium tabular-nums">{formatPrice(o.amount)}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Panel>
   );
 }

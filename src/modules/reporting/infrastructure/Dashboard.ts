@@ -67,6 +67,8 @@ export async function dashboard(period: number, viewer: Viewer) {
       from crm_deals d join crm_stages s on s.id = d.stage_id
       where s.kind = 'open' and d.order_id is null and (d.custom_fields->>'event_date') ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
         and (d.custom_fields->>'event_date') <= ${iso(localDay(14))}
+        -- Роль «только свои» — свои сделки и неразобранные (как список сделок), без чужих клиентов и денег.
+        ${viewer.seesAll ? sql`` : sql`and (d.assignee_id is null or d.assignee_id = ${viewer.userId})`}
       order by due limit 8`),
     db
       .select()

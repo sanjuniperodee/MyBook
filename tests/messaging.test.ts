@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { answerValue, contactChanges, contactPhone, defaultBotConfig, preview, redactSecrets, shouldApplyStatus, type BotConfig, type Conversation, type InboundMessage } from "@/modules/messaging/domain";
+import { answerValue, contactChanges, contactPhone, defaultBotConfig, isMediaPlaceholder, preview, redactSecrets, shouldApplyStatus, type BotConfig, type Conversation, type InboundMessage } from "@/modules/messaging/domain";
 import { BOT_ABANDON_MS, BOT_PAUSE_MS, QualifierBot } from "@/modules/messaging/application";
 import { BOT_CONFIG, inbound, setup, start } from "./doubles/botHarness";
 
@@ -16,6 +16,22 @@ describe("домен переписки", () => {
     expect(shouldApplyStatus("sent", "delivered")).toBe(true);
     expect(shouldApplyStatus("read", "delivered")).toBe(false);
     expect(shouldApplyStatus("read", "error")).toBe(true);
+  });
+
+  it("«доставлено» и «прочитано» снимают ошибку (шлюз не ответил вовремя, а сообщение ушло); «отправлено» — нет", () => {
+    expect(shouldApplyStatus("error", "delivered")).toBe(true);
+    expect(shouldApplyStatus("error", "read")).toBe(true);
+    expect(shouldApplyStatus("error", "sent")).toBe(false);
+    expect(shouldApplyStatus("error", "error")).toBe(true);
+  });
+
+  it("заглушка вложения («📷 Фото») — не подпись; текст сообщения и подпись к файлу — подпись", () => {
+    expect(isMediaPlaceholder("image", "📷 Фото")).toBe(true);
+    expect(isMediaPlaceholder("video", " 🎬 Видео ")).toBe(true);
+    expect(isMediaPlaceholder("audio", "🎤 Голосовое сообщение")).toBe(true);
+    expect(isMediaPlaceholder("document", "📎 Файл")).toBe(true);
+    expect(isMediaPlaceholder("image", "Вот обложка")).toBe(false);
+    expect(isMediaPlaceholder("text", "📷 Фото")).toBe(false);
   });
 
   it("эхо с телефона не переименовывает контакт", () => {

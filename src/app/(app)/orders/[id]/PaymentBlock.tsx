@@ -42,7 +42,7 @@ export function PaymentBlock(props: {
       footer={({ pending, start }) => (
         <div className="mt-8 border-t border-line pt-5">
           <button
-            className="text-sm text-muted underline underline-offset-4 hover:text-red-700"
+            className="text-sm text-muted underline underline-offset-4 hover:text-danger"
             disabled={pending}
             onClick={async () => {
               if (await confirmDialog({ title: t.cancelTitle, text: t.cancelText, confirmLabel: t.cancelConfirm, cancelLabel: t.cancelKeep, danger: true }))

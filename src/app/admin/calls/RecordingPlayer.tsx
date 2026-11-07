@@ -96,14 +96,14 @@ export function RecordingPlayer({ callId, durationSec, ext = "mp3", className }:
       <button
         type="button"
         onClick={toggle}
-        className="flex size-9 shrink-0 items-center justify-center rounded-full bg-wine text-white shadow-sm transition hover:bg-wine-dark max-lg:size-11"
+        className="flex size-9 shrink-0 items-center justify-center rounded-full bg-wine text-white transition-colors hover:bg-wine-dark max-lg:size-11"
         aria-label={playing ? "Пауза" : "Слушать запись"}
       >
         {loading ? <LoaderCircle className="size-4 animate-spin" /> : playing ? <Pause className="size-4" fill="currentColor" /> : <Play className="ml-0.5 size-4" fill="currentColor" />}
       </button>
       <div className="min-w-0 flex-1">
         {error ? (
-          <div className="truncate text-xs text-red-700" title={error}>
+          <div className="truncate text-xs text-danger" title={error}>
             {error}
           </div>
         ) : (
@@ -133,14 +133,14 @@ export function RecordingPlayer({ callId, durationSec, ext = "mp3", className }:
             ))}
           </div>
         )}
-        <div className="mt-0.5 flex items-center gap-2 text-[11px] text-muted tabular-nums">
+        <div className="mt-0.5 flex items-center gap-2 text-xs text-muted tabular-nums">
           <span>
             {playing || time ? `${mmss(time)} / ` : ""}
             {mmss(duration)}
           </span>
           <button
             type="button"
-            className="rounded px-1 font-semibold hover:bg-cream"
+            className="rounded px-1 font-semibold hover:bg-sunken max-lg:min-h-8"
             onClick={() => {
               const next = SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length];
               setSpeed(next);
@@ -150,7 +150,7 @@ export function RecordingPlayer({ callId, durationSec, ext = "mp3", className }:
           >
             {speed}×
           </button>
-          <a href={src} download={`zvonok-${callId.slice(0, 8)}.${ext}`} className="ml-auto flex items-center gap-1 hover:text-ink" aria-label="Скачать запись">
+          <a href={src} download={`zvonok-${callId.slice(0, 8)}.${ext}`} className="ml-auto flex items-center gap-1 hover:text-ink max-lg:min-h-8 max-lg:px-1" aria-label="Скачать запись">
             <Download className="size-3.5" />
           </a>
         </div>

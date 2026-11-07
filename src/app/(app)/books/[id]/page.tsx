@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Link } from "@/i18n/client";
-import { ArrowRight, BookOpenText, Camera, Check, Eye, Mail, MessageCircle, Palette, PenLine, SlidersHorizontal, Truck } from "lucide-react";
+import { BookOpenText, Camera, Check, ChevronDown, Eye, Mail, MessageCircle, Palette, PenLine, SlidersHorizontal, Truck } from "lucide-react";
 import { requireUser } from "@/server/auth";
 import { getAccessibleBook } from "@/server/books";
 import { container } from "@/server/container";
@@ -87,188 +87,231 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
           ? { href: sectionHref(questions[0]?.id ?? null), eyebrow: t.continueWriting, label: t.openEditor }
           : null;
 
-  const steps = [
-    { icon: PenLine, title: t.steps.text, value: blank ? t.blankStats(stats.total, stats.words) : c.count.answers(stats.answered), done: progressOf(kind, stats).textStepDone, href: `${base}/questions` },
-    { icon: Palette, title: t.steps.cover, value: coverName(book.coverTemplate, locale), done: true, href: `${base}/cover` },
-    { icon: BookOpenText, title: t.steps.pages, value: interiorName(book.interior, locale), done: true, href: `${base}/pages` },
-    { icon: Camera, title: t.steps.photos, value: photos.length ? c.count.photos(photos.length) : t.steps.photosNone, done: photos.length > 0, href: `${base}/photos` },
+  const textDone = progressOf(kind, stats).textStepDone;
+  const paid = !!order && isPaid(order.status);
+  type Step = { icon: typeof PenLine; title: string; value: string; done: boolean; href: string };
+  // Путь к книге — три этапа в порядке вкладок: написать, оформить (уже выбрано по умолчанию), проверить и заказать.
+  const stages: { key: "write" | "design" | "finish"; done: boolean; steps: Step[] }[] = [
     {
-      icon: Mail,
-      title: t.steps.letters,
-      value: t.steps.lettersState(letterStats.approved, letterStats.pending, !!book.inviteToken),
-      done: letterStats.approved > 0,
-      href: `${base}/letters`,
+      key: "write",
+      done: textDone,
+      steps: [
+        { icon: PenLine, title: t.steps.text, value: blank ? t.blankStats(stats.total, stats.words) : c.count.answers(stats.answered), done: textDone, href: `${base}/questions` },
+        { icon: Camera, title: t.steps.photos, value: photos.length ? c.count.photos(photos.length) : t.steps.photosNone, done: photos.length > 0, href: `${base}/photos` },
+        { icon: Mail, title: t.steps.letters, value: t.steps.lettersState(letterStats.approved, letterStats.pending, !!book.inviteToken), done: letterStats.approved > 0, href: `${base}/letters` },
+      ],
     },
-    { icon: SlidersHorizontal, title: t.steps.settings, value: `${getFormat(book.format).short} · ${localeMeta[book.language].label}`, done: true, href: `${base}/settings` },
-    { icon: Eye, title: t.steps.preview, value: t.steps.previewValue, done: false, href: `${base}/preview` },
     {
-      icon: Truck,
-      title: t.steps.order,
-      value: order ? orderStatusLabel(order.status, locale, isPrintedPlan(order.plan)) : t.steps.orderLater,
-      done: !!order && isPaid(order.status),
-      href: order ? `/orders/${order.id}` : `${base}/checkout`,
+      key: "design",
+      done: true,
+      steps: [
+        { icon: Palette, title: t.steps.cover, value: coverName(book.coverTemplate, locale), done: true, href: `${base}/cover` },
+        { icon: BookOpenText, title: t.steps.pages, value: interiorName(book.interior, locale), done: true, href: `${base}/pages` },
+        { icon: SlidersHorizontal, title: t.steps.settings, value: `${getFormat(book.format).short}, ${localeMeta[book.language].label}`, done: true, href: `${base}/settings` },
+      ],
     },
+    {
+      key: "finish",
+      done: paid,
+      steps: [
+        { icon: Eye, title: t.steps.preview, value: t.steps.previewValue, done: !!order, href: `${base}/preview` },
+        { icon: Truck, title: t.steps.order, value: order ? orderStatusLabel(order.status, locale, isPrintedPlan(order.plan)) : t.steps.orderLater, done: paid, href: order ? `/orders/${order.id}` : `${base}/checkout` },
+      ],
+    },
+  ];
+  const current = stages.findIndex((st) => !st.done);
+  // Главы: первые шесть на виду, остальные — под «Все главы»; длинный список больше не растягивает страницу.
+  const shownChapters = chapters.slice(0, 6);
+  const moreChapters = chapters.slice(6);
+  const chapterRow = (ch: (typeof chapters)[number], i: number) => {
+    const done = ch.total > 0 && ch.answered === ch.total;
+    const href = ch.firstOpenId ?? ch.firstId;
+    return (
+      <li key={ch.key}>
+        <Link href={sectionHref(href)} className="group flex min-h-12 items-center gap-3 rounded-[10px] px-2 py-2 hover:bg-sunken/70">
+          <span
+            className={cn(
+              "flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-medium tabular-nums",
+              done ? "bg-wine text-white" : ch.answered ? "bg-rose text-wine" : "border border-line text-muted",
+            )}
+          >
+            {done ? <Check className="size-3.5" aria-label={t.chapterSections(ch.answered, ch.total)} /> : i + 1}
+          </span>
+          <span className="min-w-0 flex-1 truncate text-[15px] group-hover:text-wine" lang={book.language}>
+            {ch.title}
+          </span>
+          <span className="shrink-0 text-xs text-muted tabular-nums">{ch.total ? t.chapterSections(ch.answered, ch.total) : t.chapterEmpty}</span>
+        </Link>
+      </li>
+    );
+  };
+  const facts: [number, string, boolean?][] = [
+    [printedPages, c.word.pages(printedPages), !built],
+    blank ? [stats.total, t.sectionsWord(stats.total)] : [stats.answered, c.word.answers(stats.answered)],
+    [stats.words, c.word.words(stats.words)],
+    [stats.photos, c.word.photos()],
   ];
 
   return (
-    <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12">
-      {agreement ? <div className="mb-8"><AgreementCard agreement={agreement} books={[{ id: book.id, status: book.status, theme: book.theme, answered: stats.answered, total: stats.total, words: stats.words }]} /></div> : null}
-      {/* Книга */}
-      <section className="grid items-center gap-10 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)] lg:gap-16">
-        <div className="mx-auto w-full max-w-[260px] lg:max-w-[300px]">
+    <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
+      {agreement ? (
+        <div className="mb-8">
+          <AgreementCard agreement={agreement} books={[{ id: book.id, status: book.status, theme: book.theme, answered: stats.answered, total: stats.total, words: stats.words }]} />
+        </div>
+      ) : null}
+
+      {/* Книга: сама книга, название, сколько написано и что делать дальше */}
+      <section className="grid items-center gap-8 md:grid-cols-[minmax(0,260px)_minmax(0,1fr)] md:gap-12 lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)] lg:gap-16">
+        <div className="mx-auto w-full max-w-[150px] md:max-w-[260px] lg:max-w-[300px]">
           <Morph name={`cover-${book.id}`}>
-          <Book3D
-            template={book.coverTemplate}
-            format={book.format}
-            title={book.title}
-            subtitle={book.subtitle}
-            names={coverNames(book)}
-            photos={coverPhotoRefs(coverPhotoIds(book), photos, book, "view")}
-            design={book.coverDesign}
-            rotate={18}
-            thickness={Math.min(14, 4 + printedPages / 20)}
-          />
+            <Book3D
+              template={book.coverTemplate}
+              format={book.format}
+              title={book.title}
+              subtitle={book.subtitle}
+              names={coverNames(book)}
+              photos={coverPhotoRefs(coverPhotoIds(book), photos, book, "view")}
+              design={book.coverDesign}
+              rotate={18}
+              thickness={Math.min(14, 4 + printedPages / 20)}
+            />
           </Morph>
         </div>
-        <div>
-          <div className="eyebrow">{editable ? t.writing : t.inWork}</div>
-          <h1 className="mt-3 font-serif text-4xl leading-[1.05] font-medium sm:text-6xl">{book.title}</h1>
+        <div className="min-w-0">
+          <h1 className="font-serif text-4xl leading-[1.05] font-medium text-balance sm:text-6xl">{book.title}</h1>
           {book.subtitle ? <p className="mt-2 font-serif text-xl text-muted italic">{book.subtitle}</p> : null}
 
-          <dl className="mt-8 grid max-w-xl grid-cols-4 divide-x divide-line">
-            {(
-              [
-                [printedPages, c.word.pages(printedPages), !built],
-                blank ? [stats.total, t.sectionsWord(stats.total)] : [stats.answered, c.word.answers(stats.answered)],
-                [stats.words, c.word.words(stats.words)],
-                [stats.photos, c.word.photos()],
-              ] as [number, string, boolean?][]
-            ).map(([v, l, approx], i) => (
-              <div key={i} className={cn("px-4 first:pl-0")}>
+          <dl className="mt-5 flex flex-wrap gap-x-5 gap-y-1 text-sm text-muted" aria-label={t.stats}>
+            {facts.map(([v, l, approx], i) => (
+              <div key={i} className="flex items-baseline gap-1.5">
                 <dt className="sr-only">{l}</dt>
-                <dd className="font-serif text-3xl font-medium tabular-nums sm:text-4xl">
-                  {approx ? <span className="text-muted">≈</span> : null}
+                <dd className="font-medium text-ink tabular-nums">
+                  {approx ? "≈" : ""}
                   {v.toLocaleString("ru-RU")}
                 </dd>
-                <div className="text-xs text-muted sm:text-sm">{l}</div>
+                <span aria-hidden>{l}</span>
               </div>
             ))}
           </dl>
 
-          <div className="mt-6 max-w-xl">
-            <div className="flex justify-between text-xs text-muted">
+          <div className="mt-4 max-w-xl">
+            <div className="h-1.5 overflow-hidden rounded-full bg-line" role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100} aria-label={blank ? t.blankPercent(percent) : t.percent(percent)}>
+              <div className="bar-grow h-full rounded-full bg-wine" style={{ width: `${Math.max(percent, 1.5)}%` }} />
+            </div>
+            <div className="mt-1.5 flex flex-wrap justify-between gap-x-4 text-xs text-muted">
               <span>{blank ? t.blankPercent(percent) : t.percent(percent)}</span>
               {contentPages < print.minPages ? <span>{t.minPages(print.minPages)}</span> : null}
             </div>
-            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-cream">
-              <div className="bar-grow h-full rounded-full bg-wine" style={{ width: `${Math.max(percent, 1.5)}%` }} />
-            </div>
           </div>
 
-          {editable ? <DeadlineBanner bookId={book.id} occasion={book.occasion} occasionDate={book.occasionDate} answered={stats.answered} /> : null}
-
           {editable && cta ? (
-            <Link href={cta.href} className="group mt-8 flex max-w-xl items-center gap-5 rounded-3xl bg-ink p-5 text-white transition hover:bg-ink-soft sm:p-6">
-              <div className="min-w-0 flex-1">
-                <div className="text-xs text-white/50">{cta.eyebrow}</div>
-                <div className="mt-1.5 line-clamp-2 font-serif text-xl leading-snug sm:text-2xl">{cta.label}</div>
-              </div>
-              <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-white text-ink transition group-hover:translate-x-1">
-                <ArrowRight className="size-5" />
-              </span>
-            </Link>
+            // Следующий шаг — лист с вопросом, набранным как в книге, и одна главная кнопка.
+            <div className="mt-7 max-w-xl rounded-[14px] border border-line bg-white p-5 sm:p-6">
+              <div className="text-xs text-muted">{cta.eyebrow}</div>
+              <Link href={cta.href} className="mt-2 line-clamp-3 font-serif text-[22px] leading-snug text-ink hover:text-wine sm:text-2xl" lang={book.language}>
+                {cta.label}
+              </Link>
+              <Link href={cta.href} className="btn btn-primary mt-5 max-sm:w-full">
+                <PenLine className="size-4" aria-hidden /> {next && !blank ? t.answerCta : t.writeCta}
+              </Link>
+            </div>
           ) : null}
-          {!editable ? (
-            <p className="mt-8 max-w-xl rounded-2xl bg-cream/70 p-4 text-sm text-ink-soft">
-              {t.locked}
-            </p>
-          ) : null}
+          {editable ? (
+            <div className="max-w-xl">
+              <DeadlineBanner bookId={book.id} occasion={book.occasion} occasionDate={book.occasionDate} answered={stats.answered} />
+            </div>
+          ) : (
+            <p className="mt-7 max-w-xl rounded-[14px] bg-sunken p-4 text-sm leading-relaxed text-ink-soft">{t.locked}</p>
+          )}
         </div>
       </section>
 
-      <section className="mt-16 grid gap-8 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
-        {/* Главы */}
-        <div>
-          <div className="flex items-baseline justify-between">
-            <h2 className="font-serif text-3xl font-medium">{t.chapters}</h2>
-            <span className="text-sm text-muted">
-              {t.chaptersStarted(chapters.filter((ch) => ch.answered > 0).length, chapters.length)}
-            </span>
-          </div>
-          {chapters.length === 0 ? (
-            blank ? <p className="mt-5 rounded-2xl border border-dashed border-line p-5 text-sm text-muted">{t.createFirstChapterText}</p> : null
-          ) : (
-            <ol className="mt-5 divide-y divide-line border-y border-line">
-              {chapters.map((ch, i) => {
-                const done = ch.total > 0 && ch.answered === ch.total;
-                const href = ch.firstOpenId ?? ch.firstId;
-                return (
-                  <li key={ch.key}>
-                    <Link href={sectionHref(href)} className="group flex items-center gap-4 py-3.5">
-                      <span
-                        className={cn(
-                          "flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-medium tabular-nums",
-                          done ? "bg-wine text-white" : ch.answered ? "bg-rose text-wine" : "bg-cream text-muted",
-                        )}
-                      >
-                        {done ? <Check className="size-4" /> : i + 1}
-                      </span>
+      {/* Путь к готовой книге: три этапа, как группы вкладок */}
+      <section className="mt-14 sm:mt-20" aria-labelledby="book-path">
+        <h2 id="book-path" className="font-serif text-3xl font-medium">
+          {t.path}
+        </h2>
+        <ol className="mt-5 grid overflow-hidden rounded-[14px] border border-line bg-white md:grid-cols-3">
+          {stages.map((st, i) => (
+            <li key={st.key} className={cn("p-4 sm:p-5", i > 0 && "border-line max-md:border-t md:border-l")}>
+              <div className="flex items-center gap-3">
+                <span
+                  className={cn(
+                    "flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold tabular-nums",
+                    st.done ? "bg-success-bg text-success" : i === current ? "bg-wine text-white" : "border border-line-strong text-muted",
+                  )}
+                >
+                  {st.done ? <Check className="size-3.5" aria-hidden /> : i + 1}
+                </span>
+                <div className="min-w-0">
+                  <h3 className={cn("text-[15px] font-semibold", i !== current && !st.done && "text-ink-soft")}>{t.stages[st.key]}</h3>
+                  <p className="text-xs text-muted">{t.stageHint[st.key]}</p>
+                </div>
+              </div>
+              <ul className="mt-3 -mx-2 space-y-0.5">
+                {st.steps.map((s) => (
+                  <li key={s.title}>
+                    <Link href={s.href} className="group flex min-h-12 items-center gap-3 rounded-[10px] px-2 py-1.5 hover:bg-sunken/70">
+                      <s.icon className={cn("size-4 shrink-0", s.done ? "text-success" : "text-muted")} strokeWidth={1.8} aria-hidden />
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate font-medium group-hover:text-wine" lang={book.language}>{ch.title}</span>
-                        <span className="mt-1.5 block h-1 max-w-56 overflow-hidden rounded-full bg-cream">
-                          <span className="block h-full rounded-full bg-wine/70" style={{ width: `${ch.total ? (ch.answered / ch.total) * 100 : 0}%` }} />
-                        </span>
+                        <span className="block text-sm font-medium group-hover:text-wine">{s.title}</span>
+                        <span className="block truncate text-xs text-muted">{s.value}</span>
                       </span>
-                      <span className="text-sm text-muted tabular-nums">{ch.total ? t.chapterSections(ch.answered, ch.total) : t.chapterEmpty}</span>
-                      <ArrowRight className="size-4 text-muted opacity-0 transition group-hover:opacity-100" />
+                      {s.done ? <Check className="size-4 shrink-0 text-success" aria-hidden /> : null}
                     </Link>
                   </li>
-                );
-              })}
-            </ol>
+                ))}
+              </ul>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <section className="mt-12 grid gap-8 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:gap-10">
+        {/* Главы — компактно: первые шесть, остальные по кнопке */}
+        <div>
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="font-serif text-3xl font-medium">{t.chapters}</h2>
+            {chapters.length ? <span className="text-sm text-muted">{t.chaptersStarted(chapters.filter((ch) => ch.answered > 0).length, chapters.length)}</span> : null}
+          </div>
+          {chapters.length === 0 ? (
+            blank ? <p className="mt-5 rounded-[14px] border border-dashed border-line-strong p-5 text-sm text-muted">{t.createFirstChapterText}</p> : null
+          ) : (
+            <div className="mt-4 -mx-2">
+              <ol className="grid gap-x-6 sm:grid-cols-2">{shownChapters.map((ch, i) => chapterRow(ch, i))}</ol>
+              {moreChapters.length ? (
+                <details className="group/more">
+                  <summary className="mx-2 mt-2 inline-flex min-h-11 cursor-pointer list-none items-center gap-1.5 text-sm font-medium text-wine hover:underline [&::-webkit-details-marker]:hidden">
+                    <ChevronDown className="size-4 transition group-open/more:rotate-180" aria-hidden /> {t.allChapters(chapters.length)}
+                  </summary>
+                  <ol className="grid gap-x-6 sm:grid-cols-2" start={7}>
+                    {moreChapters.map((ch, i) => chapterRow(ch, i + 6))}
+                  </ol>
+                </details>
+              ) : null}
+            </div>
           )}
         </div>
 
-        {/* Путь к книге */}
-        <aside className="space-y-6">
-          <div className="card p-6">
-            <h2 className="font-semibold">{t.path}</h2>
-            <ol className="relative mt-5 space-y-1">
-              {steps.map((s) => (
-                <li key={s.title}>
-                  <Link href={s.href} className="flex items-center gap-3 rounded-2xl px-2 py-2.5 transition hover:bg-cream/60">
-                    <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-xl", s.done ? "bg-emerald-50 text-emerald-700" : "bg-cream text-ink-soft")}>
-                      {s.done ? <Check className="size-4" /> : <s.icon className="size-4" strokeWidth={1.8} />}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-medium">{s.title}</span>
-                      <span className="block truncate text-xs text-muted">{s.value}</span>
-                    </span>
-                    <ArrowRight className="size-4 text-muted" />
-                  </Link>
-                </li>
-              ))}
-            </ol>
-          </div>
-
+        <aside className="space-y-4">
           {photos.length ? (
-            <Link href={`${base}/photos`} className="card block overflow-hidden">
+            <Link href={`${base}/photos`} className="block overflow-hidden rounded-[14px] border border-line bg-white hover:border-line-strong">
               <div className="grid grid-cols-4 gap-0.5">
                 {photos.slice(0, 8).map((p) => (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img key={p.id} src={photoUrl(p.id)} alt="" className="aspect-square w-full object-cover" />
                 ))}
               </div>
-              <div className="px-5 py-3 text-sm text-muted">{t.photosManage(photos.length)}</div>
+              <div className="px-4 py-3 text-sm text-muted">{t.photosManage(photos.length)}</div>
             </Link>
           ) : null}
 
-          <div className="flex items-center justify-between gap-3 rounded-3xl border border-line p-5">
-            <a href={site.contacts.whatsapp} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 text-sm">
-              <span className="flex size-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
-                <MessageCircle className="size-4" />
+          <div className="flex items-center justify-between gap-3 rounded-[14px] border border-line bg-white p-4">
+            <a href={site.contacts.whatsapp} target="_blank" rel="noopener noreferrer" className="flex min-h-11 min-w-0 items-center gap-3 text-sm">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-sunken text-ink-soft">
+                <MessageCircle className="size-4" aria-hidden />
               </span>
-              <span>
+              <span className="min-w-0">
                 <span className="block font-medium">{t.help}</span>
                 <span className="text-muted">{t.helpText}</span>
               </span>

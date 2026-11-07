@@ -52,7 +52,7 @@ function Daily({ daily }: { daily: NonNullable<BotMetrics["daily"]> }) {
       <div>{`7 дней: начал ${w.started}, подхватил ${w.takeover} · 30 дней: начал ${m.started}, подхватил ${m.takeover}`}</div>
       <div className="mt-1 flex flex-wrap gap-1 text-muted">
         {week.map((r) => (
-          <span key={r.day} className="rounded bg-cream px-1.5 py-0.5 tabular-nums" title={`${r.day}: начал ${r.started}, подхватил ${r.takeover}`}>
+          <span key={r.day} className="rounded bg-sunken px-1.5 py-0.5 tabular-nums" title={`${r.day}: начал ${r.started}, подхватил ${r.takeover}`}>
             {r.day.slice(8, 10)}.{r.day.slice(5, 7)} · {r.started + r.takeover}
           </span>
         ))}
@@ -75,7 +75,7 @@ function LlmStats({ llm }: { llm: NonNullable<BotMetrics["llm"]> }) {
       {Object.keys(llm.chosen).length ? <div className="text-muted">{`Выбрал маршрут: ${share(llm.chosen)}`}</div> : null}
       <div>{`Эскалаций: ${llm.escalations}; расходы: ${usd(llm.costUsd)}${llm.costPer1000 !== null ? `, на 1 000 ходов — ${usd(llm.costPer1000)}` : ""}`}</div>
       <div className="text-muted">{`Токены: вход ${llm.tokens.input}, из кэша ${llm.tokens.cacheRead}, в кэш ${llm.tokens.cacheWrite}, выход ${llm.tokens.output}`}</div>
-      {llm.failed || llm.fallback || llm.retries ? <div className="text-amber-800">{`Сбои запросов: ${llm.failed}, повторы: ${llm.retries}, ответила запасная: ${llm.fallback}`}</div> : null}
+      {llm.failed || llm.fallback || llm.retries ? <div className="text-warning">{`Сбои запросов: ${llm.failed}, повторы: ${llm.retries}, ответила запасная: ${llm.fallback}`}</div> : null}
     </div>
   );
 }
@@ -91,7 +91,7 @@ export function BotStats({ m, questions, skipLabels }: { m: BotMetrics; question
   const failures = byLabel(m.failures, failureReasonLabels);
   const langs = Object.entries(m.langs);
   return (
-    <div className="rounded-xl border border-line p-3 text-sm" data-testid="bot-stats">
+    <div className="rounded-[10px] border border-line p-3 text-sm" data-testid="bot-stats">
       <h3 className="mb-2 font-medium">За 30 дней</h3>
       {!m.started && !skipped.length ? <p className="text-xs text-muted">Бот ещё не работал.</p> : null}
       <div className="grid gap-3 text-xs sm:grid-cols-2">
@@ -159,7 +159,7 @@ export function BotStats({ m, questions, skipLabels }: { m: BotMetrics; question
         {m.llm?.turns ? <LlmStats llm={m.llm} /> : null}
         {failures.length ? (
           <div data-testid="bot-failures">
-            <div className="mb-1 text-red-700">Сбои</div>
+            <div className="mb-1 text-danger">Сбои</div>
             {failures.map(([label, n]) => (
               <div key={label}>{`${label}: ${n}`}</div>
             ))}

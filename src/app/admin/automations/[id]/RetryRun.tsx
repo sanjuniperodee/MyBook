@@ -12,7 +12,7 @@ export function RetryRun({ runId }: { runId: string }) {
   return (
     <button
       type="button"
-      className="btn btn-ghost btn-sm h-8 border border-line"
+      className="btn btn-outline btn-sm"
       disabled={pending}
       onClick={() =>
         start(async () => {

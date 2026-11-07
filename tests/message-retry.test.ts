@@ -66,3 +66,46 @@ describe("автоповтор сообщений бота и правил в м
     expect(isGatewayDown(null)).toBe(false);
   });
 });
+
+// Таймаут шлюза, а сообщение ушло (эхо или статус принесли его ID): не «ошибка» и второй раз не уходит.
+describe("сообщение, которое ушло, хотя шлюз не ответил вовремя", () => {
+  it("«Повторить» не шлёт второй раз, если у сообщения уже есть ID в WhatsApp — только снимает ошибку", async () => {
+    const t = setup();
+    await t.service.ingest(inbound({ text: "Здравствуйте" }));
+    const id = t.conv().id;
+    t.gateway.down = "Шлюз WhatsApp (GOWA) недоступен";
+    const failed = await t.service.send(id, "Подскажу по срокам", null, "bot");
+    t.gateway.down = null;
+    // Эхо догнало: ID записан, статус ещё «ошибка» (так было до правки claimPendingEcho).
+    Object.assign(t.msgs.find((m) => m.id === failed.id)!, { externalId: "wa-1" });
+    expect(await t.service.resend(id, failed.id)).toEqual({ ok: true });
+    expect(t.sent).toEqual([]);
+    expect(t.msgs.find((m) => m.id === failed.id)).toMatchObject({ status: "sent", error: null, externalId: "wa-1" });
+  });
+
+  it("«доставлено» после ошибки таймаута снимает ошибку — минутный проход его не повторяет", async () => {
+    const t = setup();
+    await t.service.ingest(inbound({ text: "Здравствуйте" }));
+    const id = t.conv().id;
+    t.setNow(at("2026-10-01T06:00:00Z"));
+    t.gateway.down = "Шлюз WhatsApp (GOWA) недоступен";
+    const failed = await t.service.send(id, "Подскажу по срокам", null, "bot");
+    t.gateway.down = null;
+    Object.assign(t.msgs.find((m) => m.id === failed.id)!, { externalId: "wa-2" });
+    await t.service.applyStatus({ externalId: "wa-2", status: "delivered", error: null });
+    expect(t.msgs.find((m) => m.id === failed.id)?.status).toBe("delivered");
+    t.setNow(at("2026-10-01T06:06:00Z"));
+    expect(await t.service.retryFailedAutomated()).toBe(0);
+    expect(t.sent).toEqual([]);
+  });
+
+  it("статус, пришедший раньше ответа на отправку, применяется, когда ID записан", async () => {
+    const t = setup();
+    await t.service.ingest(inbound({ text: "Здравствуйте" }));
+    const id = t.conv().id;
+    // Шлюз пришлёт этому сообщению ID wz-1 — «доставлено» по нему приходит до записи ID.
+    await t.service.applyStatus({ externalId: "wz-1", status: "delivered", error: null });
+    const msg = await t.service.send(id, "Добрый день!", "m1");
+    expect(t.msgs.find((m) => m.id === msg.id)).toMatchObject({ externalId: "wz-1", status: "delivered" });
+  });
+});

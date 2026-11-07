@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
-import { ArrowRight } from "lucide-react";
 import { Link } from "@/i18n/client";
 import { LandingHeader } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
-import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
+import { PageIntro } from "@/components/landing/PageIntro";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { getCurrentUser } from "@/server/auth";
 import { site } from "@/config/site";
@@ -49,45 +48,46 @@ export default async function ToolsHubPage() {
       <JsonLd data={jsonLd} />
       <LandingHeader loggedIn={!!user} />
       <main className="overflow-x-clip">
-        <section className="relative pt-28 pb-12 sm:pt-36 sm:pb-16">
-          <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(60%_50%_at_75%_30%,#f4e4df_0%,transparent_70%)]" />
-          <div className="container-x">
-            <Breadcrumbs items={[{ name: pg.home, href: "/" }, { name: pg.hub }]} />
-            <div className="eyebrow">
-              {pg.free} · {pg.noSignup}
-            </div>
-            <h1 className="mt-4 max-w-3xl font-serif text-[42px] leading-[1.05] font-medium tracking-tight sm:text-6xl">
-              {pg.hubH1} <em className="text-wine">{pg.hubAccent}</em>
-            </h1>
-            <p className="mt-6 max-w-2xl text-lg leading-relaxed text-ink-soft">{pg.hubLead}</p>
-          </div>
-        </section>
+        <PageIntro
+          crumbs={[{ name: pg.home, href: "/" }, { name: pg.hub }]}
+          title={
+            <>
+              {pg.hubH1} <span className="italic">{pg.hubAccent}</span>
+            </>
+          }
+          lead={pg.hubLead}
+        >
+          <p className="mt-4 flex flex-wrap gap-x-4 text-sm text-muted">
+            <span>{pg.free}</span>
+            <span>{pg.noSignup}</span>
+          </p>
+        </PageIntro>
 
-        <section className="pb-20">
-          <div className="container-x grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <section className="container-x pb-20">
+          <ul className="grid border-t border-ink/80 sm:grid-cols-2 sm:gap-x-10 lg:grid-cols-3">
             {tools.map((t) => {
               const c = t.content[locale];
               return (
-                <Link key={t.slug} href={`/instrumenty/${t.slug}`} className="card card-hover flex flex-col p-7">
-                  <h2 className="font-serif text-2xl leading-snug font-medium">{c.label}</h2>
-                  <p className="mt-3 flex-1 text-sm leading-relaxed text-muted">{c.teaser}</p>
-                  <span className="mt-5 inline-flex items-center gap-1.5 text-sm font-medium text-wine">
-                    {pg.open} <ArrowRight className="size-4" />
-                  </span>
-                </Link>
+                <li key={t.slug} className="border-b border-line">
+                  <Link href={`/instrumenty/${t.slug}`} className="group flex h-full flex-col py-7">
+                    <h2 className="font-serif text-2xl leading-snug font-medium group-hover:text-wine">{c.label}</h2>
+                    <p className="mt-2 flex-1 text-sm leading-relaxed text-muted">{c.teaser}</p>
+                    <span className="mt-4 text-sm font-medium text-wine underline decoration-wine/30 underline-offset-4 group-hover:decoration-wine">{pg.open}</span>
+                  </Link>
+                </li>
               );
             })}
-          </div>
+          </ul>
         </section>
 
-        <section className="border-t border-line/70 bg-cream/50 py-14 sm:py-16">
+        <section className="border-t border-line bg-cream/50 py-14 sm:py-16">
           <div className="container-x">
             <h2 className="font-serif text-3xl font-medium tracking-tight">{pg.hubGuides}</h2>
-            <ul className="mt-6 grid gap-3 sm:grid-cols-2">
+            <ul className="mt-6 grid gap-x-10 sm:grid-cols-2">
               {articles.map((a) => (
-                <li key={a.slug}>
-                  <Link href={`/blog/${a.slug}`} className="block rounded-2xl border border-line bg-white px-5 py-4 hover:border-ink/30">
-                    <span className="font-medium">{a.content[locale].title}</span>
+                <li key={a.slug} className="border-b border-line">
+                  <Link href={`/blog/${a.slug}`} className="flex min-h-14 items-center py-3 font-medium text-ink-soft hover:text-wine">
+                    {a.content[locale].title}
                   </Link>
                 </li>
               ))}

@@ -11,18 +11,11 @@ import { noOpenTask } from "./conditions";
 
 const CLOSED_DAYS = 30;
 
-/**
- * Список и доска сделок воронки с фильтрами: ответственный, источник, свои поля-списки, задачи,
- * «застряла на этапе», поиск. Видимость «только свои».
- */
-export async function dealList(
-  viewer: Viewer,
-  pipeline: { id: string },
-  sp: Record<string, string | undefined>,
-  selectFields: { key: string; options: string[] }[],
-  view: "board" | "list",
-) {
-  const db = executor();
+type DealParams = Record<string, string | undefined>;
+type SelectFields = { key: string; options: string[] }[];
+
+/** Условия выборки сделок воронки — общие для списка, доски и итогов в шапке (dealTotals). */
+function dealWhere(viewer: Viewer, pipeline: { id: string }, sp: DealParams, selectFields: SelectFields, view: "board" | "list"): SQL[] {
   const w: SQL[] = [eq(crmStages.pipelineId, pipeline.id)];
   const scope = visibleTo(viewer, crmDeals.assigneeId);
   if (scope) w.push(scope);
@@ -58,7 +51,17 @@ export async function dealList(
   }
   // На доске закрытые сделки — только за последние 30 дней, чтобы колонки «успех/отказ» не разрастались.
   if (view === "board") w.push(or(eq(crmStages.kind, "open"), gte(crmDeals.closedAt, sql`now() - interval '${sql.raw(String(CLOSED_DAYS))} days'`))!);
+  return w;
+}
 
+/**
+ * Список и доска сделок воронки с фильтрами: ответственный, источник, свои поля-списки, задачи,
+ * «застряла на этапе», поиск. Видимость «только свои». page — страница списка (limit/offset); без неё — первые 300
+ * (доска — 1000).
+ */
+export async function dealList(viewer: Viewer, pipeline: { id: string }, sp: DealParams, selectFields: SelectFields, view: "board" | "list", page?: { limit: number; offset: number }) {
+  const db = executor();
+  const w = dealWhere(viewer, pipeline, sp, selectFields, view);
   return db
       .select({
         deal: crmDeals,
@@ -75,9 +78,27 @@ export async function dealList(
       })
       .from(crmDeals)
       .innerJoin(crmStages, eq(crmStages.id, crmDeals.stageId))
-      .where(w.length ? and(...w) : undefined)
+      .where(and(...w))
       .orderBy(view === "board" ? desc(crmDeals.stageChangedAt) : desc(crmDeals.createdAt))
-      .limit(view === "board" ? 1000 : 300);
+      .limit(page?.limit ?? (view === "board" ? 1000 : 300))
+      .offset(page?.offset ?? 0);
+}
+
+/**
+ * Итоги по тем же фильтрам — для шапки и страниц списка, без обрезки страницей: всего сделок, из них «в работе»
+ * (этап «открыт») и их бюджет.
+ */
+export async function dealTotals(viewer: Viewer, pipeline: { id: string }, sp: DealParams, selectFields: SelectFields, view: "board" | "list") {
+  const [row] = await executor()
+    .select({
+      total: sql<number>`count(*)::int`,
+      open: sql<number>`(count(*) filter (where ${crmStages.kind} = 'open'))::int`,
+      openSum: sql<number>`coalesce(sum(${crmDeals.amount}) filter (where ${crmStages.kind} = 'open'), 0)::int`,
+    })
+    .from(crmDeals)
+    .innerJoin(crmStages, eq(crmStages.id, crmDeals.stageId))
+    .where(and(...dealWhere(viewer, pipeline, sp, selectFields, view)));
+  return row ?? { total: 0, open: 0, openSum: 0 };
 }
 
 /** Сохранённые фильтры сделок: мои и общие. */

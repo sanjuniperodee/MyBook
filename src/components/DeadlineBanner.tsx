@@ -30,7 +30,7 @@ export async function DeadlineBanner({
   if (!o || !occasionDate) {
     if (compact) return null;
     return (
-      <Link href={`/books/${bookId}/settings#occasion`} className="mt-4 inline-flex items-center gap-2 text-sm text-muted underline-offset-4 hover:text-wine hover:underline">
+      <Link href={`/books/${bookId}/settings#occasion`} className="mt-4 inline-flex min-h-11 items-center gap-2 text-sm text-muted underline-offset-4 hover:text-wine hover:underline">
         <CalendarHeart className="size-4" /> {m.deadline.addDate}
       </Link>
     );
@@ -44,17 +44,17 @@ export async function DeadlineBanner({
   return (
     <div
       className={cn(
-        "flex max-w-xl items-start gap-4 rounded-3xl border p-4 sm:p-5",
+        "flex items-start gap-3.5 rounded-[14px] border p-4",
         tone === "calm" && "border-line bg-white",
-        tone === "warm" && "border-amber-200 bg-amber-50/70",
-        tone === "hot" && "border-wine/30 bg-rose/40",
-        compact ? "mt-0" : "mt-6",
+        tone === "warm" && "border-warning/25 bg-warning-bg",
+        tone === "hot" && "border-wine/30 bg-rose",
+        compact ? "mt-0" : "mt-4",
       )}
       data-testid="deadline-banner"
     >
-      <div className={cn("flex size-11 shrink-0 flex-col items-center justify-center rounded-2xl leading-none", tone === "hot" ? "bg-wine text-white" : "bg-cream text-ink")}>
+      <div className={cn("flex size-11 shrink-0 flex-col items-center justify-center rounded-[10px] leading-none", tone === "hot" ? "bg-wine text-white" : "bg-sunken text-ink")}>
         <span className="font-serif text-lg font-medium tabular-nums">{dl.daysToTarget}</span>
-        <span className="text-[9px] tracking-wide uppercase opacity-70">{m.daysShort}</span>
+        <span className="text-[10px] opacity-75">{m.daysShort}</span>
       </div>
       <div className="min-w-0 flex-1 text-sm leading-relaxed">
         <div className="font-medium text-ink">{m.deadline.headline(m.occasions[o.id].label, parseDay(occasionDate), dl.daysToTarget)}</div>
@@ -73,7 +73,7 @@ export async function DeadlineBanner({
           </p>
         )}
         {!compact ? (
-          <Link href={`/books/${bookId}/settings#occasion`} className="mt-1 inline-block text-xs text-muted hover:text-wine">
+          <Link href={`/books/${bookId}/settings#occasion`} className="mt-1 inline-flex min-h-8 items-center text-xs text-muted underline-offset-4 hover:text-wine hover:underline">
             {m.deadline.changeDate}
           </Link>
         ) : null}

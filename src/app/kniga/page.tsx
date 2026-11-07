@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { Link } from "@/i18n/client";
 import { LandingHeader } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
-import { Book3D } from "@/components/cover/Book3D";
-import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
+import { CoverPreview } from "@/components/cover/CoverPreview";
+import { PageIntro } from "@/components/landing/PageIntro";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { getCurrentUser } from "@/server/auth";
 import { site } from "@/config/site";
@@ -55,50 +55,54 @@ export default async function IdeasPage() {
       <JsonLd data={jsonLd} />
       <LandingHeader loggedIn={!!user} />
       <main className="overflow-x-clip">
-        <section className="relative pt-28 pb-12 sm:pt-36 sm:pb-16">
-          <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(60%_50%_at_75%_30%,#f4e4df_0%,transparent_70%)]" />
-          <div className="container-x">
-            <Breadcrumbs items={[{ name: m.landing.seoPage.home, href: "/" }, { name: m.common.footer.allIdeas }]} />
-            <div className="eyebrow">{t.eyebrow}</div>
-            <h1 className="mt-4 max-w-3xl font-serif text-[42px] leading-[1.05] font-medium tracking-tight sm:text-6xl">{t.title}</h1>
-            <p className="mt-6 max-w-2xl text-lg leading-relaxed text-ink-soft">{t.lead}</p>
-          </div>
-        </section>
+        <PageIntro crumbs={[{ name: m.landing.seoPage.home, href: "/" }, { name: m.common.footer.allIdeas }]} title={t.title} lead={t.lead}>
+          {/* Оглавление хаба: прыжок к нужному адресату — на телефоне список длинный. */}
+          <nav aria-label={t.eyebrow} className="mt-8 flex flex-wrap gap-x-5 gap-y-2 text-sm">
+            {sections.map((sec) => (
+              <a key={sec.id} href={`#${sec.id}`} className="text-ink-soft underline decoration-line-strong underline-offset-4 hover:text-wine hover:decoration-wine">
+                {sec.title}
+              </a>
+            ))}
+          </nav>
+        </PageIntro>
 
         {sections.map((sec) => (
-          <section key={sec.id} className="border-t border-line/70 py-14 sm:py-16">
-            <div className="container-x">
-              <h2 className="font-serif text-3xl font-medium tracking-tight sm:text-4xl">{sec.title}</h2>
-              {sec.lead ? <p className="mt-3 max-w-2xl text-muted">{sec.lead}</p> : null}
-              <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <section key={sec.id} id={sec.id} className="scroll-mt-20 border-t border-line py-12 sm:py-16">
+            <div className="container-x grid gap-8 lg:grid-cols-[16rem_1fr] lg:gap-12">
+              <div>
+                <h2 className="font-serif text-3xl leading-tight font-medium tracking-tight lg:sticky lg:top-24">{sec.title}</h2>
+                {sec.lead ? <p className="mt-3 text-sm leading-relaxed text-muted">{sec.lead}</p> : null}
+              </div>
+              <ul className="grid gap-x-10 sm:grid-cols-2">
                 {sec.items.map((l) => {
                   const c = l.content[locale];
                   return (
-                    <Link key={l.slug} href={`/kniga/${l.slug}`} className="card card-hover flex gap-5 p-5">
-                      <div className="w-24 shrink-0">
-                        <Book3D template={l.coverTemplate} title={c.cover.title} subtitle={c.cover.subtitle} names={c.cover.names} rotate={14} />
-                      </div>
-                      <div className="min-w-0">
-                        <h3 className="font-semibold">{c.label}</h3>
-                        <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-muted">{c.lead}</p>
-                        <span className="mt-3 inline-block text-sm font-medium text-wine">{t.open} →</span>
-                      </div>
-                    </Link>
+                    <li key={l.slug} className="border-b border-line last:border-b-0 sm:[&:nth-last-child(2):nth-child(odd)]:border-b-0">
+                      <Link href={`/kniga/${l.slug}`} className="group flex gap-5 py-5">
+                        <div className="w-16 shrink-0 sm:w-20">
+                          <CoverPreview template={l.coverTemplate} title={c.cover.title} subtitle={c.cover.subtitle} names={c.cover.names} lite className="rounded-[2px] shadow-book transition duration-300 group-hover:-translate-y-1" />
+                        </div>
+                        <div className="min-w-0">
+                          <h3 className="font-semibold group-hover:text-wine">{c.label}</h3>
+                          <p className="mt-1.5 line-clamp-3 text-sm leading-relaxed text-muted">{c.lead}</p>
+                        </div>
+                      </Link>
+                    </li>
                   );
                 })}
-              </div>
+              </ul>
             </div>
           </section>
         ))}
 
-        <section className="border-t border-line/70 bg-cream/50 py-14 sm:py-16">
-          <div className="container-x">
-            <h2 className="font-serif text-3xl font-medium tracking-tight">{t.guides}</h2>
-            <ul className="mt-6 grid gap-3 sm:grid-cols-2">
+        <section className="border-t border-line bg-cream/50 py-14 sm:py-16">
+          <div className="container-x grid gap-8 lg:grid-cols-[16rem_1fr] lg:gap-12">
+            <h2 className="font-serif text-3xl leading-tight font-medium tracking-tight">{t.guides}</h2>
+            <ul className="grid gap-x-10 sm:grid-cols-2">
               {articles.map((a) => (
-                <li key={a.slug}>
-                  <Link href={`/blog/${a.slug}`} className="block rounded-2xl border border-line bg-white px-5 py-4 hover:border-ink/30">
-                    <span className="font-medium">{a.content[locale].title}</span>
+                <li key={a.slug} className="border-b border-line">
+                  <Link href={`/blog/${a.slug}`} className="flex min-h-14 items-center py-3 font-medium text-ink-soft hover:text-wine">
+                    {a.content[locale].title}
                   </Link>
                 </li>
               ))}

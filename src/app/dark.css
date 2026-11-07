@@ -298,6 +298,18 @@
   --color-ink-soft: #d7cdc2;
   --color-muted: #a2978c;
   --color-line: #3a322b;
+  --color-line-strong: #4a4037;
+  --color-canvas: #14110f;
+  --color-sunken: #28221d;
+  --color-spine: #0e0b0a;
+  --color-success: #8fd3ae;
+  --color-success-bg: #163024;
+  --color-warning: #f0c47a;
+  --color-warning-bg: #33270f;
+  --color-danger: #f4a39b;
+  --color-danger-bg: #3a1a17;
+  --color-info: #9cc4ee;
+  --color-info-bg: #14263a;
   --color-rose: #3b2228;
   --color-wine: #c94b5f;
   --color-wine-dark: #a93a4c;
@@ -333,7 +345,12 @@
 :is(.dark, .shop-dark) .btn-dark { background-color: #e9e1d7; color: #17130f; }
 :is(.dark, .shop-dark) .btn-dark:hover { background-color: #fff; }
 :is(.dark, .shop-dark) .btn-outline:hover { background-color: rgb(255 255 255 / 0.05); }
-:is(.dark, .shop-dark) .skeleton { background-image: linear-gradient(90deg, var(--color-cream) 25%, #342c25 50%, var(--color-cream) 75%); }
+:is(.dark, .shop-dark) .skeleton { background-image: linear-gradient(90deg, var(--color-sunken) 25%, #342c25 50%, var(--color-sunken) 75%); }
+/* Кнопка «удалить» и сплошные статусы: заливка в тёмной теме светлая — текст тёмный. */
+:is(.dark, .shop-dark) .btn-danger { background-color: #e5675b; color: #1a0c0a; }
+:is(.dark, .shop-dark) .btn-danger:hover { background-color: #f08378; }
+:is(.dark, .shop-dark) .chip-on,
+:is(.dark, .shop-dark) .chip[aria-pressed="true"] { background-color: #e9e1d7; border-color: #e9e1d7; color: #17130f; }
 :is(.dark, .shop-dark) ::selection { background: rgb(201 75 95 / 0.35); }
 :is(.dark, .shop-dark) .btn-primary { box-shadow: none; }
 
@@ -367,3 +384,34 @@
 :is(.dark, .shop-dark) [class~="border-[#d9c9bc]"] { border-color: #3a322b; }
 :is(.dark, .shop-dark) [class~="bg-[#e9e4dc]"] { background-color: #28221d; }
 :is(.dark, .shop-dark) [class~="bg-[#fbf8f2]"] { background-color: #1a1613; }
+
+/*
+ * Текст винного цвета (ссылки, активные вкладки): заливочный #c94b5f даёт на тёмной карточке ~3,8:1 — для текста светлее.
+ * Заливки (bg-wine, кнопки) остаются прежними: белый на них — 4,5:1.
+ */
+.dark :is(.text-wine, .hover\:text-wine:hover, .group-hover\:text-wine) {
+  color: #e8a0ab;
+}
+
+/*
+ * Белый текст на насыщенной заливке статуса (bg-emerald-600 text-white и т. п.): палитра зеркалится, и 600 в тёмной теме
+ * светлая — белый на ней ~1,9:1. Такие плашки получают тёмный текст.
+ */
+.dark :is(
+    .bg-red-500, .bg-red-600, .bg-red-700, .bg-orange-500, .bg-orange-600, .bg-amber-500, .bg-amber-600, .bg-green-500, .bg-green-600, .bg-green-700,
+    .bg-emerald-500, .bg-emerald-600, .bg-emerald-700, .bg-teal-600, .bg-sky-500, .bg-sky-600, .bg-blue-500, .bg-blue-600, .bg-violet-600, .bg-rose-600
+  ).text-white {
+  color: #17130f;
+}
+.dark :is(
+    .bg-red-500, .bg-red-600, .bg-red-700, .bg-orange-500, .bg-orange-600, .bg-amber-500, .bg-amber-600, .bg-green-500, .bg-green-600, .bg-green-700,
+    .bg-emerald-500, .bg-emerald-600, .bg-emerald-700, .bg-teal-600, .bg-sky-500, .bg-sky-600, .bg-blue-500, .bg-blue-600, .bg-violet-600, .bg-rose-600
+  ) > .text-white {
+  color: #17130f;
+}
+
+/* Полупрозрачный белый текст на «чернильной» плашке (она в тёмной теме светлая): тёмный с той же прозрачностью. */
+.dark .bg-ink [class*="text-white/"],
+.dark .bg-ink[class*="text-white/"] {
+  color: rgb(23 19 15 / 0.7);
+}

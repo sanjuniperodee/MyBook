@@ -33,7 +33,8 @@ const MIME: Record<string, string> = {
   zip: "application/zip",
 };
 
-const extOf = (name: string, mime: string) => {
+/** Расширение файла: из имени, если оно знакомо, иначе по MIME (video/quicktime → mov); неизвестное — bin. */
+export const extOf = (name: string, mime: string) => {
   const fromName = /\.([a-z0-9]{1,5})$/i.exec(name)?.[1]?.toLowerCase();
   if (fromName && MIME[fromName]) return fromName;
   return Object.entries(MIME).find(([, m]) => m === mime.split(";")[0])?.[0] ?? "bin";

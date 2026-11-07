@@ -1,12 +1,19 @@
 import Link from "next/link";
 import { z } from "zod";
-import { AlertTriangle, FileText } from "lucide-react";
+import { CircleCheck, Download, FileText, HandCoins, ReceiptText, ShieldCheck, Wallet } from "lucide-react";
 import { container } from "@/server/container";
-import { can, canSeeAssigned, requireStaff } from "@/server/access";
+import { can, canWork, requireStaff } from "@/server/access";
 import { storeTimeZone } from "@/shared/domain/time";
 import { formatPrice } from "@/config/site";
-import { BarList, StatTile } from "@/components/admin/charts";
+import { BarList, StatRow, StatTile } from "@/components/admin/charts";
 import { cn } from "@/lib/class-names";
+import { Segmented } from "@/components/admin/Segmented";
+import { PageHeader } from "@/components/admin/PageHeader";
+import { Intro } from "@/components/admin/Intro";
+import { Panel } from "@/components/ui/Panel";
+import { Badge } from "@/components/ui/Badge";
+import { Alert } from "@/components/ui/Alert";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { financePeriod, financeScreen, REFUND_WINDOW_DAYS, type FinanceScreen } from "@/modules/reporting/ui/finance-screen";
 import { FinanceColumns } from "./FinanceColumns";
 import { ReviewButton } from "./ReviewButton";
@@ -30,10 +37,15 @@ const EXPECTED = 200;
 const plural = (n: number, forms: [string, string, string]) => `${n} ${n % 10 === 1 && n % 100 !== 11 ? forms[0] : [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100) ? forms[1] : forms[2]}`;
 const signed = (n: number) => (n < 0 ? `−${formatPrice(-n)}` : formatPrice(n));
 
+/** Отступы первой и последней колонки таблицы — по полям листа (как в обзоре). */
+const EDGE = "[&_td:first-child]:pl-4 [&_th:first-child]:pl-4 sm:[&_td:first-child]:pl-5 sm:[&_th:first-child]:pl-5 [&_td:last-child]:pr-4 [&_th:last-child]:pr-4 sm:[&_td:last-child]:pr-5 sm:[&_th:last-child]:pr-5";
+
 /**
  * «Финансы»: сколько денег пришло за период, сколько ещё ждём (остатки договорённостей — особенно у тех, чья книга
  * готова, заказы на оплате, постоплаты), что нужно вернуть и какие ручные подтверждения не проверены.
  * Видят сотрудники с аналитикой (analytics.view; роль «только свои» — по своим сделкам и заказам), «Проверено» — руководитель (team.manage).
+ *
+ * Порядок экрана (DESIGN.md §7): период → пять сумм одной строкой → «Проверить», если есть что проверять → разделы.
  */
 export default async function FinancePage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const staff = await requireStaff("analytics.view");
@@ -42,60 +54,88 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
   const now = new Date();
   const period = financePeriod({ preset: q.p, from: q.from, to: q.to, now, tz });
   const [data, admins] = await Promise.all([container().reporting.finance({ from: period.prev.from, to: period.to }), container().access.queries.allStaff()]);
-  const s = financeScreen({ period, ...data, staff: admins, visible: (id) => canSeeAssigned(staff, id), tz, now });
+  // Роль «только свои» — строго свои деньги: ничьи заказы, сертификаты и пакеты с сайта — деньги магазина, их видит руководство.
+  const s = financeScreen({ period, ...data, staff: admins, visible: (id) => canWork(staff, id), viewerId: staff.context.isOwner ? null : staff.user.id, tz, now });
+  const badPeriod = q.p === "custom" && period.preset !== "custom";
   const { totals: t } = s;
   // «Проверено»: руководитель; оплату заказа отмечает действие заказов — ему нужно ещё orders.edit.
   const canReview = { deal: can(staff, "team.manage"), order: can(staff, "team.manage", "orders.edit") };
   const own = staff.scope !== "all";
+  const exportHref = `/api/admin/export/finance?${new URLSearchParams(period.preset === "custom" ? { p: "custom", from: period.first, to: period.last } : { p: period.preset })}`;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">Финансы</h1>
-          <p className="text-sm text-muted">
-            {period.label} · по времени магазина ({tz}){own ? " · только ваши сделки и заказы" : ""}
-          </p>
-        </div>
-        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-          <div className="flex max-w-full overflow-x-auto rounded-xl border border-line bg-white p-1 text-sm">
-            {PRESETS.map(([key, label]) => (
-              <Link key={key} href={`/admin/finance?p=${key}`} className={cn("inline-flex min-h-10 items-center rounded-lg px-3 whitespace-nowrap lg:min-h-0 lg:py-1.5", period.preset === key ? "bg-ink text-white" : "text-ink-soft hover:bg-cream")}>
-                {label}
-              </Link>
-            ))}
-          </div>
-          <form className={cn("flex w-full items-center gap-1.5 rounded-xl border bg-white p-1 text-sm sm:w-auto", period.preset === "custom" ? "border-ink" : "border-line")} action="/admin/finance">
-            <input type="hidden" name="p" value="custom" />
-            <input type="date" name="from" defaultValue={period.first} className="input h-8 min-w-0 flex-1 text-sm sm:w-36 sm:flex-none" aria-label="С даты" />
-            <span className="text-muted">–</span>
-            <input type="date" name="to" defaultValue={period.last} className="input h-8 min-w-0 flex-1 text-sm sm:w-36 sm:flex-none" aria-label="По дату" />
-            <button className="btn btn-outline btn-sm h-8 shrink-0">Показать</button>
-          </form>
-        </div>
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        title="Финансы"
+        actions={
+          s.recent.length ? (
+            <a href={exportHref} className="btn btn-outline btn-sm" data-testid="finance-export">
+              <Download className="size-4" strokeWidth={1.8} aria-hidden /> Скачать CSV
+            </a>
+          ) : null
+        }
+      >
+        {period.label}, по времени магазина ({tz}){own ? ". Только ваши сделки и заказы" : ""}
+      </PageHeader>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <Segmented label="Период" items={PRESETS.map(([key, label]) => ({ key, label, href: `/admin/finance?p=${key}`, active: period.preset === key }))} />
+        <form action="/admin/finance" className={cn("flex w-full items-center gap-1.5 rounded-xl border bg-white p-1 text-sm sm:w-auto", period.preset === "custom" ? "border-ink" : "border-line")} aria-label="Свой период">
+          <input type="hidden" name="p" value="custom" />
+          <input type="date" name="from" defaultValue={period.first} className="input h-10 min-w-0 flex-1 px-2.5 text-sm sm:w-36 sm:flex-none lg:h-8" aria-label="С даты" />
+          <span className="text-muted" aria-hidden>
+            –
+          </span>
+          <input type="date" name="to" defaultValue={period.last} className="input h-10 min-w-0 flex-1 px-2.5 text-sm sm:w-36 sm:flex-none lg:h-8" aria-label="По дату" />
+          <button className="btn btn-ghost btn-sm shrink-0 lg:h-8">Показать</button>
+        </form>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5" data-testid="finance-totals">
-        <StatTile label="Пришло денег" value={signed(t.net)} delta={t.delta} hint={`онлайн ${formatPrice(t.online)} · вручную ${formatPrice(t.manual)}`} />
-        <StatTile label="Возвраты клиентам" value={formatPrice(t.refunds)} hint={t.refundCount ? `${plural(t.refundCount, ["возврат", "возврата", "возвратов"])} за период` : "за период — нет"} />
-        <StatTile label="Ожидается доплат" value={formatPrice(t.expected)} hint={`из них книга готова: ${formatPrice(t.expectedReady)}`} />
-        <StatTile label="Постоплаты к получению" value={formatPrice(t.postpay)} hint={t.postpayCount ? `${plural(t.postpayCount, ["заказ", "заказа", "заказов"])} в печати и доставке` : "нет"} />
-        <StatTile label="Переплаты — нужен возврат" value={formatPrice(t.overpaid)} hint={t.overpaidCount ? plural(t.overpaidCount, ["случай", "случая", "случаев"]) : "нет"} />
-      </div>
-      <p className="-mt-3 text-xs text-muted">
-        Пришло — поступления минус возвраты: платежи по сделкам, оплаты заказов, сертификаты; заказ, оплаченный без записи оплаты, — суммой к оплате на дату оплаты. Каждая
-        сумма — один раз: предоплата по договорённости уже вычтена из «к оплате» заказа. Изменение — к прошлому периоду (для месяца — те же числа прошлого месяца).
-      </p>
+      {badPeriod ? <Alert kind="warning">Даты не подошли (начало позже конца, будущее или период длиннее года) — показан текущий месяц.</Alert> : null}
+
+      <section aria-label="Итоги периода" className="space-y-2" data-testid="finance-totals">
+        <StatRow cols={5} className="max-sm:[&>*:last-child:nth-child(odd)]:col-span-2 sm:max-xl:[&>*:last-child]:col-span-2">
+          <StatTile bare label="Пришло денег" value={signed(t.net)} delta={t.delta} hint={`онлайн ${formatPrice(t.online)}, вручную ${formatPrice(t.manual)}`} />
+          <StatTile bare label="Возвраты клиентам" value={formatPrice(t.refunds)} hint={t.refundCount ? `${plural(t.refundCount, ["возврат", "возврата", "возвратов"])} за период` : "за период — нет"} />
+          <StatTile bare label="Ожидается доплат" value={formatPrice(t.expected)} hint={`книга готова: ${formatPrice(t.expectedReady)}`} href="#expected" />
+          <StatTile bare label="Постоплаты к получению" value={formatPrice(t.postpay)} hint={t.postpayCount ? `${plural(t.postpayCount, ["заказ", "заказа", "заказов"])} в печати и доставке` : "нет"} />
+          <StatTile bare label="Нужно вернуть" value={formatPrice(t.overpaid)} hint={t.overpaidCount ? `переплаты: ${plural(t.overpaidCount, ["случай", "случая", "случаев"])}` : "переплат нет"} href={t.overpaidCount ? "#refunds" : undefined} />
+        </StatRow>
+        <Intro small>
+          Пришло — поступления минус возвраты: платежи по сделкам, оплаты заказов, сертификаты, пакеты ИИ-дизайнера и минут видео; заказ, оплаченный без записи оплаты, — суммой к оплате на дату оплаты. Каждая сумма — один раз:
+          предоплата по договорённости уже вычтена из «к оплате» заказа. Изменение — к прошлому периоду (для месяца — те же числа прошлого месяца). «Выручка» на обзоре считается иначе — по продажам: успешная сделка без денег
+          входит суммой договорённости, сертификаты и пакеты — нет; поэтому цифры могут не совпадать.
+        </Intro>
+      </section>
 
       {t.review.count ? (
-        <a href="#review" className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-3 text-sm text-amber-900 hover:bg-amber-100/70" data-testid="finance-review-banner">
-          <AlertTriangle className="size-4 shrink-0" />
-          <span className="flex-1">
-            Проверить: {plural(t.review.count, ["ручное подтверждение", "ручных подтверждения", "ручных подтверждений"])} на {formatPrice(t.review.sum)} — сверьте чеки с поступлениями на счёт.
-          </span>
-          <span className="text-xs underline">К списку</span>
-        </a>
+        <div className="flex flex-col gap-3 rounded-[14px] border border-warning/30 bg-warning-bg px-4 py-3.5 text-warning sm:flex-row sm:items-center sm:px-5" data-testid="finance-review-banner">
+          <ShieldCheck className="size-5 shrink-0 max-sm:hidden" strokeWidth={1.8} aria-hidden />
+          <p className="flex-1 text-sm">
+            <span className="font-semibold">
+              Проверить: {plural(t.review.count, ["ручное подтверждение", "ручных подтверждения", "ручных подтверждений"])} на {formatPrice(t.review.sum)}.
+            </span>{" "}
+            Сверьте чеки с поступлениями на счёт.
+          </p>
+          <a href="#review" className="btn btn-dark btn-sm shrink-0">
+            Проверить
+          </a>
+        </div>
       ) : null}
+
+      <nav aria-label="Разделы финансов" className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+        {[
+          ["#received", "Пришло", formatPrice(t.incoming)],
+          ["#expected", "Ожидается", formatPrice(t.expectedAll)],
+          ["#refunds", "Переплаты и возвраты", s.issues.length ? String(s.issues.length) : null],
+          ["#review", "Проверить", s.review.length ? String(s.review.length) : null],
+        ].map(([href, label, note]) => (
+          <a key={href} href={href!} className="chip h-10 shrink-0 lg:h-8">
+            {label}
+            {note ? <span className="text-xs text-muted tabular-nums">{note}</span> : null}
+          </a>
+        ))}
+      </nav>
 
       <Received s={s} />
       <Expected s={s} />
@@ -105,35 +145,30 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
   );
 }
 
-function Section({ id, title, note, aside, children }: { id: string; title: string; note?: string; aside?: React.ReactNode; children: React.ReactNode }) {
+/** Раздел страницы: заголовок, сводка справа, пояснение в две строки. */
+function Part({ id, title, note, aside, children }: { id: string; title: string; note?: string; aside?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <section id={id} className="scroll-mt-20 space-y-3">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-lg font-semibold">{title}</h2>
-        {aside}
+    <section id={id} aria-labelledby={`${id}-h`} className="scroll-mt-[calc(var(--topbar-h)+1rem)] space-y-3">
+      <div>
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+          <h2 id={`${id}-h`} className="text-lg font-semibold">
+            {title}
+          </h2>
+          {aside ? <div className="text-sm text-muted tabular-nums">{aside}</div> : null}
+        </div>
+        {note ? <Intro small className="mt-0.5 max-w-3xl">{note}</Intro> : null}
       </div>
-      {note ? <p className="-mt-2 text-xs text-muted">{note}</p> : null}
       {children}
     </section>
-  );
-}
-
-function Card({ title, note, className, children }: { title: string; note?: string; className?: string; children: React.ReactNode }) {
-  return (
-    <div className={cn("rounded-2xl border border-line bg-white p-5", className)}>
-      <h3 className="font-semibold">{title}</h3>
-      {note ? <p className="mt-0.5 text-xs text-muted">{note}</p> : null}
-      <div className="mt-4">{children}</div>
-    </div>
   );
 }
 
 function Refs({ refs }: { refs: { label: string; href: string }[] }) {
   if (!refs.length) return <span className="text-muted">—</span>;
   return (
-    <span className="flex flex-col">
+    <span className="inline-flex flex-wrap gap-x-2">
       {refs.map((r) => (
-        <Link key={r.label} href={r.href} className="whitespace-nowrap text-wine hover:underline">
+        <Link key={r.label} href={r.href} className="font-medium whitespace-nowrap text-wine hover:underline">
           {r.label}
         </Link>
       ))}
@@ -144,204 +179,337 @@ function Refs({ refs }: { refs: { label: string; href: string }[] }) {
 function Receipt({ href }: { href: string | null }) {
   if (!href) return null;
   return (
-    <a href={href} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-wine hover:underline">
-      <FileText className="size-3.5" /> чек
+    <a href={href} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-8 items-center gap-1 text-wine hover:underline">
+      <FileText className="size-3.5" strokeWidth={1.8} aria-hidden /> чек
     </a>
   );
 }
 
-const Empty = ({ children }: { children: React.ReactNode }) => <p className="py-6 text-center text-sm text-muted">{children}</p>;
+/** Отметка проверки ручного подтверждения: цвет и текст вместе. */
+function Check({ check }: { check: string | null | undefined }) {
+  if (check === "pending") return <Badge tone="warning">не проверено</Badge>;
+  if (check === "reviewed") return <Badge tone="success">проверено</Badge>;
+  return null;
+}
+
+/** Карточка строки на телефоне: сверху — главное и сумма, ниже — подписи и значения в две колонки. */
+function MobileCard({ top, amount, amountClass, children }: { top: React.ReactNode; amount: React.ReactNode; amountClass?: string; children: React.ReactNode }) {
+  return (
+    <li className="space-y-2 px-4 py-3.5">
+      <div className="flex items-baseline justify-between gap-3">
+        <div className="min-w-0 text-sm">{top}</div>
+        <div className={cn("shrink-0 text-[15px] font-semibold whitespace-nowrap tabular-nums", amountClass)}>{amount}</div>
+      </div>
+      <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-[13px]">{children}</dl>
+    </li>
+  );
+}
+
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <>
+      <dt className="text-muted">{label}</dt>
+      <dd className="min-w-0 break-words">{children}</dd>
+    </>
+  );
+}
 
 function Received({ s }: { s: FinanceScreen }) {
   const t = s.totals;
+  const recent = s.recent.slice(0, RECENT);
   return (
-    <Section id="received" title="Пришло" aside={<span className="text-sm text-muted">поступило {formatPrice(t.incoming)} · {plural(t.count, ["поступление", "поступления", "поступлений"])}</span>}>
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-        <Card title="По дням" note="Поступления за день магазина; красная черта — в этот день был возврат.">
-          <FinanceColumns data={s.byDay} />
-        </Card>
-        <Card title="По способам" note="Сертификаты — отдельно, каким бы способом их ни оплатили.">
+    <Part id="received" title="Пришло" aside={<>поступило {formatPrice(t.incoming)}, {plural(t.count, ["поступление", "поступления", "поступлений"])}</>}>
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <Panel title="По дням" description="Поступления за день магазина; красная черта внизу — в этот день был возврат">
+          {s.byDay.some((d) => d.incoming || d.refunds) ? (
+            <FinanceColumns data={s.byDay} />
+          ) : (
+            <EmptyState compact icon={Wallet} title="За период денег не было">
+              Столбцы по дням появятся с первым поступлением.
+            </EmptyState>
+          )}
+        </Panel>
+        <Panel title="По способам" description="Сертификаты — отдельно, каким бы способом их ни оплатили">
           <BarList format={formatPrice} rows={s.byMethod.map((m) => ({ label: m.label, value: m.value, note: m.count ? `${m.count} шт.` : undefined }))} />
-        </Card>
+        </Panel>
       </div>
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card title="По менеджерам" note="По ответственному сделки, как в аналитике; заказ без сделки — по ответственному заказа. Возвраты вычтены.">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Panel flush title="По менеджерам" description="По ответственному сделки; заказ без сделки — по ответственному заказа. Возвраты вычтены">
           {s.byManager.length ? (
-            <table className="w-full text-sm">
-              <thead className="text-left text-xs text-muted">
+            <table className={cn("table", EDGE)}>
+              <thead>
                 <tr>
-                  <th className="pb-2 font-medium">Ответственный</th>
-                  <th className="pb-2 text-right font-medium">Поступлений</th>
-                  <th className="pb-2 text-right font-medium">Пришло</th>
+                  <th>Ответственный</th>
+                  <th className="text-right">Поступлений</th>
+                  <th className="text-right">Пришло</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-line">
+              <tbody className="tabular-nums">
                 {s.byManager.map((m) => (
                   <tr key={m.id}>
-                    <td className="py-2">{m.label}</td>
-                    <td className="py-2 text-right tabular-nums">{m.count}</td>
-                    <td className={cn("py-2 text-right font-medium tabular-nums", m.value < 0 && "text-red-700")}>{signed(m.value)}</td>
+                    <td className="font-medium">{m.label}</td>
+                    <td className="text-right text-muted">{m.count}</td>
+                    <td className={cn("text-right font-medium", m.value < 0 && "text-danger")}>{signed(m.value)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           ) : (
-            <Empty>За период денег не было.</Empty>
+            <EmptyState compact icon={Wallet} title="За период денег не было">
+              Платежи по сделкам и оплаты заказов появятся здесь по ответственным.
+            </EmptyState>
           )}
-        </Card>
-        <Card title="Откуда" note="Сделки — деньги, принятые менеджерами и по счетам из чата; заказы — оплаты на сайте и в заказе.">
+        </Panel>
+        <Panel title="Откуда" description="Сделки — деньги менеджеров и счета из чата; заказы — оплаты на сайте и в заказе">
           <BarList format={formatPrice} rows={s.bySource.map((m) => ({ label: m.label, value: m.value, note: m.count ? `${m.count} шт.` : undefined }))} />
-        </Card>
+        </Panel>
       </div>
-      <div className="overflow-x-auto rounded-2xl border border-line bg-white p-5">
-        <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-          <h3 className="font-semibold">Последние поступления</h3>
-          {s.recent.length > RECENT ? <span className="text-xs text-muted">показаны {RECENT} из {s.recent.length}</span> : null}
-        </div>
-        {s.recent.length ? (
-          <table className="w-full min-w-[960px] [&_tr>*:first-child]:sticky [&_tr>*:first-child]:left-0 [&_tr>*:first-child]:bg-white [&_tr>*:first-child]:z-[1] text-sm" data-testid="finance-recent">
-            <thead className="text-left text-xs text-muted">
-              <tr>
-                <th className="pb-2 font-medium">Когда</th>
-                <th className="pb-2 text-right font-medium">Сумма</th>
-                <th className="pb-2 pl-4 font-medium">Способ</th>
-                <th className="pb-2 font-medium">Что</th>
-                <th className="pb-2 font-medium">Сделка / заказ</th>
-                <th className="pb-2 font-medium">Клиент</th>
-                <th className="pb-2 font-medium">Ответственный</th>
-                <th className="pb-2 font-medium">Принял</th>
-                <th className="pb-2 font-medium">Чек</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line">
-              {s.recent.slice(0, RECENT).map((r) => (
-                <tr key={r.key} className="align-top">
-                  <td className="py-2 whitespace-nowrap text-muted">{r.dateLabel}</td>
-                  <td className={cn("py-2 text-right font-medium whitespace-nowrap tabular-nums", r.refund && "text-red-700")}>{signed(r.amount)}</td>
-                  <td className="py-2 pl-4 whitespace-nowrap">{r.method}</td>
-                  <td className="py-2">{r.what}</td>
-                  <td className="py-2">
-                    <Refs refs={r.refs} />
-                  </td>
-                  <td className="py-2">{r.client || "—"}</td>
-                  <td className="py-2">{r.manager}</td>
-                  <td className="py-2">{r.acceptedBy}</td>
-                  <td className="py-2 text-xs">
-                    {r.receiptHref ? <Receipt href={r.receiptHref} /> : r.operation ? <span className="text-muted">операция {r.operation}</span> : <span className="text-muted">—</span>}
-                    {r.check === "pending" ? <div className="text-amber-700">не проверено</div> : r.check === "reviewed" ? <div className="text-emerald-700">проверено</div> : null}
-                  </td>
-                </tr>
+      <Panel flush title="Последние поступления" description={s.recent.length > RECENT ? `Показаны ${RECENT} из ${s.recent.length} — все строки в «Скачать CSV»` : undefined}>
+        {recent.length ? (
+          <>
+            <div className="hidden overflow-x-auto lg:block">
+              <table className={cn("table min-w-[960px]", EDGE)} data-testid="finance-recent">
+                <thead>
+                  <tr>
+                    <th>Когда</th>
+                    <th className="text-right">Сумма</th>
+                    <th>Способ</th>
+                    <th>Что</th>
+                    <th>Сделка / заказ</th>
+                    <th>Клиент</th>
+                    <th>Ответственный</th>
+                    <th>Принял</th>
+                    <th>Чек</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recent.map((r) => (
+                    <tr key={r.key}>
+                      <td className="whitespace-nowrap text-muted">{r.dateLabel}</td>
+                      <td className={cn("text-right font-medium whitespace-nowrap tabular-nums", r.refund && "text-danger")}>{signed(r.amount)}</td>
+                      <td className="whitespace-nowrap">{r.method}</td>
+                      <td>{r.what}</td>
+                      <td>
+                        <Refs refs={r.refs} />
+                      </td>
+                      <td>{r.client || "—"}</td>
+                      <td>{r.manager}</td>
+                      <td>{r.acceptedBy}</td>
+                      <td className="text-xs">
+                        <span className="flex flex-col items-start gap-1">
+                          {r.receiptHref ? <Receipt href={r.receiptHref} /> : r.operation ? <span className="text-muted">операция {r.operation}</span> : <span className="text-muted">—</span>}
+                          <Check check={r.check} />
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <ul className="divide-y divide-line lg:hidden">
+              {recent.map((r) => (
+                <MobileCard key={r.key} top={<span className="text-muted">{r.dateLabel}</span>} amount={signed(r.amount)} amountClass={r.refund ? "text-danger" : undefined}>
+                  <Row label="Что">
+                    {r.what}, {r.method}
+                  </Row>
+                  {r.refs.length ? (
+                    <Row label="Где">
+                      <Refs refs={r.refs} />
+                    </Row>
+                  ) : null}
+                  {r.client ? <Row label="Клиент">{r.client}</Row> : null}
+                  <Row label="Принял">{r.acceptedBy}</Row>
+                  {r.receiptHref || r.operation || r.check ? (
+                    <Row label="Чек">
+                      <span className="flex flex-wrap items-center gap-2">
+                        {r.receiptHref ? <Receipt href={r.receiptHref} /> : r.operation ? <span className="text-muted">операция {r.operation}</span> : null}
+                        <Check check={r.check} />
+                      </span>
+                    </Row>
+                  ) : null}
+                </MobileCard>
               ))}
-            </tbody>
-          </table>
+            </ul>
+          </>
         ) : (
-          <Empty>За период поступлений нет.</Empty>
+          <EmptyState compact icon={Wallet} title="За период поступлений нет">
+            Выберите другой период или примите оплату в сделке.
+          </EmptyState>
         )}
-      </div>
-    </Section>
+      </Panel>
+    </Part>
   );
 }
 
+const BOOK_TONE = { ready: "success", progress: "warning", none: "neutral" } as const;
+
 function Expected({ s }: { s: FinanceScreen }) {
   const t = s.totals;
-  const rows = s.expected.rows;
+  const rows = s.expected.rows.slice(0, EXPECTED);
   return (
-    <Section
+    <Part
       id="expected"
       title="Ожидается"
       note="Сколько клиенты ещё должны: остаток договорённости по сделкам без заказа (договорённость − оплачено), заказы, ждущие оплаты, и постоплаты. Открытый счёт из чата — часть остатка своей сделки и к итогу не прибавляется. Готовность книги — по ответам (своя книга — по словам) и вехам воронки."
       aside={
-        <span className="text-sm">
-          всего <b className="tabular-nums">{formatPrice(t.expectedAll)}</b> · из них книга готова <b className="tabular-nums">{formatPrice(t.expectedAllReady)}</b>
-        </span>
+        <>
+          всего <b className="font-semibold text-ink">{formatPrice(t.expectedAll)}</b>, книга готова <b className="font-semibold text-ink">{formatPrice(t.expectedAllReady)}</b>
+        </>
       }
     >
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <StatRow cols={s.expected.groups.length + 1 >= 5 ? 5 : 4}>
         {s.expected.groups.map((g) => (
-          <div key={g.key} className={cn("rounded-2xl border p-4", g.key === "ready" ? "border-emerald-200 bg-emerald-50/60" : "border-line bg-white")}>
-            <div className="text-xs text-muted">{g.label}</div>
+          <div key={g.key} className="bg-white p-4">
+            <div className="flex items-center gap-1.5 text-sm text-muted">
+              {g.key === "ready" ? <span className="size-2 rounded-full bg-success" aria-hidden /> : null}
+              {g.label}
+            </div>
             <div className="mt-1 text-xl font-semibold tabular-nums">{formatPrice(g.value)}</div>
             <div className="text-xs text-muted">{plural(g.count, ["клиент", "клиента", "клиентов"])}</div>
           </div>
         ))}
-        <div className="rounded-2xl border border-line bg-white p-4">
-          <div className="text-xs text-muted">Открытые счета из чата</div>
+        <div className="bg-white p-4">
+          <div className="text-sm text-muted">Открытые счета из чата</div>
           <div className="mt-1 text-xl font-semibold tabular-nums">{formatPrice(s.expected.invoices.sum)}</div>
-          <div className="text-xs text-muted">{plural(s.expected.invoices.count, ["счёт", "счёта", "счетов"])} · входят в остатки</div>
+          <div className="text-xs text-muted">{plural(s.expected.invoices.count, ["счёт", "счёта", "счетов"])}, входят в остатки</div>
         </div>
-      </div>
-      <div className="overflow-x-auto rounded-2xl border border-line bg-white p-5">
+      </StatRow>
+      <Panel flush title="Кто должен" description={s.expected.rows.length > EXPECTED ? `Показаны ${EXPECTED} из ${s.expected.rows.length} — сначала те, у кого книга готова, по убыванию остатка` : "Сначала те, у кого книга готова, по убыванию остатка"}>
         {rows.length ? (
-          <table className="w-full min-w-[980px] [&_tr>*:first-child]:sticky [&_tr>*:first-child]:left-0 [&_tr>*:first-child]:bg-white [&_tr>*:first-child]:z-[1] text-sm" data-testid="finance-expected">
-            <thead className="text-left text-xs text-muted">
-              <tr>
-                <th className="pb-2 font-medium">Клиент</th>
-                <th className="pb-2 font-medium">Сделка / заказ</th>
-                <th className="pb-2 font-medium">Ответственный</th>
-                <th className="pb-2 text-right font-medium">Договорённость</th>
-                <th className="pb-2 text-right font-medium">Оплачено</th>
-                <th className="pb-2 text-right font-medium">Остаток</th>
-                <th className="pb-2 pl-4 font-medium">Книга</th>
-                <th className="pb-2 font-medium">Срок</th>
-                <th className="pb-2 font-medium">Счёт и заметки</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line">
-              {rows.slice(0, EXPECTED).map((r) => (
-                <tr key={r.key} className="align-top">
-                  <td className="py-2">{r.client || "—"}</td>
-                  <td className="py-2 whitespace-nowrap">
-                    <Link href={r.href} className="text-wine hover:underline">
-                      {r.ref}
-                    </Link>
-                  </td>
-                  <td className="py-2">{r.manager}</td>
-                  <td className="py-2 text-right tabular-nums">{formatPrice(r.total)}</td>
-                  <td className="py-2 text-right tabular-nums">{formatPrice(r.paid)}</td>
-                  <td className="py-2 text-right font-semibold tabular-nums">{formatPrice(r.left)}</td>
-                  <td className="py-2 pl-4">
-                    <span className={cn("rounded-full px-2 py-0.5 text-xs whitespace-nowrap", r.group === "ready" ? "bg-emerald-100 text-emerald-800" : r.group === "progress" ? "bg-amber-100 text-amber-800" : "bg-cream text-ink-soft")}>{r.bookLabel}</span>
-                  </td>
-                  <td className={cn("py-2 whitespace-nowrap", r.overdue ? "text-red-700" : "text-muted")}>{r.dueLabel ?? "—"}</td>
-                  <td className="py-2 text-xs text-muted">{[r.invoice, r.note].filter(Boolean).join(" · ") || "—"}</td>
-                </tr>
+          <>
+            <div className="hidden overflow-x-auto lg:block">
+              <table className={cn("table min-w-[980px]", EDGE)} data-testid="finance-expected">
+                <thead>
+                  <tr>
+                    <th>Клиент</th>
+                    <th>Сделка / заказ</th>
+                    <th>Ответственный</th>
+                    <th className="text-right">Договорённость</th>
+                    <th className="text-right">Оплачено</th>
+                    <th className="text-right">Остаток</th>
+                    <th>Книга</th>
+                    <th>Срок</th>
+                    <th>Счёт и заметки</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r) => (
+                    <tr key={r.key}>
+                      <td className="font-medium">{r.client || "—"}</td>
+                      <td className="whitespace-nowrap">
+                        <Link href={r.href} className="font-medium text-wine hover:underline">
+                          {r.ref}
+                        </Link>
+                      </td>
+                      <td>{r.manager}</td>
+                      <td className="text-right text-muted tabular-nums">{formatPrice(r.total)}</td>
+                      <td className="text-right text-muted tabular-nums">{formatPrice(r.paid)}</td>
+                      <td className="text-right font-semibold tabular-nums">{formatPrice(r.left)}</td>
+                      <td>
+                        <Badge tone={BOOK_TONE[r.group]}>{r.bookLabel}</Badge>
+                      </td>
+                      <td className={cn("whitespace-nowrap", r.overdue ? "font-medium text-danger" : "text-muted")}>{r.dueLabel ?? "—"}</td>
+                      <td className="text-xs text-muted">{[r.invoice, r.note].filter(Boolean).join("; ") || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <ul className="divide-y divide-line lg:hidden">
+              {rows.map((r) => (
+                <MobileCard
+                  key={r.key}
+                  top={
+                    <span className="flex flex-col">
+                      <span className="truncate font-medium">{r.client || "—"}</span>
+                      <Link href={r.href} className="text-wine hover:underline">
+                        {r.ref}
+                      </Link>
+                    </span>
+                  }
+                  amount={formatPrice(r.left)}
+                >
+                  <Row label="Книга">
+                    <Badge tone={BOOK_TONE[r.group]}>{r.bookLabel}</Badge>
+                  </Row>
+                  <Row label="Оплачено">
+                    <span className="tabular-nums">
+                      {formatPrice(r.paid)} из {formatPrice(r.total)}
+                    </span>
+                  </Row>
+                  {r.dueLabel ? (
+                    <Row label="Срок">
+                      <span className={r.overdue ? "font-medium text-danger" : undefined}>{r.dueLabel}</span>
+                    </Row>
+                  ) : null}
+                  <Row label="Ведёт">{r.manager}</Row>
+                  {r.invoice || r.note ? <Row label="Заметки">{[r.invoice, r.note].filter(Boolean).join("; ")}</Row> : null}
+                </MobileCard>
               ))}
-            </tbody>
-          </table>
+            </ul>
+          </>
         ) : (
-          <Empty>Никто ничего не должен.</Empty>
+          <EmptyState compact icon={HandCoins} title="Никто ничего не должен">
+            Остатки по договорённостям, заказы на оплате и постоплаты появятся здесь.
+          </EmptyState>
         )}
-        {rows.length > EXPECTED ? <p className="pt-3 text-xs text-muted">Показаны {EXPECTED} из {rows.length} — сначала те, у кого книга готова, по убыванию остатка.</p> : null}
-      </div>
-    </Section>
+      </Panel>
+    </Part>
   );
 }
 
 function Issues({ s }: { s: FinanceScreen }) {
   return (
-    <Section
+    <Part
       id="refunds"
       title="Переплаты и возвраты"
-      note={`Деньги, которые нужно вернуть клиенту или зачесть: оплачено больше договорённости или заказа, сделка в отказе с деньгами, отменённый заказ с оплатой, оплата Kaspi по закрытому счёту, после заказа или с суммой не по счёту (последние ${REFUND_WINDOW_DAYS} дней). Переплата по сделке уходит из списка, когда в сделке записан возврат.`}
+      note={`Деньги, которые нужно вернуть клиенту или зачесть: оплачено больше договорённости или заказа, сделка в отказе с деньгами, отменённый заказ с оплатой, оплата Kaspi по закрытому счёту, после заказа или с суммой не по счёту (последние ${REFUND_WINDOW_DAYS} дней). Деньги по сделке (переплата, отказ, лишнее после заказа, отменённый заказ) уходят из списка, когда в сделке оформлен возврат с чеком.`}
+      aside={s.issues.length ? plural(s.issues.length, ["случай", "случая", "случаев"]) : null}
     >
-      <div className="overflow-x-auto rounded-2xl border border-line bg-white p-5">
+      <Panel flush title="Нужно вернуть или зачесть">
         {s.issues.length ? (
-          <table className="w-full min-w-[860px] [&_tr>*:first-child]:sticky [&_tr>*:first-child]:left-0 [&_tr>*:first-child]:bg-white [&_tr>*:first-child]:z-[1] text-sm" data-testid="finance-issues">
-            <thead className="text-left text-xs text-muted">
-              <tr>
-                <th className="pb-2 font-medium">Что случилось</th>
-                <th className="pb-2 font-medium">Сделка / заказ</th>
-                <th className="pb-2 font-medium">Клиент</th>
-                <th className="pb-2 font-medium">Ответственный</th>
-                <th className="pb-2 text-right font-medium">Сумма</th>
-                <th className="pb-2 pl-4 font-medium">Подробности</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line">
+          <>
+            <div className="hidden overflow-x-auto lg:block">
+              <table className={cn("table min-w-[860px]", EDGE)} data-testid="finance-issues">
+                <thead>
+                  <tr>
+                    <th>Что случилось</th>
+                    <th>Сделка / заказ</th>
+                    <th>Клиент</th>
+                    <th>Ответственный</th>
+                    <th className="text-right">Сумма</th>
+                    <th>Подробности</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {s.issues.map((i) => (
+                    <tr key={i.key}>
+                      <td className="font-medium">{i.title}</td>
+                      <td className="whitespace-nowrap">
+                        {i.href ? (
+                          <Link href={i.href} className="font-medium text-wine hover:underline">
+                            {i.ref}
+                          </Link>
+                        ) : (
+                          i.ref
+                        )}
+                      </td>
+                      <td>{i.client || "—"}</td>
+                      <td>{i.manager}</td>
+                      <td className="text-right font-semibold whitespace-nowrap tabular-nums">{formatPrice(i.amount)}</td>
+                      <td className="text-xs text-muted">
+                        {i.note}
+                        {i.dateLabel ? `, ${i.dateLabel}` : ""}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <ul className="divide-y divide-line lg:hidden">
               {s.issues.map((i) => (
-                <tr key={i.key} className="align-top">
-                  <td className="py-2 font-medium">{i.title}</td>
-                  <td className="py-2 whitespace-nowrap">
+                <MobileCard key={i.key} top={<span className="font-medium">{i.title}</span>} amount={formatPrice(i.amount)}>
+                  <Row label="Где">
                     {i.href ? (
                       <Link href={i.href} className="text-wine hover:underline">
                         {i.ref}
@@ -349,90 +517,121 @@ function Issues({ s }: { s: FinanceScreen }) {
                     ) : (
                       i.ref
                     )}
-                  </td>
-                  <td className="py-2">{i.client || "—"}</td>
-                  <td className="py-2">{i.manager}</td>
-                  <td className="py-2 text-right font-semibold whitespace-nowrap tabular-nums">{formatPrice(i.amount)}</td>
-                  <td className="py-2 pl-4 text-xs text-muted">
-                    {i.note}
-                    {i.dateLabel ? ` · ${i.dateLabel}` : ""}
-                  </td>
-                </tr>
+                  </Row>
+                  {i.client ? <Row label="Клиент">{i.client}</Row> : null}
+                  <Row label="Ведёт">{i.manager}</Row>
+                  {i.note || i.dateLabel ? <Row label="Подробно">{[i.note, i.dateLabel].filter(Boolean).join(", ")}</Row> : null}
+                </MobileCard>
               ))}
-            </tbody>
-          </table>
+            </ul>
+          </>
         ) : (
-          <Empty>Переплат нет.</Empty>
+          <EmptyState compact icon={CircleCheck} title="Переплат нет">
+            Если клиент заплатит больше договорённости или сделка уйдёт в отказ с деньгами, она появится здесь.
+          </EmptyState>
         )}
-      </div>
+      </Panel>
       {s.refunds.length ? (
-        <Card title="Возвраты за период" note="Записаны в сделках с чеком возврата; уже вычтены из «Пришло».">
+        <Panel flush title="Возвраты за период" description="Записаны в сделках с чеком возврата; уже вычтены из «Пришло»">
           <ul className="divide-y divide-line text-sm">
             {s.refunds.map((r) => (
-              <li key={r.key} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-2">
-                <span className="w-32 text-muted">{r.dateLabel}</span>
-                <span className="w-28 font-medium text-red-700 tabular-nums">{signed(r.amount)}</span>
+              <li key={r.key} className="flex min-h-12 flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2.5 sm:px-5">
+                <span className="w-28 shrink-0 font-semibold text-danger tabular-nums">{signed(r.amount)}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate">{r.client || "—"}</span>
+                  <span className="block text-xs text-muted">
+                    {r.dateLabel}, принял {r.acceptedBy}
+                  </span>
+                </span>
                 <Refs refs={r.refs} />
-                <span className="min-w-0 flex-1 truncate">{r.client}</span>
-                <span className="text-xs text-muted">принял {r.acceptedBy}</span>
                 <Receipt href={r.receiptHref} />
               </li>
             ))}
           </ul>
-        </Card>
+        </Panel>
       ) : null}
-    </Section>
+    </Part>
   );
 }
 
 function Review({ s, canReview }: { s: FinanceScreen; canReview: { deal: boolean; order: boolean } }) {
+  const action = (r: FinanceScreen["review"][number]) =>
+    !canReview[r.kind] ? <span className="text-xs text-muted">проверяет руководитель</span> : r.mine ? <span className="text-xs text-muted">ваша запись — проверяет другой сотрудник</span> : <ReviewButton kind={r.kind} id={r.id} />;
   return (
-    <Section
+    <Part
       id="review"
       title="Проверить"
-      note="Деньги, которые записал сотрудник по чеку перевода. Откройте чек, сверьте с поступлением на счёт (Kaspi, банк) и отметьте «Проверено». Онлайн-оплаты подтверждает платёжная система — их проверять не нужно."
-      aside={s.review.length ? <span className="text-sm text-muted">{plural(s.review.length, ["запись", "записи", "записей"])} на {formatPrice(s.totals.review.sum)}</span> : null}
+      note="Деньги и возвраты, которые записал сотрудник по чеку перевода. Откройте чек, сверьте с поступлением на счёт (Kaspi, банк) и отметьте «Проверено». Онлайн-оплаты подтверждает платёжная система — их проверять не нужно."
+      aside={s.review.length ? <>{plural(s.review.length, ["запись", "записи", "записей"])} на {formatPrice(s.totals.review.sum)}</> : null}
     >
-      <div className="overflow-x-auto rounded-2xl border border-line bg-white p-5">
+      <Panel flush>
         {s.review.length ? (
-          <table className="w-full min-w-[860px] [&_tr>*:first-child]:sticky [&_tr>*:first-child]:left-0 [&_tr>*:first-child]:bg-white [&_tr>*:first-child]:z-[1] text-sm" data-testid="finance-review-list">
-            <thead className="text-left text-xs text-muted">
-              <tr>
-                <th className="pb-2 font-medium">Когда</th>
-                <th className="pb-2 text-right font-medium">Сумма</th>
-                <th className="pb-2 pl-4 font-medium">Что</th>
-                <th className="pb-2 font-medium">Сделка / заказ</th>
-                <th className="pb-2 font-medium">Клиент</th>
-                <th className="pb-2 font-medium">Принял</th>
-                <th className="pb-2 font-medium">Чек</th>
-                <th className="pb-2" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line">
+          <>
+            <div className="hidden overflow-x-auto lg:block">
+              <table className={cn("table min-w-[860px]", EDGE)} data-testid="finance-review-list">
+                <thead>
+                  <tr>
+                    <th>Когда</th>
+                    <th className="text-right">Сумма</th>
+                    <th>Что</th>
+                    <th>Сделка / заказ</th>
+                    <th>Клиент</th>
+                    <th>Принял</th>
+                    <th>Чек</th>
+                    <th>
+                      <span className="sr-only">Действие</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {s.review.map((r) => (
+                    <tr key={r.key}>
+                      <td className="whitespace-nowrap text-muted">{r.dateLabel}</td>
+                      <td className={cn("text-right font-semibold whitespace-nowrap tabular-nums", r.refund && "text-danger")}>{r.refund ? signed(-r.amount) : formatPrice(r.amount)}</td>
+                      <td>
+                        {r.what}
+                        {r.invoice ? <span className="text-muted">, {r.invoice}</span> : null}
+                        {r.note ? <div className="text-xs text-muted">{r.note}</div> : null}
+                      </td>
+                      <td>
+                        <Refs refs={r.refs} />
+                      </td>
+                      <td>{r.client || "—"}</td>
+                      <td>{r.acceptedBy}</td>
+                      <td className="text-xs">{r.receiptHref ? <Receipt href={r.receiptHref} /> : <Badge tone="danger">нет чека</Badge>}</td>
+                      <td className="text-right">{action(r)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <ul className="divide-y divide-line lg:hidden">
               {s.review.map((r) => (
-                <tr key={r.key} className="align-top">
-                  <td className="py-2 whitespace-nowrap text-muted">{r.dateLabel}</td>
-                  <td className="py-2 text-right font-medium whitespace-nowrap tabular-nums">{formatPrice(r.amount)}</td>
-                  <td className="py-2 pl-4">
+                <MobileCard key={r.key} top={<span className="text-muted">{r.dateLabel}</span>} amount={r.refund ? signed(-r.amount) : formatPrice(r.amount)} amountClass={r.refund ? "text-danger" : undefined}>
+                  <Row label="Что">
                     {r.what}
-                    {r.invoice ? <span className="text-muted"> · {r.invoice}</span> : null}
-                    {r.note ? <div className="text-xs text-muted">{r.note}</div> : null}
-                  </td>
-                  <td className="py-2">
-                    <Refs refs={r.refs} />
-                  </td>
-                  <td className="py-2">{r.client || "—"}</td>
-                  <td className="py-2">{r.acceptedBy}</td>
-                  <td className="py-2 text-xs">{r.receiptHref ? <Receipt href={r.receiptHref} /> : <span className="text-red-700">нет чека</span>}</td>
-                  <td className="py-2 text-right">{canReview[r.kind] ? <ReviewButton kind={r.kind} id={r.id} /> : <span className="text-xs text-muted">проверяет руководитель</span>}</td>
-                </tr>
+                    {r.invoice ? `, ${r.invoice}` : ""}
+                    {r.note ? <span className="block text-xs text-muted">{r.note}</span> : null}
+                  </Row>
+                  {r.refs.length ? (
+                    <Row label="Где">
+                      <Refs refs={r.refs} />
+                    </Row>
+                  ) : null}
+                  {r.client ? <Row label="Клиент">{r.client}</Row> : null}
+                  <Row label="Принял">{r.acceptedBy}</Row>
+                  <Row label="Чек">{r.receiptHref ? <Receipt href={r.receiptHref} /> : <Badge tone="danger">нет чека</Badge>}</Row>
+                  <dd className="col-span-2 pt-1.5 [&_.btn]:w-full [&>span]:w-full [&>span]:items-stretch">{action(r)}</dd>
+                </MobileCard>
               ))}
-            </tbody>
-          </table>
+            </ul>
+          </>
         ) : (
-          <Empty>Все ручные подтверждения проверены.</Empty>
+          <EmptyState compact icon={ReceiptText} title="Всё проверено">
+            Ручные подтверждения оплат с чеками появятся здесь, когда их запишут сотрудники.
+          </EmptyState>
         )}
-      </div>
-    </Section>
+      </Panel>
+    </Part>
   );
 }

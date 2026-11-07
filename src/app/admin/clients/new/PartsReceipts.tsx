@@ -51,9 +51,9 @@ export function PartsReceipts({ parts, receipt }: { parts: ReceiptPart[]; receip
   if (!todo.length) return null;
   const failed = todo.filter((p) => state[p.dealId]?.status === "error");
   const loading = todo.some((p) => state[p.dealId]?.status === "uploading");
-  const tone = failed.length ? "bg-red-50 text-red-800" : loading ? "bg-cream/70 text-ink-soft" : "bg-emerald-50 text-emerald-900";
+  const tone = failed.length ? "bg-danger-bg text-danger" : loading ? "bg-sunken text-ink-soft" : "bg-success-bg text-success";
   return (
-    <div className={`space-y-1.5 rounded-xl p-3 text-sm ${tone}`} role={failed.length ? "alert" : "status"} data-testid="receipts-status">
+    <div className={`space-y-1.5 rounded-[10px] p-3 text-sm ${tone}`} role={failed.length ? "alert" : "status"} data-testid="receipts-status">
       <div className="flex items-center gap-2">
         {loading ? <LoaderCircle className="size-4 animate-spin" /> : failed.length ? <TriangleAlert className="size-4" /> : <Check className="size-4" />}
         <span className="flex-1">{loading ? "Загружаем чек предоплаты…" : failed.length ? "Чек загрузился не ко всем сделкам. Его можно приложить на карточке сделки." : todo.length > 1 ? `Чек предоплаты приложен к ${todo.length} сделкам` : "Чек предоплаты приложен к сделке"}</span>

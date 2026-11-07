@@ -16,11 +16,14 @@ import { cn } from "@/lib/class-names";
  */
 const PendingContext = createContext<{ pending: string | null; setPending: (id: string | null) => void }>({ pending: null, setPending: () => {} });
 
-export function ChatNavProvider({ className, children }: { className?: string; children: React.ReactNode }) {
+export function ChatNavProvider({ className, children, ...rest }: { className?: string; children: React.ReactNode } & Record<`data-${string}`, string | boolean | undefined>) {
   const [pending, setPending] = useState<string | null>(null);
   return (
     <PendingContext.Provider value={{ pending, setPending }}>
-      <div className={className}>{children}</div>
+      {/* data-chat-root и т. п. — на корень: по нему «потяни, чтобы обновить» не срабатывает внутри чата. */}
+      <div className={className} {...rest}>
+        {children}
+      </div>
     </PendingContext.Provider>
   );
 }
@@ -79,7 +82,7 @@ export function ChatListLink({ id, href, active, pinned = false, children }: { i
   return (
     <div
       // Чаты за экраном не раскладываем и не рисуем: в списке до 150 диалогов, на телефоне это заметно.
-      className="relative [contain-intrinsic-size:auto_68px] [content-visibility:auto]"
+      className="relative [contain-intrinsic-size:auto_84px] [content-visibility:auto]"
       onContextMenu={(e) => {
         e.preventDefault();
         setMenu({ x: Math.min(e.clientX, window.innerWidth - 220), y: Math.min(e.clientY, window.innerHeight - 70) });
@@ -93,26 +96,31 @@ export function ChatListLink({ id, href, active, pinned = false, children }: { i
       onPointerMove={() => press.current && window.clearTimeout(press.current)}
       onPointerCancel={() => press.current && window.clearTimeout(press.current)}
     >
-      <Link href={href} className={cn("relative flex min-h-[4.25rem] gap-3 px-4 py-3 transition active:bg-cream", active || going ? "bg-[#f7ecee]" : "hover:bg-[#faf8f5]", going && "opacity-80")} aria-current={active ? "true" : undefined} aria-busy={going || undefined}>
-        {active || going ? <span className={cn("absolute inset-y-0 left-0 w-[3px] bg-wine", going && "animate-pulse")} /> : null}
+      <Link
+        href={href}
+        className={cn("relative mx-2 flex gap-3 rounded-[10px] px-2.5 py-2.5 transition-colors duration-150", active || going ? "bg-rose/70" : "hover:bg-sunken/70 active:bg-sunken", going && "opacity-80")}
+        aria-current={active ? "true" : undefined}
+        aria-busy={going || undefined}
+      >
+        {active || going ? <span className={cn("absolute inset-y-2.5 -left-2 w-[3px] rounded-r-full bg-wine", going && "animate-pulse")} aria-hidden /> : null}
         <Reporter id={id} />
         {children}
-        {on ? <Pin className="pointer-events-none absolute right-4 bottom-3 size-3.5 text-wine" fill="currentColor" aria-label="Закреплён" /> : null}
-        {going ? <LoaderCircle className="absolute right-10 bottom-3 size-4 animate-spin text-wine" aria-label="Открываем диалог" /> : null}
+        {on ? <Pin className="pointer-events-none absolute right-2.5 bottom-3 size-3.5 text-wine" fill="currentColor" aria-label="Закреплён" /> : null}
+        {going ? <LoaderCircle className="absolute right-8 bottom-3 size-4 animate-spin text-wine" aria-label="Открываем диалог" /> : null}
       </Link>
       {menu
         ? createPortal(
-            <div className="fixed z-[80] w-52 overflow-hidden rounded-xl border border-line bg-white py-1 text-sm text-ink shadow-xl" style={{ left: menu.x, top: menu.y }} role="menu" onPointerDown={(e) => e.stopPropagation()}>
+            <div className="fixed z-[80] w-52 overflow-hidden rounded-[10px] border border-line bg-white p-1 text-sm text-ink shadow-soft" style={{ left: menu.x, top: menu.y }} role="menu" onPointerDown={(e) => e.stopPropagation()}>
               <button
                 type="button"
                 role="menuitem"
-                className="flex w-full items-center gap-2.5 px-3 py-2 text-left hover:bg-cream/60"
+                className="flex min-h-10 w-full items-center gap-2.5 rounded-lg px-2.5 text-left hover:bg-sunken max-lg:min-h-11"
                 onClick={() => {
                   setMenu(null);
                   toggle();
                 }}
               >
-                {on ? <PinOff className="size-4" /> : <Pin className="size-4" />} {on ? "Открепить чат" : "Закрепить чат"}
+                {on ? <PinOff className="size-4 text-ink-soft" /> : <Pin className="size-4 text-ink-soft" />} {on ? "Открепить чат" : "Закрепить чат"}
               </button>
             </div>,
             document.body,
@@ -141,28 +149,40 @@ export function ChatPaneSkeleton() {
   return (
     <>
       <div className="hidden min-w-0 flex-1 flex-col lg:flex" aria-busy="true" aria-label="Загрузка переписки">
-        <div className="flex h-[68px] shrink-0 items-center gap-3 border-b border-line bg-white px-4">
+        <div className="flex h-16 shrink-0 items-center gap-3 border-b border-line bg-white px-5">
           <div className="skeleton size-10 shrink-0 rounded-full" />
           <div className="flex-1 space-y-2">
             <div className="skeleton h-3.5 w-40" />
             <div className="skeleton h-3 w-24" />
           </div>
         </div>
-        <div className="flex flex-1 flex-col justify-end gap-3 overflow-hidden bg-[#f5f1eb] p-4">
-          {bubbles.map(([w, mine], i) => (
-            <div key={i} className={cn("flex", mine && "justify-end")}>
-              <div className={cn("skeleton h-12 rounded-2xl", w)} />
-            </div>
-          ))}
+        <div className="flex flex-1 flex-col justify-end overflow-hidden bg-canvas px-6 py-4">
+          <div className="mx-auto flex w-full max-w-3xl flex-col gap-3">
+            {bubbles.map(([w, mine], i) => (
+              <div key={i} className={cn("flex", mine && "justify-end")}>
+                <div className={cn("skeleton h-12 rounded-[14px]", w)} />
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="border-t border-line bg-white p-3">
-          <div className="skeleton h-11 w-full rounded-full" />
+        <div className="border-t border-line bg-white px-4 py-3">
+          <div className="skeleton mx-auto h-[7.5rem] w-full max-w-3xl rounded-[14px]" />
         </div>
       </div>
-      <div className="hidden w-[320px] shrink-0 space-y-4 border-l border-line bg-[#faf8f5] p-4 2xl:block">
-        <div className="skeleton h-40 w-full rounded-2xl" />
-        <div className="skeleton h-24 w-full rounded-2xl" />
-        <div className="skeleton h-32 w-full rounded-2xl" />
+      <div className="hidden w-[300px] shrink-0 border-l border-line bg-white xl:block 2xl:w-[340px]">
+        <div className="flex flex-col items-center gap-2 border-b border-line px-5 py-6">
+          <div className="skeleton size-14 rounded-full" />
+          <div className="skeleton h-4 w-32" />
+          <div className="skeleton h-3 w-24" />
+        </div>
+        <div className="space-y-3 border-b border-line p-5">
+          <div className="skeleton h-3 w-16" />
+          <div className="skeleton h-16 w-full rounded-[10px]" />
+        </div>
+        <div className="space-y-3 p-5">
+          <div className="skeleton h-3 w-24" />
+          <div className="skeleton h-10 w-full rounded-[10px]" />
+        </div>
       </div>
     </>
   );

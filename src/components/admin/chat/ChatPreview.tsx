@@ -39,10 +39,10 @@ export function ChatPreview({ empty }: { empty: boolean }) {
         m({ id: "15", at: t(17, 5), text: "Хорошо, напишу", forwarded: true }),
       ];
   return (
-    <div className="flex h-dvh bg-[#f7f4ef]">
-      <div className="hidden w-60 shrink-0 border-r border-line bg-white lg:block" />
+    <div className="flex h-dvh bg-canvas">
+      <div className="hidden w-60 shrink-0 bg-spine lg:block" />
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="h-14 shrink-0 border-b border-line bg-white/85" />
+        <header className="h-14 shrink-0 border-b border-line bg-canvas" />
         <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:py-8">
           <div className="-mx-4 -my-6 flex h-[calc(100dvh-3.5rem)] overflow-hidden bg-white sm:-mx-6 lg:-my-8">
             <ChatListPane
@@ -70,13 +70,17 @@ export function ChatPreview({ empty }: { empty: boolean }) {
               />
             </div>
             <DetailsPanel>
-              <div className="flex flex-col items-center rounded-2xl bg-white px-4 py-5 text-center ring-1 ring-line">
-                <ChatAvatar name="Айдана" url={null} channel="whatsapp" size={72} />
-                <div className="mt-3 text-base font-semibold">Айдана</div>
-                <div className="mt-0.5 text-xs text-muted">WhatsApp · +7 701 ••• •• 89</div>
-              </div>
+              <section className="flex flex-col items-center border-b border-line px-5 pt-6 pb-5 text-center">
+                <ChatAvatar name="Айдана" url={null} channel="whatsapp" size={56} />
+                <h2 className="mt-3 text-base font-semibold">Айдана</h2>
+                <p className="mt-0.5 text-xs text-muted">WhatsApp</p>
+                <p className="text-xs text-muted tabular-nums">+7 701 ••• •• 89</p>
+              </section>
               <SideSection title="Сделка">
-                <div className="rounded-2xl bg-white p-3.5 text-sm ring-1 ring-line">№42 Книга мужу</div>
+                <p className="text-sm font-medium">№42 Книга мужу</p>
+                <p className="mt-2 flex items-center gap-1.5 text-xs text-ink-soft">
+                  <span className="size-2 rounded-full bg-wine" aria-hidden /> Новая заявка
+                </p>
               </SideSection>
             </DetailsPanel>
           </div>

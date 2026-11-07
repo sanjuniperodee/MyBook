@@ -1,12 +1,11 @@
 "use client";
 
 import { confirmDialog } from "@/components/ui/overlays";
-import { EmptyState, LettersArt } from "@/components/illustrations";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { useState } from "react";
-import { Check, Copy, EyeOff, Link2, MessageCircle, Pencil, RefreshCw, Trash2, Undo2 } from "lucide-react";
+import { Check, Copy, EyeOff, Link2, Mail, MessageCircle, Pencil, RefreshCw, Trash2, Undo2 } from "lucide-react";
 import { apiFetch } from "@/lib/client-api";
 import { Alert } from "@/components/ui/Alert";
-import { cn } from "@/lib/class-names";
 import { formatDate } from "@/lib/dates";
 import { useLocale, useMessages } from "@/i18n/client";
 import { localizePath, type Locale } from "@/i18n/config";
@@ -105,21 +104,20 @@ export function LettersManager({
   const visible = letters.filter((l) => l.status === tab);
 
   return (
-    <div className="grid gap-10 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)] lg:gap-10">
       <aside>
-        <div className="card p-6 lg:sticky lg:top-24">
-          <div className="flex size-11 items-center justify-center rounded-2xl bg-rose text-wine">
-            <Link2 className="size-5" />
-          </div>
-          <h2 className="mt-4 text-lg font-semibold">{t.linkTitle}</h2>
+        <div className="rounded-[14px] border border-line bg-white p-5 sm:p-6 lg:sticky lg:top-24">
+          <h2 className="flex items-center gap-2 text-lg font-semibold">
+            <Link2 className="size-5 text-wine" aria-hidden /> {t.linkTitle}
+          </h2>
           <p className="mt-1.5 text-sm leading-relaxed text-muted">
             {t.linkText}
           </p>
           {error ? <Alert className="mt-4">{error}</Alert> : null}
           {token ? (
             <>
-              <div className="mt-5 flex items-center gap-2 rounded-xl border border-line bg-cream/50 p-2 pl-3">
-                <span className="min-w-0 flex-1 truncate text-sm">{link}</span>
+              <div className="mt-5 flex items-center gap-2 rounded-[10px] border border-line bg-sunken p-1.5 pl-3">
+                <span className="min-w-0 flex-1 truncate text-sm" title={link}>{link}</span>
                 <button
                   className="btn btn-dark btn-sm shrink-0"
                   onClick={async () => {
@@ -134,11 +132,11 @@ export function LettersManager({
               <a href={`https://wa.me/?text=${encodeURIComponent(shareText)}`} target="_blank" rel="noopener noreferrer" className="btn btn-outline mt-3 w-full">
                 <MessageCircle className="size-4" /> {t.whatsapp}
               </a>
-              <div className="mt-4 flex justify-between text-xs">
-                <button className="flex items-center gap-1 text-muted hover:text-ink" disabled={busy || !editable} onClick={async () => (await confirmDialog({ title: t.regenTitle, text: t.regenText, confirmLabel: t.regenConfirm })) && setInvite(true, true)}>
+              <div className="mt-3 flex flex-wrap justify-between gap-x-3 text-xs">
+                <button className="flex min-h-11 items-center gap-1 text-muted hover:text-ink" disabled={busy || !editable} onClick={async () => (await confirmDialog({ title: t.regenTitle, text: t.regenText, confirmLabel: t.regenConfirm })) && setInvite(true, true)}>
                   <RefreshCw className="size-3.5" /> {t.regen}
                 </button>
-                <button className="text-red-700 hover:underline" disabled={busy || !editable} onClick={() => setInvite(false)}>
+                <button className="min-h-11 text-danger hover:underline" disabled={busy || !editable} onClick={() => setInvite(false)}>
                   {t.close}
                 </button>
               </div>
@@ -179,24 +177,22 @@ export function LettersManager({
           {tabs.map((id) => {
             const n = letters.filter((l) => l.status === id).length;
             return (
-              <button key={id} onClick={() => setTab(id)} className={cn("rounded-full px-4 py-2 text-sm", tab === id ? "bg-ink text-white" : "bg-white text-ink-soft hover:bg-cream")}>
+              <button key={id} onClick={() => setTab(id)} aria-pressed={tab === id} className="chip min-h-11 sm:min-h-9">
                 {t.tabs[id]} <span className="opacity-60">{n}</span>
               </button>
             );
           })}
         </div>
         {visible.length === 0 ? (
-          <div className="mt-6 rounded-3xl border-2 border-dashed border-line">
-            <EmptyState
-              art={LettersArt}
-              title={t.empty[tab]}
-              text={tab === "pending" ? (token ? t.emptyText.pendingInvited : t.emptyText.pending) : t.emptyText[tab]}
-            />
+          <div className="mt-6 rounded-[14px] border border-dashed border-line-strong bg-white/50">
+            <EmptyState icon={Mail} title={t.empty[tab]}>
+              {tab === "pending" ? (token ? t.emptyText.pendingInvited : t.emptyText.pending) : t.emptyText[tab]}
+            </EmptyState>
           </div>
         ) : (
           <div className="mt-6 space-y-4">
             {visible.map((l) => (
-              <article key={l.id} className="card p-6">
+              <article key={l.id} className="rounded-[14px] border border-line bg-white p-5 sm:p-6">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <div className="font-semibold">
                     {l.authorName}
@@ -228,7 +224,7 @@ export function LettersManager({
                         <EyeOff className="size-4" /> {t.hide}
                       </button>
                     ) : null}
-                    <button className="btn btn-ghost btn-sm ml-auto text-red-700" onClick={() => remove(l.id)}>
+                    <button className="btn btn-ghost btn-icon btn-sm ml-auto text-danger hover:bg-danger-bg hover:text-danger" aria-label={msgs.common.actions.delete} onClick={() => remove(l.id)}>
                       <Trash2 className="size-4" />
                     </button>
                   </div>

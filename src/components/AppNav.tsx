@@ -45,10 +45,10 @@ export function AppNav({ name, email, isAdmin }: { name: string; email: string; 
             key={l.href}
             href={l.href}
             aria-current={active ? "page" : undefined}
-            className={cn("flex items-center gap-2 rounded-full px-3 py-2 transition-colors sm:px-3.5", active ? "bg-ink/[.06] text-ink" : "text-ink-soft hover:bg-ink/5 hover:text-ink")}
+            className={cn("flex h-11 min-w-11 items-center justify-center gap-2 rounded-[10px] px-3 transition-colors sm:px-3.5", active ? "bg-ink/[.06] font-medium text-ink" : "text-ink-soft hover:bg-ink/5 hover:text-ink")}
           >
-            <l.icon className="size-4 sm:hidden" strokeWidth={1.8} />
-            <span className="hidden sm:inline">{l.label}</span>
+            <l.icon className="size-[18px] sm:hidden" strokeWidth={1.8} aria-hidden />
+            <span className="max-sm:sr-only">{l.label}</span>
           </Link>
         );
       })}
@@ -58,14 +58,14 @@ export function AppNav({ name, email, isAdmin }: { name: string; email: string; 
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
           aria-haspopup="menu"
-          className="flex items-center gap-1.5 rounded-full border border-line bg-white py-1 pr-2.5 pl-1 transition hover:border-ink/30"
+          className="flex h-11 items-center gap-1.5 rounded-full py-1 pr-2 pl-1 transition hover:bg-ink/5"
         >
-          <span className="flex size-7 items-center justify-center rounded-full bg-wine text-xs font-semibold text-white">{initial}</span>
+          <span className="flex size-8 items-center justify-center rounded-full bg-wine text-[13px] font-semibold text-white">{initial}</span>
           <ChevronDown className={cn("size-4 text-muted transition-transform duration-200", open && "rotate-180")} />
           <span className="sr-only">{m.profileMenu}</span>
         </button>
         {open ? (
-          <div role="menu" className="absolute right-0 mt-2 w-60 origin-top-right animate-[toast-in_180ms_var(--ease-out-soft)_both] rounded-2xl border border-line bg-white p-1.5 shadow-lift">
+          <div role="menu" className="absolute right-0 mt-2 w-60 origin-top-right animate-[toast-in_180ms_var(--ease-out-soft)_both] rounded-[14px] border border-line bg-white p-1.5 shadow-lift">
             <div className="px-3 py-2.5">
               <div className="truncate text-sm font-medium">{name || m.noName}</div>
               <div className="truncate text-xs text-muted">{email}</div>
@@ -74,19 +74,19 @@ export function AppNav({ name, email, isAdmin }: { name: string; email: string; 
             <div className="px-3 py-1.5 md:hidden">
               <LanguageSwitch />
             </div>
-            <Link role="menuitem" href="/account" onClick={() => setOpen(false)} className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm hover:bg-cream">
+            <Link role="menuitem" href="/account" onClick={() => setOpen(false)} className="flex min-h-11 items-center gap-2.5 rounded-[10px] px-3 text-sm hover:bg-sunken">
               <UserRound className="size-4 text-muted" /> {m.profile}
             </Link>
-            <Link role="menuitem" href="/invite" onClick={() => setOpen(false)} className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm hover:bg-cream">
+            <Link role="menuitem" href="/invite" onClick={() => setOpen(false)} className="flex min-h-11 items-center gap-2.5 rounded-[10px] px-3 text-sm hover:bg-sunken">
               <Gift className="size-4 text-muted" /> {m.invite}
             </Link>
             {isAdmin ? (
-              <Link role="menuitem" href="/admin" onClick={() => setOpen(false)} className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-wine hover:bg-cream">
+              <Link role="menuitem" href="/admin" onClick={() => setOpen(false)} className="flex min-h-11 items-center gap-2.5 rounded-[10px] px-3 text-sm text-wine hover:bg-sunken">
                 <LayoutDashboard className="size-4" /> {m.crm}
               </Link>
             ) : null}
             <form action={logoutAction}>
-              <button role="menuitem" className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm hover:bg-cream">
+              <button role="menuitem" className="flex min-h-11 w-full items-center gap-2.5 rounded-[10px] px-3 text-sm hover:bg-sunken">
                 <LogOut className="size-4 text-muted" /> {m.logout}
               </button>
             </form>

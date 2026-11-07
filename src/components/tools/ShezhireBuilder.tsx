@@ -124,7 +124,7 @@ export function ShezhireBuilder() {
 
           <ol className="mt-5 space-y-2.5">
             {list.map((a, i) => (
-              <li key={i} className="rounded-2xl border border-line bg-white px-4 py-3">
+              <li key={i} className="rounded-[14px] border border-line bg-white px-4 py-3">
                 <div className="flex items-center gap-3">
                   <span className="w-7 shrink-0 font-serif text-xl text-wine">{i + 1}.</span>
                   <div className="min-w-0 flex-1">
@@ -149,7 +149,7 @@ export function ShezhireBuilder() {
             <ChevronDown className={`size-4 transition ${more ? "rotate-180" : ""}`} /> {ui.details}
           </button>
 
-          <div className="mt-6 rounded-2xl bg-cream/60 p-4">
+          <div className="mt-6 rounded-[14px] bg-cream/60 p-4">
             <label className="label" htmlFor="shezhire-paste">
               {ui.pasteLabel}
             </label>
@@ -162,7 +162,7 @@ export function ShezhireBuilder() {
         </div>
 
         <div className="min-w-0">
-          <div ref={poster} className="overflow-hidden rounded-2xl border border-line shadow-soft">
+          <div ref={poster} className="overflow-hidden rounded-[14px] border border-line shadow-soft">
             <ShezhirePoster data={data} ui={ui} />
           </div>
           <div className="mt-4 flex flex-wrap gap-2">

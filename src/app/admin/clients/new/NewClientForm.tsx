@@ -14,6 +14,8 @@ import { channels, manualChannels } from "@/shared/domain/channels";
 import { getVisiblePlans } from "@/config/site";
 import { PlanDiscountHint } from "@/components/admin/DiscountHint";
 import { planLabels } from "@/modules/ordering/ui/labels";
+import { Panel } from "@/components/ui/Panel";
+import { Field } from "@/components/ui/Field";
 
 function CopyButton({ text, label = "Копировать" }: { text: string; label?: string }) {
   const [ok, setOk] = useState(false);
@@ -28,7 +30,7 @@ function CopyButton({ text, label = "Копировать" }: { text: string; la
         });
       }}
     >
-      {ok ? <Check className="size-4 text-emerald-600" /> : <Copy className="size-4" />} {ok ? "Скопировано" : label}
+      {ok ? <Check className="size-4 text-success" aria-hidden /> : <Copy className="size-4" aria-hidden />} {ok ? "Скопировано" : label}
     </button>
   );
 }
@@ -36,19 +38,19 @@ function CopyButton({ text, label = "Копировать" }: { text: string; la
 /** Выданный доступ: логин, пароль и готовое сообщение клиенту. Пароль виден только сейчас. */
 export function AccessCard({ login, password, message, title = "Доступ клиента" }: { login: string; password: string; message: string; title?: string }) {
   return (
-    <div className="space-y-3 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4">
-      <div className="flex items-center gap-2 text-sm font-semibold text-emerald-900">
+    <div className="space-y-3 rounded-[14px] border border-success/25 bg-success-bg p-4">
+      <div className="flex items-center gap-2 text-sm font-semibold text-success">
         <KeyRound className="size-4" /> {title}
       </div>
       <div className="grid gap-2 sm:grid-cols-2">
-        <div className="rounded-xl bg-white p-3">
+        <div className="min-w-0 rounded-[10px] bg-white p-3">
           <div className="text-xs text-muted">Логин</div>
           <div className="mt-0.5 flex items-center justify-between gap-2">
             <span className="font-mono text-sm select-all">{login}</span>
             <CopyButton text={login} label="" />
           </div>
         </div>
-        <div className="rounded-xl bg-white p-3">
+        <div className="min-w-0 rounded-[10px] bg-white p-3">
           <div className="text-xs text-muted">Пароль (виден только сейчас)</div>
           <div className="mt-0.5 flex items-center justify-between gap-2">
             <span className="font-mono text-sm select-all">{password}</span>
@@ -70,7 +72,7 @@ export function AccessCard({ login, password, message, title = "Доступ к�
 function Done({ d, receipt }: { d: NewClientDone; receipt: File | null }) {
   const many = d.parts.length > 1;
   return (
-    <div className="space-y-4 rounded-2xl border border-line bg-white p-5">
+    <div className="panel panel-body space-y-4">
       <div>
         <h2 className="text-lg font-semibold">Клиент {d.clientName} создан</h2>
         {d.dealId ? (
@@ -86,7 +88,7 @@ function Done({ d, receipt }: { d: NewClientDone; receipt: File | null }) {
       <p className="text-xs text-muted">Пароль в системе не хранится в открытом виде и больше не покажется. Если клиент потеряет его, выдайте новый на карточке клиента.</p>
       <div className="flex flex-wrap gap-2">
         {d.dealId ? (
-          <Link href={`/admin/deals/${d.dealId}`} className="btn btn-primary btn-sm">
+          <Link href={`/admin/deals/${d.dealId}`} className="btn btn-dark btn-sm">
             Открыть сделку №{d.dealNumber}
           </Link>
         ) : null}
@@ -142,72 +144,63 @@ export function NewClientForm({ canDeal, stages, defaultStageId, admins, me, can
         </Alert>
       ) : null}
 
-      <section className="grid gap-4 rounded-2xl border border-line bg-white p-5 sm:grid-cols-2">
-        <h2 className="text-sm font-semibold sm:col-span-2">Клиент</h2>
-        <div>
-          <label className="label">Имя *</label>
-          <input name="name" required maxLength={100} className="input h-11" placeholder="Насиба" defaultValue={v.name} />
-        </div>
-        <div>
-          <label className="label">Телефон *</label>
-          <input name="phone" required inputMode="tel" maxLength={40} className="input h-11" placeholder="8 775 000 00 00" defaultValue={v.phone} />
-        </div>
-        <div>
-          <label className="label">E-mail</label>
-          <input name="email" type="email" maxLength={200} className="input h-11" placeholder="если есть" defaultValue={v.email} />
-          <p className="mt-1 text-xs text-muted">Без почты клиент входит по номеру телефона.</p>
-        </div>
-        <div>
-          <label className="label">Город</label>
-          <input name="city" maxLength={80} className="input h-11" placeholder="Алматы" defaultValue={v.city} />
-        </div>
-        <div className="sm:col-span-2">
-          <label className="label">Откуда пришёл клиент *</label>
-          <select name="channel" required className="input h-11" defaultValue={v.channel ?? ""}>
-            <option value="" disabled>
-              Выберите канал продаж
-            </option>
-            {manualChannels.map((k) => (
-              <option key={k} value={k}>
-                {channels[k]}
+      <Panel title="Клиент" description="Логин — телефон или e-mail; пароль покажем один раз после создания.">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Имя">
+            <input name="name" required maxLength={100} className="input" placeholder="Насиба" defaultValue={v.name} />
+          </Field>
+          <Field label="Телефон">
+            <input name="phone" required inputMode="tel" maxLength={40} className="input tabular-nums" placeholder="8 775 000 00 00" defaultValue={v.phone} />
+          </Field>
+          <Field label="E-mail" optional hint="Без почты клиент входит по номеру телефона.">
+            <input name="email" type="email" maxLength={200} className="input" placeholder="если есть" defaultValue={v.email} />
+          </Field>
+          <Field label="Город" optional>
+            <input name="city" maxLength={80} className="input" placeholder="Алматы" defaultValue={v.city} />
+          </Field>
+          <Field label="Откуда пришёл клиент" hint="Попадёт в отчёты по каналам и в аналитику продаж. Позже канал можно поменять в карточке клиента." className="sm:col-span-2">
+            <select name="channel" required className="input" defaultValue={v.channel ?? ""}>
+              <option value="" disabled>
+                Выберите канал продаж
               </option>
-            ))}
-          </select>
-          <p className="mt-1 text-xs text-muted">Попадёт в отчёты по каналам и в аналитику продаж. Позже канал можно поменять в карточке клиента.</p>
+              {manualChannels.map((k) => (
+                <option key={k} value={k}>
+                  {channels[k]}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Язык кабинета">
+            <select name="locale" className="input" defaultValue={v.locale ?? "ru"}>
+              <option value="ru">Русский</option>
+              <option value="kk">Қазақша</option>
+            </select>
+          </Field>
+          <Field label="Пароль для входа" optional hint="Пусто — подберём надёжный и покажем после создания.">
+            <input name="password" type="text" autoComplete="off" maxLength={200} className="input" placeholder="создать автоматически" defaultValue={v.password} />
+          </Field>
         </div>
-        <div>
-          <label className="label">Язык</label>
-          <select name="locale" className="input h-11" defaultValue={v.locale ?? "ru"}>
-            <option value="ru">Русский</option>
-            <option value="kk">Қазақша</option>
-          </select>
-        </div>
-        <div>
-          <label className="label">Пароль для входа</label>
-          <input name="password" type="text" autoComplete="off" maxLength={200} className="input h-11" placeholder="создать автоматически" defaultValue={v.password} />
-          <p className="mt-1 text-xs text-muted">Можно оставить пустым — подберём надёжный и покажем после создания.</p>
-        </div>
-      </section>
+      </Panel>
 
       {canDeal ? (
-        <section className="grid gap-4 rounded-2xl border border-line bg-white p-5 sm:grid-cols-2">
-          <label className="flex items-center gap-2 text-sm font-semibold sm:col-span-2">
-            <input type="checkbox" name="createDeal" checked={deal} onChange={(e) => setDeal(e.target.checked)} className="size-4" />
-            Сразу создать сделку, заметку и задачи
+        <section className="panel">
+          <label className="panel-head cursor-pointer justify-start gap-3">
+            <input type="checkbox" name="createDeal" checked={deal} onChange={(e) => setDeal(e.target.checked)} className="size-4 accent-wine" />
+            <span>
+              <span className="panel-title block">Сразу создать сделку, заметку и задачи</span>
+              <span className="block text-xs text-muted">Договорённость о цене, предоплата с чеком, этап и ответственный</span>
+            </span>
           </label>
           {deal ? (
-            <>
-              <div>
-                <label className="label">Кому книга (о себе или своя книга — пусто)</label>
-                <input name="recipient" maxLength={80} className="input h-11" placeholder="Мужу" defaultValue={v.recipient} />
-              </div>
-              <div>
-                <label className="label">Срок готовности</label>
-                <input name="deadline" type="date" className="input h-11" defaultValue={v.deadline} />
-              </div>
-              <div>
-                <label className="label">Тариф *</label>
-                <select name="plan" required className="input h-11" value={planId || v.plan || ""} onChange={(e) => setPlanId(e.target.value)}>
+            <div className="panel-body grid gap-4 sm:grid-cols-2">
+              <Field label="Кому книга" optional hint="О себе или своя книга — оставьте пустым.">
+                <input name="recipient" maxLength={80} className="input" placeholder="Мужу" defaultValue={v.recipient} />
+              </Field>
+              <Field label="Срок готовности" optional>
+                <input name="deadline" type="date" className="input" defaultValue={v.deadline} />
+              </Field>
+              <Field label="Тариф" hint="Клиент оформит заказ именно на этот тариф — сменить его самому нельзя.">
+                <select name="plan" required className="input" value={planId || v.plan || ""} onChange={(e) => setPlanId(e.target.value)}>
                   <option value="" disabled>
                     Выберите тариф
                   </option>
@@ -217,69 +210,64 @@ export function NewClientForm({ canDeal, stages, defaultStageId, admins, me, can
                     </option>
                   ))}
                 </select>
-                <p className="mt-1 text-xs text-muted">Клиент оформит заказ именно на этот тариф — сменить его самому нельзя.</p>
-              </div>
-              <div>
-                <label className="label">Сколько книг оплачено сразу</label>
-                <input name="count" type="number" min={1} max={20} step={1} value={count} onChange={(e) => setCount(e.target.value)} className="input h-11" />
-                <p className="mt-1 text-xs text-muted">{n > 1 ? `Создадим ${ruCount(n, "сделку", "сделки", "сделок")} — по одной на книгу. Клиент оформит их по очереди, каждая книга заберёт свою долю цены и предоплаты.` : "Одна книга — одна сделка."}</p>
-              </div>
-              <div>
-                <label className="label">Цена одной книги по договорённости, ₸ *</label>
-                <input name="agreed" type="number" min={0} step={1} required value={agreed} onChange={(e) => setAgreed(e.target.value)} className="input h-11" placeholder="20000" />
-                <p className="mt-1 text-xs text-muted">Доставка и допы считаются сверху при оформлении заказа.</p>
+              </Field>
+              <Field label="Сколько книг оплачено сразу" hint={n > 1 ? `Создадим ${ruCount(n, "сделку", "сделки", "сделок")} — по одной на книгу. Клиент оформит их по очереди.` : "Одна книга — одна сделка."}>
+                <input name="count" type="number" min={1} max={20} step={1} inputMode="numeric" value={count} onChange={(e) => setCount(e.target.value)} className="input tabular-nums" />
+              </Field>
+              <div className="min-w-0">
+                <Field label="Цена одной книги, ₸" hint="Доставка и допы считаются сверху при оформлении заказа.">
+                  <input name="agreed" type="number" min={0} step={1} required inputMode="numeric" value={agreed} onChange={(e) => setAgreed(e.target.value)} className="input tabular-nums" placeholder="20000" />
+                </Field>
                 <PlanDiscountHint plan={planId || v.plan || ""} price={Number(agreed) || 0} maxPercent={maxDiscountPercent} />
               </div>
-              <div>
-                <label className="label">{n > 1 ? "Предоплата за все книги, ₸" : "Предоплата, ₸"}</label>
-                <input name="prepaid" type="number" min={0} step={1} value={prepaid} onChange={(e) => setPrepaid(e.target.value)} className="input h-11" placeholder="10000" />
-              </div>
+              <Field label={n > 1 ? "Предоплата за все книги, ₸" : "Предоплата, ₸"} optional>
+                <input name="prepaid" type="number" min={0} step={1} inputMode="numeric" value={prepaid} onChange={(e) => setPrepaid(e.target.value)} className="input tabular-nums" placeholder="10000" />
+              </Field>
               <AgreementGiftsField values={v} />
               {p > 0 ? (
                 <div className="sm:col-span-2">
-                  <label className="label">Чек предоплаты *</label>
-                  <input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" onChange={(e) => setReceipt(e.target.files?.[0] ?? null)} className="input h-11 w-full py-2 text-sm" />
-                  {receipt ? <p className="mt-1 text-xs text-emerald-800">Выбран файл: {receipt.name}</p> : null}
-                  <p className="mt-1 flex items-center gap-1 text-xs text-muted">
-                    <Paperclip className="size-3.5" /> Скриншот или фото перевода, PDF — до 12 МБ. Прикрепится к сделке.
+                  <label className="label" htmlFor="new-client-receipt">
+                    Чек предоплаты
+                  </label>
+                  <input id="new-client-receipt" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" onChange={(e) => setReceipt(e.target.files?.[0] ?? null)} className="input h-auto min-h-11 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-sunken file:px-2.5 file:py-1.5 file:text-xs file:font-medium file:text-ink" />
+                  {receipt ? <p className="mt-1 text-xs text-success">Выбран файл: {receipt.name}</p> : null}
+                  <p className="hint flex items-center gap-1">
+                    <Paperclip className="size-3.5" aria-hidden /> Скриншот или фото перевода, PDF — до 12 МБ. Прикрепится к сделке.
                   </p>
                 </div>
               ) : null}
-              <div className={`rounded-xl px-3 py-2 text-sm sm:col-span-2 ${p > a ? "bg-red-50 text-red-800" : "bg-cream/70 text-ink-soft"}`}>
+              <div className={`rounded-[10px] px-3.5 py-2.5 text-sm tabular-nums sm:col-span-2 ${p > a ? "bg-danger-bg text-danger" : "bg-sunken text-ink-soft"}`} role="status">
                 {p > a ? "Предоплата больше суммы договорённости" : a > 0 ? `${n > 1 ? `Всего ${n} × ${formatPrice(Number(agreed) || 0)} = ${formatPrice(a)}. Остаток` : "Остаток за книгу"}: ${formatPrice(a - p)} (доставка — сверху)` : "Укажите сумму — посчитаем остаток"}
               </div>
-              <div>
-                <label className="label">Этап воронки</label>
-                <select name="stageId" className="input h-11" defaultValue={v.stageId ?? defaultStageId}>
+              <Field label="Этап воронки">
+                <select name="stageId" className="input" defaultValue={v.stageId ?? defaultStageId}>
                   {stages.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.name}
                     </option>
                   ))}
                 </select>
-              </div>
+              </Field>
               {canAssign ? (
-                <div>
-                  <label className="label">Ответственный</label>
-                  <select name="assigneeId" className="input h-11" defaultValue={v.assigneeId ?? me}>
+                <Field label="Ответственный">
+                  <select name="assigneeId" className="input" defaultValue={v.assigneeId ?? me}>
                     {admins.map((x) => (
                       <option key={x.id} value={x.id}>
                         {x.label}
                       </option>
                     ))}
                   </select>
-                </div>
+                </Field>
               ) : null}
-              <div className="sm:col-span-2">
-                <label className="label">Комментарий</label>
+              <Field label="Комментарий" optional className="sm:col-span-2">
                 <textarea name="comment" rows={3} maxLength={1000} className="input w-full" placeholder="Что ещё важно знать: пожелания, договорённости" defaultValue={v.comment} />
-              </div>
-            </>
+              </Field>
+            </div>
           ) : null}
         </section>
       ) : null}
 
-      <SubmitButton className="btn-lg w-full" pendingText="Создаём…">
+      <SubmitButton className="w-full sm:w-auto" pendingText="Создаём…">
         Создать клиента и выдать доступ
       </SubmitButton>
     </form>

@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, ImagePlus } from "lucide-react";
+import { ImagePlus } from "lucide-react";
 import { Link, useMessages } from "@/i18n/client";
 import { SaveIndicator } from "@/components/SaveIndicator";
 import { PreviewDock, useScrolledPast } from "@/components/PreviewDock";
@@ -204,11 +204,11 @@ export function PagesEditor({
       </PreviewDock>
       <div>
         <div className="lg:sticky lg:top-24">
-          <div ref={bigPreview} className="rounded-[28px] bg-cream/70 p-3 sm:p-8">
+          <div ref={bigPreview} className="rounded-[28px] bg-sunken p-3 sm:p-8">
             <InteriorSpread design={spreadDesign} format={format} sample={live} kind={spread} className="rounded-[3px] shadow-book" />
           </div>
           <div className="mt-4 flex justify-center">
-            <div role="radiogroup" aria-label={t.spreadsAria} className="no-scrollbar inline-flex max-w-full gap-1 overflow-x-auto rounded-2xl bg-cream/70 p-1">
+            <div role="radiogroup" aria-label={t.spreadsAria} className="no-scrollbar inline-flex max-w-full gap-1 overflow-x-auto rounded-2xl bg-sunken p-1">
               {spreads.map((k) => (
                 <button
                   key={k}
@@ -242,7 +242,7 @@ export function PagesEditor({
 
       <div className="space-y-12">
         {notice?.kind === "toPhoto" ? (
-          <div className="mt-3 rounded-2xl bg-cream/70 p-3.5 text-sm" role="status">
+          <div className="mt-3 rounded-2xl bg-sunken p-3.5 text-sm" role="status">
             <p className="text-ink-soft">{pp.toPhoto(names[design.id].name, m.editor.openerShape[notice.shape], notice.chosen, notice.total)}</p>
             {notice.next && notice.chosen < notice.total && photos.book.editable ? (
               <button type="button" className="btn btn-outline btn-sm mt-2.5 min-h-11" onClick={() => openSheet({ kind: "chapter", key: notice.next! })}>
@@ -251,7 +251,7 @@ export function PagesEditor({
             ) : null}
           </div>
         ) : notice?.kind === "leaving" ? (
-          <p className="mt-3 rounded-2xl bg-cream/70 p-3.5 text-sm text-ink-soft" role="status">
+          <p className="mt-3 rounded-2xl bg-sunken p-3.5 text-sm text-ink-soft" role="status">
             {pp.leaving}
           </p>
         ) : null}
@@ -332,7 +332,7 @@ export function PagesEditor({
         <FormSection title={t.photos}>
           <p className="text-sm text-ink-soft">{pp.summary[state.photoPlacement]}</p>
           <Link href={`/books/${bookId}/photos`} className="mt-2 inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-wine hover:underline">
-            {pp.summaryLink} <ArrowRight className="size-3.5" />
+            {pp.summaryLink}
           </Link>
         </FormSection>
       </div>

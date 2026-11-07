@@ -1,7 +1,12 @@
 import Link from "next/link";
 import { MobileFilters } from "@/components/admin/MobileFilters";
 import { channelLabel, channels, toAttribution } from "@/shared/domain/channels";
-import { Contact, Download, UserPlus } from "lucide-react";
+import { CalendarHeart, ChevronDown, ChevronLeft, ChevronRight, Contact, Download, Search, SearchX, User, UserPlus, Users } from "lucide-react";
+import { PageHeader } from "@/components/admin/PageHeader";
+import { ActionMenu, MenuLink, MenuSeparator } from "@/components/admin/ActionMenu";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { ChatAvatar } from "@/components/admin/chat/Inbox";
+import { ruCount } from "@/i18n/plural";
 import { clientSegments, type ClientSegment } from "@/shared/domain/segments";
 import { CLIENT_OCCASIONS, clientFiltersFrom, clientFiltersQuery, type ClientSort } from "@/modules/reporting";
 import { messagesFor } from "@/i18n/messages";
@@ -54,216 +59,280 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
     return `/admin/clients?${p}`;
   };
   const canRepeat = can(staff, "clients.edit", "deals.edit");
-  const exportQs = new URLSearchParams(Object.entries({ segment, q: sp.q, tag: sp.tag, ...filterQs }).filter(([, v]) => v) as [string, string][]);
+  // Выгрузка — по тем же фильтрам, что на экране, включая канал и «Только мои».
+  const exportQs = new URLSearchParams(Object.entries({ segment, q: sp.q, tag: sp.tag, ch: sp.ch, mine: onlyMine ? "1" : undefined, ...filterQs }).filter(([, v]) => v) as [string, string][]);
+
+  const moreActive = !!(filters.occasion || filters.month || filters.boughtFrom || filters.boughtTo || filters.noOpenDeal);
+  const filtered = !!(sp.q || sp.tag || sp.ch || onlyMine || moreActive || segment !== "all");
+  const pages = Math.ceil(total / PAGE);
+  const name = (u: { name: string | null; email: string }) => u.name || u.email.split("@")[0];
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">Клиенты</h1>
-          <p className="text-sm text-muted">Найдено {total}{sp.tag ? ` · тег «${sp.tag}»` : ""}</p>
-        </div>
-        <div className="flex items-center gap-2 max-lg:w-full max-lg:[&>*]:flex-1">
-          {can(staff, "clients.export", "clients.contacts") ? (
-            <a href={`/api/admin/export/clients?${exportQs}`} className="btn btn-outline btn-sm">
-              <Download className="size-4" /> CSV
-            </a>
-          ) : null}
-          {canVcard ? (
-            <a href="/api/admin/export/vcard" className="btn btn-outline btn-sm" title="Файл .vcf для контактов телефона магазина: WhatsApp покажет имя, номер сделки и повод вместо номера">
-              <Contact className="size-4" /> Контакты для телефона
-            </a>
-          ) : null}
-          {canVcard ? (
-            <a href={`/api/admin/export/vcard?since=${weekAgo}`} className="text-xs text-muted hover:text-wine" title="Только клиенты, изменённые за 7 дней">
-              новые за неделю
-            </a>
-          ) : null}
-          {can(staff, "clients.create") ? (
-            <Link href="/admin/clients/new" className="btn btn-primary btn-sm">
-              <UserPlus className="size-4" /> Новый клиент
-            </Link>
-          ) : null}
-        </div>
-      </div>
-
-      <div className="m-hscroll flex flex-wrap gap-1.5">
-        {(Object.keys(clientSegments) as ClientSegment[]).map((s) => (
-          <Link key={s} href={link({ segment: s, page: undefined })} className={cn("rounded-full px-3 py-1.5 text-sm whitespace-nowrap", segment === s ? "bg-ink text-white" : "bg-white text-ink-soft hover:bg-cream")}>
-            {clientSegments[s]} <span className="opacity-60">{counts[s]}</span>
-          </Link>
-        ))}
-      </div>
-
-      <MobileFilters>
-      <form className="flex flex-wrap gap-2 max-lg:[&>*]:w-full">
-        <input type="hidden" name="segment" value={segment} />
-        <input name="q" defaultValue={sp.q} placeholder="Имя, e-mail, телефон" className="input h-10 w-72 text-sm max-lg:w-full" />
-        <select name="ch" defaultValue={sp.ch ?? ""} className="input h-10 w-48 text-sm max-lg:w-full" aria-label="Канал">
-          <option value="">Все каналы</option>
-          {(["instagram", "tiktok", "bloggers", "whatsapp", "telegram", "youtube", "vk", "call", "recommendation", "repeat", "offline", "other", "google_ads", "google", "yandex_ads", "yandex", "facebook", "direct"] as const).map((k) => (
-            <option key={k} value={k}>
-              {channels[k]}
-            </option>
-          ))}
-        </select>
-        <select name="sort" defaultValue={sort} className="input h-10 w-56 text-sm max-lg:w-full">
-          <option value="new">Сначала новые</option>
-          <option value="ltv">По сумме покупок</option>
-          <option value="active">По последнему визиту</option>
-        </select>
-        <label className="flex h-10 items-center gap-2 px-2 text-sm text-ink-soft">
-          <input type="checkbox" name="mine" value="1" defaultChecked={onlyMine} className="accent-wine" /> Только мои
-        </label>
-        <div className="flex w-full flex-wrap items-center gap-2 max-lg:[&>*]:w-full" data-testid="clients-repeat-filters">
-          <select name="occ" defaultValue={filters.occasion ?? ""} className="input h-10 w-44 text-sm" aria-label="Повод">
-            <option value="">Любой повод</option>
-            {CLIENT_OCCASIONS.map((o) => (
-              <option key={o} value={o}>
-                {occasionLabels[o].label}
-              </option>
-            ))}
-          </select>
-          <select name="month" defaultValue={filters.month ? String(filters.month) : ""} className="input h-10 w-40 text-sm" aria-label="Месяц повода">
-            <option value="">Месяц повода</option>
-            {MONTHS.map((m, i) => (
-              <option key={m} value={i + 1}>
-                {m}
-              </option>
-            ))}
-          </select>
-          <span className="text-sm text-muted">покупали с</span>
-          <input type="month" name="from" defaultValue={filters.boughtFrom} className="input h-10 w-40 text-sm" aria-label="Покупали с" />
-          <span className="text-sm text-muted">по</span>
-          <input type="month" name="to" defaultValue={filters.boughtTo} className="input h-10 w-40 text-sm" aria-label="Покупали по" />
-          <label className="flex h-10 items-center gap-2 px-2 text-sm text-ink-soft">
-            <input type="checkbox" name="noDeal" value="1" defaultChecked={!!filters.noOpenDeal} className="accent-wine" /> Без открытой сделки
-          </label>
-        </div>
-        <button className="btn btn-dark btn-sm h-10">Найти</button>
-      </form>
-      </MobileFilters>
-
-      <ul className="space-y-2.5 lg:hidden" data-testid="clients-cards">
-        {rows.map((r) => {
-          const c = contactView(staff, r.user);
-          return (
-            <li key={r.user.id}>
-              <Link href={`/admin/clients/${r.user.id}`} className="m-card block rounded-2xl border border-line bg-white p-3.5 shadow-soft">
-                <div className="flex items-start gap-3">
-                  <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-wine to-wine-dark text-base font-semibold text-white uppercase">{(r.user.name || r.user.email).slice(0, 1)}</span>
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-[16px] font-semibold">{r.user.name || r.user.email.split("@")[0]}</div>
-                    <div className="truncate text-sm text-muted">{c.phone || c.email}</div>
-                    <div className="truncate text-xs text-muted">
-                      {r.booksCount ? `Книги: ${r.booksCount} · ${r.bestAnswered} отв.` : "Книг нет"} · был {relative(r.user.lastSeenAt)}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-[15px] font-semibold whitespace-nowrap tabular-nums">{r.ltv ? formatPrice(r.ltv) : "—"}</div>
-                    <div className="text-xs text-muted">{r.ordersCount ? `заказов: ${r.ordersCount}` : "без заказов"}</div>
-                  </div>
-                </div>
-                <div className="mt-2.5 flex flex-wrap items-center gap-1.5 text-xs">
-                  <span className="rounded-md bg-cream px-2 py-1 text-ink-soft">{channelLabel(toAttribution(r.user.source))}</span>
-                  {r.user.managerId ? <span className="rounded-md bg-cream px-2 py-1 text-ink-soft">👤 {managerName.get(r.user.managerId) ?? "—"}</span> : null}
-                  {r.user.tags.slice(0, 3).map((t) => (
-                    <span key={t} className="rounded-full bg-rose px-2 py-1 text-wine">
-                      {t}
-                    </span>
-                  ))}
-                  <span className="ml-auto text-muted">{formatDate(r.user.createdAt)}</span>
-                </div>
-              </Link>
-            </li>
-          );
-        })}
-        {rows.length === 0 ? <li className="rounded-2xl border border-dashed border-line bg-white px-4 py-10 text-center text-sm text-muted">Никого не нашли</li> : null}
-      </ul>
-
-      {canRepeat && rows.length ? (
-        <div className="max-lg:hidden">
-          <RepeatSale occasionTitle={filters.occasion ? occasionLabels[filters.occasion].label : "праздник"} />
-        </div>
-      ) : null}
-
-      <div className="hidden overflow-x-auto rounded-2xl border border-line bg-white lg:block">
-        <table className="w-full min-w-[900px] text-sm">
-          <thead className="border-b border-line text-left text-muted">
-            <tr>
-              {canRepeat ? <th className="w-8 px-3 py-3" aria-label="Выбор" /> : null}
-              <th className="px-4 py-3 font-medium">Клиент</th>
-              <th className="px-3 py-3 font-medium">Книги</th>
-              <th className="px-3 py-3 text-right font-medium">Заказы</th>
-              <th className="px-3 py-3 text-right font-medium">LTV</th>
-              <th className="px-3 py-3 font-medium">Последний визит</th>
-              <th className="px-3 py-3 font-medium">Регистрация</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-line">
-            {rows.map((r) => (
-              <tr key={r.user.id} className="hover:bg-cream/40">
-                {canRepeat ? (
-                  <td className="px-3 py-3">
-                    <input type="checkbox" name="ids" value={r.user.id} form={REPEAT_FORM} className="size-4 accent-wine" aria-label={`Выбрать ${r.user.name || r.user.email}`} />
-                  </td>
+    <div className="flex flex-col gap-4 lg:gap-5">
+      <PageHeader
+        title="Клиенты"
+        meta={
+          <span className="text-sm text-muted tabular-nums">
+            {ruCount(total, "клиент", "клиента", "клиентов")}
+            {sp.tag ? `, тег «${sp.tag}»` : ""}
+          </span>
+        }
+        actions={
+          <>
+            {can(staff, "clients.export", "clients.contacts") ? (
+              <ActionMenu className="max-lg:order-last" label="Выгрузить">
+                <MenuLink external href={`/api/admin/export/clients?${exportQs}`} icon={<Download />}>
+                  CSV по текущим фильтрам
+                </MenuLink>
+                {canVcard ? (
+                  <>
+                    <MenuSeparator />
+                    <MenuLink external href="/api/admin/export/vcard" icon={<Contact />} title="Файл .vcf для контактов телефона магазина: WhatsApp покажет имя, номер сделки и повод вместо номера">
+                      Контакты для телефона
+                    </MenuLink>
+                    <MenuLink external href={`/api/admin/export/vcard?since=${weekAgo}`} icon={<Contact />} title="Только клиенты, изменённые за 7 дней">
+                      Контакты: новые за неделю
+                    </MenuLink>
+                  </>
                 ) : null}
-                <td className="px-4 py-3">
-                  <Link href={`/admin/clients/${r.user.id}`} className="font-medium hover:text-wine hover:underline">
-                    {r.user.name || r.user.email.split("@")[0]}
+              </ActionMenu>
+            ) : null}
+            {can(staff, "clients.create") ? (
+              <Link href="/admin/clients/new" className="btn btn-primary btn-sm">
+                <UserPlus className="size-4" aria-hidden /> Новый клиент
+              </Link>
+            ) : null}
+          </>
+        }
+      />
+
+      <div className="flex flex-col gap-3">
+        <nav className="m-hscroll flex flex-wrap gap-2" aria-label="Сегменты">
+          {(Object.keys(clientSegments) as ClientSegment[]).map((s) => (
+            <Link key={s} href={link({ segment: s, page: undefined })} aria-current={segment === s ? "true" : undefined} className={cn("chip max-lg:h-10", segment === s && "chip-on")}>
+              {clientSegments[s]} <span className="tabular-nums opacity-60">{counts[s]}</span>
+            </Link>
+          ))}
+        </nav>
+
+        <form className="flex flex-wrap items-center gap-2" role="search">
+          <input type="hidden" name="segment" value={segment} />
+          <label className="relative min-w-0 flex-1 lg:max-w-80">
+            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" aria-hidden />
+            <input name="q" type="search" defaultValue={sp.q} placeholder="Имя, e-mail, телефон" aria-label="Поиск клиентов: имя, e-mail, телефон" className="input h-9 pl-9 text-sm max-lg:h-11" />
+          </label>
+          <MobileFilters compact active={!!(sp.ch || onlyMine || moreActive || sort !== "new")}>
+            <div className="flex flex-wrap items-center gap-2 max-lg:mt-1 max-lg:flex-col max-lg:items-stretch lg:contents">
+              <select name="ch" defaultValue={sp.ch ?? ""} className="input h-9 text-sm lg:w-44" aria-label="Канал">
+                <option value="">Все каналы</option>
+                {(["instagram", "tiktok", "bloggers", "whatsapp", "telegram", "youtube", "vk", "call", "recommendation", "repeat", "offline", "other", "google_ads", "google", "yandex_ads", "yandex", "facebook", "direct"] as const).map((k) => (
+                  <option key={k} value={k}>
+                    {channels[k]}
+                  </option>
+                ))}
+              </select>
+              <select name="sort" defaultValue={sort} className="input h-9 text-sm lg:w-52" aria-label="Сортировка">
+                <option value="new">Сначала новые</option>
+                <option value="ltv">По сумме покупок</option>
+                <option value="active">По последнему визиту</option>
+              </select>
+              <label className="flex h-9 items-center gap-2 px-1 text-sm whitespace-nowrap text-ink-soft max-lg:h-11">
+                <input type="checkbox" name="mine" value="1" defaultChecked={onlyMine} className="size-4 accent-wine" /> Только мои
+              </label>
+              {/* Добивка к праздникам (contacts-13) — реже нужна: свёрнута, раскрыта, если такой фильтр уже стоит. */}
+              <details className="group w-full lg:order-last" open={moreActive}>
+                <summary className="inline-flex min-h-9 cursor-pointer list-none items-center gap-1.5 text-sm text-wine hover:underline max-lg:min-h-11 [&::-webkit-details-marker]:hidden">
+                  <CalendarHeart className="size-4" aria-hidden /> Повод и покупки
+                  <ChevronDown className="size-4 transition-transform group-open:rotate-180" aria-hidden />
+                </summary>
+                <div className="mt-2 flex flex-wrap items-center gap-2 rounded-[10px] bg-sunken/70 p-2.5 max-lg:flex-col max-lg:items-stretch" data-testid="clients-repeat-filters">
+                  <select name="occ" defaultValue={filters.occasion ?? ""} className="input h-9 text-sm lg:w-44" aria-label="Повод">
+                    <option value="">Любой повод</option>
+                    {CLIENT_OCCASIONS.map((o) => (
+                      <option key={o} value={o}>
+                        {occasionLabels[o].label}
+                      </option>
+                    ))}
+                  </select>
+                  <select name="month" defaultValue={filters.month ? String(filters.month) : ""} className="input h-9 text-sm lg:w-40" aria-label="Месяц повода">
+                    <option value="">Месяц повода</option>
+                    {MONTHS.map((m, i) => (
+                      <option key={m} value={i + 1}>
+                        {m}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="flex items-center gap-2 text-sm text-muted">
+                    покупали с
+                    <input type="month" name="from" defaultValue={filters.boughtFrom} className="input h-9 min-w-0 flex-1 text-sm lg:w-40" aria-label="Покупали с" />
+                  </span>
+                  <span className="flex items-center gap-2 text-sm text-muted">
+                    по
+                    <input type="month" name="to" defaultValue={filters.boughtTo} className="input h-9 min-w-0 flex-1 text-sm lg:w-40" aria-label="Покупали по" />
+                  </span>
+                  <label className="flex h-9 items-center gap-2 px-1 text-sm whitespace-nowrap text-ink-soft max-lg:h-11">
+                    <input type="checkbox" name="noDeal" value="1" defaultChecked={!!filters.noOpenDeal} className="size-4 accent-wine" /> Без открытой сделки
+                  </label>
+                </div>
+              </details>
+            </div>
+          </MobileFilters>
+          <button className="btn btn-outline btn-sm max-lg:h-11">Найти</button>
+        </form>
+      </div>
+
+      {rows.length === 0 ? (
+        <div className="panel">
+          {filtered ? (
+            <EmptyState icon={SearchX} title="Никого не нашли" action={<Link href="/admin/clients" className="btn btn-outline btn-sm">Сбросить фильтры</Link>}>
+              Проверьте написание имени или номера, смените сегмент или канал.
+            </EmptyState>
+          ) : (
+            <EmptyState icon={Users} title="Клиентов пока нет" action={can(staff, "clients.create") ? <Link href="/admin/clients/new" className="btn btn-dark btn-sm">Новый клиент</Link> : undefined}>
+              Клиенты появятся, когда зарегистрируются на сайте или вы заведёте их вручную.
+            </EmptyState>
+          )}
+        </div>
+      ) : (
+        <>
+          <ul className="space-y-2 lg:hidden" data-testid="clients-cards">
+            {rows.map((r) => {
+              const c = contactView(staff, r.user);
+              return (
+                <li key={r.user.id}>
+                  <Link href={`/admin/clients/${r.user.id}`} className="panel m-card block p-3.5">
+                    <div className="flex items-start gap-3">
+                      <ChatAvatar name={name(r.user)} url={null} size={40} />
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-[15px] font-semibold">{name(r.user)}</div>
+                        <div className="truncate text-sm text-muted tabular-nums">{c.phone || c.email}</div>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <div className="text-[15px] font-semibold whitespace-nowrap tabular-nums">{r.ltv ? formatPrice(r.ltv) : "—"}</div>
+                        <div className="text-xs text-muted">{r.ordersCount ? ruCount(r.ordersCount, "заказ", "заказа", "заказов") : "без заказов"}</div>
+                      </div>
+                    </div>
+                    <div className="mt-2.5 flex flex-wrap items-center gap-1.5 pl-[52px] text-xs">
+                      <span className="badge">{channelLabel(toAttribution(r.user.source))}</span>
+                      {r.user.managerId ? (
+                        <span className="badge" title="Ответственный">
+                          <User className="size-3" aria-hidden /> {managerName.get(r.user.managerId) ?? "—"}
+                        </span>
+                      ) : null}
+                      {r.user.tags.slice(0, 3).map((t) => (
+                        <span key={t} className="badge badge-accent">
+                          {t}
+                        </span>
+                      ))}
+                      <span className="ml-auto text-muted">{r.booksCount ? `книг: ${r.booksCount}` : "без книги"}, был {relative(r.user.lastSeenAt)}</span>
+                    </div>
                   </Link>
-                  {(() => {
+                </li>
+              );
+            })}
+          </ul>
+
+          <div className="max-lg:hidden">
+            {canRepeat ? (
+              <div className="rounded-t-[14px] border border-b-0 border-line bg-white px-5 py-2.5">
+                <RepeatSale occasionTitle={filters.occasion ? occasionLabels[filters.occasion].label : "праздник"} />
+              </div>
+            ) : null}
+            <div className={cn("overflow-x-auto border border-line bg-white", canRepeat ? "rounded-b-[14px]" : "rounded-[14px]")}>
+              <table className="table min-w-[900px] [&_td:first-child]:pl-5 [&_td:last-child]:pr-5 [&_th:first-child]:pl-5 [&_th:last-child]:pr-5">
+                <thead>
+                  <tr>
+                    {canRepeat ? <th className="w-10" aria-label="Выбор" /> : null}
+                    <th>Клиент</th>
+                    <th>Книги</th>
+                    <th className="text-right">Заказы</th>
+                    <th className="text-right">Сумма покупок</th>
+                    <th>Последний визит</th>
+                    <th>Регистрация</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r) => {
                     const c = contactView(staff, r.user);
                     return (
-                      <div className="text-xs text-muted">
-                        {c.email}
-                        {c.phone ? ` · ${c.phone}` : ""}
-                        {r.user.managerId ? ` · 👤 ${managerName.get(r.user.managerId) ?? "—"}` : ""}
-                        <span className="ml-1.5 rounded bg-cream px-1.5 py-0.5 text-[10px] text-ink-soft" title={r.user.source ? JSON.stringify(r.user.source) : ""}>
-                          {channelLabel(toAttribution(r.user.source))}
-                        </span>
-                      </div>
+                      <tr key={r.user.id}>
+                        {canRepeat ? (
+                          <td>
+                            <input type="checkbox" name="ids" value={r.user.id} form={REPEAT_FORM} className="size-4 align-middle accent-wine" aria-label={`Выбрать ${r.user.name || r.user.email}`} />
+                          </td>
+                        ) : null}
+                        <td className="max-w-96">
+                          <div className="flex items-center gap-3">
+                            <ChatAvatar name={name(r.user)} url={null} size={40} />
+                            <div className="min-w-0">
+                              <Link href={`/admin/clients/${r.user.id}`} className="block truncate font-medium hover:text-wine">
+                                {name(r.user)}
+                              </Link>
+                              <div className="truncate text-xs text-muted">
+                                <span className="tabular-nums">{c.phone || c.email}</span>
+                                {c.phone && c.email ? ` · ${c.email}` : ""}
+                              </div>
+                              <div className="mt-1 flex flex-wrap items-center gap-1">
+                                <span className="badge" title={r.user.source ? JSON.stringify(r.user.source) : ""}>
+                                  {channelLabel(toAttribution(r.user.source))}
+                                </span>
+                                {r.user.managerId ? (
+                                  <span className="badge" title="Ответственный">
+                                    <User className="size-3" aria-hidden />
+                                    <span className="sr-only">Ответственный:</span> {managerName.get(r.user.managerId) ?? "—"}
+                                  </span>
+                                ) : null}
+                                {r.user.tags.map((t) => (
+                                  <Link key={t} href={link({ tag: t, page: undefined })} className="badge badge-accent hover:underline">
+                                    {t}
+                                  </Link>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          {r.booksCount ? (
+                            <>
+                              <span className="tabular-nums">
+                                {r.booksCount} · {r.bestAnswered} отв.{r.bestWords ? ` · ${r.bestWords} сл.` : ""}
+                              </span>
+                              <div className="text-xs text-muted">изм. {relative(r.lastBookUpdate)}</div>
+                            </>
+                          ) : (
+                            <span className="text-muted">—</span>
+                          )}
+                        </td>
+                        <td className="text-right tabular-nums">{r.ordersCount || <span className="text-muted">—</span>}</td>
+                        <td className="text-right font-medium tabular-nums">{r.ltv ? formatPrice(r.ltv) : <span className="font-normal text-muted">—</span>}</td>
+                        <td className="whitespace-nowrap text-muted">{relative(r.user.lastSeenAt)}</td>
+                        <td className="whitespace-nowrap text-muted">{formatDate(r.user.createdAt)}</td>
+                      </tr>
                     );
-                  })()}
-                  {r.user.tags.length ? (
-                    <div className="mt-1 flex flex-wrap gap-1">
-                      {r.user.tags.map((t) => (
-                        <Link key={t} href={link({ tag: t, page: undefined })} className="rounded-full bg-rose px-2 py-0.5 text-[11px] text-wine">
-                          {t}
-                        </Link>
-                      ))}
-                    </div>
-                  ) : null}
-                </td>
-                <td className="px-3 py-3">
-                  {r.booksCount ? (
-                    <>
-                      {r.booksCount} · {r.bestAnswered} отв.{r.bestWords ? ` · ${r.bestWords} сл.` : ""}
-                      <div className="text-xs text-muted">изм. {relative(r.lastBookUpdate)}</div>
-                    </>
-                  ) : (
-                    <span className="text-muted">—</span>
-                  )}
-                </td>
-                <td className="px-3 py-3 text-right tabular-nums">{r.ordersCount || "—"}</td>
-                <td className="px-3 py-3 text-right font-medium tabular-nums">{r.ltv ? formatPrice(r.ltv) : "—"}</td>
-                <td className="px-3 py-3 text-muted">{relative(r.user.lastSeenAt)}</td>
-                <td className="px-3 py-3 text-muted">{formatDate(r.user.createdAt)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {rows.length === 0 ? <p className="py-10 text-center text-muted">Никого не нашли</p> : null}
-      </div>
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
 
-      {total > PAGE ? (
-        <div className="flex items-center justify-center gap-3 text-sm max-lg:pb-2">
-          {page > 1 ? <Link className="btn btn-outline btn-sm" href={link({ page: String(page - 1) })}>← Назад</Link> : null}
-          <span className="text-muted">
-            {page} из {Math.ceil(total / PAGE)}
+      {pages > 1 ? (
+        <nav className="flex items-center justify-center gap-3 text-sm max-lg:pb-2" aria-label="Страницы">
+          {page > 1 ? (
+            <Link className="btn btn-outline btn-sm" href={link({ page: String(page - 1) })}>
+              <ChevronLeft className="size-4" aria-hidden /> Назад
+            </Link>
+          ) : null}
+          <span className="text-muted tabular-nums">
+            {page} из {pages}
           </span>
-          {page * PAGE < total ? <Link className="btn btn-outline btn-sm" href={link({ page: String(page + 1) })}>Дальше →</Link> : null}
-        </div>
+          {page * PAGE < total ? (
+            <Link className="btn btn-outline btn-sm" href={link({ page: String(page + 1) })}>
+              Дальше <ChevronRight className="size-4" aria-hidden />
+            </Link>
+          ) : null}
+        </nav>
       ) : null}
     </div>
   );

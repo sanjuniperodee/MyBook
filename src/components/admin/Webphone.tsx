@@ -83,7 +83,7 @@ export function Webphone() {
   return (
     <button
       type="button"
-      className={cn("btn btn-ghost btn-sm h-9 gap-1.5", on && "text-emerald-700")}
+      className={cn("btn btn-ghost btn-sm h-9 gap-1.5 px-2.5", on && "text-success hover:text-success")}
       title={on ? "Веб-телефон включён. Чтобы выключить — нажмите и обновите страницу" : "Включить веб-телефон: звонки из браузера (нужен микрофон)"}
       onClick={() => {
         if (on) {

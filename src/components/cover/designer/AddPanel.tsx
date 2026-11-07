@@ -43,7 +43,7 @@ export function AddPanel({
       <PanelSection title={t.text}>
         <div className="grid gap-2">
           {(Object.keys(PRESET_LOOK) as TextPreset[]).map((p) => (
-            <button key={p} type="button" onClick={() => onText(p)} className="rounded-xl border border-line bg-white px-3 py-2.5 text-left transition hover:border-wine/40 hover:bg-cream/40">
+            <button key={p} type="button" onClick={() => onText(p)} className="rounded-xl border border-line bg-white px-3 py-2.5 text-left transition hover:border-wine/40 hover:bg-sunken">
               <span className={PRESET_LOOK[p].className} style={{ fontFamily: cssFont(PRESET_LOOK[p].font) }}>
                 {t.presets[p]}
               </span>

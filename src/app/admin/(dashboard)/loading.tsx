@@ -5,10 +5,10 @@ export default function Loading() {
   return (
     <SkPage>
       <SkHeader actions={1} title="w-32" />
-      <SkStats n={6} />
-      <SkRows rows={4} avatar action={false} />
+      <SkStats n={5} />
+      <SkRows rows={3} action={false} />
       <SkStats n={4} />
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <SkChart />
         <SkCard lines={5} />
       </div>

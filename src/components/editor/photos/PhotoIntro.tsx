@@ -39,7 +39,7 @@ export function PhotoIntroCard({ blank, force, className }: { blank: boolean; /*
   const [isSeen, dismiss] = usePhotoIntroSeen();
   if (isSeen && !force) return null;
   return (
-    <div className={className ?? "rounded-2xl bg-cream/70 p-4"}>
+    <div className={className ?? "rounded-[14px] border border-line bg-white p-4"}>
       <div className="flex items-center gap-2 font-medium">
         <Info className="size-4 shrink-0 text-wine" aria-hidden />
         {t.title}

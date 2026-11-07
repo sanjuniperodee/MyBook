@@ -2,13 +2,13 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { CalendarPlus, ListChecks, LoaderCircle, Sparkles } from "lucide-react";
+import { CalendarPlus, ListChecks, LoaderCircle, Sparkles, TriangleAlert } from "lucide-react";
 import { aiApplyFieldsAction, aiExtractFieldsAction, aiNextStepTaskAction, aiSummaryAction, type FieldProposal } from "@/app/admin/ai-actions";
 import { temperatureLabels, type AiSummary } from "@/modules/assistant/domain";
 import { toast, toastError } from "@/components/ui/overlays";
 import { cn } from "@/lib/class-names";
 
-const tempColors = { hot: "bg-red-100 text-red-800", warm: "bg-amber-100 text-amber-800", cold: "bg-sky-100 text-sky-800" } as const;
+const tempTones = { hot: "badge-danger", warm: "badge-warning", cold: "badge-info" } as const;
 
 /** AI-помощник в карточке сделки: резюме со следующим шагом и заполнение полей из переписки. */
 export function DealAi({ dealId, summary, summaryAt, canEdit }: { dealId: string; summary: AiSummary | null; summaryAt: string | null; canEdit: boolean }) {
@@ -66,86 +66,96 @@ export function DealAi({ dealId, summary, summaryAt, canEdit }: { dealId: string
       router.refresh();
     });
 
-  const spin = (k: typeof busy) => (busy === k ? <LoaderCircle className="size-4 animate-spin" /> : null);
+  const spin = (k: typeof busy) => (busy === k ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : null);
 
   return (
-    <section className="rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 to-white p-5" data-testid="deal-ai">
-      <div className="flex flex-wrap items-center gap-2">
-        <h2 className="mr-auto flex items-center gap-2 font-semibold">
-          <Sparkles className="size-4 text-violet-600" /> AI-помощник
+    <section className="panel" data-testid="deal-ai">
+      <header className="panel-head">
+        <h2 className="panel-title flex items-center gap-2">
+          <span className="flex size-7 items-center justify-center rounded-lg bg-rose text-wine">
+            <Sparkles className="size-4" strokeWidth={1.8} aria-hidden />
+          </span>
+          AI-помощник
         </h2>
-        <button type="button" className="btn btn-outline btn-sm" onClick={getSummary} disabled={!!busy}>
-          {spin("summary") ?? <Sparkles className="size-4" />} {summary ? "Обновить резюме" : "Резюме и следующий шаг"}
-        </button>
-        {canEdit ? (
-          <button type="button" className="btn btn-outline btn-sm" onClick={getFields} disabled={!!busy}>
-            {spin("fields") ?? <ListChecks className="size-4" />} Заполнить поля из переписки
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className="btn btn-outline btn-sm" onClick={getSummary} disabled={!!busy}>
+            {spin("summary") ?? <Sparkles className="size-4" aria-hidden />} {summary ? "Обновить резюме" : "Резюме и следующий шаг"}
           </button>
-        ) : null}
-      </div>
-
-      {summary ? (
-        <div className="mt-4 space-y-2 text-sm" data-testid="ai-summary">
-          <div className="flex items-center gap-2 text-xs text-muted">
-            <span className={cn("rounded-full px-2 py-0.5 font-medium", tempColors[summary.temperature])}>{temperatureLabels[summary.temperature]}</span>
-            {summaryAt ? <span>обновлено {summaryAt}</span> : null}
-          </div>
-          <p className="whitespace-pre-wrap">{summary.summary}</p>
-          {summary.nextStep ? (
-            <div className="flex flex-wrap items-start gap-3 rounded-xl bg-white p-3 ring-1 ring-violet-100">
-              <div className="min-w-0 flex-1">
-                <div className="text-xs text-muted">Следующий шаг · {summary.dueDays === 0 ? "сегодня" : summary.dueDays === 1 ? "завтра" : `через ${summary.dueDays} дн.`}</div>
-                <div className="font-medium">{summary.nextStep}</div>
+          {canEdit ? (
+            <button type="button" className="btn btn-ghost btn-sm" onClick={getFields} disabled={!!busy}>
+              {spin("fields") ?? <ListChecks className="size-4" aria-hidden />} Заполнить поля
+            </button>
+          ) : null}
+        </div>
+      </header>
+      <div className="panel-body space-y-3">
+        {summary ? (
+          <div className="space-y-3 text-sm" data-testid="ai-summary">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+              <span className={cn("badge", tempTones[summary.temperature])}>{temperatureLabels[summary.temperature]}</span>
+              {summaryAt ? <span>обновлено {summaryAt}</span> : null}
+            </div>
+            <p className="whitespace-pre-wrap text-ink-soft">{summary.summary}</p>
+            {summary.nextStep ? (
+              <div className="flex flex-wrap items-center gap-3 rounded-[10px] bg-sunken p-3">
+                <div className="min-w-0 flex-1 basis-48">
+                  <div className="text-xs text-muted">Следующий шаг, {summary.dueDays === 0 ? "сегодня" : summary.dueDays === 1 ? "завтра" : `через ${summary.dueDays} дн.`}</div>
+                  <div className="font-medium">{summary.nextStep}</div>
+                </div>
+                <button type="button" className="btn btn-dark btn-sm" onClick={task} disabled={!!busy}>
+                  {spin("task") ?? <CalendarPlus className="size-4" aria-hidden />} В задачи
+                </button>
               </div>
-              <button type="button" className="btn btn-sm" onClick={task} disabled={!!busy}>
-                {spin("task") ?? <CalendarPlus className="size-4" />} В задачи
+            ) : null}
+            {summary.risks ? (
+              <p className="flex items-start gap-1.5 text-xs text-warning">
+                <TriangleAlert className="mt-px size-3.5 shrink-0" aria-hidden /> Риск: {summary.risks}
+              </p>
+            ) : null}
+          </div>
+        ) : (
+          <p className="text-sm text-muted">Помощник прочитает переписку, звонки и заметки и подскажет, что делать дальше. В чате он же предложит ответ клиенту.</p>
+        )}
+
+        {proposals ? (
+          <div className="rounded-[10px] border border-line p-3" data-testid="ai-fields">
+            <div className="mb-2 text-sm font-medium">Нашлось в переписке — отметьте, что записать в карточку</div>
+            <ul className="space-y-1.5 text-sm">
+              {proposals.map((p) => (
+                <li key={p.key}>
+                  <label className="flex min-h-8 items-start gap-2">
+                    <input
+                      type="checkbox"
+                      className="mt-1 size-4 accent-wine"
+                      checked={picked.has(p.key)}
+                      onChange={(e) =>
+                        setPicked((s) => {
+                          const n = new Set(s);
+                          if (e.target.checked) n.add(p.key);
+                          else n.delete(p.key);
+                          return n;
+                        })
+                      }
+                    />
+                    <span>
+                      <span className="text-muted">{p.label}:</span> <b className="font-semibold">{p.type === "date" && typeof p.value === "string" ? p.value.split("-").reverse().join(".") : p.value}</b>
+                      {p.current !== null ? <span className="text-xs text-muted"> (сейчас: {p.current})</span> : null}
+                    </span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+            <div className="mt-3 flex gap-2">
+              <button type="button" className="btn btn-dark btn-sm" onClick={apply} disabled={!!busy || !picked.size}>
+                {spin("apply")} Записать
+              </button>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setProposals(null)}>
+                Отмена
               </button>
             </div>
-          ) : null}
-          {summary.risks ? <p className="text-xs text-amber-800">Риск: {summary.risks}</p> : null}
-        </div>
-      ) : (
-        <p className="mt-2 text-sm text-muted">AI-помощник прочитает переписку, звонки и заметки и подскажет, что делать дальше. В чате — кнопка ✨ предложит ответ клиенту.</p>
-      )}
-
-      {proposals ? (
-        <div className="mt-4 rounded-xl bg-white p-3 ring-1 ring-violet-100" data-testid="ai-fields">
-          <div className="mb-2 text-sm font-medium">Нашлось в переписке — отметьте, что записать в карточку:</div>
-          <ul className="space-y-1.5 text-sm">
-            {proposals.map((p) => (
-              <li key={p.key}>
-                <label className="flex items-start gap-2">
-                  <input
-                    type="checkbox"
-                    className="mt-1 accent-violet-600"
-                    checked={picked.has(p.key)}
-                    onChange={(e) =>
-                      setPicked((s) => {
-                        const n = new Set(s);
-                        if (e.target.checked) n.add(p.key);
-                        else n.delete(p.key);
-                        return n;
-                      })
-                    }
-                  />
-                  <span>
-                    <span className="text-muted">{p.label}:</span> <b>{p.type === "date" && typeof p.value === "string" ? p.value.split("-").reverse().join(".") : p.value}</b>
-                    {p.current !== null ? <span className="text-xs text-muted"> (сейчас: {p.current})</span> : null}
-                  </span>
-                </label>
-              </li>
-            ))}
-          </ul>
-          <div className="mt-3 flex gap-2">
-            <button type="button" className="btn btn-sm" onClick={apply} disabled={!!busy || !picked.size}>
-              {spin("apply")} Записать
-            </button>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setProposals(null)}>
-              Отмена
-            </button>
           </div>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
     </section>
   );
 }

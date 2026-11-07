@@ -1,22 +1,47 @@
 import { container } from "@/server/container";
 import Link from "next/link";
-import { PhoneIncoming, PhoneMissed, PhoneOutgoing, Settings } from "lucide-react";
+import { PhoneCall, PhoneIncoming, PhoneMissed, PhoneOutgoing, Settings } from "lucide-react";
 import { can, contactView, requireStaff } from "@/server/access";
 import { staffLabel } from "@/shared/domain/staff";
 import { formatPhone } from "@/shared/domain/phone";
 import { cn } from "@/lib/class-names";
 import { formatDate } from "@/lib/dates";
+import { PageHeader } from "@/components/admin/PageHeader";
+import { Segmented } from "@/components/admin/Segmented";
+import { StatRow, StatTile } from "@/components/admin/charts";
+import { Panel } from "@/components/ui/Panel";
+import { Badge, type BadgeTone } from "@/components/ui/Badge";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { CallRowActions } from "./CallActions";
 import { RecordingPlayer } from "./RecordingPlayer";
 import { LiveCalls } from "./LiveCalls";
 
 export const metadata = { title: "Звонки" };
 
-const filters = { all: "Все", missed: "Перезвонить", in: "Входящие", out: "Исходящие", mine: "Мои" } as const;
+const filters = {
+  all: "Все",
+  missed: "Перезвонить",
+  in: "Входящие",
+  out: "Исходящие",
+  mine: "Мои",
+} as const;
 type Filter = keyof typeof filters;
-const statusLabel = { ringing: "идёт", answered: "разговор", missed: "пропущен", busy: "занято", failed: "не дозвонились" } as const;
+const PERIODS = [1, 7, 14, 30, 90] as const;
+const status: Record<string, { label: string; tone: BadgeTone }> = {
+  ringing: { label: "идёт", tone: "info" },
+  answered: { label: "разговор", tone: "success" },
+  missed: { label: "пропущен", tone: "danger" },
+  busy: { label: "занято", tone: "warning" },
+  failed: { label: "не дозвонились", tone: "neutral" },
+};
+/** «7 нояб., 11:55» без года — в журнале за 90 дней год лишний. */
+const when = (d: Date | string) => formatDate(d, true).replace(/ \d{4} г\./, "");
 const dur = (s: number) => (s ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}` : "—");
 
+/**
+ * «Звонки»: сначала — кто ждёт перезвона (пропущенные без отметки «обработан»), потом идущие разговоры с прослушкой,
+ * итоги периода и журнал. На ноутбуке журнал — таблица, на телефоне — список карточек с теми же действиями.
+ */
 export default async function CallsPage({ searchParams }: { searchParams: Promise<{ f?: string; days?: string }> }) {
   const staff = await requireStaff("calls.view");
   const sp = await searchParams;
@@ -28,146 +53,229 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
     container().telephony.phone.currentProvider(),
   ]);
   const names = new Map(admins.map((a) => [a.id, staffLabel(a)]));
-  const chip = (k: Filter) => cn("rounded-full px-3 py-1.5 text-sm", f === k ? "bg-ink text-white" : "bg-white text-ink-soft hover:bg-cream");
+  const recordings = can(staff, "calls.recordings");
+  const period = days === 1 ? "сегодня" : `за ${days} дн.`;
+  const url = (p: { f?: Filter; days?: number }) => `/admin/calls?f=${p.f ?? f}&days=${p.days ?? days}`;
 
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-2xl font-semibold">Звонки</h1>
-        <span className="w-full text-sm text-muted">
-          за {days} дн.: {stats.total} звонков · {stats.answered} разговоров · {stats.missed} пропущено · {Math.round(stats.talk / 60)} мин на линии
-        </span>
-        {provider === "off" && can(staff, "settings.manage") ? (
-          <Link href="/admin/settings?tab=telephony" className="btn btn-outline btn-sm ml-auto">
+  const view = rows.map(({ call: c, clientName, dealTitle, dealContact }) => {
+    const phone = contactView(staff, { phone: formatPhone(c.clientPhone) }).phone || "скрытый номер";
+    const who = clientName || dealContact;
+    const open = c.status === "missed" && !c.handledAt && c.direction === "in";
+    const st = status[c.status] ?? {
+      label: c.status,
+      tone: "neutral" as BadgeTone,
+    };
+    return {
+      c,
+      open,
+      who: who || phone,
+      sub: who ? phone : dealTitle || null,
+      href: c.dealId ? `/admin/deals/${c.dealId}` : c.clientId ? `/admin/clients/${c.clientId}` : null,
+      Icon: c.direction === "out" ? PhoneOutgoing : c.status === "missed" ? PhoneMissed : PhoneIncoming,
+      dirLabel: c.direction === "out" ? "Исходящий" : "Входящий",
+      badge: (
+        <Badge tone={c.handledAt && c.status === "missed" ? "neutral" : st.tone} title={c.handledAt && c.status === "missed" ? "Пропущенный, отмечен как обработанный" : undefined}>
+          {st.label}
+          {c.handledAt && c.status === "missed" ? ", обработан" : ""}
+        </Badge>
+      ),
+      staffName: c.staffId ? (names.get(c.staffId) ?? "") : "",
+      recording: c.hasRecording && recordings,
+      actions: <CallRowActions callId={c.id} canCall={can(staff, "calls.make") && !!c.clientPhone} canHandle={open} />,
+    };
+  });
+
+  const empty = (
+    <EmptyState
+      icon={PhoneCall}
+      title={provider === "off" ? "Телефония не подключена" : f === "missed" ? "Перезванивать некому" : "Звонков за период нет"}
+      action={
+        provider === "off" && can(staff, "settings.manage") ? (
+          <Link href="/admin/settings?tab=telephony" className="btn btn-outline btn-sm">
             <Settings className="size-4" /> Подключить телефонию
           </Link>
-        ) : null}
-      </div>
-      {can(staff, "calls.recordings") ? <LiveCalls /> : null}
-      <div className="m-hscroll flex flex-wrap items-center gap-2">
-        {(Object.keys(filters) as Filter[]).map((k) => (
-          <Link key={k} href={`/admin/calls?f=${k}&days=${days}`} className={chip(k)}>
-            {filters[k]}
+        ) : f !== "all" || days < 90 ? (
+          <Link href={url({ f: "all", days: 90 })} className="btn btn-outline btn-sm">
+            Показать все за 90 дней
           </Link>
-        ))}
-        <div className="ml-auto flex shrink-0 rounded-xl border border-line bg-white p-0.5 text-sm">
-          {[1, 7, 14, 30, 90].map((d) => (
-            <Link key={d} href={`/admin/calls?f=${f}&days=${d}`} className={cn("rounded-lg px-2.5 py-1 max-lg:flex max-lg:min-h-9 max-lg:items-center", d === days ? "bg-ink text-white" : "text-ink-soft")}>
-              {d === 1 ? "сегодня" : `${d} дн.`}
+        ) : null
+      }
+    >
+      {provider === "off"
+        ? "Подключите АТС или звонки WhatsApp — входящие и исходящие появятся здесь с записями разговоров."
+        : f === "missed"
+          ? "Все пропущенные обработаны. Новые появятся здесь сразу."
+          : "Попробуйте другой период или фильтр."}
+    </EmptyState>
+  );
+
+  return (
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        title="Звонки"
+        actions={
+          provider === "off" && can(staff, "settings.manage") && view.length ? (
+            <Link href="/admin/settings?tab=telephony" className="btn btn-outline btn-sm">
+              <Settings className="size-4" /> Подключить телефонию
+            </Link>
+          ) : null
+        }
+      >
+        Журнал входящих и исходящих через АТС и WhatsApp: перезвонить, отметить обработанным, послушать запись.
+      </PageHeader>
+
+      {recordings ? <LiveCalls /> : null}
+
+      {stats.total ? (
+        <section aria-label={`Итоги ${period}`}>
+          <p className="text-sm text-ink-soft lg:hidden">
+            {period[0].toUpperCase() + period.slice(1)}: звонков {stats.total}, разговоров {stats.answered}, {Math.round(stats.talk / 60)} мин на линии.{" "}
+            {stats.missed ? (
+              <Link href={url({ f: "missed" })} className="font-medium text-danger underline-offset-2 hover:underline">
+                Пропущено {stats.missed}
+              </Link>
+            ) : null}
+          </p>
+          <StatRow className="max-lg:hidden">
+            <StatTile bare label="Звонков" value={String(stats.total)} hint={period} />
+            <StatTile bare label="Разговоров" value={String(stats.answered)} hint={stats.total ? `${Math.round((stats.answered / stats.total) * 100)}% звонков` : period} />
+            <StatTile bare label="Пропущено" value={String(stats.missed)} hint={stats.missed ? "открыть, кому перезвонить" : "никто не ждёт"} href={stats.missed ? url({ f: "missed" }) : undefined} />
+            <StatTile bare label="Минут на линии" value={String(Math.round(stats.talk / 60))} hint={stats.answered ? `в среднем ${dur(Math.round(stats.talk / stats.answered))} на разговор` : period} />
+          </StatRow>
+        </section>
+      ) : null}
+
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+        <nav className="m-hscroll flex flex-wrap items-center gap-1.5" aria-label="Фильтр звонков">
+          {(Object.keys(filters) as Filter[]).map((k) => (
+            <Link key={k} href={url({ f: k })} aria-current={f === k ? "page" : undefined} className={cn("chip max-lg:h-10", f === k && "chip-on")}>
+              {filters[k]}
             </Link>
           ))}
-        </div>
+        </nav>
+        <Segmented
+          className="lg:ml-auto"
+          label="Период"
+          items={PERIODS.map((d) => ({
+            key: String(d),
+            label: d === 1 ? "Сегодня" : `${d} дн.`,
+            href: url({ days: d }),
+            active: d === days,
+          }))}
+        />
       </div>
-      <ul className="space-y-2.5 lg:hidden" data-testid="calls-cards">
-        {rows.map(({ call: c, clientName, dealTitle, dealContact }) => {
-          const Icon = c.direction === "out" ? PhoneOutgoing : c.status === "missed" ? PhoneMissed : PhoneIncoming;
-          const phone = contactView(staff, { phone: formatPhone(c.clientPhone) }).phone || "скрытый номер";
-          const who = clientName || dealContact;
-          const href = c.dealId ? `/admin/deals/${c.dealId}` : c.clientId ? `/admin/clients/${c.clientId}` : null;
-          const open = c.status === "missed" && !c.handledAt && c.direction === "in";
-          const body = (
-            <div className="flex items-start gap-3">
-              <span className={cn("mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-full", c.status === "missed" ? "bg-red-50 text-red-600" : c.direction === "out" ? "bg-sky-50 text-sky-700" : "bg-emerald-50 text-emerald-700")}>
-                <Icon className="size-5" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-[16px] font-semibold">{who || phone}</div>
-                <div className="truncate text-sm text-muted tabular-nums">{who ? phone : dealTitle}</div>
-                <div className="truncate text-xs text-muted">
-                  {formatDate(c.startedAt, true)}
-                  {c.staffId ? ` · ${names.get(c.staffId) ?? ""}` : ""}
-                  {c.provider === "whatsapp" ? " · WhatsApp" : ""}
-                </div>
-              </div>
-              <div className="flex flex-col items-end gap-1 text-xs">
-                <span className={cn("rounded-full px-2.5 py-1 font-medium whitespace-nowrap", c.status === "answered" ? "bg-emerald-100 text-emerald-800" : c.status === "missed" ? "bg-red-100 text-red-700" : "bg-cream text-ink-soft")}>{statusLabel[c.status]}</span>
-                <span className="text-muted tabular-nums">{dur(c.durationSec)}</span>
-              </div>
-            </div>
-          );
-          return (
-            <li key={c.id} className={cn("rounded-2xl border border-line bg-white p-3.5 shadow-soft", open && "border-red-200")}>
-              {href ? (
-                <Link href={href} className="m-card -m-1 block rounded-xl p-1">
-                  {body}
-                </Link>
-              ) : (
-                body
-              )}
-              {c.hasRecording && can(staff, "calls.recordings") ? <RecordingPlayer callId={c.id} durationSec={c.durationSec} ext={c.provider === "whatsapp" ? "m4a" : "mp3"} className="mt-2.5" /> : null}
-              <div className="mt-1 flex justify-end">
-                <CallRowActions callId={c.id} canCall={can(staff, "calls.make") && !!c.clientPhone} canHandle={c.status === "missed" && c.direction === "in" && !c.handledAt} />
-              </div>
-            </li>
-          );
-        })}
-        {rows.length === 0 ? <li className="rounded-2xl border border-dashed border-line bg-white px-4 py-10 text-center text-sm text-muted">{provider === "off" ? "Телефония не подключена — звонки появятся здесь после настройки АТС." : "Звонков за период нет."}</li> : null}
-      </ul>
-      <div className="hidden overflow-x-auto rounded-2xl border border-line bg-white lg:block">
-        <table className="w-full min-w-[860px] text-sm">
-          <thead className="border-b border-line text-left text-muted">
-            <tr>
-              <th className="px-4 py-3 font-medium">Когда</th>
-              <th className="px-4 py-3 font-medium">Клиент</th>
-              <th className="px-4 py-3 font-medium">Сотрудник</th>
-              <th className="px-4 py-3 font-medium">Итог</th>
-              <th className="px-4 py-3 font-medium">Длит.</th>
-              <th className="px-4 py-3 font-medium">Запись</th>
-              <th className="px-4 py-3" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-line">
-            {rows.map(({ call: c, clientName, dealTitle, dealContact }) => {
-              const Icon = c.direction === "out" ? PhoneOutgoing : c.status === "missed" ? PhoneMissed : PhoneIncoming;
-              const phone = contactView(staff, { phone: formatPhone(c.clientPhone) }).phone || "скрытый номер";
-              const who = clientName || dealContact;
-              return (
-                <tr key={c.id} className={cn(c.status === "missed" && !c.handledAt && c.direction === "in" && "bg-red-50/50")}>
-                  <td className="px-4 py-2.5 whitespace-nowrap">
-                    <span className="flex items-center gap-2">
-                      <Icon className={cn("size-4", c.status === "missed" ? "text-red-600" : c.direction === "out" ? "text-sky-700" : "text-emerald-700")} />
-                      {formatDate(c.startedAt, true)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2.5">
-                    {c.dealId ? (
-                      <Link href={`/admin/deals/${c.dealId}`} className="hover:text-wine">
-                        {who || phone}
-                      </Link>
-                    ) : c.clientId ? (
-                      <Link href={`/admin/clients/${c.clientId}`} className="hover:text-wine">
-                        {who || phone}
+
+      <Panel
+        flush
+        title={
+          <>
+            Журнал <span className="font-normal text-muted tabular-nums">{rows.length}</span>
+          </>
+        }
+        description={`${filters[f]}, ${period}`}
+      >
+        {view.length === 0 ? (
+          empty
+        ) : (
+          <>
+            <ul className="divide-y divide-line lg:hidden" data-testid="calls-cards">
+              {view.map((r) => {
+                const head = (
+                  <div className="flex items-start gap-3">
+                    <DirectionIcon Icon={r.Icon} missed={r.c.status === "missed"} label={r.dirLabel} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-baseline gap-2">
+                        <span className="min-w-0 flex-1 truncate text-[15px] font-semibold">{r.who}</span>
+                        <span className="shrink-0 text-xs text-muted tabular-nums">{dur(r.c.durationSec)}</span>
+                      </div>
+                      {r.sub ? <div className="truncate text-[13px] text-muted tabular-nums">{r.sub}</div> : null}
+                      <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
+                        {r.badge}
+                        <span className="tabular-nums">{when(r.c.startedAt)}</span>
+                        {r.staffName ? <span>{r.staffName}</span> : null}
+                        {r.c.provider === "whatsapp" ? <Badge tone="success">WhatsApp</Badge> : null}
+                      </div>
+                    </div>
+                  </div>
+                );
+                return (
+                  <li key={r.c.id} className={cn("px-4 py-3", r.open && "bg-danger-bg/40")}>
+                    {r.href ? (
+                      <Link href={r.href} className="m-card -mx-2 -my-1 block rounded-[10px] px-2 py-1">
+                        {head}
                       </Link>
                     ) : (
-                      phone
+                      head
                     )}
-                    {who ? <div className="text-xs text-muted tabular-nums">{phone}</div> : dealTitle ? <div className="text-xs text-muted">{dealTitle}</div> : null}
-                  </td>
-                  <td className="px-4 py-2.5">
-                    {c.staffId ? names.get(c.staffId) : <span className="text-muted">—</span>}
-                    {c.extension ? <span className="ml-1 text-xs text-muted">({c.extension})</span> : null}
-                    {c.provider === "whatsapp" ? <span className="ml-1 rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] text-emerald-700">WhatsApp</span> : null}
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <span className={cn("rounded-full px-2 py-0.5 text-xs", c.status === "answered" ? "bg-emerald-100 text-emerald-800" : c.status === "missed" ? "bg-red-100 text-red-700" : "bg-cream text-ink-soft")}>
-                      {statusLabel[c.status]}
-                    </span>
-                    {c.handledAt && c.status === "missed" ? <span className="ml-1 text-xs text-muted">обработан</span> : null}
-                  </td>
-                  <td className="px-4 py-2.5 tabular-nums">{dur(c.durationSec)}</td>
-                  <td className="px-4 py-2.5">
-                    {c.hasRecording && can(staff, "calls.recordings") ? <RecordingPlayer callId={c.id} durationSec={c.durationSec} ext={c.provider === "whatsapp" ? "m4a" : "mp3"} className="w-60" /> : <span className="text-muted">—</span>}
-                  </td>
-                  <td className="px-4 py-2.5 text-right">
-                    <CallRowActions callId={c.id} canCall={can(staff, "calls.make") && !!c.clientPhone} canHandle={c.status === "missed" && c.direction === "in" && !c.handledAt} />
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-        {rows.length === 0 ? <p className="p-6 text-center text-sm text-muted">{provider === "off" ? "Телефония не подключена — звонки появятся здесь после настройки АТС." : "Звонков за период нет."}</p> : null}
-      </div>
+                    {r.recording ? <RecordingPlayer callId={r.c.id} durationSec={r.c.durationSec} ext={r.c.provider === "whatsapp" ? "m4a" : "mp3"} className="mt-2.5 pl-12" /> : null}
+                    <div className="mt-1 -mr-2 flex justify-end">{r.actions}</div>
+                  </li>
+                );
+              })}
+            </ul>
+            <div className="hidden overflow-x-auto lg:block">
+              <table className="table min-w-[920px] [&_td:first-child]:pl-5 [&_td:last-child]:pr-5 [&_th:first-child]:pl-5 [&_th:last-child]:pr-5">
+                <thead>
+                  <tr>
+                    <th>Клиент</th>
+                    <th>Итог</th>
+                    <th>Сотрудник</th>
+                    <th>Когда</th>
+                    <th className="text-right">Длит.</th>
+                    <th>Запись</th>
+                    <th>
+                      <span className="sr-only">Действия</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {view.map((r) => (
+                    <tr key={r.c.id} className={cn(r.open && "[&>td]:bg-danger-bg/40")}>
+                      <td>
+                        <div className="flex items-center gap-3">
+                          <DirectionIcon Icon={r.Icon} missed={r.c.status === "missed"} label={r.dirLabel} />
+                          <div className="min-w-0">
+                            {r.href ? (
+                              <Link href={r.href} className="font-medium whitespace-nowrap hover:text-wine">
+                                {r.who}
+                              </Link>
+                            ) : (
+                              <span className="font-medium whitespace-nowrap tabular-nums">{r.who}</span>
+                            )}
+                            {r.sub ? <div className="max-w-56 truncate text-xs text-muted tabular-nums">{r.sub}</div> : null}
+                          </div>
+                        </div>
+                      </td>
+                      <td>{r.badge}</td>
+                      <td>
+                        <span className="flex flex-wrap items-center gap-1.5">
+                          {r.staffName ? <span className="whitespace-nowrap">{r.staffName}</span> : <span className="text-muted">—</span>}
+                          {r.c.extension ? <span className="text-xs text-muted tabular-nums">доб. {r.c.extension}</span> : null}
+                          {r.c.provider === "whatsapp" ? <Badge tone="success">WhatsApp</Badge> : null}
+                        </span>
+                      </td>
+                      <td className="whitespace-nowrap text-ink-soft tabular-nums">{when(r.c.startedAt)}</td>
+                      <td className="text-right tabular-nums">{dur(r.c.durationSec)}</td>
+                      <td>{r.recording ? <RecordingPlayer callId={r.c.id} durationSec={r.c.durationSec} ext={r.c.provider === "whatsapp" ? "m4a" : "mp3"} className="w-56" /> : <span className="text-muted">—</span>}</td>
+                      <td className="text-right">{r.actions}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </Panel>
     </div>
+  );
+}
+
+/** Направление звонка значком: пропущенный — красным; подпись для экранного диктора. */
+function DirectionIcon({ Icon, missed, label }: { Icon: typeof PhoneIncoming; missed: boolean; label: string }) {
+  return (
+    <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-full", missed ? "bg-danger-bg text-danger" : "bg-sunken text-ink-soft")} title={label}>
+      <Icon className="size-4" strokeWidth={1.8} aria-hidden />
+      <span className="sr-only">{label}</span>
+    </span>
   );
 }

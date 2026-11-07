@@ -5,6 +5,8 @@ import { useMessages } from "@/i18n/client";
 import { resetAction, type FormState } from "../../actions";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { Alert } from "@/components/ui/Alert";
+import { Field } from "@/components/ui/Field";
+import { PasswordInput } from "../../PasswordInput";
 
 /** Форма нового пароля: сброс по почте или доступ в кабинет после оплаты (ссылка тратится только здесь, по POST). */
 export function ResetForm({ token, whatsappUrl }: { token: string; whatsappUrl: string }) {
@@ -26,12 +28,9 @@ export function ResetForm({ token, whatsappUrl }: { token: string; whatsappUrl: 
           ) : null}
         </Alert>
       ) : null}
-      <div>
-        <label className="label" htmlFor="password">
-          {f.newPassword}
-        </label>
-        <input className="input" id="password" name="password" type="password" autoComplete="new-password" minLength={8} required />
-      </div>
+      <Field label={f.newPassword} hint={f.passwordHint}>
+        <PasswordInput id="password" name="password" autoComplete="new-password" minLength={8} required />
+      </Field>
       <SubmitButton className="btn-lg w-full">{t.submit}</SubmitButton>
     </form>
   );

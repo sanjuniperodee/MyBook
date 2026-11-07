@@ -23,9 +23,9 @@ export function NoMarketingToggle({ target, on, disabled }: { target: { clientId
     });
   return (
     <span className="inline-flex items-center gap-2" data-testid="no-marketing">
-      <span className={current ? "font-medium text-red-700" : "text-ink"}>{current ? "не писать первым" : "можно"}</span>
+      <span className={current ? "badge badge-danger" : "text-ink"}>{current ? "не писать первым" : "можно"}</span>
       {disabled ? null : (
-        <button type="button" className="text-xs text-wine hover:underline disabled:opacity-50" disabled={pending} onClick={toggle}>
+        <button type="button" className="inline-flex min-h-8 items-center text-xs text-wine hover:underline disabled:opacity-50" disabled={pending} onClick={toggle}>
           {current ? "снять" : "не писать первым"}
         </button>
       )}

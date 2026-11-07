@@ -52,3 +52,6 @@ export function progressText(p: ProgressNumbers): string {
 export function progressShort(p: ProgressNumbers): string {
   return bookKind(p.theme) === "blank" ? `${p.words} сл.` : `${p.answered}/${p.total}`;
 }
+
+/** Подпись необязательного поля в формах CRM (общий Field: витрина и кабинет передают её из словаря). */
+export const OPTIONAL_FIELD = "необязательно";

@@ -37,7 +37,7 @@ export function PreviewTabs({ bookId, flipbook }: { bookId: string; flipbook: Fl
   ];
   return (
     <div>
-      <div role="tablist" className="mb-5 inline-flex rounded-full border border-line bg-white p-1">
+      <div role="tablist" className="mb-5 inline-flex max-w-full rounded-[12px] bg-sunken p-1">
         {tabs.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
@@ -46,7 +46,7 @@ export function PreviewTabs({ bookId, flipbook }: { bookId: string; flipbook: Fl
             aria-selected={tab === id}
             aria-controls={`preview-panel-${id}`}
             onClick={() => setTab(id)}
-            className={cn("flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium transition-colors", tab === id ? "bg-wine text-white" : "text-ink-soft hover:bg-cream")}
+            className={cn("flex min-h-11 items-center gap-2 rounded-[10px] px-4 text-sm font-medium transition-colors sm:min-h-9", tab === id ? "bg-white text-ink shadow-soft" : "text-muted hover:text-ink")}
           >
             <Icon className="size-4" />
             {label}

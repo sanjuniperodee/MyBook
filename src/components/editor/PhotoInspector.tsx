@@ -300,7 +300,7 @@ export function PhotoInspector({
 
         {page ? (
           <>
-            <div role="radiogroup" aria-label={a.onPage} className="grid grid-cols-2 gap-1 rounded-xl bg-cream/70 p-1 text-xs">
+            <div role="radiogroup" aria-label={a.onPage} className="grid grid-cols-2 gap-1 rounded-xl bg-sunken p-1 text-xs">
               {(["contain", "fill"] as const).map((fit) => {
                 const on = fit === "contain" ? contain : !contain;
                 return (
@@ -320,7 +320,7 @@ export function PhotoInspector({
             {contain && loss >= CONTAIN_LOSS ? <p className="text-xs leading-snug text-muted">{a.autoContain}</p> : null}
             <PageFrame key={photo.id} photo={photo} format={format} contain={contain} onCrop={onCrop} disabled={!editable} />
             {!contain && loss >= WARN_LOSS ? (
-              <p className="text-xs leading-snug font-medium text-amber-700" data-testid="page-loss">
+              <p className="text-xs leading-snug font-medium text-warning" data-testid="page-loss">
                 {a.loss(Math.round(loss * 100))}
               </p>
             ) : null}
@@ -438,7 +438,7 @@ export function PhotoInspector({
                     role="radio"
                     aria-checked={style.frame === id}
                     onClick={() => onChange({ frame: id })}
-                    className={cn("flex flex-col items-center gap-1.5 rounded-xl border p-2 text-[11px] leading-tight transition", style.frame === id ? "border-ink bg-cream/60 text-ink" : "border-line text-muted hover:border-ink/40")}
+                    className={cn("flex flex-col items-center gap-1.5 rounded-xl border p-2 text-[11px] leading-tight transition", style.frame === id ? "border-ink bg-sunken text-ink" : "border-line text-muted hover:border-ink/40")}
                   >
                     <span
                       className={cn(
@@ -509,7 +509,7 @@ export function PhotoInspector({
               {a.move}
             </button>
           ) : null}
-          <button type="button" onClick={onRemove} className="ml-auto flex h-11 items-center rounded-full px-3.5 text-sm text-muted hover:bg-red-50 hover:text-red-700 sm:h-9">
+          <button type="button" onClick={onRemove} className="ml-auto flex h-11 items-center rounded-full px-3.5 text-sm text-muted hover:bg-danger-bg hover:text-danger sm:h-9">
             {blank ? a.removeBlank : a.remove}
           </button>
         </div>

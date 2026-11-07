@@ -68,7 +68,7 @@ const publicPages: [name: string, route: string][] = [
   ["public-home", "/"],
   ["public-home-kk", "/kk"],
   ["public-login", "/login"],
-  ["public-landing-mom", "/kniga/mame"],
+  ["public-landing-mom", "/kniga/kniga-mame"],
   ["public-gift", "/gift"],
 ];
 

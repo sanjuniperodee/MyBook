@@ -1,34 +1,22 @@
-/** Заготовка карточки клиента: профиль слева, сделки, платежи, книги и задачи справа. */
-import { SkCard, SkHeader, SkPage, SkRows, SkTwoCol } from "@/components/admin/skeletons";
+/** Заготовка карточки клиента: шапка с аватаром, сводка, сделки и задачи слева, профиль справа. */
+import { SkCard, SkHeader, SkPage, SkRows, SkStats } from "@/components/admin/skeletons";
 
 export default function Loading() {
   return (
-    <SkPage>
-      <SkHeader back title="w-64" />
-      <SkTwoCol
-        sideWidth="22rem"
-        main={
-          <>
-            <SkCard>
-              <div className="flex items-center gap-4">
-                <div className="skeleton size-14 shrink-0 rounded-full" />
-                <div className="flex-1 space-y-2">
-                  <div className="skeleton h-5 w-40" />
-                  <div className="skeleton h-3.5 w-56" />
-                </div>
-              </div>
-            </SkCard>
-            <SkCard lines={5} />
-            <SkRows rows={3} />
-          </>
-        }
-        side={
-          <>
-            <SkCard lines={6} />
-            <SkCard lines={3} />
-          </>
-        }
-      />
+    <SkPage className="space-y-5">
+      <SkHeader back title="w-64" actions={1} />
+      <SkStats n={5} />
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="min-w-0 space-y-5">
+          <SkRows rows={3} />
+          <SkCard lines={4} />
+          <SkCard lines={5} />
+        </div>
+        <div className="min-w-0 space-y-5">
+          <SkCard lines={6} />
+          <SkCard lines={2} />
+        </div>
+      </div>
     </SkPage>
   );
 }

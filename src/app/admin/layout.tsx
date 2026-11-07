@@ -34,7 +34,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (gate === "2fa") {
     // Владелец включил обязательную 2FA: пока сотрудник её не настроит, доступна только страница «Безопасность».
     return (
-      <div className="min-h-dvh bg-[#f7f4ef]">
+      <div className="min-h-dvh bg-canvas">
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
         <ThemeSync />
         <header className="flex h-14 items-center justify-between border-b border-line bg-white px-4 sm:px-6">
@@ -68,13 +68,13 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: STANDALONE_SCRIPT }} />
         <ThemeSync />
-        <div className="crm-shell flex min-h-dvh bg-[#f7f4ef]">
-          <AdminNav variant="sidebar" {...nav} />
+        <div className="crm-shell flex min-h-dvh bg-canvas">
+          <AdminNav {...nav} />
           <div className="flex min-w-0 flex-1 flex-col">
-            <header style={{ viewTransitionName: "crm-topbar" }} className="crm-topbar sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-line bg-white/85 px-4 backdrop-blur sm:px-6">
+            <header style={{ viewTransitionName: "crm-topbar" }} className="crm-topbar sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-line bg-canvas/85 px-4 backdrop-blur-md sm:px-6 2xl:px-8">
               <form action="/admin/search" className="relative w-full max-w-md">
                 <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" />
-                <input name="q" placeholder="Поиск: сделка, заказ, имя, телефон, книга" className="h-9 w-full rounded-xl border border-line bg-[#f7f4ef] pr-3 pl-9 text-sm outline-none focus:border-wine/40 focus:bg-white" />
+                <input name="q" type="search" aria-label="Поиск по CRM" placeholder="Поиск: имя, телефон, №" className="h-9 w-full rounded-[10px] border border-line bg-white pr-3 pl-9 text-sm outline-none transition-[border-color,box-shadow] placeholder:text-muted hover:border-line-strong focus:border-wine/50 focus:ring-[3px] focus:ring-wine/12" />
               </form>
               <div className="ml-auto flex items-center gap-1">
                 <ThemeToggle />
@@ -82,8 +82,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
                 <NotificationBell />
               </div>
             </header>
-            <main className="crm-main min-w-0 flex-1 px-4 py-5 sm:px-6 lg:py-8">
-              <PullToRefresh>{children}</PullToRefresh>
+            <main className="crm-main min-w-0 flex-1 px-4 py-5 sm:px-6 lg:py-7 2xl:px-8">
+              <div className="mx-auto w-full max-w-[1440px]">
+                <PullToRefresh>{children}</PullToRefresh>
+              </div>
             </main>
           </div>
         </div>

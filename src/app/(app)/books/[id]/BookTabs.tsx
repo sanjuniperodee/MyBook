@@ -1,19 +1,23 @@
 "use client";
 
 import { Link, useLocalePathname, useMessages } from "@/i18n/client";
-import { useEffect, useRef, useState, ViewTransition } from "react";
+import { Fragment, useEffect, useRef, useState, ViewTransition } from "react";
 import { BookOpen, BookOpenText, Camera, Eye, LayoutGrid, Mail, Palette, PenLine, SlidersHorizontal } from "lucide-react";
 import { cn } from "@/lib/class-names";
 
+/**
+ * Вкладки идут в порядке пути к книге и разбиты на группы: обзор · написать (текст, фото, письма) · оформить (обложка,
+ * страницы, настройки) · проверить макет. Между группами на компьютере — тонкий разделитель.
+ */
 const tabs = [
-  { href: "", key: "overview", icon: LayoutGrid },
-  { href: "/questions", key: "text", icon: PenLine },
-  { href: "/cover", key: "cover", icon: Palette },
-  { href: "/pages", key: "pages", icon: BookOpenText },
-  { href: "/photos", key: "photos", icon: Camera },
-  { href: "/letters", key: "letters", icon: Mail },
-  { href: "/settings", key: "settings", icon: SlidersHorizontal },
-  { href: "/preview", key: "preview", icon: Eye },
+  { href: "", key: "overview", icon: LayoutGrid, group: 0 },
+  { href: "/questions", key: "text", icon: PenLine, group: 1 },
+  { href: "/photos", key: "photos", icon: Camera, group: 1 },
+  { href: "/letters", key: "letters", icon: Mail, group: 1 },
+  { href: "/cover", key: "cover", icon: Palette, group: 2 },
+  { href: "/pages", key: "pages", icon: BookOpenText, group: 2 },
+  { href: "/settings", key: "settings", icon: SlidersHorizontal, group: 2 },
+  { href: "/preview", key: "preview", icon: Eye, group: 3 },
 ] as const;
 
 /** Полоска под активной вкладкой — при переходе «переезжает» на новую вкладку. */
@@ -60,26 +64,29 @@ export function BookTabs({ bookId }: { bookId: string }) {
           maskImage: `linear-gradient(90deg, ${edges.left ? "transparent" : "#000"} 0, #000 28px, #000 calc(100% - 28px), ${edges.right ? "transparent" : "#000"} 100%)`,
         }}
       >
-        {tabs.map((t) => {
+        {tabs.map((t, i) => {
           const href = base + t.href;
           const active = !checkout && (t.href ? pathname.startsWith(href) : pathname === base);
+          const divider = i > 0 && tabs[i - 1].group !== t.group;
           return (
+            <Fragment key={t.key}>
+            {divider ? <span aria-hidden className="mx-1.5 my-auto h-4 w-px shrink-0 bg-line-strong max-sm:hidden" /> : null}
             <Link
-              key={t.key}
               href={href}
               aria-current={active ? "page" : undefined}
               title={labels[t.key]}
-              className={cn("relative flex shrink-0 items-center gap-2 px-2.5 py-2.5 text-sm font-medium transition-colors sm:px-3 sm:py-3", active ? "text-ink" : "text-muted hover:text-ink")}
+              className={cn("relative flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-2 text-sm font-medium transition-colors sm:min-h-12 sm:px-3", active ? "text-ink" : "text-muted hover:text-ink")}
             >
               <t.icon className={cn("size-[18px] transition-colors sm:size-4", active && "text-wine")} strokeWidth={1.8} />
-              {/* Телефон: все вкладки умещаются в строку — подпись только у открытой */}
-              <span className={cn(!active && "max-sm:sr-only")}>{labels[t.key]}</span>
+              {/* Телефон: восемь значков по 44 px умещаются в строку; подпись открытой — в заголовке страницы и в title. */}
+              <span className="max-sm:sr-only">{labels[t.key]}</span>
               {active ? <Indicator /> : null}
             </Link>
+            </Fragment>
           );
         })}
         {checkout ? (
-          <span aria-current="page" className="relative flex shrink-0 items-center gap-2 px-2.5 py-2.5 text-sm font-medium sm:px-3 sm:py-3">
+          <span aria-current="page" className="relative flex min-h-11 shrink-0 items-center gap-2 px-2.5 text-sm font-medium sm:min-h-12 sm:px-3">
             <BookOpen className="size-4 text-wine" /> {labels.order}
             <Indicator />
           </span>

@@ -1,20 +1,6 @@
 import type { Metadata } from "next";
 import { Link } from "@/i18n/client";
-import {
-  ArrowRight,
-  BookHeart,
-  Camera,
-  Check,
-  Eye,
-  Gift,
-  PenLine,
-  Printer,
-  Save,
-  Sparkles,
-  Truck,
-  Type,
-  WandSparkles,
-} from "lucide-react";
+import { Gift } from "lucide-react";
 import { LandingHeader } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
 import { Book3D } from "@/components/cover/Book3D";
@@ -23,11 +9,15 @@ import { SampleBook } from "@/components/landing/SampleBook";
 import { InteriorShowcase } from "@/components/landing/InteriorShowcase";
 import { Reviews, Stars } from "@/components/landing/Reviews";
 import { AnchorScroll } from "@/components/landing/AnchorScroll";
+import { FilmFrame, Flourish, frameGhostBtn } from "@/components/landing/FilmFrame";
+import { PriceSheet } from "@/components/landing/PriceSheet";
+import { SectionHead } from "@/components/landing/SectionHead";
 import type { SpreadSample } from "@/components/interior/InteriorSpread";
 import { TrustList } from "@/components/TrustList";
 import { Faq } from "@/components/Faq";
 import { CoverPreview } from "@/components/cover/CoverPreview";
 import { coverTemplates } from "@/lib/book/covers";
+import { coverPhotoUrl } from "@/lib/book/photo-cover";
 import { countQuestions, getTheme, giftThemes } from "@/lib/content/themes";
 import { getLanding, landings, type Landing } from "@/lib/content/landings";
 import { getTool } from "@/lib/content/tools";
@@ -35,7 +25,7 @@ import { toolsPageUi } from "@/lib/content/tools/ui";
 import { getCurrentUser } from "@/server/auth";
 import { siteReviews } from "@/server/reviews";
 import { invitedBy } from "@/server/invite";
-import { formatPrice, productionDays, registrationOpen, site, getVisiblePlans } from "@/config/site";
+import { productionDays, registrationOpen, site, getVisiblePlans } from "@/config/site";
 import { getLocale, getMessages } from "@/i18n/server";
 import { alternates } from "@/i18n/seo";
 import { coverName } from "@/i18n/labels";
@@ -53,6 +43,18 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
+/** Снимок первого экрана — он же на обложке книги рядом: «вот кадр, а вот он уже книга». */
+const HERO_PHOTO = "couple";
+/** Инструменты, которые ведём с главной (перелинковка): самые частые запросы. */
+const TOOLS = ["shezhire-zheti-ata", "proverka-foto-dlya-pechati", "semejnyj-kalendar", "mushel-zhas-kalkulyator"];
+/** Обложки для ряда «Обложки»: снимки и рисунки вперемешку — видно, что выбор широкий. */
+const COVER_ROW = ["peony", "milkyway", "flax", "roses", "alatau", "lavender", "oyu", "mist", "sakura", "leather", "surf", "constellation"];
+
+/*
+ * Главная: что это — за 5 секунд (кадр, титр, одна кнопка), о ком книга (полка тем), доказательство (листаемая книга),
+ * как это происходит (настоящая последовательность со сроками), как она выглядит (обложки и страницы), отзывы, цены,
+ * сертификат, ответы и финальный кадр. Каждый блок — одна мысль; карточек-близнецов нет.
+ */
 export default async function HomePage() {
   const [user, locale, m, reviews, invited] = await Promise.all([getCurrentUser(), getLocale(), getMessages(), siteReviews(6), invitedBy()]);
   const t = m.landing;
@@ -60,11 +62,11 @@ export default async function HomePage() {
   const guestClosed = !user && !registrationOpen();
   const cta = user ? "/books/new" : guestClosed ? "/login" : "/register";
   const ctaLabel = (label: string) => (guestClosed ? m.common.nav.login : label);
+  const themeHref = (id: string) => (user ? `/books/new?theme=${id}` : guestClosed ? "/login" : `/register?theme=${id}`);
   const themes = giftThemes(locale);
   // Число вопросов в шагах «как это работает» — по теме «любимому», а не по первому элементу списка.
   const loveCount = countQuestions(getTheme("love", locale));
   const modeThemes = [getTheme("autobiography", locale), getTheme("blank", locale)];
-  const modeHref = (id: string) => (user ? `/books/new?theme=${id}` : guestClosed ? "/login" : `/register?theme=${id}`);
   const faq = t.faq.items(productionDays);
   // Пример для витрины оформлений — та же история, что в листаемой книге-примере.
   const s = t.sample;
@@ -84,6 +86,10 @@ export default async function HomePage() {
     toc: s.tocItems.map(([title, page], i) => ({ number: i + 1, title, page })),
     showToc: true,
   };
+  const covers = COVER_ROW.map((id) => coverTemplates.find((c) => c.id === id)).filter((c): c is NonNullable<typeof c> => !!c && !c.requiresPhoto);
+  const steps = t.how.steps(loveCount);
+  const when = t.how.when(productionDays.standard);
+  const rating = reviews.summary && reviews.reviews.length ? reviews.summary : null;
 
   const planNames = Object.fromEntries(getVisiblePlans().map((p) => [p.id, m.common.plans[p.id].name]));
   const jsonLd = [
@@ -96,318 +102,201 @@ export default async function HomePage() {
   return (
     <>
       <JsonLd data={jsonLd} />
-      <LandingHeader loggedIn={!!user} />
+      <LandingHeader loggedIn={!!user} overlay />
       <AnchorScroll />
       <main className="overflow-x-clip">
-        {/* ─── HERO ─── */}
-        <section className="relative pt-28 pb-16 sm:pt-36 sm:pb-24">
-          <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(60%_50%_at_75%_30%,#f4e4df_0%,transparent_70%),radial-gradient(40%_40%_at_10%_80%,#efe7da_0%,transparent_70%)]" />
-          <div className="container-x grid items-center gap-14 lg:grid-cols-[1.05fr_1fr]">
-            <div>
-              {invited ? (
-                // Пришли по приглашению — вместо слогана подарок от друга.
-                <div style={{ "--i": 0 } as React.CSSProperties} className="enter inline-flex max-w-full items-start gap-2.5 rounded-2xl border border-wine/25 bg-rose/50 px-4 py-2.5 text-sm shadow-soft">
-                  <Gift className="mt-0.5 size-4 shrink-0 text-wine" />
-                  <span>
-                    <b className="font-semibold text-wine">{m.invite.welcome(invited.from, invited.percent)}</b>
-                    <span className="block text-ink-soft">{m.invite.welcomeNote}</span>
-                  </span>
-                </div>
-              ) : (
-                <div style={{ "--i": 0 } as React.CSSProperties} className="enter inline-flex items-center gap-2 rounded-full border border-line bg-white/70 px-3.5 py-1.5 text-sm text-ink-soft shadow-soft">
-                  <Sparkles className="size-4 text-wine" /> {t.hero.badge}
-                </div>
-              )}
-              {/* Заголовок и лид — самое крупное на экране (LCP): появляются сразу, без анимации входа */}
-              <h1 className="mt-6 font-serif text-[44px] leading-[1.02] font-medium tracking-tight sm:text-6xl lg:text-7xl">
-                {t.hero.titleStart}{" "}
-                <em className="relative inline-block text-wine">
-                  {t.hero.titleAccent}
-                  {/* Рукописный росчерк под акцентом — «рисуется» при загрузке */}
-                  <svg className="draw pointer-events-none absolute -bottom-2 left-0 h-3 w-full sm:-bottom-3 sm:h-4" viewBox="0 0 300 16" preserveAspectRatio="none" aria-hidden>
-                    <path d="M3 11 C 60 3, 120 3, 170 8 S 260 14, 297 5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ "--len": 320, "--d": 700 } as React.CSSProperties} />
-                  </svg>
-                </em>
-              </h1>
-              <p className="mt-6 max-w-xl text-lg leading-relaxed text-ink-soft sm:text-xl">
-                {t.hero.lead}
-              </p>
-              <div style={{ "--i": 3 } as React.CSSProperties} className="enter mt-9 flex flex-col gap-3 sm:flex-row">
-                <Link href={cta} className="btn btn-primary btn-lg">
-                  {ctaLabel(t.hero.cta)} <ArrowRight className="size-5" />
-                </Link>
-                <a href="#inside" className="btn btn-outline btn-lg">
-                  {t.hero.sample}
-                </a>
-              </div>
-              {guestClosed ? (
-                <p style={{ "--i": 3 } as React.CSSProperties} className="enter mt-4 max-w-xl text-sm text-muted" data-testid="registration-closed">
-                  {t.hero.closed}
-                </p>
-              ) : null}
-              {reviews.summary && reviews.reviews.length ? (
-                <a href="#reviews" style={{ "--i": 4 } as React.CSSProperties} className="enter mt-5 inline-flex items-center gap-2.5 text-sm text-ink-soft hover:text-ink">
-                  <Stars value={reviews.summary.average} />
-                  {m.review.showcase.summary(reviews.summary.average.toFixed(1).replace(".", ","), reviews.summary.count)}
-                </a>
-              ) : null}
-              <ul style={{ "--i": 4 } as React.CSSProperties} className="enter mt-9 grid max-w-lg grid-cols-1 gap-2.5 text-[15px] text-ink-soft sm:grid-cols-2">
-                {t.hero.bullets.map((b) => (
-                  <li key={b} className="flex items-center gap-2">
-                    <Check className="size-4 shrink-0 text-wine" /> {b}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="relative mx-auto h-[420px] w-full max-w-[520px] sm:h-[520px]">
-              <div style={{ "--i": 3 } as React.CSSProperties} className="enter absolute top-6 left-[2%] w-[44%]">
-                <div className="animate-float [--r:-8deg] [animation-delay:-2s]">
-                  <Book3D priority template="midnight" title={t.hero.books.dad.title} names={t.hero.books.dad.names} rotate={18} className="drop-shadow-xl" />
-                </div>
-              </div>
-              <div style={{ "--i": 4 } as React.CSSProperties} className="enter absolute top-0 right-[4%] w-[40%]">
-                <div className="animate-float [--r:7deg] [animation-delay:-4s]">
-                  <Book3D priority template="sage" title={t.hero.books.mom.title} names={t.hero.books.mom.names} rotate={12} />
-                </div>
-              </div>
-              <div style={{ "--i": 5 } as React.CSSProperties} className="enter absolute bottom-0 left-1/2 w-[54%] -translate-x-1/2">
-                <div className="animate-float">
-                  <Book3D priority template="peony" title={t.hero.books.love.title} subtitle={t.hero.books.love.subtitle} names={t.hero.books.love.names} rotate={15} />
-                </div>
-              </div>
-              {/* Рукописная пометка со стрелкой */}
-              <div style={{ "--i": 7 } as React.CSSProperties} className="enter pointer-events-none absolute bottom-[18%] -left-4 hidden items-end gap-1 text-wine lg:flex">
-                <span className="-rotate-6 font-hand text-2xl leading-none">{t.hero.note}</span>
-                <svg className="draw mb-1 h-10 w-16" viewBox="0 0 64 40" fill="none" aria-hidden>
-                  <path d="M2 30 C 18 38, 40 34, 58 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ "--len": 80, "--d": 900 } as React.CSSProperties} />
-                  <path d="M49 12 L 59 11 L 57 21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ "--len": 30, "--d": 1300 } as React.CSSProperties} />
-                </svg>
-              </div>
-            </div>
+        {/* ─── КАДР: снимок, титр, одно действие ─── */}
+        <FilmFrame
+          photo={HERO_PHOTO}
+          position="62% 30%"
+          mobilePosition="44% 30%"
+          priority
+          aside={
+            <figure className="enter w-[240px] xl:w-[264px]" style={{ "--i": 3 } as React.CSSProperties}>
+              <Book3D priority template="passepartout" photos={[coverPhotoUrl(HERO_PHOTO, 900)]} title={t.hero.books.love.title} subtitle={t.hero.books.love.subtitle} names={t.hero.books.love.names} rotate={18} className="drop-shadow-[0_30px_40px_rgb(0_0_0/0.55)]" />
+              <figcaption className="mt-5 text-center text-sm text-white/85">{t.hero.bookCaption}</figcaption>
+            </figure>
+          }
+        >
+          {invited ? (
+            // Пришли по приглашению — над титром подарок от друга.
+            <p className="enter mb-6 inline-flex max-w-full items-start gap-2.5 rounded-[10px] bg-[rgb(255_255_255/0.12)] px-4 py-2.5 text-sm text-white backdrop-blur-md" style={{ "--i": 0 } as React.CSSProperties}>
+              <Gift className="mt-0.5 size-4 shrink-0" aria-hidden />
+              <span>
+                <b className="font-semibold">{m.invite.welcome(invited.from, invited.percent)}</b>
+                <span className="block text-white/75">{m.invite.welcomeNote}</span>
+              </span>
+            </p>
+          ) : null}
+          {/* Титр — самое крупное на экране (LCP): появляется сразу, без анимации входа. */}
+          <h1 className="max-w-[15ch] font-serif text-[40px] text-balance leading-[1.02] font-medium tracking-[-0.01em] text-white sm:text-[64px] lg:text-[80px]">
+            {t.hero.titleStart} <span className="font-normal italic">{t.hero.titleAccent}</span>
+          </h1>
+          <Flourish className="mt-3 text-[rgb(255_255_255/0.6)] sm:mt-4" />
+          <p className="mt-5 max-w-[34rem] text-[17px] leading-relaxed text-white/85 sm:text-lg">{t.hero.lead}</p>
+          <div className="enter mt-8 flex flex-col gap-3 sm:flex-row" style={{ "--i": 2 } as React.CSSProperties}>
+            <Link href={cta} className="btn btn-primary btn-lg">
+              {ctaLabel(t.hero.cta)}
+            </Link>
+            <a href="#inside" className={frameGhostBtn}>
+              {t.hero.sample}
+            </a>
           </div>
-        </section>
+          {guestClosed ? (
+            <p className="mt-4 max-w-xl text-sm text-white/75" data-testid="registration-closed">
+              {t.hero.closed}
+            </p>
+          ) : null}
+          <ul className="enter mt-8 flex max-w-2xl flex-wrap gap-x-6 gap-y-2 text-sm text-white/80" style={{ "--i": 3 } as React.CSSProperties}>
+            {rating ? (
+              <li>
+                <a href="#reviews" className="inline-flex items-center gap-2 hover:text-white">
+                  <Stars value={rating.average} className="size-3.5" />
+                  {m.review.showcase.summary(rating.average.toFixed(1).replace(".", ","), rating.count)}
+                </a>
+              </li>
+            ) : null}
+            {t.hero.bullets.map((b) => (
+              <li key={b}>{b}</li>
+            ))}
+          </ul>
+        </FilmFrame>
 
-        {/* ─── OCCASIONS ─── */}
-        <section className="border-y border-line/70 bg-white/60 py-5">
-          <div className="no-scrollbar container-x flex gap-3 overflow-x-auto">
-            <span className="shrink-0 py-1.5 text-sm text-muted">{t.occasions.label}</span>
-            {t.occasions.items.map((o) =>
-              o.slug && getLanding(o.slug) ? (
-                // Повод с посадочной страницей — ссылка на неё: перелинковка с главной и понятный путь для поисковика.
-                <Link key={o.label} href={`/kniga/${o.slug}`} className="shrink-0 rounded-full border border-line bg-paper px-4 py-1.5 text-sm text-ink-soft transition hover:border-wine/40 hover:text-wine">
-                  {o.label}
-                </Link>
-              ) : (
-                <span key={o.label} className="shrink-0 rounded-full border border-line bg-paper px-4 py-1.5 text-sm text-ink-soft">
-                  {o.label}
-                </span>
-              ),
-            )}
-          </div>
-        </section>
-
-        {/* ─── HOW ─── */}
-        <section id="how" className="below-fold scroll-mt-20 py-20 sm:py-28">
+        {/* ─── О КОМ: полка обложек — тема книги одним касанием ─── */}
+        <section id="themes" className="scroll-mt-20 py-20 sm:py-28">
           <div className="container-x">
-            <div className="reveal max-w-2xl">
-              <div className="eyebrow">{t.how.eyebrow}</div>
-              <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight sm:text-5xl">{t.how.title}</h2>
-            </div>
-            <div className="reveal-stagger mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-              {t.how.steps(loveCount).map((step, i) => ({ ...step, icon: [BookHeart, PenLine, Camera, Truck][i] })).map((s, i) => (
-                <div key={s.title} className="card relative p-7">
-                  <div className="flex items-center justify-between">
-                    <div className="flex size-12 items-center justify-center rounded-2xl bg-rose text-wine">
-                      <s.icon className="size-6" />
-                    </div>
-                    <span className="font-serif text-5xl text-line">{i + 1}</span>
-                  </div>
-                  <h3 className="mt-6 text-lg font-semibold">{s.title}</h3>
-                  <p className="mt-2 text-[15px] leading-relaxed text-muted">{s.text}</p>
-                </div>
-              ))}
-            </div>
+            <SectionHead title={t.themes.title} note={t.themes.note} />
+            <ul className="no-scrollbar -mx-4 mt-12 flex scroll-px-4 snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-4 sm:gap-x-5 sm:gap-y-10 sm:overflow-visible sm:px-0 md:grid-cols-5 lg:grid-cols-7">
+              {[...themes, ...modeThemes].map((th) => {
+                const self = th.id === "autobiography" || th.id === "blank";
+                const names = th.id === "blank" ? t.modes.blank.names : th.id === "autobiography" ? t.modes.autobiography.names : t.coverSamples[th.defaultCover]?.names;
+                const meta = th.id === "blank" ? t.modes.blank.meta : th.id === "autobiography" ? t.modes.autobiography.meta(countQuestions(th)) : t.themes.meta(countQuestions(th), th.chapters.length);
+                return (
+                  <li key={th.id} className="w-[38%] shrink-0 snap-start sm:w-auto">
+                    <Link href={themeHref(th.id)} className="group block rounded-[10px]">
+                      <div className="transition duration-500 ease-[var(--ease-out-soft)] group-hover:-translate-y-1.5">
+                        <CoverPreview template={th.defaultCover} title={th.titleSuggestions[0]} names={names} lite className="rounded-[3px] shadow-book" />
+                      </div>
+                      <div className="mt-3.5 text-[15px] leading-snug font-medium text-ink group-hover:text-wine">{th.name}</div>
+                      <div className="mt-0.5 text-xs leading-snug text-muted">{self ? t.modes.eyebrow : meta}</div>
+                    </Link>
+                  </li>
+                );
+              })}
+              <li className="w-[38%] shrink-0 snap-start sm:w-auto">
+                <Link href="/kniga" className="flex aspect-[148/210] flex-col justify-end rounded-[3px] border border-line-strong p-4 font-serif text-xl leading-tight text-ink transition hover:border-wine hover:text-wine">
+                  {m.common.footer.allIdeas}
+                </Link>
+              </li>
+            </ul>
+            {/* Поводы и посадочные страницы — путь и для человека, и для поисковика. */}
+            <p className="mt-10 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted">
+              <span>{t.themes.learn}</span>
+              {[
+                ...themes.map((th) => landings.find((l) => l.theme === th.id)),
+                ...t.occasions.items.map((o) => (o.slug ? getLanding(o.slug) : undefined)),
+                getLanding("kniga-o-svoej-zhizni"),
+                getLanding("svoya-kniga-s-nulya"),
+              ]
+                .filter((l): l is Landing => !!l)
+                .filter((l, i, all) => all.findIndex((x) => x.slug === l.slug) === i)
+                .map((l) => (
+                  <Link key={l.slug} href={`/kniga/${l.slug}`} className="text-ink-soft underline decoration-line-strong underline-offset-4 hover:text-wine hover:decoration-wine">
+                    {l.content[locale].label}
+                  </Link>
+                ))}
+            </p>
           </div>
         </section>
 
-        {/* ─── INSIDE ─── */}
-        <section id="inside" className="below-fold scroll-mt-20 bg-ink py-20 text-paper sm:py-28">
+        {/* ─── ДОКАЗАТЕЛЬСТВО: листаемая книга ─── */}
+        <section id="inside" className="below-fold scroll-mt-16 bg-ink py-20 text-paper sm:py-28">
           <div className="container-x grid items-center gap-14 lg:grid-cols-[0.8fr_1.2fr]">
-            <div className="reveal">
-              <div className="eyebrow text-[#e3a6ae]">{t.inside.eyebrow}</div>
-              <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight sm:text-5xl">{t.inside.title}</h2>
-              <p className="mt-5 text-lg leading-relaxed text-paper/70">
-                {t.inside.text}
-              </p>
-              <ul className="mt-8 space-y-4">
+            <div>
+              <h2 className="font-serif text-4xl leading-[1.05] font-medium tracking-tight sm:text-5xl">{t.inside.title}</h2>
+              <p className="mt-5 text-lg leading-relaxed text-paper/70">{t.inside.text}</p>
+              <ul className="mt-8 divide-y divide-paper/10 border-y border-paper/10">
                 {t.inside.bullets.map((b) => (
-                  <li key={b} className="flex gap-3 text-paper/85">
-                    <Check className="mt-0.5 size-5 shrink-0 text-[#e3a6ae]" /> {b}
+                  <li key={b} className="py-3 text-[15px] text-paper/85">
+                    {b}
                   </li>
                 ))}
               </ul>
             </div>
             <div>
               <SampleBook />
-              <p className="mt-3 text-center text-xs text-paper/40"><span className="hidden md:inline">{t.inside.hintDesktop}</span><span className="md:hidden">{t.inside.hintMobile}</span></p>
+              <p className="mt-3 text-center text-xs text-paper/50">
+                <span className="hidden md:inline">{t.inside.hintDesktop}</span>
+                <span className="md:hidden">{t.inside.hintMobile}</span>
+              </p>
             </div>
           </div>
         </section>
 
-        {/* ─── THEMES ─── */}
-        <section className="below-fold py-20 sm:py-28">
+        {/* ─── КАК: настоящая последовательность со сроками ─── */}
+        <section id="how" className="below-fold scroll-mt-16 py-20 sm:py-28">
           <div className="container-x">
-            <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
-              <div className="max-w-2xl">
-                <div className="eyebrow">{t.themes.eyebrow}</div>
-                <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight sm:text-5xl">{t.themes.title}</h2>
-              </div>
-              <p className="max-w-sm text-muted">{t.themes.note}</p>
+            <SectionHead title={t.how.title} />
+            <ol className="mt-14 grid gap-10 sm:grid-cols-2 lg:grid-cols-4 lg:gap-8">
+              {steps.map((step, i) => (
+                <li key={step.title} className="border-t border-ink/80 pt-5">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span className="font-serif text-5xl leading-none text-wine tabular-nums">{i + 1}</span>
+                    <span className="text-right text-xs text-muted">{when[i]}</span>
+                  </div>
+                  <h3 className="mt-5 text-lg font-semibold">{step.title}</h3>
+                  <p className="mt-2 text-[15px] leading-relaxed text-ink-soft">{step.text}</p>
+                </li>
+              ))}
+            </ol>
+            <div className="mt-12">
+              <Link href={cta} className="btn btn-primary btn-lg">
+                {ctaLabel(t.hero.cta)}
+              </Link>
             </div>
-            <div className="reveal-stagger mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-              {themes.map((th) => {
-                const qn = countQuestions(th);
+          </div>
+        </section>
+
+        {/* ─── КАК ВЫГЛЯДИТ: обложки и страницы ─── */}
+        <section id="covers" className="below-fold scroll-mt-16 border-t border-line bg-cream/60 py-20 sm:py-28">
+          <div className="container-x">
+            <SectionHead
+              title={t.covers.title(coverTemplates.filter((c) => !c.requiresPhoto).length, coverTemplates.filter((c) => c.requiresPhoto).length)}
+              note={t.covers.text}
+            />
+            <ul className="no-scrollbar -mx-4 mt-12 flex scroll-px-4 snap-x gap-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-4 sm:gap-5 sm:overflow-visible sm:px-0 lg:grid-cols-6">
+              {covers.map((c) => {
+                const sample = t.coverSamples[c.id];
                 return (
-                  <Link key={th.id} href={user ? `/books/new?theme=${th.id}` : guestClosed ? "/login" : `/register?theme=${th.id}`} className="group card flex flex-col overflow-hidden transition hover:-translate-y-1 hover:shadow-lift">
-                    <div className="flex justify-center bg-cream/60 px-10 pt-8 pb-0">
-                      <div className="w-[62%] translate-y-4 transition duration-500 group-hover:translate-y-1">
-                        <CoverPreview template={th.defaultCover} title={th.titleSuggestions[0]} names={t.coverSamples[th.defaultCover]?.names} lite className="rounded-sm shadow-book" />
-                      </div>
-                    </div>
-                    <div className="flex flex-1 flex-col p-6">
-                      <h3 className="text-lg font-semibold">{th.name}</h3>
-                      <p className="mt-2 flex-1 text-sm leading-relaxed text-muted">{th.description}</p>
-                      <div className="mt-5 flex items-center justify-between text-sm">
-                        <span className="text-muted">
-                          {t.themes.meta(qn, th.chapters.length)}
-                        </span>
-                        <ArrowRight className="size-4 text-wine transition group-hover:translate-x-1" />
-                      </div>
-                    </div>
-                  </Link>
+                  <li key={c.id} className="w-[34%] shrink-0 snap-start sm:w-auto">
+                    <CoverPreview template={c.id} title={sample.title} names={sample.names} lite className="rounded-[3px] shadow-book" />
+                    <div className="mt-2.5 text-xs text-muted">{coverName(c.id, locale)}</div>
+                  </li>
                 );
               })}
-            </div>
-            <p className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted">
-              {t.themes.learn}
-              {themes
-                .map((th) => landings.find((l) => l.theme === th.id))
-                .filter((l): l is Landing => !!l)
-                .map((l) => (
-                  <Link key={l.slug} href={`/kniga/${l.slug}`} className="text-wine hover:underline">
-                    {l.content[locale].label}
-                  </Link>
-                ))}
-            </p>
+            </ul>
           </div>
         </section>
-
-        {/* ─── MODES: книга о себе и своя книга ─── */}
-        <section id="modes" className="below-fold scroll-mt-20 border-t border-line/70 bg-cream/40 py-20 sm:py-28">
-          <div className="container-x">
-            <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
-              <div className="max-w-2xl">
-                <div className="eyebrow">{t.modes.eyebrow}</div>
-                <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight sm:text-5xl">{t.modes.title}</h2>
-              </div>
-              <p className="max-w-sm text-muted">{t.modes.note}</p>
-            </div>
-            <div className="reveal-stagger mt-12 grid gap-5 md:grid-cols-2">
-              {modeThemes.map((th) => (
-                <Link key={th.id} href={modeHref(th.id)} className="group card flex gap-5 p-5 transition hover:-translate-y-1 hover:shadow-lift sm:gap-6 sm:p-6">
-                  <div className="w-24 shrink-0 self-start sm:w-32">
-                    <CoverPreview template={th.defaultCover} title={th.titleSuggestions[0]} names={th.id === "blank" ? t.modes.blank.names : t.modes.autobiography.names} lite className="rounded-sm shadow-book" />
-                  </div>
-                  <div className="flex min-w-0 flex-1 flex-col">
-                    <h3 className="text-lg font-semibold">{th.name}</h3>
-                    <p className="mt-2 flex-1 text-sm leading-relaxed text-muted">{th.description}</p>
-                    <div className="mt-5 flex items-center justify-between gap-3 text-sm">
-                      <span className="text-muted">{th.id === "blank" ? t.modes.blank.meta : t.modes.autobiography.meta(countQuestions(th))}</span>
-                      <ArrowRight className="size-4 shrink-0 text-wine transition group-hover:translate-x-1" />
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-            <p className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted">
-              {t.modes.learn}
-              {[getLanding("kniga-o-svoej-zhizni"), getLanding("svoya-kniga-s-nulya")].map((l) =>
-                l ? (
-                  <Link key={l.slug} href={`/kniga/${l.slug}`} className="text-wine hover:underline">
-                    {l.content[locale].label}
-                  </Link>
-                ) : null,
-              )}
-            </p>
-          </div>
-        </section>
-
-        {/* ─── COVERS ─── */}
-        <section id="covers" className="below-fold scroll-mt-20 bg-cream/60 py-20 sm:py-28">
-          <div className="container-x">
-            <div className="reveal mx-auto max-w-2xl text-center">
-              <div className="eyebrow">{t.covers.eyebrow}</div>
-              <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight sm:text-5xl">{t.covers.title(coverTemplates.filter((c) => !c.requiresPhoto).length, coverTemplates.filter((c) => c.requiresPhoto).length)}</h2>
-              <p className="mt-4 text-muted">{t.covers.text}</p>
-            </div>
-            <div className="reveal-stagger mt-14 grid grid-cols-2 gap-x-5 gap-y-10 sm:grid-cols-3 lg:grid-cols-5">
-              {coverTemplates
-                .filter((c) => !c.requiresPhoto)
-                .map((c) => {
-                  const s = t.coverSamples[c.id];
-                  return (
-                    <div key={c.id} className="group">
-                      <div className="transition duration-500 group-hover:-translate-y-2">
-                        <CoverPreview template={c.id} title={s.title} names={s.names} className="rounded-[3px] shadow-book" />
-                      </div>
-                      <div className="mt-3 text-center text-sm text-muted">{coverName(c.id, locale)}</div>
-                    </div>
-                  );
-                })}
-            </div>
-          </div>
-        </section>
-
-        {/* ─── INTERIORS ─── */}
-        <section id="pages" className="below-fold scroll-mt-20 py-20 sm:py-28">
-          <div className="reveal container-x">
+        <section id="pages" className="below-fold scroll-mt-16 bg-cream/60 pb-20 sm:pb-28">
+          <div className="container-x border-t border-line pt-16 sm:pt-20">
             <InteriorShowcase sample={showcase} cta={cta} />
           </div>
         </section>
 
-        {/* ─── FEATURES ─── */}
-        <section className="below-fold py-20 sm:py-28">
-          <div className="container-x">
-            <div className="max-w-2xl">
-              <div className="eyebrow">{t.features.eyebrow(site.name)}</div>
-              <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight sm:text-5xl">{t.features.title}</h2>
-            </div>
-            <div className="reveal-stagger mt-14 grid gap-x-10 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
-              {t.features.items.map((item, i) => ({ ...item, icon: [Save, Eye, WandSparkles, Type, Printer, Gift][i] })).map((f) => (
-                <div key={f.title}>
-                  <f.icon className="size-7 text-wine" strokeWidth={1.6} />
-                  <h3 className="mt-4 text-lg font-semibold">{f.title}</h3>
-                  <p className="mt-2 leading-relaxed text-muted">{f.text}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* ─── REVIEWS: настоящие отзывы покупателей; пока их нет — подписи из config/site.ts, если заполнены ─── */}
+        {/* ─── ОТЗЫВЫ: настоящие отзывы покупателей; пока их нет — подписи из config/site.ts, если заполнены ─── */}
         {reviews.reviews.length ? (
           <Reviews reviews={reviews.reviews} summary={reviews.summary} t={m.review.showcase} className="below-fold" />
         ) : site.testimonials.length ? (
-          <section className="below-fold bg-rose/40 py-20 sm:py-28">
+          <section className="below-fold py-20 sm:py-28">
             <div className="container-x">
-              <h2 className="text-center font-serif text-4xl font-medium tracking-tight sm:text-5xl">{t.testimonials.title}</h2>
-              <div className="mt-12 grid gap-5 md:grid-cols-3">
+              <SectionHead title={t.testimonials.title} />
+              <div className="mt-12 grid gap-10 md:grid-cols-3">
                 {site.testimonials.map((x) => (
-                  <figure key={x.name} className="card p-7">
+                  <figure key={x.name} className="border-t border-line pt-6">
                     <blockquote className="font-serif text-xl leading-snug">«{x.text}»</blockquote>
                     <figcaption className="mt-5 text-sm text-muted">
                       {x.name}
-                      {x.occasion ? ` · ${x.occasion}` : ""}
+                      {x.occasion ? `, ${x.occasion}` : ""}
                     </figcaption>
                   </figure>
                 ))}
@@ -416,93 +305,34 @@ export default async function HomePage() {
           </section>
         ) : null}
 
-        {/* ─── PRICING ─── */}
-        <section id="pricing" className="below-fold scroll-mt-20 bg-cream/60 py-20 sm:py-28">
+        {/* ─── ЦЕНЫ ─── */}
+        <section id="pricing" className="below-fold scroll-mt-16 border-t border-line py-20 sm:py-28">
           <div className="container-x">
-            <div className="mx-auto max-w-2xl text-center">
-              <div className="eyebrow">{t.pricing.eyebrow}</div>
-              <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight sm:text-5xl">{t.pricing.title}</h2>
-              <p className="mt-4 text-muted">{t.pricing.text}</p>
-            </div>
-            <div className={`reveal-stagger mt-14 grid gap-5 ${getVisiblePlans().length === 2 ? "lg:mx-auto lg:max-w-4xl lg:grid-cols-2" : "lg:grid-cols-3"}`}>
-              {getVisiblePlans().map((p) => ({ ...p, ...m.common.plans[p.id] })).map((p) => (
-                <div key={p.id} className={`card relative flex flex-col p-8 ${p.featured ? "border-wine/40 ring-4 ring-wine/10" : ""}`}>
-                  {"badge" in p && p.badge ? <span className="absolute -top-3 left-8 rounded-full bg-wine px-3 py-1 text-xs font-medium text-white">{p.badge}</span> : null}
-                  <h3 className="text-lg font-semibold">{p.name}</h3>
-                  <div className="mt-4 font-serif text-5xl font-medium [font-variant-numeric:lining-nums]">{formatPrice(p.price)}</div>
-                  {p.extraCopyPrice ? <div className="mt-1 text-sm text-muted">{t.pricing.extraCopy(formatPrice(p.extraCopyPrice))}</div> : <div className="mt-1 text-sm text-muted">{t.pricing.instant}</div>}
-                  <ul className="mt-7 flex-1 space-y-3">
-                    {p.features.map((f) => (
-                      <li key={f} className="flex gap-2.5 text-[15px] text-ink-soft">
-                        <Check className="mt-0.5 size-4 shrink-0 text-wine" /> {f}
-                      </li>
-                    ))}
-                  </ul>
-                  <Link href={cta} className={`btn mt-8 ${p.featured ? "btn-primary" : "btn-outline"}`}>
-                    {ctaLabel(t.pricing.start)}
-                  </Link>
-                </div>
-              ))}
-            </div>
-            <TrustList className="reveal-stagger mx-auto mt-16 max-w-5xl" />
+            <SectionHead title={t.pricing.title} note={t.pricing.text} />
+            <PriceSheet className="mt-12" cta={cta} ctaLabel={ctaLabel(t.pricing.start)} />
+            <TrustList className="mt-14" />
           </div>
         </section>
 
-        {/* ─── FREE TOOLS ─── */}
-        <section className="below-fold border-t border-line/70 py-20 sm:py-28">
-          <div className="container-x">
-            <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
-              <div className="max-w-2xl">
-                <div className="eyebrow">{toolsPageUi[locale].homeEyebrow}</div>
-                <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight sm:text-5xl">{toolsPageUi[locale].homeTitle}</h2>
-              </div>
-              <p className="max-w-sm text-muted">{toolsPageUi[locale].homeNote}</p>
-            </div>
-            <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-              {["shezhire-zheti-ata", "proverka-foto-dlya-pechati", "semejnyj-kalendar", "mushel-zhas-kalkulyator"].map((slug) => {
-                const tool = getTool(slug);
-                return tool ? (
-                  <Link key={slug} href={`/instrumenty/${slug}`} className="card card-hover flex flex-col p-6">
-                    <h3 className="font-serif text-xl leading-snug font-medium">{tool.content[locale].label}</h3>
-                    <p className="mt-3 flex-1 text-sm leading-relaxed text-muted">{tool.content[locale].teaser}</p>
-                    <span className="mt-4 text-sm font-medium text-wine">{toolsPageUi[locale].open} →</span>
-                  </Link>
-                ) : null;
-              })}
-            </div>
-            <p className="mt-6 text-sm">
-              <Link href="/instrumenty" className="font-medium text-wine hover:underline">
-                {toolsPageUi[locale].all} →
-              </Link>
-            </p>
-          </div>
-        </section>
-
-        {/* ─── GIFT CARD ─── */}
-        <section className="below-fold py-20 sm:py-28">
-          <div className="reveal container-x grid items-center gap-12 lg:grid-cols-2">
-            <div className="order-2 lg:order-1">
-              <GiftCardVisual locale={locale} plan="hardcover" recipientName={t.gift.card.recipient} buyerName={t.gift.card.buyer} message={t.gift.card.message} className="rotate-[-2deg]" />
-            </div>
-            <div className="order-1 lg:order-2">
-              <div className="eyebrow">{t.gift.eyebrow}</div>
-              <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight sm:text-5xl">{t.gift.title}</h2>
-              <p className="mt-5 text-lg leading-relaxed text-ink-soft">
-                {t.gift.text}
-              </p>
-              <Link href="/gift" className="btn btn-primary btn-lg mt-8">
-                <Gift className="size-5" /> {t.gift.cta}
-              </Link>
-            </div>
-          </div>
-        </section>
-
-        {/* ─── FAQ ─── */}
-        <section id="faq" className="below-fold scroll-mt-20 py-20 sm:py-28">
-          <div className="container-x grid gap-12 lg:grid-cols-[1fr_1.6fr]">
+        {/* ─── СЕРТИФИКАТ ─── */}
+        <section className="below-fold bg-rose/50 py-20 sm:py-24">
+          <div className="container-x grid items-center gap-12 lg:grid-cols-[1fr_1.1fr] lg:gap-16">
             <div>
-              <div className="eyebrow">{t.faq.eyebrow}</div>
-              <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight sm:text-5xl">{t.faq.title}</h2>
+              <h2 className="font-serif text-4xl leading-[1.05] font-medium tracking-tight sm:text-5xl">{t.gift.title}</h2>
+              <p className="mt-5 text-lg leading-relaxed text-ink-soft">{t.gift.text}</p>
+              <Link href="/gift" className="btn btn-primary btn-lg mt-8">
+                <Gift className="size-5" aria-hidden /> {t.gift.cta}
+              </Link>
+            </div>
+            <GiftCardVisual locale={locale} plan="hardcover" recipientName={t.gift.card.recipient} buyerName={t.gift.card.buyer} message={t.gift.card.message} className="mx-auto max-w-xl rotate-[-1.5deg]" />
+          </div>
+        </section>
+
+        {/* ─── ВОПРОСЫ ─── */}
+        <section id="faq" className="below-fold scroll-mt-16 py-20 sm:py-28">
+          <div className="container-x grid gap-12 lg:grid-cols-[1fr_1.6fr] lg:gap-16">
+            <div>
+              <h2 className="font-serif text-4xl leading-[1.05] font-medium tracking-tight sm:text-5xl">{t.faq.title}</h2>
               <p className="mt-4 text-muted">
                 {t.faq.notFound}{" "}
                 <a href={site.contacts.whatsapp} className="text-wine underline underline-offset-4" target="_blank" rel="noopener noreferrer">
@@ -510,24 +340,61 @@ export default async function HomePage() {
                 </a>{" "}
                 {t.faq.reply}
               </p>
+              {/* Бесплатные инструменты — тихим списком: перелинковка без отдельного блока карточек. */}
+              <div className="mt-12 hidden lg:block">
+                <h3 className="text-sm font-semibold">{toolsPageUi[locale].homeTitle}</h3>
+                <ul className="mt-3 space-y-2 text-sm">
+                  {TOOLS.map((slug) => getTool(slug)).map((tool) =>
+                    tool ? (
+                      <li key={tool.slug}>
+                        <Link href={`/instrumenty/${tool.slug}`} className="text-ink-soft hover:text-wine">
+                          {tool.content[locale].label}
+                        </Link>
+                      </li>
+                    ) : null,
+                  )}
+                  <li>
+                    <Link href="/instrumenty" className="font-medium text-wine hover:underline">
+                      {toolsPageUi[locale].all}
+                    </Link>
+                  </li>
+                </ul>
+              </div>
             </div>
-            <Faq className="reveal" items={faq} />
+            <Faq items={faq} />
+            <div className="lg:hidden">
+              <h3 className="text-sm font-semibold">{toolsPageUi[locale].homeTitle}</h3>
+              <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm">
+                {TOOLS.map((slug) => getTool(slug)).map((tool) =>
+                  tool ? (
+                    <li key={tool.slug}>
+                      <Link href={`/instrumenty/${tool.slug}`} className="text-ink-soft underline decoration-line-strong underline-offset-4">
+                        {tool.content[locale].label}
+                      </Link>
+                    </li>
+                  ) : null,
+                )}
+                <li>
+                  <Link href="/instrumenty" className="font-medium text-wine">
+                    {toolsPageUi[locale].all}
+                  </Link>
+                </li>
+              </ul>
+            </div>
           </div>
         </section>
 
-        {/* ─── CTA ─── */}
-        <section className="below-fold pb-20 sm:pb-28">
-          <div className="container-x">
-            <div className="relative overflow-hidden rounded-[32px] bg-wine px-6 py-16 text-center text-white sm:px-16 sm:py-20">
-              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(50%_60%_at_20%_0%,rgba(255,255,255,.18),transparent),radial-gradient(40%_60%_at_100%_100%,rgba(0,0,0,.25),transparent)]" />
-              <h2 className="reveal relative mx-auto max-w-3xl font-serif text-4xl leading-tight font-medium sm:text-6xl">{t.cta.title}</h2>
-              <p className="relative mx-auto mt-5 max-w-xl text-lg text-white/80">{t.cta.text}</p>
-              <Link href={cta} className="btn btn-lg relative mt-9 bg-white text-wine hover:bg-paper">
-                {ctaLabel(t.cta.button)} <ArrowRight className="size-5" />
-              </Link>
-            </div>
+        {/* ─── ФИНАЛЬНЫЙ КАДР ─── */}
+        <FilmFrame photo="sunsetwalk" position="50% 55%" size="band" className="below-fold">
+          <div className="max-w-2xl">
+            <h2 className="font-serif text-[40px] leading-[1.04] font-medium text-white sm:text-6xl">{t.cta.title}</h2>
+            <Flourish className="mt-3 text-[rgb(255_255_255/0.55)]" />
+            <p className="mt-5 max-w-lg text-lg text-white/85">{t.cta.text}</p>
+            <Link href={cta} className="btn btn-primary btn-lg mt-8">
+              {ctaLabel(t.cta.button)}
+            </Link>
           </div>
-        </section>
+        </FilmFrame>
       </main>
       <Footer />
     </>

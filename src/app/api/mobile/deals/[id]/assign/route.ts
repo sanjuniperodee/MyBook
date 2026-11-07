@@ -12,6 +12,6 @@ export const POST = mobile(async (req, { params }: { params: Promise<{ id: strin
   await apiStaff(req, "deals.edit");
   const { id } = idParams(await params, "id");
   const { userId } = z.object({ userId: z.string().uuid().nullable() }).parse(await req.json());
-  await assignDealAction(id, userId);
-  return NextResponse.json({ ok: true });
+  const r = await assignDealAction(id, userId);
+  return r.ok ? NextResponse.json({ ok: true }) : NextResponse.json({ error: r.message }, { status: 400 });
 });

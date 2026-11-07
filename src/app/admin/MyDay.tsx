@@ -7,6 +7,7 @@ import { formatPrice } from "@/config/site";
 import { formatPhone } from "@/shared/domain/phone";
 import { channelLabel } from "@/modules/messaging";
 import { cn } from "@/lib/class-names";
+import { Panel } from "@/components/ui/Panel";
 import { formatDate } from "@/lib/dates";
 import { getSetting } from "@/modules/workspace";
 import { parseWorkHours } from "@/shared/domain/schedule";
@@ -45,103 +46,111 @@ export async function MyDay({ staff }: { staff: Staff }) {
   const today: TaskRow[] = tasks.map((r) => ({ ...taskRow(r, { userId: me, allTasks: can(staff, "tasks.all") }, now), contact: taskContact(r, reacher) }));
   const tiles = [
     unsorted.n > 0 && { href: "/admin/deals", icon: Inbox, label: "Неразобранные заявки", value: String(unsorted.n), hot: true },
-    { href: "/admin/tasks", icon: CheckSquare, label: counts.overdueTasks ? `Задачи на сегодня · просрочено ${counts.overdueTasks}` : "Задачи на сегодня", value: String(counts.tasks), hot: counts.overdueTasks > 0 },
+    { href: "/admin/tasks", icon: CheckSquare, label: counts.overdueTasks ? `Задачи на сегодня, просрочено ${counts.overdueTasks}` : "Задачи на сегодня", value: String(counts.tasks), hot: counts.overdueTasks > 0 },
     can(staff, "chats.view") && { href: "/admin/chats?f=waiting", icon: MessagesSquare, label: "Ждут ответа", value: String(counts.waiting), hot: counts.waiting > 0 },
     can(staff, "calls.view") && { href: "/admin/calls?f=missed", icon: PhoneMissed, label: "Пропущенные звонки", value: String(counts.missed), hot: counts.missed > 0 },
-    can(staff, "deals.view") && { href: "/admin/deals?mine=1", icon: Handshake, label: "Мои сделки в работе", value: `${deals.n}${deals.sum ? ` · ${formatPrice(deals.sum)}` : ""}`, hot: false },
+    can(staff, "deals.view") && { href: "/admin/deals?mine=1", icon: Handshake, label: deals.sum ? `Мои сделки в работе на ${formatPrice(deals.sum)}` : "Мои сделки в работе", value: String(deals.n), hot: false },
     // Тот же NOT EXISTS, что фильтр сделок «Без задачи»: открытая сделка без открытой задачи.
     can(staff, "deals.view") && { href: "/admin/deals?mine=1&task=none", icon: CalendarX, label: "Мои сделки без следующего шага", value: String(deals.noNextStep), hot: deals.noNextStep > 0 },
   ].filter(Boolean) as { href: string; icon: typeof CheckSquare; label: string; value: string; hot: boolean }[];
 
   return (
     <div className="space-y-4" data-testid="my-day">
-      {plan?.planAmount ? (
-        <div className="rounded-2xl border border-line bg-white p-4" data-testid="my-plan">
-          <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
-            <span className="font-semibold">План на месяц</span>
-            <span className="tabular-nums">
-              {formatPrice(plan.factAmount)} из {formatPrice(plan.planAmount)} · <b>{Math.round((plan.factAmount / plan.planAmount) * 100)}%</b>
-              {plan.planDeals ? <span className="text-muted"> · сделок {plan.factDeals} из {plan.planDeals}</span> : null}
-            </span>
-          </div>
-          <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-cream">
-            <div className={cn("h-full rounded-full", plan.factAmount >= plan.planAmount ? "bg-emerald-600" : "bg-wine")} style={{ width: `${Math.min(100, (plan.factAmount / plan.planAmount) * 100)}%` }} />
-          </div>
-        </div>
-      ) : null}
-      <div className={cn("grid grid-cols-2 gap-2.5 sm:gap-3", tiles.length > 5 ? "lg:grid-cols-3" : tiles.length > 4 ? "xl:grid-cols-5" : "xl:grid-cols-4")}>
+      {/* «Сейчас»: что требует действия — одним листом, ячейки-ссылки; горящее — винным числом и точкой. */}
+      <section aria-label="Сейчас" className="flex flex-wrap gap-px overflow-hidden rounded-[14px] border border-line bg-line">
         {tiles.map((t) => (
-          <Link key={t.href} href={t.href} className={cn("flex items-center gap-2.5 rounded-2xl border bg-white p-3 transition hover:shadow-soft sm:gap-3 sm:p-4", t.hot ? "border-wine/30" : "border-line")}>
-            <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-xl sm:size-10", t.hot ? "bg-rose text-wine" : "bg-cream text-ink-soft")}>
-              <t.icon className="size-5" />
+          <Link key={t.href} href={t.href} className="group flex min-h-24 flex-[1_1_9.5rem] flex-col justify-between gap-3 bg-white p-4 transition-colors hover:bg-sunken/60">
+            <span className="flex items-center justify-between gap-2 text-muted">
+              <t.icon className="size-4" strokeWidth={1.8} aria-hidden />
+              {t.hot ? <span className="size-2 rounded-full bg-wine" aria-label="требует внимания" /> : null}
             </span>
             <span>
-              <span className="block text-lg font-semibold tabular-nums">{t.value}</span>
-              <span className="text-[11px] leading-tight text-muted sm:text-xs">{t.label}</span>
+              <span className={cn("block text-[22px] leading-tight font-semibold tabular-nums", t.hot && "text-wine")}>{t.value}</span>
+              <span className="mt-0.5 block text-[13px] leading-snug text-ink-soft group-hover:text-ink">{t.label}</span>
             </span>
           </Link>
         ))}
-      </div>
-      {today.length ? (
-        <section className="overflow-hidden rounded-2xl border border-line bg-white" data-testid="my-day-tasks">
-          <div className="flex items-center justify-between border-b border-line px-4 py-3">
-            <h2 className="text-sm font-semibold">
-              Сегодня · {counts.tasks}
-              {counts.overdueTasks ? <span className="font-normal text-red-700"> · просрочено {counts.overdueTasks}</span> : null}
-            </h2>
-            <Link href="/admin/tasks" className="text-xs text-muted hover:text-ink">
-              Все задачи →
-            </Link>
+      </section>
+      {plan?.planAmount ? (
+        <section className="panel flex flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3.5 sm:px-5" data-testid="my-plan">
+          <span className="text-sm font-medium">План на месяц</span>
+          <div className="h-1.5 min-w-40 flex-1 overflow-hidden rounded-full bg-sunken">
+            <div className={cn("h-full rounded-full", plan.factAmount >= plan.planAmount ? "bg-success" : "bg-wine")} style={{ width: `${Math.min(100, (plan.factAmount / plan.planAmount) * 100)}%` }} />
           </div>
-          <div className="px-4">
+          <span className="text-sm tabular-nums">
+            <b className="font-semibold">{formatPrice(plan.factAmount)}</b> <span className="text-muted">из {formatPrice(plan.planAmount)}</span> <span className="badge ml-1">{Math.round((plan.factAmount / plan.planAmount) * 100)}%</span>
+            {plan.planDeals ? <span className="ml-2 text-muted">сделок {plan.factDeals} из {plan.planDeals}</span> : null}
+          </span>
+        </section>
+      ) : null}
+      {today.length ? (
+        <Panel
+          flush
+          title={
+            <>
+              Задачи на сегодня <span className="font-normal text-muted tabular-nums">{counts.tasks}</span>
+              {counts.overdueTasks ? <span className="badge badge-danger ml-2 align-middle">просрочено {counts.overdueTasks}</span> : null}
+            </>
+          }
+          actions={
+            <Link href="/admin/tasks" className="btn btn-ghost btn-sm">
+              Все задачи
+            </Link>
+          }
+        >
+          <div className="px-4 sm:px-5" data-testid="my-day-tasks">
             <TaskRows tasks={today} staff={[]} canAssign={false} compact />
           </div>
           {counts.tasks > today.length ? (
-            <p className="border-t border-line px-4 py-2 text-xs text-muted">
-              Показаны первые {today.length} из {counts.tasks} —{" "}
+            <p className="border-t border-line px-4 py-2.5 text-xs text-muted sm:px-5">
+              Показаны первые {today.length} из {counts.tasks}.{" "}
               <Link href="/admin/tasks" className="text-wine hover:underline">
-                остальные в «Задачах»
+                Открыть все задачи
               </Link>
             </p>
           ) : null}
-        </section>
+        </Panel>
       ) : null}
       {waiting.length || missed.length ? (
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className={cn("grid gap-4", waiting.length && missed.length && "lg:grid-cols-2")}>
           {waiting.length ? (
-            <section className="overflow-hidden rounded-2xl border border-line bg-white">
-              <h2 className="border-b border-line px-4 py-3 text-sm font-semibold">Клиенты ждут ответа{counts.waiting > waiting.length ? ` · ${counts.waiting}` : ""}</h2>
-              <div className="divide-y divide-line">
+            <Panel flush title={<>Клиенты ждут ответа {counts.waiting > waiting.length ? <span className="font-normal text-muted tabular-nums">{counts.waiting}</span> : null}</>} actions={<Link href="/admin/chats?f=waiting" className="btn btn-ghost btn-sm">В чаты</Link>}>
+              <ul className="divide-y divide-line">
                 {waiting.map((c) => {
                   const wait = responseWait(c.awaitingSince!, now, hours, sla);
                   return (
-                    <Link key={c.id} href={`/admin/chats?c=${c.id}`} className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-cream/40">
-                      <span className="min-w-0 flex-1 truncate">
-                        <span className="font-medium">{c.contactName || contactView(staff, { phone: formatPhone(c.chatId) }).phone}</span>
-                        <span className="text-muted"> · {channelLabel(c.channel)} · {c.lastMessageText}</span>
-                      </span>
-                      <span className={cn("shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-medium tabular-nums", waitTone(wait.overdue))} title={`Норматив ответа — ${sla} рабочих минут`}>
-                        ждёт {wait.label}
-                      </span>
-                    </Link>
+                    <li key={c.id}>
+                      <Link href={`/admin/chats?c=${c.id}`} className="flex min-h-12 items-center gap-3 px-4 py-2.5 text-sm hover:bg-sunken/60 sm:px-5">
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate font-medium">{c.contactName || contactView(staff, { phone: formatPhone(c.chatId) }).phone}</span>
+                          <span className="block truncate text-xs text-muted">
+                            {channelLabel(c.channel)}: {c.lastMessageText}
+                          </span>
+                        </span>
+                        <span className={cn("shrink-0 rounded-md px-1.5 py-0.5 text-xs font-medium tabular-nums", waitTone(wait.overdue))} title={`Норматив ответа — ${sla} рабочих минут`}>
+                          ждёт {wait.label}
+                        </span>
+                      </Link>
+                    </li>
                   );
                 })}
-              </div>
-            </section>
+              </ul>
+            </Panel>
           ) : null}
           {missed.length ? (
-            <section className="overflow-hidden rounded-2xl border border-line bg-white">
-              <h2 className="border-b border-line px-4 py-3 text-sm font-semibold">Перезвонить{counts.missed > missed.length ? ` · ${counts.missed}` : ""}</h2>
-              <div className="divide-y divide-line">
+            <Panel flush title={<>Перезвонить {counts.missed > missed.length ? <span className="font-normal text-muted tabular-nums">{counts.missed}</span> : null}</>} actions={<Link href="/admin/calls?f=missed" className="btn btn-ghost btn-sm">Звонки</Link>}>
+              <ul className="divide-y divide-line">
                 {missed.map((c) => (
-                  <Link key={c.id} href={c.dealId ? `/admin/deals/${c.dealId}` : "/admin/calls?f=missed"} className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-cream/40">
-                    <PhoneMissed className="size-4 text-red-600" />
-                    <span className="flex-1 tabular-nums">{contactView(staff, { phone: formatPhone(c.clientPhone) }).phone || "скрытый номер"}</span>
-                    <span className="text-xs text-muted">{formatDate(c.startedAt, true)}</span>
-                  </Link>
+                  <li key={c.id}>
+                    <Link href={c.dealId ? `/admin/deals/${c.dealId}` : "/admin/calls?f=missed"} className="flex min-h-12 items-center gap-3 px-4 py-2.5 text-sm hover:bg-sunken/60 sm:px-5">
+                      <PhoneMissed className="size-4 shrink-0 text-danger" aria-hidden />
+                      <span className="flex-1 tabular-nums">{contactView(staff, { phone: formatPhone(c.clientPhone) }).phone || "скрытый номер"}</span>
+                      <span className="text-xs text-muted">{formatDate(c.startedAt, true)}</span>
+                    </Link>
+                  </li>
                 ))}
-              </div>
-            </section>
+              </ul>
+            </Panel>
           ) : null}
         </div>
       ) : null}

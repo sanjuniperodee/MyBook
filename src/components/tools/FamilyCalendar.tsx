@@ -85,12 +85,12 @@ export function FamilyCalendar() {
 
       <div className="mt-8" aria-live="polite">
         {rows.length === 0 ? (
-          <p className="rounded-2xl bg-cream/60 px-5 py-6 text-center text-muted">{ui.empty}</p>
+          <p className="rounded-[14px] bg-cream/60 px-5 py-6 text-center text-muted">{ui.empty}</p>
         ) : (
           <>
             <ul className="space-y-3">
               {rows.map((r) => (
-                <li key={r.person.id} className="rounded-2xl border border-line bg-white p-4" data-testid="family-row">
+                <li key={r.person.id} className="rounded-[14px] border border-line bg-white p-4" data-testid="family-row">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="font-medium text-ink">{r.person.name}</div>

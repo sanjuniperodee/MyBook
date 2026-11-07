@@ -38,7 +38,7 @@ export function SmtpForm({
         Через этот ящик уходят письма клиентам (заказ оформлен и оплачен, сертификаты, сброс пароля, напоминания) и письма менеджеров из CRM. Подойдёт любой почтовый сервис; для Яндекса, Gmail и Mail.ru нужен
         «пароль приложения», а не обычный пароль от ящика.
       </Intro>
-      {fromEnv ? <p className="mb-3 rounded-xl bg-cream px-3 py-2 text-xs text-muted">Почта задана переменными окружения сервера (SMTP_HOST и др.) — здесь только для просмотра и проверки.</p> : null}
+      {fromEnv ? <p className="mb-3 rounded-[10px] bg-info-bg px-3 py-2 text-xs text-info">Почта задана переменными окружения сервера (SMTP_HOST и др.) — здесь только для просмотра и проверки.</p> : null}
       <form action={action} className="space-y-3">
         {!env.host ? (
           <div className="flex flex-wrap items-center gap-1.5 text-xs">
@@ -47,7 +47,7 @@ export function SmtpForm({
               <button
                 key={pr.label}
                 type="button"
-                className="rounded-full border border-line px-2.5 py-1 hover:bg-cream"
+                className="chip h-8 text-xs"
                 onClick={() => {
                   setHost(pr.host);
                   setPort(pr.port);
@@ -58,17 +58,17 @@ export function SmtpForm({
             ))}
           </div>
         ) : null}
-        <div className="grid gap-3 sm:grid-cols-[1fr_110px_170px]">
+        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_7rem_14rem]">
           <label className="block">
-            <span className="mb-1 block text-xs text-muted">Сервер SMTP</span>
+            <span className="label">Сервер SMTP</span>
             <input name="smtpHost" value={host} onChange={(e) => setHost(e.target.value)} disabled={env.host} placeholder="smtp.yandex.ru" className="input h-10 text-sm" autoComplete="off" />
           </label>
           <label className="block">
-            <span className="mb-1 block text-xs text-muted">Порт</span>
+            <span className="label">Порт</span>
             <input name="smtpPort" value={port} onChange={(e) => setPort(e.target.value)} disabled={env.port} className="input h-10 text-sm" inputMode="numeric" />
           </label>
           <label className="block">
-            <span className="mb-1 block text-xs text-muted">Шифрование</span>
+            <span className="label">Шифрование</span>
             <select name="smtpSecure" defaultValue={saved.secure} disabled={env.secure} className="input h-10 text-sm">
               <option value="">по порту (465 — SSL)</option>
               <option value="true">SSL/TLS сразу</option>
@@ -78,18 +78,18 @@ export function SmtpForm({
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="block">
-            <span className="mb-1 block text-xs text-muted">Логин (обычно адрес ящика)</span>
+            <span className="label">Логин (обычно адрес ящика)</span>
             <input name="smtpUser" defaultValue={saved.user} disabled={env.user} className="input h-10 text-sm" autoComplete="off" />
           </label>
           <SecretInput name="smtpPassword" label="Пароль приложения" saved={saved.password} fromEnv={env.password} />
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="block">
-            <span className="mb-1 block text-xs text-muted">Отправитель</span>
+            <span className="label">Отправитель</span>
             <input name="mailFrom" defaultValue={saved.from} disabled={env.from} placeholder="MyBooks <hello@mybook.kz>" className="input h-10 text-sm" />
           </label>
           <label className="block">
-            <span className="mb-1 block text-xs text-muted">Адрес для ответов (необязательно)</span>
+            <span className="label">Адрес для ответов (необязательно)</span>
             <input name="mailReplyTo" defaultValue={saved.replyTo} disabled={env.replyTo} placeholder="sales@mybook.kz" className="input h-10 text-sm" />
           </label>
         </div>

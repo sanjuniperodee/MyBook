@@ -10,13 +10,13 @@ import { GOWA_CHANNEL, gowaCatchUpRange, gowaJid, isGowaPersonalJid, parseGowaHi
 import { WazzupClient } from "./infrastructure/wazzup";
 import { drizzleCoachSource } from "./infrastructure/botCoach";
 import { drizzleHelpStore, helpChatId, helpQuestionsOf, helpStats } from "./infrastructure/cabinetHelp";
-import { chatFiles } from "./infrastructure/chatFiles";
+import { chatFiles, extOf } from "./infrastructure/chatFiles";
 import { staffLine } from "./infrastructure/staffLine";
 import { MATERIAL_MAX_BYTES, MAX_MATERIALS, mediaLine, parseCoachLog, parseLessons, parseMaterials, type BotLesson, type BotMaterial, type CoachRun, type MaterialKind, type MaterialLang } from "./domain";
 import { getFile, putFile } from "@/shared/infrastructure/storage";
-import { DrizzleBotStore, DrizzleConversationRepository, DrizzleMessageRepository, DrizzleMessagingQueries, aiParsedSince, autofillCandidates, drizzleBlocklist, markAiParsed, purgeBotTraces } from "./infrastructure/persistence";
+import { DrizzleBotStore, DrizzleConversationRepository, DrizzleMessageRepository, DrizzleMessagingQueries, aiParsedSince, atomically, autofillCandidates, drizzleBlocklist, markAiParsed, purgeBotTraces } from "./infrastructure/persistence";
 import { botPreview, botStatus, type BotPreviewInput } from "./application/botPreview";
-import { contactPhone, parseRuleSending, type Conversation, type HistoryMessage, type InboundMessage } from "./domain";
+import { contactPhone, isMediaPlaceholder, parseRuleSending, type Conversation, type HistoryMessage, type InboundMessage } from "./domain";
 import { normalizePhone } from "@/shared/domain/phone";
 
 export { MATERIAL_MAX_BYTES, MAX_MATERIALS, materialsSummary, type BotMaterial, type MaterialKind, type MaterialLang } from "./domain";
@@ -184,7 +184,7 @@ export class MessagingModule {
     const messages = this.messages;
     // Окно и суточный лимит сообщений от правил — настройки «Интеграции» → «Мессенджеры» (кэш настроек — 10 секунд).
     const ruleSending = async () => parseRuleSending(await deps.settings.get("whatsapp.rulesWindow"), await deps.settings.get("whatsapp.rulesDailyLimit"));
-    this.chats = new MessagingService(conversations, messages, drizzleBlocklist, transport, deps.sales, deps.links, notifier, live, deps.rules, bot, deps.clock, consoleLogger("chats"), deps.whatsapp, () => this.phoneHolder(), ruleSending, this.staffLine, deps.tasks);
+    this.chats = new MessagingService(conversations, messages, drizzleBlocklist, transport, deps.sales, deps.links, notifier, live, deps.rules, bot, deps.clock, consoleLogger("chats"), deps.whatsapp, () => this.phoneHolder(), ruleSending, this.staffLine, deps.tasks, atomically);
     this.media = new ChatMediaService(conversations, messages, gowaMediaGateway(this.gowa), async () => (await deps.whatsappSettings.provider()) === "gowa", Date.now, chatFiles);
     this.site = new SiteChatService(this.chats, deps.sales, deps.tasks, notifier, live, deps.clock, siteIds, deps.schedule);
     this.help = new CabinetHelpService({
@@ -235,21 +235,26 @@ export class MessagingModule {
     let file: { data: Uint8Array; name: string; mime: string; kind: ReturnType<typeof fileKind> } | null = null;
     let mediaUrl: string | null = null;
     if (media) {
-      const bytes = await this.media.bytes(m.id).catch(() => null);
-      if (!bytes) throw new MessageActionError("Файл вложения недоступен — переслать не получится");
+      // Тот же предел, что у файла из CRM (50 МБ): видео больше 10 МБ тоже пересылается.
+      const bytes = await this.media.bytes(m.id, MAX_UPLOAD).catch(() => null);
+      if (!bytes) throw new MessageActionError("Файл вложения недоступен или больше 50 МБ — переслать не получится");
       const kind = m.type === "image" || m.type === "video" || m.type === "audio" ? m.type : "document";
-      file = { data: bytes.data, mime: bytes.mime, kind, name: `${kind === "document" ? "file" : kind}.${(bytes.mime.split("/")[1] ?? "bin").split(";")[0]}` };
+      // Расширение — по таблице файлов чата (video/quicktime → .mov, а не .quicktime).
+      const base = kind === "document" ? "file" : kind;
+      file = { data: bytes.data, mime: bytes.mime, kind, name: `${base}.${extOf("", bytes.mime)}` };
       // Шлюз мог только что скачать файл — копия ссылается на тот же файл.
       mediaUrl = (await this.messages.findOne(m.id))?.mediaUrl ?? null;
     } else if (!m.text.trim()) throw new MessageActionError("Пустое сообщение");
     const targets = [...new Set(targetIds)].slice(0, 10);
+    // Заглушка вложения без подписи («📷 Фото») — не подпись: клиенту уходит только файл.
+    const caption = file && isMediaPlaceholder(m.type, m.text) ? "" : m.text;
     // Реквизиты в тексте или подписи — до отправки хоть кому-то.
-    await this.chats.assertForwardable(m.text, targets);
+    await this.chats.assertForwardable(caption, targets);
     const failed: { conversationId: string; error: string }[] = [];
     let sent = 0;
     for (const target of targets) {
       try {
-        const r = file ? await this.chats.sendFile(target, file, m.text, authorId, { mediaUrl, forwarded: true }) : await this.chats.send(target, m.text, authorId, undefined, { forwarded: true });
+        const r = file ? await this.chats.sendFile(target, file, caption, authorId, { mediaUrl, forwarded: true }) : await this.chats.send(target, m.text, authorId, undefined, { forwarded: true });
         if (r.status === "error") failed.push({ conversationId: target, error: r.error ?? "не отправилось" });
         else sent++;
       } catch (err) {

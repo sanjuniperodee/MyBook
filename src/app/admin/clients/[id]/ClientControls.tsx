@@ -30,10 +30,10 @@ export function TagEditor({ clientId, tags }: { clientId: string; tags: string[]
     <div>
       <div className="flex flex-wrap items-center gap-1.5">
         {list.map((t) => (
-          <span key={t} className="flex items-center gap-1 rounded-full bg-rose px-2.5 py-1 text-xs text-wine">
+          <span key={t} className="badge badge-accent gap-0.5 py-0 pr-0.5">
             {t}
-            <button onClick={() => save(list.filter((x) => x !== t))} aria-label={`Убрать тег ${t}`}>
-              <X className="size-3" />
+            <button className="flex size-6 items-center justify-center rounded-md opacity-70 hover:opacity-100" onClick={() => save(list.filter((x) => x !== t))} aria-label={`Убрать тег ${t}`}>
+              <X className="size-3" aria-hidden />
             </button>
           </span>
         ))}
@@ -42,20 +42,20 @@ export function TagEditor({ clientId, tags }: { clientId: string; tags: string[]
             e.preventDefault();
             add(value);
           }}
-          className="flex items-center"
+          className="flex items-center gap-1"
         >
-          <input value={value} onChange={(e) => setValue(e.target.value)} placeholder="тег" maxLength={30} className="h-7 w-24 rounded-full border border-line bg-white px-2.5 text-xs outline-none focus:border-wine/40" />
-          <button className="ml-1 text-muted hover:text-ink" aria-label="Добавить тег">
-            {pending ? <LoaderCircle className="size-4 animate-spin" /> : <Plus className="size-4" />}
+          <input value={value} onChange={(e) => setValue(e.target.value)} placeholder="Новый тег" aria-label="Новый тег" maxLength={30} className="input h-8 w-28 px-2.5 text-xs" />
+          <button className="btn btn-ghost btn-icon btn-sm size-8" aria-label="Добавить тег">
+            {pending ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : <Plus className="size-4" aria-hidden />}
           </button>
         </form>
       </div>
-      <div className="mt-2 flex flex-wrap gap-1">
+      <div className="mt-2.5 flex flex-wrap gap-1.5">
         {suggested
           .filter((s) => !list.includes(s))
           .map((s) => (
-            <button key={s} onClick={() => add(s)} className="rounded-full border border-dashed border-line px-2 py-0.5 text-[11px] text-muted hover:border-ink/30 hover:text-ink">
-              + {s}
+            <button key={s} onClick={() => add(s)} className="inline-flex h-7 items-center gap-1 rounded-md border border-dashed border-line-strong px-2 text-xs text-muted hover:border-ink/30 hover:text-ink max-lg:h-9">
+              <Plus className="size-3" aria-hidden /> {s}
             </button>
           ))}
       </div>
@@ -78,9 +78,11 @@ export function RemindButton({ clientId, disabled, hint }: { clientId: string; d
           })
         }
       >
-        {pending ? <LoaderCircle className="size-4 animate-spin" /> : <BellRing className="size-4" />} Напомнить дописать книгу
+        {pending ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : <BellRing className="size-4" aria-hidden />} Напомнить дописать книгу
       </button>
-      <p className={cn("mt-1.5 text-xs", msg ? (msg.ok ? "text-emerald-700" : "text-red-700") : "text-muted")}>{msg?.text ?? hint}</p>
+      <p className={cn("mt-1.5 text-xs", msg ? (msg.ok ? "text-success" : "text-danger") : "text-muted")} role={msg ? "status" : undefined}>
+        {msg?.text ?? hint}
+      </p>
     </div>
   );
 }
@@ -99,7 +101,7 @@ export function ClientLocale({ clientId, value }: { clientId: string; value: "ru
   const [current, setCurrent] = useState(value);
   return (
     <select
-      className="input h-8 w-32 text-xs"
+      className="input h-9 w-32 text-sm"
       value={current}
       disabled={pending}
       aria-label="Язык кабинета и писем"
@@ -129,7 +131,7 @@ export function ClientChannel({ clientId, value, auto, disabled }: { clientId: s
   const [current, setCurrent] = useState(value);
   return (
     <select
-      className="input h-9 text-sm"
+      className="input h-9 w-full max-w-48 text-sm"
       value={current}
       disabled={disabled || pending}
       aria-label="Канал привлечения"
@@ -181,9 +183,9 @@ export function ExtraPhones({ clientId, value }: { clientId: string; value: stri
         });
       }}
     >
-      <input value={text} onChange={(e) => setText(e.target.value)} maxLength={200} placeholder="второй номер, WhatsApp" className="input h-9 min-w-0 flex-1 text-sm" aria-label="Доп. телефоны" />
-      <button className="btn btn-outline btn-sm h-9" disabled={pending || text === value}>
-        {pending ? <LoaderCircle className="size-4 animate-spin" /> : "OK"}
+      <input value={text} onChange={(e) => setText(e.target.value)} maxLength={200} placeholder="Второй номер, WhatsApp" className="input h-10 min-w-0 flex-1 text-sm tabular-nums" aria-label="Доп. телефоны" />
+      <button className="btn btn-outline btn-sm" disabled={pending || text === value}>
+        {pending ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : null} Сохранить
       </button>
     </form>
   );
@@ -198,7 +200,15 @@ export function ClientFields({ clientId, fields, values, disabled }: { clientId:
       {disabled ? null : (
         <div className="flex items-center gap-3">
           <button className="btn btn-outline btn-sm">Сохранить</button>
-          {state.error ? <span className="text-xs text-red-700">{state.error}</span> : state.ok ? <span className="text-xs text-emerald-700">{state.ok}</span> : null}
+          {state.error ? (
+            <span className="text-sm text-danger" role="alert">
+              {state.error}
+            </span>
+          ) : state.ok ? (
+            <span className="text-sm text-success" role="status">
+              {state.ok}
+            </span>
+          ) : null}
         </div>
       )}
     </form>

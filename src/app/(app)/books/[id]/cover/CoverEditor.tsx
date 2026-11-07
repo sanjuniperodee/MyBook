@@ -3,7 +3,7 @@
 import { Link, useLocale, useMessages } from "@/i18n/client";
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Check, ImagePlus, Layers, Sparkles } from "lucide-react";
+import { Check, ImagePlus, Layers, Sparkles } from "lucide-react";
 import { CoverPreview } from "@/components/cover/CoverPreview";
 import { backPreviewLayout, CoverBackPreview, PREVIEW_PAGES } from "@/components/cover/CoverBackPreview";
 import { backCanvasSvg, spineSvg } from "@/components/cover/cover-sides";
@@ -55,6 +55,9 @@ import { BackFillSection, BackLayoutsPanel, SideSwitch, SpreadStrip } from "./Co
 import { coverMeta } from "@/lib/book/covers/meta";
 import { CoverDesigner } from "@/components/cover/designer/CoverDesigner";
 import { CoverLayoutPicker } from "@/components/cover/CoverLayoutPicker";
+
+/** Сколько обложек видно сразу во «Все» (выбранная показывается всегда). */
+const DESIGNS_SHOWN = 12;
 
 interface CoverState {
   coverTemplate: string;
@@ -218,6 +221,8 @@ export function CoverEditor({
   const template = getCoverTemplate(state.coverTemplate);
   const slots = coverPhotoSlots(template);
   const [mood, setMood] = useState<CoverMood | "all">("all");
+  // Все 60+ обложек сразу — стена на телефоне: сначала дюжина (выбранная — всегда в ней), остальные по кнопке.
+  const [allDesigns, setAllDesigns] = useState(false);
   const kind = bookKind(theme);
   const coverNamesLine = coverNames({ theme, ...state });
   const coverIds = [state.coverPhotoId, ...state.coverPhotoExtra].slice(0, slots);
@@ -432,14 +437,17 @@ export function CoverEditor({
                 role="radio"
                 aria-checked={mood === id}
                 onClick={() => setMood(id)}
-                className={cn("shrink-0 rounded-full px-3.5 py-1.5 text-sm transition", mood === id ? "bg-ink text-white" : "bg-white text-ink-soft ring-1 ring-line hover:ring-ink/30")}
+                className={cn("chip min-h-11 shrink-0 sm:min-h-9", mood === id && "chip-on")}
               >
                 {m.catalog.moods[id]}
               </button>
             ))}
           </div>
           <div ref={strip} className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-4 xl:grid-cols-6">
-            {choices.filter((t) => mood === "all" || t.mood === mood || t.id === state.coverTemplate).map((t) => (
+            {choices
+              .filter((t) => mood === "all" || t.mood === mood || t.id === state.coverTemplate)
+              .filter((t, i) => mood !== "all" || allDesigns || i < DESIGNS_SHOWN || t.id === state.coverTemplate)
+              .map((t) => (
               <button
                 key={t.id}
                 onClick={() => chooseTemplate(t.id)}
@@ -477,6 +485,11 @@ export function CoverEditor({
               </button>
             ))}
           </div>
+          {mood === "all" && !allDesigns && choices.length > DESIGNS_SHOWN ? (
+            <button type="button" className="btn btn-outline mt-5 w-full sm:w-auto" onClick={() => setAllDesigns(true)}>
+              {t.showAllDesigns(choices.length)}
+            </button>
+          ) : null}
         </section>
 
         <PairedPages
@@ -618,7 +631,7 @@ export function CoverEditor({
       </PreviewDock>
       <div>
         <div className="lg:sticky lg:top-24">
-          <div ref={bigPreview} className="mx-auto w-full max-w-[300px] rounded-[28px] bg-cream/70 p-5 sm:max-w-[340px] sm:p-8">
+          <div ref={bigPreview} className="mx-auto w-full max-w-[300px] rounded-[28px] bg-sunken p-5 sm:max-w-[340px] sm:p-8">
             <div className="relative">
               {renderSide("rounded-[4px] shadow-book", "editor")}
               {editable && frameSlots.length ? <FrameLayer slots={frameSlots} selected={frameSelected} onSelect={setFrameSel} onChange={setFrame} ariaLabel={t.frame.aria} /> : null}
@@ -648,7 +661,7 @@ export function CoverEditor({
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-3">
-        <div role="tablist" aria-label={d.tabs.aria} className="inline-flex rounded-2xl bg-cream/80 p-1">
+        <div role="tablist" aria-label={d.tabs.aria} className="inline-flex rounded-2xl bg-sunken p-1">
           {(["template", "designer"] as const).map((v) => (
             <button
               key={v}
@@ -919,7 +932,7 @@ function PairedPages({
     <section className="flex flex-col gap-5 rounded-2xl border border-line bg-white p-5 sm:flex-row sm:items-center">
       <InteriorSpread design={shown} format={getFormat(format)} sample={sample} className="w-full shrink-0 rounded-[3px] ring-1 ring-line sm:w-56" />
       <div className="min-w-0">
-        <div className="flex items-center gap-1.5 text-xs font-medium tracking-wider text-wine uppercase">
+        <div className="flex items-center gap-1.5 text-sm font-medium text-wine">
           <Sparkles className="size-3.5" /> {t.pairTitle}
         </div>
         <p className="mt-1.5 text-sm text-ink-soft">
@@ -932,7 +945,7 @@ function PairedPages({
             </button>
           ) : null}
           <Link href={`/books/${bookId}/pages`} className="inline-flex items-center gap-1 text-sm text-wine hover:underline">
-            {t.pairAll} <ArrowRight className="size-3.5" />
+            {t.pairAll}
           </Link>
         </div>
       </div>

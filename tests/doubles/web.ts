@@ -66,7 +66,9 @@ const salesHead = Role.restore("r-sales-head", { name: "Старший прод�
 const salesCaller = Role.restore("r-sales-caller", { name: "Менеджер со звонками", scope: "own", permissions: ["deals.view", "deals.edit", "chats.view", "chats.send", "calls.make", "clients.contacts"], key: "manager" });
 /** Менеджер «только свои» с выгрузкой клиентов (clients.view + export + contacts). */
 const clientExporter = Role.restore("r-client-export", { name: "Менеджер с выгрузкой", scope: "own", permissions: ["clients.view", "clients.export", "clients.contacts"], key: null });
-const allRoles = [manager, orderViewer, printer, clientViewer, clientEditor, chatAgent, salesAgent, salesLead, salesHead, salesCaller, clientExporter];
+/** Старший смены: все записи, заказы и команда (сверяет ручные оплаты), но не руководитель магазина. */
+const supervisor = Role.restore("r-supervisor", { name: "Старший смены", scope: "all", permissions: ["orders.view", "orders.edit", "team.manage"], key: null });
+const allRoles = [manager, orderViewer, printer, clientViewer, clientEditor, chatAgent, salesAgent, salesLead, salesHead, salesCaller, clientExporter, supervisor];
 
 const roles: RoleRepository = {
   nextId: () => "r-new",
@@ -109,6 +111,8 @@ export const rita = person("rita", { role: "admin", crmRoleId: salesHead.id });
 export const timur = person("timur", { role: "admin", crmRoleId: salesCaller.id, sipExtension: "101" });
 /** Менеджер «только свои», которому можно выгружать клиентов в CSV. */
 export const nadia = person("nadia", { role: "admin", crmRoleId: clientExporter.id });
+/** Старший смены (scope all, orders.edit + team.manage): сверяет оплаты, свою запись — нет. */
+export const sasha = person("sasha", { role: "admin", crmRoleId: supervisor.id });
 export const withTwoFactor = { totpEnabledAt: new Date(), totpSecret: "secret" };
 
 const sessions = new Map<string, User>();

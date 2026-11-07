@@ -22,7 +22,8 @@ const orderDeal = sql.raw(`left join lateral (select d.id, d.number, d.assignee_
  *   «к оплате», предоплата сделки в нём вычтена, — поэтому платёж сделки и оплата заказа не пересекаются;
  * - заказы, оплаченные без записи в журнале (до журнала или «подтвердить оплату» без денег): к оплате − записано
  *   в журнал, на дату paid_at; как только оплату приложат с чеком, остаток уходит в ноль — без двойного счёта;
- * - оплаченные подарочные сертификаты (их промокод потом уменьшает «к оплате» заказа — тоже без двойного счёта).
+ * - оплаченные подарочные сертификаты (их промокод потом уменьшает «к оплате» заказа — тоже без двойного счёта);
+ * - оплаченные пакеты ИИ-дизайнера и минут видео (номер пакета — в gift_number: A<n> или M<n>, вид — kind).
  * Не считаются: заказы и записи журнала отменённых заказов (как в выручке — деньги нужно вернуть; они в «Нужен возврат»),
  * оплаты Kaspi, не записанные в учёт (тоже там), и успешные сделки без денег (выручка по договорённости, а не деньги).
  */
@@ -67,6 +68,19 @@ export async function financeMoney(from: Date, to: Date): Promise<MoneyRow[]> {
         g.buyer_name, null, null, null, null, null, null
       from gift_cards g
       where g.paid_at >= ${at(from)} and g.paid_at < ${at(to)} and g.status <> 'cancelled' and g.amount > 0
+      union all
+      -- Пакеты ИИ-дизайнера (A<n>) и минут своих видео и аудио (M<n>): оплачиваются через Kaspi из кабинета клиента.
+      select ap.id, 'pack', 'ai_pack', case when ap.payment_id like 'kaspi:%' then 'kaspi' else 'manual' end,
+        ap.amount, ap.paid_at, null, null, null, null, ap.number,
+        coalesce(nullif(u.name, ''), u.email), null, null, null, ap.payment_id, null, null
+      from design_ai_purchases ap join users u on u.id = ap.user_id
+      where ap.status = 'paid' and ap.paid_at >= ${at(from)} and ap.paid_at < ${at(to)} and ap.amount > 0
+      union all
+      select mp.id, 'pack', 'media_pack', case when mp.payment_id like 'kaspi:%' then 'kaspi' else 'manual' end,
+        mp.amount, mp.paid_at, null, null, null, null, mp.number,
+        coalesce(nullif(u.name, ''), u.email), null, null, null, mp.payment_id, null, null
+      from answer_file_purchases mp join users u on u.id = mp.user_id
+      where mp.status = 'paid' and mp.paid_at >= ${at(from)} and mp.paid_at < ${at(to)} and mp.amount > 0
     ) m
     order by at desc`);
   return r.rows.map((x) => ({
@@ -97,31 +111,50 @@ export async function financeMoney(from: Date, to: Date): Promise<MoneyRow[]> {
  * Прогресс книги — самая продвинутая книга клиента (ответов из вопросов); счёт — открытый счёт из чата.
  */
 export async function financeDeals(): Promise<FinanceDealRow[]> {
+  // Сначала — сделки, по которым что-то показываем (деньги не сходятся с договорённостью, отказ с деньгами, открытый счёт,
+  // лишнее после заказа), и только для них — самая продвинутая книга клиента: подзапрос книги дорогой.
   const r = await executor().execute<Row>(sql`
-    select d.id, d.number, coalesce(nullif(d.contact_name, ''), nullif(u.name, ''), d.title) as client, d.assignee_id as manager_id,
-      d.amount as agreed, d.agreed_plan as plan, d.source, s.kind as stage_kind, s.milestone, d.client_id is not null as has_client,
-      nullif(d.custom_fields->>'event_date', '') as event_date, pay.paid, pay.n as payments,
-      bk.theme, bk.answered, bk.total, bk.words,
-      inv.number as invoice_number, inv.amount as invoice_amount, inv.expires_at as invoice_expires_at, inv.claimed_at as invoice_claimed_at,
-      o.id as order_id, o.number as order_number, o.prepaid_amount as order_prepaid
-    from crm_deals d
-    join crm_stages s on s.id = d.stage_id
-    left join users u on u.id = d.client_id
-    left join orders o on o.id = d.order_id
-    cross join lateral (
-      select coalesce(sum(case when p.kind = 'refund' then -p.amount else p.amount end), 0)::int as paid, count(*) filter (where p.kind <> 'refund')::int as n
-      from crm_payments p where p.deal_id = d.id
-    ) pay
+    with cand as materialized (
+      select d.id, d.number, coalesce(nullif(d.contact_name, ''), nullif(u.name, ''), d.title) as client, d.assignee_id as manager_id,
+        d.amount as agreed, d.agreed_plan as plan, d.source, s.kind as stage_kind, s.milestone, d.client_id, d.client_id is not null as has_client,
+        nullif(d.custom_fields->>'event_date', '') as event_date, pay.paid, pay.n as payments,
+        inv.number as invoice_number, inv.amount as invoice_amount, inv.expires_at as invoice_expires_at, inv.claimed_at as invoice_claimed_at,
+        o.id as order_id, o.number as order_number, o.prepaid_amount as order_prepaid, o.status as order_status
+      from crm_deals d
+      join crm_stages s on s.id = d.stage_id
+      left join users u on u.id = d.client_id
+      left join orders o on o.id = d.order_id
+      cross join lateral (
+        -- Книга пакета (клиент оплатил сразу несколько): её доля общих денег пакета — то же деление, что в договорённости
+        -- (sales/infrastructure/agreements.ts, shareSum), без потолка цены: переплата пакета видна по книгам. Иначе первая
+        -- сделка пакета (в ней платёж) — «переплата», а остальные — «ожидается».
+        select case when d.batch_id is null then own.paid
+            else (b.total / d.batch_size) + case when d.batch_index < (b.total % d.batch_size) then 1 else 0 end end::int as paid,
+          case when d.batch_id is null then own.n else b.n end::int as n
+        from (select coalesce(sum(case when p.kind = 'refund' then -p.amount else p.amount end), 0)::int as paid, count(*) filter (where p.kind <> 'refund')::int as n
+          from crm_payments p where p.deal_id = d.id) own
+        left join lateral (
+          select coalesce(sum(case when p.kind = 'refund' then -p.amount else p.amount end), 0)::int as total, count(*) filter (where p.kind <> 'refund')::int as n
+          from crm_payments p join crm_deals x on x.id = p.deal_id where d.batch_id is not null and x.batch_id = d.batch_id
+        ) b on true
+      ) pay
+      left join deal_invoices inv on inv.deal_id = d.id and inv.status = 'pending_payment'
+      where (d.order_id is null and (pay.n > 0 or inv.id is not null or (s.kind = 'open' and d.amount > 0 and (d.source = 'manual' or d.agreed_plan is not null)))
+          -- полностью оплаченная договорённость без счёта ничего не показывает
+          and not (s.kind <> 'lost' and pay.paid = d.amount and inv.id is null))
+        or (d.order_id is not null and o.status <> 'cancelled' and pay.paid > o.prepaid_amount)
+        -- заказ отменён, а деньги по сделке у нас: их нужно вернуть (сама сделка при этом уходит в «отказ» или в работу)
+        or (d.order_id is not null and o.status = 'cancelled' and pay.paid > 0)
+    )
+    select c.*, bk.theme, bk.answered, bk.total, bk.words
+    from cand c
     left join lateral (
       -- Самая продвинутая книга клиента: прогресс — по правилам вида книги (lib/content/kinds, shared/infrastructure/db/bookProgress).
       select b.theme, ${answeredSql(sql`b.id`)} as answered, ${totalSql(sql`b.id`)} as total, ${wordsSql(sql`b.id`)} as words
       from books b
-      where b.user_id = d.client_id
+      where c.order_id is null and b.user_id = c.client_id
       order by ${readySql({ theme: sql`b.theme`, answered: answeredSql(sql`b.id`), total: totalSql(sql`b.id`), words: wordsSql(sql`b.id`) })} desc, 2 desc, 4 desc limit 1
-    ) bk on true
-    left join deal_invoices inv on inv.deal_id = d.id and inv.status = 'pending_payment'
-    where (d.order_id is null and (pay.n > 0 or inv.id is not null or (s.kind = 'open' and d.amount > 0 and (d.source = 'manual' or d.agreed_plan is not null))))
-      or (d.order_id is not null and o.status <> 'cancelled' and pay.paid > o.prepaid_amount)`);
+    ) bk on true`);
   return r.rows.map((x) => ({
     id: String(x.id),
     number: num(x.number),
@@ -138,7 +171,7 @@ export async function financeDeals(): Promise<FinanceDealRow[]> {
     eventDate: typeof x.event_date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(x.event_date) ? x.event_date : null,
     book: x.total === null || x.total === undefined ? null : { theme: String(x.theme ?? ""), answered: num(x.answered), total: num(x.total), words: num(x.words) },
     invoice: x.invoice_number === null ? null : { number: num(x.invoice_number), amount: num(x.invoice_amount), expiresAt: date(x.invoice_expires_at)!, claimedAt: date(x.invoice_claimed_at) },
-    order: x.order_id === null ? null : { id: String(x.order_id), number: num(x.order_number), prepaid: num(x.order_prepaid) },
+    order: x.order_id === null ? null : { id: String(x.order_id), number: num(x.order_number), prepaid: num(x.order_prepaid), cancelled: x.order_status === "cancelled" },
   }));
 }
 
@@ -233,7 +266,7 @@ const REVIEW_LIMIT = 1000;
 
 /**
  * «Проверить»: деньги, которые записал сотрудник (перевод с чеком), а руководитель ещё не сверил с поступлением на счёт.
- * Платежи сделок (без возвратов) и ручные оплаты заказов; онлайн-платежи подтверждает платёжная система — их здесь нет.
+ * Платежи и возвраты сделок и ручные оплаты заказов; онлайн-платежи подтверждает платёжная система — их здесь нет.
  */
 export async function financeReview(): Promise<ReviewRow[]> {
   const r = await executor().execute<Row>(sql`
@@ -248,7 +281,8 @@ export async function financeReview(): Promise<ReviewRow[]> {
       left join users u on u.id = d.client_id
       left join orders o on o.id = d.order_id
       left join deal_invoices i on i.id = p.invoice_id
-      where p.method = 'manual' and p.kind <> 'refund' and p.reviewed_at is null
+      -- Возвраты тоже: ручной возврат уменьшает «Пришло», его чек нужно сверить так же, как поступление.
+      where p.method = 'manual' and p.reviewed_at is null
       union all
       select 'order', op.id, 'order', op.amount, op.paid_at, op.created_by_id,
         od.id, od.number, o.id, o.number, coalesce(od.assignee_id, o.assignee_id),

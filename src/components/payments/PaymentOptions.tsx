@@ -119,7 +119,7 @@ export function PaymentOptions(props: {
   ) : null;
 
   return (
-    <section className="card p-6 sm:p-8">
+    <section className="rounded-[14px] border border-line bg-white p-6 sm:p-8">
       <h2 className="text-xl font-semibold">{t.title}</h2>
       <p className="mt-1 text-muted">
         {t.toPay} <b className="text-ink">{props.amountLabel}</b>

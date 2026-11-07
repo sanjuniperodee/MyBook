@@ -1,13 +1,13 @@
-/** Заготовка «Клиентов»: сегменты, поиск и таблица. */
-import { SkFilters, SkHeader, SkPage, SkTable, SkTabs } from "@/components/admin/skeletons";
+/** Заготовка «Клиентов»: шапка, сегменты, поиск и таблица. */
+import { SkHeader, SkPage, SkTable, SkTabs } from "@/components/admin/skeletons";
 
 export default function Loading() {
   return (
-    <SkPage className="space-y-5">
-      <SkHeader title="w-36" subtitle actions={2} />
+    <SkPage className="space-y-4">
+      <SkHeader title="w-36" actions={2} />
       <SkTabs n={6} pills />
-      <SkFilters fields={3} />
-      <SkTable cols={6} rows={8} />
+      <div className="skeleton h-9 w-full max-w-96 rounded-[10px]" />
+      <SkTable cols={6} rows={8} check />
     </SkPage>
   );
 }

@@ -11,17 +11,19 @@ export function PlanRow({ month, userId, name, planAmount, planDeals, fact, perc
   const [pending, start] = useTransition();
   const dirty = amount !== String(planAmount || "") || deals !== String(planDeals || "");
   return (
-    <tr className="max-lg:block max-lg:space-y-2 max-lg:p-4">
-      <td className="px-4 py-2.5 font-medium max-lg:block max-lg:p-0 max-lg:text-base">{name}</td>
-      <td className="px-4 py-2.5 max-lg:block max-lg:p-0">
-        <input value={amount} onChange={(e) => setAmount(e.target.value.replace(/\D/g, ""))} inputMode="numeric" className="input h-9 w-36 text-sm max-lg:w-full" placeholder="0" aria-label={`План в тенге: ${name}`} />
+    <tr className="max-lg:grid max-lg:grid-cols-2 max-lg:gap-3 max-lg:px-4 max-lg:py-4 [&>td]:max-lg:border-0">
+      <td className="font-medium max-lg:col-span-2 max-lg:p-0 max-lg:text-base">{name}</td>
+      <td className="max-lg:p-0">
+        <span className="label lg:hidden">План, ₸</span>
+        <input value={amount} onChange={(e) => setAmount(e.target.value.replace(/\D/g, ""))} inputMode="numeric" className="input h-10 w-36 text-sm tabular-nums max-lg:w-full lg:h-9" placeholder="0" aria-label={`План в тенге: ${name}`} />
       </td>
-      <td className="px-4 py-2.5 max-lg:block max-lg:p-0">
+      <td className="max-lg:p-0">
+        <span className="label lg:hidden">План, сделок</span>
         <div className="flex items-center gap-2">
-          <input value={deals} onChange={(e) => setDeals(e.target.value.replace(/\D/g, ""))} inputMode="numeric" className="input h-9 w-20 text-sm max-lg:flex-1" placeholder="0" aria-label={`План сделок: ${name}`} />
+          <input value={deals} onChange={(e) => setDeals(e.target.value.replace(/\D/g, ""))} inputMode="numeric" className="input h-10 w-20 text-sm tabular-nums max-lg:flex-1 lg:h-9" placeholder="0" aria-label={`План сделок: ${name}`} />
           {dirty ? (
             <button
-              className="btn btn-sm h-9"
+              className="btn btn-dark btn-sm"
               disabled={pending}
               onClick={() =>
                 start(async () => {
@@ -39,14 +41,14 @@ export function PlanRow({ month, userId, name, planAmount, planDeals, fact, perc
           ) : null}
         </div>
       </td>
-      <td className="px-4 py-2.5 tabular-nums max-lg:block max-lg:p-0 max-lg:text-muted">{fact}</td>
-      <td className="px-4 py-2.5 max-lg:block max-lg:p-0">
+      <td className="tabular-nums max-lg:col-span-2 max-lg:p-0 max-lg:text-muted">{fact}</td>
+      <td className="max-lg:col-span-2 max-lg:p-0">
         {percent === null ? (
           <span className="text-muted">план не задан</span>
         ) : (
           <div className="flex items-center gap-2">
-            <div className="h-2 w-32 max-lg:flex-1 overflow-hidden rounded-full bg-cream">
-              <div className={cn("h-full rounded-full", percent >= 100 ? "bg-emerald-600" : "bg-wine")} style={{ width: `${Math.min(100, percent)}%` }} />
+            <div className="h-1.5 w-32 overflow-hidden rounded-full bg-sunken max-lg:flex-1">
+              <div className={cn("h-full rounded-full", percent >= 100 ? "bg-success" : "bg-wine")} style={{ width: `${Math.min(100, percent)}%` }} />
             </div>
             <span className="tabular-nums">{percent}%</span>
           </div>

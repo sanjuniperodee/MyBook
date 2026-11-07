@@ -252,7 +252,7 @@ export function AiWriter({
                   rows={2}
                   maxLength={500}
                   placeholder={t.promptPlaceholder}
-                  className="min-w-0 flex-1 resize-none rounded-xl bg-cream/60 px-3 py-2 text-sm outline-none placeholder:text-muted/70 focus:ring-2 focus:ring-violet-200"
+                  className="min-w-0 flex-1 resize-none rounded-xl bg-sunken px-3 py-2 text-sm outline-none placeholder:text-muted/70 focus:ring-2 focus:ring-violet-200"
                 />
                 <button
                   type="submit"

@@ -95,14 +95,14 @@ export function PhotoChooser({
         type="button"
         disabled={!editable || !!uploading}
         onClick={onUpload}
-        className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-line bg-cream/30 px-4 text-sm font-medium text-ink hover:bg-cream/60 disabled:opacity-60"
+        className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-line bg-cream/30 px-4 text-sm font-medium text-ink hover:bg-sunken disabled:opacity-60"
       >
         {uploading ? <LoaderCircle className="size-4 animate-spin" /> : <ImagePlus className="size-4" />}
         {uploading ? (uploading.total > 1 ? m.editor.photoPicker.progress(uploading.done, uploading.total) : cp.uploading) : cp.upload}
       </button>
       {groups.map((g) => (
         <section key={g.id}>
-          <div className="mb-2 text-xs font-semibold tracking-wide text-muted uppercase">{groupTitle(g.id)}</div>
+          <div className="mb-2 text-xs font-medium text-muted">{groupTitle(g.id)}</div>
           <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {g.photos.map((p) => {
               const on = picked.includes(p.id);

@@ -56,47 +56,47 @@ export async function AgreementCard({ agreement, books }: { agreement: DealAgree
     { label: t.steps.print, done: false },
   ];
   return (
-    <section className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-5 sm:p-6" data-testid="agreement-card">
+    <section className="rounded-[14px] border border-success/25 bg-success-bg p-5 sm:p-6" data-testid="agreement-card">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <h2 className="text-lg font-semibold text-emerald-950">{t.title}</h2>
-        <span className="text-xs text-emerald-900/80">
+        <h2 className="text-lg font-semibold text-ink">{t.title}</h2>
+        <span className="text-xs text-ink-soft">
           {t.deal(agreement.dealNumber)}
           {agreement.deadline ? ` · ${t.deadline(formatDate(new Date(`${agreement.deadline}T12:00:00`), false, locale))}` : ""}
         </span>
       </div>
-      <p className="mt-1 text-sm text-emerald-900">{agreement.prepaid > 0 ? t.hasPrepaid : t.noPrepaid}</p>
-      {agreement.plan && getPlan(agreement.plan) ? <p className="mt-1 text-sm font-medium text-emerald-950">{t.plan(m.common.plans[agreement.plan as "digital" | "hardcover" | "premium"].name)}</p> : null}
+      <p className="mt-1 text-sm text-ink-soft">{agreement.prepaid > 0 ? t.hasPrepaid : t.noPrepaid}</p>
+      {agreement.plan && getPlan(agreement.plan) ? <p className="mt-1 text-sm font-medium text-ink">{t.plan(m.common.plans[agreement.plan as "digital" | "hardcover" | "premium"].name)}</p> : null}
       {agreement.batch && agreement.batch.size > 1 ? (
-        <div className="mt-2 rounded-xl bg-white/70 px-4 py-2.5 text-sm text-emerald-950" data-testid="agreement-batch">
+        <div className="mt-2 rounded-[10px] bg-white/80 px-4 py-2.5 text-sm text-ink" data-testid="agreement-batch">
           <div className="font-medium">{agreement.batch.implicit ? t.batch.titleLeft(agreement.batch.left) : t.batch.title(agreement.batch.size, agreement.batch.left)}</div>
-          <div className="mt-0.5 text-xs text-emerald-900">{agreement.batch.implicit ? t.batch.nowNext(agreement.recipient ?? null) : t.batch.now(agreement.batch.index + 1, agreement.batch.size)}</div>
-          <div className="mt-0.5 text-xs text-emerald-900">{t.batch.total(formatPrice(agreement.batch.agreedLeft), formatPrice(agreement.batch.prepaidLeft), formatPrice(Math.max(0, agreement.batch.agreedLeft - agreement.batch.prepaidLeft)))}</div>
+          <div className="mt-0.5 text-xs text-ink-soft">{agreement.batch.implicit ? t.batch.nowNext(agreement.recipient ?? null) : t.batch.now(agreement.batch.index + 1, agreement.batch.size)}</div>
+          <div className="mt-0.5 text-xs text-ink-soft">{t.batch.total(formatPrice(agreement.batch.agreedLeft), formatPrice(agreement.batch.prepaidLeft), formatPrice(Math.max(0, agreement.batch.agreedLeft - agreement.batch.prepaidLeft)))}</div>
         </div>
       ) : null}
       <dl className="mt-4 grid gap-3 sm:grid-cols-3">
-        <div className="rounded-xl bg-white/70 px-4 py-3">
-          <dt className="text-xs text-emerald-900/80">{t.price}</dt>
-          <dd className="mt-0.5 text-lg font-semibold text-emerald-950">{formatPrice(agreement.agreedTotal)}</dd>
+        <div className="rounded-[10px] bg-white/80 px-4 py-3">
+          <dt className="text-xs text-ink-soft">{t.price}</dt>
+          <dd className="mt-0.5 text-lg font-semibold text-ink">{formatPrice(agreement.agreedTotal)}</dd>
         </div>
-        <div className="rounded-xl bg-white/70 px-4 py-3">
-          <dt className="text-xs text-emerald-900/80">{t.paid}</dt>
-          <dd className="mt-0.5 text-lg font-semibold text-emerald-950">{formatPrice(agreement.prepaid)}</dd>
+        <div className="rounded-[10px] bg-white/80 px-4 py-3">
+          <dt className="text-xs text-ink-soft">{t.paid}</dt>
+          <dd className="mt-0.5 text-lg font-semibold text-ink">{formatPrice(agreement.prepaid)}</dd>
         </div>
-        <div className="rounded-xl bg-white/70 px-4 py-3">
-          <dt className="text-xs text-emerald-900/80">{t.left}</dt>
-          <dd className="mt-0.5 text-lg font-semibold text-emerald-950">{formatPrice(left)}</dd>
+        <div className="rounded-[10px] bg-white/80 px-4 py-3">
+          <dt className="text-xs text-ink-soft">{t.left}</dt>
+          <dd className="mt-0.5 text-lg font-semibold text-ink">{formatPrice(left)}</dd>
         </div>
       </dl>
-      <p className="mt-2 text-xs text-emerald-900">{t.extras}</p>
+      <p className="mt-2 text-xs text-ink-soft">{t.extras}</p>
       {agreement.gifts?.length ? (
-        <p className="mt-1 text-sm font-medium text-emerald-950" data-testid="agreement-card-gifts">
+        <p className="mt-1 text-sm font-medium text-ink" data-testid="agreement-card-gifts">
           🎁 {t.gifts(agreement.gifts.map((g) => m.common.agreementGifts[g]).join(", "))}
         </p>
       ) : null}
-      <ol className="mt-4 flex flex-wrap gap-x-5 gap-y-1.5 text-xs text-emerald-900">
+      <ol className="mt-4 flex flex-wrap gap-x-5 gap-y-1.5 text-xs text-ink-soft">
         {progress.map((p) => (
           <li key={p.label} className="inline-flex items-center gap-1.5">
-            {p.done ? <Check className="size-3.5 text-emerald-700" /> : <Circle className="size-3 text-emerald-700/50" />}
+            {p.done ? <Check className="size-3.5 text-success" /> : <Circle className="size-3 text-success/50" />}
             <span className={p.done ? "font-medium" : undefined}>{p.label}</span>
           </li>
         ))}
@@ -105,10 +105,10 @@ export async function AgreementCard({ agreement, books }: { agreement: DealAgree
         <Link href={cta.href} className="btn btn-primary">
           {cta.label} <ArrowRight className="size-4" />
         </Link>
-        <p className="min-w-0 flex-1 basis-60 text-xs text-emerald-900">{cta.hint}</p>
+        <p className="min-w-0 flex-1 basis-60 text-xs text-ink-soft">{cta.hint}</p>
       </div>
       {agreement.prepaid > 0 ? (
-        <p className="mt-4 border-t border-emerald-200/70 pt-3 text-xs text-emerald-900">
+        <p className="mt-4 border-t border-success/25/70 pt-3 text-xs text-ink-soft">
           {t.keep} {t.refund}{" "}
           <a href={site.contacts.whatsapp} target="_blank" rel="noopener noreferrer" className="font-medium underline">
             {t.refundLink}

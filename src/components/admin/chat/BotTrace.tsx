@@ -15,7 +15,7 @@ export function BotTraceView({ trace }: { trace: BotTurnTrace }) {
         <div key={r.label}>
           <dt className="font-medium text-ink-soft">{r.label}</dt>
           {r.lines.map((line, i) => (
-            <dd key={i} className={cn("break-words", r.warn ? "text-amber-800" : "text-ink")}>
+            <dd key={i} className={cn("break-words", r.warn ? "text-warning" : "text-ink")}>
               {line}
             </dd>
           ))}
@@ -43,12 +43,12 @@ export function BotTraceButton({ conversationId, messageId, initial = null }: { 
   };
   return (
     <div className="clear-both mt-1" data-testid="bot-trace-button">
-      <button type="button" onClick={toggle} className="flex items-center gap-1 text-[11.5px] text-violet-700 hover:underline" aria-expanded={open}>
+      <button type="button" onClick={toggle} className="flex items-center gap-1 text-xs font-medium text-info hover:underline max-lg:min-h-8" aria-expanded={open}>
         <HelpCircle className="size-3.5" /> Почему так?
       </button>
       {open ? (
-        <div className="mt-1 rounded-lg border border-violet-200 bg-white/80 p-2">
-          {pending ? <LoaderCircle className="size-4 animate-spin text-muted" /> : loaded?.trace ? <BotTraceView trace={loaded.trace} /> : <p className="text-[12px] text-muted">{loaded?.error ?? ""}</p>}
+        <div className="mt-1 rounded-lg border border-line bg-white p-2.5">
+          {pending ? <LoaderCircle className="size-4 animate-spin text-muted" /> : loaded?.trace ? <BotTraceView trace={loaded.trace} /> : <p className="text-xs text-muted">{loaded?.error ?? ""}</p>}
         </div>
       ) : null}
     </div>

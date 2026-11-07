@@ -10,6 +10,7 @@ import { coalesce, iosNeedsInstall, liveChannel, soundFor } from "./liveRules";
 import { playSound, setSoundMuted, soundMuted, unlockAudio } from "./sound";
 import type { LiveState } from "@/modules/reporting";
 import { cn } from "@/lib/class-names";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { useWhatsappRing, WaIcon, WhatsappIncomingActions } from "./WhatsappCall";
 import { myNotifyPrefsAction, saveMyNotifyPrefsAction } from "@/app/admin/notify-actions";
 import type { NotifyPrefs } from "@/modules/workspace/domain/notifyPrefs";
@@ -98,7 +99,18 @@ export function CrmLiveProvider({ initial, children }: { initial: LiveState; chi
     // Мгновенные события: уведомления, сообщения, звонки. Переподключение — средствами EventSource.
     if (typeof EventSource === "undefined") return;
     const es = new EventSource("/api/admin/live/stream");
-    es.onopen = () => (setLive$(true), liveChannel.set(true));
+    let opened = false;
+    es.onopen = () => {
+      setLive$(true);
+      liveChannel.set(true);
+      // Переподключились (сеть, перезапуск сайта): события за время обрыва не придут — догружаем счётчики и чаты сами.
+      // Первое открытие — нет: страница только что загрузилась.
+      if (opened) {
+        void refresh();
+        window.dispatchEvent(new CustomEvent("crm:live", { detail: { type: "chat", conversationId: null } }));
+      }
+      opened = true;
+    };
     es.onerror = () => (setLive$(false), liveChannel.set(false));
     es.onmessage = (msg) => {
       let data: { type?: string; conversationId?: string | null } = {};
@@ -161,6 +173,9 @@ function ago(iso: string) {
   return h < 24 ? `${h} ч` : `${Math.round(h / 24)} дн`;
 }
 
+/** Тон значка уведомления: срочное (норматив, звонок, напоминание) — красным, про клиента — винным, остальное — нейтрально. */
+const kindTone = (kind: string) => (kind === "sla" || kind === "call" || kind === "reminder" ? "bg-danger-bg text-danger" : kind === "message" || kind === "mention" ? "bg-rose text-wine" : "bg-sunken text-ink-soft");
+
 export function NotificationBell() {
   const { live, refresh } = useLive();
   const [open, setOpen] = useState(false);
@@ -172,8 +187,13 @@ export function NotificationBell() {
   useEffect(() => {
     if (!open) return;
     const close = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && setOpen(false);
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     document.addEventListener("mousedown", close);
-    return () => document.removeEventListener("mousedown", close);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      document.removeEventListener("keydown", esc);
+    };
   }, [open]);
 
   const markRead = async (id?: string) => {
@@ -183,54 +203,87 @@ export function NotificationBell() {
 
   return (
     <div className="relative" ref={ref}>
-      <button className="relative flex size-9 items-center justify-center rounded-xl text-ink-soft hover:bg-cream" onClick={() => setOpen((v) => !v)} aria-label="Уведомления">
-        {live.unread ? <BellRing className="size-5 text-wine" /> : <Bell className="size-5" />}
+      <button className={cn("btn btn-ghost btn-icon btn-sm relative", open && "bg-ink/[0.06] text-ink")} onClick={() => setOpen((v) => !v)} aria-label={live.unread ? `Уведомления, непрочитанных: ${live.unread}` : "Уведомления"} aria-expanded={open}>
+        {live.unread ? <BellRing className="size-[18px] text-wine" strokeWidth={1.8} /> : <Bell className="size-[18px]" strokeWidth={1.8} />}
         {live.unread ? (
-          <span className="absolute -top-0.5 -right-0.5 min-w-4 rounded-full bg-wine px-1 text-center text-[10px] leading-4 font-semibold text-white tabular-nums" data-testid="bell-count">
+          <span className="absolute -top-0.5 -right-0.5 min-w-[18px] rounded-full bg-wine px-1 text-center text-xs leading-[18px] font-semibold text-white tabular-nums ring-2 ring-canvas" data-testid="bell-count">
             {live.unread > 99 ? "99+" : live.unread}
           </span>
         ) : null}
       </button>
       {open ? (
-        <div className="absolute right-0 z-50 mt-2 w-[min(92vw,380px)] overflow-hidden rounded-2xl border border-line bg-white shadow-xl">
-          <div className="flex items-center justify-between border-b border-line px-4 py-3">
-            <span className="text-sm font-semibold">Уведомления</span>
+        <div
+          className="z-50 flex flex-col overflow-hidden rounded-[14px] border border-line bg-white shadow-soft max-lg:fixed max-lg:inset-x-2 max-lg:top-[calc(var(--topbar-h)+0.25rem)] max-lg:max-h-[calc(100dvh-var(--topbar-h)-var(--tabbar-h)-1rem)] lg:absolute lg:right-0 lg:mt-2 lg:max-h-[min(80vh,680px)] lg:w-[400px]"
+          role="dialog"
+          aria-label="Уведомления"
+        >
+          <div className="flex min-h-13 shrink-0 items-center justify-between gap-2 border-b border-line py-2 pr-2 pl-4">
+            <span className="text-[15px] font-semibold">
+              Уведомления {live.unread ? <span className="font-normal text-muted tabular-nums">{live.unread}</span> : null}
+            </span>
             {live.unread ? (
-              <button className="flex items-center gap-1 text-xs text-muted hover:text-ink" onClick={() => markRead()}>
-                <CheckCheck className="size-3.5" /> Прочитать все
+              <button className="btn btn-ghost btn-sm h-8 px-2.5 text-[13px] max-lg:h-11" onClick={() => markRead()}>
+                <CheckCheck className="size-4" /> Прочитать все
               </button>
             ) : null}
           </div>
-          <div className="max-h-[60vh] divide-y divide-line overflow-y-auto">
-            {live.notifications.length === 0 ? <p className="p-6 text-center text-sm text-muted">Пока тихо</p> : null}
+          <div className="min-h-0 flex-1 divide-y divide-line overflow-y-auto overscroll-contain">
+            {live.notifications.length === 0 ? (
+              <EmptyState compact icon={Bell} title="Новых уведомлений нет">
+                Сообщения клиентов, упоминания, задачи и пропущенные звонки появятся здесь.
+              </EmptyState>
+            ) : null}
             {live.notifications.map((n) => {
               const Icon = kindIcon[n.kind as keyof typeof kindIcon] ?? Bell;
               return (
                 <button
                   key={n.id}
-                  className={cn("flex w-full gap-3 px-4 py-3 text-left hover:bg-cream/50", !n.read && "bg-rose/40")}
+                  className={cn("flex min-h-14 w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-sunken/70", !n.read && "bg-rose/30")}
                   onClick={() => {
                     if (!n.read) void markRead(n.id);
                     setOpen(false);
                     if (n.link) router.push(n.link);
                   }}
                 >
-                  <Icon className={cn("mt-0.5 size-4 shrink-0", n.kind === "sla" || n.kind === "call" || n.kind === "reminder" ? "text-red-600" : "text-wine")} />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium">{n.title}</span>
-                    {n.body ? <span className="line-clamp-2 text-xs text-muted">{n.body}</span> : null}
+                  <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-full", kindTone(n.kind))}>
+                    <Icon className="size-4" strokeWidth={1.8} aria-hidden />
                   </span>
-                  <span className="shrink-0 text-[11px] text-muted">{ago(n.at)}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className={cn("block truncate text-sm", n.read ? "font-medium text-ink-soft" : "font-semibold text-ink")}>{n.title}</span>
+                    {n.body ? <span className="mt-0.5 line-clamp-2 text-[13px] text-muted">{n.body}</span> : null}
+                  </span>
+                  <span className="flex shrink-0 flex-col items-end gap-1.5 pt-0.5">
+                    <span className="text-xs text-muted tabular-nums">{ago(n.at)}</span>
+                    {!n.read ? <span className="size-2 rounded-full bg-wine" aria-label="не прочитано" /> : null}
+                  </span>
                 </button>
               );
             })}
           </div>
-          <SoundToggle />
-          <PushToggle perm={perm} onPerm={setPerm} />
-          <PushPrefs />
+          <div className="shrink-0 border-t border-line bg-sunken/40 px-4 pt-2.5 pb-1">
+            <p className="text-xs font-medium text-muted">На этом устройстве</p>
+            <SoundToggle />
+            <PushToggle perm={perm} onPerm={setPerm} />
+            <PushPrefs />
+          </div>
         </div>
       ) : null}
     </div>
+  );
+}
+
+/** Переключатель-строка: подпись слева, «тумблер» справа (role=switch). */
+function SwitchRow({ on, onChange, children, disabled, testId, hint }: { on: boolean; onChange: (v: boolean) => void; children: React.ReactNode; disabled?: boolean; testId?: string; hint?: React.ReactNode }) {
+  return (
+    <button type="button" role="switch" aria-checked={on} disabled={disabled} onClick={() => onChange(!on)} className="flex min-h-10 w-full items-center gap-3 text-left text-[13px] text-ink disabled:opacity-50 max-lg:min-h-11" data-testid={testId}>
+      <span className="min-w-0 flex-1">
+        {children}
+        {hint ? <span className="block text-xs text-muted">{hint}</span> : null}
+      </span>
+      <span className={cn("relative h-5 w-9 shrink-0 rounded-full transition-colors", on ? "bg-wine" : "bg-line-strong")} aria-hidden>
+        <span className={cn("absolute top-0.5 size-4 rounded-full bg-white shadow-sm transition-[left]", on ? "left-[18px]" : "left-0.5")} />
+      </span>
+    </button>
   );
 }
 
@@ -249,17 +302,21 @@ function PushPrefs() {
     void saveMyNotifyPrefsAction(next).then((r) => (r.ok ? undefined : toast(r.error, "error")));
   };
   return (
-    <div className="space-y-1.5 border-t border-line px-4 py-2.5 text-xs text-ink-soft" data-testid="push-prefs">
-      <label className="flex items-center gap-2">
-        <input type="checkbox" className="accent-wine" checked={p.quiet} onChange={(e) => save({ ...p, quiet: e.target.checked })} />
-        Тихие часы push
-        <input type="time" className="input h-7 w-24 text-xs" value={p.quietFrom} disabled={!p.quiet} onChange={(e) => e.target.value && save({ ...p, quietFrom: e.target.value })} aria-label="С" />—
-        <input type="time" className="input h-7 w-24 text-xs" value={p.quietTo} disabled={!p.quiet} onChange={(e) => e.target.value && save({ ...p, quietTo: e.target.value })} aria-label="До" />
-      </label>
-      <label className="flex items-center gap-2">
-        <input type="checkbox" className="accent-wine" checked={p.pushMessages} onChange={(e) => save({ ...p, pushMessages: e.target.checked })} />
+    <div className="border-t border-line/70" data-testid="push-prefs">
+      <SwitchRow on={p.pushMessages} onChange={(v) => save({ ...p, pushMessages: v })}>
         Push о сообщениях клиентов
-      </label>
+      </SwitchRow>
+      <SwitchRow on={p.quiet} onChange={(v) => save({ ...p, quiet: v })} hint="ночью push не будит, напоминания о задачах приходят всегда">
+        Тихие часы push
+      </SwitchRow>
+      {p.quiet ? (
+        <div className="flex items-center gap-2 pb-2 text-[13px] text-ink-soft">
+          с
+          <input type="time" className="input h-8 w-28 px-2 text-sm" value={p.quietFrom} onChange={(e) => e.target.value && save({ ...p, quietFrom: e.target.value })} aria-label="Тихие часы с" />
+          до
+          <input type="time" className="input h-8 w-28 px-2 text-sm" value={p.quietTo} onChange={(e) => e.target.value && save({ ...p, quietTo: e.target.value })} aria-label="Тихие часы до" />
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -278,14 +335,15 @@ function SoundToggle() {
     }
   };
   return (
-    <button className="flex w-full items-center gap-2 border-t border-line px-4 py-2.5 text-left text-xs text-wine hover:bg-cream/50" onClick={toggle} data-testid="sound-toggle">
-      {muted ? <VolumeX className="size-3.5" /> : <Volume2 className="size-3.5" />}
-      {muted ? "Звук новых сообщений выключен · включить" : "Звук новых сообщений включён · выключить"}
-    </button>
+    <SwitchRow on={!muted} onChange={toggle} testId="sound-toggle">
+      <span className="flex items-center gap-2">
+        {muted ? <VolumeX className="size-4 text-muted" aria-hidden /> : <Volume2 className="size-4 text-ink-soft" aria-hidden />} Звук новых сообщений
+      </span>
+    </SwitchRow>
   );
 }
 
-/** Карточка входящего звонка поверх CRM: кто звонит и ссылка на сделку/клиента. */
+/** Карточка входящего звонка поверх CRM: кто звонит, ответить (WhatsApp) и куда перейти — сделка или клиент. */
 export function IncomingCall() {
   const { live } = useLive();
   const [hidden, setHidden] = useState<Set<string>>(new Set());
@@ -293,35 +351,42 @@ export function IncomingCall() {
   useWhatsappRing(calls.filter((c) => c.whatsapp).map((c) => ({ id: c.id, title: c.name || c.phone })));
   if (!calls.length) return null;
   return (
-    <div className="fixed right-4 bottom-[calc(var(--tabbar-h,0px)+1rem)] z-50 flex w-[min(92vw,340px)] flex-col gap-2 lg:bottom-4" role="status" aria-live="polite">
+    <div className="fixed inset-x-3 bottom-[calc(var(--tabbar-h,0px)+0.75rem)] z-50 flex flex-col gap-2 sm:inset-x-auto sm:right-4 sm:w-[360px] lg:bottom-4" role="status" aria-live="polite">
       {calls.map((c) => (
-        <div key={c.id} className="animate-pop rounded-2xl border border-emerald-200 bg-white p-4 shadow-xl" data-testid="incoming-call">
-          <div className="flex items-start gap-3">
-            <span className="flex size-10 shrink-0 animate-pulse items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-              {c.whatsapp ? <WaIcon className="size-5" /> : <PhoneIncoming className="size-5" />}
+        <div key={c.id} className="animate-pop overflow-hidden rounded-[14px] border border-line bg-white shadow-lift" data-testid="incoming-call">
+          <div className="flex items-start gap-3 p-4">
+            <span className="relative flex size-11 shrink-0 items-center justify-center rounded-full bg-success-bg text-success">
+              <span className="absolute inset-0 animate-ping rounded-full bg-success/20" aria-hidden />
+              {c.whatsapp ? <WaIcon className="relative size-5" /> : <PhoneIncoming className="relative size-5" strokeWidth={1.8} />}
             </span>
             <div className="min-w-0 flex-1">
-              <div className="text-xs text-muted">{c.whatsapp ? "Входящий в WhatsApp" : c.direction === "in" ? (c.mine ? "Звонят вам" : "Входящий звонок") : "Исходящий звонок"}</div>
-              <div className="truncate font-semibold">{c.name || c.phone}</div>
+              <div className="text-xs font-medium text-success">{c.whatsapp ? "Входящий в WhatsApp" : c.direction === "in" ? (c.mine ? "Звонят вам" : "Входящий звонок") : "Исходящий звонок"}</div>
+              <div className="truncate text-[15px] font-semibold">{c.name || c.phone}</div>
               {c.name ? <div className="text-xs text-muted tabular-nums">{c.phone}</div> : <div className="text-xs text-muted">Новый номер — создадим сделку</div>}
             </div>
-            <button className="text-muted hover:text-ink" onClick={() => setHidden((s) => new Set(s).add(c.id))} aria-label="Скрыть">
+            <button className="btn btn-ghost btn-icon btn-sm -mt-1 -mr-1 max-lg:size-11" onClick={() => setHidden((s) => new Set(s).add(c.id))} aria-label="Скрыть карточку звонка">
               <X className="size-4" />
             </button>
           </div>
-          {c.whatsapp ? <WhatsappIncomingActions id={c.id} title={c.name || c.phone} onDone={() => setHidden((s) => new Set(s).add(c.id))} /> : null}
-          <div className="mt-3 flex gap-2">
-            {c.dealId ? (
-              <Link href={`/admin/deals/${c.dealId}`} className="btn btn-sm flex-1">
-                Открыть сделку
-              </Link>
-            ) : null}
-            {c.clientId ? (
-              <Link href={`/admin/clients/${c.clientId}`} className="btn btn-outline btn-sm flex-1">
-                Карточка клиента
-              </Link>
-            ) : null}
-          </div>
+          {c.whatsapp ? (
+            <div className="px-4 pb-3">
+              <WhatsappIncomingActions id={c.id} title={c.name || c.phone} onDone={() => setHidden((s) => new Set(s).add(c.id))} />
+            </div>
+          ) : null}
+          {c.dealId || c.clientId ? (
+            <div className="flex gap-2 border-t border-line bg-sunken/40 px-4 py-2.5">
+              {c.dealId ? (
+                <Link href={`/admin/deals/${c.dealId}`} className="btn btn-dark btn-sm flex-1">
+                  Открыть сделку
+                </Link>
+              ) : null}
+              {c.clientId ? (
+                <Link href={`/admin/clients/${c.clientId}`} className="btn btn-outline btn-sm flex-1">
+                  Карточка клиента
+                </Link>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       ))}
     </div>
@@ -350,13 +415,13 @@ function PushToggle({ perm, onPerm }: { perm: string; onPerm: (p: string) => voi
   }, [supported]);
   if (iosTab)
     return (
-      <p className="border-t border-line px-4 py-2.5 text-xs text-ink-soft" data-testid="push-ios-hint">
+      <p className="py-2 text-xs text-ink-soft" data-testid="push-ios-hint">
         Чтобы push приходили на iPhone, откройте CRM в Safari → «Поделиться» → «На экран „Домой“» и войдите с иконки — там включите push.
       </p>
     );
   if (state === "unsupported") {
     return perm === "default" ? (
-      <button className="w-full border-t border-line px-4 py-2.5 text-xs text-wine hover:bg-cream/50" onClick={async () => onPerm(await Notification.requestPermission())}>
+      <button className="flex min-h-10 w-full items-center text-left text-[13px] font-medium text-wine hover:underline max-lg:min-h-11" onClick={async () => onPerm(await Notification.requestPermission())}>
         Показывать уведомления на рабочем столе
       </button>
     ) : null;
@@ -395,8 +460,8 @@ function PushToggle({ perm, onPerm }: { perm: string; onPerm: (p: string) => voi
     }
   };
   return (
-    <button className="w-full border-t border-line px-4 py-2.5 text-xs text-wine hover:bg-cream/50 disabled:opacity-50" disabled={busy} onClick={state === "on" ? disable : enable} data-testid="push-toggle">
-      {state === "on" ? "Push на этом устройстве включены · выключить" : "Получать push на этом устройстве (телефон, компьютер)"}
-    </button>
+    <SwitchRow on={state === "on"} disabled={busy} onChange={() => void (state === "on" ? disable() : enable())} testId="push-toggle" hint="приходят, даже когда CRM закрыта">
+      Push на этом устройстве
+    </SwitchRow>
   );
 }

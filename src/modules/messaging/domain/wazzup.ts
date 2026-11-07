@@ -27,6 +27,15 @@ export interface WazzupStatus {
 
 const str = (v: unknown) => (typeof v === "string" ? v : typeof v === "number" ? String(v) : "");
 
+/** Подписи-заглушки вложений (mediaCaption и прежние варианты): это не текст клиента. */
+const MEDIA_PLACEHOLDERS = /^(?:🎤 Голосовое сообщение|Голосовое сообщение|📷 Фото|🎬 Видео|📎 Файл)$/;
+
+/** Текст вложения — заглушка («📷 Фото»), а не подпись: её не пересылают и не показывают под файлом. */
+export function isMediaPlaceholder(type: string, text: string) {
+  const t = text.trim();
+  return type !== "text" && (t === mediaCaption(type) || MEDIA_PLACEHOLDERS.test(t));
+}
+
 /** Подпись к вложению, если текста нет: чтобы в списке чатов было понятно, что пришло. */
 export function mediaCaption(type: string) {
   switch (type) {

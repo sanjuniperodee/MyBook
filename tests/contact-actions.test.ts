@@ -18,6 +18,9 @@ let calls: string[];
 let chats: string[];
 let emails: string[];
 let assigneeId: string | null;
+/** Кому достаётся новый диалог «Написать» и кому передан ничей прежний. */
+let owners: (string | null)[];
+let assigned: (string | null)[];
 
 beforeEach(() => {
   resetRequest();
@@ -26,12 +29,18 @@ beforeEach(() => {
   chats = [];
   emails = [];
   assigneeId = null;
+  owners = [];
+  assigned = [];
   fake.clients = { contact: async () => ({ phone: "77011234567", email: "a@b.kz", clientId: null, assigneeId, name: "Айгерим", dealId: DEAL }) };
   fake.telephony = { phone: { clickToCall: async (_ext: string, phone: string) => void calls.push(phone) } };
   fake.marketing = { service: { shopWhatsapp: async () => "77005556677" } };
   fake.messaging = {
     whatsappProvider: async () => "gowa",
-    chats: { conversationForPhone: async (phone: string) => (chats.push(phone), { id: "conv-1", dealId: DEAL }), attachDeal: async () => {} },
+    chats: {
+      conversationForPhone: async (phone: string, _ch: string, _client: string | null, _name: string, owner: string | null) => (chats.push(phone), owners.push(owner), { id: "conv-1", dealId: DEAL, assigneeId: null }),
+      attachDeal: async () => {},
+      assign: async (_id: string, to: string | null) => void assigned.push(to),
+    },
     email: { sendToContact: async (input: { text: string }) => (emails.push(input.text), { ok: true, conversationId: "conv-2" }) },
   };
 });
@@ -64,6 +73,9 @@ describe("связаться с клиентом: отказ — ответом,
     expect(await sendEmailAction({ dealId: DEAL }, "Книга", "Здравствуйте")).toMatchObject({ ok: true });
     expect(calls).toEqual(["77011234567"]);
     expect(chats).toHaveLength(2);
+    // Новый диалог — у ответственного карточки, у ничьей карточки — у того, кто нажал; ничей прежний — ответственному.
+    expect(owners).toEqual(["timur", owner.id]);
+    expect(assigned).toEqual(["timur"]);
     expect(emails).toEqual(["Здравствуйте"]);
   });
 });

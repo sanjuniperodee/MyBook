@@ -1,6 +1,8 @@
 import { container } from "@/server/container";
 import Link from "next/link";
-import { Handshake, MessagesSquare, UserRound } from "lucide-react";
+import { Info, MessagesSquare, UserRound } from "lucide-react";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Badge } from "@/components/ui/Badge";
 import { can, canAssignOthers, canSeeAssigned, canWork, contactView, requireStaff } from "@/server/access";
 import { staffOptions } from "@/modules/access/ui";
 import { staffLabel } from "@/shared/domain/staff";
@@ -61,19 +63,20 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
     (c.channel === "email" ? contactView(staff, { email: c.chatId }).email : c.channel === "site" ? (c.meta.phone ? contactView(staff, { phone: formatPhone(c.meta.phone) }).phone : "Посетитель сайта") : contactView(staff, { phone: formatPhone(c.chatId) }).phone || c.chatId);
 
   let panel: React.ReactNode = (
-    <div className="hidden flex-1 flex-col items-center justify-center gap-4 bg-[#f5f1eb] text-muted lg:flex">
-      <span className="flex size-24 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-line">
-        <MessagesSquare className="size-10 text-wine/70" strokeWidth={1.3} />
-      </span>
-      <div className="text-center">
-        <p className="text-[15px] font-medium text-ink">{list.length ? "Выберите чат" : "Сообщений пока нет"}</p>
-        <p className="mt-1 max-w-xs text-sm">{list.length ? "Слева — все переписки из WhatsApp, Instagram, Telegram, сайта и почты" : "Здесь появятся сообщения из WhatsApp, Instagram, Telegram, чата на сайте и почты"}</p>
-      </div>
-      {!list.length && can(staff, "settings.manage") ? (
-        <Link href="/admin/settings?tab=messengers" className="btn btn-outline btn-sm">
-          Подключить мессенджеры
-        </Link>
-      ) : null}
+    <div className="hidden min-w-0 flex-1 items-center justify-center bg-canvas lg:flex">
+      <EmptyState
+        icon={MessagesSquare}
+        title={list.length ? "Выберите диалог слева" : "Сообщений пока нет"}
+        action={
+          !list.length && can(staff, "settings.manage") ? (
+            <Link href="/admin/settings?tab=messengers" className="btn btn-outline btn-sm">
+              Подключить мессенджеры
+            </Link>
+          ) : null
+        }
+      >
+        {list.length ? "Сначала — те, кто ждёт ответа дольше норматива: они отмечены красным." : "Здесь появятся сообщения из WhatsApp, Instagram, Telegram, чата на сайте и почты."}
+      </EmptyState>
     </div>
   );
   let side: React.ReactNode = null;
@@ -130,7 +133,12 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
           assignee={conv.assigneeId ? (names.get(conv.assigneeId) ?? null) : null}
           call={can(staff, "calls.make") && conv.channel === "whatsapp" && /^\d{10,15}$/.test(conv.chatId) ? <WhatsappCallButton iconOnly target={{ conversationId: conv.id }} title={title(conv)} /> : null}
         />
-        {!mine ? <p className="border-b border-amber-100 bg-amber-50 px-4 py-2 text-xs text-amber-800">Заявку распределяет круг — ответит менеджер, которому она достанется. Назначить вручную может руководитель.</p> : null}
+        {!mine ? (
+          <p className="flex items-start gap-2 border-b border-line bg-warning-bg px-4 py-2 text-xs text-warning lg:px-5">
+            <Info className="mt-px size-3.5 shrink-0" aria-hidden />
+            Заявку распределяет круг — ответит менеджер, которому она достанется. Назначить вручную может руководитель.
+          </p>
+        ) : null}
         <BotBanner conversationId={conv.id} status={bot} canControl={canReply} hasDeal={!!conv.dealId} />
         <ChatPanel
           key={conv.id}
@@ -151,85 +159,84 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
         />
       </div>
     );
+    const phone = /^\d{10,15}$/.test(conv.chatId) ? contactView(staff, { phone: formatPhone(conv.chatId) }).phone : "";
     side = (
       <DetailsPanel>
-        <div className="flex flex-col items-center rounded-2xl bg-white px-4 py-5 text-center ring-1 ring-line">
-          <ChatAvatar name={title(conv)} url={conv.avatarUrl} channel={conv.channel} size={72} />
-          <div className="mt-3 text-base font-semibold">{title(conv)}</div>
-          <div className="mt-0.5 text-xs text-muted">
-            {channelLabel(conv.channel)}
-            {/^\d{10,15}$/.test(conv.chatId) ? ` · ${contactView(staff, { phone: formatPhone(conv.chatId) }).phone}` : ""}
-          </div>
+        <section className="flex flex-col items-center border-b border-line px-5 pt-6 pb-5 text-center">
+          <ChatAvatar name={title(conv)} url={conv.avatarUrl} channel={conv.channel} size={56} />
+          <h2 className="mt-3 max-w-full truncate text-base font-semibold">{title(conv)}</h2>
+          <p className="mt-0.5 text-xs text-muted tabular-nums">{channelLabel(conv.channel)}</p>
+          {phone ? <p className="text-xs text-muted tabular-nums">{phone}</p> : null}
           {client && can(staff, "clients.view") ? (
-            <Link href={`/admin/clients/${client.id}`} className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-[#f3efe9] px-3 py-1.5 text-xs font-medium hover:bg-cream">
-              <UserRound className="size-3.5" /> Карточка клиента
+            <Link href={`/admin/clients/${client.id}`} className="btn btn-outline btn-sm mt-3">
+              <UserRound className="size-4" aria-hidden /> Карточка клиента
             </Link>
           ) : null}
-        </div>
-        <SideSection title="Сделка">
+        </section>
+        <SideSection
+          title="Сделка"
+          action={
+            dealRow ? (
+              <Link href={`/admin/deals/${dealRow.deal.id}`} className="text-xs font-medium text-wine hover:underline">
+                Открыть
+              </Link>
+            ) : null
+          }
+        >
           {dealRow ? (
-            <Link href={`/admin/deals/${dealRow.deal.id}`} className="block rounded-2xl bg-white p-3.5 ring-1 ring-line transition hover:ring-wine/30">
-              <div className="flex items-center gap-2 text-sm font-medium">
-                <Handshake className="size-4 shrink-0 text-wine" />
-                <span className="truncate">
-                  №{dealRow.deal.number} {dealRow.deal.title}
+            <Link href={`/admin/deals/${dealRow.deal.id}`} className="-mx-2 block rounded-[10px] px-2 py-1.5 transition-colors hover:bg-sunken/70">
+              <span className="block text-sm font-medium">
+                <span className="tabular-nums">№{dealRow.deal.number}</span> {dealRow.deal.title}
+              </span>
+              <span className="mt-2 flex items-center justify-between gap-2 text-xs">
+                <span className="flex min-w-0 items-center gap-1.5 text-ink-soft">
+                  <span className="size-2 shrink-0 rounded-full" style={{ background: dealRow.stage.color }} aria-hidden />
+                  <span className="truncate">{dealRow.stage.name}</span>
                 </span>
-              </div>
-              <div className="mt-2.5 flex items-center justify-between gap-2 text-xs">
-                <span className="rounded-full px-2.5 py-0.5 font-medium text-white" style={{ background: dealRow.stage.color }}>
-                  {dealRow.stage.name}
-                </span>
-                {dealRow.deal.amount ? <span className="font-semibold tabular-nums">{formatPrice(dealRow.deal.amount)}</span> : null}
-              </div>
-              <div className="mt-2 text-xs text-muted">
+                {dealRow.deal.amount ? <span className="shrink-0 text-sm font-semibold tabular-nums">{formatPrice(dealRow.deal.amount)}</span> : null}
+              </span>
+              <span className="mt-1 block truncate text-xs text-muted">
                 {acquisitionChannel(toAttribution(dealRow.deal.utm), dealRow.deal.source)}
-                {dealRow.deal.utm?.campaign ? ` · ${dealRow.deal.utm.campaign}` : ""}
-              </div>
+                {dealRow.deal.utm?.campaign ? `, ${dealRow.deal.utm.campaign}` : ""}
+              </span>
             </Link>
           ) : (
-            <p className="rounded-2xl bg-white p-3.5 text-sm text-muted ring-1 ring-line">Чат не привязан к сделке</p>
+            <p className="text-sm text-muted">Диалог не привязан к сделке.</p>
           )}
         </SideSection>
+        <SideSection title="Работа с диалогом">
+          <ChatSideControls
+            conversationId={conv.id}
+            assigneeId={conv.assigneeId}
+            options={options}
+            status={conv.status}
+            hasDeal={!!conv.dealId}
+            canSend={canReply}
+            canCreateDeal={can(staff, "deals.edit") && mine}
+            canStartBot={!bot.label && bot.canStart}
+          />
+        </SideSection>
+        {dealRow && invoices.length ? (
+          <SideSection title="Счета">
+            <InvoicesBlock compact dealId={dealRow.deal.id} invoices={invoices} perms={invoicePerms} />
+          </SideSection>
+        ) : null}
         {help?.questions.length ? (
-          <SideSection title="Вопросы в кабинете">
-            <Link href={`/admin/chats?c=${help.conversationId}`} className="block rounded-2xl bg-white p-3.5 ring-1 ring-line transition hover:ring-wine/30">
-              <div className="flex items-center justify-between gap-2 text-xs text-muted">
-                <span>Помощник на сайте{help.handoffs30d ? ` · менеджеру за 30 дней: ${help.handoffs30d}` : ""}</span>
-                {help.waiting ? <span className="rounded-full bg-amber-100 px-2 py-0.5 font-medium text-amber-800">ждёт ответа</span> : null}
-              </div>
-              <ul className="mt-2 space-y-1.5 text-sm">
-                {help.questions.map((qn) => (
-                  <li key={qn.id} className="line-clamp-2">
-                    <span className="text-muted">{shortTime(qn.at)} · </span>
-                    {qn.text.replace(/^📍[^\n]*\n?/, "") || qn.text}
-                  </li>
-                ))}
-              </ul>
-              <div className="mt-2 text-xs font-medium text-wine">Открыть переписку с помощником →</div>
+          <SideSection title="Вопросы в кабинете" action={help.waiting ? <Badge tone="warning">ждёт ответа</Badge> : null}>
+            <ul className="space-y-2 text-sm">
+              {help.questions.map((qn) => (
+                <li key={qn.id}>
+                  <span className="block text-xs text-muted tabular-nums">{shortTime(qn.at)}</span>
+                  <span className="line-clamp-2">{qn.text.replace(/^📍[^\n]*\n?/, "") || qn.text}</span>
+                </li>
+              ))}
+            </ul>
+            {help.handoffs30d ? <p className="mt-2 text-xs text-muted">Помощник передавал менеджеру за 30 дней: {help.handoffs30d}</p> : null}
+            <Link href={`/admin/chats?c=${help.conversationId}`} className="btn btn-outline btn-sm mt-3 w-full">
+              Открыть переписку с помощником
             </Link>
           </SideSection>
         ) : null}
-        {dealRow && invoices.length ? (
-          <SideSection title="Счета">
-            <div className="rounded-2xl bg-white p-3 ring-1 ring-line">
-              <InvoicesBlock compact dealId={dealRow.deal.id} invoices={invoices} perms={invoicePerms} />
-            </div>
-          </SideSection>
-        ) : null}
-        <SideSection title="Управление">
-          <div className="rounded-2xl bg-white p-3.5 ring-1 ring-line">
-            <ChatSideControls
-              conversationId={conv.id}
-              assigneeId={conv.assigneeId}
-              options={options}
-              status={conv.status}
-              hasDeal={!!conv.dealId}
-              canSend={canReply}
-              canCreateDeal={can(staff, "deals.edit") && mine}
-              canStartBot={!bot.label && bot.canStart}
-            />
-          </div>
-        </SideSection>
       </DetailsPanel>
     );
   }
@@ -255,7 +262,7 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
   });
   const href = (p: { f?: Filter; c?: string }) => `/admin/chats?f=${p.f ?? f}${q ? `&q=${encodeURIComponent(q)}` : ""}${p.c ? `&c=${p.c}` : ""}`;
   return (
-    <ChatNavProvider className="crm-chat-root -mx-4 -my-5 flex overflow-hidden bg-white sm:-mx-6 lg:-my-8 lg:h-[calc(100dvh-3.5rem)]" data-chat-root>
+    <ChatNavProvider className="crm-chat-root -mx-4 -my-5 flex overflow-hidden bg-white sm:-mx-6 lg:-my-7 lg:h-[calc(100dvh-3.5rem)] 2xl:-mx-8" data-chat-root>
       <ChatsLive />
       <ChatListPane
         items={items}

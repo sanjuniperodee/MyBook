@@ -8,7 +8,7 @@ import { storeTimeZone } from "@/shared/domain/time";
  * менеджером и признаком «чек приложен». Онлайн-платёж по счёту из чата (Kaspi, карта) чека не имеет — его подтвердила
  * платёжная система: в колонке чека «онлайн».
  */
-export async function paymentsExport(days: number) {
+export async function paymentsExport(days: number, viewer?: { userId: string; seesAll: boolean }) {
   const r = await executor().execute<{ at: Date; amount: number; kind: string; type: string; ref: string; client: string; phone: string; manager: string; receipt: string }>(sql`
     select to_char(e.at at time zone ${storeTimeZone()}, 'YYYY-MM-DD HH24:MI') as at, e.amount, e.kind,
       case when e.kind in ('payment', 'refund') then (select case p.kind when 'prepayment' then 'предоплата' when 'refund' then 'возврат' else 'платёж' end from crm_payments p where p.id = e.ref_id) else '' end as type,
@@ -17,8 +17,12 @@ export async function paymentsExport(days: number) {
       coalesce(nullif(u.name, ''), u.email, '') as client, coalesce(u.phone, '') as phone, coalesce(m.name, '') as manager,
       case when e.kind not in ('payment', 'refund') then ''
         when exists (select 1 from crm_payments p where p.id = e.ref_id and p.method <> 'manual') then 'онлайн'
-        when exists (select 1 from crm_receipts r where r.deal_id = e.deal_id) then 'да' else 'нет' end as receipt
+        -- Чек именно этого платежа, а не любой чек сделки.
+        when exists (select 1 from crm_receipts r where r.payment_id = e.ref_id) then 'да' else 'нет' end as receipt
     from revenue_events e left join users u on u.id = e.client_id left join users m on m.id = e.manager_id
-    where e.at >= now() - make_interval(days => ${days}) order by e.at desc limit 50000`);
+    where e.at >= now() - make_interval(days => ${days})
+      -- Роль «только свои» выгружает только свои деньги (как в «Финансах»).
+      ${viewer && !viewer.seesAll ? sql`and e.manager_id = ${viewer.userId}` : sql``}
+    order by e.at desc limit 50000`);
   return r.rows;
 }

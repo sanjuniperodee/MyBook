@@ -11,6 +11,8 @@ export async function clientById(id: string) {
   return u ?? null;
 }
 
+type PaymentRow = { id: string; amount: number; kind: string; paid_at: Date; deal_id: string; number: number; title: string; deal_assignee_id: string | null };
+
 /** Карточка клиента: книги с прогрессом, заказы, задачи, лента, сделки. */
 export async function clientCard(id: string, sections: { deals: boolean }) {
   const db = executor();
@@ -40,11 +42,12 @@ export async function clientCard(id: string, sections: { deals: boolean }) {
           .limit(20)
       : Promise.resolve([]),
     // Платежи менеджера по сделкам клиента (предоплата, доплаты) — вместе с оплаченными заказами это его покупки.
+    // Ответственный сделки — чтобы роль «только свои» не видела платежи по чужим сделкам клиента.
     sections.deals
-      ? db.execute<{ id: string; amount: number; kind: string; paid_at: Date; deal_id: string; number: number; title: string }>(sql`
-          select p.id, p.amount, p.kind, p.paid_at, p.deal_id, d.number, d.title
+      ? db.execute<PaymentRow>(sql`
+          select p.id, p.amount, p.kind, p.paid_at, p.deal_id, d.number, d.title, d.assignee_id as deal_assignee_id
           from crm_payments p join crm_deals d on d.id = p.deal_id where p.client_id = ${id} order by p.paid_at desc limit 50`)
-      : Promise.resolve({ rows: [] as { id: string; amount: number; kind: string; paid_at: Date; deal_id: string; number: number; title: string }[] }),
+      : Promise.resolve({ rows: [] as PaymentRow[] }),
     // Сумма покупок и число продаж — из единого журнала выручки (то же, что в обзоре и аналитике).
     db.execute<{ total: number; sales: number }>(sql`select coalesce(sum(amount), 0)::int as total, count(distinct sale_id)::int as sales from revenue_events where client_id = ${id}`),
   ]);

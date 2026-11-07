@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { ArrowRight } from "lucide-react";
 import { Link } from "@/i18n/client";
 import { LandingHeader } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
 import { Faq } from "@/components/Faq";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
+import { Flourish } from "@/components/landing/FilmFrame";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { getCurrentUser } from "@/server/auth";
 import { registrationOpen, site } from "@/config/site";
@@ -82,15 +82,15 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
   ];
 
   const renderSection = (s: (typeof c.sections)[number], id: string) => (
-    <section key={id} id={id} className="mt-12 scroll-mt-24">
-      <h2 className="font-serif text-3xl font-medium tracking-tight">{s.heading}</h2>
+    <section key={id} id={id} className="mt-14 scroll-mt-24">
+      <h2 className="font-serif text-[30px] leading-tight font-medium tracking-tight text-balance sm:text-[34px]">{s.heading}</h2>
       {s.paragraphs?.map((p) => (
-        <p key={p} className="mt-4 text-lg leading-relaxed text-ink-soft">
+        <p key={p} className="mt-5 text-[18px] leading-[1.75] text-ink-soft">
           {p}
         </p>
       ))}
       {s.list ? (
-        <ul className="mt-4 list-disc space-y-2 pl-6 text-lg leading-relaxed text-ink-soft marker:text-wine">
+        <ul className="mt-5 list-disc space-y-2.5 pl-6 text-[18px] leading-[1.7] text-ink-soft marker:text-wine">
           {s.list.map((li) => (
             <li key={li}>{li}</li>
           ))}
@@ -104,23 +104,28 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
       <JsonLd data={jsonLd} />
       <LandingHeader loggedIn={!!user} />
       <main className="overflow-x-clip">
-        <article className="relative pt-28 pb-16 sm:pt-36 sm:pb-20">
-          <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(60%_40%_at_75%_10%,#f4e4df_0%,transparent_70%)]" />
+        <article className="pt-28 pb-16 sm:pt-36 sm:pb-24">
           <div className="container-x">
-            <div className="mx-auto max-w-3xl">
-              <Breadcrumbs items={[{ name: m.landing.seoPage.home, href: "/" }, { name: t.eyebrow, href: "/blog" }, { name: c.title }]} />
+            <div className="mx-auto max-w-[44rem] lg:mx-0 lg:ml-[17rem]">
+              <Breadcrumbs items={[{ name: m.landing.seoPage.home, href: "/" }, { name: t.eyebrow, href: "/blog" }, { name: c.title }]} className="max-sm:hidden" />
               <div className="text-sm text-muted">
-                <time dateTime={a.published}>{a.published.split("-").reverse().join(".")}</time> · {t.minutes(a.readMinutes)}
+                <time dateTime={a.published}>{a.published.split("-").reverse().join(".")}</time>
+                <span aria-hidden className="mx-2">/</span>
+                {t.minutes(a.readMinutes)}
               </div>
-              <h1 className="mt-4 font-serif text-4xl leading-[1.1] font-medium tracking-tight sm:text-5xl">{c.title}</h1>
-              <p className="mt-6 text-xl leading-relaxed text-ink-soft">{c.lead}</p>
+              <h1 className="mt-4 font-serif text-[40px] leading-[1.06] font-medium tracking-[-0.01em] text-balance sm:text-[56px]">{c.title}</h1>
+              <Flourish className="mt-3 text-wine/45" />
+              <p className="mt-6 text-xl leading-relaxed text-ink">{c.lead}</p>
+            </div>
 
-              <nav aria-label={t.toc} className="mt-8 rounded-2xl border border-line bg-white/70 p-5">
+            <div className="mt-12 lg:grid lg:grid-cols-[14rem_minmax(0,44rem)] lg:gap-12">
+              {/* Содержание: на ноутбуке — липкая колонка слева, на телефоне — список перед текстом. */}
+              <nav aria-label={t.toc} className="mx-auto max-w-[44rem] border-y border-line py-5 lg:sticky lg:top-24 lg:mx-0 lg:self-start lg:border-y-0 lg:border-l lg:py-0 lg:pl-5">
                 <div className="text-sm font-semibold">{t.toc}</div>
-                <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-sm text-ink-soft marker:text-muted">
+                <ol className="mt-2 text-sm text-ink-soft lg:mt-3 lg:space-y-2">
                   {outline.map((o) => (
                     <li key={o.id}>
-                      <a href={`#${o.id}`} className="hover:text-wine">
+                      <a href={`#${o.id}`} className="block py-2 leading-snug hover:text-wine lg:py-0">
                         {o.title}
                       </a>
                     </li>
@@ -128,76 +133,88 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
                 </ol>
               </nav>
 
-              {before.map((s, i) => renderSection(s, `s${i + 1}`))}
+              <div className="mx-auto max-w-[44rem] lg:mx-0">
+                {before.map((s, i) => renderSection(s, `s${i + 1}`))}
 
-              {bank.length && c.questions ? (
-                <section id="questions" className="mt-12 scroll-mt-24">
-                  <h2 className="font-serif text-3xl font-medium tracking-tight">{c.questions.heading}</h2>
-                  <p className="mt-4 text-lg leading-relaxed text-ink-soft">{c.questions.intro}</p>
-                  <div className="mt-6 space-y-8">
-                    {bank.map((ch) => (
-                      <div key={ch.key}>
-                        <h3 className="font-serif text-xl font-medium text-wine">{ch.title}</h3>
-                        <ul className="mt-3 space-y-2.5 border-l-2 border-line pl-5 text-lg leading-snug text-ink-soft">
-                          {ch.questions.map((q) => (
-                            <li key={q}>{q}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    ))}
-                  </div>
-                  <p className="mt-6 text-sm text-muted">{t.questionsCount(countQuestions(theme))}</p>
+                {bank.length && c.questions ? (
+                  <section id="questions" className="mt-14 scroll-mt-24">
+                    <h2 className="font-serif text-[30px] leading-tight font-medium tracking-tight text-balance sm:text-[34px]">{c.questions.heading}</h2>
+                    <p className="mt-5 text-[18px] leading-[1.75] text-ink-soft">{c.questions.intro}</p>
+                    <div className="mt-8 space-y-10">
+                      {bank.map((ch) => (
+                        <div key={ch.key}>
+                          <h3 className="text-sm font-semibold text-wine">{ch.title}</h3>
+                          <ul className="mt-3 divide-y divide-line border-y border-line">
+                            {ch.questions.map((q) => (
+                              <li key={q} className="py-3 font-serif text-[21px] leading-snug text-ink">
+                                {q}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="mt-6 text-sm text-muted">{t.questionsCount(countQuestions(theme))}</p>
+                  </section>
+                ) : null}
+
+                {rest.map((s, i) => renderSection(s, `s${after + i + 1}`))}
+
+                {/* Призыв — маленький «кадр»: тёмная основа, тонкая рамка. */}
+                <aside className="relative mt-16 overflow-hidden rounded-[14px] bg-spine px-7 py-10 text-white sm:px-10">
+                  <div aria-hidden className="pointer-events-none absolute inset-2.5 rounded-[8px] border border-[rgb(255_255_255/0.22)]" />
+                  <h2 className="relative font-serif text-[32px] leading-tight font-medium text-balance">{c.cta.title}</h2>
+                  <p className="relative mt-3 max-w-lg text-white/80">{c.cta.text}</p>
+                  <Link href={cta} className="btn btn-primary btn-lg relative mt-7">
+                    {guestClosed ? m.common.nav.login : m.landing.hero.cta}
+                  </Link>
+                </aside>
+
+                <section className="mt-16">
+                  <h2 className="font-serif text-[30px] leading-tight font-medium tracking-tight">{m.landing.seoPage.faqTitle}</h2>
+                  <Faq className="mt-6" items={c.faq} size="md" />
                 </section>
-              ) : null}
-
-              {rest.map((s, i) => renderSection(s, `s${after + i + 1}`))}
-
-              <div className="mt-14 rounded-3xl bg-ink px-7 py-9 text-center text-white sm:px-10">
-                <h2 className="font-serif text-3xl font-medium">{c.cta.title}</h2>
-                <p className="mx-auto mt-3 max-w-lg text-white/80">{c.cta.text}</p>
-                <Link href={cta} className="btn btn-primary btn-lg mt-6">
-                  {guestClosed ? m.common.nav.login : m.landing.hero.cta} <ArrowRight className="size-5" />
-                </Link>
               </div>
-
-              <section className="mt-14">
-                <h2 className="font-serif text-3xl font-medium tracking-tight">{m.landing.seoPage.faqTitle}</h2>
-                <Faq className="mt-6" items={c.faq} size="md" />
-              </section>
             </div>
           </div>
         </article>
 
-        <section className="border-t border-line bg-cream/50 py-14">
-          <div className="container-x grid gap-10 md:grid-cols-2">
+        <section className="border-t border-line bg-cream/50 py-14 sm:py-16">
+          <div className="container-x grid gap-12 md:grid-cols-2">
             <div>
-              <div className="text-sm font-semibold">{t.related}</div>
-              <div className="mt-4 flex flex-wrap gap-2">
+              <h2 className="text-sm font-semibold">{t.related}</h2>
+              <ul className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm">
                 {related.map((l) => (
-                  <Link key={l.slug} href={`/kniga/${l.slug}`} className="rounded-full border border-line bg-white px-4 py-1.5 text-sm text-ink-soft hover:border-ink/30">
-                    {l.content[locale].label}
-                  </Link>
+                  <li key={l.slug}>
+                    <Link href={`/kniga/${l.slug}`} className="text-ink-soft underline decoration-line-strong underline-offset-4 hover:text-wine hover:decoration-wine">
+                      {l.content[locale].label}
+                    </Link>
+                  </li>
                 ))}
-                <Link href="/kniga" className="rounded-full border border-line bg-white px-4 py-1.5 text-sm text-wine hover:border-ink/30">
-                  {m.common.footer.allIdeas} →
-                </Link>
-              </div>
+                <li>
+                  <Link href="/kniga" className="font-medium text-wine hover:underline">
+                    {m.common.footer.allIdeas}
+                  </Link>
+                </li>
+              </ul>
               {relatedTools.length ? (
                 <>
-                  <div className="mt-8 text-sm font-semibold">{toolsPageUi[locale].others}</div>
-                  <div className="mt-4 flex flex-wrap gap-2">
+                  <h2 className="mt-8 text-sm font-semibold">{toolsPageUi[locale].others}</h2>
+                  <ul className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm">
                     {relatedTools.map((tool) => (
-                      <Link key={tool.slug} href={`/instrumenty/${tool.slug}`} className="rounded-full border border-wine/30 bg-white px-4 py-1.5 text-sm text-wine hover:border-wine">
-                        {tool.content[locale].label}
-                      </Link>
+                      <li key={tool.slug}>
+                        <Link href={`/instrumenty/${tool.slug}`} className="text-wine underline decoration-wine/30 underline-offset-4 hover:decoration-wine">
+                          {tool.content[locale].label}
+                        </Link>
+                      </li>
                     ))}
-                  </div>
+                  </ul>
                 </>
               ) : null}
             </div>
             <div>
-              <div className="text-sm font-semibold">{t.moreArticles}</div>
-              <ul className="mt-4 space-y-2 text-sm">
+              <h2 className="text-sm font-semibold">{t.moreArticles}</h2>
+              <ul className="mt-4 space-y-2.5 text-sm">
                 {others.map((x) => (
                   <li key={x.slug}>
                     <Link href={`/blog/${x.slug}`} className="text-ink-soft hover:text-wine">

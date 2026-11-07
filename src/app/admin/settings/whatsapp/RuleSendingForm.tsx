@@ -34,15 +34,15 @@ export function RuleSendingForm(props: { from: string; to: string; dailyLimit: n
         }}
       >
         <label className="block">
-          <span className="mb-1 block text-xs text-muted">С</span>
+          <span className="label">С</span>
           <input type="time" className="input h-10 w-28 text-sm" value={from} onChange={(e) => setFrom(e.target.value)} aria-label="Окно: с" required />
         </label>
         <label className="block">
-          <span className="mb-1 block text-xs text-muted">До</span>
+          <span className="label">До</span>
           <input type="time" className="input h-10 w-28 text-sm" value={to} onChange={(e) => setTo(e.target.value)} aria-label="Окно: до" required />
         </label>
         <label className="block">
-          <span className="mb-1 block text-xs text-muted">Сообщений в сутки</span>
+          <span className="label">Сообщений в сутки</span>
           <input type="number" inputMode="numeric" min={0} max={props.max} step={1} className="input h-10 w-28 text-sm" value={limit} onChange={(e) => setLimit(e.target.value)} aria-label="Сообщений в сутки" required />
         </label>
         <button className="btn btn-primary btn-sm h-10" disabled={pending}>

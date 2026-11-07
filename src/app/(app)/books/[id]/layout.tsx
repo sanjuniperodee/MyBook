@@ -1,3 +1,4 @@
+import { ChevronLeft } from "lucide-react";
 import { Link } from "@/i18n/client";
 import { requireUser } from "@/server/auth";
 import { getAccessibleBook } from "@/server/books";
@@ -10,6 +11,7 @@ import { photoUrls } from "@/lib/urls";
 import { container } from "@/server/container";
 import { BookTabs } from "./BookTabs";
 import { OrderButton } from "./OrderButton";
+import { BookTitleRow } from "./BookTitleRow";
 import { HelpChat } from "@/components/help/HelpChat";
 import { getLocale, getMessages } from "@/i18n/server";
 
@@ -27,14 +29,18 @@ export default async function BookLayout({ children, params }: { children: React
 
   return (
     <>
-      <div className="border-b border-line/70 bg-white/70">
+      <div className="border-b border-line/70 bg-white/60">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="flex items-center gap-3 pt-2 sm:gap-4 sm:pt-4">
-            <Link href="/books" className="hidden text-sm text-muted hover:text-ink sm:block">
-              {t.myBooks}
+          <BookTitleRow>
+            {/* Назад к полке: на телефоне — стрелка (44 px), на компьютере — подпись. */}
+            <Link href="/books" aria-label={t.myBooks} className="-ml-2.5 flex size-11 shrink-0 items-center justify-center rounded-[10px] text-muted hover:bg-ink/5 hover:text-ink sm:hidden">
+              <ChevronLeft className="size-5" aria-hidden />
             </Link>
-            <span className="hidden text-line sm:block">/</span>
-            <div className="w-6 shrink-0 sm:w-7">
+            <Link href="/books" className="hidden h-9 shrink-0 items-center gap-1 rounded-lg pr-2 text-sm text-muted hover:text-ink sm:flex">
+              <ChevronLeft className="size-4" aria-hidden /> {t.myBooks}
+            </Link>
+            <span className="hidden h-6 w-px bg-line sm:block" aria-hidden />
+            <div className="w-6 shrink-0 sm:ml-1 sm:w-7">
               <CoverPreview
                 template={book.coverTemplate}
                 format={book.format}
@@ -50,18 +56,18 @@ export default async function BookLayout({ children, params }: { children: React
               <div className="truncate font-serif text-lg leading-tight font-medium sm:text-xl">{book.title}</div>
               <div className="truncate text-xs text-muted">
                 {theme.name}
-                {subject ? ` · ${subject}` : ""}
+                {subject ? `, ${subject}` : ""}
               </div>
             </div>
             {book.status === "draft" ? (
               <OrderButton bookId={book.id} />
             ) : order ? (
-              <Link href={`/orders/${order.id}`} className="btn btn-dark btn-sm shrink-0">
+              <Link href={`/orders/${order.id}`} className="btn btn-outline btn-sm shrink-0">
                 {t.order(order.number)}
               </Link>
             ) : null}
-          </div>
-          <div className="sm:mt-2">
+          </BookTitleRow>
+          <div className="mt-1">
             <BookTabs bookId={book.id} />
           </div>
         </div>

@@ -64,13 +64,13 @@ export function ContactActions({ target, canCall, canChat, canEmail = false, cla
         </button>
       ) : null}
       {mail ? (
-        <div className="w-full space-y-2 rounded-xl border border-line bg-[#fbf9f5] p-3" data-testid="email-form">
-          <input className="input h-9 text-sm" placeholder="Тема письма" value={mail.subject} maxLength={200} onChange={(e) => setMail({ ...mail, subject: e.target.value })} aria-label="Тема письма" />
-          <textarea className="input min-h-28 py-2 text-sm" placeholder="Текст письма" value={mail.text} maxLength={20000} onChange={(e) => setMail({ ...mail, text: e.target.value })} aria-label="Текст письма" />
+        <div className="w-full space-y-2 rounded-[10px] border border-line bg-sunken/60 p-3" data-testid="email-form">
+          <input className="input h-10 text-sm" placeholder="Тема письма" value={mail.subject} maxLength={200} onChange={(e) => setMail({ ...mail, subject: e.target.value })} aria-label="Тема письма" />
+          <textarea className="input min-h-28 text-sm" placeholder="Текст письма" value={mail.text} maxLength={20000} onChange={(e) => setMail({ ...mail, text: e.target.value })} aria-label="Текст письма" />
           <div className="flex gap-2">
             <button
               type="button"
-              className="btn btn-sm"
+              className="btn btn-dark btn-sm"
               disabled={mailing || !mail.text.trim()}
               onClick={() =>
                 startMail(async () => {
@@ -104,14 +104,19 @@ export function ManagerSelect({ value, options, disabled, onChange }: { value: s
   const [pending, start] = useTransition();
   return (
     <select
-      className="input h-9 text-sm"
+      className="input h-10 text-sm"
       value={value ?? ""}
       disabled={disabled || pending}
       aria-label="Ответственный"
       onChange={(e) =>
         start(async () => {
-          const r = (await onChange(e.target.value || null)) as { ok?: boolean; message?: string } | undefined;
-          if (r && r.ok === false) toast(r.message ?? "Не удалось", "error");
+          // Отказ сервера — тостом; неожиданная ошибка — тоже, а не экраном ошибки вместо карточки.
+          try {
+            const r = (await onChange(e.target.value || null)) as { ok?: boolean; message?: string; error?: string } | undefined;
+            if (r && (r.ok === false || r.error)) toast(r.message ?? r.error ?? "Не удалось", "error");
+          } catch (err) {
+            toastError(err, "Не удалось сменить ответственного");
+          }
         })
       }
     >

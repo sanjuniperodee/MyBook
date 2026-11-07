@@ -12,6 +12,8 @@ export const auth: typeof ru = {
     password: "Құпиясөз",
     newPassword: "Жаңа құпиясөз",
     passwordHint: "Кемінде 8 таңба",
+    showPassword: "Құпиясөзді көрсету",
+    hidePassword: "Құпиясөзді жасыру",
   },
   login: {
     meta: "Кіру",

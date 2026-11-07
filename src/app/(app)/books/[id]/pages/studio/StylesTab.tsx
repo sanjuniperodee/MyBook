@@ -8,6 +8,9 @@ import type { BookFormat } from "@/lib/book/formats";
 import { interiorDesigns, interiorDirection, styleDirections, type InteriorDesign, type InteriorId, type StyleDirection } from "@/lib/book/interiors";
 import { cn } from "@/lib/class-names";
 
+/** Сколько стилей видно сразу во «Всех» без поиска. */
+const STYLES_SHOWN = 8;
+
 type Filter = StyleDirection | "all" | "cover";
 
 const spreads: SpreadKind[] = ["chapter", "photos", "front", "toc"];
@@ -78,6 +81,8 @@ export function StylesTab({
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState<InteriorDesign | null>(null);
+  // Тридцать с лишним разворотов — длинная стена: во «Всех» без поиска сначала восемь (выбранный — всегда), остальные по кнопке.
+  const [all, setAll] = useState(false);
   const paired = useMemo(() => new Set(pairs), [pairs]);
   const used = useMemo(() => new Set(interiorDesigns.map(interiorDirection)), []);
   const filters: Filter[] = ["all", ...(paired.size ? (["cover"] as const) : []), ...styleDirections.filter((d) => used.has(d))];
@@ -89,12 +94,14 @@ export function StylesTab({
     const n = names[d.id];
     return `${n.name} ${n.description} ${dirNames[interiorDirection(d)]}`.toLowerCase().includes(q);
   });
+  const collapsed = filter === "all" && !q && !all && shown.length > STYLES_SHOWN;
+  const visible = collapsed ? shown.filter((d, i) => i < STYLES_SHOWN || d.id === current) : shown;
   return (
     <div>
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-0 flex-1">
           <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" />
-          <input className="h-10 w-full rounded-xl border border-line bg-white pr-3 pl-9 text-sm outline-none focus:border-wine/50" placeholder={t.search} value={query} onChange={(e) => setQuery(e.target.value)} />
+          <input className="input pl-9 text-sm" type="search" aria-label={t.search} placeholder={t.search} value={query} onChange={(e) => setQuery(e.target.value)} />
         </div>
         <span className="text-xs text-muted">{t.count(shown.length)}</span>
       </div>
@@ -106,7 +113,7 @@ export function StylesTab({
             role="radio"
             aria-checked={filter === id}
             onClick={() => setFilter(id)}
-            className={cn("inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm transition", filter === id ? "bg-ink text-white" : "bg-white text-ink-soft ring-1 ring-line hover:ring-ink/30")}
+            className={cn("chip min-h-11 shrink-0 sm:min-h-9", filter === id && "chip-on")}
           >
             {id === "cover" ? <Sparkles className="size-3.5" /> : null}
             {id === "cover" ? t.forCover(coverName) : id === "all" ? t.all : dirNames[id]}
@@ -115,7 +122,7 @@ export function StylesTab({
       </div>
       {shown.length ? (
         <div className="mt-5 grid grid-cols-2 gap-x-4 gap-y-6">
-          {shown.map((d) => {
+          {visible.map((d) => {
             const active = d.id === current;
             return (
               <div key={d.id} className="group relative text-left">
@@ -165,6 +172,11 @@ export function StylesTab({
       ) : (
         <p className="mt-6 text-sm text-muted">{t.empty}</p>
       )}
+      {collapsed ? (
+        <button type="button" className="btn btn-outline mt-6 w-full sm:w-auto" onClick={() => setAll(true)}>
+          {t.showAll(shown.length)}
+        </button>
+      ) : null}
       {open ? (
         <StylePreview
           design={open}

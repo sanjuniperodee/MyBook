@@ -10,7 +10,7 @@ import { clientById, clientCard } from "./infrastructure/ClientCard";
 import { conversationContext, inbox } from "./infrastructure/Inbox";
 import { callJournal, taskById, taskList } from "./infrastructure/Lists";
 import { bookOwnership, orderCrm, orderExport, orderList, orderNotice, orderOwnership, productionBoard } from "./infrastructure/Orders";
-import { dealList, savedViews, stageCounts } from "./infrastructure/Deals";
+import { dealList, dealTotals, savedViews, stageCounts } from "./infrastructure/Deals";
 import { duplicateGroups } from "./infrastructure/Duplicates";
 import { bookList } from "./infrastructure/Books";
 import { salesAnalytics } from "./infrastructure/SalesAnalytics";
@@ -70,6 +70,7 @@ export class ReportingModule {
   readonly orderCrm = orderCrm;
   readonly orderNotice = orderNotice;
   readonly dealList = dealList;
+  readonly dealTotals = dealTotals;
   readonly savedViews = savedViews;
   readonly stageCounts = stageCounts;
   readonly duplicateGroups = duplicateGroups;

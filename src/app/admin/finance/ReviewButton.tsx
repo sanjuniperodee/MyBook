@@ -33,7 +33,7 @@ export function ReviewButton({ kind, id }: { kind: "deal" | "order"; id: string 
       >
         <Check className="size-3.5" /> Проверено
       </button>
-      {error ? <span className="text-[11px] text-red-700">{error}</span> : null}
+      {error ? <span className="text-[11px] text-danger">{error}</span> : null}
     </span>
   );
 }

@@ -120,7 +120,7 @@ export function EmptyState({ faq, onPick, onAsk }: { faq: string[]; onPick: () =
 
 export function Chip({ children, onClick }: { children: ReactNode; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className="min-h-9 rounded-full border border-line bg-white px-3.5 py-1.5 text-left text-sm text-ink transition hover:border-wine/40 hover:bg-cream/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wine">
+    <button type="button" onClick={onClick} className="min-h-9 rounded-full border border-line bg-white px-3.5 py-1.5 text-left text-sm text-ink transition hover:border-wine/40 hover:bg-sunken focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wine">
       {children}
     </button>
   );
@@ -130,14 +130,14 @@ export function Chip({ children, onClick }: { children: ReactNode; onClick: () =
 export function HandoffNote({ text, whatsapp }: { text: string; whatsapp: string }) {
   const t = useMessages().help;
   return (
-    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-sm text-amber-900" role="status">
+    <div className="rounded-2xl border border-warning/25 bg-warning-bg px-3.5 py-3 text-sm text-warning" role="status">
       <p>{text}</p>
       {whatsapp ? (
         <a
           href={`https://wa.me/${whatsapp}?text=${encodeURIComponent(t.whatsappText)}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-2 inline-flex min-h-9 items-center gap-1.5 rounded-full bg-white px-3 py-1.5 font-medium text-emerald-700 ring-1 ring-emerald-200 hover:bg-emerald-50"
+          className="mt-2 inline-flex min-h-9 items-center gap-1.5 rounded-full bg-white px-3 py-1.5 font-medium text-success ring-1 ring-success/25 hover:bg-success-bg"
         >
           <MessageCircle className="size-4" aria-hidden /> {t.whatsapp}
         </a>

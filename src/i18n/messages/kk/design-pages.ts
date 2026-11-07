@@ -16,6 +16,7 @@ export const design_pages: Messages["design"]["pages"] = {
     all: "Барлығы",
     forCover: (cover: string) => `«${cover}» мұқабасына`,
     count: (n: number) => `${n} стиль`,
+    showAll: (n: number) => `Барлық стильді көрсету (${n})`,
     empty: "Мұндай стиль жоқ — басқа сөзді не бағытты көріңіз.",
     open: "Жайылманы үлкейтіп көру",
     apply: "Осы стильді таңдау",

@@ -48,11 +48,12 @@ const reminders = [
   ["1440", "За день"],
 ] as const;
 
+/** Тип задачи — значком-селектом: статусные пары токенов, тёмная тема без правок. */
 const kindTone: Record<TaskRow["kind"], string> = {
-  task: "bg-cream text-ink-soft",
-  call: "bg-emerald-50 text-emerald-800",
-  message: "bg-sky-50 text-sky-800",
-  meeting: "bg-amber-50 text-amber-800",
+  task: "bg-sunken text-ink-soft",
+  call: "bg-success-bg text-success",
+  message: "bg-info-bg text-info",
+  meeting: "bg-warning-bg text-warning",
 };
 
 /**
@@ -99,7 +100,8 @@ function Row({ task, staff, canAssign, compact }: { task: TaskRow; staff: { id: 
     t.done
       ? start(async () => {
           patchLocal({ done: false });
-          await toggleTaskAction(t.id);
+          const res = await toggleTaskAction(t.id);
+          setError(res.error ?? null);
         })
       : setCompleting(true);
 
@@ -111,17 +113,22 @@ function Row({ task, staff, canAssign, compact }: { task: TaskRow; staff: { id: 
       setError(res.error ?? null);
     });
 
+  const quick = "btn btn-ghost btn-sm h-8 px-2.5 text-xs max-lg:h-11 max-lg:px-3 max-lg:text-sm";
+  const icon = "flex size-8 items-center justify-center rounded-lg text-muted transition-colors hover:bg-sunken hover:text-ink max-lg:size-11";
   return (
-    <li className="py-3 text-sm max-lg:text-[15px]">
+    <li className={cn("py-3 text-sm max-lg:text-[15px]", t.done && "opacity-80")}>
       <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
-        <input type="checkbox" className="mt-0.5 size-5 accent-wine" checked={t.done} disabled={ro} onChange={toggle} aria-label="Выполнено" />
-        <div className="min-w-0 flex-1 basis-64">
-          <div className="flex items-start gap-1.5">
+        {/* Сам флажок ~20 px — нажимается вся область 44 px вокруг него. */}
+        <label className="-m-2.5 flex size-11 shrink-0 cursor-pointer items-center justify-center lg:-m-3">
+          <input type="checkbox" className="size-5 accent-wine" checked={t.done} disabled={ro} onChange={toggle} aria-label="Выполнено" />
+        </label>
+        <div className="min-w-0 flex-1 basis-60">
+          <div className="flex items-start gap-2">
             <select
               value={t.kind}
               disabled={ro}
               onChange={(e) => save({ kind: e.target.value as TaskRow["kind"] }, { kind: e.target.value })}
-              className={cn("mt-px shrink-0 cursor-pointer appearance-none rounded px-1.5 py-0.5 text-[11px] max-lg:min-h-0! font-medium", kindTone[t.kind])}
+              className={cn("fs-keep mt-px shrink-0 cursor-pointer appearance-none rounded-md! px-1.5 py-0.5 text-xs font-medium disabled:cursor-default max-lg:min-h-0! max-lg:text-[13px]", kindTone[t.kind])}
               aria-label="Тип задачи"
             >
               {Object.entries(taskKinds).map(([k, v]) => (
@@ -148,15 +155,15 @@ function Row({ task, staff, canAssign, compact }: { task: TaskRow; staff: { id: 
                 }}
               />
             ) : (
-              <button type="button" disabled={ro} onClick={() => setEditing(true)} className={cn("min-w-0 text-left leading-snug", t.done && "text-muted line-through", !ro && "hover:text-wine")} title={ro ? undefined : "Изменить"}>
+              <button type="button" disabled={ro} onClick={() => setEditing(true)} className={cn("min-w-0 text-left leading-snug font-medium", t.done && "font-normal text-muted line-through", !ro && "hover:text-wine")} title={ro ? undefined : "Изменить"}>
                 {t.title}
               </button>
             )}
           </div>
-          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
+          <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted">
             {t.fromBot ? (
-              <span className="inline-flex items-center gap-1 rounded bg-cream px-1.5 py-0.5 text-ink-soft">
-                <Bot className="size-3" /> от бота
+              <span className="badge">
+                <Bot className="size-3" aria-hidden /> от бота
               </span>
             ) : null}
             {t.context ? (
@@ -164,25 +171,13 @@ function Row({ task, staff, canAssign, compact }: { task: TaskRow; staff: { id: 
                 {t.context.label}
               </Link>
             ) : null}
-            {compact && t.dueLabel && !t.done ? <span className={cn(t.overdue && "font-medium text-red-700")}>{t.overdue ? `просрочена · ${t.dueLabel}` : t.dueLabel}</span> : null}
+            {compact && t.dueLabel && !t.done ? <span className={cn("tabular-nums", t.overdue && "font-medium text-danger")}>{t.overdue ? `просрочена · ${t.dueLabel}` : t.dueLabel}</span> : null}
             {t.done && t.doneLabel ? <span>выполнена {t.doneLabel}</span> : null}
-            {t.result && !open ? <span className="truncate">· {t.result}</span> : null}
-            {pending ? <LoaderCircle className="size-3 animate-spin" /> : null}
+            {t.result && !open ? <span className="max-w-full truncate">Итог: {t.result}</span> : null}
+            {pending ? <LoaderCircle className="size-3 animate-spin" aria-label="Сохраняем" /> : null}
           </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {!ro && !t.done ? (
-            <>
-              <button type="button" className="btn btn-ghost btn-sm h-8 px-2 text-xs max-lg:h-11 max-lg:px-3" disabled={pending} onClick={() => snooze("hour")} title="Отложить на час">
-                +1 ч
-              </button>
-              <button type="button" className="btn btn-ghost btn-sm h-8 px-2 text-xs max-lg:h-11 max-lg:px-3" disabled={pending} onClick={() => snooze("tomorrow")} title="На завтра, в то же время">
-                Завтра
-              </button>
-            </>
-          ) : null}
           {compact ? null : (
-            <>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
               <input
                 type="datetime-local"
                 value={due}
@@ -190,24 +185,15 @@ function Row({ task, staff, canAssign, compact }: { task: TaskRow; staff: { id: 
                 // На iPhone колесо даты шлёт изменение на каждый поворот — сохраняем, когда поле отпустили (tasks-3).
                 onChange={(e) => setDue(e.target.value)}
                 onBlur={() => due !== t.due && save({ due, overdue: false }, { dueAt: due })}
-                className={cn("input h-8 w-[11.5rem] text-xs", t.overdue && !t.done && "border-red-300 text-red-700")}
+                className={cn("input h-8 w-[11.5rem] px-2.5 text-xs tabular-nums max-lg:h-11 max-lg:min-w-44 max-lg:flex-1", t.overdue && !t.done && "border-danger/60 text-danger")}
                 aria-label="Срок"
                 title={t.dueLabel ?? "Без срока"}
               />
-              {ro || t.done ? null : (
-                <DuePresets
-                  className="flex flex-wrap gap-1"
-                  onPick={(local) => {
-                    setDue(local);
-                    save({ due: local, overdue: false }, { dueAt: local });
-                  }}
-                />
-              )}
               <select
                 value={t.assigneeId ?? ""}
                 disabled={ro || !canAssign}
                 onChange={(e) => e.target.value && save({ assigneeId: e.target.value }, { assigneeId: e.target.value })}
-                className="input h-8 w-40 text-xs"
+                className="input h-8 w-44 px-2.5 text-xs max-lg:h-11 max-lg:min-w-36 max-lg:flex-1"
                 aria-label="Ответственный"
                 title={canAssign ? "Ответственный" : "Передать задачу может руководитель"}
               >
@@ -218,26 +204,38 @@ function Row({ task, staff, canAssign, compact }: { task: TaskRow; staff: { id: 
                   </option>
                 ))}
               </select>
-            </>
+            </div>
           )}
-          <Link href={`/admin/tasks/${t.id}`} className="flex items-center justify-center rounded-lg p-1 text-muted hover:bg-cream hover:text-wine max-lg:size-11" aria-label="Открыть карточку задачи" title="Карточка задачи: сделка, клиент, заказ, записи">
-            <ArrowUpRight className="size-4" />
+        </div>
+        <div className="flex items-center gap-1 max-lg:ml-8">
+          {!ro && !t.done ? (
+            <>
+              <button type="button" className={quick} disabled={pending} onClick={() => snooze("hour")} title="Отложить на час">
+                +1 ч
+              </button>
+              <button type="button" className={quick} disabled={pending} onClick={() => snooze("tomorrow")} title="На завтра, в то же время">
+                Завтра
+              </button>
+            </>
+          ) : null}
+          <Link href={`/admin/tasks/${t.id}`} className={icon} aria-label="Открыть карточку задачи" title="Карточка задачи: сделка, клиент, заказ, записи">
+            <ArrowUpRight className="size-4" aria-hidden />
           </Link>
-          <button type="button" onClick={() => setOpen((v) => !v)} className="rounded-lg p-1 text-muted hover:bg-cream hover:text-ink" aria-label="Подробнее" aria-expanded={open}>
-            <ChevronDown className={cn("size-4 transition", open && "rotate-180")} />
+          <button type="button" onClick={() => setOpen((v) => !v)} className={cn(icon, open && "bg-sunken text-ink")} aria-label={open ? "Скрыть подробности задачи" : "Подробнее: напоминание, результат, удаление"} aria-expanded={open}>
+            <ChevronDown className={cn("size-4 transition-transform", open && "rotate-180")} aria-hidden />
           </button>
         </div>
       </div>
       {!t.done && t.contact ? <Reach kind={t.kind} contact={t.contact} /> : null}
       {open ? (
-        <div className="mt-2 ml-7 grid gap-2 rounded-xl bg-[#fbf9f5] p-3 sm:grid-cols-[180px_1fr_auto]">
-          <label className="block text-xs text-muted">
-            Напомнить
+        <div className="mt-3 ml-8 grid gap-3 rounded-[10px] border border-line bg-sunken/50 p-3 sm:grid-cols-[12rem_minmax(0,1fr)] sm:p-4">
+          <label className="block">
+            <span className="label text-xs">Напомнить</span>
             <select
               value={t.remindBeforeMin === null ? "none" : String(t.remindBeforeMin)}
               disabled={ro || !t.due}
               onChange={(e) => save({ remindBeforeMin: e.target.value === "none" ? null : Number(e.target.value) }, { remindBeforeMin: e.target.value })}
-              className="input mt-1 h-8 w-full text-xs"
+              className="input h-9 text-sm"
               title={t.due ? "В CRM со звуком и в WhatsApp ответственного" : "Сначала поставьте срок"}
             >
               {reminders.map(([v, label]) => (
@@ -247,32 +245,59 @@ function Row({ task, staff, canAssign, compact }: { task: TaskRow; staff: { id: 
               ))}
             </select>
           </label>
-          <label className="block text-xs text-muted">
-            Результат (что сделали, о чём договорились)
+          <label className="block">
+            <span className="label text-xs">Итог: что сделали, о чём договорились</span>
             <textarea
               defaultValue={t.result}
               disabled={ro}
               rows={2}
               maxLength={1000}
-              className="mt-1 w-full rounded-lg border border-line bg-white px-2 py-1.5 text-sm text-ink"
+              className="input text-sm"
               onBlur={(e) => e.target.value.trim() !== t.result && save({ result: e.target.value.trim() }, { result: e.target.value })}
             />
           </label>
-          <div className="flex items-end gap-2">
-            {t.due && !ro ? (
-              <button type="button" className="btn btn-outline btn-sm" onClick={() => save({ due: "", dueLabel: null, overdue: false }, { dueAt: "" })}>
-                Без срока
+          {ro || t.done || compact ? null : (
+            <div className="sm:col-span-2">
+              <span className="label text-xs">Быстрый срок</span>
+              <DuePresets
+                className="flex flex-wrap gap-1.5"
+                onPick={(local) => {
+                  setDue(local);
+                  save({ due: local, overdue: false }, { dueAt: local });
+                }}
+              />
+            </div>
+          )}
+          {!ro ? (
+            <div className="flex flex-wrap items-center gap-2 border-t border-line pt-3 sm:col-span-2">
+              {t.due ? (
+                <button type="button" className="btn btn-outline btn-sm" onClick={() => save({ due: "", dueLabel: null, overdue: false }, { dueAt: "" })}>
+                  Убрать срок
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm ml-auto text-danger hover:bg-danger-bg hover:text-danger"
+                onClick={async () =>
+                  (await ask("Удалить задачу?", true)) &&
+                  start(async () => {
+                    const res = await deleteTaskAction(t.id);
+                    setError(res.error ?? null);
+                  })
+                }
+                aria-label={`Удалить задачу «${t.title}»`}
+              >
+                <Trash2 className="size-4" aria-hidden /> Удалить
               </button>
-            ) : null}
-            {!ro ? (
-              <button type="button" className="rounded-lg p-2 text-muted hover:bg-red-50 hover:text-red-700" onClick={async () => (await ask("Удалить задачу?", true)) && start(() => deleteTaskAction(t.id))} aria-label="Удалить">
-                <Trash2 className="size-4" />
-              </button>
-            ) : null}
-          </div>
+            </div>
+          ) : null}
         </div>
       ) : null}
-      {error ? <p className="mt-1 ml-7 text-xs text-red-700">{error}</p> : null}
+      {error ? (
+        <p className="mt-1.5 ml-8 text-xs font-medium text-danger" role="alert">
+          {error}
+        </p>
+      ) : null}
       {completing ? <CompleteTask taskId={t.id} kind={t.kind} onClose={() => setCompleting(false)} /> : null}
     </li>
   );
@@ -288,7 +313,7 @@ function Reach({ kind, contact }: { kind: TaskRow["kind"]; contact: NonNullable<
   const [calling, startCall] = useTransition();
   const [opening, startChat] = useTransition();
   const router = useRouter();
-  const link = "btn btn-outline btn-sm h-8 px-2.5 text-xs";
+  const link = "btn btn-outline btn-sm h-8 px-2.5 text-xs max-lg:h-11 max-lg:px-3.5 max-lg:text-sm";
   const buttons: React.ReactNode[] = [];
   if (kind === "call") {
     if (contact.pbx)
@@ -349,5 +374,5 @@ function Reach({ kind, contact }: { kind: TaskRow["kind"]; contact: NonNullable<
         </button>,
       );
   }
-  return buttons.length ? <div className="mt-2 ml-7 flex flex-wrap gap-2" data-testid="task-reach">{buttons}</div> : null;
+  return buttons.length ? <div className="mt-2 ml-8 flex flex-wrap gap-2" data-testid="task-reach">{buttons}</div> : null;
 }

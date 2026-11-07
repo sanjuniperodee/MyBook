@@ -57,7 +57,7 @@ export function ChaptersTab({
             role="option"
             aria-selected={c.key === key}
             onClick={() => onSelect(c.key)}
-            className={cn("max-w-full truncate rounded-full px-3 py-1.5 text-sm transition", c.key === key ? "bg-ink text-white" : "bg-white text-ink-soft ring-1 ring-line hover:ring-ink/30")}
+            className={cn("chip min-h-11 max-w-full truncate sm:min-h-9", c.key === key && "chip-on")}
           >
             {c.number ? `${c.number}. ` : ""}
             {c.title}

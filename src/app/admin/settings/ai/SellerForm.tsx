@@ -42,7 +42,7 @@ export function SellerForm({
       <Intro className="mb-4">
         Основная модель продажника — Claude по уровням (блок «Маршрутизация» выше). Эта модель — запасная, если не Claude: на неё бот переключится, когда Claude недоступен (если в маршрутизации не отмечены другие запасные), и на ней
         бот работает при выключенной маршрутизации (Бот → Продажи → «AI-продажник»). Нужна сильная модель: Claude (Sonnet или Opus) или GPT — она надёжнее держит правила, лучше пишет по-казахски и реже ошибается в
-        сроках. Бесплатные модели (<code className="rounded bg-cream px-1">openrouter/free</code>) для продаж не рекомендуются: они нестабильны и могут не вернуть нужный JSON — тогда клиент получит «передала менеджеру».
+        сроках. Бесплатные модели (<code className="rounded bg-sunken px-1">openrouter/free</code>) для продаж не рекомендуются: они нестабильны и могут не вернуть нужный JSON — тогда клиент получит «передала менеджеру».
       </Intro>
       <form action={action} className="space-y-3">
         <div className="flex flex-wrap gap-2 text-sm">
@@ -54,7 +54,7 @@ export function SellerForm({
             <Choice key={id} active={p === id}>
               <input type="radio" name="provider" value={id} checked={p === id} onChange={() => setP(id)} className="accent-wine" />
               {aiProviders[id].title}
-              {ready(id) ? <CheckCircle2 className="size-3.5 text-emerald-700" aria-label="ключ сохранён" /> : null}
+              {ready(id) ? <CheckCircle2 className="size-3.5 text-success" aria-label="ключ сохранён" /> : null}
             </Choice>
           ))}
         </div>
@@ -70,7 +70,7 @@ export function SellerForm({
           ) : null}
           <SecretInput name="key" label={`Ключ ${def.label} API`} saved={saved.apiKey} fromEnv={saved.apiKeyEnv} placeholder={def.keyPlaceholder} />
           <label className="block">
-            <span className="mb-1 block text-xs text-muted">Модель продажника (пусто — {saved.model || def.defaultModel || "модель провайдера"})</span>
+            <span className="label">Модель продажника (пусто — {saved.model || def.defaultModel || "модель провайдера"})</span>
             <input name="model" defaultValue={model} placeholder={effective === "openrouter" ? "например, anthropic/claude-sonnet-4.5 (точное название — в каталоге OpenRouter)" : saved.model || def.defaultModel} className="input h-10 text-sm" maxLength={100} />
           </label>
         </div>

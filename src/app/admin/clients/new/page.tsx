@@ -1,4 +1,4 @@
-import { BackLink } from "@/components/admin/BackLink";
+import { PageHeader } from "@/components/admin/PageHeader";
 import { canAssignOthers, requireStaff, can } from "@/server/access";
 import { staffOptions } from "@/modules/access/ui";
 import { container } from "@/server/container";
@@ -13,12 +13,10 @@ export default async function NewClientPage() {
   const open = stages.filter((s) => s.kind === "open");
   const options = canAssignOthers(staff) ? staffOptions(admins) : staffOptions(admins).filter((a) => a.id === staff.user.id);
   return (
-    <div className="mx-auto max-w-2xl space-y-5">
-      <BackLink href="/admin/clients">Клиенты</BackLink>
-      <div>
-        <h1 className="text-2xl font-semibold">Новый клиент</h1>
-        <p className="mt-1 text-sm text-muted">Заведите клиента с логином и паролем, укажите сумму договорённости и предоплату — сделка и задачи создадутся сами.</p>
-      </div>
+    <div className="mx-auto flex max-w-3xl flex-col gap-5">
+      <PageHeader back={{ href: "/admin/clients", label: "Клиенты" }} title="Новый клиент">
+        Заведите клиента с логином и паролем, укажите сумму договорённости и предоплату — сделка и задачи создадутся сами.
+      </PageHeader>
       <NewClientForm
         canDeal={can(staff, "deals.edit")}
         stages={open.map((s) => ({ id: s.id, name: pipelines.length > 1 ? `${pipelines.find((x) => x.id === s.pipelineId)?.name} · ${s.name}` : s.name }))}

@@ -3,6 +3,7 @@
 import { useTransition } from "react";
 import { CheckCircle2, PhoneOutgoing } from "lucide-react";
 import { toast } from "@/components/ui/overlays";
+import { cn } from "@/lib/class-names";
 import { callAction, markCallHandledAction } from "../crm-actions";
 import { useWhatsappCall, WhatsappCallButton } from "@/components/admin/WhatsappCall";
 
@@ -12,10 +13,10 @@ export function CallRowActions({ callId, canCall, canHandle }: { callId: string;
   // АТС нет, а звонки WhatsApp включены — «Перезвонить» звонит в WhatsApp.
   const viaWhatsapp = !!wa && !wa.pbx;
   return (
-    <div className="flex justify-end gap-3 text-xs max-lg:text-sm">
+    <div className="flex flex-wrap justify-end gap-1 lg:flex-nowrap">
       {canCall ? (
         <button
-          className="flex items-center gap-1 text-wine hover:underline max-lg:min-h-11 max-lg:px-2"
+          className={cn("btn btn-ghost btn-sm h-8 px-2.5 text-[13px] max-lg:h-11", canHandle && "text-wine hover:text-wine")}
           disabled={pending || (viaWhatsapp && wa.busy)}
           onClick={() =>
             viaWhatsapp
@@ -26,13 +27,13 @@ export function CallRowActions({ callId, canCall, canHandle }: { callId: string;
                 })
           }
         >
-          <PhoneOutgoing className="size-3.5" /> Перезвонить
+          <PhoneOutgoing className="size-4" strokeWidth={1.8} /> Перезвонить
         </button>
       ) : null}
-      {canCall && !viaWhatsapp ? <WhatsappCallButton plain target={{ callId }} label="WhatsApp" className="text-wine hover:underline max-lg:min-h-11 max-lg:px-2" /> : null}
+      {canCall && !viaWhatsapp ? <WhatsappCallButton plain target={{ callId }} label="WhatsApp" className="btn btn-ghost btn-sm h-8 px-2.5 text-[13px] max-lg:h-11" /> : null}
       {canHandle ? (
-        <button className="flex items-center gap-1 text-muted hover:text-ink max-lg:min-h-11 max-lg:px-2" disabled={pending} onClick={() => start(async () => void (await markCallHandledAction(callId)))}>
-          <CheckCircle2 className="size-3.5" /> Обработан
+        <button className="btn btn-ghost btn-sm h-8 px-2.5 text-[13px] max-lg:h-11" disabled={pending} onClick={() => start(async () => void (await markCallHandledAction(callId)))} title="Отметить, что клиенту уже перезвонили или ответили">
+          <CheckCircle2 className="size-4" strokeWidth={1.8} /> Обработан
         </button>
       ) : null}
     </div>

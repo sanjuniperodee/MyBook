@@ -320,7 +320,7 @@ export function HelpChat({ bookId }: { bookId: string }) {
                   </div>
                 ) : null}
                 {error ? (
-                  <p className="mb-2 text-sm text-red-700" role="alert">
+                  <p className="mb-2 text-sm text-danger" role="alert">
                     {error}
                   </p>
                 ) : null}
@@ -364,14 +364,15 @@ export function HelpChat({ bookId }: { bookId: string }) {
           aria-haspopup="dialog"
           aria-label={unread ? `${t.open}. ${t.newReply}` : t.open}
           className={cn(
-            "fixed right-3 z-[54] flex h-12 items-center gap-2 rounded-full bg-wine pr-4 pl-3.5 text-white shadow-lift transition hover:bg-wine-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wine motion-safe:hover:-translate-y-px sm:right-4 sm:bottom-4",
+            // Тихая кнопка: белая, не спорит с главной (винной) кнопкой экрана; на телефоне — круглая, без подписи, чтобы не закрывать текст.
+            "fixed right-3 z-[54] flex size-12 items-center justify-center gap-2 rounded-full border border-line bg-white text-ink shadow-lift transition hover:border-line-strong hover:bg-sunken focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wine sm:right-4 sm:bottom-4 sm:w-auto sm:pr-4 sm:pl-3.5",
             open && "max-sm:hidden",
           )}
           style={{ bottom: `calc(${lift}px + max(0.75rem, env(safe-area-inset-bottom)))` }}
         >
-          {open ? <X className="size-5" aria-hidden /> : <LifeBuoy className="size-5" aria-hidden />}
-          <span className="text-[15px] font-medium">{t.button}</span>
-          {unread && !open ? <span className="absolute -top-0.5 -right-0.5 size-3.5 rounded-full border-2 border-white bg-emerald-500" aria-hidden /> : null}
+          {open ? <X className="size-5" aria-hidden /> : <LifeBuoy className="size-5 text-wine" aria-hidden />}
+          <span className="text-[15px] font-medium max-sm:sr-only">{t.button}</span>
+          {unread && !open ? <span className="absolute -top-0.5 -right-0.5 size-3.5 rounded-full border-2 border-white bg-wine" aria-hidden /> : null}
         </button>
       ) : null}
     </div>

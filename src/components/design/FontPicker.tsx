@@ -76,7 +76,7 @@ export function FontPicker({
         <div className="absolute inset-x-0 top-full z-40 mt-1 min-w-[300px] rounded-2xl border border-line bg-white p-2 shadow-lift">
           <div className="relative">
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" />
-            <input autoFocus className="h-10 w-full rounded-xl bg-cream/60 pr-3 pl-9 text-sm outline-none focus:bg-cream" placeholder={t.fonts.search} value={query} onChange={(e) => setQuery(e.target.value)} />
+            <input autoFocus className="h-10 w-full rounded-xl bg-sunken pr-3 pl-9 text-sm outline-none focus:bg-cream" placeholder={t.fonts.search} value={query} onChange={(e) => setQuery(e.target.value)} />
           </div>
           <div className="no-scrollbar mt-2 flex gap-1 overflow-x-auto">
             {(["all", ...groups] as const).map((g) => (
@@ -84,7 +84,7 @@ export function FontPicker({
                 key={g}
                 type="button"
                 onClick={() => setGroup(g)}
-                className={cn("shrink-0 rounded-full px-2.5 py-1 text-xs transition", group === g ? "bg-ink text-white" : "bg-cream/70 text-ink-soft hover:bg-cream")}
+                className={cn("shrink-0 rounded-full px-2.5 py-1 text-xs transition", group === g ? "bg-ink text-white" : "bg-sunken text-ink-soft hover:bg-cream")}
               >
                 {g === "all" ? t.fonts.all : t.fonts.categories[g]}
               </button>
@@ -100,7 +100,7 @@ export function FontPicker({
                       onChange(k);
                       setOpen(false);
                     }}
-                    className={cn("flex w-full items-start gap-2 rounded-xl px-3 py-2 text-left transition hover:bg-cream/60", k === value && "bg-rose/60")}
+                    className={cn("flex w-full items-start gap-2 rounded-xl px-3 py-2 text-left transition hover:bg-sunken", k === value && "bg-rose/60")}
                   >
                     <span className="min-w-0 flex-1" style={{ fontFamily: cssFont(k) }}>
                       <span className="flex items-baseline gap-2">

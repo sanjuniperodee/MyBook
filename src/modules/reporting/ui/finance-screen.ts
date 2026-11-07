@@ -6,14 +6,17 @@ import { staffLabel } from "@/shared/domain/staff";
 // ─── данные (их загружает infrastructure/Finance.ts) ─────────────────────────
 
 export type MoneyMethod = "kaspi" | "card" | "manual";
-export type MoneySource = "deal" | "order" | "gift";
+export type MoneySource = "deal" | "order" | "gift" | "pack";
 
 /** Одно движение денег. Сумма всегда больше нуля; возврат клиенту — kind refund (в итогах со знаком минус). */
 export interface MoneyRow {
   id: string;
   source: MoneySource;
-  /** prepayment, payment, refund — платёж сделки; order — запись журнала заказа; legacy — заказ оплачен без записи в журнале; gift — сертификат. */
-  kind: "prepayment" | "payment" | "refund" | "order" | "legacy" | "gift";
+  /**
+   * prepayment, payment, refund — платёж сделки; order — запись журнала заказа; legacy — заказ оплачен без записи в журнале;
+   * gift — сертификат; ai_pack, media_pack — пакет ИИ-дизайнера и минут видео (номер — в giftNumber).
+   */
+  kind: "prepayment" | "payment" | "refund" | "order" | "legacy" | "gift" | "ai_pack" | "media_pack";
   method: MoneyMethod;
   amount: number;
   at: Date;
@@ -51,12 +54,13 @@ export interface FinanceDealRow {
   milestone: string | null;
   hasClient: boolean;
   eventDate: string | null;
-  /** Самая продвинутая книга клиента; null — книги нет (или клиент не заведён). */
+  /** Самая продвинутая книга клиента; null — книги нет (или клиент не заведён, или по сделке уже заказ). */
   book: { theme: string; answered: number; total: number; words: number } | null;
   /** Открытый счёт из чата. */
   invoice: { number: number; amount: number; expiresAt: Date; claimedAt: Date | null } | null;
   /** Заказ сделки и сколько он учёл предоплатой. */
-  order: { id: string; number: number; prepaid: number } | null;
+  /** Заказ сделки: учтённая в нём предоплата; cancelled — заказ отменён (деньги по сделке — к возврату). */
+  order: { id: string; number: number; prepaid: number; cancelled?: boolean } | null;
 }
 
 export interface FinanceOrderRow {
@@ -227,6 +231,8 @@ const KIND_LABELS: Record<MoneyRow["kind"], string> = {
   order: "Оплата заказа",
   legacy: "Заказ оплачен (без записи оплаты)",
   gift: "Подарочный сертификат",
+  ai_pack: "Пакет ИИ-дизайнера",
+  media_pack: "Минуты своих видео и аудио",
 };
 const BUCKETS = [
   { key: "kaspi", label: "Kaspi" },
@@ -238,6 +244,7 @@ const SOURCES = [
   { key: "deal", label: "Сделки: предоплаты и доплаты" },
   { key: "order", label: "Заказы на сайте" },
   { key: "gift", label: "Подарочные сертификаты" },
+  { key: "pack", label: "Пакеты: ИИ-дизайнер и видео" },
 ] as const;
 
 /** Готовность книги клиента: готова (или заказ уже оформлен), пишется, не начата. */
@@ -284,6 +291,8 @@ export function financeScreen(input: {
   review: ReviewRow[];
   staff: { id: string; name: string; email: string }[];
   visible?: (managerId: string | null) => boolean;
+  /** Кто смотрит: свою ручную запись денег он проверить не может (проверяет другой сотрудник). */
+  viewerId?: string | null;
   tz: string;
   now: Date;
 }) {
@@ -306,8 +315,9 @@ export function financeScreen(input: {
   const refundRows = cur.filter((m) => m.kind === "refund");
   const incoming = sum(incomingRows);
   const refunds = sum(refundRows);
-  // Онлайн и вручную — тоже за вычетом возвратов этим способом: вместе они дают «Пришло».
-  const online = cur.filter((m) => m.method !== "manual").reduce((s, m) => s + sign(m), 0);
+  // Онлайн и вручную — только поступления: способ возврата не записывается (возврат всегда «вручную»), поэтому возвраты —
+  // отдельной строкой, а онлайн + вручную = поступило.
+  const online = sum(incomingRows.filter((m) => m.method !== "manual"));
   const prevNet = prev.reduce((s, m) => s + sign(m), 0);
   const net = incoming - refunds;
 
@@ -334,8 +344,8 @@ export function financeScreen(input: {
   });
   const managers = new Map<string, { id: string; label: string; value: number; count: number }>();
   for (const m of cur) {
-    const id = m.managerId ?? (m.source === "gift" ? "-gift" : "-none");
-    const label = m.managerId ? who(m.managerId) : m.source === "gift" ? "Сайт: сертификаты" : "Без ответственного";
+    const id = m.managerId ?? (m.source === "gift" ? "-gift" : m.source === "pack" ? "-pack" : "-none");
+    const label = m.managerId ? who(m.managerId) : m.source === "gift" ? "Сайт: сертификаты" : m.source === "pack" ? "Сайт: пакеты ИИ и видео" : "Без ответственного";
     const cell = managers.get(id) ?? { id, label, value: 0, count: 0 };
     cell.value += sign(m);
     if (m.kind !== "refund") cell.count++;
@@ -346,19 +356,22 @@ export function financeScreen(input: {
   const orderRef = (id: string | null, n: number | null) => (id && n !== null ? { label: `Заказ №${n}`, href: `/admin/orders/${id}` } : null);
   const moneyView = (m: MoneyRow) => ({
     key: `${m.kind}:${m.id}`,
-    dateLabel: shortDate(m.at, m.kind !== "legacy"),
+    /** День магазина (YYYY-MM-DD) — для выгрузки. */
+    day: zonedDay(m.at, tz),
+    // Время — только у онлайн-оплат: ручной платёж за выбранный день хранится как полдень, и «12:00» вводило бы в заблуждение.
+    dateLabel: shortDate(m.at, m.method !== "manual" && m.kind !== "legacy"),
     amount: sign(m),
     refund: m.kind === "refund",
     method: m.source === "gift" && m.method === "manual" ? "Вручную" : m.kind === "legacy" && m.method === "manual" ? "Вручную, без чека" : METHOD_LABELS[m.method],
-    what: KIND_LABELS[m.kind] + (m.invoiceNumber ? ` · счёт P${m.invoiceNumber}` : ""),
+    what: KIND_LABELS[m.kind] + (m.invoiceNumber ? ` · счёт P${m.invoiceNumber}` : "") + (m.source === "pack" && m.giftNumber !== null ? ` ${m.kind === "ai_pack" ? "A" : "M"}${m.giftNumber}` : ""),
     refs: [m.source === "gift" && m.giftNumber !== null ? { label: `Сертификат №${m.giftNumber}`, href: "/admin/gifts" } : null, dealRef(m.dealId, m.dealNumber), orderRef(m.orderId, m.orderNumber)].filter((r): r is { label: string; href: string } => !!r),
     client: m.client,
     manager: m.managerId ? who(m.managerId) : "—",
     acceptedBy: m.acceptedById ? who(m.acceptedById) : m.method !== "manual" ? "онлайн" : "—",
     receiptHref: m.receiptId ? (m.source === "deal" ? `/api/admin/receipts/${m.receiptId}` : `/api/admin/order-payments/${m.receiptId}/receipt`) : null,
     operation: m.method !== "manual" && m.externalRef ? m.externalRef : null,
-    /** Ручная запись денег: проверил ли руководитель (возвраты и записи без журнала не проверяются). */
-    check: m.method === "manual" && (m.kind === "prepayment" || m.kind === "payment" || m.kind === "order") ? (m.reviewedAt ? ("reviewed" as const) : ("pending" as const)) : null,
+    /** Ручная запись денег (и возврат): проверил ли руководитель (записи без журнала не проверяются). */
+    check: m.method === "manual" && (m.kind === "prepayment" || m.kind === "payment" || m.kind === "refund" || m.kind === "order") ? (m.reviewedAt ? ("reviewed" as const) : ("pending" as const)) : null,
   });
 
   // ─── ожидается и нужен возврат ─────────────────────────────────────────────
@@ -389,8 +402,13 @@ export function financeScreen(input: {
     const href = `/admin/deals/${d.id}`;
     const ref = `Сделка №${d.number}`;
     const manager = who(d.managerId);
+    if (d.order?.cancelled) {
+      // Заказ отменён, а деньги по сделке у нас: вернуть клиенту (возврат оформляется в сделке) или оформить новый заказ.
+      if (d.paid > 0) issues.push({ key: `dc:${d.id}`, kind: "deal_lost", title: `Заказ №${d.order.number} отменён — деньги по сделке у нас`, href, ref, client: d.client, manager, amount: d.paid, note: "оформите возврат в сделке", dateLabel: null });
+      continue;
+    }
     if (d.order) {
-      // Сделка с заказом: всё, что внесено сверх учтённой в заказе предоплаты, — к возврату или зачёту.
+      // Сделка с заказом: всё, что внесено сверх учтённой в заказе предоплаты, — к возврату (оформляется в сделке).
       const extra = d.paid - d.order.prepaid;
       if (extra > 0) issues.push({ key: `da:${d.id}`, kind: "deal_after_order", title: `Внесено по сделке больше, чем учтено в заказе №${d.order.number}`, href, ref, client: d.client, manager, amount: extra, note: `по сделке ${formatPrice(d.paid)}, в заказе учтено ${formatPrice(d.order.prepaid)}`, dateLabel: null });
       continue;
@@ -495,8 +513,11 @@ export function financeScreen(input: {
       kind: r.kind,
       id: r.id,
       amount: r.amount,
-      dateLabel: shortDate(r.at, true),
-      what: r.kind === "order" ? "Оплата заказа" : r.paymentKind === "prepayment" ? "Предоплата" : "Платёж",
+      dateLabel: shortDate(r.at),
+      what: r.kind === "order" ? "Оплата заказа" : r.paymentKind === "prepayment" ? "Предоплата" : r.paymentKind === "refund" ? "Возврат клиенту" : "Платёж",
+      refund: r.paymentKind === "refund",
+      /** Запись смотрящего: себя не проверяют — сверяет другой сотрудник. */
+      mine: !!input.viewerId && r.acceptedById === input.viewerId,
       refs: [dealRef(r.dealId, r.dealNumber), orderRef(r.orderId, r.orderNumber)].filter((x): x is { label: string; href: string } => !!x),
       client: r.client,
       manager: who(r.managerId),
@@ -512,11 +533,12 @@ export function financeScreen(input: {
       incoming,
       refunds,
       online,
-      manual: net - online,
+      manual: incoming - online,
       count: incomingRows.length,
       refundCount: refundRows.length,
       prevNet,
-      delta: prevNet ? (net - prevNet) / prevNet : net ? null : 0,
+      // Прошлый период в минусе (возвратов больше поступлений) — процент теряет смысл и меняет знак: не показываем.
+      delta: prevNet > 0 ? (net - prevNet) / prevNet : prevNet < 0 || net ? null : 0,
       /** Ожидается доплат: остатки договорённостей и заказы на оплате (без постоплат). */
       expected: sumLeft(dueNow),
       expectedReady: sumLeft(dueNow.filter((e) => e.group === "ready")),

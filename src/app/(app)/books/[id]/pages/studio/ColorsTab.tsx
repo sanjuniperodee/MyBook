@@ -61,7 +61,7 @@ export function ColorsTab({ design, base, style, set, onFocus }: { design: Inter
           <ColorField key={k} label={t[k]} value={design.palette[k]} swatches={swatches} onChange={(v) => v && colors({ [k]: v })} onReset={c[k] ? () => colors({ [k]: undefined }) : undefined} resetLabel={reset} />
         ))}
         {lowContrast ? (
-          <p className="flex items-center gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          <p className="flex items-center gap-2 rounded-xl bg-warning-bg px-3 py-2 text-xs text-warning">
             <AlertTriangle className="size-4 shrink-0" /> {t.contrast}
           </p>
         ) : null}

@@ -1,10 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { LogOut } from "lucide-react";
+import { ChevronRight, Globe, LogOut } from "lucide-react";
 import type { Permission } from "@/shared/domain/permissions";
 import { logoutAction } from "@/app/(auth)/actions";
-import { cn } from "@/lib/class-names";
 import { navSections, ShiftToggle } from "./AdminNav";
 import { useLive } from "./CrmLive";
 import { InstallCrm, useStandalone } from "./InstallCrm";
@@ -24,9 +23,9 @@ export function MoreMenu({ name, role, email, perms, onShift, tabHrefs }: { name
   return (
     <div className="mx-auto max-w-xl space-y-5 pb-4">
       <h1 className="font-semibold">Ещё</h1>
-      <div className="rounded-2xl border border-line bg-white p-4">
+      <div className="panel p-4">
         <div className="flex items-center gap-3">
-          <span className="flex size-14 items-center justify-center rounded-full bg-gradient-to-br from-wine to-wine-dark text-xl font-semibold text-white uppercase">{name.slice(0, 1) || "?"}</span>
+          <span className="flex size-14 items-center justify-center rounded-full bg-wine text-xl font-semibold text-white uppercase" aria-hidden>{name.slice(0, 1) || "?"}</span>
           <div className="min-w-0">
             <div className="truncate text-lg font-semibold">{name}</div>
             <div className="truncate text-sm text-muted">{role}</div>
@@ -35,26 +34,26 @@ export function MoreMenu({ name, role, email, perms, onShift, tabHrefs }: { name
         </div>
         {allowed.has("deals.edit") || allowed.has("chats.send") ? (
           <div className="mt-3 border-t border-line pt-2">
-            <ShiftToggle initial={onShift} />
+            <ShiftToggle initial={onShift} variant="row" />
           </div>
         ) : null}
       </div>
 
       {sections.map((s, i) => (
         <section key={s.title ?? i}>
-          {s.title ? <h2 className="mb-2 px-1 text-[11px] font-semibold tracking-wider text-muted uppercase">{s.title}</h2> : null}
-          <ul className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-white">
+          {s.title ? <h2 className="mb-2 px-1 text-[13px] font-medium text-muted">{s.title}</h2> : null}
+          <ul className="divide-y divide-line overflow-hidden rounded-[14px] border border-line bg-white">
             {s.items.map((it) => {
               const n = it.badge ? counters[it.badge] : 0;
               return (
                 <li key={it.href}>
-                  <Link href={it.href} className="flex items-center gap-3 min-h-12 px-4 py-3 active:bg-cream/60">
-                    <span className="flex size-9 items-center justify-center rounded-xl bg-wine/10 text-wine">
-                      <it.icon className="size-5" strokeWidth={1.8} />
+                  <Link href={it.href} className="flex min-h-12 items-center gap-3 px-4 py-2.5 active:bg-sunken">
+                    <span className="flex size-8 items-center justify-center rounded-lg bg-sunken text-ink-soft">
+                      <it.icon className="size-[18px]" strokeWidth={1.8} aria-hidden />
                     </span>
                     <span className="flex-1 text-[15px]">{it.label}</span>
-                    {n ? <span className="rounded-full bg-wine px-2 py-0.5 text-xs font-semibold text-white tabular-nums">{n > 99 ? "99+" : n}</span> : null}
-                    <span className="text-lg leading-none text-muted/70" aria-hidden>›</span>
+                    {n ? <span className="min-w-6 rounded-md bg-wine px-1.5 py-0.5 text-center text-xs font-semibold text-white tabular-nums">{n > 99 ? "99+" : n}</span> : null}
+                    <ChevronRight className="size-4 text-muted" aria-hidden />
                   </Link>
                 </li>
               );
@@ -64,29 +63,29 @@ export function MoreMenu({ name, role, email, perms, onShift, tabHrefs }: { name
       ))}
 
       <section>
-        <h2 className="mb-2 px-1 text-[11px] font-semibold tracking-wider text-muted uppercase">Внешний вид</h2>
-        <div className="rounded-2xl border border-line bg-white p-3">
+        <h2 className="mb-2 px-1 text-[13px] font-medium text-muted">Внешний вид</h2>
+        <div className="panel p-3">
           <ThemeSwitch />
         </div>
       </section>
 
       {!standalone ? (
         <section>
-          <h2 className="mb-2 px-1 text-[11px] font-semibold tracking-wider text-muted uppercase">Приложение</h2>
+          <h2 className="mb-2 px-1 text-[13px] font-medium text-muted">Приложение</h2>
           <InstallCrm />
         </section>
       ) : null}
 
-      <ul className={cn("divide-y divide-line overflow-hidden rounded-2xl border border-line bg-white")}>
+      <ul className="divide-y divide-line overflow-hidden rounded-[14px] border border-line bg-white">
         <li>
-          <Link href="/books" className="flex items-center gap-3 px-4 py-3.5 text-[15px]">
-            ← На сайт
+          <Link href="/books" className="flex min-h-12 items-center gap-3 px-4 py-3 text-[15px] active:bg-sunken">
+            <Globe className="size-5 text-ink-soft" strokeWidth={1.8} aria-hidden /> На сайт
           </Link>
         </li>
         <li>
           <form action={logoutAction}>
-            <button type="submit" className="flex w-full items-center gap-3 px-4 py-3.5 text-left text-[15px] text-red-700">
-              <LogOut className="size-5" /> Выйти из аккаунта
+            <button type="submit" className="flex min-h-12 w-full items-center gap-3 px-4 py-3 text-left text-[15px] text-danger active:bg-sunken">
+              <LogOut className="size-5" strokeWidth={1.8} aria-hidden /> Выйти из аккаунта
             </button>
           </form>
         </li>

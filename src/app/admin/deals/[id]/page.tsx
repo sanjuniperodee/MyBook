@@ -1,8 +1,12 @@
 import { container } from "@/server/container";
 import { listFields } from "@/modules/workspace";
 import Link from "next/link";
-import { BackLink } from "@/components/admin/BackLink";
 import { cn } from "@/lib/class-names";
+import { PageHeader } from "@/components/admin/PageHeader";
+import { Panel } from "@/components/ui/Panel";
+import { Badge } from "@/components/ui/Badge";
+import { ChatAvatar } from "@/components/admin/chat/Inbox";
+import { StageLabel } from "../StageLabel";
 import { notFound } from "next/navigation";
 import { can, canAssignOthers, canSeeAssigned, canWork, contactView, requireStaff } from "@/server/access";
 import { staffOptions } from "@/modules/access/ui";
@@ -25,7 +29,7 @@ import { invoiceViews } from "@/app/admin/invoices/view";
 import { RECENT_ONLINE_MS, type MoneyGuard } from "@/components/admin/invoices/model";
 import { DealAi } from "./DealAi";
 import { PaymentsPanel } from "./PaymentsPanel";
-import { CreateClientFromDeal, DealAssignee, DealDelete, DealFields, PipelineSwitch, StageBar, UnsortedBanner } from "./DealControls";
+import { CreateClientFromDeal, DealAssignee, DealDelete, DealFields, PipelineSwitch, RevealContact, StageBar, UnsortedBanner } from "./DealControls";
 import { DealBooks, DealCalls, DealLinks, Duplicates, NotesTimelineReadonly, PastDeals } from "./sections";
 import { pageId } from "@/server/input";
 import { discountLimit } from "@/server/discount";
@@ -112,41 +116,141 @@ export default async function DealPage({ params, searchParams }: { params: Promi
     }),
   );
 
+  const canReveal = can(staff, "clients.reveal") && canWork(staff, deal.assigneeId);
+  const extraPhones = contact.masked ? [] : deal.extraPhones.map((p) => formatPhone(p));
+  const showCreateClient = !deal.clientId && !suggested && !!deal.contactPhone && can(staff, "clients.create") && canWork(staff, deal.assigneeId);
+  const gifts = await container().sales.agreedGifts.get(deal.id);
+  const refundAfterOrder = deal.orderId ? await container().sales.refundAfterOrder(deal.id) : null;
+
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-center gap-3">
-        <BackLink href="/admin/deals">Сделки</BackLink>
-        <span className="text-sm text-muted max-lg:hidden">
-          создана {formatDate(deal.createdAt, true)} · {dealSourceLabels[deal.source]}
-        </span>
-        {can(staff, "deals.delete") ? (
-          <div className="ml-auto">
-            <DealDelete id={deal.id} number={deal.number} />
-          </div>
-        ) : null}
-      </div>
-      <div>
-        <h1 className="text-2xl font-semibold break-words">
-          <span className="text-muted">№{deal.number}</span> {deal.title}
-          {deal.repeatCount > 0 ? (
-            <span className="ml-2 inline-block rounded-full bg-violet-50 px-2 py-0.5 align-middle text-xs font-normal text-violet-800" title={`Покупок до этой сделки: ${deal.repeatCount}`} data-testid="deal-repeat">
-              повторный клиент
-            </span>
-          ) : null}
-        </h1>
-        <p className="mt-1 text-sm text-muted lg:hidden">
-          создана {formatDate(deal.createdAt, true)} · {dealSourceLabels[deal.source]}
-        </p>
-        {stage?.kind === "lost" && deal.lostReason ? <p className="mt-1 text-sm text-red-700">Отказ: {deal.lostReason}</p> : null}
-      </div>
+    <div className="flex flex-col gap-4 lg:gap-5">
+      <PageHeader
+        back={{ href: "/admin/deals", label: "Сделки" }}
+        title={
+          <span className="break-words">
+            <span className="font-normal text-muted tabular-nums">№{deal.number}</span> {deal.title}
+          </span>
+        }
+        meta={
+          <>
+            {stage ? <StageLabel name={stage.name} color={stage.color} className="text-[13px]" /> : null}
+            {stage?.kind === "lost" && deal.lostReason ? <Badge tone="danger">Отказ: {deal.lostReason}</Badge> : null}
+            {deal.repeatCount > 0 ? (
+              <span className="badge badge-info" title={`Покупок до этой сделки: ${deal.repeatCount}`} data-testid="deal-repeat">
+                повторный клиент
+              </span>
+            ) : null}
+          </>
+        }
+      >
+        Создана {formatDate(deal.createdAt, true)}, источник: {dealSourceLabels[deal.source]}
+      </PageHeader>
+
       {deal.unsorted ? <UnsortedBanner dealId={deal.id} canEdit={canEdit && canWork(staff, deal.assigneeId)} canDecide={can(staff, "deals.delete")} request={deal.tags.includes(REJECTION_TAGS.spam) ? "spam" : deal.tags.includes(REJECTION_TAGS.reject) ? "reject" : null} /> : null}
       {openDeals.length ? <Duplicates dealId={deal.id} closed={closed} duplicates={openDeals} /> : null}
-      {pipelines.length > 1 ? <PipelineSwitch dealId={deal.id} value={pipelineId ?? ""} pipelines={pipelines.map((p) => ({ id: p.id, name: p.name }))} disabled={!canEdit} /> : null}
-      <StageBar dealId={deal.id} current={deal.stageId} stages={stages.map((s) => ({ id: s.id, name: s.name, color: s.color, kind: s.kind }))} disabled={!canEdit} />
 
-      <div className="grid gap-5 max-lg:grid-cols-[minmax(0,1fr)] lg:grid-cols-[340px_minmax(0,1fr)]">
-        <aside className="min-w-0 space-y-4 max-lg:order-2">
-          <section className="space-y-4 rounded-2xl border border-line bg-white p-4 sm:p-5">
+      <section className="panel flex flex-col gap-2 p-1.5 sm:flex-row sm:items-center" aria-label="Этап и воронка">
+        <div className="min-w-0 flex-1">
+          <StageBar dealId={deal.id} current={deal.stageId} stages={stages.map((s) => ({ id: s.id, name: s.name, color: s.color, kind: s.kind }))} disabled={!canEdit} />
+        </div>
+        {pipelines.length > 1 ? (
+          <div className="shrink-0 border-line px-2 pb-1.5 sm:border-l sm:py-1 sm:pl-3">
+            <PipelineSwitch dealId={deal.id} value={pipelineId ?? ""} pipelines={pipelines.map((p) => ({ id: p.id, name: p.name }))} disabled={!canEdit} />
+          </div>
+        ) : null}
+      </section>
+
+      {/*
+        Ноутбук (≥1280): слева — что за сделка и действия (контакт, деньги, детали), справа — контекст (задачи, переписка,
+        история). Уже — одна колонка по важности: контакт, задачи, переписка, деньги, детали, история (order на листах).
+      */}
+      <div className="flex flex-col gap-4 xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] xl:items-start xl:gap-5">
+        <div className="contents xl:flex xl:min-w-0 xl:flex-col xl:gap-5">
+          <Panel
+            title="Контакт"
+            className="max-xl:order-1"
+            actions={client && can(staff, "clients.view") ? <Link href={`/admin/clients/${client.id}`} className="btn btn-ghost btn-sm">Карточка клиента</Link> : null}
+          >
+            <div className="flex items-start gap-3.5">
+              <ChatAvatar name={deal.contactName || "?"} url={null} size={48} />
+              <div className="min-w-0 flex-1 text-sm">
+                <div className="truncate text-[15px] font-semibold">{deal.contactName || "Без имени"}</div>
+                {contact.masked ? (
+                  <div className="mt-0.5 space-y-0.5 text-ink-soft" title="Контакты скрыты настройками вашей роли">
+                    <RevealContact dealId={deal.id} masked={{ phone: contact.phone ?? "", email: contact.email ?? "" }} canReveal={canReveal} />
+                  </div>
+                ) : (
+                  <div className="mt-0.5 space-y-0.5">
+                    {contact.phone ? (
+                      <a href={`tel:${normalizePhone(contact.phone) ? `+${normalizePhone(contact.phone)}` : contact.phone}`} className="block w-fit text-ink-soft tabular-nums hover:text-wine">
+                        {contact.phone}
+                      </a>
+                    ) : (
+                      <span className="block text-muted">Телефона нет</span>
+                    )}
+                    {extraPhones.length ? <span className="block text-xs text-muted tabular-nums">ещё: {extraPhones.join(", ")}</span> : null}
+                    {contact.email ? <span className="block truncate text-muted">{contact.email}</span> : null}
+                  </div>
+                )}
+              </div>
+            </div>
+            <ContactActions className="mt-4" target={{ dealId: deal.id }} canCall={can(staff, "calls.make")} canChat={can(staff, "chats.send") && !conv} canEmail={can(staff, "chats.send") && !!(deal.contactEmail || client?.email)} />
+            <dl className="mt-4 grid gap-3 border-t border-line pt-4 text-sm sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-x-6">
+              <div className="min-w-0">
+                <dt className="label text-xs">Ответственный</dt>
+                <dd>
+                  <DealAssignee dealId={deal.id} value={deal.assigneeId} options={options} disabled={!canEdit} />
+                </dd>
+              </div>
+              <div className="flex min-w-0 items-center justify-between gap-3 sm:block">
+                <dt className="text-xs font-medium text-ink-soft sm:mb-1.5" title="Клиент просил не писать: бот не напоминает о себе, правила автоматизаций не пишут. На его сообщения отвечать можно.">
+                  Писать первым
+                </dt>
+                <dd className="flex min-h-10 items-center">
+                  <NoMarketingToggle target={{ dealId: deal.id }} on={noMarketing} disabled={!canEdit || !works} />
+                </dd>
+              </div>
+            </dl>
+          </Panel>
+
+          {batch.length > 1 ? (
+            <section className="rounded-[14px] border border-success/25 bg-success-bg px-4 py-3.5 text-sm text-success max-xl:order-2 sm:px-5" data-testid="deal-batch">
+              <h2 className="font-semibold">Пакет: {batch.length} кн. оплачено сразу</h2>
+              <p className="mt-0.5 text-xs">Клиент оформляет книги по очереди — каждая забирает свою сделку (цена и предоплата делятся поровну).</p>
+              <ul className="mt-2.5 flex flex-wrap gap-1.5">
+                {batch.map((b) => (
+                  <li key={b.id}>
+                    <Link href={`/admin/deals/${b.id}`} aria-current={b.id === deal.id ? "page" : undefined} className={cn("chip h-8 text-xs", b.id === deal.id && "chip-on")}>
+                      {b.index + 1}/{b.size} · №{b.number}
+                      {b.hasOrder ? " · заказ оформлен" : ""}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+
+          <div className="max-xl:order-5">
+            <PaymentsPanel
+              dealId={deal.id}
+              agreed={deal.amount}
+              plan={agreedPlan}
+              gifts={gifts}
+              canEdit={canEdit}
+              order={order ? { id: order.id, number: order.number } : null}
+              payments={payments}
+              canDelete={can(staff, "deals.delete")}
+              orderMoney={orderMoneyView}
+              invoices={invoices}
+              invoicePerms={invoicePerms}
+              guard={guard}
+              payInvoiceId={payInvoiceId}
+              canIssue={invoicePerms.send}
+              refundAfterOrder={refundAfterOrder}
+            />
+          </div>
+
+          <Panel title="Детали сделки" description="Бюджет, источник, свои поля и теги" className="max-xl:order-6" actions={can(staff, "deals.delete") ? <DealDelete id={deal.id} number={deal.number} /> : null}>
             <DealFields
               deal={{
                 id: deal.id,
@@ -156,90 +260,76 @@ export default async function DealPage({ params, searchParams }: { params: Promi
                 contactName: deal.contactName,
                 contactPhone: contact.masked ? "" : (deal.contactPhone ?? ""),
                 contactEmail: contact.masked ? "" : (deal.contactEmail ?? ""),
-                extraPhones: contact.masked ? [] : deal.extraPhones.map((p) => formatPhone(p)),
+                extraPhones,
                 tags: deal.tags,
               }}
               masked={contact.masked ? { phone: contact.phone, email: contact.email } : null}
-              canReveal={can(staff, "clients.reveal") && canWork(staff, deal.assigneeId)}
+              canReveal={canReveal}
               fields={dealFields.map((f) => ({ key: f.key, label: f.label, type: f.type, options: f.options }))}
               values={deal.customFields}
               disabled={!canEdit}
               pricing={deal.orderId ? null : { plan: agreedPlan, maxPercent: maxDiscount }}
             />
-            <div>
-              <div className="mb-1 text-xs text-muted">Ответственный</div>
-              <DealAssignee dealId={deal.id} value={deal.assigneeId} options={options} disabled={!canEdit} />
-            </div>
-            <ContactActions target={{ dealId: deal.id }} canCall={can(staff, "calls.make")} canChat={can(staff, "chats.send") && !conv} canEmail={can(staff, "chats.send") && !!(deal.contactEmail || client?.email)} />
-            <div className="flex items-center justify-between gap-3 text-xs text-muted">
-              <span title="Клиент просил не писать: бот не напоминает о себе, правила автоматизаций не пишут. На его сообщения отвечать можно.">Писать первым</span>
-              <NoMarketingToggle target={{ dealId: deal.id }} on={noMarketing} disabled={!canEdit || !works} />
-            </div>
-          </section>
-          {batch.length > 1 ? (
-            <section className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 text-sm" data-testid="deal-batch">
-              <h2 className="text-sm font-semibold text-emerald-950">Пакет: {batch.length} кн. оплачено сразу</h2>
-              <p className="mt-1 text-xs text-emerald-900">Клиент оформляет книги по очереди — каждая забирает свою сделку (цена и предоплата делятся поровну).</p>
-              <ul className="mt-2 flex flex-wrap gap-1.5">
-                {batch.map((b) => (
-                  <li key={b.id}>
-                    <Link href={`/admin/deals/${b.id}`} className={cn("rounded-full px-2.5 py-1 text-xs", b.id === deal.id ? "bg-wine text-white" : "bg-white text-ink-soft hover:bg-cream")}>
-                      {b.index + 1}/{b.size} · №{b.number}{b.hasOrder ? " · заказ оформлен" : ""}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
-          <PaymentsPanel
-            dealId={deal.id}
-            agreed={deal.amount}
-            plan={agreedPlan}
-            gifts={await container().sales.agreedGifts.get(deal.id)}
-            canEdit={canEdit}
-            order={order ? { id: order.id, number: order.number } : null}
-            payments={payments}
-            canDelete={can(staff, "deals.delete")}
-            orderMoney={orderMoneyView}
-            invoices={invoices}
-            invoicePerms={invoicePerms}
-            guard={guard}
-            payInvoiceId={payInvoiceId}
-            canIssue={invoicePerms.send}
-          />
-          {bookRows.length ? <DealBooks books={bookRows} seen={clientSeen} /> : null}
-          <DealLinks
-            dealId={deal.id}
-            channel={screen.channel}
-            client={client}
-            suggested={suggested}
-            order={order}
-            convs={convs}
-            canEdit={canEdit}
-            can={(p) => can(staff, p)}
-            emailOf={(email) => contactView(staff, { email }).email}
-          />
-          {duplicates.past.length ? <PastDeals deals={duplicates.past} canSee={(assigneeId) => canSeeAssigned(staff, assigneeId)} /> : null}
-          {!deal.clientId && !suggested && deal.contactPhone && can(staff, "clients.create") && canWork(staff, deal.assigneeId) ? <CreateClientFromDeal dealId={deal.id} name={deal.contactName.startsWith("…") ? "" : deal.contactName} /> : null}
-        </aside>
+          </Panel>
 
-        <div className="min-w-0 space-y-5">
-          {ai ? <DealAi dealId={deal.id} summary={deal.aiSummary ?? null} summaryAt={deal.aiSummary ? formatDate(new Date(deal.aiSummary.at), true) : null} canEdit={canEdit} /> : null}
-          <section className="rounded-2xl border border-line bg-white p-4 sm:p-5">
-            <h2 className="mb-2 font-semibold">Задачи</h2>
-            <TaskList tasks={tasks} admins={options} dealId={deal.id} clientId={deal.clientId ?? undefined} emptyText="Нет задач — запланируйте следующий шаг, чтобы сделка не потерялась" />
-          </section>
+          {bookRows.length ? (
+            <div className="max-xl:order-7">
+              <DealBooks books={bookRows} seen={clientSeen} />
+            </div>
+          ) : null}
+          <div className="max-xl:order-8">
+            <DealLinks
+              dealId={deal.id}
+              channel={screen.channel}
+              client={client}
+              suggested={suggested}
+              order={order}
+              convs={convs}
+              canEdit={canEdit}
+              can={(p) => can(staff, p)}
+              emailOf={(email) => contactView(staff, { email }).email}
+            >
+              {showCreateClient ? <CreateClientFromDeal dealId={deal.id} name={deal.contactName.startsWith("…") ? "" : deal.contactName} /> : null}
+            </DealLinks>
+          </div>
+          {duplicates.past.length ? (
+            <div className="max-xl:order-11">
+              <PastDeals deals={duplicates.past} canSee={(assigneeId) => canSeeAssigned(staff, assigneeId)} />
+            </div>
+          ) : null}
+        </div>
+
+        <div className="contents xl:flex xl:min-w-0 xl:flex-col xl:gap-5">
+          <Panel
+            title={
+              <>
+                Задачи {tasks.filter((t) => !t.done).length ? <span className="font-normal text-muted tabular-nums">{tasks.filter((t) => !t.done).length}</span> : null}
+              </>
+            }
+            className="max-xl:order-2"
+          >
+            <TaskList tasks={tasks} admins={options} dealId={deal.id} clientId={deal.clientId ?? undefined} emptyText="Задач нет — запланируйте следующий шаг, чтобы сделка не потерялась" />
+          </Panel>
+
+          {ai ? (
+            <div className="max-xl:order-3">
+              <DealAi dealId={deal.id} summary={deal.aiSummary ?? null} summaryAt={deal.aiSummary ? formatDate(new Date(deal.aiSummary.at), true) : null} canEdit={canEdit} />
+            </div>
+          ) : null}
 
           {conv && vars ? (
-            <section className="overflow-hidden rounded-2xl border border-line bg-white">
-              <div className="flex items-center justify-between border-b border-line px-4 py-3 sm:px-5">
-                <h2 className="font-semibold">Переписка · {channelLabel(conv.channel)}</h2>
-                <Link href={`/admin/chats?c=${conv.id}`} className="inline-flex min-h-11 items-center text-sm text-wine hover:underline lg:min-h-0 lg:text-xs">
+            <Panel
+              flush
+              className="overflow-hidden max-xl:order-4"
+              title={`Переписка: ${channelLabel(conv.channel)}`}
+              actions={
+                <Link href={`/admin/chats?c=${conv.id}`} className="btn btn-ghost btn-sm">
                   Открыть в чатах
                 </Link>
-              </div>
+              }
+            >
               <ChatPanel
-                className="h-[70dvh] max-h-[620px] lg:h-[460px] lg:max-h-none"
+                className="h-[70dvh] max-h-[620px] xl:h-[520px] xl:max-h-none"
                 conversationId={conv.id}
                 messages={messages}
                 canSend={can(staff, "chats.send") && canWork(staff, deal.assigneeId)}
@@ -254,15 +344,18 @@ export default async function DealPage({ params, searchParams }: { params: Promi
                 timeZone={storeTimeZone()}
                 me={staff.user.id}
               />
-            </section>
+            </Panel>
           ) : null}
 
-          {callRows.length ? <DealCalls calls={screen.calls} canListen={can(staff, "calls.recordings")} /> : null}
+          {callRows.length ? (
+            <div className="max-xl:order-9">
+              <DealCalls calls={screen.calls} canListen={can(staff, "calls.recordings")} />
+            </div>
+          ) : null}
 
-          <section className="rounded-2xl border border-line bg-white p-4 sm:p-5">
-            <h2 className="mb-4 font-semibold">История</h2>
+          <Panel title="История" className="max-xl:order-10">
             {canEdit ? <NotesTimeline notes={notes} clientId={deal.clientId} dealId={deal.id} mentionables={mentionables} whatsappTo={whatsappTo} /> : <NotesTimelineReadonly notes={notes} whatsappTo={whatsappTo} />}
-          </section>
+          </Panel>
         </div>
       </div>
     </div>

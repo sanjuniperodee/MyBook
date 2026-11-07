@@ -1,4 +1,5 @@
 import { DEFAULT_BACK_LAYOUT, isBackLayout } from "@/lib/book/cover-back";
+import { ToolHeader } from "../ToolHeader";
 import type { Metadata } from "next";
 import { requireUser } from "@/server/auth";
 import { getAccessibleBook } from "@/server/books";
@@ -47,7 +48,7 @@ export default async function CoverPage({ params, searchParams }: { params: Prom
   };
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
-      <h1 className="mb-5 font-serif text-3xl font-medium sm:mb-8 sm:text-5xl">{m.books.cover.title}</h1>
+      <ToolHeader title={m.books.cover.title} description={m.books.tools.cover} />
       <CoverEditor
         bookId={book.id}
         format={book.format}

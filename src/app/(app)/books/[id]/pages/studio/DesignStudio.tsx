@@ -130,7 +130,7 @@ export function DesignStudio({
               onClick={async () => {
                 if (await confirmDialog({ title: t.resetAll, text: t.resetAllConfirm })) setStyle(resetStyle(style));
               }}
-              className="ml-1 inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-sm text-muted hover:bg-ink/5 hover:text-ink"
+              className="ml-1 inline-flex min-h-9 items-center gap-1.5 rounded-[10px] px-3 text-sm text-muted hover:bg-ink/5 hover:text-ink"
             >
               <RotateCcw className="size-3.5" /> <span className="max-sm:sr-only">{t.resetAll}</span>
             </button>

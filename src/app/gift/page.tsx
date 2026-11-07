@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
-import { Gift, PenLine, Sparkles } from "lucide-react";
 import { LandingHeader } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
 import { getCurrentUser } from "@/server/auth";
 import { Faq } from "@/components/Faq";
 import { GiftForm } from "./GiftForm";
-import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
+import { PageIntro } from "@/components/landing/PageIntro";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { getLocale, getMessages } from "@/i18n/server";
 import { alternates } from "@/i18n/seo";
@@ -16,8 +15,6 @@ export async function generateMetadata(): Promise<Metadata> {
   const { metaTitle, metaDescription } = m.gift.page;
   return { title: metaTitle, description: metaDescription, alternates: alternates("/gift", locale), ...socialMeta({ path: "/gift", locale, title: metaTitle, description: metaDescription }) };
 }
-
-const icons = [Gift, PenLine, Sparkles];
 
 export default async function GiftPage() {
   const [user, locale, m] = await Promise.all([getCurrentUser(), getLocale(), getMessages()]);
@@ -37,41 +34,34 @@ export default async function GiftPage() {
     <>
       <JsonLd data={jsonLd} />
       <LandingHeader loggedIn={!!user} />
-      <main className="pt-28 pb-20 sm:pt-36">
+      <main className="pb-20">
+        <PageIntro
+          crumbs={[{ name: m.landing.seoPage.home, href: "/" }, { name: t.eyebrow }]}
+          title={
+            <>
+              {t.titleStart} <span className="italic">{t.titleAccent}</span>
+            </>
+          }
+          lead={t.lead}
+          className="pb-10 sm:pb-12"
+        />
+
         <div className="container-x">
-          <div className="max-w-2xl">
-            <Breadcrumbs items={[{ name: m.landing.seoPage.home, href: "/" }, { name: t.eyebrow }]} />
-            <div className="eyebrow">{t.eyebrow}</div>
-            <h1 className="mt-3 font-serif text-[40px] leading-[1.05] font-medium tracking-tight sm:text-6xl">
-              {t.titleStart} <em className="text-wine">{t.titleAccent}</em>
-            </h1>
-            <p className="mt-5 text-lg leading-relaxed text-ink-soft">{t.lead}</p>
-          </div>
+          <GiftForm defaults={{ name: user?.name ?? "", email: user?.email ?? "", locale }} />
 
-          <div className="mt-12">
-            <GiftForm defaults={{ name: user?.name ?? "", email: user?.email ?? "", locale }} />
-          </div>
+          {/* Как это происходит: купить → вручить → получатель пишет. Настоящая последовательность — с номерами. */}
+          <ol className="mt-24 grid gap-10 border-t border-line pt-10 md:grid-cols-3 md:gap-8">
+            {t.steps.map((s, i) => (
+              <li key={s.title}>
+                <span className="font-serif text-5xl leading-none text-wine tabular-nums">{i + 1}</span>
+                <h2 className="mt-4 text-lg font-semibold">{s.title}</h2>
+                <p className="mt-1.5 leading-relaxed text-ink-soft">{s.text}</p>
+              </li>
+            ))}
+          </ol>
 
-          <section className="mt-24 grid gap-5 md:grid-cols-3">
-            {t.steps.map((s, i) => {
-              const Icon = icons[i];
-              return (
-                <div key={s.title} className="card p-6">
-                  <div className="flex items-center justify-between">
-                    <span className="flex size-11 items-center justify-center rounded-2xl bg-rose text-wine">
-                      <Icon className="size-5" />
-                    </span>
-                    <span className="font-serif text-4xl text-line">{i + 1}</span>
-                  </div>
-                  <div className="mt-5 text-lg font-semibold">{s.title}</div>
-                  <p className="mt-1.5 text-sm leading-relaxed text-muted">{s.text}</p>
-                </div>
-              );
-            })}
-          </section>
-
-          <section className="mt-20 grid gap-10 lg:grid-cols-[1fr_1.4fr]">
-            <h2 className="font-serif text-4xl font-medium">{t.faqTitle}</h2>
+          <section className="mt-24 grid gap-10 lg:grid-cols-[1fr_1.6fr] lg:gap-16">
+            <h2 className="font-serif text-4xl leading-[1.05] font-medium tracking-tight sm:text-5xl">{t.faqTitle}</h2>
             <Faq items={t.faq} size="md" />
           </section>
         </div>

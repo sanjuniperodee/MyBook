@@ -111,15 +111,15 @@ export const MentionTextarea = forwardRef<HTMLTextAreaElement, Props>(function M
         onBlur={() => setTimeout(() => (setQuery(null), setSlash(null)), 150)}
       />
       {templates.length ? (
-        <div className="absolute bottom-full left-0 z-20 mb-1 w-[min(26rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-line bg-white shadow-xl" role="listbox" aria-label="Шаблоны ответов">
-          <div className="border-b border-line bg-cream/40 px-3 py-1.5 text-[11px] text-muted">Шаблоны · ↑↓ выбрать, Enter — вставить, Esc — закрыть</div>
+        <div className="absolute bottom-full left-0 z-20 mb-1 w-[min(26rem,calc(100vw-2rem))] overflow-hidden rounded-[10px] border border-line bg-white shadow-soft" role="listbox" aria-label="Шаблоны ответов">
+          <div className="border-b border-line bg-sunken px-3 py-1.5 text-[11px] text-muted">Шаблоны · ↑↓ выбрать, Enter — вставить, Esc — закрыть</div>
           {templates.map((t, i) => (
             <button
               key={t.id}
               type="button"
               role="option"
               aria-selected={i === active}
-              className={cn("block w-full px-3 py-2 text-left", i === active ? "bg-rose/60" : "hover:bg-cream/60")}
+              className={cn("block w-full px-3 py-2 text-left", i === active ? "bg-rose" : "hover:bg-sunken")}
               onMouseEnter={() => setActive(i)}
               onMouseDown={(e) => {
                 e.preventDefault();
@@ -136,14 +136,14 @@ export const MentionTextarea = forwardRef<HTMLTextAreaElement, Props>(function M
         </div>
       ) : null}
       {matches.length ? (
-        <div className="absolute bottom-full left-0 z-20 mb-1 w-64 overflow-hidden rounded-xl border border-line bg-white shadow-xl" role="listbox">
+        <div className="absolute bottom-full left-0 z-20 mb-1 w-64 overflow-hidden rounded-[10px] border border-line bg-white shadow-soft" role="listbox">
           {matches.map((m, i) => (
             <button
               key={m}
               type="button"
               role="option"
               aria-selected={i === active}
-              className={cn("block w-full px-3 py-2 text-left text-sm", i === active ? "bg-rose/60" : "hover:bg-cream/60")}
+              className={cn("block w-full px-3 py-2 text-left text-sm", i === active ? "bg-rose" : "hover:bg-sunken")}
               onMouseDown={(e) => {
                 e.preventDefault();
                 insert(m);

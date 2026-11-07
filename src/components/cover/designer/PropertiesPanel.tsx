@@ -190,7 +190,7 @@ function ImagePanel({ layer, board, bookId, bookPhotos, patch, swatches, onCrop 
     <PanelSection title={t.title}>
       {!layer.photoId && !layer.stock ? <p className="text-sm text-muted">{t.empty}</p> : null}
       {photo && dpi && dpi < MIN_DPI ? (
-        <p className="flex gap-2 rounded-xl bg-amber-50 p-3 text-xs text-amber-900">
+        <p className="flex gap-2 rounded-xl bg-warning-bg p-3 text-xs text-warning">
           <AlertTriangle className="size-4 shrink-0" /> {t.lowRes(dpi)}
         </p>
       ) : null}

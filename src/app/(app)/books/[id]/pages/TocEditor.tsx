@@ -90,7 +90,7 @@ export function TocEditor({
               // Глава — подпись группы историй (её название — как в блоке «Главы книги»).
               if (c.kind === "chapter" && c.pageKey !== GALLERY_KEY)
                 return (
-                  <li key={c.key} className="pt-2 text-xs font-medium tracking-wide text-muted uppercase first:pt-0">
+                  <li key={c.key} className="pt-2 text-xs font-medium text-muted first:pt-0">
                     {s?.title?.trim() || c.label}
                   </li>
                 );

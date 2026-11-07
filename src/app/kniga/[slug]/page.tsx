@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Link } from "@/i18n/client";
 import { notFound } from "next/navigation";
-import { ArrowRight, CalendarHeart, Check, Gift, MessageCircleQuestion, PenLine } from "lucide-react";
+import { CalendarHeart, Gift, PenLine } from "lucide-react";
 import { LandingHeader } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
 import { Book3D } from "@/components/cover/Book3D";
@@ -9,6 +9,9 @@ import { coverTemplates } from "@/lib/book/covers";
 import { getCurrentUser } from "@/server/auth";
 import { siteReviews } from "@/server/reviews";
 import { Reviews } from "@/components/landing/Reviews";
+import { FilmFrame, Flourish, frameGhostBtn, themePhoto } from "@/components/landing/FilmFrame";
+import { SectionHead } from "@/components/landing/SectionHead";
+import { TrustList } from "@/components/TrustList";
 import { Faq } from "@/components/Faq";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
 import { articles } from "@/lib/content/articles";
@@ -89,163 +92,171 @@ export default async function LandingPage({ params }: { params: Promise<{ slug: 
     ),
   ];
 
+  const photo = themePhoto[l.theme];
+  const plans = [...getVisiblePlans()].sort((a, b) => Number(!!b.featured) - Number(!!a.featured));
+
   return (
     <>
-      <LandingHeader loggedIn={!!user} />
+      <LandingHeader loggedIn={!!user} overlay />
       <JsonLd data={jsonLd} />
       <main className="overflow-x-clip">
-        <section className="relative pt-28 pb-16 sm:pt-36 sm:pb-24">
-          <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(60%_50%_at_75%_30%,#f4e4df_0%,transparent_70%)]" />
-          <div className="container-x grid items-center gap-14 lg:grid-cols-[1.1fr_1fr]">
-            <div>
-              <Breadcrumbs items={[{ name: sp.home, href: "/" }, { name: sp.allIdeas, href: "/kniga" }, { name: c.label }]} />
-              <div className="eyebrow">{c.label}</div>
-              <h1 className="mt-4 font-serif text-[42px] leading-[1.03] font-medium tracking-tight sm:text-6xl">
-                {c.h1} <em className="text-wine">{c.accent}</em>
-              </h1>
-              <p className="mt-6 max-w-xl text-lg leading-relaxed text-ink-soft">{c.lead}</p>
-              {dl && occasion && dl.state !== "past" ? (
-                <div className="mt-6 inline-flex items-center gap-2.5 rounded-2xl border border-line bg-white/80 px-4 py-3 text-sm">
-                  <CalendarHeart className="size-5 shrink-0 text-wine" />
-                  <span>
-                    {dl.state === "digital"
-                      ? m.common.occasion.digitalOnly
-                      : dl.state === "premium"
-                        ? m.common.occasion.premiumOnly(dl.orderByPremium)
-                        : m.common.occasion.orderBy(m.common.occasions[occasion.id], dl.daysToTarget, dl.orderBy)}
-                  </span>
-                </div>
-              ) : null}
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <Link href={cta} className="btn btn-primary btn-lg">
-                  {ctaLabel(t.hero.cta)} <ArrowRight className="size-5" />
-                </Link>
-                <Link href="/gift" className="btn btn-outline btn-lg">
-                  <Gift className="size-5" /> {t.gift.cta}
-                </Link>
-              </div>
-              <p className="mt-4 text-sm text-muted">{sp.priceNote(formatPrice(minPrice))}</p>
+        {/* ─── КАДР: снимок о тех, кому книга, титр и одно действие ─── */}
+        <FilmFrame
+          photo={photo.key}
+          position={photo.position}
+          priority
+          aside={
+            <div className="enter w-[230px] xl:w-[250px]" style={{ "--i": 2 } as React.CSSProperties}>
+              <Book3D priority template={l.coverTemplate} title={c.cover.title} subtitle={c.cover.subtitle} names={c.cover.names} rotate={18} className="drop-shadow-[0_30px_40px_rgb(0_0_0/0.55)]" />
             </div>
-            <div className="mx-auto w-full max-w-[320px]">
-              <Book3D priority template={l.coverTemplate} title={c.cover.title} subtitle={c.cover.subtitle} names={c.cover.names} rotate={18} className="animate-float" />
-            </div>
+          }
+        >
+          <Breadcrumbs tone="dark" className="max-sm:hidden" items={[{ name: sp.home, href: "/" }, { name: sp.allIdeas, href: "/kniga" }, { name: c.label }]} />
+          <h1 className="max-w-3xl font-serif text-[42px] text-balance leading-[1.03] font-medium tracking-[-0.01em] text-white sm:text-6xl lg:text-[72px]">
+            {c.h1} <span className="font-normal italic">{c.accent}</span>
+          </h1>
+          <Flourish className="mt-3 text-[rgb(255_255_255/0.6)]" />
+          <p className="mt-5 max-w-[34rem] text-[17px] leading-relaxed text-white/85 sm:text-lg">{c.lead}</p>
+          {dl && occasion && dl.state !== "past" ? (
+            <p className="mt-6 inline-flex max-w-full items-start gap-2.5 rounded-[10px] bg-[rgb(255_255_255/0.12)] px-4 py-2.5 text-sm text-white backdrop-blur-md">
+              <CalendarHeart className="mt-0.5 size-4 shrink-0" aria-hidden />
+              <span>
+                {dl.state === "digital"
+                  ? m.common.occasion.digitalOnly
+                  : dl.state === "premium"
+                    ? m.common.occasion.premiumOnly(dl.orderByPremium)
+                    : m.common.occasion.orderBy(m.common.occasions[occasion.id], dl.daysToTarget, dl.orderBy)}
+              </span>
+            </p>
+          ) : null}
+          <div className="enter mt-8 flex flex-col gap-3 sm:flex-row" style={{ "--i": 1 } as React.CSSProperties}>
+            <Link href={cta} className="btn btn-primary btn-lg">
+              {ctaLabel(t.hero.cta)}
+            </Link>
+            <Link href="/gift" className={frameGhostBtn}>
+              <Gift className="size-5" aria-hidden /> {t.gift.cta}
+            </Link>
           </div>
-        </section>
+          <p className="mt-5 text-sm text-white/75">{sp.priceNote(formatPrice(minPrice))}</p>
+        </FilmFrame>
 
-        <section className="border-y border-line/70 bg-white/60 py-16 sm:py-20">
-          <div className="container-x grid gap-5 md:grid-cols-3">
-            {c.why.map((w) => (
-              <div key={w.title}>
-                <div className="flex items-center gap-2 font-semibold">
-                  <Check className="size-5 text-wine" /> {w.title}
-                </div>
-                <p className="mt-2 leading-relaxed text-ink-soft">{w.text}</p>
+        {/* ─── ПОЧЕМУ: три довода строкой ─── */}
+        <section className="border-b border-line py-16 sm:py-20">
+          <div className="container-x grid gap-10 md:grid-cols-3 md:gap-0 md:divide-x md:divide-line">
+            {c.why.map((w, i) => (
+              <div key={w.title} className={i === 0 ? "md:pr-10" : i === c.why.length - 1 ? "md:pl-10" : "md:px-10"}>
+                <h2 className="font-serif text-2xl leading-snug font-medium">{w.title}</h2>
+                <p className="mt-3 leading-relaxed text-ink-soft">{w.text}</p>
               </div>
             ))}
           </div>
         </section>
 
-        {blank ? (
-          <section className="py-20 sm:py-24">
-            <div className="container-x">
-              <div className="max-w-2xl">
-                <div className="eyebrow">{sp.editor.eyebrow}</div>
-                <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight sm:text-5xl">{sp.editor.title}</h2>
-              </div>
-              <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                {sp.editor.items.map((it) => (
-                  <div key={it.title} className="card p-6">
-                    <div className="flex items-center gap-2 text-xs font-medium text-wine">
-                      <PenLine className="size-4" /> {it.title}
-                    </div>
-                    <p className="mt-3 leading-relaxed text-ink-soft">{it.text}</p>
-                  </div>
-                ))}
-              </div>
-              <p className="mt-6 text-sm text-muted">{sp.editor.note}</p>
-            </div>
-          </section>
-        ) : (
-        <section className="py-20 sm:py-24">
+        {/* ─── О ЧЁМ: вопросы из книги (своя книга — как устроен редактор) ─── */}
+        <section className="py-20 sm:py-28">
           <div className="container-x">
-            <div className="max-w-2xl">
-              <div className="eyebrow">{sp.aboutEyebrow}</div>
-              <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight sm:text-5xl">{sp.aboutTitle(countQuestions(theme))}</h2>
-            </div>
-            <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {samples.map((q) => (
-                <div key={q.prompt} className="card p-6">
-                  <div className="flex items-center gap-2 text-xs font-medium text-wine">
-                    <MessageCircleQuestion className="size-4" /> {q.chapter}
-                  </div>
-                  <p className="mt-3 font-serif text-xl leading-snug">{q.prompt}</p>
-                </div>
-              ))}
-            </div>
-            <p className="mt-6 text-sm text-muted">{sp.aboutNote}</p>
+            {blank ? (
+              <>
+                <SectionHead title={sp.editor.title} note={sp.editor.note} />
+                <ul className="mt-12 grid border-t border-line sm:grid-cols-2">
+                  {sp.editor.items.map((it) => (
+                    <li key={it.title} className="border-b border-line py-6 sm:odd:pr-10 sm:even:border-l sm:even:pl-10">
+                      <div className="flex items-center gap-2 text-sm font-medium text-wine">
+                        <PenLine className="size-4" aria-hidden /> {it.title}
+                      </div>
+                      <p className="mt-2 text-[17px] leading-relaxed text-ink-soft">{it.text}</p>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <>
+                <SectionHead title={sp.aboutTitle(countQuestions(theme))} note={sp.aboutNote} />
+                <ul className="mt-12 grid border-t border-line sm:grid-cols-2">
+                  {samples.map((q) => (
+                    <li key={q.prompt} className="border-b border-line py-6 sm:odd:pr-10 sm:even:border-l sm:even:pl-10">
+                      <div className="text-sm text-muted">{q.chapter}</div>
+                      <p className="mt-2 font-serif text-[22px] leading-snug text-ink">{q.prompt}</p>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
           </div>
         </section>
-        )}
 
-        <section className="bg-cream/60 py-20 sm:py-24">
-          <div className="container-x grid gap-12 lg:grid-cols-[1fr_1.2fr]">
+        {/* ─── КАК И СКОЛЬКО ─── */}
+        <section className="border-t border-line bg-cream/60 py-20 sm:py-28">
+          <div className="container-x grid gap-14 lg:grid-cols-[1.1fr_1fr] lg:gap-20">
             <div>
-              <div className="eyebrow">{t.how.eyebrow}</div>
-              <h2 className="mt-3 font-serif text-4xl font-medium tracking-tight">{sp.howTitle}</h2>
-              <ol className="mt-8 space-y-5">
+              <h2 className="font-serif text-4xl leading-[1.05] font-medium tracking-tight sm:text-5xl">{sp.howTitle}</h2>
+              <ol className="mt-10 space-y-6">
                 {sp.howSteps(coverTemplates.length, blank).map((step, i) => (
-                  <li key={step} className="flex gap-4">
-                    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-wine font-serif text-white">{i + 1}</span>
-                    <span className="pt-1 leading-relaxed text-ink-soft">{step}</span>
+                  <li key={step} className="grid grid-cols-[2.5rem_1fr] gap-3 border-t border-line pt-5">
+                    <span className="font-serif text-3xl leading-none text-wine tabular-nums">{i + 1}</span>
+                    <span className="leading-relaxed text-ink-soft">{step}</span>
                   </li>
                 ))}
               </ol>
             </div>
-            <div className="grid gap-3 self-start">
-              {getVisiblePlans().map((p) => (
-                <div key={p.id} className="flex items-center justify-between gap-4 rounded-2xl border border-line bg-white px-5 py-4">
-                  <div>
-                    <div className="font-medium">{m.common.plans[p.id].name}</div>
-                    <div className="text-sm text-muted">{m.common.plans[p.id].features[0]}</div>
+            <div className="self-start lg:sticky lg:top-24">
+              <div className="divide-y divide-line overflow-hidden rounded-[14px] border border-line bg-white">
+                {plans.map((p) => (
+                  <div key={p.id} className="relative flex items-center justify-between gap-4 px-6 py-5">
+                    {p.featured ? <span aria-hidden className="absolute inset-y-0 left-0 w-1 bg-wine" /> : null}
+                    <div className="min-w-0">
+                      <div className="font-semibold">{m.common.plans[p.id].name}</div>
+                      <div className="mt-0.5 text-sm text-muted">{m.common.plans[p.id].features[0]}</div>
+                    </div>
+                    <div className="shrink-0 font-serif text-3xl tabular-nums">{formatPrice(p.price)}</div>
                   </div>
-                  <div className="shrink-0 font-serif text-2xl">{formatPrice(p.price)}</div>
-                </div>
-              ))}
-              <Link href={cta} className="btn btn-primary btn-lg mt-2">
-                {ctaLabel(sp.create)} <ArrowRight className="size-5" />
+                ))}
+              </div>
+              <Link href={cta} className="btn btn-primary btn-lg mt-5 w-full">
+                {ctaLabel(sp.create)}
               </Link>
+              <TrustList compact className="mt-6" />
             </div>
           </div>
         </section>
 
         <Reviews reviews={reviews.reviews} summary={reviews.summary} t={m.review.showcase} />
 
-        <section className="py-20 sm:py-24">
-          <div className="container-x grid gap-10 lg:grid-cols-[1fr_1.4fr]">
-            <h2 className="font-serif text-4xl font-medium">{sp.faqTitle}</h2>
+        <section className="border-t border-line py-20 sm:py-28">
+          <div className="container-x grid gap-10 lg:grid-cols-[1fr_1.6fr] lg:gap-16">
+            <div>
+              <h2 className="font-serif text-4xl leading-[1.05] font-medium tracking-tight sm:text-5xl">{sp.faqTitle}</h2>
+              <Link href={cta} className="btn btn-primary btn-lg mt-8 max-lg:hidden">
+                {ctaLabel(t.hero.cta)}
+              </Link>
+            </div>
             <Faq items={faqItems} size="md" />
           </div>
         </section>
 
-        <section className="border-t border-line py-14">
-          <div className="container-x grid gap-10 md:grid-cols-2">
-            <div>
-              <div className="text-sm font-semibold">{sp.more}</div>
-              <div className="mt-4 flex flex-wrap gap-2">
+        <section className="border-t border-line bg-cream/50 py-14 sm:py-16">
+          <div className="container-x grid gap-12 md:grid-cols-[1.4fr_1fr]">
+            <nav aria-label={sp.more}>
+              <h2 className="text-sm font-semibold">{sp.more}</h2>
+              <ul className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm">
                 {ideas.map((x) => (
-                  <Link key={x.slug} href={`/kniga/${x.slug}`} className="rounded-full border border-line bg-white px-4 py-1.5 text-sm text-ink-soft hover:border-ink/30">
-                    {x.content[locale].label}
-                  </Link>
+                  <li key={x.slug}>
+                    <Link href={`/kniga/${x.slug}`} className="text-ink-soft underline decoration-line-strong underline-offset-4 hover:text-wine hover:decoration-wine">
+                      {x.content[locale].label}
+                    </Link>
+                  </li>
                 ))}
-                <Link href="/kniga" className="rounded-full border border-line bg-white px-4 py-1.5 text-sm text-wine hover:border-ink/30">
-                  {sp.allIdeas} →
-                </Link>
-              </div>
-            </div>
+                <li>
+                  <Link href="/kniga" className="font-medium text-wine hover:underline">
+                    {sp.allIdeas}
+                  </Link>
+                </li>
+              </ul>
+            </nav>
             {guides.length ? (
-              <div>
-                <div className="text-sm font-semibold">{m.landing.blog.moreArticles}</div>
-                <ul className="mt-4 space-y-2 text-sm">
+              <nav aria-label={m.landing.blog.moreArticles}>
+                <h2 className="text-sm font-semibold">{m.landing.blog.moreArticles}</h2>
+                <ul className="mt-4 space-y-2.5 text-sm">
                   {guides.map((x) => (
                     <li key={x.slug}>
                       <Link href={`/blog/${x.slug}`} className="text-ink-soft hover:text-wine">
@@ -254,7 +265,7 @@ export default async function LandingPage({ params }: { params: Promise<{ slug: 
                     </li>
                   ))}
                 </ul>
-              </div>
+              </nav>
             ) : null}
           </div>
         </section>

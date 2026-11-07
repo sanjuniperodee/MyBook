@@ -7,22 +7,23 @@ import { createStaffAction, resetStaffPasswordAction, revokeStaffAction, setStaf
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { Alert } from "@/components/ui/Alert";
 import { cn } from "@/lib/class-names";
+import { Badge } from "@/components/ui/Badge";
 
 export function StaffForm({ roles }: { roles: { id: string; name: string }[] }) {
   const [state, action] = useActionState<TeamState, FormData>(createStaffAction, {});
   return (
     <form action={action} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-7 lg:items-end">
       <div className="lg:col-span-2">
-        <label className="label">E-mail</label>
-        <input name="email" type="email" className="input h-11" placeholder="manager@example.com" required maxLength={200} />
+        <label className="label" htmlFor="staff-email">E-mail</label>
+        <input id="staff-email" name="email" type="email" className="input h-10 text-sm" placeholder="manager@example.com" required maxLength={200} />
       </div>
       <div>
-        <label className="label">Имя</label>
-        <input name="name" className="input h-11" maxLength={100} placeholder="Айгерим" />
+        <label className="label" htmlFor="staff-name">Имя</label>
+        <input id="staff-name" name="name" className="input h-10 text-sm" maxLength={100} placeholder="Айгерим" />
       </div>
       <div>
-        <label className="label">Роль</label>
-        <select name="roleId" className="input h-11" required defaultValue={roles.find((r) => r.name === "Менеджер продаж")?.id ?? roles[0]?.id}>
+        <label className="label" htmlFor="staff-role">Роль</label>
+        <select id="staff-role" name="roleId" className="input h-10 text-sm" required defaultValue={roles.find((r) => r.name === "Менеджер продаж")?.id ?? roles[0]?.id}>
           {roles.map((r) => (
             <option key={r.id} value={r.id}>
               {r.name}
@@ -31,15 +32,15 @@ export function StaffForm({ roles }: { roles: { id: string; name: string }[] }) 
         </select>
       </div>
       <div>
-        <label className="label">Внутр. номер</label>
-        <input name="extension" inputMode="numeric" className="input h-11" placeholder="101" maxLength={10} />
+        <label className="label" htmlFor="staff-ext">Внутр. номер</label>
+        <input id="staff-ext" name="extension" inputMode="numeric" className="input h-10 text-sm" placeholder="101" maxLength={10} />
       </div>
       <div>
-        <label className="label">Пароль</label>
-        <input name="password" type="text" autoComplete="off" className="input h-11" placeholder="сгенерировать" maxLength={200} />
+        <label className="label" htmlFor="staff-password">Пароль</label>
+        <input id="staff-password" name="password" type="text" autoComplete="off" className="input h-10 text-sm" placeholder="сгенерировать" maxLength={200} />
       </div>
       <div>
-        <SubmitButton className="h-11 w-full">Добавить</SubmitButton>
+        <SubmitButton className="h-10 w-full text-sm">Добавить</SubmitButton>
       </div>
       {state.error ? <Alert className="sm:col-span-2 lg:col-span-7">{state.error}</Alert> : null}
       {state.ok ? <Alert kind="success" className="break-all select-all sm:col-span-2 lg:col-span-7">{state.ok}</Alert> : null}
@@ -76,16 +77,16 @@ export function StaffRow({ member: m, roles, isSelf, canTouchOwner, isOwner }: {
     });
 
   return (
-    <tr className={cn("max-lg:block max-lg:space-y-2.5 max-lg:p-4", m.disabled && "bg-cream/40 text-muted")}>
-      <td className="px-4 py-3 max-lg:block max-lg:p-0">
+    <tr className={cn("max-lg:block max-lg:space-y-3 max-lg:px-4 max-lg:py-4 [&>td]:max-lg:border-0", m.disabled && "bg-sunken/40 text-muted")}>
+      <td className="max-lg:block max-lg:p-0">
         <div className="font-medium">
-          {m.name || "—"} {isSelf ? <span className="ml-1 rounded-full bg-cream px-2 py-0.5 text-[11px] font-normal text-muted">это вы</span> : null}
-          {m.disabled ? <span className="ml-1 rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-normal text-red-700">отключён</span> : null}
+          {m.name || "—"} {isSelf ? <Badge className="ml-1 font-normal">это вы</Badge> : null}
+          {m.disabled ? <Badge tone="danger" className="ml-1 font-normal">отключён</Badge> : null}
         </div>
         <div className="text-xs text-muted">{m.email}</div>
       </td>
-      <td className="px-4 py-3 max-lg:block max-lg:p-0">
-        <select className="input h-9 min-w-40 text-sm max-lg:w-full" value={m.roleId} disabled={locked || pending} onChange={(e) => run(() => setStaffRoleAction(m.id, e.target.value), "Роль изменена")} aria-label="Роль">
+      <td className="max-lg:block max-lg:p-0">
+        <select className="input h-10 min-w-40 text-sm max-lg:w-full lg:h-9" value={m.roleId} disabled={locked || pending} onChange={(e) => run(() => setStaffRoleAction(m.id, e.target.value), "Роль изменена")} aria-label="Роль">
           {roles.map((r) => (
             <option key={r.id} value={r.id}>
               {r.name}
@@ -93,10 +94,10 @@ export function StaffRow({ member: m, roles, isSelf, canTouchOwner, isOwner }: {
           ))}
         </select>
       </td>
-      <td className="px-4 py-3 max-lg:block max-lg:p-0">
+      <td className="max-lg:block max-lg:p-0">
         <span className="mb-1 block text-xs text-muted lg:hidden">Внутренний номер</span>
         <input
-          className="input h-9 w-24 text-sm max-lg:w-full"
+          className="input h-10 w-24 text-sm tabular-nums max-lg:w-full lg:h-9"
           inputMode="numeric"
           value={ext}
           maxLength={10}
@@ -107,10 +108,10 @@ export function StaffRow({ member: m, roles, isSelf, canTouchOwner, isOwner }: {
           aria-label="Внутренний номер"
         />
       </td>
-      <td className="px-4 py-3 max-lg:block max-lg:p-0">
+      <td className="max-lg:block max-lg:p-0">
         <span className="mb-1 block text-xs text-muted lg:hidden">Телефон (WhatsApp)</span>
         <input
-          className="input h-9 w-40 text-sm max-lg:w-full"
+          className="input h-10 w-40 text-sm tabular-nums max-lg:w-full lg:h-9"
           inputMode="tel"
           value={phone}
           maxLength={20}
@@ -121,14 +122,17 @@ export function StaffRow({ member: m, roles, isSelf, canTouchOwner, isOwner }: {
           aria-label="Телефон сотрудника для напоминаний в WhatsApp"
         />
       </td>
-      <td className="px-4 py-3 text-xs text-muted max-lg:block max-lg:p-0">{m.load}</td>
-      <td className="px-4 py-3 text-xs text-muted max-lg:block max-lg:p-0">Последний вход: {m.lastSeen}</td>
-      <td className="px-4 py-3 max-lg:block max-lg:p-0">
+      <td className="text-xs text-muted max-lg:block max-lg:p-0">{m.load}</td>
+      <td className="text-xs whitespace-nowrap text-muted max-lg:block max-lg:p-0">
+        <span className="lg:hidden">Последний вход: </span>
+        {m.lastSeen}
+      </td>
+      <td className="max-lg:block max-lg:p-0">
         {locked ? null : (
           <div className="flex flex-col items-end gap-1.5 max-lg:items-stretch">
-            <div className="flex flex-wrap justify-end gap-x-4 gap-y-1 max-lg:justify-start">
+            <div className="flex flex-wrap justify-end gap-1 max-lg:justify-start">
               <button
-                className="flex min-h-11 items-center gap-1.5 text-xs text-muted hover:text-ink lg:min-h-0"
+                className="btn btn-ghost btn-sm text-xs"
                 disabled={pending}
                 onClick={async () => {
                   if (await ask("Сбросить пароль? Сотрудник будет разлогинен, новый пароль покажем здесь один раз."))
@@ -141,21 +145,21 @@ export function StaffRow({ member: m, roles, isSelf, canTouchOwner, isOwner }: {
                 {pending ? <LoaderCircle className="size-3.5 animate-spin" /> : <KeyRound className="size-3.5" />} Пароль
               </button>
               <button
-                className="flex min-h-11 items-center gap-1.5 text-xs text-muted hover:text-ink lg:min-h-0"
+                className="btn btn-ghost btn-sm text-xs"
                 disabled={pending}
                 onClick={async () => (await ask(m.disabled ? "Включить доступ обратно?" : "Отключить сотрудника? Он сразу потеряет доступ к CRM, данные останутся.")) && run(() => setStaffDisabledAction(m.id, !m.disabled))}
               >
                 <Power className="size-3.5" /> {m.disabled ? "Включить" : "Отключить"}
               </button>
               <button
-                className="flex min-h-11 items-center gap-1.5 text-xs text-red-700 hover:text-red-900 lg:min-h-0"
+                className="btn btn-ghost btn-sm text-xs text-danger hover:bg-danger-bg hover:text-danger"
                 disabled={pending}
                 onClick={async () => (await ask("Забрать доступ к CRM? Аккаунт станет обычным клиентским.", true)) && run(() => revokeStaffAction(m.id), "Доступ снят")}
               >
                 <ShieldOff className="size-3.5" /> Убрать из команды
               </button>
             </div>
-            {msg ? <p className="max-w-xs text-right max-lg:text-left text-xs break-all text-emerald-700 select-all">{msg}</p> : null}
+            {msg ? <p className="max-w-xs text-right max-lg:text-left text-xs break-all text-success select-all">{msg}</p> : null}
           </div>
         )}
       </td>
