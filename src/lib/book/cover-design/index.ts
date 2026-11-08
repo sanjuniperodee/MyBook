@@ -4,7 +4,7 @@
  * оборот: фон развёртки — spread.ts, вариант оборота в слои — back-layers.ts.
  */
 export * from "./types";
-export { COVER_LIMITS, coverDesignPhotoIds, dropCoverPhoto, emptyImageLayers, layerText, newLayerId, parseCoverBack, parseCoverDesign, printedLayers, printedLayerText } from "./parse";
+export { COVER_LIMITS, coverDesignPhotoIds, dropCoverPhoto, emptyImageLayers, layerText, layerTextSize, newLayerId, parseCoverBack, parseCoverDesign, printedLayers, printedLayerText } from "./parse";
 export { backgroundArt, backgroundBase, backgroundMid, backOwnArt, boardSize, canvasGeometry, COVER_SAFE, GRADIENT_FILL, gradientVector, inkOn, layerRect, mirrorAngle, mixColor, OUTLINE_STEPS, safeArea, shapeElements, spreadPanels, textCopies } from "./geometry";
 export { backFill, repeatedFrontLayers, spineFill, templateForCover } from "./template";
 export { backFaceSvg, ownSpreadArt, svgWindow } from "./spread";

@@ -13,7 +13,8 @@ import { chapterMark, PHOTO_COLORS, type InteriorPalette } from "@/lib/book/inte
 import { openerArtShapes, openerEmblemShapes, titleEmblemShapes } from "@/lib/book/interior-art";
 import { openerFlow, textArea, pageSide } from "@/lib/book/page-geometry";
 import { openerFit } from "@/lib/book/opener-fit";
-import { print } from "@/lib/book/formats";
+import { MM_TO_PT, print } from "@/lib/book/formats";
+import { fitWordSize } from "@/lib/book/word-fit";
 import { cropOr, fillFocus, type PhotoCrop } from "@/lib/book/photo-crop";
 import { OPENER_FOCUS, openerPhotoPlan, openerTextColors, photoArea, photoPagePlan, type OpenerPhotoPlan } from "@/lib/book/photo-pages";
 import { DISPLAY_TOP, FRONT, HTML_LINE_HEIGHT, OPENER, photoCaptionFace, TITLE_LAYOUT, TOC, VIGNETTE_RULE } from "@/lib/book/typesetting";
@@ -171,8 +172,9 @@ export function TitlePage({ kit, title, subtitle, author, year, className, style
   const P = design.palette;
   const layout = design.titlePage?.layout ?? "center";
   const scale = metricsOf(kit).scale;
+  // Кегль — с подбором по самому длинному слову в ширину полосы набора, как в PDF (иначе слово обрезается).
   const titleEl = (size: number) => (
-    <div style={{ ...faceCss(design.display, size, u), lineHeight: layout === "stack" ? TITLE_LAYOUT.stackLineHeight : FRONT.title.lineHeight, color: P.ink, overflowWrap: "anywhere" }}>{title}</div>
+    <div style={{ ...faceCss(design.display, fitWordSize(title, design.display, size, textArea(format).w * MM_TO_PT), u), lineHeight: layout === "stack" ? TITLE_LAYOUT.stackLineHeight : FRONT.title.lineHeight, color: P.ink, overflowWrap: "anywhere" }}>{title}</div>
   );
   const subtitleEl = subtitle ? <div style={{ ...italicBody(kit, S.subtitle), color: P.muted, marginTop: u.pt(FRONT.subtitle.before), lineHeight: HTML_LINE_HEIGHT.subtitle }}>{subtitle}</div> : null;
   const line = titleLineText(design, author);

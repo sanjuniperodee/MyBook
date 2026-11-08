@@ -10,6 +10,7 @@ import { hexAlpha } from "@/lib/color";
 import { cssFrame } from "@/lib/book/photo-frame";
 import {
   layerDrawing,
+  layerTextSize,
   GRADIENT_FILL,
   gradientVector,
   printedLayerText,
@@ -56,14 +57,17 @@ export function layerBox(l: CoverLayer): CSSProperties {
   };
 }
 
-/** Текст слоя: начертание, кегль в cqw, тень и контур — копиями (text-shadow без размытия), как в PDF. */
-export function textCss(style: TextLayer["style"]): CSSProperties {
+/**
+ * Текст слоя: начертание, кегль в cqw, тень и контур — копиями (text-shadow без размытия), как в PDF.
+ * size — кегль после подбора по длинному слову (layerTextSize); без него — кегль стиля.
+ */
+export function textCss(style: TextLayer["style"], size = style.size): CSSProperties {
   const copies = textCopies(style);
   return {
     fontFamily: cssFont(style.font),
     fontWeight: style.weight,
     fontStyle: style.italic ? "italic" : "normal",
-    fontSize: `${style.size * 100}cqw`,
+    fontSize: `${size * 100}cqw`,
     lineHeight: style.lineHeight ?? 1.2,
     letterSpacing: style.tracking ? `${style.tracking}em` : undefined,
     color: style.color,
@@ -97,7 +101,7 @@ function TextView({ layer, text, placeholder }: { layer: TextLayer; text: string
         padding: plate?.pad ? `${plate.pad * style.size * 100}cqw` : undefined,
       }}
     >
-      <div style={{ ...textCss(style), opacity: text ? 1 : 0.45 }}>{text || placeholder}</div>
+      <div style={{ ...textCss(style, text ? layerTextSize(layer, text) : style.size), opacity: text ? 1 : 0.45 }}>{text || placeholder}</div>
     </div>
   );
 }

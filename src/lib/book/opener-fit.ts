@@ -3,6 +3,7 @@ import type { InteriorDesign } from "./interiors";
 import { interiorSizes, OPENER } from "./typesetting";
 import { interiorMetrics, textArea } from "./page-geometry";
 import { openerPhotoPlan } from "./photo-pages";
+import { fitWordSize } from "./word-fit";
 
 /**
  * Начальная полоса главы с длинным названием и эпиграфом (своя книга: до 120 и 300 знаков). Банки вопросов дают
@@ -57,9 +58,12 @@ export function openerFit(format: BookFormat, design: InteriorDesign, text: { ti
   const room = Math.max(byPage, titleHeight(BANK_OPENER.title, S.openerTitle) + epigraphHeight(BANK_OPENER.epigraph));
 
   const epigraph = text.epigraph?.length ?? 0;
-  if (titleHeight(text.title.length, S.openerTitle) + epigraphHeight(epigraph) <= room) return { titleSize: S.openerTitle, epigraphLines: null };
+  // Самое длинное слово названия должно встать в строку целиком (иначе HTML рвёт его по буквам, PDF — обрезает).
+  // Не мельче наименьшего кегля названия: слово в целую строку и длиннее всё равно переносится.
+  const wordSize = Math.max(S.openerTitle * MIN_TITLE_SCALE, fitWordSize(text.title, face, S.openerTitle, titleWidth));
+  if (titleHeight(text.title.length, wordSize) + epigraphHeight(epigraph) <= room) return { titleSize: wordSize, epigraphLines: null };
 
-  let titleSize = S.openerTitle;
+  let titleSize = wordSize;
   while (titleHeight(text.title.length, titleSize) > room * TITLE_SHARE && titleSize > S.openerTitle * MIN_TITLE_SCALE) titleSize = Math.max(S.openerTitle * MIN_TITLE_SCALE, titleSize * 0.92);
 
   if (!epigraph) return { titleSize, epigraphLines: null };

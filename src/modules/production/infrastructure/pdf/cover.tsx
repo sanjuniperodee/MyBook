@@ -2,6 +2,7 @@ import "server-only";
 import { Document, Image, Page, Path, Svg, Text, View } from "@react-pdf/renderer";
 import type { CoverGeometry } from "@/lib/book/formats";
 import { mm, print } from "@/lib/book/formats";
+import { fitWordSize } from "@/lib/book/word-fit";
 import { spineFontMm, spineParts } from "@/lib/book/book-model";
 import type { CoverTemplate, CoverTextContent, CoverTextStyle } from "@/lib/book/covers";
 import type { BackDesign } from "@/lib/book/cover-back";
@@ -15,8 +16,9 @@ import { messagesFor } from "@/i18n/messages";
 import type { CoverDesign } from "@/lib/book/cover-design";
 import { CoverLayersPdf } from "./cover-layers";
 
-function textStyle(s: CoverTextStyle, frontWmm: number, align: CoverTemplate["align"] = "center") {
-  const size = mm(s.size * frontWmm);
+/** text — для подбора кегля по самому длинному слову в ширину области текста (как CoverText в HTML). */
+function textStyle(s: CoverTextStyle, frontWmm: number, align: CoverTemplate["align"], text: string, areaW: number) {
+  const size = mm(fitWordSize(text, s, s.size, areaW) * frontWmm);
   return {
     ...face(s.font, s.weight ?? 400, s.italic ?? false),
     fontSize: size,
@@ -84,7 +86,7 @@ export function CoverDocument({
   const justify = template.justify === "center" ? "center" : template.justify === "start" ? "flex-start" : "flex-end";
   const align = template.align ?? "center";
   const items = align === "left" ? "flex-start" : align === "right" ? "flex-end" : "center";
-  const titleStyle = textStyle(template.title, f.w, align);
+  const titleStyle = textStyle(template.title, f.w, align, text.title, ta.w);
   const ornamentSize = mm(f.w * 0.035);
   const ornament =
     template.ornament && text.names ? (
@@ -94,7 +96,7 @@ export function CoverDocument({
     ) : (
       <View style={{ height: mm(f.w * 0.035) }} />
     );
-  const namesLine = text.names ? <Text hyphenationCallback={noHyphens} style={{ ...textStyle(template.names, f.w, align), alignSelf: "stretch" }}>{text.names}</Text> : null;
+  const namesLine = text.names ? <Text hyphenationCallback={noHyphens} style={{ ...textStyle(template.names, f.w, align, text.names, ta.w), alignSelf: "stretch" }}>{text.names}</Text> : null;
 
   const spine = g.spine;
   const clipX = spine ? Math.max(0, f.x - print.cover.hingeMm) : 0;
@@ -131,7 +133,7 @@ export function CoverDocument({
           {template.namesFirst ? namesLine : null}
           {template.namesFirst ? ornament : null}
           <Text hyphenationCallback={noHyphens} style={{ ...titleStyle, alignSelf: "stretch" }}>{text.title}</Text>
-          {text.subtitle ? <Text hyphenationCallback={noHyphens} style={{ ...textStyle(template.subtitle, f.w, align), alignSelf: "stretch", marginTop: mm(f.w * 0.015) }}>{text.subtitle}</Text> : null}
+          {text.subtitle ? <Text hyphenationCallback={noHyphens} style={{ ...textStyle(template.subtitle, f.w, align, text.subtitle, ta.w), alignSelf: "stretch", marginTop: mm(f.w * 0.015) }}>{text.subtitle}</Text> : null}
           {template.namesFirst ? null : ornament}
           {template.namesFirst ? null : namesLine}
         </View>}

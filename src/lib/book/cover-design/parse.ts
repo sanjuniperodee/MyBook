@@ -3,6 +3,7 @@ import { drawingWeight, sanitizeDrawing } from "../art";
 import { isFontKey } from "../fonts";
 import { normalizeFrame } from "../photo-frame";
 import { printableText } from "../printable";
+import { fitWordSize } from "../word-fit";
 import { DECOR_IDS } from "./decor";
 import { isStockPhoto } from "./stock";
 import type { CoverBack, CoverBackground, CoverDesign, CoverLayer, CoverTexts, DecorLayer, ImageLayer, LayerBase, ShapeLayer, TextLayer, TextStyle } from "./types";
@@ -214,6 +215,16 @@ export function layerText(layer: TextLayer, texts: CoverTexts): string {
 /** Текст слоя, как он печатается и виден на обложке: без эмодзи (в шрифтах обложки их нет). */
 export function printedLayerText(layer: TextLayer, texts: CoverTexts): string {
   return printableText(layerText(layer, texts));
+}
+
+/**
+ * Кегль текста слоя (доли ширины крышки): меньше заданного, только если самое длинное слово не помещается в рамку
+ * (за вычетом полей подложки). Один расчёт для редактора, превью и PDF — иначе браузер рвёт слово по буквам.
+ */
+export function layerTextSize(layer: TextLayer, text: string): number {
+  const s = layer.style;
+  // Поля подложки — от исходного кегля: с уменьшенным кеглем они только уже, запас остаётся.
+  return fitWordSize(text, s, s.size, layer.w - 2 * (s.plate?.pad ?? 0) * s.size);
 }
 
 /** Слои, которые печатаются: видимые; пустой привязанный текст и место под фото без снимка не печатаются. */

@@ -2,6 +2,9 @@ import "server-only";
 import { Page, Text, View } from "@react-pdf/renderer";
 import { titleEmblemShapes } from "@/lib/book/interior-art";
 import { titleLineText } from "@/lib/book/title-line";
+import { MM_TO_PT } from "@/lib/book/formats";
+import { textArea } from "@/lib/book/page-geometry";
+import { fitWordSize } from "@/lib/book/word-fit";
 import { DISPLAY_TOP, FRONT, TITLE_LAYOUT, VIGNETTE_RULE } from "@/lib/book/typesetting";
 import { PdfPageLayer } from "../art";
 import { labelStyle, noHyphens, pageMark, textFace, type PdfKit } from "./kit";
@@ -15,8 +18,9 @@ export function TitlePage({ kit }: { kit: PdfKit }) {
   const { content, design, sizes: S, italicBody, scale, box } = kit;
   const P = design.palette;
   const layout = design.titlePage?.layout ?? "center";
+  // Самое длинное слово названия — целиком в ширину полосы набора (как TitlePage в HTML).
   const title = (size: number, align: "left" | "center") => (
-    <Text hyphenationCallback={noHyphens} style={{ ...textFace(design.display, size), lineHeight: layout === "stack" ? TITLE_LAYOUT.stackLineHeight : FRONT.title.lineHeight, textAlign: align, color: P.ink }}>
+    <Text hyphenationCallback={noHyphens} style={{ ...textFace(design.display, fitWordSize(content.title, design.display, size, textArea(kit.format).w * MM_TO_PT)), lineHeight: layout === "stack" ? TITLE_LAYOUT.stackLineHeight : FRONT.title.lineHeight, textAlign: align, color: P.ink }}>
       {content.title}
     </Text>
   );

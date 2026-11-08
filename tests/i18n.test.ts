@@ -121,6 +121,7 @@ describe("нет русских строк вне словарей", () => {
     "shared/domain/customFields.ts", // переменные своих полей для шаблонов CRM: флажок — «да»/«нет»
     "modules/production/infrastructure/coverPreview.ts", // образец текста для осмотра страниц ИИ-дизайнером: на экран клиенту не попадает
     "lib/book/hyphen-kk.ts", // алфавит для слоговых правил
+    "lib/book/word-fit-chars.ts", // знаки таблицы ширин шрифтов (подбор кегля длинного слова)
     "lib/proofread/rules.ts", // слова и сокращения для правил проверки текста
     "lib/proofread/spelling.ts", // алфавит для отбора слов на проверку словарём
     "modules/referrals/domain/translit.ts", // таблица транслитерации имени в код-приглашение

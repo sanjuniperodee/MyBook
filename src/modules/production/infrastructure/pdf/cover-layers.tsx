@@ -7,6 +7,7 @@ import {
   GRADIENT_FILL,
   gradientVector,
   layerRect,
+  layerTextSize,
   printedLayerText,
   printedLayers,
   shapeElements,
@@ -62,13 +63,15 @@ function shapeEl(s: Shape, i: number, gradientId?: string, o = 1) {
 function TextLayerPdf({ layer, text, w, h, boardW, o }: { layer: TextLayer; text: string; w: number; h: number; boardW: number; o: number }) {
   const s = layer.style;
   const size = mm(s.size * boardW);
+  // Кегль после подбора по длинному слову — как в HTML (layerTextSize); поля подложки — от кегля стиля.
+  const fitted = mm(layerTextSize(layer, text) * boardW);
   const plate = s.plate;
   const pad = plate?.pad ? plate.pad * size : 0;
   const base: Style = {
     ...face(s.font, s.weight, s.italic ?? false),
-    fontSize: size,
+    fontSize: fitted,
     lineHeight: s.lineHeight ?? 1.2,
-    letterSpacing: (s.tracking ?? 0) * size,
+    letterSpacing: (s.tracking ?? 0) * fitted,
     textTransform: s.upper ? "uppercase" : "none",
     textAlign: s.align,
     textDecoration: s.underline ? "underline" : "none",
@@ -88,7 +91,7 @@ function TextLayerPdf({ layer, text, w, h, boardW, o }: { layer: TextLayer; text
   return (
     <>
       {plate ? <View style={{ position: "absolute", left: 0, top: 0, width: mm(w), height: mm(h), backgroundColor: plate.color, opacity: plate.opacity * o, borderRadius: plate.radius ? mm(plate.radius * boardW) : 0 }} /> : null}
-      {textCopies(s).map((c, i) => block(c.dx * size, c.dy * size, c.color, c.opacity * o, `c${i}`))}
+      {textCopies(s).map((c, i) => block(c.dx * fitted, c.dy * fitted, c.color, c.opacity * o, `c${i}`))}
       {block(0, 0, s.color, o, "t")}
     </>
   );

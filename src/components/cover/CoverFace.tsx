@@ -5,15 +5,16 @@ import { cssFont } from "@/lib/book/fonts";
 import { printableText } from "@/lib/book/printable";
 import { coverArtUrl } from "@/lib/urls";
 import { cn } from "@/lib/class-names";
+import { fitWordSize } from "@/lib/book/word-fit";
 
 /**
  * Лицевая сторона обложки по метаданным шаблона: фон — кэшируемая картинка /api/covers (или готовый SVG
  * с фото клиента), текст — HTML поверх. Каталог шаблонов с рисунками этот модуль не импортирует.
  */
-function textCss(s: CoverTextStyle, align: CoverTemplate["align"] = "center"): React.CSSProperties {
+function textCss(s: CoverTextStyle, align: CoverTemplate["align"] = "center", size = s.size): React.CSSProperties {
   return {
     fontFamily: cssFont(s.font),
-    fontSize: `${s.size * 100}cqw`,
+    fontSize: `${size * 100}cqw`,
     color: s.color,
     fontWeight: s.weight ?? 400,
     fontStyle: s.italic ? "italic" : "normal",
@@ -63,7 +64,9 @@ export function CoverText({ template, title: rawTitle, subtitle: rawSubtitle, na
   ) : (
     <div style={{ height: "3.5cqw" }} />
   );
-  const namesLine = names ? <div style={textCss(template.names, align)}>{names}</div> : null;
+  // Кегль — с подбором по самому длинному слову (как в PDF): иначе браузер рвёт длинное слово по буквам.
+  const css = (s: CoverTextStyle, text: string) => textCss(s, align, fitWordSize(text, s, s.size, ta.w));
+  const namesLine = names ? <div style={css(template.names, names)}>{names}</div> : null;
   return (
     <div
       className="absolute flex flex-col"
@@ -71,8 +74,8 @@ export function CoverText({ template, title: rawTitle, subtitle: rawSubtitle, na
     >
       {template.namesFirst ? namesLine : null}
       {template.namesFirst ? ornament : null}
-      <div style={{ ...textCss(template.title, align), alignSelf: "stretch" }}>{title || titlePlaceholder}</div>
-      {subtitle ? <div style={{ ...textCss(template.subtitle, align), alignSelf: "stretch", marginTop: "1.5cqw" }}>{subtitle}</div> : null}
+      <div style={{ ...css(template.title, title || titlePlaceholder), alignSelf: "stretch" }}>{title || titlePlaceholder}</div>
+      {subtitle ? <div style={{ ...css(template.subtitle, subtitle), alignSelf: "stretch", marginTop: "1.5cqw" }}>{subtitle}</div> : null}
       {template.namesFirst ? null : ornament}
       {template.namesFirst ? null : namesLine}
     </div>
