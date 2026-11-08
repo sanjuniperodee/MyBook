@@ -141,6 +141,7 @@ export const checkout = {
     edit: "Изменить",
     recipient: "Получатель",
     giftGroup: "Открытка и дата",
+    giftGroupNoCard: "Дата и сюрприз",
     optional: "необязательно",
     orderTitle: "Ваш заказ",
     orderToggle: "Состав заказа",

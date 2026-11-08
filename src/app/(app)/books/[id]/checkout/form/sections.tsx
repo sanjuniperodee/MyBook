@@ -7,7 +7,7 @@ import { Field } from "@/components/ui/Field";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { TrustList } from "@/components/TrustList";
 import { Alert } from "@/components/ui/Alert";
-import { formatPrice, getDeliveryOptions, getPlan, getVisiblePlans, isAbroadDelivery, isQuotedDelivery, site, type AddonId, type DeliveryId, type PlanId } from "@/config/site";
+import { formatPrice, getDeliveryOptions, getPlan, giftNoteEnabled, getVisiblePlans, isAbroadDelivery, isQuotedDelivery, site, type AddonId, type DeliveryId, type PlanId } from "@/config/site";
 import { cn } from "@/lib/class-names";
 import { orderByDate, startOfDay } from "@/lib/occasions";
 import type { PromoPreview } from "../actions";
@@ -261,22 +261,26 @@ export function GiftBlock({ now, today, desiredDate, onDesiredDate, occasionLabe
         return { ok: by >= startOfDay(now), premiumOk: byPremium >= startOfDay(now), by };
       })()
     : null;
+  // Открытку можно выключить в CRM («Сайт» → «Открытка к заказу»): тогда на шаге остаются дата и «сюрприз».
+  const card = giftNoteEnabled();
   return (
     <details className="group/gift rounded-[10px] border border-line-strong bg-white" open={open}>
       <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 py-2.5 [&::-webkit-details-marker]:hidden">
         <span>
           <span className="block text-[15px] font-semibold">{t.step.gift}</span>
           <span className="block text-sm text-muted">
-            {t.wizard.giftGroup} · {t.wizard.optional}
+            {card ? t.wizard.giftGroup : t.wizard.giftGroupNoCard} · {t.wizard.optional}
           </span>
         </span>
         <ChevronDown className="size-4 shrink-0 text-muted transition group-open/gift:rotate-180" aria-hidden />
       </summary>
       <div className="border-t border-line p-4">
-        <div className="grid gap-4 sm:grid-cols-[1fr_220px]">
-          <Field label={t.giftNote} hint={t.giftNoteHint} error={errors.giftNote}>
-            <textarea className="input" id="giftNote" name="giftNote" rows={3} maxLength={500} placeholder={t.giftNotePlaceholder} value={v.giftNote} onChange={(e) => set("giftNote", e.target.value)} />
-          </Field>
+        <div className={card ? "grid gap-4 sm:grid-cols-[1fr_220px]" : "grid gap-4 sm:max-w-[220px]"}>
+          {card ? (
+            <Field label={t.giftNote} hint={t.giftNoteHint} error={errors.giftNote}>
+              <textarea className="input" id="giftNote" name="giftNote" rows={3} maxLength={500} placeholder={t.giftNotePlaceholder} value={v.giftNote} onChange={(e) => set("giftNote", e.target.value)} />
+            </Field>
+          ) : null}
           <div>
             <label className="label" htmlFor="desiredDate">
               {t.desiredDate}
@@ -341,7 +345,7 @@ export function ReviewBlock({ plan, qty, applied, delivery, v, desiredDate, onEd
   const t = m.checkout;
   const c = m.common;
   const place = [isAbroadDelivery(delivery) ? v.country.trim() : "", v.city.trim(), v.address.trim()].filter(Boolean).join(", ");
-  const gift = [v.giftNote.trim(), desiredDate ? t.wizard.giftDate(c.date(new Date(`${desiredDate}T12:00:00`), true)) : "", v.surprise ? t.wizard.giftSurprise : ""].filter(Boolean);
+  const gift = [giftNoteEnabled() ? v.giftNote.trim() : "", desiredDate ? t.wizard.giftDate(c.date(new Date(`${desiredDate}T12:00:00`), true)) : "", v.surprise ? t.wizard.giftSurprise : ""].filter(Boolean);
   return (
     <Group title={t.wizard.reviewTitle}>
       <dl className="divide-y divide-line rounded-[10px] border border-line bg-white p-4">

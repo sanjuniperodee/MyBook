@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { applyCatalog, applySiteFlags, getAiPack, getAiPacks, getFreeMediaMinutes, getMediaPack, getMediaPacks, registrationOpen, availableAddons, getAddons, getCatalogOverrides, getDeliveryOptions, getPlan, getPlans, getVisiblePlans, sanitizeOverrides } from "@/config/site";
+import { applyCatalog, applySiteFlags, getAiPack, getAiPacks, getFreeMediaMinutes, getMediaPack, getMediaPacks, giftNoteEnabled, getSiteFlags, registrationOpen, availableAddons, getAddons, getCatalogOverrides, getDeliveryOptions, getPlan, getPlans, getVisiblePlans, sanitizeOverrides } from "@/config/site";
 import { calculatePrice } from "@/modules/ordering/domain/Pricing";
 import { addonLabels, deliveryLabels, planLabels } from "@/modules/ordering/ui/labels";
 
 afterEach(() => {
   applyCatalog(null);
-  applySiteFlags({ registration: true });
+  applySiteFlags({ registration: true, giftNote: true });
 });
 
 describe("цены из админки", () => {
@@ -115,6 +115,17 @@ describe("переключатели сайта", () => {
     expect(registrationOpen()).toBe(false);
     applySiteFlags({ registration: true });
     expect(registrationOpen()).toBe(true);
+  });
+
+  it("открытка к заказу по умолчанию включена; выключается отдельно от регистрации", () => {
+    expect(giftNoteEnabled()).toBe(true);
+    applySiteFlags({ giftNote: false });
+    expect(giftNoteEnabled()).toBe(false);
+    expect(registrationOpen()).toBe(true);
+    applySiteFlags({ registration: false });
+    expect(getSiteFlags()).toEqual({ registration: false, giftNote: false });
+    applySiteFlags({ giftNote: true });
+    expect(getSiteFlags()).toEqual({ registration: false, giftNote: true });
   });
 });
 

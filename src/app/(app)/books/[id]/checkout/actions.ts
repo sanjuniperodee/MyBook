@@ -5,7 +5,7 @@ import { getLocale, getMessages, lredirect } from "@/i18n/server";
 import { z } from "zod";
 import { uuid } from "@/server/input";
 import { requireUser } from "@/server/auth";
-import { getDeliveryOptions, getPlan, getPlans, isAbroadDelivery, soldAddons, type DeliveryId } from "@/config/site";
+import { getDeliveryOptions, getPlan, getPlans, giftNoteEnabled, isAbroadDelivery, soldAddons, type DeliveryId } from "@/config/site";
 import { OrderingError } from "@/modules/ordering";
 import { container } from "@/server/container";
 import { actionError } from "@/server/errors";
@@ -86,7 +86,8 @@ export async function createOrderAction(_: CheckoutState, form: FormData): Promi
       contact: { name: d.contactName, phone: d.contactPhone, email: d.contactEmail },
       promoCode: d.promoCode || undefined,
       customerComment: d.comment,
-      giftNote: d.giftNote,
+      // Открытка выключена в CRM — текст не сохраняем, даже если его прислала старая открытая вкладка.
+      giftNote: giftNoteEnabled() ? d.giftNote : undefined,
       desiredDate: d.desiredDate || undefined,
       surprise: d.surprise === "on",
       agreementMode: d.agreementMode,

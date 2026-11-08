@@ -283,21 +283,33 @@ export const factoryCatalog = { plans: defaultPlans, addons: defaultAddons, deli
 
 /**
  * Переключатели сайта из админки («Сайт»). Живут в globalThis по той же причине, что и каталог цен: общие для всех слоёв
- * бандла; в браузер их передаёт CatalogSync. Регистрация по умолчанию открыта.
+ * бандла; в браузер их передаёт CatalogSync. По умолчанию регистрация открыта, открытка к заказу включена.
  */
-interface SiteFlags {
+export interface SiteFlags {
   registration: boolean;
+  /** Клиент может вписать текст подарочной открытки при оформлении заказа. */
+  giftNote: boolean;
 }
 const flagStore = globalThis as unknown as { __mybookFlags?: SiteFlags };
-const flags = () => (flagStore.__mybookFlags ??= { registration: true });
+const flags = () => (flagStore.__mybookFlags ??= { registration: true, giftNote: true });
 
 export function applySiteFlags(next: Partial<SiteFlags>) {
   const cur = flags();
-  if (next.registration !== undefined && next.registration !== cur.registration) flagStore.__mybookFlags = { ...cur, registration: next.registration };
+  const merged: SiteFlags = { registration: next.registration ?? cur.registration, giftNote: next.giftNote ?? cur.giftNote };
+  if (merged.registration !== cur.registration || merged.giftNote !== cur.giftNote) flagStore.__mybookFlags = merged;
 }
+
+/** Все переключатели сайта — для CatalogSync. */
+export const getSiteFlags = (): SiteFlags => ({ ...flags() });
 
 /** Можно ли регистрироваться на сайте. Закрыто — страница регистрации объясняет это, ссылки на неё скрыты, новые аккаунты не создаются. */
 export const registrationOpen = (): boolean => flags().registration;
+
+/**
+ * Предлагать ли клиенту открытку при оформлении заказа. Выключено — поля «Текст открытки» нет, присланный текст не сохраняется;
+ * открытки в уже оформленных заказах остаются и печатаются, сотрудник правит их в карточке заказа.
+ */
+export const giftNoteEnabled = (): boolean => flags().giftNote;
 
 /**
  * Реквизиты продавца: юр. название, БИН, телефон и номер WhatsApp (цифры). Владелец вводит их в админке («Сайт»), значения

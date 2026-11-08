@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { fontVariables } from "./fonts";
-import { getCatalogOverrides, getSellerOverrides, registrationOpen, site } from "@/config/site";
+import { getCatalogOverrides, getSellerOverrides, getSiteFlags, site } from "@/config/site";
 import { env } from "@/config/env";
 import "./globals.css";
 import { Suspense } from "react";
@@ -57,7 +57,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <ShopThemeSync />
         {/* Открыто как установленное приложение (иконка на экране «Домой») — сразу в CRM, а не на лендинг; без входа CRM сама отправит на экран входа. */}
         <script dangerouslySetInnerHTML={{ __html: `try{if((matchMedia("(display-mode: standalone)").matches||navigator.standalone===true)&&(location.pathname==="/"||location.pathname==="/kk"))location.replace("/admin")}catch(e){}` }} />
-        <CatalogSync overrides={getCatalogOverrides()} registration={registrationOpen()} seller={getSellerOverrides()} />
+        <CatalogSync overrides={getCatalogOverrides()} flags={getSiteFlags()} seller={getSellerOverrides()} />
         <I18nProvider locale={locale}>
           {children}
           <Overlays />

@@ -133,6 +133,7 @@ export const checkout: typeof ru = {
     edit: "Өзгерту",
     recipient: "Алушы",
     giftGroup: "Ашықхат және күн",
+    giftGroupNoCard: "Күн және тосынсый",
     optional: "міндетті емес",
     orderTitle: "Сіздің тапсырысыңыз",
     orderToggle: "Тапсырыс құрамы",
