@@ -29,15 +29,22 @@ export const print = {
   minPages: 24,
   /** Кратность количества страниц (тетради по 4 полосы). */
   pageMultiple: 4,
-  /** Толщина одного листа (2 полосы) бумаги блока, мм. 150 г/м² мелованная матовая ≈ 0,13 мм. */
-  sheetThicknessMm: 0.13,
+  /**
+   * Толщина одного листа (2 полосы) бумаги блока, мм. По готовой книге типографии (09.11.2026, заказ №47: 196 полос,
+   * корешок 13 мм): ≈ 0,09 мм. Было 0,13 — корешок в файле выходил на 3–4 мм шире настоящего, обложка съезжала.
+   */
+  sheetThicknessMm: 0.09,
   cover: {
     /** Отступ по периметру развёртки до картона: загиб покровного материала (включает вылет), мм. */
     wrapMm: 20,
-    /** Выступ картона крышки над блоком (кант), мм. */
-    boardOverhangMm: 3,
-    /** Ширина шарнира — расстояние между сгибами корешка и крышки (расставы), мм. */
-    hingeMm: 8,
+    /**
+     * Картон крышки больше блока: по ширине и по высоте, мм. По замеру готовой книги типографии (09.11.2026): у A5
+     * (148×210) крышка 157×222. По высоте кант поровну сверху и снизу.
+     */
+    boardExtraWidthMm: 9,
+    boardExtraHeightMm: 12,
+    /** Ширина шарнира — расстояние между сгибами корешка и крышки (расставы), мм. По готовой книге — 7. */
+    hingeMm: 7,
     /** Добавка к толщине блока для корешка: картон + отстав, мм. */
     spineExtraMm: 4,
   },
@@ -80,11 +87,15 @@ export interface CoverGeometry {
   folds?: number[];
 }
 
+/** Картон крышки (лицевой и задней) для формата блока, мм. */
+export function boardOf(format: Pick<BookFormat, "widthMm" | "heightMm">) {
+  return { w: format.widthMm + print.cover.boardExtraWidthMm, h: format.heightMm + print.cover.boardExtraHeightMm };
+}
+
 /** Геометрия развёртки твёрдой обложки: загиб | задняя крышка | шарнир | корешок | шарнир | передняя крышка | загиб. */
 export function coverSpreadGeometry(format: BookFormat, pageCount: number): CoverGeometry {
-  const { wrapMm, boardOverhangMm, hingeMm } = print.cover;
-  const boardW = format.widthMm + boardOverhangMm; // крышка выступает за блок с трёх сторон, у корешка — шарнир
-  const boardH = format.heightMm + boardOverhangMm * 2;
+  const { wrapMm, hingeMm } = print.cover;
+  const { w: boardW, h: boardH } = boardOf(format);
   const spine = spineWidthMm(pageCount);
   const width = wrapMm * 2 + boardW * 2 + hingeMm * 2 + spine;
   const height = wrapMm * 2 + boardH;

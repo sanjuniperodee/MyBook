@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { allCoverTemplates, coverMoods, coverTemplates, getCoverTemplate, isKnownCover, pickerCovers, renderCoverSvg } from "@/lib/book/covers";
 import { photoPlacement } from "@/lib/book/photo-cover";
 import { messagesFor } from "@/i18n/messages";
-import { coverFrontGeometry, coverSpreadGeometry, getFormat } from "@/lib/book/formats";
+import { coverFrontGeometry, coverSpreadGeometry, getFormat, print } from "@/lib/book/formats";
 
 describe("обложки", () => {
   it("уникальные id и допустимое настроение", () => {
@@ -51,7 +51,7 @@ describe("обложки на снимках", () => {
         const b = photoPlacement(t.photo!, spread);
         // Положение снимка относительно лицевой крышки не зависит от толщины книги.
         expect(b.x - spread.front.x).toBeCloseTo(a.x - front.front.x, 6);
-        expect(b.y - spread.front.y).toBeCloseTo(a.y - (front.front.y - 3), 6);
+        expect(b.y - spread.front.y).toBeCloseTo(a.y - (front.front.y - print.cover.boardExtraHeightMm / 2), 6);
         expect(b.w).toBeCloseTo(a.w, 6);
         // Лицо закрыто снимком или подложкой — снимок не уезжает за пределы лица целиком.
         expect(a.x).toBeLessThan(front.front.w);

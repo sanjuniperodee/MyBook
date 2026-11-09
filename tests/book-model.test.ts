@@ -12,10 +12,10 @@ describe("bookDims", () => {
     }
   });
 
-  it("крышки выступают над блоком на кант, блок равен обрезному формату", () => {
+  it("крышки больше блока, как у типографии; блок равен обрезному формату", () => {
     const d = bookDims(formats.square, 40);
-    expect(d.w - d.block.w).toBe(print.cover.boardOverhangMm);
-    expect(d.h - d.block.h).toBe(print.cover.boardOverhangMm * 2);
+    expect(d.w - d.block.w).toBe(print.cover.boardExtraWidthMm);
+    expect(d.h - d.block.h).toBe(print.cover.boardExtraHeightMm);
     expect(d.block.w).toBe(200);
   });
 

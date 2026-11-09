@@ -28,13 +28,23 @@ describe("печатные параметры", () => {
     expect(g.spine!.x).toBeCloseTo(g.back!.x + g.back!.w + hingeMm);
     expect(g.front.x).toBeCloseTo(g.spine!.x + g.spine!.w + hingeMm);
     expect(g.front.x + g.front.w + wrapMm).toBeCloseTo(g.width);
-    expect(g.height).toBeCloseTo(formats.a5.heightMm + 2 * print.cover.boardOverhangMm + 2 * wrapMm);
+    expect(g.height).toBeCloseTo(formats.a5.heightMm + print.cover.boardExtraHeightMm + 2 * wrapMm);
+  });
+  it("размеры — как у готовой книги типографии (09.11.2026, заказ №47, 196 полос): крышка 157×222, бороздка 7, корешок 13", () => {
+    const g = coverSpreadGeometry(formats.a5, 196);
+    expect([g.front.w, g.front.h]).toEqual([157, 222]);
+    expect([g.back!.w, g.back!.h]).toEqual([157, 222]);
+    expect(print.cover.hingeMm).toBe(7);
+    expect(Math.abs(g.spine!.w - 13)).toBeLessThanOrEqual(0.5);
+    // Обложка — разворот с отступом 2 см под загиб со всех сторон.
+    expect(g.width).toBeCloseTo(20 + 157 + 7 + g.spine!.w + 7 + 157 + 20);
+    expect(g.height).toBe(20 + 222 + 20);
   });
 });
 
 describe("каркас обложки", () => {
-  it("расставы 8 мм, отступ по периметру 20 мм", () => {
-    expect(print.cover.hingeMm).toBe(8);
+  it("расставы 7 мм, отступ по периметру 20 мм", () => {
+    expect(print.cover.hingeMm).toBe(7);
     expect(print.cover.wrapMm).toBe(20);
   });
   it("зоны идут подряд, без зазоров, и в сумме дают ширину развёртки", () => {

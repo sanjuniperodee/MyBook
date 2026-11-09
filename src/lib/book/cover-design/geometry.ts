@@ -3,21 +3,20 @@
  * фигуры слоёв, копии текста для тени и контура и фон-цвет или градиент. Общее для HTML-редактора и PDF.
  */
 import { n } from "../covers/svg-kit";
-import { print, type BookFormat, type CoverGeometry, type Rect } from "../formats";
+import { boardOf, print, type BookFormat, type CoverGeometry, type Rect } from "../formats";
 import type { Shape } from "../interior-art";
 import type { CoverBackground, CoverSide, ShapeLayer, TextStyle } from "./types";
 
 /** Лицевая крышка (картон): как в развёртке для типографии — на кант больше блока сверху, снизу и снаружи. */
 export function boardSize(format: BookFormat) {
-  const o = print.cover.boardOverhangMm;
-  return { w: format.widthMm + o, h: format.heightMm + o * 2 };
+  return boardOf(format);
 }
 
 /**
  * Безопасные поля, мм от края крышки: текст и важное — внутри (край крышки уходит в кант, у корешка — канавка шарнира).
  * Загиб — сколько материала за краем крышки показывает редактор (дальше — под картоном).
  */
-export const COVER_SAFE = { edge: 6, hinge: 9, wrap: 8 } as const;
+export const COVER_SAFE = { edge: 8, hinge: 9, wrap: 8 } as const;
 
 /** Холст редактора: крышка и вокруг неё загиб wrap мм — рисунок шаблона строится так же, как в развёртке. */
 export function canvasGeometry(format: BookFormat, wrap: number = COVER_SAFE.wrap): CoverGeometry {

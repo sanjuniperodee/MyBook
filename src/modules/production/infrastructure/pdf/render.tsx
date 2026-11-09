@@ -604,7 +604,7 @@ export function printSpecText(bundle: BookBundle, pkg: PrintPackage, order?: { n
     ``,
     `ОБЛОЖКА (развёртка): ${r(g.width)}×${r(g.height)} мм, 4+0`,
     `  Отступ по периметру (загиб на картон, включает вылет): ${print.cover.wrapMm} мм`,
-    `  Картон крышки: ${r(g.front.w)}×${r(g.front.h)} мм (кант ${print.cover.boardOverhangMm} мм)`,
+    `  Картон крышки: ${r(g.front.w)}×${r(g.front.h)} мм (блок ${format.widthMm}×${format.heightMm} мм)`,
     `  Расставы между сгибами (шарниры): ${print.cover.hingeMm} мм`,
     `  Корешок: ${r(pkg.spineMm)} мм (${pkg.pageCount / 2} л. × ${print.sheetThicknessMm} мм + ${print.cover.spineExtraMm} мм картон и отстав)`,
     `  Порядок слева направо, мм: ${zones.map((z) => r(z.w)).join(" | ")}`,

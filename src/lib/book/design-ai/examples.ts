@@ -148,7 +148,7 @@ export const COVER_EXAMPLES: CoverExample[] = [
       text("names", "tracking", 0.28),
       text("names", "size", 0.018),
       text("names", "color", "#9A4424"),
-      o("set", "layers.names.y", 0.925),
+      o("set", "layers.names.y", 0.905),
     ],
   },
   {

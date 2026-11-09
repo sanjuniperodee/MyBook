@@ -91,8 +91,9 @@ const OVERLAP = 0.3;
 export function photoPlacement(layout: PhotoLayout, g: CoverGeometry): Rect {
   // Превью лица (без корешка) — это блок; крышка в печати шире на кант сверху, снизу и с края.
   // Кладём снимок на такую же крышку, чтобы масштаб и кадр совпали с печатью.
-  const o = g.spine ? 0 : print.cover.boardOverhangMm;
-  const f = { x: g.front.x, y: g.front.y - o, w: g.front.w + o, h: g.front.h + o * 2 };
+  const ow = g.spine ? 0 : print.cover.boardExtraWidthMm;
+  const oh = g.spine ? 0 : print.cover.boardExtraHeightMm / 2;
+  const f = { x: g.front.x, y: g.front.y - oh, w: g.front.w + ow, h: g.front.h + oh * 2 };
   const wrap = print.cover.wrapMm;
   const ext = { x: f.x, y: f.y - wrap, w: f.w + wrap, h: f.h + wrap * 2 };
   const { width: pw, height: ph } = layout.photo;
@@ -259,11 +260,10 @@ export function photoTemplate(data: PhotoTemplateData, extra: Partial<Pick<Cover
 /** Разрешение снимка в печати (dpi) на самом крупном формате при заданном масштабе: от 250 — хорошо, ниже 200 — заметно. */
 export function photoDpi(layout: Pick<PhotoLayout, "photo" | "zoom">) {
   const wrap = print.cover.wrapMm;
-  const o = print.cover.boardOverhangMm;
   let s = 0;
   for (const f of Object.values(formats)) {
-    const w = f.widthMm + o + wrap;
-    const h = f.heightMm + o * 2 + wrap * 2;
+    const w = f.widthMm + print.cover.boardExtraWidthMm + wrap;
+    const h = f.heightMm + print.cover.boardExtraHeightMm + wrap * 2;
     s = Math.max(s, Math.max(w / layout.photo.width, h / layout.photo.height) * Math.max(0.3, layout.zoom));
   }
   return Math.round(25.4 / s);
