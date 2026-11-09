@@ -160,6 +160,9 @@ describe("цвет оборота: превью = печать", () => {
     })!;
     expect(repeatedFrontLayers(d, null).map((l) => l.id)).toEqual(["c"]);
     expect(repeatedFrontLayers(d, { v: 1, background: { kind: "color", color: "#111111" } })).toEqual([]);
+    // Мелкий акцент у названия (линия, сердечко) на оборот не переносится — одна линия на обороте выглядит случайной.
+    const accent = parseCoverDesign({ background: { kind: "template" }, layers: [{ id: "o", kind: "shape", shape: "line", x: 0.4, y: 0.5, w: 0.2, h: 0.01, stroke: "#000000" }, { id: "h", kind: "decor", motif: "heart", color: "#C9767F", x: 0.45, y: 0.6, w: 0.08, h: 0.06 }] })!;
+    expect(repeatedFrontLayers(accent, null)).toEqual([]);
     // Превью оборота в кабинете рисует снимок лица.
     const html = renderToStaticMarkup(createElement(CoverBackPreview, { template: "letter", content: backContent(book(), [], now), design: d }));
     expect(html).toContain("clouds");

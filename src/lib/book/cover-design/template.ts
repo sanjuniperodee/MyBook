@@ -17,13 +17,18 @@ export function backFill(front: CoverDesign | null, back: CoverBack | null): { b
   return f ? { bg: f, mirror: true } : null;
 }
 
+/** Доля крышки, с которой слой лица — часть фона (фото, затемнение, рамка), а не акцент у надписи. */
+export const REPEAT_MIN_AREA = 0.15;
+
 /**
- * Что из лица повторяется на обороте «как спереди»: фото, фигуры и украшения на тех же местах — без надписей (на
- * обороте свой текст). Как у шаблонов, которые повторяют композицию лица на задней крышке. Со своим фоном оборота — ничего.
+ * Что из лица повторяется на обороте «как спереди»: крупные фото, фигуры и украшения на тех же местах — фон лица.
+ * Без надписей (на обороте свой текст) и без мелких акцентов при них: линия под названием или сердечко одни на
+ * обороте выглядят случайными. Как у шаблонов, которые повторяют композицию лица на задней крышке. Со своим фоном
+ * оборота — ничего.
  */
 export function repeatedFrontLayers(front: CoverDesign | null, back: CoverBack | null): CoverLayer[] {
   if (!front || own(back?.background)) return [];
-  return front.layers.filter((l) => !l.hidden && l.kind !== "text" && (l.kind !== "image" || !!(l.photoId || l.stock)));
+  return front.layers.filter((l) => !l.hidden && l.kind !== "text" && l.w * l.h >= REPEAT_MIN_AREA && (l.kind !== "image" || !!(l.photoId || l.stock)));
 }
 
 /** Корешок — в цвет оборота, если у оборота свой фон, иначе в цвет лица; null — корешок шаблона. */
