@@ -8,6 +8,7 @@ import { MAX_EXTRA_PHOTOS } from "@/modules/authoring/domain/Book";
 import { NAMES_ON_COVER_MAX } from "@/lib/book/cover-names";
 import { RECORDED_BY_MAX } from "@/lib/content/kinds";
 import { INVITE_TEXT_MAX } from "@/lib/content/letter-invite";
+import { END_TEXT_MAX } from "@/lib/book/end-page";
 import { TOC_EPIGRAPH_MAX, TOC_LINES_MAX, TOC_MODES, TOC_TITLE_MAX } from "@/lib/book/toc";
 
 const patchSchema = z
@@ -58,6 +59,8 @@ const patchSchema = z
       .refine((o) => Object.keys(o).length <= TOC_LINES_MAX),
     // Свой текст приглашения близких (страница письма и сообщение со ссылкой); пусто — по умолчанию.
     inviteText: z.string().trim().max(INVITE_TEXT_MAX),
+    // Фраза последней страницы: null — «Продолжение следует…», пусто — без фразы.
+    endText: z.string().trim().max(END_TEXT_MAX).nullable(),
     occasion: z.string().max(40).nullable(),
     occasionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
     language: z.string().refine(isLocale, "unknownLanguage"),

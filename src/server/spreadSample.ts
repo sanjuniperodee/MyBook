@@ -109,6 +109,7 @@ export function bookSpreadSample(
     tocMode,
     tocLines: tocSettings,
     showToc: book.showToc,
+    endText: book.endText ?? null,
     captions: own?.photos,
     photos: photos.filter((p) => p.id !== book.coverPhotoId).slice(0, 4).map((p) => ({ url: photoUrl(p.id, "full"), width: p.width, height: p.height, caption: p.caption })),
     // Правила 2: начало главы — как в книге, выбранное автором фото главы или страница с названием (не «первое фото»).

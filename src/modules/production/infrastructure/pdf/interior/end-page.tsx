@@ -1,19 +1,21 @@
 import "server-only";
 import { Page, Text } from "@react-pdf/renderer";
+import { endPageText } from "@/lib/book/end-page";
 import { DISPLAY_TOP, FRONT, VIGNETTE_RULE } from "@/lib/book/typesetting";
 import { labelStyle, noHyphens, pageMark, type PdfKit } from "./kit";
 import { Frame, Placed, Vignette } from "./parts";
 
-/** Финал: виньетка, «Продолжение следует…» и год. */
+/** Финал: виньетка, «Продолжение следует…» (или своя фраза автора, или ничего) и год. */
 export function EndPage({ kit }: { kit: PdfKit }) {
   const { content, design, sizes: S, t } = kit;
   const P = design.palette;
+  const text = endPageText(content.endText, t.theEnd);
   return (
     <Page {...pageMark("end")} size={kit.pageSize} style={kit.pagePadding}>
       <Frame kit={kit} colors={P} />
       <Placed top={DISPLAY_TOP.end}>
         <Vignette kit={kit} rule={VIGNETTE_RULE.end} colors={P} />
-        <Text hyphenationCallback={noHyphens} style={{ ...kit.italicBody, fontSize: S.end, textAlign: "center", color: P.ink }}>{t.theEnd}</Text>
+        {text ? <Text hyphenationCallback={noHyphens} style={{ ...kit.italicBody, fontSize: S.end, textAlign: "center", color: P.ink }}>{text}</Text> : null}
         <Text style={{ ...labelStyle(kit, P.muted), textAlign: "center", marginTop: FRONT.endYear.before }}>{content.year}</Text>
       </Placed>
     </Page>

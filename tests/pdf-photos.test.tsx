@@ -59,6 +59,7 @@ const book: Book = {
   paginationRev: 1,
   inviteToken: null,
   inviteText: "",
+  endText: null,
   occasion: null,
   occasionDate: null,
   language: "ru",

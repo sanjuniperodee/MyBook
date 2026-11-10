@@ -111,6 +111,11 @@ export const books = pgTable(
      * Пусто — текст по умолчанию по виду книги.
      */
     inviteText: text("invite_text").notNull().default(""),
+    /**
+     * Фраза последней страницы книги (lib/book/end-page.ts): null — «Продолжение следует…», пусто — без фразы
+     * (виньетка и год остаются), иначе — своя.
+     */
+    endText: text("end_text"),
     /** Язык книги: вопросы, заголовки глав и служебные страницы PDF (ru | kk). */
     language: text("language").$type<Locale>().notNull().default("ru"),
     /** Повод подарка (см. lib/occasions) и дата, к которой нужна книга. */

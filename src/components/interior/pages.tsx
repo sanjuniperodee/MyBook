@@ -9,6 +9,7 @@
  */
 import type { CSSProperties } from "react";
 import { bookMessagesFor } from "@/i18n/messages/partial";
+import { endPageText } from "@/lib/book/end-page";
 import { chapterMark, PHOTO_COLORS, type InteriorPalette } from "@/lib/book/interiors";
 import { openerArtShapes, openerEmblemShapes, titleEmblemShapes } from "@/lib/book/interior-art";
 import { openerFlow, textArea, pageSide } from "@/lib/book/page-geometry";
@@ -280,16 +281,17 @@ export function TocPage({ kit, entries, className, style, muted }: PageProps & {
   );
 }
 
-/** Последняя страница: «Продолжение следует…». */
-export function EndPage({ kit, year, className, style }: PageProps & { year: number }) {
+/** Последняя страница: «Продолжение следует…» (своя фраза автора, пустая — без фразы) и год. */
+export function EndPage({ kit, year, text: own, className, style }: PageProps & { year: number; text?: string | null }) {
   const { design, sizes: S } = kit;
   const P = design.palette;
+  const text = endPageText(own, bookMessagesFor(kit.language).theEnd);
   return (
     <PageSurface kit={kit} shapes={pageFrame(kit, P)} className={className} style={style}>
       <TextArea kit={kit} className="flex flex-col">
         <Placed top={DISPLAY_TOP.end}>
           <Vignette kit={kit} rule={VIGNETTE_RULE.end} colors={P} />
-          <div style={{ ...italicBody(kit, S.end), color: P.ink, lineHeight: HTML_LINE_HEIGHT.end }}>{bookMessagesFor(kit.language).theEnd}</div>
+          {text ? <div style={{ ...italicBody(kit, S.end), color: P.ink, lineHeight: HTML_LINE_HEIGHT.end, overflowWrap: "break-word" }}>{text}</div> : null}
           <div style={{ ...labelCss(kit, P.muted), marginTop: kit.u.pt(FRONT.endYear.before) }}>{year}</div>
         </Placed>
       </TextArea>

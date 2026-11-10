@@ -98,6 +98,11 @@ export interface BookContent {
    * где по счёту она выпала бы справа, перед ней пустая полоса. Нет — прежняя вёрстка (отпечаток кэша прежних книг не меняется).
    */
   openersLeft?: true;
+  /**
+   * Своя фраза последней страницы (books.end_text): пусто — без фразы. Нет — «Продолжение следует…» (отпечаток кэша
+   * прежних книг не меняется).
+   */
+  endText?: string;
 }
 
 export type QuestionLike = Pick<BookQuestion, "id" | "chapter" | "position" | "title" | "displayText" | "hideHeading" | "answer" | "questionKey"> & {
@@ -125,6 +130,8 @@ export type BookLike = Pick<
 > &
   /** Оглавление (toc.ts): нет — по главам, без своих строк. */
   Partial<Pick<Book, "tocMode" | "tocLines">> &
+  /** Фраза последней страницы (end-page.ts): нет или null — «Продолжение следует…». */
+  Partial<Pick<Book, "endText">> &
   /**
    * Правила раскладки фото (LAYOUT_REV_2) и остальные снимки обложки и оборота: правила 2 не ставят их внутрь сами.
    * Полная строка книги их даёт; нет — прежние правила, других снимков обложки нет.
@@ -388,6 +395,7 @@ export function assembleBookContent(
     galleryTitle: texts.galleryTitle,
     year,
     ...(book.paginationRev === PAGINATION_REV_2 ? { openersLeft: true as const } : {}),
+    ...(book.endText != null ? { endText: printableText(book.endText.trim()) } : {}),
   };
 }
 

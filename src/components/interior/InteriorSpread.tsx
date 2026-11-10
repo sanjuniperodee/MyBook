@@ -32,6 +32,8 @@ export interface SpreadSample {
   tocMode?: TocMode;
   tocLines?: TocLines;
   showToc: boolean;
+  /** Фраза последней страницы (end-page.ts): null или нет — «Продолжение следует…», пусто — без фразы. */
+  endText?: string | null;
   /** Фото книги для разворота «Фото» (и начала главы по прежним правилам); недостающие — пейзажи-заглушки. */
   photos?: { url: string; width: number; height: number; caption: string }[];
   /**
@@ -102,7 +104,7 @@ export const InteriorSpread = memo(function InteriorSpread({
     right = <PhotoPage kit={kit} photos={photos.grid} scene={1} style={page} />;
   } else if (kind === "toc") {
     left = <TocPage kit={kit} entries={sample.toc} muted={!sample.showToc} style={page} />;
-    right = <EndPage kit={kit} year={sample.year} style={page} />;
+    right = <EndPage kit={kit} year={sample.year} text={sample.endText} style={page} />;
   } else {
     left = <OpenerPage kit={kit} number={sample.chapter.number} title={sample.chapter.title} epigraph={sample.chapter.epigraph} photo={design.opener.photo ? sampleOpener(sample, openerPlaceholder) : undefined} style={page} />;
     right = (

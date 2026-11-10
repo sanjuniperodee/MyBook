@@ -18,12 +18,18 @@ import { getFormat } from "@/lib/book/formats";
 import { applyInteriorStyle, chapterDesign, getInteriorDesign, type InteriorId, type InteriorStyle } from "@/lib/book/interiors";
 import { bookKind } from "@/lib/content/kinds";
 import { sampleToc, type TocLines, type TocMode } from "@/lib/book/toc";
+import { END_TEXT_MAX } from "@/lib/book/end-page";
+import { bookMessagesFor } from "@/i18n/messages/partial";
 import { ChaptersEditor, type PhotoSheetTarget } from "./ChaptersEditor";
 import { albumCount, designNotice, placesForDesign, type PagesPhotoData } from "./pages-photos";
 import type { StoryInfo } from "./StoryList";
 import { TocEditor } from "./TocEditor";
 import { DesignStudio, STUDIO_TABS, type StudioTabId } from "./studio/DesignStudio";
 import { RibbonItem } from "./RibbonItem";
+
+const END_MODES = ["default", "custom", "none"] as const;
+type EndMode = (typeof END_MODES)[number];
+const endModeOf = (text: string | null): EndMode => (text === null ? "default" : text.trim() ? "custom" : "none");
 
 interface PagesState {
   interior: InteriorId;
@@ -36,6 +42,8 @@ interface PagesState {
   photoPlacement: "chapters" | "end" | "none";
   /** «Глава всегда с левой страницы» (books.pagination_rev 2): перед главой может встать пустая страница. */
   openersLeft: boolean;
+  /** Фраза последней страницы (lib/book/end-page.ts): null — «Продолжение следует…», пусто — без фразы. */
+  endText: string | null;
 }
 
 const spreads: SpreadKind[] = ["chapter", "photos", "front", "toc"];
@@ -86,6 +94,8 @@ export function PagesEditor({
   const [tab, setTab] = useState<StudioTabId | "content">("styles");
   const m = useMessages();
   const t = m.books.pages;
+  /** Выбор для последней страницы: «своя фраза» остаётся выбранной, даже пока поле пустое. */
+  const [endMode, setEndMode] = useState<EndMode>(endModeOf(initial.endText));
   const kind = bookKind(theme);
   const dedicationHint = t.dedicationByKind[kind] ?? { text: t.dedicationText, placeholder: t.dedicationPlaceholder };
   const format = getFormat(formatId);
@@ -133,10 +143,11 @@ export function PagesEditor({
       ...sample,
       dedication: state.dedication.trim(),
       showToc: state.showToc,
+      endText: state.endText,
       toc: sample.tocAll ? sampleToc(sample.tocAll, state.tocMode, state.tocLines) : sample.toc,
       ...(previewOf ? { chapter: { number: previewOf.number ?? sample.chapter.number, title: previewOf.title, epigraph: previewOf.epigraph } } : {}),
     }),
-    [sample, state.dedication, state.showToc, state.tocMode, state.tocLines, previewOf],
+    [sample, state.dedication, state.showToc, state.endText, state.tocMode, state.tocLines, previewOf],
   );
   // Примерка стиля: наведение в галерее показывает его на сцене, не меняя книгу.
   const [trying, setTrying] = useState<InteriorId | null>(null);
@@ -217,7 +228,7 @@ export function PagesEditor({
       setSpread("chapter");
     }
   };
-  const toggleItem = (key: "front" | "toc" | "photos", kindOf?: SpreadKind) => {
+  const toggleItem = (key: "front" | "toc" | "photos" | "end", kindOf?: SpreadKind) => {
     setOpenItem(openItem === key ? null : key);
     if (openItem !== key && kindOf) setSpread(kindOf);
   };
@@ -287,6 +298,50 @@ export function PagesEditor({
               </p>
             ) : null}
             {state.showToc && sample.tocAll ? <TocEditor candidates={sample.tocAll} mode={state.tocMode} lines={state.tocLines} editable={editable} onChange={update} onFocus={() => setSpread("toc")} /> : null}
+          </RibbonItem>
+          {/* Последняя страница — справа на развороте «Оглавление»: «Продолжение следует…», своя фраза или без фразы. */}
+          <RibbonItem title={t.endPage.title} meta={endMode === "custom" ? state.endText?.trim() || t.endPage.modes.custom : t.endPage.modes[endMode]} open={openItem === "end"} onToggle={() => toggleItem("end", "toc")}>
+            <div role="radiogroup" aria-label={t.endPage.title} className="space-y-1">
+              {END_MODES.map((mode) => (
+                <label key={mode} className="flex min-h-11 items-center gap-3 text-sm">
+                  <input
+                    type="radio"
+                    name="pages-end-mode"
+                    className="size-5 accent-wine"
+                    checked={endMode === mode}
+                    onChange={() => {
+                      if (!editable) return;
+                      setEndMode(mode);
+                      setSpread("toc");
+                      // Своя фраза начинается с прежней (или с «Продолжение следует…»), чтобы её было что править.
+                      update({ endText: mode === "default" ? null : mode === "none" ? "" : state.endText?.trim() || bookMessagesFor(sample.language).theEnd });
+                    }}
+                    disabled={!editable}
+                  />
+                  <span>{t.endPage.modes[mode]}</span>
+                </label>
+              ))}
+            </div>
+            {endMode === "custom" ? (
+              <>
+                <label className="label !mb-0" htmlFor="pages-end-text">
+                  {t.endPage.label}
+                </label>
+                <input
+                  id="pages-end-text"
+                  className="input"
+                  maxLength={END_TEXT_MAX}
+                  value={state.endText ?? ""}
+                  onChange={(e) => update({ endText: e.target.value })}
+                  onFocus={() => setSpread("toc")}
+                  placeholder={t.endPage.placeholder}
+                  disabled={!editable}
+                />
+                <p className="text-xs text-muted">{t.endPage.hint}</p>
+              </>
+            ) : endMode === "none" ? (
+              <p className="text-xs text-muted">{t.endPage.noneHint}</p>
+            ) : null}
           </RibbonItem>
         </ul>
       </section>

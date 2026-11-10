@@ -183,6 +183,7 @@ function bookRow(key: string, design: InteriorId, format: FormatId, language: Lo
     paginationRev: 1,
     inviteToken: null,
     inviteText: "",
+    endText: null,
     occasion: null,
     occasionDate: null,
     language,

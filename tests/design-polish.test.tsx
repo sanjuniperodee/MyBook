@@ -140,6 +140,7 @@ describe("картинка обложки для осмотра (настоящ�
     paginationRev: 1,
     inviteToken: null,
     inviteText: "",
+    endText: null,
     occasion: null,
     occasionDate: null,
     language: "ru",

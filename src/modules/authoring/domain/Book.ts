@@ -11,6 +11,7 @@ import { isTocMode, parseTocLines, type TocLines, type TocMode } from "@/lib/boo
 import { PAGINATION_REV_2 } from "@/lib/book/layout";
 import { getOccasion } from "@/lib/occasions";
 import { INVITE_TEXT_MAX } from "@/lib/content/letter-invite";
+import { END_TEXT_MAX } from "@/lib/book/end-page";
 import { bookKind, CHAPTER_TITLE_MAX, RECORDED_BY_MAX, type BookKind, type RecipientPolicy } from "@/lib/content/kinds";
 import { AuthoringError } from "./errors";
 import { AuthoringEvents, type BookRef } from "./events";
@@ -76,6 +77,8 @@ export interface BookProps {
   inviteToken: string | null;
   /** Свой текст приглашения на странице письма близких; пусто — по умолчанию (с «её получит …» у подарка). */
   inviteText: string;
+  /** Фраза последней страницы: null — «Продолжение следует…», пусто — без фразы, иначе своя (lib/book/end-page.ts). */
+  endText: string | null;
   language: Locale;
   occasion: string | null;
   occasionDate: string | null;
@@ -99,7 +102,7 @@ export const isBookEditableBy = (ownerId: string, viewer: BookViewer) => (viewer
 
 /** Настройки книги, которые клиент меняет в редакторе. */
 export type BookSettings = Partial<
-  Pick<BookProps, "title" | "subtitle" | "authorName" | "authorGender" | "recordedBy" | "recipientName" | "recipientGender" | "hideRecipientOnCover" | "namesOnCover" | "coverTemplate" | "backText" | "backLayout" | "dedication" | "interior" | "format" | "photoPlacement" | "showToc" | "tocMode" | "occasion" | "occasionDate" | "inviteText">
+  Pick<BookProps, "title" | "subtitle" | "authorName" | "authorGender" | "recordedBy" | "recipientName" | "recipientGender" | "hideRecipientOnCover" | "namesOnCover" | "coverTemplate" | "backText" | "backLayout" | "dedication" | "interior" | "format" | "photoPlacement" | "showToc" | "tocMode" | "occasion" | "occasionDate" | "inviteText" | "endText">
 >;
 
 /** Вопрос из банка темы, который копируется в книгу при создании. */
@@ -210,6 +213,7 @@ export class Book extends AggregateRoot<BookProps> {
       paginationRev: NEW_BOOK_PAGINATION_REV,
       inviteToken: null,
       inviteText: "",
+      endText: null,
       language: input.language,
       occasion,
       occasionDate: occasion ? input.occasionDate || null : null,
@@ -306,6 +310,7 @@ export class Book extends AggregateRoot<BookProps> {
     }
     if (clean.namesOnCover !== undefined) clean.namesOnCover = clip(clean.namesOnCover, NAMES_ON_COVER_MAX);
     if (clean.inviteText !== undefined) clean.inviteText = clip(clean.inviteText, INVITE_TEXT_MAX);
+    if (typeof clean.endText === "string") clean.endText = clip(clean.endText, END_TEXT_MAX);
     if (kind === "autobiography") delete clean.recipientName;
     if (kind !== "gift") delete clean.recipientGender;
     this.props = { ...this.props, ...clean };
