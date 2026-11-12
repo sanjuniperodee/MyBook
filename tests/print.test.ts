@@ -30,15 +30,15 @@ describe("печатные параметры", () => {
     expect(g.front.x + g.front.w + wrapMm).toBeCloseTo(g.width);
     expect(g.height).toBeCloseTo(formats.a5.heightMm + print.cover.boardExtraHeightMm + 2 * wrapMm);
   });
-  it("размеры — как у готовой книги типографии (09.11.2026, заказ №47, 196 полос): крышка 157×222, бороздка 7, корешок 13", () => {
-    const g = coverSpreadGeometry(formats.a5, 196);
-    expect([g.front.w, g.front.h]).toEqual([157, 222]);
-    expect([g.back!.w, g.back!.h]).toEqual([157, 222]);
+  it("размеры — как на схеме типографии (12.11.2026): крышка 145×207, расстав 7, корешок 4 мм у книги в 104 полосы", () => {
+    const g = coverSpreadGeometry(formats.a5, 104);
+    expect([g.front.w, g.front.h]).toEqual([145, 207]);
+    expect([g.back!.w, g.back!.h]).toEqual([145, 207]);
     expect(print.cover.hingeMm).toBe(7);
-    expect(Math.abs(g.spine!.w - 13)).toBeLessThanOrEqual(0.5);
+    expect(g.spine!.w).toBe(4);
     // Обложка — разворот с отступом 2 см под загиб со всех сторон.
-    expect(g.width).toBeCloseTo(20 + 157 + 7 + g.spine!.w + 7 + 157 + 20);
-    expect(g.height).toBe(20 + 222 + 20);
+    expect(g.width).toBeCloseTo(20 + 145 + 7 + 4 + 7 + 145 + 20);
+    expect(g.height).toBe(20 + 207 + 20);
   });
 });
 
