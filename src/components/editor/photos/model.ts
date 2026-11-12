@@ -117,8 +117,10 @@ export interface PlaceNames {
   question: (id: string) => string;
 }
 
-export function placeNames(chapters: readonly Pick<PlaceChapter, "key" | "title">[], answers: readonly Pick<PlaceAnswer, "id" | "title">[] = []): PlaceNames {
+/** album — название альбома в конце (как печатается): «Фото главы «…»» у фото начальной полосы альбома. */
+export function placeNames(chapters: readonly Pick<PlaceChapter, "key" | "title">[], answers: readonly Pick<PlaceAnswer, "id" | "title">[] = [], album = ""): PlaceNames {
   const c = new Map(chapters.map((ch) => [ch.key, ch.title]));
+  if (album) c.set(GALLERY_KEY, album);
   const q = new Map(answers.map((a) => [a.id, a.title]));
   return { chapter: (key) => c.get(key) || "—", question: (id) => q.get(id) || "—" };
 }
@@ -290,6 +292,8 @@ export function projectPlace(t: PlaceTarget, prev: PhotoPlace | undefined, ctx: 
     }
     case "opener":
     case "after":
+      // Начальная полоса альбома: в оформлении без фото главы снимок просто в альбоме.
+      if (t.chapterKey === GALLERY_KEY) return ctx.openerDesign && t.kind === "opener" ? { kind: "opener", chapterKey: GALLERY_KEY, auto: false, onCover } : { kind: "album", auto: false, onCover };
       if (!ctx.printed.has(t.chapterKey)) return { ...auto(), waitingFor: t.chapterKey };
       return { kind: t.kind === "opener" && ctx.openerDesign ? "opener" : "after", chapterKey: t.chapterKey, auto: false, onCover };
     case "album":

@@ -8,7 +8,7 @@ import { printedGalleryTitle, tocKey, type TocLines, type TocMode } from "./toc"
 import type { BookKind } from "@/lib/content/kinds";
 import { photoUrl } from "@/lib/urls";
 import { normalizeMedia } from "./answer-media";
-import { isChapterPhotoKey, photoPages, type BookContent, type CoverPhotos, type PhotoItem } from "./layout";
+import { isChapterPhotoKey, isOpenerPhotoKey, photoPages, type BookContent, type CoverPhotos, type PhotoItem } from "./layout";
 import type { PhotoCrop } from "./photo-crop";
 import type { AnswerMedia, Book, InlinePhotoStyle, Photo } from "@/shared/infrastructure/db/schema";
 
@@ -171,6 +171,8 @@ export interface PreviewChapter {
 /** Альбом в конце книги в превью: начальная полоса без номера и страницы фото. */
 export interface PreviewGallery {
   title: string;
+  /** Фото на начальной полосе альбома (BookContent.galleryOpenerPhoto). */
+  openerPhoto?: PreviewPagePhoto;
   photos: number;
   pages: PreviewPagePhoto[][];
 }
@@ -261,7 +263,7 @@ export function previewChapters(groups: ChapterGroup[], photos: EditorPhoto[], e
  * в своей главе (глава без текста встаёт по порядку вопросов). places — места фото (photoPlaceOf): чип «само».
  */
 export function previewFromContent(
-  content: Pick<BookContent, "chapters" | "galleryPhotos" | "galleryTitle" | "tocLines">,
+  content: Pick<BookContent, "chapters" | "galleryPhotos" | "galleryOpenerPhoto" | "galleryTitle" | "tocLines">,
   questions: readonly EditorQuestion[],
   photos: readonly EditorPhoto[],
   opts: { currentId: string | null; tocLines?: TocLines; epigraphs?: Record<string, string>; untitled?: string; places?: ReadonlyMap<string, { auto: boolean }> },
@@ -342,6 +344,7 @@ export function previewFromContent(
   const gallery = content.galleryPhotos.length
     ? {
         title: printedGalleryTitle(content),
+        ...(content.galleryOpenerPhoto ? { openerPhoto: pagePhoto(content.galleryOpenerPhoto) } : {}),
         photos: content.galleryPhotos.length,
         pages: photoPages(content.galleryPhotos).map((g) => g.map(pagePhoto)),
       }
@@ -422,7 +425,7 @@ export function patchEditorPhotos(photos: readonly EditorPhoto[], updates: reado
       p.chapter = patch.chapter || null;
       if (!isChapterPhotoKey(p.chapter)) p.opener = false;
     }
-    if (patch.opener !== undefined) p.opener = patch.opener && isChapterPhotoKey(p.chapter) && !p.questionId;
+    if (patch.opener !== undefined) p.opener = patch.opener && isOpenerPhotoKey(p.chapter) && !p.questionId;
     if (p.questionId) {
       p.chapter = null;
       p.opener = false;

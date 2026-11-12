@@ -69,10 +69,11 @@ async function prepareImages(content: BookContent, mode: RenderMode, bleedMm: nu
   const all: PhotoItem[] = [
     ...content.chapters.flatMap((c) => [...(c.openerPhoto ? [c.openerPhoto] : []), ...c.photos, ...c.items.flatMap((it) => [...(it.photos ?? []), ...(it.photoBefore ? [it.photoBefore] : [])])]),
     ...content.galleryPhotos,
+    ...(content.galleryOpenerPhoto ? [content.galleryOpenerPhoto] : []),
   ];
   const pxPerMm = dpi / 25.4;
   const result = new Map<string, PreparedImage>();
-  const openerIds = new Set(content.chapters.flatMap((c) => (c.openerPhoto ? [c.openerPhoto.id] : [])));
+  const openerIds = new Set([...content.chapters.flatMap((c) => (c.openerPhoto ? [c.openerPhoto.id] : [])), ...(content.galleryOpenerPhoto ? [content.galleryOpenerPhoto.id] : [])]);
   const openerShot = openerPhotoPlan(content.format, content.interior);
   // Места на фотостраницах — по той же раскладке, что и в вёрстке: снимок готовим ровно под своё место.
   const area = photoArea(content.format);

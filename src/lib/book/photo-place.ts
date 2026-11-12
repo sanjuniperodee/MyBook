@@ -31,7 +31,7 @@ type PlacePhoto = { id: string; chapter?: string | null; questionId?: string | n
  * Места всех фото книги по id — в порядке photos. Фото, которое сборка поставила дважды, получает первое место (ответ).
  * book — ссылки на снимки обложки; на обложке — только видные на ней (coverPhotos, cover-photos.ts: withCoverPhotos).
  */
-export function photoPlaceOf(content: Pick<BookContent, "chapters" | "galleryPhotos">, photos: readonly PlacePhoto[], book: CoverRefs): Map<string, PhotoPlace> {
+export function photoPlaceOf(content: Pick<BookContent, "chapters" | "galleryPhotos" | "galleryOpenerPhoto">, photos: readonly PlacePhoto[], book: CoverRefs): Map<string, PhotoPlace> {
   const shown = coverPhotosOf(book);
   const front = new Set(shown.front);
   const back = new Set(shown.back);
@@ -57,6 +57,8 @@ export function photoPlaceOf(content: Pick<BookContent, "chapters" | "galleryPho
       put(p.id, { kind: "after", chapterKey: ch.key, auto: !pinned, ...(pinned ? {} : withWaiting(waiting(byId.get(p.id)))) });
     }
   }
+  // Фото начальной полосы альбома — всегда выбор автора.
+  if (content.galleryOpenerPhoto) put(content.galleryOpenerPhoto.id, { kind: "opener", chapterKey: GALLERY_KEY, auto: false });
   for (const p of content.galleryPhotos) {
     const pinned = p.chapter === GALLERY_KEY;
     put(p.id, { kind: "album", auto: !pinned, ...(pinned ? {} : withWaiting(waiting(byId.get(p.id)))) });

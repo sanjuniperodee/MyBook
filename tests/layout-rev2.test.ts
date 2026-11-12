@@ -145,12 +145,15 @@ describe("«без фото главы» (noOpenerPhoto) — решение дл
 describe("Photo: места __gallery и __off, фото начала главы", () => {
   const p = () => Photo.restore("p1", { bookId: "b1", position: 0, storageKey: "k", thumbKey: "t", width: 10, height: 10, caption: "", layout: "full", questionId: null, inline: null, crop: null, chapter: null, opener: false });
 
-  it("служебные места принимаются, фото начала у них не бывает", () => {
-    for (const key of [GALLERY_KEY, PHOTO_OFF_KEY, "__letters"]) {
+  it("служебные места принимаются, фото начала у них не бывает — кроме альбома в конце (с 11.11, начальная полоса альбома)", () => {
+    for (const key of [PHOTO_OFF_KEY, "__letters"]) {
       const x = p();
       x.update({ chapter: key, opener: true });
       expect(x.snapshot()).toMatchObject({ chapter: key, opener: false });
     }
+    const album = p();
+    album.update({ chapter: GALLERY_KEY, opener: true });
+    expect(album.snapshot()).toMatchObject({ chapter: GALLERY_KEY, opener: true });
   });
 
   it("фото начала главы — только у настоящей главы и не в ответе; уход в альбом снимает отметку, «без фото» оставляет главу", () => {
@@ -463,7 +466,7 @@ describe("PhotosService.batch и перевод при правке", () => {
     expect(run).toHaveBeenCalledTimes(1);
     expect([snap(photos, "p1"), snap(photos, "p2"), snap(photos, "p3")].map((s) => [s.chapter, s.opener])).toEqual([
       ["a", false],
-      [GALLERY_KEY, false],
+      [GALLERY_KEY, true],
       ["a", true],
     ]);
   });

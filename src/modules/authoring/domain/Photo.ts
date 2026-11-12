@@ -2,7 +2,7 @@ import { AggregateRoot } from "@/shared/domain";
 import type { InlinePhotoStyle } from "@/lib/book/inline-photo";
 import { normalizeStyle } from "@/lib/book/inline-photo";
 import { normalizeCrop, rotateCrop, type PhotoCrop } from "@/lib/book/photo-crop";
-import { isChapterPhotoKey } from "@/lib/book/layout";
+import { isChapterPhotoKey, isOpenerPhotoKey } from "@/lib/book/layout";
 
 export interface PhotoProps {
   bookId: string;
@@ -64,11 +64,12 @@ export class Photo extends AggregateRoot<PhotoProps> {
     if (patch.crop !== undefined) this.props.crop = normalizeCrop(patch.crop);
     if (patch.chapter !== undefined) {
       this.props.chapter = patch.chapter && CHAPTER_KEY.test(patch.chapter) ? patch.chapter : null;
+      // Новая глава снимает отметку, кроме настоящей главы; фото альбома получает её только вместе с правкой (opener ниже).
       if (!isChapterPhotoKey(this.props.chapter)) this.props.opener = false;
     }
-    // Снимок начала — только у фото с выбранной настоящей главой (не альбом, не «не печатается», не письма);
-    // фото в ответе им не бывает. Снятая отметка оставляет главу: фото встаёт после неё.
-    if (patch.opener !== undefined) this.props.opener = patch.opener && isChapterPhotoKey(this.props.chapter) && !this.props.questionId;
+    // Снимок начала — только у фото с выбранной настоящей главой или альбомом в конце (не «не печатается», не письма);
+    // фото в ответе им не бывает. Снятая отметка оставляет главу: фото встаёт после неё (в альбом).
+    if (patch.opener !== undefined) this.props.opener = patch.opener && isOpenerPhotoKey(this.props.chapter) && !this.props.questionId;
     // Вставили в ответ — фото больше не «фото главы».
     if (this.props.questionId) {
       this.props.chapter = null;

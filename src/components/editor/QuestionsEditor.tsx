@@ -32,7 +32,7 @@ import { ChapterStart, type ChapterStartAction } from "./questions/ChapterStartC
 import { PhotoSheetHost, placeData, type BookSource, type PhotoSheetTarget } from "./preview/photo-sheets";
 import type { PreviewTarget } from "./preview/targets";
 import { patchBook } from "./photos/api";
-import { placeNames, withNoOpenerPhoto, type PlaceEvents } from "./photos/model";
+import { galleryTitleOf, placeNames, withNoOpenerPhoto, type PlaceEvents } from "./photos/model";
 import { useBookContent } from "./questions/useBookContent";
 import { useQuestionsDraft } from "./questions/useQuestionsDraft";
 import { ProofBar, ProofTextarea, type ProofHandle } from "./proofread/ProofTextarea";
@@ -344,7 +344,7 @@ function EditorBody({
   const { content: bookContent, places } = useBookContent(book, questions, photos, letters, chapters);
   const names = useMemo(() => {
     const d = placeData({ book, questions, photos, letters, chapters }, bookContent, places, { editable, untitledSection: untitled, untitledChapter });
-    return placeNames(d.chapters, d.answers);
+    return placeNames(d.chapters, d.answers, galleryTitleOf(d.tocLines, d.book.galleryTitle));
   }, [book, questions, photos, letters, chapters, bookContent, places, editable, untitled, untitledChapter]);
   const openerDesign = !!design.opener.photo;
   /** Лист «Где стоит фото» — из подписи места в выборе фото и «Перенести…» у фото ответа. */

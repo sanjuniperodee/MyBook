@@ -90,6 +90,11 @@ export interface BookContent {
   chapters: ContentChapter[];
   /** Фото, вынесенные в отдельный раздел в конце книги. */
   galleryPhotos: PhotoItem[];
+  /**
+   * Снимок на начальной полосе альбома в конце (оформления, где глава открывается фото): выбранный автором — фото с
+   * альбомом и отметкой фото главы (photos.chapter = GALLERY_KEY, opener). Нет — полоса с названием, как раньше.
+   */
+  galleryOpenerPhoto?: PhotoItem;
   /** Название раздела фото в конце книги (начальная полоса и строка оглавления) — по виду книги. */
   galleryTitle: string;
   year: number;
@@ -243,6 +248,9 @@ export const LETTERS_CHAPTER = "__letters";
 /** Ключ главы, у которой может быть фото начала: не альбом, не «не печатается» и не письма близких. */
 export const isChapterPhotoKey = (key: string | null | undefined): key is string => !!key && key !== GALLERY_KEY && key !== PHOTO_OFF_KEY && key !== LETTERS_CHAPTER;
 
+/** У кого бывает фото на начальной полосе (photos.opener): у настоящей главы и у альбома в конце. */
+export const isOpenerPhotoKey = (key: string | null | undefined): key is string => key === GALLERY_KEY || isChapterPhotoKey(key);
+
 /**
  * Тексты книги, которых нет в ответах: названия и эпиграфы глав (своей книги — из book_chapters, остальных — из темы),
  * «Разное» для главы вне темы, глава писем, название книги и раздела фото по умолчанию. На сервере их даёт bookTexts
@@ -361,6 +369,16 @@ export function assembleBookContent(
       const pick = marked.find((p) => p.chapter === ch.key) ?? marked[0];
       if (pick) ch.openerPhoto = ch.photos.splice(ch.photos.indexOf(pick), 1)[0];
     }
+  // Альбом открывается фото, выбранным автором (только правила 2), — если в альбоме остаются и другие фото: иначе
+  // альбома нет, и снимок печатается в нём самом, как раньше.
+  let galleryOpenerPhoto: PhotoItem | undefined;
+  if (interior.opener.photo && rev2) {
+    const pick = galleryPhotos.find((p) => p.opener && p.chapter === GALLERY_KEY);
+    if (pick && galleryPhotos.length > 1) {
+      galleryOpenerPhoto = pick;
+      galleryPhotos = galleryPhotos.filter((p) => p !== pick);
+    }
+  }
 
   // Письма близких — последняя глава, после распределения фото.
   const letterItems = letters.filter((l) => l.text.trim());
@@ -393,6 +411,7 @@ export function assembleBookContent(
     chapters,
     galleryPhotos,
     galleryTitle: texts.galleryTitle,
+    ...(galleryOpenerPhoto ? { galleryOpenerPhoto } : {}),
     year,
     ...(book.paginationRev === PAGINATION_REV_2 ? { openersLeft: true as const } : {}),
     ...(book.endText != null ? { endText: printableText(book.endText.trim()) } : {}),

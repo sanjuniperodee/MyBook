@@ -11,6 +11,7 @@ import { ensureLayoutRev2, patchBook, patchPhotos, reorderPhotos, syncLayout, up
 import {
   applyPatch,
   confirmFor,
+  galleryTitleOf,
   isSamePlace,
   moveUpdates,
   placeNames,
@@ -94,7 +95,7 @@ export function usePlaceEditing(data: PlaceData, on: PlaceEvents) {
   const layoutRev = cur.layoutRev ?? data.book.layoutRev;
   const book = data.book;
   const design = getInteriorDesign(book.interior);
-  const names = useMemo(() => placeNames(data.chapters, data.answers), [data.chapters, data.answers]);
+  const names = useMemo(() => placeNames(data.chapters, data.answers, galleryTitleOf(tocLines, data.book.galleryTitle)), [data.chapters, data.answers, tocLines, data.book.galleryTitle]);
   const ctx = useMemo<PlaceContext>(() => {
     const answers = new Map((data.answers ?? []).map((a) => [a.id, a.chapterKey]));
     return { openerDesign: !!design.opener.photo, photoPlacement, printed: new Set(data.chapters.filter((c) => c.printed).map((c) => c.key)), chapterOfQuestion: (id) => answers.get(id) };

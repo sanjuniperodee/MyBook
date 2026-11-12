@@ -97,6 +97,22 @@ describe("PDF с фотографиями", () => {
     expect(res.contentPages).toBe(estimatePages(content));
   });
 
+  // 11.11.2026: клиентка хотела фото на начальной полосе альбома в конце, как у глав в оформлении «Кино», — его там не было.
+  it("фото начальной полосы альбома: в PDF на начальной полосе альбома, в альбоме его нет, объём как в оценке", async () => {
+    const { renderInterior, contentFor } = await import("@/modules/production/infrastructure/pdf/render");
+    const { estimatePages } = await import("@/lib/book/estimate");
+    const { GALLERY_KEY } = await import("@/lib/book/toc");
+    const pick = photos[1].id;
+    const withAlbum = photos.map((p) => (p.id === pick ? { ...p, chapter: GALLERY_KEY, opener: true } : p));
+    const bundle = { book: { ...book, interior: "cinema", photoPlacement: "end" as const, layoutRev: 2, paginationRev: 2 }, questions, chapters: [], photos: withAlbum };
+    const content = contentFor(bundle);
+    expect(content.galleryOpenerPhoto?.id).toBe(pick);
+    expect(content.galleryPhotos.map((p) => p.id)).not.toContain(pick);
+    const res = await renderInterior(bundle, "reading");
+    expect(res.contentPages).toBe(estimatePages(content));
+    expect(res.pages.find((p) => p.kind === "opener" && p.chapterKey === GALLERY_KEY)).toBeDefined();
+  });
+
   it("обложка-мозаика из четырёх фото и оборот с полароидами — одна страница развёртки", async () => {
     const { renderCover } = await import("@/modules/production/infrastructure/pdf/render");
     const ids = photos.map((p) => p.id);

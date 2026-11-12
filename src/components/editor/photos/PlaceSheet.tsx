@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ChevronRight, Crop } from "lucide-react";
 import { useMessages } from "@/i18n/client";
+import { GALLERY_KEY } from "@/lib/book/toc";
 import { getFormat } from "@/lib/book/formats";
 import { gridCellFrame, pageFrame } from "@/lib/book/photo-pages";
 import type { PhotoPlace } from "@/lib/book/photo-place";
@@ -40,6 +41,9 @@ export function PlaceSheet({ data, on, photoId, onClose, layer = "z-[91]" }: { d
   const current = currentOption(place, photo);
   const label = (p: PhotoPlace) => placeText(p, names, m.editor, book.blank, { marked: photo.opener, openerDesign });
   const chapters = photoChapters(data.chapters);
+  // «Фото главы…» — и для начальной полосы альбома в конце, если альбом в книге есть (или фото уже на ней).
+  const album = [...ed.places.values()].some((p) => p.kind === "album" || (p.kind === "opener" && p.chapterKey === GALLERY_KEY)) || ed.photoPlacement === "end";
+  const rows = [...chapters, ...(album ? [{ key: GALLERY_KEY, title: names.chapter(GALLERY_KEY), printed: true }] : [])];
   const answers = data.answers ?? [];
 
   const go = async (target: PlaceTarget) => {
@@ -166,8 +170,8 @@ export function PlaceSheet({ data, on, photoId, onClose, layer = "z-[91]" }: { d
         <AnswerList data={data} current={place.kind === "answer" ? place.questionId : undefined} onPick={(questionId) => void go({ kind: "answer", questionId })} />
       ) : (
         <ul className="mt-4 space-y-2">
-          {chapters.length ? null : <li className="text-sm text-muted">{book.blank ? m.books.photosTab.noChaptersBlank : m.books.photosTab.noChapters}</li>}
-          {chapters.map((c) => {
+          {(step === "opener" ? rows : chapters).length ? null : <li className="text-sm text-muted">{book.blank ? m.books.photosTab.noChaptersBlank : m.books.photosTab.noChapters}</li>}
+          {(step === "opener" ? rows : chapters).map((c) => {
             const here = !place.auto && place.kind === step && place.chapterKey === c.key;
             const waiting = place.waitingFor === c.key && (step === "opener") === !!photo.opener;
             const opener = openerOf(ed.places, c.key);

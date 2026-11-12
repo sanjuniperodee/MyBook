@@ -5,7 +5,7 @@
  */
 import type { InteriorDesign } from "@/lib/book/interiors";
 import type { PhotoPlace } from "@/lib/book/photo-place";
-import type { TocLines } from "@/lib/book/toc";
+import { GALLERY_KEY, type TocLines } from "@/lib/book/toc";
 import { albumPhotos, noOpenerPhotoOf, openerOf, photoChapters, type PlaceData, type SheetPhoto } from "@/components/editor/photos/model";
 
 /** Форма фото главы в оформлении (ключ editor.openerShape) или null — глава начинается без фото. */
@@ -33,7 +33,12 @@ export function placesForDesign(places: ReadonlyMap<string, PhotoPlace>, photos:
   for (const photo of photos) {
     const p = places.get(photo.id);
     if (!p) continue;
-    if (!openerDesign && p.kind === "opener") set(photo.id, { ...p, kind: "after" });
+    // Фото начальной полосы альбома в оформлении без фото главы — просто в альбоме, и обратно.
+    if (!openerDesign && p.kind === "opener" && p.chapterKey === GALLERY_KEY) set(photo.id, { kind: "album", auto: false, onCover: p.onCover });
+    else if (openerDesign && p.kind === "album" && !p.auto && photo.opener && !withOpener.has(GALLERY_KEY)) {
+      withOpener.add(GALLERY_KEY);
+      set(photo.id, { ...p, kind: "opener", chapterKey: GALLERY_KEY });
+    } else if (!openerDesign && p.kind === "opener") set(photo.id, { ...p, kind: "after" });
     else if (openerDesign && p.kind === "after" && !p.auto && photo.opener && p.chapterKey && !withOpener.has(p.chapterKey)) {
       withOpener.add(p.chapterKey);
       set(photo.id, { ...p, kind: "opener" });

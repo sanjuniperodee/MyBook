@@ -51,7 +51,7 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
 
   if (content.galleryPhotos.length) {
     blank(GALLERY_KEY);
-    pages.push(<Opener key="open-__gallery" kit={kit} chapterKey={GALLERY_KEY} number={null} title={printedGalleryTitle(content)} />);
+    pages.push(<Opener key="open-__gallery" kit={kit} chapterKey={GALLERY_KEY} number={null} title={printedGalleryTitle(content)} photo={content.galleryOpenerPhoto} />);
     photoPages(content.galleryPhotos).forEach((group, i) => pages.push(<PhotoPage key={`ph-gallery-${i}`} kit={kit} group={group} />));
   }
 

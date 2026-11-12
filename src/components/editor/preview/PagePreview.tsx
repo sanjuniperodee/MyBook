@@ -158,7 +158,7 @@ function PagePreviewView({
         {pageW && gallery ? (
           // Альбом в конце — после всех глав, как в PDF: начальная полоса без номера и страницы фото.
           <>
-            <PreviewOpener kit={kit} number={null} title={gallery.title} style={{ width: pageW, height: H * px }} tp={tp} target={{ kind: "gallery" }} label={tp.albumChip} chip={hasTarget ? tp.albumChip : undefined} onTarget={toTarget} />
+            <PreviewOpener kit={kit} number={null} title={gallery.title} photo={gallery.openerPhoto} style={{ width: pageW, height: H * px }} tp={tp} target={{ kind: "gallery" }} label={tp.albumChip} chip={hasTarget ? tp.albumChip : undefined} onTarget={toTarget} />
             <PreviewPhotoPages kit={kit} pages={gallery.pages} pageW={pageW} pageH={H * px} scroll={scroll} idPrefix="album" tp={tp} target={() => ({ kind: "gallery" })} label={tp.albumChip} onTarget={toTarget} />
           </>
         ) : null}
