@@ -87,6 +87,19 @@ export interface CoverGeometry {
   folds?: number[];
 }
 
+/** Выступ крышки над обрезанным блоком (кант): с трёх сторон, мм. */
+export const BOARD_OVERHANG_MM = 3;
+
+/**
+ * Блок после переплёта: типография обрезает его так, чтобы крышка выступала на кант. Пока крышка больше формата —
+ * это сам формат; по схеме типографии крышка A5 145×207 меньше файла блока 148×210, значит блок режут до 142×201.
+ * Нужен 3D-модели (страницы не должны торчать из-под крышки); точный обрез ещё ждём от типографии.
+ */
+export function trimmedBlockOf(format: Pick<BookFormat, "widthMm" | "heightMm">) {
+  const b = boardOf(format);
+  return { w: Math.min(format.widthMm, b.w - BOARD_OVERHANG_MM), h: Math.min(format.heightMm, b.h - BOARD_OVERHANG_MM * 2) };
+}
+
 /** Картон крышки (лицевой и задней) для формата блока, мм. */
 export function boardOf(format: Pick<BookFormat, "widthMm" | "heightMm">) {
   return { w: format.widthMm + print.cover.boardExtraWidthMm, h: format.heightMm + print.cover.boardExtraHeightMm };

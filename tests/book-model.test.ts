@@ -12,11 +12,15 @@ describe("bookDims", () => {
     }
   });
 
-  it("крышки больше блока, как у типографии; блок равен обрезному формату", () => {
-    const d = bookDims(formats.square, 40);
-    expect(d.w - d.block.w).toBe(print.cover.boardExtraWidthMm);
-    expect(d.h - d.block.h).toBe(print.cover.boardExtraHeightMm);
-    expect(d.block.w).toBe(200);
+  it("крышки всегда больше блока на кант: блок обрезан, страницы не торчат из-под обложки (13.11.2026)", () => {
+    for (const format of Object.values(formats)) {
+      const d = bookDims(format, 40);
+      expect(d.w - d.block.w, format.id).toBeGreaterThanOrEqual(3);
+      expect(d.h - d.block.h, format.id).toBeGreaterThanOrEqual(6);
+      expect(d.block.w).toBeLessThanOrEqual(format.widthMm);
+    }
+    const a5 = bookDims(formats.a5, 104);
+    expect([a5.w, a5.h, a5.block.w, a5.block.h]).toEqual([145, 207, 142, 201]);
   });
 
   it("чем больше страниц, тем толще книга", () => {

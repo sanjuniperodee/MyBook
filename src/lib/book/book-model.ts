@@ -4,7 +4,7 @@
  * корешка и выступ крышек на экране совпадают с тем, что получится в типографии. Единица — миллиметр.
  * Чистые функции без React и DOM — проверяются юнит-тестами.
  */
-import { coverSpreadGeometry, print, PT_TO_MM, type BookFormat, type Rect } from "./formats";
+import { coverSpreadGeometry, print, PT_TO_MM, trimmedBlockOf, type BookFormat, type Rect } from "./formats";
 import { printableText } from "./printable";
 
 /** Толщина картонной крышки, мм (картон + покровный материал; вместе с отставом даёт spineExtraMm). */
@@ -32,7 +32,8 @@ export function bookDims(format: BookFormat, pageCount: number): BookDims {
     w: front.w,
     h: front.h,
     d: spine.w,
-    block: { w: format.widthMm, h: format.heightMm, d: Math.max(0.5, spine.w - BOARD_MM * 2) },
+    // Блок — как после обреза в типографии: всегда меньше крышки на кант (страницы не торчат из-под обложки).
+    block: { ...trimmedBlockOf(format), d: Math.max(0.5, spine.w - BOARD_MM * 2) },
     rects: { front, back, spine },
     spread: { w: g.width, h: g.height },
   };
