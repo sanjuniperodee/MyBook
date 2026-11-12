@@ -1,11 +1,12 @@
 import type { CoverMeta } from "@/lib/book/covers/meta";
 import type { CoverTemplate, CoverTextStyle } from "@/lib/book/covers/types";
-import { getFormat } from "@/lib/book/formats";
 import { cssFont } from "@/lib/book/fonts";
 import { printableText } from "@/lib/book/printable";
 import { coverArtUrl } from "@/lib/urls";
 import { cn } from "@/lib/class-names";
 import { fitWordSize } from "@/lib/book/word-fit";
+import { templateTextLayout } from "@/lib/book/cover-design/template-text";
+import { boardOf, getFormat } from "@/lib/book/formats";
 
 /**
  * Лицевая сторона обложки по метаданным шаблона: фон — кэшируемая картинка /api/covers (или готовый SVG
@@ -48,12 +49,28 @@ export function Ornament({ kind, color, size = "3.5cqw" }: NonNullable<CoverTemp
 }
 
 /** Текст лицевой стороны: заголовок, подзаголовок, орнамент и имена. Размеры — в cqw от ширины лицевой стороны. */
-export function CoverText({ template, title: rawTitle, subtitle: rawSubtitle, names: rawNames, titlePlaceholder = "…" }: { template: CoverMeta; title: string; subtitle?: string; names?: string; titlePlaceholder?: string }) {
+export function CoverText({
+  template,
+  title: rawTitle,
+  subtitle: rawSubtitle,
+  names: rawNames,
+  titlePlaceholder = "…",
+  format = "a5",
+}: {
+  template: CoverMeta;
+  title: string;
+  subtitle?: string;
+  names?: string;
+  titlePlaceholder?: string;
+  /** Формат книги: область текста прижимается в безопасную зону её крышки — как в PDF. */
+  format?: string;
+}) {
   // Как в PDF: эмодзи не печатаются — и на превью их нет.
   const title = printableText(rawTitle);
   const subtitle = rawSubtitle && printableText(rawSubtitle);
   const names = rawNames && printableText(rawNames);
-  const ta = template.textArea;
+  // Как в PDF: область текста — в безопасной зоне крышки, кегли — общим множителем, чтобы текст поместился.
+  const { area: ta, scale } = templateTextLayout(template, { title: title || titlePlaceholder, subtitle: subtitle || "", names: names || "" }, boardOf(getFormat(format)));
   const align = template.align ?? "center";
   const justify = template.justify === "center" ? "center" : template.justify === "start" ? "flex-start" : "flex-end";
   const items = align === "left" ? "flex-start" : align === "right" ? "flex-end" : "center";
@@ -65,7 +82,7 @@ export function CoverText({ template, title: rawTitle, subtitle: rawSubtitle, na
     <div style={{ height: "3.5cqw" }} />
   );
   // Кегль — с подбором по самому длинному слову (как в PDF): иначе браузер рвёт длинное слово по буквам.
-  const css = (s: CoverTextStyle, text: string) => textCss(s, align, fitWordSize(text, s, s.size, ta.w));
+  const css = (s: CoverTextStyle, text: string) => textCss(s, align, fitWordSize(text, s, s.size * scale, ta.w));
   const namesLine = names ? <div style={css(template.names, names)}>{names}</div> : null;
   return (
     <div
@@ -127,7 +144,7 @@ export function CoverFace({ template, format: formatId = "a5", title, subtitle, 
           <span className="rounded-full bg-black/45 px-[3cqw] py-[1cqw] text-[3.2cqw] text-white backdrop-blur-sm">{photoHint}</span>
         </div>
       ) : null}
-      <CoverText template={template} title={title} subtitle={subtitle} names={names} titlePlaceholder={titlePlaceholder} />
+      <CoverText template={template} title={title} subtitle={subtitle} names={names} titlePlaceholder={titlePlaceholder} format={format.id} />
     </div>
   );
 }

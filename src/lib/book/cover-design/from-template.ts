@@ -3,32 +3,22 @@
  * местах, что в PDF (textArea — доли крышки, кегль — доля её ширины). Высоты строк оцениваются по средней ширине
  * знаков шрифта; дальше клиент двигает и меняет слои как хочет — шаблон только отправная точка.
  */
-import { countLines } from "../cover-back";
 import type { CoverMeta } from "../covers/meta";
 import type { CoverTextStyle } from "../covers/types";
-import { fontWidth } from "../fonts";
 import type { BookFormat } from "../formats";
 import { boardSize } from "./geometry";
 import { parseCoverDesign } from "./parse";
+import { styleTextHeight, TEMPLATE_GAP, templateTextLayout } from "./template-text";
 import type { CoverDesign, CoverLayer, CoverTexts, TextLayer } from "./types";
 
-/** Отбивки блока текста шаблона — как в CoverText и CoverDocument: доли ширины крышки. */
-const GAP = { subtitle: 0.015, ornament: 0.03, ornamentSize: 0.035, spacer: 0.035 } as const;
+const GAP = TEMPLATE_GAP;
 
-function textHeight(text: string, s: CoverTextStyle, widthMm: number, W: number) {
-  const size = s.size * W;
-  const content = s.upper ? text.toUpperCase() : text;
-  // Разрядка шире строку: делим ширину на (1 + разрядка/средняя ширина знака).
-  const width = widthMm / (1 + (s.tracking ?? 0) / fontWidth(s.font));
-  return countLines(content || " ", size, width, s.font) * size * (s.lineHeight ?? 1.2);
-}
-
-const styleOf = (s: CoverTextStyle, align: "left" | "center" | "right"): TextLayer["style"] => ({
+const styleOf = (s: CoverTextStyle, align: "left" | "center" | "right", scale: number): TextLayer["style"] => ({
   font: s.font,
   weight: s.weight ?? 400,
   ...(s.italic ? { italic: true } : {}),
   ...(s.upper ? { upper: true } : {}),
-  size: s.size,
+  size: Math.round(s.size * scale * 10000) / 10000,
   color: s.color,
   ...(s.tracking ? { tracking: s.tracking } : {}),
   lineHeight: s.lineHeight ?? 1.2,
@@ -38,7 +28,9 @@ const styleOf = (s: CoverTextStyle, align: "left" | "center" | "right"): TextLay
 
 export function designFromTemplate(template: CoverMeta, texts: CoverTexts, format: BookFormat): CoverDesign {
   const { w: W, h: H } = boardSize(format);
-  const ta = template.textArea;
+  // Область и кегли — как у текста шаблона в превью и PDF: внутри безопасной зоны, длинное название — мельче.
+  const { area: ta, scale } = templateTextLayout(template, texts, { w: W, h: H });
+  const textHeight = (text: string, st: CoverTextStyle, widthMm: number, w: number) => styleTextHeight(text, st, st.size * scale, widthMm, w);
   const align = template.align ?? "center";
   const width = ta.w * W;
   type Item = { kind: "title" | "subtitle" | "names" | "ornament" | "spacer"; h: number; gap: number };
@@ -77,9 +69,9 @@ export function designFromTemplate(template: CoverMeta, texts: CoverTexts, forma
     y += it.gap;
     const style = it.kind === "title" ? template.title : it.kind === "subtitle" ? template.subtitle : template.names;
     // Небольшой запас по высоте: браузер и PDF могут перенести строку чуть иначе, чем оценка.
-    const slack = style.size * W * 0.25;
+    const slack = style.size * scale * W * 0.25;
     const bind = it.kind as "title" | "subtitle" | "names";
-    layers.push({ id: bind, kind: "text", bind, text: "", x: ta.x, y: y / H, w: ta.w, h: (it.h + slack) / H, style: styleOf(style, align) });
+    layers.push({ id: bind, kind: "text", bind, text: "", x: ta.x, y: y / H, w: ta.w, h: (it.h + slack) / H, style: styleOf(style, align, scale) });
     y += it.h;
   }
   // Через разбор: числа округлены так же, как при сохранении — данные в редакторе и в базе совпадают.

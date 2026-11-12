@@ -43,7 +43,7 @@ export function CoverFrontFace({ template, art, title, subtitle, names, titlePla
       ) : (
         <div className="absolute inset-0" style={{ backgroundImage: art.front, backgroundSize: "100% 100%" }} />
       )}
-      {design ? <DesignFace design={design} format={format} title={title || titlePlaceholder || ""} subtitle={subtitle} names={names} /> : <CoverText template={template} title={title} subtitle={subtitle} names={names} titlePlaceholder={titlePlaceholder} />}
+      {design ? <DesignFace design={design} format={format} title={title || titlePlaceholder || ""} subtitle={subtitle} names={names} /> : <CoverText template={template} title={title} subtitle={subtitle} names={names} titlePlaceholder={titlePlaceholder} format={format} />}
       <div
         aria-hidden
         className="absolute inset-0"

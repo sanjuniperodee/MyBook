@@ -22,6 +22,39 @@ export interface WordFitFace {
   tracking?: number;
 }
 
+/** Ширина слова (без пробелов), в кеглях — по ширинам знаков шрифта. */
+export function wordWidthEm(word: string, face: WordFitFace): number {
+  const widths = FONT_WIDTHS[face.font];
+  const avg = (fontFaces[face.font].width ?? 0.55) * 1000;
+  const tracking = face.tracking ?? 0;
+  let w = 0;
+  for (const ch of face.upper ? word.toUpperCase() : word) {
+    const i = INDEX.get(ch);
+    w += ((i === undefined ? 0 : widths[i]) || avg) / 1000 + tracking;
+  }
+  return w;
+}
+
+/** Сколько строк займёт текст в ширину width (в кеглях): перенос по словам, абзацы сохраняются, запас как у MARGIN. */
+export function countLinesEm(text: string, face: WordFitFace, width: number): number {
+  const space = wordWidthEm(" ", face) || 0.25;
+  const room = width * MARGIN;
+  let lines = 0;
+  for (const para of text.split("\n")) {
+    const words = para.trim().split(/\s+/).filter(Boolean);
+    lines += 1;
+    let line = 0;
+    for (const word of words) {
+      const w = wordWidthEm(word, face);
+      if (line > 0 && line + space + w > room) {
+        lines += 1;
+        line = w;
+      } else line += (line > 0 ? space : 0) + w;
+    }
+  }
+  return lines;
+}
+
 /** Ширина самого длинного слова, в кеглях. */
 export function longestWordEm(text: string, face: WordFitFace): number {
   const widths = FONT_WIDTHS[face.font];

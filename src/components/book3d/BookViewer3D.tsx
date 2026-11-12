@@ -581,7 +581,7 @@ export function BookViewer3D({ data, bookId, className }: { data: FlipbookData; 
       {design ? (
         <DesignFace design={design} format={data.formatId} title={data.cover.title || data.cover.titlePlaceholder || ""} subtitle={data.cover.subtitle} names={data.cover.names} />
       ) : (
-        <CoverText template={template} title={data.cover.title} subtitle={data.cover.subtitle} names={data.cover.names} titlePlaceholder={data.cover.titlePlaceholder} />
+        <CoverText template={template} title={data.cover.title} subtitle={data.cover.subtitle} names={data.cover.names} titlePlaceholder={data.cover.titlePlaceholder} format={data.formatId} />
       )}
       {/* Шарнир у корешка и блик */}
       <div aria-hidden className="pointer-events-none absolute inset-0" style={{ background: `linear-gradient(90deg, rgba(0,0,0,.22) 0, rgba(0,0,0,0) 1.2%, rgba(0,0,0,.2) ${hingePct.toFixed(2)}%, rgba(255,255,255,.1) ${(hingePct + 0.8).toFixed(2)}%, rgba(0,0,0,0) ${(hingePct + 4).toFixed(2)}%)` }} />

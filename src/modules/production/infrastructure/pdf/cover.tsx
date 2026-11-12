@@ -15,6 +15,7 @@ const noHyphens = (word: string) => [word];
 import { messagesFor } from "@/i18n/messages";
 import type { CoverDesign } from "@/lib/book/cover-design";
 import { CoverLayersPdf } from "./cover-layers";
+import { templateTextLayout } from "@/lib/book/cover-design/template-text";
 
 /** text — для подбора кегля по самому длинному слову в ширину области текста (как CoverText в HTML). */
 function textStyle(s: CoverTextStyle, frontWmm: number, align: CoverTemplate["align"], text: string, areaW: number) {
@@ -82,11 +83,13 @@ export function CoverDocument({
 }) {
   const g = geometry;
   const f = g.front;
-  const ta = template.textArea;
+  // Область текста — внутри безопасной зоны крышки, кегли — общим множителем, чтобы текст в неё поместился.
+  const { area: ta, scale } = templateTextLayout(template, text, f);
+  const st = (s: CoverTextStyle): CoverTextStyle => ({ ...s, size: s.size * scale });
   const justify = template.justify === "center" ? "center" : template.justify === "start" ? "flex-start" : "flex-end";
   const align = template.align ?? "center";
   const items = align === "left" ? "flex-start" : align === "right" ? "flex-end" : "center";
-  const titleStyle = textStyle(template.title, f.w, align, text.title, ta.w);
+  const titleStyle = textStyle(st(template.title), f.w, align, text.title, ta.w);
   const ornamentSize = mm(f.w * 0.035);
   const ornament =
     template.ornament && text.names ? (
@@ -96,7 +99,7 @@ export function CoverDocument({
     ) : (
       <View style={{ height: mm(f.w * 0.035) }} />
     );
-  const namesLine = text.names ? <Text hyphenationCallback={noHyphens} style={{ ...textStyle(template.names, f.w, align, text.names, ta.w), alignSelf: "stretch" }}>{text.names}</Text> : null;
+  const namesLine = text.names ? <Text hyphenationCallback={noHyphens} style={{ ...textStyle(st(template.names), f.w, align, text.names, ta.w), alignSelf: "stretch" }}>{text.names}</Text> : null;
 
   const spine = g.spine;
   const clipX = spine ? Math.max(0, f.x - print.cover.hingeMm) : 0;
@@ -133,7 +136,7 @@ export function CoverDocument({
           {template.namesFirst ? namesLine : null}
           {template.namesFirst ? ornament : null}
           <Text hyphenationCallback={noHyphens} style={{ ...titleStyle, alignSelf: "stretch" }}>{text.title}</Text>
-          {text.subtitle ? <Text hyphenationCallback={noHyphens} style={{ ...textStyle(template.subtitle, f.w, align, text.subtitle, ta.w), alignSelf: "stretch", marginTop: mm(f.w * 0.015) }}>{text.subtitle}</Text> : null}
+          {text.subtitle ? <Text hyphenationCallback={noHyphens} style={{ ...textStyle(st(template.subtitle), f.w, align, text.subtitle, ta.w), alignSelf: "stretch", marginTop: mm(f.w * 0.015) }}>{text.subtitle}</Text> : null}
           {template.namesFirst ? null : ornament}
           {template.namesFirst ? null : namesLine}
         </View>}
