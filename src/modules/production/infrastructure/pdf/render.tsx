@@ -242,7 +242,8 @@ export async function renderInterior(bundle: BookBundle, mode: RenderMode, repor
   const chapterOf = new Map(content.chapters.flatMap((c) => c.items.map((it) => [it.id, c.key] as const)));
   const flow = emptyFlow();
   // Начальные полосы по порядку книги — для пустых полос перед ними (content.openersLeft: начальная полоса всегда слева).
-  const openers = [...content.chapters.map((c) => c.key), ...(content.galleryPhotos.length ? [GALLERY_KEY] : [])];
+  // Без начальных полос глав (content.chapterStart) слева встаёт только полоса альбома.
+  const openers = [...(content.chapterStart ? [] : content.chapters.map((c) => c.key)), ...(content.galleryPhotos.length ? [GALLERY_KEY] : [])];
   const blanks = (pages: Record<string, number>) => !!content.openersLeft && refineBlanks(openers, pages, flow);
   const typo = content.interior.type;
   const minLead = interiorSizes(content.interior, interiorMetrics[content.format.id].scale).body * typo.lineHeight * 2.6;
@@ -303,11 +304,14 @@ export async function renderInterior(bundle: BookBundle, mode: RenderMode, repor
   const contentPages = doc.getPageCount();
   const pages = readPages(final);
   if (pages.length !== contentPages) throw new Error(`PDF: layout has ${pages.length} pages, file has ${contentPages}`);
-  // Переход к главе (3D-книга, превью) идёт по chapterPages: каждая глава должна указывать на свою начальную полосу.
-  for (const [key, n] of Object.entries(chapters))
-    if (pages[n - 1]?.kind !== "opener" || pages[n - 1].chapterKey !== key) throw new Error(`PDF: chapter ${key} starts on page ${n}, which is not its opener`);
+  // Переход к главе (3D-книга, превью) идёт по chapterPages: каждая глава должна указывать на свою начальную полосу
+  // (без начальных полос — на первую полосу своего текста; альбом свою полосу сохраняет).
+  for (const [key, n] of Object.entries(chapters)) {
+    const kind = content.chapterStart && key !== GALLERY_KEY ? "text" : "opener";
+    if (pages[n - 1]?.kind !== kind || pages[n - 1].chapterKey !== key) throw new Error(`PDF: chapter ${key} starts on page ${n}, which is not its ${kind}`);
+  }
   // Начальная полоса слева (content.openersLeft) не сошлась за все проходы — книга всё равно собирается, но это видно в логе.
-  if (content.openersLeft) for (const [key, n] of Object.entries(chapters)) if (n % 2) console.warn(`PDF: opener of ${key} is on the right page ${n}`);
+  if (content.openersLeft) for (const [key, n] of Object.entries(chapters)) if (n % 2 && openers.includes(key)) console.warn(`PDF: opener of ${key} is on the right page ${n}`);
   const width = mm(content.format.widthMm + bleed * 2);
   const height = mm(content.format.heightMm + bleed * 2);
   let pageCount = contentPages;

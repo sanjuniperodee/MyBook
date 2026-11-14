@@ -1,5 +1,6 @@
 "use client";
 
+import type { BookContent } from "@/lib/book/layout";
 import { useMessages } from "@/i18n/client";
 import type { Locale } from "@/i18n/config";
 import { memo, useCallback, useLayoutEffect, useMemo, useRef, type MouseEvent, type ReactNode } from "react";
@@ -35,6 +36,7 @@ function PagePreviewView({
   chapters,
   gallery = null,
   openersLeft = false,
+  chapterStart,
   currentId,
   selectedId = null,
   onSelect,
@@ -55,6 +57,8 @@ function PagePreviewView({
   gallery?: PreviewGallery | null;
   /** Начальная полоса главы слева, первая полоса текста справа (BookContent.openersLeft); нет — начальная справа. */
   openersLeft?: boolean;
+  /** Глава без начальной полосы (BookContent.chapterStart): inline — номер и название над текстом, none — чистый лист. */
+  chapterStart?: BookContent["chapterStart"];
   currentId: string;
   selectedId?: string | null;
   onSelect?: (id: string | null) => void;
@@ -139,6 +143,7 @@ function PagePreviewView({
                 onTarget={toTarget}
                 pages={pagesBy[ch.key] ?? 1}
                 openersLeft={openersLeft}
+                start={chapterStart}
                 photoPages={photoPagesBy[ch.key] ?? NO_PHOTO_PAGES}
                 currentId={current ? currentId : null}
                 selectedId={current ? selectedId : null}

@@ -8,6 +8,7 @@ import { frameShapes, openerArtShapes, openerEmblemShapes } from "@/lib/book/int
 import { openerFit } from "@/lib/book/opener-fit";
 import { openerPhotoPlan, openerTextColors, type OpenerPhotoPlan } from "@/lib/book/photo-pages";
 import { OPENER, VIGNETTE_RULE } from "@/lib/book/typesetting";
+import { CHAPTER_HEAD, chapterHeadSizes } from "@/lib/book/chapter-head";
 import { PdfPageLayer } from "@/modules/production/infrastructure/pdf/art";
 import { labelStyle, noHyphens, pageMark, textFace, type PdfKit } from "./kit";
 import { Placed, Vignette } from "./parts";
@@ -43,7 +44,7 @@ function OpenerPhoto({ kit, shot, image }: { kit: PdfKit; shot: OpenerPhotoPlan;
 }
 
 /** Номер главы: подпись («Глава 1») или крупная цифра — по дизайну. */
-function ChapterMark({ kit, colors, number }: { kit: PdfKit; colors: InteriorPalette; number: number | null }) {
+function ChapterMark({ kit, colors, number, numeralSize = kit.sizes.numeral }: { kit: PdfKit; colors: InteriorPalette; number: number | null; numeralSize?: number }) {
   const { design, sizes: S, t } = kit;
   const mark = number ? chapterMark(design, number, t.chapter) : null;
   const textAlign = design.opener.align;
@@ -61,7 +62,7 @@ function ChapterMark({ kit, colors, number }: { kit: PdfKit; colors: InteriorPal
       </Text>
     );
   if (mark?.kind === "numeral")
-    return <Text style={{ ...textFace(design.opener.numeral ?? design.display, S.numeral), lineHeight: OPENER.numeral.lineHeight, textAlign, color: colors.accent, marginBottom: S.numeral * OPENER.numeral.after }}>{mark.text}</Text>;
+    return <Text style={{ ...textFace(design.opener.numeral ?? design.display, numeralSize), lineHeight: OPENER.numeral.lineHeight, textAlign, color: colors.accent, marginBottom: numeralSize * OPENER.numeral.after }}>{mark.text}</Text>;
   return null;
 }
 
@@ -102,5 +103,40 @@ export function Opener({ kit, chapterKey, number, title, epigraph, photo }: { ki
         ) : null}
       </Placed>
     </Page>
+  );
+}
+
+/**
+ * Заголовок главы над текстом — у книги с началом главы inline (BookContent.chapterStart): номер, название, виньетка и эпиграф
+ * вверху первой полосы текста, мельче, чем на начальной полосе (lib/book/chapter-head.ts). Сообщает полосу главы.
+ */
+export function ChapterHead({ kit, chapterKey, number, title, epigraph }: { kit: PdfKit; chapterKey: string; number: number | null; title: string; epigraph?: string }) {
+  const { design, sizes: S, italicBody } = kit;
+  const { align } = design.opener;
+  const colors = design.palette;
+  const H = chapterHeadSizes(S);
+  return (
+    <View wrap={false} style={{ alignItems: align === "left" ? "flex-start" : "center", marginBottom: H.after }}>
+      <ChapterPageMark kit={kit} chapterKey={chapterKey} />
+      <ChapterMark kit={kit} colors={colors} number={number} numeralSize={H.numeral} />
+      <Text hyphenationCallback={noHyphens} style={{ ...textFace(design.display, H.title), lineHeight: OPENER.title.lineHeight, textAlign: align, color: colors.ink, maxWidth: OPENER.title.maxWidth }}>{title}</Text>
+      {design.opener.vignette === false ? <View style={{ height: S.vignetteGap }} /> : <Vignette kit={kit} rule={VIGNETTE_RULE.opener} colors={colors} align={align} />}
+      {epigraph ? (
+        <Text hyphenationCallback={noHyphens} style={{ ...italicBody, fontSize: S.epigraph, lineHeight: OPENER.epigraph.lineHeight, textAlign: align, color: colors.muted, maxWidth: OPENER.epigraph.maxWidth[align], marginBottom: S.body * CHAPTER_HEAD.epigraphGap }}>{epigraph}</Text>
+      ) : null}
+    </View>
+  );
+}
+
+/** Невидимая метка: на какой полосе встала глава без начальной полосы (номера оглавления, переход к главе). */
+export function ChapterPageMark({ kit, chapterKey }: { kit: PdfKit; chapterKey: string }) {
+  return (
+    <Text
+      style={{ position: "absolute", top: 0, left: 0, fontSize: 1, color: kit.paper }}
+      render={({ pageNumber }) => {
+        kit.options.onChapterPage?.(chapterKey, pageNumber);
+        return " ";
+      }}
+    />
   );
 }

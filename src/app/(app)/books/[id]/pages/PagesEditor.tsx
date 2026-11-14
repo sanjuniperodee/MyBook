@@ -17,6 +17,7 @@ import { apiFetch } from "@/lib/client-api";
 import { getFormat } from "@/lib/book/formats";
 import { applyInteriorStyle, chapterDesign, getInteriorDesign, type InteriorId, type InteriorStyle } from "@/lib/book/interiors";
 import { bookKind } from "@/lib/content/kinds";
+import type { ChapterStart } from "@/lib/book/chapter-head";
 import { sampleToc, type TocLines, type TocMode } from "@/lib/book/toc";
 import { END_TEXT_MAX } from "@/lib/book/end-page";
 import { bookMessagesFor } from "@/i18n/messages/partial";
@@ -42,6 +43,8 @@ interface PagesState {
   photoPlacement: "chapters" | "end" | "none";
   /** «Глава всегда с левой страницы» (books.pagination_rev 2): перед главой может встать пустая страница. */
   openersLeft: boolean;
+  /** Как начинается глава (books.chapter_start): своя страница, название над текстом или чистый лист. */
+  chapterStart: ChapterStart;
   /** Фраза последней страницы (lib/book/end-page.ts): null — «Продолжение следует…», пусто — без фразы. */
   endText: string | null;
 }
@@ -119,7 +122,7 @@ export function PagesEditor({
     }
     // Новое оформление — сервер пересоберёт книгу: места фото (фото главы или после главы), подсказки формы, разворот.
     // Сторона глав — номера страниц в оглавлении разворота.
-    if (patch.interior || patch.openersLeft !== undefined) router.refresh();
+    if (patch.interior || patch.openersLeft !== undefined || patch.chapterStart !== undefined) router.refresh();
   }, 600);
   const update = (patch: Partial<PagesState>) => {
     if (!editable) return;
@@ -144,10 +147,11 @@ export function PagesEditor({
       dedication: state.dedication.trim(),
       showToc: state.showToc,
       endText: state.endText,
+      chapterStart: state.chapterStart === "page" ? undefined : state.chapterStart,
       toc: sample.tocAll ? sampleToc(sample.tocAll, state.tocMode, state.tocLines) : sample.toc,
       ...(previewOf ? { chapter: { number: previewOf.number ?? sample.chapter.number, title: previewOf.title, epigraph: previewOf.epigraph } } : {}),
     }),
-    [sample, state.dedication, state.showToc, state.endText, state.tocMode, state.tocLines, previewOf],
+    [sample, state.dedication, state.showToc, state.endText, state.chapterStart, state.tocMode, state.tocLines, previewOf],
   );
   // Примерка стиля: наведение в галерее показывает его на сцене, не меняя книгу.
   const [trying, setTrying] = useState<InteriorId | null>(null);
@@ -163,6 +167,7 @@ export function PagesEditor({
       JSON.stringify(state.interiorStyle) !== JSON.stringify(initial.interiorStyle) ||
       state.showToc !== initial.showToc ||
       state.openersLeft !== initial.openersLeft ||
+      state.chapterStart !== initial.chapterStart ||
       state.tocMode !== initial.tocMode ||
       !!state.dedication.trim() !== !!initial.dedication.trim() ||
       JSON.stringify(state.tocLines ?? {}) !== JSON.stringify(initial.tocLines ?? {});
@@ -401,6 +406,8 @@ export function PagesEditor({
       onPreview={onPreview}
       openersLeft={state.openersLeft}
       onOpenersLeft={(openersLeft) => update({ openersLeft })}
+      chapterStart={state.chapterStart}
+      onChapterStart={(chapterStart) => update({ chapterStart })}
       tab={styleTab}
       chapter={selChapter}
       onChapter={setSelChapter}

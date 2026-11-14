@@ -13,6 +13,7 @@ import { textArea } from "./page-geometry";
 import { GALLERY_KEY, isCustomToc, type TocLines, type TocMode } from "./toc";
 import type { PhotoCrop } from "./photo-crop";
 import { printableText } from "./printable";
+import type { ChapterStart } from "./chapter-head";
 
 export interface ContentItem {
   id: string;
@@ -108,6 +109,12 @@ export interface BookContent {
    * прежних книг не меняется).
    */
   endText?: string;
+  /**
+   * Глава без начальной полосы (books.chapter_start, chapter-head.ts): inline — с новой страницы сразу с текста, номер и
+   * название над ним; none — чистым текстом без названия. Снимка главы нет: фото идут после главы. Альбом свою полосу
+   * сохраняет. Нет — у каждой главы своя начальная полоса (отпечаток кэша прежних книг не меняется).
+   */
+  chapterStart?: Exclude<ChapterStart, "page">;
 }
 
 export type QuestionLike = Pick<BookQuestion, "id" | "chapter" | "position" | "title" | "displayText" | "hideHeading" | "answer" | "questionKey"> & {
@@ -137,6 +144,8 @@ export type BookLike = Pick<
   Partial<Pick<Book, "tocMode" | "tocLines">> &
   /** Фраза последней страницы (end-page.ts): нет или null — «Продолжение следует…». */
   Partial<Pick<Book, "endText">> &
+  /** Как начинается глава (chapter-head.ts); нет — своей начальной полосой. */
+  Partial<Pick<Book, "chapterStart">> &
   /**
    * Правила раскладки фото (LAYOUT_REV_2) и остальные снимки обложки и оборота: правила 2 не ставят их внутрь сами.
    * Полная строка книги их даёт; нет — прежние правила, других снимков обложки нет.
@@ -357,7 +366,9 @@ export function assembleBookContent(
   // без него глава открывается полосой с названием.
   // Стиль из каталога с настройками дизайнера книги (interiors/style.ts).
   const interior = bookInterior(book);
-  if (interior.opener.photo)
+  // Без начальных полос снимку главы встать негде: отмеченные фото остаются в главе (страницы фото после неё).
+  const chapterStart = book.chapterStart === "inline" || book.chapterStart === "none" ? book.chapterStart : undefined;
+  if (interior.opener.photo && !chapterStart)
     for (const ch of chapters) {
       if (!rev2) {
         const marked = ch.photos.findIndex((p) => p.opener && p.chapter === ch.key);
@@ -415,6 +426,7 @@ export function assembleBookContent(
     year,
     ...(book.paginationRev === PAGINATION_REV_2 ? { openersLeft: true as const } : {}),
     ...(book.endText != null ? { endText: printableText(book.endText.trim()) } : {}),
+    ...(chapterStart ? { chapterStart } : {}),
   };
 }
 

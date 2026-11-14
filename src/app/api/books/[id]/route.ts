@@ -9,6 +9,7 @@ import { NAMES_ON_COVER_MAX } from "@/lib/book/cover-names";
 import { RECORDED_BY_MAX } from "@/lib/content/kinds";
 import { INVITE_TEXT_MAX } from "@/lib/content/letter-invite";
 import { END_TEXT_MAX } from "@/lib/book/end-page";
+import { CHAPTER_STARTS } from "@/lib/book/chapter-head";
 import { TOC_EPIGRAPH_MAX, TOC_LINES_MAX, TOC_MODES, TOC_TITLE_MAX } from "@/lib/book/toc";
 
 const patchSchema = z
@@ -51,6 +52,8 @@ const patchSchema = z
     showToc: z.boolean(),
     // «Глава всегда с левой страницы» (books.pagination_rev 2 / 1).
     openersLeft: z.boolean(),
+    // Как начинается глава: своя страница, название над текстом или чистый лист.
+    chapterStart: z.enum(CHAPTER_STARTS),
     tocMode: z.enum(TOC_MODES),
     // Строки оглавления: вид ключей и длину названий проверяет домен (parseTocLines), здесь — только размер.
     // noOpenerPhoto — «глава без фото» (решение автора для редактора, в вёрстку не идёт).

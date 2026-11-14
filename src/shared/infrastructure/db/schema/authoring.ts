@@ -1,5 +1,6 @@
 /** Книги: сама книга, вопросы с ответами, фото и письма близких (модуль authoring). */
 import { boolean, doublePrecision, index, integer, jsonb, pgTable, serial, smallint, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import type { ChapterStart } from "@/lib/book/chapter-head";
 import type { Locale } from "@/i18n/config";
 import type { PhotoEdit } from "@/lib/photo-edit/doc";
 import { timestamps } from "./columns";
@@ -116,6 +117,11 @@ export const books = pgTable(
      * (виньетка и год остаются), иначе — своя.
      */
     endText: text("end_text"),
+    /**
+     * Как начинается глава (lib/book/chapter-head.ts ChapterStart): page — своя начальная полоса (у всех книг), inline —
+     * с новой страницы с текста, номер и название над ним, none — с новой страницы чистым текстом без названия.
+     */
+    chapterStart: text("chapter_start").$type<ChapterStart>().notNull().default("page"),
     /** Язык книги: вопросы, заголовки глав и служебные страницы PDF (ru | kk). */
     language: text("language").$type<Locale>().notNull().default("ru"),
     /** Повод подарка (см. lib/occasions) и дата, к которой нужна книга. */

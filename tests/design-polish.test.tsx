@@ -141,6 +141,7 @@ describe("картинка обложки для осмотра (настоящ�
     inviteToken: null,
     inviteText: "",
     endText: null,
+    chapterStart: "page",
     occasion: null,
     occasionDate: null,
     language: "ru",

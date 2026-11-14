@@ -1,3 +1,4 @@
+import type { BookContent } from "@/lib/book/layout";
 import { memo } from "react";
 import type { SampleTocCandidate, SampleTocLine, TocLines, TocMode } from "@/lib/book/toc";
 import type { Locale } from "@/i18n/config";
@@ -34,6 +35,8 @@ export interface SpreadSample {
   showToc: boolean;
   /** Фраза последней страницы (end-page.ts): null или нет — «Продолжение следует…», пусто — без фразы. */
   endText?: string | null;
+  /** Глава без начальной полосы (BookContent.chapterStart): inline — номер и название над текстом, none — чистый лист. */
+  chapterStart?: BookContent["chapterStart"];
   /** Фото книги для разворота «Фото» (и начала главы по прежним правилам); недостающие — пейзажи-заглушки. */
   photos?: { url: string; width: number; height: number; caption: string }[];
   /**
@@ -105,6 +108,11 @@ export const InteriorSpread = memo(function InteriorSpread({
   } else if (kind === "toc") {
     left = <TocPage kit={kit} entries={sample.toc} muted={!sample.showToc} style={page} />;
     right = <EndPage kit={kit} year={sample.year} text={sample.endText} style={page} />;
+  } else if (sample.chapterStart) {
+    // Без начальной полосы: глава открывается полосой текста с номером и названием, дальше — продолжение.
+    const [head, ...rest] = sample.entries;
+    left = <TextPage kit={kit} entries={head ? [head] : []} folio={TEXT_FOLIO - 1} bookTitle={sample.title} chapterTitle={sample.chapter.title} recto={false} leadIn chapterHead={sample.chapterStart === "inline" ? sample.chapter : undefined} style={page} />;
+    right = <TextPage kit={kit} entries={rest.map((e, i) => (i === 0 ? { ...e, pageBreak: undefined } : e))} folio={TEXT_FOLIO} bookTitle={sample.title} chapterTitle={sample.chapter.title} recto leadIn={false} style={page} />;
   } else {
     left = <OpenerPage kit={kit} number={sample.chapter.number} title={sample.chapter.title} epigraph={sample.chapter.epigraph} photo={design.opener.photo ? sampleOpener(sample, openerPlaceholder) : undefined} style={page} />;
     right = (

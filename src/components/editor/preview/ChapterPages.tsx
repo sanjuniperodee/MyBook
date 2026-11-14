@@ -5,6 +5,7 @@ import type { Messages } from "@/i18n/messages";
 import type { Locale } from "@/i18n/config";
 import { answerBlocks, rowsByBlock, type AnswerBlock } from "@/lib/book/answer-blocks";
 import { layoutMedia, type AnswerMedia } from "@/lib/book/answer-media";
+import type { BookContent } from "@/lib/book/layout";
 import type { PreviewChapter, PreviewEntry, PreviewPagePhoto, PreviewPhoto } from "@/lib/book/editor-model";
 import { cssFont } from "@/lib/book/fonts";
 import { print, PT_TO_MM } from "@/lib/book/formats";
@@ -13,6 +14,7 @@ import { interiorMetrics, pageSide, textArea } from "@/lib/book/page-geometry";
 import { AnswerBlockView } from "@/components/interior/answer-block";
 import { Divider, InlineRow, MediaCard, QuestionHeading } from "@/components/interior/entry";
 import { RunningHead } from "@/components/interior/folio";
+import { ChapterHead } from "@/components/interior/pages";
 import type { PageKit } from "@/components/interior/kit";
 import { LazyPage } from "./LazyPage";
 import { PAGE_SHADOW, PreviewOpener, PreviewPhotoPages } from "./book-pages";
@@ -61,6 +63,8 @@ export interface ChapterPagesProps {
   pages: number;
   /** Начальная полоса слева (BookContent.openersLeft): первая полоса текста — правая; иначе начальная справа. */
   openersLeft?: boolean;
+  /** Глава без начальной полосы (BookContent.chapterStart): inline — номер и название над текстом, none — чистый лист. */
+  start?: BookContent["chapterStart"];
   /** На какой полосе текста каждое фото «на всю страницу» (по замеру; тот же объект, пока не изменилось). */
   photoPages: PhotoPages;
   /** Текущий ответ, если он в этой главе, иначе null. */
@@ -79,7 +83,7 @@ export interface ChapterPagesProps {
 }
 
 /** Начальная полоса главы, полосы текста и невидимая копия главы для замера. */
-function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, language, t, tp, onTarget, pages, openersLeft = false, photoPages, currentId, selectedId, interactive, drag, onChange, scroll, setMeasureRef, measure, onPageClick }: ChapterPagesProps) {
+function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, language, t, tp, onTarget, pages, openersLeft = false, start, photoPages, currentId, selectedId, interactive, drag, onChange, scroll, setMeasureRef, measure, onPageClick }: ChapterPagesProps) {
   const { format, design } = kit;
   const m = interiorMetrics[format.id];
   const side = pageSide(format);
@@ -123,7 +127,7 @@ function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, 
   // Замер — только у этой главы и только когда она изменилась (или изменилась ширина полосы).
   useEffect(() => {
     measure(ch.key);
-  }, [measure, ch.key, contentKey, resizing?.width]);
+  }, [measure, ch.key, contentKey, resizing?.width, start]);
 
   // Фото на всю страницу главы — с ответом и местом в тексте: их рисуют полосы поверх колонок.
   const pagePhotos = useMemo(
@@ -246,6 +250,9 @@ function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, 
     );
   };
 
+  // Глава без начальной полосы (inline): номер и название — в начале её текста (как в PDF); чистый лист — без них.
+  const head = start === "inline" ? <ChapterHead kit={kit} number={ch.number} title={ch.title} epigraph={ch.epigraph} /> : null;
+
   const flow = (k: number) => (
     <div
       lang={language}
@@ -259,6 +266,7 @@ function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, 
         color: P.ink,
       }}
     >
+      {head}
       {ch.entries.map((e, i) => renderEntry(e, i === 0, false))}
     </div>
   );
@@ -268,10 +276,12 @@ function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, 
       {/* Невидимая копия главы — только для подсчёта страниц и поиска начала ответов */}
       <div aria-hidden style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", visibility: "hidden", pointerEvents: "none" }}>
         <div ref={(el) => setMeasureRef(ch.key, el)} lang={language} style={{ position: "relative", width: textW, height: textH, columnWidth: textW, columnGap: gap, columnFill: "auto" }}>
+          {head}
           {ch.entries.map((e, i) => renderEntry(e, i === 0, true))}
         </div>
       </div>
       {/* Начальная полоса: фото главы, как в печати, — или полоса с названием и пунктирное место фото (только здесь). */}
+      {start ? null : (
       <PreviewOpener
         kit={kit}
         number={ch.number}
@@ -285,12 +295,13 @@ function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, 
         label={tp?.openerAria(ch.title) ?? ""}
         onTarget={design.opener.photo ? onTarget : undefined}
       />
+      )}
       {Array.from({ length: pages }, (_, k) => (
         <LazyPage key={k} root={scroll} pageId={`${ch.key}:${k}`} className={`relative overflow-hidden bg-white ${PAGE_SHADOW}`} style={{ width: pageW, height: format.heightMm * px }} onClick={onPageClick}>
           {() => (
             <>
               {/* Первая полоса текста — напротив начальной: правая, если та слева (как в PDF), иначе левая. */}
-              <RunningHead kit={kit} bookTitle={bookTitle} chapterTitle={ch.title} recto={k % 2 === (openersLeft ? 0 : 1)} />
+              <RunningHead kit={kit} bookTitle={bookTitle} chapterTitle={ch.title} recto={k % 2 === (openersLeft || start ? 0 : 1)} />
               {/* Соседние колонки — за краем листа (его обрезает сама страница). */}
               <div className="absolute" style={{ left: side * px, top: m.marginTop * px, width: textW, height: textH }}>
                 {flow(k)}

@@ -1,5 +1,6 @@
 "use client";
 
+import { CHAPTER_STARTS, type ChapterStart } from "@/lib/book/chapter-head";
 import { useMessages } from "@/i18n/client";
 import { InlineDrawing } from "@/components/interior/graphics";
 import { pxUnits } from "@/components/interior/units";
@@ -38,6 +39,8 @@ export function ElementsTab({
   onFocus,
   openersLeft,
   onOpenersLeft,
+  chapterStart,
+  onChapterStart,
 }: {
   design: InteriorDesign;
   style: InteriorStyle;
@@ -46,6 +49,9 @@ export function ElementsTab({
   /** «Глава всегда с левой страницы» — настройка книги (books.pagination_rev), не стиля: сброс стиля её не трогает. */
   openersLeft: boolean;
   onOpenersLeft: (v: boolean) => void;
+  /** Как начинается глава (books.chapter_start) — тоже настройка книги: своя страница, название над текстом или чистый лист. */
+  chapterStart: ChapterStart;
+  onChapterStart: (v: ChapterStart) => void;
 }) {
   const m = useMessages().design;
   const t = m.pages.elements;
@@ -73,7 +79,21 @@ export function ElementsTab({
 
       <PanelSection title={t.number}>
         <Segmented value={design.opener.number} options={O.numbers.map((v) => ({ value: v, label: t.numbers[v] }))} onChange={(v) => el({ number: v })} onReset={r("number")} resetLabel={reset} wrap />
-        <Toggle label={t.openersLeft} hint={t.openersLeftHint} checked={openersLeft} onChange={onOpenersLeft} />
+        <div className="space-y-1.5">
+          <div className="text-sm font-medium">{t.chapterStart}</div>
+          <Segmented
+            value={chapterStart}
+            options={CHAPTER_STARTS.map((v) => ({ value: v, label: t.chapterStarts[v] }))}
+            onChange={(v) => {
+              onChapterStart(v);
+              onFocus("chapter");
+            }}
+            wrap
+          />
+          <p className="text-xs text-muted">{t.chapterStartHints[chapterStart]}</p>
+        </div>
+        {/* Сторона глав — только у книги с начальными страницами: без них пустых страниц перед главами нет. */}
+        {chapterStart === "page" ? <Toggle label={t.openersLeft} hint={t.openersLeftHint} checked={openersLeft} onChange={onOpenersLeft} /> : null}
       </PanelSection>
 
       <PanelSection title={t.ornament}>

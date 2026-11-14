@@ -20,7 +20,7 @@ type PaneProps = {
   /** Главы редактора — у любой книги (та же сборка, что у счётчика полос и листов фото). */
   chapters: EditorChapter[];
   epigraphs: Record<string, string>;
-} & Omit<ComponentProps<typeof PagePreview>, "chapters" | "gallery" | "openersLeft">;
+} & Omit<ComponentProps<typeof PagePreview>, "chapters" | "gallery" | "openersLeft" | "chapterStart">;
 
 /**
  * Превью книги в редакторе — из той же сборки, что PDF и счётчик полос (useBookContent): главы и их названия как
@@ -37,7 +37,7 @@ export function PreviewPane({ book, questions, photos, letters, chapters, epigra
     () => previewFromContent(content, deferredQuestions, photos, { currentId, tocLines: book.tocLines, epigraphs, untitled, places }),
     [content, deferredQuestions, photos, currentId, book.tocLines, epigraphs, untitled, places],
   );
-  return <PagePreview chapters={preview.chapters} gallery={preview.gallery} openersLeft={!!content.openersLeft} currentId={currentId} {...rest} />;
+  return <PagePreview chapters={preview.chapters} gallery={preview.gallery} openersLeft={!!content.openersLeft} chapterStart={content.chapterStart} currentId={currentId} {...rest} />;
 }
 
 /**

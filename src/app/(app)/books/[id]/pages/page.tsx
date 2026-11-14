@@ -95,7 +95,7 @@ export default async function PagesPage({ params }: { params: Promise<{ id: stri
         photos={photoData}
         theme={book.theme}
         cover={{ name: coverName(book.coverTemplate, locale), pairs: interiorsForCover(book.coverTemplate).map((d) => d.id) }}
-        initial={{ interior: getInteriorDesign(book.interior).id, interiorStyle: parseInteriorStyle(book.interiorStyle), dedication: book.dedication, showToc: book.showToc, tocMode: book.tocMode, tocLines: book.tocLines, photoPlacement: book.photoPlacement, openersLeft: book.paginationRev === PAGINATION_REV_2, endText: book.endText }}
+        initial={{ interior: getInteriorDesign(book.interior).id, interiorStyle: parseInteriorStyle(book.interiorStyle), dedication: book.dedication, showToc: book.showToc, tocMode: book.tocMode, tocLines: book.tocLines, photoPlacement: book.photoPlacement, openersLeft: book.paginationRev === PAGINATION_REV_2, chapterStart: book.chapterStart, endText: book.endText }}
       />
     </main>
   );

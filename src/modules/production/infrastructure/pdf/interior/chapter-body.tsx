@@ -6,6 +6,7 @@ import { CHAPTER_TAIL, VIGNETTE_RULE } from "@/lib/book/typesetting";
 import { PdfDrawing } from "@/modules/production/infrastructure/pdf/art";
 import { Entry } from "./entry";
 import { Folio } from "./folio";
+import { ChapterHead, ChapterPageMark } from "./opener";
 import { mark, pageMark, type PdfKit } from "./kit";
 import { RunningHead } from "./running-head";
 
@@ -27,6 +28,9 @@ export function ChapterBody({ kit, chapter, items = chapter.items, first = true,
     <Page {...pageMark("text", chapter.key)} size={kit.pageSize} style={kit.pagePadding} wrap>
       <RunningHead kit={kit} chapterTitle={chapter.title} />
       <Folio kit={kit} />
+      {/* Глава без начальной полосы (inline): номер и название — над её текстом; чистый лист (none) — без них. */}
+      {first && kit.content.chapterStart === "inline" ? <ChapterHead kit={kit} chapterKey={chapter.key} number={chapter.number} title={chapter.title} epigraph={chapter.epigraph} /> : null}
+      {first && kit.content.chapterStart === "none" ? <ChapterPageMark kit={kit} chapterKey={chapter.key} /> : null}
       {items.map((item, index) => (
         <Entry key={item.id} kit={kit} item={item} index={index} leadIn={first && index === 0} />
       ))}

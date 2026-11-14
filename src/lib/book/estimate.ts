@@ -12,6 +12,7 @@ import { framedBox, layoutInline, normalizeStyle, splitParagraphs, type InlinePh
 import { dividerDrawing } from "./interior-art";
 import type { InteriorDesign } from "./interiors";
 import { chapterRuns, photoPages, type BookContent, type ContentChapter, type ContentItem, type PhotoItem } from "./layout";
+import { chapterHeadHeight } from "./chapter-head";
 import { interiorMetrics, textArea } from "./page-geometry";
 import { hasToc, bookToc } from "./toc";
 import { fontWidth } from "./fonts";
@@ -154,9 +155,10 @@ function entryHeight(heading: string | null, answer: string, photos: RowPhoto[],
  * Высота куска текста главы с разрывами «с новой страницы», pt: перед такой историей занятое добивается до конца
  * полосы. starts — где начинается каждая история (pt от начала куска).
  */
-function runHeight(items: readonly ContentItem[], m: TextMetrics) {
+function runHeight(items: readonly ContentItem[], m: TextMetrics, lead = 0) {
   const page = m.height - PAGE_RESERVE;
-  let used = 0;
+  // lead — заголовок главы над текстом (книга без начальных полос): с ним кусок занимает полосу, даже пустой.
+  let used = lead;
   const starts = items.map((it, i) => {
     const breaks = i > 0 && !!it.pageBreak;
     if (breaks) used = Math.ceil(used / page) * page;
@@ -164,17 +166,26 @@ function runHeight(items: readonly ContentItem[], m: TextMetrics) {
     used += entryHeight(it.heading, it.answer, it.photos ?? [], it.media ?? [], i === 0 || breaks || !!it.continued, m);
     return at;
   });
-  return { height: used, starts, pages: items.length ? Math.max(1, Math.ceil(used / page)) : 0 };
+  return { height: used, starts, pages: items.length || lead ? Math.max(1, Math.ceil(used / page)) : 0 };
 }
 
 /**
  * Полос в главе: начальная, текст (всё, что на полосе не помещается, переходит на следующую) и фотостраницы.
  * Текст — кусками между фото на всю страницу из историй (chapterRuns), каждое такое фото — своя полоса.
  */
-export function estimateChapterPages(ch: Pick<ContentChapter, "items" | "photos">, m: TextMetrics): number {
+type HeadChapter = Partial<Pick<ContentChapter, "number" | "title" | "epigraph">>;
+
+/** Как начинается глава без начальной полосы (BookContent.chapterStart); нет — своей полосой. */
+type Start = BookContent["chapterStart"];
+
+/** inline — номер и название главы над текстом первого куска: их высота, pt. */
+const headLead = (ch: HeadChapter, m: TextMetrics, start: Start) => (start === "inline" ? chapterHeadHeight(m.design, m.sizes, { title: ch.title ?? "", epigraph: ch.epigraph, number: ch.number ?? null }, m.width) : 0);
+
+export function estimateChapterPages(ch: Pick<ContentChapter, "items" | "photos"> & HeadChapter, m: TextMetrics, start?: Start): number {
   const runs = chapterRuns(ch.items);
-  const text = runs.reduce((sum, r) => sum + runHeight(r.items, m).pages + (r.photo ? 1 : 0), 0);
-  return 1 /* начальная полоса */ + text + photoPages(ch.photos).length;
+  const lead = headLead(ch, m, start);
+  const text = runs.reduce((sum, r, i) => sum + runHeight(r.items, m, i === 0 ? lead : 0).pages + (r.photo ? 1 : 0), 0);
+  return (start ? 0 : 1) /* начальная полоса */ + text + photoPages(ch.photos).length;
 }
 
 /**
@@ -212,12 +223,13 @@ export function tocParts(content: BookContent, m: TextMetrics): number[] {
  * С какой полосы главы (от начальной, 0) начинается каждый её ответ — для номеров страниц разделов в превью,
  * где книгу не верстают: по той же высоте ответов, что и объём главы.
  */
-export function sectionPageOffsets(ch: Pick<ContentChapter, "items">, m: TextMetrics): number[] {
+export function sectionPageOffsets(ch: Pick<ContentChapter, "items"> & HeadChapter, m: TextMetrics, start?: Start): number[] {
   const page = m.height - PAGE_RESERVE;
   const offsets = new Map<ContentItem, number>();
-  let base = 1; // начальная полоса главы
-  for (const run of chapterRuns(ch.items)) {
-    const r = runHeight(run.items, m);
+  let base = start ? 0 : 1; // начальная полоса главы
+  const lead = headLead(ch, m, start);
+  for (const [i, run] of chapterRuns(ch.items).entries()) {
+    const r = runHeight(run.items, m, i === 0 ? lead : 0);
     run.items.forEach((it, i) => offsets.set(it, base + Math.floor(r.starts[i] / page)));
     base += r.pages + (run.photo ? 1 : 0);
   }
@@ -256,7 +268,8 @@ export function estimatePages(content: BookContent): number {
   if (content.dedication) pages += 1;
   pages += estimateTocPages(content, m);
   // Перед начальной полосой — пустая, если она должна встать слева, а выпала бы справа.
-  for (const ch of content.chapters) pages = openerPage(content, pages + 1) - 1 + estimateChapterPages(ch, m);
+  // Без начальных полос глава начинается с новой страницы, где выпадет (пустых полос перед ней нет).
+  for (const ch of content.chapters) pages = content.chapterStart ? pages + estimateChapterPages(ch, m, content.chapterStart) : openerPage(content, pages + 1) - 1 + estimateChapterPages(ch, m);
   if (content.galleryPhotos.length) pages = openerPage(content, pages + 1) + photoPages(content.galleryPhotos).length;
   pages += 1; // финальная страница
   return pages;

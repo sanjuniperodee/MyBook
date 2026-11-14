@@ -109,6 +109,8 @@ export interface EditorBook {
   layoutRev?: Book["layoutRev"];
   /** Полосы глав (layout.ts, PAGINATION_REV_2): начальная полоса главы слева — пустые полосы в объёме и стороны полос в превью. */
   paginationRev?: Book["paginationRev"];
+  /** Как начинается глава (chapter-head.ts): своя полоса, название над текстом или чистый лист. */
+  chapterStart?: Book["chapterStart"];
   /** Снимки обложки и оборота (ссылки книги): правила 2 не ставят их внутрь сами. */
   coverPhotoId?: string | null;
   coverPhotoExtra?: string[];

@@ -37,13 +37,19 @@ export function InteriorDocument({ content, options }: { content: BookContent; o
   for (const ch of content.chapters) {
     // Глава со своим оформлением (дизайнер) — свой набор; остальные главы — общий.
     const kit = chapterKit(base, ch.key);
-    blank(ch.key);
-    pages.push(<Opener key={`open-${ch.key}`} kit={kit} chapterKey={ch.key} number={ch.number} title={ch.title} epigraph={ch.epigraph} photo={ch.openerPhoto} />);
+    // Без начальных полос (content.chapterStart) глава начинается с полосы текста: номер и название над ним (inline)
+    // или чистый лист (none) — полосу главы тогда сообщает метка вверху первой полосы (ChapterBody).
+    const noOpener = !!content.chapterStart;
+    if (!noOpener) {
+      blank(ch.key);
+      pages.push(<Opener key={`open-${ch.key}`} kit={kit} chapterKey={ch.key} number={ch.number} title={ch.title} epigraph={ch.epigraph} photo={ch.openerPhoto} />);
+    }
     // Текст главы — кусками: между ними фото на всю страницу из историй (под обрез, без колонтитула).
     const runs = chapterRuns(ch.items);
     const lastText = runs.findLastIndex((r) => r.items.length);
     runs.forEach((run, i) => {
-      if (run.items.length) pages.push(<ChapterBody key={`body-${ch.key}-${i}`} kit={kit} chapter={ch} items={run.items} first={i === 0} tail={i === lastText} />);
+      // Первый кусок без начальной полосы несёт заголовок главы — даже пустой (глава начинается с фото на всю страницу).
+      if (run.items.length || (noOpener && i === 0)) pages.push(<ChapterBody key={`body-${ch.key}-${i}`} kit={kit} chapter={ch} items={run.items} first={i === 0} tail={i === lastText} />);
       if (run.photo) pages.push(<PhotoPage key={`pp-${ch.key}-${i}`} kit={kit} group={[run.photo]} chapterKey={ch.key} />);
     });
     photoPages(ch.photos).forEach((group, i) => pages.push(<PhotoPage key={`ph-${ch.key}-${i}`} kit={kit} group={group} chapterKey={ch.key} />));

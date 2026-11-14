@@ -14,6 +14,7 @@ import { chapterMark, PHOTO_COLORS, type InteriorPalette } from "@/lib/book/inte
 import { openerArtShapes, openerEmblemShapes, titleEmblemShapes } from "@/lib/book/interior-art";
 import { openerFlow, textArea, pageSide } from "@/lib/book/page-geometry";
 import { openerFit } from "@/lib/book/opener-fit";
+import { CHAPTER_HEAD, chapterHeadSizes } from "@/lib/book/chapter-head";
 import { MM_TO_PT, print } from "@/lib/book/formats";
 import { fitWordSize } from "@/lib/book/word-fit";
 import { cropOr, fillFocus, type PhotoCrop } from "@/lib/book/photo-crop";
@@ -71,14 +72,33 @@ function OpenerShot({ kit, shot, url, scene, crop }: { kit: PageKit; shot: Opene
 }
 
 /** Номер главы: подпись («Глава 1») или крупная цифра — по дизайну. */
-function ChapterMark({ kit, colors, number }: { kit: PageKit; colors: InteriorPalette; number: number | null }) {
+function ChapterMark({ kit, colors, number, numeralSize = kit.sizes.numeral }: { kit: PageKit; colors: InteriorPalette; number: number | null; numeralSize?: number }) {
   const { design, sizes: S, u } = kit;
   const mark = number ? chapterMark(design, number, bookMessagesFor(kit.language).chapter) : null;
   if (mark?.kind === "label")
     return <div style={{ ...(design.opener.kicker ? { ...faceCss(design.opener.kicker, S.kicker, u), lineHeight: HTML_LINE_HEIGHT.kicker } : labelCss(kit, colors.accent)), color: colors.accent, marginBottom: u.pt(S.kickerGap) }}>{mark.text}</div>;
   if (mark?.kind === "numeral")
-    return <div style={{ ...faceCss(design.opener.numeral ?? design.display, S.numeral, u), lineHeight: OPENER.numeral.lineHeight, color: colors.accent, marginBottom: u.pt(S.numeral * OPENER.numeral.after) }}>{mark.text}</div>;
+    return <div style={{ ...faceCss(design.opener.numeral ?? design.display, numeralSize, u), lineHeight: OPENER.numeral.lineHeight, color: colors.accent, marginBottom: u.pt(numeralSize * OPENER.numeral.after) }}>{mark.text}</div>;
   return null;
+}
+
+/**
+ * Заголовок главы над текстом — у книги с началом главы inline (BookContent.chapterStart): номер, название, виньетка и
+ * эпиграф вверху первой полосы текста, как в PDF (lib/book/chapter-head.ts).
+ */
+export function ChapterHead({ kit, number, title, epigraph, style }: { kit: PageKit; number: number | null; title: string; epigraph?: string; style?: CSSProperties }) {
+  const { design, sizes: S, u } = kit;
+  const { align } = design.opener;
+  const colors = design.palette;
+  const H = chapterHeadSizes(S);
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: align === "left" ? "flex-start" : "center", textAlign: align === "left" ? "left" : "center", marginBottom: u.pt(H.after), breakInside: "avoid", ...style }}>
+      <ChapterMark kit={kit} colors={colors} number={number} numeralSize={H.numeral} />
+      <div style={{ ...faceCss(design.display, H.title, u), lineHeight: OPENER.title.lineHeight, color: colors.ink, maxWidth: OPENER.title.maxWidth, overflowWrap: "anywhere" }}>{title}</div>
+      {design.opener.vignette === false ? <div style={{ height: u.pt(S.vignetteGap) }} /> : <Vignette kit={kit} rule={VIGNETTE_RULE.opener} colors={colors} align={align} />}
+      {epigraph ? <div style={{ ...italicBody(kit, S.epigraph), lineHeight: OPENER.epigraph.lineHeight, color: colors.muted, maxWidth: OPENER.epigraph.maxWidth[align], marginBottom: u.pt(S.body * CHAPTER_HEAD.epigraphGap) }}>{epigraph}</div> : null}
+    </div>
+  );
 }
 
 /**
@@ -303,8 +323,10 @@ export function EndPage({ kit, year, text: own, className, style }: PageProps & 
  * Страница текста главы для миниатюр: заголовки, абзацы, колонтитул и колонцифра. Текст режется
  * по строкам как в книге — через CSS-колонки размером с полосу набора (видна только первая).
  */
-export function TextPage({ kit, entries, folio, bookTitle, chapterTitle, recto, leadIn, className, style }: PageProps & {
+export function TextPage({ kit, entries, folio, bookTitle, chapterTitle, recto, leadIn, chapterHead, className, style }: PageProps & {
   entries: SampleEntry[];
+  /** Номер и название главы над текстом — начало главы inline (BookContent.chapterStart). */
+  chapterHead?: { number: number | null; title: string; epigraph?: string };
   folio: number;
   bookTitle: string;
   chapterTitle: string;
@@ -333,6 +355,7 @@ export function TextPage({ kit, entries, folio, bookTitle, chapterTitle, recto, 
             orphans: 1,
           }}
         >
+          {chapterHead ? <ChapterHead kit={kit} {...chapterHead} /> : null}
           {entries.map((e, i) => (
             <div key={i} style={{ marginTop: i === 0 || e.pageBreak ? 0 : u.pt(e.heading ? S.beforeHeading : S.beforeHeadless), breakBefore: i > 0 && e.pageBreak ? "column" : undefined }}>
               <EntryBody

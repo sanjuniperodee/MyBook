@@ -75,10 +75,12 @@ export function bookSpreadSample(
   let page = start;
   for (const c of content.chapters) {
     // Начальная полоса слева (книги на полосах глав 2): перед ней может встать пустая.
-    page = openerPage(content, page);
+    // Без начальных полос глава начинается с первой полосы текста, где выпадет.
+    const start = content.chapterStart;
+    if (!start) page = openerPage(content, page);
     pageOf.set(c.key, page);
-    sectionPageOffsets(c, metrics).forEach((offset, i) => pageOf.set(`q:${c.items[i].id}`, page + offset));
-    page += estimateChapterPages(c, metrics);
+    sectionPageOffsets(c, metrics, start).forEach((offset, i) => pageOf.set(`q:${c.items[i].id}`, page + offset));
+    page += estimateChapterPages(c, metrics, start);
   }
   pageOf.set(GALLERY_KEY, openerPage(content, page));
   for (const [key, n] of Object.entries(realPages ?? {})) if (pageOf.has(key)) pageOf.set(key, n);
@@ -110,6 +112,7 @@ export function bookSpreadSample(
     tocLines: tocSettings,
     showToc: book.showToc,
     endText: book.endText ?? null,
+    ...(content.chapterStart ? { chapterStart: content.chapterStart } : {}),
     captions: own?.photos,
     photos: photos.filter((p) => p.id !== book.coverPhotoId).slice(0, 4).map((p) => ({ url: photoUrl(p.id, "full"), width: p.width, height: p.height, caption: p.caption })),
     // Правила 2: начало главы — как в книге, выбранное автором фото главы или страница с названием (не «первое фото»).

@@ -446,6 +446,7 @@ const bookRow = (p: Partial<BookRow> = {}): BookRow => ({
   inviteToken: null,
   inviteText: "",
   endText: null,
+  chapterStart: "page",
   language: "ru",
   occasion: null,
   occasionDate: null,

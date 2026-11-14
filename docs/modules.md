@@ -12,7 +12,7 @@
 |---|---|---:|---:|
 | [access](#access) | Access: сотрудники, роли и права, правила безопасности, журнал. | 16 / 866 | 45 |
 | [assistant](#assistant) | AI-помощник (Claude, ChatGPT, DeepSeek или свой OpenAI-совместимый сервер). | 22 / 2067 | 24 |
-| [authoring](#authoring) | Authoring: книги, вопросы, оглавление своей книги, фото, письма близких. | 28 / 3733 | 66 |
+| [authoring](#authoring) | Authoring: книги, вопросы, оглавление своей книги, фото, письма близких. | 28 / 3738 | 66 |
 | [automation](#automation) | Автоматизации (цифровая воронка CRM). | 16 / 1917 | 9 |
 | [clients](#clients) | Клиенты CRM: профиль клиента, задачи и заметки менеджеров. | 9 / 1129 | 29 |
 | [feedback](#feedback) | Отзывы: отзыв клиента о книге, благодарность автору, модерация и витрина. | 12 / 641 | 7 |
@@ -21,7 +21,7 @@
 | [messaging](#messaging) | Переписка: единый инбокс, бот-квалификатор, виджет на сайте. | 51 / 14283 | 119 |
 | [notifications](#notifications) | Уведомления: автописьма, напоминания из CRM, отписка. | 9 / 692 | 6 |
 | [ordering](#ordering) | Заказы. Остальной код видит только его. | 46 / 5338 | 87 |
-| [production](#production) | Производство: вёрстка PDF книги и сертификатов, предпросмотры полос и обложек, файлы для типографии, очередь сборки. В container — previews (BookPreviewService) и printFiles. | 39 / 4251 | 0 |
+| [production](#production) | Производство: вёрстка PDF книги и сертификатов, предпросмотры полос и обложек, файлы для типографии, очередь сборки. В container — previews (BookPreviewService) и printFiles. | 39 / 4301 | 0 |
 | [referrals](#referrals) | Приглашения: код для друзей, награда за их заказы и покупки из чата. | 10 / 358 | 3 |
 | [reporting](#reporting) | Отчёты CRM — сторона чтения (CQRS): сводные выборки по нескольким контекстам для страниц (дашборд, аналитика, поиск, «Мой день»). Только чтение, без бизнес-правил: команды идут через модули контекстов. | 36 / 3256 | 53 |
 | [sales](#sales) | Продажи: сделки, воронки, этапы, дубли, воронка по действиям на сайте. | 27 / 2797 | 86 |
@@ -56,7 +56,7 @@ Authoring: книги, вопросы, оглавление своей книг�
 - Фасад: `AuthoringModule` → `container().authoring`
 - Публичное: `books`, `questions`, `outline`, `photos`, `letters`, `ordering`, `layoutRev`, `queries`, `photoRepository`, `themes`, `designAi`, `photoFile`, `photoViewFile`
 - Таблицы: `books`, `book_questions`, `book_chapters`, `photos`, `photo_edits`, `book_letters`, `design_ai_requests`, `design_ai_credits`, `design_ai_purchases`, `answer_files`, `answer_file_purchases`
-- Тесты (22): `album-opener-photo.test.ts`, `authoring.test.ts`, `book-modes.integration.test.ts`, `book-modes.test.ts`, `book-wizard.test.tsx`, `chapter-opener-left.test.tsx`, `crm-modes.integration.test.ts`, `editor-book-content.test.ts`, `editor-outline.test.ts`, `errors.test.ts`, `foreign-access.test.ts`, `layout-rev2-property.test.ts`, `layout-rev2.integration.test.ts`, `layout-rev2.test.ts`, `pages-photos.test.tsx`, `photo-crop.test.ts`, `photo-damage.test.ts`, `photo-edit.test.ts`, `photo-pages.test.ts`, `photo-rotate.test.ts`, `server-adapters-access.test.ts`, `server-adapters.test.ts`
+- Тесты (23): `album-opener-photo.test.ts`, `authoring.test.ts`, `book-modes.integration.test.ts`, `book-modes.test.ts`, `book-wizard.test.tsx`, `chapter-opener-left.test.tsx`, `chapter-start.test.tsx`, `crm-modes.integration.test.ts`, `editor-book-content.test.ts`, `editor-outline.test.ts`, `errors.test.ts`, `foreign-access.test.ts`, `layout-rev2-property.test.ts`, `layout-rev2.integration.test.ts`, `layout-rev2.test.ts`, `pages-photos.test.tsx`, `photo-crop.test.ts`, `photo-damage.test.ts`, `photo-edit.test.ts`, `photo-pages.test.ts`, `photo-rotate.test.ts`, `server-adapters-access.test.ts`, `server-adapters.test.ts`
 
 ## automation
 
@@ -145,7 +145,7 @@ Identity: учётные записи, вход, пароли, второй фа
 - Папка: `src/modules/production` (application, infrastructure)
 - Фасад: нет класса-фасада (функции из index.ts)
 - Таблицы: своих нет
-- Тесты (27): `book-build.test.ts`, `chapter-opener-left.test.tsx`, `characterization/covers.test.ts`, `characterization/fingerprint.test.ts`, `characterization/render.test.ts`, `cover-back-color.test.tsx`, `cover-emoji.test.tsx`, `design-polish.test.tsx`, `end-text.test.tsx`, `fixtures.test.ts`, `gallery-title.test.tsx`, `i18n.test.ts`, `page-layout.test.ts`, `pdf-critical.test.ts`, `pdf-flow.test.ts`, `pdf-frames.test.tsx`, `pdf-media.test.tsx`, `pdf-opener-limits.test.ts`, `pdf-photos.test.tsx`, `pdf-pool-limits.test.ts`, `pdf.test.tsx`, `photo-crop.test.ts`, `print-kinds.test.tsx`, `print-spec.test.ts`, `production.test.ts`, `render-progress.test.ts`, `toc.test.ts`
+- Тесты (28): `book-build.test.ts`, `chapter-opener-left.test.tsx`, `chapter-start.test.tsx`, `characterization/covers.test.ts`, `characterization/fingerprint.test.ts`, `characterization/render.test.ts`, `cover-back-color.test.tsx`, `cover-emoji.test.tsx`, `design-polish.test.tsx`, `end-text.test.tsx`, `fixtures.test.ts`, `gallery-title.test.tsx`, `i18n.test.ts`, `page-layout.test.ts`, `pdf-critical.test.ts`, `pdf-flow.test.ts`, `pdf-frames.test.tsx`, `pdf-media.test.tsx`, `pdf-opener-limits.test.ts`, `pdf-photos.test.tsx`, `pdf-pool-limits.test.ts`, `pdf.test.tsx`, `photo-crop.test.ts`, `print-kinds.test.tsx`, `print-spec.test.ts`, `production.test.ts`, `render-progress.test.ts`, `toc.test.ts`
 
 ## referrals
 

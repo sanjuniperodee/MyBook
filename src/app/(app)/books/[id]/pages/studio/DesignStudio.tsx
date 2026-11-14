@@ -1,5 +1,6 @@
 "use client";
 
+import type { ChapterStart } from "@/lib/book/chapter-head";
 import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Redo2, RotateCcw, Undo2 } from "lucide-react";
@@ -51,6 +52,8 @@ export function DesignStudio({
   onPreview,
   openersLeft,
   onOpenersLeft,
+  chapterStart,
+  onChapterStart,
   tab,
   chapter,
   onChapter,
@@ -74,6 +77,9 @@ export function DesignStudio({
   /** «Глава всегда с левой страницы» (вкладка «Элементы»): настройка книги, вне отмены правок стиля. */
   openersLeft: boolean;
   onOpenersLeft: (v: boolean) => void;
+  /** Как начинается глава (вкладка «Элементы»): настройка книги, как и сторона глав. */
+  chapterStart: ChapterStart;
+  onChapterStart: (v: ChapterStart) => void;
   /** Открытая вкладка и глава для вкладки «Главы»: их держит страница — вкладки лежат в панели рядом (и в листе на телефоне). */
   tab: StudioTabId;
   chapter: string | null;
@@ -208,7 +214,7 @@ export function DesignStudio({
         {tab === "styles" ? <StylesTab current={interior} format={format} sample={sample} pairs={cover.pairs} coverName={cover.name} editable={editable} onPick={pickStyle} onTry={onTry} /> : null}
         {tab === "fonts" ? <FontsTab design={design} style={style} set={setStyle} sample={sample.title} onFocus={focus} /> : null}
         {tab === "text" ? <TextTab design={design} style={style} set={setStyle} onFocus={focus} /> : null}
-        {tab === "elements" ? <ElementsTab design={design} style={style} set={setStyle} onFocus={focus} openersLeft={openersLeft} onOpenersLeft={onOpenersLeft} /> : null}
+        {tab === "elements" ? <ElementsTab design={design} style={style} set={setStyle} onFocus={focus} openersLeft={openersLeft} onOpenersLeft={onOpenersLeft} chapterStart={chapterStart} onChapterStart={onChapterStart} /> : null}
         {tab === "colors" ? <ColorsTab design={design} base={base} style={style} set={setStyle} onFocus={focus} /> : null}
         {tab === "chapters" ? (
           <ChaptersTab
