@@ -116,6 +116,10 @@ export class GowaClient {
     // Шлюз сверяет Content-Type с точным списком («audio/ogg»), а «audio/ogg; codecs=opus» отвергает как неразрешённый тип — параметры отбрасываем.
     const type = file.mime.split(";")[0].trim().toLowerCase() || "application/octet-stream";
     form.set(field, new Blob([file.data as BlobPart], { type }), file.name || "file");
+    // Ogg Opus — голосовое (запись из CRM и приложения уже перекодирована в него). Без ptt шлюз шлёт его аудиофайлом
+    // с типом «audio/ogg» без кодека: WhatsApp принимает, а телефон клиента такое не показывает — сообщение навсегда «отправлено».
+    // С ptt шлюз ставит «audio/ogg; codecs=opus», длительность и волну — приходит обычное голосовое.
+    if (file.kind === "audio" && type === "audio/ogg") form.set("ptt", "true");
     const res = await this.json<{ results?: { message_id?: string } }>("POST", `/send/${field}`, form, 120_000);
     return res.results?.message_id ?? null;
   }

@@ -250,6 +250,17 @@ describe("GOWA: клиент шлюза", () => {
     expect((sent as unknown as File).type).toBe("audio/ogg");
   });
 
+  it("Ogg уходит голосовым (ptt), другое аудио — файлом", async () => {
+    const ptt: (FormDataEntryValue | null)[] = [];
+    const client = new GowaClient(config, async (_url, init) => {
+      ptt.push((init?.body as FormData).get("ptt"));
+      return json({ results: { message_id: "g1" } });
+    });
+    await client.sendFile("77011234567", { data: new Uint8Array([1]), name: "voice.ogg", mime: "audio/ogg", kind: "audio" });
+    await client.sendFile("77011234567", { data: new Uint8Array([1]), name: "song.mp3", mime: "audio/mpeg", kind: "audio" });
+    expect(ptt).toEqual(["true", null]);
+  });
+
   it("ошибки шлюза — понятным текстом; файл — только из каталога вложений", async () => {
     const unauthorized = new GowaClient(config, async () => json({ code: "UNAUTHORIZED" }, 401));
     await expect(unauthorized.sendText("77011234567", "x")).rejects.toThrow("Шлюз WhatsApp не принял логин и пароль");
