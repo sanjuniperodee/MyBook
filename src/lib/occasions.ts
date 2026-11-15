@@ -55,6 +55,9 @@ const themeOccasions: Record<string, OccasionId[]> = {
   child: ["birthday", "graduation", "wedding", "newyear", "other"],
   sibling: ["birthday", "wedding", "graduation", "newyear", "march8", "other"],
   friend: ["birthday", "wedding", "graduation", "newyear", "march8", "other"],
+  // Коллеге и руководителю — день рождения, юбилей, повод в команде.
+  colleague: ["birthday", "anniversary", "march8", "newyear", "other"],
+  boss: ["birthday", "anniversary", "newyear", "march8", "other"],
   teacher: ["teachersday", "graduation", "birthday", "march8", "newyear", "other"],
   // Автобиография — к юбилею рассказчика, к празднику семьи; своя книга (blank) — любой повод.
   autobiography: ["birthday", "parents", "newyear", "other"],

@@ -11,6 +11,8 @@ import { parentChapters } from "./parent";
 import { parentsChapters } from "./parents";
 import { siblingChapters } from "./sibling";
 import { teacherChapters } from "./teacher";
+import { colleagueChapters } from "./colleague";
+import { bossChapters } from "./boss";
 import { autobiographyChapters as autobiographyChaptersKk } from "./kk/autobiography";
 import { childChapters as childChaptersKk } from "./kk/child";
 import { daughterinlawChapters as daughterinlawChaptersKk } from "./kk/daughterinlaw";
@@ -23,6 +25,8 @@ import { parentChapters as parentChaptersKk } from "./kk/parent";
 import { parentsChapters as parentsChaptersKk } from "./kk/parents";
 import { siblingChapters as siblingChaptersKk } from "./kk/sibling";
 import { teacherChapters as teacherChaptersKk } from "./kk/teacher";
+import { colleagueChapters as colleagueChaptersKk } from "./kk/colleague";
+import { bossChapters as bossChaptersKk } from "./kk/boss";
 import type { ChapterDef, GiftThemeId, ThemeDef, ThemeId } from "./types";
 
 /**
@@ -55,6 +59,9 @@ const base: ThemeBase[] = [
   { id: "friend", kind: "gift", recipient: "required", emoji: "☀", defaultRecipientGender: "f", defaultCover: "party", defaultInterior: "confetti" },
   // Учителю: чаще дарят учительнице; осенняя обложка — к Дню учителя.
   { id: "teacher", kind: "gift", recipient: "required", emoji: "✐", defaultRecipientGender: "f", defaultCover: "autumn", defaultInterior: "editorial" },
+  // Коллеге и руководителю: род адресата выбирают в мастере (как у учителя).
+  { id: "colleague", kind: "gift", recipient: "required", emoji: "☕", defaultRecipientGender: "f", defaultCover: "mist", defaultInterior: "airy" },
+  { id: "boss", kind: "gift", recipient: "required", emoji: "✦", defaultRecipientGender: "m", defaultCover: "midnight", defaultInterior: "luxe" },
   // Род получателя у автобиографии и своей книги не используется: в их текстах нет [..|..].
   { id: "autobiography", kind: "autobiography", recipient: "none", emoji: "❦", defaultRecipientGender: "m", defaultCover: "leather", defaultInterior: "vintage" },
   { id: "blank", kind: "blank", recipient: "optional", emoji: "✎", defaultRecipientGender: "m", defaultCover: "linen", defaultInterior: "classic" },
@@ -169,6 +176,24 @@ const text: Record<Locale, Record<ThemeId, ThemeText>> = {
       recipientPlaceholder: "Например, Сауле Кайратовна",
       titleSuggestions: ["Спасибо, учитель", "Уроки на всю жизнь", "Нашему учителю", "Вы научили нас главному"],
       chapters: teacherChapters,
+    },
+    colleague: {
+      name: "Коллеге",
+      short: "Коллеге",
+      description: "Книга от команды или от коллеги: как вы познакомились, рабочие будни и общие победы, истории и шутки отдела, трудные дни и слова благодарности.",
+      recipientLabel: "Как зовут коллегу",
+      recipientPlaceholder: "Например, Динара",
+      titleSuggestions: ["Лучшему коллеге", "Спасибо, что ты в нашей команде", "Наш человек в отделе", "С тобой работать — одно удовольствие"],
+      chapters: colleagueChapters,
+    },
+    boss: {
+      name: "Руководителю",
+      short: "Руководителю",
+      description: "Книга от команды или сотрудника руководителю и директору: как вы начали работать вместе, как он руководит, чему научил, трудные и важные дни и слова благодарности.",
+      recipientLabel: "Как зовут руководителя",
+      recipientPlaceholder: "Например, Ерлан Маратович",
+      titleSuggestions: ["Спасибо, руководитель", "Нашему директору", "С Вами — команда", "Вы научили нас главному"],
+      chapters: bossChapters,
     },
     autobiography: {
       name: "Автобиография",
@@ -296,6 +321,24 @@ const text: Record<Locale, Record<ThemeId, ThemeText>> = {
       recipientPlaceholder: "Мысалы, Сәуле апай",
       titleSuggestions: ["Рахмет, ұстазым", "Өмірлік сабақтар", "Ұстазымызға", "Сіз бізге ең бастысын үйреттіңіз"],
       chapters: teacherChaptersKk,
+    },
+    colleague: {
+      name: "Әріптеске",
+      short: "Әріптеске",
+      description: "Ұжымнан не әріптестен кітап: қалай танысқандарыңыз, жұмыс күндері мен ортақ жеңістер, бөлімнің оқиғалары мен әзілдері, қиын күндер және алғыс сөздер.",
+      recipientLabel: "Әріптестің есімі",
+      recipientPlaceholder: "Мысалы, Динара",
+      titleSuggestions: ["Ең жақсы әріптеске", "Ұжымымызда болғаныңа рахмет", "Біздің бөлімнің адамы", "Сенімен жұмыс істеу — ләззат"],
+      chapters: colleagueChaptersKk,
+    },
+    boss: {
+      name: "Басшыға",
+      short: "Басшыға",
+      description: "Ұжымнан не қызметкерден басшыға және директорға кітап: қалай бірге жұмыс істей бастағандарыңыз, ол қалай басқарады, не үйретті, қиын және маңызды күндер және алғыс сөздер.",
+      recipientLabel: "Басшының есімі",
+      recipientPlaceholder: "Мысалы, Ермек Маратұлы",
+      titleSuggestions: ["Рахмет, басшымыз", "Директорымызға", "Сізбен — ұжым", "Сіз бізге ең бастысын үйреттіңіз"],
+      chapters: bossChaptersKk,
     },
     autobiography: {
       name: "Өмірбаян",

@@ -59,7 +59,9 @@ describe("банк вопросов", () => {
 
 describe("виды книг", () => {
   it("вид и политика получателя — по теме; незнакомая тема — подарок", () => {
-    expect(["love", "mom", "dad", "parents", "family", "grandma", "grandpa", "daughterinlaw", "child", "sibling", "friend", "teacher", "autobiography", "blank", "nope"].map((t) => [bookKind(t), recipientPolicy(t), hasQuestionBank(t), hasOutline(t)])).toEqual([
+    expect(["love", "mom", "dad", "parents", "family", "grandma", "grandpa", "daughterinlaw", "child", "sibling", "friend", "teacher", "colleague", "boss", "autobiography", "blank", "nope"].map((t) => [bookKind(t), recipientPolicy(t), hasQuestionBank(t), hasOutline(t)])).toEqual([
+      ["gift", "required", true, false],
+      ["gift", "required", true, false],
       ["gift", "required", true, false],
       ["gift", "required", true, false],
       ["gift", "required", true, false],
@@ -78,13 +80,13 @@ describe("виды книг", () => {
     ]);
   });
 
-  it("каталог: четырнадцать тем, у каждой вид и получатель как в kinds; подарки — первые двенадцать, любимому — первой", () => {
+  it("каталог: шестнадцать тем, у каждой вид и получатель как в kinds; подарки — первые четырнадцать, любимому — первой", () => {
     for (const lang of ["ru", "kk"] as const) {
       const all = getThemes(lang);
-      expect(all.map((t) => t.id)).toEqual(["love", "mom", "dad", "parents", "family", "grandma", "grandpa", "daughterinlaw", "child", "sibling", "friend", "teacher", "autobiography", "blank"]);
+      expect(all.map((t) => t.id)).toEqual(["love", "mom", "dad", "parents", "family", "grandma", "grandpa", "daughterinlaw", "child", "sibling", "friend", "teacher", "colleague", "boss", "autobiography", "blank"]);
       for (const t of all) expect([t.id, t.kind, t.recipient]).toEqual([t.id, bookKind(t.id), recipientPolicy(t.id)]);
-      expect(giftThemes(lang).map((t) => t.id)).toEqual(["love", "mom", "dad", "parents", "family", "grandma", "grandpa", "daughterinlaw", "child", "sibling", "friend", "teacher"]);
-      expect(bankThemes(lang).map((t) => t.id)).toEqual(["love", "mom", "dad", "parents", "family", "grandma", "grandpa", "daughterinlaw", "child", "sibling", "friend", "teacher", "autobiography"]);
+      expect(giftThemes(lang).map((t) => t.id)).toEqual(["love", "mom", "dad", "parents", "family", "grandma", "grandpa", "daughterinlaw", "child", "sibling", "friend", "teacher", "colleague", "boss"]);
+      expect(bankThemes(lang).map((t) => t.id)).toEqual(["love", "mom", "dad", "parents", "family", "grandma", "grandpa", "daughterinlaw", "child", "sibling", "friend", "teacher", "colleague", "boss", "autobiography"]);
     }
   });
 
@@ -151,6 +153,22 @@ describe("виды книг", () => {
     expect(themeChaptersByLocale("daughterinlaw").kk.map((c) => c.key)).toEqual(themeChaptersByLocale("daughterinlaw").ru.map((c) => c.key));
     expect(getTheme("daughterinlaw", "ru").titleSuggestions[0]).toBe("Тебе, наша сноха");
     expect(getTheme("daughterinlaw", "kk").titleSuggestions[0]).toBe("Саған, біздің келін");
+  });
+
+  it("коллеге и руководителю: подарки с банком на обоих языках, род адресата подставляется", () => {
+    for (const lang of ["ru", "kk"] as const)
+      for (const id of ["colleague", "boss"] as const) {
+        const t = getTheme(id, lang);
+        expect([t.kind, t.recipient], `${lang}.${id}`).toEqual(["gift", "required"]);
+        expect(countQuestions(t), `${lang}.${id}`).toBeGreaterThan(40);
+        expect(t.recipientLabel).toBeTruthy();
+      }
+    expect(themeChaptersByLocale("colleague").ru.map((c) => c.key)).toEqual(["intro", "meet", "work", "you", "moments", "hard", "lessons", "thanks"]);
+    expect(themeChaptersByLocale("boss").ru.map((c) => c.key)).toEqual(["intro", "meet", "leader", "team", "lessons", "hard", "person", "thanks"]);
+    expect(applyGender(getTheme("boss", "ru").chapters.at(-1)!.questions[0][0], "m", "f")).toBe("За что вы ей благодарны?");
+    expect(applyGender(getTheme("colleague", "ru").chapters[1].questions[0][0], "m", "m")).toBe("Как вы впервые увидели его в офисе или в рабочем чате?");
+    expect(getTheme("colleague", "ru").titleSuggestions[0]).toBe("Лучшему коллеге");
+    expect(getTheme("boss", "kk").titleSuggestions[0]).toBe("Рахмет, басшымыз");
   });
 
   it("дедушке: подарок с банком на обоих языках, адресат всегда мужского рода — без [..|..]", () => {

@@ -31,6 +31,8 @@ const slots: Record<GiftThemeId, { box: string; offset: string; tilt?: string }>
   sibling: { box: "lg:col-span-2", offset: "lg:mt-6", tilt: "-rotate-[0.5deg]" },
   friend: { box: "lg:col-span-2", offset: "lg:mt-0", tilt: "rotate-[0.7deg]" },
   teacher: { box: "lg:col-span-2", offset: "md:mt-6 lg:mt-12", tilt: "-rotate-[1deg]" },
+  colleague: { box: "lg:col-span-2", offset: "lg:mt-4", tilt: "rotate-[0.6deg]" },
+  boss: { box: "lg:col-span-2", offset: "md:mt-6 lg:mt-10", tilt: "-rotate-[0.8deg]" },
 };
 
 export async function ThemeCollage({ themeHref, className }: { themeHref: (id: string) => string; className?: string }) {

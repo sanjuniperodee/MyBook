@@ -24,6 +24,8 @@ export const themePhoto: Record<ThemeId, { key: string; position?: string }> = {
   sibling: { key: "laughter", position: "50% 40%" },
   friend: { key: "friends", position: "50% 30%" },
   teacher: { key: "autumn", position: "50% 50%" },
+  colleague: { key: "friends", position: "50% 30%" },
+  boss: { key: "autumn", position: "50% 50%" },
   autobiography: { key: "familydusk", position: "50% 60%" },
   blank: { key: "postcards", position: "50% 50%" },
 };

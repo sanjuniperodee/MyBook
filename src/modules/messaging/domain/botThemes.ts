@@ -1,11 +1,11 @@
 /**
- * «Для кого книга» → тема книги и ссылка. Темы: love | mom | dad | parents | grandma | grandpa | child | sibling | friend | teacher и режимы «Автобиография» (autobiography)
+ * «Для кого книга» → тема книги и ссылка. Темы: love | mom | dad | parents | grandma | grandpa | child | sibling | friend | teacher | colleague | boss и режимы «Автобиография» (autobiography)
  * и «Вручную — своя книга с нуля» (blank, docs/features/book-modes.md). Режимы предлагаются, только когда сайт их уже
  * знает (список тем передаёт адаптер настроек). Ссылки — только на свой сайт.
  */
 import { norm, rx, type BotLang } from "./botNlu";
 
-export type BookTheme = "love" | "mom" | "dad" | "parents" | "family" | "grandma" | "grandpa" | "daughterinlaw" | "child" | "sibling" | "friend" | "teacher" | "autobiography" | "blank";
+export type BookTheme = "love" | "mom" | "dad" | "parents" | "family" | "grandma" | "grandpa" | "daughterinlaw" | "child" | "sibling" | "friend" | "teacher" | "colleague" | "boss" | "autobiography" | "blank";
 type Localized = Record<BotLang, string>;
 
 interface RecipientDef {
@@ -154,10 +154,18 @@ const RECIPIENTS: RecipientDef[] = [
   ),
   def(
     "colleague",
-    ["\\bколлег(?:е|ам)\\b", "\\bәріптесіме\\b", "\\bәріптестеріме\\b"],
+    ["\\bколлег(?:е|ам)\\b", "\\bдля\\s+коллег\\S*", "\\bәріптесіме\\b", "\\bәріптестеріме\\b", "\\bәріптеске\\b"],
     ["\\bколлег\\S*", "\\bәріптес\\S*"],
     { ru: "Коллеге", kk: "Әріптесіңізге" },
-    "friend",
+    "colleague",
+    null,
+  ),
+  def(
+    "boss",
+    ["\\bруководител(?:ю|ям|ьнице)\\b", "\\bдля\\s+руководител\\S*", "\\bдиректору\\b", "\\bдля\\s+директор\\S*", "\\bначальнику\\b", "\\bначальнице\\b", "\\bдля\\s+начальник\\S*", "\\bшефу\\b", "\\bбоссу\\b", "\\bбасшыма\\b", "\\bбасшыға\\b", "\\bдиректорыма\\b", "\\bдиректорға\\b", "\\bбастығыма\\b", "\\bбастыққа\\b"],
+    ["\\bруководител\\S*", "\\bдиректор\\S*", "\\bначальник\\S*", "\\bначальниц\\S*", "\\bшеф\\S*", "\\bбосс\\S*", "\\bбасшы\\S*", "\\bбастық\\S*"],
+    { ru: "Руководителю", kk: "Басшыңызға" },
+    "boss",
     null,
   ),
 ];
@@ -176,6 +184,8 @@ const MENU: { theme: BookTheme; label: Localized; menu: Localized }[] = [
   { theme: "sibling", label: { ru: "Брату или сестре", kk: "Бауырыңызға" }, menu: { ru: "брату или сестре", kk: "бауырыңызға (ағаңызға, әпкеңізге, ініңізге, сіңліңізге)" } },
   { theme: "friend", label: { ru: "Другу или подруге", kk: "Досыңызға не құрбыңызға" }, menu: { ru: "другу или подруге", kk: "досыңызға не құрбыңызға" } },
   { theme: "teacher", label: { ru: "Учителю", kk: "Ұстазыңызға" }, menu: { ru: "учителю", kk: "ұстазыңызға" } },
+  { theme: "colleague", label: { ru: "Коллеге", kk: "Әріптесіңізге" }, menu: { ru: "коллеге", kk: "әріптесіңізге" } },
+  { theme: "boss", label: { ru: "Руководителю", kk: "Басшыңызға" }, menu: { ru: "руководителю или директору", kk: "басшыңызға не директорыңызға" } },
   { theme: "autobiography", label: { ru: "О себе (автобиография)", kk: "Өзіңіз туралы (өмірбаян)" }, menu: { ru: "о себе или о близком с его слов (автобиография)", kk: "өзіңіз туралы не жақыныңыздың айтуымен (өмірбаян)" } },
   { theme: "blank", label: { ru: "Своя книга с нуля", kk: "Өз кітабыңыз (нөлден)" }, menu: { ru: "своя книга с нуля — главы придумываете сами", kk: "өз кітабыңыз, нөлден — тарауларды өзіңіз құрасыз" } },
 ];

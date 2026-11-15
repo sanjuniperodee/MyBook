@@ -214,11 +214,20 @@ describe("бот: для кого → тема и ссылка", () => {
     expect(findRecipient("невесте на свадьбу", { themes })?.key).toBe("girlfriend");
   });
 
-  it("брату или сестре — своя тема, коллеге — по-прежнему «другу»", () => {
+  it("брату или сестре — своя тема, коллеге — своя тема", () => {
     const themes = [...site.themes, "sibling"];
     for (const text of ["книгу брату на свадьбу", "для сестры", "сестренке на др", "ағама сыйлық", "сіңліме кітап"])
       expect(findRecipient(text, { themes }), text).toMatchObject({ key: "sibling", theme: "sibling", label: { ru: "Брату или сестре" } });
-    expect(findRecipient("коллеге на юбилей", { themes })).toMatchObject({ key: "colleague", theme: "friend" });
+  });
+
+  it("коллеге и руководителю — свои темы; классный руководитель — по-прежнему учитель", () => {
+    const themes = [...site.themes, "colleague", "boss", "teacher"];
+    for (const text of ["коллеге на юбилей", "для коллеги", "әріптесіме сыйлық"])
+      expect(findRecipient(text, { themes }), text).toMatchObject({ key: "colleague", theme: "colleague", label: { ru: "Коллеге" } });
+    for (const text of ["руководителю на день рождения", "директору", "для начальника", "шефу", "басшыма сыйлық", "директорыма"])
+      expect(findRecipient(text, { themes }), text).toMatchObject({ key: "boss", theme: "boss", label: { ru: "Руководителю" } });
+    expect(findRecipient("классному руководителю", { themes })?.key).toBe("teacher");
+    expect(findRecipient("руководителю", { themes: site.themes })).toMatchObject({ key: "boss", theme: null });
   });
 
   it("дочери или сыну — своя тема; детям и внукам вместе — своя книга", () => {
