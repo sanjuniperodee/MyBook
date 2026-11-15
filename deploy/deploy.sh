@@ -21,7 +21,7 @@ cd "$ROOT"
 
 PORT="${MYBOOK_PORT:-3040}"
 SMOKE_PORT="${MYBOOK_SMOKE_PORT:-3041}"
-KEEP="${MYBOOK_KEEP_RELEASES:-3}"
+KEEP="${MYBOOK_KEEP_RELEASES:-1}"
 # Релизы лежат рядом с репозиторием, а не внутри: иначе TypeScript и ESLint видят чужие копии исходников
 BASE="${MYBOOK_RELEASES_DIR:-$(dirname "$ROOT")/mybook-releases}"
 RELEASES="$BASE/releases"
@@ -241,9 +241,11 @@ if pm2 describe mybook-gowa >/dev/null 2>&1 && ! command -v ffmpeg >/dev/null; t
   fi
 fi
 
-# Оставляем последние $KEEP релизов (текущий и предыдущий — всегда)
+# Историю релизов не храним (диск сервера общий и небольшой): после удачной выкатки остаются последние $KEEP — по
+# умолчанию только текущий. Предыдущий нужен лишь до проверки нового (автооткат выше) и удаляется вместе с остальными;
+# вернуть старую версию — выкатить её коммит заново.
 ls -1dt "$RELEASES"/*/ 2>/dev/null | sed 's:/$::' | tail -n +"$((KEEP + 1))" | while read -r old; do
-  [ "$old" = "$(readlink -f "$CURRENT")" ] || [ "$old" = "$PREV" ] || { rm -rf "$old" && echo "  удалён старый релиз $(basename "$old")"; }
+  [ "$old" = "$(readlink -f "$CURRENT")" ] || { rm -rf "$old" && echo "  удалён старый релиз $(basename "$old")"; }
 done
 
 DEPLOY_OK=1
