@@ -4,7 +4,7 @@ import { listFields } from "@/modules/workspace";
 import { channelLabel, toAttribution } from "@/shared/domain/channels";
 import Link from "next/link";
 import { MobileFilters } from "@/components/admin/MobileFilters";
-import { ChevronLeft, ChevronRight, Copy, Handshake, ListPlus, Plus, Search, SearchX, Settings2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Copy, Handshake, ListPlus, Plus, Search, SearchX, Settings2, SlidersHorizontal } from "lucide-react";
 import { can, canAssignOthers, requireStaff } from "@/server/access";
 import { staffOptions } from "@/modules/access/ui";
 import { staffLabel } from "@/shared/domain/staff";
@@ -20,6 +20,11 @@ import { Segmented } from "@/components/admin/Segmented";
 import { ActionMenu, MenuLink } from "@/components/admin/ActionMenu";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ruCount } from "@/i18n/plural";
+import { DrawerButton } from "@/components/admin/Drawer";
+import { Field } from "@/components/ui/Field";
+import { lostReasons } from "@/modules/sales/domain/meta";
+import { storeTimeZone, zonedDay } from "@/shared/domain/time";
+import { DEAL_DATE_FIELDS, DEAL_FILTER_KEYS, dealAdvancedFilters, dealDatePresets } from "@/modules/reporting/ui/dealFilters";
 
 export const metadata = { title: "Сделки" };
 /** Сделок на странице списка; доска показывает до 1000 (закрытые — за 30 дней). */
@@ -72,14 +77,108 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
     const s = p.toString();
     return s ? `/admin/deals?${s}` : "/admin/deals";
   };
-  const currentQuery = new URLSearchParams(Object.entries(sp).filter(([k, v]) => v && /^(mine|a|src|q|view|p|task|stale|cf_[a-z0-9_]+)$/.test(k)) as [string, string][]).toString();
+  const currentQuery = new URLSearchParams(Object.entries(sp).filter(([k, v]) => v && /^(mine|a|src|q|view|p|task|stale|df|from|to|st|min|max|paid|lr|tag|cf_[a-z0-9_]+)$/.test(k)) as [string, string][]).toString();
+  // Панель «Фильтр»: дата, этап, бюджет, оплата, причина отказа, тег — то, чего нет в быстрых чипах.
+  const tz = storeTimeZone();
+  const adv = dealAdvancedFilters(sp, tz);
+  const presets = dealDatePresets(zonedDay(new Date(), tz));
+  const advReset = Object.fromEntries(DEAL_FILTER_KEYS.map((k) => [k, undefined]));
   const pages = Math.ceil(totals.total / PAGE);
   // Что сужает выборку (кроме вида и воронки): пустой результат с фильтром — «сбросить», без фильтра — «создать сделку».
-  const filtered = Object.entries(sp).some(([k, v]) => v && /^(mine|a|src|q|task|stale|cf_[a-z0-9_]+)$/.test(k));
+  const filtered = adv.count > 0 || Object.entries(sp).some(([k, v]) => v && /^(mine|a|src|q|task|stale|cf_[a-z0-9_]+)$/.test(k));
   const extraFilters = !!sp.src || selectFields.some((f) => sp[`cf_${f.key}`]);
   const settings = can(staff, "settings.manage");
   const canEdit = can(staff, "deals.edit");
-  const reset = params({ mine: undefined, a: undefined, src: undefined, q: undefined, task: undefined, stale: undefined, ...Object.fromEntries(selectFields.map((f) => [`cf_${f.key}`, undefined])) });
+  const reset = params({ mine: undefined, a: undefined, src: undefined, q: undefined, task: undefined, stale: undefined, ...advReset, ...Object.fromEntries(selectFields.map((f) => [`cf_${f.key}`, undefined])) });
+  // Параметры, которые панель «Фильтр» и строка поиска не должны сбрасывать друг у друга.
+  const keep = (keys: readonly string[]) =>
+    Object.entries(sp)
+      .filter((e): e is [string, string] => !!e[1] && keys.includes(e[0]))
+      .map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />);
+  const baseKeys = ["p", "mine", "a", "task", "stale", "view"];
+  const filterPanel = (
+    <DrawerButton
+      variant="outline"
+      label={adv.count ? `Фильтр: ${adv.count}` : "Фильтр"}
+      icon={<SlidersHorizontal className="size-4" strokeWidth={1.8} aria-hidden />}
+      title="Фильтр сделок"
+      description="Период, этап, бюджет, оплата. Отбор можно сохранить видом — кнопка в ленте фильтров"
+      testId="deals-filter"
+      className={adv.count ? "border-ink" : undefined}
+    >
+      <form action="/admin/deals" className="space-y-4" data-testid="deals-filter-form">
+        {keep([...baseKeys, "q", "src", ...selectFields.map((f) => `cf_${f.key}`)])}
+        <fieldset className="space-y-2">
+          <legend className="label">Период</legend>
+          <div className="flex flex-wrap gap-1.5">
+            {presets.map((x) => (
+              <Link key={x.key} href={params({ from: x.from, to: x.to })} className="chip" aria-pressed={adv.fromDay === x.from && adv.toDay === x.to}>
+                {x.label}
+              </Link>
+            ))}
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <input type="date" name="from" defaultValue={adv.fromDay ?? ""} className="input" aria-label="С даты" />
+            <input type="date" name="to" defaultValue={adv.toDay ?? ""} className="input" aria-label="По дату" />
+          </div>
+          <select name="df" defaultValue={adv.field === "created" ? "" : adv.field} className="input" aria-label="По какой дате">
+            {Object.entries(DEAL_DATE_FIELDS).map(([k, label]) => (
+              <option key={k} value={k === "created" ? "" : k}>
+                По дате {label}
+              </option>
+            ))}
+          </select>
+        </fieldset>
+        <Field label="Этап">
+          <select name="st" defaultValue={adv.stageId ?? ""} className="input">
+            <option value="">Все этапы</option>
+            {stages.map((st) => (
+              <option key={st.id} value={st.id}>
+                {st.name}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <fieldset>
+          <legend className="label">Бюджет, ₸</legend>
+          <div className="grid grid-cols-2 gap-2">
+            <input type="number" inputMode="numeric" min={0} name="min" defaultValue={adv.min ?? ""} placeholder="от" className="input tabular-nums" aria-label="Бюджет от" />
+            <input type="number" inputMode="numeric" min={0} name="max" defaultValue={adv.max ?? ""} placeholder="до" className="input tabular-nums" aria-label="Бюджет до" />
+          </div>
+        </fieldset>
+        <Field label="Оплата">
+          <select name="paid" defaultValue={adv.paid ?? ""} className="input">
+            <option value="">Не важно</option>
+            <option value="yes">Есть оплата</option>
+            <option value="no">Без оплаты</option>
+          </select>
+        </Field>
+        <Field label="Причина отказа">
+          <select name="lr" defaultValue={adv.lostReason ?? ""} className="input">
+            <option value="">Любая</option>
+            {[...new Set([...lostReasons, "Заказ отменён", ...(adv.lostReason ? [adv.lostReason] : [])])].map((r) => (
+              <option key={r} value={r}>
+                {r}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Тег" optional>
+          <input name="tag" defaultValue={adv.tag ?? ""} maxLength={40} className="input" placeholder="Например, vip" />
+        </Field>
+        <div className="flex gap-2">
+          <button type="submit" className="btn btn-dark flex-1">
+            Показать
+          </button>
+          {adv.count ? (
+            <Link href={params(advReset)} className="btn btn-outline">
+              Сбросить
+            </Link>
+          ) : null}
+        </div>
+      </form>
+    </DrawerButton>
+  );
 
   const filterChips = (
     <>
@@ -186,7 +285,8 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
           {filterChips}
         </div>
 
-        <form className="max-lg:contents lg:order-3 lg:ml-auto lg:flex lg:items-center lg:gap-2 xl:ml-0" action="/admin/deals" role="search">
+        <div className="order-2 lg:order-3 lg:ml-auto xl:ml-0">{filterPanel}</div>
+        <form className="max-lg:contents lg:order-3 lg:flex lg:items-center lg:gap-2" action="/admin/deals" role="search">
           <AutoApply />
           {sp.p ? <input type="hidden" name="p" value={sp.p} /> : null}
           {sp.mine ? <input type="hidden" name="mine" value={sp.mine} /> : null}
@@ -194,6 +294,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
           {sp.task ? <input type="hidden" name="task" value={sp.task} /> : null}
           {sp.stale ? <input type="hidden" name="stale" value={sp.stale} /> : null}
           {view === "list" ? <input type="hidden" name="view" value="list" /> : null}
+          {keep(DEAL_FILTER_KEYS)}
           <MobileFilters compact active={extraFilters || !!q}>
             <div className="flex flex-col gap-2 max-lg:mt-1 lg:contents">
               <label className="relative min-w-0 lg:w-56">

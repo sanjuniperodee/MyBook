@@ -1,6 +1,6 @@
 import "server-only";
 import { extraPhoneMatch, phoneMatch, tagMatch } from "./phoneSearch";
-import { and, desc, eq, gte, ilike, isNull, or, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, gte, ilike, isNull, lt, lte, or, sql, type SQL } from "drizzle-orm";
 import { crmDeals, crmSavedViews, crmStages } from "@/shared/infrastructure/db/schema";
 import { dealSources, type DealSource } from "@/shared/domain/dealSources";
 import { crmDealsClientId, crmDealsId } from "@/shared/infrastructure/db/refs";
@@ -8,6 +8,8 @@ import { answeredSql, totalSql, wordsSql } from "@/shared/infrastructure/db/book
 import { executor } from "@/shared/infrastructure/database";
 import { visibleTo, type Viewer } from "./MyDay";
 import { noOpenTask } from "./conditions";
+import { storeTimeZone } from "@/shared/domain/time";
+import { dealAdvancedFilters } from "../ui/dealFilters";
 
 const CLOSED_DAYS = 30;
 
@@ -34,6 +36,19 @@ function dealWhere(viewer: Viewer, pipeline: { id: string }, sp: DealParams, sel
   if (sp.task === "overdue") w.push(sql`exists (select 1 from crm_tasks t where t.deal_id = ${crmDealsId} and t.done_at is null and t.due_at < now())`);
   const stale = Number(sp.stale);
   if (stale > 0) w.push(sql`${crmDeals.stageChangedAt} < now() - make_interval(days => ${Math.min(stale, 365)})`, eq(crmStages.kind, "open"));
+  // Панель «Фильтр»: дата (создания, закрытия или смены этапа), этап, бюджет, оплата, причина отказа, тег.
+  const f = dealAdvancedFilters(sp, storeTimeZone());
+  const dateCol = f.field === "closed" ? crmDeals.closedAt : f.field === "stage" ? crmDeals.stageChangedAt : crmDeals.createdAt;
+  if (f.from) w.push(gte(dateCol, f.from));
+  if (f.to) w.push(lt(dateCol, f.to));
+  if (f.stageId) w.push(eq(crmDeals.stageId, f.stageId));
+  if (f.min !== null) w.push(gte(crmDeals.amount, f.min));
+  if (f.max !== null) w.push(lte(crmDeals.amount, f.max));
+  const paidSum = sql`coalesce((select sum(case when p.kind = 'refund' then -p.amount else p.amount end) from crm_payments p where p.deal_id = ${crmDealsId}), 0)`;
+  if (f.paid === "yes") w.push(sql`${paidSum} > 0`);
+  if (f.paid === "no") w.push(sql`${paidSum} <= 0`);
+  if (f.lostReason) w.push(eq(crmDeals.lostReason, f.lostReason), eq(crmStages.kind, "lost"));
+  if (f.tag) w.push(sql`exists (select 1 from unnest(${crmDeals.tags}) t where lower(t) = lower(${f.tag}))`);
   const q = sp.q?.trim();
   if (q) {
     const like = `%${q}%`;
@@ -49,14 +64,15 @@ function dealWhere(viewer: Viewer, pipeline: { id: string }, sp: DealParams, sel
       )!,
     );
   }
-  // На доске закрытые сделки — только за последние 30 дней, чтобы колонки «успех/отказ» не разрастались.
-  if (view === "board") w.push(or(eq(crmStages.kind, "open"), gte(crmDeals.closedAt, sql`now() - interval '${sql.raw(String(CLOSED_DAYS))} days'`))!);
+  // На доске закрытые сделки — только за последние 30 дней, чтобы колонки «успех/отказ» не разрастались. Задан период
+  // или причина отказа — человек ищет конкретные закрытые сделки, окно не действует.
+  if (view === "board" && !f.from && !f.to && !f.lostReason) w.push(or(eq(crmStages.kind, "open"), gte(crmDeals.closedAt, sql`now() - interval '${sql.raw(String(CLOSED_DAYS))} days'`))!);
   return w;
 }
 
 /**
  * Список и доска сделок воронки с фильтрами: ответственный, источник, свои поля-списки, задачи,
- * «застряла на этапе», поиск. Видимость «только свои». page — страница списка (limit/offset); без неё — первые 300
+ * «застряла на этапе», поиск и панель «Фильтр» (дата, этап, бюджет, оплата, причина отказа, тег). Видимость «только свои». page — страница списка (limit/offset); без неё — первые 300
  * (доска — 1000).
  */
 export async function dealList(viewer: Viewer, pipeline: { id: string }, sp: DealParams, selectFields: SelectFields, view: "board" | "list", page?: { limit: number; offset: number }) {
