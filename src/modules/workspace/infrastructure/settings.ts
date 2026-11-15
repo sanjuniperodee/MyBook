@@ -261,6 +261,8 @@ export const settingDefs = {
   "gowa.historySyncedAt": {},
   /** Комиссии банка по формам оплаты сделки: JSON «форма → % с суммы» (Kaspi Рассрочка, Red…); пусто — по умолчанию. */
   "finance.fees": {},
+  /** Налог с выручки, % (упрощённый режим): «Прибыль» считает его с денег периода строкой «Налоги». Пусто — не считать. */
+  "finance.taxRate": {},
 } satisfies Record<string, Def>;
 
 export type SettingKey = keyof typeof settingDefs;

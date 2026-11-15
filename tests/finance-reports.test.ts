@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { expenseGroupOf, feeOf, guessAdChannel, guessExpenseCategory, parseExpenseLines, parseFeeRates } from "@/shared/domain/expenses";
+import { expenseGroupOf, feeOf, guessAdChannel, guessExpenseCategory, parseExpenseLines, parseFeeRates, parseTaxRate } from "@/shared/domain/expenses";
 import { financePeriod, type MoneyRow } from "@/modules/reporting/ui/finance-screen";
 import { expensesScreen, profitScreen, profitStep, type ExpenseRow, type ProfitCounts } from "@/modules/reporting/ui/profit-screen";
 import { leadStatsScreen, recipientGroup, salesRegisterScreen, type LeadDealRow, type RegisterRow } from "@/modules/reporting/ui/lead-stats";
@@ -296,6 +296,26 @@ describe("Комиссии по формам оплаты", () => {
     expect(s.byCategory).toEqual([expect.objectContaining({ key: "fees", value: 5350, count: 1 })]);
     expect(s.rows[1]).toMatchObject({ key: "2026-11-02", revenue: 29_000, cogs: 5350 });
     expect(s.noExpenses).toBe(false);
+  });
+
+  it("налог с выручки: процент из настройки, считается с денег периода и раскладывается по строкам без потери тенге", () => {
+    expect([parseTaxRate("4"), parseTaxRate("3,5"), parseTaxRate(""), parseTaxRate("сто"), parseTaxRate("80")]).toEqual([4, 3.5, 0, 0, 0]);
+    const s = profitScreen({
+      period,
+      tz,
+      money: [money({ amount: 10_001, at: at("2026-11-02") }), money({ amount: 20_002, at: at("2026-11-03") }), money({ amount: 5_000, at: at("2026-11-04"), kind: "refund" })],
+      expenses: [expense({ day: "2026-11-02", category: "tax", amount: 1_000 })],
+      counts: counts(),
+      prevCounts: counts(),
+      taxRate: 4,
+    });
+    // Выручка 25 003 → налог 1 000 (4%), плюс внесённый налог 1 000.
+    expect(s.tax).toEqual({ rate: 4, auto: 1000 });
+    expect(s.totals).toMatchObject({ revenue: 25_003, operating: 2000, profit: 23_003 });
+    expect(s.byCategory).toEqual([expect.objectContaining({ key: "tax", value: 2000 })]);
+    expect(s.rows.reduce((n, r) => n + r.operating, 0)).toBe(2000);
+    expect(s.rows[1]).toMatchObject({ key: "2026-11-02", operating: 1400 });
+    expect(s.rows[3]).toMatchObject({ key: "2026-11-04", revenue: -5000, operating: 0 });
   });
 
   it("в реестре: комиссия с оплаченного и сумма на счёт", () => {

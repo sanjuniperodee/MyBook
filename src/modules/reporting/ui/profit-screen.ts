@@ -1,6 +1,6 @@
 import { zonedDay } from "@/shared/domain/time";
 import { channels } from "@/shared/domain/channels";
-import { expenseCategories, expenseCategoryKeys, expenseCategoryLabel, expenseGroupKeys, expenseGroupOf, expenseGroups, feeOf, type ExpenseGroup } from "@/shared/domain/expenses";
+import { expenseCategories, expenseCategoryKeys, expenseCategoryLabel, expenseGroupKeys, expenseGroupOf, expenseGroups, feeOf, taxOf, type ExpenseGroup } from "@/shared/domain/expenses";
 import type { FinancePeriod, MoneyRow } from "./finance-screen";
 
 /** Строка расхода: запись «Расходов» или реклама из расходов по каналам (source ads — правится там же, где внесена). */
@@ -93,10 +93,13 @@ export function profitScreen(input: {
   /** Форма оплаты сделок (id сделки → форма) и проценты комиссий по формам: комиссия считается с денег сделки сама. */
   forms?: Record<string, string>;
   feeRates?: Record<string, number>;
+  /** Налог с выручки, %: считается с денег периода сам и идёт в «Прочие расходы» строкой «Налоги». */
+  taxRate?: number;
 }) {
   const { period, tz } = input;
   const forms = input.forms ?? {};
   const rates = input.feeRates ?? {};
+  const taxRate = input.taxRate ?? 0;
   const formOf = (m: MoneyRow) => (m.dealId ? (forms[m.dealId] ?? null) : null);
   /** Комиссия банка с движения денег: с возврата — со знаком минус. */
   const fee = (m: MoneyRow) => feeOf(m.kind === "refund" ? -m.amount : m.amount, formOf(m), rates);
@@ -113,6 +116,7 @@ export function profitScreen(input: {
     l.revenue = sum(money, signed);
     for (const e of exp) l[expenseGroupOf(e.category)] += e.amount;
     l.cogs += sum(money, fee);
+    l.operating += taxOf(l.revenue, taxRate);
     l.expenses = l.cogs + l.marketing + l.team + l.operating;
     l.profit = l.revenue - l.expenses;
     return l;
@@ -136,9 +140,18 @@ export function profitScreen(input: {
     const b = buckets.get(bucketOf(e.day, step));
     if (b) b[expenseGroupOf(e.category)] += e.amount;
   }
-  const rows = [...buckets.values()].map((b) => {
-    const expenses = b.cogs + b.marketing + b.team + b.operating;
-    return { ...b, expenses, profit: b.revenue - expenses };
+  // Налог периода раскладывается по строкам таблицы пропорционально выручке, остаток округления — в последнюю с выручкой.
+  const taxAuto = taxOf(cur.revenue, taxRate);
+  const prevTaxAuto = taxOf(prev.revenue, taxRate);
+  const list = [...buckets.values()];
+  let taxLeft = taxAuto;
+  const lastWithRevenue = list.map((b) => b.revenue > 0).lastIndexOf(true);
+  const rows = list.map((b, i) => {
+    const tax = taxAuto && b.revenue > 0 ? (i === lastWithRevenue ? taxLeft : Math.min(taxLeft, taxOf(b.revenue, taxRate))) : 0;
+    taxLeft -= tax;
+    const operating = b.operating + tax;
+    const expenses = b.cogs + b.marketing + b.team + operating;
+    return { ...b, operating, expenses, profit: b.revenue - expenses };
   });
 
   // Расходы по категориям и группам.
@@ -154,8 +167,8 @@ export function profitScreen(input: {
   const byCategory = expenseCategoryKeys
     .map((key) => {
       const list = curExp.filter((e) => (e.category in expenseCategories ? e.category : "other") === key);
-      const auto = key === "fees" ? feesAuto : 0;
-      const prevAuto = key === "fees" ? prevFeesAuto : 0;
+      const auto = key === "fees" ? feesAuto : key === "tax" ? taxAuto : 0;
+      const prevAuto = key === "fees" ? prevFeesAuto : key === "tax" ? prevTaxAuto : 0;
       return { key, label: expenseCategoryLabel(key), group: expenseGroupOf(key), value: sum(list, (e) => e.amount) + auto, count: list.length, prev: sum(prevExp.filter((e) => (e.category in expenseCategories ? e.category : "other") === key), (e) => e.amount) + prevAuto };
     })
     .filter((c) => c.value > 0 || c.prev > 0)
@@ -211,10 +224,12 @@ export function profitScreen(input: {
     byGroup,
     /** Расчётные комиссии: всего и по формам оплаты (деньги сделок с выбранной формой, процент, комиссия). */
     fees: { auto: feesAuto, byForm, tagged: sum(byForm, (f) => f.money), untagged: cur.revenue - sum(byForm, (f) => f.money) },
+    /** Расчётный налог с выручки периода. */
+    tax: { rate: taxRate, auto: taxAuto },
     unit,
     prevUnit: { leads: input.prevCounts.leads, buyers: input.prevCounts.buyers },
     /** Расходов за период нет вовсе — отчёт показывает только деньги; страница просит внести расходы. */
-    noExpenses: curExp.length === 0 && feesAuto === 0,
+    noExpenses: curExp.length === 0 && feesAuto === 0 && taxAuto === 0,
   };
 }
 export type ProfitScreen = ReturnType<typeof profitScreen>;

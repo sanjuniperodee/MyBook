@@ -15,7 +15,7 @@ import { Panel } from "@/components/ui/Panel";
 import { Alert } from "@/components/ui/Alert";
 import { financePeriod } from "@/modules/reporting/ui/finance-screen";
 import { profitScreen } from "@/modules/reporting/ui/profit-screen";
-import { expenseGroupKeys, expenseGroups, PAY_FORM_KEY, PAY_FORM_OPTIONS, parseFeeRates } from "@/shared/domain/expenses";
+import { expenseGroupKeys, expenseGroups, PAY_FORM_KEY, PAY_FORM_OPTIONS, parseFeeRates, parseTaxRate } from "@/shared/domain/expenses";
 import { FeeSettingsButton } from "./FeeSettings";
 
 export const metadata = { title: "Прибыль" };
@@ -40,9 +40,10 @@ export default async function ProfitPage({ searchParams }: { searchParams: Promi
   const tz = storeTimeZone();
   const period = financePeriod({ preset: q.p, from: q.from, to: q.to, now: new Date(), tz });
   const prev = { ...period.prev, first: zonedDay(period.prev.from, tz), last: zonedDay(new Date(period.prev.to.getTime() - 1), tz) };
-  const [data, feeSetting, dealFields] = await Promise.all([container().reporting.profit({ from: period.from, to: period.to, first: period.first, last: period.last, prev }), getSetting("finance.fees"), listFields("deal")]);
+  const [data, feeSetting, taxSetting, dealFields] = await Promise.all([container().reporting.profit({ from: period.from, to: period.to, first: period.first, last: period.last, prev }), getSetting("finance.fees"), getSetting("finance.taxRate"), listFields("deal")]);
   const feeRates = parseFeeRates(feeSetting);
-  const s = profitScreen({ period, ...data, feeRates, tz });
+  const taxRate = parseTaxRate(taxSetting);
+  const s = profitScreen({ period, ...data, feeRates, taxRate, tz });
   // Формы оплаты — варианты поля сделки; до миграции поля — стандартный набор.
   const payForms = dealFields.find((f) => f.key === PAY_FORM_KEY)?.options ?? [...PAY_FORM_OPTIONS];
   const { totals: t, unit: u } = s;
@@ -69,7 +70,7 @@ export default async function ProfitPage({ searchParams }: { searchParams: Promi
         title="Прибыль"
         actions={
           <>
-            {can(staff, "finance.manage") ? <FeeSettingsButton forms={payForms} rates={feeRates} /> : null}
+            {can(staff, "finance.manage") ? <FeeSettingsButton forms={payForms} rates={feeRates} taxRate={taxRate} /> : null}
             <a href={`/api/admin/export/profit?${href}`} className="btn btn-outline btn-sm" data-testid="profit-export">
               <Download className="size-4" strokeWidth={1.8} aria-hidden /> Скачать CSV
             </a>

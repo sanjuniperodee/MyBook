@@ -156,3 +156,12 @@ export function parseFeeRates(raw: string | null | undefined): Record<string, nu
 
 /** Комиссия с суммы по форме оплаты, ₸ (возврат — со знаком минус: комиссию банк возвращает вместе с деньгами). */
 export const feeOf = (amount: number, form: string | null | undefined, rates: Record<string, number>) => (form && rates[form] ? Math.round((amount * rates[form]) / 100) : 0);
+
+/** Налог с выручки, % (упрощённый режим: процент с дохода): из настройки; мусор и значения вне 0–50 — ноль. */
+export function parseTaxRate(raw: string | null | undefined): number {
+  const n = Number(String(raw ?? "").replace(",", "."));
+  return Number.isFinite(n) && n > 0 && n <= 50 ? Math.round(n * 100) / 100 : 0;
+}
+
+/** Налог с суммы выручки, ₸ (с отрицательной выручки — ноль). */
+export const taxOf = (revenue: number, rate: number) => (rate > 0 && revenue > 0 ? Math.round((revenue * rate) / 100) : 0);

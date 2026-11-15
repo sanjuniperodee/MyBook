@@ -11,21 +11,22 @@ import { saveFeeRatesAction } from "./actions";
  * «Проценты комиссий»: сколько банк удерживает с оплаты по каждой форме (Kaspi Рассрочка — 15%, Red — 12%…). Формы —
  * варианты поля сделки «Форма оплаты»; новую форму добавляют в настройках полей сделки.
  */
-export function FeeSettingsButton({ forms, rates }: { forms: string[]; rates: Record<string, number> }) {
+export function FeeSettingsButton({ forms, rates, taxRate }: { forms: string[]; rates: Record<string, number>; taxRate: number }) {
   return (
-    <DrawerButton variant="outline" label="Проценты комиссий" icon={<Percent className="size-4" strokeWidth={1.8} aria-hidden />} title="Комиссии по формам оплаты" description="Сколько банк удерживает с оплаты. Комиссия считается с денег сделок, у которых выбрана форма оплаты" testId="fee-settings" lazy>
-      {(close) => <FeeForm forms={forms} rates={rates} close={close} />}
+    <DrawerButton variant="outline" label="Комиссии и налог" icon={<Percent className="size-4" strokeWidth={1.8} aria-hidden />} title="Комиссии и налог" description="Сколько банк удерживает с оплаты по каждой форме и какой налог платится с выручки — отчёт считает их сам" testId="fee-settings" lazy>
+      {(close) => <FeeForm forms={forms} rates={rates} taxRate={taxRate} close={close} />}
     </DrawerButton>
   );
 }
 
-function FeeForm({ forms, rates, close }: { forms: string[]; rates: Record<string, number>; close: () => void }) {
+function FeeForm({ forms, rates, taxRate, close }: { forms: string[]; rates: Record<string, number>; taxRate: number; close: () => void }) {
   const [pending, start] = useTransition();
   const router = useRouter();
   const [values, setValues] = useState<Record<string, string>>(() => Object.fromEntries(forms.map((f) => [f, rates[f] ? String(rates[f]).replace(".", ",") : ""])));
+  const [tax, setTax] = useState(taxRate ? String(taxRate).replace(".", ",") : "");
   const submit = () =>
     start(async () => {
-      const r = await saveFeeRatesAction(forms.map((form) => ({ form, rate: (values[form] ?? "").replace(",", ".") || "0" })));
+      const r = await saveFeeRatesAction(forms.map((form) => ({ form, rate: (values[form] ?? "").replace(",", ".") || "0" })), tax);
       if (!r.ok) return toast(r.error, "error");
       toast("Проценты сохранены", "success");
       close();
@@ -54,6 +55,16 @@ function FeeForm({ forms, rates, close }: { forms: string[]; rates: Record<strin
         ))}
       </ul>
       <p className="text-xs text-muted">Пример: рассрочка 15% — с оплаты 29 000 ₸ на счёт приходит 24 650 ₸, комиссия 4 350 ₸ попадает в себестоимость.</p>
+      <div className="flex min-h-12 items-center gap-3 border-y border-line py-1.5">
+        <label htmlFor="tax-rate" className="min-w-0 flex-1 text-sm">
+          Налог с выручки
+          <span className="block text-xs text-muted">Процент с дохода по вашему режиму; считается с денег периода строкой «Налоги»</span>
+        </label>
+        <span className="flex w-28 items-center gap-1.5">
+          <input id="tax-rate" inputMode="decimal" className="input h-9 text-right tabular-nums" placeholder="0" value={tax} onChange={(e) => setTax(e.target.value)} data-testid="tax-rate" />
+          <span className="text-sm text-muted">%</span>
+        </span>
+      </div>
       <button type="submit" className="btn btn-dark w-full" disabled={pending}>
         {pending ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : null} Сохранить
       </button>
