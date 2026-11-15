@@ -209,6 +209,10 @@ describe("Статистика лидов", () => {
       ["2026-11-12", 2, 1, 1, 29_000, 29_000, 20_000, 10_000, 20_000],
     ]);
     expect(s.daily[0].adShare).toBe(3);
+    // Как в таблице маркетинга — от суммы договоров: ДРР 30 000 ÷ 34 000, ROAS 34 000 ÷ 30 000.
+    expect(s.daily[0].adShareAgreed).toBeCloseTo(30 / 34);
+    expect(s.daily[0].roasAgreed).toBeCloseTo(34 / 30);
+    expect(s.totals.adShareAgreed).toBeCloseTo(50 / 63);
     expect(s.daily[0].invoices).toBe(1);
   });
 

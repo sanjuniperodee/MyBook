@@ -144,6 +144,53 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
             <DayBars data={s.daily.map((d) => ({ key: d.day, label: shortDay(d.day), value: d.leads, note: d.payments ? `оплат ${d.payments}` : undefined }))} height={120} />
           </Panel>
 
+          {hasSpend ? (
+            <Panel flush title="Маркетинг по дням" description="Как таблица маркетинга: дни в столбцах. ДРР и ROAS — от суммы договоров и отдельно от реально пришедших денег">
+              <div className="overflow-x-auto">
+                <table className={cn("table min-w-max [&_td]:whitespace-nowrap [&_th]:whitespace-nowrap [&_tr>*:first-child]:sticky [&_tr>*:first-child]:left-0 [&_tr>*:first-child]:z-[1] [&_td:first-child]:bg-white [&_tr>*:nth-child(2)]:bg-sunken/60 [&_tr>*:nth-child(2)]:font-semibold", EDGE)} data-testid="leads-marketing">
+                  <thead>
+                    <tr>
+                      <th>Показатель</th>
+                      <th className="num">Итого</th>
+                      {s.daily.map((d) => (
+                        <th key={d.day} className="num">
+                          {shortDay(d.day)}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(
+                      [
+                        ["Лиды", num(t.leads + t.junk), (d) => num(d.leads)],
+                        ["Продажи", num(t.payments), (d) => num(d.payments)],
+                        ["Конверсия", t.leads + t.junk ? pct(t.payments / (t.leads + t.junk), 2) : "—", (d) => (d.leads ? pct(d.conversion, 2) : "—")],
+                        ["Затраты на рекламу", formatPrice(t.spend), (d) => (d.spend ? formatPrice(d.spend) : "—")],
+                        ["CPL — стоимость лида", money(t.spend && t.leads + t.junk ? Math.round(t.spend / (t.leads + t.junk)) : null), (d) => money(d.cpl)],
+                        ["Продажи по договорам", formatPrice(t.paymentsAgreed), (d) => (d.agreed ? formatPrice(d.agreed) : "—")],
+                        ["ДРР от договоров", t.adShareAgreed === null ? "—" : pct(t.adShareAgreed, 2), (d) => (d.adShareAgreed === null ? "—" : pct(d.adShareAgreed, 2))],
+                        ["CAC — стоимость покупателя", money(t.cac), (d) => money(d.cac)],
+                        ["ROAS от договоров", times(t.roasAgreed), (d) => times(d.roasAgreed)],
+                        ["Пришло первых оплат", formatPrice(t.paymentsFirst), (d) => (d.first ? formatPrice(d.first) : "—")],
+                        ["ROAS от пришедших денег", times(t.roas), (d) => times(d.roas)],
+                      ] as [string, string, (d: (typeof s.daily)[number]) => string][]
+                    ).map(([label, total, cell]) => (
+                      <tr key={label}>
+                        <td className="font-medium">{label}</td>
+                        <td className="num">{total}</td>
+                        {s.daily.map((d) => (
+                          <td key={d.day} className="num">
+                            {cell(d)}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Panel>
+          ) : null}
+
           <Panel flush title="По дням" description="Как в таблице РНП: заявки и оплаты дня; конверсия дня — оплаты ÷ заявки">
             <div className="overflow-x-auto">
               <table className={cn("table", hasSpend ? "min-w-[1080px]" : "min-w-[720px]", EDGE)} data-testid="leads-daily">

@@ -215,6 +215,9 @@ export function leadStatsScreen(input: {
     /** Доля рекламы в первых оплатах дня (ДРР от денег) и окупаемость от денег. */
     adShare: r.spend > 0 ? ratio(r.spend, r.first) : null,
     roas: r.spend > 0 ? ratio(r.first, r.spend) : null,
+    /** То же от суммы договоров — как в таблице маркетинга (ДРР и ROAS «по договорам»). */
+    adShareAgreed: r.spend > 0 ? ratio(r.spend, r.agreed) : null,
+    roasAgreed: r.spend > 0 ? ratio(r.agreed, r.spend) : null,
   }));
   const paymentsFirst = sum(payments, (p) => p.first);
   const paymentsAgreed = sum(payments, (p) => Math.max(p.amount, p.first));
@@ -301,6 +304,7 @@ export function leadStatsScreen(input: {
       roas: spendTotal > 0 ? ratio(paymentsFirst, spendTotal) : null,
       roasAgreed: spendTotal > 0 ? ratio(paymentsAgreed, spendTotal) : null,
       adShare: spendTotal > 0 ? ratio(spendTotal, paymentsFirst) : null,
+      adShareAgreed: spendTotal > 0 ? ratio(spendTotal, paymentsAgreed) : null,
       delta: {
         leads: delta(target.length, prevTarget.length),
         paid: delta(payments.length, prevPayments.length),
