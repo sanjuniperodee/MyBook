@@ -578,7 +578,10 @@ export class SiteFunnelService {
       d.setAmount(order.amount);
       await this.deals.save(d);
     }
-    if (deals.length) await this.advance(order.userId, "order_paid");
+    // Веха — у сделки этого заказа. Без неё advance искал бы открытую сделку клиента, а сделка заказа уже закрыта
+    // («Заказ оформлен» — успех): не найдя открытой, он заводил новую «Сайт: …» в первом этапе — дубль на каждую оплату.
+    const own = deals.find((d) => d.clientId === order.userId) ?? deals[0];
+    if (own) await this.advance(order.userId, "order_paid", { dealId: own.id, orderId: order.id });
     return deals[0]?.id ?? null;
   }
 

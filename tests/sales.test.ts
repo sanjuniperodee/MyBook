@@ -639,6 +639,16 @@ describe("SiteFunnelService", () => {
     expect(deals.rows.get(d.id)).toMatchObject({ orderId: "o9", stageId: "won" });
   });
 
+  it("оплата заказа выигранной сделки не заводит новую «Сайт: …» (дубль на каждую оплату, прод 21.10–09.11)", async () => {
+    const { site, service, deals } = setup();
+    const d = await service.create({ title: "Книга — Аяулым", source: "manual", clientId: "c1", amount: 29000 });
+    await service.move(d.id, "won", "m1");
+    await site.orderCreated({ id: "o5", userId: "c1", number: 5, amount: 29000, dealId: d.id });
+    expect(await site.orderPaid({ id: "o5", userId: "c1", amount: 29000 })).toBe(d.id);
+    expect(deals.rows.size).toBe(1);
+    expect(deals.rows.get(d.id)).toMatchObject({ stageId: "won", orderId: "o5" });
+  });
+
   it("отмена заказа — сделка в отказ с причиной", async () => {
     const { site, deals } = setup();
     await site.orderCreated({ id: "o1", userId: "c1", number: 1, amount: 9000 });
