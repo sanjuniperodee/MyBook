@@ -1,10 +1,32 @@
 /** Фигуры графики страниц (Shape, Drawing) и построения, общие для глифов, рамок и рисунков. */
 import { n } from "../covers/svg-kit";
 
+/** Опорная точка градиента: доля пути 0–1, цвет, непрозрачность 0–1. */
+export type GradStop = [offset: number, color: string, opacity: number];
+
+/**
+ * Плавная заливка вместо сплошной (fill остаётся запасным цветом). Координаты — доли рамки фигуры (как
+ * objectBoundingBox в SVG). Радиальная — только у кругов: у них рамка квадратная, и SVG и PDF рисуют одно и то же.
+ */
+export type Grad =
+  | { type: "linear"; x1: number; y1: number; x2: number; y2: number; stops: GradStop[] }
+  | { type: "radial"; cx: number; cy: number; r: number; fx?: number; fy?: number; stops: GradStop[] };
+
 export type Shape =
-  | { kind: "path"; d: string; fill?: string; stroke?: string; width?: number; opacity?: number; transform?: string; round?: boolean }
-  | { kind: "circle"; cx: number; cy: number; r: number; fill: string; opacity?: number }
-  | { kind: "rect"; x: number; y: number; w: number; h: number; fill?: string; stroke?: string; width?: number; opacity?: number };
+  | { kind: "path"; d: string; fill?: string; stroke?: string; width?: number; opacity?: number; transform?: string; round?: boolean; grad?: Grad }
+  | { kind: "circle"; cx: number; cy: number; r: number; fill: string; opacity?: number; grad?: Grad }
+  | { kind: "rect"; x: number; y: number; w: number; h: number; fill?: string; stroke?: string; width?: number; opacity?: number; grad?: Grad };
+
+/**
+ * id градиента фигуры для <defs>: по её содержимому (FNV-1a), без счётчиков и хуков — одинаковый на сервере и в браузере,
+ * а одинаковые фигуры просто делят одинаковый градиент.
+ */
+export function gradId(s: Shape): string {
+  const str = JSON.stringify(s);
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 0x01000193);
+  return `gr${(h >>> 0).toString(36)}`;
+}
 
 /** Рисунок в собственной системе координат: viewBox 0 0 w h. */
 

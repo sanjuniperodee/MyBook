@@ -6,7 +6,7 @@
  * только если применилось без замечаний; иначе остаётся прежнее.
  */
 import { critiqueCover, critiquePages, newAdvice } from "./critic";
-import { applyCoverOps, applyPagesOps, changed, DESIGN_OPS, MAX_OPS, type CoverLayoutContext, type CoverState, type DesignOp, type DesignTarget, type PagesState } from "./ops";
+import { applyCoverOps, applyPagesOps, changed, DESIGN_OPS, MAX_OPS, modelView, type CoverLayoutContext, type CoverState, type DesignOp, type DesignTarget, type PagesState } from "./ops";
 import { systemPrompt, type DesignBookContext } from "./prompts";
 
 /** Картинка к запросу: mime и base64. */
@@ -63,7 +63,7 @@ export function polishPrompt(target: DesignTarget, book: DesignBookContext, requ
     `Режим: осмотр — перед тобой ${many ? `${states.length} картинки ${what} по порядку (вариант 1, 2, 3…)` : `картинка ${what}`} книги «${book.title}». Посмотри глазами арт-директора издательства и честно найди недостатки: ${look}.`,
     `Если обложка хороша — verdict "ok" и пустые ops. Если нет — verdict "fix", в defects 1–3 конкретных недостатка и в ops минимальные операции, которые исправляют именно их (убрать лишнее, уменьшить, перекрасить, сдвинуть, переписать рисунок); не пересобирай всё. Операции применяются к оформлению этого варианта, его описание ниже. Верни ровно ${states.length} ${many ? "элементов" : "элемент"} в items, по порядку картинок. Не придирайся к вкусовому: правь только то, что ясно делает обложку слабее.`,
     request ? `Исходная просьба клиента: «${request}».` : "",
-    ...states.map((s, i) => `Оформление ${many ? `варианта ${i + 1}` : target === "cover" ? "обложки" : "страниц"}:\n${JSON.stringify(s)}`),
+    ...states.map((s, i) => `Оформление ${many ? `варианта ${i + 1}` : target === "cover" ? "обложки" : "страниц"}:\n${JSON.stringify(modelView(s))}`),
   ]
     .filter(Boolean)
     .join("\n\n");

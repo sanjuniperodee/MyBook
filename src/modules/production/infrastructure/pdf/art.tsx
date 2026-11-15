@@ -3,9 +3,12 @@ import { Circle, Path, Rect, Svg } from "@react-pdf/renderer";
 import type { Style } from "@react-pdf/stylesheet";
 import type { Drawing, PageBox, Shape } from "@/lib/book/interior-art";
 import { mm } from "@/lib/book/formats";
+import { gradDefs, gradFill } from "./grad";
 
 /** Фигуры из interior-art → элементы react-pdf <Svg>. */
-function shapeElement(s: Shape, i: number) {
+function shapeElement(s: Shape, i: number): React.ReactNode {
+  // Градиент — ссылкой на общий <Defs> рисунка (gradDefs ставится первым ребёнком <Svg>).
+  if (s.grad && s.fill) return shapeElement({ ...s, grad: undefined, fill: gradFill(s) ?? s.fill }, i);
   switch (s.kind) {
     case "circle":
       return <Circle key={i} cx={s.cx} cy={s.cy} r={s.r} fill={s.fill} fillOpacity={s.opacity} />;
@@ -46,6 +49,7 @@ function shapeElement(s: Shape, i: number) {
 export function PdfDrawing({ drawing, style }: { drawing: Drawing; style?: Style }) {
   return (
     <Svg width={drawing.w} height={drawing.h} viewBox={`0 0 ${drawing.w} ${drawing.h}`} style={style}>
+      {gradDefs(drawing.shapes)}
       {drawing.shapes.map(shapeElement)}
     </Svg>
   );
@@ -62,6 +66,7 @@ export function PdfPageLayer({ shapes, box }: { shapes: Shape[]; box: PageBox })
       viewBox={`${-bleed} ${-bleed} ${w + bleed * 2} ${h + bleed * 2}`}
       style={{ position: "absolute", top: 0, left: 0, width: mm(w + bleed * 2), height: mm(h + bleed * 2) }}
     >
+      {gradDefs(shapes)}
       {shapes.map(shapeElement)}
     </Svg>
   );

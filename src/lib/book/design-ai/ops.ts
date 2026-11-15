@@ -17,7 +17,7 @@ import { contrastRatio } from "./critic";
 
 export type DesignTarget = "pages" | "cover";
 
-export const DESIGN_OPS = ["set", "unset", "set_interior", "set_template", "apply_layout", "add_layer", "remove_layer", "move_layer", "add_art", "set_emblem"] as const;
+export const DESIGN_OPS = ["set", "unset", "set_interior", "set_template", "apply_layout", "add_layer", "remove_layer", "move_layer", "add_art", "edit_art", "set_emblem"] as const;
 export type DesignOpKind = (typeof DESIGN_OPS)[number];
 
 export interface DesignOp {
@@ -314,9 +314,26 @@ export function applyCoverOps(state: CoverState, ops: readonly DesignOp[], forma
         const layer = placeArt(rest, r.drawing, format);
         if (typeof layer.id !== "string" || find(layer.id) >= 0) layer.id = newLayerId(draft as unknown as CoverDesign);
         layer.art = r.drawing;
+        layer.spec = spec;
         if (o.path === "back") draft.layers.unshift(layer);
         else draft.layers.push(layer);
         added.push(layer.id as string);
+        break;
+      }
+      case "edit_art": {
+        // Правка своего рисунка: новое описание целиком (прежнее, исправленное), рамка, цвета и место в слоях — прежние.
+        const i = find(o.path);
+        const layer = i >= 0 ? draft.layers[i] : null;
+        if (!layer || layer.kind !== "decor" || layer.motif !== "art") {
+          errors.push(`edit_art: нет своего рисунка «${o.path}» — path = id слоя decor с motif "art"`);
+          break;
+        }
+        const spec = isObj(v.value) && isObj(v.value.art) ? v.value.art : v.value;
+        const r = compileArt(spec);
+        for (const e of r.errors) errors.push(`edit_art: ${e}`);
+        if (!r.drawing) break;
+        layer.art = r.drawing;
+        layer.spec = spec;
         break;
       }
       case "remove_layer": {
@@ -398,6 +415,27 @@ export function applyCoverOps(state: CoverState, ops: readonly DesignOp[], forma
 
 /** Поменяло ли что-нибудь (для ответа «ничего не изменено»). */
 export const changed = (a: unknown, b: unknown) => !same(a, b);
+
+/**
+ * Оформление в том виде, в каком его видит модель: у своих рисунков вместо тысяч чисел фигур — их описание spec
+ * (его и правят через edit_art). Рисунок без описания (из шаблона или старый) — короткая пометка: его можно только
+ * заменить целиком.
+ */
+export function modelView(state: unknown): unknown {
+  const s = state as Partial<CoverState>;
+  if (!s || !s.design || !Array.isArray(s.design.layers)) return state;
+  return {
+    ...s,
+    design: {
+      ...s.design,
+      layers: s.design.layers.map((l) => {
+        if (l.kind !== "decor" || !l.art) return l;
+        const { art, spec, ...rest } = l;
+        return spec ? { ...rest, spec } : { ...rest, art: `(рисунок из ${art.shapes.length} фигур без описания — заменить можно только целиком: remove_layer и add_art)` };
+      }),
+    },
+  };
+}
 
 // ─── краткое описание — для контекста «другой стороны» книги ───────────────
 

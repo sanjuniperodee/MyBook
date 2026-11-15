@@ -13,6 +13,8 @@ export const COVER_LIMITS = {
   layers: 40,
   /** Все свои рисунки обложки вместе — не больше стольких знаков пути. */
   artWeight: 120_000,
+  /** Описание рисунка (spec) — не длиннее стольких знаков JSON. */
+  artSpec: 16_000,
   text: 300,
   name: 40,
   /** Рамка слоя — от −bleed до 1 + bleed долей крышки. */
@@ -141,7 +143,9 @@ function layer(raw: unknown, id: string): CoverLayer | null {
       if (o.motif === "art") {
         // Свой рисунок: без допустимых фигур слоя нет.
         const art = sanitizeDrawing(o.art);
-        return art ? (clean({ ...b, kind: "decor" as const, motif: "art" as const, color: color(o.color, "#B8925A"), accent: colorOrNull(o.accent) ?? undefined, art }) as DecorLayer) : null;
+        // Описание рисунка храним, если оно небольшое: по нему дизайнер правит рисунок, а не рисует заново.
+        const spec = obj(o.spec) && JSON.stringify(o.spec).length <= COVER_LIMITS.artSpec ? (o.spec as Record<string, unknown>) : undefined;
+        return art ? (clean({ ...b, kind: "decor" as const, motif: "art" as const, color: color(o.color, "#B8925A"), accent: colorOrNull(o.accent) ?? undefined, art, spec }) as DecorLayer) : null;
       }
       return DECOR_IDS.includes(o.motif as never) ? (clean({ ...b, kind: "decor" as const, motif: o.motif, color: color(o.color, "#B8925A") }) as DecorLayer) : null;
     }

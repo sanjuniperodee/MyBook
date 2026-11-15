@@ -4,28 +4,12 @@
  * петель (loops), как на банкнотах и старых приглашениях. Всё — обычные фигуры Drawing, поэтому HTML и PDF рисуют одно.
  */
 import { n } from "../covers/svg-kit";
-import type { Shape } from "../interior-art";
+import type { GradStop, Shape } from "../interior-art";
 import { ArtError, Fields, poly, shape, type Pt } from "./kit";
 
-/** Сколько полос даёт затемнение fade — оно одно занимает не больше стольких фигур рисунка. */
-export const FADE_STEPS = 140;
-
-const smoothstep = (t: number) => t * t * (3 - 2 * t);
-function invSmoothstep(s: number) {
-  let lo = 0;
-  let hi = 1;
-  for (let i = 0; i < 32; i++) {
-    const m = (lo + hi) / 2;
-    if (smoothstep(m) < s) lo = m;
-    else hi = m;
-  }
-  return (lo + hi) / 2;
-}
-
 /**
- * Плавное затемнение (или высветление) к краю: стопка полос одной малой прозрачности, у каждой — свой край. Сумма
- * идёт по smoothstep от нуля до opacity у края to. Одна прозрачность на всех — ступени незаметны (полосы разной
- * прозрачности с округлением до сотых давали видимые ступени), и ни одна полоса не получает opacity 0.
+ * Плавное затемнение (или высветление) к краю: прямоугольник с линейным градиентом прозрачности — от нуля у одного края
+ * до opacity у края to, по smoothstep (шесть точек остановки — без видимой границы и без ступеней).
  */
 function fade(f: Fields): Shape[] {
   const { ctx } = f;
@@ -34,21 +18,11 @@ function fade(f: Fields): Shape[] {
   const w = f.num("w", ctx.w, 1);
   const h = f.num("h", ctx.h, 1);
   const to = f.str("to", ["bottom", "top", "left", "right"] as const, "bottom");
-  const max = f.num("opacity", 0.9, 0.05, 0.98);
+  const max = f.num("opacity", 0.9, 0.05, 1);
   const fill = f.paint("fill") ?? "main";
-  // Ступень — сотые (так хранит рисунок), полос — не больше FADE_STEPS.
-  const step = Math.max(0.01, Math.ceil((1 - Math.pow(1 - max, 1 / FADE_STEPS)) * 100) / 100);
-  const out: Shape[] = [];
-  for (let k = 1; ; k++) {
-    const c = 1 - Math.pow(1 - step, k);
-    if (c > max + 1e-9 || k > FADE_STEPS) break;
-    const t = invSmoothstep(c / max); // доля пути от прозрачного края к плотному
-    const r =
-      to === "bottom" ? { x, y: y + h * t, w, h: h * (1 - t) } : to === "top" ? { x, y, w, h: h * (1 - t) } : to === "right" ? { x: x + w * t, y, w: w * (1 - t), h } : { x, y, w: w * (1 - t), h };
-    if (r.w < 0.05 || r.h < 0.05) continue;
-    out.push({ kind: "rect", x: n(r.x), y: n(r.y), w: n(r.w), h: n(r.h), fill, opacity: step });
-  }
-  return out;
+  const v = { bottom: [0, 0, 0, 1], top: [0, 1, 0, 0], right: [0, 0, 1, 0], left: [1, 0, 0, 0] }[to];
+  const stops: GradStop[] = [0, 0.2, 0.4, 0.6, 0.8, 1].map((t) => [t, fill, Math.round(max * t * t * (3 - 2 * t) * 1000) / 1000]);
+  return [{ kind: "rect", x: n(x), y: n(y), w: n(w), h: n(h), fill, grad: { type: "linear", x1: v[0], y1: v[1], x2: v[2], y2: v[3], stops } }];
 }
 
 /** Точки кривой Catmull–Rom через опорные точки: per — сколько точек на отрезок. */

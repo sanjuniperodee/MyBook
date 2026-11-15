@@ -4,7 +4,7 @@
  * страниц), поэтому рисунок перекрашивается одним выбором цвета. Всё, что приходит из базы или от модели, проходит
  * через sanitizeDrawing: в книге остаются только допустимые фигуры в разумных пределах.
  */
-import type { Drawing, Shape } from "../interior-art";
+import type { Drawing, Grad, Shape } from "../interior-art";
 
 export const DRAWING_LIMITS = {
   size: [10, 2000],
@@ -25,7 +25,39 @@ const finite = (v: unknown, lim: number): v is number => typeof v === "number" &
 const round = (v: number) => Math.round(v * 100) / 100;
 const paint = (v: unknown): string | undefined => (typeof v === "string" && COLOR.test(v) ? (v.startsWith("#") ? v.toUpperCase() : v) : undefined);
 
+const r3 = (v: number) => Math.round(v * 1000) / 1000;
+const inRange = (v: unknown, lo: number, hi: number): v is number => typeof v === "number" && Number.isFinite(v) && v >= lo && v <= hi;
+
+/** Градиент фигуры: 2–8 опорных точек, координаты — доли рамки фигуры; радиальный — только у круга. */
+function gradOf(raw: unknown, kind: Shape["kind"]): Grad | undefined {
+  const o = obj(raw);
+  if (!o || !Array.isArray(o.stops) || o.stops.length < 2 || o.stops.length > 8) return undefined;
+  const stops: Grad["stops"] = [];
+  for (const st of o.stops) {
+    if (!Array.isArray(st) || st.length !== 3 || !inRange(st[0], 0, 1) || !inRange(st[2], 0, 1)) return undefined;
+    const c = paint(st[1]);
+    if (!c) return undefined;
+    stops.push([r3(st[0]), c, r3(st[2])]);
+  }
+  stops.sort((a, b) => a[0] - b[0]);
+  if (o.type === "linear" && [o.x1, o.y1, o.x2, o.y2].every((v) => inRange(v, -2, 3))) return { type: "linear", x1: r3(o.x1 as number), y1: r3(o.y1 as number), x2: r3(o.x2 as number), y2: r3(o.y2 as number), stops };
+  if (o.type === "radial" && kind === "circle" && inRange(o.cx, -1, 2) && inRange(o.cy, -1, 2) && inRange(o.r, 0.01, 3)) {
+    const fx = inRange(o.fx, -1, 2) ? r3(o.fx) : undefined;
+    const fy = inRange(o.fy, -1, 2) ? r3(o.fy) : undefined;
+    return { type: "radial", cx: r3(o.cx), cy: r3(o.cy), r: r3(o.r), ...(fx !== undefined && fy !== undefined ? { fx, fy } : {}), stops };
+  }
+  return undefined;
+}
+
+/** Фигура с градиентом: он заменяет заливку, а fill остаётся запасным цветом — без fill градиента нет. */
 function shapeOf(raw: unknown): Shape | null {
+  const s = baseShape(raw);
+  if (!s || !s.fill) return s;
+  const grad = gradOf(obj(raw)?.grad, s.kind);
+  return grad ? { ...s, grad } : s;
+}
+
+function baseShape(raw: unknown): Shape | null {
   const o = obj(raw);
   if (!o) return null;
   const L = DRAWING_LIMITS;
@@ -77,15 +109,16 @@ export function sanitizeDrawing(raw: unknown): Drawing | null {
 /** Рисунок с подставленными цветами ролей: main и accent → цвета книги. */
 export function resolveDrawing(d: Drawing, main: string, accent: string = main): Drawing {
   const c = (v: string | undefined) => (v === "main" ? main : v === "accent" ? accent : v);
+  const g = (grad: Grad | undefined) => (grad ? { grad: { ...grad, stops: grad.stops.map(([o, col, a]): Grad["stops"][number] => [o, c(col) ?? main, a]) } } : {});
   return {
     w: d.w,
     h: d.h,
     shapes: d.shapes.map((s): Shape => {
-      if (s.kind === "circle") return { ...s, fill: c(s.fill) ?? main };
-      return { ...s, fill: c(s.fill), stroke: c(s.stroke) };
+      if (s.kind === "circle") return { ...s, fill: c(s.fill) ?? main, ...g(s.grad) };
+      return { ...s, fill: c(s.fill), stroke: c(s.stroke), ...g(s.grad) };
     }),
   };
 }
 
 /** Сколько знаков занимает рисунок в базе (для общего потолка на обложку). */
-export const drawingWeight = (d: Drawing) => d.shapes.reduce((n, s) => n + (s.kind === "path" ? s.d.length : 40), 0);
+export const drawingWeight = (d: Drawing) => d.shapes.reduce((n, s) => n + (s.kind === "path" ? s.d.length : 40) + (s.grad ? 40 + s.grad.stops.length * 24 : 0), 0);

@@ -12,6 +12,7 @@ import { leaf, wavePath } from "../interior-art/geometry";
 import { sanitizeDrawing } from "./drawing";
 import { ART_LIMITS, ArtError, circleShape, Fields, isObj, onCircle, poly, shape, transformAll, type Ctx, type Pt } from "./kit";
 import { SCENES, SCENE_BUILDERS, border, pattern } from "./library";
+import { COSMOS, COSMOS_BUILDERS } from "./cosmos";
 import { EFFECTS, EFFECT_BUILDERS } from "./effects";
 import { ORNAMENTS, ORNAMENT_BUILDERS } from "./ornaments";
 import { compose, mirrorM, parsePath, rotateM, scaleM, segsBox, translateM, writePath } from "./path";
@@ -21,7 +22,7 @@ export interface ArtResult {
   errors: string[];
 }
 
-export const ART_ITEMS = ["path", "circle", "ellipse", "rect", "line", "poly", "star", "leaf", "flower", "arc", "wave", "ring", "row", "grid", "mirror", "group", ...SCENES, ...ORNAMENTS, ...EFFECTS, "pattern", "border"] as const;
+export const ART_ITEMS = ["path", "circle", "ellipse", "rect", "line", "poly", "star", "leaf", "flower", "arc", "wave", "ring", "row", "grid", "mirror", "group", ...SCENES, ...ORNAMENTS, ...EFFECTS, ...COSMOS, "pattern", "border"] as const;
 
 /** Описание одного элемента → фигуры. Вложенные элементы (ring, row, grid, mirror, group) собираются рекурсивно. */
 function item(raw: unknown, ctx: Ctx, depth: number): Shape[] {
@@ -58,7 +59,7 @@ function build(t: string, f: Fields, depth: number): Shape[] {
       return [shape(writePath(segs), st)];
     }
     case "circle":
-      return [circleShape(f.num("cx"), f.num("cy"), f.num("r", undefined, 0.1), f.closed())];
+      return [circleShape(f.num("cx"), f.num("cy"), f.num("r", undefined, 0.1), f.closed(undefined, true))];
     case "ellipse": {
       const [cx, cy, rx, ry] = [f.num("cx"), f.num("cy"), f.num("rx", undefined, 0.1), f.num("ry", undefined, 0.1)];
       const d = `M${n(cx - rx)},${n(cy)} A${n(rx)},${n(ry)} 0 1 0 ${n(cx + rx)},${n(cy)} A${n(rx)},${n(ry)} 0 1 0 ${n(cx - rx)},${n(cy)}Z`;
@@ -192,7 +193,7 @@ function build(t: string, f: Fields, depth: number): Shape[] {
     case "border":
       return border(f);
     default: {
-      const build = SCENE_BUILDERS[t as keyof typeof SCENE_BUILDERS] ?? ORNAMENT_BUILDERS[t as keyof typeof ORNAMENT_BUILDERS] ?? EFFECT_BUILDERS[t as keyof typeof EFFECT_BUILDERS];
+      const build = SCENE_BUILDERS[t as keyof typeof SCENE_BUILDERS] ?? ORNAMENT_BUILDERS[t as keyof typeof ORNAMENT_BUILDERS] ?? EFFECT_BUILDERS[t as keyof typeof EFFECT_BUILDERS] ?? COSMOS_BUILDERS[t as keyof typeof COSMOS_BUILDERS];
       if (!build) throw new ArtError(`неизвестный элемент «${t}»`);
       return build(f);
     }

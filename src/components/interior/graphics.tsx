@@ -1,12 +1,37 @@
 import type { CSSProperties } from "react";
 import type { BookFormat } from "@/lib/book/formats";
 import type { InteriorPalette } from "@/lib/book/interiors";
-import { frameShapes, vignetteDrawing, type Drawing, type Shape } from "@/lib/book/interior-art";
+import { frameShapes, gradId, vignetteDrawing, type Drawing, type Grad, type Shape } from "@/lib/book/interior-art";
 import { pageBox } from "@/lib/book/page-geometry";
 import type { PageKit } from "./kit";
 import type { PageUnits } from "./units";
 
+/** Градиент фигуры в <defs> — в долях её рамки, как в PDF. */
+function GradDef({ id, g }: { id: string; g: Grad }) {
+  const stops = g.stops.map(([o, c, a], i) => <stop key={i} offset={o} stopColor={c} stopOpacity={a} />);
+  return g.type === "linear" ? (
+    <linearGradient id={id} x1={g.x1} y1={g.y1} x2={g.x2} y2={g.y2}>
+      {stops}
+    </linearGradient>
+  ) : (
+    <radialGradient id={id} cx={g.cx} cy={g.cy} r={g.r} fx={g.fx ?? g.cx} fy={g.fy ?? g.cy}>
+      {stops}
+    </radialGradient>
+  );
+}
+
 export function ShapeElement({ s }: { s: Shape }) {
+  if (s.grad && s.fill) {
+    const id = gradId(s);
+    return (
+      <g>
+        <defs>
+          <GradDef id={id} g={s.grad} />
+        </defs>
+        <ShapeElement s={{ ...s, grad: undefined, fill: `url(#${id})` }} />
+      </g>
+    );
+  }
   switch (s.kind) {
     case "circle":
       return <circle cx={s.cx} cy={s.cy} r={s.r} fill={s.fill} fillOpacity={s.opacity} />;

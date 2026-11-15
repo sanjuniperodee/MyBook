@@ -6,7 +6,8 @@
  * Единицы: глифы и виньетки — в пунктах (стоят в строке текста), рамки и рисунки — в миллиметрах
  * от левого верхнего угла обрезного формата; отрицательные координаты и выход за формат — вылеты.
  */
-export type { Shape, Drawing } from "./geometry";
+export type { Shape, Drawing, Grad, GradStop } from "./geometry";
+export { gradId } from "./geometry";
 export { glyphDrawing, vignetteDrawing, dividerDrawing } from "./glyphs";
 export { frameShapes, type PageBox } from "./frames";
 export { openerArtShapes, type ArtContext } from "./opener-art";

@@ -2,6 +2,7 @@ import "server-only";
 /* eslint-disable jsx-a11y/alt-text -- react-pdf Image не поддерживает alt */
 import { Circle, Defs, Image, LinearGradient, Path, Rect, Stop, Svg, Text, View } from "@react-pdf/renderer";
 import type { Style } from "@react-pdf/stylesheet";
+import { gradDefs, gradFill } from "./grad";
 import {
   layerDrawing,
   GRADIENT_FILL,
@@ -34,10 +35,12 @@ const OVERFLOW = 2000;
  * Фигура interior-art → react-pdf (fill = GRADIENT_FILL — градиент слоя). o — непрозрачность слоя: react-pdf применяет
  * opacity узла View только к его собственной заливке, поэтому прозрачность слоя доводится до каждой фигуры.
  */
-function shapeEl(s: Shape, i: number, gradientId?: string, o = 1) {
-  const k = (s.opacity ?? 1) * o;
+function shapeEl(shape: Shape, i: number, gradientId?: string, o = 1): React.ReactNode {
+  const k = (shape.opacity ?? 1) * o;
   // Нулевую прозрачность react-pdf не отличает от отсутствующей (рисует сплошным) — такую фигуру просто не рисуем.
   if (k <= 0) return null;
+  // Свой градиент фигуры (рисунки ИИ-дизайнера): заливка — ссылка на него в общем <Defs> рисунка (gradDefs).
+  const s: Shape = shape.grad && shape.fill ? { ...shape, grad: undefined, fill: gradFill(shape) ?? shape.fill } : shape;
   const op = k === 1 ? undefined : k;
   if (s.kind === "circle") return <Circle key={i} cx={s.cx} cy={s.cy} r={s.r} fill={s.fill} fillOpacity={op} />;
   if (s.kind === "rect")
@@ -147,6 +150,7 @@ function DecorLayerPdf({ layer, w, h, o }: { layer: Extract<CoverLayer, { kind: 
   const dh = d.h * k;
   return (
     <Svg viewBox={`0 0 ${d.w} ${d.h}`} style={{ position: "absolute", left: mm((w - dw) / 2), top: mm((h - dh) / 2), width: mm(dw), height: mm(dh) }}>
+      {gradDefs(d.shapes)}
       {d.shapes.map((s, i) => shapeEl(s, i, undefined, o))}
     </Svg>
   );

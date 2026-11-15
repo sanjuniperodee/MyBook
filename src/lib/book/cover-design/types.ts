@@ -117,6 +117,11 @@ export interface DecorLayer extends LayerBase {
   accent?: string;
   /** Свой рисунок (его нарисовал ИИ-дизайнер): фигуры с цветами-ролями main и accent. Только у motif = "art". */
   art?: Drawing;
+  /**
+   * Описание, из которого собран рисунок ({w, h, items} — язык рисунков src/lib/book/art). По нему ИИ-дизайнер правит
+   * рисунок (edit_art), а не рисует заново: просьбы «тоньше», «левее» накапливаются.
+   */
+  spec?: Record<string, unknown>;
 }
 
 export type CoverLayer = TextLayer | ImageLayer | ShapeLayer | DecorLayer;

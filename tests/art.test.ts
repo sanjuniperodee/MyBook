@@ -3,7 +3,7 @@ import { ART_EXAMPLES, ART_REFERENCE, compileArt, resolveDrawing, sanitizeDrawin
 import { compose, mirrorM, parsePath, rotateM, scaleM, transformSegs, translateM, writePath } from "@/lib/book/art/path";
 import { COVER_EXAMPLES } from "@/lib/book/design-ai/examples";
 import { DESIGN_AI_FREE_LIMIT, parseFreeLimit } from "@/lib/book/design-ai";
-import { applyCoverOps, applyPagesOps, coverSystemPrompt, critiqueCover, designPlan, designScenario, parseDesignAiSettings, pagesSystemPrompt, type DesignOp } from "@/lib/book/design-ai";
+import { applyCoverOps, applyPagesOps, coverSystemPrompt, critiqueCover, designPlan, designScenario, modelView, parseDesignAiSettings, pagesSystemPrompt, type DesignOp } from "@/lib/book/design-ai";
 import { designFromTemplate, layerDrawing, parseCoverDesign, type CoverDesign } from "@/lib/book/cover-design";
 import { coverMeta } from "@/lib/book/covers/meta";
 import { getCoverTemplate } from "@/lib/book/covers";
@@ -313,31 +313,27 @@ describe("бесплатный лимит ИИ-дизайнера из наст�
 describe("рисунки: приёмы дорогой обложки", () => {
   const art = (items: Record<string, unknown>[], w = 300, h = 429) => compileArt({ w, h, items });
 
-  it("fade — полосы одной прозрачности не меньше 0.01, не больше 140, плотность у края ≈ opacity", () => {
+  it("fade — один прямоугольник с плавным градиентом: от прозрачного края до opacity у края to", () => {
     for (const opacity of [0.3, 0.6, 0.94]) {
       const r = art([{ t: "fade", x: 0, y: 150, w: 300, h: 279, to: "bottom", opacity, fill: "#1B241E" }]);
       expect(r.errors).toEqual([]);
-      const rects = r.drawing!.shapes.filter((s) => s.kind === "rect");
-      expect(rects.length).toBe(r.drawing!.shapes.length);
-      expect(rects.length).toBeLessThanOrEqual(140);
-      const steps = new Set(rects.map((s) => s.opacity));
-      expect(steps.size).toBe(1);
-      expect([...steps][0]!).toBeGreaterThanOrEqual(0.01);
-      // У нижнего края закрывают все полосы, у верхнего — почти ни одной.
-      const cover = (y: number) => 1 - rects.filter((s) => s.kind === "rect" && y >= s.y && y <= s.y + s.h).reduce((k, s) => k * (1 - (s.opacity ?? 1)), 1);
-      expect(cover(428.9)).toBeGreaterThan(opacity - 0.03);
-      expect(cover(428.9)).toBeLessThanOrEqual(opacity + 1e-9);
-      expect(cover(152)).toBeLessThan(0.05);
-      // Плотность растёт сверху вниз.
-      expect(cover(250)).toBeLessThan(cover(350));
+      expect(r.drawing!.shapes).toHaveLength(1);
+      const s = r.drawing!.shapes[0];
+      expect(s.kind).toBe("rect");
+      expect(s.grad?.type).toBe("linear");
+      const stops = s.grad!.stops;
+      expect(stops[0][2]).toBe(0);
+      expect(stops.at(-1)![2]).toBeCloseTo(opacity, 3);
+      // Плотность растёт монотонно — без ступеней назад.
+      for (let i = 1; i < stops.length; i++) expect(stops[i][2]).toBeGreaterThanOrEqual(stops[i - 1][2]);
     }
   });
 
-  it("fade к верху и к боку кладёт полосы от того края", () => {
-    const top = art([{ t: "fade", x: 0, y: 0, w: 300, h: 100, to: "top", opacity: 0.6 }]).drawing!.shapes;
-    expect(top.every((s) => s.kind === "rect" && s.y === 0)).toBe(true);
-    const left = art([{ t: "fade", x: 0, y: 0, w: 100, h: 200, to: "left", opacity: 0.6 }], 200, 200).drawing!.shapes;
-    expect(left.every((s) => s.kind === "rect" && s.x === 0)).toBe(true);
+  it("fade к верху и к боку направляет градиент к тому краю", () => {
+    const top = art([{ t: "fade", x: 0, y: 0, w: 300, h: 100, to: "top", opacity: 0.6 }]).drawing!.shapes[0];
+    expect(top.grad).toMatchObject({ type: "linear", y1: 1, y2: 0 });
+    const left = art([{ t: "fade", x: 0, y: 0, w: 100, h: 200, to: "left", opacity: 0.6 }], 200, 200).drawing!.shapes[0];
+    expect(left.grad).toMatchObject({ type: "linear", x1: 1, x2: 0 });
   });
 
   it("lattice и loops укладываются в пределы пути и рисунка", () => {
@@ -403,5 +399,100 @@ describe("критик: название на фото с затемнением
     const weak = compileArt({ w: 300, h: 429, items: [{ t: "fade", x: 0, y: 150, w: 300, h: 279, to: "bottom", opacity: 0.3, fill: "main" }] }).drawing!;
     d.layers[1] = { ...d.layers[1], art: weak } as CoverDesign["layers"][number];
     expect(critiqueCover({ template: "film", design: d }, texts).map((a) => a.code)).toContain("on-photo:title");
+  });
+});
+
+describe("рисунки: градиенты и объём", () => {
+  it("градиент проходит проверку: линейный — у любой фигуры, радиальный — только у круга; роли цветов подставляются", () => {
+    const stops = [[0, "main", 1], [1, "accent", 0]];
+    const d = sanitizeDrawing({
+      w: 100,
+      h: 100,
+      shapes: [
+        { kind: "circle", cx: 50, cy: 50, r: 20, fill: "main", grad: { type: "radial", cx: 0.5, cy: 0.5, r: 0.5, fx: 0.3, fy: 0.3, stops } },
+        { kind: "rect", x: 0, y: 0, w: 10, h: 10, fill: "#000000", grad: { type: "linear", x1: 0, y1: 0, x2: 0, y2: 1, stops } },
+        { kind: "path", d: "M0,0 L10,0 L10,10Z", fill: "#000000", grad: { type: "radial", cx: 0.5, cy: 0.5, r: 0.5, stops } },
+        { kind: "rect", x: 0, y: 0, w: 10, h: 10, fill: "#000000", grad: { type: "linear", x1: 0, y1: 0, x2: 0, y2: 1, stops: [[0, "red", 1], [1, "#000000", 1]] } },
+      ],
+    })!;
+    expect(d.shapes[0].grad?.type).toBe("radial");
+    expect(d.shapes[1].grad?.type).toBe("linear");
+    expect(d.shapes[2].grad).toBeUndefined();
+    expect(d.shapes[3].grad).toBeUndefined();
+    const r = resolveDrawing(d, "#112233", "#AABBCC");
+    expect(r.shapes[0].grad!.stops.map((s) => s[1])).toEqual(["#112233", "#AABBCC"]);
+  });
+
+  it("grad в описании: у circle радиальный, у прочих — только линейный, иначе понятная ошибка", () => {
+    const ok = compileArt({ w: 100, h: 100, items: [{ t: "circle", cx: 50, cy: 50, r: 20, fill: "main", grad: { type: "radial", stops: [[0, "#FFFFFF", 1], [1, "main", 0]] } }, { t: "rect", x: 0, y: 0, w: 100, h: 100, fill: "main", grad: { type: "linear", angle: 90, stops: [[0, "#000000", 1], [1, "#000000", 0]] } }] });
+    expect(ok.errors).toEqual([]);
+    expect(ok.drawing!.shapes.map((s) => s.grad?.type)).toEqual(["radial", "linear"]);
+    expect(ok.drawing!.shapes[1].grad).toMatchObject({ x1: 0.5, y1: 0, x2: 0.5, y2: 1 });
+    const bad = compileArt({ w: 100, h: 100, items: [{ t: "ellipse", cx: 50, cy: 50, rx: 20, ry: 10, grad: { type: "radial", stops: [[0, "#FFFFFF", 1], [1, "main", 0]] } }] });
+    expect(bad.errors[0]).toMatch(/радиальный grad бывает только у circle/);
+  });
+
+  it("космос, шар, свечение и мягкая форма собираются без замечаний и остаются в пределах рисунка", () => {
+    const r = compileArt({
+      w: 300,
+      h: 428,
+      items: [
+        { t: "nebula", x: 0, y: 100, w: 300, h: 300, clouds: 10, seed: 3 },
+        { t: "glow", cx: 150, cy: 200, r: 50 },
+        { t: "sphere", cx: 60, cy: 60, r: 30, light: 90 },
+        { t: "planet", cx: 150, cy: 300, r: 40, ring: { size: 2, tilt: 0.3, rot: 10 } },
+        { t: "orbit", cx: 150, cy: 250, rx: 100, ry: 30, rot: -20, kind: "infinity" },
+        { t: "orbit", cx: 150, cy: 250, rx: 100, ry: 30 },
+        { t: "sparkle", cx: 150, cy: 250, r: 10, rays: 8 },
+        { t: "blob", points: [[100, 380], [200, 380], [180, 420], [120, 420]], grad: { type: "linear", angle: 0, stops: [[0, "#000000", 1], [1, "#FFFFFF", 1]] } },
+      ],
+    });
+    expect(r.errors).toEqual([]);
+    expect(r.drawing!.shapes.length).toBeLessThanOrEqual(300);
+    expect(sanitizeDrawing(JSON.parse(JSON.stringify(r.drawing)))).toEqual(r.drawing);
+    expect(r.drawing!.shapes.filter((s) => s.grad).length).toBeGreaterThan(20);
+    expect(compileArt({ w: 100, h: 100, items: [{ t: "sparkle", cx: 50, cy: 50, r: 5, rays: 6 }] }).errors[0]).toMatch(/rays — 4 или 8/);
+    expect(compileArt({ w: 100, h: 100, items: [{ t: "blob", points: [[1, 2], [3, 4]] }] }).errors[0]).toMatch(/3–40 точек/);
+  });
+
+  it("бесконечность проходит через концы петель cx ± rx (после поворота)", () => {
+    const d = compileArt({ w: 300, h: 300, items: [{ t: "orbit", kind: "infinity", cx: 150, cy: 150, rx: 100, ry: 30, rot: 0 }] }).drawing!;
+    const s = d.shapes[0];
+    expect(s.kind === "path" && s.d.startsWith("M250,150")).toBe(true);
+  });
+});
+
+describe("ИИ-дизайнер: правка рисунка поверх прежнего", () => {
+  const spec = { w: 300, h: 428, items: [{ t: "stars", count: 40, seed: 2 }, { t: "planet", cx: 80, cy: 300, r: 30 }] };
+  const added = () => applyCoverOps(cover(), [op("add_art", "back", { art: spec, x: 0, y: 0, w: 1, h: 1, color: "#2A5BB0", accent: "#A8CBFF", id: "space" })], formats.a5).state;
+
+  it("add_art хранит описание рисунка, разбор его сохраняет", () => {
+    const st = added();
+    const layer = st.design.layers.find((l) => l.id === "space")!;
+    expect(layer.kind === "decor" && layer.spec).toEqual(spec);
+    expect(parseCoverDesign(JSON.parse(JSON.stringify(st.design)))!.layers.find((l) => l.id === "space")).toMatchObject({ spec });
+  });
+
+  it("модель видит описание вместо фигур; рисунок без описания — пометку", () => {
+    const st = added();
+    const view = modelView(st) as { design: { layers: Record<string, unknown>[] } };
+    const v = view.design.layers.find((l) => l.id === "space")!;
+    expect(v.spec).toEqual(spec);
+    expect(v.art).toBeUndefined();
+    const bare = { ...st, design: { ...st.design, layers: st.design.layers.map((l) => (l.kind === "decor" && l.spec ? { ...l, spec: undefined } : l)) } };
+    const b = (modelView(bare) as { design: { layers: Record<string, unknown>[] } }).design.layers.find((l) => l.id === "space")!;
+    expect(String(b.art)).toMatch(/без описания/);
+  });
+
+  it("edit_art меняет рисунок и описание, рамка, цвета и порядок слоёв остаются", () => {
+    const st = added();
+    const next = { ...spec, items: [spec.items[0], { ...spec.items[1], r: 45 }] };
+    const r = applyCoverOps(st, [op("edit_art", "space", next)], formats.a5);
+    expect(r.errors).toEqual([]);
+    const before = st.design.layers.findIndex((l) => l.id === "space");
+    const layer = r.state.design.layers[before];
+    expect(layer).toMatchObject({ id: "space", x: 0, y: 0, w: 1, h: 1, color: "#2A5BB0", spec: next });
+    expect(layer.kind === "decor" && JSON.stringify(layer.art)).not.toEqual(JSON.stringify((st.design.layers[before] as { art: unknown }).art));
+    expect(applyCoverOps(st, [op("edit_art", "title", next)], formats.a5).errors[0]).toMatch(/нет своего рисунка/);
   });
 });

@@ -54,9 +54,23 @@ function shadeAt(l: DecorLayer, x: number, y: number): { color: string; cover: n
   for (const s of l.art.shapes) {
     if (s.kind !== "rect" || !s.fill) continue;
     if (px < s.x || px > s.x + s.w || py < s.y || py > s.y + s.h) continue;
-    const c = s.fill === "main" ? l.color : s.fill === "accent" ? (l.accent ?? l.color) : s.fill;
+    const role = (v: string) => (v === "main" ? l.color : v === "accent" ? (l.accent ?? l.color) : v);
+    let c = role(s.fill);
+    let a = s.opacity ?? 1;
+    // Линейный градиент (затемнение fade): прозрачность в этой точке — по проекции на его направление.
+    if (s.grad?.type === "linear") {
+      const g = s.grad;
+      const u = { x: (px - s.x) / s.w, y: (py - s.y) / s.h };
+      const [dx, dy] = [g.x2 - g.x1, g.y2 - g.y1];
+      const t = Math.min(1, Math.max(0, ((u.x - g.x1) * dx + (u.y - g.y1) * dy) / (dx * dx + dy * dy || 1)));
+      const k = g.stops.findIndex((st) => st[0] >= t);
+      const [lo, hi] = k <= 0 ? [g.stops[0], g.stops[0]] : [g.stops[k - 1], g.stops[k]];
+      const f = hi[0] === lo[0] ? 0 : (t - lo[0]) / (hi[0] - lo[0]);
+      a *= lo[2] + (hi[2] - lo[2]) * f;
+      c = role(hi[1]);
+    }
     if (!HEX.test(c)) continue;
-    clear *= 1 - (s.opacity ?? 1) * (l.opacity ?? 1);
+    clear *= 1 - a * (l.opacity ?? 1);
     color = c;
   }
   return color ? { color, cover: 1 - clear } : null;
