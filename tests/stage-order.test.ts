@@ -138,6 +138,7 @@ describe("Вывод модели по заявке", () => {
     expect(normalizeDealVerdict({ verdict: "refused", reason: "Дорого", later: "завтра", note: "  Маме;   дорого " }, reasons)).toEqual({ verdict: "refused", reason: "Дорого", later: null, note: "Маме; дорого" });
     expect(normalizeDealVerdict({ verdict: "refused", reason: "нет денег", later: "", note: "" }, reasons)).toMatchObject({ reason: "Передумал" });
     expect(normalizeDealVerdict({ verdict: "later", reason: "Дорого", later: "после зарплаты", note: "" }, reasons)).toEqual({ verdict: "later", reason: null, later: "после зарплаты", note: "" });
+    expect(normalizeDealVerdict({ verdict: "silent", reason: "", later: "", note: "После 11.11 не отвечает.}" }, reasons)?.note).toBe("После 11.11 не отвечает.");
     expect(normalizeDealVerdict({ verdict: "покупает" }, reasons)).toBeNull();
     expect(normalizeDealVerdict(null, reasons)).toBeNull();
   });

@@ -56,6 +56,7 @@ export function normalizeDealVerdict(raw: unknown, reasons: string[]): DealVerdi
     verdict,
     reason: verdict === "refused" ? (named ?? reasons.find((x) => x === "Передумал") ?? reasons[0] ?? null) : null,
     later: verdict === "later" ? text(r.later, 60) || null : null,
-    note: text(r.note, 240),
+    // Модель иногда дописывает в строку хвост своего же JSON («…не отвечает.}») — в ленту он не идёт.
+    note: text(r.note, 240).replace(/["']?\s*}+$/, "").trim(),
   };
 }
