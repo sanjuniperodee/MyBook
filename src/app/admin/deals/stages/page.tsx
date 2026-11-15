@@ -5,6 +5,8 @@ import { Panel } from "@/components/ui/Panel";
 import { requireStaff } from "@/server/access";
 import { NewPipeline, NewStage, PipelineHeader, StageRow } from "./StageEditor";
 import { RoutingPanel } from "./RoutingPanel";
+import { StageOrderPanel } from "./StageOrderPanel";
+import { parseStageOrder } from "@/shared/domain/stageOrder";
 import { getSetting } from "@/modules/workspace";
 
 export const metadata = { title: "Этапы воронки" };
@@ -23,10 +25,11 @@ export default async function StagesPage({ searchParams }: { searchParams: Promi
     entry = {};
   }
   const showEntry = pipeline.id === pipelines[0].id;
+  const [order, aiReady] = showEntry ? await Promise.all([getSetting("crm.stageOrder").then(parseStageOrder), container().assistant.service.configured()]) : [null, false];
   const anchors = [
     ["pipelines", "Воронки"],
     ["stages", "Этапы"],
-    ...(showEntry ? [["entry", "Новая заявка"]] : []),
+    ...(showEntry ? [["order", "Порядок в воронке"], ["entry", "Новая заявка"]] : []),
     ["milestones", "Действия клиента"],
   ];
   return (
@@ -66,6 +69,15 @@ export default async function StagesPage({ searchParams }: { searchParams: Promi
               <NewStage pipelineId={pipeline.id} />
             </div>
           </Panel>
+          {order ? (
+            <Panel id="order" title="Порядок в воронке" description="Сделки сами переходят на этап вслед за перепиской и оплатой — менеджеру не нужно двигать их руками">
+              <StageOrderPanel
+                stages={stages.filter((s) => s.kind === "open").map((s) => ({ id: s.id, name: s.name }))}
+                value={{ on: order.on, workStageId: order.workStageId, silentStageId: order.silentStageId, paidStageId: order.paidStageId, silentDays: order.silentDays, lostDays: order.lostDays }}
+                ai={aiReady}
+              />
+            </Panel>
+          ) : null}
           <RoutingPanel
             pipelineId={pipeline.id}
             stages={stages.map((s) => ({ id: s.id, name: s.name, color: s.color, kind: s.kind, milestone: s.milestone }))}

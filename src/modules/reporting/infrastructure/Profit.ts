@@ -69,16 +69,23 @@ async function profitCounts(from: Date, to: Date): Promise<ProfitCounts> {
   };
 }
 
+/** Форма оплаты сделок (своё поле pay_form): по ней считается комиссия банка с денег сделки. */
+export async function payForms(): Promise<Record<string, string>> {
+  const r = await executor().execute<Row>(sql`select id, custom_fields->>'pay_form' as form from crm_deals where coalesce(custom_fields->>'pay_form', '') <> ''`);
+  return Object.fromEntries(r.rows.map((x) => [String(x.id), String(x.form)]));
+}
+
 /**
  * Всё для страницы «Прибыль»: деньги (те же строки, что в «Финансах» — каждая сумма один раз) и расходы за период вместе
- * с прошлым — для сравнения; счётчики заявок, покупателей и заказов — по обоим периодам.
+ * с прошлым — для сравнения; счётчики заявок, покупателей и заказов — по обоим периодам; формы оплаты сделок — для комиссий.
  */
 export async function profitReport(range: { from: Date; to: Date; first: string; last: string; prev: { from: Date; to: Date; first: string; last: string } }) {
-  const [money, expenses, counts, prevCounts] = await Promise.all([
+  const [money, expenses, counts, prevCounts, forms] = await Promise.all([
     financeMoney(range.prev.from < range.from ? range.prev.from : range.from, range.to),
     expenseRows(range.prev.first < range.first ? range.prev.first : range.first, range.last),
     profitCounts(range.from, range.to),
     profitCounts(range.prev.from, range.prev.to),
+    payForms(),
   ]);
-  return { money, expenses, counts, prevCounts };
+  return { money, expenses, counts, prevCounts, forms };
 }

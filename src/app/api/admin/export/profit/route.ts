@@ -5,6 +5,8 @@ import { container } from "@/server/container";
 import { storeTimeZone, zonedDay } from "@/shared/domain/time";
 import { financePeriod } from "@/modules/reporting/ui/finance-screen";
 import { profitScreen } from "@/modules/reporting/ui/profit-screen";
+import { getSetting } from "@/modules/workspace";
+import { parseFeeRates } from "@/shared/domain/expenses";
 
 /** Выгрузка «Прибыли» за период: таблица по дням, неделям или месяцам (как на странице) и строка «Итого». */
 export const GET = api(async (req) => {
@@ -14,7 +16,7 @@ export const GET = api(async (req) => {
   const period = financePeriod({ preset: sp.get("p") ?? undefined, from: sp.get("from") ?? undefined, to: sp.get("to") ?? undefined, now: new Date(), tz });
   const prev = { ...period.prev, first: zonedDay(period.prev.from, tz), last: zonedDay(new Date(period.prev.to.getTime() - 1), tz) };
   const data = await container().reporting.profit({ from: period.from, to: period.to, first: period.first, last: period.last, prev });
-  const s = profitScreen({ period, ...data, tz });
+  const s = profitScreen({ period, ...data, feeRates: parseFeeRates(await getSetting("finance.fees")), tz });
   await audit(staff, "export", "profit", null, { first: period.first, last: period.last });
   const t = s.totals;
   const csv = toCsv(

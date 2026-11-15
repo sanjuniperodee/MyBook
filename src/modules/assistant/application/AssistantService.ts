@@ -1,5 +1,5 @@
 import type { Clock } from "@/shared/application";
-import { AssistantError, parseTemplateDraft, substituteKnown, templateDraftPrompt, templateDraftSchema, titleFromText, type TemplateDraft, type TemplateFacts, botUnderstandPrompt, botUnderstandSchema, cleanReply, dossierText, extractableFields, extractionSource, extractSchema, extractSystemPrompt, normalizeExtracted, parseBotUnderstanding, parseSummary, replySystemPrompt, summarySchema, summarySystemPrompt, transcript, type AiField, type AiSummary, type BotUnderstanding } from "../domain";
+import { AssistantError, dealVerdictPrompt, dealVerdictSchema, normalizeDealVerdict, type DealVerdict, parseTemplateDraft, substituteKnown, templateDraftPrompt, templateDraftSchema, titleFromText, type TemplateDraft, type TemplateFacts, botUnderstandPrompt, botUnderstandSchema, cleanReply, dossierText, extractableFields, extractionSource, extractSchema, extractSystemPrompt, normalizeExtracted, parseBotUnderstanding, parseSummary, replySystemPrompt, summarySchema, summarySystemPrompt, transcript, type AiField, type AiSummary, type BotUnderstanding } from "../domain";
 import type { AssistantData, LanguageModel, Usage } from "./ports";
 
 function parseJson(text: string): unknown {
@@ -92,6 +92,19 @@ export class AssistantService {
         return { key, label: f.label, type: f.type, value, current: current[key] === undefined || current[key] === null ? null : String(current[key]) };
       });
     return { proposals, usage };
+  }
+
+  /**
+   * Вывод по затихшей заявке из переписки и заметок: отказался (с причиной из списка воронки), обещал вернуться, молчит
+   * или не покупатель — и строка для ленты сделки. Нет переписки или модель ответила не по схеме — null.
+   */
+  async assessDeal(dealId: string, reasons: string[]): Promise<DealVerdict | null> {
+    const d = await this.dossier(dealId);
+    const source = extractionSource(d);
+    if (!source) return null;
+    const today = this.clock.now().toISOString().slice(0, 10);
+    const { text } = await this.model.ask({ system: dealVerdictPrompt(reasons, today), user: source, effort: "low", schema: dealVerdictSchema(reasons), timeoutMs: 30_000 });
+    return normalizeDealVerdict(parseJson(text), reasons);
   }
 
   /**

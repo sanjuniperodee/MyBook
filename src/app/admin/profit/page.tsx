@@ -2,7 +2,8 @@ import Link from "next/link";
 import { z } from "zod";
 import { Download } from "lucide-react";
 import { container } from "@/server/container";
-import { requireStaff } from "@/server/access";
+import { can, requireStaff } from "@/server/access";
+import { getSetting, listFields } from "@/modules/workspace";
 import { storeTimeZone, zonedDay } from "@/shared/domain/time";
 import { formatPrice } from "@/config/site";
 import { StatRow, StatTile } from "@/components/admin/charts";
@@ -14,7 +15,8 @@ import { Panel } from "@/components/ui/Panel";
 import { Alert } from "@/components/ui/Alert";
 import { financePeriod } from "@/modules/reporting/ui/finance-screen";
 import { profitScreen } from "@/modules/reporting/ui/profit-screen";
-import { expenseGroupKeys, expenseGroups } from "@/shared/domain/expenses";
+import { expenseGroupKeys, expenseGroups, PAY_FORM_KEY, PAY_FORM_OPTIONS, parseFeeRates } from "@/shared/domain/expenses";
+import { FeeSettingsButton } from "./FeeSettings";
 
 export const metadata = { title: "Прибыль" };
 
@@ -33,13 +35,16 @@ const STEP_LABEL = { day: "По дням", week: "По неделям", month: "
  * и от суммы договоров, цена печати книги. Деньги — те же, что в «Финансах»; расходы — из «Расходов».
  */
 export default async function ProfitPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
-  await requireStaff("finance.view");
+  const staff = await requireStaff("finance.view");
   const q = query.parse(await searchParams);
   const tz = storeTimeZone();
   const period = financePeriod({ preset: q.p, from: q.from, to: q.to, now: new Date(), tz });
   const prev = { ...period.prev, first: zonedDay(period.prev.from, tz), last: zonedDay(new Date(period.prev.to.getTime() - 1), tz) };
-  const data = await container().reporting.profit({ from: period.from, to: period.to, first: period.first, last: period.last, prev });
-  const s = profitScreen({ period, ...data, tz });
+  const [data, feeSetting, dealFields] = await Promise.all([container().reporting.profit({ from: period.from, to: period.to, first: period.first, last: period.last, prev }), getSetting("finance.fees"), listFields("deal")]);
+  const feeRates = parseFeeRates(feeSetting);
+  const s = profitScreen({ period, ...data, feeRates, tz });
+  // Формы оплаты — варианты поля сделки; до миграции поля — стандартный набор.
+  const payForms = dealFields.find((f) => f.key === PAY_FORM_KEY)?.options ?? [...PAY_FORM_OPTIONS];
   const { totals: t, unit: u } = s;
   const share = (v: number) => (t.revenue > 0 ? pct(v / t.revenue) : "—");
   const lines: { label: string; value: number; prev: number; kind?: "sum" | "sub" | "result"; minus?: boolean }[] = [
@@ -63,9 +68,12 @@ export default async function ProfitPage({ searchParams }: { searchParams: Promi
       <PageHeader
         title="Прибыль"
         actions={
-          <a href={`/api/admin/export/profit?${href}`} className="btn btn-outline btn-sm" data-testid="profit-export">
-            <Download className="size-4" strokeWidth={1.8} aria-hidden /> Скачать CSV
-          </a>
+          <>
+            {can(staff, "finance.manage") ? <FeeSettingsButton forms={payForms} rates={feeRates} /> : null}
+            <a href={`/api/admin/export/profit?${href}`} className="btn btn-outline btn-sm" data-testid="profit-export">
+              <Download className="size-4" strokeWidth={1.8} aria-hidden /> Скачать CSV
+            </a>
+          </>
         }
       >
         Пришло денег минус расходы за период. Деньги — как в{" "}
@@ -141,6 +149,67 @@ export default async function ProfitPage({ searchParams }: { searchParams: Promi
           </StatRow>
         </section>
       </div>
+
+      <Panel
+        flush
+        title="Комиссии по формам оплаты"
+        description={
+          <>
+            Считаются сами с денег сделок, у которых выбрана форма оплаты (поле сделки или{" "}
+            <Link href={`/admin/sales?${href}`} className="text-wine hover:underline">
+              реестр продаж
+            </Link>
+            ). Входят в себестоимость строкой «Комиссии банка и рассрочки»
+          </>
+        }
+      >
+        {s.fees.byForm.length ? (
+          <div className="overflow-x-auto">
+            <table className={cn("table min-w-[520px]", EDGE)} data-testid="profit-fees">
+              <thead>
+                <tr>
+                  <th>Форма оплаты</th>
+                  <th className="num">Оплат</th>
+                  <th className="num">Пришло от клиентов</th>
+                  <th className="num">Комиссия</th>
+                  <th className="num">Удержано</th>
+                  <th className="num">На счёт</th>
+                </tr>
+              </thead>
+              <tbody>
+                {s.fees.byForm.map((f) => (
+                  <tr key={f.form}>
+                    <td>{f.form}</td>
+                    <td className="num">{f.count}</td>
+                    <td className="num whitespace-nowrap">{signed(f.money)}</td>
+                    <td className="num text-muted">{f.rate ? `${String(f.rate).replace(".", ",")}%` : "—"}</td>
+                    <td className="num whitespace-nowrap">{f.fee ? `−${formatPrice(f.fee)}` : "—"}</td>
+                    <td className="num font-medium whitespace-nowrap">{signed(f.money - f.fee)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="font-semibold">
+                  <td colSpan={2}>Итого с формой оплаты</td>
+                  <td className="num whitespace-nowrap">{signed(s.fees.tagged)}</td>
+                  <td />
+                  <td className="num whitespace-nowrap">{s.fees.auto ? `−${formatPrice(s.fees.auto)}` : "—"}</td>
+                  <td className="num whitespace-nowrap">{signed(s.fees.tagged - s.fees.auto)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        ) : null}
+        {s.fees.untagged > 0 ? (
+          <p className="px-4 py-3 text-sm text-muted sm:px-5">
+            Без формы оплаты — {formatPrice(s.fees.untagged)} из {formatPrice(t.revenue)}: комиссия с них не считается. Укажите форму в{" "}
+            <Link href={`/admin/sales?${href}`} className="text-wine hover:underline">
+              реестре продаж
+            </Link>
+            .
+          </p>
+        ) : null}
+      </Panel>
 
       <Panel flush title={STEP_LABEL[s.step]} description="Выручка, расходы по группам и прибыль">
         <div className="overflow-x-auto">

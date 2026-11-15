@@ -2,7 +2,10 @@ import Link from "next/link";
 import { z } from "zod";
 import { Download, ScrollText } from "lucide-react";
 import { container } from "@/server/container";
-import { canWork, contactView, requireStaff } from "@/server/access";
+import { can, canWork, contactView, requireStaff } from "@/server/access";
+import { getSetting, listFields } from "@/modules/workspace";
+import { PAY_FORM_KEY, PAY_FORM_OPTIONS, parseFeeRates } from "@/shared/domain/expenses";
+import { PayFormSelect } from "./PayFormSelect";
 import { storeTimeZone } from "@/shared/domain/time";
 import { formatPhone } from "@/shared/domain/phone";
 import { formatPrice } from "@/config/site";
@@ -34,8 +37,12 @@ export default async function SalesRegisterPage({ searchParams }: { searchParams
   const tz = storeTimeZone();
   const period = financePeriod({ preset: q.p, from: q.from, to: q.to, now: new Date(), tz });
   const c = container();
-  const [rows, admins] = await Promise.all([c.reporting.salesRegister({ from: period.from, to: period.to }), c.access.queries.allStaff()]);
-  const s = salesRegisterScreen({ rows, staff: admins, visible: (id) => canWork(staff, id), contact: (phone) => (phone ? contactView(staff, { phone: formatPhone(phone) }).phone : ""), tz });
+  const [rows, admins, feeSetting, dealFields] = await Promise.all([c.reporting.salesRegister({ from: period.from, to: period.to }), c.access.queries.allStaff(), getSetting("finance.fees"), listFields("deal")]);
+  // Комиссии банка видит тот, кому открыты расходы и прибыль; остальным — только форма оплаты.
+  const showFees = can(staff, "finance.view");
+  const s = salesRegisterScreen({ rows, staff: admins, visible: (id) => canWork(staff, id), contact: (phone) => (phone ? contactView(staff, { phone: formatPhone(phone) }).phone : ""), tz, feeRates: showFees ? parseFeeRates(feeSetting) : {} });
+  const payForms = dealFields.find((f) => f.key === PAY_FORM_KEY)?.options ?? [...PAY_FORM_OPTIONS];
+  const canEdit = can(staff, "deals.edit");
   const { totals: t } = s;
 
   return (
@@ -60,14 +67,14 @@ export default async function SalesRegisterPage({ searchParams }: { searchParams
           <StatTile bare label="Продаж" value={t.count.toLocaleString("ru-RU")} hint={t.count ? `оплачены полностью: ${t.settled}` : "за период — нет"} />
           <StatTile bare label="На сумму по договорам" value={formatPrice(t.price)} hint={t.count ? `в среднем ${formatPrice(Math.round(t.price / t.count))}` : undefined} />
           <StatTile bare label="Оплачено" value={formatPrice(t.paid)} hint={t.price ? `${Math.round((t.paid / t.price) * 100)}% суммы` : undefined} />
-          <StatTile bare label="Остаток к оплате" value={formatPrice(t.rest)} hint={t.count - t.settled ? plural(t.count - t.settled, ["клиент", "клиента", "клиентов"]) : "все оплатили"} />
+          <StatTile bare label="Остаток к оплате" value={formatPrice(t.rest)} hint={[t.count - t.settled ? plural(t.count - t.settled, ["клиент", "клиента", "клиентов"]) : "все оплатили", showFees && t.fee ? `комиссии банка ${formatPrice(t.fee)}` : ""].filter(Boolean).join("; ")} />
         </StatRow>
       </section>
 
       {s.rows.length ? (
         <Panel flush title="Продажи" description={`${plural(t.count, ["покупатель", "покупателя", "покупателей"])}, свежие — первыми`}>
           <div className="hidden overflow-x-auto lg:block">
-            <table className={cn("table min-w-[1120px]", EDGE)} data-testid="sales-table">
+            <table className={cn("table min-w-[1260px]", EDGE)} data-testid="sales-table">
               <thead>
                 <tr>
                   <th>Продажа</th>
@@ -79,6 +86,7 @@ export default async function SalesRegisterPage({ searchParams }: { searchParams
                   <th className="num">Цена</th>
                   <th className="num">Оплачено</th>
                   <th className="num">Остаток</th>
+                  <th>Форма оплаты</th>
                   <th>Состояние</th>
                   <th>К дате</th>
                 </tr>
@@ -94,7 +102,7 @@ export default async function SalesRegisterPage({ searchParams }: { searchParams
                     </td>
                     <td>
                       {r.client || "—"}
-                      {r.phone ? <span className="block text-xs text-muted tabular-nums">{r.phone}</span> : null}
+                      {r.phone ? <span className="block text-xs whitespace-nowrap text-muted tabular-nums">{r.phone}</span> : null}
                     </td>
                     <td>{r.city || "—"}</td>
                     <td>{r.channel}</td>
@@ -102,6 +110,10 @@ export default async function SalesRegisterPage({ searchParams }: { searchParams
                     <td className="num whitespace-nowrap">{formatPrice(r.price)}</td>
                     <td className="num font-medium whitespace-nowrap">{formatPrice(r.paid)}</td>
                     <td className={cn("num whitespace-nowrap", r.rest ? "text-ink" : "text-muted")}>{r.rest ? formatPrice(r.rest) : "—"}</td>
+                    <td>
+                      {canEdit ? <PayFormSelect dealId={r.id} value={r.payForm} options={payForms} label={`Форма оплаты: ${r.client || `Д${r.number}`}`} /> : r.payForm || "—"}
+                      {r.fee ? <span className="mt-0.5 block text-xs text-muted tabular-nums">комиссия {formatPrice(r.fee)}</span> : null}
+                    </td>
                     <td>
                       {r.state}
                       {r.method ? <span className="block text-xs text-muted">{r.method}</span> : null}
@@ -116,6 +128,7 @@ export default async function SalesRegisterPage({ searchParams }: { searchParams
                   <td className="num whitespace-nowrap">{formatPrice(t.price)}</td>
                   <td className="num whitespace-nowrap">{formatPrice(t.paid)}</td>
                   <td className="num whitespace-nowrap">{formatPrice(t.rest)}</td>
+                  <td className="whitespace-nowrap font-normal text-muted">{t.fee ? `комиссии ${formatPrice(t.fee)}` : ""}</td>
                   <td colSpan={2} />
                 </tr>
               </tfoot>

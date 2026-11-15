@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { expenseGroupOf, guessAdChannel, guessExpenseCategory, parseExpenseLines } from "@/shared/domain/expenses";
+import { expenseGroupOf, feeOf, guessAdChannel, guessExpenseCategory, parseExpenseLines, parseFeeRates } from "@/shared/domain/expenses";
 import { financePeriod, type MoneyRow } from "@/modules/reporting/ui/finance-screen";
 import { expensesScreen, profitScreen, profitStep, type ExpenseRow, type ProfitCounts } from "@/modules/reporting/ui/profit-screen";
 import { leadStatsScreen, recipientGroup, salesRegisterScreen, type LeadDealRow, type RegisterRow } from "@/modules/reporting/ui/lead-stats";
@@ -256,6 +256,64 @@ describe("Статистика лидов", () => {
   });
 });
 
+describe("Комиссии по формам оплаты", () => {
+  const period = financePeriod({ preset: "custom", from: "2026-11-01", to: "2026-11-14", now, tz });
+
+  it("проценты из настройки: мусор отброшен, пусто — по умолчанию; комиссия считается с суммы по форме", () => {
+    expect(parseFeeRates("")).toEqual({ "Kaspi Рассрочка": 15, "Kaspi Red": 12 });
+    expect(parseFeeRates("не json")).toEqual({ "Kaspi Рассрочка": 15, "Kaspi Red": 12 });
+    expect(parseFeeRates('{"Kaspi Рассрочка":"14.5","Kaspi Red":150,"Перевод":0,"":5}')).toEqual({ "Kaspi Рассрочка": 14.5, "Перевод": 0 });
+    expect(feeOf(29_000, "Kaspi Рассрочка", { "Kaspi Рассрочка": 15 })).toBe(4350);
+    expect(feeOf(29_000, "Kaspi Gold", { "Kaspi Рассрочка": 15 })).toBe(0);
+    expect(feeOf(29_000, null, { "Kaspi Рассрочка": 15 })).toBe(0);
+  });
+
+  it("в прибыли: комиссия с денег сделок с формой оплаты идёт в себестоимость; возврат её уменьшает; без формы — не считается", () => {
+    const s = profitScreen({
+      period,
+      tz,
+      money: [
+        money({ amount: 29_000, at: at("2026-11-02"), dealId: "d1" }),
+        money({ amount: 10_000, at: at("2026-11-03"), dealId: "d2" }),
+        money({ amount: 10_000, at: at("2026-11-04"), dealId: "d2", kind: "refund" }),
+        money({ amount: 29_000, at: at("2026-11-05"), dealId: "d3" }),
+        money({ amount: 20_000, at: at("2026-11-06") }),
+      ],
+      expenses: [expense({ day: "2026-11-02", category: "fees", amount: 1_000 })],
+      counts: counts(),
+      prevCounts: counts(),
+      forms: { d1: "Kaspi Рассрочка", d2: "Kaspi Red", d3: "Kaspi Gold" },
+      feeRates: { "Kaspi Рассрочка": 15, "Kaspi Red": 12 },
+    });
+    // 29 000 × 15% = 4 350; по Red 1 200 − 1 200 = 0; плюс внесённая комиссия 1 000.
+    expect(s.fees).toMatchObject({ auto: 4350, tagged: 58_000, untagged: 20_000 });
+    expect(s.fees.byForm).toEqual([
+      { form: "Kaspi Рассрочка", rate: 15, money: 29_000, fee: 4350, count: 1 },
+      { form: "Kaspi Gold", rate: 0, money: 29_000, fee: 0, count: 1 },
+      { form: "Kaspi Red", rate: 12, money: 0, fee: 0, count: 1 },
+    ]);
+    expect(s.totals).toMatchObject({ revenue: 78_000, cogs: 5350, profit: 72_650 });
+    expect(s.byCategory).toEqual([expect.objectContaining({ key: "fees", value: 5350, count: 1 })]);
+    expect(s.rows[1]).toMatchObject({ key: "2026-11-02", revenue: 29_000, cogs: 5350 });
+    expect(s.noExpenses).toBe(false);
+  });
+
+  it("в реестре: комиссия с оплаченного и сумма на счёт", () => {
+    const s = salesRegisterScreen({
+      rows: [
+        { id: "a", number: 1, createdAt: at("2026-11-01"), soldAt: at("2026-11-02"), source: "whatsapp", utm: null, assigneeId: null, client: "А", phone: null, plan: null, recipient: null, eventDate: null, payForm: "Kaspi Рассрочка", price: 29_000, dealPaid: 29_000, method: "manual", stage: "Пишет книгу", stageKind: "open", orderId: null, orderNumber: null, orderStatus: null, city: null, desiredDate: null, orderDue: null, orderPaid: 0, quantity: 1, chars: 0 },
+      ],
+      staff: [],
+      visible: () => true,
+      contact: () => "",
+      tz,
+      feeRates: { "Kaspi Рассрочка": 15 },
+    });
+    expect(s.rows[0]).toMatchObject({ payForm: "Kaspi Рассрочка", paid: 29_000, fee: 4350, net: 24_650 });
+    expect(s.totals).toMatchObject({ fee: 4350, net: 24_650 });
+  });
+});
+
 describe("Реестр продаж", () => {
   const row = (p: Partial<RegisterRow> & { id: string }): RegisterRow => ({
     number: 10,
@@ -269,6 +327,7 @@ describe("Реестр продаж", () => {
     plan: "hardcover",
     recipient: "Парню",
     eventDate: "2026-12-01",
+    payForm: null,
     price: 29_000,
     dealPaid: 10_000,
     method: "kaspi",
@@ -298,7 +357,7 @@ describe("Реестр продаж", () => {
       ["a", 29_000, 10_000, 19_000, "Книга пишется", "", "Индира", "+7 700 ••• •• 33"],
       ["b", 29_000, 29_000, 0, "В печати", "Астана", "Индира", "+7 700 ••• •• 33"],
     ]);
-    expect(s.totals).toEqual({ count: 2, price: 58_000, paid: 39_000, rest: 19_000, settled: 1 });
+    expect(s.totals).toEqual({ count: 2, price: 58_000, paid: 39_000, rest: 19_000, settled: 1, fee: 0, net: 39_000 });
     expect(s.rows[0]).toMatchObject({ day: "2026-11-02", channel: "WhatsApp", plan: "Твёрдая обложка", method: "Kaspi" });
   });
 });

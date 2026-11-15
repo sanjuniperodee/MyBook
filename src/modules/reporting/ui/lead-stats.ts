@@ -1,5 +1,6 @@
 import { zonedDay, zonedParts } from "@/shared/domain/time";
 import { channelOf, channels, toAttribution } from "@/shared/domain/channels";
+import { feeOf } from "@/shared/domain/expenses";
 import type { FinancePeriod } from "./finance-screen";
 
 export interface LeadDealRow {
@@ -53,6 +54,8 @@ export interface RegisterRow {
   plan: string | null;
   recipient: string | null;
   eventDate: string | null;
+  /** Форма оплаты сделки (своё поле): Kaspi Gold, Рассрочка, Red… */
+  payForm: string | null;
   price: number;
   dealPaid: number;
   method: string | null;
@@ -334,7 +337,8 @@ const METHOD: Record<string, string> = { kaspi: "Kaspi", cloudpayments: "Кар�
  * «Реестр продаж» — ведомость покупателей периода, как лист продаж в таблице: дата продажи, клиент, город, источник,
  * менеджер, цена, оплачено, остаток, состояние. Телефон — по правам сотрудника (contact).
  */
-export function salesRegisterScreen(input: { rows: RegisterRow[]; staff: { id: string; name: string }[]; visible: (assigneeId: string | null) => boolean; contact: (phone: string | null) => string; tz: string }) {
+export function salesRegisterScreen(input: { rows: RegisterRow[]; staff: { id: string; name: string }[]; visible: (assigneeId: string | null) => boolean; contact: (phone: string | null) => string; tz: string; feeRates?: Record<string, number> }) {
+  const rates = input.feeRates ?? {};
   const names = new Map(input.staff.map((s) => [s.id, s.name]));
   const rows = input.rows
     .filter((r) => input.visible(r.assigneeId))
@@ -371,13 +375,17 @@ export function salesRegisterScreen(input: { rows: RegisterRow[]; staff: { id: s
         state,
         stage: r.stage,
         method: r.method ? (METHOD[r.method] ?? r.method) : "",
+        payForm: r.payForm ?? "",
+        /** Комиссия банка с оплаченного и сколько остаётся после неё. */
+        fee: feeOf(paid, r.payForm, rates),
+        net: paid - feeOf(paid, r.payForm, rates),
         orderNumber: r.orderNumber,
         orderId: r.orderId,
       };
     });
   return {
     rows,
-    totals: { count: rows.length, price: sum(rows, (r) => r.price), paid: sum(rows, (r) => r.paid), rest: sum(rows, (r) => r.rest), settled: rows.filter((r) => r.rest === 0).length },
+    totals: { count: rows.length, price: sum(rows, (r) => r.price), paid: sum(rows, (r) => r.paid), rest: sum(rows, (r) => r.rest), settled: rows.filter((r) => r.rest === 0).length, fee: sum(rows, (r) => r.fee), net: sum(rows, (r) => r.net) },
   };
 }
 export type SalesRegisterScreen = ReturnType<typeof salesRegisterScreen>;

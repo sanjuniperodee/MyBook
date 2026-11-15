@@ -1,6 +1,6 @@
 import { zonedDay } from "@/shared/domain/time";
 import { channels } from "@/shared/domain/channels";
-import { expenseCategories, expenseCategoryKeys, expenseCategoryLabel, expenseGroupKeys, expenseGroupOf, expenseGroups, type ExpenseGroup } from "@/shared/domain/expenses";
+import { expenseCategories, expenseCategoryKeys, expenseCategoryLabel, expenseGroupKeys, expenseGroupOf, expenseGroups, feeOf, type ExpenseGroup } from "@/shared/domain/expenses";
 import type { FinancePeriod, MoneyRow } from "./finance-screen";
 
 /** Строка расхода: запись «Расходов» или реклама из расходов по каналам (source ads — правится там же, где внесена). */
@@ -83,8 +83,23 @@ const emptyLine = (): ProfitLine => ({ revenue: 0, cogs: 0, marketing: 0, team: 
  * стоимость заявки и покупателя, окупаемость рекламы от денег и от суммы договоров, цена печати книги.
  * Чистая функция: деньги и расходы приходят уже выбранными за период вместе с прошлым.
  */
-export function profitScreen(input: { period: FinancePeriod; money: MoneyRow[]; expenses: ExpenseRow[]; counts: ProfitCounts; prevCounts: ProfitCounts; tz: string }) {
+export function profitScreen(input: {
+  period: FinancePeriod;
+  money: MoneyRow[];
+  expenses: ExpenseRow[];
+  counts: ProfitCounts;
+  prevCounts: ProfitCounts;
+  tz: string;
+  /** Форма оплаты сделок (id сделки → форма) и проценты комиссий по формам: комиссия считается с денег сделки сама. */
+  forms?: Record<string, string>;
+  feeRates?: Record<string, number>;
+}) {
   const { period, tz } = input;
+  const forms = input.forms ?? {};
+  const rates = input.feeRates ?? {};
+  const formOf = (m: MoneyRow) => (m.dealId ? (forms[m.dealId] ?? null) : null);
+  /** Комиссия банка с движения денег: с возврата — со знаком минус. */
+  const fee = (m: MoneyRow) => feeOf(m.kind === "refund" ? -m.amount : m.amount, formOf(m), rates);
   const prevFirst = zonedDay(period.prev.from, tz);
   const prevLast = zonedDay(new Date(period.prev.to.getTime() - 1), tz);
   const signed = (m: MoneyRow) => (m.kind === "refund" ? -m.amount : m.amount);
@@ -97,6 +112,7 @@ export function profitScreen(input: { period: FinancePeriod; money: MoneyRow[]; 
     const l = emptyLine();
     l.revenue = sum(money, signed);
     for (const e of exp) l[expenseGroupOf(e.category)] += e.amount;
+    l.cogs += sum(money, fee);
     l.expenses = l.cogs + l.marketing + l.team + l.operating;
     l.profit = l.revenue - l.expenses;
     return l;
@@ -112,7 +128,9 @@ export function profitScreen(input: { period: FinancePeriod; money: MoneyRow[]; 
   const buckets = new Map(keys.map((k) => [k, { key: k, label: bucketLabel(k, step, period.first, period.last), ...emptyLine() }]));
   for (const m of curMoney) {
     const b = buckets.get(bucketOf(zonedDay(m.at, tz), step));
-    if (b) b.revenue += signed(m);
+    if (!b) continue;
+    b.revenue += signed(m);
+    b.cogs += fee(m);
   }
   for (const e of curExp) {
     const b = buckets.get(bucketOf(e.day, step));
@@ -124,10 +142,21 @@ export function profitScreen(input: { period: FinancePeriod; money: MoneyRow[]; 
   });
 
   // Расходы по категориям и группам.
+  // Комиссии по формам оплаты — расчётные: в «Расходах» их нет, в отчёте идут в категорию «Комиссии» вместе с внесёнными.
+  const feesAuto = sum(curMoney, fee);
+  const prevFeesAuto = sum(prevMoney, fee);
+  const byForm = [...new Set(curMoney.map(formOf).filter((f): f is string => !!f))]
+    .map((form) => {
+      const list = curMoney.filter((m) => formOf(m) === form);
+      return { form, rate: rates[form] ?? 0, money: sum(list, signed), fee: sum(list, fee), count: list.filter((m) => m.kind !== "refund").length };
+    })
+    .sort((a, b) => b.money - a.money);
   const byCategory = expenseCategoryKeys
     .map((key) => {
       const list = curExp.filter((e) => (e.category in expenseCategories ? e.category : "other") === key);
-      return { key, label: expenseCategoryLabel(key), group: expenseGroupOf(key), value: sum(list, (e) => e.amount), count: list.length, prev: sum(prevExp.filter((e) => (e.category in expenseCategories ? e.category : "other") === key), (e) => e.amount) };
+      const auto = key === "fees" ? feesAuto : 0;
+      const prevAuto = key === "fees" ? prevFeesAuto : 0;
+      return { key, label: expenseCategoryLabel(key), group: expenseGroupOf(key), value: sum(list, (e) => e.amount) + auto, count: list.length, prev: sum(prevExp.filter((e) => (e.category in expenseCategories ? e.category : "other") === key), (e) => e.amount) + prevAuto };
     })
     .filter((c) => c.value > 0 || c.prev > 0)
     .sort((a, b) => b.value - a.value);
@@ -180,10 +209,12 @@ export function profitScreen(input: { period: FinancePeriod; money: MoneyRow[]; 
     rows,
     byCategory,
     byGroup,
+    /** Расчётные комиссии: всего и по формам оплаты (деньги сделок с выбранной формой, процент, комиссия). */
+    fees: { auto: feesAuto, byForm, tagged: sum(byForm, (f) => f.money), untagged: cur.revenue - sum(byForm, (f) => f.money) },
     unit,
     prevUnit: { leads: input.prevCounts.leads, buyers: input.prevCounts.buyers },
     /** Расходов за период нет вовсе — отчёт показывает только деньги; страница просит внести расходы. */
-    noExpenses: curExp.length === 0,
+    noExpenses: curExp.length === 0 && feesAuto === 0,
   };
 }
 export type ProfitScreen = ReturnType<typeof profitScreen>;

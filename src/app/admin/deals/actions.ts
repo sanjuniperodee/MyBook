@@ -5,6 +5,7 @@ import { readGifts } from "@/shared/domain/agreementGifts";
 import { giftsForPlan } from "@/config/site";
 import { getSetting, listFields, readFieldValues, saveSettings } from "@/modules/workspace";
 import { entryGroups } from "@/modules/sales/domain/meta";
+import { STAGE_ORDER_DEFAULTS, STAGE_ORDER_LIMITS } from "@/shared/domain/stageOrder";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -633,4 +634,38 @@ export async function createClientFromDealAction(dealId: string, _: ClientFromDe
   revalidateDeal(deal.id, account.clientId);
   const loginUrl = `${env.appUrl}${d.locale === "kk" ? "/kk" : ""}/login`;
   return { done: { clientId: account.clientId, loginText: staffLogin(account.login, can(staff, "clients.contacts")), password, message: accessMessage({ name: d.name, login: account.login, password, loginUrl, locale: d.locale, hideLogin: !can(staff, "clients.contacts") }) } };
+}
+
+const stageOrderSchema = z.object({
+  on: z.boolean(),
+  workStageId: z.string().max(40),
+  silentStageId: z.string().max(40),
+  paidStageId: z.string().max(40),
+  silentDays: z.coerce.number().int().min(1, "Дней — от 1").max(STAGE_ORDER_LIMITS.silentDays, `Дней — не больше ${STAGE_ORDER_LIMITS.silentDays}`),
+  lostDays: z.coerce.number().int().min(2, "Дней — от 2").max(STAGE_ORDER_LIMITS.lostDays, `Дней — не больше ${STAGE_ORDER_LIMITS.lostDays}`),
+});
+
+/**
+ * «Порядок в воронке» (настройка crm.stageOrder): сделки основной воронки сами идут по этапам вслед за перепиской и
+ * оплатой. Этапы — только «в работе» основной воронки; «не отвечает» и «в работе» — разные; отказ позже, чем «не отвечает».
+ */
+export async function saveStageOrderAction(input: z.input<typeof stageOrderSchema>): Promise<{ ok?: true; error?: string }> {
+  const staff = await assertStaff("settings.manage");
+  const parsed = stageOrderSchema.safeParse(input);
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const d = parsed.data;
+  const first = (await container().sales.queries.listPipelines())[0];
+  const open = (await container().sales.queries.listStages(first.id)).filter((s) => s.kind === "open").map((s) => s.id);
+  if (d.on) {
+    if (!open.includes(d.workStageId) || !open.includes(d.silentStageId)) return { error: "Выберите этапы «в работе» и «не отвечает»" };
+    if (d.workStageId === d.silentStageId) return { error: "«В работе» и «не отвечает» — разные этапы" };
+    if (d.lostDays <= d.silentDays) return { error: "Отказ — позже, чем «не отвечает»" };
+  }
+  if (d.paidStageId && !open.includes(d.paidStageId)) return { error: "Этап для оплаченных — из этапов «в работе» основной воронки" };
+  const next = { on: d.on, workStageId: d.workStageId, silentStageId: d.silentStageId, paidStageId: d.paidStageId, silentDays: d.silentDays, lostDays: d.lostDays, lostReason: STAGE_ORDER_DEFAULTS.lostReason };
+  const before = await getSetting("crm.stageOrder");
+  await saveSettings({ "crm.stageOrder": JSON.stringify(next) }, staff.user.id);
+  await audit(staff, "settings.update", "settings", "crm.stageOrder", { from: before, to: next });
+  revalidatePath("/admin/deals/stages");
+  return { ok: true };
 }

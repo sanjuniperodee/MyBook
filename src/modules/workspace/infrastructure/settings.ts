@@ -74,6 +74,11 @@ export const settingDefs = {
   "crm.entryStages": { default: "{}" },
   /** В успешную сделку заказа можно влить заявку того же контакта, пришедшую не дальше N дней от её закрытия; 0 — нельзя (sales mergeRefusal). */
   "crm.mergeClosedDays": { default: "14" },
+  /**
+   * «Порядок в воронке»: заявка без оплаты сама идёт по этапам вслед за перепиской. JSON { on, workStageId, silentStageId,
+   * silentDays, lostDays, lostReason } — см. shared/domain/stageOrder.
+   */
+  "crm.stageOrder": { default: "{}" },
   /** Заявки с новых номеров сначала попадают в «Неразобранное»: on | off. */
   "crm.unsorted": { default: "on" },
   /** Максимальная персональная скидка, которую менеджер может дать из чата, %. */
@@ -254,6 +259,8 @@ export const settingDefs = {
   "gowa.calls": { default: "off" },
   /** Когда история чатов шлюза последний раз загружалась в CRM (ISO): следующий проход берёт только обновившиеся чаты. */
   "gowa.historySyncedAt": {},
+  /** Комиссии банка по формам оплаты сделки: JSON «форма → % с суммы» (Kaspi Рассрочка, Red…); пусто — по умолчанию. */
+  "finance.fees": {},
 } satisfies Record<string, Def>;
 
 export type SettingKey = keyof typeof settingDefs;

@@ -20,6 +20,7 @@ import { queryClients, segmentCounts } from "./infrastructure/Clients";
 import { financeIssueData, financeReport } from "./infrastructure/Finance";
 import { expenseRows, profitReport } from "./infrastructure/Profit";
 import { leadStats, salesRegister } from "./infrastructure/LeadStats";
+import { stageOrderCandidates, stageOrderPaid } from "./infrastructure/StageOrder";
 import { automationStats } from "./infrastructure/Automations";
 import { clientReferrals } from "./infrastructure/Referrals";
 import { designAiStats } from "./infrastructure/DesignAi";
@@ -93,6 +94,9 @@ export class ReportingModule {
   readonly leadStats = leadStats;
   /** «Реестр продаж»: покупатели с первой оплатой в периоде. */
   readonly salesRegister = salesRegister;
+  /** «Порядок в воронке»: заявки без оплаты с датами последних сообщений и сделки с оплатой не на своём этапе. */
+  readonly stageOrderCandidates = stageOrderCandidates;
+  readonly stageOrderPaid = stageOrderPaid;
   /** «Автоматизации»: повторные продажи правила — создано, выиграно, оплачено за 90 дней. */
   readonly automationStats = automationStats;
   /** Статистика ИИ-дизайнера для админки: просьбы, режимы, модели, стоимость, лимиты и покупки пакетов. */

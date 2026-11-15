@@ -128,3 +128,31 @@ export function parseExpenseLines(text: string, defaultDay: string): ParsedLine[
   });
   return out;
 }
+
+// ─── форма оплаты и комиссии ─────────────────────────────────────────────────
+
+/** Ключ своего поля сделки «Форма оплаты» (список): по нему считается комиссия банка с денег сделки. */
+export const PAY_FORM_KEY = "pay_form";
+export const PAY_FORM_OPTIONS = ["Kaspi Gold", "Kaspi Рассрочка", "Kaspi Red", "Перевод", "Наличные"] as const;
+/** Комиссии по умолчанию, % с суммы: рассрочка отдаёт 24 650 с 29 000, Red — 25 520. */
+export const DEFAULT_FEE_RATES: Record<string, number> = { "Kaspi Рассрочка": 15, "Kaspi Red": 12 };
+
+/** Проценты комиссий из настройки (JSON «форма → %»): мусор и значения вне 0–100 отбрасываются; пусто — по умолчанию. */
+export function parseFeeRates(raw: string | null | undefined): Record<string, number> {
+  if (!raw) return { ...DEFAULT_FEE_RATES };
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return { ...DEFAULT_FEE_RATES };
+    const out: Record<string, number> = {};
+    for (const [form, v] of Object.entries(parsed as Record<string, unknown>)) {
+      const pct = typeof v === "number" ? v : Number(v);
+      if (form.trim() && Number.isFinite(pct) && pct >= 0 && pct <= 100) out[form.trim().slice(0, 60)] = Math.round(pct * 100) / 100;
+    }
+    return out;
+  } catch {
+    return { ...DEFAULT_FEE_RATES };
+  }
+}
+
+/** Комиссия с суммы по форме оплаты, ₸ (возврат — со знаком минус: комиссию банк возвращает вместе с деньгами). */
+export const feeOf = (amount: number, form: string | null | undefined, rates: Record<string, number>) => (form && rates[form] ? Math.round((amount * rates[form]) / 100) : 0);

@@ -102,7 +102,7 @@ export async function salesRegister(range: { from: Date; to: Date }): Promise<Re
   const r = await executor().execute<Row>(sql`
     select d.id, d.number, ${leadAt} as created_at, d.source, d.utm, d.assignee_id, d.amount, d.agreed_plan, d.client_id,
       coalesce(nullif(d.contact_name, ''), nullif(u.name, ''), d.title) as client, coalesce(d.contact_phone, u.phone) as phone,
-      d.custom_fields->>'recipient' as recipient, d.custom_fields->>'event_date' as event_date,
+      d.custom_fields->>'recipient' as recipient, d.custom_fields->>'event_date' as event_date, d.custom_fields->>'pay_form' as pay_form,
       s.name as stage, s.kind as stage_kind,
       f.first_at, f.paid,
       (select p.method from crm_payments p where p.deal_id = d.id and p.kind <> 'refund' order by p.paid_at limit 1) as method,
@@ -131,6 +131,7 @@ export async function salesRegister(range: { from: Date; to: Date }): Promise<Re
     plan: str(x.agreed_plan),
     recipient: str(x.recipient),
     eventDate: str(x.event_date),
+    payForm: str(x.pay_form),
     price: num(x.amount),
     dealPaid: num(x.paid),
     method: str(x.method),

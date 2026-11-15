@@ -7,6 +7,7 @@ import { morningDigestDeps, morningDigestTick } from "@/server/morning-digest";
 import { sweepAbandonedUploads } from "@/server/answerFiles";
 import { kickAnswerFiles } from "@/server/answerFilesWorker";
 import { dedupWhatsappMedia } from "@/server/whatsapp-media";
+import { stageOrderDeps, stageOrderPass } from "@/server/stage-order";
 
 const INTERVAL_MS = 15 * 60_000;
 /** Номер advisory-блокировки: при нескольких инстансах проход выполняет только один. */
@@ -92,6 +93,9 @@ export async function crmTick() {
     // Круг: ночные заявки — утром первым на смене, не взятые вовремя — следующему.
     const routed = await step("lead routing", () => container().sales.routing.run(), 0);
     if (routed) console.log(`[scheduler] crm leads routed=${routed}`);
+    // Порядок в воронке: оплата → свой этап, ответили → «в работе», клиент молчит → «не отвечает» → отказ (вывод — модель).
+    const order = await step("stage order", () => stageOrderPass(stageOrderDeps()), null);
+    if (order && order.paid + order.work + order.silent + order.lost) console.log(`[scheduler] stage order paid=${order.paid} work=${order.work} silent=${order.silent} lost=${order.lost} assessed=${order.assessed}`);
     // Бот-квалификатор: ходы, не сделанные таймером (перезапуск процесса), ожидание менеджера, брошенные опросы.
     const botTurns = await step("bot", () => container().messaging.bot.sweep(), 0);
     if (botTurns) console.log(`[scheduler] crm bot turns=${botTurns}`);
