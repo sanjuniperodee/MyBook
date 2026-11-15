@@ -68,6 +68,13 @@ export const permissionGroups = [
     items: [["analytics.view", "Дашборд и отчёты"]],
   },
   {
+    label: "Финансы",
+    items: [
+      ["finance.view", "Видеть расходы и отчёт о прибыли"],
+      ["finance.manage", "Вести расходы: добавлять, менять и удалять"],
+    ],
+  },
+  {
     label: "Администрирование",
     items: [
       ["team.manage", "Сотрудники и роли"],

@@ -117,6 +117,7 @@ describe("нет русских строк вне словарей", () => {
     "shared/domain/templates.ts", // переменные шаблонов CRM: {имя}, {заказ}…
     "shared/domain/staff.ts", // подпись сотрудника в CRM: имя учётки по умолчанию «Администратор»
     "shared/domain/permissions.ts", // названия прав сотрудников для редактора ролей в CRM — на русском
+    "shared/domain/expenses.ts", // категории расходов и правила их распознавания по названию для CRM — на русском
     "shared/domain/segments.ts", // названия сегментов клиентов для CRM — на русском
     "shared/domain/customFields.ts", // переменные своих полей для шаблонов CRM: флажок — «да»/«нет»
     "modules/production/infrastructure/coverPreview.ts", // образец текста для осмотра страниц ИИ-дизайнером: на экран клиенту не попадает

@@ -18,6 +18,8 @@ import { crmCounters } from "./infrastructure/Counters";
 import { getLive } from "./infrastructure/Live";
 import { queryClients, segmentCounts } from "./infrastructure/Clients";
 import { financeIssueData, financeReport } from "./infrastructure/Finance";
+import { expenseRows, profitReport } from "./infrastructure/Profit";
+import { leadStats, salesRegister } from "./infrastructure/LeadStats";
 import { automationStats } from "./infrastructure/Automations";
 import { clientReferrals } from "./infrastructure/Referrals";
 import { designAiStats } from "./infrastructure/DesignAi";
@@ -83,6 +85,14 @@ export class ReportingModule {
   readonly finance = financeReport;
   /** Случаи «Нужно вернуть или зачесть» без денег периода — действиям очереди «Финансов». */
   readonly financeIssues = financeIssueData;
+  /** «Расходы»: записи расходов и реклама по каналам одной ведомостью за дни периода. */
+  readonly expenses = expenseRows;
+  /** «Прибыль»: деньги и расходы периода и прошлого, счётчики заявок, покупателей и заказов. */
+  readonly profit = profitReport;
+  /** «Статистика лидов»: заявки периода, первые оплаты по дате денег, счета и расход на рекламу по дням. */
+  readonly leadStats = leadStats;
+  /** «Реестр продаж»: покупатели с первой оплатой в периоде. */
+  readonly salesRegister = salesRegister;
   /** «Автоматизации»: повторные продажи правила — создано, выиграно, оплачено за 90 дней. */
   readonly automationStats = automationStats;
   /** Статистика ИИ-дизайнера для админки: просьбы, режимы, модели, стоимость, лимиты и покупки пакетов. */

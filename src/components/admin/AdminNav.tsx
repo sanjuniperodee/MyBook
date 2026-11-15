@@ -34,6 +34,10 @@ import {
   Wallet,
   Workflow,
   type LucideIcon,
+  ReceiptText,
+  TrendingUp,
+  ScrollText,
+  Activity,
 } from "lucide-react";
 import { LogoMark } from "@/components/Logo";
 import type { Permission } from "@/shared/domain/permissions";
@@ -107,7 +111,11 @@ export const navDomains: Domain[] = [
     icon: Wallet,
     items: [
       { href: "/admin/finance", label: "Финансы", icon: Wallet, badge: "finance", perm: ["analytics.view"], keywords: "оплаты поступления возвраты касса kaspi" },
+      { href: "/admin/expenses", label: "Расходы", icon: ReceiptText, perm: ["finance.view"], keywords: "затраты траты печать зарплата реклама" },
+      { href: "/admin/profit", label: "Прибыль", icon: TrendingUp, perm: ["finance.view"], keywords: "отчёт прибыль убытки рентабельность юнит экономика cac roas" },
+      { href: "/admin/sales", label: "Реестр продаж", icon: ScrollText, perm: ["analytics.view"], keywords: "продажи покупатели остаток предоплата" },
       { href: "/admin/analytics", label: "Аналитика продаж", icon: BarChart3, perm: ["analytics.view"], keywords: "отчёты воронка выручка" },
+      { href: "/admin/leads", label: "Статистика лидов", icon: Activity, perm: ["analytics.view"], keywords: "лиды заявки конверсия рнп источники менеджеры" },
     ],
   },
   {

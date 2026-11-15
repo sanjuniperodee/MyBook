@@ -142,3 +142,25 @@ export const financeIssueResolutions = pgTable(
     index("finance_issue_resolutions_resolved_idx").on(t.resolvedAt),
   ],
 );
+
+/**
+ * Расходы магазина, кроме рекламы (она — в marketing_spend по каналам): печать, доставка, упаковка, зарплата, сервисы.
+ * По ним «Прибыль» считает себестоимость и прибыль периода. day — день расхода по поясу магазина (ГГГГ-ММ-ДД);
+ * category — ключ из shared/domain/expenses; quantity — сколько штук оплачено (книг в партии печати), если это важно
+ * для цены за штуку. Запись правится и удаляется — кто и что менял, видно в журнале действий.
+ */
+export const financeExpenses = pgTable(
+  "finance_expenses",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    day: text("day").notNull(),
+    category: text("category").notNull(),
+    title: text("title").notNull(),
+    amount: integer("amount").notNull(),
+    quantity: integer("quantity"),
+    note: text("note").notNull().default(""),
+    createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    ...timestamps,
+  },
+  (t) => [index("finance_expenses_day_idx").on(t.day)],
+);
