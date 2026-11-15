@@ -243,6 +243,7 @@ function letterRows(key: string, book: Book): BookLetter[] {
     bookId: book.id,
     ...l,
     status: "approved",
+    position: 0,
     createdAt: new Date(CREATED.getTime() + (i + 1) * 86_400_000),
     updatedAt: UPDATED,
   }));

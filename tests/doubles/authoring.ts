@@ -335,6 +335,8 @@ export class MemLetters implements LetterRepository {
   findInBook = async (_b: string, id: string) => this.rows.find((l) => l.id === id) ?? null;
   count = async () => this.rows.length;
   add = async (l: Letter) => void this.rows.push(l);
+  order: string[] = [];
+  setOrder = async (_b: string, ids: readonly string[]) => void (this.order = [...ids]);
   save = async () => {};
   delete = async () => true;
 }

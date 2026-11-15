@@ -3,7 +3,7 @@
 import { confirmDialog } from "@/components/ui/overlays";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { useState } from "react";
-import { Check, Copy, EyeOff, Link2, Mail, MessageCircle, Pencil, RefreshCw, Trash2, Undo2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, Copy, EyeOff, Link2, Mail, MessageCircle, Pencil, RefreshCw, Trash2, Undo2 } from "lucide-react";
 import { apiFetch } from "@/lib/client-api";
 import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
@@ -112,6 +112,26 @@ export function LettersManager({
     }
   };
 
+  // Порядок в книге: стрелки двигают письмо среди одобренных; на сервер уходит весь список id (одобренные по порядку, остальные следом).
+  const move = async (id: string, dir: -1 | 1) => {
+    const approved = letters.filter((l) => l.status === "approved");
+    const i = approved.findIndex((l) => l.id === id);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= approved.length) return;
+    const swapped = [...approved];
+    [swapped[i], swapped[j]] = [swapped[j], swapped[i]];
+    const prev = letters;
+    const next = [...swapped, ...letters.filter((l) => l.status !== "approved")];
+    setLetters(next);
+    setError(null);
+    try {
+      await apiFetch(`/api/books/${bookId}/letters/order`, { method: "PUT", json: { ids: next.map((l) => l.id) } });
+    } catch (e) {
+      setLetters(prev);
+      setError((e as Error).message);
+    }
+  };
+
   const visible = letters.filter((l) => l.status === tab);
   const tone = { pending: "warning", approved: "success", hidden: "neutral" } as const;
 
@@ -204,6 +224,8 @@ export function LettersManager({
             </EmptyState>
           </div>
         ) : (
+          <>
+          {tab === "approved" && visible.length > 1 ? <p className="mt-4 text-sm text-muted">{t.orderHint}</p> : null}
           <ul className="panel mt-5 divide-y divide-line overflow-hidden">
             {visible.map((l) => {
               const long = l.text.length > 280 || l.text.split("\n").length > 4;
@@ -258,7 +280,17 @@ export function LettersManager({
                               <EyeOff className="size-4" /> {t.hide}
                             </button>
                           ) : null}
-                          <button className="btn btn-ghost btn-icon btn-sm ml-auto text-danger hover:bg-danger-bg hover:text-danger" aria-label={msgs.common.actions.delete} onClick={() => remove(l.id)}>
+                          {l.status === "approved" && visible.length > 1 ? (
+                            <span className="ml-auto flex gap-1">
+                              <button className="btn btn-ghost btn-icon btn-sm" aria-label={t.moveUp} title={t.moveUp} disabled={visible[0].id === l.id} onClick={() => move(l.id, -1)}>
+                                <ArrowUp className="size-4" />
+                              </button>
+                              <button className="btn btn-ghost btn-icon btn-sm" aria-label={t.moveDown} title={t.moveDown} disabled={visible[visible.length - 1].id === l.id} onClick={() => move(l.id, 1)}>
+                                <ArrowDown className="size-4" />
+                              </button>
+                            </span>
+                          ) : null}
+                          <button className={cn("btn btn-ghost btn-icon btn-sm text-danger hover:bg-danger-bg hover:text-danger", !(l.status === "approved" && visible.length > 1) && "ml-auto")} aria-label={msgs.common.actions.delete} onClick={() => remove(l.id)}>
                             <Trash2 className="size-4" />
                           </button>
                         </div>
@@ -269,6 +301,7 @@ export function LettersManager({
               );
             })}
           </ul>
+          </>
         )}
       </section>
       {invite}

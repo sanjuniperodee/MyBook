@@ -334,7 +334,22 @@ export class DrizzleLetterRepository implements LetterRepository {
   }
   async add(letter: Letter) {
     const { id, ...p } = letter.snapshot();
-    await executor().insert(bookLetters).values({ id, ...p });
+    // Новое письмо — в конец порядка, который выбрал автор.
+    const [{ max }] = await executor().select({ max: sql<number>`coalesce(max(${bookLetters.position}), 0)::int` }).from(bookLetters).where(eq(bookLetters.bookId, p.bookId));
+    await executor().insert(bookLetters).values({ id, ...p, position: max + 1 });
+  }
+  /** Порядок писем: переданные id по очереди, не названные (появились позже) — следом в прежнем порядке. */
+  async setOrder(bookId: string, ids: readonly string[]) {
+    const rows = await executor().select({ id: bookLetters.id }).from(bookLetters).where(eq(bookLetters.bookId, bookId)).orderBy(asc(bookLetters.position), asc(bookLetters.createdAt));
+    const known = new Set(rows.map((r) => r.id));
+    const first = [...new Set(ids)].filter((i) => known.has(i));
+    const firstSet = new Set(first);
+    const order = [...first, ...rows.map((r) => r.id).filter((i) => !firstSet.has(i))];
+    if (!order.length) return;
+    await executor().execute(sql`
+      update ${bookLetters} l set position = s.ord::int
+      from unnest(${pgTextArray(order)}::text[]) with ordinality as s(id, ord)
+      where l.book_id = ${bookId} and l.id::text = s.id and l.position <> s.ord::int`);
   }
   async save(letter: Letter) {
     const { id, bookId: _b, ...p } = letter.snapshot();

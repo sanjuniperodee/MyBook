@@ -245,6 +245,8 @@ export const bookLetters = pgTable(
     relation: text("relation").notNull().default(""),
     text: text("text").notNull(),
     status: text("status", { enum: ["pending", "approved", "hidden"] }).notNull().default("pending"),
+    /** Порядок писем в книге, задаёт автор. У старых писем 0 у всех — тогда по дате; новое письмо получает max+1 и встаёт в конец. */
+    position: integer("position").notNull().default(0),
     ...timestamps,
   },
   (t) => [index("book_letters_book_idx").on(t.bookId)],

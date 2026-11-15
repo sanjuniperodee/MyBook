@@ -736,6 +736,13 @@ export class LettersService {
     return letter;
   }
 
+  /** Порядок писем в книге: все письма (любого статуса) в том порядке, как их расставил автор. */
+  async reorder(bookId: string, viewer: BookViewer, ids: string[]) {
+    const book = await loadBook(this.books, bookId, viewer, { editable: true });
+    await this.letters.setOrder(book.id, ids);
+    await this.books.touch(book.id);
+  }
+
   async delete(bookId: string, viewer: BookViewer, letterId: string) {
     const book = await loadBook(this.books, bookId, viewer, { editable: true });
     if (!(await this.letters.delete(book.id, letterId))) throw new AuthoringError("letterNotFound");

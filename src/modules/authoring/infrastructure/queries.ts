@@ -57,11 +57,11 @@ export class DrizzleAuthoringQueries {
   }
 
   letters(bookId: string) {
-    return rootDb.select().from(bookLetters).where(eq(bookLetters.bookId, bookId)).orderBy(asc(bookLetters.createdAt));
+    return rootDb.select().from(bookLetters).where(eq(bookLetters.bookId, bookId)).orderBy(asc(bookLetters.position), asc(bookLetters.createdAt));
   }
 
   approvedLetters(bookId: string) {
-    return rootDb.select().from(bookLetters).where(and(eq(bookLetters.bookId, bookId), eq(bookLetters.status, "approved"))).orderBy(asc(bookLetters.createdAt));
+    return rootDb.select().from(bookLetters).where(and(eq(bookLetters.bookId, bookId), eq(bookLetters.status, "approved"))).orderBy(asc(bookLetters.position), asc(bookLetters.createdAt));
   }
 
   async stats(book: BookRow) {

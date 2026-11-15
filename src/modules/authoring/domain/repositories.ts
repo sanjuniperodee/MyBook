@@ -105,6 +105,7 @@ export interface LetterRepository {
   findInBook(bookId: string, letterId: string): Promise<Letter | null>;
   count(bookId: string): Promise<number>;
   add(letter: Letter): Promise<void>;
+  setOrder(bookId: string, ids: readonly string[]): Promise<void>;
   save(letter: Letter): Promise<void>;
   delete(bookId: string, letterId: string): Promise<boolean>;
 }

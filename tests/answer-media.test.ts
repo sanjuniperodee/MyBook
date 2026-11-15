@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import QRCode from "qrcode";
 import { layoutMedia, MAX_MEDIA, mediaCardBox, mediaSource, normalizeMedia, parseMediaUrl, qrDrawing, qrInk, youtubeId } from "@/lib/book/answer-media";
-import { assembleBookContent, type BookLike, type BookTexts } from "@/lib/book/layout";
+import { assembleBookContent, LETTERS_CHAPTER, type BookLike, type BookTexts } from "@/lib/book/layout";
 import { estimatePages } from "@/lib/book/estimate";
 
 describe("ссылки на видео и музыку", () => {
@@ -84,6 +84,16 @@ describe("QR-код в книге", () => {
     const box = mediaCardBox(300, 1);
     expect(box.textWidth).toBeGreaterThan(150);
     expect(box.height).toBeCloseTo(box.qr + box.pad * 2 + box.border * 2);
+  });
+
+  it("письма близких печатаются в том порядке, в каком переданы", () => {
+    const book = { theme: "love", language: "ru", title: "", subtitle: "", authorName: "", authorGender: "f", recordedBy: "", recipientName: "", recipientGender: "m", dedication: "", interior: "classic", format: "a5", photoPlacement: "chapters", showToc: false, coverPhotoId: null } as unknown as BookLike;
+    const texts: BookTexts = { chapter: () => ({ title: "Глава" }), misc: "", untitledChapter: "", letters: { title: "Письма" }, defaultTitle: "", galleryTitle: "" };
+    const l = (id: string, name: string) => ({ id, authorName: name, relation: "", text: `Текст ${name}` });
+    const names = (letters: ReturnType<typeof l>[]) =>
+      assembleBookContent(book, [], [], texts, 2026, letters).chapters.find((c) => c.key === LETTERS_CHAPTER)!.items.map((i) => i.heading);
+    expect(names([l("1", "Мама"), l("2", "Папа"), l("3", "Брат")])).toEqual(["Мама", "Папа", "Брат"]);
+    expect(names([l("3", "Брат"), l("1", "Мама"), l("2", "Папа")])).toEqual(["Брат", "Мама", "Папа"]);
   });
 
   it("ответ только с QR-кодом попадает в книгу и в оценку объёма", () => {

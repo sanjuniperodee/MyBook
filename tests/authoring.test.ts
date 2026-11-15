@@ -226,6 +226,14 @@ describe("LettersService", () => {
     expect(uow.published.map((e) => e.type)).toEqual(["authoring.letter_submitted"]);
   });
 
+  it("порядок писем сохраняет автор; чужой и заказанная книга — отказ", async () => {
+    const { service, letters } = await setup();
+    await service.reorder("b1", owner, ["a", "b"]);
+    expect(letters.order).toEqual(["a", "b"]);
+    await rejectsWith(service.reorder("b1", stranger, ["a"]), "bookNotFound");
+    await rejectsWith((await setup({ ordered: true })).service.reorder("b1", owner, ["a"]), "bookLocked");
+  });
+
   it("неверная, закрытая ссылка и заказанная книга — отказ", async () => {
     await rejectsWith((await setup()).service.submit("bad token!", input), "letterInvalid");
     await rejectsWith((await setup()).service.submit("unknown-token-1", input), "letterClosed");

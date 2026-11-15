@@ -50,7 +50,7 @@ export class DrizzleLayoutRevStore implements LayoutRevStore {
       .select()
       .from(bookLetters)
       .where(and(eq(bookLetters.bookId, bookId), eq(bookLetters.status, "approved")))
-      .orderBy(asc(bookLetters.createdAt));
+      .orderBy(asc(bookLetters.position), asc(bookLetters.createdAt));
     return { book, questions, chapters, photos: rows, letters };
   }
 

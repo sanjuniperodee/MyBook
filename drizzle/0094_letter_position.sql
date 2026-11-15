@@ -1,0 +1,1 @@
+ALTER TABLE "book_letters" ADD COLUMN "position" integer DEFAULT 0 NOT NULL;
