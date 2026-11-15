@@ -4,14 +4,14 @@ import { api, apiBook, HttpError } from "@/server/api";
 import { rateLimit } from "@/server/rateLimit";
 import { clientAiLimits } from "@/server/clientAiLimits";
 import { container } from "@/server/container";
-import { AssistantError, rewriteModes } from "@/modules/assistant";
+import { AssistantError, REWRITE_MAX, rewriteModes } from "@/modules/assistant";
 import { bookKind } from "@/lib/content/kinds";
 import { idParams } from "@/server/input";
 
 export const maxDuration = 120;
 
 const schema = z
-  .object({ text: z.string().trim().min(1).max(12_000), mode: z.enum(rewriteModes), prompt: z.string().trim().max(500).optional() })
+  .object({ text: z.string().trim().min(1).max(REWRITE_MAX, "writeAiTooLong"), mode: z.enum(rewriteModes), prompt: z.string().trim().max(500).optional() })
   .refine((v) => v.mode !== "custom" || !!v.prompt, { path: ["prompt"] });
 
 /**

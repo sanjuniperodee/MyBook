@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import type { Locale } from "@/i18n/config";
 import type { BookKind } from "@/lib/content/kinds";
 import type { Issue } from "@/lib/proofread/types";
-import { AssistantError, cleanRewrite, isMetaReply, locateEdits, parseProofread, proofreadChunks, proofreadSchema, proofreadSystemPrompt, rewriteSystemPrompt, type RewriteMode } from "../domain";
+import { AssistantError, REWRITE_CHUNK, REWRITE_MAX, cleanRewrite, isMetaReply, locateEdits, parseProofread, proofreadChunks, proofreadSchema, proofreadSystemPrompt, rewriteSystemPrompt, type RewriteMode } from "../domain";
 import type { LanguageModel } from "./ports";
 
 function parseJson(text: string): unknown {
@@ -67,6 +67,23 @@ export class ProofreadService {
    */
   async rewrite(text: string, mode: RewriteMode, language: Locale, opts: { kind?: BookKind; instruction?: string } = {}): Promise<string> {
     const system = rewriteSystemPrompt(mode, language, opts.kind ?? "gift", opts.instruction);
+    // Длинный ответ (у авторов бывает 15–20 тысяч знаков) — частями по абзацам параллельно: один запрос на весь текст
+    // идёт минуту и упирается в предел ответа модели. Пробелы и пустые строки на стыках частей остаются как у автора.
+    const chunks = proofreadChunks(text, REWRITE_CHUNK, Math.ceil(REWRITE_MAX / (REWRITE_CHUNK / 3)));
+    if (chunks.length < 2) return this.rewritePart(system, text);
+    const last = chunks.at(-1)!;
+    if (last.offset + last.text.length < text.length) throw new AssistantError("badResponse", "Текст слишком длинный для помощника — выделите часть и попробуйте ещё раз.");
+    const parts = await Promise.all(
+      chunks.map(async ({ text: part }) => {
+        const body = part.trim();
+        if (!body) return part;
+        return part.match(/^\s*/)![0] + (await this.rewritePart(system, body)) + part.match(/\s*$/)![0];
+      }),
+    );
+    return parts.join("");
+  }
+
+  private async rewritePart(system: string, text: string): Promise<string> {
     const { text: reply } = await this.model.ask({ system, user: text, effort: "low" });
     const out = cleanRewrite(reply);
     if (!out) throw new AssistantError("badResponse", "Помощник вернул пустой ответ — попробуйте ещё раз.");

@@ -30,3 +30,33 @@ describe("isMetaReply: реплика модели вместо текста н�
     expect(rewriteSystemPrompt("expand", "ru", "gift")).toContain("Никогда не задавай вопросов");
   });
 });
+
+describe("AI-помощник: длинный ответ — частями", () => {
+  it("20 тысяч знаков уходят частями по абзацам и собираются без потерь, с пустыми строками автора", async () => {
+    const { ProofreadService } = await import("@/modules/assistant/application/ProofreadService");
+    const sizes: number[] = [];
+    const model = {
+      describe: async () => ({ provider: "anthropic" as const, label: "", model: "" }),
+      configured: async () => true,
+      ask: async ({ user }: { user: string }) => {
+        sizes.push(user.length);
+        return { text: user.toUpperCase(), usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } };
+      },
+    };
+    const paragraphs = Array.from({ length: 50 }, (_, i) => `абзац ${i} `.repeat(50).trim());
+    const text = paragraphs.join("\n\n");
+    expect(text.length).toBeGreaterThan(20_000);
+    const out = await new ProofreadService(model as never).rewrite(text, "improve", "kk");
+    expect(sizes.length).toBeGreaterThan(2);
+    expect(Math.max(...sizes)).toBeLessThanOrEqual(6_000);
+    expect(out).toBe(text.toUpperCase());
+  });
+
+  it("короткий текст — одним запросом", async () => {
+    const { ProofreadService } = await import("@/modules/assistant/application/ProofreadService");
+    let calls = 0;
+    const model = { describe: async () => ({}), configured: async () => true, ask: async ({ user }: { user: string }) => (calls++, { text: `${user}!`, usage: {} }) };
+    expect(await new ProofreadService(model as never).rewrite("Мама пекла пироги.", "improve", "ru")).toBe("Мама пекла пироги.!");
+    expect(calls).toBe(1);
+  });
+});

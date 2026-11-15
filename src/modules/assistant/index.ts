@@ -7,7 +7,7 @@ import { crmAssistantData } from "./infrastructure/data";
 import { askMedia } from "./infrastructure/media";
 import { sellerModel } from "./application/SellerModel";
 
-export { AssistantError, SELLER_TIERS, DEFAULT_TIER_MODELS, DEFAULT_PRICES, type SellerTier, type RoutePolicy, rewriteModes, type RewriteMode, normalizeExtracted, aiProviders, aiProviderIds, isAiProvider, type AiProvider, type AiSummary, type BotUnderstanding } from "./domain";
+export { AssistantError, SELLER_TIERS, DEFAULT_TIER_MODELS, DEFAULT_PRICES, type SellerTier, type RoutePolicy, rewriteModes, REWRITE_MAX, type RewriteMode, normalizeExtracted, aiProviders, aiProviderIds, isAiProvider, type AiProvider, type AiSummary, type BotUnderstanding } from "./domain";
 export { MEDIA_OPENROUTER_MODEL, providerSettingKeys } from "./infrastructure/connection";
 
 /** Публичный фасад контекста «AI-помощник» (Claude, ChatGPT, DeepSeek или свой OpenAI-совместимый сервер). */

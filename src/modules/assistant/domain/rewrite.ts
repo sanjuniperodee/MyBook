@@ -8,6 +8,11 @@ import type { BookKind } from "@/lib/content/kinds";
 export const rewriteModes = ["format", "improve", "expand", "shorten", "custom"] as const;
 export type RewriteMode = (typeof rewriteModes)[number];
 
+/** Самый длинный текст, который помощник берёт за раз (весь ответ автора). */
+export const REWRITE_MAX = 30_000;
+/** Длинный текст уходит модели частями примерно такого размера (по абзацам). */
+export const REWRITE_CHUNK = 6_000;
+
 const bookLanguage: Record<Locale, string> = { ru: "русском", kk: "казахском" };
 
 const textAbout: Record<BookKind, string> = {
