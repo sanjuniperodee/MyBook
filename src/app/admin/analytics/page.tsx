@@ -1,7 +1,13 @@
 import { container } from "@/server/container";
+import { z } from "zod";
+import { MoneyFlow } from "@/components/admin/MoneyFlow";
+import { PeriodBar, periodQuery } from "@/components/admin/PeriodBar";
+import { loadProfit } from "@/server/money-flow";
+import { financePeriod } from "@/modules/reporting/ui/finance-screen";
+import { storeTimeZone } from "@/shared/domain/time";
 import Link from "next/link";
 import { currentMonth } from "@/modules/sales";
-import { requireStaff } from "@/server/access";
+import { can, requireStaff } from "@/server/access";
 import { staffLabel } from "@/shared/domain/staff";
 import { channelOf, channels, toAttribution } from "@/shared/domain/channels";
 import { formatPrice } from "@/config/site";
@@ -25,25 +31,38 @@ export const metadata = { title: "Аналитика продаж" };
 
 type Row = Record<string, unknown>;
 
-const periods = [7, 30, 90] as const;
+/** Параметры адреса: период (как в «Финансах») и воронка (pl); мусор — по умолчанию. */
+const query = z.object({ p: z.string().max(10).optional(), from: z.string().max(10).optional(), to: z.string().max(10).optional(), pl: z.string().max(40).optional() }).catch({});
 const pct = (a: number, b: number) => (b ? `${Math.round((a / b) * 100)}%` : "—");
 const mins = (sec: number | null) => (sec === null || Number.isNaN(sec) ? "—" : sec < 60 ? `${Math.round(sec)} сек` : sec < 3600 ? `${Math.round(sec / 60)} мин` : `${(sec / 3600).toFixed(1).replace(".", ",")} ч`);
 
 const num = (v: unknown) => Number(v ?? 0);
 
-export default async function AnalyticsPage({ searchParams }: { searchParams: Promise<{ period?: string; p?: string }> }) {
-  await requireStaff("analytics.view");
-  const { period: raw, p: pipelineParam } = await searchParams;
+export default async function AnalyticsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const staff = await requireStaff("analytics.view");
+  const q = query.parse(await searchParams);
   const pipelines = await container().sales.queries.listPipelines();
-  const pipeline = pipelines.find((x) => x.id === pipelineParam) ?? pipelines[0];
-  const period = periods.find((p) => String(p) === raw) ?? 30;
-  const [stages, admins, { totals, prevTotals, received, bySource, byStage, lost, managers, responses, calls, awaiting, reached, stageTime }, hoursRaw, slaRaw] = await Promise.all([
+  const pipeline = pipelines.find((x) => x.id === q.pl) ?? pipelines[0];
+  // Период — как в «Финансах» и «Прибыли»: те же пресеты и свои даты, деньги — из того же расчёта.
+  const tz = storeTimeZone();
+  const period = financePeriod({ preset: q.p, from: q.from, to: q.to, now: new Date(), tz });
+  const showProfit = staff.scope === "all" && can(staff, "finance.view");
+  const [stages, admins, { totals, prevTotals, bySource, byStage, lost, managers, responses, calls, awaiting, reached, stageTime }, hoursRaw, slaRaw, profit] = await Promise.all([
     container().sales.queries.listStages(pipeline.id),
     container().access.queries.allStaff(),
-    container().reporting.salesAnalytics(pipeline.id, period),
+    container().reporting.salesAnalytics(pipeline.id, { from: period.from, to: period.to, prev: period.prev }),
     getSetting("crm.workHours"),
     getSetting("crm.slaMinutes"),
+    loadProfit(period, tz),
   ]);
+  const flow = profit.screen.flow;
+  // Деньги по менеджерам — те же строки, что в «Финансах» («По менеджерам»): поступления минус возвраты за период.
+  const moneyByManager = new Map<string, number>();
+  for (const m of profit.data.money) {
+    if (m.at < period.from || m.at >= period.to || !m.managerId) continue;
+    moneyByManager.set(m.managerId, (moneyByManager.get(m.managerId) ?? 0) + (m.kind === "refund" ? -m.amount : m.amount));
+  }
+  const pq = periodQuery(period);
   // Скорость ответа людей в рабочих минутах (analytics-2): бот и правила — отдельно, заметки — не ответ, итог — по всем.
   const hours = parseWorkHours(hoursRaw);
   const sla = slaMinutes(slaRaw);
@@ -87,11 +106,11 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
   const stageRows = new Map(byStage.rows.map((r) => [String(r.stage_id), r]));
   const c = calls.rows[0] ?? {};
   const team = managers.rows
-    .map((r: Row): Row & { name: string; resp: ResponseGroup | undefined } => ({ ...r, name: names.get(String(r.id)) ?? "—", resp: resp.byAuthor.get(String(r.id)) }))
+    .map((r: Row): Row & { name: string; resp: ResponseGroup | undefined } => ({ ...r, received: moneyByManager.get(String(r.id)) ?? 0, name: names.get(String(r.id)) ?? "—", resp: resp.byAuthor.get(String(r.id)) }))
     .filter((r) => num(r.deals) || num(r.won) || num(r.messages) || num(r.phone_messages) || num(r.calls) || num(r.open) || num(r.received))
     .sort((a, b) => num(b.revenue) - num(a.revenue) || num(b.won) - num(a.won));
 
-  const pipeLink = (x: { id: string }) => `/admin/analytics?period=${period}&p=${x.id}`;
+  const pipeLink = (x: { id: string }) => `/admin/analytics?${periodQuery(period, { pl: x.id })}`;
   const inWork = stages.filter((st) => st.kind === "open").reduce((sum, st) => sum + num(stageRows.get(st.id)?.n), 0);
   const planPct = (id: string) => {
     const pl = plans.get(id);
@@ -115,30 +134,25 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
       <PageHeader
         title="Аналитика продаж"
         actions={
-          <a href={`/api/admin/export/payments?days=${period}`} className="btn btn-outline btn-sm">
+          <a href={`/api/admin/export/finance?${pq}`} className="btn btn-outline btn-sm">
             <Download className="size-4" strokeWidth={1.8} aria-hidden /> Поступления, CSV
           </a>
         }
       >
-        Сделки, созданные за период: сколько дошли до продажи, откуда пришли и как работают менеджеры.
+        {period.label}. Деньги — как в «Финансах» и «Прибыли» за тот же период; воронка и каналы — по сделкам, созданным за период.
       </PageHeader>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <Segmented label="Период" items={periods.map((x) => ({ key: String(x), label: `${x} дней`, href: `/admin/analytics?period=${x}${pipelineParam ? `&p=${pipelineParam}` : ""}`, active: x === period }))} />
+      <div className="flex flex-wrap items-start gap-2">
+        <PeriodBar path="/admin/analytics" period={period} extra={{ pl: q.pl }} bad={q.p === "custom" && period.preset !== "custom"} />
         {pipelines.length > 1 ? <Segmented label="Воронка" items={pipelines.map((x) => ({ key: x.id, label: x.name, href: pipeLink(x), active: x.id === pipeline.id }))} /> : null}
-        <span className="text-xs text-muted sm:ml-auto">Изменение — к прошлым {period} дням</span>
       </div>
 
-      <section aria-label={`Итоги за ${period} дней`} className="space-y-2">
+      {showProfit ? <MoneyFlow flow={flow} taxRate={profit.taxRate} query={pq} /> : null}
+
+      <section aria-label={`Итоги: ${period.label}`} className="space-y-2">
         <StatRow cols={3} className="xl:grid-cols-6">
-          <StatTile bare label="Выручка по сделкам" value={formatPrice(num(t.revenue))} delta={change(num(t.revenue), num(p.revenue))} hint={`по договорённостям; от повторных ${formatPrice(num(t.repeat_revenue))}`} />
-          <StatTile
-            bare
-            label="Получено деньгами"
-            value={formatPrice(num(received.rows[0]?.cur))}
-            delta={change(num(received.rows[0]?.cur), num(received.rows[0]?.prev))}
-            hint={num(received.rows[0]?.agreed) ? `в т.ч. ${formatPrice(num(received.rows[0]?.agreed))} — успешные сделки без платежа` : "оплаченные заказы и платежи менеджеров"}
-          />
+          <StatTile bare label="Пришло денег" value={formatPrice(flow.revenue)} delta={change(flow.revenue, flow.prevRevenue)} hint="за вычетом возвратов, как в «Финансах»" href={`/admin/finance?${pq}`} />
+          <StatTile bare label="Сумма выигранных сделок" value={formatPrice(num(t.revenue))} delta={change(num(t.revenue), num(p.revenue))} hint={`договорённости, не деньги; от повторных ${formatPrice(num(t.repeat_revenue))}`} />
           <StatTile bare label="Новых сделок" value={String(num(t.created))} delta={change(num(t.created), num(p.created))} hint={`от повторных клиентов: ${num(t.repeat_created)}`} />
           <StatTile bare label="Успешных" value={String(num(t.won))} delta={change(num(t.won), num(p.won))} hint={`новые клиенты ${num(t.won) - num(t.repeat_won)}, повторные ${num(t.repeat_won)}`} />
           <StatTile bare label="Конверсия в продажу" value={pct(num(t.won), num(t.created))} hint={`средний цикл ${mins(t.cycle === null || t.cycle === undefined ? null : num(t.cycle))}`} />
@@ -211,7 +225,9 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
                     <th>Канал</th>
                     <th className="num max-sm:hidden">Сделок</th>
                     <th className="num max-sm:hidden">Продаж</th>
-                    <th className="num">Выручка</th>
+                    <th className="num" title="Оплаченные сделки — по принятым деньгам, выигранные без оплаты — по договорённости">
+                      Продано на
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -258,8 +274,12 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
                       <th>Сотрудник</th>
                       <th className="num">Новых сделок</th>
                       <th className="num">Продаж</th>
-                      <th className="num">Выручка</th>
-                      <th className="num">Получено</th>
+                      <th className="num" title="Суммы договорённостей выигранных сделок, закрытых за период">
+                        Выиграно на
+                      </th>
+                      <th className="num" title="Поступления минус возвраты по сделкам и заказам сотрудника — как в «Финансах»">
+                        Пришло денег
+                      </th>
                       <th className="num">В работе</th>
                       <th className="num" title="Из CRM / с телефона магазина">
                         Сообщений CRM / тел.
@@ -284,10 +304,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
                             {formatPrice(num(r.revenue))}
                           </BarCell>
                         </td>
-                        <td className="num" title={num(r.received_agreed) ? `в т.ч. ${formatPrice(num(r.received_agreed))} — успешные сделки без платежа в журнале` : undefined}>
-                          {formatPrice(num(r.received))}
-                          {num(r.received_agreed) ? <div className="text-[11px] text-warning">без платежа {formatPrice(num(r.received_agreed))}</div> : null}
-                        </td>
+                        <td className="num">{formatPrice(num(r.received))}</td>
                         <td className="num">{num(r.open)}</td>
                         <td className="num">
                           {num(r.messages)} / {num(r.phone_messages)}
@@ -324,7 +341,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
                       <Cell label="Сделок" value={num(r.deals)} />
                       <Cell label="Продаж" value={num(r.won)} />
                       <Cell label="План" value={planPct(String(r.id))} />
-                      <Cell label="Получено" value={formatPrice(num(r.received))} />
+                      <Cell label="Пришло" value={formatPrice(num(r.received))} />
                       <Cell label="Ответ" value={r.resp ? workMins(r.resp.median) : "—"} />
                       <Cell label="Просрочено" value={num(r.tasks_overdue)} warn={num(r.tasks_overdue) > 0} />
                     </dl>

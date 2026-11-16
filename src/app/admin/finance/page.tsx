@@ -1,4 +1,7 @@
 import { AutoApply } from "@/components/admin/AutoApply";
+import { MoneyFlow } from "@/components/admin/MoneyFlow";
+import { periodQuery } from "@/components/admin/PeriodBar";
+import { loadProfit } from "@/server/money-flow";
 import Link from "next/link";
 import { z } from "zod";
 import { CircleCheck, Download, FileText, HandCoins, ShieldCheck, Wallet } from "lucide-react";
@@ -55,7 +58,9 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
   const tz = storeTimeZone();
   const now = new Date();
   const period = financePeriod({ preset: q.p, from: q.from, to: q.to, now, tz });
-  const [data, admins] = await Promise.all([container().reporting.finance({ from: period.prev.from, to: period.to }), container().access.queries.allStaff()]);
+  // Строка «Деньги за период» (как в «Прибыли»): руководству с правом финансов; «только свои» видят свои поступления.
+  const showFlow = staff.scope === "all" && can(staff, "finance.view");
+  const [data, admins, profit] = await Promise.all([container().reporting.finance({ from: period.prev.from, to: period.to }), container().access.queries.allStaff(), showFlow ? loadProfit(period, tz) : null]);
   // Роль «только свои» — строго свои деньги: ничьи заказы, сертификаты и пакеты с сайта — деньги магазина, их видит руководство.
   const s = financeScreen({ period, ...data, staff: admins, visible: (id) => canWork(staff, id), viewerId: staff.context.isOwner ? null : staff.user.id, tz, now });
   const badPeriod = q.p === "custom" && period.preset !== "custom";
@@ -102,17 +107,24 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
 
         {badPeriod ? <Alert kind="warning">Даты не подошли (начало позже конца, будущее или период длиннее года) — показан текущий месяц.</Alert> : null}
 
-        <StatRow cols={5} className="max-sm:[&>*:last-child:nth-child(odd)]:col-span-2 sm:max-xl:[&>*:last-child]:col-span-2">
-          <StatTile bare label="Пришло денег" value={signed(t.net)} delta={t.delta} hint={`онлайн ${formatPrice(t.online)}, вручную ${formatPrice(t.manual)}`} />
-          <StatTile bare label="Возвраты клиентам" value={formatPrice(t.refunds)} hint={t.refundCount ? `${plural(t.refundCount, ["возврат", "возврата", "возвратов"])} за период` : "за период — нет"} />
+        {profit ? <MoneyFlow flow={profit.screen.flow} taxRate={profit.taxRate} query={periodQuery(period)} /> : null}
+        <StatRow cols={profit ? 4 : 5} className={profit ? undefined : "max-sm:[&>*:last-child:nth-child(odd)]:col-span-2 sm:max-xl:[&>*:last-child]:col-span-2"}>
+          {/* Со строкой «Деньги за период» пришло и возвраты — в ней; здесь — что ещё должно прийти или уйти. */}
+          {profit ? (
+            <StatTile bare label="Пришло за вычетом возвратов" value={signed(t.net)} delta={t.delta} hint={`онлайн ${formatPrice(t.online)}, вручную ${formatPrice(t.manual)}`} />
+          ) : (
+            <>
+              <StatTile bare label="Пришло денег" value={signed(t.net)} delta={t.delta} hint={`за вычетом возвратов; онлайн ${formatPrice(t.online)}, вручную ${formatPrice(t.manual)}`} />
+              <StatTile bare label="Возвраты клиентам" value={formatPrice(t.refunds)} hint={t.refundCount ? `${plural(t.refundCount, ["возврат", "возврата", "возвратов"])} за период` : "за период — нет"} />
+            </>
+          )}
           <StatTile bare label="Ожидается доплат" value={formatPrice(t.expected)} hint={`книга готова: ${formatPrice(t.expectedReady)}`} href="#expected" />
           <StatTile bare label="Постоплаты к получению" value={formatPrice(t.postpay)} hint={t.postpayCount ? `${plural(t.postpayCount, ["заказ", "заказа", "заказов"])} в печати и доставке` : "нет"} />
           <StatTile bare label="Нужно вернуть" value={formatPrice(t.overpaid)} hint={t.overpaidCount ? `переплаты: ${plural(t.overpaidCount, ["случай", "случая", "случаев"])}` : "переплат нет"} href={t.overpaidCount ? "#refunds" : undefined} />
         </StatRow>
         <Intro small>
           Пришло — поступления минус возвраты: платежи по сделкам, оплаты заказов, сертификаты, пакеты ИИ-дизайнера и минут видео; заказ, оплаченный без записи оплаты, — суммой к оплате на дату оплаты. Каждая сумма — один раз:
-          предоплата по договорённости уже вычтена из «к оплате» заказа. Изменение — к прошлому периоду (для месяца — те же числа прошлого месяца). «Выручка» на обзоре считается иначе — по продажам: успешная сделка без денег
-          входит суммой договорённости, сертификаты и пакеты — нет; поэтому цифры могут не совпадать.
+          предоплата по договорённости уже вычтена из «к оплате» заказа. Изменение — к прошлому периоду (для месяца — те же числа прошлого месяца). Те же деньги — в «Прибыли» и «Аналитике продаж» за тот же период.
         </Intro>
       </section>
 

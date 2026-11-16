@@ -233,6 +233,17 @@ export function profitScreen(input: {
     tax: { rate: taxRate, auto: taxAuto },
     unit,
     prevUnit: { leads: input.prevCounts.leads, buyers: input.prevCounts.buyers },
+    /**
+     * Деньги периода одной строкой — общая для «Финансов», «Прибыли» и «Аналитики продаж»: пришло от клиентов, возвраты,
+     * комиссии банка (расчётные и внесённые), налог, на счёт после них, остальные расходы и прибыль. Сходится:
+     * пришло − возвраты − комиссии − налог = на счёт; на счёт − остальные расходы = прибыль.
+     */
+    flow: (() => {
+      const fees = byCategory.find((c) => c.key === "fees")?.value ?? 0;
+      const tax = byCategory.find((c) => c.key === "tax")?.value ?? 0;
+      const net = cur.revenue - fees - tax;
+      return { incoming, refunds, revenue: cur.revenue, fees, tax, net, other: cur.expenses - fees - tax, profit: cur.profit, prevRevenue: prev.revenue };
+    })(),
     /** Расходов за период нет вовсе — отчёт показывает только деньги; страница просит внести расходы. */
     noExpenses: curExp.length === 0 && feesAuto === 0 && taxAuto === 0,
   };

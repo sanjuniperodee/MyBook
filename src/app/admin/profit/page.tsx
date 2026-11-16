@@ -1,10 +1,11 @@
 import Link from "next/link";
+import { MoneyFlow } from "@/components/admin/MoneyFlow";
+import { loadProfit } from "@/server/money-flow";
 import { z } from "zod";
 import { Download } from "lucide-react";
-import { container } from "@/server/container";
 import { can, requireStaff } from "@/server/access";
-import { getSetting, listFields } from "@/modules/workspace";
-import { storeTimeZone, zonedDay } from "@/shared/domain/time";
+import { listFields } from "@/modules/workspace";
+import { storeTimeZone } from "@/shared/domain/time";
 import { formatPrice } from "@/config/site";
 import { StatRow, StatTile } from "@/components/admin/charts";
 import { cn } from "@/lib/class-names";
@@ -14,8 +15,7 @@ import { PeriodBar, periodQuery } from "@/components/admin/PeriodBar";
 import { Panel } from "@/components/ui/Panel";
 import { Alert } from "@/components/ui/Alert";
 import { financePeriod } from "@/modules/reporting/ui/finance-screen";
-import { profitScreen } from "@/modules/reporting/ui/profit-screen";
-import { expenseGroupKeys, expenseGroups, PAY_FORM_KEY, PAY_FORM_OPTIONS, parseFeeRates, parseTaxRate } from "@/shared/domain/expenses";
+import { expenseGroupKeys, expenseGroups, PAY_FORM_KEY, PAY_FORM_OPTIONS } from "@/shared/domain/expenses";
 import { FeeSettingsButton } from "./FeeSettings";
 
 export const metadata = { title: "Прибыль" };
@@ -39,11 +39,7 @@ export default async function ProfitPage({ searchParams }: { searchParams: Promi
   const q = query.parse(await searchParams);
   const tz = storeTimeZone();
   const period = financePeriod({ preset: q.p, from: q.from, to: q.to, now: new Date(), tz });
-  const prev = { ...period.prev, first: zonedDay(period.prev.from, tz), last: zonedDay(new Date(period.prev.to.getTime() - 1), tz) };
-  const [data, feeSetting, taxSetting, dealFields] = await Promise.all([container().reporting.profit({ from: period.from, to: period.to, first: period.first, last: period.last, prev }), getSetting("finance.fees"), getSetting("finance.taxRate"), listFields("deal")]);
-  const feeRates = parseFeeRates(feeSetting);
-  const taxRate = parseTaxRate(taxSetting);
-  const s = profitScreen({ period, ...data, feeRates, taxRate, tz });
+  const [{ screen: s, feeRates, taxRate }, dealFields] = await Promise.all([loadProfit(period, tz), listFields("deal")]);
   const feeMoney = s.fees.byForm.reduce((n, f) => n + f.money, 0);
   // Формы оплаты — варианты поля сделки; до миграции поля — стандартный набор.
   const payForms = dealFields.find((f) => f.key === PAY_FORM_KEY)?.options ?? [...PAY_FORM_OPTIONS];
@@ -90,6 +86,8 @@ export default async function ProfitPage({ searchParams }: { searchParams: Promi
       </PageHeader>
 
       <PeriodBar path="/admin/profit" period={period} bad={q.p === "custom" && period.preset !== "custom"} />
+
+      <MoneyFlow flow={s.flow} taxRate={taxRate} query={href} />
 
       {s.noExpenses ? (
         <Alert kind="warning">
