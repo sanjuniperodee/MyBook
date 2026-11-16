@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { expenseGroupOf, feeOf, guessAdChannel, kaspiPayForm, guessExpenseCategory, parseExpenseLines, parseFeeRates, parseTaxRate } from "@/shared/domain/expenses";
+import { BASE_FEE_KEY, expenseGroupOf, feeOf, feeRateOf, guessAdChannel, kaspiPayForm, guessExpenseCategory, parseExpenseLines, parseFeeRates, parseTaxRate } from "@/shared/domain/expenses";
 import { financePeriod, type MoneyRow } from "@/modules/reporting/ui/finance-screen";
 import { expensesScreen, profitScreen, profitStep, type ExpenseRow, type ProfitCounts } from "@/modules/reporting/ui/profit-screen";
 import { leadStatsScreen, recipientGroup, registerFee, salesRegisterScreen, type LeadDealRow, type RegisterRow } from "@/modules/reporting/ui/lead-stats";
@@ -424,5 +424,36 @@ describe("Комиссия по форме каждого платежа", () =>
 
   it("вид операции кассы Kaspi → форма оплаты", () => {
     expect([kaspiPayForm("GOLD"), kaspiPayForm("LOAN"), kaspiPayForm("red"), kaspiPayForm("BONUS"), kaspiPayForm(null)]).toEqual(["Kaspi Gold", "Kaspi Рассрочка", "Kaspi Red", null, null]);
+  });
+});
+
+describe("Kaspi с каждой продажи", () => {
+  const period = financePeriod({ preset: "custom", from: "2026-11-01", to: "2026-11-14", now, tz });
+  const rates = { "Kaspi Рассрочка": 15, "Kaspi Red": 12, [BASE_FEE_KEY]: 1 };
+
+  it("общий процент — сверх процента формы и с оплат без формы; наличные — без него", () => {
+    expect(feeRateOf("Kaspi Рассрочка", rates)).toBe(16);
+    expect(feeRateOf("Kaspi Gold", rates)).toBe(1);
+    expect(feeRateOf(null, rates)).toBe(1);
+    expect(feeRateOf("Наличные", rates)).toBe(0);
+    expect(feeOf(29_000, "Kaspi Рассрочка", rates)).toBe(4640);
+    expect(registerFee(29_000, null, { "Kaspi Рассрочка": 19_000 }, rates)).toBe(3040 + 100);
+  });
+
+  it("в прибыли оплаты без формы идут строкой «Без формы» с общим процентом", () => {
+    const s = profitScreen({
+      period,
+      tz,
+      money: [money({ amount: 20_000, at: at("2026-11-02"), dealId: "d1", payForm: "Kaspi Gold" }), money({ amount: 10_000, at: at("2026-11-03") })],
+      expenses: [],
+      counts: counts(),
+      prevCounts: counts(),
+      feeRates: rates,
+    });
+    expect(s.fees.byForm.map((f) => [f.form, f.rate, f.money, f.fee])).toEqual([
+      ["Kaspi Gold", 1, 20_000, 200],
+      ["Без формы", 1, 10_000, 100],
+    ]);
+    expect(s.fees).toMatchObject({ auto: 300, tagged: 20_000, untagged: 10_000, base: 1 });
   });
 });

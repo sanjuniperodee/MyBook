@@ -44,6 +44,7 @@ export default async function ProfitPage({ searchParams }: { searchParams: Promi
   const feeRates = parseFeeRates(feeSetting);
   const taxRate = parseTaxRate(taxSetting);
   const s = profitScreen({ period, ...data, feeRates, taxRate, tz });
+  const feeMoney = s.fees.byForm.reduce((n, f) => n + f.money, 0);
   // Формы оплаты — варианты поля сделки; до миграции поля — стандартный набор.
   const payForms = dealFields.find((f) => f.key === PAY_FORM_KEY)?.options ?? [...PAY_FORM_OPTIONS];
   const { totals: t, unit: u } = s;
@@ -191,11 +192,11 @@ export default async function ProfitPage({ searchParams }: { searchParams: Promi
               </tbody>
               <tfoot>
                 <tr className="font-semibold">
-                  <td colSpan={2}>Итого с формой оплаты</td>
-                  <td className="num whitespace-nowrap">{signed(s.fees.tagged)}</td>
+                  <td colSpan={2}>Итого</td>
+                  <td className="num whitespace-nowrap">{signed(feeMoney)}</td>
                   <td />
                   <td className="num whitespace-nowrap">{s.fees.auto ? `−${formatPrice(s.fees.auto)}` : "—"}</td>
-                  <td className="num whitespace-nowrap">{signed(s.fees.tagged - s.fees.auto)}</td>
+                  <td className="num whitespace-nowrap">{signed(feeMoney - s.fees.auto)}</td>
                 </tr>
               </tfoot>
             </table>
@@ -203,7 +204,7 @@ export default async function ProfitPage({ searchParams }: { searchParams: Promi
         ) : null}
         {s.fees.untagged > 0 ? (
           <p className="px-4 py-3 text-sm text-muted sm:px-5">
-            Без формы оплаты — {formatPrice(s.fees.untagged)} из {formatPrice(t.revenue)}: комиссия с них не считается. Укажите форму в{" "}
+            Без формы оплаты — {formatPrice(s.fees.untagged)} из {formatPrice(t.revenue)}: {s.fees.base ? `с них считается только общий ${String(s.fees.base).replace(".", ",")}% Kaspi` : "комиссия с них не считается"}. Укажите форму в{" "}
             <Link href={`/admin/sales?${href}`} className="text-wine hover:underline">
               реестре продаж
             </Link>

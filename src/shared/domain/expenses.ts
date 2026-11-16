@@ -160,8 +160,24 @@ export function kaspiPayForm(source: string | null | undefined): string | null {
   return v === "GOLD" ? "Kaspi Gold" : v === "LOAN" ? "Kaspi Рассрочка" : v === "RED" ? "Kaspi Red" : null;
 }
 
+/**
+ * Ключ настройки комиссий «с каждой продажи»: Kaspi удерживает этот процент с любой оплаты — сверх процента формы
+ * (рассрочка 15 % + 1 %), и с оплат без указанной формы. Кроме наличных: они мимо Kaspi.
+ */
+export const BASE_FEE_KEY = "*";
+const NO_BASE_FEE = new Set(["Наличные"]);
+
+/** Процент комиссии оплаты по её форме: процент формы плюс общий «с каждой продажи». */
+export function feeRateOf(form: string | null | undefined, rates: Record<string, number>): number {
+  const base = form && NO_BASE_FEE.has(form) ? 0 : (rates[BASE_FEE_KEY] ?? 0);
+  return Math.round(((form && form !== BASE_FEE_KEY ? (rates[form] ?? 0) : 0) + base) * 100) / 100;
+}
+
 /** Комиссия с суммы по форме оплаты, ₸ (возврат — со знаком минус: комиссию банк возвращает вместе с деньгами). */
-export const feeOf = (amount: number, form: string | null | undefined, rates: Record<string, number>) => (form && rates[form] ? Math.round((amount * rates[form]) / 100) : 0);
+export const feeOf = (amount: number, form: string | null | undefined, rates: Record<string, number>) => {
+  const rate = feeRateOf(form, rates);
+  return rate ? Math.round((amount * rate) / 100) : 0;
+};
 
 /** Налог с выручки, % (упрощённый режим: процент с дохода): из настройки; мусор и значения вне 0–50 — ноль. */
 export function parseTaxRate(raw: string | null | undefined): number {

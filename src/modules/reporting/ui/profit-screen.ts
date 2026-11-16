@@ -1,6 +1,6 @@
 import { zonedDay } from "@/shared/domain/time";
 import { channels } from "@/shared/domain/channels";
-import { expenseCategories, expenseCategoryKeys, expenseCategoryLabel, expenseGroupKeys, expenseGroupOf, expenseGroups, feeOf, taxOf, type ExpenseGroup } from "@/shared/domain/expenses";
+import { expenseCategories, expenseCategoryKeys, expenseCategoryLabel, expenseGroupKeys, expenseGroupOf, expenseGroups, BASE_FEE_KEY, feeOf, feeRateOf, taxOf, type ExpenseGroup } from "@/shared/domain/expenses";
 import type { FinancePeriod, MoneyRow } from "./finance-screen";
 
 /** Строка расхода: запись «Расходов» или реклама из расходов по каналам (source ads — правится там же, где внесена). */
@@ -159,12 +159,16 @@ export function profitScreen(input: {
   // Комиссии по формам оплаты — расчётные: в «Расходах» их нет, в отчёте идут в категорию «Комиссии» вместе с внесёнными.
   const feesAuto = sum(curMoney, fee);
   const prevFeesAuto = sum(prevMoney, fee);
-  const byForm = [...new Set(curMoney.map(formOf).filter((f): f is string => !!f))]
+  // Общий процент Kaspi «с каждой продажи» берётся и с оплат без формы — они идут строкой «Без формы».
+  const NO_FORM = "Без формы";
+  const groupOf = (m: MoneyRow) => formOf(m) ?? (rates[BASE_FEE_KEY] ? NO_FORM : null);
+  const byForm = [...new Set(curMoney.map(groupOf).filter((f): f is string => !!f))]
     .map((form) => {
-      const list = curMoney.filter((m) => formOf(m) === form);
-      return { form, rate: rates[form] ?? 0, money: sum(list, signed), fee: sum(list, fee), count: list.filter((m) => m.kind !== "refund").length };
+      const list = curMoney.filter((m) => groupOf(m) === form);
+      return { form, rate: feeRateOf(form === NO_FORM ? null : form, rates), money: sum(list, signed), fee: sum(list, fee), count: list.filter((m) => m.kind !== "refund").length };
     })
     .sort((a, b) => b.money - a.money);
+  const tagged = sum(byForm.filter((f) => f.form !== NO_FORM), (f) => f.money);
   const byCategory = expenseCategoryKeys
     .map((key) => {
       const list = curExp.filter((e) => (e.category in expenseCategories ? e.category : "other") === key);
@@ -224,7 +228,7 @@ export function profitScreen(input: {
     byCategory,
     byGroup,
     /** Расчётные комиссии: всего и по формам оплаты (деньги сделок с выбранной формой, процент, комиссия). */
-    fees: { auto: feesAuto, byForm, tagged: sum(byForm, (f) => f.money), untagged: cur.revenue - sum(byForm, (f) => f.money) },
+    fees: { auto: feesAuto, byForm, tagged, untagged: cur.revenue - tagged, base: rates[BASE_FEE_KEY] ?? 0 },
     /** Расчётный налог с выручки периода. */
     tax: { rate: taxRate, auto: taxAuto },
     unit,
