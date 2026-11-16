@@ -63,7 +63,7 @@ export function PhotosManager({ data, initialFilter }: { data: PhotosTabData; in
   const t = m.books.photos;
   const tt = m.books.photosTab;
   const router = useRouter();
-  const placeData = useMemo<PlaceData>(() => ({ book: data.book, photos: data.photos, places: new Map(data.places), chapters: data.chapters, answers: data.answers, tocLines: data.tocLines }), [data]);
+  const placeData = useMemo<PlaceData>(() => ({ book: data.book, photos: data.photos, places: new Map(data.places), chapters: data.chapters, answers: data.answers, tocLines: data.tocLines, maxPhotos: data.maxPhotos }), [data]);
   const refresh = () => router.refresh();
   // Перевод книги на правила раскладки 2 перед первой правкой места (onLayout) — тоже перечитать: места и порядок.
   const ed = usePlaceEditing(placeData, { onPhotos: refresh, onUploaded: refresh, onBook: refresh, onOrder: refresh, onLayout: refresh });

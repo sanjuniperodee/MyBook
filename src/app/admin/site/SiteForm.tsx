@@ -3,8 +3,8 @@
 import { useActionState, useState } from "react";
 import { CheckCircle2 } from "lucide-react";
 import { Alert } from "@/components/ui/Alert";
-import { Actions, Group, Note, SaveButton, Section, Toggle } from "../settings/ui";
-import { setGiftNoteAction, setRegistrationAction, type SiteState } from "./actions";
+import { Actions, Field, Group, Note, SaveButton, Section, Toggle } from "../settings/ui";
+import { setGiftNoteAction, setMaxPhotosAction, setRegistrationAction, type SiteState } from "./actions";
 
 export function SiteForm({ registration }: { registration: boolean }) {
   const [state, action] = useActionState<SiteState, FormData>(setRegistrationAction, {});
@@ -71,6 +71,32 @@ export function GiftNoteForm({ enabled }: { enabled: boolean }) {
           {state.ok ? (
             <span role="status" className="inline-flex items-center gap-1.5 text-sm text-success">
               <CheckCircle2 className="size-4 shrink-0" aria-hidden /> <span data-testid="gift-note-saved">{state.ok}</span>
+            </span>
+          ) : null}
+        </Actions>
+      </form>
+    </Section>
+  );
+}
+
+/** Предел фото в одной книге: сколько снимков клиент может загрузить. */
+export function MaxPhotosForm({ value, ceiling }: { value: number; ceiling: number }) {
+  const [state, action] = useActionState<SiteState, FormData>(setMaxPhotosAction, {});
+  return (
+    <Section id="max-photos" title="Фото в книге" description="Сколько фото клиент может загрузить в одну книгу" status={{ tone: "ok", label: `до ${value}` }}>
+      <form action={action} className="space-y-5" data-testid="max-photos-form">
+        <Group title="Предел фото" hint="Применяется сразу.">
+          <Field label="Фото в одной книге" hint={`Целое число от 1 до ${ceiling}. По умолчанию 140.`}>
+            <input name="maxPhotos" type="number" inputMode="numeric" min={1} max={ceiling} defaultValue={value} required className="input max-w-40" />
+          </Field>
+        </Group>
+        <Note>Уже загруженные фото остаются, даже если их больше нового предела: не загрузятся только новые. Клиент видит предел в сообщении при загрузке.</Note>
+        {state.error ? <Alert>{state.error}</Alert> : null}
+        <Actions>
+          <SaveButton />
+          {state.ok ? (
+            <span role="status" className="inline-flex items-center gap-1.5 text-sm text-success">
+              <CheckCircle2 className="size-4 shrink-0" aria-hidden /> <span data-testid="max-photos-saved">{state.ok}</span>
             </span>
           ) : null}
         </Actions>

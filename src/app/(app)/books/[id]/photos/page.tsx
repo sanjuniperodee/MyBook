@@ -17,6 +17,7 @@ import type { PlaceChapter } from "@/components/editor/photos/model";
 import { PhotosManager } from "./PhotosManager";
 import { isPhotoFilter, type PhotosTabData } from "./photos-tab";
 import { getMessages } from "@/i18n/server";
+import { maxPhotos } from "@/server/photoLimit";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getMessages()).books.photos.meta };
@@ -68,6 +69,7 @@ export default async function PhotosPage({ params, searchParams }: { params: Pro
     answers: questions.map((r) => ({ id: r.id, title: questionTexts(r, book).heading.trim() || m.books.photos.answer, chapterKey: r.chapter })),
     tocLines: book.tocLines ?? {},
     losses: Object.fromEntries(losses),
+    maxPhotos: await maxPhotos(),
   };
   return (
     <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">

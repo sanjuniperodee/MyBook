@@ -943,7 +943,7 @@ function EditorBody({
 
       {editingPhoto ? <PhotoEditor bookId={book.id} photoId={editingPhoto} onClose={() => setEditingPhoto(null)} onSaved={(r) => inlinePhotos.applyEdited(r.photo)} /> : null}
 
-      {sheet ? <PhotoSheetHost src={src} target={sheet} editable={editable} on={photoEvents} onLeave={() => void flush()} onClose={() => setSheet(null)} /> : null}
+      {sheet ? <PhotoSheetHost src={src} target={sheet} editable={editable} maxPhotos={maxPhotos} on={photoEvents} onLeave={() => void flush()} onClose={() => setSheet(null)} /> : null}
 
       {drawer ? (
         <Drawer variant="sheet" title={blank ? t.blank.drawerTitle : undefined} onClose={() => setDrawer(false)}>

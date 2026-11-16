@@ -29,7 +29,10 @@ export interface PhotoProps {
 /** Ключ главы: темы — латиница, своей книги — uuid, письма — __letters; места __gallery и __off — тем же видом. */
 const CHAPTER_KEY = /^[\w-]{1,80}$/;
 
-export const MAX_PHOTOS = 120;
+/** Предел фото в книге по умолчанию; свой задаётся в CRM → «Сайт» → «Фото в книге» (настройка books.maxPhotos). */
+export const MAX_PHOTOS = 140;
+/** Больше этого предел в CRM не поставить: столько фото не уместит ни одна книга. */
+export const MAX_PHOTOS_CEILING = 1000;
 
 /** Фото книги: в галерее главы или внутри ответа на вопрос. */
 export class Photo extends AggregateRoot<PhotoProps> {

@@ -35,6 +35,8 @@ export interface PhotosTabData {
   tocLines: TocLines;
   /** photoLosses: доля снимка, которая срежется на его месте (id → 0…1). */
   losses: Record<string, number>;
+  /** Предел фото в книге (CRM → «Сайт» → «Фото в книге»). */
+  maxPhotos?: number;
 }
 
 // ─── фильтры ───────────────────────────────────────────────────────────────

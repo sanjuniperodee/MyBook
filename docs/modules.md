@@ -12,7 +12,7 @@
 |---|---|---:|---:|
 | [access](#access) | Access: сотрудники, роли и права, правила безопасности, журнал. | 16 / 866 | 45 |
 | [assistant](#assistant) | AI-помощник (Claude, ChatGPT, DeepSeek или свой OpenAI-совместимый сервер). | 23 / 2166 | 25 |
-| [authoring](#authoring) | Authoring: книги, вопросы, оглавление своей книги, фото, письма близких. | 28 / 3761 | 67 |
+| [authoring](#authoring) | Authoring: книги, вопросы, оглавление своей книги, фото, письма близких. | 28 / 3764 | 67 |
 | [automation](#automation) | Автоматизации (цифровая воронка CRM). | 16 / 1917 | 9 |
 | [clients](#clients) | Клиенты CRM: профиль клиента, задачи и заметки менеджеров. | 9 / 1133 | 29 |
 | [feedback](#feedback) | Отзывы: отзыв клиента о книге, благодарность автору, модерация и витрина. | 12 / 641 | 7 |
@@ -26,7 +26,7 @@
 | [reporting](#reporting) | Отчёты CRM — сторона чтения (CQRS): сводные выборки по нескольким контекстам для страниц (дашборд, аналитика, поиск, «Мой день»). Только чтение, без бизнес-правил: команды идут через модули контекстов. | 42 / 4356 | 55 |
 | [sales](#sales) | Продажи: сделки, воронки, этапы, дубли, воронка по действиям на сайте. | 27 / 2835 | 90 |
 | [telephony](#telephony) | Телефония: журнал звонков из АТС, звонки из CRM, веб-телефон, записи, звонки WhatsApp. | 13 / 1083 | 27 |
-| [workspace](#workspace) | Рабочее пространство CRM: свои поля, шаблоны ответов, уведомления и push сотрудников. | 19 / 1255 | 19 |
+| [workspace](#workspace) | Рабочее пространство CRM: свои поля, шаблоны ответов, уведомления и push сотрудников. | 19 / 1257 | 19 |
 
 ## access
 
@@ -195,4 +195,4 @@ Identity: учётные записи, вход, пароли, второй фа
 - Фасад: `WorkspaceModule` → `container().workspace`
 - Публичное: `fields`, `templates`, `personalTemplates`, `inbox`, `pinnedChats`, `financeResolutions`, `expenses`, `settings`, `notifier`, `live`, `fieldsReader`, `schedule`
 - Таблицы: `crm_notifications`, `crm_templates`, `crm_fields`, `crm_mobile_devices`, `crm_pinned_chats`, `crm_push_subscriptions`, `crm_settings`, `finance_issue_resolutions`, `finance_expenses`
-- Тесты (19): `apns.test.ts`, `auto-shift.test.ts`, `chat-mark-read.test.ts`, `deal-lifecycle.test.ts`, `deal-merge.test.ts`, `design-ai-stats.integration.test.ts`, `discount-limit.test.ts`, `invoice-crm-actions.test.ts`, `kaspi-shared-session.test.ts`, `lead-grab.test.ts`, `marketing-whatsapp.test.ts`, `notify-prefs.test.ts`, `notify.integration.test.ts`, `payments-settings.integration.test.ts`, `sales-guards.test.ts`, `seller-details.test.ts`, `settings-actions.test.ts`, `stage-order.test.ts`, `workspace.test.ts`
+- Тесты (20): `apns.test.ts`, `auto-shift.test.ts`, `chat-mark-read.test.ts`, `deal-lifecycle.test.ts`, `deal-merge.test.ts`, `design-ai-stats.integration.test.ts`, `discount-limit.test.ts`, `invoice-crm-actions.test.ts`, `kaspi-shared-session.test.ts`, `lead-grab.test.ts`, `marketing-whatsapp.test.ts`, `notify-prefs.test.ts`, `notify.integration.test.ts`, `payments-settings.integration.test.ts`, `photo-limit.test.ts`, `sales-guards.test.ts`, `seller-details.test.ts`, `settings-actions.test.ts`, `stage-order.test.ts`, `workspace.test.ts`

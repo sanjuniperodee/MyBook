@@ -21,6 +21,7 @@ import { tocKey } from "@/lib/book/toc";
 import { photoChapters, type PlaceChapter } from "@/components/editor/photos/model";
 import { PagesEditor } from "./PagesEditor";
 import type { PagesPhotoData } from "./pages-photos";
+import { maxPhotos } from "@/server/photoLimit";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getMessages()).books.pages.meta };
@@ -79,6 +80,7 @@ export default async function PagesPage({ params }: { params: Promise<{ id: stri
     chapters: placeChapters,
     answers: questions.map((r) => ({ id: r.id, title: questionTexts(r, book).heading.trim() || m.books.photos.answer, chapterKey: r.chapter })),
     fit,
+    maxPhotos: await maxPhotos(),
   };
   // Истории для блока «Главы книги»: заголовок по умолчанию (с подставленным родом), свой и скрыт ли он.
   const stories = Object.fromEntries(questions.map((q) => [q.id, { title: questionTexts(q, book).title, displayText: q.displayText, hidden: q.hideHeading, pageBreak: q.pageBreak }]));

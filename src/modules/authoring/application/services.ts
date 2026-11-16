@@ -459,11 +459,11 @@ export class PhotosService {
   }
 
   /** Загрузка пачки фото: каждое обрабатывается отдельно, ошибки по файлам возвращаются списком. */
-  async upload(bookId: string, viewer: BookViewer, files: { name: string; size: number; bytes: () => Promise<Buffer> }[]) {
+  async upload(bookId: string, viewer: BookViewer, files: { name: string; size: number; bytes: () => Promise<Buffer> }[], limit = MAX_PHOTOS) {
     const book = await loadBook(this.books, bookId, viewer, { editable: true });
     if (!files.length) throw new AuthoringError("photosPick");
     const { count, maxPosition } = await this.photos.stats(book.id);
-    if (count + files.length > MAX_PHOTOS) throw new AuthoringError("photosLimit", undefined, [MAX_PHOTOS]);
+    if (count + files.length > limit) throw new AuthoringError("photosLimit", undefined, [limit]);
     const created: Photo[] = [];
     const failed: { name: string; reason: "tooBig" | "format" }[] = [];
     // Фото загружено, но, похоже, повреждено телефоном (зелёные квадраты): автору скажем загрузить его ещё раз.

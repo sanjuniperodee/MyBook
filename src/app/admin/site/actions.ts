@@ -6,6 +6,9 @@ import { admin } from "@/i18n/admin";
 import { assertStaff, audit } from "@/server/access";
 import { ensureCatalog, saveGiftNote, saveRegistration, saveSeller } from "@/server/catalog";
 import { BAD_FORM, textForm } from "@/server/input";
+import { getSettings, saveSettings } from "@/modules/workspace";
+import { MAX_PHOTOS_CEILING } from "@/modules/authoring/domain/Photo";
+import { parsePhotoLimit } from "@/server/photoLimit";
 
 export interface SiteState {
   error?: string;
@@ -69,4 +72,20 @@ export async function saveSellerAction(_: SiteState, form: FormData): Promise<Si
   revalidatePath("/admin/site");
   const missing = SELLER_FIELDS.filter((k) => !saved[k]).length;
   return { ok: missing ? `Сохранено. Не заполнено полей: ${missing} — там на сайте пока заглушка.` : "Сохранено: на сайте, в оферте и упаковочном листе — эти реквизиты." };
+}
+
+/**
+ * Предел фото в одной книге. Уже загруженные фото остаются, даже если их больше нового предела: не загрузятся только новые.
+ */
+export async function setMaxPhotosAction(_: SiteState, form: FormData): Promise<SiteState> {
+  const staff = await assertStaff("settings.manage");
+  if (!textForm(form).success) return { error: BAD_FORM };
+  const raw = String(form.get("maxPhotos") ?? "").trim();
+  const n = /^\d{1,4}$/.test(raw) ? Number(raw) : NaN;
+  if (!(n >= 1 && n <= MAX_PHOTOS_CEILING)) return { error: `Укажите целое число от 1 до ${MAX_PHOTOS_CEILING}.` };
+  const before = parsePhotoLimit((await getSettings(["books.maxPhotos"]))["books.maxPhotos"]);
+  await saveSettings({ "books.maxPhotos": String(n) }, staff.user.id);
+  await audit(staff, "settings.update", "settings", "books.maxPhotos", { from: before, to: n });
+  revalidatePath("/admin/site");
+  return { ok: `Сохранено: в книгу можно загрузить до ${n} фото.` };
 }

@@ -182,7 +182,7 @@ export function PagesEditor({
   const serverPlaces = useMemo(() => new Map(photos.places), [photos.places]);
   const places = useMemo(() => placesForDesign(serverPlaces, photos.photos, openerDesign), [serverPlaces, photos.photos, openerDesign]);
   const placeData = useMemo<PlaceData>(
-    () => ({ book: { ...photos.book, interior: state.interior, photoPlacement: state.photoPlacement }, photos: photos.photos, places, chapters: photos.chapters, answers: photos.answers, tocLines: state.tocLines }),
+    () => ({ book: { ...photos.book, interior: state.interior, photoPlacement: state.photoPlacement }, photos: photos.photos, places, chapters: photos.chapters, answers: photos.answers, tocLines: state.tocLines, maxPhotos: photos.maxPhotos }),
     [photos, places, state.interior, state.photoPlacement, state.tocLines],
   );
   const [sheet, setSheet] = useState<PhotoSheetTarget | null>(null);

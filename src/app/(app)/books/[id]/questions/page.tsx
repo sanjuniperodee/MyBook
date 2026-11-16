@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { requireUser } from "@/server/auth";
 import { getAccessibleBook, viewerOf } from "@/server/books";
-import { isBookEditableBy, MAX_PHOTOS } from "@/modules/authoring";
+import { isBookEditableBy } from "@/modules/authoring";
+import { maxPhotos } from "@/server/photoLimit";
 import { container } from "@/server/container";
 import { editorBook, editorModel } from "@/lib/book/editor-data";
 import { sectionIndex } from "@/lib/book/editor-model";
@@ -44,7 +45,7 @@ export default async function QuestionsPage({ params, searchParams }: { params: 
         q,
       )}
       initialPhotos={model.photos}
-      maxPhotos={MAX_PHOTOS}
+      maxPhotos={await maxPhotos()}
       letters={model.letters}
       editable={editable}
     />

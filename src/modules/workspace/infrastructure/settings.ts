@@ -225,6 +225,8 @@ export const settingDefs = {
   "site.registration": { default: "on" },
   /** Открытка к заказу: on | off (выключена — при оформлении нет поля «Текст открытки», присланный текст не сохраняется). */
   "site.giftNote": { default: "on" },
+  /** Предел фото в одной книге (CRM → «Сайт» → «Фото в книге»): целое от 1 до MAX_PHOTOS_CEILING. */
+  "books.maxPhotos": { default: "140" },
   /** Реквизиты продавца для оферты, футера и упаковочного листа (админка → «Сайт»); пусто — заглушка из config/site.ts. */
   "site.legalName": {},
   "site.bin": {},

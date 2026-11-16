@@ -4,6 +4,7 @@ import { rateLimit } from "@/server/rateLimit";
 import { getMessages } from "@/i18n/server";
 import { container } from "@/server/container";
 import { idParams } from "@/server/input";
+import { maxPhotos } from "@/server/photoLimit";
 
 export const POST = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = idParams(await params, "id");
@@ -15,7 +16,7 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
     .filter((f): f is File => f instanceof File && f.size > 0)
     .map((f) => ({ name: f.name, size: f.size, bytes: async () => Buffer.from(await f.arrayBuffer()) }));
   const authoring = container().authoring;
-  const result = await authoring.photos.upload(id, viewer, files);
+  const result = await authoring.photos.upload(id, viewer, files, await maxPhotos());
   const t = (await getMessages()).api;
   const rows = await authoring.queries.photos(id);
   const createdIds = new Set(result.created.map((p) => p.id));

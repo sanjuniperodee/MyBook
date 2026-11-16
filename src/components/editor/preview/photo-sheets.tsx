@@ -39,7 +39,7 @@ export function placeData(
   src: BookSource,
   content: Pick<BookContent, "chapters" | "galleryTitle">,
   places: ReadonlyMap<string, PhotoPlace>,
-  opts: { editable: boolean; untitledSection: string; untitledChapter: string },
+  opts: { editable: boolean; untitledSection: string; untitledChapter: string; maxPhotos?: number },
 ): PlaceData {
   const { book, questions, photos, chapters } = src;
   const blank = book.kind === "blank";
@@ -65,6 +65,7 @@ export function placeData(
     chapters: list,
     answers: questions.map((q) => ({ id: q.id, title: sectionLabel(q, book.kind, opts.untitledSection), chapterKey: q.chapter })),
     tocLines,
+    maxPhotos: opts.maxPhotos,
   };
 }
 
@@ -73,14 +74,14 @@ export function placeData(
  * стоит фото» и «Альбом в конце». Данные — из той же сборки книги, что у превью; что лист поменял, приходит
  * в события on (редактор обновляет свои фото и настройки книги — превью и счётчик пересобираются сами).
  */
-export function PhotoSheetHost({ src, target, editable, on, onLeave, onClose }: { src: BookSource; target: PhotoSheetTarget; editable: boolean; on: PlaceEvents; onLeave: () => void; onClose: () => void }) {
+export function PhotoSheetHost({ src, target, editable, maxPhotos, on, onLeave, onClose }: { src: BookSource; target: PhotoSheetTarget; editable: boolean; maxPhotos?: number; on: PlaceEvents; onLeave: () => void; onClose: () => void }) {
   const messages = useMessages();
   const router = useRouter();
   const { book, questions, photos, letters, chapters } = src;
   const { content, places } = useBookContent(book, questions, photos, letters, chapters);
   const data = useMemo(
-    () => placeData({ book, questions, photos, letters, chapters }, content, places, { editable, untitledSection: messages.books.untitledSection, untitledChapter: messages.book.untitledChapter }),
-    [book, questions, photos, letters, chapters, content, places, editable, messages],
+    () => placeData({ book, questions, photos, letters, chapters }, content, places, { editable, untitledSection: messages.books.untitledSection, untitledChapter: messages.book.untitledChapter, maxPhotos }),
+    [book, questions, photos, letters, chapters, content, places, editable, messages, maxPhotos],
   );
   const chapterKey = target.chapterKey;
   // Подсказка «подходит по форме» — лучшие снимки для рамки оформления (фото главы ставит только автор).

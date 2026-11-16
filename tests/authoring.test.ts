@@ -183,6 +183,16 @@ describe("PhotosService", () => {
     expect(err).toMatchObject({ code: "photosLimit", params: [MAX_PHOTOS] });
   });
 
+  it("предел из настроек: свой меньше пачки — photosLimit со своим числом; по умолчанию — 140", async () => {
+    expect(MAX_PHOTOS).toBe(140);
+    const books = new MemBooks();
+    await books.add(startBook());
+    const service = new PhotosService(books, new MemPhotos(), noQuestions, images, new MemFiles(), ids);
+    const three = Array.from({ length: 3 }, (_, i) => ({ name: `${i}.jpg`, size: 5, bytes: async () => Buffer.from("image") }));
+    const err = await service.upload("b1", owner, three, 2).catch((e: unknown) => e);
+    expect(err).toMatchObject({ code: "photosLimit", params: [2] });
+  });
+
   it("удалённое фото снимается с обложки", async () => {
     const books = new MemBooks();
     const book = startBook();
