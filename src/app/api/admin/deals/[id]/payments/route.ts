@@ -12,6 +12,7 @@ import { z } from "zod";
 import { formText, idParams } from "@/server/input";
 import { formatPrice } from "@/config/site";
 import { RECENT_ONLINE_MS } from "@/components/admin/invoices/model";
+import { parsePayForm } from "@/server/pay-form";
 
 export const maxDuration = 60;
 
@@ -70,6 +71,9 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
   if (invoice && Number(fields.amount) !== invoice.amount)
     return NextResponse.json({ error: `Сумма по счёту ${invoice.label} — ${formatPrice(invoice.amount)}. Если клиент заплатил часть, примите оплату как «другую»` }, { status: 400 });
   const note = fields.note;
+  // Форма оплаты этого платежа (Gold, рассрочка, Red…): комиссия банка считается с него по ней.
+  const payForm = await parsePayForm(form.get("payForm"));
+  if (!payForm.ok) return NextResponse.json({ error: payForm.error }, { status: 400 });
   if (refund && note.trim().length < 3) throw new HttpError(400, "refundNoReason");
   const file = form.get("file");
   if (!(file instanceof File) || !file.size) throw new HttpError(400, "receiptRequired");
@@ -95,10 +99,12 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
       amount,
       paidAt,
       note,
+      payForm: payForm.form,
       receipt: { bytes, fileName: file.name },
       invoice: invoice ? { id: invoice.id, amount: invoice.amount } : null,
       actor: { userId: staff.user.id, name: staff.user.name || staff.user.email, seesAll: staff.scope === "all", allTasks: can(staff, "tasks.all") },
     });
+    if (!refund) await c.sales.deals.notePayForm(deal.id, payForm.form);
     revalidatePath(`/admin/deals/${deal.id}`);
     revalidatePath("/admin");
     revalidatePath("/admin/analytics");

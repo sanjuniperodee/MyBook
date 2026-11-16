@@ -100,7 +100,8 @@ export function profitScreen(input: {
   const forms = input.forms ?? {};
   const rates = input.feeRates ?? {};
   const taxRate = input.taxRate ?? 0;
-  const formOf = (m: MoneyRow) => (m.dealId ? (forms[m.dealId] ?? null) : null);
+  // Форма платежа важнее формы сделки: предоплата переводом и остаток в рассрочку — комиссия только с остатка.
+  const formOf = (m: MoneyRow) => m.payForm || (m.dealId ? (forms[m.dealId] ?? null) : null);
   /** Комиссия банка с движения денег: с возврата — со знаком минус. */
   const fee = (m: MoneyRow) => feeOf(m.kind === "refund" ? -m.amount : m.amount, formOf(m), rates);
   const prevFirst = zonedDay(period.prev.from, tz);

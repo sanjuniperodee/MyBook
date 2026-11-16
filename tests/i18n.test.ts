@@ -107,6 +107,7 @@ describe("нет русских строк вне словарей", () => {
   const skipDirs = [/^i18n\//, /^app\/admin\//, /^app\/admin-denied\//, /^app\/crm\//, /^app\/api\/admin\//, /^app\/api\/integrations\//, /^app\/print\//, /^components\/admin\//, /^lib\/content\//, /^lib\/tools\//, /^modules\/access\//, /^modules\/sales\//, /^modules\/automation\//, /^modules\/messaging\//, /^modules\/telephony\//, /^modules\/marketing\//, /^modules\/assistant\//, /^lib\/book\/design-ai\//, /^lib\/book\/art\//, /^modules\/clients\//, /^modules\/reporting\//, /^modules\/workspace\//, /^server\/access\.ts$/];
   // Файлы, где кириллица допустима целиком: внутренние инструменты и сам механизм языков.
   const skipFiles = new Set([
+    "server/pay-form.ts", // ошибка формы оплаты для сотрудника CRM — на русском
     "modules/production/infrastructure/pdf/render.tsx", // техзадание для типографии — на русском
     "modules/ordering/ui/labels.ts", // подписи тарифов и доставки для CRM — на русском
     "modules/ordering/ui/notice.ts", // подпись под формой статуса в карточке заказа (CRM): что уйдёт клиенту

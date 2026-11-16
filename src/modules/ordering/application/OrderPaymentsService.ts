@@ -14,6 +14,8 @@ export interface ManualPaymentInput {
   amount: number;
   paidAt: Date;
   note: string;
+  /** Форма оплаты (Kaspi Gold, Kaspi Рассрочка, Kaspi Red…): по ней — комиссия банка. Пусто — форма сделки. */
+  payForm?: string | null;
   /** Чек обязателен: скриншот перевода, фото, PDF до 12 МБ. */
   receipt: { bytes: Buffer; fileName: string };
   actor: Actor & { userId: string };
@@ -63,6 +65,11 @@ export class OrderPaymentsService {
     return this.payments.list(orderId);
   }
 
+  /** Формы оплаты онлайн-платежей Kaspi по операциям (из истории кассы) — только тем, у кого формы нет; заказы отмеченных. */
+  tagKaspiForms(forms: Record<string, string>) {
+    return this.payments.tagKaspiForms(forms);
+  }
+
   /** Деньги по заказу для CRM (сделка, финансы): к оплате, получено, постоплата и записи журнала. */
   async summary(orderId: string) {
     const order = await this.orders.findById(orderId);
@@ -85,7 +92,7 @@ export class OrderPaymentsService {
         const order = await this.orders.lockById(input.orderId);
         if (!order) throw new OrderingError("orderNotFound");
         const receipt = { storageKey, fileName: safeReceiptName(input.receipt.fileName, type.ext), mime: type.mime, size: input.receipt.bytes.length };
-        const record = { id, orderId: order.id, kind: "payment" as const, amount: input.amount, method: "manual" as const, externalRef: null, paidAt: input.paidAt, note: input.note.trim().slice(0, 500), receipt, createdById: input.actor.userId };
+        const record = { id, orderId: order.id, kind: "payment" as const, amount: input.amount, method: "manual" as const, externalRef: null, payForm: input.payForm ?? null, paidAt: input.paidAt, note: input.note.trim().slice(0, 500), receipt, createdById: input.actor.userId };
         const result = order.receiveMoney({ paymentId: `manual:${id}`, amount: input.amount, method: "manual", paidAt: input.paidAt, label: `${ORDER_MONEY_LABELS.manual}, чек ${receipt.fileName}${record.note ? ` — ${record.note}` : ""}`, actor: input.actor.label });
         await this.payments.add(record);
         await this.orders.save(order);

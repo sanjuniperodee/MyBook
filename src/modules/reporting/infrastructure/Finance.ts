@@ -34,7 +34,7 @@ export async function financeMoney(from: Date, to: Date): Promise<MoneyRow[]> {
         d.id as deal_id, d.number as deal_number, o.id as order_id, o.number as order_number, null::int as gift_number,
         coalesce(nullif(d.contact_name, ''), nullif(u.name, ''), d.title) as client, d.assignee_id as manager_id, p.created_by_id as accepted_by_id,
         (select r.id from crm_receipts r where r.payment_id = p.id order by r.created_at limit 1) as receipt_id,
-        p.external_ref, i.number as invoice_number, p.reviewed_at
+        p.external_ref, i.number as invoice_number, p.reviewed_at, p.pay_form
       from crm_payments p
       join crm_deals d on d.id = p.deal_id
       left join users u on u.id = d.client_id
@@ -46,7 +46,7 @@ export async function financeMoney(from: Date, to: Date): Promise<MoneyRow[]> {
         od.id, od.number, o.id, o.number, null,
         o.contact_name, coalesce(od.assignee_id, o.assignee_id), op.created_by_id,
         case when op.receipt_storage_key is not null then op.id end,
-        op.external_ref, null, op.reviewed_at
+        op.external_ref, null, op.reviewed_at, op.pay_form
       from order_payments op
       join orders o on o.id = op.order_id
       ${orderDeal}
@@ -56,7 +56,7 @@ export async function financeMoney(from: Date, to: Date): Promise<MoneyRow[]> {
         case when o.payment_id like 'kaspi:%' then 'kaspi' when o.payment_provider = 'cloudpayments' and o.payment_id ~ '^[0-9]+$' then 'card' else 'manual' end,
         o.amount - coalesce(j.sum, 0), o.paid_at,
         od.id, od.number, o.id, o.number, null,
-        o.contact_name, coalesce(od.assignee_id, o.assignee_id), null, null, null, null, null
+        o.contact_name, coalesce(od.assignee_id, o.assignee_id), null, null, null, null, null, null::text
       from orders o
       ${orderDeal}
       -- Оплачено без записи — к оплате минус записанные оплаты (возвраты сюда не входят: они — своими строками со знаком минус).
@@ -66,20 +66,20 @@ export async function financeMoney(from: Date, to: Date): Promise<MoneyRow[]> {
       select g.id, 'gift', 'gift',
         case when g.payment_id like 'kaspi:%' then 'kaspi' when g.payment_id ~ '^[0-9]+$' then 'card' else 'manual' end,
         g.amount, g.paid_at, null, null, null, null, g.number,
-        g.buyer_name, null, null, null, null, null, null
+        g.buyer_name, null, null, null, null, null, null, null
       from gift_cards g
       where g.paid_at >= ${at(from)} and g.paid_at < ${at(to)} and g.status <> 'cancelled' and g.amount > 0
       union all
       -- Пакеты ИИ-дизайнера (A<n>) и минут своих видео и аудио (M<n>): оплачиваются через Kaspi из кабинета клиента.
       select ap.id, 'pack', 'ai_pack', case when ap.payment_id like 'kaspi:%' then 'kaspi' else 'manual' end,
         ap.amount, ap.paid_at, null, null, null, null, ap.number,
-        coalesce(nullif(u.name, ''), u.email), null, null, null, ap.payment_id, null, null
+        coalesce(nullif(u.name, ''), u.email), null, null, null, ap.payment_id, null, null, null
       from design_ai_purchases ap join users u on u.id = ap.user_id
       where ap.status = 'paid' and ap.paid_at >= ${at(from)} and ap.paid_at < ${at(to)} and ap.amount > 0
       union all
       select mp.id, 'pack', 'media_pack', case when mp.payment_id like 'kaspi:%' then 'kaspi' else 'manual' end,
         mp.amount, mp.paid_at, null, null, null, null, mp.number,
-        coalesce(nullif(u.name, ''), u.email), null, null, null, mp.payment_id, null, null
+        coalesce(nullif(u.name, ''), u.email), null, null, null, mp.payment_id, null, null, null
       from answer_file_purchases mp join users u on u.id = mp.user_id
       where mp.status = 'paid' and mp.paid_at >= ${at(from)} and mp.paid_at < ${at(to)} and mp.amount > 0
     ) m
@@ -103,6 +103,7 @@ export async function financeMoney(from: Date, to: Date): Promise<MoneyRow[]> {
     externalRef: str(x.external_ref),
     invoiceNumber: x.invoice_number === null ? null : num(x.invoice_number),
     reviewedAt: date(x.reviewed_at),
+    payForm: str(x.pay_form),
   }));
 }
 

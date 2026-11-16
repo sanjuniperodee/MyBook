@@ -10,6 +10,7 @@ import { cn } from "@/lib/class-names";
 import { formatPrice, getPlans } from "@/config/site";
 import { planLabels } from "@/modules/ordering/ui/labels";
 import { InvoiceDialog } from "@/components/admin/invoices/InvoiceDialog";
+import { PayFormPicker } from "@/components/admin/PayFormPicker";
 import { InvoicesBlock } from "@/components/admin/invoices/InvoicesBlock";
 import { choiceNeeded, guardIds, newIssueKey, overpaidPayments, type InvoicePerms, type InvoiceView, type MoneyGuard } from "@/components/admin/invoices/model";
 import { setDealAgreedGiftsAction, setDealAgreedPlanAction } from "../actions";
@@ -28,6 +29,8 @@ interface PaymentItem {
   online?: string | null;
   /** Счёт из чата, которым оплачено (P12). */
   invoice?: string | null;
+  /** Форма оплаты платежа (Kaspi Gold, Kaspi Рассрочка…): по ней — комиссия банка. */
+  payForm?: string | null;
 }
 
 /** Ошибка сохранения с кодом ответа: invoiceChoice — пока форма была открыта, появился счёт или онлайн-оплата. */
@@ -123,6 +126,8 @@ export function PaymentsPanel({
   payInvoiceId = null,
   canIssue = false,
   refundAfterOrder = null,
+  payForms = [],
+  dealPayForm = null,
 }: {
   dealId: string;
   payments: PaymentItem[];
@@ -145,6 +150,9 @@ export function PaymentsPanel({
   canIssue?: boolean;
   /** Сделка с заказом: сколько внесено по сделке сверх учтённого в заказе (у отменённого — всё) — это можно вернуть отсюда. */
   refundAfterOrder?: number | null;
+  /** Варианты формы оплаты (поле сделки «Форма оплаты») и форма сделки — по умолчанию в форме приёма. */
+  payForms?: string[];
+  dealPayForm?: string | null;
 }) {
   const router = useRouter();
   const file = useRef<HTMLInputElement>(null);
@@ -156,6 +164,7 @@ export function PaymentsPanel({
   const [invoiceKey, setInvoiceKey] = useState<string | null>(null);
   const [amount, setAmount] = useState(() => String(payable(payInvoiceId)?.amount ?? ""));
   const [day, setDay] = useState("");
+  const [payForm, setPayForm] = useState(dealPayForm ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Получено = платежи сделки минус возвраты клиенту, плюс деньги по её заказу (остаток, постоплата).
@@ -219,6 +228,7 @@ export function PaymentsPanel({
       body.set("file", f);
       body.set("amount", byInvoice ? String(byInvoice.amount) : amount);
       if (day) body.set("paidAt", day);
+      if (payForm) body.set("payForm", payForm);
       // По счёту — счёт закрывается этой оплатой; «другая» — сервер сверит, что менеджер видел открытый счёт и онлайн-оплаты.
       if (byInvoice) body.set("invoiceId", byInvoice.id);
       else if (choice === "other") body.set("seen", guardIds(guard).join(","));
@@ -389,6 +399,7 @@ export function PaymentsPanel({
                   </span>
                   <span className={cn("badge", p.kind === "refund" && "badge-danger")}>{p.kind === "prepayment" ? "предоплата" : p.kind === "refund" ? "возврат" : "платёж"}</span>
                   {p.invoice && !p.online ? <span className="badge">по счёту {p.invoice}</span> : null}
+                  {p.payForm ? <span className="badge">{p.payForm}</span> : null}
                   {overpaid.has(p.id) ? (
                     <span className="badge badge-danger" title="После этого платежа оплачено больше договорённости">
                       переплата
@@ -491,6 +502,10 @@ export function PaymentsPanel({
               <label className="min-w-0">
                 <span className="label text-xs">Дата оплаты</span>
                 <input value={day} onChange={(e) => setDay(e.target.value)} type="date" className="input" aria-label="Дата платежа" />
+              </label>
+              <label className="min-w-0 sm:col-span-2">
+                <span className="label text-xs">Форма оплаты</span>
+                <PayFormPicker value={payForm} options={payForms} onChange={setPayForm} />
               </label>
               <label className="block sm:col-span-2">
                 <span className="label text-xs">Чек: скриншот, фото или PDF</span>

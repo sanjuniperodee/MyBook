@@ -33,6 +33,7 @@ import { can, canSeeOrder, contactView, requireStaff } from "@/server/access";
 import { ContactActions } from "@/components/admin/ContactActions";
 import { formatPhone } from "@/shared/domain/phone";
 import { pageId } from "@/server/input";
+import { payFormOptions } from "@/server/pay-form";
 import { isPhoneEmail } from "@/modules/identity/domain";
 import type { OrderNoticeFacts } from "@/modules/ordering/ui/notice";
 
@@ -70,7 +71,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
   if (!order || !(await canSeeOrder(staff, order.id))) notFound();
   const plan = getPlan(order.plan);
   const book = order.book;
-  const [stats, admins, { taskRows, noteRows, clientStats, deal: orderDeal }, kaspiInvoices, moneyRows, built] = await Promise.all([
+  const [stats, admins, { taskRows, noteRows, clientStats, deal: orderDeal }, kaspiInvoices, moneyRows, built, payForms] = await Promise.all([
     container().authoring.queries.stats(book),
     container().access.queries.allStaff(),
     container().reporting.orderCrm(order),
@@ -78,6 +79,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
     container().ordering.payments.list(order.id),
     // Макет, который видит клиент (экранная сборка текущей книги), — если собран.
     container().previews.current(book.id).catch(() => null),
+    payFormOptions(),
   ]);
   const adminOptions = staffOptions(admins);
   const adminName = new Map(admins.map((a) => [a.id, staffLabel(a)]));
@@ -237,6 +239,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
                   settled={!!order.paidAt}
                   canEdit={canEdit}
                   canReview={can(staff, "team.manage")}
+                  payForms={payForms}
                   rows={moneyRows.map((r) => ({
                     id: r.id,
                     kind: r.kind,
@@ -248,6 +251,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
                     receipt: !!r.receipt,
                     reviewed: r.reviewedAt ? `${r.reviewedById ? (adminName.get(r.reviewedById) ?? "") : ""} ${formatDate(r.reviewedAt)}`.trim() : null,
                     by: r.createdById ? (adminName.get(r.createdById) ?? null) : null,
+                    payForm: r.payForm ?? null,
                   }))}
                 />
               </div>

@@ -1,10 +1,10 @@
 import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { kaspiStatusCode, OrderingError, parseKaspiPayment, type KaspiMethod, type KaspiPaymentView } from "../../domain";
+import { kaspiStatusCode, OrderingError, parseKaspiHistory, parseKaspiPayment, type KaspiMethod, type KaspiPaymentView } from "../../domain";
 import type { KaspiAuthGateway, KaspiConfigStore, KaspiGateway, KaspiSession } from "../../application/ports";
 
-/** Таймауты к kaspi-pos: вход дольше (SMS), чтение — быстрее, чтобы страница оплаты не висела. */
-const TIMEOUT_MS = { auth: 15_000, write: 10_000, read: 6_000 } as const;
+/** Таймауты к kaspi-pos: вход дольше (SMS), чтение — быстрее, чтобы страница оплаты не висела; история кассы — фоновая, отвечает долго. */
+const TIMEOUT_MS = { auth: 15_000, write: 10_000, read: 6_000, history: 30_000 } as const;
 
 const record = (v: unknown): Record<string, unknown> | null => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null);
 
@@ -39,6 +39,14 @@ export class KaspiPosClient implements KaspiGateway, KaspiAuthGateway {
 
   async cancel(externalId: string) {
     await this.call("/api/invoice/cancel", { method: "POST", json: { operationId: externalId } }, "write");
+  }
+
+  async history(period: 1 | 2 | 3, after?: string | null) {
+    // endDate — конец сегодняшнего дня по времени Kaspi; следующая страница — от времени последней операции прошлой.
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Almaty", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+    const json: Record<string, unknown> = { endDate: `${today}T23:59:59`, statementPeriodCode: period };
+    if (after) json.lastTransactionDate = after;
+    return parseKaspiHistory(await this.call("/api/history/operations", { method: "POST", json }, "history"));
   }
 
   async start(phone: string) {

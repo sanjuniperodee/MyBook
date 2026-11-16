@@ -1,7 +1,7 @@
 import type { Locale } from "@/i18n/config";
 import type { AgreementGift } from "@/shared/domain/agreementGifts";
 import type { OrderPrintSpec } from "@/shared/domain/orders";
-import type { KaspiMethod, KaspiPaymentView } from "../domain";
+import type { KaspiHistoryOp, KaspiMethod, KaspiPaymentView } from "../domain";
 
 /** Что заказу нужно знать о книге (контекст Authoring). */
 export interface BookGateway {
@@ -85,6 +85,11 @@ export interface KaspiGateway {
   createQr(amount: number): Promise<KaspiPaymentView>;
   details(externalId: string, method: KaspiMethod): Promise<KaspiPaymentView | null>;
   cancel(externalId: string): Promise<void>;
+  /**
+   * Страница истории кассы (только чтение): period — 1 вчера, 2 сегодня, 3 месяц; after — OrderRegDate последней операции
+   * прошлой страницы (следующие 10 операций, старше).
+   */
+  history(period: 1 | 2 | 3, after?: string | null): Promise<KaspiHistoryOp[]>;
 }
 
 /** Сессия кассира Kaspi Pay (после входа по SMS-коду). Секреты хранятся зашифрованными в настройках. */

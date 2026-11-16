@@ -1,5 +1,6 @@
 "use client";
 
+import { PayFormPicker } from "@/components/admin/PayFormPicker";
 import Link from "next/link";
 import { AgreementGiftsField } from "@/components/admin/AgreementGiftsField";
 import { useActionState, useState } from "react";
@@ -110,6 +111,7 @@ export function NewClientForm({ canDeal, stages, defaultStageId, admins, me, can
   const [localError, setLocalError] = useState<string | null>(null);
   const [agreed, setAgreed] = useState("");
   const [planId, setPlanId] = useState("");
+  const [payForm, setPayForm] = useState("");
   const [prepaid, setPrepaid] = useState("");
   const [count, setCount] = useState("1");
   if (state.done) return <Done d={state.done} receipt={receipt} />;
@@ -225,6 +227,12 @@ export function NewClientForm({ canDeal, stages, defaultStageId, admins, me, can
               </Field>
               <AgreementGiftsField values={v} />
               {p > 0 ? (
+                <>
+                <div className="sm:col-span-2">
+                  <Field label="Форма предоплаты" hint="Gold, рассрочка, Red — по ней в «Прибыли» считается комиссия банка">
+                    <PayFormPicker name="payForm" value={payForm} onChange={setPayForm} />
+                  </Field>
+                </div>
                 <div className="sm:col-span-2">
                   <label className="label" htmlFor="new-client-receipt">
                     Чек предоплаты
@@ -235,6 +243,7 @@ export function NewClientForm({ canDeal, stages, defaultStageId, admins, me, can
                     <Paperclip className="size-3.5" aria-hidden /> Скриншот или фото перевода, PDF — до 12 МБ. Прикрепится к сделке.
                   </p>
                 </div>
+                </>
               ) : null}
               <div className={`rounded-[var(--r-ctl)] px-3.5 py-2.5 text-sm tabular-nums sm:col-span-2 ${p > a ? "bg-danger-bg text-danger" : "bg-sunken text-ink-soft"}`} role="status">
                 {p > a ? "Предоплата больше суммы договорённости" : a > 0 ? `${n > 1 ? `Всего ${n} × ${formatPrice(Number(agreed) || 0)} = ${formatPrice(a)}. Остаток` : "Остаток за книгу"}: ${formatPrice(a - p)} (доставка — сверху)` : "Укажите сумму — посчитаем остаток"}

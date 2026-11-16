@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { DealInvoice, OrderingError, PaymentInvoice, type DealInvoiceRepository, type KaspiPaymentView, type PaymentInvoiceRepository, type PaymentTarget } from "@/modules/ordering/domain";
+import { DealInvoice, OrderingError, PaymentInvoice, type DealInvoiceRepository, type KaspiHistoryOp, type KaspiPaymentView, type PaymentInvoiceRepository, type PaymentTarget } from "@/modules/ordering/domain";
 import type { InvoiceDeal, InvoiceSales } from "@/modules/ordering/application/DealInvoicesService";
 import type { KaspiGateway } from "@/modules/ordering/application/ports";
 
@@ -93,6 +93,15 @@ export class FakeKaspi implements KaspiGateway {
   async cancel(externalId: string) {
     if (this.cancelDown) throw new OrderingError("kaspiUnavailable");
     this.cancelled.push(externalId);
+  }
+  /** История кассы: страницы по периодам (1 вчера, 2 сегодня), каждая — массив операций; after — какие запросили. */
+  historyPages: Partial<Record<1 | 2 | 3, KaspiHistoryOp[][]>> = {};
+  historyCalls: { period: number; after: string | null }[] = [];
+  async history(period: 1 | 2 | 3, after?: string | null) {
+    this.historyCalls.push({ period, after: after ?? null });
+    const pages = this.historyPages[period] ?? [];
+    const i = after ? pages.findIndex((p) => p.at(-1)?.regDate === after) + 1 : 0;
+    return pages[i] ?? [];
   }
 }
 

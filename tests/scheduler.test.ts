@@ -28,6 +28,7 @@ const fake = {
 vi.mock("@/server/container", () => ({ container: () => fake }));
 vi.mock("@/server/ai-autofill", () => ({ aiAutofill: () => stepFn("autofill", 0)(), aiAutofillDeps: () => ({}) }));
 // Свои видео и аудио: уборка и очередь — свои тесты (answer-files*.test.ts); здесь — тихие заглушки.
+vi.mock("@/server/kaspi-pay-forms", () => ({ tagKaspiPayForms: async () => 0 }));
 vi.mock("@/server/stage-order", () => ({ stageOrderPass: async () => null, stageOrderDeps: () => ({}) }));
 vi.mock("@/server/answerFiles", () => ({ sweepAbandonedUploads: async () => 0 }));
 vi.mock("@/server/answerFilesWorker", () => ({ kickAnswerFiles: () => {} }));

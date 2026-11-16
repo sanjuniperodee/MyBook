@@ -140,6 +140,8 @@ export const crmPayments = pgTable(
     method: text("method", { enum: ["manual", "kaspi", "cloudpayments"] }).notNull().default("manual"),
     /** Операция платёжной системы: повтор той же операции — не новый платёж. */
     externalRef: text("external_ref"),
+    /** Форма оплаты этого платежа (Kaspi Gold, Kaspi Рассрочка, Kaspi Red…): по ней — комиссия банка. Пусто — форма сделки. */
+    payForm: text("pay_form"),
     /** Счёт из чата, которым оплачено (номер для показа — P<n>). */
     invoiceId: uuid("invoice_id"),
     createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),

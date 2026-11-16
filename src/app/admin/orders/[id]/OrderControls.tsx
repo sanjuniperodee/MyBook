@@ -1,6 +1,7 @@
 "use client";
 
 import { ask, promptText, toast } from "@/components/ui/overlays";
+import { PayFormPicker } from "@/components/admin/PayFormPicker";
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRightLeft, BookCopy, CircleCheck, CreditCard, Download, FileArchive, LoaderCircle, Printer, Receipt, RefreshCw, Truck, Undo2 } from "lucide-react";
@@ -324,6 +325,8 @@ export interface OrderMoneyRow {
   /** Ручную оплату проверил руководитель (кто и когда). */
   reviewed: string | null;
   by: string | null;
+  /** Форма оплаты (Kaspi Gold, Kaspi Рассрочка…): по ней — комиссия банка. */
+  payForm?: string | null;
 }
 
 const methodLabels = { manual: "Перевод", kaspi: "Kaspi", cloudpayments: "Карта" } as const;
@@ -345,6 +348,7 @@ export function OrderMoney({
   orderNumber,
   refundable = 0,
   digital = false,
+  payForms = [],
 }: {
   orderId: string;
   status: OrderStatus;
@@ -360,9 +364,12 @@ export function OrderMoney({
   rows: OrderMoneyRow[];
   canEdit: boolean;
   canReview: boolean;
+  /** Варианты формы оплаты (поле сделки «Форма оплаты»). */
+  payForms?: string[];
 }) {
   const [pending, start] = useTransition();
   const [open, setOpen] = useState(false);
+  const [payForm, setPayForm] = useState("");
   const [panel, setPanel] = useState<"refund" | "upgrade" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -428,6 +435,7 @@ export function OrderMoney({
                 <span className="flex flex-wrap items-center gap-x-2">
                   <b className={cn("font-semibold tabular-nums", r.kind === "refund" && "text-danger")}>{r.kind === "refund" ? `−${money(r.amount)}` : money(r.amount)}</b>
                   {r.kind === "refund" ? <Badge tone="danger">возврат</Badge> : <Badge>{methodLabels[r.method]}</Badge>}
+                  {r.payForm ? <Badge>{r.payForm}</Badge> : null}
                   <span className="text-xs text-muted">{r.paidLabel}</span>
                 </span>
                 <span className="mt-0.5 block text-xs text-muted">
@@ -530,6 +538,9 @@ export function OrderMoney({
               <input name="paidAt" type="date" className="input h-10" />
             </Field>
           </div>
+          <Field label="Форма оплаты" hint="По ней считается комиссия банка">
+            <PayFormPicker name="payForm" options={payForms} value={payForm} onChange={setPayForm} />
+          </Field>
           <Field label="Чек" hint="Скриншот, фото или PDF перевода">
             <input name="file" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" required className="block w-full text-sm file:mr-3 file:rounded-lg file:border file:border-line-strong file:bg-white file:px-3 file:py-1.5 file:text-sm file:text-ink" />
           </Field>

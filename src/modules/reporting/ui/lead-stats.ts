@@ -56,6 +56,8 @@ export interface RegisterRow {
   eventDate: string | null;
   /** Форма оплаты сделки (своё поле): Kaspi Gold, Рассрочка, Red… */
   payForm: string | null;
+  /** Деньги платежей со своей формой оплаты (форма → сумма); остальное — по форме сделки. */
+  paidForms?: Record<string, number>;
   price: number;
   dealPaid: number;
   method: string | null;
@@ -381,8 +383,8 @@ export function salesRegisterScreen(input: { rows: RegisterRow[]; staff: { id: s
         method: r.method ? (METHOD[r.method] ?? r.method) : "",
         payForm: r.payForm ?? "",
         /** Комиссия банка с оплаченного и сколько остаётся после неё. */
-        fee: feeOf(paid, r.payForm, rates),
-        net: paid - feeOf(paid, r.payForm, rates),
+        fee: registerFee(paid, r.payForm, r.paidForms ?? {}, rates),
+        net: paid - registerFee(paid, r.payForm, r.paidForms ?? {}, rates),
         orderNumber: r.orderNumber,
         orderId: r.orderId,
       };
@@ -391,5 +393,18 @@ export function salesRegisterScreen(input: { rows: RegisterRow[]; staff: { id: s
     rows,
     totals: { count: rows.length, price: sum(rows, (r) => r.price), paid: sum(rows, (r) => r.paid), rest: sum(rows, (r) => r.rest), settled: rows.filter((r) => r.rest === 0).length, fee: sum(rows, (r) => r.fee), net: sum(rows, (r) => r.net) },
   };
+}
+/**
+ * Комиссия банка с денег сделки в реестре: платежи со своей формой — по ней (предоплата Gold, остаток в рассрочку),
+ * остаток оплаченного — по форме сделки.
+ */
+export function registerFee(paid: number, dealForm: string | null, paidForms: Record<string, number>, rates: Record<string, number>) {
+  let tagged = 0;
+  let fee = 0;
+  for (const [form, amount] of Object.entries(paidForms)) {
+    tagged += amount;
+    fee += feeOf(amount, form, rates);
+  }
+  return fee + feeOf(Math.max(0, paid - tagged), dealForm, rates);
 }
 export type SalesRegisterScreen = ReturnType<typeof salesRegisterScreen>;

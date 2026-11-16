@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { expenseGroupOf, feeOf, guessAdChannel, guessExpenseCategory, parseExpenseLines, parseFeeRates, parseTaxRate } from "@/shared/domain/expenses";
+import { expenseGroupOf, feeOf, guessAdChannel, kaspiPayForm, guessExpenseCategory, parseExpenseLines, parseFeeRates, parseTaxRate } from "@/shared/domain/expenses";
 import { financePeriod, type MoneyRow } from "@/modules/reporting/ui/finance-screen";
 import { expensesScreen, profitScreen, profitStep, type ExpenseRow, type ProfitCounts } from "@/modules/reporting/ui/profit-screen";
-import { leadStatsScreen, recipientGroup, salesRegisterScreen, type LeadDealRow, type RegisterRow } from "@/modules/reporting/ui/lead-stats";
+import { leadStatsScreen, recipientGroup, registerFee, salesRegisterScreen, type LeadDealRow, type RegisterRow } from "@/modules/reporting/ui/lead-stats";
 
 const tz = "Asia/Almaty";
 const now = new Date("2026-11-15T10:00:00Z");
@@ -383,5 +383,46 @@ describe("Реестр продаж", () => {
     ]);
     expect(s.totals).toEqual({ count: 2, price: 58_000, paid: 39_000, rest: 19_000, settled: 1, fee: 0, net: 39_000 });
     expect(s.rows[0]).toMatchObject({ day: "2026-11-02", channel: "WhatsApp", plan: "Твёрдая обложка", method: "Kaspi" });
+  });
+});
+
+describe("Комиссия по форме каждого платежа", () => {
+  const period = financePeriod({ preset: "custom", from: "2026-11-01", to: "2026-11-14", now, tz });
+  const rates = { "Kaspi Рассрочка": 15, "Kaspi Red": 12 };
+
+  it("предоплата переводом и остаток в рассрочку: комиссия только с остатка, хотя сделка помечена рассрочкой", () => {
+    const s = profitScreen({
+      period,
+      tz,
+      money: [
+        money({ amount: 10_000, at: at("2026-11-02"), dealId: "d1", payForm: "Kaspi Gold" }),
+        money({ amount: 19_000, at: at("2026-11-05"), dealId: "d1", payForm: "Kaspi Рассрочка" }),
+        // Платёж без своей формы — по форме сделки.
+        money({ amount: 20_000, at: at("2026-11-06"), dealId: "d2" }),
+      ],
+      expenses: [],
+      counts: counts(),
+      prevCounts: counts(),
+      forms: { d1: "Kaspi Рассрочка", d2: "Kaspi Red" },
+      feeRates: rates,
+    });
+    // 19 000 × 15% = 2 850; 20 000 × 12% = 2 400; предоплата Gold — без комиссии.
+    expect(s.fees.auto).toBe(5250);
+    expect(s.fees.byForm.map((f) => [f.form, f.money, f.fee])).toEqual([
+      ["Kaspi Red", 20_000, 2400],
+      ["Kaspi Рассрочка", 19_000, 2850],
+      ["Kaspi Gold", 10_000, 0],
+    ]);
+  });
+
+  it("реестр: деньги со своей формой — по ней, остаток оплаченного — по форме сделки", () => {
+    expect(registerFee(29_000, "Kaspi Рассрочка", { "Kaspi Gold": 10_000 }, rates)).toBe(2850);
+    expect(registerFee(29_000, "Kaspi Gold", { "Kaspi Red": 19_000 }, rates)).toBe(2280);
+    expect(registerFee(29_000, "Kaspi Рассрочка", {}, rates)).toBe(4350);
+    expect(registerFee(0, "Kaspi Рассрочка", {}, rates)).toBe(0);
+  });
+
+  it("вид операции кассы Kaspi → форма оплаты", () => {
+    expect([kaspiPayForm("GOLD"), kaspiPayForm("LOAN"), kaspiPayForm("red"), kaspiPayForm("BONUS"), kaspiPayForm(null)]).toEqual(["Kaspi Gold", "Kaspi Рассрочка", "Kaspi Red", null, null]);
   });
 });

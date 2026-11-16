@@ -154,6 +154,12 @@ export function parseFeeRates(raw: string | null | undefined): Record<string, nu
   }
 }
 
+/** Форма оплаты по виду операции кассы Kaspi (SourceType в истории): GOLD, LOAN — рассрочка, RED. Другое — null. */
+export function kaspiPayForm(source: string | null | undefined): string | null {
+  const v = String(source ?? "").trim().toUpperCase();
+  return v === "GOLD" ? "Kaspi Gold" : v === "LOAN" ? "Kaspi Рассрочка" : v === "RED" ? "Kaspi Red" : null;
+}
+
 /** Комиссия с суммы по форме оплаты, ₸ (возврат — со знаком минус: комиссию банк возвращает вместе с деньгами). */
 export const feeOf = (amount: number, form: string | null | undefined, rates: Record<string, number>) => (form && rates[form] ? Math.round((amount * rates[form]) / 100) : 0);
 

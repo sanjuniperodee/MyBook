@@ -35,6 +35,8 @@ export interface MoneyRow {
   externalRef: string | null;
   invoiceNumber: number | null;
   reviewedAt: Date | null;
+  /** Форма оплаты этого платежа (Kaspi Gold, Kaspi Рассрочка…); пусто — по форме сделки. */
+  payForm?: string | null;
 }
 
 export interface FinanceDealRow {

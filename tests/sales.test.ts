@@ -884,3 +884,20 @@ describe("SiteFunnelService: сделка держит деньги клиент
     expect(deals.notes.at(-1)).toContain("договорённость не оформлена (не указан тариф)");
   });
 });
+
+describe("Форма оплаты сделки по принятому платежу", () => {
+  it("ставится пустой сделке; Gold уступает рассрочке и Red; выбранную рассрочку не меняет", async () => {
+    const t = setup();
+    const d = await t.service.create({ title: "Книга", source: "whatsapp", clientId: "c1" });
+    const form = async () => (await t.service.findById(d.id))!.customFields.pay_form ?? null;
+    await t.service.notePayForm(d.id, null);
+    expect(await form()).toBeNull();
+    await t.service.notePayForm(d.id, "Kaspi Gold");
+    expect(await form()).toBe("Kaspi Gold");
+    await t.service.notePayForm(d.id, "Kaspi Рассрочка");
+    expect(await form()).toBe("Kaspi Рассрочка");
+    await t.service.notePayForm(d.id, "Kaspi Gold");
+    await t.service.notePayForm(d.id, "Kaspi Red");
+    expect(await form()).toBe("Kaspi Рассрочка");
+  });
+});

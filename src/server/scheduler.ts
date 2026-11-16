@@ -8,6 +8,7 @@ import { sweepAbandonedUploads } from "@/server/answerFiles";
 import { kickAnswerFiles } from "@/server/answerFilesWorker";
 import { dedupWhatsappMedia } from "@/server/whatsapp-media";
 import { stageOrderDeps, stageOrderPass } from "@/server/stage-order";
+import { tagKaspiPayForms } from "@/server/kaspi-pay-forms";
 
 const INTERVAL_MS = 15 * 60_000;
 /** Номер advisory-блокировки: при нескольких инстансах проход выполняет только один. */
@@ -27,7 +28,7 @@ async function step<T>(name: string, run: () => Promise<T>, fallback: T): Promis
   }
 }
 
-/** Медленный проход (раз в 15 минут): сертификаты, автописьма, чистка outbox, история WhatsApp, ночной разбор бота, чистка следов бота и кэша предпросмотров. Экспорт — для тестов. */
+/** Медленный проход (раз в 15 минут): сертификаты, автописьма, чистка outbox, история WhatsApp, формы оплаты Kaspi, ночной разбор бота, чистка следов бота и кэша предпросмотров. Экспорт — для тестов. */
 export async function tick() {
   // Блокировка живёт в сессии, поэтому держим одно соединение на весь проход.
   const client = await pool.connect();
@@ -61,6 +62,9 @@ export async function tick() {
     // Одинаковые вложения WhatsApp (одни и те же фото примеров каждому клиенту с телефона магазина) — ссылки на один файл.
     const media = await step("whatsapp media dedup", () => dedupWhatsappMedia(), null);
     if (media?.linked) console.log(`[scheduler] whatsapp media linked=${media.linked} freed=${(media.freed / 1_048_576).toFixed(1)}MB`);
+    // Форма оплаты онлайн-платежей Kaspi (Gold, рассрочка, Red) — из истории кассы: по ней считается комиссия банка.
+    const forms = await step("kaspi pay forms", () => tagKaspiPayForms(), 0);
+    if (forms) console.log(`[scheduler] kaspi pay forms tagged=${forms}`);
     kickAnswerFiles();
   } catch (err) {
     console.error("[scheduler] tick failed", err);

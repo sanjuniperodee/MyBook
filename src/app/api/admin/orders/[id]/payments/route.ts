@@ -10,6 +10,7 @@ import { receiptProblemError } from "@/server/payment-errors";
 import { fromZonedTime } from "@/shared/domain/time";
 import { staffLabel } from "@/shared/domain/staff";
 import { OrderingError } from "@/modules/ordering";
+import { parsePayForm } from "@/server/pay-form";
 
 export const maxDuration = 60;
 
@@ -36,6 +37,9 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
   if (day && !/^\d{4}-\d{2}-\d{2}$/.test(day)) throw new HttpError(400, "paymentDateInvalid");
   // День оплаты — по времени магазина; полдень, чтобы оплата не «съезжала» на соседние сутки. Сегодня — сейчас.
   const paidAt = day ? new Date(Math.min(fromZonedTime(`${day}T12:00:00`).getTime(), Date.now())) : new Date();
+  // Форма оплаты (Gold, рассрочка, Red…): комиссия банка считается с этой оплаты по ней.
+  const payForm = await parsePayForm(form.get("payForm"));
+  if (!payForm.ok) return NextResponse.json({ error: payForm.error }, { status: 400 });
   let result;
   try {
     result = await container().ordering.payments.acceptManual({
@@ -43,6 +47,7 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
     amount: Number(fields.amount || 0),
     paidAt,
     note: fields.note,
+    payForm: payForm.form,
     receipt: { bytes, fileName: file.name },
     actor: { userId: staff.user.id, label: `admin:${staffLabel(staff.user)}` },
     });
@@ -51,7 +56,8 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
     if (OrderingError.is(err) && err.code === "paymentRule") return NextResponse.json({ error: err.message }, { status: 409 });
     throw err;
   }
-  await audit(staff, "order.payment", "order", id, { payment: result.payment.id, amount: result.payment.amount, settled: result.settled, overpaid: result.overpaid });
+  await audit(staff, "order.payment", "order", id, { payment: result.payment.id, amount: result.payment.amount, settled: result.settled, overpaid: result.overpaid, payForm: payForm.form });
+  for (const d of await container().sales.deals.byOrder(id)) await container().sales.deals.notePayForm(d.id, payForm.form);
   revalidatePath(`/admin/orders/${id}`);
   revalidatePath("/admin/finance");
   return NextResponse.json({ payment: { id: result.payment.id, amount: result.payment.amount }, settled: result.settled, overpaid: result.overpaid });

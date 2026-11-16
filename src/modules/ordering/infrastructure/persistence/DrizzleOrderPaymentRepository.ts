@@ -1,6 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
 import { orderPayments } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
 import type { OrderPaymentRecord, OrderPaymentRepository } from "../../domain";
@@ -14,6 +14,7 @@ const toRecord = (r: Row): OrderPaymentRecord => ({
   amount: r.amount,
   method: r.method,
   externalRef: r.externalRef,
+  payForm: r.payForm,
   paidAt: r.paidAt,
   note: r.note,
   receipt: r.receiptStorageKey ? { storageKey: r.receiptStorageKey, fileName: r.receiptFileName ?? "чек", mime: r.receiptMime ?? "application/octet-stream", size: r.receiptSize ?? 0 } : null,
@@ -38,6 +39,7 @@ export class DrizzleOrderPaymentRepository implements OrderPaymentRepository {
         amount: p.amount,
         method: p.method,
         externalRef: p.externalRef,
+        payForm: p.payForm ?? null,
         paidAt: p.paidAt,
         note: p.note,
         receiptStorageKey: p.receipt?.storageKey ?? null,
@@ -63,5 +65,18 @@ export class DrizzleOrderPaymentRepository implements OrderPaymentRepository {
 
   async review(id: string, reviewerId: string, at: Date) {
     await executor().update(orderPayments).set({ reviewedById: reviewerId, reviewedAt: at }).where(eq(orderPayments.id, id));
+  }
+
+  async tagKaspiForms(forms: Record<string, string>) {
+    const out: { orderId: string; form: string }[] = [];
+    for (const [ref, form] of Object.entries(forms)) {
+      const rows = await executor()
+        .update(orderPayments)
+        .set({ payForm: form })
+        .where(and(eq(orderPayments.method, "kaspi"), eq(orderPayments.externalRef, ref), isNull(orderPayments.payForm)))
+        .returning({ orderId: orderPayments.orderId });
+      out.push(...rows.map((r) => ({ orderId: r.orderId, form })));
+    }
+    return out;
   }
 }

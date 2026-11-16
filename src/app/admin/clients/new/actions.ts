@@ -15,6 +15,7 @@ import { MAX_PAYMENT } from "@/modules/sales/domain";
 import { normalizePhone } from "@/shared/domain/phone";
 import { assertStaff, audit, can, canAssignOthers } from "@/server/access";
 import { container } from "@/server/container";
+import { parsePayForm } from "@/server/pay-form";
 import { auditDiscount, discountLimit } from "@/server/discount";
 import { staffActionError } from "@/server/errors";
 import { DiscountError, DiscountPolicy } from "@/shared/domain/discount";
@@ -90,6 +91,8 @@ export async function createClientAction(_: NewClientState, form: FormData): Pro
   const channel = d.channel as ManualChannel;
   const withDeal = d.createDeal === "on" && can(staff, "deals.edit");
   if (withDeal && d.prepaid > d.agreed * d.count) return fail("Предоплата не может быть больше суммы договорённости");
+  const payForm = await parsePayForm(values.payForm);
+  if (!payForm.ok) return fail(payForm.error);
   if (withDeal && !getVisiblePlans().some((p) => p.id === d.plan)) return fail("Выберите тариф, на который договорились");
   if (!normalizePhone(d.phone) || normalizePhone(d.phone).length < 10) return fail("Проверьте номер телефона");
 
@@ -110,7 +113,7 @@ export async function createClientAction(_: NewClientState, form: FormData): Pro
         channel,
         // Ответственный: сам менеджер (роль «только свои» видит лишь своих клиентов), руководитель может назначить другого.
         assigneeId: d.assigneeId && canAssignOthers(staff) ? d.assigneeId : staff.user.id,
-        deal: withDeal ? { agreed: d.agreed, count: d.count, prepaid: d.prepaid, deadline: d.deadline, stageId: d.stageId, comment: d.comment, plan: d.plan, planLabel: plan ? planLabels[plan.id].toLowerCase() : d.plan, gifts: giftsFromForm(values), maxDiscountPercent: limit } : null,
+        deal: withDeal ? { agreed: d.agreed, count: d.count, prepaid: d.prepaid, payForm: payForm.form, deadline: d.deadline, stageId: d.stageId, comment: d.comment, plan: d.plan, planLabel: plan ? planLabels[plan.id].toLowerCase() : d.plan, gifts: giftsFromForm(values), maxDiscountPercent: limit } : null,
       },
       { userId: staff.user.id, name: staff.user.name || staff.user.email, seesAll: staff.scope === "all", allTasks: can(staff, "tasks.all") },
     );
@@ -209,6 +212,8 @@ export async function createClientDealsAction(_: ClientDealsState, form: FormDat
   const d = parsed.data;
   if (!getVisiblePlans().some((p) => p.id === d.plan)) return fail("Выберите тариф, на который договорились");
   if (d.prepaid > d.agreed * d.count) return fail("Предоплата не может быть больше суммы договорённости");
+  const payForm = await parsePayForm(values.payForm);
+  if (!payForm.ok) return fail(payForm.error);
   const client = await container().clients.clients.find(d.clientId);
   if (!client) return fail("Клиент не найден");
   if (staff.scope === "own" && client.managerId && client.managerId !== staff.user.id) return fail("Это клиент другого менеджера");
@@ -227,7 +232,7 @@ export async function createClientDealsAction(_: ClientDealsState, form: FormDat
         recipient: d.recipient,
         locale: "ru",
         assigneeId: d.assigneeId && canAssignOthers(staff) ? d.assigneeId : client.managerId ?? staff.user.id,
-        deal: { agreed: d.agreed, count: d.count, prepaid: d.prepaid, deadline: d.deadline, stageId: d.stageId, comment: d.comment, plan: d.plan, planLabel: plan ? planLabels[plan.id].toLowerCase() : d.plan, gifts: giftsFromForm(values), maxDiscountPercent: limit },
+        deal: { agreed: d.agreed, count: d.count, prepaid: d.prepaid, payForm: payForm.form, deadline: d.deadline, stageId: d.stageId, comment: d.comment, plan: d.plan, planLabel: plan ? planLabels[plan.id].toLowerCase() : d.plan, gifts: giftsFromForm(values), maxDiscountPercent: limit },
       },
       { userId: staff.user.id, name: staff.user.name || staff.user.email, seesAll: staff.scope === "all", allTasks: can(staff, "tasks.all") },
     );

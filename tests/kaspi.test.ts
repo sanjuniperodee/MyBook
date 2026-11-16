@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createHmac } from "node:crypto";
 import { consoleLogger } from "@/shared/application";
-import { kaspiOutcome, kaspiPhone, parseKaspiPayment, parseKaspiWebhook, PaymentInvoice } from "@/modules/ordering/domain";
+import { kaspiOutcome, kaspiPhone, parseKaspiHistory, parseKaspiPayment, parseKaspiWebhook, PaymentInvoice } from "@/modules/ordering/domain";
 import { GiftsService } from "@/modules/ordering/application/GiftsService";
 import { KaspiPaymentsService } from "@/modules/ordering/application/KaspiPaymentsService";
 import { KaspiSetupService } from "@/modules/ordering/application/KaspiSetupService";
@@ -422,5 +422,32 @@ describe("Kaspi: клиент kaspi-pos", () => {
   it("Kaspi просит пароль — вход не завершён", async () => {
     const client = new KaspiPosClient(memConfig(null), async () => json({ view: { code: "KPEnterLoginPassword" } }));
     await expect(client.verify("p1", "1234")).rejects.toMatchObject({ code: "kaspiUnavailable" });
+  });
+});
+
+describe("Kaspi: форма оплаты из истории кассы", () => {
+  const op = (id: string, source: string, regDate: string, type = 0) => ({ id, type, source, regDate, at: new Date(regDate) });
+
+  it("разбор страницы истории: операции всех дней, время с зоной", () => {
+    const ops = parseKaspiHistory({ Data: { DailySets: [{ Operations: [{ Id: 18640761643, OrderRegDate: "2026-11-16T02:27:20.895+05:00", OperationType: 0, SourceType: "LOAN" }] }, { Operations: [{ Id: 2, OrderRegDate: "2026-11-15T10:00:00", OperationType: 1, SourceType: "GOLD" }, { Id: 3 }] }] } });
+    expect(ops.map((o) => [o.id, o.type, o.source, o.at?.toISOString()])).toEqual([
+      ["18640761643", 0, "LOAN", "2026-11-15T21:27:20.895Z"],
+      ["2", 1, "GOLD", "2026-11-15T05:00:00.000Z"],
+    ]);
+    expect(parseKaspiHistory({ StatusCode: 1 })).toEqual([]);
+  });
+
+  it("сегодня и вчера, листает по 10 до нужной даты; возвраты и неизвестные виды — пропускаются; кассир не подключён — пусто", async () => {
+    const t = kaspiSetup();
+    const page1 = Array.from({ length: 10 }, (_, i) => op(`a${i}`, i === 3 ? "LOAN" : i === 4 ? "BONUS" : "GOLD", `2026-11-16T${String(20 - i).padStart(2, "0")}:00:00+05:00`, i === 5 ? 1 : 0));
+    const page2 = [op("b0", "RED", "2026-11-16T09:00:00+05:00")];
+    t.kaspi.historyPages = { 2: [page1, page2], 1: [[op("c0", "GOLD", "2026-11-15T09:00:00+05:00")]] };
+    const forms = await t.svc.payFormsSince(new Date("2026-11-14T00:00:00Z"));
+    expect(forms).toMatchObject({ a0: "Kaspi Gold", a3: "Kaspi Рассрочка", b0: "Kaspi Red", c0: "Kaspi Gold" });
+    expect(forms.a4).toBeUndefined();
+    expect(forms.a5).toBeUndefined();
+    expect(t.kaspi.historyCalls).toEqual([{ period: 2, after: null }, { period: 2, after: page1[9].regDate }, { period: 1, after: null }]);
+    t.kaspi.isConnected = false;
+    expect(await t.svc.payFormsSince(new Date("2026-11-14T00:00:00Z"))).toEqual({});
   });
 });

@@ -1,6 +1,7 @@
 import type { Clock, Logger, UnitOfWork } from "@/shared/application";
 import type { CustomFieldValues } from "@/shared/domain/customFields";
 import type { StageMilestone } from "@/shared/domain/stageMilestones";
+import { PAY_FORM_KEY } from "@/shared/domain/expenses";
 import { bookKind, progressOf } from "@/lib/content/kinds";
 import { checkDealPrice, Deal, Funnel, SalesError, type DealPrice, type DealRepository, type FunnelRepository, type NoteKind, type RejectionKind } from "../domain";
 import type { DealSource } from "@/shared/domain/dealSources";
@@ -390,6 +391,21 @@ export class DealsService {
     const deal = await this.deals.findById(dealId);
     if (!deal) return;
     deal.setField(key, value);
+    await this.deals.save(deal);
+  }
+
+  /**
+   * Форма оплаты сделки по принятому платежу: ставится, только если у сделки её ещё нет (выбранную вручную не трогаем);
+   * Kaspi Gold уступает рассрочке и Red — сделка, где была рассрочка, в «Реестре продаж» видна рассрочкой.
+   */
+  async notePayForm(dealId: string, form: string | null | undefined) {
+    if (!form) return;
+    const deal = await this.deals.findById(dealId);
+    if (!deal) return;
+    const cur = deal.snapshot().customFields[PAY_FORM_KEY];
+    if (cur && !(cur === "Kaspi Gold" && (form === "Kaspi Рассрочка" || form === "Kaspi Red"))) return;
+    if (cur === form) return;
+    deal.setField(PAY_FORM_KEY, form);
     await this.deals.save(deal);
   }
 

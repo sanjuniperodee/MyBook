@@ -14,7 +14,7 @@ const lockDeal = (dealId: string) => executor().execute(sql`select 1 from crm_de
  * revenue_events — по ней считаются обзор, аналитика, планы, LTV клиентов и каналы.
  */
 export class DealPayments {
-  async add(input: { dealId: string; clientId: string | null; amount: number; paidAt?: Date; note?: string; createdById: string; invoiceId?: string | null }): Promise<PaymentRow> {
+  async add(input: { dealId: string; clientId: string | null; amount: number; paidAt?: Date; note?: string; createdById: string; invoiceId?: string | null; payForm?: string | null }): Promise<PaymentRow> {
     const amount = Math.round(input.amount);
     if (!Number.isFinite(amount) || amount <= 0 || amount > MAX_PAYMENT) throw new PaymentError("amount");
     const paidAt = input.paidAt ?? new Date();
@@ -26,7 +26,7 @@ export class DealPayments {
       const [{ n }] = await executor().select({ n: sql<number>`count(*) filter (where ${crmPayments.kind} <> 'refund')::int` }).from(crmPayments).where(eq(crmPayments.dealId, input.dealId));
       const [row] = await executor()
         .insert(crmPayments)
-        .values({ dealId: input.dealId, clientId: input.clientId, amount, kind: n === 0 ? "prepayment" : "payment", paidAt, note: (input.note ?? "").trim().slice(0, 300), createdById: input.createdById, invoiceId: input.invoiceId ?? null })
+        .values({ dealId: input.dealId, clientId: input.clientId, amount, kind: n === 0 ? "prepayment" : "payment", paidAt, note: (input.note ?? "").trim().slice(0, 300), createdById: input.createdById, invoiceId: input.invoiceId ?? null, payForm: input.payForm ?? null })
         .returning();
       return row;
     });
@@ -52,7 +52,7 @@ export class DealPayments {
   }
 
   /** Возврат денег клиенту: записывается платежом типа refund (в выручке — со знаком минус) и не может превышать принятое. */
-  async refund(input: { dealId: string; clientId: string | null; amount: number; paidAt?: Date; note: string; createdById: string }): Promise<PaymentRow> {
+  async refund(input: { dealId: string; clientId: string | null; amount: number; paidAt?: Date; note: string; createdById: string; payForm?: string | null }): Promise<PaymentRow> {
     const amount = Math.round(input.amount);
     if (!Number.isFinite(amount) || amount <= 0 || amount > MAX_PAYMENT) throw new PaymentError("amount");
     const paidAt = input.paidAt ?? new Date();
@@ -61,7 +61,7 @@ export class DealPayments {
     return inTransaction(async () => {
       await lockDeal(input.dealId);
       if (amount > (await this.paidTotal(input.dealId))) throw new PaymentError("refundTooBig");
-      const [row] = await executor().insert(crmPayments).values({ dealId: input.dealId, clientId: input.clientId, amount, kind: "refund", paidAt, note: input.note.trim().slice(0, 300), createdById: input.createdById }).returning();
+      const [row] = await executor().insert(crmPayments).values({ dealId: input.dealId, clientId: input.clientId, amount, kind: "refund", paidAt, note: input.note.trim().slice(0, 300), createdById: input.createdById, payForm: input.payForm ?? null }).returning();
       return row;
     });
   }
@@ -105,6 +105,23 @@ export class DealPayments {
       .where(and(eq(crmPayments.id, id), eq(crmPayments.method, "manual"), isNull(crmPayments.reviewedAt)))
       .returning();
     return row ?? null;
+  }
+
+  /**
+   * Формы оплаты онлайн-платежей Kaspi по операциям (id операции → форма) — из истории кассы: только платежам без формы.
+   * Отмеченные платежи — с их сделками (форму сделке ставит DealsService.notePayForm).
+   */
+  async tagKaspiForms(forms: Record<string, string>) {
+    const out: { dealId: string; form: string }[] = [];
+    for (const [ref, form] of Object.entries(forms)) {
+      const rows = await executor()
+        .update(crmPayments)
+        .set({ payForm: form })
+        .where(and(eq(crmPayments.method, "kaspi"), eq(crmPayments.externalRef, ref), isNull(crmPayments.payForm)))
+        .returning({ dealId: crmPayments.dealId });
+      out.push(...rows.map((r) => ({ dealId: r.dealId, form })));
+    }
+    return out;
   }
 
   /** Удалить ошибочный платёж. Чеки остаются у сделки (платёж у них обнуляется). */

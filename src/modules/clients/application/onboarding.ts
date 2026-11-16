@@ -1,4 +1,5 @@
 import { formatPrice, getPlan, giftsForPlan } from "@/config/site";
+import { PAY_FORM_KEY } from "@/shared/domain/expenses";
 import { DiscountPolicy } from "@/shared/domain/discount";
 import type { AgreementGift } from "@/shared/domain/agreementGifts";
 import { channels, isManualChannel, manualAttribution, type ManualChannel } from "@/shared/domain/channels";
@@ -34,7 +35,7 @@ export interface OnboardingSales {
   /** Сделка — книга пакета: клиент оплатил сразу несколько книг. */
   setBatch(dealId: string, batchId: string, index: number, size: number): Promise<void>;
   tagDeal(dealId: string, tag: string): Promise<void>;
-  addPayment(input: { dealId: string; clientId: string; amount: number; createdById: string }): Promise<{ id: string }>;
+  addPayment(input: { dealId: string; clientId: string; amount: number; createdById: string; payForm?: string | null }): Promise<{ id: string }>;
   /** Привязать сделку (и её переписку) к аккаунту клиента. */
   linkClient(dealId: string, clientId: string): Promise<void>;
   /** Влить «пустые» заявки клиента (из чата, звонка, сайта) в сделку с договорённостью; номера влитых. */
@@ -81,6 +82,8 @@ export interface DealTerms {
   count?: number;
   /** Предоплата всего, по всем книгам, ₸. */
   prepaid: number;
+  /** Форма оплаты предоплаты (Kaspi Gold, Kaspi Рассрочка, Kaspi Red…): по ней — комиссия банка; ставится и сделке. */
+  payForm?: string | null;
   /** YYYY-MM-DD или пусто. */
   deadline: string;
   /** Этап воронки; пусто — «Взяли в работу». */
@@ -209,7 +212,7 @@ export class ClientOnboardingService {
       // Предоплата — деньги: записываем платёж. Он сразу попадает в выручку (обзор, аналитика, планы, карточка клиента).
       // Договорённость внесена — заявка клиента из чата или звонка (пустая) вливается в эту сделку, а не живёт рядом (дубль).
       const absorbed = i === 0 ? await this.sales.absorbRequests(deal.id, actor.userId).catch(() => [] as number[]) : [];
-      const paymentId = prepaids[i] > 0 ? (await this.sales.addPayment({ dealId: deal.id, clientId, amount: prepaids[i], createdById: actor.userId })).id : null;
+      const paymentId = prepaids[i] > 0 ? (await this.sales.addPayment({ dealId: deal.id, clientId, amount: prepaids[i], createdById: actor.userId, payForm: d.payForm ?? null })).id : null;
       parts.push({ dealId: deal.id, dealNumber: deal.number, agreed: prices[i], prepaid: prepaids[i], paymentId });
 
       const phone = normalizePhone(input.phone);
@@ -288,6 +291,7 @@ export class ClientOnboardingService {
     const custom: Record<string, string | number> = {};
     if (input.recipient) custom.recipient = input.recipient;
     if (d.deadline) custom.event_date = d.deadline;
+    if (d.payForm) custom[PAY_FORM_KEY] = d.payForm;
     // Договорённость уже есть — это не новая заявка.
     const stages = await this.sales.stages();
     const stageId = d.stageId || stages.find((s) => s.kind === "open" && s.name === "Взяли в работу")?.id;

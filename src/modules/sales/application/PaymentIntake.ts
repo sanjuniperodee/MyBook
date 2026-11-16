@@ -4,8 +4,8 @@ import { PaymentError } from "../domain";
 
 /** Хранилище платежей по сделке (infrastructure/payments.ts). */
 export interface PaymentStore {
-  add(input: { dealId: string; clientId: string | null; amount: number; paidAt?: Date; note?: string; createdById: string; invoiceId?: string | null }): Promise<IntakePayment>;
-  refund(input: { dealId: string; clientId: string | null; amount: number; paidAt?: Date; note: string; createdById: string }): Promise<IntakePayment>;
+  add(input: { dealId: string; clientId: string | null; amount: number; paidAt?: Date; note?: string; createdById: string; invoiceId?: string | null; payForm?: string | null }): Promise<IntakePayment>;
+  refund(input: { dealId: string; clientId: string | null; amount: number; paidAt?: Date; note: string; createdById: string; payForm?: string | null }): Promise<IntakePayment>;
   paidTotal(dealId: string): Promise<number>;
   find(id: string): Promise<{ dealId: string } | null>;
 }
@@ -61,6 +61,8 @@ export interface AcceptInput {
   amount: number;
   paidAt: Date;
   note: string;
+  /** Форма оплаты (Kaspi Gold, Kaspi Рассрочка, Kaspi Red…): по ней — комиссия банка с этого платежа. Пусто — форма сделки. */
+  payForm?: string | null;
   /** Чек: скриншот, фото или PDF; уже проверен по размеру и виду. */
   receipt: { bytes: Buffer; fileName: string };
   actor: IntakeActor;
@@ -85,7 +87,7 @@ export class PaymentIntakeService<S = unknown> {
     const { deal, actor } = input;
     const refund = input.kind === "refund";
     if (input.invoice && (refund || input.invoice.amount !== input.amount)) throw new PaymentError("amount");
-    const money = { dealId: deal.id, clientId: deal.clientId, amount: input.amount, paidAt: input.paidAt, note: input.note, createdById: actor.userId, invoiceId: input.invoice?.id ?? null };
+    const money = { dealId: deal.id, clientId: deal.clientId, amount: input.amount, paidAt: input.paidAt, note: input.note, createdById: actor.userId, invoiceId: input.invoice?.id ?? null, payForm: input.payForm ?? null };
     // Платёж без чека невозможен (B4): файл чека — до денег; платёж и запись о чеке — одной транзакцией;
     // не записалось одно из двух — транзакция откатывается, файл убираем.
     const staged = await this.receipts.stage({ dealId: deal.id, bytes: input.receipt.bytes, fileName: input.receipt.fileName });

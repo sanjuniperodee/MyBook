@@ -1,5 +1,6 @@
 import { container } from "@/server/container";
 import { listFields } from "@/modules/workspace";
+import { PAY_FORM_KEY, PAY_FORM_OPTIONS } from "@/shared/domain/expenses";
 import Link from "next/link";
 import { cn } from "@/lib/class-names";
 import { Panel } from "@/components/ui/Panel";
@@ -253,6 +254,8 @@ export default async function DealPage({ params, searchParams }: { params: Promi
                 payInvoiceId={payInvoiceId}
                 canIssue={invoicePerms.send}
                 refundAfterOrder={refundAfterOrder}
+                payForms={dealFields.find((f) => f.key === PAY_FORM_KEY)?.options ?? [...PAY_FORM_OPTIONS]}
+                dealPayForm={typeof deal.customFields[PAY_FORM_KEY] === "string" ? (deal.customFields[PAY_FORM_KEY] as string) : null}
               />
             ),
           },

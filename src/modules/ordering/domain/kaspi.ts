@@ -123,3 +123,38 @@ export function parseKaspiWebhook(body: unknown): KaspiWebhook | null {
   if (!root || !EVENTS.has(event) || !externalId) return null;
   return { event, externalId, method: root.type === "qr" ? "qr" : "invoice", status: text(root.status) ?? "", amount: money(root.amount) };
 }
+
+/** Операция из истории кассы Kaspi: продажа или возврат, вид оплаты клиента (GOLD, LOAN — рассрочка, RED) и время. */
+export interface KaspiHistoryOp {
+  id: string;
+  /** 0 — продажа; другое (возврат и т. п.) — не оплата. */
+  type: number;
+  /** SourceType: GOLD, LOAN, RED… */
+  source: string | null;
+  /** Время операции как его прислал Kaspi (OrderRegDate) — им же листается история. */
+  regDate: string;
+  at: Date | null;
+}
+
+/**
+ * Страница истории кассы (`/api/history/operations`): `{ Data: { DailySets: [{ Operations: [...] }] } }`, свежие — первыми,
+ * по 10 операций. Пусто — нет операций или не наш формат.
+ */
+export function parseKaspiHistory(body: unknown): KaspiHistoryOp[] {
+  const data = record(record(body)?.Data);
+  const sets = Array.isArray(data?.DailySets) ? data.DailySets : [];
+  const out: KaspiHistoryOp[] = [];
+  for (const set of sets) {
+    const ops = record(set)?.Operations;
+    for (const raw of Array.isArray(ops) ? ops : []) {
+      const op = record(raw);
+      const id = text(op?.Id);
+      const regDate = text(op?.OrderRegDate);
+      if (!op || !id || !regDate) continue;
+      const withZone = /(?:Z|[+-]\d\d:\d\d)$/.test(regDate);
+      const at = withZone ? new Date(regDate) : kaspiDate(regDate);
+      out.push({ id, type: Number(op.OperationType ?? 0), source: text(op.SourceType), regDate, at: at && !Number.isNaN(at.getTime()) ? at : null });
+    }
+  }
+  return out;
+}

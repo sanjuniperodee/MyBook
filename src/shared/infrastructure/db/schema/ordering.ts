@@ -101,6 +101,8 @@ export const orderPayments = pgTable(
     method: text("method", { enum: ["manual", "kaspi", "cloudpayments"] }).notNull(),
     /** Операция платёжной системы (повтор той же операции — не новая оплата). */
     externalRef: text("external_ref"),
+    /** Форма оплаты этого платежа (Kaspi Gold, Kaspi Рассрочка, Kaspi Red…): по ней — комиссия банка. Пусто — форма сделки. */
+    payForm: text("pay_form"),
     paidAt: timestamp("paid_at", { withTimezone: true }).notNull(),
     note: text("note").notNull().default(""),
     receiptStorageKey: text("receipt_storage_key"),

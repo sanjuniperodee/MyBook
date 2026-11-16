@@ -59,7 +59,7 @@ beforeEach(() => {
   const intake = new PaymentIntakeService(payments as never, receipts as never, { note: async () => {}, audit: async () => {}, mailClient: async () => {}, markInvoicePaid: async (i) => void marked.push(i) }, { run: (work) => work() });
   const accept = intake.acceptWithReceipt.bind(intake);
   intake.acceptWithReceipt = (input) => ((intakeInput = input), accept(input));
-  fake.sales = { deals: { findById: async () => deal }, payments, receipts, intake };
+  fake.sales = { deals: { findById: async () => deal, notePayForm: async () => {} }, payments, receipts, intake };
   fake.ordering = { invoices: { byId: async (id: string) => invoices.find((i) => i.id === id) ?? null, listFor: async () => invoices } };
   fake.clients = { notes: { add: async () => {} } };
 });

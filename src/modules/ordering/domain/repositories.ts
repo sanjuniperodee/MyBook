@@ -76,6 +76,8 @@ export interface OrderPaymentRecord {
   amount: number;
   method: "manual" | "kaspi" | "cloudpayments";
   externalRef: string | null;
+  /** Форма оплаты платежа (Kaspi Gold, Kaspi Рассрочка, Kaspi Red…): по ней — комиссия банка. Пусто — форма сделки. */
+  payForm?: string | null;
   paidAt: Date;
   note: string;
   receipt: { storageKey: string; fileName: string; mime: string; size: number } | null;
@@ -93,6 +95,8 @@ export interface OrderPaymentRepository {
   find(id: string): Promise<OrderPaymentRecord | null>;
   /** Руководитель сверил ручную оплату с поступлением на счёт. */
   review(id: string, reviewerId: string, at: Date): Promise<void>;
+  /** Формы оплаты онлайн-платежей Kaspi по операциям (id операции → форма): только тем, у кого формы ещё нет. Отмеченные. */
+  tagKaspiForms(forms: Record<string, string>): Promise<{ orderId: string; form: string }[]>;
 }
 
 export interface DealInvoiceRepository {

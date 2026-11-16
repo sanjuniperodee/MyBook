@@ -19,6 +19,8 @@ class MemPayments implements OrderPaymentRepository {
   list = async (orderId: string) => this.rows.filter((r) => r.orderId === orderId);
   find = async (id: string) => this.rows.find((r) => r.id === id) ?? null;
   review = async (id: string, by: string, at: Date) => void Object.assign(this.rows.find((r) => r.id === id)!, { reviewedById: by, reviewedAt: at });
+  tagKaspiForms = async (forms: Record<string, string>) =>
+    this.rows.filter((r) => r.method === "kaspi" && r.externalRef && forms[r.externalRef] && !r.payForm).map((r) => ((r.payForm = forms[r.externalRef!]), { orderId: r.orderId, form: r.payForm! }));
 }
 
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
@@ -41,6 +43,17 @@ function setup() {
 }
 
 describe("Деньги по заказу", () => {
+  it("форма оплаты перевода сохраняется в записи; онлайн-оплате Kaspi форму ставит история кассы — один раз", async () => {
+    const t = setup();
+    const o = await t.order();
+    await t.money.acceptManual({ orderId: o.id, amount: 1000, paidAt: t.c.now(), note: "", payForm: "Kaspi Red", receipt: { bytes: PNG, fileName: "чек.png" }, actor: staff });
+    expect(t.payments.rows[0].payForm).toBe("Kaspi Red");
+    t.payments.rows.push({ id: "k1", orderId: o.id, kind: "payment", amount: 500, method: "kaspi", externalRef: "777", payForm: null, paidAt: t.c.now(), note: "", receipt: null, createdById: null, reviewedById: null, reviewedAt: null, createdAt: t.c.now() });
+    expect(await t.money.tagKaspiForms({ "777": "Kaspi Рассрочка", "888": "Kaspi Gold" })).toEqual([{ orderId: o.id, form: "Kaspi Рассрочка" }]);
+    expect(await t.money.tagKaspiForms({ "777": "Kaspi Gold" })).toEqual([]);
+    expect(t.payments.rows.find((r) => r.id === "k1")!.payForm).toBe("Kaspi Рассрочка");
+  });
+
   it("перевод с чеком покрыл «к оплате» — заказ оплачен датой денег; частичная оплата — ждёт остаток", async () => {
     const t = setup();
     const o = await t.order();

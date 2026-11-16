@@ -21,6 +21,8 @@ interface Payment {
   /** manual — принял сотрудник с чеком; kaspi, cloudpayments — онлайн (чек — операция платёжной системы). */
   method?: string;
   externalRef?: string | null;
+  /** Форма оплаты платежа (Kaspi Gold, Kaspi Рассрочка…); пусто — форма сделки. */
+  payForm?: string | null;
 }
 
 const onlineLabels: Record<string, string> = { kaspi: "Kaspi", cloudpayments: "Карта" };
@@ -79,6 +81,7 @@ export function dealScreen<S extends Stage, P extends Payment>(input: {
       dateLabel: formatDate(p.paidAt),
       author: p.createdById ? (names.get(p.createdById) ?? "—") : "система",
       note: p.note,
+      payForm: p.payForm ?? null,
       online: p.method && p.method !== "manual" ? `${onlineLabels[p.method] ?? p.method}${p.externalRef ? ` · операция ${p.externalRef}` : ""}` : null,
       receipts: input.receipts.filter((r) => r.paymentId === p.id).map((r) => ({ id: r.id, fileName: r.fileName, isPdf: r.mime === "application/pdf" })),
     })),

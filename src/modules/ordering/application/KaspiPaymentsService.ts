@@ -1,4 +1,5 @@
 import { systemActor, type Clock, type Logger, type UnitOfWork } from "@/shared/application";
+import { kaspiPayForm } from "@/shared/domain/expenses";
 import {
   kaspiOutcome,
   kaspiPhone,
@@ -242,6 +243,30 @@ export class KaspiPaymentsService {
   }
 
   /** Счёт из чата можно оплатить: ждёт оплаты, не истёк, сделка есть и по ней ещё нет заказа. */
+  /**
+   * Вид оплаты клиента по операциям кассы с момента since (из истории Kaspi, только чтение): id операции → форма оплаты
+   * (Kaspi Gold, Kaspi Рассрочка, Kaspi Red). Смотрит сегодня и вчера, листая по 10 операций, пока не дойдёт до since.
+   * Касса общая с другим сайтом — чужие операции просто не совпадут ни с одним нашим платежом.
+   */
+  async payFormsSince(since: Date, maxPages = 10): Promise<Record<string, string>> {
+    if (!(await this.kaspi.connected())) return {};
+    const out: Record<string, string> = {};
+    for (const period of [2, 1] as const) {
+      let after: string | null = null;
+      for (let page = 0; page < maxPages; page++) {
+        const ops = await this.kaspi.history(period, after);
+        for (const op of ops) {
+          const form = op.type === 0 ? kaspiPayForm(op.source) : null;
+          if (form) out[op.id] = form;
+        }
+        const last = ops.at(-1);
+        if (ops.length < 10 || !last || (last.at && last.at < since)) break;
+        after = last.regDate;
+      }
+    }
+    return out;
+  }
+
   private async payable(invoice: DealInvoice) {
     if (!invoice.isPayable(this.clock.now())) return false;
     const deal = await this.deals().sales.deal(invoice.dealId);
