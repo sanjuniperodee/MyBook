@@ -3,7 +3,8 @@ import type { ClickRow, ClientRow, DealRow, SpendRow, TrackedLink } from "../dom
 
 export interface ReportSource {
   /** since — null за всё время. */
-  rows(since: Date | null): Promise<{ clients: ClientRow[]; deals: DealRow[]; clicks: ClickRow[]; spend?: SpendRow[] }>;
+  /** until — конец периода (не включая); без него — до сейчас. day — период днями магазина: расход берётся за эти дни целиком. */
+  rows(since: Date | null, until?: { to: Date; first: string; last: string } | null): Promise<{ clients: ClientRow[]; deals: DealRow[]; clicks: ClickRow[]; spend?: SpendRow[] }>;
 }
 
 /** Расходы на рекламу (analytics-7). */

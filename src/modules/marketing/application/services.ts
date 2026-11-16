@@ -16,10 +16,11 @@ export class MarketingService {
     private readonly clock: Clock,
   ) {}
 
-  /** Отчёт по каналам за последние days дней (null — за всё время). */
-  async report(days: number | null) {
-    const since = days ? new Date(this.clock.now().getTime() - days * 86_400_000) : null;
-    const rows = await this.source.rows(since);
+  /** Отчёт по каналам за последние days дней (null — за всё время) или за период «с … по …» (как в «Финансах»). */
+  async report(days: number | null | { from: Date; to: Date; first: string; last: string }) {
+    const range = days && typeof days === "object" ? days : null;
+    const since = range ? range.from : days ? new Date(this.clock.now().getTime() - (days as number) * 86_400_000) : null;
+    const rows = await this.source.rows(since, range ? { to: range.to, first: range.first, last: range.last } : null);
     return buildChannelReport(rows.clients, rows.deals, rows.clicks, rows.spend ?? []);
   }
 

@@ -1,6 +1,11 @@
 import { container } from "@/server/container";
-import { iso, localDay } from "@/modules/reporting/time";
-import { storeTimeZone } from "@/shared/domain/time";
+import { localDay } from "@/modules/reporting/time";
+import { storeTimeZone, zonedDay } from "@/shared/domain/time";
+import { z } from "zod";
+import { MoneyFlow } from "@/components/admin/MoneyFlow";
+import { PeriodBar, periodQuery } from "@/components/admin/PeriodBar";
+import { loadProfit } from "@/server/money-flow";
+import { financePeriod } from "@/modules/reporting/ui/finance-screen";
 import { planName } from "@/i18n/labels";
 import Link from "next/link";
 import { CalendarClock, CircleCheck, History, Link2, type LucideIcon } from "lucide-react";
@@ -15,14 +20,14 @@ import { PageHeader } from "@/components/admin/PageHeader";
 import { Panel } from "@/components/ui/Panel";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { cn } from "@/lib/class-names";
-import { Segmented } from "@/components/admin/Segmented";
 import { formatDate, nowMs } from "@/lib/dates";
 import { getSetting } from "@/modules/workspace";
 import type { AttentionRow } from "@/modules/reporting";
 
 export const metadata = { title: "Обзор" };
 
-const periods = [7, 30, 90] as const;
+/** Параметры адреса: период (как в «Финансах»); source=pwa — запуск приложения. */
+const query = z.object({ p: z.string().max(10).optional(), from: z.string().max(10).optional(), to: z.string().max(10).optional() }).catch({});
 const change = (cur: number, prev: number) => (prev ? (cur - prev) / prev : cur ? null : 0);
 
 /** Куда ведёт первая вкладка нижней панели каждой роли — туда установленная CRM открывается при запуске с иконки (как главная вкладка приложения). */
@@ -35,7 +40,7 @@ const LAUNCH: Record<string, string> = {
   calls: "/admin/calls",
 };
 
-export default async function AdminDashboard({ searchParams }: { searchParams: Promise<{ period?: string; source?: string }> }) {
+export default async function AdminDashboard({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const staff = await requireStaff();
   const launch = (await searchParams).source === "pwa";
   if (launch) {
@@ -59,23 +64,34 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
         <MyDay staff={staff} />
       </div>
     );
-  const { period: raw } = await searchParams;
-  const period = periods.find((p) => String(p) === raw) ?? 30;
-  const channelsReport = await container().marketing.service.report(period);
+  // Период и деньги — как в «Финансах», «Прибыли» и «Аналитике продаж»: те же пресеты, свои даты и один расчёт денег.
+  const q = query.parse(await searchParams);
+  const tz = storeTimeZone();
+  const period = financePeriod({ preset: q.p, from: q.from, to: q.to, now: new Date(), tz });
+  const pq = periodQuery(period);
+  const showFlow = staff.scope === "all" && can(staff, "finance.view");
+  const [channelsReport, profit] = await Promise.all([container().marketing.service.report({ from: period.from, to: period.to, first: period.first, last: period.last }), loadProfit(period, tz)]);
+  const flow = profit.screen.flow;
+  const unit = profit.screen.unit;
   const sources = {
     rows: channelsReport.channels.filter((c) => c.registrations || c.leads || c.sales).slice(0, 8),
   };
-  const [{ daily, cur, prev, newUsers, funnelRows, byPlan, deadlines, dealDeadlines, attention, events }, dealAttention] = await Promise.all([
-    container().reporting.dashboard(period, staffViewer(staff)),
+  const [{ newUsers, funnelRows, byPlan, deadlines, dealDeadlines, attention, events }, dealAttention] = await Promise.all([
+    container().reporting.dashboard({ from: period.from, to: period.to, prev: period.prev }, staffViewer(staff)),
     getSetting("crm.slaMinutes").then((sla) => container().reporting.attention(staffViewer(staff), Number(sla) || 15)),
   ]);
 
-  const byDay = new Map(daily.map((r) => [r.d, r]));
-  const series: DayPoint[] = Array.from({ length: period }, (_, i) => {
-    const d = iso(localDay(-(period - 1) + i));
-    const r = byDay.get(d);
-    return { date: d, value: r?.sum ?? 0, count: r?.n ?? 0 };
-  });
+  // Деньги по дням — те же поступления минус возвраты, что в «Финансах», по дню магазина.
+  const byDay = new Map<string, { sum: number; n: number }>();
+  for (const m of profit.data.money) {
+    if (m.at < period.from || m.at >= period.to) continue;
+    const d = zonedDay(m.at, tz);
+    const cur = byDay.get(d) ?? { sum: 0, n: 0 };
+    cur.sum += m.kind === "refund" ? -m.amount : m.amount;
+    if (m.kind !== "refund") cur.n++;
+    byDay.set(d, cur);
+  }
+  const series: DayPoint[] = period.days.map((d) => ({ date: d, value: byDay.get(d)?.sum ?? 0, count: byDay.get(d)?.n ?? 0 }));
   const f = funnelRows.rows[0] ?? {
     registered: 0,
     with_book: 0,
@@ -84,8 +100,6 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
     paid: 0,
   };
   const pct = (a: number, b: number) => (b ? `${Math.round((a / b) * 100)}%` : "—");
-  const avg = cur.n ? Math.round(cur.sum / cur.n) : 0;
-  const prevAvg = prev.n ? Math.round(prev.sum / prev.n) : 0;
 
   const deadlineRows = [
     ...deadlines.map((o) => ({
@@ -129,18 +143,9 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
       <PageHeader
         title="Обзор"
         meta={<span className="text-sm text-muted">{todayLabel}</span>}
-        actions={
-          <Segmented
-            label="Период"
-            items={periods.map((p) => ({
-              key: String(p),
-              label: `${p} дней`,
-              href: `/admin?period=${p}`,
-              active: p === period,
-            }))}
-          />
-        }
       />
+      <PeriodBar path="/admin" period={period} bad={q.p === "custom" && period.preset !== "custom"} />
+      {showFlow ? <MoneyFlow flow={flow} taxRate={profit.taxRate} query={pq} /> : null}
       <div className="flex flex-col gap-5" data-testid="my-day">
         {day.strip}
         {day.plan}
@@ -206,29 +211,29 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
           <section aria-labelledby="sales-h" className="panel overflow-hidden">
             <div className="panel-head">
               <h2 id="sales-h" className="panel-title">
-                Продажи за {period} дней
+                Деньги и продажи: {period.label.toLowerCase()}
               </h2>
-              <span className="text-xs text-muted">к прошлым {period} дням</span>
+              <span className="text-xs text-muted">к прошлому периоду</span>
             </div>
             <div className="grid grid-cols-2 gap-px border-b border-line bg-line xl:grid-cols-4">
               {[
                 {
-                  label: "Выручка",
-                  value: formatPrice(cur.sum),
-                  d: delta(cur.sum, prev.sum),
-                  hint: cur.agreed ? `в т.ч. ${formatPrice(cur.agreed)} по сделкам без платежа` : null,
+                  label: "Пришло денег",
+                  value: formatPrice(flow.revenue),
+                  d: delta(flow.revenue, flow.prevRevenue),
+                  hint: "за вычетом возвратов, как в «Финансах»" as string | null,
                 },
                 {
-                  label: "Оплаченные продажи",
-                  value: cur.n.toLocaleString("ru-RU"),
-                  d: delta(cur.n, prev.n),
-                  hint: null,
+                  label: "Новых покупателей",
+                  value: unit.buyers.toLocaleString("ru-RU"),
+                  d: delta(unit.buyers, profit.screen.prevUnit.buyers),
+                  hint: "первая оплата в периоде",
                 },
                 {
-                  label: "Средний чек",
-                  value: formatPrice(avg),
-                  d: delta(avg, prevAvg),
-                  hint: null,
+                  label: "Средний договор",
+                  value: unit.avgAgreed === null ? "—" : formatPrice(unit.avgAgreed),
+                  d: null,
+                  hint: "у новых покупателей",
                 },
                 {
                   label: "Новые клиенты",
@@ -248,7 +253,7 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
               ))}
             </div>
             <div className="p-4 sm:p-5">
-              <p className="mb-5 text-xs text-muted">Выручка по дням: по дате оплаты ({storeTimeZone()}), заказы и платежи менеджеров</p>
+              <p className="mb-5 text-xs text-muted">Деньги по дням: поступления минус возвраты по дню магазина ({tz}) — как в «Финансах»</p>
               <RevenueColumns data={series} />
             </div>
           </section>
@@ -257,7 +262,7 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
             flush
             title="Откуда приходят клиенты"
             actions={
-              <Link href={`/admin/marketing?period=${period}`} className="btn btn-ghost btn-sm">
+              <Link href={`/admin/marketing?period=${period.days.length}`} className="btn btn-ghost btn-sm">
                 Все каналы
               </Link>
             }
@@ -286,7 +291,9 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
                         <th className="num">Заявки</th>
                         <th className="num">Продажи</th>
                         <th className="num">Конверсия</th>
-                        <th className="num">Выручка</th>
+                        <th className="num" title="Оплаченные заказы клиентов канала и деньги по его сделкам">
+                          Продано на
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
@@ -321,7 +328,7 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
           </Panel>
 
           <div className="grid gap-5 lg:grid-cols-2">
-            <Panel title="Воронка" description={`Клиенты, зарегистрированные за ${period} дней`}>
+            <Panel title="Воронка" description={`Клиенты, зарегистрированные за период: ${period.label.toLowerCase()}`}>
               <BarList
                 rows={[
                   { label: "Зарегистрировались", value: f.registered },
@@ -348,7 +355,7 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
                 ]}
               />
             </Panel>
-            <Panel title="Выручка по тарифам">
+            <Panel title="Продажи по тарифам" description="Суммы оплаченных заказов по дате оплаты и продажи менеджеров — это продажи, а не поступления денег">
               <BarList
                 format={formatPrice}
                 rows={[

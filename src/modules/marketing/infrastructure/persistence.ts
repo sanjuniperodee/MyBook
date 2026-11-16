@@ -10,9 +10,11 @@ const paidAndNotCancelled = sql`o.paid_at is not null and o.status <> 'cancelled
 
 /** Выборки для отчёта по каналам: когорта клиентов, заявки, переходы по ссылкам. */
 export const sqlReportSource: ReportSource = {
-  async rows(since) {
+  async rows(since, until) {
     const from = since ? sql`${since.toISOString()}::timestamptz` : sql`'-infinity'::timestamptz`;
-    const fromDay = since ? zonedDay(since) : "0000-00-00";
+    const to = until ? sql`${until.to.toISOString()}::timestamptz` : sql`'infinity'::timestamptz`;
+    const fromDay = until ? until.first : since ? zonedDay(since) : "0000-00-00";
+    const toDay = until ? until.last : "9999-12-31";
     const db = executor();
     const [clients, deals, clicks, spend] = await Promise.all([
       db.execute<{ source: unknown; started: boolean; paid: boolean; revenue: number }>(sql`
@@ -20,18 +22,18 @@ export const sqlReportSource: ReportSource = {
           exists (select 1 from books b where b.user_id = u.id) as started,
           exists (select 1 from orders o where o.user_id = u.id and ${paidAndNotCancelled}) as paid,
           coalesce((select sum(o.amount) from orders o where o.user_id = u.id and ${paidAndNotCancelled}), 0)::int as revenue
-        from users u where u.role = 'user' and u.created_at >= ${from}`),
+        from users u where u.role = 'user' and u.created_at >= ${from} and u.created_at < ${to}`),
       db.execute<{ utm: unknown; source: string; client_id: string | null; won: boolean; amount: number; has_order: boolean; paid: number }>(sql`
         select d.utm, d.source, d.client_id, s.kind = 'won' as won, d.amount, d.order_id is not null as has_order,
           coalesce((select sum(case when p.kind = 'refund' then -p.amount else p.amount end) from crm_payments p where p.deal_id = d.id), 0)::int as paid
-        from crm_deals d join crm_stages s on s.id = d.stage_id where d.created_at >= ${from}`),
+        from crm_deals d join crm_stages s on s.id = d.stage_id where d.created_at >= ${from} and d.created_at < ${to}`),
       db.execute<{ slug: string; source: string; medium: string; campaign: string; clicks: number }>(sql`
         select l.slug, l.utm_source as source, l.utm_medium as medium, l.utm_campaign as campaign, coalesce(sum(c.clicks), 0)::int as clicks
-        from crm_links l left join crm_link_clicks c on c.link_id = l.id and c.day >= ${fromDay}
+        from crm_links l left join crm_link_clicks c on c.link_id = l.id and c.day >= ${fromDay} and c.day <= ${toDay}
         group by l.id`),
       // Расход на рекламу за период по каналам — по marketing_spend_day_idx. Ровно N дней, как у когорты (N×24 ч до сейчас):
       // день начала окна — неполный, его не берём; будущие дни (запись наперёд) — тоже.
-      db.execute<{ channel: string; amount: number }>(sql`select channel, coalesce(sum(amount), 0)::int as amount from marketing_spend where ${since ? sql`day > ${fromDay} and ` : sql``}day <= ${zonedDay(new Date())} group by channel`),
+      db.execute<{ channel: string; amount: number }>(sql`select channel, coalesce(sum(amount), 0)::int as amount from marketing_spend where ${until ? sql`day >= ${fromDay} and day <= ${toDay} and ` : since ? sql`day > ${fromDay} and ` : sql``}day <= ${zonedDay(new Date())} group by channel`),
     ]);
     return {
       clients: clients.rows,

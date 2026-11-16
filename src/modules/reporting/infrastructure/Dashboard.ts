@@ -11,32 +11,34 @@ import { ownClientOrders, type Viewer } from "./conditions";
  * Обзор магазина за период: выручка по дням, сравнение с прошлым периодом, воронка когорты, дедлайны, внимание. Задачи
  * сотрудника на сегодня — в «Моём дне» над обзором (myDay).
  */
-export async function dashboard(period: number, viewer: Viewer) {
+export async function dashboard(period: number | { from: Date; to: Date; prev: { from: Date; to: Date } }, viewer: Viewer) {
   // Строки заказов (сроки, внимание, события) — роли «только свои» только по своим клиентам; суммы магазина — общие.
   const own = ownClientOrders(viewer);
   const db = executor();
   // Границы периода в часовом поясе магазина (пояс — параметром запроса)
   const tz = storeTimeZone();
-  const startLocal = localDay(-(period - 1));
-  const prevStartLocal = localDay(-(2 * period - 1));
-  const start = sql`(${iso(startLocal)}::date at time zone ${tz})`;
-  const prevStart = sql`(${iso(prevStartLocal)}::date at time zone ${tz})`;
+  // Период — последние N дней или даты «с … по …» как в «Финансах» (конец не включается).
+  const ts = (d: Date) => sql`${d.toISOString()}::timestamptz`;
+  const start = typeof period === "number" ? sql`(${iso(localDay(-(period - 1)))}::date at time zone ${tz})` : ts(period.from);
+  const prevStart = typeof period === "number" ? sql`(${iso(localDay(-(2 * period - 1)))}::date at time zone ${tz})` : ts(period.prev.from);
+  const end = typeof period === "number" ? sql`'infinity'::timestamptz` : ts(period.to);
+  const prevEnd = typeof period === "number" ? start : ts(period.prev.to);
 
   const [dailyRes, curRes, prevRes, [newUsers], funnelRows, byPlanRes, deadlines, dealDeadlines, attention, events] = await Promise.all([
     // Выручка — единый журнал revenue_events: оплаченные заказы, платежи по ручным сделкам, успешные сделки без заказа.
     db.execute<{ d: string; sum: number; n: number }>(sql`
       select to_char((e.at at time zone ${tz})::date, 'YYYY-MM-DD') as d, sum(e.amount)::int as sum, count(distinct e.sale_id)::int as n
-      from revenue_events e where e.at >= ${start} group by 1`),
+      from revenue_events e where e.at >= ${start} and e.at < ${end} group by 1`),
     // agreed — часть выручки без денег в журнале: успешные сделки без заказа и без платежей (analytics-d6, подписываем).
     db.execute<{ sum: number; n: number; agreed: number }>(sql`
       select coalesce(sum(e.amount), 0)::int as sum, count(distinct e.sale_id)::int as n, coalesce(sum(e.amount) filter (where e.kind = 'deal'), 0)::int as agreed
-      from revenue_events e where e.at >= ${start}`),
+      from revenue_events e where e.at >= ${start} and e.at < ${end}`),
     db.execute<{ sum: number; n: number }>(sql`
-      select coalesce(sum(e.amount), 0)::int as sum, count(distinct e.sale_id)::int as n from revenue_events e where e.at >= ${prevStart} and e.at < ${start}`),
+      select coalesce(sum(e.amount), 0)::int as sum, count(distinct e.sale_id)::int as n from revenue_events e where e.at >= ${prevStart} and e.at < ${prevEnd}`),
     db
       .select({
-        cur: sql<number>`count(*) filter (where ${users.createdAt} >= ${start})::int`,
-        prev: sql<number>`count(*) filter (where ${users.createdAt} >= ${prevStart} and ${users.createdAt} < ${start})::int`,
+        cur: sql<number>`count(*) filter (where ${users.createdAt} >= ${start} and ${users.createdAt} < ${end})::int`,
+        prev: sql<number>`count(*) filter (where ${users.createdAt} >= ${prevStart} and ${users.createdAt} < ${prevEnd})::int`,
       })
       .from(users)
       // «Новые клиенты» — только клиенты: заведённые сотрудники в показатель не входят (analytics-d5).
@@ -51,9 +53,9 @@ export async function dashboard(period: number, viewer: Viewer) {
           and ${textStepSql({ theme: sql`b.theme`, ...progressCols(sql`b.id`) })}))::int as engaged,
         count(*) filter (where exists (select 1 from orders o where o.user_id = u.id) or exists (select 1 from revenue_events e where e.client_id = u.id))::int as ordered,
         count(*) filter (where exists (select 1 from revenue_events e where e.client_id = u.id))::int as paid
-      from users u where u.created_at >= ${start} and u.role = 'user'`),
+      from users u where u.created_at >= ${start} and u.created_at < ${end} and u.role = 'user'`),
     db.execute<{ plan: string; sum: number; n: number }>(sql`
-      select e.plan, sum(e.amount)::int as sum, count(distinct e.sale_id)::int as n from revenue_events e where e.at >= ${start} group by e.plan`),
+      select e.plan, sum(e.amount)::int as sum, count(distinct e.sale_id)::int as n from revenue_events e where e.at >= ${start} and e.at < ${end} group by e.plan`),
     db
       .select()
       .from(orders)
