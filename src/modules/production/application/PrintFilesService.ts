@@ -121,8 +121,11 @@ export class PrintFilesService {
   /** Сгенерировать файлы для печати (или взять готовые). Возвращает параметры печати, если рендерили. */
   async prepare(job: PrintJob, opts: { force?: boolean } = {}): Promise<PrintSpec | null> {
     const keys = { block: this.key(job.orderId, "block"), cover: this.key(job.orderId, "cover"), spec: this.key(job.orderId, "spec") };
-    if (!opts.force && (await this.files.exists(keys.block)) && (await this.files.exists(keys.cover)) && (await this.files.exists(keys.spec))) return null;
+    const ready = async () => (await this.files.exists(keys.block)) && (await this.files.exists(keys.cover)) && (await this.files.exists(keys.spec));
+    if (!opts.force && (await ready())) return null;
     return this.render(`print:${job.orderId}`, "package", async (report) => {
+      // Пока задача ждала очереди, пакет мог собрать другой процесс (прогрев после оплаты в mybook-worker) — не повторяем.
+      if (!opts.force && (await ready())) return null;
       const pkg = await this.renderer.renderPrintPackage(job.bookId, { number: job.number, plan: job.plan, quantity: job.quantity }, report);
       if (!pkg) throw new Error(`book ${job.bookId} not found`);
       await this.files.put(keys.block, pkg.interior);

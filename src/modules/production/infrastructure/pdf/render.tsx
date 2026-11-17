@@ -37,6 +37,7 @@ import type { PhotoSpec } from "@/lib/book/covers/svg-kit";
 import { backArtSvg, backContent, backPhotoIds, designBack, layeredBack, type BackDesign } from "@/lib/book/cover-back";
 import { CoverDocument } from "@/modules/production/infrastructure/pdf/cover";
 import { ensureFonts, renderPdf } from "@/modules/production/infrastructure/pdf/fonts";
+import { slots } from "@/modules/production/infrastructure/pdf/queue";
 import { InteriorDocument, type PreparedImage } from "@/modules/production/infrastructure/pdf/interior";
 import { readLayout, refineDropCaps, refineFlow } from "@/modules/production/infrastructure/pdf/flow";
 import { readPages } from "@/modules/production/infrastructure/pdf/pages";
@@ -63,6 +64,9 @@ const modeSettings: Record<RenderMode, { dpi: number; bleed: number; source: "fu
   reading: { dpi: 200, bleed: 0, source: "full" },
 };
 
+/** Сколько снимков готовить одновременно (см. prepareImages). */
+const IMAGE_CONCURRENCY = 3;
+
 async function prepareImages(content: BookContent, mode: RenderMode, bleedMm: number): Promise<Map<string, PreparedImage>> {
   const { dpi, source } = modeSettings[mode];
   const inlineIds = new Set(content.chapters.flatMap((c) => c.items.flatMap((it) => (it.photos ?? []).map((p) => p.id))));
@@ -82,8 +86,11 @@ async function prepareImages(content: BookContent, mode: RenderMode, bleedMm: nu
   for (const list of [...content.chapters.map((c) => c.photos), content.galleryPhotos])
     for (const group of photoPages(list))
       if (!(group.length === 1 && group[0].layout === "bleed")) for (const c of photoPagePlan(group, area, content.interior, sizes).cells) cells.set(c.id, c);
+  // Снимки готовим по IMAGE_CONCURRENCY за раз: все сразу держали в памяти оригиналы целиком (140 фото по 4–5 МБ
+  // и их расшифровки — 1,5 ГБ вне кучи JS), и на сервере сборка уходила в своп. libvips и так работает на 4 потоках.
+  const limit = slots(IMAGE_CONCURRENCY);
   await Promise.all(
-    all.map(async (p) => {
+    all.map((p) => limit(async () => {
       const input = await getFile(source === "full" ? p.storageKey : p.thumbKey);
       let img = sharp(input);
       const cell = cells.get(p.id);
@@ -126,7 +133,7 @@ async function prepareImages(content: BookContent, mode: RenderMode, bleedMm: nu
       }
       const { data, info } = await img.jpeg({ quality: mode === "preview" ? 75 : 90 }).toBuffer({ resolveWithObject: true });
       result.set(p.id, { data, width: info.width, height: info.height });
-    }),
+    })),
   );
   return result;
 }

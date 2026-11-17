@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterAll, describe, expect, it, vi } from "vitest";
 
-// Поток вёрстки PDF с пределом кучи (ADR 0009, P4): переполнение роняет поток и задачу, а не процесс сайта.
+// Процесс вёрстки PDF с пределом кучи (ADR 0009, P4): переполнение роняет процесс вёрстки и задачу, а не сайт.
 
 const dir = mkdtempSync(path.join(os.tmpdir(), "pdf-pool-"));
 afterAll(() => rmSync(dir, { recursive: true, force: true }));
@@ -12,21 +12,22 @@ afterAll(() => rmSync(dir, { recursive: true, force: true }));
 const file = path.join(dir, "fake-pdf-worker.mjs");
 writeFileSync(
   file,
-  `import { parentPort } from "node:worker_threads";
-parentPort.on("message", ({ id, job }) => {
+  `process.on("disconnect", () => process.exit(0));
+process.on("message", ({ id, job }) => {
   if (job.kind === "boom") { const hog = []; for (;;) hog.push(new Array(1e6).fill(Math.random())); }
-  parentPort.postMessage({ id, ok: true, result: job.kind });
+  if (job.kind === "bytes") return process.send({ id, ok: true, result: new Uint8Array([1, 2, 3]) });
+  process.send({ id, ok: true, result: job.kind });
 });
 `,
 );
 
-describe("поток вёрстки PDF", () => {
-  it("предел кучи: по умолчанию 2048 МБ, PDF_WORKER_HEAP_MB меняет", async () => {
+describe("процесс вёрстки PDF", () => {
+  it("предел кучи: по умолчанию 3072 МБ, PDF_WORKER_HEAP_MB меняет", async () => {
     const { pdfWorkerHeapMb } = await import("@/modules/production/infrastructure/pdf/pool");
-    expect(pdfWorkerHeapMb(undefined)).toBe(2048);
-    expect(pdfWorkerHeapMb("")).toBe(2048);
-    expect(pdfWorkerHeapMb("abc")).toBe(2048);
-    expect(pdfWorkerHeapMb("3")).toBe(2048);
+    expect(pdfWorkerHeapMb(undefined)).toBe(3072);
+    expect(pdfWorkerHeapMb("")).toBe(3072);
+    expect(pdfWorkerHeapMb("abc")).toBe(3072);
+    expect(pdfWorkerHeapMb("3")).toBe(3072);
     expect(pdfWorkerHeapMb("1536")).toBe(1536);
   });
 
@@ -40,7 +41,7 @@ describe("поток вёрстки PDF", () => {
     expect(pdfWorkerIdleMs("0.01")).toBe(600);
   });
 
-  it("после простоя поток закрывается, следующая задача поднимает новый", async () => {
+  it("после простоя процесс закрывается, следующая задача поднимает новый", async () => {
     vi.resetModules();
     vi.stubEnv("PDF_WORKER_FILE", file);
     vi.stubEnv("PDF_WORKER_IDLE_MIN", "0.005"); // 300 мс
@@ -50,6 +51,8 @@ describe("поток вёрстки PDF", () => {
     const run = inPdfThread as unknown as (job: { kind: string }) => Promise<unknown>;
     await expect(run({ kind: "one" })).resolves.toBe("one");
     await expect(run({ kind: "two" })).resolves.toBe("two");
+    // PDF приходит байтами, а не JSON (serialization: "advanced").
+    expect(await run({ kind: "bytes" })).toEqual(new Uint8Array([1, 2, 3]));
     const said = () => log.mock.calls.map((c) => String(c[0]));
     expect(said().filter((m) => m.includes("запущен"))).toHaveLength(1);
     await new Promise((r) => setTimeout(r, 700));
@@ -60,7 +63,7 @@ describe("поток вёрстки PDF", () => {
     vi.unstubAllEnvs();
   }, 30_000);
 
-  it("переполнение кучи — ошибка задачи, процесс жив, следующая задача идёт в новом потоке", async () => {
+  it("переполнение кучи — ошибка задачи, сайт жив, следующая задача идёт в новом процессе", async () => {
     vi.resetModules();
     vi.stubEnv("PDF_WORKER_FILE", file);
     vi.stubEnv("PDF_WORKER_HEAP_MB", "32");

@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import * as fontkit from "fontkit";
 import type { ReactElement } from "react";
-import { Font, renderToBuffer, type DocumentProps } from "@react-pdf/renderer";
+import { Font, pdf, type DocumentProps } from "@react-pdf/renderer";
 import hyphenRu from "hyphen/ru/index.js";
 import { fontFaces, type FontKey } from "@/lib/book/fonts";
 import { hyphenateKk, isKazakhWord } from "@/lib/book/hyphen-kk";
@@ -60,6 +60,31 @@ function freshFonts() {
 }
 
 /**
+ * renderToBuffer из react-pdf, но с размонтированием документа после сборки. react-pdf создаёт для каждого документа
+ * корень React и не отпускает его: дерево документа (сотни тысяч узлов у большой книги) оставалось в памяти навсегда.
+ * Блок книги верстается 10–12 раз (проходы доводки), и за одну сборку набегало ~60 МБ на проход (замер 17.11:
+ * книга на 140 фото — 0,6 ГБ), а сайт копил то же после каждой экранной сборки.
+ */
+async function renderAndRelease(document: ReactElement<DocumentProps>): Promise<Buffer> {
+  const instance = pdf(document);
+  try {
+    const stream = await instance.toBuffer();
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream as AsyncIterable<Buffer>) chunks.push(chunk);
+    return Buffer.concat(chunks);
+  } finally {
+    // Дважды: у корня React два дерева (текущее и запасное), и каждое держит свой документ — с его опциями и
+    // замыканиями (onLayout держал раскладку прохода целиком). После двух пустых обновлений пусты оба.
+    const empty = null as unknown as ReactElement<DocumentProps>;
+    instance.updateContainer(empty);
+    instance.updateContainer(empty);
+    // Сам корень React остаётся в списке корней навсегда и держит контейнер react-pdf, а тот — документ (дерево узлов
+    // с раскладкой): контейнер не очищается при размонтировании.
+    (instance.container as { document: unknown }).document = null;
+  }
+}
+
+/**
  * Собирает PDF строго по одному на процесс. Шрифты react-pdf общие для всех документов, и две сборки
  * одновременно портят подмножество шрифта: из надписей пропадают буквы (заказ №14 — «ИТАЛИЙ» на титуле).
  */
@@ -67,7 +92,7 @@ export function renderPdf(document: ReactElement<DocumentProps>): Promise<Buffer
   // Каждый документ — со своими объектами шрифтов (freshFonts): иначе буквы пропадают и при сборках по очереди.
   const run = renderQueue.then(() => {
     freshFonts();
-    return renderToBuffer(document);
+    return renderAndRelease(document);
   });
   renderQueue = run.catch(() => undefined);
   return run;

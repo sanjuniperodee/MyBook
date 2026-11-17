@@ -97,11 +97,27 @@ describe("PrintFilesService: файлы для типографии", () => {
   it("одновременные запросы одного заказа склеиваются в один рендер, разные очереди — нет", async () => {
     const t = setup();
     const [a, b, r] = await Promise.all([t.printFiles.getFile(job, "block"), t.printFiles.getFile(job, "cover"), t.printFiles.getFile(job, "reading")]);
-    expect([a.toString(), b.toString()]).toEqual(["block#1", "cover#1"]);
-    expect(r.toString()).toBe("reading#2");
-    expect(t.queue.requested).toEqual(["print:o1", "print:o1", "reading:o1"]);
-    expect(t.queue.started).toEqual(["print:o1", "reading:o1"]);
-    expect(t.renderer.calls).toEqual(["package:b1:7", "reading:b1"]);
+    // Блок и обложка — из одного рендера пакета (один номер); читательская версия — свой рендер. Порядок рендеров
+    // не важен: перед сборкой пакет ещё раз проверяет, не собран ли он уже (другим процессом, пока ждал очереди).
+    const n = a.toString().split("#")[1];
+    expect([a.toString(), b.toString()]).toEqual([`block#${n}`, `cover#${n}`]);
+    expect(r.toString()).toMatch(/^reading#\d$/);
+    expect(r.toString()).not.toBe(`reading#${n}`);
+    expect([...t.queue.requested].sort()).toEqual(["print:o1", "print:o1", "reading:o1"]);
+    expect([...t.queue.started].sort()).toEqual(["print:o1", "reading:o1"]);
+    expect([...t.renderer.calls].sort()).toEqual(["package:b1:7", "reading:b1"]);
+  });
+
+  it("пакет собрал другой процесс, пока задача ждала очереди, — второй раз не собираем", async () => {
+    const t = setup();
+    const first = await t.printFiles.prepare(job);
+    expect(first).not.toBeNull();
+    // Первая проверка (до очереди) не видит файлов — их положил другой процесс, пока задача шла в очередь.
+    const exists = t.files.exists.bind(t.files);
+    let calls = 0;
+    t.files.exists = async (key: string) => (calls++ < 1 ? false : exists(key));
+    expect(await t.printFiles.prepare(job)).toBeNull();
+    expect(t.renderer.calls).toEqual(["package:b1:7"]);
   });
 
   it("прогрев после оплаты: пакет и читательская версия; повторно — «из кэша» без рендера", async () => {

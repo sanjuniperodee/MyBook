@@ -1,5 +1,5 @@
-// Собирает поток вёрстки PDF (src/modules/production/infrastructure/pdf/worker.ts) в .next/standalone/pdf-worker.mjs —
-// рядом с server.js, откуда его запускает pdf/pool.ts. Next такие файлы сам не собирает. Тяжёлые пакеты не
+// Собирает процесс вёрстки PDF (src/modules/production/infrastructure/pdf/worker.ts) в .next/standalone/pdf-worker.mjs —
+// рядом с server.js, откуда его запускает pdf/pool.ts (child_process.fork). Next такие файлы сам не собирает. Тяжёлые пакеты не
 // вшиваются: берутся из node_modules релиза (их туда кладёт standalone-сборка — serverExternalPackages в next.config).
 import { build } from "esbuild";
 import { existsSync } from "node:fs";

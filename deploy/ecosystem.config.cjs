@@ -59,7 +59,8 @@ const worker = useWorker && {
   script: "worker.mjs",
   node_args: `--env-file=${path.join(root, ".env")}`,
   env: { NODE_ENV: "production", TZ: "Asia/Almaty", ...allocatorEnv },
-  // Фон рисует PDF подарочных сертификатов и предпросмотры (поток вёрстки — до ~1 ГБ на пике); обычно ~200–300 МБ.
+  // Обычно ~200–300 МБ. Вёрстка PDF (прогрев файлов после оплаты, сертификаты, предпросмотры) идёт отдельным дочерним
+  // процессом pdf-worker.mjs (pdf/pool.ts) — в этот предел не входит и при нехватке памяти падает сам, не задевая фон.
   max_memory_restart: "1500M",
   kill_timeout: 5000,
   time: true,
