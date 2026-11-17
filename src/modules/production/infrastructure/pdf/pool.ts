@@ -87,7 +87,9 @@ function getWorker(): ChildProcess | null {
   const w: ChildProcess = Reflect.apply(Reflect.get(childProcess, "fork") as typeof childProcess.fork, childProcess, [
     WORKER_FILE,
     [],
-    { execArgv: [`--max-old-space-size=${pdfWorkerHeapMb()}`], serialization: "advanced", stdio: ["ignore", "inherit", "inherit", "ipc"] },
+    // NODE_ENV — всегда production: файл воркера есть только в собранном релизе, а там нет отладочных сборок react
+    // (разовый скрипт без NODE_ENV ронял вёрстку: «Cannot find module react-jsx-runtime.development.js»).
+    { execArgv: [`--max-old-space-size=${pdfWorkerHeapMb()}`], env: { ...process.env, NODE_ENV: "production" }, serialization: "advanced", stdio: ["ignore", "inherit", "inherit", "ipc"] },
   ]);
   w.on("message", (m: { id: number; ok?: boolean; result?: unknown; error?: string; progress?: RenderEvent }) => {
     const p = pending.get(m.id);
