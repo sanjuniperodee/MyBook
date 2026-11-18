@@ -253,3 +253,60 @@ function BackSide({ rect, design, photos }: { rect: { x: number; y: number; w: n
     </>
   );
 }
+
+/**
+ * Оборот листа обложки (вторая страница cover.pdf, печать 4+1): контуры картона задней и лицевой крышки и корешка,
+ * линии сгибов и подписи — куда класть картон в переплёте. Лист переворачивают по вертикальной оси, поэтому всё
+ * отражено слева направо: лицевая крышка — слева. Сама разметка симметрична (загибы и крышки равны), так что контуры
+ * совпадают с лицом листа при любом перевороте; надписи потом закрывает форзац.
+ */
+export function CoverReverseDocument({ geometry: g, lines, labels }: { geometry: CoverGeometry; lines: string[]; labels: { title: string; front: string; back: string; spine: string } }) {
+  const flip = (r: { x: number; y: number; w: number; h: number }) => ({ ...r, x: g.width - r.x - r.w });
+  const line = "#000000";
+  const box = (r: { x: number; y: number; w: number; h: number }, dashed = false) => (
+    <View
+      style={{ position: "absolute", left: mm(r.x), top: mm(r.y), width: mm(r.w), height: mm(r.h), borderWidth: mm(0.3), borderColor: line, borderStyle: dashed ? "dashed" : "solid" }}
+    />
+  );
+  const label = (r: { x: number; y: number; w: number; h: number }, title: string) => (
+    <View style={{ position: "absolute", left: mm(r.x), top: mm(r.y + r.h / 2 - 6), width: mm(r.w), alignItems: "center" }}>
+      <Text hyphenationCallback={noHyphens} style={{ ...face("montserrat", 600), fontSize: mm(4), color: line, letterSpacing: mm(0.6) }}>
+        {title}
+      </Text>
+    </View>
+  );
+  const front = flip(g.front);
+  const back = flip(g.back!);
+  const spine = flip(g.spine!);
+  // Метки сгибов: короткие риски на загибе сверху и снизу у каждой линии сгиба.
+  const folds = (g.folds ?? []).map((x) => g.width - x);
+  return (
+    <Document title={labels.title} creator={site.name} producer={site.name}>
+      <Page size={{ width: mm(g.width), height: mm(g.height) }} style={{ position: "relative", backgroundColor: "#FFFFFF" }}>
+        {box(front)}
+        {box(back)}
+        {box(spine, true)}
+        {folds.map((x, i) => (
+          <View key={i} style={{ position: "absolute", left: mm(x) - mm(0.15), top: 0, width: mm(0.3), height: mm(g.front.y - 3), backgroundColor: line }} />
+        ))}
+        {folds.map((x, i) => (
+          <View key={`b${i}`} style={{ position: "absolute", left: mm(x) - mm(0.15), top: mm(g.front.y + g.front.h + 3), width: mm(0.3), height: mm(g.height - g.front.y - g.front.h - 3), backgroundColor: line }} />
+        ))}
+        {label(front, labels.front)}
+        {label(back, labels.back)}
+        <View style={{ position: "absolute", left: mm(spine.x + spine.w / 2 - 60), top: mm(spine.y + spine.h / 2 - 2), width: mm(120), height: mm(4), alignItems: "center", transform: "rotate(-90deg)" }}>
+          <Text hyphenationCallback={noHyphens} style={{ ...face("montserrat", 500), fontSize: mm(2.6), color: line }}>
+            {labels.spine}
+          </Text>
+        </View>
+        <View style={{ position: "absolute", left: mm(front.x + 8), top: mm(front.y + front.h - 8 - lines.length * 4.2), width: mm(front.w - 16) }}>
+          {lines.map((l, i) => (
+            <Text key={i} hyphenationCallback={noHyphens} style={{ ...face("montserrat", 500), fontSize: mm(2.8), color: line, lineHeight: 1.4 }}>
+              {l}
+            </Text>
+          ))}
+        </View>
+      </Page>
+    </Document>
+  );
+}

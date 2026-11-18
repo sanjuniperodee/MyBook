@@ -44,7 +44,7 @@ export async function runPdfTask(t: PdfTask, report?: RenderReport): Promise<Pri
   const r = await import("./render");
   switch (t.task) {
     case "printPackage": {
-      const pkg = await r.renderPrintPackage(t.bundle, report);
+      const pkg = await r.renderPrintPackage(t.bundle, report, t.order);
       const spec = Buffer.from(r.printSpecText(t.bundle, pkg, t.order), "utf8");
       return { interior: pkg.interior, cover: pkg.cover, layout: pkg.layout, spec, pageCount: pkg.pageCount, spineMm: pkg.spineMm, coverWidthMm: pkg.coverWidthMm, coverHeightMm: pkg.coverHeightMm };
     }

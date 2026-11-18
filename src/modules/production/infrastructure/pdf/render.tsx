@@ -35,7 +35,7 @@ import { bakeFrame } from "./frame";
 import { frameKey, parseFrames } from "@/lib/book/photo-frame";
 import type { PhotoSpec } from "@/lib/book/covers/svg-kit";
 import { backArtSvg, backContent, backPhotoIds, designBack, layeredBack, type BackDesign } from "@/lib/book/cover-back";
-import { CoverDocument } from "@/modules/production/infrastructure/pdf/cover";
+import { CoverDocument, CoverReverseDocument } from "@/modules/production/infrastructure/pdf/cover";
 import { ensureFonts, renderPdf } from "@/modules/production/infrastructure/pdf/fonts";
 import { slots } from "@/modules/production/infrastructure/pdf/queue";
 import { InteriorDocument, type PreparedImage } from "@/modules/production/infrastructure/pdf/interior";
@@ -563,6 +563,26 @@ export async function renderLayoutScheme(bundle: BookBundle, pageCount: number, 
   return Buffer.from(await out.save());
 }
 
+/**
+ * Файл обложки для типографии: лицо листа (развёртка с дизайном) и его оборот — разметка картона и корешка (4+1).
+ * order — номер заказа для подписи на обороте.
+ */
+export async function withReverseMarks(bundle: BookBundle, cover: { pdf: Buffer; geometry: CoverGeometry }, pageCount: number, order?: { number: number }) {
+  const g = cover.geometry;
+  if (!g.back || !g.spine) return cover.pdf;
+  const r = (v: number) => (Math.round(v * 10) / 10).toString().replace(".", ",");
+  const lines = [
+    `${order ? `Заказ №${order.number} · ` : ""}«${coverText(bundle.book).title}»`,
+    `Крышка ${r(g.front.w)}×${r(g.front.h)} мм · расстав ${r(print.cover.hingeMm)} мм · корешок ${r(g.spine.w)} мм · ${pageCount} полос`,
+  ];
+  const labels = { title: "Оборот обложки — разметка", front: "ЛИЦЕВАЯ КРЫШКА", back: "ЗАДНЯЯ КРЫШКА", spine: "КОРЕШОК" };
+  const reverse = await renderPdf(<CoverReverseDocument geometry={g} lines={lines} labels={labels} />);
+  const out = await PDFDocument.load(cover.pdf);
+  const [page] = await out.copyPages(await PDFDocument.load(reverse), [0]);
+  out.addPage(page);
+  return Buffer.from(await out.save());
+}
+
 export interface PrintPackage {
   interior: Buffer;
   cover: Buffer;
@@ -573,7 +593,7 @@ export interface PrintPackage {
   coverHeightMm: number;
 }
 
-export async function renderPrintPackage(bundle: BookBundle, report?: RenderReport): Promise<PrintPackage> {
+export async function renderPrintPackage(bundle: BookBundle, report?: RenderReport, order?: { number: number }): Promise<PrintPackage> {
   const interior = await renderInterior(bundle, "print", report);
   report?.({ stage: "cover" });
   const cover = await renderCover(bundle, interior.pageCount, "print");
@@ -581,7 +601,7 @@ export async function renderPrintPackage(bundle: BookBundle, report?: RenderRepo
   const layout = await renderLayoutScheme(bundle, interior.pageCount, cover.pdf);
   return {
     interior: interior.pdf,
-    cover: cover.pdf,
+    cover: await withReverseMarks(bundle, cover, interior.pageCount, order),
     layout,
     pageCount: interior.pageCount,
     spineMm: spineWidthMm(interior.pageCount),
@@ -616,7 +636,7 @@ export function printSpecText(bundle: BookBundle, pkg: PrintPackage, order?: { n
     `Вылеты блока: ${print.bleedMm} мм с каждой стороны (TrimBox/BleedBox заданы в PDF)`,
     `Переплёт: ${(plan ?? PLAN_SPEC.hardcover).binding}`,
     ``,
-    `ОБЛОЖКА (развёртка): ${r(g.width)}×${r(g.height)} мм, 4+0`,
+    `ОБЛОЖКА (развёртка): ${r(g.width)}×${r(g.height)} мм, 4+1 — на обороте листа разметка картона и корешка`,
     `  Отступ по периметру (загиб на картон, включает вылет): ${print.cover.wrapMm} мм`,
     `  Картон крышки: ${r(g.front.w)}×${r(g.front.h)} мм (блок ${format.widthMm}×${format.heightMm} мм)`,
     `  Расставы между сгибами (шарниры): ${print.cover.hingeMm} мм`,
@@ -626,7 +646,8 @@ export function printSpecText(bundle: BookBundle, pkg: PrintPackage, order?: { n
     ``,
     `Файлы:`,
     `  block.pdf — блок, ${pkg.pageCount} стр., ${format.widthMm + print.bleedMm * 2}×${format.heightMm + print.bleedMm * 2} мм с вылетами`,
-    `  cover.pdf — развёртка обложки ${r(g.width)}×${r(g.height)} мм`,
+    `  cover.pdf — развёртка обложки ${r(g.width)}×${r(g.height)} мм: стр. 1 — лицо листа, стр. 2 — оборот (разметка; лист`,
+    `             переворачивается по вертикальной оси, контуры симметричны и совпадают при любом перевороте)`,
     `  layout.pdf — каркас: обложка с рамками крышек и корешка`,
     `Цвет: RGB (sRGB), изображения ${print.dpi} dpi. Шрифты внедрены.`,
   ].join("\n");
