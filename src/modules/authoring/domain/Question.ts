@@ -1,7 +1,7 @@
 import { AggregateRoot } from "@/shared/domain";
 import { normalizeMedia, type AnswerMedia } from "@/lib/book/answer-media";
 import { countWords, CUSTOM_KEY } from "@/lib/book/layout";
-import { SECTION_PROMPT_MAX, SECTION_TITLE_MAX } from "@/lib/content/kinds";
+import { ANSWER_MAX, SECTION_PROMPT_MAX, SECTION_TITLE_MAX } from "@/lib/content/kinds";
 import { AuthoringEvents } from "./events";
 
 /** Ключ собственного вопроса клиента и раздела своей книги (blank): их текст не склоняется и их можно удалять. */
@@ -41,7 +41,6 @@ export interface QuestionPatch {
 }
 
 export const MAX_QUESTIONS = 600;
-const MAX_ANSWER_LENGTH = 40_000;
 
 /** Вопрос книги. Сохраняется часто (автосохранение), поэтому это отдельный небольшой агрегат. */
 export class Question extends AggregateRoot<QuestionProps> {
@@ -75,7 +74,7 @@ export class Question extends AggregateRoot<QuestionProps> {
    */
   edit(patch: QuestionPatch) {
     const wasAnswered = this.isAnswered;
-    if (patch.answer !== undefined) this.props.answer = patch.answer.slice(0, MAX_ANSWER_LENGTH);
+    if (patch.answer !== undefined) this.props.answer = patch.answer.slice(0, ANSWER_MAX);
     if (patch.media !== undefined) this.props.media = normalizeMedia(patch.media);
     if (patch.displayText !== undefined) this.props.displayText = patch.displayText?.trim() || null;
     if (patch.hideHeading !== undefined) this.props.hideHeading = patch.hideHeading;

@@ -47,6 +47,7 @@ import { bookInterior } from "@/lib/book/interiors";
 import { countWords, type LetterLike } from "@/lib/book/layout";
 import type { AnswerMedia } from "@/lib/book/answer-media";
 import { cn } from "@/lib/class-names";
+import { ANSWER_MAX, ANSWER_WARN } from "@/lib/content/kinds";
 
 const NO_EPIGRAPHS: Record<string, string> = {};
 const NO_CHAPTERS: EditorChapter[] = [];
@@ -702,8 +703,13 @@ function EditorBody({
                   textClassName="text-[18px] leading-[1.7] sm:text-[20px] sm:leading-[1.75]"
                   className="fs-keep min-h-[220px] scroll-mb-40 resize-none outline-none placeholder:text-muted/60 sm:min-h-[260px]"
                   style={{ fontFamily: cssFont(typography.body) }}
-                  maxLength={40000}
+                  maxLength={ANSWER_MAX}
                 />
+                {editable && q.answer.length >= ANSWER_WARN ? (
+                  <p role="status" className={cn("mt-2 text-sm leading-snug", q.answer.length >= ANSWER_MAX ? "text-danger" : "text-warning")}>
+                    {q.answer.length >= ANSWER_MAX ? t.answerLimit.full : t.answerLimit.near((ANSWER_MAX - q.answer.length).toLocaleString(ui === "kk" ? "kk-KZ" : "ru-RU"))}
+                  </p>
+                ) : null}
                 {editable ? (
                   <ProofBar
                     issues={proofread.issues}

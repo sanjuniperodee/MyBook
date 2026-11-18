@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { MAX_MEDIA, MEDIA_TITLE_MAX, MEDIA_URL_MAX } from "@/lib/book/answer-media";
-import { SECTION_PROMPT_MAX, SECTION_TITLE_MAX } from "@/lib/content/kinds";
+import { ANSWER_MAX, SECTION_PROMPT_MAX, SECTION_TITLE_MAX } from "@/lib/content/kinds";
 import { api, apiViewer } from "@/server/api";
 import { container } from "@/server/container";
 import { idParams } from "@/server/input";
@@ -22,7 +22,7 @@ const media = z.object({
 
 const schema = z
   .object({
-    answer: z.string().max(40_000, "answerTooLong"),
+    answer: z.string().max(ANSWER_MAX, "answerTooLong"),
     displayText: z.string().trim().max(200).nullable(),
     hideHeading: z.boolean(),
     pageBreak: z.boolean(),

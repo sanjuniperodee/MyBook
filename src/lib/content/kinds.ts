@@ -33,6 +33,10 @@ export const CHAPTER_TITLE_MAX = 120;
 export const CHAPTER_EPIGRAPH_MAX = 300;
 export const SECTION_TITLE_MAX = 200;
 export const SECTION_PROMPT_MAX = 300;
+/** Один ответ — до стольких знаков (≈ 25 страниц A5); у предела редактор подсказывает писать дальше в следующем вопросе. */
+export const ANSWER_MAX = 40_000;
+/** С этой длины под ответом виден остаток знаков. */
+export const ANSWER_WARN = 36_000;
 /** «Кто записал со слов» у автобиографии. */
 export const RECORDED_BY_MAX = 80;
 
