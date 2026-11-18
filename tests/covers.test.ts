@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { allCoverTemplates, coverMoods, coverTemplates, getCoverTemplate, isKnownCover, pickerCovers, renderCoverSvg } from "@/lib/book/covers";
 import { photoPlacement } from "@/lib/book/photo-cover";
 import { messagesFor } from "@/i18n/messages";
-import { coverFrontGeometry, coverSpreadGeometry, getFormat, print } from "@/lib/book/formats";
+import { coverFrontGeometry, coverSpreadGeometry, formats, getFormat } from "@/lib/book/formats";
 
 describe("обложки", () => {
   it("уникальные id и допустимое настроение", () => {
@@ -51,7 +51,9 @@ describe("обложки на снимках", () => {
         const b = photoPlacement(t.photo!, spread);
         // Положение снимка относительно лицевой крышки не зависит от толщины книги.
         expect(b.x - spread.front.x).toBeCloseTo(a.x - front.front.x, 6);
-        expect(b.y - spread.front.y).toBeCloseTo(a.y - (front.front.y - print.cover.boardExtraHeightMm / 2), 6);
+        // Превью — та же крышка, что в развёртке: снимок на тех же местах и того же размера.
+        expect(b.y - spread.front.y).toBeCloseTo(a.y - front.front.y, 6);
+        expect(b.h).toBeCloseTo(a.h, 6);
         expect(b.w).toBeCloseTo(a.w, 6);
         // Лицо закрыто снимком или подложкой — снимок не уезжает за пределы лица целиком.
         expect(a.x).toBeLessThan(front.front.w);
@@ -163,5 +165,25 @@ describe("фон обложки отдельным файлом", () => {
 
   it("неизвестный шаблон или формат — 404", async () => {
     for (const file of ["nope-a5.svg", "blossom-a4.svg", "../etc-a5.svg", "blossom-a5.png"]) await expect(get(file)).rejects.toThrow();
+  });
+});
+
+// 18.11.2026: на «Вашем фото» (книга №82) в 3D и печати лица были крупнее и обрезаны, чем в превью: снимок во всю крышку
+// растягивался на загибы по 2 см, а превью клало его только на крышку. Места под фото в превью и в развёртке — одни.
+describe("места под фото: превью = печать", () => {
+  it.each(allCoverTemplates.filter((t) => t.requiresPhoto).map((t) => t.id))("%s", (id) => {
+    const t = getCoverTemplate(id);
+    for (const f of Object.values(formats)) {
+      const front = coverFrontGeometry(f);
+      const spread = coverSpreadGeometry(f, 160);
+      const a: { x: number; y: number; w: number; h: number }[] = [];
+      const b: typeof a = [];
+      renderCoverSvg(t, front, { uid: "a", onSlot: (s) => a.push(s.rect) }, { noTexture: true });
+      renderCoverSvg(t, spread, { uid: "b", onSlot: (s) => b.push({ ...s.rect, x: s.rect.x - spread.front.x, y: s.rect.y - spread.front.y }) }, { noTexture: true });
+      expect(b.length).toBe(a.length);
+      a.forEach((r, i) => {
+        for (const k of ["x", "y", "w", "h"] as const) expect(b[i][k], `${id} ${f.id} место ${i} ${k}`).toBeCloseTo(r[k], 3);
+      });
+    }
   });
 });

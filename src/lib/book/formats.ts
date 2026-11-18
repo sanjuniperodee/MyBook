@@ -150,11 +150,11 @@ export function coverSpreadZones(format: BookFormat, pageCount: number): CoverZo
   ];
 }
 
-/** Геометрия только лицевой стороны (для превью на сайте). */
+/**
+ * Геометрия только лицевой стороны (превью на сайте, читательский PDF): сама крышка, как в развёртке для печати, —
+ * поэтому кадр снимков, рисунок и текст в превью и в печати совпадают (то, что за краем, — в загибе и не видно).
+ */
 export function coverFrontGeometry(format: BookFormat): CoverGeometry {
-  return {
-    width: format.widthMm,
-    height: format.heightMm,
-    front: { x: 0, y: 0, w: format.widthMm, h: format.heightMm },
-  };
+  const b = boardOf(format);
+  return { width: b.w, height: b.h, front: { x: 0, y: 0, w: b.w, h: b.h } };
 }

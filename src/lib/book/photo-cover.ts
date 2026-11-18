@@ -89,11 +89,8 @@ const OVERLAP = 0.3;
 
 /** Где лежит снимок на холсте, мм. Кадр считается от лицевой крышки с загибами — одинаково для превью и печати. */
 export function photoPlacement(layout: PhotoLayout, g: CoverGeometry): Rect {
-  // Превью лица (без корешка) — это блок; крышка в печати шире на кант сверху, снизу и с края.
-  // Кладём снимок на такую же крышку, чтобы масштаб и кадр совпали с печатью.
-  const ow = g.spine ? 0 : print.cover.boardExtraWidthMm;
-  const oh = g.spine ? 0 : print.cover.boardExtraHeightMm / 2;
-  const f = { x: g.front.x, y: g.front.y - oh, w: g.front.w + ow, h: g.front.h + oh * 2 };
+  // Превью лица — та же крышка, что в развёртке (coverFrontGeometry), поэтому масштаб и кадр совпадают с печатью.
+  const f = g.front;
   const wrap = print.cover.wrapMm;
   const ext = { x: f.x, y: f.y - wrap, w: f.w + wrap, h: f.h + wrap * 2 };
   const { width: pw, height: ph } = layout.photo;

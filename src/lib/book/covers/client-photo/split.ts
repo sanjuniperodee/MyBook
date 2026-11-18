@@ -1,5 +1,5 @@
 import type { CoverTemplate } from "../types";
-import { bg, n, photoSlot } from "../svg-kit";
+import { bg, faceBleed, n, photoSlot } from "../svg-kit";
 import { BACK_AREA } from "./kit";
 
 // ─── Журнал: снимок на верхних двух третях, снизу цветная плашка с текстом слева ─
@@ -15,7 +15,7 @@ export const split: CoverTemplate = {
     const f = g.front;
     const band = f.y + f.h * 0.6;
     let out = bg(g, "#9C4A33");
-    out += photoSlot(ctx, 0, { x: f.x, y: 0, w: g.width - f.x, h: band }, { scene: 0 });
+    out += photoSlot(ctx, 0, faceBleed(g, band), { scene: 0 });
     out += `<rect x="${n(f.x)}" y="${n(band)}" width="${n(g.width - f.x)}" height="0.9" fill="#E9C9A8"/>`;
     return out;
   },

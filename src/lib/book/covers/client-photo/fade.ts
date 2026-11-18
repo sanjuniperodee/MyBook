@@ -1,5 +1,5 @@
 import type { CoverTemplate } from "../types";
-import { bg, n, photoSlot, toneFilter } from "../svg-kit";
+import { bg, faceBleed, n, photoSlot, toneFilter } from "../svg-kit";
 import { BACK_AREA } from "./kit";
 
 // ─── Дымка: снимок растворяется в тёплой бумаге, название — на бумаге ─────────
@@ -17,7 +17,7 @@ export const fade: CoverTemplate = {
     const paper = "#F4EEE6";
     const h = f.y + f.h * 0.7;
     let out = `<defs>${toneFilter(`${uid}t`, "fade")}</defs>${bg(g, paper)}`;
-    out += photoSlot(ctx, 0, { x: f.x, y: 0, w: g.width - f.x, h }, { scene: 0, filter: `${uid}t` });
+    out += photoSlot(ctx, 0, faceBleed(g, h), { scene: 0, filter: `${uid}t` });
     const y0 = f.y + f.h * 0.36;
     out += `<defs><linearGradient id="${uid}fd" gradientUnits="userSpaceOnUse" x1="0" y1="${n(y0)}" x2="0" y2="${n(h)}"><stop offset="0" stop-color="${paper}" stop-opacity="0"/><stop offset="0.55" stop-color="${paper}" stop-opacity="0.72"/><stop offset="1" stop-color="${paper}"/></linearGradient></defs>`;
     out += `<rect x="${n(f.x)}" y="${n(y0)}" width="${n(g.width - f.x)}" height="${n(h - y0 + 0.5)}" fill="url(#${uid}fd)"/>`;

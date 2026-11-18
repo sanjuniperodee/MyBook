@@ -1,5 +1,5 @@
 import type { CoverTemplate } from "../types";
-import { bg, n, photoSlot } from "../svg-kit";
+import { bg, n, PHOTO_BLEED, photoSlot } from "../svg-kit";
 import { BACK_AREA } from "./kit";
 
 // ─── Мозаика: четыре снимка и название на светлой полосе посередине ──────────
@@ -18,13 +18,15 @@ export const mosaic: CoverTemplate = {
     const bandBottom = f.y + f.h * 0.665;
     const xm = f.x + f.w / 2;
     const left = { x: f.x, w: xm - gap / 2 - f.x };
-    const right = { x: xm + gap / 2, w: g.width - xm - gap / 2 };
+    // Ряды заходят за край крышки на вылет под обрез (не на загибы): превью и печать режут снимки одинаково.
+    const right = { x: xm + gap / 2, w: f.x + f.w + PHOTO_BLEED - xm - gap / 2 };
+    const top = f.y - PHOTO_BLEED;
+    const bottom = f.y + f.h + PHOTO_BLEED;
     let out = bg(g, "#F4EEE5");
-    // Ряды уходят под загибы сверху, снизу и справа — край печати без белых полос
-    out += photoSlot(ctx, 0, { x: left.x, y: 0, w: left.w, h: bandTop }, { scene: 0 });
-    out += photoSlot(ctx, 1, { x: right.x, y: 0, w: right.w, h: bandTop }, { scene: 1 });
-    out += photoSlot(ctx, 2, { x: left.x, y: bandBottom, w: left.w, h: g.height - bandBottom }, { scene: 2 });
-    out += photoSlot(ctx, 3, { x: right.x, y: bandBottom, w: right.w, h: g.height - bandBottom }, { scene: 3 });
+    out += photoSlot(ctx, 0, { x: left.x, y: top, w: left.w, h: bandTop - top }, { scene: 0 });
+    out += photoSlot(ctx, 1, { x: right.x, y: top, w: right.w, h: bandTop - top }, { scene: 1 });
+    out += photoSlot(ctx, 2, { x: left.x, y: bandBottom, w: left.w, h: bottom - bandBottom }, { scene: 2 });
+    out += photoSlot(ctx, 3, { x: right.x, y: bandBottom, w: right.w, h: bottom - bandBottom }, { scene: 3 });
     for (const y of [bandTop + 5, bandBottom - 5])
       out += `<line x1="${n(f.x + f.w * 0.2)}" y1="${n(y)}" x2="${n(f.x + f.w * 0.8)}" y2="${n(y)}" stroke="#B9A48E" stroke-width="0.25"/>`;
     return out;

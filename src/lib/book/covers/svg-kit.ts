@@ -163,6 +163,17 @@ export function samplePhoto(r: Rect, scene: number, uid: string) {
  * Место под фото в шаблоне: снимок клиента или пейзаж-заглушка. clip — контур формы (арка, сердце,
  * овал) в тех же миллиметрах; прямоугольник обрезает сам снимок (preserveAspectRatio slice).
  */
+/** Вылет снимка «во всю» за край крышки (под обрез), мм. */
+export const PHOTO_BLEED = 3;
+
+/** Лицо крышки с вылетом PHOTO_BLEED сверху, снизу и с внешнего края; bottom — нижняя граница (доля крышки или мм холста). */
+export function faceBleed(g: CoverGeometry, bottomY?: number): Rect {
+  const f = g.front;
+  const top = f.y - PHOTO_BLEED;
+  const bottom = bottomY ?? f.y + f.h + PHOTO_BLEED;
+  return { x: f.x, y: top, w: f.w + PHOTO_BLEED, h: bottom - top };
+}
+
 export function photoSlot(
   ctx: ArtContext,
   i: number,

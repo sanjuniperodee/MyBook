@@ -1,6 +1,6 @@
 /** Помощники семьи обложек «client-photo»: рамки, свечение, тонировка, карточки. */
 import type { CoverTemplate } from "../types";
-import { bg, liftShadow, n, photoSlot, type ArtContext } from "../svg-kit";
+import { bg, faceBleed, liftShadow, n, photoSlot, type ArtContext } from "../svg-kit";
 import type { CoverGeometry, Rect } from "../../formats";
 import { SPARKLE } from "../../motifs";
 
@@ -17,8 +17,12 @@ export function ellipsePath(cx: number, cy: number, rx: number, ry: number) {
 
 export const rectPath = (r: Rect) => `M${n(r.x)},${n(r.y)} h${n(r.w)} v${n(r.h)} h${n(-r.w)}Z`;
 
-/** Лицо с загибами: снимок «во всю» уходит за край крышки сверху, снизу и справа. */
-export const bleedRect = (g: CoverGeometry): Rect => ({ x: g.front.x, y: 0, w: g.width - g.front.x, h: g.height });
+/**
+ * Снимок «во всю» лица: крышка и вылет PHOTO_BLEED за край сверху, снизу и справа (у корешка — от края крышки). Только
+ * от крышки, не от холста: превью (холст — сама крышка) и развёртка для печати (холст с загибами) режут снимок одинаково.
+ * До 18.11.2026 снимок растягивался на загибы по 2 см, и в печати он выходил крупнее и обрезаннее, чем в превью.
+ */
+export const bleedRect = (g: CoverGeometry): Rect => faceBleed(g);
 
 /** Четырёхлучевая звёздочка-блик. */
 export const sparkle = (cx: number, cy: number, s: number, fill: string) => `<path d="${SPARKLE}" fill="${fill}" transform="translate(${n(cx - s / 2)},${n(cy - s / 2)}) scale(${n(s)})"/>`;
@@ -36,7 +40,7 @@ export function vGradient(id: string, stops: [number, string, number?][]) {
 /** Затемнение по высоте поверх снимка «во всю» — под текст. */
 export function shade(g: CoverGeometry, id: string, stops: [number, string, number][]) {
   const r = bleedRect(g);
-  return `<defs>${vGradient(id, stops)}</defs><rect x="${n(r.x)}" y="0" width="${n(r.w)}" height="${n(g.height)}" fill="url(#${id})"/>`;
+  return `<defs>${vGradient(id, stops)}</defs><rect x="${n(r.x)}" y="${n(r.y)}" width="${n(r.w)}" height="${n(r.h)}" fill="url(#${id})"/>`;
 }
 
 /** Мягкое радиальное свечение (свет лампы, блик плёнки). */

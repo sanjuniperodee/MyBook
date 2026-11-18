@@ -18,10 +18,11 @@ describe("места под фото на обложке", () => {
       for (const b of boxes) {
         expect(b.w, t.id).toBeGreaterThan(0.03);
         expect(b.h, t.id).toBeGreaterThan(0.03);
-        expect(b.x, t.id).toBeGreaterThanOrEqual(-0.01);
-        expect(b.y, t.id).toBeGreaterThanOrEqual(-0.01);
-        expect(b.x + b.w, t.id).toBeLessThanOrEqual(1.01);
-        expect(b.y + b.h, t.id).toBeLessThanOrEqual(1.01);
+        // Снимок «во всю» заходит за край крышки на вылет под обрез (PHOTO_BLEED, 3 мм ≈ 2 % крышки) — не дальше.
+        expect(b.x, t.id).toBeGreaterThanOrEqual(-0.03);
+        expect(b.y, t.id).toBeGreaterThanOrEqual(-0.03);
+        expect(b.x + b.w, t.id).toBeLessThanOrEqual(1.03);
+        expect(b.y + b.h, t.id).toBeLessThanOrEqual(1.03);
       }
     }
   });

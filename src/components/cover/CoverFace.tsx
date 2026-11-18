@@ -119,10 +119,12 @@ export interface CoverFaceProps {
 
 export function CoverFace({ template, format: formatId = "a5", title, subtitle, names, svg, className, lite, priority, titlePlaceholder = "…", photoHint }: CoverFaceProps) {
   const format = getFormat(formatId);
+  // Пропорции — крышки, как в печати (её рисует и /api/covers), а не страницы блока.
+  const board = boardOf(format);
   return (
     <div
       className={cn("relative overflow-hidden select-none", className)}
-      style={{ aspectRatio: `${format.widthMm} / ${format.heightMm}`, containerType: "inline-size", background: template.swatch }}
+      style={{ aspectRatio: `${board.w} / ${board.h}`, containerType: "inline-size", background: template.swatch }}
     >
       {svg ? (
         <div className="absolute inset-0 [&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: svg }} />

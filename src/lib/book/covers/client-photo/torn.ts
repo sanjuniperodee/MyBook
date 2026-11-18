@@ -1,5 +1,5 @@
 import type { CoverTemplate } from "../types";
-import { bg, n, photoSlot, tornEdgePath } from "../svg-kit";
+import { bg, faceBleed, n, photoSlot, tornEdgePath } from "../svg-kit";
 import { BACK_AREA } from "./kit";
 
 // ─── Обрывок: снимок сверху, снизу — лист бумаги с рваным краем ──────────────
@@ -16,7 +16,7 @@ export const torn: CoverTemplate = {
     const { uid } = ctx;
     const edge = f.y + f.h * 0.6;
     let out = bg(g, "#F6F1E8");
-    out += photoSlot(ctx, 0, { x: f.x, y: 0, w: g.width - f.x, h: edge + 6 }, { scene: 1 });
+    out += photoSlot(ctx, 0, faceBleed(g, edge + 6), { scene: 1 });
     const x0 = f.x - 6;
     const x1 = g.width + 2;
     // Лист и его тень — только на лице: на корешке и обороте фон и так цвета бумаги.
