@@ -39,6 +39,9 @@ function body(c: AiConnection, req: Request, structured: boolean) {
     ],
     ...(c.provider === "openai" ? { max_completion_tokens: 16000 } : { max_tokens: 8000 }),
     ...(supportsReasoningEffort(c) ? { reasoning_effort: req.effort } : {}),
+    // У deepseek-flash рассуждение включено по умолчанию (effort high): дольше, дороже и съедает max_tokens. Выключаем —
+    // так работал прежний deepseek-chat, под который написаны промпты.
+    ...(c.provider === "deepseek" ? { thinking: { type: "disabled" } } : {}),
     ...(req.schema && structured
       ? { response_format: strictSchema ? { type: "json_schema", json_schema: { name: "answer", schema: req.schema, strict: true } } : { type: "json_object" } }
       : {}),

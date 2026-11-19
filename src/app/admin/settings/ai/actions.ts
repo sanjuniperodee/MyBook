@@ -5,12 +5,17 @@ import { revalidatePath } from "next/cache";
 import { assertStaff, audit } from "@/server/access";
 import { fromEnv, getSetting, getSettings, saveSettings } from "@/modules/workspace";
 import { parseBotConfig } from "@/modules/messaging/domain/botConfig";
-import { AssistantError, isAiProvider, providerSettingKeys, type AiProvider } from "@/modules/assistant";
+import { AssistantError, aiProviders, isAiProvider, modelFits, providerSettingKeys, type AiProvider } from "@/modules/assistant";
 import { z } from "zod";
 import { BAD_FORM, formText, textForm } from "@/server/input";
 import type { SettingsState } from "../state";
 import { apiUrl, modelName, parseForm, secretValue, unlessEnv } from "../form-kit";
 import { botPriceDrift, botPriceWarning } from "@/server/bot-prices";
+
+/** Модель другого провайдера (claude-… у DeepSeek) не сохраняем: провайдер отклонит каждый запрос. */
+function foreignModel(provider: AiProvider, model: string): SettingsState | null {
+  return model && !modelFits(provider, model) ? { error: `Модель «${model}» не подходит для ${aiProviders[provider].label}. Очистите поле — будет ${aiProviders[provider].defaultModel || "модель провайдера"} — или впишите модель этого провайдера.` } : null;
+}
 
 // ─── AI-помощник ───────────────────────────────────────────────────────────
 
@@ -87,6 +92,8 @@ export async function saveProofreadAction(_: SettingsState, form: FormData): Pro
   const { provider, model, perTenMin, perDay } = parsed.data;
   // Ключ вводится здесь же для выбранного провайдера — тот же, что у помощника (хранится один раз).
   const keyFor = isAiProvider(provider) ? provider : (await container().assistant.proofreadProvider()).provider;
+  const foreign = foreignModel(keyFor, model);
+  if (foreign) return foreign;
   await saveSettings(
     {
       "proofread.provider": provider,
@@ -133,6 +140,8 @@ export async function saveWriterAction(_: SettingsState, form: FormData): Promis
   if (parsed.error !== undefined) return { error: parsed.error };
   const { provider, model, perTenMin, perDay } = parsed.data;
   const keyFor = isAiProvider(provider) ? provider : (await container().assistant.writerProvider()).provider;
+  const foreign = foreignModel(keyFor, model);
+  if (foreign) return foreign;
   await saveSettings(
     {
       "writer.provider": provider,
@@ -178,6 +187,8 @@ export async function saveSellerAction(_: SettingsState, form: FormData): Promis
   const { provider, model } = parsed.data;
   // Ключ вводится здесь же для выбранного провайдера — тот же, что у помощника (хранится один раз).
   const keyFor = isAiProvider(provider) ? provider : (await container().assistant.sellerProvider()).provider;
+  const foreign = foreignModel(keyFor, model);
+  if (foreign) return foreign;
   await saveSettings({ "seller.provider": provider, "seller.model": model, ...secretValue(form, "key", providerSettingKeys[keyFor].apiKey) }, staff.user.id);
   await audit(staff, "settings.update", "settings", "seller", { provider: provider || "assistant", model: model || null });
   revalidatePath("/admin/settings");
@@ -254,6 +265,8 @@ export async function saveMediaAction(_: SettingsState, form: FormData): Promise
   const { provider, model } = parsed.data;
   if (provider === "deepseek") return { error: "DeepSeek не понимает голосовые и фото — выберите OpenRouter, Claude или OpenAI." };
   const keyFor = isAiProvider(provider) ? provider : (await container().assistant.mediaProvider()).provider;
+  const foreign = foreignModel(keyFor, model);
+  if (foreign) return foreign;
   await saveSettings({ "media.provider": provider, "media.model": model, ...secretValue(form, "key", providerSettingKeys[keyFor].apiKey) }, staff.user.id);
   await audit(staff, "settings.update", "settings", "media", { provider: provider || "seller", model: model || null });
   revalidatePath("/admin/settings");

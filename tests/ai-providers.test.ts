@@ -42,7 +42,7 @@ describe("OpenAI-совместимые провайдеры", () => {
     const res = await askOpenAiCompatible(conn("deepseek"), { system: "sys", user: "u", effort: "low", schema });
     expect(res.text).toBe('{"summary":"ок"}');
     expect(calls[0].url).toBe("https://api.deepseek.com/chat/completions");
-    expect(calls[0].body).toMatchObject({ model: "deepseek-chat", max_tokens: 8000, response_format: { type: "json_object" } });
+    expect(calls[0].body).toMatchObject({ model: "deepseek-flash", max_tokens: 8000, thinking: { type: "disabled" }, response_format: { type: "json_object" } });
     expect(calls[0].body).not.toHaveProperty("reasoning_effort");
     expect((calls[0].body.messages as { content: string }[])[0].content).toContain('"summary"');
   });

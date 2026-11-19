@@ -1,7 +1,7 @@
 import "server-only";
 import type { SettingsReader } from "@/shared/application";
 import type { DesignSettingKey } from "@/lib/book/design-ai";
-import { ROUTE_SETTING_KEYS, aiProviders, isAiProvider, readRoutePolicy, type AiConnection, type AiProvider, type RouteSettingKey } from "../domain";
+import { ROUTE_SETTING_KEYS, aiProviders, isAiProvider, modelFits, readRoutePolicy, type AiConnection, type AiProvider, type RouteSettingKey } from "../domain";
 
 const keys = {
   anthropic: { apiKey: "ai.apiKey", baseUrl: "ai.baseUrl", model: "ai.anthropic.model" },
@@ -41,7 +41,8 @@ export function aiConnections(settings: SettingsReader<AssistantSettingKey>) {
       provider,
       apiKey: v[k.apiKey],
       baseUrl: (v[k.baseUrl] || def.defaultBaseUrl).replace(/\/+$/, ""),
-      model: modelOverride || v[k.model] || def.defaultModel,
+      // Модель чужого провайдера (осталась после смены провайдера в «Интеграциях») не отправляем — берём следующую.
+      model: [modelOverride, v[k.model]].find((m) => m && modelFits(provider, m)) || def.defaultModel,
       enabled: v["ai.enabled"] !== "off",
     };
   }

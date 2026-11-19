@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { AssistantError, DEFAULT_PRICES, costUsd, failureKindOf, parsePrices, readRoutePolicy, supportsServerFallback, type AiProvider, type RoutePolicy } from "@/modules/assistant/domain";
+import { AssistantError, DEFAULT_PRICES, costUsd, failureKindOf, modelFits, parsePrices, readRoutePolicy, supportsServerFallback, type AiProvider, type RoutePolicy } from "@/modules/assistant/domain";
 import { sellerModel, type SellerRoute } from "@/modules/assistant/application/SellerModel";
 import type { LanguageModel } from "@/modules/assistant/application";
 import { askClaude } from "@/modules/assistant/infrastructure/claude";
@@ -342,12 +342,35 @@ describe("подключения: ИИ-дизайнер и AI-помощник �
   it("помощник при письме: пока ничего не задано — как корректор; со своими настройками — отвязан от него", async () => {
     const same = aiConnections(new MemSettings<AssistantSettingKey>({ "proofread.provider": "openrouter", "proofread.model": "openrouter/free", "proofread.enabled": "off", "ai.openrouter.apiKey": "or" }));
     expect(await same.writer()).toMatchObject({ provider: "openrouter", model: "openrouter/free", enabled: false });
-    const own = aiConnections(new MemSettings<AssistantSettingKey>({ "proofread.provider": "openrouter", "proofread.model": "openrouter/free", "proofread.enabled": "off", "writer.provider": "deepseek", "writer.model": "deepseek-chat", "writer.enabled": "on", "ai.deepseek.apiKey": "ds" }));
-    expect(await own.writer()).toMatchObject({ provider: "deepseek", apiKey: "ds", model: "deepseek-chat", enabled: true });
+    const own = aiConnections(new MemSettings<AssistantSettingKey>({ "proofread.provider": "openrouter", "proofread.model": "openrouter/free", "proofread.enabled": "off", "writer.provider": "deepseek", "writer.model": "deepseek-flash", "writer.enabled": "on", "ai.deepseek.apiKey": "ds" }));
+    expect(await own.writer()).toMatchObject({ provider: "deepseek", apiKey: "ds", model: "deepseek-flash", enabled: true });
     expect(await own.proofread()).toMatchObject({ provider: "openrouter", enabled: false });
     expect(await own.writerProvider()).toEqual({ provider: "deepseek", own: true });
     // Свой провайдер без своей модели — модель провайдера, а не корректора.
     const noModel = aiConnections(new MemSettings<AssistantSettingKey>({ "proofread.model": "openrouter/free", "writer.provider": "deepseek" }));
     expect((await noModel.writer()).model).not.toBe("openrouter/free");
+  });
+
+  it("модель другого провайдера не уходит провайдеру: claude-haiku-5-5 у DeepSeek — deepseek-flash (прод, 19.11)", async () => {
+    const ai = aiConnections(new MemSettings<AssistantSettingKey>({ "proofread.provider": "deepseek", "proofread.model": "claude-haiku-5-5", "writer.provider": "deepseek", "writer.model": "claude-haiku-5-5", "ai.deepseek.apiKey": "ds" }));
+    expect(await ai.writer()).toMatchObject({ provider: "deepseek", model: "deepseek-flash" });
+    expect(await ai.proofread()).toMatchObject({ provider: "deepseek", model: "deepseek-flash" });
+    // Своя модель DeepSeek сохраняется; модель провайдера из его поля — следующая по очереди.
+    const own = aiConnections(new MemSettings<AssistantSettingKey>({ "writer.provider": "deepseek", "writer.model": "deepseek-v4-pro" }));
+    expect((await own.writer()).model).toBe("deepseek-v4-pro");
+    const field = aiConnections(new MemSettings<AssistantSettingKey>({ "writer.provider": "deepseek", "writer.model": "gpt-5", "ai.deepseek.model": "deepseek-v4-pro" }));
+    expect((await field.writer()).model).toBe("deepseek-v4-pro");
+  });
+
+  it("modelFits: чужие имена ловятся, свои и свой сервер — нет", () => {
+    expect(modelFits("deepseek", "claude-haiku-5-5")).toBe(false);
+    expect(modelFits("deepseek", "deepseek-flash")).toBe(true);
+    expect(modelFits("deepseek", "")).toBe(true);
+    expect(modelFits("anthropic", "deepseek-flash")).toBe(false);
+    expect(modelFits("anthropic", "claude-sonnet-5-5")).toBe(true);
+    expect(modelFits("openrouter", "claude-haiku-5-5")).toBe(false);
+    expect(modelFits("openrouter", "anthropic/claude-haiku-5-5")).toBe(true);
+    expect(modelFits("openai", "gpt-5")).toBe(true);
+    expect(modelFits("custom", "claude-haiku-5-5")).toBe(true);
   });
 });

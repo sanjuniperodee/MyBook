@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { CheckCircle2 } from "lucide-react";
-import { aiProviderIds, aiProviders, type AiProvider } from "@/modules/assistant/domain/providers";
+import { aiProviderIds, aiProviders, type AiProvider, modelFits } from "@/modules/assistant/domain/providers";
 import { Actions, Choice, Field, Group, Note, Result, SaveButton, Section, SecretInput, type SheetStatus } from "../ui";
 import type { SettingsState } from "../state";
 import { saveMediaAction } from "./actions";
@@ -68,7 +68,7 @@ export function MediaForm({
           <div key={effective} className="space-y-4">
             <SecretInput name="key" label={`Ключ ${def.label} API`} saved={saved.apiKey} fromEnv={saved.apiKeyEnv} placeholder={def.keyPlaceholder} />
             <Field label="Модель" hint={`Пусто — ${effective === "groq" ? "whisper-large-v3" : effective === "openrouter" ? OPENROUTER_MEDIA_MODEL : p ? saved.model || def.defaultModel : "как у продажника"}.`}>
-              <input name="model" defaultValue={model} placeholder={effective === "openrouter" ? OPENROUTER_MEDIA_MODEL : saved.model || def.defaultModel} className="input" maxLength={100} />
+              <input name="model" defaultValue={p === provider && modelFits(effective, model) ? model : ""} placeholder={effective === "openrouter" ? OPENROUTER_MEDIA_MODEL : saved.model || def.defaultModel} className="input" maxLength={100} />
             </Field>
           </div>
         </Group>

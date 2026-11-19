@@ -22,7 +22,8 @@ export const aiProviders = {
   deepseek: {
     label: "DeepSeek",
     title: "DeepSeek",
-    defaultModel: "deepseek-chat",
+    // deepseek-chat и deepseek-reasoner DeepSeek отключил 24.07.2026; deepseek-flash — текущая Flash (V4.1).
+    defaultModel: "deepseek-flash",
     defaultBaseUrl: "https://api.deepseek.com",
     keysUrl: "https://platform.deepseek.com/api_keys",
     keyPlaceholder: "sk-…",
@@ -57,6 +58,20 @@ export const aiProviders = {
 export type AiProvider = keyof typeof aiProviders;
 export const aiProviderIds = Object.keys(aiProviders) as AiProvider[];
 export const isAiProvider = (v: unknown): v is AiProvider => typeof v === "string" && Object.prototype.hasOwnProperty.call(aiProviders, v);
+
+/**
+ * Подходит ли модель провайдеру. Ловит модель, оставшуюся от другого провайдера (claude-haiku-5-5 у DeepSeek): такой запрос
+ * провайдер отклоняет. Пустая подходит — будет модель по умолчанию. DeepSeek принимает только свои имена; у Claude не бывает
+ * чужих префиксов и «/»; у OpenRouter и остальных голые имена Claude и DeepSeek не годятся (у OpenRouter — anthropic/…,
+ * deepseek/…); свой сервер не проверяется.
+ */
+export function modelFits(provider: AiProvider, model: string) {
+  const m = model.trim().toLowerCase();
+  if (!m || provider === "custom") return true;
+  if (provider === "deepseek") return m.startsWith("deepseek-");
+  if (provider === "anthropic") return !/^(deepseek-|gpt-|o\d|whisper|llama)|\//.test(m);
+  return !/^(claude-|deepseek-)/.test(m);
+}
 
 /** Настройки подключения к выбранному провайдеру (модель и адрес — уже с подставленными значениями по умолчанию). */
 export interface AiConnection {

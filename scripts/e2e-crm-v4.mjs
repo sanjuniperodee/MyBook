@@ -162,7 +162,7 @@ try {
   await aiForm.getByRole("button", { name: "Проверить" }).click();
   await aiForm.getByText("Подключено, DeepSeek отвечает: «готово»").waitFor();
   const dsCall = aiCalls.at(-1);
-  check(dsCall.openai && dsCall.body.model === "deepseek-chat" && dsCall.key === "Bearer sk-deepseek-test" && dsCall.body.messages[0].role === "system", "AI: DeepSeek подключается по OpenAI-совместимому API со своим ключом");
+  check(dsCall.openai && dsCall.body.model === "deepseek-flash" && dsCall.key === "Bearer sk-deepseek-test" && dsCall.body.messages[0].role === "system", "AI: DeepSeek подключается по OpenAI-совместимому API со своим ключом");
   const encDs = (await q(`select value from crm_settings where key = 'ai.deepseek.apiKey'`))[0]?.value ?? "";
   check(encDs.startsWith("v1.") && !encDs.includes("sk-deepseek"), "AI: ключ DeepSeek хранится зашифрованным");
   await aiForm.getByText("Claude (Anthropic)", { exact: true }).click();

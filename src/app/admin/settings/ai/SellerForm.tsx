@@ -2,7 +2,7 @@
 
 import { useActionState, useState, useTransition } from "react";
 import { CheckCircle2, LoaderCircle, MessagesSquare } from "lucide-react";
-import { aiProviderIds, aiProviders, type AiProvider } from "@/modules/assistant/domain/providers";
+import { aiProviderIds, aiProviders, type AiProvider, modelFits } from "@/modules/assistant/domain/providers";
 import { Actions, CheckMessage, Choice, Field, Group, Note, Result, SaveButton, Section, SecretInput, type SheetStatus } from "../ui";
 import type { SettingsState } from "../state";
 import { saveSellerAction, testSellerAction } from "./actions";
@@ -86,7 +86,7 @@ export function SellerForm({
           <div key={effective} className="space-y-4">
             <SecretInput name="key" label={`Ключ ${def.label} API`} saved={saved.apiKey} fromEnv={saved.apiKeyEnv} placeholder={def.keyPlaceholder} />
             <Field label="Модель продажника" hint={`Пусто — ${saved.model || def.defaultModel || "модель провайдера"}.`}>
-              <input name="model" defaultValue={model} placeholder={effective === "openrouter" ? "например, anthropic/claude-sonnet-4.5 (точное название — в каталоге OpenRouter)" : saved.model || def.defaultModel} className="input" maxLength={100} />
+              <input name="model" defaultValue={p === provider && modelFits(effective, model) ? model : ""} placeholder={effective === "openrouter" ? "например, anthropic/claude-sonnet-4.5 (точное название — в каталоге OpenRouter)" : saved.model || def.defaultModel} className="input" maxLength={100} />
             </Field>
           </div>
         </Group>
