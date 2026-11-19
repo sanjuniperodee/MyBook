@@ -13,7 +13,7 @@ export const REWRITE_MAX = 30_000;
 /** Длинный текст уходит модели частями примерно такого размера (по абзацам). */
 export const REWRITE_CHUNK = 6_000;
 
-const bookLanguage: Record<Locale, string> = { ru: "русском", kk: "казахском" };
+const bookLanguage: Record<Locale, string> = { ru: "русском", kk: "казахском", uz: "узбекском (латиницей)" };
 
 const textAbout: Record<BookKind, string> = {
   gift: "ответ автора для подарочной книги-воспоминания: его личная история, письмо близкому человеку",

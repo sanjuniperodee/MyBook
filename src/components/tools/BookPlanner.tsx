@@ -1,5 +1,6 @@
 "use client";
 
+import { toPublic } from "@/i18n/config";
 import { useMemo, useState } from "react";
 import { CalendarDays, Clock, PackageCheck, Zap } from "lucide-react";
 import type { DeliveryId } from "@/config/site";
@@ -17,7 +18,7 @@ const deliveries: DeliveryId[] = ["courier", "post", "pickup", "abroad"];
 /** План книги к дате: что и когда сделать, чтобы успеть; календарь скачивается файлом .ics. */
 export function BookPlanner({ expressAvailable }: { expressAvailable: boolean }) {
   const locale = useLocale();
-  const ui = usefulUi[locale].plan;
+  const ui = usefulUi[toPublic(locale)].plan;
   const fmt = dateFor(locale);
   const [value, setValue] = useState("");
   const [delivery, setDelivery] = useState<DeliveryId>("courier");

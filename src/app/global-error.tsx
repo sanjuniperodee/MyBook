@@ -3,6 +3,7 @@
 import { clientLocale } from "@/i18n/config";
 import { common as kk } from "@/i18n/messages/kk/common";
 import { common as ru } from "@/i18n/messages/ru/common";
+import { common as uz } from "@/i18n/messages/uz/common";
 
 /**
  * Ошибка выше корневого layout — например, не загрузился чанк словаря (I18nProvider): обычной error.tsx
@@ -10,7 +11,7 @@ import { common as ru } from "@/i18n/messages/ru/common";
  */
 export default function GlobalError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
   const locale = clientLocale();
-  const m = locale === "kk" ? kk : ru;
+  const m = locale === "kk" ? kk : locale === "uz" ? uz : ru;
   // Ни стилей, ни шрифтов сайта здесь может не быть — тёмный «кадр» на встроенных стилях.
   return (
     <html lang={locale}>

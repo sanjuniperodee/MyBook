@@ -1,0 +1,48 @@
+import type { book as ru } from "../ru/book";
+
+export const book: typeof ru = {
+  chapter: (n: number) => `${n}-bob`,
+  toc: "Mundarija",
+  gallery: "Bizning lahzalarimiz",
+  galleryByKind: { autobiography: "Oilaviy albomdan", blank: "Suratlar" },
+  recordedBy: (name: string) => `Muallifning so‘zlaridan yozib olgan — ${name}`,
+  untitledChapter: "Nomsiz",
+  samplePhotos: ["Birinchi yozimiz", "O‘sha kun", "Shunchaki biz"],
+  sampleByKind: {
+    autobiography: {
+      chapterTitle: "Bolalik",
+      epigraph: "Barchamiz bolalikdan chiqqanmiz.",
+      h1: "Hammasi boshlangan uy",
+      p1: "Bizning uy qishloqning chetida, ariq bo‘yida turardi. Bahorda hovlida o‘rik va olcha gullar, ertalablari esa yangi non hidi anqib turardi — buvim tong otmasdan nonni tandirda yopardi.",
+      p2: "Yozda biz tongdan kechgacha ko‘chada o‘ynab yurardik: berkinmachoq o‘ynardik, daryo bo‘yiga yugurardik, kechqurun esa hamma bir katta dasturxon atrofiga yig‘ilardi.",
+      h2: "Birinchi xotiralarim",
+      p3: "Eng erta esimda qolgani — onamning iliq qo‘llari va shuvoq hidi. Menga uch yoshlar bo‘lgan, dunyo menga ulkan va mehribon ko‘rinardi.",
+      p4: "Biz boy yashamasdik, ammo uyda mehmon uchun doim joy, choynakda esa issiq choy topilardi.",
+      photos: ["Hovlimiz, yoz", "Butun oila birga", "Eng sevimli surat"],
+    },
+    blank: {
+      chapterTitle: "Bobning nomi",
+      h1: "Bo‘limning sarlavhasi",
+      p1: "Bu yerda kitobingiz matni bo‘ladi. O‘zingizga qulay tarzda yozing: hikoya, xotira, xat, she’r — har bir bo‘lim bobning bir qismiga aylanadi.",
+      p2: "Bo‘limlarning o‘rnini almashtirish, nomini o‘zgartirish va bir bobdan boshqasiga ko‘chirish mumkin, matnga esa suratlar qo‘shish mumkin.",
+      h2: "Yana bir bo‘lim",
+      p3: "Sarlavhasiz bo‘lim kitobda oldingisidan kichik belgi bilan ajratiladi — bitta hikoyani bir necha qismga bo‘lish shunday qulay.",
+      p4: "Sahifangiz mana shunday ko‘rinadi: shrift, chetlar va sarlavhalar tanlangan bezakka bog‘liq.",
+      photos: ["Suratga izoh", "Yana bir izoh", "Kitobingizdagi surat"],
+    },
+  },
+  misc: "Turli",
+  letters: { title: "Yaqinlar xatlari", epigraph: "Sizni sevadiganlarning so‘zlari" },
+  copyright: (year: number, author: string) => `© ${year}${author ? ` ${author}` : ""}. Barcha huquqlar himoyalangan.`,
+  colophon: (brand: string) => `Bu kitob mehr bilan yozilgan va ${brand} orqali yagona nusxada bosilgan.`,
+  media: {
+    video: "Video",
+    music: "Musiqa",
+    audio: "Audio",
+    scan: { video: "Ko‘rish uchun telefon kamerasini kodga qarating", music: "Tinglash uchun telefon kamerasini kodga qarating", audio: "Tinglash uchun telefon kamerasini kodga qarating" },
+  },
+  theEnd: "Davomi bor…",
+  previewMark: "OLDINDAN KO‘RISH",
+  coverDoc: (title: string) => `${title} — muqova`,
+  untitled: "Nomsiz",
+};

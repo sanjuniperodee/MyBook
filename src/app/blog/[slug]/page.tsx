@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { toPublic } from "@/i18n/config";
 import { notFound } from "next/navigation";
 import { ChevronDown } from "lucide-react";
 import { Link } from "@/i18n/client";
@@ -30,7 +31,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const a = getArticle((await params).slug);
   if (!a) return {};
   const locale = await getLocale();
-  const c = a.content[locale];
+  const c = a.content[toPublic(locale)];
   const path = `/blog/${a.slug}`;
   return {
     title: { absolute: `${c.title} · ${site.name}` },
@@ -44,7 +45,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
   const a = getArticle((await params).slug);
   if (!a) notFound();
   const [user, locale, m] = await Promise.all([getCurrentUser(), getLocale(), getMessages()]);
-  const c = a.content[locale];
+  const c = a.content[toPublic(locale)];
   const t = m.landing.blog;
   const path = `/blog/${a.slug}`;
   const guestClosed = !user && !registrationOpen();
@@ -216,7 +217,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
                     <Link href={`/blog/${x.slug}`} className="group flex min-h-16 items-center gap-4 py-3">
                       {/* eslint-disable-next-line @next/next/no-img-element -- готовые уменьшенные копии из /api/cover-photos */}
                       <img src={coverPhotoUrl(themePhoto[x.theme].key, 200)} alt="" loading="lazy" decoding="async" className="size-14 shrink-0 rounded-[8px] object-cover" style={{ objectPosition: themePhoto[x.theme].position }} />
-                      <span className="leading-snug font-medium text-ink-soft group-hover:text-wine">{x.content[locale].title}</span>
+                      <span className="leading-snug font-medium text-ink-soft group-hover:text-wine">{x.content[toPublic(locale)].title}</span>
                     </Link>
                   </li>
                 ))}
@@ -233,7 +234,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
                 {related.map((l) => (
                   <li key={l.slug}>
                     <Link href={`/kniga/${l.slug}`} className="flex min-h-12 items-center py-3 text-ink-soft hover:text-wine">
-                      {l.content[locale].label}
+                      {l.content[toPublic(locale)].label}
                     </Link>
                   </li>
                 ))}
@@ -245,12 +246,12 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
               </ul>
               {relatedTools.length ? (
                 <>
-                  <h2 className="mt-8 text-sm font-semibold">{toolsPageUi[locale].others}</h2>
+                  <h2 className="mt-8 text-sm font-semibold">{toolsPageUi[toPublic(locale)].others}</h2>
                   <ul className="mt-3 divide-y divide-line border-y border-line">
                     {relatedTools.map((tool) => (
                       <li key={tool.slug}>
                         <Link href={`/instrumenty/${tool.slug}`} className="flex min-h-12 items-center py-3 text-wine hover:underline">
-                          {tool.content[locale].label}
+                          {tool.content[toPublic(locale)].label}
                         </Link>
                       </li>
                     ))}

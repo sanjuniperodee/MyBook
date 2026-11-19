@@ -37,5 +37,20 @@ export const knigaDrugu: Landing = {
       cover: { title: "Мәңгілік достар", names: "Мәдина & Жанел" },
       faq: [["Қанша сұраққа жауап беру керек?", "Қалағаныңызша. Суреттері бар 15–20 жауаптың өзі — 24+ беттік толыққанды кітап."]],
     },
+    uz: {
+      label: "Do‘stga sovg‘a kitob",
+      h1: "Do‘stligingiz haqida kitob —",
+      accent: "faqat o‘zingiz tushunadigan hazillar bilan",
+      metaTitle: "Do‘st yoki dugonaga sovg‘a kitob — do‘stligingiz tarixi",
+      metaDescription: "Do‘stlik haqida shaxsiy kitob: qanday tanishganingiz, umumiy sarguzashtlar va o‘zingizbop hazillar. Savollar, suratlar va qattiq muqovada bosma nusxa.",
+      lead: "Qanday tanishganingiz, eng telba sarguzashtingiz, hamon kuldiradigan gap — do‘stligingizni kitobga jamlang.",
+      why: [
+        { title: "Tug‘ilgan kun yoki to‘yga", text: "Eng yaqin dugona yoki bolalikdagi do‘st uchun ajoyib sovg‘a." },
+        { title: "Butun davra bitta kitobda", text: "Umumiy do‘stlarni taklif qiling — ularning xatlari kitobga kiradi." },
+        { title: "Kulgili va ta’sirli", text: "45 ta savol: birinchi uchrashuvdan tortib bir-biringizga nima uchun minnatdorligingizgacha." },
+      ],
+      cover: { title: "Do‘stlar abadiy", names: "Madina & Janel" },
+      faq: [["Nechta savolga javob berish kerak?", "Xohlagancha. Suratlar bilan 15–20 ta javobning o‘zi ham 24+ sahifali to‘liq kitob bo‘ladi."]],
+    },
   },
 };

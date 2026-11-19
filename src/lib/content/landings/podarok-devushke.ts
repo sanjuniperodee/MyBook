@@ -43,5 +43,23 @@ export const podarokDevushke: Landing = {
         ["Уақыт аз қалса, 14 ақпанға сыйлауға бола ма?", "Иә: электрондық нұсқа төлемнен кейін бірден қолжетімді, ал «Премиум» тарифімен басылған кітапты 3–4 жұмыс күнінде жасаймыз."],
       ],
     },
+    uz: {
+      label: "Qizga sovg‘a",
+      h1: "Qizga sovg‘a,",
+      accent: "u uni uzoq saqlaydi",
+      metaTitle: "Qizga nima sovg‘a qilish kerak — sevgingiz haqida kitob",
+      metaDescription: "Qizga tug‘ilgan kun, 14-fevral yoki 8-mart uchun sovg‘a: munosabatlaringiz haqida suratli kitob. Qattiq muqovada bosma, Qozog‘istonga yetkazamiz.",
+      lead: "Gullar so‘liydi, uni birinchi marta qanday ko‘rganingiz va hozir nima his qilayotganingizni yozgan kitob esa qoladi. Savollarga javob bering, qolganini biz haqiqiy nashrdek bezab beramiz.",
+      why: [
+        { title: "Ovoz chiqarib aytish qiyin so‘zlar", text: "Qog‘ozda tan olish oson: savollar his-tuyg‘ular haqida noqulaylarsiz gapirishga yordam beradi." },
+        { title: "Haqiqiy kitobga o‘xshaydi", text: "Tanlanadigan muqova, mundarija, boblar, suratlar — albom ham, anketa ham emas, qo‘lga olish yoqimli nashr." },
+        { title: "Sanaga ulgurish", text: "Munosabatni ko‘rsating — buyurtmani qachon rasmiylashtirish kerakligini aytamiz. Vaqt kam bo‘lsa, elektron nusxa darhol tayyor." },
+      ],
+      cover: { title: "Sen uchun", names: "Timur & Aruzhan" },
+      faq: [
+        ["Umumiy suratlarni qo‘shsa bo‘ladimi?", "Ha, telefondagi suratlarni yuklang. Bosma uchun ruxsati yetmasa, ogohlantiramiz, maketda esa har bir surat sahifaga qanday joylashishini ko‘rasiz."],
+        ["Vaqt kam qolgan bo‘lsa, 14-fevralga ulguraymanmi?", "Ha: elektron nusxa to‘lovdan keyin darhol mavjud, «Premium» tarifidagi bosma nusxani esa 3–4 ish kunida tayyorlaymiz."],
+      ],
+    },
   },
 };

@@ -43,5 +43,23 @@ export const podarokPapeNa23Fevralya: Landing = {
         ["Әкем басқа қалада тұрса, сыйлауға бола ма?", "Иә, Қазақстан бойынша жеткіземіз. Электрондық нұсқаны бірден жіберуге болады, ал басылғанын таңдаған қалаңызға жеткіземіз."],
       ],
     },
+    uz: {
+      label: "Otaga 23-fevralga sovg‘a",
+      h1: "Otaga 23-fevralga sovg‘a —",
+      accent: "u kutgan so‘zlar",
+      metaTitle: "Otaga 23-fevralga nima sovg‘a qilish kerak — shaxsiy kitob",
+      metaDescription: "Otaga 23-fevral — Vatan himoyachilari kuniga sovg‘a: farzandlari yozgan kitob. Xotiralar, minnatdorchilik, suratlar, qattiq muqova, Qozog‘istonga yetkazish.",
+      lead: "23-fevral — Vatan himoyachilari kuni. Paypoq va soqol ko‘pigi yillar davomida saqlanadigan narsa emas. Kitobda otangizga uni qanday eslashingizni, nimaga o‘rgatganini va nimasi uchun qadrlashingizni ayting.",
+      why: [
+        { title: "Navbatdagi to‘plam emas", text: "Do‘stlariga ko‘rsatadigan va qayta o‘qiydigan sovg‘a, javonga olib qo‘yadigan emas." },
+        { title: "Bayramga ulguring", text: "Elektron nusxa to‘lovdan keyin darrov tayyor. Bosma nusxa: ishlab chiqarish 5–7 ish kuni, «Premium» — 3–4, kuryer — 1–2 kun." },
+        { title: "Bir necha farzanddan", text: "Aka-singillar birga yozishi yoki havola orqali xat yuborishi mumkin — ular kitobga alohida bob bo‘lib kiradi." },
+      ],
+      cover: { title: "Mening qahramonim", names: "Alinadan" },
+      faq: [
+        ["23-fevralga buyurtma berishga ulguraman?", "Buyurtmani 2–3 hafta oldin bering — shunda kitob aniq vaqtida yetib boradi. Vaqt kam bo‘lsa, elektron nusxa darrov tayyor, «Premium»dagi bosma nusxani esa 3–4 ish kunida tayyorlaymiz."],
+        ["Otam boshqa shaharda yashasa, to‘g‘ri keladimi?", "Ha, Qozog‘iston bo‘ylab yetkazib beramiz. Elektron nusxani darrov yuborish mumkin, bosma nusxani esa tanlangan shaharga olib boramiz."],
+      ],
+    },
   },
 };

@@ -1,4 +1,4 @@
-import type { Locale } from "@/i18n/config";
+import type { PublicLocale } from "@/i18n/config";
 import type { ThemeId } from "../types";
 
 /** Темы, у которых есть банк вопросов: на «своей книге» (blank) подборки вопросов нет. */
@@ -35,5 +35,5 @@ export interface Article {
   landings: string[];
   /** Бесплатные инструменты /instrumenty/<slug>, на которые ведёт статья. */
   tools?: string[];
-  content: Record<Locale, ArticleContent>;
+  content: Record<PublicLocale, ArticleContent>;
 }

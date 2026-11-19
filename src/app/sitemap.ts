@@ -26,16 +26,16 @@ const pages: Entry[] = [
 /** Next.js вставляет адреса в XML как есть: «&» в адресе картинки ломает весь файл. */
 const xmlEscape = (s: string) => s.replace(/&/g, "&amp;");
 
-/** Обе языковые версии каждой публичной страницы, связанные через hreflang; картинка — та же, что для соцсетей. */
+/** Все языковые версии каждой публичной страницы, связанные через hreflang; картинка — та же, что для соцсетей. */
 export default function sitemap(): MetadataRoute.Sitemap {
   return pages.flatMap((p) =>
-    (["ru", "kk"] as const).map((locale) => ({
+    (["ru", "kk", "uz"] as const).map((locale) => ({
       url: absoluteUrl(p.path, locale),
       changeFrequency: p.changeFrequency,
       priority: p.priority,
       images: [xmlEscape(absoluteUrl(ogImage(locale, p.image), "ru"))],
       ...(p.lastModified ? { lastModified: p.lastModified } : {}),
-      alternates: { languages: { ru: absoluteUrl(p.path, "ru"), kk: absoluteUrl(p.path, "kk"), "x-default": absoluteUrl(p.path, "ru") } },
+      alternates: { languages: { ru: absoluteUrl(p.path, "ru"), kk: absoluteUrl(p.path, "kk"), uz: absoluteUrl(p.path, "uz"), "x-default": absoluteUrl(p.path, "ru") } },
     })),
   );
 }

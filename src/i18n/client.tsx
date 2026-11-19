@@ -17,6 +17,7 @@ const LocaleContext = createContext<Locale>("ru");
 const dictionaries: Record<Locale, React.ComponentType<{ children: React.ReactNode }>> = {
   ru: dynamic(() => import("./dictionary/ru")),
   kk: dynamic(() => import("./dictionary/kk")),
+  uz: dynamic(() => import("./dictionary/uz")),
 };
 
 export function I18nProvider({ locale, children }: { locale: Locale; children: React.ReactNode }) {

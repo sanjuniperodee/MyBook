@@ -1,5 +1,6 @@
 "use client";
 
+import { toPublic } from "@/i18n/config";
 import { useEffect, useRef, useState } from "react";
 import { ImagePlus, X } from "lucide-react";
 import { useLocale, useMessages } from "@/i18n/client";
@@ -40,7 +41,7 @@ function readImage(file: File, id: number): Promise<Item> {
 }
 
 export function PhotoChecker() {
-  const ui = usefulUi[useLocale()].photo;
+  const ui = usefulUi[toPublic(useLocale())].photo;
   const sheet = useMessages().secondary.tools.sheet;
   const [format, setFormat] = useState<FormatId>("a5");
   const [items, setItems] = useState<Item[]>([]);

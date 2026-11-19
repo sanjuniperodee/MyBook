@@ -25,4 +25,9 @@ export const offerTexts = {
     book: (title: string, url: string) => `«${title}» кітабыңызды осы жерден жалғастыра аласыз: ${url}`,
     discount: (p: number, code: string, until: string, url: string) => `Сізге жеке ${p}% жеңілдік — ${code} промокоды, жарамдылық мерзімі — ${until}. Сілтеме арқылы жеңілдік өзі қосылады: ${url}`,
   },
+  uz: {
+    order: (n: number, url: string) => `Sizning №${n} buyurtmangiz: ${url}\nO‘sha yerda to‘lash va holatini kuzatish mumkin.`,
+    book: (title: string, url: string) => `«${title}» kitobingizni shu yerda davom ettirishingiz mumkin: ${url}`,
+    discount: (p: number, code: string, until: string, url: string) => `Sizga shaxsiy ${p}% chegirma — ${code} promokodi, amal qilish muddati — ${until}. Havola orqali chegirma o‘zi qo‘shiladi: ${url}`,
+  },
 } satisfies Record<Locale, unknown>;

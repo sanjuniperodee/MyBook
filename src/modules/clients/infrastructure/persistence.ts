@@ -10,7 +10,7 @@ export const drizzleClients: ClientRepository = {
   async find(id) {
     if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
     const [u] = await executor().select({ id: users.id, name: users.name, email: users.email, phone: users.phone, managerId: users.managerId, source: users.source, customFields: users.customFields, locale: users.locale }).from(users).where(eq(users.id, id)).limit(1);
-    return u ? { ...u, locale: u.locale === "kk" ? ("kk" as const) : ("ru" as const) } : null;
+    return u ? { ...u, locale: u.locale } : null;
   },
   setManager: async (id, managerId) => void (await executor().update(users).set({ managerId }).where(eq(users.id, id))),
   setExtraPhones: async (id, phones) => void (await executor().update(users).set({ extraPhones: phones }).where(eq(users.id, id))),

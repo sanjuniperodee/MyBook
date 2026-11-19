@@ -82,5 +82,42 @@ export const voprosyDrugu: Article = {
       ],
       cta: { title: "Жауаптарды кітапқа айналдырыңыз", text: "Достығыңыздың тарихын жазыңыз, ортақ суреттер қосып, мұқаба таңдаңыз — біз нағыз кітап басып шығарамыз." },
     },
+    uz: {
+      title: "Do‘st yoki dugonaga savollar: bir-biringizni yaxshiroq bilish uchun",
+      description: "Do‘st va dugonaga savollar: tanishuv, sarguzashtlar, hazillar va minnatdorchilik haqida. Suhbat o‘tkazish va javoblarni do‘stligingiz kitobida saqlash.",
+      lead: "Do‘stlarimiz bilan kulamiz, bir-birimizni qo‘llab-quvvatlaymiz, ammo ba’zan yillar davomida muhim narsalar haqida gaplashmaymiz. Savollar hammasi qanday boshlanganini eslashga va «rahmat»ni balandparvozliksiz aytishga yordam beradi.",
+      sections: [
+        {
+          heading: "Yaqin do‘stingizdan nega so‘rash kerak",
+          paragraphs: [
+            "Vaqt o‘tib do‘stlar qondosh kabi bo‘lib qoladi va ular haqida hamma narsani bilamiz, deb o‘ylaymiz. Lekin eng iliq suhbatlar ko‘pincha oddiy savoldan boshlanadi: «Qanday tanishganimiz esingdami?»",
+            "Do‘stlik haqidagi savollar birga qanchalik yo‘l bosib o‘tganingizni eslatadi va tashvishlar orasida yo‘qolib borayotgan iliqlikni qaytaradi.",
+          ],
+        },
+        {
+          heading: "Suhbatni qanday o‘tkazish kerak",
+          list: [
+            "Bahona tanlang: kafedagi uchrashuv, sayohat, do‘stingizning tug‘ilgan kuni.",
+            "Xotiralardan boshlang: kulgili voqealar insonlarni hammadan ko‘ra yaqinlashtiradi.",
+            "Hazil qo‘shing: do‘stona suhbat juda jiddiy bo‘lmasligi kerak.",
+            "Arxivdagi birgalikdagi suratlar unutilgan voqealarni eslashga yordam beradi.",
+            "«Rahmat»ni ovoz chiqarib ayting: do‘stlar buni yaqin qarindoshlarga qaraganda kamroq eshitadi.",
+          ],
+        },
+        {
+          heading: "Hikoyangizni qanday saqlash kerak",
+          paragraphs: [
+            "Do‘stlik ham kitobga arziydigan hikoya. Javoblarni yozib qo‘ying, birgalikdagi suratlarni qo‘shing, shunda do‘stingiz yillar o‘tib qayta o‘qiydigan sovg‘a paydo bo‘ladi.",
+            "Kitob tug‘ilgan kunga, bitiruv kechasiga, ko‘chib ketish oldidan xayrlashuvga yoki shunchaki e’tibor belgisi sifatida yaxshi mos keladi.",
+          ],
+        },
+      ],
+      questions: { heading: "Do‘st yoki dugonaga bob bo‘yicha savollar", intro: "Bu «Do‘st yoki dugonaga» kitobidagi savollar: ularni suhbatda so‘rash yoki sovg‘a kitob uchun yozma javob berish mumkin." },
+      faq: [
+        ["Bu erkak do‘st uchun ham mos keladimi?", "Ha. Savollar betaraf, ifodalar esa kimga atalganiga qarab moslashadi. Kitob ohangini o‘zingiz tanlaysiz: hazilomuzdan iliqgacha."],
+        ["Boshqa do‘stlardan xat yig‘ish mumkinmi?", "Ha. Umumiy do‘stlaringizni havola orqali taklif qiling: ularning xatlari kitobga alohida bob bo‘lib kiradi."],
+      ],
+      cta: { title: "Javoblarni kitobga aylantiring", text: "Do‘stligingiz tarixini yozing, birgalikdagi suratlarni qo‘shing va muqova tanlang: biz haqiqiy kitob chop etamiz." },
+    },
   },
 };

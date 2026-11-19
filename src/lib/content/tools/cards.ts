@@ -68,5 +68,36 @@ export const voprosyDlyaRazgovora: ToolDef = {
       ],
       cta: { title: "Жауаптарды кітапқа жинаңыз", text: "Әр жауап бір бет болады. Суреттер мен туыстардың хаттарын қосып, мұқаба таңдаңыз — біз кітапты беттеп, басып шығарамыз. Жазу тегін." },
     },
+    uz: {
+      label: "Suhbat uchun savollar",
+      h1: "Suhbat uchun savollar:",
+      accent: "yaqinlar hikoyalari kartochkalari",
+      metaTitle: "Ota-ona va yaqinlar bilan suhbat uchun savollar — kartochkalar",
+      metaDescription: "Ona, ota, buvi, sevgan inson va do‘st bilan suhbat uchun tasodifiy savollar: kartochka torting, savol bering, javobni yozib oling. Chop etish mumkin.",
+      teaser: "Onaga, otaga, buviga, sevgan insonga va do‘stga tasodifiy savollar — kartochka tortib, suhbatni boshlang.",
+      lead: "Kim haqida ko‘proq bilmoqchi ekaningizni tanlang va kartochka torting. Savollar aniq va iliq — ular «alohida hech narsa aytmagan» odamlarni ham gapirtirishga yordam beradi.",
+      sections: [
+        {
+          heading: "Hikoya chiqishi uchun savollarni qanday berish kerak",
+          paragraphs: [
+            "Savollarni bittadan bering va gapini bo‘lmay tinglang. Odam jim bo‘lib qolsa, kuting: eng qimmatli gaplar ko‘pincha pauzadan keyin aytiladi. Aniqlashtiring: «Keyin nima bo‘ldi?», «O‘shanda nima his qildingiz?», «Qanday ko‘rinardi?» — aynan aniq tafsilotlar javobni hikoyaga aylantiradi.",
+            "Telefonda diktofonni yoqing va uyalmang: ovoz keyinchalik matn kabi kerak bo‘ladi. Bir kechaga ikki-uchta savol yetarli, so‘roq qilish shart emas.",
+          ],
+        },
+        {
+          heading: "Javoblar bilan nima qilish kerak",
+          paragraphs: [
+            "Eng yaxshi javoblarni unutilmasdan saqlab qo‘yish kerak. Ulardan kitob yig‘ish mumkin: har bir savol — bitta sahifa, ularga suratlar va yaqinlar xatlari qo‘shiladi. Shunda oila hikoyalarini nevaralar ham o‘qiydi.",
+          ],
+        },
+      ],
+      faq: [
+        ["Onam yoki dadamni yaxshiroq bilish uchun qanday savollar berish kerak?", "Bolalik va o‘smirlikdan boshlang: qayerda o‘sgan, nimani orzu qilgan, qanday tanishgan. Bu savollar eng oson va shaxsiy tuyulmaydi. «Onaga» yoki «Otaga»ni tanlang va kartochka torting."],
+        ["Odam o‘zi haqida gapirishni yoqtirmasa, nima qilish kerak?", "Majburlamang. Betaraf savollardan boshlang — sevimli qo‘shiq, taom, joy haqida. Ko‘pincha bitta shunday savol suhbat o‘zi ketishi uchun yetarli."],
+        ["Savollar qayerdan olingan?", "Ona, ota, sevgan inson va do‘st uchun ularni jonli suhbat uchun maxsus yozganmiz, buvi va bobolarga savollar esa hayot haqidagi kitobning savollar bankidan olingan. Javoblarni kitobga aylantirishga qaror qilsangiz, muharrirda sizni yana ko‘p savollar kutadi."],
+        ["Savollarni chop etish mumkinmi?", "Ha. «10 ta tasodifiy savol»ni bosing, so‘ng «Chop etish»ni bosing — uchrashuvga o‘zingiz bilan olib borish mumkin bo‘lgan varaq hosil bo‘ladi."],
+      ],
+      cta: { title: "Javoblarni kitobga yig‘ing", text: "Har bir javob bitta sahifaga aylanadi. Suratlar va yaqinlar xatlarini qo‘shing, muqovani tanlang — kitobni biz maketlab, bosamiz. Yozish bepul." },
+    },
   },
 };

@@ -3,7 +3,8 @@
  * («расскажи…»), а для бабушек и дедушек взяты из банка вопросов книги о жизни: они на «вы» и подходят старшим.
  * Банк книги обращён к автору, а не к собеседнику, поэтому другие его темы здесь не используются.
  */
-import type { Locale } from "@/i18n/config";
+import type { Locale, PublicLocale } from "@/i18n/config";
+import { toPublic } from "@/i18n/config";
 import { quizData } from "./quiz";
 import { chapterTitle, getTheme } from "@/lib/content/themes";
 
@@ -15,7 +16,7 @@ export interface CardQuestion {
 export type CardThemeId = "mom" | "dad" | "love" | "friend" | "autobiography";
 export const cardThemeIds: CardThemeId[] = ["mom", "dad", "love", "friend", "autobiography"];
 
-const extra: Record<Locale, Record<Exclude<CardThemeId, "autobiography">, string[]>> = {
+const extra: Record<PublicLocale, Record<Exclude<CardThemeId, "autobiography">, string[]>> = {
   ru: {
     mom: [
       "Какой запах сразу возвращает тебя в детство?",
@@ -92,21 +93,59 @@ const extra: Record<Locale, Record<Exclude<CardThemeId, "autobiography">, string
       "Адамдардың қай қасиеті сені ең көп қуантады?",
     ],
   },
+  uz: {
+    mom: [
+      "Qanday hid sizni birdan bolalikka qaytaradi?",
+      "Bolaligimizdan nimani eslaganingizda tez-tez jilmayasiz?",
+      "Menga nimani o‘rgatmoqchi edingiz, lekin ulgurmadingiz?",
+      "Hayotingizdagi eng baxtli kun qaysi bo‘lgan?",
+      "Agar o‘tmishga bir kunga qaytish mumkin bo‘lsa, qaysi kunni tanlagan bo‘lardingiz?",
+      "Biz sizni qanday eslab yurishimizni istaysiz?",
+    ],
+    dad: [
+      "Otangizning qaysi maslahatiga quloq solmagan edingiz-u, keyin uning haq ekanini tushundingiz?",
+      "Bolaligingizda dunyodagi nima sizni eng ko‘p hayratga solgan?",
+      "Hayotingizdagi qaysi qarorni eng yaxshisi deb bilasiz?",
+      "Meni kichkinaligimda qanday eslaysiz?",
+      "Qaysi joyni ko‘rishni istaysiz-u, hali bormagansiz?",
+      "Oilaviy bayramda hamma jo‘r bo‘lib kuylashi uchun qaysi qo‘shiqni qo‘yardingiz?",
+    ],
+    love: [
+      "Hayotimizning qaysi lahzasini yana bir bor boshdan kechirging keladi?",
+      "Umumiy odatlarimizdan qaysi biri senga eng ko‘p yoqadi?",
+      "Pul va vaqtni o‘ylamasang, birga qayerga borging keladi?",
+      "Men nima qilsam, senga iliq bo‘ladi?",
+      "Qirq yildan keyin biz haqimizda nimani eslashni istaysan?",
+      "Qaysi janjalimiz endi kulgili bo‘lib tuyuladi?",
+    ],
+    friend: [
+      "Umumiy lahzalarimizdan qaysi birini tez-tez eslaysan?",
+      "Do‘stligimizda sen uchun eng qadrlisi nima?",
+      "Qaysi paytda biz chin do‘st bo‘ldik?",
+      "Qaysi umumiy hazlimiz eng uzoq yashayapti?",
+      "O‘n yil ko‘rishmasak, menga nima der eding?",
+      "Biz bir-birimizdan nimani o‘rgandik?",
+      "Do‘stingning qaysi maslahati senda abadiy qoldi?",
+      "Nimani orzu qilasan-u, ovoz chiqarib kam aytasan?",
+      "Ertaga ishga bormasak, qanday sarguzasht uyushtirardik?",
+      "Odamlarning qaysi xislati seni eng ko‘p xursand qiladi?",
+    ],
+  },
 };
 
 /** Темы карточек на языке страницы. Вопросы бабушкам и дедушкам — без глав-«предисловий» и без вопросов с родовыми формами. */
 export function cardThemes(locale: Locale): Record<CardThemeId, CardQuestion[]> {
-  const speak = (from: "mama" | "papa" | "lyubimyj") => quizData[locale][from].items.map((i) => ({ chapter: "", text: i.ask }));
+  const speak = (from: "mama" | "papa" | "lyubimyj") => quizData[toPublic(locale)][from].items.map((i) => ({ chapter: "", text: i.ask }));
   const plain = (list: string[]) => list.map((text) => ({ chapter: "", text }));
   const bank = getTheme("autobiography", locale);
   const elders = bank.chapters
     .filter((c) => c.key !== "intro")
     .flatMap((c) => c.questions.filter((q) => !/[{[]/.test(q[0])).map((q) => ({ chapter: chapterTitle(bank, c.key, locale), text: q[0] })));
   return {
-    mom: [...speak("mama"), ...plain(extra[locale].mom)],
-    dad: [...speak("papa"), ...plain(extra[locale].dad)],
-    love: [...speak("lyubimyj"), ...plain(extra[locale].love)],
-    friend: plain(extra[locale].friend),
+    mom: [...speak("mama"), ...plain(extra[toPublic(locale)].mom)],
+    dad: [...speak("papa"), ...plain(extra[toPublic(locale)].dad)],
+    love: [...speak("lyubimyj"), ...plain(extra[toPublic(locale)].love)],
+    friend: plain(extra[toPublic(locale)].friend),
     autobiography: elders,
   };
 }

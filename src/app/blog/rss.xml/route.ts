@@ -1,5 +1,5 @@
 import { site } from "@/config/site";
-import { isLocale, localeMeta, type Locale } from "@/i18n/config";
+import { isLocale, localeMeta, type Locale, toPublic } from "@/i18n/config";
 import { messagesFor } from "@/i18n/messages";
 import { articles } from "@/lib/content/articles";
 import { absoluteUrl } from "@/lib/seo";
@@ -18,7 +18,7 @@ export function GET(req: Request) {
   const items = [...articles]
     .sort((a, b) => (b.updated ?? b.published).localeCompare(a.updated ?? a.published))
     .map((a) => {
-      const c = a.content[locale];
+      const c = a.content[toPublic(locale)];
       const url = absoluteUrl(`/blog/${a.slug}`, locale);
       return `<item><title>${esc(c.title)}</title><link>${url}</link><guid isPermaLink="true">${url}</guid><description>${esc(c.description)}</description><pubDate>${rfc822(a.published)}</pubDate></item>`;
     })

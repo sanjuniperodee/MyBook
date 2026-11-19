@@ -1,3 +1,4 @@
+import { localeMeta } from "@/i18n/config";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
@@ -37,7 +38,7 @@ export default async function PayPage({ params }: { params: Promise<{ token: str
   // Оплаченный — окончателен; иначе по сделке мог появиться заказ (оплата идёт в нём), счёт — отменён или истечь.
   const deal = s.status === "paid" ? null : await c.sales.deals.findById(s.dealId);
   const state = s.status === "paid" ? "paid" : deal?.orderId ? "ordered" : invoice.isPayable(new Date()) ? "payable" : s.status === "cancelled" ? "cancelled" : "expired";
-  const until = new Intl.DateTimeFormat(locale === "kk" ? "kk-KZ" : "ru-RU", { timeZone: storeTimeZone(), day: "numeric", month: "long" }).format(s.expiresAt);
+  const until = new Intl.DateTimeFormat(localeMeta[locale].intl, { timeZone: storeTimeZone(), day: "numeric", month: "long" }).format(s.expiresAt);
   const [kaspi, transfer] = state === "payable" ? await Promise.all([dealInvoiceKaspiProps(invoice.id, s.phone), transferRequisites()]) : [null, null];
   // «Клиент открыл счёт» (deals-12): не сотрудник (проверяет ссылку из CRM) и не сборщик превью мессенджера.
   if (state === "payable" && !s.viewedAt && user?.role !== "admin" && !isLinkPreviewAgent((await headers()).get("user-agent")))

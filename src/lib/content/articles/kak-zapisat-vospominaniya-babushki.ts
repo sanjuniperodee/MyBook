@@ -166,5 +166,84 @@ export const kakZapisatVospominaniyaBabushki: Article = {
       ],
       cta: { title: "Жақын адамның өмірі туралы кітап", text: "Сұрақтарға жауап беріп, сурет қосыңыз — біз кітапты беттеп, басып шығарамыз. Жазу тегін." },
     },
+    uz: {
+      title: "Buvi yoki bobo xotiralarini qanday yozib olish mumkin: savollar va reja",
+      description: "Buvi yoki bobo xotiralarini yozib olish: nimadan boshlash, qanday suhbatlashish, birinchi suhbat uchun 15 ta savol va yozuvlarni oilaviy kitobga aylantirish.",
+      lead: "Keksa avlod hikoyalari jimgina yo‘qoladi: siz so‘ramaguningizcha ularni faqat bir kishi biladi. Buvi yoki bobo xotiralarini bezovtalanmasdan qanday yozib olishni aytib beramiz va birinchi suhbat uchun savollar beramiz.",
+      sections: [
+        {
+          heading: "Nega yozib olish kerak",
+          paragraphs: [
+            "Oilaviy hikoyalarda faqat sanalar emas, balki qanday yashagani, nima yegani, nimadan qo‘rqqani, nimani yaxshi ko‘rgani ham bor. Mana shunday tafsilotlardan o‘zingiz qayerdan chiqqaningizni tushunish shakllanadi. Bunday hikoyalarni arxivlardan topib bo‘lmaydi, ularni faqat odamlarning o‘zidan olish mumkin.",
+            "Buvi yoki bobo uchun ham suhbat sovg‘a: nevarasi bolaligi haqida so‘rasa, inson o‘z hayotining muhimligini his qiladi.",
+          ],
+        },
+        {
+          heading: "Nimadan boshlash kerak",
+          paragraphs: ["«Intervyu»dan emas, yumshoq taklifdan boshlang. Oilaviy hikoyalarni farzandlari va nevaralari uchun saqlab qolmoqchi ekaningizni ayting va rozi bo‘lish-bo‘lmasligini so‘rang. Hech kim shoshilmaydigan vaqtni kelishib oling."],
+          list: [
+            "Sokin joyni tanlang: uy, choy, tanish muhit.",
+            "Eski suratlar va buyumlarni oling: ular eslashga yordam beradi.",
+            "Diktofon yoki telefonni tayyorlang va yozuv ketayotganini tekshiring.",
+            "Yozishga ruxsat so‘rang, yashirincha yozmang.",
+          ],
+        },
+        {
+          heading: "Qanday suhbatlashish kerak",
+          paragraphs: ["Eng yaxshi hikoyalar birinchi urinishda chiqmaydi. 30–40 daqiqalik qisqa uchrashuvlar bitta uzun oqshomga qaraganda kamroq charchatadi, uchrashuvlar oralig‘ida esa inson yangi tafsilotlarni eslaydi."],
+          list: [
+            "Tinglang va gapini bo‘lmang: sukut ham hikoyaning bir qismi.",
+            "Aniqlashtiruvchi savollar bering: «u qanday ko‘rinardi?», «nimani his qildingiz?».",
+            "Hikoya paytida sanalar va faktlarni to‘g‘rilamang: keyinroq aniqlashtiring.",
+            "Inson charchasa yoki xafa bo‘lsa, to‘xtang. Ba’zi xotiralar og‘ir, ularni o‘tkazib yuborsa bo‘ladi.",
+            "Ham ovozni, ham qaydlarni yozib boring: ismlar, joylar, nomlar.",
+          ],
+        },
+        {
+          heading: "Birinchi suhbat uchun 15 ta savol",
+          paragraphs: ["Bu savollar ham buviga, ham boboga mos. Hammasini birdaniga berish shart emas — bir nechtasini tanlang va hikoya ketidan boring."],
+          list: [
+            "Siz qayerda tug‘ilgansiz va o‘sgan joyingiz nima deb atalgan?",
+            "Bolalikdan qaysi uy esingizda? Unda nima alohida edi?",
+            "Ota-onangiz hamda buvi-bobolaringiz kim edi? Ular haqida nimalarni eslaysiz?",
+            "Bolaligingizda qanday o‘yinlar va mashg‘ulotlarni yaxshi ko‘rardingiz?",
+            "Bolalikdagi qaysi taomning ta’mi hanuz esingizda?",
+            "Qanday o‘qigansiz? Butun umr esingizda qolgan o‘qituvchi bo‘lganmi?",
+            "Kim bo‘lishni orzu qilgansiz va kim bo‘ldingiz?",
+            "Mehnat faoliyatingiz nimadan boshlangan? Eng qiyini nima edi?",
+            "Turmush o‘rtog‘ingiz bilan qanday tanishgansiz?",
+            "To‘yingiz qanday o‘tdi?",
+            "Hayotingizdagi eng baxtli kunni qaysi deb bilasiz?",
+            "Eng og‘ir davr qaysi edi va sizga nima yordam berdi?",
+            "Oilangizning qaysi an’analarini saqlab qolishni istardingiz?",
+            "Hayot sizga nimani o‘rgatdi, nevaralaringizga nimani yetkazmoqchisiz?",
+            "Sizdan hech qachon so‘ramagan, lekin aytmoqchi bo‘lgan narsangiz nima?",
+          ],
+        },
+        {
+          heading: "Yozuvlar bilan nima qilish kerak",
+          paragraphs: ["Uchrashuvdan keyin yozuvni uzoqqa qoldirmang: taassurot yangiligida faylni saqlab, darhol qisqa qaydlar qiling. Yozuvni matnga qo‘lda yoki nutqni taniydigan ilovalar yordamida aylantirish mumkin, so‘ng matnni tuzatib, ismlar va sanalarni hikoyachi bilan birga tekshirgan ma’qul."],
+          list: [
+            "Asl yozuvlarni bir necha joyda saqlang.",
+            "Suratlarga izoh yozing: kim, qayerda, qachon.",
+            "Matnni mavzular bo‘yicha bo‘ling: bolalik, o‘qish, ish, oila, hayot saboqlari.",
+            "Matnni hikoyachiga ko‘rsating va nimani qo‘shish yoki olib tashlash kerakligini so‘rang.",
+          ],
+        },
+        {
+          heading: "Kitob qilib qanday bezash mumkin",
+          paragraphs: [
+            "Yozuvlar telefondagi papkada oson yo‘qolib ketadi. Kitob ularni yagona butunga jamlaydi: hikoyalar boblar bo‘yicha, suratlar, izohlar — farzandlar va nevaralarga topshirish mumkin bo‘lgan holda.",
+            "Hayot haqidagi kitobni bepul yozish mumkin: siz savollarga javob berasiz va suratlar qo‘shasiz. Tayyor kitobni qattiq muqovada bosib, Qozog‘iston bo‘ylab yetkazib beramiz; elektron nusxasi to‘lovdan keyin darhol mavjud.",
+          ],
+        },
+      ],
+      faq: [
+        ["Buvi eslashni yoqtirmasa, suhbatni qanday boshlash mumkin?", "Savollardan emas, suratlar va buyumlardan boshlang. Oddiy narsani so‘rang: suratdagi odam kim, bu qayerda bo‘lgan. Inson biror narsa haqida gapirishni xohlamasa, qistamang."],
+        ["Xotiralarni yozib olishga qancha vaqt kerak?", "Odamga va xohishga bog‘liq: odatda 30–40 daqiqalik bir necha uchrashuv yetarli. Shoshilmang, suhbatga keyinroq qaytgan yaxshiroq."],
+        ["Hikoyachi sanalarni adashtirsa, nima qilish kerak?", "Hikoya paytida gapini bo‘lmang. Keyinroq sanalarni hujjatlar, suratlar yoki boshqa qarindoshlardan tekshiring, kitobda esa aniq sana noma’lum bo‘lsa, shuni qayd eting."],
+      ],
+      cta: { title: "Yaqin kishining hayoti haqidagi kitob", text: "Savollarga javob bering, suratlar qo‘shing — kitobni biz maketlab, bosib chiqaramiz. Yozish bepul." },
+    },
   },
 };

@@ -43,5 +43,23 @@ export const podarokLyubimomu: Landing = {
         ["Біз бірге жүргенімізге көп болмаса ше?", "Бірнеше айдың өзінде таңғаларлықтай көп оқиға жиналады. Барлық сұраққа жауап беру міндетті емес — кітапқа тек толтырылғандары кіреді."],
       ],
     },
+    uz: {
+      label: "Sevgan insonga sovg‘a",
+      h1: "Sevgingiz haqidagi kitob —",
+      accent: "takrorlanmas sovg‘a",
+      metaTitle: "Sevganingizga sovg‘a: sevgi haqidagi kitob — tarixingizni yozing",
+      metaDescription: "Juftligingiz haqida shaxsiy kitob: tanishuv, birinchi uchrashuvlar, orzular. Savollarga javob bering, surat qo‘shing — kitobni qattiq muqovada bosamiz.",
+      lead: "Qanday tanishdingiz, birinchi uchrashuvda u nima dedi, bir-biringizni nima uchun sevasiz — iliq savollarga javob bering, biz esa tarixingizni haqiqiy roman kabi maketlaymiz.",
+      why: [
+        { title: "Hech kimda bunaqasi yo‘q", text: "Taqinchoq yoki soatni sotib olish mumkin. Juftligingiz haqidagi kitobni esa faqat yozish mumkin." },
+        { title: "Aytish qiyin so‘zlar", text: "Savollar hayotda kamdan-kam aytiladigan so‘zlarni aytishga yordam beradi: rahmat, kechir, men sen bilan faxrlanaman." },
+        { title: "Uni qayta-qayta o‘qishadi", text: "Besh-yigirma yildan keyin kitob oilaviy yodgorlikka aylanadi — suratlaringiz va hayot izlari bilan." },
+      ],
+      cover: { title: "Sen — mening hamma narsamsan", names: "Aliya & Marg‘ulan", subtitle: "To‘rt yil birga" },
+      faq: [
+        ["Kitobni ikkalamiz birga yoza olamizmi?", "Ha — birga yoki navbatma-navbat yozing. Yaqinlar xatlari orqali esa do‘stlaringiz va qarindoshlaringiz ham kitobga o‘z so‘zlarini qo‘sha oladi."],
+        ["Agar birga bo‘lganimizga ko‘p bo‘lmagan bo‘lsa-chi?", "Bir necha oyning o‘zida ham ajoyib ko‘p voqealar to‘planadi. Hamma savolga javob berish shart emas — kitobga faqat to‘ldirilganlari kiradi."],
+      ],
+    },
   },
 };

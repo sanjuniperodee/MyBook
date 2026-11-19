@@ -46,5 +46,24 @@ export const podarokUchitelyuNaVypusknoj: Landing = {
         ["Бітіру кешіне үлгереміз бе?", "Бітіру кешінің күнін көрсетіңіз — тапсырысты қай күнге дейін беру керегін айтамыз. Электрондық нұсқасын төлемнен кейін бірден аласыз, басылған данасын бірнеше жұмыс күнінде жасаймыз."],
       ],
     },
+    uz: {
+      label: "Ustozga bitiruv kechasiga sovg‘a",
+      h1: "Ustozga bitiruv kechasiga sovg‘a —",
+      accent: "bitiruvchilardan maktab yillari haqida kitob",
+      metaTitle: "Ustozga bitiruv kechasiga sovg‘a — bitiruvchilardan kitob",
+      metaDescription: "Sinf rahbari va ustozga bitiruv kechasiga sovg‘a: maktab yillari, sevimli darslar va minnatdorchilik haqida kitob. Sinf xatlari, suratlar, qattiq muqova.",
+      lead: "So‘nggi qo‘ng‘iroq tez chalinadi, ustoz esa maktab yillaringizning bir qismiga aylanib ulgurdi. Eng muhimini shosha-pisha yozilgan otkritkada emas, darslar, hazillar va butun sinf xatlari kiradigan kitobda ayting.",
+      why: [
+        { title: "Maktab yillari bitta kitobda", text: "Birinchi dars, sizning sinfingiz, sayohatlar va ustoz kechirgan yoki hech bilmay qolgan sho‘xliklar. Avval so‘z topilmasa ham, savollar nimani eslashni aytib turadi." },
+        { title: "Har bir bitiruvchining xati", text: "Sinfdoshlar qayerda bo‘lmasin, havola orqali telefondan o‘z xatini yozadi. Barcha xatlar kitobda alohida bobga jamlanadi." },
+        { title: "Sinf rahbariga yoki sevimli fan o‘qituvchisiga", text: "Kitobni sinf rahbariga, sevimli fan o‘qituvchisiga yoki o‘zingiz shubhalanganingizda sizga ishongan kishiga sovg‘a qilish mumkin. Savollar har kimga mos." },
+      ],
+      cover: { title: "Maktab uchun rahmat", names: "11 «B» sinf" },
+      faq: [
+        ["Butun sinf yozsa, muallif kim hisoblanadi?", "Bir kishi kitob yaratib savollarga javob beradi, qolganlari xat yuboradi. Kitob boshida kimligingizni yozasiz: qaysi sinf bitiruvchilari va nega uni sovg‘a qilishga qaror qilganingiz."],
+        ["Bunday kitobni bitiruv kechasidan keyin ham qilsa bo‘ladimi?", "Ha. Savollar orasida ustoz yo‘l tanlashga qanday ta’sir qilgani va hayotda nima asqotgani haqidagi boblar bor — ular yillar o‘tgach ayniqsa yaxshi ishlaydi."],
+        ["Bitiruv kechasiga ulguramizmi?", "Bitiruv kechasi sanasini ko‘rsating — buyurtmani qaysi kungacha berish kerakligini aytamiz. Elektron nusxani to‘lovdan keyin darrov olasiz, bosma nusxani bir necha ish kunida tayyorlaymiz."],
+      ],
+    },
   },
 };

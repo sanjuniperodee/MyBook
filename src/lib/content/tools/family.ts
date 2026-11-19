@@ -78,6 +78,42 @@ export const mushelZhas: ToolDef = {
       ],
       cta: { title: "Сақталатын мүшел сыйлығы", text: "Мерейтой иесі туралы кітап: естеліктер, суреттер және туыстардың сөздері қатты мұқабада. Жазу тегін." },
     },
+    uz: {
+      label: "Muchal yoshi: kalkulyator",
+      h1: "Muchal yoshi:",
+      accent: "muchalingiz qachon va yilingiz qaysi hayvon",
+      metaTitle: "Muchal yoshi kalkulyatori: muchal qachon, yil hayvoni, barcha yoshlar",
+      metaDescription: "Tug‘ilgan sanani kiriting: yil hayvoningiz, eng yaqin muchal yoshi va yetti davra — 13, 25, 37, 49, 61, 73, 85 yosh — ko‘rsatiladi.",
+      teaser: "Tug‘ilgan sana bo‘yicha yil hayvoni, eng yaqin muchal yoshi va yetti davra.",
+      lead: "Muchal yoshi — turkiy xalqlar an’anasidagi muhim sana: yil hayvoningiz qaytib keladigan har 12 yilda nishonlanadi. Tug‘ilgan sanani kiriting — kalkulyator siz yoki yaqinlaringiz muchalni nishonlaydigan yilni va unga necha yil qolganini ko‘rsatadi.",
+      sections: [
+        {
+          heading: "Muchal yoshi nima",
+          paragraphs: [
+            "Muchal — yillar hayvonlar bo‘yicha sanaladigan o‘n ikki yillik davra: sichqon (kalamush), sigir (buqa), yo‘lbars, quyon, nahang (ajdar), ilon, ot, qo‘y (echki), maymun, tovuq (xo‘roz), it, cho‘chqa. Yil hayvoningiz yana kelganda, insonning muchal yoshi bo‘ladi.",
+            "An’anaviy hisobda tug‘ilgan yil birinchi yil sanaladi, shuning uchun muchal yoshi — 13, 25, 37, 49, 61, 73 va 85 yosh. To‘liq yillar bo‘yicha sanasak, bu 12, 24, 36, 48, 60, 72 va 84.",
+          ],
+        },
+        {
+          heading: "Muchal yoshi qanday nishonlanadi",
+          paragraphs: [
+            "Muchal yoshini muhim yubiley sifatida nishonlash odat tusiga kirgan: yaqinlar yig‘ilib, ezgu so‘zlar aytishadi, sovg‘alar berishadi. Yumaloq muchallarga odatda oldindan tayyorgarlik ko‘riladi — ayniqsa 37, 49 va 61 yoshga, oilalarda ularni ko‘pincha jiddiy marralar deb hisoblashadi.",
+            "Muchal uchun yaxshi sovg‘a — uzoq saqlanadigan narsa: masalan, yubilyar haqida xotiralar, suratlar va yaqinlarining so‘zlari jamlangan kitob. Bosma kitob uchun 3–4 hafta vaqt qoldirgan ma’qul.",
+          ],
+        },
+        {
+          heading: "Yil hayvoni qanday aniqlanadi",
+          paragraphs: ["Kalkulyator tug‘ilgan kalendar yilini oladi: masalan, 2000-yil — nahang (ajdar) yili, 1996-yil — sichqon yili. Ba’zi oilalar yil boshini qamariy kalendar yoki Navro‘z bo‘yicha hisoblaydi; yanvar yoki fevralda tug‘ilgan bo‘lsangiz, kattalardan aniqlab oling."],
+        },
+      ],
+      faq: [
+        ["Muchal yoshi nima?", "Bu 12 yillik hayvonlar kalendarida tug‘ilgan yilingiz yana keladigan yosh. An’anaviy hisob bo‘yicha bu 13, 25, 37, 49, 61, 73 va 85 yosh."],
+        ["Nega muchal yoshi 12 emas, 13 yosh?", "An’anaviy hisobda tug‘ilgan yil hayotning birinchi yili sanaladi. Shuning uchun muchalda to‘liq yosh 12, 24, 36 va hokazo, an’anaviy hisobda esa — 13, 25, 37."],
+        ["Yil hayvonimni qanday bilsam bo‘ladi?", "Tug‘ilgan sanani kalkulyatorga kiriting: u yilingiz hayvonini, masalan, sichqon, yo‘lbars yoki nahangni va barcha muchal yoshlarini ko‘rsatadi."],
+        ["Muchal yoshiga nima sovg‘a qilish kerak?", "Esda qoladigan sovg‘a: xotiralar va suratlar jamlangan kitob, oilaviy albom, sayohat. Muchal onangiz yoki otangizda bo‘lsa, farzandlari va nevaralarining xatlari bilan butun oiladan kitob mos keladi."],
+      ],
+      cta: { title: "Saqlanib qoladigan muchal sovg‘asi", text: "Yubilyar haqida kitob: xotiralar, suratlar va yaqinlarining so‘zlari qattiq muqovada. Yozish bepul." },
+    },
   },
 };
 
@@ -154,6 +190,41 @@ export const semejnyjKalendar: ToolDef = {
         ["Мүшел жас қалай есептеледі?", "Бұл жыл жануарыңыз қайта келетін жас: дәстүрлі есеппен 13, 25, 37, 49, 61 жас. Калькулятор әр адам үшін ең жақынын көрсетеді."],
       ],
       cta: { title: "Дайындалып үлгеретін сыйлық", text: "Жақын адам туралы кітап — сұрақтарға жауаптар, суреттер және туыстардың хаттары. Жазу тегін, ал күнтізбе қашан бастау керегін ескертеді." },
+    },
+    uz: {
+      label: "Oilaviy tug‘ilgan kunlar kalendari",
+      h1: "Oilaviy kalendar:",
+      accent: "tug‘ilgan kunlar, muchal va eslatmalar",
+      metaTitle: "Oilaning tug‘ilgan kunlar kalendari: eslatmalar va muchal yoshi (.ics)",
+      metaDescription: "Yaqinlaringizni qo‘shing: yoshi, eng yaqin tug‘ilgan kuni, yil hayvoni va muchal yoshini ko‘ring. 1–4 hafta oldin eslatadigan kalendarni yuklab oling.",
+      teaser: "Yaqinlarning tug‘ilgan kunlari va muchal yoshi bitta kalendarda, oldindan eslatmalar bilan.",
+      lead: "Oxirgi kuni tanlangan sovg‘a kamdan-kam samimiy chiqadi. Qarindosh va do‘stlarni qo‘shing: kalendar eng yaqin tug‘ilgan kunlar va muchal yoshini ko‘rsatadi hamda bir hafta, ikki hafta yoki bir oy oldin o‘zi eslatadigan fayl sifatida yuklab olinadi.",
+      sections: [
+        {
+          heading: "Kalendardan qanday foydalanish kerak",
+          paragraphs: [
+            "Ismini yozing, odam sizga kim bo‘lishini va tug‘ilgan sanasini belgilang. Ro‘yxat eng yaqin tug‘ilgan kunlar bo‘yicha saralanadi, yonida yoshi, yil hayvoni va eng yaqin muchal yoshi turadi. Ma’lumotlar faqat brauzeringizda saqlanadi.",
+            "«Kalendarni yuklab olish» tugmasi .ics faylini yaratadi. Uni telefon yoki kompyuterda oching: tug‘ilgan kunlar Google Kalendar, Apple Kalendar yoki Outlook’da har yili takrorlanib paydo bo‘ladi.",
+          ],
+        },
+        {
+          heading: "Qanday eslatmalar keladi",
+          paragraphs: [
+            "Har bir tug‘ilgan kun uchun — tanlangan muddatdan (bir hafta, ikki hafta yoki bir oy) oldin va bir kun avval eslatma. Eng yaqin muchal yoshi uchun — ikki oy oldin eslatmali alohida tadbir: bunday yubileyga alohida sovg‘a tanlagan ma’qul, bosma kitob uchun esa vaqt kerak.",
+          ],
+        },
+        {
+          heading: "Oldindan nima sovg‘a qilish mumkin",
+          paragraphs: ["Tug‘ilgan kunga ikki-uch hafta qolganda yaxshi sovg‘aga ham, inson haqidagi kitobga ham vaqt yetadi: savollarga javob bering, surat qo‘shing, yaqinlarining xatlarini yig‘ing — kitob bosilib ulguradi."],
+        },
+      ],
+      faq: [
+        ["Tug‘ilgan sanalar qayerda saqlanadi?", "Faqat shu qurilmadagi brauzeringizda. Biz ularni olmaymiz va hech qayoqqa yubormaymiz. Kalendar fayli ham serverda emas, sizning qurilmangizda yaratiladi."],
+        ["Tug‘ilgan kunlarni telefon kalendariga qanday qo‘shaman?", "«Kalendarni yuklab olish (.ics)» tugmasini bosib, faylni oching. iPhone’da tadbirlar «Kalendar»ga, Android’da Google Kalendar’ga qo‘shiladi. Tadbirlar har yili takrorlanadi."],
+        ["Tug‘ilgan kun haqida necha kun oldin eslatgan yaxshi?", "Ikki hafta oldin: sovg‘a tanlash va buyurtma berishga vaqt yetadi. Kitob sovg‘a qilmoqchi bo‘lsangiz, bir oy oldinga qo‘ying."],
+        ["Muchal yoshi qanday hisoblanadi?", "Bu yil hayvoningiz yana keladigan yosh: an’anaviy hisobda 13, 25, 37, 49, 61 yosh. Kalkulyator har bir inson uchun eng yaqinini ko‘rsatadi."],
+      ],
+      cta: { title: "Tayyorlanishga ulguradigan sovg‘a", text: "Yaqin inson haqida kitob — savollarga javoblar, suratlar va yaqinlarining xatlari. Yozish bepul, kalendar esa qachon boshlashni eslatadi." },
     },
   },
 };
@@ -235,6 +306,42 @@ export const anketaIntervyu: ToolDef = {
         ["Жазбаларды кітапқа қалай айналдыруға болады?", "Жауаптарды кітап редакторына көшіріңіз: ол сұрақтарды көрсетіп, суреттерді орналастырып, беттерді беттейді. Жазу тегін."],
       ],
       cta: { title: "Жазылған әңгімелерді кітапқа жинаңыз", text: "Жауаптар, ескі суреттер және туыстардың хаттары — қатты мұқабада. Жазу тегін және өз қарқыныңызбен." },
+    },
+    uz: {
+      label: "Yaqinlar bilan suhbat uchun anketa",
+      h1: "Suhbat uchun anketa:",
+      accent: "buvi, ona, otaga savollar — chop etish uchun",
+      metaTitle: "Buvi, ona, ota bilan suhbat uchun anketa: chop etiladigan savollar",
+      metaDescription: "Kim bilan suhbatni tanlang, savollarni belgilang va javob uchun joyli anketani chop eting. Hikoyalarni qo‘lda yozib oling, keyin kitob yig‘ing.",
+      teaser: "Savollarni tanlab, javob uchun joyi bor anketani chop eting — buvi, ona, ota bilan suhbat uchun.",
+      lead: "Kattalarning hammasida ham smartfon va xotiralarini aytib yozdirish odati bo‘lavermaydi. Savollarni tanlang, anketani chop eting, choy ustida suhbatlashing va javoblarni qo‘lda yozib oling. Keyin ulardan kitob yig‘ish mumkin.",
+      sections: [
+        {
+          heading: "Anketa qanday tuzilgan",
+          paragraphs: [
+            "Siz kim bilan suhbat bo‘lishini tanlab, mos savollarni belgilaysiz — o‘nta tasodifiy savol olish yoki o‘z ro‘yxatingizni tuzish mumkin. Anketa A4 varaqlarida chop etiladi: har bir savolga javob uchun uch qator, tepada sana va yozib oluvchining ismi uchun maydonlar bor.",
+            "Buvi va bobolar uchun savollar hayot haqidagi kitobning savollar bankidan olingan: bolalik, oila, ish, an’analar haqida. Ona, ota, sevgan inson va do‘st uchun savollar jonli suhbatga mo‘ljallab yozilgan.",
+          ],
+        },
+        {
+          heading: "Suhbatni qanday o‘tkazish kerak",
+          paragraphs: [
+            "Suhbatni choy ustida, shoshilmay o‘tkazib, bir uchrashuvda ikki-uchta savol bergan ma’qul. So‘zini bo‘lmang, tafsilotlarni aniqlang («Keyin nima bo‘ldi?», «U qanday ko‘rinardi?») va odamning so‘zlarini u gapirganiga iloji boricha yaqin yozing: shunda kitob uning ovozi bilan yangraydi.",
+            "Javob uzun chiqsa, uni darrov oqqa ko‘chirmang. Avval asosiy so‘zlarni yozib oling, uyda esa xotirangiz yoki diktofon yozuvi bo‘yicha to‘ldiring.",
+          ],
+        },
+        {
+          heading: "Tayyor javoblar bilan nima qilish kerak",
+          paragraphs: ["Yozib olingan hikoyalarni kitobga jamlash mumkin: har bir javob bir sahifa bo‘ladi, ularga eski suratlar qo‘shiladi. Shunday qilib, buvining hikoyalari oilada uzoq saqlanadi."],
+        },
+      ],
+      faq: [
+        ["Buvi yoki bobodan qanday savollar so‘rash kerak?", "Bolalikdan boshlang: qayerda o‘sgan, uyi qanday bo‘lgan, nima o‘ynagan. Keyin — oila, ish, an’analar, eng yorqin voqealar haqida. «Buvi, bobo bilan»ni tanlab, savollarni belgilang."],
+        ["Anketani chop etish mumkinmi?", "Ha. Savollarni belgilab, «Anketani chop etish» tugmasini bosing: har bir savolga javob uchun joyi bor A4 varaqlari bilan chop etish oynasi ochiladi."],
+        ["Bir suhbat uchun nechta savol tanlash kerak?", "Bir uchrashuv uchun 5–10 ta savol yetarli: odam charchamaydi, javoblar esa batafsil bo‘ladi. Qolganini keyingi safar bering."],
+        ["Yozuvlarni kitobga qanday aylantirish mumkin?", "Javoblarni kitob muharririga ko‘chiring: u savollarni taklif qiladi, suratlarni joylashtiradi va sahifalarni maketlaydi. Yozish bepul."],
+      ],
+      cta: { title: "Yozib olingan hikoyalarni kitobga jamlang", text: "Javoblar, eski suratlar va yaqinlarning xatlari — qattiq muqovada. Yozish bepul va o‘zingizga qulay sur’atda." },
     },
   },
 };

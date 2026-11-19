@@ -4,10 +4,12 @@ import { LOCALE_COOKIE, LOCALE_HEADER, localizePath, splitLocale } from "@/i18n/
 /** Первое касание: откуда пришёл посетитель (UTM и реферер). Храним 60 дней, при регистрации сохраняем в профиль. */
 export const SOURCE_COOKIE = "mb_src";
 
-/** Первый язык в Accept-Language — казахский. */
-function prefersKazakh(header: string | null) {
+/** Первый язык в Accept-Language — казахский или узбекский; иначе русский (null). */
+function preferred(header: string | null): "kk" | "uz" | null {
   const first = header?.split(",")[0]?.trim().toLowerCase() ?? "";
-  return first === "kk" || first.startsWith("kk-");
+  if (first === "kk" || first.startsWith("kk-")) return "kk";
+  if (first === "uz" || first.startsWith("uz-")) return "uz";
+  return null;
 }
 
 const YEAR = 60 * 60 * 24 * 365;
@@ -25,19 +27,19 @@ export function proxy(req: NextRequest) {
   headers.set(LOCALE_HEADER, locale);
 
   let res: NextResponse;
-  if (locale === "kk") {
-    // /kk/… → тот же маршрут, язык передаём заголовком
+  if (locale !== "ru") {
+    // /kk/…, /uz/… → тот же маршрут, язык передаём заголовком
     const url = req.nextUrl.clone();
     url.pathname = path;
     res = NextResponse.rewrite(url, { request: { headers } });
     // Запоминаем язык только при открытии страницы человеком. Фоновые prefetch/RSC-запросы к /kk/…,
     // догоняющие уже после переключения на русский, не должны возвращать cookie обратно.
-    if (chosen !== "kk" && isDocumentRequest(req)) res.cookies.set(LOCALE_COOKIE, "kk", { maxAge: YEAR, sameSite: "lax", path: "/" });
-  } else if (req.method === "GET" && (chosen === "kk" || (!chosen && prefersKazakh(req.headers.get("accept-language")))) && !userAgent(req).isBot) {
+    if (chosen !== locale && isDocumentRequest(req)) res.cookies.set(LOCALE_COOKIE, locale, { maxAge: YEAR, sameSite: "lax", path: "/" });
+  } else if (req.method === "GET" && (chosen === "kk" || chosen === "uz" || (!chosen && preferred(req.headers.get("accept-language")))) && !userAgent(req).isBot) {
     // Человек выбрал казахский (или браузер просит его) — возвращаем на казахскую версию. Роботов не перенаправляем:
     // русская страница должна индексироваться по своему адресу, казахская версия связана с ней через hreflang.
     const url = req.nextUrl.clone();
-    url.pathname = localizePath(req.nextUrl.pathname, "kk");
+    url.pathname = localizePath(req.nextUrl.pathname, chosen === "uz" ? "uz" : chosen === "kk" ? "kk" : preferred(req.headers.get("accept-language")) ?? "kk");
     const redirect = NextResponse.redirect(url);
     redirect.headers.set("Vary", "Accept-Language, Cookie");
     return redirect;

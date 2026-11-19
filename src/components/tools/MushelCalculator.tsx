@@ -1,5 +1,6 @@
 "use client";
 
+import { toPublic } from "@/i18n/config";
 import { useMemo, useState } from "react";
 import { useLocale } from "@/i18n/client";
 import { usefulUi2 } from "@/lib/content/tools/ui";
@@ -10,7 +11,7 @@ import { CopyButton, ResultEmpty, ToolField, Workbench } from "./Workbench";
 
 /** Мүшел жас по дате рождения: животное года, возраст и все семь кругов. «Сейчас» берётся при вводе даты — без расхождения сервера и браузера. */
 export function MushelCalculator() {
-  const ui = usefulUi2[useLocale()].mushel;
+  const ui = usefulUi2[toPublic(useLocale())].mushel;
   const [value, setValue] = useState("");
   const [now, setNow] = useState<Date | null>(null);
 

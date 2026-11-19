@@ -44,5 +44,23 @@ export const podarokNaYubilejMame: Landing = {
         ["Мерейтой өте жақын болса ше?", "Электрондық кітапты төлемнен кейін бірден аласыз — оны тойда көрсетуге болады. «Премиум» тарифімен басылған данасын 3–4 жұмыс күнінде жасаймыз."],
       ],
     },
+    uz: {
+      label: "Onaga yubileyga sovg‘a",
+      h1: "Onaga yubileyga sovg‘a —",
+      accent: "uning hayoti haqida kitob",
+      metaTitle: "Onaga yubileyga nima sovg‘a qilish mumkin — butun oiladan kitob",
+      metaDescription: "Onaga 50, 55, 60 yoshlik yubileyga sovg‘a: farzandlar va nevaralardan minnatdorchilik kitobi. Xotiralar, yaqinlar xatlari, suratlar, qattiq muqova.",
+      lead: "Yubiley — odatda kechiktiriladigan so‘zlarni aytish uchun bahona. Ona haqidagi xotiralarni, farzandlar va nevaralardan xatlarni hamda eski suratlarni bitta kitobga jamlang — ona uni qayta-qayta o‘qiy oladi.",
+      why: [
+        { title: "Butun oiladan bitta sovg‘a", text: "Aka-ukalar, opa-singillar va nevaralar xatlarni havola orqali yozadi — ro‘yxatdan o‘tmasdan. Ularning so‘zlari kitobga alohida bob bo‘lib kiradi." },
+        { title: "Eski suratlar yana ishga tushadi", text: "Oilaviy suratlarni telefonga oling — ular kitobning bir qismiga aylanadi va endi qutida yo‘qolib ketmaydi." },
+        { title: "Tantanaga ulguring", text: "Buyurtmani qaysi kungacha rasmiylashtirish kerakligini oldindan aytamiz. Ishlab chiqarish 5–7 ish kunini oladi, «Premium» — 3–4." },
+      ],
+      cover: { title: "Onamizga", names: "Farzandlar va nevaralardan" },
+      faq: [
+        ["Boshqa shahardagi qarindoshlardan xat yig‘ish mumkinmi?", "Ha. Ularga havolani yuboring — xatni telefondan ro‘yxatdan o‘tmasdan yozish mumkin. Xatlar kitobda alohida bob bo‘lib chiqadi, siz ularni bosishdan oldin tekshirasiz."],
+        ["Yubiley juda yaqin bo‘lsa-chi?", "Elektron kitobni to‘lovdan keyin darhol olasiz — uni bayramda ko‘rsatish mumkin. «Premium» tarifida bosma nusxani 3–4 ish kunida tayyorlaymiz."],
+      ],
+    },
   },
 };

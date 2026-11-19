@@ -1,5 +1,6 @@
 "use client";
 
+import { toPublic } from "@/i18n/config";
 import { useMemo, useState } from "react";
 import { useLocale, Link } from "@/i18n/client";
 import { usefulUi } from "@/lib/content/tools/ui";
@@ -24,7 +25,7 @@ function Slider({ id, label, value, max, onChange }: { id: string; label: string
 
 /** Сколько страниц получится: тот же движок оценки, что у редактора. Обложка и преамбула (титул, оглавление) уже в счёте. */
 export function PagesCalculator({ ctaHref }: { ctaHref: string }) {
-  const ui = usefulUi[useLocale()].pages;
+  const ui = usefulUi[toPublic(useLocale())].pages;
   const [format, setFormat] = useState<FormatId>("a5");
   const [length, setLength] = useState<AnswerLength>("medium");
   const [answers, setAnswers] = useState(30);

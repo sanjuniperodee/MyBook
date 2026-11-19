@@ -143,5 +143,73 @@ export const chtoPodaritUchitelyu: Article = {
       ],
       cta: { title: "Сыныптан алғыс кітабы", text: "Әр оқушы бірнеше сұраққа жауап береді, біз бәрін бір кітапқа жинаймыз. Жазу тегін." },
     },
+    uz: {
+      title: "Ustozga nima sovg‘a qilish mumkin: Ustozlar kuni, 8-mart va bitiruv kechasi uchun",
+      description: "Ustozga Ustozlar kuni, 8-mart va bitiruv kechasiga nima sovg‘a qilish mumkin: qanday sovg‘alar o‘rinli, nimani sovg‘a qilmaslik kerak, tejamkor va qalbdan g‘oyalar, sinfdan minnatdorchilik kitobi.",
+      lead: "Ustozga rahmat aytgingiz keladi, sovg‘a esa o‘rinli va samimiy bo‘lishi kerak. Nimani sovg‘a qilish mumkinligini, chegara qayerdan o‘tishini va katta xarajatsiz minnatdorchilikni qanday esda qolarli qilishni ko‘rib chiqamiz.",
+      sections: [
+        {
+          heading: "Avval qoidalar haqida",
+          paragraphs: [
+            "Qozog‘istonda davlat maktablari va ularning xodimlariga korrupsiyaga qarshi cheklovlar qo‘llanadi, shuning uchun qimmat sovg‘alar va ota-onalardan pul yig‘ish ko‘pincha rag‘batlantirilmaydi. Qoidalar maktablarda va xususiy muassasalarda farq qilishi mumkin, shuning uchun sinf rahbari yoki maktab ma’muriyatidan nima qabul qilinganini oldindan so‘rab olgan yaxshi.",
+            "Eng xavfsizi — ramziy sovg‘alar: gullar, tabriknoma, kichik esdalik, minnatdorchilik so‘zlari. Shubhangiz bo‘lsa, tushuntirish talab qilmaydigan narsani tanlang.",
+          ],
+        },
+        {
+          heading: "Ustozlar kuniga nima sovg‘a qilish mumkin",
+          paragraphs: ["Qozog‘istonda Ustozlar kuni oktyabrning birinchi yakshanbasida nishonlanadi. Bu iliq bayram, unga e’tibor sezilib turadigan sovg‘alar mos keladi."],
+          list: [
+            "Sinfdan yoki shaxsan sizdan gul guldastasi.",
+            "Bolalar va ota-onalardan iliq so‘zli tabriknoma.",
+            "Kichik choy yoki qahva to‘plami, chiroyli krujka.",
+            "Arzon kundalik yoki qaydlar uchun bloknot.",
+            "O‘quvchidan xat: u nimani eslab qolgani va nimani o‘rgangani haqida.",
+          ],
+        },
+        {
+          heading: "8-martga nima sovg‘a qilish mumkin",
+          paragraphs: ["Ustoz ayol bo‘lsa, 8-martga xuddi shunday ramziy e’tibor belgilari o‘rinli, faqat bahor kayfiyati bilan."],
+          list: [
+            "Bahor gullari guldastasi.",
+            "Bolalar chizgan tabriknoma.",
+            "Choyga qo‘shib yeyiladigan konfet yoki shirinliklar to‘plami.",
+            "Parvarishlash oson bo‘lgan xonaki o‘simlik.",
+          ],
+        },
+        {
+          heading: "Bitiruv kechasi va oxirgi qo‘ng‘iroqqa nima sovg‘a qilish mumkin",
+          paragraphs: ["Bitiruv — barcha yillar uchun rahmat aytgingiz keladigan lahza. Bu yerda sovg‘a butun sinfdan bo‘lishi mumkin, lekin ortiqcha dabdabasiz."],
+          list: [
+            "O‘qish yillaridagi umumiy suratlar solingan fotoalbom.",
+            "Bitiruvchilardan tabriklar tushirilgan video.",
+            "Sinfdan xat yoki minnatdorchilik kitobi.",
+            "Sahnada yoki marosimdan keyin gullar va iliq so‘zlar.",
+          ],
+        },
+        {
+          heading: "Nimani sovg‘a qilmaslik yaxshi",
+          list: [
+            "Qimmat buyumlar, texnika, taqinchoqlar va pul: bu ustozni noqulay ahvolga solib qo‘yadi va maktab qoidalarini buzishi mumkin.",
+            "Boshqa ota-onalardan yashirincha shaxsiy sovg‘alar: bu ustozda ham, sinfda ham savollar tug‘diradi.",
+            "Atir va kosmetika: bu juda shaxsiy tanlov.",
+            "Alkogol: maktab muhitida bu o‘rinsiz.",
+            "Maktab ma’muriyati so‘ramaslikni iltimos qilgan bo‘lsa, ota-onalardan pul yig‘ish.",
+          ],
+        },
+        {
+          heading: "Byudjet va qalb uchun g‘oyalar",
+          paragraphs: [
+            "Ustozga yaxshi sovg‘a ko‘pincha arzon turadi va e’tibori bilan yuragingizni egallaydi. Bolalardan tabriknoma chizishni so‘rang, butun sinfdan minnatdorchilik so‘zlarini yig‘ing, qisqa video yozib oling. Bunday narsalarni ustoz yillar davomida saqlaydi.",
+            "Alohida narsa istasangiz, minnatdorchilik kitobi mos keladi: har bir o‘quvchi ustoz unga nimani o‘rgatgani va nima esda qolgani haqida bir necha satr yozadi, sinf suratlari qo‘shiladi. Kitobni bepul yozish mumkin; tayyorini qattiq muqovada bosib, Qozog‘iston bo‘ylab yetkazib beramiz, elektron nusxa to‘lovdan keyin darhol mavjud.",
+          ],
+        },
+      ],
+      faq: [
+        ["Ustozga pul yoki qimmat sovg‘alar berish mumkinmi?", "Yaxshisi, yo‘q: bu maktab qoidalariga zid kelishi va ustozni noqulay ahvolga solishi mumkin. Gul, tabriknoma, kichik esdalik yoki minnatdorchilik so‘zlarini tanlang."],
+        ["Pulim bo‘lmasa, ustozga nima sovg‘a qilaman?", "Bolalarning samimiy so‘zlari va rasmlari bilan xat yoki tabriknoma — eng qimmatli sovg‘a. Sinfdan video yozib olish mumkin."],
+        ["Bitiruv kechasida sinf rahbariga nima sovg‘a qilaman?", "Umumiy suratlar solingan fotoalbom, bitiruvchilardan video yoki butun sinfdan minnatdorchilik kitobi, unda har kim bir necha iliq so‘z yozadi."],
+      ],
+      cta: { title: "Sinfdan minnatdorchilik kitobi", text: "Har bir o‘quvchi bir nechta savolga javob beradi, hammasini biz bitta kitobga jamlaymiz. Yozish bepul." },
+    },
   },
 };

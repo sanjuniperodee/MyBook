@@ -124,5 +124,63 @@ export const pozdravlenieMameSDnemRozhdeniya: Article = {
       ],
       cta: { title: "Ана туралы кітап — қалатын сөздер", text: "Бір күндік құттықтау аздық етсе, айтқыңыз келгеннің бәрін кітапқа жинаңыз. Сұрақтарға жауап беріп, сурет қосыңыз — жазу тегін." },
     },
+    uz: {
+      title: "Onangizni tug‘ilgan kuni bilan o‘z so‘zlaringiz bilan tabriklash: 5 qadam va namunalar",
+      description: "Onani tug‘ilgan kuni bilan qolipsiz, iliq so‘zlar bilan tabriklash: besh oddiy qadam, tuzilma, qisqa tabrik namunalari va nimalardan qochish kerak.",
+      lead: "Tayyor otkritkalar chiroyli, lekin ona farqni sezadi: aynan u uchun yozilgan so‘zlarni u uzoq eslab yuradi. Tabrikni o‘n daqiqada qanday yozishni aytib beramiz va namunalar keltiramiz.",
+      sections: [
+        {
+          heading: "Nega o‘z so‘zlarimiz tayyor otkritkadan kuchli",
+          paragraphs: [
+            "Tayyor matnda ona istalgan onani tanishi mumkin. Sizning matningizda esa faqat o‘zini ko‘radi: uning odatlari, uning gaplari va birga o‘tkazgan oqshomlaringiz. Shu sabab oddiy so‘zlar ham internetdagi she’rlardan ko‘ra kuchliroq ta’sir qiladi.",
+            "Notiqlik shart emas. Haqiqat va aniqlik bor uch-besh gap yetarli.",
+          ],
+        },
+        {
+          heading: "1-qadam. Aniq bir manzarani eslang",
+          paragraphs: ["Sifatlardan emas, voqeadan boshlang: ona sizni maktabdan qanday kutib olardi, kasal bo‘lganingizda qanday sho‘rva pishirardi, boshqa shaharga qanday kuzatib qo‘ygan edi. Bitta manzara «siz eng yaxshisisiz» degandan ko‘proq narsani aytadi."],
+        },
+        {
+          heading: "2-qadam. Nima uchun minnatdor ekaningizni ayting",
+          paragraphs: ["Minnatdorchilik maqtovdan yaxshiroq ta’sir qiladi. Ona sizga nimani o‘rgatganini, undan nimani meros qilib olganingizni, uning qaysi maslahati hanuz siz bilan ekanini ayting. Aniqlik muhim: «siz menga qaytadan boshlashdan qo‘rqmaslikni o‘rgatdingiz»."],
+        },
+        {
+          heading: "3-qadam. Aynan unga kerak bo‘lgan tilakni bildiring",
+          paragraphs: ["«Sog‘lik va baxt» o‘rniga unga haqiqatan nima yetishmayotganini o‘ylab ko‘ring: o‘ziga vaqt, safar, sokin oqshomlar, nevaralardan yaxshi xabar. Onaning hayotiga mos tushgan tilak formula emas, g‘amxo‘rlikdek eshitiladi."],
+        },
+        {
+          heading: "4 va 5-qadamlar. Shaklni tanlang va o‘zingiz ayting",
+          paragraphs: [
+            "Qo‘lda yozilgan otkritka, ovozli xabar yoki (agar uzoqda bo‘lsangiz) qisqa video mos keladi. Qo‘lda yozilgan matnni o‘qiydilar va qayta o‘qiydilar, yozib olingan ovozni esa ona qayta tinglashi mumkin.",
+            "Tabrikni tabiiy eshitilguncha ovoz chiqarib o‘qing: shunda ortiqcha so‘zlar o‘zi tushib qoladi. Imkon bo‘lsa, uni messenjerga yuborish bilan cheklanmay, yuzma-yuz yoki video aloqa orqali ayting.",
+          ],
+        },
+        {
+          heading: "Qisqa tabrik namunalari",
+          paragraphs: ["Bular qoralama: tafsilotlarni o‘zingiznikiga almashtiring."],
+          list: [
+            "«Oyijon, tug‘ilgan kuningiz bilan! Qishda meni eshik oldida issiq choy bilan kutib turganingiz esimda. Uy doim iliq bo‘lgani uchun rahmat. Bu yil o‘zingizga ko‘proq vaqt bo‘lsin, deb tilayman».",
+            "«Oyijon, tabriklayman! Qiyin bo‘lsa ham taslim bo‘lmaslikni menga siz o‘rgatgansiz. Men bu haqda ishda tez-tez o‘ylayman. Sizga yengil kunlar va orzu qilgan safaringizni tilayman».",
+            "«Oyi, bugun sizning kuningiz, shuning uchun kam aytadigan gapimni aytmoqchiman: siz bilan faxrlanaman. Siz shunday sinovlardan o‘tgansiz, men buni katta bo‘lgandagina bildim. Sizni yaxshi ko‘raman».",
+            "«Aziz oyi, mazali pishiriqlaringiz uchun, sabr-toqatingiz uchun va oramizda yuzlab kilometr bo‘lsa-da, doim biz bilan ekaningiz uchun rahmat. Tug‘ilgan kuningiz muborak! Sizni mahkam quchoqlayman».",
+          ],
+        },
+        {
+          heading: "Nimalardan qochgan ma’qul",
+          list: [
+            "Istalgan ayolga mos keladigan umumiy iboralar: «baxt, sog‘lik, uzoq umr».",
+            "Ona bunga sezgir bo‘lsa, yoshni hazil qilib tilga olish.",
+            "Barcha fazilatlarni sanab o‘tadigan juda uzun matn: bitta hikoya yaxshiroq.",
+            "Tabrik niqobidagi maslahat va ta’nalar: «nihoyat dam olsangiz edi».",
+            "Bitta ham o‘z so‘zingiz bo‘lmagan ko‘chirma she’rlar.",
+          ],
+        },
+      ],
+      faq: [
+        ["Hissiyotlar haqida gapirish qiyin bo‘lsa, onaga tabrik qanday yoziladi?", "Oddiy faktdan boshlang: ona siz uchun nima qilgani va buni qanday eslab qolganingiz. «Doim yo‘lakda chiroqni yoqib qo‘yardingiz» kabi tafsilotlar e’tirofdan ko‘ra kuchliroq ta’sir qiladi, his-tuyg‘ular esa baland so‘zlarsiz ham tushunarli."],
+        ["Tabrikni messenjerda yuborsa bo‘ladimi?", "Bo‘ladi, ammo ovozli xabar yoki qisqa video qo‘shgan yaxshi. Agar yaqin bo‘lsangiz, tabrikni ovoz chiqarib ayting: yuzma-yuz aytilgan so‘zlar uzoqroq yodda qoladi."],
+      ],
+      cta: { title: "Ona haqidagi kitob — qoladigan so‘zlar", text: "Bir kunlik tabrik kamlik qilsa, aytmoqchi bo‘lgan hamma gapingizni kitobga jamlang. Savollarga javob bering, suratlar qo‘shing — yozish bepul." },
+    },
   },
 };

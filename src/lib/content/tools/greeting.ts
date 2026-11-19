@@ -68,5 +68,36 @@ export const generatorPozdravlenij: ToolDef = {
       ],
       cta: { title: "Ашықхатқа сыйғаннан көбірек айтыңыз", text: "Жақын адам туралы кітап — ондаған сұрақ, суреттер және сіздің естеліктеріңіз бір сыйлықта. Жазу тегін." },
     },
+    uz: {
+      label: "Tabrik generatori",
+      h1: "Tabrik generatori:",
+      accent: "yaqinlar uchun iliq so‘zlar",
+      metaTitle: "Tabrik generatori — onaga, otaga, turmush o‘rtog‘iga, do‘stga, ustozga",
+      metaDescription: "Kimni va nima bilan tabriklayotganingizni tanlang — tayyor matn oling: tug‘ilgan kun, yubiley, 8 mart, 23 fevral, Ustozlar kuni. Iliq yoki hazil bilan.",
+      teaser: "Onaga, otaga, turmush o‘rtog‘iga, do‘stga yoki ustozga tayyor tabrik matni — iliq yoki hazil bilan.",
+      lead: "Kimni va qaysi bayram bilan tabriklayotganingizni tanlang, ismini qo‘shing — tayyor tabrik olasiz. Variant yoqmasa, «Boshqa variant» tugmasini bosing. Hammasi bir zumda va bepul ishlaydi.",
+      sections: [
+        {
+          heading: "Tabrikni qanday shaxsiy qilish mumkin",
+          paragraphs: [
+            "Tayyor matn — yaxshi asos, lekin faqat o‘zingiz biladigan narsa yodda qoladi. Bir-ikki tafsilot qo‘shing: umumiy voqea, yoqtirgan hazil, itingizning ismi, odam tez-tez aytadigan gap. Tabrik boshqacha jaranglashi uchun bitta gap yetarli.",
+            "Xabar uchun qisqa variantni tanlang: bitta samimiy tilak uchta rasmiy tilakdan yaxshi. Tabrik kartasi yoki tost uchun to‘liq matn mos keladi.",
+          ],
+        },
+        {
+          heading: "Tabrik kartasida so‘z kam bo‘lganda",
+          paragraphs: [
+            "Ba’zan tabrikka sig‘adigandan ko‘proq aytging keladi: bolalikni eslash, aniq narsalar uchun minnatdorchilik bildirish, odam sizga nima o‘rgatganini aytish. Buning uchun butun bir kitob yig‘ish mumkin: yaqiningiz haqidagi savollarga javob berasiz, surat qo‘shasiz — qayta-qayta o‘qiladigan sovg‘a tayyor bo‘ladi.",
+          ],
+        },
+      ],
+      faq: [
+        ["Onani tug‘ilgan kuni bilan o‘z so‘zlarim bilan qanday tabriklayman?", "Aniq bir narsa uchun minnatdorchilikdan boshlang, sog‘lik va iliqlik tilagini qo‘shing, mehr izhori bilan yakunlang. Generatorda «Onaga» va «Tug‘ilgan kun»ni tanlang — asos tayyor bo‘ladi, uni o‘z hikoyangiz bilan to‘ldiring."],
+        ["Kulgili tabrik olish mumkinmi?", "Ha, «Hazil bilan» kayfiyatini tanlang: tilaklar hazilomuz, lekin yaxshi niyatda bo‘ladi. Ustozlar va katta yoshdagi qarindoshlar uchun hazillar yumshoq bo‘lib qoladi."],
+        ["Qisqa tabrik to‘liqidan nimasi bilan farq qiladi?", "Qisqasi — bitta tilak, messenjerdagi xabarga mos. To‘liqi murojaat, tabrik, bir nechta tilak va iliq yakundan iborat: uni tabrik kartasiga yozish yoki tost sifatida aytish mumkin."],
+        ["Ismni ko‘rsatish shartmi?", "Shart emas. Ism ko‘rsatilsa, u murojaatga qo‘yiladi — turmush o‘rtog‘i, do‘st va ustozlar uchun bu iliqroq eshitiladi."],
+      ],
+      cta: { title: "Tabrik kartasidagidan ko‘proq ayting", text: "Yaqin odam haqidagi kitob — o‘nlab savollar, suratlar va xotiralaringiz bitta sovg‘ada. Yozish bepul." },
+    },
   },
 };

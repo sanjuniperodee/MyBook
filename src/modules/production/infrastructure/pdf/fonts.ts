@@ -7,6 +7,7 @@ import { Font, pdf, type DocumentProps } from "@react-pdf/renderer";
 import hyphenRu from "hyphen/ru/index.js";
 import { fontFaces, type FontKey } from "@/lib/book/fonts";
 import { hyphenateKk, isKazakhWord } from "@/lib/book/hyphen-kk";
+import { hyphenateUz, isUzbekWord } from "@/lib/book/hyphen-uz";
 
 let registered = false;
 
@@ -28,8 +29,8 @@ export function ensureFonts() {
     if (word.length < 6) return [word];
     let parts = cache.get(word);
     if (!parts) {
-      // Слова с казахскими буквами — по слоговым правилам, остальные — по русским шаблонам.
-      parts = isKazakhWord(word) ? hyphenateKk(word) : hyphenRu.hyphenateSync(word, { minWordLength: 6 }).split("­");
+      // Слова с казахскими буквами — по слоговым правилам, латиница (узбекский) — по своим, остальные — по русским шаблонам.
+      parts = isKazakhWord(word) ? hyphenateKk(word) : isUzbekWord(word) ? hyphenateUz(word) : hyphenRu.hyphenateSync(word, { minWordLength: 6 }).split("­");
       if (cache.size < 50_000) cache.set(word, parts);
     }
     return parts;

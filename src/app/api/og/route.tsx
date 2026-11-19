@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { ImageResponse } from "next/og";
 import { site } from "@/config/site";
-import { isLocale } from "@/i18n/config";
+import { isLocale, toPublic } from "@/i18n/config";
 import { messagesFor } from "@/i18n/messages";
 import { getArticle } from "@/lib/content/articles";
 import { getLanding } from "@/lib/content/landings";
@@ -20,9 +20,9 @@ export async function GET(req: Request) {
   const locale = isLocale(l) ? l : "ru";
   const m = messagesFor(locale);
   const slug = params.get("s") ?? "";
-  const landing = getLanding(slug)?.content[locale];
-  const article = getArticle(slug)?.content[locale];
-  const tool = getTool(slug)?.content[locale];
+  const landing = getLanding(slug)?.content[toPublic(locale)];
+  const article = getArticle(slug)?.content[toPublic(locale)];
+  const tool = getTool(slug)?.content[toPublic(locale)];
 
   const headline = landing ? `${landing.h1} ${landing.accent}` : tool ? `${tool.h1} ${tool.accent}` : (article?.title ?? m.common.meta.tagline);
   const subtitle = landing || article || tool ? m.common.meta.tagline : m.landing.og.subtitle;

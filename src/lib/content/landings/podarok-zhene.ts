@@ -43,5 +43,23 @@ export const podarokZhene: Landing = {
         ["8 наурызға немесе туған күнге үлгеремін бе?", "Күнін көрсетіңіз — тапсырысты қай күнге дейін беру керегін айтамыз. Өндіріс — 5–7 жұмыс күні, «Премиум» — 3–4, курьер 1–2 күнде жеткізеді."],
       ],
     },
+    uz: {
+      label: "Xotinga sovg‘a",
+      h1: "Xotinga sovg‘a,",
+      accent: "u bir necha bor qayta o‘qiydi",
+      metaTitle: "Xotinga nima sovg‘a qilish kerak — sevgingiz va oilangiz haqida kitob",
+      metaDescription: "Xotinga tug‘ilgan kun, yillik yoki 8-martga sovg‘a: sevgingiz va birga o‘tgan yillar haqida kitob. Savollar, suratlar, qattiq muqova, Qozog‘istonga yetkazish.",
+      lead: "Gul va taqinchoqni hamma sovg‘a qiladi. Eri uni birinchi marta qanday ko‘rgani, nimasi bilan ko‘nglini olgani va har kuni nimasini qadrlashi haqida yozgan kitob esa — yagona.",
+      why: [
+        { title: "Boshqalarnikiga o‘xshamaydi", text: "Taqinchoqlar bir-biriga o‘xshaydi. Bu kitob bitta nusxada mavjud — xotiningiz haqida va faqat unga atab." },
+        { title: "Yozmasangiz ham boshlash oson", text: "Yozuvchi bo‘lish shart emas: savollarga o‘z so‘zingiz bilan javob bersangiz yetarli. Har qanday javobni keyin tuzatish mumkin." },
+        { title: "Yaqinlar xatlarini to‘plash mumkin", text: "Farzandlar va do‘stlarni taklif qiling: ular havola orqali ro‘yxatdan o‘tmasdan yozadi, xatlari kitobga alohida bob bo‘lib kiradi." },
+      ],
+      cover: { title: "Sevikli xotinimga", names: "Nurlandan" },
+      faq: [
+        ["Umuman yozishni bilmasam-chi?", "Bu shart emas: savollarga ovoz chiqarib aytgandek javob berasiz. Uyalsangiz, matnni ovozda aytib yozdirish, so‘ng tuzatish mumkin."],
+        ["8-martga yoki tug‘ilgan kunga ulguraman?", "Sanani ko‘rsating — buyurtmani qaysi kungacha berish kerakligini aytamiz. Ishlab chiqarish 5–7 ish kuni, «Premium» — 3–4, kuryer 1–2 kunda yetkazadi."],
+      ],
+    },
   },
 };

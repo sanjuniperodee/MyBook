@@ -70,6 +70,37 @@ export const testMama: ToolDef = {
       ],
       cta: { title: "Ана туралы көбірек біліп, оны сақтаңыз", text: "Ана туралы кітапта оның балалығы, армандары мен сабақтары туралы сұрақтарға жауап беріп, суреттер мен туыстардың хаттарын қосасыз. Жазу тегін." },
     },
+    uz: {
+      label: "Test: onangizni qanchalik bilasiz",
+      h1: "Onangizni qanchalik",
+      accent: "yaxshi bilasiz?",
+      metaTitle: "Test: onangizni qanchalik yaxshi bilasiz — 10 ta savol",
+      metaDescription: "10 ta savolli test: onangizning sevimli qo‘shig‘i, orzulari, qo‘rquvlari va asosiy hikoyalarini bilasizmi? Oxirida so‘rashga arziydigan savollar ro‘yxati bor.",
+      teaser: "Ona haqida 10 ta savol: nimani aniq bilasiz, nimani hali bilish kerak.",
+      lead: "Ona haqida o‘nta oddiy fikr: uning orzulari, bolaligi, qo‘rquvlari va g‘ururi. Nimani aniq, nimani taxminan bilishingizni belgilang. Oxirida natija va so‘rashga arziydigan savollar ro‘yxatini olasiz.",
+      sections: [
+        {
+          heading: "Bu test nima uchun",
+          paragraphs: [
+            "Biz onamizni ona sifatida bilamiz: nima pishirishini, nimadan xavotir olishini, nima bilan bo‘lishishini. Ammo u bizdan oldin kim bo‘lgani, o‘n olti yoshida nimani orzu qilgani va nimadan qo‘rqqani haqida bolalar hayratlanarli darajada kam biladi. Onaga aytadigan gap yo‘qligidan emas, hech kim so‘ramaganidan.",
+            "Test sizni baholamaydi: u nimani so‘rash kerakligini ko‘rsatadi. «Yo‘q» yoki «taxminan» deb javob bergan har bir savol — kechki choy ustidagi tayyor mavzu.",
+          ],
+        },
+        {
+          heading: "Natija bilan nima qilish kerak",
+          paragraphs: [
+            "Ro‘yxatdan ikki-uchta savol tanlab, yaqin uchrashuvda yoki telefonda bering. Javoblarni diktofonga yozib oling — bir necha yildan keyin ular bebaho bo‘ladi. Hammasini birdaniga saqlamoqchi bo‘lsangiz, kitob yig‘ish mumkin: bizning savollarimiz onani eng yaxshi hikoyalarga yetaklaydigan qilib tuzilgan.",
+          ],
+        },
+      ],
+      faq: [
+        ["Testda nechta savol bor?", "O‘nta. Har bir «aniq bilaman» javobiga 2 ball, «taxminan» uchun 1, «yo‘q» uchun 0 beriladi. Yakun foizga va yaqinlikning to‘rt darajasidan biriga aylantiriladi."],
+        ["Javoblarimni kim ko‘radi?", "Faqat siz. Test brauzeringizda ishlaydi, javoblar hech qayoqqa yuborilmaydi va saqlanmaydi."],
+        ["Kam bilsam nima qilish kerak?", "Bu normal va tuzatsa bo‘ladi. Yakuniy ro‘yxatdan bir nechta savol tanlab, onangizdan so‘rang. Ko‘plab ota-onalar uchun bunday suhbat — yoqimli kutilmagan sovg‘a."],
+        ["Onaning hikoyalarini qanday saqlash mumkin?", "Javoblarni yozib oling yoki kitobga jamlang: ona haqidagi savollarga javob berasiz, surat qo‘shasiz va qattiq muqovali yoki elektron kitob olasiz."],
+      ],
+      cta: { title: "Ona haqida ko‘proq bilib, buni saqlab qoling", text: "Ona haqidagi kitobda uning bolaligi, orzulari va saboqlari haqidagi savollarga javob berib, suratlar va yaqinlarning xatlarini qo‘shasiz. Yozish bepul." },
+    },
   },
 };
 
@@ -141,6 +172,37 @@ export const testPapa: ToolDef = {
         ["Әкеге туған күніне немесе 23 ақпанға не сыйлау керек?", "Ішінде оның тарихы бар сыйлық: сіздің сұрақтарыңызға жауаптары, суреттері және жақындардың хаттары бар әке туралы кітап. Оны дүкеннен алуға болмайды және ол құнын жоғалтпайды."],
       ],
       cta: { title: "Әке туралы кітап — оның тарихы бар сыйлық", text: "Әкенің балалығы, жұмысы және сабақтары туралы сұрақтарға жауап беріп, сурет қосыңыз — біз кітапты беттеп, басып шығарамыз. Жазу тегін." },
+    },
+    uz: {
+      label: "Test: otangizni qanchalik bilasiz",
+      h1: "Otangizni qanchalik",
+      accent: "yaxshi bilasiz?",
+      metaTitle: "Test: otangizni qanchalik yaxshi bilasiz — 10 ta savol",
+      metaDescription: "10 ta savolli test: otangiz kasbni qanday tanlagani, yoshligida nimani orzu qilgani, qaysi saboqni asosiy deb bilishini bilasizmi? Oxirida savollar bor.",
+      teaser: "Ota haqida 10 ta savol: kasb, orzular, asosiy saboqlar va g‘urur.",
+      lead: "Ota haqida o‘nta fikr: uning birinchi ishi, yoshlik orzulari, hayotdagi voqealari va asosiy saboqlari. Nimani aniq bilishingiz, nimani bilmasligingizni belgilang va suhbat uchun savollar ro‘yxatini oling.",
+      sections: [
+        {
+          heading: "Ota haqida nega kamroq bilishadi",
+          paragraphs: [
+            "Ko‘p otalar his-tuyg‘u va o‘tmish haqida emas, ishlar va rejalar haqida gapirishga o‘rganib qolgan. Shuning uchun bolalar otasi nima qilishini biladi, lekin u nimani yaxshi ko‘rishini, nimaga afsuslanishini va nima bilan faxrlanishini bilmaydi. Bu uning aytadigan gapi yo‘q degani emas: shunchaki to‘g‘ri savol va to‘g‘ri payt kerak.",
+            "Aniq narsalar haqidagi savollar eng yaxshi ishlaydi: birinchi maosh, eng kulgili voqea, sevimli qo‘shiq. Ular «katta so‘zlar»ni talab qilmaydi, lekin insonni ochadi.",
+          ],
+        },
+        {
+          heading: "Natijadan qanday foydalanish kerak",
+          paragraphs: [
+            "Yakuniy ro‘yxatdan savol tanlab, uni baliq ovlayotganda, mashinada yoki kechki ovqat paytida bering. Ota hikoya aytsin, siz esa shunchaki tinglang. Eng yaxshi javoblarni yozib oling — keyin ularni ota haqidagi kitobga suratlar va yaqinlarning xatlari bilan jamlash mumkin.",
+          ],
+        },
+      ],
+      faq: [
+        ["Test natijasi qanday hisoblanadi?", "«Aniq bilaman» uchun 2 ball, «taxminan» uchun 1, «yo‘q» uchun 0 beriladi. Yig‘indi foizga va to‘rt darajadan biriga aylantiriladi: «suhbatni boshlash vaqti»dan «sizdan yaxshi hech kim bilmaydi»gacha."],
+        ["Ota ochilishi uchun qanday savollar berish kerak?", "Aniq va betaraf savoldan boshlang: birinchi ish, sevimli qo‘shiq, eng kulgili voqea. Shundan keyin hayot saboqlari va orzulariga o‘tish osonroq."],
+        ["Javoblarim saqlanadimi?", "Yo‘q. Test brauzerda ishlaydi, hech narsa yuborilmaydi va saqlanmaydi."],
+        ["Otaga tug‘ilgan kuniga yoki 23-fevralga nima sovg‘a qilish kerak?", "Ichida uning tarixi bor sovg‘a: savollaringizga javoblari, suratlari va yaqinlarning xatlari bor ota haqidagi kitob. Uni do‘kondan sotib bo‘lmaydi va u qadrini yo‘qotmaydi."],
+      ],
+      cta: { title: "Ota haqidagi kitob — uning tarixi bor sovg‘a", text: "Otaning bolaligi, ishi va saboqlari haqidagi savollarga javob berib, surat qo‘shing — kitobni biz maketlab, bosib beramiz. Yozish bepul." },
     },
   },
 };
@@ -214,6 +276,37 @@ export const testBabushka: ToolDef = {
       ],
       cta: { title: "Әженің әңгімелерін кітапта сақтаңыз", text: "Балалық, отбасы және дәстүрлер туралы сұрақтар, ескі суреттер мен немерелердің хаттары — бәрі бір кітапта. Жазу тегін." },
     },
+    uz: {
+      label: "Test: buvingizni qanchalik bilasiz",
+      h1: "Buvingizni qanchalik",
+      accent: "yaxshi bilasiz?",
+      metaTitle: "Test: buvingizni qanchalik yaxshi bilasiz — 10 ta savol",
+      metaDescription: "10 ta savolli test: buvingiz qayerda o‘sgani, bobongiz bilan qanday uchrashgani, bolaligidan qaysi bayramlarni eslashini bilasizmi? Oxirida savollar bor.",
+      teaser: "Buvi haqida 10 ta savol: bolalik, oila, an’analar va hech qayerda yozilmagan retseptlar.",
+      lead: "Buvi haqida o‘nta fikr: qayerda o‘sgani, bobo bilan qanday tanishgani, qaysi an’analarni saqlashi. Nimani aniq bilishingiz, nimani bilmasligingizni belgilang va birinchi suhbat uchun savollarni oling.",
+      sections: [
+        {
+          heading: "Hech qayerda yozilmagan hikoyalar",
+          paragraphs: [
+            "Katta avlodning ortida butun bir davr turibdi: boshqa dunyodagi bolalik, endi yo‘q an’analar, grammsiz retseptlar, notasiz qo‘shiqlar. Bularning hammasi faqat buvi va bobolarning xotirasida saqlanadi. Ular bo‘lmaganda bu bilimlar ular bilan birga ketadi — shuning uchun hozir yozib olish kerak.",
+            "Buvilar ko‘pincha «nima ham deyman» deydi. Lekin aniq savol bersangiz — to‘ydagi ko‘ylak haqida, birinchi ish haqida, bolalikdagi qo‘shiq haqida — hikoya o‘zi boshlanadi.",
+          ],
+        },
+        {
+          heading: "Buvingiz hikoyalarini qanday yozib olish mumkin",
+          paragraphs: [
+            "Yakuniy ro‘yxatdan ikki-uchta savol bilan boshlab, choy ustida bering. Diktofonni yoqing, gapini bo‘lmang va tafsilotlarni eslashni so‘rang: «U paytda dasturxonda nima bor edi?», «U qanday hid taratardi?». Yozuvlardan chevaralar ham o‘qiydigan oilaviy kitob chiqadi.",
+          ],
+        },
+      ],
+      faq: [
+        ["Buvimning hayoti haqida ko‘proq qanday bilsam bo‘ladi?", "Bolalik, to‘y, birinchi ish, bayramlar haqida aniq savollar bering. Birma-bir va shoshilmay. Test qayerdan boshlashni aytadi."],
+        ["Buvim uzoqda yashasa nima qilish kerak?", "Video aloqada qo‘ng‘iroq qilib, suhbatni yozib oling. Yakuniy ro‘yxatdagi savollar qo‘ng‘iroq uchun ham mos."],
+        ["Javoblarim saqlanadimi?", "Yo‘q. Test brauzeringizda ishlaydi, javoblar hech qayoqqa yuborilmaydi."],
+        ["Buvining hikoyalarini kitobga qanday aylantirish mumkin?", "Hayot haqidagi kitobni tanlang: buvingiz bilan birga savollarga javob berib, eski suratlarni qo‘shasiz va butun oilaga sovg‘a qilish mumkin bo‘lgan kitob olasiz."],
+      ],
+      cta: { title: "Buvining hikoyalarini kitobda saqlang", text: "Bolalik, oila va an’analar haqidagi savollar, eski suratlar va nevaralarning xatlari — hammasi bitta kitobda. Yozish bepul." },
+    },
   },
 };
 
@@ -285,6 +378,37 @@ export const testLyubimyj: ToolDef = {
         ["Бәрі сыйланған болса, сүйікті адамға не сыйлау керек?", "Тарихты: естеліктер, суреттер және көптен айтқыңыз келген сөздер бар сіздердің жұбыңыз туралы кітап. Мұндай сыйлықты қайталау мүмкін емес, ол жалғыз."],
       ],
       cta: { title: "Сіздердің тарихыңыз туралы кітап сыйлаңыз", text: "Танысу, алғашқы кездесулер, армандар және көптен айтқыңыз келген сөздер — бір кітапта. Жазу тегін." },
+    },
+    uz: {
+      label: "Test: sevimli insoningizni qanchalik bilasiz",
+      h1: "Sevimli insoningizni qanchalik",
+      accent: "yaxshi bilasiz?",
+      metaTitle: "Sevimli insonni bilish testi: juftingiz haqida 10 ta savol",
+      metaDescription: "10 ta savolli test: sherigingizning orzulari, qo‘rquvlari va sevimli mayda-chuydalarini bilasizmi? Oxirida ikkovlon kechqurun uchun savollar bor.",
+      teaser: "Sherik haqida 10 ta savol: orzular, qo‘rquvlar, sevimli mayda-chuydalar — va ikkovlon kechqurun uchun savollar.",
+      lead: "Sevimli inson haqida o‘nta fikr: unga sizdan nima darrov yoqqani, nimani orzu qilishi, nimadan qo‘rqishi. Nimani aniq bilishingiz, nimani bilmasligingizni belgilang va ikkovlon suhbat uchun savollarni oling.",
+      sections: [
+        {
+          heading: "Nega tekshirib ko‘rish kerak",
+          paragraphs: [
+            "Yillar o‘tishi bilan sherigimizni boshdan-oyoq bilamiz degan tuyg‘uga o‘rganib qolamiz. Keyin esa orzular o‘zgargani, bolalikdagi ba’zi hikoyalar hech aytilmagani ma’lum bo‘ladi. Bir-birini qaytadan tanish — yaqinlikni saqlashning oddiy yo‘llaridan biri.",
+            "Testni ikkovingiz «baho uchun» topshirishingiz shart emas. Nimani bilishingizni halol belgilab, savollarni kechki suhbatga sabab sifatida ishlatish yetarli.",
+          ],
+        },
+        {
+          heading: "Ikkovlon savollar kechasi",
+          paragraphs: [
+            "Yakuniy ro‘yxatdan uchta savol tanlab, telefonlarni chetga qo‘ying va bir-biringizga bering. Batafsil, hikoyalar bilan javob bering va esda qoldirmoqchi bo‘lganingizni yozib oling. Bu — yilligingiz yoki tug‘ilgan kuningizga sovg‘aning eng yaxshi asosi: shunday javoblardan yig‘ilgan sizlarning tarixingiz haqidagi kitob.",
+          ],
+        },
+      ],
+      faq: [
+        ["Natija qanday hisoblanadi?", "«Aniq bilaman» — 2 ball, «taxminan» — 1, «yo‘q» — 0. Yig‘indi foizga va yaqinlikning to‘rt darajasidan biriga aylantiriladi."],
+        ["Testni ikkovimiz topshirsak bo‘ladimi?", "Ha, har kim alohida topshirib, natijalarni solishtirishi mumkin. Bu musobaqa emas: asosiysi — testdan keyin bir-biringizga beradigan savollar."],
+        ["Javoblarim saqlanadimi?", "Yo‘q, test brauzerda ishlaydi, hech narsa yuborilmaydi va saqlanmaydi."],
+        ["Hammasi sovg‘a qilingan bo‘lsa, sevimli insonga nima sovg‘a qilish kerak?", "Tarixni: xotiralar, suratlar va uzoq vaqtdan beri aytmoqchi bo‘lgan so‘zlar bor juftligingiz haqidagi kitob. Bunday sovg‘ani takrorlab bo‘lmaydi, u yagona."],
+      ],
+      cta: { title: "Tarixingiz haqida kitob sovg‘a qiling", text: "Tanishuv, dastlabki uchrashuvlar, orzular va uzoq vaqtdan beri aytmoqchi bo‘lgan so‘zlar — bitta kitobda. Yozish bepul." },
     },
   },
 };

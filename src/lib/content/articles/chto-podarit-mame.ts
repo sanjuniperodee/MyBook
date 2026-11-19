@@ -123,5 +123,63 @@ export const chtoPodaritMame: Article = {
       ],
       cta: { title: "Ана туралы кітап — өз қолыңызбен", text: "Сұрақтарға жауап беріп, сурет қосыңыз — біз кітапты беттеп, басып шығарамыз. Жазу тегін." },
     },
+    uz: {
+      title: "Onaga nima sovg‘a qilish mumkin: har qanday munosabat va byudjet uchun g‘oyalar",
+      description: "Onaga tug‘ilgan kun, yubiley yoki 8-martga nima sovg‘a qilish mumkin: foydali sovg‘alar, taassurotlar va qalbdan sovg‘alar. Onangiz haqiqatan qadrlaydigan narsani qanday tanlash kerak.",
+      lead: "Ona doim «menga hech narsa kerak emas» deydi — va shunga qaramay har bir sovg‘ani yodida saqlaydi. G‘oyalarni turkumlar bo‘yicha va xato qilmaslik uchun maslahatlarni jamladik.",
+      sections: [
+        {
+          heading: "Foydali sovg‘alar",
+          paragraphs: ["Ona biror narsani anchadan beri xohlab, lekin xaridni kechiktirib kelgan bo‘lsa, foydali sovg‘a juda ma’qul. Quloq soling: so‘nggi oylarda u «olish kerak edi» deb nimani takrorlayverdi?"],
+          list: [
+            "Bo‘yin va yelkaga mo‘ljallangan massajyor yoki yaxshi pled.",
+            "Qulay ortopedik yostiq yoki uy uchun yumshoq poyabzal.",
+            "Sifatli choy servizi yoki foydalanishga yoqimli idish-tovoqlar to‘plami.",
+            "Sevimli qo‘shiqlarni tinglash va yaqinlarga qo‘ng‘iroq qilish uchun aqlli karnay.",
+          ],
+        },
+        {
+          heading: "Taassurotli sovg‘alar",
+          paragraphs: ["Taassurotlar narsalardan uzoqroq esda qoladi, ayniqsa ularni ona bilan baham ko‘rsangiz."],
+          list: [
+            "Sanatoriyga yoki dam olish kunlari boshqa shaharga safar.",
+            "Teatr, konsert yoki filarmoniyaga chiptalar.",
+            "Hamma yig‘iladigan restoranda oilaviy kechki ovqat.",
+            "Kulolchilik, rasm chizish yoki pazandalik bo‘yicha mahorat darsi.",
+            "Farzandlari va nevaralari bilan oilaviy suratga tushish.",
+          ],
+        },
+        {
+          heading: "Qalbdan sovg‘alar",
+          paragraphs: ["Bunday sovg‘alar narx bilan o‘lchanmaydi: ona ularni yillar davomida saqlaydi va mehmonlarga ko‘rsatadi."],
+          list: [
+            "Eski va yangi suratlar solingan oilaviy albom.",
+            "Uzoqda yashovchi yaqinlardan video tabrik.",
+            "Ona haqidagi kitob — sizning xotiralaringiz, uning saboqlari va yaqinlar xatlari bilan.",
+          ],
+        },
+        {
+          heading: "Ona haqidagi kitob nega alohida sovg‘a",
+          paragraphs: [
+            "Onalar farzandlari uchun nimani anglatishini kamdan-kam eshitadi. Kitob buni batafsil va noqulaylik sezmasdan aytish imkonini beradi: siz «bolaligingizda onangizni qanday eslaysiz» degan savoldan «u sizga nimani o‘rgatdi» degan savolgacha javob berasiz va suratlar qo‘shasiz.",
+            "Tayyor kitobni qattiq muqovada bosib, Qozog‘iston bo‘ylab yetkazib beramiz. Ona boshqa shaharda yashasa yoki vaqt kam bo‘lsa, elektron nusxa to‘lovdan keyin darhol mavjud.",
+          ],
+        },
+        {
+          heading: "Qanday qilib xato qilmaslik kerak",
+          list: [
+            "Aka-ukalaringiz va opa-singillaringizdan so‘rang — birgalikda ko‘proq sovg‘a qilish mumkin.",
+            "Ona so‘ramagan bo‘lsa, «uy uchun» maishiy texnika sovg‘a qilmang: u buni ishora deb qabul qilishi mumkin.",
+            "Sog‘liq va odatlarni hisobga oling: moddan ko‘ra qulaylik muhimroq.",
+            "Iliq so‘z qo‘shing. Har qanday sovg‘a tabriknoma yoki xat bilan iliqroq bo‘ladi.",
+          ],
+        },
+      ],
+      faq: [
+        ["Onamda hamma narsa bor bo‘lsa, nima sovg‘a qilaman?", "Do‘konda sotilmaydigan narsani: vaqt va so‘zni. Birgalikdagi safar, oilaviy kechki ovqat yoki siz u haqida yozgan kitob — bunday sovg‘alar narsalardan kuchliroq esda qoladi."],
+        ["Onaga yubileyga nima sovg‘a qilaman?", "Eng yaxshisi — butun oiladan sovg‘a: birgalikdagi safar, bayram kechki ovqati yoki farzandlari va nevaralarining xatlari kiradigan kitob."],
+      ],
+      cta: { title: "Ona haqidagi kitob — o‘z qo‘lingiz bilan", text: "Savollarga javob bering, surat qo‘shing — kitobni biz sahifalab, bosib chiqaramiz. Yozish bepul." },
+    },
   },
 };

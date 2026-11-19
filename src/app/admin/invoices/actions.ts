@@ -1,5 +1,6 @@
 "use server";
 
+import { localeMeta, type Locale, locales } from "@/i18n/config";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { env } from "@/config/env";
@@ -31,7 +32,7 @@ const schema = z.object({
   dealId: z.union([uuid, z.literal("")]).default(""),
   conversationId: z.union([uuid, z.literal("")]).default(""),
   clientName: z.string().trim().max(100).default(""),
-  locale: z.enum(["ru", "kk"]).default("ru"),
+  locale: z.enum(locales).default("ru"),
   channel: z.string().refine(isManualChannel, "Укажите, откуда пришёл клиент"),
   plan: z.string().refine((p) => !!getPlan(p), "Выберите тариф договорённости"),
   agreedTotal: z.coerce.number().int().min(1, "Укажите цену книги").max(10_000_000),
@@ -65,7 +66,7 @@ export interface InvoiceFormInfo {
   open: { id: string; label: string; amount: number } | null;
   clientName: string;
   /** Язык кабинета клиента сделки (есть аккаунт), иначе ru. */
-  locale: "ru" | "kk";
+  locale: Locale;
   channel: string;
   /** Куда уйдёт счёт: канал диалога (WhatsApp…); null — диалога нет, ссылку менеджер отправит сам. */
   chat: string | null;
@@ -83,11 +84,11 @@ export interface InvoiceFormInfo {
   /** null — без лимита (право prices.discount_unlimited); иначе скидка от прайса тарифа не больше N %. */
   maxDiscountPercent: number | null;
   /** Для предпросмотра сообщения: срок счёта и вид ссылки на обоих языках (настоящая ссылка — при выпуске). */
-  preview: { until: Record<"ru" | "kk", string>; link: Record<"ru" | "kk", string> };
+  preview: { until: Record<Locale, string>; link: Record<Locale, string> };
 }
 
 /** Срок счёта словами — тот же формат, что в сообщении клиенту (invoiceText). */
-const untilLabel = (d: Date, locale: "ru" | "kk") => new Intl.DateTimeFormat(locale === "kk" ? "kk-KZ" : "ru-RU", { timeZone: storeTimeZone(), day: "numeric", month: "long" }).format(d);
+const untilLabel = (d: Date, locale: Locale) => new Intl.DateTimeFormat(localeMeta[locale].intl, { timeZone: storeTimeZone(), day: "numeric", month: "long" }).format(d);
 
 export async function invoiceFormInfoAction(raw: { dealId?: string; conversationId?: string }): Promise<{ ok: true; info: InvoiceFormInfo } | { ok: false; message: string }> {
   const staff = await assertStaff("chats.send", "deals.edit");
@@ -137,7 +138,7 @@ export async function invoiceFormInfoAction(raw: { dealId?: string; conversation
       closed: !!stage && stage.kind !== "open",
       open: open ? { id: open.id, label: open.label, amount: open.amount } : null,
       clientName: isPhoneLike(name) && !can(staff, "clients.contacts") ? "" : name,
-      locale: client?.role === "user" && client.locale === "kk" ? "kk" : "ru",
+      locale: client?.role === "user" ? client.locale : "ru",
       channel: conv && isManualChannel(sourceFromChannel(conv.channel)) ? sourceFromChannel(conv.channel) : "",
       chat: conv ? channelLabel(conv.channel) : null,
       plans,
@@ -147,7 +148,7 @@ export async function invoiceFormInfoAction(raw: { dealId?: string; conversation
       kaspiPhoneMasked: methods.kaspi && isKzMobile(phone) ? maskPhone(phone) : null,
       kaspiWarning,
       maxDiscountPercent: maxDiscount,
-      preview: { until: { ru: untilLabel(until, "ru"), kk: untilLabel(until, "kk") }, link: { ru: `${env.appUrl}/pay/…`, kk: `${env.appUrl}/kk/pay/…` } },
+      preview: { until: { ru: untilLabel(until, "ru"), kk: untilLabel(until, "kk"), uz: untilLabel(until, "uz") }, link: { ru: `${env.appUrl}/pay/…`, kk: `${env.appUrl}/kk/pay/…`, uz: `${env.appUrl}/uz/pay/…` } },
     },
   };
 }

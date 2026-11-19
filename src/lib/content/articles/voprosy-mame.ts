@@ -82,5 +82,42 @@ export const voprosyMame: Article = {
       ],
       cta: { title: "Жауаптарды кітапқа айналдырыңыз", text: "Тараулар бойынша сұрақтарға жауап жазып, сурет қосып, мұқаба таңдаңыз — біз нағыз кітап басып шығарамыз. Жазу тегін." },
     },
+    uz: {
+      title: "Onaga hayot, bolalik va oila haqida savollar: imkon bor ekan, nima so‘rash kerak",
+      description: "Onadan so‘rashga arziydigan savollar to‘plami: bolalik, yoshlik, oila va hayot saboqlari haqida. Suhbatni qanday o‘tkazish va javoblarni kitobda saqlash.",
+      lead: "Biz tug‘ilishimizdan oldingi onamizning hayoti haqida qanchalik oz bilishimiz haqida kamdan-kam o‘ylaymiz. Bu savollar suhbatni boshlashga, javoblar esa o‘zingiz va kelajak avlodlar uchun saqlab qolishga yordam beradi.",
+      sections: [
+        {
+          heading: "Onadan hayoti haqida nega so‘rash kerak",
+          paragraphs: [
+            "Onalarning hikoyalari ko‘pincha bitta odamning xotirasida qoladi. Biz ish va tashvishlar bilan band ekanmiz, onamiz kasbni qanday tanlagani, nimani orzu qilgani, nimadan qo‘rqqani kabi tafsilotlar avlod bilan birga sezdirmay ketib boradi.",
+            "Savollar asosidagi suhbat so‘roqqa o‘xshamaydi. U yaqinlashtiradi: ona hayoti qiziq ekanini his qiladi, siz esa hamisha taniyman deb o‘ylagan insonni yangidan bilib olasiz.",
+          ],
+        },
+        {
+          heading: "Suhbatni qanday o‘tkazish kerak",
+          list: [
+            "Tinch vaqtni tanlang: ishlar orasida emas, choy ustida.",
+            "Yengil mavzulardan boshlang: bolalik, maktab, sevimli taomlar va qo‘shiqlar.",
+            "Gapini bo‘lmang va to‘g‘rilamang: «aslida qanday bo‘lgani» emas, ona buni qanday eslashi muhim.",
+            "Telefondagi diktofonni yoqing: keyin javoblarni so‘zma-so‘z yozib olasiz.",
+            "Hamma savollarni bir martada o‘tishga urinmang: haftada bir-ikki kech yetarli.",
+          ],
+        },
+        {
+          heading: "Javoblar bilan nima qilish kerak",
+          paragraphs: [
+            "Og‘zaki hikoyalarni yo‘qotish oson, yozilganlarini esa saqlab qolish mumkin. Eng iliq javob olgan savollaringizni tanlab, ularni kitob qilib bezang: boblar, suratlar va muqova bilan.",
+            "Siz ham shunday savollarga bob bo‘yicha javob berasiz, suratlar qo‘shasiz va dizayn tanlaysiz. Maketni buyurtmadan oldin ko‘rish mumkin, tayyor kitobni esa qattiq muqovada chop etib, Qozog‘iston bo‘ylab yetkazib beramiz.",
+          ],
+        },
+      ],
+      questions: { heading: "Onaga bob bo‘yicha savollar", intro: "Bu «Onaga» kitobidagi savollar: ularni ovoz chiqarib so‘rash yoki ona haqida kitob yozayotgan bo‘lsangiz, o‘zingiz javob berish mumkin." },
+      faq: [
+        ["Ona o‘zi haqida gapirishni yoqtirmasa, suhbatni nimadan boshlash kerak?", "Suratlardan boshlang: suratning qayerda va qachon olinganini aytib berishini so‘rang. Surat atrofidagi hikoyalar odatda to‘g‘ridan-to‘g‘ri savollarga qaraganda osonroq keladi."],
+        ["Ona ba’zi davrlarni eslashni xohlamasa, nima qilish kerak?", "Bunday mavzularni o‘tkazib yuboring. Savollar bankidan faqat javob berish unga yoqadiganlarini tanlash mumkin: kitobga faqat to‘ldirilgan javoblar kiradi."],
+      ],
+      cta: { title: "Javoblarni kitobga aylantiring", text: "Bob bo‘yicha savollarga javoblarni yozing, suratlar qo‘shing va muqovani tanlang: biz haqiqiy kitob chop etamiz. Yozish bepul." },
+    },
   },
 };

@@ -1,5 +1,6 @@
 "use server";
 
+import { locales, localizePath } from "@/i18n/config";
 import { container } from "@/server/container";
 import { readGifts } from "@/shared/domain/agreementGifts";
 import { giftsForPlan } from "@/config/site";
@@ -596,7 +597,7 @@ export async function deleteViewAction(id: string) {
 const fromDealSchema = z.object({
   name: z.string().trim().min(1, "Укажите имя клиента").max(100),
   email: z.union([z.literal(""), z.string().trim().email("Проверьте адрес почты").max(200)]).default(""),
-  locale: z.enum(["ru", "kk"]).default("ru"),
+  locale: z.enum(locales).default("ru"),
   channel: z.string().refine(isManualChannel, "Укажите, откуда пришёл клиент (канал продаж)"),
 });
 
@@ -632,7 +633,7 @@ export async function createClientFromDealAction(dealId: string, _: ClientFromDe
   }
   await audit(staff, "client.create", "client", account.clientId, { deal: deal.number, channel: d.channel, fromDeal: true });
   revalidateDeal(deal.id, account.clientId);
-  const loginUrl = `${env.appUrl}${d.locale === "kk" ? "/kk" : ""}/login`;
+  const loginUrl = `${env.appUrl}${localizePath("/login", d.locale)}`;
   return { done: { clientId: account.clientId, loginText: staffLogin(account.login, can(staff, "clients.contacts")), password, message: accessMessage({ name: d.name, login: account.login, password, loginUrl, locale: d.locale, hideLogin: !can(staff, "clients.contacts") }) } };
 }
 

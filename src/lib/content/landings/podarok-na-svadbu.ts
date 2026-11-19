@@ -51,5 +51,24 @@ export const podarokNaSvadbu: Landing = {
         ["Жақында ғана танысқан болсақ ше?", "Бұл кедергі емес. Айтарыңыз бар сұрақтарға жауап берсеңіз жеткілікті, қалғанын өткізіп жіберуге болады."],
       ],
     },
+    uz: {
+      label: "To‘yga sovg‘a",
+      h1: "To‘yga sovg‘a —",
+      accent: "do‘stlar hikoyalari va tilaklari bilan kitob",
+      metaTitle: "To‘yga nima sovg‘a qilish mumkin — mehmonlar tilaklari bilan kitob",
+      metaDescription: "To‘yga do‘st yoki dugonaga sovg‘a: do‘stligingiz haqida kitob, kulgili voqealar, mehmonlar tilaklari. Suratlar, qattiq muqova, Qozog‘iston bo‘ylab yetkazish.",
+      lead: "To‘yda konvertni ko‘pchilik sovg‘a qiladi, do‘stlar kulgili voqealarni eslab, baxt tilaydigan kitobni esa kam kishi. Kelin yoki kuyov bilan qanday tanishganingizni so‘zlab bering, mehmonlar tilaklarini to‘plang va kitobni marosimda yoki undan keyin topshiring.",
+      why: [
+        { title: "Shunchaki tilak emas, hikoyalar", text: "Qanday tanishganingiz, eng kulgili voqea, kelajak uchun nima va’da qilishingiz. Savollar tostni qanday aytsangiz, shunday — faqat xotirjamroq va uzunroq yozishga yordam beradi." },
+        { title: "Barcha mehmonlardan tilaklar", text: "Do‘stlar, hamkasblar va qarindoshlar o‘z xatlarini havola orqali telefondan, ro‘yxatdan o‘tmasdan yozadi. Ularning so‘zlari kitobga alohida bob bo‘lib kiradi, siz esa bosishdan oldin ularni tekshirasiz." },
+        { title: "To‘yga va undan keyin", text: "Elektron kitobni to‘lovdan keyin darhol olasiz, uni marosimda ko‘rsatish mumkin. Bosma nusxani bir necha ish kunida tayyorlaymiz, butun kitob maketini esa to‘lovdan oldin ko‘rasiz." },
+      ],
+      cover: { title: "To‘y kuningda", names: "Madina va dugonalardan" },
+      faq: [
+        ["Kitob juftlik haqidami yoki yosh oiladan biri haqida?", "Savollar bir kishi uchun mo‘ljallangan: kitob yaratishda kim haqida yozayotganingizni — kelin haqidami yoki kuyov haqida — tanlaysiz. Juftlikka tilaklarni do‘stlar va qarindoshlar havola orqali xat bilan qoldiradi."],
+        ["Mehmonlardan tilaklarni qanday yig‘ish mumkin?", "Ularga havolani chatga yuboring yoki to‘yda yozishlarini so‘rang. Xat telefondan ro‘yxatdan o‘tmasdan yoziladi va kitobga alohida bob bo‘lib kiradi."],
+        ["Yaqinda tanishgan bo‘lsak-chi?", "Bu to‘siq emas. O‘zingiz gapirib berishga narsa topadigan savollarga javob bersangiz yetarli, qolganlarini o‘tkazib yuborish mumkin."],
+      ],
+    },
   },
 };

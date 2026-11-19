@@ -2,7 +2,7 @@
  * Тесты «Как хорошо вы знаете маму/папу/бабушку/любимого человека». Человек отмечает, что знает точно, примерно или не знает;
  * итог — процент близости и список вопросов, которые стоит задать. Эти же вопросы лежат в основе книги.
  */
-import type { Locale } from "@/i18n/config";
+import type { PublicLocale } from "@/i18n/config";
 
 export type QuizId = "mama" | "papa" | "babushka" | "lyubimyj";
 export type Answer = 0 | 1 | 2;
@@ -45,7 +45,7 @@ export function questionsToAsk(items: readonly QuizItem[], answers: readonly (An
   return out.sort((a, b) => a.level - b.level);
 }
 
-export const quizData: Record<Locale, Record<QuizId, QuizData>> = {
+export const quizData: Record<PublicLocale, Record<QuizId, QuizData>> = {
   ru: {
     mama: {
       who: { about: "маме", acc: "маму" },
@@ -167,6 +167,68 @@ export const quizData: Record<Locale, Record<QuizId, QuizData>> = {
         { know: "ол он жылдан кейін үйіңізді қалай көретінін", ask: "Он жылдан кейін біздің үйді және өмірімізді қалай елестетесің?" },
         { know: "оған қандай сыйлық бәрінен қымбат болатынын", ask: "Саған қандай сыйлық бәрінен қымбат болар еді?" },
         { know: "ол сізде нені бәрінен көп бағалайтынын", ask: "Менде нені бәрінен көп бағалайсың?" },
+      ],
+    },
+  },
+  uz: {
+    mama: {
+      who: { about: "onangiz", acc: "onangizni" },
+      items: [
+        { know: "uning sevimli qo‘shig‘i yoki kuyini", ask: "Oyi, siz uchun eng aziz qo‘shiq qaysi va nima uchun?" },
+        { know: "onangiz bilan dadangiz qanday tanishganini", ask: "Dada bilan qanday tanishgansiz — o‘sha kuni nimani his qilgan edingiz?" },
+        { know: "onangiz yoshligida nimani orzu qilganini", ask: "O‘n olti yoshingizda nimani orzu qilgan edingiz?" },
+        { know: "u bolaligida kim bo‘lishni xohlaganini", ask: "Kichikligingizda kim bo‘lishni xohlardingiz?" },
+        { know: "bolaligining eng baxtli xotirasini", ask: "Bolaligingizdagi qaysi kunni eng iliq tabassum bilan eslaysiz?" },
+        { know: "onangiz nimadan hammadan ko‘proq qo‘rqishini", ask: "Nimadan qo‘rqasiz, lekin odatda bu haqda indamaysiz?" },
+        { know: "uning yer yuzidagi sevimli joyini", ask: "Yer yuzida qaysi joy siz uchun hammasidan aziz?" },
+        { know: "unga onasi qanday maslahat berganini", ask: "Onangizning qaysi maslahati butun umringizga yodingizda qoldi?" },
+        { know: "hayotidagi eng og‘ir davrni va uni nima yengib o‘tishga yordam berganini", ask: "Hayotingizdagi eng og‘ir davrdan o‘tishingizga nima yordam berdi?" },
+        { know: "u qaysi ishi bilan eng ko‘p faxrlanishini", ask: "Qaysi ishingiz bilan eng ko‘p faxrlanasiz?" },
+      ],
+    },
+    papa: {
+      who: { about: "otangiz", acc: "otangizni" },
+      items: [
+        { know: "u kasbni qanday tanlaganini", ask: "Dada, kasbni qanday tanlagan edingiz — afsuslanmaysizmi?" },
+        { know: "uning birinchi ishi va birinchi maoshini", ask: "Birinchi ishingiz va birinchi maoshingiz esingizdami? Uni nimaga sarflagan edingiz?" },
+        { know: "yoshligida nimani orzu qilganini", ask: "Yosh vaqtingizda nimani orzu qilgan edingiz?" },
+        { know: "hayotidagi eng qo‘rqinchli va eng kulgili voqeani", ask: "Hayotingizdagi eng qo‘rqinchli voqea qaysi, eng kulgilisi-chi?" },
+        { know: "uning otasi, ya’ni sizning bobongiz, qanday inson bo‘lganini", ask: "Otangiz qanday inson edi va sizga nimani o‘rgatdi?" },
+        { know: "u hayotning asosiy saboqi deb nimani hisoblashini", ask: "Hayotning eng muhim saboqi deb nimani hisoblaysiz?" },
+        { know: "uning sevimli kitobi, filmi yoki qo‘shig‘ini", ask: "Qaysi kitob, film yoki qo‘shiq siz uchun hammasidan qadrli?" },
+        { know: "qaysi lahzani u eng baxtli deb atashini", ask: "Hayotingizning qaysi lahzasini eng baxtli deb ataysiz?" },
+        { know: "u o‘zida nima bilan faxrlanishini", ask: "Nima bilan eng ko‘p faxrlanasiz?" },
+        { know: "u sizga qanday maslahat bermoqchi ekanini", ask: "Menga butun umrga qanday maslahat bermoqchi bo‘lardingiz?" },
+      ],
+    },
+    babushka: {
+      who: { about: "buvingiz", acc: "buvingizni" },
+      items: [
+        { know: "u qayerda va qanday o‘sganini", ask: "Buvijon, qayerda o‘sganingizni va bolalik uyingiz qanday bo‘lganini aytib bering." },
+        { know: "u bo‘lajak turmush o‘rtog‘i bilan qanday uchrashganini", ask: "Bobom bilan qanday tanishgansiz va u kishining nimasi sizga yoqqan?" },
+        { know: "u bolaligida qanday o‘yin va qo‘shiqlarni yoqtirganini", ask: "Bolaligingizda qanday o‘yin va qo‘shiqlarni yoqtirgansiz? Bittasini aytib berasizmi?" },
+        { know: "to‘yi qanday o‘tganini va u nima kiyganini", ask: "To‘yingiz qanday o‘tgan edi? Egningizda nima bor edi?" },
+        { know: "u hayotda nimani eng muhim deb bilishini", ask: "Hayotda siz uchun eng muhimi nima?" },
+        { know: "u qanday oilaviy an’analarni saqlashini", ask: "Qanday oilaviy an’analarni biz saqlab qolishimizni istaysiz?" },
+        { know: "uning eng og‘ir yili qanday bo‘lganini va uni qanday yengib o‘tganini", ask: "Hayotingizdagi eng og‘ir yil qaysi edi va uni qanday yengib o‘tdingiz?" },
+        { know: "bolaligidagi eng yorqin bayramlarni", ask: "Bolaligingizdagi qaysi bayramlar eng yorqin edi?" },
+        { know: "u nevaralariga nima tilashini", ask: "Bizga, nevaralaringizga, nima tilagingiz keladi?" },
+        { know: "u hech qachon yozib qo‘ymagan retseptini", ask: "Hech qachon yozib qo‘ymagan qaysi retseptingiz bor? Aytib turing!" },
+      ],
+    },
+    lyubimyj: {
+      who: { about: "sevgan insoningiz", acc: "sevgan insoningizni" },
+      items: [
+        { know: "tanishgan kuningizda atrofda nima bo‘lganini", ask: "Tanishgan kunimizdan nimalarni eslaysan?" },
+        { know: "u sizning nimangizni birinchi daqiqadayoq yoqtirib qolganini", ask: "Menda senga nima birdaniga yoqqan edi?" },
+        { know: "u so‘ramaydigan, lekin yaxshi ko‘radigan taomi yoki shirinligini", ask: "Qaysi taom yoki shirinlikni yaxshi ko‘rasan-u, hech qachon so‘ramaysan?" },
+        { know: "u kamdan-kam ovoz chiqarib aytadigan orzusini", ask: "Qaysi orzuingni kamdan-kam ovoz chiqarib aytasan?" },
+        { know: "uning eng katta qo‘rquvini", ask: "Eng katta qo‘rquving nima?" },
+        { know: "uning bolaligidagi eng esda qolarli voqeani", ask: "Bolaligingdagi qaysi voqea eng esda qolarli?" },
+        { know: "og‘ir kunda unga nima yordam berishini", ask: "Kuning yaxshi o‘tmaganda senga nima yordam beradi?" },
+        { know: "u o‘n yildan keyin uyingizni qanday ko‘rishini", ask: "O‘n yildan keyin uyimiz va hayotimizni qanday tasavvur qilasan?" },
+        { know: "unga qanday sovg‘a hammasidan qadrli bo‘lishini", ask: "Senga qanday sovg‘a hammasidan qadrli bo‘lardi?" },
+        { know: "u sizda nimani hammasidan ko‘proq qadrlashini", ask: "Menda nimani hammasidan ko‘proq qadrlaysan?" },
       ],
     },
   },

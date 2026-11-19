@@ -1,3 +1,4 @@
+import type { Locale } from "@/i18n/config";
 import "server-only";
 import { randomBytes } from "node:crypto";
 import { env } from "@/config/env";
@@ -35,7 +36,6 @@ const NOT_DELIVERED = "WhatsApp не доставил сообщение";
 const WHATSAPP = new Set(["whatsapp", "wapi"]);
 
 type FinalAccess = Exclude<AccessStatus, "none" | "due">;
-type Locale = "ru" | "kk";
 type Snapshot = ReturnType<DealInvoice["snapshot"]>;
 
 export interface AccessAccount {
@@ -491,7 +491,7 @@ export class InvoiceAccess {
 /** Начало заголовка задачи «получить остаток» — по нему прежние такие задачи закрываются. */
 const REMAINDER_TASK = "Получить остаток ";
 
-const localePrefix = (locale: Locale) => (locale === "kk" ? "/kk" : "");
+const localePrefix = (locale: Locale) => (locale === "kk" ? "/kk" : locale === "uz" ? "/uz" : "");
 
 /** Порты к модулям приложения: identity, clients, sales, messaging, ordering, workspace. */
 export function createInvoiceAccess(c: Container): InvoiceAccess {

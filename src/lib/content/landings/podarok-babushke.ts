@@ -48,5 +48,24 @@ export const podarokBabushke: Landing = {
         ["Әже ауыр кезеңдерді еске алғысы келмесе ше?", "Тек жауап бергіңіз келетін сұрақтарға ғана жауап беріңіз. Қалғанын өткізіп жіберіңіз — кітап әже көргісі келгендей болады."],
       ],
     },
+    uz: {
+      label: "Buviga sovg‘a",
+      h1: "Buviga sovg‘a —",
+      accent: "nevaralar yozib olgan hayot kitobi",
+      metaTitle: "Buviga nima sovg‘a qilish mumkin — hayot tarixi bitilgan kitob",
+      metaDescription: "Buviga sovg‘a: nevaralar bolaligi va oilasi haqida so‘rab, hikoyalarini yozib oladi. Suratlar, maket, qattiq muqovada bosma, Qozog‘istonga yetkazamiz.",
+      lead: "Buvining hikoyalarini hamma biladi, lekin deyarli hech kim yozib olmagan. Yoniga choy bilan o‘tiring, ro‘yxatimizdagi savollarni bering va uning hikoyalarini qo‘lda ushlab, farzandlarga topshirsa bo‘ladigan kitobga aylantiring.",
+      why: [
+        { title: "Buvi o‘zi boshlaydigan savollar", text: "Bolalik, maktab, yoshlik, bobo bilan qanday uchrashgani, farzandlarini qanday voyaga yetkazgani. So‘rasangiz bas — keyin u aytadi, siz javobni telefonda terasiz." },
+        { title: "Muallif — buvi, siz — yonida", text: "Kitob uning tilidan yoziladi, yozib borgan sifatida sizning ismingiz esa titul varag‘ining orqa tomonida turadi. Javob berishni xohlagan tartibda, bir necha kechaga bo‘lib berish mumkin." },
+        { title: "Oilaviy suratlar va nevaralar xatlari", text: "Albomdagi suratlarni telefonda suratga oling, farzandlari va nevaralari esa havola orqali xat yuboradi — ular kitobga alohida bob bo‘lib kiradi." },
+      ],
+      cover: { title: "Hayotim tarixi", names: "Roza Axmetova" },
+      faq: [
+        ["Buvim telefondan foydalanmaydi. Nima qilamiz?", "Unga kerak ham emas. Savollarni siz berasiz, javoblarni o‘zingiz telefonda yoki kompyuterda terasiz. Butun kitob maketini to‘lovdan oldin ko‘rasiz va buviga ko‘rsata olasiz."],
+        ["Kitob tug‘ilgan kunga ulgurmasa-chi?", "Sertifikat hadya qiling: buvi «Tarjimai hol»ni o‘zi tanlaydi, kitobni esa keyinroq birga yozasizlar. Tayyor kitobning elektron nusxasini to‘lovdan keyin darhol olasiz, bosma nusxasini bir necha ish kunida tayyorlaymiz."],
+        ["Buvi og‘ir davrlarni eslagisi kelmasa-chi?", "Faqat javob bergingiz kelgan savollarga javob bering. Qolganini o‘tkazib yuboring — kitob buvi ko‘rishni istagandek bo‘ladi."],
+      ],
+    },
   },
 };

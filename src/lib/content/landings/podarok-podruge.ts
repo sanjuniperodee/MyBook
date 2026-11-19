@@ -46,5 +46,24 @@ export const podarokPodruge: Landing = {
         ["Туған күн таяп қалса, кітап сыйлауға бола ма?", "Иә. Электрондық нұсқасы төлемнен кейін бірден дайын, сондықтан туған күні оны табыс етесіз, ал басылғанын сәл кейін сыйлайсыз."],
       ],
     },
+    uz: {
+      label: "Dugonaga tug‘ilgan kunga sovg‘a",
+      h1: "Dugonaga tug‘ilgan kunga sovg‘a —",
+      accent: "uni nimasi uchun yaxshi ko‘rishingiz haqida kitob",
+      metaTitle: "Dugonaga tug‘ilgan kunga sovg‘a — «seni nega yaxshi ko‘raman» kitobi",
+      metaDescription: "Dugonaga tug‘ilgan kunga sovg‘a: hikoyalaringiz, uni nega yaxshi ko‘rishingiz va umumiy dugonalar xatlari bilan kitob. Bosma, Qozog‘istonga yetkazish.",
+      lead: "Upa-elik va sertifikatni u sizsiz ham oladi. Qanday tanishganingiz, nimaga ko‘z yoshigacha kulganingiz va uni nimasi uchun yaxshi ko‘rishingizni eslaydigan kitobni esa faqat sizdan oladi.",
+      why: [
+        { title: "Quruq so‘zlar o‘rniga savollar", text: "Birinchi taassurot, uning gaplari, sizni kuldiradigan odati — hammasini maslahatlar yordamida eslash oson. Chiqadigani otkritka emas, umumiy tarixingiz bo‘ladi." },
+        { title: "Pul emas, so‘z yig‘ishing", text: "Umumiy dugonalar xatni telefondan havola orqali, istalgan shaharda, ro‘yxatdan o‘tmasdan yozadi. Ularning so‘zlari kitobga alohida bob bo‘lib kiradi." },
+        { title: "Tug‘ilgan kunga", text: "Elektron kitobni to‘lovdan keyin darrov olasiz; bosma nusxa hali tayyorlanayotgan bo‘lsa ham, uni bayramda ko‘rsatish mumkin. Butun kitob maketini to‘lovdan oldin ko‘rasiz." },
+      ],
+      cover: { title: "Eng yaqin dugonamga", names: "Aygerim & Dana" },
+      faq: [
+        ["Atigi bir-ikki yildan beri do‘st bo‘lsak ham kitob qilsa bo‘ladimi?", "Ha. Muhimi yillar emas, hikoyalar. Sarguzashtlar, o‘zimizbop hazillar va qo‘llab-quvvatlash haqidagi savollar nima haqida yozishni aytib turadi. Suratlar bilan 15–20 ta javob — allaqachon to‘la kitob."],
+        ["Bu kitob otkritka yoki ijtimoiy tarmoqdagi postdan nimasi bilan yaxshi?", "Uni qo‘lga olib, varaqlab, o‘n yildan keyin ham qayta o‘qish mumkin. Unda sizning suratlaringiz, umumiy hazillaringiz va boshqa dugonalarning xatlari bor, bir abzatsli tabrik bilan cheklanmaydi."],
+        ["Tug‘ilgan kun yaqin bo‘lsa ham kitob sovg‘a qilsa bo‘ladimi?", "Ha. Elektron nusxa to‘lovdan keyin darrov tayyor, shuning uchun tug‘ilgan kunda uni topshirasiz, bosma nusxani esa sal keyinroq sovg‘a qilasiz."],
+      ],
+    },
   },
 };

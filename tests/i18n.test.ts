@@ -88,11 +88,12 @@ describe("адреса", () => {
     for (const p of ["/api/books", "/admin", "/print/orders/1", "/mark.png", "https://wa.me/1", "#faq"]) expect(localizePath(p, "kk")).toBe(p);
     expect(localizePath("/kk/books", "kk")).toBe("/kk/books");
   });
-  it("hreflang: обе версии ссылаются друг на друга", () => {
-    expect(alternates("/gift", "kk")).toEqual({ canonical: "/kk/gift", languages: { ru: "/gift", kk: "/kk/gift", "x-default": "/gift" } });
+  it("hreflang: все версии ссылаются друг на друга", () => {
+    expect(alternates("/gift", "kk")).toEqual({ canonical: "/kk/gift", languages: { ru: "/gift", kk: "/kk/gift", uz: "/uz/gift", "x-default": "/gift" } });
+    expect(alternates("/gift", "uz").canonical).toBe("/uz/gift");
   });
-  it("у каждой посадочной страницы есть тексты на обоих языках", () => {
-    for (const l of landings) for (const c of [l.content.ru, l.content.kk]) expect(c.label && c.h1 && c.metaTitle && c.faq.length).toBeTruthy();
+  it("у каждой посадочной страницы есть тексты на всех трёх языках", () => {
+    for (const l of landings) for (const c of [l.content.ru, l.content.kk, l.content.uz]) expect(c.label && c.h1 && c.metaTitle && c.faq.length).toBeTruthy();
   });
 });
 

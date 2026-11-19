@@ -1,4 +1,4 @@
-import type { Locale } from "@/i18n/config";
+import type { PublicLocale } from "@/i18n/config";
 import type { ThemeId } from "../types";
 import type { QuizId } from "@/lib/tools/quiz";
 
@@ -33,5 +33,5 @@ export interface ToolDef {
   /** Тема книги для кнопки «создать» и посадочная страница, на которую ведёт инструмент. */
   theme: ThemeId;
   landing?: string;
-  content: Record<Locale, ToolContent>;
+  content: Record<PublicLocale, ToolContent>;
 }

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { toPublic } from "@/i18n/config";
 import { Link } from "@/i18n/client";
 import { LandingHeader } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
@@ -53,7 +54,7 @@ export default async function IdeasPage() {
     {
       "@context": "https://schema.org",
       "@type": "ItemList",
-      itemListElement: landings.map((l, i) => ({ "@type": "ListItem", position: i + 1, name: l.content[locale].label, url: absoluteUrl(`/kniga/${l.slug}`, locale) })),
+      itemListElement: landings.map((l, i) => ({ "@type": "ListItem", position: i + 1, name: l.content[toPublic(locale)].label, url: absoluteUrl(`/kniga/${l.slug}`, locale) })),
     },
   ];
   
@@ -93,7 +94,7 @@ export default async function IdeasPage() {
           <div>
             {sections.map((sec) => {
               const [first, ...rest] = sec.items;
-              const c = first.content[locale];
+              const c = first.content[toPublic(locale)];
               return (
                 <section key={sec.id} id={sec.id} className="scroll-mt-24 border-t border-line py-12 first:border-t-0 first:pt-0 sm:py-16">
                   <h2 className="font-serif text-[32px] leading-tight font-medium tracking-tight sm:text-[40px]">{sec.title}</h2>
@@ -111,7 +112,7 @@ export default async function IdeasPage() {
                   {rest.length ? (
                     <ul className="mt-10 divide-y divide-line border-y border-line">
                       {rest.map((l) => {
-                        const rc = l.content[locale];
+                        const rc = l.content[toPublic(locale)];
                         return (
                           <li key={l.slug}>
                             <Link href={`/kniga/${l.slug}`} className="group grid min-h-16 grid-cols-[2.75rem_minmax(0,1fr)] items-center gap-4 py-3 sm:grid-cols-[2.75rem_minmax(0,16rem)_minmax(0,1fr)] sm:gap-6">
@@ -137,7 +138,7 @@ export default async function IdeasPage() {
               {articles.map((a) => (
                 <li key={a.slug} className="border-b border-line">
                   <Link href={`/blog/${a.slug}`} className="flex min-h-14 items-center py-3 font-serif text-xl leading-snug font-medium text-ink-soft hover:text-wine">
-                    {a.content[locale].title}
+                    {a.content[toPublic(locale)].title}
                   </Link>
                 </li>
               ))}

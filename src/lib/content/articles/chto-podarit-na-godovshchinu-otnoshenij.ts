@@ -168,5 +168,85 @@ export const chtoPodaritNaGodovshchinuOtnoshenij: Article = {
       ],
       cta: { title: "Жұбыңыз туралы кітап", text: "Сұрақтарға жауап беріп, суреттер қосыңыз — біз кітапты беттеп, басып шығарамыз. Жазу тегін." },
     },
+    uz: {
+      title: "Munosabatlar yilligiga nima sovg‘a qilish kerak: yillar va byudjet bo‘yicha g‘oyalar",
+      description: "Munosabatlar yilligiga nima sovg‘a qilish: 1 yil, 3 yil va 5+ yil birga bo‘lganlar uchun g‘oyalar, turli byudjetdagi sovg‘alar va nimadan qochish kerak.",
+      lead: "Munosabatlar yilligi qimmat buyum haqida emas, balki tarixingizni eslab yurganingizni ko‘rsatish haqida. G‘oyalarni bosqichlar bo‘yicha, byudjetga oid maslahatlarni va chetlab o‘tgan ma’qul sovg‘alar ro‘yxatini jamladik.",
+      sections: [
+        {
+          heading: "Asosiy qoida: ikkovingiz haqidagi sovg‘a",
+          paragraphs: [
+            "Yilligiga yaxshi sovg‘a sizning tarixingiz bilan bog‘liq bo‘ladi: tanishgan joy, umumiy hazil, eslab yuradigan safaringiz. Shunda u yil davomidagi boshqa sovg‘alar orasida yo‘qolib ketmaydi.",
+            "Tanlashdan oldin, inson so‘nggi oylarda nima deganini eslang: «sinab ko‘rgim keladi», «uzoq orzu qilganman», «afsuski, ulgurmadik». Ishoralar odatda allaqachon bor.",
+          ],
+        },
+        {
+          heading: "Birgalikdagi birinchi yil",
+          paragraphs: ["Birinchi yillik — hammasi nimadan boshlanganini eslab, eng iliq lahzani takrorlagingiz keladigan payt."],
+          list: [
+            "Birinchi uchrashgan joyda, kafeda o‘sha buyurtma bilan uchrashuv.",
+            "Fotoalbom yoki birinchi yilning suratlari to‘plami, izohlari bilan.",
+            "Ikkovingiz yangi joyga qisqa safar.",
+            "«Shu yil davomida nimani eslab qoldim» xati — aniq voqealar bilan.",
+            "Umumiy qiziqishga oid sovg‘a: chiptalar, hobbi to‘plami, stol o‘yini.",
+          ],
+        },
+        {
+          heading: "Uch yil: o‘z tarixingiz bo‘lganda",
+          paragraphs: ["Uch yilga kelib juftlik bir-birini aniq tanlash uchun yetarlicha taniydi. «Men sizning qandayligingizni ko‘ryapman» deydigan sovg‘a qilsa bo‘ladi."],
+          list: [
+            "Inson aytgan, lekin o‘ziga sotib olmagan buyum.",
+            "Birgalikda sayohat yoki boshqa shaharda dam olish kunlari.",
+            "Uyda kechki ovqat: bir-biringizning sevimli taomlaringizni birga pishirasiz.",
+            "Sana, joy yoki faqat ikkovingizga tushunarli ibora yozilgan esdalik buyumi.",
+            "Munosabatlaringiz haqida kitob — savollar, javoblar va suratlar bilan.",
+          ],
+        },
+        {
+          heading: "Besh yil va undan uzoq",
+          paragraphs: ["Uzoq munosabatlar osongina odatga aylanadi, yillik esa uni silkitish uchun sabab. Bu yerda sovg‘alar bir-biringizga ajratilgan vaqt va minnatdorchilik haqida."],
+          list: [
+            "Bolalarsiz va kundalik tashvishlarsiz, hech bo‘lmaganda ikki kunga ikkovingiz safar.",
+            "Professional fotosessiya: juftlik, oila, siz va bolalaringiz.",
+            "Yillar o‘tib birinchi uchrashuv yoki to‘y oqshomini takrorlash.",
+            "Juftligingiz haqida kitob: qanday tanishganingiz, nimalarni boshdan kechirganingiz, keyin nimani orzu qilishingiz.",
+            "O‘tgan yillar davomidagi aniq ishlar uchun minnatdorchilik xati.",
+          ],
+        },
+        {
+          heading: "Har qanday byudjet uchun g‘oyalar",
+          paragraphs: ["Byudjet miqdori sovg‘a qanchalik iliq chiqishini belgilamaydi: ko‘p narsa insonga qanchalik e’tibor berishingizga bog‘liq."],
+          list: [
+            "Kamtar byudjet: qo‘lda yozilgan xat, uyda kechki ovqat, o‘zingizning joylaringiz bo‘ylab sayr, suratlar kollaji.",
+            "O‘rtacha byudjet: konsert yoki spektaklga chiptalar, yaxshi restoranda kechki ovqat, uzoq orzu qilingan buyum, fotosessiya.",
+            "Qat’iy cheklovlarsiz: bir necha kunlik safar, taqinchoq, uydagi sevimli burchakni yangilash, ikkovingiz haqidagi chiroyli bosilgan kitob.",
+            "Har qanday byudjet: uyg‘unlik — kichik buyum, shaxsiy so‘zlar va birga o‘tkazilgan vaqt.",
+          ],
+        },
+        {
+          heading: "Mazmunli sovg‘a: ikkovingiz haqidagi kitob",
+          paragraphs: [
+            "Munosabatlar haqidagi kitob vaqt o‘tishi bilan xotiradan o‘chadigan narsalarni jamlaydi: qanday tanishganingiz, nimalar yodda qolgani, bir-biringizdan nima uchun minnatdor ekaningiz. Siz savollarga javob berasiz, suratlar qo‘shasiz, inson esa uni yillar davomida qayta o‘qiy oladi. Birga qancha bo‘lganingizni aniq bilmoqchi bo‘lsangiz, kunlarni sanab, raqamni birinchi sahifaga yozing.",
+            "Kitobni bepul yozish mumkin. Tayyor kitobni qattiq muqovada bosib, Qozog‘iston bo‘ylab yetkazib beramiz; elektron nusxasi to‘lovdan keyin darhol mavjud.",
+          ],
+        },
+        {
+          heading: "Nimani sovg‘a qilmaslik kerak",
+          list: [
+            "«Yaxshilash» uchun buyumlar — sport zali, ozish, tashqi ko‘rinishga g‘amxo‘rlik uchun, agar inson buni so‘ramagan bo‘lsa.",
+            "«Uy uchun» maishiy texnika: u sovg‘a emas, topshiriqdek eshitiladi.",
+            "Juda qimmat sovg‘alar, agar insonga ularni qabul qilish oson bo‘lishiga ishonchingiz komil bo‘lmasa.",
+            "Shaxsiy ohangsiz «hamma uchun» mo‘ljallangan umumiy esdalik buyumlari.",
+            "Inson e’tibor markazida bo‘lishni yoqtirmasa, begona odamlar ishtirokidagi syurprizlar.",
+          ],
+        },
+      ],
+      faq: [
+        ["Munosabatlarning birinchi yilligiga nima sovg‘a qilish kerak?", "Boshlanishni eslatadigan narsa eng yaxshisi: o‘sha joyda uchrashuv, fotoalbom yoki xotiralaringiz yozilgan xat. Qimmat sovg‘a shart emas, e’tibor muhimroq."],
+        ["Sevgan insonim «hech narsa kerak emas» desa, yilligiga nima sovg‘a qilish kerak?", "Vaqt va taassurot sovg‘a qiling: safar, kechki ovqat yoki tarixingiz bilan bog‘liq sovg‘a. Ikkovingiz haqidagi kitob ham yaxshi variant, u umumiy lahzalarni eslab yurganingizni ko‘rsatadi."],
+        ["Byudjet bo‘lmasa, yillikni qanday nishonlash mumkin?", "Qo‘lda yozilgan xat, uyda kechki ovqat va o‘zingizning joylaringiz bo‘ylab sayr deyarli pulsiz, lekin yodda qoladi. Bir yillik suratlardan kollaj yoki to‘plam qilish mumkin."],
+      ],
+      cta: { title: "Juftligingiz haqida kitob", text: "Savollarga javob bering, suratlar qo‘shing — kitobni biz maketlab, bosib chiqaramiz. Yozish bepul." },
+    },
   },
 };

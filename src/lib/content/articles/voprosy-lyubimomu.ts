@@ -82,5 +82,42 @@ export const voprosyLyubimomu: Article = {
       ],
       cta: { title: "Жауаптарды кітапқа айналдырыңыз", text: "Тарихыңызды тараулар бойынша жылы сұрақтарға жауап беріп жазыңыз, сурет қосыңыз — біз кітапты беттеп, басып шығарамыз." },
     },
+    uz: {
+      title: "Sevgan insoningizga savollar: muhabbat, o‘tmish va orzular haqida",
+      description: "Juftlarni yaqinlashtiradigan savollar: tanishuv, birinchi uchrashuvlar, orzular va muhabbat haqida. Ularni noqulaylik sezmay so‘rash va javoblarni saqlash.",
+      lead: "Yillar birga o‘tgandan keyin ham bir-biringizdan so‘ramagan ko‘p narsalar qoladi. Savollar hammasi qanday boshlanganini eslashga va kundalik hayotda kamdan-kam aytiladigan so‘zlarni aytishga yordam beradi.",
+      sections: [
+        {
+          heading: "Juftlar nega bir-biriga savol berishi kerak",
+          paragraphs: [
+            "Kundalik hayotda ishlarni muhokama qilamiz, lekin his-tuyg‘ularimiz va orzularimiz haqida kamdan-kam gaplashamiz. Yaxshi savollar e’tiborni yana bir-biringizga va ikkalangizga tegishli hikoyaga qaytaradi.",
+            "Uzoq yillik juftlar uchun savollar unutilganlarni eslash bahonasi: birinchi uchrashuv, birinchi safar, birinchi janjal. Yangi juftlar uchun esa insonni chuqurroq bilishning tez yo‘li.",
+          ],
+        },
+        {
+          heading: "Savollarni noqulaylik sezmay qanday so‘rash kerak",
+          list: [
+            "Telefonsiz kechani tanlang: kechki ovqat paytida yoki sayrda.",
+            "Yengildan boshlang: tanishuv, birinchi taassurot, kulgili voqealar.",
+            "Chuqurroq savollarga asta-sekin o‘ting: orzular, qo‘rquvlar, minnatdorchilik.",
+            "Ikkalangiz ham javob bering: faqat bitta kishi gapiradigan suhbat intervyuga aylanib qoladi.",
+            "Javoblarni baholamang: eshitish muhimroq.",
+          ],
+        },
+        {
+          heading: "Javoblarni qanday saqlash kerak",
+          paragraphs: [
+            "Eng yaxshi javoblarni shunchaki suhbat bo‘lib qolishiga qo‘yib bo‘lmaydi. Ularni yozib qo‘ying, shunda juftligingiz haqida kitob paydo bo‘ladi: tanishuv, uchrashuvlar, o‘zaro qo‘llab-quvvatlash, orzular.",
+            "Kitobni yubileyga, tug‘ilgan kunga yoki 14 fevralga sovg‘a qilish mumkin. U shaxsiy bo‘ladi: sizning so‘zlaringiz, sizning suratlaringiz va o‘zingiz tanlagan muqova.",
+          ],
+        },
+      ],
+      questions: { heading: "Sevgan insonga bob bo‘yicha savollar", intro: "Bu «Sevgan insonga» kitobidagi savollar: ularni suhbat uchun ishlatish yoki sovg‘a kitob uchun javob yozish mumkin." },
+      faq: [
+        ["Agar birga bo‘lganimizga ko‘p bo‘lmagan bo‘lsa, qaysi savollardan boshlash kerak?", "Hikoyaning boshidan: qanday tanishganingiz, bir-biringizda nima yoqqani, birinchi taassurot qanday bo‘lgani. Orzular va qadriyatlar haqidagi chuqur savollarni keyinga qoldiring."],
+        ["Bu savollarga yozma javob berish mumkinmi?", "Ha, ko‘pchilik uchun bu osonroq. Kitob aynan shunday tuzilgan: siz bob bo‘yicha javob yozasiz, keyin natijani ko‘rsatasiz yoki sovg‘a qilasiz."],
+      ],
+      cta: { title: "Javoblarni kitobga aylantiring", text: "Bob bo‘yicha iliq savollarga javob berib, hikoyangizni yozing, suratlarni qo‘shing: kitobni biz maketlab, chop etamiz." },
+    },
   },
 };

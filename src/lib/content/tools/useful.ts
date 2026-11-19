@@ -79,6 +79,42 @@ export const proverkaFoto: ToolDef = {
       ],
       cta: { title: "Кітапты ең жақсы суреттермен жинаңыз", text: "Редакторда да ажыратымдылық туралы кеңестер бар: сурет анық емес басылса, ескертеді. Кітап жазу тегін." },
     },
+    uz: {
+      label: "Suratni bosmaga tekshirish",
+      h1: "Surat bosmaga mos keladimi:",
+      accent: "buyurtmadan oldin tekshiring",
+      metaTitle: "Kitob uchun suratni bosmaga tekshirish: ruxsat (dpi) yetadimi",
+      metaDescription: "Suratni yuklang va kitobda aniq bosilishini bilib oling: butun sahifaga, setkada, muqovada. dpi va maksimal bosma o‘lchamini hisoblaymiz.",
+      teaser: "Suratlarni yuklang — qaysilari aniq bosilishini, qaysilarini almashtirish kerakligini ko‘rsatamiz.",
+      lead: "Messenjer yoki ijtimoiy tarmoqdagi surat ekranda yaxshi ko‘rinadi, qog‘ozda esa xira chiqadi. Suratlarni sudrab olib keling — kalkulyator kitobdagi har bir joy uchun ruxsatni ko‘rsatadi va buyurtmadan oldin nimani almashtirish kerakligini aytadi. Fayllar hech qayoqqa yuklanmaydi.",
+      sections: [
+        {
+          heading: "dpi nima va uning qanchasi kerak",
+          paragraphs: [
+            "dpi — dyuymdagi (2,54 sm) nuqtalar soni. Tipografiya bosmasi uchun taxminan 300 dpi kerak: shunda ko‘z alohida nuqtalarni ajratmaydi. 150 dpi dan past bo‘lsa, tasvir sezilarli darajada yumshoq bo‘ladi, katta formatda esa piksellar ko‘rinib qoladi.",
+            "Ruxsat «suratning sifati»ga emas, bosma o‘lchamiga qancha piksel to‘g‘ri kelishiga bog‘liq. Aynan bir xil surat setkada kichik bo‘lib aniq bosiladi, butun sahifaga esa xira chiqadi.",
+          ],
+        },
+        {
+          heading: "Kitob sahifasi uchun qancha piksel kerak",
+          paragraphs: [
+            "300 dpi da A5 sahifa (148×210 mm) uchun taxminan 1750×2480 piksel, ya’ni qariyb 4,3 megapiksel kerak. Har qanday zamonaviy telefon 8–50 Mp da suratga oladi, shuning uchun originallar deyarli har doim mos keladi.",
+            "Muammolar nusxalar bilan chiqadi: WhatsApp va Telegram suratni uzun tomoni bo‘yicha 1600 pikselgacha siqadi, ijtimoiy tarmoqlar — undan ham kuchliroq, eski skanerlangan suratlar esa ko‘pincha kichik o‘lchamda saqlangan.",
+          ],
+        },
+        {
+          heading: "Yaxshiroq surat qanday olinadi",
+          paragraphs: ["Originalni «surat» sifatida emas, «fayl» yoki «hujjat» sifatida yuborishni so‘rang. Qog‘oz suratlarni 600 dpi da skanerlang. Suratni ilovalarda kattalashtirmang: bundan piksellar ko‘paymaydi."],
+        },
+      ],
+      faq: [
+        ["Kitob bosmasi uchun necha dpi kerak?", "Aniq bosma uchun taxminan 300 dpi. Suratni 150 dpi dan boshlab ishlatish mumkin, lekin undan past bo‘lsa, bosma sezilarli yumshoq bo‘ladi. Kalkulyator kitobdagi har bir joy uchun ruxsatni ko‘rsatadi."],
+        ["Nega WhatsApp’dagi suratlar xira bosiladi?", "Messenjerlar suratlarni uzun tomoni bo‘yicha taxminan 1600 pikselgacha siqadi. Bu telefon ekrani uchun yetadi, kitob sahifasi uchun esa kam. Originalni fayl yoki hujjat sifatida yuborishni so‘rang."],
+        ["Suratlarim serverga yuklanadimi?", "Yo‘q. Tekshiruv brauzeringizda ishlaydi: o‘lchamlar mahalliy o‘qiladi, suratlar hech qayoqqa yuborilmaydi."],
+        ["Surat kichik bo‘lsa-yu, boshqasi bo‘lmasa, nima qilish kerak?", "Uni kichikroq joyga qo‘ying: to‘rttalik setkaga yoki sahifaning yarmiga. U yerda piksel kamroq kerak va surat qoniqarli bosiladi. Butun sahifaga katta kesish unga to‘g‘ri kelmaydi."],
+      ],
+      cta: { title: "Kitobni eng yaxshi suratlar bilan yig‘ing", text: "Muharrirda ham ruxsat bo‘yicha maslahatlar bor: surat xira bosilsa, ogohlantiradi. Kitob yozish bepul." },
+    },
   },
 };
 
@@ -158,6 +194,42 @@ export const skolkoStranits: ToolDef = {
         ["Есеп қаншалықты дәл?", "Бұл редактордағы алгоритммен жасалған бағалау. Нақты көлем мәтінге және суреттердің орналасуына байланысты, бірақ айырмашылық көбіне бірнеше беттің ішінде."],
       ],
       cta: { title: "Өз кітабыңызда тексеріңіз", text: "Редакторда бет саны сіз жазған сайын жаңарады. Кітап жазу тегін." },
+    },
+    uz: {
+      label: "Necha sahifa chiqadi",
+      h1: "Necha sahifa chiqadi:",
+      accent: "kitob uchun material yetadimi",
+      metaTitle: "Kitobda necha sahifa bo‘ladi: hajm va yelka qalinligi kalkulyatori",
+      metaDescription: "Javoblar, suratlar va xatlar sonini ko‘rsating — kalkulyator sahifalar sonini va yelka qalinligini ko‘rsatadi, material yetishini aytadi.",
+      teaser: "Materialingizga ko‘ra sahifalar soni va yelka qalinligi — hamda u to‘laqonli kitobga yetadimi.",
+      lead: "20 ta javob va o‘nta suratdan necha sahifa chiqadi? Kitob yupqa buklet bo‘lib qolmasligi uchun material yetadimi? Qancha javob, surat va xat bo‘lishini ko‘rsating — hajmni bilib oling. Hisob kitob muharriridagi bilan bir xil.",
+      sections: [
+        {
+          heading: "Sahifalar soni nimaga bog‘liq",
+          paragraphs: [
+            "Hajm matn, suratlar va xizmat sahifalaridan iborat: titul, bag‘ishlov, mundarija, har bir bobning boshi. Eng ko‘p javoblar soni va uzunligi ta’sir qiladi: bir necha qatorli qisqa javob sahifaning uchdan birini egallaydi, batafsil hikoya — bir yarim-ikki sahifani.",
+            "Javobdagi yoki alohida sahifadagi suratlar sahifalar qo‘shadi, yaqinlar xatlari esa alohida bobga yig‘iladi. Kvadrat format sahifaga A5 ga qaraganda biroz kamroq matn sig‘diradi.",
+          ],
+        },
+        {
+          heading: "Minimal hajm va kitob yelkasi",
+          paragraphs: [
+            "Bosma blok 24 sahifadan yupqa bo‘lmaydi, sahifalar soni esa har doim to‘rtga karrali — daftarlar shunday bosiladi. Material kamroq bo‘lsa, yetishmagan sahifalar bo‘sh qoladi. Kitob yaxlit ko‘rinishi uchun 40 va undan ko‘p sahifaga e’tibor bering.",
+            "Yelka qalinligi hajm bilan birga o‘sadi: 100 sahifali kitobda u taxminan 10 mm. Kitob narxi sahifalar soniga bog‘liq emas.",
+          ],
+        },
+        {
+          heading: "Yaxshi kitob uchun nechta javob kerak",
+          paragraphs: ["Ko‘pincha 30–40 ta mazmunli javob, yaqinlarning bir necha xati va 10–20 ta surat yetadi. Ovoz bilan javob bersangiz, bu 2–3 kechalik ish: javoblarni yozmasdan, aytib turish mumkin."],
+        },
+      ],
+      faq: [
+        ["30 ta javobdan iborat kitobda necha sahifa bo‘ladi?", "Javoblarning uzunligiga va suratlar soniga bog‘liq. O‘rtacha javoblar (taxminan 120 so‘z) va 10 ta surat bilan A5 formatida taxminan 40 sahifa chiqadi. Aniq sonni ma’lumotlaringiz uchun kalkulyator ko‘rsatadi."],
+        ["Bosma kitobda minimal sahifalar soni qancha?", "24 sahifa. Material kamroq bo‘lsa, qolgan sahifalar bo‘sh bosiladi. Sahifalar soni har doim to‘rtga karrali."],
+        ["Sahifalar soni narxga ta’sir qiladimi?", "Yo‘q. Kitob narxi formatga (elektron yoki bosma) va nusxalar soniga bog‘liq, hajmga emas."],
+        ["Hisob qanchalik aniq?", "Bu muharrirdagi bilan bir xil algoritm bo‘yicha baho. Haqiqiy hajm matnga va suratlar qanday joylashtirilganiga bog‘liq, lekin farq odatda bir necha sahifa doirasida bo‘ladi."],
+      ],
+      cta: { title: "O‘z kitobingizda tekshirib ko‘ring", text: "Muharrirda siz yozayotganingizda sahifalar soni yangilanib turadi. Kitob yozish bepul." },
     },
   },
 };
@@ -240,6 +312,42 @@ export const planKnigi: ToolDef = {
       ],
       cta: { title: "Дәл қазір бастаңыз", text: "Жоспардың бірінші қадамы — кітапты бастау. Жазу тегін және өз қарқыныңызбен, ал тапсырыс бәрі дайын болғанда ғана беріледі." },
     },
+    uz: {
+      label: "Sanaga kitob rejasi",
+      h1: "Sanaga kitob rejasi:",
+      accent: "ulgurish uchun nima va qachon qilish kerak",
+      metaTitle: "Sanaga sovg‘a kitob rejasi: nima va qachon qilish kerak, .ics kalendar",
+      metaDescription: "Topshirish kunini ko‘rsating — reja tuzamiz: xatlar so‘rovi, suratlar, javoblar va bosmaga buyurtma qachon. Rejani kalendarga yuklab oling.",
+      teaser: "Bugundan topshirishgacha sanalar bo‘yicha reja, kalendarga eslatmalar bilan.",
+      lead: "Sovg‘a kitob — bu faqat bosma emas, ish ham: javoblar, suratlar, yaqinlar xatlari. Topshirish kunini va kitob hajmini ko‘rsating, biz ishlarni sanalar bo‘yicha taqsimlaymiz, kuniga nechta javob yozish kerakligini hisoblaymiz va ulgurishingizni aytamiz. Rejani kalendarga yuklab olish mumkin.",
+      sections: [
+        {
+          heading: "Reja qanday tuziladi",
+          paragraphs: [
+            "Biz buyurtmaning oxirgi kunidan orqaga qarab hisoblaymiz. U bosma kitobni tayyorlash muddatiga, yetkazib berishga va maketni tekshirish uchun bir kunga bog‘liq. Undan oldin javoblar, suratlar va yaqinlar xatlari uchun vaqt turadi.",
+            "Bosma kitob sanaga ulgurmasa, kalkulyator tezkor bosmani yoki elektron nusxani taklif qiladi — uni o‘sha kuni sovg‘a qilish mumkin.",
+          ],
+        },
+        {
+          heading: "Kuniga nechta javob yozish kerak",
+          paragraphs: [
+            "Qisqa kitob — taxminan 15 ta javob, odatiy — taxminan 30, katta — taxminan 50. Hisob muddatga ulgurish uchun kuniga nechta javob kerakligini ko‘rsatadi. Kuniga ikkitagacha — xotirjam sur’at, beshtagacha — ish tartibi, undan ko‘p bo‘lsa — kichikroq kitobni tanlash yoki savollarning bir qismiga yaqinlaringizdan javob berishni so‘rash maqsadga muvofiq.",
+            "Yaqinlar xatlari parallel yig‘iladi: havolani birinchi kunning o‘zidayoq yuboring, odamlarda yozishga vaqt bo‘lsin.",
+          ],
+        },
+        {
+          heading: "Eslatmali kalendar",
+          paragraphs: ["«Kalendarga yuklab olish» tugmasi .ics faylini yaratadi. Uni telefonda yoki kompyuterda oching — ertalab soat 9 dagi eslatmali tadbirlar Google Kalendar, Apple Kalendar yoki Outlook’da paydo bo‘ladi."],
+        },
+      ],
+      faq: [
+        ["Sovg‘a kitobni necha kun oldin boshlash kerak?", "Bayramdan 3–4 hafta oldin yaxshiroq: shunda javoblar, yaqinlar xatlari va maketni tekshirish uchun vaqt yetadi. Vaqt kamroq bo‘lsa, kalkulyator nima qilishni aytadi."],
+        ["Sanaga bir hafta qolgan bo‘lsa, nima qilish kerak?", "Qisqa kitobni va elektron nusxani tanlang: u to‘lovdan keyin darhol keladi. Bosma nusxani keyinroq topshirish mumkin. Mos variantni kalkulyator ko‘rsatadi."],
+        ["Rejani telefon kalendariga qanday qo‘shaman?", "«Kalendarga yuklab olish (.ics)» tugmasini bosing va faylni oching. iPhone’da tadbirlar «Kalendar» ilovasiga, Android’da Google Kalendar’ga qo‘shiladi."],
+        ["Yaqinlar xatlarini nima uchun yig‘ish kerak?", "Ular kitobni shaxsiy sovg‘adan butun oiladan sovg‘aga aylantiradi. Xat telefondan havola orqali yoziladi, ro‘yxatdan o‘tish shart emas, matnni esa bosmadan oldin siz tekshirasiz."],
+      ],
+      cta: { title: "Hoziroq boshlang", text: "Rejaning birinchi qadami — kitobni boshlash. Yozish bepul va o‘z tezligingizda, buyurtma esa hammasi tayyor bo‘lgandagina kerak." },
+    },
   },
 };
 
@@ -320,6 +428,42 @@ export const shezhire: ToolDef = {
         ["Менің деректерім сақтала ма?", "Тек браузеріңізде, осы құрылғыда. Біз серверге ештеңе жібермейміз. Шежіреңізді жоғалтпау үшін парақты басып шығарыңыз немесе мәтін ретінде көшіріңіз."],
       ],
       cta: { title: "Руыңыздың әңгімелерін кітапта сақтаңыз", text: "Өмір туралы кітап — ру, балалық және отбасы туралы сұрақтар мен ескі суреттеріңіз. Жазу тегін." },
+    },
+    uz: {
+      label: "Shajara: yetti avlodgacha nasab",
+      h1: "Shajara va yetti ota:",
+      accent: "yettinchi avlodgacha nasabnoma",
+      metaTitle: "Shajara onlayn: yetti avlodgacha nasab — tuzish va chop etish",
+      metaDescription: "Shajara tuzing: ota va ona tomondan ajdodlarni yettinchi avlodgacha kiriting, nasab daraxtini ko‘ring va varaqni chop eting. Ma’lumotlar faqat brauzerda. Bepul.",
+      teaser: "Ajdodlarni yettinchi avlodgacha kiriting, nasab daraxti va chop etish uchun varaq oling.",
+      lead: "Yetti avlod ajdodni bilish — qadimiy qozoq an’anasi. Otangiz, bobongiz, buvangiz va undan keyingilarning ismlarini ota va ona tomondan kiriting. Biz nasabnomani tuzamiz, yetishmayotganini kimdan so‘rashni aytamiz va varaqni chop etishingiz mumkin. Ma’lumotlar brauzeringizda qoladi.",
+      sections: [
+        {
+          heading: "Yetti ota nima",
+          paragraphs: [
+            "Yetti ota — erkaklar chizig‘i bo‘yicha ajdodlarni yettinchi avlodgacha: ota, bobo, katta bobo va undan keyingilarni eslab qolish an’anasi. Qadimiy odatga ko‘ra, qozoqlar yettinchi avlodgacha qarindosh bo‘lganlar bilan nikohlanmagan, shuning uchun nasabni bilish amaliy zarurat edi.",
+            "Urug‘lar va avlodlar bo‘yicha yozilgan nasabnoma shajara deb ataladi. U faqat ota chizig‘ini emas, ko‘plab oilalar ona tomondagi ajdodlarni — nog‘ashi urug‘ini ham eslab qoladi.",
+          ],
+        },
+        {
+          heading: "Nasabnomani qanday yig‘ish mumkin",
+          paragraphs: [
+            "O‘zingiz biladigan narsadan boshlang: ota, bobo. Keyin katta qarindoshlardan so‘rang — bobongizning aka-ukalari va opa-singillaridan, urug‘ oqsoqollaridan. Ismlarni, hayot yillarini va odam qayerlik ekanini yozib boring: bu ismdoshlarni adashtirmaslikka yordam beradi.",
+            "Chuqur avlodlar uchun urug‘ shajarasini, oilaviy hujjatlarni, tuman arxivlarini qidiring. Yettinchi avlod noma’lum qolsa, bu tabiiy: ko‘pchilik oilalar uch-to‘rt avlodni biladi.",
+          ],
+        },
+        {
+          heading: "Nasabnoma bilan keyin nima qilish kerak",
+          paragraphs: ["Chop etish uchun varaqni ramkaga solib osib qo‘yish yoki yaqinlarga tarqatish mumkin. Faqat ismlarni emas, ajdodlar hikoyalarini ham saqlagingiz kelsa, ularni kitobga yig‘ing: «Mening ildizlarim» bobida urug‘ haqida, oila qayerdan kelgani va kattalar eslaydigan insonlar haqida hikoya qilasiz."],
+        },
+      ],
+      faq: [
+        ["Yetti ota nima?", "Bu otalik chizig‘i bo‘yicha yetti avlod ajdodni bilish an’anasi: ota, bobo, katta bobo va undan keyin yettinchi avlodgacha. U qozoq oilalarida urug‘ xotirasi sifatida saqlanib qolgan."],
+        ["Shajara nima?", "Shajara — urug‘lar va avlodlar bo‘yicha yozilgan nasabnoma. Og‘zaki va yozma bo‘ladi. O‘z oilaviy shajarangizni mustaqil tuzish mumkin: ismlar, hayot yillari va joy yetarli."],
+        ["Yettinchi avlodgacha ajdodlarni qanday bilsa bo‘ladi?", "Katta qarindoshlardan so‘rash va oilaviy hujjatlardan boshlang, so‘ng urug‘ oqsoqollariga va tuman arxivlariga murojaat qiling. Uzoq avlodlar uchun ko‘pincha urug‘ shajaralari kerak bo‘ladi."],
+        ["Ma’lumotlarim saqlanadimi?", "Faqat brauzeringizda, shu qurilmada. Biz hech narsani serverga yubormaymiz. Nasabnomani yo‘qotmaslik uchun varaqni chop eting yoki matn qilib nusxalab oling."],
+      ],
+      cta: { title: "Urug‘ingiz hikoyalarini kitobda saqlang", text: "Hayot haqidagi kitob — urug‘, bolalik va oila haqidagi savollar hamda eski suratlaringiz. Yozish bepul." },
     },
   },
 };

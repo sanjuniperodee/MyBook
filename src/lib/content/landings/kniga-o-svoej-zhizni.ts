@@ -45,5 +45,24 @@ export const knigaOSvoejZhizni: Landing = {
         ["Мұндай кітапты сыйға беруге бола ма?", "Иә. Ата-анаңызға немесе әжеңізге сертификат сыйлаңыз — олар «Өмірбаянды» өздері таңдап, өмір тарихын айтады."],
       ],
     },
+    uz: {
+      label: "O‘z hayotim haqida kitob",
+      h1: "Hayotingiz haqida kitob —",
+      accent: "farzandlaringiz va nevaralaringiz uchun",
+      metaTitle: "O‘z hayotingiz haqida kitob yozish — savollar bilan tarjimai hol",
+      metaDescription: "Tarjimai holni tayyor savollar bilan yozing: ildizlar, bolalik, sevgi, mehnat, hayot saboqlari. Yaqiningiz yozib olishi mumkin. Maket, suratlar, qattiq muqova.",
+      lead: "Naslingiz qayerdan, bolaligingiz qanday o‘tdi, sevgan insoningiz bilan qanday uchrashdingiz va hayot sizga nimani o‘rgatdi — savollar nimadan boshlashni aytadi, qolganini biz haqiqiy nashrdek maketlab beramiz.",
+      why: [
+        { title: "Oq varaq o‘rniga savollar", text: "Maslahatli o‘nlab savollar: «qayerda tug‘ilgansiz»dan «farzandlaringizga nima demoqchisiz»gacha. Xohlagan tartibda javob bering." },
+        { title: "Ovoz chiqarib aytsa ham bo‘ladi", text: "Yozish qiyin bo‘lsa, yaqiningiz savol bersin va javoblaringizni yozib borsin. Uning ismi titul varag‘ining orqa tomonida ko‘rsatiladi." },
+        { title: "Oilaga yodgorlik", text: "Albomdagi suratlar, yaqinlarning xatlari alohida bob bo‘lib va qattiq muqova — qo‘ldan qo‘lga o‘tadigan kitob." },
+      ],
+      cover: { title: "Hayotim tarixi", names: "Baqit Axmetov" },
+      faq: [
+        ["Yozishni bilish kerakmi?", "Yo‘q. Nevaralaringizga kechqurun aytib berayotgandek yozing. Sarlavhalar va maketni biz o‘z zimmamizga olamiz, savollar esa nimani eslash kerakligini aytadi."],
+        ["Kitobni ota-onam yoki buvimning aytganlari bo‘yicha yozsa bo‘ladimi?", "Ha. Kitob muallifi — hikoyachi, yozib borayotgan odam esa titul varag‘ining orqa tomonida ko‘rsatiladi. Javoblarni suhbat paytida telefonda terish mumkin."],
+        ["Bunday kitobni sovg‘a qilsa bo‘ladimi?", "Ota-onangiz yoki buvingizga sertifikat hadya qiling — ular «Tarjimai hol»ni o‘zlari tanlab, hayot tarixini aytib beradi."],
+      ],
+    },
   },
 };

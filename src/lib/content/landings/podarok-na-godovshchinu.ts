@@ -44,5 +44,23 @@ export const podarokNaGodovshchinu: Landing = {
         ["Ашықхат салуға бола ма?", "Иә, тапсырыс бергенде мәтінін жазыңыз — ашықхатты басып, қаптамаға саламыз."],
       ],
     },
+    uz: {
+      label: "Yilligiga sovg‘a",
+      h1: "Yilligingizga sovg‘a:",
+      accent: "birga o‘tgan yillaringiz haqida kitob",
+      metaTitle: "Munosabat yoki to‘y yilligiga sovg‘a — juftligingiz haqida kitob",
+      metaDescription: "Yilligiga nima sovg‘a qilish mumkin? Tarixingiz haqidagi kitobni: tanishuvdan bugungi kungacha. Savollar, suratlar, bosma va sanagacha yetkazib berish.",
+      lead: "Bir yil, besh yoki yigirma yil — har bir juftlikda saqlashga arziydigan voqealar to‘planib qolgan. Ularni yozing, biz esa sanangizga kitobni maketlab, bosib beramiz.",
+      why: [
+        { title: "Sanaga ulguradi", text: "Yillik sanasini ko‘rsating — buyurtmani qachon berish kerakligini aytamiz va oldindan eslatamiz." },
+        { title: "Qog‘oz, paxta, kumush to‘y", text: "Kitob har qanday yillikka mos: qog‘oz, muqova, suratlar — va sizning so‘zlaringiz." },
+        { title: "Aniq maket oldindan", text: "To‘lovdan oldin butun kitobning PDF nusxasini varaqlaysiz — u aynan shunday bosiladi." },
+      ],
+      cover: { title: "Besh yillik sevgi", names: "Sasha & Nika" },
+      faq: [
+        ["Ulgurish uchun qancha vaqt kerak?", "Yozish — bir necha oqshomdan. Ishlab chiqarish — 5–7 ish kuni (Premium — 3–4), kuryer bilan yetkazib berish — 1–2 kun."],
+        ["Tabrik kartasini solish mumkinmi?", "Ha, buyurtma paytida matnini yozing — biz tabrik kartasini bosib, qadoqqa solamiz."],
+      ],
+    },
   },
 };

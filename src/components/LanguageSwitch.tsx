@@ -3,12 +3,12 @@
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Globe } from "lucide-react";
-import { localeMeta, localizePath, splitLocale, type Locale } from "@/i18n/config";
+import { hasLocalePath, localeMeta, localizePath, locales, splitLocale, type Locale } from "@/i18n/config";
 import { useLocale } from "@/i18n/client";
 import { cn } from "@/lib/class-names";
 
 /**
- * Переключатель «Рус / Қаз». Запоминает выбор (cookie + профиль) и открывает эту же страницу на другом языке.
+ * Переключатель «Рус / Қаз / Oʻz» (узбекский — только на страницах клиента). Запоминает выбор (cookie + профиль) и открывает эту же страницу на другом языке.
  * Полная навигация, а не клиентская: серверные компоненты и метаданные перерисуются на новом языке.
  * Это настоящие ссылки с hreflang: поисковик видит вторую языковую версию и без JavaScript.
  */
@@ -30,11 +30,11 @@ export function LanguageSwitch({ className, tone = "light" }: { className?: stri
   return (
     <div
       role="group"
-      aria-label="Тіл / Язык"
+      aria-label="Тіл / Язык / Til"
       className={cn("inline-flex items-center rounded-full p-0.5 text-xs font-medium", tone === "dark" ? "bg-white/10" : "bg-ink/[.05]", className)}
     >
       <Globe className={cn("mx-1.5 size-3.5", tone === "dark" ? "text-white/60" : "text-muted")} aria-hidden />
-      {(["ru", "kk"] as const).map((l) => (
+      {locales.filter((l) => hasLocalePath(path, l)).map((l) => (
         <a
           key={l}
           href={hrefOf(l)}

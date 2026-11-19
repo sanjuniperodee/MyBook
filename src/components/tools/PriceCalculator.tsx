@@ -1,5 +1,6 @@
 "use client";
 
+import { toPublic } from "@/i18n/config";
 import { useState } from "react";
 import { Check, Minus, Plus } from "lucide-react";
 import { Link, useLocale } from "@/i18n/client";
@@ -12,7 +13,7 @@ const money = (v: number, sign: string) => `${new Intl.NumberFormat("ru-RU").for
 
 /** Калькулятор цены: тарифы и допы приходят с сервера вместе с ценами из админки. Итог — квитанцией справа. */
 export function PriceCalculator({ plans, addons, sign, ctaHref }: { plans: PricePlan[]; addons: PriceAddon[]; sign: string; ctaHref: string }) {
-  const ui = toolUi[useLocale()].price;
+  const ui = toolUi[toPublic(useLocale())].price;
   const [planId, setPlanId] = useState(plans.find((p) => p.printed)?.id ?? plans[0].id);
   const [copies, setCopies] = useState(1);
   const [chosen, setChosen] = useState<string[]>([]);

@@ -1,5 +1,6 @@
 "use client";
 
+import { toPublic } from "@/i18n/config";
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { CalendarDays, Plus, Trash2, X } from "lucide-react";
 import { useLocale } from "@/i18n/client";
@@ -16,8 +17,8 @@ const store = createLocalStore(STORAGE_KEY_FAMILY);
 /** Семейный календарь: близкие, их дни рождения и мүшел, файл календаря с напоминаниями. Список хранится в браузере. */
 export function FamilyCalendar() {
   const locale = useLocale();
-  const ui = usefulUi2[locale].family;
-  const ui2 = usefulUi2[locale].mushel;
+  const ui = usefulUi2[toPublic(locale)].family;
+  const ui2 = usefulUi2[toPublic(locale)].mushel;
   const fmt = dateFor(locale);
   const raw = useSyncExternalStore(store.subscribe, store.read, () => null);
   const people = useMemo(() => parsePeople(raw), [raw]);

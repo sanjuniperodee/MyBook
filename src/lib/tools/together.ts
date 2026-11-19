@@ -3,6 +3,7 @@
  * Чистые функции без обращений к базе и к часам — ими пользуются страница, компонент и тесты.
  */
 import type { Locale } from "@/i18n/config";
+import { toPublic } from "@/i18n/config";
 
 const DAY = 86_400_000;
 
@@ -97,38 +98,38 @@ export function milestones(start: Date, now: Date, past = 2, next = 5): Mileston
 }
 
 /** Названия годовщин свадьбы. Для лет без названия (16, 17, 21…) считается «ближайшая прошедшая». */
-export const weddingAnniversaries: { year: number; ru: string; kk: string }[] = [
-  { year: 1, ru: "Ситцевая", kk: "Бөз" },
-  { year: 2, ru: "Бумажная", kk: "Қағаз" },
-  { year: 3, ru: "Кожаная", kk: "Былғары" },
-  { year: 4, ru: "Льняная", kk: "Зығыр" },
-  { year: 5, ru: "Деревянная", kk: "Ағаш" },
-  { year: 6, ru: "Чугунная", kk: "Шойын" },
-  { year: 7, ru: "Медная", kk: "Мыс" },
-  { year: 8, ru: "Жестяная", kk: "Қаңылтыр" },
-  { year: 9, ru: "Фаянсовая", kk: "Фаянс" },
-  { year: 10, ru: "Оловянная (розовая)", kk: "Қалайы" },
-  { year: 11, ru: "Стальная", kk: "Болат" },
-  { year: 12, ru: "Никелевая", kk: "Никель" },
-  { year: 13, ru: "Кружевная", kk: "Шілтер" },
-  { year: 14, ru: "Агатовая", kk: "Ақық" },
-  { year: 15, ru: "Хрустальная", kk: "Биллур" },
-  { year: 20, ru: "Фарфоровая", kk: "Фарфор" },
-  { year: 25, ru: "Серебряная", kk: "Күміс" },
-  { year: 30, ru: "Жемчужная", kk: "Інжу" },
-  { year: 35, ru: "Коралловая", kk: "Маржан" },
-  { year: 40, ru: "Рубиновая", kk: "Лағыл" },
-  { year: 45, ru: "Сапфировая", kk: "Сапфир" },
-  { year: 50, ru: "Золотая", kk: "Алтын" },
-  { year: 55, ru: "Изумрудная", kk: "Изумруд" },
-  { year: 60, ru: "Бриллиантовая", kk: "Гауһар" },
+export const weddingAnniversaries: { year: number; ru: string; kk: string; uz: string }[] = [
+  { year: 1, ru: "Ситцевая", kk: "Бөз", uz: "Chit" },
+  { year: 2, ru: "Бумажная", kk: "Қағаз", uz: "Qog‘oz" },
+  { year: 3, ru: "Кожаная", kk: "Былғары", uz: "Teri" },
+  { year: 4, ru: "Льняная", kk: "Зығыр", uz: "Zig‘ir" },
+  { year: 5, ru: "Деревянная", kk: "Ағаш", uz: "Yog‘och" },
+  { year: 6, ru: "Чугунная", kk: "Шойын", uz: "Cho‘yan" },
+  { year: 7, ru: "Медная", kk: "Мыс", uz: "Mis" },
+  { year: 8, ru: "Жестяная", kk: "Қаңылтыр", uz: "Tunuka" },
+  { year: 9, ru: "Фаянсовая", kk: "Фаянс", uz: "Fayans" },
+  { year: 10, ru: "Оловянная (розовая)", kk: "Қалайы", uz: "Qalay (pushti)" },
+  { year: 11, ru: "Стальная", kk: "Болат", uz: "Po‘lat" },
+  { year: 12, ru: "Никелевая", kk: "Никель", uz: "Nikel" },
+  { year: 13, ru: "Кружевная", kk: "Шілтер", uz: "Dantelali" },
+  { year: 14, ru: "Агатовая", kk: "Ақық", uz: "Oqiq" },
+  { year: 15, ru: "Хрустальная", kk: "Биллур", uz: "Billur" },
+  { year: 20, ru: "Фарфоровая", kk: "Фарфор", uz: "Chinni" },
+  { year: 25, ru: "Серебряная", kk: "Күміс", uz: "Kumush" },
+  { year: 30, ru: "Жемчужная", kk: "Інжу", uz: "Injuli" },
+  { year: 35, ru: "Коралловая", kk: "Маржан", uz: "Marjon" },
+  { year: 40, ru: "Рубиновая", kk: "Лағыл", uz: "Yoqut" },
+  { year: 45, ru: "Сапфировая", kk: "Сапфир", uz: "Safir" },
+  { year: 50, ru: "Золотая", kk: "Алтын", uz: "Oltin" },
+  { year: 55, ru: "Изумрудная", kk: "Изумруд", uz: "Zumrad" },
+  { year: 60, ru: "Бриллиантовая", kk: "Гауһар", uz: "Brilliant" },
 ];
 
 export function weddingName(year: number, locale: Locale): string | null {
-  return weddingAnniversaries.find((a) => a.year === year)?.[locale] ?? null;
+  return weddingAnniversaries.find((a) => a.year === year)?.[toPublic(locale)] ?? null;
 }
 
 /** Ближайшая годовщина с названием, не раньше `fromYear` (для строки «следующая именная — …»). */
-export function nextNamedAnniversary(fromYear: number): { year: number; ru: string; kk: string } | null {
+export function nextNamedAnniversary(fromYear: number): { year: number; ru: string; kk: string; uz: string } | null {
   return weddingAnniversaries.find((a) => a.year >= fromYear) ?? null;
 }

@@ -1,3 +1,4 @@
+import { type Locale } from "@/i18n/config";
 import type { NoteKind, Task, TaskKind } from "../domain";
 
 /** CRM-профиль клиента (поверх учётной записи сайта). */
@@ -11,7 +12,7 @@ export interface ClientProfile {
   source: Record<string, string> | null;
   customFields: Record<string, string | number | boolean | null>;
   /** Язык клиента на сайте: казахскому — текст на казахском. */
-  locale?: "ru" | "kk";
+  locale?: Locale;
 }
 
 export interface ClientRepository {

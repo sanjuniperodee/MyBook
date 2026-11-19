@@ -46,5 +46,24 @@ export const podarokUchitelyuNaDenUchitelya: Landing = {
         ["Мұғалім қатал болса, кітап лайық па?", "Лайық. Сұрақтардың арасында «рақмет айтатын қатаңдық» бар: оқушылар талапшылдықтың өмірде қалай көмектескенін еске алады."],
       ],
     },
+    uz: {
+      label: "Ustozga Ustozlar kuniga sovg‘a",
+      h1: "Ustozlar kuniga ustozga sovg‘a —",
+      accent: "sinfdan minnatdorchilik kitobi",
+      metaTitle: "Ustozlar kuniga ustozga nima sovg‘a qilish kerak — butun sinfdan kitob",
+      metaDescription: "Ustozlar kuniga sovg‘a: sinfdan darslar, maktab hikoyalari, minnatdorchilik va o‘quvchilar xatlari bilan kitob. Suratlar, qattiq muqova, yetkazib berish.",
+      lead: "Gul so‘liydi, so‘z qoladi. Butun sinfni bitta kitobga jamlang: yodda qolgan darslar, hamma bilgan gaplar va ustozga ovoz chiqarib aytgingiz keladigan, ammo yilda bir martagina aytishga ulguradigan hamma narsa.",
+      why: [
+        { title: "Butun sinfdan bitta sovg‘a", text: "O‘quvchilar va ota-onalarga havolani tarqating: telefondan va ro‘yxatdan o‘tmasdan yozish mumkin. Barcha xatlar kitobga alohida bob bo‘lib kiradi, ularni bosishdan oldin o‘zingiz tekshirasiz." },
+        { title: "Umumiy so‘zlar emas, darslar haqida savollar", text: "Birinchi dars, butun sinf bilgan gaplar, eng kulgili voqea, keyinchalik hayotda asqotgan maslahat. Haqiqiy minnatdorchilik shunday mayda-chuyda narsalardan tuziladi." },
+        { title: "Buyum o‘rniga so‘z", text: "Ustozga yana bitta guldon deyarli kerak emas. O‘quvchilari undan nimani o‘rganganini yozgan kitob uzoq vaqt u bilan qoladi, uni qayta o‘qish ham yoqimli." },
+      ],
+      cover: { title: "Rahmat sizga, ustoz", names: "9 «A» sinfdan" },
+      faq: [
+        ["Kitobni butun sinf bilan qilsa bo‘ladimi?", "Ha. Bir kishi, masalan sinf sardori yoki ota-onalar qo‘mitasi, kitob yaratib savollarga javob beradi, qolganlari havola orqali xat yozadi. So‘zboshida kitob kimdan ekanini yozasiz."],
+        ["Bayramga qanday kechikmaslik mumkin?", "Munosabat va bayram sanasini ko‘rsating: buyurtmani qaysi kungacha berish yaxshiligini aytamiz. Elektron nusxani to‘lovdan keyin darrov olasiz, bosma nusxani bir necha ish kunida tayyorlaymiz."],
+        ["Ustoz qattiqqo‘l bo‘lsa, kitob mos keladimi?", "Mos keladi. Savollar orasida «rahmat aytadigan qattiqqo‘llik» ham bor: o‘quvchilar talabchanlik hayotda qanday yordam bergani haqida eslaydi."],
+      ],
+    },
   },
 };

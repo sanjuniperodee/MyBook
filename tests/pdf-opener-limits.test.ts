@@ -31,7 +31,7 @@ function asBlank({ bundle }: FixtureBook, title: (lang: "ru" | "kk") => string, 
   return {
     ...bundle,
     book: { ...bundle.book, theme: "blank", title: "", recipientName: "" },
-    chapters: names.map((key, position) => ({ id: `00000000-0000-0000-0000-00000000010${position}`, bookId: bundle.book.id, key, position, title: title(lang), epigraph: epigraph(lang), createdAt: now, updatedAt: now })),
+    chapters: names.map((key, position) => ({ id: `00000000-0000-0000-0000-00000000010${position}`, bookId: bundle.book.id, key, position, title: title(lang === "kk" ? "kk" : "ru"), epigraph: epigraph(lang === "kk" ? "kk" : "ru"), createdAt: now, updatedAt: now })),
     questions: bundle.questions.map((q) => ({ ...q, questionKey: "custom", displayText: null })),
   };
 }

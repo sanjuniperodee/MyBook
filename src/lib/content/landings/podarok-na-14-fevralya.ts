@@ -38,5 +38,22 @@ export const podarokNa14Fevralya: Landing = {
       cover: { title: "Менің махаббатым", names: "Ерлан & Әсел" },
       faq: [["Кешігіп жатсам ше?", "Электрондық кітапқа тапсырыс беріңіз — PDF төлемнен кейін бірден қолжетімді, оны сол күні сыйлауға болады, ал басылған кітапты кейін тапсырыс беруге болады."]],
     },
+    uz: {
+      label: "14-fevralga sovg‘a",
+      h1: "14-fevralga sovg‘a,",
+      accent: "umrbod yodda qoladigan",
+      metaTitle: "14-fevralga nima sovg‘a qilish mumkin — sevgingiz haqida kitob",
+      metaDescription: "Sevishganlar kuniga original sovg‘a: juftligingiz haqida shaxsiy kitob. Savollar, suratlar, qattiq muqovada bosma va 14-fevralgacha yetkazib berish.",
+      lead: "Yumshoq ayiqcha o‘rniga — hammasi qanday boshlangani va nega birga ekaningizni so‘zlab beradigan kitob. Uni bayramdan keyin tashlab yuborishmaydi.",
+      why: [
+        { title: "Muddatlarni eslatamiz", text: "Munosabatni ko‘rsating — kitob 14-fevralgacha yetib kelishi uchun qaysi kungacha buyurtma berish kerakligini ko‘rsatamiz." },
+        { title: "Vaqt kam qolgan bo‘lsa ham", text: "Elektron nusxa to‘lovdan keyin darhol tayyor bo‘ladi, «Premium» tarifi esa navbatsiz bosiladi." },
+        { title: "Yigit uchun ham, qiz uchun ham", text: "Savollar kim uchun yozayotganingizga moslashadi — sevgan yigitingiz uchun ham, qizingiz uchun ham tabiiy eshitiladi." },
+      ],
+      cover: { title: "Mening sevgim", names: "Erlan & Asel" },
+      faq: [
+        ["Agar kech qolgan bo‘lsam-chi?", "Elektron kitob buyurtma qiling — PDF to‘lovdan keyin darhol tayyor bo‘ladi, uni o‘sha kuni sovg‘a qilish mumkin, bosma nusxasini esa keyinroq buyurtma qilasiz."],
+      ],
+    },
   },
 };

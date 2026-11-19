@@ -70,5 +70,37 @@ export const uspetKDate: ToolDef = {
       ],
       cta: { title: "Кітапты бүгін бастаңыз", text: "Жазу тегін және өз қарқыныңызбен: сұрақтарға телефоннан немесе дауыспен жауап беріңіз. Кітап дайын болғанда тапсырыс беріңіз." },
     },
+    uz: {
+      label: "Bayramga ulgurish",
+      h1: "Bayramga ulgurish:",
+      accent: "kitobga qaysi kungacha buyurtma berish kerak",
+      metaTitle: "Bayramga ulgurish uchun sovg‘a kitobga qachon buyurtma berish kerak",
+      metaDescription: "Bayram sanasi va yetkazib berish usulini ko‘rsating — bosma sovg‘a kitobga qaysi kungacha buyurtma berishni aytamiz. 14 fevral, 8 mart va Yangi yil kalendari.",
+      teaser: "Istalgan sanaga bosma kitob buyurtmasining oxirgi kuni va asosiy bayramlar kalendari.",
+      lead: "Bosma kitob bir necha ish kunida tayyorlanadi va yana sizga yetib keladi. Topshirish sanasini ko‘rsating — kalkulyator buyurtmaning oxirgi kunini ko‘rsatadi va vaqt kam bo‘lsa, nima qilishni aytadi.",
+      sections: [
+        {
+          heading: "Muddat nimalardan tashkil topadi",
+          paragraphs: [
+            "Muddat uch qismdan iborat: savollarga javob berib, suratlarni tanlash uchun sizga kerak bo‘ladigan vaqt, bosma kitobni tayyorlash (5–7 ish kuni, tezkor bosma bilan — 3–4 kun) va yetkazib berish. Kalkulyator tayyorlash, yetkazib berish va bosishdan oldin maketni tekshirish uchun bir kun zaxirani hisoblaydi.",
+            "Matnning o‘ziga ketadigan vaqt hisobga kirmaydi: qanchalik erta boshlasangiz, shunchalik xotirjam bo‘ladi. Yaxshi kitob uchun 30–40 ta mazmunli javob yetarli, ularni bir necha kechada to‘plash oson, yaqinlar xatlari esa havola orqali parallel yig‘iladi.",
+          ],
+        },
+        {
+          heading: "Vaqt kam bo‘lsa, nima qilish kerak",
+          paragraphs: [
+            "Bosma kitob sanaga ulgurmasa, elektron nusxa qoladi: yuqori sifatli PDF-ni to‘lovdan keyin darhol olasiz va kerakli kuni sovg‘a qilasiz — masalan, ekranda ko‘rsatib yoki messenjerda yuborib. Bosma nusxani biroz keyinroq topshirish mumkin, bu ham yoqimli bahona.",
+            "Bosma kerak, lekin odatiy muddat endi to‘g‘ri kelmasa, tezkor bosmani yoqing: kitob navbatsiz 3–4 ish kunida bosiladi.",
+          ],
+        },
+      ],
+      faq: [
+        ["Sovg‘a kitobga necha kun oldin buyurtma berish kerak?", "Sanadan 2–3 hafta oldin yaxshiroq: javoblar va suratlar uchun vaqt, so‘ng tayyorlash uchun 5–7 ish kuni va yetkazib berish. Tezkor bosma bilan tezroq ulgurish mumkin, lekin zaxira doim ishonchliroq."],
+        ["Bayramgacha bir haftadan kam qolgan bo‘lsa, nima qilish kerak?", "Elektron nusxani rasmiylashtiring — u to‘lovdan keyin darhol keladi. Bosma kitobga parallel buyurtma berib, bayramdan keyin topshirish mumkin."],
+        ["Yetkazib berish qancha turadi va qancha vaqt oladi?", "Studiyadan o‘zingiz olib ketsangiz, bepul. Shahar bo‘ylab kuryer bosmadan keyin 1–2 kun oladi, Qozog‘iston bo‘ylab CDEK yoki Kazpochta orqali — 3–7 kun. Yetkazib berish narxini menejer alohida aytadi."],
+        ["Bosma kitob ulgurmasa, kitobni bayram kuni sovg‘a qilish mumkinmi?", "Ha. Elektron nusxa to‘lovdan keyin darhol tayyor bo‘ladi, uni kerakli kuni sovg‘a qilib, bosmasini keyinroq topshirish mumkin."],
+      ],
+      cta: { title: "Kitobni bugun boshlang", text: "Yozish bepul va o‘z tezligingizda: savollarga telefondan yoki ovoz bilan javob bering. Kitob tayyor bo‘lganda buyurtma bering." },
+    },
   },
 };

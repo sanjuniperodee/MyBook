@@ -1,4 +1,5 @@
 import { Link } from "@/i18n/client";
+import { toPublic } from "@/i18n/config";
 import { CoverPreview } from "@/components/cover/CoverPreview";
 import { countQuestions, getTheme, giftThemes } from "@/lib/content/themes";
 import { getLanding, landings, type Landing } from "@/lib/content/landings";
@@ -111,7 +112,7 @@ export async function ThemeCollage({ themeHref, className }: { themeHref: (id: s
             {links.map((l) => (
               <li key={l.slug}>
                 <Link href={`/kniga/${l.slug}`} className="inline-flex min-h-8 items-center text-ink-soft underline decoration-line-strong underline-offset-4 hover:text-wine hover:decoration-wine">
-                  {l.content[locale].label}
+                  {l.content[toPublic(locale)].label}
                 </Link>
               </li>
             ))}

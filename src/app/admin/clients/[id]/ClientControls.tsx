@@ -1,5 +1,6 @@
 "use client";
 
+import { type Locale } from "@/i18n/config";
 import { useActionState, useState, useTransition } from "react";
 import { CustomFieldInputs, type FieldDef } from "@/components/admin/CustomFields";
 import type { CustomFieldValues } from "@/shared/domain/customFields";
@@ -96,7 +97,7 @@ export function ClientManager({ clientId, value, options, disabled }: { clientId
  * они показаны подписью «по меткам», и выбор канала заменяет их для отчётов.
  */
 /** Язык кабинета и писем клиента: меняется сразу, при ошибке возвращается прежний. */
-export function ClientLocale({ clientId, value }: { clientId: string; value: "ru" | "kk" }) {
+export function ClientLocale({ clientId, value }: { clientId: string; value: Locale }) {
   const [pending, start] = useTransition();
   const [current, setCurrent] = useState(value);
   return (
@@ -107,7 +108,7 @@ export function ClientLocale({ clientId, value }: { clientId: string; value: "ru
       aria-label="Язык кабинета и писем"
       data-testid="client-locale-select"
       onChange={(e) => {
-        const next = e.target.value as "ru" | "kk";
+        const next = e.target.value as Locale;
         const prev = current;
         setCurrent(next);
         start(async () => {
@@ -122,6 +123,7 @@ export function ClientLocale({ clientId, value }: { clientId: string; value: "ru
     >
       <option value="ru">русский</option>
       <option value="kk">казахский</option>
+      <option value="uz">узбекский</option>
     </select>
   );
 }

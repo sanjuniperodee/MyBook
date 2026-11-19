@@ -175,7 +175,7 @@ export const dealInvoices = pgTable(
     /** Номер WhatsApp-чата (цифры) — подтверждённый телефон плательщика: по нему находится или заводится аккаунт. */
     phone: text("phone"),
     clientName: text("client_name").notNull().default(""),
-    locale: text("locale", { enum: ["ru", "kk"] }).notNull().default("ru"),
+    locale: text("locale", { enum: ["ru", "kk", "uz"] }).notNull().default("ru"),
     /** Откуда пришёл клиент (канал продаж) — в профиль заведённого клиента. */
     channel: text("channel").notNull().default(""),
     plan: text("plan").notNull(),

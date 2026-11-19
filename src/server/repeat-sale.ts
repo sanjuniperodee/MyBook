@@ -1,3 +1,4 @@
+import { type Locale } from "@/i18n/config";
 import "server-only";
 import { container } from "@/server/container";
 import { draftNote, fillTemplate } from "@/shared/domain/templates";
@@ -25,7 +26,7 @@ export interface RepeatSaleResult {
 
 /** Порты ручной добивки — для теста без базы. */
 export interface RepeatSaleDeps {
-  client(id: string): Promise<{ id: string; name: string; email: string; phone: string | null; managerId: string | null; locale?: "ru" | "kk" } | null>;
+  client(id: string): Promise<{ id: string; name: string; email: string; phone: string | null; managerId: string | null; locale?: Locale } | null>;
   noMarketing(phone: string | null): Promise<boolean>;
   hasOpenDeal(clientId: string): Promise<boolean>;
   createDeal(input: { title: string; clientId: string; contactName: string; contactPhone: string | null; contactEmail: string; assigneeId: string | null }): Promise<{ id: string; assigneeId: string | null }>;

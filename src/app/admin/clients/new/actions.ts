@@ -1,5 +1,6 @@
 "use server";
 
+import { locales, localizePath } from "@/i18n/config";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { uuid } from "@/server/input";
@@ -57,7 +58,7 @@ const schema = z.object({
   name: z.string().trim().min(1, "Укажите имя клиента").max(100),
   phone: z.string().trim().min(1, "Укажите телефон клиента").max(40),
   email: z.union([z.literal(""), z.string().trim().email("Проверьте адрес почты").max(200)]).default(""),
-  locale: z.enum(["ru", "kk"]).default("ru"),
+  locale: z.enum(locales).default("ru"),
   password: z.union([z.literal(""), z.string().min(8, "Пароль — минимум 8 символов").max(200)]).default(""),
   city: z.string().trim().max(80).default(""),
   createDeal: z.string().optional(),
@@ -135,7 +136,7 @@ export async function createClientAction(_: NewClientState, form: FormData): Pro
   if (withDeal && plan) await auditDiscount(staff, { entity: "client", id: account.id }, { plan: plan.id, listPrice: plan.price, price: d.agreed, percent: DiscountPolicy.percent(plan.price, d.agreed) }, limit, "client", { deals: parts.map((p) => p.dealNumber) });
   revalidatePath("/admin/clients");
   revalidatePath("/admin/deals");
-  const loginUrl = `${env.appUrl}${d.locale === "kk" ? "/kk" : ""}/login`;
+  const loginUrl = `${env.appUrl}${localizePath("/login", d.locale)}`;
   return {
     done: {
       clientId: account.id,
@@ -170,7 +171,7 @@ export async function issueClientAccessAction(clientId: string): Promise<{ error
   try {
     const r = await container().identity.accounts.issueClientPassword(id.data, password);
     await audit(staff, "client.access", "client", id.data);
-    const loginUrl = `${env.appUrl}${r.locale === "kk" ? "/kk" : ""}/login`;
+    const loginUrl = `${env.appUrl}${localizePath("/login", r.locale)}`;
     const full = can(staff, "clients.contacts");
     return { loginText: staffLogin(r.login, full), password, message: accessMessage({ name: r.name, login: r.login, password, loginUrl, locale: r.locale, hideLogin: !full }) };
   } catch (err) {

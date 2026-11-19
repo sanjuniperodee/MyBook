@@ -48,5 +48,24 @@ export const podarokDedushke: Landing = {
         ["Мереке әлі алыс болса немесе әңгіме жазылмаған болса, қалай сыйлауға болады?", "Сертификат сыйлаңыз: ата «Өмірбаянды» өзі таңдайды. Дайын кітаптың электрондық нұсқасын төлемнен кейін бірден аласыз, басылған данасын бірнеше жұмыс күнінде жасаймыз."],
       ],
     },
+    uz: {
+      label: "Boboga sovg‘a",
+      h1: "Boboga sovg‘a —",
+      accent: "nevara va chevaralar uchun taqdir kitobi",
+      metaTitle: "Boboga nima sovg‘a qilish mumkin — hayoti va nasl-nasabi haqida kitob",
+      metaDescription: "Aytadigan gapi ko‘p boboga sovg‘a: bolaligi, mehnati, oilasi va yetti avlodgacha shajarasi. Nevaralar hikoyalarni yozib oladi, biz maketlab bosamiz.",
+      lead: "Bobo ortida mehnat, yo‘l, oila va nevaralar faqat uning hikoyalaridan biladigan butun bir davr turibdi. Uni so‘roqqa tuting, javoblarini yozib oling — bu hikoyalar uyda xotirada emas, qog‘ozda qoladi.",
+      why: [
+        { title: "Ish va nasl-nasab haqida", text: "Bolalik, xizmat, ish, oila va ajdodlar haqida savollar — shajarani yetti avlodgacha yig‘ish mumkin. Boboga «yozish» shart emas: aytsa bas." },
+        { title: "Gaplari uniki, ishtirok sizniki", text: "Kitob muallifi bobo bo‘ladi, yozib borgan sifatida sizning ismingiz esa titul varag‘ining orqa tomonida ko‘rsatiladi. Uning o‘ziga xos so‘zlarini saqlang — kitob uning ovozida jaranglaydi." },
+        { title: "Suratlar, hujjatlar, oila xatlari", text: "Eski suratlar va hujjatlarni telefonda suratga oling, farzandlari va nevaralari esa unga havola orqali xat yozadi — ularni alohida bobga jamlaymiz." },
+      ],
+      cover: { title: "Hayotim va naslim", names: "Yerjan Nurlanov" },
+      faq: [
+        ["Bobo aytadigan gapim yo‘q deydi. Nimadan boshlash kerak?", "Oddiyidan boshlang: qayerda tug‘ilgan, uyda qanday atashgan, bolaligida kim bo‘lishni istagan. Savollar boblar bo‘yicha boradi, odatda dastlabki javoblardan keyin bobo qolganini o‘zi eslaydi."],
+        ["Shajara yig‘sa bo‘ladimi?", "Kitobda «Ildizlarim» bobi bor: nasl, ajdodlar va oilaviy rivoyatlar haqida savollar, shu jumladan yetti avlod haqida. Bobo va keksa qarindoshlar bilganini yozing."],
+        ["Bayram hali uzoq bo‘lsa yoki hikoya yozilmagan bo‘lsa, qanday sovg‘a qilsa bo‘ladi?", "Sertifikat hadya qiling: bobo «Tarjimai hol»ni o‘zi tanlaydi. Tayyor kitobning elektron nusxasini to‘lovdan keyin darhol olasiz, bosma nusxasini bir necha ish kunida tayyorlaymiz."],
+      ],
+    },
   },
 };

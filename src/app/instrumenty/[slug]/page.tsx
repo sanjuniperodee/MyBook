@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { toPublic } from "@/i18n/config";
 import { notFound } from "next/navigation";
 import { Link } from "@/i18n/client";
 import type { ReactNode } from "react";
@@ -50,7 +51,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const tool = getTool((await params).slug);
   if (!tool) return {};
   const locale = await getLocale();
-  const c = tool.content[locale];
+  const c = tool.content[toPublic(locale)];
   const path = `/instrumenty/${tool.slug}`;
   return {
     title: { absolute: `${c.metaTitle} · ${site.name}` },
@@ -64,9 +65,9 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
   const tool = getTool((await params).slug);
   if (!tool) notFound();
   const [user, locale, m] = await Promise.all([getCurrentUser(), getLocale(), getMessages()]);
-  const c = tool.content[locale];
-  const ui = toolUi[locale];
-  const pg = toolsPageUi[locale];
+  const c = tool.content[toPublic(locale)];
+  const ui = toolUi[toPublic(locale)];
+  const pg = toolsPageUi[toPublic(locale)];
   const path = `/instrumenty/${tool.slug}`;
   const url = absoluteUrl(path, locale);
 
@@ -105,7 +106,7 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
             {weddingAnniversaries.map((a) => (
               <li key={a.year} className="flex items-baseline justify-between gap-3 border-b border-line py-3">
                 <span className="font-serif text-xl font-medium text-ink tabular-nums">{ui.together.tableYear(a.year)}</span>
-                <span className="text-right text-ink-soft">{ui.together.tableName(a[locale])}</span>
+                <span className="text-right text-ink-soft">{ui.together.tableName(a[toPublic(locale)])}</span>
               </li>
             ))}
           </ul>
@@ -174,7 +175,7 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
       widget = <InterviewSheet themes={cardThemes(locale)} />;
       break;
     case "quiz":
-      widget = <Quiz quiz={quizData[locale][tool.quiz!]} ctaHref={create} ctaLabel={pg.create} />;
+      widget = <Quiz quiz={quizData[toPublic(locale)][tool.quiz!]} ctaHref={create} ctaLabel={pg.create} />;
       break;
   }
 
@@ -280,7 +281,7 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
                   {guestClosed ? m.common.nav.login : pg.create}
                 </Link>
                 <Link href={landing ? `/kniga/${landing.slug}` : "/kniga"} className="btn btn-lg border border-[rgb(255_255_255/0.45)] text-white hover:border-[rgb(255_255_255/0.7)] hover:bg-[rgb(255_255_255/0.1)]">
-                  {landing ? landing.content[locale].label : pg.seeIdeas}
+                  {landing ? landing.content[toPublic(locale)].label : pg.seeIdeas}
                 </Link>
               </div>
             </div>
@@ -295,7 +296,7 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
                 {others.map((x) => (
                   <li key={x.slug}>
                     <Link href={`/instrumenty/${x.slug}`} className="flex min-h-12 items-baseline justify-between gap-4 py-3 text-ink-soft hover:text-wine">
-                      <span>{x.content[locale].label}</span>
+                      <span>{x.content[toPublic(locale)].label}</span>
                       <span className="shrink-0 text-xs text-muted">{t.hub.kind[x.kind]}</span>
                     </Link>
                   </li>
@@ -314,7 +315,7 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
                   {guides.map((a) => (
                     <li key={a.slug}>
                       <Link href={`/blog/${a.slug}`} className="flex min-h-12 items-center py-3 leading-snug text-ink-soft hover:text-wine">
-                        {a.content[locale].title}
+                        {a.content[toPublic(locale)].title}
                       </Link>
                     </li>
                   ))}

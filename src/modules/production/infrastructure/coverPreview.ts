@@ -67,6 +67,11 @@ const SAMPLE_TEXT = {
     "Содан кейін бәрі ертегідей болды: күлдік, жоспар құрдық, уақыттың қалай өтіп жатқанын байқамадық. Сол сәттердің әрқайсысы үшін тағдырға әлі күнге дейін ризамын.",
     "Өмір маған не үйретті деп сұраса, қарапайым жауап берер едім: жаныңдағы адамдарды бағалау, оларға мұны дауыстап айту және жылы сөздерді кейінге қалдырмау.",
   ],
+  uz: [
+    "Men o‘sha kunni kechagidek aniq eslayman. Shahar hali uxlab yotganda uydan erta chiqib, daryo tomon yurdik. Havo salqin, yangi pishgan non hidiga to‘la edi, va men tinchlik nima ekanini o‘shanda tushundim.",
+    "Keyin hammasi ertakdagidek bo‘ldi: kulardik, rejalar tuzardik, vaqt qanday o‘tayotganini sezmasdik. O‘sha lahzalarning har biri uchun taqdirga rahmat aytaman.",
+    "Hayot menga nimani o‘rgatdi, deb so‘rashsa, oddiy javob berardim: yoningdagilarni qadrlash, bu haqda ularga ovoz chiqarib aytish va iliq so‘zlarni keyinga qoldirmaslik.",
+  ],
 } as const;
 
 /**
@@ -74,7 +79,7 @@ const SAMPLE_TEXT = {
  * с образцом текста), без фото — получаются титул, выходные данные, оглавление, начальные полосы и текст.
  */
 export function sampleBundle(b: BookBundle): BookBundle {
-  const sample = SAMPLE_TEXT[b.book.language === "kk" ? "kk" : "ru"];
+  const sample = SAMPLE_TEXT[b.book.language];
   const sorted = [...b.questions].sort((x, y) => x.position - y.position);
   const chapters: string[] = [];
   for (const q of sorted) if (!chapters.includes(q.chapter)) chapters.push(q.chapter);

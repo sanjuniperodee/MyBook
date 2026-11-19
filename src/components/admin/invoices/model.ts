@@ -1,10 +1,14 @@
+import { type Locale } from "@/i18n/config";
 import { formatPrice, giftsForPlan, type PlanId } from "@/config/site";
 import { pay as ruPay } from "@/i18n/messages/ru/pay";
 import { pay as kkPay } from "@/i18n/messages/kk/pay";
+import { pay as uzPay } from "@/i18n/messages/uz/pay";
 import { plans as ruPlans } from "@/i18n/messages/ru/plans";
 import { plans as kkPlans } from "@/i18n/messages/kk/plans";
+import { plans as uzPlans } from "@/i18n/messages/uz/plans";
 import { common as ruCommon } from "@/i18n/messages/ru/common";
 import { common as kkCommon } from "@/i18n/messages/kk/common";
+import { common as uzCommon } from "@/i18n/messages/uz/common";
 import type { AgreementGift } from "@/shared/domain/agreementGifts";
 import { DiscountPolicy } from "@/shared/domain/discount";
 
@@ -126,13 +130,13 @@ export function discountProblem(price: number | null | undefined, agreed: number
   return `Цена ниже прайса (${formatPrice(price)}) больше чем на ${maxPercent}% — такой счёт выставляет только сотрудник с правом «Продавать ниже прайса без лимита»`;
 }
 
-const payTexts = { ru: ruPay, kk: kkPay };
-const planNames = { ru: ruPlans, kk: kkPlans };
+const payTexts = { ru: ruPay, kk: kkPay, uz: uzPay };
+const planNames = { ru: ruPlans, kk: kkPlans, uz: uzPlans };
 
 /** Предпросмотр сообщения со счётом — тот же шаблон словаря pay, что уходит клиенту (номер счёта появится при выпуске). */
 /** Что бесплатно по договорённости — списком на языке клиента («подарочная упаковка, доставка»); пусто — null. */
-export function giftsText(locale: "ru" | "kk", gifts: readonly AgreementGift[] | undefined): string | null {
-  const names = (locale === "kk" ? kkCommon : ruCommon).agreementGifts;
+export function giftsText(locale: Locale, gifts: readonly AgreementGift[] | undefined): string | null {
+  const names = ({ ru: ruCommon, kk: kkCommon, uz: uzCommon })[locale].agreementGifts;
   return gifts?.length ? gifts.map((g) => names[g]).join(", ") : null;
 }
 
@@ -150,7 +154,7 @@ export function giftOptionsForPlan(planId: string | null): AgreementGift[] {
   return planId ? giftsForPlan(planId) : ["giftwrap", "delivery"];
 }
 
-export function invoicePreview(i: { locale: "ru" | "kk"; clientName: string; plan: string; books?: number; purpose: InvoicePurpose; amount: number; link: string; until: string; kaspiPhone: string | null; gifts?: readonly AgreementGift[] }) {
+export function invoicePreview(i: { locale: Locale; clientName: string; plan: string; books?: number; purpose: InvoicePurpose; amount: number; link: string; until: string; kaspiPhone: string | null; gifts?: readonly AgreementGift[] }) {
   const t = payTexts[i.locale];
   return t.message({
     name: i.clientName.trim().split(" ")[0] ?? "",

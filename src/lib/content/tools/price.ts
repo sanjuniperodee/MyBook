@@ -69,5 +69,37 @@ export const skolkoStoitKniga: ToolDef = {
       ],
       cta: { title: "Жазуды бастаңыз — бұл тегін", text: "Сұрақтарға жауап беріңіз, сурет қосыңыз және кітап макетін қараңыз. Тапсырыс беруге шешім қабылдағанда ғана төлейсіз." },
     },
+    uz: {
+      label: "Kitob qancha turadi",
+      h1: "Kitob qancha turadi:",
+      accent: "narx kalkulyatori",
+      metaTitle: "Sovg‘a uchun shaxsiy kitob qancha turadi — narx kalkulyatori",
+      metaDescription: "Sovg‘a kitob narxini hisoblang: elektron nusxa, qattiq muqova, qo‘shimcha nusxalar, sovg‘a qadoqi va tezkor bosma. Tenge bilan dolzarb narxlar.",
+      teaser: "Elektron yoki bosma kitobning, nusxalar va qo‘shimchalarning yakuniy summasi.",
+      lead: "Formatni, nusxalar sonini va qo‘shimchalarni tanlang — kalkulyator yakuniy summani darhol tenge bilan ko‘rsatadi. Kitob yozish bepul: kitob tayyor bo‘lgandagina to‘laysiz.",
+      sections: [
+        {
+          heading: "Narx nimalardan tashkil topadi",
+          paragraphs: [
+            "Narx formatga bog‘liq. Elektron nusxa — to‘lovdan keyin darhol keladigan yuqori sifatli PDF. Qattiq muqovali kitob — tikilgan bloki bor, qattiq muqovada bosilgan nusxa, sovg‘a sifatida PDF-nusxa ham qo‘shiladi.",
+            "Bir necha nusxa kerak bo‘lsa — aka-ukangiz, opa-singlingiz, buvingiz uchun — har bir keyingi bosma kitob birinchisidan arzonroq turadi. Bosma buyurtmaga sovg‘a qadoqi va tezkor bosmani qo‘shish mumkin.",
+          ],
+        },
+        {
+          heading: "Yetkazib berish va muddatlar",
+          paragraphs: [
+            "Almatidagi studiyadan o‘zingiz olib ketsangiz, bepul. Kuryer, Qozog‘iston bo‘ylab va boshqa mamlakatlarga yetkazib berish alohida hisoblanadi: narx shaharga va tashuvchiga bog‘liq, shuning uchun uni menejer alohida aytadi va u kalkulyatorning yakuniy summasiga kirmaydi.",
+            "Bosma kitob 5–7 ish kunida tayyorlanadi, tezkor bosma — 3–4 kunda. Muayyan bayramga qaysi kungacha buyurtma berish kerakligini «Bayramga ulgurish» kalkulyatorida bilib olishingiz mumkin.",
+          ],
+        },
+      ],
+      faq: [
+        ["Sovg‘a uchun kitob qancha turadi?", "Narx formatga bog‘liq: elektron nusxa arzonroq, qattiq muqovali bosma kitob qimmatroq. Buyurtmangiz uchun aniq summani yuqoridagi kalkulyator ko‘rsatadi — undagi narxlar doim dolzarb."],
+        ["Kitob yozishni boshlash uchun to‘lash kerakmi?", "Yo‘q. Kitob yozish, surat qo‘shish va yaqinlar xatlarini yig‘ish bepul. Kitob tayyor bo‘lib, buyurtma berayotganingizda to‘laysiz."],
+        ["Qo‘shimcha nusxa qancha turadi?", "Har bir keyingi bosma nusxa birinchisidan arzon: nusxalar sonini oshirganingizda narxi kalkulyatorda ko‘rinadi."],
+        ["Yetkazib berish narxga kiradimi?", "Yo‘q, yetkazib berishni menejer shahar va tashuvchiga qarab alohida hisoblaydi. Almatidagi studiyadan o‘zingiz olib ketsangiz, bepul."],
+      ],
+      cta: { title: "Yozishni boshlang — bu bepul", text: "Savollarga javob bering, surat qo‘shing va kitob maketini ko‘ring. Buyurtma berishga qaror qilgandagina to‘laysiz." },
+    },
   },
 };

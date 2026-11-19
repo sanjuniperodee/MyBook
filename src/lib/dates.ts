@@ -1,3 +1,4 @@
+import type { Locale } from "@/i18n/config";
 import { dateFor } from "@/i18n/messages/partial";
 import { storeTimeZone } from "@/shared/domain/time";
 
@@ -5,7 +6,7 @@ import { storeTimeZone } from "@/shared/domain/time";
  * «14 февраля 2027 г.» / «2027 жылғы 14 ақпан». Казахский собираем из словаря, а не через Intl("kk-KZ"):
  * в части браузеров (и в headless Chromium) нет данных ICU для kk, и сервер с клиентом разошлись бы.
  */
-export function formatDate(d: Date | string, withTime = false, locale: "ru" | "kk" = "ru") {
+export function formatDate(d: Date | string, withTime = false, locale: Locale = "ru") {
   const date = typeof d === "string" ? new Date(d) : d;
   const timeZone = storeTimeZone();
   if (locale === "ru")
@@ -15,7 +16,7 @@ export function formatDate(d: Date | string, withTime = false, locale: "ru" | "k
       .formatToParts(date)
       .map((p) => [p.type, p.value]),
   );
-  const day = dateFor("kk")(new Date(Number(parts.year), Number(parts.month) - 1, Number(parts.day)), true);
+  const day = dateFor(locale)(new Date(Number(parts.year), Number(parts.month) - 1, Number(parts.day)), true);
   return withTime ? `${day}, ${parts.hour}:${parts.minute}` : day;
 }
 

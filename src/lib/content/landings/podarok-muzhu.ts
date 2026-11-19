@@ -43,5 +43,23 @@ export const podarokMuzhu: Landing = {
         ["Көптен бірге болсақ, көп нәрсе ұмытылса ше?", "Кеңесі бар сұрақтар ұмытылғанды дәл еске түсіреді: алғашқы кездесу, көшулер, күлкілі оқиғалар. Күніне бірнеше жол жазуға болады, ал суреттер бөлшектерді еске түсіруге көмектеседі."],
       ],
     },
+    uz: {
+      label: "Erga sovg‘a",
+      h1: "Erga sovg‘a,",
+      accent: "uni u o‘ziga o‘zi olmaydi",
+      metaTitle: "Erga nima sovg‘a qilish mumkin — oilaviy tarixingiz haqida kitob",
+      metaDescription: "Erga tug‘ilgan kun, to‘y yilligi yoki 23-fevralga sovg‘a: oilangiz va birga o‘tgan yillar haqida kitob. Maslahatli savollar, suratlar, qattiq muqova.",
+      lead: "Soat va atir unda allaqachon bor. Lekin xotini hammasi qanday boshlangani, uni nima uchun sevishi va nimasi bilan faxrlanishi haqida so‘zlab bergan kitob yo‘q. Savollarga javob bering, biz esa oilaviy tarixingizni maketlaymiz.",
+      why: [
+        { title: "Sotib bo‘lmaydigan sovg‘a", text: "Do‘kondan hamma narsani topish mumkin, faqat o‘zingiz u uchun tanlaydigan so‘zlardan boshqasini." },
+        { title: "Kechiktirib yuboriladigan so‘zlar", text: "Kundalik hayotda «rahmat» va «sen bilan faxrlanaman» kamdan-kam aytiladi. Savollar ularni qog‘ozda, xijolatsiz aytishga yordam beradi." },
+        { title: "Oilaviy javon uchun", text: "Yillar o‘tib kitobni farzandlaringiz ochadi: ota-onalari qanday tanishganini va otalari yoshligida qanday bo‘lganini bilib oladi." },
+      ],
+      cover: { title: "Mening sevimli erim", names: "Dinaradan", subtitle: "O‘n yil birga" },
+      faq: [
+        ["Tug‘ilgan kunga ham, 23-fevralga ham mosmi?", "Ha. Sanani ko‘rsating — buyurtmani qaysi kungacha berish kerakligini aytamiz. Vaqt kam qolgan bo‘lsa, elektron kitob to‘lovdan keyin darhol tayyor bo‘ladi, bosma nusxasini esa keyinroq buyurtma qilish mumkin."],
+        ["Anchadan beri birgamiz, ko‘p narsa esdan chiqqan bo‘lsa-chi?", "Maslahatli savollar aynan unutilganni eslatadi: birinchi uchrashuv, ko‘chib o‘tishlar, kulgili voqealar. Kuniga bir necha qatordan javob berish mumkin, suratlar esa tafsilotlarni eslashga yordam beradi."],
+      ],
+    },
   },
 };

@@ -82,5 +82,43 @@ export const dniVmeste: ToolDef = {
       ],
       cta: { title: "Сіздердің тарихыңыз туралы кітап сыйлаңыз", text: "Сіздің күніңіз — дайын тарау. Танысу мен бірге өткен алғашқы жылдар туралы сұрақтарға жауап беріп, сурет қосыңыз — біз кітапты беттеп, басып шығарамыз. Жазу тегін." },
     },
+    uz: {
+      label: "Biz qancha vaqt birgamiz",
+      h1: "Biz qancha vaqt birgamiz:",
+      accent: "kunlar va yubileylar hisoblagichi",
+      metaTitle: "Biz qancha vaqt birgamiz — munosabat kunlari va yillari kalkulyatori",
+      metaDescription: "Munosabat yoki to‘y sanasini kiriting — necha kundan beri birga ekaningizni, yaqin yaxlit sanani va yubiley nomini bilasiz: chit, qog‘oz, kumush to‘y.",
+      teaser: "Birga o‘tgan kunlar, oylar va yillar, eng yaqin yaxlit sanalar va to‘y yubileyining nomi.",
+      lead: "Sanani kiriting — hisoblagich necha kun, hafta va soatdan beri birga ekaningizni, eng yaqin yubiley qaysi ekanini va minginchi kunni qachon nishonlashni ko‘rsatadi. Hammasi to‘g‘ridan-to‘g‘ri brauzerda hisoblanadi, sana hech qayoqqa yuborilmaydi.",
+      sections: [
+        {
+          heading: "Birga o‘tgan kunlar qanday hisoblanadi",
+          paragraphs: [
+            "Hisoblagich munosabatni sanashni boshlagan kuningizni — birinchi uchrashuv, tanishuv yoki to‘y kunini — oladi va bugungi kungacha to‘liq kunlarni hisoblaydi. Yillar va oylar sanadan sanagacha hisoblanadi: 14 mayda boshlagan bo‘lsangiz, keyingi yilning 14 mayi — roppa-rosa bir yil.",
+            "Sana 29 fevralga to‘g‘ri kelsa, kabisa bo‘lmagan yillarda yubiley 28 fevralga o‘tkaziladi.",
+          ],
+        },
+        {
+          heading: "Qaysi sanalarni nishonlash kerak",
+          paragraphs: [
+            "Yubileylardan tashqari, juftliklar kunlarning yaxlit sonlarini nishonlashni yaxshi ko‘radi: 100, 500, 1000, 5000. Minginchi kun taxminan 2 yil 9 oydan keyin keladi — hech kim kutmagan paytda kutilmagan sovg‘a qilish uchun ajoyib bahona.",
+            "Yaxlit sanani oldindan eslab qolish eng oson: hisoblagichni oching, kunni kalendarga yozib qo‘ying va ikki hafta oldin o‘zingizga eslatib qo‘ying — yaxshi sovg‘a uchun vaqt kerak.",
+          ],
+        },
+        {
+          heading: "To‘y yubileylarining nomlari",
+          paragraphs: [
+            "Nikohda bo‘lsangiz, rejimni «To‘y»ga o‘tkazing — hisoblagich yubileyingiz qanday atalishini ko‘rsatadi. An’anaviy nomlar materiallardan kelib chiqadi: birinchi yildagi nozik chitdan ellikinchi yildagi oltingacha — go‘yo nikoh vaqt o‘tishi bilan mustahkamlanib boradi. To‘liq ro‘yxat quyidagi jadvalda.",
+          ],
+        },
+      ],
+      faq: [
+        ["Necha kundan beri birga ekanimizni qanday bilsam bo‘ladi?", "Munosabat boshlangan sanani yuqoridagi hisoblagichga kiriting — u kunlar, haftalar, oylar va yillarni ko‘rsatadi. Sana saqlanmaydi va hech qayoqqa yuborilmaydi: hisob-kitob brauzeringizda bajariladi."],
+        ["Birga o‘tgan 1000-kun qachon keladi?", "Tanlangan sanadan 1000 kun o‘tgach — bu taxminan 2 yil 9 oy. Aniq kunni hisoblagich yaxlit sanalar ro‘yxatida ko‘rsatadi."],
+        ["To‘y yubileyi yillar bo‘yicha qanday ataladi?", "1 yil — chit to‘y, 2 — qog‘oz, 3 — teri, 5 — yog‘och, 10 — qalay (pushti), 15 — billur, 25 — kumush, 50 — oltin. Barcha nomlar quyidagi jadvalda."],
+        ["Yubileyga nima sovg‘a qilish kerak?", "Ichida sizning hikoyangiz bor sovg‘a. Masalan, kitob: tanishuv, birinchi uchrashuvlar va orzular haqidagi savollarga javob berasiz, suratlar qo‘shasiz — qayta o‘qish mumkin bo‘lgan buyum hosil bo‘ladi."],
+      ],
+      cta: { title: "Hikoyangiz haqida kitob sovg‘a qiling", text: "Sizning sanangiz — tayyor bob. Tanishuv va birga o‘tgan dastlabki yillar haqidagi savollarga javob bering, surat qo‘shing — kitobni biz maketlab, bosamiz. Yozish bepul." },
+    },
   },
 };

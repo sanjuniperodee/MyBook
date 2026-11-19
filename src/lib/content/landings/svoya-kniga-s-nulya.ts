@@ -43,5 +43,23 @@ export const svoyaKnigaSNulya: Landing = {
         ["Кітаптың кімге арналғанын көрсету керек пе?", "Жоқ, бұл міндетті емес. Кітап ешкімге арналмаса, өрісті бос қалдыруға болады."],
       ],
     },
+    uz: {
+      label: "Oq varaqdan o‘z kitobim",
+      h1: "O‘z kitobingiz —",
+      accent: "boblar ham, tartib ham o‘zingizdan",
+      metaTitle: "O‘z kitobingizni noldan yozing — boblar va bo‘limlar muharriri",
+      metaDescription: "Tayyor savollarsiz kitob: boblar va bo‘limlarni o‘zingiz yaratasiz, o‘rnini almashtirasiz, o‘z tartibingizda yozasiz. Suratlar, maket va qattiq muqovada bosma.",
+      lead: "Memuar, oilaviy solnoma, hikoyalar to‘plami yoki sayohat kundaligi: boblarni o‘ylab toping, bo‘limlarni ularga joylang va qulay sur’atda yozing. Maket va bosmani biz o‘z zimmamizga olamiz.",
+      why: [
+        { title: "Tuzilma sizniki", text: "Bob va bo‘limlarga nomni o‘zingiz berasiz, o‘rnini istalgan payt almashtirish mumkin — hatto hammasini yozib bo‘lgandan keyin ham." },
+        { title: "O‘zingiz uchun eslatmalar", text: "Bo‘limga nima haqida aytmoqchi ekaningizni yozib qo‘yish mumkin. Bu eslatmani faqat o‘zingiz ko‘rasiz, u kitobga kirmaydi." },
+        { title: "Haqiqiy kitobdek bosma", text: "Bob epigraflari, mundarija, matn ichidagi suratlar va qattiq muqova. Bo‘sh boblar bosmaga kirmaydi." },
+      ],
+      cover: { title: "Mening kitobim", names: "Dana Serikova" },
+      faq: [
+        ["Savolsiz kitob qanday ishlaydi?", "Birinchi bobni yaratasiz, unga bo‘limlar qo‘shasiz va yozasiz. Har bir bo‘limning o‘z sarlavhasi va matni bor. Yangi bob va bo‘limlarni istalgan payt qo‘shish va o‘rnini almashtirish mumkin."],
+        ["Kitob kimga atalganini ko‘rsatish kerakmi?", "Yo‘q, bu shart emas. Agar kitob aniq hech kimga atalmagan bo‘lsa, maydonni bo‘sh qoldirish mumkin."],
+      ],
+    },
   },
 };

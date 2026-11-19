@@ -1,4 +1,4 @@
-import type { Locale } from "@/i18n/config";
+import type { PublicLocale } from "@/i18n/config";
 import type { ThemeId } from "../types";
 import type { OccasionId } from "../../occasions";
 
@@ -23,5 +23,5 @@ export interface Landing {
   authorGender: "m" | "f";
   /** Род адресата: у подарков обязателен, у автобиографии и своей книги получателя нет. */
   recipientGender?: "m" | "f";
-  content: Record<Locale, LandingContent>;
+  content: Record<PublicLocale, LandingContent>;
 }

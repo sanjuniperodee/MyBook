@@ -3,7 +3,8 @@
  * поэтому работают мгновенно и бесплатно. Один и тот же набор параметров и номер варианта дают один и тот же текст.
  * Тексты каждого языка написаны отдельно, а не переведены дословно.
  */
-import type { Locale } from "@/i18n/config";
+import type { Locale, PublicLocale } from "@/i18n/config";
+import { toPublic } from "@/i18n/config";
 
 export const recipientIds = ["mama", "papa", "babushka", "dedushka", "zhena", "muzh", "podruga", "drug", "uchitelnitsa", "uchitel"] as const;
 export type RecipientId = (typeof recipientIds)[number];
@@ -82,7 +83,23 @@ const teacherKk: Pick<Pool, "warm" | "funny" | "formal"> = {
   ],
 };
 
-const data: Record<Locale, LocaleData> = {
+const teacherUz: Pick<Pool, "warm" | "funny" | "formal"> = {
+  formal: true,
+  warm: [
+    "Sabringiz, bilimingiz va bizga bo‘lgan ishonchingiz uchun rahmat.",
+    "Sizga sog‘lik, ilhom va minnatdor shogirdlar tilayman.",
+    "Siz bizga nafaqat fanni, balki fikrlashni va odamlarni hurmat qilishni ham o‘rgatdingiz.",
+    "Sinfdagi har bir kun quvonch, mehnatingiz esa e’tirof olib kelsin.",
+    "Darslaringizni biz doim eslaymiz.",
+  ],
+  funny: [
+    "Daftarlar o‘zi tekshirilsin, o‘quvchilar esa uy vazifasini o‘rganib kelsin.",
+    "Tanaffus qo‘ng‘irog‘i tez-tez jaranglasin, tanbeh uchun chaqiruv esa kam bo‘lsin.",
+    "Bugun kechikmaslikka va ko‘chirmaslikka va’da beramiz.",
+  ],
+};
+
+const data: Record<PublicLocale, LocaleData> = {
   ru: {
     recipients: {
       mama: {
@@ -385,6 +402,157 @@ const data: Record<Locale, LocaleData> = {
       funny: { family: ["Есіңде болсын: жас — жай ғана сан. Үлкен, бірақ сан.", "Ура! Торт күтіп тұр."], formal: ["Құрметпен және сүйіспеншілікпен — шәкірттеріңіз."] },
     },
   },
+  uz: {
+    recipients: {
+      mama: {
+        plain: ["Aziz onajon!", "Qadrdon oyijonim!"],
+        named: ["Aziz onajon!", "Qadrdon oyijonim!"],
+        warm: [
+          "Har doim yonimda bo‘lgan g‘amxo‘rligingiz uchun rahmat — uzoqda bo‘lsak ham.",
+          "Eng muhimi — sog‘-salomatlik, tinch kunlar va har kuni jilmayishga sabab tilayman.",
+          "Siz menga mehr va sabrni o‘rgatdingiz, menda bor yaxshilikning hammasi o‘zingizdan.",
+          "Uyingiz doim iliqlikka to‘la bo‘lsin, yoningizda sizni yaxshi ko‘rganlar hamisha bo‘lsin.",
+          "Sizni juda yaxshi ko‘raman va shunday onam borligi bilan faxrlanaman.",
+        ],
+        funny: [
+          "Muzlatgichingiz doim to‘la bo‘lsin, biz esa «nega qo‘ng‘iroq qilmaysiz» deb so‘rashga ulgurmasingizdan oldin qo‘ng‘iroq qilaylik.",
+          "Qalpoq haqida bahslashmayman, kiyaman deb va’da beraman. Deyarli.",
+          "Biz noto‘g‘ri ovqatlanganimizni har doim bilardingiz va har doim haq bo‘lardingiz. Shunday sezgir bo‘lib qoling!",
+        ],
+      },
+      papa: {
+        plain: ["Aziz dadajon!", "Otajon, qadrdonim!"],
+        named: ["Aziz dadajon!", "Otajon, qadrdonim!"],
+        warm: [
+          "Doim suyanchig‘im va o‘rnak bo‘lganingiz uchun rahmat.",
+          "Baquvvat sog‘lik, shijoat va rejalaringizning hammasiga yetadigan kuch tilayman.",
+          "Ish sizga quvonch, uyingiz esa tinchlik olib kelsin.",
+          "Maslahatlaringizni eslayman va qadrlayman, garchi o‘zimcha qilsam ham.",
+          "Siz kabi otam borligi bilan faxrlanaman.",
+        ],
+        funny: [
+          "Televizor pulti doim joyida bo‘lsin, baliq ovlaganda baliq o‘zi ilmoqqa ilinsin.",
+          "Hazillaringiz avvalgidek kulgili bo‘lsin, biz esa xushmuomalalikdan emas, chin dildan kulaylik.",
+          "Mashinangiz buzilmasin, ehtiyot qismlar qimmatlashmasin. Qolganini o‘zimiz hal qilamiz.",
+        ],
+      },
+      babushka: {
+        plain: ["Aziz buvijon!", "Mehribon buvim!"],
+        named: ["Aziz buvijon!", "Mehribon buvim!"],
+        warm: [
+          "Ertaklaringiz, pishiriqlaringiz va doim o‘zingiz bilan olib yuradigan iliqligingiz uchun rahmat.",
+          "Sog‘lik, quvonch va yonimizda uzoq yillar tilayman.",
+          "Donoligingiz va mehribonligingiz — oilamizning boyligi.",
+          "Nevaralaringiz qo‘ng‘iroq va tashriflar bilan xursand qilib tursin, uyingiz mehmonlarga to‘la bo‘lsin.",
+          "Biz sizni yaxshi ko‘ramiz va yoningizdagi har bir oqshomni asraymiz.",
+        ],
+        funny: [
+          "Pishiriqlar o‘zi pishib chiqsin, nevaralar esa faqat aytganingizni qilsin.",
+          "Murabbo shunchalik ko‘p bo‘lsinki, bizga ham, qo‘shnilarga ham yetsin, qishga ham qolsin.",
+          "«Endi kutmay ham qo‘ydim» deyishga ulgurmasingizdan oldin qo‘ng‘iroq qilishga va’da beramiz.",
+        ],
+      },
+      dedushka: {
+        plain: ["Aziz bobojon!", "Qadrdon bobom!"],
+        named: ["Aziz bobojon!", "Qadrdon bobom!"],
+        warm: [
+          "Donoligingiz, hikoyalaringiz va dunyoni ishonchliroq qila olishingiz uchun rahmat.",
+          "Baquvvat sog‘lik, ruhiy tetiklik va uzoq umr tilayman.",
+          "O‘tmish haqidagi hikoyalaringiz — oilamizning xazinasi.",
+          "Yoningizda doim farzandlar va nevaralar bo‘lsin, uyingizda tinchlik va fayz hukm sursin.",
+          "Biz sizdan faxrlanamiz va juda yaxshi ko‘ramiz.",
+        ],
+        funny: [
+          "Ko‘zoynagingiz doim topilsin, shaxmat partiyalari sizning g‘alabangiz bilan tugasin — ba’zan halol yo‘l bilan.",
+          "Gazeta yangi, choy issiq, nevaralar esa itoatkor bo‘lsin. Hech bo‘lmasa shu kuni.",
+          "Yoshlardek shijoat va o‘zingizdek donolik tilayman — ya’ni hech narsani o‘zgartirish shart emas.",
+        ],
+      },
+      zhena: {
+        plain: ["Jonim mening!", "Aziz rafiqam!"],
+        named: ["Jonim {name}!", "Aziz {name}!"],
+        warm: [
+          "Sen uyimizni shinam qilasan, meni esa yaxshiroq.",
+          "Senga sog‘lik, quvonch va barcha orzularing ushalishini tilayman.",
+          "Sen bilan o‘zimni eng baxtli his qilaman.",
+          "Har kuning tabassum, gul va yaxshi xabarlarga to‘la bo‘lsin.",
+          "Seni sevaman — aytmoqchi bo‘lganimning eng muhimi shu.",
+        ],
+        funny: [
+          "Xarid zavqli, chegirmalar esa cheksiz bo‘lsin.",
+          "«Men aytgan edim» demayman deb va’da beraman — hech bo‘lmasa bugun.",
+          "Hammamizga yetadigan kuch tilayman, chunki sensiz biz yo‘qolib qolardik.",
+        ],
+      },
+      muzh: {
+        plain: ["Suyukli yorim!", "Aziz erim!"],
+        named: ["Suyukli {name}!", "Aziz {name}!"],
+        warm: [
+          "Sen mening tayanchimsan, sen bilan hech narsadan qo‘rqmayman.",
+          "Sog‘lik, muvaffaqiyat va barcha rejalaring ro‘yobga chiqishini tilayman.",
+          "G‘amxo‘rliging, sabring va ishonchliliging uchun rahmat.",
+          "Uyda seni doim kutishsin, ishlaringda omad hamroh bo‘lsin.",
+          "Birga ekanimiz naqadar yaxshi.",
+        ],
+        funny: [
+          "Paypoqlar juft-juft topilsin, futbol esa g‘alabalar bilan quvontirsin.",
+          "Pult qo‘lingda bo‘lsin, men esa yuragingda.",
+          "Axlat haqida eslatmayman deb va’da beraman. Bugun.",
+        ],
+      },
+      podruga: {
+        plain: ["Aziz dugonam!", "Qadrdon dugonam!"],
+        named: ["Aziz {name}!", "Mehribon {name}!"],
+        warm: [
+          "Sen bilan jim o‘tirish ham, kulish ham baravar oson.",
+          "Sog‘lik, muhabbat, ilhom va yoningda yaxshi insonlar tilayman.",
+          "Quvonchda ham, qiyin kunlarda ham yonimda bo‘lganing uchun rahmat.",
+          "Orzularing ushalsin, yo‘lingda faqat yaxshi odamlar uchrasin.",
+          "Sen bilan do‘stligim — menda bor eng yaxshi narsalardan biri.",
+        ],
+        funny: [
+          "Yosh faqat pasportda bo‘lsin, qalbingda esa abadiy yigirma.",
+          "Qahva doim issiq, xabarlar yaxshi bo‘lsin, bularning hammasini muhokama qiladigan dugona esa yoningda.",
+          "Ajinlar faqat kulgidan paydo bo‘lsin, ortiqcha vazn bilan esa boshqalar kurashsin.",
+        ],
+      },
+      drug: {
+        plain: ["Aziz do‘stim!", "Do‘stim!"],
+        named: ["Aziz {name}!", "Do‘stim {name}!"],
+        warm: [
+          "Sen haqiqiy do‘stsan: senga ishonsa bo‘ladi.",
+          "Sog‘lik, omad va katta g‘alabalar tilayman.",
+          "Qo‘llab-quvvatlaganing va rostgo‘yliging uchun rahmat.",
+          "Ishlaring yurishib ketsin, yoningda sodiq insonlar bo‘lsin.",
+          "Shunday do‘stim borligi yaxshi.",
+        ],
+        funny: [
+          "Oylik narxlardan tezroq o‘ssin, do‘stlar esa — faqat yaxshi ma’noda.",
+          "Shashlik shirali, ob-havo esa bizning tomonimizda bo‘lsin.",
+          "Voqealaringni onangga aytmayman deb va’da beraman. Bugun.",
+        ],
+      },
+      uchitelnitsa: { plain: ["Hurmatli ustoz!", "Aziz ustozimiz!"], named: ["Hurmatli {name}!", "Aziz {name}!"], ...teacherUz },
+      uchitel: { plain: ["Hurmatli ustoz!", "Aziz ustozimiz!"], named: ["Hurmatli {name}!", "Aziz {name}!"], ...teacherUz },
+    },
+    occasions: {
+      birthday: { titles: ["Tug‘ilgan kun muborak!", "Tug‘ilgan kun bilan tabriklayman!"], follow: "Bugun alohida kun — eng iliq so‘zlarni aytishni istayman." },
+      jubilee: {
+        titles: ["Yubiley muborak!", "Yubiley bilan tabriklayman!"],
+        titlesAge: ["{age} yoshlik yubiley muborak!", "{age} yoshlik yubiley bilan tabriklayman!"],
+        follow: "Bunday sana — bosib o‘tilgan yo‘lga nazar tashlab, undan quvonishga sabab.",
+      },
+      march8: { titles: ["8-mart muborak!", "8-mart bayrami bilan tabriklayman!"], follow: "Bahor faqat taqvimda emas, qalbda ham kelsin." },
+      defender: { titles: ["23-fevral muborak!", "23-fevral bilan tabriklayman!"], follow: "Bugun kuch, ishonchlilik va g‘amxo‘rlik uchun rahmat aytishni istayman." },
+      teachers: { titles: ["Ustozlar kuni muborak!", "Ustozlar kuni bilan tabriklaymiz!"], follow: "Bu kunda bizga bilim va mehr bergan insonlarni ayniqsa yaqqol eslaymiz." },
+      anniversary: { titles: ["To‘y yilligi muborak!", "To‘yimiz yilligi bilan tabriklayman!"], follow: "Birga o‘tgan har bir yil — umumiy boyligimiz." },
+      newyear: { titles: ["Yangi yil muborak!", "Yangi yil bilan tabriklayman!"], follow: "U ko‘proq iliqlik, nur va yaxshi xabarlar olib kelsin." },
+    },
+    closings: {
+      warm: { family: ["Mehr va iliqlik bilan.", "Qattiq quchoqlayman."], formal: ["Chuqur hurmat va minnatdorchilik bilan.", "Samimiy minnatdorchilik bilan."] },
+      funny: { family: ["Esdan chiqmasin: yosh — shunchaki raqam. Katta, ammo baribir raqam.", "Ura! Tort allaqachon kutyapti."], formal: ["Hurmat va mehr bilan — shogirdlaringiz."] },
+    },
+  },
 };
 
 /** Детерминированный генератор: один и тот же seed — одна и та же последовательность. */
@@ -427,7 +595,7 @@ export interface GreetingInput {
 }
 
 export function generateGreeting(input: GreetingInput): string {
-  const d = data[input.locale];
+  const d = data[toPublic(input.locale)];
   const pool = d.recipients[input.recipient];
   const occ = d.occasions[input.occasion];
   const name = input.name?.trim().slice(0, 40) ?? "";

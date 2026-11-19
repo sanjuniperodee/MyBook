@@ -176,6 +176,7 @@ export function NewClientForm({ canDeal, stages, defaultStageId, admins, me, can
             <select name="locale" className="input" defaultValue={v.locale ?? "ru"}>
               <option value="ru">Русский</option>
               <option value="kk">Қазақша</option>
+              <option value="uz">Oʻzbekcha</option>
             </select>
           </Field>
           <Field label="Пароль для входа" optional hint="Пусто — подберём надёжный и покажем после создания.">

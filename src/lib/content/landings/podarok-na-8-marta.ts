@@ -38,5 +38,22 @@ export const podarokNa8Marta: Landing = {
       cover: { title: "Рахмет, анашым", names: "Дана мен Тимур" },
       faq: [["Анам өзі жазатын кітапты сыйлауға бола ма?", "Иә — бұл сыйлық сертификаты. Анаңыз код алып, балалары мен немерелеріне өз өмірі туралы кітап жазады."]],
     },
+    uz: {
+      label: "Onaga 8-mart sovg‘asi",
+      h1: "Onaga 8-martga sovg‘a —",
+      accent: "u haqidagi kitob",
+      metaTitle: "Onaga 8-martga nima sovg‘a qilish mumkin — shaxsiy kitob",
+      metaDescription: "Onangizga 8-martga o‘zingiz yozadigan kitobni sovg‘a qiling: xotiralar, minnatdorchilik, suratlar. Qattiq muqovada bosma va bayramgacha yetkazib berish.",
+      lead: "Gullar bir haftada so‘ladi. Ona haqidagi kitob — uning g‘amxo‘rligi, so‘zlari va saboqlari haqida — oilada abadiy qoladi.",
+      why: [
+        { title: "Bayramga ulguring", text: "Buyurtmani qaysi kungacha rasmiylashtirish kerakligini aytamiz va xat orqali eslatamiz." },
+        { title: "Barcha farzandlardan", text: "Aka-uka va opa-singillar xatlarni havola orqali yozadi — ro‘yxatdan o‘tmasdan." },
+        { title: "Yoki sertifikat", text: "Ona kitobni o‘zi — o‘z hayoti haqida yozishini xohlaysizmi? Sertifikat sovg‘a qiling." },
+      ],
+      cover: { title: "Rahmat, ona", names: "Dana va Timur" },
+      faq: [
+        ["Ona o‘zi yozadigan kitobni sovg‘a qilish mumkinmi?", "Ha — bu sovg‘a sertifikati. Ona kod oladi va farzandlari hamda nevaralari uchun o‘z hayoti haqida kitob yozadi."],
+      ],
+    },
   },
 };

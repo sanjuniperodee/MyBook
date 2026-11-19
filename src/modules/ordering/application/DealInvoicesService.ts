@@ -1,3 +1,4 @@
+import { type Locale } from "@/i18n/config";
 import { randomBytes } from "node:crypto";
 import type { Clock, UnitOfWork } from "@/shared/application";
 import { getPlan, giftsForPlan } from "@/config/site";
@@ -39,7 +40,7 @@ export interface IssueInvoiceInput {
   /** Номер WhatsApp-чата (цифры), если счёт выставлен из WhatsApp. */
   phone: string | null;
   clientName: string;
-  locale: "ru" | "kk";
+  locale: Locale;
   channel: string;
   plan: string;
   /** Цена одной книги по договорённости. */

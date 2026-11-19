@@ -44,5 +44,23 @@ export const podarokNaYubilejPape: Landing = {
         ["Оның жастық шағындағы суреттерді қосуға бола ма?", "Иә, оларды түсіріп алыңыз немесе сканерлеңіз. Басып шығаруға ажыратымдылығы жетпесе, алдын ала ескертеміз."],
       ],
     },
+    uz: {
+      label: "Otaga yubileyga sovg‘a",
+      h1: "Otaga yubileyga sovg‘a:",
+      accent: "u kutmagan kitob",
+      metaTitle: "Otaga yubileyga nima sovg‘a qilish kerak — farzandlardan kitob",
+      metaDescription: "Otaga 50, 55, 60 yoshlik yubileyga sovg‘a: uning hayoti va farzandlarning minnatdorchiligi haqida kitob. Yaqinlar xatlari, suratlar, qattiq muqova.",
+      lead: "Ota kamdan-kam e’tibor so‘raydi, minnatdorchilik so‘zlarini esa undan ham kam eshitadi. Yubiley — ularni kitobga jamlash uchun yaxshi bahona: u oila uchun nima qilgani, nimaga o‘rgatgani va sizning xotirangizda qanday qolgani.",
+      why: [
+        { title: "«Foydalanish» shart bo‘lmagan sovg‘a", text: "Uni zaryadlash yoki boshqa o‘lchamga almashtirish kerak emas. Kitobni shunchaki ochishadi — va undan o‘zini topishadi." },
+        { title: "Butun oilaning ovozi", text: "Farzandlar, nevaralar va do‘stlarning xatlari alohida bobga kiradi, ota esa hammani birdan eshitadi." },
+        { title: "Keyingi avlodga o‘tadigan hikoya", text: "Bolalik, ish, do‘stlar va qilgan ishlari haqidagi xotiralar nevara va evaralar uchun saqlanib qoladi." },
+      ],
+      cover: { title: "Otamizga", names: "Farzand va nevaralardan" },
+      faq: [
+        ["Otam bilan his-tuyg‘ular haqida gaplashish qiyin bo‘lsa, nima yozish kerak?", "Savollar mavzuni o‘zi aytib turadi: masalan, u sizga nimani o‘rgatgani yoki qaysi voqea eng yaxshi yodingizda qolgani. Fakt va xotiralardan boshlang — iliq so‘zlar o‘zi keladi."],
+        ["Uning yoshlik suratlarini qo‘shsa bo‘ladimi?", "Ha, suratlarni telefonda suratga oling yoki skaner qiling. Agar bosma uchun sifati yetmasa, oldindan ogohlantiramiz."],
+      ],
+    },
   },
 };

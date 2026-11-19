@@ -9,7 +9,7 @@ import { questionsToAsk, quizBand, quizData, quizIds, quizPercent } from "@/lib/
 import { tools, getTool } from "@/lib/content/tools";
 import { toolUi } from "@/lib/content/tools/ui";
 import { articles } from "@/lib/content/articles";
-import { locales } from "@/i18n/config";
+import { publicLocales as locales } from "@/i18n/config";
 
 const dup = (xs: string[]) => xs.filter((x, i) => xs.indexOf(x) !== i);
 

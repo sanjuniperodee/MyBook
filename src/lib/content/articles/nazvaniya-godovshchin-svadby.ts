@@ -194,5 +194,98 @@ export const nazvaniyaGodovshchinSvadby: Article = {
       ],
       cta: { title: "Жылдыққа кітап — өз сөзіңізбен", text: "Жұбыңыз туралы сұрақтарға жауап беріп, суреттер қосыңыз — біз кітапты беттеп, басып шығарамыз. Жазу тегін." },
     },
+    uz: {
+      title: "To‘y yilligi nomlari yillar bo‘yicha: chit to‘ydan oltin to‘ygacha",
+      description: "To‘y yilligi nomlari: 1 yildan 25 yilgacha va 30 yildan 65 yilgacha. Chit, qog‘oz, charm, kumush, oltin to‘y. Har bir sana uchun sovg‘a g‘oyasi.",
+      lead: "To‘y yilliklarini materiallar bo‘yicha atash odat: birga bo‘lgan yillaringiz qancha ko‘p bo‘lsa, material shuncha mustahkam va qimmatli bo‘ladi. Birinchi yildan oltmish besh yilgacha bo‘lgan barcha nomlarni yig‘dik va har biriga sovg‘a g‘oyasini qo‘shdik.",
+      sections: [
+        {
+          heading: "Nomlar qayerdan paydo bo‘lgan va ulardan qanday foydalanish kerak",
+          paragraphs: [
+            "Yillik nomi sovg‘a uchun maslahat va bayram uchun bahona. Chit to‘y mayin matolarni eslatadi, yog‘och to‘y uyning iliqligi va ishonchliligini, kumush va oltin to‘y esa o‘zi qadriyatga aylangan uzoq hayotni bildiradi.",
+            "Nomga qat’iy amal qilish shart emas. Ba’zi sanalarning turli oilalarda ikkita nomi bo‘lishi ham uchraydi, bu normal: o‘zingizga yaqinini tanlang. Asosiysi material emas, e’tibor.",
+          ],
+        },
+        {
+          heading: "Dastlabki besh yil: chit to‘ydan yog‘och to‘ygacha",
+          paragraphs: ["Dastlabki yillar o‘rganish va umumiy odatlar paydo bo‘lish davri. Bu yerda sovg‘alar yengil, qulay va uyga oid bo‘ladi."],
+          list: [
+            "1 yil: chit to‘y. Yotoq jildlari to‘plami, chiroyli sochiqlar yoki ikkovingizga mos issiq pled.",
+            "2 yil: qog‘oz to‘y. Bir-biringizga xatlar, foto albom, spektakl yoki konsertga chiptalar.",
+            "3 yil: charm to‘y. Hamyon, hujjatlar uchun muqova, kamar yoki charm bloknot.",
+            "4 yil: zig‘ir to‘y. Zig‘ir dasturxon, pardalar yoki zig‘ir kiyim.",
+            "5 yil: yog‘och to‘y. Yog‘och sandiqcha, surat uchun ramka yoki soat; juftligingiz haqidagi kitob ham yaxshi mos keladi.",
+          ],
+        },
+        {
+          heading: "Oltinchi yildan o‘n beshinchi yilgacha: cho‘yan to‘ydan billur to‘ygacha",
+          paragraphs: ["Bu yillarda juftlikning uyi, ishlari va umumiy tarixi allaqachon bor. Sovg‘alar jiddiyroq bo‘ladi."],
+          list: [
+            "6 yil: cho‘yan to‘y. Oilaviy kechki ovqatlar uchun cho‘yan tova yoki qozon.",
+            "7 yil: mis to‘y. Mis jezva, qahva to‘plami yoki misdan yasalgan taqinchoq.",
+            "8 yil: tunuka to‘y. Choy yoki shirinliklar uchun chiroyli tunuka quti, piknik to‘plami.",
+            "9 yil: fayans (sopol) to‘y. Fayans choy servizi, qo‘lda yasalgan sopol krujkalar.",
+            "10 yil: atirgul yoki qalay to‘y. Atirgul guldastasi, qalay esdalik sovg‘a yoki ikkovingizning sayohatingiz: o‘n yil bayramga loyiq.",
+            "11 yil: po‘lat to‘y. Yaxshi pichoqlar to‘plami, termos yoki po‘lat soat.",
+            "12 yil: nikel to‘y. Uyga uzoq vaqtdan beri kerak bo‘lgan idish-tovoq yoki maishiy buyum.",
+            "13 yil: to‘r to‘y. To‘r dasturxon, ro‘mol, ko‘rkam ich kiyim yoki romantik kechki ovqat.",
+            "14 yil: aqiq to‘y. Aqiqli taqinchoq yoki esdalik sovg‘a.",
+            "15 yil: billur to‘y. Billur qadahlar yoki guldon va birga o‘tgan o‘n besh yil uchun tost.",
+          ],
+        },
+        {
+          heading: "O‘n oltinchi yildan yigirma beshinchi yilgacha: topaz to‘ydan kumush to‘ygacha",
+          paragraphs: ["Bolalar ulg‘ayadi, juftlik jamoaga aylanadi. Sovg‘a sizga bir-biringiz uchun vaqtni qaytarib bersa, yaxshi bo‘ladi."],
+          list: [
+            "16 yil: topaz to‘y. Topazli taqinchoq.",
+            "17 yil: mebel to‘y. Yangi kreslo, stolcha yoki anchadan beri gaplashib yurgan interyer buyumi.",
+            "18 yil: feruza to‘y. Feruzali taqinchoq yoki uy uchun feruza ranglardagi buyum.",
+            "19 yil: anor (granat) to‘y. Granatli taqinchoq.",
+            "20 yil: chinni to‘y. Chinni haykalcha yoki servis, yanada yaxshisi: dam olish kunlari uchun sayohat.",
+            "21 yil: opal to‘y. Opalli taqinchoq yoki kichik esdalik sovg‘a.",
+            "22 yil: bronza to‘y. Bronza haykalcha, shamdon yoki birgalikdagi surat uchun ramka.",
+            "23 yil: beril to‘y. Berilli taqinchoq yoki esdalik sovg‘a, iliq xat.",
+            "24 yil: atlas to‘y. Atlas ko‘ylak yoki xalat, ipak ro‘mol.",
+            "25 yil: kumush to‘y. Kumush taqinchoqlar yoki kumush dasturxon anjomlari, oilaviy bayram va umumiy hayotingiz haqidagi kitob.",
+          ],
+        },
+        {
+          heading: "Yubiley yilliklar: marvarid to‘ydan temir to‘ygacha",
+          paragraphs: ["O‘ttiz yildan boshlab yilliklar qimmatbaho toshlar va metallar bilan ataladi. Bu endi shunchaki sana emas, oilaning tarixi, eng yaxshi sovg‘alar esa bolalar va nevaralarni bir joyga to‘playdiganlaridir."],
+          list: [
+            "30 yil: marvarid to‘y. Marvarid taqinchoq, oilaviy kechki ovqat.",
+            "35 yil: marjon to‘y. Marjonli taqinchoq, dengiz bo‘yiga sayohat.",
+            "40 yil: yoqut to‘y. Yoqutli taqinchoq, mehmonlar bilan oilaviy bayram.",
+            "45 yil: safir to‘y. Safirli taqinchoq, sevimli joyga sayohat.",
+            "50 yil: oltin to‘y. Oltin uzuklar yoki taqinchoqlar, oilaviy albom va bosib o‘tilgan yo‘l haqidagi kitob.",
+            "55 yil: zumrad to‘y. Zumradli taqinchoq, katta oilaviy yig‘in.",
+            "60 yil: brilliant (olmos) to‘y. Butun oilaning eng tantanali sovg‘asi, bolalar va nevaralarning xatlari.",
+            "65 yil: temir to‘y. Kam uchraydigan sana, shuning uchun eng yaxshi sovg‘a: yaqinlarning e’tibori va iliq so‘zlari.",
+          ],
+        },
+        {
+          heading: "Nomning o‘zi yetmasa, sovg‘ani qanday tanlash kerak",
+          list: [
+            "Avval insonni o‘ylang, keyin materialni: kerakli metalldan buyum juftligingiz yaxshi ko‘radigan narsaga e’tiborning o‘rnini bosmaydi.",
+            "Nomni taassurot bilan birlashtiring: qog‘oz to‘y bu faqat xatlar emas, spektaklga chiptalar ham.",
+            "Birga necha kun yashaganingizni hisoblang va bu raqamni tabriknomada yozing: u taqvimdagi sanadan kuchliroq eshitiladi.",
+            "Qo‘lda bir necha iliq so‘z yozing: har qanday sovg‘aga bu eng muhimini qo‘shadi.",
+          ],
+        },
+        {
+          heading: "Har qanday sanaga mos keladigan sovg‘a",
+          paragraphs: [
+            "Materialga mos sovg‘a izlagingiz kelmasa, hikoya sovg‘a qiling: juftligingiz haqidagi kitob, unda savollar orqali tanishuvni, dastlabki yillarni va barcha muhim voqealarni eslaysiz. Bunday sovg‘a har qanday yillikda, birinchisidan oltin to‘ygacha yaxshi.",
+            "Kitobni bepul yozish mumkin. Tayyorini biz qattiq muqovada chop etamiz va Qozog‘iston bo‘ylab yetkazib beramiz; elektron nusxa to‘lovdan keyin darhol mavjud.",
+          ],
+        },
+      ],
+      faq: [
+        ["Bir yildan keyingi to‘y yilligi qanday ataladi?", "Birinchi yillik: chit to‘y. Uni nishonlasangiz, kichik uy bayrami va yumshoq matolardan yoki qo‘lda yasalgan sovg‘a yetarli."],
+        ["Qaysi yilliklar asosiy hisoblanadi?", "Ko‘pincha beshinchi (yog‘och), o‘ninchi (atirgul yoki qalay), o‘n beshinchi (billur), yigirma beshinchi (kumush), o‘ttizinchi (marvarid), qirqinchi (yoqut) va ellikinchi (oltin) yilliklar alohida nishonlanadi."],
+        ["Yillik nomiga qarab sovg‘a qilish shartmi?", "Yo‘q, nom faqat maslahat. Sovg‘a sizga va yaqin insoningizga yoqsa, materialga bog‘liq bo‘lmasa ham mos keladi."],
+      ],
+      cta: { title: "Yillikka kitob: o‘z so‘zlaringiz bilan", text: "Juftligingiz haqidagi savollarga javob bering, suratlar qo‘shing: kitobni biz maketlab, chop etamiz. Yozish bepul." },
+    },
   },
 };

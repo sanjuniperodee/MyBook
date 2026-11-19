@@ -1,4 +1,4 @@
-import type { Locale } from "@/i18n/config";
+import { toPublic, type Locale, type PublicLocale } from "@/i18n/config";
 
 /**
  * Посадочная под таргет в Instagram (/love): книга о паре. Тексты живут здесь, а не в общем словаре —
@@ -179,6 +179,75 @@ const kk: AdLoveCopy = {
   sticky: { from: (p) => `Кітап ${p} бастап`, cta: "WhatsApp" },
 };
 
-const copy: Record<Locale, AdLoveCopy> = { ru, kk };
+const uz: AdLoveCopy = {
+  metaTitle: "Sevgingiz haqidagi kitob — o‘zingiz yozadigan sovg‘a",
+  metaDescription: "Hikoyangiz haqidagi savollarga javob berasiz, surat qo‘shasiz — biz qattiq muqovali haqiqiy kitob bosamiz. Almaty, butun Qozog‘iston bo‘ylab yetkazib beramiz.",
+  waText: "Assalomu alaykum! Sevgi hikoyamiz haqida kitob buyurtma qilmoqchiman",
+  hero: {
+    eyebrow: "Yilligingizga sovg‘a · Almaty",
+    titleStart: "Kitob, bosh qahramonlari —",
+    titleAccent: "siz ikkovingiz",
+    lead: "Hikoyangiz haqidagi savollarga javob berasiz: qanday tanishgansiz, birinchi uchrashuvda nima bo‘ldi, nimasi uchun sevasiz. Biz javoblar va suratlarni qattiq muqovali haqiqiy kitobga aylantiramiz.",
+    note: "bu yerda ismlaringiz bo‘ladi",
+    cta: "WhatsApp orqali batafsil bilish",
+    cta2: "Bepul yozishni boshlash",
+    facts: ["Almatyda bosamiz", "5–7 ish kuni", "Qozog‘iston bo‘ylab yetkazib berish"],
+  },
+  questionsLabel: (n) => `Ichida ${n} ta savol bor. Mana ulardan bir nechtasi:`,
+  try: {
+    eyebrow: "Hoziroq sinab ko‘ring",
+    title: "Bitta qator — va bu endi kitob sahifasi",
+    lead: "Haqiqiy kitobdagi savolga javob bering. Javobni yozasiz — va uning qanday bosilishini darhol ko‘rasiz.",
+    chapterLabel: (n, title) => `${n}-bob · ${title}`,
+    sample: "Ko‘ktobe, shamol. Sen: «Qara, butun shahar», — deding. Men esa senga qarab turardim.",
+    placeholder: "Esingizda qolganicha bir-ikki so‘z",
+    hint: "Do‘stingizga aytib berganingizdek yozing. Chiroyli qilib biz sahifalaymiz.",
+    yours: "buni siz yozdingiz",
+    cta: "Butun kitobni xohlayman",
+  },
+  inside: {
+    eyebrow: "Ichida",
+    title: "Namuna kitobni varaqlab ko‘ring",
+    text: "Har bir javob bobning bir qismiga aylanadi: sarlavha, epigraf, bosh harf, matn yonida surat. Bosishdan oldin har bir sahifaning aniq maketini ko‘rasiz — kitob bosmaxonadan aynan shunday chiqadi.",
+  },
+  photos: {
+    eyebrow: "Suratlar",
+    title: "Telefondagi suratlar — qalin qog‘ozda",
+    text: "Suratlarni to‘g‘ridan-to‘g‘ri telefondan yuklab, yoyilma maketini tanlaysiz. 150 g/m² qog‘ozda to‘liq rangli bosma, qattiq muqova, tikilgan blok — bunday kitobni yillar davomida qayta o‘qiydilar.",
+    note: "o‘sha bir kun",
+  },
+  how: {
+    eyebrow: "Qanday amalga oshadi",
+    title: "Bir necha oqshom — sovg‘a tayyor",
+    steps: [
+      { title: "Yozasiz", text: "Telefondan, o‘zingizga qulay sur’atda: odatda ikki-uch oqshom yetadi. Hammasi o‘zi saqlanadi, barcha savollarga javob berish shart emas — kitobga faqat to‘ldirilganlari kiradi." },
+      { title: "Yig‘asiz", text: "Suratlar qo‘shasiz, muqova va sahifalar bezagini tanlaysiz. Muqovadagi nom va ismlar — sizniki." },
+      { title: "Olasiz", text: "Maketni tekshirib, to‘lov qilasiz — 5–7 ish kunida bosamiz va kuryer orqali olib boramiz yoki Qozog‘iston bo‘ylab jo‘natamiz." },
+    ],
+    secret: "Syurpriz syurpriz bo‘lib qoladi: sovg‘a qilgunga qadar kitobni faqat siz ko‘rasiz.",
+  },
+  price: {
+    eyebrow: "Narxi",
+    title: "Qancha turadi",
+    from: (p) => `${p} dan`,
+    delivery: "Almaty va Astanada kuryer, Qozog‘iston bo‘ylab yetkazib berish yoki studiyadan olib ketish.",
+    deadline: "O‘z sanangizga ulgurasizmi?",
+    deadlineCta: "Sanani yozing — muddatini hisoblab beramiz",
+  },
+  faqTitle: "Ko‘p beriladigan savollar",
+  faqExtra: [
+    "Sanamizga ulgurasizlarmi?",
+    "Bosish 5–7 ish kuni davom etadi, ekspress bosma bilan — 3–4 kun. Sanani bizga WhatsApp orqali yozing — buyurtmani qaysi kungacha rasmiylashtirish kerakligini aytamiz. Umuman ulgurmasangiz, elektron nusxa to‘lovdan keyin darhol tayyor bo‘ladi.",
+  ],
+  final: {
+    title: "Birinchi bob bugun kechqurun yoziladi",
+    text: "Yozish bepul — kitob bosishga tayyor bo‘lgandagina to‘laysiz.",
+    cta: "WhatsApp orqali yozish",
+    cta2: "Yozishni boshlash",
+  },
+  sticky: { from: (p) => `Kitob ${p} dan`, cta: "WhatsApp" },
+};
 
-export const adLoveCopy = (locale: Locale) => copy[locale];
+const copy: Record<PublicLocale, AdLoveCopy> = { ru, kk, uz };
+
+export const adLoveCopy = (locale: Locale) => copy[toPublic(locale)];

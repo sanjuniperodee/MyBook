@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { toPublic } from "@/i18n/config";
 import { ChevronRight } from "lucide-react";
 import { Link } from "@/i18n/client";
 import { LandingHeader } from "@/components/landing/Header";
@@ -18,7 +19,7 @@ import { absoluteUrl, breadcrumbLd, socialMeta } from "@/lib/seo";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getLocale();
-  const { title, description } = toolsPageUi[locale].hubMeta;
+  const { title, description } = toolsPageUi[toPublic(locale)].hubMeta;
   return {
     title: { absolute: `${title} · ${site.name}` },
     description,
@@ -50,7 +51,7 @@ const groupOf: Record<ToolKind, "book" | "family" | "talk"> = {
  */
 export default async function ToolsHubPage() {
   const [user, locale, m] = await Promise.all([getCurrentUser(), getLocale(), getMessages()]);
-  const pg = toolsPageUi[locale];
+  const pg = toolsPageUi[toPublic(locale)];
   const t = m.secondary.tools.hub;
   const guestClosed = !user && !registrationOpen();
   const create = user ? "/books/new" : guestClosed ? "/login" : "/register";
@@ -65,14 +66,14 @@ export default async function ToolsHubPage() {
     {
       "@context": "https://schema.org",
       "@type": "ItemList",
-      itemListElement: tools.map((x, i) => ({ "@type": "ListItem", position: i + 1, name: x.content[locale].label, url: absoluteUrl(`/instrumenty/${x.slug}`, locale) })),
+      itemListElement: tools.map((x, i) => ({ "@type": "ListItem", position: i + 1, name: x.content[toPublic(locale)].label, url: absoluteUrl(`/instrumenty/${x.slug}`, locale) })),
     },
   ];
   const groups = t.groups.map((g) => ({ ...g, items: tools.filter((x) => groupOf[x.kind] === g.id) })).filter((g) => g.items.length);
   const featured = groups[0]?.items[0];
 
   const row = (x: ToolDef, big = false) => {
-    const c = x.content[locale];
+    const c = x.content[toPublic(locale)];
     return (
       <li key={x.slug} className="border-b border-line">
         <Link href={`/instrumenty/${x.slug}`} className="group grid min-h-20 grid-cols-[minmax(0,1fr)_auto] items-start gap-x-4 gap-y-1 py-5 sm:grid-cols-[7.5rem_minmax(0,1fr)_auto] sm:gap-x-6 sm:py-6">
@@ -154,7 +155,7 @@ export default async function ToolsHubPage() {
                 {articles.map((a) => (
                   <li key={a.slug} className="border-b border-line">
                     <Link href={`/blog/${a.slug}`} className="flex min-h-14 items-center py-3 leading-snug font-medium text-ink-soft hover:text-wine">
-                      {a.content[locale].title}
+                      {a.content[toPublic(locale)].title}
                     </Link>
                   </li>
                 ))}

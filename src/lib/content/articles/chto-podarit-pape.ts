@@ -134,5 +134,68 @@ export const chtoPodaritPape: Article = {
       ],
       cta: { title: "Әке туралы кітап — өз қолыңызбен", text: "Сұрақтарға жауап беріп, сурет қосыңыз — біз кітапты беттеп, басып шығарамыз. Жазу тегін." },
     },
+    uz: {
+      title: "Otaga nima sovg‘a qilish mumkin: tug‘ilgan kun, yubiley va 23-fevral uchun g‘oyalar",
+      description: "Ota «hech narsa kerak emas» desa, nima sovg‘a qilish mumkin: foydali sovg‘alar, sevimli mashg‘ulotlar uchun narsalar, taassurotlar va qalbdan sovg‘a. Qanday tanlash va xato qilmaslik kerak.",
+      lead: "Otalar kamdan-kam sovg‘a so‘raydi, ular uchun tanlash esa ko‘ringanidan qiyinroq. G‘oyalarni turkumlar bo‘yicha va otangiz haqiqatan foydalanadigan — yoki saqlab yuradigan — sovg‘ani topish bo‘yicha maslahatlarni jamladik.",
+      sections: [
+        {
+          heading: "Foydali sovg‘alar",
+          paragraphs: ["Eng yaxshi foydali sovg‘a — ota bir paytlar gap orasida aytib o‘tgan narsa. U nimani ta’mirlaganini, yo‘lda, dachada, garajda yoki ishda nimasi yetishmaganini eslang."],
+          list: [
+            "Yaxshi asboblar to‘plami yoki akkumulyatorli shurupovyort.",
+            "Qulay kurtka, issiq qo‘lqop, sifatli poyabzal.",
+            "Yo‘l va baliq ovi uchun termos yoki termokrujka.",
+            "Ko‘chma powerbank, fonar yoki avtomobil kompressori.",
+            "Ota sog‘lig‘iga e’tibor bersa, aqlli soat yoki fitnes-bilakuzuk.",
+          ],
+        },
+        {
+          heading: "Sevimli mashg‘ulotlar uchun sovg‘alar",
+          paragraphs: ["Otangizning sevimli mashg‘uloti bo‘lsa, shunga mos sovg‘a deyarli har doim o‘z nishoniga tegadi. Faqat takrorlanib qolmasligi uchun onangizdan yoki do‘stlaridan uning nimasi borligini so‘rab oling."],
+          list: [
+            "Baliqchi va ovchilarga — ov anjomlari, sayohat idishlari, yaxshi jihozlar.",
+            "Avtomobil sevuvchilarga — videoregistrator, yukxonaga organayzer, mashinaga qarash to‘plami.",
+            "Kitob o‘qishni yoqtiradiganlarga — o‘zi qiziqqan mavzudagi qiziq kitob yoki elektron kitob.",
+            "Shaxmat va nard ixlosmandlariga — qo‘lda yasalgan chiroyli taxta.",
+            "Bog‘bonlarga — yaxshi qaychi, qo‘lqop, dacha uchun asboblar to‘plami.",
+          ],
+        },
+        {
+          heading: "Taassurotli sovg‘alar",
+          paragraphs: ["Otalar ko‘pincha dam olishni xohlashlarini aytmaydi, lekin birga vaqt o‘tkazish taklifini mamnuniyat bilan qabul qiladi."],
+          list: [
+            "Ikkalangiz baliq ovlashga yoki tabiatga chiqish.",
+            "Sevimli jamoa o‘yiniga chiptalar.",
+            "Yoqtirsa, do‘stlari bilan hammomga borish.",
+            "Dam olish kunlari tog‘ga yoki sanatoriyga safar.",
+            "Hamma yig‘iladigan oilaviy kechki ovqat.",
+          ],
+        },
+        {
+          heading: "Qalbdan sovg‘a: ota haqidagi kitob",
+          paragraphs: [
+            "Ko‘p otalarga his-tuyg‘ularini ovoz chiqarib aytish qiyin, farzandlarining iliq so‘zlarini esa qayta-qayta o‘qishga tayyor. Ota haqidagi kitob — sizning xotiralaringiz, uning maslahatlari va hikoyalari, nevaralari va do‘stlarining xatlari. Bunday sovg‘ani yillar davomida saqlashadi.",
+            "Kitobni bepul yozish mumkin: siz savollarga javob berasiz va suratlar qo‘shasiz. Tayyor kitobni qattiq muqovada bosib, Qozog‘iston bo‘ylab yetkazib beramiz; elektron nusxa to‘lovdan keyin darhol mavjud.",
+          ],
+        },
+        {
+          heading: "Qanday qilib xato qilmaslik kerak",
+          list: [
+            "Ota so‘ramagan bo‘lsa, «tarbiyaviy maqsadda» maishiy texnika kabi narsalarni sovg‘a qilmang: bu ta’na bo‘lib eshitilishi mumkin.",
+            "O‘lcham va modelni aniqlang: kiyim, poyabzal va asboblarda mayda tafsilotlar hammasini hal qiladi.",
+            "Maqom ketidan quvmang: otaga ko‘pincha qulaylik va aynan u haqida o‘ylaganingiz muhimroq.",
+            "Har qanday sovg‘aga qo‘lda yozilgan bir necha so‘z qo‘shing — tabriknoma ko‘ringanidan kuchliroq ta’sir qiladi.",
+            "Sovg‘a umumiy bo‘lsa, ikkita bir xil narsa chiqib qolmasligi uchun aka-ukalar va opa-singillar bilan oldindan kelishib oling.",
+          ],
+        },
+      ],
+      faq: [
+        ["Otamda hamma narsa bor bo‘lsa, nima sovg‘a qilaman?", "Vaqt va so‘zni sovg‘a qiling: ikkalangiz safarga chiqing, oilaviy kechki ovqat uyushtiring yoki u siz uchun nimani anglatishini aytadigan kitob tayyorlang. Otangizda narsalar, ehtimol, allaqachon bor, bunday sovg‘alarni esa u eslab qoladi."],
+        ["Otaga 23-fevralga nima sovg‘a qilaman?", "Oilangizda bu kun nishonlansa, uning mashg‘ulotlari uchun foydali narsalar, iliq so‘zli tabriknoma yoki kichik oilaviy dasturxon mos keladi. Ota haqidagi kitob ham har qanday sana uchun yaxshi tanlov."],
+        ["Otaga yubileyga nima sovg‘a qilaman?", "Eng yaxshisi — butun oiladan nimadir: birgalikdagi safar, bayram kechki ovqati yoki farzandlari, nevaralari va do‘stlarining xatlari kiradigan kitob."],
+      ],
+      cta: { title: "Ota haqidagi kitob — o‘z qo‘lingiz bilan", text: "Savollarga javob bering, surat qo‘shing — kitobni biz sahifalab, bosib chiqaramiz. Yozish bepul." },
+    },
   },
 };

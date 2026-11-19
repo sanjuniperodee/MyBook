@@ -12,6 +12,7 @@ import { site } from "@/config/site";
 import { getLocale, getMessages } from "@/i18n/server";
 import { alternates } from "@/i18n/seo";
 import type { Locale } from "@/i18n/config";
+import { toPublic } from "@/i18n/config";
 import { articles, type Article } from "@/lib/content/articles";
 import { coverPhotoUrl } from "@/lib/book/photo-cover";
 import { absoluteUrl, breadcrumbLd, socialMeta } from "@/lib/seo";
@@ -49,7 +50,7 @@ export default async function BlogPage() {
     {
       "@context": "https://schema.org",
       "@type": "ItemList",
-      itemListElement: articles.map((a, i) => ({ "@type": "ListItem", position: i + 1, name: a.content[locale].title, url: absoluteUrl(`/blog/${a.slug}`, locale) })),
+      itemListElement: articles.map((a, i) => ({ "@type": "ListItem", position: i + 1, name: a.content[toPublic(locale)].title, url: absoluteUrl(`/blog/${a.slug}`, locale) })),
     },
   ];
 
@@ -158,5 +159,5 @@ export default async function BlogPage() {
 }
 
 function c(a: Article, locale: Locale) {
-  return a.content[locale];
+  return a.content[toPublic(locale)];
 }

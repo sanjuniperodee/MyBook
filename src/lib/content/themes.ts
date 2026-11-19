@@ -25,6 +25,20 @@ import { parentChapters as parentChaptersKk } from "./kk/parent";
 import { parentsChapters as parentsChaptersKk } from "./kk/parents";
 import { siblingChapters as siblingChaptersKk } from "./kk/sibling";
 import { teacherChapters as teacherChaptersKk } from "./kk/teacher";
+import { autobiographyChapters as autobiographyChaptersUz } from "./uz/autobiography";
+import { childChapters as childChaptersUz } from "./uz/child";
+import { daughterinlawChapters as daughterinlawChaptersUz } from "./uz/daughterinlaw";
+import { familyChapters as familyChaptersUz } from "./uz/family";
+import { friendChapters as friendChaptersUz } from "./uz/friend";
+import { grandmaChapters as grandmaChaptersUz } from "./uz/grandma";
+import { grandpaChapters as grandpaChaptersUz } from "./uz/grandpa";
+import { loveChapters as loveChaptersUz } from "./uz/love";
+import { parentChapters as parentChaptersUz } from "./uz/parent";
+import { parentsChapters as parentsChaptersUz } from "./uz/parents";
+import { siblingChapters as siblingChaptersUz } from "./uz/sibling";
+import { teacherChapters as teacherChaptersUz } from "./uz/teacher";
+import { colleagueChapters as colleagueChaptersUz } from "./uz/colleague";
+import { bossChapters as bossChaptersUz } from "./uz/boss";
 import { colleagueChapters as colleagueChaptersKk } from "./kk/colleague";
 import { bossChapters as bossChaptersKk } from "./kk/boss";
 import type { ChapterDef, GiftThemeId, ThemeDef, ThemeId } from "./types";
@@ -358,10 +372,156 @@ const text: Record<Locale, Record<ThemeId, ThemeText>> = {
       chapters: [],
     },
   },
+  // Узбекский (латиница): банк вопросов и подписи книги. Апостроф в o‘, g‘ — U+2018, тутук — U+2019 (в шрифтах сайта и PDF они есть).
+  uz: {
+    love: {
+      name: "Sevgan insonga",
+      short: "Sevganga",
+      description: "Sevgingiz tarixi: tanishuv, birinchi uchrashuvlar, orzular va uzoq vaqtdan beri aytmoqchi bo‘lgan so‘zlaringiz.",
+      recipientLabel: "Sevgan insonning ismi",
+      recipientPlaceholder: "Masalan, Aliya",
+      titleSuggestions: ["Bizning tariximiz", "Sen — mening hamma narsamsan", "Sevgimiz tarixi", "Biz"],
+      chapters: loveChaptersUz,
+    },
+    mom: {
+      name: "Onaga",
+      short: "Onaga",
+      description: "Minnatdorchilik kitobi: bolalik xotiralari, ona bergan saboqlar va iliq so‘zlar.",
+      recipientLabel: "Onaning ismi",
+      recipientPlaceholder: "Masalan, Gulnora",
+      titleSuggestions: ["Ona, bu sizga", "Mening onam", "Rahmat, ona", "Hammasi sizdan boshlanadi"],
+      chapters: parentChaptersUz,
+    },
+    dad: {
+      name: "Otaga",
+      short: "Otaga",
+      description: "Farzand tilidan hikoya: ota yonidagi bolalik, uning maslahatlari, kuchi va g‘amxo‘rligi.",
+      recipientLabel: "Otaning ismi",
+      recipientPlaceholder: "Masalan, Erlan",
+      titleSuggestions: ["Ota, bu sizga", "Mening otam", "Rahmat, ota", "Mening qahramonim"],
+      chapters: parentChaptersUz,
+    },
+    parents: {
+      name: "Ota-onaga",
+      short: "Ota-onaga",
+      description: "Ona va otaga birgalikda kitob: siz ulg‘aygan uy, ularning tarixi, saboqlar, oilaviy an’analar va ikkalasiga minnatdorchilik so‘zlari.",
+      recipientLabel: "Ota-onaning ismlari",
+      recipientPlaceholder: "Masalan, Gulnora va Erlan",
+      titleSuggestions: ["Ona va otamga", "Rahmat, ota-ona", "Aziz ota-onam", "Bizning oilamiz"],
+      chapters: parentsChaptersUz,
+    },
+    family: {
+      name: "Oilaga",
+      short: "Oilaga",
+      description: "Butun oila uchun kitob: ildizlar va nasl-nasab, uy va an’analar, kattalar va bolalar, bayramlar, sinovlar va sizni birga ushlab turgan narsa.",
+      recipientLabel: "Oilaning nomi",
+      recipientPlaceholder: "Masalan, Ahmetovlar oilasi",
+      titleSuggestions: ["Oilamiz tarixi", "Oilaviy kitob", "Bizning nasl-nasab", "Birga bo‘lgan uyimiz"],
+      chapters: familyChaptersUz,
+    },
+    grandma: {
+      name: "Buviga",
+      short: "Buviga",
+      description: "Nevaralar tilidan kitob: buvining uyi va dasturxoni, ertaklar va g‘amxo‘rlik, uning hayoti, donoligi va minnatdorchilik so‘zlari.",
+      recipientLabel: "Buvining ismi",
+      recipientPlaceholder: "Masalan, Roza",
+      titleSuggestions: ["Buvijon, bu sizga", "Mening buvim", "Rahmat, buvijon", "Buvimning uyi"],
+      chapters: grandmaChaptersUz,
+    },
+    grandpa: {
+      name: "Boboga",
+      short: "Boboga",
+      description: "Nevaralar tilidan kitob: bobo uyi va ustaxonasi, uning ishi va yo‘llari, buviga muhabbat tarixi, donolik va minnatdorchilik so‘zlari.",
+      recipientLabel: "Boboning ismi",
+      recipientPlaceholder: "Masalan, Qayrat",
+      titleSuggestions: ["Bobojon, bu sizga", "Mening bobom", "Rahmat, bobojon", "Bobomning uyi"],
+      chapters: grandpaChaptersUz,
+    },
+    daughterinlaw: {
+      name: "Kelinga",
+      short: "Kelinga",
+      description: "Qaynona, qaynota yoki er tomonidan kitob: u oilaga qanday kirib kelgani, birinchi taassurotlar, fazilatlari va xizmatlari, oilaviy an’analar, minnatdorchilik va tilaklar.",
+      recipientLabel: "Kelinning ismi",
+      recipientPlaceholder: "Masalan, Aygerim",
+      titleSuggestions: ["Sizga, aziz kelinimiz", "Oilamizga xush kelibsiz", "Biz bilan bo‘lganingiz uchun rahmat", "Bizning Aygerim"],
+      chapters: daughterinlawChaptersUz,
+    },
+    child: {
+      name: "Qiz yoki o‘g‘ilga",
+      short: "Farzandga",
+      description: "Ona yoki ota tilidan kitob: farzandni qanday kutganingiz, dastlabki yillar, ulg‘ayish hikoyalari va butun umrga qoldirmoqchi bo‘lgan narsalar.",
+      recipientLabel: "Qiz yoki o‘g‘ilning ismi",
+      recipientPlaceholder: "Masalan, Amina",
+      titleSuggestions: ["Senga, farzandim", "Sen — bizning baxtimizsan", "Bolaligingning tarixi", "Senga xatlar"],
+      chapters: childChaptersUz,
+    },
+    sibling: {
+      name: "Aka-ukaga yoki opa-singilga",
+      short: "Aka-ukaga/opa-singilga",
+      description: "Birga ulg‘ayganingiz haqida kitob: ikkovingizga bitta xona, janjal va yarashuvlar, oilaviy hikoyalar va sizni umr bo‘yi bog‘lab turgan narsa.",
+      recipientLabel: "Aka-uka yoki opa-singilning ismi",
+      recipientPlaceholder: "Masalan, Aydana",
+      titleSuggestions: ["Biz birga ulg‘aydik", "Sen va men", "Bizning bolaligimiz", "Qadrdon jon"],
+      chapters: siblingChaptersUz,
+    },
+    friend: {
+      name: "Do‘stga",
+      short: "Do‘stga",
+      description: "Do‘stlik haqida kitob: telba sarguzashtlar, o‘zimizbop hazillar va yoningizda bo‘lgani uchun minnatdorchilik.",
+      recipientLabel: "Do‘stning ismi",
+      recipientPlaceholder: "Masalan, Dana",
+      titleSuggestions: ["Do‘stligimiz kitobi", "Do‘stlar abadiy", "Sen va men", "Oddiygina biz"],
+      chapters: friendChaptersUz,
+    },
+    teacher: {
+      name: "Ustozga",
+      short: "Ustozga",
+      description: "Ustozga minnatdorchilik kitobi: birinchi darslar, maktab hikoyalari va umrbod yodda qolgan so‘zlar. O‘zingiz nomingizdan yoki butun sinf bilan yozish mumkin.",
+      recipientLabel: "Ustozning ismi",
+      recipientPlaceholder: "Masalan, Saule Qayratovna",
+      titleSuggestions: ["Rahmat, ustoz", "Umrga yetadigan darslar", "Ustozimizga", "Siz bizga eng muhimini o‘rgatdingiz"],
+      chapters: teacherChaptersUz,
+    },
+    colleague: {
+      name: "Hamkasbga",
+      short: "Hamkasbga",
+      description: "Jamoadan yoki hamkasbdan kitob: qanday tanishganingiz, ish kunlari va umumiy g‘alabalar, bo‘lim hikoyalari va hazillari, og‘ir kunlar va minnatdorchilik so‘zlari.",
+      recipientLabel: "Hamkasbning ismi",
+      recipientPlaceholder: "Masalan, Dinara",
+      titleSuggestions: ["Eng yaxshi hamkasbimizga", "Jamoamizda bo‘lganing uchun rahmat", "Bo‘limimizning odami", "Sen bilan ishlash — katta zavq"],
+      chapters: colleagueChaptersUz,
+    },
+    boss: {
+      name: "Rahbarga",
+      short: "Rahbarga",
+      description: "Jamoadan yoki xodimdan rahbar va direktorga kitob: birga ishlay boshlaganingiz, u qanday boshqarishi, nimani o‘rgatgani, og‘ir va muhim kunlar hamda minnatdorchilik so‘zlari.",
+      recipientLabel: "Rahbarning ismi",
+      recipientPlaceholder: "Masalan, Yerlan Maratovich",
+      titleSuggestions: ["Rahmat, rahbarimiz", "Direktorimizga", "Siz bilan — jamoa", "Siz bizga eng muhimini o‘rgatdingiz"],
+      chapters: bossChaptersUz,
+    },
+    autobiography: {
+      name: "Tarjimai hol",
+      short: "Tarjimai hol",
+      description: "Hayotingiz haqida kitob: ildizlar, bolalik, sevgi, mehnat, sinovlar va bolalaringiz hamda nevaralaringizga qoldirmoqchi bo‘lgan narsalar. Yaqin odamning og‘zidan yozib olish ham mumkin.",
+      titleSuggestions: ["Hayotim tarixi", "Mening hayotim", "Hayotim kitobi", "Nevaralarimga"],
+      chapters: autobiographyChaptersUz,
+    },
+    blank: {
+      name: "O‘z kitobingiz",
+      short: "O‘z kitobingiz",
+      description: "Oq varaqdan boshlanadigan kitob: bob va bo‘limlarni o‘zingiz o‘ylab topasiz va o‘z tartibingizda yozasiz — tayyor savollarsiz.",
+      recipientLabel: "Kim uchun — majburiy emas",
+      recipientPlaceholder: "Masalan, bolalarimga",
+      titleSuggestions: ["Mening kitobim", "Yozuvlar", "Hikoyalar", "Xotiralar kitobi"],
+      firstChapterTitle: "Boshlanish",
+      chapters: [],
+    },
+  },
 };
 
 /** Глава для вопросов, у которых нет темы (пользовательские и из удалённых глав). */
-const miscTitle: Record<Locale, string> = { ru: "Разное", kk: "Әртүрлі" };
+const miscTitle: Record<Locale, string> = { ru: "Разное", kk: "Әртүрлі", uz: "Turli" };
 
 const cache = new Map<string, ThemeDef>();
 
@@ -418,5 +578,5 @@ export function chapterTitle(theme: ThemeDef, key: string, lang: Locale = "ru"):
 
 /** Все тексты темы на обоих языках — для проверки полноты перевода в тестах. */
 export function themeChaptersByLocale(id: ThemeId): Record<Locale, ChapterDef[]> {
-  return { ru: text.ru[id].chapters, kk: text.kk[id].chapters };
+  return { ru: text.ru[id].chapters, kk: text.kk[id].chapters, uz: text.uz[id].chapters };
 }

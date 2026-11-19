@@ -113,5 +113,58 @@ export const kakNapisatKniguVPodarok: Article = {
       ],
       cta: { title: "Кітабыңызды бастаңыз", text: "Жазу тегін — кітап дайын болғанда ғана төлейсіз." },
     },
+    uz: {
+      title: "Sovg‘a uchun kitob qanday yoziladi: bosqichma-bosqich qo‘llanma",
+      description: "Yaqin insonga sovg‘a uchun shaxsiy kitobni qanday yaratish mumkin: nimadan boshlash, nima haqida yozish, surat va muqovani qanday tanlash va bayramga ulgurish.",
+      lead: "Sovg‘a uchun kitob katta loyihadek tuyuladi, aslida esa bu bir qator kichik qadamlar. Yozuvchi bo‘lmasdan turib, g‘oyadan tayyor bosma kitobgacha yo‘lni qanday bosib o‘tishni aytib beramiz.",
+      sections: [
+        {
+          heading: "1-qadam. Kim haqida va qanday munosabat bilan ekanini belgilang",
+          paragraphs: [
+            "Kitobning qahramoni bitta va g‘oyasi bitta bo‘lsa, u alohida chiqadi. Ona yoki ota haqida — minnatdorchilik sifatida, sevgan inson haqida — juftlik tarixi sifatida, do‘st haqida — do‘stlik xotirasi sifatida.",
+            "Munosabat muddatni belgilaydi: tug‘ilgan kun yoki yillikka yozishga, maketni tekshirishga va bosmani kutishga ulgurish kerak. Buning uchun kamida ikki-uch hafta qo‘ying.",
+          ],
+        },
+        {
+          heading: "2-qadam. Oq qog‘ozdan boshlab yozmang",
+          paragraphs: [
+            "Eng ko‘p uchraydigan qo‘rquv — bo‘sh sahifa. Savollarga javob berish to‘qishdan osonroq: «Qanday tanishgansiz?» yoki «Bolalikdan nima esingizda qolgan?» xotiralarni o‘zi uyg‘otadi.",
+            "Ovoz chiqarib aytib berganingizdek yozing. Iliq va sodda so‘zlashuv «chiroyli» matndan yaxshiroq o‘qiladi, xatolarni keyin tuzatish mumkin.",
+          ],
+        },
+        {
+          heading: "3-qadam. Suratlarni tanlang",
+          list: [
+            "Maxsus qo‘yilgan suratlarni emas, his-tuyg‘uli suratlarni tanlang.",
+            "Eski suratlarni yaxshi yorug‘likda suratga oling yoki skanerlang — shunda bosmada chiroyliroq ko‘rinadi.",
+            "Yuqori ruxsatdagi suratlar yaxshiroq: sifat yetmasa, buni oldindan bilgan ma’qul.",
+            "Izohlar qo‘shing — yillar o‘tgach, ular orqali sanalar va ismlarni eslash mumkin bo‘ladi.",
+          ],
+        },
+        {
+          heading: "4-qadam. Muqova va bezakni tanlang",
+          paragraphs: [
+            "Muqova — sovg‘a oluvchi birinchi ko‘radigan narsa. Insonning xarakteriga mos maketni tanlang: mayin, jiddiy, hazilkash. O‘z suratingizdan foydalanish mumkin.",
+            "Sahifalar bezagi — shriftlar, vinyetkalar, bob boshlanishlari — muqovaga mos kelishi kerak. Ular juft qilib tanlangani yaxshi.",
+          ],
+        },
+        {
+          heading: "5-qadam. Yaqinlarning ovozini qo‘shing",
+          paragraphs: ["Qarindosh va do‘stlarning xatlari kitobni hammadan sovg‘aga aylantiradi. Ularga havola yuboring — telefondan va ro‘yxatdan o‘tmasdan yozish mumkin. Xatlar kitobga alohida bob bo‘lib kiradi."],
+        },
+        {
+          heading: "6-qadam. Maketni tekshiring va bosmaga buyurtma bering",
+          paragraphs: [
+            "Buyurtma berishdan oldin kitobni to‘liq varaqlab chiqing: imlo xatolarini, boblar tartibini va suratlar joylashuvini tekshiring. Maketda nimani ko‘rsangiz, shu bosib chiqariladi.",
+            "Sanaga sovg‘a uchun muddatlarni hisobga oling: ishlab chiqarish 5–7 ish kuni («Premium» tarifida — 3–4) va yetkazib berish. Vaqt kam bo‘lsa, elektron nusxa darhol mavjud.",
+          ],
+        },
+      ],
+      faq: [
+        ["Kitob ustida ishlash qancha vaqt oladi?", "Odatda ikki oqshomdan bir-ikki haftagacha. Javoblar avtomatik saqlanadi, shuning uchun oz-ozdan va turli qurilmalardan yozish mumkin."],
+        ["Hamma savollarga javob berish shartmi?", "Yo‘q. Kitobga faqat to‘ldirilgan javoblar kiradi, savollarni esa o‘tkazib yuborish, qayta yozish yoki o‘zingizniki bilan to‘ldirish mumkin."],
+      ],
+      cta: { title: "Kitobingizni boshlang", text: "Yozish bepul — kitob tayyor bo‘lganda to‘laysiz." },
+    },
   },
 };

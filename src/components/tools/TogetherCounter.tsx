@@ -1,5 +1,6 @@
 "use client";
 
+import { toPublic } from "@/i18n/config";
 import { useMemo, useState } from "react";
 import { useLocale } from "@/i18n/client";
 import { dateFor } from "@/i18n/messages/partial";
@@ -11,7 +12,7 @@ import { Choice, CopyButton, Figure, ResultEmpty, ToolField, Workbench } from ".
 /** Счётчик дней вместе. «Сейчас» берётся после загрузки страницы, чтобы сервер и браузер рисовали одно и то же. */
 export function TogetherCounter() {
   const locale = useLocale();
-  const ui = toolUi[locale].together;
+  const ui = toolUi[toPublic(locale)].together;
   const [value, setValue] = useState("");
   const [mode, setMode] = useState<"relationship" | "wedding">("relationship");
   const [now, setNow] = useState<Date | null>(null);
@@ -72,7 +73,7 @@ export function TogetherCounter() {
                   {nowName ? <p className="font-medium">{ui.weddingNow(stats.years, nowName)}</p> : null}
                   {next ? (
                     <p className="text-ink-soft">
-                      {ui.weddingNext(next.year, next[locale])} {fmt(anniversaryDate(start, next.year), true)}.
+                      {ui.weddingNext(next.year, next[toPublic(locale)])} {fmt(anniversaryDate(start, next.year), true)}.
                     </p>
                   ) : null}
                 </div>

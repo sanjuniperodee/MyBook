@@ -1,5 +1,6 @@
 "use client";
 
+import { toPublic } from "@/i18n/config";
 import { useState } from "react";
 import { Printer, Shuffle } from "lucide-react";
 import { useLocale } from "@/i18n/client";
@@ -9,7 +10,7 @@ import { Choice, CopyButton, ToolField, Workbench } from "./Workbench";
 
 /** Карточки с вопросами из банка вопросов книг. Темы и вопросы приходят с сервера на языке страницы. */
 export function QuestionCards({ themes }: { themes: Record<string, CardQuestion[]> }) {
-  const ui = toolUi[useLocale()].cards;
+  const ui = toolUi[toPublic(useLocale())].cards;
   const ids = Object.keys(themes);
   const [theme, setTheme] = useState(ids[0]);
   const [index, setIndex] = useState(0);

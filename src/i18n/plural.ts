@@ -11,3 +11,5 @@ export function ruPlural(n: number, one: string, few: string, many: string) {
 export const ruCount = (n: number, one: string, few: string, many: string) => `${n.toLocaleString("ru-RU")} ${ruPlural(n, one, few, many)}`;
 /** Разделители разрядов в казахском те же, что в русском; Intl("kk-KZ") не используем — его нет в части браузеров. */
 export const kkCount = (n: number, word: string) => `${n.toLocaleString("ru-RU")} ${word}`;
+/** В узбекском после числа форма одна: «3 ta savol». Разделители разрядов те же, что в русском. */
+export const uzCount = (n: number, word: string) => `${n.toLocaleString("ru-RU")} ${word}`;

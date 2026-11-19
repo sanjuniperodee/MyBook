@@ -43,5 +43,23 @@ export const knigaPape: Landing = {
         ["Бірнеше баладан жазуға бола ма?", "Бір кітапқа кезекпен жазуға немесе қалғандарын хат жазуға шақыруға болады — хаттар жеке тарау болып кіреді."],
       ],
     },
+    uz: {
+      label: "Otaga sovg‘a kitob",
+      h1: "Otaga sovg‘a,",
+      accent: "u uni asrab-avaylaydi",
+      metaTitle: "Otaga sovg‘a kitob — farzand aytib bergan tarix",
+      metaDescription: "Ota uchun shaxsiy kitob: u bilan o‘tgan bolalik, maslahatlari, kuchi va g‘amxo‘rligi. Savollarga javob bering, surat qo‘shing — kitobni qattiq muqovada bosamiz.",
+      lead: "Otalar his-tuyg‘ular haqida kamdan-kam gapiradi — va kamdan-kam eshitadi. Kitob siz uni qanday eslashingizni, u sizga nimani o‘rgatganini va nima uchun minnatdorligingizni aytib beradi.",
+      why: [
+        { title: "Navbatdagi gadjetdan yaxshiroq", text: "Eskirmaydigan va sinmaydigan sovg‘a — uni u do‘stlariga ko‘rsatadi." },
+        { title: "Eng muhimi haqida — noqulaylarsiz", text: "Savollar ovoz chiqarib aytish qiyin bo‘lgan gaplarni yozishga yordam beradi." },
+        { title: "Yubileyga — butun oiladan", text: "Farzandlar, nevaralar va do‘stlardan xatlar yig‘ing — kitobda alohida bob bo‘ladi." },
+      ],
+      cover: { title: "Dada, rahmat", names: "Arnurdan" },
+      faq: [
+        ["Yubileyga to‘g‘ri keladimi?", "Ha, bu eng ko‘p uchraydigan munosabatlardan biri. Yaqinlar xatlari kitobni butun oiladan sovg‘aga aylantiradi."],
+        ["Bir nechta farzanddan yozsa bo‘ladimi?", "Bitta kitobga navbat bilan yozish yoki qolganlarni xat yozishga taklif qilish mumkin — xatlar alohida bob bo‘lib kiradi."],
+      ],
+    },
   },
 };

@@ -1,3 +1,4 @@
+import { localeMeta } from "@/i18n/config";
 import "server-only";
 import { formatPrice } from "@/config/site";
 import { messagesFor } from "@/i18n/messages";
@@ -17,7 +18,7 @@ import { DiscountError, DiscountPolicy } from "@/shared/domain/discount";
 import { transferRequisites } from "./requisites";
 
 /** Ссылка на оплату счёта — на языке счёта (/pay или /kk/pay). */
-export const payLink = (invoice: DealInvoice) => `${env.appUrl}${invoice.snapshot().locale === "kk" ? "/kk" : ""}/pay/${invoice.token}`;
+export const payLink = (invoice: DealInvoice) => `${env.appUrl}${{ ru: "", kk: "/kk", uz: "/uz" }[invoice.snapshot().locale]}/pay/${invoice.token}`;
 
 /** Способы оплаты, которые увидит клиент; пусто — выставлять счёт нельзя. */
 export async function availableMethods() {
@@ -33,7 +34,7 @@ export const isKzMobile = (digits: string | null) => !!kaspiPhone(digits);
 export function invoiceText(invoice: DealInvoice, kaspi: { phone: string; org: string | null } | null = null) {
   const s = invoice.snapshot();
   const t = messagesFor(s.locale).pay;
-  const until = new Intl.DateTimeFormat(s.locale === "kk" ? "kk-KZ" : "ru-RU", { timeZone: storeTimeZone(), day: "numeric", month: "long" }).format(s.expiresAt);
+  const until = new Intl.DateTimeFormat(localeMeta[s.locale].intl, { timeZone: storeTimeZone(), day: "numeric", month: "long" }).format(s.expiresAt);
   const gifts = s.gifts.length ? s.gifts.map((g) => messagesFor(s.locale).common.agreementGifts[g]).join(", ") : null;
   return t.message({ name: s.clientName.split(" ")[0] ?? "", label: invoice.label, plan: planName(s.plan, s.locale), books: s.booksCount, purpose: t.purpose[s.purpose], amount: formatPrice(s.amount), link: payLink(invoice), until, kaspiPhone: kaspi ? maskPhone(kaspi.phone) : null, kaspiOrg: kaspi?.org ?? null, gifts });
 }

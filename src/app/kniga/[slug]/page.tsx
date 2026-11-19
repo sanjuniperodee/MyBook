@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { toPublic } from "@/i18n/config";
 import { Link } from "@/i18n/client";
 import { notFound } from "next/navigation";
 import { CalendarHeart, Gift } from "lucide-react";
@@ -38,7 +39,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const l = getLanding((await params).slug);
   if (!l) return {};
   const locale = await getLocale();
-  const c = l.content[locale];
+  const c = l.content[toPublic(locale)];
   const path = `/kniga/${l.slug}`;
   return {
     title: { absolute: `${c.metaTitle} · ${site.name}` },
@@ -52,7 +53,7 @@ export default async function LandingPage({ params }: { params: Promise<{ slug: 
   const l = getLanding((await params).slug);
   if (!l) notFound();
   const [user, locale, m, reviews] = await Promise.all([getCurrentUser(), getLocale(), getMessages(), siteReviews(3, l.theme)]);
-  const c = l.content[locale];
+  const c = l.content[toPublic(locale)];
   const t = m.landing;
   const sp = t.seoPage;
   const theme = getTheme(l.theme, locale);
@@ -236,7 +237,7 @@ export default async function LandingPage({ params }: { params: Promise<{ slug: 
                 {ideas.map((x) => (
                   <li key={x.slug} className="break-inside-avoid border-b border-line">
                     <Link href={`/kniga/${x.slug}`} className="flex min-h-11 items-center text-ink-soft hover:text-wine">
-                      {x.content[locale].label}
+                      {x.content[toPublic(locale)].label}
                     </Link>
                   </li>
                 ))}
@@ -254,7 +255,7 @@ export default async function LandingPage({ params }: { params: Promise<{ slug: 
                   {guides.map((x) => (
                     <li key={x.slug}>
                       <Link href={`/blog/${x.slug}`} className="flex min-h-14 items-center py-2 font-serif text-xl leading-snug font-medium text-ink-soft hover:text-wine">
-                        {x.content[locale].title}
+                        {x.content[toPublic(locale)].title}
                       </Link>
                     </li>
                   ))}

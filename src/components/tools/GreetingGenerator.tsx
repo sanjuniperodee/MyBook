@@ -1,5 +1,6 @@
 "use client";
 
+import { toPublic } from "@/i18n/config";
 import { useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { useLocale } from "@/i18n/client";
@@ -9,7 +10,7 @@ import { Choice, CopyButton, ToolField, Workbench } from "./Workbench";
 
 export function GreetingGenerator() {
   const locale = useLocale();
-  const ui = toolUi[locale].greeting;
+  const ui = toolUi[toPublic(locale)].greeting;
   const [recipient, setRecipient] = useState<RecipientId>("mama");
   const [occasionPick, setOccasion] = useState<OccasionId>("birthday");
   const [tone, setTone] = useState<ToneId>("warm");

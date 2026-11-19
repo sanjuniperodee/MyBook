@@ -1,4 +1,5 @@
 import type { Clock } from "@/shared/application";
+import { toPublic } from "@/i18n/config";
 import { normalizeSlug } from "@/shared/domain/slug";
 import { DISCOUNT_HOURS, buildChannelReport, discountCap, isPreviewBot, isValidSlug, linkAttribution, linkCodeFromText, linkTarget, offerTexts, widgetCodeTail, inviteFromWidgetTail, type ChatOffers, type OfferRequest, type TrackedLink } from "../domain";
 import type { AppLinks, ClientContext, LinkRepository, MarketingSettings, PromoCodeGenerator, PromoIssuer, ReportSource } from "./ports";
@@ -85,7 +86,7 @@ export class MarketingService {
   /** Готовит текст сообщения (и персональный промокод для скидки). Отправляет вызывающий. */
   async buildOffer(clientId: string | null, req: OfferRequest, staffLabel: string): Promise<{ text: string; promo?: string }> {
     const c = await this.clients.load(clientId);
-    const t = offerTexts[c.locale];
+    const t = offerTexts[toPublic(c.locale)];
     if (req.kind === "order") {
       if (!c.order) throw new Error("У клиента нет неоплаченного заказа");
       return { text: t.order(c.order.number, this.app.link(`/orders/${c.order.id}`, c.locale)) };

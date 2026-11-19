@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { toPublic } from "@/i18n/config";
 import { Link } from "@/i18n/client";
 import { Gift } from "lucide-react";
 import { LandingHeader } from "@/components/landing/Header";
@@ -251,18 +252,18 @@ export default async function HomePage() {
               </p>
               {/* Бесплатные инструменты — тихим списком: перелинковка без отдельного блока карточек. */}
               <div className="mt-10 max-lg:hidden">
-                <h3 className="text-sm font-semibold">{toolsPageUi[locale].homeTitle}</h3>
+                <h3 className="text-sm font-semibold">{toolsPageUi[toPublic(locale)].homeTitle}</h3>
                 <ul className="mt-2 divide-y divide-line border-y border-line text-[15px]">
                   {tools.map((tool) => (
                     <li key={tool.slug}>
                       <Link href={`/instrumenty/${tool.slug}`} className="flex min-h-11 items-center text-ink-soft hover:text-wine">
-                        {tool.content[locale].label}
+                        {tool.content[toPublic(locale)].label}
                       </Link>
                     </li>
                   ))}
                   <li>
                     <Link href="/instrumenty" className="flex min-h-11 items-center font-medium text-wine hover:underline">
-                      {toolsPageUi[locale].all}
+                      {toolsPageUi[toPublic(locale)].all}
                     </Link>
                   </li>
                 </ul>
@@ -270,18 +271,18 @@ export default async function HomePage() {
             </div>
             <Faq items={faq} />
             <div className="lg:hidden">
-              <h3 className="text-sm font-semibold">{toolsPageUi[locale].homeTitle}</h3>
+              <h3 className="text-sm font-semibold">{toolsPageUi[toPublic(locale)].homeTitle}</h3>
               <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-sm">
                 {tools.map((tool) => (
                   <li key={tool.slug}>
                     <Link href={`/instrumenty/${tool.slug}`} className="inline-flex min-h-9 items-center text-ink-soft underline decoration-line-strong underline-offset-4">
-                      {tool.content[locale].label}
+                      {tool.content[toPublic(locale)].label}
                     </Link>
                   </li>
                 ))}
                 <li>
                   <Link href="/instrumenty" className="inline-flex min-h-9 items-center font-medium text-wine">
-                    {toolsPageUi[locale].all}
+                    {toolsPageUi[toPublic(locale)].all}
                   </Link>
                 </li>
               </ul>

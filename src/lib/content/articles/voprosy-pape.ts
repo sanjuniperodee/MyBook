@@ -82,5 +82,42 @@ export const voprosyPape: Article = {
       ],
       cta: { title: "Жауаптарды кітапқа айналдырыңыз", text: "Әке тарихы мен оған арналған естеліктеріңізді жазыңыз: тараулар бойынша сұрақтар, суреттер мен мұқаба — ал біз нағыз кітап басып шығарамыз." },
     },
+    uz: {
+      title: "Dadaga hayot va bolalik haqida savollar: otadan nima so‘rash kerak",
+      description: "Dadadan so‘rashga arziydigan savollar: bolalik, ish, yoshlik, oila va hayot saboqlari haqida. Otani gapirtirish maslahatlari va javoblarni kitobda saqlash.",
+      lead: "Otalar o‘zlari haqida kamdan-kam gapirib berishadi: ulardan so‘rash kerak. Bu savollar aks holda aytilmay qoladigan hikoyalarni eshitishga yordam beradi.",
+      sections: [
+        {
+          heading: "Dadani qanday gapirtirish kerak",
+          paragraphs: [
+            "Ko‘p otalar his-tuyg‘ular haqida gapirishga o‘rganmagan, lekin ishlarni mamnuniyat bilan eslashadi: harbiy xizmat, birinchi ish, mashina, baliq ovi, do‘stlar. Aniq narsadan boshlang, suhbat o‘zi asosiy mavzuga keladi.",
+            "Eng yaxshi suhbat biror ish bilan band bo‘lganda chiqadi: yo‘lda, garajda, dalada. Dasturxon atrofidagi to‘g‘ridan-to‘g‘ri savol ba’zan noqulaylik tug‘diradi, ish asnosida esa suhbat o‘zi ketadi.",
+          ],
+        },
+        {
+          heading: "Bir necha maslahat",
+          list: [
+            "Tuyg‘ular haqida emas, ishlar va voqealar haqida so‘rang: tuyg‘ular hikoya ichida o‘zi paydo bo‘ladi.",
+            "«Batafsilroq» aytib berishni so‘rang: yonida kim bo‘lgan, ob-havo qanday edi, o‘shanda nima his qilgan.",
+            "Sanalar va tafsilotlar ustida bahslashmang: bu imtihon emas.",
+            "Telefonga yoki daftarga yozib oling: dadaning gaplari keyin kitobda epigraf bo‘ladi.",
+            "Suhbatdan keyin rahmat ayting: ko‘p otalar uchun bu ko‘ringanidan muhimroq.",
+          ],
+        },
+        {
+          heading: "Keyin nima qilish kerak",
+          paragraphs: [
+            "Xotiralar yangiligida javoblarni yozib qo‘ying. Ulardan kitob tuzish oson: har bir javob bir sahifaga, oilaviy suratlar esa rasmlarga aylanadi.",
+            "Uni yubileyga yoki shunchaki sovg‘a qiling: aka-ukalar, opa-singillar va nevaralarni xat yozishga taklif qiling, ularning xatlari kitobga alohida bob bo‘lib kiradi.",
+          ],
+        },
+      ],
+      questions: { heading: "Dadaga bob bo‘yicha savollar", intro: "Bu «Dadaga» kitobidagi savollar: ularni ovoz chiqarib so‘rash yoki dada haqida kitob yozayotgan bo‘lsangiz, o‘zingiz javob berish mumkin." },
+      faq: [
+        ["Dada qisqa javob beradi. Ko‘proq ma’lumotni qanday olish mumkin?", "Aniqlashtiruvchi savollar bering: «Keyin nima bo‘ldi?», «Yoningda kim bor edi?». Umuman gapirib berishni emas, aniq bir kunni yoki voqeani eslashni so‘rang."],
+        ["Dada gapirishni xohlamasa, bu savollarga o‘zim javob bersam bo‘ladimi?", "Ha. «Dadaga» kitobida savollarga o‘z so‘zlaringiz bilan javob berasiz: u haqida nimani eslaysiz, sizga nimani o‘rgatgan. Yaqinlaringizni xatlar bilan to‘ldirishga taklif qiling."],
+      ],
+      cta: { title: "Javoblarni kitobga aylantiring", text: "Dadaning hikoyasini va u haqidagi xotiralaringizni yozing: bob bo‘yicha savollar, suratlar va muqova bor, haqiqiy kitobni esa biz chop etamiz." },
+    },
   },
 };

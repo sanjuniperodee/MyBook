@@ -12,10 +12,10 @@ import { cn } from "@/lib/class-names";
  */
 const KEY = "shop-theme";
 const CLASS = "shop-dark";
-const CRM_PATH = /^\/(kk\/)?(admin|crm)(\/|$)/;
+const CRM_PATH = /^\/((kk|uz)\/)?(admin|crm)(\/|$)/;
 
 /** Скрипт до первой отрисовки: тёмная витрина без белой вспышки. */
-export const SHOP_THEME_SCRIPT = `try{if(!/^\\/(kk\\/)?(admin|crm)(\\/|$)/.test(location.pathname)&&localStorage.getItem("${KEY}")==="dark")document.documentElement.classList.add("${CLASS}")}catch(e){}`;
+export const SHOP_THEME_SCRIPT = `try{if(!/^\\/((kk|uz)\\/)?(admin|crm)(\\/|$)/.test(location.pathname)&&localStorage.getItem("${KEY}")==="dark")document.documentElement.classList.add("${CLASS}")}catch(e){}`;
 
 /** Держит класс в соответствии с выбором при переходах внутри сайта (из витрины в CRM класс снимается). */
 export function ShopThemeSync() {

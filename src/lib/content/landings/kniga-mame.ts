@@ -43,5 +43,23 @@ export const knigaMame: Landing = {
         ["Ескі суреттерді қосуға бола ма?", "Иә, оларды сканерлеңіз немесе телефонға түсіріңіз. Басып шығаруға сапасы жетпесе, алдын ала ескертеміз."],
       ],
     },
+    uz: {
+      label: "Onaga sovg‘a kitob",
+      h1: "Onangiz uchun kitob,",
+      accent: "uni siz yozasiz",
+      metaTitle: "Onaga sovg‘a kitob — shaxsiy minnatdorchilik kitobi",
+      metaDescription: "Onangizga u haqida kitob hadya qiling: bolalik xotiralari, saboqlari va minnatdorlik so‘zlari. Savollar, suratlar, qattiq muqova. Qozog‘istonga yetkazamiz.",
+      lead: "Bolalik xotiralari, onaning odatlari va gaplari, faqat katta bo‘lgach anglagan saboqlar — har bir sahifasi «rahmat» deydigan kitob.",
+      why: [
+        { title: "Onalar baxtdan yig‘laydi", text: "Bu bo‘rttirish emas: farzand o‘zi haqida yozgan kitobni xotirjam o‘qib bo‘lmaydi." },
+        { title: "Boshlash oson", text: "Maslahatlari bor 81 ta savol: «bolaligingizda onangizni qanday eslaysiz»dan «u sizga nimani o‘rgatdi»gacha." },
+        { title: "Aka-uka va opa-singillar bilan birga", text: "Yaqinlaringizga havola yuboring — ularning xatlari kitobga alohida bob bo‘lib kiradi." },
+      ],
+      cover: { title: "Oyi, bu sizga", names: "Sizning Aygerimingiz" },
+      faq: [
+        ["8-martga yoki tug‘ilgan kunga ulguraymanmi?", "Bayram sanasini ko‘rsating — buyurtmani qaysi kungacha rasmiylashtirish kerakligini aytamiz. Ishlab chiqarish 5–7 ish kuni oladi, «Premium» — 3–4."],
+        ["Eski suratlarni qo‘shsa bo‘ladimi?", "Ha, ularni skanerlang yoki telefonda suratga oling. Bosma uchun sifati yetmasa, oldindan ogohlantiramiz."],
+      ],
+    },
   },
 };

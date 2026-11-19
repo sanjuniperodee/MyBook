@@ -1,3 +1,4 @@
+import { type Locale } from "@/i18n/config";
 import { AggregateRoot, domainEvent, type DomainEvent } from "@/shared/domain";
 import type { AgreementGift } from "@/shared/domain/agreementGifts";
 
@@ -18,7 +19,7 @@ export interface DealInvoiceProps {
   /** Номер WhatsApp-чата (цифры): по нему находится или заводится аккаунт клиента. */
   phone: string | null;
   clientName: string;
-  locale: "ru" | "kk";
+  locale: Locale;
   channel: string;
   plan: string;
   /** Цена одной книги по договорённости. */
@@ -58,7 +59,7 @@ export interface DealInvoiceRef {
 }
 
 /** Счёт оплачен (первый раз): деньги записаны в сделку; дальше — клиент, доступ, заметка, уведомление. */
-export type DealInvoicePaid = DomainEvent<"ordering.deal_invoice_paid", DealInvoiceRef & { method: DealInvoiceMethod; ref: string | null; conversationId: string | null; phone: string | null; clientName: string; locale: "ru" | "kk"; channel: string; issuedById: string | null }>;
+export type DealInvoicePaid = DomainEvent<"ordering.deal_invoice_paid", DealInvoiceRef & { method: DealInvoiceMethod; ref: string | null; conversationId: string | null; phone: string | null; clientName: string; locale: Locale; channel: string; issuedById: string | null }>;
 /** Деньги пришли по закрытому счёту (повторная оплата, после заказа, по отменённому) — нужен возврат или зачёт. */
 export type DealInvoiceExtraMoney = DomainEvent<"ordering.deal_invoice_extra_money", DealInvoiceRef & { method: DealInvoiceMethod; ref: string; paid: number; recorded: boolean; reason: "overpaid" | "closed" | "order" | "mismatch" }>;
 /** Клиент впервые открыл ссылку на оплату (deals-12). */

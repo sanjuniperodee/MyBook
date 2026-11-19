@@ -2,7 +2,7 @@
  * Подписи интерфейса инструментов. Тексты каждого языка написаны отдельно; даты собирает dateFor (одинаково на сервере и в браузере).
  * Русские формы после числа — ruPlural, в казахском форма одна.
  */
-import type { Locale } from "@/i18n/config";
+import type { PublicLocale } from "@/i18n/config";
 import { ruPlural } from "@/i18n/plural";
 import type { Animal } from "@/lib/tools/mushel";
 
@@ -393,6 +393,137 @@ const kk = {
   } satisfies QuizUi,
 };
 
+const uz = {
+  together: {
+    dateLabel: "Hisob boshlanadigan sana",
+    modeLabel: "Nimani hisoblaymiz",
+    modeRelationship: "Munosabatlar",
+    modeWedding: "To‘y",
+    empty: "Sanani tanlang — hisoblagich birga qancha vaqt bo‘lganingizni ko‘rsatadi.",
+    future: "Bu sana hali kelmagan. O‘tib ketgan kunni tanlang.",
+    daysTogether: () => "kun birga",
+    breakdown: (y, m, d) => [y ? `${y} yil` : "", m ? `${m} oy` : "", d || (!y && !m) ? `${d} kun` : ""].filter(Boolean).join(", "),
+    extra: (w, h) => `Bu ${n(w)} hafta yoki ${n(h)} soat.`,
+    nextTitle: "Muhim sanalar",
+    done: "o‘tib ketdi",
+    today: "bugun!",
+    inDays: (d) => (d === 1 ? "ertaga" : `${n(d)} kundan keyin`),
+    milestone: (kind, v) => (kind === "days" ? `${n(v)} kun` : `${v} yil birga`),
+    weddingNow: (y, name) => `Nikohda ${y} yil — bu ${name.toLowerCase()} to‘y.`,
+    weddingNext: (y, name) => `Keyingi nomli yubiley — ${y} yil: ${name.toLowerCase()} to‘y.`,
+    copy: "Natijani nusxalash",
+    copied: "Nusxalandi",
+    shareText: (days, b) => `Biz birga allaqachon ${n(days)} kun bo‘ldik (${b}) 💛`,
+    tableTitle: "Nikoh yubileylarining yillar bo‘yicha nomlari",
+    tableLead: "An’anaviy nomlar materiallardan kelib chiqqan: nikoh qancha uzoq davom etsa, material shuncha mustahkam va qimmatli bo‘ladi.",
+    tableYear: (y) => `${y} yil`,
+    tableName: (name) => `${name} to‘y`,
+  } satisfies TogetherUi,
+  deadline: {
+    dateLabel: "Sovg‘ani qachon topshirish kerak",
+    deliveryLabel: "Kitobni qanday olasiz",
+    delivery: { courier: "Shahar bo‘ylab kuryer", post: "Qozog‘iston bo‘ylab (CDEK, Qazpochta)", pickup: "Almatida o‘zim olib ketaman", abroad: "Boshqa mamlakatga" },
+    empty: "Sanani kiriting — bosma kitobga qaysi kungacha buyurtma berish kerakligini aytamiz.",
+    invalid: "Sanani aniqlab bo‘lmadi. Uni kalendardan tanlang.",
+    past: "Bu sana o‘tib ketgan. Kelajakdagi kunni tanlang.",
+    relaxed: (by, left) => `Vaqt yetarli. Bosma kitobga ${by} gacha buyurtma bering (${n(left)} kun qoldi) — u o‘z vaqtida yetib boradi.`,
+    soon: (by, left) => `Boshlash vaqti keldi. Bosma kitobga ${by} gacha buyurtma berish kerak — ${n(left)} kun qoldi.`,
+    urgent: (by, left) => `Shoshilinch! Buyurtma berishning oxirgi kuni — ${by}${left === 0 ? " (bugun)" : ` (${n(left)} kun qoldi)`}. Kitobni yozib tugating va buyurtma bering.`,
+    express: (by, price) => `Oddiy bosma ulgurmaydi, ammo tezkor bosma ulguradi (3–4 ish kuni${price ? `, +${price}` : ""}). ${by} gacha buyurtma bering.`,
+    digital: "Bosma kitob bu sanaga ulgurmaydi. Elektron nusxani to‘lovdan keyin darhol olasiz va kerakli kunda sovg‘a qilasiz, bosma nusxani esa sal keyinroq topshirasiz.",
+    detail: (d) => `Bayramgacha ${n(d)} kun qoldi.`,
+    note: "Hisob-kitobda ishlab chiqarish, yetkazib berish va maketni tekshirish uchun bir kunlik zaxira hisobga olinadi. Kitobni yozishga ketadigan vaqt unga kirmaydi.",
+    calendarTitle: "Asosiy bayramlarga qachon buyurtma berish kerak",
+    calendarLead: "Eng yaqin bayramlar va kuryer orqali yetkaziladigan bosma kitobga buyurtma berishning oxirgi kuni.",
+    holiday: {
+      valentine: "Sevishganlar kuni",
+      defender: "23-fevral",
+      march8: "8-mart",
+      nauryz: "Navro‘z",
+      defenderKz: "Vatan himoyachilari kuni",
+      victory: "G‘alaba kuni",
+      knowledge: "Bilimlar kuni",
+      teachers: "O‘qituvchilar kuni",
+      newyear: "Yangi yil",
+    },
+    orderBy: "Buyurtma berish muddati",
+    daysLeft: (d) => (d === 0 ? "bugun" : `${n(d)} kun qoldi`),
+    passed: "muddat o‘tdi",
+    tooLate: "faqat elektron",
+  } satisfies DeadlineUi,
+  price: {
+    formatLabel: "Kitob formati",
+    copiesLabel: "Nechta nusxa",
+    extrasLabel: "Qo‘shimcha",
+    plan: { digital: "Elektron", hardcover: "Qattiq muqova", premium: "Premium" },
+    planNote: { digital: "To‘lovdan keyin darhol PDF", hardcover: "Qattiq muqovali bosma kitob + PDF", premium: "Dizayner qog‘ozi va sovg‘a qutisi" },
+    addon: { express: "Tezkor bosma", giftwrap: "Sovg‘a o‘rami" },
+    addonNote: { express: "Navbatsiz, 3–4 ish kunida", giftwrap: "Kraft quti, lenta va tabrik kartasi" },
+    deliveryLabel: "Yetkazib berish",
+    deliveryNote: "Almatidagi studiyadan o‘zingiz olib ketsangiz — bepul. Kuryer, Qozog‘iston bo‘ylab va boshqa mamlakatlarga yetkazib berish alohida hisoblanadi — shahar va tashuvchiga bog‘liq, summani menejer aytadi, u jami summaga kirmaydi.",
+    total: "Jami",
+    breakdown: { book: "Kitob", extraCopies: (c) => `Yana ${c} ta nusxa`, addons: "Qo‘shimchalar" },
+    printedOnly: "Faqat bosma kitob uchun",
+    cta: "Kitobni bepul boshlash",
+  } satisfies PriceUi,
+  greeting: {
+    whoLabel: "Kimni tabriklaymiz",
+    occasionLabel: "Munosabat",
+    toneLabel: "Kayfiyat",
+    nameLabel: "Ism (ixtiyoriy)",
+    namePlaceholder: "Masalan, Aygul",
+    ageLabel: "Necha yosh (yubiley uchun)",
+    lengthLabel: "Uzunligi",
+    recipient: { mama: "Onangizni", papa: "Otangizni", babushka: "Buvingizni", dedushka: "Bobongizni", zhena: "Xotiningizni", muzh: "Eringizni", podruga: "Dugonangizni", drug: "Do‘stingizni", uchitelnitsa: "O‘qituvchini (ayol)", uchitel: "O‘qituvchini (erkak)" },
+    occasion: { birthday: "Tug‘ilgan kun", jubilee: "Yubiley", march8: "8-mart", defender: "23-fevral", teachers: "O‘qituvchilar kuni", anniversary: "Nikoh yilligi", newyear: "Yangi yil" },
+    tone: { warm: "Samimiy", funny: "Hazil bilan" },
+    length: { full: "To‘liq", short: "Qisqa (xabar uchun)" },
+    another: "Boshqa variant",
+    copy: "Nusxalash",
+    copied: "Nusxalandi",
+    resultTitle: "Sizning tabrigingiz",
+    hint: "Matnni tahrirlash mumkin: faqat o‘zingiz biladigan tafsilotlarni qo‘shing — itingizning ismi, sevimli hazil, umumiy voqea. Bunday tabrik esda qoladi.",
+  } satisfies GreetingUi,
+  cards: {
+    themeLabel: "Kim haqida so‘raymiz",
+    theme: { mom: "Ona", dad: "Ota", love: "Sevimli inson", friend: "Do‘st", autobiography: "Buvi, bobo, o‘zingiz", teacher: "O‘qituvchi" },
+    next: "Keyingi savol",
+    shuffle: "10 ta tasodifiy savol",
+    card: (i, t) => `${t} tadan ${i}-savol`,
+    chapter: "Mavzu",
+    copyAll: "Ro‘yxatni nusxalash",
+    copied: "Nusxalandi",
+    listTitle: "Sizning tanlovingiz",
+    print: "Chop etish",
+    tenTitle: "Suhbat uchun 10 ta savol",
+    hint: "Savollarni birin-ketin bering va javoblarni diktofonga yoki qaydlarga yozib oling. Eng yaxshi hikoyalar «keyin nima bo‘ldi?» degan aniqlashtiruvchi savoldan tug‘iladi.",
+  } satisfies CardsUi,
+  quiz: {
+    start: "Testni boshlash",
+    intro: (c) => `${c} ta fikr. Rostini ayting: natijani sizdan boshqa hech kim ko‘rmaydi.`,
+    question: (_i, _t, know) => `Siz ${know} bilasizmi?`,
+    answers: ["Ha, aniq", "Taxminan", "Yo‘q"],
+    back: "Orqaga",
+    resultTitle: "Sizning natijangiz",
+    percent: (p) => `${p}%`,
+    bands: ["Suhbatni boshlash vaqti", "Ko‘p narsani bilasiz — ochadigani ham bor", "Siz juda yaqinsiz", "Siz hammadan yaxshi bilasiz"],
+    bandText: (b, w) =>
+      [
+        `${w.about[0].toUpperCase()}${w.about.slice(1)} haqida hozircha kam narsa bilasiz — bu ayb emas, sabab. Eng qiziqi hali oldinda: quyidagi savollardan boshlang.`,
+        `Siz ko‘p narsani bilasiz, ammo javobini hali eshitmagan savollaringiz qoldi. Quyidagilardan boshlang.`,
+        `Siz juda yaqinsiz: hikoyalarning ko‘pini bilasiz. Endi ularni yo‘qolib ketmasdan saqlab qolish kerak.`,
+        `Siz ${w.acc} kam kishi bilganidek bilasiz. Endi bu bilimni butun oila uchun kitobda saqlash mumkin.`,
+      ][b],
+    askTitle: "Nimani so‘rash kerak",
+    askLead: "Javobini bilmaydigan savollaringiz — ularni ovoz chiqarib bering yoki javoblarini kitobga yozing.",
+    perfect: "Siz barcha savollarning javobini bilasiz — unda ularni kitobda aytib bering.",
+    retry: "Qaytadan o‘tish",
+    copy: "Natijani nusxalash",
+    copied: "Nusxalandi",
+    shareText: (p, w) => `Men ${w.acc} ${p}% bilaman. Yaqinlaringizni qanchalik yaxshi bilishingizni tekshirib ko‘ring.`,
+  } satisfies QuizUi,
+};
+
 interface ToolUi {
   together: TogetherUi;
   deadline: DeadlineUi;
@@ -402,7 +533,7 @@ interface ToolUi {
   quiz: QuizUi;
 }
 
-export const toolUi: Record<Locale, ToolUi> = { ru, kk };
+export const toolUi: Record<PublicLocale, ToolUi> = { ru, kk, uz };
 
 /** Тексты страниц инструментов: хлебные крошки, заголовки блоков и хаб /instrumenty. */
 export interface ToolsPageUi {
@@ -428,7 +559,7 @@ export interface ToolsPageUi {
   appName: (label: string) => string;
 }
 
-export const toolsPageUi: Record<Locale, ToolsPageUi> = {
+export const toolsPageUi: Record<PublicLocale, ToolsPageUi> = {
   ru: {
     home: "Главная",
     hub: "Инструменты",
@@ -477,6 +608,31 @@ export const toolsPageUi: Record<Locale, ToolsPageUi> = {
     homeTitle: "Кітап жасайтындарға арналған тегін құралдар",
     homeNote: "Тіркелусіз: шежіре, мүшел жас, жақындар күнтізбесі, суретті тексеру және басқалар.",
     all: "Барлық құралдар",
+    appName: (label) => label,
+  },
+  uz: {
+    home: "Bosh sahifa",
+    hub: "Vositalar",
+    free: "Bepul",
+    noSignup: "Ro‘yxatdan o‘tmasdan",
+    create: "Kitob yaratish",
+    seeIdeas: "Sovg‘a g‘oyalari",
+    others: "Boshqa vositalar",
+    guides: "Buni ham o‘qing",
+    faqTitle: "Savollar",
+    open: "Ochish",
+    hubMeta: {
+      title: "Bepul vositalar: onlayn shajara, muchal yosh, tug‘ilgan kunlar kalendari",
+      description: "Yettinchi bo‘ginga qadar shajara, muchal yosh, eslatmali tug‘ilgan kunlar kalendari, suratni bosmaga tekshirish, suhbat anketasi, sanaga kitob rejasi. Bepul va ro‘yxatdan o‘tmasdan.",
+    },
+    hubH1: "Bepul vositalar",
+    hubAccent: "mazmunli sovg‘a qiluvchilar uchun",
+    hubLead: "Yettinchi bo‘ginga qadar shajara tuzing, muchal yoshingizni bilib oling, yaqinlaringizning tug‘ilgan kunlar kalendarini yarating, suratlar bosmaga yaroqli yoki yo‘qligini tekshiring va buvingiz bilan suhbat uchun anketani chop eting. Hammasi brauzerda, bepul va ro‘yxatdan o‘tmasdan ishlaydi.",
+    hubGuides: "Mavzuga oid maqolalar",
+    homeEyebrow: "Bepul",
+    homeTitle: "Kitob yaratuvchilar uchun bepul vositalar",
+    homeNote: "Ro‘yxatdan o‘tmasdan: shajara, muchal yosh, yaqinlar kalendari, suratni tekshirish va boshqalar.",
+    all: "Barcha vositalar",
     appName: (label) => label,
   },
 };
@@ -844,7 +1000,137 @@ const usefulKk = {
   } satisfies ShezhireUi,
 };
 
-export const usefulUi: Record<Locale, { photo: PhotoUi; pages: PagesUi; plan: PlanUi; shezhire: ShezhireUi }> = { ru: usefulRu, kk: usefulKk };
+const usefulUz = {
+  photo: {
+    dropTitle: "Suratni tanlang yoki shu yerga sudrab keling",
+    dropHint: "Bir vaqtda ko‘p surat bo‘lishi mumkin. JPG, PNG, WebP.",
+    privacy: "Suratlar serverga yuklanmaydi: tekshiruv brauzeringizda bajariladi.",
+    formatLabel: "Kitob formati",
+    format: { a5: "A5 (148×210 mm)", square: "Kvadrat (200×200 mm)" },
+    use: { bleed: "Butun sahifaga (kesimgacha)", full: "Maydonli sahifada", half: "Sahifaning yarmi", grid: "To‘rtlik to‘rda", cover: "Muqovada" },
+    verdict: { great: "aniq", ok: "maqbul", low: "xira" },
+    headline: { great: "Bosmaga yaraydi", ok: "Yaraydi, lekin hamma joyga emas", low: "Piksel kam" },
+    size: (w, h, mpx, mb) => `${w}×${h} px · ${mpx} Mp · ${mb} MB`,
+    maxSize: (s, o) => `Aniqligini yo‘qotmasdan uzun tomoni bo‘yicha ${s} sm gacha chop etish mumkin, chidasa bo‘ladigani — ${o} sm gacha.`,
+    messenger: "Bu messenjerdan kelgan nusxaga o‘xshaydi: WhatsApp yoki Telegram orqali yuborilganda surat siqiladi. Asl nusxani «fayl» yoki «hujjat» sifatida yuborishni so‘rang.",
+    unreadable: (name) => `«${name}» faylini o‘qib bo‘lmadi. Agar bu HEIC formatidagi iPhone surati bo‘lsa, uni JPG sifatida saqlang.`,
+    summary: (t, a, l) => `${t} ta surat tekshirildi: ${a} tasi istalgan joyga yaraydi${l ? `, ${l} tasi — faqat maydonli sahifaga yoki kichikroq joyga, butun sahifa va muqova uchun esa asl nusxani olgan ma’qul` : ""}.`,
+    clear: "Tozalash",
+    tipsTitle: "Yaxshiroq suratni qanday olish mumkin",
+    tips: [
+      "Asl nusxani yuborishni so‘rang: WhatsApp va Telegramda «Surat» emas, «Fayl» yoki «Hujjat»ni tanlang.",
+      "Eski qog‘oz suratlardan 600 dpi skaner qiling yoki yaxshi yorug‘likda chaqmoqsiz suratga oling.",
+      "Ijtimoiy tarmoqlardagi suratlar siqilgan: kitob uchun telefon yoki bulutdagi asl nusxalarni oling.",
+      "Suratni muharrirlarda kattalashtirmang va qayta siqmang: bundan piksel ko‘paymaydi.",
+    ],
+  } satisfies PhotoUi,
+  pages: {
+    formatLabel: "Kitob formati",
+    format: { a5: "A5 (148×210 mm)", square: "Kvadrat (200×200 mm)" },
+    answersLabel: "Nechta javob yozasiz",
+    lengthLabel: "Javob uzunligi",
+    length: { short: "Qisqa, ~50 so‘z", medium: "O‘rtacha, ~120 so‘z", long: "Batafsil, ~250 so‘z" },
+    photosLabel: "Javoblardagi suratlar soni",
+    lettersLabel: "Yaqinlardan xatlar",
+    pages: "sahifa kitobda",
+    spine: (mm) => `yelka qalinligi ~${mm} mm`,
+    words: (n) => `taxminan ${n.toLocaleString("ru-RU")} so‘z matn`,
+    state: { empty: "Hozircha bo‘sh", thin: "Yupqa kitob", good: "To‘laqonli kitob", thick: "Juda katta kitob" },
+    stateText: {
+      empty: "Javob yoki surat qo‘shing — kalkulyator hajmni ko‘rsatadi.",
+      thin: "Material kam: kitob yupqa bo‘ladi, ba’zi sahifalar bo‘sh qoladi — ular minimal hajmgacha qo‘shiladi. Javob yoki surat qo‘shing.",
+      good: "Yaxshi hajm: kitob boblar va suratlar bilan yaxlit chiqadi.",
+      thick: "Juda katta kitob. Bu mumkin, ammo bosma va yetkazib berish og‘irroq bo‘ladi — uni ikkiga bo‘lishni o‘ylab ko‘ring.",
+    },
+    addMore: (n) => `Yana ${n} ta javob — va kitob to‘laqonli bo‘ladi (40 sahifadan).`,
+    minNote: (n) => `Minimal bosma hajm — ${n} sahifa, undan keyin to‘rtga karrali. Yetmagan sahifalar bo‘sh bosiladi.`,
+    note: "Bu muharrirdagi hisob-kitob asosidagi baho. Haqiqiy hajm matnga va suratlarning joylashuviga bog‘liq. Kitob narxi sahifalar soniga bog‘liq emas.",
+    cta: "Kitobni bepul boshlash",
+  } satisfies PagesUi,
+  plan: {
+    dateLabel: "Kitobni qachon topshirish kerak",
+    deliveryLabel: "Kitobni qanday olasiz",
+    delivery: { courier: "Shahar bo‘ylab kuryer", post: "Qozog‘iston bo‘ylab (CDEK, Qazpochta)", pickup: "Almatida o‘zim olib ketaman", abroad: "Boshqa mamlakatga" },
+    goalLabel: "Qanday kitob yaratamiz",
+    goal: { short: "Qisqa — taxminan 15 ta javob", normal: "Odatiy — taxminan 30 ta javob", big: "Katta — taxminan 50 ta javob" },
+    lettersLabel: "Yaqinlardan xat yig‘aman",
+    empty: "Sanani kiriting — reja tuzamiz: nima va qachon qilish kerak.",
+    invalid: "Sanani aniqlab bo‘lmadi. Uni kalendardan tanlang.",
+    verdict: {
+      past: () => "Bu sana o‘tib ketgan. Kelajakdagi kunni tanlang.",
+      calm: (p) => `Vaqt yetarli: kuniga ${p} ta javob yetarli. Kitob xotirjam ulguradi.`,
+      tight: (p) => `Ulgurasiz, ammo ortiqcha zaxirasiz: kuniga taxminan ${p} ta javob yozish kerak.`,
+      hard: (p) => `Qiyin: kuniga ${p} ta javob kerak bo‘ladi. Qisqa kitobni tanlagan yoki yordam so‘ragan ma’qul — yaqinlar havola orqali savollarga javob berishi mumkin.`,
+      express: () => "Oddiy bosma ulgurmaydi, ammo tezkor bosma (3–4 ish kuni, qo‘shimcha haq evaziga) ulguradi. Quyidagi reja shunga qurilgan.",
+      digital: () => "Bosma kitob bu sanaga ulgurmaydi. Elektron nusxani darhol olasiz — uni kerakli kunda sovg‘a qiling, bosmasini esa keyin topshiring.",
+    },
+    stepsTitle: "Sanalar bo‘yicha reja",
+    step: {
+      start: { title: "Kitobni boshlash", text: () => "Mavzu va muqovani tanlang, birinchi savollarga javob bering." },
+      letters: { title: "Xat yozish so‘rovini yuborish", text: () => "Yaqinlaringizga havola yuboring: xat telefondan yoziladi, ro‘yxatdan o‘tish shart emas." },
+      photos: { title: "Suratlarni yig‘ish", text: () => "Suratlarning asl nusxalarini yuklang va boblar bo‘yicha joylashtiring." },
+      answers: { title: "Javoblarni tugatish", text: (p) => `Kuniga taxminan ${p} ta javob yozing, ovoz bilan ham bo‘ladi.` },
+      check: { title: "Maketni tekshirish", text: () => "Barcha sahifalarning PDF-maketini varaqlab chiqing, matn va suratlarni tekshiring." },
+      order: { title: "Buyurtma berish — oxirgi kun", text: () => "Keyin bosma kitob sanaga ulgurmaydi." },
+      target: { title: "Topshirish kuni", text: () => "Kitob qo‘lingizda." },
+    },
+    daysLeft: (d) => (d === 0 ? "bugun" : d === 1 ? "ertaga" : `${d} kundan keyin`),
+    ics: "Kalendarga yuklab olish (.ics)",
+    copy: "Rejani nusxalash",
+    copied: "Nusxalandi",
+    icsName: "kitob-rejasi.ics",
+    icsPrefix: "Kitob",
+    copyHeader: (d) => `${d} sanasiga kitob rejasi:`,
+  } satisfies PlanUi,
+  shezhire: {
+    ownerLabel: "Kimning shajarasi",
+    ownerPlaceholder: "Ismingiz",
+    clanLabel: "Urug‘ va juz (ixtiyoriy)",
+    clanPlaceholder: "Masalan, Arg‘in, O‘rta juz",
+    lineLabel: "Chiziq",
+    line: { father: "Ota tomondan (yetti ota)", mother: "Ona tomondan (ona urug‘i)" },
+    generation: (i, line) => {
+      const father = ["Ota", "Bobo (otaning otasi)", "Katta bobo", "Ulug‘ bobo", "5-bo‘g‘in", "6-bo‘g‘in", "7-bo‘g‘in"];
+      const mother = ["Ona", "Ona tomondan bobo", "Ona tomondan katta bobo", "Ona tomondan ulug‘ bobo", "5-bo‘g‘in", "6-bo‘g‘in", "7-bo‘g‘in"];
+      return (line === "father" ? father : mother)[i];
+    },
+    nameLabel: "Ism",
+    yearsLabel: "Yashagan yillari",
+    placeLabel: "Qayerdan",
+    yearsPlaceholder: "1930–2001",
+    progress: (n, t) => `${t} tadan ${n} tasi to‘ldirildi`,
+    chain: (n) => (n >= 7 ? "Yetti bo‘g‘inning hammasini bilasiz — bu yetti ota." : `Ketma-ket ma’lum bo‘g‘in: ${n} ta. Qolganini katta qarindoshlardan bilib olish mumkin.`),
+    askTitle: "Kimdan so‘rash kerak",
+    ask: (i, line) =>
+      line === "mother"
+        ? ["Onangizdan va uning aka-ukalari, opa-singillaridan so‘rang.", "Onangizning ota-onasidan va ona tomondagi katta qarindoshlardan so‘rang.", "Onangizning katta qarindoshlaridan so‘rang: ular bobolarni eslaydi.", "Oilaviy hujjatlar, arxivlar va urug‘ oqsoqollari orasidan izlang.", "Bu yerda urug‘ shajarasi yoki tuman arxivi yordam beradi.", "Ona urug‘ining oqsoqollaridan so‘rang.", "Yettinchi bo‘g‘in odatda faqat urug‘ shajarasidan ma’lum bo‘ladi."][i]
+        : ["Otangizdan va uning aka-ukalaridan so‘rang.", "Bobongizdan va uning tengdoshlaridan so‘rang.", "Ota tomondagi katta qarindoshlardan so‘rang: ular bobolarni eslaydi.", "Oilaviy hujjatlar va urug‘ oqsoqollari orasidan izlang.", "Bu yerda urug‘ shajarasi yoki tuman arxivi yordam beradi.", "Urug‘ oqsoqollaridan so‘rang: ko‘pchiligi shajarani yod biladi.", "Yettinchi bo‘g‘in odatda faqat urug‘ shajarasidan ma’lum bo‘ladi."][i],
+    treeTitle: "Sizning shajarangiz",
+    treeEmpty: "Chap tomonda ismlarni to‘ldiring — shajara shu yerda paydo bo‘ladi.",
+    unknown: "hali noma’lum",
+    print: "Chop etish",
+    copy: "Matn sifatida nusxalash",
+    copied: "Nusxalandi",
+    clear: "Hammasini tozalash",
+    clearConfirm: "Kiritilgan barcha ismlar o‘chirilsinmi?",
+    saved: "Ma’lumotlar faqat shu brauzerda saqlanadi.",
+    printTitle: (o) => (o ? `Shajara: ${o}` : "Shajara"),
+    printLine: { father: "Ota chizig‘i — yetti ota", mother: "Ona chizig‘i — ona urug‘i" },
+    clanPrefix: "Urug‘",
+    you: "Siz",
+    privacy: "Siz kiritgan hamma narsa brauzeringizda qoladi va hech qayoqqa yuborilmaydi.",
+    details: "Yashagan yillari va joyini qo‘shish",
+    pasteLabel: "Yoki ismlar ro‘yxatini qo‘ying",
+    pastePlaceholder: "Serik, Qali, Omar, To‘legen",
+    pasteApply: "Ro‘yxat bo‘yicha to‘ldirish",
+    download: "Rasm sifatida yuklab olish",
+    posterTitle: "SHAJARA",
+    posterTagline: "yetti ota",
+    fileName: "shezhire.png",
+  } satisfies ShezhireUi,
+};
+
+export const usefulUi: Record<PublicLocale, { photo: PhotoUi; pages: PagesUi; plan: PlanUi; shezhire: ShezhireUi }> = { ru: usefulRu, kk: usefulKk, uz: usefulUz };
 
 /* ───────── Мүшел жас, семейный календарь, анкета для интервью ───────── */
 
@@ -1076,4 +1362,79 @@ const usefulKk2 = {
   } satisfies AnketaUi,
 };
 
-export const usefulUi2: Record<Locale, { mushel: MushelUi; family: FamilyUi; anketa: AnketaUi }> = { ru: usefulRu2, kk: usefulKk2 };
+const usefulUz2 = {
+  mushel: {
+    birthLabel: "Tug‘ilgan sana",
+    empty: "Tug‘ilgan sanani kiriting — yil hayvonini va eng yaqin muchal yoshni ko‘rsatamiz.",
+    future: "Bu sana hali kelmagan. O‘tib ketgan sanani tanlang.",
+    animal: { rat: "Sichqon", ox: "Sigir", tiger: "Yo‘lbars", rabbit: "Quyon", dragon: "Ajdar", snake: "Ilon", horse: "Ot", goat: "Qo‘y", monkey: "Maymun", rooster: "Tovuq", dog: "It", pig: "Cho‘chqa" },
+    yourAnimal: "Tug‘ilgan yili",
+    age: (f, t) => `Hozir ${f} yosh (an’anaviy hisob bo‘yicha — ${t}).`,
+    currentMushel: (t) => `Bu yil muchal yosh: an’anaviy hisob bo‘yicha ${t} yosh. To‘y qiladigan vaqt!`,
+    nextMushel: (y, t, n) => `Eng yaqin muchal yosh — ${t} yosh, ${y}-yilda (${n === 0 ? "bu yil" : `${n} yildan keyin`}).`,
+    noMore: "Yetti mushelning hammasi o‘tib ketgan.",
+    tableTitle: "Barcha muchal yoshlar",
+    round: (n, t) => `${n}-mushel — ${t} yosh`,
+    roundMeta: (y, f) => `${y}-yil, to‘liq yoshi — ${f}`,
+    state: { past: "o‘tib ketdi", current: "bu yil", future: "oldinda" },
+    note: "Mushel yosh — hayvon yilingiz qayta keladigan har 12 yil. An’anaviy hisobda tug‘ilgan yil birinchi hisoblanadi, shuning uchun mushel — 13, 25, 37, 49, 61, 73 va 85 yosh (to‘liq yoshi — 12, 24, 36…). Tug‘ilgan yil kalendar yili sifatida olinadi.",
+    copy: "Natijani nusxalash",
+    copied: "Nusxalandi",
+    shareText: (a, n) => `Mening yilim — ${a}. ${n}`,
+  } satisfies MushelUi,
+  family: {
+    nameLabel: "Ism",
+    namePlaceholder: "Masalan, Gulnora",
+    relationLabel: "Kim bo‘ladi",
+    relation: { "": "Ko‘rsatilmagan", mom: "Ona", dad: "Ota", grandma: "Buvi", grandpa: "Bobo", spouse: "Turmush o‘rtog‘i", partner: "Sevimli inson", sister: "Opa-singil", brother: "Aka-uka", child: "Farzand", friend: "Do‘st", other: "Boshqa" },
+    birthLabel: "Tug‘ilgan sana",
+    add: "Qo‘shish",
+    remove: "Olib tashlash",
+    empty: "Yaqinlaringizni qo‘shing — eslatmali tug‘ilgan kunlar va mushel kalendarini olasiz.",
+    full: "Ro‘yxat chegarasiga yetdingiz. Yangisini qo‘shish uchun birortasini olib tashlang.",
+    cols: { who: "Kim", age: "Yoshi", birthday: "Eng yaqin tug‘ilgan kuni", animal: "Yili", mushel: "Mushel yosh" },
+    turning: (a) => `${a} yoshga to‘ladi`,
+    inDays: (d) => (d === 0 ? "bugun!" : d === 1 ? "ertaga" : `${d} kundan keyin`),
+    mushelCell: (y, t, d) => `${t} yosh, ${y} (${d === 0 ? "bugun" : d >= 365 ? `${Math.round(d / 365)} yildan keyin` : `${d} kundan keyin`})`,
+    noMushel: "—",
+    leadLabel: "Oldindan eslatish",
+    lead: { "7": "bir hafta oldin", "14": "2 hafta oldin", "30": "bir oy oldin" },
+    download: "Kalendarni yuklab olish (.ics)",
+    icsName: "tugilgan-kunlar.ics",
+    saved: "Ro‘yxat faqat shu brauzerda saqlanadi.",
+    clear: "Ro‘yxatni tozalash",
+    clearConfirm: "Ro‘yxatdagilarning hammasi o‘chirilsinmi?",
+    ics: {
+      calendarName: "Yaqinlarning tug‘ilgan kunlari",
+      birthday: (n, t) => `Tug‘ilgan kun: ${n} (${t})`,
+      birthdayDescription: (n, a) => `${n}. Tug‘ilgan yili — ${a}. Sovg‘ani oldindan tanlagan ma’qul.`,
+      alarmWeeks: (n) => `Yaqinda tug‘ilgan kun: ${n}. Sovg‘a tanlash vaqti.`,
+      alarmDay: (n) => `Ertaga tug‘ilgan kun: ${n}.`,
+      mushel: (n, a) => `Mushel yosh: ${n} (${a})`,
+      mushelAlarm: (n, a) => `Yaqinda muchal yosh (${a}): ${n}. Alohida sovg‘a tayyorlang.`,
+    },
+    privacy: "Sanalar serverga yuborilmaydi: ro‘yxat brauzeringizda saqlanadi, kalendar fayli esa qurilmangizda yaratiladi.",
+  } satisfies FamilyUi,
+  anketa: {
+    themeLabel: "Kim bilan suhbat",
+    theme: { mom: "Ona bilan", dad: "Ota bilan", love: "Sevimli inson bilan", friend: "Do‘st bilan", autobiography: "Buvi, bobo bilan" },
+    nameLabel: "Suhbatdoshning ismi",
+    namePlaceholder: "Masalan, Oysha buvi",
+    pickTitle: (c, t) => `${t} tadan ${c} tasi tanlandi`,
+    random: "10 ta tasodifiy",
+    all: "Hammasini tanlash",
+    none: "Tanlovni bekor qilish",
+    print: "Anketani chop etish",
+    copy: "Ro‘yxatni nusxalash",
+    copied: "Nusxalandi",
+    sheetTitle: (n) => (n ? `Suhbat uchun savollar: ${n}` : "Suhbat uchun savollar"),
+    sheetDate: "Suhbat sanasi",
+    sheetBy: "Yozib olgan",
+    sheetHint: "Savollarni birin-ketin bering, gapini bo‘lmang, aniqlashtiring: «Keyin nima bo‘ldi?» Javoblarni shu yerga yoki diktofonga yozib olish mumkin.",
+    tipsTitle: "Suhbatni qanday o‘tkazish kerak",
+    tips: ["Xotirjam vaqtni tanlab, choyga taklif qiling: suhbat so‘roq bo‘lmasligi kerak.", "Bolalik haqidagi yengil savollardan boshlang, qiyinlariga esa inson suhbatga ochilib ketgandan keyin o‘ting.", "Pauzalarga shoshilmang: eng qimmatli so‘zlar ko‘pincha sukutdan keyin aytiladi.", "Telefondagi diktofonni yoqing va ruxsat so‘rang. Yozuv kitob yozayotganingizda asqotadi."],
+    nothing: "Kamida bitta savolni tanlang.",
+  } satisfies AnketaUi,
+};
+
+export const usefulUi2: Record<PublicLocale, { mushel: MushelUi; family: FamilyUi; anketa: AnketaUi }> = { ru: usefulRu2, kk: usefulKk2, uz: usefulUz2 };

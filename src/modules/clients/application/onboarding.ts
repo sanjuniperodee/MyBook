@@ -1,3 +1,4 @@
+import { type Locale } from "@/i18n/config";
 import { formatPrice, getPlan, giftsForPlan } from "@/config/site";
 import { PAY_FORM_KEY } from "@/shared/domain/expenses";
 import { DiscountPolicy } from "@/shared/domain/discount";
@@ -10,7 +11,7 @@ import type { Actor, ClientsService, NotesService, TasksService } from "./servic
 /** Учётные записи сайта (identity): аккаунт клиента, которого завёл менеджер. */
 export interface OnboardingAccounts {
   /** Ошибки — IdentityError identity (exists, phone, email, password): их разбирает вызывающий. */
-  provisionClient(input: { name: string; phone: string; email: string | null; password: string; locale: "ru" | "kk" }): Promise<{ id: string; login: string }>;
+  provisionClient(input: { name: string; phone: string; email: string | null; password: string; locale: Locale }): Promise<{ id: string; login: string }>;
 }
 
 /** Продажи (sales): воронка, сделка с договорённостью и предоплата. */
@@ -50,7 +51,7 @@ export interface DealOnboardingInput {
   name: string;
   phone: string;
   email: string;
-  locale: "ru" | "kk";
+  locale: Locale;
   password: string;
   channel: ManualChannel;
   /** Ответственный клиента — ответственный сделки. */
@@ -63,7 +64,7 @@ export interface OnboardingInput {
   phone: string;
   /** Пусто — клиент входит по телефону. */
   email: string;
-  locale: "ru" | "kk";
+  locale: Locale;
   password: string;
   city: string;
   recipient: string;
@@ -130,7 +131,7 @@ export interface ExistingClientDealsInput {
   email: string;
   city: string;
   recipient: string;
-  locale: "ru" | "kk";
+  locale: Locale;
   assigneeId: string;
   deal: DealTerms;
 }
@@ -268,7 +269,7 @@ export class ClientOnboardingService {
    * Пароль никто не знает: клиент задаёт его сам по ссылке доступа. Сделку и переписку привязывает вызывающий (общий
    * шаг для найденного и заведённого аккаунта). Ошибки аккаунта — IdentityError (exists с existingId, phone).
    */
-  async onboardFromPayment(input: { name: string; phone: string; locale: "ru" | "kk"; channel: string; password: string; assigneeId: string | null }): Promise<{ clientId: string; login: string }> {
+  async onboardFromPayment(input: { name: string; phone: string; locale: Locale; channel: string; password: string; assigneeId: string | null }): Promise<{ clientId: string; login: string }> {
     const account = await this.accounts.provisionClient({ name: input.name, phone: input.phone, email: null, password: input.password, locale: input.locale });
     const profile = await this.clients.find(account.id);
     if (profile) {

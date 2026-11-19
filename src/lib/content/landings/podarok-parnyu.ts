@@ -43,5 +43,23 @@ export const podarokParnyu: Landing = {
         ["Кітапты қаншалықты тез алуға болады?", "Электрондық нұсқасы — төлемнен кейін бірден. Басылғаны: өндіріс 5–7 жұмыс күні («Премиум» — 3–4) және курьермен жеткізу 1–2 күн."],
       ],
     },
+    uz: {
+      label: "Yigitga sovg‘a",
+      h1: "Yigitga sovg‘a,",
+      accent: "hech kimda yo‘q",
+      metaTitle: "Yigitga nima sovg‘a qilish kerak — ikkovingizning tarixingiz kitobi",
+      metaDescription: "Yigitga tug‘ilgan kun, yillik yoki 14-fevralga sovg‘a: munosabatlaringiz haqida kitob. Savollar, suratlar, qattiq muqova, Qozog‘istonga yetkazish.",
+      lead: "Xudi, gadjet va atirlardan zerikdingizmi? Kitobda qanday tanishganingiz, qaysi onlar yodingizda qolgani va nega bir-biringizni tanlaganingizni yozing. Uni yuzinchi marta ham varaqlash mumkin.",
+      why: [
+        { title: "Uning hamma narsasi bor", text: "Yangi narsani bir yildan keyin almashtirishadi. Ikkovingiz haqidagi kitobni esa — yo‘q." },
+        { title: "Munosabatlar boshida ham mos", text: "Yillar shart emas: bir necha oyda ham ko‘ringanidan ko‘proq hikoya to‘planadi — birinchi uchrashuv, birinchi safar, birinchi janjal va birinchi yarashuv." },
+        { title: "Har sahifada surat", text: "Telefondagi suratlarni qo‘shing: ramkada, polaroid shaklida yoki butun yoyilmaga. Maketni to‘lovdan oldin to‘liq varaqlab ko‘rasiz." },
+      ],
+      cover: { title: "Sen bilan biz", names: "Madina & Erzat" },
+      faq: [
+        ["Bunday kitob sovg‘a qilish erta emasmi?", "Yo‘q. Bu majburiyat emas, iliq xotira: tanishuv va birinchi uchrashuvlar haqidagi savollar bir necha oylik munosabatga ham mos. Hamma boblarni to‘ldirish shart emas."],
+        ["Kitobni qanchalik tez olish mumkin?", "Elektron nusxa to‘lovdan keyin darrov tayyor. Bosma nusxa: ishlab chiqarish 5–7 ish kuni («Premium» — 3–4) va kuryer bilan yetkazish 1–2 kun."],
+      ],
+    },
   },
 };

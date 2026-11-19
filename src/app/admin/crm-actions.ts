@@ -1,5 +1,6 @@
 "use server";
 
+import { locales } from "@/i18n/config";
 import { GOWA_CHANNEL } from "@/modules/messaging/domain/gowa";
 import { container } from "@/server/container";
 import { revalidatePath } from "next/cache";
@@ -69,7 +70,7 @@ export async function setClientChannelAction(clientId: string, channel: string):
  */
 export async function setClientLocaleAction(clientId: string, locale: string): Promise<ActionResult> {
   const staff = await assertStaff("clients.edit");
-  const next = z.enum(["ru", "kk"]).safeParse(locale);
+  const next = z.enum(locales).safeParse(locale);
   if (!next.success) return { ok: false, message: "Выберите язык" };
   const c = container();
   const client = await c.clients.clients.find(uuid.parse(clientId));
@@ -78,7 +79,7 @@ export async function setClientLocaleAction(clientId: string, locale: string): P
   await c.identity.accounts.setLocale(client.id, next.data);
   await audit(staff, "client.locale", "client", client.id, { to: next.data });
   revalidatePath(`/admin/clients/${client.id}`);
-  return { ok: true, message: next.data === "kk" ? "Язык: казахский" : "Язык: русский" };
+  return { ok: true, message: next.data === "kk" ? "Язык: казахский" : next.data === "uz" ? "Язык: узбекский" : "Язык: русский" };
 }
 
 /** Номер для звонка/чата берём на сервере: сотрудник без права видеть контакты всё равно может связаться. */

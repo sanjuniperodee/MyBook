@@ -1,3 +1,4 @@
+import { type Locale } from "@/i18n/config";
 import Link from "next/link";
 import { BookOpen, Handshake, Mail, MessageCircle, Package, Phone, Plus } from "lucide-react";
 import { Panel } from "@/components/ui/Panel";
@@ -25,7 +26,7 @@ import { ClientChannel, ClientLocale, ClientManager, ExtraPhones } from "./Clien
 
 type Screen = ReturnType<typeof clientScreen>;
 
-type ClientRow = { id: string; name: string | null; email: string; role: string; createdAt: Date; lastSeenAt: Date | null; extraPhones: string[]; managerId: string | null; source: Record<string, string> | null; emailOptOut: boolean; locale: "ru" | "kk" };
+type ClientRow = { id: string; name: string | null; email: string; role: string; createdAt: Date; lastSeenAt: Date | null; extraPhones: string[]; managerId: string | null; source: Record<string, string> | null; emailOptOut: boolean; locale: Locale };
 
 /**
  * Шапка разворота клиента (DESIGN.md §7.2): аватар и имя, теги, крупная сумма покупок, строка цифр (заказы, книги, средний

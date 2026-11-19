@@ -71,7 +71,7 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
     question: input.text,
     place,
     placeDetails: anchor && facts ? facts.detail(anchor) : undefined,
-    uiLang: locale === "kk" ? "kk" : "ru",
+    uiLang: locale,
     human: input.human,
   });
   return NextResponse.json({ outcome: result.outcome, handoff: result.handoff, suggestions: result.suggestions, messages: view(result.messages) });

@@ -7,7 +7,7 @@ import { bookKind, hasQuestionBank } from "@/lib/content/kinds";
 import { bankThemes, isThemeId } from "@/lib/content/themes";
 import { absoluteUrl, articleLd, breadcrumbLd, faqLd, ogImage, organizationLd, productLd, reviewsLd, websiteLd } from "@/lib/seo";
 import { messagesFor } from "@/i18n/messages";
-import { locales } from "@/i18n/config";
+import { publicLocales as locales } from "@/i18n/config";
 
 const dup = (xs: string[]) => xs.filter((x, i) => xs.indexOf(x) !== i);
 
@@ -156,15 +156,15 @@ describe("sitemap", () => {
   });
 
   it("у каждой записи — картинка для поиска по картинкам (та же, что для соцсетей), у статей — дата", () => {
-    for (const e of entries) expect(e.images).toEqual([expect.stringMatching(/\/api\/og\?l=(ru|kk)/)]);
+    for (const e of entries) expect(e.images).toEqual([expect.stringMatching(/\/api\/og\?l=(ru|kk|uz)/)]);
     const landing = entries.find((e) => e.url === absoluteUrl(`/kniga/${landings[0].slug}`, "kk"));
     expect(landing?.images?.[0]).toContain(`s=${landings[0].slug}`);
     expect(landing?.images?.[0]).toContain("l=kk");
     expect(entries.find((e) => e.url === absoluteUrl(`/blog/${articles[0].slug}`, "ru"))?.lastModified).toBe(articles[0].updated ?? articles[0].published);
   });
 
-  it("каждая запись ссылается на обе версии и x-default", () => {
-    for (const e of entries) expect(Object.keys(e.alternates?.languages ?? {}).sort()).toEqual(["kk", "ru", "x-default"]);
+  it("каждая запись ссылается на все версии и x-default", () => {
+    for (const e of entries) expect(Object.keys(e.alternates?.languages ?? {}).sort()).toEqual(["kk", "ru", "uz", "x-default"]);
   });
 });
 

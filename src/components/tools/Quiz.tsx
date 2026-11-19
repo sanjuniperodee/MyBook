@@ -1,5 +1,6 @@
 "use client";
 
+import { toPublic } from "@/i18n/config";
 import { useState } from "react";
 import { ArrowLeft, RotateCcw } from "lucide-react";
 import { Link, useLocale } from "@/i18n/client";
@@ -10,7 +11,7 @@ import { CopyButton, Figure, Workbench } from "./Workbench";
 
 /** Тест «как хорошо вы знаете…»: по одному утверждению на экран, в конце — процент и вопросы, которые стоит задать. */
 export function Quiz({ quiz, ctaHref, ctaLabel }: { quiz: QuizData; ctaHref: string; ctaLabel: string }) {
-  const ui = toolUi[useLocale()].quiz;
+  const ui = toolUi[toPublic(useLocale())].quiz;
   const total = quiz.items.length;
   const [step, setStep] = useState(-1);
   const [answers, setAnswers] = useState<Answer[]>([]);

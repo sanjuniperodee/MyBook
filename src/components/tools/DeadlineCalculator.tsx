@@ -1,5 +1,6 @@
 "use client";
 
+import { toPublic } from "@/i18n/config";
 import { useMemo, useState } from "react";
 import { CalendarHeart, Clock, PackageCheck, Zap } from "lucide-react";
 import type { DeliveryId } from "@/config/site";
@@ -15,7 +16,7 @@ const deliveries: DeliveryId[] = ["courier", "post", "pickup", "abroad"];
 /** «Успею ли к дате»: вердикт по дате вручения и способу получения. Доставка по умолчанию — курьер, как в оформлении заказа. */
 export function DeadlineCalculator({ expressPrice }: { expressPrice: string | null }) {
   const locale = useLocale();
-  const ui = toolUi[locale].deadline;
+  const ui = toolUi[toPublic(locale)].deadline;
   const [value, setValue] = useState("");
   const [delivery, setDelivery] = useState<DeliveryId>("courier");
   const [now, setNow] = useState<Date | null>(null);

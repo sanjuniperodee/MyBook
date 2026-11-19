@@ -1,5 +1,6 @@
 "use client";
 
+import { toPublic } from "@/i18n/config";
 import { useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { ChevronDown, Download, Printer, Trash2, WandSparkles } from "lucide-react";
 import { useLocale } from "@/i18n/client";
@@ -67,7 +68,7 @@ function printPoster(svg: SVGSVGElement, title: string) {
 
 /** Шежіре: впишите имена отца, деда, прадеда… — получится плакат, который можно скачать, распечатать и отправить родным. Хранится только в браузере. */
 export function ShezhireBuilder() {
-  const ui = usefulUi[useLocale()].shezhire;
+  const ui = usefulUi[toPublic(useLocale())].shezhire;
   const raw = useSyncExternalStore(subscribe, read, () => null);
   const data = useMemo(() => parseShezhire(raw), [raw]);
   const [line, setLine] = useState<Line>("father");

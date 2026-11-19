@@ -1,4 +1,5 @@
 import { Logo } from "@/components/Logo";
+import { toPublic } from "@/i18n/config";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
 import { site } from "@/config/site";
 import { Link } from "@/i18n/client";
@@ -34,7 +35,7 @@ export async function Footer() {
               {landings.slice(0, 8).map((l) => (
                 <li key={l.slug}>
                   <Link href={`/kniga/${l.slug}`} className={link}>
-                    {l.content[locale].label}
+                    {l.content[toPublic(locale)].label}
                   </Link>
                 </li>
               ))}

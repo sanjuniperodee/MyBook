@@ -1,0 +1,163 @@
+import type { ChapterDef } from "../types";
+
+// Onaga yoki otaga atalgan kitob. [..|..] — oluvchi: [ota|ona] (birinchisi — ota, ikkinchisi — ona).
+// Bob kalitlari va savollar soni rus tilidagi nusxa bilan bir xil.
+
+export const parentChapters: ChapterDef[] = [
+  {
+    key: "intro",
+    title: "So‘zboshi o‘rniga",
+    epigraph: "Menda bor eng yaxshi narsa sendan boshlangan.",
+    questions: [
+      [
+        "O‘zingizni tanishtiring: siz kimsiz va bu kitobni [otangiz|onangiz] uchun nega yozishga qaror qildingiz?",
+        "Bu kitobni nega yozyapman",
+        "Bir-ikki iliq gap: siz kimsiz, bu kitob qanday munosabat bilan yozilmoqda va unga nima demoqchisiz.",
+      ],
+      ["[Otangizni|Onangizni] uch so‘z bilan ta’riflang. Nega aynan shu so‘zlar?", "Sen uch so‘zda"],
+      ["Unga qanday murojaat qilasiz? Uyda aytiladigan erkalatma ismlar bormi?", "Men seni qanday atayman"],
+    ],
+  },
+  {
+    key: "story",
+    title: "Sening tarixing",
+    questions: [
+      ["[Otangiz|Onangiz] qayerda va qachon tug‘ilgan? Uning bolaligi haqida nimalarni bilasiz?", "Hammasi qanday boshlangan"],
+      ["Bolaligida u kim bo‘lishni orzu qilgan?", "Kim bo‘lishni orzu qilgansan"],
+      ["U kasbini qanday tanlagan?", "Sening ishing"],
+      ["Qanday voqealar uning xarakterini shakllantirgan?", "Seni sen qilgan narsa"],
+      ["Uning eng katta yutug‘i qanday bo‘lgan?", "Sening eng katta g‘alabang"],
+      ["Uning yoshlik chog‘laridagi qaysi voqeani eng ko‘p yaxshi ko‘rasiz?", "Yoshligingdan bir voqea"],
+      [
+        "[Otangiz onangiz bilan|Onangiz otangiz bilan] qanday tanishgan? Bu voqea haqida nimalarni bilasiz?",
+        "[Onamni qanday uchratgansan|Otamni qanday uchratgansan]",
+      ],
+      ["Hikoyalar va suratlarga qaraganda, yoshligida u qanday bo‘lgan?", "Yoshligingdagi sen"],
+    ],
+  },
+  {
+    key: "childhood",
+    title: "Sen bilan bolaligim",
+    epigraph: "Bolalik — biz bilan abadiy qoladigan narsa.",
+    questions: [
+      ["[Otangiz|Onangiz] haqidagi eng birinchi xotirangiz qanday?", "Sen haqingdagi birinchi xotiram"],
+      ["U sizga qanday ertak, qo‘shiq yoki alla aytib bergan?", "Sening ertaklaring va allalaring"],
+      ["Birga nima o‘ynashni yoqtirardingiz?", "Bizning o‘yinlarimiz"],
+      ["[Otangizning|Onangizning] qaysi taomi siz uchun bolalik ta’mi?", "Bolalik ta’mi"],
+      ["Og‘riganda yoki qo‘rqqanda u sizni qanday yupatgan?", "Qo‘rqqan paytlarim"],
+      ["Bolaligingizda tug‘ilgan kunlaringiz qanday o‘tgan?", "Bolalikdagi tug‘ilgan kunlarim"],
+      ["U sizni nima uchun koyigan va nima uchun maqtagan?", "Koyiganing va maqtaganing"],
+      ["Uning bolalikdagi qaysi so‘zlari hozir ham esingizda?", "Esimda qolgan so‘zlar"],
+      ["U sizni bog‘chaga, maktabga, to‘garaklarga qanday olib borgan?", "Maktabga boradigan yo‘l"],
+      ["Bolaligingizda undan olgan qaysi sovg‘a esingizda?", "Bolalikdagi sovg‘a"],
+      ["Bolalikdagi qaysi oilaviy safarlar sizga ayniqsa aziz?", "Oilaviy safarlar"],
+      ["Bolaligingizda uyingiz qanday edi?", "Bolaligimdagi uy"],
+    ],
+  },
+  {
+    key: "you",
+    title: "[Ota|Ona] mening ko‘zim bilan",
+    questions: [
+      ["U qanday inson? Xarakterini ta’riflang.", "Sen qandaysan"],
+      ["U nimani hammadan yaxshi uddalaydi?", "Sen hammadan yaxshi uddalaysan…"],
+      ["Uning qaysi odati sizni jilmaytiradi?", "Sening odating"],
+      ["Uning qaysi iboralari oilaviy klassikaga aylangan?", "Sening iboralaring"],
+      ["U nimaga qiziqadi?", "Sening qiziqishlaring"],
+      ["Uning kulgisi qanday? Uni nima kuldirishi mumkin?", "Sening kulging"],
+      ["U mehrini qanday ko‘rsatadi?", "Sen qanday sevasan"],
+      ["Qachon undan ayniqsa g‘ururlangansiz?", "Sendan g‘ururlangan paytlarim"],
+      ["O‘zingiz ulg‘aygandan keyingina u haqida nimani bildingiz?", "Katta bo‘lgach tushunganlarim"],
+      ["Uning qo‘llarini ta’riflang. Ular nimalarni uddalaydi?", "Sening qo‘llaring"],
+      ["U chinakam baxtli bo‘lganda qanday ko‘rinadi?", "Baxtli bo‘lganingda"],
+      ["Uning uyida sizni qanday so‘z bilan kutib olishadi?", "Men senikiga kelganimda"],
+    ],
+  },
+  {
+    key: "lessons",
+    title: "Menga nimalarni o‘rgatding",
+    questions: [
+      ["U sizga amaliy nimalarni o‘rgatgan?", "Sening sharofating bilan nimalarni bilaman"],
+      ["U sizga qanday hayotiy qadriyatlarni bergan?", "Sen bergan qadriyatlar"],
+      ["Uning qaysi maslahatini ko‘pincha eslaysiz?", "Sening asosiy maslahating"],
+      ["Siz u bilan nimada o‘xshaysiz?", "Men senga nimada o‘xshayman"],
+      ["Siz nimani u kabi qilasiz — ba’zan o‘zingiz sezmagan holda?", "Men sen kabi qilaman"],
+      ["Uning qaysi namunasi sizga ilhom beradi?", "Sening namunang"],
+      ["Qaysi saboqni faqat yillar o‘tib tushundingiz?", "Yillar o‘tib tushungan saboqim"],
+      ["U orzularingizni qanday qo‘llab-quvvatlagan?", "Menga qanday ishongansan"],
+      ["Undan olgan nimalarni o‘z farzandlaringizga berasiz?", "Nimani keyingilarga beraman"],
+    ],
+  },
+  {
+    key: "hard",
+    title: "Qiyin davrlar",
+    questions: [
+      ["U eng og‘ir lahzada sizni qachon qo‘llab-quvvatlagan?", "Yonimda bo‘lgan paytlaring"],
+      ["Oilangiz qanday qiyinchiliklarni boshidan kechirgan va u qanday engib o‘tgan?", "Sen qanday engib o‘tgansan"],
+      ["Uning qaysi g‘amxo‘rligini faqat ulg‘aygach qadrladingiz?", "Avval sezmaganim"],
+      ["Orangizda kelishmovchiliklar bo‘lganmi? Ularni qanday yengib o‘tdingiz?", "Qanday til topishganmiz"],
+      ["Uning qaysi qilmishi sizga chinakam matonatni ko‘rsatgan?", "Sening kuching"],
+      ["Undan nima uchun kechirim so‘rashni istardingiz?", "Meni kechir"],
+    ],
+  },
+  {
+    key: "family",
+    title: "Bizning oilamiz",
+    questions: [
+      ["Oilangizda qanday an’analar bor?", "Bizning an’analarimiz"],
+      ["Oilangiz bayramlarni qanday nishonlaydi?", "Oilamizdagi bayramlar"],
+      ["[Otangiz|Onangiz] hayotidan qaysi voqeani aytib berishni yaxshi ko‘rasiz?", "Men sevgan voqea"],
+      ["U qanday [bobo|buvi] bo‘lgan yoki bo‘ladi?", "Sen — [bobo|buvi]"],
+      ["Qaysi oilaviy dasturxon sizga eng ko‘p yodda qolgan?", "Oilaviy dasturxon"],
+      ["[Otangizning|Onangizning] uyidagi qaysi buyumlar oila tarixini saqlaydi?", "Tarixi bor buyumlar"],
+      ["«Oila» so‘zi siz uchun nimani anglatadi?", "Oila nima"],
+    ],
+  },
+  {
+    key: "fun",
+    title: "Kulgili voqealar",
+    questions: [
+      ["[Otangiz|Onangiz] bilan bog‘liq bolalikdagi eng kulgili voqea qaysi?", "Eng kulgili voqea"],
+      ["U bir gal sizni noo‘rin paytda qanday kuldirgan?", "Vaqtsiz kulgi"],
+      ["Har bir bayramda qaysi oilaviy hangoma aytiladi?", "Oilaviy rivoyat"],
+      ["U sizning bolalikdagi qaysi shumliklaringizni fosh qilgan?", "Mening shumliklarim"],
+      ["U yangi texnologiyalarni qanday o‘zlashtiradi?", "Sen va texnologiyalar"],
+      ["Uning qaysi chehra ifodasini unutib bo‘lmaydi?", "Sening chehrang"],
+    ],
+  },
+  {
+    key: "now",
+    title: "Hozirgi biz",
+    questions: [
+      ["Ulg‘aygach munosabatlaringiz qanday o‘zgardi?", "Hozirgi biz"],
+      ["Hozir birga vaqt o‘tkazishni qanday yaxshi ko‘rasiz?", "Birga o‘tkazgan vaqtimiz"],
+      ["Telefonda nimalar haqida gaplashasiz?", "Suhbatlarimiz"],
+      ["Birga ko‘proq nima qilishni istardingiz?", "Ko‘proq istayman…"],
+      ["Yaqinda birga o‘tkazgan qaysi lahza sizga ayniqsa aziz?", "Yaqindagi xotira"],
+      ["[Otangizni|Onangizni] qayerga olib borishni istardingiz?", "Seni qayerga olib boraman"],
+    ],
+  },
+  {
+    key: "wishes",
+    title: "Orzular",
+    questions: [
+      ["[Otangiz|Onangiz] nimani orzu qiladi?", "Sening orzularing"],
+      ["Uning qaysi orzusini amalga oshirmoqchisiz?", "Amalga oshiradigan orzuyim"],
+      ["Kelgusi yillarda birga nima qilishni istardingiz?", "Birga nima qilamiz"],
+      ["O‘n yildan keyin uning hayotini qanday tasavvur qilasiz?", "O‘n yildan keyin"],
+      ["Unga qanday va’da bermoqchisiz?", "Mening va’dam"],
+    ],
+  },
+  {
+    key: "thanks",
+    title: "Senga rahmat",
+    questions: [
+      ["[Otangizga|Onangizga] nima uchun minnatdorsiz?", "Senga rahmat…"],
+      ["Uning qaysi qilmishini hech qachon unutmaysiz?", "Unutmaydigan qilmishing"],
+      ["Qaysi so‘zlarni anchadan beri aytmoqchi bo‘lgansiz, lekin jur’at etolmagansiz?", "Anchadan beri aytmoqchi bo‘lganlarim"],
+      ["Unga nimalar tilaysiz?", "Senga tilaklarim"],
+      ["Uni nima uchun yaxshi ko‘rasiz? Imkon qadar ko‘proq sabablarni sanab o‘ting.", "Seni nima uchun sevaman", "Ro‘yxat qilib yozishingiz mumkin, har bir sabab yangi qatordan."],
+      ["[Otangizga|Onangizga] butun yuragingiz bilan xat yozing.", "Senga xat"],
+      ["Iborani tugallang: «[Dada|Oyi], sen men uchun…»", "[Dada|Oyi], sen men uchun…"],
+    ],
+  },
+];

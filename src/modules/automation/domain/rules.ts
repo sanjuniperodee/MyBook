@@ -1,3 +1,4 @@
+import { type Locale } from "@/i18n/config";
 import { automationTriggers, type AutomationTrigger } from "@/modules/automation/domain/meta";
 import { fillTemplate } from "@/shared/domain/templates";
 import { ANNIVERSARY_DEFAULTS, ANNIVERSARY_LIMITS } from "./anniversary";
@@ -221,7 +222,7 @@ export interface RuleSubject {
   name: string;
   assigneeId: string | null;
   /** Язык клиента (users.locale); без клиента — русский. */
-  locale?: "ru" | "kk";
+  locale?: Locale;
 }
 
 /**

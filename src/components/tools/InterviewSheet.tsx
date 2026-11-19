@@ -1,5 +1,6 @@
 "use client";
 
+import { toPublic } from "@/i18n/config";
 import { useState } from "react";
 import { Printer, Shuffle } from "lucide-react";
 import { useLocale } from "@/i18n/client";
@@ -33,7 +34,7 @@ function printSheet(title: string, questions: string[], ui: { sheetDate: string;
 }
 
 export function InterviewSheet({ themes }: { themes: Record<CardThemeId, CardQuestion[]> }) {
-  const ui = usefulUi2[useLocale()].anketa;
+  const ui = usefulUi2[toPublic(useLocale())].anketa;
   const [theme, setTheme] = useState<CardThemeId>("mom");
   const [name, setName] = useState("");
   const [chosen, setChosen] = useState<Set<string>>(new Set());

@@ -10,6 +10,12 @@ import { card as kkGiftCard } from "./kk/gift-card";
 import { share as kkLetterShare } from "./kk/letter-share";
 import { orderStatus as kkOrderStatus, orderStatusDigital as kkOrderStatusDigital } from "./kk/order-status";
 import { plans as kkPlans } from "./kk/plans";
+import { date as uzDate, errors as uzErrors } from "./uz/basics";
+import { book as uzBook } from "./uz/book";
+import { card as uzGiftCard } from "./uz/gift-card";
+import { share as uzLetterShare } from "./uz/letter-share";
+import { orderStatus as uzOrderStatus, orderStatusDigital as uzOrderStatusDigital } from "./uz/order-status";
+import { plans as uzPlans } from "./uz/plans";
 import { date as ruDate, errors as ruErrors } from "./ru/basics";
 import { book as ruBook } from "./ru/book";
 import { card as ruGiftCard } from "./ru/gift-card";
@@ -20,6 +26,7 @@ import { plans as ruPlans } from "./ru/plans";
 const parts = {
   ru: { book: ruBook, errors: ruErrors, date: ruDate, giftCard: ruGiftCard, letterShare: ruLetterShare, plans: ruPlans, orderStatus: ruOrderStatus, orderStatusDigital: ruOrderStatusDigital },
   kk: { book: kkBook, errors: kkErrors, date: kkDate, giftCard: kkGiftCard, letterShare: kkLetterShare, plans: kkPlans, orderStatus: kkOrderStatus, orderStatusDigital: kkOrderStatusDigital },
+  uz: { book: uzBook, errors: uzErrors, date: uzDate, giftCard: uzGiftCard, letterShare: uzLetterShare, plans: uzPlans, orderStatus: uzOrderStatus, orderStatusDigital: uzOrderStatusDigital },
 } satisfies Record<Locale, unknown>;
 
 /** Подписи в самой книге: «Глава N», «Содержание», копирайт, финал — на языке книги. */
