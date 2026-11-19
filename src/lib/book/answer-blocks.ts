@@ -72,14 +72,18 @@ function joinBroken(lines: string[]) {
   return out;
 }
 
-export function answerBlocks(paragraphs: string[]): AnswerBlock[] {
+/**
+ * plain — «все ответы одним стилем» (дизайн книги): только абзацы, списки и выделенные строки, без выделенного
+ * короткого ответа, лида и стихов — чтобы короткие ответы не выглядели иначе, чем длинные.
+ */
+export function answerBlocks(paragraphs: string[], { plain = false }: { plain?: boolean } = {}): AnswerBlock[] {
   const lines = paragraphs.map(tidyLine);
   const n = lines.length;
   if (!n) return [];
   const total = lines.reduce((s, l) => s + l.length, 0);
   const listy = lines.some((l) => BULLET.test(l) || isStrong(l));
   const text = lines.join(" ");
-  if (total <= QUOTE_MAX_CHARS && sentences(text) <= QUOTE_MAX_SENTENCES && !listy && !isDialogue(lines[0])) {
+  if (!plain && total <= QUOTE_MAX_CHARS && sentences(text) <= QUOTE_MAX_SENTENCES && !listy && !isDialogue(lines[0])) {
     const joined = joinBroken(lines);
     if (joined.length <= 2) return [{ kind: "quote", lines: joined, from: 0, to: n - 1 }];
   }
@@ -98,7 +102,7 @@ export function answerBlocks(paragraphs: string[]): AnswerBlock[] {
     if (BULLET.test(line)) {
       const from = i;
       const items: { marker: string; text: string }[] = [];
-      while (i < n && BULLET.test(lines[i])) items.push({ marker: "•", text: lines[i++].replace(BULLET, "") });
+      while (i < n && BULLET.test(lines[i]) && !isStrong(lines[i])) items.push({ marker: "•", text: lines[i++].replace(BULLET, "") });
       blocks.push({ kind: "list", ordered: false, items, from, to: i - 1 });
       continue;
     }
@@ -116,7 +120,7 @@ export function answerBlocks(paragraphs: string[]): AnswerBlock[] {
     // Стихи: от трёх коротких строк подряд (не диалог), большинство — без точки в конце.
     let j = i;
     while (j < n && lines[j].length <= VERSE_LINE_MAX && !isDialogue(lines[j]) && !isStrong(lines[j]) && !BULLET.test(lines[j]) && !NUMBERED.test(lines[j])) j++;
-    if (j - i >= VERSE_MIN_LINES && looksLikeVerse(lines.slice(i, j))) {
+    if (!plain && j - i >= VERSE_MIN_LINES && looksLikeVerse(lines.slice(i, j))) {
       blocks.push({ kind: "verse", lines: lines.slice(i, j), from: i, to: j - 1 });
       i = j;
       continue;
@@ -132,6 +136,7 @@ export function answerBlocks(paragraphs: string[]): AnswerBlock[] {
   // Лид: первый блок — одна короткая строка, за ней длинный текст.
   const [first, second] = blocks;
   if (
+    !plain &&
     first?.kind === "para" &&
     first.from === first.to &&
     first.text.length <= LEDE_MAX_CHARS &&

@@ -270,7 +270,7 @@ const KEEP_WITH_HEAD_CHARS = 700;
  * коротким абзацем). Так заголовок не остаётся внизу полосы и в Safari, где break-after: avoid в колонках не работает.
  */
 export function EntryBody({ kit, entry, leadIn, start = false, links = false, head }: { kit: PageKit; entry: SampleEntry; leadIn: boolean; /** Ответ открывает главу: буквица. */ start?: boolean; links?: boolean; head?: ReactNode }) {
-  const blocks = answerBlocks(entry.paragraphs);
+  const blocks = answerBlocks(entry.paragraphs, { plain: kit.design.plainAnswers });
   const items = (entry.photos ?? []).map((p) => ({ p, style: normalizeStyle(p.inline) }));
   const rows = rowsByBlock(blocks, layoutInline(items, entry.paragraphs.length));
   const media = rowsByBlock(blocks, layoutMedia(entry.media ?? [], entry.paragraphs.length));

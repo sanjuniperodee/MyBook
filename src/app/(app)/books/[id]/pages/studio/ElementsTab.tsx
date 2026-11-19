@@ -75,6 +75,8 @@ export function ElementsTab({
           </span>
           <Toggle label={t.leadIn} checked={design.leadIn} onChange={(v) => el({ leadIn: v })} />
         </div>
+        <Toggle label={t.plainAnswers} checked={!!design.plainAnswers} onChange={(v) => el({ plainAnswers: v || undefined })} />
+        <p className="text-xs leading-relaxed text-muted">{t.plainAnswersHint}</p>
       </PanelSection>
 
       <PanelSection title={t.number}>

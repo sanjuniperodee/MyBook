@@ -111,7 +111,7 @@ function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, 
       // Фото «на всю страницу» — не в ряду текста, а своей полосой (как в книге: история прерывается и продолжается после).
       const items = all.filter((x) => !x.style.page);
       const pageItems = all.filter((x) => x.style.page);
-      const blocks = answerBlocks(paragraphs);
+      const blocks = answerBlocks(paragraphs, { plain: design.plainAnswers });
       out.set(e.id, {
         paragraphs,
         blocks,

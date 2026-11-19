@@ -70,7 +70,7 @@ function Divider({ kit, id }: { kit: PdfKit; id: string }) {
 /** Ответ целиком: блоки набора, ряды фото и карточки QR-кодов между ними (leadIn — капитель в начале первого блока). */
 function EntryBody({ kit, item, leadIn, start }: { kit: PdfKit; item: ContentItem; leadIn: boolean; /** Ответ открывает главу: буквица. */ start: boolean }) {
   const paragraphs = splitParagraphs(item.answer);
-  const blocks = answerBlocks(paragraphs);
+  const blocks = answerBlocks(paragraphs, { plain: kit.design.plainAnswers });
   const photos = (item.photos ?? []).filter((p) => kit.options.images.has(p.id));
   const rows = rowsByBlock(
     blocks,

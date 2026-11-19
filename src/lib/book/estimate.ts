@@ -146,7 +146,7 @@ export function mediaCardHeight(m: TextMetrics) {
 function entryHeight(heading: string | null, answer: string, photos: RowPhoto[], media: readonly Partial<AnswerMedia>[], first: boolean, m: TextMetrics): number {
   const paragraphs = splitParagraphs(answer);
   const rows = [...layoutInline(photos.map((p) => ({ p, style: normalizeStyle(p.inline) })), paragraphs.length).values()].flat();
-  const text = answerBlocks(paragraphs).reduce((sum, b, i) => sum + blockHeight(b, m, i === 0), 0);
+  const text = answerBlocks(paragraphs, { plain: m.design.plainAnswers }).reduce((sum, b, i) => sum + blockHeight(b, m, i === 0), 0);
   const cards = normalizeMedia(media).length * mediaCardHeight(m);
   return headingHeight(heading, first, m) + text + rows.reduce((sum, row) => sum + rowHeight(row, m), 0) + cards;
 }

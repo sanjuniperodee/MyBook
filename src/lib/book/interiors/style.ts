@@ -55,6 +55,8 @@ export interface InteriorStyle {
     leadIn?: boolean;
     /** Каждый вопрос начинается с новой страницы (по умолчанию — подряд). */
     questionPage?: boolean;
+    /** Все ответы одним стилем (см. InteriorDesign.plainAnswers). */
+    plainAnswers?: boolean;
     number?: InteriorDesign["opener"]["number"];
     ornament?: GlyphId;
     vignette?: boolean;
@@ -258,6 +260,7 @@ export function parseInteriorStyle(raw: unknown): InteriorStyle {
             dropLines: num(e.dropLines, LIMITS.dropLines),
             leadIn: bool(e.leadIn),
             questionPage: bool(e.questionPage),
+            plainAnswers: bool(e.plainAnswers),
             number: oneOf(e.number, NUMBERS),
             ornament: oneOf(e.ornament, GLYPHS),
             vignette: bool(e.vignette),
@@ -385,6 +388,7 @@ export function applyInteriorStyle(design: InteriorDesign, raw: InteriorStyle | 
     divider: el.divider ?? design.divider,
     leadIn: el.leadIn ?? design.leadIn,
     ...(el.questionPage !== undefined ? { questionPage: el.questionPage } : {}),
+    ...(el.plainAnswers ? { plainAnswers: true } : {}),
     folio: { ...design.folio, ...(el.folio ? { align: el.folio } : {}), ...(el.folioDashes !== undefined ? { dashes: el.folioDashes } : {}) },
     runningHead: el.runningHead ?? design.runningHead,
     frame: el.frame ?? design.frame,

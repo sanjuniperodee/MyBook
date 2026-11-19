@@ -38,6 +38,15 @@ describe("типографика ответа", () => {
     expect(answerBlocks([`Это **очень** важно. ${long}`])[0]).toMatchObject({ kind: "para" });
   });
 
+  it("«все ответы одним стилем»: короткий ответ и столбик строк — обычные абзацы, списки и выделенные строки остаются", () => {
+    expect(answerBlocks(["Сильный, надёжный, любящий."], { plain: true })).toEqual([{ kind: "para", text: "Сильный, надёжный, любящий.", from: 0, to: 0 }]);
+    const trips = ["На природу", "На концерт", "В бар", "На танцы"];
+    expect(answerBlocks(trips).map((b) => b.kind)).toEqual(["verse"]);
+    expect(answerBlocks(trips, { plain: true }).every((b) => b.kind === "para")).toBe(true);
+    expect(answerBlocks(["Мы встретились.", long], { plain: true })[0].kind).toBe("para");
+    expect(answerBlocks(["• раз", "• два", "**Подпись**"], { plain: true }).map((b) => b.kind)).toEqual(["list", "strong"]);
+  });
+
   it("стихи — короткие строки без точек в конце", () => {
     const blocks = answerBlocks([long, "Ты и я — одна дорога,", "Судьбы связаны навсегда,", "Даже если мир в тревогах,", "Мы найдём свой рай всегда."]);
     expect(blocks.map((b) => b.kind)).toEqual(["para", "verse"]);
