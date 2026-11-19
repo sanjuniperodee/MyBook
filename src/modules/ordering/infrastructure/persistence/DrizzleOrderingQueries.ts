@@ -62,9 +62,18 @@ export class DrizzleOrderingQueries {
     return rootDb.query.giftCards.findMany({ orderBy: desc(giftCards.createdAt), with: { promo: true }, limit });
   }
 
-  /** Последний заказ книги — для карточки книги в кабинете клиента. */
+  /**
+   * Заказ книги для кабинета клиента: последний неотменённый, а если живых нет — последний отменённый. Отменённый
+   * повтор не перекрывает оплаченный заказ книги.
+   */
   async lastOrderOfBook(bookId: string) {
-    return (await rootDb.query.orders.findFirst({ where: eq(orders.bookId, bookId), orderBy: desc(orders.createdAt) })) ?? null;
+    const [row] = await rootDb
+      .select()
+      .from(orders)
+      .where(eq(orders.bookId, bookId))
+      .orderBy(sql`${orders.status} = 'cancelled'`, desc(orders.createdAt))
+      .limit(1);
+    return row ?? null;
   }
 
   /** У книги есть оплаченный заказ (оплачен, в печати, отправлен или доставлен). */

@@ -31,7 +31,8 @@ export async function loadBookNav(book: BookRow, locale: Locale): Promise<BookNa
     photos,
     letters: { approved: letters.filter((l) => l.status === "approved").length, pending: letters.filter((l) => l.status === "pending").length },
     coverReady,
-    ordered: book.status !== "draft",
+    // Открытая для правок книга с живым заказом — тоже «заказана»: шаг «Заказ» ведёт в её заказ, а не к оформлению нового.
+    ordered: book.status !== "draft" || (!!order && order.status !== "cancelled"),
     paid: !!order && isPaid(order.status),
     order: order ? { id: order.id, number: order.number, status: order.status, plan: order.plan } : null,
   });

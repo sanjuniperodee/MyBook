@@ -67,7 +67,7 @@ export class MemOrders implements OrderRepository {
     const o = this.load(id);
     return o && o.userId === userId ? o : null;
   }
-  async hasOtherActiveOrders(bookId: string, except: string) {
+  async hasOtherActiveOrders(bookId: string, except?: string) {
     return [...this.rows.values()].some((r) => r.bookId === bookId && r.id !== except && r.status !== "cancelled");
   }
   async hasPaidOrders(userId: string) {

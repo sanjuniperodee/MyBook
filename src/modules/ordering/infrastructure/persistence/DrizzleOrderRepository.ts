@@ -114,11 +114,11 @@ export class DrizzleOrderRepository implements OrderRepository {
     return row ? toDomain(row) : null;
   }
 
-  async hasOtherActiveOrders(bookId: string, exceptOrderId: string) {
+  async hasOtherActiveOrders(bookId: string, exceptOrderId?: string) {
     const rows = await executor()
       .select({ id: orders.id })
       .from(orders)
-      .where(and(eq(orders.bookId, bookId), ne(orders.id, exceptOrderId), ne(orders.status, "cancelled")))
+      .where(and(eq(orders.bookId, bookId), exceptOrderId ? ne(orders.id, exceptOrderId) : undefined, ne(orders.status, "cancelled")))
       .limit(1);
     return rows.length > 0;
   }

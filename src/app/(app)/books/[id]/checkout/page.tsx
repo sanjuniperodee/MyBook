@@ -35,6 +35,9 @@ export default async function CheckoutPage({ params, searchParams }: { params: P
   const upgrade = upgradeParam && /^[0-9a-f-]{36}$/i.test(upgradeParam) ? await container().ordering.orders.upgradeOffer(upgradeParam, user.id) : null;
   const upgradeOk = !!upgrade && upgrade.bookId === book.id;
   if (book.status !== "draft" && !upgradeOk) return lredirect(`/books/${book.id}`);
+  // Книга открыта для правок по уже оформленному заказу — второй заказ не нужен, правки попадут в тот.
+  const bookOrder = upgradeOk ? null : await container().ordering.queries.lastOrderOfBook(book.id);
+  if (bookOrder && bookOrder.status !== "cancelled") return lredirect(`/books/${book.id}`);
   const q = container().authoring.queries;
   const [stats, photos, questions, chapters, letters, locale, m, built] = await Promise.all([
     q.stats(book),

@@ -96,6 +96,9 @@ export class OrdersService {
     if (cmd.upgradeFromOrderId && (!upgrade || upgrade.bookId !== cmd.bookId || !getPlan(cmd.plan)?.printed)) throw new OrderingError("upgradeUnavailable");
     if (book.status !== "draft" && !upgrade) throw new OrderingError("alreadyOrdered");
     if (book.blockingIssue) throw new OrderingError("notReady", book.blockingIssue);
+    // Книга открыта для правок по живому заказу (менеджер нажал «Открыть для правок»): статус книги «черновик», но заказ у неё
+    // уже есть — второй заказ той же книги не оформляется (иначе у клиента новый «ждёт оплаты» поверх оплаченного).
+    if (!upgrade && (await this.orders.hasOtherActiveOrders(cmd.bookId))) throw new OrderingError("alreadyOrdered");
 
     const now = this.clock.now();
     const promo = cmd.promoCode ? await this.promos.findByCode(cmd.promoCode) : null;

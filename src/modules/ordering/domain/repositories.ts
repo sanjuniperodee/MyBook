@@ -14,7 +14,8 @@ export interface OrderRepository {
   findByNumber(number: number): Promise<Order | null>;
   /** Заказ клиента (чужой — как будто не существует). */
   findOwned(id: string, userId: string): Promise<Order | null>;
-  hasOtherActiveOrders(bookId: string, exceptOrderId: string): Promise<boolean>;
+  /** У книги есть неотменённый заказ (кроме exceptOrderId, если указан). */
+  hasOtherActiveOrders(bookId: string, exceptOrderId?: string): Promise<boolean>;
   /** Клиент уже покупал (оплаченный и не отменённый заказ) — для кодов «только на первую книгу». */
   hasPaidOrders(userId: string): Promise<boolean>;
   add(order: Order): Promise<void>;

@@ -224,6 +224,20 @@ describe("Ordering: оформление заказа", () => {
     await expect(place()).rejects.toMatchObject({ code: "alreadyOrdered" });
   });
 
+  it("книга открыта для правок по оплаченному заказу — второй заказ не оформляется (заказ №37: «ждёт оплату» поверх оплаченного)", async () => {
+    const { place, books, svc, orders } = setup();
+    const first = await place();
+    await svc.confirmPayment({ orderId: first.id, paymentId: "kaspi:1" }, admin);
+    await svc.toggleBookEditing(first.id, admin);
+    expect(books.books.get("book-1")!.status).toBe("draft");
+    await expect(place()).rejects.toMatchObject({ code: "alreadyOrdered" });
+    expect([...orders.rows.values()].map((r) => r.status)).toEqual(["paid"]);
+    // Заказ отменён — книгу можно заказать заново.
+    await svc.changeStatus({ orderId: first.id, to: "cancelled" }, admin);
+    books.books.get("book-1")!.status = "draft";
+    await expect(place()).resolves.toMatchObject({ status: "pending_payment" });
+  });
+
   it("неготовая книга не заказывается — текст причины доходит до клиента", async () => {
     const { place, books } = setup();
     books.books.get("book-1")!.blocking = "Добавьте название книги";

@@ -110,6 +110,8 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
   const issues = editable ? checkReadiness(book, { ...stats, estimatedPages: contentPages }, photos, locale) : [];
   const coverIssue = issues.find((i) => i.level === "error" && i.href?.endsWith("/cover")) ?? null;
   const paid = !!order && isPaid(order.status);
+  // Книга открыта для правок по живому заказу (менеджер открыл доступ): заказ уже есть, второй не оформляется.
+  const reopened = editable && !!order && order.status !== "cancelled";
   const nav = bookNav({
     kind,
     answered: stats.answered,
@@ -118,7 +120,7 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
     photos: photos.length,
     letters: letterStats,
     coverReady: !coverIssue,
-    ordered: !editable,
+    ordered: !editable || reopened,
     paid,
     order: order ? { id: order.id, number: order.number, status: order.status, plan: order.plan } : null,
   });
@@ -163,7 +165,7 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
       href: nav.ordered ? stepHref(book.id, "order", nav) : stepHref(book.id, "preview", nav),
       title: nv.groups.order,
       value: order && (!editable || order.status !== "cancelled") ? orderLabel : s.path.previewValue,
-      action: !editable ? (paid ? a.openOrder : a.pay) : a.order,
+      action: !editable || reopened ? (paid ? a.openOrder : a.pay) : a.order,
       ...stepOf("order"),
       active: nav.current === "order",
     },
@@ -198,12 +200,14 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
   const unanswered = Math.max(0, stats.total - stats.answered);
   type Card = { eyebrow: string; title: string; text?: string; serif?: boolean; lang?: string; primary: { href: string; label: string; icon?: boolean }; secondary?: { href: string; label: string }; more?: { href: string; label: string; text: string } };
   let card: Card | null = null;
-  if (!editable) {
+  if (!editable || reopened) {
+    // Открытая для правок книга: не «редактирование закрыто», а «правки попадут в этот заказ».
+    const locked = reopened ? s.next.reopenedText : t.locked;
     card = order
       ? {
           eyebrow: s.next.orderedEyebrow(order.number),
           title: order.status === "pending_payment" ? s.next.orderedPayTitle : orderLabel,
-          text: order.status === "pending_payment" ? `${s.next.orderedPayText} ${t.locked}` : t.locked,
+          text: order.status === "pending_payment" ? `${s.next.orderedPayText} ${locked}` : locked,
           primary: { href: `/orders/${order.id}`, label: s.next.openOrder },
         }
       : { eyebrow: s.next.label, title: s.next.orderedNoOrder, text: t.locked, primary: { href: `${base}/preview`, label: s.next.openPreview } };

@@ -188,9 +188,9 @@ describe("Возврат клиенту по заказу", () => {
 });
 
 describe("«Перевести в печатную» (сотрудник)", () => {
-  const digital = async (t: ReturnType<typeof setup>) => {
-    t.books.books.set("book-1", { userId: "user-1", status: "draft", blocking: null });
-    return t.place({ plan: "digital", delivery: { method: null, city: null, address: null, postalCode: null } });
+  const digital = async (t: ReturnType<typeof setup>, bookId = "book-1") => {
+    t.books.books.set(bookId, { userId: "user-1", status: "draft", blocking: null });
+    return t.place({ bookId, plan: "digital", delivery: { method: null, city: null, address: null, postalCode: null } });
   };
 
   it("получено больше цены печатной — заказ остаётся оплаченным, лишнее — переплата; файлы — событием", async () => {
@@ -227,7 +227,8 @@ describe("«Перевести в печатную» (сотрудник)", () =
     const printed = await t.order();
     await t.manual(printed.id, printed.amount);
     await expect(t.svc.upgradeToPrinted({ orderId: printed.id, plan: "premium" }, admin)).rejects.toMatchObject({ code: "paymentRule", message: "Заказ уже на печатную книгу" });
-    const unpaid = await digital(t);
+    // Вторая книга: у первой уже живой заказ, второй на неё не оформить.
+    const unpaid = await digital(t, "book-2");
     await expect(t.svc.upgradeToPrinted({ orderId: unpaid.id, plan: "hardcover" }, admin)).rejects.toMatchObject({ message: expect.stringContaining("ещё не оплачена") });
     await t.manual(unpaid.id, 9900);
     await expect(t.svc.upgradeToPrinted({ orderId: unpaid.id, plan: "digital" }, admin)).rejects.toMatchObject({ message: "Выберите печатный тариф" });
