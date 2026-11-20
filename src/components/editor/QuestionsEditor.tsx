@@ -23,7 +23,7 @@ import { PageTurn, turnPage } from "@/components/motion/PageTurn";
 import { SectionFields } from "./questions/SectionFields";
 import { AnswerToolbar, EditorTopBar, QuestionTicks } from "./questions/Toolbars";
 import { useInlinePhotos } from "./questions/useInlinePhotos";
-import { chapterNumbers, selectionAfterRemoval } from "./questions/outline";
+import { chapterNumbers, selectionAfterRemoval, type ChapterMove } from "./questions/outline";
 import { useOutline } from "./questions/useOutline";
 import { answerPagesOf } from "./questions/usePageEstimate";
 import { PagesBadge } from "./questions/PagesBadge";
@@ -429,7 +429,7 @@ function EditorBody({
   const next = questions[index + 1];
 
   // ── оглавление своей книги ──
-  const { actions: outline, busy } = useOutline({ bookId: book.id, stateRef: draft.stateRef, setState: draft.setState, flush, forget: draft.forget, detachPhotos: detachQuestions, onResync: resync });
+  const { actions: outline, busy } = useOutline({ bookId: book.id, own: blank, stateRef: draft.stateRef, setState: draft.setState, flush, forget: draft.forget, detachPhotos: detachQuestions, onResync: resync });
 
   /** QR-коды раздела: правка от актуального списка (название ролика приходит позже, раздел к тому времени мог смениться). */
   const { stateRef } = draft;
@@ -494,7 +494,7 @@ function EditorBody({
               });
             },
             deleteChapter: (key) => handlers.current.removeChapter(key),
-            moveChapter: (key, delta) => handlers.current.outline.moveChapter(key, delta),
+            moveChapter: (key, to) => handlers.current.outline.moveChapter(key, to),
             addSection: (key) => void handlers.current.addSection(key),
             deleteSection: (id) => void handlers.current.removeSection(id),
             moveSection: (id, delta) => handlers.current.outline.moveSection(id, delta),
@@ -540,7 +540,9 @@ function EditorBody({
     setDrawer(false);
     setSheet({ kind: "gallery" });
   }, []);
-  const navProps = { groups, kind, current: q?.id ?? null, onPick: pick, photos, actions: navActions, busy, renaming, onRenaming: setRenaming, photoNav: { src, onChapterPhoto, onAlbum } };
+  // Книга с темой: главы можно переставлять (их порядок — порядок вопросов), остальное в оглавлении — только у своей книги.
+  const moveChapter = useMemo(() => (!blank && editable ? (key: string, to: ChapterMove) => handlers.current.outline.moveChapter(key, to) : null), [blank, editable]);
+  const navProps = { groups, kind, current: q?.id ?? null, onPick: pick, photos, actions: navActions, move: moveChapter, busy, renaming, onRenaming: setRenaming, photoNav: { src, onChapterPhoto, onAlbum } };
   const sidebar = <ChapterNav {...navProps} />;
 
   const emptyMode: EmptyMode | null = q ? null : blank ? (chapters.length ? "noSections" : "noChapters") : "noQuestions";

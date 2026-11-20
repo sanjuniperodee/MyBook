@@ -1,8 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ImagePlus, Images, RotateCcw, Undo2, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowDown, ArrowDownToLine, ArrowUp, ArrowUpToLine, ChevronDown, ImagePlus, Images, RotateCcw, Undo2, X } from "lucide-react";
+import { placeFor, type ChapterMove } from "@/components/editor/questions/outline";
 import { useMessages } from "@/i18n/client";
+import { apiFetch } from "@/lib/client-api";
 import { isChapterPhotoKey } from "@/lib/book/layout";
 import type { PhotoPlace } from "@/lib/book/photo-place";
 import { GALLERY_KEY, isRemovedChapter, TOC_EPIGRAPH_MAX, TOC_TITLE_MAX, type SampleTocCandidate, type TocLines, type TocLineSetting } from "@/lib/book/toc";
@@ -41,6 +44,7 @@ export function ChaptersEditor({
   stories,
   editable,
   onChange,
+  onBeforeMove,
   accordion,
 }: {
   /** Фото глав — кнопка «Фото главы» в карточке и строка альбома. */
@@ -55,13 +59,19 @@ export function ChaptersEditor({
   lines: TocLines;
   editable: boolean;
   onChange: (lines: TocLines) => void;
+  /** Перед перестановкой главы — дописать несохранённые настройки страницы (после неё страница перечитывается). */
+  onBeforeMove?: () => Promise<void>;
   /** Лента глав в студии: раскрыта одна глава, остальные — строкой (номер, название, что с ней). Без него все главы раскрыты. */
   accordion?: { open: string | null; onOpen: (key: string | null) => void };
 }) {
   const m = useMessages();
   const t = m.books.pages;
   const sx = m.design.ui.studio.pages;
+  const nav = m.editor.nav;
+  const router = useRouter();
   const [open, setOpen] = useState<string | null>(null);
+  const [moving, setMoving] = useState(false);
+  const [moveError, setMoveError] = useState(false);
   const chapters = candidates.filter((c) => c.kind === "chapter" && c.pageKey !== GALLERY_KEY);
   const storiesOf = (key: string) => candidates.filter((c) => c.kind === "section" && c.parent === key);
   if (!chapters.length || chapters.every((c) => c.key.startsWith("c:planned-"))) return <p className="text-sm text-muted">{t.chaptersLater}</p>;
@@ -72,10 +82,32 @@ export function ChaptersEditor({
   // Куда переносить истории: оставшиеся главы темы (не письма).
   const targets = rows.filter((r) => !r.removed && r.c.key !== LETTERS).map((r) => ({ key: r.c.pageKey, title: lines[r.c.key]?.title?.trim() || r.c.label }));
   const removedCount = rows.filter((r) => r.removed).length;
+  // Порядок глав книги, которые можно переставлять: все главы темы, кроме писем близких (они всегда в конце).
+  const order = blank ? [] : rows.filter((r) => r.c.key !== LETTERS).map((r) => r.c.pageKey);
+  const moveChapter = async (key: string, to: ChapterMove) => {
+    const place = placeFor(order, key, to);
+    if (!editable || moving || !place) return;
+    setMoving(true);
+    try {
+      await onBeforeMove?.();
+      await apiFetch(`/api/books/${bookId}/chapters/move`, { method: "PUT", json: { key, ...place } });
+      setMoveError(false);
+      router.refresh();
+    } catch {
+      setMoveError(true);
+    } finally {
+      setMoving(false);
+    }
+  };
 
   return (
     <div>
       {removedCount ? <p className="mb-2 text-xs text-muted">{t.chaptersRemovedCount(removedCount)}</p> : null}
+      {moveError ? (
+        <p role="alert" className="mb-2 text-xs text-danger">
+          {t.storyMoveError}
+        </p>
+      ) : null}
       <ul className="space-y-2">
         {rows.map(({ c, removed, number, into, count }) => {
           const s = lines[c.key];
@@ -151,6 +183,30 @@ export function ChaptersEditor({
                 {blank ? null : <span>{removed ? (into ? t.chapterMovedInto(count, into) : t.chapterRemovedNoHost) : c.first ? `${t.chapterStories(count)} · ${t.chapterFirst}` : t.chapterStories(count)}</span>}
                 {photos && !removed && isChapterPhotoKey(c.pageKey) ? (
                   <ChapterPhotoButton status={chapterPhotoStatus(c.pageKey, photos.places, lines, photos.openerDesign)} count={chapterPhotoCount(c.pageKey, photos.places)} onClick={() => photos.onOpen({ kind: "chapter", key: c.pageKey })} />
+                ) : null}
+                {editable && order.includes(c.pageKey) && order.length > 1 ? (
+                  <span className="ml-auto inline-flex items-center" role="group" aria-label={t.chapterOrderAria}>
+                    {(
+                      [
+                        ["start", nav.toStart, ArrowUpToLine, order.indexOf(c.pageKey) === 0],
+                        [-1, nav.up, ArrowUp, order.indexOf(c.pageKey) === 0],
+                        [1, nav.down, ArrowDown, order.indexOf(c.pageKey) === order.length - 1],
+                        ["end", nav.toEnd, ArrowDownToLine, order.indexOf(c.pageKey) === order.length - 1],
+                      ] as const
+                    ).map(([to, label, Icon, edge]) => (
+                      <button
+                        key={String(to)}
+                        type="button"
+                        className="rounded-lg p-2 text-muted hover:bg-cream hover:text-ink disabled:opacity-30 disabled:hover:bg-transparent max-sm:p-2.5"
+                        title={label}
+                        aria-label={label}
+                        disabled={moving || edge}
+                        onClick={() => void moveChapter(c.pageKey, to)}
+                      >
+                        <Icon className="size-4" />
+                      </button>
+                    ))}
+                  </span>
                 ) : null}
                 {count && !blank ? (
                   <button type="button" className="inline-flex items-center gap-1 font-medium text-wine hover:underline" aria-expanded={open === c.key} onClick={() => setOpen(open === c.key ? null : c.key)}>

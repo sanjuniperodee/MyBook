@@ -191,6 +191,8 @@ export const editor: typeof ru = {
     rename: "Атын өзгерту",
     up: "Жоғары",
     down: "Төмен",
+    toStart: "Кітаптың басына",
+    toEnd: "Кітаптың соңына",
     moveTo: "Тарауға көшіру…",
     deleteChapter: "Тарауды жою",
     deleteSection: "Бөлімді жою",

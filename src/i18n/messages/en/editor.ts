@@ -196,6 +196,8 @@ export const editor: typeof ru = {
     rename: "Rename",
     up: "Move up",
     down: "Move down",
+    toStart: "Move to the start",
+    toEnd: "Move to the end",
     moveTo: "Move to chapter…",
     deleteChapter: "Delete chapter",
     deleteSection: "Delete section",

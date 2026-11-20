@@ -7,6 +7,8 @@ import {
   chapterNumbers,
   chapterStats,
   moveChapter,
+  placeChapter,
+  placeFor,
   moveSection,
   moveSectionToChapter,
   MutationQueue,
@@ -60,6 +62,29 @@ describe("оглавление: перестановки", () => {
     expect(s.chapters.map((c) => c.key)).toEqual(["b", "a", "c"]);
     expect(ids(s)).toEqual(["b1", "a1", "a2", "c1"]);
     expect(chapterKeys(s)).toEqual(["b", "a", "c"]);
+  });
+
+  it("место главы: выше, ниже, в начало, в конец; у краёв — двигать некуда", () => {
+    const order = ["a", "b", "c"];
+    expect(placeFor(order, "b", -1)).toEqual({ beforeKey: "a" });
+    expect(placeFor(order, "b", 1)).toEqual({ afterKey: "c" });
+    expect(placeFor(order, "c", "start")).toEqual({ beforeKey: "a" });
+    expect(placeFor(order, "a", "end")).toEqual({});
+    expect(placeFor(order, "a", -1)).toBeNull();
+    expect(placeFor(order, "a", "start")).toBeNull();
+    expect(placeFor(order, "c", 1)).toBeNull();
+    expect(placeFor(order, "c", "end")).toBeNull();
+    expect(placeFor(order, "x", 1)).toBeNull();
+  });
+
+  it("глава на новом месте: своя книга — оглавление и разделы, книга с темой — вопросы блоком", () => {
+    const own = placeChapter(state(), "a", {}, true);
+    expect(own.chapters.map((c) => c.key)).toEqual(["b", "c", "a"]);
+    expect(ids(own)).toEqual(["b1", "c1", "a1", "a2"]);
+    const bank: OutlineState = { chapters: [], questions: state().questions };
+    expect(ids(placeChapter(bank, "a", {}, false))).toEqual(["b1", "c1", "a1", "a2"]);
+    expect(ids(placeChapter(bank, "c", { beforeKey: "a" }, false))).toEqual(["c1", "a1", "a2", "b1"]);
+    expect(ids(placeChapter(bank, "a", { afterKey: "b" }, false))).toEqual(["b1", "a1", "a2", "c1"]);
   });
 
   it("раздел выше и ниже — только внутри своей главы", () => {

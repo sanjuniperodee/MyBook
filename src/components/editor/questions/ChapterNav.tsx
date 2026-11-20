@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useDeferredValue, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ArrowDown, ArrowUp, Check, Images, MoreHorizontal, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowDownToLine, ArrowUp, ArrowUpToLine, Check, Images, MoreHorizontal, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { confirmDialog } from "@/components/ui/overlays";
 import { useMessages } from "@/i18n/client";
 import { editorPhotoUrl, sectionLabel, type ChapterGroup, type EditorPhoto } from "@/lib/book/editor-model";
@@ -11,7 +11,7 @@ import { cn } from "@/lib/class-names";
 import { noOpenerPhotoOf } from "../photos/model";
 import type { BookSource } from "../preview/photo-sheets";
 import { chapterStartPhotos } from "./ChapterStartCard";
-import { chapterNumbers, chapterStats } from "./outline";
+import { chapterNumbers, chapterStats, type ChapterMove } from "./outline";
 import { useBookContent } from "./useBookContent";
 
 /** Что оглавление может делать с главами и разделами своей книги; null у ChapterNav — оглавление только для чтения. */
@@ -19,7 +19,7 @@ export interface NavActions {
   rename(key: string, title: string): void;
   addChapter(title: string): void;
   deleteChapter(key: string): void;
-  moveChapter(key: string, delta: -1 | 1): void;
+  moveChapter(key: string, to: ChapterMove): void;
   addSection(chapterKey: string): void;
   deleteSection(id: string): void;
   moveSection(id: string, delta: -1 | 1): void;
@@ -33,6 +33,8 @@ interface NavProps {
   onPick: (id: string) => void;
   photos: EditorPhoto[];
   actions: NavActions | null;
+  /** Книга с темой: перестановка глав (выше, ниже, в начало, в конец); null — главы не двигаются. У своей книги — actions. */
+  move?: ((key: string, to: ChapterMove) => void) | null;
   /** Идёт операция оглавления: кнопки заблокированы, пока сервер не ответил. */
   busy: boolean;
   /** Глава, название которой правится в строке (её открывает и кнопка в шапке листа). */
@@ -159,7 +161,7 @@ function AddChapter({ onAdd, busy }: { onAdd: (title: string) => void; busy: boo
  * Оглавление по главам: поиск, «только без текста», текущая глава раскрыта. У своей книги (actions не null) главы
  * переименовываются в строке, переставляются и удаляются, разделы переставляются, переносятся в другую главу и удаляются.
  */
-function ChapterNavView({ groups, kind, current, onPick, photos, actions, busy, renaming, onRenaming, chapterPhotos: cp }: Omit<NavProps, "photoNav"> & { chapterPhotos: NavPhotos | null }) {
+function ChapterNavView({ groups, kind, current, onPick, photos, actions, move, busy, renaming, onRenaming, chapterPhotos: cp }: Omit<NavProps, "photoNav"> & { chapterPhotos: NavPhotos | null }) {
   const ed = useMessages();
   const t = ed.editor;
   const nav = t.nav;
@@ -188,8 +190,10 @@ function ChapterNavView({ groups, kind, current, onPick, photos, actions, busy, 
   const s = search.trim().toLowerCase();
   const filtering = !!s || onlyEmpty;
   const own = blank && actions !== null;
-  // Меню ⋯: у своей книги — правка главы и «Фото главы», у книг с вопросами — только «Фото главы».
-  const hasMenu = own || !!cp;
+  // Перестановка глав: у своей книги — через оглавление (actions), у книги с темой — move.
+  const mover = own ? actions.moveChapter : (move ?? null);
+  // Меню ⋯: у своей книги — правка главы и «Фото главы», у книг с вопросами — «Фото главы» и перестановка.
+  const hasMenu = own || !!cp || !!mover;
 
   const askDelete = async (g: ChapterGroup) => {
     const st = chapterStats(
@@ -290,6 +294,22 @@ function ChapterNavView({ groups, kind, current, onPick, photos, actions, busy, 
                       <Images className="size-4" /> {chrome.navMenu}
                     </button>
                   ) : null}
+                  {mover ? (
+                    <>
+                      <IconBtn label={nav.toStart} disabled={busy || gi === 0} onClick={() => mover(g.key, "start")}>
+                        <ArrowUpToLine className="size-4" />
+                      </IconBtn>
+                      <IconBtn label={nav.up} disabled={busy || gi === 0} onClick={() => mover(g.key, -1)}>
+                        <ArrowUp className="size-4" />
+                      </IconBtn>
+                      <IconBtn label={nav.down} disabled={busy || gi === groups.length - 1} onClick={() => mover(g.key, 1)}>
+                        <ArrowDown className="size-4" />
+                      </IconBtn>
+                      <IconBtn label={nav.toEnd} disabled={busy || gi === groups.length - 1} onClick={() => mover(g.key, "end")}>
+                        <ArrowDownToLine className="size-4" />
+                      </IconBtn>
+                    </>
+                  ) : null}
                   {own ? (
                     <>
                   <IconBtn
@@ -301,12 +321,6 @@ function ChapterNavView({ groups, kind, current, onPick, photos, actions, busy, 
                     }}
                   >
                     <Pencil className="size-4" />
-                  </IconBtn>
-                  <IconBtn label={nav.up} disabled={busy || gi === 0} onClick={() => actions?.moveChapter(g.key, -1)}>
-                    <ArrowUp className="size-4" />
-                  </IconBtn>
-                  <IconBtn label={nav.down} disabled={busy || gi === groups.length - 1} onClick={() => actions?.moveChapter(g.key, 1)}>
-                    <ArrowDown className="size-4" />
                   </IconBtn>
                   <IconBtn
                     label={nav.deleteChapter}

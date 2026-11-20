@@ -213,6 +213,37 @@ export class QuestionsService {
   }
 
   /**
+   * Перестановка главы (редактор → список глав, «Страницы» → «Главы книги»): глава key встаёт перед beforeKey, после
+   * afterKey, а без них — в конец книги. В книге с темой порядок глав — это порядок их вопросов: истории главы
+   * переезжают блоком, порядок внутри главы не меняется. В своей книге (blank) меняется порядок глав (book_chapters).
+   * Нумерация глав, оглавление, фото и настройки глав (ключ главы тот же) идут за главой сами. Ответ — новый порядок.
+   */
+  async moveChapter(bookId: string, viewer: BookViewer, input: { key: string; beforeKey?: string | null; afterKey?: string | null }): Promise<string[]> {
+    return this.uow.run(async () => {
+      const book = await loadBook(this.books, bookId, viewer, { editable: true, lock: true });
+      const outline = hasOutline(book.theme);
+      const all = outline ? [] : await this.questions.sections(book.id);
+      const keys = outline ? (await this.chapters.list(book.id)).map((c) => c.key) : [...new Set(all.map((q) => q.chapter))];
+      if (!keys.includes(input.key)) throw new AuthoringError("chapterNotFound");
+      const anchor = input.beforeKey ?? input.afterKey ?? null;
+      if ((input.beforeKey && input.afterKey) || (anchor !== null && (anchor === input.key || !keys.includes(anchor)))) throw new AuthoringError("outlineOutdated");
+      const order = keys.filter((k) => k !== input.key);
+      const at = input.beforeKey ? order.indexOf(input.beforeKey) : input.afterKey ? order.indexOf(input.afterKey) + 1 : order.length;
+      order.splice(at, 0, input.key);
+      if (outline) {
+        await this.chapters.setOrder(book.id, order);
+        await this.questions.renumber(book.id, "outline");
+      } else
+        await this.questions.arrange(
+          book.id,
+          order.flatMap((k) => all.filter((q) => q.chapter === k).map((q) => ({ id: q.id, chapter: q.chapter }))),
+        );
+      await this.books.touch(book.id);
+      return order;
+    });
+  }
+
+  /**
    * Автосохранение ответа и заголовка. У разделов своей книги (blank) правятся ещё заголовок и подсказка (title, prompt),
    * а переписанный заголовок и его скрытие не используются; в остальных книгах title и prompt — outlineNotAllowed:
    * у своих вопросов там заголовок правят через displayText, и правка prompt без title рассинхронизировала бы вопрос.

@@ -196,6 +196,8 @@ export const editor: typeof ru = {
     rename: "Nomini o‘zgartirish",
     up: "Yuqoriga",
     down: "Pastga",
+    toStart: "Kitob boshiga",
+    toEnd: "Kitob oxiriga",
     moveTo: "Bobga ko‘chirish…",
     deleteChapter: "Bobni o‘chirish",
     deleteSection: "Bo‘limni o‘chirish",

@@ -267,6 +267,7 @@ export const books: typeof ru = {
     storyLetter: "Yaqin insonning xati — uning imzosi «Xatlar» bo‘limida o‘zgartiriladi",
     storySaveError: "Saqlanmadi — internetni tekshiring va qayta urinib ko‘ring",
     storyMoveError: "Ko‘chirilmadi — sahifani yangilang va qayta urinib ko‘ring",
+    chapterOrderAria: "Bobning kitobdagi o‘rni",
     toc: "Mundarija",
     tocLabel: "Sahifa raqamlari bilan «Mundarija» sahifasini qo‘shish",
     endPage: {

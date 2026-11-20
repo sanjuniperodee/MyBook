@@ -196,6 +196,8 @@ export const editor = {
     rename: "Переименовать",
     up: "Выше",
     down: "Ниже",
+    toStart: "В начало книги",
+    toEnd: "В конец книги",
     moveTo: "Переместить в главу…",
     deleteChapter: "Удалить главу",
     deleteSection: "Удалить раздел",

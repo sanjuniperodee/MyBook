@@ -8,15 +8,18 @@ import type { EditorQuestion } from "@/lib/book/editor-model";
 import {
   applyOutline,
   chapterKeys,
-  moveChapter,
+  chapterOrder,
   moveSection,
   moveSectionToChapter,
   MutationQueue,
   newSection,
+  placeChapter,
+  placeFor,
   removeChapter,
   removeSection,
   restoreStructure,
   sectionsPayload,
+  type ChapterMove,
   type OutlineState,
   type OutlineView,
 } from "./outline";
@@ -27,7 +30,8 @@ const codeOf = (e: unknown) => (typeof e === "object" && e !== null ? (e as { co
 /** Операции оглавления своей книги; null в QuestionsEditor — оглавление не редактируется (нет права или не своя книга). */
 export interface OutlineActions {
   addChapter(title: string, afterKey?: string): Promise<string | null>;
-  moveChapter(key: string, delta: -1 | 1): void;
+  /** Глава выше, ниже, в начало или в конец — и в своей книге, и в книге с темой. */
+  moveChapter(key: string, to: ChapterMove): void;
   deleteChapter(key: string): void;
   addSection(chapterKey: string, afterId?: string): Promise<string | null>;
   moveSection(id: string, delta: -1 | 1): void;
@@ -42,6 +46,7 @@ export interface OutlineActions {
  */
 export function useOutline({
   bookId,
+  own,
   stateRef,
   setState,
   flush,
@@ -50,6 +55,8 @@ export function useOutline({
   onResync,
 }: {
   bookId: string;
+  /** Своя книга (blank): главы — в оглавлении; иначе главы темы, их порядок — порядок вопросов. */
+  own: boolean;
   stateRef: RefObject<OutlineState>;
   setState: (next: OutlineState | ((s: OutlineState) => OutlineState)) => void;
   flush: () => Promise<void>;
@@ -111,10 +118,16 @@ export function useOutline({
         });
         return res?.sectionId ?? null;
       },
-      moveChapter(key, delta) {
+      moveChapter(key, to) {
+        const place = placeFor(chapterOrder(stateRef.current, own), key, to);
+        if (!place) return;
         void mutate(
-          (s) => moveChapter(s, key, delta),
-          async (after) => apply((await apiFetch<{ outline: OutlineView }>(`/api/books/${bookId}/chapters/order`, { method: "PUT", json: { keys: chapterKeys(after) } })).outline),
+          (s) => placeChapter(s, key, place, own),
+          async (after) => {
+            // Своя книга — полный порядок оглавления и его ответ как истина; книга с темой — место главы.
+            if (own) apply((await apiFetch<{ outline: OutlineView }>(`/api/books/${bookId}/chapters/order`, { method: "PUT", json: { keys: chapterKeys(after) } })).outline);
+            else await apiFetch<{ order: string[] }>(`/api/books/${bookId}/chapters/move`, { method: "PUT", json: { key, ...place } });
+          },
         );
       },
       deleteChapter(key) {
@@ -166,7 +179,7 @@ export function useOutline({
         );
       },
     }),
-    [bookId, mutate, apply, stateRef, forget, detachPhotos, onResync],
+    [bookId, own, mutate, apply, stateRef, forget, detachPhotos, onResync],
   );
 
   return { actions, busy };

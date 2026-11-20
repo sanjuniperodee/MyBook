@@ -165,6 +165,53 @@ describe("QuestionsService.moveStory: истории в книге с темой
   });
 });
 
+describe("QuestionsService.moveChapter: перестановка глав (редактор и «Главы книги»)", () => {
+  const seeded = () => {
+    const ctx = outlineSetup(theme);
+    ctx.store.seed("b1", [
+      { key: "intro", sections: [{ key: "q.1", answer: "a" }, { key: "q.2", answer: "b" }] },
+      { key: "meet", sections: [{ key: "q.3", answer: "c" }, { key: "q.4" }] },
+      { key: "dreams", sections: [{ key: "q.5", answer: "d" }] },
+    ]);
+    const order = async () => (await ctx.store.sections("b1")).map((x) => `${x.chapter}:${x.id}`);
+    return { ...ctx, order };
+  };
+
+  it("книга с темой: глава уходит в конец, перед и после другой главы — её истории блоком, порядок внутри сохраняется", async () => {
+    const { questions, order, store } = seeded();
+    expect(await questions.moveChapter("b1", owner, { key: "intro" })).toEqual(["meet", "dreams", "intro"]);
+    expect(await order()).toEqual(["meet:s3", "meet:s4", "dreams:s5", "intro:s1", "intro:s2"]);
+    expect(await questions.moveChapter("b1", owner, { key: "intro", beforeKey: "meet" })).toEqual(["intro", "meet", "dreams"]);
+    expect(await order()).toEqual(["intro:s1", "intro:s2", "meet:s3", "meet:s4", "dreams:s5"]);
+    expect(await questions.moveChapter("b1", owner, { key: "intro", afterKey: "meet" })).toEqual(["meet", "intro", "dreams"]);
+    expect(await order()).toEqual(["meet:s3", "meet:s4", "intro:s1", "intro:s2", "dreams:s5"]);
+    const positions = (await store.sections("b1")).map((x) => x.position);
+    expect(positions).toEqual(positions.map((_, i) => i));
+  });
+
+  it("неизвестная глава, место рядом с собой или неизвестное — ошибка, порядок не меняется", async () => {
+    const { questions, order } = seeded();
+    const before = await order();
+    await rejectsWith(questions.moveChapter("b1", owner, { key: "nowhere" }), "chapterNotFound");
+    await rejectsWith(questions.moveChapter("b1", owner, { key: "intro", beforeKey: "intro" }), "outlineOutdated");
+    await rejectsWith(questions.moveChapter("b1", owner, { key: "intro", afterKey: "gone" }), "outlineOutdated");
+    await rejectsWith(questions.moveChapter("b1", owner, { key: "intro", beforeKey: "meet", afterKey: "dreams" }), "outlineOutdated");
+    expect(await order()).toEqual(before);
+  });
+
+  it("своя книга: меняется порядок оглавления, разделы идут за главами", async () => {
+    const own = outlineSetup();
+    own.store.seed("b1", [
+      { key: "k1", sections: ["a", "b"] },
+      { key: "k2", sections: ["c"] },
+      { key: "k3", sections: ["d"] },
+    ]);
+    expect(await own.questions.moveChapter("b1", owner, { key: "k1" })).toEqual(["k2", "k3", "k1"]);
+    expect((await own.store.list("b1")).map((c) => c.key)).toEqual(["k2", "k3", "k1"]);
+    await expectOutlineInvariant(own.store);
+  });
+});
+
 describe("BookOutlineService: главы своей книги", () => {
   it("в книгах с банком любые операции оглавления — outlineNotAllowed (и без изменений)", async () => {
     for (const t of [theme, autobiographyTheme]) {

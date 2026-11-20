@@ -96,6 +96,39 @@ export function shifted<T>(list: readonly T[], from: number, delta: number): T[]
   return out;
 }
 
+/** Куда двигать главу: на одно место выше или ниже, в начало или в конец книги. */
+export type ChapterMove = -1 | 1 | "start" | "end";
+/** Где встанет глава (тело PUT /chapters/move): перед главой, после главы или — без ключей — в конец. */
+export type ChapterPlace = { beforeKey?: string; afterKey?: string };
+
+/** Порядок глав: у своей книги — оглавление, у книги с темой — по первому вопросу главы. */
+export function chapterOrder(state: OutlineState, own: boolean): string[] {
+  return own ? state.chapters.map((c) => c.key) : [...new Set(state.questions.map((q) => q.chapter))];
+}
+
+/** Место главы после сдвига; null — двигать некуда (уже первая или последняя). */
+export function placeFor(order: readonly string[], key: string, to: ChapterMove): ChapterPlace | null {
+  const i = order.indexOf(key);
+  const last = order.length - 1;
+  if (i < 0) return null;
+  if (to === "start" || to === -1) return i === 0 ? null : { beforeKey: order[to === "start" ? 0 : i - 1] };
+  if (i === last) return null;
+  return to === "end" ? {} : { afterKey: order[i + 1] };
+}
+
+/** Глава на новом месте: у своей книги — в оглавлении (разделы за главами), у книги с темой — её вопросы блоком. */
+export function placeChapter(state: OutlineState, key: string, place: ChapterPlace, own: boolean): OutlineState {
+  const order = chapterOrder(state, own).filter((k) => k !== key);
+  const at = place.beforeKey ? order.indexOf(place.beforeKey) : place.afterKey ? order.indexOf(place.afterKey) + 1 : order.length;
+  order.splice(at < 0 ? order.length : at, 0, key);
+  if (own) {
+    const byKey = new Map(state.chapters.map((c) => [c.key, c]));
+    const chapters = order.flatMap((k) => byKey.get(k) ?? []);
+    return { chapters, questions: sortByChapters(chapters, state.questions) };
+  }
+  return { ...state, questions: order.flatMap((k) => state.questions.filter((q) => q.chapter === k)) };
+}
+
 export function moveChapter(state: OutlineState, key: string, delta: -1 | 1): OutlineState {
   const at = state.chapters.findIndex((c) => c.key === key);
   const chapters = shifted(state.chapters, at, delta);

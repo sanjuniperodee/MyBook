@@ -267,6 +267,7 @@ export const books: typeof ru = {
     storyLetter: "A letter from a loved one — its signature is changed in the “Letters” section",
     storySaveError: "Not saved — check your internet connection and try again",
     storyMoveError: "Not moved — refresh the page and try again",
+    chapterOrderAria: "Chapter order in the book",
     toc: "Table of contents",
     tocLabel: "Add a “Contents” page with page numbers",
     endPage: {

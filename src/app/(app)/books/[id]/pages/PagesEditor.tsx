@@ -365,6 +365,7 @@ export function PagesEditor({
             lines={state.tocLines}
             editable={editable}
             onChange={(tocLines) => update({ tocLines })}
+            onBeforeMove={flush}
             accordion={{ open: openItem?.startsWith("c:") ? openItem : null, onOpen: openChapter }}
           />
         </section>
