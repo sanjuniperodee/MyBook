@@ -5,7 +5,7 @@ import path from "node:path";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/shared/infrastructure/db";
 import { answerFiles, type AnswerFileRow } from "@/shared/infrastructure/db/schema";
-import { deleteFile, storagePath } from "@/shared/infrastructure/storage";
+import { deleteFile, deletePrefix, publish, storagePath } from "@/shared/infrastructure/storage";
 import { MAX_OUTPUT_BYTES, MAX_SECONDS, parseProbe, posterArgs, targetSize, transcodeArgs, type FileError, type FileKind, type ProbeResult } from "@/lib/book/answer-files";
 import { bookFileQuota, fileDirKey, mediaKey, posterKey, sourceKey } from "./answerFiles";
 
@@ -104,7 +104,7 @@ async function fail(file: AnswerFileRow, code: FileError) {
     .set({ status: "failed", error: code, lockedAt: null, updatedAt: new Date() })
     .where(and(eq(answerFiles.id, file.id), eq(answerFiles.status, "processing")));
   await deleteFile(sourceKey(file.id));
-  await fs.rm(storagePath(fileDirKey(file)), { recursive: true, force: true });
+  await deletePrefix(fileDirKey(file));
 }
 
 async function process1(file: AnswerFileRow) {
@@ -130,6 +130,8 @@ async function process1(file: AnswerFileRow) {
   if (bytes > MAX_OUTPUT_BYTES) throw new JobError("tooBig");
   await fs.rename(tmp, out);
   const hasPoster = !!posterOut && (await fs.stat(posterOut).then((s) => s.size > 0, () => false));
+  await publish(mediaKey(target));
+  if (hasPoster) await publish(posterKey(file));
   const frame = kind === "video" && info.width && info.height ? targetSize(info.width, info.height) : null;
   const [done] = await db
     .update(answerFiles)
@@ -138,7 +140,7 @@ async function process1(file: AnswerFileRow) {
     .returning({ id: answerFiles.id });
   await deleteFile(sourceKey(file.id));
   // Файл удалили, пока он обрабатывался, — готовый результат никому не нужен.
-  if (!done) await fs.rm(storagePath(fileDirKey(file)), { recursive: true, force: true });
+  if (!done) await deletePrefix(fileDirKey(file));
 }
 
 async function processWithHeartbeat(file: AnswerFileRow) {

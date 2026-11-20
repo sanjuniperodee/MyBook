@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import { createReadStream, createWriteStream, promises as fs } from "node:fs";
 import path from "node:path";
 import { pipeline } from "node:stream/promises";
-import { deleteFile, putFile, storagePath } from "@/shared/infrastructure/storage";
+import { deleteFile, listFiles, localPath, publish, putFile, storagePath } from "@/shared/infrastructure/storage";
 import type { CallRecordingStore } from "../application";
 
 /** Форматы записи браузера (MediaRecorder): Chrome/Edge — WebM, Safari — MP4, Firefox — Ogg. */
@@ -16,9 +16,10 @@ const dir = (callId: string) => {
   return `call-recordings/${callId}`;
 };
 
+/** Куски записи по порядку; с S3 — по бакету (на диске нового сервера их может не быть). */
 async function parts(callId: string) {
   try {
-    return (await fs.readdir(storagePath(`${dir(callId)}/parts`))).filter((f) => /^\d{6}\.(webm|mp4|ogg)$/.test(f)).sort();
+    return (await listFiles(`${dir(callId)}/parts`)).map((f) => f.name).filter((f) => /^\d{6}\.(webm|mp4|ogg)$/.test(f)).sort();
   } catch {
     return [];
   }
@@ -63,7 +64,8 @@ export const localCallRecordings: CallRecordingStore = {
 async function assemble(callId: string): Promise<{ path: string; mime: string } | null> {
   const base = dir(callId);
   const final = storagePath(`${base}/${FINAL}`);
-  if (await fs.stat(final).then((s) => s.size > 0, () => false)) return { path: final, mime: "audio/mp4" };
+  const ready = await localPath(`${base}/${FINAL}`).catch(() => null);
+  if (ready && (await fs.stat(ready).then((s) => s.size > 0, () => false))) return { path: ready, mime: "audio/mp4" };
   const list = await parts(callId);
   if (!list.length) return null;
   const ext = path.extname(list[0]).slice(1);
@@ -73,15 +75,20 @@ async function assemble(callId: string): Promise<{ path: string; mime: string } 
   const raw = storagePath(`${base}/raw-${tmp}.${ext}`);
   const out = storagePath(`${base}/${FINAL}.${tmp}.m4a`);
   const write = createWriteStream(raw);
-  for (const f of list) await pipeline(createReadStream(storagePath(`${base}/parts/${f}`)), write, { end: false });
+  for (const f of list) {
+    const part = await localPath(`${base}/parts/${f}`);
+    if (part) await pipeline(createReadStream(part), write, { end: false });
+  }
   await new Promise<void>((resolve, reject) => write.end((err?: Error | null) => (err ? reject(err) : resolve())));
   if (await toM4a(raw, out)) {
     await fs.rename(out, final);
     await fs.rm(raw, { force: true });
+    await publish(`${base}/${FINAL}`);
     return { path: final, mime: "audio/mp4" };
   }
   await fs.rm(out, { force: true });
   const fallback = storagePath(`${base}/call.${ext}`);
   await fs.rename(raw, fallback);
+  await publish(`${base}/call.${ext}`);
   return { path: fallback, mime };
 }

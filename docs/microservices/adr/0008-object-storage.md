@@ -1,4 +1,4 @@
-# ADR 0008. Объектное хранилище: Yandex Object Storage (S3 API)
+# ADR 0008. Объектное хранилище: S3 (с 20.11.2026 — PS Cloud Object Storage)
 
 **Статус:** принято пользователем · **Дата:** 2026-11-05
 
@@ -18,7 +18,21 @@
 
 Пользователь создал бакет в **Yandex Object Storage** и передал доступы для настройки.
 
-## Решение
+## Пересмотр 2026-11-20
+
+Yandex так и не заработал (403 SignatureDoesNotMatch). Вместе с переездом на сервер PS Cloud (185.102.75.191) владелец
+создал бакет **`sigma-centaurus`** в PS Cloud Object Storage (`https://object.pscloud.io`, path-style) — им и пользуемся.
+
+- Файлы MyBooks лежат под префиксом `mybooks/` (`S3_PREFIX`): бакет может быть общим для проектов.
+- `src/shared/infrastructure/storage.ts`: файлы только в бакете (владелец: «на диске перестать хранить»); диск — временное
+  место: `localPath` скачивает файл для ffmpeg/pdftoppm/Range, `publish` выкладывает записанное программой; копии старше 2 суток
+  убирает `~/bin/s3-offload.sh` на сервере (rclone move: чего нет в бакете — выложить, потом удалить с диска).
+  Пересобираемый кэш (`cache/`, `chat-audio-cache/`) — только диск.
+- Клиент — свой (`src/shared/infrastructure/s3.ts`, SigV4 на node:crypto), без AWS SDK: нужны пять операций.
+  PS Cloud не принимает «контрольные суммы в трейлере» нового AWS CLI — для CLI `AWS_REQUEST_CHECKSUM_CALCULATION=when_required`.
+- Файлы чатов, отправленные из CRM (`mybooks/chat-media/`), удаляются правилом жизненного цикла бакета через 30 дней.
+
+## Решение (2026-11-05, заменено пересмотром выше)
 
 - Провайдер: **Yandex Object Storage**, S3 API.
 - Endpoint: `https://storage.yandexcloud.net`, region `ru-central1`, bucket `mybooks`.
