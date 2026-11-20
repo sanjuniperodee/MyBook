@@ -1,8 +1,8 @@
 import "server-only";
 import { randomBytes } from "node:crypto";
-import { mkdir, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { deletePrefix, fileExists, getFile, storagePath } from "@/shared/infrastructure/storage";
+import { deletePrefix, fileExists, getFile, listFiles, publish, storagePath } from "@/shared/infrastructure/storage";
 import { dedupe, withRenderSlot } from "@/modules/production/infrastructure/pdf/queue";
 import type { BookBundle } from "@/modules/production/infrastructure/pdf/render";
 import { inPdfThread } from "@/modules/production/infrastructure/pdf/pool";
@@ -10,14 +10,6 @@ import type { BookRenderer, FileStore, PrintSpec, RenderQueue } from "../applica
 
 /** Из потока PDF буферы приходят как Uint8Array — оборачиваем без копирования. */
 const buf = (u: Uint8Array) => Buffer.from(u.buffer, u.byteOffset, u.byteLength);
-
-/** Содержимое папки хранилища с временем изменения; папки нет — пусто. */
-async function listFiles(prefix: string) {
-  const dir = storagePath(prefix);
-  const names = await readdir(dir).catch(() => [] as string[]);
-  const entries = await Promise.all(names.map(async (name) => ({ name, modifiedMs: (await stat(path.join(dir, name)).catch(() => null))?.mtimeMs })));
-  return entries.flatMap((e) => (e.modifiedMs === undefined ? [] : [{ name: e.name, modifiedMs: e.modifiedMs }]));
-}
 
 /**
  * Запись через временный файл рядом и rename (в пределах папки он атомарный): оборванная запись — перезапуск PM2 при
@@ -34,6 +26,7 @@ async function putAtomic(key: string, data: Buffer) {
     await rm(tmp, { force: true }).catch(() => undefined);
     throw err;
   }
+  await publish(key);
 }
 
 export const storageFileStore: FileStore = { exists: fileExists, get: getFile, put: putAtomic, deletePrefix, list: listFiles };

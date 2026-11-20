@@ -5,7 +5,7 @@ import { and, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { db } from "@/shared/infrastructure/db";
 import { executor } from "@/shared/infrastructure/database";
 import { answerFilePurchases, answerFiles, bookQuestions, books, type AnswerFileRow, type AnswerMedia } from "@/shared/infrastructure/db/schema";
-import { deleteFile, deletePrefix, putFile, storagePath } from "@/shared/infrastructure/storage";
+import { deleteFile, deletePrefix, localPath, putFile, storagePath } from "@/shared/infrastructure/storage";
 import { env } from "@/config/env";
 import { getFreeMediaMinutes, getMediaPacks, type MediaPack } from "@/config/site";
 import { AuthoringError } from "../domain/errors";
@@ -41,8 +41,9 @@ export const posterKey = (f: Pick<AnswerFileRow, "bookId" | "id">) => `${dir(f.b
 export const fileDirKey = (f: Pick<AnswerFileRow, "bookId" | "id">) => dir(f.bookId, f.id);
 export const mediaMime = (kind: FileKind) => (kind === "video" ? "video/mp4" : "audio/mp4");
 /** Полные пути готового файла и обложки — для отдачи с перемоткой (range-file). */
-export const mediaPath = (f: Pick<AnswerFileRow, "bookId" | "id" | "kind">) => storagePath(mediaKey(f));
-export const posterPath = (f: Pick<AnswerFileRow, "bookId" | "id">) => storagePath(posterKey(f));
+/** Путь к готовому файлу на диске (с S3 — докачанному из бакета); файла нет — путь, по которому его нет (отдача ответит 404). */
+export const mediaPath = async (f: Pick<AnswerFileRow, "bookId" | "id" | "kind">) => (await localPath(mediaKey(f))) ?? storagePath(mediaKey(f));
+export const posterPath = async (f: Pick<AnswerFileRow, "bookId" | "id">) => (await localPath(posterKey(f))) ?? storagePath(posterKey(f));
 
 export function fileView(f: AnswerFileRow): AnswerFileView {
   return {

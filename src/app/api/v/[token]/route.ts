@@ -16,11 +16,11 @@ export const GET = api(async (req, { params }: { params: Promise<{ token: string
   const headers: Record<string, string> = { "Cache-Control": "public, max-age=604800", "X-Robots-Tag": "noindex", "Cross-Origin-Resource-Policy": "same-site" };
   if (q.get("poster")) {
     if (!file.hasPoster) throw new HttpError(404, "fileNotFound");
-    return serveFile(posterPath(file), "image/jpeg", req, headers);
+    return serveFile(await posterPath(file), "image/jpeg", req, headers);
   }
   const ext = file.kind === "video" ? "mp4" : "m4a";
   if (q.get("download")) headers["Content-Disposition"] = `attachment; filename="mybooks-${token}.${ext}"`;
-  return serveFile(mediaPath(file), mediaMime(file.kind), req, headers).catch(() => {
+  return serveFile(await mediaPath(file), mediaMime(file.kind), req, headers).catch(() => {
     throw new HttpError(404, "fileNotFound");
   });
 });
