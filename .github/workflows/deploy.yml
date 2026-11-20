@@ -130,7 +130,7 @@ jobs:
           install -m 700 -d ~/.ssh
           printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy
           chmod 600 ~/.ssh/deploy
-          echo "94.131.93.92 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBvZzOPdHhSf2YhAKy29oLAp8C1uWReP6NovOUcB5+ye" >> ~/.ssh/known_hosts
+          echo "185.102.75.191 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJ4SUaV/VVBBJ7DtvZ5lJKL2UWNlQGcivWEa3hNEiZk9" >> ~/.ssh/known_hosts
         env:
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
       - name: Выкатка

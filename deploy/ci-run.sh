@@ -4,7 +4,7 @@
 # Запуск на машине GitHub из корня репозитория: bash deploy/ci-run.sh <архив.tgz>. Ключ — ~/.ssh/deploy (готовит workflow).
 set -euo pipefail
 ARCHIVE="${1:?укажите архив сборки}"
-HOST="${DEPLOY_HOST:-sanjuniperodee@94.131.93.92}"
+HOST="${DEPLOY_HOST:-srv@185.102.75.191}"
 BRANCH="${DEPLOY_BRANCH:-master}"
 SHA="$(git rev-parse HEAD)"
 SHORT="${SHA:0:7}"
