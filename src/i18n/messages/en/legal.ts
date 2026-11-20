@@ -55,7 +55,7 @@ export const legal: typeof ru = {
         ],
       },
       { h: "7. Personal data", p: "Personal data is processed in accordance with the Privacy Policy published on the website." },
-      { h: "8. Language of the document", p: "The offer is published in Russian and Kazakh. The texts in both languages have equal legal force." },
+      { h: "8. Language of the document", p: "The offer is published in Russian and Kazakh. The texts in both languages have equal legal force. Translations of the offer into Uzbek and English are provided for convenience; in case of any discrepancy the Russian text prevails." },
       { h: "9. Details", p: `${f.legalName}, BIN ${f.bin}, ${f.address}. E-mail: ${f.email}, phone: ${f.phone}.` },
     ],
   },

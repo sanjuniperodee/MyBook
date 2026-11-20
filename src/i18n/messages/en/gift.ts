@@ -19,7 +19,7 @@ export const gift: typeof ru = {
     faq: [
       ["Who is this gift for?", "For parents and grandparents, so their stories stay with their children and grandchildren. For a loved one, so they can write a book about the two of you. For a friend, on a big birthday."],
       ["How long is the certificate valid?", "One year from the day of payment. They can write at their own pace, and everything is saved automatically."],
-      ["Can I give a certificate in Kazakh?", "Yes. Choose the certificate language when you place the order: the PDF and the e-mail to the recipient will be in it. The recipient chooses the language of the book itself."],
+      ["Can I give a certificate in another language (Russian, Kazakh, Uzbek)?", "Yes. Choose the certificate language when you place the order: the PDF and the e-mail to the recipient will be in it. The recipient chooses the language of the book itself."],
       ["What if the recipient chooses a different version of the book?", "The certificate amount is credited towards the order: they can pay the difference for extra copies or services."],
       ["When will the certificate arrive?", "Right after payment, at your e-mail address. If you chose to send it to the recipient, the e-mail goes out on the day you picked."],
     ] as [string, string][],

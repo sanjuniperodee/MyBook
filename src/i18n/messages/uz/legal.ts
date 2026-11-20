@@ -55,7 +55,7 @@ export const legal: typeof ru = {
         ],
       },
       { h: "7. Shaxsiy ma’lumotlar", p: "Shaxsiy ma’lumotlarni qayta ishlash saytda joylashtirilgan Maxfiylik siyosatiga muvofiq amalga oshiriladi." },
-      { h: "8. Hujjat tili", p: "Oferta rus va qozoq tillarida e’lon qilingan. Ikkala tildagi matnlar bir xil kuchga ega." },
+      { h: "8. Hujjat tili", p: "Oferta rus va qozoq tillarida e’lon qilingan. Ikkala tildagi matnlar bir xil kuchga ega. Ofertaning o‘zbek va ingliz tillaridagi tarjimalari qulaylik uchun berilgan; nomuvofiqlik bo‘lsa, rus tilidagi matn qo‘llaniladi." },
       { h: "9. Rekvizitlar", p: `${f.legalName}, BIN ${f.bin}, ${f.address}. E-mail: ${f.email}, telefon: ${f.phone}.` },
     ],
   },

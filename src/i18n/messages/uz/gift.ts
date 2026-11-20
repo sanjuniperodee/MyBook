@@ -19,7 +19,7 @@ export const gift: typeof ru = {
     faq: [
       ["Bu sovg‘a kimga mos keladi?", "Ota-onaga, buvi va boboga — hikoyalari farzandlari va nevaralarida qolsin. Aziz insonga — sizlar ikkingiz haqingizda kitob yozsin. Do‘stga — yubileyiga."],
       ["Sertifikat qancha muddat amal qiladi?", "To‘lov kunidan boshlab bir yil. O‘z sur’atingizda yozishingiz mumkin — hammasi avtomatik saqlanadi."],
-      ["Sertifikatni qozoq tilida sovg‘a qilish mumkinmi?", "Ha. Buyurtma berayotganda sertifikat tilini tanlang — PDF va oluvchiga xat shu tilda bo‘ladi. Kitobning tilini oluvchining o‘zi tanlaydi."],
+      ["Sertifikatni boshqa tilda (rus, qozoq, ingliz) sovg‘a qilish mumkinmi?", "Ha. Buyurtma berayotganda sertifikat tilini tanlang — PDF va oluvchiga xat shu tilda bo‘ladi. Kitobning tilini oluvchining o‘zi tanlaydi."],
       ["Oluvchi kitobning boshqa variantini tanlasa-chi?", "Sertifikat summasi buyurtmaga hisoblanadi: qo‘shimcha nusxalar yoki xizmatlar uchun qo‘shib to‘lash mumkin."],
       ["Sertifikat qachon keladi?", "To‘lovdan so‘ng darhol — elektron pochtangizga. Oluvchiga yuborishni tanlasangiz, xat ko‘rsatilgan kuni jo‘natiladi."],
     ] as [string, string][],

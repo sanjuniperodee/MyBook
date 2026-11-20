@@ -168,7 +168,7 @@ export const landing: typeof ru = {
       ],
       [
         "What language will the book be in?",
-        "In Russian or Kazakh — you choose the language when you create the book, and the questions and chapter headings will be in it. You can answer in any language, even mixing both.",
+        "In Russian, Kazakh, Uzbek (Latin script) or English — you choose the language when you create the book, and the questions and chapter headings will be in it. You can answer in any language, even mixing both.",
       ],
       [
         "Can I choose how the book looks inside?",
