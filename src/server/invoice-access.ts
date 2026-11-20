@@ -491,7 +491,7 @@ export class InvoiceAccess {
 /** Начало заголовка задачи «получить остаток» — по нему прежние такие задачи закрываются. */
 const REMAINDER_TASK = "Получить остаток ";
 
-const localePrefix = (locale: Locale) => (locale === "kk" ? "/kk" : locale === "uz" ? "/uz" : "");
+const localePrefix = (locale: Locale) => ({ ru: "", kk: "/kk", uz: "/uz", en: "/en" })[locale];
 
 /** Порты к модулям приложения: identity, clients, sales, messaging, ordering, workspace. */
 export function createInvoiceAccess(c: Container): InvoiceAccess {

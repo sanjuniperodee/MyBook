@@ -197,5 +197,68 @@ export const chtoPodaritPape: Article = {
       ],
       cta: { title: "Ota haqidagi kitob — o‘z qo‘lingiz bilan", text: "Savollarga javob bering, surat qo‘shing — kitobni biz sahifalab, bosib chiqaramiz. Yozish bepul." },
     },
+    en: {
+      title: "What to give your dad: ideas for a birthday, an anniversary and 23 February",
+      description: "What to give your dad if he says “I don’t need anything”: practical gifts, things for his hobbies, experiences and a gift from the heart. How to choose well.",
+      lead: "Dads rarely ask for gifts, and choosing for them is harder than it seems. Here are ideas by category and tips for finding a gift your dad will really use — or treasure.",
+      sections: [
+        {
+          heading: "Practical gifts",
+          paragraphs: ["The best practical gift is one your dad once mentioned in passing. Think back to what he was fixing, or what he missed on the road, at the dacha, in the garage or at work."],
+          list: [
+            "A good set of tools or a cordless drill.",
+            "A comfortable jacket, warm gloves, quality shoes.",
+            "A thermos or travel mug for the road and for fishing.",
+            "A portable power bank, a torch or a car tyre inflator.",
+            "A smartwatch or a fitness band, if your dad keeps an eye on his health.",
+          ],
+        },
+        {
+          heading: "Gifts for his hobbies",
+          paragraphs: ["If your dad has a hobby, a gift that fits it almost always hits the mark. Just check with your mum or his friends what he already has, so you don’t double up."],
+          list: [
+            "For anglers and hunters — tackle, camping dishes, good gear.",
+            "For car enthusiasts — a dash cam, a boot organiser, a car-care kit.",
+            "For those who love to read — an interesting book on his subject or an e-reader.",
+            "For lovers of chess and backgammon — a beautiful handmade board.",
+            "For gardeners — good secateurs, gloves, a set of tools for the dacha.",
+          ],
+        },
+        {
+          heading: "Gifts of experience",
+          paragraphs: ["Dads often don’t say they want to relax, but they are glad to accept an invitation to spend time together."],
+          list: [
+            "A fishing trip or a day out in nature, just the two of you.",
+            "Tickets to a match of his favourite team.",
+            "A trip to the banya with friends, if he enjoys it.",
+            "A trip to the mountains or a spa resort for the weekend.",
+            "A family dinner where everyone gets together.",
+          ],
+        },
+        {
+          heading: "A gift from the heart: a book about your dad",
+          paragraphs: [
+            "Many dads find it hard to talk about feelings out loud, yet they are happy to read warm words from their children again and again. A book about your dad holds your memories, his advice and stories, and letters from grandchildren and friends. A gift like this is kept for years.",
+            "You can write the book for free: you answer questions and add photos. We print the finished book as a hardcover and deliver it across Kazakhstan; the digital copy is available right after payment.",
+          ],
+        },
+        {
+          heading: "How to avoid mistakes",
+          list: [
+            "Don’t give things “for educational purposes”, such as household appliances, unless your dad asked: it can sound like a reproach.",
+            "Check the size and model: with clothes, shoes and tools, small details decide everything.",
+            "Don’t chase status: what usually matters more to a dad is comfort and that you thought of him in particular.",
+            "Add a few handwritten words to any gift — a card works better than you might think.",
+            "If the gift is from several of you, agree with your brothers and sisters in advance so you don’t end up with two identical ones.",
+          ],
+        },
+      ],
+      faq: [
+        ["What should I give my dad if he already has everything?", "Give time and words: a trip for two, a family dinner or a book in which you tell him what he means to you. He most likely already has plenty of things, but he will remember gifts like these."],
+        ["What should I give my dad for 23 February?", "If your family marks this day, practical things for his pastimes, a card with warm words or a small family feast will do nicely. A book about your dad also suits any date."],
+        ["What should I give my dad for his anniversary?", "Best of all, something from the whole family: a trip together, a festive dinner or a book that includes letters from his children, grandchildren and friends."],
+      ],
+      cta: { title: "A book about Dad — made by you", text: "Answer the questions, add photos — we will lay out and print the book. Writing is free." },
+    },
   },
 };

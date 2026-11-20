@@ -61,5 +61,23 @@ export const podarokDevushke: Landing = {
         ["Vaqt kam qolgan bo‘lsa, 14-fevralga ulguraymanmi?", "Ha: elektron nusxa to‘lovdan keyin darhol mavjud, «Premium» tarifidagi bosma nusxani esa 3–4 ish kunida tayyorlaymiz."],
       ],
     },
+    en: {
+      label: "A gift for your girlfriend",
+      h1: "A gift for your girlfriend",
+      accent: "that she will keep for a long time",
+      metaTitle: "What to Give Your Girlfriend — A Book About Your Love",
+      metaDescription: "A gift for your girlfriend for her birthday, 14 February or 8 March: a book about your relationship with photos and your words. Printed in hardcover.",
+      lead: "Flowers will wither, but a book where you told her how you first saw her and what you feel now will last. You answer the questions, and we lay it out like a real published book.",
+      why: [
+        { title: "Words that are hard to say out loud", text: "It is easier to confess on paper: the questions suggest how to talk about your feelings without awkwardness." },
+        { title: "It looks like a real book", text: "A cover of your choice, contents page, chapters, photos — not an album or a questionnaire, but a book that feels good in the hands." },
+        { title: "Make it in time", text: "Tell us the occasion and we will say when to place the order. If time is short, the digital copy is ready right away." },
+      ],
+      cover: { title: "For You", names: "Timur & Aruzhan" },
+      faq: [
+        ["Can I add photos of the two of us?", "Yes, upload pictures from your phone. We will let you know if the resolution is too low for printing, and in the layout you will see how each photo sits on the page."],
+        ["Can I make it for 14 February if there is little time left?", "Yes: the digital copy is available right after payment, and with the Premium plan we make the printed copy in 3–4 working days."],
+      ],
+    },
   },
 };

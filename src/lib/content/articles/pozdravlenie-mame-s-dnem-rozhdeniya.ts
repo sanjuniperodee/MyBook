@@ -182,5 +182,63 @@ export const pozdravlenieMameSDnemRozhdeniya: Article = {
       ],
       cta: { title: "Ona haqidagi kitob — qoladigan so‘zlar", text: "Bir kunlik tabrik kamlik qilsa, aytmoqchi bo‘lgan hamma gapingizni kitobga jamlang. Savollarga javob bering, suratlar qo‘shing — yozish bepul." },
     },
+    en: {
+      title: "How to wish your mum a happy birthday in your own words: 5 steps and examples",
+      description: "How to write a warm birthday message for your mum without clichés: five simple steps, a structure, short examples and what is better to avoid.",
+      lead: "Ready-made cards are pretty, but mums can tell the difference: words written just for her stay with her for a long time. Here is how to put a message together in ten minutes, with examples.",
+      sections: [
+        {
+          heading: "Why your own words beat a ready-made card",
+          paragraphs: [
+            "In a ready-made text, any mum can recognise herself. In yours, she recognises only herself: her habits, her phrases and the evenings you spent together. That is why even simple words touch her more than poems from the internet.",
+            "You don’t need to be eloquent. Three to five sentences with something true and specific in them are enough.",
+          ],
+        },
+        {
+          heading: "Step 1. Remember a specific scene",
+          paragraphs: ["Start not with adjectives but with an episode: how your mum met you after school, how she made soup when you were ill, how she saw you off to another city. One scene says more than “you are the best”."],
+        },
+        {
+          heading: "Step 2. Say what you are grateful for",
+          paragraphs: ["Gratitude works better than compliments. Say what your mum taught you, what you inherited from her, which of her pieces of advice is still with you. It helps to be specific: “you taught me not to be afraid to start again”."],
+        },
+        {
+          heading: "Step 3. Wish her what she really needs",
+          paragraphs: ["Instead of “health and happiness”, think about what she truly lacks: time for herself, a trip, quiet evenings, good news from the grandchildren. A wish that fits your mum’s real life sounds like care, not like a formula."],
+        },
+        {
+          heading: "Steps 4 and 5. Choose a format and say it in person",
+          paragraphs: [
+            "A handwritten card, a voice message or a short video all work, especially if you are far away. A handwritten text gets read and re-read, and a recorded voice can be listened to again and again.",
+            "Read the message aloud until it sounds natural: that way you will cut the unnecessary words. And, if you can, say it in person or on a video call, rather than only sending it in a messenger.",
+          ],
+        },
+        {
+          heading: "Examples of short birthday messages",
+          paragraphs: ["These are starting points: swap in your own details."],
+          list: [
+            "“Happy birthday, Mum! I remember how you used to wait for me at the door in winter with a hot cup of tea. Thank you for always keeping our home warm. This year, I hope you get more time for yourself.”",
+            "“Happy birthday, Mum! You taught me not to give up, even when things are hard. I think about that a lot at work. I wish you easy days and the trip you have been dreaming of.”",
+            "“Mum, today is your day, and I want to say something I rarely say: I’m proud of you. You managed things I only understood once I grew up. I love you.”",
+            "“Dear Mum, thank you for the pies, for your patience and for always being there, even with so many miles between us. Happy birthday! Big hug.”",
+          ],
+        },
+        {
+          heading: "What is better to avoid",
+          list: [
+            "Generic phrases that would suit any woman: “happiness, health and a long life”.",
+            "Jokes about her age, if your mum is sensitive about it.",
+            "Very long messages listing all her virtues: one story is better.",
+            "Advice and reproaches disguised as greetings: “I hope you will finally get some rest”.",
+            "Copied poems without a single word of your own.",
+          ],
+        },
+      ],
+      faq: [
+        ["How do I write a birthday message to my mum if it is hard to talk about feelings?", "Start with a simple fact: what your mum did for you and how you remember it. Details like “you always left the hall light on” touch people more than declarations, and the feelings come through without big words."],
+        ["Can I send a birthday message in a messenger?", "Yes, but it is better to add a voice message or a short video. If you are nearby, say the message out loud: words spoken in person are remembered for longer."],
+      ],
+      cta: { title: "A book about Mum: words that last", text: "If a one-day greeting is not enough, gather everything you want to say to her in a book. Answer the questions and add photos — writing is free." },
+    },
   },
 };

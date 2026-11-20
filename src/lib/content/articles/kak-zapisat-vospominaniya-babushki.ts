@@ -245,5 +245,84 @@ export const kakZapisatVospominaniyaBabushki: Article = {
       ],
       cta: { title: "Yaqin kishining hayoti haqidagi kitob", text: "Savollarga javob bering, suratlar qo‘shing — kitobni biz maketlab, bosib chiqaramiz. Yozish bepul." },
     },
+    en: {
+      title: "How to record your grandmother’s or grandfather’s memories: questions and a plan",
+      description: "How to record a grandparent’s memories: where to start, how to talk, 15 questions for a first conversation and how to turn your notes into a family book.",
+      lead: "The stories of the older generation disappear quietly: until you ask, only one person knows them. Here is how to record your grandmother’s or grandfather’s memories without stress, with questions for a first conversation.",
+      sections: [
+        {
+          heading: "Why record them",
+          paragraphs: [
+            "Family stories are not only dates, but also how people lived, what they ate, what they feared and what they loved. These details help you understand where you come from. You can’t find such stories in archives; you can only get them from the people themselves.",
+            "For a grandmother or grandfather, the conversation is a gift too: when a grandson or granddaughter asks about their childhood, they feel that their life matters.",
+          ],
+        },
+        {
+          heading: "Where to start",
+          paragraphs: ["Begin with a gentle invitation, not an “interview”. Say that you want to preserve the family stories for your children and grandchildren, and ask whether they agree. Agree on a time when nobody is in a hurry."],
+          list: [
+            "Choose a calm place: at home, with tea, in a familiar setting.",
+            "Bring old photographs and objects: they help people remember.",
+            "Get a voice recorder or phone ready and check that it is recording.",
+            "Ask permission to record; don’t do it secretly.",
+          ],
+        },
+        {
+          heading: "How to talk",
+          paragraphs: ["The best stories rarely come on the first try. Short sessions of 30–40 minutes are less tiring than one long evening, and between meetings the person recalls new details."],
+          list: [
+            "Listen and don’t interrupt: a pause is part of the story.",
+            "Ask follow-up questions: “what did it look like?”, “how did you feel?”.",
+            "Don’t correct dates and facts in the middle of a story: check them later.",
+            "If the person is tired or upset, stop. Some memories are painful, and they can be skipped.",
+            "Take notes as well as recording sound: names, places, titles.",
+          ],
+        },
+        {
+          heading: "15 questions for a first conversation",
+          paragraphs: ["These questions suit both grandmothers and grandfathers. You don’t need to ask them all at once — pick a few and follow the story."],
+          list: [
+            "Where were you born, and what was the place where you grew up called?",
+            "Which house from your childhood do you remember? What was special about it?",
+            "Who were your parents and grandparents? What do you remember about them?",
+            "Which games and activities did you love as a child?",
+            "Which dish from your childhood can you still taste?",
+            "How did you do at school? Was there a teacher you remember all your life?",
+            "What did you dream of becoming, and what did you become?",
+            "How did your working life begin? What was the hardest part?",
+            "How did you meet your wife or husband?",
+            "How was your wedding?",
+            "Which day do you consider the happiest of your life?",
+            "What was the hardest time, and what helped you through it?",
+            "Which traditions of your family would you like to keep alive?",
+            "What has life taught you that you would like to pass on to your grandchildren?",
+            "What has no one ever asked you, but you would like to tell?",
+          ],
+        },
+        {
+          heading: "What to do with the recordings",
+          paragraphs: ["After a meeting, don’t put the writing-up off for long: while the impression is fresh, save the file and make short notes straight away. You can transcribe the recording by hand or with speech-recognition apps, then tidy up the text and check names and dates with the storyteller."],
+          list: [
+            "Keep the original recordings in several places.",
+            "Label the photographs: who, where, when.",
+            "Split the text into topics: childhood, school, work, family, life lessons.",
+            "Show the transcript to the storyteller and ask what to add or remove.",
+          ],
+        },
+        {
+          heading: "How to turn it into a book",
+          paragraphs: [
+            "Recordings are easily lost in a folder on your phone. A book brings them together: stories in chapters, photographs and captions that you can pass on to your children and grandchildren.",
+            "You can write a book about a life for free: you answer the questions and add photos. We print the finished book in a hardcover and deliver it across Kazakhstan; the digital copy is available right after payment.",
+          ],
+        },
+      ],
+      faq: [
+        ["How do I start the conversation if my grandmother doesn’t like to reminisce?", "Start with photographs and objects rather than questions. Ask about something simple: who is the person in the picture, where was it taken. If she doesn’t want to talk about something, don’t insist."],
+        ["How long does it take to record someone’s memories?", "It depends on the person and their willingness: a few meetings of 30–40 minutes are usually enough. Don’t rush; it is better to come back to the conversation later."],
+        ["What should I do if the storyteller mixes up dates?", "Don’t interrupt while they are telling the story. Later, check the dates against documents, photographs or other relatives, and in the book note when the exact date is unknown."],
+      ],
+      cta: { title: "A book about a loved one’s life", text: "Answer the questions and add photos — we will lay out and print the book. Writing is free." },
+    },
   },
 };

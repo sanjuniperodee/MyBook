@@ -55,5 +55,20 @@ export const podarokNa8Marta: Landing = {
         ["Ona o‘zi yozadigan kitobni sovg‘a qilish mumkinmi?", "Ha — bu sovg‘a sertifikati. Ona kod oladi va farzandlari hamda nevaralari uchun o‘z hayoti haqida kitob yozadi."],
       ],
     },
+    en: {
+      label: "A gift for Mum on 8 March",
+      h1: "A gift for Mum on 8 March:",
+      accent: "a book about her",
+      metaTitle: "What to give Mum on 8 March: a personal book",
+      metaDescription: "Give Mum a book you write yourself for International Women’s Day: memories, thanks, photos. Hardcover printing and delivery in time for 8 March.",
+      lead: "Flowers wilt within a week. A book about Mum, about her care, her words and her lessons, stays in the family for ever.",
+      why: [
+        { title: "Be in time for the holiday", text: "We will show you the last day to order and remind you by e-mail." },
+        { title: "From all her children", text: "Brothers and sisters write their letters through a link, with no sign-up." },
+        { title: "Or a gift certificate", text: "Would you like Mum to write the book herself, about her own life? Give her a gift certificate." },
+      ],
+      cover: { title: "Thank You, Mum", names: "Dana and Timur" },
+      faq: [["Can I give a book that Mum writes herself?", "Yes, that is the gift certificate. Mum receives a code and writes a book about her life for her children and grandchildren."]],
+    },
   },
 };

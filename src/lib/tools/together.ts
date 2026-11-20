@@ -98,31 +98,31 @@ export function milestones(start: Date, now: Date, past = 2, next = 5): Mileston
 }
 
 /** Названия годовщин свадьбы. Для лет без названия (16, 17, 21…) считается «ближайшая прошедшая». */
-export const weddingAnniversaries: { year: number; ru: string; kk: string; uz: string }[] = [
-  { year: 1, ru: "Ситцевая", kk: "Бөз", uz: "Chit" },
-  { year: 2, ru: "Бумажная", kk: "Қағаз", uz: "Qog‘oz" },
-  { year: 3, ru: "Кожаная", kk: "Былғары", uz: "Teri" },
-  { year: 4, ru: "Льняная", kk: "Зығыр", uz: "Zig‘ir" },
-  { year: 5, ru: "Деревянная", kk: "Ағаш", uz: "Yog‘och" },
-  { year: 6, ru: "Чугунная", kk: "Шойын", uz: "Cho‘yan" },
-  { year: 7, ru: "Медная", kk: "Мыс", uz: "Mis" },
-  { year: 8, ru: "Жестяная", kk: "Қаңылтыр", uz: "Tunuka" },
-  { year: 9, ru: "Фаянсовая", kk: "Фаянс", uz: "Fayans" },
-  { year: 10, ru: "Оловянная (розовая)", kk: "Қалайы", uz: "Qalay (pushti)" },
-  { year: 11, ru: "Стальная", kk: "Болат", uz: "Po‘lat" },
-  { year: 12, ru: "Никелевая", kk: "Никель", uz: "Nikel" },
-  { year: 13, ru: "Кружевная", kk: "Шілтер", uz: "Dantelali" },
-  { year: 14, ru: "Агатовая", kk: "Ақық", uz: "Oqiq" },
-  { year: 15, ru: "Хрустальная", kk: "Биллур", uz: "Billur" },
-  { year: 20, ru: "Фарфоровая", kk: "Фарфор", uz: "Chinni" },
-  { year: 25, ru: "Серебряная", kk: "Күміс", uz: "Kumush" },
-  { year: 30, ru: "Жемчужная", kk: "Інжу", uz: "Injuli" },
-  { year: 35, ru: "Коралловая", kk: "Маржан", uz: "Marjon" },
-  { year: 40, ru: "Рубиновая", kk: "Лағыл", uz: "Yoqut" },
-  { year: 45, ru: "Сапфировая", kk: "Сапфир", uz: "Safir" },
-  { year: 50, ru: "Золотая", kk: "Алтын", uz: "Oltin" },
-  { year: 55, ru: "Изумрудная", kk: "Изумруд", uz: "Zumrad" },
-  { year: 60, ru: "Бриллиантовая", kk: "Гауһар", uz: "Brilliant" },
+export const weddingAnniversaries: { year: number; ru: string; kk: string; uz: string; en: string }[] = [
+  { year: 1, ru: "Ситцевая", kk: "Бөз", uz: "Chit", en: "Cotton" },
+  { year: 2, ru: "Бумажная", kk: "Қағаз", uz: "Qog‘oz", en: "Paper" },
+  { year: 3, ru: "Кожаная", kk: "Былғары", uz: "Teri", en: "Leather" },
+  { year: 4, ru: "Льняная", kk: "Зығыр", uz: "Zig‘ir", en: "Linen" },
+  { year: 5, ru: "Деревянная", kk: "Ағаш", uz: "Yog‘och", en: "Wood" },
+  { year: 6, ru: "Чугунная", kk: "Шойын", uz: "Cho‘yan", en: "Cast iron" },
+  { year: 7, ru: "Медная", kk: "Мыс", uz: "Mis", en: "Copper" },
+  { year: 8, ru: "Жестяная", kk: "Қаңылтыр", uz: "Tunuka", en: "Tin plate" },
+  { year: 9, ru: "Фаянсовая", kk: "Фаянс", uz: "Fayans", en: "Faience" },
+  { year: 10, ru: "Оловянная (розовая)", kk: "Қалайы", uz: "Qalay (pushti)", en: "Tin (pink)" },
+  { year: 11, ru: "Стальная", kk: "Болат", uz: "Po‘lat", en: "Steel" },
+  { year: 12, ru: "Никелевая", kk: "Никель", uz: "Nikel", en: "Nickel" },
+  { year: 13, ru: "Кружевная", kk: "Шілтер", uz: "Dantelali", en: "Lace" },
+  { year: 14, ru: "Агатовая", kk: "Ақық", uz: "Oqiq", en: "Agate" },
+  { year: 15, ru: "Хрустальная", kk: "Биллур", uz: "Billur", en: "Crystal" },
+  { year: 20, ru: "Фарфоровая", kk: "Фарфор", uz: "Chinni", en: "Porcelain" },
+  { year: 25, ru: "Серебряная", kk: "Күміс", uz: "Kumush", en: "Silver" },
+  { year: 30, ru: "Жемчужная", kk: "Інжу", uz: "Injuli", en: "Pearl" },
+  { year: 35, ru: "Коралловая", kk: "Маржан", uz: "Marjon", en: "Coral" },
+  { year: 40, ru: "Рубиновая", kk: "Лағыл", uz: "Yoqut", en: "Ruby" },
+  { year: 45, ru: "Сапфировая", kk: "Сапфир", uz: "Safir", en: "Sapphire" },
+  { year: 50, ru: "Золотая", kk: "Алтын", uz: "Oltin", en: "Gold" },
+  { year: 55, ru: "Изумрудная", kk: "Изумруд", uz: "Zumrad", en: "Emerald" },
+  { year: 60, ru: "Бриллиантовая", kk: "Гауһар", uz: "Brilliant", en: "Diamond" },
 ];
 
 export function weddingName(year: number, locale: Locale): string | null {
@@ -130,6 +130,6 @@ export function weddingName(year: number, locale: Locale): string | null {
 }
 
 /** Ближайшая годовщина с названием, не раньше `fromYear` (для строки «следующая именная — …»). */
-export function nextNamedAnniversary(fromYear: number): { year: number; ru: string; kk: string; uz: string } | null {
+export function nextNamedAnniversary(fromYear: number): { year: number; ru: string; kk: string; uz: string; en: string } | null {
   return weddingAnniversaries.find((a) => a.year >= fromYear) ?? null;
 }

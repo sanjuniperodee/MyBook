@@ -181,5 +181,63 @@ export const chtoPodaritMame: Article = {
       ],
       cta: { title: "Ona haqidagi kitob — o‘z qo‘lingiz bilan", text: "Savollarga javob bering, surat qo‘shing — kitobni biz sahifalab, bosib chiqaramiz. Yozish bepul." },
     },
+    en: {
+      title: "What to give your mum: gift ideas for any occasion and budget",
+      description: "What to give your mum for her birthday, an anniversary or 8 March: practical gifts, experiences and gifts from the heart. How to choose what she will truly value.",
+      lead: "Mum always says “I don’t need anything” — and yet she remembers every gift. Here are ideas by category and tips to help you get it right.",
+      sections: [
+        {
+          heading: "Practical gifts",
+          paragraphs: ["A practical gift works best when your mum has wanted something for a long time but kept putting off buying it. Listen out: what has she been repeating for the past few months — “I really should buy that”?"],
+          list: [
+            "A neck and shoulder massager or a good blanket.",
+            "A comfortable orthopaedic pillow or cosy slippers for the house.",
+            "A quality tea set or a set of dishes that is a pleasure to use.",
+            "A smart speaker for playing her favourite songs and calling the family.",
+          ],
+        },
+        {
+          heading: "Gifts of experience",
+          paragraphs: ["Experiences stay in the memory longer than things, especially if you share them with your mum."],
+          list: [
+            "A trip to a spa resort or a weekend in another city.",
+            "Tickets to the theatre, a concert or the philharmonic.",
+            "A family dinner at a restaurant where everyone gets together.",
+            "A workshop in ceramics, painting or cooking.",
+            "A family photo shoot with the children and grandchildren.",
+          ],
+        },
+        {
+          heading: "Gifts from the heart",
+          paragraphs: ["These gifts can’t be measured by price: your mum will keep them for years and show them to guests."],
+          list: [
+            "A family album with old and new photographs.",
+            "A video greeting from relatives who live far away.",
+            "A book about your mum — with your memories, her lessons and letters from loved ones.",
+          ],
+        },
+        {
+          heading: "Why a book about your mum is a special gift",
+          paragraphs: [
+            "Mums rarely hear exactly what they mean to their children. A book lets you say it in detail and without awkwardness: you answer questions — from “What do you remember about Mum when you were little?” to “What did she teach you?” — and add photos.",
+            "We print the finished book as a hardcover and deliver it across Kazakhstan. If your mum lives in another city or time is short, the digital copy is available right after payment.",
+          ],
+        },
+        {
+          heading: "How to avoid mistakes",
+          list: [
+            "Ask your brothers and sisters — together you can give more.",
+            "Don’t give household appliances “for the home” unless your mum asked for them: she may take it as a hint.",
+            "Think about her health and habits: comfort matters more than fashion.",
+            "Add some words. Any gift feels warmer with a card or a letter.",
+          ],
+        },
+      ],
+      faq: [
+        ["What should I give my mum if she already has everything?", "What you can’t buy in a shop: time and words. A trip together, a family dinner or a book in which you tell her about herself — gifts like these are remembered longer than things."],
+        ["What should I give my mum for her anniversary?", "Best of all, a gift from the whole family: a trip together, a festive dinner or a book that includes letters from her children and grandchildren."],
+      ],
+      cta: { title: "A book about Mum — made by you", text: "Answer the questions, add photos — we will lay out and print the book. Writing is free." },
+    },
   },
 };

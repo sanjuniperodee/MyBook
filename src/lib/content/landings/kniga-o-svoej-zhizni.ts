@@ -64,5 +64,24 @@ export const knigaOSvoejZhizni: Landing = {
         ["Bunday kitobni sovg‘a qilsa bo‘ladimi?", "Ota-onangiz yoki buvingizga sertifikat hadya qiling — ular «Tarjimai hol»ni o‘zlari tanlab, hayot tarixini aytib beradi."],
       ],
     },
+    en: {
+      label: "A book about your life",
+      h1: "A book about your life —",
+      accent: "for your children and grandchildren",
+      metaTitle: "How to Write a Book About Your Life — Guided Autobiography",
+      metaDescription: "Write your autobiography with ready-made questions: roots, childhood, love, work, lessons. Can be told to a loved one. Layout, photos and hardcover printing.",
+      lead: "Where your family comes from, what your childhood was like, how you met the person you love and what life has taught you — the questions show you where to begin, and we lay it all out like a real published book.",
+      why: [
+        { title: "Questions instead of a blank page", text: "Dozens of questions with prompts: from “where were you born” to “what do you want to say to your children”. Answer in any order." },
+        { title: "You can tell it out loud", text: "If writing is hard, let a loved one ask the questions and write down your answers. Their name will appear on the reverse of the title page." },
+        { title: "A keepsake for the family", text: "Photos from the album, letters from relatives as a separate chapter and a hardcover binding — a book that is passed from hand to hand." },
+      ],
+      cover: { title: "The Story of My Life", names: "Bakyt Akhmetov" },
+      faq: [
+        ["Do I need to be able to write?", "No. Write the way you would tell it to your grandchildren in the evening. We take care of headings and layout, and the questions remind you what to recall."],
+        ["Can I write the book from my parents’ or grandmother’s words?", "Yes. The storyteller will be the author of the book, and the person writing it down is named on the reverse of the title page. You can type the answers on your phone during the conversation."],
+        ["Can I give a book like this as a gift?", "Give your parents or grandmother a gift certificate — they will choose “Autobiography” themselves and tell the story of their life."],
+      ],
+    },
   },
 };

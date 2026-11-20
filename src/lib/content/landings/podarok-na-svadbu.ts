@@ -70,5 +70,24 @@ export const podarokNaSvadbu: Landing = {
         ["Yaqinda tanishgan bo‘lsak-chi?", "Bu to‘siq emas. O‘zingiz gapirib berishga narsa topadigan savollarga javob bersangiz yetarli, qolganlarini o‘tkazib yuborish mumkin."],
       ],
     },
+    en: {
+      label: "A wedding gift",
+      h1: "A wedding gift:",
+      accent: "a book of stories and wishes from friends",
+      metaTitle: "What to give for a wedding: a book of stories and guests’ wishes",
+      metaDescription: "A wedding gift for a friend: a book about your friendship, funny stories and guests’ letters of good wishes. Photos, hardcover, delivery in Kazakhstan.",
+      lead: "Plenty of people give an envelope at a wedding; few give a book where friends recall funny moments and wish the couple happiness. Tell how you met the bride or groom, gather the guests’ wishes and present the book at the celebration or after it.",
+      why: [
+        { title: "Stories, not just wishes", text: "How you met, the funniest story, what you promise for the future. The questions help you write the way you would give a toast, only calmer and longer." },
+        { title: "Wishes from every guest", text: "Friends, colleagues and relatives write their letters from a phone through a link, with no sign-up. Their words go into the book as a separate chapter, and you check them before printing." },
+        { title: "For the wedding and after it", text: "You get the digital book right after payment and can show it at the celebration. The printed copy takes a few working days, and you see a proof of the whole book before you pay." },
+      ],
+      cover: { title: "On Your Wedding Day", names: "From Madina and her friends" },
+      faq: [
+        ["Is the book about the couple or about one of them?", "The questions are written for one person: when you create the book you choose whom you are writing about, the bride or the groom. Friends and family leave their wishes for the couple as letters through a link."],
+        ["How do I collect wishes from the guests?", "Send them the link in a chat or ask them to write at the wedding. A letter is written from a phone with no sign-up and goes into the book as a separate chapter."],
+        ["What if we have only just met?", "That is no obstacle. Answer the questions you have something to say about and skip the rest."],
+      ],
+    },
   },
 };

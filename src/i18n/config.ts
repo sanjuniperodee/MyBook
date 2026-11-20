@@ -1,9 +1,9 @@
 /**
- * Языки сайта. Русский — по умолчанию и без префикса в адресе, казахский — под /kk/…, узбекский (латиница) — под /uz/…
+ * Языки сайта. Русский — по умолчанию и без префикса в адресе, казахский — под /kk/…, узбекский (латиница) — под /uz/…, английский — под /en/…
  * (отдельные адреса нужны поисковикам: hreflang и индексация всех версий).
  * Модуль общий для сервера, браузера и proxy — без зависимостей.
  */
-export const locales = ["ru", "kk", "uz"] as const;
+export const locales = ["ru", "kk", "uz", "en"] as const;
 export type Locale = (typeof locales)[number];
 export const defaultLocale: Locale = "ru";
 
@@ -13,7 +13,7 @@ export type PublicLocale = Locale;
 /** Язык публичного текста (когда языка нет в публичных текстах, показывается русский). */
 export const toPublic = (locale: Locale): PublicLocale => locale;
 /** Префикс адреса, под которым живёт язык (русский — без префикса). */
-const PREFIX: Record<Exclude<Locale, "ru">, string> = { kk: "/kk", uz: "/uz" };
+const PREFIX: Record<Exclude<Locale, "ru">, string> = { kk: "/kk", uz: "/uz", en: "/en" };
 /** Есть ли у этого пути (без префикса языка) версия на языке: у всех страниц сайта есть все три языка. */
 export const hasLocalePath = (path: string, locale: Locale) => path.startsWith("/") && locales.includes(locale);
 
@@ -26,6 +26,7 @@ export const localeMeta: Record<Locale, { label: string; short: string; intl: st
   ru: { label: "Русский", short: "Рус", intl: "ru-RU", og: "ru_RU", speech: "ru-RU" },
   kk: { label: "Қазақша", short: "Қаз", intl: "kk-KZ", og: "kk_KZ", speech: "kk-KZ" },
   uz: { label: "Oʻzbekcha", short: "Oʻz", intl: "uz-UZ", og: "uz_UZ", speech: "uz-UZ" },
+  en: { label: "English", short: "En", intl: "en-GB", og: "en_GB", speech: "en-US" },
 };
 
 export function isLocale(v: unknown): v is Locale {
@@ -45,7 +46,7 @@ export function localizePath(href: string, locale: Locale): string {
 
 /** Разбирает адрес из браузера: «/kk/books» → { locale: "kk", path: "/books" }. */
 export function splitLocale(pathname: string): { locale: Locale; path: string } {
-  for (const l of ["kk", "uz"] as const) {
+  for (const l of ["kk", "uz", "en"] as const) {
     const prefix = PREFIX[l];
     if (pathname === prefix || pathname.startsWith(`${prefix}/`)) return { locale: l, path: pathname.slice(prefix.length) || "/" };
   }

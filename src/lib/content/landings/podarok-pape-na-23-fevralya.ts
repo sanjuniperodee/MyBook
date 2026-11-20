@@ -61,5 +61,23 @@ export const podarokPapeNa23Fevralya: Landing = {
         ["Otam boshqa shaharda yashasa, to‘g‘ri keladimi?", "Ha, Qozog‘iston bo‘ylab yetkazib beramiz. Elektron nusxani darrov yuborish mumkin, bosma nusxani esa tanlangan shaharga olib boramiz."],
       ],
     },
+    en: {
+      label: "Gift for Dad on 23 February",
+      h1: "A gift for Dad on 23 February —",
+      accent: "the words he’s been waiting for",
+      metaTitle: "What to give Dad on 23 February — a personalised book",
+      metaDescription: "An original gift for Dad on 23 February, the men’s holiday: a book about him, written by his children. Memories, photos, hardcover, delivery in Kazakhstan.",
+      lead: "Socks and shaving foam aren’t things anyone keeps for years. This 23 February, Defender of the Fatherland Day and the men’s holiday in Kazakhstan, tell Dad in a book how you remember him, what he taught you and what you value in him.",
+      why: [
+        { title: "Not another gift set", text: "A gift he’ll show his friends and reread, not tuck away in a cupboard." },
+        { title: "In time for the holiday", text: "The digital copy is ready right after payment. Printed copy: production takes 5–7 working days (Premium 3–4), and the courier takes 1–2 days." },
+        { title: "From several children", text: "Brothers and sisters can write together or send letters via a link — they go into the book as a chapter of their own." },
+      ],
+      cover: { title: "My Hero", names: "from Alina" },
+      faq: [
+        ["Will I make it in time for 23 February?", "Order 2–3 weeks ahead and the book will arrive right on time. If you have less time, the digital copy is ready at once, and we make a Premium printed copy in 3–4 working days."],
+        ["Does it work if Dad lives in another city?", "Yes, we deliver across Kazakhstan. You can send the digital copy straight away, and we’ll deliver the printed copy to the city you choose."],
+      ],
+    },
   },
 };

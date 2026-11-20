@@ -79,7 +79,7 @@ export async function setClientLocaleAction(clientId: string, locale: string): P
   await c.identity.accounts.setLocale(client.id, next.data);
   await audit(staff, "client.locale", "client", client.id, { to: next.data });
   revalidatePath(`/admin/clients/${client.id}`);
-  return { ok: true, message: next.data === "kk" ? "Язык: казахский" : next.data === "uz" ? "Язык: узбекский" : "Язык: русский" };
+  return { ok: true, message: next.data === "kk" ? "Язык: казахский" : next.data === "uz" ? "Язык: узбекский" : next.data === "en" ? "Язык: английский" : "Язык: русский" };
 }
 
 /** Номер для звонка/чата берём на сервере: сотрудник без права видеть контакты всё равно может связаться. */

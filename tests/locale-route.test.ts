@@ -25,7 +25,7 @@ describe("POST /api/locale (V-minor)", () => {
   });
 
   it("неизвестный язык или мусор — 400 с текстом", async () => {
-    const res = await post({ locale: "en" });
+    const res = await post({ locale: "fr" });
     expect(res.status).toBe(400);
     expect((await res.json()).error).toBeTruthy();
     expect((await post("мусор")).status).toBe(400);

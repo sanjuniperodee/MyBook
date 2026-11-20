@@ -65,5 +65,24 @@ export const podarokUchitelyuNaDenUchitelya: Landing = {
         ["Ustoz qattiqqo‘l bo‘lsa, kitob mos keladimi?", "Mos keladi. Savollar orasida «rahmat aytadigan qattiqqo‘llik» ham bor: o‘quvchilar talabchanlik hayotda qanday yordam bergani haqida eslaydi."],
       ],
     },
+    en: {
+      label: "Gift for a teacher on Teachers’ Day",
+      h1: "A gift for your teacher on Teachers’ Day —",
+      accent: "a thank-you book from the whole class",
+      metaTitle: "What to give a teacher on Teachers’ Day — a book from the class",
+      metaDescription: "A Teachers’ Day gift: a book from the class with lessons, school stories, thanks and letters from pupils. Photos, hardcover, delivery across Kazakhstan.",
+      lead: "Flowers wilt, but words remain. Gather the class in one book: the lessons you remember, the phrases everyone knew, and everything you’d like to say to your teacher out loud but only manage once a year.",
+      why: [
+        { title: "One gift for the whole class", text: "Give pupils and parents a link: they can write from a phone, with no sign-up. All the letters go into the book as a chapter of their own, and you check them before printing." },
+        { title: "Questions about lessons, not generic words", text: "The first lesson, phrases the whole class knew, the funniest moment, advice that came in handy later in life. Real gratitude is made of details like these." },
+        { title: "Words instead of things", text: "A teacher hardly needs another vase. A book where pupils write what their teacher taught them stays with her for a long time and is a pleasure to reread." },
+      ],
+      cover: { title: "Thank You, Teacher", names: "From Class 9A" },
+      faq: [
+        ["Can the whole class make the book?", "Yes. One person, such as the class rep or the parents’ committee, creates the book and answers the questions, while everyone else writes letters via the link. In the foreword you say who the book is from."],
+        ["How do I make it in time for the holiday?", "Enter the occasion and the date of the holiday: we’ll tell you the last day to place the order. You get the digital copy right after payment; the printed one takes several working days."],
+        ["Is the book right if the teacher is strict?", "Yes. Among the questions there is one on “strictness we’re grateful for”: pupils recall how a demanding teacher helped them in life."],
+      ],
+    },
   },
 };

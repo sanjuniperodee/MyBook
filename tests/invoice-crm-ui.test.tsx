@@ -64,7 +64,7 @@ const info = (over: Partial<InvoiceFormInfo> = {}): InvoiceFormInfo => ({
   methods: { kaspi: true, card: false, transfer: true },
   kaspiPhoneMasked: null,
   maxDiscountPercent: 10,
-  preview: { until: { ru: "24 октября", kk: "24 қазан", uz: "24-oktabr" }, link: { ru: "https://mybook.kz/pay/…", kk: "https://mybook.kz/kk/pay/…", uz: "https://mybook.kz/uz/pay/…" } },
+  preview: { until: { ru: "24 октября", kk: "24 қазан", uz: "24-oktabr", en: "24 October" }, link: { ru: "https://mybook.kz/pay/…", kk: "https://mybook.kz/kk/pay/…", uz: "https://mybook.kz/uz/pay/…", en: "https://mybook.kz/en/pay/…" } },
   ...over,
 });
 

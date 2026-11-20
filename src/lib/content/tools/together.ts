@@ -120,5 +120,43 @@ export const dniVmeste: ToolDef = {
       ],
       cta: { title: "Hikoyangiz haqida kitob sovg‘a qiling", text: "Sizning sanangiz — tayyor bob. Tanishuv va birga o‘tgan dastlabki yillar haqidagi savollarga javob bering, surat qo‘shing — kitobni biz maketlab, bosamiz. Yozish bepul." },
     },
+    en: {
+      label: "How long we’ve been together",
+      h1: "How long we’ve been together:",
+      accent: "a counter of days and anniversaries",
+      metaTitle: "How long we’ve been together — days, months and years calculator",
+      metaDescription: "Enter the date your relationship or wedding began and find out how many days you have been together, when the next round date is and what your anniversary is called: cotton, paper, silver.",
+      teaser: "Days, months and years together, the nearest round dates and the name of your wedding anniversary.",
+      lead: "Enter a date and the counter shows how many days, weeks and hours you have been together, which anniversary is next and when to celebrate your thousandth day. Everything is calculated right in your browser; the date is not sent anywhere.",
+      sections: [
+        {
+          heading: "How the days together are counted",
+          paragraphs: [
+            "The counter takes the day from which you count your relationship — the first date, the day you met or your wedding — and counts the full days up to today. Years and months are counted from date to date: if you began on 14 May, then 14 May of the next year is exactly one year.",
+            "If the date falls on 29 February, in non-leap years the anniversary moves to 28 February.",
+          ],
+        },
+        {
+          heading: "Which dates are worth celebrating",
+          paragraphs: [
+            "Besides anniversaries, couples like to celebrate round numbers of days: 100, 500, 1000, 5000. The thousandth day comes in roughly 2 years and 9 months — a great occasion for an unexpected gift, when nobody is expecting one.",
+            "The easiest way to remember a round date is in advance: open the counter, put the day in your calendar and remind yourself two weeks ahead — a good gift needs time.",
+          ],
+        },
+        {
+          heading: "Names of wedding anniversaries",
+          paragraphs: [
+            "If you are married, switch the mode to “Wedding” and the counter shows what your anniversary is called. The traditional names come from materials: from delicate cotton in the first year to gold in the fiftieth — as if a marriage grows stronger with time. The full list is in the table below.",
+          ],
+        },
+      ],
+      faq: [
+        ["How do I find out how many days we have been together?", "Enter the date your relationship began in the counter above — it shows the days, weeks, months and years. The date is not saved or sent anywhere: the calculation runs in your browser."],
+        ["When will our 1000th day together be?", "1000 days after the chosen date — that is about 2 years and 9 months. The counter shows the exact day in the list of round dates."],
+        ["What are the wedding anniversaries called, year by year?", "1 year — cotton, 2 — paper, 3 — leather, 5 — wooden, 10 — tin (pink), 15 — crystal, 25 — silver, 50 — golden. All the names are in the table below."],
+        ["What should I give for an anniversary?", "A gift with your story in it. A book, for example: you answer questions about how you met, your first dates and your dreams, add photos, and get something you can read again and again."],
+      ],
+      cta: { title: "Give a book about your story", text: "Your date is already a ready-made chapter. Answer questions about how you met and your first years together, add photos — we will lay out and print the book. Writing is free." },
+    },
   },
 };

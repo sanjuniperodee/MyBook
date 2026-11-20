@@ -114,6 +114,42 @@ export const mushelZhas: ToolDef = {
       ],
       cta: { title: "Saqlanib qoladigan muchal sovg‘asi", text: "Yubilyar haqida kitob: xotiralar, suratlar va yaqinlarining so‘zlari qattiq muqovada. Yozish bepul." },
     },
+    en: {
+      label: "Muchal age: calculator",
+      h1: "Muchal age:",
+      accent: "when your muchal comes and which animal year you were born in",
+      metaTitle: "Muchal age calculator: your muchal, animal year and all ages",
+      metaDescription: "Enter a date of birth to find your animal year (rat, ox, tiger…), when your next muchal age comes and all seven cycles: 13, 25, 37, 49, 61, 73, 85.",
+      teaser: "Your animal year, your next muchal age and all seven cycles, from a date of birth.",
+      lead: "Muchal age is an important date in Kazakh tradition: it comes every 12 years, when the year of your animal returns. Enter a date of birth and the calculator shows the year when you or your loved ones celebrate a muchal, and how many years are left until it.",
+      sections: [
+        {
+          heading: "What muchal age is",
+          paragraphs: [
+            "The muchal is a twelve-year cycle in which years are counted by animals: tyshqan (rat), siyr (ox), barys (tiger), qoyan (rabbit), ulu (dragon), zhylan (snake), zhylqy (horse), qoy (sheep), meshin (monkey), tauyq (rooster), it (dog) and dongyz (pig). When the year of your animal comes round again, you reach your muchal age.",
+            "In the traditional count the year of birth is the first year, so muchal ages are 13, 25, 37, 49, 61, 73 and 85. Counted in completed years, they are 12, 24, 36, 48, 60, 72 and 84.",
+          ],
+        },
+        {
+          heading: "How muchal age is celebrated",
+          paragraphs: [
+            "A muchal age is usually celebrated as a significant anniversary: relatives gather, say kind words and give gifts. Families prepare for the round muchals well in advance, especially 37, 49 and 61, which many families see as serious milestones.",
+            "A good muchal gift is something that lasts: for example, a book about the person being celebrated, with memories, photos and words from loved ones. For a printed book, allow 3–4 weeks.",
+          ],
+        },
+        {
+          heading: "How the animal year is worked out",
+          paragraphs: ["The calculator uses the calendar year of birth: for example, 2000 is the year of the dragon (ulu) and 1996 the year of the rat (tyshqan). Some families count the start of the year by the lunar calendar or by Nauryz; if you were born in January or February, ask the older members of your family."],
+        },
+      ],
+      faq: [
+        ["What is muchal age?", "It is the age at which the year of your birth comes round again in the 12-year animal calendar. In the traditional count these are 13, 25, 37, 49, 61, 73 and 85."],
+        ["Why is muchal age 13 and not 12?", "In the traditional count the year of birth is the first year of life. So in completed years a muchal is 12, 24, 36 and so on, while in the traditional count it is 13, 25, 37."],
+        ["How do I find out my animal year?", "Enter your date of birth in the calculator: it shows the animal of your year, for example the rat, tiger or dragon, and all your muchal ages."],
+        ["What should I give for a muchal age?", "A gift that holds memories: a book of recollections and photos, a family album, a trip. If the muchal is your mum’s or dad’s, a book from the whole family with letters from children and grandchildren is a perfect choice."],
+      ],
+      cta: { title: "A muchal gift that will last", text: "A book about the person being celebrated: memories, photos and words from loved ones in a hardcover. Writing is free." },
+    },
   },
 };
 
@@ -225,6 +261,41 @@ export const semejnyjKalendar: ToolDef = {
         ["Muchal yoshi qanday hisoblanadi?", "Bu yil hayvoningiz yana keladigan yosh: an’anaviy hisobda 13, 25, 37, 49, 61 yosh. Kalkulyator har bir inson uchun eng yaqinini ko‘rsatadi."],
       ],
       cta: { title: "Tayyorlanishga ulguradigan sovg‘a", text: "Yaqin inson haqida kitob — savollarga javoblar, suratlar va yaqinlarining xatlari. Yozish bepul, kalendar esa qachon boshlashni eslatadi." },
+    },
+    en: {
+      label: "Family birthday calendar",
+      h1: "Family calendar:",
+      accent: "birthdays, muchals and reminders",
+      metaTitle: "Family birthday calendar with reminders and muchal age (.ics)",
+      metaDescription: "Add loved ones to see their age, next birthday, animal year and muchal age. Download a calendar with reminders 1–4 weeks ahead to choose a gift in time.",
+      teaser: "Your loved ones’ birthdays and muchals in one calendar, with reminders in advance.",
+      lead: "A gift chosen on the last day rarely feels heartfelt. Add family and friends: the calendar shows upcoming birthdays and muchal ages, and downloads as a file that reminds you a week, two weeks or a month ahead.",
+      sections: [
+        {
+          heading: "How to use the calendar",
+          paragraphs: [
+            "Enter a name, say how the person is related to you, and add their date of birth. The list is sorted by upcoming birthdays, with their age, animal year and next muchal age beside each one. The data is stored only in your browser.",
+            "The “Download calendar” button creates an .ics file. Open it on your phone or computer: the birthdays will appear in Google Calendar, Apple Calendar or Outlook, repeating every year.",
+          ],
+        },
+        {
+          heading: "Which reminders you get",
+          paragraphs: [
+            "For each birthday there is a reminder at the time you choose (a week, two weeks or a month ahead) and another the day before. For the next muchal age there is a separate event with a reminder two months ahead: for such an anniversary it is worth choosing a special gift, and a printed book needs time.",
+          ],
+        },
+        {
+          heading: "What to give in good time",
+          paragraphs: ["With two or three weeks before a birthday, there is time both for a proper gift and for a book about the person: answer the questions, add photos, collect letters from relatives, and the book will be printed in time."],
+        },
+      ],
+      faq: [
+        ["Where are the birth dates saved?", "Only in your browser on this device. We do not receive them or send them anywhere. The calendar file is also created on your device, not on a server."],
+        ["How do I add the birthdays to my phone’s calendar?", "Tap “Download calendar (.ics)” and open the file. On an iPhone the events are added to Calendar, on Android to Google Calendar. The events repeat every year."],
+        ["How far ahead should I be reminded about a birthday?", "Two weeks: enough time to choose and order a gift. If you want to give a book, set the reminder a month ahead."],
+        ["How is muchal age counted?", "It is the age at which the year of your animal comes round again: 13, 25, 37, 49, 61 in the traditional count. The calculator shows the next one for each person."],
+      ],
+      cta: { title: "A gift you will have time to prepare", text: "A book about someone close: answers to questions, photos and letters from relatives. Writing is free, and the calendar will remind you when to start." },
     },
   },
 };
@@ -342,6 +413,42 @@ export const anketaIntervyu: ToolDef = {
         ["Yozuvlarni kitobga qanday aylantirish mumkin?", "Javoblarni kitob muharririga ko‘chiring: u savollarni taklif qiladi, suratlarni joylashtiradi va sahifalarni maketlaydi. Yozish bepul."],
       ],
       cta: { title: "Yozib olingan hikoyalarni kitobga jamlang", text: "Javoblar, eski suratlar va yaqinlarning xatlari — qattiq muqovada. Yozish bepul va o‘zingizga qulay sur’atda." },
+    },
+    en: {
+      label: "Interview questionnaire for loved ones",
+      h1: "Interview questionnaire:",
+      accent: "questions for grandma, mum or dad, ready to print",
+      metaTitle: "Interview questionnaire for grandma, mum or dad: printable questions",
+      metaDescription: "Choose who to talk to, tick the questions and print a questionnaire with space for answers. Write loved ones’ stories by hand, then turn them into a book.",
+      teaser: "Pick questions and print a questionnaire with room for answers, for a chat with grandma, mum or dad.",
+      lead: "Not every older relative has a smartphone or the habit of dictating memories. Choose your questions, print the questionnaire, chat over tea and write the answers by hand. Later you can turn them into a book.",
+      sections: [
+        {
+          heading: "How the questionnaire works",
+          paragraphs: [
+            "You choose who the conversation is with and tick the questions you like: take ten at random or build your own list. The questionnaire prints on A4 sheets: each question has three lines for the answer, and at the top there are fields for the date and the name of the person writing.",
+            "For grandmas and grandfathers the questions come from the question bank of the book about a life: childhood, family, work, traditions. For mum, dad, a loved one and a friend, the questions are written for a real conversation.",
+          ],
+        },
+        {
+          heading: "How to hold the conversation",
+          paragraphs: [
+            "It is best to talk over tea, without hurry, and to ask two or three questions per visit. Do not interrupt, ask for details (“And what happened next?”, “What did it look like?”) and write down the person’s words as close as possible to how they say them: that way the book will sound in their voice.",
+            "If an answer turns out long, do not copy it out neatly straight away. First note down the key words, then fill in the rest at home from memory or from a voice recording.",
+          ],
+        },
+        {
+          heading: "What to do with the finished answers",
+          paragraphs: ["The stories you have written down can be turned into a book: each answer becomes a page, and old photos are added to them. That way grandma’s stories stay in the family for a long time."],
+        },
+      ],
+      faq: [
+        ["What questions should I ask grandma or grandpa?", "Start with childhood: where they grew up, what the house was like, what they played. Then move on to family, work, traditions and the most memorable events. Choose “With grandma or grandpa” and tick the questions."],
+        ["Can I print the questionnaire?", "Yes. Tick the questions and press “Print questionnaire”: a print window opens with A4 sheets where every question has space for the answer."],
+        ["How many questions should I choose for one conversation?", "5–10 questions are enough for one visit: the person will not get tired and the answers will be fuller. Ask the rest next time."],
+        ["How do I turn the notes into a book?", "Copy the answers into the book editor: it suggests questions, places photos and lays out the pages. Writing is free."],
+      ],
+      cta: { title: "Turn the stories you wrote down into a book", text: "Answers, old photos and letters from relatives in a hardcover. Writing is free, at your own pace." },
     },
   },
 };

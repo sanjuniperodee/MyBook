@@ -119,5 +119,42 @@ export const voprosyMame: Article = {
       ],
       cta: { title: "Javoblarni kitobga aylantiring", text: "Bob bo‘yicha savollarga javoblarni yozing, suratlar qo‘shing va muqovani tanlang: biz haqiqiy kitob chop etamiz. Yozish bepul." },
     },
+    en: {
+      title: "Questions for Mum about life, childhood and family: what to ask while you can",
+      description: "A collection of questions to ask Mum: childhood, youth, family and life lessons. How to hold the conversation and keep the answers in a book.",
+      lead: "We rarely think about how little we know of Mum’s life before we were born. These questions will help you start a conversation, and the answers can be kept for yourself and for future generations.",
+      sections: [
+        {
+          heading: "Why ask Mum about her life",
+          paragraphs: [
+            "Mums’ stories often live in the memory of just one person. While we are busy with work and errands, details — how Mum chose her profession, what she dreamed of, what she feared — quietly leave with her generation.",
+            "A conversation built on questions is nothing like an interrogation. It brings you closer: Mum feels that her life is interesting, and you get to know a person you thought you had always known.",
+          ],
+        },
+        {
+          heading: "How to have the conversation",
+          list: [
+            "Choose a calm moment — over tea, not between chores.",
+            "Start with light topics: childhood, school, favourite dishes and songs.",
+            "Don’t interrupt or correct her — what matters is not how it “really” was, but how Mum remembers it.",
+            "Turn on the voice recorder on your phone: later you can write the answers down word for word.",
+            "Don’t try to get through all the questions at once — an evening or two a week is enough.",
+          ],
+        },
+        {
+          heading: "What to do with the answers",
+          paragraphs: [
+            "Spoken stories are easy to lose, while written ones can be kept. Choose the questions that got the warmest answers and turn them into a book: with chapters, photos and a cover.",
+            "You answer the same questions chapter by chapter, add photos and choose the design. You can see the proof before you order, and we will print the finished book in hardcover and deliver it across Kazakhstan.",
+          ],
+        },
+      ],
+      questions: { heading: "Questions for Mum, chapter by chapter", intro: "These are the questions from the “For Mum” book: you can ask them out loud or answer them yourself if you are writing a book about your mum." },
+      faq: [
+        ["How do I start if Mum doesn’t like talking about herself?", "Start with photos: ask her to tell you where and when a picture was taken. Stories around photos usually come more easily than direct questions."],
+        ["What if Mum doesn’t want to remember certain periods?", "Skip those topics. From the question bank you can choose only the ones she enjoys answering — only completed answers go into the book."],
+      ],
+      cta: { title: "Turn the answers into a book", text: "Write answers to the questions chapter by chapter, add photos and choose a cover — we will print a real book. Writing is free." },
+    },
   },
 };

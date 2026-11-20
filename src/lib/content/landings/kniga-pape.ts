@@ -61,5 +61,23 @@ export const knigaPape: Landing = {
         ["Bir nechta farzanddan yozsa bo‘ladimi?", "Bitta kitobga navbat bilan yozish yoki qolganlarni xat yozishga taklif qilish mumkin — xatlar alohida bob bo‘lib kiradi."],
       ],
     },
+    en: {
+      label: "A book gift for Dad",
+      h1: "A gift for Dad",
+      accent: "that he will keep for years",
+      metaTitle: "Gift Book for Dad — A Story Told by His Child",
+      metaDescription: "A personalised book for Dad: childhood by his side, his advice, strength and care. Answer the questions, add photos — we print a hardcover book.",
+      lead: "Dads rarely talk about feelings — and rarely hear about them. This book tells him how you remember him, what he taught you and what you are grateful to him for.",
+      why: [
+        { title: "Better than another gadget", text: "A gift that will never go out of date or break — and that he will show to his friends." },
+        { title: "About what matters, without awkwardness", text: "The questions help you write what is hard to say out loud." },
+        { title: "For a big birthday, from the whole family", text: "Gather letters from children, grandchildren and friends — as a separate chapter in the book." },
+      ],
+      cover: { title: "Dad, Thank You", names: "from Arnur" },
+      faq: [
+        ["Is it suitable for a milestone birthday?", "Yes, it is one of the most common occasions. Letters from loved ones turn the book into a gift from the whole family."],
+        ["Can several children write it together?", "You can take turns writing in one book, or invite the others to write letters — they will go in as a separate chapter."],
+      ],
+    },
   },
 };

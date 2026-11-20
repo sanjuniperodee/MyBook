@@ -65,5 +65,24 @@ export const podarokUchitelyuNaVypusknoj: Landing = {
         ["Bitiruv kechasiga ulguramizmi?", "Bitiruv kechasi sanasini ko‘rsating — buyurtmani qaysi kungacha berish kerakligini aytamiz. Elektron nusxani to‘lovdan keyin darrov olasiz, bosma nusxani bir necha ish kunida tayyorlaymiz."],
       ],
     },
+    en: {
+      label: "Gift for a teacher at graduation",
+      h1: "A graduation gift for a teacher —",
+      accent: "a book about school years from the leavers",
+      metaTitle: "What to give a teacher at graduation — a book from the leavers",
+      metaDescription: "A graduation gift for a form tutor or teacher: a book about school years, favourite lessons and the leavers’ thanks. Class letters, photos, hardcover.",
+      lead: "The last bell will ring in no time, and your teacher has become part of your school years. Say what matters most not in a hurried card but in a book of lessons, jokes and letters from the whole class.",
+      why: [
+        { title: "School years in one book", text: "The first lesson, your class, trips and pranks the teacher forgave or never found out about. The questions suggest what to recall, even if the words don’t come at first." },
+        { title: "A letter from every leaver", text: "Classmates write their own letters from their phones via a link, wherever they are. All the letters are gathered in the book as a chapter of their own." },
+        { title: "For a form tutor or a favourite subject", text: "You can give the book to a form tutor, the teacher of a favourite subject or the one who believed in you when you doubted yourself. The questions suit anyone." },
+      ],
+      cover: { title: "Thank You for School", names: "Class 11B" },
+      faq: [
+        ["Who counts as the author if the whole class writes?", "One person creates the book and answers the questions, the others send letters. At the start of the book you say who you are: which class of leavers and why you decided to give it."],
+        ["Can I make a book like this after graduation?", "Yes. The questions include chapters on how the teacher influenced your choice of path and what has proved useful in life — they work especially well years later."],
+        ["Will we make it in time for graduation?", "Enter the date of graduation and we’ll tell you the last day to place the order. You get the digital copy right after payment; the printed one takes several working days."],
+      ],
+    },
   },
 };

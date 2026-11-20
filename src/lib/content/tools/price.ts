@@ -101,5 +101,37 @@ export const skolkoStoitKniga: ToolDef = {
       ],
       cta: { title: "Yozishni boshlang — bu bepul", text: "Savollarga javob bering, surat qo‘shing va kitob maketini ko‘ring. Buyurtma berishga qaror qilgandagina to‘laysiz." },
     },
+    en: {
+      label: "How much a book costs",
+      h1: "How much a book costs:",
+      accent: "price calculator",
+      metaTitle: "How much a personal gift book costs — price calculator",
+      metaDescription: "Work out the price of a gift book: digital copy, hardcover, extra copies, gift wrapping and express printing. Current prices in tenge.",
+      teaser: "The total for a digital or printed book, extra copies and add-ons.",
+      lead: "Choose the format, the number of copies and any add-ons, and the calculator instantly shows the total in tenge. Writing the book is free: you pay when it is ready.",
+      sections: [
+        {
+          heading: "What the price is made of",
+          paragraphs: [
+            "The price depends on the format. The digital copy is a high-resolution PDF that reaches you right after payment. The hardcover book is a printed copy with a sewn block, and the PDF version comes as a gift.",
+            "If you need several copies — for a brother, a sister, a grandmother — each further printed book costs less than the first. You can add gift wrapping and express printing to a printed order.",
+          ],
+        },
+        {
+          heading: "Delivery and timing",
+          paragraphs: [
+            "Pick-up from our studio in Almaty is free. Courier delivery, delivery across Kazakhstan and to other countries are priced individually: the cost depends on the city and the carrier, so the manager quotes it separately and it is not included in the calculator’s total.",
+            "A printed book takes 5–7 working days to make, express printing 3–4. To find out the last day to order for a particular holiday, use the “In time for the holiday” calculator.",
+          ],
+        },
+      ],
+      faq: [
+        ["How much does a gift book cost?", "The price depends on the format: the digital copy costs less, the printed hardcover more. The calculator above shows the exact amounts for your order — its prices are always up to date."],
+        ["Do I have to pay to start writing the book?", "No. Writing the book, adding photos and collecting letters is free. You pay when the book is ready and you place the order."],
+        ["How much does an extra copy cost?", "Each further printed copy costs less than the first: you can see the price in the calculator as you increase the number of copies."],
+        ["Is delivery included in the price?", "No, the manager calculates delivery separately, by city and carrier. Pick-up from our studio in Almaty is free."],
+      ],
+      cta: { title: "Start writing — it’s free", text: "Answer the questions, add photos and look at the book’s layout. You only pay when you decide to order." },
+    },
   },
 };

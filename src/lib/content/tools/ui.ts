@@ -3,7 +3,7 @@
  * Русские формы после числа — ruPlural, в казахском форма одна.
  */
 import type { PublicLocale } from "@/i18n/config";
-import { ruPlural } from "@/i18n/plural";
+import { enCount, ruPlural } from "@/i18n/plural";
 import type { Animal } from "@/lib/tools/mushel";
 
 const n = (v: number) => v.toLocaleString("ru-RU");
@@ -524,6 +524,140 @@ const uz = {
   } satisfies QuizUi,
 };
 
+const enDays = (v: number) => enCount(v, "day", "days");
+const enYears = (v: number) => `${v} ${v === 1 ? "year" : "years"}`;
+
+const en = {
+  together: {
+    dateLabel: "The date we count from",
+    modeLabel: "What are we counting",
+    modeRelationship: "Relationship",
+    modeWedding: "Wedding",
+    empty: "Pick a date and the counter will show how long you have been together.",
+    future: "That date is still ahead. Pick a day that has already passed.",
+    daysTogether: (d) => (d === 1 ? "day together" : "days together"),
+    breakdown: (y, m, d) => [y ? enYears(y) : "", m ? `${m} ${m === 1 ? "month" : "months"}` : "", d || (!y && !m) ? enDays(d) : ""].filter(Boolean).join(", "),
+    extra: (w, h) => `That is ${enCount(w, "week", "weeks")} or ${enCount(h, "hour", "hours")}.`,
+    nextTitle: "Milestones",
+    done: "already passed",
+    today: "today!",
+    inDays: (d) => (d === 1 ? "tomorrow" : `in ${enDays(d)}`),
+    milestone: (kind, v) => (kind === "days" ? enDays(v) : `${enYears(v)} together`),
+    weddingNow: (y, name) => `${enYears(y)} of marriage — the ${name.toLowerCase()} anniversary.`,
+    weddingNext: (y, name) => `The next named anniversary is ${enYears(y)}: the ${name.toLowerCase()} anniversary.`,
+    copy: "Copy the result",
+    copied: "Copied",
+    shareText: (days, b) => `We have been together for ${enDays(days)} (${b}) 💛`,
+    tableTitle: "Wedding anniversary names by year",
+    tableLead: "The traditional names come from materials: the longer the marriage, the stronger and more precious the material.",
+    tableYear: (y) => enYears(y),
+    tableName: (name) => `${name} anniversary`,
+  } satisfies TogetherUi,
+  deadline: {
+    dateLabel: "When the gift is needed",
+    deliveryLabel: "How you will get the book",
+    delivery: { courier: "Courier within the city", post: "Within Kazakhstan (CDEK, Kazpost)", pickup: "Pick-up in Almaty", abroad: "To another country" },
+    empty: "Enter a date and we will tell you the last day to order a printed book.",
+    invalid: "We could not read that date. Please pick it in the calendar.",
+    past: "That date has already passed. Pick a day in the future.",
+    relaxed: (by, left) => `Plenty of time. Order the printed book by ${by} (${enDays(left)} left) and it will arrive on time.`,
+    soon: (by, left) => `Time to get started. You need to order the printed book by ${by} — ${enDays(left)} left.`,
+    urgent: (by, left) => `Urgent! The last day to order is ${by}${left === 0 ? " (today)" : ` (${enDays(left)} left)`}. Finish the book and place your order.`,
+    express: (by, price) => `Standard printing will no longer make it, but express printing will (3–4 working days${price ? `, +${price}` : ""}). Order by ${by}.`,
+    digital: "A printed book will no longer arrive by this date. You will get the digital copy right after payment and can give it on the day, then hand over the printed book a little later.",
+    detail: (d) => `${enDays(d)} until the holiday.`,
+    note: "The estimate covers production, delivery and one spare day to check the proof. It does not include the time it takes you to write the book.",
+    calendarTitle: "When to order for the main holidays",
+    calendarLead: "The upcoming holidays and the last day to order a printed book with courier delivery.",
+    holiday: {
+      valentine: "Valentine’s Day",
+      defender: "23 February",
+      march8: "8 March",
+      nauryz: "Nauryz",
+      defenderKz: "Defender of the Fatherland Day",
+      victory: "Victory Day",
+      knowledge: "Day of Knowledge",
+      teachers: "Teachers’ Day",
+      newyear: "New Year",
+    },
+    orderBy: "Order by",
+    daysLeft: (d) => (d === 0 ? "today" : `${enDays(d)} left`),
+    passed: "deadline passed",
+    tooLate: "digital copy only",
+  } satisfies DeadlineUi,
+  price: {
+    formatLabel: "Book format",
+    copiesLabel: "Number of copies",
+    extrasLabel: "Extras",
+    plan: { digital: "Digital", hardcover: "Hardcover", premium: "Premium" },
+    planNote: { digital: "PDF right after payment", hardcover: "Printed in a hardcover binding + PDF", premium: "Designer paper and a gift box" },
+    addon: { express: "Express printing", giftwrap: "Gift wrapping" },
+    addonNote: { express: "3–4 working days, ahead of the queue", giftwrap: "Kraft box, ribbon and a card" },
+    deliveryLabel: "Delivery",
+    deliveryNote: "Pick-up from our studio in Almaty is free. Courier delivery, delivery across Kazakhstan and to other countries are calculated individually — they depend on the city and the carrier. The manager will tell you the amount, and it is not included in the total.",
+    total: "Total",
+    breakdown: { book: "Book", extraCopies: (c) => `${enCount(c, "more copy", "more copies")}`, addons: "Extras" },
+    printedOnly: "Printed book only",
+    cta: "Create your book for free",
+  } satisfies PriceUi,
+  greeting: {
+    whoLabel: "Who is the greeting for",
+    occasionLabel: "Occasion",
+    toneLabel: "Mood",
+    nameLabel: "Name (optional)",
+    namePlaceholder: "For example, Aigul",
+    ageLabel: "Age (for a milestone birthday)",
+    lengthLabel: "Length",
+    recipient: { mama: "Mum", papa: "Dad", babushka: "Grandma", dedushka: "Grandpa", zhena: "Wife", muzh: "Husband", podruga: "Female friend", drug: "Male friend", uchitelnitsa: "Female teacher", uchitel: "Male teacher" },
+    occasion: { birthday: "Birthday", jubilee: "Milestone birthday", march8: "8 March", defender: "23 February", teachers: "Teachers’ Day", anniversary: "Wedding anniversary", newyear: "New Year" },
+    tone: { warm: "Warm", funny: "Funny" },
+    length: { full: "Full", short: "Short (for a message)" },
+    another: "Another version",
+    copy: "Copy",
+    copied: "Copied",
+    resultTitle: "Your greeting",
+    hint: "You can edit the text: add details only you know — the dog’s name, a favourite joke, a shared memory. That is the kind of greeting people remember.",
+  } satisfies GreetingUi,
+  cards: {
+    themeLabel: "Who are the questions about",
+    theme: { mom: "Mum", dad: "Dad", love: "Your partner", friend: "A friend", autobiography: "Grandma, grandpa, yourself", teacher: "A teacher" },
+    next: "Next question",
+    shuffle: "10 random questions",
+    card: (i, t) => `Question ${i} of ${t}`,
+    chapter: "Topic",
+    copyAll: "Copy the list",
+    copied: "Copied",
+    listTitle: "Your selection",
+    print: "Print",
+    tenTitle: "10 questions for a conversation",
+    hint: "Ask one at a time and write down the answers — on a voice recorder or in your notes. The best stories come from follow-ups like “And what happened next?”",
+  } satisfies CardsUi,
+  quiz: {
+    start: "Start the quiz",
+    intro: (c) => `${c} statements. Answer honestly: no one will see the result but you.`,
+    question: (_i, _t, know) => `Do you know ${know}?`,
+    answers: ["Yes, for sure", "More or less", "No"],
+    back: "Back",
+    resultTitle: "Your result",
+    percent: (p) => `${p}%`,
+    bands: ["Time to start talking", "You know a lot — there is still more to discover", "You are very close", "You know them like no one else"],
+    bandText: (b, w) =>
+      [
+        `You do not know much about ${w.about} yet — and that is not a reproach, it is an invitation. The most interesting part is still ahead: start with the questions below.`,
+        `You know a lot, but there are questions whose answers you have not heard yet. Start with the ones below.`,
+        `You are very close: you already know most of the stories. All that is left is to save them before they are forgotten.`,
+        `You know ${w.acc} like few people do. Now you can keep that knowledge for the whole family — in a book.`,
+      ][b],
+    askTitle: "What to ask",
+    askLead: "These are the questions you do not know the answers to — ask them out loud or write the answers into the book.",
+    perfect: "You know the answers to every question — then tell them in the book.",
+    retry: "Take it again",
+    copy: "Copy the result",
+    copied: "Copied",
+    shareText: (p, w) => `I know ${w.acc} ${p}%. Find out how well you know your loved ones.`,
+  } satisfies QuizUi,
+};
+
 interface ToolUi {
   together: TogetherUi;
   deadline: DeadlineUi;
@@ -533,7 +667,7 @@ interface ToolUi {
   quiz: QuizUi;
 }
 
-export const toolUi: Record<PublicLocale, ToolUi> = { ru, kk, uz };
+export const toolUi: Record<PublicLocale, ToolUi> = { ru, kk, uz, en };
 
 /** Тексты страниц инструментов: хлебные крошки, заголовки блоков и хаб /instrumenty. */
 export interface ToolsPageUi {
@@ -633,6 +767,31 @@ export const toolsPageUi: Record<PublicLocale, ToolsPageUi> = {
     homeTitle: "Kitob yaratuvchilar uchun bepul vositalar",
     homeNote: "Ro‘yxatdan o‘tmasdan: shajara, muchal yosh, yaqinlar kalendari, suratni tekshirish va boshqalar.",
     all: "Barcha vositalar",
+    appName: (label) => label,
+  },
+  en: {
+    home: "Home",
+    hub: "Tools",
+    free: "Free",
+    noSignup: "No sign-up",
+    create: "Create a book",
+    seeIdeas: "Gift ideas",
+    others: "Other tools",
+    guides: "Also read",
+    faqTitle: "Questions",
+    open: "Open",
+    hubMeta: {
+      title: "Free tools: shezhire online, mushel zhas, birthday calendar",
+      description: "A shezhire (family tree) up to the seventh generation, mushel zhas, a birthday calendar with reminders, a photo check for printing, an interview questionnaire and a book plan for a date. Free and with no sign-up.",
+    },
+    hubH1: "Free tools",
+    hubAccent: "for those who give gifts with meaning",
+    hubLead: "Build a shezhire up to the seventh generation, find your mushel zhas, set up a birthday calendar for your loved ones, check whether your photos are good enough to print, and print a questionnaire for a talk with your grandmother. Everything works in your browser, for free and with no sign-up.",
+    hubGuides: "Related articles",
+    homeEyebrow: "Free",
+    homeTitle: "Free tools for those making a book",
+    homeNote: "No sign-up: shezhire, mushel zhas, a calendar of loved ones, a photo check and more.",
+    all: "All tools",
     appName: (label) => label,
   },
 };
@@ -1130,7 +1289,137 @@ const usefulUz = {
   } satisfies ShezhireUi,
 };
 
-export const usefulUi: Record<PublicLocale, { photo: PhotoUi; pages: PagesUi; plan: PlanUi; shezhire: ShezhireUi }> = { ru: usefulRu, kk: usefulKk, uz: usefulUz };
+const usefulEn = {
+  photo: {
+    dropTitle: "Choose photos or drag them here",
+    dropHint: "You can add many at once. JPG, PNG, WebP.",
+    privacy: "Photos are not uploaded to a server: the check runs in your browser.",
+    formatLabel: "Book format",
+    format: { a5: "A5 (148×210 mm)", square: "Square (200×200 mm)" },
+    use: { bleed: "Full page (to the edge)", full: "Page with margins", half: "Half a page", grid: "In a grid of four", cover: "On the cover" },
+    verdict: { great: "sharp", ok: "acceptable", low: "blurry" },
+    headline: { great: "Good for printing", ok: "Will do, but not everywhere", low: "Too few pixels" },
+    size: (w, h, mpx, mb) => `${w}×${h} px · ${mpx} MP · ${mb} MB`,
+    maxSize: (s, o) => `You can print up to ${s} cm on the long side with no loss of sharpness, and up to ${o} cm at an acceptable quality.`,
+    messenger: "This looks like a copy from a messenger: photos are compressed when sent through WhatsApp or Telegram. Ask for the original to be sent as a “file” or “document”.",
+    unreadable: (name) => `Could not read “${name}”. If it is an iPhone photo in HEIC format, save it as a JPG.`,
+    summary: (t, a, l) => `Checked ${enCount(t, "photo", "photos")}: ${a} will work in any spot${l ? `, and ${l} only on a page with margins or smaller — for a full page or the cover, better to use the original` : ""}.`,
+    clear: "Clear",
+    tipsTitle: "How to get better photos",
+    tips: [
+      "Ask for the original: in WhatsApp and Telegram choose “File” or “Document”, not “Photo”.",
+      "For old paper prints, make a 600 dpi scan or take a picture in good light without a flash.",
+      "Photos from social networks are compressed: for the book, use originals from a phone or the cloud.",
+      "Do not enlarge photos in editors or compress them again: that does not add any pixels.",
+    ],
+  } satisfies PhotoUi,
+  pages: {
+    formatLabel: "Book format",
+    format: { a5: "A5 (148×210 mm)", square: "Square (200×200 mm)" },
+    answersLabel: "How many answers you will write",
+    lengthLabel: "Answer length",
+    length: { short: "Short, ~50 words", medium: "Medium, ~120 words", long: "Detailed, ~250 words" },
+    photosLabel: "How many photos in the answers",
+    lettersLabel: "Letters from loved ones",
+    pages: "pages in the book",
+    spine: (mm) => `spine thickness ~${mm} mm`,
+    words: (n) => `about ${n.toLocaleString("en-US")} words of text`,
+    state: { empty: "Nothing yet", thin: "A thin book", good: "A full book", thick: "A very big book" },
+    stateText: {
+      empty: "Add answers or photos and the calculator will show the length.",
+      thin: "There is little material: the book will be thin, and some pages will stay blank — they are added to reach the minimum length. Add more answers or photos.",
+      good: "A good length: the book will feel complete, with chapters and photos.",
+      thick: "A very big book. It is possible, but printing and delivery will be heavier — consider splitting it into two.",
+    },
+    addMore: (n) => `${enCount(n, "more answer", "more answers")} and the book will be complete (from 40 pages).`,
+    minNote: (n) => `The minimum printed length is ${n} pages, and after that it grows in multiples of four. Missing pages are printed blank.`,
+    note: "This is an estimate using the same calculation as the editor. The real length depends on the text and how the photos are placed. The price of the book does not depend on the number of pages.",
+    cta: "Start your book for free",
+  } satisfies PagesUi,
+  plan: {
+    dateLabel: "When the book is needed",
+    deliveryLabel: "How you will get the book",
+    delivery: { courier: "Courier within the city", post: "Within Kazakhstan (CDEK, Kazpost)", pickup: "Pick-up in Almaty", abroad: "To another country" },
+    goalLabel: "Which book we are making",
+    goal: { short: "Short — about 15 answers", normal: "Standard — about 30 answers", big: "Big — about 50 answers" },
+    lettersLabel: "I will collect letters from loved ones",
+    empty: "Enter a date and we will make a plan: what to do and when.",
+    invalid: "We could not read that date. Please pick it in the calendar.",
+    verdict: {
+      past: () => "That date has already passed. Pick a day in the future.",
+      calm: (p) => `Plenty of time: ${enCount(p, "answer", "answers")} a day will be enough. The book will be ready without a rush.`,
+      tight: (p) => `You will make it, but with no spare time: you need to write about ${enCount(p, "answer", "answers")} a day.`,
+      hard: (p) => `It is hard: you will need ${enCount(p, "answer", "answers")} a day. It is better to choose a short book or ask for help — your relatives can answer the questions through a link.`,
+      express: () => "Standard printing will not make it, but express printing will (3–4 working days, for an extra fee). The plan below is built around it.",
+      digital: () => "A printed book will not arrive by this date. You will get the digital copy right away — give it on the day, and hand over the printed book later.",
+    },
+    stepsTitle: "Plan by date",
+    step: {
+      start: { title: "Start the book", text: () => "Choose a theme and a cover and answer the first questions." },
+      letters: { title: "Send out requests for letters", text: () => "Send your loved ones the link: a letter is written from a phone, no sign-up needed." },
+      photos: { title: "Collect photos", text: () => "Upload the original photos and place them in the chapters." },
+      answers: { title: "Finish the answers", text: (p) => `Write about ${enCount(p, "answer", "answers")} a day — you can dictate by voice.` },
+      check: { title: "Check the proof", text: () => "Flick through the PDF proof of all pages and check the text and photos." },
+      order: { title: "Place the order — the last day", text: () => "Later than this, the printed book will not arrive in time." },
+      target: { title: "Gift day", text: () => "The book is in your hands." },
+    },
+    daysLeft: (d) => (d === 0 ? "today" : d === 1 ? "tomorrow" : `in ${enCount(d, "day", "days")}`),
+    ics: "Download to your calendar (.ics)",
+    copy: "Copy the plan",
+    copied: "Copied",
+    icsName: "book-plan.ics",
+    icsPrefix: "Book",
+    copyHeader: (d) => `Book plan for ${d}:`,
+  } satisfies PlanUi,
+  shezhire: {
+    ownerLabel: "Whose family tree",
+    ownerPlaceholder: "Your name",
+    clanLabel: "Clan and zhuz (optional)",
+    clanPlaceholder: "For example, Argyn, Middle Zhuz",
+    lineLabel: "Line",
+    line: { father: "Father’s line (zheti ata)", mother: "Mother’s line (nagashy)" },
+    generation: (i, line) => {
+      const father = ["Father", "Grandfather (father’s father)", "Great-grandfather", "Great-great-grandfather", "5th generation", "6th generation", "7th generation"];
+      const mother = ["Mother", "Grandfather on the mother’s side", "Great-grandfather on the mother’s side", "Great-great-grandfather on the mother’s side", "5th generation", "6th generation", "7th generation"];
+      return (line === "father" ? father : mother)[i];
+    },
+    nameLabel: "Name",
+    yearsLabel: "Years of life",
+    placeLabel: "Where from",
+    yearsPlaceholder: "1930–2001",
+    progress: (n, t) => `Filled in ${n} of ${t}`,
+    chain: (n) => (n >= 7 ? "You know all seven generations — that is zheti ata." : `Generations known in a row: ${n}. You can learn the rest from older relatives.`),
+    askTitle: "Whom to ask",
+    ask: (i, line) =>
+      line === "mother"
+        ? ["Ask your mum and her brothers and sisters.", "Ask your mum’s parents and older relatives on her side.", "Ask your mum’s older relatives: they remember the great-grandfathers.", "Look in family documents and archives, and ask the aksakals (elders) of the clan.", "A clan shezhire or the district archive will help here.", "Ask the elders of your mum’s clan.", "The seventh generation is usually known only from the clan shezhire."][i]
+        : ["Ask your dad and his brothers.", "Ask your grandfather and people of his age.", "Ask your older relatives on your father’s side: they remember the great-grandfathers.", "Look in family documents and ask the aksakals (elders) of the clan.", "A clan shezhire or the district archive will help here.", "Ask the elders of the clan: many know the family line by heart.", "The seventh generation is usually known only from the clan shezhire."][i],
+    treeTitle: "Your shezhire",
+    treeEmpty: "Fill in the names on the left and the family tree will appear here.",
+    unknown: "not known yet",
+    print: "Print",
+    copy: "Copy as text",
+    copied: "Copied",
+    clear: "Clear everything",
+    clearConfirm: "Erase all the names you have entered?",
+    saved: "Your data is stored only in this browser.",
+    printTitle: (o) => (o ? `Shezhire: ${o}` : "Shezhire"),
+    printLine: { father: "Father’s line — zheti ata", mother: "Mother’s line — nagashy" },
+    clanPrefix: "Clan",
+    you: "You",
+    privacy: "Everything you enter stays in your browser and is not sent anywhere.",
+    details: "Add years of life and place",
+    pasteLabel: "Or paste a list of names",
+    pastePlaceholder: "Serik, Kali, Omar, Tolegen",
+    pasteApply: "Fill in from the list",
+    download: "Download as an image",
+    posterTitle: "SHEZHIRE",
+    posterTagline: "zheti ata",
+    fileName: "shezhire.png",
+  } satisfies ShezhireUi,
+};
+
+export const usefulUi: Record<PublicLocale, { photo: PhotoUi; pages: PagesUi; plan: PlanUi; shezhire: ShezhireUi }> = { ru: usefulRu, kk: usefulKk, uz: usefulUz, en: usefulEn };
 
 /* ───────── Мүшел жас, семейный календарь, анкета для интервью ───────── */
 
@@ -1437,4 +1726,82 @@ const usefulUz2 = {
   } satisfies AnketaUi,
 };
 
-export const usefulUi2: Record<PublicLocale, { mushel: MushelUi; family: FamilyUi; anketa: AnketaUi }> = { ru: usefulRu2, kk: usefulKk2, uz: usefulUz2 };
+const usefulEn2 = {
+  mushel: {
+    birthLabel: "Date of birth",
+    empty: "Enter a date of birth and we will show the animal of the year and the nearest mushel zhas.",
+    future: "That date is still ahead. Pick one in the past.",
+    animal: { rat: "Rat (tyshqan)", ox: "Ox (siyr)", tiger: "Tiger (barys)", rabbit: "Rabbit (qoyan)", dragon: "Dragon (ulu)", snake: "Snake (zhylan)", horse: "Horse (zhylqy)", goat: "Goat (qoy)", monkey: "Monkey (meshin)", rooster: "Rooster (tauyq)", dog: "Dog (it)", pig: "Pig (dongyz)" },
+    yourAnimal: "Year of birth",
+    age: (f, t) => `Now ${enYears(f)} old (${t} by the traditional count).`,
+    currentMushel: (t) => `This year is a mushel zhas: age ${t} by the traditional count. Time to celebrate!`,
+    nextMushel: (y, t, n) => `The nearest mushel zhas is age ${t}, in ${y} (${n === 0 ? "this year" : `in ${enYears(n)}`}).`,
+    noMore: "All seven mushel cycles have already passed.",
+    tableTitle: "All mushel zhas",
+    round: (n, t) => `Mushel ${n} — age ${t}`,
+    roundMeta: (y, f) => `${y}, completed years — ${f}`,
+    state: { past: "already passed", current: "this year", future: "ahead" },
+    note: "Mushel zhas comes every 12 years, when the year of your animal returns. In the traditional count the year of birth is the first one, so the mushel ages are 13, 25, 37, 49, 61, 73 and 85 (completed years: 12, 24, 36…). The calendar year of birth is used.",
+    copy: "Copy the result",
+    copied: "Copied",
+    shareText: (a, n) => `My year is ${a}. ${n}`,
+  } satisfies MushelUi,
+  family: {
+    nameLabel: "Name",
+    namePlaceholder: "For example, Gulnara",
+    relationLabel: "Relationship",
+    relation: { "": "Not specified", mom: "Mum", dad: "Dad", grandma: "Grandma", grandpa: "Grandpa", spouse: "Spouse", partner: "Partner", sister: "Sister", brother: "Brother", child: "Child", friend: "Friend", other: "Other" },
+    birthLabel: "Date of birth",
+    add: "Add",
+    remove: "Remove",
+    empty: "Add your loved ones to get a calendar of birthdays and mushel with reminders.",
+    full: "The list limit has been reached. Remove someone to add a new person.",
+    cols: { who: "Who", age: "Age", birthday: "Next birthday", animal: "Year", mushel: "Mushel zhas" },
+    turning: (a) => `turns ${a}`,
+    inDays: (d) => (d === 0 ? "today!" : d === 1 ? "tomorrow" : `in ${enDays(d)}`),
+    mushelCell: (y, t, d) => {
+      const years = Math.round(d / 365);
+      return `age ${t}, ${y} (${d === 0 ? "today" : d >= 365 ? `in ${enYears(years)}` : `in ${enDays(d)}`})`;
+    },
+    noMushel: "—",
+    leadLabel: "Remind in advance",
+    lead: { "7": "a week before", "14": "2 weeks before", "30": "a month before" },
+    download: "Download the calendar (.ics)",
+    icsName: "birthdays.ics",
+    saved: "The list is stored only in this browser.",
+    clear: "Clear the list",
+    clearConfirm: "Remove everyone from the list?",
+    ics: {
+      calendarName: "Birthdays of loved ones",
+      birthday: (n, t) => `Birthday: ${n} (${t})`,
+      birthdayDescription: (n, a) => `${n}. Year of birth — ${a}. It is better to choose a gift in advance.`,
+      alarmWeeks: (n) => `A birthday is coming up: ${n}. Time to choose a gift.`,
+      alarmDay: (n) => `Tomorrow is a birthday: ${n}.`,
+      mushel: (n, a) => `Mushel zhas: ${n} (${a})`,
+      mushelAlarm: (n, a) => `Mushel zhas is coming up (${a}): ${n}. Prepare a special gift.`,
+    },
+    privacy: "Dates are not sent to a server: the list is stored in your browser, and the calendar file is created on your device.",
+  } satisfies FamilyUi,
+  anketa: {
+    themeLabel: "Who you are talking with",
+    theme: { mom: "With Mum", dad: "With Dad", love: "With a loved one", friend: "With a friend", autobiography: "With Grandma or Grandpa" },
+    nameLabel: "Name of the person you are talking with",
+    namePlaceholder: "For example, Grandma Aisha",
+    pickTitle: (c, t) => `Selected ${c} of ${t}`,
+    random: "10 random",
+    all: "Select all",
+    none: "Clear selection",
+    print: "Print the questionnaire",
+    copy: "Copy the list",
+    copied: "Copied",
+    sheetTitle: (n) => (n ? `Questions for a conversation: ${n}` : "Questions for a conversation"),
+    sheetDate: "Date of the conversation",
+    sheetBy: "Recorded by",
+    sheetHint: "Ask one question at a time, do not interrupt, and follow up: “And what happened next?” You can write the answers here or record them on a voice recorder.",
+    tipsTitle: "How to hold the conversation",
+    tips: ["Choose a calm time and invite them for tea: the conversation should not feel like an interrogation.", "Begin with easy questions about childhood, and move on to the harder ones once the person has opened up.", "Do not rush the pauses: the most valuable words often come after silence.", "Turn on the voice recorder on your phone and ask for permission. The recording will help when you write the book."],
+    nothing: "Select at least one question.",
+  } satisfies AnketaUi,
+};
+
+export const usefulUi2: Record<PublicLocale, { mushel: MushelUi; family: FamilyUi; anketa: AnketaUi }> = { ru: usefulRu2, kk: usefulKk2, uz: usefulUz2, en: usefulEn2 };

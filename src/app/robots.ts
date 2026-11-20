@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 const TRACKING_PARAMS = ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term", "lnk", "ref", "theme", "yclid", "gclid", "fbclid"];
 
 export default function robots(): MetadataRoute.Robots {
-  const both = (paths: string[]) => paths.flatMap((p) => [p, `/kk${p}`, `/uz${p}`]);
+  const both = (paths: string[]) => paths.flatMap((p) => [p, `/kk${p}`, `/uz${p}`, `/en${p}`]);
   return {
     rules: [
       {

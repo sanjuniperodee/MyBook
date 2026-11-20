@@ -62,5 +62,23 @@ export const podarokNaYubilejMame: Landing = {
         ["Yubiley juda yaqin bo‘lsa-chi?", "Elektron kitobni to‘lovdan keyin darhol olasiz — uni bayramda ko‘rsatish mumkin. «Premium» tarifida bosma nusxani 3–4 ish kunida tayyorlaymiz."],
       ],
     },
+    en: {
+      label: "A jubilee gift for Mum",
+      h1: "A milestone birthday gift for Mum:",
+      accent: "a book about her life",
+      metaTitle: "What to give Mum for a milestone birthday: a book from the family",
+      metaDescription: "A gift for Mum’s 50th, 55th or 60th birthday: a book of thanks from her children and grandchildren. Memories, letters, photos, hardcover.",
+      lead: "A milestone birthday is a chance to say what we usually put off. Gather memories of Mum, letters from her children and grandchildren and old photographs into one book that she can read again and again.",
+      why: [
+        { title: "One gift from the whole family", text: "Brothers, sisters and grandchildren write letters through a link, with no sign-up. Their words go into the book as a separate chapter." },
+        { title: "Old photographs, back in use", text: "Photograph the family pictures with your phone and they become part of the book, never again lost in a box." },
+        { title: "Be in time for the celebration", text: "We will tell you in advance the last day to order. Production takes 5–7 working days, Premium 3–4." },
+      ],
+      cover: { title: "To Our Mum", names: "From her children and grandchildren" },
+      faq: [
+        ["Can I collect letters from relatives in another city?", "Yes. Send them the link: a letter can be written from a phone with no sign-up. The letters appear in the book as a separate chapter, and you check them before printing."],
+        ["What if the birthday is very soon?", "You get the digital book right after payment, so you can show it at the party. On the Premium plan we make the printed copy in 3–4 working days."],
+      ],
+    },
   },
 };

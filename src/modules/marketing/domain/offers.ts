@@ -30,4 +30,9 @@ export const offerTexts = {
     book: (title: string, url: string) => `«${title}» kitobingizni shu yerda davom ettirishingiz mumkin: ${url}`,
     discount: (p: number, code: string, until: string, url: string) => `Sizga shaxsiy ${p}% chegirma — ${code} promokodi, amal qilish muddati — ${until}. Havola orqali chegirma o‘zi qo‘shiladi: ${url}`,
   },
+  en: {
+    order: (n: number, url: string) => `Your order №${n}: ${url}\nThere you can pay and follow its status.`,
+    book: (title: string, url: string) => `You can continue your book “${title}” here: ${url}`,
+    discount: (p: number, code: string, until: string, url: string) => `A personal ${p}% discount for you — promo code ${code}, valid until ${until}. The discount applies automatically via the link: ${url}`,
+  },
 } satisfies Record<Locale, unknown>;

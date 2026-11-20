@@ -119,5 +119,42 @@ export const voprosyDrugu: Article = {
       ],
       cta: { title: "Javoblarni kitobga aylantiring", text: "Do‘stligingiz tarixini yozing, birgalikdagi suratlarni qo‘shing va muqova tanlang: biz haqiqiy kitob chop etamiz." },
     },
+    en: {
+      title: "Questions for a friend: how to get to know each other better",
+      description: "Questions for a friend: how you met, adventures, inside jokes and gratitude. How to start the conversation and keep the answers in a book about your friendship.",
+      lead: "With friends we laugh and support each other, yet sometimes we go years without talking about what matters. Questions help you remember how it all began and say “thank you” without making a speech.",
+      sections: [
+        {
+          heading: "Why ask a close friend questions",
+          paragraphs: [
+            "Over time friends become like family, and it seems we know everything about them. But the warmest conversations often start with a simple question: “Do you remember how we met?”",
+            "Questions about friendship remind you how far you have come together and bring back the warmth that gets lost in the daily rush.",
+          ],
+        },
+        {
+          heading: "How to have the conversation",
+          list: [
+            "Pick an occasion: a coffee meet-up, a trip, your friend’s birthday.",
+            "Start with memories — funny stories bring people closer than anything else.",
+            "Add some humour: a conversation between friends shouldn’t be too serious.",
+            "Shared photos from your archive will help you remember what you’d forgotten.",
+            "Say “thank you” out loud — friends hear it less often than close relatives do.",
+          ],
+        },
+        {
+          heading: "How to keep your story",
+          paragraphs: [
+            "Friendship is a story worth a book too. Write down the answers, add your shared photos, and you get a gift your friend will reread years from now.",
+            "A book suits a birthday, a graduation, a farewell before someone moves away, or simply a sign that you care.",
+          ],
+        },
+      ],
+      questions: { heading: "Questions for a friend, chapter by chapter", intro: "These are the questions from the “For a Friend” book: you can ask them in conversation or answer them in writing for a gift book." },
+      faq: [
+        ["Does this work for a male friend?", "Yes. The questions are neutral, and the wording adapts to the person you are writing for. You choose the tone of the book yourself, from playful to warm."],
+        ["Can I collect letters from other friends?", "Yes. Invite your mutual friends with a link — their letters will go into the book as a separate chapter."],
+      ],
+      cta: { title: "Turn the answers into a book", text: "Write the story of your friendship, add your shared photos and choose a cover — we will print a real book." },
+    },
   },
 };

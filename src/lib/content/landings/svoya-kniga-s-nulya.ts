@@ -61,5 +61,23 @@ export const svoyaKnigaSNulya: Landing = {
         ["Kitob kimga atalganini ko‘rsatish kerakmi?", "Yo‘q, bu shart emas. Agar kitob aniq hech kimga atalmagan bo‘lsa, maydonni bo‘sh qoldirish mumkin."],
       ],
     },
+    en: {
+      label: "Your own book from a blank page",
+      h1: "Your own book —",
+      accent: "your chapters, your order",
+      metaTitle: "Write your own book from scratch — a chapter and section editor",
+      metaDescription: "A book with no ready-made questions: you create the chapters and sections, rearrange them and write in your own order. Photos, book layout, hardcover.",
+      lead: "A memoir, a family chronicle, a collection of stories or a travel diary: invent your chapters, arrange sections within them and write at your own pace. We take care of the layout and printing.",
+      why: [
+        { title: "The structure is yours", text: "You name the chapters and sections, and you can rearrange them at any moment — even after everything is written." },
+        { title: "Notes to yourself", text: "You can leave a note on a section about what you want to tell. Only you see it; it doesn’t go into the book." },
+        { title: "Printed like a real book", text: "Chapter epigraphs, a contents page, photos within the text and a hardcover. Empty chapters are not printed." },
+      ],
+      cover: { title: "My Book", names: "Dana Serikova" },
+      faq: [
+        ["How does a book without questions work?", "You create the first chapter, add sections to it and write. Each section has its own heading and text. You can add and rearrange chapters and sections whenever you like."],
+        ["Do I have to say who the book is for?", "No, it’s optional. If the book isn’t for anyone in particular, you can leave the field blank."],
+      ],
+    },
   },
 };

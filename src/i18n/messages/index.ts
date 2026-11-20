@@ -2,6 +2,7 @@ import type { Locale } from "../config";
 import { ru } from "./ru";
 import { kk } from "./kk";
 import { uz } from "./uz";
+import { en } from "./en";
 
 /** Структура словаря задаётся русским; казахский и узбекский обязаны повторить её целиком — пропуск не скомпилируется. */
 export type Messages = typeof ru;
@@ -12,7 +13,7 @@ export type Messages = typeof ru;
  */
 export type ClientMessages = Omit<Messages, "mail" | "legal" | "api" | "access" | "answerFile">;
 
-const dictionaries: Record<Locale, Messages> = { ru, kk, uz };
+const dictionaries: Record<Locale, Messages> = { ru, kk, uz, en };
 
 export function messagesFor(locale: Locale): Messages {
   return dictionaries[locale];

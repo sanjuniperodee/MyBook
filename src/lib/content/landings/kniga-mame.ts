@@ -61,5 +61,23 @@ export const knigaMame: Landing = {
         ["Eski suratlarni qo‘shsa bo‘ladimi?", "Ha, ularni skanerlang yoki telefonda suratga oling. Bosma uchun sifati yetmasa, oldindan ogohlantiramiz."],
       ],
     },
+    en: {
+      label: "A book gift for Mum",
+      h1: "A book for Mum",
+      accent: "that only you can write",
+      metaTitle: "Gift Book for Mum — A Personalised Book of Thanks",
+      metaDescription: "Give Mum a book about her: childhood memories, her lessons and words of thanks. Questions, photos and hardcover printing. Delivery across Kazakhstan.",
+      lead: "Childhood memories, Mum’s habits and sayings, lessons you only understood as an adult — a book where every page says “thank you”.",
+      why: [
+        { title: "Mums cry happy tears", text: "It is no exaggeration: a book about herself, written by her child, is impossible to read calmly." },
+        { title: "Easy to start", text: "81 questions with prompts: from “how do you remember Mum in your childhood” to “what did she teach you”." },
+        { title: "Together with your brothers and sisters", text: "Send the link to your family — their letters will go into the book as a separate chapter." },
+      ],
+      cover: { title: "Mum, This Is for You", names: "Your Aigerim" },
+      faq: [
+        ["Will it arrive in time for 8 March or her birthday?", "Tell us the date of the occasion and we will tell you the last day to order. Production takes 5–7 working days, or 3–4 with Premium."],
+        ["Can I add old photos?", "Yes, scan them or photograph them with your phone. We will let you know if the resolution is too low for printing."],
+      ],
+    },
   },
 };

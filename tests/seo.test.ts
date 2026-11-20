@@ -156,7 +156,7 @@ describe("sitemap", () => {
   });
 
   it("у каждой записи — картинка для поиска по картинкам (та же, что для соцсетей), у статей — дата", () => {
-    for (const e of entries) expect(e.images).toEqual([expect.stringMatching(/\/api\/og\?l=(ru|kk|uz)/)]);
+    for (const e of entries) expect(e.images).toEqual([expect.stringMatching(/\/api\/og\?l=(ru|kk|uz|en)/)]);
     const landing = entries.find((e) => e.url === absoluteUrl(`/kniga/${landings[0].slug}`, "kk"));
     expect(landing?.images?.[0]).toContain(`s=${landings[0].slug}`);
     expect(landing?.images?.[0]).toContain("l=kk");
@@ -164,7 +164,7 @@ describe("sitemap", () => {
   });
 
   it("каждая запись ссылается на все версии и x-default", () => {
-    for (const e of entries) expect(Object.keys(e.alternates?.languages ?? {}).sort()).toEqual(["kk", "ru", "uz", "x-default"]);
+    for (const e of entries) expect(Object.keys(e.alternates?.languages ?? {}).sort()).toEqual(["en", "kk", "ru", "uz", "x-default"]);
   });
 });
 

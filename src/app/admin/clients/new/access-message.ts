@@ -27,6 +27,7 @@ export function staffLogin(login: string, full: boolean) {
 /** Логин в тексте клиенту при скрытых контактах: клиент знает свой номер, почту узнает по маске. */
 function hiddenLogin(login: string, locale: Locale) {
   if (login.includes("@")) return maskEmail(login);
+  if (locale === "en") return "the phone number you gave when ordering";
   if (locale === "uz") return "buyurtma berishda ko‘rsatgan telefon raqamingiz";
   return locale === "kk" ? "тапсырыс кезінде көрсеткен телефон нөміріңіз" : "номер телефона, который вы указали при заказе";
 }
@@ -35,6 +36,8 @@ function hiddenLogin(login: string, locale: Locale) {
 export function accessMessage({ name, login, password, loginUrl, locale, hideLogin }: AccessMessageInput): string {
   const who = name.trim();
   const shown = hideLogin ? hiddenLogin(login, locale) : displayLogin(login);
+  if (locale === "en")
+    return [`Hello${who ? `, ${who}` : ""}! Your MyBooks account details:`, `Site: ${loginUrl}`, `Login: ${shown}`, `Password: ${password}`, "In your account you will see your book and your order. You can change the password in your profile."].join("\n");
   if (locale === "uz")
     return [`Assalomu alaykum${who ? `, ${who}` : ""}! MyBooks shaxsiy kabinetiga kirish ma’lumotlari:`, `Sayt: ${loginUrl}`, `Login: ${shown}`, `Parol: ${password}`, "Kabinetda kitobingiz va buyurtmangizni ko‘rasiz. Parolni profilda o‘zgartirish mumkin."].join("\n");
   if (locale === "kk")

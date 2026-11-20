@@ -67,5 +67,24 @@ export const podarokDedushke: Landing = {
         ["Bayram hali uzoq bo‘lsa yoki hikoya yozilmagan bo‘lsa, qanday sovg‘a qilsa bo‘ladi?", "Sertifikat hadya qiling: bobo «Tarjimai hol»ni o‘zi tanlaydi. Tayyor kitobning elektron nusxasini to‘lovdan keyin darhol olasiz, bosma nusxasini bir necha ish kunida tayyorlaymiz."],
       ],
     },
+    en: {
+      label: "A gift for Grandpa",
+      h1: "A gift for Grandpa —",
+      accent: "the book of his life for grandchildren and great-grandchildren",
+      metaTitle: "What to Give Grandpa — A Book About His Life and Family Roots",
+      metaDescription: "A gift for a grandpa with stories to tell: his childhood, work, family and roots. You write down his stories, we lay out and print the book.",
+      lead: "Grandpa has a lifetime of work, roads and family behind him, and a whole era that his grandchildren know only from his stories. Ask him questions, write down the answers — and these stories will stay in the family not just as a memory, but on paper.",
+      why: [
+        { title: "About his work and his roots", text: "Questions about childhood, service, work, family and ancestors — you can build a family tree back seven generations. Grandpa doesn’t need to “write”: he just has to talk." },
+        { title: "His words, your help", text: "Grandpa will be the author of the book, and your name, as the one who wrote it down, goes on the reverse of the title page. Keep his favourite expressions — the book will speak in his voice." },
+        { title: "Photos, documents, family letters", text: "Photograph old pictures and documents with your phone, and children and grandchildren write him letters through a link — we will gather them in a separate chapter." },
+      ],
+      cover: { title: "My Life and My Roots", names: "Yerzhan Nurlanov" },
+      faq: [
+        ["Grandpa says he has nothing to tell. Where do we start?", "Start simple: where he was born, what he was called at home, what he wanted to be as a boy. The questions go chapter by chapter, and after the first few answers Grandpa usually remembers the rest himself."],
+        ["Can we put together a family tree?", "The book has a chapter called “My roots”: questions about the clan, ancestors and family legends, including the seven generations. Answer with what Grandpa and the older relatives know."],
+        ["How do I give it if the occasion is far off or the story isn’t written yet?", "Give a gift certificate: Grandpa will choose “Autobiography” himself. You get the digital copy of the finished book right after payment, and the printed copy takes a few working days."],
+      ],
+    },
   },
 };

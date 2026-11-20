@@ -65,5 +65,24 @@ export const podarokPodruge: Landing = {
         ["Tug‘ilgan kun yaqin bo‘lsa ham kitob sovg‘a qilsa bo‘ladimi?", "Ha. Elektron nusxa to‘lovdan keyin darrov tayyor, shuning uchun tug‘ilgan kunda uni topshirasiz, bosma nusxani esa sal keyinroq sovg‘a qilasiz."],
       ],
     },
+    en: {
+      label: "Gift for a friend’s birthday",
+      h1: "A birthday gift for your friend —",
+      accent: "a book about why you love her",
+      metaTitle: "A birthday gift for your best friend — a “why I love you” book",
+      metaDescription: "A birthday gift you can’t buy in a shop: a book of your stories, why you love her and letters from mutual friends. Printing and delivery in Kazakhstan.",
+      lead: "She’ll get make-up and gift cards without you. But a book where you remember how you met, what made you laugh until you cried and why you love her can only come from you.",
+      why: [
+        { title: "Questions instead of clichés", text: "First impressions, her catchphrases, the habit that makes you laugh — the prompts make it easy to remember it all. What you get isn’t a card but your shared story." },
+        { title: "Chip in with words, not money", text: "Your mutual friends write letters from their phones via a link, in any city and with no sign-up. Their words go into the book as a chapter of their own." },
+        { title: "In time for her birthday", text: "You get the digital book right after payment, so you can show it at the celebration even if the printed copy is still being made. You’ll see the proof of the whole book before you pay." },
+      ],
+      cover: { title: "To My Best Friend", names: "Aigerim & Dana" },
+      faq: [
+        ["Can I make a book if we’ve only been friends for a couple of years?", "Yes. It’s not the years that matter, it’s the stories. Questions about adventures, in-jokes and support will suggest what to write about. 15–20 answers with photos already make a proper book."],
+        ["Why is this better than a card or a social media post?", "She can hold it, flick through it and reread it in ten years. It has your photos, your shared jokes and letters from other friends, not just a one-paragraph greeting."],
+        ["Can I give the book if her birthday is coming up soon?", "Yes. The digital copy is ready right after payment, so you can hand it over on her birthday and give the printed copy a little later."],
+      ],
+    },
   },
 };

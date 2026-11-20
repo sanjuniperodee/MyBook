@@ -37,7 +37,7 @@ describe("setClientLocaleAction", () => {
   });
 
   it("не тот язык или чужой клиент — без изменений; мусор вместо id — ошибка", async () => {
-    expect(await setClientLocaleAction(ID, "en")).toEqual({ ok: false, message: "Выберите язык" });
+    expect(await setClientLocaleAction(ID, "fr")).toEqual({ ok: false, message: "Выберите язык" });
     expect(await setClientLocaleAction("0b0b0b0b-0000-4000-8000-000000000002", "kk")).toEqual({ ok: false, message: "Клиент не найден" });
     w.visible = false;
     await expect(setClientLocaleAction(ID, "kk")).rejects.toThrow("forbidden");

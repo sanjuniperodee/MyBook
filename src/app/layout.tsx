@@ -31,7 +31,7 @@ export async function generateMetadata(): Promise<Metadata> {
     openGraph: {
       type: "website",
       locale: localeMeta[locale].og,
-      alternateLocale: (["ru", "kk", "uz"] as const).filter((l) => l !== locale).map((l) => localeMeta[l].og),
+      alternateLocale: (["ru", "kk", "uz", "en"] as const).filter((l) => l !== locale).map((l) => localeMeta[l].og),
       siteName: site.name,
       title: `${site.name} — ${m.tagline}`,
       description: m.description,
@@ -56,7 +56,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <script dangerouslySetInnerHTML={{ __html: SHOP_THEME_SCRIPT }} />
         <ShopThemeSync />
         {/* Открыто как установленное приложение (иконка на экране «Домой») — сразу в CRM, а не на лендинг; без входа CRM сама отправит на экран входа. */}
-        <script dangerouslySetInnerHTML={{ __html: `try{if((matchMedia("(display-mode: standalone)").matches||navigator.standalone===true)&&(location.pathname==="/"||location.pathname==="/kk"||location.pathname==="/uz"))location.replace("/admin")}catch(e){}` }} />
+        <script dangerouslySetInnerHTML={{ __html: `try{if((matchMedia("(display-mode: standalone)").matches||navigator.standalone===true)&&(location.pathname==="/"||location.pathname==="/kk"||location.pathname==="/uz"||location.pathname==="/en"))location.replace("/admin")}catch(e){}` }} />
         <CatalogSync overrides={getCatalogOverrides()} flags={getSiteFlags()} seller={getSellerOverrides()} />
         <I18nProvider locale={locale}>
           {children}

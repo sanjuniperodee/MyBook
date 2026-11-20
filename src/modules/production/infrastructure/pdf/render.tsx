@@ -273,6 +273,7 @@ export async function renderInterior(bundle: BookBundle, mode: RenderMode, repor
         content={content}
         options={{ bleedMm: bleed, images: draftImages, flow, rowHeights, dropColumns, tocPages, onLayout: (l) => (layout = l), onChapterPage: (k, p) => (captured[k] = p) }}
       />,
+      bundle.book.language,
     );
     tocPages = withSections(layout, captured);
     if (!layout) break;
@@ -298,6 +299,7 @@ export async function renderInterior(bundle: BookBundle, mode: RenderMode, repor
         content={content}
         options={{ bleedMm: bleed, images, tocPages, flow, links: mode === "reading", onLayout: (l) => (final = l), onChapterPage: (k, p) => (captured[k] = p) }}
       />,
+      bundle.book.language,
     );
     chapters = captured;
     const real = withSections(final, captured);
@@ -526,6 +528,7 @@ export async function renderCover(bundle: BookBundle, pageCount: number, mode: R
       title={text.title}
       language={bundle.book.language}
     />,
+    bundle.book.language,
   );
   return { pdf: Buffer.from(pdf), geometry };
 }

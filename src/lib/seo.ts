@@ -64,7 +64,7 @@ export function organizationLd(description: string, extra: { alternateName?: str
     ...(phone ? { telephone: phone } : {}),
     ...(extra.address ? { address: { "@type": "PostalAddress", addressLocality: extra.address.locality, addressCountry: extra.address.country } } : {}),
     areaServed: { "@type": "Country", name: "KZ" },
-    contactPoint: [{ "@type": "ContactPoint", contactType: "customer support", email: site.contacts.email, ...(phone ? { telephone: phone } : {}), availableLanguage: ["ru", "kk", "uz"] }],
+    contactPoint: [{ "@type": "ContactPoint", contactType: "customer support", email: site.contacts.email, ...(phone ? { telephone: phone } : {}), availableLanguage: ["ru", "kk", "uz", "en"] }],
     sameAs: [site.contacts.instagram, site.contacts.telegram],
   };
 }

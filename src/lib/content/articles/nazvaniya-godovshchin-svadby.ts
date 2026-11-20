@@ -287,5 +287,98 @@ export const nazvaniyaGodovshchinSvadby: Article = {
       ],
       cta: { title: "Yillikka kitob: o‘z so‘zlaringiz bilan", text: "Juftligingiz haqidagi savollarga javob bering, suratlar qo‘shing: kitobni biz maketlab, chop etamiz. Yozish bepul." },
     },
+    en: {
+      title: "Wedding anniversary names by year: from cotton to golden",
+      description: "What each wedding anniversary is called, from 1 to 25 years and milestones from 30 to 65: cotton, paper, leather, silver, gold. A gift idea for every date.",
+      lead: "Wedding anniversaries are traditionally named after materials: the longer you are together, the stronger and more precious the material. We have gathered every name from the first year to sixty-five years and added a gift idea to each.",
+      sections: [
+        {
+          heading: "Where the names come from and how to use them",
+          paragraphs: [
+            "An anniversary name is a hint for a gift and a reason to celebrate. A cotton wedding hints at soft fabrics, a wooden one at the warmth and reliability of home, silver and gold at a long life that has become a treasure in itself.",
+            "You don’t have to follow the name strictly. Some dates have two names in different families, and that’s fine: choose the one that feels closer to you. What matters is not the material, but the attention.",
+          ],
+        },
+        {
+          heading: "The first five years: from cotton to wood",
+          paragraphs: ["The first years are a time of getting used to each other and building shared habits. Gifts here are light, cosy and homely."],
+          list: [
+            "1 year — cotton (calico) wedding: a set of bed linen, beautiful towels or a warm blanket for two.",
+            "2 years — paper wedding: letters to each other, a photo album, tickets to a play or a concert.",
+            "3 years — leather wedding: a wallet, a document cover, a belt or a leather notebook.",
+            "4 years — linen wedding: a linen tablecloth, curtains or clothes made of linen.",
+            "5 years — wooden wedding: a wooden box, a photo frame or a clock; a book about the two of you also fits perfectly.",
+          ],
+        },
+        {
+          heading: "Years six to fifteen: from cast iron to crystal",
+          paragraphs: ["These are the years when a couple already has a home, responsibilities and a shared history. Gifts become more substantial."],
+          list: [
+            "6 years — cast iron wedding: a cast-iron frying pan or a kazan (cauldron) for family dinners.",
+            "7 years — copper wedding: a copper coffee pot, a coffee set or a piece of copper jewellery.",
+            "8 years — tinplate wedding: a pretty tin box for tea or sweets, a picnic set.",
+            "9 years — pottery (faience) wedding: a faience tea service, handmade ceramic mugs.",
+            "10 years — rose or tin wedding: a bouquet of roses, a tin souvenir or a trip for two — ten years deserve a celebration.",
+            "11 years — steel wedding: a set of good knives, a flask or a steel watch.",
+            "12 years — nickel wedding: dishes or a household item the home has long needed.",
+            "13 years — lace wedding: a lace tablecloth, a shawl, pretty lingerie or a romantic dinner.",
+            "14 years — agate wedding: a piece of jewellery or a souvenir with agate.",
+            "15 years — crystal wedding: crystal glasses or a vase and a toast to fifteen years together.",
+          ],
+        },
+        {
+          heading: "Years sixteen to twenty-five: from topaz to silver",
+          paragraphs: ["The children grow up, and the couple becomes a team. It’s good when a gift gives you back time for each other."],
+          list: [
+            "16 years — topaz wedding: a piece of jewellery with topaz.",
+            "17 years — furniture wedding: a new armchair, a small table or an interior piece you have long talked about.",
+            "18 years — turquoise wedding: jewellery with turquoise or something for the home in turquoise shades.",
+            "19 years — garnet wedding: a piece of jewellery with garnet.",
+            "20 years — china wedding: a porcelain figurine or tea service, or better still, a weekend trip.",
+            "21 years — opal wedding: jewellery with opal or a small keepsake.",
+            "22 years — bronze wedding: a bronze figurine, a candlestick or a frame for a shared photo.",
+            "23 years — beryl wedding: jewellery or a keepsake with beryl, a warm letter.",
+            "24 years — satin wedding: a satin nightgown or robe, a silk scarf.",
+            "25 years — silver wedding: silver jewellery or silverware, a family celebration and a book about your life together.",
+          ],
+        },
+        {
+          heading: "Milestone anniversaries: from pearl to iron",
+          paragraphs: ["From thirty years on, anniversaries are named after precious stones and metals. This is no longer just a date but a family’s history, and the best gifts here are the ones that bring children and grandchildren together."],
+          list: [
+            "30 years — pearl wedding: pearl jewellery, a family dinner.",
+            "35 years — coral wedding: jewellery with coral, a trip to the sea.",
+            "40 years — ruby wedding: jewellery with a ruby, a family celebration with guests.",
+            "45 years — sapphire wedding: a sapphire in a piece of jewellery, a trip to a favourite place.",
+            "50 years — golden wedding: gold rings or jewellery, a family album and a book about the road you have travelled.",
+            "55 years — emerald wedding: an emerald in a piece of jewellery, a big family gathering.",
+            "60 years — diamond wedding: the most ceremonial gift from the whole family, letters from children and grandchildren.",
+            "65 years — iron wedding: a rare date, so the best gift is the attention and warm words of loved ones.",
+          ],
+        },
+        {
+          heading: "How to choose a gift when the name isn’t enough",
+          list: [
+            "Think about the person first, then the material: an object made of the right metal won’t replace attention to what your partner loves.",
+            "Combine the name with an experience: a paper wedding is not only letters, but also tickets to a play.",
+            "Count how many days you have been together and put that number on the card: it sounds stronger than a date in the calendar.",
+            "Write a few warm words by hand — it adds the most important thing to any gift.",
+          ],
+        },
+        {
+          heading: "A gift that suits any date",
+          paragraphs: [
+            "If you don’t want to hunt for a gift to match a material, give a story: a book about the two of you, where you answer questions to recall how you met, your first years and everything that matters. Such a gift is good for any anniversary, from the first to the golden.",
+            "You can write the book for free. We print the finished book in hardcover and deliver it across Kazakhstan; the digital copy is available right after payment.",
+          ],
+        },
+      ],
+      faq: [
+        ["What is the first wedding anniversary called?", "The first anniversary is the cotton (calico) wedding. A small celebration at home and a gift made of soft fabrics or something handmade is all you need."],
+        ["Which anniversaries are considered the main ones?", "Most often people celebrate five years (wooden), ten (rose or tin), fifteen (crystal), twenty-five (silver), thirty (pearl), forty (ruby) and fifty (golden) especially."],
+        ["Do I have to give a gift that matches the anniversary name?", "No, the name is only a hint. If the gift pleases you and your loved one, it is right, even if it has nothing to do with the material."],
+      ],
+      cta: { title: "An anniversary book in your own words", text: "Answer questions about the two of you, add photos — we will lay out and print the book. Writing is free." },
+    },
   },
 };

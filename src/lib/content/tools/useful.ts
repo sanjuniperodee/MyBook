@@ -115,6 +115,42 @@ export const proverkaFoto: ToolDef = {
       ],
       cta: { title: "Kitobni eng yaxshi suratlar bilan yig‘ing", text: "Muharrirda ham ruxsat bo‘yicha maslahatlar bor: surat xira bosilsa, ogohlantiradi. Kitob yozish bepul." },
     },
+    en: {
+      label: "Photo check for printing",
+      h1: "Will the photo print well:",
+      accent: "check before you order",
+      metaTitle: "Photo check for printing a book: is the resolution (dpi) enough",
+      metaDescription: "Upload a photo and find out whether it will print sharply in the book: full page, in a grid, on the cover. We calculate dpi and the maximum print size. Photos never leave your browser.",
+      teaser: "Upload your photos — we will show which will print sharply and which need replacing.",
+      lead: "A photo from a messenger or social network looks fine on screen but comes out blurry on paper. Drag in your photos and the calculator shows the resolution for every place in the book and tells you what to replace before ordering. Files are not uploaded anywhere.",
+      sections: [
+        {
+          heading: "What dpi is and how much you need",
+          paragraphs: [
+            "Dpi is dots per inch (2.54 cm). Professional printing needs about 300 dpi: then the eye cannot make out individual dots. Below 150 dpi the image is already noticeably softer, and at a large size the pixels become visible.",
+            "Resolution depends not on the “quality of the photo” but on how many pixels fall on the printed size. The same photo prints sharply when small in a grid and blurry across a full page.",
+          ],
+        },
+        {
+          heading: "How many pixels a book page needs",
+          paragraphs: [
+            "For an A5 page (148×210 mm) at 300 dpi you need roughly 1750×2480 pixels, which is about 4.3 megapixels. Any modern phone shoots at 8–50 MP, so originals almost always work.",
+            "Problems come with copies: WhatsApp and Telegram compress photos to 1600 pixels on the long side, social networks even more, and old scanned pictures are often saved at a small size.",
+          ],
+        },
+        {
+          heading: "How to get better photos",
+          paragraphs: ["Ask people to send the original as a “file” or “document”, not as a “photo”. Scan paper photos at 600 dpi. Don’t enlarge photos in apps: it does not add pixels."],
+        },
+      ],
+      faq: [
+        ["How many dpi do I need to print a book?", "About 300 dpi for sharp printing. A photo can be used from 150 dpi, but below that the print is noticeably softer. The calculator shows the resolution for every place in the book."],
+        ["Why do photos from WhatsApp print blurry?", "Messengers compress photos to roughly 1600 pixels on the long side. That is enough for a phone screen but too little for a book page. Ask for the original to be sent as a file or document."],
+        ["Are my photos uploaded to a server?", "No. The check runs in your browser: sizes are read locally and photos are not sent anywhere."],
+        ["What if the photo is small and I have no other?", "Put it in a smaller place: in a grid of four or on half a page. Fewer pixels are needed there, and the photo will print acceptably. A big full-page crop is not good for it."],
+      ],
+      cta: { title: "Build the book with your best photos", text: "The editor also gives resolution hints: it warns you if a photo will print unsharply. Writing the book is free." },
+    },
   },
 };
 
@@ -230,6 +266,42 @@ export const skolkoStranits: ToolDef = {
         ["Hisob qanchalik aniq?", "Bu muharrirdagi bilan bir xil algoritm bo‘yicha baho. Haqiqiy hajm matnga va suratlar qanday joylashtirilganiga bog‘liq, lekin farq odatda bir necha sahifa doirasida bo‘ladi."],
       ],
       cta: { title: "O‘z kitobingizda tekshirib ko‘ring", text: "Muharrirda siz yozayotganingizda sahifalar soni yangilanib turadi. Kitob yozish bepul." },
+    },
+    en: {
+      label: "How many pages you’ll get",
+      h1: "How many pages you’ll get:",
+      accent: "is there enough material for a book",
+      metaTitle: "How many pages a book will have: page count and spine thickness calculator",
+      metaDescription: "Enter how many answers, photos and letters you will have — the calculator shows the book’s page count, the spine thickness and whether there is enough material. The same calculation as in our editor.",
+      teaser: "The page count and spine thickness for your material — and whether it is enough for a full book.",
+      lead: "How many pages will 20 answers and ten photos make? Is there enough material for the book not to end up a thin pamphlet? Enter how many answers, photos and letters you will have and find out the length. The calculation is the same as in the book editor.",
+      sections: [
+        {
+          heading: "What the page count depends on",
+          paragraphs: [
+            "The length is made up of text, photos and service pages: the title page, the dedication, the contents, the start of each chapter. The number and length of the answers matter most: a short answer of a few lines takes a third of a page, a full story a page and a half to two.",
+            "A photo in an answer or on its own page adds pages, and letters from loved ones are gathered into a separate chapter. The square format holds a little less text per page than A5.",
+          ],
+        },
+        {
+          heading: "Minimum length and spine",
+          paragraphs: [
+            "A printed block is never thinner than 24 pages, and the page count is always a multiple of four — that is how signatures are printed. If there is less material, the missing pages are left blank. For the book to look complete, aim for 40 pages or more.",
+            "The spine grows thicker with the length: a book of 100 pages has a spine of about 10 mm. The price of the book does not depend on the page count.",
+          ],
+        },
+        {
+          heading: "How many answers a good book needs",
+          paragraphs: ["Most often 30–40 meaningful answers, a few letters from loved ones and 10–20 photos are enough. That is 2–3 evenings of work if you answer by voice: answers can be dictated rather than typed."],
+        },
+      ],
+      faq: [
+        ["How many pages are in a book made of 30 answers?", "It depends on the length of the answers and the number of photos. For medium answers (about 120 words) and 10 photos you get roughly 40 pages in A5. The calculator will show the exact number for your data."],
+        ["What is the minimum number of pages in a printed book?", "24 pages. If there is less material, the remaining pages are printed blank. The page count is always a multiple of four."],
+        ["Does the page count affect the price?", "No. The price of the book depends on the format (digital or printed) and the number of copies, but not on the length."],
+        ["How accurate is the calculation?", "It is an estimate made with the same algorithm as in the editor. The real length depends on the text and on how the photos are placed, but the difference is usually within a few pages."],
+      ],
+      cta: { title: "Check it on your own book", text: "In the editor the page count updates as you write. Writing the book is free." },
     },
   },
 };
@@ -348,6 +420,42 @@ export const planKnigi: ToolDef = {
       ],
       cta: { title: "Hoziroq boshlang", text: "Rejaning birinchi qadami — kitobni boshlash. Yozish bepul va o‘z tezligingizda, buyurtma esa hammasi tayyor bo‘lgandagina kerak." },
     },
+    en: {
+      label: "Book plan for a date",
+      h1: "Book plan for a date:",
+      accent: "what to do and when, to be in time",
+      metaTitle: "Gift book plan for a date: what to do and when, .ics calendar",
+      metaDescription: "Enter the day you will give the book and we will make a plan: when to ask for letters, collect photos, finish the answers and order printing. Download it to your phone calendar.",
+      teaser: "A plan by dates from today to the day you give the book, with calendar reminders.",
+      lead: "A gift book is not only printing but also work: answers, photos, letters from loved ones. Enter the day you will give it and the size of the book, and we will spread the tasks across dates, work out how many answers to write a day and tell you whether you will make it. You can download the plan to your calendar.",
+      sections: [
+        {
+          heading: "How the plan is made",
+          paragraphs: [
+            "We count backwards from the last day to order. It depends on the production time of the printed book, delivery and a day for checking the layout. Before that comes the time for the answers, photos and letters from loved ones.",
+            "If the printed book won’t make it by the date, the calculator suggests express printing or the digital copy — you can give that on the same day.",
+          ],
+        },
+        {
+          heading: "How many answers to write a day",
+          paragraphs: [
+            "A short book is about 15 answers, a regular one about 30, a big one about 50. The calculation shows how many answers a day you need to meet the deadline. Up to two a day is a relaxed pace, up to five is workable, more than that — consider a smaller book or ask relatives to answer some of the questions.",
+            "Letters from loved ones are gathered in parallel: send the link on the very first day so that people have time to write.",
+          ],
+        },
+        {
+          heading: "A calendar with reminders",
+          paragraphs: ["The “Download to calendar” button creates an .ics file. Open it on your phone or computer — events with reminders at 9 a.m. appear in Google Calendar, Apple Calendar or Outlook."],
+        },
+      ],
+      faq: [
+        ["How many days ahead should I start a gift book?", "It is best 3–4 weeks before the holiday: then there is enough time for the answers, letters from loved ones and checking the layout. If you have less time, the calculator will tell you what to do."],
+        ["What if there is only a week left until the date?", "Choose a short book and the digital copy: it arrives right after payment. You can hand over the printed copy later. The calculator will show a suitable option."],
+        ["How do I add the plan to my phone calendar?", "Press “Download to calendar (.ics)” and open the file. On an iPhone the events are added to the Calendar app, on Android to Google Calendar."],
+        ["Why collect letters from loved ones?", "They turn the book from a personal gift into a gift from the whole family. A letter is written from a phone via a link, no sign-up is needed, and you check the text before printing."],
+      ],
+      cta: { title: "Start right now", text: "The first step of the plan is to start the book. Writing is free and at your own pace, and you only order when everything is ready." },
+    },
   },
 };
 
@@ -464,6 +572,42 @@ export const shezhire: ToolDef = {
         ["Ma’lumotlarim saqlanadimi?", "Faqat brauzeringizda, shu qurilmada. Biz hech narsani serverga yubormaymiz. Nasabnomani yo‘qotmaslik uchun varaqni chop eting yoki matn qilib nusxalab oling."],
       ],
       cta: { title: "Urug‘ingiz hikoyalarini kitobda saqlang", text: "Hayot haqidagi kitob — urug‘, bolalik va oila haqidagi savollar hamda eski suratlaringiz. Yozish bepul." },
+    },
+    en: {
+      label: "Shezhire: family tree to the 7th generation",
+      h1: "Shezhire and zheti ata:",
+      accent: "a family tree to the seventh generation",
+      metaTitle: "Shezhire online: a family tree to 7 generations (zheti ata) — make and print",
+      metaDescription: "Make your shezhire: enter your ancestors on your father’s and mother’s sides up to the seventh generation, see the family tree and print the sheet. Data is kept only in your browser. Free.",
+      teaser: "Enter your ancestors up to the seventh generation, get a family tree and a sheet to print.",
+      lead: "Knowing seven generations of ancestors is an old Kazakh tradition. Enter the names of your father, grandfather, great-grandfather and on, along your father’s line and your mother’s line. We will build the family tree, suggest whom to ask for what is missing, and you can print the sheet. Your data stays in your browser.",
+      sections: [
+        {
+          heading: "What zheti ata is",
+          paragraphs: [
+            "Zheti ata, “seven fathers”, is the tradition of remembering your ancestors on the male line up to the seventh generation: father, grandfather, great-grandfather and on. By old custom Kazakhs did not marry anyone related to them up to the seventh generation, so knowing one’s lineage was a practical necessity.",
+            "A lineage written down by clans and generations is called a shezhire. It includes not only the father’s line: many families also remember their ancestors on the mother’s side, the nagashy zhurty.",
+          ],
+        },
+        {
+          heading: "How to put your family tree together",
+          paragraphs: [
+            "Start with what you know: your father, your grandfather. Then ask older relatives — your grandfather’s brothers and sisters, the elders of the clan. Write down names, years of life and the place the person came from: it helps you avoid mixing up namesakes.",
+            "For the deeper generations, look for the clan’s shezhire, family documents and district archives. If the seventh generation stays unknown, that is normal: many families know three or four generations.",
+          ],
+        },
+        {
+          heading: "What to do with the family tree next",
+          paragraphs: ["The printable sheet can be hung in a frame or handed out to relatives. And if you want to keep not only the names but the stories of your ancestors, gather them in a book: in the “My roots” chapter you will tell about your clan, where the family came from, and those the elders remember."],
+        },
+      ],
+      faq: [
+        ["What is zheti ata?", "It is the tradition of knowing seven generations of ancestors on the father’s line: father, grandfather, great-grandfather and on to the seventh generation. It has been kept in Kazakh families as a memory of the clan."],
+        ["What is a shezhire?", "A shezhire is a lineage written down by clans and generations. It can be oral or written. You can make your own family one: names, years of life and place are enough."],
+        ["How do I find out my ancestors to the seventh generation?", "Start by asking older relatives and looking at family documents, then turn to the elders of the clan and district archives. For distant generations you often need the clan’s shezhire."],
+        ["Is my data saved?", "Only in your browser, on this device. We send nothing to a server. To keep your family tree safe, print the sheet or copy it as text."],
+      ],
+      cta: { title: "Keep your family’s stories in a book", text: "A book about your life is questions about your clan, childhood and family, plus your old photographs. Writing is free." },
     },
   },
 };

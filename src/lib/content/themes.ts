@@ -41,6 +41,20 @@ import { colleagueChapters as colleagueChaptersUz } from "./uz/colleague";
 import { bossChapters as bossChaptersUz } from "./uz/boss";
 import { colleagueChapters as colleagueChaptersKk } from "./kk/colleague";
 import { bossChapters as bossChaptersKk } from "./kk/boss";
+import { autobiographyChapters as autobiographyChaptersEn } from "./en/autobiography";
+import { childChapters as childChaptersEn } from "./en/child";
+import { daughterinlawChapters as daughterinlawChaptersEn } from "./en/daughterinlaw";
+import { familyChapters as familyChaptersEn } from "./en/family";
+import { friendChapters as friendChaptersEn } from "./en/friend";
+import { grandmaChapters as grandmaChaptersEn } from "./en/grandma";
+import { grandpaChapters as grandpaChaptersEn } from "./en/grandpa";
+import { loveChapters as loveChaptersEn } from "./en/love";
+import { parentChapters as parentChaptersEn } from "./en/parent";
+import { parentsChapters as parentsChaptersEn } from "./en/parents";
+import { siblingChapters as siblingChaptersEn } from "./en/sibling";
+import { teacherChapters as teacherChaptersEn } from "./en/teacher";
+import { colleagueChapters as colleagueChaptersEn } from "./en/colleague";
+import { bossChapters as bossChaptersEn } from "./en/boss";
 import type { ChapterDef, GiftThemeId, ThemeDef, ThemeId } from "./types";
 
 /**
@@ -518,10 +532,29 @@ const text: Record<Locale, Record<ThemeId, ThemeText>> = {
       chapters: [],
     },
   },
+  // English: question banks and book labels. Recipient/author gender markers follow the Russian banks ([him|her], [he|she]).
+  en: {
+    love: { name: "To my loved one", short: "Loved one", description: "The story of your love: how you met, first dates, dreams and the words you have wanted to say for a long time.", recipientLabel: "Your loved one’s name", recipientPlaceholder: "For example, Alia", titleSuggestions: ["Our Story", "You Are My Everything", "The Story of Our Love", "Us"], chapters: loveChaptersEn },
+    mom: { name: "To Mom", short: "Mom", description: "A book of gratitude: childhood memories, the lessons Mom taught and warm words.", recipientLabel: "Mom’s name", recipientPlaceholder: "For example, Gulnara", titleSuggestions: ["Mom, This Is for You", "My Mom", "Thank You, Mom", "It All Starts with You"], chapters: parentChaptersEn },
+    dad: { name: "To Dad", short: "Dad", description: "A story told by a child: childhood next to Dad, his advice, strength and care.", recipientLabel: "Dad’s name", recipientPlaceholder: "For example, Yerlan", titleSuggestions: ["Dad, This Is for You", "My Dad", "Thank You, Dad", "My Hero"], chapters: parentChaptersEn },
+    parents: { name: "To my parents", short: "Parents", description: "A book for Mom and Dad together: the home you grew up in, their story, lessons, family traditions and words of thanks to both.", recipientLabel: "Parents’ names", recipientPlaceholder: "For example, Gulnara and Yerlan", titleSuggestions: ["To Mom and Dad", "Thank You, Parents", "Dear Parents", "Our Family"], chapters: parentsChaptersEn },
+    family: { name: "To the family", short: "Family", description: "A book for the whole family: roots and ancestry, home and traditions, elders and children, holidays, hard times and what keeps you together.", recipientLabel: "Family name", recipientPlaceholder: "For example, the Akhmetov family", titleSuggestions: ["Our Family Story", "The Family Book", "Our Roots", "The Home Where We Are Together"], chapters: familyChaptersEn },
+    grandma: { name: "To Grandma", short: "Grandma", description: "A book from her grandchildren: Grandma’s home and table, fairy tales and care, her life, wisdom and words of thanks.", recipientLabel: "Grandma’s name", recipientPlaceholder: "For example, Rosa", titleSuggestions: ["Grandma, This Is for You", "My Grandma", "Thank You, Grandma", "Grandma’s House"], chapters: grandmaChaptersEn },
+    grandpa: { name: "To Grandpa", short: "Grandpa", description: "A book from his grandchildren: Grandpa’s home and workshop, his work and roads, the love story with Grandma, wisdom and words of thanks.", recipientLabel: "Grandpa’s name", recipientPlaceholder: "For example, Kairat", titleSuggestions: ["Grandpa, This Is for You", "My Grandpa", "Thank You, Grandpa", "Grandpa’s House"], chapters: grandpaChaptersEn },
+    daughterinlaw: { name: "To my daughter-in-law", short: "Daughter-in-law", description: "A book from a mother-in-law, father-in-law or husband: how she joined the family, first impressions, her qualities and merits, family traditions, gratitude and wishes.", recipientLabel: "Her name", recipientPlaceholder: "For example, Aigerim", titleSuggestions: ["To You, Our Daughter-in-Law", "Welcome to the Family", "Thank You for Being with Us", "Our Aigerim"], chapters: daughterinlawChaptersEn },
+    child: { name: "To a daughter or son", short: "Child", description: "A book from Mom or Dad: how you waited for your child, the first years, growing-up stories and what you want to pass on for life.", recipientLabel: "Your daughter’s or son’s name", recipientPlaceholder: "For example, Amina", titleSuggestions: ["To You, My Child", "You Are Our Happiness", "The Story of Your Childhood", "Letters to You"], chapters: childChaptersEn },
+    sibling: { name: "To a brother or sister", short: "Brother/sister", description: "A book about growing up together: one room for two, quarrels and making up, family stories and what binds you for life.", recipientLabel: "Brother’s or sister’s name", recipientPlaceholder: "For example, Aidana", titleSuggestions: ["We Grew Up Together", "You and Me", "Our Childhood", "A Kindred Spirit"], chapters: siblingChaptersEn },
+    friend: { name: "To a friend", short: "Friend", description: "A book about friendship: wild adventures, inside jokes and thanks for being there.", recipientLabel: "Your friend’s name", recipientPlaceholder: "For example, Dana", titleSuggestions: ["The Book of Our Friendship", "Friends Forever", "You and Me", "Just Us"], chapters: friendChaptersEn },
+    teacher: { name: "To a teacher", short: "Teacher", description: "A book of gratitude to a teacher: first lessons, school stories and words remembered for life. Write for yourself or with the whole class.", recipientLabel: "Teacher’s name", recipientPlaceholder: "For example, Saule Kairatovna", titleSuggestions: ["Thank You, Teacher", "Lessons for a Lifetime", "To Our Teacher", "You Taught Us What Matters Most"], chapters: teacherChaptersEn },
+    colleague: { name: "To a colleague", short: "Colleague", description: "A book from the team or a colleague: how you met, workdays and shared wins, the department’s stories and jokes, hard days and words of thanks.", recipientLabel: "Colleague’s name", recipientPlaceholder: "For example, Dinara", titleSuggestions: ["To the Best Colleague", "Thank You for Being on Our Team", "Our Person in the Office", "Working with You Is a Pleasure"], chapters: colleagueChaptersEn },
+    boss: { name: "To a boss", short: "Boss", description: "A book from the team or an employee to a manager or director: how you started working together, how they lead, what they taught, hard and important days and words of thanks.", recipientLabel: "Manager’s name", recipientPlaceholder: "For example, Yerlan Maratovich", titleSuggestions: ["Thank You, Boss", "To Our Director", "A Team with You", "You Taught Us What Matters Most"], chapters: bossChaptersEn },
+    autobiography: { name: "Autobiography", short: "Autobiography", description: "A book about your life: roots, childhood, love, work, hard times and what you want to pass on to your children and grandchildren. It can be written down from a loved one’s words.", titleSuggestions: ["The Story of My Life", "My Life", "The Book of My Life", "For My Grandchildren"], chapters: autobiographyChaptersEn },
+    blank: { name: "Your own book", short: "Your own book", description: "A book from a blank page: you invent the chapters and sections and write in your own order — no ready-made questions.", recipientLabel: "For whom — optional", recipientPlaceholder: "For example, my children", titleSuggestions: ["My Book", "Notes", "Stories", "A Book of Memories"], firstChapterTitle: "The Beginning", chapters: [] },
+  },
 };
 
 /** Глава для вопросов, у которых нет темы (пользовательские и из удалённых глав). */
-const miscTitle: Record<Locale, string> = { ru: "Разное", kk: "Әртүрлі", uz: "Turli" };
+const miscTitle: Record<Locale, string> = { ru: "Разное", kk: "Әртүрлі", uz: "Turli", en: "Miscellaneous" };
 
 const cache = new Map<string, ThemeDef>();
 
@@ -578,5 +611,5 @@ export function chapterTitle(theme: ThemeDef, key: string, lang: Locale = "ru"):
 
 /** Все тексты темы на обоих языках — для проверки полноты перевода в тестах. */
 export function themeChaptersByLocale(id: ThemeId): Record<Locale, ChapterDef[]> {
-  return { ru: text.ru[id].chapters, kk: text.kk[id].chapters, uz: text.uz[id].chapters };
+  return { ru: text.ru[id].chapters, kk: text.kk[id].chapters, uz: text.uz[id].chapters, en: text.en[id].chapters };
 }

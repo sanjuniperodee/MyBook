@@ -278,10 +278,10 @@ export function InvoiceForm({ info, issueKey, conversationId = null, onClose }: 
       </div>
       <div className="flex items-center gap-3">
         <span className="text-[11px] text-muted">Язык счёта и кабинета</span>
-        {(["ru", "kk", "uz"] as const).map((l) => (
+        {(["ru", "kk", "uz", "en"] as const).map((l) => (
           <label key={l} className="flex items-center gap-1.5">
             <input type="radio" name="invoice-locale" checked={locale === l} onChange={() => setLocale(l)} />
-            {l === "ru" ? "русский" : l === "kk" ? "казахский" : "узбекский"}
+            {l === "ru" ? "русский" : l === "kk" ? "казахский" : l === "uz" ? "узбекский" : "английский"}
           </label>
         ))}
       </div>

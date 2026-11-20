@@ -71,11 +71,13 @@ const FALLBACK: Record<HelpLang, string> = {
   ru: "Передаю ваш вопрос менеджеру — он ответит здесь, в этом чате, или в WhatsApp.",
   kk: "Сұрағыңызды менеджерге жіберемін — ол осы чатта немесе WhatsApp-та жауап береді.",
   uz: "Savolingizni menejerga yuboraman — u shu chatda yoki WhatsApp’da javob beradi.",
+  en: "I’m passing your question to a manager — they will reply here in this chat or on WhatsApp.",
 };
 const HUMAN: Record<HelpLang, string> = {
   ru: "Позвал менеджера — он ответит здесь, в этом чате, или в WhatsApp. А пока могу подсказать по кабинету.",
   kk: "Менеджерді шақырдым — ол осы чатта немесе WhatsApp-та жауап береді. Әзірге кабинет бойынша көмектесе аламын.",
   uz: "Menejerni chaqirdim — u shu chatda yoki WhatsApp’da javob beradi. Hozircha kabinet bo‘yicha yordam bera olaman.",
+  en: "I’ve called a manager — they will reply here in this chat or on WhatsApp. Meanwhile I can help with your account.",
 };
 
 /** Подпись причины передачи для менеджера. */
@@ -102,7 +104,7 @@ const dayStart = (now: Date) => new Date(Date.UTC(now.getUTCFullYear(), now.getU
 export class CabinetHelpService {
   #spent: { at: number; day: string; usd: number } | null = null;
   /** Инструкция на язык сайта клиента (казахский вариант — с казахскими названиями кнопок); кэш провайдера — на каждый. */
-  readonly #system = { ru: helpSystemPrompt("ru"), kk: helpSystemPrompt("kk"), uz: helpSystemPrompt("uz") };
+  readonly #system = { ru: helpSystemPrompt("ru"), kk: helpSystemPrompt("kk"), uz: helpSystemPrompt("uz"), en: helpSystemPrompt("en") };
 
   constructor(
     private readonly d: {

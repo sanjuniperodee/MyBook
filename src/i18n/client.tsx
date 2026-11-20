@@ -18,6 +18,7 @@ const dictionaries: Record<Locale, React.ComponentType<{ children: React.ReactNo
   ru: dynamic(() => import("./dictionary/ru")),
   kk: dynamic(() => import("./dictionary/kk")),
   uz: dynamic(() => import("./dictionary/uz")),
+  en: dynamic(() => import("./dictionary/en")),
 };
 
 export function I18nProvider({ locale, children }: { locale: Locale; children: React.ReactNode }) {

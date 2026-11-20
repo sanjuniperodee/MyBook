@@ -211,5 +211,73 @@ export const chtoPodaritUchitelyu: Article = {
       ],
       cta: { title: "Sinfdan minnatdorchilik kitobi", text: "Har bir o‘quvchi bir nechta savolga javob beradi, hammasini biz bitta kitobga jamlaymiz. Yozish bepul." },
     },
+    en: {
+      title: "What to give a teacher: for Teachers’ Day, 8 March and graduation",
+      description: "What to give a teacher for Teachers’ Day, 8 March and graduation: appropriate gifts, what to avoid, budget and heartfelt ideas, and a thank-you book from the class.",
+      lead: "You want to thank a teacher with a gift that is both appropriate and sincere. We look at what you can give, where the line is and how to make your thanks memorable without spending much.",
+      sections: [
+        {
+          heading: "The rules first",
+          paragraphs: [
+            "In Kazakhstan, state schools and their staff are subject to anti-corruption restrictions, so expensive gifts and collecting money from parents are often discouraged. Rules can differ between schools and private institutions, so it is best to ask the class teacher or the administration in advance what is accepted.",
+            "The safest gifts are symbolic: flowers, a card, a small souvenir, words of thanks. If you are in doubt, choose something that needs no explanation.",
+          ],
+        },
+        {
+          heading: "What to give on Teachers’ Day",
+          paragraphs: ["In Kazakhstan, Teachers’ Day is celebrated on the first Sunday of October. It is a warm holiday, and gifts that show thoughtfulness suit it best."],
+          list: [
+            "A bouquet of flowers from the class or from you personally.",
+            "A card with warm words from the children and parents.",
+            "A small set of tea or coffee, a pretty mug.",
+            "An inexpensive planner or notebook.",
+            "A letter from a pupil: what they remember and what they learned.",
+          ],
+        },
+        {
+          heading: "What to give on 8 March",
+          paragraphs: ["If your teacher is a woman, the same symbolic tokens of attention are appropriate on 8 March, just with a spring mood."],
+          list: [
+            "A bouquet of spring flowers.",
+            "A card drawn by the children.",
+            "A box of chocolates or sweets to have with tea.",
+            "A houseplant that is easy to look after.",
+          ],
+        },
+        {
+          heading: "What to give for graduation and the last bell",
+          paragraphs: ["Graduation is the moment when you want to thank a teacher for all the years. The gift can be from the whole class, but still without needless luxury."],
+          list: [
+            "A photo album with group photos from the school years.",
+            "A video with greetings from the graduates.",
+            "A letter or a thank-you book from the class.",
+            "Flowers and warm words on the stage or after the ceremony.",
+          ],
+        },
+        {
+          heading: "What it is better not to give",
+          list: [
+            "Expensive items, electronics, jewellery and money: this puts the teacher in an awkward position and may break school rules.",
+            "Personal gifts given secretly from the other parents: this raises questions for both the teacher and the class.",
+            "Perfume and cosmetics: too personal a choice.",
+            "Alcohol: it is inappropriate in a school setting.",
+            "Collecting money from parents if the school administration asks you not to.",
+          ],
+        },
+        {
+          heading: "Ideas for a budget and for the soul",
+          paragraphs: [
+            "A good gift for a teacher often costs little and wins through thoughtfulness. Ask the children to draw a card, collect words of thanks from the whole class, record a short video. Teachers keep things like this for years.",
+            "If you want something special, a thank-you book is a good choice: each pupil writes a few lines about what the teacher taught them and what they remember, and photos of the class are added. You can write the book for free; we print the finished book as a hardcover and deliver it across Kazakhstan, and the digital copy is available right after payment.",
+          ],
+        },
+      ],
+      faq: [
+        ["Is it all right to give a teacher money or expensive gifts?", "Better not to: it may go against school rules and put the teacher in an awkward position. Choose flowers, a card, a small souvenir or words of thanks."],
+        ["What should I give a teacher if money is tight?", "A letter or a card with sincere words and the children’s drawings is the most valuable gift. You can also record a video from the class."],
+        ["What should I give the class teacher for graduation?", "A photo album with group photos, a video from the graduates or a thank-you book from the whole class in which everyone writes a few warm words."],
+      ],
+      cta: { title: "A thank-you book from the class", text: "Each pupil answers a few questions, and we put everything together in one book. Writing is free." },
+    },
   },
 };

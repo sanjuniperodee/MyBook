@@ -248,6 +248,75 @@ const uz: AdLoveCopy = {
   sticky: { from: (p) => `Kitob ${p} dan`, cta: "WhatsApp" },
 };
 
-const copy: Record<PublicLocale, AdLoveCopy> = { ru, kk, uz };
+const en: AdLoveCopy = {
+  metaTitle: "A book about your love — a gift you write yourself",
+  metaDescription: "You answer questions about your story and add photos — we print a real hardcover book. Made in Almaty, delivered across Kazakhstan.",
+  waText: "Hello! I would like a book about our love story",
+  hero: {
+    eyebrow: "An anniversary gift · Almaty",
+    titleStart: "A book where the main characters are",
+    titleAccent: "the two of you",
+    lead: "You answer questions about your story: how you met, what happened on your first date, what you love about each other. We turn your answers and photos into a real hardcover book.",
+    note: "your names will go here",
+    cta: "Find out more on WhatsApp",
+    cta2: "Start writing for free",
+    facts: ["Printed in Almaty", "5–7 working days", "Delivery across Kazakhstan"],
+  },
+  questionsLabel: (n) => `${n} questions inside. Here are a few:`,
+  try: {
+    eyebrow: "Try it right now",
+    title: "One line — and it’s already a page",
+    lead: "Answer a question from the real book. Write your answer and see at once how it will be printed.",
+    chapterLabel: (n, title) => `Chapter ${n} · ${title}`,
+    sample: "Kok-Tobe, the wind. You said, “Look, the whole city.” And I was looking at you.",
+    placeholder: "A few words — however you remember it",
+    hint: "Write the way you would tell a friend. We will take care of the beautiful layout.",
+    yours: "you wrote this",
+    cta: "I want the whole book",
+  },
+  inside: {
+    eyebrow: "Inside",
+    title: "Flip through a sample book",
+    text: "Every answer becomes part of a chapter: a heading, an epigraph, a drop cap, a photo beside the text. Before printing you see the exact layout of every page — the book will come out of the printing house exactly like that.",
+  },
+  photos: {
+    eyebrow: "Photos",
+    title: "Snapshots from your phone — on thick paper",
+    text: "Upload photos straight from your phone and choose a spread layout. Full-colour printing on 150 gsm paper, a hardcover and a sewn book block — a book you will reread for years.",
+    note: "that very day",
+  },
+  how: {
+    eyebrow: "How it works",
+    title: "A couple of evenings — and the gift is ready",
+    steps: [
+      { title: "You write", text: "From your phone, at your own pace: two or three evenings are usually enough. Everything saves automatically, and you don’t have to answer every question — only the ones you fill in go into the book." },
+      { title: "You put it together", text: "Add photos, choose the cover and the page design. The title and the names on the cover are yours." },
+      { title: "You receive it", text: "Check the layout and pay — we print it in 5–7 working days and deliver it by courier or send it across Kazakhstan." },
+    ],
+    secret: "The surprise stays a surprise: until you hand it over, only you see the book.",
+  },
+  price: {
+    eyebrow: "Price",
+    title: "How much does it cost",
+    from: (p) => `from ${p}`,
+    delivery: "Courier in Almaty and Astana, delivery across Kazakhstan or pick-up from the studio.",
+    deadline: "Will you make your date?",
+    deadlineCta: "Tell us the date — we will work out the timing",
+  },
+  faqTitle: "Frequently asked questions",
+  faqExtra: [
+    "Will you make it in time for our date?",
+    "Printing takes 5–7 working days, or 3–4 with express printing. Send us your date on WhatsApp and we will tell you the last day you can place the order. If you really can’t make it, the digital copy is ready straight after payment.",
+  ],
+  final: {
+    title: "The first chapter gets written tonight",
+    text: "Writing is free — you only pay when the book is ready to print.",
+    cta: "Message us on WhatsApp",
+    cta2: "Start writing",
+  },
+  sticky: { from: (p) => `Book from ${p}`, cta: "WhatsApp" },
+};
+
+const copy: Record<PublicLocale, AdLoveCopy> = { ru, kk, uz, en };
 
 export const adLoveCopy = (locale: Locale) => copy[toPublic(locale)];

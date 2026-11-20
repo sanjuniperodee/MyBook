@@ -166,5 +166,58 @@ export const kakNapisatKniguVPodarok: Article = {
       ],
       cta: { title: "Kitobingizni boshlang", text: "Yozish bepul — kitob tayyor bo‘lganda to‘laysiz." },
     },
+    en: {
+      title: "How to write a gift book: a step-by-step guide",
+      description: "How to create a personal gift book for someone you love: where to start, what to write about, how to choose photos and a cover, and how to be ready in time.",
+      lead: "A gift book sounds like a big project, but it is really a series of small steps. We show you how to get from an idea to a finished printed book without being a writer.",
+      sections: [
+        {
+          heading: "Step 1. Decide who it is about and for what occasion",
+          paragraphs: [
+            "A book becomes special when it has one hero and one idea. About your mum or dad — as a thank-you; about the person you love — as the story of a couple; about a friend — as a memory of your friendship.",
+            "The occasion sets the timing: for a birthday or anniversary you need time to write, check the proof and wait for printing. Allow at least two to three weeks for this.",
+          ],
+        },
+        {
+          heading: "Step 2. Don’t write from a blank page",
+          paragraphs: [
+            "The most common fear is the empty page. Answering questions is easier than composing: “How did you meet?” or “What do you remember from childhood?” set the memories going by themselves.",
+            "Write the way you would tell it aloud. Warm, simple language reads better than “beautiful” text, and mistakes can be fixed later.",
+          ],
+        },
+        {
+          heading: "Step 3. Choose the photos",
+          list: [
+            "Pick photos with emotion rather than posed ones.",
+            "Photograph old pictures in good light or scan them — they look better in print that way.",
+            "High-resolution photos are best: if the quality isn’t enough, it is worth finding out in advance.",
+            "Add captions — years from now they will help you remember dates and names.",
+          ],
+        },
+        {
+          heading: "Step 4. Choose the cover and the design",
+          paragraphs: [
+            "The cover is the first thing the recipient sees. Choose a layout that suits the person’s character: gentle, strict, playful. You can use your own photo.",
+            "The page design — fonts, ornaments, chapter openings — should match the cover. It works well when they are chosen as a pair.",
+          ],
+        },
+        {
+          heading: "Step 5. Add the voices of loved ones",
+          paragraphs: ["Letters from relatives and friends turn the book into a gift from everyone. Send them a link — they can write from a phone and without signing up. The letters go into the book as a separate chapter."],
+        },
+        {
+          heading: "Step 6. Check the proof and order the print",
+          paragraphs: [
+            "Before ordering, leaf through the whole book: check for typos, the order of chapters and the placement of photos. What you see in the proof is what will be printed.",
+            "For a gift tied to a date, keep the timing in mind: production takes 5–7 working days (3–4 on the “Premium” plan), plus delivery. If time is short, the digital copy is available immediately.",
+          ],
+        },
+      ],
+      faq: [
+        ["How long does it take to work on a book?", "Usually from two evenings to a couple of weeks. Answers are saved automatically, so you can write little by little and from different devices."],
+        ["Do I have to answer all the questions?", "No. Only the answers you have filled in go into the book, and you can skip questions, rewrite them or add your own."],
+      ],
+      cta: { title: "Start your book", text: "Writing is free — you pay when the book is ready." },
+    },
   },
 };

@@ -55,5 +55,20 @@ export const podarokNa14Fevralya: Landing = {
         ["Agar kech qolgan bo‘lsam-chi?", "Elektron kitob buyurtma qiling — PDF to‘lovdan keyin darhol tayyor bo‘ladi, uni o‘sha kuni sovg‘a qilish mumkin, bosma nusxasini esa keyinroq buyurtma qilasiz."],
       ],
     },
+    en: {
+      label: "A gift for 14 February",
+      h1: "A gift for 14 February",
+      accent: "that will be remembered for ever",
+      metaTitle: "What to give on 14 February: a book about your love",
+      metaDescription: "An original Valentine’s Day gift: a personal book about the two of you. Questions, photos, hardcover printing and delivery in time for 14 February.",
+      lead: "Instead of a teddy bear, a book where you tell how it all began and why you are together. It won’t be thrown away after the holiday.",
+      why: [
+        { title: "We keep an eye on the deadline", text: "Tell us the occasion and we will show you the last day to order so the book arrives by 14 February." },
+        { title: "Even if time is short", text: "The digital version is ready right after payment, and the Premium plan is printed out of turn." },
+        { title: "For him and for her", text: "The questions adapt to the person you are writing about, so every line sounds just right." },
+      ],
+      cover: { title: "My Love", names: "Yerlan & Assel" },
+      faq: [["What if I am already running late?", "Order the digital book: the PDF is available right after payment, so you can give it the same day and order the printed copy later."]],
+    },
   },
 };

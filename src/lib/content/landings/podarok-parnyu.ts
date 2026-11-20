@@ -61,5 +61,23 @@ export const podarokParnyu: Landing = {
         ["Kitobni qanchalik tez olish mumkin?", "Elektron nusxa to‘lovdan keyin darrov tayyor. Bosma nusxa: ishlab chiqarish 5–7 ish kuni («Premium» — 3–4) va kuryer bilan yetkazish 1–2 kun."],
       ],
     },
+    en: {
+      label: "Gift for your boyfriend",
+      h1: "A gift for your boyfriend,",
+      accent: "one nobody else will have",
+      metaTitle: "What to give your boyfriend — a book about your story together",
+      metaDescription: "An original gift for your boyfriend’s birthday, anniversary or 14 February: a book about your story together. Photos, hardcover, delivery in Kazakhstan.",
+      lead: "Tired of hoodies, gadgets and cologne? Tell the story in a book: how you met, the moments you remember and why you chose each other. He can flick through it for the hundred-and-first time.",
+      why: [
+        { title: "He already has everything", text: "A new thing will be replaced in a year. A book about the two of you won’t." },
+        { title: "Works at the start of a relationship too", text: "You don’t need years together: a few months give you more stories than you’d think — the first meeting, the first trip, the first row and the first make-up." },
+        { title: "Photos on every page", text: "Add pictures from your phone: framed, Polaroid-style or across a whole spread. You flick through the full proof before paying." },
+      ],
+      cover: { title: "You and Me", names: "Madina & Yerzat" },
+      faq: [
+        ["Isn’t it too soon to give a book like this?", "No. It isn’t a commitment, it’s a warm memory: the questions about how you met and your first dates suit even a few months together. You don’t have to fill in every chapter."],
+        ["How soon can I get the book?", "The digital copy is available right after payment. Printed copy: production takes 5–7 working days (Premium 3–4), plus 1–2 days for courier delivery."],
+      ],
+    },
   },
 };

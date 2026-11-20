@@ -4,12 +4,16 @@ import path from "node:path";
 import * as fontkit from "fontkit";
 import type { ReactElement } from "react";
 import { Font, pdf, type DocumentProps } from "@react-pdf/renderer";
+import hyphenEn from "hyphen/en-us/index.js";
 import hyphenRu from "hyphen/ru/index.js";
+import type { Locale } from "@/i18n/config";
 import { fontFaces, type FontKey } from "@/lib/book/fonts";
 import { hyphenateKk, isKazakhWord } from "@/lib/book/hyphen-kk";
 import { hyphenateUz, isUzbekWord } from "@/lib/book/hyphen-uz";
 
 let registered = false;
+/** Язык книги, которая сейчас верстается: сборки идут строго по одной (renderPdf), поэтому переменной достаточно. */
+let hyphenLang: Locale | undefined;
 
 export function fontsDir() {
   return path.join(process.cwd(), "assets", "fonts");
@@ -27,11 +31,19 @@ export function ensureFonts() {
   const cache = new Map<string, string[]>();
   Font.registerHyphenationCallback((word) => {
     if (word.length < 6) return [word];
-    let parts = cache.get(word);
+    const key = `${hyphenLang}:${word}`;
+    let parts = cache.get(key);
     if (!parts) {
-      // Слова с казахскими буквами — по слоговым правилам, латиница (узбекский) — по своим, остальные — по русским шаблонам.
-      parts = isKazakhWord(word) ? hyphenateKk(word) : isUzbekWord(word) ? hyphenateUz(word) : hyphenRu.hyphenateSync(word, { minWordLength: 6 }).split("­");
-      if (cache.size < 50_000) cache.set(word, parts);
+      // Слова с казахскими буквами — по слоговым правилам; латиница — по языку книги (английские шаблоны или узбекские
+      // слоги); остальные — по русским шаблонам.
+      parts = isKazakhWord(word)
+        ? hyphenateKk(word)
+        : isUzbekWord(word)
+          ? hyphenLang === "en"
+            ? hyphenEn.hyphenateSync(word, { minWordLength: 6 }).split("­")
+            : hyphenateUz(word)
+          : hyphenRu.hyphenateSync(word, { minWordLength: 6 }).split("­");
+      if (cache.size < 50_000) cache.set(key, parts);
     }
     return parts;
   });
@@ -89,10 +101,11 @@ async function renderAndRelease(document: ReactElement<DocumentProps>): Promise<
  * Собирает PDF строго по одному на процесс. Шрифты react-pdf общие для всех документов, и две сборки
  * одновременно портят подмножество шрифта: из надписей пропадают буквы (заказ №14 — «ИТАЛИЙ» на титуле).
  */
-export function renderPdf(document: ReactElement<DocumentProps>): Promise<Buffer> {
+export function renderPdf(document: ReactElement<DocumentProps>, language?: Locale): Promise<Buffer> {
   // Каждый документ — со своими объектами шрифтов (freshFonts): иначе буквы пропадают и при сборках по очереди.
   const run = renderQueue.then(() => {
     freshFonts();
+    hyphenLang = language;
     return renderAndRelease(document);
   });
   renderQueue = run.catch(() => undefined);

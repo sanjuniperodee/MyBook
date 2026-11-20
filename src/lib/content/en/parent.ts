@@ -1,0 +1,163 @@
+import type { ChapterDef } from "../types";
+
+// A book for Mom or Dad. [..|..] = recipient: [Dad|Mom] (first option — Dad, second — Mom).
+// Chapter keys and question counts are identical to the Russian original.
+
+export const parentChapters: ChapterDef[] = [
+  {
+    key: "intro",
+    title: "Instead of a foreword",
+    epigraph: "Everything good in me began with you.",
+    questions: [
+      [
+        "Introduce yourself: who are you, and why did you decide to write this book for [Dad|Mom]?",
+        "Why I’m writing this book",
+        "A few warm lines: who you are, what occasion this book is for, and what you want to say to [him|her].",
+      ],
+      ["Describe [Dad|Mom] in three words. Why exactly these words?", "You in three words"],
+      ["What do you call [him|her]? Are there any pet names at home?", "What I call you"],
+    ],
+  },
+  {
+    key: "story",
+    title: "Your story",
+    questions: [
+      ["Where and when was [Dad|Mom] born? What do you know about [his|her] childhood?", "Where it all began"],
+      ["Who did [he|she] dream of becoming as a child?", "Who you dreamed of becoming"],
+      ["How did [he|she] choose a profession?", "Your calling"],
+      ["Which events shaped [his|her] character?", "What made you who you are"],
+      ["What was [his|her] greatest achievement?", "Your greatest victory"],
+      ["Which story from [his|her] youth do you love the most?", "A story from your youth"],
+      [
+        "How did [he|she] meet [Mom|Dad]? What do you know about that story?",
+        "How you met [Mom|Dad]",
+      ],
+      ["What was [he|she] like as a young [man|woman] — from the stories and photographs?", "You when you were young"],
+    ],
+  },
+  {
+    key: "childhood",
+    title: "My childhood with you",
+    epigraph: "Childhood is what stays with us forever.",
+    questions: [
+      ["What is your earliest memory of [Dad|Mom]?", "My first memory of you"],
+      ["What stories, songs or lullabies did [he|she] sing or tell you?", "Your stories and lullabies"],
+      ["What did you love to play together?", "Our games"],
+      ["Which of [Dad|Mom]’s dishes tastes like childhood to you?", "The taste of childhood"],
+      ["How did [he|she] comfort you when you were hurt or scared?", "When I was scared"],
+      ["What were your birthdays like when you were a child?", "My childhood birthdays"],
+      ["What did [he|she] scold you for, and what did [he|she] praise you for?", "When you scolded and when you praised"],
+      ["Which of [his|her] words from your childhood do you still remember?", "Words I remember"],
+      ["How did [he|she] take you to nursery, school and clubs?", "The way to school"],
+      ["Which gift from [him|her] do you remember from your childhood?", "A gift from childhood"],
+      ["Which family trips from your childhood are especially dear to you?", "Family trips"],
+      ["What was your home like when you were a child?", "The home of my childhood"],
+    ],
+  },
+  {
+    key: "you",
+    title: "[Dad|Mom] through my eyes",
+    questions: [
+      ["What kind of person is [he|she]? Describe [his|her] character.", "What you are like"],
+      ["What does [he|she] do better than anyone?", "You are the best at…"],
+      ["Which of [his|her] habits makes you smile?", "Your habit"],
+      ["Which of [his|her] phrases have become family classics?", "Your sayings"],
+      ["What is [he|she] passionate about?", "Your passions"],
+      ["What is [his|her] laugh like? What can make [him|her] laugh?", "Your laugh"],
+      ["How does [he|she] show love?", "How you love"],
+      ["When were you especially proud of [him|her]?", "When I was proud of you"],
+      ["What did you only learn about [him|her] once you had grown up yourself?", "What I understood when I grew up"],
+      ["Describe [his|her] hands. What can they do?", "Your hands"],
+      ["What does [he|she] look like when truly happy?", "When you are happy"],
+      ["What words greet you at [his|her] home?", "When I come to see you"],
+    ],
+  },
+  {
+    key: "lessons",
+    title: "What you taught me",
+    questions: [
+      ["What practical things did [he|she] teach you?", "What I can do thanks to you"],
+      ["Which life values did [he|she] pass on to you?", "The values you passed on"],
+      ["Which of [his|her] pieces of advice do you recall most often?", "Your best advice"],
+      ["How are you like [him|her]?", "How I am like you"],
+      ["What do you do the same way [he|she] does — sometimes without noticing?", "I do it like you"],
+      ["Which of [his|her] examples inspires you?", "Your example"],
+      ["Which lesson did you only understand years later?", "A lesson I understood later"],
+      ["How did [he|she] support your dreams?", "How you believed in me"],
+      ["What will you pass on to your own children from [him|her]?", "What I will pass on"],
+    ],
+  },
+  {
+    key: "hard",
+    title: "Hard times",
+    questions: [
+      ["When did [he|she] support you in your hardest moment?", "When you were there for me"],
+      ["What hardships did your family go through, and how did [he|she] cope?", "How you coped"],
+      ["Which of [his|her] acts of care did you only appreciate once you had grown up?", "What I didn’t notice before"],
+      ["Were there disagreements between you? How did you get past them?", "How we found common ground"],
+      ["Which of [his|her] actions showed you real strength of character?", "Your strength"],
+      ["What would you like to ask [his|her] forgiveness for?", "Forgive me"],
+    ],
+  },
+  {
+    key: "family",
+    title: "Our family",
+    questions: [
+      ["What family traditions do you have?", "Our traditions"],
+      ["How does your family celebrate holidays?", "Holidays in our family"],
+      ["Which story from [Dad|Mom]’s life do you love to retell?", "A story I love"],
+      ["What kind of [grandfather|grandmother] is [he|she], or will [he|she] be?", "You as a [grandfather|grandmother]"],
+      ["Which family feast do you remember best?", "A family feast"],
+      ["Which things in [Dad|Mom]’s home keep your family’s history?", "Things with a story"],
+      ["What does the word “family” mean to you?", "What family is"],
+    ],
+  },
+  {
+    key: "fun",
+    title: "Funny stories",
+    questions: [
+      ["What is the funniest moment from your childhood involving [Dad|Mom]?", "The funniest story"],
+      ["How did [he|she] once make you laugh at the wrong moment?", "Laughing at the wrong time"],
+      ["What family tale gets told at every celebration?", "A family legend"],
+      ["Which of your childhood pranks did [he|she] uncover?", "My pranks"],
+      ["How does [he|she] cope with new technology?", "You and technology"],
+      ["Which of [his|her] facial expressions is impossible to forget?", "Your expression"],
+    ],
+  },
+  {
+    key: "now",
+    title: "Us now",
+    questions: [
+      ["How has your relationship changed since you grew up?", "Us now"],
+      ["How do you like to spend time together now?", "Our time together"],
+      ["What do you talk about on the phone?", "Our conversations"],
+      ["What would you like to do together more often?", "I want more…"],
+      ["Which recent memory you share is especially dear to you?", "A recent memory"],
+      ["Where would you like to take [Dad|Mom]?", "Where I will take you"],
+    ],
+  },
+  {
+    key: "wishes",
+    title: "Dreams",
+    questions: [
+      ["What does [Dad|Mom] dream about?", "Your dreams"],
+      ["Which of [his|her] dreams do you want to make come true?", "The dream I will fulfil"],
+      ["What would you like to do together in the coming years?", "What we will do together"],
+      ["How do you picture [his|her] life ten years from now?", "Ten years from now"],
+      ["What promise would you like to make to [him|her]?", "My promise"],
+    ],
+  },
+  {
+    key: "thanks",
+    title: "Thank you",
+    questions: [
+      ["What are you grateful to [Dad|Mom] for?", "Thank you for…"],
+      ["Which of [his|her] actions will you never forget?", "An act I will never forget"],
+      ["What words have you wanted to say for a long time but haven’t dared?", "What I have long wanted to say"],
+      ["What do you wish for [him|her]?", "What I wish for you"],
+      ["Why do you love [him|her]? List as many reasons as you can.", "Why I love you", "You can make a list, with each reason on a new line."],
+      ["Write [Dad|Mom] a letter from the bottom of your heart.", "A letter to you"],
+      ["Finish the sentence: “[Dad|Mom], to me you are…”", "[Dad|Mom], to me you are…"],
+    ],
+  },
+];

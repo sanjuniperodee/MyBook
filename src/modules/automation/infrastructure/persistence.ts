@@ -229,7 +229,7 @@ const dayStart = (day: string | ReturnType<typeof sql>, tz: string) => sql`((${d
 const GRADUATION_LABEL = (messagesFor("ru").common.occasions as Record<string, { label: string }>).graduation.label;
 
 const occasionsOf = (locale: Locale) => messagesFor(locale).common.occasions as Record<string, { label: string }>;
-const OCCASION_FALLBACK: Record<Locale, string> = { ru: "памятная дата", kk: "есте қаларлық күн", uz: "esda qolarli sana" };
+const OCCASION_FALLBACK: Record<Locale, string> = { ru: "памятная дата", kk: "есте қаларлық күн", uz: "esda qolarli sana", en: "a memorable date" };
 
 /**
  * Повод по коду книги (birthday) или по подписи из поля «Повод» сделки («День рождения» — поле по-русски, как в CRM),

@@ -99,6 +99,22 @@ const teacherUz: Pick<Pool, "warm" | "funny" | "formal"> = {
   ],
 };
 
+const teacherEn: Pick<Pool, "warm" | "funny" | "formal"> = {
+  formal: true,
+  warm: [
+    "Thank you for your patience, your knowledge and your belief in us.",
+    "I wish you good health, inspiration and grateful students.",
+    "You taught us not only your subject, but also how to think and how to respect other people.",
+    "May every day in the classroom bring you joy, and may your work be recognised.",
+    "We will always remember your lessons.",
+  ],
+  funny: [
+    "I wish you homework that marks itself and students who turn up with theirs already done.",
+    "May the bell for break ring more often than the bell for a telling-off.",
+    "We promise not to be late and not to copy anyone’s work today.",
+  ],
+};
+
 const data: Record<PublicLocale, LocaleData> = {
   ru: {
     recipients: {
@@ -551,6 +567,157 @@ const data: Record<PublicLocale, LocaleData> = {
     closings: {
       warm: { family: ["Mehr va iliqlik bilan.", "Qattiq quchoqlayman."], formal: ["Chuqur hurmat va minnatdorchilik bilan.", "Samimiy minnatdorchilik bilan."] },
       funny: { family: ["Esdan chiqmasin: yosh — shunchaki raqam. Katta, ammo baribir raqam.", "Ura! Tort allaqachon kutyapti."], formal: ["Hurmat va mehr bilan — shogirdlaringiz."] },
+    },
+  },
+  en: {
+    recipients: {
+      mama: {
+        plain: ["Dear Mum,", "Mum, my darling,"],
+        named: ["Dear Mum,", "Mum, my darling,"],
+        warm: [
+          "Thank you for your care, which is always with me, even when we are far apart.",
+          "I wish you health, which matters most, peaceful days and a reason to smile every day.",
+          "You taught me kindness and patience, and everything good in me comes from you.",
+          "May your home be full of warmth, and may the people who love you always be close.",
+          "I love you very much and I am proud to have you as my mum.",
+        ],
+        funny: [
+          "I wish you a fridge that is always full, and calls from us that come before you can ask “why don’t you ever ring?”",
+          "I promise not to argue about the hat and to wear it. Well, I almost promise.",
+          "You always knew when we had eaten the wrong thing, and you were always right. Stay just as all-seeing!",
+        ],
+      },
+      papa: {
+        plain: ["Dear Dad,", "Dad, the dearest person to me,"],
+        named: ["Dear Dad,", "Dad, the dearest person to me,"],
+        warm: [
+          "Thank you for always being my support and my example.",
+          "I wish you strong health, energy and strength for everything you have planned.",
+          "May your work bring you joy and your home bring you peace.",
+          "I remember your advice and value it, even when I do things my own way.",
+          "I am proud that you are my dad.",
+        ],
+        funny: [
+          "I wish you a TV remote that is always where you left it, and fish that jump onto your hook all by themselves.",
+          "May your jokes be as funny as they ever were, and may we laugh for real, not just to be polite.",
+          "May the car never break down and the spare parts never get dearer. We will sort out the rest somehow.",
+        ],
+      },
+      babushka: {
+        plain: ["Dear Grandma,", "My beloved Granny,"],
+        named: ["Dear Grandma,", "My beloved Granny,"],
+        warm: [
+          "Thank you for your stories, your pies and the warmth that is always with you.",
+          "I wish you health, joy and many more years with us.",
+          "Your wisdom and kindness are our family’s treasure.",
+          "May your grandchildren cheer you with calls and visits, and may your home be full of guests.",
+          "We love you and treasure every evening spent with you.",
+        ],
+        funny: [
+          "I wish you pies that bake themselves, and grandchildren who simply do as they are told.",
+          "May there be so much jam that it is enough for us, for the neighbours and still some left for winter.",
+          "We promise to ring more often than you can say “well, I had stopped expecting you to.”",
+        ],
+      },
+      dedushka: {
+        plain: ["Dear Grandpa,", "Grandpa, my dear,"],
+        named: ["Dear Grandpa,", "Grandpa, my dear,"],
+        warm: [
+          "Thank you for your wisdom, your stories and your gift for making the world feel safer.",
+          "I wish you strong health, a cheerful spirit and many long years.",
+          "Your stories of the past are our family’s treasure.",
+          "May your children and grandchildren always be close, and may your home be full of peace and comfort.",
+          "We are proud of you and love you very much.",
+        ],
+        funny: [
+          "I wish you glasses that are always easy to find, and chess games that end in your victory, sometimes fair and square.",
+          "May the newspaper be fresh, the tea hot and the grandchildren well behaved. At least for today.",
+          "I wish you the energy of a young man and the wisdom you already have, which means nothing needs to change.",
+        ],
+      },
+      zhena: {
+        plain: ["My love,", "Dear wife,"],
+        named: ["My love {name},", "Dear {name},"],
+        warm: [
+          "You make our home cosy, and you make me better.",
+          "I wish you health, joy and every wish come true.",
+          "With you I feel like the happiest person alive.",
+          "May every day be filled with smiles, flowers and good news.",
+          "I love you, and that is the most important thing I want to say.",
+        ],
+        funny: [
+          "I wish you pleasant shopping trips and sales that never end.",
+          "I promise not to say “I told you so”, at least not today.",
+          "I wish you strength for all of us, because without you we would be lost.",
+        ],
+      },
+      muzh: {
+        plain: ["My love,", "Dear husband,"],
+        named: ["My love {name},", "Dear {name},"],
+        warm: [
+          "You are my rock, and with you I am not afraid of anything.",
+          "I wish you health, success and every plan fulfilled.",
+          "Thank you for your care, your patience and your reliability.",
+          "May someone always be waiting for you at home, and may luck go with you in all you do.",
+          "How good it is that we are together.",
+        ],
+        funny: [
+          "I wish you socks that always turn up in pairs and a football team that keeps winning.",
+          "May the remote be in your hands, and I in your heart.",
+          "I promise not to mention the rubbish. Today.",
+        ],
+      },
+      podruga: {
+        plain: ["Dear friend,", "My dear friend,"],
+        named: ["Dear {name},", "Sweet {name},"],
+        warm: [
+          "You are someone I can be silent with, or laugh with, equally easily.",
+          "I wish you health, love, inspiration and kind people around you.",
+          "Thank you for being there in happy times and in hard ones.",
+          "May your dreams come true, and may you meet only good people on your way.",
+          "Your friendship is one of the best things I have.",
+        ],
+        funny: [
+          "I wish you an age that exists only in your passport, while in your heart you stay twenty for ever.",
+          "May your coffee always be hot, your news always good, and your friend always nearby to talk it all over.",
+          "May wrinkles come only from laughing, and may someone else fight the extra weight.",
+        ],
+      },
+      drug: {
+        plain: ["Dear friend,", "My friend,"],
+        named: ["Dear {name},", "My friend {name},"],
+        warm: [
+          "You are a true friend: I can always count on you.",
+          "I wish you health, luck and great victories.",
+          "Thank you for your support and your honesty.",
+          "May your affairs go from strength to strength, and may loyal people always be by your side.",
+          "I am glad to have a friend like you.",
+        ],
+        funny: [
+          "I wish you a salary that grows faster than prices, and friends who only ever make life more fun.",
+          "May the barbecue be juicy and the weather on our side.",
+          "I promise not to retell your stories to your mum. Today.",
+        ],
+      },
+      uchitelnitsa: { plain: ["Dear teacher,", "Our dear teacher,"], named: ["Dear {name},", "Our dear {name},"], ...teacherEn },
+      uchitel: { plain: ["Dear teacher,", "Our dear teacher,"], named: ["Dear {name},", "Our dear {name},"], ...teacherEn },
+    },
+    occasions: {
+      birthday: { titles: ["Happy birthday!", "Warmest birthday wishes!"], follow: "Today is a special day, and I want to say the warmest words I can." },
+      jubilee: {
+        titles: ["Happy jubilee!", "Warmest wishes on your jubilee!"],
+        titlesAge: ["Happy jubilee — {age}!", "Warmest wishes on your jubilee: {age}!"],
+        follow: "A date like this is a reason to look back on the road travelled and to enjoy it.",
+      },
+      march8: { titles: ["Happy 8 March!", "Warmest wishes on 8 March!"], follow: "May spring come not only to the calendar, but to your heart." },
+      defender: { titles: ["Happy 23 February!", "Warmest wishes on 23 February!"], follow: "On this day I want to say thank you for your strength, your reliability and your care." },
+      teachers: { titles: ["Happy Teachers’ Day!", "Warmest wishes on Teachers’ Day!"], follow: "On this day we remember especially clearly who gave us knowledge and kindness." },
+      anniversary: { titles: ["Happy wedding anniversary!", "Happy anniversary of our wedding!"], follow: "Every year we have lived together is our shared treasure." },
+      newyear: { titles: ["Happy New Year!", "Warmest wishes for the New Year!"], follow: "May it bring more warmth, light and good news." },
+    },
+    closings: {
+      warm: { family: ["With love and warmth.", "A big, tight hug."], formal: ["With deepest respect and gratitude.", "With sincere appreciation."] },
+      funny: { family: ["And remember: age is just a number. A big one, but still a number.", "Hooray! The cake is already waiting."], formal: ["With respect and love — your students."] },
     },
   },
 };

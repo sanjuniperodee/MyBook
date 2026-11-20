@@ -61,5 +61,23 @@ export const podarokLyubimomu: Landing = {
         ["Agar birga bo‘lganimizga ko‘p bo‘lmagan bo‘lsa-chi?", "Bir necha oyning o‘zida ham ajoyib ko‘p voqealar to‘planadi. Hamma savolga javob berish shart emas — kitobga faqat to‘ldirilganlari kiradi."],
       ],
     },
+    en: {
+      label: "A gift for the one you love",
+      h1: "A book about your love:",
+      accent: "a gift no one else can give",
+      metaTitle: "A book about your love as a gift: write your own story",
+      metaDescription: "A personal book about the two of you: how you met, first dates, dreams. Answer the questions, add photos, and we will print it as a hardcover book.",
+      lead: "How you met, what he or she said on the first date, why you love each other. Answer our gentle questions and we will lay out your story like a real novel.",
+      why: [
+        { title: "No one else has one", text: "Jewellery or a watch can be bought. A book about the two of you can only be written." },
+        { title: "Words that are hard to say", text: "The questions help you say what we rarely say out loud: thank you, I’m sorry, I’m proud of you." },
+        { title: "It will be read again and again", text: "In five or twenty years the book becomes a family keepsake, full of your photos and the handwriting of real life." },
+      ],
+      cover: { title: "You Are My Everything", names: "Aliya & Margulan", subtitle: "Four years together" },
+      faq: [
+        ["Can the two of us write the book together?", "Yes. Write it together or take turns. With letters from loved ones, friends and family can add their own words to the book too."],
+        ["What if we have only been together a short while?", "Even a few months hold a surprising number of stories. You do not have to answer every question; only the ones you fill in go into the book."],
+      ],
+    },
   },
 };

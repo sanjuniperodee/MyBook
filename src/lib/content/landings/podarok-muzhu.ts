@@ -61,5 +61,23 @@ export const podarokMuzhu: Landing = {
         ["Anchadan beri birgamiz, ko‘p narsa esdan chiqqan bo‘lsa-chi?", "Maslahatli savollar aynan unutilganni eslatadi: birinchi uchrashuv, ko‘chib o‘tishlar, kulgili voqealar. Kuniga bir necha qatordan javob berish mumkin, suratlar esa tafsilotlarni eslashga yordam beradi."],
       ],
     },
+    en: {
+      label: "A gift for my husband",
+      h1: "A gift for your husband",
+      accent: "that he would never buy himself",
+      metaTitle: "What to give your husband: a book about your life together",
+      metaDescription: "A gift for your husband’s birthday, your anniversary or 23 February: a book about your life together. Guided questions, photos, hardcover.",
+      lead: "He already has the watch and the aftershave. What he doesn’t have is a book in which his wife tells how it all began, why she loves him and what she is proud of. Answer the questions and we will lay out your family story.",
+      why: [
+        { title: "A gift you can’t buy", text: "A shop has everything except the words you would choose for him yourself." },
+        { title: "Words we keep putting off", text: "In everyday life “thank you” and “I’m proud of you” are rarely said. The questions help you say them calmly, on paper, without awkwardness." },
+        { title: "For the family bookshelf", text: "Years from now your children will open it and learn how their parents met and what their father was like when he was young." },
+      ],
+      cover: { title: "My Beloved Husband", names: "from Dinara", subtitle: "Ten years together" },
+      faq: [
+        ["Is it right for a birthday and for 23 February?", "Yes. Tell us the date and we will show you the last day to order. If time is short, the digital book is available right after payment and you can order the printed copy later."],
+        ["What if we have been together for years and have forgotten a lot?", "That is what the guided questions are for: they bring back the first date, the moves, the funny moments. You can answer a few lines a day, and photos help you remember the details."],
+      ],
+    },
   },
 };

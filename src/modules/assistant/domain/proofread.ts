@@ -33,8 +33,8 @@ export const proofreadSchema = {
   additionalProperties: false,
 } as const;
 
-const bookLanguage: Record<Locale, string> = { ru: "русском", kk: "казахском", uz: "узбекском (латиницей)" };
-const noteLanguage: Record<Locale, string> = { ru: "по-русски", kk: "по-казахски", uz: "по-узбекски (латиницей)" };
+const bookLanguage: Record<Locale, string> = { ru: "русском", kk: "казахском", uz: "узбекском (латиницей)", en: "английском" };
+const noteLanguage: Record<Locale, string> = { ru: "по-русски", kk: "по-казахски", uz: "по-узбекски (латиницей)", en: "по-английски" };
 
 /** Чем является текст: у подарка — письмо близкому, у автобиографии — рассказ от первого лица, у своей книги — авторский текст. */
 const textAbout: Record<BookKind, string> = {

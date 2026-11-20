@@ -62,5 +62,23 @@ export const podarokNaYubilejPape: Landing = {
         ["Uning yoshlik suratlarini qo‘shsa bo‘ladimi?", "Ha, suratlarni telefonda suratga oling yoki skaner qiling. Agar bosma uchun sifati yetmasa, oldindan ogohlantiramiz."],
       ],
     },
+    en: {
+      label: "Gift for Dad’s milestone birthday",
+      h1: "A milestone birthday gift for Dad:",
+      accent: "a book he won’t see coming",
+      metaTitle: "What to give Dad for a big birthday — a book from his family",
+      metaDescription: "A gift for Dad’s 50th, 55th or 60th: a book about his life, with thanks from his children and grandchildren. Letters, photos, hardcover, delivery in Kazakhstan.",
+      lead: "Dad rarely asks for attention and even more rarely hears thank-yous. A big birthday is the moment to gather them in a book: what he has done for the family, what he taught you and how you remember him.",
+      why: [
+        { title: "A gift he doesn’t have to “use”", text: "Nothing to charge, nothing to swap for another size. He simply opens the book — and finds himself in it." },
+        { title: "The voice of the whole family", text: "Letters from children, grandchildren and friends go into a chapter of their own, so Dad hears everyone at once." },
+        { title: "A story that gets passed on", text: "Memories of childhood, work, friends and the things he did are kept for his grandchildren and great-grandchildren." },
+      ],
+      cover: { title: "To Our Dad", names: "From his children and grandchildren" },
+      faq: [
+        ["What should I write if Dad finds it hard to talk about feelings?", "The questions suggest a topic: for example, what he taught you or the moment you remember best. Start with facts and memories — the warm words will come by themselves."],
+        ["Can I add photos from his youth?", "Yes, photograph or scan the pictures. If the resolution isn’t enough for print, we’ll warn you in advance."],
+      ],
+    },
   },
 };

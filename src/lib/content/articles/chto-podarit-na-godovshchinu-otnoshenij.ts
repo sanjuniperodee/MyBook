@@ -248,5 +248,85 @@ export const chtoPodaritNaGodovshchinuOtnoshenij: Article = {
       ],
       cta: { title: "Juftligingiz haqida kitob", text: "Savollarga javob bering, suratlar qo‘shing — kitobni biz maketlab, bosib chiqaramiz. Yozish bepul." },
     },
+    en: {
+      title: "What to give for a relationship anniversary: ideas by year and budget",
+      description: "What to give your partner for a relationship anniversary: ideas for the first year, three years and 5+ years together, gifts for every budget and what to avoid.",
+      lead: "An anniversary isn’t about an expensive thing, but about showing that you remember your story. We have gathered ideas by stage, tips on budget and a list of gifts that are better avoided.",
+      sections: [
+        {
+          heading: "The main rule: a gift about the two of you",
+          paragraphs: [
+            "A good anniversary gift is linked to your story: the place where you met, a shared joke, a trip you both remember. Then it won’t get lost among the other gifts of the year.",
+            "Before choosing, think back over what your partner has said in recent months: “I’d like to try that”, “I’ve always wanted to”, “shame we didn’t get the chance”. The hints are usually already there.",
+          ],
+        },
+        {
+          heading: "The first year together",
+          paragraphs: ["The first anniversary is a time when you want to recall how it all began and repeat the warmest moments."],
+          list: [
+            "A date at the place where you first met, with the same order at the café.",
+            "A photo album or a selection of pictures from the first year, with captions.",
+            "A short trip for two to somewhere new.",
+            "A letter, “what I remember from this year”, with specific episodes.",
+            "A gift linked to a shared interest: tickets, a hobby kit, a board game.",
+          ],
+        },
+        {
+          heading: "Three years: when you already have your own story",
+          paragraphs: ["By three years, a couple usually knows each other well enough to choose precisely. You can afford a gift that says “I see who you are”."],
+          list: [
+            "Something your partner has mentioned but never bought for themselves.",
+            "A trip together or a weekend in another city.",
+            "A dinner at home: you cook each other’s favourite dishes together.",
+            "A keepsake with a date, a place or a phrase that only the two of you understand.",
+            "A book about your relationship, with questions, answers and photographs.",
+          ],
+        },
+        {
+          heading: "Five years and beyond",
+          paragraphs: ["A long relationship easily turns into routine, and an anniversary is a chance to shake it up. Gifts here are about time for each other and about gratitude."],
+          list: [
+            "A trip for two, even just for a couple of days, without the children and everyday chores.",
+            "A professional photo shoot: as a couple, as a family, or with the children.",
+            "Recreating your first date or your wedding evening years later.",
+            "A book about your couple: how you met, what you have lived through, what you dream of next.",
+            "A thank-you letter for specific things done over all these years.",
+          ],
+        },
+        {
+          heading: "Ideas for every budget",
+          paragraphs: ["The size of the budget doesn’t decide how warm a gift turns out: a lot depends on how much attention you pay to the person."],
+          list: [
+            "Modest budget: a handwritten letter, a dinner at home, a walk around your favourite places, a photo collage.",
+            "Mid-range budget: tickets to a concert or play, dinner at a good restaurant, something you have wanted for a long time, a photo shoot.",
+            "No strict limit: a trip of a few days, a piece of jewellery, a refresh of a favourite corner of your home, a book about the two of you with beautiful printing.",
+            "Any budget: a combination of a small gift, personal words and time together.",
+          ],
+        },
+        {
+          heading: "A gift with meaning: a book about the two of you",
+          paragraphs: [
+            "A book about your relationship gathers what fades from memory over time: how you met, what you remember, what you are grateful to each other for. You answer the questions and add photographs, and your partner can reread it for years. If you want to know exactly how long you have been together, count the days and write the number on the first page.",
+            "You can write the book for free. We print the finished book in a hardcover and deliver it across Kazakhstan; the digital copy is available right after payment.",
+          ],
+        },
+        {
+          heading: "What is better not to give",
+          list: [
+            "Things “for self-improvement”: for the gym, losing weight or grooming, if the person has not asked for them.",
+            "Household appliances “for the home”: they sound like a chore, not a gift.",
+            "Gifts that are too expensive, if you are not sure the person will find them easy to accept.",
+            "Generic souvenirs “for everyone” without a personal touch.",
+            "Surprises involving other people, if the person doesn’t like being the centre of attention.",
+          ],
+        },
+      ],
+      faq: [
+        ["What should I give for a first relationship anniversary?", "Best of all is something that recalls the beginning: a date at the same place, a photo album or a letter with your memories. An expensive gift isn’t needed; attention matters more."],
+        ["What should I give my partner for our anniversary if he says “I don’t need anything”?", "Give time and an experience: a trip, a dinner or a gift linked to your story. A book about the two of you is also a good option; it shows that you remember your shared moments."],
+        ["How can we celebrate an anniversary with no budget?", "A handwritten letter, a dinner at home and a walk around your favourite places cost almost nothing but are remembered. You can make a photo collage or a selection of pictures from the year."],
+      ],
+      cta: { title: "A book about your couple", text: "Answer the questions and add photographs — we will lay out and print the book. Writing is free." },
+    },
   },
 };

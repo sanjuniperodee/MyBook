@@ -64,7 +64,7 @@ describe("api(): перевод ошибок в HTTP", () => {
     expect((await failWith(new Error("x"))).body.error).toBe("Сервердің ішкі қатесі");
     request.headers.set("x-mb-locale", "ru");
     expect((await failWith(new HttpError(404, "bookNotFound"))).body.error).toBe("Книга не найдена");
-    request.cookies.set("mb_locale", "en");
+    request.cookies.set("mb_locale", "fr");
     request.headers.delete("x-mb-locale");
     expect((await failWith(new HttpError(404, "bookNotFound"))).body.error).toBe("Книга не найдена");
   });

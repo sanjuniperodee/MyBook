@@ -101,6 +101,37 @@ export const testMama: ToolDef = {
       ],
       cta: { title: "Ona haqida ko‘proq bilib, buni saqlab qoling", text: "Ona haqidagi kitobda uning bolaligi, orzulari va saboqlari haqidagi savollarga javob berib, suratlar va yaqinlarning xatlarini qo‘shasiz. Yozish bepul." },
     },
+    en: {
+      label: "Quiz: how well do you know your mum",
+      h1: "How well do you know",
+      accent: "your mum?",
+      metaTitle: "Quiz: how well do you know your mum? 10 questions",
+      metaDescription: "Take a 10-question quiz: do you know your mum’s favourite song, dreams, fears and best stories? Then get a list of questions worth asking.",
+      teaser: "10 questions about your mum: what you know for sure and what is still to discover.",
+      lead: "Ten simple statements about your mum: her dreams, childhood, fears and pride. Mark what you know for sure and what only roughly. At the end you get a result and a list of questions worth asking.",
+      sections: [
+        {
+          heading: "Why this quiz",
+          paragraphs: [
+            "We know our mum as our mum: what she will cook, what she worries about, what she will share. But about who she was before us, what she dreamed of at sixteen and what she feared, children often know surprisingly little. Not because mum has nothing to tell, but because nobody asked.",
+            "The quiz does not grade you: it shows what to ask. Every question you answer “no” or “roughly” is a ready-made topic for an evening over tea.",
+          ],
+        },
+        {
+          heading: "What to do with the result",
+          paragraphs: [
+            "Pick two or three questions from the list and ask them at your next visit or on the phone. Record the answers on a voice recorder: in a few years they will be priceless. And if you want to keep everything at once, you can make a book: our questions are designed to lead your mum to her best stories.",
+          ],
+        },
+      ],
+      faq: [
+        ["How many questions are in the quiz?", "Ten. Each “I know for sure” answer scores 2 points, “roughly” scores 1 and “no” scores 0. The total is converted into a percentage and one of four closeness levels."],
+        ["Who will see my answers?", "Only you. The quiz runs in your browser; the answers are not sent or saved anywhere."],
+        ["What if I know very little?", "That is normal and easy to fix. Choose a few questions from the final list and ask your mum. For most parents, such a conversation is a pleasant surprise."],
+        ["How can I keep my mum’s stories?", "Write down the answers or collect them in a book: you answer questions about your mum, add photos and get a hardcover or digital book."],
+      ],
+      cta: { title: "Learn more about your mum and keep it", text: "In a book about your mum you answer questions about her childhood, dreams and lessons, and add photos and letters from relatives. Writing is free." },
+    },
   },
 };
 
@@ -203,6 +234,37 @@ export const testPapa: ToolDef = {
         ["Otaga tug‘ilgan kuniga yoki 23-fevralga nima sovg‘a qilish kerak?", "Ichida uning tarixi bor sovg‘a: savollaringizga javoblari, suratlari va yaqinlarning xatlari bor ota haqidagi kitob. Uni do‘kondan sotib bo‘lmaydi va u qadrini yo‘qotmaydi."],
       ],
       cta: { title: "Ota haqidagi kitob — uning tarixi bor sovg‘a", text: "Otaning bolaligi, ishi va saboqlari haqidagi savollarga javob berib, surat qo‘shing — kitobni biz maketlab, bosib beramiz. Yozish bepul." },
+    },
+    en: {
+      label: "Quiz: how well do you know your dad",
+      h1: "How well do you know",
+      accent: "your dad?",
+      metaTitle: "Quiz: how well do you know your dad? 10 questions",
+      metaDescription: "Take a 10-question quiz: do you know how your dad chose his career, what he dreamed of and which lesson matters most? Get questions to ask him.",
+      teaser: "10 questions about your dad: career, dreams, main lessons and pride.",
+      lead: "Ten statements about your dad: his first job, youthful dreams, stories from his life and main lessons. Mark what you know for sure and what you do not, and get a list of questions for a conversation.",
+      sections: [
+        {
+          heading: "Why we know less about dads",
+          paragraphs: [
+            "Many dads are used to talking about work and plans rather than feelings and the past. So children often know what their dad does, but not what he loves, what he regrets and what he is proud of. That does not mean he has nothing to say: he just needs the right question at the right moment.",
+            "Questions about concrete things work best: a first salary, the funniest incident, a favourite song. They do not call for “big words”, yet they open a person up.",
+          ],
+        },
+        {
+          heading: "How to use the result",
+          paragraphs: [
+            "Pick a question from the final list and ask it while fishing, in the car or over dinner. Let your dad tell the story, and just listen. Write down the best answers: later they can be collected into a book about your dad with photos and letters from loved ones.",
+          ],
+        },
+      ],
+      faq: [
+        ["How is the quiz result calculated?", "“I know for sure” scores 2 points, “roughly” scores 1 and “no” scores 0. The sum is converted into a percentage and one of four levels, from “time to start talking” to “you know him like no one else”."],
+        ["What questions should I ask my dad to get him to open up?", "Start with something concrete and neutral: a first job, a favourite song, the funniest incident. After those, it is easier to move on to life lessons and dreams."],
+        ["Are my answers saved?", "No. The quiz runs in the browser; nothing is sent or saved."],
+        ["What should I give my dad for his birthday or Father’s Day?", "A gift with his story in it: a book about your dad with answers to your questions, photos and letters from loved ones. You cannot buy it in a shop, and it will never lose its value."],
+      ],
+      cta: { title: "A book about your dad: a gift with his story", text: "Answer questions about your dad’s childhood, work and lessons, add photos, and we will lay out and print the book. Writing is free." },
     },
   },
 };
@@ -307,6 +369,37 @@ export const testBabushka: ToolDef = {
       ],
       cta: { title: "Buvining hikoyalarini kitobda saqlang", text: "Bolalik, oila va an’analar haqidagi savollar, eski suratlar va nevaralarning xatlari — hammasi bitta kitobda. Yozish bepul." },
     },
+    en: {
+      label: "Quiz: how well do you know your grandma",
+      h1: "How well do you know",
+      accent: "your grandma?",
+      metaTitle: "Quiz: how well do you know your grandma? 10 questions",
+      metaDescription: "Take a 10-question quiz: do you know where your grandma grew up, how she met your grandfather, which holidays she recalls? Get questions to ask.",
+      teaser: "10 questions about your grandma: childhood, family, traditions and recipes written down nowhere.",
+      lead: "Ten statements about your grandma: where she grew up, how she met your grandfather and which traditions she keeps. Mark what you know for sure and what you do not, and get questions for a first conversation.",
+      sections: [
+        {
+          heading: "Stories written down nowhere",
+          paragraphs: [
+            "The older generation carries a whole era: a childhood in another world, traditions that no longer exist, recipes without grams, songs without notes. All of it lives only in the memory of grandmothers and grandfathers. When they are gone, this knowledge goes with them, so it needs to be written down now.",
+            "Grandmas often say: “Oh, what is there to tell.” But ask a concrete question, such as about a wedding dress, a first job or a children’s song, and the story comes by itself.",
+          ],
+        },
+        {
+          heading: "How to record your grandma’s stories",
+          paragraphs: [
+            "Start with two or three questions from the final list and ask them over tea. Switch on a voice recorder, do not interrupt, and ask her to recall details: “What was on the table then?”, “What did it smell like?”. The recordings can become a family book that even great-grandchildren will read.",
+          ],
+        },
+      ],
+      faq: [
+        ["How can I learn more about my grandma’s life?", "Ask concrete questions about her childhood, wedding, first job and holidays. One at a time and without hurry works best. The quiz will suggest where to start."],
+        ["What if my grandma lives far away?", "Call her on video and record the conversation. The questions from the final list work well for a call too."],
+        ["Are my answers saved?", "No. The quiz runs in your browser, and the answers are not sent anywhere."],
+        ["How do I turn my grandma’s stories into a book?", "Choose the book about a life: together with your grandma you answer the questions, add old photos and get a book you can give to the whole family."],
+      ],
+      cta: { title: "Keep your grandma’s stories in a book", text: "Questions about childhood, family and traditions, old photos and letters from grandchildren, all in one book. Writing is free." },
+    },
   },
 };
 
@@ -409,6 +502,37 @@ export const testLyubimyj: ToolDef = {
         ["Hammasi sovg‘a qilingan bo‘lsa, sevimli insonga nima sovg‘a qilish kerak?", "Tarixni: xotiralar, suratlar va uzoq vaqtdan beri aytmoqchi bo‘lgan so‘zlar bor juftligingiz haqidagi kitob. Bunday sovg‘ani takrorlab bo‘lmaydi, u yagona."],
       ],
       cta: { title: "Tarixingiz haqida kitob sovg‘a qiling", text: "Tanishuv, dastlabki uchrashuvlar, orzular va uzoq vaqtdan beri aytmoqchi bo‘lgan so‘zlar — bitta kitobda. Yozish bepul." },
+    },
+    en: {
+      label: "Quiz: how well do you know your loved one",
+      h1: "How well do you know",
+      accent: "your loved one?",
+      metaTitle: "Quiz: how well do you know your partner? 10 questions for couples",
+      metaDescription: "Take a 10-question quiz: do you know your partner’s dreams, fears and favourite little things? Get questions for an evening together.",
+      teaser: "10 questions about your partner: dreams, fears, favourite little things, plus questions for an evening together.",
+      lead: "Ten statements about your loved one: what they liked about you straight away, what they dream of, what they fear. Mark what you know for sure and what you do not, and get questions for a talk together.",
+      sections: [
+        {
+          heading: "Why it is worth checking",
+          paragraphs: [
+            "Over the years we get used to feeling that we know our partner inside out. Then it turns out that their dreams have changed in the meantime, and some stories from their childhood were never told. Getting to know each other again is one of the simple ways to stay close.",
+            "You do not need to take the quiz together “for a grade”. It is enough to mark honestly what you know and to use the questions as a reason for an evening conversation.",
+          ],
+        },
+        {
+          heading: "An evening of questions together",
+          paragraphs: [
+            "Pick three questions from the final list, put your phones away and ask them to each other. Answer in detail, with stories, and write down what you want to remember. It is the best basis for an anniversary or birthday gift: a book about your story, built from such answers.",
+          ],
+        },
+      ],
+      faq: [
+        ["How is the result calculated?", "“I know for sure” scores 2 points, “roughly” scores 1 and “no” scores 0. The sum is converted into a percentage and one of four closeness levels."],
+        ["Can we take the quiz together?", "Yes, each of you can take it separately and compare results. It is not a competition: what matters is the questions you ask each other afterwards."],
+        ["Are my answers saved?", "No, the quiz runs in the browser; nothing is sent or saved."],
+        ["What should I give my loved one when they already have everything?", "A story: a book about the two of you, with memories, photos and words you have long wanted to say. Such a gift cannot be repeated; it is one of a kind."],
+      ],
+      cta: { title: "Give a book about your story", text: "How you met, your first dates, your dreams and the words you have long wanted to say, all in one book. Writing is free." },
     },
   },
 };

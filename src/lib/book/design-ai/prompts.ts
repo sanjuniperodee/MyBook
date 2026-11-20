@@ -201,7 +201,7 @@ export interface DesignBookContext {
   texts?: CoverTexts;
 }
 
-const replyLanguage: Record<Locale, string> = { ru: "по-русски", kk: "по-казахски", uz: "по-узбекски (латиницей)" };
+const replyLanguage: Record<Locale, string> = { ru: "по-русски", kk: "по-казахски", uz: "по-узбекски (латиницей)", en: "по-английски" };
 const MODE_LINE: Record<DesignMode, string> = {
   edit: "Режим: правка — верни {concept, reply, ops}; concept — пустая строка, если это мелкая правка без новой идеи.",
   create: "Режим: создание — придумай дизайн заново по книге (и просьбе, если она есть), работая как арт-директор (раздел «Творческая работа»): верни {concept, reply, ops}. Операции могут менять всё: макет или стиль, шрифты, палитру, свои рисунки.",

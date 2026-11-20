@@ -73,7 +73,7 @@ export function PaymentOptions(props: {
   const pay = () => {
     if (!window.cp || !props.online) return setError(t.loading);
     // Виджет CloudPayments понимает «kk» (казахский) и «ru-RU».
-    new window.cp.CloudPayments({ language: locale === "kk" ? "kk" : locale === "uz" ? "uz" : "ru-RU" }).pay(
+    new window.cp.CloudPayments({ language: locale === "kk" ? "kk" : locale === "uz" ? "uz" : locale === "en" ? "en-US" : "ru-RU" }).pay(
       "charge",
       {
         publicId: props.online.publicId,

@@ -148,7 +148,7 @@ export async function invoiceFormInfoAction(raw: { dealId?: string; conversation
       kaspiPhoneMasked: methods.kaspi && isKzMobile(phone) ? maskPhone(phone) : null,
       kaspiWarning,
       maxDiscountPercent: maxDiscount,
-      preview: { until: { ru: untilLabel(until, "ru"), kk: untilLabel(until, "kk"), uz: untilLabel(until, "uz") }, link: { ru: `${env.appUrl}/pay/…`, kk: `${env.appUrl}/kk/pay/…`, uz: `${env.appUrl}/uz/pay/…` } },
+      preview: { until: { ru: untilLabel(until, "ru"), kk: untilLabel(until, "kk"), uz: untilLabel(until, "uz"), en: untilLabel(until, "en") }, link: { ru: `${env.appUrl}/pay/…`, kk: `${env.appUrl}/kk/pay/…`, uz: `${env.appUrl}/uz/pay/…`, en: `${env.appUrl}/en/pay/…` } },
     },
   };
 }

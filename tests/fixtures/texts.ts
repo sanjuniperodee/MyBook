@@ -156,4 +156,4 @@ const kk: FixtureTexts = {
   ],
 };
 
-export const fixtureTexts: Record<Locale, FixtureTexts> = { ru, kk, uz: ru };
+export const fixtureTexts: Record<Locale, FixtureTexts> = { ru, kk, uz: ru, en: ru };

@@ -119,5 +119,42 @@ export const voprosyLyubimomu: Article = {
       ],
       cta: { title: "Javoblarni kitobga aylantiring", text: "Bob bo‘yicha iliq savollarga javob berib, hikoyangizni yozing, suratlarni qo‘shing: kitobni biz maketlab, chop etamiz." },
     },
+    en: {
+      title: "Questions for the person you love: about love, the past and dreams",
+      description: "Questions for couples that bring you closer: how you met, first dates, dreams and love. How to ask them without awkwardness and keep the answers in a book.",
+      lead: "Even after years together, there is a lot you have never asked each other. Questions help you remember how it all began and say what is rarely heard in everyday life.",
+      sections: [
+        {
+          heading: "Why couples should ask each other questions",
+          paragraphs: [
+            "In daily life we talk about chores, but rarely about what we feel and what we dream of. Good questions turn your attention back to each other — and to the story you share.",
+            "For couples who have been together for years, questions are a reason to remember what has been forgotten: your first meeting, your first trip, your first quarrel. For new couples, they are a quick way to get to know someone more deeply.",
+          ],
+        },
+        {
+          heading: "How to ask questions without awkwardness",
+          list: [
+            "Choose an evening without phones — over dinner or on a walk.",
+            "Start light: how you met, first impressions, funny moments.",
+            "Move to deeper topics gradually — dreams, fears, gratitude.",
+            "Answer together: a conversation where only one person speaks turns into an interview.",
+            "Don’t judge the answers — listening matters more.",
+          ],
+        },
+        {
+          heading: "How to keep the answers",
+          paragraphs: [
+            "It’s a pity to leave the best answers as just a conversation. Write them down and you get a book about the two of you: how you met, dates, support, dreams.",
+            "You can give the book on an anniversary, a birthday or 14 February. It turns out deeply personal: your words, your photos and a cover of your choice.",
+          ],
+        },
+      ],
+      questions: { heading: "Questions for the person you love, chapter by chapter", intro: "These are the questions from the “For the One I Love” book: you can use them for a conversation or write your answers for a gift book." },
+      faq: [
+        ["Which questions should we start with if we have only recently got together?", "Start at the beginning of the story: how you met, what attracted you to each other, what your first impression was. Save the deeper questions about dreams and values for later."],
+        ["Can we answer these questions in writing?", "Yes, and many people find it easier. That is exactly how the book works: you write answers chapter by chapter, and then show or give the result."],
+      ],
+      cta: { title: "Turn the answers into a book", text: "Write your story by answering warm questions chapter by chapter, add photos — we will lay out and print the book." },
+    },
   },
 };

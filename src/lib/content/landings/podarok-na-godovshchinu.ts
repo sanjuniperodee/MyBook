@@ -62,5 +62,23 @@ export const podarokNaGodovshchinu: Landing = {
         ["Tabrik kartasini solish mumkinmi?", "Ha, buyurtma paytida matnini yozing — biz tabrik kartasini bosib, qadoqqa solamiz."],
       ],
     },
+    en: {
+      label: "A gift for your anniversary",
+      h1: "An anniversary gift:",
+      accent: "a book about your years together",
+      metaTitle: "An anniversary gift: a book about the two of you",
+      metaDescription: "What to give for an anniversary? A book about your story, from the day you met to today. Questions, photos, printing and delivery in time for the date.",
+      lead: "One year, five or twenty, every couple has stories worth keeping. Write them down and we will lay out and print the book in time for your date.",
+      why: [
+        { title: "It will arrive in time", text: "Tell us your anniversary date and we will show you when to order and remind you in advance." },
+        { title: "Paper, cotton, silver", text: "The book suits any anniversary: paper, binding, photographs, and your own words." },
+        { title: "An exact proof in advance", text: "Before you pay, you can page through a PDF of the whole book. It will be printed exactly like that." },
+      ],
+      cover: { title: "Five Years of Love", names: "Sasha & Nika" },
+      faq: [
+        ["How much time do I need to make it?", "Writing takes a couple of evenings. Production takes 5–7 working days (Premium 3–4), and courier delivery 1–2 days."],
+        ["Can I add a card?", "Yes. Write the text when you order and we will print the card and put it in the packaging."],
+      ],
+    },
   },
 };

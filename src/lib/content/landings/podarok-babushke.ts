@@ -67,5 +67,24 @@ export const podarokBabushke: Landing = {
         ["Buvi og‘ir davrlarni eslagisi kelmasa-chi?", "Faqat javob bergingiz kelgan savollarga javob bering. Qolganini o‘tkazib yuboring — kitob buvi ko‘rishni istagandek bo‘ladi."],
       ],
     },
+    en: {
+      label: "A gift for Grandma",
+      h1: "A gift for Grandma —",
+      accent: "the book of her life, written down by her grandchildren",
+      metaTitle: "What to Give Grandma — A Book of Her Life Story",
+      metaDescription: "A gift for Grandma: grandchildren ask about her childhood, youth and family and write down her stories. Photos, layout, hardcover printing.",
+      lead: "Everyone knows Grandma’s stories, but almost nobody has written them down. Sit beside her with a cup of tea, ask the questions from our list and turn her stories into a book you can hold in your hands and pass on to your children.",
+      why: [
+        { title: "Questions Grandma will run with herself", text: "Childhood, school, youth, how she met Grandpa, how she raised the children. Just ask — she tells the story and you type the answer on your phone." },
+        { title: "Grandma is the author, you are beside her", text: "The book is written in her voice, and your name, as the one who wrote it down, goes on the reverse of the title page. You can answer in any order and over several evenings." },
+        { title: "Family photos and letters from grandchildren", text: "Photograph the pictures from the album, and children and grandchildren send letters through a link — they will go into the book as a separate chapter." },
+      ],
+      cover: { title: "The Story of My Life", names: "Rosa Akhmetova" },
+      faq: [
+        ["Grandma doesn’t use a phone. What should I do?", "She doesn’t need to. You ask the questions and type the answers yourself — on a phone or a computer. You will see the layout of the whole book before you pay and can show it to Grandma."],
+        ["What if the book won’t be ready for her birthday?", "Give a gift certificate: Grandma will choose “Autobiography” herself, and you can write the book together later. You get the digital copy of the finished book right after payment, and the printed copy takes a few working days."],
+        ["What if Grandma doesn’t want to recall difficult times?", "You only answer the questions you want to. Skip the rest — the book will be the way Grandma herself wants to see it."],
+      ],
+    },
   },
 };

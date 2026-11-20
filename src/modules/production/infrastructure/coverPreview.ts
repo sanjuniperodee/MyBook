@@ -72,6 +72,11 @@ const SAMPLE_TEXT = {
     "Keyin hammasi ertakdagidek bo‘ldi: kulardik, rejalar tuzardik, vaqt qanday o‘tayotganini sezmasdik. O‘sha lahzalarning har biri uchun taqdirga rahmat aytaman.",
     "Hayot menga nimani o‘rgatdi, deb so‘rashsa, oddiy javob berardim: yoningdagilarni qadrlash, bu haqda ularga ovoz chiqarib aytish va iliq so‘zlarni keyinga qoldirmaslik.",
   ],
+  en: [
+    "I remember that day as clearly as if it were yesterday. We left the house early in the morning, while the city was still asleep, and walked to the river. The air was cool and smelled of fresh bread, and that was when I understood what peace is.",
+    "Then everything was like a fairy tale: we laughed, made plans and did not notice how time flew. I am grateful to fate for every one of those moments.",
+    "If someone asked me what life has taught me, I would answer simply: value the people beside you, tell them so out loud and never put warm words off for later.",
+  ],
 } as const;
 
 /**

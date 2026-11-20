@@ -124,6 +124,7 @@ export function ClientLocale({ clientId, value }: { clientId: string; value: Loc
       <option value="ru">русский</option>
       <option value="kk">казахский</option>
       <option value="uz">узбекский</option>
+      <option value="en">английский</option>
     </select>
   );
 }

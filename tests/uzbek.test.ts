@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { localizePath, locales, publicLocales, splitLocale, toPublic } from "@/i18n/config";
 import { messagesFor } from "@/i18n/messages";
-import { uzClient } from "@/i18n/messages/uz/client";
 import { ru } from "@/i18n/messages/ru";
 import { applyGender } from "@/lib/content/gender";
 import { getTheme, giftThemes, themeChaptersByLocale, themeIds } from "@/lib/content/themes";
@@ -48,9 +47,9 @@ describe("узбекский: адреса", () => {
   });
 
   it("публичные языки — все три, узбекский не сводится к русскому", () => {
-    expect(publicLocales).toEqual(["ru", "kk", "uz"]);
-    expect(locales).toEqual(["ru", "kk", "uz"]);
-    expect([toPublic("ru"), toPublic("kk"), toPublic("uz")]).toEqual(["ru", "kk", "uz"]);
+    expect(publicLocales).toEqual(["ru", "kk", "uz", "en"]);
+    expect(locales).toEqual(["ru", "kk", "uz", "en"]);
+    expect([toPublic("ru"), toPublic("kk"), toPublic("uz"), toPublic("en")]).toEqual(["ru", "kk", "uz", "en"]);
   });
 });
 
@@ -108,7 +107,6 @@ describe("узбекский: словарь интерфейса", () => {
   it("полный: те же ключи, что в русском; клиентский словарь собран из тех же частей", () => {
     const uz = messagesFor("uz");
     expect(Object.keys(uz).sort()).toEqual(Object.keys(ru).sort());
-    expect(Object.keys(uzClient).sort()).toEqual(Object.keys(uzClient).sort());
     const keysOf = (o: unknown, path = ""): string[] =>
       o && typeof o === "object" && !Array.isArray(o) ? Object.entries(o).flatMap(([k, v]) => keysOf(v, `${path}.${k}`)) : [path];
     expect(keysOf(uz.books).sort()).toEqual(keysOf(ru.books).sort());

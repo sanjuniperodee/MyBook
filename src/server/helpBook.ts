@@ -117,7 +117,7 @@ export async function helpBookFacts(book: BookRow): Promise<HelpBookFacts> {
   const what = kind === "autobiography" ? "книга о себе (автобиография)" : kind === "blank" ? "своя книга с чистого листа (главы и разделы придумывает автор)" : `книга-подарок (${one(getTheme(book.theme, "ru").name, 40)})`;
   L.push(`Название: ${q(book.title)}${book.subtitle ? `, подзаголовок ${q(book.subtitle)}` : ""}. Вид: ${what}.`);
   L.push(`Автор: ${book.authorName ? q(book.authorName, 60) : "не указан"}${kind === "autobiography" ? "" : `; книга для: ${book.recipientName ? q(book.recipientName, 60) : "не указано"}`}${book.recordedBy ? `; записывает со слов: ${q(book.recordedBy, 60)}` : ""}.`);
-  L.push(`Язык книги: ${{ ru: "русский", kk: "казахский", uz: "узбекский (латиница)" }[book.language]}; формат: ${book.format === "square" ? "квадратный" : one(format.id ?? book.format, 20)}${book.occasion ? `; повод: ${book.occasion}${book.occasionDate ? `, дата ${book.occasionDate}` : ""}` : ""}.`);
+  L.push(`Язык книги: ${{ ru: "русский", kk: "казахский", uz: "узбекский (латиница)", en: "английский" }[book.language]}; формат: ${book.format === "square" ? "квадратный" : one(format.id ?? book.format, 20)}${book.occasion ? `; повод: ${book.occasion}${book.occasionDate ? `, дата ${book.occasionDate}` : ""}` : ""}.`);
   if (book.status === "ordered") L.push(`Статус: заказ оформлен — правки в кабинете закрыты${order ? ` (заказ №${order.number}, «${orderStatusLabel(order.status, "ru")}»)` : ""}.`);
   else L.push(`Статус: черновик — всё можно менять${order ? `; есть заказ №${order.number} («${orderStatusLabel(order.status, "ru")}»)` : ", заказ не оформлен"}.`);
   L.push(

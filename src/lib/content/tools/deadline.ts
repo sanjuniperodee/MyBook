@@ -102,5 +102,37 @@ export const uspetKDate: ToolDef = {
       ],
       cta: { title: "Kitobni bugun boshlang", text: "Yozish bepul va o‘z tezligingizda: savollarga telefondan yoki ovoz bilan javob bering. Kitob tayyor bo‘lganda buyurtma bering." },
     },
+    en: {
+      label: "In time for the holiday",
+      h1: "In time for the holiday:",
+      accent: "the last day to order a book",
+      metaTitle: "When to order a gift book to be in time for the holiday — calculator",
+      metaDescription: "Enter the date of the holiday and the delivery method — we will tell you the last day to order a printed gift book. An order calendar for 14 February, 8 March, Teachers’ Day and New Year.",
+      teaser: "The last day to order a printed book for any date, and a calendar of the main holidays.",
+      lead: "A printed book takes several working days to make and then has to travel to you. Enter the date you will give it — the calculator shows the last day to order and tells you what to do if time is short.",
+      sections: [
+        {
+          heading: "What the timeline is made of",
+          paragraphs: [
+            "The timeline has three parts: the time you need to answer the questions and choose photos, the production of the printed book (5–7 working days, 3–4 with express printing) and delivery. The calculator counts production, delivery and one spare day for checking the layout before printing.",
+            "The time for the text itself is not included: the earlier you start, the calmer it will go. For a good book 30–40 meaningful answers are enough, and they are easy to collect over a few evenings, while letters from loved ones are gathered via a link at the same time.",
+          ],
+        },
+        {
+          heading: "What to do if time is short",
+          paragraphs: [
+            "If the printed book won’t make it by the date, there is the digital copy: you receive the high-resolution PDF right after payment and can give it on the right day — for example, by showing it on a screen or sending it in a messenger. The printed copy can be handed over a little later, which is a nice occasion too.",
+            "If you need print but the usual timing no longer works, add express printing: the book will be printed out of turn in 3–4 working days.",
+          ],
+        },
+      ],
+      faq: [
+        ["How many days ahead should I order a gift book?", "It is best to order 2–3 weeks before the date: time for the answers and photos, then 5–7 working days for production, and delivery. Express printing can be faster, but a reserve of time is always safer."],
+        ["What if there is less than a week to the holiday?", "Order the digital copy — it arrives right after payment. You can order the printed book at the same time and hand it over after the holiday."],
+        ["How much does delivery cost and how long does it take?", "Pick-up from our studio in Almaty is free. A courier within the city takes 1–2 days after printing, and delivery across Kazakhstan via CDEK or Kazpost takes 3–7 days. The manager quotes the delivery cost individually."],
+        ["Can I still give the book on the day of the holiday if the printed one won’t be ready?", "Yes. The digital copy is ready right after payment, so you can give it on the right day and hand over the printed one later."],
+      ],
+      cta: { title: "Start the book today", text: "Writing is free and at your own pace: answer the questions from your phone or by voice. Order when the book is ready." },
+    },
   },
 };

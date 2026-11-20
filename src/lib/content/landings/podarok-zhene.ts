@@ -61,5 +61,23 @@ export const podarokZhene: Landing = {
         ["8-martga yoki tug‘ilgan kunga ulguraman?", "Sanani ko‘rsating — buyurtmani qaysi kungacha berish kerakligini aytamiz. Ishlab chiqarish 5–7 ish kuni, «Premium» — 3–4, kuryer 1–2 kunda yetkazadi."],
       ],
     },
+    en: {
+      label: "Gift for your wife",
+      h1: "A gift for your wife,",
+      accent: "one she will reread again and again",
+      metaTitle: "What to give your wife — a book about your love and family",
+      metaDescription: "A gift for your wife’s birthday, anniversary or 8 March: a book about your love and years together. Guided questions, photos, hardcover, delivery in Kazakhstan.",
+      lead: "Everyone gives flowers and jewellery. But a book in which a husband tells how he first saw her, how she won him over and what he values about her every day is one of a kind.",
+      why: [
+        { title: "Not like everyone else’s", text: "Jewellery all looks alike. This book exists in a single copy — about your wife and only for her." },
+        { title: "Easy to start, even if you don’t write", text: "You don’t have to be a writer: just answer the questions in your own words. Any answer can be edited later." },
+        { title: "You can gather letters from loved ones", text: "Invite your children and friends: they write via a link with no sign-up, and the letters go into the book as a chapter of their own." },
+      ],
+      cover: { title: "To My Beloved Wife", names: "from Nurlan" },
+      faq: [
+        ["What if I can’t write at all?", "You don’t need to: you answer the questions the way you’d tell it out loud. If you feel shy, you can dictate the text by voice and edit it afterwards."],
+        ["Will I make it in time for 8 March (International Women’s Day) or her birthday?", "Enter the date — we’ll tell you the last day to place the order. Production takes 5–7 working days (Premium 3–4), and the courier delivers in 1–2 days."],
+      ],
+    },
   },
 };

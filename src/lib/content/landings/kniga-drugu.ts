@@ -52,5 +52,20 @@ export const knigaDrugu: Landing = {
       cover: { title: "Do‘stlar abadiy", names: "Madina & Janel" },
       faq: [["Nechta savolga javob berish kerak?", "Xohlagancha. Suratlar bilan 15–20 ta javobning o‘zi ham 24+ sahifali to‘liq kitob bo‘ladi."]],
     },
+    en: {
+      label: "A book gift for a friend",
+      h1: "A book about your friendship —",
+      accent: "with jokes only the two of you will get",
+      metaTitle: "Gift Book for a Friend — The Story of Your Friendship",
+      metaDescription: "A personalised book about your friendship: how you met, shared adventures and inside jokes. Questions, photos and hardcover printing.",
+      lead: "How you met, your craziest adventure, the line that still makes you laugh — gather your friendship into a book.",
+      why: [
+        { title: "For a birthday or a wedding", text: "A perfect gift for a best friend or a friend since childhood." },
+        { title: "The whole crew in one book", text: "Invite your mutual friends — their letters will go into the book." },
+        { title: "Funny and touching", text: "45 questions: from the first time you met to what you are grateful to each other for." },
+      ],
+      cover: { title: "Friends Forever", names: "Madina & Zhanel" },
+      faq: [["How many questions do I need to answer?", "As many as you like. Even 15–20 answers with photos make a proper book of 24+ pages."]],
+    },
   },
 };

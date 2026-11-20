@@ -18,7 +18,7 @@ import { DiscountError, DiscountPolicy } from "@/shared/domain/discount";
 import { transferRequisites } from "./requisites";
 
 /** Ссылка на оплату счёта — на языке счёта (/pay или /kk/pay). */
-export const payLink = (invoice: DealInvoice) => `${env.appUrl}${{ ru: "", kk: "/kk", uz: "/uz" }[invoice.snapshot().locale]}/pay/${invoice.token}`;
+export const payLink = (invoice: DealInvoice) => `${env.appUrl}${{ ru: "", kk: "/kk", uz: "/uz", en: "/en" }[invoice.snapshot().locale]}/pay/${invoice.token}`;
 
 /** Способы оплаты, которые увидит клиент; пусто — выставлять счёт нельзя. */
 export async function availableMethods() {

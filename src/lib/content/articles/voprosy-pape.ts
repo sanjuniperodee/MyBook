@@ -119,5 +119,42 @@ export const voprosyPape: Article = {
       ],
       cta: { title: "Javoblarni kitobga aylantiring", text: "Dadaning hikoyasini va u haqidagi xotiralaringizni yozing: bob bo‘yicha savollar, suratlar va muqova bor, haqiqiy kitobni esa biz chop etamiz." },
     },
+    en: {
+      title: "Questions for Dad about life and childhood: what to ask your father",
+      description: "Questions worth asking Dad: childhood, work, youth, family and life lessons. Tips for getting your father talking and keeping the answers in a book.",
+      lead: "Dads rarely tell their own stories — you have to ask. These questions will help you hear stories that would otherwise stay unspoken.",
+      sections: [
+        {
+          heading: "How to get Dad talking",
+          paragraphs: [
+            "Many fathers aren’t used to talking about feelings, but they gladly remember what they did: military service, a first job, a car, fishing, friends. Start with something concrete — and the conversation will find its way to what matters.",
+            "It works best alongside an activity: on the road, in the garage, at the dacha. A direct question at the table can feel awkward, while over a shared task the conversation flows on its own.",
+          ],
+        },
+        {
+          heading: "A few tips",
+          list: [
+            "Ask about things he did and events, not feelings — the feelings will appear in the story by themselves.",
+            "Ask him to tell you “in more detail”: who was there, what the weather was like, how he felt.",
+            "Don’t argue about dates and details — it isn’t an exam.",
+            "Record on your phone or in a notebook — Dad’s phrases can later become epigraphs in the book.",
+            "Thank him after the conversation: for many fathers it means more than it seems.",
+          ],
+        },
+        {
+          heading: "What to do next",
+          paragraphs: [
+            "Write down the answers while the memories are fresh. It is easy to turn them into a book: each answer becomes a page, and family photos become illustrations.",
+            "Make it a gift for a milestone birthday or just because: invite brothers, sisters and grandchildren to write letters — they will go into the book as a separate chapter.",
+          ],
+        },
+      ],
+      questions: { heading: "Questions for Dad, chapter by chapter", intro: "These are the questions from the “For Dad” book: you can ask them out loud or answer them yourself if you are writing a book about your dad." },
+      faq: [
+        ["Dad gives short answers. How can I get more?", "Ask follow-up questions: “What happened next?”, “Who was with you?”. Ask him to recall a specific day or incident rather than talk “in general”."],
+        ["Can I answer these questions myself if Dad doesn’t want to talk?", "Yes. In the “For Dad” book you answer the questions in your own words: what you remember about him, what he taught you. Invite relatives to add letters of their own."],
+      ],
+      cta: { title: "Turn the answers into a book", text: "Write Dad’s story and your memories of him: questions chapter by chapter, photos and a cover — and we will print a real book." },
+    },
   },
 };
