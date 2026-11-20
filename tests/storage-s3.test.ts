@@ -4,8 +4,8 @@ import os from "node:os";
 import path from "node:path";
 
 /**
- * Хранилище с S3: бакет — основное место, диск — копия. Бакет подменён памятью: проверяем, что запись уходит в бакет,
- * чтение докачивает отсутствующее на диске, пересобираемый кэш в бакет не попадает, удаление чистит оба места.
+ * Хранилище с S3: файлы только в бакете, диск — временное место для программ. Бакет подменён памятью: запись уходит
+ * только в бакет, чтение — из бакета, файл с переезда при чтении переезжает в бакет, кэш остаётся на диске.
  */
 const bucket = new Map<string, { data: Buffer; modifiedMs: number }>();
 
@@ -51,17 +51,35 @@ afterAll(() => {
 beforeEach(() => bucket.clear());
 
 describe("хранилище с S3", () => {
-  it("запись уходит и на диск, и в бакет под префиксом проекта", async () => {
+  it("запись уходит только в бакет под префиксом проекта, на диске файла нет", async () => {
     await storage.putFile("photos/b1/p1.jpg", Buffer.from("jpg"));
-    expect(readFileSync(path.join(dir, "photos/b1/p1.jpg"), "utf8")).toBe("jpg");
     expect(bucket.get("mybooks/photos/b1/p1.jpg")?.data.toString()).toBe("jpg");
+    expect(existsSync(path.join(dir, "photos/b1/p1.jpg"))).toBe(false);
   });
 
-  it("чтение докачивает из бакета то, чего нет на диске, и оставляет копию", async () => {
+  it("запись убирает устаревшую копию на диске", async () => {
+    const { mkdirSync } = await import("node:fs");
+    mkdirSync(path.join(dir, "photos/b1"), { recursive: true });
+    writeFileSync(path.join(dir, "photos/b1/p2.jpg"), "old");
+    await storage.putFile("photos/b1/p2.jpg", Buffer.from("new"));
+    expect(existsSync(path.join(dir, "photos/b1/p2.jpg"))).toBe(false);
+    expect((await storage.getFile("photos/b1/p2.jpg")).toString()).toBe("new");
+  });
+
+  it("чтение — из бакета, без копии на диске", async () => {
     bucket.set("mybooks/orders/o1/block.pdf", { data: Buffer.from("pdf"), modifiedMs: 1 });
     expect((await storage.getFile("orders/o1/block.pdf")).toString()).toBe("pdf");
-    expect(existsSync(path.join(dir, "orders/o1/block.pdf"))).toBe(true);
+    expect(existsSync(path.join(dir, "orders/o1/block.pdf"))).toBe(false);
     expect(await storage.fileExists("orders/o1/block.pdf")).toBe(true);
+  });
+
+  it("файл с переезда, которого нет в бакете, при чтении выкладывается в бакет", async () => {
+    const { mkdirSync } = await import("node:fs");
+    mkdirSync(path.join(dir, "receipts"), { recursive: true });
+    writeFileSync(path.join(dir, "receipts/r1.pdf"), "legacy");
+    expect(await storage.fileExists("receipts/r1.pdf")).toBe(true);
+    expect((await storage.getFile("receipts/r1.pdf")).toString()).toBe("legacy");
+    expect(bucket.get("mybooks/receipts/r1.pdf")?.data.toString()).toBe("legacy");
   });
 
   it("файла нет нигде — ошибка ENOENT, как без S3", async () => {

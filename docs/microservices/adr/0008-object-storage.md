@@ -24,8 +24,9 @@ Yandex так и не заработал (403 SignatureDoesNotMatch). Вмест
 создал бакет **`sigma-centaurus`** в PS Cloud Object Storage (`https://object.pscloud.io`, path-style) — им и пользуемся.
 
 - Файлы MyBooks лежат под префиксом `mybooks/` (`S3_PREFIX`): бакет может быть общим для проектов.
-- `src/shared/infrastructure/storage.ts`: запись — на диск и в бакет; чтение — с диска, отсутствующее докачивается из
-  бакета и остаётся копией. Пути для ffmpeg/pdftoppm/Range — `localPath` (докачивает), записанное по пути — `publish`.
+- `src/shared/infrastructure/storage.ts`: файлы только в бакете (владелец: «на диске перестать хранить»); диск — временное
+  место: `localPath` скачивает файл для ffmpeg/pdftoppm/Range, `publish` выкладывает записанное программой; копии старше 2 суток
+  убирает `~/bin/s3-offload.sh` на сервере (rclone move: чего нет в бакете — выложить, потом удалить с диска).
   Пересобираемый кэш (`cache/`, `chat-audio-cache/`) — только диск.
 - Клиент — свой (`src/shared/infrastructure/s3.ts`, SigV4 на node:crypto), без AWS SDK: нужны пять операций.
   PS Cloud не принимает «контрольные суммы в трейлере» нового AWS CLI — для CLI `AWS_REQUEST_CHECKSUM_CALCULATION=when_required`.

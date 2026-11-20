@@ -7,12 +7,12 @@ import { createS3, type S3Client } from "./s3";
 /**
  * Файловое хранилище. Ключи — относительные пути вида photos/<bookId>/<id>.jpg.
  *
- * С S3 (заданы S3_BUCKET и ключи доступа) основное место файлов — бакет, а папка STORAGE_DIR служит локальной копией:
- * запись идёт и на диск, и в бакет; чтение — с диска, а если файла там нет (новый сервер, очищенный кэш), он скачивается
- * из бакета и остаётся на диске. Программам, которым нужен путь к файлу (ffmpeg, pdftoppm, отдача по Range), — localPath:
- * он сначала докачивает файл. Записанное по пути напрямую выкладывается в бакет через publish.
- *
- * Пересобираемый кэш (cache/…, chat-audio-cache/…) живёт только на диске. Без S3 всё как раньше — только диск.
+ * С S3 (заданы S3_BUCKET и ключи доступа) файлы хранятся только в бакете: запись, чтение, проверка и удаление идут туда.
+ * Папка STORAGE_DIR — лишь временное место для программ, которым нужен путь к файлу (ffmpeg, pdftoppm, отдача по Range):
+ * localPath скачивает туда файл на время, publish выкладывает записанное программой в бакет. Временные копии и
+ * пересобираемый кэш (cache/…, chat-audio-cache/…) удаляет по возрасту deploy/storage-prune.sh.
+ * Файл, оставшийся на диске с переезда и ещё не попавший в бакет, при первом чтении выкладывается в бакет.
+ * Без S3 всё как раньше — только диск.
  */
 const root = path.resolve(env.storageDir);
 const LOCAL_ONLY = ["cache/", "chat-audio-cache/"];
@@ -64,12 +64,19 @@ export function storagePath(key: string) {
 
 const localExists = (full: string) => fs.access(full).then(() => true, () => false);
 
-/** Путь к файлу на диске, при необходимости скачав его из бакета. null — файла нет нигде. */
+/**
+ * Путь к файлу на диске для программ, которым нужен путь: с S3 — временная копия из бакета (уже скачанная — та же).
+ * null — файла нет нигде. Копия на диске с переезда, которой нет в бакете, сначала выкладывается в бакет.
+ */
 export async function localPath(key: string): Promise<string | null> {
   const full = resolveKey(key);
-  if (await localExists(full)) return full;
   const client = remoteFor(key);
-  if (!client) return null;
+  const onDisk = await localExists(full);
+  if (!client) return onDisk ? full : null;
+  if (onDisk) {
+    if (!(await client.exists(normKey(key)))) await client.putFile(normKey(key), full);
+    return full;
+  }
   return (await client.download(normKey(key), full)) ? full : null;
 }
 
@@ -81,33 +88,35 @@ export async function publish(key: string) {
 
 export async function putFile(key: string, data: Buffer | Uint8Array | string) {
   const full = resolveKey(key);
+  const client = remoteFor(key);
+  if (client) {
+    await client.put(normKey(key), Buffer.isBuffer(data) ? data : Buffer.from(data));
+    // Устаревшая копия на диске (временная или с переезда) не должна подменить новый файл.
+    await fs.rm(full, { force: true });
+    return;
+  }
   await fs.mkdir(path.dirname(full), { recursive: true });
   await fs.writeFile(full, data);
-  await remoteFor(key)?.put(normKey(key), Buffer.isBuffer(data) ? data : Buffer.from(data));
 }
 
 export async function getFile(key: string): Promise<Buffer> {
   const full = resolveKey(key);
-  try {
-    return await fs.readFile(full);
-  } catch (err) {
-    const client = remoteFor(key);
-    if (!client || (err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
+  const client = remoteFor(key);
+  if (client) {
     const data = await client.get(normKey(key));
-    if (!data) throw err;
-    // Копия на диск — следующее чтение без бакета. Не вышло (нет места) — не мешает ответу.
-    await fs
-      .mkdir(path.dirname(full), { recursive: true })
-      .then(() => fs.writeFile(full, data))
-      .catch(() => {});
-    return data;
+    if (data) return data;
+    // Файл с переезда, которого ещё нет в бакете: выкладываем и дальше читаем уже оттуда.
+    const legacy = await fs.readFile(full);
+    await client.put(normKey(key), legacy);
+    return legacy;
   }
+  return fs.readFile(full);
 }
 
 export async function fileExists(key: string) {
-  if (await localExists(resolveKey(key))) return true;
   const client = remoteFor(key);
-  return client ? client.exists(normKey(key)) : false;
+  if (client && (await client.exists(normKey(key)))) return true;
+  return localExists(resolveKey(key));
 }
 
 export async function deleteFile(key: string) {
