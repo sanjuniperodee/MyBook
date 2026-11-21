@@ -31,7 +31,7 @@ export async function AiTab() {
     getSetting("ai.provider"),
     getSetting("ai.enabled"),
     getSetting("ai.knowledge"),
-    getSettings(["proofread.provider", "proofread.model", "proofread.enabled", "proofread.perTenMin", "proofread.perDay", "writer.provider", "writer.model", "writer.enabled", "writer.perTenMin", "writer.perDay"]),
+    getSettings(["proofread.provider", "proofread.model", "proofread.enabled", "writer.provider", "writer.model", "writer.enabled"]),
     getSettings(["seller.provider", "seller.model"]),
     getSettings(["media.provider", "media.model"]),
     getSettings([...ROUTE_KEYS]),
@@ -83,8 +83,6 @@ export async function AiTab() {
         assistantProvider={assistant}
         model={pr["proofread.model"]}
         enabled={pr["proofread.enabled"] !== "off"}
-        perTenMin={pr["proofread.perTenMin"]}
-        perDay={pr["proofread.perDay"]}
         providers={aiSaved}
       />
       <WriterForm
@@ -93,8 +91,6 @@ export async function AiTab() {
         model={pr["writer.model"]}
         // Пока флажок помощника не сохранён, он выключается вместе с корректором — как было раньше.
         enabled={(pr["writer.enabled"] || pr["proofread.enabled"]) !== "off"}
-        perTenMin={pr["writer.perTenMin"]}
-        perDay={pr["writer.perDay"]}
         providers={aiSaved}
       />
     </SettingsFrame>

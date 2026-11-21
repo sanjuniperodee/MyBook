@@ -17,8 +17,6 @@ export function WriterForm({
   proofreadProvider,
   model,
   enabled,
-  perTenMin,
-  perDay,
   providers,
 }: {
   /** "" — как у корректора. */
@@ -27,8 +25,6 @@ export function WriterForm({
   proofreadProvider: AiProvider;
   model: string;
   enabled: boolean;
-  perTenMin: string;
-  perDay: string;
   providers: Record<AiProvider, AiProviderSaved>;
 }) {
   const [state, action] = useActionState<SettingsState, FormData>(saveWriterAction, {});
@@ -82,16 +78,8 @@ export function WriterForm({
             </Field>
           </div>
         </Group>
-        <Group title="Показ и лимиты" hint="Лимиты считаются на клиента.">
+        <Group title="Показ" hint={<>Лимиты запросов на клиента, окна и свои лимиты отдельных клиентов — на странице <a href="/admin/ai-limits" className="text-wine hover:underline">«Лимиты AI»</a>.</>}>
           <Toggle name="enabled" defaultChecked={enabled} label="Показывать клиентам кнопки помощника" />
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Запросов на клиента за 10 минут">
-              <input name="perTenMin" type="number" inputMode="numeric" min={1} max={1000} defaultValue={perTenMin} className="input" />
-            </Field>
-            <Field label="Запросов на клиента в сутки">
-              <input name="perDay" type="number" inputMode="numeric" min={1} max={1000} defaultValue={perDay} className="input" />
-            </Field>
-          </div>
         </Group>
         <Actions>
           <SaveButton />

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { api, apiBook, checkOrigin, HttpError } from "@/server/api";
 import { rateLimit } from "@/server/rateLimit";
+import { hitClientAi } from "@/server/clientAiLimits";
 import { container } from "@/server/container";
 import { idParams } from "@/server/input";
 import { getLocale } from "@/i18n/server";
@@ -57,8 +58,11 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
   if (!input.text && !place && !input.human) throw new HttpError(400, "badRequest");
   const messaging = container().messaging;
   if (!(await messaging.helpConfig()).enabled) throw new HttpError(503, "helpOff");
-  if (!(await rateLimit(`help:${user.id}`, 1, 3_000)) || !(await rateLimit(`help10:${user.id}`, 20, 600_000))) throw new HttpError(429, "helpRate");
-  if (!(await rateLimit(`help-day:${user.id}`, 60, 86_400_000)) || !(await rateLimit("help-day:all", 3_000, 86_400_000))) throw new HttpError(429, "helpDaily");
+  // Не чаще раза в 3 секунды; окна и лимиты на клиента — «Лимиты AI»; общий потолок на всех — защита от счёта модели.
+  if (!(await rateLimit(`help:${user.id}`, 1, 3_000))) throw new HttpError(429, "helpRate");
+  const hit = await hitClientAi("help", user.id);
+  if (hit === "short") throw new HttpError(429, "helpRate");
+  if (hit === "long" || !(await rateLimit("help-day:all", 3_000, 86_400_000))) throw new HttpError(429, "helpDaily");
 
   const locale = await getLocale();
   const facts = input.human ? null : await helpBookFacts(book);

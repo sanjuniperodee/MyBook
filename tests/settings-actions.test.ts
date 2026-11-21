@@ -232,16 +232,17 @@ describe("AI-помощник и корректор", () => {
     expect(w.saved).toHaveLength(2);
   });
 
-  it("AI-помощник при письме у клиента: свои провайдер, модель, флажок и лимиты; ключ — выбранного провайдера", async () => {
+  it("AI-помощник при письме у клиента: свои провайдер, модель и флажок (лимиты — на «Лимиты AI»); ключ — выбранного провайдера", async () => {
     expect(await actions.saveWriterAction({}, form({ provider: "", model: "", enabled: "on" }))).toEqual({ ok: "Сохранено" });
-    expect(w.saved[0]).toMatchObject({ "writer.provider": "", "writer.model": "", "writer.enabled": "on", "writer.perTenMin": "10", "writer.perDay": "60" });
+    expect(w.saved[0]).toMatchObject({ "writer.provider": "", "writer.model": "", "writer.enabled": "on" });
+    // Лимиты эта форма не трогает: их владелец меняет на странице «Лимиты AI».
+    expect(w.saved[0]).not.toHaveProperty("writer.perTenMin");
     // Снят флажок — сохраняется «off»: помощник отвязан от корректора и выключен сам по себе.
-    expect(await actions.saveWriterAction({}, form({ provider: "openrouter", model: "openrouter/free", key: "sk", perDay: "30" }))).toEqual({ ok: "Сохранено" });
-    expect(w.saved[1]).toMatchObject({ "writer.provider": "openrouter", "writer.model": "openrouter/free", "writer.enabled": "off", "writer.perDay": "30" });
+    expect(await actions.saveWriterAction({}, form({ provider: "openrouter", model: "openrouter/free", key: "sk" }))).toEqual({ ok: "Сохранено" });
+    expect(w.saved[1]).toMatchObject({ "writer.provider": "openrouter", "writer.model": "openrouter/free", "writer.enabled": "off" });
     expect(Object.values(w.saved[1])).toContain("sk");
-    expect(w.audits.at(-1)).toEqual(["settings.update", "settings", "writer", { provider: "openrouter", model: "openrouter/free", enabled: false, perTenMin: "10", perDay: "30" }]);
+    expect(w.audits.at(-1)).toEqual(["settings.update", "settings", "writer", { provider: "openrouter", model: "openrouter/free", enabled: false }]);
     expect(await actions.saveWriterAction({}, form({ provider: "skynet" }))).toEqual({ error: "Выберите провайдера" });
-    expect(await actions.saveWriterAction({}, form({ provider: "", perDay: "много" }))).toEqual({ error: "Запросов в сутки: целое число от 1 до 1000" });
   });
 
   it("помощник: провайдер из окружения не сохраняется, берётся сохранённый", async () => {
@@ -254,13 +255,10 @@ describe("AI-помощник и корректор", () => {
 
   it("корректор: свой провайдер или как у помощника (ключ — провайдера помощника), модель, включение", async () => {
     expect(await actions.saveProofreadAction({}, form({ provider: "", model: "openrouter/free", key: "sk", enabled: "on" }))).toEqual({ ok: "Сохранено" });
-    expect(w.saved[0]).toMatchObject({ "proofread.provider": "", "proofread.model": "openrouter/free", "proofread.enabled": "on", "proofread.perTenMin": "10", "proofread.perDay": "80" });
+    expect(w.saved[0]).toMatchObject({ "proofread.provider": "", "proofread.model": "openrouter/free", "proofread.enabled": "on" });
+    expect(w.saved[0]).not.toHaveProperty("proofread.perDay");
     expect(Object.values(w.saved[0])).toContain("sk");
-    expect(w.audits).toEqual([["settings.update", "settings", "proofread", { provider: "assistant", model: "openrouter/free", enabled: true, perTenMin: "10", perDay: "80" }]]);
-    // Свои лимиты на клиента; нелепые — ошибка.
-    expect(await actions.saveProofreadAction({}, form({ provider: "", model: "", perTenMin: "3", perDay: "20" }))).toEqual({ ok: "Сохранено" });
-    expect(w.saved[1]).toMatchObject({ "proofread.perTenMin": "3", "proofread.perDay": "20" });
-    expect(await actions.saveProofreadAction({}, form({ provider: "", perTenMin: "0" }))).toEqual({ error: "Проверок за 10 минут: целое число от 1 до 1000" });
+    expect(w.audits).toEqual([["settings.update", "settings", "proofread", { provider: "assistant", model: "openrouter/free", enabled: true }]]);
     expect(await actions.saveProofreadAction({}, form({ provider: "skynet" }))).toEqual({ error: "Выберите провайдера" });
     expect(await actions.saveProofreadAction({}, form({ provider: "anthropic", model: "a b" }))).toEqual({ error: "Название модели — латиница, цифры и символы . : / - _" });
   });

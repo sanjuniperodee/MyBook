@@ -4,6 +4,7 @@ import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
+  Gauge,
   BarChart3,
   Coins,
   Globe,
@@ -139,6 +140,7 @@ export const navDomains: Domain[] = [
       { href: "/admin/pricing", label: "Цены и тарифы", icon: Coins, perm: ["settings.manage"], keywords: "стоимость" },
       { href: "/admin/site", label: "Сайт", icon: Globe, perm: ["settings.manage"], keywords: "витрина блог" },
       { href: "/admin/settings", label: "Интеграции", icon: Settings, perm: ["settings.manage"], keywords: "whatsapp kaspi бот почта" },
+      { href: "/admin/ai-limits", label: "Лимиты AI", icon: Gauge, perm: ["settings.manage"], keywords: "помощник корректор лимит запросов клиенты" },
       { href: "/admin/team", label: "Команда", icon: ShieldCheck, perm: ["team.manage"], keywords: "сотрудники роли доступ" },
       { href: "/admin/security", label: "Безопасность", icon: LockKeyhole, keywords: "пароль 2fa" },
     ],

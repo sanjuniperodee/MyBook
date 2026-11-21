@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { api, apiBook, HttpError } from "@/server/api";
-import { rateLimit } from "@/server/rateLimit";
-import { clientAiLimits } from "@/server/clientAiLimits";
+import { hitClientAi } from "@/server/clientAiLimits";
 import { container } from "@/server/container";
 import { AssistantError, REWRITE_MAX, rewriteModes } from "@/modules/assistant";
 import { bookKind } from "@/lib/content/kinds";
@@ -25,8 +24,7 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
   const { text, mode, prompt } = schema.parse(await req.json());
   const writer = container().assistant.writer;
   if (!(await writer.configured())) throw new HttpError(503, "writeAiOff");
-  const limits = (await clientAiLimits()).writer;
-  if (!(await rateLimit(`write-ai:${user.id}`, limits.perTenMin, 600_000)) || !(await rateLimit(`write-ai-day:${user.id}`, limits.perDay, 86_400_000))) throw new HttpError(429, "writeAiRate");
+  if ((await hitClientAi("writer", user.id)) !== "ok") throw new HttpError(429, "writeAiRate");
   try {
     const result = await writer.rewrite(text, mode, book.language, { kind: bookKind(book.theme), instruction: prompt });
     return NextResponse.json({ text: result });

@@ -9,6 +9,7 @@ const ROWS: { name: string; who: string; where: React.ReactNode }[] = [
   { name: "ИИ-дизайнер", who: "клиент оформляет страницы и обложку", where: <Link href="/admin/ai-designer" className="text-wine underline">страница «ИИ-дизайнер»: модели, осмотр, лимит, расходы</Link> },
   { name: "AI-помощник при письме", who: "клиент: «Оформить», «Улучшить», «Короче», «Длиннее»", where: <a href="#ai-writer" className="text-wine underline">лист «Помощник при письме» ниже</a> },
   { name: "AI-корректор", who: "клиент: кнопка «Проверить грамотность»", where: <a href="#ai-proofread" className="text-wine underline">лист «Корректор у клиента» ниже</a> },
+  { name: "Лимиты помощников клиента", who: "сколько запросов за окно: письмо, корректор, кабинет; свои лимиты клиентам", where: <Link href="/admin/ai-limits" className="text-wine underline">страница «Лимиты AI»</Link> },
   { name: "AI-помощник менеджеров", who: "менеджер в CRM: сводка, подсказки, заполнение сделки", where: <a href="#ai-assistant" className="text-wine underline">лист «Помощник менеджеров» ниже</a> },
   { name: "AI-продажник бота", who: "бот в WhatsApp", where: (
       <>

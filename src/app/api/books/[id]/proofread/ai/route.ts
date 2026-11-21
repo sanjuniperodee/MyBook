@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { api, apiBook, HttpError } from "@/server/api";
-import { rateLimit } from "@/server/rateLimit";
-import { clientAiLimits } from "@/server/clientAiLimits";
+import { hitClientAi } from "@/server/clientAiLimits";
 import { container } from "@/server/container";
 import { AssistantError } from "@/modules/assistant";
 import { isLocale } from "@/i18n/config";
@@ -23,8 +22,7 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
   const { text, ui } = schema.parse(await req.json());
   const proofreader = container().assistant.proofreader;
   if (!(await proofreader.configured())) throw new HttpError(503, "proofreadOff");
-  const limits = (await clientAiLimits()).proofread;
-  if (!(await rateLimit(`proofread:${user.id}`, limits.perTenMin, 600_000)) || !(await rateLimit(`proofread-day:${user.id}`, limits.perDay, 86_400_000))) throw new HttpError(429, "proofreadRate");
+  if ((await hitClientAi("proofread", user.id)) !== "ok") throw new HttpError(429, "proofreadRate");
   try {
     const issues = await proofreader.check(text, book.language, isLocale(ui) ? ui : book.language, { kind: bookKind(book.theme) });
     return NextResponse.json({ issues });

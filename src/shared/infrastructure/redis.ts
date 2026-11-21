@@ -50,6 +50,15 @@ export class MemoryRateLimiter implements RateLimiter {
     b.count += 1;
     return b.count <= limit;
   }
+
+  async peek(key: string) {
+    const b = this.#buckets.get(key);
+    return b && b.resetAt >= Date.now() ? { count: b.count, resetAt: b.resetAt } : null;
+  }
+
+  async reset(key: string) {
+    this.#buckets.delete(key);
+  }
 }
 
 export class MemoryStepStore implements OneTimeStepStore {
@@ -78,6 +87,26 @@ export class RedisRateLimiter implements RateLimiter {
       return count <= limit;
     } catch {
       return this.fallback.hit(key, limit, windowMs);
+    }
+  }
+
+  async peek(key: string) {
+    try {
+      const k = `rl:${key}`;
+      const [[, raw], [, ttl]] = (await this.redis.multi().get(k).pttl(k).exec()) as [[Error | null, string | null], [Error | null, number]];
+      const count = Number(raw);
+      return raw !== null && count > 0 && ttl > 0 ? { count, resetAt: Date.now() + ttl } : null;
+    } catch {
+      return this.fallback.peek(key);
+    }
+  }
+
+  async reset(key: string) {
+    await this.fallback.reset(key);
+    try {
+      await this.redis.del(`rl:${key}`);
+    } catch {
+      // Redis недоступен — попадания и так идут в запасной лимитер, его уже обнулили.
     }
   }
 }

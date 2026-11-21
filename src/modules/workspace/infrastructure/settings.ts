@@ -54,11 +54,25 @@ export const settingDefs = {
   "writer.enabled": {},
   "writer.provider": {},
   "writer.model": {},
-  /** Лимиты на клиента: за 10 минут и за сутки (помощник при письме и корректор). */
+  /**
+   * Лимиты AI на клиента (страница «Лимиты AI», server/clientAiLimits.ts): perTenMin — запросов за короткое окно в windowMin
+   * минут (имя ключа осталось с тех пор, когда окно было всегда 10 минут), perDay — за длинное окно в dayHours часов.
+   */
   "writer.perTenMin": { default: "10" },
   "writer.perDay": { default: "60" },
+  "writer.windowMin": { default: "10" },
+  "writer.dayHours": { default: "24" },
   "proofread.perTenMin": { default: "10" },
   "proofread.perDay": { default: "80" },
+  "proofread.windowMin": { default: "10" },
+  "proofread.dayHours": { default: "24" },
+  /** Помощник в кабинете книги (вопросы клиента). */
+  "help.perTenMin": { default: "20" },
+  "help.perDay": { default: "60" },
+  "help.windowMin": { default: "10" },
+  "help.dayHours": { default: "24" },
+  /** Свои лимиты AI отдельных клиентов: JSON { [userId]: { tools: { writer?: { short?, long? }, proofread?, help? }, note?, at, by } }. */
+  "ai.userLimits": { default: "{}" },
   /** Через сколько минут без ответа клиенту чат считается просроченным. */
   "crm.slaMinutes": { default: "15" },
   /** Рабочее время: JSON { days: [1..7], from: "09:00", to: "21:00" }. */

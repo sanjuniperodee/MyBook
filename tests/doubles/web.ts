@@ -139,7 +139,7 @@ export function resetContainer() {
   Object.assign(fake, {
     identity: { tokens: { hash: (t: string) => t }, queries: { userBySession: async (hash: string) => sessions.get(hash) ?? null, touch: async () => {} } },
     access: { resolver: new StaffResolver(roles, { load: async () => security, save: async () => {} }, { isPhoneEmail }), audit: { record: async () => {} } },
-    rateLimiter: { hit: async () => true },
+    rateLimiter: { hit: async () => true, peek: async () => null, reset: async () => {} },
   });
 }
 
