@@ -6,7 +6,7 @@ import { applyGender } from "../content/gender";
 import { bookKind, type BookKind } from "../content/kinds";
 import type { AnswerMedia, Book, BookChapter, BookQuestion, InlinePhotoStyle, Photo } from "@/shared/infrastructure/db/schema";
 import { normalizeMedia } from "./answer-media";
-import { MAX_INLINE_HEIGHT_SHARE, splitParagraphs } from "./inline-photo";
+import { joinParagraphs, MAX_INLINE_HEIGHT_SHARE, splitParagraphsDetailed } from "./inline-photo";
 import { getFormat, type BookFormat } from "./formats";
 import { bookInterior, type InteriorDesign } from "./interiors";
 import { textArea } from "./page-geometry";
@@ -502,7 +502,7 @@ export const isEmptyItem = (it: ContentItem) => !it.heading && !it.answer && !it
 function splitAtPagePhotos(item: ContentItem): ContentItem[] {
   const pagePhotos = (item.photos ?? []).filter((p) => p.inline?.page);
   if (!pagePhotos.length) return [item];
-  const paragraphs = splitParagraphs(item.answer);
+  const { paragraphs, breaks } = splitParagraphsDetailed(item.answer);
   const n = paragraphs.length;
   // После какого абзаца стоит фото или QR: -1 — перед текстом, n − 1 — в конце (как в layoutInline).
   const after = (anchor: number | null | undefined) => (anchor === null || anchor === undefined || anchor >= n - 1 ? n - 1 : Math.max(-1, anchor));
@@ -522,7 +522,7 @@ function splitAtPagePhotos(item: ContentItem): ContentItem[] {
     const part: ContentItem = {
       id: i === 0 ? item.id : `${item.id}-p${i}`,
       heading: i === 0 ? item.heading : null,
-      answer: paragraphs.slice(from, end).join("\n"),
+      answer: joinParagraphs(paragraphs, breaks, from, end),
       photos: partPhotos,
       ...(partMedia.length ? { media: partMedia } : {}),
       ...(i === 0 && item.pageBreak ? { pageBreak: true as const } : {}),

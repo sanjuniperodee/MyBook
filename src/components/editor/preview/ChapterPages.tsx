@@ -9,7 +9,7 @@ import type { BookContent } from "@/lib/book/layout";
 import type { PreviewChapter, PreviewEntry, PreviewPagePhoto, PreviewPhoto } from "@/lib/book/editor-model";
 import { cssFont } from "@/lib/book/fonts";
 import { print, PT_TO_MM } from "@/lib/book/formats";
-import { layoutInline, normalizeStyle, splitParagraphs, type InlinePhotoStyle } from "@/lib/book/inline-photo";
+import { layoutInline, normalizeStyle, splitParagraphsDetailed, type InlinePhotoStyle } from "@/lib/book/inline-photo";
 import { interiorMetrics, pageSide, textArea } from "@/lib/book/page-geometry";
 import { AnswerBlockView } from "@/components/interior/answer-block";
 import { Divider, InlineRow, MediaCard, QuestionHeading } from "@/components/interior/entry";
@@ -102,7 +102,7 @@ function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, 
   const info = useMemo(() => {
     const out = new Map<string, { paragraphs: string[]; blocks: AnswerBlock[]; layout: Map<number, Item[][]>; pages: Map<number, Item[][]>; media: Map<number, AnswerMedia[]> }>();
     for (const e of ch.entries) {
-      const paragraphs = splitParagraphs(e.answer);
+      const { paragraphs, breaks } = splitParagraphsDetailed(e.answer);
       const all = e.photos.map((p) => {
         const style = normalizeStyle(p.inline);
         if (resizing?.id === p.id) style.width = resizing.width;
@@ -111,7 +111,7 @@ function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, 
       // Фото «на всю страницу» — не в ряду текста, а своей полосой (как в книге: история прерывается и продолжается после).
       const items = all.filter((x) => !x.style.page);
       const pageItems = all.filter((x) => x.style.page);
-      const blocks = answerBlocks(paragraphs, { plain: design.plainAnswers });
+      const blocks = answerBlocks(paragraphs, { plain: design.plainAnswers, breaks });
       out.set(e.id, {
         paragraphs,
         blocks,

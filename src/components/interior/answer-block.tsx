@@ -9,6 +9,16 @@ type BlockProps<K extends AnswerBlock["kind"]> = { kit: PageKit; block: Extract<
 
 const lines = (list: string[]) => list.map((l, i) => (i ? [<br key={i} />, l] : l));
 
+/** Строки стихов по строфам: между строфами — просвет gap (в PDF — отступ между абзацами-строфами). */
+function stanzaLines(block: Extract<AnswerBlock, { kind: "verse" }>, gap: string) {
+  const starts = [0, ...(block.stanzas ?? []), block.lines.length];
+  return starts.slice(0, -1).map((from, k) => (
+    <span key={k} style={{ display: "block", marginTop: k ? gap : 0 }}>
+      {lines(block.lines.slice(from, starts[k + 1]))}
+    </span>
+  ));
+}
+
 function Lede({ kit, block, style, ...rest }: BlockProps<"lede">) {
   const { design, sizes: S, u } = kit;
   return (
@@ -113,7 +123,7 @@ function Verse({ kit, block, style, ...rest }: BlockProps<"verse">) {
       }}
       {...rest}
     >
-      {lines(block.lines)}
+      {block.stanzas?.length ? stanzaLines(block, u.pt(S.body * ANSWER.verse.stanza)) : lines(block.lines)}
     </p>
   );
 }

@@ -15,7 +15,7 @@ export type AnswerBlock =
   | { kind: "quote"; lines: string[]; from: number; to: number }
   | { kind: "list"; ordered: boolean; items: { marker: string; text: string }[]; from: number; to: number }
   /** Короткие строки подряд — стихи, песня, перечисление в столбик. */
-  | { kind: "verse"; lines: string[]; from: number; to: number }
+  | { kind: "verse"; lines: string[]; from: number; to: number; /** Номера строк, с которых начинается новая строфа (автор оставил перед ними пустую строку); нет — без просветов. */ stanzas?: number[] }
   /** Строка, которую автор или менеджер обернул в **…**, — жирным, с отбивкой после (подпись под пожеланием). */
   | { kind: "strong"; text: string; from: number; to: number };
 
@@ -27,6 +27,10 @@ const LEDE_MAX_CHARS = 64;
 /** Стихи: от трёх коротких строк подряд, и большинство — без точки в конце (у прозы строки кончаются точкой). */
 const VERSE_LINE_MAX = 50;
 const VERSE_MIN_LINES = 3;
+/** Стихи по строфам: автор разделил короткие строки пустыми строками минимум на две строфы по 2–8 строк — знаки в конце строк не важны. */
+const STANZA_MIN_GROUPS = 2;
+const STANZA_MIN_LINES = 2;
+const STANZA_MAX_LINES = 8;
 
 const BULLET = /^[•·▪●◦○■□▸►✓✔*]\s*/u;
 /** Номер пункта — до трёх цифр: «Сүюге 200 себеп» и другие длинные списки (год в начале строки списком не считается). */
@@ -36,6 +40,8 @@ const HYPHEN_DASH = /^[-–]\s+/;
 /** Выделенная строка: абзац целиком в двойных звёздочках. */
 const STRONG = /^\*\*\s*(.+?)\s*\*\*$/u;
 const isStrong = (s: string) => STRONG.test(s);
+/** Строка целиком в одинарных звёздочках без пробела после первой: *курсив* — выделение, а не пункт списка. */
+const EMPHASIS = /^\*([^*\s](?:[^*]*[^*\s])?)\*$/u;
 
 /**
  * Типографская чистка строки: тире вместо дефиса в начале, без двойных пробелов, без пробела перед знаком
@@ -62,6 +68,26 @@ const ENDS_SENTENCE = /[.!?…]["»”)]*$/u;
 const sentences = (s: string) => (s.match(/[.!?…]+["»”)]*(\s|$)/gu) ?? []).length || 1;
 const looksLikeVerse = (lines: string[]) => lines.filter((l) => ENDS_SENTENCE.test(l)).length * 2 < lines.length;
 
+/** Строка может быть строкой стихов: короткая, не диалог, не выделенная, не пункт списка. */
+const verseLine = (l: string) => l.length <= VERSE_LINE_MAX && !isDialogue(l) && !isStrong(l) && !BULLET.test(l) && !NUMBERED.test(l);
+
+/** Короткие строки i…j (не включая j), которые автор разбил пустыми строками на строфы по 2–8 строк (минимум две строфы). */
+function isStanzaVerse(i: number, j: number, breaks?: ReadonlySet<number>) {
+  if (!breaks) return false;
+  let groups = 0;
+  let size = 0;
+  for (let k = i; k < j; k++) {
+    if (k > i && breaks.has(k)) {
+      if (size < STANZA_MIN_LINES || size > STANZA_MAX_LINES) return false;
+      groups++;
+      size = 0;
+    }
+    size++;
+  }
+  if (size < STANZA_MIN_LINES || size > STANZA_MAX_LINES) return false;
+  return groups + 1 >= STANZA_MIN_GROUPS;
+}
+
 /** Строки, разорванные автором посреди фразы, — в одну строку (для выделенного ответа). */
 function joinBroken(lines: string[]) {
   const out: string[] = [];
@@ -76,8 +102,9 @@ function joinBroken(lines: string[]) {
  * plain — «все ответы одним стилем» (дизайн книги): только абзацы, списки и выделенные строки, без выделенного
  * короткого ответа, лида и стихов — чтобы короткие ответы не выглядели иначе, чем длинные.
  */
-export function answerBlocks(paragraphs: string[], { plain = false }: { plain?: boolean } = {}): AnswerBlock[] {
-  const lines = paragraphs.map(tidyLine);
+export function answerBlocks(paragraphs: string[], { plain = false, breaks }: { plain?: boolean; /** Перед какими абзацами автор оставил пустую строку (splitParagraphsDetailed). */ breaks?: ReadonlySet<number> } = {}): AnswerBlock[] {
+  // «*Строка*» — выделение: звёздочки снимаются, строка набирается обычным абзацем (курсива нет во всех шрифтах книги).
+  const lines = paragraphs.map((p) => tidyLine(p).replace(EMPHASIS, "$1"));
   const n = lines.length;
   if (!n) return [];
   const total = lines.reduce((s, l) => s + l.length, 0);
@@ -119,9 +146,12 @@ export function answerBlocks(paragraphs: string[], { plain = false }: { plain?: 
     }
     // Стихи: от трёх коротких строк подряд (не диалог), большинство — без точки в конце.
     let j = i;
-    while (j < n && lines[j].length <= VERSE_LINE_MAX && !isDialogue(lines[j]) && !isStrong(lines[j]) && !BULLET.test(lines[j]) && !NUMBERED.test(lines[j])) j++;
-    if (!plain && j - i >= VERSE_MIN_LINES && looksLikeVerse(lines.slice(i, j))) {
-      blocks.push({ kind: "verse", lines: lines.slice(i, j), from: i, to: j - 1 });
+    while (j < n && verseLine(lines[j])) j++;
+    // По строфам — только с начала строфы: после пустой строки или там, где короткие строки начались сами (а не с середины их ряда).
+    const stanzaStart = i === 0 || !!breaks?.has(i) || !verseLine(lines[i - 1]);
+    if (!plain && ((j - i >= VERSE_MIN_LINES && looksLikeVerse(lines.slice(i, j))) || (stanzaStart && isStanzaVerse(i, j, breaks)))) {
+      const stanzas = breaks ? Array.from({ length: j - i }, (_, k) => k).filter((k) => k > 0 && breaks.has(i + k)) : [];
+      blocks.push({ kind: "verse", lines: lines.slice(i, j), from: i, to: j - 1, ...(stanzas.length ? { stanzas } : {}) });
       i = j;
       continue;
     }

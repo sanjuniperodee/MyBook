@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { answerBlocks, listMarkerEm, rowsByBlock, tidyLine } from "@/lib/book/answer-blocks";
+import { splitParagraphs, splitParagraphsDetailed, joinParagraphs } from "@/lib/book/inline-photo";
 import { printableText } from "@/lib/book/layout";
 
 const long = "Мы встретились в самый обычный вторник, когда в Алматы шёл первый снег, и проговорили до утра. ".repeat(3).trim();
@@ -101,5 +102,53 @@ describe("длинный нумерованный список («Сүюге 200
     const [list] = answerBlocks(["1. Бір.", "2. Екі."]);
     if (list.kind !== "list") throw new Error("не список");
     expect(listMarkerEm(list)).toBe(1.6);
+  });
+});
+
+describe("строфы, строки в *…*", () => {
+  const stanza = (n: number) => [`Туған жерім, ауылым ${n}.`, "Саған сәлем, қуаныш!", "Көктем келді, көңіл тасыды.", "Жүрегімде әнім жасады."];
+  const text = [...stanza(1), "", ...stanza(2), "", ...stanza(3)].join("\n");
+
+  it("пустые строки не меняют нумерацию абзацев, но запоминаются", () => {
+    const { paragraphs, breaks } = splitParagraphsDetailed(`а\n\n\nб\nв\n  \nг\n\n`);
+    expect(paragraphs).toEqual(["а", "б", "в", "г"]);
+    expect([...breaks]).toEqual([1, 3]);
+    expect(splitParagraphs(`а\n\nб`)).toEqual(["а", "б"]);
+    expect(joinParagraphs(paragraphs, breaks, 1, 4)).toBe("б\nв\n\nг");
+  });
+
+  it("строфы с точками в конце строк — стихи со строфами; без пустых строк те же строки — абзацы, как раньше", () => {
+    const { paragraphs, breaks } = splitParagraphsDetailed(text);
+    const blocks = answerBlocks(paragraphs, { breaks });
+    expect(blocks).toEqual([{ kind: "verse", lines: paragraphs, from: 0, to: 11, stanzas: [4, 8] }]);
+    expect(answerBlocks(paragraphs).map((b) => b.kind)).not.toContain("verse");
+    expect(answerBlocks(paragraphs, { breaks, plain: true }).every((b) => b.kind === "para")).toBe(true);
+  });
+
+  it("стихи без пустых строк — как раньше, без строф", () => {
+    const lines = ["Ты и я — одна дорога,", "Судьбы связаны навсегда,", "Даже если мир в тревогах,"];
+    expect(answerBlocks(lines)).toEqual([{ kind: "verse", lines, from: 0, to: 2 }]);
+    expect(answerBlocks(lines, { breaks: new Set() })).toEqual([{ kind: "verse", lines, from: 0, to: 2 }]);
+  });
+
+  it("строфа из одной строки или из девяти — не стихи; проза рядом не втягивается", () => {
+    const oneLine = [...stanza(1), "Одинокая строка.", ...stanza(2)];
+    expect(answerBlocks(oneLine, { breaks: new Set([4, 5]) }).map((b) => b.kind)).not.toContain("verse");
+    const nine = Array.from({ length: 11 }, (_, i) => `Строка номер ${i}.`);
+    expect(answerBlocks(nine, { breaks: new Set([9]) }).map((b) => b.kind)).not.toContain("verse");
+    // Длинный абзац до и после стихов — отдельные абзацы, нумерация абзацев сохраняется для фото.
+    const mixed = [long, ...stanza(1), ...stanza(2), long];
+    const blocks = answerBlocks(mixed, { breaks: new Set([1, 5, 9]) });
+    expect(blocks.map((b) => [b.kind, b.from, b.to])).toEqual([["para", 0, 0], ["verse", 1, 8], ["para", 9, 9]]);
+    expect(blocks[1]).toMatchObject({ stanzas: [4] });
+    expect(rowsByBlock(blocks, new Map([[6, ["фото"]]])).get(1)).toEqual(["фото"]);
+  });
+
+  it("*строка* — выделение без «•»; «* пункт» и «•» остаются списком", () => {
+    expect(answerBlocks([long, "*Шотан - Жары ауылы.*", long])[1]).toEqual({ kind: "para", text: "Шотан - Жары ауылы.", from: 1, to: 1 });
+    expect(answerBlocks(["* раз", "* два", long])[0]).toMatchObject({ kind: "list", items: [{ text: "раз" }, { text: "два" }] });
+    expect(answerBlocks(["•раз", "• два", long])[0]).toMatchObject({ kind: "list" });
+    expect(answerBlocks(["**Подпись**", long])[0].kind).toBe("strong");
+    expect(answerBlocks(["*раз* и *два*", long])[0].kind).toBe("list");
   });
 });

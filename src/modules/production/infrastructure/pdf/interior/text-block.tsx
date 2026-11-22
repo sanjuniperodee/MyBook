@@ -179,6 +179,18 @@ export function TextBlock({ kit, block: b, id, leadIn, dropCap = false, first = 
     case "list":
       return <List kit={kit} block={b} id={id} />;
     case "verse":
+      if (b.stanzas?.length) {
+        const starts = [0, ...b.stanzas, b.lines.length];
+        return (
+          <View {...mark(id)} style={{ ...kit.measure, paddingLeft: centered ? 0 : textWidthPt * ANSWER.verse.indent, marginTop: S.body * ANSWER.verse.before, marginBottom: S.body * ANSWER.verse.after }}>
+            {starts.slice(0, -1).map((from, k) => (
+              <Text key={k} hyphenationCallback={noHyphens} style={{ ...kit.body, textAlign: centered ? "center" : "left", marginTop: k ? S.body * ANSWER.verse.stanza : 0 }} orphans={2} widows={2}>
+                {b.lines.slice(from, starts[k + 1]).join("\n")}
+              </Text>
+            ))}
+          </View>
+        );
+      }
       return (
         <Text
           {...mark(id)}

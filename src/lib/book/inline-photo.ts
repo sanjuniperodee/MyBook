@@ -132,10 +132,35 @@ export function framedBox(px: { width: number; height: number }, style: InlinePh
 
 /** Абзацы ответа — одинаково для превью, оценки и PDF. */
 export function splitParagraphs(answer: string) {
-  return answer
-    .split(/\n+/)
-    .map((p) => p.trim())
-    .filter(Boolean);
+  return splitParagraphsDetailed(answer).paragraphs;
+}
+
+/**
+ * Абзацы и пустые строки между ними: breaks — номера абзацев, перед которыми автор оставил пустую строку
+ * (между строфами стихов). Нумерация абзацев — та же, что у splitParagraphs: от неё зависят места фото.
+ */
+export function splitParagraphsDetailed(answer: string): { paragraphs: string[]; breaks: Set<number> } {
+  const paragraphs: string[] = [];
+  const breaks = new Set<number>();
+  let blank = false;
+  for (const raw of answer.split("\n")) {
+    const p = raw.trim();
+    if (!p) {
+      blank = true;
+      continue;
+    }
+    if (blank && paragraphs.length) breaks.add(paragraphs.length);
+    blank = false;
+    paragraphs.push(p);
+  }
+  return { paragraphs, breaks };
+}
+
+/** Абзацы from…end (не включая end) обратно в текст ответа: пустые строки между строфами сохраняются. */
+export function joinParagraphs(paragraphs: readonly string[], breaks: ReadonlySet<number>, from: number, end: number) {
+  let out = "";
+  for (let i = from; i < end; i++) out += (i === from ? "" : breaks.has(i) ? "\n\n" : "\n") + paragraphs[i];
+  return out;
 }
 
 /** Кегль рукописной подписи на полароиде: помещается в одну строку в нижнем поле. */

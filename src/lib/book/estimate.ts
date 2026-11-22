@@ -8,7 +8,7 @@
 import { answerBlocks, listMarkerEm, type AnswerBlock } from "./answer-blocks";
 import { mediaCardBox, normalizeMedia, type AnswerMedia } from "./answer-media";
 import { MM_TO_PT, type BookFormat } from "./formats";
-import { framedBox, layoutInline, normalizeStyle, splitParagraphs, type InlinePhotoStyle } from "./inline-photo";
+import { framedBox, layoutInline, normalizeStyle, splitParagraphsDetailed, type InlinePhotoStyle } from "./inline-photo";
 import { dividerDrawing } from "./interior-art";
 import type { InteriorDesign } from "./interiors";
 import { chapterRuns, frontPages, photoPages, type BookContent, type ContentChapter, type ContentItem, type PhotoItem } from "./layout";
@@ -97,7 +97,7 @@ function blockHeight(b: AnswerBlock, m: TextMetrics, first = true): number {
       return lines(b.text.length, column, S.body, charEm) * line + S.body * (ANSWER.strong.before + ANSWER.strong.after);
     case "verse": {
       const w = centered ? column : column * (1 - ANSWER.verse.indent);
-      return b.lines.reduce((n, l) => n + lines(l.length, w, S.body, charEm), 0) * line + S.body * (ANSWER.verse.before + ANSWER.verse.after);
+      return b.lines.reduce((n, l) => n + lines(l.length, w, S.body, charEm), 0) * line + S.body * (ANSWER.verse.before + ANSWER.verse.after + (b.stanzas?.length ?? 0) * ANSWER.verse.stanza);
     }
   }
 }
@@ -144,9 +144,9 @@ export function mediaCardHeight(m: TextMetrics) {
 
 /** Высота ответа в вёрстке главы, pt: начало, блоки текста, ряды фото и карточки QR-кодов. first — первый ответ главы. */
 function entryHeight(heading: string | null, answer: string, photos: RowPhoto[], media: readonly Partial<AnswerMedia>[], first: boolean, m: TextMetrics): number {
-  const paragraphs = splitParagraphs(answer);
+  const { paragraphs, breaks } = splitParagraphsDetailed(answer);
   const rows = [...layoutInline(photos.map((p) => ({ p, style: normalizeStyle(p.inline) })), paragraphs.length).values()].flat();
-  const text = answerBlocks(paragraphs, { plain: m.design.plainAnswers }).reduce((sum, b, i) => sum + blockHeight(b, m, i === 0), 0);
+  const text = answerBlocks(paragraphs, { plain: m.design.plainAnswers, breaks }).reduce((sum, b, i) => sum + blockHeight(b, m, i === 0), 0);
   const cards = normalizeMedia(media).length * mediaCardHeight(m);
   return headingHeight(heading, first, m) + text + rows.reduce((sum, row) => sum + rowHeight(row, m), 0) + cards;
 }

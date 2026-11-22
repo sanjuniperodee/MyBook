@@ -4,7 +4,7 @@ import { Text, View } from "@react-pdf/renderer";
 import type { Style } from "@react-pdf/stylesheet";
 import { answerBlocks, rowsByBlock } from "@/lib/book/answer-blocks";
 import { layoutMedia } from "@/lib/book/answer-media";
-import { layoutInline, normalizeStyle, splitParagraphs } from "@/lib/book/inline-photo";
+import { layoutInline, normalizeStyle, splitParagraphsDetailed } from "@/lib/book/inline-photo";
 import type { ContentItem } from "@/lib/book/layout";
 import { dividerDrawing } from "@/lib/book/interior-art";
 import { DIVIDER, HEADING, headingFace, KEEP_WITH_NEXT } from "@/lib/book/typesetting";
@@ -69,8 +69,8 @@ function Divider({ kit, id }: { kit: PdfKit; id: string }) {
 
 /** Ответ целиком: блоки набора, ряды фото и карточки QR-кодов между ними (leadIn — капитель в начале первого блока). */
 function EntryBody({ kit, item, leadIn, start }: { kit: PdfKit; item: ContentItem; leadIn: boolean; /** Ответ открывает главу: буквица. */ start: boolean }) {
-  const paragraphs = splitParagraphs(item.answer);
-  const blocks = answerBlocks(paragraphs, { plain: kit.design.plainAnswers });
+  const { paragraphs, breaks } = splitParagraphsDetailed(item.answer);
+  const blocks = answerBlocks(paragraphs, { plain: kit.design.plainAnswers, breaks });
   const photos = (item.photos ?? []).filter((p) => kit.options.images.has(p.id));
   const rows = rowsByBlock(
     blocks,
