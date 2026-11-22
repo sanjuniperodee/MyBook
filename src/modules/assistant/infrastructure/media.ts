@@ -93,7 +93,8 @@ export async function transcribeAudio(
     const form = new FormData();
     form.set("model", c.model);
     form.set("response_format", "json");
-    form.set("prompt", input.glossary.slice(0, 800));
+    // Groq отвечает 400 на подсказку длиннее ~224 токенов (кириллица — около 450 знаков); 400 знаков проходит.
+    form.set("prompt", input.glossary.slice(0, 400));
     form.set("file", new Blob([Buffer.from(input.data, "base64")], { type: input.mime.split(";")[0] || "audio/ogg" }), `voice.${audioFormat(input.mime)}`);
     const res = await fetch(`${c.baseUrl}/audio/transcriptions`, { method: "POST", headers: c.apiKey ? { Authorization: `Bearer ${c.apiKey}` } : {}, body: form, signal: AbortSignal.timeout(input.timeoutMs) }).catch(() => null);
     if (!res) return null;
