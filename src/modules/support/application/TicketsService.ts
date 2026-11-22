@@ -60,8 +60,8 @@ export class TicketsService {
   }
 
   /** Принять обращение: проверить поля, сохранить файлы, завести запись. Разбор вложений — отдельно (process), после ответа. */
-  async create(input: NewTicketInput, uploads: UploadedFile[], actor: Actor): Promise<Ticket> {
-    const fields = validateNew(input, uploads.length);
+  async create(input: NewTicketInput, uploads: UploadedFile[], actor: Actor, opts: { chatMessages?: number } = {}): Promise<Ticket> {
+    const fields = validateNew(input, uploads.length, opts.chatMessages ?? 0);
     const total = uploads.reduce((n, f) => n + f.data.length, 0);
     const big = uploads.find((f) => f.data.length > FILE_MAX_BYTES);
     if (big) throw new SupportError("invalid", `Файл «${big.name}» больше ${FILE_MAX_BYTES / 1024 / 1024} МБ — сожмите или пришлите ссылкой в описании`);
@@ -201,8 +201,8 @@ export class TicketsService {
     return this.repo.list(filter);
   }
 
-  counts() {
-    return this.repo.counts();
+  counts(createdBy?: string) {
+    return this.repo.counts(createdBy);
   }
 
   byNumber(n: number) {

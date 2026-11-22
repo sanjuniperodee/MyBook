@@ -118,6 +118,7 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
           backHref={`/admin/chats?f=${f}${q ? `&q=${encodeURIComponent(q)}` : ""}`}
           deal={dealRow ? { href: `/admin/deals/${dealRow.deal.id}`, number: dealRow.deal.number, stage: dealRow.stage.name, color: dealRow.stage.color } : null}
           assignee={conv.assigneeId ? (names.get(conv.assigneeId) ?? null) : null}
+          ticketHref={`/admin/support/new?c=${conv.id}`}
           call={can(staff, "calls.make") && conv.channel === "whatsapp" && /^\d{10,15}$/.test(conv.chatId) ? <WhatsappCallButton iconOnly target={{ conversationId: conv.id }} title={title(conv)} /> : null}
         />
         {!mine ? (

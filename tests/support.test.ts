@@ -70,7 +70,7 @@ describe("уведомление", () => {
     expect(text).toContain("Здравствуйте, Марат!");
     expect(text).toContain("Обращение №12 в MyBooks: исправили");
     expect(text).toContain("Текст больше не стирается.");
-    expect(text).toContain("https://mybooks.kz/support");
+    expect(text).toContain("https://mybooks.kz/admin/support/new");
   });
 
   it("в работе — без ссылки на новое обращение", () => {
@@ -105,7 +105,8 @@ class MemoryRepo implements TicketRepository {
     void filter;
     return [...this.rows.values()];
   }
-  async counts() {
+  async counts(createdBy?: string) {
+    void createdBy;
     return Object.fromEntries(SUPPORT_STATUSES.map((s) => [s, 0])) as Record<SupportStatus, number>;
   }
 }

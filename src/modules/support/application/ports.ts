@@ -7,6 +7,8 @@ export type TicketDraft = Omit<Ticket, "id" | "number" | "createdAt" | "updatedA
 export interface TicketFilter {
   status?: SupportStatus | "open" | "all";
   q?: string;
+  /** Только обращения этого сотрудника (менеджер видит свои, руководитель — все). */
+  createdBy?: string;
   limit: number;
 }
 
@@ -19,7 +21,7 @@ export interface TicketRepository {
   byNumbers(ns: number[]): Promise<Ticket[]>;
   update(id: string, patch: Partial<TicketDraft>): Promise<void>;
   list(filter: TicketFilter): Promise<Ticket[]>;
-  counts(): Promise<Record<SupportStatus, number>>;
+  counts(createdBy?: string): Promise<Record<SupportStatus, number>>;
 }
 
 /** Файлы вложений. */

@@ -83,7 +83,7 @@ export const navDomains: Domain[] = [
     items: [
       { href: "/admin", label: "Обзор", icon: LayoutDashboard, exact: true, keywords: "главная дашборд сводка" },
       { href: "/admin/tasks", label: "Задачи", icon: CheckSquare, badge: "tasks", keywords: "дела напоминания" },
-      { href: "/admin/support", label: "Обращения", icon: LifeBuoy, perm: ["settings.manage"], keywords: "поддержка проблемы ошибки баги жалобы голосовые" },
+      { href: "/admin/support", label: "Обращения", icon: LifeBuoy, keywords: "поддержка проблемы ошибки баги жалобы голосовые" },
     ],
   },
   {

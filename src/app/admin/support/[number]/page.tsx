@@ -12,8 +12,9 @@ import { env } from "@/config/env";
 import { chatMessageText, notificationText, ticketLabel } from "@/modules/support";
 import { SUPPORT_KIND_LABELS, SUPPORT_STATUS_LABELS, SUPPORT_STATUSES, type SupportAttachment, type SupportStatus } from "@/shared/domain/support";
 import { phoneLabel, RESOLUTION_SLOT, STATUS_TONE } from "../labels";
+import { canOpenTicket, seesAllTickets } from "../access";
 import { CopyButton, TicketControls } from "./TicketControls";
-import { ChatPicker } from "./ChatPicker";
+import { TicketChatPicker } from "../ChatPicker";
 
 export async function generateMetadata({ params }: { params: Promise<{ number: string }> }) {
   return { title: `Обращение №${(await params).number}` };
@@ -64,11 +65,11 @@ function Attachment({ ticketId, a, index }: { ticketId: string; a: SupportAttach
 
 /** Карточка обращения: суть от AI, описание, вложения с расшифровками, статус и уведомление, коммиты и история. */
 export default async function TicketPage({ params }: { params: Promise<{ number: string }> }) {
-  const staff = await requireStaff("settings.manage");
+  const staff = await requireStaff();
   const n = Number((await params).number);
   const t = Number.isSafeInteger(n) ? await container().support.tickets.byNumber(n) : null;
-  if (!t) notFound();
-  const canEdit = true;
+  if (!t || !canOpenTicket(staff, t)) notFound();
+  const canEdit = seesAllTickets(staff);
   const notifyPreview = Object.fromEntries(SUPPORT_STATUSES.map((s) => [s, notificationText({ ...t, status: s, resolution: RESOLUTION_SLOT }, env.appUrl)])) as Record<SupportStatus, string>;
   const listening = t.attachments.some((a) => (a.kind === "audio" || a.kind === "video") && !a.transcript && !a.transcriptError);
 
@@ -88,7 +89,7 @@ export default async function TicketPage({ params }: { params: Promise<{ number:
             </span>
           </span>
         }
-        actions={<CopyButton text={ticketLabel(t.number)} label="Номер для Claude" />}
+        actions={canEdit ? <CopyButton text={ticketLabel(t.number)} label="Номер для Claude" /> : undefined}
       />
 
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
@@ -143,7 +144,7 @@ export default async function TicketPage({ params }: { params: Promise<{ number:
               ) : (
                 <p className="text-sm text-muted">Если обращение пришло из чата клиента — выберите чат и сообщения: AI сверит просьбу с тем, что писал клиент, а голосовые расшифруются.</p>
               )}
-              {canEdit && can(staff, "chats.view") ? <ChatPicker ticketId={t.id} number={t.number} initialQuery={t.clientPhone || t.chat?.chatId || ""} linked={t.chat ? { conversationId: t.chat.conversationId, ids: t.chat.messages.map((m) => m.id) } : null} /> : null}
+              {can(staff, "chats.view") ? <TicketChatPicker ticketId={t.id} number={t.number} initialQuery={t.clientPhone || t.chat?.chatId || ""} linked={t.chat ? { chat: { id: t.chat.conversationId, contact: t.chat.contact, chatId: t.chat.chatId, channel: "whatsapp", last: "", lastAt: null }, ids: t.chat.messages.map((m) => m.id) } : null} /> : null}
             </div>
           </section>
 

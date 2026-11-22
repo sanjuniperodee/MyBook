@@ -2,13 +2,16 @@ import { api, apiStaff, HttpError } from "@/server/api";
 import { container } from "@/server/container";
 import { idParams } from "@/server/input";
 import { serveFile } from "@/server/range-file";
+import { canOpenTicket } from "@/app/admin/support/access";
 
 /** Вложение обращения для сотрудника CRM: с Range (видео и голосовые в Safari), ?download=1 — скачать файлом. */
 export const GET = api(async (req, { params }: { params: Promise<{ id: string; att: string }> }) => {
-  await apiStaff(req, "settings.manage");
+  const staff = await apiStaff(req);
   const p = await params;
   const { id } = idParams(p, "id");
   if (!/^[a-z0-9-]{1,40}$/.test(p.att)) throw new HttpError(404, "notFound");
+  const ticket = await container().support.tickets.byId(id);
+  if (!ticket || !canOpenTicket(staff, ticket)) throw new HttpError(404, "notFound");
   const file = await container().support.attachmentFile(id, p.att);
   if (!file) throw new HttpError(404, "notFound");
   const download = new URL(req.url).searchParams.has("download");

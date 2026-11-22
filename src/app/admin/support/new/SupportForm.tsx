@@ -1,13 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { CheckCircle2, FileText, Film, Image as ImageIcon, Mic, Paperclip, Square, Trash2 } from "lucide-react";
+import { CheckCircle2, FileText, MessagesSquare, Film, Image as ImageIcon, Mic, Paperclip, Square, Trash2 } from "lucide-react";
 import { Field } from "@/components/ui/Field";
 import { cn } from "@/lib/class-names";
+import { ChatSelect, type ChatPick } from "../ChatPicker";
+import type { ChatHit } from "../actions";
 import { SUPPORT_KIND_LABELS, SUPPORT_KINDS, type SupportKind } from "@/shared/domain/support";
 
 interface Initial {
-  reporterName: string;
+  /** Чат, из которого открыли форму (?c=…). */
+  chat: ChatHit | null;
   notifyPhone: string;
   clientPhone: string;
   place: string;
@@ -27,7 +30,6 @@ const KIND_HINTS: Record<SupportKind, string> = {
   other: "Опишите своими словами.",
 };
 
-const PROFILE_KEY = "mb-support-profile";
 const mb = (n: number) => (n / 1024 / 1024).toFixed(n < 10 * 1024 * 1024 ? 1 : 0);
 
 function iconFor(file: File) {
@@ -54,7 +56,9 @@ function recorderType(): { mime: string; ext: string } {
  * Форма обращения: тип, описание, голосовые прямо с микрофона, файлы (выбрать, перетащить, вставить скриншот из буфера),
  * где и что ожидали, чей это вопрос, срочность и номер для уведомления. Отправка — одним запросом с прогрессом загрузки.
  */
-export function SupportForm({ initial, staff, filesMax, fileMaxMb, className }: { initial: Initial; staff: boolean; filesMax: number; fileMaxMb: number; className?: string }) {
+export function SupportForm({ initial, filesMax, fileMaxMb, canPickChat, className }: { initial: Initial; filesMax: number; fileMaxMb: number; canPickChat: boolean; className?: string }) {
+  const [pick, setPick] = useState<ChatPick | null>(null);
+  const [picking, setPicking] = useState(!!initial.chat && canPickChat);
   const [kind, setKind] = useState<SupportKind>("bug");
   const [urgent, setUrgent] = useState(false);
   const [items, setItems] = useState<Item[]>([]);
@@ -76,19 +80,6 @@ export function SupportForm({ initial, staff, filesMax, fileMaxMb, className }: 
   useEffect(() => () => stream.current?.getTracks().forEach((t) => t.stop()), []);
   const formRef = useRef<HTMLFormElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
-  // Имя и номер из прошлой отправки — подставляются и во втором обращении подряд.
-  const [remembered, setRemembered] = useState({ reporterName: initial.reporterName, notifyPhone: initial.notifyPhone });
-  const nameInput = useRef<HTMLInputElement>(null);
-  const phoneInput = useRef<HTMLInputElement>(null);
-
-  // Имя и номер с прошлого раза — менеджеру не вводить их в каждом обращении (пустые поля заполняем из браузера).
-  useEffect(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(PROFILE_KEY) ?? "null") as { reporterName?: string; notifyPhone?: string } | null;
-      if (nameInput.current && !nameInput.current.value && saved?.reporterName) nameInput.current.value = saved.reporterName;
-      if (phoneInput.current && !phoneInput.current.value && saved?.notifyPhone) phoneInput.current.value = saved.notifyPhone;
-    } catch {}
-  }, []);
 
   useEffect(() => {
     if (!recording) return;
@@ -189,22 +180,25 @@ export function SupportForm({ initial, staff, filesMax, fileMaxMb, className }: 
     form.set("kind", kind);
     form.set("urgency", urgent ? "urgent" : "normal");
     form.set("device", `${navigator.platform || ""} ${window.screen.width}×${window.screen.height}`.trim());
+    if (pick) {
+      form.set("conversationId", pick.chat.id);
+      form.set("messageIds", JSON.stringify(pick.ids));
+    }
     for (const it of items) form.append(it.recorded ? "voice" : "files", it.file, it.file.name);
     const description = String(form.get("description") ?? "").trim();
-    if (!description && !items.length) {
+    if (picking && !pick) {
+      setError("Отметьте сообщения клиента и нажмите «Взять в обращение» — или закройте выбор чата");
+      return;
+    }
+    if (!description && !items.length && !pick) {
       setError("Опишите, что случилось, или приложите голосовое, скриншот или видео");
       return;
     }
-    const who = { reporterName: String(form.get("reporterName") ?? ""), notifyPhone: String(form.get("notifyPhone") ?? "") };
-    setRemembered(who);
-    try {
-      localStorage.setItem(PROFILE_KEY, JSON.stringify(who));
-    } catch {}
     setError("");
     setProgress(0);
     // XHR, а не fetch: видео с экрана весят десятки мегабайт — нужен прогресс загрузки.
     const xhr = new XMLHttpRequest();
-    xhr.open("POST", "/api/support");
+    xhr.open("POST", "/api/admin/support");
     xhr.upload.onprogress = (ev) => ev.lengthComputable && setProgress(Math.round((ev.loaded / ev.total) * 100));
     xhr.onload = () => {
       setProgress(null);
@@ -230,6 +224,8 @@ export function SupportForm({ initial, staff, filesMax, fileMaxMb, className }: 
     setDone(null);
     setUrgent(false);
     setKind("bug");
+    setPick(null);
+    setPicking(false);
   }
 
   if (done) {
@@ -238,11 +234,16 @@ export function SupportForm({ initial, staff, filesMax, fileMaxMb, className }: 
         <CheckCircle2 className="size-8 text-success" aria-hidden />
         <h2 className="mt-3 font-serif text-[28px] leading-tight font-medium">Обращение №{done.number} принято</h2>
         <p className="mt-2 leading-relaxed text-ink-soft">
-          Номер пригодится, если захотите что-то уточнить. Когда исправим, напишем в WhatsApp{done.phone ? ` на +${done.phone}` : ""}.
+          Если проблема из чата с клиентом — откройте обращение и приложите переписку: так разберёмся быстрее. Когда исправим, напишем в WhatsApp{done.phone ? ` на +${done.phone}` : ""}.
         </p>
-        <button type="button" className="btn btn-outline mt-6" onClick={again}>
-          Новое обращение
-        </button>
+        <div className="mt-6 flex flex-wrap gap-2">
+          <a href={`/admin/support/${done.number}`} className="btn btn-primary">
+            Открыть обращение №{done.number}
+          </a>
+          <button type="button" className="btn btn-outline" onClick={again}>
+            Новое обращение
+          </button>
+        </div>
       </div>
     );
   }
@@ -263,8 +264,48 @@ export function SupportForm({ initial, staff, filesMax, fileMaxMb, className }: 
         </div>
       </fieldset>
 
-      <Field label="Опишите подробно" hint={`${KIND_HINTS[kind]} Можно не писать, а записать голосовое ниже.`}>
-        <textarea name="description" className="input min-h-40" maxLength={10000} placeholder="Например: клиентка Айгерим, книга «Мама». В редакторе на телефоне текст главы 3 сам стирается, когда печатает. Ждём, чтобы текст сохранялся." />
+      {canPickChat ? (
+        <section aria-labelledby="support-chat" className="rounded-[14px] border border-line bg-sunken/40 p-4">
+          <h2 id="support-chat" className="label">
+            Переписка с клиентом
+          </h2>
+          <p className="-mt-1 mb-3 text-sm text-muted">Выберите чат клиента в CRM и отметьте, что он писал по этой проблеме, — так будет точнее, чем пересказ. Голосовые расшифруем.</p>
+          {pick && !picking ? (
+            <div className="flex flex-wrap items-center gap-3 text-sm">
+              <MessagesSquare className="size-4 text-muted" aria-hidden />
+              <span>
+                <span className="font-medium">{pick.chat.contact || `+${pick.chat.chatId}`}</span> · {pick.ids.length} сообщ.
+              </span>
+              <button type="button" className="text-xs underline" onClick={() => setPicking(true)}>
+                изменить
+              </button>
+              <button type="button" className="text-xs text-muted underline" onClick={() => setPick(null)}>
+                убрать
+              </button>
+            </div>
+          ) : picking ? (
+            <ChatSelect
+              initialQuery={initial.clientPhone}
+              initialChat={pick?.chat ?? initial.chat}
+              initialIds={pick?.ids}
+              pickLabel="Взять в обращение"
+              onCancel={() => setPicking(false)}
+              onPick={(p) => {
+                setPick(p);
+                setPicking(false);
+                setError("");
+              }}
+            />
+          ) : (
+            <button type="button" className="btn btn-outline" onClick={() => setPicking(true)} disabled={busy}>
+              <MessagesSquare className="size-4" aria-hidden /> Выбрать чат и сообщения
+            </button>
+          )}
+        </section>
+      ) : null}
+
+      <Field label="Опишите подробно" hint={`${KIND_HINTS[kind]} Можно коротко, если выбрали сообщения клиента, или записать голосовое ниже.`}>
+        <textarea name="description" className="input min-h-40" maxLength={10000} placeholder="Например: клиентка Айгерим, книга «Мама». В редакторе на телефоне текст главы 3 сам стирается, когда она печатает. Нужно, чтобы текст сохранялся." />
       </Field>
 
       <section aria-labelledby="support-files">
@@ -272,7 +313,7 @@ export function SupportForm({ initial, staff, filesMax, fileMaxMb, className }: 
           Голосовые, скриншоты, видео, файлы
         </h2>
         <p className="-mt-1 mb-3 text-sm text-muted">
-          Пересланные голосовые клиента из WhatsApp тоже сюда: сохраните их на телефон и выберите. Скриншот можно вставить из буфера (Ctrl+V). До {filesMax} файлов, каждый до {fileMaxMb} МБ.
+          Голосовые клиента из WhatsApp — сохраните на телефон и выберите, или после отправки приложите переписку из чата CRM. Скриншот можно вставить из буфера (Ctrl+V). До {filesMax} файлов, каждый до {fileMaxMb} МБ.
         </p>
         <div
           className={cn("rounded-[14px] border border-dashed border-line-strong bg-white p-4 transition-colors", dragOver && "border-ink bg-sunken")}
@@ -348,7 +389,7 @@ export function SupportForm({ initial, staff, filesMax, fileMaxMb, className }: 
         </Field>
       </div>
 
-      <Field label="Телефон клиента" optional hint={staff ? "Если пишете за клиента — найдём его книгу и заказ" : "Если пишете не за себя — номер того, у кого проблема"}>
+      <Field label="Телефон клиента" optional hint="Найдём его книгу, заказ и переписку">
         <input name="clientPhone" className="input" inputMode="tel" autoComplete="off" defaultValue={initial.clientPhone} placeholder="+7 7xx xxx xx xx" maxLength={40} />
       </Field>
 
@@ -359,17 +400,11 @@ export function SupportForm({ initial, staff, filesMax, fileMaxMb, className }: 
         </span>
       </label>
 
-      <div className="grid gap-5 border-t border-line pt-8 sm:grid-cols-2">
-        <Field label="Ваше имя" optional>
-          <input name="reporterName" className="input" autoComplete="name" ref={nameInput} defaultValue={remembered.reporterName} maxLength={120} />
-        </Field>
-        <Field label="WhatsApp для уведомления" hint="Сюда напишем, когда исправим">
-          <input name="notifyPhone" className="input" inputMode="tel" autoComplete="tel" required ref={phoneInput} defaultValue={remembered.notifyPhone} placeholder="+7 7xx xxx xx xx" maxLength={40} />
+      <div className="border-t border-line pt-8 sm:max-w-sm">
+        <Field label="Ваш WhatsApp для уведомления" hint="Сюда напишем, когда исправим. По умолчанию — номер из вашей учётки">
+          <input name="notifyPhone" className="input" inputMode="tel" autoComplete="tel" required defaultValue={initial.notifyPhone} placeholder="+7 7xx xxx xx xx" maxLength={40} />
         </Field>
       </div>
-
-      {/* Ловушка для роботов: человек это поле не видит. */}
-      <input name="website" tabIndex={-1} autoComplete="off" className="hidden" aria-hidden />
 
       {error ? (
         <p className="field-error text-sm" role="alert">

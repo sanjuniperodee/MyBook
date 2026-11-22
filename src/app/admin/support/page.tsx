@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CircleCheck, ExternalLink, LifeBuoy, Mic, Paperclip, Search } from "lucide-react";
+import { CircleCheck, LifeBuoy, Plus, Mic, Paperclip, Search } from "lucide-react";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Tabs } from "@/components/admin/Tabs";
 import { Badge } from "@/components/ui/Badge";
@@ -9,6 +9,7 @@ import { requireStaff } from "@/server/access";
 import { container } from "@/server/container";
 import { SUPPORT_KIND_LABELS, SUPPORT_STATUS_LABELS, SUPPORT_STATUSES, type SupportStatus } from "@/shared/domain/support";
 import { phoneLabel, STATUS_TONE } from "./labels";
+import { seesAllTickets } from "./access";
 
 export const metadata = { title: "Обращения" };
 
@@ -21,12 +22,14 @@ const FILTERS: { key: Filter; label: string }[] = [
 
 /** Обращения с формы /support: открытые — срочные и старые сверху; номер обращения называют Claude в чате. */
 export default async function SupportPage({ searchParams }: { searchParams: Promise<{ s?: string; q?: string }> }) {
-  await requireStaff("settings.manage");
+  const staff = await requireStaff();
+  const all = seesAllTickets(staff);
+  const mine = all ? undefined : staff.user.id;
   const sp = await searchParams;
   const filter: Filter = FILTERS.some((f) => f.key === sp.s) ? (sp.s as Filter) : "open";
   const q = sp.q?.trim().slice(0, 100) ?? "";
   const tickets = container().support.tickets;
-  const [list, counts] = await Promise.all([tickets.list({ status: filter, q, limit: 200 }), tickets.counts()]);
+  const [list, counts] = await Promise.all([tickets.list({ status: filter, q, createdBy: mine, limit: 200 }), tickets.counts(mine)]);
   const open = counts.new + counts.in_progress + counts.waiting;
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
   const href = (s: Filter) => `/admin/support${s === "open" ? "" : `?s=${s}`}`;
@@ -37,12 +40,14 @@ export default async function SupportPage({ searchParams }: { searchParams: Prom
         title="Обращения"
         meta={<Badge tone={counts.new ? "accent" : "neutral"}>{counts.new ? `новых: ${counts.new}` : `открытых: ${open}`}</Badge>}
         actions={
-          <Link href="/support" target="_blank" className="btn btn-primary">
-            <ExternalLink className="size-4" aria-hidden /> Новое обращение
+          <Link href="/admin/support/new" className="btn btn-primary">
+            <Plus className="size-4" aria-hidden /> Новое обращение
           </Link>
         }
       >
-        Проблемы и просьбы с формы mybooks.kz/support: текст, голосовые с расшифровкой, скриншоты и видео. Коммит с «Обращение №N» после выкатки сам закрывает обращение и пишет человеку в WhatsApp.
+        {all
+          ? "Проблемы клиентов и просьбы от команды: переписка клиента, голосовые с расшифровкой, скриншоты и видео. Коммит с «Обращение №N» после выкатки сам закрывает обращение и пишет автору в WhatsApp."
+          : "Ваши обращения: что не работает у клиента или что нужно изменить. Когда исправят — придёт сообщение в WhatsApp."}
       </PageHeader>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -108,7 +113,7 @@ export default async function SupportPage({ searchParams }: { searchParams: Prom
       ) : (
         <div className="panel">
           <EmptyState icon={filter === "open" ? CircleCheck : LifeBuoy} title={q ? "Ничего не нашлось" : filter === "open" ? "Открытых обращений нет" : "Здесь пока пусто"}>
-            {q ? "Попробуйте номер обращения или часть телефона." : "Ссылку на форму mybooks.kz/support можно дать менеджерам и клиентам: обращение появится здесь."}
+            {q ? "Попробуйте номер обращения или часть телефона." : "Проблема у клиента или нужно что-то изменить — «Новое обращение»: выберите чат клиента и его сообщения."}
           </EmptyState>
         </div>
       )}

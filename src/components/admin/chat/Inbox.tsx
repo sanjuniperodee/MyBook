@@ -2,7 +2,7 @@ import { ChatAvatar } from "./ChatAvatar";
 import { ChatRows } from "./ChatRows";
 export { ChatAvatar } from "./ChatAvatar";
 import Link from "next/link";
-import { ArrowLeft, MessagesSquare, UserRound } from "lucide-react";
+import { ArrowLeft, MessagesSquare, UserRound, LifeBuoy } from "lucide-react";
 import { cn } from "@/lib/class-names";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { DetailsToggle } from "./DetailsPanel";
@@ -89,6 +89,7 @@ export function ChatHeader({
   deal,
   assignee,
   call = null,
+  ticketHref = null,
 }: {
   title: string;
   avatarUrl: string | null;
@@ -99,6 +100,8 @@ export function ChatHeader({
   assignee: string | null;
   /** Кнопка звонка клиенту (WhatsApp), если звонки включены и у сотрудника есть право. */
   call?: React.ReactNode;
+  /** «Обращение»: новое обращение с этим чатом — отметить сообщения клиента о проблеме. */
+  ticketHref?: string | null;
 }) {
   return (
     <header className="flex h-[calc(4rem+env(safe-area-inset-top))] shrink-0 items-center gap-3 border-b border-line bg-white pt-[env(safe-area-inset-top)] pr-2 pl-1 sm:pr-3 sm:pl-2 lg:h-16 lg:px-5 lg:pt-0">
@@ -123,6 +126,11 @@ export function ChatHeader({
             <span className="size-2 rounded-full" style={{ background: deal.color }} aria-hidden />
             {deal.stage}
           </span>
+        </Link>
+      ) : null}
+      {ticketHref ? (
+        <Link href={ticketHref} className="flex size-9 shrink-0 items-center justify-center rounded-[10px] text-ink-soft hover:bg-sunken hover:text-ink" title="Обращение: проблема клиента из этого чата" aria-label="Создать обращение из этого чата">
+          <LifeBuoy className="size-[18px]" strokeWidth={1.8} aria-hidden />
         </Link>
       ) : null}
       {call}

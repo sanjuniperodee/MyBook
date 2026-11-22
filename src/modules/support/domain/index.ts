@@ -79,11 +79,11 @@ const clean = (v: string | null | undefined, max: number) => (v ?? "").replace(/
  * Проверка формы: нужен номер для уведомления и хоть что-то по сути — текст или вложение (часто присылают одно
  * голосовое). Ошибка — SupportError("invalid", текст для человека).
  */
-export function validateNew(input: NewTicketInput, files: number): Omit<NewTicketInput, "kind" | "urgency"> & { kind: SupportKind; urgency: SupportUrgency } {
+export function validateNew(input: NewTicketInput, files: number, chatMessages = 0): Omit<NewTicketInput, "kind" | "urgency"> & { kind: SupportKind; urgency: SupportUrgency } {
   const notifyPhone = normalizePhone(input.notifyPhone.slice(0, 40));
   if (notifyPhone.length < 11 || notifyPhone.length > 15) throw new SupportError("invalid", "Укажите номер WhatsApp, куда написать, когда исправим");
   const description = clean(input.description, DESCRIPTION_MAX);
-  if (!description && !files) throw new SupportError("invalid", "Опишите, что случилось, или приложите голосовое, скриншот или видео");
+  if (!description && !files && !chatMessages) throw new SupportError("invalid", "Опишите, что случилось, приложите голосовое, скриншот или видео — или выберите сообщения клиента");
   if (files > FILES_MAX) throw new SupportError("invalid", `Не больше ${FILES_MAX} файлов в одном обращении`);
   const clientPhone = normalizePhone(input.clientPhone.slice(0, 40));
   return {
@@ -160,7 +160,7 @@ export function notificationText(t: Pick<Ticket, "number" | "status" | "resoluti
         : `${ticketLabel(t.number)} в MyBooks: ${SUPPORT_STATUS_LABELS[t.status].toLowerCase()}.`;
   const tail =
     t.status === "done" || t.status === "rejected"
-      ? `Если что-то ещё не так — ответьте на это сообщение или оставьте новое обращение: ${appUrl.replace(/\/+$/, "")}/support`
+      ? `Если что-то ещё не так — оставьте новое обращение в CRM: ${appUrl.replace(/\/+$/, "")}/admin/support/new`
       : "";
   return [hello, head, t.resolution.trim(), tail].filter(Boolean).join("\n\n");
 }

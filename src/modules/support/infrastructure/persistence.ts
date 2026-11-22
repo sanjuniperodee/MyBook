@@ -52,6 +52,7 @@ export class DrizzleTicketRepository implements TicketRepository {
     const status = filter.status ?? "open";
     if (status === "open") where.push(notInArray(supportTickets.status, ["done", "rejected"]));
     else if (status !== "all") where.push(eq(supportTickets.status, status));
+    if (filter.createdBy) where.push(eq(supportTickets.createdBy, filter.createdBy));
     const q = filter.q?.trim();
     if (q) {
       const num = Number(q.replace(/^№\s*/, ""));
@@ -72,10 +73,11 @@ export class DrizzleTicketRepository implements TicketRepository {
     return rows.map(toTicket);
   }
 
-  async counts() {
+  async counts(createdBy?: string) {
     const rows = await executor()
       .select({ status: supportTickets.status, n: sql<number>`count(*)::int` })
       .from(supportTickets)
+      .where(createdBy ? eq(supportTickets.createdBy, createdBy) : undefined)
       .groupBy(supportTickets.status);
     const out = Object.fromEntries(SUPPORT_STATUSES.map((s) => [s, 0])) as Record<SupportStatus, number>;
     for (const r of rows) if (r.status in out) out[r.status] = r.n;

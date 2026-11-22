@@ -7,6 +7,7 @@ import { assertStaff, audit, canSeeAssigned } from "@/server/access";
 import { container } from "@/server/container";
 import { SUPPORT_STATUSES } from "@/shared/domain/support";
 import { SupportError } from "@/modules/support";
+import { canOpenTicket } from "./access";
 
 const updateInput = z.object({
   id: uuid,
@@ -80,14 +81,14 @@ export interface ChatLine {
 
 /** Найти диалог для обращения: по телефону (цифры) или имени контакта. */
 export async function searchChatsAction(q: string): Promise<ChatHit[]> {
-  const staff = await assertStaff("settings.manage", "chats.view");
+  const staff = await assertStaff("chats.view");
   const rows = (await container().messaging.queries.findConversations(z.string().max(100).parse(q), 30)).filter((r) => canSeeAssigned(staff, r.assigneeId)).slice(0, 15);
   return rows.map((r) => ({ id: r.id, contact: r.contactName, chatId: r.chatId, channel: r.channel, last: r.lastMessageText.slice(0, 120), lastAt: r.lastMessageAt?.toISOString() ?? null }));
 }
 
 /** Сообщения диалога до before (старые сверху) — выбрать, какие относятся к обращению. */
 export async function chatMessagesAction(conversationId: string, before?: string): Promise<ChatLine[]> {
-  const staff = await assertStaff("settings.manage", "chats.view");
+  const staff = await assertStaff("chats.view");
   const id = uuid.parse(conversationId);
   const conv = await container().messaging.queries.conversation(id);
   if (!conv || !canSeeAssigned(staff, conv.assigneeId)) return [];
@@ -98,8 +99,10 @@ export async function chatMessagesAction(conversationId: string, before?: string
 
 /** Приложить выбранные сообщения диалога к обращению (пустой список — отвязать) и сразу разобрать: расшифровка и суть. */
 export async function linkChatAction(number: number, id: string, conversationId: string | null, messageIds: string[]): Promise<Result> {
-  const staff = await assertStaff("settings.manage", "chats.view");
+  const staff = await assertStaff("chats.view");
   const ticketId = uuid.parse(id);
+  const ticket = await container().support.tickets.byId(ticketId);
+  if (!ticket || !canOpenTicket(staff, ticket)) return { ok: false, error: "Обращение не найдено" };
   const conv = conversationId ? uuid.parse(conversationId) : null;
   const ids = z.array(uuid).max(200).parse(messageIds);
   if (conv) {
