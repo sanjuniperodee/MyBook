@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, gt, gte, inArray, isNull, lt, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, ilike, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { crmBlocklist, crmBotEvents, crmConversations, crmMessages, users } from "@/shared/infrastructure/db/schema";
 import { executor, inTransaction } from "@/shared/infrastructure/database";
 import { storeTimeZone } from "@/shared/domain/time";
@@ -721,7 +721,66 @@ export const drizzleBlocklist: Blocklist = {
 };
 
 /** Read-модели переписки. */
+/** Сообщение диалога для выбора в обращении: без служебных заметок и удалённых. */
+export interface PickableMessage {
+  id: string;
+  conversationId: string;
+  direction: string;
+  type: string;
+  text: string;
+  transcript: string | null;
+  createdAt: Date;
+}
+
+const pickable = {
+  id: crmMessages.id,
+  conversationId: crmMessages.conversationId,
+  direction: crmMessages.direction,
+  type: crmMessages.type,
+  text: crmMessages.text,
+  transcript: crmMessages.transcript,
+  createdAt: crmMessages.createdAt,
+};
+
 export class DrizzleMessagingQueries {
+  /** Диалоги по телефону (последние цифры номера) или имени контакта — для привязки переписки к обращению. */
+  async findConversations(q: string, limit = 15) {
+    const term = q.trim().slice(0, 100);
+    if (!term) return [];
+    const digits = term.replace(/\D/g, "");
+    const like = `%${term.replace(/[%_\\]/g, "\\$&")}%`;
+    const where = digits.length >= 6 ? or(ilike(crmConversations.chatId, `%${digits.slice(-10)}%`), ilike(crmConversations.contactName, like)) : ilike(crmConversations.contactName, like);
+    return executor()
+      .select({ id: crmConversations.id, channel: crmConversations.channel, chatId: crmConversations.chatId, contactName: crmConversations.contactName, assigneeId: crmConversations.assigneeId, lastMessageAt: crmConversations.lastMessageAt, lastMessageText: crmConversations.lastMessageText })
+      .from(crmConversations)
+      .where(where)
+      .orderBy(sql`${crmConversations.lastMessageAt} desc nulls last`)
+      .limit(Math.min(Math.max(limit, 1), 50));
+  }
+
+  /** Последние сообщения диалога (до before), старые сверху — без служебных заметок и удалённых. */
+  async pickableMessages(conversationId: string, opts: { limit: number; before?: Date }): Promise<PickableMessage[]> {
+    if (!/^[0-9a-f-]{36}$/i.test(conversationId)) return [];
+    const rows = await executor()
+      .select(pickable)
+      .from(crmMessages)
+      .where(and(eq(crmMessages.conversationId, conversationId), eq(crmMessages.internal, false), isNull(crmMessages.deletedAt), opts.before ? lt(crmMessages.createdAt, opts.before) : undefined))
+      .orderBy(desc(crmMessages.createdAt))
+      .limit(Math.min(Math.max(opts.limit, 1), 200));
+    return rows.reverse();
+  }
+
+  /** Выбранные сообщения диалога по id (чужие диалоги отбрасываются), по времени. */
+  async messagesIn(conversationId: string, ids: string[]): Promise<PickableMessage[]> {
+    const ok = ids.filter((id) => /^[0-9a-f-]{36}$/i.test(id)).slice(0, 200);
+    if (!ok.length || !/^[0-9a-f-]{36}$/i.test(conversationId)) return [];
+    return executor()
+      .select(pickable)
+      .from(crmMessages)
+      .where(and(eq(crmMessages.conversationId, conversationId), inArray(crmMessages.id, ok), isNull(crmMessages.deletedAt)))
+      .orderBy(asc(crmMessages.createdAt));
+  }
+
   /** В каком диалоге сообщение (проверка доступа к действиям с ним). */
   async messageConversation(messageId: string): Promise<string | null> {
     if (!/^[0-9a-f-]{36}$/i.test(messageId)) return null;

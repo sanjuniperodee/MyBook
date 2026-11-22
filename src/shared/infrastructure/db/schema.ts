@@ -21,5 +21,6 @@ export * from "./schema/outbox";
 export * from "./schema/referrals";
 export * from "./schema/relations";
 export * from "./schema/sales";
+export * from "./schema/support";
 export * from "./schema/telephony";
 export * from "./schema/workspace";

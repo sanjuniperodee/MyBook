@@ -1,10 +1,11 @@
 import type { Clock, CustomFieldsReader, SettingsReader } from "@/shared/application";
+import { aiProviders } from "./domain";
 import { AssistantService, ProofreadService, type ConversationReader, type LanguageModel } from "./application";
 import { DESIGN_SETTING_KEYS, parseDesignAiSettings, type DesignAiSettings } from "@/lib/book/design-ai";
 import { modelOf } from "./infrastructure/models";
 import { aiConnections, type AssistantSettingKey } from "./infrastructure/connection";
 import { crmAssistantData } from "./infrastructure/data";
-import { askMedia } from "./infrastructure/media";
+import { askMedia, transcribeAudio } from "./infrastructure/media";
 import { sellerModel } from "./application/SellerModel";
 
 export { AssistantError, SELLER_TIERS, DEFAULT_TIER_MODELS, DEFAULT_PRICES, type SellerTier, type RoutePolicy, rewriteModes, REWRITE_MAX, type RewriteMode, normalizeExtracted, aiProviders, aiProviderIds, isAiProvider, modelFits, type AiProvider, type AiSummary, type BotUnderstanding } from "./domain";
@@ -80,6 +81,30 @@ export class AssistantModule {
   /** Провайдер распознавания голосовых и фото: свой или (пусто) — как у продажника. */
   mediaProvider() {
     return this.#ai.mediaProvider();
+  }
+
+  /**
+   * Расшифровка голосового или звука видео из обращения: сначала Gemini Pro через OpenRouter, при отказе (нет ключа,
+   * нет денег на балансе) — модель «Голосовые и фото» из «Интеграций» (на проде это Whisper у Groq). by — кто расшифровал.
+   */
+  async transcribeSupport(input: { system: string; glossary: string; data: string; mime: string }): Promise<{ text: string; by: string } | { error: string }> {
+    const reasons: string[] = [];
+    for (const connection of [this.#ai.support, this.#ai.media]) {
+      const c = await connection();
+      const res = await transcribeAudio(c, { ...input, timeoutMs: 120_000 }).catch(() => null);
+      if (res && "text" in res) return { text: res.text, by: /whisper/i.test(c.model) ? "whisper" : /gemini/i.test(c.model) ? "gemini" : c.model };
+      reasons.push(`${aiProviders[c.provider].label}: ${res?.error ?? "не ответил"}`);
+    }
+    return { error: reasons.join("; ") };
+  }
+
+  /** Короткий текст по запросу моделью AI-помощника CRM (суть обращения). null — помощник не подключён или сбой. */
+  async briefly(req: { system: string; user: string }): Promise<string | null> {
+    try {
+      return (await modelOf(this.#ai.active).ask({ ...req, effort: "low", timeoutMs: 90_000 })).text.trim() || null;
+    } catch {
+      return null;
+    }
   }
 
   /** Модель распознавания голосовых и фото (для формы и проверки в «Интеграциях»). */

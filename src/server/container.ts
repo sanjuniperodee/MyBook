@@ -25,6 +25,8 @@ import { ReportingModule } from "@/modules/reporting";
 import { WorkspaceModule, smtpConfig, staffWith } from "@/modules/workspace";
 import { FeedbackModule, reviewUrl, THANK_YOU } from "@/modules/feedback";
 import { ReferralsModule } from "@/modules/referrals";
+import { SupportModule, ticketAlert } from "@/modules/support";
+import { convertAudio } from "./audio-convert";
 import { AutomationModule } from "@/modules/automation";
 import { BookPreviewService, PrintFilesService, RenderProgress, pdfPageRaster, pdfRenderQueue, reactPdfRenderer, renderGiftPdf, storageFileStore, type BookRenderer } from "@/modules/production";
 import { registerSubscriptions } from "./subscriptions";
@@ -66,6 +68,7 @@ export class Container {
   #assistant?: AssistantModule;
   #clients?: ClientsModule;
   #feedback?: FeedbackModule;
+  #support?: SupportModule;
   #referrals?: ReferralsModule;
   #invoiceAccess?: InvoiceAccess;
   /** Отчёты — только чтение. */
@@ -300,6 +303,29 @@ export class Container {
             body: r.text ? `${r.authorName}: ${r.text}` : r.authorName,
             link: "/admin/reviews",
           }),
+      },
+    }));
+  }
+
+  /**
+   * Обращения: расшифровка и суть — AI-помощник, уведомление — WhatsApp магазина, звук из видео — ffmpeg; о новом
+   * обращении узнают те, кто ведёт настройки CRM (разработчик и руководитель).
+   */
+  get support(): SupportModule {
+    return (this.#support ??= new SupportModule({
+      clock: this.clock,
+      logger: consoleLogger("support"),
+      appUrl: env.appUrl,
+      ai: { transcribe: (input) => this.assistant.transcribeSupport(input), brief: (req) => this.assistant.briefly(req) },
+      audio: (data) => convertAudio(data, "ogg"),
+      messenger: { send: (phone, text) => this.messaging.sendToPhone(phone, text) },
+      chats: {
+        conversation: (id) => this.messaging.queries.conversation(id),
+        messagesIn: (conversationId, ids) => this.messaging.queries.messagesIn(conversationId, ids),
+        mediaBytes: (messageId) => this.messaging.media.bytes(messageId, 25_000_000).catch(() => null),
+      },
+      alerts: {
+        created: (t) => this.workspace.notifier.notifyAllWith("settings.manage", { kind: "system", ...ticketAlert(t), link: `/admin/support/${t.number}` }),
       },
     }));
   }

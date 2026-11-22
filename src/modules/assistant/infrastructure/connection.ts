@@ -16,6 +16,11 @@ const keys = {
 export const MEDIA_OPENROUTER_MODEL = "google/gemini-2.5-flash";
 /** Groq: Whisper — бесплатная расшифровка голосовых (фото не понимает). */
 export const MEDIA_GROQ_MODEL = "whisper-large-v3";
+/**
+ * Расшифровка голосовых в обращениях — Gemini Pro через OpenRouter: разбирает смешанную русско-казахскую речь и сленг,
+ * где Whisper выдумывает текст. Обращений мало, минута голосового стоит доли цента.
+ */
+export const SUPPORT_TRANSCRIBE_MODEL = "google/gemini-2.5-pro";
 
 /** Ключи настроек провайдера (для формы в «Интеграциях»). */
 export const providerSettingKeys = keys;
@@ -114,6 +119,9 @@ export function aiConnections(settings: SettingsReader<AssistantSettingKey>) {
     return connectionOf(provider, model || fallback);
   };
 
+  /** Расшифровка голосовых и видео в обращениях: OpenRouter с Gemini Pro (ключ OpenRouter из «Интеграций»). */
+  const support: Connection = async () => connectionOf("openrouter", SUPPORT_TRANSCRIBE_MODEL);
+
   /** Политика маршрутизации продажника: режим, модели уровней Claude, пороги, лимиты и прайс. */
   async function sellerPolicy() {
     return readRoutePolicy(await settings.getMany([...ROUTE_SETTING_KEYS]));
@@ -149,5 +157,5 @@ export function aiConnections(settings: SettingsReader<AssistantSettingKey>) {
     return order.map((provider) => ({ provider, connection: () => connectionOf(provider, provider === legacy.provider ? model : "") }));
   }
 
-  return { active, proofread, proofreadProvider, writer, writerProvider, designer, seller, sellerProvider, sellerPolicy, sellerFallbacks, claude, media, mediaProvider };
+  return { active, support, proofread, proofreadProvider, writer, writerProvider, designer, seller, sellerProvider, sellerPolicy, sellerFallbacks, claude, media, mediaProvider };
 }

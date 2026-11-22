@@ -72,3 +72,50 @@ export async function askMedia(c: AiConnection & { enabled?: boolean }, input: {
   const text = json?.choices?.[0]?.message?.content?.trim();
   return text ? { text } : null;
 }
+
+function failureReason(status: number, body: string): string {
+  const f = failure(status, body);
+  return (f && "reason" in f ? f.reason : undefined) ?? `HTTP ${status}`;
+}
+
+/**
+ * Расшифровка голосового для обращения: отдельный вызов с большим запасом токенов — Gemini Pro «думает» перед ответом,
+ * и рассуждение съедает max_tokens (с 1500, как у бота, длинное голосовое пришло бы пустым). Whisper получает словарь
+ * терминов подсказкой (prompt) — так он реже путает названия разделов. { error } — причина, null — временный сбой.
+ */
+export async function transcribeAudio(
+  c: AiConnection & { enabled?: boolean },
+  input: { system: string; glossary: string; data: string; mime: string; timeoutMs: number },
+): Promise<{ text: string } | { error: string } | null> {
+  if (!connectionReady(c)) return { error: "не указан ключ провайдера" };
+  if (c.provider === "deepseek" || c.provider === "anthropic") return { error: `${c.provider} не принимает аудио` };
+  if (/whisper/i.test(c.model)) {
+    const form = new FormData();
+    form.set("model", c.model);
+    form.set("response_format", "json");
+    form.set("prompt", input.glossary.slice(0, 800));
+    form.set("file", new Blob([Buffer.from(input.data, "base64")], { type: input.mime.split(";")[0] || "audio/ogg" }), `voice.${audioFormat(input.mime)}`);
+    const res = await fetch(`${c.baseUrl}/audio/transcriptions`, { method: "POST", headers: c.apiKey ? { Authorization: `Bearer ${c.apiKey}` } : {}, body: form, signal: AbortSignal.timeout(input.timeoutMs) }).catch(() => null);
+    if (!res) return null;
+    if (!res.ok) return { error: failureReason(res.status, await res.text().catch(() => "")) };
+    const text = ((await res.json().catch(() => null)) as { text?: string } | null)?.text?.trim();
+    return text ? { text } : null;
+  }
+  const res = await fetch(`${c.baseUrl}/chat/completions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(c.apiKey ? { Authorization: `Bearer ${c.apiKey}` } : {}) },
+    body: JSON.stringify({
+      model: c.model,
+      messages: [{ role: "user", content: [{ type: "text", text: `${input.system}\n\n${input.glossary}` }, { type: "input_audio", input_audio: { data: input.data, format: audioFormat(input.mime) } }] }],
+      max_tokens: 12_000,
+      temperature: 0,
+      reasoning: { effort: "low" },
+    }),
+    signal: AbortSignal.timeout(input.timeoutMs),
+  }).catch(() => null);
+  if (!res) return null;
+  if (!res.ok) return { error: failureReason(res.status, await res.text().catch(() => "")) };
+  const json = (await res.json().catch(() => null)) as { choices?: { message?: { content?: string | null } }[] } | null;
+  const text = json?.choices?.[0]?.message?.content?.trim();
+  return text ? { text } : null;
+}

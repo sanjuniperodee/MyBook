@@ -52,7 +52,7 @@ export async function convertAudioToFile(data: Uint8Array, to: AudioTarget, outp
   try {
     const input = join(dir, "in.bin");
     await writeFile(input, data);
-    await slot(() => run("ffmpeg", ["-y", "-v", "error", "-threads", "1", "-i", input, ...TARGETS[to].args, outputPath], { timeout: 30_000 }));
+    await slot(() => run("ffmpeg", ["-y", "-v", "error", "-threads", "1", "-protocol_whitelist", "file", "-i", input, ...TARGETS[to].args, outputPath], { timeout: 30_000 }));
     return true;
   } catch {
     return false;

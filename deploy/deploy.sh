@@ -252,3 +252,5 @@ DEPLOY_OK=1
 # Что вошло в релиз: коммиты от предыдущего релиза до этого.
 PREV_SHA="$(basename "${PREV:-}" | sed -n 's/^[0-9]*-[0-9]*-//p')"
 notify ok "$SHA" "$PREV_SHA" "$(basename "$REL")"
+# Обращения: коммиты с «Обращение №N» закрывают обращения и пишут человеку в WhatsApp (deploy/support-release.mjs).
+node --env-file="$ROOT/.env" "$ROOT/deploy/support-release.mjs" "$SHA" "$PREV_SHA" "$(basename "$REL")" "$PORT" 2>&1 | sed "s/^/  /" || true

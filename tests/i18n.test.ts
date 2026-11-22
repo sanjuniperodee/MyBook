@@ -105,9 +105,11 @@ describe("адреса", () => {
 describe("нет русских строк вне словарей", () => {
   const root = path.join(__dirname, "..", "src");
   // CRM и вебхуки интеграций — внутренние инструменты команды, они на русском.
-  const skipDirs = [/^i18n\//, /^app\/admin\//, /^app\/admin-denied\//, /^app\/crm\//, /^app\/api\/admin\//, /^app\/api\/integrations\//, /^app\/print\//, /^components\/admin\//, /^lib\/content\//, /^lib\/tools\//, /^modules\/access\//, /^modules\/sales\//, /^modules\/automation\//, /^modules\/messaging\//, /^modules\/telephony\//, /^modules\/marketing\//, /^modules\/assistant\//, /^lib\/book\/design-ai\//, /^lib\/book\/art\//, /^modules\/clients\//, /^modules\/reporting\//, /^modules\/workspace\//, /^server\/access\.ts$/];
+  const skipDirs = [/^i18n\//, /^app\/admin\//, /^app\/admin-denied\//, /^app\/crm\//, /^app\/api\/admin\//, /^app\/api\/integrations\//, /^app\/print\//, /^components\/admin\//, /^lib\/content\//, /^lib\/tools\//, /^modules\/access\//, /^modules\/sales\//, /^modules\/automation\//, /^modules\/messaging\//, /^modules\/telephony\//, /^modules\/marketing\//, /^modules\/assistant\//, /^lib\/book\/design-ai\//, /^lib\/book\/art\//, /^modules\/clients\//, /^modules\/reporting\//, /^modules\/workspace\//, /^server\/access\.ts$/, /^modules\/support\//, /^app\/support\//, /^app\/api\/support\//];
+  // Обращения (modules/support, форма /support и её API) — поддержка для команды и клиентов ведётся по-русски, как CRM.
   // Файлы, где кириллица допустима целиком: внутренние инструменты и сам механизм языков.
   const skipFiles = new Set([
+    "shared/domain/support.ts", // статусы и типы обращений — подписи формы поддержки и CRM, по-русски
     "server/pay-form.ts", // ошибка формы оплаты для сотрудника CRM — на русском
     "modules/production/infrastructure/pdf/render.tsx", // техзадание для типографии — на русском
     "modules/ordering/ui/labels.ts", // подписи тарифов и доставки для CRM — на русском

@@ -11,20 +11,21 @@
 | Модуль | Что делает | Файлов / строк | Вызовов `container()` |
 |---|---|---:|---:|
 | [access](#access) | Access: сотрудники, роли и права, правила безопасности, журнал. | 16 / 866 | 45 |
-| [assistant](#assistant) | AI-помощник (Claude, ChatGPT, DeepSeek или свой OpenAI-совместимый сервер). | 23 / 2185 | 25 |
+| [assistant](#assistant) | AI-помощник (Claude, ChatGPT, DeepSeek или свой OpenAI-совместимый сервер). | 23 / 2265 | 25 |
 | [authoring](#authoring) | Authoring: книги, вопросы, оглавление своей книги, фото, письма близких. | 28 / 3797 | 68 |
 | [automation](#automation) | Автоматизации (цифровая воронка CRM). | 16 / 1918 | 9 |
 | [clients](#clients) | Клиенты CRM: профиль клиента, задачи и заметки менеджеров. | 9 / 1135 | 29 |
 | [feedback](#feedback) | Отзывы: отзыв клиента о книге, благодарность автору, модерация и витрина. | 12 / 641 | 7 |
 | [identity](#identity) | Identity: учётные записи, вход, пароли, второй фактор. | 17 / 1037 | 19 |
 | [marketing](#marketing) | Маркетинг: каналы привлечения, короткие ссылки, предложения из чата. | 10 / 596 | 13 |
-| [messaging](#messaging) | Переписка: единый инбокс, бот-квалификатор, виджет на сайте. | 51 / 14466 | 119 |
+| [messaging](#messaging) | Переписка: единый инбокс, бот-квалификатор, виджет на сайте. | 51 / 14525 | 123 |
 | [notifications](#notifications) | Уведомления: автописьма, напоминания из CRM, отписка. | 9 / 692 | 6 |
 | [ordering](#ordering) | Заказы. Остальной код видит только его. | 46 / 5452 | 88 |
 | [production](#production) | Производство: вёрстка PDF книги и сертификатов, предпросмотры полос и обложек, файлы для типографии, очередь сборки. В container — previews (BookPreviewService) и printFiles. | 40 / 4569 | 0 |
 | [referrals](#referrals) | Приглашения: код для друзей, награда за их заказы и покупки из чата. | 10 / 358 | 3 |
 | [reporting](#reporting) | Отчёты CRM — сторона чтения (CQRS): сводные выборки по нескольким контекстам для страниц (дашборд, аналитика, поиск, «Мой день»). Только чтение, без бизнес-правил: команды идут через модули контекстов. | 42 / 4376 | 56 |
 | [sales](#sales) | Продажи: сделки, воронки, этапы, дубли, воронка по действиям на сайте. | 27 / 2835 | 90 |
+| [support](#support) | Обращения: проблемы и просьбы с формы /support, расшифровка голосовых, статусы, уведомление и закрытие по выкатке. | 6 / 691 | 10 |
 | [telephony](#telephony) | Телефония: журнал звонков из АТС, звонки из CRM, веб-телефон, записи, звонки WhatsApp. | 13 / 1090 | 27 |
 | [workspace](#workspace) | Рабочее пространство CRM: свои поля, шаблоны ответов, уведомления и push сотрудников. | 19 / 1271 | 19 |
 
@@ -44,7 +45,7 @@ AI-помощник (Claude, ChatGPT, DeepSeek или свой OpenAI-совме
 
 - Папка: `src/modules/assistant` (domain, application, infrastructure)
 - Фасад: `AssistantModule` → `container().assistant`
-- Публичное: `service`, `proofreader`, `writer`, `seller`, `designSettings`, `designerFor`, `writerProvider`, `proofreadProvider`, `sellerProvider`, `sellerFallbacks`, `mediaProvider`, `mediaModel`
+- Публичное: `service`, `proofreader`, `writer`, `seller`, `designSettings`, `designerFor`, `writerProvider`, `proofreadProvider`, `sellerProvider`, `sellerFallbacks`, `mediaProvider`, `transcribeSupport`, `briefly`, `mediaModel`
 - Таблицы: своих нет
 - Тесты (12): `ai-providers.test.ts`, `assistant.test.ts`, `crm-modes.integration.test.ts`, `crm-v4.test.ts`, `delivery-abroad.test.ts`, `llm-router.test.ts`, `proofread-ai.test.ts`, `rewrite.test.ts`, `stage-order.test.ts`, `system-blocks.test.ts`, `template-draft.test.ts`, `workspace-ports.test.ts`
 
@@ -176,6 +177,16 @@ Identity: учётные записи, вход, пароли, второй фа
 - Публичное: `deals`, `routing`, `funnel`, `queries`, `pipelines`, `savedViews`, `plans`, `receipts`, `payments`, `intake`, `agreementFor`, `attachAgreementOrder`, `money`, `refundAfterOrder`, `agreedPlan`, `agreedGifts`, `batch`, `setClientAttribution`, `changeAgreedGifts`, `splitIntoBatch`
 - Таблицы: `crm_pipelines`, `crm_stages`, `crm_deals`, `crm_payments`, `deal_invoices`, `crm_receipts`, `crm_stage_history`, `crm_saved_views`, `crm_plans`
 - Тесты (22): `automation-stats.integration.test.ts`, `book-modes.integration.test.ts`, `crm.test.ts`, `deal-invoice-payments.integration.test.ts`, `deal-lifecycle.integration.test.ts`, `deal-lifecycle.test.ts`, `deal-merge.test.ts`, `deal-money.integration.test.ts`, `deal-repeat.integration.test.ts`, `discount-limit.test.ts`, `errors.test.ts`, `finance-batch.integration.test.ts`, `finance.integration.test.ts`, `payments-settings.integration.test.ts`, `receipts.test.ts`, `revenue.integration.test.ts`, `routing.integration.test.ts`, `sales-intake.test.ts`, `sales.test.ts`, `server-routes-payments.test.ts`, `time.test.ts`, `workspace-ports.test.ts`
+
+## support
+
+Обращения: проблемы и просьбы с формы /support, расшифровка голосовых, статусы, уведомление и закрытие по выкатке.
+
+- Папка: `src/modules/support` (domain, application, infrastructure)
+- Фасад: `SupportModule` → `container().support`
+- Публичное: `tickets`, `attachmentFile`
+- Таблицы: `support_tickets`
+- Тесты (1): `support.test.ts`
 
 ## telephony
 
