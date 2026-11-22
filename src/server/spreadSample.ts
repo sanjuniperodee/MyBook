@@ -8,7 +8,7 @@ import { bookInterior } from "@/lib/book/interiors";
 import { estimateChapterPages, openerPage, sectionPageOffsets, textMetrics } from "@/lib/book/estimate";
 import { GALLERY_KEY, sampleToc, tocCandidates } from "@/lib/book/toc";
 import { buildBookContent } from "@/lib/book/book-content";
-import { LAYOUT_REV_2, printableText, toPhotoItem, type ContentChapter } from "@/lib/book/layout";
+import { LAYOUT_REV_2, frontPages, printableText, toPhotoItem, type ContentChapter } from "@/lib/book/layout";
 import { splitParagraphs } from "@/lib/book/inline-photo";
 import { photoUrl } from "@/lib/urls";
 
@@ -70,7 +70,7 @@ export function bookSpreadSample(
   // (макет не собран, раздел в оглавлении по главам) — примерными (пока ответов нет — главы темы). Режим и свои
   // названия применяет selectToc — здесь и в редакторе «Страницы», где их меняют на лету.
   const metrics = textMetrics(format, bookInterior(book));
-  const start = 3 + (book.dedication.trim() ? 1 : 0) + 1; // титул, оборот, посвящение, оглавление
+  const start = frontPages(content) + 1 + (book.dedication.trim() ? 1 : 0) + 1; // титул, оборот, посвящение, оглавление
   const pageOf = new Map<string, number>();
   let page = start;
   for (const c of content.chapters) {
@@ -112,6 +112,7 @@ export function bookSpreadSample(
     tocLines: tocSettings,
     showToc: book.showToc,
     endText: book.endText ?? null,
+    titlePage: content.titlePage !== false,
     ...(content.chapterStart ? { chapterStart: content.chapterStart } : {}),
     captions: own?.photos,
     photos: photos.filter((p) => p.id !== book.coverPhotoId).slice(0, 4).map((p) => ({ url: photoUrl(p.id, "full"), width: p.width, height: p.height, caption: p.caption })),

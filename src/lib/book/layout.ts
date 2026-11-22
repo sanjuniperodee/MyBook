@@ -115,7 +115,15 @@ export interface BookContent {
    * сохраняет. Нет — у каждой главы своя начальная полоса (отпечаток кэша прежних книг не меняется).
    */
   chapterStart?: Exclude<ChapterStart, "page">;
+  /**
+   * Без титульного листа (books.title_page = false): не печатаются ни титул, ни его оборот (выходные данные) — две
+   * полосы, чтобы чётность не сдвинулась. Нет — титул есть (отпечаток кэша прежних книг не меняется).
+   */
+  titlePage?: false;
 }
+
+/** Страниц перед посвящением: титул и его оборот; без титула — ни одной (BookContent.titlePage). */
+export const frontPages = (content: Pick<BookContent, "titlePage">) => (content.titlePage === false ? 0 : 2);
 
 export type QuestionLike = Pick<BookQuestion, "id" | "chapter" | "position" | "title" | "displayText" | "hideHeading" | "answer" | "questionKey"> & {
   media?: readonly Partial<AnswerMedia>[] | null;
@@ -146,6 +154,8 @@ export type BookLike = Pick<
   Partial<Pick<Book, "endText">> &
   /** Как начинается глава (chapter-head.ts); нет — своей начальной полосой. */
   Partial<Pick<Book, "chapterStart">> &
+  /** Титульный лист (books.title_page); нет — есть. */
+  Partial<Pick<Book, "titlePage">> &
   /**
    * Правила раскладки фото (LAYOUT_REV_2) и остальные снимки обложки и оборота: правила 2 не ставят их внутрь сами.
    * Полная строка книги их даёт; нет — прежние правила, других снимков обложки нет.
@@ -427,6 +437,7 @@ export function assembleBookContent(
     ...(book.paginationRev === PAGINATION_REV_2 ? { openersLeft: true as const } : {}),
     ...(book.endText != null ? { endText: printableText(book.endText.trim()) } : {}),
     ...(chapterStart ? { chapterStart } : {}),
+    ...(book.titlePage === false ? { titlePage: false as const } : {}),
   };
 }
 

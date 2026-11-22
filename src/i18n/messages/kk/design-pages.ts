@@ -124,6 +124,8 @@ export const design_pages: Messages["design"]["pages"] = {
     titlePage: "Титул беті",
     titlePages: { center: "Ортада", left: "Солға", bottom: "Төменде", stack: "Ірі" },
     questionPage: "Әр сұрақ жаңа беттен",
+    titlePagePrint: "Титул беті",
+    titlePagePrintHint: "Кітаптың атауы бар бетті басып шығару. Өшірсеңіз, кітап бірден арнаудан немесе мазмұннан басталады; титулдың артқы беті де алынады, беттер саны екіге азаяды.",
     titleAuthor: "Титул бетінде автордың аты",
     titleLine: "Автордың орнына өз мәтініңіз",
     titleLinePlaceholder: "Мысалы: Сүйікті анама",

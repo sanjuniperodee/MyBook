@@ -35,6 +35,8 @@ export interface SpreadSample {
   showToc: boolean;
   /** Фраза последней страницы (end-page.ts): null или нет — «Продолжение следует…», пусто — без фразы. */
   endText?: string | null;
+  /** Титульный лист печатается (books.title_page); false — на развороте «Титул» он бледный, как выключенное оглавление. Нет — печатается. */
+  titlePage?: boolean;
   /** Глава без начальной полосы (BookContent.chapterStart): inline — номер и название над текстом, none — чистый лист. */
   chapterStart?: BookContent["chapterStart"];
   /** Фото книги для разворота «Фото» (и начала главы по прежним правилам); недостающие — пейзажи-заглушки. */
@@ -99,7 +101,7 @@ export const InteriorSpread = memo(function InteriorSpread({
   let left: React.ReactNode;
   let right: React.ReactNode;
   if (kind === "front") {
-    left = <TitlePage kit={kit} title={sample.title} subtitle={sample.subtitle} author={sample.author} year={sample.year} style={page} />;
+    left = <TitlePage kit={kit} title={sample.title} subtitle={sample.subtitle} author={sample.author} year={sample.year} style={sample.titlePage === false ? { ...page, opacity: 0.4 } : page} />;
     right = <DedicationPage kit={kit} text={sample.dedication} placeholder={sample.dedicationPlaceholder} style={page} />;
   } else if (kind === "photos") {
     const photos = samplePhotos(sample.language, sample.photos, sample.captions);

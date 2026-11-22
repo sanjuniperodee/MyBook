@@ -122,6 +122,11 @@ export const books = pgTable(
      * с новой страницы с текста, номер и название над ним, none — с новой страницы чистым текстом без названия.
      */
     chapterStart: text("chapter_start").$type<ChapterStart>().notNull().default("page"),
+    /**
+     * Печатать титульный лист вместе с его оборотом (src/lib/book/layout.ts BookContent.titlePage). false — книга
+     * начинается с посвящения или оглавления; у всех книг true.
+     */
+    titlePage: boolean("title_page").notNull().default(true),
     /** Язык книги: вопросы, заголовки глав и служебные страницы PDF (ru | kk). */
     language: text("language").$type<Locale>().notNull().default("ru"),
     /** Повод подарка (см. lib/occasions) и дата, к которой нужна книга. */

@@ -184,6 +184,7 @@ function bookRow(key: string, design: InteriorId, format: FormatId, language: Lo
     inviteToken: null,
     inviteText: "",
     endText: null,
+    titlePage: true,
     chapterStart: "page",
     occasion: null,
     occasionDate: null,

@@ -94,6 +94,7 @@ export type EditorBookRow = Pick<
   | "layoutRev"
   | "paginationRev"
   | "chapterStart"
+  | "titlePage"
   | "coverPhotoId"
   | "coverPhotoExtra"
   | "backPhotoId"
@@ -126,6 +127,7 @@ export function editorBook(book: EditorBookRow, coverPhotos: CoverPhotos): Edito
     layoutRev: book.layoutRev,
     paginationRev: book.paginationRev,
     chapterStart: book.chapterStart,
+    titlePage: book.titlePage,
     coverPhotoId: book.coverPhotoId,
     coverPhotoExtra: book.coverPhotoExtra,
     backPhotoId: book.backPhotoId,

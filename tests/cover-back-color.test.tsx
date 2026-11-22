@@ -72,6 +72,7 @@ const book = (over: Partial<Book> = {}): Book => ({
   inviteToken: null,
   inviteText: "",
   endText: null,
+  titlePage: true,
   chapterStart: "page",
   occasion: null,
   occasionDate: null,

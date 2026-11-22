@@ -54,6 +54,8 @@ export function DesignStudio({
   onOpenersLeft,
   chapterStart,
   onChapterStart,
+  titlePage,
+  onTitlePage,
   tab,
   chapter,
   onChapter,
@@ -80,6 +82,9 @@ export function DesignStudio({
   /** Как начинается глава (вкладка «Элементы»): настройка книги, как и сторона глав. */
   chapterStart: ChapterStart;
   onChapterStart: (v: ChapterStart) => void;
+  /** Титульный лист (вкладка «Элементы»): печатать ли его — настройка книги (books.title_page). */
+  titlePage: boolean;
+  onTitlePage: (v: boolean) => void;
   /** Открытая вкладка и глава для вкладки «Главы»: их держит страница — вкладки лежат в панели рядом (и в листе на телефоне). */
   tab: StudioTabId;
   chapter: string | null;
@@ -214,7 +219,7 @@ export function DesignStudio({
         {tab === "styles" ? <StylesTab current={interior} format={format} sample={sample} pairs={cover.pairs} coverName={cover.name} editable={editable} onPick={pickStyle} onTry={onTry} /> : null}
         {tab === "fonts" ? <FontsTab design={design} style={style} set={setStyle} sample={sample.title} onFocus={focus} /> : null}
         {tab === "text" ? <TextTab design={design} style={style} set={setStyle} onFocus={focus} /> : null}
-        {tab === "elements" ? <ElementsTab design={design} style={style} set={setStyle} onFocus={focus} openersLeft={openersLeft} onOpenersLeft={onOpenersLeft} chapterStart={chapterStart} onChapterStart={onChapterStart} /> : null}
+        {tab === "elements" ? <ElementsTab design={design} style={style} set={setStyle} onFocus={focus} openersLeft={openersLeft} onOpenersLeft={onOpenersLeft} chapterStart={chapterStart} onChapterStart={onChapterStart} titlePage={titlePage} onTitlePage={onTitlePage} /> : null}
         {tab === "colors" ? <ColorsTab design={design} base={base} style={style} set={setStyle} onFocus={focus} /> : null}
         {tab === "chapters" ? (
           <ChaptersTab

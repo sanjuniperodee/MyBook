@@ -54,6 +54,8 @@ const patchSchema = z
     openersLeft: z.boolean(),
     // Как начинается глава: своя страница, название над текстом или чистый лист.
     chapterStart: z.enum(CHAPTER_STARTS),
+    // Печатать титульный лист (books.title_page).
+    titlePage: z.boolean(),
     tocMode: z.enum(TOC_MODES),
     // Строки оглавления: вид ключей и длину названий проверяет домен (parseTocLines), здесь — только размер.
     // noOpenerPhoto — «глава без фото» (решение автора для редактора, в вёрстку не идёт).

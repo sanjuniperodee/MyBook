@@ -82,6 +82,8 @@ export interface BookProps {
   endText: string | null;
   /** Как начинается глава: своя полоса, название над текстом или чистый лист (lib/book/chapter-head.ts). */
   chapterStart: ChapterStart;
+  /** Печатать титульный лист (с оборотом); false — книга начинается с посвящения или оглавления (BookContent.titlePage). */
+  titlePage: boolean;
   language: Locale;
   occasion: string | null;
   occasionDate: string | null;
@@ -105,7 +107,7 @@ export const isBookEditableBy = (ownerId: string, viewer: BookViewer) => (viewer
 
 /** Настройки книги, которые клиент меняет в редакторе. */
 export type BookSettings = Partial<
-  Pick<BookProps, "title" | "subtitle" | "authorName" | "authorGender" | "recordedBy" | "recipientName" | "recipientGender" | "hideRecipientOnCover" | "namesOnCover" | "coverTemplate" | "backText" | "backLayout" | "dedication" | "interior" | "format" | "photoPlacement" | "showToc" | "tocMode" | "occasion" | "occasionDate" | "inviteText" | "endText" | "chapterStart">
+  Pick<BookProps, "title" | "subtitle" | "authorName" | "authorGender" | "recordedBy" | "recipientName" | "recipientGender" | "hideRecipientOnCover" | "namesOnCover" | "coverTemplate" | "backText" | "backLayout" | "dedication" | "interior" | "format" | "photoPlacement" | "showToc" | "tocMode" | "occasion" | "occasionDate" | "inviteText" | "endText" | "chapterStart" | "titlePage">
 >;
 
 /** Вопрос из банка темы, который копируется в книгу при создании. */
@@ -218,6 +220,7 @@ export class Book extends AggregateRoot<BookProps> {
       inviteText: "",
       endText: null,
       chapterStart: "page",
+      titlePage: true,
       language: input.language,
       occasion,
       occasionDate: occasion ? input.occasionDate || null : null,

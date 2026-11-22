@@ -47,6 +47,8 @@ interface PagesState {
   chapterStart: ChapterStart;
   /** Фраза последней страницы (lib/book/end-page.ts): null — «Продолжение следует…», пусто — без фразы. */
   endText: string | null;
+  /** Печатать титульный лист (books.title_page). */
+  titlePage: boolean;
 }
 
 const spreads: SpreadKind[] = ["chapter", "photos", "front", "toc"];
@@ -122,7 +124,7 @@ export function PagesEditor({
     }
     // Новое оформление — сервер пересоберёт книгу: места фото (фото главы или после главы), подсказки формы, разворот.
     // Сторона глав — номера страниц в оглавлении разворота.
-    if (patch.interior || patch.openersLeft !== undefined || patch.chapterStart !== undefined) router.refresh();
+    if (patch.interior || patch.openersLeft !== undefined || patch.chapterStart !== undefined || patch.titlePage !== undefined) router.refresh();
   }, 600);
   const update = (patch: Partial<PagesState>) => {
     if (!editable) return;
@@ -147,11 +149,12 @@ export function PagesEditor({
       dedication: state.dedication.trim(),
       showToc: state.showToc,
       endText: state.endText,
+      titlePage: state.titlePage,
       chapterStart: state.chapterStart === "page" ? undefined : state.chapterStart,
       toc: sample.tocAll ? sampleToc(sample.tocAll, state.tocMode, state.tocLines) : sample.toc,
       ...(previewOf ? { chapter: { number: previewOf.number ?? sample.chapter.number, title: previewOf.title, epigraph: previewOf.epigraph } } : {}),
     }),
-    [sample, state.dedication, state.showToc, state.endText, state.chapterStart, state.tocMode, state.tocLines, previewOf],
+    [sample, state.dedication, state.showToc, state.endText, state.titlePage, state.chapterStart, state.tocMode, state.tocLines, previewOf],
   );
   // Примерка стиля: наведение в галерее показывает его на сцене, не меняя книгу.
   const [trying, setTrying] = useState<InteriorId | null>(null);
@@ -168,6 +171,7 @@ export function PagesEditor({
       state.showToc !== initial.showToc ||
       state.openersLeft !== initial.openersLeft ||
       state.chapterStart !== initial.chapterStart ||
+      state.titlePage !== initial.titlePage ||
       state.tocMode !== initial.tocMode ||
       !!state.dedication.trim() !== !!initial.dedication.trim() ||
       JSON.stringify(state.tocLines ?? {}) !== JSON.stringify(initial.tocLines ?? {});
@@ -409,6 +413,8 @@ export function PagesEditor({
       onOpenersLeft={(openersLeft) => update({ openersLeft })}
       chapterStart={state.chapterStart}
       onChapterStart={(chapterStart) => update({ chapterStart })}
+      titlePage={state.titlePage}
+      onTitlePage={(titlePage) => update({ titlePage })}
       tab={styleTab}
       chapter={selChapter}
       onChapter={setSelChapter}

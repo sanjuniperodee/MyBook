@@ -124,6 +124,8 @@ export const design_pages: Messages["design"]["pages"] = {
     quotes: { rule: "Chiziqli", center: "Markazda", mark: "Qo‘shtirnoqli" },
     titlePage: "Titul varag‘i",
     titlePages: { center: "Markazda", left: "Chapda", bottom: "Pastda", stack: "Yirik" },
+    titlePagePrint: "Titul varag‘i",
+    titlePagePrintHint: "Kitob nomi yozilgan sahifani chop etish. O‘chirsangiz, kitob bevosita bag‘ishlov yoki mundarijadan boshlanadi; titulning orqa sahifasi ham olib tashlanadi, sahifalar soni ikkitaga kamayadi.",
     titleAuthor: "Titul varag‘ida muallif ismi",
     titleLine: "Muallif ismi o‘rniga o‘z matni",
     titleLinePlaceholder: "Masalan: Aziz onamga",

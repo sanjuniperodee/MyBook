@@ -41,6 +41,8 @@ export function ElementsTab({
   onOpenersLeft,
   chapterStart,
   onChapterStart,
+  titlePage,
+  onTitlePage,
 }: {
   design: InteriorDesign;
   style: InteriorStyle;
@@ -52,6 +54,9 @@ export function ElementsTab({
   /** Как начинается глава (books.chapter_start) — тоже настройка книги: своя страница, название над текстом или чистый лист. */
   chapterStart: ChapterStart;
   onChapterStart: (v: ChapterStart) => void;
+  /** Печатать ли титульный лист — настройка книги (books.title_page), не стиля: сброс стиля её не трогает. */
+  titlePage: boolean;
+  onTitlePage: (v: boolean) => void;
 }) {
   const m = useMessages().design;
   const t = m.pages.elements;
@@ -153,10 +158,24 @@ export function ElementsTab({
       </PanelSection>
 
       <PanelSection title={t.titlePage}>
-        <Segmented value={design.titlePage?.layout ?? "center"} options={O.titles.map((v) => ({ value: v, label: t.titlePages[v] }))} onChange={(v) => el({ titlePage: v }, "front")} onReset={r("titlePage", "front")} resetLabel={reset} />
-        <Toggle label={t.titleAuthor} checked={design.titlePage?.author !== false} onChange={(v) => el({ titleAuthor: v }, "front")} />
-        <TextField label={t.titleLine} value={e.titleLine ?? ""} placeholder={t.titleLinePlaceholder} max={TITLE_LINE_MAX} onChange={(v) => el({ titleLine: v }, "front")} onReset={r("titleLine", "front")} resetLabel={reset} />
-        <p className="text-xs text-muted">{t.titleLineHint}</p>
+        <Toggle
+          label={t.titlePagePrint}
+          hint={t.titlePagePrintHint}
+          checked={titlePage}
+          onChange={(v) => {
+            onTitlePage(v);
+            onFocus("front");
+          }}
+        />
+        {/* Без титула его вид настраивать нечего. */}
+        {titlePage ? (
+          <>
+            <Segmented value={design.titlePage?.layout ?? "center"} options={O.titles.map((v) => ({ value: v, label: t.titlePages[v] }))} onChange={(v) => el({ titlePage: v }, "front")} onReset={r("titlePage", "front")} resetLabel={reset} />
+            <Toggle label={t.titleAuthor} checked={design.titlePage?.author !== false} onChange={(v) => el({ titleAuthor: v }, "front")} />
+            <TextField label={t.titleLine} value={e.titleLine ?? ""} placeholder={t.titleLinePlaceholder} max={TITLE_LINE_MAX} onChange={(v) => el({ titleLine: v }, "front")} onReset={r("titleLine", "front")} resetLabel={reset} />
+            <p className="text-xs text-muted">{t.titleLineHint}</p>
+          </>
+        ) : null}
       </PanelSection>
 
       <PanelSection title={t.photoFrame}>

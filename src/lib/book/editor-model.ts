@@ -111,6 +111,8 @@ export interface EditorBook {
   paginationRev?: Book["paginationRev"];
   /** Как начинается глава (chapter-head.ts): своя полоса, название над текстом или чистый лист. */
   chapterStart?: Book["chapterStart"];
+  /** Титульный лист (books.title_page): нет — печатается. Без него в объёме нет двух полос. */
+  titlePage?: Book["titlePage"];
   /** Снимки обложки и оборота (ссылки книги): правила 2 не ставят их внутрь сами. */
   coverPhotoId?: string | null;
   coverPhotoExtra?: string[];

@@ -19,7 +19,7 @@ export type { PreparedImage } from "./kit";
 /**
  * Блок книги. Шрифты, цвета, виньетки, начальные полосы, колонтитулы и колонцифры берутся из
  * дизайна (content.interior); те же правила рисуют HTML-превью на сайте (components/interior).
- * Порядок полос: титул, оборот титула, посвящение, оглавление, главы (начальная полоса, текст, фото),
+ * Порядок полос: титул, оборот титула (оба — если не выключены: content.titlePage), посвящение, оглавление, главы (начальная полоса, текст, фото),
  * галерея, финал. У книг с content.openersLeft начальная полоса главы и альбома всегда слева: где по счёту она выпала бы
  * справа, перед ней пустая полоса (какие — решает доводка вёрстки по прошлому проходу, flow.blankBefore). Каждая полоса — свой файл рядом и помечена видом (pageMark) для манифеста сборки.
  * Водяного знака в вёрстке нет: сборка одна для экрана и печати, знак ставится поверх готового PDF (pdf/watermark.tsx).
@@ -27,7 +27,8 @@ export type { PreparedImage } from "./kit";
 export function InteriorDocument({ content, options }: { content: BookContent; options: InteriorOptions }) {
   const base = pdfKit(content, options);
   const kit = base;
-  const pages: React.ReactNode[] = [<TitlePage key="title" kit={kit} />, <Colophon key="colophon" kit={kit} />];
+  // Без титула (content.titlePage === false) нет и его оборота: две полосы, чётность дальше не сдвигается.
+  const pages: React.ReactNode[] = content.titlePage === false ? [] : [<TitlePage key="title" kit={kit} />, <Colophon key="colophon" kit={kit} />];
   if (content.dedication) pages.push(<Dedication key="dedication" kit={kit} text={content.dedication} />);
   if (hasToc(content)) pages.push(<Toc key="toc" kit={kit} />);
   const blank = (key: string) => {

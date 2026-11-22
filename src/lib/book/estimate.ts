@@ -11,7 +11,7 @@ import { MM_TO_PT, type BookFormat } from "./formats";
 import { framedBox, layoutInline, normalizeStyle, splitParagraphs, type InlinePhotoStyle } from "./inline-photo";
 import { dividerDrawing } from "./interior-art";
 import type { InteriorDesign } from "./interiors";
-import { chapterRuns, photoPages, type BookContent, type ContentChapter, type ContentItem, type PhotoItem } from "./layout";
+import { chapterRuns, frontPages, photoPages, type BookContent, type ContentChapter, type ContentItem, type PhotoItem } from "./layout";
 import { chapterHeadHeight } from "./chapter-head";
 import { interiorMetrics, textArea } from "./page-geometry";
 import { hasToc, bookToc } from "./toc";
@@ -264,7 +264,7 @@ export const openerPage = (content: Pick<BookContent, "openersLeft">, next: numb
 /** Оценка количества страниц в готовой книге (до добивки до кратности). */
 export function estimatePages(content: BookContent): number {
   const m = textMetrics(content.format, content.interior);
-  let pages = 2; // титульный лист + оборот
+  let pages = frontPages(content); // титульный лист + оборот (без титула — ни того, ни другого)
   if (content.dedication) pages += 1;
   pages += estimateTocPages(content, m);
   // Перед начальной полосой — пустая, если она должна встать слева, а выпала бы справа.

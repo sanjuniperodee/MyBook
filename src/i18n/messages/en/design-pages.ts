@@ -124,6 +124,8 @@ export const design_pages: Messages["design"]["pages"] = {
     quotes: { rule: "With a rule", center: "Centred", mark: "With a quotation mark" },
     titlePage: "Title page",
     titlePages: { center: "Centred", left: "Left", bottom: "Bottom", stack: "Large" },
+    titlePagePrint: "Title page",
+    titlePagePrintHint: "Print the page with the book’s title. Turn it off and the book starts right with the dedication or the contents; the back of the title page goes too, so the book is two pages shorter.",
     titleAuthor: "Author’s name on the title page",
     titleLine: "Your own text instead of the author’s name",
     titleLinePlaceholder: "For example: For my dear mum",
