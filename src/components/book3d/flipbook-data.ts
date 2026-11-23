@@ -3,7 +3,8 @@ import type { FlipbookData } from "./pages";
 import { site } from "@/config/site";
 import { buildBookContent } from "@/lib/book/book-content";
 import { backContent, backPhotoIds } from "@/lib/book/cover-back";
-import { coverNames } from "@/lib/book/cover-names";
+import { coverNames, printedCoverTitle } from "@/lib/book/cover-names";
+import { parseCoverDesign } from "@/lib/book/cover-design";
 import { coverPhotoIds } from "@/lib/book/covers";
 import { toPhotoItem } from "@/lib/book/layout";
 import { backPhotoRefs, coverPhotoRefs } from "@/lib/book/photo-refs";
@@ -20,10 +21,12 @@ export function flipbookData(book: Book, questions: ContentArgs[1], chapters: Co
   const backPhotos = backPhotoIds(book).flatMap((id) => allPhotos.filter((p) => p.id === id));
   const names = coverNames(book);
   const photos = coverPhotoRefs(coverPhotoIds(book), allPhotos, book, "view");
+  // Название на лице и корешке — как в cover.pdf: обложка из конструктора со стёртым названием печатается без него.
+  const title = printedCoverTitle(book, !!parseCoverDesign(book.coverDesign), content.title);
   return {
-    cover: { template: book.coverTemplate, format: book.format, title: content.title, subtitle: book.subtitle, names, photos, ...(book.coverDesign ? { design: book.coverDesign } : {}), ...(book.coverBack ? { back: book.coverBack } : {}) },
+    cover: { template: book.coverTemplate, format: book.format, title, subtitle: book.subtitle, names, photos, ...(book.coverDesign ? { design: book.coverDesign } : {}), ...(book.coverBack ? { back: book.coverBack } : {}) },
     formatId: content.format.id,
-    title: content.title,
+    title,
     model: {
       brand: site.name.toUpperCase(),
       back: backContent(book, backPhotos.map((p) => ({ width: p.width, height: p.height })), new Date()),

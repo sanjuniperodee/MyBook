@@ -13,10 +13,15 @@ export interface PageKit {
   u: PageUnits;
   /** Язык книги: на нём «Глава N», «Содержание» и переносы. */
   language: Locale;
+  /**
+   * Переносы, как в PDF (lib/book/hyphenate.ts: softHyphenate): основной текст с мягкими переносами в тех же местах,
+   * переносы браузера выключены. Нет (модуль ещё грузится, миниатюры) — переносы браузера.
+   */
+  hyphenate?: (text: string) => string;
 }
 
-export function pageKit(design: InteriorDesign, format: BookFormat, u: PageUnits, language: Locale): PageKit {
-  return { design, format, sizes: interiorSizes(design, interiorMetrics[format.id].scale), u, language };
+export function pageKit(design: InteriorDesign, format: BookFormat, u: PageUnits, language: Locale, hyphenate?: (text: string) => string): PageKit {
+  return { design, format, sizes: interiorSizes(design, interiorMetrics[format.id].scale), u, language, ...(hyphenate ? { hyphenate } : {}) };
 }
 
 export const metricsOf = (kit: PageKit) => interiorMetrics[kit.format.id];

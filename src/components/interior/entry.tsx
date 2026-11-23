@@ -4,12 +4,13 @@ import { cssFont } from "@/lib/book/fonts";
 import { answerBlocks, rowsByBlock, type AnswerBlock } from "@/lib/book/answer-blocks";
 import { layoutMedia, mediaCardBox, mediaIcon, mediaSource, qrDrawing, qrInk, type AnswerMedia } from "@/lib/book/answer-media";
 import { framedBox, layoutInline, normalizeStyle, objectPosition, placedByAuthor, polaroidFontSize, ROW_GAP, rowSpaceAbove, rowSpaceLimit, type InlinePhotoStyle } from "@/lib/book/inline-photo";
-import { dividerDrawing } from "@/lib/book/interior-art";
+import { dividerDrawing, vignetteDrawing } from "@/lib/book/interior-art";
 import { PHOTO_COLORS } from "@/lib/book/interiors";
 import { textArea } from "@/lib/book/page-geometry";
 import { bookMessagesFor } from "@/i18n/messages/partial";
-import { DIVIDER, HEADING, headingFace, HTML_LINE_HEIGHT, INLINE_ROW, MEDIA_CARD } from "@/lib/book/typesetting";
+import { CHAPTER_TAIL, DIVIDER, HEADING, headingFace, HTML_LINE_HEIGHT, INLINE_ROW, MEDIA_CARD, VIGNETTE_RULE } from "@/lib/book/typesetting";
 import { AnswerBlockView } from "./answer-block";
+import { GAP_BELOW } from "./entry-gap";
 import { InlineDrawing } from "./graphics";
 import { metricsOf, type PageKit } from "./kit";
 import { faceCss, italicBody, labelCss, measureCss } from "./typography";
@@ -28,8 +29,8 @@ interface EntryPhoto {
 export interface SampleEntry {
   heading: string | null;
   paragraphs: string[];
-  /** Перед какими абзацами автор оставил пустую строку (строфы стихов). */
-  breaks?: ReadonlySet<number>;
+  /** Перед какими абзацами автор оставил пустую строку (строфы стихов) — номера абзацев (данные идут с сервера). */
+  breaks?: readonly number[];
   photos?: EntryPhoto[];
   media?: AnswerMedia[];
   /** «С новой страницы»: перед историей — переход на следующую полосу. */
@@ -68,19 +69,33 @@ export function QuestionHeading({ kit, children, style, ...rest }: { kit: PageKi
 }
 
 /** Разделитель между ответами без заголовка: «* * *», глиф или линейка. */
-export function Divider({ kit, style }: { kit: PageKit; style?: CSSProperties }) {
+export function Divider({ kit, style, ...rest }: { kit: PageKit; style?: CSSProperties } & HTMLAttributes<HTMLDivElement>) {
   const { design, sizes: S, u } = kit;
-  if (design.divider === "space") return <div style={{ height: u.pt(S.body * 0.8), marginBottom: u.pt(S.beforeHeadless), breakAfter: "avoid", ...style }} />;
+  if (design.divider === "space") return <div {...rest} style={{ height: u.pt(S.body * 0.8), marginBottom: u.pt(S.beforeHeadless), breakAfter: "avoid", ...style }} />;
   if (design.divider === "stars")
-    return <div style={{ textAlign: "center", color: design.palette.rule, fontSize: u.pt(S.body), lineHeight: HTML_LINE_HEIGHT.stars, marginBottom: u.pt(S.beforeHeadless), breakAfter: "avoid", ...style }}>* * *</div>;
+    return (
+      <div {...rest} style={{ textAlign: "center", color: design.palette.rule, fontSize: u.pt(S.body), lineHeight: HTML_LINE_HEIGHT.stars, marginBottom: u.pt(S.beforeHeadless), breakAfter: "avoid", ...style }}>
+        * * *
+      </div>
+    );
   // flow-root: отступ обёртки и собственный отступ глифа складываются, как в PDF, а не схлопываются.
   return (
-    <div style={{ display: "flow-root", breakAfter: "avoid", ...style }}>
+    <div {...rest} style={{ display: "flow-root", breakAfter: "avoid", ...style }}>
       <InlineDrawing
         drawing={dividerDrawing(design.ornament, design.divider, design.palette)}
         u={u}
         style={{ margin: `${u.pt(S.body * DIVIDER.before)} auto ${u.pt(S.beforeHeadless + S.body * DIVIDER.after)}` }}
       />
+    </div>
+  );
+}
+
+/** Концовка главы — небольшая виньетка после её текста, как в PDF (ChapterTail в pdf/interior/chapter-body.tsx). */
+export function ChapterTail({ kit, style, ...rest }: { kit: PageKit; style?: CSSProperties } & HTMLAttributes<HTMLDivElement>) {
+  const { design, sizes: S, u } = kit;
+  return (
+    <div {...rest} style={{ display: "flow-root", breakInside: "avoid", marginTop: u.pt(S.beforeHeading * CHAPTER_TAIL.before), ...style }}>
+      <InlineDrawing drawing={vignetteDrawing(design.ornament, VIGNETTE_RULE.end, design.palette)} u={u} style={{ margin: "0 auto" }} />
     </div>
   );
 }
@@ -105,11 +120,14 @@ export interface RowPhotoLayer {
 }
 
 /** Фото в ряду: рамка или поляроид со своей подписью, размеры — как в PDF (inline-photo.ts). */
-function RowPhoto<P extends EntryPhoto>({ kit, item, rowSize, space, layer }: { kit: PageKit; item: RowItem<P>; rowSize: number; space: { space: number; spaceLimit: number }; layer?: (item: RowItem<P>, box: RowPhotoBox) => RowPhotoLayer }) {
+function RowPhoto<P extends EntryPhoto>({ kit, item, rowSize, space, scale = 1, layer }: { kit: PageKit; item: RowItem<P>; rowSize: number; space: { space: number; spaceLimit: number }; scale?: number; layer?: (item: RowItem<P>, box: RowPhotoBox) => RowPhotoLayer }) {
   const { design, sizes: S, u } = kit;
   const { p, style } = item;
   const { w: textW, h: textH } = textArea(kit.format);
-  const b = { ...framedBox(p, style, textW, textH, rowSize), ...space };
+  // Масштаб ряда из доводки (ряд уменьшен под свободное место полосы) — как в PDF: снимок и поля меньше, подпись та же.
+  const box = framedBox(p, style, textW, textH, rowSize);
+  const scaled = scale === 1 ? box : { ...box, outerW: box.outerW * scale, outerH: box.outerH * scale, imgW: box.imgW * scale, imgH: box.imgH * scale, pad: box.pad * scale, padBottom: box.padBottom * scale, radius: box.radius * scale };
+  const b = { ...scaled, ...space };
   const polaroid = style.frame === "polaroid";
   const bw = polaroid ? INLINE_ROW.polaroidBorder : style.frame === "line" ? INLINE_ROW.lineBorder : 0;
   const extra = layer?.(item, b);
@@ -176,31 +194,48 @@ export function InlineRow<P extends EntryPhoto>({
   row,
   layer,
   fresh = false,
+  scale,
+  offset = 0,
   ...rest
-}: { kit: PageKit; row: RowItem<P>[]; layer?: (item: RowItem<P>, box: RowPhotoBox) => RowPhotoLayer; fresh?: boolean } & HTMLAttributes<HTMLDivElement>) {
+}: {
+  kit: PageKit;
+  row: RowItem<P>[];
+  layer?: (item: RowItem<P>, box: RowPhotoBox) => RowPhotoLayer;
+  /** Перед рядом на полосе ничего нет: «с новой страницы» разрыва не делает. */
+  fresh?: boolean;
+  /** Масштаб ряда из доводки вёрстки (flow.rowScale); нет — 1. Ряд, поставленный автором, доводка не уменьшает. */
+  scale?: number;
+  /** Отступ сверху, pt — ряд один на полосе, по центру (flow.rowOffset). */
+  offset?: number;
+} & HTMLAttributes<HTMLDivElement>) {
   const { sizes: S, u } = kit;
   const align = row[0].style.align;
   const { w: textW, h: textH } = textArea(kit.format);
   const space = { space: rowSpaceAbove(row, textW, textH), spaceLimit: rowSpaceLimit(row, textW, textH) };
   const breaks = !!row[0].style.breakBefore && !fresh;
+  // Ряд, поставленный автором (отступ, «с новой страницы»): свой отступ сверху, доводка его не трогает — как в PDF.
+  const own = placedByAuthor(row[0].style);
   return (
     <div
       {...rest}
+      {...GAP_BELOW}
       style={{
         display: "flex",
         justifyContent: align === "left" ? "flex-start" : align === "right" ? "flex-end" : "center",
         alignItems: "flex-start",
         gap: u.mm(textArea(kit.format).w * ROW_GAP),
         marginTop: breaks ? 0 : u.pt(S.body * INLINE_ROW.before),
-        marginBottom: u.pt(S.body * INLINE_ROW.after),
-        paddingTop: placedByAuthor(row[0].style) ? u.mm(space.space) : undefined,
+        // Отбивка снизу — полем внутри ряда, а не внешним: у react-pdf она должна поместиться на полосе вместе с рядом
+        // и не схлопывается со следующей (браузер внешнее поле в конце колонки отбрасывает, а соседние схлопывает).
+        paddingBottom: u.pt(S.body * INLINE_ROW.after),
+        paddingTop: own ? u.mm(space.space) : offset ? u.pt(offset) : undefined,
         breakBefore: breaks ? "column" : undefined,
         breakInside: "avoid",
         ...rest.style,
       }}
     >
       {row.map((item) => (
-        <RowPhoto key={item.p.id} kit={kit} item={item} rowSize={row.length} space={space} layer={layer} />
+        <RowPhoto key={item.p.id} kit={kit} item={item} rowSize={row.length} space={space} scale={own ? 1 : scale} layer={layer} />
       ))}
     </div>
   );
@@ -262,7 +297,8 @@ export function MediaCard({ kit, media, href, ...rest }: { kit: PageKit; media: 
     </div>
   );
   return (
-    <div {...rest} style={{ marginTop: u.pt(S.body * MEDIA_CARD.before), marginBottom: u.pt(S.body * MEDIA_CARD.after), breakInside: "avoid", display: "flow-root", ...rest.style }}>
+    // Отбивка снизу — полем внутри, как у ряда фото (InlineRow): неделимый блок PDF занимает её на полосе.
+    <div {...rest} {...GAP_BELOW} style={{ marginTop: u.pt(S.body * MEDIA_CARD.before), paddingBottom: u.pt(S.body * MEDIA_CARD.after), breakInside: "avoid", display: "flow-root", ...rest.style }}>
       {href ? (
         <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>
           {card}
@@ -301,7 +337,7 @@ export function EntryBody({
   /** Ответ стоит в верху полосы: первому ряду «с новой страницы» разрыв не нужен. */
   fresh?: boolean;
 }) {
-  const blocks = answerBlocks(entry.paragraphs, { plain: kit.design.plainAnswers, breaks: entry.breaks });
+  const blocks = answerBlocks(entry.paragraphs, { plain: kit.design.plainAnswers, breaks: new Set(entry.breaks) });
   const items = (entry.photos ?? []).map((p) => ({ p, style: normalizeStyle(p.inline) }));
   const rows = rowsByBlock(blocks, layoutInline(items, entry.paragraphs.length));
   const media = rowsByBlock(blocks, layoutMedia(entry.media ?? [], entry.paragraphs.length));

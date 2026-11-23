@@ -6,6 +6,7 @@ import type { BookFormat } from "@/lib/book/formats";
 import type { InteriorDesign } from "@/lib/book/interiors";
 import type { PhotoCrop } from "@/lib/book/photo-crop";
 import { cn } from "@/lib/class-names";
+import { printableText } from "@/lib/book/printable";
 import { bookMessagesFor } from "@/i18n/messages/partial";
 import type { SampleEntry } from "./entry";
 import { pageKit } from "./kit";
@@ -26,6 +27,10 @@ export interface SpreadSample {
   dedicationPlaceholder: string;
   chapter: { number: number; title: string; epigraph?: string };
   entries: SampleEntry[];
+  /** В примере вся первая глава: после текста — концовка главы, как в PDF. */
+  tail?: boolean;
+  /** Номер первой полосы текста первой главы (по макету или оценке); нет — пример без книги. */
+  folio?: number;
   /** Строки оглавления по сохранённым настройкам (toc.ts). */
   toc: SampleTocLine[];
   /** Все строки, которые могут попасть в оглавление, — редактор «Страницы» применяет к ним режим и правки на лету. */
@@ -50,7 +55,7 @@ export interface SpreadSample {
   captions?: readonly string[];
 }
 
-/** Номер правой страницы с текстом главы на развороте «Глава». */
+/** Номер правой страницы с текстом главы на развороте «Глава», пока у примера нет своего (sample.folio). */
 const TEXT_FOLIO = 7;
 
 /** Фото для разворота «Фото»: снимок на всю полосу и сетка из трёх (пейзажи-заглушки с подписями на языке книги). */
@@ -101,27 +106,33 @@ export const InteriorSpread = memo(function InteriorSpread({
   let left: React.ReactNode;
   let right: React.ReactNode;
   if (kind === "front") {
-    left = <TitlePage kit={kit} title={sample.title} subtitle={sample.subtitle} author={sample.author} year={sample.year} style={sample.titlePage === false ? { ...page, opacity: 0.4 } : page} />;
-    right = <DedicationPage kit={kit} text={sample.dedication} placeholder={sample.dedicationPlaceholder} style={page} />;
+    // Тексты — как их печатает PDF (без эмодзи и пробелов по краям): редактор «Страниц» подставляет сюда то, что вводят.
+    left = <TitlePage kit={kit} title={sample.title} subtitle={printableText(sample.subtitle.trim())} author={sample.author} year={sample.year} style={sample.titlePage === false ? { ...page, opacity: 0.4 } : page} />;
+    right = <DedicationPage kit={kit} text={printableText(sample.dedication.trim())} placeholder={sample.dedicationPlaceholder} style={page} />;
   } else if (kind === "photos") {
     const photos = samplePhotos(sample.language, sample.photos, sample.captions);
     left = <PhotoPage kit={kit} photos={photos.single} style={page} />;
     right = <PhotoPage kit={kit} photos={photos.grid} scene={1} style={page} />;
   } else if (kind === "toc") {
     left = <TocPage kit={kit} entries={sample.toc} muted={!sample.showToc} style={page} />;
-    right = <EndPage kit={kit} year={sample.year} text={sample.endText} style={page} />;
+    right = <EndPage kit={kit} year={sample.year} text={sample.endText == null ? sample.endText : printableText(sample.endText.trim())} style={page} />;
   } else if (sample.chapterStart) {
-    // Без начальной полосы: глава открывается полосой текста с номером и названием, дальше — продолжение.
-    const [head, ...rest] = sample.entries;
-    left = <TextPage kit={kit} entries={head ? [head] : []} folio={TEXT_FOLIO - 1} bookTitle={sample.title} chapterTitle={sample.chapter.title} recto={false} leadIn chapterHead={sample.chapterStart === "inline" ? sample.chapter : undefined} style={page} />;
-    right = <TextPage kit={kit} entries={rest.map((e, i) => (i === 0 ? { ...e, pageBreak: undefined } : e))} folio={TEXT_FOLIO} bookTitle={sample.title} chapterTitle={sample.chapter.title} recto leadIn={false} style={page} />;
+    // Без начальной полосы: глава открывается полосой текста с номером и названием, справа — её продолжение (тот же
+    // поток текста, следующая полоса — как в PDF).
+    const folio = sample.folio ?? TEXT_FOLIO - 1;
+    const text = (column: number) => (
+      <TextPage kit={kit} entries={sample.entries} column={column} tail={sample.tail} folio={folio + column} bookTitle={sample.title} chapterTitle={sample.chapter.title} recto={column === 1} leadIn chapterHead={sample.chapterStart === "inline" ? sample.chapter : undefined} style={page} />
+    );
+    left = text(0);
+    right = text(1);
   } else {
     left = <OpenerPage kit={kit} number={sample.chapter.number} title={sample.chapter.title} epigraph={sample.chapter.epigraph} photo={design.opener.photo ? sampleOpener(sample, openerPlaceholder) : undefined} style={page} />;
     right = (
       <TextPage
         kit={kit}
         entries={sample.entries}
-        folio={TEXT_FOLIO}
+        tail={sample.tail}
+        folio={sample.folio ?? TEXT_FOLIO}
         bookTitle={sample.title}
         chapterTitle={sample.chapter.title}
         recto

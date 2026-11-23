@@ -122,7 +122,10 @@ export function CoverEditor({
   placeNames: nameLists = { chapters: [], answers: [] },
   blank = false,
   initialSide = "front",
+  defaultTitle,
 }: {
+  /** Название книги по умолчанию — его печатает обложка шаблона, пока своё не вписано (на превью — вместо пустого). */
+  defaultTitle?: string;
   bookId: string;
   format: string;
   /** Тема книги — для готовых фраз на обороте. */
@@ -302,7 +305,7 @@ export function CoverEditor({
         className={className}
         uid={uid}
         lite={lite}
-        titlePlaceholder={t.bookTitle}
+        titlePlaceholder={defaultTitle || t.bookTitle}
         photoHint={t.uploadFirst}
         design={state.coverDesign}
       />
@@ -406,7 +409,7 @@ export function CoverEditor({
         />
       }
       spine={<div className="[&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: spineHtml }} />}
-      front={<CoverPreview template={state.coverTemplate} format={format} title={state.title} subtitle={state.subtitle} names={coverNamesLine} photos={coverPhotos} uid={`s${uid}f`} lite titlePlaceholder={t.bookTitle} design={state.coverDesign} />}
+      front={<CoverPreview template={state.coverTemplate} format={format} title={state.title} subtitle={state.subtitle} names={coverNamesLine} photos={coverPhotos} uid={`s${uid}f`} lite titlePlaceholder={defaultTitle || t.bookTitle} design={state.coverDesign} />}
     />
   );
   const backTemplate = templateForCover(template, state.coverDesign, state.coverBack);
@@ -677,14 +680,14 @@ export function CoverEditor({
     ) : stageMode === "3d" ? (
       <div className="absolute inset-0 flex items-center justify-center px-4 pt-14 pb-5">
         <div style={fit(frontRatio * 1.12)}>
-          <Book3D template={state.coverTemplate} format={format} title={state.title} subtitle={state.subtitle} names={coverNamesLine} photos={coverPhotos} uid="b3d" lite titlePlaceholder={t.bookTitle} design={state.coverDesign} rotate={-24} />
+          <Book3D template={state.coverTemplate} format={format} title={state.title} subtitle={state.subtitle} names={coverNamesLine} photos={coverPhotos} uid="b3d" lite titlePlaceholder={defaultTitle || t.bookTitle} design={state.coverDesign} rotate={-24} />
         </div>
       </div>
     ) : (
       <div className="absolute inset-0 flex items-center justify-center px-4 pt-14 pb-5">
         <div className="relative" style={fit(side === "back" ? backBoard.w / backBoard.h : frontRatio)}>
           {tryOn ? (
-            <CoverPreview template={tryOn} format={format} title={state.title} subtitle={state.subtitle} names={coverNamesLine} photos={getCoverTemplate(tryOn).requiresPhoto ? slotUrls(tryOn) : undefined} uid="try" titlePlaceholder={t.bookTitle} className="rounded-[4px] shadow-book" />
+            <CoverPreview template={tryOn} format={format} title={state.title} subtitle={state.subtitle} names={coverNamesLine} photos={getCoverTemplate(tryOn).requiresPhoto ? slotUrls(tryOn) : undefined} uid="try" titlePlaceholder={defaultTitle || t.bookTitle} className="rounded-[4px] shadow-book" />
           ) : (
             renderSide("rounded-[4px] shadow-book", "editor")
           )}

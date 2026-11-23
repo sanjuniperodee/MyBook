@@ -57,7 +57,7 @@ export function editorContent(book: EditorBook, questions: EditorQuestion[], pho
       layoutRev: book.layoutRev ?? 1,
     },
     // Заголовок по умолчанию в редакторе уже в роде автора и адресата, свой текст (custom) — как у автора.
-    questions.map((q, position) => ({ id: q.id, chapter: q.chapter, position, title: q.defaultTitle, displayText: q.displayText, hideHeading: q.hideHeading, answer: q.answer, media: q.media, questionKey: q.isCustom ? CUSTOM_KEY : null })),
+    questions.map((q, position) => ({ id: q.id, chapter: q.chapter, position, title: q.defaultTitle, displayText: q.displayText, hideHeading: q.hideHeading, answer: q.answer, media: q.media, pageBreak: q.pageBreak, questionKey: q.isCustom ? CUSTOM_KEY : null })),
     // Фото — в порядке книги (позиции), с кадром, главой и отметкой фото главы.
     photos.map((p) => toPhotoItem({ ...p, inline: p.inline ?? null, storageKey: "", thumbKey: "" })),
     editorTexts(book, questions, chapters),

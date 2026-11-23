@@ -31,10 +31,11 @@ export default async function PagesPage({ params }: { params: Promise<{ id: stri
   const { id } = await params;
   const user = await requireUser(`/books/${id}/pages`);
   const book = await getAccessibleBook(id, user);
-  const [questions, chapters, photos, m, locale, screen] = await Promise.all([
+  const [questions, chapters, photos, letters, m, locale, screen] = await Promise.all([
     container().authoring.queries.questions(book.id),
     container().authoring.queries.chapters(book.id),
     container().authoring.queries.photos(book.id),
+    container().authoring.queries.approvedLetters(book.id),
     getMessages(),
     getLocale(),
     // Готовый макет книги — номера страниц оглавления на развороте те же, что в PDF; нет — оценка.
@@ -43,7 +44,7 @@ export default async function PagesPage({ params }: { params: Promise<{ id: stri
   const t = m.books.pages;
   const format = getFormat(book.format);
 
-  const spreadSample = bookSpreadSample(book, questions, chapters, t.dedicationEmpty, photos, screen?.chapterPages);
+  const spreadSample = bookSpreadSample(book, questions, chapters, t.dedicationEmpty, photos, screen?.chapterPages, letters);
   // Фото глав и альбом — та же сборка, что у PDF и вкладки «Фото»: места фото (photoPlaceOf), снимки обложки — видные на ней.
   const covered = withCoverPhotos(book, photos.map((p) => p.id));
   const built = buildBookContent(covered, questions, photos.map(toPhotoItem), chapters);

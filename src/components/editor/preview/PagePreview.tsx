@@ -3,7 +3,7 @@
 import type { BookContent } from "@/lib/book/layout";
 import { useMessages } from "@/i18n/client";
 import type { Locale } from "@/i18n/config";
-import { memo, useCallback, useLayoutEffect, useMemo, useRef, type MouseEvent, type ReactNode } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import type { PreviewChapter, PreviewGallery } from "@/lib/book/editor-model";
 import type { BookFormat } from "@/lib/book/formats";
 import type { InteriorDesign } from "@/lib/book/interiors";
@@ -87,7 +87,8 @@ function PagePreviewView({
   const px = pageW / W; // пикселей на миллиметр
   const textW = area.w * px;
   const gap = pageSide(format) * 2 * px;
-  const kit = useMemo(() => pageKit(design, format, pxUnits(px), language), [design, format, px, language]);
+  const hyphenate = useBookHyphenate(language);
+  const kit = useMemo(() => pageKit(design, format, pxUnits(px), language, hyphenate), [design, format, px, language, hyphenate]);
 
   const entries = useMemo(() => new Map(chapters.flatMap((c) => c.entries.map((e) => [e.id, { entry: e, chapter: c.key }] as const))), [chapters]);
   const currentEntry = entries.get(currentId)?.entry;
@@ -190,6 +191,34 @@ function PagePreviewView({
       </div>
     </div>
   );
+}
+
+/**
+ * Переносы книги (lib/book/hyphenate.ts) для превью: модуль с шаблонами грузится отдельно, пока его нет — переносы
+ * браузера. Текст абзаца с мягкими переносами запоминается: главы перерисовываются часто, а текст в них тот же.
+ */
+function useBookHyphenate(language: Locale) {
+  const [fn, setFn] = useState<((text: string) => string) | undefined>(undefined);
+  useEffect(() => {
+    let live = true;
+    void import("@/lib/book/hyphenate").then(({ softHyphenate }) => {
+      if (!live) return;
+      const memo = new Map<string, string>();
+      setFn(() => (text: string) => {
+        let out = memo.get(text);
+        if (out === undefined) {
+          out = softHyphenate(text, language);
+          if (memo.size > 5000) memo.clear();
+          memo.set(text, out);
+        }
+        return out;
+      });
+    });
+    return () => {
+      live = false;
+    };
+  }, [language]);
+  return fn;
 }
 
 /** Превью перерисовывается, только когда меняются его данные: книга в редакторе приходит отложенно (useDeferredValue). */

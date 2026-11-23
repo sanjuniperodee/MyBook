@@ -5,7 +5,7 @@ import sharp, { type OverlayOptions } from "sharp";
 import type { Book, BookChapter, BookLetter, BookQuestion, Photo } from "@/shared/infrastructure/db/schema";
 import { messagesFor } from "@/i18n/messages";
 import { coverPhotoIds, getCoverTemplate, renderCoverSvg } from "@/lib/book/covers";
-import { coverNames } from "@/lib/book/cover-names";
+import { coverNames, printedCoverTitle } from "@/lib/book/cover-names";
 import { coverPhotoDataUrl, coverPhotoResized } from "../coverPhotos";
 import { layerRect, ownSpreadArt, parseCoverBack, parseCoverDesign, printedLayers, repeatedFrontLayers, templateForCover, type CoverBack, type CoverDesign, type CoverTexts } from "@/lib/book/cover-design";
 import type { CoverTemplate } from "@/lib/book/covers";
@@ -24,9 +24,9 @@ import { photoAreaMm, photoPages, toPhotoItem, type BookContent, type PhotoItem 
 import { printableText } from "@/lib/book/printable";
 import { buildBookContent } from "@/lib/book/book-content";
 import { estimatePages } from "@/lib/book/estimate";
-import { emptyFlow, refineBlanks } from "@/lib/book/flow-decisions";
+import { emptyFlow, refineBlanks, type FlowDecisions } from "@/lib/book/flow-decisions";
 import { interiorMetrics, textArea } from "@/lib/book/page-geometry";
-import { interiorSizes } from "@/lib/book/typesetting";
+import { FLOW_PASSES, flowMinLead, interiorSizes } from "@/lib/book/typesetting";
 import { OPENER_FOCUS, openerPhotoPlan, photoArea, photoPagePlan, type PhotoCell } from "@/lib/book/photo-pages";
 import { cropOr, fillFocus } from "@/lib/book/photo-crop";
 import { cropRect, inlineBox, normalizeStyle } from "@/lib/book/inline-photo";
@@ -196,14 +196,17 @@ export interface InteriorResult {
   chapterPages: Record<string, number>;
   /** Все полосы по порядку (длина — pageCount): вид и глава по итоговой раскладке, добивка — "pad". */
   pages: BookBuildPage[];
+  /** Решения доводки вёрстки, с которыми собран блок (lib/book/flow-decisions.ts) — их повторяют превью. */
+  flow: FlowDecisions;
+  /** Полоса (с 1), на которой начинается каждая часть истории (её заголовок или первый блок) — по итоговой раскладке. */
+  entryPages: Record<string, number>;
 }
 
 /**
  * Сколько раз собираем блок, доводя вёрстку: обычно хватает 2–4, но за проход — не больше одного решения на кусок
- * главы, и длинной книге нужно больше (118 полос — 14 проходов, 194 — 24); при 12 часть решений не успевали принять.
- * Считаем только проходы, не время: иначе одна и та же книга верстается по-разному в зависимости от нагрузки.
+ * главы, и длинной книге нужно больше (FLOW_PASSES, общее с превью); при 12 часть решений не успевали принять.
  */
-const MAX_FLOW_PASSES = 40;
+const MAX_FLOW_PASSES = FLOW_PASSES;
 
 /** Сколько раз пересобираем итоговый блок, если главы встали не на те полосы, что в оглавлении (обычно ни разу). */
 const FINAL_RETRIES = 2;
@@ -252,8 +255,7 @@ export async function renderInterior(bundle: BookBundle, mode: RenderMode, repor
   // Без начальных полос глав (content.chapterStart) слева встаёт только полоса альбома.
   const openers = [...(content.chapterStart ? [] : content.chapters.map((c) => c.key)), ...(content.galleryPhotos.length ? [GALLERY_KEY] : [])];
   const blanks = (pages: Record<string, number>) => !!content.openersLeft && refineBlanks(openers, pages, flow);
-  const typo = content.interior.type;
-  const minLead = interiorSizes(content.interior, interiorMetrics[content.format.id].scale).body * typo.lineHeight * 2.6;
+  const minLead = flowMinLead(content.interior, interiorSizes(content.interior, interiorMetrics[content.format.id].scale));
   /** Номера для оглавления по раскладке прохода: к начальным полосам глав — в оглавлении по разделам полосы разделов. */
   const withSections = (layout: unknown, chapters: Record<string, number>) => {
     const pages = { ...chapters };
@@ -339,7 +341,9 @@ export async function renderInterior(bundle: BookBundle, mode: RenderMode, repor
   doc.setAuthor(content.authorName);
   doc.setProducer("MyBooks");
   const pdf = Buffer.from(await doc.save());
-  return { pdf, pageCount, contentPages, chapterPages: tocPages ?? {}, pages };
+  const entryPages: Record<string, number> = {};
+  if (final) for (const b of readLayout(final, chapterOf).blocks) if (b.kind !== "t") entryPages[b.item] = Math.min(entryPages[b.item] ?? Infinity, b.first.page + 1);
+  return { pdf, pageCount, contentPages, chapterPages: tocPages ?? {}, pages, flow, entryPages };
 }
 
 /** Раскладка экранной сборки — манифест без отпечатка (его считает тот, кто запросил сборку). */
@@ -469,8 +473,6 @@ export async function backSide(bundle: BookBundle, geometry: CoverGeometry, sour
   return { design, photos: list, buffers };
 }
 
-/** Название книги, как его ввёл автор (без названия по умолчанию): пустое — на обложке из конструктора его нет. */
-export const ownCoverTitle = (book: Pick<Book, "title">) => printableText(book.title.trim());
 
 export function coverText(book: Book) {
   const content = buildBookContent(book, [], [], []);
@@ -517,7 +519,7 @@ export async function renderCover(bundle: BookBundle, pageCount: number, mode: R
   const named = coverText(bundle.book);
   // Обложка из конструктора печатает то, что автор видит в нём: стёр название — слоя названия нет (и на корешке тоже),
   // без подмены названием по умолчанию. Обложка шаблона без конструктора держит название по умолчанию.
-  const text = layered ? { ...named, title: ownCoverTitle(bundle.book) } : named;
+  const text = { ...named, title: printedCoverTitle(bundle.book, !!layered, named.title) };
   const layers = layered ? { design: layered, images: await layerImages(bundle, layered, text, geometry.front, source) } : undefined;
   const backLayers = backDesign?.layers && geometry.back ? { layers: backDesign.layers, images: await layerImages(bundle, { layers: backDesign.layers }, text, geometry.back, source) } : undefined;
   // Оборот «как спереди» повторяет фото, фигуры и украшения лица на тех же местах (снимки — те же файлы: крышки равны).

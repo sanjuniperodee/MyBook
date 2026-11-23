@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import { listMarkerEm, type AnswerBlock } from "@/lib/book/answer-blocks";
 import { ANSWER, paraIndent, QUOTE_MARK, quoteStyle } from "@/lib/book/typesetting";
 import { textArea } from "@/lib/book/page-geometry";
+import { GAP_BELOW } from "./entry-gap";
 import type { PageKit } from "./kit";
 import { faceCss, italicBody, LeadParagraph, measureCss, paragraphCss } from "./typography";
 
@@ -40,36 +41,40 @@ function Lede({ kit, block, style, ...rest }: BlockProps<"lede">) {
   );
 }
 
+/**
+ * Выделенный короткий ответ. Он неделим, как в PDF: отбивка снизу — полем внутри обёртки (GAP_BELOW), чтобы она, как у
+ * react-pdf, помещалась на полосе вместе с цитатой и не схлопывалась со следующим блоком.
+ */
 function Quote({ kit, block, style, ...rest }: BlockProps<"quote">) {
   const { design, sizes: S, u } = kit;
   const P = design.palette;
   const text: CSSProperties = { ...italicBody(kit, S.body * ANSWER.quote.size), lineHeight: ANSWER.quote.lineHeight, color: P.ink };
   const kind = quoteStyle(design);
+  const outer: CSSProperties = { breakInside: "avoid", marginTop: u.pt(S.body * ANSWER.quote.before), paddingBottom: u.pt(S.body * ANSWER.quote.after), ...style };
   if (kind === "mark") {
     const size = S.body * ANSWER.quote.size;
     return (
-      <div style={{ breakInside: "avoid", marginTop: u.pt(S.body * ANSWER.quote.before), marginBottom: u.pt(S.body * ANSWER.quote.after), paddingLeft: u.pt(S.body * ANSWER.quote.indent), ...measureCss(kit), ...style }} {...rest}>
-        <div aria-hidden style={{ ...faceCss(design.display, size * QUOTE_MARK.size, u), lineHeight: QUOTE_MARK.lineHeight, color: P.accent, marginBottom: u.pt(size * QUOTE_MARK.after), height: u.pt(size * QUOTE_MARK.size * QUOTE_MARK.lineHeight) }}>
-          “
+      <div style={outer} {...GAP_BELOW} {...rest}>
+        <div style={{ paddingLeft: u.pt(S.body * ANSWER.quote.indent), ...measureCss(kit) }}>
+          <div aria-hidden style={{ ...faceCss(design.display, size * QUOTE_MARK.size, u), lineHeight: QUOTE_MARK.lineHeight, color: P.accent, marginBottom: u.pt(size * QUOTE_MARK.after), height: u.pt(size * QUOTE_MARK.size * QUOTE_MARK.lineHeight) }}>
+            “
+          </div>
+          <div style={text}>{lines(block.lines)}</div>
         </div>
-        <div style={text}>{lines(block.lines)}</div>
       </div>
     );
   }
   return (
-    <div
-      style={{
-        breakInside: "avoid",
-        marginTop: u.pt(S.body * ANSWER.quote.before),
-        marginBottom: u.pt(S.body * ANSWER.quote.after),
-        ...(kind === "center"
-          ? { ...text, textAlign: "center", paddingInline: u.mm(textArea(kit.format).w * ANSWER.quote.inset) }
-          : { ...text, borderLeft: `${u.pt(ANSWER.quote.rule)} solid ${P.accent}`, paddingLeft: u.pt(S.body * ANSWER.quote.indent) }),
-        ...style,
-      }}
-      {...rest}
-    >
-      {lines(block.lines)}
+    <div style={outer} {...GAP_BELOW} {...rest}>
+      <div
+        style={
+          kind === "center"
+            ? { ...text, textAlign: "center", paddingInline: u.mm(textArea(kit.format).w * ANSWER.quote.inset) }
+            : { ...text, borderLeft: `${u.pt(ANSWER.quote.rule)} solid ${P.accent}`, paddingLeft: u.pt(S.body * ANSWER.quote.indent) }
+        }
+      >
+        {lines(block.lines)}
+      </div>
     </div>
   );
 }
@@ -81,7 +86,7 @@ function List({ kit, block, style, ...rest }: BlockProps<"list">) {
       {block.items.map((item, i) => (
         <div key={i} style={{ display: "flex", marginBottom: i < block.items.length - 1 ? u.pt(S.body * ANSWER.list.gap) : 0 }}>
           <span style={{ ...paragraphCss(kit), marginBottom: 0, marginLeft: 0, marginRight: 0, flex: "none", width: u.pt(S.body * listMarkerEm(block)), textAlign: "left", color: kit.design.palette.accent }}>{item.marker}</span>
-          <span style={{ ...paragraphCss(kit), marginBottom: 0, marginLeft: 0, marginRight: 0, flex: 1, textAlign: "left" }}>{item.text}</span>
+          <span style={{ ...paragraphCss(kit), marginBottom: 0, marginLeft: 0, marginRight: 0, flex: 1, textAlign: "left" }}>{kit.hyphenate ? kit.hyphenate(item.text) : item.text}</span>
         </div>
       ))}
     </div>
@@ -102,7 +107,7 @@ function Strong({ kit, block, style, ...rest }: BlockProps<"strong">) {
       }}
       {...rest}
     >
-      {block.text}
+      {kit.hyphenate ? kit.hyphenate(block.text) : block.text}
     </p>
   );
 }

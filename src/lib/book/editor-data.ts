@@ -14,7 +14,7 @@ import { coverPhotosOf, CUSTOM_KEY, questionTexts, type ChapterLike, type CoverP
 
 /** Книга для модели: тема, язык, род; шаблон обложки и оборот — чтобы знать, какие снимки на них видны. */
 type ModelBook = Pick<Book, "theme" | "language" | "authorGender" | "recipientGender" | "coverPhotoId"> & Partial<CoverSettings>;
-type ModelQuestion = Pick<BookQuestion, "id" | "chapter" | "prompt" | "hint" | "title" | "displayText" | "hideHeading" | "answer" | "questionKey"> & Partial<Pick<BookQuestion, "media">>;
+type ModelQuestion = Pick<BookQuestion, "id" | "chapter" | "prompt" | "hint" | "title" | "displayText" | "hideHeading" | "answer" | "questionKey"> & Partial<Pick<BookQuestion, "media" | "pageBreak">>;
 type ModelLetter = Pick<BookLetter, "id" | "authorName" | "relation" | "text">;
 
 /**
@@ -59,6 +59,8 @@ export function editorModel(book: ModelBook, rows: ModelQuestion[], chapters: re
       answer: r.answer,
       media: normalizeMedia(r.media),
       isCustom: r.questionKey === CUSTOM_KEY,
+      // «С новой страницы» — в превью и объёме, как в PDF; нет — ключа нет.
+      ...(r.pageBreak ? { pageBreak: true } : {}),
     };
   });
   const editorChapters: EditorChapter[] = outline

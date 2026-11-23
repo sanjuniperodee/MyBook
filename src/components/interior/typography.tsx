@@ -57,7 +57,8 @@ export function paragraphCss(kit: PageKit): CSSProperties {
     color: design.palette.ink,
     marginBottom: u.pt(S.body * paraAfter(design)),
     textAlign: bodyAlign(design),
-    hyphens: "auto",
+    // С переносами книги (kit.hyphenate) — только они: мягкие переносы в тексте, свои браузер не ставит.
+    hyphens: kit.hyphenate ? "manual" : "auto",
     orphans: 2,
     widows: 2,
     ...(design.text?.tracking ? { letterSpacing: u.pt(design.text.tracking * S.body) } : {}),
@@ -90,7 +91,9 @@ function DropInitial({ kit, initial }: { kit: PageKit; initial: string }) {
 export function LeadParagraph({ kit, text, leadIn, indent = false, dropCap = false, style, ...rest }: { kit: PageKit; text: string; leadIn: boolean; indent?: boolean; dropCap?: boolean; style?: CSSProperties } & React.HTMLAttributes<HTMLParagraphElement>) {
   const parts = dropCap && kit.design.dropCap ? splitInitial(text) : null;
   const body = parts ? parts[1] : text;
-  const [lead, tail] = leadIn ? splitLeadIn(body) : ["", body];
+  const [lead, after] = leadIn ? splitLeadIn(body) : ["", body];
+  // Переносы, как в PDF: капитель — без них (там она отдельным куском, но слова те же), остальное — с мягкими.
+  const tail = kit.hyphenate ? kit.hyphenate(after) : after;
   const em = indentEm(kit.design);
   return (
     <p style={{ ...paragraphCss(kit), ...(indent && em && !parts ? { textIndent: kit.u.pt(kit.sizes.body * em) } : {}), ...style }} {...rest}>

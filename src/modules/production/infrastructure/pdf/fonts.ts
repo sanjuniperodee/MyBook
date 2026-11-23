@@ -4,12 +4,9 @@ import path from "node:path";
 import * as fontkit from "fontkit";
 import type { ReactElement } from "react";
 import { Font, pdf, type DocumentProps } from "@react-pdf/renderer";
-import hyphenEn from "hyphen/en-us/index.js";
-import hyphenRu from "hyphen/ru/index.js";
 import type { Locale } from "@/i18n/config";
 import { fontFaces, type FontKey } from "@/lib/book/fonts";
-import { hyphenateKk, isKazakhWord } from "@/lib/book/hyphen-kk";
-import { hyphenateUz, isUzbekWord } from "@/lib/book/hyphen-uz";
+import { hyphenateWord } from "@/lib/book/hyphenate";
 
 let registered = false;
 /** Язык книги, которая сейчас верстается: сборки идут строго по одной (renderPdf), поэтому переменной достаточно. */
@@ -28,25 +25,8 @@ export function ensureFonts() {
       fonts: def.faces.map((f) => ({ src: path.join(fontsDir(), f.file), fontWeight: f.weight, fontStyle: f.style })),
     });
   }
-  const cache = new Map<string, string[]>();
-  Font.registerHyphenationCallback((word) => {
-    if (word.length < 6) return [word];
-    const key = `${hyphenLang}:${word}`;
-    let parts = cache.get(key);
-    if (!parts) {
-      // Слова с казахскими буквами — по слоговым правилам; латиница — по языку книги (английские шаблоны или узбекские
-      // слоги); остальные — по русским шаблонам.
-      parts = isKazakhWord(word)
-        ? hyphenateKk(word)
-        : isUzbekWord(word)
-          ? hyphenLang === "en"
-            ? hyphenEn.hyphenateSync(word, { minWordLength: 6 }).split("­")
-            : hyphenateUz(word)
-          : hyphenRu.hyphenateSync(word, { minWordLength: 6 }).split("­");
-      if (cache.size < 50_000) cache.set(key, parts);
-    }
-    return parts;
-  });
+  // Переносы — общие с HTML-превью (lib/book/hyphenate.ts): слоги слова по языку книги.
+  Font.registerHyphenationCallback((word) => hyphenateWord(word, hyphenLang));
   registered = true;
 }
 

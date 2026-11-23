@@ -49,6 +49,8 @@ export default async function CoverPage({ params, searchParams }: { params: Prom
     <main className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-6">
       <CoverEditor
         bookId={book.id}
+        // Пустое название обложка шаблона печатает названием по умолчанию (как PDF) — оно и на превью.
+        defaultTitle={buildBookContent({ ...book, title: "" }, [], [], chapters).title}
         format={book.format}
         editable={book.status === "draft"}
         recipientLabel={theme.recipientLabel ?? ""}
