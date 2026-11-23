@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Section } from "../ui";
 import type { BotMetrics } from "@/modules/messaging";
 import { byLabel, failureReasonLabels, handoffReasonLabels } from "@/modules/messaging/domain/botStats";
+import { BOT_LANG_LABELS, type BotLang } from "@/modules/messaging/domain/botLang";
 
 const OUTCOMES: [string, string][] = [
   ["takeover", "подхватил начатую переписку"],
@@ -99,7 +100,7 @@ export function BotStats({ m, questions, skipLabels }: { m: BotMetrics; question
         <div>
           <div className="mb-1 text-muted">Начал беседу: {m.started}</div>
           {OUTCOMES.map(([k, label]) => (m.outcomes[k] ? <div key={k}>{`${label}: ${m.outcomes[k]}`}</div> : null))}
-          {langs.length ? <div className="mt-1 text-muted">Языки: {langs.map(([l, n]) => `${l === "kk" ? "казахский" : "русский"} ${n}`).join(", ")}</div> : null}
+          {langs.length ? <div className="mt-1 text-muted">Языки: {langs.map(([l, n]) => `${BOT_LANG_LABELS[l as BotLang] ?? l} ${n}`).join(", ")}</div> : null}
           {m.replyMinutes !== null ? <div className="mt-1 text-muted">Менеджер ответил после бота за ~{m.replyMinutes} мин (медиана)</div> : null}
           {m.started ? <div className="text-muted">Дошли до договорённости или оплаты: {m.converted}</div> : null}
         </div>

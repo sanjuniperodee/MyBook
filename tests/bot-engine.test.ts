@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { defaultBotConfig, parseBotConfig, type BotConfig } from "@/modules/messaging/domain/botConfig";
 import { matchOption, parseDateAnswer } from "@/modules/messaging/domain/botParse";
 import { detectLang, faqIntents, handoffIntent, isAgree, isDontKnow, langRequest, looksLikeContinuation, objectionKind } from "@/modules/messaging/domain/botNlu";
-import { bookLink, findRecipient } from "@/modules/messaging/domain/botThemes";
+import { bookLink, findRecipient, themeLabel } from "@/modules/messaging/domain/botThemes";
 import { catalogVars, fillFaqLines, pricesOutsideCatalog, promoAmounts, type BotCatalog } from "@/modules/messaging/domain/botFaq";
 import { botSummary, botTurn, deadlinePlan, newBotState, startBlocker, type BotEnv, type BotInput, type BotState } from "@/modules/messaging/domain/botEngine";
 import { humanDate, safeName, whenText, type DealField } from "@/modules/messaging/domain/bot";
@@ -230,11 +230,12 @@ describe("бот: для кого → тема и ссылка", () => {
     expect(findRecipient("руководителю", { themes: site.themes })).toMatchObject({ key: "boss", theme: null });
   });
 
-  it("дочери или сыну — своя тема; детям и внукам вместе — своя книга", () => {
+  it("дочери или сыну — своя тема; детям и внукам вместе — автобиография (книга о своей жизни для них), а не своя книга", () => {
     const themes = [...site.themes, "child"];
     for (const text of ["книгу дочке на выпускной", "для сына на 18 лет", "қызыма туған күнге", "ұлыма сыйлық"])
       expect(findRecipient(text, { themes }), text).toMatchObject({ key: "child", theme: "child", label: { ru: "Дочери или сыну" } });
-    expect(findRecipient("детям и внукам", { themes })).toMatchObject({ key: "children", theme: "blank" });
+    for (const text of ["детям и внукам", "хочу оставить книгу внукам", "балаларыма"]) expect(findRecipient(text, { themes }), text).toMatchObject({ key: "children", theme: "autobiography", label: { ru: "Детям" } });
+    expect(themeLabel("autobiography", "ru")).toBe("О себе (автобиография)");
     expect(findRecipient("сыну", { themes: site.themes })).toMatchObject({ key: "child", theme: null });
   });
 

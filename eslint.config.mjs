@@ -86,7 +86,7 @@ const config = [
     // (см. matches в src/lib/proofread/rules.ts). Исключение — понимание сообщений бота: оно работает только на сервере,
     // а что в браузер оно не попало, после сборки проверяет scripts/check-browser-support.mjs.
     files: ["src/**/*.{ts,tsx}"],
-    ignores: ["src/modules/messaging/domain/{bot,botNlu,botParse,botEngine,botSeller}.ts"],
+    ignores: ["src/modules/messaging/domain/{bot,botNlu,botParse,botEngine,botSeller,botWeekday}.ts"],
     rules: {
       "no-restricted-syntax": [
         "error",

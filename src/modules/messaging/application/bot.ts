@@ -33,6 +33,7 @@ import {
   type BotMaterial,
   type BotInput,
   type BotLang,
+  isBotLang,
   type BotSkipReason,
   type BotState,
   type BotTurn,
@@ -469,7 +470,8 @@ export class QualifierBot {
       this.d.settings.catalog(),
       this.d.settings.site(),
     ]);
-    const locale: BotLang | null = client?.locale === "kk" ? "kk" : null;
+    const clientLocale = client?.locale ?? null;
+    const locale: BotLang | null = isBotLang(clientLocale) && clientLocale !== "ru" ? clientLocale : null;
     // Книги клиента в кабинете: бот отвечает «у вас книга готова на 40%, фото загружены», а не вообще. Сбой — просто без них.
     const clientId = conv.clientId ?? deal?.clientId ?? null;
     const books = clientId && this.d.crm.books ? await this.d.crm.books(clientId).catch((err) => (this.d.logger.warn("bot books", { error: String(err) }), null)) : null;

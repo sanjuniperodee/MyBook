@@ -5,6 +5,7 @@
  */
 import { handoffReasonLabels, failureReasonLabels } from "../domain/botStats";
 import type { BotTurnTrace, TraceDeadline, TraceNote, TraceNoteCode, TraceRoute } from "../domain/botTrace";
+import { BOT_LANG_LABELS } from "../domain/botLang";
 
 const ACTIONS: Record<string, string> = {
   reply: "ответить",
@@ -69,6 +70,8 @@ const NOTES: Record<TraceNoteCode, (detail: string) => string> = {
   blocked_twice: (d) => `ответ дважды не прошёл проверку — вместо него «передала менеджеру»${d ? ` (${d})` : ""}`,
   greeting_removed: () => "убрал повторное «Здравствуйте»: сегодня уже здоровались",
   intro_added: () => "добавил представление: модель забыла представиться",
+  invoice_promise: () => "ответ обещал счёт, а по правилам согласия его выставлять нельзя — модель переписала ответ",
+  weekday_fixed: (d) => `поправил день недели по календарю: ${d ?? ""}`,
   limit: (d) => `потолок беседы${d ? ` (${d} ходов)` : ""} — передал менеджеру`,
   loop: () => "модель повторила прошлое сообщение — не отправлено, передал менеджеру",
   unanswered: () => "модель хотела промолчать на вопрос клиента — передал менеджеру",
@@ -131,7 +134,7 @@ export function traceRows(t: BotTurnTrace): TraceRow[] {
   if (t.purpose === "follow_up") rows.push({ label: "Ход", lines: ["напоминание молчащему клиенту"] });
   if (t.model) {
     const why = t.model.handoff !== "none" ? ` · причина: ${reasonLabel(t.model.handoff)}` : "";
-    rows.push({ label: "Модель решила", lines: [`${ACTIONS[t.model.action] ?? t.model.action} · этап: ${STAGES[t.model.stage] ?? t.model.stage}${why} · язык: ${t.model.lang === "kk" ? "казахский" : "русский"}`] });
+    rows.push({ label: "Модель решила", lines: [`${ACTIONS[t.model.action] ?? t.model.action} · этап: ${STAGES[t.model.stage] ?? t.model.stage}${why} · язык: ${BOT_LANG_LABELS[t.model.lang] ?? t.model.lang}`] });
     if (t.model.summary) rows.push({ label: "Заметка модели", lines: [t.model.summary] });
   } else rows.push({ label: "Модель", lines: [t.error ? `не ответила: ${t.error}` : "не спрашивали — ответ из шаблона"], warn: !!t.error });
   const outcome = t.result.phase === "done" ? `${OUTCOMES[t.result.outcome ?? ""] ?? "беседа закрыта"}${t.result.handoff ? `: ${reasonLabel(t.result.handoff)}` : ""}` : "беседа продолжается";

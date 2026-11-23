@@ -13,6 +13,7 @@ import { botText, faqFor, promoFor, optionLabel, questionFor, questionText, type
 import { matchOption, mentionsMonth, parseDateAnswer } from "./botParse";
 import { catalogVars, fillBotVars, fillFaqLines, type BotCatalog } from "./botFaq";
 import { detectLang, faqIntents, handoffIntent, isAck, isAgree, isBareNo, isWillLook, isDecline, isDontKnow, isStop, langRequest, looksLikeContinuation, objectionKind, residual, type BotLang, type FaqIntent, type HandoffKind } from "./botNlu";
+import { textLang } from "./botLang";
 import { bookLink, findRecipient, themeLabel, themeMenuText, type Recipient } from "./botThemes";
 import { mediaCaption } from "./wazzup";
 import { newSellerAiState, type SellerAiState } from "./botSellerState";
@@ -345,7 +346,7 @@ function answerFor(ctx: Ctx, f: DealField, text: string, strict: boolean): { val
 function shown(ctx: Ctx, key: string, value: string | number, r?: Recipient) {
   const f = ctx.byKey.get(key);
   const lang = ctx.s.lang;
-  if (r) return r.label[lang].charAt(0).toLocaleLowerCase("ru") + r.label[lang].slice(1);
+  if (r) return r.label[textLang(lang)].charAt(0).toLocaleLowerCase("ru") + r.label[textLang(lang)].slice(1);
   if (f?.type === "date" && typeof value === "string") return humanDate(value, lang);
   if (f?.type === "select" && typeof value === "string") {
     const l = optionLabel(ctx.env.config, value, lang);
@@ -533,13 +534,14 @@ export function botTurn(prev: BotState, allInputs: BotInput[], env: BotEnv): Bot
     s.phase = "active";
     s.startedAt = env.now.toISOString();
     s.questions = env.config.questions.filter((q) => byKey.has(q.field)).map((q) => q.field);
-    s.lang = langRequest(t) ?? detectLang(t) ?? env.hints?.lang ?? env.client.locale ?? "ru";
+    // Шаблоны — только на русском и казахском: узбекам и англоязычным шаблонный бот пишет по-русски (AI-продажник — на их языке).
+    s.lang = textLang(langRequest(t) ?? detectLang(t) ?? env.hints?.lang ?? env.client.locale ?? "ru");
     s.first = preview(c.texts[0] ?? (c.voice ? "🎤" : c.media ? "📷" : ""));
     events.push({ kind: "started", reason: s.lang });
     parts.push(text(ctx, "greeting"));
   } else {
     const req = langRequest(t);
-    if (req) s.lang = req;
+    if (req) s.lang = textLang(req);
     else if (s.lang === "ru" && detectLang(t) === "kk") s.lang = "kk";
   }
 
@@ -797,10 +799,12 @@ export function outcomeTitle(s: BotState) {
   return "Бот собрал ответы";
 }
 
+const LANG_ADVERB: Record<BotLang, string> = { ru: "по-русски", kk: "по-казахски", uz: "по-узбекски", en: "по-английски" };
+
 /** Сводка для менеджера: что понял бот, о чём спрашивал клиент, что отправлено и чего не хватает. */
 export function botSummary(s: BotState, fields: DealField[], dealValues: Record<string, unknown> = {}): string {
   const byKey = new Map(fields.map((f) => [f.key, f]));
-  const lines: string[] = [`🤖 ${outcomeTitle(s)}${s.lang === "kk" ? " · писал(а) по-казахски" : ""}`];
+  const lines: string[] = [`🤖 ${outcomeTitle(s)}${s.lang !== "ru" ? ` · писал(а) ${LANG_ADVERB[s.lang]}` : ""}`];
   const lack: string[] = [];
   for (const key of s.questions) {
     const f = byKey.get(key);

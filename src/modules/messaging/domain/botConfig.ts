@@ -4,12 +4,13 @@
  * русскими текстами, казахские берутся заводские. Без обращения к БД (покрыто тестами).
  */
 // Только botLang, не botNlu/botParse: файл открывают настройки бота в браузере, а там регулярные выражения бота не нужны.
-import { FAQ_INTENTS, type BotLang, type FaqIntent } from "./botLang";
+import { FAQ_INTENTS, textLang, type BotLang, type FaqIntent, type TextLang } from "./botLang";
 
-export type { BotLang, FaqIntent } from "./botLang";
+export type { BotLang, FaqIntent, TextLang } from "./botLang";
 
-export const BOT_LANGS: readonly BotLang[] = ["ru", "kk"];
-export type Localized = Record<BotLang, string>;
+/** Языки текстов, которые владелец правит в настройках (узбекский и английский — заводские тексты продажника, BotLang). */
+export const BOT_LANGS: readonly TextLang[] = ["ru", "kk"];
+export type Localized = Record<TextLang, string>;
 
 /** Каналы, где бот может работать. Почта — никогда: письма ведёт человек. */
 export type BotChannel = "whatsapp" | "site" | "instagram" | "telegram";
@@ -91,7 +92,7 @@ export interface BotConfig {
   /** Режим «если менеджер не ответил»: сколько минут ждать в рабочее время. */
   waitMinutes: number;
   questions: BotQuestion[];
-  texts: Record<BotLang, BotTexts>;
+  texts: Record<TextLang, BotTexts>;
   faq: Record<FaqIntent, BotFaqAnswer>;
   /** Строка акции, которую владелец пишет сам ({акция} в ответе о цене). Пусто — акций бот не упоминает. */
   promo: Localized;
@@ -240,6 +241,62 @@ export const defaultTexts: Record<BotLang, BotTexts> = {
     objLater: "Әрине, ойланыңыз 🙏\n{акция}\nЫңғайлы болса, {предоплата} алдын ала төлемді бірден жасап қоюға болады — ал кітапты асықпай, өз қарқыныңызбен жаза бересіз.",
     followUp: "Сәлеметсіз бе, {имя}! Қарап шықтыңыз ба? 🙂 Сұрақтарыңыз болса, жазыңыз.\nКітап {дата} күніне үлгеруі үшін бүгін-ертең бастаған дұрыс.",
   },
+  uz: {
+    greeting: "Assalomu alaykum, {имя}! Men MyBooks yordamchisiman — menejer sizga darhol taklif tayyorlashi uchun bir nechta qisqa savol beraman.",
+    finish: "Rahmat! Javoblaringizni menejerga yetkazdim — u tez orada yozadi 🙌",
+    finishLater: "Rahmat! Javoblaringizni menejerga yetkazdim — u {когда} yozadi 🙌",
+    handoff: "Savolingizni menejerga yetkazdim — u tez orada siz bilan bog‘lanadi.",
+    handoffLater: "Savolingizni menejerga yetkazdim — u {когда} siz bilan bog‘lanadi.",
+    voice: "Ovozli xabarlarni hozircha tinglay olmayman — menejer o‘zi tinglaydi. Qulay bo‘lsa, matn yoki raqam bilan javob bering 🙏",
+    media: "Rahmat, oldim — menejerga yetkazaman.",
+    reask: "Tushunmadim 🙏 Iltimos, raqam yoki o‘z so‘zlaringiz bilan javob bering.",
+    noted: "Tushundim: {что}.",
+    repeat: "Bu savolni menejerdan aniqlayman — u batafsil javob beradi.",
+    decline: "Tushundim, rahmat! Savollaringiz bo‘lsa, yozing — yordam berishdan xursandmiz.",
+    linkExample: "Bunday kitob qanday ko‘rinishini shu yerda ko‘ring: {ссылка}\nKitob yoziladigan shaxsiy kabinetni menejer ochib beradi — yoki hisob to‘langach, u o‘zi ochiladi.",
+    linkStart: "Kitobni shu yerda boshlashingiz mumkin: {ссылка}",
+    offer: "Bunday kitob — eng ta’sirli sovg‘alardan biri: siz maslahatlari bor tayyor savollarga javob berasiz va rasm qo‘shasiz, sahifalash, bezash va chop etishni esa biz o‘z zimmamizga olamiz. Odatda qattiq muqovali 60–200 sahifa chiqadi. Kitob muallifi — siz 🤍",
+    offerPrice: "Qattiq muqovali bosma kitob — {цена.печатная} dan.\n{акция}\nBoshlash uchun {предоплата} oldindan to‘lov yetarli, qolgani — kitob chop etishga tayyor bo‘lganda.",
+    deadlineOk: "{дата} ga ulguramiz 👍 Kitobni {заполнить_до} gacha yozib tugating — u o‘z vaqtida qo‘lingizda bo‘ladi.",
+    deadlineExpress: "{дата} ga vaqt tig‘iz, lekin ekspress-chop bilan ulguramiz — kitobni {заполнить_до} gacha yozib tugating.",
+    deadlineLate: "{дата} ga chop etib, yetkazib ulgurmaymiz 😔 Elektron versiyasini kitob tayyor bo‘lishi bilan yuklab olish mumkin, bosma kitobni esa biroz keyinroq yetkazamiz.",
+    close: "Rasmiylashtiramizmi? «Ha» deb yozing — oldindan to‘lov hisobini yuboraman, to‘lovdan keyin kitob yoziladigan kabinet darhol ochiladi.",
+    closeShort: "Kitobni rasmiylashtiramizmi? 🙂",
+    agreed: "Ajoyib! 🙌 Menejerga yetkazdim — u oldindan to‘lov hisobini tez orada yuboradi, to‘lovdan keyin kabinetni ochamiz.",
+    agreedLater: "Ajoyib! 🙌 Menejerga yetkazdim — u oldindan to‘lov hisobini {когда} yuboradi, to‘lovdan keyin kabinetni ochamiz.",
+    invoiceSent: "Ajoyib! 🙌 Hisobni yuboryapman — to‘lovdan keyin kitob yoziladigan kabinet o‘zi ochiladi.",
+    objPrice: "Tushunaman 🙏 Bu — umrbod saqlanadigan kitob.\nBo‘lib to‘lash mumkin: avval {предоплата} oldindan to‘lov, qolgani — kitob tayyor bo‘lib, chop etishdan oldin. Ustamasiz muddatli to‘lov ham bor.",
+    objLater: "Albatta, o‘ylab ko‘ring 🙏\n{акция}\nQulay bo‘lsa, {предоплата} oldindan to‘lovni hoziroq qilib qo‘yish mumkin — kitobni esa shoshmasdan, o‘z sur’atingizda yozasiz.",
+    followUp: "Assalomu alaykum, {имя}! Ko‘rib chiqdingizmi? 🙂 Savollaringiz bo‘lsa, yozing.\nKitob {дата} ga ulgurishi uchun bugun-ertaga boshlagan ma’qul.",
+  },
+  en: {
+    greeting: "Hello, {имя}! I’m the MyBooks assistant — I’ll ask a couple of short questions so the manager can prepare an offer for you right away.",
+    finish: "Thank you! I’ve passed your answers to the manager — they’ll write to you soon 🙌",
+    finishLater: "Thank you! I’ve passed your answers to the manager — they’ll write to you {когда} 🙌",
+    handoff: "I’ve passed your question to the manager — they’ll get in touch with you shortly.",
+    handoffLater: "I’ve passed your question to the manager — they’ll get in touch with you {когда}.",
+    voice: "I can’t listen to voice messages yet — the manager will listen to it. If it’s convenient, please reply in text or with a number 🙏",
+    media: "Thank you, got it — I’ll pass it to the manager.",
+    reask: "Sorry, I didn’t quite get that 🙏 Please reply with a number or in your own words.",
+    noted: "Got it: {что}.",
+    repeat: "I’ll check this with the manager — they’ll answer in more detail.",
+    decline: "Got it, thank you! If you have any questions, just write — we’re happy to help.",
+    linkExample: "Here’s what such a book looks like: {ссылка}\nThe manager will open your personal account where the book is written — or it opens by itself once the invoice is paid.",
+    linkStart: "You can start the book here: {ссылка}",
+    offer: "A book like this is one of the most touching gifts: you answer ready-made questions with hints and add photos, and we take care of the layout, design and printing. It usually comes out at 60–200 pages in a hardcover. You are the author 🤍",
+    offerPrice: "A printed hardcover book starts from {цена.печатная}.\n{акция}\nTo start, a prepayment of {предоплата} is enough; the rest is paid when the book is ready to print.",
+    deadlineOk: "We’ll make it by {дата} 👍 Finish writing the book by {заполнить_до} and it will be with you on time.",
+    deadlineExpress: "{дата} is tight, but we’ll make it with express printing if you finish writing by {заполнить_до}.",
+    deadlineLate: "We won’t be able to print and deliver it by {дата} 😔 You can download the digital version as soon as the book is ready, and we’ll deliver the printed one a little later.",
+    close: "Shall we go ahead? Write “yes” and I’ll send the prepayment invoice — once it’s paid, the account where you write the book opens right away.",
+    closeShort: "Shall we go ahead with the book? 🙂",
+    agreed: "Great! 🙌 I’ve passed it to the manager — they’ll send the prepayment invoice in the next few minutes, and after payment we’ll open your account.",
+    agreedLater: "Great! 🙌 I’ve passed it to the manager — they’ll send the prepayment invoice {когда}, and after payment we’ll open your account.",
+    invoiceSent: "Great! 🙌 Sending the invoice — once it’s paid, the account where you write the book will open by itself.",
+    objPrice: "I understand 🙏 This is a book that stays with you for life.\nYou can pay in parts: first a prepayment of {предоплата}, the rest before printing, when the book is ready. There’s also an interest-free installment plan.",
+    objLater: "Of course, take your time 🙏\n{акция}\nIf it’s convenient, you can make the {предоплата} prepayment now and write the book at your own pace.",
+    followUp: "Hello, {имя}! Have you had a chance to take a look? 🙂 If you have any questions, just ask.\nFor the book to be ready by {дата}, it’s best to start today or tomorrow.",
+  },
 };
 
 /**
@@ -275,6 +332,38 @@ export const managerVoiceTexts: Record<BotLang, Partial<BotTexts>> = {
     linkExample: "Мұндай кітаптың үлгісін мына жерден көріңіз: {ссылка}\nКітап жазатын жеке кабинетті өзім ашып беремін немесе шотты төлегеннен кейін ол өздігінен ашылады.",
     agreed: "Тамаша! 🙌 Алдын ала төлем шотын жақын арада жіберемін, төлемнен кейін кабинетті ашамыз.",
     agreedLater: "Тамаша! 🙌 Алдын ала төлем шотын {когда} жіберемін, төлемнен кейін кабинетті ашамыз.",
+  },
+  uz: {
+    greeting: "Assalomu alaykum, {имя}! Sizga darhol taklif tayyorlash uchun bir nechta qisqa savol beraman.",
+    finish: "Rahmat! Javoblaringizni ko‘rib chiqib, tez orada yozaman 🙌",
+    finishLater: "Rahmat! Javoblaringizni ko‘rib chiqib, {когда} yozaman 🙌",
+    handoff: "Aniqlab, tez orada sizga qaytaman.",
+    handoffLater: "Aniqlab, {когда} sizga qaytaman.",
+    voice: "Ovozli xabarni biroz keyinroq tinglayman. Qulay bo‘lsa, matn yoki raqam bilan javob bering 🙏",
+    media: "Rahmat, ko‘rdim — ko‘rib chiqib, yozaman.",
+    reask: "Unchalik tushunarli emas 🙏 Iltimos, raqam yoki o‘z so‘zlaringiz bilan javob bering.",
+    noted: "Yozib oldim: {что}.",
+    repeat: "Bu savolni aniqlab, batafsil javob beraman.",
+    decline: "Yaxshi, rahmat! Savollaringiz bo‘lsa, yozing — men aloqadaman.",
+    linkExample: "Bunday kitob qanday ko‘rinishini shu yerda ko‘ring: {ссылка}\nKitob yoziladigan shaxsiy kabinetni o‘zim ochib beraman — yoki hisob to‘langach, u o‘zi ochiladi.",
+    agreed: "Ajoyib! 🙌 Oldindan to‘lov hisobini tez orada yuboraman, to‘lovdan keyin kabinetni ochamiz.",
+    agreedLater: "Ajoyib! 🙌 Oldindan to‘lov hisobini {когда} yuboraman, to‘lovdan keyin kabinetni ochamiz.",
+  },
+  en: {
+    greeting: "Hello, {имя}! I’ll ask a couple of short questions so I can prepare an offer for you right away.",
+    finish: "Thank you! I’ll look through your answers and write to you soon 🙌",
+    finishLater: "Thank you! I’ll look through your answers and write to you {когда} 🙌",
+    handoff: "I’ll check and get back to you shortly.",
+    handoffLater: "I’ll check and get back to you {когда}.",
+    voice: "I’ll listen to your voice message a bit later. If it’s convenient, please reply in text or with a number 🙏",
+    media: "Thank you, I see it — I’ll take a look and write back.",
+    reask: "Sorry, that’s not quite clear 🙏 Please reply with a number or in your own words.",
+    noted: "Noting it down: {что}.",
+    repeat: "I’ll check this and answer in more detail.",
+    decline: "Okay, thank you! If you have any questions, just write — I’m here.",
+    linkExample: "Here’s what such a book looks like: {ссылка}\nI’ll open your personal account where the book is written — or it opens by itself once the invoice is paid.",
+    agreed: "Great! 🙌 I’ll send the prepayment invoice in the next few minutes, and after payment we’ll open your account.",
+    agreedLater: "Great! 🙌 I’ll send the prepayment invoice {когда}, and after payment we’ll open your account.",
   },
 };
 
@@ -366,7 +455,7 @@ export const defaultBotConfig: BotConfig = {
   channels: ["whatsapp"],
   waitMinutes: 3,
   questions: defaultQuestions,
-  texts: defaultTexts,
+  texts: { ru: defaultTexts.ru, kk: defaultTexts.kk },
   faq: defaultFaq,
   promo: { ru: "", kk: "" },
   optionLabels: {},
@@ -414,7 +503,7 @@ export function parseBotConfig(raw: string | null | undefined): BotConfig {
       const t = Object.fromEntries((Object.keys(defaultTexts.ru) as BotTextKey[]).map((k) => [k, str(r[k], LIMIT.text) ?? defaultTexts[lang][k]])) as unknown as BotTexts;
       return [lang, t];
     }),
-  ) as Record<BotLang, BotTexts>;
+  ) as Record<TextLang, BotTexts>;
   if (legacy) {
     // Старый формат: приветствие и финал — русские тексты (их правил владелец), остальное — заводское.
     if (typeof v.greeting === "string") texts.ru.greeting = v.greeting.slice(0, LIMIT.text);
@@ -501,13 +590,17 @@ function voiced(stored: string, assistant: string, manager: string | undefined, 
   return !own || own === manager ? assistant : own;
 }
 
-/** Текст бота на языке клиента; пустой казахский — заводской казахский, а не русский. Голос — speaksAs. */
+/**
+ * Текст бота на языке клиента; пустой казахский — заводской казахский, а не русский. Голос — speaksAs. Узбекский и
+ * английский в настройках не правятся: заводской текст этого языка (свой русский текст владельца туда не переносится).
+ */
 export function botText(config: BotConfig, lang: BotLang, key: BotTextKey) {
-  return voiced(config.texts[lang][key], defaultTexts[lang][key], managerVoiceTexts[lang][key], config.sell.speaksAs);
+  const stored = lang === "ru" || lang === "kk" ? config.texts[lang][key] : "";
+  return voiced(stored, defaultTexts[lang][key], managerVoiceTexts[lang][key], config.sell.speaksAs);
 }
 
 /** Ответы на частые вопросы голосом менеджера: «назову», «пришлю» вместо «менеджер назовёт». */
-export const managerVoiceFaq: Partial<Record<FaqIntent, Record<BotLang, string>>> = {
+export const managerVoiceFaq: Partial<Record<FaqIntent, Record<TextLang, string>>> = {
   price: {
     ru: defaultFaq.price.text.ru.replace("Точную сумму с учётом акции и доставки менеджер назовёт в ответе.", "Точную сумму с учётом акции и доставки назову в ответе."),
     kk: defaultFaq.price.text.kk.replace("Акция мен жеткізуді ескергендегі нақты соманы менеджер жауабында айтады.", "Акция мен жеткізуді ескергендегі нақты соманы жауабымда айтамын."),
@@ -536,25 +629,26 @@ export function revoiceConfig(config: BotConfig, speaksAs: BotSpeaksAs): BotConf
   return { ...config, texts, faq, sell: { ...config.sell, speaksAs } };
 }
 
-/** Вопрос на языке клиента: пустой казахский → заводской казахский этого поля → русский. */
+/** Вопрос на языке клиента: пустой казахский → заводской казахский этого поля → русский (узбекам и англоязычным — русский). */
 export function questionFor(q: BotQuestion, lang: BotLang) {
-  if (lang === "kk") return q.text.kk.trim() || factoryQuestion(q.field)?.text.kk || q.text.ru;
+  if (textLang(lang) === "kk") return q.text.kk.trim() || factoryQuestion(q.field)?.text.kk || q.text.ru;
   return q.text.ru.trim() || q.text.kk;
 }
 
 /** Ответ на частый вопрос на языке клиента. */
 export function faqFor(config: BotConfig, intent: FaqIntent, lang: BotLang) {
-  return voiced(config.faq[intent].text[lang], defaultFaq[intent].text[lang], managerVoiceFaq[intent]?.[lang], config.sell.speaksAs);
+  const l = textLang(lang);
+  return voiced(config.faq[intent].text[l], defaultFaq[intent].text[l], managerVoiceFaq[intent]?.[l], config.sell.speaksAs);
 }
 
 /** Строка акции на языке клиента: пустая казахская — русская (акцию пишет владелец, заводского перевода у неё нет). */
 export function promoFor(config: BotConfig, lang: BotLang) {
-  return config.promo[lang].trim() || config.promo.ru.trim();
+  return config.promo[textLang(lang)].trim() || config.promo.ru.trim();
 }
 
 /** Подпись варианта списка для клиента: по-казахски — из настроек, заводская или как в CRM. */
 export function optionLabel(config: BotConfig, option: string, lang: BotLang) {
-  if (lang !== "kk") return option;
+  if (textLang(lang) !== "kk") return option;
   return config.optionLabels[option]?.trim() || defaultOptionLabels[option] || option;
 }
 

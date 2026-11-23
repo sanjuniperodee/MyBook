@@ -4,9 +4,10 @@
  * знает (список тем передаёт адаптер настроек). Ссылки — только на свой сайт.
  */
 import { norm, rx, type BotLang } from "./botNlu";
+import { textLang, type TextLang } from "./botLang";
 
 export type BookTheme = "love" | "mom" | "dad" | "parents" | "family" | "grandma" | "grandpa" | "daughterinlaw" | "child" | "sibling" | "friend" | "teacher" | "colleague" | "boss" | "autobiography" | "blank";
-type Localized = Record<BotLang, string>;
+type Localized = Record<TextLang, string>;
 
 interface RecipientDef {
   key: string;
@@ -111,7 +112,8 @@ const RECIPIENTS: RecipientDef[] = [
     "dad",
     "kniga-pape",
   ),
-  // Одному ребёнку — тема «Дочери или сыну»; детям и внукам вместе — своя книга.
+  // Одному ребёнку — тема «Дочери или сыну» (книга от мамы или папы о его детстве). Детям и внукам вместе — «Автобиография»:
+  // на сайте это книга о своей жизни, «что хочется передать детям и внукам», с подсказкой получателя «Например, детям».
   def(
     "child",
     ["\\bдочер(?:и)\\b", "\\bдочке\\b", "\\bдоченьке\\b", "\\bдля\\s+доч(?:ки|ери)\\b", "\\bсыну\\b", "\\bсыночку\\b", "\\bдля\\s+сына\\b", "\\bребенку\\b", "\\bқызыма\\b", "\\bұлыма\\b", "\\bулыма\\b", "\\bбалама\\b"],
@@ -125,7 +127,7 @@ const RECIPIENTS: RecipientDef[] = [
     ["\\bдочерям\\b", "\\bдетям\\b", "\\bвнук(?:у|ам)\\b", "\\bвнучке\\b", "\\bбалаларыма\\b", "\\bнемереме\\b", "\\bнемерелеріме\\b"],
     ["\\bдет(?:и|ей)\\b", "\\bвнук\\S*"],
     { ru: "Детям", kk: "Балаларыңызға" },
-    "blank",
+    "autobiography",
     null,
   ),
   def(
@@ -204,7 +206,7 @@ export const themeMenu = (themes: readonly string[]) => MENU.filter((m) => theme
 /** Текст меню с номерами. */
 export const themeMenuText = (themes: readonly string[], lang: BotLang) =>
   themeMenu(themes)
-    .map((m, i) => `${i + 1} — ${m.menu[lang]}`)
+    .map((m, i) => `${i + 1} — ${m.menu[textLang(lang)]}`)
     .join("\n");
 
 /**
@@ -232,7 +234,7 @@ export function findRecipient(text: string, opts: { themes: readonly string[]; m
 }
 
 /** Подпись темы на языке клиента — для сводки и подтверждения. */
-export const themeLabel = (theme: string, lang: BotLang) => MENU.find((m) => m.theme === theme)?.label[lang] ?? theme;
+export const themeLabel = (theme: string, lang: BotLang) => MENU.find((m) => m.theme === theme)?.label[textLang(lang)] ?? theme;
 
 /**
  * Ссылка для клиента: регистрация открыта — сразу начать книгу этой темы; закрыта (решение владельца 17.10) — посадочная
@@ -248,7 +250,7 @@ export function bookLink(
 ): { url: string; kind: "start" | "example" } | null {
   const base = site.url.replace(/\/+$/, "");
   if (!/^https?:\/\//.test(base)) return null;
-  const prefix = lang === "kk" ? "/kk" : "";
+  const prefix = lang === "ru" ? "" : `/${lang}`;
   if (r.theme && knownClient) return { url: `${base}${prefix}/books/new?theme=${r.theme}`, kind: "start" };
   if (r.theme && site.registrationOpen) return { url: `${base}${prefix}/register?theme=${r.theme}`, kind: "start" };
   const slug = r.slug && site.landings.includes(r.slug) ? r.slug : r.theme ? site.themeLandings?.[r.theme] : undefined;

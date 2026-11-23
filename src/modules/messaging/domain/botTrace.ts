@@ -31,6 +31,8 @@ export const TRACE_NOTE_CODES = [
   "blocked_twice",
   "greeting_removed",
   "intro_added",
+  "weekday_fixed",
+  "invoice_promise",
   "limit",
   "loop",
   "unanswered",

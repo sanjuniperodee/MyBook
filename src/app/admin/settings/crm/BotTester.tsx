@@ -9,6 +9,7 @@ import { previewBotAction } from "./actions";
 import { BotTraceView } from "@/components/admin/chat/BotTrace";
 import type { BotConfig } from "@/modules/messaging/domain/botConfig";
 import type { BotPreviewResult } from "@/modules/messaging";
+import { BOT_LANG_LABELS } from "@/modules/messaging/domain/botLang";
 
 type Kind = "text" | "audio" | "image";
 type Turn = { text: string; type: Kind }[];
@@ -146,7 +147,7 @@ export function BotTester({ config }: { config: BotConfig }) {
             <div className="rounded-[var(--r-ctl)] border border-line p-2.5">
               <div className="mb-1 font-medium">В поля сделки</div>
               {result.fields.length ? result.fields.map((f) => <div key={f.label}>{`${f.label}: ${f.value}`}</div>) : <div className="text-muted">пока ничего</div>}
-              <div className="mt-1 text-muted">Язык: {result.lang === "kk" ? "казахский" : "русский"}</div>
+              <div className="mt-1 text-muted">Язык: {BOT_LANG_LABELS[result.lang] ?? result.lang}</div>
             </div>
             {result.summary ? <pre className="rounded-[var(--r-ctl)] border border-line p-2.5 font-sans whitespace-pre-wrap">{result.summary}</pre> : null}
           </div>

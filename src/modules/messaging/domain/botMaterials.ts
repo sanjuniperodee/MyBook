@@ -6,6 +6,7 @@
  * Подборку собирает владелец в настройках бота («Продажи» → «Материалы»), бот отправляет её один раз за беседу.
  */
 import type { BotLang } from "./botNlu";
+import { textLang } from "./botLang";
 
 export const MATERIAL_KINDS = ["image", "video", "document"] as const;
 export type MaterialKind = (typeof MATERIAL_KINDS)[number];
@@ -79,7 +80,8 @@ export function parseMaterials(raw: unknown): BotMaterial[] {
  */
 export function materialsFor(list: BotMaterial[], lang: BotLang): BotMaterial[] {
   const on = list.filter((m) => m.on);
-  const fits = (m: BotMaterial) => m.lang === "any" || m.lang === lang;
+  // Узбекам и англоязычным — русские материалы (своих у владельца нет).
+  const fits = (m: BotMaterial) => m.lang === "any" || m.lang === textLang(lang);
   const docs = on.filter((m) => m.kind === "document");
   const ownDocs = docs.filter(fits);
   return [...on.filter((m) => m.kind === "image" && fits(m)), ...on.filter((m) => m.kind === "video" && fits(m)), ...(ownDocs.length ? ownDocs : docs.slice(0, 1))];

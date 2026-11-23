@@ -9,7 +9,7 @@ import { saveBotAction } from "./actions";
 import { BotTester } from "./BotTester";
 import type { BotFormTab } from "./botTabs";
 import { Field, Group, Note, Section, Toggle } from "../ui";
-import { DEFAULT_SELL_FACTS, REMIND_TOUCHES_MAX, revoiceConfig, type BotChannel, type BotConfig, type BotLang, type BotTextKey, type FaqIntent } from "@/modules/messaging/domain/botConfig";
+import { DEFAULT_SELL_FACTS, REMIND_TOUCHES_MAX, revoiceConfig, type BotChannel, type BotConfig, type TextLang, type BotTextKey, type FaqIntent } from "@/modules/messaging/domain/botConfig";
 
 type Mode = "off" | "fallback" | "off_hours" | "always";
 export interface BotFormField {
@@ -118,7 +118,7 @@ export function BotForm({
   const [mode, setMode] = useState<Mode>((["off", "fallback", "off_hours", "always"] as const).find((m) => m === initialMode) ?? "off");
   // Тексты и ответы — голосом того, от чьего имени пишет бот: заводские тексты другого голоса заменены (см. revoiceConfig).
   const [cfg, setCfg] = useState<BotConfig>(() => revoiceConfig({ ...config, questions: config.questions.filter((q) => fields.some((f) => f.key === q.field)) }, config.sell.speaksAs));
-  const [lang, setLang] = useState<BotLang>("ru");
+  const [lang, setLang] = useState<TextLang>("ru");
   const [pending, start] = useTransition();
   // Последнее сохранённое состояние: по нему видно, есть ли несохранённые правки.
   const [savedJson, setSavedJson] = useState(() => JSON.stringify({ mode, cfg }));

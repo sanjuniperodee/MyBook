@@ -35,7 +35,8 @@ export const BOT_VARS: { key: string; label: string }[] = [
   { key: "{ссылка}", label: "сайт (или пример книги по теме)" },
 ];
 
-const money = (n: number, lang: BotLang) => (n === 0 ? (lang === "kk" ? "тегін" : "бесплатно") : `${new Intl.NumberFormat("ru-RU").format(n)} ₸`);
+const FREE: Record<BotLang, string> = { ru: "бесплатно", kk: "тегін", uz: "bepul", en: "free" };
+const money = (n: number, lang: BotLang) => (n === 0 ? FREE[lang] : `${new Intl.NumberFormat("ru-RU").format(n)} ₸`);
 
 /** Значения переменных на языке клиента. Скрытый тариф — пусто: бот не называет то, что не продаётся. */
 export function catalogVars(c: BotCatalog, lang: BotLang): Record<string, string> {
@@ -44,7 +45,7 @@ export function catalogVars(c: BotCatalog, lang: BotLang): Record<string, string
   const addon = (id: string) => c.addons.find((a) => a.id === id);
   const v = (x: { price: number } | undefined) => (x ? money(x.price, lang) : "");
   // Доставка не константа (город, перевозчик, InDriver): стоимость рассчитывается индивидуально — цены не называем.
-  const individually = lang === "kk" ? "құны жеке есептеледі" : "стоимость рассчитывается индивидуально";
+  const individually = { ru: "стоимость рассчитывается индивидуально", kk: "құны жеке есептеледі", uz: "narxi alohida hisoblanadi", en: "the cost is calculated individually" }[lang];
   const d = (x: { price: number; quoted?: boolean } | undefined) => (x?.quoted ? individually : v(x));
   const hardcover = plan("hardcover");
   return {

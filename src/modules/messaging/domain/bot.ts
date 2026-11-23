@@ -53,6 +53,8 @@ export function safeName(profileName: string, clientName?: string | null): strin
 
 const RU_WEEKDAY_ACC = ["в понедельник", "во вторник", "в среду", "в четверг", "в пятницу", "в субботу", "в воскресенье"];
 const KK_WEEKDAY = ["дүйсенбі", "сейсенбі", "сәрсенбі", "бейсенбі", "жұма", "сенбі", "жексенбі"];
+const UZ_WEEKDAY = ["dushanba", "seshanba", "chorshanba", "payshanba", "juma", "shanba", "yakshanba"];
+const EN_WEEKDAY = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 /** Казахский исходный падеж после времени: 09:00-ден, 09:30-дан, 09:15-тен (по последнему произносимому слову). */
 const KK_FROM_UNITS = ["ден", "ден", "ден", "тен", "тен", "тен", "дан", "ден", "ден", "дан"];
 const KK_FROM_TENS: Record<number, string> = { 1: "нан", 2: "дан", 3: "дан", 4: "тан", 5: "ден" };
@@ -70,20 +72,26 @@ export function whenText(start: Date, now: Date, lang: BotLang, tz = storeTimeZo
     const day = days <= 0 ? "бүгін" : days === 1 ? "ертең" : `${KK_WEEKDAY[s.weekday - 1]} күні`;
     return `${day} сағат ${time}-${kkFrom(s.minutes % 60)} бастап`;
   }
+  if (lang === "uz") return `${days <= 0 ? "bugun" : days === 1 ? "ertaga" : `${UZ_WEEKDAY[s.weekday - 1]} kuni`} soat ${time} dan boshlab`;
+  if (lang === "en") return `${days <= 0 ? "today" : days === 1 ? "tomorrow" : `on ${EN_WEEKDAY[s.weekday - 1]}`} from ${time}`;
   const day = days <= 0 ? "сегодня" : days === 1 ? "завтра" : RU_WEEKDAY_ACC[s.weekday - 1];
   return `${day} с ${time}`;
 }
 
 const RU_MONTHS_GEN = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"];
 const KK_MONTHS = ["қаңтар", "ақпан", "наурыз", "сәуір", "мамыр", "маусым", "шілде", "тамыз", "қыркүйек", "қазан", "қараша", "желтоқсан"];
+const UZ_MONTHS = ["yanvar", "fevral", "mart", "aprel", "may", "iyun", "iyul", "avgust", "sentabr", "oktabr", "noyabr", "dekabr"];
+const EN_MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const RU_WEEKDAY_SHORT = ["пн", "вт", "ср", "чт", "пт", "сб", "вс"];
 
-/** Дата YYYY-MM-DD для клиента: «21 ноября» / «21 қараша»; для менеджера (full) — «21 ноября 2026, сб». */
+/** Дата YYYY-MM-DD для клиента: «21 ноября» / «21 қараша» / «21-noyabr» / «21 November»; для менеджера (full) — «21 ноября 2026, сб». */
 export function humanDate(isoDate: string, lang: BotLang, full = false): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate);
   if (!m) return isoDate;
   const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
   if (lang === "kk") return `${d} ${KK_MONTHS[mo - 1]}${full ? ` ${y}` : ""}`;
+  if (lang === "uz") return `${full ? `${y}-yil ` : ""}${d}-${UZ_MONTHS[mo - 1]}`;
+  if (lang === "en") return `${d} ${EN_MONTHS[mo - 1]}${full ? ` ${y}` : ""}`;
   if (!full) return `${d} ${RU_MONTHS_GEN[mo - 1]}`;
   const weekday = (new Date(Date.UTC(y, mo - 1, d)).getUTCDay() + 6) % 7;
   return `${d} ${RU_MONTHS_GEN[mo - 1]} ${y}, ${RU_WEEKDAY_SHORT[weekday]}`;

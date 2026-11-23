@@ -48,6 +48,7 @@ import {
   remindRejectLabel,
   remindVerdict,
   sellerEventDate,
+  detectLang,
   type BotLang,
   withMediaText,
   SELLER_MAX_FOLLOW_UPS,
@@ -92,7 +93,7 @@ const MEDIA_PER_TURN = 3;
 const MEDIA_MAX_BYTES = 10_000_000;
 /** Инструкция распознаванию: только текст, который дальше идёт в беседу как слова клиента. */
 export const SELLER_MEDIA_PROMPT = {
-  audio: "Это голосовое сообщение клиента из WhatsApp (русский или казахский, бывает вперемешку). Верни дословную расшифровку на языке оригинала — только текст, без кавычек и пояснений. Речь неразборчива — верни пустую строку.",
+  audio: "Это голосовое сообщение клиента из WhatsApp (русский, казахский, узбекский или английский, бывает вперемешку). Верни дословную расшифровку на языке оригинала — только текст, без кавычек и пояснений. Речь неразборчива — верни пустую строку.",
   image:
     "Это фото, которое клиент прислал в WhatsApp компании, делающей персональные книги-подарки. Опиши кратко (1–2 предложения), что на нём и зачем клиент мог его прислать. Если это чек или скриншот оплаты (Kaspi, перевод) — начни ответ словами «Чек об оплате» и укажи сумму, если она видна. Номера телефонов и карт не переписывай. Верни только текст.",
 } as const;
@@ -195,7 +196,8 @@ export class AiSeller {
     const questions = config.questions.map((q) => q.field).filter((k) => fields.some((f) => f.key === k));
     const waited = conv.awaitingSince ? Math.max(0, Math.round((now.getTime() - new Date(conv.awaitingSince).getTime()) / 60_000)) : 0;
     const base: BotState = start
-      ? { ...state, phase: "active", startedAt: now.toISOString(), questions, first: preview(c.texts[0] ?? (c.voice ? "🎤" : c.media ? "📷" : "")), ai: { ...media.ai, waitedMinutes: state.ai.takeover ? waited : 0 } }
+      ? // Язык до ответа модели — по словам клиента: на нём уйдут заводские тексты, если модель не ответит (сбой, голосовое).
+        { ...state, phase: "active", startedAt: now.toISOString(), questions, lang: detectLang(c.texts.join(" ")) ?? state.lang, first: preview(c.texts[0] ?? (c.voice ? "🎤" : c.media ? "📷" : "")), ai: { ...media.ai, waitedMinutes: state.ai.takeover ? waited : 0 } }
       : { ...state, ai: media.ai };
 
     // Бота запустили кнопкой, новых сообщений нет: модель продолжает переписку сама.

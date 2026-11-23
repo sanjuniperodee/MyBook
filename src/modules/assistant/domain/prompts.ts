@@ -188,7 +188,7 @@ export interface BotUnderstanding {
   fields: Record<string, string>;
   intents: BotAiIntent[];
   handoff: BotAiHandoff | null;
-  lang: "ru" | "kk" | null;
+  lang: "ru" | "kk" | "uz" | "en" | null;
 }
 
 /**
@@ -235,7 +235,7 @@ export function parseBotUnderstanding(fields: AiField[], raw: unknown): BotUnder
   const values = Object.fromEntries(Object.entries(normalizeExtracted(fields, r.fields)).map(([k, v]) => [k, String(v)]));
   const intents = Array.isArray(r.intents) ? BOT_AI_INTENTS.filter((i) => (r.intents as unknown[]).includes(i)) : [];
   const handoff = BOT_AI_HANDOFFS.find((h) => h === r.handoff) ?? null;
-  const lang = r.lang === "kk" || r.lang === "ru" ? r.lang : null;
+  const lang = r.lang === "kk" || r.lang === "ru" || r.lang === "uz" || r.lang === "en" ? r.lang : null;
   return { fields: values, intents, handoff, lang };
 }
 
