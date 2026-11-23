@@ -52,6 +52,7 @@ PDF и HTML-страницы книги, и попиксельная сверк�
 | `chapter`, `front`, `toc`, `photos` | `InteriorSpread` — развороты страницы `books/[id]/pages`, шириной 960 px | разворот |
 | `preview` | `PagePreview` — превью в редакторе вопросов | каждая полоса, 480 px |
 | `back` | `CoverBackPreview` — оборот обложки в редакторе `books/[id]/cover` | оборот, 480 px |
+| `cover` | `CoverPreview` — лицо обложки, как у 3D-книги (`flipbookData`): сверка с лицом `cover.pdf` (крышка — `coverSpreadGeometry(...).front`) | лицо, 480 px |
 
 Своего HTML-вида у 3D-книги нет: её листы (`BookViewerGL`, `BookViewer3D`) — картинки полос экранной сборки,
 растр того же PDF, поэтому её страницы сверяет pdf-snapshot. Снимки `html:flipbook:*` эталонов, снятых до этого,

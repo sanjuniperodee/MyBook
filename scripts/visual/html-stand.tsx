@@ -4,6 +4,7 @@
  */
 import { createRoot } from "react-dom/client";
 import { CoverBackPreview } from "@/components/cover/CoverBackPreview";
+import { CoverPreview } from "@/components/cover/CoverPreview";
 import { PagePreview } from "@/components/editor/preview/PagePreview";
 import { InteriorSpread } from "@/components/interior/InteriorSpread";
 import { I18nProvider } from "@/i18n/client";
@@ -26,6 +27,8 @@ function Stand({ view }: { view: StandView }) {
   switch (view.kind) {
     case "preview":
       return <PagePreview {...view.preview} format={format} design={design} />;
+    case "cover":
+      return <CoverPreview {...view.cover} />;
     case "back":
       return <CoverBackPreview template={view.back.template} format={view.format} content={view.back.content} photos={view.back.photos} />;
     default:

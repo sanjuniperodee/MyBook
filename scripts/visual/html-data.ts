@@ -9,6 +9,8 @@ import { previewFromContent, type PreviewChapter, type PreviewGallery } from "@/
 import type { BookContent } from "@/lib/book/layout";
 import { photoPlaceOf } from "@/lib/book/photo-place";
 import { backPhotoRefs } from "@/lib/book/photo-refs";
+import { flipbookData } from "@/components/book3d/flipbook-data";
+import type { FlipbookData } from "@/components/book3d/pages";
 import { bookSpreadSample } from "@/server/spreadSample";
 import type { FixtureBook } from "../../tests/fixtures/books";
 
@@ -56,7 +58,7 @@ export interface BackData {
 }
 
 export type StandView = ViewBase &
-  ({ kind: SpreadKind; sample: SpreadSample } | { kind: "preview"; preview: PreviewData } | { kind: "back"; back: BackData });
+  ({ kind: SpreadKind; sample: SpreadSample } | { kind: "preview"; preview: PreviewData } | { kind: "back"; back: BackData } | { kind: "cover"; cover: FlipbookData["cover"] });
 
 /** Превью редактора: вопросы, сборка и полосы — тем же кодом, что страница books/[id]/questions и PreviewPane. */
 function editorPreview({ book, questions, chapters: ownChapters, photos, letters }: FixtureBook["bundle"]): PreviewData {
@@ -86,5 +88,7 @@ export function standViews(fixture: FixtureBook): StandView[] {
     ...spreadKinds.map((kind) => ({ ...view(kind), width: SPREAD_WIDTH, kind, sample })),
     { ...view("preview"), kind: "preview" as const, preview: editorPreview(fixture.bundle) },
     { ...view("back"), kind: "back" as const, back: backData(fixture.bundle) },
+    // Лицо обложки — как у 3D-книги и списков книг (CoverPreview по flipbookData): сверка с лицом cover.pdf.
+    { ...view("cover"), kind: "cover" as const, cover: flipbookData(book, questions, chapters, photos).cover },
   ];
 }
