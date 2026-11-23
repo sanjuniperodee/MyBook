@@ -70,6 +70,7 @@ export const design_pages: Messages["design"]["pages"] = {
     align: "Туралау",
     aligns: { justify: "Ені бойынша", left: "Солға", center: "Ортаға", right: "Оңға" },
     indent: "Азат жол",
+    indentFirst: "Бірінші абзацта да",
     paraGap: "Абзац аралығы",
     measure: "Баған ені",
     weight: "Қалыңдығы",

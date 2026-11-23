@@ -3,7 +3,7 @@ import { Text, View } from "@react-pdf/renderer";
 import type { Style } from "@react-pdf/stylesheet";
 import { listMarkerEm, type AnswerBlock } from "@/lib/book/answer-blocks";
 import { fontWidth } from "@/lib/book/fonts";
-import { ANSWER, dropCapPlan, indentEm, LEAD_IN, paraAfter, QUOTE_MARK, quoteStyle, splitInitial, splitLeadIn, type DropCapPlan } from "@/lib/book/typesetting";
+import { ANSWER, dropCapPlan, indentEm, LEAD_IN, paraIndent, paraAfter, QUOTE_MARK, quoteStyle, splitInitial, splitLeadIn, type DropCapPlan } from "@/lib/book/typesetting";
 import { face } from "@/modules/production/infrastructure/pdf/fonts";
 import { DROP_MARK } from "@/modules/production/infrastructure/pdf/flow";
 import { mark, noHyphens, textFace, type PdfKit } from "./kit";
@@ -166,7 +166,7 @@ export function TextBlock({ kit, block: b, id, leadIn, dropCap = false, first = 
   switch (b.kind) {
     case "para": {
       const plan = dropCap ? dropCapPlan(design, S) : null;
-      return plan ? <DropCapParagraph kit={kit} block={b} id={id} leadIn={leadIn} plan={plan} /> : <Paragraph kit={kit} block={b} id={id} leadIn={leadIn} indent={!first} />;
+      return plan ? <DropCapParagraph kit={kit} block={b} id={id} leadIn={leadIn} plan={plan} /> : <Paragraph kit={kit} block={b} id={id} leadIn={leadIn} indent={paraIndent(design, first)} />;
     }
     case "lede":
       return (

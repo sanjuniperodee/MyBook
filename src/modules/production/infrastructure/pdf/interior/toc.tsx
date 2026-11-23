@@ -1,7 +1,7 @@
 import "server-only";
 import { Page, Text, View } from "@react-pdf/renderer";
 import { bookToc } from "@/lib/book/toc";
-import { TOC } from "@/lib/book/typesetting";
+import { TOC, tocNumbered } from "@/lib/book/typesetting";
 import { face } from "@/modules/production/infrastructure/pdf/fonts";
 import { noHyphens, pageMark, textFace, type PdfKit } from "./kit";
 
@@ -11,6 +11,7 @@ export function Toc({ kit }: { kit: PdfKit }) {
   const P = design.palette;
   const bodyFace = face(design.type.body, 400);
   const entries = bookToc(content);
+  const numbered = tocNumbered(design);
   return (
     <Page {...pageMark("toc")} size={kit.pageSize} style={kit.pagePadding} wrap>
       <Text
@@ -28,7 +29,7 @@ export function Toc({ kit }: { kit: PdfKit }) {
       {entries.map((e) => (
         <View key={e.key} wrap={false} style={{ flexDirection: "row", alignItems: "flex-end", marginBottom: TOC.entry.after * scale, paddingLeft: e.level ? TOC.entry.indent * scale : 0 }}>
           <Text hyphenationCallback={noHyphens} style={{ ...bodyFace, fontSize: S.body, color: e.level ? P.muted : P.ink, maxWidth: TOC.entry.maxWidth }}>
-            {e.number ? `${e.number}. ` : ""}
+            {e.number && numbered ? `${e.number}. ` : ""}
             {e.label}
           </Text>
           <View style={{ flexGrow: 1, borderBottomWidth: TOC.leader.width, borderBottomColor: P.rule, borderBottomStyle: "dotted", marginHorizontal: TOC.leader.side, marginBottom: TOC.leader.bottom }} />

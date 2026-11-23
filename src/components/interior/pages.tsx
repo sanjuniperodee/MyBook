@@ -19,7 +19,7 @@ import { MM_TO_PT, print } from "@/lib/book/formats";
 import { fitWordSize } from "@/lib/book/word-fit";
 import { cropOr, fillFocus, type PhotoCrop } from "@/lib/book/photo-crop";
 import { OPENER_FOCUS, openerPhotoPlan, openerTextColors, photoArea, photoPagePlan, type OpenerPhotoPlan } from "@/lib/book/photo-pages";
-import { DISPLAY_TOP, FRONT, HTML_LINE_HEIGHT, OPENER, photoCaptionFace, TITLE_LAYOUT, TOC, VIGNETTE_RULE } from "@/lib/book/typesetting";
+import { DISPLAY_TOP, FRONT, HTML_LINE_HEIGHT, OPENER, photoCaptionFace, TITLE_LAYOUT, TOC, tocNumbered, VIGNETTE_RULE } from "@/lib/book/typesetting";
 import { cssFont } from "@/lib/book/fonts";
 import { cn } from "@/lib/class-names";
 import { hexAlpha } from "@/lib/color";
@@ -289,7 +289,7 @@ export function TocPage({ kit, entries, className, style, muted }: PageProps & {
         {entries.map((e) => (
           <div key={e.key ?? e.number ?? "gallery"} className="flex items-end" style={{ fontFamily: cssFont(design.type.body), fontSize: u.pt(S.body), lineHeight: HTML_LINE_HEIGHT.tocEntry, marginBottom: u.pt(TOC.entry.after * scale), paddingLeft: e.level ? u.pt(TOC.entry.indent * scale) : 0 }}>
             <span className="truncate" style={{ color: e.level ? P.muted : P.ink, maxWidth: TOC.entry.maxWidth }}>
-              {e.number ? `${e.number}. ` : ""}
+              {e.number && tocNumbered(design) ? `${e.number}. ` : ""}
               {e.title}
             </span>
             <span className="min-w-0 flex-1" style={{ borderBottom: `${u.pt(TOC.leader.width)} dotted ${P.rule}`, margin: `0 ${u.pt(TOC.leader.side)} ${u.pt(TOC.leader.bottom)}` }} />

@@ -216,6 +216,7 @@ export function parseInteriorStyle(raw: unknown): InteriorStyle {
             lineHeight: num(b.lineHeight, LIMITS.lineHeight),
             align: oneOf(b.align, ALIGNS),
             indent: num(b.indent, LIMITS.indent),
+            indentFirst: bool(b.indentFirst),
             paraGap: num(b.paraGap, LIMITS.paraGap),
             tracking: num(b.tracking, LIMITS.bodyTracking),
             weight: num(b.weight, LIMITS.weight),
@@ -319,7 +320,7 @@ export function applyInteriorStyle(design: InteriorDesign, raw: InteriorStyle | 
     ...(s.body?.lineHeight !== undefined ? { lineHeight: s.body.lineHeight } : {}),
   };
   const b = s.body ?? {};
-  const textOverrides: BodyText = compact({ align: b.align, indent: b.indent, paraGap: b.paraGap, tracking: b.tracking, weight: b.weight ?? f.body?.weight, measure: b.measure }) ?? {};
+  const textOverrides: BodyText = compact({ align: b.align, indent: b.indent, indentFirst: b.indentFirst, paraGap: b.paraGap, tracking: b.tracking, weight: b.weight ?? f.body?.weight, measure: b.measure }) ?? {};
   const text: BodyText | undefined = design.text || Object.keys(textOverrides).length ? { ...design.text, ...textOverrides } : undefined;
 
   const baseHeading: TextFace = design.heading.face ?? { font: design.type.heading, weight: design.type.headingWeight, italic: design.type.headingItalic };

@@ -177,6 +177,13 @@ export const paraAfter = (design: InteriorDesign) => design.text?.paraGap ?? ANS
 
 /** Красная строка, em (0 — нет). */
 export const indentEm = (design: InteriorDesign) => design.text?.indent ?? 0;
+/** Красная строка у абзаца: у первого блока ответа — только если автор включил «и у первого абзаца». */
+export const paraIndent = (design: InteriorDesign, first: boolean) => !first || design.text?.indentFirst === true;
+/**
+ * Номера глав в оглавлении («1. …»): нет, когда автор убрал номер главы («Номер главы» — «Без номера») — тогда
+ * номер, если нужен, автор пишет в самом названии главы, и оглавление его не дублирует.
+ */
+export const tocNumbered = (design: InteriorDesign) => design.opener.number !== "none";
 
 /** Насыщенность основного текста. */
 export const bodyWeight = (design: InteriorDesign) => design.text?.weight ?? 400;

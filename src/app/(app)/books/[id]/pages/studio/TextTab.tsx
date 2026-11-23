@@ -50,6 +50,7 @@ export function TextTab({ design, style, set, onFocus }: { design: InteriorDesig
           resetLabel={reset}
         />
         <NumberField label={t.indent} unit={t.units.em} value={indentEm(design)} min={0} max={3} step={0.1} onChange={(v) => body({ indent: v })} onReset={r(b.indent, () => body({ indent: undefined }))} resetLabel={reset} />
+        {indentEm(design) ? <Toggle label={t.indentFirst} checked={design.text?.indentFirst === true} onChange={(v) => body({ indentFirst: v || undefined })} /> : null}
         <NumberField label={t.paraGap} unit={t.units.em} value={paraAfter(design)} min={0} max={1.5} step={0.05} onChange={(v) => body({ paraGap: v })} onReset={r(b.paraGap, () => body({ paraGap: undefined }))} resetLabel={reset} />
         <NumberField label={t.measure} unit={t.units.pct} scale={100} value={design.text?.measure ?? 1} min={LIMITS.measure[0]} max={1} step={0.01} onChange={(v) => body({ measure: v >= 1 ? undefined : v })} onReset={r(b.measure, () => body({ measure: undefined }))} resetLabel={reset} />
         <p className="text-xs text-muted">{t.hint}</p>

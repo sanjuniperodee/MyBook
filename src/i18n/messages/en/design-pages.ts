@@ -70,6 +70,7 @@ export const design_pages: Messages["design"]["pages"] = {
     align: "Alignment",
     aligns: { justify: "Justified", left: "Left", center: "Centre", right: "Right" },
     indent: "First-line indent",
+    indentFirst: "Indent the first paragraph too",
     paraGap: "Space between paragraphs",
     measure: "Column width",
     weight: "Weight",

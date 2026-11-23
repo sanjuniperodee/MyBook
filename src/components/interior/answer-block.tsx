@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import { listMarkerEm, type AnswerBlock } from "@/lib/book/answer-blocks";
-import { ANSWER, QUOTE_MARK, quoteStyle } from "@/lib/book/typesetting";
+import { ANSWER, paraIndent, QUOTE_MARK, quoteStyle } from "@/lib/book/typesetting";
 import { textArea } from "@/lib/book/page-geometry";
 import type { PageKit } from "./kit";
 import { faceCss, italicBody, LeadParagraph, measureCss, paragraphCss } from "./typography";
@@ -143,7 +143,7 @@ export function AnswerBlockView({
 }: { kit: PageKit; block: AnswerBlock; leadIn: boolean; /** Здесь начинается глава: буквица. */ dropCap?: boolean; /** Первый блок ответа: без красной строки. */ first?: boolean; style?: CSSProperties } & React.HTMLAttributes<HTMLElement>) {
   switch (b.kind) {
     case "para":
-      return <LeadParagraph kit={kit} text={b.text} leadIn={leadIn} dropCap={dropCap} indent={!first} style={style} {...rest} />;
+      return <LeadParagraph kit={kit} text={b.text} leadIn={leadIn} dropCap={dropCap} indent={paraIndent(kit.design, first)} style={style} {...rest} />;
     case "lede":
       return <Lede kit={kit} block={b} style={style} {...rest} />;
     case "quote":

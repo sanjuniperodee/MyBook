@@ -68,6 +68,7 @@ export const design_pages = {
     align: "Выключка",
     aligns: { justify: "По ширине", left: "Влево", center: "По центру", right: "Вправо" },
     indent: "Красная строка",
+    indentFirst: "И у первого абзаца",
     paraGap: "Отбивка между абзацами",
     measure: "Ширина колонки",
     weight: "Насыщенность",

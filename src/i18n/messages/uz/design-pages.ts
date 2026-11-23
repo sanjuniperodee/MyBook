@@ -70,6 +70,7 @@ export const design_pages: Messages["design"]["pages"] = {
     align: "Tekislash",
     aligns: { justify: "Kenglik bo‘yicha", left: "Chapga", center: "Markazga", right: "O‘ngga" },
     indent: "Abzats chekinishi",
+    indentFirst: "Birinchi abzatsda ham",
     paraGap: "Abzatslar orasidagi masofa",
     measure: "Ustun kengligi",
     weight: "Qalinlik",

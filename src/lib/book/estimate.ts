@@ -16,7 +16,7 @@ import { chapterHeadHeight } from "./chapter-head";
 import { interiorMetrics, textArea } from "./page-geometry";
 import { hasToc, bookToc } from "./toc";
 import { fontWidth } from "./fonts";
-import { ANSWER, DIVIDER, HEADING, headingFace, HTML_LINE_HEIGHT, indentEm, INLINE_ROW, interiorSizes, measureInsets, MEDIA_CARD, paraAfter, quoteFace, TOC, type InteriorSizes } from "./typesetting";
+import { ANSWER, DIVIDER, HEADING, headingFace, HTML_LINE_HEIGHT, indentEm, INLINE_ROW, interiorSizes, measureInsets, MEDIA_CARD, paraAfter, paraIndent, quoteFace, TOC, tocNumbered, type InteriorSizes } from "./typesetting";
 
 /** Средняя ширина знака основного текста, em: по ней считаем, сколько знаков помещается в строке. */
 const AVG_CHAR_EM = 0.5;
@@ -75,7 +75,7 @@ function blockHeight(b: AnswerBlock, m: TextMetrics, first = true): number {
   switch (b.kind) {
     case "para": {
       // Красная строка — несколько знаков в первой строке.
-      const indent = first ? 0 : indentEm(design) / charEm;
+      const indent = paraIndent(design, first) ? indentEm(design) / charEm : 0;
       return lines(b.text.length + indent, column, S.body, charEm) * line + S.body * paraAfter(design);
     }
     case "lede": {
@@ -208,7 +208,7 @@ export function tocParts(content: BookContent, m: TextMetrics): number[] {
   let part = 0;
   let used = title;
   return bookToc(content).map((line) => {
-    const chars = line.label.length + (line.number ? String(line.number).length + 2 : 0);
+    const chars = line.label.length + (line.number && tocNumbered(m.design) ? String(line.number).length + 2 : 0);
     const h = lines(chars, labelWidth - (line.level ? TOC.entry.indent * scale : 0), S.body) * S.body * HTML_LINE_HEIGHT.tocEntry + TOC.entry.after * scale;
     if (used + h > height) {
       part += 1;
