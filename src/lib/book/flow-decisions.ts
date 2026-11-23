@@ -8,7 +8,8 @@
  *  - заголовок (или лид) остался внизу полосы, а текст ушёл дальше → ответ начинается с новой полосы;
  *  - фото не поместилось и перескочило на следующую полосу, оставив пустоту → фото уменьшается
  *    ровно до свободного места (если это не делает его слишком мелким);
- *  - фото оказалось на полосе одно → встаёт по центру по вертикали, как фотостраница;
+ *  - на полосе только фото (один или несколько рядов, с подписями, может быть с концовкой главы) → они встают по центру
+ *    по вертикали, как фотостраница;
  *  - концовка главы перескочила одна на новую полосу → её не ставим.
  *
  * Решения копятся (не отменяются) и в пределах куска главы между принудительными разрывами
@@ -138,6 +139,8 @@ interface Spot {
   prev?: FlowPiece;
   /** Следующий блок той же главы. */
   next?: FlowBlock;
+  /** Следующие блоки той же главы по порядку (next — первый): до полосы, где блок кончился, и первый после неё. */
+  rest: FlowBlock[];
   /** Полоса, на которой блок начался. */
   page: FlowPage;
   pages: FlowPage[];
@@ -180,13 +183,32 @@ const shrinkRow: Rule = ({ block, prev, page, pages, flow, rowHeights }) => {
   return { type: "rowScale", mark, scale: Math.min(1, scale) };
 };
 
-/** Фото одно на полосе (до и после — другие полосы) → ставим по центру полосы набора. */
-const centerRow: Rule = ({ block, prev, next, page, flow }) => {
-  const { mark, first: start, last: end } = block;
-  const alone = atPageTop(start, page) && (!prev || prev.page < start.page) && (!next || next.first.page > end.page);
-  if (!alone || start.page !== end.page || flow.rowOffset.has(mark)) return undefined;
+/**
+ * На полосе только фото → ставим по центру полосы набора, как фотостраницу. «Только фото» — с верха полосы подряд стоят
+ * ряды фото (один или несколько, с подписями), за ними может быть концовка главы; текста ответа, заголовков и карточек
+ * QR на полосе нет: до — другая полоса, следующий блок главы — тоже на другой. Отступ получает первый ряд, остальное
+ * (ряды и концовка) сдвигается вместе с ним; объём книги не меняется — сдвиг не больше половины свободного места.
+ */
+const centerRow: Rule = ({ block, prev, rest, page, flow }) => {
+  const { mark, first: start } = block;
+  if (!atPageTop(start, page) || (prev && prev.page >= start.page) || flow.rowOffset.has(mark)) return undefined;
+  // Группа полосы: этот ряд, следующие ряды на той же полосе и концовка главы последней.
+  let end = block;
+  let i = 0;
+  for (; i < rest.length; i++) {
+    const b = rest[i];
+    if (b.first.page !== start.page || !(b.kind === "r" || b.kind === "t") || end.kind === "t") break;
+    end = b;
+  }
+  const after = rest[i];
+  // Блок группы разбит на полосы или следом на той же полосе что-то ещё (текст, заголовок, карточка) → не только фото.
+  if (end.last.page !== start.page || block.last.page !== start.page || (after && after.first.page <= start.page)) return undefined;
+  if (rest.slice(0, i).some((b) => b.last.page !== start.page)) return undefined;
   const textH = textHeight(page);
-  const offset = (textH - (end.bottom - start.top)) / 2;
+  const height = end.last.bottom - start.top;
+  const offset = (textH - height) / 2;
+  // Нижнее поле последнего блока тоже должно уместиться — иначе сдвиг вытолкнет его на следующую полосу.
+  if (offset + height + end.last.marginBottom > textH - EPS) return undefined;
   return offset > textH * MIN_OFFSET_SHARE ? { type: "rowOffset", mark, offset: Math.round(offset) } : undefined;
 };
 
@@ -222,6 +244,16 @@ function segmentsOf(blocks: FlowBlock[], breakBefore: ReadonlySet<string>): stri
 /** Блок по индексу, если он из той же главы. */
 const inChapter = (blocks: FlowBlock[], index: number, chapter: string) => (blocks[index]?.chapter === chapter ? blocks[index] : undefined);
 
+/** Блоки той же главы с index: те, что начинаются не позже полосы page, и первый после неё. */
+function restOfChapter(blocks: FlowBlock[], index: number, chapter: string, page: number): FlowBlock[] {
+  const out: FlowBlock[] = [];
+  for (let i = index; blocks[i]?.chapter === chapter; i++) {
+    out.push(blocks[i]);
+    if (blocks[i].first.page > page) break;
+  }
+  return out;
+}
+
 /**
  * Решения для следующего прохода по раскладке прошлого. Не больше одного на кусок главы: первое по порядку.
  * Уже принятые (`flow`) не повторяются. rowHeights — высота самих фото в ряду (без подписи), pt: чтобы посчитать масштаб;
@@ -236,7 +268,8 @@ export function nextDecisions(layout: FlowLayout, flow: FlowDecisions, rowHeight
     if (decided.has(segments[i])) return;
     const prev = inChapter(blocks, i - 1, block.chapter)?.last;
     const next = inChapter(blocks, i + 1, block.chapter);
-    const decision = RULES[block.kind]({ block, prev, next, page: pages[block.first.page], pages, flow, rowHeights, minLead });
+    const rest = restOfChapter(blocks, i + 1, block.chapter, block.last.page);
+    const decision = RULES[block.kind]({ block, prev, next, rest, page: pages[block.first.page], pages, flow, rowHeights, minLead });
     if (!decision) return;
     decided.add(segments[i]);
     decisions.push(decision);

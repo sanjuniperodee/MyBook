@@ -208,6 +208,49 @@ describe("решения доводки: фото одно на полосе", (
   });
 });
 
+describe("решения доводки: полоса только с фото — по центру (Обращение №11)", () => {
+  const ROW2 = "r:a:Infinity:1";
+
+  it("фото и концовка главы под ним, дальше пусто → группа по центру", () => {
+    // Ряд 50…150, концовка 170…180: высота группы 130, свободно 370 → отступ 185.
+    const l = layoutOf(2, block("b:a:0", at(0, 50, 490)), block(ROW, at(1, 50, 100)), block("t:ch1", at(1, 170, 10, { top: 20 })));
+    expect(decide(l)).toEqual([{ type: "rowOffset", mark: ROW, offset: 185 }]);
+  });
+
+  it("два ряда фото подряд одни на полосе → отступ первому, вместе по центру", () => {
+    const l = layoutOf(3, block("b:a:0", at(0, 50, 490)), block(ROW, at(1, 50, 100)), block(ROW2, at(1, 160, 100)), block("b:b:0", at(2, 50, 100), "ch1"));
+    expect(decide(l)).toEqual([{ type: "rowOffset", mark: ROW, offset: 145 }]);
+  });
+
+  it("под фото на той же полосе текст, заголовок или карточка QR → полоса не только с фото", () => {
+    const tail = (b: FlowBlock) => layoutOf(3, block("b:a:0", at(0, 50, 490)), block(ROW, at(1, 50, 100)), b, block("b:c:0", at(2, 50, 100)));
+    expect(decide(tail(block("h:b", at(1, 200, 30))))).toEqual([]);
+    expect(decide(tail(block("b:a:9", at(1, 200, 60))))).toEqual([]);
+  });
+
+  it("после концовки на той же полосе ничего не бывает, но и второй ряд после неё в группу не входит", () => {
+    const l = layoutOf(2, block("b:a:0", at(0, 50, 490)), block(ROW, at(1, 50, 100)), block("t:ch1", at(1, 170, 10)), block(ROW2, at(1, 200, 100)));
+    expect(decide(l)).toEqual([]);
+  });
+
+  it("второй ряд перешёл на следующую полосу → первый один на своей полосе, по центру", () => {
+    const l = layoutOf(3, block("b:a:0", at(0, 50, 490)), block(ROW, at(1, 50, 300)), block(ROW2, at(2, 50, 300)));
+    expect(decide(l)).toEqual([{ type: "rowOffset", mark: ROW, offset: 100 }]);
+  });
+
+  it("нижнее поле последнего блока не уместится после сдвига → не двигаем", () => {
+    const l = layoutOf(2, block("b:a:0", at(0, 50, 490)), block(ROW, at(1, 50, 440, { bottom: 40 })));
+    expect(decide(l)).toEqual([]);
+  });
+
+  it("группа уже по центру → не повторяем", () => {
+    const flow = emptyFlow();
+    flow.rowOffset.set(ROW, 185);
+    const l = layoutOf(2, block("b:a:0", at(0, 50, 490)), block(ROW, at(1, 50, 100)), block("t:ch1", at(1, 170, 10)));
+    expect(decide(l, flow)).toEqual([]);
+  });
+});
+
 describe("решения доводки: концовка главы", () => {
   it("концовка одна на новой полосе → не ставится", () => {
     expect(decide(layoutOf(2, block("b:a:0", at(0, 50, 495)), block("t:ch1", at(1, 50, 10))))).toEqual([{ type: "noTail", chapter: "ch1" }]);
