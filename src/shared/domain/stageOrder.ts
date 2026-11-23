@@ -1,3 +1,5 @@
+import { zonedDay } from "./time";
+
 /**
  * «Порядок в воронке»: заявка без оплаты сама идёт по этапам вслед за перепиской — менеджеру не нужно двигать её руками.
  * Здесь настройка и решение по одной заявке (без базы и времени — для сервера, страницы настроек и тестов).
@@ -62,6 +64,8 @@ export interface StageOrderDeal {
   lastOut: Date | null;
   /** У сделки есть открытая задача — у менеджера свой план, заявку не трогаем (кроме «взяли в работу»). */
   hasOpenTask: boolean;
+  /** «Дата события» сделки (ГГГГ-ММ-ДД), если есть: пока она впереди, молчащую заявку отказом не закрываем. */
+  eventDate?: string | null;
 }
 
 export type StageOrderMove = { to: "work" | "silent" | "lost"; why: string };
@@ -74,7 +78,8 @@ const days = (n: number) => `${n} ${n % 10 === 1 && n % 100 !== 11 ? "день" 
  * - на этапе «не отвечает» клиент написал после перевода туда → «в работе»;
  * - на первом этапе мы уже ответили клиенту → «в работе»;
  * - на первом этапе или «в работе» клиент молчит silentDays дней после нашего ответа → «не отвечает»;
- * - на этапе «не отвечает» клиент молчит lostDays дней → отказ.
+ * - на этапе «не отвечает» клиент молчит lostDays дней → отказ, но не раньше «Даты события»: клиент, который назвал
+ *   дату подарка, часто возвращается ближе к ней — до неё заявка ждёт на «не отвечает» (аналитика 09.11).
  * Заявке, на которую мы ещё не ответили, этап не меняем: она должна оставаться на виду.
  */
 export function stageOrderMove(d: StageOrderDeal, cfg: StageOrderConfig, now: Date): StageOrderMove | null {
@@ -84,7 +89,8 @@ export function stageOrderMove(d: StageOrderDeal, cfg: StageOrderConfig, now: Da
   const answered = !!d.lastOut && (!d.lastIn || d.lastOut >= d.lastIn);
   if (d.stageId === cfg.silentStageId) {
     if (d.lastIn && d.lastIn > d.stageChangedAt) return { to: "work", why: "клиент снова написал" };
-    if (!d.hasOpenTask && silentFor >= cfg.lostDays) return { to: "lost", why: `клиент не отвечает ${days(silentFor)}` };
+    const eventAhead = !!d.eventDate && /^\d{4}-\d{2}-\d{2}$/.test(d.eventDate) && d.eventDate >= zonedDay(now);
+    if (!d.hasOpenTask && !eventAhead && silentFor >= cfg.lostDays) return { to: "lost", why: `клиент не отвечает ${days(silentFor)}` };
     return null;
   }
   if (!d.onEntryStage && d.stageId !== cfg.workStageId) return null;

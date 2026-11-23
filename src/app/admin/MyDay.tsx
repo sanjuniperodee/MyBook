@@ -15,6 +15,7 @@ import { parseWorkHours } from "@/shared/domain/schedule";
 import { responseWait, slaMinutes } from "@/modules/reporting/ui/response-wait";
 import { TaskRows, type TaskRow } from "./tasks/TaskRows";
 import { taskContact, taskRow, type Reacher } from "./tasks/task-row";
+import { MANAGER_LISTS, MANAGER_LIST_KEYS } from "@/modules/reporting/ui/managerLists";
 
 /**
  * «Мой день» — рабочее место менеджера: что горит прямо сейчас. Данные одни, а блоков четыре, чтобы страница сама решала,
@@ -25,12 +26,13 @@ import { taskContact, taskRow, type Reacher } from "./tasks/task-row";
 export async function myDayParts(staff: Staff) {
   const me = staff.user.id;
   const viewer = { userId: me, seesAll: staff.scope === "all" };
-  const [{ tasks, waiting, missed, deals, unsorted, counts }, plans, slaRaw, hoursRaw, provider] = await Promise.all([
+  const [{ tasks, waiting, missed, deals, unsorted, counts }, plans, slaRaw, hoursRaw, provider, lists] = await Promise.all([
     container().reporting.myDay(viewer, { chats: can(staff, "chats.view"), calls: can(staff, "calls.view"), deals: can(staff, "deals.view") }),
     container().sales.queries.planProgress(currentMonth(), [me]),
     getSetting("crm.slaMinutes"),
     getSetting("crm.workHours"),
     can(staff, "calls.make") ? container().telephony.phone.currentProvider() : null,
+    can(staff, "deals.view") ? container().reporting.managerListCounts(viewer) : null,
   ]);
   const plan = plans.get(me);
   const now = new Date();
@@ -174,7 +176,23 @@ export async function myDayParts(staff: Staff) {
       </Panel>
     );
 
-  return { strip, plan: planBlock, tasks: tasksBlock, queue };
+  // Списки для менеджеров (отчёт 15.11): кого сегодня дожать — число и ссылка на сделки с этим фильтром.
+  const listsBlock = lists ? (
+    <Panel flush title="Кого дожать" actions={<Link href="/admin/deals?view=list" className="btn btn-ghost btn-sm">Сделки</Link>}>
+      <ul className="divide-y divide-line" data-testid="my-day-lists">
+        {MANAGER_LIST_KEYS.map((k) => (
+          <li key={k}>
+            <Link href={`/admin/deals?view=list&list=${k}`} title={MANAGER_LISTS[k].hint} className="flex min-h-12 items-center gap-3 px-4 py-2.5 text-sm hover:bg-sunken/60 sm:px-5">
+              <span className="min-w-0 flex-1 truncate">{MANAGER_LISTS[k].label}</span>
+              <span className={cn("tabular-nums", lists[k] ? "font-semibold text-ink" : "text-muted")}>{lists[k]}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </Panel>
+  ) : null;
+
+  return { strip, plan: planBlock, tasks: tasksBlock, queue, lists: listsBlock };
 }
 
 /** «Мой день» целиком — страница сотрудника без доступа к аналитике: числа, план, затем задачи и очередь двумя колонками. */
@@ -185,7 +203,10 @@ export async function MyDay({ staff }: { staff: Staff }) {
       {p.strip}
       {p.plan}
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_24rem] xl:items-start">
-        <div className="flex min-w-0 flex-col gap-5 xl:order-2">{p.queue}</div>
+        <div className="flex min-w-0 flex-col gap-5 xl:order-2">
+          {p.queue}
+          {p.lists}
+        </div>
         <div className="flex min-w-0 flex-col gap-5 xl:order-1">{p.tasks}</div>
       </div>
     </div>

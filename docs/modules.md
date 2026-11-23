@@ -13,7 +13,7 @@
 | [access](#access) | Access: сотрудники, роли и права, правила безопасности, журнал. | 16 / 866 | 45 |
 | [assistant](#assistant) | AI-помощник (Claude, ChatGPT, DeepSeek или свой OpenAI-совместимый сервер). | 23 / 2266 | 25 |
 | [authoring](#authoring) | Authoring: книги, вопросы, оглавление своей книги, фото, письма близких. | 28 / 3800 | 70 |
-| [automation](#automation) | Автоматизации (цифровая воронка CRM). | 16 / 1918 | 9 |
+| [automation](#automation) | Автоматизации (цифровая воронка CRM). | 16 / 1935 | 9 |
 | [clients](#clients) | Клиенты CRM: профиль клиента, задачи и заметки менеджеров. | 9 / 1135 | 29 |
 | [feedback](#feedback) | Отзывы: отзыв клиента о книге, благодарность автору, модерация и витрина. | 12 / 641 | 7 |
 | [identity](#identity) | Identity: учётные записи, вход, пароли, второй фактор. | 17 / 1037 | 19 |
@@ -23,7 +23,7 @@
 | [ordering](#ordering) | Заказы. Остальной код видит только его. | 46 / 5605 | 91 |
 | [production](#production) | Производство: вёрстка PDF книги и сертификатов, предпросмотры полос и обложек, файлы для типографии, очередь сборки. В container — previews (BookPreviewService) и printFiles. | 40 / 4569 | 0 |
 | [referrals](#referrals) | Приглашения: код для друзей, награда за их заказы и покупки из чата. | 10 / 358 | 3 |
-| [reporting](#reporting) | Отчёты CRM — сторона чтения (CQRS): сводные выборки по нескольким контекстам для страниц (дашборд, аналитика, поиск, «Мой день»). Только чтение, без бизнес-правил: команды идут через модули контекстов. | 42 / 4377 | 56 |
+| [reporting](#reporting) | Отчёты CRM — сторона чтения (CQRS): сводные выборки по нескольким контекстам для страниц (дашборд, аналитика, поиск, «Мой день»). Только чтение, без бизнес-правил: команды идут через модули контекстов. | 44 / 4485 | 57 |
 | [sales](#sales) | Продажи: сделки, воронки, этапы, дубли, воронка по действиям на сайте. | 27 / 2864 | 90 |
 | [support](#support) | Обращения: проблемы и просьбы с формы /support, расшифровка голосовых, статусы, уведомление и закрытие по выкатке. | 6 / 695 | 12 |
 | [telephony](#telephony) | Телефония: журнал звонков из АТС, звонки из CRM, веб-телефон, записи, звонки WhatsApp. | 13 / 1090 | 27 |
@@ -164,7 +164,7 @@ Identity: учётные записи, вход, пароли, второй фа
 
 - Папка: `src/modules/reporting` (infrastructure, ui)
 - Фасад: `ReportingModule` → `container().reporting`
-- Публичное: `salesAnalytics`, `dashboard`, `attention`, `morningDigest`, `vcardClients`, `paymentsExport`, `myDay`, `search`, `dealById`, `dealCard`, `clientBrief`, `clientById`, `clientCard`, `clientReferrals`, `inbox`, `conversationContext`, `taskList`, `taskById`, `callJournal`, `orderList`, `orderExport`, `productionBoard`, `orderOwnership`, `bookOwnership`, `orderCrm`, `orderNotice`, `dealList`, `dealTotals`, `savedViews`, `stageCounts`, `duplicateGroups`, `bookList`, `counters`, `live`, `clients`, `segmentCounts`, `finance`, `financeIssues`, `expenses`, `profit`, `leadStats`, `salesRegister`, `stageOrderCandidates`, `stageOrderPaid`, `automationStats`, `designAi`
+- Публичное: `salesAnalytics`, `dashboard`, `attention`, `managerListCounts`, `morningDigest`, `vcardClients`, `paymentsExport`, `myDay`, `search`, `dealById`, `dealCard`, `clientBrief`, `clientById`, `clientCard`, `clientReferrals`, `inbox`, `conversationContext`, `taskList`, `taskById`, `callJournal`, `orderList`, `orderExport`, `productionBoard`, `orderOwnership`, `bookOwnership`, `orderCrm`, `orderNotice`, `dealList`, `dealTotals`, `savedViews`, `stageCounts`, `duplicateGroups`, `bookList`, `counters`, `live`, `clients`, `segmentCounts`, `finance`, `financeIssues`, `expenses`, `profit`, `leadStats`, `salesRegister`, `stageOrderCandidates`, `stageOrderPaid`, `automationStats`, `designAi`
 - Таблицы: своих нет
 - Тесты (26): `attention.integration.test.ts`, `automation-stats.integration.test.ts`, `book-modes.integration.test.ts`, `clients-filters.integration.test.ts`, `clients-filters.test.ts`, `crm-modes.integration.test.ts`, `dashboard-new-clients.integration.test.ts`, `deal-filters.test.ts`, `deal-lifecycle.integration.test.ts`, `finance-batch.integration.test.ts`, `finance-reports.test.ts`, `finance-screen.test.ts`, `finance.integration.test.ts`, `invoice-crm.integration.test.ts`, `morning-digest.integration.test.ts`, `my-day.integration.test.ts`, `order-deal.integration.test.ts`, `phone-search.integration.test.ts`, `phone-search.test.ts`, `referral-chat.integration.test.ts`, `reporting-screens.test.ts`, `response-stats.test.ts`, `revenue-agreed.integration.test.ts`, `sales-analytics.integration.test.ts`, `time.test.ts`, `vcard.integration.test.ts`
 

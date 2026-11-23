@@ -124,7 +124,7 @@ export function relevantConditions(
   },
 ) {
   const out: Record<string, string | number | null> = {};
-  if ((trigger === "deal.stage_changed" || trigger === "deal.idle") && c.stageId) out.stageId = c.stageId;
+  if ((trigger === "deal.stage_changed" || trigger === "deal.idle" || trigger === "message.silent") && c.stageId) out.stageId = c.stageId;
   if (trigger === "order.status_changed" && c.orderStatus) out.orderStatus = c.orderStatus;
   if (trigger === "deal.created" && c.source) out.source = c.source;
   if (trigger.startsWith("message.") && c.channel) out.channel = c.channel;
@@ -150,7 +150,10 @@ export function relevantConditions(
     out.days = Math.min(IDLE_LIMITS.days, c.days ?? IDLE_DEFAULTS.days);
     out.perDay = Math.min(IDLE_LIMITS.perDay, c.perDay ?? IDLE_DEFAULTS.perDay);
   }
-  if (trigger === "message.silent") out.silentHours = Math.min(SILENT_LIMITS.hours, c.silentHours ?? SILENT_DEFAULTS.hours);
+  if (trigger === "message.silent") {
+    out.silentHours = Math.min(SILENT_LIMITS.hours, c.silentHours ?? SILENT_DEFAULTS.hours);
+    out.perDay = Math.min(SILENT_LIMITS.perDay, c.perDay ?? SILENT_DEFAULTS.perDay);
+  }
   if (c.hours === "work" || c.hours === "off") out.hours = c.hours;
   return out;
 }

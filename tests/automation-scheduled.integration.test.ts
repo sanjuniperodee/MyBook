@@ -361,7 +361,7 @@ run("automation: выборки правил по времени (PostgreSQL)", 
     const hoursAgo = (h: number) => new Date(Date.now() - h * 3_600_000);
     const keys = ["silent", "botDone", "replied", "fresh", "old", "awaiting", "bot", "closed", "task", "lost", "blocked", "botOnly"];
     const query = async (ruleId = ids.rule) =>
-      (await source.silent(ruleId, { before: hoursAgo(24), since: hoursAgo(24 + 7 * 24) })).filter((r) => keys.some((k) => silent[k] === r.conversationId));
+      (await source.silent(ruleId, { before: hoursAgo(24), since: hoursAgo(24 + 7 * 24), stageId: null, limit: 100 })).filter((r) => keys.some((k) => silent[k] === r.conversationId));
     const silentKeys = async (ruleId = ids.rule) => (await query(ruleId)).map((r) => keys.find((k) => silent[k] === r.conversationId));
 
     beforeAll(async () => {

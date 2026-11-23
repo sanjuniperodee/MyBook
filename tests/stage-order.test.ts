@@ -49,6 +49,16 @@ describe("Порядок в воронке: решение по заявке", (
     expect(stageOrderMove(deal({ ...silent, lastIn: ago(9), lastOut: ago(8) }), cfg, now)).toBeNull();
   });
 
+  it("дата события впереди (и сегодня) — молчащую заявку отказом не закрываем; дата прошла — закрываем", () => {
+    const silent = { stageId: "silent", onEntryStage: false, stageChangedAt: ago(4), lastIn: ago(20), lastOut: ago(19) };
+    expect(stageOrderMove(deal({ ...silent, eventDate: "2026-12-09" }), cfg, now)).toBeNull();
+    expect(stageOrderMove(deal({ ...silent, eventDate: "2026-11-15" }), cfg, now)).toBeNull();
+    expect(stageOrderMove(deal({ ...silent, eventDate: "2026-11-14" }), cfg, now)).toEqual({ to: "lost", why: "клиент не отвечает 20 дней" });
+    expect(stageOrderMove(deal({ ...silent, eventDate: "к Новому году" }), cfg, now)).toEqual({ to: "lost", why: "клиент не отвечает 20 дней" });
+    // В «не отвечает» заявка с датой уходит как обычно — это лишь подпись, она остаётся открытой.
+    expect(stageOrderMove(deal({ stageId: "work", onEntryStage: false, lastIn: ago(5), lastOut: ago(4), eventDate: "2026-12-09" }), cfg, now)).toEqual({ to: "silent", why: "клиент не отвечает 5 дней" });
+  });
+
   it("открытая задача — у менеджера свой план: в «не отвечает» и отказ не уводим", () => {
     expect(stageOrderMove(deal({ stageId: "work", onEntryStage: false, lastIn: ago(6), lastOut: ago(5), hasOpenTask: true }), cfg, now)).toBeNull();
     expect(stageOrderMove(deal({ stageId: "silent", onEntryStage: false, stageChangedAt: ago(20), lastIn: ago(30), lastOut: ago(29), hasOpenTask: true }), cfg, now)).toBeNull();
