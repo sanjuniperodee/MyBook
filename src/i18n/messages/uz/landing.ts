@@ -44,7 +44,7 @@ export const landing: typeof ru = {
     eyebrow: "Qanday ishlaydi",
     title: "To‘rt qadam — birinchi javobdan to qo‘lingizdagi kitobgacha",
     /** Сколько занимает каждый шаг (под номером шага). */
-    when: (days: string) => ["2 daqiqa", "ikki kechadan", "bir kech", `bosish uchun ${days} ish kuni`],
+    when: (days: string) => ["2 daqiqa", "ikki oqshomdan", "bir oqshom", `bosish uchun ${days} ish kuni`],
     steps: (questions: number) => [
       { title: "Kim haqida ekanini tanlang", text: "Sevgan insoningiz, ona, ota yoki do‘st uchun — har biriga o‘z savollar va boblar to‘plami bor. Yoki o‘zingiz haqingizda: tarjimai hol yoki bo‘sh varaqdan boshlanadigan o‘z kitobingiz." },
       { title: "Savollarga javob bering", text: `${questions} tagacha puxta o‘ylangan, maslahatli savol. Xohlagancha yozing — hatto kuniga bir qatordan.` },
@@ -107,7 +107,7 @@ export const landing: typeof ru = {
     eyebrow: (brand: string) => `Nega ${brand}`,
     title: "Yozish sizga oson bo‘lishi uchun yaratilgan",
     items: [
-      { title: "Avtomatik saqlash", text: "Har bir so‘z o‘zi saqlanadi. Varaqni yopdingizmi — istalgan qurilmada xuddi shu joydan davom etasiz." },
+      { title: "Avtomatik saqlash", text: "Har bir so‘z o‘zi saqlanadi. Sahifani yopdingizmi — istalgan qurilmada xuddi shu joydan davom etasiz." },
       { title: "Jonli oldindan ko‘rish", text: "Yozayotganda o‘ng tomonda javob kitob sahifasida qanday ko‘rinishi ko‘rinib turadi." },
       { title: "Aqlli ifodalar", text: "Savollar muallif va oluvchiga moslashadi. Istalgan sarlavhani qayta yozish mumkin." },
       { title: "Nashriyot darajasidagi tipografika", text: "So‘z ko‘chirishlar, tekislash, mundarija, epigraflar — yaxshi kitobdagidek maket." },
@@ -148,7 +148,7 @@ export const landing: typeof ru = {
     items: (days: { standard: string; premium: string }): [string, string][] => [
       [
         "Kitob yozish uchun qancha vaqt kerak?",
-        "Odatda ikki kechadan bir-ikki haftagacha. Barcha javoblar avtomatik saqlanadi — yo‘lda telefondan yozib, uyda kompyuterdan davom ettirish mumkin. Hamma savolga javob berish shart emas: kitobga faqat to‘ldirilganlari kiradi.",
+        "Odatda ikki oqshomdan bir-ikki haftagacha. Barcha javoblar avtomatik saqlanadi — yo‘lda telefondan yozib, uyda kompyuterdan davom ettirish mumkin. Hamma savolga javob berish shart emas: kitobga faqat to‘ldirilganlari kiradi.",
       ],
       [
         "Chiroyli yozishni bilmasam-chi?",
@@ -184,7 +184,7 @@ export const landing: typeof ru = {
       ],
       [
         "Matnlarimni kimdir ko‘radimi?",
-        "Yo‘q. Kitobingiz faqat sizga ochiq. Ishlab chiqarish xodimlari tayyor bosma fayllarni faqat buyurtmani bajarish uchun oladi.",
+        "Kitob e’lon qilinmaydi: uni siz va xat yozishga o‘zingiz taklif qilgan odamlar ko‘radi. Xodimlar uni faqat kitobingizga yordam berayotganda yoki bosmaga tayyorlayotganda ochadi, bosmaxona esa tayyor fayllarni faqat sizning buyurtmangiz uchun oladi. AI-funksiyani (yordamchi, korrektor, dizayner) o‘zingiz yoqsangiz, kerakli matn AI-servisga yuboriladi — batafsil maxfiylik siyosatida.",
       ],
       [
         "Bir nechta nusxa buyurtma berish mumkinmi?",
@@ -194,7 +194,7 @@ export const landing: typeof ru = {
   },
   cta: {
     title: "Eng muhim so‘zlar muqovaga loyiq",
-    text: "Bugun boshlang — birinchi sahifalarni bir kechada yozib bo‘ladi.",
+    text: "Bugun boshlang — birinchi sahifalarni bir oqshomda yozib bo‘ladi.",
     button: "O‘z kitobingizni yaratish",
   },
   /** Посадочные страницы /kniga/<slug>: общая обвязка (тексты самих страниц — в lib/content/landings.ts). */

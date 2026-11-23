@@ -8,7 +8,7 @@ import { design_ui } from "./design-ui";
 /** Кітап дизайнері: беттердің безендірілуі, қабаттардан тұратын мұқаба құрастырушысы және мұқаба макеттері. */
 export const design: Messages["design"] = {
   readiness: {
-    coverLayers: (n: number) => (n === 1 ? "Мұқабада суретсіз фото орны бар." : `Мұқабада суретсіз ${n} фото орны бар.`),
+    coverLayers: (n: number) => (n === 1 ? "Мұқабада фото қойылмаған бір орын бар." : `Мұқабада фото қойылмаған ${n} орын бар.`),
   },
   cover: design_cover,
   layouts: design_layouts,

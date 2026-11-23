@@ -35,7 +35,7 @@ export const review: typeof ru = {
   thanksHigh: "That means a lot to us. Stories like this are the main reason we make books.",
   thanksLow: "Thank you for being honest. We already have your review — support will contact you shortly.",
   promoTitle: (percent: number) => `A gift from us — ${percent}% off your next book`,
-  promoText: (days: number) => `The promo code is valid for ${enCount(days, "day", "days")}. You can share it: a book for Mom, Dad or a friend is just as easy to write.`,
+  promoText: (days: number) => `The promo code is valid for ${enCount(days, "day", "days")}. You can share it: a book for Mum, Dad or a friend is just as easy to write.`,
   copy: "Copy",
   copied: "Copied",
   newBook: "Start a new book",
@@ -55,6 +55,6 @@ export const review: typeof ru = {
     eyebrow: "Reviews",
     title: "What people who have already given a book say",
     summary: (avg: string, count: number) => `${avg} out of 5 · ${enCount(count, "review", "reviews")}`,
-    theme: { love: "A book for a loved one", mom: "A book for Mom", dad: "A book for Dad", parents: "A book for parents", family: "A book for the family", grandma: "A book for Grandma", daughterinlaw: "A book for a daughter-in-law", grandpa: "A book for Grandpa", child: "A book for a daughter or son", sibling: "A book for a brother or sister", friend: "A book for a friend", teacher: "A book for a teacher", colleague: "A book for a colleague", boss: "A book for a manager", autobiography: "A book about your own life", blank: "Your own book" },
+    theme: { love: "A book for a loved one", mom: "A book for Mum", dad: "A book for Dad", parents: "A book for parents", family: "A book for the family", grandma: "A book for Grandma", daughterinlaw: "A book for a daughter-in-law", grandpa: "A book for Grandpa", child: "A book for a daughter or son", sibling: "A book for a brother or sister", friend: "A book for a friend", teacher: "A book for a teacher", colleague: "A book for a colleague", boss: "A book for a manager", autobiography: "A book about your own life", blank: "Your own book" },
   },
 };

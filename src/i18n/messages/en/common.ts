@@ -144,11 +144,11 @@ export const common: Messages["common"] = {
   kaspiPay: {
     title: "Pay with Kaspi",
     phoneLabel: "The number linked to your Kaspi",
-    invoiceNote: "The invoice will arrive in the Kaspi.kz app on this number — open the notification and confirm the payment.",
+    invoiceNote: "The invoice will arrive in the Kaspi.kz app linked to this number — open the notification and confirm the payment.",
     sendInvoice: "Send a Kaspi invoice",
     payByQr: "Pay with a QR code",
     payByInvoice: "Send an invoice to my number",
-    sent: (amount: string, phone: string) => `An invoice for ${amount} has been sent to Kaspi on the number ${phone}.`,
+    sent: (amount: string, phone: string) => `An invoice for ${amount} has been sent to the Kaspi account of ${phone}.`,
     sentSteps: "Open the Kaspi.kz app → the invoice notification (or “My payments” → “Invoices to pay”) and confirm the payment. The page will update by itself.",
     scanQr: "Scan the QR code with the camera in the Kaspi.kz app and confirm the payment.",
     openKaspi: "Open in Kaspi",

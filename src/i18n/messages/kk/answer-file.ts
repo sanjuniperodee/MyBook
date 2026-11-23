@@ -1,7 +1,7 @@
 import type { answerFile as ru } from "../ru/answer-file";
 
 export const answerFile: typeof ru = {
-  meta: { video: "Кітаптағы бейне", audio: "Кітаптағы жазба" },
+  meta: { video: "Кітаптағы бейне", audio: "Кітаптағы аудиожазба" },
   fromBook: (title: string) => (title ? `«${title}» кітабынан` : "Естелік кітабынан"),
   processing: "Файл әлі дайындалып жатыр — әдетте бұл бірнеше минутқа созылады. Сәл кейінірек кіріңіз.",
   failed: "Бұл файлды өңдеу мүмкін болмады. Кітап авторы оны қайта жүктей алады.",

@@ -76,7 +76,7 @@ export const checkout: typeof ru = {
   agreement: {
     title: "Сіз менеджермен келісіп қойдыңыз",
     summary: (deal: number, total: string, paid: string) => `№${deal} мәміле: кітап ${total}, төленгені ${paid}. Жеткізу мен қосымшалар үстіне есептеледі.`,
-    batch: (index: number, size: number) => `${size} кітаптың ${index}-і: сіз бірнеше кітапқа бірден төледіңіз — бұл баға мен алдын ала төлем солардың біріне қатысты.`,
+    batch: (index: number, size: number) => `Кітап ${index} / ${size}: сіз бірнеше кітапқа бірден төледіңіз — бұл баға мен алдын ала төлем солардың біреуіне қатысты.`,
     planLocked: (name: string) => `«${name}» тарифі келісіммен бекітілген. Басқа тарифті «басынан» тапсырыс бергенде таңдауға болады.`,
     continueTitle: "Келісім бойынша жалғастыру",
     continueHint: "Кітап бағасы — келіскендей, төленген сома алынып тасталады; жеткізу мен қосымшалар — үстіне.",
@@ -127,7 +127,7 @@ export const checkout: typeof ru = {
     firstOrderOnly: "Бұл код тек алғашқы кітапқа жарайды, қайта тапсырысқа қолданылмайды",
   },
   wizard: {
-    stepOf: (n: number, total: number) => `${total} қадамның ${n}-і`,
+    stepOf: (n: number, total: number) => `Қадам ${n} / ${total}`,
     steps: { plan: "Құрамы мен таралымы", delivery: "Жеткізу және алушы", contacts: "Байланыс", pay: "Тексеру және төлем" },
     short: { plan: "Құрамы", delivery: "Жеткізу", contacts: "Байланыс", pay: "Төлем" },
     next: "Әрі қарай",

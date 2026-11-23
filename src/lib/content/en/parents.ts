@@ -1,6 +1,6 @@
 import type { ChapterDef } from "../types";
 
-// A book for Mom and Dad together — from their child. The recipient is plural, so no [..|..] markers are needed;
+// A book for Mum and Dad together — from their child. The recipient is plural, so no [..|..] markers are needed;
 // the recipient’s gender plays no part in the text. Chapter keys and question counts are identical to the Russian original.
 // Chapter keys must not be changed after launch: language switching, analytics and the CRM rely on them.
 
@@ -16,7 +16,7 @@ export const parentsChapters: ChapterDef[] = [
         "A few warm lines: who you are, what occasion this book is for, and what you want to say to them.",
       ],
       ["Describe your parents in three words.", "You in three words"],
-      ["What do you call them — Mom and Dad, ana and ake, Mummy and Daddy? Where did that habit come from?", "What I call you"],
+      ["What do you call them — Mum and Dad, ana and ake, Mummy and Daddy? Where did that habit come from?", "What I call you"],
       ["How many children and grandchildren do they have? Tell us who is who.", "Your children and grandchildren"],
       ["What was your family like when you were a child?", "Our family back then"],
     ],

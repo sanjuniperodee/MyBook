@@ -104,8 +104,8 @@ export const voprosyDlyaRazgovora: ToolDef = {
       h1: "Conversation questions:",
       accent: "cards with the stories of your loved ones",
       metaTitle: "Conversation questions for parents and loved ones — random cards",
-      metaDescription: "Random conversation questions for Mom, Dad, Grandma, your partner and a friend: draw a card, ask the question and write down the answer. You can copy the set or print it.",
-      teaser: "Random questions for Mom, Dad, Grandma, your partner and a friend — draw a card and start talking.",
+      metaDescription: "Random conversation questions for Mum, Dad, Grandma, your partner and a friend: draw a card, ask the question and write down the answer. You can copy the set or print it.",
+      teaser: "Random questions for Mum, Dad, Grandma, your partner and a friend — draw a card and start talking.",
       lead: "Choose who you want to learn more about and draw a card. The questions are specific and warm — they help to get even those who “never had anything special to tell” talking.",
       sections: [
         {
@@ -123,9 +123,9 @@ export const voprosyDlyaRazgovora: ToolDef = {
         },
       ],
       faq: [
-        ["What should I ask Mom or Dad to get to know them better?", "Start with childhood and youth: where they grew up, what they dreamed of, how they met. These questions are the easiest and don’t feel personal. Choose “Mom” or “Dad” and draw a card."],
+        ["What should I ask Mum or Dad to get to know them better?", "Start with childhood and youth: where they grew up, what they dreamed of, how they met. These questions are the easiest and don’t feel personal. Choose “Mum” or “Dad” and draw a card."],
         ["What if the person doesn’t like talking about themselves?", "Don’t insist. Start with neutral questions — about a favourite song, dish or place. Often a single question like that is enough for the conversation to take off by itself."],
-        ["Where do the questions come from?", "For Mom, Dad, your partner and a friend we wrote them specially for a live conversation, while the questions for grandmothers and grandfathers come from the question bank of the life-story book. If you decide to turn the answers into a book, many more questions are waiting for you in the editor."],
+        ["Where do the questions come from?", "For Mum, Dad, your partner and a friend we wrote them specially for a live conversation, while the questions for grandmothers and grandfathers come from the question bank of the life-story book. If you decide to turn the answers into a book, many more questions are waiting for you in the editor."],
         ["Can I print the questions?", "Yes. Press “10 random questions”, then “Print” — you get a sheet you can take with you to a meeting."],
       ],
       cta: { title: "Turn the answers into a book", text: "Each answer becomes a page. Add photos, letters from relatives and choose a cover — we will lay out and print the book. Writing is free." },

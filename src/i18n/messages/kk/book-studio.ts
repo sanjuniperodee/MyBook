@@ -37,7 +37,7 @@ export const bookStudio: typeof ru = {
     path: {
       title: "Кітап жолы",
       aria: "Кітап үстіндегі жұмыс қадамдары",
-      photosHint: "Фотосыз кітап тек мәтін болады",
+      photosHint: "Фотосыз кітапта тек мәтін болады",
       previewValue: "Беттер басылатындай көрінеді",
       orderLater: "макетті тексергеннен кейін",
       actions: { start: "Бастау", continue: "Жалғастыру", add: "Қосу", manage: "Басқару", change: "Өзгерту", fix: "Түзету", open: "Ашу", order: "Рәсімдеу", openOrder: "Тапсырысты ашу", pay: "Төлеу" },

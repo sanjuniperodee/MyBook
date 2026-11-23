@@ -103,9 +103,9 @@ export const generatorPozdravlenij: ToolDef = {
       label: "Greeting generator",
       h1: "Greeting generator:",
       accent: "warm words for your loved ones",
-      metaTitle: "Greeting generator — for Mom, Dad, wife, husband, friend, teacher",
+      metaTitle: "Greeting generator — for Mum, Dad, wife, husband, friend, teacher",
       metaDescription: "Choose who you are congratulating and on what occasion, and get a ready text: birthday, anniversary, 8 March, 23 February, Teachers’ Day. Warm or funny, ready to copy and send.",
-      teaser: "A ready greeting for Mom, Dad, your wife, husband, friend or teacher — warm or funny.",
+      teaser: "A ready greeting for Mum, Dad, your wife, husband, friend or teacher — warm or funny.",
       lead: "Choose who you are congratulating and on which holiday, add a name, and get a ready greeting. Not quite right? Press “Another version”. Everything works instantly and for free.",
       sections: [
         {
@@ -123,7 +123,7 @@ export const generatorPozdravlenij: ToolDef = {
         },
       ],
       faq: [
-        ["How do I wish Mom a happy birthday in my own words?", "Start with thanks for something specific, add a wish for health and warmth, and finish with a declaration of love. Choose “Mom” and “Birthday” in the generator to get a base, then add your own story."],
+        ["How do I wish Mum a happy birthday in my own words?", "Start with thanks for something specific, add a wish for health and warmth, and finish with a declaration of love. Choose “Mum” and “Birthday” in the generator to get a base, then add your own story."],
         ["Can I get a funny greeting?", "Yes, choose the “Funny” mood: the wishes will be playful, but kind. For teachers and older relatives the jokes stay gentle."],
         ["What is the difference between a short greeting and a full one?", "The short one is a single wish and suits a message in a messenger app. The full one consists of an address, a greeting, several wishes and a warm ending: you can write it in a card or say it as a toast."],
         ["Do I need to enter a name?", "No, it is optional. If you enter one, it is placed in the address — for a wife, husband, friend or teacher this sounds warmer."],

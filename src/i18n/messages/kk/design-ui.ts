@@ -42,7 +42,7 @@ export const design_ui: Messages["design"]["ui"] = {
       chapterOf: (n: number, total: number) => `${n}-тарау, барлығы ${total}`,
       removed: "Алынған",
       needPhoto: "Фото керек",
-      photosRule: "Орнысыз фото",
+      photosRule: "Орны таңдалмаған фото",
       spreadAria: "Жайылмада нені көрсету",
       collapse: "Жию",
       expand: "Ашу",

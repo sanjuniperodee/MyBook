@@ -1,6 +1,6 @@
 import type { ChapterDef } from "../types";
 
-// A book for Mom or Dad. [..|..] = recipient: [Dad|Mom] (first option — Dad, second — Mom).
+// A book for Mum or Dad. [..|..] = recipient: [Dad|Mum] (first option — Dad, second — Mum).
 // Chapter keys and question counts are identical to the Russian original.
 
 export const parentChapters: ChapterDef[] = [
@@ -10,11 +10,11 @@ export const parentChapters: ChapterDef[] = [
     epigraph: "Everything good in me began with you.",
     questions: [
       [
-        "Introduce yourself: who are you, and why did you decide to write this book for [Dad|Mom]?",
+        "Introduce yourself: who are you, and why did you decide to write this book for [Dad|Mum]?",
         "Why I’m writing this book",
         "A few warm lines: who you are, what occasion this book is for, and what you want to say to [him|her].",
       ],
-      ["Describe [Dad|Mom] in three words. Why exactly these words?", "You in three words"],
+      ["Describe [Dad|Mum] in three words. Why exactly these words?", "You in three words"],
       ["What do you call [him|her]? Are there any pet names at home?", "What I call you"],
     ],
   },
@@ -22,15 +22,15 @@ export const parentChapters: ChapterDef[] = [
     key: "story",
     title: "Your story",
     questions: [
-      ["Where and when was [Dad|Mom] born? What do you know about [his|her] childhood?", "Where it all began"],
+      ["Where and when was [Dad|Mum] born? What do you know about [his|her] childhood?", "Where it all began"],
       ["Who did [he|she] dream of becoming as a child?", "Who you dreamed of becoming"],
       ["How did [he|she] choose a profession?", "Your calling"],
       ["Which events shaped [his|her] character?", "What made you who you are"],
       ["What was [his|her] greatest achievement?", "Your greatest victory"],
       ["Which story from [his|her] youth do you love the most?", "A story from your youth"],
       [
-        "How did [he|she] meet [Mom|Dad]? What do you know about that story?",
-        "How you met [Mom|Dad]",
+        "How did [he|she] meet [Mum|Dad]? What do you know about that story?",
+        "How you met [Mum|Dad]",
       ],
       ["What was [he|she] like as a young [man|woman] — from the stories and photographs?", "You when you were young"],
     ],
@@ -40,10 +40,10 @@ export const parentChapters: ChapterDef[] = [
     title: "My childhood with you",
     epigraph: "Childhood is what stays with us forever.",
     questions: [
-      ["What is your earliest memory of [Dad|Mom]?", "My first memory of you"],
+      ["What is your earliest memory of [Dad|Mum]?", "My first memory of you"],
       ["What stories, songs or lullabies did [he|she] sing or tell you?", "Your stories and lullabies"],
       ["What did you love to play together?", "Our games"],
-      ["Which of [Dad|Mom]’s dishes tastes like childhood to you?", "The taste of childhood"],
+      ["Which of [Dad|Mum]’s dishes tastes like childhood to you?", "The taste of childhood"],
       ["How did [he|she] comfort you when you were hurt or scared?", "When I was scared"],
       ["What were your birthdays like when you were a child?", "My childhood birthdays"],
       ["What did [he|she] scold you for, and what did [he|she] praise you for?", "When you scolded and when you praised"],
@@ -56,7 +56,7 @@ export const parentChapters: ChapterDef[] = [
   },
   {
     key: "you",
-    title: "[Dad|Mom] through my eyes",
+    title: "[Dad|Mum] through my eyes",
     questions: [
       ["What kind of person is [he|she]? Describe [his|her] character.", "What you are like"],
       ["What does [he|she] do better than anyone?", "You are the best at…"],
@@ -105,10 +105,10 @@ export const parentChapters: ChapterDef[] = [
     questions: [
       ["What family traditions do you have?", "Our traditions"],
       ["How does your family celebrate holidays?", "Holidays in our family"],
-      ["Which story from [Dad|Mom]’s life do you love to retell?", "A story I love"],
+      ["Which story from [Dad|Mum]’s life do you love to retell?", "A story I love"],
       ["What kind of [grandfather|grandmother] is [he|she], or will [he|she] be?", "You as a [grandfather|grandmother]"],
       ["Which family feast do you remember best?", "A family feast"],
-      ["Which things in [Dad|Mom]’s home keep your family’s history?", "Things with a story"],
+      ["Which things in [Dad|Mum]’s home keep your family’s history?", "Things with a story"],
       ["What does the word “family” mean to you?", "What family is"],
     ],
   },
@@ -116,7 +116,7 @@ export const parentChapters: ChapterDef[] = [
     key: "fun",
     title: "Funny stories",
     questions: [
-      ["What is the funniest moment from your childhood involving [Dad|Mom]?", "The funniest story"],
+      ["What is the funniest moment from your childhood involving [Dad|Mum]?", "The funniest story"],
       ["How did [he|she] once make you laugh at the wrong moment?", "Laughing at the wrong time"],
       ["What family tale gets told at every celebration?", "A family legend"],
       ["Which of your childhood pranks did [he|she] uncover?", "My pranks"],
@@ -133,14 +133,14 @@ export const parentChapters: ChapterDef[] = [
       ["What do you talk about on the phone?", "Our conversations"],
       ["What would you like to do together more often?", "I want more…"],
       ["Which recent memory you share is especially dear to you?", "A recent memory"],
-      ["Where would you like to take [Dad|Mom]?", "Where I will take you"],
+      ["Where would you like to take [Dad|Mum]?", "Where I will take you"],
     ],
   },
   {
     key: "wishes",
     title: "Dreams",
     questions: [
-      ["What does [Dad|Mom] dream about?", "Your dreams"],
+      ["What does [Dad|Mum] dream about?", "Your dreams"],
       ["Which of [his|her] dreams do you want to make come true?", "The dream I will fulfil"],
       ["What would you like to do together in the coming years?", "What we will do together"],
       ["How do you picture [his|her] life ten years from now?", "Ten years from now"],
@@ -151,13 +151,13 @@ export const parentChapters: ChapterDef[] = [
     key: "thanks",
     title: "Thank you",
     questions: [
-      ["What are you grateful to [Dad|Mom] for?", "Thank you for…"],
+      ["What are you grateful to [Dad|Mum] for?", "Thank you for…"],
       ["Which of [his|her] actions will you never forget?", "An act I will never forget"],
       ["What words have you wanted to say for a long time but haven’t dared?", "What I have long wanted to say"],
       ["What do you wish for [him|her]?", "What I wish for you"],
       ["Why do you love [him|her]? List as many reasons as you can.", "Why I love you", "You can make a list, with each reason on a new line."],
-      ["Write [Dad|Mom] a letter from the bottom of your heart.", "A letter to you"],
-      ["Finish the sentence: “[Dad|Mom], to me you are…”", "[Dad|Mom], to me you are…"],
+      ["Write [Dad|Mum] a letter from the bottom of your heart.", "A letter to you"],
+      ["Finish the sentence: “[Dad|Mum], to me you are…”", "[Dad|Mum], to me you are…"],
     ],
   },
 ];

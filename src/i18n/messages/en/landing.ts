@@ -184,7 +184,7 @@ export const landing: typeof ru = {
       ],
       [
         "Will anyone see my texts?",
-        "No. Your book is available only to you. Production staff receive the finished print files solely to fulfil the order.",
+        "Your book is not published: it is seen by you and by the people you yourself invite to write a letter. Our staff open it only when they help you with the book or prepare it for printing, and the print shop receives the finished files solely for your order. If you yourself use an AI feature (the assistant, proofreader or designer), the relevant text is sent to an AI service — see the privacy policy for details.",
       ],
       [
         "Can I order several copies?",
