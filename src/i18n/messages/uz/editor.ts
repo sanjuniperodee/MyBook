@@ -559,6 +559,8 @@ export const editor: typeof ru = {
     size: "Hajmi",
     sizes: { small: "Kichik", medium: "O‘rtacha", large: "Katta", full: "Butun kenglikda" },
     sizeHintRow: "Ketma-ket turgan kichik va o‘rtacha suratlar yonma-yon joylashadi.",
+    keepSize: "Sahifa pastida kichraytirmaslik",
+    keepSizeHint: "Rasm matn ostiga sig‘masa, kichraymaydi — keyingi sahifaga to‘liq o‘lchamda o‘tadi.",
     /** Только с мышью: на телефоне уголка в превью нет. */
     sizeHintDrag: "Yoki oldindan ko‘rishda surat burchagidan torting.",
     shape: "Shakli",

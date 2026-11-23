@@ -181,8 +181,6 @@ export function ElementsTab({
       <PanelSection title={t.photoFrame}>
         <Segmented value={design.photos.frame} options={O.photoFrames.map((v) => ({ value: v, label: t.photoFrames[v] }))} onChange={(v) => el({ photoFrame: v }, "photos")} onReset={r("photoFrame", "photos")} resetLabel={reset} wrap />
         <Segmented label={t.caption} value={design.photos.caption} options={O.captions.map((v) => ({ value: v, label: t.captions[v] }))} onChange={(v) => el({ caption: v }, "photos")} onReset={r("caption", "photos")} resetLabel={reset} />
-        <Segmented label={t.photoFit} value={design.photos.fit ?? "shrink"} options={O.photoFits.map((v) => ({ value: v, label: t.photoFits[v] }))} onChange={(v) => el({ photoFit: v }, "photos")} onReset={r("photoFit", "photos")} resetLabel={reset} />
-        <p className="text-xs text-muted">{t.photoFitHint}</p>
       </PanelSection>
     </div>
   );

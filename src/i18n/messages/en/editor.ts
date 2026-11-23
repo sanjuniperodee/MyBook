@@ -559,6 +559,8 @@ export const editor: typeof ru = {
     size: "Size",
     sizes: { small: "Small", medium: "Medium", large: "Large", full: "Full width" },
     sizeHintRow: "Small and medium photos placed one after another sit side by side.",
+    keepSize: "Don’t shrink at the page bottom",
+    keepSizeHint: "If the photo doesn’t fit under the text, it moves to the next page at full size instead of shrinking.",
     /** Только с мышью: на телефоне уголка в превью нет. */
     sizeHintDrag: "Or drag the corner of the photo in the preview.",
     shape: "Shape",

@@ -106,10 +106,6 @@ describe("решения доводки: ряд фото", () => {
     expect(decide(jumped(400), emptyFlow(), photo(400))).toEqual([{ type: "rowScale", mark: ROW, scale: 327 / 400 }]);
   });
 
-  it("оформление «на следующую страницу» (shrink = false) → фото не уменьшается (Обращение №14)", () => {
-    expect(nextDecisions(jumped(400), emptyFlow(), photo(400), 0, false)).toEqual([]);
-  });
-
   it("подпись под фото в пустоту входит и не уменьшается", () => {
     // Ряд 430 при фото 400: подпись 30 pt не масштабируется.
     expect(decide(jumped(430), emptyFlow(), photo(400))).toEqual([{ type: "rowScale", mark: ROW, scale: 297 / 400 }]);

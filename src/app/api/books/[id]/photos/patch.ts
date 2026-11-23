@@ -19,6 +19,7 @@ export const photoPatchSchema = z
         frame: z.enum(["none", "line", "polaroid", "round"]),
         page: z.boolean().optional(),
         pageFit: z.literal("contain").optional(),
+        keepSize: z.boolean().optional(),
       })
       .strict()
       .nullable(),

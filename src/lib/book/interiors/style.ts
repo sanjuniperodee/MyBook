@@ -20,7 +20,6 @@ import type {
   GlyphId,
   InteriorDesign,
   InteriorPalette,
-  PhotoFit,
   OpenerArt,
   QuoteStyle,
   TextAlign,
@@ -74,8 +73,6 @@ export interface InteriorStyle {
     titleLine?: string;
     photoFrame?: PhotoFrame;
     caption?: PhotoCaption;
-    /** Фото, не поместившееся внизу полосы: уменьшить под место (по умолчанию) или перенести на следующую полосу. */
-    photoFit?: PhotoFit;
     /** Рисунок начальных полос; null — без рисунка. */
     art?: OpenerArt | null;
     /** Свой рисунок книги от ИИ-дизайнера: на титуле и начальных полосах глав. */
@@ -116,9 +113,8 @@ const QUOTES: QuoteStyle[] = ["rule", "center", "mark"];
 const TITLES: TitleLayout[] = ["center", "left", "bottom", "stack"];
 const PHOTO_FRAMES: PhotoFrame[] = ["none", "hairline", "double", "polaroid", "corners", "tape", "mat", "shadow"];
 const CAPTIONS: PhotoCaption[] = ["italic", "hand", "label"];
-const PHOTO_FITS: PhotoFit[] = ["shrink", "move"];
 
-export const interiorStyleOptions = { aligns: ALIGNS, glyphs: GLYPHS, arts: ARTS, frames: FRAMES, dividers: DIVIDERS, numbers: NUMBERS, quotes: QUOTES, titles: TITLES, photoFrames: PHOTO_FRAMES, captions: CAPTIONS, photoFits: PHOTO_FITS };
+export const interiorStyleOptions = { aligns: ALIGNS, glyphs: GLYPHS, arts: ARTS, frames: FRAMES, dividers: DIVIDERS, numbers: NUMBERS, quotes: QUOTES, titles: TITLES, photoFrames: PHOTO_FRAMES, captions: CAPTIONS };
 
 /** Глав со своим оформлением — не больше, чем глав у книги может быть. */
 export const MAX_STYLED_CHAPTERS = 60;
@@ -280,7 +276,6 @@ export function parseInteriorStyle(raw: unknown): InteriorStyle {
             titleLine: titleLineOf(e.titleLine),
             photoFrame: oneOf(e.photoFrame, PHOTO_FRAMES),
             caption: oneOf(e.caption, CAPTIONS),
-            photoFit: oneOf(e.photoFit, PHOTO_FITS),
             art: e.art === null ? null : oneOf(e.art, ARTS),
             emblem: emblemOf(e.emblem),
           })
@@ -370,7 +365,6 @@ export function applyInteriorStyle(design: InteriorDesign, raw: InteriorStyle | 
     ...design.photos,
     ...(el.photoFrame ? { frame: el.photoFrame } : {}),
     ...(el.caption ? { caption: el.caption } : {}),
-    ...(el.photoFit ? { fit: el.photoFit } : {}),
     ...(f.caption ? { captionFace: withFace(design.photos.captionFace ?? { font: type.body, weight: 400, italic: true }, f.caption) } : {}),
   };
 

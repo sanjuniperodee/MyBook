@@ -135,9 +135,6 @@ export const design_pages: Messages["design"]["pages"] = {
     photoFrames: { none: "No frame", hairline: "Thin", double: "Double", polaroid: "Polaroid", corners: "Corners", tape: "Tape", mat: "Mat", shadow: "Shadow" },
     caption: "Photo captions",
     captions: { italic: "Italic", hand: "Handwritten", label: "Uppercase" },
-    photoFit: "Photo doesn’t fit at the page bottom",
-    photoFits: { shrink: "Shrink", move: "Next page" },
-    photoFitHint: "“Shrink” fits the photo into the space under the text, but it may get small. “Next page” keeps the photo full size.",
   },
   colors: {
     palettes: "Palettes",

@@ -135,9 +135,6 @@ export const design_pages: Messages["design"]["pages"] = {
     photoFrames: { none: "Hoshiyasiz", hairline: "Ingichka", double: "Qo‘sh", polaroid: "Poloroid", corners: "Burchaklar", tape: "Skotch", mat: "Passepartu", shadow: "Soya" },
     caption: "Surat imzolari",
     captions: { italic: "Kursiv", hand: "Qo‘lda yozilgan", label: "Bosh harflarda" },
-    photoFit: "Rasm sahifa pastiga sig‘masa",
-    photoFits: { shrink: "Kichraytirish", move: "Keyingi sahifaga" },
-    photoFitHint: "«Kichraytirish» — rasm matn ostidagi bo‘sh joyga sig‘adi, lekin kichik bo‘lib qolishi mumkin. «Keyingi sahifaga» — rasm to‘liq o‘lchamda qoladi.",
   },
   colors: {
     palettes: "Ranglar to‘plami",

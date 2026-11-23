@@ -361,6 +361,14 @@ export function PhotoInspector({
               </p>
             </Field>
 
+            <label className="flex items-start gap-2 text-sm">
+              <input type="checkbox" className="mt-0.5 size-4 accent-[var(--color-wine)]" checked={!!style.keepSize} onChange={(e) => onChange({ keepSize: e.target.checked })} />
+              <span>
+                {a.keepSize}
+                <span className="block text-[11px] text-muted">{a.keepSizeHint}</span>
+              </span>
+            </label>
+
             <Field label={t.align}>
               <Segmented
                 label={t.align}

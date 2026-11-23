@@ -35,6 +35,7 @@ export function normalizeStyle(s: Partial<InlinePhotoStyle> | null | undefined):
   v.focusY = Math.min(1, Math.max(0, v.focusY));
   if (!v.page) delete v.page;
   if (!v.page || v.pageFit !== "contain") delete v.pageFit;
+  if (v.keepSize !== true) delete v.keepSize;
   return v;
 }
 

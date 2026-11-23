@@ -61,7 +61,8 @@ function InlineRow({ kit, rowKey, row }: { kit: PdfKit; rowKey: string; row: Inl
   const align = row[0].style.align;
   const k = flow.rowScale.get(rowKey) ?? 1;
   const boxes = row.map(({ p, style }) => framedBox(p, style, textWidthPt, textHeightPt, row.length));
-  options.rowHeights?.set(rowKey, Math.max(...boxes.map((b) => b.outerH)));
+  // Ряд с фото «не уменьшать» в доводку не идёт: shrinkRow без высоты ряда его не трогает — фото уходит на новую полосу.
+  if (!row.some(({ style }) => style.keepSize)) options.rowHeights?.set(rowKey, Math.max(...boxes.map((b) => b.outerH)));
   return (
     <View
       {...mark(rowKey)}
