@@ -1,4 +1,4 @@
-import { systemClock, type Clock, type Logger } from "@/shared/application";
+import { systemClock, type Clock, type Logger, type StoredFile, type StoredFileRequest } from "@/shared/application";
 import { buildImageBase, type BookBuild, type BookBuildManifest, type BookBuildState, type BuildProgress, type PageImageWidth } from "@/lib/book/book-build";
 import { RenderProgress, type RenderKind, type RenderReport } from "./RenderProgress";
 
@@ -56,6 +56,8 @@ export interface ScreenDraft {
 /** Порт файлового хранилища. */
 export interface FileStore {
   exists(key: string): Promise<boolean>;
+  /** Файл потоком для отдачи браузеру (Range, ETag), без чтения в память; null — нет файла. */
+  open?(key: string, req?: StoredFileRequest): Promise<StoredFile | null>;
   get(key: string): Promise<Buffer>;
   /** Запись целиком или никак: оборванная (перезапуск, нет места) не оставляет под ключом обрезанный файл — только <ключ>.tmp-…. */
   put(key: string, data: Buffer): Promise<void>;
@@ -172,6 +174,18 @@ export class PrintFilesService {
     }
     await this.prepare(job, opts);
     if (kind === "layout" && !(await this.files.exists(key))) await this.getFile(job, kind);
+  }
+
+  /**
+   * Готовый файл потоком (собирает, если нужно, как ensure): скачивание идёт из хранилища с Range, не через память
+   * сайта — печатный блок весит десятки МБ. Хранилище без потоков — файл целиком, как getFile.
+   */
+  async open(job: PrintJob, kind: PrintFileKind, opts: { force?: boolean } = {}, req: StoredFileRequest = {}): Promise<StoredFile | null> {
+    await this.ensure(job, kind, opts);
+    const key = this.key(job.orderId, kind);
+    if (this.files.open) return this.files.open(key, req);
+    const data = await this.files.get(key);
+    return { status: 200, body: new Blob([new Uint8Array(data)]).stream(), size: data.length, contentLength: data.length };
   }
 
   /**

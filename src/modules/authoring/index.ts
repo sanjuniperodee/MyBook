@@ -1,5 +1,5 @@
 import "server-only";
-import type { Clock, EventBus, Mailer, UnitOfWork } from "@/shared/application";
+import type { Clock, EventBus, Mailer, StoredFileRequest, UnitOfWork } from "@/shared/application";
 import { BookOrderingService, BookOutlineService, BooksService, LayoutRev2Service, LettersService, PhotosService, QuestionsService, type LayoutUpgrade, type OrdersLookup } from "./application";
 import { checkReadiness, UPGRADE_ON_TOUCH } from "./domain";
 import type { LetterSubmitted } from "./domain";
@@ -7,7 +7,7 @@ import { contentThemes, randomIds, sharpImages, storageFiles } from "./infrastru
 import { notifyOwnerAboutLetter } from "./infrastructure/LetterMailer";
 import { DrizzleBookRepository, DrizzleChapterRepository, DrizzleLetterRepository, DrizzlePhotoEditRepository, DrizzlePhotoRepository, DrizzleQuestionRepository } from "./infrastructure/persistence";
 import { DrizzleLayoutRevStore } from "./infrastructure/layoutRevStore";
-import { photoViewFile } from "./infrastructure/photoView";
+import { photoStream, photoViewFile } from "./infrastructure/photoView";
 import { DrizzleAuthoringQueries } from "./infrastructure/queries";
 import { DrizzleDesignAiStore } from "./infrastructure/designAiStore";
 
@@ -35,6 +35,10 @@ export class AuthoringModule {
   /** Файл фото (оригинал или миниатюра) из хранилища — права проверяет вызывающий через queries.photoFor(). */
   photoFile(storageKey: string) {
     return storageFiles.get(storageKey);
+  }
+  /** Файл фото потоком (Range, ETag) — без чтения в память: права проверяет вызывающий. */
+  photoStream(storageKey: string, req?: StoredFileRequest) {
+    return photoStream(storageKey, req);
   }
   /** Уменьшенная копия фото для 3D-просмотра (кэшируется): права проверяет вызывающий. */
   photoViewFile(storageKey: string) {

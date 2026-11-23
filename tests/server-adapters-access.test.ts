@@ -199,7 +199,7 @@ describe("книги клиентов: viewerOf, apiBook, getAccessibleBook, pho
   });
 
   it("сотрудник без clients.view или не из разрешённой сети — 404 на книге, фото и API, как чужой клиент (V1 закрыт)", async () => {
-    fake.authoring.photoFile = async (key: string) => Buffer.from(key);
+    fake.authoring.photoStream = async (key: string) => ({ status: 200, body: new Blob([key]).stream(), contentLength: key.length });
     const photo = () => getPhoto(new Request(`http://localhost/api/photos/${PHOTO}`), { params: Promise.resolve({ id: PHOTO }) });
     const blocked = async (u: User) => {
       signIn(u);
@@ -220,7 +220,7 @@ describe("книги клиентов: viewerOf, apiBook, getAccessibleBook, pho
   });
 
   it("роль «только свои» с clients.view — книги и фото только своих клиентов; чужого или неразобранного — 404", async () => {
-    fake.authoring.photoFile = async (key: string) => Buffer.from(key);
+    fake.authoring.photoStream = async (key: string) => ({ status: 200, body: new Blob([key]).stream(), contentLength: key.length });
     const photo = () => getPhoto(new Request(`http://localhost/api/photos/${PHOTO}`), { params: Promise.resolve({ id: PHOTO }) });
     let managerId: string | null = kira.id;
     fake.reporting = { bookOwnership: async () => ({ managerId }) };
@@ -237,7 +237,7 @@ describe("книги клиентов: viewerOf, apiBook, getAccessibleBook, pho
   });
 
   it("clients.view — читает книгу и фото клиента, но не меняет (404); clients.edit — меняет", async () => {
-    fake.authoring.photoFile = async (key: string) => Buffer.from(key);
+    fake.authoring.photoStream = async (key: string) => ({ status: 200, body: new Blob([key]).stream(), contentLength: key.length });
     signIn(vera);
     expect(await bookOf()).toEqual({ status: 200, body: BOOK });
     expect(await bookOf({ editable: true })).toEqual({ status: 404, body: { error: "Книга не найдена", code: "bookNotFound" } });

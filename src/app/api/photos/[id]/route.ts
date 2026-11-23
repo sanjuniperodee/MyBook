@@ -3,6 +3,7 @@ import { api, apiViewer, HttpError } from "@/server/api";
 import { container } from "@/server/container";
 import { idParams } from "@/server/input";
 import { fileRoute } from "@/server/file-route";
+import { storedFileRequest, storedResponse } from "@/server/range-file";
 
 export const GET = fileRoute("photo", api(async (req, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = idParams(await params, "id");
@@ -18,6 +19,9 @@ export const GET = fileRoute("photo", api(async (req, { params }: { params: Prom
   // «view» запрашивается пачкой (3D-книга снимает одно фото на несколько сторон) — минуты кэша убирают повторные загрузки.
   const headers = { "Content-Type": "image/jpeg", "Cache-Control": size === "view" ? "private, max-age=60, must-revalidate" : "private, no-cache", ETag: etag };
   if (req.headers.get("if-none-match") === etag) return new Response(null, { status: 304, headers });
-  const data = size === "view" ? await container().authoring.photoViewFile(key) : await container().authoring.photoFile(key);
-  return new Response(new Uint8Array(data), { headers });
+  // Копия для просмотра собирается sharp и лежит в кэше; снимок и миниатюра — потоком из хранилища, не целиком в память.
+  if (size === "view") return new Response(new Uint8Array(await container().authoring.photoViewFile(key)), { headers });
+  const res = storedResponse(await container().authoring.photoStream(key, storedFileRequest(req)), headers["Content-Type"], headers);
+  if (!res) throw new HttpError(404, "notFound");
+  return res;
 }));

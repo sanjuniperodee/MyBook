@@ -1,7 +1,8 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import sharp from "sharp";
-import { fileExists, getFile, putFile } from "@/shared/infrastructure/storage";
+import type { OpenStoredFile } from "@/shared/application";
+import { fileExists, getFile, openStoredFile, putFile } from "@/shared/infrastructure/storage";
 
 /** Длинная сторона копии для просмотра: 3D-книге хватает с запасом (текстура обложки — 1536 px), оригинал — до 3600 px и 3 МБ. */
 const VIEW_SIDE = 1400;
@@ -29,3 +30,6 @@ export function photoViewFile(storageKey: string): Promise<Buffer> {
   }
   return job;
 }
+
+/** Снимок или миниатюра потоком из хранилища (Range, ETag), без чтения в память. */
+export const photoStream: OpenStoredFile = (key, req) => openStoredFile(key, req);

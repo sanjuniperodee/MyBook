@@ -1,6 +1,6 @@
 import { HttpError, api } from "@/server/api";
-import { findByToken, mediaMime, mediaPath, posterPath } from "@/server/answerFiles";
-import { serveFile } from "@/server/range-file";
+import { findByToken, mediaMime, openMedia, openPoster } from "@/server/answerFiles";
+import { storedFileRequest, storedResponse } from "@/server/range-file";
 import { FILE_TOKEN } from "@/lib/book/answer-files";
 import { fileRoute } from "@/server/file-route";
 
@@ -17,11 +17,14 @@ export const GET = fileRoute("answer-file", api(async (req, { params }: { params
   const headers: Record<string, string> = { "Cache-Control": "public, max-age=604800", "X-Robots-Tag": "noindex", "Cross-Origin-Resource-Policy": "same-site" };
   if (q.get("poster")) {
     if (!file.hasPoster) throw new HttpError(404, "fileNotFound");
-    return serveFile(await posterPath(file), "image/jpeg", req, headers);
+    const poster = storedResponse(await openPoster(file, storedFileRequest(req)), "image/jpeg", headers);
+    if (!poster) throw new HttpError(404, "fileNotFound");
+    return poster;
   }
   const ext = file.kind === "video" ? "mp4" : "m4a";
   if (q.get("download")) headers["Content-Disposition"] = `attachment; filename="mybooks-${token}.${ext}"`;
-  return serveFile(await mediaPath(file), mediaMime(file.kind), req, headers).catch(() => {
-    throw new HttpError(404, "fileNotFound");
-  });
+  // Потоком из хранилища с тем же Range: первое открытие не ждёт, пока видео целиком скачается из бакета на диск сайта.
+  const media = storedResponse(await openMedia(file, storedFileRequest(req)), mediaMime(file.kind), headers);
+  if (!media) throw new HttpError(404, "fileNotFound");
+  return media;
 }));

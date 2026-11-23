@@ -2,6 +2,7 @@ import "server-only";
 import { createReadStream, promises as fs } from "node:fs";
 import { Readable } from "node:stream";
 import { countPerf } from "@/shared/infrastructure/perfLog";
+import type { StoredFile, StoredFileRequest } from "@/shared/application/StoredFile";
 
 /**
  * Файл с диска сайта с перемоткой: Range → 206 (Safari и AVPlayer без него аудио не играют), ETag по размеру и времени —
@@ -32,5 +33,26 @@ export async function serveFile(path: string, mime: string, req: Request, header
   return new Response(body, {
     status: partial ? 206 : 200,
     headers: { ...base, "Content-Length": String(end - start + 1), ...(partial ? { "Content-Range": `bytes ${start}-${end}/${size}` } : {}) },
+  });
+}
+
+/** Заголовки запроса для хранилища (Range, If-None-Match) — передать в фасад модуля, который открывает файл. */
+export function storedFileRequest(req: Request): StoredFileRequest {
+  return { range: req.headers.get("range"), ifNoneMatch: req.headers.get("if-none-match") };
+}
+
+/**
+ * Ответ браузеру из файла хранилища потоком (storage.openStoredFile через фасад модуля): 200/206 с Content-Length и
+ * Content-Range, 304, 416. headers маршрута (Cache-Control, Content-Disposition, CSP, свой ETag) — поверх.
+ * null — файла нет.
+ */
+export function storedResponse(file: StoredFile | null, mime: string, headers: Record<string, string> = {}): Response | null {
+  if (!file) return null;
+  if (file.status === 416) return new Response(null, { status: 416, headers: file.contentRange ? { "Content-Range": file.contentRange } : {} });
+  const base: Record<string, string> = { "Content-Type": mime, "Accept-Ranges": "bytes", ...(file.etag ? { ETag: file.etag } : {}), ...headers };
+  if (file.status === 304) return new Response(null, { status: 304, headers: base });
+  return new Response(file.body, {
+    status: file.status,
+    headers: { ...base, ...(file.contentLength !== undefined ? { "Content-Length": String(file.contentLength) } : {}), ...(file.contentRange ? { "Content-Range": file.contentRange } : {}) },
   });
 }

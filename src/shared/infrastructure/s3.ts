@@ -101,6 +101,14 @@ export function createS3(cfg: S3Config) {
       return Buffer.from(await res.arrayBuffer());
     },
 
+    /**
+     * Объект потоком, как ответил бакет: заголовки запроса (Range, If-None-Match) уходят в бакет как есть, ответ —
+     * 200/206/304/404/416 с телом-потоком. Для отдачи браузеру без чтения файла в память.
+     */
+    async open(key: string, headers: Record<string, string> = {}): Promise<Response> {
+      return request("GET", objectPath(key), { headers });
+    },
+
     /** Скачать объект в файл (через временный рядом и rename). false — объекта нет. */
     async download(key: string, file: string): Promise<boolean> {
       const res = await request("GET", objectPath(key));

@@ -2,7 +2,7 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 import { mkdir, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { deletePrefix, fileExists, getFile, listFiles, publish, storagePath } from "@/shared/infrastructure/storage";
+import { deletePrefix, fileExists, getFile, listFiles, openStoredFile, publish, storagePath } from "@/shared/infrastructure/storage";
 import { dedupe, withRenderSlot } from "@/modules/production/infrastructure/pdf/queue";
 import type { BookBundle } from "@/modules/production/infrastructure/pdf/render";
 import { inPdfThread } from "@/modules/production/infrastructure/pdf/pool";
@@ -29,7 +29,7 @@ async function putAtomic(key: string, data: Buffer) {
   await publish(key);
 }
 
-export const storageFileStore: FileStore = { exists: fileExists, get: getFile, put: putAtomic, deletePrefix, list: listFiles };
+export const storageFileStore: FileStore = { exists: fileExists, open: openStoredFile, get: getFile, put: putAtomic, deletePrefix, list: listFiles };
 
 export const pdfRenderQueue: RenderQueue = { run: (key, task) => dedupe(key, () => withRenderSlot(task)) };
 

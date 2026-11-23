@@ -1,9 +1,11 @@
 import "server-only";
-import { promises as fs } from "node:fs";
+import { createReadStream, promises as fs } from "node:fs";
+import { Readable } from "node:stream";
 import path from "node:path";
 import { env } from "@/config/env";
 import { createS3, type S3Client } from "./s3";
 import { countPerf } from "./perfLog";
+import type { StoredFile, StoredFileRequest } from "@/shared/application/StoredFile";
 
 /**
  * Файловое хранилище. Ключи — относительные пути вида photos/<bookId>/<id>.jpg.
@@ -159,4 +161,72 @@ export async function listFiles(prefix: string): Promise<{ name: string; modifie
   const names = await fs.readdir(dir).catch(() => [] as string[]);
   const entries = await Promise.all(names.map(async (name) => ({ name, modifiedMs: (await fs.stat(path.join(dir, name)).catch(() => null))?.mtimeMs })));
   return entries.flatMap((e) => (e.modifiedMs === undefined ? [] : [{ name: e.name, modifiedMs: e.modifiedMs }]));
+}
+
+/** Один диапазон байтов из заголовка Range: bytes=a-b, a-, -n. Остальное (списки, мусор) — как без Range. */
+export const SINGLE_RANGE = /^bytes=(\d{0,15})-(\d{0,15})$/;
+
+/** ETag файла на диске — как у serveFile (размер и время изменения): так же считает mybook-files (services/files). */
+export const diskEtag = (size: number, mtimeMs: number) => `"${size.toString(16)}-${Math.floor(mtimeMs).toString(16)}"`;
+
+/**
+ * Файл хранилища потоком для отдачи браузеру — без чтения в память и без скачивания на диск: с S3 — из бакета с тем же
+ * Range, файл с переезда, которого ещё нет в бакете, — с диска. Range — один диапазон (SINGLE_RANGE), иначе весь файл.
+ * ifNoneMatch без Range и с тем же ETag — 304 без тела. null — файла нет нигде.
+ */
+export async function openStoredFile(key: string, opts: StoredFileRequest = {}): Promise<StoredFile | null> {
+  const t0 = performance.now();
+  const range = opts.range && SINGLE_RANGE.test(opts.range) && opts.range !== "bytes=-" ? opts.range : null;
+  const client = remoteFor(key);
+  if (client) {
+    const res = await client.open(normKey(key), { ...(range ? { range } : {}), ...(!range && opts.ifNoneMatch ? { "if-none-match": opts.ifNoneMatch } : {}) });
+    if (res.status !== 404) {
+      const status = res.status as StoredFile["status"];
+      if (![200, 206, 304, 416].includes(status)) {
+        await res.body?.cancel();
+        throw new Error(`S3 open ${key}: ${res.status}`);
+      }
+      const contentRange = res.headers.get("content-range") ?? undefined;
+      const total = Number(contentRange?.split("/")[1] ?? (status === 200 ? res.headers.get("content-length") : NaN));
+      const contentLength = res.headers.get("content-length");
+      const out: StoredFile = {
+        status,
+        body: status === 200 || status === 206 ? res.body : null,
+        ...(Number.isFinite(total) ? { size: total } : {}),
+        ...(contentLength && (status === 200 || status === 206) ? { contentLength: Number(contentLength) } : {}),
+        ...(contentRange ? { contentRange } : {}),
+        ...(res.headers.get("etag") ? { etag: res.headers.get("etag")! } : {}),
+      };
+      if (status !== 200 && status !== 206) await res.body?.cancel();
+      countPerf("s3:stream", out.contentLength ?? 0, performance.now() - t0, status);
+      return out;
+    }
+    await res.body?.cancel();
+  }
+  const full = resolveKey(key);
+  const st = await fs.stat(full).catch(() => null);
+  if (!st?.isFile()) return null;
+  const etag = diskEtag(st.size, st.mtimeMs);
+  if (!range && opts.ifNoneMatch === etag) return { status: 304, body: null, size: st.size, etag };
+  let start = 0;
+  let end = st.size - 1;
+  let partial = false;
+  const m = range ? SINGLE_RANGE.exec(range) : null;
+  if (m && (m[1] || m[2])) {
+    if (m[1]) {
+      start = Number(m[1]);
+      if (m[2]) end = Math.min(Number(m[2]), st.size - 1);
+    } else start = Math.max(0, st.size - Number(m[2]));
+    if (start > end || start >= st.size) return { status: 416, body: null, size: st.size, contentRange: `bytes */${st.size}` };
+    partial = true;
+  }
+  countPerf("disk:stream", end - start + 1, performance.now() - t0, partial ? 206 : 200);
+  return {
+    status: partial ? 206 : 200,
+    body: Readable.toWeb(createReadStream(full, { start, end })) as ReadableStream<Uint8Array>,
+    size: st.size,
+    contentLength: end - start + 1,
+    ...(partial ? { contentRange: `bytes ${start}-${end}/${st.size}` } : {}),
+    etag,
+  };
 }

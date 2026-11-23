@@ -24,6 +24,23 @@ vi.mock("@/shared/infrastructure/s3", () => ({
       return true;
     },
     exists: async (key: string) => bucket.has(cfg.prefix + key),
+    // Как отвечает бакет на GET с Range / If-None-Match (один диапазон, ETag — от содержимого).
+    open: async (key: string, headers: Record<string, string> = {}) => {
+      const o = bucket.get(cfg.prefix + key);
+      if (!o) return new Response("<Error><Code>NoSuchKey</Code></Error>", { status: 404 });
+      const etag = `"etag-${o.data.length}"`;
+      const size = o.data.length;
+      if (headers["if-none-match"] === etag) return new Response(null, { status: 304, headers: { etag } });
+      const m = headers.range ? /^bytes=(\d*)-(\d*)$/.exec(headers.range) : null;
+      if (m) {
+        const start = m[1] ? Number(m[1]) : Math.max(0, size - Number(m[2]));
+        const end = m[1] && m[2] ? Math.min(Number(m[2]), size - 1) : size - 1;
+        if (start >= size) return new Response("<Error/>", { status: 416, headers: { "content-range": `bytes */${size}` } });
+        const part = o.data.subarray(start, end + 1);
+        return new Response(new Uint8Array(part), { status: 206, headers: { etag, "content-length": String(part.length), "content-range": `bytes ${start}-${end}/${size}` } });
+      }
+      return new Response(new Uint8Array(o.data), { status: 200, headers: { etag, "content-length": String(size) } });
+    },
     delete: async (key: string) => void bucket.delete(cfg.prefix + key),
     list: async (prefix: string) =>
       [...bucket]
@@ -135,5 +152,34 @@ describe("хранилище с S3", () => {
 
   it("ключ за пределами хранилища отклоняется", async () => {
     await expect(storage.putFile("../escape.txt", "x")).rejects.toThrow("Invalid storage key");
+  });
+
+  it("отдача потоком: из бакета с тем же Range и ETag, без копии на диске", async () => {
+    await storage.putFile("answer-media/b/f/media.mp4", "0123456789");
+    const full = await storage.openStoredFile("answer-media/b/f/media.mp4");
+    expect(full).toMatchObject({ status: 200, size: 10, contentLength: 10, etag: '"etag-10"' });
+    expect(await new Response(full!.body).text()).toBe("0123456789");
+    const part = await storage.openStoredFile("answer-media/b/f/media.mp4", { range: "bytes=2-4" });
+    expect(part).toMatchObject({ status: 206, size: 10, contentLength: 3, contentRange: "bytes 2-4/10" });
+    expect(await new Response(part!.body).text()).toBe("234");
+    expect(await storage.openStoredFile("answer-media/b/f/media.mp4", { ifNoneMatch: '"etag-10"' })).toMatchObject({ status: 304, body: null });
+    // Список диапазонов и мусор — как без Range.
+    expect(await storage.openStoredFile("answer-media/b/f/media.mp4", { range: "bytes=0-1,4-5" })).toMatchObject({ status: 200, contentLength: 10 });
+    expect(existsSync(path.join(dir, "answer-media/b/f/media.mp4"))).toBe(false);
+    expect(await storage.openStoredFile("answer-media/b/f/none.mp4")).toBeNull();
+  });
+
+  it("отдача потоком файла с переезда, которого нет в бакете, — с диска с Range и ETag как у serveFile", async () => {
+    const { mkdirSync } = await import("node:fs");
+    mkdirSync(path.join(dir, "support/t1"), { recursive: true });
+    writeFileSync(path.join(dir, "support/t1/a.ogg"), "abcdefghij");
+    const part = await storage.openStoredFile("support/t1/a.ogg", { range: "bytes=-3" });
+    expect(part).toMatchObject({ status: 206, contentLength: 3, contentRange: "bytes 7-9/10" });
+    expect(await new Response(part!.body).text()).toBe("hij");
+    const full = await storage.openStoredFile("support/t1/a.ogg");
+    expect(full!.etag).toMatch(/^"a-[0-9a-f]+"$/);
+    expect(await storage.openStoredFile("support/t1/a.ogg", { ifNoneMatch: full!.etag })).toMatchObject({ status: 304 });
+    expect(await storage.openStoredFile("support/t1/a.ogg", { range: "bytes=50-" })).toMatchObject({ status: 416, contentRange: "bytes */10" });
+    await full!.body!.cancel();
   });
 });

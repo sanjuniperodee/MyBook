@@ -1,5 +1,5 @@
-import type { Clock, Logger } from "@/shared/application";
-import { getFile, localPath, putFile } from "@/shared/infrastructure/storage";
+import type { Clock, Logger, StoredFile, StoredFileRequest } from "@/shared/application";
+import { getFile, localPath, openStoredFile, putFile } from "@/shared/infrastructure/storage";
 import type { SupportAttachment } from "@/shared/domain/support";
 import { TicketsService, type AudioExtractor, type TicketAi, type TicketAlerts, type TicketChats, type TicketMessenger } from "./application";
 import { DrizzleTicketRepository } from "./infrastructure/persistence";
@@ -12,6 +12,14 @@ export class SupportModule {
   readonly tickets: TicketsService;
 
   /** Вложение файлом на диске (из бакета — временной копией) для отдачи с Range: видео и звук в Safari. Права проверяет вызывающий. */
+  /** Вложение обращения потоком из хранилища (Range, ETag) — без скачивания файла на диск сайта. */
+  async attachmentStream(ticketId: string, attachmentId: string, req?: StoredFileRequest): Promise<{ file: StoredFile; attachment: SupportAttachment } | null> {
+    const t = await this.tickets.byId(ticketId);
+    const attachment = t?.attachments.find((a) => a.id === attachmentId);
+    const file = attachment ? await openStoredFile(attachment.key, req) : null;
+    return file && attachment ? { file, attachment } : null;
+  }
+
   async attachmentFile(ticketId: string, attachmentId: string): Promise<{ path: string; attachment: SupportAttachment } | null> {
     const t = await this.tickets.byId(ticketId);
     const attachment = t?.attachments.find((a) => a.id === attachmentId);

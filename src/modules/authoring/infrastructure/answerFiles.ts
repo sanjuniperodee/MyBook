@@ -5,7 +5,8 @@ import { and, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { db } from "@/shared/infrastructure/db";
 import { executor } from "@/shared/infrastructure/database";
 import { answerFilePurchases, answerFiles, bookQuestions, books, type AnswerFileRow, type AnswerMedia } from "@/shared/infrastructure/db/schema";
-import { deleteFile, deletePrefix, localPath, putFile, storagePath } from "@/shared/infrastructure/storage";
+import type { StoredFileRequest } from "@/shared/application";
+import { deleteFile, deletePrefix, localPath, openStoredFile, putFile, storagePath } from "@/shared/infrastructure/storage";
 import { env } from "@/config/env";
 import { getFreeMediaMinutes, getMediaPacks, type MediaPack } from "@/config/site";
 import { AuthoringError } from "../domain/errors";
@@ -44,6 +45,9 @@ export const mediaMime = (kind: FileKind) => (kind === "video" ? "video/mp4" : "
 /** Путь к готовому файлу на диске (с S3 — докачанному из бакета); файла нет — путь, по которому его нет (отдача ответит 404). */
 export const mediaPath = async (f: Pick<AnswerFileRow, "bookId" | "id" | "kind">) => (await localPath(mediaKey(f))) ?? storagePath(mediaKey(f));
 export const posterPath = async (f: Pick<AnswerFileRow, "bookId" | "id">) => (await localPath(posterKey(f))) ?? storagePath(posterKey(f));
+/** Готовое видео или аудио потоком из хранилища (Range, ETag): первое открытие не ждёт скачивания из бакета на диск. */
+export const openMedia = (f: Pick<AnswerFileRow, "bookId" | "id" | "kind">, req?: StoredFileRequest) => openStoredFile(mediaKey(f), req);
+export const openPoster = (f: Pick<AnswerFileRow, "bookId" | "id">, req?: StoredFileRequest) => openStoredFile(posterKey(f), req);
 
 export function fileView(f: AnswerFileRow): AnswerFileView {
   return {

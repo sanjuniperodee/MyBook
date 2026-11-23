@@ -20,6 +20,8 @@ export const {
   mediaMime,
   mediaPath,
   posterPath,
+  openMedia,
+  openPoster,
   fileView,
   newFileToken,
   bookUsage,

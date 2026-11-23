@@ -10,3 +10,4 @@ export * from "./StaffNotifier";
 export * from "./LiveFeed";
 export * from "./CustomFieldsReader";
 export * from "./WorkSchedule";
+export * from "./StoredFile";

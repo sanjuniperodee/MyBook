@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
-import { serveFile } from "@/server/range-file";
+import { serveFile, storedResponse } from "@/server/range-file";
 
 const dir = mkdtempSync(join(tmpdir(), "range-file-"));
 const file = join(dir, "voice.m4a");
@@ -39,5 +39,21 @@ describe("serveFile", () => {
     const res = await get({ "If-None-Match": etag });
     expect(res.status).toBe(304);
     expect(await res.text()).toBe("");
+  });
+});
+
+describe("storedResponse", () => {
+  const body = () => new Blob(["234"]).stream();
+  it("206 с длиной и диапазоном; заголовки маршрута поверх (свой ETag)", async () => {
+    const res = storedResponse({ status: 206, body: body(), size: 10, contentLength: 3, contentRange: "bytes 2-4/10", etag: '"s3"' }, "video/mp4", { ETag: '"route"', "Cache-Control": "public, max-age=604800" })!;
+    expect(res.status).toBe(206);
+    expect(Object.fromEntries(res.headers)).toMatchObject({ "content-type": "video/mp4", "accept-ranges": "bytes", etag: '"route"', "content-length": "3", "content-range": "bytes 2-4/10", "cache-control": "public, max-age=604800" });
+    expect(await res.text()).toBe("234");
+  });
+  it("304 без тела, 416 с размером, нет файла — null", () => {
+    expect(storedResponse({ status: 304, body: null, etag: '"e"' }, "image/jpeg")!.headers.get("etag")).toBe('"e"');
+    const r416 = storedResponse({ status: 416, body: null, contentRange: "bytes */10" }, "image/jpeg")!;
+    expect([r416.status, r416.headers.get("content-range")]).toEqual([416, "bytes */10"]);
+    expect(storedResponse(null, "image/jpeg")).toBeNull();
   });
 });

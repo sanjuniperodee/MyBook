@@ -6,6 +6,7 @@ import { canDownloadFile, type OrderFile } from "@/modules/ordering/domain";
 import { getPlan } from "@/config/site";
 import { idParams } from "@/server/input";
 import { fileRoute } from "@/server/file-route";
+import { storedFileRequest, storedResponse } from "@/server/range-file";
 
 export const maxDuration = 300;
 
@@ -38,13 +39,12 @@ export const GET = fileRoute("order-file", api(async (req, { params }: { params:
     await c.printFiles.ensure(job, kind as OrderFileKind, { force });
     return new Response(null, { status: 204, headers: { "Cache-Control": "private, no-store" } });
   }
-  const data = await c.printFiles.getFile(job, kind as OrderFileKind, { force });
+  // Готовый файл — потоком из хранилища (с Range), а не целиком в память сайта: печатный блок — десятки МБ.
   const meta = kinds[kind as OrderFileKind];
-  return new Response(new Uint8Array(data), {
-    headers: {
-      "Content-Type": meta.type,
-      "Content-Disposition": `attachment; filename="${meta.name(order.number)}"`,
-      "Cache-Control": "private, no-store",
-    },
+  const res = storedResponse(await c.printFiles.open(job, kind as OrderFileKind, { force }, storedFileRequest(req)), meta.type, {
+    "Content-Disposition": `attachment; filename="${meta.name(order.number)}"`,
+    "Cache-Control": "private, no-store",
   });
+  if (!res) throw new HttpError(404, "notFound");
+  return res;
 }));
