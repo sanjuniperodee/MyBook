@@ -25,6 +25,18 @@ export class MediaUnavailableError extends Error {
   }
 }
 
+/**
+ * Отметка в media_url: WhatsApp файл больше не отдаёт (410/404 — вложение истекло на серверах WhatsApp). Такое
+ * вложение не скачать никогда: в чате оно показывается «удалён в WhatsApp», а не ссылкой на файл.
+ */
+export const MEDIA_GONE = "gone:";
+
+/** Ответ шлюза «файла у WhatsApp больше нет» (status code 410/404 при скачивании). */
+export function isMediaGoneError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err ?? "");
+  return /status code (410|404)\b/.test(msg);
+}
+
 /** Сколько не просить шлюз снова скачать вложение, которое он не смог скачать (WhatsApp файл уже не отдаёт). */
 export const MEDIA_RETRY_MS = 10 * 60_000;
 
@@ -87,6 +99,7 @@ export class ChatMediaService {
    * а следующие MEDIA_RETRY_MS по этому сообщению сразу MediaUnavailableError, без запроса к шлюзу.
    */
   async open({ message, conversation }: Attachment, range?: string | null): Promise<MediaFile | null> {
+    if (message.mediaUrl === MEDIA_GONE) return null;
     if (this.files?.owns(message.mediaUrl)) return this.stored(message.mediaUrl!, range);
     const saved = gowaMediaPath(message.mediaUrl);
     if (message.mediaUrl && !saved) return null;
@@ -100,6 +113,11 @@ export class ChatMediaService {
     try {
       path = await this.gateway.download(message.externalId!, conversation.chatId);
     } catch (err) {
+      // Файл истёк у WhatsApp — запоминаем навсегда: шлюз не дёргаем, в чате — «удалён в WhatsApp».
+      if (isMediaGoneError(err)) {
+        await this.messages.saveMediaUrl(message.id, MEDIA_GONE);
+        return null;
+      }
       this.failed.set(message.id, this.now());
       throw err;
     }
@@ -121,6 +139,7 @@ export class ChatMediaService {
     const att = await this.find(messageId);
     if (!att) return null;
     const { message, conversation } = att;
+    if (message.mediaUrl === MEDIA_GONE) return null;
     if (this.files?.owns(message.mediaUrl)) {
       const f = await this.files.read(message.mediaUrl!);
       return f && f.data.length <= maxSize ? f : null;

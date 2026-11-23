@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { gowaDownloadable, gowaDownloadPhone, gowaMediaPath, gowaMediaType, gowaMediaUrl, isGowaMediaPath, parseGowaWebhook } from "@/modules/messaging/domain/gowa";
 import type { Conversation } from "@/modules/messaging/domain";
-import { ChatMediaService, MEDIA_RETRY_MS, type MediaFile, type MediaGateway, type MessageMedia } from "@/modules/messaging/application";
+import { ChatMediaService, isMediaGoneError, MEDIA_GONE, MEDIA_RETRY_MS, type MediaFile, type MediaGateway, type MessageMedia } from "@/modules/messaging/application";
 import { GowaClient } from "@/modules/messaging/infrastructure/gowa";
 import { gowaMediaGateway } from "@/modules/messaging/infrastructure/adapters";
 import { GET as mediaRoute } from "@/app/api/admin/chats/messages/[id]/media/route";
@@ -252,6 +252,37 @@ describe("ChatMediaService: шлюз не смог скачать файл", () 
     now += MEDIA_RETRY_MS;
     await expect(service.open(att)).rejects.toThrow("WhatsApp: media not found");
     expect(downloads).toBe(2);
+  });
+});
+
+describe("ChatMediaService: вложение, истёкшее у WhatsApp", () => {
+  it("410 от WhatsApp — отметка gone: навсегда, шлюз больше не дёргаем, файла нет (и для бота)", async () => {
+    const message = voice({ id: "m2", type: "document" });
+    let downloads = 0;
+    const service = new ChatMediaService(
+      { findById: async () => conv() },
+      { media: async () => message, saveMediaUrl: async (_id, url) => void (message.mediaUrl = url) },
+      {
+        download: async () => {
+          downloads++;
+          throw new GowaError("WhatsApp: failed to download media: download failed with status code 410");
+        },
+        file: async () => null,
+      },
+      async () => true,
+    );
+    expect(await service.open((await service.find("m2"))!)).toBeNull();
+    expect(message.mediaUrl).toBe(MEDIA_GONE);
+    expect(await service.open((await service.find("m2"))!)).toBeNull();
+    expect(await service.bytes("m2")).toBeNull();
+    expect(downloads).toBe(1);
+  });
+
+  it("распознаёт ответ шлюза «status code 410/404», другие ошибки — нет", () => {
+    expect(isMediaGoneError(new Error("download failed with status code 410"))).toBe(true);
+    expect(isMediaGoneError(new Error("download failed with status code 404"))).toBe(true);
+    expect(isMediaGoneError(new Error("WhatsApp: media not found"))).toBe(false);
+    expect(isMediaGoneError(new Error("Шлюз WhatsApp (GOWA) недоступен"))).toBe(false);
   });
 });
 

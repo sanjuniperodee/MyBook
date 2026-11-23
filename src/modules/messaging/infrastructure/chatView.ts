@@ -7,6 +7,7 @@ import { staffLabel } from "@/shared/domain/staff";
 import type { CustomFieldsReader, SettingsReader } from "@/shared/application";
 import { fieldVars } from "@/shared/domain/customFields";
 import { GOWA_CHANNEL, gowaDownloadable, gowaMediaPath } from "../domain/gowa";
+import { MEDIA_GONE } from "../application/media";
 import type { MailTransport } from "./email";
 import type { GowaClient } from "./gowa";
 import type { WazzupClient } from "./wazzup";
@@ -30,6 +31,8 @@ export interface ChatMessage {
    * через /api/admin/chats/messages/<id>/media, с проверкой, что сотрудник видит диалог.
    */
   gateway?: boolean;
+  /** Вложение истекло у WhatsApp и не скачивается: в чате — «удалён в WhatsApp». */
+  mediaGone?: boolean;
   /** Кто из сотрудников отправил (для «Изменить» и «Удалить» — только своё). */
   authorId?: string | null;
   /** Ответ на сообщение: что цитируется. */
@@ -85,6 +88,7 @@ async function loadChatMessages(conversationId: string, limit: number, gateway: 
     : new Set<string | null>();
   return rows.reverse().map(({ m, author }) => {
     const viaGateway = gateway(m);
+    const gone = m.mediaUrl === MEDIA_GONE;
     const q = m.replyToId ? byId.get(m.replyToId) : undefined;
     if (m.deletedAt)
       return { id: m.id, direction: m.direction, type: "text", text: "", mediaUrl: null, status: m.status, error: null, author: author?.email ? staffLabel({ name: author.name ?? "", email: author.email }) : null, at: m.createdAt.toISOString(), internal: m.internal, authorId: m.authorId, deleted: true };
@@ -94,13 +98,14 @@ async function loadChatMessages(conversationId: string, limit: number, gateway: 
       type: m.type,
       text: m.text,
       // Путь файла шлюза (в нём номер клиента) в браузер не уходит: такое вложение открывается по id сообщения.
-      mediaUrl: viaGateway ? null : m.mediaUrl,
+      mediaUrl: viaGateway || gone ? null : m.mediaUrl,
       status: m.status,
       error: m.error,
       author: author?.email ? (m.direction === "out" ? staffLabel({ name: author.name ?? "", email: author.email }) : null) : m.direction === "in" ? null : outgoingAuthor(m),
       at: m.createdAt.toISOString(),
       internal: m.internal,
       ...(viaGateway ? { gateway: true } : {}),
+      ...(gone ? { mediaGone: true } : {}),
       authorId: m.authorId,
       replyTo: q ? { id: q.id, text: q.deletedAt ? "Сообщение удалено" : q.text, type: q.type, direction: q.direction, author: q.direction === "in" ? null : q.email ? staffLabel({ name: q.name ?? "", email: q.email }) : null } : null,
       forwarded: m.forwarded,

@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useEffect, useRef, useState } from "react";
-import { AlertCircle, Ban, Bot, Check, CheckCheck, CheckSquare, ChevronDown, Slash, Clock, Copy, Download, FileText, Forward, Lock, Pencil, Play, Reply, RotateCw, Trash2 } from "lucide-react";
+import { AlertCircle, Ban, Bot, Check, CheckCheck, CheckSquare, ChevronDown, Slash, Clock, Copy, Download, FileText, FileX, Forward, LoaderCircle, Lock, Pencil, Play, Reply, RotateCw, Trash2 } from "lucide-react";
 import type { ChatMessage } from "@/modules/messaging";
 import { cn } from "@/lib/class-names";
 import { VoicePlayer } from "./VoicePlayer";
@@ -86,21 +86,73 @@ function StatusIcon({ status }: { status: string }) {
   return null;
 }
 
+/** Вложение истекло у WhatsApp: скачать нельзя — честно говорим и подсказываем, что делать. */
+function GoneFile({ type }: { type: string }) {
+  const what = type === "image" ? "Фото удалено" : type === "video" ? "Видео удалено" : type === "audio" ? "Голосовое удалено" : "Файл удалён";
+  return (
+    <div className="mb-1 flex min-w-52 items-center gap-3 rounded-[10px] border border-dashed border-line-strong bg-white/50 p-2 text-muted" data-testid="media-gone">
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-sunken">
+        <FileX className="size-5" strokeWidth={1.8} />
+      </span>
+      <span className="min-w-0 text-xs">
+        <span className="block text-sm font-medium text-ink-soft">{what} в WhatsApp</span>
+        WhatsApp хранит вложения ограниченное время — попросите клиента прислать ещё раз
+      </span>
+    </div>
+  );
+}
+
 function Attachment({ m, conversationId, onOpen, onVoiceEnded }: { m: Msg; conversationId: string; onOpen: () => void; onVoiceEnded: () => void }) {
   const [broken, setBroken] = useState(false);
+  const [gone, setGone] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [failed, setFailed] = useState<string | null>(null);
   const src = mediaSrc(m);
   const out = false;
   const download = !!m.gateway || !!m.localSrc;
+  if (m.mediaGone || gone) return <GoneFile type={m.type} />;
   if (!src) return null;
   if (m.type === "audio") return <VoicePlayer id={m.id} src={src} conversationId={conversationId} out={out} transcript={m.transcript} download={download} onEnded={onVoiceEnded} />;
+  // Файл шлюза сначала проверяем: старое вложение шлюз докачивает у WhatsApp, а истёкшее не скачается — простая
+  // ссылка «download» на телефоне висела бы в «Ожидание скачивания».
+  const fetchFile = async (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (!m.gateway || m.localSrc) return;
+    e.preventDefault();
+    if (loading) return;
+    setLoading(true);
+    setFailed(null);
+    try {
+      const res = await fetch(src);
+      if (res.status === 404 || res.status === 410) {
+        setGone(true);
+        return;
+      }
+      if (!res.ok) {
+        setFailed((await res.text().catch(() => "")).slice(0, 160) || "Не удалось скачать файл — попробуйте позже");
+        return;
+      }
+      const url = URL.createObjectURL(await res.blob());
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = m.fileName ?? (m.type === "image" ? "photo" : m.type === "video" ? "video" : "document");
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch {
+      setFailed("Нет связи — попробуйте ещё раз");
+    } finally {
+      setLoading(false);
+    }
+  };
   const file = (
-    <a href={src} {...(download ? { download: m.fileName ?? true } : { target: "_blank", rel: "noopener noreferrer" })} className="mb-1 flex min-w-52 items-center gap-3 rounded-[10px] border border-line bg-white/70 p-2 transition-colors hover:border-line-strong">
+    <a href={src} {...(download ? { download: m.fileName ?? true } : { target: "_blank", rel: "noopener noreferrer" })} onClick={fetchFile} aria-busy={loading} className="mb-1 flex min-w-52 items-center gap-3 rounded-[10px] border border-line bg-white/70 p-2 transition-colors hover:border-line-strong">
       <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-sunken text-ink-soft">
-        <FileText className="size-5" strokeWidth={1.8} />
+        {loading ? <LoaderCircle className="size-5 animate-spin" strokeWidth={1.8} /> : <FileText className="size-5" strokeWidth={1.8} />}
       </span>
       <span className="min-w-0">
         <span className="block truncate text-sm font-medium">{m.fileName ?? (m.type === "image" ? "Фото" : m.type === "video" ? "Видео" : "Документ")}</span>
-        <span className={cn("text-xs", broken ? "text-danger" : "text-muted")}>{broken ? "Не открылось — скачать файл" : "Открыть"}</span>
+        <span className={cn("text-xs", failed || broken ? "text-danger" : "text-muted")}>{failed ?? (loading ? "Скачиваем…" : broken ? "Не открылось — скачать файл" : "Открыть")}</span>
       </span>
     </a>
   );
