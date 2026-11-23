@@ -29,14 +29,30 @@ smoke-тест на временном порту, переключение ре
 («Обращение №N») закрываются и автору уходит WhatsApp. Лог — `~/mybook-ship-logs/`. Сборка на сервере идёт
 дольше, чем в CI (одно ядро): ~10–20 минут — запускать фоном и ждать.
 
-## Слежение
+## Сессия и обращения без Mac
 
-`bash scripts/support/watch.sh <последний №>` фоном; сессия держится в открытом чате приложения Claude (подключение
-SSH к серверу). Итог выкаток — владельцу в WhatsApp, как в README.
+Сессия Claude живёт на сервере сама и не зависит от Mac. Её открывают из приложения Claude (Code → список сессий,
+значок компьютера с зелёной точкой «MyBooks · обращения») или с телефона — это Remote Control: процесс `claude`
+работает на сервере, приложение только показывает чат.
+
+- **pm2 `mybook-claude`** — `scripts/support/claude-session.sh`: держит в tmux `mybook-claude` сессию
+  `claude --remote-control` в `~/mybook-dev` (без вопросов о правах). Вышла или упала — поднимает тот же разговор по id
+  из `~/.mybook-claude-session-id` (удалить файл — начать новый разговор с вводным заданием). pm2 поднимается при
+  загрузке сервера (`pm2-srv.service`, список — `pm2 save`).
+- **pm2 `mybook-support-dispatch`** — `scripts/support/dispatch.sh`: раз в минуту смотрит новые обращения и пишет в
+  сессию «Новое обращение №N…». Последний переданный номер — `~/.mybook-support-last`. Сессии нет — ждёт, номер не
+  двигает. Поэтому сама сессия `watch.sh` не запускает.
+- Посмотреть сессию в терминале: `tmux attach -t mybook-claude` (выйти, не останавливая: Ctrl-b d). Логи —
+  `pm2 logs mybook-claude`, `pm2 logs mybook-support-dispatch`.
+- Вход: Remote Control работает только со входом claude.ai (`claude auth login`, ссылку открыть в браузере, код
+  вставить). Вход истёк — сторож пишет в лог «нужен вход» и ждёт; войти снова — сессия поднимется сама.
+- Итог выкаток — владельцу в WhatsApp, как в README.
 
 ## Первая настройка (уже сделана)
 
 - `git clone` в `~/mybook-dev`, `npm ci`; память Claude — `~/.claude/projects/-home-srv-mybook-dev/memory/`.
 - Пуш в GitHub — ключ развёртывания с правом записи `~/.ssh/github_mybook` (в GitHub: Settings → Deploy keys,
   «mybook-server»), remote `git@github-mybook:sanjuniperodee/MyBook.git` (алиас в `~/.ssh/config`).
-- В приложении Claude: «Новая сессия» → SSH → `srv@185.102.75.191`, ключ `~/.ssh/id_ed25519`, папка `~/mybook-dev`.
+- Claude Code — `~/.local/bin/claude` (ставится скриптом с claude.ai, обновляется сам).
+- pm2: `pm2 start scripts/support/claude-session.sh --name mybook-claude --interpreter bash` и
+  `pm2 start scripts/support/dispatch.sh --name mybook-support-dispatch --interpreter bash` из `~/mybook-dev`, `pm2 save`.
