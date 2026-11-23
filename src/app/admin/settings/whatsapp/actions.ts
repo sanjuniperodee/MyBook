@@ -172,3 +172,15 @@ export async function gowaImportHistoryAction(): Promise<Result<{ chats: number;
     return gowaError(err);
   }
 }
+
+/** Срок хранения записей разговоров WhatsApp, дней (0 — без срока): старше — удаляются ежедневной уборкой. */
+export async function saveCallRecordingDaysAction(input: number): Promise<Result> {
+  const staff = await assertStaff("settings.manage");
+  const parsed = z.number().int().min(0).max(3650).safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Срок — целое число дней от 0 до 3650 (0 — хранить без срока)" };
+  const days = parsed.data;
+  await saveSettings({ "calls.recordingDays": String(days) }, staff.user.id);
+  await audit(staff, "settings.update", "settings", "calls.recordingDays", { days });
+  revalidatePath("/admin/settings");
+  return { ok: true };
+}

@@ -24,7 +24,7 @@ export const books: typeof ru = {
     updated: (d: string) => `Updated ${d}`,
     /** First visit: three steps on the way to the book, under the greeting. */
     firstSteps: [
-      ["Choose who the book is for", "A loved one, Mom, yourself — the questions and chapters depend on it."],
+      ["Choose who the book is for", "A loved one, Mum, yourself — the questions and chapters depend on it."],
       ["Answer the questions", "One a day, by text or by voice. Everything is saved automatically."],
       ["Design it and order", "Cover, photos, letters from loved ones — and printing in a hardcover."],
     ] as [string, string][],
@@ -479,9 +479,9 @@ export const books: typeof ru = {
       addPhotos: "Add photos",
       suggestions: {
         love: ["Every page of this book is about you.", "You are my happiest story.", "Everything best in my life begins with “we”."],
-        mom: ["Mom, everything good in me is from you.", "For the warmest mom in the world.", "Thank you for every day, Mom."],
+        mom: ["Mum, everything good in me is from you.", "For the warmest mum in the world.", "Thank you for every day, Mum."],
         dad: ["Dad, you are my first hero.", "Thank you for always being there.", "Everything you taught me is in this book."],
-        parents: ["Mom and Dad, everything good in me is from you.", "Thank you for a home where someone is always waiting.", "This book is about the two of you and our family."],
+        parents: ["Mum and Dad, everything good in me is from you.", "Thank you for a home where someone is always waiting.", "This book is about the two of you and our family."],
         family: ["Here is everything we remember and don’t want to lose.", "Our family is our greatest story.", "Roots, home and those who live in it."],
         grandma: ["Grandma, your home was always warm.", "Thank you for the stories, the pies and the love.", "Everything best in our family is from you."],
         daughterinlaw: ["Welcome to the family — now you are ours.", "Thank you for being here and making our home warmer.", "Everything good you brought to the family is in this book."],

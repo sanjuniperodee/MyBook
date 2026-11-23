@@ -14,6 +14,7 @@ import {
   idleQuery,
   idleSubject,
   relevantConditions,
+  SILENT_DEFAULTS,
   SILENT_LIMITS,
   silentQuery,
   silentSubject,
@@ -1137,14 +1138,15 @@ describe("Клиент молчит после нашего ответа (automa
   const starter = rule({ id: "silent", name, trigger, conditions: JSON.parse(conditions), actions: JSON.parse(actions) as RuleAction[] });
   // 19.10.2026 10:00 по Алматы — рабочее время.
   const oct19 = new Date("2026-10-19T05:00:00Z");
-  const row = (conversationId: string, at: string) => ({ conversationId, dealId: "d1", clientId: "c1", channel: "whatsapp", lastOutgoingAt: new Date(at), date: "18 октября 2026 г." });
+  const row = (conversationId: string, at: string) => ({ conversationId, dealId: "d1", clientId: "c1", stageId: "st-work", channel: "whatsapp", lastOutgoingAt: new Date(at), date: "18 октября 2026 г." });
 
   it("стартовое правило приезжает выключенным: сутки молчания, в рабочее время — только задача менеджеру, клиенту не пишет", () => {
     expect(active).toBe("false");
     expect(isTrigger(trigger)).toBe(true);
     expect(sql).toContain(`WHERE "trigger" = '${trigger}'`);
     expect(starter.conditions).toEqual({ silentHours: 24, hours: "work" });
-    expect(relevantConditions(trigger, starter.conditions)).toEqual(starter.conditions);
+    // Сохранение в редакторе добавит лимит в день по умолчанию.
+    expect(relevantConditions(trigger, starter.conditions)).toEqual({ ...starter.conditions, perDay: SILENT_DEFAULTS.perDay });
     expect(starter.actions.map((a) => a.type)).toEqual(["create_task"]);
   });
 
@@ -1152,10 +1154,26 @@ describe("Клиент молчит после нашего ответа (automa
     const asked: unknown[] = [];
     const scheduled = { silent: async (ruleId: string, q: unknown) => (asked.push({ ruleId, ...(q as object) }), []) };
     await setup([rule({ ...starter, conditions: { silentHours: 6 } })], { now: oct19, scheduled }).engine.runScheduled({ force: true });
-    expect(asked).toEqual([{ ruleId: "silent", before: new Date("2026-10-18T23:00:00Z"), since: new Date("2026-10-11T23:00:00Z") }]);
+    expect(asked).toEqual([{ ruleId: "silent", before: new Date("2026-10-18T23:00:00Z"), since: new Date("2026-10-11T23:00:00Z"), stageId: null, limit: SILENT_DEFAULTS.perDay }]);
     expect(silentQuery({ conditions: { silentHours: 500 } }, oct19).before).toEqual(new Date(oct19.getTime() - SILENT_LIMITS.hours * 3_600_000));
     expect(silentQuery({ conditions: { silentHours: 0 } }, oct19).before).toEqual(new Date("2026-10-18T05:00:00Z"));
-    expect(relevantConditions("message.silent", { silentHours: 900, minutes: 5, channel: "whatsapp" })).toEqual({ silentHours: SILENT_LIMITS.hours, channel: "whatsapp" });
+    expect(relevantConditions("message.silent", { silentHours: 900, minutes: 5, channel: "whatsapp" })).toEqual({ silentHours: SILENT_LIMITS.hours, channel: "whatsapp", perDay: SILENT_DEFAULTS.perDay });
+    expect(relevantConditions("message.silent", { stageId: "st-work", perDay: 900 })).toEqual({ stageId: "st-work", silentHours: SILENT_DEFAULTS.hours, perDay: SILENT_LIMITS.perDay });
+  });
+
+  it("не больше perDay диалогов в день: счёт за сегодня — из журнала; этап — в выборку", async () => {
+    const asked: { stageId: string | null; limit: number }[] = [];
+    const rows = ["c1", "c2", "c3", "c4"].map((id) => row(id, "2026-10-18T04:00:00Z"));
+    const scheduled = {
+      silent: async (_: string, q: { stageId: string | null; limit: number }) => (asked.push({ stageId: q.stageId, limit: q.limit }), rows.slice(0, q.limit)),
+      firedOn: async () => 1,
+    };
+    const r = rule({ ...starter, conditions: { ...starter.conditions, perDay: 3, stageId: "st-work" } });
+    const { engine } = setup([r], { now: oct19, subject: { assigneeId: "m1" }, scheduled });
+    expect(await engine.runScheduled({ force: true })).toBe(2);
+    expect(asked).toEqual([{ stageId: "st-work", limit: 2 }]);
+    const full = setup([r], { now: oct19, scheduled: { ...scheduled, firedOn: async () => 3 } });
+    expect(await full.engine.runScheduled({ force: true })).toBe(0);
   });
 
   it("задача «написать» ответственному — одна на наш ответ: повторный проход по тому же сообщению второй не ставит; ответили снова и клиент молчит — ещё одна", async () => {

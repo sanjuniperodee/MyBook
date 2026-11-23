@@ -59,7 +59,7 @@ export const pay: typeof ru = {
   /** Hints of the Kaspi block on the invoice page. */
   kaspi: {
     note: (org: string | null, comment: string) => (org ? `The recipient is ${org}, the payment comment is “${comment}”.` : `The payment comment is “${comment}”.`),
-    phoneHint: (masked: string) => `Leave the field empty — the invoice will arrive in Kaspi on the number ${masked}. Or enter a different number.`,
+    phoneHint: (masked: string) => `Leave the field empty — the invoice will arrive in the Kaspi account of ${masked}. Or enter a different number.`,
     paid: "Payment received! Refreshing the page…",
   },
   /** The message with an invoice on WhatsApp. */
@@ -68,7 +68,7 @@ export const pay: typeof ru = {
       `Hello${i.name ? `, ${i.name}` : ""}! Invoice ${i.label} for payment: ${i.books && i.books > 1 ? `personal books, ${i.books} copies (${i.plan})` : `a personal book (${i.plan})`}, ${i.purpose} — ${i.amount}.`,
       i.gifts ? `🎁 Free by agreement: ${i.gifts}.` : null,
       `Pay here: ${i.link}`,
-      i.kaspiPhone ? `The invoice has also arrived in the Kaspi app on the number ${i.kaspiPhone}${i.kaspiOrg ? ` — the recipient is ${i.kaspiOrg}` : ""}.` : null,
+      i.kaspiPhone ? `The invoice has also been sent to the Kaspi app for ${i.kaspiPhone}${i.kaspiOrg ? ` — the recipient is ${i.kaspiOrg}` : ""}.` : null,
       `Valid until ${i.until}.`,
     ]
       .filter(Boolean)

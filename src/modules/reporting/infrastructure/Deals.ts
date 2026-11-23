@@ -10,6 +10,8 @@ import { visibleTo, type Viewer } from "./MyDay";
 import { noOpenTask } from "./conditions";
 import { storeTimeZone } from "@/shared/domain/time";
 import { dealAdvancedFilters } from "../ui/dealFilters";
+import { managerListKey } from "../ui/managerLists";
+import { managerListWhere } from "./ManagerLists";
 
 const CLOSED_DAYS = 30;
 
@@ -34,6 +36,9 @@ function dealWhere(viewer: Viewer, pipeline: { id: string }, sp: DealParams, sel
   // застряла на этапе.
   if (sp.task === "none") w.push(noOpenTask(), eq(crmStages.kind, "open"));
   if (sp.task === "overdue") w.push(sql`exists (select 1 from crm_tasks t where t.deal_id = ${crmDealsId} and t.done_at is null and t.due_at < now())`);
+  // Списки для менеджеров (отчёт 15.11): «остановились на оплате», «книга почти готова, заказа нет» и т. д.
+  const list = managerListKey(sp.list);
+  if (list) w.push(managerListWhere(list), eq(crmStages.kind, "open"));
   const stale = Number(sp.stale);
   if (stale > 0) w.push(sql`${crmDeals.stageChangedAt} < now() - make_interval(days => ${Math.min(stale, 365)})`, eq(crmStages.kind, "open"));
   // Панель «Фильтр»: дата (создания, закрытия или смены этапа), этап, бюджет, оплата, причина отказа, тег.

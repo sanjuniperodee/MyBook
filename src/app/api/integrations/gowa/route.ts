@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
-import { parseGowaCall, parseGowaWebhook } from "@/modules/messaging/domain/gowa";
+import { parseGowaCall, parseGowaChange, parseGowaWebhook } from "@/modules/messaging/domain/gowa";
 import { container } from "@/server/container";
 
 /**
- * Вебхук своего шлюза WhatsApp (GOWA): входящие, ответы с телефона магазина (эхо), статусы доставки и входящие звонки.
+ * Вебхук своего шлюза WhatsApp (GOWA): входящие, ответы с телефона магазина (эхо), статусы доставки, правки и удаления
+ * в WhatsApp, входящие звонки.
  * Подпись — X-Hub-Signature-256 (HMAC-SHA256, секрет из «Интеграций»). Обработка идемпотентна (по id сообщения),
  * поэтому при ошибке отвечаем 500 — шлюз доставит событие повторно.
  */
@@ -20,6 +21,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "bad json" }, { status: 400 });
   }
   const { messages, statuses } = parseGowaWebhook(body);
+  const { edit, revoke } = parseGowaChange(body);
   try {
     // Входящий звонок WhatsApp — в общий журнал звонков (идемпотентно по call_id). Со «Звонками WhatsApp» он звонит в CRM,
     // без них — записывается пропущенным.
@@ -30,6 +32,9 @@ export async function POST(req: Request) {
     }
     for (const m of messages) await messaging.chats.ingest(m, { anyWhatsappChannel: true });
     for (const s of statuses) await messaging.chats.applyStatus(s);
+    // Правки и «удалить для всех», сделанные в WhatsApp (клиентом или с телефона магазина).
+    if (edit) await messaging.chats.applyExternalEdit(edit);
+    if (revoke) await messaging.chats.applyExternalRevoke(revoke);
   } catch (err) {
     console.error("[gowa] webhook", err);
     return NextResponse.json({ error: "failed" }, { status: 500 });

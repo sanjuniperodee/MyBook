@@ -2,8 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { CATALOG_LIMITS, GowaError, MessageActionError, type CatalogSettings, type ProductDraft, type UploadImage } from "@/modules/messaging";
+import { CATALOG_DOC_KEYS, CATALOG_LIMITS, GowaError, MessageActionError, type CatalogSettings, type ProductDraft, type UploadImage } from "@/modules/messaging";
 import { assertStaff, assertVisible, assertWorkable, audit } from "@/server/access";
+import { saveSettings } from "@/modules/workspace";
 import { container } from "@/server/container";
 import { uuid } from "@/server/input";
 
@@ -32,7 +33,7 @@ const draftSchema = z.object({
 });
 
 /** Товар из формы: поля, новые фото (image) и какие фото из WhatsApp оставить (keep, по порядку). */
-async function readForm(form: FormData): Promise<{ draft: ProductDraft; images: UploadImage[]; keep: string[] | null } | { error: string }> {
+async function readForm(form: FormData): Promise<{ draft: ProductDraft; images: UploadImage[]; keep: string[] | null; keepVideos: string[] | null } | { error: string }> {
   const parsed = draftSchema.safeParse({
     name: String(form.get("name") ?? ""),
     description: String(form.get("description") ?? ""),
@@ -49,7 +50,8 @@ async function readForm(form: FormData): Promise<{ draft: ProductDraft; images: 
     images.push({ data: new Uint8Array(await f.arrayBuffer()), name: f.name, mime: f.type });
   }
   const keep = form.get("keepSet") === "1" ? form.getAll("keep").map(String) : null;
-  return { draft: parsed.data, images, keep };
+  const keepVideos = form.get("keepSet") === "1" ? form.getAll("keepVideo").map(String) : null;
+  return { draft: parsed.data, images, keep, keepVideos };
 }
 
 /** Новый товар в каталоге WhatsApp. */
@@ -73,7 +75,7 @@ export async function updateProductAction(id: string, form: FormData): Promise<R
   const input = await readForm(form);
   if ("error" in input) return { ok: false, error: input.error };
   try {
-    const p = await container().messaging.catalog.update(productId.parse(id), input.draft, input.images, input.keep);
+    const p = await container().messaging.catalog.update(productId.parse(id), input.draft, input.images, input.keep, input.keepVideos);
     await audit(staff, "catalog.update", "wa_product", p.id, { name: p.name, price: p.price, hidden: p.hidden });
     revalidatePath("/admin/catalog");
     return { ok: true };
@@ -113,6 +115,37 @@ export async function syncCatalogAction(): Promise<Result<{ total: number; remov
     const r = await container().messaging.catalog.sync();
     revalidatePath("/admin/catalog");
     return { ok: true, ...r };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+// ─── коллекции ────────────────────────────────────────────────────────────
+
+const collectionSchema = z.object({ name: z.string().trim().min(1, "Укажите название").max(30, "Не длиннее 30 символов"), productIds: z.array(productId).min(1, "Выберите хотя бы один товар").max(100) });
+
+export async function saveCollectionAction(id: string | null, input: { name: string; productIds: string[] }): Promise<Result> {
+  const staff = await assertStaff("catalog.manage");
+  const parsed = collectionSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Проверьте коллекцию" };
+  try {
+    const catalog = container().messaging.catalog;
+    const saved = id ? await catalog.updateCollection(productId.parse(id), parsed.data.name, parsed.data.productIds) : await catalog.createCollection(parsed.data.name, parsed.data.productIds);
+    await audit(staff, id ? "catalog.collection.update" : "catalog.collection.create", "wa_collection", saved, { name: parsed.data.name, products: parsed.data.productIds.length });
+    revalidatePath("/admin/catalog");
+    return { ok: true };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+export async function deleteCollectionAction(id: string): Promise<Result> {
+  const staff = await assertStaff("catalog.manage");
+  try {
+    await container().messaging.catalog.deleteCollection(productId.parse(id));
+    await audit(staff, "catalog.collection.delete", "wa_collection", id);
+    revalidatePath("/admin/catalog");
+    return { ok: true };
   } catch (err) {
     return fail(err);
   }
@@ -196,6 +229,24 @@ export async function saveCatalogSettingsAction(input: CatalogSettings): Promise
   if (!parsed.success) return { ok: false, error: "Проверьте поля: валюта — три буквы (KZT)" };
   await container().messaging.catalog.saveSettings(parsed.data, staff.user.id);
   await audit(staff, "settings.update", "settings", "whatsapp.catalog", { enabled: parsed.data.enabled });
+  revalidatePath("/admin/settings");
+  return { ok: true };
+}
+
+/** Замены doc_id GraphQL каталога (когда WhatsApp сменит запросы); пустое поле — номер из кода. */
+export async function saveCatalogDocsAction(input: Record<string, string>): Promise<Result> {
+  const staff = await assertStaff("settings.manage");
+  const parsed = z.record(z.string(), z.string().max(40)).safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Проверьте номера документов" };
+  const clean: Record<string, string> = {};
+  for (const [k, v] of Object.entries(parsed.data)) {
+    const val = v.trim();
+    if (!val) continue;
+    if (!(CATALOG_DOC_KEYS as readonly string[]).includes(k) || !/^\d{6,30}$/.test(val)) return { ok: false, error: `«${k}»: doc_id — число из 6–30 цифр` };
+    clean[k] = val;
+  }
+  await saveSettings({ "whatsapp.catalogDocs": Object.keys(clean).length ? JSON.stringify(clean) : "" }, staff.user.id);
+  await audit(staff, "settings.update", "settings", "whatsapp.catalogDocs", clean);
   revalidatePath("/admin/settings");
   return { ok: true };
 }

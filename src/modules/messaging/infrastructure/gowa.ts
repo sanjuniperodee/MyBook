@@ -56,10 +56,10 @@ export const GOWA_DEVICE = "mybooks";
 export const GOWA_PAGE_LIMIT = 100;
 
 /**
- * События, которые нужны CRM: сообщения, отметки о доставке и входящие звонки — call.offer обычного шлюза и call.incoming
+ * События, которые нужны CRM: сообщения, отметки о доставке, правки и удаления в WhatsApp, входящие звонки — call.offer обычного шлюза и call.incoming
  * шлюза со звонками (какое из них в работе, решает настройка «Звонки WhatsApp»).
  */
-const WEBHOOK_EVENTS = "message,message.ack,call.offer,call.incoming";
+const WEBHOOK_EVENTS = "message,message.ack,message.edited,message.revoked,call.offer,call.incoming";
 
 type Method = "GET" | "POST" | "PATCH" | "DELETE";
 

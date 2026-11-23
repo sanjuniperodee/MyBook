@@ -489,14 +489,15 @@ export class SqlScheduledSource implements ScheduledSource {
    * не остановлен кнопкой). Сделка диалога в работе и без открытой задачи — следующий шаг не запланирован. Собеседник
    * и клиент не в стоп-листе: напомнить о себе такому — нарушить его просьбу. Дольше всех молчащие — первыми.
    */
-  async silent(ruleId: string, q: { before: Date; since: Date }) {
-    const { rows } = await executor().execute<{ id: string; deal_id: string; client_id: string | null; channel: string; at: Date | string }>(sql`
-      select c.id, c.deal_id, coalesce(c.client_id, d.client_id) as client_id, c.channel, c.last_outgoing_at as at
+  async silent(ruleId: string, q: { before: Date; since: Date; stageId: string | null; limit: number }) {
+    const { rows } = await executor().execute<{ id: string; deal_id: string; client_id: string | null; stage_id: string; channel: string; at: Date | string }>(sql`
+      select c.id, c.deal_id, coalesce(c.client_id, d.client_id) as client_id, d.stage_id, c.channel, c.last_outgoing_at as at
       from crm_conversations c
       join crm_deals d on d.id = c.deal_id
       join crm_stages s on s.id = d.stage_id and s.kind = 'open'
       left join users u on u.id = coalesce(c.client_id, d.client_id)
       where c.last_outgoing_at <= ${q.before.toISOString()}::timestamptz and c.last_outgoing_at > ${q.since.toISOString()}::timestamptz
+        ${q.stageId ? sql`and d.stage_id = ${q.stageId}::uuid` : sql``}
         and c.status = 'open' and c.awaiting_since is null
         and not (coalesce(c.bot_state->>'phase', 'done') <> 'done' and coalesce(c.bot_step, 0) <> -1)
         and not exists (select 1 from crm_messages m where m.conversation_id = c.id and m.direction = 'in' and m.created_at > c.last_outgoing_at)
@@ -505,10 +506,10 @@ export class SqlScheduledSource implements ScheduledSource {
         and (u.id is null or not ${noMarketing(sql`u`)})
         and ${notFired(ruleId, sql`'conv:' || c.id::text || ':silent:' || ${isoText(sql`c.last_outgoing_at`)}`)}
       order by c.last_outgoing_at, c.id
-      limit ${SILENT_LIMIT}`);
+      limit ${Math.max(0, Math.min(SILENT_LIMIT, q.limit))}`);
     return rows.map((r) => {
       const lastOutgoingAt = new Date(r.at);
-      return { conversationId: r.id, dealId: r.deal_id, clientId: r.client_id, channel: r.channel, lastOutgoingAt, date: formatDate(lastOutgoingAt) };
+      return { conversationId: r.id, dealId: r.deal_id, clientId: r.client_id, stageId: r.stage_id, channel: r.channel, lastOutgoingAt, date: formatDate(lastOutgoingAt) };
     });
   }
 

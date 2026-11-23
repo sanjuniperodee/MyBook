@@ -47,6 +47,10 @@ export interface ChatMessage {
   trace?: boolean;
   /** Карточка WhatsApp: товар из каталога, корзина клиента, ссылка на каталог. */
   card?: MessageCard | null;
+  /** Правки в WhatsApp не из CRM: прежние тексты, старые первыми. */
+  editHistory?: { text: string; at: string }[];
+  /** Удалено в WhatsApp не из CRM: client — клиентом, shop — с телефона магазина; текст сотрудникам виден. */
+  revoked?: "client" | "shop";
 }
 
 /** Кто отправил исходящее без сотрудника: бот, правило автоматизации, телефон магазина (эхо) или старая запись. */
@@ -114,6 +118,8 @@ async function loadChatMessages(conversationId: string, limit: number, gateway: 
       transcript: m.transcript,
       ...(traced.has(m.id) ? { trace: true } : {}),
       ...(m.card ? { card: parseCard(m.card) } : {}),
+      ...(Array.isArray(m.editHistory) && m.editHistory.length ? { editHistory: m.editHistory } : {}),
+      ...(m.revokedAt ? { revoked: m.direction === "in" ? ("client" as const) : ("shop" as const) } : {}),
     };
   });
 }

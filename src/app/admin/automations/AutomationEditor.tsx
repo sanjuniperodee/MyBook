@@ -382,27 +382,70 @@ function Editor({
               рабочих минут
             </label>
           ) : trigger === "message.silent" ? (
-            <label
-              className="flex items-center gap-2 text-sm"
-              title="Часы — календарные. Ответ старше недели после порога правило не берёт"
-            >
-              клиент молчит
-              <input
-                type="number"
-                min={1}
-                max={SILENT_LIMITS.hours}
-                className="input h-10 w-24 text-sm"
-                value={Number(conditions.silentHours ?? SILENT_DEFAULTS.hours)}
+            <div className="space-y-2 text-sm">
+              <label
+                className="flex items-center gap-2"
+                title="Часы — календарные. Ответ старше недели после порога правило не берёт"
+              >
+                клиент молчит
+                <input
+                  type="number"
+                  min={1}
+                  max={SILENT_LIMITS.hours}
+                  className="input h-10 w-24 text-sm"
+                  value={Number(conditions.silentHours ?? SILENT_DEFAULTS.hours)}
+                  onChange={(e) =>
+                    setConditions({
+                      ...conditions,
+                      silentHours: Number(e.target.value),
+                    })
+                  }
+                  aria-label="Сколько часов клиент молчит после нашего ответа"
+                />
+                часов после нашего ответа
+              </label>
+              <select
+                className="input h-10 text-sm"
+                value={String(conditions.stageId ?? "")}
                 onChange={(e) =>
                   setConditions({
                     ...conditions,
-                    silentHours: Number(e.target.value),
+                    stageId: e.target.value || null,
                   })
                 }
-                aria-label="Сколько часов клиент молчит после нашего ответа"
-              />
-              часов после нашего ответа
-            </label>
+                aria-label="Этап сделки"
+              >
+                <option value="">сделка на любом открытом этапе</option>
+                {ctx.stages
+                  .filter((s) => s.open !== false)
+                  .map((s) => (
+                    <option key={s.id} value={s.id}>
+                      сделка на этапе «{s.name}»
+                    </option>
+                  ))}
+              </select>
+              <label
+                className="flex items-center gap-2"
+                title="Сколько задач менеджеры успеют за день: остальные диалоги правило возьмёт в следующие дни, дольше всех молчащие — первыми"
+              >
+                не больше
+                <input
+                  type="number"
+                  min={1}
+                  max={SILENT_LIMITS.perDay}
+                  className="input h-10 w-20 text-sm"
+                  value={Number(conditions.perDay ?? SILENT_DEFAULTS.perDay)}
+                  onChange={(e) =>
+                    setConditions({
+                      ...conditions,
+                      perDay: Number(e.target.value),
+                    })
+                  }
+                  aria-label="Диалогов в день"
+                />
+                диалогов в день
+              </label>
+            </div>
           ) : trigger === "client.inactive" ? (
             <label className="flex items-center gap-2 text-sm">
               не заходит

@@ -279,3 +279,61 @@ export function productCaption(template: string, p: Pick<CatalogProduct, "name" 
 
 /** Ссылка на каталог номера: wa.me/c/<номер>. */
 export const catalogLink = (phone: string) => `https://wa.me/c/${phone.replace(/\D/g, "")}`;
+
+/** Коллекция каталога WhatsApp (группа товаров, клиент видит её разделом каталога). */
+export interface CatalogCollection {
+  id: string;
+  name: string;
+  /** Проверка WhatsApp: APPROVED, PENDING, REJECTED (приставку STATUS_ ответов мутаций убираем). */
+  review: string;
+  productIds: string[];
+}
+
+/** Коллекция из GraphQL (xfb_whatsapp_catalog_collections / xwa_product_catalog_get_collections). */
+export function parseGraphCollection(raw: unknown): CatalogCollection | null {
+  const c = record(raw);
+  const id = str(c.id).trim();
+  if (!/^\d{1,40}$/.test(id)) return null;
+  const products = Array.isArray(c.products) ? c.products.map(record) : [];
+  return {
+    id,
+    name: str(c.name),
+    review: str(record(c.status_info).status).toUpperCase().replace(/^STATUS_/, ""),
+    productIds: products.map((p) => str(p.id)).filter((x) => /^\d{1,40}$/.test(x)),
+  };
+}
+
+/** Что изменить в коллекции, чтобы в ней были именно wanted: какие товары добавить и какие убрать. */
+export function collectionDiff(current: string[], wanted: string[]): { add: string[]; remove: string[] } {
+  const now = new Set(current);
+  const next = new Set(wanted);
+  return { add: wanted.filter((id) => !now.has(id)), remove: current.filter((id) => !next.has(id)) };
+}
+
+/** Документы GraphQL каталога (doc_id сборки WhatsApp Web); в настройках каждый можно заменить, когда WhatsApp их сменит. */
+export const CATALOG_DOC_KEYS = ["read", "owner", "add", "edit", "remove", "collections", "collectionsPublic", "createCollection", "updateCollection", "deleteCollections"] as const;
+export type CatalogDocKey = (typeof CATALOG_DOC_KEYS)[number];
+
+/** Замены doc_id из настройки whatsapp.catalogDocs: только известные ключи и числа. */
+export function parseCatalogDocs(raw: string | null | undefined): Partial<Record<CatalogDocKey, string>> {
+  let v: Record<string, unknown> = {};
+  try {
+    v = record(raw ? JSON.parse(raw) : {});
+  } catch {
+    return {};
+  }
+  const out: Partial<Record<CatalogDocKey, string>> = {};
+  for (const k of CATALOG_DOC_KEYS) {
+    const val = str(v[k]).trim();
+    if (/^\d{6,30}$/.test(val)) out[k] = val;
+  }
+  return out;
+}
+
+/**
+ * Похоже ли на устаревший doc_id: WhatsApp сменил сохранённый запрос, и сервер его больше не знает. Тогда сотруднику —
+ * подсказка обновить doc_id в настройках, а не «повторите позже».
+ */
+export function looksLikeStaleDoc(message: string): boolean {
+  return /persisted|doc_id|document|query not found|unknown query|1675012|noncoercible/i.test(message);
+}

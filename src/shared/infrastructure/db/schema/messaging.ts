@@ -127,6 +127,16 @@ export const crmMessages = pgTable(
     /** Расшифровка голосового (по кнопке в чате или из распознавания AI-продажника). */
     transcript: text("transcript"),
     /**
+     * Правки в WhatsApp не из CRM (клиент или телефон магазина): прежние тексты по порядку [{ text, at }] — сотрудник
+     * видит, что было до правки. Правки из CRM сюда не пишутся.
+     */
+    editHistory: jsonb("edit_history").$type<{ text: string; at: string }[]>(),
+    /**
+     * Удалено в WhatsApp не из CRM («удалить для всех» клиентом или с телефона магазина): текст остаётся виден
+     * сотрудникам с пометкой. Удалённое из CRM — deleted_at.
+     */
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    /**
      * Карточка WhatsApp: товар из каталога (отправил менеджер или прислал клиент), корзина клиента или ссылка на каталог
      * (MessageCard, docs/whatsapp-catalog.md). Фото товара — в media_url.
      */

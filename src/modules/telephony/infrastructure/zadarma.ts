@@ -5,7 +5,7 @@ import type { TelephonyProvider } from "../application";
 import { TelephonyError } from "../domain";
 
 /** Настройки CRM, которые читает телефония: выбранная АТС, ключи Zadarma и веб-телефон. */
-export type TelephonySettingKey = "telephony.provider" | "zadarma.key" | "zadarma.secret" | "zadarma.baseUrl" | "zadarma.webphone" | "zadarma.pbxId";
+export type TelephonySettingKey = "telephony.provider" | "zadarma.key" | "zadarma.secret" | "zadarma.baseUrl" | "zadarma.webphone" | "zadarma.pbxId" | "calls.recordingDays";
 type Settings = SettingsReader<TelephonySettingKey>;
 
 async function zadarma<T>(settings: Settings, path: string, params: Record<string, string>): Promise<T> {

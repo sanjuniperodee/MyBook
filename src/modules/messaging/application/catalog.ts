@@ -1,5 +1,5 @@
 import type { Logger } from "@/shared/application";
-import { CATALOG_LIMITS, cardLine, catalogLink, orderItemsFromGateway, parseCard, parseCatalogSettings, productCaption, validateDraft, type CatalogProduct, type CatalogSettings, type MessageCard, type ProductDraft } from "../domain/catalog";
+import { CATALOG_LIMITS, collectionDiff, type CatalogCollection, cardLine, catalogLink, orderItemsFromGateway, parseCard, parseCatalogSettings, productCaption, validateDraft, type CatalogProduct, type CatalogSettings, type MessageCard, type ProductDraft } from "../domain/catalog";
 import type { OutgoingCard } from "./ports";
 import { MessageActionError, type MessagingService } from "./services";
 
@@ -29,6 +29,12 @@ export interface CatalogGateway {
   /** Товар целиком: WhatsApp заменяет все поля. Фото — keep (уже в WhatsApp, по порядку) и новые images. */
   editProduct(id: string, draft: ProductDraft, images: UploadImage[], keep: string[], videos: string[]): Promise<CatalogProduct>;
   deleteProduct(id: string): Promise<void>;
+  collections(): Promise<CatalogCollection[]>;
+  /** Новая коллекция; возвращает её id. */
+  createCollection(name: string, productIds: string[]): Promise<string>;
+  /** Правка коллекции; возвращает её НОВЫЙ id (WhatsApp выдаёт новый при каждой правке). */
+  updateCollection(id: string, change: { name?: string; add: string[]; remove: string[] }): Promise<string>;
+  deleteCollection(id: string): Promise<void>;
   catalogImage(url: string): Promise<{ data: Uint8Array; mime: string }>;
   orderDetails(orderId: string, token: string): Promise<unknown>;
 }
@@ -162,7 +168,7 @@ export class CatalogService {
   }
 
   /** Изменить товар. keep — какие фото из WhatsApp оставить (по порядку), images — новые; фото не трогали — keep = null. */
-  async update(id: string, draft: ProductDraft, images: UploadImage[], keep: string[] | null): Promise<StoredProduct> {
+  async update(id: string, draft: ProductDraft, images: UploadImage[], keep: string[] | null, keepVideos: string[] | null = null): Promise<StoredProduct> {
     const prev = await this.deps.store.get(id);
     if (!prev) throw new MessageActionError("Товар не найден — обновите каталог");
     const problem = validateDraft(draft);
@@ -171,7 +177,9 @@ export class CatalogService {
     const kept = keep?.filter((u) => prev.imageUrls.includes(u)) ?? null;
     if (kept && !kept.length && !images.length) throw new MessageActionError("У товара должно остаться хотя бы одно фото");
     const keepUrls = kept ?? prev.imageUrls;
-    const p = await this.deps.gateway.editProduct(id, draft, images, keepUrls, prev.videoUrls);
+    // Видео из CRM не добавить (WhatsApp Web не умеет их загружать), только убрать лишнее.
+    const videos = keepVideos ? keepVideos.filter((v) => prev.videoUrls.includes(v)) : prev.videoUrls;
+    const p = await this.deps.gateway.editProduct(id, draft, images, keepUrls, videos);
     const firstNew = !keepUrls.length ? images[0] : null;
     await this.deps.store.upsert(p, await this.cover(p, prev, firstNew), prev.position);
     return (await this.deps.store.get(p.id))!;
@@ -190,6 +198,40 @@ export class CatalogService {
     await this.deps.gateway.deleteProduct(id);
     await this.deps.store.remove(id);
     if (prev?.imageKey) await this.deps.images.remove(prev.imageKey).catch(() => undefined);
+  }
+
+  /** Коллекции каталога — прямо из WhatsApp (их мало, копию не держим). */
+  collections(): Promise<CatalogCollection[]> {
+    return this.deps.gateway.collections();
+  }
+
+  private checkCollection(name: string, productIds: string[]) {
+    if (!name.trim()) throw new MessageActionError("Укажите название коллекции");
+    if (name.trim().length > 30) throw new MessageActionError("Название коллекции — не длиннее 30 символов (так в WhatsApp)");
+    if (!productIds.length) throw new MessageActionError("Добавьте в коллекцию хотя бы один товар");
+    if (productIds.some((id) => !/^\d{1,40}$/.test(id))) throw new MessageActionError("Неверный товар");
+  }
+
+  async createCollection(name: string, productIds: string[]): Promise<string> {
+    this.checkCollection(name, productIds);
+    return this.deps.gateway.createCollection(name, [...new Set(productIds)]);
+  }
+
+  /** Коллекция с именно этими товарами и названием; WhatsApp даёт ей новый id — его и возвращаем. */
+  async updateCollection(id: string, name: string, productIds: string[]): Promise<string> {
+    this.checkCollection(name, productIds);
+    const current = (await this.deps.gateway.collections()).find((c) => c.id === id);
+    if (!current) throw new MessageActionError("Коллекция не найдена — обновите страницу");
+    const diff = collectionDiff(current.productIds, [...new Set(productIds)]);
+    const rename = name.trim() !== current.name ? name.trim() : undefined;
+    if (!diff.add.length && !diff.remove.length && rename === undefined) return id;
+    return this.deps.gateway.updateCollection(id, { name: rename, ...diff });
+  }
+
+  /** Удалить коллекцию (товары остаются в каталоге). Удаление по устаревшему id WhatsApp «принимает», ничего не делая, — проверяем. */
+  async deleteCollection(id: string): Promise<void> {
+    await this.deps.gateway.deleteCollection(id);
+    if ((await this.deps.gateway.collections()).some((c) => c.id === id)) throw new MessageActionError("WhatsApp не удалил коллекцию — обновите страницу и попробуйте ещё раз");
   }
 
   /** Товары для выбора в чате: видимые (скрытые — если так в настройках). */

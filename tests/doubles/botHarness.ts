@@ -41,6 +41,8 @@ export type Msg = {
   forwarded?: boolean;
   editedAt?: Date | null;
   deletedAt?: Date | null;
+  revokedAt?: Date | null;
+  editHistory?: { text: string; at: string }[];
   transcript?: string | null;
   error?: string | null;
 };
@@ -204,6 +206,15 @@ export function setup(
       const m = msgs.find((x) => x.externalId === e);
       return m ? { id: m.id, status: m.status, conversationId: m.conv } : null;
     },
+    byExternalIdFull: async (e) => {
+      const m = msgs.find((x) => x.externalId === e);
+      return m ? { id: m.id, conversationId: m.conv, direction: m.dir, type: m.type, text: m.text, mediaUrl: m.mediaUrl ?? null, externalId: m.externalId, internal: !!m.internal, authorId: m.authorId ?? null, source: (m.source as "bot" | "rule" | null) ?? null, status: m.status, error: m.error ?? null, deletedAt: m.deletedAt ?? null, transcript: m.transcript ?? null, createdAt: m.at, revokedAt: m.revokedAt ?? null } : null;
+    },
+    recordExternalEdit: async (id, text, previous, at) => {
+      const m = msgs.find((x) => x.id === id)!;
+      Object.assign(m, { text, editedAt: at, editHistory: [...(m.editHistory ?? []), previous] });
+    },
+    markRevoked: async (id, at) => void Object.assign(msgs.find((m) => m.id === id)!, { revokedAt: at }),
     countRuleSince: async (since, cap) => Math.min(cap, msgs.filter((m) => m.source === "rule" && !m.internal && m.at >= since && m.status !== "error").length),
     failedAutomated: async (since, limit) =>
       msgs

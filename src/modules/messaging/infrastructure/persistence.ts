@@ -349,6 +349,26 @@ export class DrizzleMessageRepository implements MessageRepository, MessageMedia
     await executor().update(crmMessages).set({ mediaUrl }).where(eq(crmMessages.id, id));
   }
 
+  async byExternalIdFull(externalId: string) {
+    const [r] = await executor().select({ id: crmMessages.id }).from(crmMessages).where(eq(crmMessages.externalId, externalId)).limit(1);
+    if (!r) return null;
+    const m = await this.findOne(r.id);
+    if (!m) return null;
+    const [extra] = await executor().select({ revokedAt: crmMessages.revokedAt }).from(crmMessages).where(eq(crmMessages.id, r.id)).limit(1);
+    return { ...m, revokedAt: extra?.revokedAt ?? null };
+  }
+
+  async recordExternalEdit(id: string, text: string, previous: { text: string; at: string }, at: Date) {
+    await executor()
+      .update(crmMessages)
+      .set({ text, editedAt: at, editHistory: sql`coalesce(${crmMessages.editHistory}, '[]'::jsonb) || ${JSON.stringify([previous])}::jsonb` })
+      .where(eq(crmMessages.id, id));
+  }
+
+  async markRevoked(id: string, at: Date) {
+    await executor().update(crmMessages).set({ revokedAt: at }).where(and(eq(crmMessages.id, id), isNull(crmMessages.revokedAt)));
+  }
+
   async byExternalId(externalId: string) {
     const [r] = await executor()
       .select({ id: crmMessages.id, status: crmMessages.status, conversationId: crmMessages.conversationId })

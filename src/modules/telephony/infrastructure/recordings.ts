@@ -51,6 +51,16 @@ export const localCallRecordings: CallRecordingStore = {
     await deleteFile(`${dir(callId)}/${FINAL}`);
   },
 
+  async remove(callId) {
+    const base = dir(callId);
+    for (const f of await parts(callId)) await deleteFile(`${base}/parts/${f}`).catch(() => undefined);
+    try {
+      for (const f of await listFiles(base)) if (/^(call\.(m4a|webm|mp4|ogg)|raw-.*|call\.m4a\..*)$/.test(f.name)) await deleteFile(`${base}/${f.name}`).catch(() => undefined);
+    } catch {
+      // папки нет — нечего удалять
+    }
+  },
+
   /** Плеер шлёт несколько Range-запросов подряд: сборку файла делаем один раз на звонок, остальные ждут её. */
   file(callId) {
     const running = assembling.get(callId);

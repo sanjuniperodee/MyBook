@@ -5,7 +5,7 @@ import { useState, useTransition } from "react";
 import { LoaderCircle, ShieldCheck } from "lucide-react";
 import { toast } from "@/components/ui/overlays";
 import type { CatalogSettings } from "@/modules/messaging/domain/catalog";
-import { checkCatalogAccessAction, saveCatalogSettingsAction } from "../../catalog/actions";
+import { checkCatalogAccessAction, saveCatalogDocsAction, saveCatalogSettingsAction } from "../../catalog/actions";
 import { Actions, Field, Group, Note, Section } from "../ui";
 
 /**
@@ -13,7 +13,7 @@ import { Actions, Field, Group, Note, Section } from "../ui";
  * подписи под карточкой, валюта новых товаров, можно ли отправлять скрытые товары. Проверка доступа — получить у WhatsApp
  * токен для правки каталога.
  */
-export function CatalogSettingsForm(props: { settings: CatalogSettings; products: number; gowa: boolean; link: string | null }) {
+export function CatalogSettingsForm(props: { settings: CatalogSettings; products: number; gowa: boolean; link: string | null; docs: { key: string; label: string; value: string; fallback: string }[] }) {
   const [pending, start] = useTransition();
   const [checking, check] = useTransition();
   const [s, setS] = useState(props.settings);
@@ -22,6 +22,13 @@ export function CatalogSettingsForm(props: { settings: CatalogSettings; products
     start(async () => {
       const r = await saveCatalogSettingsAction(s);
       toast(r.ok ? "Сохранено" : r.error, r.ok ? "success" : "error");
+    });
+  const [docs, setDocs] = useState<Record<string, string>>(Object.fromEntries(props.docs.map((d) => [d.key, d.value])));
+  const [savingDocs, startDocs] = useTransition();
+  const saveDocs = () =>
+    startDocs(async () => {
+      const r = await saveCatalogDocsAction(docs);
+      toast(r.ok ? "Документы WhatsApp сохранены" : r.error, r.ok ? "success" : "error");
     });
   const verify = () =>
     check(async () => {
@@ -78,6 +85,21 @@ export function CatalogSettingsForm(props: { settings: CatalogSettings; products
           <Field label="Валюта по умолчанию" className="w-40">
             <input className="input uppercase" value={s.currency} maxLength={3} onChange={(e) => set("currency", e.target.value.toUpperCase())} />
           </Field>
+        </Group>
+        <Group title="Документы WhatsApp" hint="Номера запросов WhatsApp Web (doc_id). WhatsApp иногда их меняет — тогда правки каталога вернут ошибку с названием запроса; новый номер вписывается сюда, без выкатки. Пусто — номер по умолчанию.">
+          <details>
+            <summary className="cursor-pointer text-sm text-ink-soft">Показать {Object.values(docs).filter(Boolean).length ? `(заменено: ${Object.values(docs).filter(Boolean).length})` : ""}</summary>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              {props.docs.map((d) => (
+                <Field key={d.key} label={d.label}>
+                  <input className="input font-mono text-xs" inputMode="numeric" value={docs[d.key] ?? ""} placeholder={d.fallback} onChange={(e) => setDocs((prev) => ({ ...prev, [d.key]: e.target.value.replace(/\D/g, "") }))} />
+                </Field>
+              ))}
+            </div>
+            <button type="button" className="btn btn-outline btn-sm mt-3" disabled={savingDocs} onClick={saveDocs}>
+              {savingDocs ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : null} Сохранить документы
+            </button>
+          </details>
         </Group>
         <Actions>
           <button className="btn btn-dark" disabled={pending}>

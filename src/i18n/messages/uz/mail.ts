@@ -25,7 +25,7 @@ export const mail: typeof ru = {
       deadlinePremium: (book: string, until: string, url: string) => `Oddiy ishlab chiqarish bayramga endi ulgurmaydi, ammo ekspress bosma navbatsiz bosiladi: buyurtmani ${until} rasmiylashtiring, «${book}» kitobi o‘z vaqtida yetib boradi. Kitob shu yerda: ${url}`,
       almost: (book: string, url: string) => `«${book}» kitobi deyarli tayyor. Maketni varaqlab chiqing — sahifalar aynan bosiladigan ko‘rinishda terilgan. Hammasi yoqsa, buyurtma bering: ${url}`,
       unpaid: (n: number, amount: string, url: string) => `${amount} miqdoridagi №${n} buyurtma rasmiylashtirilgan, lekin hali to‘lanmagan. To‘lov kelishi bilan kitob bosmaga ketadi: ${url}\nTo‘lovda qiyinchilik bo‘lsa — shu yerga yozing, yordam beramiz.`,
-      review: (percent: number, url: string) => `Kitob yoqdimi? Iltimos, sharh qoldiring — bu bir daqiqa oladi, minnatdorchilik sifatida esa keyingi kitobga ${percent}% li promokod yuboramiz: ${url}`,
+      review: (percent: number, url: string) => `Kitob yoqdimi? Iltimos, sharh qoldiring — bu bir daqiqa oladi, minnatdorchilik sifatida esa keyingi kitobga ${percent} foizli promokod yuboramiz: ${url}`,
     },
     deadline: {
       subject: (occasion: string, until: string) => `«${occasion}» bayramiga ulgurish uchun kitobga ${until} buyurtma bering`,
@@ -61,7 +61,7 @@ export const mail: typeof ru = {
         intro: (book: string) => `«${book}» kitobi sizning birinchi xotiralaringizni kutmoqda. O‘z hikoyasini yozib qoldirganlardan uchta maslahat:`,
         tips: [
           "<b>1. Oson esga tushganidan boshlang.</b> Albatta bolalikdan boshlash shart emas: javobi darhol esingizga keladigan savolni oling — qolganlari o‘zi ergashadi.",
-          "<b>2. Nevaralaringizga aytib berganingizdek.</b> Chiroyli yozish shart emas — ovoz chiqarib aytganingizdek yozing. Yozish qiyin bo‘lsa, yaqiningiz hikoyangizni sizning so‘zlaringizdan yozib olsin: kitob birinchi shaxs tilida qoladi.",
+          "<b>2. Nevaralaringizga aytib berganingizdek.</b> Chiroyli yozish shart emas — ovoz chiqarib aytganingizdek yozing. Yozish qiyin bo‘lsa, yaqiningiz hikoyangizni sizning so‘zlaringizdan yozib olsin: kitob birinchi shaxs nomidan qoladi.",
           "<b>3. 10 daqiqadan.</b> Kuniga ikki-uch javob — va ikki haftadan keyin kitob tayyor.",
         ],
         button: "Birinchi savolga javob berish",
@@ -79,8 +79,8 @@ export const mail: typeof ru = {
     nudge: {
       subject: (book: string) => `«${book}» kitobingiz davomini kutmoqda`,
       title: "Kitobingiz davomini kutmoqda",
-      text: (n: number) => `Kitobda allaqachon ${answers(n)} bor — yaxshi boshlanish. Kechasi bir-ikki javobning o‘zi uni boyitadi.`,
-      textWords: (n: number) => `Kitobda allaqachon ${words(n)} bor — yaxshi boshlanish. Kechasi bitta bo‘limning o‘zi uni boyitadi.`,
+      text: (n: number) => `Kitobda allaqachon ${answers(n)} bor — yaxshi boshlanish. Kechqurun bir-ikki javobning o‘zi uni boyitadi.`,
+      textWords: (n: number) => `Kitobda allaqachon ${words(n)} bor — yaxshi boshlanish. Kechqurun bitta bo‘limning o‘zi uni boyitadi.`,
       autosave: "Barcha javoblar avtomatik saqlanadi, telefondan ham yozish mumkin.",
       button: "Kitobni davom ettirish",
     },
@@ -94,8 +94,8 @@ export const mail: typeof ru = {
     review: {
       subject: "Kitob yoqdimi?",
       title: "Kitob yoqdimi?",
-      text: "Sovg‘a alohida chiqdi degan umiddamiz. Topshirish qanday o‘tganini aytib bering — bu bir daqiqa oladi, sharhingiz esa boshqalarga ham o‘z kitobini yozishga jur’at etishga yordam beradi. Surat ham ilova qilishingiz mumkin.",
-      thanks: (percent: number) => `Har qanday sharh uchun minnatdorchilik sifatida keyingi kitobga ${percent}% li promokod beramiz.`,
+      text: "Sovg‘a o‘zgacha chiqdi degan umiddamiz. Topshirish qanday o‘tganini aytib bering — bu bir daqiqa oladi, sharhingiz esa boshqalarga ham o‘z kitobini yozishga jur’at etishga yordam beradi. Surat ham ilova qilishingiz mumkin.",
+      thanks: (percent: number) => `Har qanday sharh uchun minnatdorchilik sifatida keyingi kitobga ${percent} foizli promokod beramiz.`,
       textAutobiography: "Kitob siz o‘ylaganingizdek chiqdi degan umiddamiz. Yaqinlaringiz uni o‘qigach nima deganini aytib bering — bu bir daqiqa oladi, sharhingiz esa boshqalarga ham o‘z hikoyasini yozib qoldirishga jur’at etishga yordam beradi. Surat ham ilova qilishingiz mumkin.",
       textBlank: "Kitob siz o‘ylaganingizdek chiqdi degan umiddamiz. Natija sizga qanday ko‘ringanini aytib bering — bu bir daqiqa oladi, sharhingiz esa boshqalarga ham o‘z kitobini yozishga jur’at etishga yordam beradi. Surat ham ilova qilishingiz mumkin.",
       giftAutobiography: (url: string) => `Onangiz, otangiz, buvingiz yoki bobongizga shunday imkoniyatni sovg‘a qilmoqchimisiz? Ular uchun — <a href="${url}" style="color:#7a1f2b">sovg‘a sertifikati</a>: o‘z hikoyasini o‘zlari yozib qoldiradi.`,
@@ -114,7 +114,7 @@ export const mail: typeof ru = {
     },
     production: { title: "Kitob ishlab chiqarilmoqda", text: "Kitobingiz bosmaga yuborildi. Odatda bu bir necha ish kunini oladi." },
     shipped: { title: "Kitob yo‘lda", text: "Kitobingiz bosildi va yetkazib berishga topshirildi.", tracking: (t: string) => `Trek-raqam: <b>${t}</b>` },
-    delivered: { title: "Kitob yetkazib berildi", text: "Sovg‘a alohida chiqdi degan umiddamiz. Sharhingizni eshitsak xursand bo‘lamiz!", textOwn: "Kitob sizga yoqdi degan umiddamiz. Sharhingizni eshitsak xursand bo‘lamiz!" },
+    delivered: { title: "Kitob yetkazib berildi", text: "Sovg‘a o‘zgacha chiqdi degan umiddamiz. Sharhingizni eshitsak xursand bo‘lamiz!", textOwn: "Kitob sizga yoqdi degan umiddamiz. Sharhingizni eshitsak xursand bo‘lamiz!" },
     cancelled: { title: "Buyurtma bekor qilindi", text: "Buyurtma bekor qilindi. Kitobni yana tahrirlash va yangi buyurtma berish mumkin." },
     created: {
       subject: (n: number) => `№${n} buyurtma rasmiylashtirildi`,
@@ -177,8 +177,8 @@ export const mail: typeof ru = {
     subject: (book: string) => `«${book}» kitobingiz davomini kutmoqda`,
     title: "Kitobingiz davomini kutmoqda",
     progress: (book: string, answered: number, total: number) =>
-      `«${book}» kitobida ${total} ta savoldan ${answered} tasiga allaqachon javob berilgan. Juda oz qoldi — kechasi bir-ikki javobning o‘zi kitobni boyitadi.`,
-    progressWords: (book: string, n: number) => `«${book}» kitobida allaqachon ${words(n)} bor. Kechasi bitta bo‘limning o‘zi kitobni boyitadi.`,
+      `«${book}» kitobida ${total} ta savoldan ${answered} tasiga allaqachon javob berilgan. Juda oz qoldi — kechqurun bir-ikki javobning o‘zi kitobni boyitadi.`,
+    progressWords: (book: string, n: number) => `«${book}» kitobida allaqachon ${words(n)} bor. Kechqurun bitta bo‘limning o‘zi kitobni boyitadi.`,
     empty: (book: string) => `«${book}» kitobi yaratilgan, endi yozishni boshlash qoldi. Birinchi savol eng oddiysi — hoziroq urinib ko‘ring.`,
     autosave: "Barcha javoblar avtomatik saqlanadi, telefondan ham yozish mumkin.",
     button: "Kitobni davom ettirish",

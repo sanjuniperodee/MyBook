@@ -25,6 +25,7 @@ import { Field } from "@/components/ui/Field";
 import { lostReasons } from "@/modules/sales/domain/meta";
 import { storeTimeZone, zonedDay } from "@/shared/domain/time";
 import { DEAL_DATE_FIELDS, DEAL_FILTER_KEYS, dealAdvancedFilters, dealDatePresets } from "@/modules/reporting/ui/dealFilters";
+import { MANAGER_LISTS, MANAGER_LIST_KEYS, managerListKey } from "@/modules/reporting/ui/managerLists";
 
 export const metadata = { title: "Сделки" };
 /** Сделок на странице списка; доска показывает до 1000 (закрытые — за 30 дней). */
@@ -77,7 +78,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
     const s = p.toString();
     return s ? `/admin/deals?${s}` : "/admin/deals";
   };
-  const currentQuery = new URLSearchParams(Object.entries(sp).filter(([k, v]) => v && /^(mine|a|src|q|view|p|task|stale|df|from|to|st|min|max|paid|lr|tag|cf_[a-z0-9_]+)$/.test(k)) as [string, string][]).toString();
+  const currentQuery = new URLSearchParams(Object.entries(sp).filter(([k, v]) => v && /^(mine|a|src|q|view|p|task|stale|list|df|from|to|st|min|max|paid|lr|tag|cf_[a-z0-9_]+)$/.test(k)) as [string, string][]).toString();
   // Панель «Фильтр»: дата, этап, бюджет, оплата, причина отказа, тег — то, чего нет в быстрых чипах.
   const tz = storeTimeZone();
   const adv = dealAdvancedFilters(sp, tz);
@@ -85,11 +86,12 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
   const advReset = Object.fromEntries(DEAL_FILTER_KEYS.map((k) => [k, undefined]));
   const pages = Math.ceil(totals.total / PAGE);
   // Что сужает выборку (кроме вида и воронки): пустой результат с фильтром — «сбросить», без фильтра — «создать сделку».
-  const filtered = adv.count > 0 || Object.entries(sp).some(([k, v]) => v && /^(mine|a|src|q|task|stale|cf_[a-z0-9_]+)$/.test(k));
+  const filtered = adv.count > 0 || Object.entries(sp).some(([k, v]) => v && /^(mine|a|src|q|task|stale|list|cf_[a-z0-9_]+)$/.test(k));
+  const list = managerListKey(sp.list);
   const extraFilters = !!sp.src || selectFields.some((f) => sp[`cf_${f.key}`]);
   const settings = can(staff, "settings.manage");
   const canEdit = can(staff, "deals.edit");
-  const reset = params({ mine: undefined, a: undefined, src: undefined, q: undefined, task: undefined, stale: undefined, ...advReset, ...Object.fromEntries(selectFields.map((f) => [`cf_${f.key}`, undefined])) });
+  const reset = params({ mine: undefined, a: undefined, src: undefined, q: undefined, task: undefined, stale: undefined, list: undefined, ...advReset, ...Object.fromEntries(selectFields.map((f) => [`cf_${f.key}`, undefined])) });
   // Параметры, которые панель «Фильтр» и строка поиска не должны сбрасывать друг у друга.
   const keep = (keys: readonly string[]) =>
     Object.entries(sp)
@@ -129,6 +131,16 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
             ))}
           </select>
         </fieldset>
+        <Field label="Список для менеджера" hint={list ? MANAGER_LISTS[list].hint : "Кого сегодня дожать — те же списки, что на «Моём дне»"}>
+          <select name="list" defaultValue={list ?? ""} className="input">
+            <option value="">Все сделки</option>
+            {MANAGER_LIST_KEYS.map((k) => (
+              <option key={k} value={k}>
+                {MANAGER_LISTS[k].label}
+              </option>
+            ))}
+          </select>
+        </Field>
         <Field label="Этап">
           <select name="st" defaultValue={adv.stageId ?? ""} className="input">
             <option value="">Все этапы</option>
@@ -212,6 +224,11 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
           {label}
         </FilterChip>
       ))}
+      {list ? (
+        <FilterChip href={params({ list: undefined })} on title={`${MANAGER_LISTS[list].hint}. Нажмите, чтобы убрать`}>
+          {MANAGER_LISTS[list].label} ×
+        </FilterChip>
+      ) : null}
       {views.length || currentQuery ? <span className="mx-1 h-5 w-px shrink-0 bg-line" aria-hidden /> : null}
       <SavedViews
         views={views.map((v) => ({ id: v.id, name: v.name, query: v.query, mine: v.userId === staff.user.id, shared: v.shared }))}
@@ -293,6 +310,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
           {sp.a ? <input type="hidden" name="a" value={sp.a} /> : null}
           {sp.task ? <input type="hidden" name="task" value={sp.task} /> : null}
           {sp.stale ? <input type="hidden" name="stale" value={sp.stale} /> : null}
+          {list ? <input type="hidden" name="list" value={list} /> : null}
           {view === "list" ? <input type="hidden" name="view" value="list" /> : null}
           {keep(DEAL_FILTER_KEYS)}
           <MobileFilters compact active={extraFilters || !!q}>

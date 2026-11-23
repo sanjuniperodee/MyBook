@@ -178,6 +178,40 @@ function Attachment({ m, conversationId, onOpen, onVoiceEnded }: { m: Msg; conve
   return file;
 }
 
+/**
+ * Что сделали с сообщением в WhatsApp не из CRM: «удалено клиентом» (текст сотрудникам виден) и прежние тексты правок —
+ * по нажатию на «было».
+ */
+function ExternalChanges({ m }: { m: Msg }) {
+  const [open, setOpen] = useState(false);
+  const history = m.editHistory ?? [];
+  return (
+    <div className="mt-1 space-y-1 text-xs" data-testid="external-changes">
+      {m.revoked ? (
+        <p className="flex items-center gap-1 font-medium text-danger">
+          <Ban className="size-3.5" aria-hidden /> {m.revoked === "client" ? "Удалено клиентом" : "Удалено с телефона магазина"} — у клиента сообщения больше нет
+        </p>
+      ) : null}
+      {history.length ? (
+        <>
+          <button type="button" className="text-muted underline decoration-dotted underline-offset-2" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
+            {m.direction === "in" ? "Клиент изменил" : "Изменено в WhatsApp"} · {history.length === 1 ? "показать, как было" : `прежних версий: ${history.length}`}
+          </button>
+          {open ? (
+            <ol className="space-y-1 border-l-2 border-line pl-2 text-muted">
+              {history.map((h, i) => (
+                <li key={i} className="break-words whitespace-pre-wrap line-through decoration-muted/60">
+                  {h.text}
+                </li>
+              ))}
+            </ol>
+          ) : null}
+        </>
+      ) : null}
+    </div>
+  );
+}
+
 /** Сообщение можно выбрать для пересылки или удаления (не удалённое и не ещё отправляемое). */
 export const selectable = (m: Msg) => !m.deleted && !isTemp(m);
 
@@ -468,6 +502,7 @@ function Bubble({
             ) : null}
           </>
         )}
+        {m.revoked || m.editHistory?.length ? <ExternalChanges m={m} /> : null}
         {/* С текстом время встаёт в зарезервированное место его последней строки; без текста — своей строкой под вложением. */}
         <div className={cn("flex items-center justify-end gap-1 text-xs leading-none text-muted tabular-nums", (m.card ? !!cardCaption(m.card) : hasCaption(m)) ? "-mt-3.5 float-right ml-2 translate-y-0.5" : "mt-1")}>
           {m.edited && !m.deleted ? <span className="italic">изменено</span> : null}

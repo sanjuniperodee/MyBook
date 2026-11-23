@@ -55,25 +55,27 @@ export const legal: typeof ru = {
         ],
       },
       { h: "7. Shaxsiy ma’lumotlar", p: "Shaxsiy ma’lumotlarni qayta ishlash saytda joylashtirilgan Maxfiylik siyosatiga muvofiq amalga oshiriladi." },
-      { h: "8. Hujjat tili", p: "Oferta rus va qozoq tillarida e’lon qilingan. Ikkala tildagi matnlar bir xil kuchga ega. Ofertaning o‘zbek va ingliz tillaridagi tarjimalari qulaylik uchun berilgan; nomuvofiqlik bo‘lsa, rus tilidagi matn qo‘llaniladi." },
+      { h: "8. Hujjat tili", p: "Ushbu o‘zbekcha matn qulaylik uchun berilgan tarjima. Ofertaning asl matni rus va qozoq tillarida e’lon qilingan, ikkalasi bir xil yuridik kuchga ega; ushbu tarjima va asl matn o‘rtasida nomuvofiqlik bo‘lsa, rus tilidagi matn qo‘llaniladi." },
       { h: "9. Rekvizitlar", p: `${f.legalName}, BIN ${f.bin}, ${f.address}. E-mail: ${f.email}, telefon: ${f.phone}.` },
     ],
   },
   privacy: {
     meta: "Maxfiylik siyosati",
-    metaDescription: "MyBooks qanday ma’lumotlarni to‘playdi, ular nega kerak va qanday himoyalangan: profil, kitoblar, buyurtmalar, xabarnomalar.",
+    metaDescription: "MyBooks qanday ma’lumotlarni to‘playdi, ular nega kerak, kimga va qayerga uzatiladi: akkaunt, kitoblar, buyurtmalar, yozishmalar, AI-servislar.",
     title: "Maxfiylik siyosati",
+    updated: "2026-yil 24-noyabr",
     blocks: (f: LegalFacts): LegalBlock[] => [
       {
-        p: `Ushbu siyosat ${f.legalName} ${f.brand} servisidan foydalanishda qanday ma’lumotlarni to‘plashini va ular qanday ishlatilishini bayon etadi. Biz hikoyalaringizning maxfiyligini hurmat qilamiz: kitobning matnlari va suratlari faqat sizga ochiq.`,
+        p: `Ushbu siyosat ${f.legalName} ${f.brand} servisidan foydalanishda qanday ma’lumotlarni to‘plashini, ular nima uchun kerakligini, kimga va qayerga uzatilishini bayon etadi. Kitobingiz matnlari va suratlari e’lon qilinmaydi: ularni siz, kitobga o‘zingiz taklif qilgan odamlar (masalan, xat yozish uchun) va kitobingizga yordam berayotganda yoki uni bosmaga tayyorlayotganda ${f.brand} xodimlari ko‘radi.`,
       },
       {
         h: "Qanday ma’lumotlarni to‘playmiz",
         ul: [
-          "Profil ma’lumotlari: ism, e-mail, parol (faqat kriptografik xesh ko‘rinishida saqlanadi), tanlangan til.",
-          "Kitob mazmuni: savollarga javoblar, suratlar, bezak sozlamalari.",
-          "Buyurtma ma’lumotlari: aloqa uchun ism, telefon, yetkazib berish manzili, holatlar tarixi.",
-          "Texnik ma’lumotlar: profilga kirish uchun zarur bo‘lgan sessiya cookie’si va tanlangan til cookie’si.",
+          "Akkaunt ma’lumotlari: ism, e-mail yoki telefon, parol (faqat kriptografik xesh ko‘rinishida saqlanadi), tanlangan til.",
+          "Kitob mazmuni: savollarga javoblar, suratlar, QR-kodlar uchun audio va video, yaqinlaringizning xatlari, bezak sozlamalari.",
+          "Buyurtma ma’lumotlari: aloqa uchun ism, telefon, yetkazib berish manzili, holatlar va to‘lovlar tarixi.",
+          "Biz bilan yozishmalar: WhatsApp’da va saytdagi chatda yuboradigan xabarlaringiz, ovozli xabarlar, suratlar va fayllar; WhatsApp orqali menejer bilan qo‘ng‘iroqlar yozuvlari.",
+          "Texnik ma’lumotlar: akkauntga kirish uchun sessiya cookie’si, tanlangan til cookie’si, saytdagi chat cookie’si va saytga qayerdan kelganingiz belgisi (masalan, qaysi reklamadan) — servis ishlashi va ichki statistikamiz uchun.",
         ],
       },
       {
@@ -81,20 +83,38 @@ export const legal: typeof ru = {
         ul: [
           "Servis ishlashi uchun: kitobingizni saqlash va maketlash.",
           "Buyurtmani bajarish uchun: bosish, yetkazib berish va buyurtma bo‘yicha siz bilan bog‘lanish.",
+          "WhatsApp’da, saytdagi chatda va kitob kabinetida savollaringizga javob berish uchun.",
           "Biz ma’lumotlarni sotmaymiz va kitob matnlaridan reklama yoki boshqa maqsadlarda foydalanmaymiz.",
         ],
       },
       {
         h: "Ma’lumotlar kimga uzatiladi",
         ul: [
-          "Bosmaxonalarga — kitobning tayyor fayllari, faqat buyurtmani bosish uchun.",
+          "Bosmaxonaga — kitobning tayyor fayllari, faqat buyurtmani bosish uchun.",
           "Yetkazib berish xizmatiga — oluvchining ismi, telefoni va manzili.",
           "To‘lov provayderiga — to‘lovni o‘tkazish uchun zarur ma’lumotlar. Bank kartalari ma’lumotlarini biz olmaymiz va saqlamaymiz.",
+          "Pochta servisiga — kitob va buyurtma haqidagi xatlarni yetkazish uchun e-mail manzilingiz va xat matni.",
+          "WhatsApp’ga (Meta) — bizga WhatsApp’da yozgan xabarlaringiz messenjerning o‘z qoidalariga ko‘ra u orqali o‘tadi.",
+          "AI-servislarga — keyingi bo‘limda bayon etilgan hollarda.",
         ],
       },
       {
+        h: "AI-servislar",
+        p: "MyBooks’ning ayrim funksiyalari boshqa kompaniyalarning AI-servislari (til modellari) yordamida ishlaydi. Javob olish uchun biz bunday servisga faqat aniq so‘rov uchun kerakli matn yoki faylni yuboramiz.",
+        ul: [
+          "WhatsApp va saytdagi chat: bot sizga javob berishi, menejer esa javob taklifi va yozishmaning qisqa xulosasini olishi uchun xabarlar AI-servisga yuboriladi. Chatdagi ovozli xabarlar va suratlar bot ularda nima borligini tushunishi uchun tanib olishga yuboriladi.",
+          "Kitob kabineti: AI-funksiyani o‘zingiz bosganingizda — AI yordamchi, AI korrektor, AI-dizayner yoki kabinetdagi yordamchi — servisga kitobingizning kerakli matni va so‘rovingiz yuboriladi.",
+          "Hozir biz DeepSeek (Xitoy kompaniyasi), OpenRouter (AQSh; u orqali boshqa kompaniyalarning modellari, masalan, Google Gemini) va Groq (AQSh; ovozli xabarlarni matnga aylantirish) servislaridan foydalanamiz. Servislar tarkibi o‘zgarishi mumkin — unda ushbu ro‘yxatni yangilaymiz.",
+          "Bu servislar Qozog‘istondan tashqarida joylashgan, ya’ni ma’lumotlarni bunday uzatish transchegaraviy hisoblanadi. Chatlar va AI-funksiyalardan foydalanib, siz bunga rozilik bildirasiz. Yozishmangizni AI qayta ishlashini istamasangiz, menejerga yozing: dialogingizdagi botni to‘xtatamiz va keyin sizga faqat menejer javob beradi.",
+        ],
+      },
+      {
+        h: "Ma’lumotlar qayerda saqlanadi",
+        p: "Servisning ma’lumotlar bazasi va fayllari (kitoblar, suratlar, yozishmalar, qo‘ng‘iroqlar yozuvlari) Qozog‘istonda — PS Cloud (ps.kz) bulutli provayderining serverida va obyekt omborida saqlanadi. Bu ombordan tashqariga ma’lumotlar faqat yuqorida sanab o‘tilgan servislarga uzatiladi.",
+      },
+      {
         h: "Saqlash va o‘chirish",
-        p: `Kitobni istalgan payt uning sahifasida o‘chirishingiz mumkin. Profilni va barcha bog‘liq ma’lumotlarni o‘chirish uchun bizga ${f.email} manziliga yozing. Buyurtmalar haqidagi ma’lumotlar buxgalteriya hisoboti uchun qonunchilikda belgilangan muddatlarda saqlanadi.`,
+        p: `Kitobni istalgan payt uning sahifasida o‘chirishingiz mumkin. Akkauntni, biz bilan yozishmalarni va ularga oid barcha ma’lumotlarni o‘chirish uchun bizga ${f.email} manziliga yozing. Buyurtmalar haqidagi ma’lumotlar buxgalteriya hisoboti uchun qonunchilikda belgilangan muddatlarda saqlanadi.`,
       },
       { h: "Aloqa", p: `Ma’lumotlarni qayta ishlash masalalari bo‘yicha: ${f.email}.` },
     ],

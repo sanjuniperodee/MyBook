@@ -7,7 +7,22 @@ import { GowaForm } from "../whatsapp/GowaForm";
 import { WhatsappCallsForm } from "../whatsapp/WhatsappCallsForm";
 import { RuleSendingForm } from "../whatsapp/RuleSendingForm";
 import { CatalogSettingsForm } from "../whatsapp/CatalogSettingsForm";
-import { catalogLink } from "@/modules/messaging";
+import { CATALOG_DOC_KEYS, WA_CATALOG, catalogLink, parseCatalogDocs, type CatalogDocKey } from "@/modules/messaging";
+
+/** Подписи запросов каталога WhatsApp в настройках. */
+const CATALOG_DOC_LABELS: Record<CatalogDocKey, string> = {
+  read: "Каталог, как видит клиент",
+  owner: "Каталог владельца",
+  add: "Добавить товар",
+  edit: "Изменить товар",
+  remove: "Удалить товар",
+  collections: "Коллекции владельца",
+  collectionsPublic: "Коллекции, как видит клиент",
+  createCollection: "Создать коллекцию",
+  updateCollection: "Изменить коллекцию",
+  deleteCollections: "Удалить коллекции",
+};
+import { recordingDays } from "@/modules/telephony";
 import { WazzupForm } from "../wazzup/WazzupForm";
 import { SettingsFrame } from "../frame";
 import { tabAnchors } from "../tabs";
@@ -22,7 +37,11 @@ export async function MessengersTab() {
     (async () => ({ provider: await container().messaging.whatsappProvider(), settings: await getSettings(["gowa.baseUrl", "gowa.basicAuth", "gowa.callbackUrl", "gowa.calls"]), status: await container().messaging.gowa.status() }))(),
     container().messaging.chats.ruleSendingToday(),
     getSetting("notify.whatsapp"),
-    (async () => ({ settings: await container().messaging.catalog.settings(), products: (await container().messaging.catalog.list()).length }))(),
+    (async () => {
+      const overrides = parseCatalogDocs(await getSetting("whatsapp.catalogDocs"));
+      const docs = CATALOG_DOC_KEYS.map((key) => ({ key, label: CATALOG_DOC_LABELS[key], value: overrides[key] ?? "", fallback: WA_CATALOG.docs[key] }));
+      return { settings: await container().messaging.catalog.settings(), products: (await container().messaging.catalog.list()).length, docs };
+    })(),
   ]);
   return (
     <SettingsFrame anchors={tabAnchors("messengers")}>
@@ -34,8 +53,8 @@ export async function MessengersTab() {
         callbackUrl={gowa.settings["gowa.callbackUrl"]}
         callbackDefault={hook("/api/integrations/gowa")}
       />
-      <WhatsappCallsForm enabled={gowa.provider === "gowa" && gowa.settings["gowa.calls"] === "on"} gowa={gowa.provider === "gowa"} />
-      <CatalogSettingsForm settings={catalog.settings} products={catalog.products} gowa={gowa.provider === "gowa"} link={gowa.status.phone ? catalogLink(gowa.status.phone) : null} />
+      <WhatsappCallsForm enabled={gowa.provider === "gowa" && gowa.settings["gowa.calls"] === "on"} gowa={gowa.provider === "gowa"} recordingDays={recordingDays(await getSetting("calls.recordingDays"))} />
+      <CatalogSettingsForm settings={catalog.settings} products={catalog.products} gowa={gowa.provider === "gowa"} link={gowa.status.phone ? catalogLink(gowa.status.phone) : null} docs={catalog.docs} />
       <RuleSendingForm from={rules.policy.from} to={rules.policy.to} dailyLimit={rules.policy.dailyLimit} sentToday={rules.sent} max={RULE_DAILY_LIMIT_MAX} />
       <LifecycleChatForm kinds={[...parseChatKinds(lifecycleChat)]} />
       <WazzupForm

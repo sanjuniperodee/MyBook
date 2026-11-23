@@ -69,7 +69,7 @@ export function StageOrderPanel({ stages, value, ai }: { stages: { id: string; n
         <Field label="Дней молчания до «не отвечает»">
           <input type="number" inputMode="numeric" min={1} max={30} className="input tabular-nums" value={v.silentDays} onChange={(e) => set({ silentDays: Number(e.target.value) })} />
         </Field>
-        <Field label="Дней молчания до отказа" hint="Причина — «Не отвечает»">
+        <Field label="Дней молчания до отказа" hint="Причина — «Не отвечает»; сделку с датой события впереди — не раньше этой даты">
           <input type="number" inputMode="numeric" min={2} max={90} className="input tabular-nums" value={v.lostDays} onChange={(e) => set({ lostDays: Number(e.target.value) })} />
         </Field>
         <Field label="По сделке пришла оплата" hint="Предоплата при заведении клиента, платёж или счёт" className="sm:col-span-2">

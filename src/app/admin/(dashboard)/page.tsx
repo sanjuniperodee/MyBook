@@ -155,6 +155,7 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
         {/* Правая колонка — «что делать»: на телефоне она идёт первой, на ноутбуке — справа от работы и аналитики. */}
         <aside aria-label="Требует действия" className="flex min-w-0 flex-col gap-5 xl:order-2">
           {day.queue}
+          {day.lists}
           <ListPanel
             title="Требуют внимания"
             href="/admin/board"

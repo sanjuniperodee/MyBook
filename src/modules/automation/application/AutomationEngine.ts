@@ -438,9 +438,14 @@ export class AutomationEngine {
     await each("message.silent", async (rule) => {
       // Задача менеджеру: «только в рабочее время» вне его выборку не делаем — диалоги сработают утром.
       if (!inRuleHours(rule, workTime)) return;
-      for (const c of await this.scheduled.silent(rule.id, silentQuery(rule, now))) {
-        const ctx = { subject: silentSubject(c.conversationId, c.lastOutgoingAt), conversationId: c.conversationId, dealId: c.dealId, clientId: c.clientId, channel: c.channel, workTime, date: c.date };
-        await fire(rule, ctx);
+      const q = silentQuery(rule, now);
+      // Не больше perDay диалогов в день (первое включение не заводит сотню задач разом): счёт — из журнала.
+      let left = q.perDay - (await this.scheduled.firedOn(rule.id, zonedDay(now)));
+      if (left <= 0) return;
+      for (const c of await this.scheduled.silent(rule.id, { before: q.before, since: q.since, stageId: q.stageId, limit: left })) {
+        if (left <= 0) break;
+        const ctx = { subject: silentSubject(c.conversationId, c.lastOutgoingAt), conversationId: c.conversationId, dealId: c.dealId, clientId: c.clientId, stageId: c.stageId, channel: c.channel, workTime, date: c.date };
+        if (await fire(rule, ctx)) left--;
       }
     });
     await this.holidayRules(rules, now, workTime, fire);
