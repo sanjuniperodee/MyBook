@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { calculatePrice, Order } from "@/modules/ordering/domain";
 import type { PromoCode } from "@/modules/ordering/domain";
+import { receiptReuseAllowed, receiptUsedText } from "@/shared/domain/receipt";
 
 const now = new Date("2026-10-25T10:00:00Z");
 const planName = (id: string) => id;
@@ -232,5 +233,21 @@ describe("Order.upgradeToPrinted и refundMoney: электронная — в �
     expect(() => paid.upgradeToPrinted({ plan: "digital", discount: null, planName }, "admin", now)).toThrow(/печатный тариф/);
     paid.cancel("admin", "", now);
     expect(() => paid.upgradeToPrinted({ plan: "hardcover", discount: null, planName }, "admin", now)).toThrow(/отменён/);
+  });
+});
+
+describe("Повтор чека: что можно, что нельзя", () => {
+  const use = { source: "order" as const, number: 110, amount: 15000, paidAt: new Date("2026-11-23T08:00:00Z"), clientId: "c1", orderId: "o110", dealId: null };
+  it("та же покупка (заказ или его сделка) и чужой клиент — нельзя; другая сделка того же клиента (пакет книг) — можно", () => {
+    expect(receiptReuseAllowed(use, { clientId: "c1", orderId: "o110", dealId: null })).toBe(false);
+    expect(receiptReuseAllowed(use, { clientId: "c1", orderId: "o110", dealId: "d1558" })).toBe(false);
+    expect(receiptReuseAllowed({ ...use, source: "deal", orderId: null, dealId: "d1632" }, { clientId: "c1", orderId: null, dealId: "d1632" })).toBe(false);
+    expect(receiptReuseAllowed(use, { clientId: "c2", orderId: "o99", dealId: null })).toBe(false);
+    expect(receiptReuseAllowed(use, { clientId: null, orderId: null, dealId: "d1" })).toBe(false);
+    expect(receiptReuseAllowed({ ...use, source: "deal", orderId: null, dealId: "d1641" }, { clientId: "c1", orderId: null, dealId: "d1642" })).toBe(true);
+  });
+  it("текст отказа — к какому платежу приложен", () => {
+    expect(receiptUsedText(use)).toMatch(/^Этот чек уже приложен к платежу 15\s000 ₸ от 23 ноября 2026 г\. заказа №110\./);
+    expect(receiptUsedText({ ...use, source: "deal", number: 1537, amount: 0, paidAt: null })).toMatch(/^Этот чек уже приложен к платежу сделки Д1537\./);
   });
 });

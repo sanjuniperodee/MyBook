@@ -40,7 +40,7 @@ function setup(opts: { checkReceipts?: boolean } = {}) {
     const sha256 = createHash("sha256").update(bytes).digest("hex");
     const used = payments.rows.find((r) => r.receipt?.sha256 === sha256 && !r.voidedAt);
     const order = used ? await base.orders.findById(used.orderId) : null;
-    return { sha256, use: used ? { source: "order", number: order?.number ?? 0, amount: used.amount, paidAt: used.paidAt } : null };
+    return { sha256, use: used ? { source: "order", number: order?.number ?? 0, amount: used.amount, paidAt: used.paidAt, orderId: used.orderId } : null };
   };
   const money = new OrderPaymentsService(base.orders, payments, { put: async (k, b) => void files.set(k, b), remove: async (k) => void files.delete(k), read: async (k) => files.get(k) ?? null }, uow, c, opts.checkReceipts ? checkReceipt : undefined);
   const svc = new OrdersService(base.orders, base.promos, base.books, { activeStaff: async () => null, rememberPhoneIfMissing: async () => {} } as never, { prepare: async () => null }, { provider: () => "manual", currency: () => "KZT" }, { agreementFor: async () => null }, uow, c, money);

@@ -40,8 +40,9 @@ export class DealReceipts {
     const problem = receiptProblem(input.bytes);
     const type = sniffReceipt(input.bytes);
     if (problem || !type) throw new ReceiptError(problem ?? "type");
-    // Один перевод — один платёж: чек, уже приложенный к другому платежу (заказа или сделки), не принимаем.
-    const { sha256, use } = await checkReceipt(input.bytes);
+    // Один перевод — один платёж: чек, уже приложенный к платежу этой покупки или чужого клиента, не принимаем (пакет книг
+    // одного клиента — один перевод на несколько сделок — можно).
+    const { sha256, use } = await checkReceipt(input.bytes, { dealId: input.dealId });
     if (use) throw new ReceiptUsedError("receiptUsed", receiptUsedText(use));
     const id = randomUUID();
     const storageKey = `receipts/${input.dealId}/${id}.${type.ext}`;

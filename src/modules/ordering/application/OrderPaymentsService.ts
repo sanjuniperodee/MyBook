@@ -74,9 +74,12 @@ export class OrderPaymentsService {
     private readonly checkReceipt: ReceiptCheck = noReceiptCheck,
   ) {}
 
-  /** Чек уже приложен к другому живому платежу (заказа или сделки) — отказ с тем, к какому; иначе хэш для записи. */
-  private async receiptHash(bytes: Buffer): Promise<string | null> {
-    const { sha256, use } = await this.checkReceipt(bytes);
+  /**
+   * Чек уже приложен к платежу этой же покупки или чужого клиента — отказ с тем, к какому; к другой сделке того же клиента
+   * (один перевод за пакет книг) — можно. Иначе хэш для записи.
+   */
+  private async receiptHash(bytes: Buffer, orderId: string): Promise<string | null> {
+    const { sha256, use } = await this.checkReceipt(bytes, { orderId });
     if (use) throw new OrderingError("paymentRule", receiptUsedText(use));
     return sha256 || null;
   }
@@ -103,7 +106,7 @@ export class OrderPaymentsService {
     const problem = receiptProblem(input.receipt.bytes);
     const type = sniffReceipt(input.receipt.bytes);
     if (problem || !type) throw new OrderingError("receiptInvalid", problem ?? "type");
-    const sha256 = await this.receiptHash(input.receipt.bytes);
+    const sha256 = await this.receiptHash(input.receipt.bytes, input.orderId);
     const id = this.payments.nextId();
     const storageKey = `orders/${input.orderId}/payments/${id}.${type.ext}`;
     // Чек — до денег: без чека оплата не записывается; не записалась — файл убираем.
@@ -145,7 +148,7 @@ export class OrderPaymentsService {
       const problem = receiptProblem(input.receipt.bytes);
       const type = sniffReceipt(input.receipt.bytes);
       if (problem || !type) throw new OrderingError("receiptInvalid", problem ?? "type");
-      const sha256 = await this.receiptHash(input.receipt.bytes);
+      const sha256 = await this.receiptHash(input.receipt.bytes, input.orderId);
       receipt = { storageKey: `orders/${input.orderId}/payments/${id}.${type.ext}`, fileName: safeReceiptName(input.receipt.fileName, type.ext), mime: type.mime, size: input.receipt.bytes.length, sha256 };
       await this.files.put(receipt.storageKey, input.receipt.bytes);
     }

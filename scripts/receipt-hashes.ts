@@ -38,20 +38,23 @@ const dealRows = (await executor().execute<Row>(sql`select id, storage_key as ke
 await fill("Чеки сделок", dealRows, (id, sha) => executor().execute(sql`update crm_receipts set sha256 = ${sha} where id = ${id}`));
 
 // Один чек — у нескольких живых платежей: показать, чтобы руководитель разобрал (отменить ошибочный — в карточке заказа).
-const dups = await executor().execute<{ sha: string; uses: string }>(sql`
+// «пакет» — разные сделки одного клиента (один перевод за несколько книг, так можно); остальное — как в заказе №110.
+const dups = await executor().execute<{ sha: string; uses: string; package: boolean }>(sql`
   with u as (
-    select op.receipt_sha256 as sha, 'заказ №' || o.number || ': ' || op.amount || ' ₸ от ' || to_char(op.paid_at, 'DD.MM.YYYY') as use
+    select op.receipt_sha256 as sha, o.user_id as client, coalesce((select d.id::text from crm_deals d where d.order_id = o.id limit 1), o.id::text) as purchase,
+      'заказ №' || o.number || ': ' || op.amount || ' ₸ от ' || to_char(op.paid_at, 'DD.MM.YYYY') as use
     from order_payments op join orders o on o.id = op.order_id
     where op.receipt_sha256 is not null and op.voided_at is null
     union all
-    select r.sha256, 'сделка Д' || d.number || ': ' || p.amount || ' ₸ от ' || to_char(p.paid_at, 'DD.MM.YYYY')
+    select r.sha256, d.client_id, d.id::text, 'сделка Д' || d.number || ': ' || p.amount || ' ₸ от ' || to_char(p.paid_at, 'DD.MM.YYYY')
     from crm_receipts r join crm_payments p on p.id = r.payment_id join crm_deals d on d.id = r.deal_id
     where r.sha256 is not null
   )
-  select sha, string_agg(use, '; ') as uses from u group by sha having count(*) > 1`);
+  select sha, string_agg(use, '; ') as uses, (count(distinct client) = 1 and bool_and(client is not null) and count(distinct purchase) = count(*)) as package
+  from u group by sha having count(*) > 1`);
 if (dups.rows.length) {
   console.log(`\nЧеки, приложенные к нескольким платежам (${dups.rows.length}):`);
-  for (const d of dups.rows) console.log(`- ${d.uses}`);
+  for (const d of dups.rows) console.log(`- ${d.package ? "[пакет одного клиента] " : ""}${d.uses}`);
 } else console.log("\nПовторных чеков среди живых платежей нет.");
 
 await pool.end();
