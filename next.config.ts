@@ -38,6 +38,8 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     serverActions: { bodySizeLimit: "2mb" },
+    // Переписанные на mybook-files запросы (/files/*) — это и видео с перемоткой: не обрывать через 30 с (по умолчанию).
+    proxyTimeout: 60 * 60 * 1000,
     // Клиентский кэш страниц: возврат и повторный заход в течение 30 секунд — мгновенно, без заготовки и запроса (как в приложении).
     // Изменения через серверные действия сбрасывают кэш сами, поэтому устаревшего после правок не видно.
     staleTimes: { dynamic: 30, static: 30 },
@@ -47,6 +49,11 @@ const nextConfig: NextConfig = {
   typescript: { ignoreBuildErrors: process.env.MYBOOK_SKIP_TYPECHECK === "1" },
   poweredByHeader: false,
   env: { COVER_ART_VERSION: coverArtVersion() },
+  // Файлы хранилища по подписанной ссылке сайта — Go-сервису mybook-files на 127.0.0.1 (services/files, пилот G3,
+  // src/server/files-service.ts, режим redirect). Строка nginx из docs/microservices/06-operations.md отдаёт их мимо Next.
+  async rewrites() {
+    return { beforeFiles: [{ source: "/files/:token", destination: `http://127.0.0.1:${Number(process.env.FILES_PORT) || 3050}/files/:token` }] };
+  },
   async headers() {
     return [
       {

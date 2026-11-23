@@ -3,6 +3,7 @@ import { createReadStream, promises as fs } from "node:fs";
 import { Readable } from "node:stream";
 import { countPerf } from "@/shared/infrastructure/perfLog";
 import type { StoredFile, StoredFileRequest } from "@/shared/application/StoredFile";
+import { viaFilesService } from "@/server/files-service";
 
 /**
  * Файл с диска сайта с перемоткой: Range → 206 (Safari и AVPlayer без него аудио не играют), ETag по размеру и времени —
@@ -49,10 +50,19 @@ export function storedFileRequest(req: Request): StoredFileRequest {
 export function storedResponse(file: StoredFile | null, mime: string, headers: Record<string, string> = {}): Response | null {
   if (!file) return null;
   if (file.status === 416) return new Response(null, { status: 416, headers: file.contentRange ? { "Content-Range": file.contentRange } : {} });
-  const base: Record<string, string> = { "Content-Type": mime, "Accept-Ranges": "bytes", ...(file.etag ? { ETag: file.etag } : {}), ...headers };
+  const base: Record<string, string> = { "Accept-Ranges": "bytes", ...(file.etag ? { ETag: file.etag } : {}), ...headers };
+  // 304 — без Content-Type (RFC 9110 §15.4.5: браузер берёт тип из кэша); так же отвечает mybook-files (net/http Go).
   if (file.status === 304) return new Response(null, { status: 304, headers: base });
   return new Response(file.body, {
     status: file.status,
-    headers: { ...base, ...(file.contentLength !== undefined ? { "Content-Length": String(file.contentLength) } : {}), ...(file.contentRange ? { "Content-Range": file.contentRange } : {}) },
+    headers: { "Content-Type": mime, ...base, ...(file.contentLength !== undefined ? { "Content-Length": String(file.contentLength) } : {}), ...(file.contentRange ? { "Content-Range": file.contentRange } : {}) },
   });
+}
+
+/**
+ * Файл хранилища по ключу: через Go-сервис mybook-files, если он включён и жив (files-service.ts), иначе потоком сам —
+ * open открывает файл через фасад модуля. Права проверяет маршрут до вызова. null — файла нет.
+ */
+export async function serveStorageFile(key: string, mime: string, req: Request, headers: Record<string, string>, open: (req: StoredFileRequest) => Promise<StoredFile | null>): Promise<Response | null> {
+  return (await viaFilesService(key, mime, req, headers)) ?? storedResponse(await open(storedFileRequest(req)), mime, headers);
 }

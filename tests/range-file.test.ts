@@ -51,7 +51,8 @@ describe("storedResponse", () => {
     expect(await res.text()).toBe("234");
   });
   it("304 без тела, 416 с размером, нет файла — null", () => {
-    expect(storedResponse({ status: 304, body: null, etag: '"e"' }, "image/jpeg")!.headers.get("etag")).toBe('"e"');
+    const r304 = storedResponse({ status: 304, body: null, etag: '"e"' }, "image/jpeg")!;
+    expect([r304.headers.get("etag"), r304.headers.get("content-type")]).toEqual(['"e"', null]);
     const r416 = storedResponse({ status: 416, body: null, contentRange: "bytes */10" }, "image/jpeg")!;
     expect([r416.status, r416.headers.get("content-range")]).toEqual([416, "bytes */10"]);
     expect(storedResponse(null, "image/jpeg")).toBeNull();

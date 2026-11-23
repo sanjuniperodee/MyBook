@@ -120,11 +120,17 @@ fi
 has_worker() {
   node -e 'process.exit(require("./deploy/ecosystem.config.cjs").apps.some((a) => a.name === "mybook-worker") ? 0 : 1)'
 }
+# mybook-files (Go, отдача файлов, пилот G3) — тоже из релиза, если там есть bin/mybook-files; без него сайт отдаёт файлы сам.
+has_files() {
+  node -e 'process.exit(require("./deploy/ecosystem.config.cjs").apps.some((a) => a.name === "mybook-files") ? 0 : 1)'
+}
 pm2_apply() {
   pm2 delete mybook >/dev/null 2>&1 || true
   pm2 delete mybook-worker >/dev/null 2>&1 || true
+  pm2 delete mybook-files >/dev/null 2>&1 || true
   pm2 start deploy/ecosystem.config.cjs --only mybook
   if has_worker; then pm2 start deploy/ecosystem.config.cjs --only mybook-worker; fi
+  if has_files; then pm2 start deploy/ecosystem.config.cjs --only mybook-files; fi
   pm2 save
 }
 
@@ -208,6 +214,10 @@ if ! check_worker; then
   check_app "$PORT" 30 || echo "✗ После возврата фона сайт не ответил — смотрите pm2 logs mybook"
 elif has_worker; then
   echo "✓ mybook-worker работает: фон отдельно от сайта"
+fi
+# mybook-files не ответил — выкатку не ломает: сайт сам отдаёт файлы, пока сервис не жив (src/server/files-service.ts).
+if has_files; then
+  if curl -fsS -m 3 "http://127.0.0.1:${FILES_PORT:-3050}/healthz" >/dev/null 2>&1; then echo "✓ mybook-files отвечает"; else echo "⚠ mybook-files не отвечает — файлы отдаёт сайт. Логи: pm2 logs mybook-files --nostream --lines 50"; fi
 fi
 # Основная версия отвечает — запасная больше не нужна.
 kill "$SMOKE_PID" 2>/dev/null || true

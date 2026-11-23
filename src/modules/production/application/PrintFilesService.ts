@@ -176,13 +176,17 @@ export class PrintFilesService {
     if (kind === "layout" && !(await this.files.exists(key))) await this.getFile(job, kind);
   }
 
-  /**
-   * Готовый файл потоком (собирает, если нужно, как ensure): скачивание идёт из хранилища с Range, не через память
-   * сайта — печатный блок весит десятки МБ. Хранилище без потоков — файл целиком, как getFile.
-   */
-  async open(job: PrintJob, kind: PrintFileKind, opts: { force?: boolean } = {}, req: StoredFileRequest = {}): Promise<StoredFile | null> {
+  /** Ключ готового файла в хранилище (собирает, если нужно, как ensure). */
+  async fileKey(job: PrintJob, kind: PrintFileKind, opts: { force?: boolean } = {}): Promise<string> {
     await this.ensure(job, kind, opts);
-    const key = this.key(job.orderId, kind);
+    return this.key(job.orderId, kind);
+  }
+
+  /**
+   * Файл по ключу из fileKey потоком: скачивание идёт из хранилища с Range, не через память сайта — печатный блок
+   * весит десятки МБ. Хранилище без потоков — файл целиком, как getFile.
+   */
+  async openKey(key: string, req: StoredFileRequest = {}): Promise<StoredFile | null> {
     if (this.files.open) return this.files.open(key, req);
     const data = await this.files.get(key);
     return { status: 200, body: new Blob([new Uint8Array(data)]).stream(), size: data.length, contentLength: data.length };

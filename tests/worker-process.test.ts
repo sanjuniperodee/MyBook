@@ -42,6 +42,14 @@ describe("deploy/ecosystem.config.cjs", () => {
     expect(apps({ MYBOOK_WORKER: "off" })).toEqual([{ name: "mybook" }]);
   });
 
+  it("релиз с bin/mybook-files (пилот G3) — отдельный mybook-files; MYBOOK_FILES=off — без него", () => {
+    mkdirSync(path.join(dir, "current", "bin"), { recursive: true });
+    writeFileSync(path.join(dir, "current", "bin", "mybook-files"), "");
+    expect(apps({}).map((a) => a.name)).toEqual(["mybook", "mybook-worker", "mybook-files"]);
+    expect(apps({ MYBOOK_FILES: "off" }).map((a) => a.name)).toEqual(["mybook", "mybook-worker"]);
+    rmSync(path.join(dir, "current", "bin"), { recursive: true, force: true });
+  });
+
   const preload = (env: Record<string, string>) => {
     const out = execFileSync(
       process.execPath,

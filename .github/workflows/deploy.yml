@@ -84,6 +84,22 @@ jobs:
               --exclude tests/pdf.test.tsx --exclude tests/cover-back-color.test.tsx --exclude tests/characterization/render.test.ts
           fi
 
+  # Go-сервисы (services/*, ADR 0011): формат, go vet, тесты.
+  go:
+    name: Go
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version-file: services/files/go.mod, cache-dependency-path: services/files/go.mod }
+      - name: mybook-files
+        working-directory: services/files
+        run: |
+          test -z "$(gofmt -l .)" || { gofmt -l .; echo "gofmt: файлы выше не отформатированы"; exit 1; }
+          go vet ./...
+          go test ./...
+
   # Сборка и архив релиза. Кэш .next/cache не сохраняем: это кэш Turbopack на гигабайты, а сборка (~1 мин) короче
   # тестов и общее время не задаёт.
   build:
@@ -98,6 +114,11 @@ jobs:
       - run: npm run build
         env:
           MYBOOK_SKIP_TYPECHECK: 1
+      # mybook-files (services/files) — статический бинарник в релиз: <релиз>/bin/mybook-files, запускает PM2.
+      - uses: actions/setup-go@v5
+        with: { go-version-file: services/files/go.mod, cache-dependency-path: services/files/go.mod }
+      - name: mybook-files
+        run: bash services/files/build.sh .next/standalone/bin
       - name: Архив релиза
         run: |
           bash deploy/pack-release.sh release
@@ -111,7 +132,7 @@ jobs:
 
   deploy:
     name: Выкатка
-    needs: [types, lint, test, build]
+    needs: [types, lint, test, go, build]
     if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
     timeout-minutes: 30

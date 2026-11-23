@@ -3,7 +3,7 @@ import { api, apiViewer, HttpError } from "@/server/api";
 import { container } from "@/server/container";
 import { idParams } from "@/server/input";
 import { fileRoute } from "@/server/file-route";
-import { storedFileRequest, storedResponse } from "@/server/range-file";
+import { serveStorageFile } from "@/server/range-file";
 
 export const GET = fileRoute("photo", api(async (req, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = idParams(await params, "id");
@@ -21,7 +21,7 @@ export const GET = fileRoute("photo", api(async (req, { params }: { params: Prom
   if (req.headers.get("if-none-match") === etag) return new Response(null, { status: 304, headers });
   // Копия для просмотра собирается sharp и лежит в кэше; снимок и миниатюра — потоком из хранилища, не целиком в память.
   if (size === "view") return new Response(new Uint8Array(await container().authoring.photoViewFile(key)), { headers });
-  const res = storedResponse(await container().authoring.photoStream(key, storedFileRequest(req)), headers["Content-Type"], headers);
+  const res = await serveStorageFile(key, headers["Content-Type"], req, headers, (r) => container().authoring.photoStream(key, r));
   if (!res) throw new HttpError(404, "notFound");
   return res;
 }));

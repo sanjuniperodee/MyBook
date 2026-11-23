@@ -119,9 +119,12 @@ describe("Доступ к файлам чужого заказа", () => {
     built = [];
     fake.ordering = { queries: { orderDetails: async (id: string) => orders.get(id) ?? null } };
     fake.printFiles = {
-      open: async (_job: unknown, kind: string, opts: { force: boolean }) => {
+      fileKey: async (_job: unknown, kind: string, opts: { force: boolean }) => {
         built.push({ kind, force: opts.force });
-        const data = new TextEncoder().encode(`file:${kind}`);
+        return `orders/${ORDER}/${kind}`;
+      },
+      openKey: async (key: string) => {
+        const data = new TextEncoder().encode(`file:${key.split("/").pop()}`);
         return { status: 200, body: new Blob([data]).stream(), size: data.length, contentLength: data.length };
       },
     };

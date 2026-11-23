@@ -66,6 +66,27 @@ const worker = useWorker && {
   time: true,
 };
 
+/**
+ * Отдача файлов хранилища Go-сервисом mybook-files (services/files, пилот G3, ADR 0011) — если он есть в релизе
+ * (bin/mybook-files собирает CI). Слушает 127.0.0.1:3050; трафик на него сайт переключает флагом без выкатки
+ * (src/server/files-service.ts: FILES_SERVICE, файл ~/mybook-flags/files-service), по умолчанию — off. Сервис не
+ * отвечает — сайт отдаёт файлы сам. MYBOOK_FILES=off — не запускать.
+ */
+const filesBin = path.join(releasesDir, "current", "bin", "mybook-files");
+const files = process.env.MYBOOK_FILES !== "off" &&
+  fs.existsSync(filesBin) && {
+    name: "mybook-files",
+    cwd: path.join(releasesDir, "current"),
+    script: "bin/mybook-files",
+    args: `-env ${path.join(root, ".env")}`,
+    interpreter: "none",
+    env: { TZ: "Asia/Almaty" },
+    // Обычно ~10–20 МБ: файл идёт потоком, в память не читается.
+    max_memory_restart: "200M",
+    kill_timeout: 3000,
+    time: true,
+  };
+
 module.exports = {
   apps: [
     {
@@ -95,6 +116,7 @@ module.exports = {
       time: true,
     },
     ...(worker ? [worker] : []),
+    ...(files ? [files] : []),
     ...sidecars,
   ],
 };
