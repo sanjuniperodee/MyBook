@@ -24,7 +24,7 @@ import { photoAreaMm, photoPages, toPhotoItem, type BookContent, type PhotoItem 
 import { printableText } from "@/lib/book/printable";
 import { buildBookContent } from "@/lib/book/book-content";
 import { estimatePages } from "@/lib/book/estimate";
-import { emptyFlow, refineBlanks, type FlowDecisions } from "@/lib/book/flow-decisions";
+import { emptyFlow, refineBlanks, type FlowDecisions, type FlowLayout } from "@/lib/book/flow-decisions";
 import { interiorMetrics, textArea } from "@/lib/book/page-geometry";
 import { FLOW_PASSES, flowMinLead, interiorSizes } from "@/lib/book/typesetting";
 import { OPENER_FOCUS, openerPhotoPlan, photoArea, photoPagePlan, type PhotoCell } from "@/lib/book/photo-pages";
@@ -200,6 +200,8 @@ export interface InteriorResult {
   flow: FlowDecisions;
   /** Полоса (с 1), на которой начинается каждая часть истории (её заголовок или первый блок) — по итоговой раскладке. */
   entryPages: Record<string, number>;
+  /** Помеченные блоки итоговой раскладки (полоса с 0, координаты от верха полосы) — сверка с превью (scripts/visual/parity.ts). */
+  blocks: FlowLayout["blocks"];
 }
 
 /**
@@ -342,8 +344,9 @@ export async function renderInterior(bundle: BookBundle, mode: RenderMode, repor
   doc.setProducer("MyBooks");
   const pdf = Buffer.from(await doc.save());
   const entryPages: Record<string, number> = {};
-  if (final) for (const b of readLayout(final, chapterOf).blocks) if (b.kind !== "t") entryPages[b.item] = Math.min(entryPages[b.item] ?? Infinity, b.first.page + 1);
-  return { pdf, pageCount, contentPages, chapterPages: tocPages ?? {}, pages, flow, entryPages };
+  const blocks = final ? readLayout(final, chapterOf).blocks : [];
+  for (const b of blocks) if (b.kind !== "t") entryPages[b.item] = Math.min(entryPages[b.item] ?? Infinity, b.first.page + 1);
+  return { pdf, pageCount, contentPages, chapterPages: tocPages ?? {}, pages, flow, entryPages, blocks };
 }
 
 /** Раскладка экранной сборки — манифест без отпечатка (его считает тот, кто запросил сборку). */

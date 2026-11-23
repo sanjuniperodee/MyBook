@@ -151,7 +151,8 @@ describe("превью и PDF: одни отбивки блоков текста
     expect(Number(pdf.marginBottom ?? 0)).toBeCloseTo(space.after, 3);
     // У превью px → pt (pxUnits(1): 1 мм = 1 px), отбивка снизу неделимой цитаты — полем внутри (как у react-pdf).
     const pt = (v: unknown) => (typeof v === "string" ? parseFloat(v) : Number(v ?? 0)) * (72 / 25.4);
-    expect(pt(dom.marginTop)).toBeCloseTo(space.before, 2);
+    // Отбивка сверху у превью — полем внутри (как у react-pdf не отбрасывается на новой полосе).
+    expect(pt(dom.paddingTop ?? dom.marginTop)).toBeCloseTo(space.before, 2);
     expect(pt(b.kind === "quote" ? dom.paddingBottom : dom.marginBottom)).toBeCloseTo(space.after, 2);
   });
 });
@@ -244,3 +245,4 @@ describe("обложка: название на 3D-книге — как в cove
     expect(data.cover.title).not.toBe("");
   });
 });
+

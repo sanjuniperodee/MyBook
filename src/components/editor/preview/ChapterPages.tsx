@@ -9,32 +9,72 @@ import type { BookContent } from "@/lib/book/layout";
 import type { PreviewChapter, PreviewEntry, PreviewPagePhoto, PreviewPhoto } from "@/lib/book/editor-model";
 import { cssFont } from "@/lib/book/fonts";
 import { MM_TO_PT, print, PT_TO_MM } from "@/lib/book/formats";
-import { applyDecision, nextDecisions, type FlowDecisions } from "@/lib/book/flow-decisions";
+import type { FlowDecisions } from "@/lib/book/flow-decisions";
 import { framedBox, layoutInline, normalizeStyle, placedByAuthor, splitParagraphsDetailed, type InlinePhotoStyle } from "@/lib/book/inline-photo";
-import { blockSpace, flowMinLead, INLINE_ROW, MEDIA_CARD } from "@/lib/book/typesetting";
+import { flowMinLead } from "@/lib/book/typesetting";
 import { interiorMetrics, pageSide, textArea } from "@/lib/book/page-geometry";
 import { AnswerBlockView } from "@/components/interior/answer-block";
-import { ChapterTail, Divider, InlineRow, MediaCard, QuestionHeading } from "@/components/interior/entry";
-import { stackedTop } from "@/components/interior/entry-gap";
-import { copyFlow, flowMark, measureFlow, NO_FLOW } from "@/components/interior/flow-measure";
-import { RunningHead } from "@/components/interior/folio";
+import { ChapterTail, Divider, InlineRow, keepWithNext, MediaCard, QuestionHeading } from "@/components/interior/entry";
+import { gapAbove } from "@/components/interior/entry-gap";
+import { flowMark, NO_FLOW } from "@/components/interior/flow-measure";
+import { breakBefore } from "@/components/interior/breaks";
+import { paginateChapter, type ChapterPagination, type Measured, type TreeEntry } from "./pdf-tree";
+import { Folio, folioText, RunningHead } from "@/components/interior/folio";
+import { PAPER } from "@/lib/book/interiors";
 import { ChapterHead } from "@/components/interior/pages";
 import type { PageKit } from "@/components/interior/kit";
 import { LazyPage } from "./LazyPage";
 import { PAGE_SHADOW, PreviewOpener, PreviewPhotoPages } from "./book-pages";
 import { fillFocus } from "@/lib/book/photo-crop";
 import { previewPhotoLayer } from "./photo-layer";
-import type { PhotoPages } from "./layout-hooks";
+import { NO_PHOTO_PAGES, type ChapterLayout, type PhotoPages } from "./layout-hooks";
 import type { OnPreviewTarget } from "./targets";
 import type { usePhotoDrag } from "./usePhotoDrag";
 
 const END = Number.POSITIVE_INFINITY;
 
-/**
- * Проходов доводки у одной главы превью не больше: каждый — повторная отрисовка в useLayoutEffect, а React допускает
- * их подряд не больше 50. Главе обычно хватает 1–3 (PDF нужно больше: у него проходы на всю книгу сразу).
- */
-const PREVIEW_PASSES = 20;
+/** Запас высоты колонки, мм, когда полосы ставит разбивка, как у PDF: доли пикселя не переносят строку раньше. */
+const FLOW_SLACK = 12;
+
+/** Замер неделимых блоков копии для замера (пометки data-flow и data-pid): высота и поля внутри, pt. */
+function measureLeaves(root: HTMLElement, ptPx: number): Map<string, Measured> {
+  const out = new Map<string, Measured>();
+  for (const el of root.querySelectorAll<HTMLElement>("[data-flow], [data-pid]")) {
+    const id = el.getAttribute("data-pid") ?? el.getAttribute("data-flow")!;
+    const cs = getComputedStyle(el);
+    // Блок, разбитый колонками копии, — сумма кусков (у браузера кусок тянется до конца колонки — берём строки).
+    const rects = [...el.getClientRects()];
+    const height = rects.length > 1 ? contentHeight(el) : (rects[0]?.height ?? 0);
+    out.set(id, { height: height / ptPx, padTop: parseFloat(cs.paddingTop) / ptPx, padBottom: parseFloat(cs.paddingBottom) / ptPx });
+  }
+  return out;
+}
+
+/** Высота содержимого блока, разбитого на колонки: по строкам текста в каждой колонке. */
+function contentHeight(el: HTMLElement) {
+  const range = document.createRange();
+  range.selectNodeContents(el);
+  const cols = new Map<number, { top: number; bottom: number }>();
+  for (const r of range.getClientRects()) {
+    if (r.height <= 0) continue;
+    const c = cols.get(Math.round(r.left)) ?? { top: Infinity, bottom: -Infinity };
+    cols.set(Math.round(r.left), { top: Math.min(c.top, r.top), bottom: Math.max(c.bottom, r.bottom) });
+  }
+  const cs = getComputedStyle(el);
+  return [...cols.values()].reduce((a, c) => a + c.bottom - c.top, 0) + parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+}
+
+/** Полосы главы для превью: число, места фото на всю страницу и начала ответов (первый кусок ответа, верх в px). */
+function chapterLayout(res: ChapterPagination, entries: readonly PreviewEntry[], ptPx: number): ChapterLayout {
+  const markers: ChapterLayout["markers"] = {};
+  const ids = new Set(entries.map((e) => e.id));
+  for (const p of res.pieces) {
+    const item = p.id.split(":")[1];
+    if (ids.has(item) && !markers[item]) markers[item] = { page: p.page, top: (p.top - p.marginTop) * ptPx };
+  }
+  return { pages: res.pages, photos: Object.keys(res.photos).length ? res.photos : NO_PHOTO_PAGES, markers };
+}
+
 
 type Item = { p: PreviewPhoto; style: InlinePhotoStyle };
 
@@ -73,6 +113,10 @@ export interface ChapterPagesProps {
   pages: number;
   /** Начальная полоса слева (BookContent.openersLeft): первая полоса текста — правая; иначе начальная справа. */
   openersLeft?: boolean;
+  /** Номер первой полосы текста главы в книге — колонцифры и стороны полос; нет — без номеров. */
+  firstPage?: number;
+  /** Перед начальной полосой — пустая (начальная полоса слева, а выпала бы справа). */
+  blankBefore?: boolean;
   /** Глава без начальной полосы (BookContent.chapterStart): inline — номер и название над текстом, none — чистый лист. */
   start?: BookContent["chapterStart"];
   /** На какой полосе текста каждое фото «на всю страницу» (по замеру; тот же объект, пока не изменилось). */
@@ -89,11 +133,13 @@ export interface ChapterPagesProps {
   setMeasureRef: (key: string, el: HTMLDivElement | null) => void;
   /** Перемерить полосы этой главы. */
   measure: (key: string) => void;
+  /** Полосы главы по разбивке, как у PDF (null — снова колонками браузера). */
+  report?: (key: string, layout: ChapterLayout | null) => void;
   onPageClick: (e: MouseEvent) => void;
 }
 
 /** Начальная полоса главы, полосы текста и невидимая копия главы для замера. */
-function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, language, t, tp, onTarget, pages, openersLeft = false, start, photoPages, currentId, selectedId, interactive, drag, onChange, scroll, setMeasureRef, measure, onPageClick }: ChapterPagesProps) {
+function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, language, t, tp, onTarget, pages, openersLeft = false, firstPage, blankBefore = false, start, photoPages, currentId, selectedId, interactive, drag, onChange, scroll, setMeasureRef, measure, report, onPageClick }: ChapterPagesProps) {
   const { format, design } = kit;
   const m = interiorMetrics[format.id];
   const side = pageSide(format);
@@ -104,7 +150,6 @@ function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, 
   const S = kit.sizes;
   const P = design.palette;
   const bodyPx = S.body * PT_TO_MM * px;
-  const ptPx = (v: number) => v * PT_TO_MM * px;
   const resizing = drag?.drag?.kind === "resize" ? drag.drag : null;
   const spacing = drag?.drag?.kind === "space" ? drag.drag : null;
   const measureThis = () => measure(ch.key);
@@ -154,10 +199,11 @@ function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, 
     // eslint-disable-next-line react-hooks/exhaustive-deps -- содержимое главы описывает contentKey (через info)
   }, [info, format]);
 
-  // Доводка вёрстки — та же, что у PDF (lib/book/flow-decisions.ts), по раскладке копии для замера: после каждой
-  // отрисовки читаем, где встали блоки, и добавляем решения, пока они есть (не больше PREVIEW_PASSES проходов). Решения
-  // считаются заново, когда меняется содержимое главы, ширина полосы или догрузились шрифты; пока фото тянут за уголок
-  // или ручку отступа — остаются прежние. Проходы идут в useLayoutEffect: экран видит только итог.
+  // Полосы и доводка вёрстки — как у PDF: дерево главы (pdf-tree.ts) по замеру неделимых блоков копии для замера,
+  // разбивка на полосы по правилам react-pdf (lib/book/paginate.ts) и решения доводки тем же кодом (flow-decisions) —
+  // проходами, пока есть что решать. Считается заново, когда меняется содержимое главы, ширина полосы, набор (шрифты
+  // догрузились); пока фото тянут за уголок или ручку отступа — остаются прежние. Разрывы полос ставят сами блоки
+  // (visibleKit.breaks), браузер колонки не ломает. Дерева нет (строки ещё не готовы) — полосы ставит браузер.
   const measureEl = useRef<HTMLDivElement | null>(null);
   const [fontsTick, setFontsTick] = useState(0);
   useEffect(() => {
@@ -167,26 +213,29 @@ function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, 
       live = false;
     };
   }, []);
-  const flowKey = `${contentKey}|${px}|${start ?? ""}|${fontsTick}|${kit.hyphenate ? 1 : 0}`;
-  const [flowState, setFlowState] = useState<{ key: string; flow: FlowDecisions; passes: number }>({ key: "", flow: NO_FLOW, passes: 0 });
-  const fresh = flowState.key === flowKey;
+  const flowKey = `${contentKey}|${px}|${start ?? ""}|${fontsTick}|${kit.breaker ? 1 : 0}|${kit.version ?? 0}`;
+  const [pdf, setPdf] = useState<{ key: string; res: ChapterPagination | null }>({ key: "", res: null });
   const dragging = !!(resizing || spacing);
-  const flow = fresh || dragging ? flowState.flow : NO_FLOW;
+  const res = pdf.key === flowKey || dragging ? pdf.res : null;
+  const flow = res?.flow ?? NO_FLOW;
+  const visibleKit = useMemo(() => (res ? { ...kit, breaks: res.breaks, dropSplit: res.flow.dropSplit } : kit), [kit, res]);
+  const hasText = ch.entries.some((e) => e.answer || e.photos.length || e.media.length);
   useLayoutEffect(() => {
     const root = measureEl.current;
-    if (!root || !textW || dragging) return;
-    const passes = fresh ? flowState.passes : 0;
-    if (passes >= PREVIEW_PASSES) return;
-    const decisions = nextDecisions(measureFlow(root, ch.key, PT_TO_MM * px, area.h * MM_TO_PT), flow, rowHeights, flowMinLead(design, S));
-    if (!decisions.length) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- раскладка браузера (DOM) — внешняя система: решения по её замеру
-      if (!fresh) setFlowState({ key: flowKey, flow, passes });
-      return;
-    }
-    const next = copyFlow(flow);
-    for (const d of decisions) applyDecision(next, d);
-    setFlowState({ key: flowKey, flow: next, passes: passes + 1 });
-  }, [flowKey, flow, fresh, flowState.passes, rowHeights, dragging, textW, px, ch.key, area.h, design, S]);
+    if (!root || !textW || dragging || pdf.key === flowKey) return;
+    const ptPx = PT_TO_MM * px;
+    const entries: TreeEntry[] = ch.entries.map((e) => {
+      const d = info.get(e.id)!;
+      return { id: e.id, heading: e.heading, pageBreak: e.pageBreak, blocks: d.blocks, rows: d.layout, pages: d.pages, media: d.media };
+    });
+    const next = paginateChapter({ kit, chapterKey: ch.key, entries, start, measured: measureLeaves(root, ptPx), hasText, rowHeights, minLead: flowMinLead(design, S), pageHeight: area.h * MM_TO_PT });
+    setPdf({ key: flowKey, res: next });
+    const layout = next ? chapterLayout(next, ch.entries, ptPx) : null;
+    report?.(ch.key, layout);
+    // Разбивка — и в разметке копии: по ней сверяют превью с PDF (scripts/visual/parity.ts).
+    if (layout) root.dataset.pdfLayout = JSON.stringify({ chapter: ch.key, pages: layout.pages, markers: Object.fromEntries(Object.entries(layout.markers).map(([k, v]) => [k, v.page])) });
+    else delete root.dataset.pdfLayout;
+  }, [flowKey, pdf.key, dragging, textW, px, ch.key, ch.entries, info, kit, start, hasText, rowHeights, design, S, area.h, report]);
 
   // Замер — только у этой главы и только когда она изменилась (или изменилась ширина полосы, или решения доводки).
   useEffect(() => {
@@ -243,143 +292,138 @@ function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, 
     );
   };
 
+  /** Разметка главы набором k с решениями доводки f: копия для замера — без решений и разрывов, полосы — с ними. */
+  const render = (k: PageKit, f: FlowDecisions) => {
   /**
-   * Ряды фото, фото на всю страницу и QR-коды в одном месте ответа. prevAfter — поле снизу у того, что стоит перед ними,
-   * pt: складывается с полем сверху первого (stackedTop), как в PDF. fresh — ответ стоит в начале текста главы без
-   * заголовка: его первый ряд и так в верху полосы («с новой страницы» разрыва не делает).
-   */
-  const renderRows = (entry: PreviewEntry, key: number, isMeasure: boolean, prevAfter = 0, fresh = false) => {
-    const d = info.get(entry.id)!;
-    const lead = d.blocks.length ? -1 : END;
-    let after = prevAfter;
-    const top = (own: number) => {
-      const v = stackedTop(own, after);
-      after = 0;
-      return v === undefined ? undefined : { marginTop: ptPx(v) };
-    };
-    // Место вставки в тексте — номер абзаца, после которого встаёт ряд (последний абзац блока).
-    const anchor = key === END || key < 0 ? key : d.blocks[key].to;
-    // Ряд и фото рисует вёрстка книги (InlineRow — как в PDF и на разворотах), превью добавляет поверх только интерактивность.
-    const layer = previewPhotoLayer({ t, kit, live: entry.id === currentId && interactive && !!drag, isMeasure, measure: measureThis, selectedId, drag: drag!, onChange });
-    return [
-      ...(d.layout.get(key) ?? []).map((row, r) => {
-        const freshRow = fresh && key === lead && r === 0;
-        // Ряд «с новой страницы» начинается с полосы без отбивки сверху; ряд, поставленный автором, — вид f (как в PDF).
-        const breaksRow = !!row[0].style.breakBefore && !freshRow;
-        const mark = `${placedByAuthor(row[0].style) ? "f" : "r"}:${entry.id}:${key}:${r}`;
-        const gap = top(S.body * INLINE_ROW.before);
-        return (
-          <InlineRow
-            key={`${anchor}-${r}`}
-            kit={kit}
-            row={row}
-            layer={layer}
-            fresh={freshRow}
-            scale={flow.rowScale.get(mark)}
-            offset={flow.rowOffset.get(mark)}
-            style={breaksRow ? undefined : gap}
-            {...flowMark(mark)}
+     * Ряды фото, фото на всю страницу и QR-коды в одном месте ответа. fresh — ответ стоит в начале текста главы без
+     * заголовка: его первый ряд и так в верху полосы («с новой страницы» разрыва не делает).
+     */
+    const renderRows = (entry: PreviewEntry, key: number, isMeasure: boolean, fresh = false) => {
+      const d = info.get(entry.id)!;
+      const lead = d.blocks.length ? -1 : END;
+      // Место вставки в тексте — номер абзаца, после которого встаёт ряд (последний абзац блока).
+      const anchor = key === END || key < 0 ? key : d.blocks[key].to;
+      // Ряд и фото рисует вёрстка книги (InlineRow — как в PDF и на разворотах), превью добавляет поверх только интерактивность.
+      const layer = previewPhotoLayer({ t, kit, live: entry.id === currentId && interactive && !!drag, isMeasure, measure: measureThis, selectedId, drag: drag!, onChange });
+      return [
+        ...(d.layout.get(key) ?? []).map((row, r) => {
+          const freshRow = fresh && key === lead && r === 0;
+          // Ряд «с новой страницы» начинается с полосы без отбивки сверху; ряд, поставленный автором, — вид f (как в PDF).
+          const mark = `${placedByAuthor(row[0].style) ? "f" : "r"}:${entry.id}:${key}:${r}`;
+          return (
+            <InlineRow
+              key={`${anchor}-${r}`}
+              kit={k}
+              row={row}
+              layer={layer}
+              fresh={freshRow}
+              scale={f.rowScale.get(mark)}
+              offset={f.rowOffset.get(mark)}
+              style={breakBefore(k, mark)}
+              {...flowMark(mark)}
+              data-entry={entry.id}
+              data-row-anchor={anchor === END ? "end" : anchor}
+            />
+          );
+        }),
+        // Фото на всю страницу — целая колонка (разрыв до и после): здесь только пустая заглушка, снимок рисуется поверх
+        // полосы, на которую она попала (pagePhoto). Внутри колонок его не нарисовать: Chrome ставит абсолютный блок
+        // в элементе с break-before по месту до разрыва — внизу прошлой полосы, а своя остаётся пустой.
+        ...(d.pages.get(key) ?? []).flat().map((item) => (
+          <div
+            key={`pg-${item.p.id}`}
+            data-page-photo={item.p.id}
             data-entry={entry.id}
             data-row-anchor={anchor === END ? "end" : anchor}
+            style={{ height: textH, breakBefore: "column", breakAfter: "column", breakInside: "avoid" }}
           />
-        );
-      }),
-      // Фото на всю страницу — целая колонка (разрыв до и после): здесь только пустая заглушка, снимок рисуется поверх
-      // полосы, на которую она попала (pagePhoto). Внутри колонок его не нарисовать: Chrome ставит абсолютный блок
-      // в элементе с break-before по месту до разрыва — внизу прошлой полосы, а своя остаётся пустой.
-      ...(d.pages.get(key) ?? []).flat().map((item) => (
-        <div
-          key={`pg-${item.p.id}`}
-          data-page-photo={item.p.id}
-          data-entry={entry.id}
-          data-row-anchor={anchor === END ? "end" : anchor}
-          style={{ height: textH, breakBefore: "column", breakAfter: "column", breakInside: "avoid" }}
-        />
-      )),
-      // QR-коды — после фото того же места; в превью без ссылки (клик по странице выбирает ответ).
-      ...(d.media.get(key) ?? []).map((m) => <MediaCard key={`${anchor}-m-${m.id}`} kit={kit} media={m} style={top(S.body * MEDIA_CARD.before)} {...flowMark(`b:${entry.id}:m${key}:${m.id}`)} data-entry={entry.id} data-media={m.id} />),
-    ];
-  };
-  /** Поле снизу того, что встанет перед следующим блоком, после рядов в месте key (они его забирают). */
-  const afterRows = (entry: PreviewEntry, key: number, prevAfter: number) => {
-    const d = info.get(entry.id)!;
-    return (d.layout.get(key)?.length || d.pages.get(key)?.length || d.media.get(key)?.length) ? 0 : prevAfter;
-  };
-
-  const renderEntry = (entry: PreviewEntry, first: boolean, isMeasure: boolean) => {
-    const d = info.get(entry.id)!;
-    const paragraphs = d.paragraphs;
-    // Отбивки — как в PDF: перед заголовком больше, перед ответом без заголовка — разделитель.
-    // Именно margin (а не распорка): на переносе в новую колонку-страницу браузер его отбрасывает.
-    // «С новой страницы» — разрыв колонки перед историей и без отбивки сверху, как в PDF (Entry: break и marginTop 0).
-    const breaks = !first && (!!entry.pageBreak || flow.breakBefore.has(entry.id));
-    const gapBefore = first || breaks ? 0 : ptPx(entry.heading ? S.beforeHeading : S.beforeHeadless);
-    // Первый ответ главы без заголовка (и без названия главы над текстом) — в самом верху полосы. Ответ не первый —
-    // над ним заголовок или разделитель, как в PDF.
-    const fresh = first && !entry.heading && start !== "inline";
-    // Поле снизу у заголовка или разделителя — складывается с полем сверху первого блока, как в PDF.
-    const headAfter = entry.heading ? S.afterHeading : first ? 0 : design.divider === "space" || design.divider === "stars" ? S.beforeHeadless : 0;
-    /** Поле сверху блока i с учётом поля того, что стоит перед ним (заголовок, прошлый блок или ряды фото). */
-    const topOf = (b: AnswerBlock, i: number) => {
-      const prev = i === 0 ? afterRows(entry, -1, headAfter) : afterRows(entry, i - 1, blockSpace(design, S, d.blocks[i - 1].kind).after);
-      const v = stackedTop(blockSpace(design, S, b.kind).before, prev);
-      return v === undefined ? {} : { marginTop: ptPx(v) };
+        )),
+        // QR-коды — после фото того же места; в превью без ссылки (клик по странице выбирает ответ).
+        ...(d.media.get(key) ?? []).map((m) => <MediaCard key={`${anchor}-m-${m.id}`} kit={k} media={m} style={breakBefore(k, `b:${entry.id}:m${key}:${m.id}`)} {...flowMark(`b:${entry.id}:m${key}:${m.id}`)} data-entry={entry.id} data-media={m.id} />),
+      ];
     };
-    return (
-      <Fragment key={entry.id}>
-        <span data-marker={entry.id} style={{ display: "block", height: 1, breakAfter: "avoid", ...(breaks ? { breakBefore: "column" as const } : {}) }} />
-        {entry.heading ? (
-          <QuestionHeading
-            kit={kit}
-            {...flowMark(`h:${entry.id}`)}
-            data-entry={entry.id}
-            data-para={-1}
-            style={{ marginTop: gapBefore, boxShadow: moving?.target.entry === entry.id && moving.target.anchor === -1 && paragraphs.length ? drag?.belowShadow : undefined }}
-          >
-            {entry.heading}
-          </QuestionHeading>
-        ) : first ? null : (
-          <Divider kit={kit} {...flowMark(`h:${entry.id}`)} style={{ marginTop: gapBefore }} />
-        )}
-        {paragraphs.length ? renderRows(entry, -1, isMeasure, headAfter, fresh) : null}
-        {paragraphs.length ? (
-          d.blocks.map((b, i) => (
-            <Fragment key={i}>
-              <AnswerBlockView
-                kit={kit}
-                block={b}
-                leadIn={design.leadIn && first && i === 0}
-                // Как в PDF (TextBlock): буквица — в начале главы, красная строка — по первому блоку ответа (indentFirst).
-                dropCap={first && i === 0}
-                first={i === 0}
-                {...flowMark(`${b.kind === "lede" ? "k" : "b"}:${entry.id}:${i}`)}
-                data-entry={entry.id}
-                data-para={b.to}
-                data-para-from={b.from}
-                style={{ boxShadow: hint(entry.id, b.to) ?? (b.from > 0 ? undefined : hint(entry.id, 0)), ...topOf(b, i) }}
-              />
-              {i < d.blocks.length - 1 ? renderRows(entry, i, isMeasure, blockSpace(design, S, b.kind).after) : null}
-            </Fragment>
-          ))
-        ) : entry.photos.length || entry.media.length ? null : (
-          <p style={{ fontFamily: cssFont(design.type.body), fontSize: bodyPx, lineHeight: design.type.lineHeight, color: P.rule, fontStyle: "italic" }}>{t.empty}</p>
-        )}
-        {renderRows(entry, END, isMeasure, d.blocks.length ? blockSpace(design, S, d.blocks[d.blocks.length - 1].kind).after : headAfter, fresh)}
-      </Fragment>
-    );
-  };
+    const renderEntry = (entry: PreviewEntry, first: boolean, isMeasure: boolean) => {
+      const d = info.get(entry.id)!;
+      const paragraphs = d.paragraphs;
+      // Отбивки — как в PDF: перед заголовком больше, перед ответом без заголовка — разделитель.
+      // Именно margin (а не распорка): на переносе в новую колонку-страницу браузер его отбрасывает.
+      // «С новой страницы» — разрыв колонки перед историей и без отбивки сверху, как в PDF (Entry: break и marginTop 0).
+      const breaks = !first && (!!entry.pageBreak || f.breakBefore.has(entry.id));
+      const gapBefore = first || breaks ? 0 : entry.heading ? S.beforeHeading : S.beforeHeadless;
+      // Первый ответ главы без заголовка (и без названия главы над текстом) — в самом верху полосы. Ответ не первый —
+      // над ним заголовок или разделитель, как в PDF.
+      const fresh = first && !entry.heading && start !== "inline";
+      // Отбивка перед заголовком или разделителем — полем внутри (gapAbove), как у react-pdf: на новой полосе остаётся.
+      const gap = gapAbove(gapBefore, k.u.pt);
+      return (
+        <Fragment key={entry.id}>
+          {/* Метка начала ответа — без высоты: не отделяет отбивку заголовка от разрыва и не добавляет пиксель, как в PDF. */}
+          {/* Разрывы по разбивке, как у PDF (k.breaks), ставят сами блоки — тогда у метки своего разрыва нет. */}
+          <span data-marker={entry.id} style={{ display: "block", height: 0, ...keepWithNext(k), ...(breaks && !k.breaks ? { breakBefore: "column" as const } : {}) }} />
+          {entry.heading ? (
+            <QuestionHeading
+              kit={k}
+              {...flowMark(`h:${entry.id}`)}
+              data-entry={entry.id}
+              data-para={-1}
+              {...gap.attrs}
+              style={{ ...gap.style, ...breakBefore(k, `h:${entry.id}`), boxShadow: moving?.target.entry === entry.id && moving.target.anchor === -1 && paragraphs.length ? drag?.belowShadow : undefined }}
+            >
+              {entry.heading}
+            </QuestionHeading>
+          ) : first ? null : (
+            <Divider kit={k} {...flowMark(`h:${entry.id}`)} {...gap.attrs} style={{ ...gap.style, ...breakBefore(k, `h:${entry.id}`) }} />
+          )}
+          {paragraphs.length ? renderRows(entry, -1, isMeasure, fresh) : null}
+          {paragraphs.length ? (
+            d.blocks.map((b, i) => (
+              <Fragment key={i}>
+                <AnswerBlockView
+                  kit={k}
+                  block={b}
+                  leadIn={design.leadIn && first && i === 0}
+                  // Как в PDF (TextBlock): буквица — в начале главы, красная строка — по первому блоку ответа (indentFirst).
+                  dropCap={first && i === 0}
+                  first={i === 0}
+                  {...flowMark(`${b.kind === "lede" ? "k" : "b"}:${entry.id}:${i}`)}
+                  data-entry={entry.id}
+                  data-para={b.to}
+                  data-para-from={b.from}
+                  style={{ boxShadow: hint(entry.id, b.to) ?? (b.from > 0 ? undefined : hint(entry.id, 0)) }}
+                />
+                {i < d.blocks.length - 1 ? renderRows(entry, i, isMeasure) : null}
+              </Fragment>
+            ))
+          ) : entry.photos.length || entry.media.length ? null : (
+            <p style={{ fontFamily: cssFont(design.type.body), fontSize: bodyPx, lineHeight: design.type.lineHeight, color: P.rule, fontStyle: "italic" }}>{t.empty}</p>
+          )}
+          {renderRows(entry, END, isMeasure, fresh)}
+        </Fragment>
+      );
+    };
 
-  // Глава без начальной полосы (inline): номер и название — в начале её текста (как в PDF); чистый лист — без них.
-  const head = start === "inline" ? <ChapterHead kit={kit} number={ch.number} title={ch.title} epigraph={ch.epigraph} /> : null;
-  // Концовка главы — виньетка после текста, как в PDF (ChapterBody); у главы без текста её нет.
-  const tail = ch.entries.some((e) => e.answer || e.photos.length || e.media.length) && !flow.noTail.has(ch.key) ? <ChapterTail kit={kit} {...flowMark(`t:${ch.key}`)} /> : null;
+    // Глава без начальной полосы (inline): номер и название — в начале её текста (как в PDF); чистый лист — без них.
+    const head =
+      start === "inline" ? (
+        <div data-pid={`c:${ch.key}`} style={breakBefore(k, `c:${ch.key}`)}>
+          <ChapterHead kit={k} number={ch.number} title={ch.title} epigraph={ch.epigraph} />
+        </div>
+      ) : null;
+    // Концовка главы — виньетка после текста, как в PDF (ChapterBody); у главы без текста её нет.
+    const tail = ch.entries.some((e) => e.answer || e.photos.length || e.media.length) && !f.noTail.has(ch.key) ? <ChapterTail kit={k} style={breakBefore(k, `t:${ch.key}`)} {...flowMark(`t:${ch.key}`)} /> : null;
+
+    return { renderEntry, head, tail };
+  };
+  const shown = render(visibleKit, flow);
+  const measured = render(kit, NO_FLOW);
 
   const textFlow = (k: number) => (
     <div
       lang={language}
       style={{
         width: textW,
-        height: textH,
+        // Полосы по разбивке, как у PDF: разрывы ставят блоки, колонка с запасом — браузер сам не ломает.
+        height: res ? textH + FLOW_SLACK * px : textH,
         columnWidth: textW,
         columnGap: gap,
         columnFill: "auto",
@@ -387,9 +431,9 @@ function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, 
         color: P.ink,
       }}
     >
-      {head}
-      {ch.entries.map((e, i) => renderEntry(e, i === 0, false))}
-      {tail}
+      {shown.head}
+      {ch.entries.map((e, i) => shown.renderEntry(e, i === 0, false))}
+      {shown.tail}
     </div>
   );
 
@@ -403,12 +447,14 @@ function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, 
             setMeasureRef(ch.key, el);
           }}
           lang={language} style={{ position: "relative", width: textW, height: textH, columnWidth: textW, columnGap: gap, columnFill: "auto" }}>
-          {head}
-          {ch.entries.map((e, i) => renderEntry(e, i === 0, true))}
-          {tail}
+          {measured.head}
+          {ch.entries.map((e, i) => measured.renderEntry(e, i === 0, true))}
+          {measured.tail}
         </div>
       </div>
       {/* Начальная полоса: фото главы, как в печати, — или полоса с названием и пунктирное место фото (только здесь). */}
+      {/* Пустая полоса перед начальной (она всегда слева, как у PDF: content.openersLeft). */}
+      {blankBefore ? <div aria-hidden className={`relative ${PAGE_SHADOW}`} style={{ width: pageW, height: format.heightMm * px, background: design.paper ?? PAPER }} /> : null}
       {start ? null : (
       <PreviewOpener
         kit={kit}
@@ -425,17 +471,23 @@ function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, 
       />
       )}
       {Array.from({ length: pages }, (_, k) => (
-        <LazyPage key={k} root={scroll} pageId={`${ch.key}:${k}`} className={`relative overflow-hidden bg-white ${PAGE_SHADOW}`} style={{ width: pageW, height: format.heightMm * px }} onClick={onPageClick}>
+        <LazyPage key={k} root={scroll} pageId={`${ch.key}:${k}`} className={`relative overflow-hidden ${PAGE_SHADOW}`} style={{ width: pageW, height: format.heightMm * px, background: design.paper ?? PAPER }} onClick={onPageClick}>
           {() => (
             <>
               {/* Первая полоса текста — напротив начальной: правая, если та слева (как в PDF), иначе левая. */}
-              <RunningHead kit={kit} bookTitle={bookTitle} chapterTitle={ch.title} recto={k % 2 === (openersLeft || start ? 0 : 1)} />
+              {/* Сторона полосы — по её номеру в книге (как у PDF), а без номера — напротив начальной полосы. */}
+              <RunningHead kit={kit} bookTitle={bookTitle} chapterTitle={ch.title} recto={firstPage !== undefined ? (firstPage + k) % 2 === 1 : k % 2 === (openersLeft || start ? 0 : 1)} />
               {/* Соседние колонки — за краем листа (его обрезает сама страница). */}
               <div className="absolute" style={{ left: side * px, top: m.marginTop * px, width: textW, height: textH }}>
                 {textFlow(k)}
               </div>
               {pagePhotos.filter((x) => photoPages[x.item.p.id] === k).map(pagePhoto)}
-              {/* Номера страниц нет: здесь вёрстка браузера, а номер в книге — у полосы макета (растр PDF). */}
+              {/* Колонцифра — номер полосы в книге: полосы раскладываются, как у PDF (полосы глав до неё — тоже). */}
+              {firstPage !== undefined ? (
+                <Folio kit={kit} recto={(firstPage + k) % 2 === 1}>
+                  {folioText(design, firstPage + k)}
+                </Folio>
+              ) : null}
             </>
           )}
         </LazyPage>
