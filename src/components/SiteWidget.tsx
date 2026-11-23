@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, MessageCircle, MessagesSquare, PhoneCall, SendHorizontal, X } from "lucide-react";
 import { useMessages } from "@/i18n/client";
 import { cn } from "@/lib/class-names";
+import { useAutosize } from "@/components/ui/useAutosize";
 import { widgetCode } from "@/modules/marketing/domain/links";
 
 interface Msg {
@@ -47,6 +48,9 @@ export function SiteWidget({ whatsapp, chat }: { whatsapp: string; chat: boolean
   const [view, setView] = useState<View>("menu");
   const [messages, setMessages] = useState<Msg[]>([]);
   const [text, setText] = useState("");
+  const field = useRef<HTMLTextAreaElement>(null);
+  // field-sizing нет в Safari на iPhone — высоту поля по тексту ставим сами.
+  useAutosize(field, text);
   const [phone, setPhone] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -225,6 +229,7 @@ export function SiteWidget({ whatsapp, chat }: { whatsapp: string; chat: boolean
                 {error ? <p className="field-error">{error}</p> : null}
                 <div className="flex items-end gap-2">
                   <textarea
+                    ref={field}
                     value={text}
                     onChange={(e) => setText(e.target.value)}
                     onKeyDown={(e) => {
@@ -237,7 +242,7 @@ export function SiteWidget({ whatsapp, chat }: { whatsapp: string; chat: boolean
                     maxLength={2000}
                     placeholder={t.chatPlaceholder}
                     aria-label={t.chatPlaceholder}
-                    className="input h-auto max-h-32 min-h-10 resize-none py-2 text-sm field-sizing-content"
+                    className="input h-auto max-h-32 min-h-10 resize-none overflow-y-auto py-2 text-sm"
                   />
                   <button type="button" className="btn size-10 shrink-0 px-0" onClick={() => void sendChat()} disabled={busy || !text.trim()} aria-label={t.send}>
                     <SendHorizontal className="size-5" />

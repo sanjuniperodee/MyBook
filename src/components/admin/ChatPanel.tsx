@@ -23,6 +23,7 @@ import type { ChatOffers } from "@/modules/marketing";
 import { fillTemplate } from "@/shared/domain/templates";
 import { toast, toastError } from "@/components/ui/overlays";
 import { cn } from "@/lib/class-names";
+import { useAutosize } from "@/components/ui/useAutosize";
 import { liveChannel } from "./liveRules";
 import { CHAT_READ_EVENT } from "./chat/inbox-model";
 
@@ -197,6 +198,8 @@ export function ChatPanel({
   const scroller = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
+  // field-sizing нет в Safari на iPhone — высоту поля по тексту ставим сами.
+  useAutosize(input, text);
   const fileInput = useRef<HTMLInputElement>(null);
   const cameraInput = useRef<HTMLInputElement>(null);
   const stick = useRef(true);
@@ -1231,7 +1234,7 @@ export function ChatPanel({
                 rows={1}
                 maxLength={4000}
                 placeholder={editing ? "Новый текст (Esc — отмена)" : note ? (narrow ? "Заметка для коллег…" : "Заметка видна только сотрудникам. @имя — позвать коллегу") : drafts.length ? "Подпись к файлам (необязательно)" : narrow ? "Сообщение…" : "Написать клиенту… (/ — шаблоны)"}
-                className="block max-h-40 min-h-11 w-full resize-none border-0 bg-transparent px-3 py-2.5 text-[14px] leading-relaxed outline-none field-sizing-content placeholder:text-muted max-lg:max-h-36 max-lg:px-4 max-lg:text-[16px] max-lg:leading-snug"
+                className="block max-h-40 min-h-11 w-full resize-none border-0 bg-transparent px-3 py-2.5 text-[14px] leading-relaxed overflow-y-auto break-words whitespace-pre-wrap outline-none placeholder:text-muted max-lg:max-h-36 max-lg:px-4 max-lg:text-[16px] max-lg:leading-snug"
                 aria-label="Текст сообщения"
               />
               {/* Телефон: камера в поле, пока текста нет — снять фото и отправить в одно касание. */}

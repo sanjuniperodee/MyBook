@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/class-names";
 
 type Props = Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, "value" | "onChange"> & {
@@ -33,8 +33,13 @@ export const MentionTextarea = forwardRef<HTMLTextAreaElement, Props>(function M
     const hit = (t: { title: string; text: string }) => !q || t.title.toLowerCase().includes(q) || t.text.toLowerCase().includes(q);
     // Совпадение в названии — выше, чем в тексте.
     const byTitle = slashItems.filter((t) => t.title.toLowerCase().includes(q));
-    return [...byTitle, ...slashItems.filter((t) => hit(t) && !byTitle.includes(t))].slice(0, 8);
+    return [...byTitle, ...slashItems.filter((t) => hit(t) && !byTitle.includes(t))];
   }, [slash, slashItems]);
+  // Список шаблонов — весь, с прокруткой; подсвеченный (↑↓) всегда в видимой части.
+  const slashBox = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    slashBox.current?.querySelector("[data-active]")?.scrollIntoView({ block: "nearest" });
+  }, [active, slash]);
   const count = templates.length || matches.length;
 
   const detect = (text: string, caret: number) => {
@@ -111,14 +116,15 @@ export const MentionTextarea = forwardRef<HTMLTextAreaElement, Props>(function M
         onBlur={() => setTimeout(() => (setQuery(null), setSlash(null)), 150)}
       />
       {templates.length ? (
-        <div className="absolute bottom-full left-0 z-20 mb-1 w-[min(26rem,calc(100vw-2rem))] overflow-hidden rounded-[var(--r-ctl)] border border-line bg-white shadow-soft" role="listbox" aria-label="Шаблоны ответов">
-          <div className="border-b border-line bg-sunken px-3 py-1.5 text-[11px] text-muted">Шаблоны · ↑↓ выбрать, Enter — вставить, Esc — закрыть</div>
+        <div ref={slashBox} className="absolute bottom-full left-0 z-20 mb-1 max-h-[min(20rem,50dvh)] w-[min(26rem,calc(100vw-2rem))] overflow-y-auto overscroll-contain rounded-[var(--r-ctl)] border border-line bg-white shadow-soft" role="listbox" aria-label="Шаблоны ответов" data-testid="slash-templates">
+          <div className="sticky top-0 z-10 border-b border-line bg-sunken px-3 py-1.5 text-[11px] text-muted">Шаблоны · ↑↓ выбрать, Enter — вставить, Esc — закрыть</div>
           {templates.map((t, i) => (
             <button
               key={t.id}
               type="button"
               role="option"
               aria-selected={i === active}
+              data-active={i === active || undefined}
               className={cn("block w-full px-3 py-2 text-left", i === active ? "bg-rose" : "hover:bg-sunken")}
               onMouseEnter={() => setActive(i)}
               onMouseDown={(e) => {
