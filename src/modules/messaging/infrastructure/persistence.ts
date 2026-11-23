@@ -196,11 +196,15 @@ const echoSent = {
   error: sql`case when ${crmMessages.status} in ('pending', 'error') then null else ${crmMessages.error} end`,
 };
 
+/** Цитата входящего или эха: наше сообщение того же диалога с этим id в канале; нет у нас — без цитаты. */
+const replyRef = (conversationId: string, externalId: string | null | undefined) =>
+  externalId ? sql<string>`(select r.id from crm_messages r where r.conversation_id = ${conversationId}::uuid and r.external_id = ${externalId} limit 1)` : null;
+
 export class DrizzleMessageRepository implements MessageRepository, MessageMediaStore {
   async insertIncoming(conversationId: string, m: InboundMessage, subject: string | null) {
     const rows = await executor()
       .insert(crmMessages)
-      .values({ conversationId, direction: "in", type: m.type, text: m.text, mediaUrl: m.mediaUrl, card: m.card ?? null, externalId: m.externalId, status: "received", subject, createdAt: m.at })
+      .values({ conversationId, direction: "in", type: m.type, text: m.text, mediaUrl: m.mediaUrl, card: m.card ?? null, externalId: m.externalId, status: "received", subject, createdAt: m.at, replyToId: replyRef(conversationId, m.replyToExternalId) })
       .onConflictDoNothing()
       .returning({ id: crmMessages.id });
     return rows.length > 0;
@@ -251,7 +255,7 @@ export class DrizzleMessageRepository implements MessageRepository, MessageMedia
   async insertEcho(conversationId: string, m: InboundMessage, attributedTo: string | null = null) {
     const rows = await executor()
       .insert(crmMessages)
-      .values({ conversationId, direction: "out", type: m.type, text: m.text, mediaUrl: m.mediaUrl, card: m.card ?? null, externalId: m.externalId, status: "sent", createdAt: m.at, attributedTo })
+      .values({ conversationId, direction: "out", type: m.type, text: m.text, mediaUrl: m.mediaUrl, card: m.card ?? null, externalId: m.externalId, status: "sent", createdAt: m.at, attributedTo, replyToId: replyRef(conversationId, m.replyToExternalId) })
       .onConflictDoNothing()
       .returning({ id: crmMessages.id });
     return rows.length > 0;

@@ -20,6 +20,8 @@ export interface WazzupIncoming {
   status: string | null;
   /** Карточка WhatsApp (товар или корзина из каталога) — только у шлюза GOWA. */
   card?: MessageCard | null;
+  /** Ответ на сообщение: его id в канале (WhatsApp, шлюз GOWA) — в CRM цитата, если исходное у нас есть. */
+  replyToExternalId?: string | null;
 }
 
 export interface WazzupStatus {

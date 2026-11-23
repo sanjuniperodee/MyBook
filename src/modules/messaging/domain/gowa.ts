@@ -232,6 +232,7 @@ export function parseGowaWebhook(body: unknown): { messages: InboundMessage[]; s
           contactName: isEcho ? "" : str(p.from_name),
           avatarUrl: null,
           status: null,
+          replyToExternalId: str(p.replied_to_id) || null,
           ...(card ? { card } : {}),
         },
       ],
@@ -280,7 +281,18 @@ export function parseGowaHistory(raw: unknown): InboundMessage | null {
     contactName: isEcho ? "" : str(p.sender_display_name),
     avatarUrl: null,
     status: null,
+    replyToExternalId: repliedTo(p.context_metadata),
   };
+}
+
+/** id сообщения, на которое ответили, из context_metadata истории шлюза (JSON-строка {"replied_to_id": …}). */
+function repliedTo(meta: unknown): string | null {
+  if (typeof meta !== "string" || !meta.trim()) return null;
+  try {
+    return str(record(JSON.parse(meta)).replied_to_id) || null;
+  } catch {
+    return null;
+  }
 }
 
 /** Личный чат (не группа, не рассылка, не канал) — только такие идут в CRM. */

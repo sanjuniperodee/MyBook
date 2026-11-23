@@ -164,8 +164,10 @@ export function setup(
     setAssignee: async () => {},
     setStatus: async (id, status) => void Object.assign(convs.get(id)!, { status }),
   };
+  /** Как в базе: цитата — наше сообщение того же диалога с этим id в канале. */
+  const replyRef = (conv: string, externalId: string | null | undefined) => (externalId && msgs.find((x) => x.conv === conv && x.externalId === externalId)?.id) || null;
   const messages: MessageRepository = {
-    insertIncoming: async (conv, m) => (msgs.some((x) => x.externalId === m.externalId) ? false : !!msgs.push({ id: `m${++seq}`, conv, dir: "in", text: m.text, type: m.type, at: m.at, externalId: m.externalId, status: "received", mediaUrl: m.mediaUrl })),
+    insertIncoming: async (conv, m) => (msgs.some((x) => x.externalId === m.externalId) ? false : !!msgs.push({ id: `m${++seq}`, conv, dir: "in", text: m.text, type: m.type, at: m.at, externalId: m.externalId, status: "received", mediaUrl: m.mediaUrl, replyToId: replyRef(conv, m.replyToExternalId) })),
     existsExternal: async (e) => msgs.some((x) => x.externalId === e),
     knownExternal: async (ids) => new Set(ids.filter((e) => msgs.some((x) => x.externalId === e))),
     claimPendingEcho: async (conv, text, _s, ext) => {
@@ -175,7 +177,7 @@ export function setup(
       if (p) p.externalId = ext;
       return !!p;
     },
-    insertEcho: async (conv, m, attributedTo) => !!msgs.push({ id: `m${++seq}`, conv, dir: "out", text: m.text, type: m.type, at: m.at, externalId: m.externalId, status: "sent", attributedTo: attributedTo ?? null }),
+    insertEcho: async (conv, m, attributedTo) => !!msgs.push({ id: `m${++seq}`, conv, dir: "out", text: m.text, type: m.type, at: m.at, externalId: m.externalId, status: "sent", attributedTo: attributedTo ?? null, replyToId: replyRef(conv, m.replyToExternalId) }),
     insertOutgoing: async (conv, text, authorId, internal, source, extra = {}) => {
       const m: Msg = { id: `m${++seq}`, conv, dir: "out", text, type: extra.type ?? "text", at: now, externalId: null, status: "pending", source: source ?? null, internal: !!internal, authorId, mediaUrl: extra.mediaUrl ?? null, replyToId: extra.replyToId ?? null, forwarded: !!extra.forwarded };
       msgs.push(m);

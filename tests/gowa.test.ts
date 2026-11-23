@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createHmac } from "node:crypto";
-import { gowaAudioCallId, gowaChatId, gowaJid, gowaMediaUrl, parseGowaCall, parseGowaWebhook } from "@/modules/messaging/domain/gowa";
+import { gowaAudioCallId, gowaChatId, gowaJid, gowaMediaUrl, parseGowaCall, parseGowaHistory, parseGowaWebhook } from "@/modules/messaging/domain/gowa";
 import type { Conversation } from "@/modules/messaging/domain";
 import { GOWA_DEVICE, GowaClient, GowaError, verifyGowaSignature } from "@/modules/messaging/infrastructure/gowa";
 import { channelTransport, whatsappTransport } from "@/modules/messaging/infrastructure/adapters";
@@ -15,8 +15,17 @@ describe("GOWA: протокол вебхуков", () => {
     const { messages, statuses } = parseGowaWebhook(message({ body: "Здравствуйте! Хочу книгу маме" }));
     expect(statuses).toEqual([]);
     expect(messages).toEqual([
-      { externalId: "3EB0A1", channelId: "gowa", chatType: "whatsapp", chatId: "77011234567", at: new Date("2026-10-13T10:30:00Z"), isEcho: false, type: "text", text: "Здравствуйте! Хочу книгу маме", mediaUrl: null, contactName: "Айгерим", avatarUrl: null, status: null },
+      { externalId: "3EB0A1", channelId: "gowa", chatType: "whatsapp", chatId: "77011234567", at: new Date("2026-10-13T10:30:00Z"), isEcho: false, type: "text", text: "Здравствуйте! Хочу книгу маме", mediaUrl: null, contactName: "Айгерим", avatarUrl: null, status: null, replyToExternalId: null },
     ]);
+  });
+
+  it("ответ на сообщение: id исходного из replied_to_id (вебхук) и context_metadata (история)", () => {
+    expect(parseGowaWebhook(message({ body: "Да, эту", replied_to_id: "3EB0PARENT", quoted_body: "Вам в твёрдой обложке?" })).messages[0].replyToExternalId).toBe("3EB0PARENT");
+    expect(parseGowaWebhook(message({ body: "Ок", is_from_me: true, replied_to_id: "3EB0Q" })).messages[0]).toMatchObject({ isEcho: true, replyToExternalId: "3EB0Q" });
+    const row = { id: "H2", chat_jid: "77011234567@s.whatsapp.net", content: "Да", timestamp: "2026-10-13T10:30:00Z", is_from_me: false };
+    expect(parseGowaHistory({ ...row, context_metadata: '{"replied_to_id":"H1"}' })?.replyToExternalId).toBe("H1");
+    expect(parseGowaHistory({ ...row, context_metadata: "не json" })?.replyToExternalId).toBeNull();
+    expect(parseGowaHistory(row)?.replyToExternalId).toBeNull();
   });
 
   it("ответ с телефона магазина — эхо, без переименования контакта", () => {

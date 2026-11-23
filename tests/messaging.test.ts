@@ -51,6 +51,18 @@ describe("домен переписки", () => {
 // ─── инбокс и бот на двойниках ─────────────────────────────────────────────
 
 describe("MessagingService", () => {
+  it("ответ клиента на сообщение — с цитатой исходного; исходного у нас нет — без цитаты", async () => {
+    const { service, msgs } = setup();
+    await service.ingest(inbound({ externalId: "Q1", text: "Сколько стоит книга?" }));
+    await service.ingest(inbound({ externalId: "Q2", text: "Это я про сказку", replyToExternalId: "Q1" }));
+    await service.ingest(inbound({ externalId: "Q3", text: "А это?", replyToExternalId: "UNKNOWN" }));
+    await service.ingest(inbound({ externalId: "Q4", isEcho: true, text: "Сказка — 15 000 ₸", replyToExternalId: "Q2" }));
+    const id = (e: string) => msgs.find((m) => m.externalId === e)!;
+    expect(id("Q2").replyToId).toBe(id("Q1").id);
+    expect(id("Q3").replyToId).toBeNull();
+    expect(id("Q4").replyToId).toBe(id("Q2").id);
+  });
+
   it("новое обращение: диалог, заявка в «Неразобранном», «ждёт ответа»; повтор вебхука не дублирует", async () => {
     const { service, convs, deals, msgs } = setup();
     const m = inbound();
