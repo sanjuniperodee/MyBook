@@ -25,7 +25,7 @@ import { cn } from "@/lib/class-names";
 import { hexAlpha } from "@/lib/color";
 import { titleLineText } from "@/lib/book/title-line";
 import { PageLayer, pageFrame, Vignette } from "./graphics";
-import { Divider, EntryBody, QuestionHeading, type SampleEntry } from "./entry";
+import { ChapterTail, Divider, EntryBody, QuestionHeading, type SampleEntry } from "./entry";
 import { Folio, folioText, RunningHead } from "./folio";
 import { metricsOf, type PageKit } from "./kit";
 import { PageImage, PageSurface, Placed, TextArea, type PageProps } from "./surface";
@@ -323,8 +323,12 @@ export function EndPage({ kit, year, text: own, className, style }: PageProps & 
  * Страница текста главы для миниатюр: заголовки, абзацы, колонтитул и колонцифра. Текст режется
  * по строкам как в книге — через CSS-колонки размером с полосу набора (видна только первая).
  */
-export function TextPage({ kit, entries, folio, bookTitle, chapterTitle, recto, leadIn, chapterHead, className, style }: PageProps & {
+export function TextPage({ kit, entries, folio, bookTitle, chapterTitle, recto, leadIn, chapterHead, column = 0, tail = false, className, style }: PageProps & {
   entries: SampleEntry[];
+  /** Какую полосу потока текста показать (0 — первую): продолжение главы на следующей полосе. */
+  column?: number;
+  /** После текста — концовка главы (в примере вся глава). */
+  tail?: boolean;
   /** Номер и название главы над текстом — начало главы inline (BookContent.chapterStart). */
   chapterHead?: { number: number | null; title: string; epigraph?: string };
   folio: number;
@@ -353,6 +357,7 @@ export function TextPage({ kit, entries, folio, bookTitle, chapterTitle, recto, 
             // абзаца в следующую колонку, ставит следующий абзац на строку выше — строки налезают друг на друга.
             widows: 1,
             orphans: 1,
+            transform: column ? `translateX(calc(${-column} * (${u.mm(textW)} + ${u.mm(side * 2)})))` : undefined,
           }}
         >
           {chapterHead ? <ChapterHead kit={kit} {...chapterHead} /> : null}
@@ -368,6 +373,7 @@ export function TextPage({ kit, entries, folio, bookTitle, chapterTitle, recto, 
               />
             </div>
           ))}
+          {tail ? <ChapterTail kit={kit} /> : null}
         </div>
       </TextArea>
       <Folio kit={kit} recto={recto}>

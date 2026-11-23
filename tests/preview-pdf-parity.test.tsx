@@ -18,6 +18,8 @@ import { printableText } from "@/lib/book/printable";
 import { blockSpace, interiorSizes } from "@/lib/book/typesetting";
 import { photoPlaceOf } from "@/lib/book/photo-place";
 import { contentFor } from "@/modules/production/infrastructure/pdf/render";
+import { bookSpreadSample } from "@/server/spreadSample";
+import { bookToc } from "@/lib/book/toc";
 import { FLOW_MARK } from "@/modules/production/infrastructure/pdf/flow";
 import { InteriorDocument } from "@/modules/production/infrastructure/pdf/interior";
 import { pdfKit } from "@/modules/production/infrastructure/pdf/interior/kit";
@@ -198,5 +200,27 @@ describe("переносы: одни у PDF и превью", () => {
     expect(hyphenateWord("қалаймын", "kk").join("-")).toBe("қа-лай-мын");
     expect(hyphenateWord("сен", "kk")).toEqual(["сен"]);
     expect(softHyphenate("сен қалаймын", "kk")).toBe("сен қа­лай­мын");
+  });
+});
+
+describe("разворот «Страниц»: то же, что в книге", () => {
+  it.each(books.filter((b) => ["classic-a5-ru", "luna-a5-kk", "gender"].includes(b.key)).map((b) => [b.key, b] as const))("%s: строки оглавления (и письма близких), текст главы с фото и строфами, колонцифра", (_, book) => {
+    const { bundle } = book;
+    const letters = (bundle.letters ?? []).filter((l) => l.status === "approved");
+    const sample = bookSpreadSample(bundle.book, bundle.questions, bundle.chapters, "", bundle.photos, null, letters);
+    const pdf = printed(book);
+    // Оглавление — строки PDF (bookToc), в том же порядке, вместе с главой писем.
+    expect(sample.toc.map((l) => l.title)).toEqual(bookToc(pdf).map((e) => e.label));
+    // Первая глава — истории PDF по порядку, с фото в тексте, QR и «с новой страницы».
+    const first = pdf.chapters[0];
+    sample.entries.forEach((e, i) => {
+      const it = first.items[i];
+      expect(e.heading).toBe(it.heading);
+      expect(e.paragraphs.join("\n")).toBe(it.answer.split("\n").filter((p) => p.trim()).join("\n"));
+      expect((e.photos ?? []).map((p) => p.id)).toEqual((it.photos ?? []).map((p) => p.id));
+      expect(!!e.pageBreak).toBe(!!it.pageBreak);
+    });
+    // Колонцифра — первая полоса текста главы, не «7» из примера.
+    expect(sample.folio).toBeGreaterThan(1);
   });
 });

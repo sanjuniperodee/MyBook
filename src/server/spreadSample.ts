@@ -8,12 +8,15 @@ import { bookInterior } from "@/lib/book/interiors";
 import { estimateChapterPages, openerPage, sectionPageOffsets, textMetrics } from "@/lib/book/estimate";
 import { GALLERY_KEY, sampleToc, tocCandidates } from "@/lib/book/toc";
 import { buildBookContent } from "@/lib/book/book-content";
-import { LAYOUT_REV_2, frontPages, printableText, toPhotoItem, type ContentChapter } from "@/lib/book/layout";
-import { splitParagraphs } from "@/lib/book/inline-photo";
+import { LAYOUT_REV_2, frontPages, printableText, toPhotoItem, type ContentChapter, type ContentItem, type LetterLike, type PhotoItem } from "@/lib/book/layout";
+import { splitParagraphsDetailed } from "@/lib/book/inline-photo";
 import { photoUrl } from "@/lib/urls";
 
-/** Сколько текста первой главы показывать на развороте: страница всё равно обрезается по полосе набора. */
-const SAMPLE_CHARS = 1800;
+/**
+ * Сколько текста первой главы брать на разворот (целыми историями): полосы всё равно обрезаются по полосе набора, а
+ * без начальной полосы глава занимает обе полосы разворота.
+ */
+const SAMPLE_CHARS = 4500;
 
 /**
  * Содержимое для разворотов в выбранном оформлении — на настоящем тексте книги, а пока ответов
@@ -30,9 +33,12 @@ export function bookSpreadSample(
   photos: (Parameters<typeof toPhotoItem>[0] & { caption: string })[] = [],
   /** Номера страниц готового макета этой книги (BookBuild.chapterPages: ключи — pageKey оглавления); нет — оценка. */
   realPages?: Record<string, number> | null,
+  /** Одобренные письма близких: последняя глава книги — и строка оглавления. */
+  letters: LetterLike[] = [],
 ) {
   const format = getFormat(book.format);
-  const content = buildBookContent(book, questions, [], chapters);
+  // Та же сборка, что у PDF: с фото (они занимают полосы — от них номера страниц) и письмами (строка оглавления).
+  const content = buildBookContent(book, questions, photos.map(toPhotoItem), chapters, undefined, letters);
   const theme = getTheme(book.theme, book.language);
   const t = messagesFor(book.language);
   const kind = bookKind(book.theme);
@@ -48,18 +54,37 @@ export function bookSpreadSample(
     : theme.chapters.map((c) => ({ title: g(c.title), epigraph: c.epigraph }));
   const firstPlanned = planned[0];
 
-  const entries: { heading: string | null; paragraphs: string[] }[] = [];
+  // Текст первой главы — как его печатает PDF: истории целиком (с фото в тексте, QR, строфами и «с новой страницы»),
+  // пока не наберётся SAMPLE_CHARS; фото на всю страницу — своя полоса, на нём разворот кончается.
+  // Форма — SampleEntry разворота (components/interior/entry.tsx); тип сверяет свойство sample у InteriorSpread.
+  const entries: {
+    heading: string | null;
+    paragraphs: string[];
+    breaks?: number[];
+    photos?: { id: string; url: string; width: number; height: number; caption: string; inline?: PhotoItem["inline"] }[];
+    media?: NonNullable<ContentItem["media"]>;
+    pageBreak?: boolean;
+    continued?: boolean;
+  }[] = [];
+  let whole = !!first;
   if (first) {
     let budget = SAMPLE_CHARS;
-    for (const it of first.items) {
-      const paragraphs: string[] = [];
-      for (const p of splitParagraphs(it.answer)) {
-        if (budget <= 0) break;
-        paragraphs.push(p);
-        budget -= p.length;
+    for (const [i, it] of first.items.entries()) {
+      if (budget <= 0 || (it.photoBefore && i > 0)) {
+        whole = false;
+        break;
       }
-      if (paragraphs.length) entries.push({ heading: it.heading, paragraphs });
-      if (budget <= 0) break;
+      const { paragraphs, breaks } = splitParagraphsDetailed(it.answer);
+      entries.push({
+        heading: it.heading,
+        paragraphs,
+        ...(breaks.size ? { breaks: [...breaks] } : {}),
+        ...(it.photos?.length ? { photos: it.photos.map((p) => ({ id: p.id, url: photoUrl(p.id, "view"), width: p.width, height: p.height, caption: p.caption, inline: p.inline })) } : {}),
+        ...(it.media?.length ? { media: it.media } : {}),
+        ...(it.pageBreak ? { pageBreak: true } : {}),
+        ...(it.continued ? { continued: true } : {}),
+      });
+      budget -= it.answer.length;
     }
   } else {
     const s = own ?? sample;
@@ -84,6 +109,8 @@ export function bookSpreadSample(
   }
   pageOf.set(GALLERY_KEY, openerPage(content, page));
   for (const [key, n] of Object.entries(realPages ?? {})) if (pageOf.has(key)) pageOf.set(key, n);
+  // Номер первой полосы текста первой главы — колонцифра на развороте «Глава» (без начальной полосы — это её же страница).
+  const firstText = first ? (pageOf.get(first.key) ?? start) + (content.chapterStart ? 0 : 1) : undefined;
   const tocAll = content.chapters.length
     ? tocCandidates(content).map((c) => ({ ...c, page: pageOf.get(c.pageKey) ?? start }))
     : planned.map((c, i) => ({ key: `c:planned-${i}`, pageKey: `planned-${i}`, kind: "chapter" as const, number: i + 1, label: c.title, page: start + i * 6 }));
@@ -106,6 +133,9 @@ export function bookSpreadSample(
         : // У главы автора без эпиграфа пример эпиграфа не подставляем: это его текст.
           { number: 1, title: firstPlanned?.title ?? (own ?? sample).chapterTitle, epigraph: chapters.length ? firstPlanned?.epigraph : (firstPlanned?.epigraph ?? (own ? ownEpigraph : sample.epigraph)) },
     entries,
+    // Вся первая глава уместилась в пример — после неё концовка, как в PDF.
+    ...(whole ? { tail: true } : {}),
+    ...(firstText ? { folio: firstText } : {}),
     toc: sampleToc(tocAll, tocMode, tocSettings),
     tocAll,
     tocMode,
@@ -117,7 +147,7 @@ export function bookSpreadSample(
     captions: own?.photos,
     photos: photos.filter((p) => p.id !== book.coverPhotoId).slice(0, 4).map((p) => ({ url: photoUrl(p.id, "full"), width: p.width, height: p.height, caption: p.caption })),
     // Правила 2: начало главы — как в книге, выбранное автором фото главы или страница с названием (не «первое фото»).
-    ...(book.layoutRev === LAYOUT_REV_2 ? { opener: sampleOpener(first ? buildBookContent(book, questions, photos.map(toPhotoItem), chapters).chapters.find((c) => c.key === first.key) : undefined) } : {}),
+    ...(book.layoutRev === LAYOUT_REV_2 ? { opener: sampleOpener(first) } : {}),
   };
 }
 

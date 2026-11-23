@@ -29,8 +29,8 @@ interface EntryPhoto {
 export interface SampleEntry {
   heading: string | null;
   paragraphs: string[];
-  /** Перед какими абзацами автор оставил пустую строку (строфы стихов). */
-  breaks?: ReadonlySet<number>;
+  /** Перед какими абзацами автор оставил пустую строку (строфы стихов) — номера абзацев (данные идут с сервера). */
+  breaks?: readonly number[];
   photos?: EntryPhoto[];
   media?: AnswerMedia[];
   /** «С новой страницы»: перед историей — переход на следующую полосу. */
@@ -337,7 +337,7 @@ export function EntryBody({
   /** Ответ стоит в верху полосы: первому ряду «с новой страницы» разрыв не нужен. */
   fresh?: boolean;
 }) {
-  const blocks = answerBlocks(entry.paragraphs, { plain: kit.design.plainAnswers, breaks: entry.breaks });
+  const blocks = answerBlocks(entry.paragraphs, { plain: kit.design.plainAnswers, breaks: new Set(entry.breaks) });
   const items = (entry.photos ?? []).map((p) => ({ p, style: normalizeStyle(p.inline) }));
   const rows = rowsByBlock(blocks, layoutInline(items, entry.paragraphs.length));
   const media = rowsByBlock(blocks, layoutMedia(entry.media ?? [], entry.paragraphs.length));

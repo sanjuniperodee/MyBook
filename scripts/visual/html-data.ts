@@ -80,7 +80,7 @@ function backData({ book, photos }: FixtureBook["bundle"]): BackData {
 export function standViews(fixture: FixtureBook): StandView[] {
   const { book, questions, chapters, photos } = fixture.bundle;
   const base = { locale: book.language, format: book.format, interior: book.interior };
-  const sample = bookSpreadSample(book, questions, chapters, messagesFor(book.language).books.pages.dedicationEmpty, photos);
+  const sample = bookSpreadSample(book, questions, chapters, messagesFor(book.language).books.pages.dedicationEmpty, photos, null, (fixture.bundle.letters ?? []).filter((l) => l.status === "approved"));
   const view = (kind: string) => ({ ...base, key: `html:${kind}:${fixture.key}`, width: PAGE_WIDTH });
   return [
     ...spreadKinds.map((kind) => ({ ...view(kind), width: SPREAD_WIDTH, kind, sample })),
