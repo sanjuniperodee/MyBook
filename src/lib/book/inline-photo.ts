@@ -36,7 +36,37 @@ export function normalizeStyle(s: Partial<InlinePhotoStyle> | null | undefined):
   if (!v.page) delete v.page;
   if (!v.page || v.pageFit !== "contain") delete v.pageFit;
   if (v.keepSize !== true) delete v.keepSize;
+  const space = Number(v.spaceAbove);
+  if (Number.isFinite(space) && space >= MIN_SPACE_ABOVE) v.spaceAbove = Math.round(Math.min(MAX_SPACE_ABOVE, space) * 1000) / 1000;
+  else delete v.spaceAbove;
+  if (v.breakBefore !== true) delete v.breakBefore;
   return v;
+}
+
+/** Отступ над фото (InlinePhotoStyle.spaceAbove) — не больше этой доли полосы набора; меньше MIN — без отступа. */
+export const MAX_SPACE_ABOVE = 0.6;
+export const MIN_SPACE_ABOVE = 0.005;
+/**
+ * Под рядом с отступом всегда остаётся эта доля полосы — на отбивки ряда и подпись: отступ с фото не длиннее полосы,
+ * и ряд, перенесённый на новую полосу целиком, на ней помещается.
+ */
+export const SPACE_RESERVE = 0.12;
+
+/** Фото, которое автор поставил сам (отступ или «с новой страницы»): доводка вёрстки его ряд не трогает. */
+export const placedByAuthor = (style: Pick<InlinePhotoStyle, "spaceAbove" | "breakBefore">) => !!style.spaceAbove || !!style.breakBefore;
+
+type RowPart = { p: { width: number; height: number }; style: InlinePhotoStyle };
+
+/** Наибольший отступ над рядом, доля полосы: высокое фото оставляет меньше места над собой. */
+export function rowSpaceLimit(row: readonly RowPart[], textW: number, textH: number) {
+  const photoH = Math.max(0, ...row.map(({ p, style }) => framedBox(p, style, textW, textH, row.length).outerH));
+  return Math.max(0, Math.min(MAX_SPACE_ABOVE, 1 - SPACE_RESERVE - photoH / textH));
+}
+
+/** Отступ над рядом в единицах textH: у ряда он от первого фото (фото с отступом начинает ряд), с пределом rowSpaceLimit. */
+export function rowSpaceAbove(row: readonly RowPart[], textW: number, textH: number) {
+  const share = row[0]?.style.spaceAbove ?? 0;
+  return share > 0 ? Math.min(share, rowSpaceLimit(row, textW, textH)) * textH : 0;
 }
 
 export function photoRatio(px: { width: number; height: number }, style: InlinePhotoStyle) {
@@ -84,7 +114,7 @@ export interface Anchored<T> {
 
 /**
  * Раскладывает фото по местам в тексте и склеивает в ряды: подряд идущие узкие фото
- * (≤ 50% ширины) в одном месте встают рядом.
+ * (≤ 50% ширины) в одном месте встают рядом. Фото с отступом сверху или «с новой страницы» начинает свой ряд.
  */
 export function layoutInline<T extends { style: InlinePhotoStyle }>(photos: T[], paragraphCount: number): Map<number, T[][]> {
   const byAnchor = new Map<number, T[]>();
@@ -97,7 +127,7 @@ export function layoutInline<T extends { style: InlinePhotoStyle }>(photos: T[],
     const rows: T[][] = [];
     for (const p of list) {
       const last = rows[rows.length - 1];
-      const fits = last && p.style.width <= ROW_MAX_WIDTH && last.every((x) => x.style.width <= ROW_MAX_WIDTH) && last.reduce((s, x) => s + x.style.width, 0) + p.style.width <= 100;
+      const fits = last && !placedByAuthor(p.style) && p.style.width <= ROW_MAX_WIDTH && last.every((x) => x.style.width <= ROW_MAX_WIDTH) && last.reduce((s, x) => s + x.style.width, 0) + p.style.width <= 100;
       if (fits) last.push(p);
       else rows.push([p]);
     }

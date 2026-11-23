@@ -41,6 +41,7 @@ import { AiWriter } from "./proofread/AiWriter";
 import { useDictation } from "@/hooks/useDictation";
 import { getFormat } from "@/lib/book/formats";
 import { cssFont } from "@/lib/book/fonts";
+import { normalizeStyle } from "@/lib/book/inline-photo";
 import { groupByChapter, sectionLabel, type EditorBook, type EditorChapter, type EditorPhoto, type EditorQuestion } from "@/lib/book/editor-model";
 import type { TocLines } from "@/lib/book/toc";
 import { bookInterior } from "@/lib/book/interiors";
@@ -362,6 +363,21 @@ function EditorBody({
     ),
     [book.id, t, flush, editable, blank],
   );
+  // Фото бросили в превью на другой ответ: переносим вместе с видом в тексте, на выбранное место; «Отменить» — в тосте.
+  const questionIds = useMemo(() => new Set(questions.map((x) => x.id)), [questions]);
+  const canDropPhoto = useCallback((id: string) => questionIds.has(id), [questionIds]);
+  const movePhoto = useCallback(
+    (id: string, questionId: string, anchor: number | null) => {
+      const photo = photos.find((p) => p.id === id);
+      const target = questions.find((x) => x.id === questionId);
+      if (!photo || !target) return;
+      void patchPhoto(id, { questionId, inline: normalizeStyle({ ...normalizeStyle(photo.inline), anchor }) }).then((undo) => {
+        if (undo) toast(t.answerPhoto.toastMoved(labelOf(target)), "success", { action: { label: t.answerPhoto.undo, run: () => applyUndo(undo) } });
+      });
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- labelOf зависит от kind и untitled
+    [photos, questions, patchPhoto, applyUndo, t, kind, untitled],
+  );
   const previewProps = q
     ? {
         ...src,
@@ -374,6 +390,8 @@ function EditorBody({
         selectedId: selectedPhoto?.id ?? null,
         onSelect: setSelectedPhotoId,
         onChange: editable ? updateInline : undefined,
+        onMovePhoto: editable ? movePhoto : undefined,
+        canDrop: canDropPhoto,
         onTarget: openSheet,
       }
     : null;

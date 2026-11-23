@@ -1,5 +1,6 @@
 "use client";
 
+import { MoveVertical } from "lucide-react";
 import type { Messages } from "@/i18n/messages";
 import type { PreviewPhoto } from "@/lib/book/editor-model";
 import type { InlinePhotoStyle } from "@/lib/book/inline-photo";
@@ -47,8 +48,57 @@ function ResizeHandle({ t, kit, box, p, style, drag, onChange }: { t: Messages["
 }
 
 /**
+ * Ручка отступа над выделенным фото: тянуть вниз — фото опускается по странице (отступ над рядом), вверх — обратно;
+ * с клавиатуры — стрелки (Shift — шаг 10 %). Над фото с отступом — пунктиром место отступа.
+ */
+function SpaceHandle({ t, kit, box, p, style, drag, onChange }: { t: Messages["editor"]["preview"]; kit: PageKit; box: RowPhotoBox; p: PreviewPhoto; style: InlinePhotoStyle; drag: PhotoDrag; onChange?: (id: string, patch: Partial<InlinePhotoStyle>) => void }) {
+  const active = drag.drag?.kind === "space" && drag.drag.id === p.id;
+  const share = active && drag.drag?.kind === "space" ? drag.drag.space : Math.min(style.spaceAbove ?? 0, box.spaceLimit);
+  const percent = Math.round(share * 100);
+  const setSpace = (v: number) => onChange?.(p.id, { spaceAbove: Math.max(0, Math.min(box.spaceLimit, v)) });
+  return (
+    <>
+      {box.space > 0 ? (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute right-0 left-0 rounded-sm border border-dashed border-wine/60 bg-rose/40"
+          style={{ top: `calc(-1 * ${kit.u.mm(box.space)})`, height: kit.u.mm(box.space) }}
+        />
+      ) : null}
+      <span
+        role="slider"
+        aria-label={t.spaceAria}
+        aria-valuemin={0}
+        aria-valuemax={Math.round(box.spaceLimit * 100)}
+        aria-valuenow={percent}
+        aria-valuetext={t.spaceValue(percent)}
+        tabIndex={0}
+        onPointerDown={(e) => drag.startSpace(e, p.id, style, box.spaceLimit)}
+        onPointerMove={drag.onPointerMove}
+        onPointerUp={(e) => drag.onPointerUp(e, p.id)}
+        onPointerCancel={drag.cancel}
+        onKeyDown={(e) => {
+          const step = e.shiftKey ? 0.1 : 0.02;
+          if (e.key === "ArrowDown") setSpace(share + step);
+          else if (e.key === "ArrowUp") setSpace(share - step);
+          else if (e.key === "Home" || e.key === "Delete" || e.key === "Backspace") setSpace(0);
+          else return;
+          e.preventDefault();
+        }}
+        title={t.spaceAria}
+        className="absolute left-1/2 z-10 flex h-6 w-9 -translate-x-1/2 items-center justify-center rounded-full border-2 border-white bg-wine text-white shadow-md"
+        style={{ top: -12, cursor: "ns-resize", touchAction: "none" }}
+      >
+        <MoveVertical className="size-3.5" aria-hidden />
+      </span>
+      {active ? <span className="absolute top-2 left-1/2 z-10 -translate-x-1/2 rounded-md bg-ink/80 px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap text-white">{t.spaceValue(percent)}</span> : null}
+    </>
+  );
+}
+
+/**
  * Интерактивный слой над фото ряда в превью (ряд рисует InlineRow — как в PDF): у фото текущего ответа —
- * выделение, перетаскивание и уголок размера; у копии для замера — пустая подпись и пересчёт полос после загрузки.
+ * выделение, перетаскивание (к другому абзацу и в другой ответ), уголок размера и ручка отступа сверху; у копии для замера — пустая подпись и пересчёт полос после загрузки.
  */
 export function previewPhotoLayer({
   t,
@@ -87,7 +137,12 @@ export function previewPhotoLayer({
         style: { position: "relative", cursor: moving ? "grabbing" : "grab", touchAction: selected ? "none" : undefined, opacity: moving ? 0.35 : 1, userSelect: "none" },
       },
       frame: selected ? { outline: "2px solid var(--color-wine, #8b2c3c)", outlineOffset: 2 } : undefined,
-      overlay: selected ? <ResizeHandle t={t} kit={kit} box={box} p={p} style={style} drag={drag} onChange={onChange} /> : null,
+      overlay: selected ? (
+        <>
+          <ResizeHandle t={t} kit={kit} box={box} p={p} style={style} drag={drag} onChange={onChange} />
+          {style.page ? null : <SpaceHandle t={t} kit={kit} box={box} p={p} style={style} drag={drag} onChange={onChange} />}
+        </>
+      ) : null,
     };
   };
 }

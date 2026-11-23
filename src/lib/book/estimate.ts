@@ -5,10 +5,10 @@
  * блоки набора ответа — answer-blocks.ts, ряды фото — inline-photo.ts. От PDF оценку отличают две вещи: знаков
  * в строке — по средней ширине знака, а не по метрикам шрифта, и запас на полосе вместо переноса по строкам.
  */
-import { answerBlocks, listMarkerEm, type AnswerBlock } from "./answer-blocks";
-import { mediaCardBox, normalizeMedia, type AnswerMedia } from "./answer-media";
+import { answerBlocks, listMarkerEm, rowsByBlock, type AnswerBlock } from "./answer-blocks";
+import { layoutMedia, mediaCardBox, normalizeMedia, type AnswerMedia } from "./answer-media";
 import { MM_TO_PT, type BookFormat } from "./formats";
-import { framedBox, layoutInline, normalizeStyle, splitParagraphsDetailed, type InlinePhotoStyle } from "./inline-photo";
+import { framedBox, layoutInline, normalizeStyle, rowSpaceAbove, splitParagraphsDetailed, type InlinePhotoStyle } from "./inline-photo";
 import { dividerDrawing } from "./interior-art";
 import type { InteriorDesign } from "./interiors";
 import { chapterRuns, frontPages, photoPages, type BookContent, type ContentChapter, type ContentItem, type PhotoItem } from "./layout";
@@ -142,28 +142,69 @@ export function mediaCardHeight(m: TextMetrics) {
   return mediaCardBox(m.width, m.scale).height + m.sizes.body * (MEDIA_CARD.before + MEDIA_CARD.after);
 }
 
+/**
+ * Кусок ответа в вёрстке по порядку: высота, pt; brk — ряд фото «с новой страницы»; keep — ряд с отступом автора:
+ * не помещается на полосе — переходит на следующую целиком (как в PDF, wrap={false}).
+ */
+interface EntryPart {
+  h: number;
+  brk?: boolean;
+  keep?: boolean;
+}
+
+/** Ответ по порядку вёрстки: начало (заголовок), блоки текста, ряды фото и карточки QR-кодов между ними. first — первый ответ главы. */
+function entryParts(heading: string | null, answer: string, photos: RowPhoto[], media: readonly Partial<AnswerMedia>[], first: boolean, m: TextMetrics): EntryPart[] {
+  const { paragraphs, breaks } = splitParagraphsDetailed(answer);
+  const blocks = answerBlocks(paragraphs, { plain: m.design.plainAnswers, breaks });
+  const rows = rowsByBlock(blocks, layoutInline(photos.map((p) => ({ p, style: normalizeStyle(p.inline) })), paragraphs.length));
+  const cards = rowsByBlock(blocks, layoutMedia(normalizeMedia(media), paragraphs.length));
+  const parts: EntryPart[] = [{ h: headingHeight(heading, first, m) }];
+  const done = new Set<number>();
+  // В одном месте текста сначала фото, потом QR-коды (как в PDF).
+  const at = (key: number) => {
+    done.add(key);
+    for (const row of rows.get(key) ?? []) {
+      const space = rowSpaceAbove(row, m.width, m.height);
+      parts.push({ h: rowHeight(row, m) + space, brk: !!row[0].style.breakBefore, keep: space > 0 });
+    }
+    for (let i = (cards.get(key) ?? []).length; i > 0; i--) parts.push({ h: mediaCardHeight(m) });
+  };
+  if (blocks.length) at(-1);
+  blocks.forEach((b, i) => {
+    parts.push({ h: blockHeight(b, m, i === 0) });
+    if (i < blocks.length - 1) at(i);
+  });
+  at(Number.POSITIVE_INFINITY);
+  // Ряды и карточки без места в тексте (ответ без текста с местом «перед текстом») — в конец: высота не теряется.
+  for (const key of new Set([...rows.keys(), ...cards.keys()])) if (!done.has(key)) at(key);
+  return parts;
+}
+
 /** Высота ответа в вёрстке главы, pt: начало, блоки текста, ряды фото и карточки QR-кодов. first — первый ответ главы. */
 function entryHeight(heading: string | null, answer: string, photos: RowPhoto[], media: readonly Partial<AnswerMedia>[], first: boolean, m: TextMetrics): number {
-  const { paragraphs, breaks } = splitParagraphsDetailed(answer);
-  const rows = [...layoutInline(photos.map((p) => ({ p, style: normalizeStyle(p.inline) })), paragraphs.length).values()].flat();
-  const text = answerBlocks(paragraphs, { plain: m.design.plainAnswers, breaks }).reduce((sum, b, i) => sum + blockHeight(b, m, i === 0), 0);
-  const cards = normalizeMedia(media).length * mediaCardHeight(m);
-  return headingHeight(heading, first, m) + text + rows.reduce((sum, row) => sum + rowHeight(row, m), 0) + cards;
+  return entryParts(heading, answer, photos, media, first, m).reduce((sum, p) => sum + p.h, 0);
 }
 
 /**
- * Высота куска текста главы с разрывами «с новой страницы», pt: перед такой историей занятое добивается до конца
- * полосы. starts — где начинается каждая история (pt от начала куска).
+ * Высота куска текста главы с разрывами «с новой страницы», pt: перед такой историей (или рядом фото) занятое
+ * добивается до конца полосы, ряд с отступом автора, не поместившийся внизу полосы, — тоже. starts — где начинается
+ * каждая история (pt от начала куска).
  */
 function runHeight(items: readonly ContentItem[], m: TextMetrics, lead = 0) {
   const page = m.height - PAGE_RESERVE;
   // lead — заголовок главы над текстом (книга без начальных полос): с ним кусок занимает полосу, даже пустой.
   let used = lead;
+  // Допуск на дробную полосу: занятое ровно до конца полосы — уже начало следующей.
+  const nextPage = () => (used = Math.ceil(used / page - 1e-6) * page);
   const starts = items.map((it, i) => {
     const breaks = i > 0 && !!it.pageBreak;
-    if (breaks) used = Math.ceil(used / page) * page;
+    if (breaks) nextPage();
     const at = used;
-    used += entryHeight(it.heading, it.answer, it.photos ?? [], it.media ?? [], i === 0 || breaks || !!it.continued, m);
+    for (const part of entryParts(it.heading, it.answer, it.photos ?? [], it.media ?? [], i === 0 || breaks || !!it.continued, m)) {
+      const top = used - Math.floor(used / page + 1e-6) * page;
+      if (top > 0.5 && (part.brk || (part.keep && top + part.h > page))) nextPage();
+      used += part.h;
+    }
     return at;
   });
   return { height: used, starts, pages: items.length || lead ? Math.max(1, Math.ceil(used / page)) : 0 };

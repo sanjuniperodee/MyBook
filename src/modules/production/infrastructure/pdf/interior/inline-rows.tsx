@@ -2,7 +2,7 @@ import "server-only";
 /* eslint-disable jsx-a11y/alt-text -- react-pdf Image не поддерживает alt */
 import { Image, Text, View } from "@react-pdf/renderer";
 import type { PhotoItem } from "@/lib/book/layout";
-import { framedBox, polaroidFontSize, ROW_GAP, type InlinePhotoStyle } from "@/lib/book/inline-photo";
+import { framedBox, placedByAuthor, polaroidFontSize, ROW_GAP, rowSpaceAbove, type InlinePhotoStyle } from "@/lib/book/inline-photo";
 import { PHOTO_COLORS } from "@/lib/book/interiors";
 import { INLINE_ROW } from "@/lib/book/typesetting";
 import { face } from "@/modules/production/infrastructure/pdf/fonts";
@@ -54,26 +54,30 @@ function RowPhoto({ kit, item: { p, style }, b, k, i }: { kit: PdfKit; item: Inl
 
 /**
  * Один ряд фото. Высота ряда уходит в доводку (rowHeights); масштаб (ряд уменьшен под свободное место полосы)
- * и отступ сверху (ряд один на полосе — по центру) приходят из неё.
+ * и отступ сверху (ряд один на полосе — по центру) приходят из неё. Ряд, поставленный автором (отступ сверху,
+ * «с новой страницы»), доводка не трогает: свой отступ — внутри неразрывного ряда (уходит на новую полосу вместе
+ * с фото). Разрыв «с новой страницы» ставит ответ (Entry): react-pdf не смотрит на break у блока внутри View, которая
+ * целиком помещается на полосе, поэтому ответ делится на части по таким рядам (rowBreaks); breaks — ряд начинает часть.
  */
-function InlineRow({ kit, rowKey, row }: { kit: PdfKit; rowKey: string; row: InlineItem[] }) {
+export function InlineRow({ kit, rowKey, row, breaks = false }: { kit: PdfKit; rowKey: string; row: InlineItem[]; breaks?: boolean }) {
   const { options, flow, sizes: S, textWidthPt, textHeightPt } = kit;
   const align = row[0].style.align;
-  const k = flow.rowScale.get(rowKey) ?? 1;
+  const own = placedByAuthor(row[0].style);
+  const k = own ? 1 : (flow.rowScale.get(rowKey) ?? 1);
   const boxes = row.map(({ p, style }) => framedBox(p, style, textWidthPt, textHeightPt, row.length));
   // Ряд с фото «не уменьшать» в доводку не идёт: shrinkRow без высоты ряда его не трогает — фото уходит на новую полосу.
-  if (!row.some(({ style }) => style.keepSize)) options.rowHeights?.set(rowKey, Math.max(...boxes.map((b) => b.outerH)));
+  if (!own && !row.some(({ style }) => style.keepSize)) options.rowHeights?.set(rowKey, Math.max(...boxes.map((b) => b.outerH)));
   return (
     <View
-      {...mark(rowKey)}
+      {...mark(own ? `f${rowKey.slice(1)}` : rowKey)}
       wrap={false}
       style={{
         flexDirection: "row",
         justifyContent: align === "left" ? "flex-start" : align === "right" ? "flex-end" : "center",
         alignItems: "flex-start",
-        marginTop: S.body * INLINE_ROW.before,
+        marginTop: breaks ? 0 : S.body * INLINE_ROW.before,
         marginBottom: S.body * INLINE_ROW.after,
-        paddingTop: flow.rowOffset.get(rowKey) ?? 0,
+        paddingTop: own ? rowSpaceAbove(row, textWidthPt, textHeightPt) : (flow.rowOffset.get(rowKey) ?? 0),
       }}
     >
       {row.map((item, i) => (
@@ -83,17 +87,8 @@ function InlineRow({ kit, rowKey, row }: { kit: PdfKit; rowKey: string; row: Inl
   );
 }
 
-/**
- * Ряды фото внутри ответа: фото встают после нужного блока текста, узкие — в ряд. at — после какого блока
- * (-1 — перед первым, Infinity — после последнего).
- */
-export function InlineRows({ kit, itemId, at, rows }: { kit: PdfKit; itemId: string; at: number; rows: InlineItem[][] | undefined }) {
-  return (
-    <>
-      {(rows ?? []).map((row, r) => {
-        const rowKey = `r:${itemId}:${at}:${r}`;
-        return <InlineRow key={rowKey} kit={kit} rowKey={rowKey} row={row} />;
-      })}
-    </>
-  );
-}
+/** Ключ ряда фото в доводке: ответ, место в тексте (номер блока) и номер ряда в этом месте. */
+export const rowKeyOf = (itemId: string, at: number, r: number) => `r:${itemId}:${at}:${r}`;
+
+/** Ряд «с новой страницы»: перед ним разрыв, если на полосе перед рядом что-то есть (fresh — ничего нет). */
+export const rowBreaks = (row: InlineItem[], fresh: boolean) => !!row[0]?.style.breakBefore && !fresh;

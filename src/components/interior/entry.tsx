@@ -3,7 +3,7 @@ import { mm, MM_TO_PT, PT_TO_MM } from "@/lib/book/formats";
 import { cssFont } from "@/lib/book/fonts";
 import { answerBlocks, rowsByBlock, type AnswerBlock } from "@/lib/book/answer-blocks";
 import { layoutMedia, mediaCardBox, mediaIcon, mediaSource, qrDrawing, qrInk, type AnswerMedia } from "@/lib/book/answer-media";
-import { framedBox, layoutInline, normalizeStyle, objectPosition, polaroidFontSize, ROW_GAP, type InlinePhotoStyle } from "@/lib/book/inline-photo";
+import { framedBox, layoutInline, normalizeStyle, objectPosition, placedByAuthor, polaroidFontSize, ROW_GAP, rowSpaceAbove, rowSpaceLimit, type InlinePhotoStyle } from "@/lib/book/inline-photo";
 import { dividerDrawing } from "@/lib/book/interior-art";
 import { PHOTO_COLORS } from "@/lib/book/interiors";
 import { textArea } from "@/lib/book/page-geometry";
@@ -87,8 +87,11 @@ export function Divider({ kit, style }: { kit: PageKit; style?: CSSProperties })
 
 export type RowItem<P extends EntryPhoto = EntryPhoto> = { p: P; style: InlinePhotoStyle };
 
-/** Рамка фото в ряду, мм — framedBox по полосе набора формата. */
-export type RowPhotoBox = ReturnType<typeof framedBox>;
+/**
+ * Рамка фото в ряду, мм — framedBox по полосе набора формата; space — отступ над рядом (мм), spaceLimit — наибольший
+ * отступ этого ряда (доля полосы, rowSpaceLimit).
+ */
+export type RowPhotoBox = ReturnType<typeof framedBox> & { space: number; spaceLimit: number };
 
 /**
  * Слой поверх фото в ряду — для превью редактора: атрибуты и обработчики фигуры, стиль рамки (выделение),
@@ -102,11 +105,11 @@ export interface RowPhotoLayer {
 }
 
 /** Фото в ряду: рамка или поляроид со своей подписью, размеры — как в PDF (inline-photo.ts). */
-function RowPhoto<P extends EntryPhoto>({ kit, item, rowSize, layer }: { kit: PageKit; item: RowItem<P>; rowSize: number; layer?: (item: RowItem<P>, box: RowPhotoBox) => RowPhotoLayer }) {
+function RowPhoto<P extends EntryPhoto>({ kit, item, rowSize, space, layer }: { kit: PageKit; item: RowItem<P>; rowSize: number; space: { space: number; spaceLimit: number }; layer?: (item: RowItem<P>, box: RowPhotoBox) => RowPhotoLayer }) {
   const { design, sizes: S, u } = kit;
   const { p, style } = item;
   const { w: textW, h: textH } = textArea(kit.format);
-  const b = framedBox(p, style, textW, textH, rowSize);
+  const b = { ...framedBox(p, style, textW, textH, rowSize), ...space };
   const polaroid = style.frame === "polaroid";
   const bw = polaroid ? INLINE_ROW.polaroidBorder : style.frame === "line" ? INLINE_ROW.lineBorder : 0;
   const extra = layer?.(item, b);
@@ -164,16 +167,22 @@ function RowPhoto<P extends EntryPhoto>({ kit, item, rowSize, layer }: { kit: Pa
 
 /**
  * Ряд фото внутри ответа — те же размеры, рамки и подписи, что в PDF (inline-photo.ts). layer — интерактивный
- * слой превью редактора над каждым фото; атрибуты ряда (data-*) ложатся на его обёртку.
+ * слой превью редактора над каждым фото; атрибуты ряда (data-*) ложатся на его обёртку. Отступ автора — padding
+ * (на переносе в новую колонку браузер его не отбрасывает, как и react-pdf); «с новой страницы» — разрыв колонки,
+ * кроме ряда, перед которым на полосе ничего нет (fresh).
  */
 export function InlineRow<P extends EntryPhoto>({
   kit,
   row,
   layer,
+  fresh = false,
   ...rest
-}: { kit: PageKit; row: RowItem<P>[]; layer?: (item: RowItem<P>, box: RowPhotoBox) => RowPhotoLayer } & HTMLAttributes<HTMLDivElement>) {
+}: { kit: PageKit; row: RowItem<P>[]; layer?: (item: RowItem<P>, box: RowPhotoBox) => RowPhotoLayer; fresh?: boolean } & HTMLAttributes<HTMLDivElement>) {
   const { sizes: S, u } = kit;
   const align = row[0].style.align;
+  const { w: textW, h: textH } = textArea(kit.format);
+  const space = { space: rowSpaceAbove(row, textW, textH), spaceLimit: rowSpaceLimit(row, textW, textH) };
+  const breaks = !!row[0].style.breakBefore && !fresh;
   return (
     <div
       {...rest}
@@ -182,14 +191,16 @@ export function InlineRow<P extends EntryPhoto>({
         justifyContent: align === "left" ? "flex-start" : align === "right" ? "flex-end" : "center",
         alignItems: "flex-start",
         gap: u.mm(textArea(kit.format).w * ROW_GAP),
-        marginTop: u.pt(S.body * INLINE_ROW.before),
+        marginTop: breaks ? 0 : u.pt(S.body * INLINE_ROW.before),
         marginBottom: u.pt(S.body * INLINE_ROW.after),
+        paddingTop: placedByAuthor(row[0].style) ? u.mm(space.space) : undefined,
+        breakBefore: breaks ? "column" : undefined,
         breakInside: "avoid",
         ...rest.style,
       }}
     >
       {row.map((item) => (
-        <RowPhoto key={item.p.id} kit={kit} item={item} rowSize={row.length} layer={layer} />
+        <RowPhoto key={item.p.id} kit={kit} item={item} rowSize={row.length} space={space} layer={layer} />
       ))}
     </div>
   );
@@ -271,13 +282,32 @@ const KEEP_WITH_HEAD_CHARS = 700;
  * head — заголовок или разделитель ответа: он ставится в одну неразрывную обёртку с первым блоком (рядом фото или
  * коротким абзацем). Так заголовок не остаётся внизу полосы и в Safari, где break-after: avoid в колонках не работает.
  */
-export function EntryBody({ kit, entry, leadIn, start = false, links = false, head }: { kit: PageKit; entry: SampleEntry; leadIn: boolean; /** Ответ открывает главу: буквица. */ start?: boolean; links?: boolean; head?: ReactNode }) {
+export function EntryBody({
+  kit,
+  entry,
+  leadIn,
+  start = false,
+  links = false,
+  head,
+  fresh = false,
+}: {
+  kit: PageKit;
+  entry: SampleEntry;
+  leadIn: boolean;
+  /** Ответ открывает главу: буквица. */
+  start?: boolean;
+  links?: boolean;
+  head?: ReactNode;
+  /** Ответ стоит в верху полосы: первому ряду «с новой страницы» разрыв не нужен. */
+  fresh?: boolean;
+}) {
   const blocks = answerBlocks(entry.paragraphs, { plain: kit.design.plainAnswers, breaks: entry.breaks });
   const items = (entry.photos ?? []).map((p) => ({ p, style: normalizeStyle(p.inline) }));
   const rows = rowsByBlock(blocks, layoutInline(items, entry.paragraphs.length));
   const media = rowsByBlock(blocks, layoutMedia(entry.media ?? [], entry.paragraphs.length));
+  const lead = blocks.length ? -1 : Number.POSITIVE_INFINITY;
   const rowsAt = (key: number) => [
-    ...(rows.get(key) ?? []).map((row, r) => <InlineRow key={`${key}-${r}`} kit={kit} row={row} />),
+    ...(rows.get(key) ?? []).map((row, r) => <InlineRow key={`${key}-${r}`} kit={kit} row={row} fresh={fresh && !head && key === lead && r === 0} />),
     ...(media.get(key) ?? []).map((m) => <MediaCard key={`${key}-m-${m.id}`} kit={kit} media={m} href={links ? m.url : undefined} />),
   ];
   const before = blocks.length ? rowsAt(-1) : [];

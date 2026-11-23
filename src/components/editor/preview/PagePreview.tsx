@@ -13,7 +13,7 @@ import { pageKit } from "@/components/interior/kit";
 import { pxUnits } from "@/components/interior/units";
 import { ChapterPages, chapterContentKey } from "./ChapterPages";
 import { PreviewOpener, PreviewPhotoPages } from "./book-pages";
-import { anchorLabel } from "./drag";
+import { dropLabel } from "./drag";
 import { NO_PHOTO_PAGES, usePageWidth, usePreviewPages } from "./layout-hooks";
 import type { OnPreviewTarget, PreviewTarget } from "./targets";
 import { usePhotoDrag } from "./usePhotoDrag";
@@ -41,6 +41,8 @@ function PagePreviewView({
   selectedId = null,
   onSelect,
   onChange,
+  onMovePhoto,
+  canDrop,
   onTarget,
   header,
   className,
@@ -63,6 +65,10 @@ function PagePreviewView({
   selectedId?: string | null;
   onSelect?: (id: string | null) => void;
   onChange?: (id: string, patch: Partial<InlinePhotoStyle>) => void;
+  /** Фото текущего ответа бросили в другой ответ (entry — id вопроса) на место anchor; нет — только в пределах ответа. */
+  onMovePhoto?: (id: string, entry: string, anchor: number | null) => void;
+  /** В какой ответ превью можно бросить фото (вопрос книги, а не письмо); нет — в любой. */
+  canDrop?: (entry: string) => boolean;
   onTarget?: OnPreviewTarget;
   /** Над страницами, в той же прокрутке (превью на весь экран: подпись и объяснение мест фото). */
   header?: ReactNode;
@@ -83,17 +89,21 @@ function PagePreviewView({
   const gap = pageSide(format) * 2 * px;
   const kit = useMemo(() => pageKit(design, format, pxUnits(px), language), [design, format, px, language]);
 
-  const currentEntry = chapters.flatMap((c) => c.entries).find((e) => e.id === currentId);
-  const curParas = splitParagraphs(currentEntry?.answer ?? "").length;
+  const entries = useMemo(() => new Map(chapters.flatMap((c) => c.entries.map((e) => [e.id, { entry: e, chapter: c.key }] as const))), [chapters]);
+  const currentEntry = entries.get(currentId)?.entry;
+  const paragraphsOf = (id: string) => splitParagraphs(entries.get(id)?.entry.answer ?? "").length;
   const drag = usePhotoDrag({
     currentId,
-    paragraphs: curParas,
+    paragraphsOf,
+    canDrop: (id) => entries.has(id) && (canDrop?.(id) ?? true),
     textW,
+    textH: area.h * px,
     selectedId,
     interactive,
     anchorOf: (id) => normalizeStyle(currentEntry?.photos.find((p) => p.id === id)?.inline).anchor,
     onSelect,
     onChange,
+    onMove: onMovePhoto,
   });
 
   const { scroll, pagesBy, photoPagesBy, setMeasureRef, measure } = usePreviewPages({ chapters, currentId, textW, gap, marginTop: interiorMetrics[format.id].marginTop * px });
@@ -119,7 +129,9 @@ function PagePreviewView({
   const toTarget = hasTarget ? tapTarget : undefined;
 
   const { moving } = drag;
-  const dragged = moving ? chapters.flatMap((c) => c.entries).flatMap((e) => e.photos).find((p) => p.id === moving.id) : null;
+  const dragged = moving ? currentEntry?.photos.find((p) => p.id === moving.id) : null;
+  // Глава, куда сейчас бросят фото: её превью тоже получает перетаскивание — для линии места вставки.
+  const targetChapter = moving ? entries.get(moving.target.entry)?.chapter : undefined;
 
   return (
     <div ref={scroll} className={className}>
@@ -128,6 +140,7 @@ function PagePreviewView({
         {pageW ? (
           chapters.map((ch) => {
             const current = ch.entries.some((e) => e.id === currentId);
+            const dropHere = !current && ch.key === targetChapter;
             return (
               <ChapterPages
                 key={ch.key}
@@ -148,7 +161,7 @@ function PagePreviewView({
                 currentId={current ? currentId : null}
                 selectedId={current ? selectedId : null}
                 interactive={interactive}
-                drag={current ? drag : null}
+                drag={current || dropHere ? drag : null}
                 onChange={current ? onChange : undefined}
                 scroll={scroll}
                 setMeasureRef={setMeasureRef}
@@ -171,7 +184,7 @@ function PagePreviewView({
           <div className="pointer-events-none fixed z-50 flex items-center gap-2 rounded-xl bg-ink/90 p-1.5 pr-3 text-xs text-white shadow-xl" style={{ left: moving.x + 12, top: moving.y + 12 }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={dragged.url} alt="" className="size-10 rounded-lg object-cover" />
-            {anchorLabel(t, moving.target, curParas)}
+            {dropLabel(t, moving.target, currentId, paragraphsOf(moving.target.entry), entries.get(moving.target.entry)?.entry.heading ?? null)}
           </div>
         ) : null}
       </div>

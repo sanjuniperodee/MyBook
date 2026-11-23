@@ -363,6 +363,7 @@ export function TextPage({ kit, entries, folio, bookTitle, chapterTitle, recto, 
                 entry={e}
                 leadIn={leadIn && design.leadIn && i === 0 && !e.continued}
                 start={leadIn && i === 0 && !e.continued}
+                fresh={(i === 0 && !chapterHead) || !!e.pageBreak}
                 head={e.heading ? <QuestionHeading kit={kit}>{e.heading}</QuestionHeading> : i > 0 && !e.continued ? <Divider kit={kit} /> : undefined}
               />
             </div>

@@ -96,6 +96,7 @@ function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, 
   const bodyPx = S.body * PT_TO_MM * px;
   const ptPx = (v: number) => v * PT_TO_MM * px;
   const resizing = drag?.drag?.kind === "resize" ? drag.drag : null;
+  const spacing = drag?.drag?.kind === "space" ? drag.drag : null;
   const measureThis = () => measure(ch.key);
 
   // Ряды фото по блокам набора (answer-blocks): −1 — перед текстом, i — после блока i, END — в конце.
@@ -106,6 +107,12 @@ function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, 
       const all = e.photos.map((p) => {
         const style = normalizeStyle(p.inline);
         if (resizing?.id === p.id) style.width = resizing.width;
+        // Отступ, который тянут сейчас: тем же правилом, что сохранит normalizeStyle (меньше порога — без отступа).
+        if (spacing?.id === p.id) {
+          const space = normalizeStyle({ ...style, spaceAbove: spacing.space }).spaceAbove;
+          if (space) style.spaceAbove = space;
+          else delete style.spaceAbove;
+        }
         return { p, style };
       });
       // Фото «на всю страницу» — не в ряду текста, а своей полосой (как в книге: история прерывается и продолжается после).
@@ -122,12 +129,12 @@ function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, 
     }
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- содержимое главы описывает contentKey
-  }, [contentKey, resizing?.id, resizing?.width]);
+  }, [contentKey, resizing?.id, resizing?.width, spacing?.id, spacing?.space]);
 
   // Замер — только у этой главы и только когда она изменилась (или изменилась ширина полосы).
   useEffect(() => {
     measure(ch.key);
-  }, [measure, ch.key, contentKey, resizing?.width, start]);
+  }, [measure, ch.key, contentKey, resizing?.width, spacing?.space, start]);
 
   // Фото на всю страницу главы — с ответом и местом в тексте: их рисуют полосы поверх колонок.
   const pagePhotos = useMemo(
@@ -179,14 +186,16 @@ function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, 
     );
   };
 
-  const renderRows = (entry: PreviewEntry, key: number, isMeasure: boolean) => {
+  /** fresh — ответ стоит в начале текста главы без заголовка: его первый ряд и так в верху полосы. */
+  const renderRows = (entry: PreviewEntry, key: number, isMeasure: boolean, fresh = false) => {
     const d = info.get(entry.id)!;
+    const lead = d.blocks.length ? -1 : END;
     // Место вставки в тексте — номер абзаца, после которого встаёт ряд (последний абзац блока).
     const anchor = key === END || key < 0 ? key : d.blocks[key].to;
     // Ряд и фото рисует вёрстка книги (InlineRow — как в PDF и на разворотах), превью добавляет поверх только интерактивность.
     const layer = previewPhotoLayer({ t, kit, live: entry.id === currentId && interactive && !!drag, isMeasure, measure: measureThis, selectedId, drag: drag!, onChange });
     return [
-      ...(d.layout.get(key) ?? []).map((row, r) => <InlineRow key={`${anchor}-${r}`} kit={kit} row={row} layer={layer} data-entry={entry.id} data-row-anchor={anchor === END ? "end" : anchor} />),
+      ...(d.layout.get(key) ?? []).map((row, r) => <InlineRow key={`${anchor}-${r}`} kit={kit} row={row} layer={layer} fresh={fresh && key === lead && r === 0} data-entry={entry.id} data-row-anchor={anchor === END ? "end" : anchor} />),
       // Фото на всю страницу — целая колонка (разрыв до и после): здесь только пустая заглушка, снимок рисуется поверх
       // полосы, на которую она попала (pagePhoto). Внутри колонок его не нарисовать: Chrome ставит абсолютный блок
       // в элементе с break-before по месту до разрыва — внизу прошлой полосы, а своя остаётся пустой.
@@ -206,11 +215,12 @@ function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, 
 
   const renderEntry = (entry: PreviewEntry, first: boolean, isMeasure: boolean) => {
     const d = info.get(entry.id)!;
-    const live = entry.id === currentId;
     const paragraphs = d.paragraphs;
     // Отбивки — как в PDF: перед заголовком больше, перед ответом без заголовка — разделитель.
     // Именно margin (а не распорка): на переносе в новую колонку-страницу браузер его отбрасывает.
     const gapBefore = first ? 0 : ptPx(entry.heading ? S.beforeHeading : S.beforeHeadless);
+    // Первый ответ главы без заголовка (и без названия главы над текстом) — в самом верху полосы.
+    const fresh = first && !entry.heading && start !== "inline";
     return (
       <Fragment key={entry.id}>
         <span data-marker={entry.id} style={{ display: "block", height: 1, breakAfter: "avoid" }} />
@@ -219,14 +229,14 @@ function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, 
             kit={kit}
             data-entry={entry.id}
             data-para={-1}
-            style={{ marginTop: gapBefore, boxShadow: live && moving && moving.target === -1 && paragraphs.length ? drag?.belowShadow : undefined }}
+            style={{ marginTop: gapBefore, boxShadow: moving?.target.entry === entry.id && moving.target.anchor === -1 && paragraphs.length ? drag?.belowShadow : undefined }}
           >
             {entry.heading}
           </QuestionHeading>
         ) : first ? null : (
           <Divider kit={kit} style={{ marginTop: gapBefore }} />
         )}
-        {paragraphs.length ? renderRows(entry, -1, isMeasure) : null}
+        {paragraphs.length ? renderRows(entry, -1, isMeasure, fresh) : null}
         {paragraphs.length ? (
           d.blocks.map((b, i) => (
             <Fragment key={i}>
@@ -237,7 +247,7 @@ function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, 
                 data-entry={entry.id}
                 data-para={b.to}
                 data-para-from={b.from}
-                style={{ boxShadow: live ? (hint(b.to) ?? (b.from > 0 ? undefined : hint(0))) : undefined }}
+                style={{ boxShadow: hint(entry.id, b.to) ?? (b.from > 0 ? undefined : hint(entry.id, 0)) }}
               />
               {i < d.blocks.length - 1 ? renderRows(entry, i, isMeasure) : null}
             </Fragment>
@@ -245,7 +255,7 @@ function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, 
         ) : entry.photos.length || entry.media.length ? null : (
           <p style={{ fontFamily: cssFont(design.type.body), fontSize: bodyPx, lineHeight: design.type.lineHeight, color: P.rule, fontStyle: "italic" }}>{t.empty}</p>
         )}
-        {renderRows(entry, END, isMeasure)}
+        {renderRows(entry, END, isMeasure, fresh)}
       </Fragment>
     );
   };

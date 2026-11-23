@@ -343,6 +343,9 @@ export const editor: typeof ru = {
     anchorBefore: "before the text",
     anchorAfter: (n: number) => `after paragraph ${n}`,
     resizeAria: "Photo size",
+    toAnswer: (heading: string | null) => (heading ? `to “${heading}”` : "to another answer"),
+    spaceAria: "Space above the photo — drag down",
+    spaceValue: (percent: number) => `space ${percent}%`,
     empty: "Your answer will appear here…",
   },
   /*
@@ -561,6 +564,12 @@ export const editor: typeof ru = {
     sizeHintRow: "Small and medium photos placed one after another sit side by side.",
     keepSize: "Don’t shrink at the page bottom",
     keepSizeHint: "If the photo doesn’t fit under the text, it moves to the next page at full size instead of shrinking.",
+    spaceAbove: "Space above",
+    spaceAboveHint: "Moves the photo lower on the page. If it doesn’t fit, the photo moves to the next page together with the space.",
+    spaceAboveDrag: "Or select the photo in the preview and pull the handle above it down.",
+    spaceRemove: "Remove space",
+    breakBefore: "Photo on a new page",
+    breakBeforeHint: "The photo and everything after it start on the next page.",
     /** Только с мышью: на телефоне уголка в превью нет. */
     sizeHintDrag: "Or drag the corner of the photo in the preview.",
     shape: "Shape",
@@ -577,6 +586,7 @@ export const editor: typeof ru = {
     remove: "Remove from the answer",
     removeBlank: "Remove from the section",
     toastRemoved: "The photo was removed from the book — it’s still in the “Photos” tab",
+    toastMoved: (name: string) => `Photo moved to “${name}”`,
     /** Второе действие тоста: поставить фото после этой главы. */
     toAfter: "After the chapter",
     undo: "Undo",

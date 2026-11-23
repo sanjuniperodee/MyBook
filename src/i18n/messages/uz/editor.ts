@@ -343,6 +343,9 @@ export const editor: typeof ru = {
     anchorBefore: "matndan oldin",
     anchorAfter: (n: number) => `${n}-abzatsdan keyin`,
     resizeAria: "Surat hajmi",
+    toAnswer: (heading: string | null) => (heading ? `«${heading}»ga` : "boshqa javobga"),
+    spaceAria: "Surat ustidagi bo‘sh joy — pastga torting",
+    spaceValue: (percent: number) => `bo‘sh joy ${percent}%`,
     empty: "Javobingiz shu yerda paydo bo‘ladi…",
   },
   /*
@@ -561,6 +564,12 @@ export const editor: typeof ru = {
     sizeHintRow: "Ketma-ket turgan kichik va o‘rtacha suratlar yonma-yon joylashadi.",
     keepSize: "Sahifa pastida kichraytirmaslik",
     keepSizeHint: "Rasm matn ostiga sig‘masa, kichraymaydi — keyingi sahifaga to‘liq o‘lchamda o‘tadi.",
+    spaceAbove: "Yuqoridan bo‘sh joy",
+    spaceAboveHint: "Suratni sahifada pastroqqa tushiradi. Sig‘masa, surat bo‘sh joyi bilan keyingi sahifaga o‘tadi.",
+    spaceAboveDrag: "Yoki ko‘rinishda suratni tanlab, ustidagi tutqichni pastga torting.",
+    spaceRemove: "Bo‘sh joyni olib tashlash",
+    breakBefore: "Surat yangi sahifadan",
+    breakBeforeHint: "Surat va undan keyingi hammasi keyingi sahifadan boshlanadi.",
     /** Только с мышью: на телефоне уголка в превью нет. */
     sizeHintDrag: "Yoki oldindan ko‘rishda surat burchagidan torting.",
     shape: "Shakli",
@@ -577,6 +586,7 @@ export const editor: typeof ru = {
     remove: "Javobdan olib tashlash",
     removeBlank: "Bo‘limdan olib tashlash",
     toastRemoved: "Surat kitobdan olib tashlandi — u «Suratlar» yorlig‘ida qoldi",
+    toastMoved: (name: string) => `Surat ko‘chirildi: «${name}»`,
     /** Второе действие тоста: поставить фото после этой главы. */
     toAfter: "Bobdan keyin",
     undo: "Bekor qilish",

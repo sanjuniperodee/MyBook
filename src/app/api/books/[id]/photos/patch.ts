@@ -20,6 +20,9 @@ export const photoPatchSchema = z
         page: z.boolean().optional(),
         pageFit: z.literal("contain").optional(),
         keepSize: z.boolean().optional(),
+        // Отступ сверху — доля полосы набора; предел (0,6) приводит normalizeStyle.
+        spaceAbove: z.number().min(0).max(1).optional(),
+        breakBefore: z.boolean().optional(),
       })
       .strict()
       .nullable(),

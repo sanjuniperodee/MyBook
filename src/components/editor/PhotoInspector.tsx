@@ -3,7 +3,7 @@
 import { AlignCenter, AlignLeft, AlignRight, ArrowRightLeft, ChevronDown, ChevronUp, LoaderCircle, Move, RotateCcw, RotateCw, SlidersHorizontal, X } from "lucide-react";
 import { useState, useSyncExternalStore, type ReactNode } from "react";
 import { getFormat } from "@/lib/book/formats";
-import { cropRect, normalizeStyle, splitParagraphs } from "@/lib/book/inline-photo";
+import { cropRect, MAX_SPACE_ABOVE, normalizeStyle, splitParagraphs } from "@/lib/book/inline-photo";
 import type { InlinePhotoStyle } from "@/lib/book/inline-photo";
 import { fillFocus, type PhotoCrop } from "@/lib/book/photo-crop";
 import { CONTAIN_LOSS, coverLoss, defaultPageFit, WARN_LOSS } from "@/lib/book/photo-loss";
@@ -366,6 +366,40 @@ export function PhotoInspector({
               <span>
                 {a.keepSize}
                 <span className="block text-[11px] text-muted">{a.keepSizeHint}</span>
+              </span>
+            </label>
+
+            <Field
+              label={a.spaceAbove}
+              aside={
+                style.spaceAbove ? (
+                  <button type="button" onClick={() => onChange({ spaceAbove: 0 })} className="min-h-9 rounded-lg px-2 text-[11px] font-medium text-wine hover:bg-sunken">
+                    {a.spaceRemove}
+                  </button>
+                ) : null
+              }
+            >
+              <input
+                type="range"
+                min={0}
+                max={Math.round(MAX_SPACE_ABOVE * 100)}
+                step={1}
+                value={Math.round((style.spaceAbove ?? 0) * 100)}
+                onChange={(e) => onChange({ spaceAbove: Number(e.target.value) / 100 })}
+                aria-label={a.spaceAbove}
+                aria-valuetext={`${Math.round((style.spaceAbove ?? 0) * 100)}%`}
+                className="h-2 w-full accent-[var(--color-wine)]"
+              />
+              <p className="mt-1 text-[11px] text-muted">
+                {a.spaceAboveHint} {a.spaceAboveDrag}
+              </p>
+            </Field>
+
+            <label className="flex items-start gap-2 text-sm">
+              <input type="checkbox" className="mt-0.5 size-4 accent-[var(--color-wine)]" checked={!!style.breakBefore} onChange={(e) => onChange({ breakBefore: e.target.checked })} />
+              <span>
+                {a.breakBefore}
+                <span className="block text-[11px] text-muted">{a.breakBeforeHint}</span>
               </span>
             </label>
 

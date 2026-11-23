@@ -115,6 +115,24 @@ describe("PDF с фотографиями", () => {
     expect(res.pages.find((p) => p.kind === "opener" && p.chapterKey === GALLERY_KEY)).toBeDefined();
   });
 
+  // Обращение по заказу 106: фото опускают ниже (отступ сверху) и ставят с новой страницы — PDF как в оценке объёма.
+  it("фото в ответе с отступом сверху и «с новой страницы»: на полосу больше, ровно как в оценке", async () => {
+    const { renderInterior, contentFor } = await import("@/modules/production/infrastructure/pdf/render");
+    const { estimatePages } = await import("@/lib/book/estimate");
+    const long = Array.from({ length: 2 }, () => "Мы встретились в самый обычный вторник, когда в Алматы шёл первый снег. ".repeat(2).trim()).join("\n");
+    const qs = questions.map((q, i) => (i === 0 ? { ...q, answer: long } : q));
+    const run = async (inline: Partial<NonNullable<Photo["inline"]>>) => {
+      const ph = photos.map((p, i) => (i === 0 ? { ...p, questionId: "q0", inline: { width: 60, align: "center" as const, anchor: null, aspect: "original" as const, focusX: 0.5, focusY: 0.5, frame: "none" as const, ...inline } } : p));
+      const bundle = { book: { ...book, interior: "classic" }, questions: qs, chapters: [], photos: ph };
+      const res = await renderInterior(bundle, "reading");
+      expect(res.contentPages).toBe(estimatePages(contentFor(bundle)));
+      return res.contentPages;
+    };
+    const plain = await run({});
+    expect(await run({ breakBefore: true })).toBe(plain + 1);
+    expect(await run({ spaceAbove: 0.6 })).toBe(plain + 1);
+  });
+
   it("обложка-мозаика из четырёх фото и оборот с полароидами — одна страница развёртки", async () => {
     const { renderCover } = await import("@/modules/production/infrastructure/pdf/render");
     const ids = photos.map((p) => p.id);
