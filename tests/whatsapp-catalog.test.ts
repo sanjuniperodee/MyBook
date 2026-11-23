@@ -150,6 +150,10 @@ function service(store: CatalogStore, gateway: Partial<CatalogGateway>, sendCard
     createProduct: async () => product(),
     editProduct: async (id) => product({ id }),
     deleteProduct: async () => undefined,
+    collections: async () => [],
+    createCollection: async () => "1",
+    updateCollection: async (id) => id,
+    deleteCollection: async () => undefined,
     catalogImage: async () => ({ data: new Uint8Array([1]), mime: "image/jpeg" }),
     orderDetails: async () => null,
     ...gateway,
@@ -235,5 +239,41 @@ describe("мутации каталога через шлюз", () => {
         actor_id: "61578507209024",
       },
     });
+  });
+});
+
+describe("коллекции и смена doc_id", () => {
+  it("коллекция из GraphQL: статус без приставки STATUS_, товары по id", async () => {
+    const { parseGraphCollection, collectionDiff, parseCatalogDocs, looksLikeStaleDoc } = await import("@/modules/messaging/domain/catalog");
+    expect(parseGraphCollection({ id: "1498546245461147", name: "Книги маме", status_info: { status: "STATUS_APPROVED" }, products: [{ id: "29070847985913378" }, { id: "bad" }] })).toEqual({ id: "1498546245461147", name: "Книги маме", review: "APPROVED", productIds: ["29070847985913378"] });
+    expect(collectionDiff(["1", "2"], ["2", "3"])).toEqual({ add: ["3"], remove: ["1"] });
+    expect(parseCatalogDocs('{"add":"123456789","edit":"x","hack":"999999999"}')).toEqual({ add: "123456789" });
+    expect(parseCatalogDocs("not json")).toEqual({});
+    expect(looksLikeStaleDoc("PersistedQueryNotFound")).toBe(true);
+    expect(looksLikeStaleDoc("Bad Request Error while getting catalog")).toBe(false);
+  });
+
+  it("правка коллекции считает, что добавить и убрать; удаление проверяется перечитыванием", async () => {
+    const updateCollection = vi.fn(async () => "NEW1");
+    let list = [{ id: "C1", name: "Маме", review: "APPROVED", productIds: ["111", "222"] }];
+    const s = service(memoryStore(), { collections: async () => list, updateCollection, deleteCollection: async () => undefined });
+    await expect(s.updateCollection("C1", "Маме и бабушке", ["222", "333"])).resolves.toBe("NEW1");
+    expect(updateCollection).toHaveBeenCalledWith("C1", { name: "Маме и бабушке", add: ["333"], remove: ["111"] });
+    await expect(s.deleteCollection("C1")).rejects.toThrow(/не удалил/);
+    list = [];
+    await expect(s.deleteCollection("C1")).resolves.toBeUndefined();
+    await expect(s.createCollection("", ["1"])).rejects.toThrow(/название/i);
+  });
+
+  it("замена doc_id из настроек уходит в запрос шлюза", async () => {
+    vi.doMock("server-only", () => ({}));
+    const { waCatalogGateway } = await import("@/modules/messaging/infrastructure/waCatalog");
+    const docs: string[] = [];
+    const gowa = {
+      catalogToken: async () => ({ businessPersonId: "1", jid: "", lid: "9@lid" }),
+      catalogGraphql: async (doc: string) => (docs.push(doc), { data: { xfb_whatsapp_catalog_delete_product: { deleted_count: 1 } } }),
+    };
+    await waCatalogGateway(gowa as never, async () => "77775932124", async () => ({ remove: "1234567" })).deleteProduct("111");
+    expect(docs).toEqual(["1234567"]);
   });
 });

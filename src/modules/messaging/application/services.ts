@@ -31,6 +31,7 @@ import {
 } from "../domain";
 import { zonedDay } from "@/shared/domain/time";
 import type { MessageCard } from "../domain/catalog";
+import type { ExternalEdit, ExternalRevoke } from "../domain/gowa";
 import type { QualifierBot } from "./bot";
 import type { AnsweredTasks, BlockReason, Blocklist, ChannelTransport, ConversationRepository, IncomingRules, LinkAttribution, LiveUpdates, MessageRepository, MessageSource, OutgoingCard, OutgoingFile, SalesGateway, StaffLine, StaffNotifier, StoredMessage, Tasks } from "./ports";
 
@@ -390,6 +391,30 @@ export class MessagingService {
     if (!shouldApplyStatus(msg.status, s.status)) return;
     await this.messages.setStatus(msg.id, s.status, s.error);
     this.live.chatChanged(msg.conversationId);
+  }
+
+  /**
+   * Правка в WhatsApp (клиент изменил своё сообщение или менеджер — с телефона магазина): новый текст в CRM, прежний — в
+   * истории правок, сотрудник видит «изменено» и что было. Правка из CRM приходит тем же событием с уже сохранённым
+   * текстом — её пропускаем. Неизвестное или удалённое из CRM сообщение — тоже.
+   */
+  async applyExternalEdit(e: ExternalEdit) {
+    const m = await this.messages.byExternalIdFull(e.externalId);
+    if (!m || m.deletedAt || m.internal) return;
+    if (m.text.trim() === e.text.trim()) return;
+    await this.messages.recordExternalEdit(m.id, e.text.slice(0, 4000), { text: m.text, at: e.at.toISOString() }, e.at);
+    this.live.chatChanged(m.conversationId);
+  }
+
+  /**
+   * «Удалить для всех» в WhatsApp не из CRM: у клиента сообщения больше нет, а сотрудники видят его текст с пометкой
+   * «удалено клиентом» (или «удалено с телефона магазина»). Удалённое из CRM (deleted_at) не трогаем.
+   */
+  async applyExternalRevoke(r: ExternalRevoke) {
+    const m = await this.messages.byExternalIdFull(r.externalId);
+    if (!m || m.deletedAt || m.revokedAt || m.internal) return;
+    await this.messages.markRevoked(m.id, r.at);
+    this.live.chatChanged(m.conversationId);
   }
 
   /** Статус пришёл раньше внешнего ID — запомнить ненадолго (старые записи выбрасываются). */

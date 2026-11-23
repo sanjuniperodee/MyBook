@@ -11,6 +11,7 @@ import { WazzupClient } from "./infrastructure/wazzup";
 import { CatalogService } from "./application/catalog";
 import { cardMessages, catalogImages, drizzleCatalogStore } from "./infrastructure/catalogStore";
 import { waCatalogGateway } from "./infrastructure/waCatalog";
+import { parseCatalogDocs } from "./domain/catalog";
 import { drizzleCoachSource } from "./infrastructure/botCoach";
 import { drizzleHelpStore, helpChatId, helpQuestionsOf, helpStats } from "./infrastructure/cabinetHelp";
 import { chatFiles, extOf } from "./infrastructure/chatFiles";
@@ -30,6 +31,8 @@ export type { ChatMessage } from "./infrastructure/chatView";
 export { WazzupError } from "./infrastructure/wazzup";
 export { MediaUnavailableError } from "./application/media";
 export type { StoredProduct, UploadImage } from "./application/catalog";
+export { WA_CATALOG } from "./infrastructure/waCatalog";
+export { CATALOG_DOC_KEYS, parseCatalogDocs, type CatalogCollection, type CatalogDocKey } from "./domain/catalog";
 export { CATALOG_CURRENCY, CATALOG_LIMITS, DEFAULT_CATALOG_SETTINGS, cardLine, catalogLink, formatPrice, parseCard, reviewLabel, validateDraft, type CatalogSettings, type MessageCard, type ProductDraft } from "./domain/catalog";
 export { MediaDedup, type DedupResult } from "./infrastructure/mediaDedup";
 export { EDIT_WINDOW_MS, MessageActionError, REVOKE_WINDOW_MS } from "./application/services";
@@ -41,7 +44,7 @@ export type { BotMetrics } from "./infrastructure/persistence";
 export type { BotPreviewInput, BotPreviewResult, BotStatus } from "./application/botPreview";
 
 /** Настройки CRM, которые читает и пишет переписка: бот, виджет, Wazzup и почтовый ящик. */
-type MessagingSettingKey = "bot.mode" | "bot.config" | "bot.lessons" | "bot.coach" | "bot.materials" | "whatsapp.phoneHolder" | "whatsapp.rulesWindow" | "whatsapp.rulesDailyLimit" | "crm.workHours" | "widget.enabled" | "widget.chat" | "widget.help" | "wazzup.apiKey" | "wazzup.baseUrl" | "wazzup.channelId" | "gowa.historySyncedAt" | "ai.knowledge" | "whatsapp.catalog" | EmailSettingKey;
+type MessagingSettingKey = "bot.mode" | "bot.config" | "bot.lessons" | "bot.coach" | "bot.materials" | "whatsapp.phoneHolder" | "whatsapp.rulesWindow" | "whatsapp.rulesDailyLimit" | "crm.workHours" | "widget.enabled" | "widget.chat" | "widget.help" | "wazzup.apiKey" | "wazzup.baseUrl" | "wazzup.channelId" | "gowa.historySyncedAt" | "ai.knowledge" | "whatsapp.catalog" | "whatsapp.catalogDocs" | EmailSettingKey;
 
 /** Порты рабочего пространства и почты: настройки, уведомления, живое обновление, график, свои поля, SMTP. */
 interface WorkspacePorts {
@@ -107,6 +110,7 @@ export class MessagingModule {
   /** Работа над ошибками AI-продажника: ночной разбор бесед → уроки в его инструкции. */
   readonly coach: BotCoach;
   private readonly botStore = new DrizzleBotStore();
+  #subscribed = false;
   private readonly messages = new DrizzleMessageRepository();
   private readonly botSettings;
   /** Номера сотрудников и что CRM отправила им сама (напоминания): эхо и ответы не становятся заявками. */
@@ -198,7 +202,7 @@ export class MessagingModule {
     const shopPhone = async () => (await this.gowa.cachedStatus().catch(() => null))?.phone || (await deps.whatsapp());
     this.catalog = new CatalogService({
       store: drizzleCatalogStore,
-      gateway: waCatalogGateway(this.gowa, shopPhone),
+      gateway: waCatalogGateway(this.gowa, shopPhone, async () => parseCatalogDocs(await deps.settings.get("whatsapp.catalogDocs"))),
       images: catalogImages,
       messages: cardMessages,
       chats: () => this.chats,
@@ -563,6 +567,12 @@ export class MessagingModule {
    */
   async catchUpGowa(): Promise<number> {
     if ((await this.deps.whatsappSettings.provider()) !== "gowa") return 0;
+    // Подписка устройства на события обновляется при каждом запуске фона: после выкатки, добавившей событие
+    // (правки и удаления в WhatsApp), не нужно пересохранять настройки шлюза.
+    if (!this.#subscribed) {
+      await this.connectGowa();
+      this.#subscribed = true;
+    }
     const { from, to } = gowaCatchUpRange(this.deps.clock.now(), !this.#caughtUpOnce);
     const PAGE = 50;
     let caught = 0;

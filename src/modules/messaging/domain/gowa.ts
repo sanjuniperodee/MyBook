@@ -200,6 +200,44 @@ export function missedCallMessage(call: { externalId: string; clientPhone: strin
   };
 }
 
+/** Правка сообщения в WhatsApp (клиентом или с телефона магазина; правка из CRM приходит тем же событием). */
+export interface ExternalEdit {
+  externalId: string;
+  text: string;
+  at: Date;
+  fromMe: boolean;
+}
+
+/** «Удалить для всех» в WhatsApp (клиентом или с телефона магазина; удаление из CRM приходит тем же событием). */
+export interface ExternalRevoke {
+  externalId: string;
+  at: Date;
+  fromMe: boolean;
+}
+
+/** Правка или удаление из вебхука GOWA (message.edited / message.revoked); только личные чаты. */
+export function parseGowaChange(body: unknown): { edit: ExternalEdit | null; revoke: ExternalRevoke | null } {
+  const b = record(body);
+  const p = record(b.payload);
+  const none = { edit: null, revoke: null };
+  if (!PERSONAL.test(str(p.chat_id))) return none;
+  const parsed = new Date(str(p.timestamp));
+  const at = Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+  const fromMe = p.is_from_me === true;
+  if (str(b.event) === "message.edited") {
+    const externalId = str(p.original_message_id);
+    const text = str(p.body).trim();
+    if (!GOWA_MESSAGE_ID.test(externalId) || !text) return none;
+    return { edit: { externalId, text, at, fromMe }, revoke: null };
+  }
+  if (str(b.event) === "message.revoked") {
+    const externalId = str(p.revoked_message_id);
+    if (!GOWA_MESSAGE_ID.test(externalId)) return none;
+    return { edit: null, revoke: { externalId, at, fromMe } };
+  }
+  return none;
+}
+
 export function parseGowaWebhook(body: unknown): { messages: InboundMessage[]; statuses: DeliveryStatus[] } {
   const b = record(body);
   const event = str(b.event);

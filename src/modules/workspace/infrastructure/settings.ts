@@ -111,6 +111,10 @@ export const settingDefs = {
   "whatsapp.phoneHolder": {},
   /** Когда правила автоматизаций пишут клиентам первыми: JSON { from, to } по Алматы (automation-15). Автоответ — в любое время. */
   "whatsapp.rulesWindow": { default: '{"from":"09:00","to":"21:00"}' },
+  /** Сколько дней хранить записи разговоров WhatsApp; 0 — без срока. Старше — удаляются ежедневной уборкой. */
+  "calls.recordingDays": { default: "90" },
+  /** Замены doc_id GraphQL каталога WhatsApp (когда WhatsApp сменит запросы): JSON { add: "…", edit: "…", … }; пусто — из кода. */
+  "whatsapp.catalogDocs": {},
   /** Каталог WhatsApp в чатах: JSON CatalogSettings (кнопка «Товар из каталога», тексты ссылки и подписи, валюта). */
   "whatsapp.catalog": {},
   /** Сколько сообщений клиентам от правил уходит за сутки; 0 — правила первыми не пишут. */

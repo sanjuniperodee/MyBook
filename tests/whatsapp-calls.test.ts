@@ -99,6 +99,7 @@ function setup(opts: { answerFails?: boolean; openDeal?: string; duringAnswer?: 
   const recordings = {
     append: async (id: string, seq: number, mime: string, data: Uint8Array) => void parts.push(`${id}:${seq}:${mime}:${data.length}`),
     file: async (id: string) => (parts.some((p) => p.startsWith(`${id}:`)) ? { path: `/rec/${id}.m4a`, mime: "audio/mp4" } : null),
+    remove: async (id: string) => void parts.splice(0, parts.length, ...parts.filter((p) => !p.startsWith(`${id}:`))),
   };
   const service = new WhatsappCallsService(calls, repo, gateway, clock, recordings);
   const ring = (externalId = "IN1") => service.incoming({ provider: "whatsapp", externalId, stage: "start", direction: "in", clientPhone: "77011234567", extension: null, at: clock.now() });
@@ -300,5 +301,19 @@ describe("пропущенный звонок WhatsApp в переписке (pl
     expect(chat.msgs.filter((m) => m.type === "missing_call")).toHaveLength(1);
     expect(chat.conv()).toMatchObject({ chatId: "77011234567", channel: "whatsapp" });
     expect(chat.notified.filter((n) => n.kind === "message")).toEqual([]);
+  });
+});
+
+describe("срок хранения записей WhatsApp", () => {
+  it("по умолчанию 90 дней, 0 — без срока, мусор — по умолчанию, не больше 10 лет", async () => {
+    const { recordingDays, WHATSAPP_RECORDING_DAYS } = await import("@/modules/telephony/application/whatsapp");
+    expect(WHATSAPP_RECORDING_DAYS).toBe(90);
+    expect(recordingDays(null)).toBe(90);
+    expect(recordingDays("")).toBe(90);
+    expect(recordingDays("0")).toBe(0);
+    expect(recordingDays("30")).toBe(30);
+    expect(recordingDays("-5")).toBe(90);
+    expect(recordingDays("abc")).toBe(90);
+    expect(recordingDays("99999")).toBe(3650);
   });
 });

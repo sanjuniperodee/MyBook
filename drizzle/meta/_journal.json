@@ -715,6 +715,13 @@
       "when": 1795434077302,
       "tag": "0101_receipt_hash_void",
       "breakpoints": true
+    },
+    {
+      "idx": 102,
+      "version": "7",
+      "when": 1795472373320,
+      "tag": "0102_chat_external_changes",
+      "breakpoints": true
     }
   ]
 }

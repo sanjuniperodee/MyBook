@@ -133,6 +133,12 @@ export interface MessageRepository {
   /** Эхо-вебхук мог прийти раньше ответа API и создать копию — оставляем исходное сообщение. */
   attachExternalId(id: string, externalId: string | null): Promise<void>;
   byExternalId(externalId: string): Promise<{ id: string; status: string; conversationId: string } | null>;
+  /** Сообщение по id в канале — для правок и удалений, сделанных в WhatsApp. */
+  byExternalIdFull(externalId: string): Promise<(StoredMessage & { revokedAt: Date | null }) | null>;
+  /** Правка в WhatsApp не из CRM: новый текст, прежний — в историю правок. */
+  recordExternalEdit(id: string, text: string, previous: { text: string; at: string }, at: Date): Promise<void>;
+  /** «Удалить для всех» в WhatsApp не из CRM: текст остаётся, сообщение помечается. */
+  markRevoked(id: string, at: Date): Promise<void>;
   /** Сколько сообщений правил ушло клиентам начиная с since (заметки не в счёт); дальше cap не считаем. */
   countRuleSince(since: Date, cap: number): Promise<number>;
   /** Неотправленные сообщения бота и правил с since (по crm_messages_error_idx), без отметки повтора, не больше limit. */

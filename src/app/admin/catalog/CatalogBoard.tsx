@@ -9,7 +9,7 @@ import { DrawerButton } from "@/components/admin/Drawer";
 import { confirmDialog, toast } from "@/components/ui/overlays";
 import { cn } from "@/lib/class-names";
 import { formatPrice, reviewLabel } from "@/modules/messaging/domain/catalog";
-import { createProductAction, deleteProductAction, setProductHiddenAction, syncCatalogAction, updateProductAction } from "./actions";
+import { createProductAction, deleteCollectionAction, deleteProductAction, saveCollectionAction, setProductHiddenAction, syncCatalogAction, updateProductAction } from "./actions";
 
 export interface ProductView {
   id: string;
@@ -24,6 +24,7 @@ export interface ProductView {
   imageUrls: string[];
   /** Сколько видео у товара в WhatsApp: из CRM их не добавить, при правке они сохраняются. */
   videos: number;
+  videoUrls: string[];
   hasImage: boolean;
 }
 
@@ -125,6 +126,7 @@ export function ProductForm({ product, currency, onDone }: { product?: ProductVi
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [keep, setKeep] = useState<string[]>(product?.imageUrls ?? []);
+  const [keepVideos, setKeepVideos] = useState<string[]>(product?.videoUrls ?? []);
   const [files, setFiles] = useState<{ file: File; url: string }[]>([]);
   const input = useRef<HTMLInputElement>(null);
   const total = keep.length + files.length;
@@ -143,6 +145,7 @@ export function ProductForm({ product, currency, onDone }: { product?: ProductVi
       if (product) {
         form.set("keepSet", "1");
         for (const u of keep) form.append("keep", u);
+        for (const v of keepVideos) form.append("keepVideo", v);
       }
       if (!total) return setError("Добавьте хотя бы одно фото — без фото WhatsApp товар не примет");
       const r = product ? await updateProductAction(product.id, form) : await createProductAction(form);
@@ -192,7 +195,24 @@ export function ProductForm({ product, currency, onDone }: { product?: ProductVi
           ) : null}
         </div>
         <input ref={input} type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden" onChange={(e) => (addFiles(e.target.files), (e.target.value = ""))} />
-        {product?.videos ? <p className="text-xs text-muted">Видео товара ({product.videos}) сохранятся — их добавляют и меняют в приложении WhatsApp Business. После правки WhatsApp заново проверит товар, пока идёт проверка, клиенты его не видят.</p> : <p className="text-xs text-muted">JPEG, PNG или WebP до 8 МБ. После сохранения WhatsApp проверяет товар, обычно это минуты.</p>}
+        {product?.videoUrls.length ? (
+          <div className="space-y-2 pt-2">
+            <div className="text-sm font-medium">Видео ({keepVideos.length})</div>
+            <div className="flex flex-wrap gap-2">
+              {keepVideos.map((v) => (
+                <div key={v} className="relative h-28 w-20 overflow-hidden rounded-lg bg-black">
+                  <video src={`/api/admin/catalog/photo?u=${encodeURIComponent(v)}`} preload="none" controls playsInline className="size-full object-cover" />
+                  <button type="button" onClick={() => setKeepVideos((list) => list.filter((x) => x !== v))} className="absolute top-1 right-1 flex size-6 items-center justify-center rounded-full bg-ink/70 text-white" aria-label="Убрать видео">
+                    <X className="size-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-muted">Видео добавляют в приложении WhatsApp Business (WhatsApp не даёт загружать их с компьютера); здесь лишнее можно убрать. С видео правка отправляет товар на повторную проверку WhatsApp — пока она идёт, клиенты товар не видят.</p>
+          </div>
+        ) : (
+          <p className="text-xs text-muted">JPEG, PNG или WebP до 8 МБ. После сохранения WhatsApp проверяет товар, обычно это минуты.</p>
+        )}
       </div>
 
       <button className="btn btn-dark col-span-2 w-full" disabled={pending}>
@@ -212,5 +232,114 @@ function Thumb({ src, onRemove }: { src: string; onRemove: () => void }) {
         <X className="size-3.5" />
       </button>
     </div>
+  );
+}
+
+export interface CollectionView {
+  id: string;
+  name: string;
+  review: string;
+  productIds: string[];
+}
+
+/** Коллекции каталога: группы товаров, клиент видит их разделами каталога WhatsApp. */
+export function Collections({ collections, products, error }: { collections: CollectionView[]; products: { id: string; name: string }[]; error: string | null }) {
+  const names = new Map(products.map((p) => [p.id, p.name]));
+  return (
+    <section className="space-y-3" data-testid="catalog-collections">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-base font-semibold">Коллекции</h2>
+          <p className="text-sm text-muted">Разделы каталога WhatsApp: клиент видит товары, сгруппированные по ним.</p>
+        </div>
+        {products.length ? (
+          <DrawerButton lazy label="Новая коллекция" icon={<Plus className="size-4" aria-hidden />} title="Новая коллекция" description="Название и товары; WhatsApp проверит коллекцию">
+            {(close) => <CollectionForm products={products} onDone={close} />}
+          </DrawerButton>
+        ) : null}
+      </div>
+      {error ? <Alert>Коллекции не загрузились: {error}</Alert> : null}
+      {!error && !collections.length ? <p className="panel p-4 text-sm text-muted">Коллекций пока нет. Например: «Книги о маме», «Подарки на годовщину».</p> : null}
+      {collections.length ? (
+        <ul className="panel divide-y divide-line">
+          {collections.map((c) => (
+            <CollectionRow key={c.id} collection={c} names={names} products={products} />
+          ))}
+        </ul>
+      ) : null}
+    </section>
+  );
+}
+
+function CollectionRow({ collection: c, names, products }: { collection: CollectionView; names: Map<string, string>; products: { id: string; name: string }[] }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const review = reviewLabel(c.review);
+  const remove = () =>
+    start(async () => {
+      if (!(await confirmDialog({ title: `Удалить коллекцию «${c.name}»?`, text: "Товары останутся в каталоге, пропадёт только раздел.", confirmLabel: "Удалить", danger: true }))) return;
+      const r = await deleteCollectionAction(c.id);
+      if (!r.ok) return toast(r.error, "error");
+      toast("Коллекция удалена", "success");
+      router.refresh();
+    });
+  return (
+    <li className="flex flex-wrap items-center gap-3 px-4 py-3">
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2 font-medium">
+          {c.name}
+          {review.label ? <span className={cn("rounded-full px-2 py-0.5 text-xs font-normal", TONE[review.tone])}>{review.label}</span> : null}
+        </div>
+        <div className="truncate text-xs text-muted">{c.productIds.map((id) => names.get(id) ?? "товар").join(" · ") || "Без товаров"}</div>
+      </div>
+      <DrawerButton variant="ghost" lazy className="btn-sm" label="Изменить" icon={<Pencil className="size-3.5" aria-hidden />} title="Коллекция" description={c.name}>
+        {(close) => <CollectionForm collection={c} products={products} onDone={close} />}
+      </DrawerButton>
+      <button type="button" className="btn btn-ghost btn-sm text-danger" disabled={pending} onClick={remove}>
+        <Trash2 className="size-3.5" aria-hidden /> Удалить
+      </button>
+    </li>
+  );
+}
+
+function CollectionForm({ collection, products, onDone }: { collection?: CollectionView; products: { id: string; name: string }[]; onDone: () => void }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [name, setName] = useState(collection?.name ?? "");
+  const [picked, setPicked] = useState<string[]>(collection?.productIds ?? []);
+  const [error, setError] = useState<string | null>(null);
+  const save = () =>
+    start(async () => {
+      setError(null);
+      const r = await saveCollectionAction(collection?.id ?? null, { name, productIds: picked });
+      if (!r.ok) return setError(r.error);
+      toast(collection ? "Коллекция сохранена" : "Коллекция создана", "success");
+      onDone();
+      router.refresh();
+    });
+  return (
+    <form
+      className="space-y-4"
+      onSubmit={(e) => {
+        e.preventDefault();
+        save();
+      }}
+    >
+      <Field label="Название" hint="До 30 символов">
+        <input className="input" value={name} maxLength={30} onChange={(e) => setName(e.target.value)} required />
+      </Field>
+      <fieldset className="space-y-1.5">
+        <legend className="mb-1 text-sm font-medium">Товары</legend>
+        {products.map((p) => (
+          <label key={p.id} className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={picked.includes(p.id)} onChange={(e) => setPicked((list) => (e.target.checked ? [...list, p.id] : list.filter((x) => x !== p.id)))} /> {p.name}
+          </label>
+        ))}
+      </fieldset>
+      <button className="btn btn-dark w-full" disabled={pending}>
+        {pending ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : null} {collection ? "Сохранить в WhatsApp" : "Создать коллекцию"}
+      </button>
+      {error ? <Alert>{error}</Alert> : null}
+    </form>
   );
 }

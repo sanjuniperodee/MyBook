@@ -61,8 +61,22 @@ whatsmeow `wppconnect-team/hypermeow`):
 6. **Корзина клиента** — `OrderMessage` (шлюз отдаёт его в вебхуке полем `order`); состав — IQ `fb:thrift_iq`
    `order op=get` (`whatsmeow.GetOrderDetails`, нужен токен из сообщения).
 
-Коллекции (создание/правка: doc 29361942130088470 / 24486970300891371 / 29970196299234260) протокол позволяет, в CRM
-пока не выведены — у магазина 2 товара.
+**Коллекции** (с 24.11 в CRM, на странице каталога): чтение владельца — doc 9687699931342731
+`{request: {collections: {biz_jid: <LID>, collection_limit, item_limit, width, height}}}` → `xfb_whatsapp_catalog_collections`
+(запасное — публичное 9430970660362540 по номеру); создать — 29361942130088470 `{input: {collection: {name, product_ids,
+biz_jid, catalog_session_id}, actor_id}}`; изменить — 24486970300891371 `{collection: {id, biz_jid, catalog_session_id,
+name?, add: {ids}, remove: {ids}}}`; удалить — 29970196299234260 `{collections: {collection_ids, biz_jid, catalog_session_id}}`.
+Подвох: **после правки у коллекции новый id**, а удаление по старому id WhatsApp отвечает `success: true` и ничего не
+делает — CRM берёт id из ответа и после удаления перечитывает коллекции.
+
+**Видео товара**: WhatsApp Web не умеет загружать видео товара (нет такого типа загрузки) — их добавляют в приложении. В
+CRM видео видно в форме правки (через `/api/admin/catalog/photo`), лишнее можно убрать; остальные передаются при правке.
+
+**Смена doc_id**: WhatsApp меняет номера запросов вместе со сборкой WhatsApp Web. Все номера — в
+`WA_CATALOG.docs`, любой можно заменить без выкатки: «Интеграции» → «Мессенджеры» → «Каталог WhatsApp» → «Документы
+WhatsApp» (настройка `whatsapp.catalogDocs`). Ошибка, похожая на устаревший запрос, называет его и подсказывает, где
+поменять. Новые номера — в модулях `*_facebookRelayOperation` сборки WhatsApp Web (репозиторий `vinikjkkj/wa-diff`) или в
+`mex/spec.json` форка `wppconnect-team/hypermeow`.
 
 ## Что в шлюзе (deploy/gowa-beta/gowa-03-catalog.patch)
 
@@ -96,4 +110,4 @@ doc_id, правится сайт, а не шлюз. Сборка шлюза —
   `RecoveryRequired`, нужно подтвердить почту бизнеса в приложении WhatsApp Business — CRM покажет это текстом.
 - doc_id операций взяты из сборки WhatsApp Web осени 2026; WhatsApp их меняет — тогда правки вернут ошибку GraphQL, а
   чтение и отправка карточек продолжат работать. Новые doc_id — в модулях `*_facebookRelayOperation` WhatsApp Web.
-- Видео к товару из CRM не добавляется (только сохраняется при правке) — добавлять в приложении.
+- Видео к товару из CRM не добавляется (видно и убирается) — добавлять в приложении.

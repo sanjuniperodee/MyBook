@@ -177,3 +177,18 @@ export class DrizzleCallQueries {
     return r ?? null;
   }
 }
+
+/** Звонки WhatsApp с записью, начатые раньше before, — для уборки старых записей (по индексу started_at). */
+export async function expiredWhatsappRecordings(before: Date, limit: number): Promise<string[]> {
+  const rows = await executor()
+    .select({ id: crmCalls.id })
+    .from(crmCalls)
+    .where(and(eq(crmCalls.provider, WHATSAPP), eq(crmCalls.hasRecording, true), lt(crmCalls.startedAt, before)))
+    .limit(limit);
+  return rows.map((r) => r.id);
+}
+
+/** Запись звонка удалена: в журнале звонок остаётся, кнопки «Слушать» больше нет. */
+export async function clearRecording(id: string): Promise<void> {
+  await executor().update(crmCalls).set({ hasRecording: false }).where(eq(crmCalls.id, id));
+}

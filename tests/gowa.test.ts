@@ -228,10 +228,10 @@ describe("GOWA: клиент шлюза", () => {
     });
     const hook = { url: "https://mybooks.kz/api/integrations/gowa", secret: "s3cret" };
     await client.connect(hook);
-    expect(calls.slice(-1)[0]).toEqual({ method: "POST", path: "/devices", body: { device_id: GOWA_DEVICE, webhook_url: hook.url, webhook_secret: "s3cret", webhook_events: "message,message.ack,call.offer,call.incoming" } });
+    expect(calls.slice(-1)[0]).toEqual({ method: "POST", path: "/devices", body: { device_id: GOWA_DEVICE, webhook_url: hook.url, webhook_secret: "s3cret", webhook_events: "message,message.ack,message.edited,message.revoked,call.offer,call.incoming" } });
     devices = [{ id: "other" }, { id: GOWA_DEVICE }];
     await client.connect({ ...hook, url: "http://127.0.0.1:3040/api/integrations/gowa" });
-    expect(calls.slice(-1)[0]).toEqual({ method: "PATCH", path: `/devices/${GOWA_DEVICE}/webhook`, body: { webhook_url: "http://127.0.0.1:3040/api/integrations/gowa", webhook_secret: "s3cret", webhook_events: "message,message.ack,call.offer,call.incoming" } });
+    expect(calls.slice(-1)[0]).toEqual({ method: "PATCH", path: `/devices/${GOWA_DEVICE}/webhook`, body: { webhook_url: "http://127.0.0.1:3040/api/integrations/gowa", webhook_secret: "s3cret", webhook_events: "message,message.ack,message.edited,message.revoked,call.offer,call.incoming" } });
     await client.logout();
     expect(calls.slice(-1)[0]).toMatchObject({ method: "POST", path: `/devices/${GOWA_DEVICE}/logout` });
   });

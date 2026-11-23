@@ -27,6 +27,18 @@ export interface CallRecordingStore {
   append(callId: string, seq: number, mime: string, data: Uint8Array): Promise<void>;
   /** Файл записи законченного звонка (склеивается при первом обращении); null — записи нет. */
   file(callId: string): Promise<{ path: string; mime: string } | null>;
+  /** Удалить запись звонка целиком (куски и собранный файл). */
+  remove(callId: string): Promise<void>;
+}
+
+/** Срок хранения записей разговоров WhatsApp по умолчанию, дней; 0 в настройке — хранить без срока. */
+export const WHATSAPP_RECORDING_DAYS = 90;
+
+/** Срок хранения из настройки calls.recordingDays: пусто или мусор — по умолчанию, 0 — без срока, не больше 10 лет. */
+export function recordingDays(raw: string | null | undefined): number {
+  const n = Number(String(raw ?? "").trim());
+  if (!String(raw ?? "").trim() || !Number.isFinite(n) || n < 0) return WHATSAPP_RECORDING_DAYS;
+  return Math.min(3650, Math.floor(n));
 }
 
 /** После конца звонка вкладка ещё доотправляет хвост записи — столько его принимаем. */

@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/admin/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Alert } from "@/components/ui/Alert";
 import { catalogLink } from "@/modules/messaging";
-import { NewProductButton, ProductCard, SyncButton } from "./CatalogBoard";
+import { Collections, NewProductButton, ProductCard, SyncButton } from "./CatalogBoard";
 
 export const metadata = { title: "Каталог WhatsApp" };
 
@@ -21,6 +21,10 @@ export default async function AdminCatalog() {
   const problem = await catalog.syncIfStale(5 * 60_000);
   const [products, settings, synced, status] = await Promise.all([catalog.list(), catalog.settings(), catalog.lastSyncedAt(), container().messaging.gowa.cachedStatus()]);
   const link = status.phone ? catalogLink(status.phone) : null;
+  const collections = await catalog.collections().then(
+    (list) => ({ list, error: null as string | null }),
+    (err: unknown) => ({ list: [], error: err instanceof Error ? err.message : String(err) }),
+  );
   return (
     <div className="flex flex-col gap-5">
       <PageHeader
@@ -59,10 +63,12 @@ export default async function AdminCatalog() {
       ) : (
         <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3" data-testid="catalog-products">
           {products.map((p) => (
-            <ProductCard key={p.id} product={{ id: p.id, name: p.name, description: p.description, price: p.price, currency: p.currency, retailerId: p.retailerId, url: p.url, hidden: p.hidden, review: p.review, imageUrls: p.imageUrls, videos: p.videoUrls.length, hasImage: p.imageUrls.length > 0 }} />
+            <ProductCard key={p.id} product={{ id: p.id, name: p.name, description: p.description, price: p.price, currency: p.currency, retailerId: p.retailerId, url: p.url, hidden: p.hidden, review: p.review, imageUrls: p.imageUrls, videos: p.videoUrls.length, videoUrls: p.videoUrls, hasImage: p.imageUrls.length > 0 }} />
           ))}
         </ul>
       )}
+
+      <Collections collections={collections.list} products={products.map((p) => ({ id: p.id, name: p.name }))} error={collections.error} />
     </div>
   );
 }

@@ -53,6 +53,9 @@ export async function tick() {
     // След ходов бота («Почему так?») хранится 90 дней: старые записи — порциями по частичному индексу.
     const traces = await step("bot traces purge", () => container().messaging.purgeBotTraces(), 0);
     if (traces) console.log(`[scheduler] bot traces purged=${traces}`);
+    // Записи разговоров WhatsApp старше срока хранения (по умолчанию 90 дней) — файлы удаляются, звонок остаётся в журнале.
+    const recordings = await step("call recordings purge", () => container().telephony.purgeRecordings(), 0);
+    if (recordings) console.log(`[scheduler] call recordings removed=${recordings}`);
     // Кэш предпросмотров (сборки книг и картинки полос) пересобирается по запросу: давно не нужное — удаляем, раз в сутки.
     const previews = await step("preview cache sweep", () => container().previews.sweep(), 0);
     if (previews) console.log(`[scheduler] preview cache removed=${previews}`);
