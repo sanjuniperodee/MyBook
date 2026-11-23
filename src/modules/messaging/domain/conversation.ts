@@ -112,3 +112,21 @@ export function shouldApplyStatus(current: string, next: string) {
 export function safeContactName(name: string) {
   return name.replace(/\+?\d[\d\s().-]{8,}\d/g, (m) => phoneTail(m) || "…");
 }
+
+/** Автоприветствие WhatsApp Business приходит эхом спустя секунды после сообщения клиента (окно с запасом на задержку шлюза). */
+export const AUTO_GREETING_WINDOW_MS = 30_000;
+/** WhatsApp шлёт приветствие новому контакту и тому, кто не писал дольше 14 дней. */
+export const AUTO_GREETING_QUIET_MS = 14 * 86_400_000;
+
+/**
+ * Эхо с телефона магазина — автоприветствие WhatsApp Business, а не ответ человека: оно пришло в течение 30 с после
+ * сообщения клиента, и до этого магазин (сотрудник из CRM или телефон) клиенту 14 дней не писал. Бот, правила,
+ * прошлые автоприветствия (у всех них source есть) и заметки не в счёт. `history` — переписка до эха, от старых к новым.
+ */
+export function isAutoGreetingEcho(echoAt: Date, history: { direction: "in" | "out"; source: string | null; internal: boolean; createdAt: Date }[]) {
+  const t = echoAt.getTime();
+  const dialog = history.filter((m) => !m.internal && m.createdAt.getTime() <= t && !(m.direction === "out" && m.source !== null));
+  const last = dialog[dialog.length - 1];
+  if (!last || last.direction !== "in" || t - last.createdAt.getTime() > AUTO_GREETING_WINDOW_MS) return false;
+  return !dialog.some((m) => m.direction === "out" && t - m.createdAt.getTime() < AUTO_GREETING_QUIET_MS);
+}

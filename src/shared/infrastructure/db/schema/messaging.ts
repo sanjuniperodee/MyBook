@@ -107,8 +107,11 @@ export const crmMessages = pgTable(
     externalId: text("external_id").unique(),
     /** Внутренняя заметка сотрудника в диалоге — клиенту не отправляется. */
     internal: boolean("internal").notNull().default(false),
-    /** Исходящее без сотрудника: bot — бот-квалификатор, rule — правило автоматизации (в чате — «бот» / «автоматически»). */
-    source: text("source", { enum: ["bot", "rule"] }),
+    /**
+     * Исходящее без сотрудника: bot — бот-квалификатор, rule — правило автоматизации (в чате — «бот» / «автоматически»),
+     * system — автоприветствие WhatsApp Business с телефона магазина (эхо, но не ответ человека).
+     */
+    source: text("source", { enum: ["bot", "rule", "system"] }),
     status: text("status", { enum: ["pending", "sent", "delivered", "read", "error", "received"] }).notNull().default("pending"),
     error: text("error"),
     /** Письма: тема и Message-ID для цепочки ответов. */

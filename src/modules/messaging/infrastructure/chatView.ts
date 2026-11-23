@@ -53,6 +53,7 @@ export interface ChatMessage {
 function outgoingAuthor(m: Pick<typeof crmMessages.$inferSelect, "internal" | "source" | "externalId" | "authorId">) {
   if (m.source === "bot") return "бот";
   if (m.source === "rule") return "автоматически";
+  if (m.source === "system") return "автоприветствие WhatsApp";
   if (m.internal) return "—";
   return m.externalId && !m.authorId ? "с телефона" : "автоматически";
 }

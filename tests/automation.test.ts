@@ -28,7 +28,7 @@ import { orderNotice, type OrderNoticeFacts } from "@/modules/ordering/ui/notice
 import { orderRuleSubject, type OrderStatus } from "@/shared/domain/orders";
 import { addWorkMinutes, nextWorkStart, parseWorkHours } from "@/shared/domain/schedule";
 import { InProcessEventBus } from "@/shared/infrastructure/InProcessEventBus";
-import { inbound, setup as chatSetup } from "./doubles/botHarness";
+import { inbound, setup as chatSetup, phoneAt } from "./doubles/botHarness";
 import { setup as clientsSetup, lead as crmLead, manager as crmManager } from "./doubles/clients";
 import { admin as orderingAdmin, setup as orderingSetup } from "./doubles/ordering";
 
@@ -615,7 +615,7 @@ describe("Задачи правил: срок в рабочем времени, 
     await chat.service.send(chat.conv().id, "Здравствуйте! Я помощник", null, "bot");
     expect(state()).toEqual([["message", "открыта", null], ["call", "открыта", null]]);
     // Ответ с телефона магазина (эхо) — задача «ответить» сделана, звонок остаётся.
-    await chat.service.ingest(inbound({ externalId: "phone-1", isEcho: true, text: "Добрый день! 15 000 ₸", contactName: "" }));
+    await chat.service.ingest(inbound({ externalId: "phone-1", isEcho: true, at: phoneAt(), text: "Добрый день! 15 000 ₸", contactName: "" }));
     expect(state()).toEqual([["message", "закрыта", "ответили в чате"], ["call", "открыта", null]]);
     // Новая задача «ответить» — её закрывает ответ менеджера из CRM.
     await open("Ответить: Айгерим (бот)", "message");
@@ -633,7 +633,7 @@ describe("Задачи правил: срок в рабочем времени, 
     await crm.tasks.createSystem({ title: "Ответить: Айгерим (бот)", kind: "message", dueAt: new Date("2026-10-01T06:15:00Z"), dealId, assigneeId: "m1" });
     const state = () => [...crm.mem.tasks.rows.values()].map((t) => [t.title, t.doneAt ? "закрыта" : "открыта", t.result ?? null]);
     // Ответ на другой вопрос — с телефона магазина (эхо) и из CRM.
-    await chat.service.ingest(inbound({ externalId: "phone-1", isEcho: true, text: "Добрый день! 15 000 ₸", contactName: "" }));
+    await chat.service.ingest(inbound({ externalId: "phone-1", isEcho: true, at: phoneAt(), text: "Добрый день! 15 000 ₸", contactName: "" }));
     await chat.service.send(chat.conv().id, "Подскажу по срокам", "m1");
     expect(state()).toEqual([
       ["Написать: напомнить про дату события", "открыта", null],

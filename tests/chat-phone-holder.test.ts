@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { inbound, setup } from "./doubles/botHarness";
+import { inbound, setup, phoneAt } from "./doubles/botHarness";
 
 const holder = { id: "m2", name: "Салауат" };
 
@@ -9,7 +9,7 @@ describe("Телефон WhatsApp у сотрудника: ответ с тел�
     await t.service.ingest(inbound({ text: "Здравствуйте, сколько стоит?" }));
     const conv = t.conv();
     conv.assigneeId = "m1";
-    await t.service.ingest(inbound({ isEcho: true, text: "Здравствуйте! Сейчас подскажу" }));
+    await t.service.ingest(inbound({ isEcho: true, at: phoneAt(), text: "Здравствуйте! Сейчас подскажу" }));
     expect(t.claims).toEqual([{ dealId: conv.dealId, userId: "m2" }]);
     expect(t.notified.some((n) => n.title.includes("Заявку взял(а) Салауат"))).toBe(true);
   });
@@ -19,7 +19,7 @@ describe("Телефон WhatsApp у сотрудника: ответ с тел�
     await t.service.ingest(inbound({ text: "Здравствуйте" }));
     const conv = t.conv();
     conv.assigneeId = "m1";
-    await t.service.ingest(inbound({ isEcho: true, text: "Добрый день" }));
+    await t.service.ingest(inbound({ isEcho: true, at: phoneAt(), text: "Добрый день" }));
     expect(t.claims).toHaveLength(1);
     expect(t.notified.some((n) => n.title.includes("Заявку взял"))).toBe(false);
   });
@@ -27,7 +27,7 @@ describe("Телефон WhatsApp у сотрудника: ответ с тел�
   it("телефон ни у кого не указан или сообщение ушло из CRM — ничего не меняется", async () => {
     const t = setup();
     await t.service.ingest(inbound({ text: "Здравствуйте" }));
-    await t.service.ingest(inbound({ isEcho: true, text: "Добрый день" }));
+    await t.service.ingest(inbound({ isEcho: true, at: phoneAt(), text: "Добрый день" }));
     expect(t.claims).toEqual([]);
     const t2 = setup({ phoneHolder: holder });
     await t2.service.ingest(inbound({ chatId: "77019998877", text: "Здравствуйте" }));

@@ -46,28 +46,28 @@ describe("скорость ответа людей в рабочих минут�
 
 describe("ответ с телефона магазина — тому, у кого телефон (analytics-1, analytics-d3)", () => {
   it("эхо записывается с держателем телефона; без отметки держателя — ни на кого", async () => {
-    const { setup, inbound } = await import("./doubles/botHarness");
+    const { setup, inbound, phoneAt } = await import("./doubles/botHarness");
     const held = setup({ phoneHolder: { id: "m7", name: "Айгерим" } });
     await held.service.ingest(inbound({ text: "Здравствуйте" }));
-    await held.service.ingest(inbound({ externalId: "echo-1", isEcho: true, text: "Добрый день!", contactName: "" }));
+    await held.service.ingest(inbound({ externalId: "echo-1", isEcho: true, at: phoneAt(), text: "Добрый день!", contactName: "" }));
     expect(held.msgs.find((m) => m.externalId === "echo-1")).toMatchObject({ dir: "out", attributedTo: "m7" });
     const free = setup();
     await free.service.ingest(inbound({ text: "Здравствуйте" }));
-    await free.service.ingest(inbound({ externalId: "echo-2", isEcho: true, text: "Добрый день!", contactName: "" }));
+    await free.service.ingest(inbound({ externalId: "echo-2", isEcho: true, at: phoneAt(), text: "Добрый день!", contactName: "" }));
     expect(free.msgs.find((m) => m.externalId === "echo-2")?.attributedTo).toBeNull();
   });
 });
 
 describe("ответ с телефона без отметки держателя принимает заявку (chats-d2)", () => {
   it("заявка становится взятой на её ответственного — круг её больше не отнимет", async () => {
-    const { setup, inbound } = await import("./doubles/botHarness");
+    const { setup, inbound, phoneAt } = await import("./doubles/botHarness");
     const t = setup();
     await t.service.ingest(inbound({ text: "Здравствуйте" }));
     const conv = t.conv();
     conv.assigneeId = "m3";
     const deal = t.deals.find((d) => d.id === conv.dealId)!;
     expect(deal.unsorted).toBe(true);
-    await t.service.ingest(inbound({ externalId: "echo-9", isEcho: true, text: "Добрый день!", contactName: "" }));
+    await t.service.ingest(inbound({ externalId: "echo-9", isEcho: true, at: phoneAt(), text: "Добрый день!", contactName: "" }));
     expect(deal.unsorted).toBe(false);
   });
 });

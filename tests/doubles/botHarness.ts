@@ -177,7 +177,13 @@ export function setup(
       if (p) p.externalId = ext;
       return !!p;
     },
-    insertEcho: async (conv, m, attributedTo) => !!msgs.push({ id: `m${++seq}`, conv, dir: "out", text: m.text, type: m.type, at: m.at, externalId: m.externalId, status: "sent", attributedTo: attributedTo ?? null, replyToId: replyRef(conv, m.replyToExternalId) }),
+    insertEcho: async (conv, m, attributedTo, source) => !!msgs.push({ id: `m${++seq}`, conv, dir: "out", text: m.text, type: m.type, at: m.at, externalId: m.externalId, status: "sent", attributedTo: attributedTo ?? null, replyToId: replyRef(conv, m.replyToExternalId), ...(source ? { source } : {}) }),
+    recent: async (conv, limit) =>
+      msgs
+        .filter((x) => x.conv === conv)
+        .sort((a, b) => a.at.getTime() - b.at.getTime())
+        .slice(-limit)
+        .map((x) => ({ direction: x.dir, source: x.source ?? null, internal: !!x.internal, createdAt: x.at })),
     insertOutgoing: async (conv, text, authorId, internal, source, extra = {}) => {
       const m: Msg = { id: `m${++seq}`, conv, dir: "out", text, type: extra.type ?? "text", at: now, externalId: null, status: "pending", source: source ?? null, internal: !!internal, authorId, mediaUrl: extra.mediaUrl ?? null, replyToId: extra.replyToId ?? null, forwarded: !!extra.forwarded };
       msgs.push(m);
@@ -389,5 +395,7 @@ export function setup(
 }
 
 let ext = 0;
+/** Время ответа человека с телефона: позже окна автоприветствия WhatsApp Business (эхо в первые 30 с — приветствие). */
+export const phoneAt = (ms = 60_000) => new Date(start.getTime() + ms);
 export const inbound = (p: Partial<InboundMessage> = {}): InboundMessage => ({ externalId: `e${++ext}`, channelId: "ch", chatType: "whatsapp", chatId: "77011234567", at: start, isEcho: false, type: "text", text: "Здравствуйте", mediaUrl: null, contactName: "Айгерим", avatarUrl: null, status: null, ...p });
 

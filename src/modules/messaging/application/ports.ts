@@ -88,7 +88,8 @@ export interface StoredMessage {
   externalId: string | null;
   internal: boolean;
   authorId: string | null;
-  source: MessageSource | null;
+  /** system — автоприветствие WhatsApp Business (эхо с телефона, но не ответ человека). */
+  source: MessageSource | "system" | null;
   status: string;
   /** Текст ошибки отправки (status «error»); у репозиториев без него — не известен. */
   error?: string | null;
@@ -117,7 +118,10 @@ export interface MessageRepository {
   /** Эхо нашего же сообщения, отправленного только что: дописать ему внешний ID. */
   claimPendingEcho(conversationId: string, text: string, since: Date, externalId: string): Promise<boolean>;
   /** attributedTo — у кого был телефон магазина (отчёт по менеджерам); история задним числом — без него. */
-  insertEcho(conversationId: string, m: InboundMessage, attributedTo?: string | null): Promise<boolean>;
+  /** source system — автоприветствие WhatsApp Business: в ленте, но не ответ человека (в отчётах и для бота — как автоматическое). */
+  insertEcho(conversationId: string, m: InboundMessage, attributedTo?: string | null, source?: "system" | null): Promise<boolean>;
+  /** Последние limit сообщений диалога, от старых к новым, — для распознавания автоприветствия. */
+  recent(conversationId: string, limit: number): Promise<{ direction: "in" | "out"; source: string | null; internal: boolean; createdAt: Date }[]>;
   /** source — кто отправил без сотрудника: бот или правило (в чате подписываются «бот» / «автоматически»). */
   insertOutgoing(conversationId: string, text: string, authorId: string | null, internal?: boolean, source?: MessageSource, extra?: OutgoingExtra): Promise<OutgoingMessage>;
   /** Сообщение для правки, удаления, ответа и пересылки. */

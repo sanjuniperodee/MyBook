@@ -15,6 +15,7 @@ import {
   preview,
   redactSecrets,
   hasRedactedSecret,
+  isAutoGreetingEcho,
   isGatewayDown,
   RESEND_MARK,
   sensitiveWhat,
@@ -240,6 +241,14 @@ export class MessagingService {
       if (await this.messages.existsExternal(m.externalId)) return;
       // Окно «только что отправили» — от времени самого сообщения: эхо, догнанное сверкой со шлюзом, приходит позже.
       if (await this.messages.claimPendingEcho(base.id, m.text, new Date(Math.min(this.clock.now().getTime(), m.at.getTime()) - 120_000), m.externalId)) return;
+      // Автоприветствие WhatsApp Business — не ответ человека: в ленте как автоматическое, клиент всё ещё ждёт, заявка
+      // не принимается, задачи «ответить» не закрываются, бот продолжает диалог.
+      if (isAutoGreetingEcho(m.at, await this.messages.recent(base.id, 50))) {
+        if (!(await this.messages.insertEcho(base.id, m, null, "system"))) return;
+        await this.conversations.recordHistory(base.id, preview(m.text), m.at);
+        this.live.chatChanged(base.id);
+        return;
+      }
       // Ответ с телефона магазина — в отчёт по менеджерам тому, у кого сейчас телефон (analytics-d3).
       const holder = await this.phoneHolder().catch(() => null);
       const inserted = await this.atomic(async () => {

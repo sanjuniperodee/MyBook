@@ -252,10 +252,10 @@ export class DrizzleMessageRepository implements MessageRepository, MessageMedia
     return true;
   }
 
-  async insertEcho(conversationId: string, m: InboundMessage, attributedTo: string | null = null) {
+  async insertEcho(conversationId: string, m: InboundMessage, attributedTo: string | null = null, source: "system" | null = null) {
     const rows = await executor()
       .insert(crmMessages)
-      .values({ conversationId, direction: "out", type: m.type, text: m.text, mediaUrl: m.mediaUrl, card: m.card ?? null, externalId: m.externalId, status: "sent", createdAt: m.at, attributedTo, replyToId: replyRef(conversationId, m.replyToExternalId) })
+      .values({ conversationId, direction: "out", type: m.type, text: m.text, mediaUrl: m.mediaUrl, card: m.card ?? null, externalId: m.externalId, source, status: "sent", createdAt: m.at, attributedTo, replyToId: replyRef(conversationId, m.replyToExternalId) })
       .onConflictDoNothing()
       .returning({ id: crmMessages.id });
     return rows.length > 0;
@@ -380,6 +380,17 @@ export class DrizzleMessageRepository implements MessageRepository, MessageMedia
       .where(and(eq(crmMessages.status, "error"), gte(crmMessages.createdAt, since), sql`${crmMessages.source} is not null`, eq(crmMessages.internal, false), eq(crmMessages.type, "text"), isNull(crmMessages.deletedAt), sql`coalesce(${crmMessages.error}, '') not like ${`%${RESEND_MARK}%`}`))
       .orderBy(asc(crmMessages.createdAt))
       .limit(limit);
+  }
+
+  /** По индексу crm_messages_conv_idx (conversation_id, created_at). */
+  async recent(conversationId: string, limit: number) {
+    const rows = await executor()
+      .select({ direction: crmMessages.direction, source: crmMessages.source, internal: crmMessages.internal, createdAt: crmMessages.createdAt })
+      .from(crmMessages)
+      .where(eq(crmMessages.conversationId, conversationId))
+      .orderBy(desc(crmMessages.createdAt))
+      .limit(limit);
+    return rows.reverse();
   }
 
   /** По индексу crm_messages_conv_idx (conversation_id, created_at): только сообщения диалога с since. */

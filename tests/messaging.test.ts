@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { answerValue, contactChanges, contactPhone, defaultBotConfig, isMediaPlaceholder, preview, redactSecrets, shouldApplyStatus, type BotConfig, type Conversation, type InboundMessage } from "@/modules/messaging/domain";
 import { BOT_ABANDON_MS, BOT_PAUSE_MS, QualifierBot } from "@/modules/messaging/application";
-import { BOT_CONFIG, inbound, setup, start } from "./doubles/botHarness";
+import { BOT_CONFIG, inbound, setup, start, phoneAt } from "./doubles/botHarness";
 
 
 describe("домен переписки", () => {
@@ -51,6 +51,31 @@ describe("домен переписки", () => {
 // ─── инбокс и бот на двойниках ─────────────────────────────────────────────
 
 describe("MessagingService", () => {
+  it("автоприветствие WhatsApp Business (эхо через секунды после сообщения клиента): автоматическое, клиент ждёт, заявка не принята, бот работает", async () => {
+    const t = setup({ bot: "always" });
+    await t.service.ingest(inbound({ text: "Здравствуйте" }));
+    await t.service.ingest(inbound({ externalId: "G1", isEcho: true, text: "Спасибо, что написали в MyBooks!", contactName: "", at: new Date(start.getTime() + 6_000) }));
+    expect(t.msgs.find((m) => m.externalId === "G1")).toMatchObject({ dir: "out", source: "system", attributedTo: null });
+    expect(t.conv()).toMatchObject({ awaiting: start, unread: 1 });
+    expect(t.deals[0].unsorted).toBe(true);
+    expect(t.conv().botState?.outcome).not.toBe("stopped_by_manager");
+    // Живой ответ с телефона после приветствия по-прежнему останавливает бота.
+    await t.service.ingest(inbound({ externalId: "P1", isEcho: true, text: "Сейчас подскажу", contactName: "", at: phoneAt() }));
+    expect(t.msgs.find((m) => m.externalId === "P1")?.source ?? null).toBeNull();
+    expect(t.conv().botState).toMatchObject({ outcome: "stopped_by_manager", reason: "phone" });
+  });
+
+  it("быстрый ответ с телефона после недавней переписки с магазином — не автоприветствие", async () => {
+    const t = setup();
+    const day = 86_400_000;
+    await t.service.ingest(inbound({ externalId: "A1", at: new Date(start.getTime() - 3 * day) }));
+    await t.service.ingest(inbound({ externalId: "P0", isEcho: true, text: "Макет готов", contactName: "", at: new Date(start.getTime() - 3 * day + 600_000) }));
+    await t.service.ingest(inbound({ externalId: "A2" }));
+    await t.service.ingest(inbound({ externalId: "P1", isEcho: true, text: "Да, конечно", contactName: "", at: new Date(start.getTime() + 5_000) }));
+    expect(t.msgs.find((m) => m.externalId === "P1")?.source ?? null).toBeNull();
+    expect(t.conv()).toMatchObject({ awaiting: null });
+  });
+
   it("ответ клиента на сообщение — с цитатой исходного; исходного у нас нет — без цитаты", async () => {
     const { service, msgs } = setup();
     await service.ingest(inbound({ externalId: "Q1", text: "Сколько стоит книга?" }));
@@ -177,8 +202,8 @@ describe("бот в инбоксе", () => {
     const t = setup({ bot: "always" });
     await t.service.ingest(inbound({ text: "Здравствуйте" }));
     await t.advance(BOT_PAUSE_MS + 1);
-    await t.service.ingest(inbound({ isEcho: true, externalId: "phone-1", text: "Ау" }));
-    await t.service.ingest(inbound({ isEcho: true, externalId: "phone-2", text: "Это бот" }));
+    await t.service.ingest(inbound({ isEcho: true, at: phoneAt(), externalId: "phone-1", text: "Ау" }));
+    await t.service.ingest(inbound({ isEcho: true, at: phoneAt(), externalId: "phone-2", text: "Это бот" }));
     await t.service.ingest(inbound({ text: "для мамы" }));
     await t.advance(BOT_PAUSE_MS + 1);
     await t.advance(BOT_ABANDON_MS + 1);
@@ -194,7 +219,7 @@ describe("бот в инбоксе", () => {
   it("менеджер ответил с телефона во время паузы — бот так и не пишет", async () => {
     const t = setup({ bot: "always" });
     await t.service.ingest(inbound({ text: "Добрый день" }));
-    await t.service.ingest(inbound({ isEcho: true, externalId: "phone-1", text: "Здравствуйте! Я ваш личный менеджер" }));
+    await t.service.ingest(inbound({ isEcho: true, at: phoneAt(), externalId: "phone-1", text: "Здравствуйте! Я ваш личный менеджер" }));
     await t.advance(BOT_PAUSE_MS + 1);
     expect(t.sent).toEqual([]);
     expect(t.conv().botState).toMatchObject({ outcome: "stopped_by_manager", reason: "phone" });
@@ -254,7 +279,7 @@ describe("бот в инбоксе", () => {
     await t.service.ingest(inbound({ text: "для мамы" }));
     const setField = t.deps.sales.setField;
     t.deps.sales.setField = async (...a) => {
-      await t.service.ingest(inbound({ isEcho: true, externalId: "phone-mid", text: "Сейчас подскажу по цене" }));
+      await t.service.ingest(inbound({ isEcho: true, at: phoneAt(), externalId: "phone-mid", text: "Сейчас подскажу по цене" }));
       return setField(...a);
     };
     await t.advance(BOT_PAUSE_MS + 1);
@@ -291,7 +316,7 @@ describe("бот в инбоксе", () => {
     await answered.service.ingest(inbound());
     await answered.advance(60_000);
     expect(answered.sent).toEqual([]);
-    await answered.service.ingest(inbound({ isEcho: true, externalId: "phone-1", text: "Добрый день!" }));
+    await answered.service.ingest(inbound({ isEcho: true, at: phoneAt(), externalId: "phone-1", text: "Добрый день!" }));
     await answered.advance(5 * 60_000);
     expect(answered.sent).toEqual([]);
 
