@@ -15,7 +15,7 @@ export type { DealView, NewDeal, DealInvoicesPort } from "./application";
 export type { ReceiptRow } from "./infrastructure/receipts";
 export type { DealAgreement } from "./infrastructure/agreements";
 export type { PaymentRow } from "./infrastructure/payments";
-export { MAX_PAYMENT, PaymentError, RECEIPT_MAX_BYTES, ReceiptError } from "./domain";
+export { MAX_PAYMENT, PaymentError, RECEIPT_MAX_BYTES, ReceiptError, ReceiptUsedError } from "./domain";
 
 /** Публичный фасад контекста «Продажи»: сделки, воронки, этапы, дубли, воронка по действиям на сайте. */
 export class SalesModule {

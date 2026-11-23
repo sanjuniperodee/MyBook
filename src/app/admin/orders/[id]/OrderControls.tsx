@@ -4,8 +4,8 @@ import { ask, promptText, toast } from "@/components/ui/overlays";
 import { PayFormPicker } from "@/components/admin/PayFormPicker";
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRightLeft, BookCopy, CircleCheck, CreditCard, Download, FileArchive, LoaderCircle, Printer, Receipt, RefreshCw, Truck, Undo2 } from "lucide-react";
-import { changeOrderTermsAction, generateFilesAction, reviewOrderPaymentAction, saveAdminNoteAction, startPostpayAction, toggleBookLockAction, updateOrderAction, updateOrderDetailsAction, type AdminState } from "../../actions";
+import { ArrowRightLeft, BookCopy, Ban, CircleCheck, CreditCard, Download, FileArchive, LoaderCircle, Printer, Receipt, RefreshCw, Send, Truck, Undo2 } from "lucide-react";
+import { changeOrderTermsAction, generateFilesAction, requestOrderRepriceAction, reviewOrderPaymentAction, saveAdminNoteAction, startPostpayAction, toggleBookLockAction, updateOrderAction, updateOrderDetailsAction, voidOrderPaymentAction, type AdminState } from "../../actions";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { Alert } from "@/components/ui/Alert";
 import { prepareAndDownload, RenderStatus, useRenderJob } from "@/components/ui/RenderProgress";
@@ -264,8 +264,10 @@ export function DetailsForm({
 }
 
 /**
- * Тариф и договорённая цена книги, пока заказ не оплачен. Пустая сумма — по прайсу тарифа; промокод, доставка, допы и внесённая
+ * Тариф и договорённая цена книги. Неоплаченный заказ: пустая сумма — по прайсу тарифа; промокод, доставка, допы и внесённая
  * предоплата остаются. Открытый счёт Kaspi на старую сумму закроется — выставьте новый.
+ * Оплаченный (paid — только у руководителя): тариф не меняется, только цена, и обязательна причина; полученное больше новой
+ * суммы — переплата к возврату, меньше — заказ снова ждёт доплату.
  */
 export function TermsForm({
   orderId,
@@ -273,6 +275,7 @@ export function TermsForm({
   agreed,
   plans,
   maxPercent,
+  paid,
 }: {
   orderId: string;
   plan: string;
@@ -281,33 +284,90 @@ export function TermsForm({
   plans: { id: string; label: string; price: number }[];
   /** Лимит скидки сотрудника, %; null — без лимита. */
   maxPercent: number | null;
+  /** Заказ оплачен: сколько получено и к оплате сейчас. */
+  paid?: { received: number; due: number } | null;
 }) {
   const [state, action] = useActionState<AdminState, FormData>(changeOrderTermsAction, {});
   const [planId, setPlanId] = useState(plan);
   const [price, setPrice] = useState(agreed === null ? "" : String(agreed));
   const list = plans.find((p) => p.id === planId)?.price ?? 0;
+  const money = (n: number) => `${n.toLocaleString("ru-RU")} ₸`;
   return (
     <form action={action} className="space-y-3" data-testid="order-terms">
       <input type="hidden" name="orderId" value={orderId} />
-      <Field label="Тариф">
-        <select name="plan" value={planId} onChange={(e) => setPlanId(e.target.value)} className="input">
-          {plans.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.label} · {p.price.toLocaleString("ru-RU")} ₸
-            </option>
-          ))}
-        </select>
-      </Field>
+      {paid ? (
+        <>
+          <input type="hidden" name="plan" value={planId} />
+          <Alert kind="warning">
+            Заказ оплачен: получено {money(paid.received)} из {money(paid.due)}. Новая сумма меньше полученного — разница станет переплатой (задача «возврат или зачёт»); больше — заказ снова будет ждать доплату остатка.
+          </Alert>
+        </>
+      ) : (
+        <Field label="Тариф">
+          <select name="plan" value={planId} onChange={(e) => setPlanId(e.target.value)} className="input">
+            {plans.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.label} · {p.price.toLocaleString("ru-RU")} ₸
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
       <div>
         <Field label="Договорённая цена книги, ₸">
           <input name="agreedTotal" type="number" inputMode="numeric" min={1} step={1} value={price} onChange={(e) => setPrice(e.target.value)} placeholder={`по прайсу: ${list.toLocaleString("ru-RU")}`} className="input" />
         </Field>
         <DiscountHint list={{ listPrice: list, planless: false }} price={Number(price) || 0} maxPercent={maxPercent} />
       </div>
+      {paid ? (
+        <Field label="Причина" hint="Попадёт в журнал заказа и журнал действий">
+          <textarea name="reason" required minLength={3} maxLength={500} rows={2} placeholder="Например: договорились на 25 000 ₸ в переписке 12.11, заказ создали по прайсу" className="input min-h-16 py-2" />
+        </Field>
+      ) : null}
       {state.error ? <Alert>{state.error}</Alert> : null}
       {state.ok ? <Alert kind="success">{state.ok}</Alert> : null}
-      <SubmitButton className="btn-outline w-full">Сохранить тариф и цену</SubmitButton>
-      <p className="text-xs text-muted">Доставка, допы, промокод и внесённая предоплата остаются. Открытый счёт Kaspi закроется — выставьте новый на новую сумму.</p>
+      <SubmitButton className="btn-outline w-full">{paid ? "Изменить цену оплаченного заказа" : "Сохранить тариф и цену"}</SubmitButton>
+      <p className="text-xs text-muted">Доставка, допы, промокод и внесённая предоплата остаются. Открытый счёт Kaspi закроется — выставьте новый на новую сумму. Сумма сделки изменится вместе с заказом.</p>
+    </form>
+  );
+}
+
+/**
+ * Заказ оплачен, а права менять его цену нет: менеджер не «закрывает разницу» фиктивным платежом, а просит руководителя —
+ * заметка в журнале заказа и уведомление тем, у кого право есть.
+ */
+export function RepriceRequestForm({ orderId, agreed }: { orderId: string; agreed: number | null }) {
+  const [pending, start] = useTransition();
+  const [price, setPrice] = useState(agreed === null ? "" : String(agreed));
+  const [reason, setReason] = useState("");
+  const [state, setState] = useState<AdminState>({});
+  return (
+    <form
+      className="space-y-3"
+      data-testid="order-reprice-request"
+      onSubmit={(e) => {
+        e.preventDefault();
+        start(async () => {
+          const r = await requestOrderRepriceAction(orderId, price, reason);
+          setState(r);
+          if (r.ok) setReason("");
+        });
+      }}
+    >
+      <p className="text-sm text-ink-soft">
+        Заказ уже оплачен — договорённую цену меняет руководитель. Не закрывайте разницу платежом без денег: попросите его здесь, он получит уведомление со ссылкой на заказ.
+      </p>
+      <Field label="Договорённая цена книги, ₸">
+        <input type="number" inputMode="numeric" min={1} step={1} required value={price} onChange={(e) => setPrice(e.target.value)} className="input" />
+      </Field>
+      <Field label="О чём договорились" hint="Где и когда: переписка, звонок">
+        <textarea required minLength={3} maxLength={500} rows={2} value={reason} onChange={(e) => setReason(e.target.value)} className="input min-h-16 py-2" />
+      </Field>
+      {state.error ? <Alert>{state.error}</Alert> : null}
+      {state.ok ? <Alert kind="success">{state.ok}</Alert> : null}
+      <button className="btn btn-outline btn-sm w-full" disabled={pending}>
+        {pending ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : <Send className="size-4" aria-hidden />} Попросить руководителя
+      </button>
     </form>
   );
 }
@@ -327,6 +387,8 @@ export interface OrderMoneyRow {
   by: string | null;
   /** Форма оплаты (Kaspi Gold, Kaspi Рассрочка…): по ней — комиссия банка. */
   payForm?: string | null;
+  /** Отменён руководителем как ошибочный: кто, когда и почему (в деньгах не считается). */
+  voided?: { label: string; reason: string } | null;
 }
 
 const methodLabels = { manual: "Перевод", kaspi: "Kaspi", cloudpayments: "Карта" } as const;
@@ -345,6 +407,7 @@ export function OrderMoney({
   rows,
   canEdit,
   canReview,
+  canVoid = false,
   orderNumber,
   refundable = 0,
   digital = false,
@@ -364,6 +427,8 @@ export function OrderMoney({
   rows: OrderMoneyRow[];
   canEdit: boolean;
   canReview: boolean;
+  /** Руководитель: может отменить ошибочный ручной платёж (право «Отменять ошибочные платежи заказа»). */
+  canVoid?: boolean;
   /** Варианты формы оплаты (поле сделки «Форма оплаты»). */
   payForms?: string[];
 }) {
@@ -407,6 +472,32 @@ export function OrderMoney({
     if (window.location.hash === "#pay") history.replaceState(null, "", window.location.pathname + window.location.search);
   };
   const share = due > 0 ? Math.min(1, received / due) : received > 0 ? 1 : 0;
+  // Отменить ошибочный платёж: причина обязательна; проверенный руководителем — с явным предупреждением.
+  const voidPayment = async (r: OrderMoneyRow) => {
+    const what = r.kind === "refund" ? `возврат ${money(r.amount)}` : `платёж ${money(r.amount)}`;
+    const reason = await promptText({
+      title: `Отменить ${what} как ошибочный?`,
+      text: [
+        r.kind === "refund" ? `«Получено» увеличится на ${money(r.amount)}.` : `«Получено» уменьшится на ${money(r.amount)}; если денег не хватит, заказ снова будет ждать оплату.`,
+        "Запись останется в журнале с пометкой «отменён», но не попадёт в финансы, выручку и комиссии. Если деньги на самом деле пришли или ушли — не отменяйте, а оформите возврат.",
+        r.reviewed ? `Внимание: этот платёж уже отмечен проверенным (${r.reviewed}) — отменяйте, только если сверка была ошибочной.` : null,
+      ]
+        .filter(Boolean)
+        .join(" "),
+      confirmLabel: "Отменить платёж",
+      danger: true,
+      input: { required: true, placeholder: "Причина: например, «фиктивная доплата тем же чеком, денег нет»", maxLength: 500 },
+    });
+    if (reason === null) return;
+    start(async () => {
+      const res = await voidOrderPaymentAction(r.id, reason);
+      if (res.error) toast(res.error, "error");
+      else {
+        toast(res.ok ?? "Платёж отменён");
+        router.refresh();
+      }
+    });
+  };
   return (
     <div className="space-y-4 text-sm" data-testid="order-money">
       <div>
@@ -425,22 +516,28 @@ export function OrderMoney({
             <span className="font-medium tabular-nums">{money(outstanding)}</span>
           </div>
         ) : null}
-        {settled && !rows.length && due > 0 ? <Alert kind="warning" className="mt-2">Оплата подтверждена без денег в журнале — прикрепите оплату с чеком.</Alert> : null}
+        {settled && !rows.some((r) => !r.voided) && due > 0 ? <Alert kind="warning" className="mt-2">Оплата подтверждена без денег в журнале — прикрепите оплату с чеком.</Alert> : null}
       </div>
       {rows.length ? (
         <ul className="divide-y divide-line rounded-[10px] border border-line">
           {rows.map((r) => (
-            <li key={r.id} className="flex flex-wrap items-start gap-x-3 gap-y-1 px-3 py-2.5">
+            <li key={r.id} className={cn("flex flex-wrap items-start gap-x-3 gap-y-1 px-3 py-2.5", r.voided && "bg-sunken/60")}>
               <span className="min-w-0 flex-1">
                 <span className="flex flex-wrap items-center gap-x-2">
-                  <b className={cn("font-semibold tabular-nums", r.kind === "refund" && "text-danger")}>{r.kind === "refund" ? `−${money(r.amount)}` : money(r.amount)}</b>
+                  <b className={cn("font-semibold tabular-nums", r.kind === "refund" && "text-danger", r.voided && "text-muted line-through")}>{r.kind === "refund" ? `−${money(r.amount)}` : money(r.amount)}</b>
                   {r.kind === "refund" ? <Badge tone="danger">возврат</Badge> : <Badge>{methodLabels[r.method]}</Badge>}
+                  {r.voided ? <Badge tone="warning">отменён</Badge> : null}
                   {r.payForm ? <Badge>{r.payForm}</Badge> : null}
                   <span className="text-xs text-muted">{r.paidLabel}</span>
                 </span>
                 <span className="mt-0.5 block text-xs text-muted">
                   {[r.ref ? `операция ${r.ref}` : null, r.by, r.note || null].filter(Boolean).join(", ")}
                 </span>
+                {r.voided ? (
+                  <span className="mt-0.5 block text-xs text-warning">
+                    Отменён как ошибочный: {r.voided.reason} ({r.voided.label}). В «получено» и финансах не считается.
+                  </span>
+                ) : null}
               </span>
               <span className="flex items-center gap-2 text-xs">
                 {r.receipt ? (
@@ -448,7 +545,12 @@ export function OrderMoney({
                     <Receipt className="size-3.5" aria-hidden /> чек
                   </a>
                 ) : null}
-                {r.method === "manual" ? (
+                {r.method === "manual" && !r.voided && canVoid ? (
+                  <button type="button" className="btn btn-ghost btn-sm h-7 px-2 text-xs text-danger" disabled={pending} onClick={() => voidPayment(r)} title="Ошибочная запись: денег не было или не тот заказ">
+                    <Ban className="size-3.5" aria-hidden /> Отменить
+                  </button>
+                ) : null}
+                {r.method === "manual" && !r.voided ? (
                   r.reviewed ? (
                     <Badge tone="success" title={`Проверено: ${r.reviewed}`}>
                       проверено

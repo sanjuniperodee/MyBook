@@ -602,6 +602,20 @@ export class SiteFunnelService {
   }
 
   /**
+   * Сумма заказа изменилась (условия, цена оплаченного заказа руководителем, перевод в печатную): сумма сделки — итог
+   * заказа (к оплате + предоплата по сделке), как при оформлении, иначе сделка, план и реестр показывают старую цену.
+   * В ленту сделки — заметка, откуда новая сумма.
+   */
+  async orderRepriced(order: { id: string; number: number; total: number; previousTotal: number }) {
+    for (const d of await this.deals.findByOrder(order.id)) {
+      if (d.amount === order.total) continue;
+      d.setAmount(order.total);
+      await this.deals.save(d);
+      await this.service.note(d, `Сумма заказа №${order.number} изменена: ${order.previousTotal.toLocaleString("ru-RU")} ₸ → ${order.total.toLocaleString("ru-RU")} ₸ — сумма сделки тоже.`, null);
+    }
+  }
+
+  /**
    * Отмена заказа. Сделка, которая держит деньги клиента (договорённость с предоплатой — ручная или оплаченная по счёту
    * из чата), отвязывается от заказа и возвращается в работу: договорённость снова действует (agreementForClient), по ней
    * можно выставить счёт, а менеджер видит в ленте, что деньги остались и нужно решить — продолжать или вернуть.

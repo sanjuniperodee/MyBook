@@ -256,12 +256,21 @@ export class OrdersService {
     return this.mutate(cmd.orderId, (order, now) => order.updateDetails(cmd.contact, cmd.delivery, { desiredDate: cmd.desiredDate, giftNote: cmd.giftNote }, actor.label, now));
   }
 
-  /** Менеджер меняет тариф и договорённую цену книги неоплаченного заказа (null — по прайсу тарифа). Промокод заказа остаётся в силе. */
-  async changeTerms(cmd: { orderId: string; plan: PlanId; agreedTotal: number | null }, actor: Actor) {
-    return this.mutate(cmd.orderId, async (order, now) => {
+  /**
+   * Менеджер меняет тариф и договорённую цену книги неоплаченного заказа (null — по прайсу тарифа). Промокод заказа остаётся
+   * в силе. Оплаченного — только руководитель (settled: право проверяет веб-слой) и только цену, с причиной (Order.changeTerms).
+   * Под блокировкой заказа: одновременная оплата не потеряется.
+   */
+  async changeTerms(cmd: { orderId: string; plan: PlanId; agreedTotal: number | null; settled?: { reason: string } | null }, actor: Actor) {
+    return this.uow.run(async () => {
+      const order = await this.orders.lockById(cmd.orderId);
+      if (!order) throw new OrderingError("orderNotFound");
       const code = order.promoCode;
       const promo = code ? await this.promos.findByCode(code) : null;
-      order.changeTerms({ plan: cmd.plan, agreedTotal: cmd.agreedTotal, discount: promo?.discount ?? null, planName: (id) => planName(id) }, actor.label, now);
+      const result = order.changeTerms({ plan: cmd.plan, agreedTotal: cmd.agreedTotal, discount: promo?.discount ?? null, planName: (id) => planName(id), settled: cmd.settled ?? null }, actor.label, this.clock.now());
+      await this.orders.save(order);
+      this.uow.track(order);
+      return { order, ...result };
     });
   }
 

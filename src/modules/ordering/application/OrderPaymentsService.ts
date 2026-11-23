@@ -1,5 +1,6 @@
 import type { Actor, Clock, UnitOfWork } from "@/shared/application";
-import { receiptProblem, safeReceiptName, sniffReceipt } from "@/shared/domain/receipt";
+import { storeTimeZone } from "@/shared/domain/time";
+import { receiptProblem, receiptUsedText, safeReceiptName, sniffReceipt, type ReceiptCheck } from "@/shared/domain/receipt";
 import { ORDER_MONEY_LABELS, OrderingError, type OrderPaymentRecord, type OrderPaymentRepository, type OrderRepository } from "../domain";
 
 /** Файлы чеков заказа в хранилище (orders/<заказ>/payments/<id>.<тип>). */
@@ -44,6 +45,16 @@ export interface RefundInput {
   actor: Actor & { userId: string };
 }
 
+export interface VoidPaymentInput {
+  paymentId: string;
+  /** Причина — в журнал заказа, журнал оплат и журнал действий (от 3 символов). */
+  reason: string;
+  actor: Actor & { userId: string };
+}
+
+/** Чек не проверяем на повтор (тесты, скрипты без базы): хэш пустой, совпадений нет. */
+const noReceiptCheck: ReceiptCheck = async () => ({ sha256: "", use: null });
+
 /** Самая поздняя дата оплаты, которую принимаем: сегодня (дата «из будущего» — опечатка). */
 const notInFuture = (paidAt: Date, now: Date) => paidAt.getTime() <= now.getTime() + 60_000;
 
@@ -59,7 +70,16 @@ export class OrderPaymentsService {
     private readonly files: ReceiptFiles,
     private readonly uow: UnitOfWork,
     private readonly clock: Clock,
+    /** Хэш чека и где он уже приложен: один перевод — один платёж (фиктивную «доплату» тем же чеком не записать). */
+    private readonly checkReceipt: ReceiptCheck = noReceiptCheck,
   ) {}
+
+  /** Чек уже приложен к другому живому платежу (заказа или сделки) — отказ с тем, к какому; иначе хэш для записи. */
+  private async receiptHash(bytes: Buffer): Promise<string | null> {
+    const { sha256, use } = await this.checkReceipt(bytes);
+    if (use) throw new OrderingError("paymentRule", receiptUsedText(use));
+    return sha256 || null;
+  }
 
   list(orderId: string) {
     return this.payments.list(orderId);
@@ -83,6 +103,7 @@ export class OrderPaymentsService {
     const problem = receiptProblem(input.receipt.bytes);
     const type = sniffReceipt(input.receipt.bytes);
     if (problem || !type) throw new OrderingError("receiptInvalid", problem ?? "type");
+    const sha256 = await this.receiptHash(input.receipt.bytes);
     const id = this.payments.nextId();
     const storageKey = `orders/${input.orderId}/payments/${id}.${type.ext}`;
     // Чек — до денег: без чека оплата не записывается; не записалась — файл убираем.
@@ -91,7 +112,7 @@ export class OrderPaymentsService {
       return await this.uow.run(async () => {
         const order = await this.orders.lockById(input.orderId);
         if (!order) throw new OrderingError("orderNotFound");
-        const receipt = { storageKey, fileName: safeReceiptName(input.receipt.fileName, type.ext), mime: type.mime, size: input.receipt.bytes.length };
+        const receipt = { storageKey, fileName: safeReceiptName(input.receipt.fileName, type.ext), mime: type.mime, size: input.receipt.bytes.length, sha256 };
         const record = { id, orderId: order.id, kind: "payment" as const, amount: input.amount, method: "manual" as const, externalRef: null, payForm: input.payForm ?? null, paidAt: input.paidAt, note: input.note.trim().slice(0, 500), receipt, createdById: input.actor.userId };
         const result = order.receiveMoney({ paymentId: `manual:${id}`, amount: input.amount, method: "manual", paidAt: input.paidAt, label: `${ORDER_MONEY_LABELS.manual}, чек ${receipt.fileName}${record.note ? ` — ${record.note}` : ""}`, actor: input.actor.label });
         await this.payments.add(record);
@@ -124,7 +145,8 @@ export class OrderPaymentsService {
       const problem = receiptProblem(input.receipt.bytes);
       const type = sniffReceipt(input.receipt.bytes);
       if (problem || !type) throw new OrderingError("receiptInvalid", problem ?? "type");
-      receipt = { storageKey: `orders/${input.orderId}/payments/${id}.${type.ext}`, fileName: safeReceiptName(input.receipt.fileName, type.ext), mime: type.mime, size: input.receipt.bytes.length };
+      const sha256 = await this.receiptHash(input.receipt.bytes);
+      receipt = { storageKey: `orders/${input.orderId}/payments/${id}.${type.ext}`, fileName: safeReceiptName(input.receipt.fileName, type.ext), mime: type.mime, size: input.receipt.bytes.length, sha256 };
       await this.files.put(receipt.storageKey, input.receipt.bytes);
     }
     try {
@@ -142,6 +164,35 @@ export class OrderPaymentsService {
       if (receipt) await this.files.remove(receipt.storageKey).catch(() => {});
       throw err;
     }
+  }
+
+  /**
+   * Руководитель отменяет ошибочный ручной платёж (или возврат): запись остаётся в журнале оплат с пометкой, кто, когда и
+   * почему, но в «получено», финансы, выручку и комиссии больше не входит; заказ пересчитывает деньги (Order.voidMoney) —
+   * не хватает, снова ждёт доплату. Онлайн-оплату так не отменить: её подтвердила платёжная система (деньги пришли —
+   * только возврат). Под блокировкой заказа, чтобы одновременная оплата не потерялась.
+   */
+  async voidPayment(input: VoidPaymentInput): Promise<{ payment: OrderPaymentRecord; received: number; outstanding: number; reopened: boolean }> {
+    const reason = input.reason.trim().slice(0, 500);
+    if (reason.length < 3) throw new OrderingError("paymentRule", "Укажите причину отмены платежа");
+    const found = await this.payments.find(input.paymentId);
+    if (!found) throw new OrderingError("paymentRule", "Платёж не найден");
+    if (found.method !== "manual") throw new OrderingError("paymentRule", "Онлайн-оплату подтвердила платёжная система — её не отменить, только вернуть клиенту");
+    if (found.voidedAt) throw new OrderingError("paymentRule", "Платёж уже отменён");
+    const now = this.clock.now();
+    return this.uow.run(async () => {
+      const order = await this.orders.lockById(found.orderId);
+      if (!order) throw new OrderingError("orderNotFound");
+      // Повторно — под блокировкой: два руководителя одновременно не отменят платёж дважды.
+      const p = await this.payments.find(found.id);
+      if (!p || p.voidedAt) throw new OrderingError("paymentRule", "Платёж уже отменён");
+      const label = `${ORDER_MONEY_LABELS.manual} от ${new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", timeZone: storeTimeZone() }).format(p.paidAt)}${p.receipt ? `, чек ${p.receipt.fileName}` : ""}${p.reviewedAt ? ", был отмечен проверенным" : ""}`;
+      const result = order.voidMoney({ kind: p.kind, amount: p.amount, label, reason, actor: input.actor.label, now });
+      await this.payments.void(p.id, input.actor.userId, now, reason);
+      await this.orders.save(order);
+      this.uow.track(order);
+      return { payment: { ...p, voidedAt: now, voidedById: input.actor.userId, voidReason: reason }, ...result };
+    });
   }
 
   /** Онлайн-оплата (вебхук или сверка): "recorded" — деньги записаны, "duplicate" — эта операция уже была. */
@@ -167,7 +218,7 @@ export class OrderPaymentsService {
   /** Руководитель сверил ручную оплату с выпиской. */
   async review(paymentId: string, reviewerId: string) {
     const p = await this.payments.find(paymentId);
-    if (!p || p.method !== "manual" || p.reviewedAt) return null;
+    if (!p || p.method !== "manual" || p.reviewedAt || p.voidedAt) return null;
     await this.payments.review(p.id, reviewerId, this.clock.now());
     return p;
   }

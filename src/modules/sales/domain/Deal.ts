@@ -116,6 +116,9 @@ export class Deal extends AggregateRoot<DealProps> {
   get orderId() {
     return this.props.orderId;
   }
+  get amount() {
+    return this.props.amount;
+  }
   get source() {
     return this.props.source;
   }

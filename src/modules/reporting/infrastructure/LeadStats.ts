@@ -107,14 +107,14 @@ export async function salesRegister(range: { from: Date; to: Date }): Promise<Re
       f.first_at, f.paid,
       (select p.method from crm_payments p where p.deal_id = d.id and p.kind <> 'refund' order by p.paid_at limit 1) as method,
       o.id as order_id, o.number as order_number, o.status as order_status, o.city, o.desired_date, o.amount as order_due, o.quantity,
-      coalesce((select sum(case when op.kind = 'refund' then -op.amount else op.amount end) from order_payments op where op.order_id = o.id), 0)::int as order_paid,
+      coalesce((select sum(case when op.kind = 'refund' then -op.amount else op.amount end) from order_payments op where op.order_id = o.id and op.voided_at is null), 0)::int as order_paid,
       (o.paid_at is not null) as order_settled,
       -- Деньги с указанной формой оплаты платежа (форма → сумма): комиссия с них — по их форме, с остального — по форме сделки.
       (select json_object_agg(z.form, z.s) from (
         select x.form, sum(x.amount)::int as s from (
           select p.pay_form as form, case when p.kind = 'refund' then -p.amount else p.amount end as amount from crm_payments p where p.deal_id = d.id and p.pay_form is not null
           union all
-          select op.pay_form, case when op.kind = 'refund' then -op.amount else op.amount end from order_payments op where op.order_id = o.id and op.pay_form is not null
+          select op.pay_form, case when op.kind = 'refund' then -op.amount else op.amount end from order_payments op where op.order_id = o.id and op.pay_form is not null and op.voided_at is null
         ) x group by x.form) z) as paid_forms,
       (select coalesce(sum(length(q.answer)), 0) from books b join book_questions q on q.book_id = b.id where b.user_id = d.client_id)::int as chars
     from crm_deals d

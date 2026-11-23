@@ -1,4 +1,6 @@
+import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
+import type { ReceiptCheck } from "@/shared/domain/receipt";
 import { OrderPaymentsService, OrdersService } from "@/modules/ordering/application";
 import type { OrderPaymentRecord, OrderPaymentRepository } from "@/modules/ordering/domain";
 import { admin, clock, FakeUow } from "./doubles/ordering";
@@ -19,6 +21,7 @@ class MemPayments implements OrderPaymentRepository {
   list = async (orderId: string) => this.rows.filter((r) => r.orderId === orderId);
   find = async (id: string) => this.rows.find((r) => r.id === id) ?? null;
   review = async (id: string, by: string, at: Date) => void Object.assign(this.rows.find((r) => r.id === id)!, { reviewedById: by, reviewedAt: at });
+  void = async (id: string, by: string, at: Date, reason: string) => void Object.assign(this.rows.find((r) => r.id === id)!, { voidedById: by, voidedAt: at, voidReason: reason });
   tagKaspiForms = async (forms: Record<string, string>) =>
     this.rows.filter((r) => r.method === "kaspi" && r.externalRef && forms[r.externalRef] && !r.payForm).map((r) => ((r.payForm = forms[r.externalRef!]), { orderId: r.orderId, form: r.payForm! }));
 }
@@ -26,13 +29,20 @@ class MemPayments implements OrderPaymentRepository {
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
 const staff = { label: "admin:m@b.kz", userId: "m1" };
 
-function setup() {
+function setup(opts: { checkReceipts?: boolean } = {}) {
   const base = orderingSetup();
   const payments = new MemPayments();
   const files = new Map<string, Buffer>();
   const uow = new FakeUow([base.orders, payments]);
   const c = clock("2026-10-10T10:00:00Z");
-  const money = new OrderPaymentsService(base.orders, payments, { put: async (k, b) => void files.set(k, b), remove: async (k) => void files.delete(k), read: async (k) => files.get(k) ?? null }, uow, c);
+  // Повтор чека — как в базе: тот же хэш у живого (не отменённого) платежа; номер заказа — из заказа платежа.
+  const checkReceipt: ReceiptCheck = async (bytes) => {
+    const sha256 = createHash("sha256").update(bytes).digest("hex");
+    const used = payments.rows.find((r) => r.receipt?.sha256 === sha256 && !r.voidedAt);
+    const order = used ? await base.orders.findById(used.orderId) : null;
+    return { sha256, use: used ? { source: "order", number: order?.number ?? 0, amount: used.amount, paidAt: used.paidAt } : null };
+  };
+  const money = new OrderPaymentsService(base.orders, payments, { put: async (k, b) => void files.set(k, b), remove: async (k) => void files.delete(k), read: async (k) => files.get(k) ?? null }, uow, c, opts.checkReceipts ? checkReceipt : undefined);
   const svc = new OrdersService(base.orders, base.promos, base.books, { activeStaff: async () => null, rememberPhoneIfMissing: async () => {} } as never, { prepare: async () => null }, { provider: () => "manual", currency: () => "KZT" }, { agreementFor: async () => null }, uow, c, money);
   const order = async () => {
     const o = await base.place();
@@ -118,6 +128,49 @@ describe("Деньги по заказу", () => {
     const o = await t.order();
     await expect(t.manual(o.id, 0)).rejects.toMatchObject({ code: "invalidAmount" });
     await expect(t.money.acceptManual({ orderId: o.id, amount: 100, paidAt: new Date("2030-01-01"), note: "", receipt: { bytes: PNG, fileName: "x.png" }, actor: staff })).rejects.toMatchObject({ code: "invalidAmount" });
+  });
+});
+
+describe("Ошибочный платёж и повторный чек (заказ №110: «доплата» тем же чеком)", () => {
+  const png = (n: number) => Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, n]);
+
+  it("тот же чек ко второму платежу (любого заказа) — отказ с тем, к какому приложен; файл не сохраняется", async () => {
+    const t = setup({ checkReceipts: true });
+    const o = await t.order();
+    await t.manual(o.id, 15000, png(1));
+    const files = t.files.size;
+    await expect(t.manual(o.id, 9000, png(1))).rejects.toMatchObject({ code: "paymentRule", message: expect.stringMatching(/уже приложен к платежу 15\s000 ₸ от .* заказа №\d+/) });
+    expect([t.payments.rows.length, t.files.size]).toEqual([1, files]);
+    // Другой чек — принимается; хэш записан у платежа.
+    await t.manual(o.id, 9000, png(2));
+    expect(t.payments.rows.map((r) => r.receipt?.sha256?.length)).toEqual([64, 64]);
+  });
+
+  it("руководитель отменяет фиктивный платёж: в журнале с пометкой, получено меньше, заказ снова ждёт оплату; чек можно приложить заново", async () => {
+    const t = setup({ checkReceipts: true });
+    const o = await t.order();
+    await t.manual(o.id, o.amount - 9000, png(1));
+    const fake = await t.manual(o.id, 9000, png(2));
+    expect((await t.orders.findById(o.id))!.status).toBe("paid");
+    await expect(t.money.voidPayment({ paymentId: fake.payment.id, reason: " ", actor: staff })).rejects.toMatchObject({ code: "paymentRule" });
+    const r = await t.money.voidPayment({ paymentId: fake.payment.id, reason: "тот же чек, денег не было", actor: staff });
+    expect(r).toMatchObject({ received: o.amount - 9000, outstanding: 9000, reopened: true, payment: { voidReason: "тот же чек, денег не было" } });
+    const fresh = (await t.orders.findById(o.id))!;
+    expect([fresh.status, fresh.isSettled, fresh.received]).toEqual(["pending_payment", false, o.amount - 9000]);
+    // Запись осталась (не удалена) — помечена отменённой; повторно — нельзя; проверить отменённый — нельзя.
+    expect(t.payments.rows.map((r) => [r.amount, !!r.voidedAt])).toEqual([[o.amount - 9000, false], [9000, true]]);
+    await expect(t.money.voidPayment({ paymentId: fake.payment.id, reason: "ещё раз", actor: staff })).rejects.toMatchObject({ message: "Платёж уже отменён" });
+    expect(await t.money.review(fake.payment.id, "boss")).toBeNull();
+    // Чек отменённого платежа — к настоящей оплате можно.
+    await t.manual(o.id, 9000, png(2));
+    expect((await t.orders.findById(o.id))!.status).toBe("paid");
+  });
+
+  it("онлайн-оплату не отменить — только вернуть", async () => {
+    const t = setup();
+    const o = await t.order();
+    await t.svc.acceptProviderPayment({ orderId: o.id, paymentId: "kaspi:A1", provider: "Kaspi", operationId: "A1", amount: o.amount }, admin);
+    await expect(t.money.voidPayment({ paymentId: t.payments.rows[0].id, reason: "ошибка", actor: staff })).rejects.toMatchObject({ message: expect.stringContaining("платёжная система") });
   });
 });
 

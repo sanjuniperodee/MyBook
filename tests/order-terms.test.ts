@@ -73,7 +73,7 @@ describe("Order.changeTerms: тариф и договорённая цена н�
     expect(order.snapshot().paidAt).not.toBeNull();
   });
 
-  it("оплаченный и отменённый заказы не меняются", () => {
+  it("оплаченный без права руководителя и отменённый заказы не меняются", () => {
     const paid = place();
     paid.markPaid(null, "admin", now);
     expect(() => paid.changeTerms({ plan: "premium", agreedTotal: null, discount: null, planName }, "admin", now)).toThrow(/оплачен/);
@@ -86,6 +86,107 @@ describe("Order.changeTerms: тариф и договорённая цена н�
     const order = place();
     expect(() => order.changeTerms({ plan: "hardcover", agreedTotal: 0, discount: null, planName }, "admin", now)).toThrow();
     expect(() => order.changeTerms({ plan: "nope" as never, agreedTotal: null, discount: null, planName }, "admin", now)).toThrow();
+  });
+});
+
+describe("Order.changeTerms оплаченного заказа: руководитель меняет цену с причиной", () => {
+  const types = (o: Order) => o.pullEvents().map((e) => e.type);
+  /** Оплачен переводом полностью: по прайсу твёрдой обложки (30 000 ₸) или по договорённой цене. */
+  const paidOrder = (agreed: number | null = null) => {
+    const o = place();
+    if (agreed) o.changeTerms({ plan: "hardcover", agreedTotal: agreed, discount: null, planName }, "manager", now);
+    o.receiveMoney({ paymentId: "p1", amount: o.amount, method: "manual", paidAt: now, label: "перевод", actor: "admin" });
+    expect(o.status).toBe("paid");
+    o.pullEvents();
+    o.pullHistory();
+    return o;
+  };
+  const settled = { reason: "договорились на меньшую цену в переписке" };
+
+  it("без права (settled) и без причины — отказ; тариф оплаченного не меняется", () => {
+    const o = paidOrder();
+    expect(() => o.changeTerms({ plan: "hardcover", agreedTotal: 25000, discount: null, planName }, "manager", now)).toThrow(/руководител/);
+    expect(() => o.changeTerms({ plan: "hardcover", agreedTotal: 25000, discount: null, planName, settled: { reason: " " } }, "owner", now)).toThrow(/причину/);
+    expect(() => o.changeTerms({ plan: "premium", agreedTotal: 25000, discount: null, planName, settled }, "owner", now)).toThrow(/тариф/);
+    expect(o.amount).toBe(30000);
+  });
+
+  it("цена ниже полученного: заказ остаётся оплаченным, выручка — с прежней даты, переплата — задача; журнал с причиной", () => {
+    const o = paidOrder();
+    const r = o.changeTerms({ plan: "hardcover", agreedTotal: 25000, discount: null, planName, settled }, "owner", now);
+    expect(r).toMatchObject({ wasPaid: true, previousAmount: 30000, amount: 25000, received: 30000, overpaid: 5000, outstanding: 0, reopened: false });
+    expect([o.status, o.snapshot().paidAt]).toEqual(["paid", now]);
+    expect(o.refundable).toBe(5000);
+    expect(types(o)).toEqual(["ordering.order_repriced", "ordering.order_overpaid"]);
+    expect(o.pullHistory().map((h) => h.note).join("\n")).toMatch(/Цена оплаченного заказа изменена: к оплате 30.000 ₸ → 25.000 ₸.*Причина: договорились/);
+  });
+
+  it("цена выше полученного: печатный «Оплачен» снова ждёт оплаты остатка, выручка снята до доплаты", () => {
+    const o = paidOrder(26000);
+    const r = o.changeTerms({ plan: "hardcover", agreedTotal: null, discount: null, planName, settled }, "owner", now);
+    expect(r).toMatchObject({ amount: 30000, overpaid: 0, outstanding: 4000, reopened: true });
+    expect([o.status, o.snapshot().paidAt, o.postpay, o.outstanding]).toEqual(["pending_payment", null, false, 4000]);
+    // Доплата остатка — заказ снова оплачен датой денег.
+    const later = new Date("2026-10-26T10:00:00Z");
+    expect(o.receiveMoney({ paymentId: "p2", amount: 4000, method: "manual", paidAt: later, label: "перевод", actor: "admin" })).toMatchObject({ settled: true, overpaid: 0 });
+    expect([o.status, o.snapshot().paidAt]).toEqual(["paid", later]);
+  });
+
+  it("цена выше полученного у заказа в печати: статус прежний, остаток ждём как постоплату; доставленному — задача", () => {
+    const o = paidOrder(27000);
+    o.changeStatus("in_production", "admin", "", now);
+    o.changeStatus("delivered", "admin", "", now);
+    o.pullEvents();
+    o.changeTerms({ plan: "hardcover", agreedTotal: null, discount: null, planName, settled }, "owner", now);
+    expect([o.status, o.snapshot().paidAt, o.postpay, o.outstanding]).toEqual(["delivered", null, true, 3000]);
+    expect(types(o)).toEqual(["ordering.order_repriced", "ordering.postpay_due"]);
+    o.receiveMoney({ paymentId: "p2", amount: 3000, method: "manual", paidAt: now, label: "перевод", actor: "admin" });
+    expect([o.status, o.isSettled]).toEqual(["delivered", true]);
+  });
+
+  it("оплата подтверждена без денег в журнале — цену выше записанного не поставить (выручка не пропадёт); та же цена — без последствий", () => {
+    const o = place();
+    o.markPaid(null, "admin", now);
+    expect(() => o.changeTerms({ plan: "hardcover", agreedTotal: 25000, discount: null, planName, settled }, "owner", now)).toThrow(/без денег в журнале/);
+    const recorded = paidOrder();
+    expect(recorded.changeTerms({ plan: "hardcover", agreedTotal: 30000, discount: null, planName, settled }, "owner", now).reopened).toBe(false);
+  });
+});
+
+describe("Order.voidMoney: отмена ошибочного платежа", () => {
+  it("фиктивная «доплата» отменена: получено меньше, оплаченный печатный снова ждёт оплату остатка", () => {
+    const o = place();
+    o.changeTerms({ plan: "hardcover", agreedTotal: 24000, discount: null, planName }, "admin", now);
+    o.receiveMoney({ paymentId: "real", amount: 15000, method: "manual", paidAt: now, label: "перевод", actor: "m" });
+    o.receiveMoney({ paymentId: "fake", amount: 9000, method: "manual", paidAt: now, label: "перевод", actor: "m" });
+    expect(o.status).toBe("paid");
+    const r = o.voidMoney({ kind: "payment", amount: 9000, label: "перевод", reason: "тот же чек, денег нет", actor: "owner", now });
+    expect(r).toEqual({ received: 15000, outstanding: 9000, reopened: true });
+    expect([o.status, o.snapshot().paidAt]).toEqual(["pending_payment", null]);
+    expect(o.pullHistory().at(-2)!.note).toMatch(/отменён как ошибочный.*Причина: тот же чек.*24.000 ₸ → 15.000 ₸/);
+  });
+
+  it("лишний платёж у переплаченного — заказ остаётся оплаченным; без причины — отказ; отмена ошибочного возврата — задача на переплату", () => {
+    const o = place();
+    o.receiveMoney({ paymentId: "a", amount: 30000, method: "manual", paidAt: now, label: "перевод", actor: "m" });
+    o.receiveMoney({ paymentId: "b", amount: 2000, method: "manual", paidAt: now, label: "перевод", actor: "m" });
+    expect(() => o.voidMoney({ kind: "payment", amount: 2000, label: "перевод", reason: "", actor: "owner", now })).toThrow(/причину/);
+    expect(o.voidMoney({ kind: "payment", amount: 2000, label: "перевод", reason: "дубль записи", actor: "owner", now })).toEqual({ received: 30000, outstanding: 0, reopened: false });
+    expect(o.isSettled).toBe(true);
+    o.pullEvents();
+    o.voidMoney({ kind: "refund", amount: 1000, label: "перевод", reason: "возврат не делали", actor: "owner", now });
+    expect(o.received).toBe(31000);
+    expect(o.pullEvents().map((e) => e.type)).toEqual(["ordering.order_overpaid"]);
+  });
+
+  it("электронная (клиент уже получил книгу): статус прежний, остаток — постоплатой", () => {
+    const o = Order.place(
+      { id: "o3", number: 3, userId: "u1", bookId: "b1", plan: "digital", quantity: 1, delivery: { method: null, city: null, address: null, postalCode: null }, addons: [], contact: { name: "A", phone: "+77010000000", email: "a@b.kz" }, promo: null, currency: "KZT", paymentProvider: "kaspi", estimatedPages: 100, formatMoney: (n) => `${n}` },
+      now,
+    );
+    o.receiveMoney({ paymentId: "a", amount: o.amount, method: "manual", paidAt: now, label: "перевод", actor: "m" });
+    o.voidMoney({ kind: "payment", amount: o.amount, label: "перевод", reason: "не тот заказ", actor: "owner", now });
+    expect([o.status, o.postpay, o.isSettled, o.outstanding]).toEqual(["paid", true, false, o.amount]);
   });
 });
 

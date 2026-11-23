@@ -11,6 +11,7 @@ import {
   type OrderOverpaid,
   type OrderPaid,
   type OrderPlaced,
+  type OrderRepriced,
   type OrderStatusChanged,
   type PaymentClaimed,
   type PostpayDue,
@@ -84,6 +85,12 @@ export function registerSubscriptions(c: Container) {
       await rules().run("order.paid", { subject: e.payload.orderId, orderId: e.payload.orderId, clientId: e.payload.userId, dealId });
     },
     "crm.deal.order_paid",
+  );
+  // Сумма заказа изменилась — сумма его сделки тоже (итог заказа с предоплатой по сделке, как при оформлении).
+  c.bus.subscribe<OrderRepriced>(
+    "ordering.order_repriced",
+    (e) => c.sales.funnel.orderRepriced({ id: e.payload.orderId, number: e.payload.number, total: e.payload.amount + (e.payload.prepaid ?? 0), previousTotal: e.payload.previousAmount + (e.payload.prepaid ?? 0) }),
+    "crm.deal.order_repriced",
   );
   c.bus.subscribe<OrderCancelled>("ordering.order_cancelled", (e) => c.sales.funnel.orderCancelled(e.payload.orderId, e.payload.number), "crm.deal.order_cancelled");
 

@@ -649,6 +649,17 @@ describe("SiteFunnelService", () => {
     expect(deals.rows.get(d.id)).toMatchObject({ stageId: "won", orderId: "o5" });
   });
 
+  it("сумма заказа изменилась (цена оплаченного заказа) — сумма сделки следует за ним, в ленте — откуда", async () => {
+    const { site, deals } = setup();
+    await site.orderCreated({ id: "o1", userId: "c1", number: 110, amount: 34000 });
+    const d = [...deals.rows.values()][0];
+    await site.orderRepriced({ id: "o1", number: 110, total: 25000, previousTotal: 34000 });
+    expect(deals.rows.get(d.id)).toMatchObject({ amount: 25000 });
+    // Та же сумма — без изменений и заметок.
+    await site.orderRepriced({ id: "o1", number: 110, total: 25000, previousTotal: 25000 });
+    expect(deals.rows.get(d.id)).toMatchObject({ amount: 25000 });
+  });
+
   it("отмена заказа — сделка в отказ с причиной", async () => {
     const { site, deals } = setup();
     await site.orderCreated({ id: "o1", userId: "c1", number: 1, amount: 9000 });

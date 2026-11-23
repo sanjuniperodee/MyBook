@@ -287,6 +287,12 @@ export async function updateOrderDetailsAction(_: AdminState, form: FormData): P
  * Тариф и договорённая цена книги неоплаченного заказа. Пустая цена — по прайсу тарифа; ниже прайса сверх лимита скидки
  * сотрудника — отказ (как у бюджета сделки и счёта из чата).
  */
+/**
+ * «Тариф и цена» заказа. Неоплаченный — менеджер (orders.edit) в пределах своего лимита скидки. Оплаченный — только
+ * сотрудник с правом «Менять цену оплаченного заказа» и только цену, с причиной: полученное больше новой суммы — переплата
+ * (задача «возврат или зачёт»), меньше — заказ снова ждёт доплату остатка (Order.changeTerms). Всё — в журнал заказа и
+ * журнал действий; сумма сделки следует за заказом (подписка на order_repriced).
+ */
 export async function changeOrderTermsAction(_: AdminState, form: FormData): Promise<AdminState> {
   const staff = await assertStaff("orders.edit");
   const parsed = z
@@ -294,6 +300,7 @@ export async function changeOrderTermsAction(_: AdminState, form: FormData): Pro
       orderId: uuid,
       plan: z.string().refine((p) => !!getPlan(p), "Выберите тариф из списка"),
       agreedTotal: z.union([z.literal(""), z.coerce.number("Сумма — число").int("Сумма — целое число тенге").min(1, "Сумма — больше нуля").max(100_000_000, "Слишком большая сумма")]).optional(),
+      reason: z.string().trim().max(500, "Причина — до 500 знаков").optional(),
     })
     .safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
@@ -312,12 +319,93 @@ export async function changeOrderTermsAction(_: AdminState, form: FormData): Pro
       throw err;
     }
   }
-  const failed = await orderCommand(() => container().ordering.orders.changeTerms({ orderId, plan: plan as PlanId, agreedTotal }, staffActor(staff)));
-  if (failed) return failed;
-  await audit(staff, "order.terms", "order", orderId, { plan, agreedTotal, listPrice: list, percent });
+  // Оплаченный заказ домен меняет только с settled (и требует причину); без права — отказ «попросите руководителя».
+  const settled = can(staff, "orders.reprice_paid") ? { reason: parsed.data.reason ?? "" } : null;
+  let result: Awaited<ReturnType<ReturnType<typeof container>["ordering"]["orders"]["changeTerms"]>>;
+  try {
+    result = await container().ordering.orders.changeTerms({ orderId, plan: plan as PlanId, agreedTotal, settled }, staffActor(staff));
+  } catch (err) {
+    const error = staffActionError(err, OrderingError);
+    if (error === null) throw err;
+    return { error };
+  }
+  await audit(staff, result.wasPaid ? "order.reprice_paid" : "order.terms", "order", orderId, {
+    plan,
+    agreedTotal,
+    listPrice: list,
+    percent,
+    previousAmount: result.previousAmount,
+    amount: result.amount,
+    received: result.received,
+    ...(result.wasPaid && parsed.data.reason ? { reason: parsed.data.reason } : {}),
+    ...(result.overpaid ? { overpaid: result.overpaid } : {}),
+    ...(result.reopened ? { reopened: true, outstanding: result.outstanding } : {}),
+  });
   revalidatePath(`/admin/orders/${orderId}`);
   revalidatePath("/admin/orders");
-  return { ok: "Тариф и сумма сохранены" };
+  revalidatePath("/admin/finance");
+  const money = (n: number) => `${n.toLocaleString("ru-RU")} ₸`;
+  const tail = result.reopened
+    ? ` Денег не хватает: заказ ждёт доплату ${money(result.outstanding)}.`
+    : result.overpaid > 0 && result.previousAmount > result.amount
+      ? ` Получено больше на ${money(result.overpaid)} — ответственному поставлена задача «возврат или зачёт».`
+      : "";
+  return { ok: `Сохранено: к оплате ${money(result.previousAmount)} → ${money(result.amount)}.${tail}` };
+}
+
+/**
+ * Менеджер без права менять цену оплаченного заказа просит руководителя: заметка в журнале заказа и уведомление всем с
+ * правом «Менять цену оплаченного заказа» (ссылка на заказ). Цена не меняется, пока руководитель не сохранит её сам.
+ */
+export async function requestOrderRepriceAction(orderId: string, price: string, reason: string): Promise<AdminState> {
+  const staff = await assertStaff("orders.edit");
+  const parsed = z
+    .object({
+      id: uuid,
+      price: z.coerce.number("Сумма — число").int("Сумма — целое число тенге").min(1, "Укажите договорённую цену").max(100_000_000, "Слишком большая сумма"),
+      reason: z.string().trim().min(3, "Укажите, о чём договорились с клиентом").max(500),
+    })
+    .safeParse({ id: orderId, price, reason });
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const { id } = parsed.data;
+  await assertOrderVisible(staff, id);
+  const order = await container().ordering.orders.addNote(id, `Просьба руководителю: изменить договорённую цену книги на ${parsed.data.price.toLocaleString("ru-RU")} ₸. ${parsed.data.reason}`, staffActor(staff));
+  const { staffNotifier } = await import("@/modules/workspace");
+  await staffNotifier.notifyAllWith("orders.reprice_paid", {
+    kind: "system",
+    title: `Заказ №${order.number}: просят изменить цену на ${parsed.data.price.toLocaleString("ru-RU")} ₸`,
+    body: `${staff.user.name || staff.user.email}: ${parsed.data.reason}`,
+    link: `/admin/orders/${id}#money`,
+  });
+  await audit(staff, "order.reprice_request", "order", id, { price: parsed.data.price, reason: parsed.data.reason });
+  revalidatePath(`/admin/orders/${id}`);
+  return { ok: "Руководитель получил уведомление со ссылкой на заказ" };
+}
+
+/**
+ * Руководитель отменяет ошибочный ручной платёж (фиктивная «доплата», не тот заказ): платёж остаётся в журнале с пометкой
+ * «отменён» и причиной, из «получено», финансов, выручки и комиссий уходит; заказ при нехватке снова ждёт оплату.
+ * Подтверждённый (проверенный) — тоже можно: интерфейс предупреждает, в журнал — что был проверен.
+ */
+export async function voidOrderPaymentAction(paymentId: string, reason: string): Promise<AdminState> {
+  const staff = await assertStaff("orders.edit", "orders.payment_void");
+  const why = z.string().trim().min(3, "Укажите причину отмены платежа").max(500).safeParse(reason);
+  if (!why.success) return { error: why.error.issues[0].message };
+  const found = await container().ordering.payments.find(uuid.parse(paymentId));
+  if (!found || !(await canSeeOrder(staff, found.orderId))) return { error: "Платёж не найден" };
+  let result: Awaited<ReturnType<ReturnType<typeof container>["ordering"]["payments"]["voidPayment"]>>;
+  try {
+    result = await container().ordering.payments.voidPayment({ paymentId: found.id, reason: why.data, actor: { label: staffActor(staff).label, userId: staff.user.id } });
+  } catch (err) {
+    const error = staffActionError(err, OrderingError);
+    if (error === null) throw err;
+    return { error };
+  }
+  await audit(staff, "order.payment_void", "order", found.orderId, { payment: found.id, kind: found.kind, amount: found.amount, reason: why.data, reviewed: !!found.reviewedAt, received: result.received, ...(result.reopened ? { reopened: true } : {}) });
+  revalidatePath(`/admin/orders/${found.orderId}`);
+  revalidatePath("/admin/finance");
+  revalidatePath("/admin/orders");
+  return { ok: result.reopened ? `Платёж отменён. Денег не хватает — заказ ждёт ${result.outstanding.toLocaleString("ru-RU")} ₸` : "Платёж отменён" };
 }
 
 // ─── CRM: задачи и заметки ─────────────────────────────────────────────────

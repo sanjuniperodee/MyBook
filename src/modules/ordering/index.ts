@@ -3,6 +3,7 @@ import type { Clock, EventBus, Logger, Mailer, SettingsStore, StaffNotifier, Uni
 import { toIsoDay } from "@/lib/occasions";
 import { getPlan } from "@/config/site";
 import { runInBackground } from "@/shared/infrastructure/background";
+import { checkReceipt } from "@/shared/infrastructure/receiptUses";
 import { DealInvoiceLifecycle, DealInvoicesService, GiftsService, KaspiPaymentsService, KaspiSetupService, KaspiWatchService, OrderPaymentsService, OrdersService, PromoService, type InvoiceSales, type KaspiAiPacks, type KaspiWatchSettingKey, type AgreementGateway, type BookGateway, type GiftPdfRenderer, type KaspiConfigStore, type PrintFiles } from "./application";
 import type { OrderingEvent } from "./domain";
 import { DrizzleGiftCardRepository } from "./infrastructure/persistence/DrizzleGiftCardRepository";
@@ -85,7 +86,7 @@ export class OrderingModule {
     const promoRepo = new DrizzlePromoCodeRepository();
     const giftRepo = new DrizzleGiftCardRepository();
     this.invoices = new DealInvoicesService(new DrizzleDealInvoiceRepository(), deps.invoiceSales, deps.uow, deps.clock);
-    this.payments = new OrderPaymentsService(orderRepo, new DrizzleOrderPaymentRepository(), storageReceiptFiles, deps.uow, deps.clock);
+    this.payments = new OrderPaymentsService(orderRepo, new DrizzleOrderPaymentRepository(), storageReceiptFiles, deps.uow, deps.clock, checkReceipt);
     this.invoiceLifecycle = new DealInvoiceLifecycle(new DrizzleDealInvoiceLifecycleStore(), deps.uow);
     this.orders = new OrdersService(orderRepo, promoRepo, deps.books, new DrizzlePeopleGateway(), deps.printFiles, envPaymentSettings, deps.agreements, deps.uow, deps.clock, this.payments, this.invoiceLifecycle);
     this.promos = new PromoService(promoRepo, orderRepo, deps.clock);

@@ -4,7 +4,9 @@ import { asc, eq } from "drizzle-orm";
 import { crmReceipts } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
 import { deleteFile, getFile, putFile } from "@/shared/infrastructure/storage";
-import { ReceiptError, receiptProblem, safeReceiptName, sniffReceipt } from "../domain";
+import { checkReceipt } from "@/shared/infrastructure/receiptUses";
+import { receiptUsedText } from "@/shared/domain/receipt";
+import { ReceiptError, ReceiptUsedError, receiptProblem, safeReceiptName, sniffReceipt } from "../domain";
 
 export type ReceiptRow = typeof crmReceipts.$inferSelect;
 
@@ -16,6 +18,8 @@ export interface StagedReceipt {
   fileName: string;
   mime: string;
   size: number;
+  /** Хэш содержимого (SHA-256, hex): тот же чек ко второму платежу не принимается. */
+  sha256: string;
 }
 
 /** Чеки об оплате по сделкам: метаданные в базе, файлы в хранилище (receipts/<сделка>/<id>.<тип>). */
@@ -36,17 +40,20 @@ export class DealReceipts {
     const problem = receiptProblem(input.bytes);
     const type = sniffReceipt(input.bytes);
     if (problem || !type) throw new ReceiptError(problem ?? "type");
+    // Один перевод — один платёж: чек, уже приложенный к другому платежу (заказа или сделки), не принимаем.
+    const { sha256, use } = await checkReceipt(input.bytes);
+    if (use) throw new ReceiptUsedError("receiptUsed", receiptUsedText(use));
     const id = randomUUID();
     const storageKey = `receipts/${input.dealId}/${id}.${type.ext}`;
     await putFile(storageKey, input.bytes);
-    return { id, dealId: input.dealId, storageKey, fileName: safeReceiptName(input.fileName, type.ext), mime: type.mime, size: input.bytes.length };
+    return { id, dealId: input.dealId, storageKey, fileName: safeReceiptName(input.fileName, type.ext), mime: type.mime, size: input.bytes.length, sha256 };
   }
 
   /** Запись о чеке, файл которого уже в хранилище. */
   async record(staged: StagedReceipt, input: { clientId: string | null; paymentId?: string | null; amount: number; uploadedById: string }): Promise<ReceiptRow> {
     const [row] = await executor()
       .insert(crmReceipts)
-      .values({ id: staged.id, dealId: staged.dealId, paymentId: input.paymentId ?? null, clientId: input.clientId, storageKey: staged.storageKey, fileName: staged.fileName, mime: staged.mime, size: staged.size, amount: Math.max(0, Math.round(input.amount)), uploadedById: input.uploadedById })
+      .values({ id: staged.id, dealId: staged.dealId, paymentId: input.paymentId ?? null, clientId: input.clientId, storageKey: staged.storageKey, fileName: staged.fileName, mime: staged.mime, size: staged.size, sha256: staged.sha256, amount: Math.max(0, Math.round(input.amount)), uploadedById: input.uploadedById })
       .returning();
     return row;
   }
