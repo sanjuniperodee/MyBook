@@ -166,6 +166,40 @@ export const MEDIA_CARD = {
 /** Концовка главы: отбивка перед виньеткой — доля отбивки перед заголовком. */
 export const CHAPTER_TAIL = { before: 1.1 } as const;
 
+/**
+ * Отбивки блока набора ответа, pt: сверху и снизу — те же, что у PDF (pdf/interior/text-block.tsx). HTML-превью по ним
+ * складывает соседние отбивки, как react-pdf (у него поля не схлопываются, а браузер берёт большее из двух).
+ */
+export function blockSpace(design: InteriorDesign, sizes: Pick<InteriorSizes, "body">, kind: "para" | "lede" | "quote" | "list" | "verse" | "strong"): { before: number; after: number } {
+  const b = sizes.body;
+  switch (kind) {
+    case "para":
+      return { before: 0, after: b * paraAfter(design) };
+    case "lede":
+      return { before: 0, after: b * ANSWER.lede.after };
+    case "list":
+      return { before: 0, after: b * ANSWER.list.after };
+    case "quote":
+      return { before: b * ANSWER.quote.before, after: b * ANSWER.quote.after };
+    case "verse":
+      return { before: b * ANSWER.verse.before, after: b * ANSWER.verse.after };
+    case "strong":
+      return { before: b * ANSWER.strong.before, after: b * ANSWER.strong.after };
+  }
+}
+
+/**
+ * Сколько текста должно стоять под заголовком на той же полосе, pt (около трёх строк): меньше — доводка начинает ответ
+ * с новой полосы (flow-decisions.ts, minLead). Одно число у PDF и превью.
+ */
+export const flowMinLead = (design: InteriorDesign, sizes: Pick<InteriorSizes, "body">) => sizes.body * design.type.lineHeight * 2.6;
+
+/**
+ * Проходов доводки вёрстки не больше: за проход — не больше одного решения на кусок главы, и длинной книге нужно больше
+ * (118 полос — 14 проходов, 194 — 24). Считаем проходы, не время: иначе вёрстка зависела бы от нагрузки.
+ */
+export const FLOW_PASSES = 40;
+
 // ─── дизайнер: основной текст, цитаты, заголовки, буквица ───────────────────
 // Без настроек дизайнера (design.text, quote, heading.face, dropCap) всё ниже возвращает прежние значения.
 

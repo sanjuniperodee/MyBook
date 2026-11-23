@@ -51,6 +51,7 @@ async function main() {
   const view = window.__stand;
   const root = document.getElementById("stand")!;
   root.style.width = `${view.width}px`;
+  if (view.css) document.head.insertAdjacentHTML("beforeend", `<style>${view.css}</style>`);
   // Все начертания — до первой раскладки: размеры текста сразу окончательные.
   await Promise.all([...document.fonts].map((f) => f.load()));
   createRoot(root).render(

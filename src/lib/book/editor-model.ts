@@ -8,6 +8,7 @@ import { printedGalleryTitle, tocKey, type TocLines, type TocMode } from "./toc"
 import type { BookKind } from "@/lib/content/kinds";
 import { photoUrl } from "@/lib/urls";
 import { normalizeMedia } from "./answer-media";
+import { printableText } from "./printable";
 import { isChapterPhotoKey, isOpenerPhotoKey, photoPages, type BookContent, type CoverPhotos, type PhotoItem } from "./layout";
 import type { PhotoCrop } from "./photo-crop";
 import type { AnswerMedia, Book, InlinePhotoStyle, Photo } from "@/shared/infrastructure/db/schema";
@@ -29,6 +30,8 @@ export interface EditorQuestion {
   media: AnswerMedia[];
   /** Свой вопрос или раздел своей книги: текст автора, его можно удалить, род в нём не подставляется. */
   isCustom: boolean;
+  /** «С новой страницы» (book_questions.page_break): в превью и объёме — как в PDF. Нет — без разрыва. */
+  pageBreak?: boolean;
 }
 
 /**
@@ -141,6 +144,8 @@ export interface PreviewEntry {
   answer: string;
   photos: PreviewPhoto[];
   media: AnswerMedia[];
+  /** «С новой страницы» (автор или оформление «каждая история с новой страницы») — разрыв перед историей, как в PDF. */
+  pageBreak?: boolean;
 }
 
 /** Снимок на полосе превью вне текста (начало главы, страницы фото) — как PagePhoto вёрстки книги. */
@@ -293,13 +298,19 @@ export function previewFromContent(
       ...(opts.places?.get(it.id)?.auto ? { auto: true } : {}),
     };
   };
-  const entryOf = (q: EditorQuestion, shown: ReadonlySet<string>): PreviewEntry => ({
-    id: q.id,
-    heading: editorHeading(q),
-    answer: q.answer,
-    photos: photos.filter((p) => p.questionId === q.id && shown.has(p.id)).map(toPhoto),
-    media: normalizeMedia(q.media),
-  });
+  // Текст — как его печатает сборка (layout.ts): заголовок и ответ без эмодзи и пробелов по краям, подписи QR так же;
+  // абзацы те же, что у PDF, — от них считаются места фото и QR.
+  const entryOf = (q: EditorQuestion, shown: ReadonlySet<string>, printed?: { heading: string | null; pageBreak?: true }): PreviewEntry => {
+    const heading = printed ? printed.heading : editorHeading(q);
+    return {
+      id: q.id,
+      heading: heading === null ? null : printableText(heading),
+      answer: printableText(q.answer.trim()),
+      photos: photos.filter((p) => p.questionId === q.id && shown.has(p.id)).map(toPhoto),
+      media: normalizeMedia(q.media).map((m) => ({ ...m, title: printableText(m.title) })),
+      ...(printed?.pageBreak ? { pageBreak: true } : {}),
+    };
+  };
 
   const chapters: PreviewChapter[] = content.chapters.map((ch) => {
     // Части одной истории (продолжение после фото на всю страницу) — снова одна история: превью режет её само.
@@ -311,9 +322,9 @@ export function previewFromContent(
     }
     const entries = parts.map(({ id, items }) => {
       const q = qById.get(id);
-      if (!q) return { id, heading: items[0].heading, answer: items.map((x) => x.answer).join("\n"), photos: [], media: [] };
+      if (!q) return { id, heading: items[0].heading, answer: items.map((x) => x.answer).join("\n"), photos: [], media: [], ...(items[0].pageBreak ? { pageBreak: true } : {}) };
       const shown = new Set(items.flatMap((x) => [...(x.photos ?? []), ...(x.photoBefore ? [x.photoBefore] : [])].map((p) => p.id)));
-      return entryOf(q, shown);
+      return entryOf(q, shown, items[0]);
     });
     return {
       key: ch.key,
