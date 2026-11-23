@@ -63,6 +63,10 @@ while true; do
     echo "$(date '+%F %T') запускаю сессию: $ARGS"
     tmux new-session -d -s "$TMUX_NAME" -x 220 -y 50 -c "$DEV" \
       "$CLAUDE $ARGS --remote-control $(printf %q "$NAME") -n $(printf %q "$NAME") --permission-mode bypassPermissions $INTRO; echo 'сессия завершилась'; sleep 5"
+    # При продолжении разговора имя из -n не применяется, а по имени сессию находят помощники (SendMessage) — задать
+    # его командой, когда сессия готова принимать ввод.
+    for _ in $(seq 30); do sleep 2; tmux capture-pane -p -t "$TMUX_NAME" 2>/dev/null | grep -q "bypass permissions on" && break; done
+    tmux send-keys -t "$TMUX_NAME" -l "/rename $NAME" && sleep 1 && tmux send-keys -t "$TMUX_NAME" Enter
   fi
   sleep 20
 done
