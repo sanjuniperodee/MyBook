@@ -469,6 +469,9 @@ export async function backSide(bundle: BookBundle, geometry: CoverGeometry, sour
   return { design, photos: list, buffers };
 }
 
+/** Название книги, как его ввёл автор (без названия по умолчанию): пустое — на обложке из конструктора его нет. */
+export const ownCoverTitle = (book: Pick<Book, "title">) => printableText(book.title.trim());
+
 export function coverText(book: Book) {
   const content = buildBookContent(book, [], [], []);
   return {
@@ -511,7 +514,10 @@ export async function renderCover(bundle: BookBundle, pageCount: number, mode: R
   const template = templateForCover(getCoverTemplate(bundle.book.coverTemplate), layered, backDesign);
   const back = await backSide(bundle, geometry, source, template, !!backDesign?.layers);
   const background = await coverBackground(bundle, geometry, dpi, source, back, layered, backDesign);
-  const text = coverText(bundle.book);
+  const named = coverText(bundle.book);
+  // Обложка из конструктора печатает то, что автор видит в нём: стёр название — слоя названия нет (и на корешке тоже),
+  // без подмены названием по умолчанию. Обложка шаблона без конструктора держит название по умолчанию.
+  const text = layered ? { ...named, title: ownCoverTitle(bundle.book) } : named;
   const layers = layered ? { design: layered, images: await layerImages(bundle, layered, text, geometry.front, source) } : undefined;
   const backLayers = backDesign?.layers && geometry.back ? { layers: backDesign.layers, images: await layerImages(bundle, { layers: backDesign.layers }, text, geometry.back, source) } : undefined;
   // Оборот «как спереди» повторяет фото, фигуры и украшения лица на тех же местах (снимки — те же файлы: крышки равны).
@@ -525,7 +531,7 @@ export async function renderCover(bundle: BookBundle, pageCount: number, mode: R
       text={text}
       back={{ design: back.design, photos: back.buffers, layers: backLayers, art: backArt }}
       layers={layers}
-      title={text.title}
+      title={named.title}
       language={bundle.book.language}
     />,
     bundle.book.language,
