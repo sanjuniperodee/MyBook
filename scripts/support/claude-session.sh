@@ -62,7 +62,7 @@ while true; do
     fi
     echo "$(date '+%F %T') запускаю сессию: $ARGS"
     tmux new-session -d -s "$TMUX_NAME" -x 220 -y 50 -c "$DEV" \
-      "$CLAUDE $ARGS --remote-control $(printf %q "$NAME") --permission-mode bypassPermissions $INTRO; echo 'сессия завершилась'; sleep 5"
+      "$CLAUDE $ARGS --remote-control $(printf %q "$NAME") -n $(printf %q "$NAME") --permission-mode bypassPermissions $INTRO; echo 'сессия завершилась'; sleep 5"
   fi
   sleep 20
 done
