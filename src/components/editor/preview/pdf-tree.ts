@@ -18,7 +18,8 @@ import { framedBox, placedByAuthor, rowSpaceAbove, type InlinePhotoStyle } from 
 import { dividerDrawing, vignetteDrawing } from "@/lib/book/interior-art";
 import { textArea } from "@/lib/book/page-geometry";
 import { paginate, type PagePiece, type PNode, type PText, type PView } from "@/lib/book/paginate";
-import { ANSWER, CHAPTER_TAIL, DIVIDER, dropCapPlan, HEADING, INLINE_ROW, KEEP_WITH_NEXT, MEDIA_CARD, paraAfter, splitInitial, splitLeadIn, VIGNETTE_RULE } from "@/lib/book/typesetting";
+import { naturalLineHeight } from "@/lib/book/fonts";
+import { ANSWER, CHAPTER_TAIL, DIVIDER, dropCapPlan, quoteFace, HEADING, INLINE_ROW, KEEP_WITH_NEXT, MEDIA_CARD, paraAfter, splitInitial, splitLeadIn, VIGNETTE_RULE } from "@/lib/book/typesetting";
 import { chapterHeadSizes } from "@/lib/book/chapter-head";
 import type { PageKit } from "@/components/interior/kit";
 import { metricsOf } from "@/components/interior/kit";
@@ -26,7 +27,7 @@ import { bodySpec, faceSpec, headingSpec, italicSpec, leadSpec, measureWidthPt, 
 import { dropCapLayout } from "@/components/interior/drop-cap";
 import type { BreakRequest } from "@/components/interior/line-breaker";
 
-type Item = { p: { width: number; height: number }; style: InlinePhotoStyle };
+type Item = { p: { width: number; height: number; caption?: string }; style: InlinePhotoStyle };
 
 /** Ответ главы, как его раскладывает превью (ChapterPages: info). */
 export interface TreeEntry {
@@ -80,6 +81,8 @@ export function chapterTree(input: TreeInput, drops = new Map<string, number>())
   if (!breaker) return null;
   const lh = (size: number, factor: number) => size * factor;
   const bodyLh = lh(S.body, design.type.lineHeight);
+  const q = quoteFace(design);
+  const captionLh = S.caption * naturalLineHeight(q.font, q.weight, !!q.italic);
   const lines = (req: Omit<BreakRequest, "justify"> & { justify?: boolean }, height: number): number[] | null => {
     let out: number[] = [];
     for (const para of req.text.split("\n")) {
@@ -127,13 +130,21 @@ export function chapterTree(input: TreeInput, drops = new Map<string, number>())
         const own = placedByAuthor(row[0].style);
         const mark = `${own ? "f" : "r"}:${e.id}:${place}:${r}`;
         const rowBreaks = !!row[0].style.breakBefore && !(fresh && bare && place === lead && r === 0);
-        const m = measured.get(mark);
-        if (!m) return void (failed = true);
-        // Высота ряда — по замеру без масштаба; уменьшенный доводкой — снимки меньше, подпись та же.
+        // Высота ряда — как у PDF (inline-rows.tsx): самое высокое фото с подписью; уменьшенный доводкой — снимки
+        // меньше, подпись та же (строки — шириной в рамку снимка, высотой по метрикам шрифта: Text без lineHeight).
         const k = own ? 1 : (flow.rowScale.get(mark) ?? 1);
-        const base = m.height - m.padTop - m.padBottom;
-        const photoH = Math.max(...row.map((x) => framedBox(x.p, x.style, area.w * MM_TO_PT, area.h * MM_TO_PT, row.length).outerH));
-        const content = k === 1 ? base : base - photoH * (1 - k);
+        let content = 0;
+        for (const x of row) {
+          const b = framedBox(x.p, x.style, area.w * MM_TO_PT, area.h * MM_TO_PT, row.length);
+          let h = b.outerH * k;
+          if (x.style.frame !== "polaroid" && (x.p as { caption?: string }).caption) {
+            const caption = (x.p as { caption?: string }).caption!;
+            const l = need(lines({ text: caption, spec: italicSpec(kit, S.caption), width: b.outerW * k, hyphens: false }, captionLh));
+            if (!l) return;
+            h += INLINE_ROW.captionGap + l.reduce((a, v) => a + v, 0);
+          }
+          content = Math.max(content, h);
+        }
         const space = own ? rowSpaceAbove(row, area.w * MM_TO_PT, area.h * MM_TO_PT) : (flow.rowOffset.get(mark) ?? 0);
         if (rowBreaks) seq.push({ part: true });
         seq.push({ node: view({ id: mark, children: [], wrap: false, content, mt: rowBreaks ? 0 : S.body * INLINE_ROW.before, mb: S.body * INLINE_ROW.after, pt: space }) });

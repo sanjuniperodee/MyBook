@@ -1,4 +1,5 @@
 /** Реестр шрифтов: одни и те же файлы используются на сайте (next/font/local) и в PDF. */
+import { FONT_LINES } from "./font-lines";
 
 export type FontKey =
   | "cormorant"
@@ -273,4 +274,17 @@ export interface Typography {
   /** Кегль основного текста, pt. */
   bodySize: number;
   lineHeight: number;
+}
+
+/**
+ * Высота строки текста без интерлиньяжа, доли кегля — как у react-pdf (ascent − descent + lineGap начертания, которое
+ * он возьмёт: ближайшее по насыщенности, как face() в pdf/fonts.ts). Подписи под фото — такими строками.
+ */
+export function naturalLineHeight(key: FontKey, weight = 400, italic = false): number {
+  const def = fontFaces[key];
+  const style = italic ? "italic" : "normal";
+  const pool = def.faces.filter((f) => f.style === style);
+  const list = pool.length ? pool : def.faces;
+  const best = list.reduce((a, b) => (Math.abs(b.weight - weight) < Math.abs(a.weight - weight) ? b : a));
+  return FONT_LINES[best.file] ?? 1.2;
 }

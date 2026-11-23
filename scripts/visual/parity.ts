@@ -125,10 +125,12 @@ async function htmlFlow(browser: Browser, server: StandServer, view: StandView):
         if (m && m[1] !== "album") chapters[m[1]] = (chapters[m[1]] ?? 0) + 1;
       }
       const entries: Record<string, number> = {};
+      const layouts: Record<string, [string, number, number, number][]> = {};
       // Разбивка, как у PDF (ChapterPages: data-pdf-layout), — полосы глав и начала ответов из неё.
       for (const root of document.querySelectorAll<HTMLElement>("[aria-hidden] > div[data-pdf-layout]")) {
-        const l = JSON.parse(root.dataset.pdfLayout!) as { chapter: string; pages: number; markers: Record<string, number> };
+        const l = JSON.parse(root.dataset.pdfLayout!) as { chapter: string; pages: number; markers: Record<string, number>; blocks?: [string, [number, number, number]][] };
         Object.assign(entries, l.markers);
+        if (l.blocks) layouts[l.chapter] = l.blocks.map(([id, [page, top, bottom]]) => [id, page, top, bottom]);
       }
       for (const root of document.querySelectorAll<HTMLElement>("[aria-hidden] > div:not([data-pdf-layout])")) {
         const cs = getComputedStyle(root);
@@ -164,7 +166,7 @@ async function htmlFlow(browser: Browser, server: StandServer, view: StandView):
         }
         if (chapter) blocks[chapter] = list;
       }
-      return { chapters, entries, blocks };
+      return { chapters, entries, blocks: { ...blocks, ...layouts } };
     });
   } finally {
     await context.close();

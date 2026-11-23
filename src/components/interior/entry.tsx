@@ -1,6 +1,6 @@
 import { Fragment, type CSSProperties, type HTMLAttributes, type ImgHTMLAttributes, type ReactNode } from "react";
 import { mm, MM_TO_PT, PT_TO_MM } from "@/lib/book/formats";
-import { cssFont } from "@/lib/book/fonts";
+import { cssFont, naturalLineHeight } from "@/lib/book/fonts";
 import { answerBlocks, rowsByBlock, type AnswerBlock } from "@/lib/book/answer-blocks";
 import { layoutMedia, mediaCardBox, mediaIcon, mediaSource, qrDrawing, qrInk, type AnswerMedia } from "@/lib/book/answer-media";
 import { framedBox, layoutInline, normalizeStyle, objectPosition, placedByAuthor, polaroidFontSize, ROW_GAP, rowSpaceAbove, rowSpaceLimit, type InlinePhotoStyle } from "@/lib/book/inline-photo";
@@ -8,7 +8,7 @@ import { dividerDrawing, vignetteDrawing } from "@/lib/book/interior-art";
 import { PHOTO_COLORS } from "@/lib/book/interiors";
 import { textArea } from "@/lib/book/page-geometry";
 import { bookMessagesFor } from "@/i18n/messages/partial";
-import { CHAPTER_TAIL, DIVIDER, HEADING, headingFace, HTML_LINE_HEIGHT, INLINE_ROW, MEDIA_CARD, VIGNETTE_RULE } from "@/lib/book/typesetting";
+import { CHAPTER_TAIL, DIVIDER, HEADING, headingFace, HTML_LINE_HEIGHT, INLINE_ROW, MEDIA_CARD, quoteFace, VIGNETTE_RULE } from "@/lib/book/typesetting";
 import { AnswerBlockView } from "./answer-block";
 import { GAP_BELOW, gapAbove } from "./entry-gap";
 import { keepWithNext } from "./keep";
@@ -103,6 +103,12 @@ export function ChapterTail({ kit, style, ...rest }: { kit: PageKit; style?: CSS
   );
 }
 
+/** Высота строки подписи под фото (множитель кегля) — как у PDF: Text без lineHeight. */
+export const captionLineHeight = (kit: PageKit) => {
+  const q = quoteFace(kit.design);
+  return naturalLineHeight(q.font, q.weight, !!q.italic);
+};
+
 export type RowItem<P extends EntryPhoto = EntryPhoto> = { p: P; style: InlinePhotoStyle };
 
 /**
@@ -181,7 +187,8 @@ function RowPhoto<P extends EntryPhoto>({ kit, item, rowSize, space, scale = 1, 
         ) : null}
       </div>
       {!polaroid && p.caption ? (
-        <figcaption style={{ ...italicBody(kit, S.caption), color: design.palette.muted, textAlign: "center", marginTop: u.pt(INLINE_ROW.captionGap), lineHeight: HTML_LINE_HEIGHT.caption }}>
+        // Строки подписи — высотой, как у react-pdf (без интерлиньяжа: по метрикам шрифта): от них высота ряда.
+        <figcaption style={{ ...italicBody(kit, S.caption), color: design.palette.muted, textAlign: "center", marginTop: u.pt(INLINE_ROW.captionGap), lineHeight: captionLineHeight(kit) }}>
           {/* Строки подписи — как у PDF (шириной в рамку снимка): от них высота ряда. */}
           {lineSpans({ kit, req: { text: p.caption, spec: italicSpec(kit, S.caption), width: b.outerW * MM_TO_PT, hyphens: false, justify: false }, align: "center" }) ?? p.caption}
         </figcaption>

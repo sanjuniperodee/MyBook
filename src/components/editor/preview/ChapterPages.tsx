@@ -233,7 +233,11 @@ function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, 
     const layout = next ? chapterLayout(next, ch.entries, ptPx) : null;
     report?.(ch.key, layout);
     // Разбивка — и в разметке копии: по ней сверяют превью с PDF (scripts/visual/parity.ts).
-    if (layout) root.dataset.pdfLayout = JSON.stringify({ chapter: ch.key, pages: layout.pages, markers: Object.fromEntries(Object.entries(layout.markers).map(([k, v]) => [k, v.page])) });
+    if (layout && next) {
+      const first = new Map<string, [number, number, number]>();
+      for (const p of next.pieces) if (!first.has(p.id)) first.set(p.id, [p.page, Math.round(p.top * 10) / 10, Math.round(p.bottom * 10) / 10]);
+      root.dataset.pdfLayout = JSON.stringify({ chapter: ch.key, pages: layout.pages, markers: Object.fromEntries(Object.entries(layout.markers).map(([k, v]) => [k, v.page])), blocks: [...first] });
+    }
     else delete root.dataset.pdfLayout;
   }, [flowKey, pdf.key, dragging, textW, px, ch.key, ch.entries, info, kit, start, hasText, rowHeights, design, S, area.h, report]);
 
