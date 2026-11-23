@@ -26,3 +26,5 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 `docs/support/README.md`: забрать `bash scripts/support/ticket.sh show <N>`, сначала понять, что нужно на самом деле
 (сверить с перепиской клиента, где это в UI, правильно ли технически и логически так делать), потом делать; коммит с
 `Обращение №N` после выкатки сам закрывает обращение и пишет человеку в WhatsApp.
+Сессия Claude на самом сервере (код в `~/mybook-dev`, выкатка `scripts/support/ship.sh` без CI) —
+`docs/support/server-session.md`.

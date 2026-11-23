@@ -6,12 +6,18 @@
 #   bash scripts/support/ticket.sh note <N> <текст>     — заметка разработчика (видна только в CRM)
 #   bash scripts/support/ticket.sh resolution <N> <текст> — «что сделали»: уйдёт человеку в уведомлении после выкатки
 #   bash scripts/support/ticket.sh since <N>            — номера обращений новее N (для слежения)
-# Доступ: ssh srv@185.102.75.191 (ключ ~/.ssh/id_ed25519), psql из ~/mybook/.env, файлы — rclone ps:sigma-centaurus/mybooks/.
+# Доступ: с Mac — ssh srv@185.102.75.191 (ключ ~/.ssh/id_ed25519); на самом сервере — напрямую. psql из ~/mybook/.env,
+# файлы — rclone ps:sigma-centaurus/mybooks/.
 set -euo pipefail
 HOST="${SUPPORT_HOST:-srv@185.102.75.191}"
 KEY="${SUPPORT_SSH_KEY:-$HOME/.ssh/id_ed25519}"
 OUT="${SUPPORT_OUT:-/tmp/mybooks-support}"
-remote() { ssh -i "$KEY" -o BatchMode=yes -o ConnectTimeout=15 "$HOST" "$@"; }
+# На самом сервере (сессия Claude в ~/mybook-dev) — те же команды локально, без SSH.
+if [ -z "${SUPPORT_HOST:-}" ] && [ -f "$HOME/mybook/.env" ] && [ "$(id -un)" = srv ]; then
+  remote() { bash -c "$*"; }
+else
+  remote() { ssh -i "$KEY" -o BatchMode=yes -o ConnectTimeout=15 "$HOST" "$@"; }
+fi
 # SQL на сервер — через stdin, чтобы кавычки текста не ломали команду.
 sql() { remote 'cd ~/mybook && set -a && . ./.env && set +a && psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -At -f -' ; }
 num() { [[ "${1:-}" =~ ^[0-9]+$ ]] || { echo "укажите номер обращения" >&2; exit 2; }; }
