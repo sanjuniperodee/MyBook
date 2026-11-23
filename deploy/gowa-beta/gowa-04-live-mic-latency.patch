@@ -1,0 +1,187 @@
+diff --git a/src/infrastructure/whatsapp/caller_audio.go b/src/infrastructure/whatsapp/caller_audio.go
+index 0a2a545..f5b2e21 100644
+--- a/src/infrastructure/whatsapp/caller_audio.go
++++ b/src/infrastructure/whatsapp/caller_audio.go
+@@ -9,9 +9,22 @@ import (
+ )
+ 
+ // liveAudioFrameWait bounds how long ReadFrame waits for microphone bytes before
+-// emitting silence. meowcaller pulls one frame per ~60 ms tick, so a stalled
+-// browser must not stall the call's outbound media.
+-const liveAudioFrameWait = 60 * time.Millisecond
++// emitting silence. meowcaller pulls one frame per 60 ms ticker tick and calls
++// ReadFrame inside that tick: waiting the whole 60 ms made the tick miss its slot,
++// and the late frame then stayed queued behind it, so every browser hiccup added
++// 60 ms of delay for the rest of the call (up to the 32-frame queue, ~2 s). A short
++// wait only absorbs ordinary network jitter.
++const liveAudioFrameWait = 20 * time.Millisecond
++
++// liveAudioMaxQueuedFrames caps the microphone backlog (bytes waiting after the
++// frame being read). A burst after a stall, or a browser clock running slightly
++// faster than ours, would otherwise turn into permanent delay; the oldest whole
++// frames are dropped down to liveAudioKeepQueuedFrames instead. The gap between
++// the two thresholds keeps drops rare.
++const (
++	liveAudioMaxQueuedFrames  = 4
++	liveAudioKeepQueuedFrames = 1
++)
+ 
+ // channelAudioSource adapts s16le 16 kHz mono chunks (browser microphone audio)
+ // to meowcaller's float32 frame source. Closing the channel ends the stream.
+@@ -25,32 +38,69 @@ func newChannelAudioSource(ch <-chan []byte) *channelAudioSource {
+ 	return &channelAudioSource{ch: ch}
+ }
+ 
+-// ReadFrame returns one FrameSamples frame, padding with silence when the
+-// microphone is quiet, and io.EOF after the channel closes and its tail is used.
++// ReadFrame returns one FrameSamples frame, emitting silence when the
++// microphone has nothing ready, and io.EOF after the channel closes and its tail
++// is used. It never blocks the send tick for longer than liveAudioFrameWait.
+ func (s *channelAudioSource) ReadFrame() ([]float32, error) {
++	s.drain()
+ 	if s.closed && len(s.pending) == 0 {
+ 		return nil, io.EOF
+ 	}
+ 
+ 	need := meowcaller.FrameSamples * 2
+-	waited := false
+-	for len(s.pending) < need && !s.closed {
++	if len(s.pending) < need && !s.closed {
++		timer := time.NewTimer(liveAudioFrameWait)
++	wait:
++		for len(s.pending) < need && !s.closed {
++			select {
++			case chunk, ok := <-s.ch:
++				if !ok {
++					s.closed = true
++					break wait
++				}
++				s.pending = append(s.pending, chunk...)
++			case <-timer.C:
++				break wait
++			}
++		}
++		timer.Stop()
++	}
++
++	if len(s.pending) < need && !s.closed {
++		// Still no whole frame: silence now, and the partial frame stays for the
++		// next tick instead of being padded out and cut in half.
++		return make([]float32, meowcaller.FrameSamples), nil
++	}
++	s.trimBacklog(need)
++	return s.takeFrame(), nil
++}
++
++// drain moves everything the browser already sent into pending without waiting.
++func (s *channelAudioSource) drain() {
++	for !s.closed {
+ 		select {
+ 		case chunk, ok := <-s.ch:
+ 			if !ok {
+ 				s.closed = true
+-				continue
++				return
+ 			}
+ 			s.pending = append(s.pending, chunk...)
+-		case <-time.After(liveAudioFrameWait):
+-			waited = true
+-		}
+-		if waited {
+-			break
++		default:
++			return
+ 		}
+ 	}
++}
+ 
+-	return s.takeFrame(), nil
++// trimBacklog drops the oldest whole frames when more than
++// liveAudioMaxQueuedFrames wait behind the frame about to be read, keeping
++// liveAudioKeepQueuedFrames as a cushion: realtime speech beats a growing delay.
++func (s *channelAudioSource) trimBacklog(frameBytes int) {
++	queued := len(s.pending)/frameBytes - 1
++	if queued <= liveAudioMaxQueuedFrames {
++		return
++	}
++	drop := (queued - liveAudioKeepQueuedFrames) * frameBytes
++	s.pending = append(s.pending[:0], s.pending[drop:]...)
+ }
+ 
+ func (s *channelAudioSource) takeFrame() []float32 {
+diff --git a/src/infrastructure/whatsapp/caller_audio_test.go b/src/infrastructure/whatsapp/caller_audio_test.go
+index 72300d6..d339513 100644
+--- a/src/infrastructure/whatsapp/caller_audio_test.go
++++ b/src/infrastructure/whatsapp/caller_audio_test.go
+@@ -81,6 +81,71 @@ func TestChannelAudioSourceEmitsSilenceWhileMicIsQuiet(t *testing.T) {
+ 	}
+ }
+ 
++// micFrame is one whole frame of s16le samples all equal to value.
++func micFrame(value int16) []byte {
++	raw := make([]byte, 0, meowcaller.FrameSamples*2)
++	for i := 0; i < meowcaller.FrameSamples; i++ {
++		raw = binary.LittleEndian.AppendUint16(raw, uint16(value))
++	}
++	return raw
++}
++
++// TestChannelAudioSourceKeepsPartialFrameOnTimeout: a half frame is not padded
++// out and sent cut in two — silence now, the whole frame on the next tick.
++func TestChannelAudioSourceKeepsPartialFrameOnTimeout(t *testing.T) {
++	frames := make(chan []byte, 2)
++	whole := micFrame(100)
++	frames <- whole[:len(whole)/2]
++	source := newChannelAudioSource(frames)
++
++	frame, err := source.ReadFrame()
++	require.NoError(t, err)
++	require.Zero(t, frame[0])
++
++	frames <- whole[len(whole)/2:]
++	frame, err = source.ReadFrame()
++	require.NoError(t, err)
++	require.InDelta(t, float32(100)/32768, frame[0], 0.0001)
++	require.InDelta(t, float32(100)/32768, frame[meowcaller.FrameSamples-1], 0.0001)
++}
++
++// TestChannelAudioSourceNeverStallsTheTick: the send loop ticks every 60 ms, so a
++// quiet microphone must not hold ReadFrame anywhere near that long.
++func TestChannelAudioSourceNeverStallsTheTick(t *testing.T) {
++	source := newChannelAudioSource(make(chan []byte))
++	start := time.Now()
++	_, err := source.ReadFrame()
++	require.NoError(t, err)
++	require.Less(t, time.Since(start), 50*time.Millisecond)
++}
++
++// TestChannelAudioSourceDropsBacklog: after a stall the browser sends a burst;
++// the oldest frames are dropped so the delay goes back to one frame of cushion.
++func TestChannelAudioSourceDropsBacklog(t *testing.T) {
++	frames := make(chan []byte, 32)
++	for i := int16(1); i <= 8; i++ {
++		frames <- micFrame(i * 100)
++	}
++	source := newChannelAudioSource(frames)
++
++	frame, err := source.ReadFrame()
++	require.NoError(t, err)
++	// 8 frames queued: 7 behind the one being read, more than the cap of 4, so
++	// frames 1–6 are dropped, frame 7 is played and frame 8 stays as the cushion.
++	require.InDelta(t, float32(700)/32768, frame[0], 0.0001)
++	frame, err = source.ReadFrame()
++	require.NoError(t, err)
++	require.InDelta(t, float32(800)/32768, frame[0], 0.0001)
++
++	// A small backlog (within the cap) is kept intact.
++	for i := int16(1); i <= 3; i++ {
++		frames <- micFrame(i)
++	}
++	frame, err = source.ReadFrame()
++	require.NoError(t, err)
++	require.InDelta(t, float32(1)/32768, frame[0], 0.0001)
++}
++
+ func TestCallerForgetClosesSinkAndRunsEndHooks(t *testing.T) {
+ 	caller := &Caller{
+ 		calls:    map[string]*meowcaller.Call{"CALL1": {}},

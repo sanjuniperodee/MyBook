@@ -26,8 +26,11 @@ const RECORD_SLICE_MS = 10_000;
 /** Форматы записи по убыванию предпочтения: Chrome/Edge/Firefox — Opus, Safari — AAC в MP4. */
 const RECORD_MIMES = ["audio/webm;codecs=opus", "audio/ogg;codecs=opus", "audio/mp4", "audio/webm"];
 
-/** Отправка застряла (сеть) больше чем на ~1 с звука — новые кадры выбрасываем: звонок живой, а не запись. */
-const MAX_BUFFERED = 32_000;
+/**
+ * Отправка застряла (сеть) больше чем на 4 кадра (~240 мс звука) — новые кадры выбрасываем: звонок живой, а не запись.
+ * Раньше предел был ~1 с, и после рывка сети собеседник слышал сотрудника с секундной задержкой до конца разговора.
+ */
+const MAX_BUFFERED = 4 * 1920;
 
 /** Адрес аудиопотока звонка на сайте: nginx пропускает его к шлюзу после проверки сессии (deploy/nginx-mybook.conf). */
 export const audioUrl = (callId: string, loc: Pick<Location, "protocol" | "host"> = window.location) => `${loc.protocol === "https:" ? "wss" : "ws"}://${loc.host}/wa-call/audio?call_id=${encodeURIComponent(callId)}`;
