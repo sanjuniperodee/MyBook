@@ -76,6 +76,7 @@ function LlmStats({ llm }: { llm: NonNullable<BotMetrics["llm"]> }) {
       <div>{`Ходов: ${llm.turns}, ответили: ${share(llm.answered)}`}</div>
       {Object.keys(llm.chosen).length ? <div className="text-muted">{`Выбрал маршрут: ${share(llm.chosen)}`}</div> : null}
       <div>{`Эскалаций: ${llm.escalations}; расходы: ${usd(llm.costUsd)}${llm.costPer1000 !== null ? `, на 1 000 ходов — ${usd(llm.costPer1000)}` : ""}`}</div>
+      {llm.copilot?.turns ? <div className="text-muted">{`Подсказки менеджеру и оценки «ждёт ли ответа»: ${llm.copilot.turns}, ${usd(llm.copilot.costUsd)} (входят в расходы, не в ходы)`}</div> : null}
       <div className="text-muted">{`Токены: вход ${llm.tokens.input}, из кэша ${llm.tokens.cacheRead}, в кэш ${llm.tokens.cacheWrite}, выход ${llm.tokens.output}`}</div>
       {llm.failed || llm.fallback || llm.retries ? <div className="text-warning">{`Сбои запросов: ${llm.failed}, повторы: ${llm.retries}, ответила запасная: ${llm.fallback}`}</div> : null}
     </div>

@@ -139,7 +139,9 @@ export const DEFAULT_DIALOG_BUDGET_USD = 0.5;
 export function readRoutePolicy(v: Partial<Record<RouteSettingKey, string>>): RoutePolicy {
   const mode = v["seller.route"];
   const def = v["seller.route.default"];
-  const sonnetAt = int(v["seller.route.sonnetAt"], 2, 1, 20);
+  // Порог Sonnet — 1 очко (shadow 21.10–09.11: на 1 очке передач менеджеру 29 % против 7 % на нуле, а доля таких ходов
+  // — 6 %, вместе с 2+ очками это ~9 % Sonnet, как в ориентире). docs/features/bot-llm-routing.md, «Пороги по статистике».
+  const sonnetAt = int(v["seller.route.sonnetAt"], 1, 1, 20);
   return {
     mode: mode === "off" || mode === "shadow" ? mode : "on",
     models: {

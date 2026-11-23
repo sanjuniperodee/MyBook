@@ -396,5 +396,16 @@ describe("метрики модели продажника", () => {
     expect(m).toMatchObject({ calls: 92, failed: 1, fallback: 1, retries: 3, tokens: { input: 92000, output: 9200, cacheRead: 270000, cacheWrite: 4000 } });
     expect(m.models[0]).toMatchObject({ model: "claude-haiku-5-5", calls: 91 });
     expect(llmMetrics([], []).costPer1000).toBeNull();
+    // Подсказки менеджеру и оценки «ждёт ли ответа» — отдельно: в расходах, но не в ходах и не в стоимости 1 000 ходов.
+    const c = llmMetrics(
+      [
+        { purpose: "reply", chosen: "haiku", final: "haiku", mode: "on", turns: 10, escalations: 0, costUsd: 0.01 },
+        { purpose: "copilot", chosen: "haiku", final: "haiku", mode: "on", turns: 5, escalations: 0, costUsd: 0.02 },
+        { purpose: "triage", chosen: "haiku", final: "haiku", mode: "on", turns: 5, escalations: 0, costUsd: 0.01 },
+      ],
+      [],
+    );
+    expect(c).toMatchObject({ turns: 10, costPer1000: 1, copilot: { turns: 10, costUsd: 0.03 } });
+    expect(c.costUsd).toBeCloseTo(0.04, 6);
   });
 });

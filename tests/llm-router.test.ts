@@ -11,7 +11,7 @@ import { MemSettings } from "./doubles/workspace";
 describe("маршрутизация: прайс и политика из настроек", () => {
   it("политика по умолчанию: включена, Haiku по умолчанию, актуальные модели Claude, пороги и лимиты", () => {
     const p = readRoutePolicy({});
-    expect(p).toMatchObject({ mode: "on", defaultTier: "haiku", models: { haiku: "claude-haiku-5-5", sonnet: "claude-sonnet-5-5", opus: "claude-opus-5-5" }, sonnetAt: 2, opusAt: 6, maxExtra: 2, budgetUsd: 0.5, dailyBudgetUsd: null });
+    expect(p).toMatchObject({ mode: "on", defaultTier: "haiku", models: { haiku: "claude-haiku-5-5", sonnet: "claude-sonnet-5-5", opus: "claude-opus-5-5" }, sonnetAt: 1, opusAt: 6, maxExtra: 2, budgetUsd: 0.5, dailyBudgetUsd: null });
     expect(readRoutePolicy({ "seller.route.budget": "0" }).budgetUsd).toBeNull();
   });
 

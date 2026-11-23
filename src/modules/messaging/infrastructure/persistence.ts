@@ -526,12 +526,12 @@ export class DrizzleBotStore implements BotStore {
 export async function llmStats(days = 30): Promise<LlmMetrics> {
   const since = sql`now() - make_interval(days => ${days})`;
   const [turns, calls] = await Promise.all([
-    executor().execute<{ chosen: string | null; final: string | null; mode: string | null; turns: number; escalations: number; cost: string | number | null }>(sql`
-      select meta->'route'->>'chosen' as chosen, meta->'route'->>'final' as final, meta->'route'->>'mode' as mode, count(*)::int as turns,
+    executor().execute<{ purpose: string | null; chosen: string | null; final: string | null; mode: string | null; turns: number; escalations: number; cost: string | number | null }>(sql`
+      select meta->>'purpose' as purpose, meta->'route'->>'chosen' as chosen, meta->'route'->>'final' as final, meta->'route'->>'mode' as mode, count(*)::int as turns,
         coalesce(sum(case when jsonb_typeof(meta->'route'->'escalations') = 'array' then jsonb_array_length(meta->'route'->'escalations') else 0 end), 0)::int as escalations,
         coalesce(sum((meta->'route'->>'costUsd')::numeric), 0) as cost
       from crm_bot_events where kind = 'turn' and created_at >= ${since} and meta ? 'route' and jsonb_typeof(meta->'route') = 'object'
-      group by 1, 2, 3`),
+      group by 1, 2, 3, 4`),
     executor().execute<{ tier: string | null; provider: string | null; model: string | null; calls: number; failed: number; fallback: number; retries: number; input: string | number; output: string | number; cache_read: string | number; cache_write: string | number; cost: string | number; ms: string | number | null }>(sql`
       select c->>'tier' as tier, c->>'provider' as provider, c->>'model' as model, count(*)::int as calls,
         count(*) filter (where c ? 'failed')::int as failed,
@@ -545,7 +545,7 @@ export async function llmStats(days = 30): Promise<LlmMetrics> {
       group by 1, 2, 3`),
   ]);
   return llmMetrics(
-    turns.rows.map((t) => ({ chosen: t.chosen, final: t.final, mode: t.mode, turns: Number(t.turns), escalations: Number(t.escalations), costUsd: Number(t.cost ?? 0) })),
+    turns.rows.map((t) => ({ purpose: t.purpose, chosen: t.chosen, final: t.final, mode: t.mode, turns: Number(t.turns), escalations: Number(t.escalations), costUsd: Number(t.cost ?? 0) })),
     calls.rows.map((c) => ({ tier: c.tier, provider: c.provider, model: c.model, calls: Number(c.calls), failed: Number(c.failed), fallback: Number(c.fallback), retries: Number(c.retries), input: Number(c.input), output: Number(c.output), cacheRead: Number(c.cache_read), cacheWrite: Number(c.cache_write), costUsd: Number(c.cost), avgMs: c.ms === null ? null : Number(c.ms) })),
   );
 }

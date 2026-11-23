@@ -132,6 +132,8 @@ export interface TraceRow {
 export function traceRows(t: BotTurnTrace): TraceRow[] {
   const rows: TraceRow[] = [];
   if (t.purpose === "follow_up") rows.push({ label: "Ход", lines: ["напоминание молчащему клиенту"] });
+  if (t.purpose === "copilot") rows.push({ label: "Ход", lines: ["подсказка менеджеру (клиенту не отправлялась)"] });
+  if (t.purpose === "triage") rows.push({ label: "Ход", lines: ["оценка: ждёт ли клиент ответа"] });
   if (t.model) {
     const why = t.model.handoff !== "none" ? ` · причина: ${reasonLabel(t.model.handoff)}` : "";
     rows.push({ label: "Модель решила", lines: [`${ACTIONS[t.model.action] ?? t.model.action} · этап: ${STAGES[t.model.stage] ?? t.model.stage}${why} · язык: ${BOT_LANG_LABELS[t.model.lang] ?? t.model.lang}`] });

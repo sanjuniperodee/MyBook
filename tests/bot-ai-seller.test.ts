@@ -907,6 +907,10 @@ describe("Подсказка менеджеру («Подсказать отве
     expect(calls[0].user).toContain("черновик");
     expect(t.sent).toEqual([]);
     expect(t.conv().botState ?? null).toBeNull();
+    // След подсказки — для метрик и расходов: без сообщения клиенту, с назначением copilot.
+    const traces = t.events.filter((e) => e.kind === "turn");
+    expect(traces).toHaveLength(1);
+    expect(traces[0]).toMatchObject({ messageId: null, meta: { purpose: "copilot", model: { stage: "offer" }, tokens: { calls: 1 } } });
   });
 
   it("цена не из тарифов — модель переписывает черновик; второй раз — ошибка менеджеру, а не чужая сумма", async () => {

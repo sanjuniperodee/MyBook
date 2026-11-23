@@ -79,6 +79,8 @@ export interface LlmCallRow {
 
 /** Строка агрегата по ходам: какой уровень выбрал код (chosen) и какой ответил (final; null — запасной или off). */
 export interface LlmTurnRow {
+  /** reply / follow_up — ходы с клиентом; copilot / triage — подсказка менеджеру и оценка «ждёт ли ответа». */
+  purpose?: string | null;
   chosen: string | null;
   final: string | null;
   mode: string | null;
@@ -98,6 +100,8 @@ export interface LlmMetrics {
   costUsd: number;
   /** Стоимость 1 000 ходов (сообщений бота клиенту и напоминаний), $; null — ходов не было. */
   costPer1000: number | null;
+  /** Подсказки менеджеру в чате и оценки «ждёт ли клиент ответа»: в turns и costPer1000 не входят, в costUsd — входят. */
+  copilot: { turns: number; costUsd: number };
   calls: number;
   failed: number;
   fallback: number;
@@ -116,7 +120,16 @@ export function llmMetrics(turns: LlmTurnRow[], calls: LlmCallRow[]): LlmMetrics
   let n = 0;
   let escalations = 0;
   let cost = 0;
+  let replyCost = 0;
+  const copilot = { turns: 0, costUsd: 0 };
   for (const t of turns) {
+    if (t.purpose === "copilot" || t.purpose === "triage") {
+      copilot.turns += t.turns;
+      copilot.costUsd += t.costUsd;
+      cost += t.costUsd;
+      continue;
+    }
+    replyCost += t.costUsd;
     n += t.turns;
     escalations += t.escalations;
     cost += t.costUsd;
@@ -135,7 +148,8 @@ export function llmMetrics(turns: LlmTurnRow[], calls: LlmCallRow[]): LlmMetrics
     chosen,
     escalations,
     costUsd: r6(cost),
-    costPer1000: n ? r6((cost / n) * 1000) : null,
+    costPer1000: n ? r6((replyCost / n) * 1000) : null,
+    copilot: { turns: copilot.turns, costUsd: r6(copilot.costUsd) },
     calls: sum("calls"),
     failed: sum("failed"),
     fallback: sum("fallback"),

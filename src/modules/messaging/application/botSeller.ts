@@ -67,6 +67,7 @@ import {
   type SellerTurn,
   type TraceContext,
   type TraceNote,
+  type BotTurnTrace,
   type RemindCheck,
   type RemindReject,
   type SellerRemind,
@@ -109,7 +110,7 @@ const SHORT_HISTORY = 20;
 /** Ответ модели не разобрался по схеме — так ask сообщает об этом (эскалация «не по схеме», а не «сбой API»). */
 const NOT_BY_SCHEMA = "ответ модели не по схеме";
 /** Политика маршрутизации, если порт модели её не сообщает (двойники в тестах, старое подключение): один уровень. */
-const NO_ROUTING: RoutePolicyView = { mode: "off", defaultTier: "haiku", sonnetAt: 2, opusAt: 6, maxExtra: 0, budgetUsd: null, dailyBudgetUsd: null };
+const NO_ROUTING: RoutePolicyView = { mode: "off", defaultTier: "haiku", sonnetAt: 1, opusAt: 6, maxExtra: 0, budgetUsd: null, dailyBudgetUsd: null };
 
 /** Черновик ответа для менеджера («Подсказать ответ» в чате): текст, заметка о клиенте и этап — или почему не вышло. */
 export type CopilotSuggestion = { text: string; summary: string; stage: SellerStage } | { error: string };
@@ -689,17 +690,32 @@ export class AiSeller {
     const c = await this.consult({ conv, base, env, config, fields, history, fresh: [], purpose: "copilot", voice: { manager }, quick: opts.quick });
     if (c.error !== undefined) return { error: c.error };
     let decision = c.decision;
+    // След с маршрутом и расходами — как у хода с клиентом (метрики, суточный потолок), но без сообщения клиенту.
+    const trace = (d: SellerDecision | null, notes: TraceNote[] = [], error?: string) =>
+      this.d.store.log(conv.id, conv.dealId, d?.lang ?? base.lang, [this.traceEvent(opts.quick ? "triage" : "copilot", d, c.trace, base, [], [], { notes, error })]).catch((err) => this.d.logger.warn("bot copilot trace", { error: String(err) }));
     // Только оценка «ждёт ли клиент ответа» (triage): текст никуда не уходит — проверять и переписывать его незачем.
-    if (opts.quick) return { text: decision.action === "wait" ? "" : decision.reply, summary: decision.summary, stage: decision.stage };
+    if (opts.quick) {
+      await trace(decision);
+      return { text: decision.action === "wait" ? "" : decision.reply, summary: decision.summary, stage: decision.stage };
+    }
     const check = (d: SellerDecision) => (d.reply ? [...checkSellerReply(d.reply, c.rules), ...stallProblems(d.reply, { action: d.action, handoff: d.handoff }, c.platform)] : []);
     let problems = check(decision);
+    const notes: TraceNote[] = [];
     if (problems.length) {
+      notes.push({ code: "rewrite", detail: problemsText(problems) });
       const again = await c.rewrite(problems);
-      if ("error" in again) return again;
+      if ("error" in again) {
+        await trace(decision, notes, again.error);
+        return again;
+      }
       decision = again;
       problems = check(decision);
     }
-    if (problems.length) return { error: `Подсказка не прошла проверку (${problemsText(problems)}) — ответьте сами.` };
+    if (problems.length) {
+      await trace(decision, [...notes, { code: "blocked_twice", detail: problemsText(problems) }]);
+      return { error: `Подсказка не прошла проверку (${problemsText(problems)}) — ответьте сами.` };
+    }
+    await trace(decision, notes);
     return { text: decision.action === "wait" ? "" : decision.reply, summary: decision.summary, stage: decision.stage };
   }
 
@@ -801,7 +817,7 @@ export class AiSeller {
    * Запись следа хода: решение модели, правки кода, итог и что ушло клиенту. Сообщение, у которого в чате «Почему так?», —
    * последнее отправленное в этом ходе; не ушло ничего — след без сообщения (виден в журнале).
    */
-  private traceEvent(purpose: "reply" | "follow_up", decision: SellerDecision | null, context: TraceContext | null, state: BotState, events: BotEvent[], sent: Sent[], extra: { fields?: Record<string, string | number>; notes?: TraceNote[]; materials?: number | null; error?: string } = {}): BotEvent {
+  private traceEvent(purpose: BotTurnTrace["purpose"], decision: SellerDecision | null, context: TraceContext | null, state: BotState, events: BotEvent[], sent: Sent[], extra: { fields?: Record<string, string | number>; notes?: TraceNote[]; materials?: number | null; error?: string } = {}): BotEvent {
     const notes: TraceNote[] = [...(extra.notes ?? []), ...sent.flatMap((s): TraceNote[] => ("blocked" in s ? [{ code: s.blocked }] : []))];
     const ids = sent.flatMap((s) => ("id" in s && s.id ? [s.id] : []));
     return { kind: "turn", meta: turnTrace({ purpose, decision, context, state, events, fields: extra.fields, notes, materials: extra.materials, error: extra.error }), messageId: ids.at(-1) ?? null };

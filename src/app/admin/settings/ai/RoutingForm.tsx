@@ -98,7 +98,7 @@ export function RoutingForm({ saved, providers, legacyProvider }: { saved: Routi
             <summary className="flex min-h-9 cursor-pointer items-center px-3 text-sm text-ink-soft">Показать настройки</summary>
             <div className="space-y-4 border-t border-line p-3">
               <div className="grid gap-4 sm:grid-cols-3">
-                <NumberField name="sonnetAt" label="Очков сложности для Sonnet" value={saved.sonnetAt} placeholder="2" disabled={env("seller.route.sonnetAt")} />
+                <NumberField name="sonnetAt" label="Очков сложности для Sonnet" value={saved.sonnetAt} placeholder="1" disabled={env("seller.route.sonnetAt")} />
                 <NumberField name="opusAt" label="Очков сложности для Opus" value={saved.opusAt} placeholder="6" disabled={env("seller.route.opusAt")} />
                 <NumberField name="maxExtra" label="Эскалаций за сообщение (0–4)" value={saved.maxExtra} placeholder="2" disabled={env("seller.route.maxExtra")} />
                 <NumberField name="budget" label="Потолок на беседу, $ (0 — без потолка)" value={saved.budget} placeholder="0.5" disabled={env("seller.route.budget")} />

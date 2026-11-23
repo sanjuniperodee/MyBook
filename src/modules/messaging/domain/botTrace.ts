@@ -111,8 +111,11 @@ export interface TraceDeadline {
 
 export interface BotTurnTrace {
   v: 1;
-  /** Ответ на сообщения клиента или напоминание молчащему. */
-  purpose: "reply" | "follow_up";
+  /**
+   * Ответ на сообщения клиента, напоминание молчащему, подсказка менеджеру в чате (copilot) или оценка «ждёт ли клиент
+   * ответа» (triage). У подсказки и оценки сообщения клиенту нет — след только для метрик и расходов.
+   */
+  purpose: "reply" | "follow_up" | "copilot" | "triage";
   /** Решение модели; null — модель не спрашивали (голосовое без распознавания) или она не ответила. */
   model: { action: SellerAction; stage: SellerStage; handoff: SellerHandoff; lang: BotLang; summary: string } | null;
   /** Чем закончился ход по коду: беседа идёт или передана менеджеру (причина из журнала), закрыта. */
@@ -161,7 +164,7 @@ export function readBotTrace(raw: unknown): BotTurnTrace | null {
   const r = raw as unknown as BotTurnTrace;
   return {
     v: 1,
-    purpose: r.purpose === "follow_up" ? "follow_up" : "reply",
+    purpose: r.purpose === "follow_up" || r.purpose === "copilot" || r.purpose === "triage" ? r.purpose : "reply",
     model: isObj(r.model) ? r.model : null,
     result: { phase: r.result.phase, outcome: r.result.outcome ?? null, handoff: r.result.handoff ?? null },
     fields: isObj(r.fields) ? r.fields : {},

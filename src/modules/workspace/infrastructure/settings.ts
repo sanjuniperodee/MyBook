@@ -191,7 +191,7 @@ export const settingDefs = {
   /** Уровень по умолчанию: haiku | sonnet | opus. */
   "seller.route.default": { env: "AI_ROUTE_DEFAULT_TIER", default: "haiku" },
   /** Пороги очков сложности хода для Sonnet и Opus. */
-  "seller.route.sonnetAt": { env: "AI_ROUTE_SONNET_AT", default: "2" },
+  "seller.route.sonnetAt": { env: "AI_ROUTE_SONNET_AT", default: "1" },
   "seller.route.opusAt": { env: "AI_ROUTE_OPUS_AT", default: "6" },
   /** Сколько дополнительных запросов-эскалаций можно за один ход клиента (0–4). */
   "seller.route.maxExtra": { env: "AI_ROUTE_MAX_EXTRA", default: "2" },
