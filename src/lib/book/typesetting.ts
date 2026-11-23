@@ -7,7 +7,7 @@
  * формата из interiorMetrics), em — доля кегля основного текста, «доля полосы» — доля ширины полосы набора,
  * мм — от обреза.
  */
-import { fontFaces, fontMetrics } from "./fonts";
+import { fontFaces, fontMetrics, fontWidth } from "./fonts";
 import type { BookFormat } from "./formats";
 import type { InteriorDesign, QuoteStyle, TextAlign, TextFace } from "./interiors";
 import { interiorMetrics } from "./page-geometry";
@@ -304,6 +304,25 @@ export function dropCapPlan(design: InteriorDesign, sizes: InteriorSizes): DropC
     gap: S * 0.35,
     height: lines * lineH,
   };
+}
+
+/**
+ * Оценка, сколько знаков встанет в строки рядом с опущенной буквицей, — для первого прохода вёрстки: дальше место
+ * продолжения берётся из настоящей раскладки (flow.dropSplit). Одна для PDF (pdf/interior/text-block.tsx) и превью:
+ * от неё зависит первый проход, а решения доводки копятся с него.
+ */
+export function estimateDropSplit(text: string, design: InteriorDesign, sizes: Pick<InteriorSizes, "body">, plan: DropCapPlan, columnWidthPt: number) {
+  const S = sizes.body;
+  const capW = plan.size * fontWidth(plan.face.font) * 1.3 + plan.gap;
+  const width = columnWidthPt - capW;
+  const perLine = Math.max(8, Math.floor(width / (S * fontWidth(design.type.body))));
+  let pos = 0;
+  for (let line = 0; line < plan.lines && pos < text.length; line++) {
+    const end = Math.min(text.length, pos + perLine);
+    const space = end >= text.length ? text.length : text.lastIndexOf(" ", end);
+    pos = space > pos ? space + 1 : end;
+  }
+  return pos;
 }
 
 /** Буква для буквицы и остаток абзаца; абзац начинается не с буквы или цифры (тире, кавычка) — буквицы нет. */

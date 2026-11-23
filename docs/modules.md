@@ -21,7 +21,7 @@
 | [messaging](#messaging) | Переписка: единый инбокс, бот-квалификатор, виджет на сайте. | 55 / 15527 | 146 |
 | [notifications](#notifications) | Уведомления: автописьма, напоминания из CRM, отписка. | 9 / 692 | 6 |
 | [ordering](#ordering) | Заказы. Остальной код видит только его. | 46 / 5602 | 91 |
-| [production](#production) | Производство: вёрстка PDF книги и сертификатов, предпросмотры полос и обложек, файлы для типографии, очередь сборки. В container — previews (BookPreviewService) и printFiles. | 40 / 4584 | 0 |
+| [production](#production) | Производство: вёрстка PDF книги и сертификатов, предпросмотры полос и обложек, файлы для типографии, очередь сборки. В container — previews (BookPreviewService) и printFiles. | 40 / 4569 | 0 |
 | [referrals](#referrals) | Приглашения: код для друзей, награда за их заказы и покупки из чата. | 10 / 358 | 3 |
 | [reporting](#reporting) | Отчёты CRM — сторона чтения (CQRS): сводные выборки по нескольким контекстам для страниц (дашборд, аналитика, поиск, «Мой день»). Только чтение, без бизнес-правил: команды идут через модули контекстов. | 42 / 4377 | 56 |
 | [sales](#sales) | Продажи: сделки, воронки, этапы, дубли, воронка по действиям на сайте. | 27 / 2863 | 90 |
@@ -146,7 +146,7 @@ Identity: учётные записи, вход, пароли, второй фа
 - Папка: `src/modules/production` (application, infrastructure)
 - Фасад: нет класса-фасада (функции из index.ts)
 - Таблицы: своих нет
-- Тесты (32): `book-build.test.ts`, `chapter-opener-left.test.tsx`, `chapter-start.test.tsx`, `characterization/covers.test.ts`, `characterization/fingerprint.test.ts`, `characterization/render.test.ts`, `cover-back-color.test.tsx`, `cover-emoji.test.tsx`, `cover-reverse.test.tsx`, `design-polish.test.tsx`, `end-text.test.tsx`, `fixtures.test.ts`, `gallery-title.test.tsx`, `i18n.test.ts`, `page-layout.test.ts`, `pdf-critical.test.ts`, `pdf-flow.test.ts`, `pdf-frames.test.tsx`, `pdf-media.test.tsx`, `pdf-opener-limits.test.ts`, `pdf-photos.test.tsx`, `pdf-pool-limits.test.ts`, `pdf.test.tsx`, `photo-crop.test.ts`, `preview-pdf-parity.test.tsx`, `print-kinds.test.tsx`, `print-spec.test.ts`, `production.test.ts`, `render-progress.test.ts`, `title-page.test.tsx`, `toc.test.ts`, `verse-stanzas.test.tsx`
+- Тесты (35): `book-build.test.ts`, `chapter-opener-left.test.tsx`, `chapter-start.test.tsx`, `characterization/covers.test.ts`, `characterization/fingerprint.test.ts`, `characterization/render.test.ts`, `cover-back-color.test.tsx`, `cover-emoji.test.tsx`, `cover-reverse.test.tsx`, `design-polish.test.tsx`, `end-text.test.tsx`, `fixtures.test.ts`, `gallery-title.test.tsx`, `i18n.test.ts`, `linebreak.test.tsx`, `page-layout.test.ts`, `paginate.test.tsx`, `pdf-critical.test.ts`, `pdf-flow.test.ts`, `pdf-frames.test.tsx`, `pdf-media.test.tsx`, `pdf-opener-limits.test.ts`, `pdf-photos.test.tsx`, `pdf-pool-limits.test.ts`, `pdf.test.tsx`, `photo-crop.test.ts`, `preview-page-numbers.test.ts`, `preview-pdf-parity.test.tsx`, `print-kinds.test.tsx`, `print-spec.test.ts`, `production.test.ts`, `render-progress.test.ts`, `title-page.test.tsx`, `toc.test.ts`, `verse-stanzas.test.tsx`
 
 ## referrals
 

@@ -2,8 +2,7 @@ import "server-only";
 import { Text, View } from "@react-pdf/renderer";
 import type { Style } from "@react-pdf/stylesheet";
 import { listMarkerEm, type AnswerBlock } from "@/lib/book/answer-blocks";
-import { fontWidth } from "@/lib/book/fonts";
-import { ANSWER, dropCapPlan, indentEm, LEAD_IN, paraIndent, paraAfter, QUOTE_MARK, quoteStyle, splitInitial, splitLeadIn, type DropCapPlan } from "@/lib/book/typesetting";
+import { ANSWER, dropCapPlan, estimateDropSplit, indentEm, LEAD_IN, paraIndent, paraAfter, QUOTE_MARK, quoteStyle, splitInitial, splitLeadIn, type DropCapPlan } from "@/lib/book/typesetting";
 import { face } from "@/modules/production/infrastructure/pdf/fonts";
 import { DROP_MARK } from "@/modules/production/infrastructure/pdf/flow";
 import { mark, noHyphens, textFace, type PdfKit } from "./kit";
@@ -43,24 +42,6 @@ function Paragraph({ kit, block, id, leadIn, indent }: BlockProps<"para"> & { le
 }
 
 /**
- * Оценка, сколько знаков встанет в строки рядом с буквицей, — только для первого прохода: дальше место продолжения
- * берётся из настоящей раскладки (flow.dropSplit, pdf/flow.ts refineDropCaps).
- */
-function estimateSplit(text: string, kit: PdfKit, plan: DropCapPlan) {
-  const { design, sizes: S } = kit;
-  const capW = plan.size * fontWidth(plan.face.font) * 1.3 + plan.gap;
-  const width = kit.textWidthPt - Number(kit.measure.marginLeft ?? 0) - Number(kit.measure.marginRight ?? 0) - capW;
-  const perLine = Math.max(8, Math.floor(width / (S.body * fontWidth(design.type.body))));
-  let pos = 0;
-  for (let line = 0; line < plan.lines && pos < text.length; line++) {
-    const end = Math.min(text.length, pos + perLine);
-    const space = end >= text.length ? text.length : text.lastIndexOf(" ", end);
-    pos = space > pos ? space + 1 : end;
-  }
-  return pos;
-}
-
-/**
  * Абзац с буквицей. Опущенная: буква на lines строк, рядом — колонка, в которую react-pdf сам ставит строки (весь остаток
  * абзаца, видно ровно lines строк, следующая срезана — поэтому и последняя видимая строка выключена по ширине), ниже —
  * продолжение с того знака, где кончились строки колонки (по раскладке прошлого прохода). Поднятая — крупная первая
@@ -80,7 +61,8 @@ function DropCapParagraph({ kit, block, id, leadIn, plan }: BlockProps<"para"> &
       </Text>
     );
   kit.options.dropColumns?.set(id, { text: rest, lines: plan.lines });
-  const split = Math.min(rest.length, kit.flow.dropSplit.get(id) ?? estimateSplit(rest, kit, plan));
+  const columnWidth = kit.textWidthPt - Number(kit.measure.marginLeft ?? 0) - Number(kit.measure.marginRight ?? 0);
+  const split = Math.min(rest.length, kit.flow.dropSplit.get(id) ?? estimateDropSplit(rest, design, S, plan, columnWidth));
   const after = rest.slice(split).replace(/^\s+/, "");
   return (
     <View {...mark(id)} style={{ ...kit.measure, marginBottom: S.body * paraAfter(design) }}>

@@ -10,6 +10,9 @@ import type { InteriorDesign } from "@/lib/book/interiors";
 import { normalizeStyle, splitParagraphs, type InlinePhotoStyle } from "@/lib/book/inline-photo";
 import { interiorMetrics, pageSide, textArea } from "@/lib/book/page-geometry";
 import { pageKit } from "@/components/interior/kit";
+import { PAPER } from "@/lib/book/interiors";
+import { PAGE_SHADOW } from "./book-pages";
+import { createLineBreaker, type LineBreaker } from "@/components/interior/line-breaker";
 import { pxUnits } from "@/components/interior/units";
 import { ChapterPages, chapterContentKey } from "./ChapterPages";
 import { PreviewOpener, PreviewPhotoPages } from "./book-pages";
@@ -36,6 +39,7 @@ function PagePreviewView({
   chapters,
   gallery = null,
   openersLeft = false,
+  firstPage,
   chapterStart,
   currentId,
   selectedId = null,
@@ -59,6 +63,8 @@ function PagePreviewView({
   gallery?: PreviewGallery | null;
   /** Начальная полоса главы слева, первая полоса текста справа (BookContent.openersLeft); нет — начальная справа. */
   openersLeft?: boolean;
+  /** Номер первой полосы первой главы в книге (после титула, посвящения и оглавления); нет — полосы без номеров. */
+  firstPage?: number;
   /** Глава без начальной полосы (BookContent.chapterStart): inline — номер и название над текстом, none — чистый лист. */
   chapterStart?: BookContent["chapterStart"];
   currentId: string;
@@ -87,8 +93,9 @@ function PagePreviewView({
   const px = pageW / W; // пикселей на миллиметр
   const textW = area.w * px;
   const gap = pageSide(format) * 2 * px;
-  const hyphenate = useBookHyphenate(language);
-  const kit = useMemo(() => pageKit(design, format, pxUnits(px), language, hyphenate), [design, format, px, language, hyphenate]);
+  const { hyphenate, breaker, version } = useBookTypesetter(language);
+  // decides — превью делает доводку вёрстки само (ChapterPages), как PDF.
+  const kit = useMemo(() => ({ ...pageKit(design, format, pxUnits(px), language, hyphenate, breaker), version, decides: true }), [design, format, px, language, hyphenate, breaker, version]);
 
   const entries = useMemo(() => new Map(chapters.flatMap((c) => c.entries.map((e) => [e.id, { entry: e, chapter: c.key }] as const))), [chapters]);
   const currentEntry = entries.get(currentId)?.entry;
@@ -107,7 +114,7 @@ function PagePreviewView({
     onMove: onMovePhoto,
   });
 
-  const { scroll, pagesBy, photoPagesBy, setMeasureRef, measure } = usePreviewPages({ chapters, currentId, textW, gap, marginTop: interiorMetrics[format.id].marginTop * px });
+  const { scroll, pagesBy, photoPagesBy, setMeasureRef, measure, report } = usePreviewPages({ chapters, currentId, textW, gap, marginTop: interiorMetrics[format.id].marginTop * px });
 
   // Щелчок по полосе мимо фото снимает выделение. Обработчик стабилен (через ref), чтобы не перерисовывать главы.
   const clickState = useRef({ interactive, selectedId, onSelect, suppressUntil: drag.suppressClickUntil });
@@ -128,6 +135,27 @@ function PagePreviewView({
   const hasTarget = !!onTarget;
   const tapTarget = useCallback((target: PreviewTarget) => targetRef.current?.(target), []);
   const toTarget = hasTarget ? tapTarget : undefined;
+
+  // Номера полос, как в книге: перед главами — передние полосы (firstPage), у глав — их полосы (как у PDF), пустая
+  // полоса перед начальной, если она выпала бы справа, и страницы фото после главы.
+  const numbering = useMemo(() => {
+    if (firstPage === undefined) return null;
+    const out = new Map<string, { text: number; blank: boolean }>();
+    let page = firstPage;
+    for (const ch of chapters) {
+      let blank = false;
+      if (!chapterStart) {
+        if (openersLeft && page % 2 === 1) {
+          blank = true;
+          page++;
+        }
+        page++;
+      }
+      out.set(ch.key, { text: page, blank });
+      page += (pagesBy[ch.key] ?? 1) + (ch.photoPages?.length ?? 0);
+    }
+    return { chapters: out, galleryBlank: !!openersLeft && page % 2 === 1 };
+  }, [firstPage, chapters, chapterStart, openersLeft, pagesBy]);
 
   const { moving } = drag;
   const dragged = moving ? currentEntry?.photos.find((p) => p.id === moving.id) : null;
@@ -157,6 +185,8 @@ function PagePreviewView({
                 onTarget={toTarget}
                 pages={pagesBy[ch.key] ?? 1}
                 openersLeft={openersLeft}
+                firstPage={numbering?.chapters.get(ch.key)?.text}
+                blankBefore={numbering?.chapters.get(ch.key)?.blank}
                 start={chapterStart}
                 photoPages={photoPagesBy[ch.key] ?? NO_PHOTO_PAGES}
                 currentId={current ? currentId : null}
@@ -167,6 +197,7 @@ function PagePreviewView({
                 scroll={scroll}
                 setMeasureRef={setMeasureRef}
                 measure={measure}
+                report={report}
                 onPageClick={onPageClick}
               />
             );
@@ -174,6 +205,7 @@ function PagePreviewView({
         ) : (
           <div className="bg-white" style={{ aspectRatio: `${W} / ${H}` }} />
         )}
+        {pageW && gallery && numbering?.galleryBlank ? <div aria-hidden className={PAGE_SHADOW} style={{ width: pageW, height: H * px, background: design.paper ?? PAPER }} /> : null}
         {pageW && gallery ? (
           // Альбом в конце — после всех глав, как в PDF: начальная полоса без номера и страницы фото.
           <>
@@ -194,17 +226,19 @@ function PagePreviewView({
 }
 
 /**
- * Переносы книги (lib/book/hyphenate.ts) для превью: модуль с шаблонами грузится отдельно, пока его нет — переносы
- * браузера. Текст абзаца с мягкими переносами запоминается: главы перерисовываются часто, а текст в них тот же.
+ * Переносы и строки книги для превью: модуль с шаблонами переносов (lib/book/hyphenate.ts) грузится отдельно. Пока его
+ * нет — переносы и строки браузера. Потом — строки, как у PDF (line-breaker.ts: Кнут — Пласс по ширинам шрифтов
+ * книги), а где шрифт ещё грузится — мягкие переносы PDF. Догрузился шрифт — новая версия набора, превью перестраивается.
  */
-function useBookHyphenate(language: Locale) {
-  const [fn, setFn] = useState<((text: string) => string) | undefined>(undefined);
+function useBookTypesetter(language: Locale) {
+  const [tools, setTools] = useState<{ hyphenate: (text: string) => string; breaker: LineBreaker } | undefined>(undefined);
+  const [version, setVersion] = useState(0);
   useEffect(() => {
     let live = true;
-    void import("@/lib/book/hyphenate").then(({ softHyphenate }) => {
+    void import("@/lib/book/hyphenate").then(({ softHyphenate, hyphenateWord }) => {
       if (!live) return;
       const memo = new Map<string, string>();
-      setFn(() => (text: string) => {
+      const hyphenate = (text: string) => {
         let out = memo.get(text);
         if (out === undefined) {
           out = softHyphenate(text, language);
@@ -212,12 +246,23 @@ function useBookHyphenate(language: Locale) {
           memo.set(text, out);
         }
         return out;
-      });
+      };
+      const breaker = createLineBreaker(language, hyphenateWord, () => live && setVersion((v) => v + 1));
+      setTools({ hyphenate, breaker });
     });
     return () => {
       live = false;
     };
   }, [language]);
+  // Новая версия — новая функция: набор (kit) меняется, главы перерисовываются и перемеряются.
+  const breaker = useMemo(() => (tools ? withVersion(tools.breaker, version) : undefined), [tools, version]);
+  return { hyphenate: tools?.hyphenate, breaker, version };
+}
+
+/** Та же разбивка строк новой функцией (версия набора — в замыкании: функции разные, кэш общий). */
+function withVersion(base: LineBreaker, version: number): LineBreaker {
+  const fn: LineBreaker = (req) => (version >= 0 ? base(req) : null);
+  fn.width = base.width;
   return fn;
 }
 

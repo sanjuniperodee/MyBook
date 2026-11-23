@@ -320,3 +320,11 @@ export function estimatePages(content: BookContent): number {
 export function estimateAnswerPages(heading: string | null, answer: string, photos: RowPhoto[], m: TextMetrics, media: readonly Partial<AnswerMedia>[] = []) {
   return entryHeight(heading, answer, photos, media, false, m) / m.height;
 }
+
+/**
+ * Номер первой полосы первой главы (её начальной полосы или, без начальных полос, первой полосы текста): титул и его
+ * оборот, посвящение, оглавление — как их ставит PDF (InteriorDocument). Оглавление — по оценке estimateTocPages.
+ */
+export function firstChapterPage(content: BookContent): number {
+  return frontPages(content) + (content.dedication ? 1 : 0) + (hasToc(content) ? estimateTocPages(content, textMetrics(content.format, content.interior)) : 0) + 1;
+}

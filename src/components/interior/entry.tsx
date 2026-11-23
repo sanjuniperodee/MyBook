@@ -1,6 +1,6 @@
 import { Fragment, type CSSProperties, type HTMLAttributes, type ImgHTMLAttributes, type ReactNode } from "react";
 import { mm, MM_TO_PT, PT_TO_MM } from "@/lib/book/formats";
-import { cssFont } from "@/lib/book/fonts";
+import { cssFont, naturalLineHeight } from "@/lib/book/fonts";
 import { answerBlocks, rowsByBlock, type AnswerBlock } from "@/lib/book/answer-blocks";
 import { layoutMedia, mediaCardBox, mediaIcon, mediaSource, qrDrawing, qrInk, type AnswerMedia } from "@/lib/book/answer-media";
 import { framedBox, layoutInline, normalizeStyle, objectPosition, placedByAuthor, polaroidFontSize, ROW_GAP, rowSpaceAbove, rowSpaceLimit, type InlinePhotoStyle } from "@/lib/book/inline-photo";
@@ -8,9 +8,12 @@ import { dividerDrawing, vignetteDrawing } from "@/lib/book/interior-art";
 import { PHOTO_COLORS } from "@/lib/book/interiors";
 import { textArea } from "@/lib/book/page-geometry";
 import { bookMessagesFor } from "@/i18n/messages/partial";
-import { CHAPTER_TAIL, DIVIDER, HEADING, headingFace, HTML_LINE_HEIGHT, INLINE_ROW, MEDIA_CARD, VIGNETTE_RULE } from "@/lib/book/typesetting";
+import { CHAPTER_TAIL, DIVIDER, HEADING, headingFace, HTML_LINE_HEIGHT, INLINE_ROW, MEDIA_CARD, quoteFace, VIGNETTE_RULE } from "@/lib/book/typesetting";
 import { AnswerBlockView } from "./answer-block";
-import { GAP_BELOW } from "./entry-gap";
+import { GAP_BELOW, gapAbove } from "./entry-gap";
+import { keepWithNext } from "./keep";
+import { lineSpans } from "./lines";
+import { headingSpec, italicSpec, measureWidthPt } from "./text-specs";
 import { InlineDrawing } from "./graphics";
 import { metricsOf, type PageKit } from "./kit";
 import { faceCss, italicBody, labelCss, measureCss } from "./typography";
@@ -45,7 +48,7 @@ export function QuestionHeading({ kit, children, style, ...rest }: { kit: PageKi
   const { heading } = design;
   const scale = metricsOf(kit).scale;
   return (
-    <div style={{ breakInside: "avoid", breakAfter: "avoid", ...style }} {...rest}>
+    <div style={{ breakInside: "avoid", ...keepWithNext(kit), ...style }} {...rest}>
       {heading.bar ? (
         <div style={{ ...measureCss(kit), width: u.pt(HEADING.bar.width * scale), height: u.pt(HEADING.bar.thickness), background: design.palette.accent, marginBottom: u.pt(HEADING.bar.after * scale), ...(heading.align === "center" ? { marginInline: "auto" } : {}) }} />
       ) : null}
@@ -62,7 +65,7 @@ export function QuestionHeading({ kit, children, style, ...rest }: { kit: PageKi
           marginBottom: u.pt(S.afterHeading),
         }}
       >
-        {children}
+        {typeof children === "string" ? (lineSpans({ kit, req: { text: children, spec: headingSpec(kit, S.heading), width: measureWidthPt(kit), hyphens: false, justify: false }, align: heading.align }) ?? children) : children}
       </div>
     </div>
   );
@@ -71,16 +74,16 @@ export function QuestionHeading({ kit, children, style, ...rest }: { kit: PageKi
 /** Разделитель между ответами без заголовка: «* * *», глиф или линейка. */
 export function Divider({ kit, style, ...rest }: { kit: PageKit; style?: CSSProperties } & HTMLAttributes<HTMLDivElement>) {
   const { design, sizes: S, u } = kit;
-  if (design.divider === "space") return <div {...rest} style={{ height: u.pt(S.body * 0.8), marginBottom: u.pt(S.beforeHeadless), breakAfter: "avoid", ...style }} />;
+  if (design.divider === "space") return <div {...rest} style={{ height: u.pt(S.body * 0.8), marginBottom: u.pt(S.beforeHeadless), ...keepWithNext(kit), ...style }} />;
   if (design.divider === "stars")
     return (
-      <div {...rest} style={{ textAlign: "center", color: design.palette.rule, fontSize: u.pt(S.body), lineHeight: HTML_LINE_HEIGHT.stars, marginBottom: u.pt(S.beforeHeadless), breakAfter: "avoid", ...style }}>
+      <div {...rest} style={{ textAlign: "center", color: design.palette.rule, fontSize: u.pt(S.body), lineHeight: HTML_LINE_HEIGHT.stars, marginBottom: u.pt(S.beforeHeadless), ...keepWithNext(kit), ...style }}>
         * * *
       </div>
     );
   // flow-root: отступ обёртки и собственный отступ глифа складываются, как в PDF, а не схлопываются.
   return (
-    <div {...rest} style={{ display: "flow-root", breakAfter: "avoid", ...style }}>
+    <div {...rest} style={{ display: "flow-root", ...keepWithNext(kit), ...style }}>
       <InlineDrawing
         drawing={dividerDrawing(design.ornament, design.divider, design.palette)}
         u={u}
@@ -94,11 +97,17 @@ export function Divider({ kit, style, ...rest }: { kit: PageKit; style?: CSSProp
 export function ChapterTail({ kit, style, ...rest }: { kit: PageKit; style?: CSSProperties } & HTMLAttributes<HTMLDivElement>) {
   const { design, sizes: S, u } = kit;
   return (
-    <div {...rest} style={{ display: "flow-root", breakInside: "avoid", marginTop: u.pt(S.beforeHeading * CHAPTER_TAIL.before), ...style }}>
+    <div {...rest} {...gapAbove(S.beforeHeading * CHAPTER_TAIL.before, u.pt).attrs} style={{ display: "flow-root", breakInside: "avoid", ...gapAbove(S.beforeHeading * CHAPTER_TAIL.before, u.pt).style, ...style }}>
       <InlineDrawing drawing={vignetteDrawing(design.ornament, VIGNETTE_RULE.end, design.palette)} u={u} style={{ margin: "0 auto" }} />
     </div>
   );
 }
+
+/** Высота строки подписи под фото (множитель кегля) — как у PDF: Text без lineHeight. */
+export const captionLineHeight = (kit: PageKit) => {
+  const q = quoteFace(kit.design);
+  return naturalLineHeight(q.font, q.weight, !!q.italic);
+};
 
 export type RowItem<P extends EntryPhoto = EntryPhoto> = { p: P; style: InlinePhotoStyle };
 
@@ -177,7 +186,13 @@ function RowPhoto<P extends EntryPhoto>({ kit, item, rowSize, space, scale = 1, 
           </div>
         ) : null}
       </div>
-      {!polaroid && p.caption ? <figcaption style={{ ...italicBody(kit, S.caption), color: design.palette.muted, textAlign: "center", marginTop: u.pt(INLINE_ROW.captionGap), lineHeight: HTML_LINE_HEIGHT.caption }}>{p.caption}</figcaption> : null}
+      {!polaroid && p.caption ? (
+        // Строки подписи — высотой, как у react-pdf (без интерлиньяжа: по метрикам шрифта): от них высота ряда.
+        <figcaption style={{ ...italicBody(kit, S.caption), color: design.palette.muted, textAlign: "center", marginTop: u.pt(INLINE_ROW.captionGap), lineHeight: captionLineHeight(kit) }}>
+          {/* Строки подписи — как у PDF (шириной в рамку снимка): от них высота ряда. */}
+          {lineSpans({ kit, req: { text: p.caption, spec: italicSpec(kit, S.caption), width: b.outerW * MM_TO_PT, hyphens: false, justify: false }, align: "center" }) ?? p.caption}
+        </figcaption>
+      ) : null}
       {extra?.overlay}
     </figure>
   );
@@ -215,20 +230,22 @@ export function InlineRow<P extends EntryPhoto>({
   const breaks = !!row[0].style.breakBefore && !fresh;
   // Ряд, поставленный автором (отступ, «с новой страницы»): свой отступ сверху, доводка его не трогает — как в PDF.
   const own = placedByAuthor(row[0].style);
+  const before = breaks ? 0 : S.body * INLINE_ROW.before;
   return (
     <div
       {...rest}
       {...GAP_BELOW}
+      {...(before ? { "data-gap-above": String(before) } : {})}
       style={{
         display: "flex",
         justifyContent: align === "left" ? "flex-start" : align === "right" ? "flex-end" : "center",
         alignItems: "flex-start",
         gap: u.mm(textArea(kit.format).w * ROW_GAP),
-        marginTop: breaks ? 0 : u.pt(S.body * INLINE_ROW.before),
-        // Отбивка снизу — полем внутри ряда, а не внешним: у react-pdf она должна поместиться на полосе вместе с рядом
-        // и не схлопывается со следующей (браузер внешнее поле в конце колонки отбрасывает, а соседние схлопывает).
+        // Отбивки сверху и снизу — полями внутри ряда (entry-gap.ts), как у react-pdf: снизу — помещается на полосе
+        // вместе с рядом, сверху — остаётся и на новой полосе; соседние не схлопываются. Сверху к отбивке — свой
+        // отступ автора или сдвиг доводки (ряд по центру полосы).
         paddingBottom: u.pt(S.body * INLINE_ROW.after),
-        paddingTop: own ? u.mm(space.space) : offset ? u.pt(offset) : undefined,
+        paddingTop: `calc(${u.pt(before)} + ${own ? u.mm(space.space) : u.pt(offset)})`,
         breakBefore: breaks ? "column" : undefined,
         breakInside: "avoid",
         ...rest.style,
@@ -298,7 +315,7 @@ export function MediaCard({ kit, media, href, ...rest }: { kit: PageKit; media: 
   );
   return (
     // Отбивка снизу — полем внутри, как у ряда фото (InlineRow): неделимый блок PDF занимает её на полосе.
-    <div {...rest} {...GAP_BELOW} style={{ marginTop: u.pt(S.body * MEDIA_CARD.before), paddingBottom: u.pt(S.body * MEDIA_CARD.after), breakInside: "avoid", display: "flow-root", ...rest.style }}>
+    <div {...rest} {...GAP_BELOW} {...gapAbove(S.body * MEDIA_CARD.before, u.pt).attrs} style={{ ...gapAbove(S.body * MEDIA_CARD.before, u.pt).style, paddingBottom: u.pt(S.body * MEDIA_CARD.after), breakInside: "avoid", display: "flow-root", ...rest.style }}>
       {href ? (
         <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>
           {card}
@@ -388,3 +405,5 @@ function blockChars(b: AnswerBlock): number {
       return b.items.reduce((n, it) => n + it.text.length, 0);
   }
 }
+
+export { keepWithNext };

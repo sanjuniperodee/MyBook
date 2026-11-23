@@ -45,6 +45,8 @@ export function usePreviewPages({
 }) {
   const scroll = useRef<HTMLDivElement>(null);
   const measureRefs = useRef(new Map<string, HTMLDivElement>());
+  /** Полосы глав по разбивке, как у PDF (ChapterPages: lib/book/paginate.ts): пока она есть, колонки не считаем. */
+  const reported = useRef(new Map<string, ChapterLayout>());
   const [pagesBy, setPagesBy] = useState<Record<string, number>>({});
   const [photoPagesBy, setPhotoPagesBy] = useState<Record<string, PhotoPages>>({});
 
@@ -58,6 +60,8 @@ export function usePreviewPages({
     (keys?: string[]) => {
       if (!textW) return;
       const measured = [...(keys ?? measureRefs.current.keys())].flatMap((key) => {
+        const own = reported.current.get(key);
+        if (own) return [{ key, pages: own.pages, photos: own.photos }];
         const el = measureRefs.current.get(key);
         return el ? [{ key, pages: columnPages(el.scrollWidth, textW, gap), photos: photoColumns(el, textW, gap) }] : [];
       });
@@ -86,6 +90,15 @@ export function usePreviewPages({
     [textW, gap],
   );
   const measure = useCallback((key: string) => measureKeys([key]), [measureKeys]);
+  /** Глава разложена, как PDF: её полосы, полосы фото на всю страницу и где начинаются ответы; null — снова колонками. */
+  const report = useCallback(
+    (key: string, layout: ChapterLayout | null) => {
+      if (layout) reported.current.set(key, layout);
+      else reported.current.delete(key);
+      measureKeys([key]);
+    },
+    [measureKeys],
+  );
 
   useEffect(() => {
     measureKeys();
@@ -103,10 +116,12 @@ export function usePreviewPages({
       if (!root || !ch || !flowEl || !marker || !textW) return false;
       const fr = flowEl.getBoundingClientRect();
       const mr = marker.getBoundingClientRect();
-      const k = Math.min((pagesBy[ch.key] ?? 1) - 1, Math.max(0, Math.floor((mr.left - fr.left + 1) / (textW + gap))));
+      // Где начинается ответ: по разбивке, как у PDF (полоса и верх, px), иначе — по колонке метки в копии для замера.
+      const own = reported.current.get(ch.key)?.markers[currentId];
+      const k = own ? own.page : Math.min((pagesBy[ch.key] ?? 1) - 1, Math.max(0, Math.floor((mr.left - fr.left + 1) / (textW + gap))));
       const pageEl = root.querySelector<HTMLElement>(`[data-page="${CSS.escape(ch.key)}:${k}"]`);
       if (!pageEl) return false;
-      const top = root.scrollTop + pageEl.getBoundingClientRect().top - root.getBoundingClientRect().top + marginTop + (mr.top - fr.top) - 16;
+      const top = root.scrollTop + pageEl.getBoundingClientRect().top - root.getBoundingClientRect().top + marginTop + (own ? own.top : mr.top - fr.top) - 16;
       root.scrollTo({ top: Math.max(0, top), behavior });
       return true;
     },
@@ -122,7 +137,14 @@ export function usePreviewPages({
     if (Date.now() < settleUntil.current || !scrolledOnce.current) if (scrollToCurrent("auto")) scrolledOnce.current = true;
   }, [pagesBy, scrollToCurrent]);
 
-  return { scroll, pagesBy, photoPagesBy, setMeasureRef, measure };
+  return { scroll, pagesBy, photoPagesBy, setMeasureRef, measure, report };
+}
+
+/** Глава, разложенная как PDF: полос текста (с полосами фото на всю страницу), их места и начала ответов (полоса, верх в px). */
+export interface ChapterLayout {
+  pages: number;
+  photos: PhotoPages;
+  markers: Record<string, { page: number; top: number }>;
 }
 
 /** Фото «на всю страницу» главы → номер полосы текста (с 0), на которой оно стоит. */
