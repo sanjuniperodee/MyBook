@@ -37,5 +37,6 @@ SSH к серверу). Итог выкаток — владельцу в WhatsA
 ## Первая настройка (уже сделана)
 
 - `git clone` в `~/mybook-dev`, `npm ci`; память Claude — `~/.claude/projects/-home-srv-mybook-dev/memory/`.
-- Пуш в GitHub — ключ развёртывания с правом записи `~/.ssh/github_mybook` (remote `git@github.com:…`).
+- Пуш в GitHub — ключ развёртывания с правом записи `~/.ssh/github_mybook` (в GitHub: Settings → Deploy keys,
+  «mybook-server»), remote `git@github-mybook:sanjuniperodee/MyBook.git` (алиас в `~/.ssh/config`).
 - В приложении Claude: «Новая сессия» → SSH → `srv@185.102.75.191`, ключ `~/.ssh/id_ed25519`, папка `~/mybook-dev`.
