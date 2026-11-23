@@ -5,6 +5,7 @@
  *
  * Запуск из корня репозитория:
  *   npx tsx --import ./scripts/preload.mjs scripts/visual/parity.ts [--quick] [--filter <книга>] [--jobs N] [--css "<правила>"] [--json <файл>]
+ *   … --real <каталог> — вместо набора настоящие книги, выгруженные из базы (scripts/visual/real-books.ts).
  *
  * --css — правила, которые добавляются на страницу стенда (подбор параметров набора без правки кода).
  * Код выхода: 0 — посчитано (расхождения — в отчёте), 2 — не состоялось (нет Chromium).
@@ -21,6 +22,7 @@ import { chromium, type Browser } from "playwright";
 import type { FixtureBook } from "../../tests/fixtures/books";
 import { useFixtureStorage as openFixtureStorage } from "../../tests/fixtures/photos";
 import { photoNamesFor, snapshotBooks } from "./books";
+import { realBooks } from "./real-books";
 import { FIXED_TIME, freezeRuntime } from "./freeze";
 import { buildStandAssets } from "./html-assets";
 import type { StandView } from "./html-data";
@@ -40,9 +42,9 @@ export interface BookFlow {
 }
 
 /** PDF: главы и истории по манифесту полос и раскладке итоговой сборки. */
-async function pdfFlow(book: string): Promise<BookFlow> {
+async function pdfFlow(book: string, real?: string): Promise<BookFlow> {
   freezeRuntime();
-  const fixture = snapshotBooks(false).find((b) => b.key === book);
+  const fixture = [...snapshotBooks(false), ...(real ? realBooks(real) : [])].find((b) => b.key === book);
   if (!fixture) throw new Error(`Нет книги ${book} в наборе`);
   await openFixtureStorage(undefined, photoNamesFor([fixture]));
   const render = await import("@/modules/production/infrastructure/pdf/render");
@@ -70,9 +72,9 @@ function codeStamp() {
   return createHash("sha1").update(head).update(diff).digest("hex").slice(0, 12);
 }
 
-function runPdf(book: string): Promise<BookFlow> {
+function runPdf(book: string, real?: string): Promise<BookFlow> {
   return new Promise((resolve, reject) => {
-    const child = fork(SCRIPT, ["--worker", book], { cwd: ROOT, stdio: ["ignore", "pipe", "pipe", "ipc"] });
+    const child = fork(SCRIPT, ["--worker", book, ...(real ? [real] : [])], { cwd: ROOT, stdio: ["ignore", "pipe", "pipe", "ipc"] });
     let log = "";
     child.stdout?.on("data", (d) => (log += d));
     child.stderr?.on("data", (d) => (log += d));
@@ -82,11 +84,11 @@ function runPdf(book: string): Promise<BookFlow> {
   });
 }
 
-async function cachedPdf(book: FixtureBook, stamp: string): Promise<BookFlow> {
+async function cachedPdf(book: FixtureBook, stamp: string, real?: string): Promise<BookFlow> {
   const key = createHash("sha1").update(stamp).update(JSON.stringify(book.bundle)).digest("hex").slice(0, 16);
   const file = path.join(CACHE, `${book.key}-${key}.json`);
   if (existsSync(file)) return JSON.parse(await readFile(file, "utf8")) as BookFlow;
-  const flow = await runPdf(book.key);
+  const flow = await runPdf(book.key, real);
   await mkdir(CACHE, { recursive: true });
   await writeFile(file, JSON.stringify(flow));
   return flow;
@@ -132,18 +134,20 @@ interface BookReport {
 }
 
 async function main() {
-  const { values } = parseArgs({ args: process.argv.slice(2), options: { quick: { type: "boolean" }, filter: { type: "string" }, jobs: { type: "string" }, css: { type: "string" }, json: { type: "string" } } });
+  const { values } = parseArgs({ args: process.argv.slice(2), options: { quick: { type: "boolean" }, filter: { type: "string" }, jobs: { type: "string" }, css: { type: "string" }, json: { type: "string" }, real: { type: "string" } } });
   if (!existsSync(CHROMIUM)) {
     console.error(`Нет Chromium: ${CHROMIUM} — укажите CHROMIUM_PATH.`);
     process.exit(2);
   }
-  const books = snapshotBooks(!!values.quick).filter((b) => !values.filter || b.key.includes(values.filter));
+  const real = values.real ? path.resolve(values.real) : undefined;
+  const books = [...(real ? realBooks(real) : snapshotBooks(!!values.quick))].filter((b) => !values.filter || b.key.includes(values.filter));
   const jobs = Number(values.jobs ?? 3);
   const started = performance.now();
   await openFixtureStorage(undefined, photoNamesFor(books));
-  const stamp = codeStamp();
+  // PARITY_STAMP — взять PDF из кэша другого дерева (сверка превью старого кода с тем же PDF).
+  const stamp = process.env.PARITY_STAMP ?? codeStamp();
   const pdf = new Map<string, BookFlow>();
-  await runPool(books, jobs, async (b) => pdf.set(b.key, await cachedPdf(b, stamp)));
+  await runPool(books, jobs, async (b) => pdf.set(b.key, await cachedPdf(b, stamp, real)));
   console.log(`PDF: ${books.length} книг за ${seconds(started)}`);
 
   const restore = freezeRuntime();
@@ -189,7 +193,7 @@ async function main() {
 
 if (process.argv[2] === "--worker") {
   const reply = (message: object, code: number) => process.send?.(message, () => process.exit(code));
-  pdfFlow(process.argv[3]).then(
+  pdfFlow(process.argv[3], process.argv[4]).then(
     (result) => reply({ result }, 0),
     (err: unknown) => reply({ error: err instanceof Error ? err.message : String(err) }, 1),
   );
