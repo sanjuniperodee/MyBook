@@ -130,6 +130,37 @@ PM2:
 
 Кэш: npm + Turborepo. Сборка на GitHub, не на VPS.
 
+### 2.5. mybook-files (Go, пилот G3, ADR 0011)
+
+Процесс PM2 `mybook-files` (`bin/mybook-files` из релиза, `services/files`) слушает `127.0.0.1:3050` и отдаёт файлы
+хранилища по подписанной ссылке сайта. Трафик на него — режим сайта, без выкатки и без перезапуска:
+
+```sh
+mkdir -p ~/mybook-flags
+echo proxy    > ~/mybook-flags/files-service   # сайт проверяет права и передаёт поток от сервиса (без лишнего запроса браузера)
+echo redirect > ~/mybook-flags/files-service   # 302 на /files/<ссылка>; next.config.ts переписывает /files/* на сервис
+echo off      > ~/mybook-flags/files-service   # откат: сайт отдаёт сам (читается раз в 10 с)
+```
+
+Сервис не отвечает (`pm2 stop mybook-files`, упал) — сайт сам отдаёт файлы старым путём (проверка `/healthz` раз в 10 с).
+Сверка со старым путём перед включением: `scripts/files/parity.ts` (как запускать — в шапке файла), условие — 0 расхождений.
+
+**Строка nginx (нужен sudo — делает владелец).** Чтобы байты в режиме `redirect` шли мимо Next, в `server` сайта
+mybooks.kz (`/etc/nginx/sites-enabled/mybooks-kz`) перед `location /`:
+
+```nginx
+location ^~ /files/ {
+    proxy_pass http://127.0.0.1:3050;
+    proxy_http_version 1.1;
+    proxy_set_header Connection "";
+    proxy_buffering off;
+    proxy_read_timeout 1h;
+}
+```
+
+`sudo nginx -t && sudo systemctl reload nginx`. Откат — удалить блок и перезагрузить nginx (или `echo off` в флаг выше:
+ссылок `/files/` сайт тогда не выдаёт).
+
 ## 3. Миграции
 
 - Владелец схемы — владелец миграций.

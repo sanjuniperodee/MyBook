@@ -96,11 +96,13 @@ async function main() {
         let t0 = performance.now();
         const old = await snap(storedResponse(await openStoredFile(o.key, { range: req.range, ifNoneMatch: req["if-none-match"] }), type, kind.headers)!, t0);
         t0 = performance.now();
-        const go = await snap(await fetch(`${filesOrigin()}/files/${token}`, { headers: req }), t0);
+        // identity — без сжатия: Next сжимает text/* (файл задания типографии), длина тогда у тела, а не в заголовке.
+        const http = { ...req, "accept-encoding": "identity" };
+        const go = await snap(await fetch(`${filesOrigin()}/files/${token}`, { headers: http }), t0);
         const pairs: [string, Snap][] = [["go", go]];
         if (VIA) {
           t0 = performance.now();
-          pairs.push(["via", await snap(await fetch(`${VIA}/files/${token}`, { headers: req }), t0)]);
+          pairs.push(["via", await snap(await fetch(`${VIA}/files/${token}`, { headers: http }), t0)]);
         }
         if (v !== "etag" && !v.range) etag = old.headers.etag ?? "";
         for (const [name, got] of pairs) {
