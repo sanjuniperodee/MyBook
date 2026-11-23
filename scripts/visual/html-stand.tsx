@@ -7,6 +7,7 @@ import { CoverBackPreview } from "@/components/cover/CoverBackPreview";
 import { CoverPreview } from "@/components/cover/CoverPreview";
 import { PagePreview } from "@/components/editor/preview/PagePreview";
 import { InteriorSpread } from "@/components/interior/InteriorSpread";
+import { useBookTypesetter } from "@/components/interior/useBookTypesetter";
 import { I18nProvider } from "@/i18n/client";
 import { getFormat } from "@/lib/book/formats";
 import { getInteriorDesign } from "@/lib/book/interiors";
@@ -32,8 +33,14 @@ function Stand({ view }: { view: StandView }) {
     case "back":
       return <CoverBackPreview template={view.back.template} format={view.format} content={view.back.content} photos={view.back.photos} />;
     default:
-      return <InteriorSpread design={design} format={format} sample={view.sample} kind={view.kind} />;
+      return <Spread view={view} />;
   }
+}
+
+/** Разворот, как в «Страницах»: строки — как у PDF (useBookTypesetter). */
+function Spread({ view }: { view: Extract<StandView, { sample: unknown }> }) {
+  const { breaker } = useBookTypesetter(view.sample.language);
+  return <InteriorSpread design={getInteriorDesign(view.interior)} format={getFormat(view.format)} sample={view.sample} kind={view.kind} breaker={breaker} />;
 }
 
 const frame = () => new Promise((resolve) => requestAnimationFrame(resolve));

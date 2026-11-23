@@ -27,6 +27,7 @@ import type { StoryInfo } from "./StoryList";
 import { TocEditor } from "./TocEditor";
 import { DesignStudio, STUDIO_TABS, type StudioTabId } from "./studio/DesignStudio";
 import { RibbonItem } from "./RibbonItem";
+import { useBookTypesetter } from "@/components/interior/useBookTypesetter";
 
 const END_MODES = ["default", "custom", "none"] as const;
 type EndMode = (typeof END_MODES)[number];
@@ -90,6 +91,8 @@ export function PagesEditor({
   photos: PagesPhotoData;
 }) {
   const [state, setState] = useState(initial);
+  // Строки текста на развороте — как у PDF (Кнут — Пласс по шрифтам книги, переносы книги).
+  const typesetter = useBookTypesetter(sample.language);
   const [spread, setSpread] = useState<SpreadKind>("chapter");
   /** Выбранная глава (лента слева или вкладка «Главы» студии): разворот показывает её начало, а «Главы» правят её оформление. */
   const [selChapter, setSelChapter] = useState<string | null>(null);
@@ -460,7 +463,7 @@ export function PagesEditor({
           >
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-4 pt-14 pb-4 lg:pt-4">
               <div style={{ width: `min(calc(100cqw - 2rem), calc((100cqh - 6rem) * ${ratio}))` }}>
-                <InteriorSpread design={spreadDesign} format={format} sample={live} kind={spread} className="rounded-[3px] shadow-book" />
+                <InteriorSpread design={spreadDesign} format={format} sample={live} kind={spread} breaker={typesetter.breaker} className="rounded-[3px] shadow-book" />
               </div>
               <div className="hidden max-w-md text-center lg:block" aria-live="polite">
                 {tryDesign ? (
