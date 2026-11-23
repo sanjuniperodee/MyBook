@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, ImagePlus, LoaderCircle, Pencil, RefreshCw, Trash2, X } from "lucide-react";
+import { Eye, EyeOff, ImagePlus, LoaderCircle, Pencil, Plus, RefreshCw, Trash2, X } from "lucide-react";
 import { Field } from "@/components/ui/Field";
 import { Alert } from "@/components/ui/Alert";
 import { DrawerButton } from "@/components/admin/Drawer";
@@ -28,6 +28,15 @@ export interface ProductView {
 }
 
 const TONE: Record<string, string> = { ok: "bg-success-bg text-success", wait: "bg-warning-bg text-warning", bad: "bg-danger-bg text-danger", none: "bg-sunken text-muted" };
+
+/** «Добавить товар»: форма в боковой панели (функция-содержимое панели живёт на клиенте, со страницы её не передать). */
+export function NewProductButton({ currency }: { currency: string }) {
+  return (
+    <DrawerButton variant="primary" lazy label="Добавить товар" icon={<Plus className="size-4" aria-hidden />} title="Новый товар" description="Товар появится в каталоге WhatsApp после проверки WhatsApp" testId="new-product">
+      {(close) => <ProductForm currency={currency} onDone={close} />}
+    </DrawerButton>
+  );
+}
 
 /** «Обновить из WhatsApp»: забрать каталог (товары из приложения, решения проверки). */
 export function SyncButton() {
