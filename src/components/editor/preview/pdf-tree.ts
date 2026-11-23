@@ -19,7 +19,7 @@ import { dividerDrawing, vignetteDrawing } from "@/lib/book/interior-art";
 import { textArea } from "@/lib/book/page-geometry";
 import { paginate, type PagePiece, type PNode, type PText, type PView } from "@/lib/book/paginate";
 import { naturalLineHeight } from "@/lib/book/fonts";
-import { ANSWER, CHAPTER_TAIL, DIVIDER, dropCapPlan, quoteFace, HEADING, INLINE_ROW, KEEP_WITH_NEXT, MEDIA_CARD, paraAfter, splitInitial, splitLeadIn, VIGNETTE_RULE } from "@/lib/book/typesetting";
+import { ANSWER, CHAPTER_TAIL, DIVIDER, dropCapPlan, HTML_LINE_HEIGHT, QUOTE_MARK, quoteFace, quoteStyle, HEADING, INLINE_ROW, KEEP_WITH_NEXT, MEDIA_CARD, paraAfter, splitInitial, splitLeadIn, VIGNETTE_RULE } from "@/lib/book/typesetting";
 import { chapterHeadSizes } from "@/lib/book/chapter-head";
 import type { PageKit } from "@/components/interior/kit";
 import { metricsOf } from "@/components/interior/kit";
@@ -167,9 +167,10 @@ export function chapterTree(input: TreeInput, drops = new Map<string, number>())
     const head: PNode | null = e.heading
       ? design.heading.bar
         ? (() => {
-            // Заголовок с линейкой — неделимый блок; поле под заголовком у PDF внутри него (в разметке оно схлопнуто).
-            const l = need(leaf(`h:${e.id}`, { minPresenceAhead: KEEP_WITH_NEXT }));
-            return l ? { ...l, content: (l.content ?? 0) + S.afterHeading } : null;
+            // Заголовок с линейкой — неделимый блок (как у PDF): линейка, отбивка, строки заголовка и поле под ними.
+            const l = need(lines({ text: e.heading, spec: headingSpec(kit, S.heading), width: measureW, hyphens: false }, lh(S.heading, HEADING.lineHeight)));
+            const scale = metricsOf(kit).scale;
+            return l ? view({ id: `h:${e.id}`, children: [], wrap: false, minPresenceAhead: KEEP_WITH_NEXT, content: HEADING.bar.thickness + HEADING.bar.after * scale + l.reduce((a, v) => a + v, 0) + S.afterHeading }) : null;
           })()
         : (() => {
             const l = need(lines({ text: e.heading, spec: headingSpec(kit, S.heading), width: measureW, hyphens: false }, lh(S.heading, HEADING.lineHeight)));
@@ -216,10 +217,8 @@ export function chapterTree(input: TreeInput, drops = new Map<string, number>())
   function divider(id: string): PNode | null {
     const pid = `h:${id}`;
     if (design.divider === "space") return view({ id: pid, children: [], content: S.body * 0.8, mb: S.beforeHeadless, minPresenceAhead: KEEP_WITH_NEXT });
-    if (design.divider === "stars") {
-      const m = need(measured.get(pid) ?? null);
-      return m ? text({ id: pid, lines: [m.height - m.padTop - m.padBottom], mb: S.beforeHeadless, minPresenceAhead: KEEP_WITH_NEXT }) : null;
-    }
+    // «* * *» у PDF — строка встроенного Helvetica (высота 1,1 кегля).
+    if (design.divider === "stars") return text({ id: pid, lines: [S.body * HTML_LINE_HEIGHT.stars], mb: S.beforeHeadless, minPresenceAhead: KEEP_WITH_NEXT });
     const art = dividerDrawing(design.ornament, design.divider, design.palette);
     return view({ id: pid, children: [], content: art.h, mt: S.body * DIVIDER.before, mb: S.beforeHeadless + S.body * DIVIDER.after, minPresenceAhead: KEEP_WITH_NEXT });
   }
@@ -288,8 +287,16 @@ export function chapterTree(input: TreeInput, drops = new Map<string, number>())
         const l = need(lines({ text: b.text, spec: italicSpec(kit, size), width: measureW, hyphens: false }, lh(size, ANSWER.lede.lineHeight)));
         return l ? text({ id: pid, lines: l, mb: S.body * ANSWER.lede.after }) : null;
       }
-      case "quote":
-        return need(leaf(pid, { mt: S.body * ANSWER.quote.before, mb: S.body * ANSWER.quote.after }));
+      case "quote": {
+        // Неделимый блок, как Quote у PDF: строки курсивом (каждая строка цитаты — свой абзац), у «кавычки» — знак над ними.
+        const size = S.body * ANSWER.quote.size;
+        const kind = quoteStyle(design);
+        const width = kind === "center" ? textW * (1 - 2 * ANSWER.quote.inset) : kind === "mark" ? measureW - S.body * ANSWER.quote.indent : textW - ANSWER.quote.rule - S.body * ANSWER.quote.indent;
+        const l = need(lines({ text: b.lines.join("\n"), spec: italicSpec(kit, size), width, hyphens: false }, lh(size, ANSWER.quote.lineHeight)));
+        if (!l) return null;
+        const mark = kind === "mark" ? size * QUOTE_MARK.size * QUOTE_MARK.lineHeight + size * QUOTE_MARK.after : 0;
+        return view({ id: pid, children: [], wrap: false, content: mark + l.reduce((a, v) => a + v, 0), mt: S.body * ANSWER.quote.before, mb: S.body * ANSWER.quote.after });
+      }
       case "list": {
         const items: PNode[] = [];
         for (const [j, item] of b.items.entries()) {

@@ -7,7 +7,7 @@
  * формата из interiorMetrics), em — доля кегля основного текста, «доля полосы» — доля ширины полосы набора,
  * мм — от обреза.
  */
-import { fontFaces, fontMetrics, fontWidth } from "./fonts";
+import { fontFaces, fontMetrics, fontWidth, naturalLineHeight } from "./fonts";
 import type { BookFormat } from "./formats";
 import type { InteriorDesign, QuoteStyle, TextAlign, TextFace } from "./interiors";
 import { interiorMetrics } from "./page-geometry";
@@ -422,18 +422,14 @@ export const TOC = {
 } as const;
 
 /**
- * Интерлиньяж строк, которым в PDF он не задан (react-pdf берёт естественный интерлиньяж шрифта):
- * HTML-страницы приближают его этими числами. Расхождение сохранено как есть.
+ * Интерлиньяж строк, которым в PDF он не задан: react-pdf ставит их строками высотой по метрикам шрифта
+ * (ascent − descent + lineGap) — так же их ставит и HTML (naturalLineHeight). Здесь — только то, что метрикой шрифта
+ * не выражается: у «* * *» в PDF шрифта нет (встроенный Helvetica: ascent 900, descent −200).
  */
 export const HTML_LINE_HEIGHT = {
-  label: 1.2,
-  folio: 1.2,
-  kicker: 1.2,
-  stars: 1.2,
-  tocTitle: 1.2,
-  tocEntry: 1.25,
-  subtitle: 1.3,
-  end: 1.3,
-  caption: 1.3,
+  stars: 1.1,
   polaroidCaption: 1.1,
 } as const;
+
+/** Высота строки без интерлиньяжа у начертания дизайна — как у react-pdf (множитель кегля). */
+export const faceLineHeight = (f: Pick<TextFace, "font" | "weight" | "italic">) => naturalLineHeight(f.font, f.weight, !!f.italic);

@@ -2,7 +2,7 @@ import type { CSSProperties } from "react";
 import { cssFont } from "@/lib/book/fonts";
 import type { TextFace } from "@/lib/book/interiors";
 import { textArea } from "@/lib/book/page-geometry";
-import { bodyAlign, bodyWeight, dropCapPlan, HTML_LINE_HEIGHT, indentEm, LEAD_IN, measureInsets, paraAfter, quoteFace, splitInitial, splitLeadIn, trackingPt, type DropCapPlan } from "@/lib/book/typesetting";
+import { bodyAlign, bodyWeight, dropCapPlan, faceLineHeight, indentEm, LEAD_IN, measureInsets, paraAfter, quoteFace, splitInitial, splitLeadIn, trackingPt, type DropCapPlan } from "@/lib/book/typesetting";
 import type { PageKit } from "./kit";
 import { lineSpans } from "./lines";
 import { bodySpec, faceSpec, leadSpec, measureWidthPt } from "./text-specs";
@@ -31,7 +31,7 @@ export function labelCss(kit: PageKit, color: string, size = kit.sizes.label): C
     fontSize: kit.u.pt(size),
     letterSpacing: kit.u.pt(trackingPt(label, kit.sizes.label)),
     textTransform: label.upper ? "uppercase" : undefined,
-    lineHeight: HTML_LINE_HEIGHT.label,
+    lineHeight: faceLineHeight(label),
     color,
   };
 }

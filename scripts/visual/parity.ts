@@ -41,6 +41,8 @@ export interface BookFlow {
   breakBefore?: string[];
   /** Блоки доводки по главам: пометка, полоса от начала текста главы, верх и низ первого куска (pt от верха полосы набора). */
   blocks?: Record<string, [string, number, number, number][]>;
+  /** Полоса первой главы в книге (у превью — с пустой перед начальной, если она нужна). */
+  first?: number;
 }
 
 /** PDF: главы и истории по манифесту полос и раскладке итоговой сборки. */
@@ -69,7 +71,7 @@ async function pdfFlow(book: string, real?: string): Promise<BookFlow> {
   const top = mm(print.bleedMm + interiorMetrics[content.format.id].marginTop);
   const blocks: Record<string, [string, number, number, number][]> = {};
   for (const b of res.blocks) if (firstText[b.chapter] !== undefined) (blocks[b.chapter] ??= []).push([b.mark, b.first.page + 1 - firstText[b.chapter], Math.round((b.first.top - top) * 10) / 10, Math.round((b.first.bottom - top) * 10) / 10]);
-  return { chapters, entries, breakBefore: [...res.flow.breakBefore], blocks };
+  return { chapters, entries, breakBefore: [...res.flow.breakBefore], blocks, first: res.chapterPages[content.chapters[0]?.key] };
 }
 
 /** Код, от которого зависит PDF: HEAD и незакоммиченные правки — отпечаток кэша. */
@@ -115,6 +117,7 @@ async function htmlFlow(browser: Browser, server: StandServer, view: StandView):
     const { textArea } = await import("@/lib/book/page-geometry");
     const { getFormat, MM_TO_PT } = await import("@/lib/book/formats");
     await page.addInitScript((w) => ((window as unknown as { __textWpt: number }).__textWpt = w), textArea(getFormat(view.format)).w * MM_TO_PT);
+    await page.addInitScript((l) => ((window as unknown as { __openersLeft: boolean }).__openersLeft = l), view.kind === "preview" && view.preview.openersLeft && !view.preview.chapterStart);
     await page.goto(ORIGIN);
     await page.waitForSelector("body[data-ready]", { state: "attached", timeout: 60_000 });
     return await page.evaluate(() => {
@@ -166,7 +169,10 @@ async function htmlFlow(browser: Browser, server: StandServer, view: StandView):
         }
         if (chapter) blocks[chapter] = list;
       }
-      return { chapters, entries, blocks: { ...blocks, ...layouts } };
+      const fp = Number(document.querySelector<HTMLElement>("[data-first-page]")?.dataset.firstPage);
+      // Начальная полоса слева (полоса чётная): выпала бы справа — перед ней пустая (так её ставит и PDF).
+      const left = !!document.querySelector("[data-opener]") && (window as unknown as { __openersLeft?: boolean }).__openersLeft;
+      return { chapters, entries, blocks: { ...blocks, ...layouts }, first: Number.isFinite(fp) ? (left && fp % 2 === 1 ? fp + 1 : fp) : undefined };
     });
   } finally {
     await context.close();
@@ -219,6 +225,14 @@ async function main() {
       entries: Object.keys(p.entries).map((id) => ({ id, pdf: p.entries[id], html: h.entries[id] ?? -1 })),
     };
   });
+  let firstOk = 0;
+  for (const b of books) {
+    const p = pdf.get(b.key)!.first;
+    const h = html.get(b.key)!.first;
+    if (p === h) firstOk++;
+    else console.log(`✗ ${b.key}: первая глава — полоса ${p} в PDF, ${h} в превью`);
+  }
+  console.log(`Номер полосы первой главы совпал: ${firstOk}/${books.length}`);
   let chapters = 0;
   let chaptersOk = 0;
   let entries = 0;

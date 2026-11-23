@@ -19,7 +19,7 @@ import { MM_TO_PT, print } from "@/lib/book/formats";
 import { fitWordSize } from "@/lib/book/word-fit";
 import { cropOr, fillFocus, type PhotoCrop } from "@/lib/book/photo-crop";
 import { OPENER_FOCUS, openerPhotoPlan, openerTextColors, photoArea, photoPagePlan, type OpenerPhotoPlan } from "@/lib/book/photo-pages";
-import { DISPLAY_TOP, FRONT, HTML_LINE_HEIGHT, OPENER, photoCaptionFace, TITLE_LAYOUT, TOC, tocNumbered, VIGNETTE_RULE } from "@/lib/book/typesetting";
+import { DISPLAY_TOP, faceLineHeight, FRONT, OPENER, photoCaptionFace, quoteFace, TITLE_LAYOUT, TOC, tocNumbered, VIGNETTE_RULE } from "@/lib/book/typesetting";
 import { cssFont } from "@/lib/book/fonts";
 import { cn } from "@/lib/class-names";
 import { hexAlpha } from "@/lib/color";
@@ -76,7 +76,7 @@ function ChapterMark({ kit, colors, number, numeralSize = kit.sizes.numeral }: {
   const { design, sizes: S, u } = kit;
   const mark = number ? chapterMark(design, number, bookMessagesFor(kit.language).chapter) : null;
   if (mark?.kind === "label")
-    return <div style={{ ...(design.opener.kicker ? { ...faceCss(design.opener.kicker, S.kicker, u), lineHeight: HTML_LINE_HEIGHT.kicker } : labelCss(kit, colors.accent)), color: colors.accent, marginBottom: u.pt(S.kickerGap) }}>{mark.text}</div>;
+    return <div style={{ ...(design.opener.kicker ? { ...faceCss(design.opener.kicker, S.kicker, u), lineHeight: faceLineHeight(design.opener.kicker) } : labelCss(kit, colors.accent)), color: colors.accent, marginBottom: u.pt(S.kickerGap) }}>{mark.text}</div>;
   if (mark?.kind === "numeral")
     return <div style={{ ...faceCss(design.opener.numeral ?? design.display, numeralSize, u), lineHeight: OPENER.numeral.lineHeight, color: colors.accent, marginBottom: u.pt(numeralSize * OPENER.numeral.after) }}>{mark.text}</div>;
   return null;
@@ -197,7 +197,7 @@ export function TitlePage({ kit, title, subtitle, author, year, className, style
   const titleEl = (size: number) => (
     <div style={{ ...faceCss(design.display, fitWordSize(title, design.display, size, textArea(format).w * MM_TO_PT), u), lineHeight: layout === "stack" ? TITLE_LAYOUT.stackLineHeight : FRONT.title.lineHeight, color: P.ink, overflowWrap: "anywhere" }}>{title}</div>
   );
-  const subtitleEl = subtitle ? <div style={{ ...italicBody(kit, S.subtitle), color: P.muted, marginTop: u.pt(FRONT.subtitle.before), lineHeight: HTML_LINE_HEIGHT.subtitle }}>{subtitle}</div> : null;
+  const subtitleEl = subtitle ? <div style={{ ...italicBody(kit, S.subtitle), color: P.muted, marginTop: u.pt(FRONT.subtitle.before), lineHeight: faceLineHeight(quoteFace(design)) }}>{subtitle}</div> : null;
   const line = titleLineText(design, author);
   const authorEl = line ? <div style={labelCss(kit, P.muted)}>{line}</div> : null;
   const yearEl = <div style={labelCss(kit, P.muted, S.year)}>{year}</div>;
@@ -283,11 +283,11 @@ export function TocPage({ kit, entries, className, style, muted }: PageProps & {
   return (
     <PageSurface kit={kit} className={className} style={style}>
       <TextArea kit={kit} className="overflow-hidden" style={{ opacity: muted ? 0.4 : 1 }}>
-        <div style={{ ...faceCss(design.display, S.tocTitle, u), lineHeight: HTML_LINE_HEIGHT.tocTitle, color: P.ink, textAlign: design.opener.align === "left" ? "left" : "center", marginTop: u.pt(TOC.title.before * scale), marginBottom: u.pt(TOC.title.after * scale) }}>
+        <div style={{ ...faceCss(design.display, S.tocTitle, u), lineHeight: faceLineHeight(design.display), color: P.ink, textAlign: design.opener.align === "left" ? "left" : "center", marginTop: u.pt(TOC.title.before * scale), marginBottom: u.pt(TOC.title.after * scale) }}>
           {bookMessagesFor(kit.language).toc}
         </div>
         {entries.map((e) => (
-          <div key={e.key ?? e.number ?? "gallery"} className="flex items-end" style={{ fontFamily: cssFont(design.type.body), fontSize: u.pt(S.body), lineHeight: HTML_LINE_HEIGHT.tocEntry, marginBottom: u.pt(TOC.entry.after * scale), paddingLeft: e.level ? u.pt(TOC.entry.indent * scale) : 0 }}>
+          <div key={e.key ?? e.number ?? "gallery"} className="flex items-end" style={{ fontFamily: cssFont(design.type.body), fontSize: u.pt(S.body), lineHeight: faceLineHeight({ font: design.type.body, weight: 400 }), marginBottom: u.pt(TOC.entry.after * scale), paddingLeft: e.level ? u.pt(TOC.entry.indent * scale) : 0 }}>
             <span className="truncate" style={{ color: e.level ? P.muted : P.ink, maxWidth: TOC.entry.maxWidth }}>
               {e.number && tocNumbered(design) ? `${e.number}. ` : ""}
               {e.title}
@@ -311,7 +311,7 @@ export function EndPage({ kit, year, text: own, className, style }: PageProps & 
       <TextArea kit={kit} className="flex flex-col">
         <Placed top={DISPLAY_TOP.end}>
           <Vignette kit={kit} rule={VIGNETTE_RULE.end} colors={P} />
-          {text ? <div style={{ ...italicBody(kit, S.end), color: P.ink, lineHeight: HTML_LINE_HEIGHT.end, overflowWrap: "break-word" }}>{text}</div> : null}
+          {text ? <div style={{ ...italicBody(kit, S.end), color: P.ink, lineHeight: faceLineHeight(quoteFace(design)), overflowWrap: "break-word" }}>{text}</div> : null}
           <div style={{ ...labelCss(kit, P.muted), marginTop: kit.u.pt(FRONT.endYear.before) }}>{year}</div>
         </Placed>
       </TextArea>

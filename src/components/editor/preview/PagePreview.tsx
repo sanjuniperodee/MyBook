@@ -13,6 +13,8 @@ import { pageKit } from "@/components/interior/kit";
 import { PAPER } from "@/lib/book/interiors";
 import { PAGE_SHADOW } from "./book-pages";
 import { useBookTypesetter } from "@/components/interior/useBookTypesetter";
+import { tocPageCount } from "@/components/interior/toc-pages";
+import type { FrontMatter } from "@/lib/book/estimate";
 import { pxUnits } from "@/components/interior/units";
 import { ChapterPages, chapterContentKey } from "./ChapterPages";
 import { PreviewOpener, PreviewPhotoPages } from "./book-pages";
@@ -39,7 +41,7 @@ function PagePreviewView({
   chapters,
   gallery = null,
   openersLeft = false,
-  firstPage,
+  front,
   chapterStart,
   currentId,
   selectedId = null,
@@ -63,8 +65,8 @@ function PagePreviewView({
   gallery?: PreviewGallery | null;
   /** Начальная полоса главы слева, первая полоса текста справа (BookContent.openersLeft); нет — начальная справа. */
   openersLeft?: boolean;
-  /** Номер первой полосы первой главы в книге (после титула, посвящения и оглавления); нет — полосы без номеров. */
-  firstPage?: number;
+  /** Передние полосы книги (титул, посвящение, оглавление) — номера полос, как в книге; нет — полосы без номеров. */
+  front?: FrontMatter;
   /** Глава без начальной полосы (BookContent.chapterStart): inline — номер и название над текстом, none — чистый лист. */
   chapterStart?: BookContent["chapterStart"];
   currentId: string;
@@ -138,6 +140,12 @@ function PagePreviewView({
 
   // Номера полос, как в книге: перед главами — передние полосы (firstPage), у глав — их полосы (как у PDF), пустая
   // полоса перед начальной, если она выпала бы справа, и страницы фото после главы.
+  // Оглавление — столько полос, сколько у PDF (разбивка, как у react-pdf); шрифт грузится — по оценке.
+  const firstPage = useMemo(() => {
+    if (!front) return undefined;
+    const toc = front.toc ? (tocPageCount(kit, front.toc.lines, front.toc.numbered) ?? front.toc.estimate) : 0;
+    return front.before + toc + 1;
+  }, [front, kit]);
   const numbering = useMemo(() => {
     if (firstPage === undefined) return null;
     const out = new Map<string, { text: number; blank: boolean }>();
@@ -165,7 +173,7 @@ function PagePreviewView({
   return (
     <div ref={scroll} className={className}>
       {header}
-      <div ref={wrap} className="space-y-4">
+      <div ref={wrap} className="space-y-4" data-first-page={firstPage}>
         {pageW ? (
           chapters.map((ch) => {
             const current = ch.entries.some((e) => e.id === currentId);

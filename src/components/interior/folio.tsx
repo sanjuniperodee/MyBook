@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { cssFont } from "@/lib/book/fonts";
 import type { InteriorDesign } from "@/lib/book/interiors";
 import { pageSide } from "@/lib/book/page-geometry";
-import { FOLIO, folioBottom, HTML_LINE_HEIGHT, RUNNING_HEAD, runningHeadTop, runningRuleTop } from "@/lib/book/typesetting";
+import { faceLineHeight, FOLIO, folioBottom, RUNNING_HEAD, runningHeadTop, runningRuleTop } from "@/lib/book/typesetting";
 import type { PageKit } from "./kit";
 import { labelCss } from "./typography";
 
@@ -14,7 +14,7 @@ export function Folio({ kit, children, recto }: { kit: PageKit; children: ReactN
   const font =
     design.folio.font === "label"
       ? labelCss(kit, design.palette.muted, S.folio * FOLIO.labelSize)
-      : { fontFamily: cssFont(design.type.body), fontSize: u.pt(S.folio), color: design.palette.muted, lineHeight: HTML_LINE_HEIGHT.folio };
+      : { fontFamily: cssFont(design.type.body), fontSize: u.pt(S.folio), color: design.palette.muted, lineHeight: faceLineHeight({ font: design.type.body, weight: 400 }) };
   return (
     <div
       className="absolute"

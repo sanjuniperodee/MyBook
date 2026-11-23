@@ -14,9 +14,9 @@ import type { InteriorDesign } from "./interiors";
 import { chapterRuns, frontPages, photoPages, type BookContent, type ContentChapter, type ContentItem, type PhotoItem } from "./layout";
 import { chapterHeadHeight } from "./chapter-head";
 import { interiorMetrics, textArea } from "./page-geometry";
-import { hasToc, bookToc } from "./toc";
+import { hasToc, bookToc, type TocLine } from "./toc";
 import { fontWidth } from "./fonts";
-import { ANSWER, DIVIDER, HEADING, headingFace, HTML_LINE_HEIGHT, indentEm, INLINE_ROW, interiorSizes, measureInsets, MEDIA_CARD, paraAfter, paraIndent, quoteFace, TOC, tocNumbered, type InteriorSizes } from "./typesetting";
+import { ANSWER, DIVIDER, faceLineHeight, HEADING, headingFace, HTML_LINE_HEIGHT, indentEm, INLINE_ROW, interiorSizes, measureInsets, MEDIA_CARD, paraAfter, paraIndent, quoteFace, TOC, tocNumbered, type InteriorSizes } from "./typesetting";
 
 /** Средняя ширина знака основного текста, em: по ней считаем, сколько знаков помещается в строке. */
 const AVG_CHAR_EM = 0.5;
@@ -131,7 +131,7 @@ function rowHeight(row: { p: RowPhoto; style: InlinePhotoStyle }[], m: TextMetri
   const S = m.sizes;
   const heights = row.map(({ p, style }) => {
     const box = framedBox(p, style, m.width, m.height, row.length);
-    const caption = style.frame !== "polaroid" && p.caption ? INLINE_ROW.captionGap + lines(p.caption.length, box.outerW, S.caption) * S.caption * HTML_LINE_HEIGHT.caption : 0;
+    const caption = style.frame !== "polaroid" && p.caption ? INLINE_ROW.captionGap + lines(p.caption.length, box.outerW, S.caption) * S.caption * faceLineHeight(quoteFace(m.design)) : 0;
     return box.outerH + caption;
   });
   return S.body * (INLINE_ROW.before + INLINE_ROW.after) + Math.max(...heights);
@@ -243,14 +243,14 @@ export function estimateTocPages(content: BookContent, m: TextMetrics): number {
 /** На какой полосе оглавления (с 0) стоит каждая его строка — по порядку bookToc. */
 export function tocParts(content: BookContent, m: TextMetrics): number[] {
   const { sizes: S, scale, width, height } = m;
-  const title = S.tocTitle * HTML_LINE_HEIGHT.tocTitle + (TOC.title.before + TOC.title.after) * scale;
+  const title = S.tocTitle * faceLineHeight(m.design.display) + (TOC.title.before + TOC.title.after) * scale;
   // Название — не шире TOC.entry.maxWidth (82%); справа отточие и номер страницы.
   const labelWidth = width * 0.82;
   let part = 0;
   let used = title;
   return bookToc(content).map((line) => {
     const chars = line.label.length + (line.number && tocNumbered(m.design) ? String(line.number).length + 2 : 0);
-    const h = lines(chars, labelWidth - (line.level ? TOC.entry.indent * scale : 0), S.body) * S.body * HTML_LINE_HEIGHT.tocEntry + TOC.entry.after * scale;
+    const h = lines(chars, labelWidth - (line.level ? TOC.entry.indent * scale : 0), S.body) * S.body * faceLineHeight({ font: m.design.type.body, weight: 400 }) + TOC.entry.after * scale;
     if (used + h > height) {
       part += 1;
       used = 0;
@@ -321,10 +321,26 @@ export function estimateAnswerPages(heading: string | null, answer: string, phot
   return entryHeight(heading, answer, photos, media, false, m) / m.height;
 }
 
+/** Передние полосы книги для номеров полос превью: до оглавления, само оглавление (строки) и его полос по оценке. */
+export interface FrontMatter {
+  /** Титул и его оборот, посвящение. */
+  before: number;
+  /** Оглавление: строки и номера глав; нет — оглавления нет. */
+  toc: { lines: TocLine[]; numbered: boolean; estimate: number } | null;
+}
+
+export function frontMatter(content: BookContent): FrontMatter {
+  return {
+    before: frontPages(content) + (content.dedication ? 1 : 0),
+    toc: hasToc(content) ? { lines: bookToc(content), numbered: tocNumbered(content.interior), estimate: estimateTocPages(content, textMetrics(content.format, content.interior)) } : null,
+  };
+}
+
 /**
  * Номер первой полосы первой главы (её начальной полосы или, без начальных полос, первой полосы текста): титул и его
- * оборот, посвящение, оглавление — как их ставит PDF (InteriorDocument). Оглавление — по оценке estimateTocPages.
+ * оборот, посвящение, оглавление — как их ставит PDF (InteriorDocument). tocPages — полос оглавления (нет — по оценке).
  */
-export function firstChapterPage(content: BookContent): number {
-  return frontPages(content) + (content.dedication ? 1 : 0) + (hasToc(content) ? estimateTocPages(content, textMetrics(content.format, content.interior)) : 0) + 1;
+export function firstChapterPage(content: BookContent, tocPages?: number | null): number {
+  const f = frontMatter(content);
+  return f.before + (f.toc ? (tocPages ?? f.toc.estimate) : 0) + 1;
 }

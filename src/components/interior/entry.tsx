@@ -77,7 +77,8 @@ export function Divider({ kit, style, ...rest }: { kit: PageKit; style?: CSSProp
   if (design.divider === "space") return <div {...rest} style={{ height: u.pt(S.body * 0.8), marginBottom: u.pt(S.beforeHeadless), ...keepWithNext(kit), ...style }} />;
   if (design.divider === "stars")
     return (
-      <div {...rest} style={{ textAlign: "center", color: design.palette.rule, fontSize: u.pt(S.body), lineHeight: HTML_LINE_HEIGHT.stars, marginBottom: u.pt(S.beforeHeadless), ...keepWithNext(kit), ...style }}>
+      // Шрифта у «* * *» в PDF нет — встроенный Helvetica (и его высота строки, HTML_LINE_HEIGHT.stars).
+      <div {...rest} style={{ textAlign: "center", fontFamily: "Helvetica, Arial, sans-serif", color: design.palette.rule, fontSize: u.pt(S.body), lineHeight: HTML_LINE_HEIGHT.stars, marginBottom: u.pt(S.beforeHeadless), ...keepWithNext(kit), ...style }}>
         * * *
       </div>
     );
