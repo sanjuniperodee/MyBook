@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { cssFont } from "@/lib/book/fonts";
+import { cssFont, pdfLineCss } from "@/lib/book/fonts";
 import type { TextFace } from "@/lib/book/interiors";
 import { textArea } from "@/lib/book/page-geometry";
 import { bodyAlign, bodyWeight, dropCapPlan, faceLineHeight, indentEm, LEAD_IN, measureInsets, paraAfter, quoteFace, splitInitial, splitLeadIn, trackingPt, type DropCapPlan } from "@/lib/book/typesetting";
@@ -10,9 +10,14 @@ import { dropCapLayout, type DropCapLayout } from "./drop-cap";
 import { breakBefore } from "./breaks";
 import type { PageUnits } from "./units";
 
+/**
+ * Шрифт текста полосы. Строки — на местах строк PDF (pdfLineCss: без полуинтерлиньяжа CSS); у элемента, который стоит
+ * абсолютно, вместо этого — pdfLineTranslate (и свои position и top).
+ */
 export function faceCss(f: TextFace, size: number, u: PageUnits): CSSProperties {
   return {
     fontFamily: cssFont(f.font),
+    ...pdfLineCss(f.font),
     fontWeight: f.weight,
     fontStyle: f.italic ? "italic" : "normal",
     fontSize: u.pt(size),
@@ -26,6 +31,7 @@ export function labelCss(kit: PageKit, color: string, size = kit.sizes.label): C
   const { label } = kit.design;
   return {
     fontFamily: cssFont(label.font),
+    ...pdfLineCss(label.font),
     fontWeight: label.weight,
     fontStyle: label.italic ? "italic" : "normal",
     fontSize: kit.u.pt(size),
@@ -39,7 +45,7 @@ export function labelCss(kit: PageKit, color: string, size = kit.sizes.label): C
 /** Начертание цитат, лида, эпиграфов, посвящения и подзаголовка (по умолчанию курсив основного шрифта). */
 export function italicBody(kit: PageKit, size: number): CSSProperties {
   const q = quoteFace(kit.design);
-  return { fontFamily: cssFont(q.font), fontStyle: q.italic ? "italic" : "normal", fontWeight: q.weight, fontSize: kit.u.pt(size), ...(q.upper ? { textTransform: "uppercase" } : {}) };
+  return { fontFamily: cssFont(q.font), ...pdfLineCss(q.font), fontStyle: q.italic ? "italic" : "normal", fontWeight: q.weight, fontSize: kit.u.pt(size), ...(q.upper ? { textTransform: "uppercase" } : {}) };
 }
 
 /** Узкая колонка текста: поля слева и справа внутри полосы набора (без узкой колонки — ничего). */
@@ -55,6 +61,7 @@ export function paragraphCss(kit: PageKit): CSSProperties {
   const { design, sizes: S, u } = kit;
   return {
     fontFamily: cssFont(design.type.body),
+    ...pdfLineCss(design.type.body),
     ...(design.text?.weight ? { fontWeight: bodyWeight(design) } : {}),
     fontSize: u.pt(S.body),
     lineHeight: design.type.lineHeight,
@@ -84,8 +91,10 @@ function DropInitial({ kit, initial }: { kit: PageKit; initial: string }) {
   const { u } = kit;
   const plan = dropCapPlan(kit.design, kit.sizes)!;
   const face = faceCss(plan.face, plan.size, u);
-  if (plan.style === "raised") return <span style={{ ...face, lineHeight: plan.lineHeight, color: plan.color }}>{initial}</span>;
-  return <span style={{ ...face, float: "left", display: "block", lineHeight: plan.lineHeight, color: plan.color, marginTop: u.pt(plan.topHtml), marginRight: u.pt(plan.gap), height: u.pt(plan.height - plan.topHtml - 0.5) }}>{initial}</span>;
+  // Поднятая: буква на базовой линии строки, строку не раздвигает (у неё нет своего сдвига строки: она внутри абзаца).
+  if (plan.style === "raised") return <span style={{ ...face, position: undefined, top: undefined, lineHeight: 0, color: plan.color }}>{initial}</span>;
+  // Опущенная: сдвиг строки (faceCss) ставит базовую линию буквы на ascent от верха, как у PDF, — отступ тот же, что у PDF.
+  return <span style={{ ...face, float: "left", display: "block", lineHeight: plan.lineHeight, color: plan.color, marginTop: u.pt(plan.top), marginRight: u.pt(plan.gap), height: u.pt(plan.height - plan.top - 0.5) }}>{initial}</span>;
 }
 
 /**
@@ -174,7 +183,11 @@ function raisedLines(kit: PageKit, text: string, leadIn: boolean, pid: string | 
   const [initial, body] = parts;
   const [lead, after] = leadIn ? splitLeadIn(body) : ["", body];
   const align = bodyAlign(kit.design);
-  const capStyle: CSSProperties = { ...faceCss(plan.face, plan.size, kit.u), lineHeight: plan.lineHeight, color: plan.color };
+  // Буква — на базовой линии первой строки и строку не раздвигает (lineHeight 0, без своего сдвига: сдвиг — у абзаца);
+  // строка выше обычной ровно на столько, на сколько её поднимает буква у PDF (plan.lineHeight): отступом сверху. Так
+  // базовая линия — на ascent буквы от верха строки, следующая строка — на обычном интерлиньяже, как у react-pdf.
+  const capStyle: CSSProperties = { ...faceCss(plan.face, plan.size, kit.u), position: undefined, top: undefined, lineHeight: 0, color: plan.color };
+  const raise = plan.lineHeight * plan.size - kit.sizes.body * kit.design.type.lineHeight;
   return lineSpans({
     kit,
     pid,
@@ -193,5 +206,6 @@ function raisedLines(kit: PageKit, text: string, leadIn: boolean, pid: string | 
     align,
     keepPairs: true,
     styled: [{ start: 0, end: initial.length, style: capStyle }, ...(lead ? [{ start: initial.length, end: initial.length + lead.length, style: leadInCss(kit) }] : [])],
+    firstLine: raise > 0 ? { paddingTop: kit.u.pt(raise) } : undefined,
   });
 }

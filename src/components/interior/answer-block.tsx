@@ -61,7 +61,8 @@ function Quote({ kit, block, style, ...rest }: BlockProps<"quote">) {
   const text: CSSProperties = { ...italicBody(kit, S.body * ANSWER.quote.size), lineHeight: ANSWER.quote.lineHeight, color: P.ink };
   const kind = quoteStyle(design);
   // Строки, как у PDF: каждая строка цитаты — свой абзац (перевод строки), ширина — по виду цитаты, без переносов.
-  const quoteLines = (width: number, align: "left" | "center") => lineSpans({ kit, req: { text: block.lines.join("\n"), spec: italicSpec(kit, S.body * ANSWER.quote.size), width, hyphens: false, justify: false }, align });
+  // По центру — у PDF в контейнере alignItems: center (lineSpans: centered).
+  const quoteLines = (width: number, align: "left" | "center") => lineSpans({ kit, req: { text: block.lines.join("\n"), spec: italicSpec(kit, S.body * ANSWER.quote.size), width, hyphens: false, justify: false }, align, centered: align === "center" });
   const top = gapAbove(S.body * ANSWER.quote.before, u.pt);
   const outer: CSSProperties = { breakInside: "avoid", ...top.style, paddingBottom: u.pt(S.body * ANSWER.quote.after), ...style };
   if (kind === "mark") {
@@ -77,16 +78,18 @@ function Quote({ kit, block, style, ...rest }: BlockProps<"quote">) {
       </div>
     );
   }
+  if (kind === "center")
+    return (
+      <div style={outer} {...GAP_BELOW} {...top.attrs} {...rest}>
+        <div style={{ ...text, textAlign: "center", paddingInline: u.mm(textArea(kit.format).w * ANSWER.quote.inset) }}>{quoteLines(textWidthPt(kit) * (1 - 2 * ANSWER.quote.inset), "center") ?? lines(block.lines)}</div>
+      </div>
+    );
+  // Линейка — фоном, а не рамкой (толщину рамки браузер округляет до целых пикселей), и у обёртки: строки текста
+  // сдвинуты к местам PDF (pdfLineCss), а линейка, как у PDF, — во всю высоту блока, без сдвига.
   return (
     <div style={outer} {...GAP_BELOW} {...top.attrs} {...rest}>
-      <div
-        style={
-          kind === "center"
-            ? { ...text, textAlign: "center", paddingInline: u.mm(textArea(kit.format).w * ANSWER.quote.inset) }
-            : { ...text, borderLeft: `${u.pt(ANSWER.quote.rule)} solid ${P.accent}`, paddingLeft: u.pt(S.body * ANSWER.quote.indent) }
-        }
-      >
-        {(kind === "center" ? quoteLines(textWidthPt(kit) * (1 - 2 * ANSWER.quote.inset), "center") : quoteLines(textWidthPt(kit) - ANSWER.quote.rule - S.body * ANSWER.quote.indent, "left")) ?? lines(block.lines)}
+      <div style={{ paddingLeft: u.pt(ANSWER.quote.rule + S.body * ANSWER.quote.indent), backgroundImage: `linear-gradient(${P.accent}, ${P.accent})`, backgroundSize: `${u.pt(ANSWER.quote.rule)} 100%`, backgroundRepeat: "no-repeat" }}>
+        <div style={text}>{quoteLines(textWidthPt(kit) - ANSWER.quote.rule - S.body * ANSWER.quote.indent, "left") ?? lines(block.lines)}</div>
       </div>
     </div>
   );

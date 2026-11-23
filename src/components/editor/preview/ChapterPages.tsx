@@ -218,7 +218,7 @@ function ChapterPagesView({ chapter: ch, contentKey, kit, pageW, px, bookTitle, 
   const dragging = !!(resizing || spacing);
   const res = pdf.key === flowKey || dragging ? pdf.res : null;
   const flow = res?.flow ?? NO_FLOW;
-  const visibleKit = useMemo(() => (res ? { ...kit, breaks: res.breaks, dropSplit: res.flow.dropSplit } : kit), [kit, res]);
+  const visibleKit = useMemo(() => (res ? { ...kit, breaks: res.breaks, breakTops: res.breakTops, dropSplit: res.flow.dropSplit } : kit), [kit, res]);
   const hasText = ch.entries.some((e) => e.answer || e.photos.length || e.media.length);
   useLayoutEffect(() => {
     const root = measureEl.current;

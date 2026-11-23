@@ -7,7 +7,7 @@
  * Куски страниц — рядом: graphics (рисунки), typography (начертания), answer-block и entry (ответ),
  * folio (колонцифра и колонтитул), surface (страница и полоса набора), kit (дизайн, формат, единицы).
  */
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { bookMessagesFor } from "@/i18n/messages/partial";
 import { endPageText } from "@/lib/book/end-page";
 import { chapterMark, PHOTO_COLORS, type InteriorPalette } from "@/lib/book/interiors";
@@ -20,7 +20,7 @@ import { fitWordSize } from "@/lib/book/word-fit";
 import { cropOr, fillFocus, type PhotoCrop } from "@/lib/book/photo-crop";
 import { OPENER_FOCUS, openerPhotoPlan, openerTextColors, photoArea, photoPagePlan, type OpenerPhotoPlan } from "@/lib/book/photo-pages";
 import { DISPLAY_TOP, faceLineHeight, FRONT, OPENER, photoCaptionFace, quoteFace, TITLE_LAYOUT, TOC, tocNumbered, VIGNETTE_RULE } from "@/lib/book/typesetting";
-import { cssFont } from "@/lib/book/fonts";
+import { cssFont, pdfLineCss, pdfLineTranslate } from "@/lib/book/fonts";
 import { cn } from "@/lib/class-names";
 import { hexAlpha } from "@/lib/color";
 import { titleLineText } from "@/lib/book/title-line";
@@ -34,6 +34,21 @@ import { Folio, folioText, RunningHead } from "./folio";
 import { metricsOf, type PageKit } from "./kit";
 import { PageImage, PageSurface, Placed, TextArea, type PageProps } from "./surface";
 import { faceCss, italicBody, labelCss } from "./typography";
+import { lineSpans } from "./lines";
+import { faceSpec, italicSpec, textWidthPt } from "./text-specs";
+import type { TextSpec } from "./line-breaker";
+
+/** Доля ширины из maxWidth дизайна ("90%"). */
+const share = (width: string) => parseFloat(width) / 100;
+
+/**
+ * Надпись полосы строками PDF: Text без переносов (noHyphens) шириной share полосы набора (у PDF — maxWidth), по
+ * выравниванию; centered — у PDF Text в контейнере alignItems: center (сдвиг react-pdf, lineSpans). Разбивки нет —
+ * текст как есть (строки ставит браузер).
+ */
+function displayText(kit: PageKit, text: string, spec: TextSpec, part: number, align: "left" | "center", opts: { centered?: boolean; maxLines?: number } = {}): ReactNode {
+  return lineSpans({ kit, req: { text, spec, width: textWidthPt(kit) * part, hyphens: false, justify: false }, align, centered: opts.centered ?? align === "center", maxLines: opts.maxLines }) ?? text;
+}
 
 /** Снимок на начальной полосе: карточка с поворотом или снимок под обрез, затемнение внизу и графика поверх. */
 function OpenerShot({ kit, shot, url, scene, crop }: { kit: PageKit; shot: OpenerPhotoPlan; url?: string; scene: number; crop?: PhotoCrop }) {
@@ -98,9 +113,15 @@ export function ChapterHead({ kit, number, title, epigraph, style }: { kit: Page
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: align === "left" ? "flex-start" : "center", textAlign: align === "left" ? "left" : "center", marginBottom: u.pt(H.after), breakInside: "avoid", ...style }}>
       <ChapterMark kit={kit} colors={colors} number={number} numeralSize={H.numeral} />
-      <div style={{ ...faceCss(design.display, H.title, u), lineHeight: OPENER.title.lineHeight, color: colors.ink, maxWidth: OPENER.title.maxWidth, overflowWrap: "anywhere" }}>{title}</div>
+      <div style={{ ...faceCss(design.display, H.title, u), lineHeight: OPENER.title.lineHeight, color: colors.ink, maxWidth: OPENER.title.maxWidth, overflowWrap: "anywhere" }}>
+        {displayText(kit, title, faceSpec(design.display, H.title), share(OPENER.title.maxWidth), align === "left" ? "left" : "center")}
+      </div>
       {design.opener.vignette === false ? <div style={{ height: u.pt(S.vignetteGap) }} /> : <Vignette kit={kit} rule={VIGNETTE_RULE.opener} colors={colors} align={align} />}
-      {epigraph ? <div style={{ ...italicBody(kit, S.epigraph), lineHeight: OPENER.epigraph.lineHeight, color: colors.muted, maxWidth: OPENER.epigraph.maxWidth[align], marginBottom: u.pt(S.body * CHAPTER_HEAD.epigraphGap) }}>{epigraph}</div> : null}
+      {epigraph ? (
+        <div style={{ ...italicBody(kit, S.epigraph), lineHeight: OPENER.epigraph.lineHeight, color: colors.muted, maxWidth: OPENER.epigraph.maxWidth[align], marginBottom: u.pt(S.body * CHAPTER_HEAD.epigraphGap) }}>
+          {displayText(kit, epigraph, italicSpec(kit, S.epigraph), share(OPENER.epigraph.maxWidth[align]), align === "left" ? "left" : "center")}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -129,9 +150,15 @@ export function OpenerPage({ kit, number, title, epigraph, photo, className, sty
       <TextArea kit={kit} className="flex flex-col">
         <Placed top={shot?.textTop ?? design.opener.top} align={align}>
           <ChapterMark kit={kit} colors={colors} number={number} />
-          <div style={{ ...faceCss(design.display, fit.titleSize, u), lineHeight: OPENER.title.lineHeight, color: colors.ink, maxWidth: OPENER.title.maxWidth, overflowWrap: "anywhere" }}>{title}</div>
+          <div style={{ ...faceCss(design.display, fit.titleSize, u), lineHeight: OPENER.title.lineHeight, color: colors.ink, maxWidth: OPENER.title.maxWidth, overflowWrap: "anywhere" }}>
+            {displayText(kit, title, faceSpec(design.display, fit.titleSize), share(OPENER.title.maxWidth), align === "left" ? "left" : "center")}
+          </div>
           {design.opener.vignette === false ? <div style={{ height: u.pt(S.vignetteGap) }} /> : <Vignette kit={kit} rule={VIGNETTE_RULE.opener} colors={colors} align={align} />}
-          {epigraph ? <div style={{ ...italicBody(kit, S.epigraph), lineHeight: OPENER.epigraph.lineHeight, color: colors.muted, maxWidth: OPENER.epigraph.maxWidth[align], ...(fit.epigraphLines ? { display: "-webkit-box", WebkitBoxOrient: "vertical" as const, WebkitLineClamp: fit.epigraphLines, overflow: "hidden" } : {}) }}>{epigraph}</div> : null}
+          {epigraph ? (
+            <div style={{ ...italicBody(kit, S.epigraph), lineHeight: OPENER.epigraph.lineHeight, color: colors.muted, maxWidth: OPENER.epigraph.maxWidth[align] }}>
+              {displayText(kit, epigraph, italicSpec(kit, S.epigraph), share(OPENER.epigraph.maxWidth[align]), align === "left" ? "left" : "center", { maxLines: fit.epigraphLines || undefined })}
+            </div>
+          ) : null}
         </Placed>
       </TextArea>
     </PageSurface>
@@ -167,8 +194,12 @@ export function PhotoPage({ kit, photos, scene = 0, className, style }: PageProp
     );
   const plan = photoPagePlan(photos, photoArea(format), design, S);
   const face = photoCaptionFace(design);
-  const caption = (size: number): CSSProperties =>
-    face.label ? { ...labelCss(kit, face.color, size), lineHeight: face.lineHeight } : { ...faceCss(face.face, size, u), lineHeight: face.lineHeight, color: face.color };
+  // Подпись стоит абсолютно: сдвиг строки к месту PDF — translate (top у неё свой).
+  const caption = (size: number): CSSProperties => ({
+    ...(face.label ? { ...labelCss(kit, face.color, size), lineHeight: face.lineHeight } : { ...faceCss(face.face, size, u), lineHeight: face.lineHeight, color: face.color }),
+    ...pdfLineTranslate(face.label ? design.label.font : face.face.font),
+    position: "absolute",
+  });
   return (
     <PageSurface kit={kit} paper={design.photos.paper} shapes={plan.under} className={className} style={style}>
       {plan.cells.map((c, i) => {
@@ -198,10 +229,19 @@ export function TitlePage({ kit, title, subtitle, author, year, className, style
   const layout = design.titlePage?.layout ?? "center";
   const scale = metricsOf(kit).scale;
   // Кегль — с подбором по самому длинному слову в ширину полосы набора, как в PDF (иначе слово обрезается).
-  const titleEl = (size: number) => (
-    <div style={{ ...faceCss(design.display, fitWordSize(title, design.display, size, textArea(format).w * MM_TO_PT), u), lineHeight: layout === "stack" ? TITLE_LAYOUT.stackLineHeight : FRONT.title.lineHeight, color: P.ink, overflowWrap: "anywhere" }}>{title}</div>
-  );
-  const subtitleEl = subtitle ? <div style={{ ...italicBody(kit, S.subtitle), color: P.muted, marginTop: u.pt(FRONT.subtitle.before), lineHeight: faceLineHeight(quoteFace(design)) }}>{subtitle}</div> : null;
+  // Строки — как у PDF: по центру — в контейнере alignItems: center (Placed), влево — во всю ширину полосы набора.
+  const align = layout === "center" ? "center" : "left";
+  const titleEl = (size: number) => {
+    const fitted = fitWordSize(title, design.display, size, textArea(format).w * MM_TO_PT);
+    return (
+      <div style={{ ...faceCss(design.display, fitted, u), lineHeight: layout === "stack" ? TITLE_LAYOUT.stackLineHeight : FRONT.title.lineHeight, color: P.ink, overflowWrap: "anywhere" }}>
+        {displayText(kit, title, faceSpec(design.display, fitted), 1, align)}
+      </div>
+    );
+  };
+  const subtitleEl = subtitle ? (
+    <div style={{ ...italicBody(kit, S.subtitle), color: P.muted, marginTop: u.pt(FRONT.subtitle.before), lineHeight: faceLineHeight(quoteFace(design)) }}>{displayText(kit, subtitle, italicSpec(kit, S.subtitle), 1, align)}</div>
+  ) : null;
   const line = titleLineText(design, author);
   const authorEl = line ? <div style={labelCss(kit, P.muted)}>{line}</div> : null;
   const yearEl = <div style={labelCss(kit, P.muted, S.year)}>{year}</div>;
@@ -272,7 +312,9 @@ export function DedicationPage({ kit, text, placeholder, className, style }: Pag
     <PageSurface kit={kit} shapes={pageFrame(kit, P)} className={className} style={style}>
       <TextArea kit={kit} className="flex flex-col">
         <Placed top={DISPLAY_TOP.dedication}>
-          <div style={{ ...italicBody(kit, S.dedication), lineHeight: FRONT.dedication.lineHeight, color: P.ink, maxWidth: FRONT.dedication.maxWidth, whiteSpace: "pre-line", overflowWrap: "anywhere", opacity: text ? 1 : 0.4 }}>{text || placeholder}</div>
+          <div style={{ ...italicBody(kit, S.dedication), lineHeight: FRONT.dedication.lineHeight, color: P.ink, maxWidth: FRONT.dedication.maxWidth, whiteSpace: "pre-line", overflowWrap: "anywhere", opacity: text ? 1 : 0.4 }}>
+            {text ? displayText(kit, text, italicSpec(kit, S.dedication), share(FRONT.dedication.maxWidth), "center") : placeholder}
+          </div>
         </Placed>
       </TextArea>
     </PageSurface>
@@ -291,7 +333,7 @@ export function TocPage({ kit, entries, className, style, muted }: PageProps & {
           {bookMessagesFor(kit.language).toc}
         </div>
         {entries.map((e) => (
-          <div key={e.key ?? e.number ?? "gallery"} className="flex items-end" style={{ fontFamily: cssFont(design.type.body), fontSize: u.pt(S.body), lineHeight: faceLineHeight({ font: design.type.body, weight: 400 }), marginBottom: u.pt(TOC.entry.after * scale), paddingLeft: e.level ? u.pt(TOC.entry.indent * scale) : 0 }}>
+          <div key={e.key ?? e.number ?? "gallery"} className="flex items-end" style={{ fontFamily: cssFont(design.type.body), ...pdfLineCss(design.type.body), fontSize: u.pt(S.body), lineHeight: faceLineHeight({ font: design.type.body, weight: 400 }), marginBottom: u.pt(TOC.entry.after * scale), paddingLeft: e.level ? u.pt(TOC.entry.indent * scale) : 0 }}>
             <span className="truncate" style={{ color: e.level ? P.muted : P.ink, maxWidth: TOC.entry.maxWidth }}>
               {e.number && tocNumbered(design) ? `${e.number}. ` : ""}
               {e.title}
@@ -315,7 +357,7 @@ export function EndPage({ kit, year, text: own, className, style }: PageProps & 
       <TextArea kit={kit} className="flex flex-col">
         <Placed top={DISPLAY_TOP.end}>
           <Vignette kit={kit} rule={VIGNETTE_RULE.end} colors={P} />
-          {text ? <div style={{ ...italicBody(kit, S.end), color: P.ink, lineHeight: faceLineHeight(quoteFace(design)), overflowWrap: "break-word" }}>{text}</div> : null}
+          {text ? <div style={{ ...italicBody(kit, S.end), color: P.ink, lineHeight: faceLineHeight(quoteFace(design)), overflowWrap: "break-word" }}>{displayText(kit, text, italicSpec(kit, S.end), 1, "center")}</div> : null}
           <div style={{ ...labelCss(kit, P.muted), marginTop: kit.u.pt(FRONT.endYear.before) }}>{year}</div>
         </Placed>
       </TextArea>

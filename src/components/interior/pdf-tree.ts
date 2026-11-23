@@ -365,6 +365,8 @@ export interface ChapterPagination {
    * ставит отрисовка (break-before: column), и браузер раскладывает главу там же, где react-pdf.
    */
   breaks: Map<string, number[]>;
+  /** Заголовки историй (h:), с которых начинается полоса: верх от верха набора, pt (kit.breakTops). */
+  breakTops: Map<string, number>;
 }
 
 /** Блоки доводки (как пометки FLOW_MARK у PDF): пометки внутри блоков (пункты списка, строфы) в доводку не идут. */
@@ -399,6 +401,7 @@ export function paginateChapter(input: Omit<TreeInput, "flow" | "tail"> & { hasT
     const pieces: PagePiece[] = [];
     const photos: Record<string, number> = {};
     const breaks = new Map<string, number[]>();
+    const breakTops = new Map<string, number>();
     let page = 0;
     for (const r of runs) {
       const res = paginate(r.nodes, frame);
@@ -410,13 +413,14 @@ export function paginateChapter(input: Omit<TreeInput, "flow" | "tail"> & { hasT
         if (p.page > 0 && !firstOn.has(p.page)) {
           firstOn.add(p.page);
           breaks.set(p.id, [...(breaks.get(p.id) ?? []), p.from]);
+          if (p.id.startsWith("h:")) breakTops.set(p.id, p.top);
         }
       }
       // Кусок без блоков (фото на всю страницу перед текстом) полосы текста не даёт, как у PDF.
       page += r.nodes.length ? Math.max(1, res.pages) : 0;
       if (r.photo) photos[r.photo] = page++;
     }
-    result = { flow, pages: page, photos, pieces, breaks };
+    result = { flow, pages: page, photos, pieces, breaks, breakTops };
     // Как проход у PDF: место продолжения под буквицей — по строкам этого прохода, решения — по его раскладке.
     let moved = false;
     for (const [pid, real] of drops)

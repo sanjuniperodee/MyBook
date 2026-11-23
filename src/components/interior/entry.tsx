@@ -1,6 +1,6 @@
 import { Fragment, type CSSProperties, type HTMLAttributes, type ImgHTMLAttributes, type ReactNode } from "react";
 import { mm, MM_TO_PT, PT_TO_MM } from "@/lib/book/formats";
-import { cssFont, naturalLineHeight } from "@/lib/book/fonts";
+import { cssFont, naturalLineHeight, pdfLineCss, pdfLineTranslate } from "@/lib/book/fonts";
 import { answerBlocks, rowsByBlock, type AnswerBlock } from "@/lib/book/answer-blocks";
 import { layoutMedia, mediaCardBox, mediaIcon, mediaSource, qrDrawing, qrInk, type AnswerMedia } from "@/lib/book/answer-media";
 import { framedBox, layoutInline, normalizeStyle, objectPosition, placedByAuthor, polaroidFontSize, ROW_GAP, rowSpaceAbove, rowSpaceLimit, type InlinePhotoStyle } from "@/lib/book/inline-photo";
@@ -58,7 +58,7 @@ export function QuestionHeading({ kit, children, style, ...rest }: { kit: PageKi
         style={{
           ...(heading.face
             ? faceCss(headingFace(design), S.heading, u)
-            : { fontFamily: cssFont(design.type.heading), fontWeight: design.type.headingWeight, fontStyle: design.type.headingItalic ? "italic" : "normal" }),
+            : { fontFamily: cssFont(design.type.heading), ...pdfLineCss(design.type.heading), fontWeight: design.type.headingWeight, fontStyle: design.type.headingItalic ? "italic" : "normal" }),
           ...measureCss(kit),
           fontSize: u.pt(S.heading),
           lineHeight: HEADING.lineHeight,
@@ -176,6 +176,7 @@ function RowPhoto<P extends EntryPhoto>({ kit, item, rowSize, space, scale = 1, 
               right: u.mm(b.pad),
               bottom: u.mm(b.padBottom * INLINE_ROW.polaroidCaption),
               fontFamily: cssFont("caveat"),
+              ...pdfLineTranslate("caveat"),
               fontWeight: 500,
               fontSize: u.pt(polaroidFontSize({ imgW: mm(b.imgW), padBottom: mm(b.padBottom) }, p.caption, S.body)),
               lineHeight: HTML_LINE_HEIGHT.polaroidCaption,
@@ -297,6 +298,7 @@ export function MediaCard({ kit, media, href, ...rest }: { kit: PageKit; media: 
           <div
             style={{
               fontFamily: cssFont(typo.heading),
+              ...pdfLineCss(typo.heading),
               fontWeight: typo.headingWeight,
               fontStyle: typo.headingItalic ? "italic" : "normal",
               fontSize: u.pt(S.body * MEDIA_CARD.title.size),

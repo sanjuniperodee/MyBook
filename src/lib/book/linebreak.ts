@@ -28,6 +28,10 @@ export interface TextLine {
   start: number;
   end: number;
   hyphen: boolean;
+  /** Ширина строки без пробелов в конце (с дефисом), pt — от неё растяжка по ширине (justifySpacing); есть, если дана hyphenAdvance. */
+  natural?: number;
+  /** Ширина пробелов в конце строки, pt (react-pdf считает их в ширину строки: xAdvance). */
+  trailing?: number;
 }
 
 export interface LineBreakInput {
@@ -45,6 +49,8 @@ export interface LineBreakInput {
   widths: readonly number[];
   /** По ширине — штраф за перенос 100, иначе 600 (textkit: hyphenationPenalty). */
   justify: boolean;
+  /** Ширина глифа дефиса, pt: с ней у строк есть natural. */
+  hyphenAdvance?: number;
 }
 
 /** Узлы Кнута — Пласса по слогам (textkit: wrapWords + getNodes). */
@@ -266,7 +272,47 @@ export function breakLines(input: LineBreakInput): TextLine[] {
     }
   }
   lines.push({ start, end: input.text.length, hyphen: false });
-  return lines;
+  const hyphen = input.hyphenAdvance;
+  if (hyphen === undefined) return lines;
+  return lines.map((l) => {
+    let end = l.end;
+    while (end > l.start && input.text[end - 1] === " ") end--;
+    return { ...l, natural: input.advance(l.start, end) + (l.hyphen ? hyphen : 0), trailing: input.advance(end, l.end) };
+  });
+}
+
+/**
+ * Растяжка строки по ширине — как у react-pdf (textkit: justification, по описанию Apple): на gap pt строку дотягивают
+ * (gap > 0) или сжимают (gap < 0) сначала пробелы, потом буквы. Растяжка: каждый пробел — до +1 pt (0,5 до и после),
+ * остальное — поровну между глифами (37/256 до и после каждого); сжатие — пробелы до −1 pt (react-pdf: −0,5 с каждой
+ * стороны), потом глифы по −11/256 с каждой стороны.
+ * Пробел в конце строки и края строки не тянутся. Возвращает добавку между соседними глифами (letter) и к каждому
+ * пробелу (space), pt: промежуток между словами — space + letter (буквы по краям пробела дают по половине letter).
+ * text — знаки строки без пробелов в конце, дефис переноса — в конце, если он есть.
+ */
+export function justifySpacing(text: string, gap: number): { letter: number; space: number } {
+  // Глифы: пробелы и буквы (метки — с буквой, как у textkit).
+  let spaces = 0;
+  let letters = 0;
+  for (const ch of text) {
+    if (ch === " ") spaces++;
+    else if (!/\p{M}/u.test(ch)) letters++;
+  }
+  if (!gap || letters + spaces === 0) return { letter: 0, space: 0 };
+  const grow = gap > 0;
+  // react-pdf (layout) сжимает пробелы сильнее, чем textkit по умолчанию: shrinkWhitespaceFactor −0,5 с каждой стороны.
+  const W = (grow ? 1 : -1) * spaces;
+  const perLetter = grow ? 74 / 256 : -22 / 256;
+  const L = perLetter * Math.max(0, letters - 1);
+  // Пробелы покрывают весь gap — буквы не трогаем.
+  if (W && Math.abs(gap) <= Math.abs(W)) return { letter: 0, space: gap / spaces };
+  const rest = gap - W;
+  if (L && Math.abs(rest) <= Math.abs(L)) return { letter: (rest / L) * perLetter, space: spaces ? W / spaces : 0 };
+  // Не хватило и букв. Сжатие — на этом и всё (строка выходит за край); растяжка — остаток первому уровню, что есть
+  // (пробелам, без них — буквам), как у textkit.
+  if (!grow) return { letter: L ? perLetter : 0, space: spaces ? W / spaces : 0 };
+  if (W) return { letter: L ? perLetter : 0, space: (gap - L) / spaces };
+  return { letter: L ? (gap / L) * perLetter : 0, space: 0 };
 }
 
 /**

@@ -113,6 +113,8 @@ export function createLineBreaker(language: Locale, syllables: (word: string, la
       }
       return w;
     };
+    // Дефис переноса — глифом основного начертания: с ним у строк есть ширина для выключки (justifySpacing).
+    const hyphen = measurer(req.spec);
     const lines = breakLines({
       text: shown,
       runs,
@@ -120,6 +122,7 @@ export function createLineBreaker(language: Locale, syllables: (word: string, la
       advance,
       widths: [req.width - (req.indent ?? 0), req.width],
       justify: req.justify,
+      ...(hyphen ? { hyphenAdvance: hyphen("-") } : {}),
     });
     if (results.size > 20_000) results.clear();
     results.set(key, lines);

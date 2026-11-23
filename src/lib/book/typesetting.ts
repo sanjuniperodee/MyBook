@@ -259,10 +259,11 @@ export interface DropCapPlan {
   size: number;
   /** Интерлиньяж строки буквицы (множитель): строка высотой с выносной элемент — базовая линия на её нижнем крае. */
   lineHeight: number;
-  /** Сдвиг буквицы от верха абзаца, pt: в PDF (react-pdf ставит базовую линию на ascent от верха строки)… */
+  /**
+   * Сдвиг буквицы от верха абзаца, pt (react-pdf ставит базовую линию на ascent от верха строки; HTML — так же, со
+   * сдвигом строки pdfLineCss).
+   */
   top: number;
-  /** …и в HTML (браузер центрирует шрифт в строке). */
-  topHtml: number;
   /** Промежуток между буквицей и текстом, pt. */
   gap: number;
   /** Высота строк рядом с буквицей, pt (lines строк основного текста). */
@@ -285,13 +286,11 @@ export function dropCapPlan(design: InteriorDesign, sizes: InteriorSizes): DropC
     // Строка с буквицей выше обычной ровно на выносной элемент буквы: react-pdf ставит базовую линию на ascent от верха
     // строки, и следующая строка должна стоять на обычном интерлиньяже от неё, а не прижиматься.
     const lineHeight = (cap.ascent * size + lineH - body.ascent * S) / size;
-    return { style: "raised", lines, face, color, size, lineHeight, top: 0, topHtml: 0, gap: 0, height: lineH };
+    return { style: "raised", lines, face, color, size, lineHeight, top: 0, gap: 0, height: lineH };
   }
   // Верх прописной буквицы — на высоте прописных первой строки, базовая линия — на базовой линии строки lines.
   const size = ((lines - 1) * lineH + body.cap * S) / cap.cap;
   const pdfBase = (lines - 1) * lineH + body.ascent * S;
-  const htmlBase = (lines - 1) * lineH + (lineH - (body.ascent + body.descent) * S) / 2 + body.ascent * S;
-  // В браузере строка буквицы высотой cap.ascent·size: шрифт в ней центрирован, базовая линия — на (ascent − descent/2)·size.
   return {
     style: "drop",
     lines,
@@ -300,7 +299,6 @@ export function dropCapPlan(design: InteriorDesign, sizes: InteriorSizes): DropC
     size,
     lineHeight: cap.ascent,
     top: pdfBase - cap.ascent * size,
-    topHtml: htmlBase - (cap.ascent - cap.descent / 2) * size,
     gap: S * 0.35,
     height: lines * lineH,
   };

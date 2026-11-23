@@ -109,7 +109,7 @@ export const InteriorSpread = memo(function InteriorSpread({
   const base = pageKit(design, format, cqwUnits(format.widthMm), sample.language, undefined, breaker);
   // Полосы примера главы — как у PDF (строки, разбивка и доводка: pdf-tree.ts); без строк — полосы браузера.
   const exact = kind === "chapter" ? paginateSample(base, sample) : null;
-  const kit = exact ? { ...base, breaks: exact.breaks, dropSplit: exact.flow.dropSplit, decides: true } : base;
+  const kit = exact ? { ...base, breaks: exact.breaks, breakTops: exact.breakTops, dropSplit: exact.flow.dropSplit, decides: true } : base;
   const flow = exact?.flow;
   const page = { aspectRatio: `${format.widthMm} / ${format.heightMm}` };
   let left: React.ReactNode;
