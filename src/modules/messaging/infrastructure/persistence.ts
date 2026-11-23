@@ -117,6 +117,14 @@ export class DrizzleConversationRepository implements ConversationRepository {
       .where(eq(crmConversations.id, id));
   }
 
+  async revertOutgoing(id: string, at: Date) {
+    await executor().execute(sql`
+      update crm_conversations c set last_outgoing_at = (
+        select max(m.created_at) from crm_messages m
+        where m.conversation_id = c.id and m.direction = 'out' and not m.internal and m.source is null and m.status <> 'error')
+      where c.id = ${id}::uuid and c.last_outgoing_at = ${at.toISOString()}::timestamptz`);
+  }
+
   async closeAsSpam(id: string, text: string, at: Date) {
     await executor().update(crmConversations).set({ lastMessageAt: at, lastMessageText: text, status: "closed" }).where(eq(crmConversations.id, id));
   }

@@ -117,6 +117,7 @@ export class DrizzleSubjectLoader implements SubjectLoader {
       links: await this.links(order ?? null, deal?.id ?? null, clientId, locale),
       clientId,
       name: deal?.contactName || conv?.contactName || client?.name || "",
+      clientName: client?.name ?? null,
       assigneeId: deal?.assigneeId ?? conv?.assigneeId ?? call?.staffId ?? client?.managerId ?? null,
       locale,
     };
@@ -456,7 +457,9 @@ export class SqlScheduledSource implements ScheduledSource {
            where cv.deal_id = d.id),
           (select max(greatest(t.created_at, t.done_at)) from crm_tasks t where t.deal_id = d.id),
           (select max(k.started_at) from crm_calls k where k.deal_id = d.id),
-          (select max(n.created_at) from crm_notes n where n.deal_id = d.id and n.author_id is not null)
+          (select max(n.created_at) from crm_notes n where n.deal_id = d.id and n.author_id is not null),
+          -- Клиент пишет книгу на сайте — сделка живая (P0-10): правка книги или ответа.
+          (select greatest(max(b.updated_at), max(bq.updated_at)) from books b left join book_questions bq on bq.book_id = b.id where b.user_id = d.client_id)
         ) as last_at
         from crm_deals d
         join crm_stages s on s.id = d.stage_id and s.kind = 'open'

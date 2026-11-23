@@ -1,6 +1,6 @@
 import { type Locale } from "@/i18n/config";
 import { automationTriggers, type AutomationTrigger } from "@/modules/automation/domain/meta";
-import { fillTemplate } from "@/shared/domain/templates";
+import { fillTemplate, greetingName } from "@/shared/domain/templates";
 import { ANNIVERSARY_DEFAULTS, ANNIVERSARY_LIMITS } from "./anniversary";
 import { bookBelowPercent, EVENT_DATE_DEFAULTS, EVENT_DATE_LIMITS } from "./eventDate";
 import { IDLE_DEFAULTS, IDLE_LIMITS } from "./idle";
@@ -223,6 +223,8 @@ export interface RuleSubject {
   clientId: string | null;
   /** Имя клиента для шаблонов. */
   name: string;
+  /** Имя в учётной записи клиента (оформление заказа) — для обращения в тексте клиенту, если это имя, а не ник. */
+  clientName?: string | null;
   assigneeId: string | null;
   /** Язык клиента (users.locale); без клиента — русский. */
   locale?: Locale;
@@ -232,9 +234,11 @@ export interface RuleSubject {
  * Текст клиенту на его языке: казахоязычному — казахский вариант действия (если задан) с поводом и датой по-казахски,
  * остальным — русский текст с русскими подписями: язык в одном сообщении не смешивается.
  */
-export function clientText(a: Pick<RuleAction, "text" | "textKk">, locale: RuleSubject["locale"], vars: TemplateVars, clientVars: TriggerContext["clientVars"]) {
+export function clientText(a: Pick<RuleAction, "text" | "textKk">, locale: RuleSubject["locale"], vars: TemplateVars, clientVars: TriggerContext["clientVars"], clientName?: string | null) {
   const kk = locale === "kk" && !!a.textKk?.trim();
-  return fillTemplate((kk ? a.textKk : a.text) ?? "", kk ? { ...vars, ...clientVars } : vars);
+  // Обращение — по имени из учётной записи, иначе по имени сделки или диалога; ник и номер телефона — не имя.
+  const name = greetingName(clientName) || greetingName(vars.name);
+  return fillTemplate((kk ? a.textKk : a.text) ?? "", { ...vars, ...(kk ? (clientVars ?? {}) : {}), name });
 }
 
 /** Куда вести сотрудника из уведомления: для переписки — в чат, для остального — в сделку. */

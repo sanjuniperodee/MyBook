@@ -206,11 +206,17 @@ const manualKinds = ["note", "call", "message", "email"] as const;
 /**
  * Готовый текст клиенту в истории сделки (правило «праздник»): CRM его не отправляет — «Открыть в WhatsApp» открывает
  * чат клиента на телефоне магазина с этим текстом (номер скрыт от сотрудника — WhatsApp спросит, кому), «Скопировать» —
- * чтобы вставить в чат CRM.
+ * чтобы вставить в чат CRM. Клиент в «Не писать первым» (P0-6) — кнопок нет, только предупреждение.
  */
-export function DraftActions({ note, whatsappTo }: { note: string; whatsappTo?: string | null }) {
+export function DraftActions({ note, whatsappTo, blocked }: { note: string; whatsappTo?: string | null; blocked?: boolean }) {
   const text = draftFromNote(note);
   if (!text) return null;
+  if (blocked)
+    return (
+      <p className="mt-1.5 text-xs text-danger" data-testid="draft-blocked">
+        Клиент в «Не писать первым» — этот текст не отправляйте.
+      </p>
+    );
   return (
     <div className="mt-1.5 flex flex-wrap gap-2" data-testid="draft-actions">
       <a href={whatsappLink(text, whatsappTo)} target="_blank" rel="noopener noreferrer" className="btn btn-outline btn-sm">
@@ -233,7 +239,7 @@ export function DraftActions({ note, whatsappTo }: { note: string; whatsappTo?: 
 }
 
 /** История общения с клиентом. whatsappTo — номер клиента (цифры), если сотрудник его видит: для готовых текстов. */
-export function NotesTimeline({ notes, clientId, orderId, dealId, mentionables, whatsappTo }: { notes: NoteItem[]; clientId?: string | null; orderId?: string; dealId?: string; mentionables?: string[]; whatsappTo?: string | null }) {
+export function NotesTimeline({ notes, clientId, orderId, dealId, mentionables, whatsappTo, draftBlocked }: { notes: NoteItem[]; clientId?: string | null; orderId?: string; dealId?: string; mentionables?: string[]; whatsappTo?: string | null; draftBlocked?: boolean }) {
   const [text, setText] = useState("");
   const [, start] = useTransition();
   const [state, action] = useActionState<AdminState, FormData>(addNoteAction, {});
@@ -312,7 +318,7 @@ export function NotesTimeline({ notes, clientId, orderId, dealId, mentionables, 
                   ) : null}
                 </div>
                 <p className="mt-1 text-sm whitespace-pre-line">{n.text}</p>
-                {n.kind === "system" ? <DraftActions note={n.text} whatsappTo={whatsappTo} /> : null}
+                {n.kind === "system" ? <DraftActions note={n.text} whatsappTo={whatsappTo} blocked={draftBlocked} /> : null}
               </div>
             </li>
           );

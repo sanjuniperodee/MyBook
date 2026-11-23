@@ -1218,5 +1218,10 @@ describe("Клиент молчит после нашего ответа (automa
     expect(chat.conv().lastOutgoingAt).toEqual(new Date("2026-10-01T07:00:00Z"));
     await chat.service.ingest(inbound({ externalId: "in-2", text: "Спасибо", at: new Date("2026-10-01T07:10:00Z") }));
     expect(chat.conv().lastOutgoingAt).toEqual(new Date("2026-10-01T07:00:00Z"));
+    // Шлюз не принял ответ (P0-10): клиент его не получил — наш последний ответ остаётся прежним.
+    chat.gateway.down = "шлюз недоступен";
+    chat.setNow(new Date("2026-10-01T08:00:00Z"));
+    expect((await chat.service.send(chat.conv().id, "Вы тут?", "m1")).status).toBe("error");
+    expect(chat.conv().lastOutgoingAt).toEqual(new Date("2026-10-01T07:00:00Z"));
   });
 });

@@ -246,7 +246,7 @@ export class AutomationEngine {
           this.logger.warn(`«${rule.name}»: правило для сотрудников — сообщение клиенту не отправлено`);
           return skipped("правило для сотрудников — клиенту не пишет");
         }
-        const text = clientText(a, s.locale, vars, ctx.clientVars);
+        const text = clientText(a, s.locale, vars, ctx.clientVars, s.clientName);
         if (!text) return skipped("пустой текст");
         if (isTransactionalTrigger(rule.trigger)) return this.sendTransactional(rule, text, s, defer);
         const convId = s.conversation?.id ?? (await this.subjects.latestConversation(s.deal?.id ?? null, s.clientId));
@@ -293,7 +293,7 @@ export class AutomationEngine {
       case "draft_message": {
         // Текст кладётся в историю сделки — без сделки его негде показать (поставьте раньше «Создать сделку»).
         if (!s.deal) return skipped("нет сделки — текст негде показать");
-        const text = clientText(a, s.locale, vars, ctx.clientVars);
+        const text = clientText(a, s.locale, vars, ctx.clientVars, s.clientName);
         if (!text) return skipped("пустой текст");
         await this.effects.addNote({ dealId: s.deal.id, clientId: s.clientId, text: draftNote(rule.name, text) });
         return ok;
