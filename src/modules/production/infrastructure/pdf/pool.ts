@@ -4,6 +4,7 @@ import path from "node:path";
 import * as childProcess from "node:child_process";
 import type { ChildProcess } from "node:child_process";
 import type { RenderEvent, RenderReport } from "../../application/RenderProgress";
+import { memorySnapshot, perfLog } from "@/shared/infrastructure/perfLog";
 import { runPdfTask, type PdfTask, type PdfTaskResult } from "./worker-tasks";
 
 /**
@@ -40,7 +41,9 @@ export function pdfWorkerIdleMs(value = process.env.PDF_WORKER_IDLE_MIN): number
 let worker: ChildProcess | null = null;
 let idleTimer: ReturnType<typeof setTimeout> | null = null;
 let seq = 0;
-const pending = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void; report?: RenderReport }>();
+/** Замер одной задачи для журнала: ожидание замка и то, что прислал процесс вёрстки. */
+type PdfMeta = { waitMs: number; perf?: Record<string, number> };
+const pending = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void; report?: RenderReport; meta?: PdfMeta }>();
 
 function failAll(err: Error) {
   for (const p of pending.values()) p.reject(err);
@@ -91,7 +94,7 @@ function getWorker(): ChildProcess | null {
     // (разовый скрипт без NODE_ENV ронял вёрстку: «Cannot find module react-jsx-runtime.development.js»).
     { execArgv: [`--max-old-space-size=${pdfWorkerHeapMb()}`], env: { ...process.env, NODE_ENV: "production" }, serialization: "advanced", stdio: ["ignore", "inherit", "inherit", "ipc"] },
   ]);
-  w.on("message", (m: { id: number; ok?: boolean; result?: unknown; error?: string; progress?: RenderEvent }) => {
+  w.on("message", (m: { id: number; ok?: boolean; result?: unknown; error?: string; progress?: RenderEvent; perf?: Record<string, number> }) => {
     const p = pending.get(m.id);
     if (!p) return;
     // Ход работы: задача ещё идёт, ответ будет позже.
@@ -100,6 +103,7 @@ function getWorker(): ChildProcess | null {
       return;
     }
     pending.delete(m.id);
+    if (m.perf && p.meta) p.meta.perf = m.perf;
     if (m.ok) p.resolve(m.result);
     else p.reject(new Error(`PDF: ${m.error}`));
     if (!pending.size) armIdleTimer(w);
@@ -132,8 +136,47 @@ function getWorker(): ChildProcess | null {
  * Название прежнее (inPdfThread): им пользуются адаптеры производства.
  */
 export async function inPdfThread<T extends PdfTask>(job: T, report?: RenderReport): Promise<PdfTaskResult<T>> {
-  if (!getWorker()) return (await runPdfTask(job, report)) as PdfTaskResult<T>;
-  return HEAVY.has(job.task) ? oneOnServer(() => send(job, report)) : send(job, report);
+  const t0 = performance.now();
+  const meta: PdfMeta = { waitMs: 0 };
+  const inline = !getWorker();
+  try {
+    const result = inline
+      ? ((await runPdfTask(job, report)) as PdfTaskResult<T>)
+      : await (HEAVY.has(job.task) ? oneOnServer(() => send(job, report, meta), meta) : send(job, report, meta));
+    logPdfTask(job, t0, meta, inline, result, null);
+    return result;
+  } catch (err) {
+    logPdfTask(job, t0, meta, inline, null, err);
+    throw err;
+  }
+}
+
+/** Байт в результате вёрстки: у пакета — блок, обложка и каркас; у экранной сборки — её PDF. */
+function resultBytes(result: unknown): number {
+  if (result instanceof Uint8Array) return result.byteLength;
+  if (!result || typeof result !== "object") return 0;
+  return Object.values(result).reduce<number>((sum, v) => sum + (v instanceof Uint8Array ? v.byteLength : 0), 0);
+}
+
+/**
+ * Строка журнала замеров (G1): задача, книга, всё время (с ожиданием замка), время самой вёрстки и память процесса
+ * вёрстки; без процесса (next dev, скрипты) — память текущего.
+ */
+function logPdfTask(job: PdfTask, t0: number, meta: PdfMeta, inline: boolean, result: unknown, err: unknown) {
+  const bundle = "bundle" in job ? job.bundle : null;
+  const pages = result && typeof result === "object" && "pageCount" in result ? Number(result.pageCount) : undefined;
+  perfLog("pdf", {
+    task: job.task,
+    ...(bundle ? { bookId: bundle.book.id, photos: bundle.photos.length } : {}),
+    ...(pages ? { pages } : {}),
+    ms: Math.round(performance.now() - t0),
+    waitMs: meta.waitMs,
+    outMb: Math.round((resultBytes(result) / 1048576) * 10) / 10,
+    ok: !err,
+    ...(err ? { error: String(err instanceof Error ? err.message : err).slice(0, 200) } : {}),
+    where: inline ? "inline" : "pdf-worker",
+    ...(inline ? memorySnapshot() : (meta.perf ?? {})),
+  });
 }
 
 /**
@@ -145,12 +188,14 @@ export async function inPdfThread<T extends PdfTask>(job: T, report?: RenderRepo
 const HEAVY = new Set<PdfTask["task"]>(["printPackage", "reading"]);
 const HEAVY_LOCK_ID = 7_310_490;
 
-async function oneOnServer<T>(fn: () => Promise<T>): Promise<T> {
+async function oneOnServer<T>(fn: () => Promise<T>, meta?: PdfMeta): Promise<T> {
   let client: { query(sql: string, params: unknown[]): Promise<unknown>; release(): void } | undefined;
+  const t0 = performance.now();
   try {
     const { pool } = await import("@/shared/infrastructure/db");
     client = await pool.connect();
     await client.query("select pg_advisory_lock($1)", [HEAVY_LOCK_ID]);
+    if (meta) meta.waitMs = Math.round(performance.now() - t0);
   } catch (err) {
     // Нет базы — собираем без замка: лучше рискнуть памятью, чем не отдать файлы.
     console.error("[pdf-worker] замок сборки недоступен, собираю без него", err);
@@ -167,7 +212,7 @@ async function oneOnServer<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-function send<T extends PdfTask>(job: T, report?: RenderReport): Promise<PdfTaskResult<T>> {
+function send<T extends PdfTask>(job: T, report?: RenderReport, meta?: PdfMeta): Promise<PdfTaskResult<T>> {
   // Процесс мог закрыться, пока задача ждала замок: getWorker поднимет новый.
   const w = getWorker();
   if (!w) return runPdfTask(job, report) as Promise<PdfTaskResult<T>>;
@@ -175,7 +220,7 @@ function send<T extends PdfTask>(job: T, report?: RenderReport): Promise<PdfTask
   hold(w, true);
   const id = ++seq;
   return new Promise<PdfTaskResult<T>>((resolve, reject) => {
-    pending.set(id, { resolve: resolve as (v: unknown) => void, reject, report });
+    pending.set(id, { resolve: resolve as (v: unknown) => void, reject, report, meta });
     w.send({ id, job }, (err) => {
       if (!err) return;
       pending.delete(id);

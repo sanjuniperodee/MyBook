@@ -1,11 +1,12 @@
 import { api, apiBook, HttpError } from "@/server/api";
 import { container } from "@/server/container";
 import { idParams } from "@/server/input";
+import { fileRoute } from "@/server/file-route";
 
 export const maxDuration = 120;
 
 /** PDF-предпросмотр блока: экранная сборка (облегчённые фото), пока книга не оплачена — с водяным знаком поверх полос. Кэшируется, пока книга не изменилась. */
-export const GET = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
+export const GET = fileRoute("book-preview", api(async (req, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = idParams(await params, "id");
   const { book } = await apiBook(req, id);
   const pdf = await container().previews.preview(id);
@@ -19,4 +20,4 @@ export const GET = api(async (req, { params }: { params: Promise<{ id: string }>
       "Cache-Control": "private, no-store",
     },
   });
-});
+}));

@@ -2,12 +2,13 @@ import { HttpError, api } from "@/server/api";
 import { findByToken, mediaMime, mediaPath, posterPath } from "@/server/answerFiles";
 import { serveFile } from "@/server/range-file";
 import { FILE_TOKEN } from "@/lib/book/answer-files";
+import { fileRoute } from "@/server/file-route";
 
 /**
  * Свой файл по QR-коду из книги — без входа, по секретной ссылке: видео или аудио с перемоткой (Range), ?poster=1 — кадр
  * обложки, ?download=1 — скачать. Ссылка не меняется, поэтому браузеру можно кэшировать надолго.
  */
-export const GET = api(async (req, { params }: { params: Promise<{ token: string }> }) => {
+export const GET = fileRoute("answer-file", api(async (req, { params }: { params: Promise<{ token: string }> }) => {
   const { token } = await params;
   if (!FILE_TOKEN.test(token)) throw new HttpError(404, "fileNotFound");
   const file = await findByToken(token);
@@ -23,4 +24,4 @@ export const GET = api(async (req, { params }: { params: Promise<{ token: string
   return serveFile(await mediaPath(file), mediaMime(file.kind), req, headers).catch(() => {
     throw new HttpError(404, "fileNotFound");
   });
-});
+}));

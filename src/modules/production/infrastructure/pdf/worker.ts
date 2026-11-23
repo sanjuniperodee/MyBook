@@ -4,6 +4,7 @@
  */
 import { writeFileSync } from "node:fs";
 import { configureSharpMemory } from "@/shared/infrastructure/sharpMemory";
+import { memorySnapshot } from "@/shared/infrastructure/perfLog";
 import { runPdfTask, type PdfTask } from "./worker-tasks";
 
 const ipc = process.send?.bind(process);
@@ -34,9 +35,15 @@ const ready = configureSharpMemory().catch((err) => console.error("[pdf-worker] 
 process.on("message", async (msg: { id: number; job: PdfTask }) => {
   await ready;
   try {
+    // Замер для журнала (pool.ts пишет его в perfLog): время вёрстки и память этого процесса до и после задачи.
+    // peakRssMb — пик за всю жизнь процесса: если он вырос за задачу, это и есть её пик.
+    const t0 = performance.now();
+    const before = memorySnapshot();
     // Ход работы — отдельными сообщениями с тем же id: ответ придёт после них.
     const result = await runPdfTask(msg.job, (progress) => send({ id: msg.id, progress }));
-    send({ id: msg.id, ok: true, result });
+    const after = memorySnapshot();
+    const perf = { renderMs: Math.round(performance.now() - t0), rssBeforeMb: before.rssMb, peakBeforeMb: before.peakRssMb, rssMb: after.rssMb, peakRssMb: after.peakRssMb, heapMb: after.heapMb };
+    send({ id: msg.id, ok: true, result, perf });
   } catch (err) {
     send({ id: msg.id, ok: false, error: err instanceof Error ? (err.stack ?? err.message) : String(err) });
   }

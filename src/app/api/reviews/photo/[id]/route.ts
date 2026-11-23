@@ -3,9 +3,10 @@ import { getCurrentUser } from "@/server/auth";
 import { can, getStaff } from "@/server/access";
 import { container } from "@/server/container";
 import { uuid } from "@/server/input";
+import { fileRoute } from "@/server/file-route";
 
 /** Фото отзыва: опубликованного — всем (кэшируется), остальных — только автору и сотруднику с правом на отзывы. */
-export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export const GET = fileRoute("review-photo", async (_req: Request, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
   if (!uuid.safeParse(id).success) notFound();
   const feedback = container().feedback;
@@ -22,4 +23,4 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       "Cache-Control": photo.published ? "public, max-age=86400" : "private, no-store",
     },
   });
-}
+});

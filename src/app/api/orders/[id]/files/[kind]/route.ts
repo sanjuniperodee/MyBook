@@ -5,6 +5,7 @@ import type { PrintFileKind as OrderFileKind } from "@/modules/production";
 import { canDownloadFile, type OrderFile } from "@/modules/ordering/domain";
 import { getPlan } from "@/config/site";
 import { idParams } from "@/server/input";
+import { fileRoute } from "@/server/file-route";
 
 export const maxDuration = 300;
 
@@ -16,7 +17,7 @@ const kinds: Record<OrderFile & OrderFileKind, { type: string; name: (n: number)
   spec: { type: "text/plain; charset=utf-8", name: (n) => `order-${n}-spec.txt` },
 };
 
-export const GET = api(async (req, { params }: { params: Promise<{ id: string; kind: string }> }) => {
+export const GET = fileRoute("order-file", api(async (req, { params }: { params: Promise<{ id: string; kind: string }> }) => {
   const { id, kind } = idParams(await params, "id");
   if (!Object.hasOwn(kinds, kind)) throw new HttpError(404, "notFound");
   const user = await apiUser(req);
@@ -46,4 +47,4 @@ export const GET = api(async (req, { params }: { params: Promise<{ id: string; k
       "Cache-Control": "private, no-store",
     },
   });
-});
+}));

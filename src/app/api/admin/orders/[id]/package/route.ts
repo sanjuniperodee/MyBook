@@ -4,11 +4,12 @@ import { api, apiStaff, HttpError } from "@/server/api";
 import { canSeeOrder } from "@/server/access";
 import { container } from "@/server/container";
 import { idParams } from "@/server/input";
+import { fileRoute } from "@/server/file-route";
 
 export const maxDuration = 300;
 
 /** ZIP-пакет для типографии: блок, обложка и техзадание. */
-export const GET = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
+export const GET = fileRoute("order-package", api(async (req, { params }: { params: Promise<{ id: string }> }) => {
   const staff = await apiStaff(req, "orders.files");
   const { id } = idParams(await params, "id");
   const c = container();
@@ -33,4 +34,4 @@ export const GET = api(async (req, { params }: { params: Promise<{ id: string }>
       "Cache-Control": "private, no-store",
     },
   });
-});
+}));

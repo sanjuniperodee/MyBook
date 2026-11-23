@@ -3,6 +3,7 @@ import { canSeeAssigned, ForbiddenError } from "@/server/access";
 import { container } from "@/server/container";
 import { idParams } from "@/server/input";
 import { GowaError, MediaUnavailableError } from "@/modules/messaging";
+import { fileRoute } from "@/server/file-route";
 
 /** Range браузера, который передаём шлюзу: один диапазон байтов, без списков и мусора. */
 const RANGE = /^bytes=\d{0,15}-\d{0,15}$/;
@@ -12,7 +13,7 @@ const RANGE = /^bytes=\d{0,15}-\d{0,15}$/;
  * или сделку, к которой диалог привязан (страница сделки показывает её переписку, даже если у чата другой ответственный).
  * Путь к файлу в шлюзе остаётся на сервере; вложение из истории шлюз скачивает при первом открытии.
  */
-export const GET = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
+export const GET = fileRoute("wa-media", api(async (req, { params }: { params: Promise<{ id: string }> }) => {
   const staff = await apiStaff(req, "chats.view");
   const { id } = idParams(await params, "id");
   const media = container().messaging.media;
@@ -45,4 +46,4 @@ export const GET = api(async (req, { params }: { params: Promise<{ id: string }>
       "Content-Security-Policy": "sandbox",
     },
   });
-});
+}));

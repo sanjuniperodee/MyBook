@@ -4,12 +4,13 @@ import { TelephonyError } from "@/modules/telephony";
 import { container } from "@/server/container";
 import { idParams } from "@/server/input";
 import { serveFile } from "@/server/range-file";
+import { fileRoute } from "@/server/file-route";
 
 /**
  * Запись разговора через наш сервер: ссылка провайдера не попадает в браузер,
  * а каждое прослушивание остаётся в журнале действий.
  */
-export const GET = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
+export const GET = fileRoute("call-recording", api(async (req, { params }: { params: Promise<{ id: string }> }) => {
   const staff = await apiStaff(req, "calls.view", "calls.recordings");
   const { id } = idParams(await params, "id");
   const call = await container().telephony.queries.byId(id);
@@ -52,4 +53,4 @@ export const GET = api(async (req, { params }: { params: Promise<{ id: string }>
       ...(pass("content-range") ? { "Content-Range": pass("content-range")! } : {}),
     },
   });
-});
+}));

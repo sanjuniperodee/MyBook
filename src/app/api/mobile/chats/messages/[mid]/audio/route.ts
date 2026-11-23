@@ -5,6 +5,7 @@ import { container } from "@/server/container";
 import { idParams } from "@/server/input";
 import { mobile } from "@/server/mobile-api";
 import { serveFile } from "@/server/range-file";
+import { fileRoute } from "@/server/file-route";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -15,7 +16,7 @@ export const maxDuration = 60;
  * в память он не читается и не перекодируется заново. Права — как у вложения в веб-версии (диалог виден сотруднику или
  * сделка диалога).
  */
-export const GET = mobile(async (req, { params }: { params: Promise<{ mid: string }> }) => {
+export const GET = fileRoute("mobile-audio", mobile(async (req, { params }: { params: Promise<{ mid: string }> }) => {
   const staff = await apiStaff(req, "chats.view");
   const { mid } = idParams(await params, "mid");
   const media = container().messaging.media;
@@ -29,4 +30,4 @@ export const GET = mobile(async (req, { params }: { params: Promise<{ mid: strin
   const file = await chatAudioFile(mid);
   if (!file) throw new HttpError(404, "notFound");
   return serveFile(file.path, file.mime, req, { "Cache-Control": "private, max-age=86400", "Content-Security-Policy": "sandbox", "X-Content-Type-Options": "nosniff" });
-});
+}));

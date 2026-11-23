@@ -5,6 +5,7 @@ import { cropSvg, getCoverTemplate, isKnownCover, renderCoverSvg, type CoverTemp
 import { coverFrontGeometry, coverSpreadGeometry, formats, getFormat, type BookFormat } from "@/lib/book/formats";
 import { coverPhotoDataUrl } from "@/modules/production";
 import { Lru } from "@/lib/lru";
+import { fileRoute } from "@/server/file-route";
 
 /**
  * Фон обложки (без текста) отдельным файлом: браузер кэширует его навсегда — версия в адресе
@@ -87,7 +88,7 @@ async function art(file: string): Promise<Entry | null> {
   return entry;
 }
 
-export async function GET(req: Request, { params }: { params: Promise<{ file: string }> }) {
+export const GET = fileRoute("cover-art", async (req: Request, { params }: { params: Promise<{ file: string }> }) => {
   const entry = await art((await params).file);
   if (!entry) notFound();
   const accept = req.headers.get("accept-encoding") ?? "";
@@ -100,4 +101,4 @@ export async function GET(req: Request, { params }: { params: Promise<{ file: st
       ...(encoding ? { "Content-Encoding": encoding } : {}),
     },
   });
-}
+});

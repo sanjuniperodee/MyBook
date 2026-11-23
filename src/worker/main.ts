@@ -12,6 +12,7 @@ import { pool } from "@/shared/infrastructure/db";
 import { startCatalogSync } from "@/server/catalog";
 import { startBackground } from "@/server/background";
 import { configureSharpMemory } from "@/shared/infrastructure/sharpMemory";
+import { startPerfSampler } from "@/shared/infrastructure/perfLog";
 
 const MIGRATIONS_WAIT_MS = 10 * 60_000;
 
@@ -44,6 +45,8 @@ async function waitForMigrations() {
 
 async function main() {
   await configureSharpMemory();
+  // Память — своя и всех процессов PM2 на сервере (с вёрсткой PDF и ffmpeg) — в журнал замеров раз в 5 минут.
+  startPerfSampler({ pm2: true });
   await waitForMigrations();
   startCatalogSync();
   // Видео, ждавшие обработки: сразу — выкатка сайта воркер не ждёт.

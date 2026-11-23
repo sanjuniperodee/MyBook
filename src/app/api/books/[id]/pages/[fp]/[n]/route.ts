@@ -5,6 +5,7 @@ import { RasterizerMissingError } from "@/modules/production";
 import { api, apiBook, HttpError } from "@/server/api";
 import { container } from "@/server/container";
 import { idParams } from "@/server/input";
+import { fileRoute } from "@/server/file-route";
 
 type Ctx = { params: Promise<{ id: string; fp: string; n: string }> };
 
@@ -13,7 +14,7 @@ type Ctx = { params: Promise<{ id: string; fp: string; n: string }> };
  * обрезной формат. Сборка с этим отпечатком не меняется — браузер кэширует картинку навсегда. Пока книга не оплачена,
  * картинка со знаком «Предпросмотр» и браузер её перепроверяет (ETag): после оплаты по тому же адресу — без знака.
  */
-export const GET = api(async (req, { params }: Ctx) => {
+export const GET = fileRoute("page-raster", api(async (req, { params }: Ctx) => {
   const { id, fp, n } = idParams(await params, "id");
   const page = /^[1-9]\d{0,3}$/.test(n) ? Number(n) : 0;
   const width = Number(new URL(req.url).searchParams.get("w"));
@@ -38,4 +39,4 @@ export const GET = api(async (req, { params }: Ctx) => {
   };
   if (req.headers.get("if-none-match")?.split(/\s*,\s*/).includes(etag)) return new Response(null, { status: 304, headers });
   return new Response(new Uint8Array(image.data), { headers });
-});
+}));

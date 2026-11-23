@@ -1,6 +1,7 @@
 import "server-only";
 import { createReadStream, promises as fs } from "node:fs";
 import { Readable } from "node:stream";
+import { countPerf } from "@/shared/infrastructure/perfLog";
 
 /**
  * Файл с диска сайта с перемоткой: Range → 206 (Safari и AVPlayer без него аудио не играют), ETag по размеру и времени —
@@ -26,6 +27,7 @@ export async function serveFile(path: string, mime: string, req: Request, header
     if (start > end || start >= size) return new Response(null, { status: 416, headers: { "Content-Range": `bytes */${size}` } });
     partial = true;
   }
+  countPerf("disk:stream", end - start + 1, 0, partial ? 206 : 200);
   const body = Readable.toWeb(createReadStream(path, { start, end })) as ReadableStream;
   return new Response(body, {
     status: partial ? 206 : 200,

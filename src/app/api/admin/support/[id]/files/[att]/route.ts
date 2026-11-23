@@ -3,9 +3,10 @@ import { container } from "@/server/container";
 import { idParams } from "@/server/input";
 import { serveFile } from "@/server/range-file";
 import { canOpenTicket } from "@/app/admin/support/access";
+import { fileRoute } from "@/server/file-route";
 
 /** Вложение обращения для сотрудника CRM: с Range (видео и голосовые в Safari), ?download=1 — скачать файлом. */
-export const GET = api(async (req, { params }: { params: Promise<{ id: string; att: string }> }) => {
+export const GET = fileRoute("support-file", api(async (req, { params }: { params: Promise<{ id: string; att: string }> }) => {
   const staff = await apiStaff(req);
   const p = await params;
   const { id } = idParams(p, "id");
@@ -23,4 +24,4 @@ export const GET = api(async (req, { params }: { params: Promise<{ id: string; a
     // Загруженный файл — чужой: HTML и SVG не исполняем как страницу сайта.
     "Content-Security-Policy": "sandbox; default-src 'none'; img-src 'self'; media-src 'self'",
   });
-});
+}));

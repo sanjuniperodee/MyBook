@@ -3,6 +3,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { env } from "@/config/env";
 import { createS3, type S3Client } from "./s3";
+import { countPerf } from "./perfLog";
 
 /**
  * Файловое хранилище. Ключи — относительные пути вида photos/<bookId>/<id>.jpg.
@@ -77,7 +78,11 @@ export async function localPath(key: string): Promise<string | null> {
     if (!(await client.exists(normKey(key)))) await client.putFile(normKey(key), full);
     return full;
   }
-  return (await client.download(normKey(key), full)) ? full : null;
+  const t0 = performance.now();
+  const ok = await client.download(normKey(key), full);
+  // Замер G1: сколько файлов Node скачивает из бакета на диск ради отдачи по пути (видео, вложения, растр полос).
+  if (ok) countPerf("s3:download", (await fs.stat(full).catch(() => null))?.size ?? 0, performance.now() - t0);
+  return ok ? full : null;
 }
 
 /** Выложить в бакет файл, записанный на диск по storagePath (ffmpeg, rename временного файла). */
@@ -103,7 +108,10 @@ export async function getFile(key: string): Promise<Buffer> {
   const full = resolveKey(key);
   const client = remoteFor(key);
   if (client) {
+    const t0 = performance.now();
     const data = await client.get(normKey(key));
+    // Замер G1: объекты, которые Node читает из бакета целиком в память (фото, печатные файлы, кэш).
+    if (data) countPerf(`s3:get:${key.split("/")[0]}`, data.length, performance.now() - t0);
     if (data) return data;
     // Файл с переезда, которого ещё нет в бакете: выкладываем и дальше читаем уже оттуда.
     const legacy = await fs.readFile(full);

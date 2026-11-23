@@ -2,8 +2,9 @@ import { createHash } from "node:crypto";
 import { api, apiViewer, HttpError } from "@/server/api";
 import { container } from "@/server/container";
 import { idParams } from "@/server/input";
+import { fileRoute } from "@/server/file-route";
 
-export const GET = api(async (req, { params }: { params: Promise<{ id: string }> }) => {
+export const GET = fileRoute("photo", api(async (req, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = idParams(await params, "id");
   const { viewer } = await apiViewer(req, await container().authoring.queries.photoBookId(id));
   const photo = await container().authoring.queries.photoFor(id, viewer);
@@ -19,4 +20,4 @@ export const GET = api(async (req, { params }: { params: Promise<{ id: string }>
   if (req.headers.get("if-none-match") === etag) return new Response(null, { status: 304, headers });
   const data = size === "view" ? await container().authoring.photoViewFile(key) : await container().authoring.photoFile(key);
   return new Response(new Uint8Array(data), { headers });
-});
+}));

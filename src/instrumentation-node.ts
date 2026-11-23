@@ -34,6 +34,9 @@ export async function registerNode() {
   installVisualClock();
   const { configureSharpMemory } = await import("@/shared/infrastructure/sharpMemory");
   await configureSharpMemory();
+  // Память процесса и счётчики отдачи файлов — в журнал замеров раз в 5 минут (perfLog.ts; в проде, без PERF_LOG=off).
+  const { startPerfSampler } = await import("@/shared/infrastructure/perfLog");
+  startPerfSampler();
   if (process.env.SKIP_AUTO_MIGRATE !== "1") {
     const { runMigrations } = await import("@/shared/infrastructure/db/migrate");
     try {
