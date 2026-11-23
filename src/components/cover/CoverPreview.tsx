@@ -39,7 +39,8 @@ export function CoverPreview({ template: templateId, format: formatId = "a5", ti
         template={templateId}
         format={formatId}
         design={design}
-        texts={{ title: title || titlePlaceholder, subtitle: subtitle ?? "", names: names ?? "" }}
+        // Обложка из конструктора печатает название, как его ввёл автор: стёр — его нет и в cover.pdf (без подстановки).
+        texts={{ title: title ?? "", subtitle: subtitle ?? "", names: names ?? "" }}
         photos={photos}
         uid={uid ?? `d${templateId}`}
         lite={lite}

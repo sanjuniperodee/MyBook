@@ -27,3 +27,12 @@ export function coverNames(book: { theme: string; authorName: string; recipientN
   if (own) return own;
   return printableText(bookKind(book.theme) === "autobiography" ? book.authorName.trim() : coverNamesLine(book.authorName, book.recipientName, book.hideRecipientOnCover));
 }
+
+/**
+ * Название на обложке и корешке, как его печатает cover.pdf: у обложки из конструктора (layered) — то, что ввёл автор
+ * (стёр — названия нет, без подмены названием по умолчанию: печать как в редакторе), у обложки шаблона — название
+ * книги с названием по умолчанию (bookTitle — BookContent.title). Одно правило для PDF и 3D-книги.
+ */
+export function printedCoverTitle(book: { title: string }, layered: boolean, bookTitle: string) {
+  return layered ? printableText(book.title.trim()) : bookTitle;
+}

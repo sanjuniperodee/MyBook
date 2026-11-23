@@ -6,6 +6,7 @@ import type { BookFormat } from "@/lib/book/formats";
 import type { InteriorDesign } from "@/lib/book/interiors";
 import type { PhotoCrop } from "@/lib/book/photo-crop";
 import { cn } from "@/lib/class-names";
+import { printableText } from "@/lib/book/printable";
 import { bookMessagesFor } from "@/i18n/messages/partial";
 import type { SampleEntry } from "./entry";
 import { pageKit } from "./kit";
@@ -105,15 +106,16 @@ export const InteriorSpread = memo(function InteriorSpread({
   let left: React.ReactNode;
   let right: React.ReactNode;
   if (kind === "front") {
-    left = <TitlePage kit={kit} title={sample.title} subtitle={sample.subtitle} author={sample.author} year={sample.year} style={sample.titlePage === false ? { ...page, opacity: 0.4 } : page} />;
-    right = <DedicationPage kit={kit} text={sample.dedication} placeholder={sample.dedicationPlaceholder} style={page} />;
+    // Тексты — как их печатает PDF (без эмодзи и пробелов по краям): редактор «Страниц» подставляет сюда то, что вводят.
+    left = <TitlePage kit={kit} title={sample.title} subtitle={printableText(sample.subtitle.trim())} author={sample.author} year={sample.year} style={sample.titlePage === false ? { ...page, opacity: 0.4 } : page} />;
+    right = <DedicationPage kit={kit} text={printableText(sample.dedication.trim())} placeholder={sample.dedicationPlaceholder} style={page} />;
   } else if (kind === "photos") {
     const photos = samplePhotos(sample.language, sample.photos, sample.captions);
     left = <PhotoPage kit={kit} photos={photos.single} style={page} />;
     right = <PhotoPage kit={kit} photos={photos.grid} scene={1} style={page} />;
   } else if (kind === "toc") {
     left = <TocPage kit={kit} entries={sample.toc} muted={!sample.showToc} style={page} />;
-    right = <EndPage kit={kit} year={sample.year} text={sample.endText} style={page} />;
+    right = <EndPage kit={kit} year={sample.year} text={sample.endText == null ? sample.endText : printableText(sample.endText.trim())} style={page} />;
   } else if (sample.chapterStart) {
     // Без начальной полосы: глава открывается полосой текста с номером и названием, справа — её продолжение (тот же
     // поток текста, следующая полоса — как в PDF).

@@ -5,7 +5,7 @@ import sharp, { type OverlayOptions } from "sharp";
 import type { Book, BookChapter, BookLetter, BookQuestion, Photo } from "@/shared/infrastructure/db/schema";
 import { messagesFor } from "@/i18n/messages";
 import { coverPhotoIds, getCoverTemplate, renderCoverSvg } from "@/lib/book/covers";
-import { coverNames } from "@/lib/book/cover-names";
+import { coverNames, printedCoverTitle } from "@/lib/book/cover-names";
 import { coverPhotoDataUrl, coverPhotoResized } from "../coverPhotos";
 import { layerRect, ownSpreadArt, parseCoverBack, parseCoverDesign, printedLayers, repeatedFrontLayers, templateForCover, type CoverBack, type CoverDesign, type CoverTexts } from "@/lib/book/cover-design";
 import type { CoverTemplate } from "@/lib/book/covers";
@@ -473,8 +473,6 @@ export async function backSide(bundle: BookBundle, geometry: CoverGeometry, sour
   return { design, photos: list, buffers };
 }
 
-/** Название книги, как его ввёл автор (без названия по умолчанию): пустое — на обложке из конструктора его нет. */
-export const ownCoverTitle = (book: Pick<Book, "title">) => printableText(book.title.trim());
 
 export function coverText(book: Book) {
   const content = buildBookContent(book, [], [], []);
@@ -521,7 +519,7 @@ export async function renderCover(bundle: BookBundle, pageCount: number, mode: R
   const named = coverText(bundle.book);
   // Обложка из конструктора печатает то, что автор видит в нём: стёр название — слоя названия нет (и на корешке тоже),
   // без подмены названием по умолчанию. Обложка шаблона без конструктора держит название по умолчанию.
-  const text = layered ? { ...named, title: ownCoverTitle(bundle.book) } : named;
+  const text = { ...named, title: printedCoverTitle(bundle.book, !!layered, named.title) };
   const layers = layered ? { design: layered, images: await layerImages(bundle, layered, text, geometry.front, source) } : undefined;
   const backLayers = backDesign?.layers && geometry.back ? { layers: backDesign.layers, images: await layerImages(bundle, { layers: backDesign.layers }, text, geometry.back, source) } : undefined;
   // Оборот «как спереди» повторяет фото, фигуры и украшения лица на тех же местах (снимки — те же файлы: крышки равны).

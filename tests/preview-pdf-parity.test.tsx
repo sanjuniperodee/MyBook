@@ -20,6 +20,8 @@ import { photoPlaceOf } from "@/lib/book/photo-place";
 import { contentFor } from "@/modules/production/infrastructure/pdf/render";
 import { bookSpreadSample } from "@/server/spreadSample";
 import { bookToc } from "@/lib/book/toc";
+import { flipbookData } from "@/components/book3d/flipbook-data";
+import { printedCoverTitle } from "@/lib/book/cover-names";
 import { FLOW_MARK } from "@/modules/production/infrastructure/pdf/flow";
 import { InteriorDocument } from "@/modules/production/infrastructure/pdf/interior";
 import { pdfKit } from "@/modules/production/infrastructure/pdf/interior/kit";
@@ -222,5 +224,23 @@ describe("разворот «Страниц»: то же, что в книге",
     });
     // Колонцифра — первая полоса текста главы, не «7» из примера.
     expect(sample.folio).toBeGreaterThan(1);
+  });
+});
+
+describe("обложка: название на 3D-книге — как в cover.pdf", () => {
+  const book = books.find((b) => b.key === "classic-a5-ru")!.bundle;
+  const flip = (patch: Partial<typeof book.book>) => flipbookData({ ...book.book, ...patch }, book.questions, book.chapters, book.photos);
+
+  it("обложка из конструктора со стёртым названием — без названия и на лице, и на корешке (как печать, обращение №7)", () => {
+    const data = flip({ title: "", coverDesign: { layers: [] } });
+    expect(data.cover.title).toBe("");
+    expect(data.title).toBe("");
+    expect(printedCoverTitle({ title: "" }, true, "Наша история")).toBe("");
+  });
+
+  it("обложка шаблона с пустым названием — название по умолчанию, как в PDF", () => {
+    const data = flip({ title: "", coverDesign: null });
+    expect(data.cover.title).toBe(printed({ ...books[0], bundle: { ...book, book: { ...book.book, title: "" } } }).title);
+    expect(data.cover.title).not.toBe("");
   });
 });
