@@ -12,6 +12,8 @@ import { CHAPTER_TAIL, DIVIDER, HEADING, headingFace, HTML_LINE_HEIGHT, INLINE_R
 import { AnswerBlockView } from "./answer-block";
 import { GAP_BELOW, gapAbove } from "./entry-gap";
 import { keepWithNext } from "./keep";
+import { breakBefore } from "./breaks";
+import type { FlowDecisions } from "@/lib/book/flow-decisions";
 import { lineSpans } from "./lines";
 import { headingSpec, italicSpec, measureWidthPt } from "./text-specs";
 import { InlineDrawing } from "./graphics";
@@ -344,6 +346,8 @@ export function EntryBody({
   links = false,
   head,
   fresh = false,
+  id,
+  flow,
 }: {
   kit: PageKit;
   entry: SampleEntry;
@@ -354,16 +358,47 @@ export function EntryBody({
   head?: ReactNode;
   /** Ответ стоит в верху полосы: первому ряду «с новой страницы» разрыв не нужен. */
   fresh?: boolean;
+  /**
+   * Пометка ответа и решения доводки — полосы, как у PDF (pdf-tree.ts): блоки помечены, ряды уменьшены и сдвинуты,
+   * разрывы ставит kit.breaks, заголовок с абзацем не склеивается. Нет — полосы ставит браузер.
+   */
+  id?: string;
+  flow?: FlowDecisions;
 }) {
   const blocks = answerBlocks(entry.paragraphs, { plain: kit.design.plainAnswers, breaks: new Set(entry.breaks) });
   const items = (entry.photos ?? []).map((p) => ({ p, style: normalizeStyle(p.inline) }));
   const rows = rowsByBlock(blocks, layoutInline(items, entry.paragraphs.length));
   const media = rowsByBlock(blocks, layoutMedia(entry.media ?? [], entry.paragraphs.length));
   const lead = blocks.length ? -1 : Number.POSITIVE_INFINITY;
+  const exact = id !== undefined && !!flow;
   const rowsAt = (key: number) => [
-    ...(rows.get(key) ?? []).map((row, r) => <InlineRow key={`${key}-${r}`} kit={kit} row={row} fresh={fresh && !head && key === lead && r === 0} />),
-    ...(media.get(key) ?? []).map((m) => <MediaCard key={`${key}-m-${m.id}`} kit={kit} media={m} href={links ? m.url : undefined} />),
+    ...(rows.get(key) ?? []).map((row, r) => {
+      const mark = `${placedByAuthor(row[0].style) ? "f" : "r"}:${id}:${key}:${r}`;
+      return exact ? (
+        <InlineRow key={`${key}-${r}`} kit={kit} row={row} fresh={fresh && !head && key === lead && r === 0} scale={flow.rowScale.get(mark)} offset={flow.rowOffset.get(mark)} style={breakBefore(kit, mark)} data-flow={mark} />
+      ) : (
+        <InlineRow key={`${key}-${r}`} kit={kit} row={row} fresh={fresh && !head && key === lead && r === 0} />
+      );
+    }),
+    ...(media.get(key) ?? []).map((m) => {
+      const mark = `b:${id}:m${key}:${m.id}`;
+      return <MediaCard key={`${key}-m-${m.id}`} kit={kit} media={m} href={links ? m.url : undefined} {...(exact ? { "data-flow": mark, style: breakBefore(kit, mark) } : {})} />;
+    }),
   ];
+  if (exact)
+    return (
+      <>
+        {head}
+        {blocks.length ? rowsAt(-1) : null}
+        {blocks.map((b, j) => (
+          <Fragment key={j}>
+            <AnswerBlockView kit={kit} block={b} leadIn={leadIn && j === 0} dropCap={start && j === 0} first={j === 0} data-flow={`${b.kind === "lede" ? "k" : "b"}:${id}:${j}`} />
+            {j < blocks.length - 1 ? rowsAt(j) : null}
+          </Fragment>
+        ))}
+        {rowsAt(Number.POSITIVE_INFINITY)}
+      </>
+    );
   const before = blocks.length ? rowsAt(-1) : [];
   const tail = rowsAt(Number.POSITIVE_INFINITY);
   // Что держать вместе с заголовком: ряд фото перед текстом, иначе короткий первый блок, а без текста — первое фото.

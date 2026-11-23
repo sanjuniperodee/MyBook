@@ -14,11 +14,16 @@ import { listMarkerEm } from "@/lib/book/answer-blocks";
 import { mediaCardBox, type AnswerMedia } from "@/lib/book/answer-media";
 import { applyDecision, emptyFlow, FLOW_KINDS, nextDecisions, type FlowDecisions, type FlowKind, type FlowLayout } from "@/lib/book/flow-decisions";
 import { MM_TO_PT } from "@/lib/book/formats";
-import { framedBox, placedByAuthor, rowSpaceAbove, type InlinePhotoStyle } from "@/lib/book/inline-photo";
+import { framedBox, layoutInline, normalizeStyle, placedByAuthor, rowSpaceAbove, splitParagraphsDetailed, type InlinePhotoStyle } from "@/lib/book/inline-photo";
+import { answerBlocks, rowsByBlock } from "@/lib/book/answer-blocks";
+import { layoutMedia } from "@/lib/book/answer-media";
+import type { SampleEntry } from "./entry";
+import { SAMPLE_CHAPTER, sampleEntryId } from "./sample-ids";
 import { dividerDrawing, vignetteDrawing } from "@/lib/book/interior-art";
 import { textArea } from "@/lib/book/page-geometry";
 import { paginate, type PagePiece, type PNode, type PText, type PView } from "@/lib/book/paginate";
 import { naturalLineHeight } from "@/lib/book/fonts";
+import { flowMinLead } from "@/lib/book/typesetting";
 import { ANSWER, CHAPTER_TAIL, DIVIDER, dropCapPlan, HTML_LINE_HEIGHT, QUOTE_MARK, quoteFace, quoteStyle, HEADING, INLINE_ROW, KEEP_WITH_NEXT, MEDIA_CARD, paraAfter, splitInitial, splitLeadIn, VIGNETTE_RULE } from "@/lib/book/typesetting";
 import { chapterHeadSizes } from "@/lib/book/chapter-head";
 import type { PageKit } from "@/components/interior/kit";
@@ -424,4 +429,44 @@ export function paginateChapter(input: Omit<TreeInput, "flow" | "tail"> & { hasT
     if (!decisions.length && !moved) break;
   }
   return result;
+}
+
+/**
+ * Полосы примера главы на развороте «Страниц» — как у PDF: ответы примера деревом (ids — sampleEntryId), разбивка и
+ * доводка (paginateChapter). null — строк ещё нет (шрифт грузится) или название главы над текстом (оно у примера не
+ * размечено): тогда полосы ставит браузер.
+ */
+export function paginateSample(kit: PageKit, sample: { entries: readonly SampleEntry[]; tail?: boolean; chapterStart?: "inline" | "none" }): ChapterPagination | null {
+  if (!kit.breaker || sample.chapterStart === "inline") return null;
+  const { design, sizes: S } = kit;
+  const area = textArea(kit.format);
+  const rowHeights = new Map<string, number>();
+  const entries: TreeEntry[] = sample.entries.map((e, i) => {
+    const id = sampleEntryId(i);
+    const blocks = answerBlocks(e.paragraphs, { plain: design.plainAnswers, breaks: new Set(e.breaks) });
+    const items = (e.photos ?? []).map((p) => ({ p, style: normalizeStyle(p.inline) }));
+    const rows = rowsByBlock(blocks, layoutInline(items, e.paragraphs.length));
+    for (const [key, list] of rows)
+      list.forEach((row, r) => {
+        if (!placedByAuthor(row[0].style) && !row.some((x) => x.style.keepSize)) rowHeights.set(`r:${id}:${key}:${r}`, Math.max(...row.map((x) => framedBox(x.p, x.style, area.w * MM_TO_PT, area.h * MM_TO_PT, row.length).outerH)));
+      });
+    return { id, heading: e.heading, pageBreak: e.pageBreak, blocks, rows, pages: new Map(), media: rowsByBlock(blocks, layoutMedia(e.media ?? [], e.paragraphs.length)) };
+  });
+  return paginateChapter({ kit, chapterKey: SAMPLE_CHAPTER, entries, start: sample.chapterStart, measured: new Map(), hasText: !!sample.tail, rowHeights, minLead: flowMinLead(design, S), pageHeight: area.h * MM_TO_PT });
+}
+
+/** Ответ главы превью для дерева — так же, как его раскладывает превью редактора (ChapterPages: info). */
+export function previewTreeEntry(e: { id: string; heading: string | null; pageBreak?: boolean; answer: string; photos: readonly { width: number; height: number; caption?: string; inline?: InlinePhotoStyle | null }[]; media: readonly AnswerMedia[] }, plain: boolean | undefined): TreeEntry {
+  const { paragraphs, breaks } = splitParagraphsDetailed(e.answer);
+  const all = e.photos.map((p) => ({ p, style: normalizeStyle(p.inline) }));
+  const blocks = answerBlocks(paragraphs, { plain, breaks });
+  return {
+    id: e.id,
+    heading: e.heading,
+    pageBreak: e.pageBreak,
+    blocks,
+    rows: rowsByBlock(blocks, layoutInline(all.filter((x) => !x.style.page), paragraphs.length)),
+    pages: rowsByBlock(blocks, layoutInline(all.filter((x) => x.style.page), paragraphs.length)),
+    media: rowsByBlock(blocks, layoutMedia([...e.media], paragraphs.length)),
+  };
 }

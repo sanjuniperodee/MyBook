@@ -18,7 +18,7 @@ import { ChapterTail, Divider, InlineRow, keepWithNext, MediaCard, QuestionHeadi
 import { gapAbove } from "@/components/interior/entry-gap";
 import { flowMark, NO_FLOW } from "@/components/interior/flow-measure";
 import { breakBefore } from "@/components/interior/breaks";
-import { paginateChapter, type ChapterPagination, type Measured, type TreeEntry } from "./pdf-tree";
+import { paginateChapter, type ChapterPagination, type Measured, type TreeEntry } from "@/components/interior/pdf-tree";
 import { Folio, folioText, RunningHead } from "@/components/interior/folio";
 import { PAPER } from "@/lib/book/interiors";
 import { ChapterHead } from "@/components/interior/pages";

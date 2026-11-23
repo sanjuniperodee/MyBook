@@ -26,6 +26,10 @@ import { hexAlpha } from "@/lib/color";
 import { titleLineText } from "@/lib/book/title-line";
 import { PageLayer, pageFrame, Vignette } from "./graphics";
 import { ChapterTail, Divider, EntryBody, QuestionHeading, type SampleEntry } from "./entry";
+import { gapAbove } from "./entry-gap";
+import { breakBefore } from "./breaks";
+import type { FlowDecisions } from "@/lib/book/flow-decisions";
+import { SAMPLE_CHAPTER, sampleEntryId } from "./sample-ids";
 import { Folio, folioText, RunningHead } from "./folio";
 import { metricsOf, type PageKit } from "./kit";
 import { PageImage, PageSurface, Placed, TextArea, type PageProps } from "./surface";
@@ -323,8 +327,10 @@ export function EndPage({ kit, year, text: own, className, style }: PageProps & 
  * Страница текста главы для миниатюр: заголовки, абзацы, колонтитул и колонцифра. Текст режется
  * по строкам как в книге — через CSS-колонки размером с полосу набора (видна только первая).
  */
-export function TextPage({ kit, entries, folio, bookTitle, chapterTitle, recto, leadIn, chapterHead, column = 0, tail = false, className, style }: PageProps & {
+export function TextPage({ kit, entries, folio, bookTitle, chapterTitle, recto, leadIn, chapterHead, column = 0, tail = false, flow, className, style }: PageProps & {
   entries: SampleEntry[];
+  /** Решения доводки — полосы, как у PDF (kit.breaks — разрывы, InteriorSpread: sampleFlow); нет — полосы браузера. */
+  flow?: FlowDecisions;
   /** Какую полосу потока текста показать (0 — первую): продолжение главы на следующей полосе. */
   column?: number;
   /** После текста — концовка главы (в примере вся глава). */
@@ -349,7 +355,8 @@ export function TextPage({ kit, entries, folio, bookTitle, chapterTitle, recto, 
         <div
           style={{
             width: u.mm(textW),
-            height: u.mm(area.h),
+            // Полосы по разбивке, как у PDF: разрывы ставят блоки, колонка с запасом — браузер сам не ломает.
+            height: u.mm(flow ? area.h + 12 : area.h),
             columnWidth: u.mm(textW),
             columnGap: u.mm(side * 2),
             columnFill: "auto",
@@ -361,7 +368,34 @@ export function TextPage({ kit, entries, folio, bookTitle, chapterTitle, recto, 
           }}
         >
           {chapterHead ? <ChapterHead kit={kit} {...chapterHead} /> : null}
-          {entries.map((e, i) => (
+          {flow
+            ? entries.map((e, i) => {
+                // Как ответ в превью редактора и Entry у PDF: отбивка — полем заголовка или разделителя, разрывы — kit.breaks.
+                const id = sampleEntryId(i);
+                const breaks = i > 0 && (!!e.pageBreak || flow.breakBefore.has(id));
+                const gap = gapAbove(i === 0 || breaks ? 0 : e.heading ? S.beforeHeading : S.beforeHeadless, u.pt);
+                const head = e.heading ? (
+                  <QuestionHeading kit={kit} data-flow={`h:${id}`} {...gap.attrs} style={{ ...gap.style, ...breakBefore(kit, `h:${id}`) }}>
+                    {e.heading}
+                  </QuestionHeading>
+                ) : i > 0 && !e.continued ? (
+                  <Divider kit={kit} data-flow={`h:${id}`} {...gap.attrs} style={{ ...gap.style, ...breakBefore(kit, `h:${id}`) }} />
+                ) : undefined;
+                return (
+                  <EntryBody
+                    key={i}
+                    kit={kit}
+                    entry={e}
+                    id={id}
+                    flow={flow}
+                    leadIn={leadIn && design.leadIn && i === 0 && !e.continued}
+                    start={leadIn && i === 0 && !e.continued}
+                    fresh={i === 0 && !chapterHead && !e.heading}
+                    head={head}
+                  />
+                );
+              })
+            : entries.map((e, i) => (
             <div key={i} style={{ marginTop: i === 0 || e.pageBreak ? 0 : u.pt(e.heading ? S.beforeHeading : S.beforeHeadless), breakBefore: i > 0 && e.pageBreak ? "column" : undefined }}>
               <EntryBody
                 kit={kit}
@@ -373,7 +407,7 @@ export function TextPage({ kit, entries, folio, bookTitle, chapterTitle, recto, 
               />
             </div>
           ))}
-          {tail ? <ChapterTail kit={kit} /> : null}
+          {tail && !flow?.noTail.has(SAMPLE_CHAPTER) ? <ChapterTail kit={kit} {...(flow ? { "data-flow": `t:${SAMPLE_CHAPTER}`, style: breakBefore(kit, `t:${SAMPLE_CHAPTER}`) } : {})} /> : null}
         </div>
       </TextArea>
       <Folio kit={kit} recto={recto}>
