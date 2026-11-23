@@ -123,6 +123,11 @@ export const crmMessages = pgTable(
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
     /** Расшифровка голосового (по кнопке в чате или из распознавания AI-продажника). */
     transcript: text("transcript"),
+    /**
+     * Карточка WhatsApp: товар из каталога (отправил менеджер или прислал клиент), корзина клиента или ссылка на каталог
+     * (MessageCard, docs/whatsapp-catalog.md). Фото товара — в media_url.
+     */
+    card: jsonb("card"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
@@ -184,4 +189,37 @@ export const crmBlocklist = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [check("crm_blocklist_reason_check", sql`${t.reason} in ('spam', 'no_marketing')`)],
+);
+
+/**
+ * Копия каталога товаров WhatsApp Business номера магазина (docs/whatsapp-catalog.md). Источник правды — каталог в
+ * WhatsApp: строки пишет синхронизация и правки из CRM после ответа WhatsApp. Цена — в целых единицах валюты.
+ */
+export const waCatalogProducts = pgTable(
+  "wa_catalog_products",
+  {
+    /** id товара в WhatsApp. */
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    description: text("description").notNull().default(""),
+    price: integer("price"),
+    currency: text("currency").notNull().default("KZT"),
+    retailerId: text("retailer_id").notNull().default(""),
+    url: text("url").notNull().default(""),
+    hidden: boolean("hidden").notNull().default(false),
+    /** Проверка товара WhatsApp: APPROVED, PENDING, REJECTED. */
+    review: text("review").notNull().default(""),
+    /** Фото в WhatsApp (mmg.whatsapp.net), по порядку. */
+    imageUrls: jsonb("image_urls").$type<string[]>().notNull().default([]),
+    /** Видео товара в WhatsApp — при правке передаются обратно, иначе WhatsApp их удалит. */
+    videoUrls: jsonb("video_urls").$type<string[]>().notNull().default([]),
+    /** Копия обложки у нас (store:wa-catalog/<id>.<ext>) — для списка, выбора в чате и карточки в переписке. */
+    imageKey: text("image_key"),
+    /** Какую обложку скопировали: сменилась в WhatsApp — копируем заново. */
+    imageSource: text("image_source"),
+    /** Порядок, как в каталоге WhatsApp. */
+    position: integer("position").notNull().default(0),
+    syncedAt: timestamp("synced_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("wa_catalog_products_position_idx").on(t.position)],
 );

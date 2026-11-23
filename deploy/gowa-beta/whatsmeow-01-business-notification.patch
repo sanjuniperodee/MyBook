@@ -1,0 +1,31 @@
+diff --git a/notification.go b/notification.go
+index 22b6d10..0a11cb7 100644
+--- a/notification.go
++++ b/notification.go
+@@ -516,7 +516,10 @@ func (cli *Client) handleNotification(ctx context.Context, node *waBinary.Node)
+ 		} else {
+ 			cli.Log.Debugf("Unrecognized companion reg refresh notification: %s", node)
+ 		}
+-	// Other types: business, disappearing_mode, server, status, pay, psa
++	case "business":
++		// Business pushes (verified name, catalog ad-account token nonce): handed to the app as is.
++		cancelled = cli.dispatchEvent(&events.BusinessNotification{Node: node})
++	// Other types: disappearing_mode, server, status, pay, psa
+ 	default:
+ 		cli.Log.Debugf("Unhandled notification with type %s", notifType)
+ 	}
+diff --git a/types/events/business.go b/types/events/business.go
+new file mode 100644
+index 0000000..e626165
+--- /dev/null
++++ b/types/events/business.go
+@@ -0,0 +1,9 @@
++package events
++
++import waBinary "go.mau.fi/whatsmeow/binary"
++
++// BusinessNotification is a <notification type="business"> push (for example
++// <wa_ad_account_nonce> that answers a silent ad-account token nonce request).
++type BusinessNotification struct {
++	Node *waBinary.Node
++}

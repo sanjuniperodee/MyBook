@@ -20,6 +20,12 @@
 #   журнал служебных сообщений звонка на debug.
 # и правки самого шлюза (deploy/gowa-beta/gowa-*.patch):
 #   gowa-02-call-listen.patch — /call/listen: прослушка идущего звонка руководителем (только приём, копия обеих сторон).
+#   gowa-03-catalog.patch — каталог WhatsApp Business (docs/whatsapp-catalog.md): токен рекламного аккаунта по сокету
+#   (silent nonce → nonce в уведомлении business → GetAccessTokenAndSessionCookies), GraphQL-правки каталога на
+#   graph.facebook.com с этим токеном, загрузка фото товара, карточка товара и ссылка на каталог в чат, состав корзины.
+# и правка самой библиотеки WhatsApp whatsmeow (deploy/gowa-beta/whatsmeow-*.patch, через replace):
+#   whatsmeow-01-business-notification.patch — уведомления type="business" отдаются шлюзу событием (в них приходит
+#   одноразовый код для токена каталога; без правки whatsmeow их молча глотает).
 #   gowa-01-call-diagnostics.patch — переменные окружения процесса шлюза: WHATSAPP_CALL_LOG_LEVEL=debug|info — подробный
 #   журнал звонков, WHATSAPP_CALL_DIAG_DIR=<папка> — диагностика meowcaller (пишет и ключи звонка: только на время отладки).
 # Обновлено 2026-10-30 (тот же набор, что у DoseWear, — описание каждой правки в DoseWear deploy/gowa-beta-build.sh):
@@ -37,7 +43,8 @@ command -v docker >/dev/null || { echo "Нужен Docker"; exit 1; }
 mkdir -p "$OUT"
 
 # glibc сборки (Debian bookworm, 2.36) не новее, чем на сервере (2.39): программа с CGO (sqlite) там запустится.
-docker run --rm --platform linux/amd64 -v "$OUT:/out" -v "$ROOT/deploy/gowa-beta:/patches:ro" -e REF="$GOWA_BETA_REF" golang:1.26-bookworm bash -euo pipefail -c '
+# Модули и кэш сборки Go — в томах Docker: повторная сборка не качает всё заново.
+docker run --rm --platform linux/amd64 -v "$OUT:/out" -v "$ROOT/deploy/gowa-beta:/patches:ro" -v mybook-gowa-gomod:/go/pkg/mod -v mybook-gowa-gocache:/root/.cache/go-build -e REF="$GOWA_BETA_REF" golang:1.26-bookworm bash -euo pipefail -c '
   git clone --quiet --filter=blob:none https://github.com/aldinokemal/go-whatsapp-web-multidevice.git /src
   cd /src && git fetch --quiet origin refs/pull/892/head && git checkout --quiet "$REF"
   for p in /patches/gowa-*.patch; do git apply -p1 "$p"; done
@@ -46,6 +53,10 @@ docker run --rm --platform linux/amd64 -v "$OUT:/out" -v "$ROOT/deploy/gowa-beta
   cp -r "$(go list -m -f "{{.Dir}}" github.com/purpshell/meowcaller)" /meowcaller && chmod -R u+w /meowcaller
   for p in /patches/meowcaller-*.patch; do (cd /meowcaller && git apply -p1 "$p"); done
   go mod edit -replace github.com/purpshell/meowcaller=/meowcaller
+  WM="$(go list -m -f "{{.Path}}@{{.Version}}" go.mau.fi/whatsmeow)" && go mod download "$WM"
+  cp -r "$(go list -m -f "{{.Dir}}" go.mau.fi/whatsmeow)" /whatsmeow && chmod -R u+w /whatsmeow
+  for p in /patches/whatsmeow-*.patch; do (cd /whatsmeow && git apply -p1 "$p"); done
+  go mod edit -replace go.mau.fi/whatsmeow=/whatsmeow
   CGO_ENABLED=1 go build -trimpath -ldflags="-w -s" -o /out/whatsapp .
   cd /out && sha256sum whatsapp > whatsapp.sha256
 '

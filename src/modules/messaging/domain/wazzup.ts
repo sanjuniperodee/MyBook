@@ -1,3 +1,4 @@
+import type { MessageCard } from "./catalog";
 /**
  * Протокол Wazzup API v3 (https://wazzup24.ru/help/api-ru/): разбор вебхуков без обращения к БД —
  * чтобы его можно было покрыть тестами.
@@ -17,6 +18,8 @@ export interface WazzupIncoming {
   contactName: string;
   avatarUrl: string | null;
   status: string | null;
+  /** Карточка WhatsApp (товар или корзина из каталога) — только у шлюза GOWA. */
+  card?: MessageCard | null;
 }
 
 export interface WazzupStatus {

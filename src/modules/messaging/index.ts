@@ -8,6 +8,9 @@ import { EmailChannel, type EmailSettingKey, type MailTransport } from "./infras
 import { GOWA_PAGE_LIMIT, GowaClient, verifyGowaSignature, type GowaConfig, type GowaWebhook } from "./infrastructure/gowa";
 import { GOWA_CHANNEL, gowaCatchUpRange, gowaJid, isGowaPersonalJid, parseGowaHistory } from "./domain/gowa";
 import { WazzupClient } from "./infrastructure/wazzup";
+import { CatalogService } from "./application/catalog";
+import { cardMessages, catalogImages, drizzleCatalogStore } from "./infrastructure/catalogStore";
+import { waCatalogGateway } from "./infrastructure/waCatalog";
 import { drizzleCoachSource } from "./infrastructure/botCoach";
 import { drizzleHelpStore, helpChatId, helpQuestionsOf, helpStats } from "./infrastructure/cabinetHelp";
 import { chatFiles, extOf } from "./infrastructure/chatFiles";
@@ -26,6 +29,8 @@ export { channelLabel, findSensitive, redactSecrets, sensitiveLabels, sensitiveW
 export type { ChatMessage } from "./infrastructure/chatView";
 export { WazzupError } from "./infrastructure/wazzup";
 export { MediaUnavailableError } from "./application/media";
+export type { StoredProduct, UploadImage } from "./application/catalog";
+export { CATALOG_CURRENCY, CATALOG_LIMITS, DEFAULT_CATALOG_SETTINGS, cardLine, catalogLink, formatPrice, parseCard, reviewLabel, validateDraft, type CatalogSettings, type MessageCard, type ProductDraft } from "./domain/catalog";
 export { MediaDedup, type DedupResult } from "./infrastructure/mediaDedup";
 export { EDIT_WINDOW_MS, MessageActionError, REVOKE_WINDOW_MS } from "./application/services";
 export { GOWA_DEVICE, GowaError, type GowaConfig, type GowaStatus, type GowaWebhook } from "./infrastructure/gowa";
@@ -36,7 +41,7 @@ export type { BotMetrics } from "./infrastructure/persistence";
 export type { BotPreviewInput, BotPreviewResult, BotStatus } from "./application/botPreview";
 
 /** Настройки CRM, которые читает и пишет переписка: бот, виджет, Wazzup и почтовый ящик. */
-type MessagingSettingKey = "bot.mode" | "bot.config" | "bot.lessons" | "bot.coach" | "bot.materials" | "whatsapp.phoneHolder" | "whatsapp.rulesWindow" | "whatsapp.rulesDailyLimit" | "crm.workHours" | "widget.enabled" | "widget.chat" | "widget.help" | "wazzup.apiKey" | "wazzup.baseUrl" | "wazzup.channelId" | "gowa.historySyncedAt" | "ai.knowledge" | EmailSettingKey;
+type MessagingSettingKey = "bot.mode" | "bot.config" | "bot.lessons" | "bot.coach" | "bot.materials" | "whatsapp.phoneHolder" | "whatsapp.rulesWindow" | "whatsapp.rulesDailyLimit" | "crm.workHours" | "widget.enabled" | "widget.chat" | "widget.help" | "wazzup.apiKey" | "wazzup.baseUrl" | "wazzup.channelId" | "gowa.historySyncedAt" | "ai.knowledge" | "whatsapp.catalog" | EmailSettingKey;
 
 /** Порты рабочего пространства и почты: настройки, уведомления, живое обновление, график, свои поля, SMTP. */
 interface WorkspacePorts {
@@ -97,6 +102,8 @@ export class MessagingModule {
   readonly media: ChatMediaService;
   /** Бот-квалификатор: ходы, фоновый проход, остановка и запуск из чата. */
   readonly bot: QualifierBot;
+  /** Каталог товаров WhatsApp Business: копия, правки через WhatsApp, товары и ссылка на каталог в чат. */
+  readonly catalog: CatalogService;
   /** Работа над ошибками AI-продажника: ночной разбор бесед → уроки в его инструкции. */
   readonly coach: BotCoach;
   private readonly botStore = new DrizzleBotStore();
@@ -187,6 +194,18 @@ export class MessagingModule {
     const ruleSending = async () => parseRuleSending(await deps.settings.get("whatsapp.rulesWindow"), await deps.settings.get("whatsapp.rulesDailyLimit"));
     this.chats = new MessagingService(conversations, messages, drizzleBlocklist, transport, deps.sales, deps.links, notifier, live, deps.rules, bot, deps.clock, consoleLogger("chats"), deps.whatsapp, () => this.phoneHolder(), ruleSending, this.staffLine, deps.tasks, atomically);
     this.media = new ChatMediaService(conversations, messages, gowaMediaGateway(this.gowa), async () => (await deps.whatsappSettings.provider()) === "gowa", Date.now, chatFiles);
+    // Номер магазина для каталога: привязанный к шлюзу, иначе — из настроек сайта.
+    const shopPhone = async () => (await this.gowa.cachedStatus().catch(() => null))?.phone || (await deps.whatsapp());
+    this.catalog = new CatalogService({
+      store: drizzleCatalogStore,
+      gateway: waCatalogGateway(this.gowa, shopPhone),
+      images: catalogImages,
+      messages: cardMessages,
+      chats: () => this.chats,
+      settings: { get: () => deps.settings.get("whatsapp.catalog"), save: (raw, actorId) => deps.settings.save({ "whatsapp.catalog": raw }, actorId) },
+      shopPhone,
+      logger: consoleLogger("catalog"),
+    });
     this.site = new SiteChatService(this.chats, deps.sales, deps.tasks, notifier, live, deps.clock, siteIds, deps.schedule);
     this.help = new CabinetHelpService({
       conversations,
@@ -202,6 +221,13 @@ export class MessagingModule {
       chatId: helpChatId,
       uuid: () => crypto.randomUUID(),
     });
+  }
+
+  /** Кнопка «Товар из каталога» в этом чате: WhatsApp через свой шлюз и каталог включён в настройках. */
+  async catalogInChat(conv: { channel: string; channelId: string }): Promise<boolean> {
+    if (conv.channel !== "whatsapp") return false;
+    if (conv.channelId !== GOWA_CHANNEL && (await this.deps.whatsappSettings.provider()) !== "gowa") return false;
+    return (await this.catalog.settings()).enabled;
   }
 
   /** Вопросы клиента помощнику в кабинете — для чата WhatsApp и карточки клиента в CRM. */

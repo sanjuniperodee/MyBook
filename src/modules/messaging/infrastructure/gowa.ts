@@ -1,6 +1,7 @@
 import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { GOWA_CALL_ID, GOWA_MESSAGE_ID, gowaDownloadPhone, gowaJid, isGowaMediaPath } from "../domain/gowa";
+import { toWaPrice } from "../domain/catalog";
 
 const GOWA_ERROR = Symbol.for("mybook.gowa-error");
 
@@ -60,7 +61,10 @@ export const GOWA_PAGE_LIMIT = 100;
  */
 const WEBHOOK_EVENTS = "message,message.ack,call.offer,call.incoming";
 
-type Method = "GET" | "POST" | "PATCH";
+type Method = "GET" | "POST" | "PATCH" | "DELETE";
+
+/** id товара каталога WhatsApp — число; другое в адрес шлюза не пропускаем. */
+const PRODUCT_ID = /^\d{1,40}$/;
 
 /**
  * HTTP-клиент GOWA — go-whatsapp-web-multidevice (docs/openapi.yaml): устройство и вебхук, отправка, вход по QR или коду,
@@ -225,6 +229,86 @@ export class GowaClient {
   async chatMessages(jid: string, offset: number, limit: number): Promise<{ messages: unknown[]; total: number }> {
     const res = await this.json<{ results?: { data?: unknown[] | null; pagination?: { total?: number } } }>("GET", `/chat/${encodeURIComponent(jid)}/messages?limit=${Math.min(limit, GOWA_PAGE_LIMIT)}&offset=${offset}`);
     return { messages: res.results?.data ?? [], total: res.results?.pagination?.total ?? 0 };
+  }
+
+  // ─── каталог WhatsApp Business (наш патч шлюза gowa-03-catalog) ─────────
+
+  /**
+   * GraphQL-операция каталога на graph.facebook.com с токеном рекламного аккаунта номера (шлюз получает его по сокету).
+   * Возвращает ответ GraphQL как есть; разбирает infrastructure/waCatalog.
+   */
+  async catalogGraphql(docId: string, variables: unknown): Promise<unknown> {
+    const res = await this.json<{ results?: { http_status?: number; body?: unknown; text?: string } }>("POST", "/catalog/graphql", { doc_id: docId, variables, locale: "ru_RU" }, 180_000);
+    const r = res.results ?? {};
+    if (r.body === undefined) throw new GowaError(`WhatsApp: ответ каталога не разобрать (HTTP ${r.http_status ?? "?"})`);
+    return r.body;
+  }
+
+  /** Проверить, что WhatsApp выдаёт токен для правки каталога. */
+  /**
+   * Токен для правки каталога: WhatsApp выдаёт его по сокету (шлюз держит токен у себя). Отдаёт, от чьего имени правки
+   * (businessPersonId → actor_id мутаций), номер и LID номера (мутации адресуют бизнес по LID).
+   */
+  async catalogToken(fresh = false): Promise<{ businessPersonId: string; jid: string; lid: string }> {
+    const res = await this.json<{ results?: { business_person_id?: string; jid?: string; lid?: string } }>("GET", `/catalog/token${fresh ? "?fresh=1" : ""}`, undefined, 120_000);
+    const r = res.results ?? {};
+    return { businessPersonId: r.business_person_id ?? "", jid: r.jid ?? "", lid: r.lid ?? "" };
+  }
+
+  /** Загрузить фото товара в WhatsApp; адреса — для product_info.media. */
+  async uploadProductImages(images: { data: Uint8Array; name: string; mime: string }[]): Promise<string[]> {
+    if (!images.length) return [];
+    const form = new FormData();
+    for (const img of images) form.append("image", new Blob([img.data as BlobPart], { type: img.mime || "image/jpeg" }), img.name || "photo.jpg");
+    const res = await this.json<{ results?: { urls?: string[] } }>("POST", "/catalog/upload-image", form, 120_000);
+    const urls = res.results?.urls ?? [];
+    if (urls.length !== images.length) throw new GowaError("WhatsApp не принял фото товара");
+    return urls;
+  }
+
+  /** Отправить карточку товара: клиент открывает её в WhatsApp (фото, цена, «Написать продавцу», корзина). */
+  async sendProduct(chatId: string, card: { productId: string; title: string; description: string; currency: string; price: number | null; retailerId: string; url: string; imageUrl: string | null; imageCount: number; body: string }): Promise<string | null> {
+    if (!PRODUCT_ID.test(card.productId)) throw new GowaError("Неверный id товара");
+    const res = await this.json<{ results?: { message_id?: string } }>(
+      "POST",
+      "/catalog/send-product",
+      {
+        phone: gowaJid(chatId),
+        product: {
+          product_id: card.productId,
+          title: card.title,
+          description: card.description,
+          currency: card.currency,
+          price_amount_1000: card.price ? toWaPrice(card.price) : 0,
+          retailer_id: card.retailerId,
+          url: card.url,
+          image_url: card.imageUrl ?? "",
+          image_count: card.imageCount,
+          body: card.body,
+        },
+      },
+      120_000,
+    );
+    return res.results?.message_id ?? null;
+  }
+
+  /** Ссылка на весь каталог (wa.me/c/<номер>) с превью: обложка — фото первого товара. */
+  async sendCatalogLink(chatId: string, text: string, preview: { title: string; description: string; imageUrl: string | null }): Promise<string | null> {
+    const res = await this.json<{ results?: { message_id?: string } }>("POST", "/catalog/send-link", { phone: gowaJid(chatId), text, title: preview.title, description: preview.description, image_url: preview.imageUrl ?? "" }, 60_000);
+    return res.results?.message_id ?? null;
+  }
+
+  /** Фото товара из WhatsApp (адрес из каталога) — для копии в CRM. */
+  async catalogImage(url: string): Promise<{ data: Uint8Array; mime: string }> {
+    const res = await this.raw(`/catalog/image?url=${encodeURIComponent(url)}`);
+    return { data: new Uint8Array(await res.arrayBuffer()), mime: res.headers.get("content-type") ?? "image/jpeg" };
+  }
+
+  /** Состав корзины, которую прислал клиент (id и токен — из сообщения заказа). */
+  async orderDetails(orderId: string, token: string): Promise<unknown> {
+    if (!PRODUCT_ID.test(orderId) || !token) throw new GowaError("Неверный заказ");
+    const res = await this.json<{ results?: unknown }>("GET", `/catalog/order?order_id=${orderId}&token=${encodeURIComponent(token)}`, undefined, 60_000);
+    return res.results ?? null;
   }
 
   // ─── звонки (шлюз со звонками, WHATSAPP_BETA_CALL_ENABLED=true) ───────────

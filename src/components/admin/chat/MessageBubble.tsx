@@ -6,6 +6,11 @@ import type { ChatMessage } from "@/modules/messaging";
 import { cn } from "@/lib/class-names";
 import { VoicePlayer } from "./VoicePlayer";
 import { BotTraceButton } from "./BotTrace";
+import { CatalogCard } from "./CatalogCard";
+import type { MessageCard } from "@/modules/messaging/domain/catalog";
+
+/** Подпись под карточкой WhatsApp: у товара — текст менеджера, у корзины — сообщение клиента (строка карточки не повторяется). */
+const cardCaption = (card: MessageCard) => (card.kind === "product" ? (card.body ?? "") : card.kind === "order" ? (card.note ?? "") : "");
 
 /** Сообщение чата с тем, что знает только браузер: превью ещё не отправленного файла. */
 export type Msg = ChatMessage & { localSrc?: string; fileName?: string };
@@ -48,6 +53,7 @@ export function hasCaption(m: Pick<ChatMessage, "type" | "text" | "deleted">): b
 /** Короткое описание сообщения — для цитаты, пересылки и подсказок. */
 export function snippet(m: Pick<ChatMessage, "type" | "text">) {
   const label = m.type === "image" ? "📷 Фото" : m.type === "video" ? "🎬 Видео" : m.type === "audio" ? "🎤 Голосовое" : m.type === "document" ? "📎 Файл" : "";
+  if (m.type === "product" || m.type === "order" || m.type === "catalog") return m.text.replace(/\s+/g, " ").trim().slice(0, 160) || "Товар";
   const t = m.text.replace(/\s+/g, " ").trim();
   return [label, t].filter(Boolean).join(" · ").slice(0, 160) || "Сообщение";
 }
@@ -392,9 +398,16 @@ function Bubble({
         ) : (
           <>
             <div className={m.type !== "text" ? "pt-1" : undefined}>
-              <Attachment m={m} conversationId={conversationId} onOpen={() => onOpenMedia(m.id)} onVoiceEnded={() => onVoiceEnded(m.id)} />
+              {m.card ? <CatalogCard card={m.card} image={mediaSrc(m) ?? null} messageId={m.id} /> : <Attachment m={m} conversationId={conversationId} onOpen={() => onOpenMedia(m.id)} onVoiceEnded={() => onVoiceEnded(m.id)} />}
             </div>
-            {hasCaption(m) ? (
+            {m.card ? (
+              cardCaption(m.card) ? (
+                <p className="break-words whitespace-pre-wrap">
+                  <Linkified text={cardCaption(m.card)} out={false} />
+                  <span className="inline-block w-[74px]" aria-hidden />
+                </p>
+              ) : null
+            ) : hasCaption(m) ? (
               <p className="break-words whitespace-pre-wrap">
                 <Linkified text={m.text} out={false} />
                 {/* Место под время справа, чтобы оно не наезжало на последнюю строку. */}
@@ -404,7 +417,7 @@ function Bubble({
           </>
         )}
         {/* С текстом время встаёт в зарезервированное место его последней строки; без текста — своей строкой под вложением. */}
-        <div className={cn("flex items-center justify-end gap-1 text-xs leading-none text-muted tabular-nums", hasCaption(m) ? "-mt-3.5 float-right ml-2 translate-y-0.5" : "mt-1")}>
+        <div className={cn("flex items-center justify-end gap-1 text-xs leading-none text-muted tabular-nums", (m.card ? !!cardCaption(m.card) : hasCaption(m)) ? "-mt-3.5 float-right ml-2 translate-y-0.5" : "mt-1")}>
           {m.edited && !m.deleted ? <span className="italic">изменено</span> : null}
           {time(m.at, timeZone)}
           {out ? <StatusIcon status={m.status} /> : null}

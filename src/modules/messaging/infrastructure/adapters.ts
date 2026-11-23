@@ -60,6 +60,15 @@ export function whatsappTransport(gowa: GowaClient, provider: () => Promise<"waz
         return fail(err, "file");
       }
     },
+    async sendCard(conv, card) {
+      if (!(await viaGowa(conv))) return { ok: false, error: "Товары из каталога отправляются только в WhatsApp через свой шлюз" };
+      try {
+        const externalId = card.kind === "product" ? await gowa.sendProduct(conv.chatId, card) : await gowa.sendCatalogLink(conv.chatId, card.text, card);
+        return { ok: true, externalId };
+      } catch (err) {
+        return fail(err, "card");
+      }
+    },
     async edit(conv, externalId, text) {
       if (local(conv)) return { ok: true };
       if (!(await viaGowa(conv))) return unsupported;

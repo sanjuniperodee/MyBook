@@ -29,8 +29,9 @@ import {
   type RuleSendingPolicy,
 } from "../domain";
 import { zonedDay } from "@/shared/domain/time";
+import type { MessageCard } from "../domain/catalog";
 import type { QualifierBot } from "./bot";
-import type { AnsweredTasks, BlockReason, Blocklist, ChannelTransport, ConversationRepository, IncomingRules, LinkAttribution, LiveUpdates, MessageRepository, MessageSource, OutgoingFile, SalesGateway, StaffLine, StaffNotifier, StoredMessage, Tasks } from "./ports";
+import type { AnsweredTasks, BlockReason, Blocklist, ChannelTransport, ConversationRepository, IncomingRules, LinkAttribution, LiveUpdates, MessageRepository, MessageSource, OutgoingCard, OutgoingFile, SalesGateway, StaffLine, StaffNotifier, StoredMessage, Tasks } from "./ports";
 
 /** WhatsApp даёт изменить отправленное 15 минут, удалить «для всех» — около двух суток. */
 export const EDIT_WINDOW_MS = 15 * 60_000;
@@ -451,6 +452,32 @@ export class MessagingService {
     if (conv.dealId) await this.sales.acceptUnsorted(conv.dealId, authorId, "ответ клиенту в чате");
     this.live.chatChanged(conversationId);
     const r = await this.transport.sendFile(conv, file, { caption: text, replyTo: reply?.externalId ?? null, forwarded: opts.forwarded });
+    if (!r.ok) {
+      await this.messages.setStatus(msg.id, "error", r.error);
+      this.live.chatChanged(conversationId);
+      return { ...msg, status: "error" as const, error: r.error };
+    }
+    await this.attach(msg.id, r.externalId);
+    this.live.chatChanged(conversationId);
+    await this.answered(conv);
+    return { ...msg, externalId: r.externalId, status: "sent" as const };
+  }
+
+  /**
+   * Карточка WhatsApp от сотрудника: товар из каталога (клиент открывает его в WhatsApp) или ссылка на весь каталог. В CRM —
+   * сообщение-карточка (card) с текстом-строкой и фото товара (mediaUrl).
+   */
+  async sendCard(conversationId: string, out: OutgoingCard, record: { text: string; card: MessageCard; mediaUrl: string | null }, authorId: string) {
+    const conv = await this.conversations.findById(conversationId);
+    if (!conv) throw new Error("Диалог не найден");
+    if (!this.transport.sendCard) throw new MessageActionError("Карточки товаров в этом канале недоступны");
+    await this.bot.stopByHuman(conversationId, "crm").catch((err) => this.logger.error("bot stop", err));
+    const text = record.text.trim().slice(0, 4000);
+    const msg = await this.messages.insertOutgoing(conversationId, text, authorId, false, undefined, { type: record.card.kind, mediaUrl: record.mediaUrl, card: record.card });
+    await this.conversations.recordOutgoing(conversationId, preview(text), this.clock.now(), authorId);
+    if (conv.dealId) await this.sales.acceptUnsorted(conv.dealId, authorId, "ответ клиенту в чате");
+    this.live.chatChanged(conversationId);
+    const r = await this.transport.sendCard(conv, out);
     if (!r.ok) {
       await this.messages.setStatus(msg.id, "error", r.error);
       this.live.chatChanged(conversationId);

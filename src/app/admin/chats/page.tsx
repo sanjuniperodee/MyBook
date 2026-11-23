@@ -142,6 +142,7 @@ export default async function ChatsPage({ searchParams }: { searchParams: Promis
           mentionables={mentionables.filter((m) => m.id !== staff.user.id).map((m) => m.label)}
           ai={ai && canReply}
           invoice={invoicePerms.send ? { dealId: conv.dealId } : null}
+          catalog={canReply && (await container().messaging.catalogInChat(conv))}
           timeZone={storeTimeZone()}
           me={staff.user.id}
         />

@@ -22,12 +22,13 @@ export const SETTINGS_TABS = [
   {
     id: "messengers",
     label: "Мессенджеры",
-    hint: "WhatsApp, Wazzup, сообщения правил",
+    hint: "WhatsApp, каталог, Wazzup, сообщения правил",
     icon: MessageCircle,
     group: "Каналы связи",
     sections: [
       { id: "gowa", label: "WhatsApp: свой шлюз" },
       { id: "wa-calls", label: "Звонки WhatsApp" },
+      { id: "wa-catalog", label: "Каталог WhatsApp" },
       { id: "rule-sending", label: "Сообщения от правил" },
       { id: "lifecycle-chat", label: "Автописьма в WhatsApp" },
       { id: "wazzup", label: "Wazzup" },
