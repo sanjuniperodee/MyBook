@@ -31,7 +31,7 @@ import { PreviewIntro, PreviewPane, PreviewSheet } from "./questions/PreviewPane
 import { ChapterStart, type ChapterStartAction } from "./questions/ChapterStartCard";
 import { PhotoSheetHost, placeData, type BookSource, type PhotoSheetTarget } from "./preview/photo-sheets";
 import type { PreviewTarget } from "./preview/targets";
-import { patchBook } from "./photos/api";
+import { patchBook, reorderPhotos as saveOrder } from "./photos/api";
 import { galleryTitleOf, placeNames, withNoOpenerPhoto, type PlaceEvents } from "./photos/model";
 import { useBookContent } from "./questions/useBookContent";
 import { useQuestionsDraft } from "./questions/useQuestionsDraft";
@@ -337,6 +337,22 @@ function EditorBody({
   const qPhotos = q ? photos.filter((p) => p.questionId === q.id) : [];
   const answerPages = q ? answerPagesOf(q, qPhotos, format, design) : 0;
   const selectedPhoto = qPhotos.find((p) => p.id === selectedPhotoId) ?? null;
+  /** «Раньше» / «Позже» у фото ответа: меняется местами с соседним фото того же ответа (порядок фото книги). */
+  const shiftPhoto = async (id: string, dir: -1 | 1) => {
+    const mine = qPhotos.map((p) => p.id);
+    const i = mine.indexOf(id);
+    const other = mine[i + dir];
+    if (i < 0 || !other) return;
+    const prev = photos.map((p) => p.id);
+    const next = prev.map((x) => (x === id ? other : x === other ? id : x));
+    inlinePhotos.reorder(next);
+    try {
+      await saveOrder(book.id, next);
+    } catch (e) {
+      inlinePhotos.reorder(prev);
+      toastError(e);
+    }
+  };
   const labelOf = (x: EditorQuestion) => sectionLabel(x, kind, untitled);
 
   // Книга для сборки (useBookContent): превью, счётчик полос, карточка главы, оглавление и листы фото передают одни
@@ -775,6 +791,7 @@ function EditorBody({
                   onUndo={applyUndo}
                   onMove={openPlace}
                   onEdit={setEditingPhoto}
+                  onShift={editable ? shiftPhoto : undefined}
                 />
               ) : null}
 

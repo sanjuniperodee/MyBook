@@ -229,6 +229,8 @@ export function PhotoInspector({
   onCrop,
   onMove,
   onEdit,
+  onShift,
+  order,
   badge,
 }: {
   photo: InspectorPhoto;
@@ -249,6 +251,10 @@ export function PhotoInspector({
   onMove?: () => void;
   /** «Редактировать» — редактор фото (текст, рисунок, кадр, цвет). */
   onEdit?: () => void;
+  /** «Раньше» / «Позже» — поменять местами с соседним фото ответа. */
+  onShift?: (dir: -1 | 1) => void;
+  /** Номер фото среди фото ответа (с 0) и сколько их — для стрелок порядка. */
+  order?: { index: number; count: number };
   /** Подпись места фото в книге (PlaceBadge) — под заголовком. */
   badge?: ReactNode;
 }) {
@@ -329,6 +335,24 @@ export function PhotoInspector({
           <>
             <FocusPicker photo={photo} style={style} onChange={onChange} disabled={!editable} />
             <p className="-mt-2 text-center text-[11px] text-muted">{style.aspect === "original" ? a.originalHint : a.focusHint}</p>
+
+            {onShift && order ? (
+              <Field label={a.order} aside={<span>{a.orderOf(order.index + 1, order.count)}</span>}>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {([-1, 1] as const).map((dir) => (
+                    <button
+                      key={dir}
+                      type="button"
+                      disabled={dir < 0 ? order.index <= 0 : order.index >= order.count - 1}
+                      onClick={() => onShift(dir)}
+                      className="min-h-11 rounded-[10px] bg-sunken px-2 text-xs font-medium text-muted transition hover:text-ink focus-visible:outline-2 focus-visible:outline-wine disabled:opacity-40 sm:min-h-9"
+                    >
+                      {dir < 0 ? `← ${a.earlier}` : `${a.later} →`}
+                    </button>
+                  ))}
+                </div>
+              </Field>
+            ) : null}
 
             <Field label={a.size} aside={<span>{a.sizes[sizeWord(style.width)]}</span>}>
               <div role="radiogroup" aria-label={a.size} className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
