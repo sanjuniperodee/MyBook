@@ -281,7 +281,7 @@ export async function renderInterior(bundle: BookBundle, mode: RenderMode, repor
     const drops = refineDropCaps(layout, flow, dropColumns);
     // Пустые полосы — по страницам этого прохода: начальная полоса справа получает пустую перед собой.
     const moved = blanks(captured);
-    if (!refineFlow(layout, flow, rowHeights, chapterOf, minLead) && !drops && !moved) break;
+    if (!refineFlow(layout, flow, rowHeights, chapterOf, minLead, content.interior.photos.fit !== "move") && !drops && !moved) break;
   }
   // Итоговая сборка с настоящими фото; её раскладка — виды полос для манифеста (на раскладку влияют только размеры фото).
   // Номера оглавления — из прошлого прохода, а главы могли встать иначе: вёрстку поправили после последнего замера

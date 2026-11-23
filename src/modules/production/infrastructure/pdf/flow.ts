@@ -104,8 +104,8 @@ export function readLayout(layout: unknown, chapterOf: ReadonlyMap<string, strin
  * rowHeights — высота самих фото в ряду (без подписи), pt: чтобы посчитать масштаб.
  * minLead — сколько текста (pt) должно стоять под заголовком на той же полосе: около трёх строк.
  */
-export function refineFlow(layout: unknown, flow: FlowDecisions, rowHeights: ReadonlyMap<string, number>, chapterOf: ReadonlyMap<string, string>, minLead = 0): boolean {
-  const decisions = nextDecisions(readLayout(layout, chapterOf), flow, rowHeights, minLead);
+export function refineFlow(layout: unknown, flow: FlowDecisions, rowHeights: ReadonlyMap<string, number>, chapterOf: ReadonlyMap<string, string>, minLead = 0, shrink = true): boolean {
+  const decisions = nextDecisions(readLayout(layout, chapterOf), flow, rowHeights, minLead, shrink);
   for (const decision of decisions) applyDecision(flow, decision);
   return decisions.length > 0;
 }

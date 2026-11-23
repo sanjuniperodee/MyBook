@@ -133,6 +133,9 @@ export const design_pages = {
     photoFrames: { none: "Без рамки", hairline: "Тонкая", double: "Двойная", polaroid: "Полароид", corners: "Уголки", tape: "Скотч", mat: "Паспарту", shadow: "Тень" },
     caption: "Подписи к фото",
     captions: { italic: "Курсив", hand: "От руки", label: "Прописными" },
+    photoFit: "Фото не влезло внизу страницы",
+    photoFits: { shrink: "Уменьшить", move: "На следующую страницу" },
+    photoFitHint: "«Уменьшить» — фото встаёт в свободное место под текстом, но может стать мелким. «На следующую страницу» — фото остаётся полного размера.",
   },
   colors: {
     palettes: "Палитры",

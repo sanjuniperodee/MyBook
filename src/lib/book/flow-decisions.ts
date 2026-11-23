@@ -147,6 +147,8 @@ interface Spot {
   flow: FlowDecisions;
   rowHeights: ReadonlyMap<string, number>;
   minLead: number;
+  /** Можно ли уменьшать фото под пустоту на прежней полосе (оформление книги: photos.fit ≠ «move»). */
+  shrink: boolean;
 }
 type Rule = (spot: Spot) => FlowDecision | undefined;
 
@@ -168,9 +170,9 @@ const hangingHeading: Rule = ({ block, next, page, flow, minLead }) => {
 };
 
 /** Фото перескочило на новую полосу и оставило пустоту на предыдущей → уменьшаем под неё. */
-const shrinkRow: Rule = ({ block, prev, page, pages, flow, rowHeights }) => {
+const shrinkRow: Rule = ({ block, prev, page, pages, flow, rowHeights, shrink }) => {
   const { mark, first: start } = block;
-  if (!prev || !atPageTop(start, page) || prev.page !== start.page - 1 || flow.rowScale.has(mark)) return undefined;
+  if (!shrink || !prev || !atPageTop(start, page) || prev.page !== start.page - 1 || flow.rowScale.has(mark)) return undefined;
   const textH = textHeight(page);
   const gap = pages[prev.page].contentBottom - prev.bottom - prev.marginBottom;
   const photoH = rowHeights.get(mark) ?? 0;
@@ -257,9 +259,10 @@ function restOfChapter(blocks: FlowBlock[], index: number, chapter: string, page
 /**
  * Решения для следующего прохода по раскладке прошлого. Не больше одного на кусок главы: первое по порядку.
  * Уже принятые (`flow`) не повторяются. rowHeights — высота самих фото в ряду (без подписи), pt: чтобы посчитать масштаб;
- * minLead — сколько текста (pt) должно стоять под заголовком на той же полосе, около трёх строк.
+ * minLead — сколько текста (pt) должно стоять под заголовком на той же полосе, около трёх строк. shrink: false — фото,
+ * ушедшее на следующую полосу, не уменьшается под пустоту на прежней (оформление «перенести на следующую полосу»).
  */
-export function nextDecisions(layout: FlowLayout, flow: FlowDecisions, rowHeights: ReadonlyMap<string, number>, minLead = 0): FlowDecision[] {
+export function nextDecisions(layout: FlowLayout, flow: FlowDecisions, rowHeights: ReadonlyMap<string, number>, minLead = 0, shrink = true): FlowDecision[] {
   const { blocks, pages } = layout;
   const segments = segmentsOf(blocks, flow.breakBefore);
   const decided = new Set<string>();
@@ -269,7 +272,7 @@ export function nextDecisions(layout: FlowLayout, flow: FlowDecisions, rowHeight
     const prev = inChapter(blocks, i - 1, block.chapter)?.last;
     const next = inChapter(blocks, i + 1, block.chapter);
     const rest = restOfChapter(blocks, i + 1, block.chapter, block.last.page);
-    const decision = RULES[block.kind]({ block, prev, next, rest, page: pages[block.first.page], pages, flow, rowHeights, minLead });
+    const decision = RULES[block.kind]({ block, prev, next, rest, page: pages[block.first.page], pages, flow, rowHeights, minLead, shrink });
     if (!decision) return;
     decided.add(segments[i]);
     decisions.push(decision);

@@ -61,6 +61,9 @@ export type StyleDirection = "literature" | "editorial" | "minimal" | "luxury" |
 
 export const styleDirections: StyleDirection[] = ["literature", "editorial", "minimal", "luxury", "romantic", "scrapbook", "photo", "magazine", "art", "vintage", "contemporary", "kids"];
 
+/** Фото, не поместившееся внизу полосы: уменьшить под место или перенести на следующую полосу. */
+export type PhotoFit = "shrink" | "move";
+
 /** Выключка основного текста. */
 export type TextAlign = "justify" | "left" | "center" | "right";
 
@@ -202,7 +205,19 @@ export interface InteriorDesign {
   runningHead: "none" | "plain" | "ruled";
   frame: FrameKind;
   /** Фотостраницы: рамка снимков, подпись, цвет скотча (для рамки «скотч») и тон бумаги (по умолчанию белая). */
-  photos: { frame: PhotoFrame; caption: PhotoCaption; tape?: string; paper?: string; /** Своё начертание подписей вместо caption. */ captionFace?: TextFace };
+  photos: {
+    frame: PhotoFrame;
+    caption: PhotoCaption;
+    tape?: string;
+    paper?: string;
+    /** Своё начертание подписей вместо caption. */
+    captionFace?: TextFace;
+    /**
+     * Фото не поместилось внизу полосы и ушло на следующую: «shrink» (по умолчанию) — уменьшить, чтобы встало в пустоту
+     * на прежней полосе; «move» — оставить на следующей полосе полного размера.
+     */
+    fit?: PhotoFit;
+  };
   /** Обложки, с которыми дизайн составляет пару, — подсказка в выборе. */
   pairsWith: string[];
 

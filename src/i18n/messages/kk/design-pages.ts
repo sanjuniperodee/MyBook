@@ -135,6 +135,9 @@ export const design_pages: Messages["design"]["pages"] = {
     photoFrames: { none: "Жиексіз", hairline: "Жіңішке", double: "Қос", polaroid: "Полароид", corners: "Бұрыштар", tape: "Скотч", mat: "Паспарту", shadow: "Көлеңке" },
     caption: "Суреттердің жазулары",
     captions: { italic: "Курсив", hand: "Қолмен", label: "Бас әріптермен" },
+    photoFit: "Фото бет соңына сыймаса",
+    photoFits: { shrink: "Кішірейту", move: "Келесі бетке" },
+    photoFitHint: "«Кішірейту» — фото мәтін астындағы бос орынға сыяды, бірақ кішкентай болуы мүмкін. «Келесі бетке» — фото толық өлшемде қалады.",
   },
   colors: {
     palettes: "Палитралар",

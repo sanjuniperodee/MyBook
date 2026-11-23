@@ -103,3 +103,12 @@ describe("буквица", () => {
     expect(linesOffset(text, ["совсем другой текст"], 1)).toBeNull();
   });
 });
+
+describe("фото, не поместившееся внизу полосы (Обращение №14)", () => {
+  it("по умолчанию уменьшается, «move» — переносится; мусор отбрасывается", () => {
+    const base = getInteriorDesign("classic");
+    expect(applyInteriorStyle(base, {}).photos.fit).toBeUndefined();
+    expect(applyInteriorStyle(base, parseInteriorStyle({ elements: { photoFit: "move" } })).photos.fit).toBe("move");
+    expect(parseInteriorStyle({ elements: { photoFit: "big" } }).elements?.photoFit).toBeUndefined();
+  });
+});
