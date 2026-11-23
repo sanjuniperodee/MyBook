@@ -55,25 +55,27 @@ export const legal: typeof ru = {
         ],
       },
       { h: "7. Personal data", p: "Personal data is processed in accordance with the Privacy Policy published on the website." },
-      { h: "8. Language of the document", p: "The offer is published in Russian and Kazakh. The texts in both languages have equal legal force. Translations of the offer into Uzbek and English are provided for convenience; in case of any discrepancy the Russian text prevails." },
+      { h: "8. Language of the document", p: "This English text is a translation provided for convenience. The original offer is published in Russian and Kazakh, and both have equal legal force; in case of any discrepancy between this translation and the original, the Russian text prevails." },
       { h: "9. Details", p: `${f.legalName}, BIN ${f.bin}, ${f.address}. E-mail: ${f.email}, phone: ${f.phone}.` },
     ],
   },
   privacy: {
     meta: "Privacy policy",
-    metaDescription: "What data MyBooks collects, why it is needed and how it is protected: account, books, orders, mailings.",
+    metaDescription: "What data MyBooks collects, why it is needed, who it is shared with and where it is stored: account, books, orders, chats, AI services.",
     title: "Privacy policy",
+    updated: "24 November 2026",
     blocks: (f: LegalFacts): LegalBlock[] => [
       {
-        p: `This policy describes what data ${f.legalName} collects when you use the ${f.brand} service and how that data is used. We respect the privacy of your stories: the texts and photographs in your book are available only to you.`,
+        p: `This policy describes what data ${f.legalName} collects when you use the ${f.brand} service, why it is needed, who it is shared with and where it is stored. The texts and photographs in your book are not published: they are seen by you, by the people you yourself invite into the book (for example, to write a letter), and by ${f.brand} staff when they help you with the book or prepare it for printing.`,
       },
       {
         h: "What data we collect",
         ul: [
-          "Account data: name, e-mail, password (stored only as a cryptographic hash), selected language.",
-          "Book content: answers to questions, photographs, design settings.",
-          "Order data: contact name, phone number, delivery address, status history.",
-          "Technical data: the session cookie required to log in to your account, and the language cookie.",
+          "Account data: name, e-mail or phone number, password (stored only as a cryptographic hash), selected language.",
+          "Book content: answers to questions, photographs, audio and video for QR codes, letters from loved ones, design settings.",
+          "Order data: contact name, phone number, delivery address, history of statuses and payments.",
+          "Your messages to us: texts, voice messages, photos and files you send us on WhatsApp or in the chat on the website; recordings of WhatsApp calls with a manager.",
+          "Technical data: the session cookie needed to log in to your account, the language cookie, the website chat cookie and a note of where you came from (for example, which advert) — to run the service and for our own statistics.",
         ],
       },
       {
@@ -81,6 +83,7 @@ export const legal: typeof ru = {
         ul: [
           "To run the service: saving and laying out your book.",
           "To fulfil your order: printing, delivery and contacting you about the order.",
+          "To answer your questions on WhatsApp, in the website chat and in the book’s workspace.",
           "We do not sell data and do not use the texts of books for advertising or any other purposes.",
         ],
       },
@@ -90,11 +93,28 @@ export const legal: typeof ru = {
           "Print shops: the finished book files, solely for printing your order.",
           "The delivery service: the recipient’s name, phone number and address.",
           "The payment provider: the data needed to process the payment. We do not receive or store bank card data.",
+          "The e-mail service: your e-mail address and the text of the e-mail, to deliver e-mails about your book and order.",
+          "WhatsApp (Meta): the messages you send us on WhatsApp pass through the messenger itself under its own rules.",
+          "AI services: in the cases described in the next section.",
         ],
       },
       {
+        h: "AI services",
+        p: "Some MyBooks features work with the help of AI services (language models) run by other companies. To get an answer, we send such a service only the text or file needed for that particular request.",
+        ul: [
+          "WhatsApp and the website chat: messages are sent to an AI service so that the bot can reply to you and a manager can get a suggested reply and a short summary of the conversation. Voice messages and photos from the chat are sent for recognition so that the bot understands what is in them.",
+          "The book’s workspace: when you yourself use an AI feature — the AI assistant, the AI proofreader, the AI designer or the workspace helper — the relevant text of your book and your request are sent to the service.",
+          "We currently use DeepSeek (a company based in China), OpenRouter (USA; it gives access to other companies’ models, for example Google Gemini) and Groq (USA; transcribing voice messages). The set of services may change — if it does, we will update this list.",
+          "These services are located outside Kazakhstan, so this is a cross-border transfer of data. By using the chats and AI features, you agree to it. If you do not want your messages to be processed by AI, tell a manager: we will stop the bot in your conversation, and from then on only a manager will reply to you.",
+        ],
+      },
+      {
+        h: "Where the data is stored",
+        p: "The service’s database and files (books, photographs, chats, call recordings) are stored in Kazakhstan — on the server and in the object storage of the cloud provider PS Cloud (ps.kz). Data leaves this storage only for the services listed above.",
+      },
+      {
         h: "Storage and deletion",
-        p: `You can delete a book at any time on its page. To delete your account and all related data, write to us at ${f.email}. Order data is kept for the periods set by law for accounting records.`,
+        p: `You can delete a book at any time on its page. To delete your account, your conversations with us and all related data, write to us at ${f.email}. Order data is kept for the periods set by law for accounting records.`,
       },
       { h: "Contacts", p: `For questions about data processing: ${f.email}.` },
     ],

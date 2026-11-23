@@ -168,7 +168,7 @@ export const landing: typeof ru = {
       ],
       [
         "Kitob qaysi tilda bo‘ladi?",
-        "Rus, qozoq, o‘zbek (lotin yozuvida) yoki ingliz tilida — til kitob yaratilayotganda tanlanadi, savollar va bob sarlavhalari shu tilda bo‘ladi. Javoblarni istalgan tilda, hatto ikkalasini aralashtirib ham yozish mumkin.",
+        "Rus, qozoq, o‘zbek (lotin yozuvida) yoki ingliz tilida — til kitob yaratilayotganda tanlanadi, savollar va bob sarlavhalari shu tilda bo‘ladi. Javoblarni istalgan tilda, hatto tillarni aralashtirib ham yozish mumkin.",
       ],
       [
         "Kitobning ichki ko‘rinishini tanlash mumkinmi?",

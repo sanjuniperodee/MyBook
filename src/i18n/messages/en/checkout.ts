@@ -99,6 +99,8 @@ export const checkout: typeof ru = {
   consent: {
     start: "I have checked the book layout and accept the",
     offer: "terms of the offer",
+    and: "and the",
+    privacy: "privacy policy",
     end: ". Once the order is placed, editing the book will be closed.",
   },
   submit: "Place order",
@@ -110,7 +112,7 @@ export const checkout: typeof ru = {
     phone: "Check the phone number",
     email: "Check the e-mail",
     giftNote: "The card text can be up to 500 characters",
-    consent: "You need to accept the terms of the offer",
+    consent: "You need to accept the terms of the offer and the privacy policy",
     delivery: "Choose a delivery method",
     city: "Enter the city",
     address: "Enter the delivery address",

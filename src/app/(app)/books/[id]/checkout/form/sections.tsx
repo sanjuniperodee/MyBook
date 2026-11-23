@@ -432,7 +432,7 @@ export function PromoBox({ promo, items }: { promo: PromoField; items: number })
   );
 }
 
-/** Согласие с офертой: без него заказ не оформить. */
+/** Согласие с офертой и политикой конфиденциальности: без него заказ не оформить. */
 export function ConsentField({ checked, onChange, error }: { checked: boolean; onChange: (on: boolean) => void; error?: string }) {
   const t = useMessages().checkout;
   return (
@@ -443,6 +443,10 @@ export function ConsentField({ checked, onChange, error }: { checked: boolean; o
           {t.consent.start}{" "}
           <Link href="/offer" target="_blank" className="text-wine underline">
             {t.consent.offer}
+          </Link>{" "}
+          {t.consent.and}{" "}
+          <Link href="/privacy" target="_blank" className="text-wine underline">
+            {t.consent.privacy}
           </Link>
           {t.consent.end}
         </span>
