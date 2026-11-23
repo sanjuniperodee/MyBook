@@ -10,6 +10,7 @@ import { printableText } from "@/lib/book/printable";
 import { bookMessagesFor } from "@/i18n/messages/partial";
 import type { SampleEntry } from "./entry";
 import { pageKit } from "./kit";
+import type { LineBreaker } from "./line-breaker";
 import { DedicationPage, EndPage, OpenerPage, PhotoPage, TextPage, TitlePage, TocPage, type PagePhoto } from "./pages";
 import { cqwUnits } from "./units";
 
@@ -91,6 +92,7 @@ export const InteriorSpread = memo(function InteriorSpread({
   sample,
   kind = "chapter",
   openerPlaceholder = false,
+  breaker,
   className,
 }: {
   design: InteriorDesign;
@@ -99,9 +101,11 @@ export const InteriorSpread = memo(function InteriorSpread({
   kind?: SpreadKind;
   /** Миниатюра в выборе оформления: без выбранного фото главы — пейзаж-заглушка в рамке оформления, чтобы видна была форма. */
   openerPlaceholder?: boolean;
+  /** Строки текста, как у PDF (useBookTypesetter); нет — строки ставит браузер (миниатюры, страница на сервере). */
+  breaker?: LineBreaker;
   className?: string;
 }) {
-  const kit = pageKit(design, format, cqwUnits(format.widthMm), sample.language);
+  const kit = pageKit(design, format, cqwUnits(format.widthMm), sample.language, undefined, breaker);
   const page = { aspectRatio: `${format.widthMm} / ${format.heightMm}` };
   let left: React.ReactNode;
   let right: React.ReactNode;
