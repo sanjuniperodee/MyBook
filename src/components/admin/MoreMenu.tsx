@@ -7,6 +7,7 @@ import { logoutAction } from "@/app/(auth)/actions";
 import { navSections, ShiftToggle } from "./AdminNav";
 import { useLive } from "./CrmLive";
 import { InstallCrm, useStandalone } from "./InstallCrm";
+import { PushPrefs, PushToggle } from "./PushToggle";
 import { ThemeSwitch } from "./Theme";
 import { cn } from "@/lib/class-names";
 
@@ -17,7 +18,7 @@ const headCls = "mb-1.5 px-4 text-[13px] font-medium text-muted";
 
 /**
  * «Ещё» / «Профиль» на телефоне: кто вошёл и смена, все разделы CRM по правам (то, чего нет в нижней панели) списками как
- * в iOS, тема, установка на экран «Домой» и выход — как «Профиль» в приложении.
+ * в iOS, push на этом устройстве и тихие часы, тема, установка на экран «Домой» и выход — как «Профиль» в приложении.
  */
 export function MoreMenu({ name, role, email, perms, onShift, tabHrefs }: { name: string; role: string; email: string; perms: Permission[]; onShift: boolean; tabHrefs: string[] }) {
   const { counters } = useLive().live;
@@ -72,6 +73,14 @@ export function MoreMenu({ name, role, email, perms, onShift, tabHrefs }: { name
           </ul>
         </section>
       ))}
+
+      <section aria-label="Уведомления">
+        <h2 className={headCls}>Уведомления</h2>
+        <div className={cn(group, "px-4 py-1")} data-testid="more-push">
+          <PushToggle />
+          <PushPrefs />
+        </div>
+      </section>
 
       <section aria-label="Внешний вид">
         <h2 className={headCls}>Внешний вид</h2>

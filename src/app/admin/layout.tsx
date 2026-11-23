@@ -7,6 +7,7 @@ import { AdminNav } from "@/components/admin/AdminNav";
 import { NAV_RAIL_COOKIE, navMode } from "@/components/admin/nav-rail";
 import { cookies } from "next/headers";
 import { CrmLiveProvider, IncomingCall, NotificationBell } from "@/components/admin/CrmLive";
+import { PushPrompt } from "@/components/admin/PushPrompt";
 import { Webphone } from "@/components/admin/Webphone";
 import { can } from "@/server/access";
 import { autoShiftOnVisit } from "@/server/shift";
@@ -104,6 +105,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <NavMotion />
         <MobileTabBar tabs={tabs} profileLabel={layout === "leader" ? "Ещё" : "Профиль"} />
         <IncomingCall />
+        <PushPrompt />
       </WhatsappCallProvider>
     </CrmLiveProvider>
   );

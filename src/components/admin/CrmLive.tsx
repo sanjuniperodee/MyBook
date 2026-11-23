@@ -6,14 +6,13 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import { AlarmClock, AtSign, Bell, BellRing, CheckCheck, MessageCircle, Phone, PhoneIncoming, TriangleAlert, Handshake, ListTodo, Volume2, VolumeX, X } from "lucide-react";
 import { apiFetch } from "@/lib/client-api";
 import { toast } from "@/components/ui/overlays";
-import { coalesce, iosNeedsInstall, liveChannel, soundFor } from "./liveRules";
+import { coalesce, liveChannel, soundFor } from "./liveRules";
+import { PushPrefs, PushToggle, SwitchRow } from "./PushToggle";
 import { playSound, setSoundMuted, soundMuted, unlockAudio } from "./sound";
 import type { LiveState } from "@/modules/reporting";
 import { cn } from "@/lib/class-names";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { useWhatsappRing, WaIcon, WhatsappIncomingActions } from "./WhatsappCall";
-import { myNotifyPrefsAction, saveMyNotifyPrefsAction } from "@/app/admin/notify-actions";
-import type { NotifyPrefs } from "@/modules/workspace/domain/notifyPrefs";
 
 const POLL_MS = 8_000;
 /** При живом SSE-соединении опрос нужен только как страховка. */
@@ -179,8 +178,6 @@ const kindTone = (kind: string) => (kind === "sla" || kind === "call" || kind ==
 export function NotificationBell() {
   const { live, refresh } = useLive();
   const [open, setOpen] = useState(false);
-  // Меню с этой кнопкой открывается только по клику, поэтому расхождения с серверной разметкой нет.
-  const [perm, setPerm] = useState<string>(() => (typeof window !== "undefined" && "Notification" in window ? Notification.permission : "default"));
   const router = useRouter();
   const ref = useRef<HTMLDivElement>(null);
 
@@ -263,58 +260,9 @@ export function NotificationBell() {
           <div className="shrink-0 border-t border-line bg-sunken/40 px-4 pt-2.5 pb-1">
             <p className="text-xs font-medium text-muted">На этом устройстве</p>
             <SoundToggle />
-            <PushToggle perm={perm} onPerm={setPerm} />
+            <PushToggle />
             <PushPrefs />
           </div>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-/** Переключатель-строка: подпись слева, «тумблер» справа (role=switch). */
-function SwitchRow({ on, onChange, children, disabled, testId, hint }: { on: boolean; onChange: (v: boolean) => void; children: React.ReactNode; disabled?: boolean; testId?: string; hint?: React.ReactNode }) {
-  return (
-    <button type="button" role="switch" aria-checked={on} disabled={disabled} onClick={() => onChange(!on)} className="flex min-h-10 w-full items-center gap-3 text-left text-[13px] text-ink disabled:opacity-50 max-lg:min-h-11" data-testid={testId}>
-      <span className="min-w-0 flex-1">
-        {children}
-        {hint ? <span className="block text-xs text-muted">{hint}</span> : null}
-      </span>
-      <span className={cn("relative h-5 w-9 shrink-0 rounded-full transition-colors", on ? "bg-wine" : "bg-line-strong")} aria-hidden>
-        <span className={cn("absolute top-0.5 size-4 rounded-full bg-white shadow-sm transition-[left]", on ? "left-[18px]" : "left-0.5")} />
-      </span>
-    </button>
-  );
-}
-
-/**
- * Мои push (tasks-19, tasks-22): тихие часы — ночью push не будит (напоминания о задачах приходят всегда, колокольчик —
- * всё), и push о сообщениях клиентов — можно выключить, если WhatsApp и так на телефоне магазина. Для всех устройств.
- */
-function PushPrefs() {
-  const [p, setP] = useState<NotifyPrefs | null>(null);
-  useEffect(() => {
-    void myNotifyPrefsAction().then(setP, () => setP(null));
-  }, []);
-  if (!p) return null;
-  const save = (next: NotifyPrefs) => {
-    setP(next);
-    void saveMyNotifyPrefsAction(next).then((r) => (r.ok ? undefined : toast(r.error, "error")));
-  };
-  return (
-    <div className="border-t border-line/70" data-testid="push-prefs">
-      <SwitchRow on={p.pushMessages} onChange={(v) => save({ ...p, pushMessages: v })}>
-        Push о сообщениях клиентов
-      </SwitchRow>
-      <SwitchRow on={p.quiet} onChange={(v) => save({ ...p, quiet: v })} hint="ночью push не будит, напоминания о задачах приходят всегда">
-        Тихие часы push
-      </SwitchRow>
-      {p.quiet ? (
-        <div className="flex items-center gap-2 pb-2 text-[13px] text-ink-soft">
-          с
-          <input type="time" className="input h-8 w-28 px-2 text-sm" value={p.quietFrom} onChange={(e) => e.target.value && save({ ...p, quietFrom: e.target.value })} aria-label="Тихие часы с" />
-          до
-          <input type="time" className="input h-8 w-28 px-2 text-sm" value={p.quietTo} onChange={(e) => e.target.value && save({ ...p, quietTo: e.target.value })} aria-label="Тихие часы до" />
         </div>
       ) : null}
     </div>
@@ -390,78 +338,5 @@ export function IncomingCall() {
         </div>
       ))}
     </div>
-  );
-}
-
-function urlBase64ToUint8Array(base64: string) {
-  const padding = "=".repeat((4 - (base64.length % 4)) % 4);
-  const raw = atob((base64 + padding).replace(/-/g, "+").replace(/_/g, "/"));
-  return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
-}
-
-/** Push-уведомления на это устройство (телефон или компьютер) — приходят даже при закрытой CRM. */
-function PushToggle({ perm, onPerm }: { perm: string; onPerm: (p: string) => void }) {
-  // Меню открывается только по клику (после гидрации), поэтому проверка возможностей браузера в инициализаторе безопасна.
-  const supported = typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window;
-  const [state, setState] = useState<"unknown" | "on" | "off" | "unsupported">(supported ? "unknown" : "unsupported");
-  const [busy, setBusy] = useState(false);
-  // Вкладка Safari на iPhone: push придут только после «На экран „Домой“» — подсказка вместо кнопки.
-  const iosTab =
-    typeof window !== "undefined" &&
-    iosNeedsInstall({ userAgent: navigator.userAgent, maxTouchPoints: navigator.maxTouchPoints, standalone: window.matchMedia?.("(display-mode: standalone)").matches || !!(navigator as Navigator & { standalone?: boolean }).standalone });
-  useEffect(() => {
-    if (!supported) return;
-    navigator.serviceWorker.ready.then((reg) => reg.pushManager.getSubscription()).then((sub) => setState(sub ? "on" : "off"), () => setState("off"));
-  }, [supported]);
-  if (iosTab)
-    return (
-      <p className="py-2 text-xs text-ink-soft" data-testid="push-ios-hint">
-        Чтобы push приходили на iPhone, откройте CRM в Safari → «Поделиться» → «На экран „Домой“» и войдите с иконки — там включите push.
-      </p>
-    );
-  if (state === "unsupported") {
-    return perm === "default" ? (
-      <button className="flex min-h-10 w-full items-center text-left text-[13px] font-medium text-wine hover:underline max-lg:min-h-11" onClick={async () => onPerm(await Notification.requestPermission())}>
-        Показывать уведомления на рабочем столе
-      </button>
-    ) : null;
-  }
-  if (state === "unknown") return null;
-  const enable = async () => {
-    setBusy(true);
-    try {
-      const permission = await Notification.requestPermission();
-      onPerm(permission);
-      if (permission !== "granted") return;
-      const reg = await navigator.serviceWorker.ready;
-      const { publicKey } = await apiFetch<{ publicKey: string }>("/api/admin/push");
-      const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(publicKey) });
-      await apiFetch("/api/admin/push", { method: "POST", json: sub.toJSON() });
-      setState("on");
-      toast("Уведомления на этом устройстве включены", "success");
-    } catch {
-      toast("Не удалось включить уведомления на этом устройстве", "error");
-    } finally {
-      setBusy(false);
-    }
-  };
-  const disable = async () => {
-    setBusy(true);
-    try {
-      const reg = await navigator.serviceWorker.ready;
-      const sub = await reg.pushManager.getSubscription();
-      if (sub) {
-        await apiFetch("/api/admin/push", { method: "DELETE", json: { endpoint: sub.endpoint } }).catch(() => {});
-        await sub.unsubscribe();
-      }
-      setState("off");
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <SwitchRow on={state === "on"} disabled={busy} onChange={() => void (state === "on" ? disable() : enable())} testId="push-toggle" hint="приходят, даже когда CRM закрыта">
-      Push на этом устройстве
-    </SwitchRow>
   );
 }

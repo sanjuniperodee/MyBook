@@ -92,3 +92,19 @@ export const liveChannel = {
   connected: () => liveConnected,
   set: (v: boolean) => void (liveConnected = v),
 };
+
+export type PushPromptKind = "enable" | "install-ios" | "denied" | null;
+
+/**
+ * Плашка-приглашение включить push на этом устройстве. Без неё телефоны сотрудников так и не подписывались: кнопка жила
+ * в самом низу меню колокольчика. «enable» — разрешение ещё не спрашивали; «install-ios» — вкладка Safari на iPhone (push
+ * только с экрана «Домой»); «denied» — запрещено в браузере, подсказка, где разрешить. «Позже» прячет до dismissedUntil.
+ */
+export function pushPromptKind(env: { supported: boolean; iosTab: boolean; permission: NotificationPermission | "unsupported"; subscribed: boolean; dismissedUntil: number; now: number }): PushPromptKind {
+  if (env.now < env.dismissedUntil) return null;
+  if (env.iosTab) return "install-ios";
+  if (!env.supported || env.permission === "unsupported") return null;
+  if (env.permission === "denied") return "denied";
+  if (env.permission === "default" && !env.subscribed) return "enable";
+  return null;
+}

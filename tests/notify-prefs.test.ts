@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_NOTIFY_PREFS, inQuietHours, pushAllowed, readNotifyPrefs } from "@/modules/workspace/domain/notifyPrefs";
+import { pushPromptKind } from "@/components/admin/liveRules";
 
 // Личные настройки push сотрудника (tasks-19, tasks-22). Пояс — Алматы (UTC+5).
 const tz = "Asia/Almaty";
@@ -31,5 +32,23 @@ describe("тихие часы и push о сообщениях", () => {
     expect(pushAllowed(DEFAULT_NOTIFY_PREFS, "message", day, tz)).toBe(true);
     expect(pushAllowed({ ...DEFAULT_NOTIFY_PREFS, pushMessages: false }, "message", day, tz)).toBe(false);
     expect(pushAllowed({ ...DEFAULT_NOTIFY_PREFS, pushMessages: false }, "deal", day, tz)).toBe(true);
+  });
+});
+
+describe("плашка «Включите уведомления»", () => {
+  const base = { supported: true, iosTab: false, permission: "default" as const, subscribed: false, dismissedUntil: 0, now: 1_000 };
+  it("телефон без подписки — приглашение включить; подписан или разрешено — ничего", () => {
+    expect(pushPromptKind(base)).toBe("enable");
+    expect(pushPromptKind({ ...base, subscribed: true })).toBeNull();
+    expect(pushPromptKind({ ...base, permission: "granted" })).toBeNull();
+  });
+  it("вкладка Safari на iPhone — подсказка установки; запрещено в браузере — где разрешить", () => {
+    expect(pushPromptKind({ ...base, supported: false, permission: "unsupported", iosTab: true })).toBe("install-ios");
+    expect(pushPromptKind({ ...base, permission: "denied" })).toBe("denied");
+  });
+  it("«Позже» прячет до срока; браузер без push — ничего", () => {
+    expect(pushPromptKind({ ...base, dismissedUntil: 2_000 })).toBeNull();
+    expect(pushPromptKind({ ...base, dismissedUntil: 500 })).toBe("enable");
+    expect(pushPromptKind({ ...base, supported: false, permission: "unsupported" })).toBeNull();
   });
 });
