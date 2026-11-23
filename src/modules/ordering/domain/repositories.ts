@@ -81,19 +81,27 @@ export interface OrderPaymentRecord {
   payForm?: string | null;
   paidAt: Date;
   note: string;
-  receipt: { storageKey: string; fileName: string; mime: string; size: number } | null;
+  /** sha256 — хэш содержимого чека (hex): тот же чек ко второму платежу не принимается. */
+  receipt: { storageKey: string; fileName: string; mime: string; size: number; sha256?: string | null } | null;
   createdById: string | null;
   reviewedById: string | null;
   reviewedAt: Date | null;
+  /** Платёж отменён руководителем как ошибочный: в журнале остаётся, в деньгах не считается. */
+  voidedAt?: Date | null;
+  voidedById?: string | null;
+  voidReason?: string | null;
   createdAt: Date;
 }
+
 
 export interface OrderPaymentRepository {
   nextId(): string;
   /** false — эта операция платёжной системы уже записана (повтор вебхука): денег второй раз нет. */
-  add(p: Omit<OrderPaymentRecord, "reviewedById" | "reviewedAt" | "createdAt">): Promise<boolean>;
+  add(p: Omit<OrderPaymentRecord, "reviewedById" | "reviewedAt" | "createdAt" | "voidedAt" | "voidedById" | "voidReason">): Promise<boolean>;
   list(orderId: string): Promise<OrderPaymentRecord[]>;
   find(id: string): Promise<OrderPaymentRecord | null>;
+  /** Отметить платёж отменённым (ошибочный): кто, когда и почему. */
+  void(id: string, by: string, at: Date, reason: string): Promise<void>;
   /** Руководитель сверил ручную оплату с поступлением на счёт. */
   review(id: string, reviewerId: string, at: Date): Promise<void>;
   /** Формы оплаты онлайн-платежей Kaspi по операциям (id операции → форма): только тем, у кого формы ещё нет. Отмеченные. */

@@ -3,13 +3,18 @@
 import type { BookContent } from "@/lib/book/layout";
 import { useMessages } from "@/i18n/client";
 import type { Locale } from "@/i18n/config";
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
+import { memo, useCallback, useLayoutEffect, useMemo, useRef, type MouseEvent, type ReactNode } from "react";
 import type { PreviewChapter, PreviewGallery } from "@/lib/book/editor-model";
 import type { BookFormat } from "@/lib/book/formats";
 import type { InteriorDesign } from "@/lib/book/interiors";
 import { normalizeStyle, splitParagraphs, type InlinePhotoStyle } from "@/lib/book/inline-photo";
 import { interiorMetrics, pageSide, textArea } from "@/lib/book/page-geometry";
 import { pageKit } from "@/components/interior/kit";
+import { PAPER } from "@/lib/book/interiors";
+import { PAGE_SHADOW } from "./book-pages";
+import { useBookTypesetter } from "@/components/interior/useBookTypesetter";
+import { tocPageCount } from "@/components/interior/toc-pages";
+import type { FrontMatter } from "@/lib/book/estimate";
 import { pxUnits } from "@/components/interior/units";
 import { ChapterPages, chapterContentKey } from "./ChapterPages";
 import { PreviewOpener, PreviewPhotoPages } from "./book-pages";
@@ -36,6 +41,7 @@ function PagePreviewView({
   chapters,
   gallery = null,
   openersLeft = false,
+  front,
   chapterStart,
   currentId,
   selectedId = null,
@@ -59,6 +65,8 @@ function PagePreviewView({
   gallery?: PreviewGallery | null;
   /** Начальная полоса главы слева, первая полоса текста справа (BookContent.openersLeft); нет — начальная справа. */
   openersLeft?: boolean;
+  /** Передние полосы книги (титул, посвящение, оглавление) — номера полос, как в книге; нет — полосы без номеров. */
+  front?: FrontMatter;
   /** Глава без начальной полосы (BookContent.chapterStart): inline — номер и название над текстом, none — чистый лист. */
   chapterStart?: BookContent["chapterStart"];
   currentId: string;
@@ -87,8 +95,9 @@ function PagePreviewView({
   const px = pageW / W; // пикселей на миллиметр
   const textW = area.w * px;
   const gap = pageSide(format) * 2 * px;
-  const hyphenate = useBookHyphenate(language);
-  const kit = useMemo(() => pageKit(design, format, pxUnits(px), language, hyphenate), [design, format, px, language, hyphenate]);
+  const { hyphenate, breaker, version } = useBookTypesetter(language);
+  // decides — превью делает доводку вёрстки само (ChapterPages), как PDF.
+  const kit = useMemo(() => ({ ...pageKit(design, format, pxUnits(px), language, hyphenate, breaker), version, decides: true }), [design, format, px, language, hyphenate, breaker, version]);
 
   const entries = useMemo(() => new Map(chapters.flatMap((c) => c.entries.map((e) => [e.id, { entry: e, chapter: c.key }] as const))), [chapters]);
   const currentEntry = entries.get(currentId)?.entry;
@@ -107,7 +116,7 @@ function PagePreviewView({
     onMove: onMovePhoto,
   });
 
-  const { scroll, pagesBy, photoPagesBy, setMeasureRef, measure } = usePreviewPages({ chapters, currentId, textW, gap, marginTop: interiorMetrics[format.id].marginTop * px });
+  const { scroll, pagesBy, photoPagesBy, setMeasureRef, measure, report } = usePreviewPages({ chapters, currentId, textW, gap, marginTop: interiorMetrics[format.id].marginTop * px });
 
   // Щелчок по полосе мимо фото снимает выделение. Обработчик стабилен (через ref), чтобы не перерисовывать главы.
   const clickState = useRef({ interactive, selectedId, onSelect, suppressUntil: drag.suppressClickUntil });
@@ -129,6 +138,33 @@ function PagePreviewView({
   const tapTarget = useCallback((target: PreviewTarget) => targetRef.current?.(target), []);
   const toTarget = hasTarget ? tapTarget : undefined;
 
+  // Номера полос, как в книге: перед главами — передние полосы (firstPage), у глав — их полосы (как у PDF), пустая
+  // полоса перед начальной, если она выпала бы справа, и страницы фото после главы.
+  // Оглавление — столько полос, сколько у PDF (разбивка, как у react-pdf); шрифт грузится — по оценке.
+  const firstPage = useMemo(() => {
+    if (!front) return undefined;
+    const toc = front.toc ? (tocPageCount(kit, front.toc.lines, front.toc.numbered) ?? front.toc.estimate) : 0;
+    return front.before + toc + 1;
+  }, [front, kit]);
+  const numbering = useMemo(() => {
+    if (firstPage === undefined) return null;
+    const out = new Map<string, { text: number; blank: boolean }>();
+    let page = firstPage;
+    for (const ch of chapters) {
+      let blank = false;
+      if (!chapterStart) {
+        if (openersLeft && page % 2 === 1) {
+          blank = true;
+          page++;
+        }
+        page++;
+      }
+      out.set(ch.key, { text: page, blank });
+      page += (pagesBy[ch.key] ?? 1) + (ch.photoPages?.length ?? 0);
+    }
+    return { chapters: out, galleryBlank: !!openersLeft && page % 2 === 1 };
+  }, [firstPage, chapters, chapterStart, openersLeft, pagesBy]);
+
   const { moving } = drag;
   const dragged = moving ? currentEntry?.photos.find((p) => p.id === moving.id) : null;
   // Глава, куда сейчас бросят фото: её превью тоже получает перетаскивание — для линии места вставки.
@@ -137,7 +173,7 @@ function PagePreviewView({
   return (
     <div ref={scroll} className={className}>
       {header}
-      <div ref={wrap} className="space-y-4">
+      <div ref={wrap} className="space-y-4" data-first-page={firstPage}>
         {pageW ? (
           chapters.map((ch) => {
             const current = ch.entries.some((e) => e.id === currentId);
@@ -157,6 +193,8 @@ function PagePreviewView({
                 onTarget={toTarget}
                 pages={pagesBy[ch.key] ?? 1}
                 openersLeft={openersLeft}
+                firstPage={numbering?.chapters.get(ch.key)?.text}
+                blankBefore={numbering?.chapters.get(ch.key)?.blank}
                 start={chapterStart}
                 photoPages={photoPagesBy[ch.key] ?? NO_PHOTO_PAGES}
                 currentId={current ? currentId : null}
@@ -167,6 +205,7 @@ function PagePreviewView({
                 scroll={scroll}
                 setMeasureRef={setMeasureRef}
                 measure={measure}
+                report={report}
                 onPageClick={onPageClick}
               />
             );
@@ -174,6 +213,7 @@ function PagePreviewView({
         ) : (
           <div className="bg-white" style={{ aspectRatio: `${W} / ${H}` }} />
         )}
+        {pageW && gallery && numbering?.galleryBlank ? <div aria-hidden className={PAGE_SHADOW} style={{ width: pageW, height: H * px, background: design.paper ?? PAPER }} /> : null}
         {pageW && gallery ? (
           // Альбом в конце — после всех глав, как в PDF: начальная полоса без номера и страницы фото.
           <>
@@ -191,34 +231,6 @@ function PagePreviewView({
       </div>
     </div>
   );
-}
-
-/**
- * Переносы книги (lib/book/hyphenate.ts) для превью: модуль с шаблонами грузится отдельно, пока его нет — переносы
- * браузера. Текст абзаца с мягкими переносами запоминается: главы перерисовываются часто, а текст в них тот же.
- */
-function useBookHyphenate(language: Locale) {
-  const [fn, setFn] = useState<((text: string) => string) | undefined>(undefined);
-  useEffect(() => {
-    let live = true;
-    void import("@/lib/book/hyphenate").then(({ softHyphenate }) => {
-      if (!live) return;
-      const memo = new Map<string, string>();
-      setFn(() => (text: string) => {
-        let out = memo.get(text);
-        if (out === undefined) {
-          out = softHyphenate(text, language);
-          if (memo.size > 5000) memo.clear();
-          memo.set(text, out);
-        }
-        return out;
-      });
-    });
-    return () => {
-      live = false;
-    };
-  }, [language]);
-  return fn;
 }
 
 /** Превью перерисовывается, только когда меняются его данные: книга в редакторе приходит отложенно (useDeferredValue). */

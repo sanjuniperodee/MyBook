@@ -1,3 +1,5 @@
+import { storeTimeZone } from "./time";
+
 /** Чек об оплате: скриншот или фото перевода, PDF из банка. */
 export const RECEIPT_MAX_BYTES = 12 * 1024 * 1024;
 
@@ -28,4 +30,47 @@ export function safeReceiptName(raw: string, ext: string) {
   const base = raw.split(/[\\/]/).pop() ?? "";
   const clean = base.replace(/[\x00-\x1f<>:"|?*]/g, "").trim().slice(0, 120);
   return clean || `чек.${ext}`;
+}
+
+/** Где уже приложен тот же чек (совпал хэш содержимого): платёж заказа или чек сделки. */
+export interface ReceiptUse {
+  source: "order" | "deal";
+  /** Номер заказа или сделки. */
+  number: number;
+  /** Сумма платежа (у чека сделки без платежа — сумма по чеку, 0 — не указана). */
+  amount: number;
+  paidAt: Date | null;
+  /** Чья покупка: клиент, заказ и сделка этого платежа (у платежа заказа — его заказ, у платежа сделки — её заказ, если есть). */
+  clientId?: string | null;
+  orderId?: string | null;
+  dealId?: string | null;
+}
+
+/** Куда прикладывают чек сейчас: заказ (его клиент) или сделка (её клиент и заказ). */
+export interface ReceiptTarget {
+  clientId: string | null;
+  orderId: string | null;
+  dealId: string | null;
+}
+
+/**
+ * Можно ли приложить чек, который уже есть у другого платежа. Один перевод — один платёж той же покупки: тот же заказ или
+ * сделка (или сделка этого заказа) — нельзя (так «закрывали» разницу фиктивной доплатой), чужой клиент — нельзя. Можно —
+ * у того же клиента к другой сделке или заказу: один перевод за пакет книг, разнесённый по сделкам.
+ */
+export function receiptReuseAllowed(use: ReceiptUse, target: ReceiptTarget): boolean {
+  if (!target.clientId || !use.clientId || use.clientId !== target.clientId) return false;
+  const samePurchase = (!!target.orderId && use.orderId === target.orderId) || (!!target.dealId && use.dealId === target.dealId);
+  return !samePurchase;
+}
+
+/** Чек по содержимому: хэш (hex) и где он уже приложен так, что приложить нельзя. Хэш считает инфраструктура. */
+export type ReceiptCheck = (bytes: Uint8Array, target: { orderId?: string | null; dealId?: string | null }) => Promise<{ sha256: string; use: ReceiptUse | null }>;
+
+/** Отказ «этот чек уже приложен…»: к какому платежу, заказа или сделки. */
+export function receiptUsedText(u: ReceiptUse) {
+  const day = (d: Date) => new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", year: "numeric", timeZone: storeTimeZone() }).format(d);
+  const payment = [u.amount > 0 ? `${u.amount.toLocaleString("ru-RU")} ₸` : null, u.paidAt ? `от ${day(u.paidAt)}` : null].filter(Boolean).join(" ");
+  const where = u.source === "order" ? `заказа №${u.number}` : `сделки Д${u.number}`;
+  return `Этот чек уже приложен к платежу ${payment ? `${payment} ` : ""}${where}. Один перевод — один платёж: приложите чек именно этой оплаты (один перевод за несколько книг — только по сделкам того же клиента).`;
 }

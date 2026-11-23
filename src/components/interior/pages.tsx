@@ -19,13 +19,17 @@ import { MM_TO_PT, print } from "@/lib/book/formats";
 import { fitWordSize } from "@/lib/book/word-fit";
 import { cropOr, fillFocus, type PhotoCrop } from "@/lib/book/photo-crop";
 import { OPENER_FOCUS, openerPhotoPlan, openerTextColors, photoArea, photoPagePlan, type OpenerPhotoPlan } from "@/lib/book/photo-pages";
-import { DISPLAY_TOP, FRONT, HTML_LINE_HEIGHT, OPENER, photoCaptionFace, TITLE_LAYOUT, TOC, tocNumbered, VIGNETTE_RULE } from "@/lib/book/typesetting";
+import { DISPLAY_TOP, faceLineHeight, FRONT, OPENER, photoCaptionFace, quoteFace, TITLE_LAYOUT, TOC, tocNumbered, VIGNETTE_RULE } from "@/lib/book/typesetting";
 import { cssFont } from "@/lib/book/fonts";
 import { cn } from "@/lib/class-names";
 import { hexAlpha } from "@/lib/color";
 import { titleLineText } from "@/lib/book/title-line";
 import { PageLayer, pageFrame, Vignette } from "./graphics";
 import { ChapterTail, Divider, EntryBody, QuestionHeading, type SampleEntry } from "./entry";
+import { gapAbove } from "./entry-gap";
+import { breakBefore } from "./breaks";
+import type { FlowDecisions } from "@/lib/book/flow-decisions";
+import { SAMPLE_CHAPTER, sampleEntryId } from "./sample-ids";
 import { Folio, folioText, RunningHead } from "./folio";
 import { metricsOf, type PageKit } from "./kit";
 import { PageImage, PageSurface, Placed, TextArea, type PageProps } from "./surface";
@@ -76,7 +80,7 @@ function ChapterMark({ kit, colors, number, numeralSize = kit.sizes.numeral }: {
   const { design, sizes: S, u } = kit;
   const mark = number ? chapterMark(design, number, bookMessagesFor(kit.language).chapter) : null;
   if (mark?.kind === "label")
-    return <div style={{ ...(design.opener.kicker ? { ...faceCss(design.opener.kicker, S.kicker, u), lineHeight: HTML_LINE_HEIGHT.kicker } : labelCss(kit, colors.accent)), color: colors.accent, marginBottom: u.pt(S.kickerGap) }}>{mark.text}</div>;
+    return <div style={{ ...(design.opener.kicker ? { ...faceCss(design.opener.kicker, S.kicker, u), lineHeight: faceLineHeight(design.opener.kicker) } : labelCss(kit, colors.accent)), color: colors.accent, marginBottom: u.pt(S.kickerGap) }}>{mark.text}</div>;
   if (mark?.kind === "numeral")
     return <div style={{ ...faceCss(design.opener.numeral ?? design.display, numeralSize, u), lineHeight: OPENER.numeral.lineHeight, color: colors.accent, marginBottom: u.pt(numeralSize * OPENER.numeral.after) }}>{mark.text}</div>;
   return null;
@@ -197,7 +201,7 @@ export function TitlePage({ kit, title, subtitle, author, year, className, style
   const titleEl = (size: number) => (
     <div style={{ ...faceCss(design.display, fitWordSize(title, design.display, size, textArea(format).w * MM_TO_PT), u), lineHeight: layout === "stack" ? TITLE_LAYOUT.stackLineHeight : FRONT.title.lineHeight, color: P.ink, overflowWrap: "anywhere" }}>{title}</div>
   );
-  const subtitleEl = subtitle ? <div style={{ ...italicBody(kit, S.subtitle), color: P.muted, marginTop: u.pt(FRONT.subtitle.before), lineHeight: HTML_LINE_HEIGHT.subtitle }}>{subtitle}</div> : null;
+  const subtitleEl = subtitle ? <div style={{ ...italicBody(kit, S.subtitle), color: P.muted, marginTop: u.pt(FRONT.subtitle.before), lineHeight: faceLineHeight(quoteFace(design)) }}>{subtitle}</div> : null;
   const line = titleLineText(design, author);
   const authorEl = line ? <div style={labelCss(kit, P.muted)}>{line}</div> : null;
   const yearEl = <div style={labelCss(kit, P.muted, S.year)}>{year}</div>;
@@ -283,11 +287,11 @@ export function TocPage({ kit, entries, className, style, muted }: PageProps & {
   return (
     <PageSurface kit={kit} className={className} style={style}>
       <TextArea kit={kit} className="overflow-hidden" style={{ opacity: muted ? 0.4 : 1 }}>
-        <div style={{ ...faceCss(design.display, S.tocTitle, u), lineHeight: HTML_LINE_HEIGHT.tocTitle, color: P.ink, textAlign: design.opener.align === "left" ? "left" : "center", marginTop: u.pt(TOC.title.before * scale), marginBottom: u.pt(TOC.title.after * scale) }}>
+        <div style={{ ...faceCss(design.display, S.tocTitle, u), lineHeight: faceLineHeight(design.display), color: P.ink, textAlign: design.opener.align === "left" ? "left" : "center", marginTop: u.pt(TOC.title.before * scale), marginBottom: u.pt(TOC.title.after * scale) }}>
           {bookMessagesFor(kit.language).toc}
         </div>
         {entries.map((e) => (
-          <div key={e.key ?? e.number ?? "gallery"} className="flex items-end" style={{ fontFamily: cssFont(design.type.body), fontSize: u.pt(S.body), lineHeight: HTML_LINE_HEIGHT.tocEntry, marginBottom: u.pt(TOC.entry.after * scale), paddingLeft: e.level ? u.pt(TOC.entry.indent * scale) : 0 }}>
+          <div key={e.key ?? e.number ?? "gallery"} className="flex items-end" style={{ fontFamily: cssFont(design.type.body), fontSize: u.pt(S.body), lineHeight: faceLineHeight({ font: design.type.body, weight: 400 }), marginBottom: u.pt(TOC.entry.after * scale), paddingLeft: e.level ? u.pt(TOC.entry.indent * scale) : 0 }}>
             <span className="truncate" style={{ color: e.level ? P.muted : P.ink, maxWidth: TOC.entry.maxWidth }}>
               {e.number && tocNumbered(design) ? `${e.number}. ` : ""}
               {e.title}
@@ -311,7 +315,7 @@ export function EndPage({ kit, year, text: own, className, style }: PageProps & 
       <TextArea kit={kit} className="flex flex-col">
         <Placed top={DISPLAY_TOP.end}>
           <Vignette kit={kit} rule={VIGNETTE_RULE.end} colors={P} />
-          {text ? <div style={{ ...italicBody(kit, S.end), color: P.ink, lineHeight: HTML_LINE_HEIGHT.end, overflowWrap: "break-word" }}>{text}</div> : null}
+          {text ? <div style={{ ...italicBody(kit, S.end), color: P.ink, lineHeight: faceLineHeight(quoteFace(design)), overflowWrap: "break-word" }}>{text}</div> : null}
           <div style={{ ...labelCss(kit, P.muted), marginTop: kit.u.pt(FRONT.endYear.before) }}>{year}</div>
         </Placed>
       </TextArea>
@@ -323,8 +327,10 @@ export function EndPage({ kit, year, text: own, className, style }: PageProps & 
  * Страница текста главы для миниатюр: заголовки, абзацы, колонтитул и колонцифра. Текст режется
  * по строкам как в книге — через CSS-колонки размером с полосу набора (видна только первая).
  */
-export function TextPage({ kit, entries, folio, bookTitle, chapterTitle, recto, leadIn, chapterHead, column = 0, tail = false, className, style }: PageProps & {
+export function TextPage({ kit, entries, folio, bookTitle, chapterTitle, recto, leadIn, chapterHead, column = 0, tail = false, flow, className, style }: PageProps & {
   entries: SampleEntry[];
+  /** Решения доводки — полосы, как у PDF (kit.breaks — разрывы, InteriorSpread: sampleFlow); нет — полосы браузера. */
+  flow?: FlowDecisions;
   /** Какую полосу потока текста показать (0 — первую): продолжение главы на следующей полосе. */
   column?: number;
   /** После текста — концовка главы (в примере вся глава). */
@@ -349,7 +355,8 @@ export function TextPage({ kit, entries, folio, bookTitle, chapterTitle, recto, 
         <div
           style={{
             width: u.mm(textW),
-            height: u.mm(area.h),
+            // Полосы по разбивке, как у PDF: разрывы ставят блоки, колонка с запасом — браузер сам не ломает.
+            height: u.mm(flow ? area.h + 12 : area.h),
             columnWidth: u.mm(textW),
             columnGap: u.mm(side * 2),
             columnFill: "auto",
@@ -361,7 +368,34 @@ export function TextPage({ kit, entries, folio, bookTitle, chapterTitle, recto, 
           }}
         >
           {chapterHead ? <ChapterHead kit={kit} {...chapterHead} /> : null}
-          {entries.map((e, i) => (
+          {flow
+            ? entries.map((e, i) => {
+                // Как ответ в превью редактора и Entry у PDF: отбивка — полем заголовка или разделителя, разрывы — kit.breaks.
+                const id = sampleEntryId(i);
+                const breaks = i > 0 && (!!e.pageBreak || flow.breakBefore.has(id));
+                const gap = gapAbove(i === 0 || breaks ? 0 : e.heading ? S.beforeHeading : S.beforeHeadless, u.pt);
+                const head = e.heading ? (
+                  <QuestionHeading kit={kit} data-flow={`h:${id}`} {...gap.attrs} style={{ ...gap.style, ...breakBefore(kit, `h:${id}`) }}>
+                    {e.heading}
+                  </QuestionHeading>
+                ) : i > 0 && !e.continued ? (
+                  <Divider kit={kit} data-flow={`h:${id}`} {...gap.attrs} style={{ ...gap.style, ...breakBefore(kit, `h:${id}`) }} />
+                ) : undefined;
+                return (
+                  <EntryBody
+                    key={i}
+                    kit={kit}
+                    entry={e}
+                    id={id}
+                    flow={flow}
+                    leadIn={leadIn && design.leadIn && i === 0 && !e.continued}
+                    start={leadIn && i === 0 && !e.continued}
+                    fresh={i === 0 && !chapterHead && !e.heading}
+                    head={head}
+                  />
+                );
+              })
+            : entries.map((e, i) => (
             <div key={i} style={{ marginTop: i === 0 || e.pageBreak ? 0 : u.pt(e.heading ? S.beforeHeading : S.beforeHeadless), breakBefore: i > 0 && e.pageBreak ? "column" : undefined }}>
               <EntryBody
                 kit={kit}
@@ -373,7 +407,7 @@ export function TextPage({ kit, entries, folio, bookTitle, chapterTitle, recto, 
               />
             </div>
           ))}
-          {tail ? <ChapterTail kit={kit} /> : null}
+          {tail && !flow?.noTail.has(SAMPLE_CHAPTER) ? <ChapterTail kit={kit} {...(flow ? { "data-flow": `t:${SAMPLE_CHAPTER}`, style: breakBefore(kit, `t:${SAMPLE_CHAPTER}`) } : {})} /> : null}
         </div>
       </TextArea>
       <Folio kit={kit} recto={recto}>

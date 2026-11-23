@@ -234,10 +234,12 @@ export const crmReceipts = pgTable(
     size: integer("size").notNull(),
     /** Сумма по чеку, ₸ (0 — не указана). Деньги считаются по платежам, а не по чекам. */
     amount: integer("amount").notNull().default(0),
+    /** SHA-256 содержимого файла (hex): один и тот же чек не прикладывают ко второму платежу. */
+    sha256: text("sha256"),
     uploadedById: uuid("uploaded_by_id").references(() => users.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("crm_receipts_deal_idx").on(t.dealId)],
+  (t) => [index("crm_receipts_deal_idx").on(t.dealId), index("crm_receipts_sha_idx").on(t.sha256).where(sql`${t.sha256} is not null`)],
 );
 
 /** История смены этапов: основа честной воронки (конверсия этап → этап, время на этапе). */

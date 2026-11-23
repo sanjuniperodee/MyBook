@@ -14,3 +14,7 @@ export type PaymentError = InstanceType<typeof PaymentError>;
 /** Файл не годится в чек; код — причина из receiptProblem. */
 export const ReceiptError = contextError<ReceiptProblem>("receipts", "ReceiptError");
 export type ReceiptError = InstanceType<typeof ReceiptError>;
+
+/** Этот чек уже приложен к другому платежу (заказа или сделки): message — к какому, текст для сотрудника. */
+export const ReceiptUsedError = contextError<"receiptUsed">("receipt_used", "ReceiptUsedError");
+export type ReceiptUsedError = InstanceType<typeof ReceiptUsedError>;

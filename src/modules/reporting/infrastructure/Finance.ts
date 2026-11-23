@@ -50,7 +50,8 @@ export async function financeMoney(from: Date, to: Date): Promise<MoneyRow[]> {
       from order_payments op
       join orders o on o.id = op.order_id
       ${orderDeal}
-      where op.paid_at >= ${at(from)} and op.paid_at < ${at(to)} and o.status <> 'cancelled'
+      -- Отменённые руководителем как ошибочные (voided_at) — не деньги: в журнале заказа видны, здесь не считаются.
+      where op.paid_at >= ${at(from)} and op.paid_at < ${at(to)} and o.status <> 'cancelled' and op.voided_at is null
       union all
       select o.id, 'order', 'legacy',
         case when o.payment_id like 'kaspi:%' then 'kaspi' when o.payment_provider = 'cloudpayments' and o.payment_id ~ '^[0-9]+$' then 'card' else 'manual' end,
@@ -60,7 +61,7 @@ export async function financeMoney(from: Date, to: Date): Promise<MoneyRow[]> {
       from orders o
       ${orderDeal}
       -- Оплачено без записи — к оплате минус записанные оплаты (возвраты сюда не входят: они — своими строками со знаком минус).
-      left join lateral (select (sum(x.amount) filter (where x.kind = 'payment'))::int as sum from order_payments x where x.order_id = o.id) j on true
+      left join lateral (select (sum(x.amount) filter (where x.kind = 'payment'))::int as sum from order_payments x where x.order_id = o.id and x.voided_at is null) j on true
       where o.paid_at >= ${at(from)} and o.paid_at < ${at(to)} and o.status <> 'cancelled' and o.amount > coalesce(j.sum, 0)
       union all
       select g.id, 'gift', 'gift',
@@ -189,7 +190,7 @@ export async function financeOrders(): Promise<FinanceOrderRow[]> {
     from orders o
     ${orderDeal}
     -- Получено — оплаты минус возвраты клиенту.
-    left join lateral (select sum(case when x.kind = 'refund' then -x.amount else x.amount end)::int as sum, max(x.paid_at) as last_at from order_payments x where x.order_id = o.id) j on true
+    left join lateral (select sum(case when x.kind = 'refund' then -x.amount else x.amount end)::int as sum, max(x.paid_at) as last_at from order_payments x where x.order_id = o.id and x.voided_at is null) j on true
     where (o.status = 'pending_payment' and o.amount > coalesce(j.sum, 0))
       or (o.status <> 'cancelled' and o.postpay and o.paid_at is null)
       or (o.status <> 'cancelled' and coalesce(j.sum, 0) > o.amount)
@@ -295,7 +296,7 @@ export async function financeReview(): Promise<ReviewRow[]> {
       from order_payments op
       join orders o on o.id = op.order_id
       ${orderDeal}
-      where op.method = 'manual' and op.reviewed_at is null
+      where op.method = 'manual' and op.reviewed_at is null and op.voided_at is null
     ) r
     order by at desc
     limit ${REVIEW_LIMIT}`);

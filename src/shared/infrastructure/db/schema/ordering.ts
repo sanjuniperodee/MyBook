@@ -109,7 +109,16 @@ export const orderPayments = pgTable(
     receiptFileName: text("receipt_file_name"),
     receiptMime: text("receipt_mime"),
     receiptSize: integer("receipt_size"),
+    /** SHA-256 содержимого чека (hex): один и тот же чек не прикладывают ко второму платежу. */
+    receiptSha256: text("receipt_sha256"),
     createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    /**
+     * Платёж отменён руководителем как ошибочный (не те деньги, фиктивная запись): остаётся в журнале с причиной, но не
+     * входит в «получено», финансы, выручку и комиссии.
+     */
+    voidedAt: timestamp("voided_at", { withTimezone: true }),
+    voidedById: uuid("voided_by_id").references(() => users.id, { onDelete: "set null" }),
+    voidReason: text("void_reason"),
     /** Ручную оплату проверил руководитель (чек совпал с поступлением на счёт). */
     reviewedById: uuid("reviewed_by_id").references(() => users.id, { onDelete: "set null" }),
     reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
@@ -119,6 +128,7 @@ export const orderPayments = pgTable(
     index("order_payments_order_idx").on(t.orderId),
     index("order_payments_paid_idx").on(t.paidAt),
     uniqueIndex("order_payments_external_idx").on(t.method, t.externalRef).where(sql`${t.externalRef} is not null`),
+    index("order_payments_receipt_sha_idx").on(t.receiptSha256).where(sql`${t.receiptSha256} is not null`),
   ],
 );
 

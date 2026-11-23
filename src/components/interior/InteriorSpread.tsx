@@ -10,6 +10,8 @@ import { printableText } from "@/lib/book/printable";
 import { bookMessagesFor } from "@/i18n/messages/partial";
 import type { SampleEntry } from "./entry";
 import { pageKit } from "./kit";
+import type { LineBreaker } from "./line-breaker";
+import { paginateSample } from "./pdf-tree";
 import { DedicationPage, EndPage, OpenerPage, PhotoPage, TextPage, TitlePage, TocPage, type PagePhoto } from "./pages";
 import { cqwUnits } from "./units";
 
@@ -91,6 +93,7 @@ export const InteriorSpread = memo(function InteriorSpread({
   sample,
   kind = "chapter",
   openerPlaceholder = false,
+  breaker,
   className,
 }: {
   design: InteriorDesign;
@@ -99,9 +102,15 @@ export const InteriorSpread = memo(function InteriorSpread({
   kind?: SpreadKind;
   /** Миниатюра в выборе оформления: без выбранного фото главы — пейзаж-заглушка в рамке оформления, чтобы видна была форма. */
   openerPlaceholder?: boolean;
+  /** Строки текста, как у PDF (useBookTypesetter); нет — строки ставит браузер (миниатюры, страница на сервере). */
+  breaker?: LineBreaker;
   className?: string;
 }) {
-  const kit = pageKit(design, format, cqwUnits(format.widthMm), sample.language);
+  const base = pageKit(design, format, cqwUnits(format.widthMm), sample.language, undefined, breaker);
+  // Полосы примера главы — как у PDF (строки, разбивка и доводка: pdf-tree.ts); без строк — полосы браузера.
+  const exact = kind === "chapter" ? paginateSample(base, sample) : null;
+  const kit = exact ? { ...base, breaks: exact.breaks, dropSplit: exact.flow.dropSplit, decides: true } : base;
+  const flow = exact?.flow;
   const page = { aspectRatio: `${format.widthMm} / ${format.heightMm}` };
   let left: React.ReactNode;
   let right: React.ReactNode;
@@ -121,7 +130,7 @@ export const InteriorSpread = memo(function InteriorSpread({
     // поток текста, следующая полоса — как в PDF).
     const folio = sample.folio ?? TEXT_FOLIO - 1;
     const text = (column: number) => (
-      <TextPage kit={kit} entries={sample.entries} column={column} tail={sample.tail} folio={folio + column} bookTitle={sample.title} chapterTitle={sample.chapter.title} recto={column === 1} leadIn chapterHead={sample.chapterStart === "inline" ? sample.chapter : undefined} style={page} />
+      <TextPage kit={kit} entries={sample.entries} column={column} tail={sample.tail} flow={flow} folio={folio + column} bookTitle={sample.title} chapterTitle={sample.chapter.title} recto={sample.folio ? (folio + column) % 2 === 1 : column === 1} leadIn chapterHead={sample.chapterStart === "inline" ? sample.chapter : undefined} style={page} />
     );
     left = text(0);
     right = text(1);
@@ -132,10 +141,12 @@ export const InteriorSpread = memo(function InteriorSpread({
         kit={kit}
         entries={sample.entries}
         tail={sample.tail}
+        flow={flow}
         folio={sample.folio ?? TEXT_FOLIO}
         bookTitle={sample.title}
         chapterTitle={sample.chapter.title}
-        recto
+        // Сторона полосы — по её номеру в книге (колонтитул и колонцифра — как на этой полосе PDF).
+        recto={sample.folio ? sample.folio % 2 === 1 : true}
         leadIn
         style={page}
       />

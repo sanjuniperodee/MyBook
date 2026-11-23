@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { api, apiStaff, HttpError } from "@/server/api";
 import { can, canWork } from "@/server/access";
 import { container } from "@/server/container";
-import { MAX_PAYMENT, ReceiptError, RECEIPT_MAX_BYTES } from "@/modules/sales";
+import { MAX_PAYMENT, ReceiptError, ReceiptUsedError, RECEIPT_MAX_BYTES } from "@/modules/sales";
 import { receiptProblemError } from "@/server/payment-errors";
 import { z } from "zod";
 import { formText, idParams, uuid } from "@/server/input";
@@ -42,6 +42,8 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
     revalidatePath(`/admin/deals/${deal.id}`);
     return NextResponse.json({ receipt: { id: row.id, fileName: row.fileName, amount: row.amount, mime: row.mime, size: row.size, createdAt: row.createdAt } });
   } catch (err) {
+    // Тот же чек уже приложен к другому платежу — к какому, в тексте ошибки.
+    if (ReceiptUsedError.is(err)) return NextResponse.json({ error: err.message }, { status: 409 });
     if (ReceiptError.is(err)) throw receiptProblemError(err.code);
     throw err;
   }

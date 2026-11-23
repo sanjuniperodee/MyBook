@@ -5,6 +5,7 @@ import { backContent, backPhotoIds, type BackContent } from "@/lib/book/cover-ba
 import type { PhotoSpec } from "@/lib/book/covers/svg-kit";
 import { editorBook, editorModel } from "@/lib/book/editor-data";
 import { editorContent } from "@/lib/book/editor-estimate";
+import { frontMatter, type FrontMatter } from "@/lib/book/estimate";
 import { previewFromContent, type PreviewChapter, type PreviewGallery } from "@/lib/book/editor-model";
 import type { BookContent } from "@/lib/book/layout";
 import { photoPlaceOf } from "@/lib/book/photo-place";
@@ -48,6 +49,7 @@ export interface PreviewData {
   gallery: PreviewGallery | null;
   openersLeft: boolean;
   chapterStart?: BookContent["chapterStart"];
+  front: FrontMatter;
   currentId: string;
 }
 
@@ -70,7 +72,7 @@ function editorPreview({ book, questions, chapters: ownChapters, photos, letters
   const content = editorContent(eb, model.questions, model.photos, model.letters, model.chapters);
   const untitled = messagesFor(book.language).book.untitledChapter;
   const { chapters, gallery } = previewFromContent(content, model.questions, model.photos, { currentId, tocLines: book.tocLines, epigraphs: model.epigraphs, untitled, places: photoPlaceOf(content, model.photos, eb) });
-  return { language: book.language, bookTitle: book.title, chapters, gallery, openersLeft: !!content.openersLeft, ...(content.chapterStart ? { chapterStart: content.chapterStart } : {}), currentId };
+  return { language: book.language, bookTitle: book.title, chapters, gallery, openersLeft: !!content.openersLeft, ...(content.chapterStart ? { chapterStart: content.chapterStart } : {}), front: frontMatter(content), currentId };
 }
 
 /** Оборот, как в редакторе обложки (CoverEditor): содержимое — те же поля, что backContent (год — из occasionDate или текущий), фото — backPhotoRefs. */

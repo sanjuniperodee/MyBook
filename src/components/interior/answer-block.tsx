@@ -2,22 +2,32 @@ import type { CSSProperties } from "react";
 import { listMarkerEm, type AnswerBlock } from "@/lib/book/answer-blocks";
 import { ANSWER, paraIndent, QUOTE_MARK, quoteStyle } from "@/lib/book/typesetting";
 import { textArea } from "@/lib/book/page-geometry";
-import { GAP_BELOW } from "./entry-gap";
+import { GAP_BELOW, gapAbove } from "./entry-gap";
 import type { PageKit } from "./kit";
 import { faceCss, italicBody, LeadParagraph, measureCss, paragraphCss } from "./typography";
+import { lineSpans } from "./lines";
+import { breakBefore } from "./breaks";
+import { keepWithNext } from "./keep";
+import { bodySpec, italicSpec, measureWidthPt, textWidthPt } from "./text-specs";
+
+/** Пометка блока (data-flow): по ней — разрывы полос, как у PDF (kit.breaks). */
+const pidOf = (rest: object) => (rest as Record<string, string | undefined>)["data-flow"];
 
 type BlockProps<K extends AnswerBlock["kind"]> = { kit: PageKit; block: Extract<AnswerBlock, { kind: K }>; style?: CSSProperties } & React.HTMLAttributes<HTMLElement>;
 
 const lines = (list: string[]) => list.map((l, i) => (i ? [<br key={i} />, l] : l));
 
 /** Строки стихов по строфам: между строфами — просвет gap (в PDF — отступ между абзацами-строфами). */
-function stanzaLines(block: Extract<AnswerBlock, { kind: "verse" }>, gap: string) {
+function stanzaLines(kit: PageKit, pid: string | undefined, block: Extract<AnswerBlock, { kind: "verse" }>, gap: string, broken: (list: string[], pid?: string) => React.ReactNode[] | null) {
   const starts = [0, ...(block.stanzas ?? []), block.lines.length];
-  return starts.slice(0, -1).map((from, k) => (
-    <span key={k} style={{ display: "block", marginTop: k ? gap : 0 }}>
-      {lines(block.lines.slice(from, starts[k + 1]))}
-    </span>
-  ));
+  return starts.slice(0, -1).map((from, k) => {
+    const list = block.lines.slice(from, starts[k + 1]);
+    return (
+      <span key={k} style={{ display: "block", marginTop: k ? gap : 0, ...breakBefore(kit, `${pid}:s${k}`) }}>
+        {broken(list, `${pid}:s${k}`) ?? lines(list)}
+      </span>
+    );
+  });
 }
 
 function Lede({ kit, block, style, ...rest }: BlockProps<"lede">) {
@@ -30,13 +40,13 @@ function Lede({ kit, block, style, ...rest }: BlockProps<"lede">) {
         color: design.palette.muted,
         textAlign: design.heading.align === "center" ? "center" : "left",
         marginBottom: u.pt(S.body * ANSWER.lede.after),
-        breakAfter: "avoid",
+        ...keepWithNext(kit),
         ...measureCss(kit),
         ...style,
       }}
       {...rest}
     >
-      {block.text}
+      {lineSpans({ kit, pid: pidOf(rest), req: { text: block.text, spec: italicSpec(kit, S.body * ANSWER.lede.size), width: measureWidthPt(kit), hyphens: false, justify: false }, align: design.heading.align === "center" ? "center" : "left" }) ?? block.text}
     </p>
   );
 }
@@ -50,22 +60,25 @@ function Quote({ kit, block, style, ...rest }: BlockProps<"quote">) {
   const P = design.palette;
   const text: CSSProperties = { ...italicBody(kit, S.body * ANSWER.quote.size), lineHeight: ANSWER.quote.lineHeight, color: P.ink };
   const kind = quoteStyle(design);
-  const outer: CSSProperties = { breakInside: "avoid", marginTop: u.pt(S.body * ANSWER.quote.before), paddingBottom: u.pt(S.body * ANSWER.quote.after), ...style };
+  // Строки, как у PDF: каждая строка цитаты — свой абзац (перевод строки), ширина — по виду цитаты, без переносов.
+  const quoteLines = (width: number, align: "left" | "center") => lineSpans({ kit, req: { text: block.lines.join("\n"), spec: italicSpec(kit, S.body * ANSWER.quote.size), width, hyphens: false, justify: false }, align });
+  const top = gapAbove(S.body * ANSWER.quote.before, u.pt);
+  const outer: CSSProperties = { breakInside: "avoid", ...top.style, paddingBottom: u.pt(S.body * ANSWER.quote.after), ...style };
   if (kind === "mark") {
     const size = S.body * ANSWER.quote.size;
     return (
-      <div style={outer} {...GAP_BELOW} {...rest}>
+      <div style={outer} {...GAP_BELOW} {...top.attrs} {...rest}>
         <div style={{ paddingLeft: u.pt(S.body * ANSWER.quote.indent), ...measureCss(kit) }}>
           <div aria-hidden style={{ ...faceCss(design.display, size * QUOTE_MARK.size, u), lineHeight: QUOTE_MARK.lineHeight, color: P.accent, marginBottom: u.pt(size * QUOTE_MARK.after), height: u.pt(size * QUOTE_MARK.size * QUOTE_MARK.lineHeight) }}>
             “
           </div>
-          <div style={text}>{lines(block.lines)}</div>
+          <div style={text}>{quoteLines(measureWidthPt(kit) - S.body * ANSWER.quote.indent, "left") ?? lines(block.lines)}</div>
         </div>
       </div>
     );
   }
   return (
-    <div style={outer} {...GAP_BELOW} {...rest}>
+    <div style={outer} {...GAP_BELOW} {...top.attrs} {...rest}>
       <div
         style={
           kind === "center"
@@ -73,7 +86,7 @@ function Quote({ kit, block, style, ...rest }: BlockProps<"quote">) {
             : { ...text, borderLeft: `${u.pt(ANSWER.quote.rule)} solid ${P.accent}`, paddingLeft: u.pt(S.body * ANSWER.quote.indent) }
         }
       >
-        {lines(block.lines)}
+        {(kind === "center" ? quoteLines(textWidthPt(kit) * (1 - 2 * ANSWER.quote.inset), "center") : quoteLines(textWidthPt(kit) - ANSWER.quote.rule - S.body * ANSWER.quote.indent, "left")) ?? lines(block.lines)}
       </div>
     </div>
   );
@@ -84,9 +97,13 @@ function List({ kit, block, style, ...rest }: BlockProps<"list">) {
   return (
     <div style={{ marginBottom: u.pt(S.body * ANSWER.list.after), ...measureCss(kit), ...style }} {...rest}>
       {block.items.map((item, i) => (
-        <div key={i} style={{ display: "flex", marginBottom: i < block.items.length - 1 ? u.pt(S.body * ANSWER.list.gap) : 0 }}>
+        // Короткий пункт у PDF неделим (wrap={false} до 260 знаков), длинный переносится с висячими строками.
+        <div key={i} style={{ display: "flex", marginBottom: i < block.items.length - 1 ? u.pt(S.body * ANSWER.list.gap) : 0, ...(item.text.length > 260 ? {} : { breakInside: "avoid" }), ...breakBefore(kit, `${pidOf(rest)}:${i}`) }}>
           <span style={{ ...paragraphCss(kit), marginBottom: 0, marginLeft: 0, marginRight: 0, flex: "none", width: u.pt(S.body * listMarkerEm(block)), textAlign: "left", color: kit.design.palette.accent }}>{item.marker}</span>
-          <span style={{ ...paragraphCss(kit), marginBottom: 0, marginLeft: 0, marginRight: 0, flex: 1, textAlign: "left" }}>{kit.hyphenate ? kit.hyphenate(item.text) : item.text}</span>
+          <span style={{ ...paragraphCss(kit), marginBottom: 0, marginLeft: 0, marginRight: 0, flex: 1, textAlign: "left" }}>
+            {lineSpans({ kit, pid: `${pidOf(rest)}:${i}:t`, req: { text: item.text, spec: bodySpec(kit), width: measureWidthPt(kit) - S.body * listMarkerEm(block), hyphens: true, justify: false }, align: "left", keepPairs: true }) ??
+              (kit.hyphenate ? kit.hyphenate(item.text) : item.text)}
+          </span>
         </div>
       ))}
     </div>
@@ -95,19 +112,22 @@ function List({ kit, block, style, ...rest }: BlockProps<"list">) {
 
 function Strong({ kit, block, style, ...rest }: BlockProps<"strong">) {
   const { sizes: S, u } = kit;
+  const strongTop = gapAbove(S.body * ANSWER.strong.before, u.pt);
   return (
     <p
       style={{
         ...paragraphCss(kit),
         fontWeight: ANSWER.strong.weight,
         textAlign: "left",
-        marginTop: u.pt(S.body * ANSWER.strong.before),
+        ...strongTop.style,
         marginBottom: u.pt(S.body * ANSWER.strong.after),
         ...style,
       }}
+      {...strongTop.attrs}
       {...rest}
     >
-      {kit.hyphenate ? kit.hyphenate(block.text) : block.text}
+      {lineSpans({ kit, pid: pidOf(rest), req: { text: block.text, spec: { ...bodySpec(kit), weight: ANSWER.strong.weight }, width: measureWidthPt(kit), hyphens: true, justify: false }, align: "left", keepPairs: true }) ??
+        (kit.hyphenate ? kit.hyphenate(block.text) : block.text)}
     </p>
   );
 }
@@ -115,6 +135,10 @@ function Strong({ kit, block, style, ...rest }: BlockProps<"strong">) {
 function Verse({ kit, block, style, ...rest }: BlockProps<"verse">) {
   const { design, sizes: S, u } = kit;
   const centered = design.heading.align === "center";
+  const verseTop = gapAbove(S.body * ANSWER.verse.before, u.pt);
+  // Строки стиха, как у PDF: каждая — свой абзац, без переносов; не влезла — ломается по словам так же.
+  const verseLines = (list: string[], pid = pidOf(rest)) =>
+    lineSpans({ kit, pid, req: { text: list.join("\n"), spec: bodySpec(kit), width: measureWidthPt(kit) - (centered ? 0 : textWidthPt(kit) * ANSWER.verse.indent), hyphens: false, justify: false }, align: centered ? "center" : "left", keepPairs: true });
   return (
     <p
       style={{
@@ -122,13 +146,14 @@ function Verse({ kit, block, style, ...rest }: BlockProps<"verse">) {
         hyphens: "manual",
         textAlign: centered ? "center" : "left",
         paddingLeft: centered ? 0 : u.mm(textArea(kit.format).w * ANSWER.verse.indent),
-        marginTop: u.pt(S.body * ANSWER.verse.before),
+        ...verseTop.style,
         marginBottom: u.pt(S.body * ANSWER.verse.after),
         ...style,
       }}
+      {...verseTop.attrs}
       {...rest}
     >
-      {block.stanzas?.length ? stanzaLines(block, u.pt(S.body * ANSWER.verse.stanza)) : lines(block.lines)}
+      {block.stanzas?.length ? stanzaLines(kit, pidOf(rest), block, u.pt(S.body * ANSWER.verse.stanza), verseLines) : (verseLines(block.lines) ?? lines(block.lines))}
     </p>
   );
 }
@@ -146,6 +171,8 @@ export function AnswerBlockView({
   style,
   ...rest
 }: { kit: PageKit; block: AnswerBlock; leadIn: boolean; /** Здесь начинается глава: буквица. */ dropCap?: boolean; /** Первый блок ответа: без красной строки. */ first?: boolean; style?: CSSProperties } & React.HTMLAttributes<HTMLElement>) {
+  // Блок начинает полосу, как у PDF (kit.breaks) — разрыв перед ним.
+  style = { ...style, ...breakBefore(kit, pidOf(rest)) };
   switch (b.kind) {
     case "para":
       return <LeadParagraph kit={kit} text={b.text} leadIn={leadIn} dropCap={dropCap} indent={paraIndent(kit.design, first)} style={style} {...rest} />;

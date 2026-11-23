@@ -39,6 +39,10 @@ export interface BookFlow {
   entries: Record<string, number>;
   /** Только у PDF: истории, которые доводка начала с новой полосы. */
   breakBefore?: string[];
+  /** Блоки доводки по главам: пометка, полоса от начала текста главы, верх и низ первого куска (pt от верха полосы набора). */
+  blocks?: Record<string, [string, number, number, number][]>;
+  /** Полоса первой главы в книге (у превью — с пустой перед начальной, если она нужна). */
+  first?: number;
 }
 
 /** PDF: главы и истории по манифесту полос и раскладке итоговой сборки. */
@@ -62,7 +66,12 @@ async function pdfFlow(book: string, real?: string): Promise<BookFlow> {
   const entries: Record<string, number> = {};
   for (const ch of content.chapters)
     for (const it of ch.items) if (!it.continued && res.entryPages[it.id] && firstText[ch.key]) entries[it.id] = res.entryPages[it.id] - firstText[ch.key];
-  return { chapters, entries, breakBefore: [...res.flow.breakBefore] };
+  const { interiorMetrics } = await import("@/lib/book/page-geometry");
+  const { mm, print } = await import("@/lib/book/formats");
+  const top = mm(print.bleedMm + interiorMetrics[content.format.id].marginTop);
+  const blocks: Record<string, [string, number, number, number][]> = {};
+  for (const b of res.blocks) if (firstText[b.chapter] !== undefined) (blocks[b.chapter] ??= []).push([b.mark, b.first.page + 1 - firstText[b.chapter], Math.round((b.first.top - top) * 10) / 10, Math.round((b.first.bottom - top) * 10) / 10]);
+  return { chapters, entries, breakBefore: [...res.flow.breakBefore], blocks, first: res.chapterPages[content.chapters[0]?.key] };
 }
 
 /** Код, от которого зависит PDF: HEAD и незакоммиченные правки — отпечаток кэша. */
@@ -104,6 +113,11 @@ async function htmlFlow(browser: Browser, server: StandServer, view: StandView):
     });
     const page = await context.newPage();
     await page.clock.setFixedTime(FIXED_TIME);
+    // Полоса набора в pt — чтобы перевести пиксели колонки в пункты.
+    const { textArea } = await import("@/lib/book/page-geometry");
+    const { getFormat, MM_TO_PT } = await import("@/lib/book/formats");
+    await page.addInitScript((w) => ((window as unknown as { __textWpt: number }).__textWpt = w), textArea(getFormat(view.format)).w * MM_TO_PT);
+    await page.addInitScript((l) => ((window as unknown as { __openersLeft: boolean }).__openersLeft = l), view.kind === "preview" && view.preview.openersLeft && !view.preview.chapterStart);
     await page.goto(ORIGIN);
     await page.waitForSelector("body[data-ready]", { state: "attached", timeout: 60_000 });
     return await page.evaluate(() => {
@@ -114,13 +128,51 @@ async function htmlFlow(browser: Browser, server: StandServer, view: StandView):
         if (m && m[1] !== "album") chapters[m[1]] = (chapters[m[1]] ?? 0) + 1;
       }
       const entries: Record<string, number> = {};
-      for (const root of document.querySelectorAll<HTMLElement>("[aria-hidden] > div")) {
+      const layouts: Record<string, [string, number, number, number][]> = {};
+      // Разбивка, как у PDF (ChapterPages: data-pdf-layout), — полосы глав и начала ответов из неё.
+      for (const root of document.querySelectorAll<HTMLElement>("[aria-hidden] > div[data-pdf-layout]")) {
+        const l = JSON.parse(root.dataset.pdfLayout!) as { chapter: string; pages: number; markers: Record<string, number>; blocks?: [string, [number, number, number]][] };
+        Object.assign(entries, l.markers);
+        if (l.blocks) layouts[l.chapter] = l.blocks.map(([id, [page, top, bottom]]) => [id, page, top, bottom]);
+      }
+      for (const root of document.querySelectorAll<HTMLElement>("[aria-hidden] > div:not([data-pdf-layout])")) {
         const cs = getComputedStyle(root);
         const step = parseFloat(cs.columnWidth) + parseFloat(cs.columnGap);
         const left = root.getBoundingClientRect().left;
         for (const mk of root.querySelectorAll<HTMLElement>("[data-marker]")) entries[mk.dataset.marker!] = Math.max(0, Math.floor((mk.getBoundingClientRect().left - left + 1) / step));
       }
-      return { chapters, entries };
+      // Блоки доводки в копиях для замера (как components/interior/flow-measure.ts): полоса и верх/низ первого куска, pt.
+      const blocks: Record<string, [string, number, number, number][]> = {};
+      for (const root of document.querySelectorAll<HTMLElement>("[aria-hidden] > div")) {
+        const cs = getComputedStyle(root);
+        const step = parseFloat(cs.columnWidth) + parseFloat(cs.columnGap);
+        const box = root.getBoundingClientRect();
+        const ptPx = (parseFloat(cs.columnWidth) / (window as unknown as { __textWpt: number }).__textWpt) || 1;
+        const list: [string, number, number, number][] = [];
+        let chapter = "";
+        for (const el of root.querySelectorAll<HTMLElement>("[data-flow]")) {
+          const mark = el.getAttribute("data-flow")!;
+          if (mark.startsWith("t:")) chapter = mark.slice(2);
+          const r = [...el.getClientRects()].find((x) => x.height > 0.5);
+          if (!r) continue;
+          const pad = el.hasAttribute("data-gap-below") && el.getClientRects().length === 1 ? parseFloat(getComputedStyle(el).paddingBottom) : 0;
+          const above = Number(el.getAttribute("data-gap-above") ?? 0);
+          // Разбитый на колонки блок: у браузера кусок тянется до конца колонки — низ по строкам (как flow-measure).
+          let bottom = r.bottom;
+          if (el.getClientRects().length > 1) {
+            const range = document.createRange();
+            range.selectNodeContents(el);
+            const col = Math.floor((r.left - box.left + 1) / step);
+            bottom = Math.max(...[...range.getClientRects()].filter((x) => x.height > 0 && Math.floor((x.left - box.left + 1) / step) === col).map((x) => x.bottom));
+          }
+          list.push([mark, Math.floor((r.left - box.left + 1) / step), Math.round(((r.top - box.top) / ptPx + above) * 10) / 10, Math.round(((bottom - pad - box.top) / ptPx) * 10) / 10]);
+        }
+        if (chapter) blocks[chapter] = list;
+      }
+      const fp = Number(document.querySelector<HTMLElement>("[data-first-page]")?.dataset.firstPage);
+      // Начальная полоса слева (полоса чётная): выпала бы справа — перед ней пустая (так её ставит и PDF).
+      const left = !!document.querySelector("[data-opener]") && (window as unknown as { __openersLeft?: boolean }).__openersLeft;
+      return { chapters, entries, blocks: { ...blocks, ...layouts }, first: Number.isFinite(fp) ? (left && fp % 2 === 1 ? fp + 1 : fp) : undefined };
     });
   } finally {
     await context.close();
@@ -134,7 +186,7 @@ interface BookReport {
 }
 
 async function main() {
-  const { values } = parseArgs({ args: process.argv.slice(2), options: { quick: { type: "boolean" }, filter: { type: "string" }, jobs: { type: "string" }, css: { type: "string" }, json: { type: "string" }, real: { type: "string" } } });
+  const { values } = parseArgs({ args: process.argv.slice(2), options: { quick: { type: "boolean" }, filter: { type: "string" }, jobs: { type: "string" }, css: { type: "string" }, json: { type: "string" }, real: { type: "string" }, blocks: { type: "boolean" } } });
   if (!existsSync(CHROMIUM)) {
     console.error(`Нет Chromium: ${CHROMIUM} — укажите CHROMIUM_PATH.`);
     process.exit(2);
@@ -173,6 +225,14 @@ async function main() {
       entries: Object.keys(p.entries).map((id) => ({ id, pdf: p.entries[id], html: h.entries[id] ?? -1 })),
     };
   });
+  let firstOk = 0;
+  for (const b of books) {
+    const p = pdf.get(b.key)!.first;
+    const h = html.get(b.key)!.first;
+    if (p === h) firstOk++;
+    else console.log(`✗ ${b.key}: первая глава — полоса ${p} в PDF, ${h} в превью`);
+  }
+  console.log(`Номер полосы первой главы совпал: ${firstOk}/${books.length}`);
   let chapters = 0;
   let chaptersOk = 0;
   let entries = 0;
@@ -184,6 +244,23 @@ async function main() {
     chaptersOk += r.chapters.length - badC.length;
     entries += r.entries.length;
     entriesOk += r.entries.length - badE.length;
+    if ((badC.length || badE.length) && values.blocks) {
+      // Первый блок, который встал иначе (полоса или верх больше чем на 1 pt), в каждой главе с расхождением.
+      const p = pdf.get(r.book)!.blocks ?? {};
+      const h = html.get(r.book)!.blocks ?? {};
+      for (const key of Object.keys(p)) {
+        const hb = new Map((h[key] ?? []).map((b) => [b[0], b] as const));
+        const diff = p[key].find((b) => {
+          const x = hb.get(b[0]);
+          return !x || x[1] !== b[1] || Math.abs(x[2] - b[2]) > 1;
+        });
+        if (diff) console.log(`   ${r.book} ${key}: ${diff[0]} PDF ${diff.slice(1).join("/")} превью ${hb.get(diff[0])?.slice(1).join("/") ?? "—"}`);
+        if (diff && process.env.PARITY_AROUND) {
+          const i = p[key].indexOf(diff);
+          for (const b of p[key].slice(Math.max(0, i - 3), i + 3)) console.log(`      ${b[0].slice(0, 30)} PDF ${b.slice(1).join("/")} превью ${hb.get(b[0])?.slice(1).join("/") ?? "—"}`);
+        }
+      }
+    }
     if (badC.length || badE.length)
       console.log(`✗ ${r.book}: главы ${badC.map((c) => `${c.key} ${c.pdf}→${c.html}`).join(", ") || "—"}; истории ${badE.map((e) => `${e.id.slice(0, 8)} ${e.pdf}→${e.html}${pdf.get(r.book)!.breakBefore?.includes(e.id) ? " (разрыв доводки)" : ""}`).join(", ") || "—"}`);
   }

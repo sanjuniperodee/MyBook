@@ -19,7 +19,7 @@ import { bookKind } from "@/lib/content/kinds";
 import { getFormat } from "@/lib/book/formats";
 import { cn } from "@/lib/class-names";
 import { formatDate } from "@/lib/dates";
-import { DetailsForm, LockButton, NextStep, NoteForm, OrderMoney, PrintFileActions, StatusForm, TermsForm } from "./OrderControls";
+import { DetailsForm, LockButton, NextStep, NoteForm, OrderMoney, PrintFileActions, RepriceRequestForm, StatusForm, TermsForm } from "./OrderControls";
 import { OrderMenu } from "./OrderMenu";
 import { ProductionRuler } from "./ProductionRuler";
 import { Disclosure } from "./Disclosure";
@@ -106,8 +106,12 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
   const canEdit = can(staff, "orders.edit");
   const notice = canEdit ? await noticeFacts(order) : null;
   const canClients = can(staff, "clients.view");
-  // Тариф и цену меняют, пока заказ не оплачен: дальше деньги уже учтены.
-  const termsOpen = canEdit && order.status !== "cancelled" && !order.paidAt;
+  // Тариф и цену меняют, пока заказ не оплачен. Оплаченный — только цену и только руководитель (право «Менять цену
+  // оплаченного заказа»), с причиной; менеджер без права просит руководителя (а не закрывает разницу платежом без денег).
+  const settled = !!order.paidAt && order.status !== "cancelled";
+  const canRepricePaid = can(staff, "orders.reprice_paid");
+  const termsOpen = canEdit && order.status !== "cancelled" && (!order.paidAt || canRepricePaid);
+  const repriceRequest = canEdit && settled && !canRepricePaid;
   const maxDiscount = termsOpen ? await discountLimit(staff) : null;
   // Договорённая цена первого экземпляра: скидка заказа без промокода — это и есть договорённость.
   const agreedNow = order.discountAmount > 0 && !order.promoCode && plan ? order.itemsAmount - order.discountAmount - (order.itemsAmount - plan.price) : null;
@@ -239,6 +243,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
                   settled={!!order.paidAt}
                   canEdit={canEdit}
                   canReview={can(staff, "team.manage")}
+                  canVoid={canEdit && can(staff, "orders.payment_void")}
                   payForms={payForms}
                   rows={moneyRows.map((r) => ({
                     id: r.id,
@@ -252,6 +257,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
                     reviewed: r.reviewedAt ? `${r.reviewedById ? (adminName.get(r.reviewedById) ?? "") : ""} ${formatDate(r.reviewedAt)}`.trim() : null,
                     by: r.createdById ? (adminName.get(r.createdById) ?? null) : null,
                     payForm: r.payForm ?? null,
+                    voided: r.voidedAt ? { label: `${r.voidedById ? (adminName.get(r.voidedById) ?? "") : ""} ${formatDate(r.voidedAt, true)}`.trim(), reason: r.voidReason ?? "" } : null,
                   }))}
                 />
               </div>
@@ -275,16 +281,23 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
               ) : null}
             </div>
             {termsOpen ? (
-              <Disclosure title="Тариф и цена" hint="пока заказ не оплачен">
+              <Disclosure title={order.paidAt ? "Цена" : "Тариф и цена"} hint={order.paidAt ? "заказ оплачен — меняет руководитель, с причиной" : "пока заказ не оплачен"}>
                 <div className="max-w-md">
                   <TermsForm
-                    key={`${order.plan}:${order.amount}`}
+                    key={`${order.plan}:${order.amount}:${order.receivedAmount}`}
                     orderId={order.id}
                     plan={order.plan}
                     agreed={agreedNow}
                     plans={getPlans().map((p) => ({ id: p.id, label: planName(p.id) + (p.hidden ? " (скрыт)" : ""), price: p.price }))}
                     maxPercent={maxDiscount}
+                    paid={order.paidAt ? { received: order.receivedAmount, due: order.amount } : null}
                   />
+                </div>
+              </Disclosure>
+            ) : repriceRequest ? (
+              <Disclosure title="Цена" hint="заказ оплачен — попросите руководителя">
+                <div className="max-w-md">
+                  <RepriceRequestForm orderId={order.id} agreed={agreedNow} />
                 </div>
               </Disclosure>
             ) : null}

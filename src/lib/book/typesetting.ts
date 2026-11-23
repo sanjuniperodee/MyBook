@@ -7,7 +7,7 @@
  * формата из interiorMetrics), em — доля кегля основного текста, «доля полосы» — доля ширины полосы набора,
  * мм — от обреза.
  */
-import { fontFaces, fontMetrics } from "./fonts";
+import { fontFaces, fontMetrics, fontWidth, naturalLineHeight } from "./fonts";
 import type { BookFormat } from "./formats";
 import type { InteriorDesign, QuoteStyle, TextAlign, TextFace } from "./interiors";
 import { interiorMetrics } from "./page-geometry";
@@ -306,6 +306,25 @@ export function dropCapPlan(design: InteriorDesign, sizes: InteriorSizes): DropC
   };
 }
 
+/**
+ * Оценка, сколько знаков встанет в строки рядом с опущенной буквицей, — для первого прохода вёрстки: дальше место
+ * продолжения берётся из настоящей раскладки (flow.dropSplit). Одна для PDF (pdf/interior/text-block.tsx) и превью:
+ * от неё зависит первый проход, а решения доводки копятся с него.
+ */
+export function estimateDropSplit(text: string, design: InteriorDesign, sizes: Pick<InteriorSizes, "body">, plan: DropCapPlan, columnWidthPt: number) {
+  const S = sizes.body;
+  const capW = plan.size * fontWidth(plan.face.font) * 1.3 + plan.gap;
+  const width = columnWidthPt - capW;
+  const perLine = Math.max(8, Math.floor(width / (S * fontWidth(design.type.body))));
+  let pos = 0;
+  for (let line = 0; line < plan.lines && pos < text.length; line++) {
+    const end = Math.min(text.length, pos + perLine);
+    const space = end >= text.length ? text.length : text.lastIndexOf(" ", end);
+    pos = space > pos ? space + 1 : end;
+  }
+  return pos;
+}
+
 /** Буква для буквицы и остаток абзаца; абзац начинается не с буквы или цифры (тире, кавычка) — буквицы нет. */
 export function splitInitial(text: string): [string, string] | null {
   const m = /^[\p{L}\p{N}]/u.exec(text);
@@ -403,18 +422,14 @@ export const TOC = {
 } as const;
 
 /**
- * Интерлиньяж строк, которым в PDF он не задан (react-pdf берёт естественный интерлиньяж шрифта):
- * HTML-страницы приближают его этими числами. Расхождение сохранено как есть.
+ * Интерлиньяж строк, которым в PDF он не задан: react-pdf ставит их строками высотой по метрикам шрифта
+ * (ascent − descent + lineGap) — так же их ставит и HTML (naturalLineHeight). Здесь — только то, что метрикой шрифта
+ * не выражается: у «* * *» в PDF шрифта нет (встроенный Helvetica: ascent 900, descent −200).
  */
 export const HTML_LINE_HEIGHT = {
-  label: 1.2,
-  folio: 1.2,
-  kicker: 1.2,
-  stars: 1.2,
-  tocTitle: 1.2,
-  tocEntry: 1.25,
-  subtitle: 1.3,
-  end: 1.3,
-  caption: 1.3,
+  stars: 1.1,
   polaroidCaption: 1.1,
 } as const;
+
+/** Высота строки без интерлиньяжа у начертания дизайна — как у react-pdf (множитель кегля). */
+export const faceLineHeight = (f: Pick<TextFace, "font" | "weight" | "italic">) => naturalLineHeight(f.font, f.weight, !!f.italic);

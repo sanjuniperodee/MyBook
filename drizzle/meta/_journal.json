@@ -708,6 +708,13 @@
       "when": 1795429133946,
       "tag": "0100_whatsapp_catalog",
       "breakpoints": true
+    },
+    {
+      "idx": 101,
+      "version": "7",
+      "when": 1795434077302,
+      "tag": "0101_receipt_hash_void",
+      "breakpoints": true
     }
   ]
 }
