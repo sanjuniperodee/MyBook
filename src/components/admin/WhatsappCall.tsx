@@ -121,6 +121,9 @@ export function WhatsappCallProvider({ enabled, pbx = false, children }: { enabl
   const [call, setCallState] = useState<ActiveCall | null>(null);
   const [muted, setMuted] = useState(false);
   const [micLevel, setMicLevel] = useState(0);
+  const [peerLevel, setPeerLevel] = useState(0);
+  /** Когда последний раз был слышен голос собеседника — для подсказки «не слышно». */
+  const [peerHeardAt, setPeerHeardAt] = useState<number | null>(null);
   const audio = useRef<CallAudio | null>(null);
   const lastBeat = useRef(0);
   /** Панель ещё на странице: ушли из CRM, пока включался микрофон или сервер набирал номер, — звонок не продолжаем. */
@@ -143,6 +146,8 @@ export function WhatsappCallProvider({ enabled, pbx = false, children }: { enabl
       audio.current = null;
       setMuted(false);
       setMicLevel(0);
+      setPeerLevel(0);
+      setPeerHeardAt(null);
       const talked = c.talkingSince ? ` · ${clock(Date.now() - c.talkingSince)}` : "";
       patch({ phase: "ended", outcome: `${outcome}${talked}` });
       if (op && c.id) void send(c.id, op).catch(() => {});
@@ -193,6 +198,9 @@ export function WhatsappCallProvider({ enabled, pbx = false, children }: { enabl
           // а события звука идут всегда. Таймер ниже — запасной.
           if (c.id && c.phase !== "ended" && Date.now() - lastBeat.current >= HEARTBEAT_MS) beat(c.id);
           return setMicLevel(e.value);
+        case "peerLevel":
+          if (e.value > PEER_VOICE) setPeerHeardAt(Date.now());
+          return setPeerLevel(e.value);
       }
     },
     [beat, finish, patch],
@@ -304,12 +312,32 @@ export function WhatsappCallProvider({ enabled, pbx = false, children }: { enabl
   return (
     <Ctx.Provider value={{ enabled, pbx, busy: !!call, dial, answer, decline }}>
       {children}
-      {call ? <CallPanel call={call} muted={muted} micLevel={micLevel} onMute={toggleMute} onHangup={hangup} /> : null}
+      {call ? <CallPanel call={call} muted={muted} micLevel={micLevel} peerLevel={peerLevel} peerHeardAt={peerHeardAt} onMute={toggleMute} onHangup={hangup} /> : null}
     </Ctx.Provider>
   );
 }
 
-function CallPanel({ call, muted, micLevel, onMute, onHangup }: { call: ActiveCall; muted: boolean; micLevel: number; onMute: () => void; onHangup: () => void }) {
+/** Громкость, выше которой в потоке собеседника — голос, а не тишина. */
+const PEER_VOICE = 0.02;
+/** Разговор идёт, а голоса собеседника столько не было — подсказка проверить звук. */
+const PEER_SILENT_MS = 8000;
+
+/** Индикатор громкости: пять полосок, горят по уровню (0…1). */
+function LevelBars({ value, label }: { value: number; label: string }) {
+  const lit = Math.min(5, Math.round(Math.sqrt(Math.min(1, value * 4)) * 5));
+  return (
+    <span className="inline-flex items-center gap-1.5 text-xs text-muted" title={label}>
+      {label}
+      <span className="inline-flex h-3 items-end gap-0.5" aria-hidden>
+        {[0, 1, 2, 3, 4].map((i) => (
+          <span key={i} className={cn("w-1 rounded-sm transition-colors", i < lit ? "bg-success" : "bg-line-strong")} style={{ height: `${40 + i * 15}%` }} />
+        ))}
+      </span>
+    </span>
+  );
+}
+
+function CallPanel({ call, muted, micLevel, peerLevel, peerHeardAt, onMute, onHangup }: { call: ActiveCall; muted: boolean; micLevel: number; peerLevel: number; peerHeardAt: number | null; onMute: () => void; onHangup: () => void }) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (!call.talkingSince || call.phase === "ended") return;
@@ -358,6 +386,19 @@ function CallPanel({ call, muted, micLevel, onMute, onHangup }: { call: ActiveCa
           </div>
         </div>
       </div>
+      {call.phase === "talking" ? (
+        <div className="mt-3 space-y-1.5">
+          <div className="flex items-center gap-4">
+            <LevelBars value={muted ? 0 : micLevel} label="Вы" />
+            <LevelBars value={peerLevel} label="Собеседник" />
+          </div>
+          {now - (peerHeardAt ?? call.talkingSince ?? now) > PEER_SILENT_MS ? (
+            <p className="rounded-lg bg-warning-bg px-2.5 py-1.5 text-xs text-warning" data-testid="wa-call-peer-silent">
+              Собеседника не слышно? Проверьте громкость и динамики компьютера. Если на этом же компьютере идёт звонок в приложении WhatsApp, macOS приглушает звук вкладки — закройте его.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
       {live ? (
         <div className="mt-3 flex gap-2">
           <button type="button" className={cn("btn flex-1", muted ? "btn-dark" : "btn-outline")} onClick={onMute} disabled={call.phase === "preparing"} aria-pressed={muted} data-testid="wa-call-mute">

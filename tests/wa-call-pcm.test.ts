@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FRAME_SAMPLES, MicEncoder, PeerDecoder, WIRE_RATE, level } from "@/components/admin/wa-call/pcm";
+import { FRAME_SAMPLES, MicEncoder, PeerDecoder, PeerGain, WIRE_RATE, level } from "@/components/admin/wa-call/pcm";
 
 const sine = (rate: number, freq: number, n: number, from = 0, amp = 0.5) => Float32Array.from({ length: n }, (_, i) => amp * Math.sin((2 * Math.PI * freq * (from + i)) / rate));
 const samples = (buf: ArrayBuffer) => Array.from({ length: buf.byteLength / 2 }, (_, i) => new DataView(buf).getInt16(i * 2, true));
@@ -70,5 +70,33 @@ describe("звук звонка WhatsApp: шлюз → динамик", () => {
     expect(dec.push(new ArrayBuffer(3)).length).toBeLessThanOrEqual(3);
     expect(level(new Float32Array(0))).toBe(0);
     expect(level(Float32Array.from([0.5, -0.5, 0.5, -0.5]))).toBeCloseTo(0.5);
+  });
+});
+
+describe("выравнивание громкости собеседника", () => {
+  const tone = (amp: number, n = 960) => Float32Array.from({ length: n }, (_, i) => amp * Math.sin((2 * Math.PI * 300 * i) / 16000));
+  it("тихую речь подтягивает к целевой громкости за несколько кусков, без скачка в первом", () => {
+    const g = new PeerGain();
+    const first = level(g.process(tone(0.03)));
+    let last = first;
+    for (let i = 0; i < 20; i++) last = level(g.process(tone(0.03)));
+    expect(first).toBeLessThan(last);
+    expect(last).toBeGreaterThan(0.09);
+    expect(last).toBeLessThan(0.14);
+  });
+  it("тишину и шум не усиливает, громкую речь не глушит и не выводит за ±1", () => {
+    const g = new PeerGain();
+    for (let i = 0; i < 10; i++) expect(level(g.process(tone(0.002)))).toBeLessThan(0.003);
+    const loud = new PeerGain();
+    let out: Float32Array = new Float32Array(0);
+    for (let i = 0; i < 10; i++) out = loud.process(tone(0.9));
+    expect(Math.max(...out.map(Math.abs))).toBeLessThanOrEqual(1);
+    expect(level(out)).toBeGreaterThan(0.5);
+  });
+  it("усиление не больше MAX_GAIN", () => {
+    const g = new PeerGain();
+    let out = 0;
+    for (let i = 0; i < 40; i++) out = level(g.process(tone(0.006)));
+    expect(out).toBeLessThanOrEqual(0.006 * Math.SQRT1_2 * PeerGain.MAX_GAIN + 1e-6);
   });
 });

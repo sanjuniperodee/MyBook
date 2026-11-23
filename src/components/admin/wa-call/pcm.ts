@@ -94,3 +94,39 @@ export function level(samples: Float32Array): number {
   for (let i = 0; i < samples.length; i++) sum += samples[i] * samples[i];
   return Math.sqrt(sum / samples.length);
 }
+
+/**
+ * Выравнивание громкости собеседника: WhatsApp отдаёт голос тихим (пики около −24 дБ), в динамиках ноутбука его едва
+ * слышно. Речь подтягивается к целевой громкости (усиление 1…MAX_GAIN), тишина и шум (ниже NOISE_FLOOR) не усиливаются,
+ * усиление меняется плавно внутри куска (без щелчков), пики мягко ограничиваются, чтобы не хрипело.
+ */
+export class PeerGain {
+  static readonly TARGET = 0.12;
+  static readonly MAX_GAIN = 6;
+  static readonly NOISE_FLOOR = 0.004;
+  private gain = 1;
+  /** Огибающая громкости речи: растёт быстро, спадает медленно — паузы между словами не раскачивают усиление. */
+  private envelope = 0;
+
+  /** Усилить кусок на месте; возвращает его же. */
+  process(samples: Float32Array): Float32Array {
+    if (!samples.length) return samples;
+    const rms = level(samples);
+    if (rms > PeerGain.NOISE_FLOOR) this.envelope = rms > this.envelope ? this.envelope * 0.5 + rms * 0.5 : this.envelope * 0.95 + rms * 0.05;
+    const want = this.envelope > PeerGain.NOISE_FLOOR ? Math.min(PeerGain.MAX_GAIN, Math.max(1, PeerGain.TARGET / this.envelope)) : this.gain;
+    const from = this.gain;
+    for (let i = 0; i < samples.length; i++) {
+      const g = from + ((want - from) * (i + 1)) / samples.length;
+      samples[i] = softClip(samples[i] * g);
+    }
+    this.gain = want;
+    return samples;
+  }
+}
+
+/** Мягкий ограничитель: до 0,8 — как есть, выше — плавно к 1, без жёсткого среза. */
+function softClip(x: number): number {
+  const a = Math.abs(x);
+  if (a <= 0.8) return x;
+  return Math.sign(x) * (0.8 + 0.2 * Math.tanh((a - 0.8) / 0.2));
+}

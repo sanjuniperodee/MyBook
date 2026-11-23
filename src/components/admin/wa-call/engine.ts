@@ -1,6 +1,6 @@
 "use client";
 
-import { MicEncoder, PeerDecoder, level } from "./pcm";
+import { MicEncoder, PeerDecoder, PeerGain, level } from "./pcm";
 
 export type CallAudioEvent =
   /** Пошёл звук собеседника — для исходящего это значит, что он взял трубку. */
@@ -12,7 +12,9 @@ export type CallAudioEvent =
   | { type: "reconnecting" }
   | { type: "connected" }
   /** Громкость микрофона (0…1) — индикатор «вас слышно», несколько раз в секунду. */
-  | { type: "level"; value: number };
+  | { type: "level"; value: number }
+  /** Громкость собеседника (0…1, после выравнивания) — индикатор «собеседника слышно», несколько раз в секунду. */
+  | { type: "peerLevel"; value: number };
 
 /** Ошибка микрофона или браузера — текстом для сотрудника. */
 export class CallAudioError extends Error {}
@@ -52,6 +54,9 @@ export class CallAudio {
   private retries = 0;
   private muted = false;
   private lastLevel = 0;
+  private lastPeerLevel = 0;
+  private peerPeak = 0;
+  private readonly gain = new PeerGain();
   private tone: { stop(): void } | null = null;
   private recorder: MediaRecorder | null = null;
   /** Микрофон в запись — через свою громкость: «Микрофон выкл.» выключает его и в записи. */
@@ -65,6 +70,9 @@ export class CallAudio {
     private readonly stream: MediaStream,
     private readonly node: AudioWorkletNode,
     private readonly mic: MediaStreamAudioSourceNode,
+    /** Куда играть звук звонка: элемент <audio> (см. speaker) или напрямую в динамики. */
+    private readonly out: AudioNode,
+    private readonly speaker: HTMLAudioElement | null,
   ) {
     this.encoder = new MicEncoder(ctx.sampleRate);
     this.decoder = new PeerDecoder(ctx.sampleRate);
@@ -78,11 +86,13 @@ export class CallAudio {
     if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) return Promise.reject(new CallAudioError("Звонки работают только по защищённому адресу (https)"));
     const ctx = new Ctx({ latencyHint: "interactive" });
     void ctx.resume();
+    const speaker = openSpeaker(ctx);
     return (async () => {
       let stream: MediaStream;
       try {
         stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 } });
       } catch (err) {
+        speaker.release();
         void ctx.close();
         throw micError(err);
       }
@@ -91,10 +101,14 @@ export class CallAudio {
         const node = new AudioWorkletNode(ctx, "wa-call", { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1] });
         const mic = ctx.createMediaStreamSource(stream);
         mic.connect(node);
-        node.connect(ctx.destination);
+        const element = await speaker.ready;
+        if (!element) speaker.release();
+        const out = element ? speaker.node : ctx.destination;
+        node.connect(out);
         if (ctx.state !== "running") await ctx.resume().catch(() => {});
-        return new CallAudio(ctx, stream, node, mic);
+        return new CallAudio(ctx, stream, node, mic, out, element);
       } catch {
+        speaker.release();
         stream.getTracks().forEach((t) => t.stop());
         void ctx.close();
         throw new CallAudioError("Не удалось включить звук звонка");
@@ -159,7 +173,7 @@ export class CallAudio {
       gain.gain.setValueAtTime(0.06, t + 1);
       gain.gain.linearRampToValueAtTime(0, t + 1.02);
     }
-    osc.connect(gain).connect(this.ctx.destination);
+    osc.connect(gain).connect(this.out);
     osc.start();
     this.tone = { stop: () => (osc.stop(), osc.disconnect(), gain.disconnect()) };
   }
@@ -174,6 +188,10 @@ export class CallAudio {
     s?.close();
     this.node.port.onmessage = null;
     const release = () => {
+      if (this.speaker) {
+        this.speaker.pause();
+        this.speaker.srcObject = null;
+      }
       this.node.disconnect();
       this.stream.getTracks().forEach((t) => t.stop());
       void this.ctx.close().catch(() => {});
@@ -207,8 +225,15 @@ export class CallAudio {
         this.listener({ type: "ended" });
         return;
       }
-      const samples = this.decoder.push(e.data as ArrayBuffer);
+      const samples = this.gain.process(this.decoder.push(e.data as ArrayBuffer));
       if (!samples.length) return;
+      this.peerPeak = Math.max(this.peerPeak, level(samples));
+      const now = performance.now();
+      if (now - this.lastPeerLevel > 150) {
+        this.lastPeerLevel = now;
+        this.listener({ type: "peerLevel", value: this.peerPeak });
+        this.peerPeak = 0;
+      }
       this.node.port.postMessage(samples, [samples.buffer]);
       if (!this.heard) {
         this.heard = true;
@@ -237,6 +262,30 @@ export class CallAudio {
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
     for (const f of frames) if (ws.bufferedAmount < MAX_BUFFERED) ws.send(f);
   }
+}
+
+/**
+ * Динамик звонка — элемент <audio>, а не прямо ctx.destination. Пока вкладка пишет микрофон с эхоподавлением, Safari
+ * считает звук Web Audio посторонним и сильно его приглушает, а голос из <audio> с MediaStream — звуком звонка (и
+ * эхоподавление знает о нём), как в WebRTC-звонилках. play() — синхронно, ещё в обработчике нажатия, иначе браузер не
+ * разрешит звук; не разрешил — ready даёт null и звук идёт по-старому, в ctx.destination.
+ */
+function openSpeaker(ctx: AudioContext): { node: MediaStreamAudioDestinationNode; ready: Promise<HTMLAudioElement | null>; release(): void } {
+  const node = ctx.createMediaStreamDestination();
+  const el = document.createElement("audio");
+  el.autoplay = true;
+  el.setAttribute("playsinline", "");
+  el.srcObject = node.stream;
+  // Не ответил за 2 с (бывает у Safari без жеста) — тоже по-старому: звонок не ждёт.
+  const ready = Promise.race([el.play().then(() => el, () => null), new Promise<null>((r) => setTimeout(() => r(null), 2000))]);
+  return {
+    node,
+    ready,
+    release: () => {
+      el.pause();
+      el.srcObject = null;
+    },
+  };
 }
 
 export type ListenEvent =
