@@ -265,6 +265,37 @@ const METRICS: Record<FontKey, FontMetrics> = {
 
 export const fontMetrics = (key: FontKey): FontMetrics => METRICS[key];
 
+/**
+ * Строка HTML — на месте строки react-pdf. react-pdf ставит базовую линию на ascent от верха строки (render: line.box.y
+ * + ascent), без полуинтерлиньяжа; CSS — на полуинтерлиньяж (L − (ascent + descent)) / 2 ниже. У шрифтов книги typo- и
+ * hhea-метрики совпадают (и у WOFF2 сайта), так что ascent и descent у браузера и PDF одни.
+ *
+ * Сдвиг — CSS-длина: межстрочный — тот, что у элемента (единица lh), и с округлениями браузера:
+ * Chrome берёт ascent и descent шрифта в целых пикселях, а полуинтерлиньяж — с округлением вниз (LayoutNG:
+ * CalculateLeadingSpace), так что базовая линия у него на round(A) + floor((L − round(A) − round(D)) / 2) от верха
+ * строки. Сдвиг — разница с A·кегль у PDF, до долей пикселя.
+ */
+export function pdfLineOffset(key: FontKey) {
+  const { ascent: a, descent: d } = METRICS[key];
+  const A = `${round(a)}em`;
+  return `calc(${A} - round(${A}, 1px) - round(down, (1lh - round(${A}, 1px) - round(${round(d)}em, 1px)) / 2, 1px))`;
+}
+
+/**
+ * Сдвиг строк элемента к местам PDF (pdfLineOffset): относительный, раскладку не меняет. Только у элемента, где строки
+ * стоят прямо (не у обёртки вокруг такого же элемента — сдвиг сложится).
+ */
+export function pdfLineCss(key: FontKey) {
+  return { position: "relative" as const, top: pdfLineOffset(key) };
+}
+
+/** То же для элемента, который стоит абсолютно (top у него свой): сдвиг — translate, раскладку он тоже не меняет. */
+export function pdfLineTranslate(key: FontKey) {
+  return { translate: `0 ${pdfLineOffset(key)}` };
+}
+
+const round = (v: number) => Math.round(v * 10000) / 10000;
+
 /** Пара шрифтов основного текста и заголовков вопросов. Кегль — для A5, на крупных форматах масштабируется. */
 export interface Typography {
   heading: FontKey;

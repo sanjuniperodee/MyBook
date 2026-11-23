@@ -25,12 +25,15 @@ export default async function CoverPage({ params, searchParams }: { params: Prom
   const { side } = await searchParams;
   const user = await requireUser(`/books/${id}/cover`);
   const book = await getAccessibleBook(id, user);
-  const [photos, questions, chapters, locale, m] = await Promise.all([
+  const [photos, questions, chapters, locale, m, stats, built] = await Promise.all([
     container().authoring.queries.photos(book.id),
     container().authoring.queries.questions(book.id),
     container().authoring.queries.chapters(book.id),
     getLocale(),
     getMessages(),
+    container().authoring.queries.stats(book),
+    // Готовый макет — точное число страниц, как у cover.pdf; нет — оценка (как в штабе книги).
+    container().previews.current(book.id).catch(() => null),
   ]);
   const theme = getTheme(book.theme, locale);
   // Где каждое фото в книге — та же сборка, что у PDF и вкладки «Фото»: подписи в выборе фото обложки.
@@ -52,6 +55,8 @@ export default async function CoverPage({ params, searchParams }: { params: Prom
         // Пустое название обложка шаблона печатает названием по умолчанию (как PDF) — оно и на превью.
         defaultTitle={buildBookContent({ ...book, title: "" }, [], [], chapters).title}
         format={book.format}
+        // Страниц — как у печати: от них корешок и место своего фона на обороте и корешке.
+        pages={built?.pageCount ?? stats.printedPages}
         editable={book.status === "draft"}
         recipientLabel={theme.recipientLabel ?? ""}
         sample={bookSpreadSample(book, questions, chapters, m.books.pages.dedicationEmpty, photos)}

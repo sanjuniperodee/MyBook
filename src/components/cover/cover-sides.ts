@@ -17,16 +17,16 @@ function templateSpread(templateId: string, g: CoverGeometry, uid: string, photo
 }
 
 /** Холст конструктора оборота: задняя крышка и вокруг неё wrap мм развёртки (слева загиб, справа шарнир и корешок). */
-export function backCanvasSvg(templateId: string, formatId: string, front: CoverDesign | null, back: CoverBack | null, wrap: number, uid: string) {
-  const g = coverSpreadGeometry(getFormat(formatId), PREVIEW_PAGES);
+export function backCanvasSvg(templateId: string, formatId: string, front: CoverDesign | null, back: CoverBack | null, wrap: number, uid: string, pages = PREVIEW_PAGES) {
+  const g = coverSpreadGeometry(getFormat(formatId), pages || PREVIEW_PAGES);
   const b = g.back!;
   const win: Rect = { x: b.x - wrap, y: b.y - wrap, w: b.w + wrap * 2, h: b.h + wrap * 2 };
   return backFaceSvg(front, back, g, win, uid) ?? cropSvg(templateSpread(templateId, g, uid), win, { w: g.width, h: g.height });
 }
 
 /** Корешок: свой фон (лица или оборота) или кусок рисунка шаблона. */
-export function spineSvg(templateId: string, formatId: string, front: CoverDesign | null, back: CoverBack | null, uid: string, photos?: (PhotoRef | undefined)[]) {
-  const g = coverSpreadGeometry(getFormat(formatId), PREVIEW_PAGES);
+export function spineSvg(templateId: string, formatId: string, front: CoverDesign | null, back: CoverBack | null, uid: string, photos?: (PhotoRef | undefined)[], pages = PREVIEW_PAGES) {
+  const g = coverSpreadGeometry(getFormat(formatId), pages || PREVIEW_PAGES);
   const s = g.spine!;
   const own = ownSpreadArt(front, back, g, uid);
   if (own.over) return svgWindow(own.over, s);

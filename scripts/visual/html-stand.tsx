@@ -31,7 +31,7 @@ function Stand({ view }: { view: StandView }) {
     case "cover":
       return <CoverPreview {...view.cover} />;
     case "back":
-      return <CoverBackPreview template={view.back.template} format={view.format} content={view.back.content} photos={view.back.photos} />;
+      return <CoverBackPreview template={view.back.template} format={view.format} content={view.back.content} photos={view.back.photos} design={view.back.design} back={view.back.back} texts={view.back.texts} pages={view.back.pages} />;
     default:
       return <Spread view={view} />;
   }

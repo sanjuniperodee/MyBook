@@ -5,7 +5,7 @@
  * без размытия, подложка — заливкой рамки, кадр фото — той же математикой (cssFrame ↔ bakeFrame).
  */
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
-import { cssFont } from "@/lib/book/fonts";
+import { cssFont, pdfLineCss } from "@/lib/book/fonts";
 import { hexAlpha } from "@/lib/color";
 import { cssFrame } from "@/lib/book/photo-frame";
 import {
@@ -65,6 +65,8 @@ export function textCss(style: TextLayer["style"], size = style.size): CSSProper
   const copies = textCopies(style);
   return {
     fontFamily: cssFont(style.font),
+    // Строки — на местах строк PDF (без полуинтерлиньяжа CSS).
+    ...pdfLineCss(style.font),
     fontWeight: style.weight,
     fontStyle: style.italic ? "italic" : "normal",
     fontSize: `${size * 100}cqw`,

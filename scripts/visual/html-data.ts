@@ -1,10 +1,11 @@
 import type { SpreadKind, SpreadSample } from "@/components/interior/InteriorSpread";
 import type { Locale } from "@/i18n/config";
 import { messagesFor } from "@/i18n/messages";
+import { parseCoverBack, parseCoverDesign, type CoverBack, type CoverDesign, type CoverTexts } from "@/lib/book/cover-design";
 import { backContent, backPhotoIds, type BackContent } from "@/lib/book/cover-back";
 import type { PhotoSpec } from "@/lib/book/covers/svg-kit";
 import { editorBook, editorModel } from "@/lib/book/editor-data";
-import { editorContent } from "@/lib/book/editor-estimate";
+import { contentPages, editorContent } from "@/lib/book/editor-estimate";
 import { frontMatter, type FrontMatter } from "@/lib/book/estimate";
 import { previewFromContent, type PreviewChapter, type PreviewGallery } from "@/lib/book/editor-model";
 import type { BookContent } from "@/lib/book/layout";
@@ -57,6 +58,11 @@ export interface BackData {
   template: string;
   content: BackContent;
   photos: PhotoSpec[];
+  design: CoverDesign | null;
+  back: CoverBack | null;
+  texts: CoverTexts;
+  /** Страниц в книге (оценка, как у страницы обложки без готового макета): по ним развёртка оборота. */
+  pages: number;
 }
 
 export type StandView = ViewBase &
@@ -75,10 +81,27 @@ function editorPreview({ book, questions, chapters: ownChapters, photos, letters
   return { language: book.language, bookTitle: book.title, chapters, gallery, openersLeft: !!content.openersLeft, ...(content.chapterStart ? { chapterStart: content.chapterStart } : {}), front: frontMatter(content), currentId };
 }
 
+/** Страниц в книге по оценке редактора (contentPages) — как печатный объём, пока макет не собран. */
+export function bookPages({ book, questions, chapters, photos, letters }: Pick<FixtureBook["bundle"], "book" | "questions" | "chapters" | "photos" | "letters">) {
+  const model = editorModel(book, questions, chapters, photos, (letters ?? []).filter((l) => l.status === "approved"));
+  const eb = editorBook(book, model.coverPhotos);
+  return contentPages(editorContent(eb, model.questions, model.photos, model.letters, model.chapters)).printed;
+}
+
 /** Оборот, как в редакторе обложки (CoverEditor): содержимое — те же поля, что backContent (год — из occasionDate или текущий), фото — backPhotoRefs. */
-function backData({ book, photos }: FixtureBook["bundle"]): BackData {
+function backData({ book, questions, chapters, photos, letters }: FixtureBook["bundle"]): BackData {
   const list = backPhotoIds(book).flatMap((id) => photos.filter((p) => p.id === id));
-  return { template: book.coverTemplate, content: backContent(book, list.map((p) => ({ width: p.width, height: p.height })), new Date()), photos: backPhotoRefs(list, book, "view") };
+  // Свой фон лица, слои оборота и надписи для привязанных слоёв — как CoverEditor передаёт CoverBackPreview.
+  const { title, subtitle, names } = flipbookData(book, questions, chapters, photos).cover;
+  return {
+    template: book.coverTemplate,
+    content: backContent(book, list.map((p) => ({ width: p.width, height: p.height })), new Date()),
+    photos: backPhotoRefs(list, book, "view"),
+    design: parseCoverDesign(book.coverDesign),
+    back: parseCoverBack(book.coverBack),
+    texts: { title: title ?? "", subtitle: subtitle ?? "", names: names ?? "" },
+    pages: bookPages({ book, questions, chapters, photos, letters }),
+  };
 }
 
 export function standViews(fixture: FixtureBook): StandView[] {

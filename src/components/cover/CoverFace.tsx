@@ -1,12 +1,12 @@
 import type { CoverMeta } from "@/lib/book/covers/meta";
 import type { CoverTemplate, CoverTextStyle } from "@/lib/book/covers/types";
-import { cssFont } from "@/lib/book/fonts";
+import { cssFont, pdfLineCss } from "@/lib/book/fonts";
 import { printableText } from "@/lib/book/printable";
 import { coverArtUrl } from "@/lib/urls";
 import { cn } from "@/lib/class-names";
 import { fitWordSize } from "@/lib/book/word-fit";
 import { templateTextLayout } from "@/lib/book/cover-design/template-text";
-import { boardOf, getFormat } from "@/lib/book/formats";
+import { boardOf, getFormat, MM_TO_PT } from "@/lib/book/formats";
 
 /**
  * Лицевая сторона обложки по метаданным шаблона: фон — кэшируемая картинка /api/covers (или готовый SVG
@@ -15,6 +15,8 @@ import { boardOf, getFormat } from "@/lib/book/formats";
 function textCss(s: CoverTextStyle, align: CoverTemplate["align"] = "center", size = s.size): React.CSSProperties {
   return {
     fontFamily: cssFont(s.font),
+    // Строки — на местах строк PDF (без полуинтерлиньяжа CSS).
+    ...pdfLineCss(s.font),
     fontSize: `${size * 100}cqw`,
     color: s.color,
     fontWeight: s.weight ?? 400,
@@ -27,13 +29,20 @@ function textCss(s: CoverTextStyle, align: CoverTemplate["align"] = "center", si
   };
 }
 
-export function Ornament({ kind, color, size = "3.5cqw" }: NonNullable<CoverTemplate["ornament"]> & { size?: string }) {
-  if (kind === "line") return <span style={{ display: "block", width: `calc(${size} * 4)`, height: 1, background: color }} />;
+/** Толщина линии-украшения в PDF (pdf/cover.tsx: CoverOrnament), pt. */
+export const ORNAMENT_LINE_PT = 0.6;
+
+/**
+ * Украшение над именами — как CoverOrnament у PDF: всё в долях size; линия — 4 size шириной (не сжимается, выходит за
+ * блок по центру) и ORNAMENT_LINE_PT толщиной — line задаёт её в единицах контейнера, без неё 1 px.
+ */
+export function Ornament({ kind, color, size = "3.5cqw", line }: NonNullable<CoverTemplate["ornament"]> & { size?: string; line?: string }) {
+  if (kind === "line") return <span style={{ display: "block", flexShrink: 0, width: `calc(${size} * 4)`, height: line ?? 1, background: color }} />;
   if (kind === "dots")
     return (
-      <span style={{ display: "flex", gap: "0.8cqw" }}>
+      <span style={{ display: "flex", flexShrink: 0 }}>
         {[0, 1, 2].map((i) => (
-          <span key={i} style={{ width: "1cqw", height: "1cqw", borderRadius: 99, background: color }} />
+          <span key={i} style={{ width: `calc(${size} * 0.28)`, height: `calc(${size} * 0.28)`, margin: `0 calc(${size} * 0.22)`, borderRadius: 99, background: color }} />
         ))}
       </span>
     );
@@ -76,7 +85,7 @@ export function CoverText({
   const items = align === "left" ? "flex-start" : align === "right" ? "flex-end" : "center";
   const ornament = template.ornament && names ? (
     <div style={{ margin: "3cqw 0", display: "flex", justifyContent: items }}>
-      <Ornament {...template.ornament} />
+      <Ornament {...template.ornament} line={`${(ORNAMENT_LINE_PT / (boardOf(getFormat(format)).w * MM_TO_PT)) * 100}cqw`} />
     </div>
   ) : (
     <div style={{ height: "3.5cqw" }} />

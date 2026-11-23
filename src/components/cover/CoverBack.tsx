@@ -1,9 +1,13 @@
 import type { BackDesign } from "@/lib/book/cover-back";
 import { photoHref, type PhotoRef } from "@/lib/book/covers/svg-kit";
 import { cssFrame } from "@/lib/book/photo-frame";
-import { cssFont } from "@/lib/book/fonts";
+import { cssFont, pdfLineOffset } from "@/lib/book/fonts";
 import { hexAlpha } from "@/lib/color";
-import { Ornament } from "./CoverPreview";
+import { MM_TO_PT } from "@/lib/book/formats";
+import { Ornament, ORNAMENT_LINE_PT } from "./CoverFace";
+
+/** Разрядка марки на обороте, pt — как у PDF (pdf/cover.tsx: BackSide). */
+const BRAND_TRACKING_PT = 2;
 
 /**
  * Задняя сторона поверх фона — по той же раскладке, что и PDF (src/lib/book/cover-back.ts).
@@ -24,6 +28,8 @@ export function CoverBackLayer({ design, widthMm, heightMm, photos = [], brand }
               style={{
                 ...box,
                 fontFamily: cssFont(b.font),
+                // Строки — на местах строк PDF (без полуинтерлиньяжа CSS); блок стоит абсолютно — сдвиг отступом.
+                marginTop: pdfLineOffset(b.font),
                 fontSize: cq(b.size),
                 lineHeight: b.lineHeight,
                 fontStyle: b.italic ? "italic" : "normal",
@@ -43,7 +49,7 @@ export function CoverBackLayer({ design, widthMm, heightMm, photos = [], brand }
         if (b.kind === "ornament")
           return (
             <div key={i} style={{ ...box, height: y(b.h), display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Ornament kind={b.ornament} color={b.color} size={cq(b.w)} />
+              <Ornament kind={b.ornament} color={b.color} size={cq(b.w)} line={cq(ORNAMENT_LINE_PT / MM_TO_PT)} />
             </div>
           );
         if (b.kind === "shade")
@@ -78,7 +84,7 @@ export function CoverBackLayer({ design, widthMm, heightMm, photos = [], brand }
         );
       })}
       <div
-        style={{ position: "absolute", left: 0, right: 0, top: y(design.brand.y), textAlign: "center", textTransform: "uppercase", fontFamily: cssFont("montserrat"), fontWeight: 500, fontSize: cq(design.brand.size), letterSpacing: "0.3em", color: design.brand.color, opacity: 0.75 }}
+        style={{ position: "absolute", left: 0, right: 0, top: y(design.brand.y), textAlign: "center", textTransform: "uppercase", fontFamily: cssFont("montserrat"), fontWeight: 500, fontSize: cq(design.brand.size), letterSpacing: cq(BRAND_TRACKING_PT / MM_TO_PT), color: design.brand.color, opacity: 0.75 }}
       >
         {brand}
       </div>

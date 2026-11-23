@@ -15,9 +15,13 @@ import { Lru } from "@/lib/lru";
  * Обложки на снимках и с фото клиента (на снимках-примерах) — JPEG: картинка-SVG не может загрузить снимок,
  * поэтому растрируем на сервере.
  */
-const FILE = /^([a-z0-9]+)-([a-z0-9]+)(-lite)?(-back|-backplain)?\.(svg|jpg|webp)$/;
-/** Толщина книги для фона задней крышки в редакторе: от неё зависит только стык узора с корешком. */
+const FILE = /^([a-z0-9]+)-([a-z0-9]+)(-lite)?(-back|-backplain)?(?:-p(\d{1,4}))?\.(svg|jpg|webp)$/;
+/**
+ * Толщина книги для фона задней крышки, когда страниц в адресе нет (-p<страниц>). От неё зависит, где на обороте рисунок
+ * и снимок шаблона, растянутые на всю развёртку, — с настоящим числом страниц оборот такой же, как в cover.pdf.
+ */
 const PREVIEW_PAGES = 120;
+const MAX_PAGES = 2000;
 type Entry = { type: string; raw: string | Buffer; br?: Buffer; gzip?: Buffer };
 /**
  * Готовые фоны в памяти процесса. Вариантов много (шаблон × формат × миниатюра × сторона), а запись — до
@@ -30,13 +34,13 @@ const cache = new Lru<string, Entry>(200);
 /** Ширина растра снимка-обложки: миниатюра в выборе и крупное превью. */
 const PHOTO_PX = { lite: 420, full: 1000 };
 
-async function photoArt(template: CoverTemplate, format: BookFormat, lite: boolean, back: boolean, plainBack: boolean, webp: boolean): Promise<Buffer> {
+async function photoArt(template: CoverTemplate, format: BookFormat, lite: boolean, back: boolean, plainBack: boolean, webp: boolean, pages: number): Promise<Buffer> {
   const px = lite ? PHOTO_PX.lite : PHOTO_PX.full;
   // Снимок встраиваем уменьшенным: на холсте развёртки он примерно вдвое шире лица.
   const imageHref = template.photo ? await coverPhotoDataUrl(template.photo.photo.key, lite ? 900 : 2400) : undefined;
   // Обложка с фото клиента — на снимках-примерах: место под фото меньше лица, хватает меньшего размера.
   const samples = new Map(await Promise.all((template.samples ?? []).map(async (k) => [k, await coverPhotoDataUrl(k, lite ? 700 : 1400)] as const)));
-  const g = back ? coverSpreadGeometry(format, PREVIEW_PAGES) : coverFrontGeometry(format);
+  const g = back ? coverSpreadGeometry(format, pages) : coverFrontGeometry(format);
   const side = back ? g.back! : g.front;
   let svg = renderCoverSvg(template, g, { uid: `${template.id}${format.id}`, imageHref, sampleHref: (k) => samples.get(k) ?? "" }, { plainBack });
   if (back) svg = cropSvg(svg, side, { w: g.width, h: g.height });
@@ -53,7 +57,11 @@ async function art(file: string): Promise<Entry | null> {
   if (!m || !isKnownCover(m[1]) || !(m[2] in formats)) return null;
   const template = getCoverTemplate(m[1]);
   const raster = !!(template.photo || template.samples);
-  if ((m[5] !== "svg") !== raster) return null;
+  if ((m[6] !== "svg") !== raster) return null;
+  // Страницы — только у оборота.
+  if (m[5] && !m[4]) return null;
+  const pages = m[5] ? Number(m[5]) : PREVIEW_PAGES;
+  if (pages < 1 || pages > MAX_PAGES) return null;
   const key = `${file}@${template.rev ?? 0}`;
   const hit = cache.get(key);
   if (hit) return hit;
@@ -62,13 +70,13 @@ async function art(file: string): Promise<Entry | null> {
   const plainBack = m[4] === "-backplain";
   let entry: Entry;
   if (raster) {
-    const webp = m[5] === "webp";
-    entry = { type: webp ? "image/webp" : "image/jpeg", raw: await photoArt(template, format, !!m[3], !!m[4], plainBack, webp) };
+    const webp = m[6] === "webp";
+    entry = { type: webp ? "image/webp" : "image/jpeg", raw: await photoArt(template, format, !!m[3], !!m[4], plainBack, webp, pages) };
   } else {
     let raw: string;
     if (m[4]) {
       // Задняя крышка — кусок развёртки: так её узор и повтор композиции лица такие же, как в печати.
-      const g = coverSpreadGeometry(format, PREVIEW_PAGES);
+      const g = coverSpreadGeometry(format, pages);
       raw = cropSvg(renderCoverSvg(template, g, { uid: `${template.id}${format.id}b` }, { noTexture: !!m[3], plainBack }), g.back!, { w: g.width, h: g.height });
     } else raw = renderCoverSvg(template, coverFrontGeometry(format), { uid: `${template.id}${format.id}` }, { noTexture: !!m[3] });
     entry = { type: "image/svg+xml; charset=utf-8", raw, br: brotliCompressSync(raw, { params: { [constants.BROTLI_PARAM_QUALITY]: 11 } }), gzip: gzipSync(raw, { level: 9 }) };

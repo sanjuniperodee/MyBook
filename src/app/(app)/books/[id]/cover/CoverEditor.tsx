@@ -123,6 +123,7 @@ export function CoverEditor({
   blank = false,
   initialSide = "front",
   defaultTitle,
+  pages = PREVIEW_PAGES,
 }: {
   /** Название книги по умолчанию — его печатает обложка шаблона, пока своё не вписано (на превью — вместо пустого). */
   defaultTitle?: string;
@@ -146,6 +147,8 @@ export function CoverEditor({
   blank?: boolean;
   /** Сторона из адреса (?side=back) — ссылка ведёт сразу на оборот. */
   initialSide?: CoverSide;
+  /** Страниц в книге — как у cover.pdf: от них корешок и место своего фона на обороте. */
+  pages?: number;
 }) {
   const [state, setState] = useState(initial);
   const router = useRouter();
@@ -268,7 +271,7 @@ export function CoverEditor({
     const key = frameKey("cover", b.slot);
     return p ? [{ ...b, key, photo: { width: p.width, height: p.height }, frame: state.photoFrames[key] ?? DEFAULT_FRAME }] : [];
   });
-  const backLayoutInfo = backPreviewLayout(state.coverTemplate, format, backContent, state.coverDesign, state.coverBack);
+  const backLayoutInfo = backPreviewLayout(state.coverTemplate, format, backContent, state.coverDesign, state.coverBack, pages);
   const backLayered = !!state.coverBack?.layers;
   const backSlots: FrameSlot[] = backSlotBoxes(backLayoutInfo.design, backLayoutInfo.back.w, backLayoutInfo.back.h).flatMap((b) => {
     const p = backPhotos[b.slot];
@@ -283,6 +286,7 @@ export function CoverEditor({
   const renderSide = (className: string, uid: string, lite = false) =>
     side === "back" ? (
       <CoverBackPreview
+        pages={pages}
         template={state.coverTemplate}
         format={format}
         content={backContent}
@@ -342,7 +346,7 @@ export function CoverEditor({
     const ids = backPhotos.map((p) => p.id);
     for (const id of fillOrder) if (ids.length < need && !ids.includes(id)) ids.push(id);
     const list = ids.flatMap((id) => photos.filter((p) => p.id === id));
-    const info = backPreviewLayout(state.coverTemplate, format, { ...backContent, layout, photos: list.map((p) => ({ width: p.width, height: p.height })) }, state.coverDesign, { v: 1, background: backBg });
+    const info = backPreviewLayout(state.coverTemplate, format, { ...backContent, layout, photos: list.map((p) => ({ width: p.width, height: p.height })) }, state.coverDesign, { v: 1, background: backBg }, pages);
     return backLayersFromLayout(info.design, info.back.w, info.back.h, { photoIds: ids, frames: ids.map((_, i) => state.photoFrames[frameKey("back", i)]), names: coverNamesLine });
   };
 
@@ -387,8 +391,8 @@ export function CoverEditor({
   };
 
   // ─── обложка целиком ──────────────────────────────────────────────────────
-  const spread = coverSpreadGeometry(getFormat(format), PREVIEW_PAGES);
-  const spineHtml = spineSvg(state.coverTemplate, format, state.coverDesign, state.coverBack, "sp", coverPhotos);
+  const spread = coverSpreadGeometry(getFormat(format), pages || PREVIEW_PAGES);
+  const spineHtml = spineSvg(state.coverTemplate, format, state.coverDesign, state.coverBack, "sp", coverPhotos, pages);
   const spreadStrip = (className: string, uid: string) => (
     <SpreadStrip
       side={side}
@@ -397,6 +401,7 @@ export function CoverEditor({
       widths={{ back: spread.back!.w, spine: spread.spine!.w, front: spread.front.w, height: spread.front.h }}
       back={
         <CoverBackPreview
+          pages={pages}
           template={state.coverTemplate}
           format={format}
           content={backContent}
@@ -802,7 +807,7 @@ export function CoverEditor({
                 editable={editable}
                 side="back"
                 active={side === "back"}
-                backdrop={backCanvasSvg(state.coverTemplate, format, state.coverDesign, state.coverBack, 8, "bkc")}
+                backdrop={backCanvasSvg(state.coverTemplate, format, state.coverDesign, state.coverBack, 8, "bkc", pages)}
                 underlay={repeatedFrontLayers(state.coverDesign, state.coverBack)}
                 baseColor={likeFrontBase}
                 colors={frontColors}

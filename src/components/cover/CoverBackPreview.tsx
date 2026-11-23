@@ -10,16 +10,19 @@ import { cn } from "@/lib/class-names";
 import { CoverBackLayer } from "./CoverBack";
 import { CoverLayers } from "./CoverLayers";
 
-/** Толщина не влияет на заднюю крышку — берём типичную, как у фона из /api/covers/…-back.svg. */
+/**
+ * Страниц в книге, когда их число ещё неизвестно (пустая книга). Толщина сдвигает по развёртке свой фон, растянутый на
+ * всю обложку: на обороте и корешке он стоит, как в cover.pdf, только при настоящем числе страниц (pages).
+ */
 export const PREVIEW_PAGES = 120;
 
 /**
  * Раскладка оборота для превью: нужна и самому превью, и редактору (места под фото для кадрирования). Цвета надписей —
  * по фону, который на обороте на самом деле (свой фон лица или оборота), как в PDF (templateForCover).
  */
-export function backPreviewLayout(templateId: string, formatId: string, content: BackContent, front: CoverDesign | null = null, back: CoverBack | null = null) {
+export function backPreviewLayout(templateId: string, formatId: string, content: BackContent, front: CoverDesign | null = null, back: CoverBack | null = null, pages = PREVIEW_PAGES) {
   const template = templateForCover(getCoverTemplate(templateId), front, back);
-  const g = coverSpreadGeometry(getFormat(formatId), PREVIEW_PAGES);
+  const g = coverSpreadGeometry(getFormat(formatId), pages || PREVIEW_PAGES);
   const rect = g.back!;
   return { template, g, back: rect, design: back?.layers ? layeredBack(template, rect.h) : designBack(template, rect.w, rect.h, content) };
 }
@@ -37,6 +40,7 @@ export function CoverBackPreview({
   back = null,
   texts,
   uid = "bp",
+  pages = PREVIEW_PAGES,
   lite,
   className,
 }: {
@@ -51,11 +55,13 @@ export function CoverBackPreview({
   /** Надписи книги для привязанных слоёв оборота. */
   texts?: CoverTexts;
   uid?: string;
+  /** Страниц в книге (как у cover.pdf): по ним развёртка и место своего фона на обороте. */
+  pages?: number;
   lite?: boolean;
   className?: string;
 }) {
   const format = getFormat(formatId);
-  const layout = backPreviewLayout(templateId, formatId, content, design, back);
+  const layout = backPreviewLayout(templateId, formatId, content, design, back, pages);
   const { template, g } = layout;
   const rect = layout.back;
   const own = backFaceSvg(design, back, g, rect, uid);
@@ -66,7 +72,7 @@ export function CoverBackPreview({
         <div aria-hidden className="absolute inset-0 [&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: own }} />
       ) : (
         // eslint-disable-next-line @next/next/no-img-element -- SVG-фон кэширует браузер
-        <img src={coverArtUrl(template, format.id, false, layout.design.plainArt ? "backPlain" : "back")} alt="" aria-hidden draggable={false} decoding="async" className="absolute inset-0 h-full w-full" />
+        <img src={coverArtUrl(template, format.id, false, layout.design.plainArt ? "backPlain" : "back", pages || PREVIEW_PAGES)} alt="" aria-hidden draggable={false} decoding="async" className="absolute inset-0 h-full w-full" />
       )}
       {repeated.length ? (
         // «Как спереди»: фото, фигуры и украшения лица на тех же местах, без надписей — как в PDF.
