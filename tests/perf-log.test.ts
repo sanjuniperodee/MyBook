@@ -57,6 +57,15 @@ describe("журнал замеров", () => {
     expect(takeCounters()["route:answer-file"]).toMatchObject({ n: 1, bytes: 3, statuses: { 206: 1 } });
   });
 
+  it("счётчики общие для всех копий модуля в процессе (рантаймы Next)", async () => {
+    const a = await import("@/shared/infrastructure/perfLog");
+    vi.resetModules();
+    const b = await import("@/shared/infrastructure/perfLog");
+    expect(a).not.toBe(b);
+    a.countPerf("route:photo", 10, 1, 200);
+    expect(b.takeCounters()["route:photo"]).toMatchObject({ n: 1, bytes: 10 });
+  });
+
   it("интервал замера: 5 минут по умолчанию, PERF_SAMPLE_MIN меняет", async () => {
     const { perfSampleMs } = await import("@/shared/infrastructure/perfLog");
     expect(perfSampleMs(undefined)).toBe(300_000);

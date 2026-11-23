@@ -50,7 +50,13 @@ export function memorySnapshot() {
 }
 
 type Counter = { n: number; bytes: number; ms: number; maxMs: number; statuses: Record<string, number> };
-const counters = new Map<string, Counter>();
+/**
+ * Таблица счётчиков — одна на процесс, в globalThis: Next загружает этот модуль отдельным экземпляром в каждом своём
+ * рантайме (инструментация, маршруты, страницы), а сброс раз в 5 минут идёт из инструментации (24.11: маршруты считали
+ * в свою копию, и в журнал ничего не попадало).
+ */
+const COUNTERS = Symbol.for("mybook.perfCounters");
+const counters: Map<string, Counter> = ((globalThis as Record<symbol, unknown>)[COUNTERS] ??= new Map<string, Counter>()) as Map<string, Counter>;
 
 /**
  * Счётчик отдачи файлов и чтений хранилища: сколько раз, сколько байт, сколько мс. Сбрасывается в журнал вместе с
