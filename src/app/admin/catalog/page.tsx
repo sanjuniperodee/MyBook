@@ -1,13 +1,12 @@
 import Link from "next/link";
-import { Plus, ShoppingBag } from "lucide-react";
+import { ShoppingBag } from "lucide-react";
 import { container } from "@/server/container";
 import { requireStaff } from "@/server/access";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { DrawerButton } from "@/components/admin/Drawer";
 import { Alert } from "@/components/ui/Alert";
 import { catalogLink } from "@/modules/messaging";
-import { ProductCard, ProductForm, SyncButton } from "./CatalogBoard";
+import { NewProductButton, ProductCard, SyncButton } from "./CatalogBoard";
 
 export const metadata = { title: "Каталог WhatsApp" };
 
@@ -29,9 +28,7 @@ export default async function AdminCatalog() {
         actions={
           <>
             <SyncButton />
-            <DrawerButton variant="primary" lazy label="Добавить товар" icon={<Plus className="size-4" aria-hidden />} title="Новый товар" description="Товар появится в каталоге WhatsApp после проверки WhatsApp" testId="new-product">
-              {(close) => <ProductForm currency={settings.currency} onDone={close} />}
-            </DrawerButton>
+            <NewProductButton currency={settings.currency} />
           </>
         }
       >
