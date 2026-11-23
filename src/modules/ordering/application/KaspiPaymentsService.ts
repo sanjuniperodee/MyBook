@@ -74,11 +74,17 @@ export class KaspiPaymentsService {
     private readonly aiPacks: KaspiAiPacks | null = null,
     /** Пакеты минут для своих видео и аудио (цель media_pack); устроены так же, как пакеты ИИ. */
     private readonly mediaPacks: KaspiAiPacks | null = null,
+    /**
+     * Слежка за кассиром сообщила руководителям, что Kaspi не принимает сессию (P0-2): в кассира вошли с другого
+     * устройства — сессия на месте, но оплаты не пройдут. Не подключено — не учитывается.
+     */
+    private readonly watchDown: () => Promise<boolean> = async () => false,
   ) {}
 
-  /** Показывать ли клиенту оплату через Kaspi: включена и кассир подключён. */
+  /** Показывать ли клиенту оплату через Kaspi: включена, кассир подключён и Kaspi не отверг его сессию. */
   async available(): Promise<boolean> {
     if (!(await this.enabled())) return false;
+    if (await this.watchDown().catch(() => false)) return false;
     return this.kaspi.connected().catch(() => false);
   }
 

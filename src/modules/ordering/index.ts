@@ -96,9 +96,10 @@ export class OrderingModule {
     this.cloudPayments = new CloudPaymentsWebhook(this.orders, this.gifts, undefined, dealInvoices);
     const kaspiPos = new KaspiPosClient(deps.kaspiConfig);
     const kaspiEnabled = async () => (await deps.kaspiConfig.config()).enabled;
-    this.kaspi = new KaspiPaymentsService(new DrizzlePaymentInvoiceRepository(), orderRepo, giftRepo, this.orders, this.gifts, kaspiPos, kaspiEnabled, deps.uow, deps.clock, deps.logger, dealInvoices, deps.aiPacks ?? null, deps.mediaPacks ?? null);
-    this.kaspiSetup = new KaspiSetupService(kaspiPos, deps.kaspiConfig);
     this.kaspiWatch = new KaspiWatchService(deps.kaspiConfig, kaspiPos, deps.settings, deps.notifier, deps.clock);
+    const watch = this.kaspiWatch;
+    this.kaspi = new KaspiPaymentsService(new DrizzlePaymentInvoiceRepository(), orderRepo, giftRepo, this.orders, this.gifts, kaspiPos, kaspiEnabled, deps.uow, deps.clock, deps.logger, dealInvoices, deps.aiPacks ?? null, deps.mediaPacks ?? null, () => watch.rejected());
+    this.kaspiSetup = new KaspiSetupService(kaspiPos, deps.kaspiConfig);
     this.mailer = new OrderingMailer(this.queries, this.gifts, deps.mailer, deps.giftPdf);
     this.subscribe(deps.bus);
   }

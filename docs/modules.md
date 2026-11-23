@@ -13,14 +13,14 @@
 | [access](#access) | Access: сотрудники, роли и права, правила безопасности, журнал. | 16 / 866 | 45 |
 | [assistant](#assistant) | AI-помощник (Claude, ChatGPT, DeepSeek или свой OpenAI-совместимый сервер). | 23 / 2266 | 25 |
 | [authoring](#authoring) | Authoring: книги, вопросы, оглавление своей книги, фото, письма близких. | 28 / 3800 | 70 |
-| [automation](#automation) | Автоматизации (цифровая воронка CRM). | 16 / 1935 | 9 |
+| [automation](#automation) | Автоматизации (цифровая воронка CRM). | 16 / 1942 | 9 |
 | [clients](#clients) | Клиенты CRM: профиль клиента, задачи и заметки менеджеров. | 9 / 1135 | 29 |
 | [feedback](#feedback) | Отзывы: отзыв клиента о книге, благодарность автору, модерация и витрина. | 12 / 641 | 7 |
 | [identity](#identity) | Identity: учётные записи, вход, пароли, второй фактор. | 17 / 1037 | 19 |
 | [marketing](#marketing) | Маркетинг: каналы привлечения, короткие ссылки, предложения из чата. | 10 / 596 | 13 |
-| [messaging](#messaging) | Переписка: единый инбокс, бот-квалификатор, виджет на сайте. | 55 / 15882 | 148 |
+| [messaging](#messaging) | Переписка: единый инбокс, бот-квалификатор, виджет на сайте. | 55 / 15901 | 148 |
 | [notifications](#notifications) | Уведомления: автописьма, напоминания из CRM, отписка. | 9 / 692 | 6 |
-| [ordering](#ordering) | Заказы. Остальной код видит только его. | 46 / 5675 | 91 |
+| [ordering](#ordering) | Заказы. Остальной код видит только его. | 46 / 5688 | 91 |
 | [production](#production) | Производство: вёрстка PDF книги и сертификатов, предпросмотры полос и обложек, файлы для типографии, очередь сборки. В container — previews (BookPreviewService) и printFiles. | 40 / 4569 | 0 |
 | [referrals](#referrals) | Приглашения: код для друзей, награда за их заказы и покупки из чата. | 10 / 358 | 3 |
 | [reporting](#reporting) | Отчёты CRM — сторона чтения (CQRS): сводные выборки по нескольким контекстам для страниц (дашборд, аналитика, поиск, «Мой день»). Только чтение, без бизнес-правил: команды идут через модули контекстов. | 44 / 4485 | 57 |
@@ -67,7 +67,7 @@ Authoring: книги, вопросы, оглавление своей книг�
 - Фасад: `AutomationModule` → `container().automation`
 - Публичное: `engine`, `rules`
 - Таблицы: `crm_automations`, `crm_automation_runs`
-- Тесты (7): `automation-runs.integration.test.ts`, `automation-scheduled.integration.test.ts`, `automation-subjects.integration.test.ts`, `automation.test.ts`, `crm.test.ts`, `holidays.test.ts`, `workspace-ports.test.ts`
+- Тесты (8): `automation-runs.integration.test.ts`, `automation-scheduled.integration.test.ts`, `automation-subjects.integration.test.ts`, `automation.test.ts`, `crm.test.ts`, `greeting-name.test.ts`, `holidays.test.ts`, `workspace-ports.test.ts`
 
 ## clients
 

@@ -149,6 +149,12 @@ export function setup(
       Object.assign(c, { lastText: text });
       if (author) Object.assign(c, { unread: 0, awaiting: null, awaitingSince: null, lastOutgoingAt: later(c.lastOutgoingAt, at) });
     },
+    revertOutgoing: async (id, at) => {
+      const c = convs.get(id)!;
+      if (c.lastOutgoingAt?.getTime() !== at.getTime()) return;
+      const ok = msgs.filter((m) => m.conv === id && m.dir === "out" && !m.internal && !m.source && m.status !== "error").map((m) => m.at.getTime());
+      c.lastOutgoingAt = ok.length ? new Date(Math.max(...ok)) : null;
+    },
     closeAsSpam: async (id) => void Object.assign(convs.get(id)!, { closed: true }),
     markRead: async (id) => void Object.assign(convs.get(id)!, { unread: 0 }),
     advanceBot: async (id, from, to) => {

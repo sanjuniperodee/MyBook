@@ -454,12 +454,14 @@ export class MessagingService {
     const reply = await this.replyTarget(conversationId, opts.replyToId);
     // Клиенту уходит текст целиком, в CRM — с маской секретов (ссылка «задайте пароль»).
     const msg = await this.messages.insertOutgoing(conversationId, redactSecrets(body), authorId, false, authorId ? undefined : source, { replyToId: reply?.id ?? null, forwarded: opts.forwarded });
-    await this.conversations.recordOutgoing(conversationId, preview(body), this.clock.now(), authorId);
+    const sentAt = this.clock.now();
+    await this.conversations.recordOutgoing(conversationId, preview(body), sentAt, authorId);
     if (authorId && conv.dealId) await this.sales.acceptUnsorted(conv.dealId, authorId, "ответ клиенту в чате");
     this.live.chatChanged(conversationId);
     const r = await this.transport.send(conv, msg.id, body, { replyTo: reply?.externalId ?? null, forwarded: opts.forwarded });
     if (!r.ok) {
       await this.messages.setStatus(msg.id, "error", r.error);
+      if (authorId) await this.conversations.revertOutgoing(conversationId, sentAt);
       this.live.chatChanged(conversationId);
       return { ...msg, status: "error" as const, error: r.error };
     }
@@ -482,12 +484,14 @@ export class MessagingService {
     const text = caption.trim().slice(0, 1000);
     const msg = await this.messages.insertOutgoing(conversationId, redactSecrets(text), authorId, false, undefined, { type: file.kind, mediaUrl: opts.mediaUrl, replyToId: reply?.id ?? null, forwarded: opts.forwarded });
     const label = file.kind === "image" ? "📷 Фото" : file.kind === "video" ? "🎬 Видео" : file.kind === "audio" ? "🎤 Голосовое" : `📎 ${file.name}`;
-    await this.conversations.recordOutgoing(conversationId, preview(text || label), this.clock.now(), authorId);
+    const sentAt = this.clock.now();
+    await this.conversations.recordOutgoing(conversationId, preview(text || label), sentAt, authorId);
     if (conv.dealId) await this.sales.acceptUnsorted(conv.dealId, authorId, "ответ клиенту в чате");
     this.live.chatChanged(conversationId);
     const r = await this.transport.sendFile(conv, file, { caption: text, replyTo: reply?.externalId ?? null, forwarded: opts.forwarded });
     if (!r.ok) {
       await this.messages.setStatus(msg.id, "error", r.error);
+      await this.conversations.revertOutgoing(conversationId, sentAt);
       this.live.chatChanged(conversationId);
       return { ...msg, status: "error" as const, error: r.error };
     }
@@ -508,12 +512,14 @@ export class MessagingService {
     await this.bot.stopByHuman(conversationId, "crm").catch((err) => this.logger.error("bot stop", err));
     const text = record.text.trim().slice(0, 4000);
     const msg = await this.messages.insertOutgoing(conversationId, text, authorId, false, undefined, { type: record.card.kind, mediaUrl: record.mediaUrl, card: record.card });
-    await this.conversations.recordOutgoing(conversationId, preview(text), this.clock.now(), authorId);
+    const sentAt = this.clock.now();
+    await this.conversations.recordOutgoing(conversationId, preview(text), sentAt, authorId);
     if (conv.dealId) await this.sales.acceptUnsorted(conv.dealId, authorId, "ответ клиенту в чате");
     this.live.chatChanged(conversationId);
     const r = await this.transport.sendCard(conv, out);
     if (!r.ok) {
       await this.messages.setStatus(msg.id, "error", r.error);
+      await this.conversations.revertOutgoing(conversationId, sentAt);
       this.live.chatChanged(conversationId);
       return { ...msg, status: "error" as const, error: r.error };
     }

@@ -332,7 +332,7 @@ export default async function DealPage({ params, searchParams }: { params: Promi
           {
             key: "history",
             label: "История",
-            node: <div className="min-h-0 flex-1 overflow-y-auto p-4">{canEdit ? <NotesTimeline notes={notes} clientId={deal.clientId} dealId={deal.id} mentionables={mentionables} whatsappTo={whatsappTo} /> : <NotesTimelineReadonly notes={notes} whatsappTo={whatsappTo} />}</div>,
+            node: <div className="min-h-0 flex-1 overflow-y-auto p-4">{canEdit ? <NotesTimeline notes={notes} clientId={deal.clientId} dealId={deal.id} mentionables={mentionables} whatsappTo={whatsappTo} draftBlocked={noMarketing} /> : <NotesTimelineReadonly notes={notes} whatsappTo={whatsappTo} draftBlocked={noMarketing} />}</div>,
           },
           ...(callRows.length ? [{ key: "calls", label: "Звонки", count: callRows.length, node: <DealCalls calls={screen.calls} canListen={can(staff, "calls.recordings")} /> }] : []),
         ]}

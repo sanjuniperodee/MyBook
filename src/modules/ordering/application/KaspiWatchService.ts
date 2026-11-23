@@ -113,6 +113,12 @@ export class KaspiWatchService {
 
   // ─── внутреннее ──────────────────────────────────────────────────────────
 
+  /** Kaspi отверг сессию кассира (вошли с другого устройства) и руководителям уже сообщили — клиентам Kaspi не показываем. */
+  async rejected(): Promise<boolean> {
+    const state = await this.load();
+    return !!state && !state.ok && state.alerted && state.reason === "rejected";
+  }
+
   private async load(): Promise<KaspiWatchState | null> {
     return kaspiWatchFromJson(await this.settings.get("kaspi.watch"));
   }

@@ -29,6 +29,11 @@ export interface ConversationRepository {
    * (правило «клиент молчит»); первый ответивший становится ответственным. Бот и правила (authorId = null) — нет.
    */
   recordOutgoing(id: string, text: string, at: Date, authorId: string | null): Promise<void>;
+  /**
+   * Ответ человека, записанный в at, шлюз не принял (P0-10): наш последний ответ — снова последнее принятое исходящее
+   * человека, иначе правило «клиент молчит» считало бы молчанием ответ, которого клиент не получил.
+   */
+  revertOutgoing(id: string, at: Date): Promise<void>;
   /** Спам: сообщение сохранено, диалог закрыт. */
   closeAsSpam(id: string, text: string, at: Date): Promise<void>;
   markRead(id: string): Promise<void>;

@@ -7,6 +7,17 @@ export const templateVars = ["{имя}", "{заказ}", "{ссылка}", "{м�
  */
 export const ruleTemplateVars = ["{имя}", "{заказ}", "{трек}", "{ссылка}", "{ссылка_на_заказ}", "{ссылка_на_книгу}", "{ссылка_на_оплату}", "{менеджер}", "{повод}", "{дата}", "{получатель}", "{Название своего поля}"] as const;
 
+/**
+ * Имя для обращения к клиенту в тексте правила: ник WhatsApp вроде «~Ayaulym~», «⁠Зарина», «✨», «.» или номер телефона —
+ * не имя. Края без букв срезаются, без букв или с цифрами вместо имени — пусто (fillTemplate тогда пишет
+ * «Здравствуйте!» без запятой).
+ */
+export function greetingName(raw: string | null | undefined): string {
+  const name = (raw ?? "").replace(/^[^\p{L}]+|[^\p{L}]+$/gu, "").replace(/\s+/g, " ");
+  if (!name || name.length > 40 || /\d/.test(name)) return "";
+  return name;
+}
+
 export function fillTemplate(
   text: string,
   vars: {

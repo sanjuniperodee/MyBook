@@ -253,7 +253,7 @@ export function DealCalls({ calls, canListen }: { calls: Screen["calls"]; canLis
   );
 }
 
-export function NotesTimelineReadonly({ notes, whatsappTo }: { notes: NoteItem[]; whatsappTo?: string | null }) {
+export function NotesTimelineReadonly({ notes, whatsappTo, draftBlocked }: { notes: NoteItem[]; whatsappTo?: string | null; draftBlocked?: boolean }) {
   return (
     <ol className="space-y-4 text-sm">
       {notes.map((n) => (
@@ -262,7 +262,7 @@ export function NotesTimelineReadonly({ notes, whatsappTo }: { notes: NoteItem[]
             {n.author} · {n.dateLabel}
           </div>
           <p className="mt-0.5 whitespace-pre-line">{n.text}</p>
-          {n.kind === "system" ? <DraftActions note={n.text} whatsappTo={whatsappTo} /> : null}
+          {n.kind === "system" ? <DraftActions note={n.text} whatsappTo={whatsappTo} blocked={draftBlocked} /> : null}
         </li>
       ))}
       {notes.length === 0 ? <p className="text-muted">Записей пока нет.</p> : null}
