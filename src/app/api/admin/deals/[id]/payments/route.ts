@@ -9,7 +9,7 @@ import { RECEIPT_MAX_BYTES, receiptProblem } from "@/modules/sales/domain";
 import { paymentProblemError, receiptProblemError } from "@/server/payment-errors";
 import { fromZonedTime } from "@/shared/domain/time";
 import { z } from "zod";
-import { formText, idParams } from "@/server/input";
+import { formText, idParams, requestKeyField } from "@/server/input";
 import { formatPrice } from "@/config/site";
 import { RECENT_ONLINE_MS } from "@/components/admin/invoices/model";
 import { parsePayForm } from "@/server/pay-form";
@@ -20,7 +20,7 @@ export const maxDuration = 60;
  * Поля формы платежа, кроме файла чека: тексты; вид — платёж или возврат. Подмена (файл вместо текста) → 400.
  * invoiceId — оплата по счёту из чата; seen — «это другая оплата»: открытый счёт и онлайн-оплаты, которые менеджер видел в форме.
  */
-const paymentForm = z.object({ kind: z.enum(["payment", "refund", ""]).default(""), note: formText, amount: formText, paidAt: formText, invoiceId: formText, seen: formText });
+const paymentForm = z.object({ kind: z.enum(["payment", "refund", ""]).default(""), note: formText, amount: formText, paidAt: formText, invoiceId: formText, seen: formText, requestKey: requestKeyField });
 
 /**
  * Защита от двойной записи: ручной платёж «не по счёту» при открытом счёте или недавней онлайн-оплате принимается, только
@@ -52,7 +52,11 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
   if (!deal) throw new HttpError(404, "dealNotFound");
   if (!canWork(staff, deal.assigneeId)) throw new HttpError(403, "forbidden");
   const form = await req.formData();
-  const fields = paymentForm.parse({ kind: form.get("kind") ?? undefined, note: form.get("note") ?? undefined, amount: form.get("amount") ?? undefined, paidAt: form.get("paidAt") ?? undefined, invoiceId: form.get("invoiceId") ?? undefined, seen: form.get("seen") ?? undefined });
+  const fields = paymentForm.parse({ kind: form.get("kind") ?? undefined, note: form.get("note") ?? undefined, amount: form.get("amount") ?? undefined, paidAt: form.get("paidAt") ?? undefined, invoiceId: form.get("invoiceId") ?? undefined, seen: form.get("seen") ?? undefined, requestKey: form.get("requestKey") ?? undefined });
+  // Повтор той же отправки (первая записала деньги, но ответ не дошёл: сбой письма, журнала, сети) — тот же платёж, без
+  // проверок ниже: счёт уже оплачен ею же, «недавняя оплата» — она сама, возврат уже вычтен из «можно вернуть».
+  const sent = fields.requestKey ? await c.sales.payments.findByRequestKey(fields.requestKey) : null;
+  if (sent && sent.dealId === deal.id) return NextResponse.json({ payment: { id: sent.id, amount: sent.amount, kind: sent.kind, paidAt: sent.paidAt }, repeated: true });
   // По сделке оформлен заказ — дальше деньги идут через заказ (его оплату подтверждают в заказе), иначе их посчитают дважды.
   // Исключение — возврат лишнего: внесённого по сделке сверх учтённого в заказе (у отменённого заказа — всего внесённого),
   // иначе такие деньги навсегда висят в «Финансах» как «нужен возврат».
@@ -93,7 +97,7 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
   }
 
   try {
-    const { payment } = await c.sales.intake.acceptWithReceipt({
+    const { payment, repeated } = await c.sales.intake.acceptWithReceipt({
       deal,
       kind: refund ? "refund" : "payment",
       amount,
@@ -102,9 +106,10 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
       payForm: payForm.form,
       receipt: { bytes, fileName: file.name },
       invoice: invoice ? { id: invoice.id, amount: invoice.amount } : null,
+      requestKey: fields.requestKey,
       actor: { userId: staff.user.id, name: staff.user.name || staff.user.email, seesAll: staff.scope === "all", allTasks: can(staff, "tasks.all") },
     });
-    if (!refund) await c.sales.deals.notePayForm(deal.id, payForm.form);
+    if (!refund && !repeated) await c.sales.deals.notePayForm(deal.id, payForm.form).catch((err) => console.error("[deal.payment] форма оплаты сделки не записана, деньги записаны", err));
     revalidatePath(`/admin/deals/${deal.id}`);
     revalidatePath("/admin");
     revalidatePath("/admin/analytics");

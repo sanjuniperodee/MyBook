@@ -1,7 +1,7 @@
 import "server-only";
 import type { AggregateRoot } from "../domain/AggregateRoot";
 import type { UnitOfWork } from "../application/UnitOfWork";
-import { rootDb, txStorage } from "./database";
+import { rootDb, runAfterCommit, txStorage } from "./database";
 import type { OutboxDispatcher } from "./OutboxDispatcher";
 
 /**
@@ -15,8 +15,10 @@ export class DrizzleUnitOfWork implements UnitOfWork {
   async run<T>(work: () => Promise<T>): Promise<T> {
     if (txStorage.getStore()) return work();
     let ids: string[] = [];
+    let after: { afterCommit?: (() => void)[] } | undefined;
     const result = await rootDb.transaction(async (tx) => {
-      const ctx = { tx, events: [], aggregates: new Set<AggregateRoot<object, string | number>>() };
+      const ctx: { tx: typeof tx; events: never[]; aggregates: Set<AggregateRoot<object, string | number>>; afterCommit?: (() => void)[] } = { tx, events: [], aggregates: new Set() };
+      after = ctx;
       return txStorage.run(ctx, async () => {
         const value = await work();
         const events = [...ctx.aggregates].flatMap((a) => a.pullEvents());
@@ -24,6 +26,7 @@ export class DrizzleUnitOfWork implements UnitOfWork {
         return value;
       });
     });
+    runAfterCommit(after);
     await this.outbox.dispatch(ids);
     return result;
   }

@@ -62,10 +62,18 @@ export class CloudPaymentsWebhook {
     switch (event) {
       case "check":
         return order.status === "pending_payment" ? 0 : 13;
-      case "pay":
+      case "pay": {
         // Ответ 0 в любом случае — деньги уже списаны; второй платёж или оплату отменённого заказа видит сотрудник (B13).
-        await this.orders.acceptProviderPayment({ orderId: order.id, paymentId: body.TransactionId ?? null, provider: "CloudPayments", operationId: body.TransactionId ?? "—", amount }, actor);
+        const ref = body.TransactionId?.trim();
+        // Ключ идемпотентности — номер операции: без него запись «—» склеила бы все такие оплаты в одну (вторая — «повтор»
+        // и пропала бы). Деньги не записываем, а оставляем сотруднику заметку — сверить с выпиской CloudPayments.
+        if (!ref) {
+          await this.orders.addNote(order.id, `CloudPayments: уведомление об оплате ${amount} ₸ без номера операции — сверьте с выпиской CloudPayments и примите оплату вручную`, actor);
+          return 0;
+        }
+        await this.orders.acceptProviderPayment({ orderId: order.id, paymentId: ref, provider: "CloudPayments", operationId: ref, amount }, actor);
         return 0;
+      }
       case "fail":
         await this.orders.recordPaymentFailure(order.id, body.Reason ?? body.ReasonCode ?? "", actor);
         return 0;

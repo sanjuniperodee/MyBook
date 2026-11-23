@@ -19,6 +19,8 @@ export interface ManualPaymentInput {
   payForm?: string | null;
   /** Чек обязателен: скриншот перевода, фото, PDF до 12 МБ. */
   receipt: { bytes: Buffer; fileName: string };
+  /** Ключ отправки формы: повтор той же отправки (сбой письма, журнала, сети) возвращает уже записанный платёж. */
+  requestKey?: string | null;
   actor: Actor & { userId: string };
 }
 
@@ -42,14 +44,22 @@ export interface RefundInput {
   receipt?: { bytes: Buffer; fileName: string } | null;
   /** Когда вернули; по умолчанию — сейчас. */
   paidAt?: Date;
+  /** Ключ отправки формы: повтор той же отправки возвращает уже записанный возврат. */
+  requestKey?: string | null;
   actor: Actor & { userId: string };
 }
 
 export interface VoidPaymentInput {
   paymentId: string;
+  /**
+   * Ещё записи того же заказа той же причиной — одной операцией (фиктивная пара «платёж + возврат»): заказ пересчитывается
+   * по итогу, без промежуточной «переплаты» или «ждёт доплату».
+   */
+  also?: string[];
   /** Причина — в журнал заказа, журнал оплат и журнал действий (от 3 символов). */
   reason: string;
-  actor: Actor & { userId: string };
+  /** userId null — сверка скриптом по поручению владельца (кто — в причине и журнале действий). */
+  actor: Actor & { userId: string | null };
 }
 
 /** Чек не проверяем на повтор (тесты, скрипты без базы): хэш пустой, совпадений нет. */
@@ -84,6 +94,17 @@ export class OrderPaymentsService {
     return sha256 || null;
   }
 
+  /**
+   * Эта отправка формы уже записана (повтор после сбоя письма, журнала или сети): тот же платёж, второй раз денег нет.
+   * Ключ другого заказа — не повтор, а ошибка формы.
+   */
+  private async sent(key: string | null | undefined, orderId: string) {
+    if (!key) return null;
+    const p = await this.payments.findByRequestKey(key);
+    if (p && p.orderId !== orderId) throw new OrderingError("paymentRule", "Эта форма уже отправлена по другому заказу — обновите страницу");
+    return p;
+  }
+
   list(orderId: string) {
     return this.payments.list(orderId);
   }
@@ -100,7 +121,10 @@ export class OrderPaymentsService {
     return { due: order.amount, received: order.received, refundable: order.refundable, postpay: order.postpay, settled: order.isSettled, rows: await this.payments.list(orderId) };
   }
 
-  async acceptManual(input: ManualPaymentInput): Promise<{ payment: OrderPaymentRecord; settled: boolean; overpaid: number }> {
+  async acceptManual(input: ManualPaymentInput): Promise<{ payment: OrderPaymentRecord; settled: boolean; overpaid: number; repeated: boolean }> {
+    // Повтор той же отправки — до проверки чека: иначе «этот чек уже приложен» к собственному платежу.
+    const before = await this.sent(input.requestKey, input.orderId);
+    if (before) return { payment: before, settled: (await this.orders.findById(input.orderId))?.isSettled ?? false, overpaid: 0, repeated: true };
     if (!Number.isInteger(input.amount) || input.amount <= 0) throw new OrderingError("invalidAmount", "Сумма — целое число больше нуля");
     if (!notInFuture(input.paidAt, this.clock.now())) throw new OrderingError("invalidAmount", "Дата оплаты не может быть в будущем");
     const problem = receiptProblem(input.receipt.bytes);
@@ -112,17 +136,22 @@ export class OrderPaymentsService {
     // Чек — до денег: без чека оплата не записывается; не записалась — файл убираем.
     await this.files.put(storageKey, input.receipt.bytes);
     try {
-      return await this.uow.run(async () => {
+      const out = await this.uow.run(async () => {
         const order = await this.orders.lockById(input.orderId);
         if (!order) throw new OrderingError("orderNotFound");
+        // Двойное нажатие: обе отправки прошли проверку выше, вторая ждала блокировку заказа — теперь видит первую.
+        const twin = await this.sent(input.requestKey, order.id);
+        if (twin) return { payment: twin, settled: order.isSettled, overpaid: 0, repeated: true };
         const receipt = { storageKey, fileName: safeReceiptName(input.receipt.fileName, type.ext), mime: type.mime, size: input.receipt.bytes.length, sha256 };
-        const record = { id, orderId: order.id, kind: "payment" as const, amount: input.amount, method: "manual" as const, externalRef: null, payForm: input.payForm ?? null, paidAt: input.paidAt, note: input.note.trim().slice(0, 500), receipt, createdById: input.actor.userId };
+        const record = { id, orderId: order.id, kind: "payment" as const, amount: input.amount, method: "manual" as const, externalRef: null, payForm: input.payForm ?? null, paidAt: input.paidAt, note: input.note.trim().slice(0, 500), receipt, requestKey: input.requestKey ?? null, createdById: input.actor.userId };
         const result = order.receiveMoney({ paymentId: `manual:${id}`, amount: input.amount, method: "manual", paidAt: input.paidAt, label: `${ORDER_MONEY_LABELS.manual}, чек ${receipt.fileName}${record.note ? ` — ${record.note}` : ""}`, actor: input.actor.label });
         await this.payments.add(record);
         await this.orders.save(order);
         this.uow.track(order);
-        return { payment: { ...record, reviewedById: null, reviewedAt: null, createdAt: this.clock.now() }, ...result };
+        return { payment: { ...record, reviewedById: null, reviewedAt: null, createdAt: this.clock.now() }, ...result, repeated: false };
       });
+      if (out.repeated) await this.files.remove(storageKey).catch(() => {});
+      return out;
     } catch (err) {
       await this.files.remove(storageKey).catch(() => {});
       throw err;
@@ -135,7 +164,9 @@ export class OrderPaymentsService {
    * блокировкой заказа, чтобы два возврата одновременно не вернули больше полученного. Ручной возврат попадает в
    * «Финансы» → «Проверить», как ручная оплата.
    */
-  async refund(input: RefundInput): Promise<{ payment: OrderPaymentRecord; refundable: number }> {
+  async refund(input: RefundInput): Promise<{ payment: OrderPaymentRecord; refundable: number; repeated: boolean }> {
+    const before = await this.sent(input.requestKey, input.orderId);
+    if (before) return { payment: before, refundable: (await this.orders.findById(input.orderId))?.refundable ?? 0, repeated: true };
     const note = input.note.trim().slice(0, 500);
     if (note.length < 3) throw new OrderingError("paymentRule", "Укажите причину возврата");
     if (!Number.isInteger(input.amount) || input.amount <= 0) throw new OrderingError("paymentRule", "Сумма возврата — целое число тенге больше нуля");
@@ -153,16 +184,20 @@ export class OrderPaymentsService {
       await this.files.put(receipt.storageKey, input.receipt.bytes);
     }
     try {
-      return await this.uow.run(async () => {
+      const out = await this.uow.run(async () => {
         const order = await this.orders.lockById(input.orderId);
         if (!order) throw new OrderingError("orderNotFound");
-        const record = { id, orderId: order.id, kind: "refund" as const, amount: input.amount, method: "manual" as const, externalRef: null, paidAt, note, receipt, createdById: input.actor.userId };
+        const twin = await this.sent(input.requestKey, order.id);
+        if (twin) return { payment: twin, refundable: order.refundable, repeated: true };
+        const record = { id, orderId: order.id, kind: "refund" as const, amount: input.amount, method: "manual" as const, externalRef: null, paidAt, note, receipt, requestKey: input.requestKey ?? null, createdById: input.actor.userId };
         const result = order.refundMoney({ amount: input.amount, paidAt, label: `${ORDER_MONEY_LABELS.manual}${receipt ? `, чек ${receipt.fileName}` : ", без чека"}`, reason: note, actor: input.actor.label });
         await this.payments.add(record);
         await this.orders.save(order);
         this.uow.track(order);
-        return { payment: { ...record, reviewedById: null, reviewedAt: null, createdAt: now }, refundable: result.refundable };
+        return { payment: { ...record, reviewedById: null, reviewedAt: null, createdAt: now }, refundable: result.refundable, repeated: false };
       });
+      if (out.repeated && receipt) await this.files.remove(receipt.storageKey).catch(() => {});
+      return out;
     } catch (err) {
       if (receipt) await this.files.remove(receipt.storageKey).catch(() => {});
       throw err;
@@ -170,7 +205,7 @@ export class OrderPaymentsService {
   }
 
   /**
-   * Руководитель отменяет ошибочный ручной платёж (или возврат): запись остаётся в журнале оплат с пометкой, кто, когда и
+   * Руководитель отменяет ошибочный ручной платёж (или возврат; also — несколько записей заказа сразу): запись остаётся в журнале оплат с пометкой, кто, когда и
    * почему, но в «получено», финансы, выручку и комиссии больше не входит; заказ пересчитывает деньги (Order.voidMoney) —
    * не хватает, снова ждёт доплату. Онлайн-оплату так не отменить: её подтвердила платёжная система (деньги пришли —
    * только возврат). Под блокировкой заказа, чтобы одновременная оплата не потерялась.
@@ -178,23 +213,31 @@ export class OrderPaymentsService {
   async voidPayment(input: VoidPaymentInput): Promise<{ payment: OrderPaymentRecord; received: number; outstanding: number; reopened: boolean }> {
     const reason = input.reason.trim().slice(0, 500);
     if (reason.length < 3) throw new OrderingError("paymentRule", "Укажите причину отмены платежа");
+    const ids = [input.paymentId, ...(input.also ?? [])];
+    if (new Set(ids).size !== ids.length) throw new OrderingError("paymentRule", "Платёж указан дважды");
+    const check = (p: OrderPaymentRecord | null, orderId: string) => {
+      if (!p || p.orderId !== orderId) throw new OrderingError("paymentRule", "Платёж не найден");
+      if (p.method !== "manual") throw new OrderingError("paymentRule", "Онлайн-оплату подтвердила платёжная система — её не отменить, только вернуть клиенту");
+      if (p.voidedAt) throw new OrderingError("paymentRule", "Платёж уже отменён");
+      return p;
+    };
     const found = await this.payments.find(input.paymentId);
     if (!found) throw new OrderingError("paymentRule", "Платёж не найден");
-    if (found.method !== "manual") throw new OrderingError("paymentRule", "Онлайн-оплату подтвердила платёжная система — её не отменить, только вернуть клиенту");
-    if (found.voidedAt) throw new OrderingError("paymentRule", "Платёж уже отменён");
+    check(found, found.orderId);
     const now = this.clock.now();
     return this.uow.run(async () => {
       const order = await this.orders.lockById(found.orderId);
       if (!order) throw new OrderingError("orderNotFound");
-      // Повторно — под блокировкой: два руководителя одновременно не отменят платёж дважды.
-      const p = await this.payments.find(found.id);
-      if (!p || p.voidedAt) throw new OrderingError("paymentRule", "Платёж уже отменён");
-      const label = `${ORDER_MONEY_LABELS.manual} от ${new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", timeZone: storeTimeZone() }).format(p.paidAt)}${p.receipt ? `, чек ${p.receipt.fileName}` : ""}${p.reviewedAt ? ", был отмечен проверенным" : ""}`;
-      const result = order.voidMoney({ kind: p.kind, amount: p.amount, label, reason, actor: input.actor.label, now });
-      await this.payments.void(p.id, input.actor.userId, now, reason);
+      // Повторно — под блокировкой: два руководителя одновременно не отменят платёж дважды. Все записи — этого заказа.
+      const rows: OrderPaymentRecord[] = [];
+      for (const id of ids) rows.push(check(await this.payments.find(id), order.id));
+      const day = new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", timeZone: storeTimeZone() });
+      const entries = rows.map((p) => ({ kind: p.kind, amount: p.amount, label: `${ORDER_MONEY_LABELS.manual} от ${day.format(p.paidAt)}${p.receipt ? `, чек ${p.receipt.fileName}` : ""}${p.reviewedAt ? ", был отмечен проверенным" : ""}` }));
+      const result = order.voidMoney({ ...entries[0], reason, actor: input.actor.label, now, also: entries.slice(1) });
+      for (const p of rows) await this.payments.void(p.id, input.actor.userId, now, reason);
       await this.orders.save(order);
       this.uow.track(order);
-      return { payment: { ...p, voidedAt: now, voidedById: input.actor.userId, voidReason: reason }, ...result };
+      return { payment: { ...rows[0], voidedAt: now, voidedById: input.actor.userId, voidReason: reason }, ...result };
     });
   }
 

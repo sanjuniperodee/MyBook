@@ -56,7 +56,8 @@ export function PaymentOptions(props: {
   unavailable?: string;
   /** Покупатель уже сообщил об оплате переводом — текст благодарности; null — ещё нет. */
   claimedText: string | null;
-  onClaim: () => Promise<void>;
+  /** «Я оплатил(а)»: ошибка (лимит попыток) — текстом над способами оплаты. */
+  onClaim: () => Promise<{ error?: string } | void>;
   kaspiTarget: KaspiTarget;
   kaspi: { initial: KaspiInvoiceView | null; defaultPhone: string; hints?: KaspiHints } | null;
   /** Перевод по реквизитам показывать всегда, а не только когда Kaspi недоступен (счёт из чата: менеджер обещал перевод). */
@@ -111,7 +112,17 @@ export function PaymentOptions(props: {
           {props.claimedText}
         </Alert>
       ) : (
-        <button className="btn btn-dark btn-lg mt-5" disabled={pending} onClick={() => start(props.onClaim)}>
+        <button
+          className="btn btn-dark btn-lg mt-5"
+          disabled={pending}
+          onClick={() =>
+            start(async () => {
+              setError(null);
+              const r = await props.onClaim();
+              if (r?.error) setError(r.error);
+            })
+          }
+        >
           {pending ? <LoaderCircle className="size-5 animate-spin" /> : null} {t.claim}
         </button>
       )}

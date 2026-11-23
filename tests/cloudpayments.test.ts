@@ -46,6 +46,16 @@ describe("CloudPayments: уведомления о заказе", () => {
     expect(t.orders.history).toHaveLength(history.length + 1);
   });
 
+  it("pay без номера операции — 0, деньги не записаны (не склеиваются с другими такими же), заметка сверить с выпиской", async () => {
+    const t = cloudSetup();
+    const order = await t.place();
+    const body = payment(String(order.number), order.amount, { TransactionId: "" });
+    expect(await t.webhook.handle("pay", body)).toBe(0);
+    expect(t.orders.rows.get(order.id)!.status).toBe("pending_payment");
+    expect(t.orders.history.at(-1)).toMatchObject({ orderId: order.id, status: null, note: expect.stringContaining("без номера операции") });
+    expect(count(t.uow.types(), "ordering.order_paid")).toBe(0);
+  });
+
   it("pay по отменённому заказу — 0, заказ остаётся отменённым, заметка «нужен возврат» (B13)", async () => {
     const t = cloudSetup();
     const order = await t.place();

@@ -10,6 +10,7 @@ import { toast } from "@/components/ui/overlays";
 import { formatPrice, getPlans } from "@/config/site";
 import { planLabels } from "@/modules/ordering/ui/labels";
 import { upgradeOrderToPrintedAction } from "@/app/admin/actions";
+import { useRequestKey } from "./requestKey";
 
 const fileCls = "block w-full text-sm file:mr-3 file:rounded-[var(--r-ctl)] file:border file:border-line-strong file:bg-white file:px-3 file:py-1.5 file:text-sm file:text-ink";
 
@@ -35,6 +36,7 @@ export function RefundPanel({ target, open, onClose, onDone }: { target: RefundT
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const receiptRequired = target.kind === "deal";
+  const sendKey = useRequestKey();
   const submit = (form: HTMLFormElement) =>
     start(async () => {
       setError(null);
@@ -45,6 +47,7 @@ export function RefundPanel({ target, open, onClose, onDone }: { target: RefundT
       const file = body.get("file");
       if (receiptRequired && !(file instanceof File && file.size)) return setError("Приложите чек возврата");
       if (target.kind === "deal") body.set("kind", "refund");
+      body.set("requestKey", sendKey.take());
       const url = target.kind === "deal" ? `/api/admin/deals/${target.id}/payments` : `/api/admin/orders/${target.id}/refunds`;
       try {
         const res = await fetch(url, { method: "POST", body });
@@ -54,8 +57,9 @@ export function RefundPanel({ target, open, onClose, onDone }: { target: RefundT
         };
         if (!res.ok) return setError(data.message ?? data.error ?? "Не удалось оформить возврат");
       } catch {
-        return setError("Нет связи — попробуйте ещё раз");
+        return setError("Нет связи — отправьте ещё раз: если возврат уже записался, второй раз он не запишется");
       }
+      sendKey.done();
       toast(`Возврат ${formatPrice(amount)} оформлен`);
       onClose();
       onDone?.();

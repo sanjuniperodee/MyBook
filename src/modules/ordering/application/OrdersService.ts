@@ -178,22 +178,28 @@ export class OrdersService {
    * заказу — заказ не трогаем, «переплата»: сотруднику заметка и задача «нужен возврат» (B13).
    */
   async acceptProviderPayment(cmd: { orderId: string; paymentId: string | null; provider: string; operationId: string; amount: number }, actor: Actor): Promise<"paid" | "duplicate" | "refundNeeded" | null> {
-    const order = await this.orders.findById(cmd.orderId);
-    if (!order) return null;
-    if (cmd.paymentId && order.paymentId === cmd.paymentId) return "duplicate";
-    if (this.money) {
-      const method = cmd.provider.toLowerCase() === "kaspi" ? "kaspi" : "cloudpayments";
-      const r = await this.money.recordOnline({ orderId: order.id, amount: cmd.amount, method, externalRef: cmd.operationId, paymentId: cmd.paymentId, paidAt: this.clock.now() }, actor);
-      if (r.status === "notFound") return null;
-      if (r.status === "duplicate") return "duplicate";
-      return r.overpaid > 0 ? "refundNeeded" : "paid";
-    }
-    if (order.status === "pending_payment") {
-      await this.confirmPayment({ orderId: order.id, paymentId: cmd.paymentId }, actor);
-      return "paid";
-    }
-    await this.addNote(order.id, `${cmd.provider}: повторная оплата ${formatPrice(cmd.amount)} (операция ${cmd.operationId}), заказ уже «${order.status}» — нужен возврат`, actor);
-    return "refundNeeded";
+    // Всё — под блокировкой заказа, как upgradeToPrinted: две оплаты одного заказа в одну секунду идут по очереди, и вторая
+    // видит заказ уже оплаченным («нужен возврат»), а не «ждёт оплаты» из чтения до блокировки.
+    return this.uow.run(async () => {
+      const order = await this.orders.lockById(cmd.orderId);
+      if (!order) return null;
+      if (cmd.paymentId && order.paymentId === cmd.paymentId) return "duplicate" as const;
+      if (this.money) {
+        const method = cmd.provider.toLowerCase() === "kaspi" ? "kaspi" : "cloudpayments";
+        // Вложенная транзакция — та же: журнал денег заказа и сам заказ пишутся вместе.
+        const r = await this.money.recordOnline({ orderId: order.id, amount: cmd.amount, method, externalRef: cmd.operationId, paymentId: cmd.paymentId, paidAt: this.clock.now() }, actor);
+        if (r.status === "notFound") return null;
+        if (r.status === "duplicate") return "duplicate" as const;
+        return r.overpaid > 0 ? ("refundNeeded" as const) : ("paid" as const);
+      }
+      const now = this.clock.now();
+      const paid = order.status === "pending_payment";
+      if (paid) order.markPaid(cmd.paymentId, actor.label, now);
+      else order.addNote(`${cmd.provider}: повторная оплата ${formatPrice(cmd.amount)} (операция ${cmd.operationId}), заказ уже «${order.status}» — нужен возврат`, actor.label, now);
+      await this.orders.save(order);
+      this.uow.track(order);
+      return paid ? ("paid" as const) : ("refundNeeded" as const);
+    });
   }
 
   async changeStatus(cmd: { orderId: string; to: OrderStatus; note?: string }, actor: Actor): Promise<Order> {

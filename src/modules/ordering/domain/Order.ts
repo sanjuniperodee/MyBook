@@ -523,24 +523,26 @@ export class Order extends AggregateRoot<OrderProps> {
   /**
    * Руководитель отменяет ошибочный платёж (не те деньги, фиктивная запись): «получено» уменьшается на платёж (отмена
    * ошибочного возврата — увеличивается), запись остаётся в журнале оплат с пометкой и причиной, а здесь — строка в журнале
-   * заказа. Не хватает денег — заказ снова ждёт доплату (reopenDue); отменили ошибочный возврат и стало больше «к оплате» —
-   * задача «возврат или зачёт».
+   * заказа. also — ещё записи того же заказа той же причиной (фиктивная пара «платёж + возврат»): заказ пересчитывается один
+   * раз по итогу, без промежуточной «переплаты» или «ждёт доплату». Итог меньше — не хватает денег, заказ снова ждёт доплату
+   * (reopenDue); больше — деньги покрыли «к оплате» (заказ оплачен) или новая переплата — задача «возврат или зачёт».
    */
-  voidMoney(v: { kind: "payment" | "refund"; amount: number; label: string; reason: string; actor: string; now: Date }): { received: number; outstanding: number; reopened: boolean } {
+  voidMoney(v: { kind: "payment" | "refund"; amount: number; label: string; reason: string; actor: string; now: Date; also?: { kind: "payment" | "refund"; amount: number; label: string }[] }): { received: number; outstanding: number; reopened: boolean } {
     const reason = v.reason.trim();
     if (reason.length < 3) throw new OrderingError("paymentRule", "Укажите причину отмены платежа");
-    if (!Number.isInteger(v.amount) || v.amount <= 0) throw new OrderingError("paymentRule", "Сумма платежа — целое число тенге больше нуля");
+    const entries = [{ kind: v.kind, amount: v.amount, label: v.label }, ...(v.also ?? [])];
+    for (const e of entries) if (!Number.isInteger(e.amount) || e.amount <= 0) throw new OrderingError("paymentRule", "Сумма платежа — целое число тенге больше нуля");
     const before = this.props.receivedAmount;
-    this.props.receivedAmount = v.kind === "refund" ? before + v.amount : before - v.amount;
-    this.log(null, `${v.kind === "refund" ? "Возврат" : "Платёж"} ${formatPrice(v.amount)} (${v.label}) отменён как ошибочный: в «получено» не входит. Причина: ${reason}. Получено ${formatPrice(before)} → ${formatPrice(this.props.receivedAmount)}`, v.actor, v.now);
+    for (const e of entries) {
+      const was = this.props.receivedAmount;
+      this.props.receivedAmount = e.kind === "refund" ? was + e.amount : was - e.amount;
+      this.log(null, `${e.kind === "refund" ? "Возврат" : "Платёж"} ${formatPrice(e.amount)} (${e.label}) отменён как ошибочный: в «получено» не входит. Причина: ${reason}. Получено ${formatPrice(was)} → ${formatPrice(this.props.receivedAmount)}`, v.actor, v.now);
+    }
     let reopened = false;
     if (this.props.status !== "cancelled") {
-      if (v.kind === "payment") reopened = this.reopenDue(v.actor, v.now);
-      else {
-        const due = this.props.price.amount;
-        const overpaid = Math.max(0, this.props.receivedAmount - Math.max(due, before));
-        if (overpaid > 0) this.record(OrderingEvents.orderOverpaid({ ...this.ref(), overpaid, method: "void" }));
-      }
+      const after = this.props.receivedAmount;
+      if (after < before) reopened = this.reopenDue(v.actor, v.now);
+      else if (after > before) this.settleIfCovered(v.actor, v.now, Math.max(0, before - this.props.price.amount), "void");
     }
     return { received: this.props.receivedAmount, outstanding: this.props.status === "cancelled" ? 0 : this.outstanding, reopened };
   }
@@ -549,7 +551,7 @@ export class Order extends AggregateRoot<OrderProps> {
    * Полученные деньги уже покрывают «к оплате» (сумму снизили): заказ оплачен; больше — переплата к возврату (задача —
    * только на новую переплату: сверх alreadyOverpaid, о которой уже знают).
    */
-  private settleIfCovered(actor: string, now: Date, alreadyOverpaid = 0) {
+  private settleIfCovered(actor: string, now: Date, alreadyOverpaid = 0, method: "reprice" | "void" = "reprice") {
     const due = this.props.price.amount;
     const received = this.props.receivedAmount;
     if (received < due || this.props.status === "cancelled") return;
@@ -559,7 +561,7 @@ export class Order extends AggregateRoot<OrderProps> {
       this.log(null, "Постоплата получена полностью", actor, now);
       this.record(OrderingEvents.orderPaid({ ...this.ref(), paymentId: null, actor, settled: true }));
     }
-    if (received - due > alreadyOverpaid) this.record(OrderingEvents.orderOverpaid({ ...this.ref(), overpaid: received - due, method: "reprice" }));
+    if (received - due > alreadyOverpaid) this.record(OrderingEvents.orderOverpaid({ ...this.ref(), overpaid: received - due, method }));
   }
 
   /**

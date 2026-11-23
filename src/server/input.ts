@@ -34,6 +34,12 @@ export function idParams<P extends Record<string, string>>(params: P, ...keys: (
 /** Текстовое поле формы: нет поля — пустая строка (как String(form.get(name) ?? "")); файл вместо текста — ошибка. */
 export const formText = z.string().default("");
 
+/**
+ * Ключ отправки формы денег (uuid, браузер создаёт при открытии формы): повтор той же отправки после сбоя — тот же платёж,
+ * а не второй. Нет поля (старая вкладка) — null.
+ */
+export const requestKeyField = z.union([z.literal(""), uuid]).default("").transform((v) => v || null);
+
 /** Поля FormData как объект — для z.object(...).safeParse. */
 export const formObject = (form: FormData) => Object.fromEntries(form);
 

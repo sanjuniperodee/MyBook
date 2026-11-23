@@ -1,11 +1,13 @@
 import { formatPrice } from "@/config/site";
-import type { UnitOfWork } from "@/shared/application";
+import type { Logger, UnitOfWork } from "@/shared/application";
 import { PaymentError } from "../domain";
 
 /** Хранилище платежей по сделке (infrastructure/payments.ts). */
 export interface PaymentStore {
-  add(input: { dealId: string; clientId: string | null; amount: number; paidAt?: Date; note?: string; createdById: string; invoiceId?: string | null; payForm?: string | null }): Promise<IntakePayment>;
-  refund(input: { dealId: string; clientId: string | null; amount: number; paidAt?: Date; note: string; createdById: string; payForm?: string | null }): Promise<IntakePayment>;
+  /** requestKey — ключ отправки формы: тот же ключ повторно — уже записанный платёж с repeated (под блокировкой сделки). */
+  add(input: { dealId: string; clientId: string | null; amount: number; paidAt?: Date; note?: string; createdById: string; invoiceId?: string | null; payForm?: string | null; requestKey?: string | null }): Promise<IntakePayment & { repeated: boolean }>;
+  refund(input: { dealId: string; clientId: string | null; amount: number; paidAt?: Date; note: string; createdById: string; payForm?: string | null; requestKey?: string | null }): Promise<IntakePayment & { repeated: boolean }>;
+  findByRequestKey(key: string): Promise<(IntakePayment & { dealId: string }) | null>;
   paidTotal(dealId: string): Promise<number>;
   find(id: string): Promise<{ dealId: string } | null>;
 }
@@ -68,6 +70,8 @@ export interface AcceptInput {
   actor: IntakeActor;
   /** Оплата по счёту из чата (P<n>): счёт этой сделки и ждёт оплаты, сумма — сумма счёта. */
   invoice?: { id: string; amount: number } | null;
+  /** Ключ отправки формы: повтор той же отправки (сбой письма, журнала, сети) — уже записанный платёж, без второго. */
+  requestKey?: string | null;
 }
 
 /**
@@ -81,26 +85,55 @@ export class PaymentIntakeService<S = unknown> {
     private readonly receipts: ReceiptStore<S>,
     private readonly effects: PaymentEffects,
     private readonly uow: Pick<UnitOfWork, "run">,
+    private readonly logger?: Logger,
   ) {}
 
-  async acceptWithReceipt(input: AcceptInput): Promise<{ payment: IntakePayment; receipt: IntakeReceipt }> {
+  /**
+   * Заметка, журнал и письмо — после записи денег: деньги уже в базе, поэтому их сбой не превращается в ошибку для
+   * сотрудника (иначе он отправит форму ещё раз). Ошибка — в лог.
+   */
+  private async after(what: string, dealId: string, work: () => Promise<unknown>) {
+    try {
+      await work();
+    } catch (err) {
+      (this.logger?.error ?? console.error)(`деньги по сделке записаны, ${what} — нет`, err, { dealId });
+    }
+  }
+
+  /**
+   * Принять деньги. receipt — null, если это повтор той же отправки формы (requestKey): деньги и чек записала первая,
+   * заметка, журнал и письмо — тоже; repeated: true.
+   */
+  async acceptWithReceipt(input: AcceptInput): Promise<{ payment: IntakePayment; receipt: IntakeReceipt | null; repeated: boolean }> {
     const { deal, actor } = input;
     const refund = input.kind === "refund";
     if (input.invoice && (refund || input.invoice.amount !== input.amount)) throw new PaymentError("amount");
-    const money = { dealId: deal.id, clientId: deal.clientId, amount: input.amount, paidAt: input.paidAt, note: input.note, createdById: actor.userId, invoiceId: input.invoice?.id ?? null, payForm: input.payForm ?? null };
+    // Повтор той же отправки — до чека: иначе проверка повтора чека отказала бы «чек уже приложен» к своему же платежу.
+    if (input.requestKey) {
+      const before = await this.payments.findByRequestKey(input.requestKey);
+      if (before && before.dealId !== deal.id) throw new PaymentError("amount");
+      if (before) return { payment: before, receipt: null, repeated: true };
+    }
+    const money = { dealId: deal.id, clientId: deal.clientId, amount: input.amount, paidAt: input.paidAt, note: input.note, createdById: actor.userId, invoiceId: input.invoice?.id ?? null, payForm: input.payForm ?? null, requestKey: input.requestKey ?? null };
     // Платёж без чека невозможен (B4): файл чека — до денег; платёж и запись о чеке — одной транзакцией;
     // не записалось одно из двух — транзакция откатывается, файл убираем.
     const staged = await this.receipts.stage({ dealId: deal.id, bytes: input.receipt.bytes, fileName: input.receipt.fileName });
-    let payment: IntakePayment;
-    let receipt: IntakeReceipt;
+    let payment: IntakePayment & { repeated: boolean };
+    let receipt: IntakeReceipt | null;
     try {
       ({ payment, receipt } = await this.uow.run(async () => {
+        // Двойное нажатие: вторая отправка ждала блокировку сделки — видит первую до счёта и чека, ничего не пишет.
+        if (input.requestKey) {
+          const twin = await this.payments.findByRequestKey(input.requestKey);
+          if (twin) return { payment: { ...twin, repeated: true }, receipt: null };
+        }
         // Счёт — первым (тот же порядок блокировок, что у онлайн-оплаты: счёт → сделка): иначе взаимная блокировка.
         if (input.invoice) {
           if (!this.effects.markInvoicePaid) throw new PaymentError("amount");
           await this.effects.markInvoicePaid({ invoiceId: input.invoice.id, dealId: deal.id, paymentId: null });
         }
         const payment = refund ? await this.payments.refund(money) : await this.payments.add(money);
+        if (payment.repeated) return { payment, receipt: null };
         const receipt = await this.receipts.record(staged, { clientId: deal.clientId, paymentId: payment.id, amount: payment.amount, uploadedById: actor.userId });
         return { payment, receipt };
       }));
@@ -108,16 +141,21 @@ export class PaymentIntakeService<S = unknown> {
       await this.receipts.discard(staged);
       throw err;
     }
-    await this.effects.note(actor, {
+    if (!receipt) {
+      await this.receipts.discard(staged);
+      return { payment, receipt: null, repeated: true };
+    }
+    const saved = receipt;
+    await this.after("заметка", deal.id, () => this.effects.note(actor, {
       text: refund
         ? `Возврат ${formatPrice(payment.amount)} клиенту: ${payment.note}. Чек: ${receipt.fileName}`
         : `${payment.kind === "prepayment" ? "Предоплата" : "Платёж"} ${formatPrice(payment.amount)} принят(а). Чек: ${receipt.fileName}`,
       dealId: deal.id,
       clientId: deal.clientId,
-    });
-    await this.effects.audit({ actorId: actor.userId, action: "payment.add", entity: "deal", entityId: deal.id, details: { payment: payment.id, amount: payment.amount, receipt: receipt.id } });
-    await this.effects.mailClient({ clientId: deal.clientId, dealNumber: deal.number, kind: refund ? "refund" : "payment", amount: payment.amount, left: Math.max(0, deal.amount - (await this.payments.paidTotal(deal.id))) });
-    return { payment, receipt };
+    }));
+    await this.after("журнал", deal.id, () => this.effects.audit({ actorId: actor.userId, action: "payment.add", entity: "deal", entityId: deal.id, details: { payment: payment.id, amount: payment.amount, receipt: saved.id } }));
+    await this.after("письмо клиенту", deal.id, async () => this.effects.mailClient({ clientId: deal.clientId, dealNumber: deal.number, kind: refund ? "refund" : "payment", amount: payment.amount, left: Math.max(0, deal.amount - (await this.payments.paidTotal(deal.id))) }));
+    return { payment, receipt, repeated: false };
   }
 
   /**

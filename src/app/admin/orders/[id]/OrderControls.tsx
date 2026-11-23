@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Field } from "@/components/ui/Field";
 import { Disclosure } from "./Disclosure";
 import { RefundPanel, UpgradePanel } from "@/components/admin/money/MoneyPanels";
+import { useRequestKey } from "@/components/admin/money/requestKey";
 import { cn } from "@/lib/class-names";
 import { ORDER_STATUSES as orderStatuses, type OrderStatus } from "@/shared/domain/orders";
 
@@ -456,12 +457,17 @@ export function OrderMoney({
     window.addEventListener("hashchange", fromHash);
     return () => window.removeEventListener("hashchange", fromHash);
   }, [canPay]);
+  const sendKey = useRequestKey();
   const submit = (form: HTMLFormElement) =>
     start(async () => {
       setError(null);
-      const res = await fetch(`/api/admin/orders/${orderId}/payments`, { method: "POST", body: new FormData(form) });
+      const data = new FormData(form);
+      data.set("requestKey", sendKey.take());
+      const res = await fetch(`/api/admin/orders/${orderId}/payments`, { method: "POST", body: data }).catch(() => null);
+      if (!res) return setError("Нет связи — отправьте ещё раз: если оплата уже записалась, второй раз она не запишется");
       const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string; overpaid?: number };
       if (!res.ok) return setError(body.message ?? body.error ?? "Не удалось принять оплату");
+      sendKey.done();
       close();
       if (body.overpaid) setError(`Получено больше, чем к оплате, на ${money(body.overpaid)} — ответственному поставлена задача «возврат или зачёт».`);
       router.refresh();

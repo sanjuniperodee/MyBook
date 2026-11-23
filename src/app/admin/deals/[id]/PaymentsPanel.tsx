@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useRequestKey } from "@/components/admin/money/requestKey";
 import { useRouter } from "next/navigation";
 import { CircleCheck, FileText, LoaderCircle, Paperclip, ReceiptText, Trash2, Undo2 } from "lucide-react";
 import { Alert } from "@/components/ui/Alert";
@@ -155,6 +156,9 @@ export function PaymentsPanel({
   dealPayForm?: string | null;
 }) {
   const router = useRouter();
+  // Ключи отправки: повтор после ошибки — та же отправка (сервер вернёт уже записанный платёж), успех — новый ключ.
+  const payKey = useRequestKey();
+  const refundKey = useRequestKey();
   const file = useRef<HTMLInputElement>(null);
   const form = useRef<HTMLDivElement>(null);
   // Счёт, по которому можно принять перевод: ждёт оплаты или истёк (клиент мог заплатить в последний день).
@@ -232,7 +236,9 @@ export function PaymentsPanel({
       // По счёту — счёт закрывается этой оплатой; «другая» — сервер сверит, что менеджер видел открытый счёт и онлайн-оплаты.
       if (byInvoice) body.set("invoiceId", byInvoice.id);
       else if (choice === "other") body.set("seen", guardIds(guard).join(","));
+      body.set("requestKey", payKey.take());
       await send(`/api/admin/deals/${dealId}/payments`, body);
+      payKey.done();
       if (file.current) file.current.value = "";
       setAmount("");
       setDay("");
@@ -258,7 +264,9 @@ export function PaymentsPanel({
       body.set("amount", refundAmount);
       body.set("kind", "refund");
       body.set("note", refundNote);
+      body.set("requestKey", refundKey.take());
       await send(`/api/admin/deals/${dealId}/payments`, body);
+      refundKey.done();
       setRefundOpen(false);
       setRefundAmount("");
       setRefundNote("");

@@ -105,7 +105,7 @@ export class SalesModule {
    * удаление сделки) — порт контекста «Заказы».
    */
   constructor(deps: { uow: UnitOfWork; clock: Clock; logger: Logger; settings: SettingsReader<SalesSettingKey>; schedule: WorkSchedule; paymentEffects: PaymentEffects; notifier: RoutingNotifier; invoices?: DealInvoicesPort }) {
-    this.intake = new PaymentIntakeService(this.payments, this.receipts, deps.paymentEffects, deps.uow);
+    this.intake = new PaymentIntakeService(this.payments, this.receipts, deps.paymentEffects, deps.uow, deps.logger);
     const repo = new DrizzleDealRepository();
     const funnels = new DrizzleFunnelRepository();
     const settings = crmSalesSettings(deps.settings);

@@ -13,9 +13,32 @@ interface TxContext {
   tx: Transaction;
   events: import("../domain/DomainEvent").DomainEvent[];
   aggregates: Set<import("../domain/AggregateRoot").AggregateRoot<object, string | number>>;
+  /** Что сделать после COMMIT внешней транзакции (afterCommit); при откате — ничего. */
+  afterCommit?: (() => void)[];
 }
 
 export const txStorage = new AsyncLocalStorage<TxContext>();
+
+/**
+ * Сделать после COMMIT текущей транзакции — например, сбросить кэш: сброшенный до COMMIT кэш соседний запрос успел бы
+ * заполнить старыми значениями. Вне транзакции — сразу; при откате — не делается.
+ */
+export function afterCommit(fn: () => void) {
+  const ctx = txStorage.getStore();
+  if (!ctx) return fn();
+  (ctx.afterCommit ??= []).push(fn);
+}
+
+/** Транзакция зафиксирована — выполнить отложенное (ошибка одного не мешает остальным). */
+export function runAfterCommit(ctx: { afterCommit?: (() => void)[] } | undefined) {
+  for (const fn of ctx?.afterCommit ?? []) {
+    try {
+      fn();
+    } catch (err) {
+      console.error("[db] afterCommit", err);
+    }
+  }
+}
 
 /**
  * Исполнитель запросов для репозитория: текущая транзакция Unit of Work, если она открыта,
@@ -31,9 +54,12 @@ export function executor(): Executor {
  * События агрегатов здесь не собираются: внутри inTransaction не вызывайте uow.run/track — их события не попадут
  * в outbox (DrizzleUnitOfWork примет этот контекст за внешнюю транзакцию). Только простые запросы репозитория.
  */
-export function inTransaction<T>(work: () => Promise<T>): Promise<T> {
+export async function inTransaction<T>(work: () => Promise<T>): Promise<T> {
   if (txStorage.getStore()) return work();
-  return rootDb.transaction((tx) => txStorage.run({ tx, events: [], aggregates: new Set() }, work));
+  let ctx: TxContext | undefined;
+  const result = await rootDb.transaction((tx) => txStorage.run((ctx = { tx, events: [], aggregates: new Set() }), work));
+  runAfterCommit(ctx);
+  return result;
 }
 
 export { rootDb };

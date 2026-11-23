@@ -18,6 +18,7 @@ const toRecord = (r: Row): OrderPaymentRecord => ({
   paidAt: r.paidAt,
   note: r.note,
   receipt: r.receiptStorageKey ? { storageKey: r.receiptStorageKey, fileName: r.receiptFileName ?? "чек", mime: r.receiptMime ?? "application/octet-stream", size: r.receiptSize ?? 0, sha256: r.receiptSha256 } : null,
+  requestKey: r.requestKey,
   createdById: r.createdById,
   reviewedById: r.reviewedById,
   reviewedAt: r.reviewedAt,
@@ -50,6 +51,7 @@ export class DrizzleOrderPaymentRepository implements OrderPaymentRepository {
         receiptMime: p.receipt?.mime ?? null,
         receiptSize: p.receipt?.size ?? null,
         receiptSha256: p.receipt?.sha256 ?? null,
+        requestKey: p.requestKey ?? null,
         createdById: p.createdById,
       })
       .onConflictDoNothing()
@@ -67,11 +69,16 @@ export class DrizzleOrderPaymentRepository implements OrderPaymentRepository {
     return r ? toRecord(r) : null;
   }
 
+  async findByRequestKey(key: string) {
+    const [r] = await executor().select().from(orderPayments).where(eq(orderPayments.requestKey, key)).limit(1);
+    return r ? toRecord(r) : null;
+  }
+
   async review(id: string, reviewerId: string, at: Date) {
     await executor().update(orderPayments).set({ reviewedById: reviewerId, reviewedAt: at }).where(eq(orderPayments.id, id));
   }
 
-  async void(id: string, by: string, at: Date, reason: string) {
+  async void(id: string, by: string | null, at: Date, reason: string) {
     await executor().update(orderPayments).set({ voidedById: by, voidedAt: at, voidReason: reason }).where(and(eq(orderPayments.id, id), isNull(orderPayments.voidedAt)));
   }
 

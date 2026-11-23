@@ -6,7 +6,7 @@ import { PaymentError, ReceiptError } from "@/modules/sales/domain";
 /** Платежи и чеки в памяти; журнал шагов — общий. */
 function harness() {
   const log: string[] = [];
-  const paid: IntakePayment[] = [];
+  const paid: (IntakePayment & { requestKey?: string | null })[] = [];
   const files: string[] = [];
   /** Транзакция: ошибка внутри — платежи возвращаются к состоянию до неё. */
   const uow = {
@@ -23,16 +23,22 @@ function harness() {
   };
   const payments: PaymentStore = {
     add: async (p) => {
-      const row = { id: `pay-${paid.length + 1}`, amount: p.amount, kind: paid.length ? "payment" : "prepayment", note: p.note ?? "", paidAt: p.paidAt ?? new Date() };
+      const twin = p.requestKey && paid.find((x) => x.requestKey === p.requestKey);
+      if (twin) return { ...twin, repeated: true };
+      const row = { id: `pay-${paid.length + 1}`, amount: p.amount, kind: paid.length ? "payment" : "prepayment", note: p.note ?? "", paidAt: p.paidAt ?? new Date(), requestKey: p.requestKey };
       paid.push(row);
       log.push(`payment ${row.kind} ${row.amount}`);
-      return row;
+      return { ...row, repeated: false };
     },
     refund: async (p) => {
-      const row = { id: `pay-${paid.length + 1}`, amount: p.amount, kind: "refund", note: p.note, paidAt: p.paidAt ?? new Date() };
+      const row = { id: `pay-${paid.length + 1}`, amount: p.amount, kind: "refund", note: p.note, paidAt: p.paidAt ?? new Date(), requestKey: p.requestKey };
       paid.push(row);
       log.push(`refund ${row.amount}`);
-      return row;
+      return { ...row, repeated: false };
+    },
+    findByRequestKey: async (key) => {
+      const row = paid.find((x) => x.requestKey === key);
+      return row ? { ...row, dealId: "deal-1" } : null;
     },
     paidTotal: async () => paid.reduce((s, p) => s + (p.kind === "refund" ? -p.amount : p.amount), 0),
     find: async (id) => (paid.some((p) => p.id === id) ? { dealId: "deal-1" } : null),
@@ -53,12 +59,19 @@ function harness() {
       log.push(`discard ${name}`);
     },
   };
-  const service = new PaymentIntakeService(payments, receipts, {
-    note: async (_a, n) => void log.push(`note ${n.text}`),
-    audit: async (a) => void log.push(`audit ${a.action} ${JSON.stringify(a.details)}`),
-    mailClient: async (m) => void log.push(`mail ${m.kind} ${m.amount} left ${m.left}`),
-  }, uow);
-  return { log, paid, files, payments, receipts, service };
+  const effects = {
+    failAudit: false,
+    note: async (_a: unknown, n: { text: string }) => void log.push(`note ${n.text}`),
+    audit: async (a: { action: string; details: unknown }) => {
+      if (effects.failAudit) throw new Error("журнал недоступен");
+      log.push(`audit ${a.action} ${JSON.stringify(a.details)}`);
+    },
+    mailClient: async (m: { kind: string; amount: number; left: number }) => void log.push(`mail ${m.kind} ${m.amount} left ${m.left}`),
+  };
+  const errors: string[] = [];
+  const logger = { info: () => {}, warn: () => {}, error: (m: string) => void errors.push(m) };
+  const service = new PaymentIntakeService(payments, receipts, effects, uow, logger);
+  return { log, paid, files, payments, receipts, service, effects, errors };
 }
 
 const actor = { userId: "m1", name: "Айгерим", seesAll: false, allTasks: false };
@@ -109,13 +122,37 @@ describe("PaymentIntakeService.acceptWithReceipt (E2)", () => {
   it("B4: файл чека негоден — денег не трогаем", async () => {
     const { paid } = harness();
     const bad = new PaymentIntakeService(
-      { add: async () => (paid.push({ id: "x", amount: 1, kind: "payment", note: "", paidAt: new Date() }), paid[0]), refund: async () => paid[0], paidTotal: async () => 0, find: async () => null },
+      { add: async () => (paid.push({ id: "x", amount: 1, kind: "payment", note: "", paidAt: new Date() }), { ...paid[0], repeated: false }), refund: async () => ({ ...paid[0], repeated: false }), paidTotal: async () => 0, find: async () => null, findByRequestKey: async () => null },
       { stage: async () => Promise.reject(new ReceiptError("type")), record: async () => ({ id: "r", fileName: "f", amount: 0, mime: "", size: 0, createdAt: new Date() }), discard: async () => {} },
       { note: async () => {}, audit: async () => {}, mailClient: async () => {} },
       { run: (work) => work() },
     );
     await expect(bad.acceptWithReceipt({ deal, kind: "payment", amount: 10_000, paidAt: new Date(), note: "", receipt, actor })).rejects.toThrow(ReceiptError);
     expect(paid).toEqual([]);
+  });
+});
+
+describe("PaymentIntakeService: повтор отправки формы", () => {
+  it("журнал упал после записи денег — платёж всё равно принят (без ошибки), сбой в логе; заметка и письмо есть", async () => {
+    const { log, paid, service, effects, errors } = harness();
+    effects.failAudit = true;
+    const r = await service.acceptWithReceipt({ deal, kind: "payment", amount: 10_000, paidAt: new Date(), note: "", receipt, actor, requestKey: "k-1" });
+    expect(r.repeated).toBe(false);
+    expect(paid).toHaveLength(1);
+    expect(errors).toEqual(["деньги по сделке записаны, журнал — нет"]);
+    expect(log.at(-1)).toBe("mail payment 10000 left 20000");
+  });
+
+  it("та же отправка ещё раз (тот же ключ) — тот же платёж: ни второго платежа, ни чека, ни письма", async () => {
+    const { log, paid, files, service } = harness();
+    const first = await service.acceptWithReceipt({ deal, kind: "payment", amount: 10_000, paidAt: new Date(), note: "", receipt, actor, requestKey: "k-1" });
+    log.length = 0;
+    const again = await service.acceptWithReceipt({ deal, kind: "payment", amount: 10_000, paidAt: new Date(), note: "", receipt, actor, requestKey: "k-1" });
+    expect(again).toMatchObject({ repeated: true, receipt: null, payment: { id: first.payment.id } });
+    expect([paid.length, files.length, log]).toEqual([1, 1, []]);
+    // Новая отправка формы (новый ключ) — новый платёж.
+    await service.acceptWithReceipt({ deal, kind: "payment", amount: 5_000, paidAt: new Date(), note: "", receipt, actor, requestKey: "k-2" });
+    expect(paid.map((p) => p.amount)).toEqual([10_000, 5_000]);
   });
 });
 

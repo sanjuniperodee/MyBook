@@ -144,6 +144,8 @@ export const crmPayments = pgTable(
     payForm: text("pay_form"),
     /** Счёт из чата, которым оплачено (номер для показа — P<n>). */
     invoiceId: uuid("invoice_id"),
+    /** Ключ отправки формы (uuid из браузера): повтор той же отправки после сбоя — тот же платёж, а не второй. */
+    requestKey: text("request_key"),
     createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
     /** Ручной платёж сверил руководитель (чек совпал с поступлением на счёт) — «Финансы». */
     reviewedById: uuid("reviewed_by_id").references(() => users.id, { onDelete: "set null" }),
@@ -154,6 +156,7 @@ export const crmPayments = pgTable(
     index("crm_payments_deal_idx").on(t.dealId),
     index("crm_payments_paid_idx").on(t.paidAt),
     uniqueIndex("crm_payments_external_idx").on(t.method, t.externalRef).where(sql`${t.externalRef} is not null`),
+    uniqueIndex("crm_payments_request_key_idx").on(t.requestKey).where(sql`${t.requestKey} is not null`),
   ],
 );
 

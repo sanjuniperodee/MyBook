@@ -180,6 +180,32 @@ describe("Order.voidMoney: отмена ошибочного платежа", ()
     expect(o.pullEvents().map((e) => e.type)).toEqual(["ordering.order_overpaid"]);
   });
 
+  it("фиктивная пара «платёж 9 000 + возврат 9 000» отменяется одной операцией: получено то же, без «переплаты» и «ждёт доплату»", () => {
+    const o = place();
+    o.receiveMoney({ paymentId: "a", amount: 30000, method: "manual", paidAt: now, label: "перевод", actor: "m" });
+    o.receiveMoney({ paymentId: "b", amount: 9000, method: "manual", paidAt: now, label: "перевод", actor: "m" });
+    o.refundMoney({ amount: 9000, paidAt: now, label: "перевод", reason: "Ааааа", actor: "m" });
+    const paidAt = o.snapshot().paidAt;
+    o.pullEvents();
+    const r = o.voidMoney({ kind: "refund", amount: 9000, label: "возврат", reason: "фиктивная пара, денег не было", actor: "owner", now, also: [{ kind: "payment", amount: 9000, label: "перевод" }] });
+    expect(r).toEqual({ received: 30000, outstanding: 0, reopened: false });
+    expect([o.status, o.isSettled, o.snapshot().paidAt]).toEqual(["paid", true, paidAt]);
+    expect(o.pullEvents()).toEqual([]);
+  });
+
+  it("отменили ошибочный возврат у заказа, который ждал доплату, — денег хватает: заказ снова оплачен", () => {
+    const o = place();
+    const due = o.amount;
+    o.receiveMoney({ paymentId: "a", amount: due, method: "manual", paidAt: now, label: "перевод", actor: "m" });
+    o.receiveMoney({ paymentId: "b", amount: 1000, method: "manual", paidAt: now, label: "перевод", actor: "m" });
+    o.refundMoney({ amount: 1000, paidAt: now, label: "перевод", reason: "лишнее", actor: "m" });
+    o.voidMoney({ kind: "payment", amount: due, label: "перевод", reason: "не тот чек", actor: "owner", now });
+    o.receiveMoney({ paymentId: "c", amount: due - 1000, method: "manual", paidAt: now, label: "перевод", actor: "m" });
+    expect([o.status, o.isSettled]).toEqual(["pending_payment", false]);
+    o.voidMoney({ kind: "refund", amount: 1000, label: "перевод", reason: "возврат не делали", actor: "owner", now });
+    expect([o.received, o.status, o.isSettled]).toEqual([due, "paid", true]);
+  });
+
   it("электронная (клиент уже получил книгу): статус прежний, остаток — постоплатой", () => {
     const o = Order.place(
       { id: "o3", number: 3, userId: "u1", bookId: "b1", plan: "digital", quantity: 1, delivery: { method: null, city: null, address: null, postalCode: null }, addons: [], contact: { name: "A", phone: "+77010000000", email: "a@b.kz" }, promo: null, currency: "KZT", paymentProvider: "kaspi", estimatedPages: 100, formatMoney: (n) => `${n}` },

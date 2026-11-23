@@ -2,9 +2,9 @@ import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { api, apiStaff, HttpError } from "@/server/api";
-import { audit, canSeeOrder } from "@/server/access";
+import { auditAfterMoney, canSeeOrder } from "@/server/access";
 import { container } from "@/server/container";
-import { formText, idParams } from "@/server/input";
+import { formText, idParams, requestKeyField } from "@/server/input";
 import { RECEIPT_MAX_BYTES, receiptProblem } from "@/shared/domain/receipt";
 import { receiptProblemError } from "@/server/payment-errors";
 import { fromZonedTime } from "@/shared/domain/time";
@@ -14,7 +14,7 @@ import { parsePayForm } from "@/server/pay-form";
 
 export const maxDuration = 60;
 
-const paymentForm = z.object({ note: formText, amount: formText, paidAt: formText });
+const paymentForm = z.object({ note: formText, amount: formText, paidAt: formText, requestKey: requestKeyField });
 
 /**
  * Принять оплату по заказу (перевод, остаток, постоплата): multipart — amount (₸), paidAt (YYYY-MM-DD, по умолчанию сегодня),
@@ -26,7 +26,7 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
   const { id } = idParams(await params, "id");
   if (!(await canSeeOrder(staff, id))) throw new HttpError(404, "orderNotFound");
   const form = await req.formData();
-  const fields = paymentForm.parse({ note: form.get("note") ?? undefined, amount: form.get("amount") ?? undefined, paidAt: form.get("paidAt") ?? undefined });
+  const fields = paymentForm.parse({ note: form.get("note") ?? undefined, amount: form.get("amount") ?? undefined, paidAt: form.get("paidAt") ?? undefined, requestKey: form.get("requestKey") ?? undefined });
   const file = form.get("file");
   if (!(file instanceof File) || !file.size) throw new HttpError(400, "receiptRequired");
   if (file.size > RECEIPT_MAX_BYTES) throw receiptProblemError("tooBig");
@@ -49,6 +49,7 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
     note: fields.note,
     payForm: payForm.form,
     receipt: { bytes, fileName: file.name },
+    requestKey: fields.requestKey,
     actor: { userId: staff.user.id, label: `admin:${staffLabel(staff.user)}` },
     });
   } catch (err) {
@@ -56,8 +57,15 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
     if (OrderingError.is(err) && err.code === "paymentRule") return NextResponse.json({ error: err.message }, { status: 409 });
     throw err;
   }
-  await audit(staff, "order.payment", "order", id, { payment: result.payment.id, amount: result.payment.amount, settled: result.settled, overpaid: result.overpaid, payForm: payForm.form });
-  for (const d of await container().sales.deals.byOrder(id)) await container().sales.deals.notePayForm(d.id, payForm.form);
+  // Повтор той же отправки (первая записала деньги, но ответ не дошёл) — тот же платёж: журнал и форма оплаты уже записаны.
+  if (!result.repeated) {
+    await auditAfterMoney(staff, "order.payment", "order", id, { payment: result.payment.id, amount: result.payment.amount, settled: result.settled, overpaid: result.overpaid, payForm: payForm.form });
+    try {
+      for (const d of await container().sales.deals.byOrder(id)) await container().sales.deals.notePayForm(d.id, payForm.form);
+    } catch (err) {
+      console.error("[order.payment] форма оплаты сделки не записана, деньги записаны", err);
+    }
+  }
   revalidatePath(`/admin/orders/${id}`);
   revalidatePath("/admin/finance");
   return NextResponse.json({ payment: { id: result.payment.id, amount: result.payment.amount }, settled: result.settled, overpaid: result.overpaid });

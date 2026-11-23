@@ -180,3 +180,15 @@ export function contactView(staff: Staff, v: { phone?: string | null; email?: st
 export async function audit(staff: Staff | null, action: string, entity: string, entityId?: string | null, details?: Record<string, unknown>) {
   await container().access.audit.record({ actorId: staff?.user.id ?? null, action, entity, entityId, details });
 }
+
+/**
+ * Журнал после записи денег: платёж уже в базе, поэтому сбой журнала не превращается в ошибку для сотрудника — иначе он
+ * отправит форму ещё раз. Ошибка — в лог сервера.
+ */
+export async function auditAfterMoney(staff: Staff | null, action: string, entity: string, entityId?: string | null, details?: Record<string, unknown>) {
+  try {
+    await audit(staff, action, entity, entityId, details);
+  } catch (err) {
+    console.error(`[audit] ${action} ${entity} ${entityId ?? ""}: журнал не записан, деньги записаны`, err);
+  }
+}

@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import type { ReceiptCheck } from "@/shared/domain/receipt";
@@ -20,6 +21,7 @@ class MemPayments implements OrderPaymentRepository {
   }
   list = async (orderId: string) => this.rows.filter((r) => r.orderId === orderId);
   find = async (id: string) => this.rows.find((r) => r.id === id) ?? null;
+  findByRequestKey = async (key: string) => this.rows.find((r) => r.requestKey === key) ?? null;
   review = async (id: string, by: string, at: Date) => void Object.assign(this.rows.find((r) => r.id === id)!, { reviewedById: by, reviewedAt: at });
   void = async (id: string, by: string, at: Date, reason: string) => void Object.assign(this.rows.find((r) => r.id === id)!, { voidedById: by, voidedAt: at, voidReason: reason });
   tagKaspiForms = async (forms: Record<string, string>) =>
@@ -50,6 +52,39 @@ function setup(opts: { checkReceipts?: boolean } = {}) {
   };
   const manual = (orderId: string, amount: number, bytes = PNG) => money.acceptManual({ orderId, amount, paidAt: c.now(), note: "", receipt: { bytes, fileName: "чек.png" }, actor: staff });
   return { ...base, payments, files, uow, c, money, svc, order, manual };
+}
+
+/** Тот же заказ, но OrdersService без журнала денег — путь подтверждения заказа без записи в order_payments. */
+const orderingSvc = (t: ReturnType<typeof setup>) =>
+  new OrdersService(t.orders, t.promos, t.books, { activeStaff: async () => null, rememberPhoneIfMissing: async () => {} } as never, { prepare: async () => null }, { provider: () => "manual", currency: () => "KZT" }, { agreementFor: async () => null }, t.uow, t.c);
+
+/**
+ * Блокировка строки заказа, как SELECT … FOR UPDATE: lockById внутри run() ждёт, пока другая транзакция с этим заказом
+ * не закончится; вложенный run() — та же транзакция. findById не ждёт (чтение без блокировки).
+ */
+function rowLocks(t: ReturnType<typeof setup>) {
+  const tx = new AsyncLocalStorage<{ held: Set<string>; release: (() => void)[] }>();
+  const queue = new Map<string, Promise<void>>();
+  const run = t.uow.run.bind(t.uow);
+  t.uow.run = <T,>(work: () => Promise<T>) => {
+    if (tx.getStore()) return run(work);
+    const ctx = { held: new Set<string>(), release: [] as (() => void)[] };
+    return tx.run(ctx, () => run(work).finally(() => ctx.release.forEach((r) => r())));
+  };
+  const lock = t.orders.lockById.bind(t.orders);
+  t.orders.lockById = async (id: string) => {
+    const ctx = tx.getStore();
+    if (ctx && !ctx.held.has(id)) {
+      const before = queue.get(id) ?? Promise.resolve();
+      let release!: () => void;
+      const mine = new Promise<void>((r) => (release = r));
+      queue.set(id, before.then(() => mine));
+      ctx.held.add(id);
+      ctx.release.push(release);
+      await before;
+    }
+    return lock(id);
+  };
 }
 
 describe("Деньги по заказу", () => {
@@ -95,6 +130,44 @@ describe("Деньги по заказу", () => {
     expect(await t.svc.acceptProviderPayment({ orderId: o.id, paymentId: "kaspi:B2", provider: "Kaspi", operationId: "B2", amount: o.amount }, admin)).toBe("refundNeeded");
     expect((await t.orders.findById(o.id))!.received).toBe(o.amount * 2);
     expect(t.payments.rows.map((r) => [r.method, r.externalRef])).toEqual([["kaspi", "A1"], ["kaspi", "B2"]]);
+  });
+
+  it("та же отправка формы ещё раз (сбой ответа) — тот же платёж: денег не прибавилось, файл второй раз не лежит", async () => {
+    const t = setup({ checkReceipts: true });
+    const o = await t.order();
+    const send = () => t.money.acceptManual({ orderId: o.id, amount: 1000, paidAt: t.c.now(), note: "", receipt: { bytes: PNG, fileName: "чек.png" }, requestKey: "11111111-1111-4111-8111-111111111111", actor: staff });
+    const first = await send();
+    // Тот же чек к той же покупке без ключа отклоняется — с ключом это повтор, а не второй платёж.
+    const again = await send();
+    expect([first.repeated, again.repeated, again.payment.id]).toEqual([false, true, first.payment.id]);
+    expect([(await t.orders.findById(o.id))!.received, t.payments.rows.length, t.files.size]).toEqual([1000, 1, 1]);
+    // Двойное нажатие: обе отправки одновременно — одна запись.
+    const t2 = setup();
+    rowLocks(t2);
+    const o2 = await t2.order();
+    const both = await Promise.all([0, 1].map(() => t2.money.acceptManual({ orderId: o2.id, amount: 700, paidAt: t2.c.now(), note: "", receipt: { bytes: PNG, fileName: "чек.png" }, requestKey: "22222222-2222-4222-8222-222222222222", actor: staff })));
+    expect(both.map((r) => r.repeated).sort()).toEqual([false, true]);
+    expect([(await t2.orders.findById(o2.id))!.received, t2.payments.rows.length, t2.files.size]).toEqual([700, 1, 1]);
+    // Ключ другого заказа — ошибка формы, а не чужой платёж.
+    t.payments.rows.push({ ...t.payments.rows[0], id: "foreign", orderId: "other-order", requestKey: "33333333-3333-4333-8333-333333333333" });
+    await expect(t.money.acceptManual({ orderId: o.id, amount: 1, paidAt: t.c.now(), note: "", receipt: { bytes: PNG, fileName: "x.png" }, requestKey: "33333333-3333-4333-8333-333333333333", actor: staff })).rejects.toMatchObject({ code: "paymentRule" });
+  });
+
+  it("две разные оплаты одного заказа в одну секунду: по очереди под блокировкой — одна оплатила, вторая «нужен возврат»", async () => {
+    // С журналом денег (как на проде) и без него (старый путь): вторая оплата видит заказ уже оплаченным.
+    for (const withJournal of [true, false]) {
+      const t = setup();
+      const svc = withJournal ? t.svc : orderingSvc(t);
+      rowLocks(t);
+      const o = await t.order();
+      const pay = (op: string) => svc.acceptProviderPayment({ orderId: o.id, paymentId: `kaspi:${op}`, provider: "Kaspi", operationId: op, amount: o.amount }, admin);
+      const results = await Promise.all([pay("A1"), pay("B2")]);
+      expect([...results].sort()).toEqual(["paid", "refundNeeded"]);
+      const fresh = (await t.orders.findById(o.id))!;
+      expect(fresh.status).toBe("paid");
+      if (withJournal) expect(fresh.received).toBe(o.amount * 2);
+      else expect(t.orders.history.some((h) => h.orderId === o.id && /повторная оплата .* нужен возврат/.test(h.note))).toBe(true);
+    }
   });
 
   it("постоплата: в печать без денег, выручки нет; доставлен без оплаты — «получить постоплату»; деньги пришли — выручка с их даты", async () => {
@@ -164,6 +237,22 @@ describe("Ошибочный платёж и повторный чек (зака
     // Чек отменённого платежа — к настоящей оплате можно.
     await t.manual(o.id, 9000, png(2));
     expect((await t.orders.findById(o.id))!.status).toBe("paid");
+  });
+
+  it("фиктивная пара «платёж + возврат» — одной отменой: обе записи помечены, получено прежнее, без событий о деньгах", async () => {
+    const t = setup();
+    const o = await t.order();
+    await t.manual(o.id, o.amount);
+    const fake = await t.manual(o.id, 9000, Buffer.concat([PNG, Buffer.from([7])]));
+    const back = await t.money.refund({ orderId: o.id, amount: 9000, note: "Ааааа", actor: staff });
+    const types = t.uow.types().length;
+    const r = await t.money.voidPayment({ paymentId: back.payment.id, also: [fake.payment.id], reason: "фиктивная пара, денег не было", actor: { label: "сверка", userId: null } });
+    expect([r.received, r.reopened]).toEqual([o.amount, false]);
+    expect(t.payments.rows.filter((p) => p.voidedAt).map((p) => p.id).sort()).toEqual([back.payment.id, fake.payment.id].sort());
+    expect(t.uow.types().slice(types).filter((e) => e !== "ordering.order_updated")).toEqual([]);
+    // Чужой заказ или онлайн-запись в паре — отказ целиком.
+    await expect(t.money.voidPayment({ paymentId: t.payments.rows[0].id, also: ["нет-такого"], reason: "проверка", actor: staff })).rejects.toMatchObject({ message: "Платёж не найден" });
+    expect(t.payments.rows[0].voidedAt).toBeFalsy();
   });
 
   it("онлайн-оплату не отменить — только вернуть", async () => {

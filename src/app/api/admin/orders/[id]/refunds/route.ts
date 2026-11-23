@@ -2,9 +2,9 @@ import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { api, apiStaff, HttpError } from "@/server/api";
-import { audit, canSeeOrder } from "@/server/access";
+import { auditAfterMoney, canSeeOrder } from "@/server/access";
 import { container } from "@/server/container";
-import { formText, idParams } from "@/server/input";
+import { formText, idParams, requestKeyField } from "@/server/input";
 import { RECEIPT_MAX_BYTES, receiptProblem } from "@/shared/domain/receipt";
 import { receiptProblemError } from "@/server/payment-errors";
 import { staffLabel } from "@/shared/domain/staff";
@@ -12,7 +12,7 @@ import { OrderingError } from "@/modules/ordering";
 
 export const maxDuration = 60;
 
-const refundForm = z.object({ note: formText, amount: formText });
+const refundForm = z.object({ note: formText, amount: formText, requestKey: requestKeyField });
 
 /**
  * Вернуть деньги клиенту по заказу (перевод): multipart — amount (₸), note — причина (от 3 символов), file — чек возврата
@@ -27,6 +27,7 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
   const fields = refundForm.parse({
     note: form.get("note") ?? undefined,
     amount: form.get("amount") ?? undefined,
+    requestKey: form.get("requestKey") ?? undefined,
   });
   const file = form.get("file");
   let receipt: { bytes: Buffer; fileName: string } | null = null;
@@ -45,6 +46,7 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
       amount: Number(fields.amount || 0),
       note: fields.note,
       receipt,
+      requestKey: fields.requestKey,
       actor: {
         userId: staff.user.id,
         label: `admin:${staffLabel(staff.user)}`,
@@ -56,7 +58,7 @@ export const POST = api(async (req, { params }: { params: Promise<{ id: string }
     if (OrderingError.is(err) && err.code === "orderNotFound") throw new HttpError(404, "orderNotFound");
     throw err;
   }
-  await audit(staff, "order.refund", "order", id, {
+  if (!result.repeated) await auditAfterMoney(staff, "order.refund", "order", id, {
     payment: result.payment.id,
     amount: result.payment.amount,
     receipt: !!receipt,

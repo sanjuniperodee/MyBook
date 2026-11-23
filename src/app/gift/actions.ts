@@ -67,9 +67,10 @@ export async function createGiftAction(_: GiftFormState, form: FormData): Promis
 }
 
 /** Покупатель сообщил об оплате переводом. */
-export async function claimGiftPaymentAction(rawToken: string) {
-  // Кнопку «Я оплатил(а)» нажимают по ссылке из письма без входа: лимит не даёт перебирать токены.
-  if (!await rateLimit(`gift-claim:${await trustedClientIp()}`, 20, 600_000)) return;
+export async function claimGiftPaymentAction(rawToken: string): Promise<{ error?: string } | void> {
+  // Кнопку «Я оплатил(а)» нажимают по ссылке из письма без входа: лимит не даёт перебирать токены. Упёрлись в лимит —
+  // покупатель видит, почему ничего не произошло, а не немую кнопку.
+  if (!await rateLimit(`gift-claim:${await trustedClientIp()}`, 20, 600_000)) return { error: (await getMessages()).common.errors.tooMany };
   // Токен сертификата — 24 знака base64url (randomBytes(18)); мусор до базы не доходит.
   const token = z.string().regex(/^[\w-]{16,64}$/).safeParse(rawToken);
   if (!token.success) return; // как и для неизвестного токена

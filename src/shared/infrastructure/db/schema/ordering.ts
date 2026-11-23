@@ -111,6 +111,8 @@ export const orderPayments = pgTable(
     receiptSize: integer("receipt_size"),
     /** SHA-256 содержимого чека (hex): один и тот же чек не прикладывают ко второму платежу. */
     receiptSha256: text("receipt_sha256"),
+    /** Ключ отправки формы (uuid из браузера): повтор той же отправки после сбоя — тот же платёж, а не второй. */
+    requestKey: text("request_key"),
     createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
     /**
      * Платёж отменён руководителем как ошибочный (не те деньги, фиктивная запись): остаётся в журнале с причиной, но не
@@ -129,6 +131,7 @@ export const orderPayments = pgTable(
     index("order_payments_paid_idx").on(t.paidAt),
     uniqueIndex("order_payments_external_idx").on(t.method, t.externalRef).where(sql`${t.externalRef} is not null`),
     index("order_payments_receipt_sha_idx").on(t.receiptSha256).where(sql`${t.receiptSha256} is not null`),
+    uniqueIndex("order_payments_request_key_idx").on(t.requestKey).where(sql`${t.requestKey} is not null`),
   ],
 );
 

@@ -9,12 +9,23 @@ export type PaymentRow = typeof crmPayments.$inferSelect;
 /** Блокировка строки сделки до конца транзакции: платежи по одной сделке пишутся по очереди. */
 const lockDeal = (dealId: string) => executor().execute(sql`select 1 from crm_deals where id = ${dealId} for no key update`);
 
+/** Платёж с этим ключом отправки формы — под блокировкой сделки: двойное нажатие видит первую запись. */
+async function sentWith(key: string | null | undefined) {
+  if (!key) return null;
+  const [row] = await executor().select().from(crmPayments).where(eq(crmPayments.requestKey, key)).limit(1);
+  return row ?? null;
+}
+
 /**
  * Платежи по сделкам, оформленным вручную. Деньги из этой таблицы вместе с оплаченными заказами образуют вьюху
  * revenue_events — по ней считаются обзор, аналитика, планы, LTV клиентов и каналы.
  */
 export class DealPayments {
-  async add(input: { dealId: string; clientId: string | null; amount: number; paidAt?: Date; note?: string; createdById: string; invoiceId?: string | null; payForm?: string | null }): Promise<PaymentRow> {
+  /**
+   * Ручной платёж. requestKey — ключ отправки формы: повтор той же отправки возвращает уже записанный платёж (repeated),
+   * второй раз денег нет.
+   */
+  async add(input: { dealId: string; clientId: string | null; amount: number; paidAt?: Date; note?: string; createdById: string; invoiceId?: string | null; payForm?: string | null; requestKey?: string | null }): Promise<PaymentRow & { repeated: boolean }> {
     const amount = Math.round(input.amount);
     if (!Number.isFinite(amount) || amount <= 0 || amount > MAX_PAYMENT) throw new PaymentError("amount");
     const paidAt = input.paidAt ?? new Date();
@@ -23,12 +34,14 @@ export class DealPayments {
     // Первый платёж по сделке — «предоплата»: считаем под блокировкой сделки, иначе два одновременных платежа оба станут ею (B6).
     return inTransaction(async () => {
       await lockDeal(input.dealId);
+      const twin = await sentWith(input.requestKey);
+      if (twin) return { ...twin, repeated: true };
       const [{ n }] = await executor().select({ n: sql<number>`count(*) filter (where ${crmPayments.kind} <> 'refund')::int` }).from(crmPayments).where(eq(crmPayments.dealId, input.dealId));
       const [row] = await executor()
         .insert(crmPayments)
-        .values({ dealId: input.dealId, clientId: input.clientId, amount, kind: n === 0 ? "prepayment" : "payment", paidAt, note: (input.note ?? "").trim().slice(0, 300), createdById: input.createdById, invoiceId: input.invoiceId ?? null, payForm: input.payForm ?? null })
+        .values({ dealId: input.dealId, clientId: input.clientId, amount, kind: n === 0 ? "prepayment" : "payment", paidAt, note: (input.note ?? "").trim().slice(0, 300), createdById: input.createdById, invoiceId: input.invoiceId ?? null, payForm: input.payForm ?? null, requestKey: input.requestKey ?? null })
         .returning();
-      return row;
+      return { ...row, repeated: false };
     });
   }
 
@@ -52,7 +65,7 @@ export class DealPayments {
   }
 
   /** Возврат денег клиенту: записывается платежом типа refund (в выручке — со знаком минус) и не может превышать принятое. */
-  async refund(input: { dealId: string; clientId: string | null; amount: number; paidAt?: Date; note: string; createdById: string; payForm?: string | null }): Promise<PaymentRow> {
+  async refund(input: { dealId: string; clientId: string | null; amount: number; paidAt?: Date; note: string; createdById: string; payForm?: string | null; requestKey?: string | null }): Promise<PaymentRow & { repeated: boolean }> {
     const amount = Math.round(input.amount);
     if (!Number.isFinite(amount) || amount <= 0 || amount > MAX_PAYMENT) throw new PaymentError("amount");
     const paidAt = input.paidAt ?? new Date();
@@ -60,10 +73,17 @@ export class DealPayments {
     // Сверка с принятым — под блокировкой сделки: два одновременных возврата не превысят принятое (B6).
     return inTransaction(async () => {
       await lockDeal(input.dealId);
+      const twin = await sentWith(input.requestKey);
+      if (twin) return { ...twin, repeated: true };
       if (amount > (await this.paidTotal(input.dealId))) throw new PaymentError("refundTooBig");
-      const [row] = await executor().insert(crmPayments).values({ dealId: input.dealId, clientId: input.clientId, amount, kind: "refund", paidAt, note: input.note.trim().slice(0, 300), createdById: input.createdById, payForm: input.payForm ?? null }).returning();
-      return row;
+      const [row] = await executor().insert(crmPayments).values({ dealId: input.dealId, clientId: input.clientId, amount, kind: "refund", paidAt, note: input.note.trim().slice(0, 300), createdById: input.createdById, payForm: input.payForm ?? null, requestKey: input.requestKey ?? null }).returning();
+      return { ...row, repeated: false };
     });
+  }
+
+  /** Платёж, записанный отправкой формы с этим ключом (повтор после сбоя): до проверки чека — иначе «чек уже приложен». */
+  findByRequestKey(key: string) {
+    return sentWith(key);
   }
 
   list(dealId: string) {

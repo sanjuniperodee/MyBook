@@ -1,7 +1,7 @@
 import "server-only";
 import { eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/shared/infrastructure/db";
-import { executor, inTransaction, type Executor } from "@/shared/infrastructure/database";
+import { afterCommit, executor, inTransaction, type Executor } from "@/shared/infrastructure/database";
 import { crmSettings } from "@/shared/infrastructure/db/schema";
 import { decryptSecret, encryptSecret, randomToken } from "@/shared/crypto";
 import type { SettingsStore } from "@/shared/application";
@@ -345,7 +345,9 @@ export async function saveSettings(values: Partial<Record<SettingKey, string>>, 
         .onConflictDoUpdate({ target: crmSettings.key, set: { value: sql`excluded.value`, updatedById: sql`excluded.updated_by_id`, updatedAt: new Date() } });
   };
   await inTransaction(() => write(executor()));
-  invalidateSettings();
+  // Внутри чужой транзакции кэш сбрасывается после её COMMIT, а не сейчас: иначе соседний запрос успел бы закэшировать
+  // старые значения до фиксации. Своя транзакция уже зафиксирована — сброс сразу.
+  afterCommit(invalidateSettings);
 }
 
 /** Токен вебхука: создаётся при первом обращении, чтобы адрес для провайдера был сразу готов. */
