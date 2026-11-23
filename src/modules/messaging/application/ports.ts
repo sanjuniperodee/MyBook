@@ -1,3 +1,4 @@
+import type { MessageCard } from "../domain/catalog";
 import type { BookFact, BotCatalog, BotConfig, BotLesson, CoachConversation, CoachRun, HistoryMessage, BotEvent, BotInput, BotLang, BotMode, BotState, Conversation, ConversationMeta, DealField, FaqIntent, HandoffKind, InboundMessage, PaymentFacts, RouteTier } from "../domain";
 
 /**
@@ -62,9 +63,16 @@ export interface OutgoingMessage {
 }
 
 /** Вложение, ответ и пересылка у исходящего. */
+/** Что уходит клиенту карточкой: товар каталога (id, цена на карточке, подпись) или ссылка на весь каталог с текстом. */
+export type OutgoingCard =
+  | { kind: "product"; productId: string; title: string; description: string; currency: string; price: number | null; retailerId: string; url: string; imageUrl: string | null; imageCount: number; body: string }
+  | { kind: "catalog"; text: string; title: string; description: string; imageUrl: string | null };
+
 export interface OutgoingExtra {
   type?: string;
   mediaUrl?: string | null;
+  /** Карточка WhatsApp: товар, корзина, ссылка на каталог. */
+  card?: MessageCard | null;
   replyToId?: string | null;
   forwarded?: boolean;
 }
@@ -152,6 +160,8 @@ export interface ChannelTransport {
   send(conv: Conversation, messageId: string, text: string, opts?: { replyTo?: string | null; forwarded?: boolean }): Promise<SendResult>;
   /** Файл клиенту (фото, видео, голосовое, документ); нет у канала — не умеет. */
   sendFile?(conv: Conversation, file: OutgoingFile, opts: { caption: string; replyTo?: string | null; forwarded?: boolean }): Promise<SendResult>;
+  /** Карточка WhatsApp: товар из каталога или ссылка на весь каталог (только свой шлюз GOWA). */
+  sendCard?(conv: Conversation, card: OutgoingCard): Promise<SendResult>;
   /** Изменить отправленное (WhatsApp — в течение 15 минут). */
   edit?(conv: Conversation, externalId: string, text: string): Promise<{ ok: true } | { ok: false; error: string }>;
   /** Удалить у клиента («удалить для всех»). */

@@ -320,6 +320,7 @@ export default async function DealPage({ params, searchParams }: { params: Promi
                         mentionables={mentionables}
                         ai={ai && canChatSend}
                         invoice={invoicePerms.send ? { dealId: deal.id } : null}
+                        catalog={canChatSend && (await container().messaging.catalogInChat(conv))}
                         timeZone={storeTimeZone()}
                         me={staff.user.id}
                       />

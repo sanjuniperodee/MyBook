@@ -200,7 +200,7 @@ export class DrizzleMessageRepository implements MessageRepository, MessageMedia
   async insertIncoming(conversationId: string, m: InboundMessage, subject: string | null) {
     const rows = await executor()
       .insert(crmMessages)
-      .values({ conversationId, direction: "in", type: m.type, text: m.text, mediaUrl: m.mediaUrl, externalId: m.externalId, status: "received", subject, createdAt: m.at })
+      .values({ conversationId, direction: "in", type: m.type, text: m.text, mediaUrl: m.mediaUrl, card: m.card ?? null, externalId: m.externalId, status: "received", subject, createdAt: m.at })
       .onConflictDoNothing()
       .returning({ id: crmMessages.id });
     return rows.length > 0;
@@ -251,7 +251,7 @@ export class DrizzleMessageRepository implements MessageRepository, MessageMedia
   async insertEcho(conversationId: string, m: InboundMessage, attributedTo: string | null = null) {
     const rows = await executor()
       .insert(crmMessages)
-      .values({ conversationId, direction: "out", type: m.type, text: m.text, mediaUrl: m.mediaUrl, externalId: m.externalId, status: "sent", createdAt: m.at, attributedTo })
+      .values({ conversationId, direction: "out", type: m.type, text: m.text, mediaUrl: m.mediaUrl, card: m.card ?? null, externalId: m.externalId, status: "sent", createdAt: m.at, attributedTo })
       .onConflictDoNothing()
       .returning({ id: crmMessages.id });
     return rows.length > 0;
@@ -270,6 +270,7 @@ export class DrizzleMessageRepository implements MessageRepository, MessageMedia
         status: internal ? "sent" : "pending",
         type: extra.type ?? "text",
         mediaUrl: extra.mediaUrl ?? null,
+        card: extra.card ?? null,
         replyToId: extra.replyToId ?? null,
         forwarded: !!extra.forwarded,
       })

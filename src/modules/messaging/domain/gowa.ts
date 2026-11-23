@@ -1,3 +1,4 @@
+import { cardFromGowaPayload, cardLine, type MessageCard } from "./catalog";
 import { mediaCaption, type WazzupIncoming as InboundMessage, type WazzupStatus as DeliveryStatus } from "./wazzup";
 
 /**
@@ -115,6 +116,15 @@ function attachment(p: Record<string, unknown>): { type: string; path: string | 
   return null;
 }
 
+/**
+ * Текст сообщения-карточки в CRM: строка карточки («🛍️ Книга — 25 000 ₸») и подпись под ней, если есть. Тело вебхука
+ * у товара — служебное «Product …» шлюза: его не берём.
+ */
+function cardText(card: MessageCard): string {
+  const note = card.kind === "order" ? (card.note ?? "") : card.kind === "product" ? (card.body ?? "") : "";
+  return [cardLine(card), note.trim()].filter(Boolean).join("\n");
+}
+
 /** id звонка WhatsApp (шестнадцатеричный); он уходит в адрес аудиопотока шлюза — другие символы не пропускаем. */
 export const GOWA_CALL_ID = /^[A-Za-z0-9_.:-]{1,100}$/;
 
@@ -199,9 +209,11 @@ export function parseGowaWebhook(body: unknown): { messages: InboundMessage[]; s
     const chatJid = str(p.chat_id);
     const externalId = str(p.id);
     if (!externalId || !PERSONAL.test(chatJid) || "poll" in p) return { messages: [], statuses: [] };
-    const media = attachment(p);
-    const type = media?.type ?? "text";
-    const text = str(p.body).trim();
+    // Товар или корзина из каталога WhatsApp — карточкой (фото товара шлюз не скачивает).
+    const card = cardFromGowaPayload(p);
+    const media = card ? null : attachment(p);
+    const type = card?.kind ?? media?.type ?? "text";
+    const text = card ? cardText(card) : str(p.body).trim();
     if (!text && !media) return { messages: [], statuses: [] }; // служебные сообщения без содержимого
     const at = new Date(str(p.timestamp));
     const isEcho = p.is_from_me === true;
@@ -220,6 +232,7 @@ export function parseGowaWebhook(body: unknown): { messages: InboundMessage[]; s
           contactName: isEcho ? "" : str(p.from_name),
           avatarUrl: null,
           status: null,
+          ...(card ? { card } : {}),
         },
       ],
       statuses: [],

@@ -1,0 +1,940 @@
+diff --git a/src/cmd/rest.go b/src/cmd/rest.go
+index f255083..4d7667f 100644
+--- a/src/cmd/rest.go
++++ b/src/cmd/rest.go
+@@ -169,6 +169,7 @@ func restServer(_ *cobra.Command, _ []string) {
+ 		rest.InitRestMessage(r, messageUsecase, sendUsecase)
+ 		rest.InitRestGroup(r, groupUsecase)
+ 		rest.InitRestNewsletter(r, newsletterUsecase)
++		rest.InitRestCatalog(r)
+ 		websocket.RegisterRoutes(r, appUsecase)
+ 	}
+ 
+diff --git a/src/infrastructure/whatsapp/catalog.go b/src/infrastructure/whatsapp/catalog.go
+new file mode 100644
+index 0000000..028feb6
+--- /dev/null
++++ b/src/infrastructure/whatsapp/catalog.go
+@@ -0,0 +1,597 @@
++package whatsapp
++
++// WhatsApp Business catalog of the own number.
++//
++// WhatsApp stopped answering the old w:biz:catalog IQs (Baileys #2717). WhatsApp
++// Web now reads catalogs with a public GraphQL call (graph.whatsapp.com) and
++// changes them with GraphQL mutations on graph.facebook.com, authorised by an
++// ad-account access token that the companion gets over the socket:
++//
++//	<iq xmlns="fb:thrift_iq" smax_id="118" type="get"/>        RequestSilentNonce
++//	<notification type="business"><wa_ad_account_nonce>N</…>   pushed nonce
++//	<iq xmlns="fb:thrift_iq" smax_id="104" type="get">          GetAccessTokenAndSessionCookies
++//	  <parameters><code>N</code></parameters></iq>
++//	→ <access_token>T</access_token><business_person id=…/>
++//
++// The gateway only does what needs the WhatsApp session (the token, the
++// authorised GraphQL call, photo upload, product cards in chats); the queries
++// themselves (doc ids, inputs) are built by the caller.
++
++import (
++	"bytes"
++	"context"
++	"crypto/sha256"
++	"encoding/base64"
++	"encoding/json"
++	"errors"
++	"fmt"
++	"image"
++	"image/jpeg"
++	_ "image/png"
++	"io"
++	"net/http"
++	"net/url"
++	"strings"
++	"sync"
++	"time"
++
++	"github.com/sirupsen/logrus"
++	"go.mau.fi/whatsmeow"
++	waBinary "go.mau.fi/whatsmeow/binary"
++	"go.mau.fi/whatsmeow/proto/waE2E"
++	"go.mau.fi/whatsmeow/types"
++	"go.mau.fi/whatsmeow/types/events"
++	"google.golang.org/protobuf/proto"
++)
++
++const (
++	facebookGraphQLURL = "https://graph.facebook.com/graphql"
++	catalogIQTimeout   = 45 * time.Second
++	nonceWait          = 40 * time.Second
++)
++
++var catalogHTTP = &http.Client{Timeout: 90 * time.Second}
++
++// IQError is the error an IQ came back with.
++type IQError struct {
++	Code int
++	Text string
++	Raw  string
++}
++
++func (e *IQError) Error() string {
++	if e.Text != "" {
++		return fmt.Sprintf("whatsapp error %d: %s", e.Code, e.Text)
++	}
++	return fmt.Sprintf("whatsapp error %d", e.Code)
++}
++
++// rawIQ sends an IQ and waits for its answer (whatsmeow's infoQuery is not exported).
++func rawIQ(ctx context.Context, cli *whatsmeow.Client, attrs waBinary.Attrs, content any) (*waBinary.Node, error) {
++	if cli == nil || !cli.IsConnected() {
++		return nil, errors.New("whatsapp is not connected")
++	}
++	internals := cli.DangerousInternals()
++	id := internals.GenerateRequestID()
++	full := waBinary.Attrs{"id": id, "to": types.ServerJID}
++	for k, v := range attrs {
++		full[k] = v
++	}
++	waiter := internals.WaitResponse(id)
++	if err := internals.SendNode(ctx, waBinary.Node{Tag: "iq", Attrs: full, Content: content}); err != nil {
++		internals.CancelResponse(id, waiter)
++		return nil, err
++	}
++	select {
++	case res := <-waiter:
++		if res == nil || res.Tag != "iq" {
++			return nil, errors.New("connection interrupted, try again")
++		}
++		if t, _ := res.Attrs["type"].(string); t == "error" {
++			out := &IQError{Raw: res.String()}
++			if errNode, ok := res.GetOptionalChildByTag("error"); ok {
++				ag := errNode.AttrGetter()
++				out.Code = ag.OptionalInt("code")
++				out.Text = ag.OptionalString("text")
++			}
++			return res, out
++		}
++		return res, nil
++	case <-ctx.Done():
++		internals.CancelResponse(id, waiter)
++		return nil, ctx.Err()
++	case <-time.After(catalogIQTimeout):
++		internals.CancelResponse(id, waiter)
++		return nil, errors.New("whatsapp did not answer")
++	}
++}
++
++func textNode(tag, value string) waBinary.Node {
++	return waBinary.Node{Tag: tag, Content: []byte(value)}
++}
++
++func nodeText(node waBinary.Node) string {
++	switch c := node.Content.(type) {
++	case []byte:
++		return strings.TrimSpace(string(c))
++	case string:
++		return strings.TrimSpace(c)
++	}
++	return ""
++}
++
++func childText(node waBinary.Node, tag string) string {
++	child, ok := node.GetOptionalChildByTag(tag)
++	if !ok {
++		return ""
++	}
++	return nodeText(child)
++}
++
++// ── ad-account token ─────────────────────────────────────────────────────────
++
++// AdToken authorises catalog mutations on graph.facebook.com.
++type AdToken struct {
++	Token            string    `json:"-"`
++	BusinessPersonID string    `json:"business_person_id"`
++	TokenType        string    `json:"token_type,omitempty"`
++	At               time.Time `json:"obtained_at"`
++}
++
++// TokenError explains why WhatsApp gave no token.
++type TokenError struct {
++	Kind  string // recovery-required, too-many-attempts, incorrect-nonce, no-nonce, error
++	Email string
++	Err   error
++}
++
++func (e *TokenError) Error() string {
++	switch e.Kind {
++	case "recovery-required":
++		return "WhatsApp asks to confirm the business e-mail " + e.Email + " in the WhatsApp Business app"
++	case "too-many-attempts":
++		return "WhatsApp: too many token requests, try again later"
++	case "no-nonce":
++		return "WhatsApp did not send the one-time code for the catalog token"
++	case "incorrect-nonce":
++		return "WhatsApp did not accept the one-time code for the catalog token"
++	}
++	if e.Err != nil {
++		return "catalog token: " + e.Err.Error()
++	}
++	return "catalog token: " + e.Kind
++}
++
++type tokenState struct {
++	mu      sync.Mutex
++	token   *AdToken
++	nonces  chan string
++	once    sync.Once
++	lastBiz []string
++}
++
++var tokenStates sync.Map // *whatsmeow.Client → *tokenState
++
++func stateFor(cli *whatsmeow.Client) *tokenState {
++	v, _ := tokenStates.LoadOrStore(cli, &tokenState{nonces: make(chan string, 4)})
++	st := v.(*tokenState)
++	st.once.Do(func() {
++		cli.AddEventHandler(func(evt any) {
++			bn, ok := evt.(*events.BusinessNotification)
++			if !ok || bn.Node == nil {
++				return
++			}
++			tags := []string{}
++			for _, c := range bn.Node.GetChildren() {
++				tags = append(tags, c.Tag)
++			}
++			st.lastBiz = tags
++			if nonce := NonceFromBusinessNotification(bn.Node); nonce != "" {
++				select {
++				case st.nonces <- nonce:
++				default:
++				}
++				return
++			}
++			logrus.Debugf("business notification: %v", tags)
++		})
++	})
++	return st
++}
++
++// NonceFromBusinessNotification reads <wa_ad_account_nonce> of a business push.
++func NonceFromBusinessNotification(node *waBinary.Node) string {
++	child, ok := node.GetOptionalChildByTag("wa_ad_account_nonce")
++	if !ok {
++		return ""
++	}
++	return nodeText(child)
++}
++
++// ParseTokenResponse reads GetAccessTokenAndSessionCookies.
++func ParseTokenResponse(res *waBinary.Node) (*AdToken, error) {
++	token := childText(*res, "access_token")
++	if token == "" {
++		return nil, errors.New("no access_token in the answer")
++	}
++	out := &AdToken{Token: token, TokenType: childText(*res, "token_type"), At: time.Now()}
++	if bp, ok := res.GetOptionalChildByTag("business_person"); ok {
++		out.BusinessPersonID = bp.AttrGetter().OptionalString("id")
++	}
++	return out, nil
++}
++
++// AdAccountToken returns the cached token or gets a new one over the socket.
++func AdAccountToken(ctx context.Context, cli *whatsmeow.Client, fresh bool) (*AdToken, error) {
++	st := stateFor(cli)
++	st.mu.Lock()
++	defer st.mu.Unlock()
++	if st.token != nil && !fresh {
++		return st.token, nil
++	}
++	st.token = nil
++	var lastErr error
++	for attempt := 0; attempt < 2; attempt++ {
++		for len(st.nonces) > 0 {
++			<-st.nonces
++		}
++		res, err := rawIQ(ctx, cli, waBinary.Attrs{"xmlns": "fb:thrift_iq", "type": "get", "smax_id": "118"}, nil)
++		if err != nil {
++			return nil, &TokenError{Kind: "error", Err: fmt.Errorf("silent nonce: %w", err)}
++		}
++		if result, ok := res.GetOptionalChildByTag("result"); ok {
++			ag := result.AttrGetter()
++			if ag.OptionalString("status") == "RecoveryRequired" {
++				return nil, &TokenError{Kind: "recovery-required", Email: ag.OptionalString("email")}
++			}
++		}
++		var nonce string
++		select {
++		case nonce = <-st.nonces:
++		case <-time.After(nonceWait):
++			return nil, &TokenError{Kind: "no-nonce", Err: fmt.Errorf("answer %s, last business push %v", res.String(), st.lastBiz)}
++		case <-ctx.Done():
++			return nil, ctx.Err()
++		}
++		res, err = rawIQ(ctx, cli, waBinary.Attrs{"xmlns": "fb:thrift_iq", "type": "get", "smax_id": "104"},
++			[]waBinary.Node{{Tag: "parameters", Content: []waBinary.Node{textNode("code", nonce)}}})
++		if err != nil {
++			var iqErr *IQError
++			if errors.As(err, &iqErr) {
++				switch iqErr.Code {
++				case 432:
++					lastErr = &TokenError{Kind: "incorrect-nonce"}
++					continue
++				case 431:
++					return nil, &TokenError{Kind: "too-many-attempts"}
++				}
++			}
++			return nil, &TokenError{Kind: "error", Err: err}
++		}
++		token, err := ParseTokenResponse(res)
++		if err != nil {
++			return nil, &TokenError{Kind: "error", Err: fmt.Errorf("%w: %s", err, res.String())}
++		}
++		st.token = token
++		return token, nil
++	}
++	return nil, lastErr
++}
++
++func dropToken(cli *whatsmeow.Client, token *AdToken) {
++	st := stateFor(cli)
++	st.mu.Lock()
++	if st.token == token {
++		st.token = nil
++	}
++	st.mu.Unlock()
++}
++
++// GraphQLAuthError: the token is rejected (expired, revoked).
++func GraphQLAuthError(body []byte) bool {
++	var r struct {
++		Error *struct {
++			Code int `json:"code"`
++		} `json:"error"`
++		Errors []struct {
++			Code int `json:"code"`
++		} `json:"errors"`
++	}
++	if json.Unmarshal(body, &r) != nil {
++		return false
++	}
++	if r.Error != nil && (r.Error.Code == 190 || r.Error.Code == 102) {
++		return true
++	}
++	for _, e := range r.Errors {
++		if e.Code == 190 || e.Code == 102 || e.Code == 1675002 {
++			return true
++		}
++	}
++	return false
++}
++
++// FacebookGraphQL runs a persisted GraphQL operation (doc id) on
++// graph.facebook.com with the ad-account token, like WhatsApp Web's "facebook"
++// relay environment. Returns the raw JSON answer and the HTTP status.
++func FacebookGraphQL(ctx context.Context, cli *whatsmeow.Client, docID string, variables json.RawMessage, locale string) (json.RawMessage, int, error) {
++	if locale == "" {
++		locale = "ru_RU"
++	}
++	for attempt := 0; attempt < 2; attempt++ {
++		token, err := AdAccountToken(ctx, cli, attempt > 0)
++		if err != nil {
++			return nil, 0, err
++		}
++		body, _ := json.Marshal(map[string]any{"access_token": token.Token, "doc_id": docID, "variables": variables, "locale": locale})
++		req, err := http.NewRequestWithContext(ctx, http.MethodPost, facebookGraphQLURL, bytes.NewReader(body))
++		if err != nil {
++			return nil, 0, err
++		}
++		req.Header.Set("Accept", "application/json")
++		req.Header.Set("Content-Type", "application/json")
++		req.Header.Set("Origin", "https://web.whatsapp.com")
++		req.Header.Set("Referer", "https://web.whatsapp.com/")
++		// WhatsApp Web of a Business account names its linked device (WAWebDeviceIdHeader).
++		if cli.Store != nil && cli.Store.ID != nil {
++			req.Header.Set("X-WA-Device-ID", fmt.Sprint(cli.Store.ID.Device))
++		}
++		resp, err := catalogHTTP.Do(req)
++		if err != nil {
++			return nil, 0, err
++		}
++		data, _ := io.ReadAll(io.LimitReader(resp.Body, 8<<20))
++		_ = resp.Body.Close()
++		if GraphQLAuthError(data) && attempt == 0 {
++			dropToken(cli, token)
++			continue
++		}
++		return data, resp.StatusCode, nil
++	}
++	return nil, 0, errors.New("token rejected")
++}
++
++// ── photos ───────────────────────────────────────────────────────────────────
++
++// UploadProductImage uploads a product photo (plain, not encrypted — WhatsApp
++// Web's "product-catalog-image") and returns its URL for product_info.media.
++func UploadProductImage(ctx context.Context, cli *whatsmeow.Client, data []byte) (string, error) {
++	if len(data) == 0 {
++		return "", errors.New("empty image")
++	}
++	conn, err := cli.DangerousInternals().RefreshMediaConn(ctx, false)
++	if err != nil {
++		return "", fmt.Errorf("media connection: %w", err)
++	}
++	sum := sha256.Sum256(data)
++	token := base64.RawURLEncoding.EncodeToString(sum[:])
++	var lastErr error
++	for _, host := range conn.Hosts {
++		q := url.Values{"auth": {conn.Auth}, "token": {token}}
++		u := url.URL{Scheme: "https", Host: host.Hostname, Path: "/product/image/" + token, RawQuery: q.Encode()}
++		req, err := http.NewRequestWithContext(ctx, http.MethodPost, u.String(), bytes.NewReader(data))
++		if err != nil {
++			return "", err
++		}
++		req.ContentLength = int64(len(data))
++		req.Header.Set("Content-Type", "application/octet-stream")
++		req.Header.Set("Origin", "https://web.whatsapp.com")
++		req.Header.Set("Referer", "https://web.whatsapp.com/")
++		resp, err := catalogHTTP.Do(req)
++		if err != nil {
++			lastErr = err
++			continue
++		}
++		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<16))
++		_ = resp.Body.Close()
++		if resp.StatusCode != http.StatusOK {
++			lastErr = fmt.Errorf("upload to %s: status %d %s", host.Hostname, resp.StatusCode, strings.TrimSpace(string(body)))
++			continue
++		}
++		var out struct {
++			URL        string `json:"url"`
++			DirectPath string `json:"direct_path"`
++		}
++		if err := json.Unmarshal(body, &out); err != nil {
++			lastErr = fmt.Errorf("upload answer: %w", err)
++			continue
++		}
++		// WhatsApp Web (WAWebMediaProduct) puts https://mmg.whatsapp.net<direct_path> into product_info.media;
++		// the "url" of the answer is not accepted by the catalog.
++		if out.DirectPath != "" {
++			return "https://mmg.whatsapp.net" + out.DirectPath, nil
++		}
++		if out.URL != "" {
++			return out.URL, nil
++		}
++		lastErr = fmt.Errorf("upload to %s: no url in %s", host.Hostname, string(body))
++	}
++	if lastErr == nil {
++		lastErr = errors.New("no media hosts")
++	}
++	return "", lastErr
++}
++
++// IsWhatsAppImageURL: only WhatsApp/Facebook CDN photos are fetched.
++func IsWhatsAppImageURL(rawURL string) bool {
++	u, err := url.Parse(rawURL)
++	if err != nil || u.Scheme != "https" {
++		return false
++	}
++	h := u.Hostname()
++	return strings.HasSuffix(h, ".whatsapp.net") || strings.HasSuffix(h, ".fbcdn.net") || strings.HasSuffix(h, ".fbsbx.com")
++}
++
++// FetchImage downloads a catalog photo.
++func FetchImage(ctx context.Context, rawURL string) ([]byte, string, error) {
++	if !IsWhatsAppImageURL(rawURL) {
++		return nil, "", errors.New("not a WhatsApp image URL")
++	}
++	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
++	if err != nil {
++		return nil, "", err
++	}
++	req.Header.Set("Origin", "https://web.whatsapp.com")
++	req.Header.Set("Referer", "https://web.whatsapp.com/")
++	resp, err := catalogHTTP.Do(req)
++	if err != nil {
++		return nil, "", err
++	}
++	defer resp.Body.Close()
++	if resp.StatusCode != http.StatusOK {
++		return nil, "", fmt.Errorf("image: status %d", resp.StatusCode)
++	}
++	data, err := io.ReadAll(io.LimitReader(resp.Body, 16<<20))
++	if err != nil {
++		return nil, "", err
++	}
++	return data, resp.Header.Get("Content-Type"), nil
++}
++
++// ── messages ─────────────────────────────────────────────────────────────────
++
++// ProductCard is what the product card in a chat shows.
++type ProductCard struct {
++	ProductID       string `json:"product_id"`
++	Title           string `json:"title"`
++	Description     string `json:"description"`
++	Currency        string `json:"currency"`
++	PriceAmount1000 int64  `json:"price_amount_1000"`
++	SalePrice1000   int64  `json:"sale_price_amount_1000"`
++	RetailerID      string `json:"retailer_id"`
++	URL             string `json:"url"`
++	ImageURL        string `json:"image_url"`
++	ImageCount      int    `json:"image_count"`
++	Body            string `json:"body"`
++	Footer          string `json:"footer"`
++	CatalogTitle    string `json:"catalog_title"`
++}
++
++// BuildProductMessage uploads the product photo and builds a ProductMessage
++// (the card the customer opens in WhatsApp).
++func BuildProductMessage(ctx context.Context, cli *whatsmeow.Client, in ProductCard, img []byte, mime string) (*waE2E.Message, error) {
++	if cli.Store == nil || cli.Store.ID == nil {
++		return nil, errors.New("not logged in")
++	}
++	snapshot := &waE2E.ProductMessage_ProductSnapshot{
++		ProductID:    proto.String(in.ProductID),
++		Title:        proto.String(in.Title),
++		Description:  proto.String(in.Description),
++		CurrencyCode: proto.String(in.Currency),
++	}
++	if in.PriceAmount1000 > 0 {
++		snapshot.PriceAmount1000 = proto.Int64(in.PriceAmount1000)
++	}
++	if in.SalePrice1000 > 0 {
++		snapshot.SalePriceAmount1000 = proto.Int64(in.SalePrice1000)
++	}
++	if in.RetailerID != "" {
++		snapshot.RetailerID = proto.String(in.RetailerID)
++	}
++	if in.URL != "" {
++		snapshot.URL = proto.String(in.URL)
++	}
++	if len(img) > 0 {
++		if mime == "" || !strings.HasPrefix(mime, "image/") {
++			mime = http.DetectContentType(img)
++		}
++		up, err := cli.Upload(ctx, img, whatsmeow.MediaImage)
++		if err != nil {
++			return nil, fmt.Errorf("upload product image: %w", err)
++		}
++		snapshot.ProductImage = &waE2E.ImageMessage{
++			URL:           proto.String(up.URL),
++			DirectPath:    proto.String(up.DirectPath),
++			MediaKey:      up.MediaKey,
++			Mimetype:      proto.String(mime),
++			FileEncSHA256: up.FileEncSHA256,
++			FileSHA256:    up.FileSHA256,
++			FileLength:    proto.Uint64(up.FileLength),
++		}
++		if thumb := CatalogThumbnail(img); len(thumb) > 0 {
++			snapshot.ProductImage.JPEGThumbnail = thumb
++		}
++		count := in.ImageCount
++		if count <= 0 {
++			count = 1
++		}
++		snapshot.ProductImageCount = proto.Uint32(uint32(count))
++	}
++	pm := &waE2E.ProductMessage{
++		Product:          snapshot,
++		BusinessOwnerJID: proto.String(cli.Store.ID.ToNonAD().String()),
++	}
++	if in.CatalogTitle != "" {
++		pm.Catalog = &waE2E.ProductMessage_CatalogSnapshot{Title: proto.String(in.CatalogTitle)}
++	}
++	if in.Body != "" {
++		pm.Body = proto.String(in.Body)
++	}
++	if in.Footer != "" {
++		pm.Footer = proto.String(in.Footer)
++	}
++	return &waE2E.Message{ProductMessage: pm}, nil
++}
++
++// CatalogLink is the public link to the own catalog.
++func CatalogLink(cli *whatsmeow.Client) string {
++	if cli.Store == nil || cli.Store.ID == nil {
++		return ""
++	}
++	return "https://wa.me/c/" + cli.Store.ID.User
++}
++
++// BuildCatalogLinkMessage is a text with the catalog link and its preview.
++func BuildCatalogLinkMessage(cli *whatsmeow.Client, text, title, description string, thumb []byte) *waE2E.Message {
++	link := CatalogLink(cli)
++	body := strings.TrimSpace(text)
++	if !strings.Contains(body, link) {
++		if body != "" {
++			body += "\n"
++		}
++		body += link
++	}
++	ext := &waE2E.ExtendedTextMessage{
++		Text:        proto.String(body),
++		MatchedText: proto.String(link),
++		ContextInfo: &waE2E.ContextInfo{},
++	}
++	if title != "" {
++		ext.Title = proto.String(title)
++	}
++	if description != "" {
++		ext.Description = proto.String(description)
++	}
++	if len(thumb) > 0 {
++		ext.JPEGThumbnail = thumb
++		ext.PreviewType = waE2E.ExtendedTextMessage_IMAGE.Enum()
++	}
++	return &waE2E.Message{ExtendedTextMessage: ext}
++}
++
++// CatalogThumbnail turns a photo into a small JPEG for previews.
++func CatalogThumbnail(data []byte) []byte {
++	src, _, err := image.Decode(bytes.NewReader(data))
++	if err != nil {
++		return nil
++	}
++	b := src.Bounds()
++	const side = 160
++	w, h := b.Dx(), b.Dy()
++	if w <= 0 || h <= 0 {
++		return nil
++	}
++	scale := float64(side) / float64(max(w, h))
++	tw, th := max(1, int(float64(w)*scale)), max(1, int(float64(h)*scale))
++	dst := image.NewRGBA(image.Rect(0, 0, tw, th))
++	for y := 0; y < th; y++ {
++		for x := 0; x < tw; x++ {
++			dst.Set(x, y, src.At(b.Min.X+int(float64(x)/scale), b.Min.Y+int(float64(y)/scale)))
++		}
++	}
++	var out bytes.Buffer
++	if err := jpeg.Encode(&out, dst, &jpeg.Options{Quality: 75}); err != nil {
++		return nil
++	}
++	return out.Bytes()
++}
+diff --git a/src/infrastructure/whatsapp/catalog_test.go b/src/infrastructure/whatsapp/catalog_test.go
+new file mode 100644
+index 0000000..3b69284
+--- /dev/null
++++ b/src/infrastructure/whatsapp/catalog_test.go
+@@ -0,0 +1,49 @@
++package whatsapp
++
++import (
++	"testing"
++
++	waBinary "go.mau.fi/whatsmeow/binary"
++)
++
++func TestNonceFromBusinessNotification(t *testing.T) {
++	node := &waBinary.Node{Tag: "notification", Attrs: waBinary.Attrs{"type": "business"}, Content: []waBinary.Node{{Tag: "wa_ad_account_nonce", Content: []byte(" 123456 ")}}}
++	if got := NonceFromBusinessNotification(node); got != "123456" {
++		t.Fatalf("nonce: %q", got)
++	}
++	other := &waBinary.Node{Tag: "notification", Content: []waBinary.Node{{Tag: "verified_name"}}}
++	if got := NonceFromBusinessNotification(other); got != "" {
++		t.Fatalf("no nonce expected, got %q", got)
++	}
++}
++
++func TestParseTokenResponse(t *testing.T) {
++	res := &waBinary.Node{Tag: "iq", Content: []waBinary.Node{
++		{Tag: "access_token", Content: []byte("EAAB")},
++		{Tag: "session_cookies", Content: []byte("[]")},
++		{Tag: "business_person", Attrs: waBinary.Attrs{"id": "42"}},
++		{Tag: "token_type", Content: []byte("Strong")},
++	}}
++	tok, err := ParseTokenResponse(res)
++	if err != nil || tok.Token != "EAAB" || tok.BusinessPersonID != "42" || tok.TokenType != "Strong" {
++		t.Fatalf("token: %+v %v", tok, err)
++	}
++	if _, err := ParseTokenResponse(&waBinary.Node{Tag: "iq"}); err == nil {
++		t.Fatal("empty answer must fail")
++	}
++}
++
++func TestGraphQLAuthError(t *testing.T) {
++	if !GraphQLAuthError([]byte(`{"error":{"code":190,"message":"Invalid OAuth access token"}}`)) {
++		t.Fatal("190 is an auth error")
++	}
++	if GraphQLAuthError([]byte(`{"data":{"x":1}}`)) {
++		t.Fatal("data is not an auth error")
++	}
++}
++
++func TestIsWhatsAppImageURL(t *testing.T) {
++	if !IsWhatsAppImageURL("https://mmg.whatsapp.net/v/t45/x.jpg") || IsWhatsAppImageURL("http://mmg.whatsapp.net/x") || IsWhatsAppImageURL("https://evil.com/x.whatsapp.net") {
++		t.Fatal("url check")
++	}
++}
+diff --git a/src/ui/rest/catalog.go b/src/ui/rest/catalog.go
+new file mode 100644
+index 0000000..c4f990b
+--- /dev/null
++++ b/src/ui/rest/catalog.go
+@@ -0,0 +1,264 @@
++package rest
++
++// WhatsApp Business catalog of the device's own number (see
++// infrastructure/whatsapp/catalog.go): the ad-account token over the socket,
++// GraphQL mutations on graph.facebook.com with it, product photo upload,
++// product cards and the catalog link in chats, cart (order) details.
++
++import (
++	"context"
++	"encoding/json"
++	"errors"
++	"io"
++	"strings"
++	"time"
++
++	"github.com/aldinokemal/go-whatsapp-web-multidevice/infrastructure/whatsapp"
++	"github.com/aldinokemal/go-whatsapp-web-multidevice/pkg/utils"
++	"github.com/gofiber/fiber/v3"
++	"go.mau.fi/whatsmeow"
++)
++
++type Catalog struct{}
++
++func InitRestCatalog(app fiber.Router) Catalog {
++	rest := Catalog{}
++	app.Get("/catalog/token", rest.Token)
++	app.Post("/catalog/graphql", rest.GraphQL)
++	app.Post("/catalog/upload-image", rest.UploadImage)
++	app.Post("/catalog/send-product", rest.SendProduct)
++	app.Post("/catalog/send-link", rest.SendCatalogLink)
++	app.Get("/catalog/order", rest.OrderDetails)
++	app.Get("/catalog/image", rest.Image)
++	return rest
++}
++
++func catalogFail(c fiber.Ctx, status int, code, message string) error {
++	return c.Status(status).JSON(fiber.Map{"status": status, "code": code, "message": message})
++}
++
++func catalogOK(c fiber.Ctx, message string, results any) error {
++	return c.JSON(utils.ResponseData{Status: 200, Code: "SUCCESS", Message: message, Results: results})
++}
++
++func catalogClient(c fiber.Ctx) (*whatsmeow.Client, context.Context, context.CancelFunc, error) {
++	ctx := whatsapp.ContextWithDevice(c.Context(), getDeviceFromCtx(c))
++	client := whatsapp.ClientFromContext(ctx)
++	if client == nil || !client.IsConnected() || !client.IsLoggedIn() || client.Store == nil || client.Store.ID == nil {
++		return nil, nil, nil, fiber.NewError(fiber.StatusServiceUnavailable, "WhatsApp is not connected")
++	}
++	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 3*time.Minute)
++	return client, ctx, cancel, nil
++}
++
++func catalogError(c fiber.Ctx, err error) error {
++	var fe *fiber.Error
++	if errors.As(err, &fe) {
++		return catalogFail(c, fe.Code, "NOT_CONNECTED", fe.Message)
++	}
++	var te *whatsapp.TokenError
++	if errors.As(err, &te) {
++		return catalogFail(c, fiber.StatusBadGateway, "TOKEN_"+strings.ToUpper(strings.ReplaceAll(te.Kind, "-", "_")), err.Error())
++	}
++	var iq *whatsapp.IQError
++	if errors.As(err, &iq) {
++		return catalogFail(c, fiber.StatusBadGateway, "WHATSAPP_ERROR", err.Error())
++	}
++	return catalogFail(c, fiber.StatusBadGateway, "CATALOG_ERROR", err.Error())
++}
++
++// Token checks that WhatsApp gives the catalog token (the token itself stays here).
++func (controller *Catalog) Token(c fiber.Ctx) error {
++	client, ctx, cancel, err := catalogClient(c)
++	if err != nil {
++		return catalogError(c, err)
++	}
++	defer cancel()
++	token, err := whatsapp.AdAccountToken(ctx, client, c.Query("fresh") == "1")
++	if err != nil {
++		return catalogError(c, err)
++	}
++	// The catalog mutations address the business by its LID (WAWebGetFormattedCatalogJid); actor_id is the business person.
++	lid := client.Store.GetLID()
++	return catalogOK(c, "Catalog token is ready", fiber.Map{
++		"business_person_id": token.BusinessPersonID,
++		"token_type":         token.TokenType,
++		"obtained_at":        token.At,
++		"jid":                client.Store.ID.ToNonAD().String(),
++		"lid":                lid.ToNonAD().String(),
++	})
++}
++
++type graphQLRequest struct {
++	DocID     string          `json:"doc_id"`
++	Variables json.RawMessage `json:"variables"`
++	Locale    string          `json:"locale"`
++}
++
++// GraphQL runs a persisted catalog operation on graph.facebook.com with the token.
++func (controller *Catalog) GraphQL(c fiber.Ctx) error {
++	client, ctx, cancel, err := catalogClient(c)
++	if err != nil {
++		return catalogError(c, err)
++	}
++	defer cancel()
++	var req graphQLRequest
++	if err := json.Unmarshal(c.Body(), &req); err != nil || req.DocID == "" || len(req.Variables) == 0 {
++		return catalogFail(c, 400, "INVALID_REQUEST", "doc_id and variables are required")
++	}
++	for _, r := range req.DocID {
++		if r < '0' || r > '9' {
++			return catalogFail(c, 400, "INVALID_REQUEST", "doc_id must be a number")
++		}
++	}
++	body, status, err := whatsapp.FacebookGraphQL(ctx, client, req.DocID, req.Variables, req.Locale)
++	if err != nil {
++		return catalogError(c, err)
++	}
++	if !json.Valid(body) {
++		return catalogOK(c, "GraphQL answer", fiber.Map{"http_status": status, "text": string(body)})
++	}
++	return catalogOK(c, "GraphQL answer", fiber.Map{"http_status": status, "body": json.RawMessage(body)})
++}
++
++// UploadImage uploads product photos (files "image") and returns their URLs.
++func (controller *Catalog) UploadImage(c fiber.Ctx) error {
++	client, ctx, cancel, err := catalogClient(c)
++	if err != nil {
++		return catalogError(c, err)
++	}
++	defer cancel()
++	form, err := c.MultipartForm()
++	if err != nil {
++		return catalogFail(c, 400, "INVALID_REQUEST", "multipart form with image files is required")
++	}
++	urls := []string{}
++	for _, fh := range form.File["image"] {
++		f, err := fh.Open()
++		if err != nil {
++			return catalogError(c, err)
++		}
++		data, err := io.ReadAll(io.LimitReader(f, 8<<20))
++		_ = f.Close()
++		if err != nil {
++			return catalogError(c, err)
++		}
++		u, err := whatsapp.UploadProductImage(ctx, client, data)
++		if err != nil {
++			return catalogError(c, err)
++		}
++		urls = append(urls, u)
++	}
++	if len(urls) == 0 {
++		return catalogFail(c, 400, "INVALID_REQUEST", "no image files")
++	}
++	return catalogOK(c, "Images uploaded", fiber.Map{"urls": urls})
++}
++
++type sendProductRequest struct {
++	Phone   string               `json:"phone"`
++	Product whatsapp.ProductCard `json:"product"`
++}
++
++// SendProduct sends a product card (the customer opens it in WhatsApp).
++func (controller *Catalog) SendProduct(c fiber.Ctx) error {
++	client, ctx, cancel, err := catalogClient(c)
++	if err != nil {
++		return catalogError(c, err)
++	}
++	defer cancel()
++	var req sendProductRequest
++	if err := json.Unmarshal(c.Body(), &req); err != nil || req.Product.ProductID == "" {
++		return catalogFail(c, 400, "INVALID_REQUEST", "phone and product.product_id are required")
++	}
++	utils.SanitizePhone(&req.Phone)
++	recipient, err := utils.ParseJID(req.Phone)
++	if err != nil {
++		return catalogFail(c, 400, "INVALID_JID", err.Error())
++	}
++	var img []byte
++	var mime string
++	if req.Product.ImageURL != "" {
++		img, mime, err = whatsapp.FetchImage(ctx, req.Product.ImageURL)
++		if err != nil {
++			return catalogError(c, err)
++		}
++	}
++	msg, err := whatsapp.BuildProductMessage(ctx, client, req.Product, img, mime)
++	if err != nil {
++		return catalogError(c, err)
++	}
++	resp, err := client.SendMessage(ctx, recipient, msg)
++	if err != nil {
++		return catalogError(c, err)
++	}
++	return catalogOK(c, "Product sent", fiber.Map{"message_id": resp.ID, "status": "sent", "with_image": len(img) > 0})
++}
++
++type sendCatalogLinkRequest struct {
++	Phone       string `json:"phone"`
++	Text        string `json:"text"`
++	Title       string `json:"title"`
++	Description string `json:"description"`
++	ImageURL    string `json:"image_url"`
++}
++
++// SendCatalogLink sends wa.me/c/<own number> with a catalog preview.
++func (controller *Catalog) SendCatalogLink(c fiber.Ctx) error {
++	client, ctx, cancel, err := catalogClient(c)
++	if err != nil {
++		return catalogError(c, err)
++	}
++	defer cancel()
++	var req sendCatalogLinkRequest
++	if err := json.Unmarshal(c.Body(), &req); err != nil {
++		return catalogFail(c, 400, "INVALID_REQUEST", err.Error())
++	}
++	utils.SanitizePhone(&req.Phone)
++	recipient, err := utils.ParseJID(req.Phone)
++	if err != nil {
++		return catalogFail(c, 400, "INVALID_JID", err.Error())
++	}
++	var thumb []byte
++	if req.ImageURL != "" {
++		if data, _, err := whatsapp.FetchImage(ctx, req.ImageURL); err == nil {
++			thumb = whatsapp.CatalogThumbnail(data)
++		}
++	}
++	msg := whatsapp.BuildCatalogLinkMessage(client, req.Text, req.Title, req.Description, thumb)
++	resp, err := client.SendMessage(ctx, recipient, msg)
++	if err != nil {
++		return catalogError(c, err)
++	}
++	return catalogOK(c, "Catalog link sent", fiber.Map{"message_id": resp.ID, "status": "sent", "text": msg.GetExtendedTextMessage().GetText()})
++}
++
++// OrderDetails returns the items of a cart a customer sent (order id and token
++// come from the order message).
++func (controller *Catalog) OrderDetails(c fiber.Ctx) error {
++	client, ctx, cancel, err := catalogClient(c)
++	if err != nil {
++		return catalogError(c, err)
++	}
++	defer cancel()
++	details, err := client.GetOrderDetails(ctx, c.Query("order_id"), c.Query("token"))
++	if err != nil {
++		return catalogError(c, err)
++	}
++	return catalogOK(c, "Success get order", details)
++}
++
++// Image proxies a catalog photo (CRM keeps its own copy for the product list).
++func (controller *Catalog) Image(c fiber.Ctx) error {
++	ctx, cancel := context.WithTimeout(c.Context(), time.Minute)
++	defer cancel()
++	data, mime, err := whatsapp.FetchImage(ctx, c.Query("url"))
++	if err != nil {
++		return catalogFail(c, 400, "IMAGE_ERROR", err.Error())
++	}
++	if mime == "" {
++		mime = "image/jpeg"
++	}
++	c.Set("Content-Type", mime)
++	return c.Send(data)
++}

@@ -6,13 +6,15 @@ import { LifecycleChatForm } from "../whatsapp/LifecycleChatForm";
 import { GowaForm } from "../whatsapp/GowaForm";
 import { WhatsappCallsForm } from "../whatsapp/WhatsappCallsForm";
 import { RuleSendingForm } from "../whatsapp/RuleSendingForm";
+import { CatalogSettingsForm } from "../whatsapp/CatalogSettingsForm";
+import { catalogLink } from "@/modules/messaging";
 import { WazzupForm } from "../wazzup/WazzupForm";
 import { SettingsFrame } from "../frame";
 import { tabAnchors } from "../tabs";
 import { hook } from "./shared";
 
 export async function MessengersTab() {
-  const [apiKey, baseUrl, channelId, webhookToken, gowa, rules, lifecycleChat] = await Promise.all([
+  const [apiKey, baseUrl, channelId, webhookToken, gowa, rules, lifecycleChat, catalog] = await Promise.all([
     getSetting("wazzup.apiKey"),
     getSetting("wazzup.baseUrl"),
     getSetting("wazzup.channelId"),
@@ -20,6 +22,7 @@ export async function MessengersTab() {
     (async () => ({ provider: await container().messaging.whatsappProvider(), settings: await getSettings(["gowa.baseUrl", "gowa.basicAuth", "gowa.callbackUrl", "gowa.calls"]), status: await container().messaging.gowa.status() }))(),
     container().messaging.chats.ruleSendingToday(),
     getSetting("notify.whatsapp"),
+    (async () => ({ settings: await container().messaging.catalog.settings(), products: (await container().messaging.catalog.list()).length }))(),
   ]);
   return (
     <SettingsFrame anchors={tabAnchors("messengers")}>
@@ -32,6 +35,7 @@ export async function MessengersTab() {
         callbackDefault={hook("/api/integrations/gowa")}
       />
       <WhatsappCallsForm enabled={gowa.provider === "gowa" && gowa.settings["gowa.calls"] === "on"} gowa={gowa.provider === "gowa"} />
+      <CatalogSettingsForm settings={catalog.settings} products={catalog.products} gowa={gowa.provider === "gowa"} link={gowa.status.phone ? catalogLink(gowa.status.phone) : null} />
       <RuleSendingForm from={rules.policy.from} to={rules.policy.to} dailyLimit={rules.policy.dailyLimit} sentToday={rules.sent} max={RULE_DAILY_LIMIT_MAX} />
       <LifecycleChatForm kinds={[...parseChatKinds(lifecycleChat)]} />
       <WazzupForm

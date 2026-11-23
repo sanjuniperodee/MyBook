@@ -21,6 +21,7 @@ export const permissionGroups = [
     items: [
       ["chats.view", "Видеть переписку"],
       ["chats.send", "Отвечать клиентам"],
+      ["catalog.manage", "Вести каталог товаров WhatsApp: добавлять, менять, скрывать и удалять товары"],
     ],
   },
   {

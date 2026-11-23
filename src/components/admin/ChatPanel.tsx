@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
-import { ArrowDown, BadgePercent, BookOpen, Camera, Check, Mic, Plus, FileText, Forward, Trash2, LoaderCircle, Lock, MessageSquareQuote, MessagesSquare, Paperclip, Pencil, Receipt, ReceiptText, Reply, SendHorizontal, Sparkles, TriangleAlert, Wallet, X } from "lucide-react";
+import { ArrowDown, BadgePercent, BookOpen, Camera, Check, Mic, Plus, FileText, Forward, Trash2, LoaderCircle, Lock, MessageSquareQuote, MessagesSquare, Paperclip, Pencil, Receipt, ReceiptText, Reply, SendHorizontal, ShoppingBag, Sparkles, TriangleAlert, Wallet, X } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { aiSuggestReplyAction, aiTemplateDraftAction } from "@/app/admin/ai-actions";
 import { TemplateEditor } from "@/app/admin/templates/TemplateEditor";
@@ -12,6 +12,7 @@ import { ask, promptText } from "@/components/ui/overlays";
 import { AUDIO_EVENT, type AudioEvent } from "./chat/VoicePlayer";
 import { ForwardDialog } from "./chat/ForwardDialog";
 import { TemplateDialog } from "./chat/TemplateDialog";
+import { CatalogPicker } from "./chat/CatalogPicker";
 import { VoiceRecorder, canRecordVoice } from "./chat/VoiceRecorder";
 import { MediaViewer, type ViewerItem } from "./chat/MediaViewer";
 import { MessageBubble, formatter, hasCaption, canForward, canRemove, isTemp, mediaSrc, selectable, snippet, time, type Msg } from "./chat/MessageBubble";
@@ -107,6 +108,7 @@ export function ChatPanel({
   invoice = null,
   timeZone,
   me = "",
+  catalog = false,
 }: {
   conversationId: string;
   messages: Msg[];
@@ -127,9 +129,12 @@ export function ChatPanel({
   timeZone: string;
   /** Текущий сотрудник: своё сообщение можно изменить и удалить. */
   me?: string;
+  /** Каталог WhatsApp в этом чате (свой шлюз, включён в настройках): кнопка «Товар из каталога». */
+  catalog?: boolean;
 }) {
   const router = useRouter();
   const [text, setText] = useState("");
+  const [picking, setPicking] = useState(false);
   /** Заметка AI к подсказанному черновику: чего хочет клиент и на каком этапе (видна над полем ввода, пока не отправили). */
   const [aiHint, setAiHint] = useState<string | null>(null);
   const [local, setLocal] = useState<Msg[]>([]);
@@ -953,6 +958,7 @@ export function ChatPanel({
       </div>
       {viewer !== null && gallery.length ? <MediaViewer items={gallery} index={Math.min(viewer, gallery.length - 1)} onIndex={setViewer} onClose={() => setViewer(null)} /> : null}
       {forwarding && picked.length ? <ForwardDialog conversationId={conversationId} messageIds={picked.map((m) => m.id)} preview={picked.length === 1 ? snippet(picked[0]) : `Сообщений: ${picked.length}`} onClose={() => setForwarding(false)} onDone={stopSelecting} /> : null}
+      {picking ? <CatalogPicker conversationId={conversationId} onClose={() => setPicking(false)} onSent={() => router.refresh()} /> : null}
       {templating && templateText ? <TemplateDialog initialText={templateText.slice(0, 2000)} onClose={() => setTemplating(false)} onDone={stopSelecting} /> : null}
       {tplDraft?.loading ? (
         <div className="fixed inset-x-0 bottom-24 z-[90] flex justify-center" role="status">
@@ -1268,6 +1274,11 @@ export function ChatPanel({
                         <ReceiptText className="size-[18px]" strokeWidth={1.8} />
                       </button>
                     ) : null}
+                    {catalog && canSend ? (
+                      <button type="button" className={tool} onClick={() => (setPicking(true), setShowOffers(false), setShowTemplates(false))} title="Товар из каталога WhatsApp: карточка товара клиенту" aria-label="Товар из каталога" data-testid="chat-catalog">
+                        <ShoppingBag className="size-[18px]" strokeWidth={1.8} />
+                      </button>
+                    ) : null}
                     {ai ? (
                       <button type="button" className={cn(tool, "text-info hover:text-info")} onClick={suggest} disabled={thinking} title="AI: подсказать ответ (вы сможете поправить текст перед отправкой)" aria-label="Подсказать ответ">
                         {thinking ? <LoaderCircle className="size-[18px] animate-spin" /> : <Sparkles className="size-[18px]" strokeWidth={1.8} />}
@@ -1298,6 +1309,7 @@ export function ChatPanel({
           {mode === "client" && !editing ? <SheetItem icon={MessageSquareQuote} label="Шаблоны ответов" onClick={() => (setSheet(false), setShowOffers(false), setShowTemplates(true))} /> : null}
           {offers && mode === "client" && !editing ? <SheetItem icon={Wallet} label="Оплата и скидка" onClick={() => (setSheet(false), setShowTemplates(false), setShowOffers(true))} /> : null}
           {invoice && mode === "client" && !editing ? <SheetItem icon={ReceiptText} label="Счёт на оплату" onClick={() => (setSheet(false), setInvoiceKey(newIssueKey()))} /> : null}
+          {catalog && canSend && mode === "client" && !editing ? <SheetItem icon={ShoppingBag} label="Товар из каталога" hint="Карточка товара WhatsApp или весь каталог" onClick={() => (setSheet(false), setPicking(true))} /> : null}
           {ai && mode === "client" && !editing ? <SheetItem icon={Sparkles} label="Подсказать ответ (AI)" onClick={() => (setSheet(false), suggest())} /> : null}
           {note ? (
             canSend ? <SheetItem icon={SendHorizontal} label="Писать клиенту" onClick={() => (setSheet(false), setMode("client"))} /> : null

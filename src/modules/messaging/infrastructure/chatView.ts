@@ -10,6 +10,7 @@ import { GOWA_CHANNEL, gowaDownloadable, gowaMediaPath } from "../domain/gowa";
 import type { MailTransport } from "./email";
 import type { GowaClient } from "./gowa";
 import type { WazzupClient } from "./wazzup";
+import { parseCard, type MessageCard } from "../domain/catalog";
 
 /** Сообщение диалога в виде, готовом для ChatPanel. */
 export interface ChatMessage {
@@ -41,6 +42,8 @@ export interface ChatMessage {
   transcript?: string | null;
   /** У ответа AI-продажника есть след хода — в чате «Почему так?». */
   trace?: boolean;
+  /** Карточка WhatsApp: товар из каталога, корзина клиента, ссылка на каталог. */
+  card?: MessageCard | null;
 }
 
 /** Кто отправил исходящее без сотрудника: бот, правило автоматизации, телефон магазина (эхо) или старая запись. */
@@ -104,6 +107,7 @@ async function loadChatMessages(conversationId: string, limit: number, gateway: 
       edited: !!m.editedAt,
       transcript: m.transcript,
       ...(traced.has(m.id) ? { trace: true } : {}),
+      ...(m.card ? { card: parseCard(m.card) } : {}),
     };
   });
 }

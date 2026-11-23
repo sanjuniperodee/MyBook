@@ -111,6 +111,8 @@ export const settingDefs = {
   "whatsapp.phoneHolder": {},
   /** Когда правила автоматизаций пишут клиентам первыми: JSON { from, to } по Алматы (automation-15). Автоответ — в любое время. */
   "whatsapp.rulesWindow": { default: '{"from":"09:00","to":"21:00"}' },
+  /** Каталог WhatsApp в чатах: JSON CatalogSettings (кнопка «Товар из каталога», тексты ссылки и подписи, валюта). */
+  "whatsapp.catalog": {},
   /** Сколько сообщений клиентам от правил уходит за сутки; 0 — правила первыми не пишут. */
   "whatsapp.rulesDailyLimit": { default: "40" },
   /**

@@ -4,6 +4,7 @@ import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
+  ShoppingBag,
   Gauge,
   BarChart3,
   Coins,
@@ -96,6 +97,7 @@ export const navDomains: Domain[] = [
       { href: "/admin/clients", label: "Клиенты", icon: Users, perm: ["clients.view"], keywords: "база контакты" },
       { href: "/admin/calls", label: "Звонки", icon: PhoneCall, badge: "calls", perm: ["calls.view"], keywords: "телефон записи" },
       { href: "/admin/templates", label: "Шаблоны", icon: MessageSquareQuote, perm: ["chats.view"], keywords: "ответы быстрые сообщения" },
+      { href: "/admin/catalog", label: "Каталог WhatsApp", icon: ShoppingBag, perm: ["catalog.manage"], keywords: "товары whatsapp business витрина цены корзина" },
     ],
   },
   {

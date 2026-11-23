@@ -701,6 +701,13 @@
       "when": 1795384354325,
       "tag": "0099_title_page",
       "breakpoints": true
+    },
+    {
+      "idx": 100,
+      "version": "7",
+      "when": 1795429133946,
+      "tag": "0100_whatsapp_catalog",
+      "breakpoints": true
     }
   ]
 }
