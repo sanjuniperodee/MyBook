@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { chatProductsAction } from "@/app/admin/catalog/actions";
 import { apiStaff } from "@/server/api";
 import { mobile } from "@/server/mobile-api";
+import { admin } from "@/i18n/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,7 @@ export const GET = mobile(async (req) => {
   } catch (err) {
     // Каталог обновляется из WhatsApp через шлюз: шлюз недоступен — понятный текст вместо «ошибки сервера».
     console.error("[mobile:catalog]", err);
-    return NextResponse.json({ error: "Каталог WhatsApp сейчас недоступен — шлюз не отвечает. Попробуйте позже." }, { status: 503 });
+    return NextResponse.json({ error: admin.mobileCatalogDown }, { status: 503 });
   }
   if (!r.ok) return NextResponse.json({ error: r.error }, { status: 400 });
   return NextResponse.json({ enabled: r.enabled, products: r.products });
