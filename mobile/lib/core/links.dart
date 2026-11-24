@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../screens/chat_screen.dart';
 import '../screens/client_screen.dart';
 import '../screens/crm_web_screen.dart';
 import '../screens/deal_screen.dart';
@@ -20,7 +21,7 @@ import 'layouts.dart';
 import 'notifier.dart';
 
 /// Страницы CRM, которые в приложении — свои разделы: адрес → ключ раздела (appSections).
-const _nativePaths = {'/admin/finance': 'finance', '/admin/expenses': 'expenses', '/admin/profit': 'profit', '/admin/support': 'support', '/admin/tasks/boards': 'boards'};
+const _nativePaths = {'/admin/sales': 'register', '/admin/analytics': 'analytics', '/admin/leads': 'leads', '/admin/finance': 'finance', '/admin/expenses': 'expenses', '/admin/profit': 'profit', '/admin/support': 'support', '/admin/tasks/boards': 'boards'};
 
 /// Свой экран для адреса раздела CRM (/admin/finance?p=prev → «Финансы»); null — такого раздела в приложении нет.
 Widget? nativePageFor(String path) {
@@ -35,6 +36,7 @@ Widget? nativePageFor(String path) {
 Future<void> openAdminLink(BuildContext context, String href, {String? title}) {
   final t = NotificationTarget.parse(href);
   Widget? screen;
+  if (t.chatId != null) screen = ChatScreen(chatId: t.chatId!);
   if (t.dealId != null) screen = DealScreen(dealId: t.dealId!);
   if (t.orderId != null) screen = OrderScreen(orderId: t.orderId!);
   if (t.clientId != null) screen = ClientScreen(clientId: t.clientId!);

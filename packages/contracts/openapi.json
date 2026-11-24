@@ -4791,6 +4791,280 @@
         "x-auth": "staff"
       }
     },
+    "/api/v1/crm/sales": {
+      "get": {
+        "operationId": "crmSalesRegister",
+        "tags": [
+          "crm"
+        ],
+        "summary": "Реестр продаж: покупатели периода, цена, оплачено, остаток, форма оплаты",
+        "parameters": [
+          {
+            "name": "p",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "today",
+                "7d",
+                "month",
+                "prev",
+                "custom"
+              ]
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SalesRegister"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "staff"
+      }
+    },
+    "/api/v1/crm/sales/{dealId}/pay-form": {
+      "put": {
+        "operationId": "crmSalesPayForm",
+        "tags": [
+          "crm"
+        ],
+        "summary": "Форма оплаты сделки (Kaspi Gold, Рассрочка…); пусто — снять",
+        "parameters": [
+          {
+            "name": "dealId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PayFormBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Done"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "staff"
+      }
+    },
+    "/api/v1/crm/analytics": {
+      "get": {
+        "operationId": "crmAnalytics",
+        "tags": [
+          "crm"
+        ],
+        "summary": "Аналитика продаж: деньги, воронка, каналы, команда, скорость ответа, телефония",
+        "parameters": [
+          {
+            "name": "p",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "today",
+                "7d",
+                "month",
+                "prev",
+                "custom"
+              ]
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          {
+            "name": "pl",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 40
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SalesAnalytics"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "staff"
+      }
+    },
+    "/api/v1/crm/leads": {
+      "get": {
+        "operationId": "crmLeadStats",
+        "tags": [
+          "crm"
+        ],
+        "summary": "Статистика лидов: заявки периода, по дням, этапы, отказы и разрезы",
+        "parameters": [
+          {
+            "name": "p",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "today",
+                "7d",
+                "month",
+                "prev",
+                "custom"
+              ]
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          {
+            "name": "m",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LeadStats"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "staff"
+      }
+    },
     "/api/v1/boards": {
       "get": {
         "operationId": "boardsList",
@@ -17340,6 +17614,1195 @@
         "required": [
           "rates",
           "taxRate"
+        ],
+        "additionalProperties": false
+      },
+      "SalesRow": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "number": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "day": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "client": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "channel": {
+            "type": "string"
+          },
+          "manager": {
+            "type": "string"
+          },
+          "plan": {
+            "type": "string"
+          },
+          "price": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "paid": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "rest": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "state": {
+            "type": "string"
+          },
+          "method": {
+            "type": "string"
+          },
+          "payForm": {
+            "type": "string"
+          },
+          "fee": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "eventDate": {
+            "type": "string"
+          },
+          "orderId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "day",
+          "client",
+          "phone",
+          "city",
+          "channel",
+          "manager",
+          "plan",
+          "price",
+          "paid",
+          "rest",
+          "state",
+          "method",
+          "payForm",
+          "fee",
+          "eventDate",
+          "orderId"
+        ],
+        "additionalProperties": false
+      },
+      "SalesRegister": {
+        "type": "object",
+        "properties": {
+          "period": {
+            "$ref": "#/components/schemas/MoneyPeriod"
+          },
+          "totals": {
+            "type": "object",
+            "properties": {
+              "count": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "settled": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "price": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "paid": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "rest": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "fee": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "count",
+              "settled",
+              "price",
+              "paid",
+              "rest",
+              "fee"
+            ],
+            "additionalProperties": false
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SalesRow"
+            }
+          },
+          "canEdit": {
+            "type": "boolean"
+          },
+          "payForms": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "showFees": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "period",
+          "totals",
+          "rows",
+          "canEdit",
+          "payForms",
+          "showFees"
+        ],
+        "additionalProperties": false
+      },
+      "PayFormBody": {
+        "type": "object",
+        "properties": {
+          "form": {
+            "type": "string",
+            "maxLength": 60
+          }
+        },
+        "required": [
+          "form"
+        ],
+        "additionalProperties": false
+      },
+      "AnalyticsFunnelRow": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "reached": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "prev": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "conversion": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "timeLabel": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "reached",
+          "prev",
+          "conversion",
+          "timeLabel"
+        ],
+        "additionalProperties": false
+      },
+      "AnalyticsChannel": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "created": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "won": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "revenue": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "created",
+          "won",
+          "revenue"
+        ],
+        "additionalProperties": false
+      },
+      "AnalyticsManager": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "deals": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "won": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "revenue": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "received": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "open": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "messages": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "phoneMessages": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "calls": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "talkMinutes": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "tasksDone": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "tasksOverdue": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "responseLabel": {
+            "type": "string"
+          },
+          "inSlaLabel": {
+            "type": "string"
+          },
+          "planLabel": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "deals",
+          "won",
+          "revenue",
+          "received",
+          "open",
+          "messages",
+          "phoneMessages",
+          "calls",
+          "talkMinutes",
+          "tasksDone",
+          "tasksOverdue",
+          "responseLabel",
+          "inSlaLabel",
+          "planLabel"
+        ],
+        "additionalProperties": false
+      },
+      "SalesAnalytics": {
+        "type": "object",
+        "properties": {
+          "period": {
+            "$ref": "#/components/schemas/MoneyPeriod"
+          },
+          "pipelines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Choice"
+            }
+          },
+          "pipelineId": {
+            "type": "string"
+          },
+          "flow": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MoneyFlow"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tiles": {
+            "type": "object",
+            "properties": {
+              "received": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "receivedDelta": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "wonSum": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "wonSumDelta": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "repeatRevenue": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "created": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "createdDelta": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "repeatCreated": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "won": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "wonDelta": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "repeatWon": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "conversion": {
+                "type": "string"
+              },
+              "cycle": {
+                "type": "string"
+              },
+              "responseMedian": {
+                "type": "string"
+              },
+              "inSla": {
+                "type": "string"
+              },
+              "slaMinutes": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "awaiting": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "botFirst": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "botMedian": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "received",
+              "receivedDelta",
+              "wonSum",
+              "wonSumDelta",
+              "repeatRevenue",
+              "created",
+              "createdDelta",
+              "repeatCreated",
+              "won",
+              "wonDelta",
+              "repeatWon",
+              "conversion",
+              "cycle",
+              "responseMedian",
+              "inSla",
+              "slaMinutes",
+              "awaiting",
+              "botFirst",
+              "botMedian"
+            ],
+            "additionalProperties": false
+          },
+          "funnel": {
+            "type": "object",
+            "properties": {
+              "base": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "inWork": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "rows": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/AnalyticsFunnelRow"
+                }
+              }
+            },
+            "required": [
+              "base",
+              "inWork",
+              "rows"
+            ],
+            "additionalProperties": false
+          },
+          "channels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsChannel"
+            }
+          },
+          "team": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsManager"
+            }
+          },
+          "longest": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "conversationId": {
+                  "type": "string"
+                },
+                "askedLabel": {
+                  "type": "string"
+                },
+                "waitLabel": {
+                  "type": "string"
+                },
+                "answered": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "conversationId",
+                "askedLabel",
+                "waitLabel",
+                "answered"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "calls": {
+            "type": "object",
+            "properties": {
+              "incoming": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "outgoing": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "missed": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "handled": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "talkMinutes": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "unanswered": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "asked": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "incoming",
+              "outgoing",
+              "missed",
+              "handled",
+              "talkMinutes",
+              "unanswered",
+              "asked"
+            ],
+            "additionalProperties": false
+          },
+          "lost": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "label",
+                "value"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "period",
+          "pipelines",
+          "pipelineId",
+          "flow",
+          "tiles",
+          "funnel",
+          "channels",
+          "team",
+          "longest",
+          "calls",
+          "lost"
+        ],
+        "additionalProperties": false
+      },
+      "LeadCut": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "label": {
+            "type": "string"
+          },
+          "leads": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "paid": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "conversion": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "leads",
+          "paid",
+          "conversion"
+        ],
+        "additionalProperties": false
+      },
+      "LeadShare": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "share": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "label",
+          "count",
+          "share"
+        ],
+        "additionalProperties": false
+      },
+      "LeadStats": {
+        "type": "object",
+        "properties": {
+          "period": {
+            "$ref": "#/components/schemas/MoneyPeriod"
+          },
+          "managers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Choice"
+            }
+          },
+          "managerId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "showSpend": {
+            "type": "boolean"
+          },
+          "totals": {
+            "type": "object",
+            "properties": {
+              "leads": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "junk": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "paid": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "conversion": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "open": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "lost": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "repeat": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "avgCheck": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "medianHours": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "payments": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "paymentsFirst": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "paymentsAgreed": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "invoices": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "spend": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "cpl": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "cac": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "roas": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "roasAgreed": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "adShare": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "deltaLeads": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "deltaPaid": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "deltaConversion": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "leads",
+              "junk",
+              "paid",
+              "conversion",
+              "open",
+              "lost",
+              "repeat",
+              "avgCheck",
+              "medianHours",
+              "payments",
+              "paymentsFirst",
+              "paymentsAgreed",
+              "invoices",
+              "spend",
+              "cpl",
+              "cac",
+              "roas",
+              "roasAgreed",
+              "adShare",
+              "deltaLeads",
+              "deltaPaid",
+              "deltaConversion"
+            ],
+            "additionalProperties": false
+          },
+          "daily": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "day": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                },
+                "leads": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "junk": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "invoices": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "payments": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "first": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "agreed": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "spend": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "conversion": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "cpl": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "cac": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "roas": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "day",
+                "leads",
+                "junk",
+                "invoices",
+                "payments",
+                "first",
+                "agreed",
+                "spend",
+                "conversion",
+                "cpl",
+                "cac",
+                "roas"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "stages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string"
+                },
+                "pipeline": {
+                  "type": "string"
+                },
+                "count": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "share": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "paid": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "key",
+                "label",
+                "kind",
+                "pipeline",
+                "count",
+                "share",
+                "paid"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "lost": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LeadShare"
+            }
+          },
+          "bySource": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LeadCut"
+            }
+          },
+          "buyersBySource": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "buyers": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "agreed": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "received": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "share": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "key",
+                "label",
+                "buyers",
+                "agreed",
+                "received",
+                "share"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "byManager": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LeadCut"
+            }
+          },
+          "byRecipient": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LeadCut"
+            }
+          },
+          "byOccasion": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LeadCut"
+            }
+          },
+          "byLeadTime": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LeadCut"
+            }
+          },
+          "byWeekday": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LeadCut"
+            }
+          },
+          "byHour": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LeadCut"
+            }
+          },
+          "payDelay": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LeadShare"
+            }
+          }
+        },
+        "required": [
+          "period",
+          "managers",
+          "managerId",
+          "showSpend",
+          "totals",
+          "daily",
+          "stages",
+          "lost",
+          "bySource",
+          "buyersBySource",
+          "byManager",
+          "byRecipient",
+          "byOccasion",
+          "byLeadTime",
+          "byWeekday",
+          "byHour",
+          "payDelay"
         ],
         "additionalProperties": false
       }

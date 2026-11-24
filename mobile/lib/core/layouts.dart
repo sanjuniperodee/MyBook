@@ -7,8 +7,11 @@ import '../screens/chats_screen.dart';
 import '../screens/clients_screen.dart';
 import '../screens/deals_screen.dart';
 import '../screens/money/expenses_screen.dart';
+import '../screens/money/analytics_screen.dart';
 import '../screens/money/finance_screen.dart';
+import '../screens/money/lead_stats_screen.dart';
 import '../screens/money/profit_screen.dart';
+import '../screens/money/sales_register_screen.dart';
 import '../screens/orders_screen.dart';
 import '../screens/overview_screen.dart';
 import '../screens/tasks_screen.dart';
@@ -44,6 +47,10 @@ final appSections = <String, AppSection>{
   'finance': AppSection('finance', 'Финансы', LucideIcons.wallet, (s) => s.can('analytics.view'), () => const FinanceScreen(), group: 'Деньги'),
   'expenses': AppSection('expenses', 'Расходы', LucideIcons.receiptText, (s) => s.can('finance.view'), () => const ExpensesScreen(), group: 'Деньги'),
   'profit': AppSection('profit', 'Прибыль', LucideIcons.trendingUp, (s) => s.can('finance.view'), () => const ProfitScreen(), group: 'Деньги'),
+  // Отчёты руководителя — API v1 crmSalesRegister / crmAnalytics / crmLeadStats.
+  'register': AppSection('register', 'Реестр продаж', LucideIcons.scrollText, (s) => s.can('analytics.view'), () => const SalesRegisterScreen(), group: 'Деньги'),
+  'analytics': AppSection('analytics', 'Аналитика продаж', LucideIcons.chartColumn, (s) => s.can('analytics.view'), () => const AnalyticsScreen(), group: 'Деньги'),
+  'leads': AppSection('leads', 'Статистика лидов', LucideIcons.activity, (s) => s.can('analytics.view'), () => const LeadStatsScreen(), group: 'Деньги'),
 };
 
 /// Вкладки нижней панели по раскладке роли (до «Профиля», он всегда последний). Недоступные по правам отбрасываются.
@@ -83,13 +90,21 @@ List<AppSection> groupSections(Staff staff, String group) => [
         if (s.group == group && s.allowed(staff)) s,
     ];
 
-/// Группы «Профиля» / «Ещё» по порядку: разделы приложения с группой и разделы CRM.
-List<String> sectionGroups(Staff staff) => {
-      for (final w in crmWebSections)
-        if (w.allowed(staff)) w.group,
-      for (final s in appSections.values)
-        if (s.group != null && s.allowed(staff)) s.group!,
-    }.toList();
+/// Порядок групп — как в боковой панели CRM.
+const _groupOrder = ['Сегодня', 'Продажи', 'Выпуск', 'Деньги', 'Маркетинг', 'Настройки'];
+
+/// Группы «Профиля» / «Ещё» по порядку боковой панели CRM: разделы приложения с группой и разделы CRM.
+List<String> sectionGroups(Staff staff) {
+  final groups = {
+    for (final w in crmWebSections)
+      if (w.allowed(staff)) w.group,
+    for (final s in appSections.values)
+      if (s.group != null && s.allowed(staff)) s.group!,
+  }.toList();
+  int rank(String g) => _groupOrder.contains(g) ? _groupOrder.indexOf(g) : _groupOrder.length;
+  groups.sort((a, b) => rank(a).compareTo(rank(b)));
+  return groups;
+}
 
 const layoutTitles = {'leader': 'Руководитель', 'sales': 'Продажи', 'production': 'Производство', 'analyst': 'Аналитика', 'support': 'Поддержка', 'basic': 'Сотрудник'};
 
@@ -112,9 +127,6 @@ const crmWebSections = <CrmWebSection>[
   CrmWebSection('Продажи', '/admin/catalog', 'Каталог WhatsApp', LucideIcons.shoppingBag, ['catalog.manage']),
   CrmWebSection('Выпуск', '/admin/board', 'Канбан заказов', LucideIcons.kanban, ['orders.view']),
   CrmWebSection('Выпуск', '/admin/books', 'Книги', LucideIcons.bookOpen, ['clients.view']),
-  CrmWebSection('Деньги', '/admin/sales', 'Реестр продаж', LucideIcons.scrollText, ['analytics.view']),
-  CrmWebSection('Деньги', '/admin/analytics', 'Аналитика продаж', LucideIcons.chartColumn, ['analytics.view']),
-  CrmWebSection('Деньги', '/admin/leads', 'Статистика лидов', LucideIcons.activity, ['analytics.view']),
   CrmWebSection('Маркетинг', '/admin/marketing', 'Ссылки и каналы', LucideIcons.link2, ['analytics.view', 'promo.manage']),
   CrmWebSection('Маркетинг', '/admin/promo', 'Промокоды', LucideIcons.tag, ['promo.manage']),
   CrmWebSection('Маркетинг', '/admin/gifts', 'Сертификаты', LucideIcons.gift, ['gifts.manage']),

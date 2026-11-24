@@ -614,6 +614,30 @@ class MybookApi {
     return Done.fromJson(json as Map<String, dynamic>);
   }
 
+  /// Реестр продаж: покупатели периода, цена, оплачено, остаток, форма оплаты
+  Future<SalesRegister> crmSalesRegister({String? p, String? from, String? to}) async {
+    final json = await _send('GET', '/api/v1/crm/sales', query: {if (p != null) 'p': '${p}', if (from != null) 'from': '${from}', if (to != null) 'to': '${to}'});
+    return SalesRegister.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Форма оплаты сделки (Kaspi Gold, Рассрочка…); пусто — снять
+  Future<Done> crmSalesPayForm({required String dealId, required PayFormBody body}) async {
+    final json = await _send('PUT', '/api/v1/crm/sales/${Uri.encodeComponent('$dealId')}/pay-form', body: body.toJson());
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Аналитика продаж: деньги, воронка, каналы, команда, скорость ответа, телефония
+  Future<SalesAnalytics> crmAnalytics({String? p, String? from, String? to, String? pl}) async {
+    final json = await _send('GET', '/api/v1/crm/analytics', query: {if (p != null) 'p': '${p}', if (from != null) 'from': '${from}', if (to != null) 'to': '${to}', if (pl != null) 'pl': '${pl}'});
+    return SalesAnalytics.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Статистика лидов: заявки периода, по дням, этапы, отказы и разрезы
+  Future<LeadStats> crmLeadStats({String? p, String? from, String? to, String? m}) async {
+    final json = await _send('GET', '/api/v1/crm/leads', query: {if (p != null) 'p': '${p}', if (from != null) 'from': '${from}', if (to != null) 'to': '${to}', if (m != null) 'm': '${m}'});
+    return LeadStats.fromJson(json as Map<String, dynamic>);
+  }
+
   /// Доски, которые видит сотрудник (с числом открытых карточек)
   Future<BoardList> boardsList() async {
     final json = await _send('GET', '/api/v1/boards');
@@ -5015,4 +5039,361 @@ class FeeRatesBodyRates {
   factory FeeRatesBodyRates.fromJson(Map<String, dynamic> json) => FeeRatesBodyRates(form: json['form'] as String, rate: (json['rate'] as num).toDouble());
 
   Map<String, dynamic> toJson() => {'form': form, 'rate': rate};
+}
+
+class SalesRow {
+  final String id;
+  final int number;
+  final String day;
+  final String client;
+  final String phone;
+  final String city;
+  final String channel;
+  final String manager;
+  final String plan;
+  final int price;
+  final int paid;
+  final int rest;
+  final String state;
+  final String method;
+  final String payForm;
+  final int fee;
+  final String eventDate;
+  final String? orderId;
+
+  const SalesRow({required this.id, required this.number, required this.day, required this.client, required this.phone, required this.city, required this.channel, required this.manager, required this.plan, required this.price, required this.paid, required this.rest, required this.state, required this.method, required this.payForm, required this.fee, required this.eventDate, this.orderId});
+
+  factory SalesRow.fromJson(Map<String, dynamic> json) => SalesRow(id: json['id'] as String, number: (json['number'] as num).toInt(), day: json['day'] as String, client: json['client'] as String, phone: json['phone'] as String, city: json['city'] as String, channel: json['channel'] as String, manager: json['manager'] as String, plan: json['plan'] as String, price: (json['price'] as num).toInt(), paid: (json['paid'] as num).toInt(), rest: (json['rest'] as num).toInt(), state: json['state'] as String, method: json['method'] as String, payForm: json['payForm'] as String, fee: (json['fee'] as num).toInt(), eventDate: json['eventDate'] as String, orderId: json['orderId'] == null ? null : json['orderId'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'number': number, 'day': day, 'client': client, 'phone': phone, 'city': city, 'channel': channel, 'manager': manager, 'plan': plan, 'price': price, 'paid': paid, 'rest': rest, 'state': state, 'method': method, 'payForm': payForm, 'fee': fee, 'eventDate': eventDate, 'orderId': orderId};
+}
+
+class SalesRegister {
+  final MoneyPeriod period;
+  final SalesRegisterTotals totals;
+  final List<SalesRow> rows;
+  final bool canEdit;
+  final List<String> payForms;
+  final bool showFees;
+
+  const SalesRegister({required this.period, required this.totals, required this.rows, required this.canEdit, required this.payForms, required this.showFees});
+
+  factory SalesRegister.fromJson(Map<String, dynamic> json) => SalesRegister(period: MoneyPeriod.fromJson(json['period'] as Map<String, dynamic>), totals: SalesRegisterTotals.fromJson(json['totals'] as Map<String, dynamic>), rows: (json['rows'] as List).map((e) => SalesRow.fromJson(e as Map<String, dynamic>)).toList(), canEdit: json['canEdit'] as bool, payForms: (json['payForms'] as List).map((e) => e as String).toList(), showFees: json['showFees'] as bool);
+
+  Map<String, dynamic> toJson() => {'period': period.toJson(), 'totals': totals.toJson(), 'rows': rows.map((e) => e.toJson()).toList(), 'canEdit': canEdit, 'payForms': payForms.map((e) => e).toList(), 'showFees': showFees};
+}
+
+class SalesRegisterTotals {
+  final int count;
+  final int settled;
+  final int price;
+  final int paid;
+  final int rest;
+  final int fee;
+
+  const SalesRegisterTotals({required this.count, required this.settled, required this.price, required this.paid, required this.rest, required this.fee});
+
+  factory SalesRegisterTotals.fromJson(Map<String, dynamic> json) => SalesRegisterTotals(count: (json['count'] as num).toInt(), settled: (json['settled'] as num).toInt(), price: (json['price'] as num).toInt(), paid: (json['paid'] as num).toInt(), rest: (json['rest'] as num).toInt(), fee: (json['fee'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'count': count, 'settled': settled, 'price': price, 'paid': paid, 'rest': rest, 'fee': fee};
+}
+
+class PayFormBody {
+  final String form;
+
+  const PayFormBody({required this.form});
+
+  factory PayFormBody.fromJson(Map<String, dynamic> json) => PayFormBody(form: json['form'] as String);
+
+  Map<String, dynamic> toJson() => {'form': form};
+}
+
+class AnalyticsFunnelRow {
+  final String id;
+  final String name;
+  final String kind;
+  final int reached;
+  final int? prev;
+  final String? conversion;
+  final String? timeLabel;
+
+  const AnalyticsFunnelRow({required this.id, required this.name, required this.kind, required this.reached, this.prev, this.conversion, this.timeLabel});
+
+  factory AnalyticsFunnelRow.fromJson(Map<String, dynamic> json) => AnalyticsFunnelRow(id: json['id'] as String, name: json['name'] as String, kind: json['kind'] as String, reached: (json['reached'] as num).toInt(), prev: json['prev'] == null ? null : (json['prev'] as num).toInt(), conversion: json['conversion'] == null ? null : json['conversion'] as String, timeLabel: json['timeLabel'] == null ? null : json['timeLabel'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'kind': kind, 'reached': reached, 'prev': prev, 'conversion': conversion, 'timeLabel': timeLabel};
+}
+
+class AnalyticsChannel {
+  final String key;
+  final String label;
+  final int created;
+  final int won;
+  final int revenue;
+
+  const AnalyticsChannel({required this.key, required this.label, required this.created, required this.won, required this.revenue});
+
+  factory AnalyticsChannel.fromJson(Map<String, dynamic> json) => AnalyticsChannel(key: json['key'] as String, label: json['label'] as String, created: (json['created'] as num).toInt(), won: (json['won'] as num).toInt(), revenue: (json['revenue'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'key': key, 'label': label, 'created': created, 'won': won, 'revenue': revenue};
+}
+
+class AnalyticsManager {
+  final String id;
+  final String name;
+  final int deals;
+  final int won;
+  final int revenue;
+  final int received;
+  final int open;
+  final int messages;
+  final int phoneMessages;
+  final int calls;
+  final int talkMinutes;
+  final int tasksDone;
+  final int tasksOverdue;
+  final String responseLabel;
+  final String inSlaLabel;
+  final String planLabel;
+
+  const AnalyticsManager({required this.id, required this.name, required this.deals, required this.won, required this.revenue, required this.received, required this.open, required this.messages, required this.phoneMessages, required this.calls, required this.talkMinutes, required this.tasksDone, required this.tasksOverdue, required this.responseLabel, required this.inSlaLabel, required this.planLabel});
+
+  factory AnalyticsManager.fromJson(Map<String, dynamic> json) => AnalyticsManager(id: json['id'] as String, name: json['name'] as String, deals: (json['deals'] as num).toInt(), won: (json['won'] as num).toInt(), revenue: (json['revenue'] as num).toInt(), received: (json['received'] as num).toInt(), open: (json['open'] as num).toInt(), messages: (json['messages'] as num).toInt(), phoneMessages: (json['phoneMessages'] as num).toInt(), calls: (json['calls'] as num).toInt(), talkMinutes: (json['talkMinutes'] as num).toInt(), tasksDone: (json['tasksDone'] as num).toInt(), tasksOverdue: (json['tasksOverdue'] as num).toInt(), responseLabel: json['responseLabel'] as String, inSlaLabel: json['inSlaLabel'] as String, planLabel: json['planLabel'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'deals': deals, 'won': won, 'revenue': revenue, 'received': received, 'open': open, 'messages': messages, 'phoneMessages': phoneMessages, 'calls': calls, 'talkMinutes': talkMinutes, 'tasksDone': tasksDone, 'tasksOverdue': tasksOverdue, 'responseLabel': responseLabel, 'inSlaLabel': inSlaLabel, 'planLabel': planLabel};
+}
+
+class SalesAnalytics {
+  final MoneyPeriod period;
+  final List<Choice> pipelines;
+  final String pipelineId;
+  final MoneyFlow? flow;
+  final SalesAnalyticsTiles tiles;
+  final SalesAnalyticsFunnel funnel;
+  final List<AnalyticsChannel> channels;
+  final List<AnalyticsManager> team;
+  final List<SalesAnalyticsLongest> longest;
+  final SalesAnalyticsCalls calls;
+  final List<SalesAnalyticsLost> lost;
+
+  const SalesAnalytics({required this.period, required this.pipelines, required this.pipelineId, this.flow, required this.tiles, required this.funnel, required this.channels, required this.team, required this.longest, required this.calls, required this.lost});
+
+  factory SalesAnalytics.fromJson(Map<String, dynamic> json) => SalesAnalytics(period: MoneyPeriod.fromJson(json['period'] as Map<String, dynamic>), pipelines: (json['pipelines'] as List).map((e) => Choice.fromJson(e as Map<String, dynamic>)).toList(), pipelineId: json['pipelineId'] as String, flow: json['flow'] == null ? null : MoneyFlow.fromJson(json['flow'] as Map<String, dynamic>), tiles: SalesAnalyticsTiles.fromJson(json['tiles'] as Map<String, dynamic>), funnel: SalesAnalyticsFunnel.fromJson(json['funnel'] as Map<String, dynamic>), channels: (json['channels'] as List).map((e) => AnalyticsChannel.fromJson(e as Map<String, dynamic>)).toList(), team: (json['team'] as List).map((e) => AnalyticsManager.fromJson(e as Map<String, dynamic>)).toList(), longest: (json['longest'] as List).map((e) => SalesAnalyticsLongest.fromJson(e as Map<String, dynamic>)).toList(), calls: SalesAnalyticsCalls.fromJson(json['calls'] as Map<String, dynamic>), lost: (json['lost'] as List).map((e) => SalesAnalyticsLost.fromJson(e as Map<String, dynamic>)).toList());
+
+  Map<String, dynamic> toJson() => {'period': period.toJson(), 'pipelines': pipelines.map((e) => e.toJson()).toList(), 'pipelineId': pipelineId, 'flow': flow == null ? null : flow!.toJson(), 'tiles': tiles.toJson(), 'funnel': funnel.toJson(), 'channels': channels.map((e) => e.toJson()).toList(), 'team': team.map((e) => e.toJson()).toList(), 'longest': longest.map((e) => e.toJson()).toList(), 'calls': calls.toJson(), 'lost': lost.map((e) => e.toJson()).toList()};
+}
+
+class SalesAnalyticsTiles {
+  final int received;
+  final double? receivedDelta;
+  final int wonSum;
+  final double? wonSumDelta;
+  final int repeatRevenue;
+  final int created;
+  final double? createdDelta;
+  final int repeatCreated;
+  final int won;
+  final double? wonDelta;
+  final int repeatWon;
+  final String conversion;
+  final String cycle;
+  final String responseMedian;
+  final String inSla;
+  final int slaMinutes;
+  final int awaiting;
+  final int botFirst;
+  final String? botMedian;
+
+  const SalesAnalyticsTiles({required this.received, this.receivedDelta, required this.wonSum, this.wonSumDelta, required this.repeatRevenue, required this.created, this.createdDelta, required this.repeatCreated, required this.won, this.wonDelta, required this.repeatWon, required this.conversion, required this.cycle, required this.responseMedian, required this.inSla, required this.slaMinutes, required this.awaiting, required this.botFirst, this.botMedian});
+
+  factory SalesAnalyticsTiles.fromJson(Map<String, dynamic> json) => SalesAnalyticsTiles(received: (json['received'] as num).toInt(), receivedDelta: json['receivedDelta'] == null ? null : (json['receivedDelta'] as num).toDouble(), wonSum: (json['wonSum'] as num).toInt(), wonSumDelta: json['wonSumDelta'] == null ? null : (json['wonSumDelta'] as num).toDouble(), repeatRevenue: (json['repeatRevenue'] as num).toInt(), created: (json['created'] as num).toInt(), createdDelta: json['createdDelta'] == null ? null : (json['createdDelta'] as num).toDouble(), repeatCreated: (json['repeatCreated'] as num).toInt(), won: (json['won'] as num).toInt(), wonDelta: json['wonDelta'] == null ? null : (json['wonDelta'] as num).toDouble(), repeatWon: (json['repeatWon'] as num).toInt(), conversion: json['conversion'] as String, cycle: json['cycle'] as String, responseMedian: json['responseMedian'] as String, inSla: json['inSla'] as String, slaMinutes: (json['slaMinutes'] as num).toInt(), awaiting: (json['awaiting'] as num).toInt(), botFirst: (json['botFirst'] as num).toInt(), botMedian: json['botMedian'] == null ? null : json['botMedian'] as String);
+
+  Map<String, dynamic> toJson() => {'received': received, 'receivedDelta': receivedDelta, 'wonSum': wonSum, 'wonSumDelta': wonSumDelta, 'repeatRevenue': repeatRevenue, 'created': created, 'createdDelta': createdDelta, 'repeatCreated': repeatCreated, 'won': won, 'wonDelta': wonDelta, 'repeatWon': repeatWon, 'conversion': conversion, 'cycle': cycle, 'responseMedian': responseMedian, 'inSla': inSla, 'slaMinutes': slaMinutes, 'awaiting': awaiting, 'botFirst': botFirst, 'botMedian': botMedian};
+}
+
+class SalesAnalyticsFunnel {
+  final int base;
+  final int inWork;
+  final List<AnalyticsFunnelRow> rows;
+
+  const SalesAnalyticsFunnel({required this.base, required this.inWork, required this.rows});
+
+  factory SalesAnalyticsFunnel.fromJson(Map<String, dynamic> json) => SalesAnalyticsFunnel(base: (json['base'] as num).toInt(), inWork: (json['inWork'] as num).toInt(), rows: (json['rows'] as List).map((e) => AnalyticsFunnelRow.fromJson(e as Map<String, dynamic>)).toList());
+
+  Map<String, dynamic> toJson() => {'base': base, 'inWork': inWork, 'rows': rows.map((e) => e.toJson()).toList()};
+}
+
+class SalesAnalyticsLongest {
+  final String conversationId;
+  final String askedLabel;
+  final String waitLabel;
+  final bool answered;
+
+  const SalesAnalyticsLongest({required this.conversationId, required this.askedLabel, required this.waitLabel, required this.answered});
+
+  factory SalesAnalyticsLongest.fromJson(Map<String, dynamic> json) => SalesAnalyticsLongest(conversationId: json['conversationId'] as String, askedLabel: json['askedLabel'] as String, waitLabel: json['waitLabel'] as String, answered: json['answered'] as bool);
+
+  Map<String, dynamic> toJson() => {'conversationId': conversationId, 'askedLabel': askedLabel, 'waitLabel': waitLabel, 'answered': answered};
+}
+
+class SalesAnalyticsCalls {
+  final int incoming;
+  final int outgoing;
+  final int missed;
+  final int handled;
+  final int talkMinutes;
+  final int unanswered;
+  final int asked;
+
+  const SalesAnalyticsCalls({required this.incoming, required this.outgoing, required this.missed, required this.handled, required this.talkMinutes, required this.unanswered, required this.asked});
+
+  factory SalesAnalyticsCalls.fromJson(Map<String, dynamic> json) => SalesAnalyticsCalls(incoming: (json['incoming'] as num).toInt(), outgoing: (json['outgoing'] as num).toInt(), missed: (json['missed'] as num).toInt(), handled: (json['handled'] as num).toInt(), talkMinutes: (json['talkMinutes'] as num).toInt(), unanswered: (json['unanswered'] as num).toInt(), asked: (json['asked'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'incoming': incoming, 'outgoing': outgoing, 'missed': missed, 'handled': handled, 'talkMinutes': talkMinutes, 'unanswered': unanswered, 'asked': asked};
+}
+
+class SalesAnalyticsLost {
+  final String label;
+  final int value;
+
+  const SalesAnalyticsLost({required this.label, required this.value});
+
+  factory SalesAnalyticsLost.fromJson(Map<String, dynamic> json) => SalesAnalyticsLost(label: json['label'] as String, value: (json['value'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'label': label, 'value': value};
+}
+
+class LeadCut {
+  final String? key;
+  final String label;
+  final int leads;
+  final int paid;
+  final double? conversion;
+
+  const LeadCut({this.key, required this.label, required this.leads, required this.paid, this.conversion});
+
+  factory LeadCut.fromJson(Map<String, dynamic> json) => LeadCut(key: json['key'] == null ? null : json['key'] as String, label: json['label'] as String, leads: (json['leads'] as num).toInt(), paid: (json['paid'] as num).toInt(), conversion: json['conversion'] == null ? null : (json['conversion'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'key': key, 'label': label, 'leads': leads, 'paid': paid, 'conversion': conversion};
+}
+
+class LeadShare {
+  final String label;
+  final int count;
+  final double? share;
+
+  const LeadShare({required this.label, required this.count, this.share});
+
+  factory LeadShare.fromJson(Map<String, dynamic> json) => LeadShare(label: json['label'] as String, count: (json['count'] as num).toInt(), share: json['share'] == null ? null : (json['share'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'label': label, 'count': count, 'share': share};
+}
+
+class LeadStats {
+  final MoneyPeriod period;
+  final List<Choice> managers;
+  final String? managerId;
+  final bool showSpend;
+  final LeadStatsTotals totals;
+  final List<LeadStatsDaily> daily;
+  final List<LeadStatsStages> stages;
+  final List<LeadShare> lost;
+  final List<LeadCut> bySource;
+  final List<LeadStatsBuyersBySource> buyersBySource;
+  final List<LeadCut> byManager;
+  final List<LeadCut> byRecipient;
+  final List<LeadCut> byOccasion;
+  final List<LeadCut> byLeadTime;
+  final List<LeadCut> byWeekday;
+  final List<LeadCut> byHour;
+  final List<LeadShare> payDelay;
+
+  const LeadStats({required this.period, required this.managers, this.managerId, required this.showSpend, required this.totals, required this.daily, required this.stages, required this.lost, required this.bySource, required this.buyersBySource, required this.byManager, required this.byRecipient, required this.byOccasion, required this.byLeadTime, required this.byWeekday, required this.byHour, required this.payDelay});
+
+  factory LeadStats.fromJson(Map<String, dynamic> json) => LeadStats(period: MoneyPeriod.fromJson(json['period'] as Map<String, dynamic>), managers: (json['managers'] as List).map((e) => Choice.fromJson(e as Map<String, dynamic>)).toList(), managerId: json['managerId'] == null ? null : json['managerId'] as String, showSpend: json['showSpend'] as bool, totals: LeadStatsTotals.fromJson(json['totals'] as Map<String, dynamic>), daily: (json['daily'] as List).map((e) => LeadStatsDaily.fromJson(e as Map<String, dynamic>)).toList(), stages: (json['stages'] as List).map((e) => LeadStatsStages.fromJson(e as Map<String, dynamic>)).toList(), lost: (json['lost'] as List).map((e) => LeadShare.fromJson(e as Map<String, dynamic>)).toList(), bySource: (json['bySource'] as List).map((e) => LeadCut.fromJson(e as Map<String, dynamic>)).toList(), buyersBySource: (json['buyersBySource'] as List).map((e) => LeadStatsBuyersBySource.fromJson(e as Map<String, dynamic>)).toList(), byManager: (json['byManager'] as List).map((e) => LeadCut.fromJson(e as Map<String, dynamic>)).toList(), byRecipient: (json['byRecipient'] as List).map((e) => LeadCut.fromJson(e as Map<String, dynamic>)).toList(), byOccasion: (json['byOccasion'] as List).map((e) => LeadCut.fromJson(e as Map<String, dynamic>)).toList(), byLeadTime: (json['byLeadTime'] as List).map((e) => LeadCut.fromJson(e as Map<String, dynamic>)).toList(), byWeekday: (json['byWeekday'] as List).map((e) => LeadCut.fromJson(e as Map<String, dynamic>)).toList(), byHour: (json['byHour'] as List).map((e) => LeadCut.fromJson(e as Map<String, dynamic>)).toList(), payDelay: (json['payDelay'] as List).map((e) => LeadShare.fromJson(e as Map<String, dynamic>)).toList());
+
+  Map<String, dynamic> toJson() => {'period': period.toJson(), 'managers': managers.map((e) => e.toJson()).toList(), 'managerId': managerId, 'showSpend': showSpend, 'totals': totals.toJson(), 'daily': daily.map((e) => e.toJson()).toList(), 'stages': stages.map((e) => e.toJson()).toList(), 'lost': lost.map((e) => e.toJson()).toList(), 'bySource': bySource.map((e) => e.toJson()).toList(), 'buyersBySource': buyersBySource.map((e) => e.toJson()).toList(), 'byManager': byManager.map((e) => e.toJson()).toList(), 'byRecipient': byRecipient.map((e) => e.toJson()).toList(), 'byOccasion': byOccasion.map((e) => e.toJson()).toList(), 'byLeadTime': byLeadTime.map((e) => e.toJson()).toList(), 'byWeekday': byWeekday.map((e) => e.toJson()).toList(), 'byHour': byHour.map((e) => e.toJson()).toList(), 'payDelay': payDelay.map((e) => e.toJson()).toList()};
+}
+
+class LeadStatsTotals {
+  final int leads;
+  final int junk;
+  final int paid;
+  final double? conversion;
+  final int open;
+  final int lost;
+  final int repeat;
+  final int? avgCheck;
+  final double? medianHours;
+  final int payments;
+  final int paymentsFirst;
+  final int paymentsAgreed;
+  final int invoices;
+  final int spend;
+  final int? cpl;
+  final int? cac;
+  final double? roas;
+  final double? roasAgreed;
+  final double? adShare;
+  final double? deltaLeads;
+  final double? deltaPaid;
+  final double? deltaConversion;
+
+  const LeadStatsTotals({required this.leads, required this.junk, required this.paid, this.conversion, required this.open, required this.lost, required this.repeat, this.avgCheck, this.medianHours, required this.payments, required this.paymentsFirst, required this.paymentsAgreed, required this.invoices, required this.spend, this.cpl, this.cac, this.roas, this.roasAgreed, this.adShare, this.deltaLeads, this.deltaPaid, this.deltaConversion});
+
+  factory LeadStatsTotals.fromJson(Map<String, dynamic> json) => LeadStatsTotals(leads: (json['leads'] as num).toInt(), junk: (json['junk'] as num).toInt(), paid: (json['paid'] as num).toInt(), conversion: json['conversion'] == null ? null : (json['conversion'] as num).toDouble(), open: (json['open'] as num).toInt(), lost: (json['lost'] as num).toInt(), repeat: (json['repeat'] as num).toInt(), avgCheck: json['avgCheck'] == null ? null : (json['avgCheck'] as num).toInt(), medianHours: json['medianHours'] == null ? null : (json['medianHours'] as num).toDouble(), payments: (json['payments'] as num).toInt(), paymentsFirst: (json['paymentsFirst'] as num).toInt(), paymentsAgreed: (json['paymentsAgreed'] as num).toInt(), invoices: (json['invoices'] as num).toInt(), spend: (json['spend'] as num).toInt(), cpl: json['cpl'] == null ? null : (json['cpl'] as num).toInt(), cac: json['cac'] == null ? null : (json['cac'] as num).toInt(), roas: json['roas'] == null ? null : (json['roas'] as num).toDouble(), roasAgreed: json['roasAgreed'] == null ? null : (json['roasAgreed'] as num).toDouble(), adShare: json['adShare'] == null ? null : (json['adShare'] as num).toDouble(), deltaLeads: json['deltaLeads'] == null ? null : (json['deltaLeads'] as num).toDouble(), deltaPaid: json['deltaPaid'] == null ? null : (json['deltaPaid'] as num).toDouble(), deltaConversion: json['deltaConversion'] == null ? null : (json['deltaConversion'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'leads': leads, 'junk': junk, 'paid': paid, 'conversion': conversion, 'open': open, 'lost': lost, 'repeat': repeat, 'avgCheck': avgCheck, 'medianHours': medianHours, 'payments': payments, 'paymentsFirst': paymentsFirst, 'paymentsAgreed': paymentsAgreed, 'invoices': invoices, 'spend': spend, 'cpl': cpl, 'cac': cac, 'roas': roas, 'roasAgreed': roasAgreed, 'adShare': adShare, 'deltaLeads': deltaLeads, 'deltaPaid': deltaPaid, 'deltaConversion': deltaConversion};
+}
+
+class LeadStatsDaily {
+  final String day;
+  final int leads;
+  final int junk;
+  final int invoices;
+  final int payments;
+  final int first;
+  final int agreed;
+  final int spend;
+  final double? conversion;
+  final int? cpl;
+  final int? cac;
+  final double? roas;
+
+  const LeadStatsDaily({required this.day, required this.leads, required this.junk, required this.invoices, required this.payments, required this.first, required this.agreed, required this.spend, this.conversion, this.cpl, this.cac, this.roas});
+
+  factory LeadStatsDaily.fromJson(Map<String, dynamic> json) => LeadStatsDaily(day: json['day'] as String, leads: (json['leads'] as num).toInt(), junk: (json['junk'] as num).toInt(), invoices: (json['invoices'] as num).toInt(), payments: (json['payments'] as num).toInt(), first: (json['first'] as num).toInt(), agreed: (json['agreed'] as num).toInt(), spend: (json['spend'] as num).toInt(), conversion: json['conversion'] == null ? null : (json['conversion'] as num).toDouble(), cpl: json['cpl'] == null ? null : (json['cpl'] as num).toInt(), cac: json['cac'] == null ? null : (json['cac'] as num).toInt(), roas: json['roas'] == null ? null : (json['roas'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'day': day, 'leads': leads, 'junk': junk, 'invoices': invoices, 'payments': payments, 'first': first, 'agreed': agreed, 'spend': spend, 'conversion': conversion, 'cpl': cpl, 'cac': cac, 'roas': roas};
+}
+
+class LeadStatsStages {
+  final String key;
+  final String label;
+  final String kind;
+  final String pipeline;
+  final int count;
+  final double? share;
+  final int paid;
+
+  const LeadStatsStages({required this.key, required this.label, required this.kind, required this.pipeline, required this.count, this.share, required this.paid});
+
+  factory LeadStatsStages.fromJson(Map<String, dynamic> json) => LeadStatsStages(key: json['key'] as String, label: json['label'] as String, kind: json['kind'] as String, pipeline: json['pipeline'] as String, count: (json['count'] as num).toInt(), share: json['share'] == null ? null : (json['share'] as num).toDouble(), paid: (json['paid'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'key': key, 'label': label, 'kind': kind, 'pipeline': pipeline, 'count': count, 'share': share, 'paid': paid};
+}
+
+class LeadStatsBuyersBySource {
+  final String key;
+  final String label;
+  final int buyers;
+  final int agreed;
+  final int received;
+  final double? share;
+
+  const LeadStatsBuyersBySource({required this.key, required this.label, required this.buyers, required this.agreed, required this.received, this.share});
+
+  factory LeadStatsBuyersBySource.fromJson(Map<String, dynamic> json) => LeadStatsBuyersBySource(key: json['key'] as String, label: json['label'] as String, buyers: (json['buyers'] as num).toInt(), agreed: (json['agreed'] as num).toInt(), received: (json['received'] as num).toInt(), share: json['share'] == null ? null : (json['share'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'key': key, 'label': label, 'buyers': buyers, 'agreed': agreed, 'received': received, 'share': share};
 }

@@ -23,6 +23,9 @@ vi.mock("@/app/admin/expenses/actions", () => ({
   removeExpenseAction: vi.fn(async () => ({ ok: true })),
 }));
 
+const setPayFormAction = vi.fn(async (dealId: string, form: string) => (void dealId, form === "Bitcoin" ? { ok: false as const, error: "Такой формы оплаты нет в поле сделки" } : { ok: true as const }));
+vi.mock("@/app/admin/sales/actions", () => ({ setPayFormAction: (d: string, f: string) => setPayFormAction(d, f) }));
+
 const { createApp } = await import("../apps/api/src/app");
 const { handlers } = await import("../apps/api/src/routes");
 
@@ -66,5 +69,16 @@ describe("API v1: расходы", () => {
   it("удаление — с источником записи; без него — 400", async () => {
     expect((await call("DELETE", `/api/v1/crm/expenses/${ID}?source=ads`)).status).toBe(200);
     expect((await call("DELETE", `/api/v1/crm/expenses/${ID}`)).status).toBe(400);
+  });
+});
+
+describe("API v1: реестр продаж", () => {
+  it("форма оплаты — действием реестра; не из поля сделки — отказ текстом; пусто — снять", async () => {
+    expect(await (await call("PUT", `/api/v1/crm/sales/${ID}/pay-form`, { form: "Kaspi Gold" })).json()).toEqual({ ok: true, message: "Форма оплаты: Kaspi Gold" });
+    const bad = await call("PUT", `/api/v1/crm/sales/${ID}/pay-form`, { form: "Bitcoin" });
+    expect(bad.status).toBe(400);
+    expect((await bad.json()).error).toBe("Такой формы оплаты нет в поле сделки");
+    expect(await (await call("PUT", `/api/v1/crm/sales/${ID}/pay-form`, { form: "" })).json()).toEqual({ ok: true, message: "Форма оплаты снята" });
+    expect(setPayFormAction).toHaveBeenLastCalledWith(ID, "");
   });
 });

@@ -22,6 +22,7 @@ import { cabinetRoutes } from "./cabinet";
 import { cabinetOrderRoutes } from "./cabinet-orders";
 import { crmRoutes } from "./crm";
 import { crmFinanceRoutes } from "./crm-finance";
+import { crmAnalyticsRoutes } from "./crm-analytics";
 import type { RouteDef } from "./core";
 
 export * from "./core";
@@ -38,6 +39,7 @@ export * from "./cabinet";
 export * from "./cabinet-orders";
 export * from "./crm";
 export * from "./crm-finance";
+export * from "./crm-analytics";
 
 export const v1 = {
   ...authRoutes,
@@ -53,6 +55,7 @@ export const v1 = {
   // CRM для сотрудников (приложение CRM).
   ...crmRoutes,
   ...crmFinanceRoutes,
+  ...crmAnalyticsRoutes,
   // Доски задач и календарь (приложение CRM).
   ...boardsRoutes,
 } as const satisfies Record<string, RouteDef>;

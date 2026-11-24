@@ -114,7 +114,8 @@ class StatGrid extends StatelessWidget {
 
 /// Изменение к прошлому периоду: «▲ 12% к прошлому» зелёным, «▼ 8%» красным; null — без сравнения.
 (String?, Color?) deltaNote(BuildContext context, num? delta, {bool lessIsBetter = false}) {
-  if (delta == null) return (null, null);
+  // Нет сравнения или ничего не изменилось (оба периода пустые) — вместо «▲ 0%» показываем пояснение плитки.
+  if (delta == null || delta == 0) return (null, null);
   final up = delta >= 0;
   final good = lessIsBetter ? !up : up;
   return ('${up ? '▲' : '▼'} ${pct(delta.abs())} к прошлому', good ? context.c.success : context.c.danger);
