@@ -15,8 +15,11 @@ import '../data/stores.dart';
 /// Фото книги: сетка снимков и загрузка из галереи или с камеры (как «Фото» в кабинете). Места и редактор — следующим
 /// выпуском, пока — на сайте.
 class PhotosScreen extends StatefulWidget {
-  const PhotosScreen({super.key, required this.store});
+  const PhotosScreen({super.key, required this.store, this.inBook = 0});
   final BookStore store;
+
+  /// Сколько фото уже в книге по данным полки — пока модель книги в API их не отдаёт (тогда сетка пуста).
+  final int inBook;
 
   @override
   State<PhotosScreen> createState() => _PhotosScreenState();
@@ -79,7 +82,7 @@ class _PhotosScreenState extends State<PhotosScreen> {
             backgroundColor: c.bg,
             surfaceTintColor: Colors.transparent,
             title: Text('Фото', style: AppText.headline(context)),
-            actions: [Padding(padding: const EdgeInsets.only(right: 16), child: Center(child: Text('${book.photos.length} / ${book.maxPhotos}', style: AppText.caption(context))))],
+            actions: [if (book.photos.isNotEmpty) Padding(padding: const EdgeInsets.only(right: 16), child: Center(child: Text('${book.photos.length} / ${book.maxPhotos}', style: AppText.caption(context))))],
           ),
           floatingActionButton: book.editable
               ? FloatingActionButton.extended(
@@ -91,7 +94,9 @@ class _PhotosScreenState extends State<PhotosScreen> {
                 )
               : null,
           body: book.photos.isEmpty
-              ? const EmptyState(icon: LucideIcons.images, title: 'Фото пока нет', hint: 'Старые снимки, свадьба, дети, путешествия — фото встанут рядом с ответами и в альбом в конце книги.')
+              ? widget.inBook > 0
+                  ? EmptyState(icon: LucideIcons.images, title: 'В книге ${widget.inBook} фото', hint: 'Добавьте новые с телефона. Уже загруженные, их места и подписи — в кабинете на сайте.')
+                  : const EmptyState(icon: LucideIcons.images, title: 'Фото пока нет', hint: 'Старые снимки, свадьба, дети, путешествия — фото встанут рядом с ответами и в альбом в конце книги.')
               : GridView.builder(
                   padding: const EdgeInsets.fromLTRB(12, 4, 12, 100),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, mainAxisSpacing: 6, crossAxisSpacing: 6),

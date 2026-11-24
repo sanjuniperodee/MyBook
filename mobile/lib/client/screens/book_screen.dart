@@ -40,7 +40,7 @@ class _BookScreenState extends State<BookScreen> {
         final book = _store.book;
         return Scaffold(
           backgroundColor: c.bg,
-          appBar: AppBar(backgroundColor: c.bg, surfaceTintColor: Colors.transparent, title: Text(widget.summary.title, style: AppText.headline(context))),
+          appBar: AppBar(backgroundColor: c.bg, surfaceTintColor: Colors.transparent),
           body: book == null
               ? (_store.error == null
                   ? const Center(child: CircularProgressIndicator())
@@ -58,10 +58,14 @@ class _BookScreenState extends State<BookScreen> {
                       GroupCard(padding: EdgeInsets.zero, children: [
                         GroupTile(
                           title: 'Фото',
-                          subtitle: book.photos.isEmpty ? 'Добавьте снимки — они встанут в книгу' : '${book.photos.length} из ${book.maxPhotos}',
+                          subtitle: book.photos.isNotEmpty
+                              ? '${book.photos.length} из ${book.maxPhotos}'
+                              : widget.summary.photos > 0
+                                  ? 'В книге ${widget.summary.photos} фото — добавьте ещё'
+                                  : 'Добавьте снимки — они встанут в книгу',
                           icon: LucideIcons.images,
                           iconColor: c.violet,
-                          onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => PhotosScreen(store: _store))),
+                          onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => PhotosScreen(store: _store, inBook: widget.summary.photos))),
                         ),
                       ]),
                       const SizedBox(height: 24),
