@@ -52,6 +52,7 @@ class _HomeScreenState extends State<HomeScreen> {
         return;
       }
     }
+    FocusManager.instance.primaryFocus?.unfocus();
     setState(() => _tab = t);
   }
 
@@ -102,6 +103,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           behavior: HitTestBehavior.opaque,
                           onTap: () {
                             if (i != index) HapticFeedback.selectionClick();
+                            // Смена вкладки — клавиатура закрывается (поле прошлой вкладки не держит фокус).
+                            FocusManager.instance.primaryFocus?.unfocus();
                             setState(() => _tab = entries[i].key);
                           },
                           child: _TabButton(item: entries[i].item, active: i == index),

@@ -48,6 +48,9 @@ class SellerApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      // Переход между экранами (чат ↔ список, свайп назад, другой экран) — клавиатура закрывается: Navigator сам
+      // возвращает фокус полю прошлого экрана (поиску в списке чатов), из-за этого она оставалась открытой.
+      navigatorObservers: [_KeyboardOnNavigation()],
       title: 'MyBooks CRM',
       debugShowCheckedModeBanner: false,
       navigatorKey: navigatorKey,
@@ -176,4 +179,26 @@ class _WorkspaceScopeState extends State<WorkspaceScope> {
       child: widget.child,
     );
   }
+}
+
+/// Снимает фокус с поля ввода при любом переходе между экранами — и не даёт Navigator вернуть его полю прошлого экрана.
+class _KeyboardOnNavigation extends NavigatorObserver {
+  void _hide() {
+    FocusManager.instance.primaryFocus?.unfocus();
+    // Navigator восстанавливает фокус после кадра перехода — снимаем ещё раз, когда переход отрисован.
+    WidgetsBinding.instance.addPostFrameCallback((_) => FocusManager.instance.primaryFocus?.unfocus());
+  }
+
+  // Только экраны: у диалогов и шторок своё поле с autofocus (заметка, причина) — его не трогаем.
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) => route is PageRoute ? _hide() : null;
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) => route is PageRoute ? _hide() : null;
+
+  @override
+  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) => route is PageRoute ? _hide() : null;
+
+  @override
+  void didStartUserGesture(Route<dynamic> route, Route<dynamic>? previousRoute) => FocusManager.instance.primaryFocus?.unfocus();
 }

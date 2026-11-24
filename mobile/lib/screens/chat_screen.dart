@@ -54,6 +54,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final _keys = <String, GlobalKey>{};
   final _picker = ImagePicker();
   bool _showDown = false;
+  double? _dragFrom;
   int _lastIncoming = 0;
 
   @override
@@ -90,6 +91,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
+    FocusManager.instance.primaryFocus?.unfocus();
     if (_notifier.openChatId == widget.chatId) _notifier.openChatId = null;
     ctrl.removeListener(_autoRead);
     ctrl.dispose();
@@ -547,7 +549,24 @@ class _ChatScreenState extends State<ChatScreen> {
                     child: ChatWallpaper(
                       child: Stack(
                         children: [
-                          Positioned.fill(child: _messages(context, ctl, auth)),
+                          // Как в WhatsApp: нажатие на ленту и движение пальцем вниз по ней закрывают клавиатуру — даже когда
+                          // сообщений мало и лента не прокручивается (Listener не спорит с прокруткой и нажатиями пузырей).
+                          Positioned.fill(
+                            child: Listener(
+                              onPointerDown: (e) => _dragFrom = e.position.dy,
+                              onPointerMove: (e) {
+                                if (_dragFrom != null && e.position.dy - _dragFrom! > 12) {
+                                  _dragFrom = null;
+                                  FocusManager.instance.primaryFocus?.unfocus();
+                                }
+                              },
+                              child: GestureDetector(
+                                behavior: HitTestBehavior.translucent,
+                                onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+                                child: _messages(context, ctl, auth),
+                              ),
+                            ),
+                          ),
                           Positioned(
                             right: 14,
                             bottom: 12,
@@ -744,10 +763,12 @@ class _ChatScreenState extends State<ChatScreen> {
     final list = c.messages;
     if (list.isEmpty) return EmptyState(icon: LucideIcons.messageCircle, title: 'Сообщений пока нет', hint: 'Напишите первым — клиент получит ответ в ${c.detail?.channelLabel ?? 'чат'}');
     final reversed = list.reversed.toList();
+    // Как в WhatsApp: прокрутка ленты и нажатие на пустое место закрывают клавиатуру.
     return ListView.builder(
       controller: _scroll,
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       reverse: true,
-      physics: const BouncingScrollPhysics(),
+      physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
       padding: const EdgeInsets.symmetric(vertical: 10),
       itemCount: reversed.length + (c.loadingOlder ? 1 : 0),
       itemBuilder: (_, i) {
