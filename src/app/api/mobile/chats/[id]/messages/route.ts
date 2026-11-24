@@ -6,7 +6,7 @@ import { assertVisible } from "@/server/access";
 import { container } from "@/server/container";
 import { idParams } from "@/server/input";
 import { jsonWithEtag, mobile } from "@/server/mobile-api";
-import { mobileMessages } from "@/app/api/mobile/data";
+import { mobileMessages } from "@/app/api/_crm-lists/data";
 
 export const dynamic = "force-dynamic";
 

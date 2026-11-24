@@ -10,7 +10,8 @@ import { letterHandlers } from "./letters";
 import { previewHandlers } from "./preview";
 import { reviewHandlers } from "./reviews";
 import { coverHandlers } from "./cover";
+import { crmListHandlers } from "./crm-lists";
 import { photoHandlers } from "./photos";
 
 /** Все обработчики v1: тип Handlers требует обработчик на каждый маршрут контракта — забытый маршрут не соберётся. */
-export const handlers: Handlers = { ...authHandlers, ...bookHandlers, ...photoHandlers, ...dictationHandlers, ...letterHandlers, ...previewHandlers, ...reviewHandlers, ...coverHandlers, ...cabinetHandlers, ...cabinetOrderHandlers, ...crmHandlers, ...boardHandlers };
+export const handlers: Handlers = { ...authHandlers, ...bookHandlers, ...photoHandlers, ...dictationHandlers, ...letterHandlers, ...previewHandlers, ...reviewHandlers, ...coverHandlers, ...crmListHandlers, ...cabinetHandlers, ...cabinetOrderHandlers, ...crmHandlers, ...boardHandlers };

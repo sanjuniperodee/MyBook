@@ -1,6 +1,6 @@
 import { apiStaff } from "@/server/api";
 import { jsonWithEtag, mobile } from "@/server/mobile-api";
-import { CHAT_FILTERS, mobileChatList, type ChatFilterId } from "@/app/api/mobile/data";
+import { CHAT_FILTERS, mobileChatList, type ChatFilterId } from "@/app/api/_crm-lists/data";
 
 export const dynamic = "force-dynamic";
 
