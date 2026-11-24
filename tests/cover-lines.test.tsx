@@ -9,6 +9,7 @@ import { describe, expect, it } from "vitest";
 import { GET } from "@/app/api/covers/[file]/route";
 import { CoverBackPreview } from "@/components/cover/CoverBackPreview";
 import { CoverPreview } from "@/components/cover/CoverPreview";
+import { designBackgroundSvg } from "@/components/cover/DesignedCover";
 import { designBack } from "@/lib/book/cover-back";
 import { designFromTemplate } from "@/lib/book/cover-design";
 import { coverMeta } from "@/lib/book/covers/meta";
@@ -21,8 +22,9 @@ import { hasTool } from "./pdf-inspect";
 
 // Обращение №17 (24.11.2026): Алёна попросила убрать «полосы» с обложки «Глянец» — линию у имён и линию внизу крышки.
 // Нижняя линия — часть рисунка шаблона, в конструкторе её не убрать. Теперь у книги есть настройка «Декоративные
-// линии» (books.cover_lines) для всех шаблонов: без неё нет линий и рамок рисунка и линии у имён — на превью, обороте,
-// в 3D-книге, в конструкторе и в печати одинаково.
+// линии» (books.cover_lines) для всех шаблонов: без неё нет линий и рамок рисунка — на превью, обороте, в 3D-книге, в
+// конструкторе и в печати одинаково. Обращение №18: короткую линию под именами Алёна попросила оставить — украшение у
+// имён (часть текстового блока) настройка не трогает, его убирают слоем в конструкторе.
 
 const format = getFormat("a5");
 const g = coverFrontGeometry(format);
@@ -53,28 +55,26 @@ describe("декоративные линии обложки (обращение
     expect(withLines).toBeGreaterThan(15);
   });
 
-  it("«Глянец»: линия внизу и линия у имён уходят, украшения-не-линии остаются", () => {
+  it("«Глянец»: линия внизу уходит, линия под именами (украшение текста) остаётся", () => {
     const on = getCoverTemplate("magazine");
     const off = getCoverTemplate("magazine", false);
-    expect(on.ornament?.kind).toBe("line");
-    expect(off.ornament).toBeUndefined();
+    expect(off.ornament).toEqual(on.ornament);
+    expect(off.ornament?.kind).toBe("line");
     expect(off.lines).toBe(false);
     expect(getCoverTemplate("magazine", false)).toBe(off);
     expect(renderCoverSvg(on, g, { uid: "m" })).toContain("<line ");
     expect(renderCoverSvg(off, g, { uid: "m" })).not.toContain("<line ");
-    const heart = allCoverTemplates.find((t) => t.ornament && t.ornament.kind !== "line")!;
-    expect(getCoverTemplate(heart.id, false).ornament).toEqual(heart.ornament);
+    for (const t of allCoverTemplates) expect(getCoverTemplate(t.id, false).ornament, t.id).toEqual(t.ornament);
   });
 
-  it("оборот: без линий нет и линии у имён (по умолчанию она была даже у шаблонов без украшения)", () => {
+  it("оборот: надписи и украшение у имён те же", () => {
     const content = { layout: "minimal" as const, text: "", signature: "", names: "Алёна & Николай", year: 2026, photos: [] };
-    const kinds = (lines: boolean) => designBack(getCoverTemplate("magazine", lines), 140, 200, content).blocks.map((b) => b.kind);
-    expect(kinds(true)).toContain("ornament");
-    expect(kinds(false)).not.toContain("ornament");
-    expect(kinds(false)).toContain("text");
+    const back = (lines: boolean) => designBack(getCoverTemplate("magazine", lines), 140, 200, content).blocks;
+    expect(back(false)).toEqual(back(true));
+    expect(back(false).map((b) => b.kind)).toContain("ornament");
   });
 
-  it("превью в кабинете: фон без линий (картинка -nl и встроенный SVG), на лице нет линии у имён", async () => {
+  it("превью в кабинете: фон без линий (картинка -nl и встроенный SVG), линия под именами на месте", async () => {
     const html = (lines: boolean, template = "noir", photos?: string[]) =>
       renderToStaticMarkup(createElement(CoverPreview, { template, lines, title: "История нашей любви", names: "Алёна & Николай", photos }));
     const src = /<img src="\/api\/covers\/([^"?]+)/.exec(html(false))![1];
@@ -84,25 +84,31 @@ describe("декоративные линии обложки (обращение
     expect(leftLines(svg)).toEqual([]);
     const withLines = /<img src="\/api\/covers\/([^"?]+)/.exec(html(true))![1];
     expect(withLines).not.toContain("-nl");
-    // С фото клиента — встроенный SVG; линия у имён — span шириной 4 кегля украшения.
+    // С фото клиента — встроенный SVG; линия у имён — span шириной 4 кегля украшения (HTML поверх фона).
     const photo = "data:image/png;base64,iVBORw0KGgo=";
     expect(html(true, "magazine", [photo])).toContain("<line ");
     expect(html(false, "magazine", [photo])).not.toContain("<line ");
-    expect(html(true, "magazine", [photo])).toContain("* 4)");
-    expect(html(false, "magazine", [photo])).not.toContain("* 4)");
+    expect(html(false, "magazine", [photo])).toContain("* 4)");
+    // Текст лица тот же: меняется только фон.
+    const text = (h: string) => h.replace(/<svg[\s\S]*<\/svg>/, "");
+    expect(text(html(false, "magazine", [photo]))).toBe(text(html(true, "magazine", [photo])));
     // Оборот берёт фон тоже без линий.
     const back = renderToStaticMarkup(createElement(CoverBackPreview, { template: "noir", lines: false, content: { layout: "minimal", text: "", signature: "", names: "А & Н", year: 2026, photos: [] } }));
     expect(back).toMatch(/\/api\/covers\/noir-a5-nl-back/);
   });
 
-  it("конструктор: из шаблона без линий не появляется слой-линия у имён", () => {
+  it("конструктор: слои из шаблона те же (линия под именами — слой, его можно удалить), фон «шаблон» — без линий", () => {
     const texts = { title: "История нашей любви", subtitle: "", names: "Алёна & Николай" };
-    const ids = (lines: boolean) => designFromTemplate(coverMeta(getCoverTemplate("magazine", lines)), texts, format).layers.map((l) => l.id);
-    expect(ids(true)).toContain("ornament");
-    expect(ids(false)).not.toContain("ornament");
+    const design = (lines: boolean) => designFromTemplate(coverMeta(getCoverTemplate("magazine", lines)), texts, format);
+    expect(design(false)).toEqual(design(true));
+    expect(design(false).layers.map((l) => l.id)).toContain("ornament");
+    expect(design(false).background).toEqual({ kind: "template" });
+    const bg = (lines: boolean) => designBackgroundSvg("magazine", "a5", design(lines), { uid: "d", lines, photos: ["data:image/png;base64,iVBORw0KGgo="] });
+    expect(bg(true)).toContain("<line ");
+    expect(bg(false)).not.toContain("<line ");
   });
 
-  it.skipIf(!hasTool("pdftoppm"))("печать: в cover.pdf нет линии внизу крышки и линии у имён — как на превью", async () => {
+  it.skipIf(!hasTool("pdftoppm"))("печать: в cover.pdf нет линии внизу крышки, линия под именами на месте — как на превью", async () => {
     const dir = mkdtempSync(path.join(tmpdir(), "cover-lines-"));
     const raster = async (lines: boolean) => {
       const { pdf, geometry } = await renderCover({ book: book({ coverLines: lines }), questions: [], chapters: [], photos: [] }, 120, "preview", true);
@@ -118,12 +124,13 @@ describe("декоративные линии обложки (обращение
       const line = { x: f.x + f.w * 0.2, y: f.y + f.h - 11.5, w: f.w * 0.6, h: 1 };
       // Линия у имён — под строкой имён у левого края области текста (~10 % высоты крышки).
       const ornament = { x: f.x + f.w * 0.09, y: f.y + f.h * 0.094, w: f.w * 0.1, h: f.h * 0.01 };
-      return { line: await mean(line), above: await mean({ ...line, y: line.y - 3 }), ornament: await mean(ornament) };
+      return { line: await mean(line), above: await mean({ ...line, y: line.y - 3 }), ornament: await mean(ornament), underOrnament: await mean({ ...ornament, y: ornament.y + 4 }) };
     };
     const on = await raster(true);
     const off = await raster(false);
     expect(on.line - on.above).toBeGreaterThan(8);
     expect(Math.abs(off.line - off.above)).toBeLessThan(4);
-    expect(on.ornament - off.ornament).toBeGreaterThan(10);
+    expect(Math.abs(on.ornament - off.ornament)).toBeLessThan(1);
+    expect(off.ornament - off.underOrnament).toBeGreaterThan(5);
   });
 });

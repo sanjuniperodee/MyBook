@@ -399,7 +399,7 @@ export const books: typeof ru = {
     recipientNone: "Tarjimai holning oluvchisi yo‘q: bag‘ishlov «Sahifalar» yorlig‘ida yoziladi.",
     hideRecipient: "Muqovada ko‘rsatmaslik",
     coverLines: "Bezak chiziqlari",
-    coverLinesHint: "Shablon chiziqlari va ramkalari hamda ismlar yonidagi chiziq. Rasm va matn o‘zgarmaydi.",
+    coverLinesHint: "Shablon rasmidagi chiziqlar va ramkalar. Ismlar ostidagi bezak qoladi — uni «Konstruktor»da olib tashlash mumkin. Rasm va matn o‘zgarmaydi.",
     namesOnCover: "Muqovadagi ismlar",
     namesOnCoverText: "Tartibini almashtirish yoki o‘zingizcha yozish mumkin. Bo‘sh — hozirgidek.",
     namesSwap: "O‘rnini almashtirish",

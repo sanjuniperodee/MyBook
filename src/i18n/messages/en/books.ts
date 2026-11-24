@@ -399,7 +399,7 @@ export const books: typeof ru = {
     recipientNone: "An autobiography has no recipient: the dedication is written in the “Pages” tab.",
     hideRecipient: "Don’t show on the cover",
     coverLines: "Decorative lines",
-    coverLinesHint: "Lines and frames of the design and the line by the names. Photos and text stay the same.",
+    coverLinesHint: "Lines and frames in the design’s artwork. The ornament under the names stays — you can remove it in the Builder. Photos and text stay the same.",
     namesOnCover: "Names on the cover",
     namesOnCoverText: "You can change the order or write it your own way. Empty — as it is now.",
     namesSwap: "Swap places",

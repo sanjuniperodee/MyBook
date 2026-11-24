@@ -159,8 +159,7 @@ export function designBack(template: CoverTemplate, W: number, H: number, raw: B
   const layout = resolveBackLayout(content.layout, text, content.photos.length);
 
   const blocks: BackBlock[] = [];
-  // Без декоративных линий (books.cover_lines) — украшения-линии нет и на обороте: только сердце, звезда или точки шаблона.
-  const ornament = template.ornament?.kind ?? (template.lines === false ? null : "line");
+  const ornament = template.ornament?.kind ?? "line";
   const orn = Math.min(4, W * 0.026);
   // Группа блоков выравнивается по вертикали в области: считаем высоты, затем раскладываем сверху вниз.
   const stack = (items: { h: number; gap?: number; place: (y: number) => void }[]) => {
@@ -175,7 +174,7 @@ export function designBack(template: CoverTemplate, W: number, H: number, raw: B
   const ornamentItem = (gap = 0) => ({
     h: orn,
     gap,
-    place: (y: number) => ornament && blocks.push({ kind: "ornament", ornament, color: accent, x: area.x + area.w / 2 - orn / 2, y, w: orn, h: orn }),
+    place: (y: number) => blocks.push({ kind: "ornament", ornament, color: accent, x: area.x + area.w / 2 - orn / 2, y, w: orn, h: orn }),
   });
   const textItem = (t: string, opts: { size: number; lh: number; align: "center" | "left" | "right"; italic: boolean; color: string; weight?: number; gap?: number; tracking?: number; upper?: boolean; w?: number }) => {
     const w = opts.w ?? area.w;
@@ -191,14 +190,13 @@ export function designBack(template: CoverTemplate, W: number, H: number, raw: B
   const names = content.names.trim();
   /** Имена и год — когда текста нет. */
   const namesItems = (maxShare: number) => {
-    const items: { h: number; gap?: number; place: (y: number) => void }[] = ornament ? [ornamentItem()] : [];
+    const items: { h: number; gap?: number; place: (y: number) => void }[] = [ornamentItem()];
     if (names) items.push(textItem(names, { size: fitSize(names, area.w, area.h * maxShare, font, 10 * PT_TO_MM, 22 * PT_TO_MM, 1.25), lh: 1.25, align: "center", italic: true, color: main, gap: 3.5 }));
     if (content.year) items.push(textItem(String(content.year), { size: 7 * PT_TO_MM, lh: 1.2, align: "center", italic: false, color: soft, gap: 2.5, tracking: 0.3, weight: 500 }));
     return items;
   };
   /** Цитата с подписью, кегль — по месту. */
-  const quoteItems = (min: number, max: number, ornamented: boolean) => {
-    const withOrnament = ornamented && !!ornament;
+  const quoteItems = (min: number, max: number, withOrnament: boolean) => {
     const sig = signature ? `— ${signature}` : "";
     const reserve = (withOrnament ? orn + 3 : 0) + (sig ? 9 : 0);
     const size = fitSize(text, area.w, area.h - reserve, font, min, max, 1.45);

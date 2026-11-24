@@ -1,6 +1,8 @@
 /**
- * Обложка без декоративных линий (books.cover_lines = false): у шаблона не рисуются линии и рамки рисунка и
- * украшение-линия у имён. Фото, затемнения, рисунки и текст остаются как есть.
+ * Обложка без декоративных линий (books.cover_lines = false): у шаблона не рисуются линии и рамки рисунка (art).
+ * Фото, затемнения, рисунки и текст остаются как есть. Украшение у имён (ornament, и линия тоже) — часть текстового
+ * блока, его настройка не трогает: убрать его можно слоем в конструкторе (обращение №18 — Алёна попросила оставить
+ * короткую линию под именами, а нижнюю линию рисунка убрать).
  *
  * Что такое «линия» в рисунке шаблона — одно правило для всех шаблонов (и новых тоже), без правки каждого:
  * - `<line>` — отрезки-разделители, линии под названием и внизу крышки;
@@ -27,8 +29,8 @@ export function stripLines(svg: string): string {
 const plain = new WeakMap<CoverTemplate, CoverTemplate>();
 
 /**
- * Тот же шаблон без декоративных линий: рисунок без линий и рамок, украшение у имён — без линии (сердце, звезда,
- * точки остаются). id тот же; lines: false — по нему адрес фона (/api/covers/…-nl) и оборот без линии у имён.
+ * Тот же шаблон без декоративных линий рисунка; украшение у имён и всё остальное — как у шаблона. id тот же;
+ * lines: false — по нему адрес фона (/api/covers/…-nl).
  */
 export function withoutLines(template: CoverTemplate): CoverTemplate {
   if (template.lines === false) return template;
@@ -39,7 +41,6 @@ export function withoutLines(template: CoverTemplate): CoverTemplate {
       ...template,
       lines: false,
       art: (g, ctx) => stripLines(art(g, ctx)),
-      ornament: template.ornament?.kind === "line" ? undefined : template.ornament,
     };
     plain.set(template, out);
   }
