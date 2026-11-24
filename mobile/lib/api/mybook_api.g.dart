@@ -176,6 +176,18 @@ class MybookApi {
     return Ok.fromJson(json as Map<String, dynamic>);
   }
 
+  /// Экранная сборка книги: полосы и адреса картинок; нет — запускается (retry=1 — повтор после сбоя)
+  Future<BuildState> bookBuild({required String bookId, String? retry}) async {
+    final json = await _send('GET', '/api/v1/books/${Uri.encodeComponent(bookId)}/build', query: {if (retry != null) 'retry': '${retry}'});
+    return BuildState.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Ход идущей сборки (опрашивать раз в секунду)
+  Future<BuildProgress> bookBuildProgress({required String bookId}) async {
+    final json = await _send('GET', '/api/v1/books/${Uri.encodeComponent(bookId)}/build/progress');
+    return BuildProgress.fromJson(json as Map<String, dynamic>);
+  }
+
   /// Полка «Мои книги» — как на сайте: книги в работе первыми, прогресс, срок к празднику, заказ, обложка
   Future<CabinetShelf> cabinetShelf() async {
     final json = await _send('GET', '/api/v1/cabinet/shelf');
@@ -1375,6 +1387,88 @@ class LettersOrder {
   factory LettersOrder.fromJson(Map<String, dynamic> json) => LettersOrder(ids: (json['ids'] as List).map((e) => e as String).toList());
 
   Map<String, dynamic> toJson() => {'ids': ids.map((e) => e).toList()};
+}
+
+class BookPage {
+  final int n;
+  /// front | toc | opener | text | photo | gallery | end | blank | pad
+  final String kind;
+  final String? chapterKey;
+
+  const BookPage({required this.n, required this.kind, this.chapterKey});
+
+  factory BookPage.fromJson(Map<String, dynamic> json) => BookPage(n: (json['n'] as num).toInt(), kind: json['kind'] as String, chapterKey: json['chapterKey'] == null ? null : json['chapterKey'] as String);
+
+  Map<String, dynamic> toJson() => {'n': n, 'kind': kind, 'chapterKey': chapterKey == null ? null : chapterKey!};
+}
+
+class BookBuild {
+  final String fp;
+  final int pageCount;
+  final int contentPages;
+  final BookBuildTrimMm trimMm;
+  final List<BookPage> pages;
+  final Map<String, dynamic> chapterPages;
+  final String imageBase;
+  final List<int> imageWidths;
+
+  const BookBuild({required this.fp, required this.pageCount, required this.contentPages, required this.trimMm, required this.pages, required this.chapterPages, required this.imageBase, required this.imageWidths});
+
+  factory BookBuild.fromJson(Map<String, dynamic> json) => BookBuild(fp: json['fp'] as String, pageCount: (json['pageCount'] as num).toInt(), contentPages: (json['contentPages'] as num).toInt(), trimMm: BookBuildTrimMm.fromJson(json['trimMm'] as Map<String, dynamic>), pages: (json['pages'] as List).map((e) => BookPage.fromJson(e as Map<String, dynamic>)).toList(), chapterPages: json['chapterPages'] as Map<String, dynamic>, imageBase: json['imageBase'] as String, imageWidths: (json['imageWidths'] as List).map((e) => (e as num).toInt()).toList());
+
+  Map<String, dynamic> toJson() => {'fp': fp, 'pageCount': pageCount, 'contentPages': contentPages, 'trimMm': trimMm.toJson(), 'pages': pages.map((e) => e.toJson()).toList(), 'chapterPages': chapterPages, 'imageBase': imageBase, 'imageWidths': imageWidths.map((e) => e).toList()};
+}
+
+class BookBuildTrimMm {
+  final double w;
+  final double h;
+
+  const BookBuildTrimMm({required this.w, required this.h});
+
+  factory BookBuildTrimMm.fromJson(Map<String, dynamic> json) => BookBuildTrimMm(w: (json['w'] as num).toDouble(), h: (json['h'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'w': w, 'h': h};
+}
+
+class BuildState {
+  /// ready | building | failed
+  final String status;
+  final BookBuild? build;
+  final String? error;
+  final int? retryInMs;
+  final String pdfUrl;
+
+  const BuildState({required this.status, this.build, this.error, this.retryInMs, required this.pdfUrl});
+
+  factory BuildState.fromJson(Map<String, dynamic> json) => BuildState(status: json['status'] as String, build: json['build'] == null ? null : BookBuild.fromJson(json['build'] as Map<String, dynamic>), error: json['error'] == null ? null : json['error'] as String, retryInMs: json['retryInMs'] == null ? null : (json['retryInMs'] as num).toInt(), pdfUrl: json['pdfUrl'] as String);
+
+  Map<String, dynamic> toJson() => {'status': status, 'build': build == null ? null : build!.toJson(), 'error': error == null ? null : error!, 'retryInMs': retryInMs == null ? null : retryInMs!, 'pdfUrl': pdfUrl};
+}
+
+class BuildProgress {
+  final BuildProgressProgress? progress;
+
+  const BuildProgress({this.progress});
+
+  factory BuildProgress.fromJson(Map<String, dynamic> json) => BuildProgress(progress: json['progress'] == null ? null : BuildProgressProgress.fromJson(json['progress'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'progress': progress == null ? null : progress!.toJson()};
+}
+
+class BuildProgressProgress {
+  /// queued | running
+  final String state;
+  final String? stage;
+  final int percent;
+  final int? etaMs;
+  final bool overrun;
+  final int ahead;
+
+  const BuildProgressProgress({required this.state, this.stage, required this.percent, this.etaMs, required this.overrun, required this.ahead});
+
+  factory BuildProgressProgress.fromJson(Map<String, dynamic> json) => BuildProgressProgress(state: json['state'] as String, stage: json['stage'] == null ? null : json['stage'] as String, percent: (json['percent'] as num).toInt(), etaMs: json['etaMs'] == null ? null : (json['etaMs'] as num).toInt(), overrun: json['overrun'] as bool, ahead: (json['ahead'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'state': state, 'stage': stage == null ? null : stage!, 'percent': percent, 'etaMs': etaMs == null ? null : etaMs!, 'overrun': overrun, 'ahead': ahead};
 }
 
 class ShelfDeadline {

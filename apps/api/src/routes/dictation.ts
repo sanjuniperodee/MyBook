@@ -14,7 +14,7 @@ const MAX_AUDIO_BYTES = 15 * 1024 * 1024;
 export const dictationHandlers: Pick<Handlers, "answerDictate"> = {
   async answerDictate({ req, input }) {
     const { user, book } = await apiBook(req, input.bookId, { editable: true });
-    const audio = (input.files as File[])[0];
+    const audio = input.files[0];
     if (!audio) throw new HttpError(400, "badRequest");
     if (audio.size > MAX_AUDIO_BYTES) throw new HttpError(413, "dictationTooLong");
     if (!(await rateLimit(`dictation:${user.id}`, 20, 600_000)) || !(await rateLimit(`dictation-day:${user.id}`, 150, 86_400_000))) throw new HttpError(429, "dictationRate");

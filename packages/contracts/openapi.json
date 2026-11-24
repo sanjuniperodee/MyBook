@@ -998,6 +998,105 @@
         "x-auth": "user"
       }
     },
+    "/api/v1/books/{bookId}/build": {
+      "get": {
+        "operationId": "bookBuild",
+        "tags": [
+          "preview"
+        ],
+        "summary": "Экранная сборка книги: полосы и адреса картинок; нет — запускается (retry=1 — повтор после сбоя)",
+        "parameters": [
+          {
+            "name": "bookId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "retry",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BuildState"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
+    },
+    "/api/v1/books/{bookId}/build/progress": {
+      "get": {
+        "operationId": "bookBuildProgress",
+        "tags": [
+          "preview"
+        ],
+        "summary": "Ход идущей сборки (опрашивать раз в секунду)",
+        "parameters": [
+          {
+            "name": "bookId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BuildProgress"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
+    },
     "/api/v1/cabinet/shelf": {
       "get": {
         "operationId": "cabinetShelf",
@@ -5734,6 +5833,246 @@
         },
         "required": [
           "ids"
+        ],
+        "additionalProperties": false
+      },
+      "BookPage": {
+        "type": "object",
+        "properties": {
+          "n": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "front",
+              "toc",
+              "opener",
+              "text",
+              "photo",
+              "gallery",
+              "end",
+              "blank",
+              "pad"
+            ]
+          },
+          "chapterKey": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "n",
+          "kind",
+          "chapterKey"
+        ],
+        "additionalProperties": false
+      },
+      "BookBuild": {
+        "type": "object",
+        "properties": {
+          "fp": {
+            "type": "string"
+          },
+          "pageCount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "contentPages": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "trimMm": {
+            "type": "object",
+            "properties": {
+              "w": {
+                "type": "number"
+              },
+              "h": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "w",
+              "h"
+            ],
+            "additionalProperties": false
+          },
+          "pages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BookPage"
+            }
+          },
+          "chapterPages": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          },
+          "imageBase": {
+            "type": "string"
+          },
+          "imageWidths": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          }
+        },
+        "required": [
+          "fp",
+          "pageCount",
+          "contentPages",
+          "trimMm",
+          "pages",
+          "chapterPages",
+          "imageBase",
+          "imageWidths"
+        ],
+        "additionalProperties": false
+      },
+      "BuildState": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "building",
+              "failed"
+            ]
+          },
+          "build": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BookBuild"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "retryInMs": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pdfUrl": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "build",
+          "error",
+          "retryInMs",
+          "pdfUrl"
+        ],
+        "additionalProperties": false
+      },
+      "BuildProgress": {
+        "type": "object",
+        "properties": {
+          "progress": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "state": {
+                    "type": "string",
+                    "enum": [
+                      "queued",
+                      "running"
+                    ]
+                  },
+                  "stage": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "images",
+                          "flow",
+                          "final",
+                          "cover",
+                          "finish"
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "percent": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "etaMs": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "overrun": {
+                    "type": "boolean"
+                  },
+                  "ahead": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "state",
+                  "stage",
+                  "percent",
+                  "etaMs",
+                  "overrun",
+                  "ahead"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "progress"
         ],
         "additionalProperties": false
       },

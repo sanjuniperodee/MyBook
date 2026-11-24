@@ -13,6 +13,7 @@ import { authRoutes } from "./auth";
 import { boardsRoutes } from "./boards";
 import { booksRoutes } from "./books";
 import { lettersRoutes } from "./letters";
+import { previewRoutes } from "./preview";
 import { cabinetRoutes } from "./cabinet";
 import { crmRoutes } from "./crm";
 import type { RouteDef } from "./core";
@@ -22,6 +23,7 @@ export * from "./auth";
 export * from "./boards";
 export * from "./books";
 export * from "./letters";
+export * from "./preview";
 export * from "./cabinet";
 export * from "./crm";
 
@@ -29,6 +31,7 @@ export const v1 = {
   ...authRoutes,
   ...booksRoutes,
   ...lettersRoutes,
+  ...previewRoutes,
   ...cabinetRoutes,
   // CRM для сотрудников (приложение CRM).
   ...crmRoutes,
@@ -42,4 +45,9 @@ export type Input<N extends RouteName> = (V1[N] extends { params: infer P extend
   (V1[N] extends { query: infer Q extends z.ZodType } ? z.input<Q> : unknown) &
   (V1[N] extends { body: infer B extends z.ZodType } ? { body: z.input<B> } : unknown) &
   (V1[N] extends { files: object } ? { files: Blob[] } : unknown);
+/** То же после разбора схемами на сервере (значения по умолчанию подставлены) — вход обработчиков apps/api. */
+export type Parsed<N extends RouteName> = (V1[N] extends { params: infer P extends z.ZodType } ? z.output<P> : unknown) &
+  (V1[N] extends { query: infer Q extends z.ZodType } ? z.output<Q> : unknown) &
+  (V1[N] extends { body: infer B extends z.ZodType } ? { body: z.output<B> } : unknown) &
+  (V1[N] extends { files: object } ? { files: File[] } : unknown);
 export type Output<N extends RouteName> = z.output<V1[N]["response"]>;

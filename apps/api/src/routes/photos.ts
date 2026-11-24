@@ -30,7 +30,7 @@ export const photoHandlers: Pick<Handlers, "photoUpload" | "photoUpdate" | "phot
   async photoUpload({ req, input }) {
     const { user, viewer } = await apiViewer(req, input.bookId);
     if (!(await rateLimit(`upload:${user.id}`, 60, 3600_000))) throw new HttpError(429, "photosRate");
-    const files = (input.files as File[]).map((f) => ({ name: f.name, size: f.size, bytes: async () => Buffer.from(await f.arrayBuffer()) }));
+    const files = input.files.map((f) => ({ name: f.name, size: f.size, bytes: async () => Buffer.from(await f.arrayBuffer()) }));
     const authoring = container().authoring;
     const result = await authoring.photos.upload(input.bookId, viewer, files, await maxPhotos());
     const t = (await getMessages()).api;

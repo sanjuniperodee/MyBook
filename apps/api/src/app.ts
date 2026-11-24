@@ -3,7 +3,7 @@
  * обработчик (тонкий слой над сервисами модулей) → JSON. Ошибки — в формате сайта ({ error, code }) через тот же
  * api() (src/server/api.ts): тексты на языке пользователя, домен и права — как у веба.
  */
-import { openapi, v1, type Input, type Output, type RouteDef, type RouteName } from "@mybook/contracts";
+import { openapi, v1, type Output, type Parsed, type RouteDef, type RouteName } from "@mybook/contracts";
 import { api, HttpError } from "@/server/api";
 import type { User } from "@/shared/infrastructure/db/schema";
 import { createRouter } from "./http/router";
@@ -18,7 +18,8 @@ export interface HandlerContext<N extends RouteName> {
   req: Request;
   /** null только у маршрутов auth: "none". */
   user: User | null;
-  input: Input<N>;
+  /** Параметры, строка запроса и тело — уже разобранные схемами контракта. */
+  input: Parsed<N>;
 }
 
 /** Обработчик маршрута: данные ответа по контракту или готовый Response (особые статусы, например 429). */
@@ -56,7 +57,7 @@ export function createApp(handlers: Handlers, auth: Authenticator) {
       const user = route.auth === "staff" ? await auth.staff(req) : route.auth === "user" ? await auth.user(req) : null;
       const input = await readInput(req, route, params);
       const handler = handlers[name] as Handler<RouteName>;
-      const out = await handler({ req, user, input: input as Input<RouteName> });
+      const out = await handler({ req, user, input: input as Parsed<RouteName> });
       if (out instanceof Response) return out;
       // Вне прода ответ сверяется с контрактом: расхождение — 500 (ошибка сервера, не данных клиента) и падение теста.
       if (process.env.NODE_ENV !== "production") {
