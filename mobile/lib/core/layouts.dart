@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../screens/boards/boards_screen.dart';
 import '../screens/calls_screen.dart';
 import '../screens/chats_screen.dart';
 import '../screens/clients_screen.dart';
@@ -25,6 +26,8 @@ final appSections = <String, AppSection>{
   'overview': AppSection('overview', 'Обзор', LucideIcons.chartNoAxesColumn, (s) => s.can('analytics.view'), () => const OverviewScreen()),
   'chats': AppSection('chats', 'Чаты', LucideIcons.messageCircle, (s) => s.can('chats.view'), () => const ChatsScreen()),
   'tasks': AppSection('tasks', 'Задачи', LucideIcons.squareCheck, (_) => true, () => const TasksScreen()),
+  // Доски задач (как «Задачи → Доски» в CRM) и календарь задач — API v1 boards.
+  'boards': AppSection('boards', 'Доски задач', LucideIcons.squareKanban, (_) => true, () => const BoardsScreen()),
   'deals': AppSection('deals', 'Сделки', LucideIcons.handshake, (s) => s.can('deals.view'), () => const DealsScreen()),
   'clients': AppSection('clients', 'Клиенты', LucideIcons.users, (s) => s.can('clients.view'), () => const ClientsScreen()),
   'orders': AppSection('orders', 'Заказы', LucideIcons.package, (s) => s.can('orders.view'), () => const OrdersScreen()),
