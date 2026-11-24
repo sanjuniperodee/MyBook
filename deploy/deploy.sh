@@ -145,10 +145,17 @@ pm2_apply() {
   pm2 delete mybook >/dev/null 2>&1 || true
   pm2 delete mybook-worker >/dev/null 2>&1 || true
   pm2 delete mybook-files >/dev/null 2>&1 || true
-  pm2 delete mybook-api >/dev/null 2>&1 || true
   pm2 start deploy/ecosystem.config.cjs --only mybook
   if has_worker; then pm2 start deploy/ecosystem.config.cjs --only mybook-worker; fi
   if has_files; then pm2 start deploy/ecosystem.config.cjs --only mybook-files; fi
+  pm2 save
+}
+
+# mybook-api — отдельно и после сайта: пока перезапускается сайт, маршруты «сначала api» (nginx upstream
+# mybook_api_first) обслуживает прежний api; пока перезапускается api — уже отвечающий новый сайт. Одновременный
+# перезапуск обоих давал 502 на автосохранении (25.11).
+api_apply() {
+  pm2 delete mybook-api >/dev/null 2>&1 || true
   if has_api; then pm2 start deploy/ecosystem.config.cjs --only mybook-api; fi
   pm2 save
 }
@@ -219,6 +226,7 @@ if ! check_app "$PORT" 30; then
     ln -sfn "$PREV" "$CURRENT"
     purge_previews
     pm2_apply
+    api_apply
     # и после перезапуска: новая версия могла дописать сборку, пока останавливалась
     purge_previews
   fi
@@ -226,6 +234,7 @@ if ! check_app "$PORT" 30; then
   exit 1
 fi
 echo "✓ MyBooks отвечает на localhost:$PORT ($(basename "$REL"))"
+api_apply
 # Без живого воркера стоят сверка Kaspi, бот и почта: тогда возвращаем фон в процесс сайта (запасная копия ещё отвечает).
 if ! check_worker; then
   echo "✗ mybook-worker не поднялся — фон возвращён в процесс сайта (MYBOOK_WORKER=off). Логи: pm2 logs mybook-worker --nostream --lines 100"
