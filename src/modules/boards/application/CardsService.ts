@@ -129,16 +129,17 @@ export class CardsService {
 
   async detail(v: BoardViewer, id: string): Promise<CardDetail> {
     const { card, board, editable } = await this.load(v, id, false);
-    const [cols, labels, checklists, comments, files, activity] = await Promise.all([
+    const [cols, labels, checklists, comments, files, activity, meetUrl] = await Promise.all([
       board ? this.store.columns(board.id) : [],
       board ? this.store.labels(board.id) : [],
       this.store.checklists(card.id),
       this.store.comments(card.id),
       this.store.attachments(card.id),
       this.store.activity(card.id, 100),
+      card.meet ? this.store.meetUrl(card.id) : null,
     ]);
     const s = cardSummary(card, effectiveColumn(cols, card.columnId, !!card.doneAt), editable);
-    return cardDetail(card, s, { board: board ? { id: board.id, name: board.name } : null, columns: cols, labels, checklists, comments, files, activity, me: v.userId });
+    return cardDetail(card, s, { meetUrl, board: board ? { id: board.id, name: board.name } : null, columns: cols, labels, checklists, comments, files, activity, me: v.userId });
   }
 
   // ─── Создание ───

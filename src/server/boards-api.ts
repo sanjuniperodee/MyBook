@@ -101,6 +101,11 @@ export async function boardsApi(req: Request, path: string[]): Promise<Response>
       return json({ ok: true });
     }
     if (a === "calendar") {
+      if (b === "google") {
+        if (m === "GET") return json(await c.google.status(v));
+        if (m === "DELETE") return (await c.google.disconnect(v), json({ ok: true }));
+        if (m === "POST") return json({ changes: await c.google.syncOne(v.userId) });
+      }
       if (b === "feed") {
         if (m === "GET") return json(await c.calendar.feedStatus(v));
         if (m === "POST") return json({ url: await c.calendar.issueFeed(v) });

@@ -277,6 +277,8 @@ export interface BoardsStore {
   /** Карточки с меткой «просрочено» (auto), у которых срок уже не прошёл или они выполнены. */
   resolvedAutoLabels(now: Date, limit: number): Promise<string[]>;
   staffName(id: string): Promise<string | null>;
+  /** Ссылка Google Meet встречи (если календарь кого-то из исполнителей её создал). */
+  meetUrl(taskId: string): Promise<string | null>;
   activeStaff(ids: string[]): Promise<string[]>;
 }
 

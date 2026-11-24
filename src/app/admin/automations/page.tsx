@@ -1,5 +1,6 @@
 import { container } from "@/server/container";
 import { requireStaff } from "@/server/access";
+import { boardViewer } from "@/server/boards-api";
 import { staffOptions } from "@/modules/access/ui";
 import { formatDate } from "@/lib/dates";
 import { Zap } from "lucide-react";
@@ -16,7 +17,7 @@ import { parseHolidays } from "@/modules/automation/domain";
 export const metadata = { title: "Автоматизации" };
 
 export default async function AutomationsPage() {
-  await requireStaff("settings.manage");
+  const staff = await requireStaff("settings.manage");
   const [rules, stages, admins, holidays, sales] = await Promise.all([
     container().automation.rules.list(),
     container().sales.queries.listStages(),
@@ -37,6 +38,7 @@ export default async function AutomationsPage() {
     stages: stages.map((s) => ({ id: s.id, name: pipelines.length > 1 ? `${pname.get(s.pipelineId)} · ${s.name}` : s.name, open: s.kind === "open" })),
     staff: staffOptions(admins),
     holidays: parseHolidays(holidays).map((h) => ({ id: h.id, label: `${h.ru} (${h.date.slice(3)}.${h.date.slice(0, 2)})` })),
+    boards: await container().boards.boards.outline(boardViewer(staff)),
   };
   const row = (r: (typeof rules)[number]) => (
     <AutomationRow

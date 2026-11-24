@@ -55,11 +55,15 @@ interface Ctx {
   staff: { id: string; label: string }[];
   /** Праздники из «Интеграции» → CRM — для правила «Приближается праздник». */
   holidays: { id: string; label: string }[];
+  /** Доски задач с колонками — для действия «Создать карточку на доске». */
+  boards?: { id: string; name: string; columns: { id: string; name: string }[] }[];
 }
 
 const blank = (type: AutomationActionType): AutomationAction =>
   type === "create_task"
     ? { type, title: "", dueMinutes: 60, userId: null }
+    : type === "create_card"
+      ? { type, title: "", boardId: "", columnId: null, dueMinutes: 0, userId: null, items: [] }
     : type === "create_deal"
       ? { type, title: "", userId: null }
       : type === "send_message" || type === "draft_message"
@@ -833,6 +837,40 @@ function Editor({
                     (v) => setAction(i, { userId: v }),
                     "ответственному по сделке",
                   )}
+                </div>
+              ) : a.type === "create_card" ? (
+                <div className="flex flex-col gap-2">
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <select className="input h-10 text-sm" value={a.boardId ?? ""} onChange={(e) => setAction(i, { boardId: e.target.value, columnId: null })} aria-label="Доска">
+                      <option value="">Доска…</option>
+                      {(ctx.boards ?? []).map((b) => (
+                        <option key={b.id} value={b.id}>
+                          {b.name}
+                        </option>
+                      ))}
+                    </select>
+                    <select className="input h-10 text-sm" value={a.columnId ?? ""} onChange={(e) => setAction(i, { columnId: e.target.value || null })} aria-label="Колонка">
+                      <option value="">первая колонка</option>
+                      {(ctx.boards ?? [])
+                        .find((b) => b.id === a.boardId)
+                        ?.columns.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] lg:grid-cols-[minmax(0,1fr)_auto_14rem]">
+                    <input className="input h-10 text-sm" placeholder="Название, например «Книга для {имя}: макет»" value={a.title ?? ""} onChange={(e) => setAction(i, { title: e.target.value })} />
+                    <label className="flex items-center gap-1.5 text-xs text-muted" title="0 — без срока. Минуты рабочего времени; от 1440 (суток) — календарный срок.">
+                      срок
+                      <input type="number" min={0} className="input h-10 w-20 text-sm" value={a.dueMinutes ?? 0} onChange={(e) => setAction(i, { dueMinutes: Number(e.target.value) })} />
+                      мин
+                    </label>
+                    {staffSelect(a.userId, (v) => setAction(i, { userId: v }), "без исполнителя")}
+                  </div>
+                  <textarea className="input text-sm" rows={3} placeholder={"Чек-лист — по пункту в строке, например:\nПроверить тексты\nСобрать макет\nСогласовать с клиентом"} value={(a.items ?? []).join("\n")} onChange={(e) => setAction(i, { items: e.target.value.split("\n") })} aria-label="Чек-лист карточки" />
+                  <p className="text-xs text-muted">Одна открытая карточка с этим названием на сделку — повтор события её не дублирует. Карточка — со ссылкой на сделку и клиента; на доске сработают её правила.</p>
                 </div>
               ) : a.type === "create_deal" ? (
                 <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_14rem]">

@@ -13,8 +13,8 @@
 | [access](#access) | Access: сотрудники, роли и права, правила безопасности, журнал. | 16 / 866 | 47 |
 | [assistant](#assistant) | AI-помощник (Claude, ChatGPT, DeepSeek или свой OpenAI-совместимый сервер). | 23 / 2279 | 25 |
 | [authoring](#authoring) | Authoring: книги, вопросы, оглавление своей книги, фото, письма близких. | 28 / 3815 | 72 |
-| [automation](#automation) | Автоматизации (цифровая воронка CRM). | 16 / 1944 | 9 |
-| [boards](#boards) | Доски задач: доски отделов, личные и проектные, колонки с лимитами, карточки (задачи CRM) с исполнителями, метками, чек-листами, комментариями и вложениями, правила досок, календарь и личная iCal-ссылка. | 11 / 2462 | 8 |
+| [automation](#automation) | Автоматизации (цифровая воронка CRM). | 16 / 1976 | 9 |
+| [boards](#boards) | Доски задач: доски отделов, личные и проектные, колонки с лимитами, карточки (задачи CRM) с исполнителями, метками, чек-листами, комментариями и вложениями, правила досок, календарь и личная iCal-ссылка. | 15 / 3203 | 15 |
 | [clients](#clients) | Клиенты CRM: профиль клиента, задачи и заметки менеджеров. | 9 / 1137 | 29 |
 | [feedback](#feedback) | Отзывы: отзыв клиента о книге, благодарность автору, модерация и витрина. | 12 / 641 | 7 |
 | [identity](#identity) | Identity: учётные записи, вход, пароли, второй фактор. | 17 / 1048 | 20 |
@@ -28,7 +28,7 @@
 | [sales](#sales) | Продажи: сделки, воронки, этапы, дубли, воронка по действиям на сайте. | 27 / 2943 | 90 |
 | [support](#support) | Обращения: проблемы и просьбы с формы /support, расшифровка голосовых, статусы, уведомление и закрытие по выкатке. | 6 / 706 | 13 |
 | [telephony](#telephony) | Телефония: журнал звонков из АТС, звонки из CRM, веб-телефон, записи, звонки WhatsApp. | 13 / 1147 | 28 |
-| [workspace](#workspace) | Рабочее пространство CRM: свои поля, шаблоны ответов, уведомления и push сотрудников. | 22 / 1569 | 20 |
+| [workspace](#workspace) | Рабочее пространство CRM: свои поля, шаблоны ответов, уведомления и push сотрудников. | 22 / 1572 | 20 |
 
 ## access
 
@@ -76,9 +76,9 @@ Authoring: книги, вопросы, оглавление своей книг�
 
 - Папка: `src/modules/boards` (domain, application, infrastructure)
 - Фасад: `BoardsModule` → `container().boards`
-- Публичное: `boards`, `cards`, `calendar`, `openFile`
+- Публичное: `boards`, `cards`, `calendar`, `google`, `openFile`
 - Таблицы: `crm_boards`, `crm_board_columns`, `crm_board_members`, `crm_labels`, `crm_task_labels`, `crm_task_members`, `crm_task_checklists`, `crm_task_checklist_items`, `crm_task_comments`, `crm_task_attachments`, `crm_task_activity`, `crm_task_views`, `crm_board_rules`, `crm_board_rule_runs`, `crm_calendar_feeds`, `crm_google_accounts`, `crm_google_events`
-- Тесты (2): `boards.integration.test.ts`, `boards.test.ts`
+- Тесты (3): `boards-google.integration.test.ts`, `boards.integration.test.ts`, `boards.test.ts`
 
 ## clients
 

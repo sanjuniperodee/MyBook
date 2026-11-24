@@ -66,12 +66,13 @@ export const SETTINGS_TABS = [
   {
     id: "crm",
     label: "CRM",
-    hint: "График, правила, праздники, шаблоны, спам",
+    hint: "График, правила, праздники, шаблоны, спам, Google Календарь",
     icon: Settings2,
     group: "Работа менеджеров",
     sections: [
       { id: "crm-sales", label: "Отдел продаж" },
       { id: "blocklist", label: "Стоп-лист" },
+      { id: "google", label: "Google Календарь" },
       { id: "holidays", label: "Праздники" },
       { id: "templates", label: "Шаблоны ответов" },
     ],

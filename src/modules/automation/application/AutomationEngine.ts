@@ -292,6 +292,25 @@ export class AutomationEngine {
         s.assigneeId = s.assigneeId ?? deal.assigneeId;
         return ok;
       }
+      case "create_card": {
+        // «Сделка перешла на этап → карточка на доске производства»: исполнитель — выбранный в правиле (не менеджер сделки).
+        if (!a.boardId || !this.effects.createCard) return skipped("доска не выбрана");
+        const title = (fillTemplate(a.title || rule.name, vars) || rule.name).slice(0, 200);
+        const due = a.dueMinutes ? ruleTaskDue(this.clock.now(), a.dueMinutes) : null;
+        const items = (a.items ?? []).map((x) => fillTemplate(x, vars).trim()).filter(Boolean);
+        const created = await this.effects.createCard({
+          boardId: a.boardId,
+          columnId: a.columnId ?? null,
+          title,
+          dueAt: due ? await this.schedule.addWorkMinutes(due.from, due.workMinutes) : null,
+          clientId: s.clientId,
+          dealId: s.deal?.id ?? null,
+          orderId: ctx.orderId ?? null,
+          assigneeId: a.userId ?? null,
+          checklist: items.length ? { title: "Шаги", items } : null,
+        });
+        return created ? ok : skipped("такая карточка по сделке уже есть на доске");
+      }
       case "draft_message": {
         // Текст кладётся в историю сделки — без сделки его негде показать (поставьте раньше «Создать сделку»).
         if (!s.deal) return skipped("нет сделки — текст негде показать");

@@ -19,6 +19,15 @@ const actionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("assign"), userId: optUuid.optional() }),
   z.object({ type: z.literal("move_stage"), stageId: uuid }),
   z.object({ type: z.literal("create_deal"), title: z.string().trim().max(200).optional(), userId: optUuid.optional() }),
+  z.object({
+    type: z.literal("create_card"),
+    boardId: uuid,
+    columnId: optUuid.optional(),
+    title: z.string().trim().min(1, "Название карточки").max(200),
+    dueMinutes: z.coerce.number().int().min(0).max(60 * 24 * 60),
+    userId: optUuid.optional(),
+    items: z.array(z.string().trim().max(300)).max(30).transform((l) => l.filter(Boolean)).optional(),
+  }),
   z.object({ type: z.literal("draft_message"), text: z.string().trim().min(1, "Текст клиенту").max(2000), textKk: z.string().trim().max(2000).optional() }),
   z.object({ type: z.literal("notify"), title: z.string().trim().max(120).optional(), text: z.string().trim().max(500).optional(), userId: optUuid.optional(), to: z.literal("managers").optional(), whatsapp: z.boolean().optional() }),
 ]);

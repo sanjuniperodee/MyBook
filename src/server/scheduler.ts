@@ -112,6 +112,9 @@ export async function crmTick() {
     if (boardRules) console.log(`[scheduler] board overdue rules=${boardRules}`);
     const recurring = await step("recurring cards", () => container().boards.cards.spawnRecurring(), 0);
     if (recurring) console.log(`[scheduler] recurring cards=${recurring}`);
+    // Google Календари сотрудников: выгрузить изменённые задачи, продлить каналы, забрать правки из Google.
+    const google = await step("google calendar", () => container().boards.google.syncAll(), 0);
+    if (google) console.log(`[scheduler] google calendar changes=${google}`);
     // Круг: ночные заявки — утром первым на смене, не взятые вовремя — следующему.
     const routed = await step("lead routing", () => container().sales.routing.run(), 0);
     if (routed) console.log(`[scheduler] crm leads routed=${routed}`);

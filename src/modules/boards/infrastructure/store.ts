@@ -9,6 +9,7 @@ import {
   crmBoards,
   crmConversations,
   crmDeals,
+  crmGoogleEvents,
   crmLabels,
   crmTaskActivity,
   crmTaskAttachments,
@@ -408,6 +409,10 @@ export const drizzleBoards: BoardsStore = {
       .where(and(eq(crmTaskLabels.auto, true), or(isNotNull(crmTasks.doneAt), isNull(crmTasks.dueAt), gt(crmTasks.dueAt, now))))
       .limit(limit);
     return rows.map((r) => r.id);
+  },
+  async meetUrl(taskId) {
+    const [r] = await executor().select({ url: crmGoogleEvents.meetUrl }).from(crmGoogleEvents).where(and(eq(crmGoogleEvents.taskId, taskId), isNotNull(crmGoogleEvents.meetUrl))).limit(1);
+    return r?.url ?? null;
   },
   async staffName(id) {
     const [u] = await executor().select({ name: users.name }).from(users).where(eq(users.id, id)).limit(1);

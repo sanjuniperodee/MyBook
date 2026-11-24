@@ -25,6 +25,8 @@ export class AutomationModule {
       clock: Clock;
       sales: SalesGateway;
       createTask: AutomationEffects["createTask"];
+      /** Карточка на доске задач — порт контекста «Доски». */
+      createCard?: AutomationEffects["createCard"];
       sendMessage: AutomationEffects["sendMessage"];
       canMessageNow: AutomationEffects["canMessageNow"];
       addNote: AutomationEffects["addNote"];

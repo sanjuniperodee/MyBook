@@ -10,6 +10,7 @@
  */
 import type { z } from "zod";
 import { authRoutes } from "./auth";
+import { boardsRoutes } from "./boards";
 import { booksRoutes } from "./books";
 import { cabinetRoutes } from "./cabinet";
 import { crmRoutes } from "./crm";
@@ -17,6 +18,7 @@ import type { RouteDef } from "./core";
 
 export * from "./core";
 export * from "./auth";
+export * from "./boards";
 export * from "./books";
 export * from "./cabinet";
 export * from "./crm";
@@ -27,6 +29,8 @@ export const v1 = {
   ...cabinetRoutes,
   // CRM для сотрудников (приложение CRM).
   ...crmRoutes,
+  // Доски задач и календарь (приложение CRM).
+  ...boardsRoutes,
 } as const satisfies Record<string, RouteDef>;
 
 export type V1 = typeof v1;

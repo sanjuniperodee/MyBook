@@ -48,6 +48,12 @@ export class BoardsService {
     return rows.filter((b) => canSeeBoard(v, b)).map((b) => boardSummary(b, canManageBoard(v, b), b.openCards));
   }
 
+  /** Доски с колонками — для выбора в правилах CRM («создать карточку на доске»). Только живые доски. */
+  async outline(v: BoardViewer) {
+    const boards = (await this.store.boards(v.userId)).filter((b) => canSeeBoard(v, b));
+    return Promise.all(boards.map(async (b) => ({ id: b.id, name: b.name, columns: (await this.store.columns(b.id)).map((c) => ({ id: c.id, name: c.name })) })));
+  }
+
   templates() {
     return BOARD_TEMPLATES.map((t) => ({ key: t.key, name: t.name, description: t.description, kind: t.kind, color: t.color, columns: t.columns.map((c) => c.name) }));
   }

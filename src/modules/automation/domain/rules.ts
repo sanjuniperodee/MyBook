@@ -11,7 +11,7 @@ type TemplateVars = Parameters<typeof fillTemplate>[1];
 export type { AutomationTrigger } from "@/modules/automation/domain/meta";
 
 export interface RuleAction {
-  type: "create_task" | "send_message" | "assign" | "move_stage" | "notify" | "create_deal" | "draft_message";
+  type: "create_task" | "send_message" | "assign" | "move_stage" | "notify" | "create_deal" | "draft_message" | "create_card";
   title?: string;
   text?: string;
   /** Текст клиенту на казахском: его получает клиент с казахским языком (users.locale); пусто — русский text. */
@@ -23,6 +23,10 @@ export interface RuleAction {
   to?: "managers";
   /** «Уведомить» — ещё и личным сообщением в WhatsApp на номер сотрудника (только в рабочее время). */
   whatsapp?: boolean;
+  /** «Создать карточку на доске»: доска и колонка (пусто — первая), пункты чек-листа шаблона. */
+  boardId?: string;
+  columnId?: string | null;
+  items?: string[];
 }
 
 /**

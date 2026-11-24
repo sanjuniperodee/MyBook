@@ -77,6 +77,8 @@ export interface CardDetail extends CardSummary {
   result: string;
   recurrence: TaskRecurrence | null;
   meet: boolean;
+  /** Ссылка Google Meet (создаёт Google Календарь исполнителя). */
+  meetUrl: string | null;
   board: { id: string; name: string } | null;
   columns: { id: string; name: string; done: boolean }[];
   labels: { id: string; name: string; color: string }[];
@@ -149,7 +151,7 @@ export const ruleView = (r: RuleRow) => ({ id: r.id, name: r.name, trigger: r.tr
 export function cardDetail(
   c: CardRow,
   summary: CardSummary,
-  extra: { board: { id: string; name: string } | null; columns: ColumnRow[]; labels: LabelRow[]; checklists: ChecklistRow[]; comments: CommentRow[]; files: AttachmentRow[]; activity: ActivityRow[]; me: string },
+  extra: { meetUrl?: string | null; board: { id: string; name: string } | null; columns: ColumnRow[]; labels: LabelRow[]; checklists: ChecklistRow[]; comments: CommentRow[]; files: AttachmentRow[]; activity: ActivityRow[]; me: string },
 ): CardDetail {
   return {
     ...summary,
@@ -161,6 +163,7 @@ export function cardDetail(
     result: c.result ?? "",
     recurrence: c.recurrence,
     meet: c.meet,
+    meetUrl: extra.meetUrl ?? null,
     board: extra.board,
     columns: extra.columns.map((x) => ({ id: x.id, name: x.name, done: x.done })),
     labels: extra.labels.map(labelView),

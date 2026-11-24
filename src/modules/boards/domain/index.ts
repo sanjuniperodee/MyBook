@@ -2,6 +2,7 @@ import { contextError } from "@/shared/domain/DomainError";
 import type { BoardRuleAction, BoardRuleTrigger } from "@/shared/domain/boards";
 
 export * from "./ical";
+export * from "./activity";
 
 export type BoardsErrorCode = "forbidden" | "notFound" | "invalid" | "tooLarge" | "googleNotConfigured" | "googleFailed";
 

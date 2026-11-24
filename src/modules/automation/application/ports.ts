@@ -60,6 +60,11 @@ export interface AutomationEffects {
    */
   createTask(task: { title: string; kind: "call" | "message" | "task"; dueAt: Date; clientId: string | null; dealId: string | null; orderId: string | null; assigneeId: string | null; once?: boolean }): Promise<boolean>;
   /**
+   * Карточка на доске задач (модуль досок): одна открытая с этим заголовком на сделку и доску; чек-лист — пункты шаблона.
+   * false — такая уже есть или доски нет (в архиве, удалена).
+   */
+  createCard?(card: { boardId: string; columnId: string | null; title: string; dueAt: Date | null; clientId: string | null; dealId: string | null; orderId: string | null; assigneeId: string | null; checklist: { title: string; items: string[] } | null }): Promise<boolean>;
+  /**
    * Сообщение клиенту от правила (rule — его название, для заметки, если текст не отправлен). reply — ответ на только что
    * пришедшее сообщение клиента (автоответ): окно и суточный лимит его не держат. transactional — сообщение о заказе:
    * уходит и в диалог, который ведёт бот; allow — значения, которые в тексте не реквизиты (трек-номер из цифр);

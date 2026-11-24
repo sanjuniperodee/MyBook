@@ -120,6 +120,7 @@ function setup(
     addNote: async (n) => void log.push(`note:${n.dealId}:${n.text}`),
     notify: async (to, n) => void log.push(`notify:${Array.isArray(to) ? to.join(",") : to}:${n.title}`),
     whatsappStaff: async (to, text) => (log.push(`wa:${Array.isArray(to) ? to.join(",") : to}:${text.split("\n")[0]}`), opts.whatsappSent ?? 1),
+    createCard: async (c) => (log.push(`card:${c.boardId}:${c.columnId}:${c.title}:${c.dealId}:${c.assigneeId}:${c.checklist?.items.join("|") ?? ""}:${c.dueAt ? "срок" : "без срока"}`), true),
   };
   const sales: SalesGateway = {
     nextRoundRobin: async () => "m2",
@@ -185,6 +186,20 @@ describe("AutomationEngine", () => {
     ref.engine = ctx.engine;
     await ctx.engine.run("deal.stage_changed", { subject: "d1:0" });
     expect(moves).toBe(3);
+  });
+});
+
+describe("«Сделка перешла на этап → карточка на доске» (доски задач)", () => {
+  it("карточка на выбранной доске и в колонке, с переменными в названии и чек-листе, без срока — без срока", async () => {
+    const { engine, log } = setup([rule({ trigger: "deal.stage_changed", actions: [{ type: "create_card", boardId: "b1", columnId: "c2", title: "Книга для {имя}", items: ["Макет для {имя}", " "], dueMinutes: 0, userId: "u7" }] })]);
+    await engine.run("deal.stage_changed", { subject: "d1:won", dealId: "d1", stageId: "won" });
+    expect(log[0]).toBe("card:b1:c2:Книга для Айгерим:d1:u7:Макет для Айгерим:без срока");
+  });
+  it("без доски — шаг пропущен, а не ошибка", async () => {
+    const { engine, log, errors } = setup([rule({ actions: [{ type: "create_card", title: "x" }] })]);
+    await engine.run("deal.created", { subject: "d1" });
+    expect(log.some((l) => l.startsWith("card:"))).toBe(false);
+    expect(errors).toEqual([]);
   });
 });
 

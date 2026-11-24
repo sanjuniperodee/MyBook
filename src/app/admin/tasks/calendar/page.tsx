@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { Columns3 } from "lucide-react";
 import { staffOptions } from "@/modules/access/ui";
-import { requireStaff } from "@/server/access";
+import { can, requireStaff } from "@/server/access";
+import { boardViewer } from "@/server/boards-api";
+import { GoogleCalendar } from "./GoogleCalendar";
 import { container } from "@/server/container";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Panel } from "@/components/ui/Panel";
@@ -11,9 +13,9 @@ import { IcalFeed } from "./IcalFeed";
 export const metadata = { title: "Календарь задач" };
 
 /** Календарь задач со всех досок: месяц, неделя, день, перенос сроков перетаскиванием; подписка в своём календаре. */
-export default async function TasksCalendarPage() {
+export default async function TasksCalendarPage({ searchParams }: { searchParams: Promise<{ google?: string }> }) {
   const staff = await requireStaff();
-  const admins = await container().access.queries.allStaff();
+  const [admins, google, sp] = await Promise.all([container().access.queries.allStaff(), container().boards.google.status(boardViewer(staff)), searchParams]);
   return (
     <div className="flex flex-col gap-5">
       <PageHeader
@@ -29,7 +31,22 @@ export default async function TasksCalendarPage() {
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <CalendarPage staff={staffOptions(admins)} me={staff.user.id} />
         <aside className="flex flex-col gap-4 xl:sticky xl:top-[calc(var(--topbar-h)+1rem)]" aria-label="Мой календарь">
-          <Panel title="Задачи в вашем календаре">
+          {google.configured ? (
+            <Panel title="Google Календарь">
+              <GoogleCalendar initial={google} notice={sp.google ?? null} />
+            </Panel>
+          ) : can(staff, "settings.manage") ? (
+            <Panel title="Google Календарь">
+              <p className="text-[13px] text-muted">
+                Чтобы сотрудники подключали свой Google Календарь с двусторонней синхронизацией, введите ключи Google в{" "}
+                <Link href="/admin/settings?tab=crm#google" className="text-wine hover:underline">
+                  Интеграции → CRM
+                </Link>
+                . Пока можно подписаться ссылкой ниже.
+              </p>
+            </Panel>
+          ) : null}
+          <Panel title="Подписка по ссылке (iCal)">
             <IcalFeed />
           </Panel>
         </aside>

@@ -180,6 +180,120 @@ class MybookApi {
     final json = await _send('POST', '/api/v1/crm/chats/${Uri.encodeComponent(chatId)}/bot', body: body.toJson());
     return Done.fromJson(json as Map<String, dynamic>);
   }
+
+  /// Доски, которые видит сотрудник (с числом открытых карточек)
+  Future<BoardList> boardsList() async {
+    final json = await _send('GET', '/api/v1/boards');
+    return BoardList.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Доска: колонки, метки, видимые карточки, сотрудники (done=1 — выполненные за 90 дней)
+  Future<BoardDetail> boardDetail({required String boardId, String? done}) async {
+    final json = await _send('GET', '/api/v1/boards/${Uri.encodeComponent(boardId)}', query: {if (done != null) 'done': '${done}'});
+    return BoardDetail.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Новая карточка (задача CRM) на доске
+  Future<CardCreated> cardCreate({required CardCreate body}) async {
+    final json = await _send('POST', '/api/v1/cards', body: body.toJson());
+    return CardCreated.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Карточка целиком: чек-листы, комментарии, вложения, журнал
+  Future<CardDetail> cardDetail({required String cardId}) async {
+    final json = await _send('GET', '/api/v1/cards/${Uri.encodeComponent(cardId)}');
+    return CardDetail.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Правка карточки (только переданные поля)
+  Future<CardResult> cardUpdate({required String cardId, required CardPatch body}) async {
+    final json = await _send('PATCH', '/api/v1/cards/${Uri.encodeComponent(cardId)}', body: body.toJson());
+    return CardResult.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Удалить насовсем (автор или админ доски; остальным — в архив)
+  Future<Ok> cardDelete({required String cardId}) async {
+    final json = await _send('DELETE', '/api/v1/cards/${Uri.encodeComponent(cardId)}');
+    return Ok.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Перенос в колонку между соседями (в «Готово» — выполнена)
+  Future<CardResult> cardMove({required String cardId, required CardMove body}) async {
+    final json = await _send('POST', '/api/v1/cards/${Uri.encodeComponent(cardId)}/move', body: body.toJson());
+    return CardResult.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Выполнить или вернуть в работу (с итогом)
+  Future<CardResult> cardDone({required String cardId, required CardDone body}) async {
+    final json = await _send('POST', '/api/v1/cards/${Uri.encodeComponent(cardId)}/done', body: body.toJson());
+    return CardResult.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// В архив и обратно
+  Future<Ok> cardArchive({required String cardId, required CardArchive body}) async {
+    final json = await _send('POST', '/api/v1/cards/${Uri.encodeComponent(cardId)}/archive', body: body.toJson());
+    return Ok.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Исполнители (первый — главный: напоминания, «Мой день»)
+  Future<CardResult> cardAssignees({required String cardId, required CardAssignees body}) async {
+    final json = await _send('PUT', '/api/v1/cards/${Uri.encodeComponent(cardId)}/assignees', body: body.toJson());
+    return CardResult.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Следить за карточкой или нет
+  Future<Ok> cardWatch({required String cardId, required CardWatch body}) async {
+    final json = await _send('PUT', '/api/v1/cards/${Uri.encodeComponent(cardId)}/watch', body: body.toJson());
+    return Ok.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Метка на карточке — поставить или снять
+  Future<CardResult> cardLabel({required String cardId, required String labelId, required CardLabelToggle body}) async {
+    final json = await _send('PUT', '/api/v1/cards/${Uri.encodeComponent(cardId)}/labels/${Uri.encodeComponent(labelId)}', body: body.toJson());
+    return CardResult.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Новый чек-лист с пунктами
+  Future<CreatedId> cardChecklistCreate({required String cardId, required ChecklistCreate body}) async {
+    final json = await _send('POST', '/api/v1/cards/${Uri.encodeComponent(cardId)}/checklists', body: body.toJson());
+    return CreatedId.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Пункт чек-листа
+  Future<CreatedId> checklistItemCreate({required String checklistId, required ChecklistItemCreate body}) async {
+    final json = await _send('POST', '/api/v1/checklists/${Uri.encodeComponent(checklistId)}/items', body: body.toJson());
+    return CreatedId.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Пункт: текст, отметка, исполнитель, срок
+  Future<Ok> checklistItemUpdate({required String itemId, required ChecklistItemPatch body}) async {
+    final json = await _send('PATCH', '/api/v1/checklist-items/${Uri.encodeComponent(itemId)}', body: body.toJson());
+    return Ok.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Удалить пункт
+  Future<Ok> checklistItemDelete({required String itemId}) async {
+    final json = await _send('DELETE', '/api/v1/checklist-items/${Uri.encodeComponent(itemId)}');
+    return Ok.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Комментарий (@Имя — уведомить коллегу)
+  Future<CreatedId> cardCommentCreate({required String cardId, required CommentCreate body}) async {
+    final json = await _send('POST', '/api/v1/cards/${Uri.encodeComponent(cardId)}/comments', body: body.toJson());
+    return CreatedId.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Вложение (multipart, поле file, до 25 МБ); первая картинка — обложка
+  Future<CreatedId> cardFileUpload({required String cardId, required List<http.MultipartFile> files}) async {
+    final json = await _sendFiles('POST', '/api/v1/cards/${Uri.encodeComponent(cardId)}/files', 'file', files);
+    return CreatedId.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Карточки со сроком или началом в периоде (до 120 дней): со всех видимых досок или одной; mine=1 — только мои
+  Future<CardList> tasksCalendar({required String from, required String to, String? boardId, String? mine}) async {
+    final json = await _send('GET', '/api/v1/tasks/calendar', query: {if (from != null) 'from': '${from}', if (to != null) 'to': '${to}', if (boardId != null) 'boardId': '${boardId}', if (mine != null) 'mine': '${mine}'});
+    return CardList.fromJson(json as Map<String, dynamic>);
+  }
 }
 
 class ApiError {
@@ -262,6 +376,433 @@ class SecondFactorBody {
   factory SecondFactorBody.fromJson(Map<String, dynamic> json) => SecondFactorBody(ticket: json['ticket'] as String, code: json['code'] as String);
 
   Map<String, dynamic> toJson() => {'ticket': ticket, 'code': code};
+}
+
+class StaffRef {
+  final String id;
+  final String label;
+
+  const StaffRef({required this.id, required this.label});
+
+  factory StaffRef.fromJson(Map<String, dynamic> json) => StaffRef(id: json['id'] as String, label: json['label'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'label': label};
+}
+
+class BoardInfo {
+  final String id;
+  final String name;
+  final String? description;
+  /// team | personal | project
+  final String kind;
+  final String color;
+  /// all | members
+  final String visibility;
+  final bool isDefault;
+  final bool canManage;
+  final int? openCards;
+
+  const BoardInfo({required this.id, required this.name, this.description, required this.kind, required this.color, required this.visibility, required this.isDefault, required this.canManage, this.openCards});
+
+  factory BoardInfo.fromJson(Map<String, dynamic> json) => BoardInfo(id: json['id'] as String, name: json['name'] as String, description: json['description'] == null ? null : json['description'] as String, kind: json['kind'] as String, color: json['color'] as String, visibility: json['visibility'] as String, isDefault: json['isDefault'] as bool, canManage: json['canManage'] as bool, openCards: json['openCards'] == null ? null : (json['openCards'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, if (description != null) 'description': description == null ? null : description!, 'kind': kind, 'color': color, 'visibility': visibility, 'isDefault': isDefault, 'canManage': canManage, if (openCards != null) 'openCards': openCards == null ? null : openCards!};
+}
+
+class BoardList {
+  final List<BoardInfo> boards;
+
+  const BoardList({required this.boards});
+
+  factory BoardList.fromJson(Map<String, dynamic> json) => BoardList(boards: (json['boards'] as List).map((e) => BoardInfo.fromJson(e as Map<String, dynamic>)).toList());
+
+  Map<String, dynamic> toJson() => {'boards': boards.map((e) => e.toJson()).toList()};
+}
+
+class BoardColumn {
+  final String id;
+  final String name;
+  final bool done;
+  final int? wipLimit;
+
+  const BoardColumn({required this.id, required this.name, required this.done, this.wipLimit});
+
+  factory BoardColumn.fromJson(Map<String, dynamic> json) => BoardColumn(id: json['id'] as String, name: json['name'] as String, done: json['done'] as bool, wipLimit: json['wipLimit'] == null ? null : (json['wipLimit'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'done': done, if (wipLimit != null) 'wipLimit': wipLimit == null ? null : wipLimit!};
+}
+
+class BoardLabel {
+  final String id;
+  final String name;
+  final String color;
+
+  const BoardLabel({required this.id, required this.name, required this.color});
+
+  factory BoardLabel.fromJson(Map<String, dynamic> json) => BoardLabel(id: json['id'] as String, name: json['name'] as String, color: json['color'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'color': color};
+}
+
+class CardLink {
+  /// deal | order | client | book | chat
+  final String type;
+  final String id;
+  final String label;
+  final String href;
+
+  const CardLink({required this.type, required this.id, required this.label, required this.href});
+
+  factory CardLink.fromJson(Map<String, dynamic> json) => CardLink(type: json['type'] as String, id: json['id'] as String, label: json['label'] as String, href: json['href'] as String);
+
+  Map<String, dynamic> toJson() => {'type': type, 'id': id, 'label': label, 'href': href};
+}
+
+class CardSummary {
+  final String id;
+  final String title;
+  /// task | call | message | meeting
+  final String kind;
+  final String? boardId;
+  final String? columnId;
+  final double? position;
+  final String? priority;
+  final String? startAt;
+  final String? dueAt;
+  final String? doneAt;
+  final bool archived;
+  final String? coverColor;
+  final String? coverImage;
+  final List<String> assigneeIds;
+  final List<String> watcherIds;
+  final List<String> labelIds;
+  final int checklistDone;
+  final int checklistTotal;
+  final int comments;
+  final int attachments;
+  final bool hasDescription;
+  final bool recurring;
+  final List<CardLink> links;
+  final bool editable;
+
+  const CardSummary({required this.id, required this.title, required this.kind, this.boardId, this.columnId, this.position, this.priority, this.startAt, this.dueAt, this.doneAt, required this.archived, this.coverColor, this.coverImage, required this.assigneeIds, required this.watcherIds, required this.labelIds, required this.checklistDone, required this.checklistTotal, required this.comments, required this.attachments, required this.hasDescription, required this.recurring, required this.links, required this.editable});
+
+  factory CardSummary.fromJson(Map<String, dynamic> json) => CardSummary(id: json['id'] as String, title: json['title'] as String, kind: json['kind'] as String, boardId: json['boardId'] == null ? null : json['boardId'] as String, columnId: json['columnId'] == null ? null : json['columnId'] as String, position: json['position'] == null ? null : (json['position'] as num).toDouble(), priority: json['priority'] == null ? null : json['priority'] as String, startAt: json['startAt'] == null ? null : json['startAt'] as String, dueAt: json['dueAt'] == null ? null : json['dueAt'] as String, doneAt: json['doneAt'] == null ? null : json['doneAt'] as String, archived: json['archived'] as bool, coverColor: json['coverColor'] == null ? null : json['coverColor'] as String, coverImage: json['coverImage'] == null ? null : json['coverImage'] as String, assigneeIds: (json['assigneeIds'] as List).map((e) => e as String).toList(), watcherIds: (json['watcherIds'] as List).map((e) => e as String).toList(), labelIds: (json['labelIds'] as List).map((e) => e as String).toList(), checklistDone: (json['checklistDone'] as num).toInt(), checklistTotal: (json['checklistTotal'] as num).toInt(), comments: (json['comments'] as num).toInt(), attachments: (json['attachments'] as num).toInt(), hasDescription: json['hasDescription'] as bool, recurring: json['recurring'] as bool, links: (json['links'] as List).map((e) => CardLink.fromJson(e as Map<String, dynamic>)).toList(), editable: json['editable'] as bool);
+
+  Map<String, dynamic> toJson() => {'id': id, 'title': title, 'kind': kind, if (boardId != null) 'boardId': boardId == null ? null : boardId!, if (columnId != null) 'columnId': columnId == null ? null : columnId!, if (position != null) 'position': position == null ? null : position!, if (priority != null) 'priority': priority == null ? null : priority!, if (startAt != null) 'startAt': startAt == null ? null : startAt!, if (dueAt != null) 'dueAt': dueAt == null ? null : dueAt!, if (doneAt != null) 'doneAt': doneAt == null ? null : doneAt!, 'archived': archived, if (coverColor != null) 'coverColor': coverColor == null ? null : coverColor!, if (coverImage != null) 'coverImage': coverImage == null ? null : coverImage!, 'assigneeIds': assigneeIds.map((e) => e).toList(), 'watcherIds': watcherIds.map((e) => e).toList(), 'labelIds': labelIds.map((e) => e).toList(), 'checklistDone': checklistDone, 'checklistTotal': checklistTotal, 'comments': comments, 'attachments': attachments, 'hasDescription': hasDescription, 'recurring': recurring, 'links': links.map((e) => e.toJson()).toList(), 'editable': editable};
+}
+
+class BoardDetail {
+  final BoardInfo board;
+  final List<BoardColumn> columns;
+  final List<BoardLabel> labels;
+  final List<CardSummary> cards;
+  final List<StaffRef> staff;
+  final int doneDays;
+
+  const BoardDetail({required this.board, required this.columns, required this.labels, required this.cards, required this.staff, required this.doneDays});
+
+  factory BoardDetail.fromJson(Map<String, dynamic> json) => BoardDetail(board: BoardInfo.fromJson(json['board'] as Map<String, dynamic>), columns: (json['columns'] as List).map((e) => BoardColumn.fromJson(e as Map<String, dynamic>)).toList(), labels: (json['labels'] as List).map((e) => BoardLabel.fromJson(e as Map<String, dynamic>)).toList(), cards: (json['cards'] as List).map((e) => CardSummary.fromJson(e as Map<String, dynamic>)).toList(), staff: (json['staff'] as List).map((e) => StaffRef.fromJson(e as Map<String, dynamic>)).toList(), doneDays: (json['doneDays'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'board': board.toJson(), 'columns': columns.map((e) => e.toJson()).toList(), 'labels': labels.map((e) => e.toJson()).toList(), 'cards': cards.map((e) => e.toJson()).toList(), 'staff': staff.map((e) => e.toJson()).toList(), 'doneDays': doneDays};
+}
+
+class ChecklistItem {
+  final String id;
+  final String text;
+  final bool done;
+  final String? assigneeId;
+  final String? dueAt;
+
+  const ChecklistItem({required this.id, required this.text, required this.done, this.assigneeId, this.dueAt});
+
+  factory ChecklistItem.fromJson(Map<String, dynamic> json) => ChecklistItem(id: json['id'] as String, text: json['text'] as String, done: json['done'] as bool, assigneeId: json['assigneeId'] == null ? null : json['assigneeId'] as String, dueAt: json['dueAt'] == null ? null : json['dueAt'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'text': text, 'done': done, if (assigneeId != null) 'assigneeId': assigneeId == null ? null : assigneeId!, if (dueAt != null) 'dueAt': dueAt == null ? null : dueAt!};
+}
+
+class Checklist {
+  final String id;
+  final String title;
+  final List<ChecklistItem> items;
+
+  const Checklist({required this.id, required this.title, required this.items});
+
+  factory Checklist.fromJson(Map<String, dynamic> json) => Checklist(id: json['id'] as String, title: json['title'] as String, items: (json['items'] as List).map((e) => ChecklistItem.fromJson(e as Map<String, dynamic>)).toList());
+
+  Map<String, dynamic> toJson() => {'id': id, 'title': title, 'items': items.map((e) => e.toJson()).toList()};
+}
+
+class CardComment {
+  final String id;
+  final String? authorId;
+  final String text;
+  final String createdAt;
+  final String? editedAt;
+  final bool mine;
+
+  const CardComment({required this.id, this.authorId, required this.text, required this.createdAt, this.editedAt, required this.mine});
+
+  factory CardComment.fromJson(Map<String, dynamic> json) => CardComment(id: json['id'] as String, authorId: json['authorId'] == null ? null : json['authorId'] as String, text: json['text'] as String, createdAt: json['createdAt'] as String, editedAt: json['editedAt'] == null ? null : json['editedAt'] as String, mine: json['mine'] as bool);
+
+  Map<String, dynamic> toJson() => {'id': id, if (authorId != null) 'authorId': authorId == null ? null : authorId!, 'text': text, 'createdAt': createdAt, if (editedAt != null) 'editedAt': editedAt == null ? null : editedAt!, 'mine': mine};
+}
+
+class CardFile {
+  final String id;
+  final String name;
+  final String mime;
+  final int size;
+  final String url;
+  final bool isImage;
+  final String createdAt;
+
+  const CardFile({required this.id, required this.name, required this.mime, required this.size, required this.url, required this.isImage, required this.createdAt});
+
+  factory CardFile.fromJson(Map<String, dynamic> json) => CardFile(id: json['id'] as String, name: json['name'] as String, mime: json['mime'] as String, size: (json['size'] as num).toInt(), url: json['url'] as String, isImage: json['isImage'] as bool, createdAt: json['createdAt'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'mime': mime, 'size': size, 'url': url, 'isImage': isImage, 'createdAt': createdAt};
+}
+
+class CardActivity {
+  final String id;
+  final String? actorId;
+  final String kind;
+  final String text;
+  final String createdAt;
+
+  const CardActivity({required this.id, this.actorId, required this.kind, required this.text, required this.createdAt});
+
+  factory CardActivity.fromJson(Map<String, dynamic> json) => CardActivity(id: json['id'] as String, actorId: json['actorId'] == null ? null : json['actorId'] as String, kind: json['kind'] as String, text: json['text'] as String, createdAt: json['createdAt'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, if (actorId != null) 'actorId': actorId == null ? null : actorId!, 'kind': kind, 'text': text, 'createdAt': createdAt};
+}
+
+class CardDetail {
+  final CardSummary card;
+  final String description;
+  final String? createdById;
+  final String createdAt;
+  final int? remindBeforeMin;
+  final String result;
+  final int? estimateMin;
+  final int? spentMin;
+  final CardDetailBoard? board;
+  final List<BoardColumn> columns;
+  final List<BoardLabel> labels;
+  final List<Checklist> checklists;
+  final List<CardComment> comments;
+  final List<CardFile> files;
+  final List<CardActivity> activity;
+
+  const CardDetail({required this.card, required this.description, this.createdById, required this.createdAt, this.remindBeforeMin, required this.result, this.estimateMin, this.spentMin, this.board, required this.columns, required this.labels, required this.checklists, required this.comments, required this.files, required this.activity});
+
+  factory CardDetail.fromJson(Map<String, dynamic> json) => CardDetail(card: CardSummary.fromJson(json['card'] as Map<String, dynamic>), description: json['description'] as String, createdById: json['createdById'] == null ? null : json['createdById'] as String, createdAt: json['createdAt'] as String, remindBeforeMin: json['remindBeforeMin'] == null ? null : (json['remindBeforeMin'] as num).toInt(), result: json['result'] as String, estimateMin: json['estimateMin'] == null ? null : (json['estimateMin'] as num).toInt(), spentMin: json['spentMin'] == null ? null : (json['spentMin'] as num).toInt(), board: json['board'] == null ? null : CardDetailBoard.fromJson(json['board'] as Map<String, dynamic>), columns: (json['columns'] as List).map((e) => BoardColumn.fromJson(e as Map<String, dynamic>)).toList(), labels: (json['labels'] as List).map((e) => BoardLabel.fromJson(e as Map<String, dynamic>)).toList(), checklists: (json['checklists'] as List).map((e) => Checklist.fromJson(e as Map<String, dynamic>)).toList(), comments: (json['comments'] as List).map((e) => CardComment.fromJson(e as Map<String, dynamic>)).toList(), files: (json['files'] as List).map((e) => CardFile.fromJson(e as Map<String, dynamic>)).toList(), activity: (json['activity'] as List).map((e) => CardActivity.fromJson(e as Map<String, dynamic>)).toList());
+
+  Map<String, dynamic> toJson() => {'card': card.toJson(), 'description': description, if (createdById != null) 'createdById': createdById == null ? null : createdById!, 'createdAt': createdAt, if (remindBeforeMin != null) 'remindBeforeMin': remindBeforeMin == null ? null : remindBeforeMin!, 'result': result, if (estimateMin != null) 'estimateMin': estimateMin == null ? null : estimateMin!, if (spentMin != null) 'spentMin': spentMin == null ? null : spentMin!, if (board != null) 'board': board == null ? null : board!.toJson(), 'columns': columns.map((e) => e.toJson()).toList(), 'labels': labels.map((e) => e.toJson()).toList(), 'checklists': checklists.map((e) => e.toJson()).toList(), 'comments': comments.map((e) => e.toJson()).toList(), 'files': files.map((e) => e.toJson()).toList(), 'activity': activity.map((e) => e.toJson()).toList()};
+}
+
+class CardDetailBoard {
+  final String id;
+  final String name;
+
+  const CardDetailBoard({required this.id, required this.name});
+
+  factory CardDetailBoard.fromJson(Map<String, dynamic> json) => CardDetailBoard(id: json['id'] as String, name: json['name'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'name': name};
+}
+
+class CardCreate {
+  final String? boardId;
+  final String? columnId;
+  final String title;
+  /// task | call | message | meeting
+  final String? kind;
+  final String? description;
+  final String? dueAt;
+  final String? startAt;
+  final String? priority;
+  final List<String>? assigneeIds;
+  final List<String>? labelIds;
+  final String? dealId;
+  final String? clientId;
+  final String? orderId;
+
+  const CardCreate({this.boardId, this.columnId, required this.title, this.kind, this.description, this.dueAt, this.startAt, this.priority, this.assigneeIds, this.labelIds, this.dealId, this.clientId, this.orderId});
+
+  factory CardCreate.fromJson(Map<String, dynamic> json) => CardCreate(boardId: json['boardId'] == null ? null : json['boardId'] as String, columnId: json['columnId'] == null ? null : json['columnId'] as String, title: json['title'] as String, kind: json['kind'] == null ? null : json['kind'] as String, description: json['description'] == null ? null : json['description'] as String, dueAt: json['dueAt'] == null ? null : json['dueAt'] as String, startAt: json['startAt'] == null ? null : json['startAt'] as String, priority: json['priority'] == null ? null : json['priority'] as String, assigneeIds: json['assigneeIds'] == null ? null : (json['assigneeIds'] as List).map((e) => e as String).toList(), labelIds: json['labelIds'] == null ? null : (json['labelIds'] as List).map((e) => e as String).toList(), dealId: json['dealId'] == null ? null : json['dealId'] as String, clientId: json['clientId'] == null ? null : json['clientId'] as String, orderId: json['orderId'] == null ? null : json['orderId'] as String);
+
+  Map<String, dynamic> toJson() => {if (boardId != null) 'boardId': boardId == null ? null : boardId!, if (columnId != null) 'columnId': columnId == null ? null : columnId!, 'title': title, if (kind != null) 'kind': kind == null ? null : kind!, if (description != null) 'description': description == null ? null : description!, if (dueAt != null) 'dueAt': dueAt == null ? null : dueAt!, if (startAt != null) 'startAt': startAt == null ? null : startAt!, if (priority != null) 'priority': priority == null ? null : priority!, if (assigneeIds != null) 'assigneeIds': assigneeIds == null ? null : assigneeIds!.map((e) => e).toList(), if (labelIds != null) 'labelIds': labelIds == null ? null : labelIds!.map((e) => e).toList(), if (dealId != null) 'dealId': dealId == null ? null : dealId!, if (clientId != null) 'clientId': clientId == null ? null : clientId!, if (orderId != null) 'orderId': orderId == null ? null : orderId!};
+}
+
+class CardPatch {
+  final String? title;
+  /// task | call | message | meeting
+  final String? kind;
+  final String? description;
+  final String? priority;
+  final String? startAt;
+  final String? dueAt;
+  final int? remindBeforeMin;
+  final String? result;
+  final int? estimateMin;
+  final int? spentMin;
+
+  const CardPatch({this.title, this.kind, this.description, this.priority, this.startAt, this.dueAt, this.remindBeforeMin, this.result, this.estimateMin, this.spentMin});
+
+  factory CardPatch.fromJson(Map<String, dynamic> json) => CardPatch(title: json['title'] == null ? null : json['title'] as String, kind: json['kind'] == null ? null : json['kind'] as String, description: json['description'] == null ? null : json['description'] as String, priority: json['priority'] == null ? null : json['priority'] as String, startAt: json['startAt'] == null ? null : json['startAt'] as String, dueAt: json['dueAt'] == null ? null : json['dueAt'] as String, remindBeforeMin: json['remindBeforeMin'] == null ? null : (json['remindBeforeMin'] as num).toInt(), result: json['result'] == null ? null : json['result'] as String, estimateMin: json['estimateMin'] == null ? null : (json['estimateMin'] as num).toInt(), spentMin: json['spentMin'] == null ? null : (json['spentMin'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {if (title != null) 'title': title == null ? null : title!, if (kind != null) 'kind': kind == null ? null : kind!, if (description != null) 'description': description == null ? null : description!, if (priority != null) 'priority': priority == null ? null : priority!, if (startAt != null) 'startAt': startAt == null ? null : startAt!, if (dueAt != null) 'dueAt': dueAt == null ? null : dueAt!, if (remindBeforeMin != null) 'remindBeforeMin': remindBeforeMin == null ? null : remindBeforeMin!, if (result != null) 'result': result == null ? null : result!, if (estimateMin != null) 'estimateMin': estimateMin == null ? null : estimateMin!, if (spentMin != null) 'spentMin': spentMin == null ? null : spentMin!};
+}
+
+class CardResult {
+  final CardSummary card;
+
+  const CardResult({required this.card});
+
+  factory CardResult.fromJson(Map<String, dynamic> json) => CardResult(card: CardSummary.fromJson(json['card'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'card': card.toJson()};
+}
+
+class CardCreated {
+  final String id;
+  final CardSummary card;
+
+  const CardCreated({required this.id, required this.card});
+
+  factory CardCreated.fromJson(Map<String, dynamic> json) => CardCreated(id: json['id'] as String, card: CardSummary.fromJson(json['card'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'id': id, 'card': card.toJson()};
+}
+
+class CreatedId {
+  final String id;
+
+  const CreatedId({required this.id});
+
+  factory CreatedId.fromJson(Map<String, dynamic> json) => CreatedId(id: json['id'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id};
+}
+
+class CardMove {
+  final String? boardId;
+  final String columnId;
+  final String? beforeId;
+  final String? afterId;
+
+  const CardMove({this.boardId, required this.columnId, this.beforeId, this.afterId});
+
+  factory CardMove.fromJson(Map<String, dynamic> json) => CardMove(boardId: json['boardId'] == null ? null : json['boardId'] as String, columnId: json['columnId'] as String, beforeId: json['beforeId'] == null ? null : json['beforeId'] as String, afterId: json['afterId'] == null ? null : json['afterId'] as String);
+
+  Map<String, dynamic> toJson() => {if (boardId != null) 'boardId': boardId == null ? null : boardId!, 'columnId': columnId, if (beforeId != null) 'beforeId': beforeId == null ? null : beforeId!, if (afterId != null) 'afterId': afterId == null ? null : afterId!};
+}
+
+class CardDone {
+  final bool done;
+  final String? result;
+
+  const CardDone({required this.done, this.result});
+
+  factory CardDone.fromJson(Map<String, dynamic> json) => CardDone(done: json['done'] as bool, result: json['result'] == null ? null : json['result'] as String);
+
+  Map<String, dynamic> toJson() => {'done': done, if (result != null) 'result': result == null ? null : result!};
+}
+
+class CardArchive {
+  final bool archived;
+
+  const CardArchive({required this.archived});
+
+  factory CardArchive.fromJson(Map<String, dynamic> json) => CardArchive(archived: json['archived'] as bool);
+
+  Map<String, dynamic> toJson() => {'archived': archived};
+}
+
+class CardAssignees {
+  final List<String> userIds;
+
+  const CardAssignees({required this.userIds});
+
+  factory CardAssignees.fromJson(Map<String, dynamic> json) => CardAssignees(userIds: (json['userIds'] as List).map((e) => e as String).toList());
+
+  Map<String, dynamic> toJson() => {'userIds': userIds.map((e) => e).toList()};
+}
+
+class CardWatch {
+  final bool on;
+
+  const CardWatch({required this.on});
+
+  factory CardWatch.fromJson(Map<String, dynamic> json) => CardWatch(on: json['on'] as bool);
+
+  Map<String, dynamic> toJson() => {'on': on};
+}
+
+class CardLabelToggle {
+  final bool on;
+
+  const CardLabelToggle({required this.on});
+
+  factory CardLabelToggle.fromJson(Map<String, dynamic> json) => CardLabelToggle(on: json['on'] as bool);
+
+  Map<String, dynamic> toJson() => {'on': on};
+}
+
+class ChecklistCreate {
+  final String title;
+  final List<String>? items;
+
+  const ChecklistCreate({required this.title, this.items});
+
+  factory ChecklistCreate.fromJson(Map<String, dynamic> json) => ChecklistCreate(title: json['title'] as String, items: json['items'] == null ? null : (json['items'] as List).map((e) => e as String).toList());
+
+  Map<String, dynamic> toJson() => {'title': title, if (items != null) 'items': items == null ? null : items!.map((e) => e).toList()};
+}
+
+class ChecklistItemCreate {
+  final String text;
+
+  const ChecklistItemCreate({required this.text});
+
+  factory ChecklistItemCreate.fromJson(Map<String, dynamic> json) => ChecklistItemCreate(text: json['text'] as String);
+
+  Map<String, dynamic> toJson() => {'text': text};
+}
+
+class ChecklistItemPatch {
+  final String? text;
+  final bool? done;
+  final String? assigneeId;
+  final String? dueAt;
+
+  const ChecklistItemPatch({this.text, this.done, this.assigneeId, this.dueAt});
+
+  factory ChecklistItemPatch.fromJson(Map<String, dynamic> json) => ChecklistItemPatch(text: json['text'] == null ? null : json['text'] as String, done: json['done'] == null ? null : json['done'] as bool, assigneeId: json['assigneeId'] == null ? null : json['assigneeId'] as String, dueAt: json['dueAt'] == null ? null : json['dueAt'] as String);
+
+  Map<String, dynamic> toJson() => {if (text != null) 'text': text == null ? null : text!, if (done != null) 'done': done == null ? null : done!, if (assigneeId != null) 'assigneeId': assigneeId == null ? null : assigneeId!, if (dueAt != null) 'dueAt': dueAt == null ? null : dueAt!};
+}
+
+class CommentCreate {
+  final String text;
+
+  const CommentCreate({required this.text});
+
+  factory CommentCreate.fromJson(Map<String, dynamic> json) => CommentCreate(text: json['text'] as String);
+
+  Map<String, dynamic> toJson() => {'text': text};
+}
+
+class CardList {
+  final List<CardSummary> cards;
+
+  const CardList({required this.cards});
+
+  factory CardList.fromJson(Map<String, dynamic> json) => CardList(cards: (json['cards'] as List).map((e) => CardSummary.fromJson(e as Map<String, dynamic>)).toList());
+
+  Map<String, dynamic> toJson() => {'cards': cards.map((e) => e.toJson()).toList()};
 }
 
 class Theme {

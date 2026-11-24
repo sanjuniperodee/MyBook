@@ -97,7 +97,7 @@ export class CalendarService {
 }
 
 /** Событие календаря для карточки: срок «к 18:00» без явного времени — днём; иначе — по длительности типа. */
-export function icalEvent(c: Pick<CardRow, "id" | "title" | "kind" | "dueAt" | "startAt" | "doneAt" | "updatedAt">, appUrl: string): IcalEvent {
+export function icalEvent(c: Pick<CardRow, "id" | "title" | "dueAt" | "startAt" | "doneAt" | "updatedAt"> & { kind: string }, appUrl: string): IcalEvent {
   const due = c.dueAt ?? c.startAt!;
   const start = c.startAt && c.startAt < due ? c.startAt : new Date(due.getTime() - eventMinutes(c.kind) * 60_000);
   const allDay = !c.startAt && due.getHours() === 18 && due.getMinutes() === 0;

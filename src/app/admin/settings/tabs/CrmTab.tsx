@@ -1,5 +1,7 @@
 import { container } from "@/server/container";
-import { getSetting } from "@/modules/workspace";
+import { fromEnv, getSetting, maskSecret } from "@/modules/workspace";
+import { env } from "@/config/env";
+import { GoogleForm } from "../google/GoogleForm";
 import { parseWorkHours } from "@/shared/domain/schedule";
 import { templateVars } from "@/shared/domain/templates";
 import { formatPhone } from "@/shared/domain/phone";
@@ -34,6 +36,7 @@ export async function CrmTab() {
     container().messaging.helpStats(30).catch(() => null),
     getSetting("notify.auto"),
   ]);
+  const [gId, gSecret, gConnected] = await Promise.all([getSetting("google.clientId"), getSetting("google.clientSecret"), container().boards.google.connectedCount()]);
   return (
     <SettingsFrame anchors={tabAnchors("crm")}>
       <CrmSettingsForm slaMinutes={Number(sla) || 15} reassignMinutes={reassign === "" ? 15 : Number(reassign) || 0} workHours={parseWorkHours(workHours)} autoDealFrom={autoDealFrom} unsorted={unsorted !== "off"} maxDiscount={Number(maxDiscount) || 0} mergeClosedDays={mergeDays} widget={{ enabled: wEnabled !== "off", chat: wChat !== "off", help: wHelp !== "off", helpStats }} digest={digest !== "off"} autoLetters={autoLetters !== "off"} chatReward={chatReward === "on"} />
@@ -48,6 +51,8 @@ export async function CrmTab() {
           by: b.byEmail ? staffLabel({ name: b.byName ?? "", email: b.byEmail }) : null,
         }))}
       />
+
+      <GoogleForm clientId={gId} clientIdEnv={fromEnv("google.clientId")} secret={maskSecret(gSecret)} secretEnv={fromEnv("google.clientSecret")} redirectUri={`${env.appUrl}/api/integrations/google/callback`} origin={env.appUrl} connected={gConnected} />
 
       <HolidaysForm holidays={parseHolidays(holidays)} defaults={[...DEFAULT_HOLIDAYS]} max={HOLIDAYS_MAX} />
 

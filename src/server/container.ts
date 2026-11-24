@@ -23,7 +23,7 @@ import { AssistantModule } from "@/modules/assistant";
 import { ClientsModule } from "@/modules/clients";
 import { BoardsModule } from "@/modules/boards";
 import { ReportingModule } from "@/modules/reporting";
-import { WorkspaceModule, notifyMentions, smtpConfig, staffWith } from "@/modules/workspace";
+import { WorkspaceModule, getSettings, notifyMentions, smtpConfig, staffWith } from "@/modules/workspace";
 import { FeedbackModule, reviewUrl, THANK_YOU } from "@/modules/feedback";
 import { ReferralsModule } from "@/modules/referrals";
 import { SupportModule, ticketAlert } from "@/modules/support";
@@ -86,6 +86,7 @@ export class Container {
       fields: this.workspace.fieldsReader,
       // Задача из правила — через сервис задач: с напоминанием о сроке, без ответственного — ничья (видят все).
       createTask: (t) => this.clients.tasks.createSystem(t),
+      createCard: async (c) => !!(await this.boards.cards.createFromRule(c)),
       // Автоответ правила молчит, если диалог ведёт бот-квалификатор (иначе клиенту два автоответа подряд); текст с
       // реквизитами не уходит — заметка в сделку и руководителю. Первым правило пишет только в окне и в пределах
       // суточного лимита («Интеграции» → «Мессенджеры»).
@@ -338,6 +339,11 @@ export class Container {
       clock: this.clock,
       live: this.workspace.live,
       appUrl: env.appUrl,
+      // Ключи OAuth из «Интеграций» → CRM (переменные GOOGLE_CLIENT_* важнее); адреса — на сайте.
+      googleConfig: async () => {
+        const v = await getSettings(["google.clientId", "google.clientSecret"]);
+        return v["google.clientId"] && v["google.clientSecret"] ? { clientId: v["google.clientId"], clientSecret: v["google.clientSecret"], redirectUri: `${env.appUrl}/api/integrations/google/callback`, webhookUrl: `${env.appUrl}/api/integrations/google/webhook` } : null;
+      },
       notifier: {
         notify: (ids, n) => this.workspace.notifier.notify(ids, n),
         mentions: (text, authorId, authorName, link, where) => notifyMentions(text, authorId, authorName, link, where),

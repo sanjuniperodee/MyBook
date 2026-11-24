@@ -6,6 +6,7 @@ import { MentionTextarea } from "@/components/admin/MentionTextarea";
 import { confirmDialog, toast, toastError } from "@/components/ui/overlays";
 import { cn } from "@/lib/class-names";
 import { BOARD_COLORS, boardColorNames, priorityLabels, recurrenceLabels, type BoardColor, type TaskPriority, type TaskRecurrence } from "@/shared/domain/boards";
+import { activityText } from "@/modules/boards/domain";
 import { boardsApi, onBoardEvent, type CardDetail, type Staff } from "./client";
 import { Avatars, LabelChip, Menu, Popover, colorOf, dueLabel, fromLocalInput, kindLabels, localInput } from "./ui";
 
@@ -20,49 +21,6 @@ const REMIND = [
 
 const fmtSize = (n: number) => (n < 1024 ? `${n} Б` : n < 1024 * 1024 ? `${Math.round(n / 1024)} КБ` : `${(n / 1024 / 1024).toFixed(1)} МБ`);
 const when = (iso: string) => new Date(iso).toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
-
-/** Строка журнала карточки по-человечески. */
-function activityText(a: CardDetail["activity"][number], labels: Map<string, string>) {
-  const d = a.data as Record<string, string | undefined | string[]>;
-  switch (a.kind) {
-    case "created":
-      return `создал(а) карточку в «${d.column}»`;
-    case "moved":
-      return d.from ? `перенёс(ла) из «${d.from}» в «${d.to}»${d.board ? ` на доску «${d.board}»` : ""}` : `перенёс(ла) в «${d.to}»`;
-    case "done":
-      return "отметил(а) выполненной";
-    case "reopened":
-      return "вернул(а) в работу";
-    case "archived":
-      return "убрал(а) в архив";
-    case "restored":
-      return "вернул(а) из архива";
-    case "assignees":
-      return "изменил(а) исполнителей";
-    case "label.added":
-      return `добавил(а) метку «${labels.get(String(d.labelId)) ?? "—"}»`;
-    case "label.removed":
-      return `снял(а) метку «${labels.get(String(d.labelId)) ?? "—"}»`;
-    case "checklist.added":
-      return `добавил(а) чек-лист «${d.title}»`;
-    case "item.done":
-      return `отметил(а) «${d.text}»`;
-    case "item.undone":
-      return `снял(а) отметку «${d.text}»`;
-    case "file.added":
-      return `приложил(а) «${d.name}»`;
-    case "file.removed":
-      return `удалил(а) вложение «${d.name}»`;
-    case "rule":
-      return `сработало правило «${d.name}»`;
-    case "recurring":
-      return "создана по повтору";
-    case "updated":
-      return d.dueAt !== undefined ? (d.dueAt ? `поставил(а) срок ${dueLabel(String(d.dueAt))}` : "убрал(а) срок") : d.title ? `переименовал(а) в «${d.title}»` : d.description ? "изменил(а) описание" : d.recurrence !== undefined ? "изменил(а) повтор" : "изменил(а) карточку";
-    default:
-      return a.kind;
-  }
-}
 
 /**
  * Карточка задачи целиком (окно поверх доски, на телефоне — на весь экран): исполнители и наблюдатели, метки, приоритет,
@@ -471,6 +429,11 @@ function CardBody({ card: c, names, staff, me, run, onClose, inline }: { card: C
                 <Video className="size-4 text-muted" aria-hidden /> Google Meet в календаре
               </label>
             ) : null}
+            {c.meetUrl ? (
+              <a href={c.meetUrl} target="_blank" rel="noreferrer" className="btn btn-dark btn-sm justify-start">
+                <Video className="size-4" aria-hidden /> Войти в Google Meet
+              </a>
+            ) : null}
             <SideField label="Повтор" icon={<Repeat className="size-3.5" aria-hidden />}>
               <select disabled={!ed} value={c.recurrence ? `${c.recurrence.freq}:${c.recurrence.interval}` : ""} onChange={(e) => run(() => boardsApi.updateCard(c.id, { recurrence: e.target.value ? ({ freq: e.target.value.split(":")[0], interval: Number(e.target.value.split(":")[1]) } as TaskRecurrence) : null }))} className="input h-8 py-0 text-[13px]" aria-label="Повтор">
                 <option value="">Не повторять</option>
@@ -727,7 +690,7 @@ function Timeline({ card: c, names, labelMap, showLog, run }: { card: CardDetail
         key: `a${a.id}`,
         node: (
           <p className="pl-9 text-xs text-muted">
-            <b className="font-semibold text-ink-soft">{a.actorId ? (names.get(a.actorId) ?? "Сотрудник") : "Автоматизация"}</b> {activityText(a, labelMap)} · {when(a.createdAt)}
+            <b className="font-semibold text-ink-soft">{a.actorId ? (names.get(a.actorId) ?? "Сотрудник") : "Автоматизация"}</b> {activityText(a.kind, a.data, labelMap)} · {when(a.createdAt)}
           </p>
         ),
       });

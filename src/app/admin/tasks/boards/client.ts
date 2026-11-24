@@ -62,6 +62,9 @@ export const boardsApi = {
   feed: () => apiFetch<{ active: boolean; createdAt: string | null; lastUsedAt: string | null }>(`${base}/calendar/feed`, { cache: "no-store" }),
   issueFeed: () => j<{ url: string }>(`${base}/calendar/feed`, "POST", {}),
   revokeFeed: () => j(`${base}/calendar/feed`, "DELETE"),
+  google: () => apiFetch<{ configured: boolean; connected: boolean; email: string | null; lastPushAt: string | null; lastPullAt: string | null; error: string | null; push: boolean }>(`${base}/calendar/google`, { cache: "no-store" }),
+  googleSync: () => j<{ changes: number }>(`${base}/calendar/google`, "POST", {}),
+  googleDisconnect: () => j(`${base}/calendar/google`, "DELETE"),
 };
 
 /** Подписка на живые события досок (SSE CRM → window «crm:live»): доска или карточка изменилась. */

@@ -262,6 +262,9 @@ export const settingDefs = {
    */
   "kaspi.apiUrl": { envDefault: "KASPI_API_URL", default: "http://127.0.0.1:3010" },
   "kaspi.enabled": { default: "off" },
+  /** Google Календарь сотрудников (доски задач): OAuth-клиент из Google Cloud Console; без него кнопки «Подключить» нет. */
+  "google.clientId": { env: "GOOGLE_CLIENT_ID" },
+  "google.clientSecret": { secret: true, env: "GOOGLE_CLIENT_SECRET" },
   "kaspi.session": { secret: true },
   "kaspi.webhookSecret": { secret: true, env: "KASPI_WEBHOOK_SECRET" },
   /** Сигнал «кассир Kaspi отключён»: через сколько минут подряд без кассира сообщать руководителям (0 — сразу). */
