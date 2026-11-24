@@ -12,6 +12,11 @@ import * as gowa from "@/app/api/integrations/gowa/route";
 import * as zadarma from "@/app/api/integrations/zadarma/route";
 import * as google from "@/app/api/integrations/google/webhook/route";
 import * as questionSave from "@/app/api/books/[id]/questions/[qid]/route";
+import * as live from "@/app/api/admin/live/route";
+import * as chatsInbox from "@/app/api/admin/chats/inbox/route";
+import * as spell from "@/app/api/books/[id]/proofread/spell/route";
+import * as build from "@/app/api/books/[id]/build/route";
+import * as buildProgress from "@/app/api/books/[id]/build-progress/route";
 
 /** Обработчик маршрута Next: второй аргумент — { params } своего вида у каждого маршрута. */
 type RouteHandler = (req: Request, ctx: never) => Promise<Response> | Response;
@@ -27,6 +32,14 @@ const table: [string, RouteModule][] = [
   ["/api/integrations/google/webhook", google as RouteModule],
   // Автосохранение ответа и удаление своего раздела — самый частый маршрут редактора (~17 тыс. в сутки).
   ["/api/books/{id}/questions/{qid}", questionSave as RouteModule],
+  // Частые JSON-маршруты (лог nginx 23–25.11): счётчики CRM (~9 тыс./сутки), орфография редактора (~3,5 тыс.),
+  // входящие чатов, экранная сборка и её ход. Сборка и ход — вместе: ход живёт в памяти процесса, который начал
+  // сборку, а приложение уже собирает через api (bookBuild).
+  ["/api/admin/live", live as RouteModule],
+  ["/api/admin/chats/inbox", chatsInbox as RouteModule],
+  ["/api/books/{id}/proofread/spell", spell as RouteModule],
+  ["/api/books/{id}/build", build as RouteModule],
+  ["/api/books/{id}/build-progress", buildProgress as RouteModule],
 ];
 
 const compiled = table.map(([path, module]) => ({ path, module, re: new RegExp(`^${path.replace(/\{(\w+)\}/g, "(?<$1>[^/]+)")}$`) }));
