@@ -16,6 +16,9 @@ abstract class ClientBackend {
   /// Полка «Мои книги» — модель экрана сайта (подписи, сроки, заказ, обложки).
   Future<v1api.CabinetShelf> shelf();
 
+  /// Штаб книги — модель страницы книги сайта.
+  Future<v1api.CabinetBook> hub(String bookId);
+
   /// Полный адрес своего ресурса (обложка, фото) и заголовки для картинок (токен автора).
   String url(String path);
   Map<String, String> get imageHeaders;
@@ -82,6 +85,9 @@ class ApiBackend implements ClientBackend {
 
   @override
   Future<v1api.CabinetShelf> shelf() => _call(() => v1.cabinetShelf());
+
+  @override
+  Future<v1api.CabinetBook> hub(String bookId) => _call(() => v1.cabinetBook(bookId: bookId));
 
   @override
   String url(String path) => path.startsWith('http') ? path : '${api.baseUrl.replaceAll(RegExp(r'/+$'), '')}$path';

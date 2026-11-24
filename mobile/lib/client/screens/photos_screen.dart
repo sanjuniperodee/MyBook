@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
+import '../../api/mybook_api.g.dart' as v1api;
 import '../../core/api.dart';
 import '../../ui/kit.dart';
 import '../../ui/tokens.dart';
@@ -15,8 +16,9 @@ import '../data/stores.dart';
 /// Фото книги: сетка снимков и загрузка из галереи или с камеры (как «Фото» в кабинете). Места и редактор — следующим
 /// выпуском, пока — на сайте.
 class PhotosScreen extends StatefulWidget {
-  const PhotosScreen({super.key, required this.store, this.inBook = 0});
+  const PhotosScreen({super.key, required this.store, this.inBook = 0, this.hub});
   final BookStore store;
+  final v1api.CabinetBook? hub;
 
   /// Сколько фото уже в книге по данным полки — пока модель книги в API их не отдаёт (тогда сетка пуста).
   final int inBook;

@@ -9,6 +9,7 @@ import '../data/models.dart';
 import '../data/session.dart';
 import '../data/stores.dart';
 import '../ui/cabinet.dart';
+import '../ui/motion.dart';
 import 'book_screen.dart';
 
 /// «Мои книги» — как полка кабинета на телефоне (src/app/(app)/books/page.tsx, BooksShelf.tsx): главная книга крупно
@@ -23,6 +24,7 @@ class ShelfScreen extends StatefulWidget {
 
 class _ShelfScreenState extends State<ShelfScreen> {
   late final ShelfStore _shelf = ShelfStore(context.read<ClientSession>().backend)..load();
+  final _book = Book3DController();
 
   @override
   void dispose() {
@@ -32,7 +34,11 @@ class _ShelfScreenState extends State<ShelfScreen> {
 
   Future<void> _open(v1api.ShelfItem b, {bool write = false}) async {
     final summary = BookSummary(id: b.id, title: b.title, status: b.ordered ? 'ordered' : 'draft', answered: 0, questions: 0, photos: 0);
-    await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => BookScreen(summary: summary, writeSectionId: write ? (b.writeSectionId ?? '') : null)));
+    // «Продолжить писать»: книга сначала открывается на месте (OpenBookLink), потом — переход.
+    if (write) await _book.open();
+    if (!mounted) return;
+    await Navigator.of(context).push(CabinetRoute<void>(builder: (_) => BookScreen(summary: summary, writeSectionId: write ? (b.writeSectionId ?? '') : null)));
+    _book.reset();
     _shelf.refresh();
   }
 
@@ -64,7 +70,7 @@ class _ShelfScreenState extends State<ShelfScreen> {
               padding: const EdgeInsets.fromLTRB(16, 24, 16, 40),
               children: [
                 if (_shelf.error != null) Padding(padding: const EdgeInsets.only(bottom: 12), child: Text(_shelf.error!, style: AppText.caption(context).copyWith(color: c.warn))),
-                _Hero(b: hero, onOpen: () => _open(hero), onWrite: () => _open(hero, write: true)),
+                _Hero(b: hero, book: _book, onOpen: () => _open(hero), onWrite: () => _open(hero, write: true)),
                 if (rest.isNotEmpty) ...[
                   const SizedBox(height: 44),
                   Divider(color: c.border, height: 1),
@@ -83,8 +89,9 @@ class _ShelfScreenState extends State<ShelfScreen> {
 }
 
 class _Hero extends StatelessWidget {
-  const _Hero({required this.b, required this.onOpen, required this.onWrite});
+  const _Hero({required this.b, required this.book, required this.onOpen, required this.onWrite});
   final v1api.ShelfItem b;
+  final Book3DController book;
   final VoidCallback onOpen;
   final VoidCallback onWrite;
 
@@ -93,7 +100,11 @@ class _Hero extends StatelessWidget {
     final c = context.c;
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       Row(children: [
-        GestureDetector(onTap: onOpen, child: CoverImage(url: b.coverUrl, width: 112)),
+        // Объёмная книга (Book3D, поворот 18°); на странице книги та же обложка — «перетекает» (Hero).
+        GestureDetector(
+          onTap: onOpen,
+          child: Hero(tag: coverHeroTag(b.id), child: Book3D(bookId: b.id, controller: book, width: 112, cover: CoverPicture(url: b.coverUrl))),
+        ),
         const SizedBox(width: 20),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -162,7 +173,7 @@ class _ShelfCard extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            CoverImage(url: b.coverThumbUrl, width: 80, flat: true),
+            Hero(tag: coverHeroTag(b.id), child: CoverImage(url: b.coverThumbUrl, width: 80, flat: true)),
             const SizedBox(width: 16),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

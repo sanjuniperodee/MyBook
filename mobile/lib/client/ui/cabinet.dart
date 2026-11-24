@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../ui/tokens.dart';
 import '../data/session.dart';
+import 'motion.dart';
 
 /// Элементы кабинета сайта (src/app/(app), globals.css): радиусы 10/14/20, кнопки .btn-lg (52), листы .panel,
 /// плашки срока и статуса — те же размеры и цвета, что на телефоне в браузере.
@@ -266,7 +267,7 @@ class ProgressRow extends StatelessWidget {
         borderRadius: BorderRadius.circular(4),
         child: Stack(children: [
           Container(height: 6, color: c.border),
-          FractionallySizedBox(widthFactor: (percent.clamp(2, 100)) / 100, child: Container(height: 6, decoration: BoxDecoration(color: c.brand, borderRadius: BorderRadius.circular(4)))),
+          FractionallySizedBox(widthFactor: (percent.clamp(2, 100)) / 100, child: BarGrow(child: Container(height: 6, decoration: BoxDecoration(color: c.brand, borderRadius: BorderRadius.circular(4))))),
         ]),
       ),
     ]);

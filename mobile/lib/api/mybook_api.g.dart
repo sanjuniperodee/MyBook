@@ -133,6 +133,12 @@ class MybookApi {
     return CabinetShelf.fromJson(json as Map<String, dynamic>);
   }
 
+  /// Штаб книги — как страница книги на сайте: следующий шаг, срок, путь, замечания, главы, письма
+  Future<CabinetBook> cabinetBook({required String bookId}) async {
+    final json = await _send('GET', '/api/v1/cabinet/books/${Uri.encodeComponent(bookId)}');
+    return CabinetBook.fromJson(json as Map<String, dynamic>);
+  }
+
   /// Сделка для правки: поля, свои поля, договорённость
   Future<DealForm> crmDealForm({required String dealId}) async {
     final json = await _send('GET', '/api/v1/crm/deals/${Uri.encodeComponent(dealId)}/form');
@@ -636,6 +642,157 @@ class CabinetShelf {
   factory CabinetShelf.fromJson(Map<String, dynamic> json) => CabinetShelf(books: (json['books'] as List).map((e) => ShelfItem.fromJson(e as Map<String, dynamic>)).toList());
 
   Map<String, dynamic> toJson() => {'books': books.map((e) => e.toJson()).toList()};
+}
+
+class HubLink {
+  final String href;
+  final String label;
+
+  const HubLink({required this.href, required this.label});
+
+  factory HubLink.fromJson(Map<String, dynamic> json) => HubLink(href: json['href'] as String, label: json['label'] as String);
+
+  Map<String, dynamic> toJson() => {'href': href, 'label': label};
+}
+
+class HubCard {
+  final String eyebrow;
+  final String title;
+  final String? text;
+  final bool serif;
+  final HubLink primary;
+  final bool primaryWrite;
+  final HubLink? secondary;
+  final String? moreText;
+  final HubLink? more;
+
+  const HubCard({required this.eyebrow, required this.title, this.text, required this.serif, required this.primary, required this.primaryWrite, this.secondary, this.moreText, this.more});
+
+  factory HubCard.fromJson(Map<String, dynamic> json) => HubCard(eyebrow: json['eyebrow'] as String, title: json['title'] as String, text: json['text'] == null ? null : json['text'] as String, serif: json['serif'] as bool, primary: HubLink.fromJson(json['primary'] as Map<String, dynamic>), primaryWrite: json['primaryWrite'] as bool, secondary: json['secondary'] == null ? null : HubLink.fromJson(json['secondary'] as Map<String, dynamic>), moreText: json['moreText'] == null ? null : json['moreText'] as String, more: json['more'] == null ? null : HubLink.fromJson(json['more'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'eyebrow': eyebrow, 'title': title, if (text != null) 'text': text == null ? null : text!, 'serif': serif, 'primary': primary.toJson(), 'primaryWrite': primaryWrite, if (secondary != null) 'secondary': secondary == null ? null : secondary!.toJson(), if (moreText != null) 'moreText': moreText == null ? null : moreText!, if (more != null) 'more': more == null ? null : more!.toJson()};
+}
+
+class HubDeadline {
+  final int days;
+  final String daysShort;
+  /// calm | warm | hot
+  final String tone;
+  final String headline;
+  final String line;
+  final String? icon;
+  final String changeLabel;
+
+  const HubDeadline({required this.days, required this.daysShort, required this.tone, required this.headline, required this.line, this.icon, required this.changeLabel});
+
+  factory HubDeadline.fromJson(Map<String, dynamic> json) => HubDeadline(days: (json['days'] as num).toInt(), daysShort: json['daysShort'] as String, tone: json['tone'] as String, headline: json['headline'] as String, line: json['line'] as String, icon: json['icon'] == null ? null : json['icon'] as String, changeLabel: json['changeLabel'] as String);
+
+  Map<String, dynamic> toJson() => {'days': days, 'daysShort': daysShort, 'tone': tone, 'headline': headline, 'line': line, if (icon != null) 'icon': icon == null ? null : icon!, 'changeLabel': changeLabel};
+}
+
+class HubStep {
+  final String key;
+  final String href;
+  final String title;
+  final String value;
+  final String action;
+  final String status;
+  final double fraction;
+  final int? bar;
+  final bool active;
+
+  const HubStep({required this.key, required this.href, required this.title, required this.value, required this.action, required this.status, required this.fraction, this.bar, required this.active});
+
+  factory HubStep.fromJson(Map<String, dynamic> json) => HubStep(key: json['key'] as String, href: json['href'] as String, title: json['title'] as String, value: json['value'] as String, action: json['action'] as String, status: json['status'] as String, fraction: (json['fraction'] as num).toDouble(), bar: json['bar'] == null ? null : (json['bar'] as num).toInt(), active: json['active'] as bool);
+
+  Map<String, dynamic> toJson() => {'key': key, 'href': href, 'title': title, 'value': value, 'action': action, 'status': status, 'fraction': fraction, if (bar != null) 'bar': bar == null ? null : bar!, 'active': active};
+}
+
+class HubNeed {
+  /// error | warning
+  final String level;
+  final String text;
+  final String? href;
+
+  const HubNeed({required this.level, required this.text, this.href});
+
+  factory HubNeed.fromJson(Map<String, dynamic> json) => HubNeed(level: json['level'] as String, text: json['text'] as String, href: json['href'] == null ? null : json['href'] as String);
+
+  Map<String, dynamic> toJson() => {'level': level, 'text': text, if (href != null) 'href': href == null ? null : href!};
+}
+
+class HubChapter {
+  final String key;
+  final String title;
+  final String label;
+  final bool done;
+  final int percent;
+  final String? sectionId;
+
+  const HubChapter({required this.key, required this.title, required this.label, required this.done, required this.percent, this.sectionId});
+
+  factory HubChapter.fromJson(Map<String, dynamic> json) => HubChapter(key: json['key'] as String, title: json['title'] as String, label: json['label'] as String, done: json['done'] as bool, percent: (json['percent'] as num).toInt(), sectionId: json['sectionId'] == null ? null : json['sectionId'] as String);
+
+  Map<String, dynamic> toJson() => {'key': key, 'title': title, 'label': label, 'done': done, 'percent': percent, if (sectionId != null) 'sectionId': sectionId == null ? null : sectionId!};
+}
+
+class CabinetBook {
+  final String id;
+  final String title;
+  final String subtitle;
+  final String kind;
+  final String language;
+  final bool blank;
+  final bool editable;
+  final String coverUrl;
+  final String coverThumbUrl;
+  final HubCard? card;
+  final HubDeadline? deadline;
+  final String pathTitle;
+  final List<HubStep> steps;
+  final String needsTitle;
+  final String needsFix;
+  final List<HubNeed> needs;
+  final String chaptersTitle;
+  final String? chaptersAside;
+  final String allChaptersLabel;
+  final List<HubChapter> chapters;
+  final CabinetBookLetters letters;
+  final CabinetBookHelp help;
+  final String whereToStart;
+  final List<String> tips;
+  final String? tipsNote;
+
+  const CabinetBook({required this.id, required this.title, required this.subtitle, required this.kind, required this.language, required this.blank, required this.editable, required this.coverUrl, required this.coverThumbUrl, this.card, this.deadline, required this.pathTitle, required this.steps, required this.needsTitle, required this.needsFix, required this.needs, required this.chaptersTitle, this.chaptersAside, required this.allChaptersLabel, required this.chapters, required this.letters, required this.help, required this.whereToStart, required this.tips, this.tipsNote});
+
+  factory CabinetBook.fromJson(Map<String, dynamic> json) => CabinetBook(id: json['id'] as String, title: json['title'] as String, subtitle: json['subtitle'] as String, kind: json['kind'] as String, language: json['language'] as String, blank: json['blank'] as bool, editable: json['editable'] as bool, coverUrl: json['coverUrl'] as String, coverThumbUrl: json['coverThumbUrl'] as String, card: json['card'] == null ? null : HubCard.fromJson(json['card'] as Map<String, dynamic>), deadline: json['deadline'] == null ? null : HubDeadline.fromJson(json['deadline'] as Map<String, dynamic>), pathTitle: json['pathTitle'] as String, steps: (json['steps'] as List).map((e) => HubStep.fromJson(e as Map<String, dynamic>)).toList(), needsTitle: json['needsTitle'] as String, needsFix: json['needsFix'] as String, needs: (json['needs'] as List).map((e) => HubNeed.fromJson(e as Map<String, dynamic>)).toList(), chaptersTitle: json['chaptersTitle'] as String, chaptersAside: json['chaptersAside'] == null ? null : json['chaptersAside'] as String, allChaptersLabel: json['allChaptersLabel'] as String, chapters: (json['chapters'] as List).map((e) => HubChapter.fromJson(e as Map<String, dynamic>)).toList(), letters: CabinetBookLetters.fromJson(json['letters'] as Map<String, dynamic>), help: CabinetBookHelp.fromJson(json['help'] as Map<String, dynamic>), whereToStart: json['whereToStart'] as String, tips: (json['tips'] as List).map((e) => e as String).toList(), tipsNote: json['tipsNote'] == null ? null : json['tipsNote'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'title': title, 'subtitle': subtitle, 'kind': kind, 'language': language, 'blank': blank, 'editable': editable, 'coverUrl': coverUrl, 'coverThumbUrl': coverThumbUrl, if (card != null) 'card': card == null ? null : card!.toJson(), if (deadline != null) 'deadline': deadline == null ? null : deadline!.toJson(), 'pathTitle': pathTitle, 'steps': steps.map((e) => e.toJson()).toList(), 'needsTitle': needsTitle, 'needsFix': needsFix, 'needs': needs.map((e) => e.toJson()).toList(), 'chaptersTitle': chaptersTitle, if (chaptersAside != null) 'chaptersAside': chaptersAside == null ? null : chaptersAside!, 'allChaptersLabel': allChaptersLabel, 'chapters': chapters.map((e) => e.toJson()).toList(), 'letters': letters.toJson(), 'help': help.toJson(), 'whereToStart': whereToStart, 'tips': tips.map((e) => e).toList(), if (tipsNote != null) 'tipsNote': tipsNote == null ? null : tipsNote!};
+}
+
+class CabinetBookLetters {
+  final String title;
+  final String text;
+  final String action;
+  final String href;
+
+  const CabinetBookLetters({required this.title, required this.text, required this.action, required this.href});
+
+  factory CabinetBookLetters.fromJson(Map<String, dynamic> json) => CabinetBookLetters(title: json['title'] as String, text: json['text'] as String, action: json['action'] as String, href: json['href'] as String);
+
+  Map<String, dynamic> toJson() => {'title': title, 'text': text, 'action': action, 'href': href};
+}
+
+class CabinetBookHelp {
+  final String title;
+  final String text;
+  final String url;
+
+  const CabinetBookHelp({required this.title, required this.text, required this.url});
+
+  factory CabinetBookHelp.fromJson(Map<String, dynamic> json) => CabinetBookHelp(title: json['title'] as String, text: json['text'] as String, url: json['url'] as String);
+
+  Map<String, dynamic> toJson() => {'title': title, 'text': text, 'url': url};
 }
 
 class Choice {

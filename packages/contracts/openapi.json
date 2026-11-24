@@ -610,6 +610,50 @@
         "x-auth": "user"
       }
     },
+    "/api/v1/cabinet/books/{bookId}": {
+      "get": {
+        "operationId": "cabinetBook",
+        "tags": [
+          "cabinet"
+        ],
+        "summary": "Штаб книги — как страница книги на сайте: следующий шаг, срок, путь, замечания, главы, письма",
+        "parameters": [
+          {
+            "name": "bookId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CabinetBook"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
+    },
     "/api/v1/crm/deals/{dealId}/form": {
       "get": {
         "operationId": "crmDealForm",
@@ -2169,6 +2213,429 @@
         },
         "required": [
           "books"
+        ],
+        "additionalProperties": false
+      },
+      "HubLink": {
+        "type": "object",
+        "properties": {
+          "href": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "href",
+          "label"
+        ],
+        "additionalProperties": false
+      },
+      "HubCard": {
+        "type": "object",
+        "properties": {
+          "eyebrow": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "text": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "serif": {
+            "type": "boolean"
+          },
+          "primary": {
+            "$ref": "#/components/schemas/HubLink"
+          },
+          "primaryWrite": {
+            "type": "boolean"
+          },
+          "secondary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HubLink"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "moreText": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "more": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HubLink"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "eyebrow",
+          "title",
+          "text",
+          "serif",
+          "primary",
+          "primaryWrite",
+          "secondary",
+          "moreText",
+          "more"
+        ],
+        "additionalProperties": false
+      },
+      "HubDeadline": {
+        "type": "object",
+        "properties": {
+          "days": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "daysShort": {
+            "type": "string"
+          },
+          "tone": {
+            "type": "string",
+            "enum": [
+              "calm",
+              "warm",
+              "hot"
+            ]
+          },
+          "headline": {
+            "type": "string"
+          },
+          "line": {
+            "type": "string"
+          },
+          "icon": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "changeLabel": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "days",
+          "daysShort",
+          "tone",
+          "headline",
+          "line",
+          "icon",
+          "changeLabel"
+        ],
+        "additionalProperties": false
+      },
+      "HubStep": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "href": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "fraction": {
+            "type": "number"
+          },
+          "bar": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "active": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "key",
+          "href",
+          "title",
+          "value",
+          "action",
+          "status",
+          "fraction",
+          "bar",
+          "active"
+        ],
+        "additionalProperties": false
+      },
+      "HubNeed": {
+        "type": "object",
+        "properties": {
+          "level": {
+            "type": "string",
+            "enum": [
+              "error",
+              "warning"
+            ]
+          },
+          "text": {
+            "type": "string"
+          },
+          "href": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "level",
+          "text",
+          "href"
+        ],
+        "additionalProperties": false
+      },
+      "HubChapter": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "done": {
+            "type": "boolean"
+          },
+          "percent": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "sectionId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "key",
+          "title",
+          "label",
+          "done",
+          "percent",
+          "sectionId"
+        ],
+        "additionalProperties": false
+      },
+      "CabinetBook": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "title": {
+            "type": "string"
+          },
+          "subtitle": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "language": {
+            "type": "string"
+          },
+          "blank": {
+            "type": "boolean"
+          },
+          "editable": {
+            "type": "boolean"
+          },
+          "coverUrl": {
+            "type": "string"
+          },
+          "coverThumbUrl": {
+            "type": "string"
+          },
+          "card": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HubCard"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "deadline": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HubDeadline"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pathTitle": {
+            "type": "string"
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HubStep"
+            }
+          },
+          "needsTitle": {
+            "type": "string"
+          },
+          "needsFix": {
+            "type": "string"
+          },
+          "needs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HubNeed"
+            }
+          },
+          "chaptersTitle": {
+            "type": "string"
+          },
+          "chaptersAside": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "allChaptersLabel": {
+            "type": "string"
+          },
+          "chapters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HubChapter"
+            }
+          },
+          "letters": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              },
+              "action": {
+                "type": "string"
+              },
+              "href": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "title",
+              "text",
+              "action",
+              "href"
+            ],
+            "additionalProperties": false
+          },
+          "help": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "title",
+              "text",
+              "url"
+            ],
+            "additionalProperties": false
+          },
+          "whereToStart": {
+            "type": "string"
+          },
+          "tips": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "tipsNote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "subtitle",
+          "kind",
+          "language",
+          "blank",
+          "editable",
+          "coverUrl",
+          "coverThumbUrl",
+          "card",
+          "deadline",
+          "pathTitle",
+          "steps",
+          "needsTitle",
+          "needsFix",
+          "needs",
+          "chaptersTitle",
+          "chaptersAside",
+          "allChaptersLabel",
+          "chapters",
+          "letters",
+          "help",
+          "whereToStart",
+          "tips",
+          "tipsNote"
         ],
         "additionalProperties": false
       },
