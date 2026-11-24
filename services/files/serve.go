@@ -99,6 +99,11 @@ func (s *Server) serve(w http.ResponseWriter, r *http.Request) (status int, writ
 	for _, h := range siteHeaders {
 		w.Header().Set(h[0], h[1])
 	}
+	// Свой ETag маршрута (фото: от размера и ключа) — как маршрут сайта, 304 без похода в хранилище.
+	if et := routeETag(tok); et != "" && rangeHdr == "" && inm == et {
+		writeHead(w, tok, "", http.StatusNotModified, -1, "")
+		return http.StatusNotModified, 0, "etag"
+	}
 
 	if s.S3 != nil && !isLocalOnly(key) {
 		st, n, done := s.fromS3(w, r, tok, key, rangeHdr, inm)
@@ -108,6 +113,15 @@ func (s *Server) serve(w http.ResponseWriter, r *http.Request) (status int, writ
 	}
 	st, n := s.fromDisk(w, r, tok, full, rangeHdr, inm)
 	return st, n, "disk"
+}
+
+func routeETag(tok Token) string {
+	for k, v := range tok.Headers {
+		if http.CanonicalHeaderKey(k) == "Etag" {
+			return v
+		}
+	}
+	return ""
 }
 
 func isLocalOnly(key string) bool {

@@ -121,6 +121,17 @@ func TestDisk(t *testing.T) {
 	if w := do(s, "POST", l, nil); w.Code != 405 {
 		t.Errorf("POST: %d", w.Code)
 	}
+
+	// ETag маршрута из ссылки (фото): 304 по нему, даже если файла уже нет; другой — файл целиком.
+	pl := link(t, Token{Key: "photos/b/gone.jpg", Type: "image/jpeg", Headers: map[string]string{"ETag": `"route"`, "Cache-Control": "private, no-cache"}})
+	if w := do(s, "GET", pl, map[string]string{"If-None-Match": `"route"`}); w.Code != 304 || w.Header().Get("ETag") != `"route"` || w.Header().Get("Cache-Control") != "private, no-cache" || w.Body.Len() != 0 {
+		t.Errorf("route 304: %d %v", w.Code, w.Header())
+	}
+	write(t, root, "photos/b/p.jpg", "jpg")
+	pl = link(t, Token{Key: "photos/b/p.jpg", Type: "image/jpeg", Headers: map[string]string{"ETag": `"route"`}})
+	if w := do(s, "GET", pl, map[string]string{"If-None-Match": `"old"`}); w.Code != 200 || w.Body.String() != "jpg" || w.Header().Get("ETag") != `"route"` {
+		t.Errorf("route etag miss: %d %q", w.Code, w.Header().Get("ETag"))
+	}
 }
 
 func TestRejects(t *testing.T) {

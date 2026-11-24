@@ -13,6 +13,7 @@ import path from "node:path";
  *   proxy    — сайт запрашивает файл у сервиса на 127.0.0.1 и передаёт поток браузеру (без лишнего запроса браузера).
  *   redirect — 302 на /files/<ссылка> того же домена: next.config.ts переписывает /files/* на сервис, а строка nginx
  *              (docs/microservices/06-operations.md) пускает их мимо Next — тогда байты совсем не идут через сайт.
+ *              Кроме маршрутов со своим ETag (фото): они и в redirect идут как proxy.
  * Файл-флаг: <STORAGE_DIR>/../mybook-flags/files-service (одно слово: off | proxy | redirect); MYBOOK_FLAGS_DIR меняет папку.
  * Сервис не отвечает (остановлен, упал) — сайт сам отдаёт старым путём: проверка /healthz не чаще раза в 10 с.
  */
@@ -42,6 +43,12 @@ export function signFileToken(t: FileToken, signingKey: Buffer): string {
 
 /** Срок ссылки, с: на время просмотра видео с перемоткой; повторное открытие страницы выдаст новую. */
 const TTL_SEC = 6 * 60 * 60;
+/**
+ * Срок округляется до часа: в течение часа ссылка на тот же файл та же — в режиме redirect браузер берёт её из кэша
+ * или переспрашивает с If-None-Match (304), а не качает файл заново по новому адресу на каждый 302. Действует 5–6 ч.
+ */
+const BUCKET_SEC = 60 * 60;
+export const fileTokenExpiry = (nowMs = Date.now()) => Math.floor(nowMs / 1000 / BUCKET_SEC) * BUCKET_SEC + TTL_SEC;
 
 const flagFile = (env: Record<string, string | undefined> = process.env) =>
   path.join(env.MYBOOK_FLAGS_DIR || path.join(path.dirname(path.resolve(env.STORAGE_DIR || "./storage")), "mybook-flags"), "files-service");
@@ -91,8 +98,11 @@ export async function viaFilesService(key: string, type: string, req: Request, h
   const mode = await filesMode();
   const secret = process.env.APP_SECRET;
   if (mode === "off" || !secret || !(await healthy())) return null;
-  const token = signFileToken({ key, type, headers, expires: Math.floor(Date.now() / 1000) + TTL_SEC }, filesSigningKey(secret));
-  if (mode === "redirect") return new Response(null, { status: 302, headers: { Location: `/files/${token}`, "Cache-Control": "private, no-store" } });
+  const token = signFileToken({ key, type, headers, expires: fileTokenExpiry() }, filesSigningKey(secret));
+  // Маршрут со своим ETag (фото) кэшируется по своему адресу: 302 браузер не кэширует, и каждое фото стало бы двумя
+  // запросами вместо одного 304 — такие остаются через сайт (proxy). Редирект — для видео, PDF, вложений.
+  const ownEtag = Object.keys(headers).some((h) => h.toLowerCase() === "etag");
+  if (mode === "redirect" && !ownEtag) return new Response(null, { status: 302, headers: { Location: `/files/${token}`, "Cache-Control": "private, no-store" } });
   const forward: Record<string, string> = {};
   for (const h of ["range", "if-none-match"]) {
     const v = req.headers.get(h);

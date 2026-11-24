@@ -4,7 +4,7 @@ import type { AddressInfo } from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { filesMode, filesSigningKey, resetFilesServiceState, signFileToken, viaFilesService } from "@/server/files-service";
+import { fileTokenExpiry, filesMode, filesSigningKey, resetFilesServiceState, signFileToken, viaFilesService } from "@/server/files-service";
 import nextConfig from "../next.config";
 
 // Пилот G3: сайт выдаёт подписанные ссылки Go-сервису mybook-files (services/files) и переключается флагом без выкатки.
@@ -108,6 +108,27 @@ describe("режим и откат без выкатки", () => {
     expect(res!.status).toBe(302);
     expect(res!.headers.get("location")).toMatch(/^\/files\/[\w-]+\.[\w-]+$/);
     expect(res!.headers.get("cache-control")).toBe("private, no-store");
+    // Тот же файл в пределах часа — та же ссылка: браузер кэширует по адресу и переспрашивает с If-None-Match.
+    const again = await viaFilesService("photos/b/p.jpg", "image/jpeg", new Request("http://x/api/photos/1"));
+    expect(again!.headers.get("location")).toBe(res!.headers.get("location"));
+  });
+
+  it("redirect — маршрут со своим ETag (фото) остаётся через сайт: 304 по своему адресу, без лишнего 302", async () => {
+    setFlag("redirect");
+    const res = await viaFilesService("photos/b/p.jpg", "image/jpeg", new Request("http://x/api/photos/1"), { ETag: '"route"', "Cache-Control": "private, no-cache" });
+    expect(res!.status).toBe(200);
+    expect(await res!.text()).toBe("abc");
+  });
+
+  it("срок ссылки — от 5 до 6 ч, одинаковый внутри часа", () => {
+    const t = Date.UTC(2026, 10, 24, 10, 0, 0);
+    expect(fileTokenExpiry(t)).toBe(fileTokenExpiry(t + 59 * 60 * 1000));
+    expect(fileTokenExpiry(t + 60 * 60 * 1000)).toBe(fileTokenExpiry(t) + 3600);
+    for (const ms of [t, t + 59 * 60 * 1000]) {
+      const left = fileTokenExpiry(ms) - ms / 1000;
+      expect(left).toBeGreaterThan(5 * 3600 - 1);
+      expect(left).toBeLessThanOrEqual(6 * 3600);
+    }
   });
 
   it("сервис не отвечает или файла у него нет — сайт отдаёт сам", async () => {
