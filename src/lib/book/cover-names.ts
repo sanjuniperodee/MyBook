@@ -4,7 +4,7 @@
  */
 import { bookKind } from "../content/kinds";
 import { printableText } from "./printable";
-import { COVER_TEXT_MAX } from "@mybook/contracts";
+import { COVER_TEXT_MAX } from "@mybook/contracts/limits";
 
 /** Своя строка имён на обложке — не длиннее двух имён с фамилиями. */
 export const NAMES_ON_COVER_MAX = COVER_TEXT_MAX.namesOnCover;

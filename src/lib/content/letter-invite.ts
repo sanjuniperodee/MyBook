@@ -1,4 +1,4 @@
-import { LETTER_MAX } from "@mybook/contracts";
+import { LETTER_MAX } from "@mybook/contracts/limits";
 
 /**
  * Свой текст приглашения близких (books.invite_text): заменяет текст по умолчанию на странице письма и в сообщении со

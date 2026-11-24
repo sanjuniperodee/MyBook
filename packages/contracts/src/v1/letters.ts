@@ -3,12 +3,13 @@
  * удалить, порядок в книге. Лимиты — как у сайта (сверяет tests/api-v1.test.ts).
  */
 import { z } from "zod";
+import { LETTER_MAX } from "../limits";
 import { Ok, iso, route, schemas, uuid, type RouteDef } from "./core";
 
 const LetterStatus = z.enum(["pending", "approved", "hidden"]);
 
 /** Длины полей писем — одни для схемы, сайта и приложения (отдаются в LettersView.limits). */
-export const LETTER_MAX = { inviteText: 500, authorName: 80, relation: 80, text: 8000 } as const;
+export { LETTER_MAX } from "../limits";
 
 export const Letter = z
   .object({

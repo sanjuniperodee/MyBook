@@ -111,6 +111,7 @@ describe("нет русских строк вне словарей", () => {
   const skipFiles = new Set([
     "shared/domain/support.ts", // статусы и типы обращений — подписи формы поддержки и CRM, по-русски
     "server/pay-form.ts", // ошибка формы оплаты для сотрудника CRM — на русском
+    "server/sales-analytics.ts", // аналитика продаж — только CRM (страница и API v1 для сотрудников), подписи по-русски
     "modules/production/infrastructure/pdf/render.tsx", // техзадание для типографии — на русском
     "modules/ordering/ui/labels.ts", // подписи тарифов и доставки для CRM — на русском
     "shared/domain/boards.ts", // доски задач — только CRM: шаблоны, подписи правил и приоритетов по-русски

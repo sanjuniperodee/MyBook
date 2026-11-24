@@ -25,7 +25,7 @@ import { apiFetch } from "@/lib/client-api";
 import { coverLabel, coverMoods, coverPhotoSlots, getCoverTemplate, PICKER_SHOWN, pickerCovers, type CoverMood } from "@/lib/book/covers";
 import { coverNames, NAMES_ON_COVER_MAX } from "@/lib/book/cover-names";
 import { EmojiNote } from "./EmojiNote";
-import { COVER_TEXT_MAX } from "@mybook/contracts";
+import { COVER_TEXT_MAX } from "@mybook/contracts/limits";
 import { bookKind, RECORDED_BY_MAX } from "@/lib/content/kinds";
 import { coverSpreadGeometry, getFormat } from "@/lib/book/formats";
 import { getInteriorDesign, interiorsForCover } from "@/lib/book/interiors";

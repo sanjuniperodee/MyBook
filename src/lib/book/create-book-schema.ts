@@ -1,14 +1,15 @@
 import { z } from "zod";
-import { COVER_TEXT_MAX } from "@mybook/contracts";
+import { COVER_TEXT_MAX } from "@mybook/contracts/limits";
 import { isLocale } from "@/i18n/config";
 import type { getMessages } from "@/i18n/server";
 import { isThemeId } from "@/lib/content/themes";
-import { bookKind, CHAPTER_TITLE_MAX, RECORDED_BY_MAX, recipientPolicy } from "@/lib/content/kinds";
+import { bookKind, CHAPTER_TITLE_MAX, DEDICATION_MAX, RECORDED_BY_MAX, recipientPolicy } from "@/lib/content/kinds";
+
+export { DEDICATION_MAX };
 import { getOccasion } from "@/lib/occasions";
 
 type WizardErrors = Awaited<ReturnType<typeof getMessages>>["books"]["wizard"]["errors"];
 
-export const DEDICATION_MAX = 600;
 
 /**
  * Мастер новой книги. Правила — по виду книги (recipientPolicy):

@@ -13,9 +13,8 @@ import { cn } from "@/lib/class-names";
 import { useMessages } from "@/i18n/client";
 import { localeMeta, locales, type Locale } from "@/i18n/config";
 import type { ThemeId } from "@/lib/content/types";
-import { COVER_TEXT_MAX } from "@mybook/contracts";
-import { DEDICATION_MAX } from "@/lib/book/create-book-schema";
-import { CHAPTER_TITLE_MAX, RECORDED_BY_MAX, type BookKind, type RecipientPolicy } from "@/lib/content/kinds";
+import { COVER_TEXT_MAX } from "@mybook/contracts/limits";
+import { CHAPTER_TITLE_MAX, DEDICATION_MAX, RECORDED_BY_MAX, type BookKind, type RecipientPolicy } from "@/lib/content/kinds";
 import { coverNames } from "@/lib/book/cover-names";
 import type { Gender } from "@/modules/authoring/domain";
 

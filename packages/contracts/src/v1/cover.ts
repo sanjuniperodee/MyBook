@@ -4,10 +4,11 @@
  * сайте — здесь только признак hasDesign. Поля — те же, что в настройках книги на сайте (CoverFields — общие).
  */
 import { z } from "zod";
+import { COVER_TEXT_MAX } from "../limits";
 import { route, schemas, uuid, type RouteDef } from "./core";
 
 /** Длины текстов обложки — одни для схемы, сайта и приложения (отдаются в CoverView.limits). */
-export const COVER_TEXT_MAX = { title: 80, authorName: 60, recordedBy: 80, recipientName: 60, subtitle: 80, namesOnCover: 120, backText: 400 } as const;
+export { COVER_TEXT_MAX } from "../limits";
 
 /** Поля обложки в настройках книги (PATCH /api/books/{id} сайта берёт их отсюда). Каталог шаблонов проверяет домен. */
 export const CoverFields = z.object({

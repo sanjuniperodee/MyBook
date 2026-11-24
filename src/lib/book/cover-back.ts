@@ -9,7 +9,7 @@ import { printableText } from "./printable";
 import { photoHref, photoImage, type PhotoRef } from "./covers/svg-kit";
 import { fontWidth, type FontKey } from "./fonts";
 import { PT_TO_MM, type Rect } from "./formats";
-import { COVER_TEXT_MAX } from "@mybook/contracts";
+import { COVER_TEXT_MAX } from "@mybook/contracts/limits";
 
 export type BackLayout = "quote" | "letter" | "photo" | "fullPhoto" | "polaroids" | "minimal";
 export const backLayouts: BackLayout[] = ["quote", "letter", "photo", "fullPhoto", "polaroids", "minimal"];
