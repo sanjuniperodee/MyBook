@@ -13,6 +13,7 @@ import '../screens/money/lead_stats_screen.dart';
 import '../screens/money/profit_screen.dart';
 import '../screens/money/sales_register_screen.dart';
 import '../screens/orders_screen.dart';
+import '../screens/settings/sales_settings_screen.dart';
 import '../screens/overview_screen.dart';
 import '../screens/tasks_screen.dart';
 import '../screens/tickets_screen.dart';
@@ -50,6 +51,8 @@ final appSections = <String, AppSection>{
   // Отчёты руководителя — API v1 crmSalesRegister / crmAnalytics / crmLeadStats.
   'register': AppSection('register', 'Реестр продаж', LucideIcons.scrollText, (s) => s.can('analytics.view'), () => const SalesRegisterScreen(), group: 'Деньги'),
   'analytics': AppSection('analytics', 'Аналитика продаж', LucideIcons.chartColumn, (s) => s.can('analytics.view'), () => const AnalyticsScreen(), group: 'Деньги'),
+  // Настройки отдела продаж и режим AI-продажника — API v1 crmSettingsSales; остальные настройки — страницами CRM.
+  'salesSettings': AppSection('salesSettings', 'Отдел продаж', LucideIcons.slidersHorizontal, (s) => s.can('settings.manage'), () => const SalesSettingsScreen(), group: 'Настройки'),
   'leads': AppSection('leads', 'Статистика лидов', LucideIcons.activity, (s) => s.can('analytics.view'), () => const LeadStatsScreen(), group: 'Деньги'),
 };
 

@@ -103,7 +103,7 @@ class _CrmWebScreenState extends State<CrmWebScreen> {
                     setState(() {
                       if (t != null && t.isNotEmpty)
                         _title = t.replaceAll(
-                          RegExp(r'\s*[—|·-]\s*MyBooks.*$'),
+                          RegExp(r'\s*[—|·-]\s*(MyBooks|CRM)\b.*$'),
                           '',
                         );
                       _canBack = back;

@@ -26,6 +26,11 @@ vi.mock("@/app/admin/expenses/actions", () => ({
 const setPayFormAction = vi.fn(async (dealId: string, form: string) => (void dealId, form === "Bitcoin" ? { ok: false as const, error: "Такой формы оплаты нет в поле сделки" } : { ok: true as const }));
 vi.mock("@/app/admin/sales/actions", () => ({ setPayFormAction: (d: string, f: string) => setPayFormAction(d, f) }));
 
+const saveCrmSettingsAction = vi.fn(async (state: unknown, form: FormData) => (void state, void form, { ok: "Сохранено" }));
+const saveBotAction = vi.fn(async (input: Record<string, unknown>) => (void input, { error: "Добавьте хотя бы один вопрос" }));
+vi.mock("@/app/admin/settings/crm/actions", () => ({ saveCrmSettingsAction: (s: unknown, f: FormData) => saveCrmSettingsAction(s, f), saveBotAction: (i: Record<string, unknown>) => saveBotAction(i) }));
+vi.mock("@/modules/workspace", async (orig) => ({ ...(await orig<object>()), getSetting: async (key: string) => (key === "bot.config" ? JSON.stringify({ channels: ["whatsapp"] }) : null) }));
+
 const { createApp } = await import("../apps/api/src/app");
 const { handlers } = await import("../apps/api/src/routes");
 
@@ -80,5 +85,23 @@ describe("API v1: реестр продаж", () => {
     expect((await bad.json()).error).toBe("Такой формы оплаты нет в поле сделки");
     expect(await (await call("PUT", `/api/v1/crm/sales/${ID}/pay-form`, { form: "" })).json()).toEqual({ ok: true, message: "Форма оплаты снята" });
     expect(setPayFormAction).toHaveBeenLastCalledWith(ID, "");
+  });
+});
+
+describe("API v1: настройки отдела продаж", () => {
+  const body = { workDays: [1, 2, 3, 4, 5], from: "09:00", to: "18:00", off: "16.12.2026", slaMinutes: 15, reassignMinutes: 0, autoDealFrom: "book_started", mergeClosedDays: 30, maxDiscount: 10, unsorted: true, digest: false, autoLetters: true, chatReward: false, widgetEnabled: true, widgetChat: false, widgetHelp: true };
+
+  it("форма — как у сайта: дни повторяющимся полем, флажки — «on» или нет", async () => {
+    expect(await (await call("PUT", "/api/v1/crm/settings/sales", body)).json()).toEqual({ ok: true, message: "Сохранено" });
+    const form = saveCrmSettingsAction.mock.calls[0][1];
+    expect(form.getAll("days")).toEqual(["1", "2", "3", "4", "5"]);
+    expect(Object.fromEntries([...form.entries()].filter(([k]) => k !== "days"))).toEqual({ from: "09:00", to: "18:00", off: "16.12.2026", slaMinutes: "15", reassignMinutes: "0", autoDealFrom: "book_started", mergeClosedDays: "30", maxDiscount: "10", unsorted: "on", autoLetters: "on", widgetEnabled: "on", widgetHelp: "on" });
+  });
+
+  it("режим бота — остальные настройки бота как есть; отказ формы бота — текстом", async () => {
+    const res = await call("PUT", "/api/v1/crm/settings/bot-mode", { mode: "always" });
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe("Добавьте хотя бы один вопрос");
+    expect(saveBotAction.mock.calls[0][0]).toMatchObject({ mode: "always", channels: ["whatsapp"] });
   });
 });

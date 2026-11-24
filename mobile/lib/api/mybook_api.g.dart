@@ -638,6 +638,24 @@ class MybookApi {
     return LeadStats.fromJson(json as Map<String, dynamic>);
   }
 
+  /// Настройки отдела продаж и режим AI-продажника
+  Future<CrmSalesSettings> crmSettingsSales() async {
+    final json = await _send('GET', '/api/v1/crm/settings/sales');
+    return CrmSalesSettings.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Сохранить настройки отдела продаж
+  Future<Done> crmSettingsSalesSave({required CrmSalesSettingsBody body}) async {
+    final json = await _send('PUT', '/api/v1/crm/settings/sales', body: body.toJson());
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Режим AI-продажника (остальные настройки бота — как есть)
+  Future<Done> crmSettingsBotMode({required BotModeBody body}) async {
+    final json = await _send('PUT', '/api/v1/crm/settings/bot-mode', body: body.toJson());
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
   /// Доски, которые видит сотрудник (с числом открытых карточек)
   Future<BoardList> boardsList() async {
     final json = await _send('GET', '/api/v1/boards');
@@ -5526,4 +5544,82 @@ class LeadStatsBuyersBySource {
   factory LeadStatsBuyersBySource.fromJson(Map<String, dynamic> json) => LeadStatsBuyersBySource(key: json['key'] as String, label: json['label'] as String, buyers: (json['buyers'] as num).toInt(), agreed: (json['agreed'] as num).toInt(), received: (json['received'] as num).toInt(), share: json['share'] == null ? null : (json['share'] as num).toDouble());
 
   Map<String, dynamic> toJson() => {'key': key, 'label': label, 'buyers': buyers, 'agreed': agreed, 'received': received, 'share': share};
+}
+
+class CrmSalesSettings {
+  final bool canManage;
+  final List<int> workDays;
+  final String from;
+  final String to;
+  final String off;
+  final int slaMinutes;
+  final int reassignMinutes;
+  final String autoDealFrom;
+  final List<Choice> autoDealOptions;
+  final int mergeClosedDays;
+  final int maxDiscount;
+  final bool unsorted;
+  final bool digest;
+  final bool autoLetters;
+  final bool chatReward;
+  final bool widgetEnabled;
+  final bool widgetChat;
+  final bool widgetHelp;
+  final String botMode;
+  final List<CrmSalesSettingsBotModes> botModes;
+
+  const CrmSalesSettings({required this.canManage, required this.workDays, required this.from, required this.to, required this.off, required this.slaMinutes, required this.reassignMinutes, required this.autoDealFrom, required this.autoDealOptions, required this.mergeClosedDays, required this.maxDiscount, required this.unsorted, required this.digest, required this.autoLetters, required this.chatReward, required this.widgetEnabled, required this.widgetChat, required this.widgetHelp, required this.botMode, required this.botModes});
+
+  factory CrmSalesSettings.fromJson(Map<String, dynamic> json) => CrmSalesSettings(canManage: json['canManage'] as bool, workDays: (json['workDays'] as List).map((e) => (e as num).toInt()).toList(), from: json['from'] as String, to: json['to'] as String, off: json['off'] as String, slaMinutes: (json['slaMinutes'] as num).toInt(), reassignMinutes: (json['reassignMinutes'] as num).toInt(), autoDealFrom: json['autoDealFrom'] as String, autoDealOptions: (json['autoDealOptions'] as List).map((e) => Choice.fromJson(e as Map<String, dynamic>)).toList(), mergeClosedDays: (json['mergeClosedDays'] as num).toInt(), maxDiscount: (json['maxDiscount'] as num).toInt(), unsorted: json['unsorted'] as bool, digest: json['digest'] as bool, autoLetters: json['autoLetters'] as bool, chatReward: json['chatReward'] as bool, widgetEnabled: json['widgetEnabled'] as bool, widgetChat: json['widgetChat'] as bool, widgetHelp: json['widgetHelp'] as bool, botMode: json['botMode'] as String, botModes: (json['botModes'] as List).map((e) => CrmSalesSettingsBotModes.fromJson(e as Map<String, dynamic>)).toList());
+
+  Map<String, dynamic> toJson() => {'canManage': canManage, 'workDays': workDays.map((e) => e).toList(), 'from': from, 'to': to, 'off': off, 'slaMinutes': slaMinutes, 'reassignMinutes': reassignMinutes, 'autoDealFrom': autoDealFrom, 'autoDealOptions': autoDealOptions.map((e) => e.toJson()).toList(), 'mergeClosedDays': mergeClosedDays, 'maxDiscount': maxDiscount, 'unsorted': unsorted, 'digest': digest, 'autoLetters': autoLetters, 'chatReward': chatReward, 'widgetEnabled': widgetEnabled, 'widgetChat': widgetChat, 'widgetHelp': widgetHelp, 'botMode': botMode, 'botModes': botModes.map((e) => e.toJson()).toList()};
+}
+
+class CrmSalesSettingsBotModes {
+  final String id;
+  final String label;
+  final String hint;
+
+  const CrmSalesSettingsBotModes({required this.id, required this.label, required this.hint});
+
+  factory CrmSalesSettingsBotModes.fromJson(Map<String, dynamic> json) => CrmSalesSettingsBotModes(id: json['id'] as String, label: json['label'] as String, hint: json['hint'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'label': label, 'hint': hint};
+}
+
+class CrmSalesSettingsBody {
+  final List<int> workDays;
+  final String from;
+  final String to;
+  final String off;
+  final int slaMinutes;
+  final int reassignMinutes;
+  /// off | registered | book_started | book_half | book_ready
+  final String autoDealFrom;
+  final int mergeClosedDays;
+  final int maxDiscount;
+  final bool unsorted;
+  final bool digest;
+  final bool autoLetters;
+  final bool chatReward;
+  final bool widgetEnabled;
+  final bool widgetChat;
+  final bool widgetHelp;
+
+  const CrmSalesSettingsBody({required this.workDays, required this.from, required this.to, required this.off, required this.slaMinutes, required this.reassignMinutes, required this.autoDealFrom, required this.mergeClosedDays, required this.maxDiscount, required this.unsorted, required this.digest, required this.autoLetters, required this.chatReward, required this.widgetEnabled, required this.widgetChat, required this.widgetHelp});
+
+  factory CrmSalesSettingsBody.fromJson(Map<String, dynamic> json) => CrmSalesSettingsBody(workDays: (json['workDays'] as List).map((e) => (e as num).toInt()).toList(), from: json['from'] as String, to: json['to'] as String, off: json['off'] as String, slaMinutes: (json['slaMinutes'] as num).toInt(), reassignMinutes: (json['reassignMinutes'] as num).toInt(), autoDealFrom: json['autoDealFrom'] as String, mergeClosedDays: (json['mergeClosedDays'] as num).toInt(), maxDiscount: (json['maxDiscount'] as num).toInt(), unsorted: json['unsorted'] as bool, digest: json['digest'] as bool, autoLetters: json['autoLetters'] as bool, chatReward: json['chatReward'] as bool, widgetEnabled: json['widgetEnabled'] as bool, widgetChat: json['widgetChat'] as bool, widgetHelp: json['widgetHelp'] as bool);
+
+  Map<String, dynamic> toJson() => {'workDays': workDays.map((e) => e).toList(), 'from': from, 'to': to, 'off': off, 'slaMinutes': slaMinutes, 'reassignMinutes': reassignMinutes, 'autoDealFrom': autoDealFrom, 'mergeClosedDays': mergeClosedDays, 'maxDiscount': maxDiscount, 'unsorted': unsorted, 'digest': digest, 'autoLetters': autoLetters, 'chatReward': chatReward, 'widgetEnabled': widgetEnabled, 'widgetChat': widgetChat, 'widgetHelp': widgetHelp};
+}
+
+class BotModeBody {
+  /// off | fallback | off_hours | always
+  final String mode;
+
+  const BotModeBody({required this.mode});
+
+  factory BotModeBody.fromJson(Map<String, dynamic> json) => BotModeBody(mode: json['mode'] as String);
+
+  Map<String, dynamic> toJson() => {'mode': mode};
 }

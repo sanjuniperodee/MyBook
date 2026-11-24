@@ -5065,6 +5065,120 @@
         "x-auth": "staff"
       }
     },
+    "/api/v1/crm/settings/sales": {
+      "get": {
+        "operationId": "crmSettingsSales",
+        "tags": [
+          "crm"
+        ],
+        "summary": "Настройки отдела продаж и режим AI-продажника",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CrmSalesSettings"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "staff"
+      },
+      "put": {
+        "operationId": "crmSettingsSalesSave",
+        "tags": [
+          "crm"
+        ],
+        "summary": "Сохранить настройки отдела продаж",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrmSalesSettingsBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Done"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "staff"
+      }
+    },
+    "/api/v1/crm/settings/bot-mode": {
+      "put": {
+        "operationId": "crmSettingsBotMode",
+        "tags": [
+          "crm"
+        ],
+        "summary": "Режим AI-продажника (остальные настройки бота — как есть)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BotModeBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Done"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "staff"
+      }
+    },
     "/api/v1/boards": {
       "get": {
         "operationId": "boardsList",
@@ -19120,6 +19234,247 @@
           "byWeekday",
           "byHour",
           "payDelay"
+        ],
+        "additionalProperties": false
+      },
+      "CrmSalesSettings": {
+        "type": "object",
+        "properties": {
+          "canManage": {
+            "type": "boolean"
+          },
+          "workDays": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 7
+            }
+          },
+          "from": {
+            "type": "string",
+            "pattern": "^\\d{2}:\\d{2}$"
+          },
+          "to": {
+            "type": "string",
+            "pattern": "^\\d{2}:\\d{2}$"
+          },
+          "off": {
+            "type": "string"
+          },
+          "slaMinutes": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "reassignMinutes": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "autoDealFrom": {
+            "type": "string"
+          },
+          "autoDealOptions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Choice"
+            }
+          },
+          "mergeClosedDays": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "maxDiscount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "unsorted": {
+            "type": "boolean"
+          },
+          "digest": {
+            "type": "boolean"
+          },
+          "autoLetters": {
+            "type": "boolean"
+          },
+          "chatReward": {
+            "type": "boolean"
+          },
+          "widgetEnabled": {
+            "type": "boolean"
+          },
+          "widgetChat": {
+            "type": "boolean"
+          },
+          "widgetHelp": {
+            "type": "boolean"
+          },
+          "botMode": {
+            "type": "string"
+          },
+          "botModes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "hint": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "label",
+                "hint"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "canManage",
+          "workDays",
+          "from",
+          "to",
+          "off",
+          "slaMinutes",
+          "reassignMinutes",
+          "autoDealFrom",
+          "autoDealOptions",
+          "mergeClosedDays",
+          "maxDiscount",
+          "unsorted",
+          "digest",
+          "autoLetters",
+          "chatReward",
+          "widgetEnabled",
+          "widgetChat",
+          "widgetHelp",
+          "botMode",
+          "botModes"
+        ],
+        "additionalProperties": false
+      },
+      "CrmSalesSettingsBody": {
+        "type": "object",
+        "properties": {
+          "workDays": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 7
+            }
+          },
+          "from": {
+            "type": "string",
+            "pattern": "^\\d{2}:\\d{2}$"
+          },
+          "to": {
+            "type": "string",
+            "pattern": "^\\d{2}:\\d{2}$"
+          },
+          "off": {
+            "default": "",
+            "type": "string",
+            "maxLength": 2000
+          },
+          "slaMinutes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1440
+          },
+          "reassignMinutes": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1440
+          },
+          "autoDealFrom": {
+            "type": "string",
+            "enum": [
+              "off",
+              "registered",
+              "book_started",
+              "book_half",
+              "book_ready"
+            ]
+          },
+          "mergeClosedDays": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 365
+          },
+          "maxDiscount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 50
+          },
+          "unsorted": {
+            "type": "boolean"
+          },
+          "digest": {
+            "type": "boolean"
+          },
+          "autoLetters": {
+            "type": "boolean"
+          },
+          "chatReward": {
+            "type": "boolean"
+          },
+          "widgetEnabled": {
+            "type": "boolean"
+          },
+          "widgetChat": {
+            "type": "boolean"
+          },
+          "widgetHelp": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "workDays",
+          "from",
+          "to",
+          "off",
+          "slaMinutes",
+          "reassignMinutes",
+          "autoDealFrom",
+          "mergeClosedDays",
+          "maxDiscount",
+          "unsorted",
+          "digest",
+          "autoLetters",
+          "chatReward",
+          "widgetEnabled",
+          "widgetChat",
+          "widgetHelp"
+        ],
+        "additionalProperties": false
+      },
+      "BotModeBody": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "off",
+              "fallback",
+              "off_hours",
+              "always"
+            ]
+          }
+        },
+        "required": [
+          "mode"
         ],
         "additionalProperties": false
       }

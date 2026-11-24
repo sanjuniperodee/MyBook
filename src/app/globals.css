@@ -529,14 +529,17 @@ body {
 
 /*
  * CRM внутри мобильного приложения (встроенный браузер, User-Agent «MyBooksCRMApp»; data-inapp ставит скрипт в admin/layout):
- * нижняя панель разделов и подсказка «установите CRM» не нужны — навигация и push у самого приложения.
+ * нижняя панель разделов, верхняя полоса и подсказка «установите CRM» не нужны — шапка, навигация и push у самого приложения.
  */
 html[data-inapp] [data-testid="mobile-tabbar"],
-html[data-inapp] [data-testid="push-prompt"] {
+html[data-inapp] [data-testid="push-prompt"],
+html[data-inapp] .crm-topbar {
   display: none !important;
 }
+/* Шапка у страницы — своя, приложения (назад и название): верхняя полоса CRM с поиском, звонилкой и колокольчиком — дубль. */
 html[data-inapp] {
   --tabbar-h: 0px !important;
+  --topbar-h: 0px !important;
 }
 
 /*
