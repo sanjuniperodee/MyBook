@@ -42,6 +42,9 @@ abstract class ClientBackend {
   Future<v1api.BuildState> build(String bookId, {bool retry = false});
   Future<v1api.BuildProgress> buildProgress(String bookId);
 
+  /// Объёмная модель книги для 3D-книги (размеры, развёртка обложки, ракурсы, подписи — всё с сервера).
+  Future<v1api.BookModel> bookModel(String bookId, int pages);
+
   // ── Заказ и оплата ──
   Future<v1api.CabinetCheckout> checkout(String bookId);
   Future<v1api.CheckoutQuote> quote(String bookId, v1api.CheckoutQuoteBody body);
@@ -170,6 +173,9 @@ class ApiBackend implements ClientBackend {
 
   @override
   Future<v1api.BuildProgress> buildProgress(String bookId) => _call(() => v1.bookBuildProgress(bookId: bookId));
+
+  @override
+  Future<v1api.BookModel> bookModel(String bookId, int pages) => _call(() => v1.bookModel(bookId: bookId, pages: pages));
 
   @override
   Future<v1api.CabinetCheckout> checkout(String bookId) => _call(() => v1.cabinetCheckout(bookId: bookId));

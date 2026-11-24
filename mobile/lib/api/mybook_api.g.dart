@@ -320,6 +320,12 @@ class MybookApi {
     return Ok.fromJson(json as Map<String, dynamic>);
   }
 
+  /// Объёмная модель книги для 3D-книги: размеры, развёртка обложки, ракурсы, свет, подписи (pages — страниц в сборке)
+  Future<BookModel> bookModel({required String bookId, int? pages}) async {
+    final json = await _send('GET', '/api/v1/books/${Uri.encodeComponent('$bookId')}/model', query: {if (pages != null) 'pages': '${pages}'});
+    return BookModel.fromJson(json as Map<String, dynamic>);
+  }
+
   /// Полка «Мои книги» — как на сайте: книги в работе первыми, прогресс, срок к празднику, заказ, обложка
   Future<CabinetShelf> cabinetShelf() async {
     final json = await _send('GET', '/api/v1/cabinet/shelf');
@@ -2842,6 +2848,226 @@ class CrmDealPayments {
   factory CrmDealPayments.fromJson(Map<String, dynamic> json) => CrmDealPayments(id: json['id'] as String, amount: (json['amount'] as num).toDouble(), kind: json['kind'] as String, method: json['method'] as String, payForm: json['payForm'] == null ? null : json['payForm'] as String, at: json['at'] as String);
 
   Map<String, dynamic> toJson() => {'id': id, 'amount': amount, 'kind': kind, 'method': method, 'payForm': payForm, 'at': at};
+}
+
+class BookModel {
+  final int pageCount;
+  final BookModelDims dims;
+  final String spreadUrl;
+  final List<int> spreadWidths;
+  final int sheets;
+  final int leaves;
+  final int window;
+  final List<String> spreads;
+  final BookModelViews views;
+  final BookModelLight light;
+  final BookModelPaper paper;
+  final BookModelLabels labels;
+
+  const BookModel({required this.pageCount, required this.dims, required this.spreadUrl, required this.spreadWidths, required this.sheets, required this.leaves, required this.window, required this.spreads, required this.views, required this.light, required this.paper, required this.labels});
+
+  factory BookModel.fromJson(Map<String, dynamic> json) => BookModel(pageCount: (json['pageCount'] as num).toInt(), dims: BookModelDims.fromJson(json['dims'] as Map<String, dynamic>), spreadUrl: json['spreadUrl'] as String, spreadWidths: (json['spreadWidths'] as List).map((e) => (e as num).toInt()).toList(), sheets: (json['sheets'] as num).toInt(), leaves: (json['leaves'] as num).toInt(), window: (json['window'] as num).toInt(), spreads: (json['spreads'] as List).map((e) => e as String).toList(), views: BookModelViews.fromJson(json['views'] as Map<String, dynamic>), light: BookModelLight.fromJson(json['light'] as Map<String, dynamic>), paper: BookModelPaper.fromJson(json['paper'] as Map<String, dynamic>), labels: BookModelLabels.fromJson(json['labels'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'pageCount': pageCount, 'dims': dims.toJson(), 'spreadUrl': spreadUrl, 'spreadWidths': spreadWidths.map((e) => e).toList(), 'sheets': sheets, 'leaves': leaves, 'window': window, 'spreads': spreads.map((e) => e).toList(), 'views': views.toJson(), 'light': light.toJson(), 'paper': paper.toJson(), 'labels': labels.toJson()};
+}
+
+class BookModelDims {
+  final double w;
+  final double h;
+  final double d;
+  final double boardMm;
+  final BookModelDimsBlock block;
+  final BookModelDimsSpread spread;
+  final BookModelDimsRects rects;
+
+  const BookModelDims({required this.w, required this.h, required this.d, required this.boardMm, required this.block, required this.spread, required this.rects});
+
+  factory BookModelDims.fromJson(Map<String, dynamic> json) => BookModelDims(w: (json['w'] as num).toDouble(), h: (json['h'] as num).toDouble(), d: (json['d'] as num).toDouble(), boardMm: (json['boardMm'] as num).toDouble(), block: BookModelDimsBlock.fromJson(json['block'] as Map<String, dynamic>), spread: BookModelDimsSpread.fromJson(json['spread'] as Map<String, dynamic>), rects: BookModelDimsRects.fromJson(json['rects'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'w': w, 'h': h, 'd': d, 'boardMm': boardMm, 'block': block.toJson(), 'spread': spread.toJson(), 'rects': rects.toJson()};
+}
+
+class BookModelDimsBlock {
+  final double w;
+  final double h;
+  final double d;
+
+  const BookModelDimsBlock({required this.w, required this.h, required this.d});
+
+  factory BookModelDimsBlock.fromJson(Map<String, dynamic> json) => BookModelDimsBlock(w: (json['w'] as num).toDouble(), h: (json['h'] as num).toDouble(), d: (json['d'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'w': w, 'h': h, 'd': d};
+}
+
+class BookModelDimsSpread {
+  final double w;
+  final double h;
+
+  const BookModelDimsSpread({required this.w, required this.h});
+
+  factory BookModelDimsSpread.fromJson(Map<String, dynamic> json) => BookModelDimsSpread(w: (json['w'] as num).toDouble(), h: (json['h'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'w': w, 'h': h};
+}
+
+class BookModelDimsRects {
+  final BookModelDimsRectsFront front;
+  final BookModelDimsRectsBack back;
+  final BookModelDimsRectsSpine spine;
+
+  const BookModelDimsRects({required this.front, required this.back, required this.spine});
+
+  factory BookModelDimsRects.fromJson(Map<String, dynamic> json) => BookModelDimsRects(front: BookModelDimsRectsFront.fromJson(json['front'] as Map<String, dynamic>), back: BookModelDimsRectsBack.fromJson(json['back'] as Map<String, dynamic>), spine: BookModelDimsRectsSpine.fromJson(json['spine'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'front': front.toJson(), 'back': back.toJson(), 'spine': spine.toJson()};
+}
+
+class BookModelDimsRectsFront {
+  final double x;
+  final double y;
+  final double w;
+  final double h;
+
+  const BookModelDimsRectsFront({required this.x, required this.y, required this.w, required this.h});
+
+  factory BookModelDimsRectsFront.fromJson(Map<String, dynamic> json) => BookModelDimsRectsFront(x: (json['x'] as num).toDouble(), y: (json['y'] as num).toDouble(), w: (json['w'] as num).toDouble(), h: (json['h'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'x': x, 'y': y, 'w': w, 'h': h};
+}
+
+class BookModelDimsRectsBack {
+  final double x;
+  final double y;
+  final double w;
+  final double h;
+
+  const BookModelDimsRectsBack({required this.x, required this.y, required this.w, required this.h});
+
+  factory BookModelDimsRectsBack.fromJson(Map<String, dynamic> json) => BookModelDimsRectsBack(x: (json['x'] as num).toDouble(), y: (json['y'] as num).toDouble(), w: (json['w'] as num).toDouble(), h: (json['h'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'x': x, 'y': y, 'w': w, 'h': h};
+}
+
+class BookModelDimsRectsSpine {
+  final double x;
+  final double y;
+  final double w;
+  final double h;
+
+  const BookModelDimsRectsSpine({required this.x, required this.y, required this.w, required this.h});
+
+  factory BookModelDimsRectsSpine.fromJson(Map<String, dynamic> json) => BookModelDimsRectsSpine(x: (json['x'] as num).toDouble(), y: (json['y'] as num).toDouble(), w: (json['w'] as num).toDouble(), h: (json['h'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'x': x, 'y': y, 'w': w, 'h': h};
+}
+
+class BookModelViews {
+  final BookModelViewsInitial initial;
+  final BookModelViewsRead read;
+  final double readZoom;
+  final BookModelViewsZoom zoom;
+  final double tiltLimit;
+  final List<BookModelViewsList> list;
+
+  const BookModelViews({required this.initial, required this.read, required this.readZoom, required this.zoom, required this.tiltLimit, required this.list});
+
+  factory BookModelViews.fromJson(Map<String, dynamic> json) => BookModelViews(initial: BookModelViewsInitial.fromJson(json['initial'] as Map<String, dynamic>), read: BookModelViewsRead.fromJson(json['read'] as Map<String, dynamic>), readZoom: (json['readZoom'] as num).toDouble(), zoom: BookModelViewsZoom.fromJson(json['zoom'] as Map<String, dynamic>), tiltLimit: (json['tiltLimit'] as num).toDouble(), list: (json['list'] as List).map((e) => BookModelViewsList.fromJson(e as Map<String, dynamic>)).toList());
+
+  Map<String, dynamic> toJson() => {'initial': initial.toJson(), 'read': read.toJson(), 'readZoom': readZoom, 'zoom': zoom.toJson(), 'tiltLimit': tiltLimit, 'list': list.map((e) => e.toJson()).toList()};
+}
+
+class BookModelViewsInitial {
+  final double rx;
+  final double ry;
+
+  const BookModelViewsInitial({required this.rx, required this.ry});
+
+  factory BookModelViewsInitial.fromJson(Map<String, dynamic> json) => BookModelViewsInitial(rx: (json['rx'] as num).toDouble(), ry: (json['ry'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'rx': rx, 'ry': ry};
+}
+
+class BookModelViewsRead {
+  final double rx;
+  final double ry;
+
+  const BookModelViewsRead({required this.rx, required this.ry});
+
+  factory BookModelViewsRead.fromJson(Map<String, dynamic> json) => BookModelViewsRead(rx: (json['rx'] as num).toDouble(), ry: (json['ry'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'rx': rx, 'ry': ry};
+}
+
+class BookModelViewsZoom {
+  final double min;
+  final double max;
+  final double step;
+
+  const BookModelViewsZoom({required this.min, required this.max, required this.step});
+
+  factory BookModelViewsZoom.fromJson(Map<String, dynamic> json) => BookModelViewsZoom(min: (json['min'] as num).toDouble(), max: (json['max'] as num).toDouble(), step: (json['step'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'min': min, 'max': max, 'step': step};
+}
+
+class BookModelViewsList {
+  final String id;
+  final String label;
+  final double rx;
+  final double ry;
+
+  const BookModelViewsList({required this.id, required this.label, required this.rx, required this.ry});
+
+  factory BookModelViewsList.fromJson(Map<String, dynamic> json) => BookModelViewsList(id: json['id'] as String, label: json['label'] as String, rx: (json['rx'] as num).toDouble(), ry: (json['ry'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'id': id, 'label': label, 'rx': rx, 'ry': ry};
+}
+
+class BookModelLight {
+  final double x;
+  final double y;
+  final double z;
+  final double ambient;
+  final double shadeMax;
+
+  const BookModelLight({required this.x, required this.y, required this.z, required this.ambient, required this.shadeMax});
+
+  factory BookModelLight.fromJson(Map<String, dynamic> json) => BookModelLight(x: (json['x'] as num).toDouble(), y: (json['y'] as num).toDouble(), z: (json['z'] as num).toDouble(), ambient: (json['ambient'] as num).toDouble(), shadeMax: (json['shadeMax'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'x': x, 'y': y, 'z': z, 'ambient': ambient, 'shadeMax': shadeMax};
+}
+
+class BookModelPaper {
+  final List<String> endpaper;
+  final List<String> edge;
+  final String edgeLine;
+  final List<String> stage;
+
+  const BookModelPaper({required this.endpaper, required this.edge, required this.edgeLine, required this.stage});
+
+  factory BookModelPaper.fromJson(Map<String, dynamic> json) => BookModelPaper(endpaper: (json['endpaper'] as List).map((e) => e as String).toList(), edge: (json['edge'] as List).map((e) => e as String).toList(), edgeLine: json['edgeLine'] as String, stage: (json['stage'] as List).map((e) => e as String).toList());
+
+  Map<String, dynamic> toJson() => {'endpaper': endpaper.map((e) => e).toList(), 'edge': edge.map((e) => e).toList(), 'edgeLine': edgeLine, 'stage': stage.map((e) => e).toList()};
+}
+
+class BookModelLabels {
+  final String read;
+  final String prev;
+  final String next;
+  final String zoomIn;
+  final String zoomOut;
+  final String autoOn;
+  final String autoOff;
+  final String reset;
+  final String dims;
+  final String hint;
+  final String note;
+
+  const BookModelLabels({required this.read, required this.prev, required this.next, required this.zoomIn, required this.zoomOut, required this.autoOn, required this.autoOff, required this.reset, required this.dims, required this.hint, required this.note});
+
+  factory BookModelLabels.fromJson(Map<String, dynamic> json) => BookModelLabels(read: json['read'] as String, prev: json['prev'] as String, next: json['next'] as String, zoomIn: json['zoomIn'] as String, zoomOut: json['zoomOut'] as String, autoOn: json['autoOn'] as String, autoOff: json['autoOff'] as String, reset: json['reset'] as String, dims: json['dims'] as String, hint: json['hint'] as String, note: json['note'] as String);
+
+  Map<String, dynamic> toJson() => {'read': read, 'prev': prev, 'next': next, 'zoomIn': zoomIn, 'zoomOut': zoomOut, 'autoOn': autoOn, 'autoOff': autoOff, 'reset': reset, 'dims': dims, 'hint': hint, 'note': note};
 }
 
 class ShelfDeadline {

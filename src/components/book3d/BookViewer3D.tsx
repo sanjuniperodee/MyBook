@@ -11,6 +11,7 @@ import { parseCoverBack, parseCoverDesign, repeatedFrontLayers, templateForCover
 import { getFormat } from "@/lib/book/formats";
 import {
   BOARD_MM,
+  BOOK_PAPER,
   bookDims,
   clamp,
   faceLight,
@@ -85,10 +86,10 @@ function Cuboid({ w, h, d, at = [0, 0, 0], leaf, faces }: { w: number; h: number
 
 /** Бумажный срез: гладкая основа и еле заметные штрихи листов — частые линии давали бы муар. */
 const paperEdge = (deg: number): CSSProperties => ({
-  background: `repeating-linear-gradient(${deg}deg, rgba(110,90,60,0) 0 2px, rgba(110,90,60,.09) 2px 3px), linear-gradient(${deg + 90}deg, #efe7d8, #f8f3e9 40%, #efe7d8)`,
+  background: `repeating-linear-gradient(${deg}deg, rgba(110,90,60,0) 0 2px, ${BOOK_PAPER.edgeLine} 2px 3px), linear-gradient(${deg + 90}deg, ${BOOK_PAPER.edge[0]}, ${BOOK_PAPER.edge[1]} 40%, ${BOOK_PAPER.edge[0]})`,
 });
 
-const endpaper: CSSProperties = { background: "linear-gradient(135deg,#efe7d8,#e4d9c4)" };
+const endpaper: CSSProperties = { background: `linear-gradient(135deg,${BOOK_PAPER.endpaper[0]},${BOOK_PAPER.endpaper[1]})` };
 
 /**
  * Картинка полосы на стороне листа; без адреса — чистая бумага (пустая полоса или далеко от разворота). Не загрузилась —

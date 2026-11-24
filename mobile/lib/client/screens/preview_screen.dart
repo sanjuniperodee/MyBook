@@ -15,6 +15,7 @@ import '../data/session.dart';
 import '../ui/book_chrome.dart';
 import '../ui/cabinet.dart';
 import '../ui/motion.dart';
+import 'book3d_view.dart';
 import 'checkout_screen.dart';
 
 /// Макет книги — как на сайте (/books/[id]/preview): «Читать» — полосы настоящего макета (экранная сборка того же PDF,
@@ -143,7 +144,11 @@ class _PreviewScreenState extends State<PreviewScreen> {
         ),
         Expanded(
           child: _book3d
-              ? _Book3DView(hub: h, pages: build?.pageCount)
+              ? (build == null
+                  ? (s == null
+                      ? (_error == null ? const Center(child: CircularProgressIndicator()) : EmptyState(icon: LucideIcons.wifiOff, title: 'Макет не открылся', hint: _error, action: 'Повторить', onAction: _load))
+                      : _Building(state: s, progress: _progress, onRetry: () => _load(retry: true)))
+                  : Book3DView(bookId: h.id, pageCount: build.pageCount, pageUrl: (n, px) => _pageUrl(build, n, px)))
               : s == null
                   ? (_error == null ? const Center(child: CircularProgressIndicator()) : EmptyState(icon: LucideIcons.wifiOff, title: 'Макет не открылся', hint: _error, action: 'Повторить', onAction: _load))
                   : build == null
@@ -352,53 +357,3 @@ class _Banner extends StatelessWidget {
 }
 
 /// 3D-книга: объёмная книга с настоящей обложкой; крутится пальцем (как модель на сайте), двойное нажатие — исходный ракурс.
-class _Book3DView extends StatefulWidget {
-  const _Book3DView({required this.hub, required this.pages});
-  final v1api.CabinetBook hub;
-  final int? pages;
-
-  @override
-  State<_Book3DView> createState() => _Book3DViewState();
-}
-
-class _Book3DViewState extends State<_Book3DView> with SingleTickerProviderStateMixin {
-  double _angle = 24;
-  late final AnimationController _spring = AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
-  double _from = 24;
-
-  @override
-  void initState() {
-    super.initState();
-    _spring.addListener(() => setState(() => _angle = _from + (24 - _from) * easeOutSoft.transform(_spring.value)));
-  }
-
-  @override
-  void dispose() {
-    _spring.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.c;
-    final width = (MediaQuery.sizeOf(context).width * 0.62).clamp(180.0, 340.0);
-    final thickness = (4 + (widget.pages ?? 100) / 20).clamp(4.0, 14.0);
-    return GestureDetector(
-      onHorizontalDragUpdate: (d) => setState(() => _angle = (_angle - d.delta.dx * 0.6).clamp(-70.0, 70.0)),
-      onDoubleTap: () {
-        _from = _angle;
-        _spring.forward(from: 0);
-      },
-      child: Container(
-        color: Colors.transparent,
-        child: Column(children: [
-          Expanded(child: Center(child: Book3D(bookId: widget.hub.id, width: width, rotate: _angle, thickness: thickness, cover: CoverPicture(url: widget.hub.coverUrl)))),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
-            child: Text('Крутите книгу пальцем. Двойное нажатие — исходный ракурс.', textAlign: TextAlign.center, style: TextStyle(fontSize: 13.5, color: c.textMuted)),
-          ),
-        ]),
-      ),
-    );
-  }
-}

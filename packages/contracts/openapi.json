@@ -2252,6 +2252,60 @@
         "x-auth": "staff"
       }
     },
+    "/api/v1/books/{bookId}/model": {
+      "get": {
+        "operationId": "bookModel",
+        "tags": [
+          "preview"
+        ],
+        "summary": "Объёмная модель книги для 3D-книги: размеры, развёртка обложки, ракурсы, свет, подписи (pages — страниц в сборке)",
+        "parameters": [
+          {
+            "name": "bookId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "pages",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2000
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookModel"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
+    },
     "/api/v1/cabinet/shelf": {
       "get": {
         "operationId": "cabinetShelf",
@@ -11360,6 +11414,421 @@
           "payForms",
           "hasOrder",
           "invoices"
+        ],
+        "additionalProperties": false
+      },
+      "BookModel": {
+        "type": "object",
+        "properties": {
+          "pageCount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "dims": {
+            "type": "object",
+            "properties": {
+              "w": {
+                "type": "number"
+              },
+              "h": {
+                "type": "number"
+              },
+              "d": {
+                "type": "number"
+              },
+              "boardMm": {
+                "type": "number"
+              },
+              "block": {
+                "type": "object",
+                "properties": {
+                  "w": {
+                    "type": "number"
+                  },
+                  "h": {
+                    "type": "number"
+                  },
+                  "d": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "w",
+                  "h",
+                  "d"
+                ],
+                "additionalProperties": false
+              },
+              "spread": {
+                "type": "object",
+                "properties": {
+                  "w": {
+                    "type": "number"
+                  },
+                  "h": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "w",
+                  "h"
+                ],
+                "additionalProperties": false
+              },
+              "rects": {
+                "type": "object",
+                "properties": {
+                  "front": {
+                    "type": "object",
+                    "properties": {
+                      "x": {
+                        "type": "number"
+                      },
+                      "y": {
+                        "type": "number"
+                      },
+                      "w": {
+                        "type": "number"
+                      },
+                      "h": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "x",
+                      "y",
+                      "w",
+                      "h"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "back": {
+                    "type": "object",
+                    "properties": {
+                      "x": {
+                        "type": "number"
+                      },
+                      "y": {
+                        "type": "number"
+                      },
+                      "w": {
+                        "type": "number"
+                      },
+                      "h": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "x",
+                      "y",
+                      "w",
+                      "h"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "spine": {
+                    "type": "object",
+                    "properties": {
+                      "x": {
+                        "type": "number"
+                      },
+                      "y": {
+                        "type": "number"
+                      },
+                      "w": {
+                        "type": "number"
+                      },
+                      "h": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "x",
+                      "y",
+                      "w",
+                      "h"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "front",
+                  "back",
+                  "spine"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "w",
+              "h",
+              "d",
+              "boardMm",
+              "block",
+              "spread",
+              "rects"
+            ],
+            "additionalProperties": false
+          },
+          "spreadUrl": {
+            "type": "string"
+          },
+          "spreadWidths": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          },
+          "sheets": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "leaves": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "window": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "spreads": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "views": {
+            "type": "object",
+            "properties": {
+              "initial": {
+                "type": "object",
+                "properties": {
+                  "rx": {
+                    "type": "number"
+                  },
+                  "ry": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "rx",
+                  "ry"
+                ],
+                "additionalProperties": false
+              },
+              "read": {
+                "type": "object",
+                "properties": {
+                  "rx": {
+                    "type": "number"
+                  },
+                  "ry": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "rx",
+                  "ry"
+                ],
+                "additionalProperties": false
+              },
+              "readZoom": {
+                "type": "number"
+              },
+              "zoom": {
+                "type": "object",
+                "properties": {
+                  "min": {
+                    "type": "number"
+                  },
+                  "max": {
+                    "type": "number"
+                  },
+                  "step": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "min",
+                  "max",
+                  "step"
+                ],
+                "additionalProperties": false
+              },
+              "tiltLimit": {
+                "type": "number"
+              },
+              "list": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "label": {
+                      "type": "string"
+                    },
+                    "rx": {
+                      "type": "number"
+                    },
+                    "ry": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "label",
+                    "rx",
+                    "ry"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "initial",
+              "read",
+              "readZoom",
+              "zoom",
+              "tiltLimit",
+              "list"
+            ],
+            "additionalProperties": false
+          },
+          "light": {
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "number"
+              },
+              "y": {
+                "type": "number"
+              },
+              "z": {
+                "type": "number"
+              },
+              "ambient": {
+                "type": "number"
+              },
+              "shadeMax": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "x",
+              "y",
+              "z",
+              "ambient",
+              "shadeMax"
+            ],
+            "additionalProperties": false
+          },
+          "paper": {
+            "type": "object",
+            "properties": {
+              "endpaper": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "edge": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "edgeLine": {
+                "type": "string"
+              },
+              "stage": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "endpaper",
+              "edge",
+              "edgeLine",
+              "stage"
+            ],
+            "additionalProperties": false
+          },
+          "labels": {
+            "type": "object",
+            "properties": {
+              "read": {
+                "type": "string"
+              },
+              "prev": {
+                "type": "string"
+              },
+              "next": {
+                "type": "string"
+              },
+              "zoomIn": {
+                "type": "string"
+              },
+              "zoomOut": {
+                "type": "string"
+              },
+              "autoOn": {
+                "type": "string"
+              },
+              "autoOff": {
+                "type": "string"
+              },
+              "reset": {
+                "type": "string"
+              },
+              "dims": {
+                "type": "string"
+              },
+              "hint": {
+                "type": "string"
+              },
+              "note": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "read",
+              "prev",
+              "next",
+              "zoomIn",
+              "zoomOut",
+              "autoOn",
+              "autoOff",
+              "reset",
+              "dims",
+              "hint",
+              "note"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "pageCount",
+          "dims",
+          "spreadUrl",
+          "spreadWidths",
+          "sheets",
+          "leaves",
+          "window",
+          "spreads",
+          "views",
+          "light",
+          "paper",
+          "labels"
         ],
         "additionalProperties": false
       },

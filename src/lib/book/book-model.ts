@@ -74,14 +74,14 @@ export function rotateNormal([x, y, z]: readonly [number, number, number], { rx,
 }
 
 /** Свет сверху-слева, почти из-за спины зрителя (нормированный вектор «на источник»): обращённые к зрителю грани светлые. */
-const LIGHT: readonly [number, number, number] = (() => {
+export const LIGHT: readonly [number, number, number] = (() => {
   const v = [-0.3, -0.4, 0.86];
   const len = Math.hypot(...v);
   return [v[0] / len, v[1] / len, v[2] / len] as const;
 })();
 
 /** Освещённость в тени: бумага не должна уходить в серый даже на боковых гранях. */
-const AMBIENT = 0.55;
+export const AMBIENT = 0.55;
 
 /**
  * Освещённость грани: 0.55 в тени и до 1 лицом к свету. Грань, отвёрнутая от зрителя, не важна — она скрыта.
@@ -93,8 +93,22 @@ export function faceLight(face: FaceId, o: Orientation, leafAngle = 0): number {
   return AMBIENT + (1 - AMBIENT) * Math.max(0, dot);
 }
 
+/**
+ * Цвета бумаги объёмной книги — общие у 3D-книги сайта и приложения (API v1 bookModel): форзац (градиент), срез блока
+ * (основа и середина), штрихи листов на срезе и фон сцены (радиальный: центр, край).
+ */
+export const BOOK_PAPER = {
+  endpaper: ["#efe7d8", "#e4d9c4"],
+  edge: ["#efe7d8", "#f8f3e9"],
+  edgeLine: "rgba(110,90,60,.09)",
+  stage: ["#fffdf9", "#efe7da"],
+} as const;
+
+/** Насколько темнеет грань без света: непрозрачность чёрной плёнки при освещённости 0. */
+export const SHADE_MAX = 0.6;
+
 /** Непрозрачность чёрной плёнки поверх грани: чем меньше света, тем темнее. */
-export const shadeOpacity = (light: number) => (1 - light) * 0.6;
+export const shadeOpacity = (light: number) => (1 - light) * SHADE_MAX;
 
 /** Разность углов по кратчайшему пути: −180…180. */
 export function shortestDelta(from: number, to: number) {

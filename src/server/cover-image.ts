@@ -2,7 +2,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import sharp from "sharp";
 import { container } from "@/server/container";
-import { coverPhotoDataUrl, renderCoverBackPreview, renderCoverPreview } from "@/modules/production";
+import { coverPhotoDataUrl, renderCoverBackPreview, renderCoverPreview, renderCoverSpreadPreview } from "@/modules/production";
 import { coverPhotoSlots, getCoverTemplate, isKnownCover, renderCoverSvg } from "@/lib/book/covers";
 import { coverFrontGeometry, getFormat } from "@/lib/book/formats";
 import { getFile, putFile } from "@/shared/infrastructure/storage";
@@ -38,7 +38,9 @@ type CoverBook = {
 /** Что рисовать: лицо книги как есть, лицо с другим шаблоном (предпросмотр выбора, в книгу не пишется) или оборот. */
 export interface CoverImageOptions {
   template?: string;
-  side?: "front" | "back";
+  /** spread — вся развёртка с корешком под pages страниц (3D-книга); ширина картинки — ширина лица в ней. */
+  side?: "front" | "back" | "spread";
+  pages?: number;
 }
 
 /** Версия картинки: меняется вместе со всем, что видно на лицевой крышке (шаблон, надписи, фото, формат). */
@@ -54,7 +56,8 @@ export function coverBackVersion(b: CoverBook): string {
 }
 
 /** Версия картинки по тому, что рисуется: лицо, лицо с другим шаблоном или оборот (ключ хранилища и ETag). */
-export const coverVersion = (b: CoverBook, o: CoverImageOptions) => (o.side === "back" ? `back-${coverBackVersion(b)}` : o.template ? `t-${o.template}-${coverImageVersion({ ...b, coverTemplate: o.template, coverDesign: null })}` : coverImageVersion(b));
+export const coverVersion = (b: CoverBook, o: CoverImageOptions) =>
+  o.side === "spread" ? `spread-${o.pages ?? 0}-${coverBackVersion(b)}` : (o.side === "back" ? `back-${coverBackVersion(b)}` : o.template ? `t-${o.template}-${coverImageVersion({ ...b, coverTemplate: o.template, coverDesign: null })}` : coverImageVersion(b));
 
 /**
  * Лицевая крышка картинкой (WebP) — для приложения: та же обложка, что в печати (renderCoverPreview, PDF → растр).
@@ -69,7 +72,12 @@ export async function coverImage(b: CoverBook, width: CoverImageWidth, o: CoverI
   if (!bundle) return null;
   // Предпросмотр шаблона: та же книга с другим шаблоном и без обложки из слоёв — в книгу не пишется.
   const drawn = o.template ? { ...bundle, book: { ...bundle.book, coverTemplate: o.template, coverDesign: null } } : bundle;
-  const picture = o.side === "back" ? await renderCoverBackPreview(drawn, width) : await renderCoverPreview(drawn, width);
+  const picture =
+    o.side === "spread" && o.pages
+      ? await renderCoverSpreadPreview(drawn, o.pages, width)
+      : o.side === "back"
+        ? await renderCoverBackPreview(drawn, width)
+        : await renderCoverPreview(drawn, width);
   if (!picture) return null;
   // WebP вместо PNG: обложка с фото в 5–7 раз легче (телефон, мобильный интернет).
   const webp = await sharp(Buffer.from(picture.data, "base64")).webp({ quality: 86 }).toBuffer();

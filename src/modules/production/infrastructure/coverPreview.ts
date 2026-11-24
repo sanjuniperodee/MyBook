@@ -57,6 +57,19 @@ export function renderCoverPreview(bundle: BookBundle, widthPx = 760): Promise<P
   });
 }
 
+/** Развёртка обложки (та же вёрстка, что cover.pdf в печать) растром шириной fullWidth: сырые пиксели и размер. */
+async function rasterSpread(bundle: BookBundle, pageCount: number, fullWidth: number, dir: string) {
+  const file = path.join(dir, "spread.pdf");
+  await writeFile(file, await inPdfThread({ task: "coverSpreadPreview", bundle, pageCount }));
+  const ppm = await rasterSlot(() => pdftoppm(["-f", "1", "-l", "1", "-scale-to-x", String(fullWidth), "-scale-to-y", "-1", file]));
+  const header = /^P6\s+(\d+)\s+(\d+)\s+255\s/.exec(ppm.subarray(0, 64).toString("latin1"));
+  if (!header) return null;
+  const [width, height] = [Number(header[1]), Number(header[2])];
+  const raw = ppm.subarray(header[0].length, header[0].length + width * height * 3);
+  if (raw.length < width * height * 3) return null;
+  return { raw, width, height };
+}
+
 /**
  * Задняя крышка (оборот) одной картинкой шириной widthPx: развёртка той же вёрстки, что в печати, растрируется целиком и
  * обрезается по прямоугольнику оборота (coverSpreadGeometry). Толщина корешка на оборот не влияет — pageCount условный.
@@ -66,22 +79,29 @@ export function renderCoverBackPreview(bundle: BookBundle, widthPx = 760): Promi
     const pageCount = 100;
     const g = coverSpreadGeometry(getFormat(bundle.book.format), pageCount);
     const back = g.back!;
-    const file = path.join(dir, "spread.pdf");
-    await writeFile(file, await inPdfThread({ task: "coverSpreadPreview", bundle, pageCount }));
-    const fullWidth = Math.round((widthPx * g.width) / back.w);
-    const ppm = await rasterSlot(() => pdftoppm(["-f", "1", "-l", "1", "-scale-to-x", String(fullWidth), "-scale-to-y", "-1", file]));
-    const header = /^P6\s+(\d+)\s+(\d+)\s+255\s/.exec(ppm.subarray(0, 64).toString("latin1"));
-    if (!header) return null;
-    const [width, height] = [Number(header[1]), Number(header[2])];
-    const raw = ppm.subarray(header[0].length, header[0].length + width * height * 3);
-    if (raw.length < width * height * 3) return null;
+    const r = await rasterSpread(bundle, pageCount, Math.round((widthPx * g.width) / back.w), dir);
+    if (!r) return null;
     const crop = {
-      left: Math.round((back.x / g.width) * width),
-      top: Math.round((back.y / g.height) * height),
-      width: Math.min(widthPx, width),
-      height: Math.round((back.h / g.height) * height),
+      left: Math.round((back.x / g.width) * r.width),
+      top: Math.round((back.y / g.height) * r.height),
+      width: Math.min(widthPx, r.width),
+      height: Math.round((back.h / g.height) * r.height),
     };
-    const png = await sharp(raw, { raw: { width, height, channels: 3 } }).extract(crop).png({ compressionLevel: 6 }).toBuffer();
+    const png = await sharp(r.raw, { raw: { width: r.width, height: r.height, channels: 3 } }).extract(crop).png({ compressionLevel: 6 }).toBuffer();
+    return { mime: "image/png" as const, data: png.toString("base64") };
+  });
+}
+
+/**
+ * Вся развёртка (загиб, оборот, корешок, лицо) с настоящей толщиной корешка — для 3D-книги приложения: лицо, оборот и
+ * корешок вырезаются из одной картинки по прямоугольникам bookDims. widthPx — ширина лица в картинке.
+ */
+export function renderCoverSpreadPreview(bundle: BookBundle, pageCount: number, widthPx = 760): Promise<PreviewPicture | null> {
+  return inTemp(async (dir) => {
+    const g = coverSpreadGeometry(getFormat(bundle.book.format), pageCount);
+    const r = await rasterSpread(bundle, pageCount, Math.round((widthPx * g.width) / g.front.w), dir);
+    if (!r) return null;
+    const png = await sharp(r.raw, { raw: { width: r.width, height: r.height, channels: 3 } }).png({ compressionLevel: 6 }).toBuffer();
     return { mime: "image/png" as const, data: png.toString("base64") };
   });
 }
