@@ -21,7 +21,7 @@ import 'layouts.dart';
 import 'notifier.dart';
 
 /// Страницы CRM, которые в приложении — свои разделы: адрес → ключ раздела (appSections).
-const _nativePaths = {'/admin/ai-designer': 'designAi', '/admin/marketing': 'links', '/admin/promo': 'promos', '/admin/gifts': 'gifts', '/admin/reviews': 'reviews', '/admin/sales': 'register', '/admin/analytics': 'analytics', '/admin/leads': 'leads', '/admin/finance': 'finance', '/admin/expenses': 'expenses', '/admin/profit': 'profit', '/admin/support': 'support', '/admin/tasks/boards': 'boards'};
+const _nativePaths = {'/admin/catalog': 'catalog', '/admin/books': 'books', '/admin/ai-designer': 'designAi', '/admin/marketing': 'links', '/admin/promo': 'promos', '/admin/gifts': 'gifts', '/admin/reviews': 'reviews', '/admin/sales': 'register', '/admin/analytics': 'analytics', '/admin/leads': 'leads', '/admin/finance': 'finance', '/admin/expenses': 'expenses', '/admin/profit': 'profit', '/admin/support': 'support', '/admin/tasks/boards': 'boards'};
 
 /// Свой экран для адреса раздела CRM (/admin/finance?p=prev → «Финансы»); null — такого раздела в приложении нет.
 Widget? nativePageFor(String path) {

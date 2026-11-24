@@ -758,6 +758,66 @@ class MybookApi {
     return Done.fromJson(json as Map<String, dynamic>);
   }
 
+  /// Книги клиентов: этап, поиск, тема, ход работы
+  Future<BooksList> crmBooks({String? f, String? q, String? theme}) async {
+    final json = await _send('GET', '/api/v1/crm/books', query: {if (f != null) 'f': '${f}', if (q != null) 'q': '${q}', if (theme != null) 'theme': '${theme}'});
+    return BooksList.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Напомнить авторам (письмо или WhatsApp, как кнопка «Напомнить всем»)
+  Future<RemindResult> crmBooksRemind({required RemindBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/books/remind', body: body.toJson());
+    return RemindResult.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Каталог WhatsApp: товары и коллекции (копия старше 5 минут обновляется из WhatsApp)
+  Future<Catalog> crmCatalog() async {
+    final json = await _send('GET', '/api/v1/crm/catalog');
+    return Catalog.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Забрать каталог из WhatsApp сейчас
+  Future<Done> crmCatalogSync() async {
+    final json = await _send('POST', '/api/v1/crm/catalog/sync');
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Загрузить новые фото товара (JPEG, PNG, WebP до 8 МБ) — токены на 30 минут
+  Future<CatalogUploads> crmCatalogUpload({required List<http.MultipartFile> files}) async {
+    final json = await _sendFiles('POST', '/api/v1/crm/catalog/uploads', 'image', files);
+    return CatalogUploads.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Новый товар или правка (WhatsApp заменяет товар целиком)
+  Future<Done> crmCatalogSave({required CatalogProductBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/catalog/products', body: body.toJson());
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Скрыть товар или показать
+  Future<Done> crmCatalogHidden({required String id, required HiddenBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/catalog/products/${Uri.encodeComponent('$id')}/hidden', body: body.toJson());
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Удалить товар из каталога WhatsApp
+  Future<Done> crmCatalogDelete({required String id}) async {
+    final json = await _send('DELETE', '/api/v1/crm/catalog/products/${Uri.encodeComponent('$id')}');
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Новая коллекция или правка: название и товары
+  Future<Done> crmCatalogCollectionSave({required CatalogCollectionBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/catalog/collections', body: body.toJson());
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Удалить коллекцию
+  Future<Done> crmCatalogCollectionDelete({required String id}) async {
+    final json = await _send('DELETE', '/api/v1/crm/catalog/collections/${Uri.encodeComponent('$id')}');
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
   /// Доски, которые видит сотрудник (с числом открытых карточек)
   Future<BoardList> boardsList() async {
     final json = await _send('GET', '/api/v1/boards');
@@ -6486,4 +6546,179 @@ class ArchiveBody {
   factory ArchiveBody.fromJson(Map<String, dynamic> json) => ArchiveBody(archived: json['archived'] as bool);
 
   Map<String, dynamic> toJson() => {'archived': archived};
+}
+
+class BookRow {
+  final String bookId;
+  final String title;
+  final String line;
+  final String ownerId;
+  final String owner;
+  final String status;
+  final double progress;
+  final String progressText;
+  final int idleDays;
+  final bool stale;
+  final int photos;
+  final String? occasion;
+  final String? remindedLabel;
+  final String? dealId;
+  final int? dealNumber;
+
+  const BookRow({required this.bookId, required this.title, required this.line, required this.ownerId, required this.owner, required this.status, required this.progress, required this.progressText, required this.idleDays, required this.stale, required this.photos, this.occasion, this.remindedLabel, this.dealId, this.dealNumber});
+
+  factory BookRow.fromJson(Map<String, dynamic> json) => BookRow(bookId: json['bookId'] as String, title: json['title'] as String, line: json['line'] as String, ownerId: json['ownerId'] as String, owner: json['owner'] as String, status: json['status'] as String, progress: (json['progress'] as num).toDouble(), progressText: json['progressText'] as String, idleDays: (json['idleDays'] as num).toInt(), stale: json['stale'] as bool, photos: (json['photos'] as num).toInt(), occasion: json['occasion'] == null ? null : json['occasion'] as String, remindedLabel: json['remindedLabel'] == null ? null : json['remindedLabel'] as String, dealId: json['dealId'] == null ? null : json['dealId'] as String, dealNumber: json['dealNumber'] == null ? null : (json['dealNumber'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'bookId': bookId, 'title': title, 'line': line, 'ownerId': ownerId, 'owner': owner, 'status': status, 'progress': progress, 'progressText': progressText, 'idleDays': idleDays, 'stale': stale, 'photos': photos, 'occasion': occasion, 'remindedLabel': remindedLabel, 'dealId': dealId, 'dealNumber': dealNumber};
+}
+
+class BooksList {
+  final String filter;
+  final List<Choice> filters;
+  final List<Choice> themes;
+  final List<BookRow> rows;
+  final List<String> remindable;
+  final bool canRemind;
+  final int staleDays;
+
+  const BooksList({required this.filter, required this.filters, required this.themes, required this.rows, required this.remindable, required this.canRemind, required this.staleDays});
+
+  factory BooksList.fromJson(Map<String, dynamic> json) => BooksList(filter: json['filter'] as String, filters: (json['filters'] as List).map((e) => Choice.fromJson(e as Map<String, dynamic>)).toList(), themes: (json['themes'] as List).map((e) => Choice.fromJson(e as Map<String, dynamic>)).toList(), rows: (json['rows'] as List).map((e) => BookRow.fromJson(e as Map<String, dynamic>)).toList(), remindable: (json['remindable'] as List).map((e) => e as String).toList(), canRemind: json['canRemind'] as bool, staleDays: (json['staleDays'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'filter': filter, 'filters': filters.map((e) => e.toJson()).toList(), 'themes': themes.map((e) => e.toJson()).toList(), 'rows': rows.map((e) => e.toJson()).toList(), 'remindable': remindable.map((e) => e).toList(), 'canRemind': canRemind, 'staleDays': staleDays};
+}
+
+class RemindBody {
+  final List<String> clientIds;
+
+  const RemindBody({required this.clientIds});
+
+  factory RemindBody.fromJson(Map<String, dynamic> json) => RemindBody(clientIds: (json['clientIds'] as List).map((e) => e as String).toList());
+
+  Map<String, dynamic> toJson() => {'clientIds': clientIds.map((e) => e).toList()};
+}
+
+class RemindResult {
+  final int sent;
+  final int skipped;
+
+  const RemindResult({required this.sent, required this.skipped});
+
+  factory RemindResult.fromJson(Map<String, dynamic> json) => RemindResult(sent: (json['sent'] as num).toInt(), skipped: (json['skipped'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'sent': sent, 'skipped': skipped};
+}
+
+class CatalogPhoto {
+  final String url;
+  final String src;
+
+  const CatalogPhoto({required this.url, required this.src});
+
+  factory CatalogPhoto.fromJson(Map<String, dynamic> json) => CatalogPhoto(url: json['url'] as String, src: json['src'] as String);
+
+  Map<String, dynamic> toJson() => {'url': url, 'src': src};
+}
+
+class CatalogItem {
+  final String id;
+  final String name;
+  final String description;
+  final double? price;
+  final String currency;
+  final String retailerId;
+  final String url;
+  final bool hidden;
+  final String review;
+  final List<CatalogPhoto> photos;
+  final String coverSrc;
+  final int videos;
+
+  const CatalogItem({required this.id, required this.name, required this.description, this.price, required this.currency, required this.retailerId, required this.url, required this.hidden, required this.review, required this.photos, required this.coverSrc, required this.videos});
+
+  factory CatalogItem.fromJson(Map<String, dynamic> json) => CatalogItem(id: json['id'] as String, name: json['name'] as String, description: json['description'] as String, price: json['price'] == null ? null : (json['price'] as num).toDouble(), currency: json['currency'] as String, retailerId: json['retailerId'] as String, url: json['url'] as String, hidden: json['hidden'] as bool, review: json['review'] as String, photos: (json['photos'] as List).map((e) => CatalogPhoto.fromJson(e as Map<String, dynamic>)).toList(), coverSrc: json['coverSrc'] as String, videos: (json['videos'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'description': description, 'price': price, 'currency': currency, 'retailerId': retailerId, 'url': url, 'hidden': hidden, 'review': review, 'photos': photos.map((e) => e.toJson()).toList(), 'coverSrc': coverSrc, 'videos': videos};
+}
+
+class CatalogCollection {
+  final String id;
+  final String name;
+  final List<String> productIds;
+
+  const CatalogCollection({required this.id, required this.name, required this.productIds});
+
+  factory CatalogCollection.fromJson(Map<String, dynamic> json) => CatalogCollection(id: json['id'] as String, name: json['name'] as String, productIds: (json['productIds'] as List).map((e) => e as String).toList());
+
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'productIds': productIds.map((e) => e).toList()};
+}
+
+class Catalog {
+  final List<CatalogItem> products;
+  final List<CatalogCollection> collections;
+  final String? collectionsError;
+  final String? link;
+  final String? problem;
+  final String? syncedLabel;
+
+  const Catalog({required this.products, required this.collections, this.collectionsError, this.link, this.problem, this.syncedLabel});
+
+  factory Catalog.fromJson(Map<String, dynamic> json) => Catalog(products: (json['products'] as List).map((e) => CatalogItem.fromJson(e as Map<String, dynamic>)).toList(), collections: (json['collections'] as List).map((e) => CatalogCollection.fromJson(e as Map<String, dynamic>)).toList(), collectionsError: json['collectionsError'] == null ? null : json['collectionsError'] as String, link: json['link'] == null ? null : json['link'] as String, problem: json['problem'] == null ? null : json['problem'] as String, syncedLabel: json['syncedLabel'] == null ? null : json['syncedLabel'] as String);
+
+  Map<String, dynamic> toJson() => {'products': products.map((e) => e.toJson()).toList(), 'collections': collections.map((e) => e.toJson()).toList(), 'collectionsError': collectionsError, 'link': link, 'problem': problem, 'syncedLabel': syncedLabel};
+}
+
+class CatalogUploads {
+  final List<String> tokens;
+
+  const CatalogUploads({required this.tokens});
+
+  factory CatalogUploads.fromJson(Map<String, dynamic> json) => CatalogUploads(tokens: (json['tokens'] as List).map((e) => e as String).toList());
+
+  Map<String, dynamic> toJson() => {'tokens': tokens.map((e) => e).toList()};
+}
+
+class CatalogProductBody {
+  final String? id;
+  final String name;
+  final String description;
+  final String price;
+  final String currency;
+  final String retailerId;
+  final String url;
+  final bool hidden;
+  final List<String>? keep;
+  final List<String> uploads;
+  /// Поля, которые отправить как null (иначе пустое необязательное поле не отправляется).
+  final Set<String> nulls;
+
+  const CatalogProductBody({this.id, required this.name, required this.description, required this.price, required this.currency, required this.retailerId, required this.url, required this.hidden, this.keep, required this.uploads, this.nulls = const {}});
+
+  factory CatalogProductBody.fromJson(Map<String, dynamic> json) => CatalogProductBody(id: json['id'] == null ? null : json['id'] as String, name: json['name'] as String, description: json['description'] as String, price: json['price'] as String, currency: json['currency'] as String, retailerId: json['retailerId'] as String, url: json['url'] as String, hidden: json['hidden'] as bool, keep: json['keep'] == null ? null : (json['keep'] as List).map((e) => e as String).toList(), uploads: (json['uploads'] as List).map((e) => e as String).toList());
+
+  Map<String, dynamic> toJson() => {if (id != null || nulls.contains('id')) 'id': id, 'name': name, 'description': description, 'price': price, 'currency': currency, 'retailerId': retailerId, 'url': url, 'hidden': hidden, if (keep != null || nulls.contains('keep')) 'keep': keep == null ? null : keep!.map((e) => e).toList(), 'uploads': uploads.map((e) => e).toList()};
+}
+
+class CatalogCollectionBody {
+  final String? id;
+  final String name;
+  final List<String> productIds;
+  /// Поля, которые отправить как null (иначе пустое необязательное поле не отправляется).
+  final Set<String> nulls;
+
+  const CatalogCollectionBody({this.id, required this.name, required this.productIds, this.nulls = const {}});
+
+  factory CatalogCollectionBody.fromJson(Map<String, dynamic> json) => CatalogCollectionBody(id: json['id'] == null ? null : json['id'] as String, name: json['name'] as String, productIds: (json['productIds'] as List).map((e) => e as String).toList());
+
+  Map<String, dynamic> toJson() => {if (id != null || nulls.contains('id')) 'id': id, 'name': name, 'productIds': productIds.map((e) => e).toList()};
+}
+
+class HiddenBody {
+  final bool hidden;
+
+  const HiddenBody({required this.hidden});
+
+  factory HiddenBody.fromJson(Map<String, dynamic> json) => HiddenBody(hidden: json['hidden'] as bool);
+
+  Map<String, dynamic> toJson() => {'hidden': hidden};
 }

@@ -34,6 +34,17 @@ const saveBotAction = vi.fn(async (input: Record<string, unknown>) => (void inpu
 vi.mock("@/app/admin/settings/crm/actions", () => ({ saveCrmSettingsAction: (s: unknown, f: FormData) => saveCrmSettingsAction(s, f), saveBotAction: (i: Record<string, unknown>) => saveBotAction(i) }));
 vi.mock("@/modules/workspace", async (orig) => ({ ...(await orig<object>()), getSetting: async (key: string) => (key === "bot.config" ? JSON.stringify({ channels: ["whatsapp"] }) : null) }));
 
+const updateProductAction = vi.fn(async (id: string, form: FormData) => (void id, void form, { ok: true as const }));
+vi.mock("@/app/admin/catalog/actions", () => ({
+  createProductAction: vi.fn(async () => ({ ok: true, id: "1" })),
+  updateProductAction: (id: string, f: FormData) => updateProductAction(id, f),
+  deleteCollectionAction: vi.fn(),
+  saveCollectionAction: vi.fn(),
+  setProductHiddenAction: vi.fn(),
+  syncCatalogAction: vi.fn(),
+  deleteProductAction: vi.fn(),
+}));
+
 const { createApp } = await import("../apps/api/src/app");
 const { handlers } = await import("../apps/api/src/routes");
 
@@ -123,5 +134,32 @@ describe("API v1: маркетинг", () => {
     moderateReviewAction.mockClear();
     expect((await call("POST", `/api/v1/crm/reviews/${ID}/delete`)).status).toBe(400);
     expect(moderateReviewAction).not.toHaveBeenCalled();
+  });
+});
+
+describe("API v1: каталог WhatsApp", () => {
+  it("фото — загрузкой (токен), товар — JSON с токеном: в действие сайта уходит одна форма с полями, «оставить» и фото", async () => {
+    const form = new FormData();
+    form.append("image", new File([new Uint8Array([0xff, 0xd8, 0xff])], "a.jpg", { type: "image/jpeg" }));
+    const up = await app(new Request("http://127.0.0.1:3044/api/v1/crm/catalog/uploads", { method: "POST", body: form }));
+    const { tokens } = (await up.json()) as { tokens: string[] };
+    expect(tokens).toHaveLength(1);
+    const res = await call("POST", "/api/v1/crm/catalog/products", { id: "123", name: "Книга", description: "Длинное описание", price: "25000", keep: ["https://mmg/1"], uploads: tokens });
+    expect(res.status).toBe(200);
+    const sent = updateProductAction.mock.calls[0][1];
+    expect(sent.get("name")).toBe("Книга");
+    expect(sent.get("description")).toBe("Длинное описание");
+    expect(sent.get("keepSet")).toBe("1");
+    expect(sent.getAll("keep")).toEqual(["https://mmg/1"]);
+    expect((sent.get("image") as File).type).toBe("image/jpeg");
+    // Токен одноразовый.
+    expect((await call("POST", "/api/v1/crm/catalog/products", { id: "123", name: "Книга", uploads: tokens })).status).toBe(400);
+  });
+
+  it("не картинка — отказ при загрузке", async () => {
+    const form = new FormData();
+    form.append("image", new File(["%PDF"], "a.pdf", { type: "application/pdf" }));
+    const up = await app(new Request("http://127.0.0.1:3044/api/v1/crm/catalog/uploads", { method: "POST", body: form }));
+    expect(up.status).toBe(400);
   });
 });

@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../screens/boards/boards_screen.dart';
+import '../screens/books_screen.dart';
 import '../screens/calls_screen.dart';
+import '../screens/catalog_screen.dart';
 import '../screens/chats_screen.dart';
 import '../screens/clients_screen.dart';
 import '../screens/deals_screen.dart';
@@ -49,6 +51,10 @@ final appSections = <String, AppSection>{
   'clients': AppSection('clients', 'Клиенты', LucideIcons.users, (s) => s.can('clients.view'), () => const ClientsScreen()),
   'orders': AppSection('orders', 'Заказы', LucideIcons.package, (s) => s.can('orders.view'), () => const OrdersScreen()),
   'calls': AppSection('calls', 'Звонки', LucideIcons.phone, (s) => s.can('calls.view'), () => const CallsScreen()),
+  // Каталог WhatsApp — API v1 crmCatalog.
+  'catalog': AppSection('catalog', 'Каталог WhatsApp', LucideIcons.shoppingBag, (s) => s.can('catalog.manage'), () => const CatalogScreen(), group: 'Продажи'),
+  // Книги клиентов — API v1 crmBooks.
+  'books': AppSection('books', 'Книги', LucideIcons.bookOpen, (s) => s.can('clients.view'), () => const BooksScreen(), group: 'Выпуск'),
   // Деньги — API v1 crmFinance / crmExpenses / crmProfit (те же модели экранов, что на сайте).
   'finance': AppSection('finance', 'Финансы', LucideIcons.wallet, (s) => s.can('analytics.view'), () => const FinanceScreen(), group: 'Деньги'),
   'expenses': AppSection('expenses', 'Расходы', LucideIcons.receiptText, (s) => s.can('finance.view'), () => const ExpensesScreen(), group: 'Деньги'),
@@ -138,9 +144,7 @@ class CrmWebSection {
 /// Боковая панель CRM (src/components/admin/AdminNav.tsx) без разделов, которые в приложении есть экранами.
 const crmWebSections = <CrmWebSection>[
   CrmWebSection('Продажи', '/admin/deals', 'Воронка (доска и фильтры)', LucideIcons.kanban, ['deals.view']),
-  CrmWebSection('Продажи', '/admin/catalog', 'Каталог WhatsApp', LucideIcons.shoppingBag, ['catalog.manage']),
   CrmWebSection('Выпуск', '/admin/board', 'Канбан заказов', LucideIcons.kanban, ['orders.view']),
-  CrmWebSection('Выпуск', '/admin/books', 'Книги', LucideIcons.bookOpen, ['clients.view']),
   CrmWebSection('Настройки', '/admin/automations', 'Автоматизации', LucideIcons.workflow, ['settings.manage']),
   CrmWebSection('Настройки', '/admin/pricing', 'Цены и тарифы', LucideIcons.coins, ['settings.manage']),
   CrmWebSection('Настройки', '/admin/site', 'Сайт', LucideIcons.globe, ['settings.manage']),
