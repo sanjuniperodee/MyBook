@@ -5,11 +5,14 @@
 # лежит в ~/.ssh/authorized_keys на сервере.
 name: Выкатка на прод
 
+# Только документы (docs/, *.md, навыки .claude/) — без проверок и выкатки: в прод нечего везти, а очередь выкаток общая.
 on:
   push:
     branches: [master]
+    paths-ignore: ["docs/**", "**/*.md", ".claude/**"]
   pull_request:
     branches: [master]
+    paths-ignore: ["docs/**", "**/*.md", ".claude/**"]
   workflow_dispatch:
 
 # Новый пуш в ту же ветку PR отменяет старые проверки; пуши в master проверяются все (каждый может уехать на прод).
@@ -44,7 +47,7 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npm run lint
 
-  # Тесты в пяти частях. Пять PDF-файлов — две части (characterization/render верстает все книги набора в beforeAll);
+  # Тесты в шести частях. Пять PDF-файлов — три части (characterization/render верстает все книги набора в beforeAll);
   # остальные файлы (через --exclude) делятся на три шарда: новый тестовый файл попадает в них сам и не выпадет из
   # проверки. Переименовали PDF-файл — его часть упадёт с «No test files found», а не пропустит тесты молча.
   # Замер 05.11: одной частью «остальные» шли 306 с; локально теперь шарды по 13–17 с, PDF-части по 41–53 с.
@@ -55,12 +58,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        part: [PDF 1, PDF 2, 1/3, 2/3, 3/3]
+        part: [PDF 1, PDF 2, PDF 3, 1/3, 2/3, 3/3]
         include:
           - part: PDF 1
             args: tests/characterization/render.test.ts tests/pdf.test.tsx
+          # PDF 2 (три файла, 162–167 с) задерживал выкатку дольше сборки — разделён на два (24.11).
           - part: PDF 2
-            args: tests/pdf-opener-limits.test.ts tests/pdf-critical.test.ts tests/cover-back-color.test.tsx
+            args: tests/pdf-opener-limits.test.ts
+          - part: PDF 3
+            args: tests/pdf-critical.test.ts tests/cover-back-color.test.tsx
           - part: 1/3
             args: --shard=1/3
           - part: 2/3

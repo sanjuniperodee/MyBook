@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Деплой MyBooks на сервер с PM2 и nginx (без Docker) — без «битых» страниц во время выкатки.
 # Запуск на сервере из корня репозитория: bash deploy/deploy.sh [ветка]
-# Готовая сборка из GitHub Actions: bash deploy/deploy.sh --artifact <архив.tgz> — код уже обновлён (deploy/ci-run.sh),
+# Готовая сборка из GitHub Actions: bash deploy/deploy.sh --artifact <папка релиза | архив.tgz> — код уже обновлён (deploy/ci-run.sh),
 # зависимости и сборка на сервере пропускаются, архив и есть релиз.
 #
 # Сборка идёт в .next репозитория, а запускается копия в ../mybook-releases/releases/<время>-<sha>: пока идёт сборка,
@@ -103,8 +103,14 @@ fi
 echo "→ Релиз $SHA"
 REL="$RELEASES/$(date +%Y%m%d-%H%M%S)-$SHA"
 if [ -n "$ARTIFACT" ]; then
-  mkdir -p "$REL"
-  tar -xzf "$ARTIFACT" -C "$REL"
+  # Папка (ci-run.sh: rsync против текущего релиза) переносится целиком — тот же диск; архив .tgz — распаковывается.
+  if [ -d "$ARTIFACT" ]; then
+    mkdir -p "$RELEASES"
+    mv "$ARTIFACT" "$REL"
+  else
+    mkdir -p "$REL"
+    tar -xzf "$ARTIFACT" -C "$REL"
+  fi
   # Архив должен быть собран из того же коммита, что лежит на сервере: из него берутся PM2-конфиг и скрипты.
   BUILT="$(cat "$REL/BUILD_SHA" 2>/dev/null || true)"
   if [ "${BUILT:0:${#SHA}}" != "$SHA" ]; then
