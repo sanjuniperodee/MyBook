@@ -48,6 +48,7 @@ export const drizzleTasks: TaskRepository = {
       .where(
         and(
           isNull(crmTasks.doneAt),
+          isNull(crmTasks.archivedAt),
           isNull(crmTasks.remindedAt),
           isNotNull(crmTasks.remindBeforeMin),
           sql`${crmTasks.dueAt} <= ${now}::timestamptz + interval '7 days'`,
@@ -74,6 +75,7 @@ export const drizzleTasks: TaskRepository = {
       .where(
         and(
           isNull(crmTasks.doneAt),
+          isNull(crmTasks.archivedAt),
           isNull(crmTasks.overdueNotifiedAt),
           sql`${crmTasks.dueAt} <= ${now}::timestamptz - ${graceMin} * interval '1 minute'`,
           sql`${crmTasks.dueAt} > ${now}::timestamptz - interval '7 days'`,

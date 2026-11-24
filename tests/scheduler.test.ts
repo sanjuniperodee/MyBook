@@ -24,6 +24,7 @@ const fake = {
   workspace: { inbox: { purge: stepFn("notices", 0) } },
   telephony: { whatsapp: { sweep: stepFn("whatsapp calls", 0) }, purgeRecordings: stepFn("recordings", 0) },
   previews: { sweep: stepFn("previews", 0) },
+  boards: { cards: { sweepOverdue: stepFn("board rules", 0), spawnRecurring: stepFn("recurring", 0) } },
 };
 
 vi.mock("@/server/container", () => ({ container: () => fake }));
@@ -56,7 +57,7 @@ describe("scheduler: шаг упал — проход идёт дальше", ()
   it("минутный проход: правила CRM и круг заявок упали — напоминания, бот, звонки WhatsApp, почта, доступ по счетам и проверка кассира Kaspi всё равно выполняются", async () => {
     failing.add("automations").add("routing");
     await crmTick();
-    expect(calls).toEqual(["automations", "reminders", "overdue", "routing", "bot", "retry", "whatsapp calls", "imap", "access", "expire", "kaspi watch", "digest"]);
+    expect(calls).toEqual(["automations", "reminders", "overdue", "board rules", "recurring", "routing", "bot", "retry", "whatsapp calls", "imap", "access", "expire", "kaspi watch", "digest"]);
     expect(errors.map((e) => e[0])).toEqual(['[scheduler] step "crm automations" failed', '[scheduler] step "lead routing" failed']);
   });
 
@@ -65,7 +66,7 @@ describe("scheduler: шаг упал — проход идёт дальше", ()
     await crmTick();
     expect(calls.at(-2)).toBe("kaspi watch");
     expect(calls.at(-1)).toBe("digest");
-    expect(calls).toHaveLength(12);
+    expect(calls).toHaveLength(14);
     expect(errors.map((e) => e[0])).toEqual(['[scheduler] step "kaspi watch" failed']);
   });
 

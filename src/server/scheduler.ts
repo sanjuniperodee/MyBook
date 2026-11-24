@@ -107,6 +107,11 @@ export async function crmTick() {
     // Просроченные задачи: одно уведомление ответственному, в рабочее время (tasks-4).
     const overdue = await step("overdue tasks", () => container().clients.tasks.escalateOverdue(), 0);
     if (overdue) console.log(`[scheduler] overdue tasks=${overdue}`);
+    // Доски: правила «срок прошёл» (метка «Просрочено» и др.) и следующие карточки повторяющихся задач.
+    const boardRules = await step("board rules", () => container().boards.cards.sweepOverdue(), 0);
+    if (boardRules) console.log(`[scheduler] board overdue rules=${boardRules}`);
+    const recurring = await step("recurring cards", () => container().boards.cards.spawnRecurring(), 0);
+    if (recurring) console.log(`[scheduler] recurring cards=${recurring}`);
     // Круг: ночные заявки — утром первым на смене, не взятые вовремя — следующему.
     const routed = await step("lead routing", () => container().sales.routing.run(), 0);
     if (routed) console.log(`[scheduler] crm leads routed=${routed}`);

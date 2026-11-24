@@ -25,7 +25,7 @@ export async function GET(req: Request) {
       send("retry: 5000\n\n");
       const unsubscribe = await subscribe((e: LiveEvent) => {
         if (e.users && !e.users.includes(staffId)) return;
-        send(`data: ${JSON.stringify({ type: e.type, conversationId: e.conversationId ?? null })}\n\n`);
+        send(`data: ${JSON.stringify({ type: e.type, conversationId: e.conversationId ?? null, ...(e.type === "board" ? { boardId: e.boardId ?? null, taskId: e.taskId ?? null } : {}) })}\n\n`);
       });
       // Пинг, чтобы прокси не закрывали «молчащее» соединение.
       const ping = setInterval(() => send(": ping\n\n"), 25_000);

@@ -1,7 +1,7 @@
 import { AutoApply } from "@/components/admin/AutoApply";
 import Link from "next/link";
 import { MobileFilters } from "@/components/admin/MobileFilters";
-import { CheckCheck, ListChecks, Search } from "lucide-react";
+import { CalendarDays, CheckCheck, ListChecks, Search, SquareKanban } from "lucide-react";
 import { container } from "@/server/container";
 import { can, requireStaff } from "@/server/access";
 import { staffOptions } from "@/modules/access/ui";
@@ -98,7 +98,17 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
     <div className="flex flex-col gap-4">
       <PageHeader
         title="Задачи"
-        actions={<NewTask staff={staffList} />}
+        actions={
+          <div className="flex items-center gap-2">
+            <Link href="/admin/tasks/boards" className="btn btn-outline max-sm:btn-icon" title="Доски задач">
+              <SquareKanban className="size-4" aria-hidden /> <span className="max-sm:sr-only">Доски</span>
+            </Link>
+            <Link href="/admin/tasks/calendar" className="btn btn-outline max-sm:btn-icon" title="Календарь задач">
+              <CalendarDays className="size-4" aria-hidden /> <span className="max-sm:sr-only">Календарь</span>
+            </Link>
+            <NewTask staff={staffList} />
+          </div>
+        }
         meta={
           !showDone && rows.length ? (
             <span className="flex items-center gap-3 text-[13px] text-muted">

@@ -15,8 +15,10 @@ export async function mentionableStaff() {
 }
 
 /** Уведомить упомянутых (кроме автора). */
-export async function notifyMentions(text: string, authorId: string, authorName: string, link: string, where: string) {
-  if (!text.includes("@")) return;
+/** Уведомить упомянутых @Имя (кроме автора). Возвращает, кого упомянули. */
+export async function notifyMentions(text: string, authorId: string, authorName: string, link: string, where: string): Promise<string[]> {
+  if (!text.includes("@")) return [];
   const ids = findMentions(text, await mentionableStaff()).filter((id) => id !== authorId);
   await notify(ids, { kind: "mention", title: `${authorName} упомянул(а) вас · ${where}`, body: text.slice(0, 300), link });
+  return ids;
 }

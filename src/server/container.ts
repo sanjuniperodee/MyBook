@@ -21,8 +21,9 @@ import { TelephonyModule } from "@/modules/telephony";
 import { MarketingModule } from "@/modules/marketing";
 import { AssistantModule } from "@/modules/assistant";
 import { ClientsModule } from "@/modules/clients";
+import { BoardsModule } from "@/modules/boards";
 import { ReportingModule } from "@/modules/reporting";
-import { WorkspaceModule, smtpConfig, staffWith } from "@/modules/workspace";
+import { WorkspaceModule, notifyMentions, smtpConfig, staffWith } from "@/modules/workspace";
 import { FeedbackModule, reviewUrl, THANK_YOU } from "@/modules/feedback";
 import { ReferralsModule } from "@/modules/referrals";
 import { SupportModule, ticketAlert } from "@/modules/support";
@@ -67,6 +68,7 @@ export class Container {
   #marketing?: MarketingModule;
   #assistant?: AssistantModule;
   #clients?: ClientsModule;
+  #boards?: BoardsModule;
   #feedback?: FeedbackModule;
   #support?: SupportModule;
   #referrals?: ReferralsModule;
@@ -327,6 +329,21 @@ export class Container {
       alerts: {
         created: (t) => this.workspace.notifier.notifyAllWith("settings.manage", { kind: "system", ...ticketAlert(t), link: `/admin/support/${t.number}` }),
       },
+    }));
+  }
+
+  /** Доски задач: карточки — задачи CRM; уведомления и упоминания — рабочее пространство, права — Access. */
+  get boards(): BoardsModule {
+    return (this.#boards ??= new BoardsModule({
+      clock: this.clock,
+      live: this.workspace.live,
+      appUrl: env.appUrl,
+      notifier: {
+        notify: (ids, n) => this.workspace.notifier.notify(ids, n),
+        mentions: (text, authorId, authorName, link, where) => notifyMentions(text, authorId, authorName, link, where),
+      },
+      // Лента iCal: права сотрудника — как сейчас в CRM (отключили или сменили роль — лента это учтёт).
+      staffContext: (account) => this.access.resolver.resolve(account as Parameters<AccessModule["resolver"]["resolve"]>[0]),
     }));
   }
 

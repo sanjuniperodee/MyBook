@@ -10,6 +10,11 @@ import { PageHeader } from "@/components/admin/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { Panel } from "@/components/ui/Panel";
 import { TaskRows } from "../TaskRows";
+import { CardPage } from "../boards/CardPage";
+import { boardViewer } from "@/server/boards-api";
+import { container } from "@/server/container";
+import { staffOptions } from "@/modules/access/ui";
+import { Columns3 } from "lucide-react";
 
 export const metadata = { title: "Задача" };
 
@@ -45,8 +50,28 @@ function Linked({ href, icon: Icon, label, children, aside }: { href?: string; i
  */
 export default async function TaskPage({ params }: { params: Promise<{ id: string }> }) {
   const staff = await requireStaff();
-  const d = await loadTaskDetail(staff, pageId((await params).id));
-  if (!d) notFound();
+  const id = pageId((await params).id);
+  const [d, card, admins] = await Promise.all([loadTaskDetail(staff, id), container().boards.cards.summary(boardViewer(staff), id).catch(() => null), container().access.queries.allStaff()]);
+  if (!d && !card) notFound();
+  const boardHref = card?.boardId ? `/admin/tasks/boards/${card.boardId}?card=${id}` : "/admin/tasks/boards";
+  if (!d)
+    // Карточка доски без клиента (или видна как соисполнителю/наблюдателю): только карточка.
+    return (
+      <div className="flex flex-col gap-5">
+        <PageHeader
+          title="Карточка"
+          back={{ href: "/admin/tasks", label: "Задачи" }}
+          actions={
+            <Link href={boardHref} className="btn btn-outline btn-sm">
+              <Columns3 className="size-4" aria-hidden /> На доске
+            </Link>
+          }
+        />
+        <div className="max-w-[60rem]">
+          <CardPage id={id} staff={staffOptions(admins)} me={staff.user.id} back={boardHref} />
+        </div>
+      </div>
+    );
   const status = d.task.doneAt ? { tone: "success" as const, label: "выполнена" } : d.task.overdue ? { tone: "danger" as const, label: "просрочена" } : { tone: "neutral" as const, label: "открыта" };
   const who = [d.task.createdBy ? `поставил(а) ${d.task.createdBy}` : null, d.task.assignee ? `ответственный: ${d.task.assignee}` : "ничья"].filter(Boolean).join(", ");
   const hasContext = !!(d.deal || d.client || d.contact.name || d.order || d.chat);
@@ -74,6 +99,18 @@ export default async function TaskPage({ params }: { params: Promise<{ id: strin
           <section className="panel overflow-hidden" data-testid="task-card">
             <TaskRows tasks={[d.row]} staff={d.staff} canAssign={d.canAssign} expanded />
           </section>
+
+          {card ? (
+            <>
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="text-[15px] font-semibold">Карточка на доске</h2>
+                <Link href={boardHref} className="btn btn-ghost btn-sm">
+                  <Columns3 className="size-4" aria-hidden /> Открыть доску
+                </Link>
+              </div>
+              <CardPage id={id} staff={staffOptions(admins)} me={staff.user.id} back={boardHref} />
+            </>
+          ) : null}
 
           {d.others.length ? (
             <Panel flush title="Другие задачи по сделке" description={`Открытых: ${d.others.length}`}>

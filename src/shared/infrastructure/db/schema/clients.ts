@@ -1,7 +1,11 @@
 /** CRM-профиль клиента: заметки и задачи менеджеров (модуль clients). */
 import { sql } from "drizzle-orm";
-import { index, integer, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, doublePrecision, index, integer, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import type { TaskRecurrence } from "@/shared/domain/boards";
+import { books } from "./authoring";
+import { crmBoardColumns, crmBoards } from "./boards";
 import { users } from "./identity";
+import { crmConversations } from "./messaging";
 import { orders } from "./ordering";
 import { crmDeals } from "./sales";
 
@@ -48,8 +52,35 @@ export const crmTasks = pgTable(
     /** Когда ответственному (или всем — у ничьей) сказали, что задача просрочена (tasks-4): одно на задачу. */
     overdueNotifiedAt: timestamp("overdue_notified_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    // ─── Доски (модуль boards, миграция 0109) ───
+    /** Доска и колонка карточки. null — доска по умолчанию («Продажи») и её первая колонка (или «Готово» у выполненной). */
+    boardId: uuid("board_id").references(() => crmBoards.id, { onDelete: "set null" }),
+    columnId: uuid("column_id").references(() => crmBoardColumns.id, { onDelete: "set null" }),
+    /** Порядок в колонке (меньше — выше); null — по сроку, после расставленных. */
+    position: doublePrecision("position"),
+    description: text("description"),
+    /** low | normal | high | urgent; null — без приоритета. */
+    priority: text("priority", { enum: ["low", "normal", "high", "urgent"] }),
+    startAt: timestamp("start_at", { withTimezone: true }),
+    /** Обложка: цвет-токен («wine», «info»…) или «att:<id вложения>». */
+    cover: text("cover"),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    estimateMin: integer("estimate_min"),
+    spentMin: integer("spent_min"),
+    /** Повтор: после выполнения создаётся следующая карточка (проход планировщика). */
+    recurrence: jsonb("recurrence").$type<TaskRecurrence>(),
+    /** Следующая карточка повтора уже создана (одна на выполненную). */
+    recurSpawnedAt: timestamp("recur_spawned_at", { withTimezone: true }),
+    bookId: uuid("book_id").references(() => books.id, { onDelete: "set null" }),
+    conversationId: uuid("conversation_id").references(() => crmConversations.id, { onDelete: "set null" }),
+    /** Встреча с Google Meet (для Google Календаря). */
+    meet: boolean("meet").notNull().default(false),
+    /** Меняется триггером БД при любой правке строки — для синхронизации календарей и живого обновления. */
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
+    index("crm_tasks_board_idx").on(t.boardId, t.columnId).where(sql`${t.archivedAt} is null`),
+    index("crm_tasks_updated_idx").on(t.updatedAt),
     index("crm_tasks_due_idx").on(t.doneAt, t.dueAt),
     // Открытые задачи сделки: переходят к новому ответственному, служебные не дублируются.
     index("crm_tasks_open_deal_idx").on(t.dealId).where(sql`${t.doneAt} is null`),

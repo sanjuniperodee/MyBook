@@ -2,7 +2,7 @@ import "server-only";
 import { and, eq, gte, isNotNull, isNull, lt, or, sql, type SQL } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { crmCalls, crmConversations, crmTasks, orders, users } from "@/shared/infrastructure/db/schema";
-import { booksUserId, crmDealsId, ordersUserId } from "@/shared/infrastructure/db/refs";
+import { booksUserId, crmDealsId, crmTasksId, ordersUserId } from "@/shared/infrastructure/db/refs";
 import { localDay } from "./time";
 
 /**
@@ -39,8 +39,14 @@ export function ownClientBooks(viewer: Viewer): SQL | undefined {
   return sql`exists (select 1 from ${users} u where u.id = ${booksUserId} and u.manager_id = ${me})`;
 }
 
-/** Задачи на сегодня: мои и ничьи открытые со сроком до конца дня магазина (просроченные — тоже). Как бейдж «Задачи». */
-export const todayTasks = (userId: string) => and(isNull(crmTasks.doneAt), lt(crmTasks.dueAt, localDay(1)), or(eq(crmTasks.assigneeId, userId), isNull(crmTasks.assigneeId)));
+/** Я исполнитель задачи: главный (assignee_id) или соисполнитель карточки доски (crm_task_members). */
+export const assignedTo = (userId: string) => or(eq(crmTasks.assigneeId, userId), sql`exists (select 1 from crm_task_members m where m.task_id = ${crmTasksId} and m.user_id = ${userId} and m.role = 'assignee')`)!;
+
+/**
+ * Задачи на сегодня: мои (и как соисполнителя) и ничьи открытые со сроком до конца дня магазина (просроченные — тоже),
+ * кроме убранных в архив доски. Как бейдж «Задачи».
+ */
+export const todayTasks = (userId: string) => and(isNull(crmTasks.doneAt), isNull(crmTasks.archivedAt), lt(crmTasks.dueAt, localDay(1)), or(assignedTo(userId), isNull(crmTasks.assigneeId)));
 
 /** Клиент ждёт ответа: открытый диалог с ожиданием — как фильтр «Ждут ответа» в «Чатах». */
 export const waitingChats = (viewer: Viewer) => and(isNotNull(crmConversations.awaitingSince), eq(crmConversations.status, "open"), visibleTo(viewer, crmConversations.assigneeId));

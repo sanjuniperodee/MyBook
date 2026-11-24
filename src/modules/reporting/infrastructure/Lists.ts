@@ -3,6 +3,7 @@ import { and, asc, desc, eq, gte, isNotNull, isNull, or, sql, type SQL } from "d
 import { crmCalls, crmDeals, crmTasks, orders, users } from "@/shared/infrastructure/db/schema";
 import { executor } from "@/shared/infrastructure/database";
 import { visibleTo, type Viewer } from "./MyDay";
+import { assignedTo } from "./conditions";
 
 /**
  * Список задач: мои (и ничьи), все или одного сотрудника; открытые или выполненные; по типу и поиску по заголовку.
@@ -11,8 +12,10 @@ import { visibleTo, type Viewer } from "./MyDay";
 export function taskList(viewer: Viewer, opts: { who: "mine" | "all" | (string & {}); done: boolean; kind?: string | null; q?: string | null }) {
   const w: SQL[] = [];
   const who = viewer.seesAll ? opts.who : "mine";
-  if (who === "mine") w.push(or(eq(crmTasks.assigneeId, viewer.userId), isNull(crmTasks.assigneeId))!);
-  else if (who !== "all") w.push(eq(crmTasks.assigneeId, who));
+  if (who === "mine") w.push(or(assignedTo(viewer.userId), isNull(crmTasks.assigneeId))!);
+  else if (who !== "all") w.push(assignedTo(who));
+  // Карточки, убранные в архив доски, в «Задачах» не показываем (они в архиве доски).
+  w.push(isNull(crmTasks.archivedAt));
   w.push(opts.done ? isNotNull(crmTasks.doneAt) : isNull(crmTasks.doneAt));
   if (opts.kind && ["task", "call", "message", "meeting"].includes(opts.kind)) w.push(eq(crmTasks.kind, opts.kind as "task"));
   const q = opts.q?.trim().slice(0, 100);

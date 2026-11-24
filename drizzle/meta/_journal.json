@@ -764,6 +764,13 @@
       "when": 1795527763376,
       "tag": "0108_chat_avatars",
       "breakpoints": true
+    },
+    {
+      "idx": 109,
+      "version": "7",
+      "when": 1795530550795,
+      "tag": "0109_boards",
+      "breakpoints": true
     }
   ]
 }

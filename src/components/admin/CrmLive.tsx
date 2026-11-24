@@ -116,7 +116,8 @@ export function CrmLiveProvider({ initial, children }: { initial: LiveState; chi
       try {
         data = JSON.parse(msg.data);
       } catch {}
-      void refresh();
+      // Карточки досок меняются часто (правила, перенос) — счётчики меню подтянет обычный опрос; доска слушает crm:live сама.
+      if (data.type !== "board") void refresh();
       window.dispatchEvent(new CustomEvent("crm:live", { detail: data }));
     };
     return () => {

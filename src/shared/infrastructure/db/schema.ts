@@ -10,6 +10,7 @@
 export * from "./schema/access";
 export * from "./schema/authoring";
 export * from "./schema/automation";
+export * from "./schema/boards";
 export * from "./schema/clients";
 export * from "./schema/feedback";
 export * from "./schema/identity";
