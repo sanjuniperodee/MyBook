@@ -218,6 +218,22 @@ export class GowaClient {
     return path;
   }
 
+  /**
+   * Фото профиля собеседника в WhatsApp: адрес картинки на сервере WhatsApp (временный) и её id — он меняется, когда
+   * человек ставит другое фото. null — фото нет или человек скрыл его от нас.
+   */
+  async avatar(chatId: string): Promise<{ id: string; url: string } | null> {
+    try {
+      const res = await this.json<{ results?: { id?: unknown; url?: unknown } }>("GET", `/user/avatar?phone=${encodeURIComponent(gowaJid(chatId))}&is_preview=false`, undefined, 20_000);
+      const id = typeof res.results?.id === "string" ? res.results.id : "";
+      const url = typeof res.results?.url === "string" ? res.results.url : "";
+      return id && url ? { id, url } : null;
+    } catch (err) {
+      if (GowaError.is(err) && /profile picture|not-authorized|item-not-found|forbidden/i.test(err.message)) return null;
+      throw err;
+    }
+  }
+
   /** Личные и групповые чаты номера магазина из хранилища шлюза (jid и время последнего сообщения), постранично — сначала те, где писали последними. */
   async chats(offset: number, limit: number): Promise<{ chats: { jid: string; lastMessageAt: string; updatedAt: string }[]; total: number }> {
     const res = await this.json<{ results?: { data?: { jid?: string; last_message_time?: string; updated_at?: string }[] | null; pagination?: { total?: number } } }>("GET", `/chats?limit=${Math.min(limit, GOWA_PAGE_LIMIT)}&offset=${offset}`);

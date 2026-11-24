@@ -51,6 +51,9 @@ export async function tick() {
     // История WhatsApp из своего шлюза: WhatsApp догружает старые сообщения связанному устройству постепенно.
     const history = await step("whatsapp history", () => container().messaging.syncGowaHistory(), 0);
     if (history) console.log(`[scheduler] whatsapp history imported=${history}`);
+    // Фото профиля клиентов WhatsApp: новые чаты и раз в неделю — не сменил ли клиент фото (порция за проход).
+    const avatars = await step("chat avatars", () => container().messaging.refreshAvatars(100), 0);
+    if (avatars) console.log(`[scheduler] chat avatars updated=${avatars}`);
     // Работа над ошибками AI-продажника: раз в сутки ночью разбор бесед за день → уроки в его инструкции.
     const coach = await step("bot coach", () => container().messaging.coach.run(), null);
     if (coach) console.log(`[scheduler] bot coach reviewed=${coach.reviewed} added=${coach.added.length} removed=${coach.removed.length}${coach.error ? ` error=${coach.error}` : ""}`);

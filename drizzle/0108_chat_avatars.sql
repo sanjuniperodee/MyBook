@@ -1,0 +1,1 @@
+ALTER TABLE "crm_conversations" ADD COLUMN "avatar_checked_at" timestamp with time zone;

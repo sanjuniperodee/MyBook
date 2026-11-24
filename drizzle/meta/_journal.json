@@ -757,6 +757,13 @@
       "when": 1795518961134,
       "tag": "0107_notification_count",
       "breakpoints": true
+    },
+    {
+      "idx": 108,
+      "version": "7",
+      "when": 1795527763376,
+      "tag": "0108_chat_avatars",
+      "breakpoints": true
     }
   ]
 }

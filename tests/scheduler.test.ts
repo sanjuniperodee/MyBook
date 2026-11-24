@@ -16,7 +16,7 @@ const fake = {
   automation: { engine: { runScheduled: stepFn("automations", 0) } },
   clients: { tasks: { remindDue: stepFn("reminders", 0), escalateOverdue: stepFn("overdue", 0) } },
   sales: { routing: { run: stepFn("routing", 0) } },
-  messaging: { chats: { retryFailedAutomated: stepFn("retry", 0) }, bot: { sweep: stepFn("bot", 0) }, email: { pollImap: stepFn("imap", 0) }, syncGowaHistory: stepFn("history", 0), coach: { run: stepFn("coach", null) }, purgeBotTraces: stepFn("traces", 0) },
+  messaging: { chats: { retryFailedAutomated: stepFn("retry", 0) }, bot: { sweep: stepFn("bot", 0) }, email: { pollImap: stepFn("imap", 0) }, syncGowaHistory: stepFn("history", 0), refreshAvatars: stepFn("avatars", 0), coach: { run: stepFn("coach", null) }, purgeBotTraces: stepFn("traces", 0) },
   invoiceAccess: { run: stepFn("access", { processed: 0, failed: 0 }), expire: stepFn("expire", 0) },
   ordering: { deliverDueGifts: stepFn("gifts", 0), kaspiWatch: { check: stepFn("kaspi watch", null) } },
   notifications: { lifecycle: { run: stepFn("lifecycle", 0) } },
@@ -72,7 +72,7 @@ describe("scheduler: шаг упал — проход идёт дальше", ()
   it("медленный проход: сертификаты упали — автописьма, чистка outbox, история WhatsApp, разбор бота, чистка его следов и кэша предпросмотров выполняются", async () => {
     failing.add("gifts").add("purge");
     await tick();
-    expect(calls).toEqual(["gifts", "lifecycle", "purge", "notices", "history", "coach", "autofill", "traces", "recordings", "previews"]);
+    expect(calls).toEqual(["gifts", "lifecycle", "purge", "notices", "history", "avatars", "coach", "autofill", "traces", "recordings", "previews"]);
     expect(errors.map((e) => e[0])).toEqual(['[scheduler] step "gifts" failed', '[scheduler] step "outbox purge" failed']);
   });
 

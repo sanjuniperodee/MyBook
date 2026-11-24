@@ -40,6 +40,8 @@ export const crmConversations = pgTable(
     chatId: text("chat_id").notNull(),
     contactName: text("contact_name").notNull().default(""),
     avatarUrl: text("avatar_url"),
+    /** Когда фото профиля WhatsApp последний раз запрашивали у шлюза (infrastructure/chatAvatars.ts); null — ещё ни разу. */
+    avatarCheckedAt: timestamp("avatar_checked_at", { withTimezone: true }),
     clientId: uuid("client_id").references(() => users.id, { onDelete: "set null" }),
     dealId: uuid("deal_id").references(() => crmDeals.id, { onDelete: "set null" }),
     assigneeId: uuid("assignee_id").references(() => users.id, { onDelete: "set null" }),

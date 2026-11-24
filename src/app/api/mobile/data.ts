@@ -16,6 +16,10 @@ import { staffLabel } from "@/shared/domain/staff";
 import { channelLabel as acquisitionChannel, toAttribution } from "@/shared/domain/channels";
 import { dealSourceLabels } from "@/shared/domain/dealSources";
 import { nowMs } from "@/lib/dates";
+import { env } from "@/config/env";
+
+/** Своя ссылка (фото профиля /api/chat-avatar/…) — полным адресом: приложение грузит картинку без адреса сайта. */
+const absolute = (url: string | null) => (url?.startsWith("/") ? `${env.appUrl}${url}` : url);
 
 /**
  * Данные для мобильного приложения продажника: те же выборки и правила видимости, что у страниц «Чаты» и «Сделки»,
@@ -55,7 +59,7 @@ export async function mobileChatList(staff: Staff, filter: ChatFilterId, q?: str
       title: convTitle(staff, c),
       channel: c.channel,
       channelLabel: channelLabel(c.channel),
-      avatarUrl: c.avatarUrl,
+      avatarUrl: absolute(c.avatarUrl),
       lastMessageAt: c.lastMessageAt?.toISOString() ?? null,
       preview: c.lastMessageText,
       unread: c.unread,
@@ -114,7 +118,7 @@ export async function mobileChatDetail(staff: Staff, id: string, limit = 50) {
       title: convTitle(staff, conv),
       channel: conv.channel,
       channelLabel: channelLabel(conv.channel),
-      avatarUrl: conv.avatarUrl,
+      avatarUrl: absolute(conv.avatarUrl),
       status: conv.status,
       unread: conv.unread,
       assigneeId: conv.assigneeId,

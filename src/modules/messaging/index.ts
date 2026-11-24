@@ -6,6 +6,8 @@ import { channelTransport, crmBotSettings, crmNotifier, gowaMediaGateway, proces
 import { ChatView } from "./infrastructure/chatView";
 import { EmailChannel, type EmailSettingKey, type MailTransport } from "./infrastructure/email";
 import { GOWA_PAGE_LIMIT, GowaClient, verifyGowaSignature, type GowaConfig, type GowaWebhook } from "./infrastructure/gowa";
+import { chatAvatarDeps, readChatAvatar } from "./infrastructure/chatAvatars";
+import { refreshChatAvatars } from "./application/chatAvatars";
 import { GOWA_CHANNEL, gowaCatchUpRange, gowaJid, isGowaPersonalJid, parseGowaHistory } from "./domain/gowa";
 import { WazzupClient } from "./infrastructure/wazzup";
 import { CatalogService } from "./application/catalog";
@@ -540,6 +542,30 @@ export class MessagingModule {
       if (!page.chats.length || offset >= page.total) break;
     }
     return { chats, withClients, imported };
+  }
+
+  /**
+   * Фото профиля клиентов WhatsApp (планировщик — порция за проход; вебхук — первые фото новых чатов): только через свой
+   * шлюз и пока номер магазина привязан. Возвращает, сколько фото появилось или сменилось.
+   */
+  async refreshAvatars(limit = 100): Promise<number> {
+    if ((await this.deps.whatsappSettings.provider()) !== "gowa") return 0;
+    if (!(await this.gowa.cachedStatus().catch(() => null))?.loggedIn) return 0;
+    return refreshChatAvatars(chatAvatarDeps(this.gowa), limit);
+  }
+
+  #avatarsKickedAt = 0;
+  /** После входящего: фото новых чатов — сразу, а не через 15 минут планировщика; не чаще раза в 30 с, в фоне. */
+  async kickAvatars(): Promise<void> {
+    const now = Date.now();
+    if (now - this.#avatarsKickedAt < 30_000) return;
+    this.#avatarsKickedAt = now;
+    await this.refreshAvatars(5).catch((err) => console.error("[chat-avatars]", err));
+  }
+
+  /** Файл фото профиля по подписанной ссылке (/api/chat-avatar/<файл>). */
+  avatarFile(file: string) {
+    return readChatAvatar(file);
   }
 
   /**

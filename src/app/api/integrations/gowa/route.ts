@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { parseGowaCall, parseGowaChange, parseGowaWebhook } from "@/modules/messaging/domain/gowa";
 import { container } from "@/server/container";
 
@@ -31,6 +31,8 @@ export async function POST(req: Request) {
       if (call) await telephony.whatsapp.incoming(call);
     }
     for (const m of messages) await messaging.chats.ingest(m, { anyWhatsappChannel: true });
+    // Новый клиент написал — его фото профиля WhatsApp появится в чате сразу (после ответа шлюзу).
+    if (messages.some((m) => !m.isEcho)) after(() => messaging.kickAvatars());
     for (const s of statuses) await messaging.chats.applyStatus(s);
     // Правки и «удалить для всех», сделанные в WhatsApp (клиентом или с телефона магазина).
     if (edit) await messaging.chats.applyExternalEdit(edit);
