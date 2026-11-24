@@ -99,6 +99,7 @@ export const cabinetHandlers: Pick<Handlers, "cabinetShelf" | "cabinetBook" | "c
       whereToStart: m.editor.whereToStart,
       tips: [...(h.blank ? m.editor.blank.tips : h.kind === "autobiography" ? m.editor.life.tips : m.editor.tips)],
       tipsNote: h.kind === "autobiography" ? m.editor.life.recordedNote : null,
+      preview: h.preview,
     };
   },
 

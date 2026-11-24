@@ -148,6 +148,8 @@ export const CabinetBook = z
     whereToStart: z.string(),
     tips: z.array(z.string()),
     tipsNote: z.string().nullable(),
+    /** Макет и 3D-книга — всегда на виду: подпись вкладки в ленте книги и кнопки под обложкой, адрес сайта. */
+    preview: z.object({ href: z.string(), tab: z.string(), cta: z.string() }),
   })
   .register(schemas, { id: "CabinetBook" });
 

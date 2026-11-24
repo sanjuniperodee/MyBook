@@ -2,7 +2,7 @@
 
 import { Link, useLocalePathname, useMessages } from "@/i18n/client";
 import { Fragment, useEffect, useRef, useState, ViewTransition } from "react";
-import { LayoutGrid, Mail, SlidersHorizontal } from "lucide-react";
+import { Box, LayoutGrid, Mail, SlidersHorizontal } from "lucide-react";
 import { cn } from "@/lib/class-names";
 import { bookNavAction } from "./nav-action";
 import { stepHref, type BookNav, type StepKey, type StepStatus } from "./book-nav";
@@ -131,6 +131,12 @@ export function BookTabs({ bookId, nav: initial, kind }: { bookId: string; nav: 
             })}
           </ol>
           <span aria-hidden className="mx-1.5 my-auto h-5 w-px shrink-0 bg-line-strong sm:ml-auto" />
+          {/* Макет и 3D-книга — на виду всегда, на любом шаге: посмотреть книгу такой, какой её напечатают. */}
+          <Link href={`${base}/preview`} aria-current={pathname.startsWith(`${base}/preview`) ? "page" : undefined} className={tab(pathname.startsWith(`${base}/preview`))}>
+            <Box className={cn("size-4", pathname.startsWith(`${base}/preview`) ? "text-wine" : "text-wine/80")} strokeWidth={1.8} aria-hidden />
+            {t.previewTab}
+            {pathname.startsWith(`${base}/preview`) ? <Indicator /> : null}
+          </Link>
           <div role="group" aria-label={t.extrasAria} className="flex items-stretch">
             {(
               [

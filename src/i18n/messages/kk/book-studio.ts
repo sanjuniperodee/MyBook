@@ -9,6 +9,9 @@ export const bookStudio: typeof ru = {
     groups: { write: "Жазу", photos: "Фото", design: "Безендіру", order: "Тапсырыс беру" },
     designSwitch: { aria: "Нені безендіреміз", cover: "Мұқаба", pages: "Беттер" },
     extrasAria: "Хаттар мен баптаулар",
+    /** Макет и 3D-книга — всегда на виду: вкладка в ленте книги и кнопка под обложкой в обзоре. */
+    previewTab: "Макет және 3D",
+    previewCta: "Макет пен 3D-кітапты көру",
     letters: "Хаттар",
     settings: "Баптаулар",
     state: { done: "дайын", partial: "жұмыста", todo: "басталмаған", attention: "түзету керек" },

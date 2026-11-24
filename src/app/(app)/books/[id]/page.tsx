@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Link } from "@/i18n/client";
 import { OpenBookLink } from "@/components/motion/OpenBookLink";
-import { ChevronRight, CircleAlert, Mail, MessageCircle, PenLine, TriangleAlert } from "lucide-react";
+import { Box, ChevronRight, CircleAlert, Mail, MessageCircle, PenLine, TriangleAlert } from "lucide-react";
 import { requireUser } from "@/server/auth";
 import { getAccessibleBook } from "@/server/books";
 import { Book3D } from "@/components/cover/Book3D";
@@ -108,6 +108,11 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
           <div className="min-w-0 lg:mt-9">
             <h1 className="font-serif text-[28px] leading-[1.08] font-medium text-balance sm:text-4xl lg:text-[40px]">{book.title}</h1>
             {book.subtitle ? <p className="mt-1 font-serif text-lg text-muted italic lg:mt-2 lg:text-xl">{book.subtitle}</p> : null}
+            {/* Макет и 3D-книга — на виду с первого дня, а не только перед заказом. */}
+            <Link href={`/books/${book.id}/preview`} prefetch className="btn btn-outline btn-sm mt-3 lg:mt-5">
+              <Box className="size-4 text-wine" aria-hidden />
+              {nv.previewCta}
+            </Link>
           </div>
         </header>
 

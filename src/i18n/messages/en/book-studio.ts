@@ -15,6 +15,9 @@ export const bookStudio: typeof ru = {
     groups: { write: "Write", photos: "Photos", design: "Design", order: "Order" },
     designSwitch: { aria: "What are we designing", cover: "Cover", pages: "Pages" },
     extrasAria: "Letters and settings",
+    /** Макет и 3D-книга — всегда на виду: вкладка в ленте книги и кнопка под обложкой в обзоре. */
+    previewTab: "Proof & 3D",
+    previewCta: "See the proof and 3D book",
     letters: "Letters",
     settings: "Settings",
     /** For screen readers: the state of a step (colour is not the only cue). */

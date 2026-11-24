@@ -12389,6 +12389,26 @@
               "string",
               "null"
             ]
+          },
+          "preview": {
+            "type": "object",
+            "properties": {
+              "href": {
+                "type": "string"
+              },
+              "tab": {
+                "type": "string"
+              },
+              "cta": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "href",
+              "tab",
+              "cta"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
@@ -12416,7 +12436,8 @@
           "help",
           "whereToStart",
           "tips",
-          "tipsNote"
+          "tipsNote",
+          "preview"
         ],
         "additionalProperties": false
       },

@@ -11,6 +11,9 @@ export const bookStudio: typeof ru = {
     groups: { write: "Yozish", photos: "Suratlar", design: "Bezash", order: "Buyurtma berish" },
     designSwitch: { aria: "Nimani bezaymiz", cover: "Muqova", pages: "Sahifalar" },
     extrasAria: "Xatlar va sozlamalar",
+    /** Макет и 3D-книга — всегда на виду: вкладка в ленте книги и кнопка под обложкой в обзоре. */
+    previewTab: "Maket va 3D",
+    previewCta: "Maket va 3D-kitobni ko‘rish",
     letters: "Xatlar",
     settings: "Sozlamalar",
     /** Ekran o‘qigich uchun: qadam holati (rang — yagona belgi emas). */

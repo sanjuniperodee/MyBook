@@ -235,6 +235,8 @@ export async function bookHub(book: Book, locale: Locale, m: Messages) {
     needs,
     hasErrors,
     deadline: editable ? hubDeadline(book.occasion, book.occasionDate, stats.answered, m) : null,
+    // Макет и 3D-книга — на виду всегда: вкладка в ленте книги и кнопка под обложкой (сайт и приложение).
+    preview: { href: `${base}/preview`, tab: nv.previewTab, cta: nv.previewCta },
   };
 }
 

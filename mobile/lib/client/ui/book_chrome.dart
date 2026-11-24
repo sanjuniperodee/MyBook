@@ -225,8 +225,12 @@ class StepTabs extends StatelessWidget {
     required this.steps,
     required this.active,
     required this.onTap,
+    this.preview,
   });
   final List<BookStep> steps;
+
+  /// «Макет и 3D» — всегда на виду после шагов (как лента книги сайта); ключ 'preview', подпись с сервера.
+  final String? preview;
 
   /// 'hub' — обзор, иначе ключ шага.
   final String active;
@@ -302,6 +306,17 @@ class StepTabs extends StatelessWidget {
           steps[i].label,
         ),
       );
+    }
+    if (preview != null) {
+      items.add(
+        Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Container(width: 1, height: 22, color: c.border),
+          ),
+        ),
+      );
+      items.add(tab('preview', Icon(LucideIcons.box, size: 18, color: c.brand), preview!));
     }
     return Container(
       height: 52,

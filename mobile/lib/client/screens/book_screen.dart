@@ -235,7 +235,9 @@ class _BookScreenState extends State<BookScreen> {
                 StepTabs(
                   steps: _steps(h),
                   active: 'hub',
+                  preview: h.preview.tab,
                   onTap: (k) {
+                    if (k == 'preview') _preview();
                     if (k == 'write') _write(null);
                     if (k == 'photos') _photos();
                     if (k == 'design') _cover();
@@ -258,7 +260,7 @@ class _BookScreenState extends State<BookScreen> {
                         Enter(
                           key: const ValueKey('title'),
                           i: 0,
-                          child: _BookTitle(h: h, book: _book),
+                          child: _BookTitle(h: h, book: _book, onPreview: _preview),
                         ),
                         if (h.card != null) ...[
                           const SizedBox(height: 26),
@@ -314,9 +316,12 @@ class _BookScreenState extends State<BookScreen> {
 
 /// Книга: объёмная обложка слева от названия (на телефоне — как в шапке штаба сайта).
 class _BookTitle extends StatelessWidget {
-  const _BookTitle({required this.h, required this.book});
+  const _BookTitle({required this.h, required this.book, required this.onPreview});
   final v1api.CabinetBook h;
   final Book3DController book;
+
+  /// «Смотреть макет и 3D-книгу» — под названием, на виду с первого дня (как в обзоре сайта).
+  final VoidCallback onPreview;
 
   @override
   Widget build(BuildContext context) {
@@ -355,6 +360,23 @@ class _BookTitle extends StatelessWidget {
                   ).copyWith(fontStyle: FontStyle.italic, color: c.textMuted),
                 ),
               ],
+              const SizedBox(height: 12),
+              Material(
+                color: c.surfaceRaised,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Cab.ctl), side: BorderSide(color: c.border)),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(Cab.ctl),
+                  onTap: onPreview,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(LucideIcons.box, size: 16, color: c.brand),
+                      const SizedBox(width: 8),
+                      Flexible(child: Text(h.preview.cta, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500))),
+                    ]),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
