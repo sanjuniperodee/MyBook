@@ -144,7 +144,7 @@ describe("режим и откат без выкатки", () => {
 describe("маршрутизация", () => {
   it("/files/* переписывается на mybook-files, видео не обрывается через 30 с", async () => {
     const rewrites = await nextConfig.rewrites!();
-    expect(rewrites).toMatchObject({ beforeFiles: [{ source: "/files/:token", destination: expect.stringMatching(/^http:\/\/127\.0\.0\.1:\d+\/files\/:token$/) }] });
+    expect((rewrites as { beforeFiles: { source: string; destination: string }[] }).beforeFiles).toContainEqual({ source: "/files/:token", destination: expect.stringMatching(/^http:\/\/127\.0\.0\.1:\d+\/files\/:token$/) });
     expect(nextConfig.experimental?.proxyTimeout).toBeGreaterThanOrEqual(60 * 60 * 1000);
   });
 

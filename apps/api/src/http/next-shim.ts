@@ -1,0 +1,64 @@
+/**
+ * next/headers, next/server и next/navigation для процесса mybook-api (alias в scripts/build-api.mjs). Общий код сайта
+ * (server/auth, server/access, i18n) читает заголовки и cookie через них — здесь они берутся из текущего запроса
+ * (http/context.ts), поэтому вход, права и язык работают так же, как в Next. Ставить cookie API не умеет: сессия
+ * отдаётся токеном в теле ответа (Authorization: Bearer).
+ */
+import { currentContext } from "./context";
+
+function cookieMap(): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const part of (currentContext().request.headers.get("cookie") ?? "").split(";")) {
+    const i = part.indexOf("=");
+    if (i > 0) map.set(part.slice(0, i).trim(), decodeURIComponent(part.slice(i + 1).trim()));
+  }
+  return map;
+}
+
+const readOnly = (name: string) => () => {
+  throw new Error(`cookies().${name}() недоступен в mybook-api: сессия — токеном в ответе`);
+};
+
+export async function headers(): Promise<Headers> {
+  return currentContext().request.headers;
+}
+
+export async function cookies() {
+  const map = cookieMap();
+  return {
+    get: (name: string) => (map.has(name) ? { name, value: map.get(name)! } : undefined),
+    getAll: () => [...map].map(([name, value]) => ({ name, value })),
+    has: (name: string) => map.has(name),
+    set: readOnly("set"),
+    delete: readOnly("delete"),
+  };
+}
+
+/** Задача после ответа (runInBackground): выполняется, когда ответ отправлен. */
+export function after(task: () => unknown) {
+  currentContext().afterResponse.push(task);
+}
+
+export async function connection() {}
+
+const unavailable = (name: string) => () => {
+  throw new Error(`${name}() недоступен в mybook-api`);
+};
+export const draftMode = unavailable("draftMode");
+export const redirect = unavailable("redirect");
+export const permanentRedirect = unavailable("permanentRedirect");
+export const notFound = unavailable("notFound");
+export const forbidden = unavailable("forbidden");
+export const unauthorized = unavailable("unauthorized");
+export const useRouter = unavailable("useRouter");
+export const usePathname = unavailable("usePathname");
+export const useSearchParams = unavailable("useSearchParams");
+export const userAgent = unavailable("userAgent");
+export const RedirectType = { push: "push", replace: "replace" };
+
+export class NextRequest extends Request {}
+export class NextResponse extends Response {
+  static json(data: unknown, init?: ResponseInit) {
+    return Response.json(data, init);
+  }
+}

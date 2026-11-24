@@ -54,7 +54,13 @@ const nextConfig: NextConfig = {
   // Файлы хранилища по подписанной ссылке сайта — Go-сервису mybook-files на 127.0.0.1 (services/files, пилот G3,
   // src/server/files-service.ts, режим redirect). Строка nginx из docs/microservices/06-operations.md отдаёт их мимо Next.
   async rewrites() {
-    return { beforeFiles: [{ source: "/files/:token", destination: `http://127.0.0.1:${Number(process.env.FILES_PORT) || 3050}/files/:token` }] };
+    return {
+      beforeFiles: [
+        { source: "/files/:token", destination: `http://127.0.0.1:${Number(process.env.FILES_PORT) || 3050}/files/:token` },
+        // API v1 (ADR 0012, apps/api) — процесс mybook-api; на проде nginx отдаёт /api/v1/ ему напрямую, мимо Next.
+        { source: "/api/v1/:path*", destination: `http://127.0.0.1:${Number(process.env.API_PORT) || 3060}/api/v1/:path*` },
+      ],
+    };
   },
   async headers() {
     return [

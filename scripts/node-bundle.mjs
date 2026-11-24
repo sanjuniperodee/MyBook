@@ -1,0 +1,55 @@
+// Общая сборка серверных процессов в один ESM-файл рядом с server.js релиза (.next/standalone): mybook-worker
+// (build-worker.mjs) и mybook-api (build-api.mjs). Тяжёлые и нативные пакеты (serverExternalPackages из next.config) не
+// вшиваются — берутся из node_modules релиза; остальное — в бандле, потому что standalone-сборка кладёт в node_modules
+// только то, что Next оставил внешним.
+import { build } from "esbuild";
+import { existsSync } from "node:fs";
+import path from "node:path";
+import { asciiBundle } from "./ascii-bundle.mjs";
+
+export const EXTERNAL = ["@react-pdf/renderer", "sharp", "pdf-lib", "hyphen", "pg", "archiver", "hunspell-asm", "heic-decode", "libheif-js", "react", "react-dom"];
+
+/** Собрать entry в .next/standalone/<name>.mjs; nextShim — чем заменить next/server, next/headers, next/navigation. */
+export async function bundleNodeProcess({ name, entry, nextShim }) {
+  const out = path.join(".next", "standalone", `${name}.mjs`);
+  if (!existsSync(path.dirname(out))) {
+    console.error(`${name}: нет .next/standalone — сначала next build`);
+    process.exit(1);
+  }
+  await build({
+    entryPoints: [entry],
+    outfile: out,
+    bundle: true,
+    platform: "node",
+    format: "esm",
+    target: "node22",
+    jsx: "automatic",
+    tsconfig: "tsconfig.json",
+    external: EXTERNAL,
+    alias: {
+      "server-only": "./scripts/empty-module.mjs",
+      "react/jsx-runtime": "./scripts/pdf-worker-jsx.mjs",
+      "next/server": nextShim,
+      "next/headers": nextShim,
+      "next/navigation": nextShim,
+    },
+    // require, __filename и __dirname — для CommonJS-пакетов, вшитых в ESM-файл.
+    banner: {
+      js: [
+        'import { createRequire as __mbCreateRequire } from "node:module";',
+        'import { fileURLToPath as __mbFileURLToPath } from "node:url";',
+        'import { dirname as __mbDirname } from "node:path";',
+        "const require = __mbCreateRequire(import.meta.url);",
+        "const __filename = __mbFileURLToPath(import.meta.url);",
+        "const __dirname = __mbDirname(__filename);",
+      ].join(" "),
+    },
+    // Без пробелов и комментариев (имена функций те же — в журналах ошибок видно, где упало): исходник бандла V8 держит
+    // в куче строкой, а русские комментарии делали её двухбайтной — ~30 МБ на 15 МБ файла (замер G4, perf.md).
+    // Откат — MYBOOK_WORKER_MINIFY=off; экранирование не-ASCII (scripts/ascii-bundle.mjs) — MYBOOK_ASCII_BUNDLE=off.
+    minifyWhitespace: process.env.MYBOOK_WORKER_MINIFY !== "off",
+    logLevel: "warning",
+  });
+  asciiBundle(out);
+  console.log(`${name}: ${out}`);
+}

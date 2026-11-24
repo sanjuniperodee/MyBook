@@ -124,13 +124,19 @@ has_worker() {
 has_files() {
   node -e 'process.exit(require("./deploy/ecosystem.config.cjs").apps.some((a) => a.name === "mybook-files") ? 0 : 1)'
 }
+# mybook-api (API v1, ADR 0012) — из релиза, если там есть api.mjs и он не выключен MYBOOK_API=off.
+has_api() {
+  node -e 'process.exit(require("./deploy/ecosystem.config.cjs").apps.some((a) => a.name === "mybook-api") ? 0 : 1)'
+}
 pm2_apply() {
   pm2 delete mybook >/dev/null 2>&1 || true
   pm2 delete mybook-worker >/dev/null 2>&1 || true
   pm2 delete mybook-files >/dev/null 2>&1 || true
+  pm2 delete mybook-api >/dev/null 2>&1 || true
   pm2 start deploy/ecosystem.config.cjs --only mybook
   if has_worker; then pm2 start deploy/ecosystem.config.cjs --only mybook-worker; fi
   if has_files; then pm2 start deploy/ecosystem.config.cjs --only mybook-files; fi
+  if has_api; then pm2 start deploy/ecosystem.config.cjs --only mybook-api; fi
   pm2 save
 }
 
@@ -218,6 +224,11 @@ fi
 # mybook-files не ответил — выкатку не ломает: сайт сам отдаёт файлы, пока сервис не жив (src/server/files-service.ts).
 if has_files; then
   if curl -fsS -m 3 "http://127.0.0.1:${FILES_PORT:-3050}/healthz" >/dev/null 2>&1; then echo "✓ mybook-files отвечает"; else echo "⚠ mybook-files не отвечает — файлы отдаёт сайт. Логи: pm2 logs mybook-files --nostream --lines 50"; fi
+fi
+# mybook-api не ответил — выкатку не ломает: сайт работает без него, его маршруты (/api/v1) — пока только у приложения.
+if has_api; then
+  ok=""; for _ in $(seq 1 20); do curl -fsS -m 3 "http://127.0.0.1:${MYBOOK_API_PORT:-3060}/api/v1/health" >/dev/null 2>&1 && { ok=1; break; }; sleep 1; done
+  if [ -n "$ok" ]; then echo "✓ mybook-api отвечает"; else echo "⚠ mybook-api не отвечает. Логи: pm2 logs mybook-api --nostream --lines 50"; fi
 fi
 # Основная версия отвечает — запасная больше не нужна.
 kill "$SMOKE_PID" 2>/dev/null || true
