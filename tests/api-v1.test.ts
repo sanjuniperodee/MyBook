@@ -42,6 +42,12 @@ describe("контракт", () => {
     for (const [file, text] of Object.entries(generated())) expect(readFileSync(file, "utf8"), file).toBe(text);
   });
 
+  it("Dart: необязательное поле с null — в наборе nulls (обнулить), обязательное с null — всегда в JSON", () => {
+    const dart = generated()["mobile/lib/api/mybook_api.g.dart"];
+    expect(dart).toContain("if (questionId != null || nulls.contains('questionId')) 'questionId'");
+    expect(dart).toContain("'anchor': anchor == null ? null : anchor!");
+  });
+
   it("у каждого маршрута есть обработчик, и только у них", () => {
     expect(Object.keys(handlers).sort()).toEqual(Object.keys(v1).sort());
   });

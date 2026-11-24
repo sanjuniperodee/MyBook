@@ -66,21 +66,30 @@ class DartWriter {
     const required = new Set(s.required ?? []);
     const fields = Object.entries(s.properties ?? {}).map(([key, p]) => {
       const t = this.typeOf(p, name + pascal(key));
-      const optional = !required.has(key) && !t.type.endsWith("?");
-      const type = optional ? `${t.type}?` : t.type;
-      const from = optional ? (v: string) => `${v} == null ? null : ${t.from(v)}` : t.from;
-      const to = optional ? (v: string) => `${v} == null ? null : ${t.to(`${v}!`)}` : t.to;
+      const valueNullable = t.type.endsWith("?");
+      const requiredKey = required.has(key);
+      // Необязательное поле — Dart-тип с «?»; «не задано» и null различаются набором nulls (см. ниже).
+      const wrap = !requiredKey && !valueNullable;
+      const type = wrap ? `${t.type}?` : t.type;
+      const from = wrap ? (v: string) => `${v} == null ? null : ${t.from(v)}` : t.from;
+      const value = wrap ? t.to(`${key}!`) : t.to(key);
+      // Обязательное — всегда (и null, если схема его допускает); необязательное — если задано или явно null (nulls).
+      const entry = requiredKey ? `'${key}': ${value}` : valueNullable ? `if (${key} != null || nulls.contains('${key}')) '${key}': ${value}` : `if (${key} != null) '${key}': ${value}`;
       const doc = p.enum ? `  /// ${p.enum.join(" | ")}\n` : p.description ? `  /// ${p.description}\n` : "";
-      return { key, type, from, to, doc, nullable: type.endsWith("?") };
+      return { key, type, from, entry, doc, nullable: type.endsWith("?"), explicitNull: !requiredKey && valueNullable };
     });
+    // Правка частями (PATCH): поле, которое надо обнулить, — в nulls (PhotoPatch(nulls: {'questionId'}) — убрать фото из ответа).
+    const withNulls = fields.some((f) => f.explicitNull);
+    const params = [...fields.map((f) => `${f.nullable ? "" : "required "}this.${f.key}`), ...(withNulls ? ["this.nulls = const {}"] : [])];
     const lines = [
       `class ${name} {`,
       ...fields.map((f) => `${f.doc}  final ${f.type} ${f.key};`),
-      fields.length ? `\n  const ${name}({${fields.map((f) => `${f.nullable ? "" : "required "}this.${f.key}`).join(", ")}});` : `  const ${name}();`,
+      ...(withNulls ? ["  /// Поля, которые отправить как null (иначе пустое необязательное поле не отправляется).", "  final Set<String> nulls;"] : []),
+      params.length ? `\n  const ${name}({${params.join(", ")}});` : `  const ${name}();`,
       "",
       `  factory ${name}.fromJson(Map<String, dynamic> json) => ${name}(${fields.map((f) => `${f.key}: ${f.from(`json['${f.key}']`)}`).join(", ")});`,
       "",
-      `  Map<String, dynamic> toJson() => {${fields.map((f) => (f.nullable ? `if (${f.key} != null) '${f.key}': ${f.to(f.key)}` : `'${f.key}': ${f.to(f.key)}`)).join(", ")}};`,
+      `  Map<String, dynamic> toJson() => {${fields.map((f) => f.entry).join(", ")}};`,
       "}",
     ];
     this.classes.set(name, lines.join("\n"));
