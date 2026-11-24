@@ -120,4 +120,13 @@ describe("приложение", () => {
     expect(res.status).toBe(404);
     expect(await res.json()).toMatchObject({ code: "bookNotFound" });
   });
+
+  it("виды книг: каталог сайта на нужном языке, ответ по контракту (без входа)", async () => {
+    const res = await call(createApp(handlers, fakeAuth(null)), "GET", "/api/v1/themes?locale=kk");
+    expect(res.status).toBe(200);
+    const { themes } = await res.json();
+    const { getThemes } = await import("@/lib/content/themes");
+    expect(themes.map((t: { id: string }) => t.id)).toEqual(getThemes("kk").map((t) => t.id));
+    expect(themes.find((t: { kind: string }) => t.kind === "blank")).toMatchObject({ recipient: "optional" });
+  });
 });

@@ -19,6 +19,16 @@ export function orderStatusLabel(s: string, locale: Locale = "ru", printed = tru
 /** Печатный ли тариф заказа (неизвестный — как печатный: старые тарифы печатались). */
 export const isPrintedPlan = (plan: string) => getPlan(plan)?.printed ?? true;
 
+/** Заказ книги для полки: последний, но отменённый не заслоняет действующий (заказы — от новых к старым). */
+export function lastOrderPerBook<T extends { bookId: string; status: string }>(orders: readonly T[]): Map<string, T> {
+  const last = new Map<string, T>();
+  for (const o of orders) {
+    const seen = last.get(o.bookId);
+    if (!seen || (seen.status === "cancelled" && o.status !== "cancelled")) last.set(o.bookId, o);
+  }
+  return last;
+}
+
 /** Тон значка статуса (DESIGN.md §3): статусные пары токенов, а не палитра — тёмная тема работает сама. */
 export type OrderStatusTone = "warning" | "success" | "info" | "accent" | "neutral" | "danger";
 export const orderStatusTone: Record<OrderStatus, OrderStatusTone> = {

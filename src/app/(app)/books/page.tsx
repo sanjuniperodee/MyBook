@@ -9,7 +9,7 @@ import { formatDate, nowMs } from "@/lib/dates";
 import { deadlineFor, getOccasion } from "@/lib/occasions";
 import { getLocale, getMessages } from "@/i18n/server";
 import { AgreementCard } from "@/components/AgreementCard";
-import { isPrintedPlan } from "@/modules/ordering/ui/status";
+import { isPrintedPlan, lastOrderPerBook } from "@/modules/ordering/ui/status";
 import { PageHead } from "../_components/PageHead";
 import { FirstBook, HeroBook, ShelfCard, type ShelfBook } from "./BooksShelf";
 
@@ -40,12 +40,7 @@ export default async function BooksPage() {
 
   // Книги в работе — первыми (свежие выше), заказанные — после: «Продолжить писать» относится к первой.
   const sorted = [...rows].sort((a, b) => Number(a.book.status !== "draft") - Number(b.book.status !== "draft"));
-  // Заказ книги для полки: последний, но отменённый не заслоняет действующий (список идёт от новых к старым).
-  const lastOrder = new Map<string, (typeof orders)[number]>();
-  for (const o of orders) {
-    const seen = lastOrder.get(o.bookId);
-    if (!seen || (seen.status === "cancelled" && o.status !== "cancelled")) lastOrder.set(o.bookId, o);
-  }
+  const lastOrder = lastOrderPerBook(orders);
 
   // Следующий раздел без ответа — как «Следующий вопрос» на странице книги; ищем только у начатых книг в работе.
   const nextSection = new Map<string, string>();

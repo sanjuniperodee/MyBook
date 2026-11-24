@@ -1,20 +1,60 @@
 /**
- * Книги клиента: список, книга для редактора, автосохранение ответа. Доступ — как у сайта (apiBook/apiViewer: владелец
- * или сотрудник с правом, «только свои»), модель редактора — та же editorModel, что у страницы вопросов.
+ * Книги клиента: виды книг, создание, список, книга для редактора, автосохранение ответа. Доступ — как у сайта
+ * (apiBook/apiViewer: владелец или сотрудник с правом, «только свои»); модель редактора — та же editorModel, что у
+ * страницы вопросов; создание — та же схема мастера и BookService.start, что у server action сайта.
  */
 import type { z } from "zod";
-import type { BookSummary, Question } from "@mybook/contracts";
+import type { BookSummary, OrderBrief, Photo, Question, Theme } from "@mybook/contracts";
+import { createBookSchema, startBookInput } from "@/lib/book/create-book-schema";
+import { isLocale } from "@/i18n/config";
+import { getLocale, getMessages } from "@/i18n/server";
 import { bookKind } from "@/lib/content/kinds";
+import { getThemes } from "@/lib/content/themes";
+import type { ThemeDef } from "@/lib/content/types";
 import { editorModel } from "@/lib/book/editor-data";
-import type { EditorQuestion } from "@/lib/book/editor-model";
+import type { EditorPhoto, EditorQuestion } from "@/lib/book/editor-model";
+import { photoUrl } from "@/lib/urls";
 import { isBookEditableBy } from "@/modules/authoring";
+import { isPrintedPlan, lastOrderPerBook } from "@/modules/ordering/ui/status";
 import { apiBook, apiViewer } from "@/server/api";
 import { container } from "@/server/container";
+import { maxPhotos } from "@/server/photoLimit";
 import type { Handlers } from "../app";
 
-type UserBookRow = Awaited<ReturnType<ReturnType<typeof container>["authoring"]["queries"]["userBooks"]>>[number];
+type Queries = ReturnType<typeof container>;
+type UserBookRow = Awaited<ReturnType<Queries["authoring"]["queries"]["userBooks"]>>[number];
+type UserOrder = Awaited<ReturnType<Queries["ordering"]["queries"]["userOrders"]>>[number];
 
-const toBookSummary = (r: UserBookRow): z.output<typeof BookSummary> => ({
+const toTheme = (t: ThemeDef): z.output<typeof Theme> => ({
+  id: t.id,
+  kind: t.kind,
+  recipient: t.recipient,
+  name: t.name,
+  short: t.short,
+  description: t.description,
+  emoji: t.emoji,
+  recipientLabel: t.recipientLabel ?? null,
+  recipientPlaceholder: t.recipientPlaceholder ?? null,
+  recipientGender: t.recipientGender ?? null,
+  recipientGenderChoice: t.recipientGenderChoice ?? false,
+  defaultRecipientGender: t.defaultRecipientGender,
+  titleSuggestions: t.titleSuggestions,
+});
+
+const toOrderBrief = (o: UserOrder): z.output<typeof OrderBrief> => ({ id: o.id, number: o.number, status: o.status, printed: isPrintedPlan(o.plan) });
+
+const toPhoto = (p: EditorPhoto): z.output<typeof Photo> => ({
+  id: p.id,
+  width: p.width,
+  height: p.height,
+  caption: p.caption,
+  layout: p.layout,
+  questionId: p.questionId,
+  thumbUrl: photoUrl(p.id, "thumb"),
+  url: photoUrl(p.id, "view"),
+});
+
+const toBookSummary = (r: UserBookRow, order: UserOrder | undefined): z.output<typeof BookSummary> => ({
   id: r.book.id,
   title: r.book.title,
   theme: r.book.theme,
@@ -26,6 +66,9 @@ const toBookSummary = (r: UserBookRow): z.output<typeof BookSummary> => ({
   total: r.total,
   words: r.words,
   photos: r.photos,
+  coverTemplate: r.book.coverTemplate,
+  coverPhotoUrl: r.book.coverPhotoId ? photoUrl(r.book.coverPhotoId, "thumb") : null,
+  order: order ? toOrderBrief(order) : null,
 });
 
 const toQuestion = (q: EditorQuestion): z.output<typeof Question> => ({
@@ -43,22 +86,38 @@ const toQuestion = (q: EditorQuestion): z.output<typeof Question> => ({
   pageBreak: q.pageBreak ?? false,
 });
 
-export const bookHandlers: Pick<Handlers, "booksList" | "bookEditor" | "questionSave"> = {
+export const bookHandlers: Pick<Handlers, "themesList" | "bookCreate" | "booksList" | "bookEditor" | "questionSave"> = {
+  async themesList({ input }) {
+    const locale = input.locale ?? (await getLocale());
+    return { themes: getThemes(isLocale(locale) ? locale : "ru").map(toTheme) };
+  },
+
+  async bookCreate({ user, input }) {
+    const m = await getMessages();
+    const parsed = createBookSchema(m.books.wizard.errors).safeParse(input.body);
+    if (!parsed.success) return Response.json({ error: parsed.error.issues[0].message, code: "badData" }, { status: 400 });
+    const book = await container().authoring.books.start(user!.id, startBookInput(parsed.data));
+    return { id: book.id };
+  },
+
   async booksList({ user }) {
-    const rows = await container().authoring.queries.userBooks(user!.id);
-    return { books: rows.map(toBookSummary) };
+    const [rows, orders] = await Promise.all([container().authoring.queries.userBooks(user!.id), container().ordering.queries.userOrders(user!.id)]);
+    const last = lastOrderPerBook(orders);
+    return { books: rows.map((r) => toBookSummary(r, last.get(r.book.id))) };
   },
 
   async bookEditor({ req, input }) {
     const { book, viewer } = await apiBook(req, input.bookId);
     const q = container().authoring.queries;
-    const [rows, chapters, photos, letters] = await Promise.all([q.questions(book.id), q.chapters(book.id), q.photos(book.id), q.approvedLetters(book.id)]);
+    const [rows, chapters, photos, letters, limit] = await Promise.all([q.questions(book.id), q.chapters(book.id), q.photos(book.id), q.approvedLetters(book.id), maxPhotos()]);
     const model = editorModel(book, rows, chapters, photos, letters);
     return {
       book: { id: book.id, title: book.title, theme: book.theme, status: book.status, language: book.language === "kk" ? "kk" : "ru", kind: bookKind(book.theme) },
       editable: book.status === "draft" && isBookEditableBy(book.userId, viewer),
       chapters: model.chapters,
       questions: model.questions.map(toQuestion),
+      photos: model.photos.map(toPhoto),
+      maxPhotos: limit,
     };
   },
 

@@ -65,13 +65,25 @@ class MybookApi {
     return User.fromJson(json as Map<String, dynamic>);
   }
 
+  /// Виды книг для мастера создания (язык — ?locale=ru|kk)
+  Future<ThemeList> themesList({String? locale}) async {
+    final json = await _send('GET', '/api/v1/themes', query: {if (locale != null) 'locale': '${locale}'});
+    return ThemeList.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Новая книга (мастер создания)
+  Future<CreatedBook> bookCreate({required CreateBookBody body}) async {
+    final json = await _send('POST', '/api/v1/books', body: body.toJson());
+    return CreatedBook.fromJson(json as Map<String, dynamic>);
+  }
+
   /// Мои книги с прогрессом
   Future<BookList> booksList() async {
     final json = await _send('GET', '/api/v1/books');
     return BookList.fromJson(json as Map<String, dynamic>);
   }
 
-  /// Книга для редактора: главы и вопросы с ответами
+  /// Книга для редактора: главы, вопросы с ответами, фото
   Future<BookEditor> bookEditor({required String bookId}) async {
     final json = await _send('GET', '/api/v1/books/${Uri.encodeComponent(bookId)}/editor');
     return BookEditor.fromJson(json as Map<String, dynamic>);
@@ -166,6 +178,88 @@ class SecondFactorBody {
   Map<String, dynamic> toJson() => {'ticket': ticket, 'code': code};
 }
 
+class Theme {
+  final String id;
+  /// gift | autobiography | blank
+  final String kind;
+  /// required | optional | none
+  final String recipient;
+  final String name;
+  final String short;
+  final String description;
+  final String emoji;
+  final String? recipientLabel;
+  final String? recipientPlaceholder;
+  final String? recipientGender;
+  final bool recipientGenderChoice;
+  /// m | f
+  final String defaultRecipientGender;
+  final List<String> titleSuggestions;
+
+  const Theme({required this.id, required this.kind, required this.recipient, required this.name, required this.short, required this.description, required this.emoji, this.recipientLabel, this.recipientPlaceholder, this.recipientGender, required this.recipientGenderChoice, required this.defaultRecipientGender, required this.titleSuggestions});
+
+  factory Theme.fromJson(Map<String, dynamic> json) => Theme(id: json['id'] as String, kind: json['kind'] as String, recipient: json['recipient'] as String, name: json['name'] as String, short: json['short'] as String, description: json['description'] as String, emoji: json['emoji'] as String, recipientLabel: json['recipientLabel'] == null ? null : json['recipientLabel'] as String, recipientPlaceholder: json['recipientPlaceholder'] == null ? null : json['recipientPlaceholder'] as String, recipientGender: json['recipientGender'] == null ? null : json['recipientGender'] as String, recipientGenderChoice: json['recipientGenderChoice'] as bool, defaultRecipientGender: json['defaultRecipientGender'] as String, titleSuggestions: (json['titleSuggestions'] as List).map((e) => e as String).toList());
+
+  Map<String, dynamic> toJson() => {'id': id, 'kind': kind, 'recipient': recipient, 'name': name, 'short': short, 'description': description, 'emoji': emoji, if (recipientLabel != null) 'recipientLabel': recipientLabel == null ? null : recipientLabel!, if (recipientPlaceholder != null) 'recipientPlaceholder': recipientPlaceholder == null ? null : recipientPlaceholder!, if (recipientGender != null) 'recipientGender': recipientGender == null ? null : recipientGender!, 'recipientGenderChoice': recipientGenderChoice, 'defaultRecipientGender': defaultRecipientGender, 'titleSuggestions': titleSuggestions.map((e) => e).toList()};
+}
+
+class ThemeList {
+  final List<Theme> themes;
+
+  const ThemeList({required this.themes});
+
+  factory ThemeList.fromJson(Map<String, dynamic> json) => ThemeList(themes: (json['themes'] as List).map((e) => Theme.fromJson(e as Map<String, dynamic>)).toList());
+
+  Map<String, dynamic> toJson() => {'themes': themes.map((e) => e.toJson()).toList()};
+}
+
+class CreateBookBody {
+  final String theme;
+  /// ru | kk
+  final String language;
+  final String authorName;
+  /// m | f
+  final String authorGender;
+  final String? recipientName;
+  /// m | f
+  final String? recipientGender;
+  final String? recordedBy;
+  final String? firstChapterTitle;
+  final String? dedication;
+  final String? title;
+  final String? occasion;
+  final String? occasionDate;
+
+  const CreateBookBody({required this.theme, required this.language, required this.authorName, required this.authorGender, this.recipientName, this.recipientGender, this.recordedBy, this.firstChapterTitle, this.dedication, this.title, this.occasion, this.occasionDate});
+
+  factory CreateBookBody.fromJson(Map<String, dynamic> json) => CreateBookBody(theme: json['theme'] as String, language: json['language'] as String, authorName: json['authorName'] as String, authorGender: json['authorGender'] as String, recipientName: json['recipientName'] == null ? null : json['recipientName'] as String, recipientGender: json['recipientGender'] == null ? null : json['recipientGender'] as String, recordedBy: json['recordedBy'] == null ? null : json['recordedBy'] as String, firstChapterTitle: json['firstChapterTitle'] == null ? null : json['firstChapterTitle'] as String, dedication: json['dedication'] == null ? null : json['dedication'] as String, title: json['title'] == null ? null : json['title'] as String, occasion: json['occasion'] == null ? null : json['occasion'] as String, occasionDate: json['occasionDate'] == null ? null : json['occasionDate'] as String);
+
+  Map<String, dynamic> toJson() => {'theme': theme, 'language': language, 'authorName': authorName, 'authorGender': authorGender, if (recipientName != null) 'recipientName': recipientName == null ? null : recipientName!, if (recipientGender != null) 'recipientGender': recipientGender == null ? null : recipientGender!, if (recordedBy != null) 'recordedBy': recordedBy == null ? null : recordedBy!, if (firstChapterTitle != null) 'firstChapterTitle': firstChapterTitle == null ? null : firstChapterTitle!, if (dedication != null) 'dedication': dedication == null ? null : dedication!, if (title != null) 'title': title == null ? null : title!, if (occasion != null) 'occasion': occasion == null ? null : occasion!, if (occasionDate != null) 'occasionDate': occasionDate == null ? null : occasionDate!};
+}
+
+class CreatedBook {
+  final String id;
+
+  const CreatedBook({required this.id});
+
+  factory CreatedBook.fromJson(Map<String, dynamic> json) => CreatedBook(id: json['id'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id};
+}
+
+class OrderBrief {
+  final String id;
+  final int number;
+  final String status;
+  final bool printed;
+
+  const OrderBrief({required this.id, required this.number, required this.status, required this.printed});
+
+  factory OrderBrief.fromJson(Map<String, dynamic> json) => OrderBrief(id: json['id'] as String, number: (json['number'] as num).toInt(), status: json['status'] as String, printed: json['printed'] as bool);
+
+  Map<String, dynamic> toJson() => {'id': id, 'number': number, 'status': status, 'printed': printed};
+}
+
 class BookSummary {
   final String id;
   final String title;
@@ -179,12 +273,15 @@ class BookSummary {
   final int total;
   final int words;
   final int photos;
+  final String coverTemplate;
+  final String? coverPhotoUrl;
+  final OrderBrief? order;
 
-  const BookSummary({required this.id, required this.title, required this.theme, required this.status, required this.authorName, required this.recipientName, required this.updatedAt, required this.answered, required this.total, required this.words, required this.photos});
+  const BookSummary({required this.id, required this.title, required this.theme, required this.status, required this.authorName, required this.recipientName, required this.updatedAt, required this.answered, required this.total, required this.words, required this.photos, required this.coverTemplate, this.coverPhotoUrl, this.order});
 
-  factory BookSummary.fromJson(Map<String, dynamic> json) => BookSummary(id: json['id'] as String, title: json['title'] as String, theme: json['theme'] as String, status: json['status'] as String, authorName: json['authorName'] as String, recipientName: json['recipientName'] as String, updatedAt: json['updatedAt'] as String, answered: (json['answered'] as num).toInt(), total: (json['total'] as num).toInt(), words: (json['words'] as num).toInt(), photos: (json['photos'] as num).toInt());
+  factory BookSummary.fromJson(Map<String, dynamic> json) => BookSummary(id: json['id'] as String, title: json['title'] as String, theme: json['theme'] as String, status: json['status'] as String, authorName: json['authorName'] as String, recipientName: json['recipientName'] as String, updatedAt: json['updatedAt'] as String, answered: (json['answered'] as num).toInt(), total: (json['total'] as num).toInt(), words: (json['words'] as num).toInt(), photos: (json['photos'] as num).toInt(), coverTemplate: json['coverTemplate'] as String, coverPhotoUrl: json['coverPhotoUrl'] == null ? null : json['coverPhotoUrl'] as String, order: json['order'] == null ? null : OrderBrief.fromJson(json['order'] as Map<String, dynamic>));
 
-  Map<String, dynamic> toJson() => {'id': id, 'title': title, 'theme': theme, 'status': status, 'authorName': authorName, 'recipientName': recipientName, 'updatedAt': updatedAt, 'answered': answered, 'total': total, 'words': words, 'photos': photos};
+  Map<String, dynamic> toJson() => {'id': id, 'title': title, 'theme': theme, 'status': status, 'authorName': authorName, 'recipientName': recipientName, 'updatedAt': updatedAt, 'answered': answered, 'total': total, 'words': words, 'photos': photos, 'coverTemplate': coverTemplate, if (coverPhotoUrl != null) 'coverPhotoUrl': coverPhotoUrl == null ? null : coverPhotoUrl!, if (order != null) 'order': order == null ? null : order!.toJson()};
 }
 
 class BookList {
@@ -247,17 +344,37 @@ class Chapter {
   Map<String, dynamic> toJson() => {'key': key, 'title': title, 'epigraph': epigraph, 'own': own};
 }
 
+class Photo {
+  final String id;
+  final int width;
+  final int height;
+  final String caption;
+  /// full | bleed | half | grid
+  final String layout;
+  final String? questionId;
+  final String thumbUrl;
+  final String url;
+
+  const Photo({required this.id, required this.width, required this.height, required this.caption, required this.layout, this.questionId, required this.thumbUrl, required this.url});
+
+  factory Photo.fromJson(Map<String, dynamic> json) => Photo(id: json['id'] as String, width: (json['width'] as num).toInt(), height: (json['height'] as num).toInt(), caption: json['caption'] as String, layout: json['layout'] as String, questionId: json['questionId'] == null ? null : json['questionId'] as String, thumbUrl: json['thumbUrl'] as String, url: json['url'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'width': width, 'height': height, 'caption': caption, 'layout': layout, if (questionId != null) 'questionId': questionId == null ? null : questionId!, 'thumbUrl': thumbUrl, 'url': url};
+}
+
 class BookEditor {
   final BookEditorBook book;
   final bool editable;
   final List<Chapter> chapters;
   final List<Question> questions;
+  final List<Photo> photos;
+  final int maxPhotos;
 
-  const BookEditor({required this.book, required this.editable, required this.chapters, required this.questions});
+  const BookEditor({required this.book, required this.editable, required this.chapters, required this.questions, required this.photos, required this.maxPhotos});
 
-  factory BookEditor.fromJson(Map<String, dynamic> json) => BookEditor(book: BookEditorBook.fromJson(json['book'] as Map<String, dynamic>), editable: json['editable'] as bool, chapters: (json['chapters'] as List).map((e) => Chapter.fromJson(e as Map<String, dynamic>)).toList(), questions: (json['questions'] as List).map((e) => Question.fromJson(e as Map<String, dynamic>)).toList());
+  factory BookEditor.fromJson(Map<String, dynamic> json) => BookEditor(book: BookEditorBook.fromJson(json['book'] as Map<String, dynamic>), editable: json['editable'] as bool, chapters: (json['chapters'] as List).map((e) => Chapter.fromJson(e as Map<String, dynamic>)).toList(), questions: (json['questions'] as List).map((e) => Question.fromJson(e as Map<String, dynamic>)).toList(), photos: (json['photos'] as List).map((e) => Photo.fromJson(e as Map<String, dynamic>)).toList(), maxPhotos: (json['maxPhotos'] as num).toInt());
 
-  Map<String, dynamic> toJson() => {'book': book.toJson(), 'editable': editable, 'chapters': chapters.map((e) => e.toJson()).toList(), 'questions': questions.map((e) => e.toJson()).toList()};
+  Map<String, dynamic> toJson() => {'book': book.toJson(), 'editable': editable, 'chapters': chapters.map((e) => e.toJson()).toList(), 'questions': questions.map((e) => e.toJson()).toList(), 'photos': photos.map((e) => e.toJson()).toList(), 'maxPhotos': maxPhotos};
 }
 
 class BookEditorBook {

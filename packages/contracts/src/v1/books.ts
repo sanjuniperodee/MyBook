@@ -1,8 +1,69 @@
-/** Книги клиента в API v1: список, книга для редактора, автосохранение ответа. */
+/** Книги клиента в API v1: виды книг, создание, список, книга для редактора (с фото), автосохранение ответа. */
 import { z } from "zod";
 import { iso, route, schemas, uuid, type RouteDef } from "./core";
 
 export const BookStatus = z.enum(["draft", "ordered"]);
+const Gender = z.enum(["m", "f"]);
+const Locale = z.enum(["ru", "kk"]);
+
+/** Вид книги для мастера создания — как карточки «Какую книгу пишем» на сайте. */
+export const Theme = z
+  .object({
+    id: z.string(),
+    /** gift — подарок, autobiography — о себе, blank — своя книга. */
+    kind: z.enum(["gift", "autobiography", "blank"]),
+    /** Получатель: required — обязателен, optional — по желанию, none — нет. */
+    recipient: z.enum(["required", "optional", "none"]),
+    name: z.string(),
+    short: z.string(),
+    description: z.string(),
+    emoji: z.string(),
+    recipientLabel: z.string().nullable(),
+    recipientPlaceholder: z.string().nullable(),
+    /** Род адресата фиксирован (мама/папа) — иначе null. */
+    recipientGender: Gender.nullable(),
+    recipientGenderChoice: z.boolean(),
+    defaultRecipientGender: Gender,
+    titleSuggestions: z.array(z.string()),
+  })
+  .register(schemas, { id: "Theme" });
+
+export const ThemeList = z.object({ themes: z.array(Theme) }).register(schemas, { id: "ThemeList" });
+
+/** Мастер новой книги. Правила вида (получатель, название своей книги) проверяет сервер — как на сайте. */
+export const CreateBookBody = z
+  .object({
+    theme: z.string(),
+    language: Locale.default("ru"),
+    authorName: z.string().max(60),
+    authorGender: Gender,
+    recipientName: z.string().max(60).optional(),
+    recipientGender: Gender.optional(),
+    /** Автобиография: кто записал. */
+    recordedBy: z.string().optional(),
+    /** Своя книга: название первой главы (пусто — по умолчанию). */
+    firstChapterTitle: z.string().optional(),
+    /** Автобиография: кому посвящаете. */
+    dedication: z.string().optional(),
+    title: z.string().max(80).optional(),
+    occasion: z.string().optional(),
+    /** ГГГГ-ММ-ДД. */
+    occasionDate: z.string().optional(),
+  })
+  .register(schemas, { id: "CreateBookBody" });
+
+export const CreatedBook = z.object({ id: uuid }).register(schemas, { id: "CreatedBook" });
+
+export const OrderBrief = z
+  .object({
+    id: uuid,
+    number: z.number().int(),
+    /** Статус заказа (new, paid, printing, shipped, delivered, cancelled …). */
+    status: z.string(),
+    /** false — электронная версия (печатать нечего). */
+    printed: z.boolean(),
+  })
+  .register(schemas, { id: "OrderBrief" });
 
 export const BookSummary = z
   .object({
@@ -18,6 +79,11 @@ export const BookSummary = z
     total: z.number().int(),
     words: z.number().int(),
     photos: z.number().int(),
+    /** Шаблон обложки и снимок на ней (путь от сайта, с тем же Bearer); нет снимка — null. */
+    coverTemplate: z.string(),
+    coverPhotoUrl: z.string().nullable(),
+    /** Последний заказ книги (отменённый не заслоняет действующий); нет — null. */
+    order: OrderBrief.nullable(),
   })
   .register(schemas, { id: "BookSummary" });
 
@@ -56,6 +122,21 @@ export const Question = z
 
 export const Chapter = z.object({ key: z.string(), title: z.string(), epigraph: z.string(), own: z.boolean() }).register(schemas, { id: "Chapter" });
 
+/** Фото книги в редакторе: место (questionId — у ответа, null — в альбоме), подпись, раскладка, адреса картинок. */
+export const Photo = z
+  .object({
+    id: uuid,
+    width: z.number().int(),
+    height: z.number().int(),
+    caption: z.string(),
+    layout: z.enum(["full", "bleed", "half", "grid"]),
+    questionId: uuid.nullable(),
+    /** Пути от сайта (с тем же Bearer): миниатюра и снимок для просмотра. */
+    thumbUrl: z.string(),
+    url: z.string(),
+  })
+  .register(schemas, { id: "Photo" });
+
 export const BookEditor = z
   .object({
     book: z.object({
@@ -71,6 +152,9 @@ export const BookEditor = z
     editable: z.boolean(),
     chapters: z.array(Chapter),
     questions: z.array(Question),
+    photos: z.array(Photo),
+    /** Сколько фото можно в книге (настройка сайта). */
+    maxPhotos: z.number().int(),
   })
   .register(schemas, { id: "BookEditor" });
 
@@ -94,8 +178,10 @@ export const Saved = z.object({ ok: z.literal(true), updatedAt: iso }).register(
 const BookParams = z.object({ bookId: uuid });
 
 export const booksRoutes = {
+  themesList: route({ method: "GET", path: "/api/v1/themes", auth: "none", tag: "books", summary: "Виды книг для мастера создания (язык — ?locale=ru|kk)", query: z.object({ locale: Locale.optional() }), response: ThemeList }),
+  bookCreate: route({ method: "POST", path: "/api/v1/books", auth: "user", tag: "books", summary: "Новая книга (мастер создания)", body: CreateBookBody, response: CreatedBook }),
   booksList: route({ method: "GET", path: "/api/v1/books", auth: "user", tag: "books", summary: "Мои книги с прогрессом", response: BookList }),
-  bookEditor: route({ method: "GET", path: "/api/v1/books/{bookId}/editor", auth: "user", tag: "books", summary: "Книга для редактора: главы и вопросы с ответами", params: BookParams, response: BookEditor }),
+  bookEditor: route({ method: "GET", path: "/api/v1/books/{bookId}/editor", auth: "user", tag: "books", summary: "Книга для редактора: главы, вопросы с ответами, фото", params: BookParams, response: BookEditor }),
   questionSave: route({
     method: "PATCH",
     path: "/api/v1/books/{bookId}/questions/{questionId}",

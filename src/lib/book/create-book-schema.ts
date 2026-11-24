@@ -52,3 +52,21 @@ export const createBookSchema = (e: WizardErrors) =>
         firstChapterTitle: kind === "blank" ? d.firstChapterTitle : "",
       };
     });
+
+/** Разобранные данные мастера → вход BookService.start (общий для server action сайта и API v1). */
+export function startBookInput(d: z.output<ReturnType<typeof createBookSchema>>) {
+  return {
+    theme: d.theme,
+    language: isLocale(d.language) ? d.language : ("ru" as const),
+    authorName: d.authorName,
+    authorGender: d.authorGender,
+    recipientName: d.recipientName,
+    recipientGender: d.recipientGender,
+    recordedBy: d.recordedBy,
+    firstChapterTitle: d.firstChapterTitle,
+    dedication: d.dedication,
+    title: d.title,
+    occasion: d.occasion || null,
+    occasionDate: d.occasion ? d.occasionDate || null : null,
+  };
+}

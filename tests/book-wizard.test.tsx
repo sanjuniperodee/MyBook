@@ -6,7 +6,7 @@ import { kkClient } from "@/i18n/messages/kk/client";
 import { getCoverTemplate } from "@/lib/book/covers";
 import { coverMeta } from "@/lib/book/covers/meta";
 import { getTheme, getThemes } from "@/lib/content/themes";
-import { createBookSchema } from "@/app/(app)/books/create-book-schema";
+import { createBookSchema } from "@/lib/book/create-book-schema";
 import { NewBookWizard, type WizardTheme } from "@/app/(app)/books/new/NewBookWizard";
 import { hubChapters, sectionHref } from "@/lib/book/hub-model";
 import { share as ruShare } from "@/i18n/messages/ru/letter-share";

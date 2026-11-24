@@ -169,7 +169,94 @@
         "x-auth": "user"
       }
     },
+    "/api/v1/themes": {
+      "get": {
+        "operationId": "themesList",
+        "tags": [
+          "books"
+        ],
+        "summary": "Виды книг для мастера создания (язык — ?locale=ru|kk)",
+        "security": [],
+        "parameters": [
+          {
+            "name": "locale",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ru",
+                "kk"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ThemeList"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "none"
+      }
+    },
     "/api/v1/books": {
+      "post": {
+        "operationId": "bookCreate",
+        "tags": [
+          "books"
+        ],
+        "summary": "Новая книга (мастер создания)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBookBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedBook"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      },
       "get": {
         "operationId": "booksList",
         "tags": [
@@ -207,7 +294,7 @@
         "tags": [
           "books"
         ],
-        "summary": "Книга для редактора: главы и вопросы с ответами",
+        "summary": "Книга для редактора: главы, вопросы с ответами, фото",
         "parameters": [
           {
             "name": "bookId",
@@ -469,6 +556,221 @@
         ],
         "additionalProperties": false
       },
+      "Theme": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "gift",
+              "autobiography",
+              "blank"
+            ]
+          },
+          "recipient": {
+            "type": "string",
+            "enum": [
+              "required",
+              "optional",
+              "none"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "short": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "emoji": {
+            "type": "string"
+          },
+          "recipientLabel": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "recipientPlaceholder": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "recipientGender": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "m",
+                  "f"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "recipientGenderChoice": {
+            "type": "boolean"
+          },
+          "defaultRecipientGender": {
+            "type": "string",
+            "enum": [
+              "m",
+              "f"
+            ]
+          },
+          "titleSuggestions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "recipient",
+          "name",
+          "short",
+          "description",
+          "emoji",
+          "recipientLabel",
+          "recipientPlaceholder",
+          "recipientGender",
+          "recipientGenderChoice",
+          "defaultRecipientGender",
+          "titleSuggestions"
+        ],
+        "additionalProperties": false
+      },
+      "ThemeList": {
+        "type": "object",
+        "properties": {
+          "themes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Theme"
+            }
+          }
+        },
+        "required": [
+          "themes"
+        ],
+        "additionalProperties": false
+      },
+      "CreateBookBody": {
+        "type": "object",
+        "properties": {
+          "theme": {
+            "type": "string"
+          },
+          "language": {
+            "default": "ru",
+            "type": "string",
+            "enum": [
+              "ru",
+              "kk"
+            ]
+          },
+          "authorName": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "authorGender": {
+            "type": "string",
+            "enum": [
+              "m",
+              "f"
+            ]
+          },
+          "recipientName": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "recipientGender": {
+            "type": "string",
+            "enum": [
+              "m",
+              "f"
+            ]
+          },
+          "recordedBy": {
+            "type": "string"
+          },
+          "firstChapterTitle": {
+            "type": "string"
+          },
+          "dedication": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "occasion": {
+            "type": "string"
+          },
+          "occasionDate": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "theme",
+          "language",
+          "authorName",
+          "authorGender"
+        ],
+        "additionalProperties": false
+      },
+      "CreatedBook": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      },
+      "OrderBrief": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "number": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "status": {
+            "type": "string"
+          },
+          "printed": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "status",
+          "printed"
+        ],
+        "additionalProperties": false
+      },
       "BookSummary": {
         "type": "object",
         "properties": {
@@ -520,6 +822,25 @@
             "type": "integer",
             "minimum": -9007199254740991,
             "maximum": 9007199254740991
+          },
+          "coverTemplate": {
+            "type": "string"
+          },
+          "coverPhotoUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "order": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OrderBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -533,7 +854,10 @@
           "answered",
           "total",
           "words",
-          "photos"
+          "photos",
+          "coverTemplate",
+          "coverPhotoUrl",
+          "order"
         ],
         "additionalProperties": false
       },
@@ -695,6 +1019,67 @@
         ],
         "additionalProperties": false
       },
+      "Photo": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "width": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "height": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "caption": {
+            "type": "string"
+          },
+          "layout": {
+            "type": "string",
+            "enum": [
+              "full",
+              "bleed",
+              "half",
+              "grid"
+            ]
+          },
+          "questionId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "thumbUrl": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "width",
+          "height",
+          "caption",
+          "layout",
+          "questionId",
+          "thumbUrl",
+          "url"
+        ],
+        "additionalProperties": false
+      },
       "BookEditor": {
         "type": "object",
         "properties": {
@@ -754,13 +1139,26 @@
             "items": {
               "$ref": "#/components/schemas/Question"
             }
+          },
+          "photos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Photo"
+            }
+          },
+          "maxPhotos": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
           }
         },
         "required": [
           "book",
           "editable",
           "chapters",
-          "questions"
+          "questions",
+          "photos",
+          "maxPhotos"
         ],
         "additionalProperties": false
       },
