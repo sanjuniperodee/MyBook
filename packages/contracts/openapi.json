@@ -137,6 +137,38 @@
         "x-auth": "user"
       }
     },
+    "/api/v1/auth/web-session": {
+      "post": {
+        "operationId": "authWebSession",
+        "tags": [
+          "auth"
+        ],
+        "summary": "Сессия для встроенного браузера: оформление и оплата заказа на сайте (/books/{id}/checkout, /orders/{id})",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebSession"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
+    },
     "/api/v1/me": {
       "get": {
         "operationId": "me",
@@ -2557,6 +2589,32 @@
         "required": [
           "ticket",
           "code"
+        ],
+        "additionalProperties": false
+      },
+      "WebSession": {
+        "type": "object",
+        "properties": {
+          "cookie": {
+            "type": "string"
+          },
+          "token": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          },
+          "baseUrl": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "cookie",
+          "token",
+          "expiresAt",
+          "baseUrl"
         ],
         "additionalProperties": false
       },

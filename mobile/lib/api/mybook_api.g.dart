@@ -73,6 +73,12 @@ class MybookApi {
     return Ok.fromJson(json as Map<String, dynamic>);
   }
 
+  /// Сессия для встроенного браузера: оформление и оплата заказа на сайте (/books/{id}/checkout, /orders/{id})
+  Future<WebSession> authWebSession() async {
+    final json = await _send('POST', '/api/v1/auth/web-session');
+    return WebSession.fromJson(json as Map<String, dynamic>);
+  }
+
   /// Кто вошёл
   Future<User> me() async {
     final json = await _send('GET', '/api/v1/me');
@@ -418,6 +424,19 @@ class SecondFactorBody {
   factory SecondFactorBody.fromJson(Map<String, dynamic> json) => SecondFactorBody(ticket: json['ticket'] as String, code: json['code'] as String);
 
   Map<String, dynamic> toJson() => {'ticket': ticket, 'code': code};
+}
+
+class WebSession {
+  final String cookie;
+  final String token;
+  final String expiresAt;
+  final String baseUrl;
+
+  const WebSession({required this.cookie, required this.token, required this.expiresAt, required this.baseUrl});
+
+  factory WebSession.fromJson(Map<String, dynamic> json) => WebSession(cookie: json['cookie'] as String, token: json['token'] as String, expiresAt: json['expiresAt'] as String, baseUrl: json['baseUrl'] as String);
+
+  Map<String, dynamic> toJson() => {'cookie': cookie, 'token': token, 'expiresAt': expiresAt, 'baseUrl': baseUrl};
 }
 
 class StaffRef {

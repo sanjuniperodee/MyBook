@@ -2,6 +2,7 @@
 import type { z } from "zod";
 import type { Session as SessionDto, User as UserDto } from "@mybook/contracts";
 import { IdentityError } from "@/modules/identity";
+import { env } from "@/config/env";
 import { container } from "@/server/container";
 import { isStaff, sessionToken } from "@/server/auth";
 import { issueTicket, readTicket } from "@/server/mobile-auth";
@@ -40,7 +41,10 @@ async function tooMany(keys: [string, number][]): Promise<Response | null> {
   return null;
 }
 
-export const authHandlers: Pick<Handlers, "authLogin" | "authSecondFactor" | "authLogout" | "me"> = {
+/** Срок сессии встроенного браузера: на день работы, потом приложение попросит новую (как у /api/mobile/web-session). */
+const WEB_SESSION_TTL_MS = 12 * 60 * 60_000;
+
+export const authHandlers: Pick<Handlers, "authLogin" | "authSecondFactor" | "authLogout" | "authWebSession" | "me"> = {
   async authLogin({ input }) {
     const { login, password } = input.body;
     const limited = await tooMany([[`login:${await trustedClientIp()}`, 30], [`login:${login.toLowerCase()}`, 10]]);
@@ -69,6 +73,11 @@ export const authHandlers: Pick<Handlers, "authLogin" | "authSecondFactor" | "au
   async authLogout() {
     await container().identity.auth.logout((await sessionToken()) ?? undefined);
     return { ok: true };
+  },
+
+  async authWebSession({ user }) {
+    const { token, expiresAt } = await container().identity.auth.openCompanionSession(user!.id, WEB_SESSION_TTL_MS);
+    return { cookie: "mb_session", token, expiresAt: expiresAt.toISOString(), baseUrl: env.appUrl };
   },
 
   async me({ user }) {
