@@ -89,13 +89,14 @@ describe("состояние фото главы в строке главы", ()
   const render = (photoRows: ChapterPhotoRows, extra: { blank?: boolean; lines?: Record<string, { noOpenerPhoto?: boolean }> } = {}, messages: typeof ru | typeof kk = ru) =>
     html(createElement(ChaptersEditor, { bookId: "b1", stories: {}, candidates, lines: extra.lines ?? {}, editable: true, onChange: () => {}, photos: photoRows, blank: extra.blank }), messages);
 
-  it("строки: миниатюра выбранного фото, «без фото», «Выбрать фото»; у писем близких кнопки нет", () => {
+  it("строки: миниатюра выбранного фото, «без фото», «Выбрать фото»; у писем близких фото главы — по желанию (Обращение №21)", () => {
     const markup = render(rows(), { lines: { "c:date": { noOpenerPhoto: true } } });
     expect(markup.match(/data-photo-status="chosen"/g)).toHaveLength(1);
     expect(markup).toContain("/api/photos/p1?size=thumb");
-    expect(markup.match(/data-photo-status="none"/g)).toHaveLength(1);
+    // «без фото» — у главы, где автор так решил, и у писем без фото: им «нужно выбрать» не пишем.
+    expect(markup.match(/data-photo-status="none"/g)).toHaveLength(2);
     expect(markup.match(/data-photo-status="needed"/g)).toHaveLength(1);
-    expect(markup.match(/data-photo-status=/g)).toHaveLength(3);
+    expect(markup.match(/data-photo-status=/g)).toHaveLength(4);
     const t = text(markup);
     expect(t).toContain("Фото главы · 2");
     expect(t).toContain("Фото главы · 1 · без фото");
@@ -104,7 +105,7 @@ describe("состояние фото главы в строке главы", ()
 
   it("оформление без фото главы: «нет фото в начале» у каждой главы", () => {
     const t = text(render(rows({ openerDesign: false })));
-    expect(t.match(/нет фото в начале/g)).toHaveLength(3);
+    expect(t.match(/нет фото в начале/g)).toHaveLength(4);
     expect(t).not.toContain("Выбрать фото");
   });
 
@@ -120,7 +121,7 @@ describe("состояние фото главы в строке главы", ()
     expect(markup).not.toContain("<input");
     expect(text(markup)).not.toContain("Убрать главу");
     expect(text(markup)).toContain("Первое свидание");
-    expect(markup.match(/data-photo-status=/g)).toHaveLength(3);
+    expect(markup.match(/data-photo-status=/g)).toHaveLength(4);
   });
 
   it("по-казахски", () => {

@@ -1,7 +1,7 @@
 import { coverPhotoSlots, getCoverTemplate } from "@/lib/book/covers";
 import { emptyImageLayers, parseCoverBack, parseCoverDesign } from "@/lib/book/cover-design";
 import { getFormat, print } from "@/lib/book/formats";
-import { effectiveDpi, isChapterPhotoKey, photoAreaMm, type BookContent } from "@/lib/book/layout";
+import { effectiveDpi, isChapterPhotoKey, LETTERS_CHAPTER, photoAreaMm, type BookContent } from "@/lib/book/layout";
 import { photoLosses, WARN_LOSS } from "@/lib/book/photo-loss";
 import { tocKey, type TocLines } from "@/lib/book/toc";
 import { bookKind, progressOf } from "@/lib/content/kinds";
@@ -67,7 +67,8 @@ function photoPlaceIssues(book: ReadinessBook, content: ReadinessContent, locale
   const out: ReadinessIssue[] = [];
   if (content.interior.opener.photo) {
     const lines = book.tocLines ?? {};
-    const missing = content.chapters.filter((ch) => isChapterPhotoKey(ch.key) && !ch.openerPhoto && !lines[tocKey.chapter(ch.key)]?.noOpenerPhoto);
+    // Письма близких без фото — как всегда было (их снимок начала по желанию автора), не предупреждение.
+    const missing = content.chapters.filter((ch) => isChapterPhotoKey(ch.key) && ch.key !== LETTERS_CHAPTER && !ch.openerPhoto && !lines[tocKey.chapter(ch.key)]?.noOpenerPhoto);
     const first = missing[0]?.items[0]?.id;
     if (missing.length) out.push({ level: "warning", text: t.missingOpeners(missing.length, m.catalog.interiors[content.interior.id]?.name ?? content.interior.id), href: first ? `${base}/questions?s=${first}` : `${base}/questions` });
   }

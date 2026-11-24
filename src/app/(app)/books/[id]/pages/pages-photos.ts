@@ -3,6 +3,7 @@
  * при смене оформления, состояние фото в строке главы и места фото под текущее оформление, пока книга не пересобрана.
  * Место фото — только из photoPlaceOf (R6): ключи глав здесь не сравниваются.
  */
+import { LETTERS_CHAPTER } from "@/lib/book/layout";
 import type { InteriorDesign } from "@/lib/book/interiors";
 import type { PhotoPlace } from "@/lib/book/photo-place";
 import { GALLERY_KEY, type TocLines } from "@/lib/book/toc";
@@ -54,7 +55,8 @@ export function chapterPhotoStatus(chapterKey: string, places: ReadonlyMap<strin
   if (!openerDesign) return { kind: "noDesign" };
   const opener = openerOf(places, chapterKey);
   if (opener) return { kind: "chosen", photoId: opener.id, auto: opener.auto };
-  return noOpenerPhotoOf(tocLines, chapterKey) ? { kind: "none" } : { kind: "needed" };
+  // Письма близких открываются фото по желанию автора (с Обращения №21): без фото — не «нужно выбрать».
+  return noOpenerPhotoOf(tocLines, chapterKey) || chapterKey === LETTERS_CHAPTER ? { kind: "none" } : { kind: "needed" };
 }
 
 /** Сколько фото печатается в главе: фото главы и фото после неё. */
@@ -75,7 +77,8 @@ export function designNotice(opts: { design: Pick<InteriorDesign, "opener">; fro
   const { design, from, changed, data, places, tocLines } = opts;
   const shape = openerShapeOf(design);
   if (!shape) return changed && openerShapeOf(from) && markedOpeners(data.photos, places) > 0 ? { kind: "leaving" } : null;
-  const printed = photoChapters(data.chapters.filter((c) => c.printed));
+  // Письма близких — фото главы по желанию: в счёт «глав с фото» и в «следующую без фото» не идут.
+  const printed = photoChapters(data.chapters.filter((c) => c.printed && c.key !== LETTERS_CHAPTER));
   const chosen = printed.filter((c) => openerOf(places, c.key));
   // Глав с текстом пока нет — считать нечего.
   if (!printed.length || (!changed && chosen.length === printed.length)) return null;

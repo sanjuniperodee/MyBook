@@ -264,8 +264,11 @@ export interface LetterLike {
 
 export const LETTERS_CHAPTER = "__letters";
 
-/** Ключ главы, у которой может быть фото начала: не альбом, не «не печатается» и не письма близких. */
-export const isChapterPhotoKey = (key: string | null | undefined): key is string => !!key && key !== GALLERY_KEY && key !== PHOTO_OFF_KEY && key !== LETTERS_CHAPTER;
+/**
+ * Ключ главы, у которой могут быть фото главы (снимок начала и страницы фото после неё): не альбом и не «не печатается».
+ * Письма близких — тоже глава: с 25.11.2026 (Обращение №21) у неё свои фото, как у остальных (раньше их не было).
+ */
+export const isChapterPhotoKey = (key: string | null | undefined): key is string => !!key && key !== GALLERY_KEY && key !== PHOTO_OFF_KEY;
 
 /** У кого бывает фото на начальной полосе (photos.opener): у настоящей главы и у альбома в конце. */
 export const isOpenerPhotoKey = (key: string | null | undefined): key is string => key === GALLERY_KEY || isChapterPhotoKey(key);
@@ -349,6 +352,10 @@ export function assembleBookContent(
   // Фото, которым автор выбрал главу, — в ней (глава убрана — в той, куда влиты её истории), даже снимок обложки.
   const hostOf = new Map<string, ContentChapter>();
   for (const ch of chapters) for (const key of [ch.key, ...(ch.folded ?? []).map((f) => f.key)]) hostOf.set(key, ch);
+  // Письма близких — последняя глава, она добавляется ниже; её фото (снимок начала и страницы после писем) выбраны
+  // автором и в раздачу по правилу книги не идут. Писем в книге нет — фото раздаются, как фото без места.
+  const letterItems = letters.filter((l) => l.text.trim());
+  const letterPhotos = letterItems.length ? photos.filter((p) => p.chapter === LETTERS_CHAPTER && !placedInAnswers.has(p.id)) : [];
   const chosen = photos.filter((p) => p.chapter && hostOf.has(p.chapter) && !placedInAnswers.has(p.id));
   for (const p of chosen) hostOf.get(p.chapter!)!.photos.push(p);
   // Альбом в конце и «не печатается» — места, выбранные автором, при любых правилах: альбом печатается и при «не печатать»,
@@ -357,7 +364,7 @@ export function assembleBookContent(
   // Снимки обложки сами внутрь не идут: по прежним правилам — только основное фото обложки (даже у шаблона без фото),
   // по правилам 2 — все снимки, которые обложка и оборот печатают (coverPhotos; выбранные, но не видные — внутри).
   const onCover = rev2 ? coverAndBackPhotoIds(book) : new Set([book.coverPhotoId]);
-  const innerPhotos = photos.filter((p) => !onCover.has(p.id) && !placedInAnswers.has(p.id) && !chosen.includes(p) && p.chapter !== GALLERY_KEY && p.chapter !== PHOTO_OFF_KEY);
+  const innerPhotos = photos.filter((p) => !onCover.has(p.id) && !placedInAnswers.has(p.id) && !chosen.includes(p) && !letterPhotos.includes(p) && p.chapter !== GALLERY_KEY && p.chapter !== PHOTO_OFF_KEY);
   let galleryPhotos: PhotoItem[] = [];
   // «Не печатать» (none): фото вне историй в книгу не идут — ни по главам, ни в конце (у обложки свои снимки).
   if (book.photoPlacement === "none") galleryPhotos = [];
@@ -401,16 +408,18 @@ export function assembleBookContent(
     }
   }
 
-  // Письма близких — последняя глава, после распределения фото.
-  const letterItems = letters.filter((l) => l.text.trim());
+  // Письма близких — последняя глава, после распределения фото. Её фото — выбранные автором (letterPhotos): снимок начала —
+  // отмеченный, если глава открывается фото (как у остальных глав по правилам 2), остальные — страницы фото после писем.
   if (letterItems.length) {
+    const opener = interior.opener.photo && !chapterStart && rev2 ? letterPhotos.find((p) => p.opener) : undefined;
     chapters.push({
       key: LETTERS_CHAPTER,
       number: chapters.length + 1,
       title: texts.letters.title,
       epigraph: texts.letters.epigraph,
       items: letterItems.map((l) => ({ id: l.id, heading: printableText(l.relation.trim() ? `${l.authorName.trim()}, ${l.relation.trim()}` : l.authorName.trim()), answer: printableText(l.text.trim()) })),
-      photos: [],
+      photos: letterPhotos.filter((p) => p !== opener),
+      ...(opener ? { openerPhoto: opener } : {}),
     });
     foldChapters(chapters, book.tocLines ?? {}, LETTERS_CHAPTER);
   }

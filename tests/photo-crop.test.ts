@@ -84,6 +84,30 @@ describe("фото по главам: выбор автора", () => {
     expect(p.snapshot().chapter).toBeNull();
   });
 
+  // Обращение №21 (заказ 118): фото начала главы «Письма близких» — как у остальных глав; остальные её фото — после писем.
+  it("письма близких: снимок начала и страницы фото после писем — выбранные автором; без писем — по правилу книги", () => {
+    const fb = fixtureBook("cinema", "a5", "ru");
+    const book = { ...fb.bundle.book, layoutRev: 2 };
+    expect(fb.bundle.letters?.length).toBeTruthy();
+    const free = fb.bundle.photos.filter((p) => !p.questionId && p.id !== book.coverPhotoId);
+    // С конца списка: первые свободные снимки печатает обложка-мозаика — внутрь они не идут.
+    const [opener, after] = free.slice(-2);
+    const photos = fb.bundle.photos.map((p) => (p.id === opener.id ? { ...p, chapter: "__letters", opener: true } : p.id === after.id ? { ...p, chapter: "__letters", opener: false } : p));
+    const c = buildBookContent(book, fb.bundle.questions, photos.map(toPhotoItem), [], 2026, fb.bundle.letters);
+    const letters = c.chapters.at(-1)!;
+    expect(letters.key).toBe("__letters");
+    expect(letters.openerPhoto?.id).toBe(opener.id);
+    expect(letters.photos.map((p) => p.id)).toEqual([after.id]);
+    // Каждое фото — в книге один раз.
+    const all = c.chapters.flatMap((x) => [...(x.openerPhoto ? [x.openerPhoto.id] : []), ...x.photos.map((p) => p.id)]);
+    expect(all.filter((id) => id === opener.id || id === after.id)).toHaveLength(2);
+    // Писем нет — эти фото идут по правилу книги, как фото без места (по главам или в альбом), а не теряются.
+    const none = buildBookContent(book, fb.bundle.questions, photos.map(toPhotoItem), [], 2026, []);
+    expect(none.chapters.some((x) => x.key === "__letters")).toBe(false);
+    const printed = [...none.chapters.flatMap((x) => [...(x.openerPhoto ? [x.openerPhoto] : []), ...x.photos]), ...none.galleryPhotos].map((p) => p.id);
+    expect(printed).toEqual(expect.arrayContaining([opener.id, after.id]));
+  });
+
   it("сборка: выбранное фото — в своей главе и снимком её начала; остальные — по правилу книги", () => {
     const fb = fixtureBook("luna", "a5", "ru");
     const base = buildBookContent(fb.bundle.book, fb.bundle.questions, fb.bundle.photos.map(toPhotoItem), [], 2026, fb.bundle.letters);
