@@ -24,6 +24,8 @@ const payRoute = vi.fn(async (req: Request, ctx: { params: Promise<{ id: string 
 });
 vi.mock("@/app/api/admin/orders/[id]/payments/route", () => ({ POST: (req: Request, ctx: { params: Promise<{ id: string }> }) => payRoute(req, ctx) }));
 vi.mock("@/app/api/admin/orders/[id]/refunds/route", () => ({ POST: vi.fn() }));
+const createClientAction = vi.fn<(state: unknown, form: FormData) => Promise<Record<string, unknown>>>(async () => ({ error: "Клиент с таким телефоном или почтой уже есть" }));
+vi.mock("@/app/admin/clients/new/actions", () => ({ createClientAction: (s: unknown, f: FormData) => createClientAction(s, f) }));
 const updateOrderAction = vi.fn<(state: unknown, form: FormData) => Promise<{ ok?: string; error?: string }>>(async () => ({ ok: "Сохранено" }));
 vi.mock("@/app/admin/actions", async (orig) => ({ ...(await orig<object>()), updateOrderAction: (s: unknown, f: FormData) => updateOrderAction(s, f) }));
 
@@ -145,5 +147,39 @@ describe("CRM v1: деньги и доставка заказа", () => {
     const res = await call(app, "PATCH", `/api/v1/crm/orders/${ORDER}/delivery`, { status: "shipped", trackingNumber: "KZ123456789" });
     expect(await res.json()).toEqual({ ok: true, message: "Сохранено" });
     expect(Object.fromEntries(updateOrderAction.mock.calls[0][1])).toEqual({ orderId: ORDER, status: "shipped", trackingNumber: "KZ123456789" });
+  });
+});
+
+describe("CRM v1: новый клиент со сделкой и предоплатой", () => {
+  const app = createApp(handlers, auth(true));
+
+  it("поля — в форму сайта (сделка галочкой, подарки — её полями), отказ — текстом", async () => {
+    const res = await call(app, "POST", "/api/v1/crm/clients", {
+      name: "Насиба",
+      phone: "87750000000",
+      channel: "instagram",
+      deal: { plan: "hardcover", count: 2, agreed: 28000, prepaid: 20000, payForm: "Kaspi Gold", gifts: ["delivery"], comment: "к юбилею" },
+    });
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "Клиент с таким телефоном или почтой уже есть", code: "refused" });
+    expect(Object.fromEntries(createClientAction.mock.calls[0][1])).toEqual({
+      name: "Насиба",
+      phone: "87750000000",
+      channel: "instagram",
+      createDeal: "on",
+      plan: "hardcover",
+      count: "2",
+      agreed: "28000",
+      prepaid: "20000",
+      payForm: "Kaspi Gold",
+      comment: "к юбилею",
+      giftDelivery: "on",
+    });
+  });
+
+  it("без сделки — без её полей", async () => {
+    createClientAction.mockClear();
+    await call(app, "POST", "/api/v1/crm/clients", { name: "Асель", phone: "87001112233", channel: "call" });
+    expect(Object.fromEntries(createClientAction.mock.calls[0][1])).toEqual({ name: "Асель", phone: "87001112233", channel: "call" });
   });
 });

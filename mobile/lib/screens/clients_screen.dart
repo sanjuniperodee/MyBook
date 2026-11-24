@@ -12,6 +12,7 @@ import '../models/work.dart';
 import '../ui/avatar.dart';
 import '../ui/kit.dart';
 import '../ui/tokens.dart';
+import 'new_client_screen.dart';
 import 'client_screen.dart';
 
 /// Клиенты: поиск по имени, e-mail и телефону, «Мои», сортировка. Нажатие открывает карточку клиента.
@@ -114,6 +115,19 @@ class _ClientsScreenState extends State<ClientsScreen> {
                 Row(children: [
                   Expanded(child: Text('Клиенты', style: AppText.largeTitle(context))),
                   if (_loaded) Text('$_total', style: AppText.sub(context)),
+                  // Новый клиент с доступом, сделкой и предоплатой (как «Новый клиент» в CRM).
+                  if (context.read<AuthState>().staff?.can('clients.create') == true)
+                    RoundIconButton(
+                      icon: LucideIcons.userPlus,
+                      size: 44,
+                      iconSize: 22,
+                      color: c.brand,
+                      tooltip: 'Новый клиент',
+                      onTap: () async {
+                        await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const NewClientScreen()));
+                        _reload();
+                      },
+                    ),
                 ]),
                 const SizedBox(height: 12),
                 AppSearchField(

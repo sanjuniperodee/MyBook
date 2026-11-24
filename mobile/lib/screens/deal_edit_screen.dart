@@ -210,7 +210,7 @@ class _DealEditScreenState extends State<DealEditScreen> {
                       ),
                     FormSection(title: 'Основное', children: [
                       LabeledField(label: 'Название', controller: _title, enabled: f.canEdit, onChanged: (_) => _touch()),
-                      LabeledField(label: 'Контактное лицо', controller: _contact, enabled: f.canEdit, onChanged: (_) => _touch()),
+                      LabeledField(label: 'Контактное лицо', controller: _contact, enabled: f.canEdit, autocorrect: false, capitalization: TextCapitalization.words, onChanged: (_) => _touch()),
                       LabeledField(
                         label: 'Сумма, ₸',
                         controller: _amount,
@@ -238,7 +238,7 @@ class _DealEditScreenState extends State<DealEditScreen> {
                     if (f.phone != null)
                       FormSection(title: 'Контакты', children: [
                         LabeledField(label: 'Телефон', controller: _phone, keyboard: TextInputType.phone, enabled: f.canEdit && f.canEditContacts, onChanged: (_) => _touch()),
-                        LabeledField(label: 'Почта', controller: _email, keyboard: TextInputType.emailAddress, enabled: f.canEdit && f.canEditContacts, onChanged: (_) => _touch()),
+                        LabeledField(label: 'Почта', controller: _email, keyboard: TextInputType.emailAddress, autocorrect: false, enabled: f.canEdit && f.canEditContacts, onChanged: (_) => _touch()),
                         const FormLabel('Дополнительные номера', hint: 'По ним сделку узнают в звонках и WhatsApp'),
                         PhonesEditor(
                           phones: _extraPhones,

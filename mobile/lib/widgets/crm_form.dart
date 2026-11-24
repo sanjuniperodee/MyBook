@@ -42,8 +42,11 @@ class FormLabel extends StatelessWidget {
 
 /// Текстовое поле формы с подписью.
 class LabeledField extends StatelessWidget {
-  const LabeledField({super.key, required this.label, required this.controller, this.hint, this.keyboard, this.enabled = true, this.onChanged, this.lines = 1, this.note});
+  const LabeledField({super.key, required this.label, required this.controller, this.hint, this.keyboard, this.enabled = true, this.onChanged, this.lines = 1, this.note, this.autocorrect = true, this.capitalization});
   final String label;
+  /// Имена и почта — без автозамены: iOS меняет «Asel» на «Adele».
+  final bool autocorrect;
+  final TextCapitalization? capitalization;
   final TextEditingController controller;
   final String? hint;
   final String? note;
@@ -64,7 +67,9 @@ class LabeledField extends StatelessWidget {
             minLines: lines,
             maxLines: lines == 1 ? 1 : lines + 4,
             onChanged: onChanged,
-            textCapitalization: keyboard == null ? TextCapitalization.sentences : TextCapitalization.none,
+            autocorrect: autocorrect,
+            enableSuggestions: autocorrect,
+            textCapitalization: capitalization ?? (keyboard == null ? TextCapitalization.sentences : TextCapitalization.none),
             decoration: formInput(context, hint: hint),
           ),
         ]),

@@ -65,6 +65,12 @@ class ApiClient {
     return (data: _decode(res), etag: res.headers['etag']);
   }
 
+  /// GET без разбора ответа и с долгим ожиданием: сборка файла на сервере (?prepare=1 отвечает 204, когда файл готов).
+  Future<http.Response> getRaw(String path, {Map<String, String?>? query, Duration timeout = const Duration(seconds: 30)}) {
+    final req = http.Request('GET', uri(path, query))..headers.addAll(headers);
+    return _raw(_http.send(req), timeout: timeout);
+  }
+
   Future<dynamic> post(String path, {Object? body, Map<String, String?>? query}) => _send('POST', path, body: body, query: query);
 
   Future<dynamic> patch(String path, {Object? body}) => _send('PATCH', path, body: body);

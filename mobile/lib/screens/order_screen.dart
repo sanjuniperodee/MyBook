@@ -11,6 +11,7 @@ import '../ui/tokens.dart';
 import '../api/mybook_api.g.dart' as v1api;
 import '../core/v1.dart';
 import 'crm_web_screen.dart';
+import 'order_files.dart';
 import 'order_money.dart';
 import 'orders_screen.dart' show orderStatusColor;
 
@@ -130,7 +131,7 @@ class _OrderScreenState extends State<OrderScreen> {
           leading: RoundIconButton(icon: LucideIcons.chevronLeft, iconSize: 28, color: c.brandDeep, onTap: () => Navigator.of(context).pop(_changed)),
           title: Text(_number == 0 ? 'Заказ' : 'Заказ №$_number', style: AppText.headline(context)),
           actions: [
-            // Файлы типографии, правка получателя и доставки — карточка CRM внутри приложения.
+            // Перегенерация файлов, правка получателя и доставки — карточка CRM внутри приложения.
             RoundIconButton(icon: LucideIcons.externalLink, size: 44, iconSize: 20, color: c.text, tooltip: 'Открыть в CRM', onTap: () async {
               await openCrm(context, '/admin/orders/${widget.orderId}', title: _number == 0 ? 'Заказ' : 'Заказ №$_number');
               _changed = true;
@@ -189,6 +190,7 @@ class _OrderScreenState extends State<OrderScreen> {
                       if (o['comment'] != null) _row(context, 'Комментарий', o['comment'] as String),
                       if (o['giftNote'] != null) _row(context, 'Открытка', '«${o['giftNote']}»'),
                     ]),
+                  OrderFilesSection(orderId: widget.orderId, number: _number),
                   if ((o['events'] as List).isNotEmpty)
                     _group(context, 'Журнал', [
                       for (final e in (o['events'] as List).cast<Map<String, dynamic>>())

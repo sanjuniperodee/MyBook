@@ -19,23 +19,12 @@ import { POST as payRoute } from "@/app/api/admin/orders/[id]/payments/route";
 import { POST as refundRoute } from "@/app/api/admin/orders/[id]/refunds/route";
 import type { Handlers } from "../../app";
 import { refused } from "./common";
+import { siteFileRoute } from "./site-route";
 
 const METHOD: Record<string, string> = { manual: "перевод или вручную", kaspi: "Kaspi", cloudpayments: "карта (CloudPayments)" };
 
 /** Итог действия карточки заказа ({ ok } / { error }) — ответом контракта. */
 const done = (r: { ok?: string; error?: string }, fallback = "Сохранено") => (r.error ? refused(r.error) : { ok: true as const, message: r.ok ?? fallback });
-
-/**
- * Маршрут денег сайта с теми же полями формы: сумма, дата, чек. Вход и права он проверяет сам (заголовки текущего
- * запроса); его ответ с ошибкой — как есть, успех — текстом для сотрудника.
- */
-async function siteMoney(route: typeof payRoute, req: Request, orderId: string, fields: Record<string, string | undefined>, file: Blob | undefined) {
-  const form = new FormData();
-  for (const [k, v] of Object.entries(fields)) if (v !== undefined && v !== "") form.set(k, v);
-  if (file) form.set("file", file, (file as File).name || "receipt");
-  const res = await route(new Request(req.url, { method: "POST", headers: { authorization: req.headers.get("authorization") ?? "" }, body: form }), { params: Promise.resolve({ id: orderId }) });
-  return { res, data: res.ok ? ((await res.clone().json()) as Record<string, unknown>) : null };
-}
 
 export const crmOrderHandlers: Pick<
   Handlers,
@@ -98,14 +87,14 @@ export const crmOrderHandlers: Pick<
   },
 
   async crmOrderPay({ req, input }) {
-    const { res, data } = await siteMoney(payRoute, req, input.orderId, { amount: input.amount, paidAt: input.paidAt, note: input.note, payForm: input.payForm, requestKey: input.requestKey }, input.files[0]);
+    const { res, data } = await siteFileRoute(payRoute, req, input.orderId, { amount: input.amount, paidAt: input.paidAt, note: input.note, payForm: input.payForm, requestKey: input.requestKey }, input.files[0]);
     if (!data) return res;
     const overpaid = Number(data.overpaid ?? 0);
     return { ok: true, message: data.settled ? `Оплата записана, заказ оплачен${overpaid > 0 ? ` — переплата ${overpaid.toLocaleString("ru-RU")} ₸` : ""}` : "Оплата записана" };
   },
 
   async crmOrderRefund({ req, input }) {
-    const { res, data } = await siteMoney(refundRoute, req, input.orderId, { amount: input.amount, note: input.note, requestKey: input.requestKey }, input.files[0]);
+    const { res, data } = await siteFileRoute(refundRoute, req, input.orderId, { amount: input.amount, note: input.note, requestKey: input.requestKey }, input.files[0]);
     if (!data) return res;
     return { ok: true, message: "Возврат записан" };
   },

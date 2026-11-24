@@ -9,6 +9,7 @@ import '../screens/deals_screen.dart';
 import '../screens/orders_screen.dart';
 import '../screens/overview_screen.dart';
 import '../screens/tasks_screen.dart';
+import '../screens/tickets_screen.dart';
 import 'auth.dart';
 
 /// Раздел приложения: подпись, значок, право, без которого его нет, и сам экран.
@@ -27,6 +28,8 @@ final appSections = <String, AppSection>{
   'chats': AppSection('chats', 'Чаты', LucideIcons.messageCircle, (s) => s.can('chats.view'), () => const ChatsScreen()),
   'tasks': AppSection('tasks', 'Задачи', LucideIcons.squareCheck, (_) => true, () => const TasksScreen()),
   // Доски задач (как «Задачи → Доски» в CRM) и календарь задач — API v1 boards.
+  // Обращения в поддержку (свои; руководителю — все) — API v1 crmSupport*.
+  'support': AppSection('support', 'Обращения', LucideIcons.lifeBuoy, (_) => true, () => const TicketsScreen()),
   'boards': AppSection('boards', 'Доски задач', LucideIcons.squareKanban, (_) => true, () => const BoardsScreen()),
   'deals': AppSection('deals', 'Сделки', LucideIcons.handshake, (s) => s.can('deals.view'), () => const DealsScreen()),
   'clients': AppSection('clients', 'Клиенты', LucideIcons.users, (s) => s.can('clients.view'), () => const ClientsScreen()),
@@ -82,7 +85,6 @@ class CrmWebSection {
 
 /// Боковая панель CRM (src/components/admin/AdminNav.tsx) без разделов, которые в приложении есть экранами.
 const crmWebSections = <CrmWebSection>[
-  CrmWebSection('Сегодня', '/admin/support', 'Обращения', LucideIcons.lifeBuoy),
   CrmWebSection('Продажи', '/admin/deals', 'Воронка (доска и фильтры)', LucideIcons.kanban, ['deals.view']),
   CrmWebSection('Продажи', '/admin/catalog', 'Каталог WhatsApp', LucideIcons.shoppingBag, ['catalog.manage']),
   CrmWebSection('Выпуск', '/admin/board', 'Канбан заказов', LucideIcons.kanban, ['orders.view']),
