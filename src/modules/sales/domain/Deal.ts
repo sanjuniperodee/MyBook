@@ -197,6 +197,17 @@ export class Deal extends AggregateRoot<DealProps> {
     if (!this.props.routeTried.includes(assigneeId)) this.props.routeTried = [...this.props.routeTried, assigneeId];
   }
 
+  /**
+   * Круг прошёл всех на смене, и никто не взял заявку: её получает наименее загруженный на смене, и она считается
+   * принятой — «никто не взял» больше не повторяется (24.11: по одной заявке руководителям приходило по 150 уведомлений).
+   * Клиент без ответа остаётся под правилом «клиент ждёт ответа».
+   */
+  autoAssign(assigneeId: string, now: Date, minutes: number) {
+    this.route(assigneeId, now);
+    this.props.unsorted = false;
+    this.note(`Заявку никто не взял за ${minutes} мин — назначена автоматически наименее загруженному на смене`, null);
+  }
+
   /** Связать с заказом клиента (и обновить сумму). */
   attachOrder(orderId: string | null, amount?: number) {
     if (orderId) this.props.orderId = orderId;

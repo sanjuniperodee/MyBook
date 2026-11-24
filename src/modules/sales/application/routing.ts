@@ -75,7 +75,7 @@ export class LeadRoutingService {
     return 1;
   }
 
-  /** Ответственный не взял заявку за N минут — следующему, кому она ещё не доставалась; обошла всех — руководителям. */
+  /** Ответственный не взял заявку за N минут — следующему, кому она ещё не доставалась; обошла всех — наименее загруженному на смене (одно сводное руководителям). */
   private async reroute(dealId: string, before: Date, minutes: number): Promise<number> {
     const result = await this.uow.run(async () => {
       await this.router.lock();
@@ -86,19 +86,29 @@ export class LeadRoutingService {
       if (this.router.workMinutesBetween && (await this.router.workMinutesBetween(deal.assignedAt, this.clock.now())) < minutes) return null;
       const prev = deal.assigneeId;
       const next = await this.router.next([...deal.routeTried, prev]);
+      let auto: string | null = null;
       if (next) {
         deal.route(next, this.clock.now());
         deal.note(`Заявка передана следующему по кругу: ответственный не взял её за ${minutes} мин`, null);
+      } else if ((auto = await this.router.next([]))) {
+        // Круг прошёл всех: наименее загруженному на смене, заявка принята за него — больше она по кругу не ходит.
+        deal.autoAssign(auto, this.clock.now(), minutes);
       } else {
-        // Некому передать: остаётся у нынешнего, отсчёт заново — руководитель получит напоминание через N минут снова.
+        // На смене нет никого, кому можно отдать: остаётся у нынешнего, отсчёт заново. Повтор руководителю не копится —
+        // непрочитанное «никто не взял» обновляется (notifyThread).
         deal.restartRouteTimer(this.clock.now());
       }
       await this.deals.save(deal);
       this.uow.track(deal);
-      return { deal, prev, next };
+      return { deal, prev, next, auto };
     });
     if (!result) return 0;
-    const { deal, prev, next } = result;
+    const { deal, prev, next, auto } = result;
+    if (auto) {
+      await this.notifier.notify([auto], { kind: "deal", title: `Вам назначена заявка Д${deal.number}`, body: `${deal.title} — никто на смене не взял её за ${minutes} мин, ответьте клиенту`, link: link(deal) });
+      await this.notifier.owners({ kind: "sla", title: `Заявку Д${deal.number} никто не взял`, body: `${deal.title} — назначена автоматически наименее загруженному на смене`, link: link(deal) });
+      return 1;
+    }
     if (!next) {
       await this.notifier.owners({ kind: "sla", title: `Заявку Д${deal.number} никто не взял`, body: `${deal.title} — все на смене получали её и не ответили за ${minutes} мин. Назначьте вручную.`, link: link(deal) });
       return 0;

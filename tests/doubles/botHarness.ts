@@ -117,6 +117,8 @@ export function setup(
     findById: async (id) => convs.get(id) ?? null,
     findByChat: async (ch, chId, chat) => [...convs.values()].find((c) => c.channel === ch && c.channelId === chId && c.chatId === chat) ?? null,
     create: async (i) => {
+      // Как уникальный индекс в базе: чат с этим номером уже заведён параллельным вызовом — null (upsert перечитает).
+      if ([...convs.values()].some((c) => c.channel === i.channel && c.channelId === i.channelId && c.chatId === i.chatId)) return null;
       const c: Conv = { ...i, id: `c${++seq}`, dealId: null, assigneeId: i.assigneeId ?? null, botStep: null, unread: 0, awaiting: null };
       convs.set(c.id, c);
       return c;

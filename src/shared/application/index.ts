@@ -11,3 +11,4 @@ export * from "./LiveFeed";
 export * from "./CustomFieldsReader";
 export * from "./WorkSchedule";
 export * from "./StoredFile";
+export * from "./keyedLock";

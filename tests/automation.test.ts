@@ -168,7 +168,9 @@ describe("AutomationEngine", () => {
   it("назначение по кругу, затем задача ответственному", async () => {
     const { engine, log } = setup([rule({ actions: [{ type: "assign" }, { type: "create_task", title: "Позвонить {имя}" }] })]);
     await engine.run("deal.created", { subject: "d1" });
-    expect(log.slice(0, 3)).toEqual(["assign:d1:m2", "task:Позвонить Айгерим:m2", "notify:m2:Задача: Позвонить Айгерим"]);
+    // Задача с исполнителем — в его «Моём дне», отдельного «новая задача» нет.
+    expect(log.slice(0, 2)).toEqual(["assign:d1:m2", "task:Позвонить Айгерим:m2"]);
+    expect(log.filter((l) => l.startsWith("notify:"))).toEqual([]);
   });
 
   it("правила, которые двигают сделку друг за другом, не зацикливаются", async () => {
@@ -432,7 +434,7 @@ describe("Праздник через N дней: повторная прода�
       "deal:repeat:Повторная продажа: Новый год:ny",
       "note:d9:Текст клиенту — отправьте сами (правило «Праздник → повторная продажа»):\nАйгерим, Жаңа жыл — 2026 жылғы 31 желтоқсан, жаңа кітап дайындайық па?",
       "task:Предложить книгу к празднику «Новый год» (31 декабря 2026 г.): Айгерим:null",
-      "notify:staff:Задача: Предложить книгу к празднику «Новый год» (31 декабря 2026 г.): Айгерим",
+      "notify:managers:Задача: Предложить книгу к празднику «Новый год» (31 декабря 2026 г.): Айгерим",
       "run:ny",
     ]);
   });
@@ -516,7 +518,7 @@ describe("AutomationEngine: окно и суточный лимит сообще
     const waiting = { conversationId: "conv1", dealId: "d1", clientId: "c1", channel: "whatsapp", awaitingSince: new Date("2026-10-01T05:40:00Z") };
     const { engine, log } = setup([sla], { workMinutes: 20, canMessage: () => false, scheduled: { unanswered: async () => [waiting] } });
     expect(await engine.runScheduled()).toBe(1);
-    expect(log).toEqual(["notify:staff:Клиенту не ответили", "task:Ответить Айгерим:null", "notify:staff:Задача: Ответить Айгерим", "msg:conv1:Минутку, менеджер скоро ответит (Не ответили 15 минут)", "run:sla"]);
+    expect(log).toEqual(["notify:staff:Клиенту не ответили", "task:Ответить Айгерим:null", "notify:managers:Задача: Ответить Айгерим", "msg:conv1:Минутку, менеджер скоро ответит (Не ответили 15 минут)", "run:sla"]);
     // Застолблено: следующий проход то же ожидание не повторяет.
     expect(await engine.runScheduled()).toBe(0);
   });

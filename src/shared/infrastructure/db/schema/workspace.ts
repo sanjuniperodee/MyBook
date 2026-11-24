@@ -20,8 +20,10 @@ export const crmNotifications = pgTable(
     link: text("link"),
     readAt: timestamp("read_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    /** Сколько раз событие повторилось, пока уведомление не прочитано (новые сообщения чата, повтор SLA): одно вместо стопки. */
+    count: integer("count").notNull().default(1),
   },
-  (t) => [index("crm_notif_user_idx").on(t.userId, t.readAt, t.createdAt)],
+  (t) => [index("crm_notif_user_idx").on(t.userId, t.readAt, t.createdAt), index("crm_notif_created_idx").on(t.createdAt)],
 );
 
 /** Быстрые ответы для чатов. Переменные: {имя}, {заказ}, {ссылка}. */

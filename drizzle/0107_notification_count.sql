@@ -1,0 +1,2 @@
+ALTER TABLE "crm_notifications" ADD COLUMN IF NOT EXISTS "count" integer DEFAULT 1 NOT NULL;--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "crm_notif_created_idx" ON "crm_notifications" USING btree ("created_at");

@@ -33,6 +33,8 @@ export interface TemplateRepository {
 /** Уведомления и push-подписки сотрудника. */
 export interface StaffInbox {
   markRead(userId: string, notificationId?: string): Promise<void>;
+  /** Удалить уведомления старше before, не больше limit за раз (порциями из планировщика). Сколько удалено. */
+  purge(before: Date, limit: number): Promise<number>;
   subscribe(userId: string, s: { endpoint: string; p256dh: string; auth: string; userAgent: string }): Promise<void>;
   unsubscribe(userId: string, endpoint: string): Promise<void>;
 }

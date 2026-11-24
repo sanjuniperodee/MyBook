@@ -1,4 +1,4 @@
-import type { Clock, Logger, WorkSchedule } from "@/shared/application";
+import { keyedLock, type Clock, type Logger, type WorkSchedule } from "@/shared/application";
 import { normalizePhone, phoneTail } from "@/shared/domain/phone";
 import {
   asksNoMessages,
@@ -85,6 +85,8 @@ const NO_MESSAGES_NOTE =
 type InboxBot = Pick<QualifierBot, "onIncoming" | "stopByHuman" | "isActive">;
 
 /** Автосообщение клиенту без почты не уходит, если бот или правило писали ему за сутки, а менеджер — за двое суток. */
+/** «Найти или создать заявку» по номеру клиента — по очереди (ensureDeal). */
+const dealLock = keyedLock();
 const RECENT_AUTO_MS = 24 * 3_600_000;
 const RECENT_HUMAN_MS = 48 * 3_600_000;
 
@@ -206,6 +208,16 @@ export class MessagingService {
   /** Сделка для диалога: открытая по клиенту/телефону или новая заявка (с нового номера — в «Неразобранное»). created — заявку завели сейчас. */
   private async ensureDeal(conv: Conversation, contactName: string, firstText: string): Promise<{ conv: Conversation; created: boolean }> {
     if (conv.dealId) return { conv, created: false };
+    // Два сообщения клиента в одну секунду (или чат WhatsApp и Instagram с одного номера) — одна заявка: «найти или
+    // создать» по номеру идёт по очереди, второй находит сделку первого (24.11: Д1686/Д1687 — дубль без переписки, по
+    // которому круг сутки слал «никто не взял»).
+    return dealLock(contactPhone(conv) ?? conv.clientId ?? conv.id, async () => {
+      const fresh = (await this.conversations.findById(conv.id)) ?? conv;
+      return fresh.dealId ? { conv: fresh, created: false } : this.findOrCreateDeal(fresh, contactName, firstText);
+    });
+  }
+
+  private async findOrCreateDeal(conv: Conversation, contactName: string, firstText: string): Promise<{ conv: Conversation; created: boolean }> {
     const phone = contactPhone(conv);
     // Код рекламной ссылки в первом сообщении («… (код: insta-bio)») — откуда пришёл клиент.
     const utm = await this.links.fromText(firstText);

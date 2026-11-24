@@ -12,6 +12,8 @@ import { stageOrderDeps, stageOrderPass } from "@/server/stage-order";
 import { tagKaspiPayForms } from "@/server/kaspi-pay-forms";
 
 const INTERVAL_MS = 15 * 60_000;
+/** Сколько хранятся уведомления сотрудников (колокольчик, приложение). */
+const NOTIFICATIONS_KEEP_MS = 30 * 86_400_000;
 /** Номер advisory-блокировки: при нескольких инстансах проход выполняет только один. */
 const LOCK_ID = 7_310_451;
 
@@ -43,6 +45,9 @@ export async function tick() {
     const emails = await step("lifecycle emails", async () => ((await getSetting("notify.auto")) === "off" ? 0 : container().notifications.lifecycle.run()), 0);
     if (gifts || emails) console.log(`[scheduler] sent gifts=${gifts} lifecycle=${emails}`);
     await step("outbox purge", () => container().outbox.purge(), undefined);
+    // Уведомления сотрудников живут 30 дней: старше — удаляем порциями (24.11: у админов копились десятки тысяч).
+    const notices = await step("notifications purge", () => container().workspace.inbox.purge(new Date(Date.now() - NOTIFICATIONS_KEEP_MS), 5000), 0);
+    if (notices) console.log(`[scheduler] notifications purged=${notices}`);
     // История WhatsApp из своего шлюза: WhatsApp догружает старые сообщения связанному устройству постепенно.
     const history = await step("whatsapp history", () => container().messaging.syncGowaHistory(), 0);
     if (history) console.log(`[scheduler] whatsapp history imported=${history}`);

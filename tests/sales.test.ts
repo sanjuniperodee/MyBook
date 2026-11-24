@@ -369,13 +369,38 @@ describe("Круг: распределение заявок", () => {
     expect((await service.findById(d.id))?.assigneeId).toBe("m3");
   });
 
-  it("обошла всех — остаётся у последнего, руководителям напоминание, отсчёт заново", async () => {
+  it("обошла всех — наименее загруженному на смене, заявка принята за него; руководителям одно сводное, повторов нет", async () => {
+    const { service, routing, router, clock, sent, deals } = setup();
+    router.queue = ["m2", "m3"];
+    const d = await service.create(lead);
+    clock.at = new Date(now.getTime() + 16 * 60_000);
+    expect(await routing.run()).toBe(1); // m2 → m3
+    sent.length = 0;
+    // Наименее загруженный на смене — первый в очереди без исключений (StaffRouter.next([])).
+    router.queue = ["m2", "m3"];
+    clock.at = new Date(clock.at.getTime() + 16 * 60_000);
+    expect(await routing.run()).toBe(1);
+    expect(await service.findById(d.id)).toMatchObject({ assigneeId: "m2", unsorted: false });
+    expect(deals.notes.at(-1)).toBe("Заявку никто не взял за 15 мин — назначена автоматически наименее загруженному на смене");
+    expect(sent).toEqual([
+      { to: "m2", title: `Вам назначена заявка Д${d.number}` },
+      { to: "owners", title: `Заявку Д${d.number} никто не взял` },
+    ]);
+    // Заявка принята — круг её больше не трогает.
+    sent.length = 0;
+    clock.at = new Date(clock.at.getTime() + 60 * 60_000);
+    expect(await routing.run()).toBe(0);
+    expect(sent).toEqual([]);
+  });
+
+  it("обошла всех, а на смене некому отдать — остаётся у последнего, руководителям напоминание, отсчёт заново", async () => {
     const { service, routing, router, clock, sent } = setup();
     router.queue = ["m2"];
     const d = await service.create(lead);
+    router.queue = [];
     clock.at = new Date(now.getTime() + 16 * 60_000);
     expect(await routing.run()).toBe(0);
-    expect(await service.findById(d.id)).toMatchObject({ assigneeId: "m2", assignedAt: clock.at });
+    expect(await service.findById(d.id)).toMatchObject({ assigneeId: "m2", assignedAt: clock.at, unsorted: true });
     expect(sent).toEqual([{ to: "owners", title: `Заявку Д${d.number} никто не взял` }]);
   });
 

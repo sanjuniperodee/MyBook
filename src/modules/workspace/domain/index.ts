@@ -35,3 +35,4 @@ export function fieldKey(label: string, taken: (key: string) => boolean) {
   return key;
 }
 export * from "./notifyPrefs";
+export * from "./notifyThread";

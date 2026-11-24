@@ -60,6 +60,10 @@ export const drizzleInbox: StaffInbox = {
       .set({ readAt: new Date() })
       .where(notificationId ? and(mine, eq(crmNotifications.id, notificationId)) : mine);
   },
+  async purge(before, limit) {
+    const res = await executor().execute(sql`delete from crm_notifications where id in (select id from crm_notifications where created_at < ${before.toISOString()}::timestamptz limit ${limit})`);
+    return res.rowCount ?? 0;
+  },
   async subscribe(userId, s) {
     await executor()
       .insert(crmPushSubscriptions)

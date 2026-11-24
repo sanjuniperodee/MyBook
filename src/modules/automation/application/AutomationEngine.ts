@@ -237,7 +237,9 @@ export class AutomationEngine {
           once: true,
         });
         if (!created) return skipped("такая задача по сделке уже открыта");
-        await this.effects.notify(assigneeId ? [assigneeId] : "staff", { kind: "task", title: `Задача: ${title}`, body: rule.name, link: linkFor(ctx, s) ?? "/admin/tasks" });
+        // Задача с исполнителем и так в его «Моём дне», а перед сроком придёт напоминание — отдельное «новая задача» не шлём
+        // (24.11: по каждой задаче правила — три уведомления, и всем). Ничья — руководителям, чтобы назначили.
+        if (!assigneeId) await this.effects.notify("managers", { kind: "task", title: `Задача: ${title}`, body: `${rule.name} · задача ничья — назначьте`, link: linkFor(ctx, s) ?? "/admin/tasks" });
         return ok;
       }
       case "send_message": {

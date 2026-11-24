@@ -21,6 +21,7 @@ const fake = {
   ordering: { deliverDueGifts: stepFn("gifts", 0), kaspiWatch: { check: stepFn("kaspi watch", null) } },
   notifications: { lifecycle: { run: stepFn("lifecycle", 0) } },
   outbox: { purge: stepFn("purge", undefined) },
+  workspace: { inbox: { purge: stepFn("notices", 0) } },
   telephony: { whatsapp: { sweep: stepFn("whatsapp calls", 0) }, purgeRecordings: stepFn("recordings", 0) },
   previews: { sweep: stepFn("previews", 0) },
 };
@@ -71,7 +72,7 @@ describe("scheduler: шаг упал — проход идёт дальше", ()
   it("медленный проход: сертификаты упали — автописьма, чистка outbox, история WhatsApp, разбор бота, чистка его следов и кэша предпросмотров выполняются", async () => {
     failing.add("gifts").add("purge");
     await tick();
-    expect(calls).toEqual(["gifts", "lifecycle", "purge", "history", "coach", "autofill", "traces", "recordings", "previews"]);
+    expect(calls).toEqual(["gifts", "lifecycle", "purge", "notices", "history", "coach", "autofill", "traces", "recordings", "previews"]);
     expect(errors.map((e) => e[0])).toEqual(['[scheduler] step "gifts" failed', '[scheduler] step "outbox purge" failed']);
   });
 
