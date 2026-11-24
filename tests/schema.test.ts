@@ -20,6 +20,13 @@ describe("схема БД", () => {
     expect(tablesOf(schema).map(getTableName).sort()).toEqual([...declared].sort());
   });
 
+  it("время миграций в журнале растёт: drizzle применяет только те, что позже последней применённой", () => {
+    // 24.11: у 0105 when поставили на сутки вперёд — следующая (0106) молча не применилась на проде, сохранение падало.
+    const journal = JSON.parse(readFileSync(path.join(__dirname, "..", "drizzle", "meta", "_journal.json"), "utf8")) as { entries: { idx: number; when: number; tag: string }[] };
+    for (let i = 1; i < journal.entries.length; i++) expect(journal.entries[i].when, journal.entries[i].tag).toBeGreaterThan(journal.entries[i - 1].when);
+    expect(Math.max(...journal.entries.map((e) => e.when))).toBeLessThan(Date.now() + 60 * 60 * 1000);
+  });
+
   it("совпадает с последней миграцией: drizzle-kit generate → «No schema changes»", async () => {
     const meta = path.join(__dirname, "..", "drizzle", "meta");
     const journal = JSON.parse(readFileSync(path.join(meta, "_journal.json"), "utf8")) as { entries: { idx: number }[] };
