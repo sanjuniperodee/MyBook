@@ -8,7 +8,7 @@
 Контракт — `packages/contracts/src/v1/routes.ts` (схемы zod + таблица маршрутов); после правки —
 `npx tsx scripts/contracts/generate.ts` (OpenAPI `packages/contracts/openapi.json`, Dart `mobile/lib/api/mybook_api.g.dart`).
 Сервер — `apps/api` (`app.ts` — конвейер, `routes/*` — обработчики, `http/*` — node:http и next-shim), сборка
-`scripts/build-api.mjs` → `api.mjs` в релизе, PM2 `mybook-api` :3060. Новый маршрут: схема и запись в `v1` →
+`scripts/build-api.mjs` → `api.mjs` в релизе, PM2 `mybook-api` :3044. Новый маршрут: схема и запись в `v1` →
 обработчик в `routes/` (тип `Handlers` не даст забыть) → генерация → тест `tests/api-v1.test.ts`. Задачи — PROGRESS «API v1».
 
 ## 1. Где мы (исторически, волна 0)

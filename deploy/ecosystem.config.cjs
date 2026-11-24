@@ -92,7 +92,7 @@ const files = process.env.MYBOOK_FILES !== "off" &&
   };
 
 /**
- * API v1 (ADR 0012, apps/api): <релиз>/api.mjs на 127.0.0.1:3060 — для мобильного приложения и, по разделам, для веба.
+ * API v1 (ADR 0012, apps/api): <релиз>/api.mjs на 127.0.0.1:3044 — для мобильного приложения и, по разделам, для веба.
  * nginx отдаёт ему /api/v1/ (и next.config переписывает туда же). MYBOOK_API=off — не запускать.
  */
 const apiFile = path.join(releasesDir, "current", "api.mjs");
@@ -102,7 +102,7 @@ const api = process.env.MYBOOK_API !== "off" &&
     cwd: path.join(releasesDir, "current"),
     script: "api.mjs",
     node_args: `--env-file=${path.join(root, ".env")}`,
-    env: { NODE_ENV: "production", TZ: "Asia/Almaty", API_PORT: process.env.MYBOOK_API_PORT || "3060", ...allocatorEnv },
+    env: { NODE_ENV: "production", TZ: "Asia/Almaty", API_PORT: process.env.MYBOOK_API_PORT || "3044", ...allocatorEnv },
     // Код модулей как у mybook-worker (~150 МБ); лимит — страховка от утечки.
     max_memory_restart: "600M",
     kill_timeout: 3000,

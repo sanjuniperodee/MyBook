@@ -227,7 +227,7 @@ if has_files; then
 fi
 # mybook-api не ответил — выкатку не ломает: сайт работает без него, его маршруты (/api/v1) — пока только у приложения.
 if has_api; then
-  ok=""; for _ in $(seq 1 20); do curl -fsS -m 3 "http://127.0.0.1:${MYBOOK_API_PORT:-3060}/api/v1/health" >/dev/null 2>&1 && { ok=1; break; }; sleep 1; done
+  ok=""; for _ in $(seq 1 20); do curl -fsS -m 3 "http://127.0.0.1:${MYBOOK_API_PORT:-3044}/api/v1/health" 2>/dev/null | grep -q "\"ok\":true" && { ok=1; break; }; sleep 1; done
   if [ -n "$ok" ]; then echo "✓ mybook-api отвечает"; else echo "⚠ mybook-api не отвечает. Логи: pm2 logs mybook-api --nostream --lines 50"; fi
 fi
 # Основная версия отвечает — запасная больше не нужна.

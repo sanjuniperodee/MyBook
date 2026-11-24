@@ -58,7 +58,7 @@ const nextConfig: NextConfig = {
       beforeFiles: [
         { source: "/files/:token", destination: `http://127.0.0.1:${Number(process.env.FILES_PORT) || 3050}/files/:token` },
         // API v1 (ADR 0012, apps/api) — процесс mybook-api; на проде nginx отдаёт /api/v1/ ему напрямую, мимо Next.
-        { source: "/api/v1/:path*", destination: `http://127.0.0.1:${Number(process.env.API_PORT) || 3060}/api/v1/:path*` },
+        { source: "/api/v1/:path*", destination: `http://127.0.0.1:${Number(process.env.API_PORT) || 3044}/api/v1/:path*` },
       ],
     };
   },

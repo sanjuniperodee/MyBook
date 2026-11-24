@@ -32,7 +32,7 @@ function appWith(over: Partial<typeof handlers>, who?: unknown) {
 }
 
 const call = (app: ReturnType<typeof createApp>, method: string, path: string, body?: unknown) =>
-  app(new Request(`http://127.0.0.1:3060${path}`, { method, headers: body ? { "content-type": "application/json" } : {}, body: body ? JSON.stringify(body) : undefined }));
+  app(new Request(`http://127.0.0.1:3044${path}`, { method, headers: body ? { "content-type": "application/json" } : {}, body: body ? JSON.stringify(body) : undefined }));
 
 describe("контракт", () => {
   it("OpenAPI и Dart-клиент сгенерированы из текущего контракта (npx tsx scripts/contracts/generate.ts)", () => {
