@@ -2,40 +2,13 @@
 
 import { BookOpen, ChevronRight, EyeOff, Hourglass, Images, MessageSquareText, Sparkles, StickyNote } from "lucide-react";
 import { useMessages } from "@/i18n/client";
-import type { ClientMessages } from "@/i18n/messages";
 import type { PhotoPlace } from "@/lib/book/photo-place";
 import { cn } from "@/lib/class-names";
 import type { PlaceNames } from "./model";
 
-/**
- * Где стоит фото — одной строкой (R6: только по photoPlaceOf). marked — у фото отметка «фото главы»; в оформлении без
- * фото главы (openerDesign = false) оно печатается после главы, и подпись это говорит. У фото, отданного правилу книги
- * до пересборки (глава ещё неизвестна), — «Пусть встанет само».
- */
-export function placeText(place: PhotoPlace, names: PlaceNames, t: ClientMessages["editor"], blank: boolean, opts: { marked?: boolean; openerDesign?: boolean } = {}): string {
-  const p = t.photoPlace;
-  if (place.waitingFor) return p.waiting(names.chapter(place.waitingFor));
-  let label: string;
-  switch (place.kind) {
-    case "answer":
-      label = (blank ? p.answerBlank : p.answer)(place.questionId ? names.question(place.questionId) : "—");
-      break;
-    case "opener":
-      label = p.opener(names.chapter(place.chapterKey ?? ""));
-      break;
-    case "after":
-      if (!place.chapterKey) return t.placeSheet.auto.label;
-      label = opts.marked && opts.openerDesign === false && !place.auto ? `${p.opener(names.chapter(place.chapterKey))} · ${p.noteNoOpener}` : p.after(names.chapter(place.chapterKey));
-      break;
-    case "album":
-      label = p.album;
-      break;
-    case "off":
-      label = p.off;
-      break;
-  }
-  return place.auto ? p.withAuto(label) : label;
-}
+// Подпись места — общая с сервером (приложение): src/components/editor/photos/model.ts.
+export { placeText } from "./model";
+import { placeText } from "./model";
 
 const ICONS = { answer: MessageSquareText, opener: BookOpen, after: StickyNote, album: Images, off: EyeOff };
 

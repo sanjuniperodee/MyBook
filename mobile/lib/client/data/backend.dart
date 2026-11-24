@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 
 import '../../api/mybook_api.g.dart' as v1api;
 import '../../core/api.dart';
@@ -21,6 +22,14 @@ abstract class ClientBackend {
 
   /// Штаб книги — модель страницы книги сайта.
   Future<v1api.CabinetBook> hub(String bookId);
+
+  /// Вкладка «Фото» — модель страницы фото сайта: места, итоги, фильтры, лист «Где стоит фото».
+  Future<v1api.CabinetPhotos> photosTab(String bookId);
+
+  /// Правка фото (место, подпись, вид на странице). Ключи с null — явно сбросить (убрать из ответа, «встанет само»).
+  Future<void> updatePhoto(String bookId, String photoId, Map<String, Object?> patch);
+
+  Future<void> deletePhoto(String bookId, String photoId);
 
   /// Полный адрес своего ресурса (обложка, фото) и заголовки для картинок (токен автора).
   String url(String path);
@@ -125,6 +134,20 @@ class ApiBackend implements ClientBackend {
       _call(() => v1.cabinetBook(bookId: bookId));
 
   @override
+  Future<v1api.CabinetPhotos> photosTab(String bookId) => _call(() => v1.cabinetPhotos(bookId: bookId));
+
+  // Свой JSON вместо v1.photoUpdate: сгенерированный клиент не отправляет явный null (сбросить место нельзя).
+  @override
+  Future<void> updatePhoto(String bookId, String photoId, Map<String, Object?> patch) => _call(() async {
+        await api.patch('/api/v1/books/$bookId/photos/$photoId', body: patch);
+      });
+
+  @override
+  Future<void> deletePhoto(String bookId, String photoId) => _call(() async {
+        await v1.photoDelete(bookId: bookId, photoId: photoId);
+      });
+
+  @override
   String url(String path) => path.startsWith('http')
       ? path
       : '${api.baseUrl.replaceAll(RegExp(r'/+$'), '')}$path';
@@ -172,32 +195,16 @@ class ApiBackend implements ClientBackend {
       });
 
   @override
-  Future<({List<BookPhoto> photos, List<String> errors})> uploadPhotos(
-    String bookId,
-    List<File> files,
-  ) async {
-    final r =
-        await api.multipart(
-              '/api/books/$bookId/photos',
-              files: [
-                for (final f in files)
-                  (
-                    field: 'files',
-                    file: f,
-                    filename: f.uri.pathSegments.last,
-                    contentType: _mime(f.path),
-                  ),
-              ],
-            )
-            as Map<String, dynamic>;
-    return (
-      photos: [
-        for (final p in (r['photos'] as List? ?? const []))
-          BookPhoto.fromJson(p as Map<String, dynamic>),
-      ],
-      errors: [for (final e in (r['errors'] as List? ?? const [])) e as String],
-    );
-  }
+  Future<({List<BookPhoto> photos, List<String> errors})> uploadPhotos(String bookId, List<File> files) => _call(() async {
+        final parts = [
+          for (final f in files) await http.MultipartFile.fromPath('files', f.path, filename: f.uri.pathSegments.last, contentType: MediaType.parse(_mime(f.path))),
+        ];
+        final r = await v1.photoUpload(bookId: bookId, files: parts);
+        return (
+          photos: [for (final p in r.photos) BookPhoto(id: p.id, width: p.width, height: p.height, caption: p.caption, questionId: p.questionId)],
+          errors: r.errors,
+        );
+      });
 
   @override
   ({String url, Map<String, String> headers}) photo(

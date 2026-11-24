@@ -151,6 +151,85 @@ export const CabinetBook = z
   })
   .register(schemas, { id: "CabinetBook" });
 
+// ─── Фото книги (вкладка «Фото») ──────────────────────────────────────────────────────────────────────────────────
+
+export const CabPhotoPlace = z
+  .object({
+    /** answer | opener | after | album | off */
+    kind: z.string(),
+    /** «В ответе «…»», «После главы «…» · само», «Альбом в конце», «Не печатается». */
+    label: z.string(),
+    auto: z.boolean(),
+    /** cover | back — снимок виден на обложке или обороте. */
+    onCover: z.string().nullable(),
+    /** Отмеченный пункт листа «Где стоит фото»: answer | opener | after | album | auto | off. */
+    option: z.string(),
+  })
+  .register(schemas, { id: "CabPhotoPlace" });
+
+export const CabPhoto = z
+  .object({
+    id: uuid,
+    n: z.number().int(),
+    width: z.number().int(),
+    height: z.number().int(),
+    caption: z.string(),
+    /** full | bleed | half | grid */
+    layout: z.string(),
+    thumbUrl: z.string(),
+    url: z.string(),
+    place: CabPhotoPlace,
+    questionId: z.string().nullable(),
+    chapter: z.string().nullable(),
+    /** «Обрежется 12%» — у фото с заметной обрезкой на месте; null — без обрезки. */
+    loss: z.string().nullable(),
+  })
+  .register(schemas, { id: "CabPhoto" });
+
+export const CabLabeled = z.object({ key: z.string(), label: z.string(), hint: z.string().nullable(), count: z.number().int().nullable() }).register(schemas, { id: "CabLabeled" });
+
+export const CabinetPhotos = z
+  .object({
+    editable: z.boolean(),
+    blank: z.boolean(),
+    maxPhotos: z.number().int(),
+    title: z.string(),
+    intro: z.string(),
+    addLabel: z.string(),
+    /** Итоги: «Фото», «Размещено вами», «Встали сами», «Не печатаются» — подпись и число. */
+    summary: z.array(CabLabeled),
+    /** Фильтры над сеткой (видимые): ключ, подпись, сколько фото. */
+    filters: z.array(CabLabeled),
+    ruleTitle: z.string(),
+    ruleName: z.string(),
+    ruleChange: z.string(),
+    noMatch: z.string(),
+    photos: z.array(CabPhoto),
+    chapters: z.array(z.object({ key: z.string(), title: z.string() })),
+    answers: z.array(z.object({ id: z.string(), title: z.string(), chapterKey: z.string() })),
+    /** Лист «Где стоит фото»: пункты мест, шаги выбора главы и ответа, вид на странице, подпись, удаление. */
+    sheet: z.object({
+      title: z.string(),
+      options: z.array(CabLabeled),
+      stepChapter: z.string(),
+      stepAnswer: z.string(),
+      here: z.string(),
+      layoutTitle: z.string(),
+      layouts: z.array(CabLabeled),
+      caption: z.string(),
+      done: z.string(),
+      coverNote: z.string(),
+      backNote: z.string(),
+      deleteLabel: z.string(),
+      deleteTitle: z.string(),
+      deleteText: z.string(),
+      deleteConfirm: z.string(),
+      deleteKeep: z.string(),
+      cancel: z.string(),
+    }),
+  })
+  .register(schemas, { id: "CabinetPhotos" });
+
 // ─── Маршруты ─────────────────────────────────────────────────────────────────────────────────────────────────────
 
 export const cabinetRoutes = {
@@ -170,5 +249,14 @@ export const cabinetRoutes = {
     summary: "Штаб книги — как страница книги на сайте: следующий шаг, срок, путь, замечания, главы, письма",
     params: z.object({ bookId: uuid }),
     response: CabinetBook,
+  },
+  cabinetPhotos: {
+    method: "GET",
+    path: "/api/v1/cabinet/books/{bookId}/photos",
+    auth: "user",
+    tag: "cabinet",
+    summary: "Вкладка «Фото» — как на сайте: где стоит каждое фото, итоги, фильтры, правило книги, лист «Где стоит фото»",
+    params: z.object({ bookId: uuid }),
+    response: CabinetPhotos,
   },
 } as const satisfies Record<string, RouteDef>;

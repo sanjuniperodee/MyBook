@@ -10,9 +10,14 @@ import { site } from "@/config/site";
 import { getTheme } from "@/lib/content/themes";
 import { apiBook } from "@/server/api";
 import { bookHub } from "@/server/book-hub";
+import { getInteriorDesign } from "@/lib/book/interiors/catalog";
+import { isBookEditableBy } from "@/modules/authoring";
+import { currentOption, placeNames, placeText } from "@/components/editor/photos/model";
+import { filterCounts, isLossy, lossOf, placeTotals, visibleFilters } from "@/app/(app)/books/[id]/photos/photos-tab";
+import { photosTabData } from "@/app/(app)/books/[id]/photos/photos-data";
 import type { Handlers } from "../app";
 
-export const cabinetHandlers: Pick<Handlers, "cabinetShelf" | "cabinetBook"> = {
+export const cabinetHandlers: Pick<Handlers, "cabinetShelf" | "cabinetBook" | "cabinetPhotos"> = {
   async cabinetShelf({ user }) {
     const locale = user!.locale === "kk" ? "kk" : "ru";
     const m = messagesFor(locale);
@@ -93,6 +98,90 @@ export const cabinetHandlers: Pick<Handlers, "cabinetShelf" | "cabinetBook"> = {
       whereToStart: m.editor.whereToStart,
       tips: [...(h.blank ? m.editor.blank.tips : h.kind === "autobiography" ? m.editor.life.tips : m.editor.tips)],
       tipsNote: h.kind === "autobiography" ? m.editor.life.recordedNote : null,
+    };
+  },
+
+  async cabinetPhotos({ req, user, input }) {
+    const locale = user!.locale === "kk" ? "kk" : "ru";
+    const m = messagesFor(locale);
+    const { book, viewer } = await apiBook(req, input.bookId);
+    const data = await photosTabData(book, book.status === "draft" && isBookEditableBy(book.userId, viewer), m);
+    const tt = m.books.photosTab;
+    const ps = m.editor.placeSheet;
+    const places = new Map(data.places);
+    const byId = new Map(data.photos.map((p) => [p.id, p]));
+    const loss = (id: string) => lossOf(byId.get(id)!, byId.get(id), data.losses);
+    const names = placeNames(data.chapters, data.answers, data.book.galleryTitle);
+    const design = getInteriorDesign(data.book.interior);
+    const openerDesign = !!design.opener.photo;
+    const counts = filterCounts(data.photos, places, loss);
+    const totals = placeTotals(data.photos, places);
+    const photoUrl = (id: string, version: string | undefined, size: "thumb" | "view") => `/api/photos/${id}?size=${size}${version ? `&v=${version}` : ""}`;
+    return {
+      editable: data.book.editable,
+      blank: data.book.blank,
+      maxPhotos: data.maxPhotos ?? 100,
+      title: m.books.photos.title,
+      intro: tt.intro,
+      addLabel: m.books.photos.add,
+      summary: (["total", "placed", "auto", "off"] as const).map((k) => ({ key: k, label: tt.summary[k], hint: null, count: totals[k] })),
+      filters: visibleFilters(counts, "all").map((f) => ({ key: f, label: tt.filters[f], hint: null, count: counts[f] })),
+      ruleTitle: tt.rule.title,
+      ruleName: tt.rule[data.book.photoPlacement].title,
+      ruleChange: tt.rulesChange,
+      noMatch: tt.noMatch,
+      photos: data.photos.map((p, i) => {
+        const place = places.get(p.id);
+        const l = loss(p.id);
+        return {
+          id: p.id,
+          n: i + 1,
+          width: p.width,
+          height: p.height,
+          caption: p.caption,
+          layout: p.layout,
+          thumbUrl: photoUrl(p.id, p.version, "thumb"),
+          url: photoUrl(p.id, p.version, "view"),
+          place: {
+            kind: place?.kind ?? "off",
+            label: place ? placeText(place, names, m.editor, data.book.blank, { marked: p.opener, openerDesign }) : "",
+            auto: !!place?.auto,
+            onCover: place?.onCover ?? null,
+            option: currentOption(place, p),
+          },
+          questionId: p.questionId ?? null,
+          chapter: p.chapter ?? null,
+          loss: isLossy(l) ? tt.lossChip(Math.round(l * 100)) : null,
+        };
+      }),
+      chapters: data.chapters.map((c) => ({ key: c.key, title: c.title })),
+      answers: data.answers.map((a) => ({ id: a.id, title: a.title, chapterKey: a.chapterKey })),
+      sheet: {
+        title: ps.title,
+        options: [
+          { key: "answer", ...(data.book.blank ? ps.answerBlank : ps.answer), count: null },
+          ...(design.opener.photo ? [{ key: "opener", label: ps.opener.label, hint: ps.opener.hint(m.editor.openerShape[design.opener.photo]), count: null }] : []),
+          { key: "after", ...ps.after, count: null },
+          { key: "album", label: ps.album.label, hint: ps.album.hint(data.book.galleryTitle), count: null },
+          { key: "auto", label: ps.auto.label, hint: ps.auto.hint[data.book.photoPlacement], count: null },
+          { key: "off", ...ps.off, count: null },
+        ],
+        stepChapter: ps.step2Chapter,
+        stepAnswer: data.book.blank ? ps.step2AnswerBlank : ps.step2Answer,
+        here: ps.here,
+        layoutTitle: ps.layoutTitle,
+        layouts: (["full", "bleed", "half", "grid"] as const).map((k) => ({ key: k, label: ps.layouts[k], hint: null, count: null })),
+        caption: ps.caption,
+        done: m.editor.chapterPhoto.done,
+        coverNote: ps.coverNote,
+        backNote: ps.backNote,
+        deleteLabel: tt.delete.confirm,
+        deleteTitle: tt.delete.title,
+        deleteText: tt.delete.text,
+        deleteConfirm: tt.delete.confirm,
+        deleteKeep: tt.delete.keep,
+        cancel: tt.delete.cancel,
+      },
     };
   },
 };

@@ -187,6 +187,12 @@ class MybookApi {
     return CabinetBook.fromJson(json as Map<String, dynamic>);
   }
 
+  /// Вкладка «Фото» — как на сайте: где стоит каждое фото, итоги, фильтры, правило книги, лист «Где стоит фото»
+  Future<CabinetPhotos> cabinetPhotos({required String bookId}) async {
+    final json = await _send('GET', '/api/v1/cabinet/books/${Uri.encodeComponent(bookId)}/photos');
+    return CabinetPhotos.fromJson(json as Map<String, dynamic>);
+  }
+
   /// Сделка для правки: поля, свои поля, договорённость
   Future<DealForm> crmDealForm({required String dealId}) async {
     final json = await _send('GET', '/api/v1/crm/deals/${Uri.encodeComponent(dealId)}/form');
@@ -1501,6 +1507,128 @@ class CabinetBookHelp {
   factory CabinetBookHelp.fromJson(Map<String, dynamic> json) => CabinetBookHelp(title: json['title'] as String, text: json['text'] as String, url: json['url'] as String);
 
   Map<String, dynamic> toJson() => {'title': title, 'text': text, 'url': url};
+}
+
+class CabPhotoPlace {
+  final String kind;
+  final String label;
+  final bool auto;
+  final String? onCover;
+  final String option;
+
+  const CabPhotoPlace({required this.kind, required this.label, required this.auto, this.onCover, required this.option});
+
+  factory CabPhotoPlace.fromJson(Map<String, dynamic> json) => CabPhotoPlace(kind: json['kind'] as String, label: json['label'] as String, auto: json['auto'] as bool, onCover: json['onCover'] == null ? null : json['onCover'] as String, option: json['option'] as String);
+
+  Map<String, dynamic> toJson() => {'kind': kind, 'label': label, 'auto': auto, if (onCover != null) 'onCover': onCover == null ? null : onCover!, 'option': option};
+}
+
+class CabPhoto {
+  final String id;
+  final int n;
+  final int width;
+  final int height;
+  final String caption;
+  final String layout;
+  final String thumbUrl;
+  final String url;
+  final CabPhotoPlace place;
+  final String? questionId;
+  final String? chapter;
+  final String? loss;
+
+  const CabPhoto({required this.id, required this.n, required this.width, required this.height, required this.caption, required this.layout, required this.thumbUrl, required this.url, required this.place, this.questionId, this.chapter, this.loss});
+
+  factory CabPhoto.fromJson(Map<String, dynamic> json) => CabPhoto(id: json['id'] as String, n: (json['n'] as num).toInt(), width: (json['width'] as num).toInt(), height: (json['height'] as num).toInt(), caption: json['caption'] as String, layout: json['layout'] as String, thumbUrl: json['thumbUrl'] as String, url: json['url'] as String, place: CabPhotoPlace.fromJson(json['place'] as Map<String, dynamic>), questionId: json['questionId'] == null ? null : json['questionId'] as String, chapter: json['chapter'] == null ? null : json['chapter'] as String, loss: json['loss'] == null ? null : json['loss'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'n': n, 'width': width, 'height': height, 'caption': caption, 'layout': layout, 'thumbUrl': thumbUrl, 'url': url, 'place': place.toJson(), if (questionId != null) 'questionId': questionId == null ? null : questionId!, if (chapter != null) 'chapter': chapter == null ? null : chapter!, if (loss != null) 'loss': loss == null ? null : loss!};
+}
+
+class CabLabeled {
+  final String key;
+  final String label;
+  final String? hint;
+  final int? count;
+
+  const CabLabeled({required this.key, required this.label, this.hint, this.count});
+
+  factory CabLabeled.fromJson(Map<String, dynamic> json) => CabLabeled(key: json['key'] as String, label: json['label'] as String, hint: json['hint'] == null ? null : json['hint'] as String, count: json['count'] == null ? null : (json['count'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'key': key, 'label': label, if (hint != null) 'hint': hint == null ? null : hint!, if (count != null) 'count': count == null ? null : count!};
+}
+
+class CabinetPhotos {
+  final bool editable;
+  final bool blank;
+  final int maxPhotos;
+  final String title;
+  final String intro;
+  final String addLabel;
+  final List<CabLabeled> summary;
+  final List<CabLabeled> filters;
+  final String ruleTitle;
+  final String ruleName;
+  final String ruleChange;
+  final String noMatch;
+  final List<CabPhoto> photos;
+  final List<CabinetPhotosChapters> chapters;
+  final List<CabinetPhotosAnswers> answers;
+  final CabinetPhotosSheet sheet;
+
+  const CabinetPhotos({required this.editable, required this.blank, required this.maxPhotos, required this.title, required this.intro, required this.addLabel, required this.summary, required this.filters, required this.ruleTitle, required this.ruleName, required this.ruleChange, required this.noMatch, required this.photos, required this.chapters, required this.answers, required this.sheet});
+
+  factory CabinetPhotos.fromJson(Map<String, dynamic> json) => CabinetPhotos(editable: json['editable'] as bool, blank: json['blank'] as bool, maxPhotos: (json['maxPhotos'] as num).toInt(), title: json['title'] as String, intro: json['intro'] as String, addLabel: json['addLabel'] as String, summary: (json['summary'] as List).map((e) => CabLabeled.fromJson(e as Map<String, dynamic>)).toList(), filters: (json['filters'] as List).map((e) => CabLabeled.fromJson(e as Map<String, dynamic>)).toList(), ruleTitle: json['ruleTitle'] as String, ruleName: json['ruleName'] as String, ruleChange: json['ruleChange'] as String, noMatch: json['noMatch'] as String, photos: (json['photos'] as List).map((e) => CabPhoto.fromJson(e as Map<String, dynamic>)).toList(), chapters: (json['chapters'] as List).map((e) => CabinetPhotosChapters.fromJson(e as Map<String, dynamic>)).toList(), answers: (json['answers'] as List).map((e) => CabinetPhotosAnswers.fromJson(e as Map<String, dynamic>)).toList(), sheet: CabinetPhotosSheet.fromJson(json['sheet'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'editable': editable, 'blank': blank, 'maxPhotos': maxPhotos, 'title': title, 'intro': intro, 'addLabel': addLabel, 'summary': summary.map((e) => e.toJson()).toList(), 'filters': filters.map((e) => e.toJson()).toList(), 'ruleTitle': ruleTitle, 'ruleName': ruleName, 'ruleChange': ruleChange, 'noMatch': noMatch, 'photos': photos.map((e) => e.toJson()).toList(), 'chapters': chapters.map((e) => e.toJson()).toList(), 'answers': answers.map((e) => e.toJson()).toList(), 'sheet': sheet.toJson()};
+}
+
+class CabinetPhotosChapters {
+  final String key;
+  final String title;
+
+  const CabinetPhotosChapters({required this.key, required this.title});
+
+  factory CabinetPhotosChapters.fromJson(Map<String, dynamic> json) => CabinetPhotosChapters(key: json['key'] as String, title: json['title'] as String);
+
+  Map<String, dynamic> toJson() => {'key': key, 'title': title};
+}
+
+class CabinetPhotosAnswers {
+  final String id;
+  final String title;
+  final String chapterKey;
+
+  const CabinetPhotosAnswers({required this.id, required this.title, required this.chapterKey});
+
+  factory CabinetPhotosAnswers.fromJson(Map<String, dynamic> json) => CabinetPhotosAnswers(id: json['id'] as String, title: json['title'] as String, chapterKey: json['chapterKey'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'title': title, 'chapterKey': chapterKey};
+}
+
+class CabinetPhotosSheet {
+  final String title;
+  final List<CabLabeled> options;
+  final String stepChapter;
+  final String stepAnswer;
+  final String here;
+  final String layoutTitle;
+  final List<CabLabeled> layouts;
+  final String caption;
+  final String done;
+  final String coverNote;
+  final String backNote;
+  final String deleteLabel;
+  final String deleteTitle;
+  final String deleteText;
+  final String deleteConfirm;
+  final String deleteKeep;
+  final String cancel;
+
+  const CabinetPhotosSheet({required this.title, required this.options, required this.stepChapter, required this.stepAnswer, required this.here, required this.layoutTitle, required this.layouts, required this.caption, required this.done, required this.coverNote, required this.backNote, required this.deleteLabel, required this.deleteTitle, required this.deleteText, required this.deleteConfirm, required this.deleteKeep, required this.cancel});
+
+  factory CabinetPhotosSheet.fromJson(Map<String, dynamic> json) => CabinetPhotosSheet(title: json['title'] as String, options: (json['options'] as List).map((e) => CabLabeled.fromJson(e as Map<String, dynamic>)).toList(), stepChapter: json['stepChapter'] as String, stepAnswer: json['stepAnswer'] as String, here: json['here'] as String, layoutTitle: json['layoutTitle'] as String, layouts: (json['layouts'] as List).map((e) => CabLabeled.fromJson(e as Map<String, dynamic>)).toList(), caption: json['caption'] as String, done: json['done'] as String, coverNote: json['coverNote'] as String, backNote: json['backNote'] as String, deleteLabel: json['deleteLabel'] as String, deleteTitle: json['deleteTitle'] as String, deleteText: json['deleteText'] as String, deleteConfirm: json['deleteConfirm'] as String, deleteKeep: json['deleteKeep'] as String, cancel: json['cancel'] as String);
+
+  Map<String, dynamic> toJson() => {'title': title, 'options': options.map((e) => e.toJson()).toList(), 'stepChapter': stepChapter, 'stepAnswer': stepAnswer, 'here': here, 'layoutTitle': layoutTitle, 'layouts': layouts.map((e) => e.toJson()).toList(), 'caption': caption, 'done': done, 'coverNote': coverNote, 'backNote': backNote, 'deleteLabel': deleteLabel, 'deleteTitle': deleteTitle, 'deleteText': deleteText, 'deleteConfirm': deleteConfirm, 'deleteKeep': deleteKeep, 'cancel': cancel};
 }
 
 class Choice {

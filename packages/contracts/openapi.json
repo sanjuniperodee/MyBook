@@ -1074,6 +1074,50 @@
         "x-auth": "user"
       }
     },
+    "/api/v1/cabinet/books/{bookId}/photos": {
+      "get": {
+        "operationId": "cabinetPhotos",
+        "tags": [
+          "cabinet"
+        ],
+        "summary": "Вкладка «Фото» — как на сайте: где стоит каждое фото, итоги, фильтры, правило книги, лист «Где стоит фото»",
+        "parameters": [
+          {
+            "name": "bookId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CabinetPhotos"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
+    },
     "/api/v1/crm/deals/{dealId}/form": {
       "get": {
         "operationId": "crmDealForm",
@@ -5609,6 +5653,344 @@
           "whereToStart",
           "tips",
           "tipsNote"
+        ],
+        "additionalProperties": false
+      },
+      "CabPhotoPlace": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "auto": {
+            "type": "boolean"
+          },
+          "onCover": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "option": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "label",
+          "auto",
+          "onCover",
+          "option"
+        ],
+        "additionalProperties": false
+      },
+      "CabPhoto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "n": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "width": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "height": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "caption": {
+            "type": "string"
+          },
+          "layout": {
+            "type": "string"
+          },
+          "thumbUrl": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "place": {
+            "$ref": "#/components/schemas/CabPhotoPlace"
+          },
+          "questionId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "chapter": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "loss": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "n",
+          "width",
+          "height",
+          "caption",
+          "layout",
+          "thumbUrl",
+          "url",
+          "place",
+          "questionId",
+          "chapter",
+          "loss"
+        ],
+        "additionalProperties": false
+      },
+      "CabLabeled": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "hint": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "count": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "hint",
+          "count"
+        ],
+        "additionalProperties": false
+      },
+      "CabinetPhotos": {
+        "type": "object",
+        "properties": {
+          "editable": {
+            "type": "boolean"
+          },
+          "blank": {
+            "type": "boolean"
+          },
+          "maxPhotos": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "title": {
+            "type": "string"
+          },
+          "intro": {
+            "type": "string"
+          },
+          "addLabel": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CabLabeled"
+            }
+          },
+          "filters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CabLabeled"
+            }
+          },
+          "ruleTitle": {
+            "type": "string"
+          },
+          "ruleName": {
+            "type": "string"
+          },
+          "ruleChange": {
+            "type": "string"
+          },
+          "noMatch": {
+            "type": "string"
+          },
+          "photos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CabPhoto"
+            }
+          },
+          "chapters": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "key",
+                "title"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "answers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "chapterKey": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "title",
+                "chapterKey"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "sheet": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "options": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CabLabeled"
+                }
+              },
+              "stepChapter": {
+                "type": "string"
+              },
+              "stepAnswer": {
+                "type": "string"
+              },
+              "here": {
+                "type": "string"
+              },
+              "layoutTitle": {
+                "type": "string"
+              },
+              "layouts": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CabLabeled"
+                }
+              },
+              "caption": {
+                "type": "string"
+              },
+              "done": {
+                "type": "string"
+              },
+              "coverNote": {
+                "type": "string"
+              },
+              "backNote": {
+                "type": "string"
+              },
+              "deleteLabel": {
+                "type": "string"
+              },
+              "deleteTitle": {
+                "type": "string"
+              },
+              "deleteText": {
+                "type": "string"
+              },
+              "deleteConfirm": {
+                "type": "string"
+              },
+              "deleteKeep": {
+                "type": "string"
+              },
+              "cancel": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "title",
+              "options",
+              "stepChapter",
+              "stepAnswer",
+              "here",
+              "layoutTitle",
+              "layouts",
+              "caption",
+              "done",
+              "coverNote",
+              "backNote",
+              "deleteLabel",
+              "deleteTitle",
+              "deleteText",
+              "deleteConfirm",
+              "deleteKeep",
+              "cancel"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "editable",
+          "blank",
+          "maxPhotos",
+          "title",
+          "intro",
+          "addLabel",
+          "summary",
+          "filters",
+          "ruleTitle",
+          "ruleName",
+          "ruleChange",
+          "noMatch",
+          "photos",
+          "chapters",
+          "answers",
+          "sheet"
         ],
         "additionalProperties": false
       },
