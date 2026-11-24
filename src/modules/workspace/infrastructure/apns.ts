@@ -1,5 +1,5 @@
 import "server-only";
-import { createPrivateKey, sign } from "node:crypto";
+import { createHash, createPrivateKey, sign } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { connect } from "node:http2";
 
@@ -58,6 +58,16 @@ export interface ApnsMessage {
   link?: string | null;
   /** Число на значке приложения. */
   badge?: number;
+  /** Одно уведомление на объект (apns-collapse-id): новое о том же чате заменяет прежнее в шторке. */
+  collapseId?: string;
+  /** Только обновить число на значке — без текста и звука (сотрудник прочитал на другом устройстве). */
+  badgeOnly?: boolean;
+}
+
+/** apns-collapse-id — не длиннее 64 байт: длинный тег сворачивается в хеш. */
+export function collapseKey(tag: string): string {
+  if (Buffer.byteLength(tag) <= 64) return tag;
+  return `h:${createHash("sha1").update(tag).digest("base64url")}`;
 }
 
 /**
@@ -66,6 +76,7 @@ export interface ApnsMessage {
  * не показывает — приложение рисует свою плашку.
  */
 export function apnsBody(m: ApnsMessage) {
+  if (m.badgeOnly) return { aps: { badge: m.badge ?? 0 } };
   return {
     aps: { alert: { title: m.title.slice(0, 120), body: (m.body ?? "").slice(0, 240) }, sound: "default", ...(m.badge !== undefined ? { badge: m.badge } : {}), "thread-id": "crm" },
     NotificationId: (m.link ?? m.title).split("").reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) | 0, 7) & 0x7fffffff,
@@ -131,7 +142,16 @@ export async function sendApns(cfg: ApnsConfig, device: { token: string; environ
     const res = await transport.post(
       origin,
       `/3/device/${device.token}`,
-      { authorization: `bearer ${providerToken(cfg)}`, "apns-topic": cfg.topic, "apns-push-type": "alert", "apns-priority": "10", "apns-expiration": String(Math.floor(Date.now() / 1000) + 3600), "content-type": "application/json" },
+      {
+        authorization: `bearer ${providerToken(cfg)}`,
+        "apns-topic": cfg.topic,
+        "apns-push-type": "alert",
+        // Значок без текста — низкий приоритет (Apple не будит телефон ради него), уведомление — сразу.
+        "apns-priority": message.badgeOnly ? "5" : "10",
+        "apns-expiration": String(Math.floor(Date.now() / 1000) + 3600),
+        "content-type": "application/json",
+        ...(message.collapseId && !message.badgeOnly ? { "apns-collapse-id": collapseKey(message.collapseId) } : {}),
+      },
       JSON.stringify(apnsBody(message)),
     );
     if (res.status === 200) return "sent";

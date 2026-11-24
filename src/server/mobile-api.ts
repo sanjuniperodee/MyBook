@@ -1,4 +1,5 @@
 import "server-only";
+import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
 import { api } from "@/server/api";
 
@@ -16,4 +17,16 @@ export function mobile<C>(handler: (req: Request, ctx: C) => Promise<Response>) 
       throw err;
     }
   });
+}
+
+/**
+ * JSON с ETag: приложение присылает If-None-Match прошлого ответа — если ничего не изменилось, уходит пустой 304 вместо
+ * десятков килобайт (список чатов и лента обновляются по каждому событию CRM, а меняется обычно одна строка).
+ */
+export function jsonWithEtag(req: Request, data: unknown): Response {
+  const body = JSON.stringify(data);
+  const tag = `"${createHash("sha1").update(body).digest("base64url").slice(0, 27)}"`;
+  const headers = { ETag: tag, "Cache-Control": "private, no-cache" };
+  if (req.headers.get("if-none-match") === tag) return new Response(null, { status: 304, headers });
+  return new Response(body, { headers: { ...headers, "Content-Type": "application/json" } });
 }

@@ -6,6 +6,7 @@ import 'package:mime/mime.dart';
 
 import '../models/chat.dart';
 import 'api.dart';
+import 'cache.dart';
 import 'live.dart';
 
 /// Результат отправки текста: ушло, либо сервер остановил (чужие реквизиты) и объяснил почему.
@@ -42,7 +43,7 @@ const _deleteWindow = Duration(hours: 48);
 class ChatController extends ChangeNotifier {
   ChatController({required this.api, required this.live, required this.chatId, this.myId}) {
     _sub = live.events.listen((e) {
-      if (e.type == 'tick' || (e.type == 'chat' && (e.conversationId == null || e.conversationId == chatId))) _soon();
+      if (e.type == 'tick' || e.type == 'resume' || (e.type == 'chat' && (e.conversationId == null || e.conversationId == chatId))) _soon();
     });
   }
 
@@ -62,11 +63,27 @@ class ChatController extends ChangeNotifier {
   Timer? _debounce;
   int _seq = 0;
 
-  /// Сообщения сервера и ещё не подтверждённые локальные — по времени.
+  /// Сообщения сервера по id: живое обновление приносит только последние, история догружается страницами — всё сливается сюда.
+  final Map<String, Message> _byId = {};
+  List<Message>? _sorted;
+  String? _etag;
+  DateTime? _detailAt;
+
+  /// Есть сообщения старше загруженных; идёт догрузка истории.
+  bool more = false;
+  bool loadingOlder = false;
+
+  /// Сообщения сервера и ещё не подтверждённые локальные — по времени. Список пересобирается, только когда что-то изменилось.
   List<Message> get messages {
-    final all = [...?detail?.messages, ..._local];
-    all.sort((a, b) => a.at.compareTo(b.at));
-    return all;
+    return _sorted ??= ([..._byId.values, ..._local]..sort((a, b) => a.at.compareTo(b.at)));
+  }
+
+  void _changed() => notifyListeners();
+
+  @override
+  void notifyListeners() {
+    _sorted = null;
+    super.notifyListeners();
   }
 
   // ─── выбор сообщений (как в WhatsApp): отмеченные — для пересылки, удаления и шаблона ──────────────────────────
@@ -137,7 +154,7 @@ class ChatController extends ChangeNotifier {
       }
     }
     clearSelect();
-    await load(silent: true);
+    await refresh();
     return errors.isEmpty ? null : errors.join('; ');
   }
 
@@ -167,7 +184,44 @@ class ChatController extends ChangeNotifier {
 
   void _soon() {
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 350), () => load(silent: true));
+    _debounce = Timer(const Duration(milliseconds: 250), () {
+      // Шапка, права, сделка и шаблоны меняются редко — не чаще раза в минуту; лента — по каждому событию.
+      final stale = _detailAt == null || DateTime.now().difference(_detailAt!) > const Duration(seconds: 60);
+      stale ? load(silent: true) : refresh();
+    });
+  }
+
+  /// Принять страницу сообщений сервера: новые и изменившиеся заменяются, неизменные остаются теми же объектами (пузыри не
+  /// перерисовываются), подтверждённые сервером локальные копии убираются. true — что-то поменялось.
+  bool _merge(List<Message> page) {
+    var changed = false;
+    for (final m in page) {
+      final old = _byId[m.id];
+      if (old == null || old.signature != m.signature) {
+        _byId[m.id] = m;
+        changed = true;
+      }
+    }
+    final before = _local.length;
+    _local.removeWhere((l) => !l.isFailed && page.any((m) => m.outgoing && m.at.difference(l.at).inSeconds.abs() < 120 && _same(m, l)));
+    return changed || before != _local.length;
+  }
+
+  /// Открыть диалог: сначала то, что лежит в кэше телефона (экран сразу с перепиской), затем свежий ответ сервера.
+  Future<void> open() async {
+    final cached = await LocalCache.read('chat_$chatId');
+    if (cached != null && detail == null) {
+      try {
+        detail = ChatDetail.fromJson(cached);
+        _merge(detail!.messages);
+        more = true;
+        loading = false;
+        _changed();
+      } catch (_) {
+        // Кэш старого формата — просто ждём сервер.
+      }
+    }
+    await load(silent: detail != null);
   }
 
   Future<void> load({bool silent = false}) async {
@@ -178,14 +232,67 @@ class ChatController extends ChangeNotifier {
     try {
       final r = await api.get('/api/mobile/chats/$chatId') as Map<String, dynamic>;
       detail = ChatDetail.fromJson(r);
-      // Локальное сообщение, которое сервер уже вернул (совпал текст и время), убираем — остаётся настоящее.
-      _local.removeWhere((l) => !l.isFailed && detail!.messages.any((m) => m.outgoing && m.at.difference(l.at).inSeconds.abs() < 120 && _same(m, l)));
+      _detailAt = DateTime.now();
+      // Страница сервера — последние сообщения: всё, что новее самого старого в ней, сервер прислал целиком.
+      final page = detail!.messages;
+      if (page.isNotEmpty && _byId.length > page.length) {
+        final from = page.first.at;
+        final ids = {for (final m in page) m.id};
+        _byId.removeWhere((id, m) => !m.at.isBefore(from) && !ids.contains(id));
+      }
+      _merge(page);
+      if (_byId.length <= page.length) more = detail!.more;
       error = null;
+      _save();
     } on ApiException catch (e) {
       error = e.message;
     }
     loading = false;
+    _changed();
+  }
+
+  /// Живое обновление: только последние сообщения (новые, статусы доставки, правки), с ETag — без изменений сервер шлёт 304.
+  Future<void> refresh() async {
+    try {
+      final r = await api.getCached('/api/mobile/chats/$chatId/messages', query: {'limit': '40'}, etag: _etag);
+      _etag = r.etag;
+      final data = r.data as Map<String, dynamic>?;
+      if (data == null) return;
+      final page = [for (final m in (data['messages'] as List)) Message.fromJson(m as Map<String, dynamic>)];
+      if (_merge(page)) {
+        _changed();
+        _save();
+      }
+    } on ApiException {
+      // Нет сети — следующее событие повторит.
+    }
+  }
+
+  /// История: страница сообщений старше самого раннего загруженного (прокрутка вверх, переход к цитате).
+  Future<void> loadOlder() async {
+    if (loadingOlder || !more) return;
+    final oldest = _byId.values.fold<Message?>(null, (a, m) => a == null || m.at.isBefore(a.at) ? m : a);
+    if (oldest == null) return;
+    loadingOlder = true;
     notifyListeners();
+    try {
+      final r = await api.get('/api/mobile/chats/$chatId/messages', query: {'limit': '50', 'before': oldest.at.toUtc().toIso8601String()}) as Map<String, dynamic>;
+      _merge([for (final m in (r['messages'] as List)) Message.fromJson(m as Map<String, dynamic>)]);
+      more = r['more'] == true;
+    } on ApiException {
+      // Повторим при следующей прокрутке.
+    }
+    loadingOlder = false;
+    _changed();
+  }
+
+  /// В кэш — шапка и последние 60 сообщений: этого хватает, чтобы открыть диалог мгновенно.
+  void _save() {
+    final raw = detail?.raw;
+    if (raw == null) return;
+    final list = messages.where((m) => m.raw != null).toList();
+    final tail = list.length > 60 ? list.sublist(list.length - 60) : list;
+    LocalCache.write('chat_$chatId', {...raw, 'messages': [for (final m in tail) m.raw]});
   }
 
   bool _same(Message server, Message local) {
@@ -248,7 +355,7 @@ class ChatController extends ChangeNotifier {
         notifyListeners();
         return SendResult(error: local.error);
       }
-      await load(silent: true);
+      await refresh();
       return SendResult();
     } on ApiException catch (e) {
       local.status = 'error';
@@ -271,7 +378,7 @@ class ChatController extends ChangeNotifier {
         notifyListeners();
         return local.error;
       }
-      await load(silent: true);
+      await refresh();
       return null;
     } on ApiException catch (e) {
       local.status = 'error';
@@ -315,7 +422,7 @@ class ChatController extends ChangeNotifier {
       }
     }
     replyTo = null;
-    await load(silent: true);
+    await refresh();
     return problem;
   }
 
@@ -327,7 +434,7 @@ class ChatController extends ChangeNotifier {
   Future<String?> edit(Message m, String text) async {
     try {
       await api.patch('/api/mobile/chats/$chatId/messages/${m.id}', body: {'text': text});
-      await load(silent: true);
+      await refresh();
       return null;
     } on ApiException catch (e) {
       return e.message;
@@ -337,7 +444,7 @@ class ChatController extends ChangeNotifier {
   Future<String?> remove(Message m) async {
     try {
       await api.delete('/api/mobile/chats/$chatId/messages/${m.id}');
-      await load(silent: true);
+      await refresh();
       return null;
     } on ApiException catch (e) {
       return e.message;
@@ -355,10 +462,48 @@ class ChatController extends ChangeNotifier {
     }
   }
 
+  /// «Повторить отправку» сообщения, которое шлюз не принял (запись в CRM есть, статус «ошибка»).
+  Future<String?> resend(Message m) async {
+    m.status = 'sending';
+    notifyListeners();
+    try {
+      await api.post('/api/mobile/chats/$chatId/messages/${m.id}/resend');
+      await refresh();
+      return null;
+    } on ApiException catch (e) {
+      m.status = 'error';
+      notifyListeners();
+      return e.message;
+    }
+  }
+
+  /// Товары каталога WhatsApp для выбора в чате. enabled=false — каталог в чатах выключен в настройках CRM.
+  Future<({bool enabled, List<CatalogItem> items})> catalog() async {
+    final r = await api.get('/api/mobile/catalog') as Map<String, dynamic>;
+    return (enabled: r['enabled'] == true, items: [for (final p in (r['products'] as List)) CatalogItem.fromJson(p as Map<String, dynamic>)]);
+  }
+
+  /// Клиенту карточку товара (productId) или ссылку на весь каталог (null).
+  Future<String?> sendCatalog(String? productId) async {
+    try {
+      await api.post('/api/mobile/chats/$chatId/catalog', body: {'productId': productId});
+      await refresh();
+      return null;
+    } on ApiException catch (e) {
+      return e.message;
+    }
+  }
+
+  /// Состав корзины, которую прислал клиент.
+  Future<List<CartItem>> orderItems(Message m) async {
+    final r = await api.get('/api/mobile/chats/messages/${m.id}/order') as Map<String, dynamic>;
+    return [for (final i in (r['items'] as List)) CartItem.fromJson(i as Map<String, dynamic>)];
+  }
+
   Future<String?> addNote(String text) async {
     try {
       await api.post('/api/mobile/chats/$chatId/note', body: {'text': text});
-      await load(silent: true);
+      await refresh();
       return null;
     } on ApiException catch (e) {
       return e.message;

@@ -13,8 +13,9 @@ import 'orders_screen.dart' show orderStatusColor;
 /// Заказ для производства: статус и его смена одной кнопкой, получатель с кнопкой «позвонить», доставка и трек, книга,
 /// пожелания (открытка, «сюрприз») и журнал. Файлы типографии и правка данных — в CRM на сайте.
 class OrderScreen extends StatefulWidget {
-  const OrderScreen({super.key, required this.orderId, required this.number});
+  const OrderScreen({super.key, required this.orderId, this.number = 0});
   final String orderId;
+  /// Номер заказа для шапки; 0 — неизвестен (открыт из уведомления), берётся из ответа сервера.
   final int number;
 
   @override
@@ -26,6 +27,8 @@ class _OrderScreenState extends State<OrderScreen> {
   String? _error;
   bool _changed = false;
   bool _busy = false;
+
+  int get _number => widget.number != 0 ? widget.number : ((_o?['number'] as num?)?.toInt() ?? 0);
 
   @override
   void initState() {
@@ -62,7 +65,8 @@ class _OrderScreenState extends State<OrderScreen> {
         child: GroupCard(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
           children: [
-            for (final s in statuses)
+            // «Оплачен» без записи платежа — только в CRM (приём денег с чеком); отменённый не возвращается в «ждёт оплаты».
+            for (final s in statuses.where((s) => !(current == 'pending_payment' && s['key'] == 'paid') && !(current == 'cancelled' && s['key'] == 'pending_payment')))
               GroupTile(
                 title: s['label'] as String,
                 subtitle: s['key'] == current ? 'сейчас' : null,
@@ -76,7 +80,7 @@ class _OrderScreenState extends State<OrderScreen> {
       ),
     );
     if (picked == null || !mounted) return;
-    if (!await confirm(context, title: 'Перевести заказ №${widget.number}?', message: 'Клиент получит сообщение о смене статуса, если для этого настроены правила.', ok: 'Перевести')) return;
+    if (!await confirm(context, title: 'Перевести заказ №$_number?', message: 'Клиент получит сообщение о смене статуса, если для этого настроены правила.', ok: 'Перевести')) return;
     setState(() => _busy = true);
     try {
       await api.post('/api/mobile/orders/${widget.orderId}/status', body: {'status': picked});
@@ -105,7 +109,7 @@ class _OrderScreenState extends State<OrderScreen> {
           surfaceTintColor: Colors.transparent,
           scrolledUnderElevation: 0,
           leading: RoundIconButton(icon: LucideIcons.chevronLeft, iconSize: 28, color: c.brandDeep, onTap: () => Navigator.of(context).pop(_changed)),
-          title: Text('Заказ №${widget.number}', style: AppText.headline(context)),
+          title: Text(_number == 0 ? 'Заказ' : 'Заказ №$_number', style: AppText.headline(context)),
         ),
         body: o == null
             ? (_error != null

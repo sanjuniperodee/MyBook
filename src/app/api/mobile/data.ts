@@ -4,6 +4,7 @@ import { container } from "@/server/container";
 import { assertVisible, can, canWork, contactView, staffViewer, type Staff } from "@/server/access";
 import { HttpError } from "@/server/api";
 import { discountLimit } from "@/server/discount";
+import { payFormOptions } from "@/server/pay-form";
 import { invoiceViews } from "@/app/admin/invoices/view";
 import { getSetting, listFields } from "@/modules/workspace";
 import { channelLabel } from "@/modules/messaging";
@@ -72,15 +73,25 @@ export async function mobileChatList(staff: Staff, filter: ChatFilterId, q?: str
 /** Файл сообщения: вложения шлюза — по id сообщения (с проверкой прав), остальное — как есть. */
 const mediaPath = (m: { id: string; gateway?: boolean; mediaUrl: string | null }) => (m.gateway ? `/api/admin/chats/messages/${m.id}/media` : m.mediaUrl);
 
-/** Диалог целиком: шапка, сообщения, права на ответ и счёт, шаблоны (уже с подстановкой), сделка и счета. */
-export async function mobileChatDetail(staff: Staff, id: string, limit = 120) {
+/** Сообщения диалога для приложения: вложения шлюза — по id сообщения. */
+export async function mobileMessages(conversationId: string, limit: number, before?: Date) {
+  const messages = await container().messaging.view.messages(conversationId, limit, before);
+  return { messages: messages.map((m) => ({ ...m, media: mediaPath(m) })), more: messages.length === limit };
+}
+
+/**
+ * Диалог целиком: шапка, сообщения, права на ответ и счёт, шаблоны (уже с подстановкой), сделка и счета. Сообщений —
+ * последняя страница (limit); старые приложение догружает через /api/mobile/chats/<id>/messages?before=…, а живое
+ * обновление берёт только последние сообщения оттуда же, не пересобирая шапку, шаблоны и счета.
+ */
+export async function mobileChatDetail(staff: Staff, id: string, limit = 50) {
   const conv = await container().messaging.queries.conversation(id);
   if (!conv) throw new HttpError(404, "notFound");
   assertVisible(staff, conv.assigneeId);
   const c = container();
   const chat = c.messaging.view;
-  const [messages, templates, vars, blocker, { dealRow, client }, admins, bot] = await Promise.all([
-    chat.messages(conv.id, limit),
+  const [page, templates, vars, blocker, { dealRow, client }, admins, bot] = await Promise.all([
+    mobileMessages(conv.id, limit),
     chat.templates(staff.user.id),
     chat.vars(conv, staffLabel(staff.user)),
     chat.sendBlocker(conv),
@@ -112,7 +123,8 @@ export async function mobileChatDetail(staff: Staff, id: string, limit = 120) {
       clientId: conv.clientId,
       clientName: client?.name ?? null,
     },
-    messages: messages.map((m) => ({ ...m, media: mediaPath(m) })),
+    messages: page.messages,
+    more: page.more,
     deal: dealRow
       ? {
           id: dealRow.deal.id,
@@ -173,13 +185,14 @@ export async function mobileDealDetail(staff: Staff, id: string) {
   const deal = await c.reporting.dealById(id);
   if (!deal) throw new HttpError(404, "notFound");
   assertVisible(staff, deal.assigneeId);
-  const [stages, admins, card, payments, invoiceRows, maxDiscount] = await Promise.all([
+  const [stages, admins, card, payments, invoiceRows, maxDiscount, payForms] = await Promise.all([
     c.sales.queries.listStages(),
     c.access.queries.allStaff(),
     c.reporting.dealCard(deal, { calls: false, chats: can(staff, "chats.view") }),
     c.sales.payments.list(deal.id),
     c.ordering.invoices.listFor(deal.id),
     discountLimit(staff),
+    payFormOptions(),
   ]);
   const names = new Map(admins.map((a) => [a.id, staffLabel(a)]));
   const stage = stages.find((s) => s.id === deal.stageId);
@@ -210,7 +223,11 @@ export async function mobileDealDetail(staff: Staff, id: string) {
     order: card.order ? { id: card.order.id, number: card.order.number, status: card.order.status, amount: card.order.amount, plan: card.order.plan } : null,
     tasks: card.taskRows.map((t) => ({ id: t.id, title: t.title, dueAt: t.dueAt?.toISOString() ?? null, done: !!t.doneAt })),
     notes: card.noteRows.slice(0, 30).map((n) => ({ id: n.id, text: n.text, at: n.createdAt.toISOString(), author: n.authorId ? (names.get(n.authorId) ?? null) : null })),
-    payments: payments.slice(0, 20).map((p) => ({ id: p.id, amount: p.amount, kind: p.kind, method: p.method, at: p.paidAt.toISOString() })),
+    payments: payments.slice(0, 20).map((p) => ({ id: p.id, amount: p.amount, kind: p.kind, method: p.method, payForm: p.payForm ?? null, at: p.paidAt.toISOString() })),
+    // Приём денег в приложении (POST /api/admin/deals/<id>/payments): формы оплаты как в CRM; по сделке с заказом —
+    // только возврат лишнего, оплату принимают в заказе.
+    payForms,
+    hasOrder: !!deal.orderId,
     invoices: invoiceViews(invoiceRows, { now: new Date(), withLink: edit }),
   };
 }

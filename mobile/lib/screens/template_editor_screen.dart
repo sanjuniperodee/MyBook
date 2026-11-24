@@ -41,7 +41,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     _baseText = widget.template?.text ?? widget.initialText ?? '';
     _title = TextEditingController(text: _baseTitle)..addListener(_changed);
     // Цвета подсветки задаются после первого кадра (нужен контекст темы) — до этого поле обычное.
-    _text = TemplateTextController(text: _baseText, known: const Color(0xFF00A884), unknown: const Color(0xFFF5A524))..addListener(_changed);
+    _text = TemplateTextController(text: _baseText, known: AppColors.light.success, unknown: AppColors.light.warn)..addListener(_changed);
   }
 
   void _changed() => setState(() {});

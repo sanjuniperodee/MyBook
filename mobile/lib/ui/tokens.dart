@@ -1,7 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
-/// Палитра приложения: фирменный зелёный как у WhatsApp, спокойные нейтральные поверхности и отдельная тёмная тема.
+/// Палитра приложения — та же, что у CRM на сайте (холодная палитра html.crm, DESIGN.md): тушь, холодные серые
+/// поверхности, винный акцент, свои сообщения — розовые (rose), ответы бота — голубые (info), и тёмная тема CRM.
 /// Всё цветовое берётся отсюда (context.c), без «магических» значений в экранах.
 @immutable
 class AppColors extends ThemeExtension<AppColors> {
@@ -28,6 +29,8 @@ class AppColors extends ThemeExtension<AppColors> {
     required this.note,
     required this.violet,
     required this.violetBg,
+    required this.dangerBg,
+    required this.bubbleBot,
   });
 
   final Color brand;
@@ -52,55 +55,63 @@ class AppColors extends ThemeExtension<AppColors> {
   final Color note;
   final Color violet;
   final Color violetBg;
+  final Color dangerBg;
+  final Color bubbleBot;
 
+  // html.crm:not(.dark) в src/app/globals.css.
   static const light = AppColors(
-    brand: Color(0xFF00A884),
-    brandDeep: Color(0xFF008069),
+    brand: Color(0xFFA01F3A), // wine
+    brandDeep: Color(0xFF7D1730), // wine-dark
     onBrand: Colors.white,
     bg: Colors.white,
-    surface: Color(0xFFF4F5F7),
+    surface: Color(0xFFF3F4F7), // canvas
     surfaceRaised: Colors.white,
-    border: Color(0xFFE7EAEE),
-    text: Color(0xFF111B21),
-    textMuted: Color(0xFF667781),
-    textFaint: Color(0xFF8696A0),
-    bubbleOut: Color(0xFFD9FDD3),
+    border: Color(0xFFE1E4EA), // line
+    text: Color(0xFF0F131A), // ink
+    textMuted: Color(0xFF596273), // muted
+    textFaint: Color(0xFF8A92A1),
+    bubbleOut: Color(0xFFFBE8EC), // rose
     bubbleIn: Colors.white,
-    wallpaper: Color(0xFFEFE9E0),
-    wallpaperInk: Color(0xFF8C7F6B),
-    danger: Color(0xFFE5484D),
-    warn: Color(0xFFB45F06),
-    warnBg: Color(0xFFFFF1DB),
-    success: Color(0xFF1F9D66),
-    tickRead: Color(0xFF34B7F1),
-    note: Color(0xFFFFF4C2),
-    violet: Color(0xFF6D4AFF),
-    violetBg: Color(0xFFEFEBFF),
+    wallpaper: Color(0xFFF3F4F7), // canvas
+    wallpaperInk: Color(0xFFC8CDD7), // line-strong
+    danger: Color(0xFFB3261E),
+    warn: Color(0xFF8C5700),
+    warnBg: Color(0xFFFCF0D6),
+    success: Color(0xFF13703F),
+    tickRead: Color(0xFF1B5FA7), // info
+    note: Color(0xFFFCF0D6), // warning-bg: заметка для коллег
+    violet: Color(0xFF1B5FA7),
+    violetBg: Color(0xFFE5EEFA),
+    dangerBg: Color(0xFFFDEAE8),
+    bubbleBot: Color(0xFFE5EEFA), // info-bg: ответ бота
   );
 
+  // html.crm.dark в src/app/globals.css.
   static const dark = AppColors(
-    brand: Color(0xFF21C063),
-    brandDeep: Color(0xFF00A884),
-    onBrand: Color(0xFF06140D),
-    bg: Color(0xFF0B141A),
-    surface: Color(0xFF16222A),
-    surfaceRaised: Color(0xFF1F2C34),
-    border: Color(0xFF222D34),
-    text: Color(0xFFE9EDEF),
-    textMuted: Color(0xFF8696A0),
-    textFaint: Color(0xFF667781),
-    bubbleOut: Color(0xFF005C4B),
-    bubbleIn: Color(0xFF1F2C34),
-    wallpaper: Color(0xFF0B141A),
-    wallpaperInk: Color(0xFF8FA3AD),
-    danger: Color(0xFFFF6369),
-    warn: Color(0xFFF5A524),
-    warnBg: Color(0xFF3A2C10),
-    success: Color(0xFF3DD68C),
-    tickRead: Color(0xFF53BDEB),
-    note: Color(0xFF4A4220),
-    violet: Color(0xFFA78BFA),
-    violetBg: Color(0xFF2A2250),
+    brand: Color(0xFFD4506D),
+    brandDeep: Color(0xFFE47D95),
+    onBrand: Colors.white,
+    bg: Color(0xFF0E1117), // paper
+    surface: Color(0xFF1C212B), // sunken
+    surfaceRaised: Color(0xFF151922), // white (тёмный лист)
+    border: Color(0xFF272D38),
+    text: Color(0xFFEEF1F6),
+    textMuted: Color(0xFF97A0B0),
+    textFaint: Color(0xFF6E7787),
+    bubbleOut: Color(0xFF3A1F29), // rose
+    bubbleIn: Color(0xFF1D222C), // cream
+    wallpaper: Color(0xFF0E1117),
+    wallpaperInk: Color(0xFF394150),
+    danger: Color(0xFFF3A199),
+    warn: Color(0xFFEFC376),
+    warnBg: Color(0xFF2F2410),
+    success: Color(0xFF84D3A6),
+    tickRead: Color(0xFF9BC3EE),
+    note: Color(0xFF2F2410),
+    violet: Color(0xFF9BC3EE),
+    violetBg: Color(0xFF14263A),
+    dangerBg: Color(0xFF361A18),
+    bubbleBot: Color(0xFF14263A),
   );
 
   @override

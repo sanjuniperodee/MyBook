@@ -73,6 +73,11 @@ class Message {
     this.transcript,
     this.localPath,
     this.durationMs,
+    this.card,
+    this.editHistory = const [],
+    this.revoked,
+    this.mediaGone = false,
+    this.raw,
   });
 
   final String id;
@@ -96,8 +101,26 @@ class Message {
   final String? localPath;
   final int? durationMs;
 
+  /// Карточка WhatsApp: товар из каталога, корзина клиента или ссылка на каталог.
+  final MessageCard? card;
+
+  /// Правки в WhatsApp не из CRM (клиентом или с телефона магазина): прежние тексты, старые первыми.
+  final List<String> editHistory;
+
+  /// Удалено в WhatsApp не из CRM: 'client' — клиентом, 'shop' — с телефона магазина (текст сотрудникам виден).
+  final String? revoked;
+
+  /// Вложение истекло у WhatsApp и больше не скачивается.
+  final bool mediaGone;
+
+  /// Ответ сервера как есть — для кэша на телефоне.
+  final Map<String, dynamic>? raw;
+
   bool get isPending => status == 'sending';
   bool get isFailed => status == 'error';
+
+  /// Отпечаток того, что видно в пузыре: одинаковый — пузырь перерисовывать незачем.
+  String get signature => '$status|${error ?? ''}|${text.hashCode}|$edited|$deleted|${transcript?.hashCode ?? 0}|${revoked ?? ''}|${editHistory.length}|$mediaGone|${card?.kind ?? ''}';
 
   factory Message.fromJson(Map<String, dynamic> j) {
     final reply = j['replyTo'];
@@ -118,8 +141,85 @@ class Message {
       edited: j['edited'] == true,
       deleted: j['deleted'] == true,
       transcript: j['transcript'] as String?,
+      card: j['card'] is Map<String, dynamic> ? MessageCard.fromJson(j['card'] as Map<String, dynamic>) : null,
+      editHistory: [for (final h in (j['editHistory'] as List? ?? const [])) if (h is Map && h['text'] is String) h['text'] as String],
+      revoked: j['revoked'] as String?,
+      mediaGone: j['mediaGone'] == true,
+      raw: j,
     );
   }
+}
+
+/// Карточка WhatsApp в ленте: товар (product), корзина клиента (order) или весь каталог (catalog).
+class MessageCard {
+  MessageCard({required this.kind, this.productId, this.name = '', this.description, this.price, this.currency = 'KZT', this.retailerId, this.url, this.itemCount = 0, this.total, this.items, this.caption = ''});
+  final String kind;
+  final String? productId;
+  final String name;
+  final String? description;
+  final double? price;
+  final String currency;
+  final String? retailerId;
+  final String? url;
+  final int itemCount;
+  final double? total;
+  final List<CartItem>? items;
+
+  /// Подпись под карточкой: текст к товару или комментарий к корзине.
+  final String caption;
+
+  factory MessageCard.fromJson(Map<String, dynamic> j) => MessageCard(
+    kind: (j['kind'] as String?) ?? '',
+    productId: j['productId'] as String?,
+    name: (j['name'] as String?) ?? (j['title'] as String?) ?? '',
+    description: j['description'] as String?,
+    price: (j['price'] as num?)?.toDouble(),
+    currency: (j['currency'] as String?) ?? 'KZT',
+    retailerId: j['retailerId'] as String?,
+    url: j['url'] as String?,
+    itemCount: (j['itemCount'] as num?)?.toInt() ?? 0,
+    total: (j['total'] as num?)?.toDouble(),
+    items: j['items'] is List ? [for (final i in j['items'] as List) CartItem.fromJson(i as Map<String, dynamic>)] : null,
+    caption: ((j['kind'] == 'product' ? j['body'] : j['kind'] == 'order' ? j['note'] : null) as String?) ?? '',
+  );
+}
+
+class CartItem {
+  CartItem({required this.name, required this.quantity, this.price});
+  final String name;
+  final int quantity;
+  final double? price;
+  factory CartItem.fromJson(Map<String, dynamic> j) => CartItem(name: (j['name'] as String?) ?? '', quantity: (j['quantity'] as num?)?.toInt() ?? 1, price: (j['price'] as num?)?.toDouble());
+}
+
+/// Цена каталога: «25 000 ₸».
+String catalogPrice(double? price, String currency) {
+  if (price == null || price <= 0) return '';
+  const signs = {'KZT': '₸', 'RUB': '₽', 'USD': r'$', 'EUR': '€'};
+  final whole = price == price.roundToDouble();
+  final digits = whole ? price.round().toString() : price.toStringAsFixed(2);
+  final parts = digits.split('.');
+  final int0 = parts[0].replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => '\u00a0');
+  return '$int0${parts.length > 1 ? ',${parts[1]}' : ''}\u00a0${signs[currency] ?? currency}';
+}
+
+/// Товар каталога для выбора в чате.
+class CatalogItem {
+  CatalogItem({required this.id, required this.name, required this.price, required this.currency, required this.hidden, required this.image});
+  final String id;
+  final String name;
+  final double? price;
+  final String currency;
+  final bool hidden;
+  final bool image;
+  factory CatalogItem.fromJson(Map<String, dynamic> j) => CatalogItem(
+    id: j['id'] as String,
+    name: (j['name'] as String?) ?? '',
+    price: (j['price'] as num?)?.toDouble(),
+    currency: (j['currency'] as String?) ?? 'KZT',
+    hidden: j['hidden'] == true,
+    image: j['image'] == true,
+  );
 }
 
 class ReplyQuote {
@@ -225,11 +325,24 @@ class ChatDetail {
     required this.templates,
     required this.invoices,
     this.pinned = false,
+    this.more = false,
+    this.clientId,
+    this.channel = '',
+    this.raw,
   });
+
+  final String channel;
 
   final String id;
   final String title;
   final String channelLabel;
+
+  /// Есть сообщения старше загруженных (догружаются при прокрутке вверх).
+  final bool more;
+  final String? clientId;
+
+  /// Ответ сервера (без сообщений) — для кэша на телефоне.
+  final Map<String, dynamic>? raw;
   final bool pinned;
   final String? avatarUrl;
   final String status;
@@ -261,6 +374,10 @@ class ChatDetail {
       botLabel: (j['bot'] as Map<String, dynamic>?)?['label'] as String?,
       templates: [for (final t in (j['templates'] as List)) Template.fromJson(t as Map<String, dynamic>)],
       invoices: [for (final i in (j['invoices'] as List)) InvoiceBrief.fromJson(i as Map<String, dynamic>)],
+      more: j['more'] == true,
+      clientId: c['clientId'] as String?,
+      channel: (c['channel'] as String?) ?? '',
+      raw: {for (final e in j.entries) if (e.key != 'messages') e.key: e.value},
     );
   }
 }

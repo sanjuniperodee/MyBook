@@ -6,6 +6,7 @@ import '../core/api.dart';
 import '../core/auth.dart';
 import '../ui/kit.dart';
 import '../ui/tokens.dart';
+import '../core/version.dart';
 
 /// Вход сотрудника: логин и пароль CRM, при включённой 2FA — код из приложения-аутентификатора.
 class LoginScreen extends StatefulWidget {
@@ -57,31 +58,46 @@ class _LoginScreenState extends State<LoginScreen> {
     final auth = context.watch<AuthState>();
     final c = context.c;
     final needsCode = auth.needsCode;
+    // Как CRM на сайте (DESIGN.md, html.crm): лист без украшений, знак и подпись слева, поля с подписями и рамкой,
+    // одна винная кнопка, служебное (адрес сервера, версия) — мелко внизу.
+    InputDecoration field(String hint, {Widget? prefix, Widget? suffix}) => InputDecoration(
+          hintText: hint,
+          prefixIcon: prefix,
+          suffixIcon: suffix,
+          filled: true,
+          fillColor: c.surfaceRaised,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(Rd.sm), borderSide: BorderSide(color: c.border)),
+          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(Rd.sm), borderSide: BorderSide(color: c.brand, width: 1.5)),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(Rd.sm), borderSide: BorderSide(color: c.border)),
+        );
+    Widget label(String t) => Padding(padding: const EdgeInsets.only(bottom: 6), child: Text(t, style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: c.textMuted)));
     return Scaffold(
       backgroundColor: c.bg,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 400),
               child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                Center(
-                  child: Container(
-                    width: 84,
-                    height: 84,
-                    decoration: BoxDecoration(borderRadius: BorderRadius.circular(24), boxShadow: [BoxShadow(color: const Color(0xFF7A1F2B).withValues(alpha: 0.30), blurRadius: 26, offset: const Offset(0, 10))]),
-                    child: ClipRRect(borderRadius: BorderRadius.circular(24), child: Image.asset('assets/images/logo_mark.png', fit: BoxFit.cover, width: 84, height: 84)),
-                  ),
-                ),
+                Row(children: [
+                  ClipRRect(borderRadius: BorderRadius.circular(10), child: Image.asset('assets/images/logo_mark.png', fit: BoxFit.cover, width: 40, height: 40)),
+                  const SizedBox(width: 12),
+                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('MyBooks', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: c.text, height: 1.1)),
+                    Text('CRM для команды', style: TextStyle(fontSize: 13, color: c.textMuted)),
+                  ]),
+                ]),
+                const SizedBox(height: 40),
+                Text(needsCode ? 'Подтверждение входа' : 'Вход в CRM', style: AppText.largeTitle(context).copyWith(fontSize: 28, letterSpacing: -0.5)),
+                const SizedBox(height: 6),
+                Text(needsCode ? 'Введите код из приложения-аутентификатора' : 'Чаты, сделки, задачи и заказы — как на сайте, в телефоне', style: AppText.sub(context).copyWith(fontSize: 15.5)),
                 const SizedBox(height: 28),
-                Text(needsCode ? 'Подтверждение входа' : 'MyBooks CRM', textAlign: TextAlign.center, style: AppText.largeTitle(context).copyWith(fontSize: 28)),
-                const SizedBox(height: 8),
-                Text(needsCode ? 'Введите код из приложения-аутентификатора' : 'Войдите, чтобы вести чаты и сделки', textAlign: TextAlign.center, style: AppText.sub(context).copyWith(fontSize: 16)),
-                const SizedBox(height: 32),
                 if (auth.notice != null && _error == null) _Notice(auth.notice!, warn: true),
                 if (_error != null) _Notice(_error!, warn: false),
                 if (!needsCode) ...[
+                  label('Электронная почта'),
                   TextField(
                     controller: _login,
                     keyboardType: TextInputType.emailAddress,
@@ -89,24 +105,25 @@ class _LoginScreenState extends State<LoginScreen> {
                     autofillHints: const [AutofillHints.username],
                     textInputAction: TextInputAction.next,
                     onSubmitted: (_) => _passwordFocus.requestFocus(),
-                    style: const TextStyle(fontSize: 17),
-                    decoration: InputDecoration(hintText: 'E-mail', prefixIcon: Icon(LucideIcons.mail, size: 20, color: c.textFaint)),
+                    style: TextStyle(fontSize: 16.5, color: c.text),
+                    decoration: field('name@mybooks.kz'),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
+                  label('Пароль'),
                   TextField(
                     controller: _password,
                     focusNode: _passwordFocus,
                     obscureText: _hide,
                     autofillHints: const [AutofillHints.password],
                     onSubmitted: (_) => _submit(),
-                    style: const TextStyle(fontSize: 17),
-                    decoration: InputDecoration(
-                      hintText: 'Пароль',
-                      prefixIcon: Icon(LucideIcons.lock, size: 20, color: c.textFaint),
-                      suffixIcon: IconButton(icon: Icon(_hide ? LucideIcons.eyeOff : LucideIcons.eye, size: 20, color: c.textFaint), onPressed: () => setState(() => _hide = !_hide)),
+                    style: TextStyle(fontSize: 16.5, color: c.text),
+                    decoration: field(
+                      'Пароль',
+                      suffix: IconButton(icon: Icon(_hide ? LucideIcons.eyeOff : LucideIcons.eye, size: 19, color: c.textFaint), tooltip: _hide ? 'Показать пароль' : 'Скрыть пароль', onPressed: () => setState(() => _hide = !_hide)),
                     ),
                   ),
-                ] else
+                ] else ...[
+                  label('Код'),
                   TextField(
                     controller: _code,
                     keyboardType: TextInputType.number,
@@ -114,22 +131,27 @@ class _LoginScreenState extends State<LoginScreen> {
                     maxLength: 12,
                     textAlign: TextAlign.center,
                     onSubmitted: (_) => _submit(),
-                    style: const TextStyle(fontSize: 26, letterSpacing: 6, fontWeight: FontWeight.w600),
-                    decoration: const InputDecoration(hintText: '••••••', counterText: ''),
+                    style: TextStyle(fontSize: 24, letterSpacing: 6, fontWeight: FontWeight.w600, color: c.text),
+                    decoration: field('••••••').copyWith(counterText: ''),
                   ),
-                const SizedBox(height: 20),
+                ],
+                const SizedBox(height: 24),
                 PrimaryButton(label: needsCode ? 'Подтвердить' : 'Войти', busy: _busy, onPressed: _submit),
                 if (needsCode) Padding(padding: const EdgeInsets.only(top: 8), child: TextButton(onPressed: auth.cancelCode, child: Text('Назад', style: TextStyle(color: c.textMuted, fontSize: 16)))),
-                const SizedBox(height: 16),
-                Center(
-                  child: TextButton.icon(
+                const SizedBox(height: 28),
+                Divider(color: c.border, height: 1),
+                const SizedBox(height: 8),
+                Row(children: [
+                  TextButton.icon(
                     onPressed: () => setState(() => _showServer = !_showServer),
-                    icon: Icon(LucideIcons.server, size: 16, color: c.textFaint),
-                    label: Text(_showServer ? 'Скрыть адрес сервера' : 'Адрес сервера', style: TextStyle(color: c.textFaint, fontSize: 14.5)),
+                    style: TextButton.styleFrom(padding: EdgeInsets.zero, foregroundColor: c.textMuted),
+                    icon: Icon(LucideIcons.server, size: 15, color: c.textFaint),
+                    label: Text(_showServer ? 'Скрыть адрес сервера' : 'Адрес сервера', style: TextStyle(color: c.textMuted, fontSize: 13.5)),
                   ),
-                ),
-                if (_showServer)
-                  TextField(controller: _server, keyboardType: TextInputType.url, autocorrect: false, decoration: const InputDecoration(hintText: 'https://mybooks.kz')),
+                  const Spacer(),
+                  Text('Версия $appVersion', style: TextStyle(color: c.textFaint, fontSize: 13)),
+                ]),
+                if (_showServer) ...[const SizedBox(height: 6), TextField(controller: _server, keyboardType: TextInputType.url, autocorrect: false, style: TextStyle(color: c.text), decoration: field('https://mybooks.kz'))],
               ]),
             ),
           ),
@@ -150,8 +172,8 @@ class _Notice extends StatelessWidget {
     final fg = warn ? c.warn : c.danger;
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(color: warn ? c.warnBg : c.danger.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: warn ? c.warnBg : c.dangerBg, borderRadius: BorderRadius.circular(Rd.sm)),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Icon(warn ? LucideIcons.info : LucideIcons.circleAlert, size: 18, color: fg),
         const SizedBox(width: 10),

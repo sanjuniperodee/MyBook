@@ -31,7 +31,7 @@ export async function notify(userIds: (string | null | undefined)[], n: StaffNot
   if (!to.length) return;
   const { pushTo } = await import("@/modules/workspace/infrastructure/push");
   // Тег — по объекту (ссылке): новое уведомление о том же чате заменяет прежнее, а не копится стопкой (tasks-d8).
-  void pushTo(to, { title: n.title, body: n.body, link: n.link, tag: n.link ? `${n.kind}:${n.link}` : n.kind }).catch((err) => console.error("[push]", err));
+  void pushTo(to, { title: n.title, body: n.body, link: n.link, kind: n.kind, tag: n.link ? `${n.kind}:${n.link}` : n.kind }).catch((err) => console.error("[push]", err));
 }
 
 /** Личные настройки уведомлений сотрудника. */

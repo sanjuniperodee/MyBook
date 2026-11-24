@@ -18,8 +18,12 @@ void main() {
       expect(chat.chatId, '20bc2e0b-885b-4d12-a10c-c984d0d5630b');
       final deal = NotificationTarget.parse('/admin/deals/b70f2c02-9eb4-4150-ae9d-ae02d1aa485b');
       expect(deal.dealId, 'b70f2c02-9eb4-4150-ae9d-ae02d1aa485b');
-      expect(NotificationTarget.parse('/admin/finance').isEmpty, isTrue);
+      // Разделов, которых нет в приложении (финансы, обращения), — открываем CRM на сайте.
+      expect(NotificationTarget.parse('/admin/finance').web, '/admin/finance');
+      expect(NotificationTarget.parse('/admin/support/12').web, '/admin/support/12');
+      expect(NotificationTarget.parse('/admin/orders/b70f2c02-9eb4-4150-ae9d-ae02d1aa485b#money').orderId, 'b70f2c02-9eb4-4150-ae9d-ae02d1aa485b');
       expect(NotificationTarget.parse(null).isEmpty, isTrue);
+      expect(NotificationTarget.parse('').isEmpty, isTrue);
     });
 
     test('клиент и вкладки приложения', () {
@@ -31,6 +35,33 @@ void main() {
   });
 
   group('модели сервера', () {
+    test('сообщение: карточка каталога, правки и удаление клиентом, истёкший файл', () {
+      final m = Message.fromJson({
+        'id': 'm2',
+        'direction': 'in',
+        'type': 'text',
+        'text': '🛍️ Книга — 25 000 ₸',
+        'status': 'delivered',
+        'at': '2026-11-24T10:00:00.000Z',
+        'card': {'kind': 'product', 'productId': '123', 'name': 'Книга', 'price': 25000, 'currency': 'KZT', 'body': 'Вот наша книга'},
+        'editHistory': [{'text': 'Старый текст', 'at': '2026-11-24T09:59:00.000Z'}],
+        'revoked': 'client',
+        'mediaGone': true,
+      });
+      expect(m.card!.kind, 'product');
+      expect(m.card!.caption, 'Вот наша книга');
+      expect(m.editHistory, ['Старый текст']);
+      expect(m.revoked, 'client');
+      expect(m.mediaGone, isTrue);
+      expect(catalogPrice(25000, 'KZT'), '25\u00a0000\u00a0₸');
+      expect(catalogPrice(null, 'KZT'), '');
+      // Отпечаток меняется, когда меняется видимое: пузырь перерисовывается только тогда.
+      final same = Message.fromJson({...m.raw!});
+      expect(same.signature, m.signature);
+      final read = Message.fromJson({...m.raw!, 'status': 'read'});
+      expect(read.signature == m.signature, isFalse);
+    });
+
     test('сообщение: направление, ответ на сообщение, расшифровка', () {
       final m = Message.fromJson({
         'id': 'm1',

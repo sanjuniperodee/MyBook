@@ -12,6 +12,7 @@ import '../ui/kit.dart';
 import '../ui/tokens.dart';
 import 'home_screen.dart' show SectionPage;
 import 'my_templates_screen.dart';
+import 'support_screen.dart';
 
 /// Профиль сотрудника: кто вошёл, уведомления, сервер и выход.
 class ProfileScreen extends StatefulWidget {
@@ -181,6 +182,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     }
                   },
                 ),
+              ),
+              GroupTile(
+                icon: LucideIcons.lifeBuoy,
+                title: 'Сообщить о проблеме',
+                subtitle: 'Обращение в поддержку: ошибка, вопрос, что изменить',
+                onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const SupportScreen())),
               ),
               GroupTile(icon: LucideIcons.server, iconColor: c.textMuted, title: 'Сервер', subtitle: auth.server),
             ],

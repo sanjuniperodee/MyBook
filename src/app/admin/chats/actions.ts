@@ -10,7 +10,7 @@ import { channelLabel, MessageActionError, type BotTurnTrace } from "@/modules/m
 import { admin } from "@/i18n/admin";
 import { sensitiveFor, sensitiveWhat } from "@/server/sensitive";
 import type { OfferRequest } from "@/modules/marketing";
-import { notifyMentions, staffNotifier } from "@/modules/workspace";
+import { notifyMentions, readChatNotifications, staffNotifier } from "@/modules/workspace";
 import { staffLabel } from "@/shared/domain/staff";
 import { formatPhone, isPhoneLike, normalizePhone } from "@/shared/domain/phone";
 import { notify } from "@/modules/workspace";
@@ -67,6 +67,8 @@ export async function markReadAction(conversationId: string): Promise<{ read: bo
   // ставил только он, у остальных счётчики копились бы навсегда. Ничей диалог менеджер «только свои» только смотрит.
   const read = canWork(staff, conv.assigneeId);
   if (conv.unread && read) await container().messaging.chats.markRead(conv.id);
+  // Уведомления этому сотруднику о диалоге — прочитаны: колокольчик, значок телефона и шторка больше не зовут в чат.
+  await readChatNotifications(staff.user.id, conv.id).catch((err: unknown) => console.error("[notify:read]", err));
   return { read };
 }
 

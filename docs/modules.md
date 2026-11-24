@@ -18,7 +18,7 @@
 | [feedback](#feedback) | Отзывы: отзыв клиента о книге, благодарность автору, модерация и витрина. | 12 / 641 | 7 |
 | [identity](#identity) | Identity: учётные записи, вход, пароли, второй фактор. | 17 / 1037 | 19 |
 | [marketing](#marketing) | Маркетинг: каналы привлечения, короткие ссылки, предложения из чата. | 10 / 596 | 13 |
-| [messaging](#messaging) | Переписка: единый инбокс, бот-квалификатор, виджет на сайте. | 56 / 16356 | 148 |
+| [messaging](#messaging) | Переписка: единый инбокс, бот-квалификатор, виджет на сайте. | 56 / 16356 | 150 |
 | [notifications](#notifications) | Уведомления: автописьма, напоминания из CRM, отписка. | 9 / 692 | 6 |
 | [ordering](#ordering) | Заказы. Остальной код видит только его. | 46 / 5688 | 91 |
 | [production](#production) | Производство: вёрстка PDF книги и сертификатов, предпросмотры полос и обложек, файлы для типографии, очередь сборки. В container — previews (BookPreviewService) и printFiles. | 40 / 4639 | 0 |
@@ -27,7 +27,7 @@
 | [sales](#sales) | Продажи: сделки, воронки, этапы, дубли, воронка по действиям на сайте. | 27 / 2922 | 90 |
 | [support](#support) | Обращения: проблемы и просьбы с формы /support, расшифровка голосовых, статусы, уведомление и закрытие по выкатке. | 6 / 706 | 13 |
 | [telephony](#telephony) | Телефония: журнал звонков из АТС, звонки из CRM, веб-телефон, записи, звонки WhatsApp. | 13 / 1147 | 28 |
-| [workspace](#workspace) | Рабочее пространство CRM: свои поля, шаблоны ответов, уведомления и push сотрудников. | 19 / 1279 | 19 |
+| [workspace](#workspace) | Рабочее пространство CRM: свои поля, шаблоны ответов, уведомления и push сотрудников. | 20 / 1476 | 19 |
 
 ## access
 
@@ -206,4 +206,4 @@ Identity: учётные записи, вход, пароли, второй фа
 - Фасад: `WorkspaceModule` → `container().workspace`
 - Публичное: `fields`, `templates`, `personalTemplates`, `inbox`, `pinnedChats`, `financeResolutions`, `expenses`, `settings`, `notifier`, `live`, `fieldsReader`, `schedule`
 - Таблицы: `crm_notifications`, `crm_templates`, `crm_fields`, `crm_mobile_devices`, `crm_pinned_chats`, `crm_push_subscriptions`, `crm_settings`, `finance_issue_resolutions`, `finance_expenses`
-- Тесты (21): `apns.test.ts`, `auto-shift.test.ts`, `chat-mark-read.test.ts`, `client-ai-limits.test.ts`, `deal-lifecycle.test.ts`, `deal-merge.test.ts`, `design-ai-stats.integration.test.ts`, `discount-limit.test.ts`, `invoice-crm-actions.test.ts`, `kaspi-shared-session.test.ts`, `lead-grab.test.ts`, `marketing-whatsapp.test.ts`, `notify-prefs.test.ts`, `notify.integration.test.ts`, `payments-settings.integration.test.ts`, `photo-limit.test.ts`, `sales-guards.test.ts`, `seller-details.test.ts`, `settings-actions.test.ts`, `stage-order.test.ts`, `workspace.test.ts`
+- Тесты (22): `apns.test.ts`, `auto-shift.test.ts`, `chat-mark-read.test.ts`, `client-ai-limits.test.ts`, `deal-lifecycle.test.ts`, `deal-merge.test.ts`, `design-ai-stats.integration.test.ts`, `discount-limit.test.ts`, `fcm.test.ts`, `invoice-crm-actions.test.ts`, `kaspi-shared-session.test.ts`, `lead-grab.test.ts`, `marketing-whatsapp.test.ts`, `notify-prefs.test.ts`, `notify.integration.test.ts`, `payments-settings.integration.test.ts`, `photo-limit.test.ts`, `sales-guards.test.ts`, `seller-details.test.ts`, `settings-actions.test.ts`, `stage-order.test.ts`, `workspace.test.ts`

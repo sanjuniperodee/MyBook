@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/cupertino.dart';
@@ -27,6 +28,7 @@ import '../widgets/forward_sheet.dart';
 import 'deal_screen.dart';
 import 'invoice_sheet.dart';
 import 'my_templates_screen.dart';
+import 'support_screen.dart';
 import 'template_editor_screen.dart';
 import 'templates_sheet.dart';
 
@@ -59,14 +61,18 @@ class _ChatScreenState extends State<ChatScreen> {
     final auth = context.read<AuthState>();
     _notifier = context.read<Notifier>()..openChatId = widget.chatId;
     ctrl = ChatController(api: auth.api, live: context.read<LiveService>(), chatId: widget.chatId, myId: auth.staff?.id);
-    ctrl.load().then((_) async {
-      await ctrl.markRead();
-      if (mounted) context.read<ChatsStore>().markRead(widget.chatId);
-    });
+    // Переписка — сразу из кэша телефона, свежая — следом; «прочитано» уходит, не дожидаясь загрузки.
+    ctrl.open();
+    ctrl.markRead();
+    context.read<ChatsStore>().markRead(widget.chatId);
+    _notifier.clearChat(widget.chatId);
     ctrl.addListener(_autoRead);
     _scroll.addListener(() {
-      final far = _scroll.hasClients && _scroll.offset > 420;
+      if (!_scroll.hasClients) return;
+      final far = _scroll.offset > 420;
       if (far != _showDown) setState(() => _showDown = far);
+      // Лента перевёрнута: верх истории — конец прокрутки. За экран до него догружаем старые сообщения.
+      if (_scroll.position.extentAfter < 800) ctrl.loadOlder();
     });
   }
 
@@ -106,6 +112,7 @@ class _ChatScreenState extends State<ChatScreen> {
       _Pick(LucideIcons.image, 'Галерея', const [Color(0xFFD59BF6), Color(0xFFBF59CF)], _pickGallery),
       _Pick(LucideIcons.camera, 'Камера', const [Color(0xFFFF8FB1), Color(0xFFD3396D)], _camera),
       if (d.perms.canInvoice) _Pick(LucideIcons.receipt, 'Счёт', const [Color(0xFF34D399), Color(0xFF0F8F7E)], _invoice),
+      if (d.channel == 'whatsapp' && d.perms.canReply) _Pick(LucideIcons.shoppingBag, 'Товар', const [Color(0xFFF59E0B), Color(0xFFB45309)], _catalog),
       _Pick(LucideIcons.zap, 'Шаблон', const [Color(0xFFFFC857), Color(0xFFD99A00)], _templates),
       if (d.perms.canNote) _Pick(LucideIcons.stickyNote, 'Заметка', const [Color(0xFF9CA3AF), Color(0xFF6D7B83)], _note),
     ];
@@ -135,11 +142,9 @@ class _ChatScreenState extends State<ChatScreen> {
                       Container(
                         width: 62,
                         height: 62,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(20),
-                          gradient: LinearGradient(colors: it.colors, begin: Alignment.topLeft, end: Alignment.bottomRight),
-                        ),
-                        child: Icon(it.icon, color: Colors.white, size: 28),
+                        // Плитки — как кнопки CRM: подложка и значок тушью, без цветных градиентов.
+                        decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), color: sheet.c.surface, border: Border.all(color: sheet.c.border)),
+                        child: Icon(it.icon, color: sheet.c.text, size: 26),
                       ),
                       const SizedBox(height: 8),
                       Text(
@@ -234,6 +239,9 @@ class _ChatScreenState extends State<ChatScreen> {
         child: GroupCard(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
           children: [
+            if (d.perms.canReply && m.outgoing && m.isFailed && !m.internal && m.type == 'text' && !m.deleted)
+              GroupTile(title: 'Повторить отправку', icon: LucideIcons.rotateCw, trailing: const SizedBox.shrink(), onTap: () => Navigator.pop(sheet, 'resend')),
+            if (m.editHistory.isNotEmpty) GroupTile(title: m.outgoing ? 'Как было до правки в WhatsApp' : 'Как было до правки клиентом', icon: LucideIcons.history, trailing: const SizedBox.shrink(), onTap: () => Navigator.pop(sheet, 'history')),
             if (d.perms.canReply && !m.deleted && !m.internal) GroupTile(title: 'Ответить', icon: LucideIcons.reply, trailing: const SizedBox.shrink(), onTap: () => Navigator.pop(sheet, 'reply')),
             if (ctrl.canForward(m)) GroupTile(title: 'Переслать', icon: LucideIcons.forward, trailing: const SizedBox.shrink(), onTap: () => Navigator.pop(sheet, 'forward')),
             if (m.text.isNotEmpty) GroupTile(title: 'Копировать', icon: LucideIcons.copy, trailing: const SizedBox.shrink(), onTap: () => Navigator.pop(sheet, 'copy')),
@@ -254,6 +262,10 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
     );
     switch (action) {
+      case 'resend':
+        _toast(await ctrl.resend(m));
+      case 'history':
+        if (mounted) await _showHistory(m);
       case 'reply':
         ctrl.setReply(m);
       case 'copy':
@@ -271,6 +283,49 @@ class _ChatScreenState extends State<ChatScreen> {
       case 'template':
         await _templateFromMessage(m);
     }
+  }
+
+  /// Прежние версии сообщения, изменённого в WhatsApp не из CRM.
+  Future<void> _showHistory(Message m) async {
+    await showAppSheet<void>(
+      context,
+      title: m.outgoing ? 'Изменено в WhatsApp' : 'Клиент изменил сообщение',
+      icon: LucideIcons.history,
+      builder: (sheet) => SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (final (i, t) in m.editHistory.indexed) ...[
+                Text('Версия ${i + 1}', style: AppText.label(sheet)),
+                const SizedBox(height: 4),
+                Text(t, style: AppText.body(sheet).copyWith(color: sheet.c.textMuted, decoration: TextDecoration.lineThrough)),
+                const SizedBox(height: 14),
+              ],
+              Text('Сейчас', style: AppText.label(sheet)),
+              const SizedBox(height: 4),
+              Text(m.text, style: AppText.body(sheet)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ─── каталог WhatsApp ───────────────────────────────────────────────────────
+
+  /// «Товар из каталога»: товары каталога WhatsApp с фото и ценой — нажатие отправляет клиенту карточку; «Весь каталог» — ссылку.
+  Future<void> _catalog() async {
+    final api = context.read<AuthState>().api;
+    final picked = await showAppSheet<String>(
+      context,
+      title: 'Каталог WhatsApp',
+      icon: LucideIcons.store,
+      builder: (sheet) => _CatalogPicker(ctrl: ctrl, api: api),
+    );
+    if (picked == null) return;
+    _toast(await ctrl.sendCatalog(picked.isEmpty ? null : picked) ?? (picked.isEmpty ? 'Ссылка на каталог отправлена' : 'Товар отправлен'));
   }
 
   // ─── выбор нескольких сообщений ─────────────────────────────────────────────
@@ -337,6 +392,11 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _retry(Message m) async {
+    // Запись в CRM есть, шлюз её не принял — повторяем ту же запись (как «Повторить отправку» в CRM).
+    if (!m.id.startsWith('local-')) {
+      _toast(await ctrl.resend(m));
+      return;
+    }
     if (m.type == 'text') {
       ctrl.discard(m);
       await ctrl.sendText(m.text);
@@ -350,9 +410,22 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  void _scrollTo(String id) {
-    final ctx = _keys[id]?.currentContext;
-    if (ctx != null) Scrollable.ensureVisible(ctx, duration: const Duration(milliseconds: 300), alignment: 0.5);
+  /// К цитируемому сообщению: если его нет в загруженной ленте — догружаем историю (до пяти страниц).
+  Future<void> _scrollTo(String id) async {
+    for (var i = 0; i < 5 && !ctrl.messages.any((m) => m.id == id) && ctrl.more; i++) {
+      await ctrl.loadOlder();
+    }
+    if (!ctrl.messages.any((m) => m.id == id)) return _toast('Исходное сообщение не найдено');
+    // Строка могла ещё не построиться (далеко за экраном) — прокручиваем к её месту по индексу и уточняем.
+    for (var i = 0; i < 12; i++) {
+      final ctx = _keys[id]?.currentContext;
+      if (ctx != null && ctx.mounted) {
+        await Scrollable.ensureVisible(ctx, duration: const Duration(milliseconds: 300), alignment: 0.5);
+        return;
+      }
+      if (!_scroll.hasClients) return;
+      await _scroll.animateTo(min(_scroll.offset + 900, _scroll.position.maxScrollExtent), duration: const Duration(milliseconds: 120), curve: Curves.linear);
+    }
   }
 
   void _openDeal(ChatDetail d) {
@@ -374,6 +447,7 @@ class _ChatScreenState extends State<ChatScreen> {
             if (d.status == 'closed' && d.perms.canReply) GroupTile(title: 'Открыть снова', icon: LucideIcons.rotateCcw, onTap: () => Navigator.pop(sheet, 'open')),
             if (d.perms.canReply) GroupTile(title: 'Передать коллеге', icon: LucideIcons.userRoundPlus, onTap: () => Navigator.pop(sheet, 'assign')),
             GroupTile(title: d.pinned ? 'Открепить чат' : 'Закрепить чат', icon: d.pinned ? LucideIcons.pinOff : LucideIcons.pin, onTap: () => Navigator.pop(sheet, d.pinned ? 'unpin' : 'pin')),
+            GroupTile(title: 'Обращение в поддержку', icon: LucideIcons.lifeBuoy, onTap: () => Navigator.pop(sheet, 'support')),
             GroupTile(title: 'Обновить', icon: LucideIcons.refreshCw, onTap: () => Navigator.pop(sheet, 'refresh')),
           ],
         ),
@@ -393,6 +467,11 @@ class _ChatScreenState extends State<ChatScreen> {
       case 'pin' || 'unpin':
         _toast(await ctrl.setPinned(r == 'pin') ?? (r == 'pin' ? 'Чат закреплён вверху списка' : 'Чат откреплён'));
         if (mounted) context.read<ChatsStore>().load();
+      case 'support':
+        // К обращению — последние 30 сообщений переписки (или выбранные), чтобы не пересказывать.
+        final ids = ctrl.messages.where((m) => !m.id.startsWith('local-')).map((m) => m.id).toList();
+        if (!mounted) return;
+        await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => SupportScreen(conversationId: widget.chatId, chatTitle: d.title, messageIds: ids.length > 30 ? ids.sublist(ids.length - 30) : ids)));
       case 'refresh':
         await ctrl.load();
     }
@@ -662,15 +741,16 @@ class _ChatScreenState extends State<ChatScreen> {
       reverse: true,
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.symmetric(vertical: 10),
-      itemCount: reversed.length,
+      itemCount: reversed.length + (c.loadingOlder ? 1 : 0),
       itemBuilder: (_, i) {
+        if (i == reversed.length) return const Padding(padding: EdgeInsets.all(14), child: Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2))));
         final m = reversed[i];
         final older = i + 1 < reversed.length ? reversed[i + 1] : null;
         final newDay = older == null || !sameDay(older.at, m.at);
         // «Хвостик» — у первого сообщения серии: сменился отправитель, день или прошло больше пяти минут.
         final tail = newDay || older.outgoing != m.outgoing || older.internal || m.internal || m.at.difference(older.at).inMinutes >= 5;
         final key = _keys.putIfAbsent(m.id, () => GlobalKey());
-        Widget bubble = MessageBubble(message: m, api: auth.api, tail: tail, onLongPress: () => c.selecting ? c.toggleSelect(m) : _messageMenu(m), onRetry: () => _retry(m), onQuoteTap: _scrollTo);
+        Widget bubble = MessageBubble(message: m, api: auth.api, tail: tail, onLongPress: () => c.selecting ? c.toggleSelect(m) : _messageMenu(m), onRetry: () => _retry(m), onQuoteTap: _scrollTo, onCartItems: c.orderItems, myId: auth.staff?.id);
         // Идёт выбор: тап по любому месту сообщения отмечает его, плеер и ссылки внутри не срабатывают.
         if (c.selecting && c.isSelectable(m))
           bubble = _SelectRow(
@@ -880,6 +960,114 @@ class _MessagesSkeleton extends StatelessWidget {
                 child: SkeletonBox(width: r.$2, height: 38, radius: 14),
               ),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Выбор товара каталога WhatsApp: поиск, фото, цена; «Весь каталог» — ссылка на каталог магазина.
+class _CatalogPicker extends StatefulWidget {
+  const _CatalogPicker({required this.ctrl, required this.api});
+  final ChatController ctrl;
+  final ApiClient api;
+
+  @override
+  State<_CatalogPicker> createState() => _CatalogPickerState();
+}
+
+class _CatalogPickerState extends State<_CatalogPicker> {
+  List<CatalogItem>? _items;
+  String? _error;
+  String _q = '';
+
+  @override
+  void initState() {
+    super.initState();
+    widget.ctrl.catalog().then((r) {
+      if (!mounted) return;
+      setState(() {
+        if (!r.enabled) {
+          _error = 'Каталог в чатах выключен: CRM → «Интеграции» → «Мессенджеры» → «Каталог WhatsApp»';
+        } else {
+          _items = r.items;
+        }
+      });
+    }, onError: (Object e) {
+      if (mounted) setState(() => _error = e is ApiException ? e.message : 'Не удалось загрузить каталог');
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.c;
+    final t = _q.trim().toLowerCase();
+    final shown = (_items ?? const <CatalogItem>[]).where((i) => t.isEmpty || i.name.toLowerCase().contains(t)).toList();
+    return SizedBox(
+      height: MediaQuery.of(context).size.height * 0.72,
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: AppSearchField(hint: 'Название товара', onChanged: (v) => setState(() => _q = v)),
+          ),
+          GroupCard(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            children: [GroupTile(title: 'Весь каталог — ссылкой', icon: LucideIcons.store, onTap: () => Navigator.pop(context, ''))],
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: _error != null
+                ? EmptyState(icon: LucideIcons.shoppingBag, title: 'Каталог недоступен', hint: _error)
+                : _items == null
+                ? const Center(child: CircularProgressIndicator())
+                : shown.isEmpty
+                ? EmptyState(icon: LucideIcons.searchX, title: _items!.isEmpty ? 'В каталоге нет товаров' : 'Ничего не нашлось')
+                : GridView.builder(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, mainAxisSpacing: 12, crossAxisSpacing: 12, childAspectRatio: 0.78),
+                    itemCount: shown.length,
+                    itemBuilder: (_, i) {
+                      final p = shown[i];
+                      final price = catalogPrice(p.price, p.currency);
+                      return GestureDetector(
+                        onTap: () => Navigator.pop(context, p.id),
+                        child: Container(
+                          clipBehavior: Clip.antiAlias,
+                          decoration: BoxDecoration(color: c.surfaceRaised, borderRadius: BorderRadius.circular(Rd.md), border: Border.all(color: c.border)),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: p.image
+                                    ? Image.network(
+                                        widget.api.mediaUrl('/api/admin/catalog/${p.id}/image')!,
+                                        headers: widget.api.headers,
+                                        width: double.infinity,
+                                        fit: BoxFit.cover,
+                                        cacheWidth: 400,
+                                        errorBuilder: (_, _, _) => Center(child: Icon(LucideIcons.shoppingBag, color: c.textFaint, size: 30)),
+                                      )
+                                    : Container(color: c.surface, child: Center(child: Icon(LucideIcons.shoppingBag, color: c.textFaint, size: 30))),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(p.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: c.text, height: 1.25)),
+                                    if (price.isNotEmpty) Text(price, style: TextStyle(fontSize: 13, color: c.textMuted)),
+                                    if (p.hidden) Text('скрыт в каталоге', style: TextStyle(fontSize: 11.5, color: c.warn)),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
         ],
       ),
     );

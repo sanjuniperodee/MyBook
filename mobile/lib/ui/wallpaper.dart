@@ -13,10 +13,11 @@ class ChatWallpaper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.c;
+    // Как переписка в CRM: ровная холодная подложка; узор — едва заметный, чтобы пузыри не сливались с фоном.
     return ColoredBox(
       color: c.wallpaper,
       child: CustomPaint(
-        painter: _PatternPainter(ink: c.wallpaperInk.withValues(alpha: context.isDark ? 0.07 : 0.11)),
+        painter: _PatternPainter(ink: c.wallpaperInk.withValues(alpha: context.isDark ? 0.05 : 0.07)),
         child: child,
       ),
     );

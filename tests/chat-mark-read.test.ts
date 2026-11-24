@@ -2,12 +2,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fake, lena, owner, resetContainer, resetRequest, signIn } from "./doubles/web";
 import { withoutRead, type ChatListItem } from "@/components/admin/chat/inbox-model";
 
+const { notesRead } = vi.hoisted(() => ({ notesRead: [] as string[] }));
+
 vi.mock("next/headers", async () => (await import("./doubles/web")).nextHeaders);
 vi.mock("next/navigation", async () => (await import("./doubles/web")).nextNavigation);
 vi.mock("next/cache", async () => (await import("./doubles/web")).nextCache);
 vi.mock("@/server/container", async () => (await import("./doubles/web")).containerModule);
 vi.mock("@/shared/infrastructure/database", () => ({ rootDb: {}, executor: () => ({}) }));
-vi.mock("@/modules/workspace", () => ({ notify: async () => {}, notifyMentions: async () => {}, staffNotifier: { notifyAllWith: async () => {} }, listFields: async () => [], readFieldValues: () => ({}) }));
+vi.mock("@/modules/workspace", () => ({ notify: async () => {}, notifyMentions: async () => {}, readChatNotifications: async (userId: string, convId: string) => (notesRead.push(`${userId}:${convId}`), true), staffNotifier: { notifyAllWith: async () => {} }, listFields: async () => [], readFieldValues: () => ({}) }));
 
 const { markReadAction } = await import("@/app/admin/chats/actions");
 
@@ -26,6 +28,7 @@ describe("открытие диалога снимает «непрочитан�
   beforeEach(() => {
     resetRequest();
     resetContainer();
+    notesRead.length = 0;
     assigneeId = null;
     unread = 2;
     read = [];
@@ -33,6 +36,13 @@ describe("открытие диалога снимает «непрочитан�
       queries: { conversation: async () => ({ id: CONV, assigneeId, unread, contactName: "Айгерим", chatId: "77011234567", lastMessageText: "", dealId: null, meta: {} }) },
       chats: { markRead: async (id: string) => void read.push(id) },
     };
+  });
+
+  it("уведомления о диалоге снимаются у того, кто его открыл (колокольчик, значок и шторка телефона)", async () => {
+    signIn(owner);
+    assigneeId = "margo";
+    await markReadAction(CONV);
+    expect(notesRead).toEqual([`${owner.id}:${CONV}`]);
   });
 
   it("руководитель («все записи») открыл диалог, записанный на менеджера, — прочитано", async () => {

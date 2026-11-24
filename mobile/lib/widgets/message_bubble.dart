@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../core/api.dart';
 import '../core/format.dart';
@@ -60,13 +61,19 @@ class BubbleBorder extends ShapeBorder {
 
 /// Пузырь сообщения: цитата, вложение, текст, время и галочки доставки.
 class MessageBubble extends StatelessWidget {
-  const MessageBubble({super.key, required this.message, required this.api, required this.tail, required this.onLongPress, required this.onRetry, required this.onQuoteTap});
+  const MessageBubble({super.key, required this.message, required this.api, required this.tail, required this.onLongPress, required this.onRetry, required this.onQuoteTap, this.onCartItems, this.myId});
   final Message message;
   final ApiClient api;
   final bool tail;
   final VoidCallback onLongPress;
   final VoidCallback onRetry;
   final void Function(String id) onQuoteTap;
+
+  /// Текущий сотрудник: своё имя над своими сообщениями не показываем (как в CRM).
+  final String? myId;
+
+  /// Состав корзины из каталога (кнопка «Показать состав»).
+  final Future<List<CartItem>> Function(Message m)? onCartItems;
 
   @override
   Widget build(BuildContext context) {
@@ -83,7 +90,7 @@ class MessageBubble extends StatelessWidget {
         child: Container(
           constraints: BoxConstraints(maxWidth: width * 0.8),
           margin: EdgeInsets.only(left: out ? 56 : 14 + (tail ? 0 : BubbleBorder.tailWidth), right: out ? 14 + (tail ? 0 : BubbleBorder.tailWidth) : 56, top: tail ? 7 : 1.5, bottom: 1.5),
-          decoration: ShapeDecoration(color: out ? c.bubbleOut : c.bubbleIn, shape: BubbleBorder(outgoing: out, tail: tail), shadows: [BoxShadow(color: Colors.black.withValues(alpha: 0.07), blurRadius: 0.8, offset: const Offset(0, 0.8))]),
+          decoration: ShapeDecoration(color: !out ? c.bubbleIn : (m.isFailed && !m.id.startsWith('local-') ? c.dangerBg : (m.author == 'бот' ? c.bubbleBot : c.bubbleOut)), shape: BubbleBorder(outgoing: out, tail: tail), shadows: [BoxShadow(color: Colors.black.withValues(alpha: 0.07), blurRadius: 0.8, offset: const Offset(0, 0.8))]),
           padding: EdgeInsets.fromLTRB(imageOnly ? 3 : 10, imageOnly ? 3 : 6, imageOnly ? 3 : 10, imageOnly ? 3 : 5),
           child: _content(context, imageOnly),
         ),
@@ -96,21 +103,45 @@ class MessageBubble extends StatelessWidget {
     final c = context.c;
     if (m.deleted) return _textMeta(context, 'Сообщение удалено', italic: true, icon: LucideIcons.ban);
     final children = <Widget>[];
-    if (m.outgoing && m.author != null && m.author!.isNotEmpty) {
+    if (m.outgoing && m.author != null && m.author!.isNotEmpty && (myId == null || m.authorId != myId)) {
       children.add(Padding(padding: const EdgeInsets.only(bottom: 2), child: Text(m.author!, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: c.brandDeep))));
     }
     if (m.forwarded) children.add(Padding(padding: const EdgeInsets.only(bottom: 3), child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(LucideIcons.forward, size: 13, color: c.textFaint), const SizedBox(width: 4), Text('Пересланное', style: TextStyle(fontSize: 12.5, fontStyle: FontStyle.italic, color: c.textFaint))])));
     if (m.replyTo != null) children.add(_Quote(quote: m.replyTo!, onTap: () => onQuoteTap(m.replyTo!.id)));
-    final attachment = _attachment(context, imageOnly);
-    if (attachment != null) children.add(attachment);
-    final hasText = m.type == 'text' ? m.text.isNotEmpty : (m.type == 'document' ? false : m.text.isNotEmpty && !_placeholder(m.text));
+    if (m.card != null) {
+      children.add(_CardView(card: m.card!, message: m, api: api, onCartItems: onCartItems));
+    } else if (m.mediaGone && m.type != 'text') {
+      children.add(_tile(context, LucideIcons.fileX, '${_typeName(m.type)} удалено в WhatsApp — попросите клиента прислать ещё раз'));
+    } else {
+      final attachment = _attachment(context, imageOnly);
+      if (attachment != null) children.add(attachment);
+    }
+    final caption = m.card?.caption ?? '';
+    final hasText = m.card != null ? caption.isNotEmpty : m.type == 'text' ? m.text.isNotEmpty : (m.type == 'document' ? false : m.text.isNotEmpty && !_placeholder(m.text));
     if (hasText) {
-      children.add(_textMeta(context, m.text));
+      children.add(_textMeta(context, m.card != null ? caption : m.text));
     } else if (!imageOnly) {
       children.add(Align(alignment: Alignment.centerRight, child: _Meta(message: m)));
     }
     if (m.transcript != null && m.transcript!.isNotEmpty) {
       children.insert(children.length - 1, Padding(padding: const EdgeInsets.only(top: 4, bottom: 2), child: Text(m.transcript!, style: TextStyle(fontSize: 14.5, height: 1.3, fontStyle: FontStyle.italic, color: c.textMuted))));
+    }
+    if (m.revoked != null || m.editHistory.isNotEmpty) {
+      children.add(Padding(
+        padding: const EdgeInsets.only(top: 3),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(m.revoked != null ? LucideIcons.ban : LucideIcons.history, size: 13, color: m.revoked != null ? c.danger : c.textFaint),
+          const SizedBox(width: 5),
+          Flexible(
+            child: Text(
+              m.revoked != null
+                  ? '${m.revoked == 'client' ? 'Удалено клиентом' : 'Удалено с телефона магазина'} — у клиента сообщения больше нет'
+                  : '${m.outgoing ? 'Изменено в WhatsApp' : 'Клиент изменил'} · ${m.editHistory.length == 1 ? 'как было — в меню' : 'прежних версий: ${m.editHistory.length}'}',
+              style: TextStyle(fontSize: 12, color: m.revoked != null ? c.danger : c.textFaint, fontWeight: m.revoked != null ? FontWeight.w600 : FontWeight.w400),
+            ),
+          ),
+        ]),
+      ));
     }
     if (m.isFailed && m.error != null) {
       children.add(Padding(
@@ -120,6 +151,13 @@ class MessageBubble extends StatelessWidget {
     }
     return Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: children);
   }
+
+  String _typeName(String type) => switch (type) {
+        'image' => 'Фото',
+        'video' => 'Видео',
+        'audio' => 'Голосовое',
+        _ => 'Файл',
+      };
 
   /// Ширина картинки в пикселях экрана: фото из WhatsApp в 2–4 Мп декодируются сразу в размер пузыря, а не целиком.
   int _px(BuildContext context, double logical) => (logical * MediaQuery.devicePixelRatioOf(context)).round();
@@ -314,6 +352,124 @@ class _Note extends StatelessWidget {
             Align(alignment: Alignment.centerRight, child: Text(hhmm(message.at), style: TextStyle(fontSize: 11, color: c.textMuted))),
           ]),
         ),
+      ),
+    );
+  }
+}
+
+/// Карточка WhatsApp: товар из каталога, корзина клиента (состав — по кнопке) или ссылка на весь каталог.
+class _CardView extends StatefulWidget {
+  const _CardView({required this.card, required this.message, required this.api, this.onCartItems});
+  final MessageCard card;
+  final Message message;
+  final ApiClient api;
+  final Future<List<CartItem>> Function(Message m)? onCartItems;
+
+  @override
+  State<_CardView> createState() => _CardViewState();
+}
+
+class _CardViewState extends State<_CardView> {
+  List<CartItem>? _items;
+  bool _loading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _items = widget.card.items;
+  }
+
+  Future<void> _load() async {
+    final f = widget.onCartItems;
+    if (f == null) return;
+    setState(() => _loading = true);
+    try {
+      final items = await f(widget.message);
+      if (mounted) setState(() => _items = items);
+    } on ApiException catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    }
+    if (mounted) setState(() => _loading = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.c;
+    final card = widget.card;
+    final box = BoxDecoration(color: c.surfaceRaised.withValues(alpha: 0.75), borderRadius: BorderRadius.circular(10), border: Border.all(color: c.border));
+    if (card.kind == 'product') {
+      final price = catalogPrice(card.price, card.currency);
+      final src = widget.api.mediaUrl(widget.message.media) ?? widget.api.mediaUrl('/api/admin/catalog/${card.productId}/image');
+      return Container(
+        width: 250,
+        margin: const EdgeInsets.only(bottom: 4),
+        clipBehavior: Clip.antiAlias,
+        decoration: box,
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          if (src != null)
+            AspectRatio(
+              aspectRatio: 1,
+              child: Image.network(src, headers: widget.api.headers, fit: BoxFit.cover, cacheWidth: 500, errorBuilder: (_, _, _) => Container(color: c.surface, child: Icon(LucideIcons.shoppingBag, size: 32, color: c.textFaint))),
+            ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 8, 10, 9),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(card.name.isEmpty ? 'Товар' : card.name, style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600, color: c.text, height: 1.25)),
+              if (price.isNotEmpty) Text(price, style: TextStyle(fontSize: 14, color: c.textMuted)),
+              if ((card.description ?? '').isNotEmpty) Text(card.description!, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12.5, color: c.textFaint)),
+              const SizedBox(height: 2),
+              Text('Товар из каталога WhatsApp${(card.retailerId ?? '').isNotEmpty ? ' · арт. ${card.retailerId}' : ''}', style: TextStyle(fontSize: 11, color: c.textFaint)),
+            ]),
+          ),
+        ]),
+      );
+    }
+    if (card.kind == 'order') {
+      final total = catalogPrice(card.total, card.currency);
+      return Container(
+        width: 250,
+        margin: const EdgeInsets.only(bottom: 4),
+        padding: const EdgeInsets.fromLTRB(10, 9, 10, 9),
+        decoration: box,
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [Icon(LucideIcons.shoppingCart, size: 16, color: c.brand), const SizedBox(width: 6), Text('Заказ из каталога', style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600, color: c.text))]),
+          const SizedBox(height: 2),
+          Text('${card.itemCount > 0 ? 'Товаров: ${card.itemCount}' : 'Корзина'}${total.isNotEmpty ? ' · $total' : ''}', style: TextStyle(fontSize: 13, color: c.textMuted)),
+          if (_items != null) ...[
+            const SizedBox(height: 6),
+            for (final i in _items!)
+              Padding(
+                padding: const EdgeInsets.only(top: 3),
+                child: Row(children: [
+                  Expanded(child: Text('${i.name} × ${i.quantity}', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: c.text))),
+                  Text(catalogPrice(i.price, card.currency), style: TextStyle(fontSize: 13, color: c.textMuted)),
+                ]),
+              ),
+          ] else if (widget.onCartItems != null)
+            TextButton(
+              onPressed: _loading ? null : _load,
+              style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0, 32), foregroundColor: c.brandDeep),
+              child: Text(_loading ? 'Загружаем…' : 'Показать состав'),
+            ),
+        ]),
+      );
+    }
+    return InkWell(
+      onTap: card.url == null ? null : () => launchUrl(Uri.parse(card.url!), mode: LaunchMode.externalApplication),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 4),
+        padding: const EdgeInsets.all(9),
+        decoration: box,
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 38, height: 38, decoration: BoxDecoration(color: c.surface, borderRadius: BorderRadius.circular(9)), child: Icon(LucideIcons.store, size: 20, color: c.textMuted)),
+          const SizedBox(width: 10),
+          Flexible(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Каталог WhatsApp', style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600, color: c.text)),
+              if (card.url != null) Text(card.url!.replaceFirst('https://', ''), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: c.textFaint)),
+            ]),
+          ),
+        ]),
       ),
     );
   }

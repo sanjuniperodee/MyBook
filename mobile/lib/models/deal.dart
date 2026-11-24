@@ -93,10 +93,29 @@ class NoteItem {
 }
 
 class PaymentItem {
-  PaymentItem({required this.amount, required this.kind, required this.method, required this.at});
+  PaymentItem({required this.id, required this.amount, required this.kind, required this.method, required this.at, this.payForm});
+  final String id;
   final int amount;
   final String kind;
   final String method;
   final DateTime at;
-  factory PaymentItem.fromJson(Map<String, dynamic> j) => PaymentItem(amount: (j['amount'] as num).toInt(), kind: (j['kind'] as String?) ?? '', method: (j['method'] as String?) ?? '', at: DateTime.parse(j['at'] as String).toLocal());
+
+  /// Форма оплаты (Gold, рассрочка, Red…) — как в CRM.
+  final String? payForm;
+
+  /// Как пришли деньги: вручную (с чеком), Kaspi, картой.
+  String get methodLabel => switch (method) {
+        'kaspi' => 'Kaspi',
+        'cloudpayments' => 'картой онлайн',
+        _ => 'вручную',
+      };
+
+  factory PaymentItem.fromJson(Map<String, dynamic> j) => PaymentItem(
+        id: (j['id'] as String?) ?? '',
+        amount: (j['amount'] as num).toInt(),
+        kind: (j['kind'] as String?) ?? '',
+        method: (j['method'] as String?) ?? '',
+        at: DateTime.parse(j['at'] as String).toLocal(),
+        payForm: j['payForm'] as String?,
+      );
 }

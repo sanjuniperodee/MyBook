@@ -16,6 +16,7 @@ import '../ui/tokens.dart';
 import 'chat_screen.dart';
 import 'deals_screen.dart' show hexColor;
 import 'invoice_sheet.dart';
+import 'payment_sheet.dart';
 import 'task_editor.dart';
 
 /// Карточка сделки: этап (меняется в один тап), чат и счёт, задачи, заметки, платежи и счета.
@@ -63,6 +64,37 @@ class _DealScreenState extends State<DealScreen> {
       await _api.c.post('/api/mobile/deals/${widget.dealId}/move', body: {'stageId': stage.id, 'lostReason': ?reason});
       HapticFeedback.mediumImpact();
       await _load();
+    } on ApiException catch (e) {
+      _toast(e.message);
+    }
+  }
+
+  /// Передать сделку коллеге (или снять ответственного): список сотрудников — с сервера, права проверяет он же.
+  Future<void> _assign() async {
+    final api = context.read<AuthState>().api;
+    List<Map<String, dynamic>> people;
+    try {
+      people = ((await api.get('/api/mobile/staff') as Map<String, dynamic>)['staff'] as List).cast<Map<String, dynamic>>();
+    } on ApiException catch (e) {
+      return _toast(e.message);
+    }
+    if (!mounted) return;
+    final picked = await showAppSheet<String>(
+      context,
+      title: 'Ответственный по сделке',
+      icon: LucideIcons.userRoundPlus,
+      builder: (sheet) => SingleChildScrollView(
+        child: GroupCard(padding: const EdgeInsets.fromLTRB(16, 4, 16, 24), children: [
+          for (final p in people) GroupTile(title: p['name'] as String, icon: LucideIcons.user, onTap: () => Navigator.pop(sheet, p['id'] as String)),
+          GroupTile(title: 'Снять ответственного', icon: LucideIcons.userX, iconColor: sheet.c.textMuted, onTap: () => Navigator.pop(sheet, '')),
+        ]),
+      ),
+    );
+    if (picked == null) return;
+    try {
+      await api.post('/api/mobile/deals/${widget.dealId}/assign', body: {'userId': picked.isEmpty ? null : picked});
+      _toast(picked.isEmpty ? 'Ответственный снят' : 'Сделка передана');
+      _load();
     } on ApiException catch (e) {
       _toast(e.message);
     }
@@ -204,7 +236,19 @@ class _DealScreenState extends State<DealScreen> {
               if (paid > 0) Text('внесено ${money(paid)}', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: c.success)),
             ]),
             if (paid > 0 && amount > 0) Padding(padding: const EdgeInsets.only(top: 10), child: ClipRRect(borderRadius: BorderRadius.circular(4), child: LinearProgressIndicator(value: progress, minHeight: 6, backgroundColor: c.surface, valueColor: AlwaysStoppedAnimation(c.success)))),
-            if (d['assignee'] != null) Padding(padding: const EdgeInsets.only(top: 14), child: Row(children: [Icon(LucideIcons.user, size: 15, color: c.textFaint), const SizedBox(width: 6), Text('Ведёт: ${d['assignee']}', style: AppText.caption(context).copyWith(fontSize: 13.5))])),
+            Padding(
+              padding: const EdgeInsets.only(top: 14),
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: perms['canEdit'] == true ? _assign : null,
+                child: Row(children: [
+                  Icon(LucideIcons.user, size: 15, color: c.textFaint),
+                  const SizedBox(width: 6),
+                  Text(d['assignee'] != null ? 'Ведёт: ${d['assignee']}' : 'Ответственного нет', style: AppText.caption(context).copyWith(fontSize: 13.5)),
+                  if (perms['canEdit'] == true) ...[const SizedBox(width: 4), Icon(LucideIcons.chevronDown, size: 14, color: c.textFaint)],
+                ]),
+              ),
+            ),
           ]),
         ),
       ),
@@ -271,9 +315,38 @@ class _DealScreenState extends State<DealScreen> {
         if (tasks.isEmpty) GroupTile(icon: LucideIcons.circleAlert, iconColor: c.warn, title: 'Нет следующего шага', subtitle: 'Запланируйте задачу, чтобы сделка не потерялась'),
         for (final t in tasks) _TaskRow(task: t, onToggle: () => _toggleTask(t)),
       ]),
-      if (payments.isNotEmpty)
+      if (payments.isNotEmpty || perms['canEdit'] == true)
         GroupCard(title: 'Платежи', children: [
-          for (final p in payments) GroupTile(icon: p.kind == 'refund' ? LucideIcons.undo2 : LucideIcons.banknote, iconColor: p.kind == 'refund' ? c.danger : c.success, title: '${p.kind == 'refund' ? '−' : ''}${money(p.amount)}', subtitle: '${p.method} · ${two(p.at.day)}.${two(p.at.month)}.${p.at.year}'),
+          for (final p in payments)
+            GroupTile(
+              icon: p.kind == 'refund' ? LucideIcons.undo2 : LucideIcons.banknote,
+              iconColor: p.kind == 'refund' ? c.danger : c.success,
+              title: '${p.kind == 'refund' ? '−' : ''}${money(p.amount)}',
+              subtitle: [p.methodLabel, if (p.payForm != null) p.payForm!, '${two(p.at.day)}.${two(p.at.month)}.${p.at.year}'].join(' · '),
+            ),
+          if (perms['canEdit'] == true)
+            GroupTile(
+              icon: d['hasOrder'] == true ? LucideIcons.undo2 : LucideIcons.plus,
+              iconColor: c.brand,
+              title: d['hasOrder'] == true ? 'Оформить возврат лишнего' : 'Принять оплату',
+              subtitle: 'с чеком и формой оплаты',
+              onTap: () async {
+                final ok = await showPaymentSheet(
+                  context,
+                  api: context.read<AuthState>().api,
+                  dealId: widget.dealId,
+                  suggested: amount - paid,
+                  payForms: [for (final f in (d['payForms'] as List? ?? const [])) '$f'],
+                  refundOnly: d['hasOrder'] == true,
+                  invoices: invoices,
+                  paymentIds: [for (final p in payments) p.id],
+                );
+                if (ok) {
+                  _toast('Платёж записан');
+                  _load();
+                }
+              },
+            ),
         ]),
       if (notes.isNotEmpty)
         GroupCard(title: 'Заметки', children: [

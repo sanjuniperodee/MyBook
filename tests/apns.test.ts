@@ -1,6 +1,6 @@
 import { generateKeyPairSync, verify } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
-import { APNS_ORIGIN, apnsBody, apnsConfig, apnsJwt, sendApns, type ApnsTransport } from "@/modules/workspace/infrastructure/apns";
+import { APNS_ORIGIN, apnsBody, apnsConfig, apnsJwt, collapseKey, sendApns, type ApnsTransport } from "@/modules/workspace/infrastructure/apns";
 
 const { privateKey, publicKey } = generateKeyPairSync("ec", { namedCurve: "P-256" });
 const pem = privateKey.export({ type: "pkcs8", format: "pem" }).toString();
@@ -56,5 +56,23 @@ describe("push на iPhone: APNs", () => {
     expect(await sendApns(cfg, dev, { title: "x" }, transport(403, '{"reason":"InvalidProviderToken"}'))).toBe("failed");
     expect(await sendApns(cfg, dev, { title: "x" }, { post: async () => Promise.reject(new Error("socket hang up")) })).toBe("failed");
     log.mockRestore();
+  });
+});
+
+describe("push на iPhone: значок и одно уведомление на чат", () => {
+  it("только значок — без текста и звука, низкий приоритет", async () => {
+    expect(apnsBody({ title: "", badge: 3, badgeOnly: true })).toEqual({ aps: { badge: 3 } });
+    const t = transport(200);
+    await sendApns(cfg, { token: "ab", environment: "production" }, { title: "", badge: 0, badgeOnly: true }, t);
+    expect(t.calls[0].headers["apns-priority"]).toBe("5");
+    expect(t.calls[0].headers["apns-collapse-id"]).toBeUndefined();
+  });
+
+  it("collapse-id — тег уведомления, длинный сворачивается в хеш до 64 байт", async () => {
+    const t = transport(200);
+    await sendApns(cfg, { token: "ab", environment: "production" }, { title: "Айгерим", collapseId: "message:/admin/chats?c=20bc2e0b-885b-4d12-a10c-c984d0d5630b" }, t);
+    expect(t.calls[0].headers["apns-collapse-id"]).toBe("message:/admin/chats?c=20bc2e0b-885b-4d12-a10c-c984d0d5630b");
+    expect(collapseKey("x".repeat(65)).length).toBeLessThanOrEqual(64);
+    expect(collapseKey("x".repeat(65))).toBe(collapseKey("x".repeat(65)));
   });
 });

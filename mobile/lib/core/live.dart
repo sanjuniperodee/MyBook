@@ -34,6 +34,19 @@ class LiveService {
     _tick = Timer.periodic(const Duration(seconds: 30), (_) => _events.add(LiveEvent('tick', null)));
   }
 
+  /// Приложение вернулось на экран: поток мог умереть в фоне — переподключаемся сразу, а экраны обновляются (resume).
+  void resume() {
+    if (!_running) return;
+    if (!connected) {
+      _client?.close();
+      _client = null;
+      _wake?.complete();
+    }
+    _events.add(LiveEvent('resume', null));
+  }
+
+  Completer<void>? _wake;
+
   void stop() {
     _running = false;
     connected = false;
@@ -71,7 +84,10 @@ class LiveService {
         _client = null;
       }
       if (!_running) break;
-      await Future<void>.delayed(Duration(seconds: delay));
+      // Пауза перед переподключением; возврат приложения на экран (resume) прерывает её.
+      _wake = Completer<void>();
+      await Future.any([Future<void>.delayed(Duration(seconds: delay)), _wake!.future]);
+      _wake = null;
       delay = delay < 30 ? delay * 2 : 30;
     }
   }

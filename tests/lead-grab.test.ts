@@ -6,7 +6,7 @@ vi.mock("next/navigation", async () => (await import("./doubles/web")).nextNavig
 vi.mock("next/cache", async () => (await import("./doubles/web")).nextCache);
 vi.mock("@/server/container", async () => (await import("./doubles/web")).containerModule);
 vi.mock("@/shared/infrastructure/database", () => ({ rootDb: {}, executor: () => ({}) }));
-vi.mock("@/modules/workspace", () => ({ notify: async () => {}, notifyMentions: async () => {}, staffNotifier: { notifyAllWith: async () => {} }, listFields: async () => [], readFieldValues: () => ({}) }));
+vi.mock("@/modules/workspace", () => ({ notify: async () => {}, notifyMentions: async () => {}, readChatNotifications: async () => false, staffNotifier: { notifyAllWith: async () => {} }, listFields: async () => [], readFieldValues: () => ({}) }));
 
 const { sendMessageAction, assignConversationAction, markReadAction } = await import("@/app/admin/chats/actions");
 const { acceptDealAction, assignDealAction, moveDealAction, rejectDealAction } = await import("@/app/admin/deals/actions");

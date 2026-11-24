@@ -319,7 +319,8 @@ class _HeroCard extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(Rd.xl),
-        gradient: LinearGradient(colors: [c.brandDeep, Color.lerp(c.brandDeep, Colors.black, 0.28)!], begin: Alignment.topLeft, end: Alignment.bottomRight),
+        // Ключевая цифра — тёмной плашкой «тушью», как сводка CRM; акцент — винный только у главной кнопки.
+        color: context.isDark ? c.surface : c.text,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

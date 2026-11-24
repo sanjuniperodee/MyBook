@@ -26,6 +26,15 @@ import UserNotifications
         DispatchQueue.main.async { UIApplication.shared.registerForRemoteNotifications() }
         if let token = self?.lastToken { channel.invokeMethod("token", arguments: token) }
         result(nil)
+      case "clear":
+        // Прочитанный диалог — из шторки: уведомления, чья ссылка CRM (payload) ведёт в этот чат.
+        guard let needle = call.arguments as? String else { result(nil); return }
+        let center = UNUserNotificationCenter.current()
+        center.getDeliveredNotifications { list in
+          let ids = list.filter { (($0.request.content.userInfo["payload"] as? String) ?? "").contains(needle) }.map { $0.request.identifier }
+          if !ids.isEmpty { center.removeDeliveredNotifications(withIdentifiers: ids) }
+        }
+        result(nil)
       default:
         result(FlutterMethodNotImplemented)
       }

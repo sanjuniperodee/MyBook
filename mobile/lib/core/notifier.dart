@@ -20,25 +20,33 @@ const apnsEnvironment = String.fromEnvironment('APNS_ENV', defaultValue: kReleas
 
 /// Ссылка уведомления CRM → что открыть: диалог (/admin/chats?c=…), сделку, клиента или вкладку («Задачи», «Сделки»).
 class NotificationTarget {
-  NotificationTarget({this.chatId, this.dealId, this.clientId, this.tab});
+  NotificationTarget({this.chatId, this.dealId, this.clientId, this.orderId, this.tab, this.web});
   final String? chatId;
   final String? dealId;
   final String? clientId;
+  final String? orderId;
   final String? tab;
 
-  bool get isEmpty => chatId == null && dealId == null && clientId == null && tab == null;
+  /// Раздел, которого нет в приложении (обращения, финансы, настройки): открывается CRM на сайте.
+  final String? web;
+
+  bool get isEmpty => chatId == null && dealId == null && clientId == null && orderId == null && tab == null && web == null;
 
   static NotificationTarget parse(String? link) {
-    if (link == null) return NotificationTarget();
+    if (link == null || link.isEmpty) return NotificationTarget();
     final chat = RegExp(r'[?&]c=([0-9a-f-]{36})').firstMatch(link);
     if (chat != null) return NotificationTarget(chatId: chat.group(1));
     final deal = RegExp(r'/admin/deals/([0-9a-f-]{36})').firstMatch(link);
     if (deal != null) return NotificationTarget(dealId: deal.group(1));
     final client = RegExp(r'/admin/clients/([0-9a-f-]{36})').firstMatch(link);
     if (client != null) return NotificationTarget(clientId: client.group(1));
+    final order = RegExp(r'/admin/orders/([0-9a-f-]{36})').firstMatch(link);
+    if (order != null) return NotificationTarget(orderId: order.group(1));
     if (link.startsWith('/admin/tasks') || link.startsWith('/admin/today') || link == '/admin') return NotificationTarget(tab: 'tasks');
     if (link.startsWith('/admin/deals')) return NotificationTarget(tab: 'deals');
     if (link.startsWith('/admin/chats')) return NotificationTarget(tab: 'chats');
+    if (link.startsWith('/admin/orders')) return NotificationTarget(tab: 'orders');
+    if (link.startsWith('/admin/')) return NotificationTarget(web: link);
     return NotificationTarget();
   }
 }
@@ -84,32 +92,68 @@ class Notifier with WidgetsBindingObserver {
     );
     tzdata.initializeTimeZones();
     WidgetsBinding.instance.addObserver(this);
+    // Колокольчик и плашки — по событию «уведомление» (сервер шлёт его сотруднику адресно), а не по каждому сообщению.
     _sub = live.events.listen((e) {
-      if (e.type == 'chat' || e.type == 'notify' || e.type == 'tick') _soon();
+      if (e.type == 'notify' || e.type == 'tick' || e.type == 'resume') _soon();
     });
     await requestPermission();
+    await _openLaunchTarget();
     await _registerForPush();
     await poll();
   }
 
   static const _pushChannel = MethodChannel('kz.mybooks.mybooksSeller/push');
 
-  /// Push при свёрнутом и закрытом приложении (iPhone): получаем токен APNs от системы и отдаём серверу CRM.
+  /// Push при свёрнутом и закрытом приложении: iPhone — токен APNs от системы, Android — токен FCM (данные проекта Firebase
+  /// приходят с сервера CRM, без них push на Android не включается). Токен уходит серверу CRM.
   Future<void> _registerForPush() async {
-    if (!Platform.isIOS) return;
     _pushChannel.setMethodCallHandler((call) async {
       if (call.method == 'token') await _sendToken(call.arguments as String);
+      // Android: нажали на уведомление, когда приложение уже было открыто или свёрнуто.
+      if (call.method == 'open') open(NotificationTarget.parse(call.arguments as String?));
     });
     try {
-      await _pushChannel.invokeMethod<void>('register');
+      if (Platform.isIOS) {
+        await _pushChannel.invokeMethod<void>('register');
+      } else if (Platform.isAndroid) {
+        final r = await api.get('/api/mobile/push') as Map<String, dynamic>;
+        final options = r['android'];
+        if (options is Map) await _pushChannel.invokeMethod<void>('registerAndroid', {for (final e in options.entries) e.key as String: '${e.value}'});
+      }
     } on PlatformException {
-      // Без разрешения или на устройстве без APNs — остаются уведомления при открытом приложении.
+      // Без разрешения или на устройстве без APNs/Google Play — остаются уведомления при открытом приложении.
+    } on ApiException {
+      // Сервер недоступен — зарегистрируемся при следующем открытии.
     }
+  }
+
+  /// Приложение запустили нажатием на уведомление (было закрыто): открыть нужный экран, когда интерфейс готов.
+  Future<void> _openLaunchTarget() async {
+    String? link;
+    try {
+      final details = await _plugin.getNotificationAppLaunchDetails();
+      if (details?.didNotificationLaunchApp == true) link = details!.notificationResponse?.payload;
+      if (link == null && Platform.isAndroid) link = await _pushChannel.invokeMethod<String>('initialLink');
+    } catch (_) {}
+    if (link == null || link.isEmpty) return;
+    final target = NotificationTarget.parse(link);
+    WidgetsBinding.instance.addPostFrameCallback((_) => open(target));
+  }
+
+  /// Диалог открыт: его уведомления убираются из шторки телефона (и сервер снимает их в колокольчике и на значке).
+  Future<void> clearChat(String chatId) async {
+    try {
+      await _pushChannel.invokeMethod<void>('clear', Platform.isAndroid ? '/admin/chats?c=$chatId' : 'c=$chatId');
+    } catch (_) {}
+    try {
+      await _plugin.cancel(id: '/admin/chats?c=$chatId'.hashCode & 0x7fffffff);
+    } catch (_) {}
   }
 
   Future<void> _sendToken(String token) async {
     try {
-      final r = await api.post('/api/mobile/push', body: {'token': token, 'platform': 'ios', 'environment': apnsEnvironment}) as Map<String, dynamic>;
+      final platform = Platform.isAndroid ? 'android' : 'ios';
+      final r = await api.post('/api/mobile/push', body: {'token': token, 'platform': platform, 'environment': apnsEnvironment}) as Map<String, dynamic>;
       serverPush = r['serverReady'] == true;
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('push_token', token);
@@ -149,7 +193,7 @@ class Notifier with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _foreground = state == AppLifecycleState.resumed;
-    if (_foreground) _soon();
+    if (_foreground) live.resume();
   }
 
   void _soon() {
@@ -176,8 +220,7 @@ class Notifier with WidgetsBindingObserver {
       }
       if (!enabled) return;
       for (final n in fresh) {
-        const loud = {'message', 'mention', 'reminder', 'sla', 'call', 'task', 'deal'};
-        if (!loud.contains(n['kind'])) continue;
+        // Плашка — на всё, что CRM сочла нужным сообщить (сообщения, назначения, задачи, оплаты, заказы, обращения).
         // Напоминания о сроках задач без push с сервера ставятся на телефоне заранее (TasksStore) — второй раз не показываем.
         if (n['kind'] == 'reminder' && !serverPush) continue;
         final target = NotificationTarget.parse(n['link'] as String?);
@@ -190,6 +233,8 @@ class Notifier with WidgetsBindingObserver {
   }
 
   Future<void> _show(String title, String body, String? link, String kind) async {
+    // В фоне при работающих push системное уведомление уже пришло с сервера — второе не нужно.
+    if (!_foreground && serverPush) return;
     if (_foreground) {
       HapticFeedback.mediumImpact();
       SystemSound.play(SystemSoundType.alert);
@@ -325,7 +370,11 @@ class _BannerState extends State<_Banner> with SingleTickerProviderStateMixin {
   IconData get _icon => switch (widget.kind) {
         'reminder' || 'task' => LucideIcons.alarmClock,
         'call' => LucideIcons.phone,
-        'deal' => LucideIcons.handshake,
+        'deal' || 'deal_after_order' || 'deal_lost' => LucideIcons.handshake,
+        'deal_invoice' || 'payment' => LucideIcons.receipt,
+        'order' || 'order_cancelled' => LucideIcons.package,
+        'mention' => LucideIcons.atSign,
+        'system' => LucideIcons.settings,
         'sla' => LucideIcons.triangleAlert,
         _ => LucideIcons.messageCircle,
       };

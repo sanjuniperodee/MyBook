@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'core/auth.dart';
+import 'core/cache.dart';
 import 'core/chats_store.dart';
 import 'core/live.dart';
 import 'core/nav.dart';
@@ -16,6 +18,7 @@ import 'screens/chat_screen.dart';
 import 'screens/client_screen.dart';
 import 'screens/deal_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/order_screen.dart';
 import 'screens/login_screen.dart';
 import 'ui/tokens.dart';
 
@@ -100,6 +103,7 @@ class _WorkspaceScopeState extends State<WorkspaceScope> {
   void _sync(AuthState auth) {
     final loggedIn = auth.status == AuthStatus.loggedIn;
     if (loggedIn && _live == null) {
+      LocalCache.setUser(auth.staff!.id);
       final live = LiveService(auth.api)..start();
       final chats = ChatsStore(auth.api, live)..load();
       final notifier = Notifier(api: auth.api, live: live, navigatorKey: navigatorKey, onOpen: _open)..init();
@@ -114,6 +118,8 @@ class _WorkspaceScopeState extends State<WorkspaceScope> {
       _templates = TemplatesStore(auth.api)..load();
     } else if (!loggedIn && _live != null) {
       _teardown();
+      // Вышли из аккаунта — переписка с телефона стирается.
+      LocalCache.setUser(null);
     }
   }
 
@@ -123,6 +129,9 @@ class _WorkspaceScopeState extends State<WorkspaceScope> {
     if (t.chatId != null) nav.push(MaterialPageRoute<void>(builder: (_) => ChatScreen(chatId: t.chatId!)));
     if (t.dealId != null) nav.push(MaterialPageRoute<void>(builder: (_) => DealScreen(dealId: t.dealId!)));
     if (t.clientId != null) nav.push(MaterialPageRoute<void>(builder: (_) => ClientScreen(clientId: t.clientId!)));
+    if (t.orderId != null) nav.push(MaterialPageRoute<void>(builder: (_) => OrderScreen(orderId: t.orderId!)));
+    // Обращения, финансы, настройки — в CRM на сайте (в приложении этих разделов нет).
+    if (t.web != null) launchUrl(Uri.parse(context.read<AuthState>().api.uri(t.web!).toString()), mode: LaunchMode.externalApplication);
     if (t.tab != null) {
       nav.popUntil((r) => r.isFirst);
       tabRequest.value = t.tab;

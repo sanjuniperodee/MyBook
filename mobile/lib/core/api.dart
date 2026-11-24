@@ -7,9 +7,12 @@ import 'package:http_parser/http_parser.dart';
 
 /// Ошибка запроса к серверу: текст — для экрана (сервер отвечает по-русски), статус — для логики (401 — выйти).
 class ApiException implements Exception {
-  ApiException(this.status, this.message);
+  ApiException(this.status, this.message, [this.code]);
   final int status;
   final String message;
+
+  /// Машинный код ошибки, если сервер его дал (например invoiceChoice — «оплата по счёту или другая?»).
+  final String? code;
 
   bool get unauthorized => status == 401;
 
@@ -53,6 +56,15 @@ class ApiClient {
 
   Future<dynamic> get(String path, {Map<String, String?>? query}) => _send('GET', path, query: query);
 
+  /// GET с ETag: сервер ответил 304 (ничего не изменилось) — data == null, прежний ответ остаётся в силе.
+  Future<({dynamic data, String? etag})> getCached(String path, {Map<String, String?>? query, String? etag}) async {
+    final req = http.Request('GET', uri(path, query))..headers.addAll(headers);
+    if (etag != null) req.headers['If-None-Match'] = etag;
+    final res = await _raw(_http.send(req));
+    if (res.statusCode == 304) return (data: null, etag: etag);
+    return (data: _decode(res), etag: res.headers['etag']);
+  }
+
   Future<dynamic> post(String path, {Object? body, Map<String, String?>? query}) => _send('POST', path, body: body, query: query);
 
   Future<dynamic> patch(String path, {Object? body}) => _send('PATCH', path, body: body);
@@ -65,7 +77,7 @@ class ApiClient {
       req.headers['Content-Type'] = 'application/json; charset=utf-8';
       req.body = jsonEncode(body);
     }
-    return _finish(req.send());
+    return _finish(_http.send(req));
   }
 
   /// Файлы в multipart (голосовое, фото, документы).
@@ -74,15 +86,27 @@ class ApiClient {
       ..headers.addAll(headers)
       ..fields.addAll(fields)
       ..files.add(await http.MultipartFile.fromPath(field, file.path, filename: filename, contentType: contentType == null ? null : _mediaType(contentType)));
-    return _finish(req.send(), timeout: const Duration(minutes: 3));
+    return _finish(_http.send(req), timeout: const Duration(minutes: 3));
+  }
+
+  /// Форма с несколькими файлами (обращение в поддержку: скриншоты, видео).
+  Future<dynamic> multipart(String path, {Map<String, String> fields = const {}, List<({String field, File file, String filename, String contentType})> files = const []}) async {
+    final req = http.MultipartRequest('POST', uri(path))
+      ..headers.addAll(headers)
+      ..fields.addAll(fields);
+    for (final f in files) {
+      req.files.add(await http.MultipartFile.fromPath(f.field, f.file.path, filename: f.filename, contentType: _mediaType(f.contentType)));
+    }
+    return _finish(_http.send(req), timeout: const Duration(minutes: 5));
   }
 
   static MediaType _mediaType(String value) => MediaType.parse(value);
 
-  Future<dynamic> _finish(Future<http.StreamedResponse> sending, {Duration timeout = const Duration(seconds: 30)}) async {
-    final http.Response res;
+  Future<dynamic> _finish(Future<http.StreamedResponse> sending, {Duration timeout = const Duration(seconds: 30)}) async => _decode(await _raw(sending, timeout: timeout));
+
+  Future<http.Response> _raw(Future<http.StreamedResponse> sending, {Duration timeout = const Duration(seconds: 30)}) async {
     try {
-      res = await http.Response.fromStream(await sending.timeout(timeout));
+      return await http.Response.fromStream(await sending.timeout(timeout));
     } on TimeoutException {
       throw ApiException(0, 'Сервер не отвечает. Проверьте интернет.');
     } on SocketException {
@@ -90,6 +114,9 @@ class ApiClient {
     } on http.ClientException {
       throw ApiException(0, 'Нет связи с сервером. Проверьте интернет и адрес сервера.');
     }
+  }
+
+  dynamic _decode(http.Response res) {
     dynamic data;
     if (res.body.isNotEmpty) {
       try {
@@ -105,7 +132,7 @@ class ApiClient {
         : data is Map && data['message'] is String
             ? data['message'] as String
             : 'Ошибка ${res.statusCode}';
-    throw ApiException(res.statusCode, message);
+    throw ApiException(res.statusCode, message, data is Map && data['code'] is String ? data['code'] as String : null);
   }
 
   /// Скачать файл с токеном (документы, видео): возвращает байты.

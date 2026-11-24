@@ -10,6 +10,6 @@ export const dynamic = "force-dynamic";
 export const GET = mobile(async (req, { params }: { params: Promise<{ id: string }> }) => {
   const staff = await apiStaff(req, "chats.view");
   const { id } = idParams(await params, "id");
-  const limit = Math.min(300, Math.max(20, Number(new URL(req.url).searchParams.get("limit")) || 120));
+  const limit = Math.min(300, Math.max(20, Number(new URL(req.url).searchParams.get("limit")) || 50));
   return NextResponse.json(await mobileChatDetail(staff, id, limit));
 });

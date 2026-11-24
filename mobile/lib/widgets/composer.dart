@@ -339,9 +339,9 @@ class ComposerState extends State<Composer> {
       height: size,
       transform: Matrix4.translationValues(_recording ? _drag : 0, 0, 0),
       decoration: BoxDecoration(
-        color: _cancelHint ? c.danger : c.brandDeep,
+        color: _cancelHint ? c.danger : c.brand,
         shape: BoxShape.circle,
-        boxShadow: _recording ? [BoxShadow(color: c.brandDeep.withValues(alpha: 0.4), blurRadius: 18)] : null,
+        boxShadow: _recording ? [BoxShadow(color: c.brand.withValues(alpha: 0.4), blurRadius: 18)] : null,
       ),
       child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 140),

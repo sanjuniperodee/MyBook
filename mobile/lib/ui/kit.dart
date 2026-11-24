@@ -20,15 +20,16 @@ class PrimaryButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.c;
     final enabled = onPressed != null && !busy;
-    final bg = danger ? c.danger : c.brandDeep;
+    // Главная кнопка CRM (.btn-primary): винная заливка, белый текст, скругление органов управления.
+    final bg = danger ? (context.isDark ? const Color(0xFFB3261E) : c.danger) : c.brand;
     return SizedBox(
-      height: 52,
+      height: 50,
       width: double.infinity,
       child: Material(
         color: enabled ? bg : bg.withValues(alpha: 0.4),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(Rd.sm + 2),
         child: InkWell(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(Rd.sm + 2),
           onTap: enabled
               ? () {
                   HapticFeedback.selectionClick();
