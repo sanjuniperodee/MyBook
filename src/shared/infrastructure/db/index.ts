@@ -5,15 +5,15 @@ import * as schema from "@/shared/infrastructure/db/schema";
 const globalForDb = globalThis as unknown as { __mybookPool?: Pool; __mybookDb?: NodePgDatabase<typeof schema> };
 
 /**
- * Пул на процесс: 6 (было 10) — каждое соединение — отдельный процесс Postgres (2–5 МБ, бывает 20); у сайта два
- * держатся долго (LISTEN живых обновлений, замок тяжёлой сборки PDF), на запросы остаётся 4. mybook-worker — 4
- * (DATABASE_POOL_SIZE в deploy/ecosystem.config.cjs). Простаивающее соединение закрывается через 10 с.
+ * Пул на процесс: 10 (DATABASE_POOL_SIZE). 24.11 пробовали 6 — в пиках все 6 заняты и до 34 запросов ждали соединения
+ * (журнал замеров), а соединение Postgres — всего 2–5 МБ: вернули 10. mybook-worker — 12 (проходы планировщика держат
+ * соединение под блокировку, deploy/ecosystem.config.cjs). Простаивающее соединение закрывается через 10 с.
  * Пик занятых и очередь — в журнале замеров (kind: mem, db*), см. poolStats.
  */
 function createPool() {
   const p = new Pool({
     connectionString: process.env.DATABASE_URL ?? "postgres://mybook:mybook@localhost:5432/mybook",
-    max: Number(process.env.DATABASE_POOL_SIZE) || 6,
+    max: Number(process.env.DATABASE_POOL_SIZE) || 10,
     idleTimeoutMillis: Number(process.env.DATABASE_IDLE_MS) || 10_000,
   });
   const stats = poolStats();
@@ -23,7 +23,7 @@ function createPool() {
   };
   p.on("acquire", note);
   p.on("connect", note);
-  stats.read = () => ({ total: p.totalCount, idle: p.idleCount, waiting: p.waitingCount, max: Number(process.env.DATABASE_POOL_SIZE) || 6 });
+  stats.read = () => ({ total: p.totalCount, idle: p.idleCount, waiting: p.waitingCount, max: Number(process.env.DATABASE_POOL_SIZE) || 10 });
   return p;
 }
 

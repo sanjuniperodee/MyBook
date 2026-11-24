@@ -203,6 +203,18 @@ Cloudflare; без Cloudflare ничего не меняет. Это нужно 
 Проверка после переключения: `curl -sI https://mybooks.kz/ | grep -i cf-ray` (код точки в конце), вход в CRM, чаты
 (живая лента), звонок, оплата CloudPayments, загрузка видео, приложение, в журнале nginx — настоящие адреса клиентов.
 
+### 2.7. Память и скорость: переключатели (24.11)
+
+- Процесс вёрстки PDF живёт после сборки `PDF_WORKER_IDLE_MIN` минут (по умолчанию 2; было 10) — в `.env`.
+- Пул БД: `DATABASE_POOL_SIZE` (сайт 10 по умолчанию), воркер — `MYBOOK_WORKER_POOL` в окружении PM2 (12). Пик занятых
+  и очередь — `dbPeakBusy`/`dbPeakWaiting` в `~/mybook-logs/perf-*.jsonl`; очередь > 0 часто — пул мал.
+- my-test: `connection_limit=5` в `DATABASE_URL` `~/bilimland/apps/api/.env`; откат — `.env.bak-20261124-pool` и
+  `pm2 restart bilimland-api --update-env`.
+- Медленные запросы mybook: `auto_explain` и `log_min_duration_statement` = 150 мс (журнал Postgres
+  `/var/log/postgresql/postgresql-16-main.log`); выключить — `ALTER DATABASE mybook RESET …` (perf.md, 24.11).
+- `book_questions.answer_words` считает база (миграция 0105); откат кода — вернуть regexp в `bookProgress.ts`, столбец
+  не мешает. **Новые миграции:** `when` в журнале — время генерации; не править вручную на будущее (тест в schema.test.ts).
+
 ## 3. Миграции
 
 - Владелец схемы — владелец миграций.
