@@ -8,7 +8,8 @@ import { can, canSeeOrder, contactView } from "@/server/access";
 import { deliveryLabels } from "@/modules/ordering/ui/labels";
 import { refused } from "./common";
 import { container } from "@/server/container";
-import { toggleBookLockAction, updateOrderDetailsAction } from "@/app/admin/actions";
+import { saveAdminNoteAction, toggleBookLockAction, updateOrderDetailsAction } from "@/app/admin/actions";
+import { isPrintedPlan } from "@/modules/ordering/ui/status";
 import type { Handlers } from "../../app";
 
 const FILES = [
@@ -19,7 +20,7 @@ const FILES = [
   { kind: "reading", label: "PDF для чтения", perm: "orders.view" },
 ] as const;
 
-export const crmOrderFileHandlers: Pick<Handlers, "crmOrderFiles" | "crmOrderBookLock" | "crmOrderDetails" | "crmOrderDetailsUpdate"> = {
+export const crmOrderFileHandlers: Pick<Handlers, "crmOrderFiles" | "crmOrderBookLock" | "crmOrderDetails" | "crmOrderDetailsUpdate" | "crmOrderLinks" | "crmOrderNote"> = {
   async crmOrderFiles({ req, input }) {
     const staff = await apiStaff(req, "orders.view");
     const order = await container().ordering.queries.orderDetails(input.orderId);
@@ -75,6 +76,34 @@ export const crmOrderFileHandlers: Pick<Handlers, "crmOrderFiles" | "crmOrderBoo
     const r = await updateOrderDetailsAction({}, form);
     if (r.error) return refused(r.error);
     return { ok: true, message: r.ok ?? "Сохранено" };
+  },
+
+  async crmOrderLinks({ req, input }) {
+    const staff = await apiStaff(req, "orders.view");
+    const c = container();
+    const order = await c.ordering.queries.orderDetails(input.orderId);
+    if (!order || !(await canSeeOrder(staff, order.id))) throw new HttpError(404, "notFound");
+    const { deal } = await c.reporting.orderCrm(order);
+    return {
+      clientId: can(staff, "clients.view") ? order.userId : null,
+      dealId: deal?.id ?? null,
+      dealNumber: deal?.number ?? null,
+      chatId: deal?.conversationId ?? null,
+      bookId: order.book.id,
+      adminNote: order.adminNote ?? "",
+      canNote: can(staff, "orders.edit"),
+      printUrl: isPrintedPlan(order.plan) ? `/print/orders/${order.id}` : null,
+    };
+  },
+
+  async crmOrderNote({ req, input }) {
+    await apiStaff(req, "orders.edit");
+    const form = new FormData();
+    form.set("orderId", input.orderId);
+    form.set("adminNote", input.body.note);
+    const r = await saveAdminNoteAction({}, form);
+    if (r.error) return refused(r.error);
+    return { ok: true as const, message: r.ok ?? "Заметка сохранена" };
   },
 
   async crmOrderBookLock({ req, input }) {

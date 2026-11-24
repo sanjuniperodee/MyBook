@@ -1,13 +1,16 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../core/api.dart';
 import '../core/auth.dart';
 import '../core/contact_actions.dart';
 import '../core/format.dart';
 import '../core/tasks_store.dart';
+import '../core/v1.dart';
 import '../models/work.dart';
 import '../ui/avatar.dart';
 import '../ui/kit.dart';
@@ -16,7 +19,6 @@ import 'deal_screen.dart';
 import 'deals_screen.dart' show hexColor;
 import 'new_deal_sheet.dart';
 import 'task_editor.dart';
-import 'crm_web_screen.dart';
 import 'client_edit_screen.dart';
 
 const _orderStatus = {'pending_payment': 'Ожидает оплаты', 'paid': 'Оплачен', 'in_production': 'В производстве', 'shipped': 'Отправлен', 'delivered': 'Доставлен', 'cancelled': 'Отменён'};
@@ -52,6 +54,60 @@ class _ClientScreenState extends State<ClientScreen> {
     }
   }
 
+  void _toast(String t) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t)));
+
+  Future<void> _more(String name) async {
+    final staff = context.read<AuthState>().staff!;
+    final pick = await showAppSheet<String>(context, title: name, builder: (sheet) {
+      return ListView(shrinkWrap: true, padding: const EdgeInsets.fromLTRB(16, 4, 16, 24), children: [
+        GroupCard(padding: EdgeInsets.zero, children: [
+          if (staff.can('clients.create')) GroupTile(title: 'Доступ в кабинет', subtitle: 'новый пароль — прежние входы завершатся', icon: LucideIcons.keyRound, onTap: () => Navigator.pop(sheet, 'access')),
+          if (staff.can('clients.edit')) GroupTile(title: 'Напомнить о книге', subtitle: 'письмо или WhatsApp, как на сайте', icon: LucideIcons.bellRing, onTap: () => Navigator.pop(sheet, 'remind')),
+        ]),
+      ]);
+    });
+    if (!mounted || pick == null) return;
+    final api = context.read<AuthState>().api;
+    if (pick == 'remind') {
+      try {
+        final r = await v1(api, (c) => c.crmClientRemind(clientId: widget.clientId));
+        _toast(r.message ?? 'Напоминание отправлено');
+      } on ApiException catch (e) {
+        _toast(e.message);
+      }
+      return;
+    }
+    if (!await confirm(context, title: 'Выдать новый пароль?', message: 'Клиент выйдет на всех устройствах и войдёт с новым паролем.', ok: 'Выдать')) return;
+    try {
+      final r = await v1(api, (c) => c.crmClientAccess(clientId: widget.clientId));
+      if (!mounted) return;
+      await showAppSheet<void>(context, title: 'Доступ в кабинет', builder: (sheet) {
+        return ListView(shrinkWrap: true, padding: const EdgeInsets.fromLTRB(16, 4, 16, 24), children: [
+          GroupCard(padding: const EdgeInsets.fromLTRB(16, 12, 16, 12), children: [
+            Text('Логин: ${r.login}', style: AppText.body(context)),
+            const SizedBox(height: 4),
+            SelectableText('Пароль: ${r.password}', style: AppText.body(context).copyWith(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 6),
+            Text('Пароль показывается один раз — отправьте его клиенту сейчас.', style: AppText.caption(context).copyWith(color: context.c.warn)),
+          ]),
+          const SizedBox(height: 12),
+          PrimaryButton(label: 'Отправить доступ клиенту', icon: LucideIcons.send, onPressed: () => SharePlus.instance.share(ShareParams(text: r.message, sharePositionOrigin: const Rect.fromLTWH(0, 0, 1, 1)))),
+          TextButton.icon(
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: r.message));
+              Navigator.pop(sheet);
+              _toast('Сообщение скопировано');
+            },
+            icon: const Icon(LucideIcons.copy, size: 16),
+            label: const Text('Скопировать сообщение'),
+          ),
+        ]);
+      });
+    } on ApiException catch (e) {
+      _toast(e.message);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = context.c;
@@ -73,8 +129,8 @@ class _ClientScreenState extends State<ClientScreen> {
                   final saved = await Navigator.of(context).push<bool>(MaterialPageRoute(builder: (_) => ClientEditScreen(clientId: widget.clientId)));
                   if (saved == true) _load();
                 }),
-                // Остальное (доступ в кабинет, приглашения, книги целиком) — карточка CRM внутри приложения.
-                RoundIconButton(icon: LucideIcons.externalLink, size: 44, iconSize: 20, color: c.text, tooltip: 'Открыть в CRM', onTap: () => openCrm(context, '/admin/clients/${widget.clientId}', title: d?['name'] as String? ?? 'Клиент')),
+                // Доступ в кабинет (новый пароль) и напоминание о книге — API v1 crmClientAccess / crmClientRemind.
+                RoundIconButton(icon: LucideIcons.ellipsis, size: 44, iconSize: 22, color: c.text, tooltip: 'Ещё', onTap: () => _more(d?['name'] as String? ?? 'Клиент')),
               ]),
             ),
           ),

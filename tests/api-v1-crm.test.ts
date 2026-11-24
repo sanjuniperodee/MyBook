@@ -15,7 +15,22 @@ const defs = [
 ];
 vi.mock("@/modules/workspace", async (orig) => ({ ...(await orig<object>()), listFields: async () => defs }));
 const updateDealAction = vi.fn<(state: unknown, form: FormData) => Promise<{ ok?: string; error?: string }>>(async () => ({ ok: "Сохранено" }));
-vi.mock("@/app/admin/deals/actions", () => ({ updateDealAction: (s: unknown, f: FormData) => updateDealAction(s, f), setDealAgreedPlanAction: vi.fn(), setDealAgreedGiftsAction: vi.fn() }));
+const deleteDealAction = vi.fn(async (id: string) => {
+  void id;
+  // Действие сайта уводит на список (redirect) — в API это успех.
+  throw Object.assign(new Error("NEXT_REDIRECT"), { digest: "NEXT_REDIRECT;replace;/admin/deals;307;" });
+});
+const mergeDealAction = vi.fn(async (t: string, src: string) => (void t, void src, { error: "Слить можно только открытую сделку" }));
+vi.mock("@/app/admin/deals/actions", () => ({
+  updateDealAction: (s: unknown, f: FormData) => updateDealAction(s, f),
+  setDealAgreedPlanAction: vi.fn(),
+  setDealAgreedGiftsAction: vi.fn(),
+  deleteDealAction: (id: string) => deleteDealAction(id),
+  mergeDealAction: (t: string, src: string) => mergeDealAction(t, src),
+  linkDealClientAction: vi.fn(async () => ({ ok: true })),
+  movePipelineAction: vi.fn(),
+  createClientFromDealAction: vi.fn(),
+}));
 
 const payRoute = vi.fn(async (req: Request, ctx: { params: Promise<{ id: string }> }) => {
   void req;
@@ -27,11 +42,13 @@ vi.mock("@/app/api/admin/orders/[id]/refunds/route", () => ({ POST: vi.fn() }));
 const createClientAction = vi.fn<(state: unknown, form: FormData) => Promise<Record<string, unknown>>>(async () => ({ error: "Клиент с таким телефоном или почтой уже есть" }));
 vi.mock("@/app/admin/clients/new/actions", () => ({ createClientAction: (s: unknown, f: FormData) => createClientAction(s, f) }));
 const updateOrderAction = vi.fn<(state: unknown, form: FormData) => Promise<{ ok?: string; error?: string }>>(async () => ({ ok: "Сохранено" }));
+const saveAdminNoteAction = vi.fn(async (state: unknown, form: FormData) => (void state, void form, { ok: "Заметка сохранена" }));
 const updateOrderDetailsAction = vi.fn<(state: unknown, form: FormData) => Promise<{ ok?: string; error?: string }>>(async () => ({ error: "Проверьте e-mail" }));
 vi.mock("@/app/admin/actions", async (orig) => ({
   ...(await orig<object>()),
   updateOrderAction: (s: unknown, f: FormData) => updateOrderAction(s, f),
   updateOrderDetailsAction: (s: unknown, f: FormData) => updateOrderDetailsAction(s, f),
+  saveAdminNoteAction: (s: unknown, f: FormData) => saveAdminNoteAction(s, f),
 }));
 
 const { v1 } = await import("@mybook/contracts");
@@ -212,5 +229,26 @@ describe("CRM v1: новый клиент со сделкой и предопл�
     createClientAction.mockClear();
     await call(app, "POST", "/api/v1/crm/clients", { name: "Асель", phone: "87001112233", channel: "call" });
     expect(Object.fromEntries(createClientAction.mock.calls[0][1])).toEqual({ name: "Асель", phone: "87001112233", channel: "call" });
+  });
+});
+
+describe("CRM v1: сделка и заказ — то, что раньше открывалось карточкой CRM", () => {
+  const app = createApp(handlers, auth(true));
+  const DEAL = "3f2b8c1e-7a4d-4e5f-9b6c-1d2e3f4a5b6c";
+
+  it("удаление сделки: redirect действия сайта — успех", async () => {
+    expect(await (await call(app, "DELETE", `/api/v1/crm/deals/${DEAL}`)).json()).toEqual({ ok: true, message: "Сделка удалена" });
+  });
+
+  it("слияние: дубль — в эту сделку; отказ — текстом", async () => {
+    const res = await call(app, "POST", `/api/v1/crm/deals/${DEAL}/merge`, { sourceId: "0b6f3c1e-2a4d-4e5f-9b6c-1d2e3f4a5b6c" });
+    expect(res.status).toBe(400);
+    expect(mergeDealAction).toHaveBeenCalledWith(DEAL, "0b6f3c1e-2a4d-4e5f-9b6c-1d2e3f4a5b6c");
+  });
+
+  it("заметка заказа — в форму действия карточки", async () => {
+    const ORDER_ID = "6b1c3e2a-4d5f-4e6a-9b7c-1d2e3f4a5b6c";
+    expect(await (await call(app, "PUT", `/api/v1/crm/orders/${ORDER_ID}/note`, { note: "Позвонить перед отправкой" })).json()).toEqual({ ok: true, message: "Заметка сохранена" });
+    expect(Object.fromEntries(saveAdminNoteAction.mock.calls[0][1])).toEqual({ orderId: ORDER_ID, adminNote: "Позвонить перед отправкой" });
   });
 });

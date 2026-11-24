@@ -362,6 +362,23 @@ export const OrderDetailsBody = z
   .strict()
   .register(schemas, { id: "OrderDetailsBody" });
 
+/** Связанное с заказом (как меню «Ещё» карточки заказа) и внутренняя заметка. */
+export const OrderLinks = z
+  .object({
+    clientId: uuid.nullable(),
+    dealId: uuid.nullable(),
+    dealNumber: z.number().int().nullable(),
+    chatId: uuid.nullable(),
+    bookId: uuid,
+    adminNote: z.string(),
+    canNote: z.boolean(),
+    /** Упаковочный лист (печатная книга) — страница печати сайта. */
+    printUrl: z.string().nullable(),
+  })
+  .register(schemas, { id: "OrderLinks" });
+
+export const OrderNoteBody = z.object({ note: z.string().max(2000) }).strict().register(schemas, { id: "OrderNoteBody" });
+
 export const BookLockBody = z.object({ locked: z.boolean() }).strict().register(schemas, { id: "BookLockBody" });
 
 // ─── Обращения ───────────────────────────────────────────────────────────────────────────────────────────────────
@@ -434,17 +451,62 @@ export const SupportUpdateBody = z
 // ─── Маршруты ─────────────────────────────────────────────────────────────────────────────────────────────────────
 
 const DealParams = z.object({ dealId: uuid });
+
+// ─── Сделка: клиент, дубли, прошлые сделки, воронка, удаление ───────────────────────────────────────────────────
+
+export const DealLinkRow = z.object({ id: uuid, number: z.number().int(), title: z.string(), stage: z.string(), amount: z.number().int(), dateLabel: z.string() }).register(schemas, { id: "DealLinkRow" });
+
+export const DealExtras = z
+  .object({
+    clientId: uuid.nullable(),
+    /** Клиент сайта с тем же телефоном — можно привязать одной кнопкой. */
+    suggested: z.object({ id: uuid, name: z.string() }).nullable(),
+    /** Завести аккаунт клиента из сделки (телефон берётся из сделки). */
+    canCreateClient: z.boolean(),
+    canLink: z.boolean(),
+    channels: z.array(Choice),
+    /** Открытые сделки того же контакта — слить в эту. */
+    duplicates: z.array(DealLinkRow),
+    canMerge: z.boolean(),
+    past: z.array(DealLinkRow),
+    pipelines: z.array(Choice),
+    pipelineId: z.string(),
+    canMovePipeline: z.boolean(),
+    canDelete: z.boolean(),
+  })
+  .register(schemas, { id: "DealExtras" });
+
+export const DealClientBody = z
+  .object({ name: z.string().trim().min(1).max(100), email: z.string().trim().max(200).default(""), locale: z.enum(["ru", "kk", "en"]).default("ru"), channel: z.string().max(40) })
+  .strict()
+  .register(schemas, { id: "DealClientBody" });
+
+export const DealClientCreated = z.object({ clientId: uuid, login: z.string(), password: z.string(), message: z.string() }).register(schemas, { id: "DealClientCreated" });
+export const DealLinkBody = z.object({ clientId: uuid.nullable() }).strict().register(schemas, { id: "DealLinkBody" });
+export const DealMergeBody = z.object({ sourceId: uuid }).strict().register(schemas, { id: "DealMergeBody" });
+export const DealPipelineBody = z.object({ pipelineId: uuid }).strict().register(schemas, { id: "DealPipelineBody" });
 const ClientParams = z.object({ clientId: uuid });
+
+/** Новый пароль клиента (потерял, не получил): прежние входы завершаются; пароль показывается один раз. */
+export const ClientAccess = z.object({ login: z.string(), password: z.string(), message: z.string() }).register(schemas, { id: "ClientAccess" });
 const OrderParams = z.object({ orderId: uuid });
 const PaymentParams = z.object({ paymentId: uuid });
 const TicketParams = z.object({ number: z.coerce.number().int().min(1) });
 
 export const crmRoutes = {
+  crmDealExtras: route({ method: "GET", path: "/api/v1/crm/deals/{dealId}/extras", auth: "staff", tag: "crm", summary: "Сделка: клиент, дубли, прошлые сделки контакта, воронки", params: DealParams, response: DealExtras }),
+  crmDealClientCreate: route({ method: "POST", path: "/api/v1/crm/deals/{dealId}/client", auth: "staff", tag: "crm", summary: "Завести клиента из сделки (пароль — один раз)", params: DealParams, body: DealClientBody, response: DealClientCreated }),
+  crmDealClientLink: route({ method: "PUT", path: "/api/v1/crm/deals/{dealId}/client", auth: "staff", tag: "crm", summary: "Привязать сделку к клиенту сайта или отвязать (null)", params: DealParams, body: DealLinkBody, response: Done }),
+  crmDealMerge: route({ method: "POST", path: "/api/v1/crm/deals/{dealId}/merge", auth: "staff", tag: "crm", summary: "Слить дубль в эту сделку", params: DealParams, body: DealMergeBody, response: Done }),
+  crmDealPipeline: route({ method: "PUT", path: "/api/v1/crm/deals/{dealId}/pipeline", auth: "staff", tag: "crm", summary: "Перенести сделку в другую воронку (на первый этап «в работе»)", params: DealParams, body: DealPipelineBody, response: Done }),
+  crmDealDelete: route({ method: "DELETE", path: "/api/v1/crm/deals/{dealId}", auth: "staff", tag: "crm", summary: "Удалить сделку (с деньгами или счётом — нельзя)", params: DealParams, response: Done }),
   crmDealForm: route({ method: "GET", path: "/api/v1/crm/deals/{dealId}/form", auth: "staff", tag: "crm", summary: "Сделка для правки: поля, свои поля, договорённость", params: DealParams, response: DealForm }),
   crmDealUpdate: route({ method: "PATCH", path: "/api/v1/crm/deals/{dealId}", auth: "staff", tag: "crm", summary: "Правка сделки (только переданные поля)", params: DealParams, body: DealPatch, response: Done }),
   crmDealPlan: route({ method: "PUT", path: "/api/v1/crm/deals/{dealId}/plan", auth: "staff", tag: "crm", summary: "Тариф договорённости (null — клиент выберет сам)", params: DealParams, body: DealPlanBody, response: Done }),
   crmDealGifts: route({ method: "PUT", path: "/api/v1/crm/deals/{dealId}/gifts", auth: "staff", tag: "crm", summary: "Что бесплатно по договорённости", params: DealParams, body: DealGiftsBody, response: Done }),
   crmClientForm: route({ method: "GET", path: "/api/v1/crm/clients/{clientId}/form", auth: "staff", tag: "crm", summary: "Клиент для правки: номера, теги, свои поля, язык, канал, ответственный", params: ClientParams, response: ClientForm }),
+  crmClientAccess: route({ method: "POST", path: "/api/v1/crm/clients/{clientId}/access", auth: "staff", tag: "crm", summary: "Выдать клиенту новый пароль в кабинет (прежние входы завершаются)", params: ClientParams, response: ClientAccess }),
+  crmClientRemind: route({ method: "POST", path: "/api/v1/crm/clients/{clientId}/remind", auth: "staff", tag: "crm", summary: "Напомнить клиенту о книге (письмо или WhatsApp)", params: ClientParams, response: Done }),
   crmClientUpdate: route({ method: "PATCH", path: "/api/v1/crm/clients/{clientId}", auth: "staff", tag: "crm", summary: "Правка клиента (только переданные поля)", params: ClientParams, body: ClientPatch, response: Done }),
   crmChatBot: route({ method: "POST", path: "/api/v1/crm/chats/{chatId}/bot", auth: "staff", tag: "crm", summary: "Запустить или остановить бота в диалоге", params: z.object({ chatId: uuid }), body: ChatBotBody, response: Done }),
   crmOrderMoney: route({ method: "GET", path: "/api/v1/crm/orders/{orderId}/money", auth: "staff", tag: "crm", summary: "Деньги и доставка заказа: платежи, к оплате, тариф и цена, статус и трек", params: OrderParams, response: OrderMoney }),
@@ -462,6 +524,8 @@ export const crmRoutes = {
   crmOrderFiles: route({ method: "GET", path: "/api/v1/crm/orders/{orderId}/files", auth: "staff", tag: "crm", summary: "Файлы для типографии: параметры печати и ссылки на файлы", params: OrderParams, response: OrderFiles }),
   crmOrderDetails: route({ method: "GET", path: "/api/v1/crm/orders/{orderId}/details", auth: "staff", tag: "crm", summary: "Получатель, контакты и доставка заказа для правки", params: OrderParams, response: OrderDetailsForm }),
   crmOrderDetailsUpdate: route({ method: "PUT", path: "/api/v1/crm/orders/{orderId}/details", auth: "staff", tag: "crm", summary: "Изменить получателя, контакты и доставку (как форма карточки заказа)", params: OrderParams, body: OrderDetailsBody, response: Done }),
+  crmOrderLinks: route({ method: "GET", path: "/api/v1/crm/orders/{orderId}/links", auth: "staff", tag: "crm", summary: "Клиент, сделка, чат заказа и внутренняя заметка", params: OrderParams, response: OrderLinks }),
+  crmOrderNote: route({ method: "PUT", path: "/api/v1/crm/orders/{orderId}/note", auth: "staff", tag: "crm", summary: "Внутренняя заметка к заказу (клиент её не видит)", params: OrderParams, body: OrderNoteBody, response: Done }),
   crmOrderBookLock: route({ method: "POST", path: "/api/v1/crm/orders/{orderId}/book-lock", auth: "staff", tag: "crm", summary: "Открыть книгу заказа для правок клиентом или закрыть", params: OrderParams, body: BookLockBody, response: Done }),
   crmSupportList: route({ method: "GET", path: "/api/v1/crm/support", auth: "staff", tag: "crm", summary: "Обращения: открытые, по статусу, поиск (руководитель — все, остальные — свои)", query: z.object({ status: z.string().max(20).optional(), q: z.string().max(100).optional() }), response: SupportList }),
   crmSupportTicket: route({ method: "GET", path: "/api/v1/crm/support/{number}", auth: "staff", tag: "crm", summary: "Обращение: суть, описание, вложения с расшифровками, переписка, решение, история", params: TicketParams, response: SupportTicketView }),

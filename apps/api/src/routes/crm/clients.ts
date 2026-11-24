@@ -8,7 +8,8 @@ import { can, canAssignOthers } from "@/server/access";
 import { listFields } from "@/modules/workspace";
 import { staffOptions } from "@/modules/access/ui";
 import { channelOf, channels, isManualChannel, manualChannels, toAttribution } from "@/shared/domain/channels";
-import { updateClientTagsAction } from "@/app/admin/actions";
+import { remindClientAction, updateClientTagsAction } from "@/app/admin/actions";
+import { issueClientAccessAction } from "@/app/admin/clients/new/actions";
 import { setClientChannelAction, setClientFieldsAction, setClientLocaleAction, setClientManagerAction, setClientNoMarketingAction, setClientPhonesAction } from "@/app/admin/crm-actions";
 import type { Handlers } from "../../app";
 import { fieldsOut, fieldsToForm, refused } from "./common";
@@ -20,7 +21,21 @@ const LOCALES = [
   { id: "en", label: "Английский" },
 ];
 
-export const crmClientHandlers: Pick<Handlers, "crmClientForm" | "crmClientUpdate"> = {
+export const crmClientHandlers: Pick<Handlers, "crmClientForm" | "crmClientUpdate" | "crmClientAccess" | "crmClientRemind"> = {
+  async crmClientAccess({ req, input }) {
+    await apiStaff(req, "clients.create");
+    const r = await issueClientAccessAction(input.clientId);
+    if (r.error || !r.password) return refused(r.error ?? "Не удалось выдать пароль");
+    return { login: r.loginText ?? "", password: r.password, message: r.message ?? "" };
+  },
+
+  async crmClientRemind({ req, input }) {
+    await apiStaff(req, "clients.edit");
+    const r = await remindClientAction(input.clientId);
+    if (!r.ok) return refused(r.message);
+    return { ok: true as const, message: r.message };
+  },
+
   async crmClientForm({ req, input }) {
     const staff = await apiStaff(req, "clients.view");
     const c = container();

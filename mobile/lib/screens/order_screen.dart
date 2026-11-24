@@ -11,6 +11,9 @@ import '../ui/tokens.dart';
 import '../api/mybook_api.g.dart' as v1api;
 import '../core/v1.dart';
 import 'crm_web_screen.dart';
+import 'chat_screen.dart';
+import 'client_screen.dart';
+import 'deal_screen.dart';
 import 'order_details_screen.dart';
 import 'order_files.dart';
 import 'order_money.dart';
@@ -41,6 +44,7 @@ class _OrderScreenState extends State<OrderScreen> {
   void initState() {
     super.initState();
     _load();
+    _loadLinks();
   }
 
   Future<void> _load() async {
@@ -51,6 +55,59 @@ class _OrderScreenState extends State<OrderScreen> {
       if (mounted) setState(() => _error = e.message);
     }
   }
+  v1api.OrderLinks? _links;
+
+  Future<void> _loadLinks() async {
+    try {
+      final l = await v1(context.read<AuthState>().api, (c) => c.crmOrderLinks(orderId: widget.orderId));
+      if (mounted) setState(() => _links = l);
+    } on ApiException {
+      // без связей карточка работает
+    }
+  }
+
+  Future<void> _more() async {
+    final l = _links!;
+    final pick = await showAppSheet<String>(context, title: _number == 0 ? 'Заказ' : 'Заказ №$_number', builder: (sheet) {
+      return ListView(shrinkWrap: true, padding: const EdgeInsets.fromLTRB(16, 4, 16, 24), children: [
+        GroupCard(padding: EdgeInsets.zero, children: [
+          if (l.clientId != null) GroupTile(title: 'Карточка клиента', icon: LucideIcons.user, onTap: () => Navigator.pop(sheet, 'client')),
+          if (l.dealId != null) GroupTile(title: 'Сделка Д${l.dealNumber}', icon: LucideIcons.handshake, onTap: () => Navigator.pop(sheet, 'deal')),
+          if (l.chatId != null) GroupTile(title: 'Чат с клиентом', icon: LucideIcons.messageCircle, onTap: () => Navigator.pop(sheet, 'chat')),
+          GroupTile(title: 'Предпросмотр книги', icon: LucideIcons.eye, onTap: () => Navigator.pop(sheet, 'preview')),
+          if (l.printUrl != null) GroupTile(title: 'Упаковочный лист', icon: LucideIcons.clipboardList, onTap: () => Navigator.pop(sheet, 'print')),
+        ]),
+      ]);
+    });
+    if (!mounted || pick == null) return;
+    final nav = Navigator.of(context);
+    switch (pick) {
+      case 'client':
+        await nav.push(MaterialPageRoute<void>(builder: (_) => ClientScreen(clientId: l.clientId!)));
+      case 'deal':
+        await nav.push(MaterialPageRoute<void>(builder: (_) => DealScreen(dealId: l.dealId!)));
+      case 'chat':
+        await nav.push(MaterialPageRoute<void>(builder: (_) => ChatScreen(chatId: l.chatId!)));
+      case 'preview':
+        await openCrm(context, '/books/${l.bookId}/preview', title: 'Предпросмотр книги');
+      case 'print':
+        await openCrm(context, l.printUrl!, title: 'Упаковочный лист');
+    }
+  }
+
+  Future<void> _editNote() async {
+    final l = _links!;
+    final v = await promptText(context, title: 'Заметка к заказу', hint: 'видят только сотрудники', initial: l.adminNote, lines: 4);
+    if (v == null || !mounted) return;
+    try {
+      final r = await v1(context.read<AuthState>().api, (c) => c.crmOrderNote(orderId: widget.orderId, body: v1api.OrderNoteBody(note: v.trim())));
+      _toast(r.message ?? 'Сохранено');
+      _loadLinks();
+    } on ApiException catch (e) {
+      _toast(e.message);
+    }
+  }
+
 
   void _toast(String text) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
 
@@ -140,11 +197,8 @@ class _OrderScreenState extends State<OrderScreen> {
           leading: RoundIconButton(icon: LucideIcons.chevronLeft, iconSize: 28, color: c.brandDeep, onTap: () => Navigator.of(context).pop(_changed)),
           title: Text(_number == 0 ? 'Заказ' : 'Заказ №$_number', style: AppText.headline(context)),
           actions: [
-            RoundIconButton(icon: LucideIcons.externalLink, size: 44, iconSize: 20, color: c.text, tooltip: 'Открыть в CRM', onTap: () async {
-              await openCrm(context, '/admin/orders/${widget.orderId}', title: _number == 0 ? 'Заказ' : 'Заказ №$_number');
-              _changed = true;
-              _load();
-            }),
+            // Клиент, сделка, чат, предпросмотр книги и упаковочный лист — как меню «Ещё» карточки заказа (API v1 crmOrderLinks).
+            if (_links != null) RoundIconButton(icon: LucideIcons.ellipsis, size: 44, iconSize: 22, color: c.text, tooltip: 'Ещё', onTap: _more),
           ],
         ),
         body: o == null
@@ -201,6 +255,15 @@ class _OrderScreenState extends State<OrderScreen> {
                       if (o['giftNote'] != null) _row(context, 'Открытка', '«${o['giftNote']}»'),
                     ]),
                   OrderFilesSection(orderId: widget.orderId, number: _number),
+                  if (_links != null && (_links!.adminNote.isNotEmpty || _links!.canNote))
+                    _group(context, 'Заметка', [
+                      GroupTile(
+                        title: _links!.adminNote.isEmpty ? 'Добавить заметку' : _links!.adminNote,
+                        subtitle: 'видят только сотрудники',
+                        icon: LucideIcons.stickyNote,
+                        onTap: _links!.canNote ? _editNote : null,
+                      ),
+                    ]),
                   if ((o['events'] as List).isNotEmpty)
                     _group(context, 'Журнал', [
                       for (final e in (o['events'] as List).cast<Map<String, dynamic>>())

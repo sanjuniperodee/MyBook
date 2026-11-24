@@ -18,10 +18,17 @@ import 'deals_screen.dart' show hexColor;
 import 'invoice_sheet.dart';
 import 'payment_sheet.dart';
 import 'task_editor.dart';
-import 'crm_web_screen.dart';
+import '../api/mybook_api.g.dart' as v1api;
+import '../core/v1.dart';
+import '../widgets/crm_form.dart';
+import 'client_screen.dart';
+import 'order_screen.dart';
+import 'package:share_plus/share_plus.dart';
 import 'deal_edit_screen.dart';
 
 /// Карточка сделки: этап (меняется в один тап), чат и счёт, задачи, заметки, платежи и счета.
+
+const _orderStatusLabels = {'pending_payment': 'Ожидает оплаты', 'paid': 'Оплачен', 'in_production': 'В производстве', 'shipped': 'Отправлен', 'delivered': 'Доставлен', 'cancelled': 'Отменён'};
 class DealScreen extends StatefulWidget {
   const DealScreen({super.key, required this.dealId, this.fromChat = false});
   final String dealId;
@@ -49,6 +56,115 @@ class _DealScreenState extends State<DealScreen> {
       if (mounted) setState(() => _d = r);
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
+    }
+    // Клиент, дубли, прошлые сделки, воронки — API v1 (необязательно: без них карточка работает).
+    try {
+      final x = await v1(_api.c, (c) => c.crmDealExtras(dealId: widget.dealId));
+      if (mounted) setState(() => _x = x);
+    } on ApiException {
+      // нет прав или сеть — меню «Ещё» покажет только доступное
+    }
+  }
+
+  v1api.DealExtras? _x;
+
+  Future<void> _done(Future<v1api.Done> Function(v1api.MybookApi) call) async {
+    try {
+      final r = await v1(_api.c, call);
+      HapticFeedback.lightImpact();
+      _toast(r.message);
+      await _load();
+    } on ApiException catch (e) {
+      _toast(e.message);
+    }
+  }
+
+  /// «Ещё»: клиент (открыть, привязать найденного, завести, отвязать), другая воронка, удалить.
+  Future<void> _more() async {
+    final x = _x;
+    if (x == null) return;
+    final pick = await showAppSheet<String>(context, title: 'Сделка', builder: (sheet) {
+      return ListView(shrinkWrap: true, padding: const EdgeInsets.fromLTRB(16, 4, 16, 24), children: [
+        GroupCard(padding: EdgeInsets.zero, children: [
+          if (x.clientId != null) GroupTile(title: 'Открыть клиента', icon: LucideIcons.user, onTap: () => Navigator.pop(sheet, 'client')),
+          if (x.clientId == null && x.suggested != null && x.canLink) GroupTile(title: 'Привязать к клиенту', subtitle: '${x.suggested!.name} — тот же телефон', icon: LucideIcons.link, onTap: () => Navigator.pop(sheet, 'link')),
+          if (x.canCreateClient) GroupTile(title: 'Завести клиента', subtitle: 'аккаунт на сайте по телефону сделки', icon: LucideIcons.userPlus, onTap: () => Navigator.pop(sheet, 'create')),
+          if (x.clientId != null && x.canLink) GroupTile(title: 'Отвязать от клиента', icon: LucideIcons.unlink, onTap: () => Navigator.pop(sheet, 'unlink')),
+          if (x.canMovePipeline) GroupTile(title: 'Перенести в другую воронку', icon: LucideIcons.arrowRightLeft, onTap: () => Navigator.pop(sheet, 'pipeline')),
+          if (x.canDelete) GroupTile(title: 'Удалить сделку', icon: LucideIcons.trash2, onTap: () => Navigator.pop(sheet, 'delete')),
+        ]),
+      ]);
+    });
+    if (!mounted || pick == null) return;
+    switch (pick) {
+      case 'client':
+        await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => ClientScreen(clientId: x.clientId!)));
+      case 'link':
+        await _done((c) => c.crmDealClientLink(dealId: widget.dealId, body: v1api.DealLinkBody(clientId: x.suggested!.id)));
+      case 'unlink':
+        if (await confirm(context, title: 'Отвязать сделку от клиента?', ok: 'Отвязать')) await _done((c) => c.crmDealClientLink(dealId: widget.dealId, body: const v1api.DealLinkBody(clientId: null)));
+      case 'pipeline':
+        final v = await pickChoice(context, title: 'Воронка', options: [for (final p in x.pipelines) (p.id, p.label)], current: x.pipelineId);
+        if (v != null && v.isNotEmpty && v != x.pipelineId) await _done((c) => c.crmDealPipeline(dealId: widget.dealId, body: v1api.DealPipelineBody(pipelineId: v)));
+      case 'delete':
+        if (!await confirm(context, title: 'Удалить сделку?', message: 'Сделку с деньгами или счётом удалить нельзя.', ok: 'Удалить', destructive: true)) return;
+        try {
+          final r = await v1(_api.c, (c) => c.crmDealDelete(dealId: widget.dealId));
+          _toast(r.message);
+          if (mounted) Navigator.of(context).pop(true);
+        } on ApiException catch (e) {
+          _toast(e.message);
+        }
+      case 'create':
+        await _createClient(x);
+    }
+  }
+
+  Future<void> _createClient(v1api.DealExtras x) async {
+    final name = TextEditingController(text: (_d?['contactName'] as String?) ?? '');
+    final email = TextEditingController();
+    String? channel;
+    final ok = await showAppSheet<bool>(context, title: 'Завести клиента', builder: (sheet) {
+      return StatefulBuilder(builder: (context, set) {
+        return ListView(shrinkWrap: true, padding: const EdgeInsets.fromLTRB(16, 4, 16, 24), children: [
+          LabeledField(label: 'Имя', controller: name, autocorrect: false, capitalization: TextCapitalization.words),
+          LabeledField(label: 'Почта', controller: email, keyboard: TextInputType.emailAddress, hint: 'если есть', autocorrect: false),
+          GroupCard(padding: const EdgeInsets.only(bottom: 14), children: [
+            ChoiceRow(
+              label: 'Откуда пришёл',
+              icon: LucideIcons.signpost,
+              value: x.channels.where((c) => c.id == channel).map((c) => c.label).firstOrNull ?? 'выбрать',
+              onTap: () async {
+                final v = await pickChoice(context, title: 'Канал продаж', options: [for (final c in x.channels) (c.id, c.label)], current: channel);
+                if (v != null && v.isNotEmpty) set(() => channel = v);
+              },
+            ),
+          ]),
+          PrimaryButton(label: 'Завести клиента', icon: LucideIcons.userPlus, onPressed: () => Navigator.pop(sheet, true)),
+        ]);
+      });
+    });
+    if (ok != true || !mounted) return;
+    if (channel == null) return _toast('Укажите, откуда пришёл клиент');
+    try {
+      final r = await v1(_api.c, (c) => c.crmDealClientCreate(dealId: widget.dealId, body: v1api.DealClientBody(name: name.text.trim(), email: email.text.trim(), locale: 'ru', channel: channel!)));
+      await _load();
+      if (!mounted) return;
+      await showAppSheet<void>(context, title: 'Клиент заведён', builder: (sheet) {
+        return ListView(shrinkWrap: true, padding: const EdgeInsets.fromLTRB(16, 4, 16, 24), children: [
+          GroupCard(padding: const EdgeInsets.fromLTRB(16, 12, 16, 12), children: [
+            Text('Логин: ${r.login}', style: AppText.body(context)),
+            const SizedBox(height: 4),
+            SelectableText('Пароль: ${r.password}', style: AppText.body(context).copyWith(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 6),
+            Text('Пароль показывается один раз — отправьте его клиенту сейчас.', style: AppText.caption(context).copyWith(color: context.c.warn)),
+          ]),
+          const SizedBox(height: 12),
+          PrimaryButton(label: 'Отправить доступ клиенту', icon: LucideIcons.send, onPressed: () => SharePlus.instance.share(ShareParams(text: r.message, sharePositionOrigin: const Rect.fromLTWH(0, 0, 1, 1)))),
+        ]);
+      });
+    } on ApiException catch (e) {
+      _toast(e.message);
     }
   }
 
@@ -183,11 +299,8 @@ class _DealScreenState extends State<DealScreen> {
                     final saved = await Navigator.of(context).push<bool>(MaterialPageRoute(builder: (_) => DealEditScreen(dealId: widget.dealId)));
                     if (saved == true) _load();
                   }),
-                // Остальное (клиент, объединение, история) — карточка CRM внутри приложения.
-                RoundIconButton(icon: LucideIcons.externalLink, size: 44, iconSize: 20, color: c.text, tooltip: 'Открыть в CRM', onTap: () async {
-                  await openCrm(context, '/admin/deals/${widget.dealId}', title: d == null ? 'Сделка' : 'Сделка Д${d['number']}');
-                  _load();
-                }),
+                // Клиент, другая воронка, удаление — API v1 (crmDealExtras и действия карточки сделки).
+                if (_x != null) RoundIconButton(icon: LucideIcons.ellipsis, size: 44, iconSize: 22, color: c.text, tooltip: 'Ещё', onTap: _more),
               ]),
             ),
           ),
@@ -312,7 +425,14 @@ class _DealScreenState extends State<DealScreen> {
       ),
       const SizedBox(height: 20),
       if (order != null)
-        GroupCard(title: 'Заказ', children: [GroupTile(icon: LucideIcons.package, title: 'Заказ №${order['number']}', subtitle: '${order['status']} · ${money(order['amount'] as num)}')]),
+        GroupCard(title: 'Заказ', children: [
+          GroupTile(
+            icon: LucideIcons.package,
+            title: 'Заказ №${order['number']}',
+            subtitle: '${_orderStatusLabels[order['status']] ?? order['status']} · ${money(order['amount'] as num)}',
+            onTap: order['id'] is String ? () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => OrderScreen(orderId: order['id'] as String, number: (order['number'] as num).toInt()))) : null,
+          ),
+        ]),
       if (invoices.isNotEmpty)
         GroupCard(title: 'Счета', children: [
           for (final i in invoices)
@@ -359,6 +479,36 @@ class _DealScreenState extends State<DealScreen> {
                   _load();
                 }
               },
+            ),
+        ]),
+      if (_x != null && _x!.duplicates.isNotEmpty)
+        GroupCard(title: 'Дубли контакта', children: [
+          for (final dup in _x!.duplicates)
+            GroupTile(
+              title: 'Д${dup.number} · ${dup.title}',
+              subtitle: '${dup.stage} · ${money(dup.amount)} · ${dup.dateLabel}',
+              icon: LucideIcons.copy,
+              trailing: _x!.canMerge
+                  ? TextButton(
+                      onPressed: () async {
+                        if (await confirm(context, title: 'Слить Д${dup.number} в эту сделку?', message: 'Заметки, задачи, платежи и переписка перейдут сюда; открытые счета дубля могут отмениться.', ok: 'Слить')) {
+                          await _done((c) => c.crmDealMerge(dealId: widget.dealId, body: v1api.DealMergeBody(sourceId: dup.id)));
+                        }
+                      },
+                      child: const Text('Слить'),
+                    )
+                  : null,
+              onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => DealScreen(dealId: dup.id))),
+            ),
+        ]),
+      if (_x != null && _x!.past.isNotEmpty)
+        GroupCard(title: 'Прошлые сделки контакта', children: [
+          for (final p in _x!.past)
+            GroupTile(
+              title: 'Д${p.number} · ${p.title}',
+              subtitle: '${p.stage} · ${money(p.amount)} · ${p.dateLabel}',
+              icon: LucideIcons.history,
+              onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => DealScreen(dealId: p.id))),
             ),
         ]),
       if (notes.isNotEmpty)

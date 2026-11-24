@@ -308,6 +308,12 @@ class MybookApi {
     return CrmDeal.fromJson(json as Map<String, dynamic>);
   }
 
+  /// Удалить сделку (с деньгами или счётом — нельзя)
+  Future<Done> crmDealDelete({required String dealId}) async {
+    final json = await _send('DELETE', '/api/v1/crm/deals/${Uri.encodeComponent('$dealId')}');
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
   /// Правка сделки (только переданные поля)
   Future<Done> crmDealUpdate({required String dealId, required DealPatch body}) async {
     final json = await _send('PATCH', '/api/v1/crm/deals/${Uri.encodeComponent('$dealId')}', body: body.toJson());
@@ -422,6 +428,36 @@ class MybookApi {
     return OkResult.fromJson(json as Map<String, dynamic>);
   }
 
+  /// Сделка: клиент, дубли, прошлые сделки контакта, воронки
+  Future<DealExtras> crmDealExtras({required String dealId}) async {
+    final json = await _send('GET', '/api/v1/crm/deals/${Uri.encodeComponent('$dealId')}/extras');
+    return DealExtras.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Завести клиента из сделки (пароль — один раз)
+  Future<DealClientCreated> crmDealClientCreate({required String dealId, required DealClientBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/deals/${Uri.encodeComponent('$dealId')}/client', body: body.toJson());
+    return DealClientCreated.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Привязать сделку к клиенту сайта или отвязать (null)
+  Future<Done> crmDealClientLink({required String dealId, required DealLinkBody body}) async {
+    final json = await _send('PUT', '/api/v1/crm/deals/${Uri.encodeComponent('$dealId')}/client', body: body.toJson());
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Слить дубль в эту сделку
+  Future<Done> crmDealMerge({required String dealId, required DealMergeBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/deals/${Uri.encodeComponent('$dealId')}/merge', body: body.toJson());
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Перенести сделку в другую воронку (на первый этап «в работе»)
+  Future<Done> crmDealPipeline({required String dealId, required DealPipelineBody body}) async {
+    final json = await _send('PUT', '/api/v1/crm/deals/${Uri.encodeComponent('$dealId')}/pipeline', body: body.toJson());
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
   /// Сделка для правки: поля, свои поля, договорённость
   Future<DealForm> crmDealForm({required String dealId}) async {
     final json = await _send('GET', '/api/v1/crm/deals/${Uri.encodeComponent('$dealId')}/form');
@@ -444,6 +480,18 @@ class MybookApi {
   Future<ClientForm> crmClientForm({required String clientId}) async {
     final json = await _send('GET', '/api/v1/crm/clients/${Uri.encodeComponent('$clientId')}/form');
     return ClientForm.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Выдать клиенту новый пароль в кабинет (прежние входы завершаются)
+  Future<ClientAccess> crmClientAccess({required String clientId}) async {
+    final json = await _send('POST', '/api/v1/crm/clients/${Uri.encodeComponent('$clientId')}/access');
+    return ClientAccess.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Напомнить клиенту о книге (письмо или WhatsApp)
+  Future<Done> crmClientRemind({required String clientId}) async {
+    final json = await _send('POST', '/api/v1/crm/clients/${Uri.encodeComponent('$clientId')}/remind');
+    return Done.fromJson(json as Map<String, dynamic>);
   }
 
   /// Запустить или остановить бота в диалоге
@@ -533,6 +581,18 @@ class MybookApi {
   /// Изменить получателя, контакты и доставку (как форма карточки заказа)
   Future<Done> crmOrderDetailsUpdate({required String orderId, required OrderDetailsBody body}) async {
     final json = await _send('PUT', '/api/v1/crm/orders/${Uri.encodeComponent('$orderId')}/details', body: body.toJson());
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Клиент, сделка, чат заказа и внутренняя заметка
+  Future<OrderLinks> crmOrderLinks({required String orderId}) async {
+    final json = await _send('GET', '/api/v1/crm/orders/${Uri.encodeComponent('$orderId')}/links');
+    return OrderLinks.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Внутренняя заметка к заказу (клиент её не видит)
+  Future<Done> crmOrderNote({required String orderId, required OrderNoteBody body}) async {
+    final json = await _send('PUT', '/api/v1/crm/orders/${Uri.encodeComponent('$orderId')}/note', body: body.toJson());
     return Done.fromJson(json as Map<String, dynamic>);
   }
 
@@ -5147,6 +5207,33 @@ class OrderDetailsBody {
   Map<String, dynamic> toJson() => {'contactName': contactName, 'contactPhone': contactPhone, 'contactEmail': contactEmail, if (deliveryMethod != null || nulls.contains('deliveryMethod')) 'deliveryMethod': deliveryMethod, if (country != null || nulls.contains('country')) 'country': country, if (city != null || nulls.contains('city')) 'city': city, if (address != null || nulls.contains('address')) 'address': address, if (postalCode != null || nulls.contains('postalCode')) 'postalCode': postalCode, if (desiredDate != null || nulls.contains('desiredDate')) 'desiredDate': desiredDate, if (giftNote != null || nulls.contains('giftNote')) 'giftNote': giftNote};
 }
 
+class OrderLinks {
+  final String? clientId;
+  final String? dealId;
+  final int? dealNumber;
+  final String? chatId;
+  final String bookId;
+  final String adminNote;
+  final bool canNote;
+  final String? printUrl;
+
+  const OrderLinks({this.clientId, this.dealId, this.dealNumber, this.chatId, required this.bookId, required this.adminNote, required this.canNote, this.printUrl});
+
+  factory OrderLinks.fromJson(Map<String, dynamic> json) => OrderLinks(clientId: json['clientId'] == null ? null : json['clientId'] as String, dealId: json['dealId'] == null ? null : json['dealId'] as String, dealNumber: json['dealNumber'] == null ? null : (json['dealNumber'] as num).toInt(), chatId: json['chatId'] == null ? null : json['chatId'] as String, bookId: json['bookId'] as String, adminNote: json['adminNote'] as String, canNote: json['canNote'] as bool, printUrl: json['printUrl'] == null ? null : json['printUrl'] as String);
+
+  Map<String, dynamic> toJson() => {'clientId': clientId, 'dealId': dealId, 'dealNumber': dealNumber, 'chatId': chatId, 'bookId': bookId, 'adminNote': adminNote, 'canNote': canNote, 'printUrl': printUrl};
+}
+
+class OrderNoteBody {
+  final String note;
+
+  const OrderNoteBody({required this.note});
+
+  factory OrderNoteBody.fromJson(Map<String, dynamic> json) => OrderNoteBody(note: json['note'] as String);
+
+  Map<String, dynamic> toJson() => {'note': note};
+}
+
 class BookLockBody {
   final bool locked;
 
@@ -5285,6 +5372,122 @@ class SupportUpdateBody {
   factory SupportUpdateBody.fromJson(Map<String, dynamic> json) => SupportUpdateBody(status: json['status'] as String, resolution: json['resolution'] as String, devNote: json['devNote'] as String, notify: json['notify'] as bool);
 
   Map<String, dynamic> toJson() => {'status': status, 'resolution': resolution, 'devNote': devNote, 'notify': notify};
+}
+
+class DealLinkRow {
+  final String id;
+  final int number;
+  final String title;
+  final String stage;
+  final int amount;
+  final String dateLabel;
+
+  const DealLinkRow({required this.id, required this.number, required this.title, required this.stage, required this.amount, required this.dateLabel});
+
+  factory DealLinkRow.fromJson(Map<String, dynamic> json) => DealLinkRow(id: json['id'] as String, number: (json['number'] as num).toInt(), title: json['title'] as String, stage: json['stage'] as String, amount: (json['amount'] as num).toInt(), dateLabel: json['dateLabel'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'number': number, 'title': title, 'stage': stage, 'amount': amount, 'dateLabel': dateLabel};
+}
+
+class DealExtras {
+  final String? clientId;
+  final DealExtrasSuggested? suggested;
+  final bool canCreateClient;
+  final bool canLink;
+  final List<Choice> channels;
+  final List<DealLinkRow> duplicates;
+  final bool canMerge;
+  final List<DealLinkRow> past;
+  final List<Choice> pipelines;
+  final String pipelineId;
+  final bool canMovePipeline;
+  final bool canDelete;
+
+  const DealExtras({this.clientId, this.suggested, required this.canCreateClient, required this.canLink, required this.channels, required this.duplicates, required this.canMerge, required this.past, required this.pipelines, required this.pipelineId, required this.canMovePipeline, required this.canDelete});
+
+  factory DealExtras.fromJson(Map<String, dynamic> json) => DealExtras(clientId: json['clientId'] == null ? null : json['clientId'] as String, suggested: json['suggested'] == null ? null : DealExtrasSuggested.fromJson(json['suggested'] as Map<String, dynamic>), canCreateClient: json['canCreateClient'] as bool, canLink: json['canLink'] as bool, channels: (json['channels'] as List).map((e) => Choice.fromJson(e as Map<String, dynamic>)).toList(), duplicates: (json['duplicates'] as List).map((e) => DealLinkRow.fromJson(e as Map<String, dynamic>)).toList(), canMerge: json['canMerge'] as bool, past: (json['past'] as List).map((e) => DealLinkRow.fromJson(e as Map<String, dynamic>)).toList(), pipelines: (json['pipelines'] as List).map((e) => Choice.fromJson(e as Map<String, dynamic>)).toList(), pipelineId: json['pipelineId'] as String, canMovePipeline: json['canMovePipeline'] as bool, canDelete: json['canDelete'] as bool);
+
+  Map<String, dynamic> toJson() => {'clientId': clientId, 'suggested': suggested == null ? null : suggested!.toJson(), 'canCreateClient': canCreateClient, 'canLink': canLink, 'channels': channels.map((e) => e.toJson()).toList(), 'duplicates': duplicates.map((e) => e.toJson()).toList(), 'canMerge': canMerge, 'past': past.map((e) => e.toJson()).toList(), 'pipelines': pipelines.map((e) => e.toJson()).toList(), 'pipelineId': pipelineId, 'canMovePipeline': canMovePipeline, 'canDelete': canDelete};
+}
+
+class DealExtrasSuggested {
+  final String id;
+  final String name;
+
+  const DealExtrasSuggested({required this.id, required this.name});
+
+  factory DealExtrasSuggested.fromJson(Map<String, dynamic> json) => DealExtrasSuggested(id: json['id'] as String, name: json['name'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'name': name};
+}
+
+class DealClientBody {
+  final String name;
+  final String email;
+  /// ru | kk | en
+  final String locale;
+  final String channel;
+
+  const DealClientBody({required this.name, required this.email, required this.locale, required this.channel});
+
+  factory DealClientBody.fromJson(Map<String, dynamic> json) => DealClientBody(name: json['name'] as String, email: json['email'] as String, locale: json['locale'] as String, channel: json['channel'] as String);
+
+  Map<String, dynamic> toJson() => {'name': name, 'email': email, 'locale': locale, 'channel': channel};
+}
+
+class DealClientCreated {
+  final String clientId;
+  final String login;
+  final String password;
+  final String message;
+
+  const DealClientCreated({required this.clientId, required this.login, required this.password, required this.message});
+
+  factory DealClientCreated.fromJson(Map<String, dynamic> json) => DealClientCreated(clientId: json['clientId'] as String, login: json['login'] as String, password: json['password'] as String, message: json['message'] as String);
+
+  Map<String, dynamic> toJson() => {'clientId': clientId, 'login': login, 'password': password, 'message': message};
+}
+
+class DealLinkBody {
+  final String? clientId;
+
+  const DealLinkBody({this.clientId});
+
+  factory DealLinkBody.fromJson(Map<String, dynamic> json) => DealLinkBody(clientId: json['clientId'] == null ? null : json['clientId'] as String);
+
+  Map<String, dynamic> toJson() => {'clientId': clientId};
+}
+
+class DealMergeBody {
+  final String sourceId;
+
+  const DealMergeBody({required this.sourceId});
+
+  factory DealMergeBody.fromJson(Map<String, dynamic> json) => DealMergeBody(sourceId: json['sourceId'] as String);
+
+  Map<String, dynamic> toJson() => {'sourceId': sourceId};
+}
+
+class DealPipelineBody {
+  final String pipelineId;
+
+  const DealPipelineBody({required this.pipelineId});
+
+  factory DealPipelineBody.fromJson(Map<String, dynamic> json) => DealPipelineBody(pipelineId: json['pipelineId'] as String);
+
+  Map<String, dynamic> toJson() => {'pipelineId': pipelineId};
+}
+
+class ClientAccess {
+  final String login;
+  final String password;
+  final String message;
+
+  const ClientAccess({required this.login, required this.password, required this.message});
+
+  factory ClientAccess.fromJson(Map<String, dynamic> json) => ClientAccess(login: json['login'] as String, password: json['password'] as String, message: json['message'] as String);
+
+  Map<String, dynamic> toJson() => {'login': login, 'password': password, 'message': message};
 }
 
 class MoneyPeriod {
