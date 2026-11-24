@@ -123,11 +123,16 @@ export async function iosStatus(userId: string) {
   };
 }
 
-/** Все зарегистрированные телефоны — для сборки на Mac (имя в Apple — сотрудник и модель). */
+/**
+ * Все зарегистрированные телефоны — для сборки на Mac. Имя в кабинете Apple нейтральное («WD-1a2b3c iPhone15,2»): без
+ * имени сотрудника и компании (аккаунт разработчика — чужой); кто есть кто — в CRM (crm_ios_devices).
+ */
 export async function allIosDevices() {
   const rows = await iosDevices.all();
-  return rows.map((r) => ({ udid: r.udid, name: `${(r.name || r.email.split("@")[0]).slice(0, 30)} ${r.product}`.trim() }));
+  return rows.map((r) => ({ udid: r.udid, name: deviceLabel(r.udid, r.product) }));
 }
+
+export const deviceLabel = (udid: string, product: string) => `WD-${udid.replace(/-/g, "").slice(-6).toLowerCase()} ${product || "iPhone"}`.trim();
 
 /** Манифест установки по воздуху: адрес IPA, идентификатор и версия. */
 export function installManifest(ipaUrl: string, b: IosBuild) {

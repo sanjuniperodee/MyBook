@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("@/modules/workspace", () => ({ iosDevices: { save: async () => {}, ofUser: async () => [], all: async () => [] } }));
 vi.mock("@/shared/infrastructure/storage", () => ({ fileExists: async () => false, getFile: async () => Buffer.from(""), putFile: async () => {} }));
 
-const { enrollProfile, installManifest, iosToken, parseDeviceAttributes, readIosToken } = await import("@/server/ios-app");
+const { deviceLabel, enrollProfile, installManifest, iosToken, parseDeviceAttributes, readIosToken } = await import("@/server/ios-app");
 
 const USER = "0d0d0d0d-0000-4000-8000-0000000000aa";
 
@@ -31,6 +31,11 @@ describe("iPhone без App Store (Ad Hoc)", () => {
     expect(parseDeviceAttributes(body)).toEqual({ udid: "00008110-001A2B3C4D5E801E", product: "iPhone15,2", version: "22A3354" });
     expect(parseDeviceAttributes(Buffer.from(plist.replace("00008110-001A2B3C4D5E801E", "../../etc")))).toBeNull();
     expect(parseDeviceAttributes(Buffer.from("не plist"))).toBeNull();
+  });
+
+  it("имя телефона в кабинете Apple — без имени сотрудника и компании", () => {
+    expect(deviceLabel("00008110-001A2B3C4D5E801E", "iPhone15,2")).toBe("WD-5e801e iPhone15,2");
+    expect(deviceLabel("00008110-001A2B3C4D5E801E", "")).toBe("WD-5e801e iPhone");
   });
 
   it("манифест установки: адрес IPA экранирован, идентификатор и версия из сборки", () => {
