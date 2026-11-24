@@ -6,6 +6,7 @@ import { Link, useMessages } from "@/i18n/client";
 import { apiFetch } from "@/lib/client-api";
 import { toastError } from "@/components/ui/overlays";
 import { cn } from "@/lib/class-names";
+import { REVIEW_MAX } from "@mybook/contracts";
 import type { BookKind } from "@/lib/content/kinds";
 
 interface ReviewDraft {
@@ -19,7 +20,7 @@ interface ReviewDraft {
   thankYouCode: string | null;
 }
 
-const TEXT_MAX = 2000;
+const TEXT_MAX = REVIEW_MAX.text;
 const PHOTO_MAX_BYTES = 15 * 1024 * 1024;
 
 /**
@@ -180,13 +181,13 @@ export function ReviewForm({
           <label className="label" htmlFor="review-name">
             {t.name}
           </label>
-          <input id="review-name" className="input" value={authorName} maxLength={40} required onChange={(e) => setAuthorName(e.target.value)} />
+          <input id="review-name" className="input" value={authorName} maxLength={REVIEW_MAX.authorName} required onChange={(e) => setAuthorName(e.target.value)} />
         </div>
         <div>
           <label className="label" htmlFor="review-city">
             {t.city}
           </label>
-          <input id="review-city" className="input" value={city} maxLength={40} placeholder={t.cityPlaceholder} onChange={(e) => setCity(e.target.value)} />
+          <input id="review-city" className="input" value={city} maxLength={REVIEW_MAX.city} placeholder={t.cityPlaceholder} onChange={(e) => setCity(e.target.value)} />
         </div>
       </div>
 

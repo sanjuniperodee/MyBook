@@ -2088,16 +2088,86 @@ class Review {
   Map<String, dynamic> toJson() => {'rating': rating, 'text': text, 'authorName': authorName, 'city': city, 'consent': consent, 'status': status, 'photoUrl': photoUrl, 'thankYouCode': thankYouCode};
 }
 
+class ReviewLabels {
+  final String order;
+  final String title;
+  final String subtitle;
+  final String ratingAria;
+  final List<String> ratings;
+  final String textLabel;
+  final String textHigh;
+  final String textLow;
+  final String photo;
+  final String photoHint;
+  final String photoChoose;
+  final String photoRemove;
+  final String photoAttached;
+  final String name;
+  final String city;
+  final String cityPlaceholder;
+  final String consent;
+  final String submit;
+  final String update;
+  final String editable;
+  final String chooseRating;
+  final String thanksTitle;
+  final String thanksHigh;
+  final String thanksLow;
+  final String promoTitle;
+  final String promoText;
+  final String copy;
+  final String copied;
+  final String locked;
+  final String notYet;
+  final ReviewLabelsCard card;
+
+  const ReviewLabels({required this.order, required this.title, required this.subtitle, required this.ratingAria, required this.ratings, required this.textLabel, required this.textHigh, required this.textLow, required this.photo, required this.photoHint, required this.photoChoose, required this.photoRemove, required this.photoAttached, required this.name, required this.city, required this.cityPlaceholder, required this.consent, required this.submit, required this.update, required this.editable, required this.chooseRating, required this.thanksTitle, required this.thanksHigh, required this.thanksLow, required this.promoTitle, required this.promoText, required this.copy, required this.copied, required this.locked, required this.notYet, required this.card});
+
+  factory ReviewLabels.fromJson(Map<String, dynamic> json) => ReviewLabels(order: json['order'] as String, title: json['title'] as String, subtitle: json['subtitle'] as String, ratingAria: json['ratingAria'] as String, ratings: (json['ratings'] as List).map((e) => e as String).toList(), textLabel: json['textLabel'] as String, textHigh: json['textHigh'] as String, textLow: json['textLow'] as String, photo: json['photo'] as String, photoHint: json['photoHint'] as String, photoChoose: json['photoChoose'] as String, photoRemove: json['photoRemove'] as String, photoAttached: json['photoAttached'] as String, name: json['name'] as String, city: json['city'] as String, cityPlaceholder: json['cityPlaceholder'] as String, consent: json['consent'] as String, submit: json['submit'] as String, update: json['update'] as String, editable: json['editable'] as String, chooseRating: json['chooseRating'] as String, thanksTitle: json['thanksTitle'] as String, thanksHigh: json['thanksHigh'] as String, thanksLow: json['thanksLow'] as String, promoTitle: json['promoTitle'] as String, promoText: json['promoText'] as String, copy: json['copy'] as String, copied: json['copied'] as String, locked: json['locked'] as String, notYet: json['notYet'] as String, card: ReviewLabelsCard.fromJson(json['card'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'order': order, 'title': title, 'subtitle': subtitle, 'ratingAria': ratingAria, 'ratings': ratings.map((e) => e).toList(), 'textLabel': textLabel, 'textHigh': textHigh, 'textLow': textLow, 'photo': photo, 'photoHint': photoHint, 'photoChoose': photoChoose, 'photoRemove': photoRemove, 'photoAttached': photoAttached, 'name': name, 'city': city, 'cityPlaceholder': cityPlaceholder, 'consent': consent, 'submit': submit, 'update': update, 'editable': editable, 'chooseRating': chooseRating, 'thanksTitle': thanksTitle, 'thanksHigh': thanksHigh, 'thanksLow': thanksLow, 'promoTitle': promoTitle, 'promoText': promoText, 'copy': copy, 'copied': copied, 'locked': locked, 'notYet': notYet, 'card': card.toJson()};
+}
+
+class ReviewLabelsCard {
+  final String title;
+  final String text;
+  final String button;
+  final String done;
+  final String code;
+  final String edit;
+
+  const ReviewLabelsCard({required this.title, required this.text, required this.button, required this.done, required this.code, required this.edit});
+
+  factory ReviewLabelsCard.fromJson(Map<String, dynamic> json) => ReviewLabelsCard(title: json['title'] as String, text: json['text'] as String, button: json['button'] as String, done: json['done'] as String, code: json['code'] as String, edit: json['edit'] as String);
+
+  Map<String, dynamic> toJson() => {'title': title, 'text': text, 'button': button, 'done': done, 'code': code, 'edit': edit};
+}
+
 class ReviewView {
   final bool canReview;
   final String defaultName;
   final Review? review;
+  final String coverUrl;
+  final ReviewLabels labels;
+  final ReviewViewLimits limits;
 
-  const ReviewView({required this.canReview, required this.defaultName, this.review});
+  const ReviewView({required this.canReview, required this.defaultName, this.review, required this.coverUrl, required this.labels, required this.limits});
 
-  factory ReviewView.fromJson(Map<String, dynamic> json) => ReviewView(canReview: json['canReview'] as bool, defaultName: json['defaultName'] as String, review: json['review'] == null ? null : Review.fromJson(json['review'] as Map<String, dynamic>));
+  factory ReviewView.fromJson(Map<String, dynamic> json) => ReviewView(canReview: json['canReview'] as bool, defaultName: json['defaultName'] as String, review: json['review'] == null ? null : Review.fromJson(json['review'] as Map<String, dynamic>), coverUrl: json['coverUrl'] as String, labels: ReviewLabels.fromJson(json['labels'] as Map<String, dynamic>), limits: ReviewViewLimits.fromJson(json['limits'] as Map<String, dynamic>));
 
-  Map<String, dynamic> toJson() => {'canReview': canReview, 'defaultName': defaultName, 'review': review == null ? null : review!.toJson()};
+  Map<String, dynamic> toJson() => {'canReview': canReview, 'defaultName': defaultName, 'review': review == null ? null : review!.toJson(), 'coverUrl': coverUrl, 'labels': labels.toJson(), 'limits': limits.toJson()};
+}
+
+class ReviewViewLimits {
+  final int text;
+  final int authorName;
+  final int city;
+
+  const ReviewViewLimits({required this.text, required this.authorName, required this.city});
+
+  factory ReviewViewLimits.fromJson(Map<String, dynamic> json) => ReviewViewLimits(text: (json['text'] as num).toInt(), authorName: (json['authorName'] as num).toInt(), city: (json['city'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'text': text, 'authorName': authorName, 'city': city};
 }
 
 class ReviewBody {

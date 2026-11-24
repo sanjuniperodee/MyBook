@@ -10528,6 +10528,170 @@
         ],
         "additionalProperties": false
       },
+      "ReviewLabels": {
+        "type": "object",
+        "properties": {
+          "order": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "subtitle": {
+            "type": "string"
+          },
+          "ratingAria": {
+            "type": "string"
+          },
+          "ratings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "textLabel": {
+            "type": "string"
+          },
+          "textHigh": {
+            "type": "string"
+          },
+          "textLow": {
+            "type": "string"
+          },
+          "photo": {
+            "type": "string"
+          },
+          "photoHint": {
+            "type": "string"
+          },
+          "photoChoose": {
+            "type": "string"
+          },
+          "photoRemove": {
+            "type": "string"
+          },
+          "photoAttached": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "cityPlaceholder": {
+            "type": "string"
+          },
+          "consent": {
+            "type": "string"
+          },
+          "submit": {
+            "type": "string"
+          },
+          "update": {
+            "type": "string"
+          },
+          "editable": {
+            "type": "string"
+          },
+          "chooseRating": {
+            "type": "string"
+          },
+          "thanksTitle": {
+            "type": "string"
+          },
+          "thanksHigh": {
+            "type": "string"
+          },
+          "thanksLow": {
+            "type": "string"
+          },
+          "promoTitle": {
+            "type": "string"
+          },
+          "promoText": {
+            "type": "string"
+          },
+          "copy": {
+            "type": "string"
+          },
+          "copied": {
+            "type": "string"
+          },
+          "locked": {
+            "type": "string"
+          },
+          "notYet": {
+            "type": "string"
+          },
+          "card": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              },
+              "button": {
+                "type": "string"
+              },
+              "done": {
+                "type": "string"
+              },
+              "code": {
+                "type": "string"
+              },
+              "edit": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "title",
+              "text",
+              "button",
+              "done",
+              "code",
+              "edit"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "order",
+          "title",
+          "subtitle",
+          "ratingAria",
+          "ratings",
+          "textLabel",
+          "textHigh",
+          "textLow",
+          "photo",
+          "photoHint",
+          "photoChoose",
+          "photoRemove",
+          "photoAttached",
+          "name",
+          "city",
+          "cityPlaceholder",
+          "consent",
+          "submit",
+          "update",
+          "editable",
+          "chooseRating",
+          "thanksTitle",
+          "thanksHigh",
+          "thanksLow",
+          "promoTitle",
+          "promoText",
+          "copy",
+          "copied",
+          "locked",
+          "notYet",
+          "card"
+        ],
+        "additionalProperties": false
+      },
       "ReviewView": {
         "type": "object",
         "properties": {
@@ -10546,12 +10710,47 @@
                 "type": "null"
               }
             ]
+          },
+          "coverUrl": {
+            "type": "string"
+          },
+          "labels": {
+            "$ref": "#/components/schemas/ReviewLabels"
+          },
+          "limits": {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "authorName": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "city": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "text",
+              "authorName",
+              "city"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
           "canReview",
           "defaultName",
-          "review"
+          "review",
+          "coverUrl",
+          "labels",
+          "limits"
         ],
         "additionalProperties": false
       },

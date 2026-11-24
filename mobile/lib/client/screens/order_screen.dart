@@ -13,6 +13,7 @@ import '../../ui/tokens.dart';
 import '../data/session.dart';
 import '../ui/book_chrome.dart';
 import '../ui/cabinet.dart';
+import 'review_screen.dart';
 import '../ui/motion.dart';
 
 /// Заказ — как на сайте (/orders/[id]): номер и статус, «что сейчас» засечками, этапы, трек-номер, оплата (Kaspi Pay —
@@ -28,6 +29,7 @@ class OrderScreen extends StatefulWidget {
 class _OrderScreenState extends State<OrderScreen> {
   late final ClientSession _session = context.read<ClientSession>();
   v1api.CabinetOrder? _order;
+  v1api.ReviewView? _review;
   String? _error;
 
   @override
@@ -45,6 +47,11 @@ class _OrderScreenState extends State<OrderScreen> {
           _error = null;
         });
       }
+      // Отзыв — как карточка в заказе сайта: только когда книга уже у клиента (canReview).
+      try {
+        final r = await _session.backend.call(() => _session.backend.contract.reviewGet(orderId: widget.orderId));
+        if (mounted) setState(() => _review = r);
+      } on ApiException catch (_) {}
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     }
@@ -86,6 +93,16 @@ class _OrderScreenState extends State<OrderScreen> {
                   const SizedBox(height: 20),
                   Enter(key: const ValueKey('now'), i: 0, child: _Now(o: o)),
                   if (o.payment != null) ...[const SizedBox(height: 20), Enter(key: const ValueKey('pay'), i: 1, child: _Payment(order: o, onChanged: _load, onCancel: () => _cancel(o.payment!.cancel)))],
+                  if (_review != null && _review!.canReview) ...[
+                    const SizedBox(height: 20),
+                    ReviewCard(
+                      v: _review!,
+                      onOpen: () async {
+                        final v = await Navigator.of(context).push<v1api.ReviewView>(CabinetRoute(builder: (_) => ReviewScreen(orderId: widget.orderId, view: _review!)));
+                        if (v != null && mounted) setState(() => _review = v);
+                      },
+                    ),
+                  ],
                   const SizedBox(height: 20),
                   _Details(o: o),
                 ],
