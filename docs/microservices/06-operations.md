@@ -251,6 +251,16 @@ Postgres: роли `mybook` и `bilimland` — `idle_in_transaction_session_time
 блокировки). `idle_session_timeout` не ставили: в коде нет `pool.on("error")`, убитое простаивающее соединение уронило бы
 процесс, а LISTEN живых обновлений CRM рвался бы каждые N минут; соединения пула и так закрываются через 10 с.
 
+### 2.9. API v1 — mybook-api (ADR 0012)
+
+PM2 `mybook-api` (`<релиз>/api.mjs`, 127.0.0.1:3044), nginx `location ^~ /api/v1/` → туда же (мимо Next), запасной путь —
+переписывание в `next.config.ts`. Проверка: `curl -s https://mybooks.kz/api/v1/health` → `{"ok":true}`; спецификация —
+`/api/v1/openapi.json`. Логи: `pm2 logs mybook-api --nostream --lines 50`.
+
+Откат: процесс — выкатка с `MYBOOK_API=off` (или `pm2 stop mybook-api`; сайт от него не зависит, отвалится только
+приложение на v1); nginx — `sudo cp /etc/nginx/backup-2026-11-24-api/mybooks-kz /etc/nginx/sites-available/mybooks-kz &&
+sudo nginx -t && sudo systemctl reload nginx` (вход `ubuntu@` с ключом администратора).
+
 ## 3. Миграции
 
 - Владелец схемы — владелец миграций.
