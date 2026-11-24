@@ -32,6 +32,7 @@ export async function bundleNodeProcess({ name, entry, nextShim }) {
       "next/server": nextShim,
       "next/headers": nextShim,
       "next/navigation": nextShim,
+      "next/cache": "./scripts/next-cache-shim.mjs",
     },
     // require, __filename и __dirname — для CommonJS-пакетов, вшитых в ESM-файл.
     banner: {

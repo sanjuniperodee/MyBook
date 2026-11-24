@@ -141,7 +141,7 @@ export async function mobileChatDetail(staff: Staff, id: string, limit = 50) {
       : null,
     perms: { canReply, canNote: can(staff, "chats.view"), canInvoice: invoiceSend, canEditInvoices: invoiceEdit, canCreateDeal: can(staff, "deals.edit") && mine, mine },
     sendBlocker: blocker,
-    bot: { label: bot.label ?? null, canStart: !!bot.canStart },
+    bot: { label: bot.label ?? null, canStart: !!bot.canStart, canStop: !!bot.canStop },
     // Шаблоны с подстановкой имени, заказа, менеджера и полей сделки — приложение вставляет готовый текст.
     templates: templates.map((t) => ({ id: t.id, title: t.title, own: t.own, text: fillTemplate(t.text, vars) })),
     invoices: invoiceViews(invoiceRows, { now: new Date(), withLink: invoiceEdit }),

@@ -19,6 +19,7 @@ import 'invoice_sheet.dart';
 import 'payment_sheet.dart';
 import 'task_editor.dart';
 import 'crm_web_screen.dart';
+import 'deal_edit_screen.dart';
 
 /// Карточка сделки: этап (меняется в один тап), чат и счёт, задачи, заметки, платежи и счета.
 class DealScreen extends StatefulWidget {
@@ -176,7 +177,13 @@ class _DealScreenState extends State<DealScreen> {
               child: Row(children: [
                 RoundIconButton(icon: LucideIcons.chevronLeft, size: 44, iconSize: 28, color: c.brandDeep, onTap: () => Navigator.of(context).maybePop()),
                 Expanded(child: Text(d == null ? 'Сделка' : 'Сделка №${d['number']}', style: AppText.headline(context))),
-                // Всё, чего нет на телефоне (поля, план и подарки, клиент, объединение, история), — карточка CRM внутри приложения.
+                // Правка полей, своих полей, тарифа и подарков — экраном приложения (API v1).
+                if (d != null && (d['perms'] as Map<String, dynamic>)['canEdit'] == true)
+                  RoundIconButton(icon: LucideIcons.pencil, size: 44, iconSize: 20, color: c.text, tooltip: 'Изменить сделку', onTap: () async {
+                    final saved = await Navigator.of(context).push<bool>(MaterialPageRoute(builder: (_) => DealEditScreen(dealId: widget.dealId)));
+                    if (saved == true) _load();
+                  }),
+                // Остальное (клиент, объединение, история) — карточка CRM внутри приложения.
                 RoundIconButton(icon: LucideIcons.externalLink, size: 44, iconSize: 20, color: c.text, tooltip: 'Открыть в CRM', onTap: () async {
                   await openCrm(context, '/admin/deals/${widget.dealId}', title: d == null ? 'Сделка' : 'Сделка Д${d['number']}');
                   _load();

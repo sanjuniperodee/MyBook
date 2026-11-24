@@ -6,6 +6,8 @@ import 'package:mime/mime.dart';
 
 import '../models/chat.dart';
 import 'api.dart';
+import 'v1.dart';
+import '../api/mybook_api.g.dart' as v1api;
 import 'cache.dart';
 import 'live.dart';
 
@@ -159,6 +161,17 @@ class ChatController extends ChangeNotifier {
   }
 
   /// Закрепить или открепить этот чат (личное закрепление).
+  /// Запустить или остановить бота в диалоге (API v1, как кнопки чата CRM). Возвращает текст для плашки.
+  Future<String> setBot(bool run) async {
+    try {
+      final r = await v1(api, (c) => c.crmChatBot(chatId: chatId, body: v1api.ChatBotBody(run: run)));
+      await load(silent: true);
+      return r.message ?? (run ? 'Бот запущен' : 'Бот остановлен');
+    } on ApiException catch (e) {
+      return e.message;
+    }
+  }
+
   Future<String?> setPinned(bool pinned) async {
     try {
       await api.post('/api/mobile/chats/$chatId/pin', body: {'pinned': pinned});

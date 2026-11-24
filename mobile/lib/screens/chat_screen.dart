@@ -451,7 +451,9 @@ class _ChatScreenState extends State<ChatScreen> {
             if (d.perms.canReply) GroupTile(title: 'Передать коллеге', icon: LucideIcons.userRoundPlus, onTap: () => Navigator.pop(sheet, 'assign')),
             GroupTile(title: d.pinned ? 'Открепить чат' : 'Закрепить чат', icon: d.pinned ? LucideIcons.pinOff : LucideIcons.pin, onTap: () => Navigator.pop(sheet, d.pinned ? 'unpin' : 'pin')),
             if (d.channel == 'whatsapp' && d.perms.canReply) GroupTile(title: 'Позвонить в WhatsApp', icon: LucideIcons.phone, onTap: () => Navigator.pop(sheet, 'web')),
-            GroupTile(title: 'Открыть в CRM', subtitle: 'бот, «Почему так?», предложение, звонок', icon: LucideIcons.externalLink, onTap: () => Navigator.pop(sheet, 'web')),
+            if (d.perms.canReply && d.botCanStop) GroupTile(title: 'Остановить бота', subtitle: d.botLabel, icon: LucideIcons.botOff, onTap: () => Navigator.pop(sheet, 'botStop')),
+            if (d.perms.canReply && d.botCanStart && d.dealId != null) GroupTile(title: 'Запустить бота', subtitle: 'поздоровается и спросит, чего нет в сделке', icon: LucideIcons.bot, onTap: () => Navigator.pop(sheet, 'botStart')),
+            GroupTile(title: 'Открыть в CRM', subtitle: '«Почему так?», предложение', icon: LucideIcons.externalLink, onTap: () => Navigator.pop(sheet, 'web')),
             GroupTile(title: 'Обращение в поддержку', icon: LucideIcons.lifeBuoy, onTap: () => Navigator.pop(sheet, 'support')),
             GroupTile(title: 'Обновить', icon: LucideIcons.refreshCw, onTap: () => Navigator.pop(sheet, 'refresh')),
           ],
@@ -482,6 +484,8 @@ class _ChatScreenState extends State<ChatScreen> {
         if (!mounted) return;
         await openCrm(context, '/admin/chats?c=${widget.chatId}', title: d.title);
         await ctrl.load(silent: true);
+      case 'botStart' || 'botStop':
+        _toast(await ctrl.setBot(r == 'botStart'));
       case 'refresh':
         await ctrl.load();
     }

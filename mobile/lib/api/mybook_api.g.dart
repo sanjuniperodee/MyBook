@@ -100,6 +100,48 @@ class MybookApi {
     final json = await _send('GET', '/api/v1/cabinet/shelf');
     return CabinetShelf.fromJson(json as Map<String, dynamic>);
   }
+
+  /// Сделка для правки: поля, свои поля, договорённость
+  Future<DealForm> crmDealForm({required String dealId}) async {
+    final json = await _send('GET', '/api/v1/crm/deals/${Uri.encodeComponent(dealId)}/form');
+    return DealForm.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Правка сделки (только переданные поля)
+  Future<Done> crmDealUpdate({required String dealId, required DealPatch body}) async {
+    final json = await _send('PATCH', '/api/v1/crm/deals/${Uri.encodeComponent(dealId)}', body: body.toJson());
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Тариф договорённости (null — клиент выберет сам)
+  Future<Done> crmDealPlan({required String dealId, required DealPlanBody body}) async {
+    final json = await _send('PUT', '/api/v1/crm/deals/${Uri.encodeComponent(dealId)}/plan', body: body.toJson());
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Что бесплатно по договорённости
+  Future<Done> crmDealGifts({required String dealId, required DealGiftsBody body}) async {
+    final json = await _send('PUT', '/api/v1/crm/deals/${Uri.encodeComponent(dealId)}/gifts', body: body.toJson());
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Клиент для правки: номера, теги, свои поля, язык, канал, ответственный
+  Future<ClientForm> crmClientForm({required String clientId}) async {
+    final json = await _send('GET', '/api/v1/crm/clients/${Uri.encodeComponent(clientId)}/form');
+    return ClientForm.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Правка клиента (только переданные поля)
+  Future<Done> crmClientUpdate({required String clientId, required ClientPatch body}) async {
+    final json = await _send('PATCH', '/api/v1/crm/clients/${Uri.encodeComponent(clientId)}', body: body.toJson());
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Запустить или остановить бота в диалоге
+  Future<Done> crmChatBot({required String chatId, required ChatBotBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/chats/${Uri.encodeComponent(chatId)}/bot', body: body.toJson());
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
 }
 
 class ApiError {
@@ -487,4 +529,170 @@ class CabinetShelf {
   factory CabinetShelf.fromJson(Map<String, dynamic> json) => CabinetShelf(books: (json['books'] as List).map((e) => ShelfItem.fromJson(e as Map<String, dynamic>)).toList());
 
   Map<String, dynamic> toJson() => {'books': books.map((e) => e.toJson()).toList()};
+}
+
+class Choice {
+  final String id;
+  final String label;
+
+  const Choice({required this.id, required this.label});
+
+  factory Choice.fromJson(Map<String, dynamic> json) => Choice(id: json['id'] as String, label: json['label'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'label': label};
+}
+
+class Done {
+  final bool ok;
+  final String? message;
+
+  const Done({required this.ok, this.message});
+
+  factory Done.fromJson(Map<String, dynamic> json) => Done(ok: json['ok'] as bool, message: json['message'] == null ? null : json['message'] as String);
+
+  Map<String, dynamic> toJson() => {'ok': ok, if (message != null) 'message': message == null ? null : message!};
+}
+
+class CustomField {
+  final String key;
+  final String label;
+  /// text | number | date | select | checkbox
+  final String type;
+  final List<String> options;
+  final String value;
+
+  const CustomField({required this.key, required this.label, required this.type, required this.options, required this.value});
+
+  factory CustomField.fromJson(Map<String, dynamic> json) => CustomField(key: json['key'] as String, label: json['label'] as String, type: json['type'] as String, options: (json['options'] as List).map((e) => e as String).toList(), value: json['value'] as String);
+
+  Map<String, dynamic> toJson() => {'key': key, 'label': label, 'type': type, 'options': options.map((e) => e).toList(), 'value': value};
+}
+
+class PlanChoice {
+  final String id;
+  final String label;
+  final int price;
+
+  const PlanChoice({required this.id, required this.label, required this.price});
+
+  factory PlanChoice.fromJson(Map<String, dynamic> json) => PlanChoice(id: json['id'] as String, label: json['label'] as String, price: (json['price'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'id': id, 'label': label, 'price': price};
+}
+
+class DealForm {
+  final String id;
+  final int number;
+  final String title;
+  final String contactName;
+  final String? phone;
+  final String? email;
+  final List<String> extraPhones;
+  final bool canEditContacts;
+  final int amount;
+  final double? maxDiscountPercent;
+  final String source;
+  final List<Choice> sources;
+  final List<String> tags;
+  final List<CustomField> fields;
+  final bool canEdit;
+  final String? plan;
+  final List<PlanChoice> plans;
+  final List<String> gifts;
+  final List<Choice> giftOptions;
+  final bool agreementLocked;
+
+  const DealForm({required this.id, required this.number, required this.title, required this.contactName, this.phone, this.email, required this.extraPhones, required this.canEditContacts, required this.amount, this.maxDiscountPercent, required this.source, required this.sources, required this.tags, required this.fields, required this.canEdit, this.plan, required this.plans, required this.gifts, required this.giftOptions, required this.agreementLocked});
+
+  factory DealForm.fromJson(Map<String, dynamic> json) => DealForm(id: json['id'] as String, number: (json['number'] as num).toInt(), title: json['title'] as String, contactName: json['contactName'] as String, phone: json['phone'] == null ? null : json['phone'] as String, email: json['email'] == null ? null : json['email'] as String, extraPhones: (json['extraPhones'] as List).map((e) => e as String).toList(), canEditContacts: json['canEditContacts'] as bool, amount: (json['amount'] as num).toInt(), maxDiscountPercent: json['maxDiscountPercent'] == null ? null : (json['maxDiscountPercent'] as num).toDouble(), source: json['source'] as String, sources: (json['sources'] as List).map((e) => Choice.fromJson(e as Map<String, dynamic>)).toList(), tags: (json['tags'] as List).map((e) => e as String).toList(), fields: (json['fields'] as List).map((e) => CustomField.fromJson(e as Map<String, dynamic>)).toList(), canEdit: json['canEdit'] as bool, plan: json['plan'] == null ? null : json['plan'] as String, plans: (json['plans'] as List).map((e) => PlanChoice.fromJson(e as Map<String, dynamic>)).toList(), gifts: (json['gifts'] as List).map((e) => e as String).toList(), giftOptions: (json['giftOptions'] as List).map((e) => Choice.fromJson(e as Map<String, dynamic>)).toList(), agreementLocked: json['agreementLocked'] as bool);
+
+  Map<String, dynamic> toJson() => {'id': id, 'number': number, 'title': title, 'contactName': contactName, if (phone != null) 'phone': phone == null ? null : phone!, if (email != null) 'email': email == null ? null : email!, 'extraPhones': extraPhones.map((e) => e).toList(), 'canEditContacts': canEditContacts, 'amount': amount, if (maxDiscountPercent != null) 'maxDiscountPercent': maxDiscountPercent == null ? null : maxDiscountPercent!, 'source': source, 'sources': sources.map((e) => e.toJson()).toList(), 'tags': tags.map((e) => e).toList(), 'fields': fields.map((e) => e.toJson()).toList(), 'canEdit': canEdit, if (plan != null) 'plan': plan == null ? null : plan!, 'plans': plans.map((e) => e.toJson()).toList(), 'gifts': gifts.map((e) => e).toList(), 'giftOptions': giftOptions.map((e) => e.toJson()).toList(), 'agreementLocked': agreementLocked};
+}
+
+class DealPatch {
+  final String? title;
+  final String? contactName;
+  final String? phone;
+  final String? email;
+  final List<String>? extraPhones;
+  final int? amount;
+  final String? source;
+  final List<String>? tags;
+  final Map<String, dynamic>? fields;
+
+  const DealPatch({this.title, this.contactName, this.phone, this.email, this.extraPhones, this.amount, this.source, this.tags, this.fields});
+
+  factory DealPatch.fromJson(Map<String, dynamic> json) => DealPatch(title: json['title'] == null ? null : json['title'] as String, contactName: json['contactName'] == null ? null : json['contactName'] as String, phone: json['phone'] == null ? null : json['phone'] as String, email: json['email'] == null ? null : json['email'] as String, extraPhones: json['extraPhones'] == null ? null : (json['extraPhones'] as List).map((e) => e as String).toList(), amount: json['amount'] == null ? null : (json['amount'] as num).toInt(), source: json['source'] == null ? null : json['source'] as String, tags: json['tags'] == null ? null : (json['tags'] as List).map((e) => e as String).toList(), fields: json['fields'] == null ? null : json['fields'] as Map<String, dynamic>);
+
+  Map<String, dynamic> toJson() => {if (title != null) 'title': title == null ? null : title!, if (contactName != null) 'contactName': contactName == null ? null : contactName!, if (phone != null) 'phone': phone == null ? null : phone!, if (email != null) 'email': email == null ? null : email!, if (extraPhones != null) 'extraPhones': extraPhones == null ? null : extraPhones!.map((e) => e).toList(), if (amount != null) 'amount': amount == null ? null : amount!, if (source != null) 'source': source == null ? null : source!, if (tags != null) 'tags': tags == null ? null : tags!.map((e) => e).toList(), if (fields != null) 'fields': fields == null ? null : fields!};
+}
+
+class DealPlanBody {
+  final String? plan;
+
+  const DealPlanBody({this.plan});
+
+  factory DealPlanBody.fromJson(Map<String, dynamic> json) => DealPlanBody(plan: json['plan'] == null ? null : json['plan'] as String);
+
+  Map<String, dynamic> toJson() => {if (plan != null) 'plan': plan == null ? null : plan!};
+}
+
+class DealGiftsBody {
+  final List<String> gifts;
+
+  const DealGiftsBody({required this.gifts});
+
+  factory DealGiftsBody.fromJson(Map<String, dynamic> json) => DealGiftsBody(gifts: (json['gifts'] as List).map((e) => e as String).toList());
+
+  Map<String, dynamic> toJson() => {'gifts': gifts.map((e) => e).toList()};
+}
+
+class ClientForm {
+  final String id;
+  final String name;
+  final String? phone;
+  final List<String> extraPhones;
+  final bool canEditPhones;
+  final List<String> tags;
+  final List<CustomField> fields;
+  final bool noMarketing;
+  final String locale;
+  final List<Choice> locales;
+  final String? channel;
+  final List<Choice> channels;
+  final String? managerId;
+  final List<Choice> managers;
+  final bool canEdit;
+
+  const ClientForm({required this.id, required this.name, this.phone, required this.extraPhones, required this.canEditPhones, required this.tags, required this.fields, required this.noMarketing, required this.locale, required this.locales, this.channel, required this.channels, this.managerId, required this.managers, required this.canEdit});
+
+  factory ClientForm.fromJson(Map<String, dynamic> json) => ClientForm(id: json['id'] as String, name: json['name'] as String, phone: json['phone'] == null ? null : json['phone'] as String, extraPhones: (json['extraPhones'] as List).map((e) => e as String).toList(), canEditPhones: json['canEditPhones'] as bool, tags: (json['tags'] as List).map((e) => e as String).toList(), fields: (json['fields'] as List).map((e) => CustomField.fromJson(e as Map<String, dynamic>)).toList(), noMarketing: json['noMarketing'] as bool, locale: json['locale'] as String, locales: (json['locales'] as List).map((e) => Choice.fromJson(e as Map<String, dynamic>)).toList(), channel: json['channel'] == null ? null : json['channel'] as String, channels: (json['channels'] as List).map((e) => Choice.fromJson(e as Map<String, dynamic>)).toList(), managerId: json['managerId'] == null ? null : json['managerId'] as String, managers: (json['managers'] as List).map((e) => Choice.fromJson(e as Map<String, dynamic>)).toList(), canEdit: json['canEdit'] as bool);
+
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, if (phone != null) 'phone': phone == null ? null : phone!, 'extraPhones': extraPhones.map((e) => e).toList(), 'canEditPhones': canEditPhones, 'tags': tags.map((e) => e).toList(), 'fields': fields.map((e) => e.toJson()).toList(), 'noMarketing': noMarketing, 'locale': locale, 'locales': locales.map((e) => e.toJson()).toList(), if (channel != null) 'channel': channel == null ? null : channel!, 'channels': channels.map((e) => e.toJson()).toList(), if (managerId != null) 'managerId': managerId == null ? null : managerId!, 'managers': managers.map((e) => e.toJson()).toList(), 'canEdit': canEdit};
+}
+
+class ClientPatch {
+  final List<String>? extraPhones;
+  final List<String>? tags;
+  final Map<String, dynamic>? fields;
+  final bool? noMarketing;
+  final String? locale;
+  final String? channel;
+  final String? managerId;
+
+  const ClientPatch({this.extraPhones, this.tags, this.fields, this.noMarketing, this.locale, this.channel, this.managerId});
+
+  factory ClientPatch.fromJson(Map<String, dynamic> json) => ClientPatch(extraPhones: json['extraPhones'] == null ? null : (json['extraPhones'] as List).map((e) => e as String).toList(), tags: json['tags'] == null ? null : (json['tags'] as List).map((e) => e as String).toList(), fields: json['fields'] == null ? null : json['fields'] as Map<String, dynamic>, noMarketing: json['noMarketing'] == null ? null : json['noMarketing'] as bool, locale: json['locale'] == null ? null : json['locale'] as String, channel: json['channel'] == null ? null : json['channel'] as String, managerId: json['managerId'] == null ? null : json['managerId'] as String);
+
+  Map<String, dynamic> toJson() => {if (extraPhones != null) 'extraPhones': extraPhones == null ? null : extraPhones!.map((e) => e).toList(), if (tags != null) 'tags': tags == null ? null : tags!.map((e) => e).toList(), if (fields != null) 'fields': fields == null ? null : fields!, if (noMarketing != null) 'noMarketing': noMarketing == null ? null : noMarketing!, if (locale != null) 'locale': locale == null ? null : locale!, if (channel != null) 'channel': channel == null ? null : channel!, if (managerId != null) 'managerId': managerId == null ? null : managerId!};
+}
+
+class ChatBotBody {
+  final bool run;
+
+  const ChatBotBody({required this.run});
+
+  factory ChatBotBody.fromJson(Map<String, dynamic> json) => ChatBotBody(run: json['run'] as bool);
+
+  Map<String, dynamic> toJson() => {'run': run};
 }

@@ -322,6 +322,8 @@ class ChatDetail {
     required this.perms,
     required this.sendBlocker,
     required this.botLabel,
+    this.botCanStart = false,
+    this.botCanStop = false,
     required this.templates,
     required this.invoices,
     this.pinned = false,
@@ -353,6 +355,10 @@ class ChatDetail {
   final ChatPerms perms;
   final String? sendBlocker;
   final String? botLabel;
+
+  /// Бота можно запустить (нет активного) или остановить — как кнопки чата CRM (botPreview.ts).
+  final bool botCanStart;
+  final bool botCanStop;
   final List<Template> templates;
   final List<InvoiceBrief> invoices;
 
@@ -372,6 +378,8 @@ class ChatDetail {
       perms: ChatPerms.fromJson(j['perms'] as Map<String, dynamic>),
       sendBlocker: j['sendBlocker'] as String?,
       botLabel: (j['bot'] as Map<String, dynamic>?)?['label'] as String?,
+      botCanStart: (j['bot'] as Map<String, dynamic>?)?['canStart'] == true,
+      botCanStop: (j['bot'] as Map<String, dynamic>?)?['canStop'] == true,
       templates: [for (final t in (j['templates'] as List)) Template.fromJson(t as Map<String, dynamic>)],
       invoices: [for (final i in (j['invoices'] as List)) InvoiceBrief.fromJson(i as Map<String, dynamic>)],
       more: j['more'] == true,
