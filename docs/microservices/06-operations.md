@@ -281,6 +281,21 @@ sudo nginx -t && sudo systemctl reload nginx` (вход `ubuntu@` с ключо�
   -H "Content-Type: text/plain" --data '[{},"$undefined"]'` — известное без входа отвечает `x-action-redirect: /login`,
   неизвестное — 404 и `x-nextjs-action-not-found: 1`. ID — в `current/.next/server/server-reference-manifest.json`.
 
+### 2.10. Вебхуки провайдеров в mybook-api (ADR 0012, A6, 25.11)
+
+nginx: `location` на адреса провайдеров (`/api/payments/kaspi/webhook`, `/api/payments/cloudpayments/*`,
+`/api/integrations/gowa`, `/api/integrations/zadarma`, `/api/integrations/google/webhook`) → `snippets/mybook-hooks.conf`
+→ upstream `mybook_hooks` (`conf.d/mybook-upstream.conf`): сначала mybook-api :3044, запасной — сайт :3040. POST уходит
+на запасной только при отказе соединения с api (`proxy_next_upstream error timeout`, неидемпотентный запрос после
+отправки не повторяется) — двойной обработки нет. Код один: api обслуживает те же модули маршрутов (`apps/api/src/providers.ts`).
+Сверка перед включением: 7 запросов без подписи — ответы сайта и api совпали (статус и тело).
+
+Локальные службы ходят мимо nginx прямо на сайт: kaspi-pos (`~/kaspi-pos/webhooks.json` → `localhost:3040`) и GOWA
+(вебхук устройства — `localhost:3040`). Не переключали: kaspi-pos общий с my-test (риск сессии кассира), код тот же.
+
+Откат: `sudo cp /etc/nginx/backup-2026-11-25-hooks/{mybooks-kz,mybook-upstream.conf}` по местам (`sites-available/`,
+`conf.d/`), `sudo nginx -t && sudo systemctl reload nginx`; снипет `snippets/mybook-hooks.conf` можно оставить.
+
 ## 3. Миграции
 
 - Владелец схемы — владелец миграций.
