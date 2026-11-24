@@ -126,7 +126,9 @@ async function resignNow({ force = false, fetcher = fetch }: { force?: boolean; 
   try {
     await writeFile(join(dir, "in.ipa"), await readIosIpa());
     await writeFile(join(dir, "adhoc.mobileprovision"), profile);
-    await run(cfg.zsign, ["-q", "-k", cfg.signKeyFile, "-c", cfg.signCertFile, "-m", join(dir, "adhoc.mobileprovision"), "-z", "6", "-t", join(dir, "tmp"), "-o", join(dir, "out.ipa"), join(dir, "in.ipa")], { timeout: 180_000, maxBuffer: 4 * 1024 * 1024 });
+    await run(cfg.zsign, ["-q", "-k", cfg.signKeyFile, "-c", cfg.signCertFile, "-m", join(dir, "adhoc.mobileprovision"), "-z", "6", "-o", join(dir, "out.ipa"), join(dir, "in.ipa")], { timeout: 180_000, maxBuffer: 4 * 1024 * 1024 }).catch((err: { stderr?: string; stdout?: string; message: string }) => {
+      throw new Error(`zsign: ${(err.stderr || err.stdout || err.message).trim().slice(-500)}`);
+    });
     await publishIosBuild(await readFile(join(dir, "out.ipa")), { ...build, udids, builtAt: new Date().toISOString() });
   } finally {
     await rm(dir, { recursive: true, force: true });
