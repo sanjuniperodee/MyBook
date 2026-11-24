@@ -15,7 +15,7 @@ import { HolidaysForm } from "../crm/HolidaysForm";
 import { DEFAULT_HOLIDAYS, HOLIDAYS_MAX, parseHolidays } from "@/modules/automation/domain";
 
 export async function CrmTab() {
-  const [sla, templates, workHours, autoDealFrom, unsorted, maxDiscount, blocked, wEnabled, wChat, reassign, holidays, mergeDays, digest, chatReward, wHelp, helpStats] = await Promise.all([
+  const [sla, templates, workHours, autoDealFrom, unsorted, maxDiscount, blocked, wEnabled, wChat, reassign, holidays, mergeDays, digest, chatReward, wHelp, helpStats, autoLetters] = await Promise.all([
     getSetting("crm.slaMinutes"),
     container().workspace.templates.list(),
     getSetting("crm.workHours"),
@@ -32,10 +32,11 @@ export async function CrmTab() {
     getSetting("referral.chatReward"),
     getSetting("widget.help"),
     container().messaging.helpStats(30).catch(() => null),
+    getSetting("notify.auto"),
   ]);
   return (
     <SettingsFrame anchors={tabAnchors("crm")}>
-      <CrmSettingsForm slaMinutes={Number(sla) || 15} reassignMinutes={reassign === "" ? 15 : Number(reassign) || 0} workHours={parseWorkHours(workHours)} autoDealFrom={autoDealFrom} unsorted={unsorted !== "off"} maxDiscount={Number(maxDiscount) || 0} mergeClosedDays={mergeDays} widget={{ enabled: wEnabled !== "off", chat: wChat !== "off", help: wHelp !== "off", helpStats }} digest={digest !== "off"} chatReward={chatReward === "on"} />
+      <CrmSettingsForm slaMinutes={Number(sla) || 15} reassignMinutes={reassign === "" ? 15 : Number(reassign) || 0} workHours={parseWorkHours(workHours)} autoDealFrom={autoDealFrom} unsorted={unsorted !== "off"} maxDiscount={Number(maxDiscount) || 0} mergeClosedDays={mergeDays} widget={{ enabled: wEnabled !== "off", chat: wChat !== "off", help: wHelp !== "off", helpStats }} digest={digest !== "off"} autoLetters={autoLetters !== "off"} chatReward={chatReward === "on"} />
 
       <Blocklist
         items={blocked.map((b) => ({

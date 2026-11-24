@@ -22,6 +22,7 @@ export function CrmSettingsForm({
   mergeClosedDays,
   widget,
   digest,
+  autoLetters,
   chatReward,
 }: {
   slaMinutes: number;
@@ -34,6 +35,8 @@ export function CrmSettingsForm({
   widget: { enabled: boolean; chat: boolean; help: boolean; helpStats: { total: number; answered: number; costUsd: number } | null };
   /** Утренняя сводка сотрудникам (bots-11). */
   digest: boolean;
+  /** Автописьма клиентам (notify.auto): напоминания и просьба об отзыве — почтой и в WhatsApp. */
+  autoLetters: boolean;
   chatReward: boolean;
 }) {
   const [state, action] = useActionState<SettingsState, FormData>(saveCrmSettingsAction, {});
@@ -106,6 +109,7 @@ export function CrmSettingsForm({
             <input name="mergeClosedDays" type="number" min={0} max={MERGE_CLOSED_DAYS_MAX} defaultValue={mergeClosedDays} className="input" />
           </Field>
           <Toggle name="unsorted" defaultChecked={unsorted} label="«Неразобранное»" hint="Заявка с нового номера (чат, звонок) считается не взятой, пока ответственный не ответит клиенту или не примет её; не взял вовремя — она уходит следующему." />
+          <Toggle name="autoLetters" defaultChecked={autoLetters} label="Автописьма клиентам" hint="Напоминания «книга почти готова», «срок близко», «не оплачено» и просьба об отзыве — почтой, а клиентам без почты — в WhatsApp (какие именно — в «Мессенджеры»). Выключено — не уходит ни одно." />
           <Toggle name="digest" defaultChecked={digest} label="Утренняя сводка в начале смены" hint="С 09:00, в рабочий день: чаты без ответа, «я оплатил», даты событий на 3 дня, ночь бота — в колокольчик и push всем, кто ведёт сделки." />
           <Toggle
             name="chatReward"

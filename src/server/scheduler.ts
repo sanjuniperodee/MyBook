@@ -2,6 +2,7 @@ import "server-only";
 import type { PoolClient } from "pg";
 import { pool } from "@/shared/infrastructure/db";
 import { container } from "@/server/container";
+import { getSetting } from "@/modules/workspace";
 import { aiAutofill, aiAutofillDeps } from "@/server/ai-autofill";
 import { morningDigestDeps, morningDigestTick } from "@/server/morning-digest";
 import { sweepAbandonedUploads } from "@/server/answerFiles";
@@ -38,7 +39,8 @@ export async function tick() {
     locked = !!rows[0]?.locked;
     if (!locked) return;
     const gifts = await step("gifts", () => container().ordering.deliverDueGifts(), 0);
-    const emails = await step("lifecycle emails", () => container().notifications.lifecycle.run(), 0);
+    // Общий выключатель автописем клиентам (notify.auto): выключен — ни почтой, ни в WhatsApp.
+    const emails = await step("lifecycle emails", async () => ((await getSetting("notify.auto")) === "off" ? 0 : container().notifications.lifecycle.run()), 0);
     if (gifts || emails) console.log(`[scheduler] sent gifts=${gifts} lifecycle=${emails}`);
     await step("outbox purge", () => container().outbox.purge(), undefined);
     // История WhatsApp из своего шлюза: WhatsApp догружает старые сообщения связанному устройству постепенно.

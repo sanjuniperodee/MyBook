@@ -32,6 +32,8 @@ vi.mock("@/server/kaspi-pay-forms", () => ({ tagKaspiPayForms: async () => 0 }))
 vi.mock("@/server/stage-order", () => ({ stageOrderPass: async () => null, stageOrderDeps: () => ({}) }));
 vi.mock("@/server/answerFiles", () => ({ sweepAbandonedUploads: async () => 0 }));
 vi.mock("@/server/answerFilesWorker", () => ({ kickAnswerFiles: () => {} }));
+const settings: Record<string, string> = {};
+vi.mock("@/modules/workspace", () => ({ getSetting: async (k: string) => settings[k] ?? "" }));
 vi.mock("@/server/morning-digest", () => ({ morningDigestTick: () => stepFn("digest", false)(), morningDigestDeps: () => ({}) }));
 vi.mock("@/shared/infrastructure/db", () => ({
   pool: { connect: async () => ({ query: async (q: string) => ({ rows: q.includes("try_advisory") ? [{ locked: true }] : [] }), release: () => {} }) },
@@ -71,6 +73,18 @@ describe("scheduler: шаг упал — проход идёт дальше", ()
     await tick();
     expect(calls).toEqual(["gifts", "lifecycle", "purge", "history", "coach", "autofill", "traces", "recordings", "previews"]);
     expect(errors.map((e) => e[0])).toEqual(['[scheduler] step "gifts" failed', '[scheduler] step "outbox purge" failed']);
+  });
+
+  it("медленный проход: автописьма клиентам выключены (notify.auto = off) — не отправляются, остальные шаги идут", async () => {
+    settings["notify.auto"] = "off";
+    try {
+      await tick();
+    } finally {
+      delete settings["notify.auto"];
+    }
+    expect(calls).not.toContain("lifecycle");
+    expect(calls).toContain("gifts");
+    expect(calls).toContain("purge");
   });
 
   it("медленный проход: разбор бота упал — следы бота старше 90 дней всё равно чистятся", async () => {
