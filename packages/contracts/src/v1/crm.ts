@@ -300,7 +300,8 @@ export const OrderFileLink = z.object({ kind: z.string(), label: z.string(), url
 
 /**
  * Файлы заказа: ссылки — маршруты файлов сайта (Bearer): готовый файл отдаётся сразу, несобранный собирается сайтом
- * (сначала ?prepare=1 — 204, когда готов; ход — progressUrl). Перегенерация — на сайте (↗): вёрстка идёт процессом сайта.
+ * (сначала ?prepare=1 — 204, когда готов; ход — progressUrl). Пересборка — тот же маршрут блока с ?prepare=1&regenerate=1:
+ * вёрстка идёт процессом сайта, параметры печати и запись в журнал — как у кнопки «Перегенерировать файлы».
  */
 export const OrderFiles = z
   .object({
@@ -314,8 +315,52 @@ export const OrderFiles = z
     /** Книга закрыта для правок клиента (после заказа); canLock — можно открыть/закрыть. */
     bookLocked: z.boolean(),
     canLock: z.boolean(),
+    /** Можно пересобрать файлы (orders.files). */
+    canRegenerate: z.boolean(),
   })
   .register(schemas, { id: "OrderFiles" });
+
+// ─── Получатель и доставка заказа ────────────────────────────────────────────────────────────────────────────────
+
+const DELIVERY_METHODS = ["pickup", "courier", "post", "abroad"] as const;
+
+/** Контакты и доставка заказа для правки — как форма «Изменить контакты и доставку» карточки заказа. */
+export const OrderDetailsForm = z
+  .object({
+    /** Можно править (orders.edit и контакты не скрыты ролью). */
+    canEdit: z.boolean(),
+    contactName: z.string(),
+    contactPhone: z.string(),
+    contactEmail: z.string(),
+    deliveryMethod: z.enum(DELIVERY_METHODS).nullable(),
+    deliveryMethods: z.array(Choice),
+    country: z.string().nullable(),
+    city: z.string().nullable(),
+    address: z.string().nullable(),
+    postalCode: z.string().nullable(),
+    /** Желаемая дата, YYYY-MM-DD. */
+    desiredDate: z.string().nullable(),
+    giftNote: z.string().nullable(),
+  })
+  .register(schemas, { id: "OrderDetailsForm" });
+
+const optText = (max: number) => z.string().trim().max(max).nullable().optional();
+
+export const OrderDetailsBody = z
+  .object({
+    contactName: z.string().trim().min(1, "Укажите имя").max(100),
+    contactPhone: z.string().trim().min(5, "Укажите телефон").max(30),
+    contactEmail: z.string().trim().toLowerCase().email("Проверьте e-mail"),
+    deliveryMethod: z.enum(DELIVERY_METHODS).nullable().optional(),
+    country: optText(60),
+    city: optText(100),
+    address: optText(300),
+    postalCode: optText(20),
+    desiredDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+    giftNote: optText(500),
+  })
+  .strict()
+  .register(schemas, { id: "OrderDetailsBody" });
 
 export const BookLockBody = z.object({ locked: z.boolean() }).strict().register(schemas, { id: "BookLockBody" });
 
@@ -415,6 +460,8 @@ export const crmRoutes = {
   crmClientCreate: route({ method: "POST", path: "/api/v1/crm/clients", auth: "staff", tag: "crm", summary: "Завести клиента с доступом в кабинет, сделкой и предоплатой (как форма «Новый клиент»)", body: NewClientBody, response: NewClientResult }),
   crmDealReceipt: route({ method: "POST", path: "/api/v1/crm/deals/{dealId}/receipts", auth: "staff", tag: "crm", summary: "Чек к оплате сделки (multipart, поле file; сумма и платёж — в query)", params: DealParams, query: DealReceiptQuery, files: { field: "file" }, response: Done }),
   crmOrderFiles: route({ method: "GET", path: "/api/v1/crm/orders/{orderId}/files", auth: "staff", tag: "crm", summary: "Файлы для типографии: параметры печати и ссылки на файлы", params: OrderParams, response: OrderFiles }),
+  crmOrderDetails: route({ method: "GET", path: "/api/v1/crm/orders/{orderId}/details", auth: "staff", tag: "crm", summary: "Получатель, контакты и доставка заказа для правки", params: OrderParams, response: OrderDetailsForm }),
+  crmOrderDetailsUpdate: route({ method: "PUT", path: "/api/v1/crm/orders/{orderId}/details", auth: "staff", tag: "crm", summary: "Изменить получателя, контакты и доставку (как форма карточки заказа)", params: OrderParams, body: OrderDetailsBody, response: Done }),
   crmOrderBookLock: route({ method: "POST", path: "/api/v1/crm/orders/{orderId}/book-lock", auth: "staff", tag: "crm", summary: "Открыть книгу заказа для правок клиентом или закрыть", params: OrderParams, body: BookLockBody, response: Done }),
   crmSupportList: route({ method: "GET", path: "/api/v1/crm/support", auth: "staff", tag: "crm", summary: "Обращения: открытые, по статусу, поиск (руководитель — все, остальные — свои)", query: z.object({ status: z.string().max(20).optional(), q: z.string().max(100).optional() }), response: SupportList }),
   crmSupportTicket: route({ method: "GET", path: "/api/v1/crm/support/{number}", auth: "staff", tag: "crm", summary: "Обращение: суть, описание, вложения с расшифровками, переписка, решение, история", params: TicketParams, response: SupportTicketView }),

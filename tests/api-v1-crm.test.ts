@@ -27,7 +27,12 @@ vi.mock("@/app/api/admin/orders/[id]/refunds/route", () => ({ POST: vi.fn() }));
 const createClientAction = vi.fn<(state: unknown, form: FormData) => Promise<Record<string, unknown>>>(async () => ({ error: "Клиент с таким телефоном или почтой уже есть" }));
 vi.mock("@/app/admin/clients/new/actions", () => ({ createClientAction: (s: unknown, f: FormData) => createClientAction(s, f) }));
 const updateOrderAction = vi.fn<(state: unknown, form: FormData) => Promise<{ ok?: string; error?: string }>>(async () => ({ ok: "Сохранено" }));
-vi.mock("@/app/admin/actions", async (orig) => ({ ...(await orig<object>()), updateOrderAction: (s: unknown, f: FormData) => updateOrderAction(s, f) }));
+const updateOrderDetailsAction = vi.fn<(state: unknown, form: FormData) => Promise<{ ok?: string; error?: string }>>(async () => ({ error: "Проверьте e-mail" }));
+vi.mock("@/app/admin/actions", async (orig) => ({
+  ...(await orig<object>()),
+  updateOrderAction: (s: unknown, f: FormData) => updateOrderAction(s, f),
+  updateOrderDetailsAction: (s: unknown, f: FormData) => updateOrderDetailsAction(s, f),
+}));
 
 const { v1 } = await import("@mybook/contracts");
 const { createApp } = await import("../apps/api/src/app");
@@ -147,6 +152,32 @@ describe("CRM v1: деньги и доставка заказа", () => {
     const res = await call(app, "PATCH", `/api/v1/crm/orders/${ORDER}/delivery`, { status: "shipped", trackingNumber: "KZ123456789" });
     expect(await res.json()).toEqual({ ok: true, message: "Сохранено" });
     expect(Object.fromEntries(updateOrderAction.mock.calls[0][1])).toEqual({ orderId: ORDER, status: "shipped", trackingNumber: "KZ123456789" });
+  });
+
+  it("контакты и доставка — вся форма карточки заказа (пустое — стереть), отказ — текстом", async () => {
+    const res = await call(app, "PUT", `/api/v1/crm/orders/${ORDER}/details`, { contactName: "Алия", contactPhone: "87001234567", contactEmail: "a@x.kz", deliveryMethod: "courier", city: "Алматы", postalCode: "050010" });
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "Проверьте e-mail", code: "refused" });
+    expect(Object.fromEntries(updateOrderDetailsAction.mock.calls[0][1])).toEqual({
+      orderId: ORDER,
+      contactName: "Алия",
+      contactPhone: "87001234567",
+      contactEmail: "a@x.kz",
+      deliveryMethod: "courier",
+      country: "",
+      city: "Алматы",
+      address: "",
+      postalCode: "050010",
+      desiredDate: "",
+      giftNote: "",
+    });
+  });
+
+  it("контакты: неизвестный способ доставки — 400 до действия", async () => {
+    updateOrderDetailsAction.mockClear();
+    const res = await call(app, "PUT", `/api/v1/crm/orders/${ORDER}/details`, { contactName: "Алия", contactPhone: "87001234567", contactEmail: "a@x.kz", deliveryMethod: "drone" });
+    expect(res.status).toBe(400);
+    expect(updateOrderDetailsAction).not.toHaveBeenCalled();
   });
 });
 

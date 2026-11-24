@@ -36,6 +36,13 @@ export const GET = fileRoute("order-file", api(async (req, { params }: { params:
   const job = { orderId: order.id, bookId: order.bookId, number: order.number, plan: order.plan, quantity: order.quantity };
   // prepare=1 — только собрать файл: страница ждёт готовности, показывая ход сборки (render-progress), а скачивание потом идёт из кэша.
   if (query.get("prepare") === "1") {
+    // Пересборка из приложения CRM (prepare=1&regenerate=1, право «Файлы заказа»): то же, что кнопка «Перегенерировать
+    // файлы» карточки заказа — пакет заново, параметры печати и запись в журнал заказа; вёрстка — процессом сайта.
+    if (force && kind !== "reading" && staff && can(staff, "orders.files")) {
+      await c.ordering.orders.regeneratePrintFiles(order.id, { label: `admin:${staff.user.email}`, userId: staff.user.id });
+      if (kind === "layout") await c.printFiles.ensure(job, "layout");
+      return new Response(null, { status: 204, headers: { "Cache-Control": "private, no-store" } });
+    }
     await c.printFiles.ensure(job, kind as OrderFileKind, { force });
     return new Response(null, { status: 204, headers: { "Cache-Control": "private, no-store" } });
   }

@@ -11,13 +11,14 @@ import '../ui/tokens.dart';
 import '../api/mybook_api.g.dart' as v1api;
 import '../core/v1.dart';
 import 'crm_web_screen.dart';
+import 'order_details_screen.dart';
 import 'order_files.dart';
 import 'order_money.dart';
 import 'orders_screen.dart' show orderStatusColor;
 
 /// Заказ: статус и его смена одной кнопкой, деньги (оплата с чеком, возврат, отмена и сверка платежа, постоплата, тариф и
 /// цена — API v1), получатель с кнопкой «позвонить», доставка и трек (правка — API v1), книга, пожелания и журнал.
-/// Файлы типографии и правка данных получателя — в CRM на сайте (↗).
+/// Контакты и доставка — экран правки (API v1), файлы типографии с пересборкой — блок «Книга и файлы».
 class OrderScreen extends StatefulWidget {
   const OrderScreen({super.key, required this.orderId, this.number = 0});
   final String orderId;
@@ -99,6 +100,14 @@ class _OrderScreenState extends State<OrderScreen> {
     if (mounted) setState(() => _busy = false);
   }
 
+  Future<void> _editDetails() async {
+    final saved = await Navigator.of(context).push<bool>(MaterialPageRoute(builder: (_) => OrderDetailsScreen(orderId: widget.orderId, number: _number)));
+    if (saved == true) {
+      _changed = true;
+      _load();
+    }
+  }
+
   /// Трек-номер — тем же действием, что форма «Доставка» на сайте (статус не меняется; клиенту — по правилам заказа).
   Future<void> _setTracking() async {
     final track = await promptText(context, title: 'Трек-номер', hint: 'например KZ123456789', initial: (_o!['tracking'] as String?) ?? '');
@@ -131,7 +140,6 @@ class _OrderScreenState extends State<OrderScreen> {
           leading: RoundIconButton(icon: LucideIcons.chevronLeft, iconSize: 28, color: c.brandDeep, onTap: () => Navigator.of(context).pop(_changed)),
           title: Text(_number == 0 ? 'Заказ' : 'Заказ №$_number', style: AppText.headline(context)),
           actions: [
-            // Перегенерация файлов, правка получателя и доставки — карточка CRM внутри приложения.
             RoundIconButton(icon: LucideIcons.externalLink, size: 44, iconSize: 20, color: c.text, tooltip: 'Открыть в CRM', onTap: () async {
               await openCrm(context, '/admin/orders/${widget.orderId}', title: _number == 0 ? 'Заказ' : 'Заказ №$_number');
               _changed = true;
@@ -165,6 +173,8 @@ class _OrderScreenState extends State<OrderScreen> {
                         onTap: o['contact']['masked'] == true ? null : () => launchUrl(Uri(scheme: 'tel', path: (o['contact']['phone'] as String).replaceAll(RegExp(r'[^0-9+]'), ''))),
                       ),
                     if (o['contact']['email'] != null) _row(context, 'E-mail', o['contact']['email'] as String),
+                    if (o['canEdit'] == true && o['contact']['masked'] != true)
+                      GroupTile(title: 'Изменить контакты и доставку', subtitle: 'получатель, адрес, дата, открытка', icon: LucideIcons.pencil, onTap: _editDetails),
                   ]),
                   if (o['delivery'] != null)
                     _group(context, 'Доставка', [

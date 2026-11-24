@@ -428,6 +428,18 @@ class MybookApi {
     return OrderFiles.fromJson(json as Map<String, dynamic>);
   }
 
+  /// Получатель, контакты и доставка заказа для правки
+  Future<OrderDetailsForm> crmOrderDetails({required String orderId}) async {
+    final json = await _send('GET', '/api/v1/crm/orders/${Uri.encodeComponent('$orderId')}/details');
+    return OrderDetailsForm.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Изменить получателя, контакты и доставку (как форма карточки заказа)
+  Future<Done> crmOrderDetailsUpdate({required String orderId, required OrderDetailsBody body}) async {
+    final json = await _send('PUT', '/api/v1/crm/orders/${Uri.encodeComponent('$orderId')}/details', body: body.toJson());
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
   /// Открыть книгу заказа для правок клиентом или закрыть
   Future<Done> crmOrderBookLock({required String orderId, required BookLockBody body}) async {
     final json = await _send('POST', '/api/v1/crm/orders/${Uri.encodeComponent('$orderId')}/book-lock', body: body.toJson());
@@ -2971,12 +2983,13 @@ class OrderFiles {
   final String progressUrl;
   final bool bookLocked;
   final bool canLock;
+  final bool canRegenerate;
 
-  const OrderFiles({required this.canFiles, this.spec, required this.files, this.packageUrl, required this.progressUrl, required this.bookLocked, required this.canLock});
+  const OrderFiles({required this.canFiles, this.spec, required this.files, this.packageUrl, required this.progressUrl, required this.bookLocked, required this.canLock, required this.canRegenerate});
 
-  factory OrderFiles.fromJson(Map<String, dynamic> json) => OrderFiles(canFiles: json['canFiles'] as bool, spec: json['spec'] == null ? null : OrderFilesSpec.fromJson(json['spec'] as Map<String, dynamic>), files: (json['files'] as List).map((e) => OrderFileLink.fromJson(e as Map<String, dynamic>)).toList(), packageUrl: json['packageUrl'] == null ? null : json['packageUrl'] as String, progressUrl: json['progressUrl'] as String, bookLocked: json['bookLocked'] as bool, canLock: json['canLock'] as bool);
+  factory OrderFiles.fromJson(Map<String, dynamic> json) => OrderFiles(canFiles: json['canFiles'] as bool, spec: json['spec'] == null ? null : OrderFilesSpec.fromJson(json['spec'] as Map<String, dynamic>), files: (json['files'] as List).map((e) => OrderFileLink.fromJson(e as Map<String, dynamic>)).toList(), packageUrl: json['packageUrl'] == null ? null : json['packageUrl'] as String, progressUrl: json['progressUrl'] as String, bookLocked: json['bookLocked'] as bool, canLock: json['canLock'] as bool, canRegenerate: json['canRegenerate'] as bool);
 
-  Map<String, dynamic> toJson() => {'canFiles': canFiles, 'spec': spec == null ? null : spec!.toJson(), 'files': files.map((e) => e.toJson()).toList(), 'packageUrl': packageUrl, 'progressUrl': progressUrl, 'bookLocked': bookLocked, 'canLock': canLock};
+  Map<String, dynamic> toJson() => {'canFiles': canFiles, 'spec': spec == null ? null : spec!.toJson(), 'files': files.map((e) => e.toJson()).toList(), 'packageUrl': packageUrl, 'progressUrl': progressUrl, 'bookLocked': bookLocked, 'canLock': canLock, 'canRegenerate': canRegenerate};
 }
 
 class OrderFilesSpec {
@@ -2992,6 +3005,48 @@ class OrderFilesSpec {
   factory OrderFilesSpec.fromJson(Map<String, dynamic> json) => OrderFilesSpec(format: json['format'] as String, pages: (json['pages'] as num).toInt(), spineMm: (json['spineMm'] as num).toDouble(), coverWidthMm: (json['coverWidthMm'] as num).toDouble(), coverHeightMm: (json['coverHeightMm'] as num).toDouble(), generatedAt: json['generatedAt'] as String);
 
   Map<String, dynamic> toJson() => {'format': format, 'pages': pages, 'spineMm': spineMm, 'coverWidthMm': coverWidthMm, 'coverHeightMm': coverHeightMm, 'generatedAt': generatedAt};
+}
+
+class OrderDetailsForm {
+  final bool canEdit;
+  final String contactName;
+  final String contactPhone;
+  final String contactEmail;
+  final String? deliveryMethod;
+  final List<Choice> deliveryMethods;
+  final String? country;
+  final String? city;
+  final String? address;
+  final String? postalCode;
+  final String? desiredDate;
+  final String? giftNote;
+
+  const OrderDetailsForm({required this.canEdit, required this.contactName, required this.contactPhone, required this.contactEmail, this.deliveryMethod, required this.deliveryMethods, this.country, this.city, this.address, this.postalCode, this.desiredDate, this.giftNote});
+
+  factory OrderDetailsForm.fromJson(Map<String, dynamic> json) => OrderDetailsForm(canEdit: json['canEdit'] as bool, contactName: json['contactName'] as String, contactPhone: json['contactPhone'] as String, contactEmail: json['contactEmail'] as String, deliveryMethod: json['deliveryMethod'] == null ? null : json['deliveryMethod'] as String, deliveryMethods: (json['deliveryMethods'] as List).map((e) => Choice.fromJson(e as Map<String, dynamic>)).toList(), country: json['country'] == null ? null : json['country'] as String, city: json['city'] == null ? null : json['city'] as String, address: json['address'] == null ? null : json['address'] as String, postalCode: json['postalCode'] == null ? null : json['postalCode'] as String, desiredDate: json['desiredDate'] == null ? null : json['desiredDate'] as String, giftNote: json['giftNote'] == null ? null : json['giftNote'] as String);
+
+  Map<String, dynamic> toJson() => {'canEdit': canEdit, 'contactName': contactName, 'contactPhone': contactPhone, 'contactEmail': contactEmail, 'deliveryMethod': deliveryMethod, 'deliveryMethods': deliveryMethods.map((e) => e.toJson()).toList(), 'country': country, 'city': city, 'address': address, 'postalCode': postalCode, 'desiredDate': desiredDate, 'giftNote': giftNote};
+}
+
+class OrderDetailsBody {
+  final String contactName;
+  final String contactPhone;
+  final String contactEmail;
+  final String? deliveryMethod;
+  final String? country;
+  final String? city;
+  final String? address;
+  final String? postalCode;
+  final String? desiredDate;
+  final String? giftNote;
+  /// Поля, которые отправить как null (иначе пустое необязательное поле не отправляется).
+  final Set<String> nulls;
+
+  const OrderDetailsBody({required this.contactName, required this.contactPhone, required this.contactEmail, this.deliveryMethod, this.country, this.city, this.address, this.postalCode, this.desiredDate, this.giftNote, this.nulls = const {}});
+
+  factory OrderDetailsBody.fromJson(Map<String, dynamic> json) => OrderDetailsBody(contactName: json['contactName'] as String, contactPhone: json['contactPhone'] as String, contactEmail: json['contactEmail'] as String, deliveryMethod: json['deliveryMethod'] == null ? null : json['deliveryMethod'] as String, country: json['country'] == null ? null : json['country'] as String, city: json['city'] == null ? null : json['city'] as String, address: json['address'] == null ? null : json['address'] as String, postalCode: json['postalCode'] == null ? null : json['postalCode'] as String, desiredDate: json['desiredDate'] == null ? null : json['desiredDate'] as String, giftNote: json['giftNote'] == null ? null : json['giftNote'] as String);
+
+  Map<String, dynamic> toJson() => {'contactName': contactName, 'contactPhone': contactPhone, 'contactEmail': contactEmail, if (deliveryMethod != null || nulls.contains('deliveryMethod')) 'deliveryMethod': deliveryMethod, if (country != null || nulls.contains('country')) 'country': country, if (city != null || nulls.contains('city')) 'city': city, if (address != null || nulls.contains('address')) 'address': address, if (postalCode != null || nulls.contains('postalCode')) 'postalCode': postalCode, if (desiredDate != null || nulls.contains('desiredDate')) 'desiredDate': desiredDate, if (giftNote != null || nulls.contains('giftNote')) 'giftNote': giftNote};
 }
 
 class BookLockBody {

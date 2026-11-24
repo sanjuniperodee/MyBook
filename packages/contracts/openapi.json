@@ -3171,6 +3171,102 @@
         "x-auth": "staff"
       }
     },
+    "/api/v1/crm/orders/{orderId}/details": {
+      "get": {
+        "operationId": "crmOrderDetails",
+        "tags": [
+          "crm"
+        ],
+        "summary": "Получатель, контакты и доставка заказа для правки",
+        "parameters": [
+          {
+            "name": "orderId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetailsForm"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "staff"
+      },
+      "put": {
+        "operationId": "crmOrderDetailsUpdate",
+        "tags": [
+          "crm"
+        ],
+        "summary": "Изменить получателя, контакты и доставку (как форма карточки заказа)",
+        "parameters": [
+          {
+            "name": "orderId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrderDetailsBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Done"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "staff"
+      }
+    },
     "/api/v1/crm/orders/{orderId}/book-lock": {
       "post": {
         "operationId": "crmOrderBookLock",
@@ -11074,6 +11170,9 @@
           },
           "canLock": {
             "type": "boolean"
+          },
+          "canRegenerate": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -11083,7 +11182,206 @@
           "packageUrl",
           "progressUrl",
           "bookLocked",
-          "canLock"
+          "canLock",
+          "canRegenerate"
+        ],
+        "additionalProperties": false
+      },
+      "OrderDetailsForm": {
+        "type": "object",
+        "properties": {
+          "canEdit": {
+            "type": "boolean"
+          },
+          "contactName": {
+            "type": "string"
+          },
+          "contactPhone": {
+            "type": "string"
+          },
+          "contactEmail": {
+            "type": "string"
+          },
+          "deliveryMethod": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "pickup",
+                  "courier",
+                  "post",
+                  "abroad"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "deliveryMethods": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Choice"
+            }
+          },
+          "country": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "city": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "address": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "postalCode": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "desiredDate": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "giftNote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "canEdit",
+          "contactName",
+          "contactPhone",
+          "contactEmail",
+          "deliveryMethod",
+          "deliveryMethods",
+          "country",
+          "city",
+          "address",
+          "postalCode",
+          "desiredDate",
+          "giftNote"
+        ],
+        "additionalProperties": false
+      },
+      "OrderDetailsBody": {
+        "type": "object",
+        "properties": {
+          "contactName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "contactPhone": {
+            "type": "string",
+            "minLength": 5,
+            "maxLength": 30
+          },
+          "contactEmail": {
+            "type": "string",
+            "format": "email",
+            "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+          },
+          "deliveryMethod": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "pickup",
+                  "courier",
+                  "post",
+                  "abroad"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 60
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "city": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "postalCode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "desiredDate": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "giftNote": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "contactName",
+          "contactPhone",
+          "contactEmail"
         ],
         "additionalProperties": false
       },

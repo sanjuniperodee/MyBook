@@ -54,6 +54,40 @@ class _OrderFilesSectionState extends State<OrderFilesSection> {
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
   }
 
+  /// Пересобрать файлы (после правок книги): сайт собирает пакет заново — как «Перегенерировать файлы» карточки заказа,
+  /// с параметрами печати и записью в журнал; приложение показывает ход сборки.
+  Future<void> _regenerate() async {
+    final f = _f;
+    if (f == null || _busy != null) return;
+    final ok = await confirm(context, title: f.spec == null ? 'Собрать файлы для печати?' : 'Пересобрать файлы для печати?', message: 'Займёт несколько минут. Прежние файлы заменятся новыми — если типография их уже скачала, отправьте заново.', ok: f.spec == null ? 'Собрать' : 'Пересобрать');
+    if (!ok || !mounted) return;
+    setState(() {
+      _busy = 'regenerate';
+      _stage = 'Ставим в очередь…';
+    });
+    final poll = Timer.periodic(const Duration(seconds: 2), (_) => _progress());
+    try {
+      final block = f.files.firstWhere((x) => x.kind == 'block');
+      final res = await _api.getRaw(block.url, query: {'prepare': '1', 'regenerate': '1'}, timeout: const Duration(minutes: 6));
+      if (res.statusCode >= 400) throw ApiException(res.statusCode, _errorText(res.body));
+      HapticFeedback.mediumImpact();
+      _toast('Файлы собраны заново');
+      await _load();
+    } on ApiException catch (e) {
+      _toast(e.message);
+    } on TimeoutException {
+      _toast('Сборка идёт дольше обычного — файлы появятся, когда закончится');
+    } finally {
+      poll.cancel();
+      if (mounted) {
+        setState(() {
+          _busy = null;
+          _stage = null;
+        });
+      }
+    }
+  }
+
   /// Сначала просим сайт собрать файл (204, когда готов; ход — в progressUrl), потом качаем и отдаём «Поделиться».
   Future<void> _get(String key, String url, String filename) async {
     if (_busy != null) return;
@@ -170,6 +204,14 @@ class _OrderFilesSectionState extends State<OrderFilesSection> {
           icon: file.kind == 'spec' ? LucideIcons.fileText : LucideIcons.fileDown,
           trailing: _busy == file.kind ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : null,
           onTap: () => _get(file.kind, file.url, 'order-${widget.number}-${file.kind}.${ext[file.kind] ?? 'pdf'}'),
+        ),
+      if (f.canRegenerate && f.files.any((x) => x.kind == 'block'))
+        GroupTile(
+          title: f.spec == null ? 'Собрать файлы' : 'Пересобрать файлы',
+          subtitle: 'после правок книги клиентом',
+          icon: LucideIcons.refreshCw,
+          trailing: _busy == 'regenerate' ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : null,
+          onTap: _regenerate,
         ),
     ]);
   }
