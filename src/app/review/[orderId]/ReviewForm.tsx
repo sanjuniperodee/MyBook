@@ -6,7 +6,7 @@ import { Link, useMessages } from "@/i18n/client";
 import { apiFetch } from "@/lib/client-api";
 import { toastError } from "@/components/ui/overlays";
 import { cn } from "@/lib/class-names";
-import { REVIEW_MAX } from "@mybook/contracts";
+import { REVIEW_MAX } from "@mybook/contracts/limits";
 import type { BookKind } from "@/lib/content/kinds";
 
 interface ReviewDraft {

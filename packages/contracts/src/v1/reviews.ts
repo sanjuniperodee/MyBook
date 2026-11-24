@@ -3,6 +3,7 @@
  * Первый отзыв приносит промокод-благодарность (thankYouCode). Лимиты — как у сайта (сверяет tests/api-v1.test.ts).
  */
 import { z } from "zod";
+import { REVIEW_MAX } from "../limits";
 import { route, schemas, uuid, type RouteDef } from "./core";
 
 export const Review = z
@@ -21,7 +22,7 @@ export const Review = z
   .register(schemas, { id: "Review" });
 
 /** Длины полей отзыва — одни для схемы, сайта и приложения (отдаются в ReviewView.limits). */
-export const REVIEW_MAX = { text: 2000, authorName: 40, city: 40 } as const;
+export { REVIEW_MAX } from "../limits";
 
 /**
  * Надписи отзыва — сообщения review сайта (страница /review/<заказ> и карточка в заказе), посчитанные под эту книгу
