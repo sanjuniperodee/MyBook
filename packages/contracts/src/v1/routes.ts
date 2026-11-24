@@ -25,6 +25,7 @@ import { crmRoutes } from "./crm";
 import { crmFinanceRoutes } from "./crm-finance";
 import { crmAnalyticsRoutes } from "./crm-analytics";
 import { crmSettingsRoutes } from "./crm-settings";
+import { crmMarketingRoutes } from "./crm-marketing";
 import type { RouteDef } from "./core";
 
 export * from "./core";
@@ -44,6 +45,7 @@ export * from "./crm";
 export * from "./crm-finance";
 export * from "./crm-analytics";
 export * from "./crm-settings";
+export * from "./crm-marketing";
 
 export const v1 = {
   ...authRoutes,
@@ -62,6 +64,7 @@ export const v1 = {
   ...crmFinanceRoutes,
   ...crmAnalyticsRoutes,
   ...crmSettingsRoutes,
+  ...crmMarketingRoutes,
   // Доски задач и календарь (приложение CRM).
   ...boardsRoutes,
 } as const satisfies Record<string, RouteDef>;

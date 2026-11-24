@@ -668,6 +668,96 @@ class MybookApi {
     return Done.fromJson(json as Map<String, dynamic>);
   }
 
+  /// Промокоды: использование, оплаченные заказы, выручка
+  Future<Promos> crmPromos() async {
+    final json = await _send('GET', '/api/v1/crm/promos');
+    return Promos.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Новый промокод
+  Future<Done> crmPromoCreate({required PromoBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/promos', body: body.toJson());
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Включить или выключить промокод
+  Future<Done> crmPromoToggle({required String id}) async {
+    final json = await _send('POST', '/api/v1/crm/promos/${Uri.encodeComponent('$id')}/toggle');
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Сертификаты: ждут оплаты и выпущенные
+  Future<Gifts> crmGifts() async {
+    final json = await _send('GET', '/api/v1/crm/gifts');
+    return Gifts.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// «Оплачен» с чеком перевода (multipart, поле file)
+  Future<Done> crmGiftPaid({required String id, required List<http.MultipartFile> files}) async {
+    final json = await _sendFiles('POST', '/api/v1/crm/gifts/${Uri.encodeComponent('$id')}/paid', 'file', files);
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Отправить сертификат получателю ещё раз
+  Future<Done> crmGiftResend({required String id}) async {
+    final json = await _send('POST', '/api/v1/crm/gifts/${Uri.encodeComponent('$id')}/resend');
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Отменить сертификат
+  Future<Done> crmGiftCancel({required String id}) async {
+    final json = await _send('POST', '/api/v1/crm/gifts/${Uri.encodeComponent('$id')}/cancel');
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Отзывы по статусу (new | published | hidden | all)
+  Future<Reviews> crmReviews({String? s}) async {
+    final json = await _send('GET', '/api/v1/crm/reviews', query: {if (s != null) 's': '${s}'});
+    return Reviews.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Показать на сайте, скрыть, закрепить на главной или открепить
+  Future<Done> crmReviewModerate({required String id, required String action}) async {
+    final json = await _send('POST', '/api/v1/crm/reviews/${Uri.encodeComponent('$id')}/${Uri.encodeComponent('$action')}');
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Ссылки и каналы: каналы за период и рекламные ссылки
+  Future<MarketingReport> crmMarketing({String? period, String? archived}) async {
+    final json = await _send('GET', '/api/v1/crm/marketing', query: {if (period != null) 'period': '${period}', if (archived != null) 'archived': '${archived}'});
+    return MarketingReport.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Новая рекламная ссылка (короткая, с UTM)
+  Future<Done> crmMarketingLinkCreate({required MarketingLinkBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/marketing/links', body: body.toJson());
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Убрать ссылку в архив или вернуть
+  Future<Done> crmMarketingLinkArchive({required String id, required ArchiveBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/marketing/links/${Uri.encodeComponent('$id')}/archive', body: body.toJson());
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// ИИ-дизайнер: запросы, люди, покупки, режимы, кто пользуется
+  Future<DesignAiReport> crmDesignAi({String? days}) async {
+    final json = await _send('GET', '/api/v1/crm/design-ai', query: {if (days != null) 'days': '${days}'});
+    return DesignAiReport.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Подарить клиенту запросы (на баланс, как купленные)
+  Future<Done> crmDesignAiGrant({required DesignAiGrantBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/design-ai/grant', body: body.toJson());
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Бесплатный лимит запросов на клиента
+  Future<Done> crmDesignAiLimit({required DesignAiLimitBody body}) async {
+    final json = await _send('PUT', '/api/v1/crm/design-ai/limit', body: body.toJson());
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
   /// Доски, которые видит сотрудник (с числом открытых карточек)
   Future<BoardList> boardsList() async {
     final json = await _send('GET', '/api/v1/boards');
@@ -5913,4 +6003,390 @@ class BotModeBody {
   factory BotModeBody.fromJson(Map<String, dynamic> json) => BotModeBody(mode: json['mode'] as String);
 
   Map<String, dynamic> toJson() => {'mode': mode};
+}
+
+class PromoRow {
+  final String id;
+  final String code;
+  final String discount;
+  final bool active;
+  final int used;
+  final int? maxUses;
+  final String until;
+  final String note;
+  final int paid;
+  final int revenue;
+
+  const PromoRow({required this.id, required this.code, required this.discount, required this.active, required this.used, this.maxUses, required this.until, required this.note, required this.paid, required this.revenue});
+
+  factory PromoRow.fromJson(Map<String, dynamic> json) => PromoRow(id: json['id'] as String, code: json['code'] as String, discount: json['discount'] as String, active: json['active'] as bool, used: (json['used'] as num).toInt(), maxUses: json['maxUses'] == null ? null : (json['maxUses'] as num).toInt(), until: json['until'] as String, note: json['note'] as String, paid: (json['paid'] as num).toInt(), revenue: (json['revenue'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'id': id, 'code': code, 'discount': discount, 'active': active, 'used': used, 'maxUses': maxUses, 'until': until, 'note': note, 'paid': paid, 'revenue': revenue};
+}
+
+class Promos {
+  final List<PromoRow> rows;
+  final PromosTotals totals;
+
+  const Promos({required this.rows, required this.totals});
+
+  factory Promos.fromJson(Map<String, dynamic> json) => Promos(rows: (json['rows'] as List).map((e) => PromoRow.fromJson(e as Map<String, dynamic>)).toList(), totals: PromosTotals.fromJson(json['totals'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'rows': rows.map((e) => e.toJson()).toList(), 'totals': totals.toJson()};
+}
+
+class PromosTotals {
+  final int count;
+  final int active;
+  final int used;
+  final int paid;
+  final int revenue;
+
+  const PromosTotals({required this.count, required this.active, required this.used, required this.paid, required this.revenue});
+
+  factory PromosTotals.fromJson(Map<String, dynamic> json) => PromosTotals(count: (json['count'] as num).toInt(), active: (json['active'] as num).toInt(), used: (json['used'] as num).toInt(), paid: (json['paid'] as num).toInt(), revenue: (json['revenue'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'count': count, 'active': active, 'used': used, 'paid': paid, 'revenue': revenue};
+}
+
+class PromoBody {
+  final String code;
+  /// percent | fixed
+  final String kind;
+  final int value;
+  final int? maxUses;
+  final String? expiresAt;
+  final String? note;
+  /// Поля, которые отправить как null (иначе пустое необязательное поле не отправляется).
+  final Set<String> nulls;
+
+  const PromoBody({required this.code, required this.kind, required this.value, this.maxUses, this.expiresAt, this.note, this.nulls = const {}});
+
+  factory PromoBody.fromJson(Map<String, dynamic> json) => PromoBody(code: json['code'] as String, kind: json['kind'] as String, value: (json['value'] as num).toInt(), maxUses: json['maxUses'] == null ? null : (json['maxUses'] as num).toInt(), expiresAt: json['expiresAt'] == null ? null : json['expiresAt'] as String, note: json['note'] == null ? null : json['note'] as String);
+
+  Map<String, dynamic> toJson() => {'code': code, 'kind': kind, 'value': value, if (maxUses != null || nulls.contains('maxUses')) 'maxUses': maxUses, if (expiresAt != null || nulls.contains('expiresAt')) 'expiresAt': expiresAt, if (note != null) 'note': note!};
+}
+
+class GiftRow {
+  final String id;
+  final int number;
+  /// pending_payment | paid | cancelled
+  final String status;
+  final String statusLabel;
+  final int amount;
+  final String plan;
+  final String buyer;
+  final String buyerContact;
+  final String recipient;
+  final String delivery;
+  final String createdLabel;
+  final bool claimed;
+  final String? code;
+  final bool redeemed;
+  final bool canResend;
+  final String? receiptUrl;
+
+  const GiftRow({required this.id, required this.number, required this.status, required this.statusLabel, required this.amount, required this.plan, required this.buyer, required this.buyerContact, required this.recipient, required this.delivery, required this.createdLabel, required this.claimed, this.code, required this.redeemed, required this.canResend, this.receiptUrl});
+
+  factory GiftRow.fromJson(Map<String, dynamic> json) => GiftRow(id: json['id'] as String, number: (json['number'] as num).toInt(), status: json['status'] as String, statusLabel: json['statusLabel'] as String, amount: (json['amount'] as num).toInt(), plan: json['plan'] as String, buyer: json['buyer'] as String, buyerContact: json['buyerContact'] as String, recipient: json['recipient'] as String, delivery: json['delivery'] as String, createdLabel: json['createdLabel'] as String, claimed: json['claimed'] as bool, code: json['code'] == null ? null : json['code'] as String, redeemed: json['redeemed'] as bool, canResend: json['canResend'] as bool, receiptUrl: json['receiptUrl'] == null ? null : json['receiptUrl'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'number': number, 'status': status, 'statusLabel': statusLabel, 'amount': amount, 'plan': plan, 'buyer': buyer, 'buyerContact': buyerContact, 'recipient': recipient, 'delivery': delivery, 'createdLabel': createdLabel, 'claimed': claimed, 'code': code, 'redeemed': redeemed, 'canResend': canResend, 'receiptUrl': receiptUrl};
+}
+
+class Gifts {
+  final List<GiftRow> waiting;
+  final List<GiftRow> register;
+  final GiftsTotals totals;
+
+  const Gifts({required this.waiting, required this.register, required this.totals});
+
+  factory Gifts.fromJson(Map<String, dynamic> json) => Gifts(waiting: (json['waiting'] as List).map((e) => GiftRow.fromJson(e as Map<String, dynamic>)).toList(), register: (json['register'] as List).map((e) => GiftRow.fromJson(e as Map<String, dynamic>)).toList(), totals: GiftsTotals.fromJson(json['totals'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'waiting': waiting.map((e) => e.toJson()).toList(), 'register': register.map((e) => e.toJson()).toList(), 'totals': totals.toJson()};
+}
+
+class GiftsTotals {
+  final int paid;
+  final int redeemed;
+  final int revenue;
+  final int claimed;
+
+  const GiftsTotals({required this.paid, required this.redeemed, required this.revenue, required this.claimed});
+
+  factory GiftsTotals.fromJson(Map<String, dynamic> json) => GiftsTotals(paid: (json['paid'] as num).toInt(), redeemed: (json['redeemed'] as num).toInt(), revenue: (json['revenue'] as num).toInt(), claimed: (json['claimed'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'paid': paid, 'redeemed': redeemed, 'revenue': revenue, 'claimed': claimed};
+}
+
+class ReviewRow {
+  final String id;
+  /// new | published | hidden
+  final String status;
+  final int rating;
+  final String text;
+  final String author;
+  final String city;
+  final String theme;
+  final String locale;
+  final bool featured;
+  final String? blocker;
+  final String? photoUrl;
+  final String? orderId;
+  final int? orderNumber;
+  final String? thankYouCode;
+  final String createdLabel;
+
+  const ReviewRow({required this.id, required this.status, required this.rating, required this.text, required this.author, required this.city, required this.theme, required this.locale, required this.featured, this.blocker, this.photoUrl, this.orderId, this.orderNumber, this.thankYouCode, required this.createdLabel});
+
+  factory ReviewRow.fromJson(Map<String, dynamic> json) => ReviewRow(id: json['id'] as String, status: json['status'] as String, rating: (json['rating'] as num).toInt(), text: json['text'] as String, author: json['author'] as String, city: json['city'] as String, theme: json['theme'] as String, locale: json['locale'] as String, featured: json['featured'] as bool, blocker: json['blocker'] == null ? null : json['blocker'] as String, photoUrl: json['photoUrl'] == null ? null : json['photoUrl'] as String, orderId: json['orderId'] == null ? null : json['orderId'] as String, orderNumber: json['orderNumber'] == null ? null : (json['orderNumber'] as num).toInt(), thankYouCode: json['thankYouCode'] == null ? null : json['thankYouCode'] as String, createdLabel: json['createdLabel'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'status': status, 'rating': rating, 'text': text, 'author': author, 'city': city, 'theme': theme, 'locale': locale, 'featured': featured, 'blocker': blocker, 'photoUrl': photoUrl, 'orderId': orderId, 'orderNumber': orderNumber, 'thankYouCode': thankYouCode, 'createdLabel': createdLabel};
+}
+
+class Reviews {
+  final List<ReviewRow> rows;
+  final ReviewsCounts counts;
+  final String average;
+  final String filter;
+
+  const Reviews({required this.rows, required this.counts, required this.average, required this.filter});
+
+  factory Reviews.fromJson(Map<String, dynamic> json) => Reviews(rows: (json['rows'] as List).map((e) => ReviewRow.fromJson(e as Map<String, dynamic>)).toList(), counts: ReviewsCounts.fromJson(json['counts'] as Map<String, dynamic>), average: json['average'] as String, filter: json['filter'] as String);
+
+  Map<String, dynamic> toJson() => {'rows': rows.map((e) => e.toJson()).toList(), 'counts': counts.toJson(), 'average': average, 'filter': filter};
+}
+
+class ReviewsCounts {
+  final int waiting;
+  final int published;
+  final int hidden;
+
+  const ReviewsCounts({required this.waiting, required this.published, required this.hidden});
+
+  factory ReviewsCounts.fromJson(Map<String, dynamic> json) => ReviewsCounts(waiting: (json['waiting'] as num).toInt(), published: (json['published'] as num).toInt(), hidden: (json['hidden'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'waiting': waiting, 'published': published, 'hidden': hidden};
+}
+
+class ChannelStat {
+  final String key;
+  final String label;
+  final int clicks;
+  final int leads;
+  final int registrations;
+  final int startedBook;
+  final int sales;
+  final int revenue;
+  final int spend;
+  final String conversion;
+  final String costPerLead;
+  final String romi;
+
+  const ChannelStat({required this.key, required this.label, required this.clicks, required this.leads, required this.registrations, required this.startedBook, required this.sales, required this.revenue, required this.spend, required this.conversion, required this.costPerLead, required this.romi});
+
+  factory ChannelStat.fromJson(Map<String, dynamic> json) => ChannelStat(key: json['key'] as String, label: json['label'] as String, clicks: (json['clicks'] as num).toInt(), leads: (json['leads'] as num).toInt(), registrations: (json['registrations'] as num).toInt(), startedBook: (json['startedBook'] as num).toInt(), sales: (json['sales'] as num).toInt(), revenue: (json['revenue'] as num).toInt(), spend: (json['spend'] as num).toInt(), conversion: json['conversion'] as String, costPerLead: json['costPerLead'] as String, romi: json['romi'] as String);
+
+  Map<String, dynamic> toJson() => {'key': key, 'label': label, 'clicks': clicks, 'leads': leads, 'registrations': registrations, 'startedBook': startedBook, 'sales': sales, 'revenue': revenue, 'spend': spend, 'conversion': conversion, 'costPerLead': costPerLead, 'romi': romi};
+}
+
+class MarketingLink {
+  final String id;
+  final String name;
+  final String slug;
+  final String shortUrl;
+  final String target;
+  final String fullUrl;
+  final bool archived;
+  final String createdLabel;
+  final int clicks;
+  final int leads;
+  final int registrations;
+  final int sales;
+  final int revenue;
+
+  const MarketingLink({required this.id, required this.name, required this.slug, required this.shortUrl, required this.target, required this.fullUrl, required this.archived, required this.createdLabel, required this.clicks, required this.leads, required this.registrations, required this.sales, required this.revenue});
+
+  factory MarketingLink.fromJson(Map<String, dynamic> json) => MarketingLink(id: json['id'] as String, name: json['name'] as String, slug: json['slug'] as String, shortUrl: json['shortUrl'] as String, target: json['target'] as String, fullUrl: json['fullUrl'] as String, archived: json['archived'] as bool, createdLabel: json['createdLabel'] as String, clicks: (json['clicks'] as num).toInt(), leads: (json['leads'] as num).toInt(), registrations: (json['registrations'] as num).toInt(), sales: (json['sales'] as num).toInt(), revenue: (json['revenue'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'slug': slug, 'shortUrl': shortUrl, 'target': target, 'fullUrl': fullUrl, 'archived': archived, 'createdLabel': createdLabel, 'clicks': clicks, 'leads': leads, 'registrations': registrations, 'sales': sales, 'revenue': revenue};
+}
+
+class MarketingReport {
+  final int period;
+  final ChannelStat total;
+  final List<ChannelStat> channels;
+  final List<MarketingLink> links;
+  final bool archived;
+  final bool showAnalytics;
+  final bool canManage;
+  final List<MarketingReportPages> pages;
+
+  const MarketingReport({required this.period, required this.total, required this.channels, required this.links, required this.archived, required this.showAnalytics, required this.canManage, required this.pages});
+
+  factory MarketingReport.fromJson(Map<String, dynamic> json) => MarketingReport(period: (json['period'] as num).toInt(), total: ChannelStat.fromJson(json['total'] as Map<String, dynamic>), channels: (json['channels'] as List).map((e) => ChannelStat.fromJson(e as Map<String, dynamic>)).toList(), links: (json['links'] as List).map((e) => MarketingLink.fromJson(e as Map<String, dynamic>)).toList(), archived: json['archived'] as bool, showAnalytics: json['showAnalytics'] as bool, canManage: json['canManage'] as bool, pages: (json['pages'] as List).map((e) => MarketingReportPages.fromJson(e as Map<String, dynamic>)).toList());
+
+  Map<String, dynamic> toJson() => {'period': period, 'total': total.toJson(), 'channels': channels.map((e) => e.toJson()).toList(), 'links': links.map((e) => e.toJson()).toList(), 'archived': archived, 'showAnalytics': showAnalytics, 'canManage': canManage, 'pages': pages.map((e) => e.toJson()).toList()};
+}
+
+class MarketingReportPages {
+  final String path;
+  final String label;
+
+  const MarketingReportPages({required this.path, required this.label});
+
+  factory MarketingReportPages.fromJson(Map<String, dynamic> json) => MarketingReportPages(path: json['path'] as String, label: json['label'] as String);
+
+  Map<String, dynamic> toJson() => {'path': path, 'label': label};
+}
+
+class MarketingLinkBody {
+  final String name;
+  /// site | whatsapp
+  final String kind;
+  final String targetPath;
+  final String waText;
+  final String utmSource;
+  final String utmMedium;
+  final String utmCampaign;
+  final String utmContent;
+
+  const MarketingLinkBody({required this.name, required this.kind, required this.targetPath, required this.waText, required this.utmSource, required this.utmMedium, required this.utmCampaign, required this.utmContent});
+
+  factory MarketingLinkBody.fromJson(Map<String, dynamic> json) => MarketingLinkBody(name: json['name'] as String, kind: json['kind'] as String, targetPath: json['targetPath'] as String, waText: json['waText'] as String, utmSource: json['utmSource'] as String, utmMedium: json['utmMedium'] as String, utmCampaign: json['utmCampaign'] as String, utmContent: json['utmContent'] as String);
+
+  Map<String, dynamic> toJson() => {'name': name, 'kind': kind, 'targetPath': targetPath, 'waText': waText, 'utmSource': utmSource, 'utmMedium': utmMedium, 'utmCampaign': utmCampaign, 'utmContent': utmContent};
+}
+
+class DesignAiReport {
+  final int days;
+  final bool enabled;
+  final int freeLimit;
+  final bool canEdit;
+  final DesignAiReportTotals totals;
+  final DesignAiReportPeople people;
+  final DesignAiReportPurchases purchases;
+  final List<DesignAiReportByMode> byMode;
+  final List<DesignAiReportByDay> byDay;
+  final List<DesignAiReportUsers> users;
+
+  const DesignAiReport({required this.days, required this.enabled, required this.freeLimit, required this.canEdit, required this.totals, required this.people, required this.purchases, required this.byMode, required this.byDay, required this.users});
+
+  factory DesignAiReport.fromJson(Map<String, dynamic> json) => DesignAiReport(days: (json['days'] as num).toInt(), enabled: json['enabled'] as bool, freeLimit: (json['freeLimit'] as num).toInt(), canEdit: json['canEdit'] as bool, totals: DesignAiReportTotals.fromJson(json['totals'] as Map<String, dynamic>), people: DesignAiReportPeople.fromJson(json['people'] as Map<String, dynamic>), purchases: DesignAiReportPurchases.fromJson(json['purchases'] as Map<String, dynamic>), byMode: (json['byMode'] as List).map((e) => DesignAiReportByMode.fromJson(e as Map<String, dynamic>)).toList(), byDay: (json['byDay'] as List).map((e) => DesignAiReportByDay.fromJson(e as Map<String, dynamic>)).toList(), users: (json['users'] as List).map((e) => DesignAiReportUsers.fromJson(e as Map<String, dynamic>)).toList());
+
+  Map<String, dynamic> toJson() => {'days': days, 'enabled': enabled, 'freeLimit': freeLimit, 'canEdit': canEdit, 'totals': totals.toJson(), 'people': people.toJson(), 'purchases': purchases.toJson(), 'byMode': byMode.map((e) => e.toJson()).toList(), 'byDay': byDay.map((e) => e.toJson()).toList(), 'users': users.map((e) => e.toJson()).toList()};
+}
+
+class DesignAiReportTotals {
+  final int ok;
+  final int failed;
+  final int users;
+  final int free;
+  final int credit;
+  final double costUsd;
+  final double? avgSeconds;
+
+  const DesignAiReportTotals({required this.ok, required this.failed, required this.users, required this.free, required this.credit, required this.costUsd, this.avgSeconds});
+
+  factory DesignAiReportTotals.fromJson(Map<String, dynamic> json) => DesignAiReportTotals(ok: (json['ok'] as num).toInt(), failed: (json['failed'] as num).toInt(), users: (json['users'] as num).toInt(), free: (json['free'] as num).toInt(), credit: (json['credit'] as num).toInt(), costUsd: (json['costUsd'] as num).toDouble(), avgSeconds: json['avgSeconds'] == null ? null : (json['avgSeconds'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'ok': ok, 'failed': failed, 'users': users, 'free': free, 'credit': credit, 'costUsd': costUsd, 'avgSeconds': avgSeconds};
+}
+
+class DesignAiReportPeople {
+  final int used;
+  final int hitLimit;
+  final int withCredits;
+  final int creditsLeft;
+
+  const DesignAiReportPeople({required this.used, required this.hitLimit, required this.withCredits, required this.creditsLeft});
+
+  factory DesignAiReportPeople.fromJson(Map<String, dynamic> json) => DesignAiReportPeople(used: (json['used'] as num).toInt(), hitLimit: (json['hitLimit'] as num).toInt(), withCredits: (json['withCredits'] as num).toInt(), creditsLeft: (json['creditsLeft'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'used': used, 'hitLimit': hitLimit, 'withCredits': withCredits, 'creditsLeft': creditsLeft};
+}
+
+class DesignAiReportPurchases {
+  final int paid;
+  final int paidAmount;
+  final int pending;
+  final int pendingAmount;
+
+  const DesignAiReportPurchases({required this.paid, required this.paidAmount, required this.pending, required this.pendingAmount});
+
+  factory DesignAiReportPurchases.fromJson(Map<String, dynamic> json) => DesignAiReportPurchases(paid: (json['paid'] as num).toInt(), paidAmount: (json['paidAmount'] as num).toInt(), pending: (json['pending'] as num).toInt(), pendingAmount: (json['pendingAmount'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'paid': paid, 'paidAmount': paidAmount, 'pending': pending, 'pendingAmount': pendingAmount};
+}
+
+class DesignAiReportByMode {
+  final String key;
+  final String label;
+  final int requests;
+  final double costUsd;
+
+  const DesignAiReportByMode({required this.key, required this.label, required this.requests, required this.costUsd});
+
+  factory DesignAiReportByMode.fromJson(Map<String, dynamic> json) => DesignAiReportByMode(key: json['key'] as String, label: json['label'] as String, requests: (json['requests'] as num).toInt(), costUsd: (json['costUsd'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'key': key, 'label': label, 'requests': requests, 'costUsd': costUsd};
+}
+
+class DesignAiReportByDay {
+  final String day;
+  final int requests;
+  final int users;
+
+  const DesignAiReportByDay({required this.day, required this.requests, required this.users});
+
+  factory DesignAiReportByDay.fromJson(Map<String, dynamic> json) => DesignAiReportByDay(day: json['day'] as String, requests: (json['requests'] as num).toInt(), users: (json['users'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'day': day, 'requests': requests, 'users': users};
+}
+
+class DesignAiReportUsers {
+  final String userId;
+  final String name;
+  final String email;
+  final int requests;
+  final int free;
+  final int credit;
+  final int credits;
+  final String lastLabel;
+
+  const DesignAiReportUsers({required this.userId, required this.name, required this.email, required this.requests, required this.free, required this.credit, required this.credits, required this.lastLabel});
+
+  factory DesignAiReportUsers.fromJson(Map<String, dynamic> json) => DesignAiReportUsers(userId: json['userId'] as String, name: json['name'] as String, email: json['email'] as String, requests: (json['requests'] as num).toInt(), free: (json['free'] as num).toInt(), credit: (json['credit'] as num).toInt(), credits: (json['credits'] as num).toInt(), lastLabel: json['lastLabel'] as String);
+
+  Map<String, dynamic> toJson() => {'userId': userId, 'name': name, 'email': email, 'requests': requests, 'free': free, 'credit': credit, 'credits': credits, 'lastLabel': lastLabel};
+}
+
+class DesignAiGrantBody {
+  final String userId;
+  final int count;
+
+  const DesignAiGrantBody({required this.userId, required this.count});
+
+  factory DesignAiGrantBody.fromJson(Map<String, dynamic> json) => DesignAiGrantBody(userId: json['userId'] as String, count: (json['count'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'userId': userId, 'count': count};
+}
+
+class DesignAiLimitBody {
+  final int limit;
+
+  const DesignAiLimitBody({required this.limit});
+
+  factory DesignAiLimitBody.fromJson(Map<String, dynamic> json) => DesignAiLimitBody(limit: (json['limit'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'limit': limit};
+}
+
+class ArchiveBody {
+  final bool archived;
+
+  const ArchiveBody({required this.archived});
+
+  factory ArchiveBody.fromJson(Map<String, dynamic> json) => ArchiveBody(archived: json['archived'] as bool);
+
+  Map<String, dynamic> toJson() => {'archived': archived};
 }

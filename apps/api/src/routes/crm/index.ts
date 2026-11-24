@@ -9,8 +9,9 @@ import { crmSupportHandlers } from "./support";
 import { crmFinanceHandlers } from "./finance";
 import { crmAnalyticsHandlers } from "./analytics";
 import { crmSettingsHandlers } from "./settings";
+import { crmMarketingHandlers } from "./marketing";
 
-const all = { ...crmDealHandlers, ...crmClientHandlers, ...crmChatHandlers, ...crmOrderHandlers, ...crmNewClientHandlers, ...crmOrderFileHandlers, ...crmSupportHandlers, ...crmFinanceHandlers, ...crmAnalyticsHandlers, ...crmSettingsHandlers };
+const all = { ...crmDealHandlers, ...crmClientHandlers, ...crmChatHandlers, ...crmOrderHandlers, ...crmNewClientHandlers, ...crmOrderFileHandlers, ...crmSupportHandlers, ...crmFinanceHandlers, ...crmAnalyticsHandlers, ...crmSettingsHandlers, ...crmMarketingHandlers };
 
 /** Обработчики CRM-маршрутов контракта (packages/contracts/src/v1/crm.ts). */
 export const crmHandlers: Pick<Handlers, keyof typeof all> = all;

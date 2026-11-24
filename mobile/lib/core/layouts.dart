@@ -7,6 +7,11 @@ import '../screens/chats_screen.dart';
 import '../screens/clients_screen.dart';
 import '../screens/deals_screen.dart';
 import '../screens/money/expenses_screen.dart';
+import '../screens/marketing/design_ai_screen.dart';
+import '../screens/marketing/gifts_screen.dart';
+import '../screens/marketing/links_screen.dart';
+import '../screens/marketing/promos_screen.dart';
+import '../screens/marketing/reviews_screen.dart';
 import '../screens/money/analytics_screen.dart';
 import '../screens/money/finance_screen.dart';
 import '../screens/money/lead_stats_screen.dart';
@@ -51,6 +56,12 @@ final appSections = <String, AppSection>{
   // Отчёты руководителя — API v1 crmSalesRegister / crmAnalytics / crmLeadStats.
   'register': AppSection('register', 'Реестр продаж', LucideIcons.scrollText, (s) => s.can('analytics.view'), () => const SalesRegisterScreen(), group: 'Деньги'),
   'analytics': AppSection('analytics', 'Аналитика продаж', LucideIcons.chartColumn, (s) => s.can('analytics.view'), () => const AnalyticsScreen(), group: 'Деньги'),
+  // Маркетинг — API v1 crmPromos / crmGifts / crmReviews.
+  'links': AppSection('links', 'Ссылки и каналы', LucideIcons.link2, (s) => s.can('analytics.view') || s.can('promo.manage'), () => const LinksScreen(), group: 'Маркетинг'),
+  'promos': AppSection('promos', 'Промокоды', LucideIcons.tag, (s) => s.can('promo.manage'), () => const PromosScreen(), group: 'Маркетинг'),
+  'gifts': AppSection('gifts', 'Сертификаты', LucideIcons.gift, (s) => s.can('gifts.manage'), () => const GiftsScreen(), group: 'Маркетинг'),
+  'designAi': AppSection('designAi', 'ИИ-дизайнер', LucideIcons.sparkles, (s) => s.can('analytics.view'), () => const DesignAiScreen(), group: 'Маркетинг'),
+  'reviews': AppSection('reviews', 'Отзывы', LucideIcons.star, (s) => s.can('reviews.manage'), () => const ReviewsScreen(), group: 'Маркетинг'),
   // Настройки отдела продаж и режим AI-продажника — API v1 crmSettingsSales; остальные настройки — страницами CRM.
   'salesSettings': AppSection('salesSettings', 'Отдел продаж', LucideIcons.slidersHorizontal, (s) => s.can('settings.manage'), () => const SalesSettingsScreen(), group: 'Настройки'),
   'leads': AppSection('leads', 'Статистика лидов', LucideIcons.activity, (s) => s.can('analytics.view'), () => const LeadStatsScreen(), group: 'Деньги'),
@@ -130,11 +141,6 @@ const crmWebSections = <CrmWebSection>[
   CrmWebSection('Продажи', '/admin/catalog', 'Каталог WhatsApp', LucideIcons.shoppingBag, ['catalog.manage']),
   CrmWebSection('Выпуск', '/admin/board', 'Канбан заказов', LucideIcons.kanban, ['orders.view']),
   CrmWebSection('Выпуск', '/admin/books', 'Книги', LucideIcons.bookOpen, ['clients.view']),
-  CrmWebSection('Маркетинг', '/admin/marketing', 'Ссылки и каналы', LucideIcons.link2, ['analytics.view', 'promo.manage']),
-  CrmWebSection('Маркетинг', '/admin/promo', 'Промокоды', LucideIcons.tag, ['promo.manage']),
-  CrmWebSection('Маркетинг', '/admin/gifts', 'Сертификаты', LucideIcons.gift, ['gifts.manage']),
-  CrmWebSection('Маркетинг', '/admin/reviews', 'Отзывы', LucideIcons.star, ['reviews.manage']),
-  CrmWebSection('Маркетинг', '/admin/ai-designer', 'ИИ-дизайнер', LucideIcons.sparkles, ['analytics.view']),
   CrmWebSection('Настройки', '/admin/automations', 'Автоматизации', LucideIcons.workflow, ['settings.manage']),
   CrmWebSection('Настройки', '/admin/pricing', 'Цены и тарифы', LucideIcons.coins, ['settings.manage']),
   CrmWebSection('Настройки', '/admin/site', 'Сайт', LucideIcons.globe, ['settings.manage']),

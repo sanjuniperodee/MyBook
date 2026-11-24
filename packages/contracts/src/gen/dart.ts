@@ -15,6 +15,10 @@ interface DartType {
 const pascal = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const refName = (ref: string) => ref.split("/").pop()!;
 
+
+/** Слова, которыми нельзя назвать поле класса Dart (поле «new» дало бы несобираемый клиент). */
+const DART_RESERVED = new Set(["assert", "break", "case", "catch", "class", "const", "continue", "default", "do", "else", "enum", "extends", "false", "final", "finally", "for", "if", "in", "is", "new", "null", "rethrow", "return", "super", "switch", "this", "throw", "true", "try", "var", "void", "while", "with"]);
+
 class DartWriter {
   private classes = new Map<string, string>();
 
@@ -75,6 +79,7 @@ class DartWriter {
     this.classes.set(name, "");
     const required = new Set(s.required ?? []);
     const fields = Object.entries(s.properties ?? {}).map(([key, p]) => {
+      if (DART_RESERVED.has(key)) throw new Error(`Dart: поле ${name}.${key} — зарезервированное слово Dart, переименуйте его в контракте`);
       const t = this.typeOf(p, name + pascal(key));
       const valueNullable = t.type.endsWith("?");
       const requiredKey = required.has(key);

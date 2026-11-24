@@ -15,7 +15,10 @@ vi.mock("@/app/admin/finance/actions", () => ({
   undoFinanceResolutionAction: vi.fn(async () => ({ ok: "Решение отменено" })),
 }));
 const reviewOrderPaymentAction = vi.fn(async (id: string) => (void id, { ok: "Оплата сверена" }));
-vi.mock("@/app/admin/actions", async (orig) => ({ ...(await orig<object>()), reviewOrderPaymentAction: (id: string) => reviewOrderPaymentAction(id) }));
+const createPromoAction = vi.fn(async (state: unknown, form: FormData) => (void state, void form, { error: "Код: 3–40 символов, латиница, цифры, - и _" }));
+vi.mock("@/app/admin/actions", async (orig) => ({ ...(await orig<object>()), reviewOrderPaymentAction: (id: string) => reviewOrderPaymentAction(id), createPromoAction: (s: unknown, f: FormData) => createPromoAction(s, f) }));
+const moderateReviewAction = vi.fn(async (id: string, action: string) => void (id + action));
+vi.mock("@/app/admin/reviews/actions", () => ({ moderateReviewAction: (id: string, a: string) => moderateReviewAction(id, a) }));
 const addExpenseAction = vi.fn(async (input: Record<string, unknown>) => (void input, { ok: true as const }));
 vi.mock("@/app/admin/expenses/actions", () => ({
   addExpenseAction: (i: Record<string, unknown>) => addExpenseAction(i),
@@ -103,5 +106,22 @@ describe("API v1: настройки отдела продаж", () => {
     expect(res.status).toBe(400);
     expect((await res.json()).error).toBe("Добавьте хотя бы один вопрос");
     expect(saveBotAction.mock.calls[0][0]).toMatchObject({ mode: "always", channels: ["whatsapp"] });
+  });
+});
+
+describe("API v1: маркетинг", () => {
+  it("промокод — в форму сайта (без лимита и срока — без полей), отказ — текстом", async () => {
+    const res = await call("POST", "/api/v1/crm/promos", { code: "BLOG 15", kind: "percent", value: 15 });
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/Код: 3–40 символов/);
+    expect(Object.fromEntries(createPromoAction.mock.calls[0][1])).toEqual({ code: "BLOG 15", kind: "percent", value: "15" });
+  });
+
+  it("модерация отзыва — действие из адреса; неизвестное — 400 до действия", async () => {
+    expect(await (await call("POST", `/api/v1/crm/reviews/${ID}/feature`)).json()).toEqual({ ok: true, message: "Закреплён на главной" });
+    expect(moderateReviewAction).toHaveBeenCalledWith(ID, "feature");
+    moderateReviewAction.mockClear();
+    expect((await call("POST", `/api/v1/crm/reviews/${ID}/delete`)).status).toBe(400);
+    expect(moderateReviewAction).not.toHaveBeenCalled();
   });
 });
