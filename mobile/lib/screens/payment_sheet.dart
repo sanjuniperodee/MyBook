@@ -200,8 +200,8 @@ class _PaymentFormState extends State<_PaymentForm> {
                   child: OutlinedButton.icon(
                     onPressed: () => _pick(key),
                     icon: Icon(icon, size: 18),
-                    label: Text(label),
-                    style: OutlinedButton.styleFrom(foregroundColor: c.text, side: BorderSide(color: c.border), minimumSize: const Size(0, 46), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Rd.sm))),
+                    label: Text(label, maxLines: 1, softWrap: false, overflow: TextOverflow.fade),
+                    style: OutlinedButton.styleFrom(foregroundColor: c.text, side: BorderSide(color: c.border), minimumSize: const Size(0, 46), padding: const EdgeInsets.symmetric(horizontal: 8), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Rd.sm))),
                   ),
                 ),
               ],

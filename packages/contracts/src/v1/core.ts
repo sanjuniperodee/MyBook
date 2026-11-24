@@ -22,7 +22,7 @@ export interface RouteDef {
   params?: z.ZodObject;
   query?: z.ZodObject;
   body?: z.ZodType;
-  /** Загрузка файлов: multipart/form-data с полем field (несколько файлов). Вместе с body не бывает. */
+  /** Загрузка файлов: multipart/form-data с полем field (несколько файлов). Вместе с body не бывает; поля к файлам (сумма, дата) — в query. */
   files?: { field: string };
   response: z.ZodType;
 }

@@ -133,7 +133,7 @@ export function renderDart(spec: { paths: Record<string, Record<string, Operatio
           `  /// ${op.summary ?? op.operationId}`,
           `  Future<${out.type}> ${op.operationId}(${args.length ? `{${args.join(", ")}}` : ""}) async {`,
           filesField
-            ? `    final json = await _sendFiles('${method.toUpperCase()}', '${url}', '${filesField}', files);`
+            ? `    final json = await _sendFiles('${method.toUpperCase()}', '${url}', '${filesField}', files${queryArg});`
             : `    final json = await _send('${method.toUpperCase()}', '${url}'${body ? ", body: body.toJson()" : ""}${queryArg});`,
           `    return ${out.from("json")};`,
           "  }",
@@ -178,8 +178,9 @@ class MybookApi {
   }
 
   /// Загрузка файлов (multipart/form-data): каждый файл — в поле [field]; filename у MultipartFile обязателен.
-  Future<dynamic> _sendFiles(String method, String path, String field, List<http.MultipartFile> files) async {
-    final request = http.MultipartRequest(method, Uri.parse(baseUrl + path));
+  /// Параметры запроса (query) — рядом с файлами: сумма и дата платежа к чеку и т. п.
+  Future<dynamic> _sendFiles(String method, String path, String field, List<http.MultipartFile> files, {Map<String, String>? query}) async {
+    final request = http.MultipartRequest(method, Uri.parse(baseUrl + path).replace(queryParameters: query == null || query.isEmpty ? null : query));
     request.headers['accept'] = 'application/json';
     if (token != null) request.headers['authorization'] = 'Bearer $token';
     for (final f in files) {

@@ -35,8 +35,9 @@ class MybookApi {
   }
 
   /// Загрузка файлов (multipart/form-data): каждый файл — в поле [field]; filename у MultipartFile обязателен.
-  Future<dynamic> _sendFiles(String method, String path, String field, List<http.MultipartFile> files) async {
-    final request = http.MultipartRequest(method, Uri.parse(baseUrl + path));
+  /// Параметры запроса (query) — рядом с файлами: сумма и дата платежа к чеку и т. п.
+  Future<dynamic> _sendFiles(String method, String path, String field, List<http.MultipartFile> files, {Map<String, String>? query}) async {
+    final request = http.MultipartRequest(method, Uri.parse(baseUrl + path).replace(queryParameters: query == null || query.isEmpty ? null : query));
     request.headers['accept'] = 'application/json';
     if (token != null) request.headers['authorization'] = 'Bearer $token';
     for (final f in files) {
@@ -232,6 +233,60 @@ class MybookApi {
   /// Запустить или остановить бота в диалоге
   Future<Done> crmChatBot({required String chatId, required ChatBotBody body}) async {
     final json = await _send('POST', '/api/v1/crm/chats/${Uri.encodeComponent(chatId)}/bot', body: body.toJson());
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Деньги и доставка заказа: платежи, к оплате, тариф и цена, статус и трек
+  Future<OrderMoney> crmOrderMoney({required String orderId}) async {
+    final json = await _send('GET', '/api/v1/crm/orders/${Uri.encodeComponent(orderId)}/money');
+    return OrderMoney.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Принять оплату с чеком (multipart, поле file; сумма и дата — в query)
+  Future<Done> crmOrderPay({required String orderId, required String amount, String? paidAt, String? note, String? payForm, required String requestKey, required List<http.MultipartFile> files}) async {
+    final json = await _sendFiles('POST', '/api/v1/crm/orders/${Uri.encodeComponent(orderId)}/payments', 'file', files, query: {'amount': '${amount}', if (paidAt != null) 'paidAt': '${paidAt}', if (note != null) 'note': '${note}', if (payForm != null) 'payForm': '${payForm}', 'requestKey': '${requestKey}'});
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Вернуть деньги (чек возврата — по желанию, поле file); причина — note
+  Future<Done> crmOrderRefund({required String orderId, required String amount, String? note, required String requestKey, required List<http.MultipartFile> files}) async {
+    final json = await _sendFiles('POST', '/api/v1/crm/orders/${Uri.encodeComponent(orderId)}/refunds', 'file', files, query: {'amount': '${amount}', if (note != null) 'note': '${note}', 'requestKey': '${requestKey}'});
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Отменить ошибочный платёж (руководитель, с причиной)
+  Future<Done> crmOrderPaymentVoid({required String paymentId, required ReasonBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/orders/payments/${Uri.encodeComponent(paymentId)}/void', body: body.toJson());
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Отметить оплату сверенной с выпиской (руководитель)
+  Future<Done> crmOrderPaymentReview({required String paymentId}) async {
+    final json = await _send('POST', '/api/v1/crm/orders/payments/${Uri.encodeComponent(paymentId)}/review');
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Неоплаченный заказ — в печать с постоплатой (о чём договорились)
+  Future<Done> crmOrderPostpay({required String orderId, required ReasonBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/orders/${Uri.encodeComponent(orderId)}/postpay', body: body.toJson());
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Тариф и договорённая цена (оплаченный — с правом и причиной)
+  Future<Done> crmOrderTerms({required String orderId, required OrderTermsBody body}) async {
+    final json = await _send('PUT', '/api/v1/crm/orders/${Uri.encodeComponent(orderId)}/terms', body: body.toJson());
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Попросить руководителя изменить цену оплаченного заказа
+  Future<Done> crmOrderRepriceRequest({required String orderId, required RepriceRequestBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/orders/${Uri.encodeComponent(orderId)}/reprice-request', body: body.toJson());
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Статус и трек-номер заказа (клиент получит сообщение, как с сайта)
+  Future<Done> crmOrderDelivery({required String orderId, required OrderDeliveryBody body}) async {
+    final json = await _send('PATCH', '/api/v1/crm/orders/${Uri.encodeComponent(orderId)}/delivery', body: body.toJson());
     return Done.fromJson(json as Map<String, dynamic>);
   }
 
@@ -1811,4 +1866,103 @@ class ChatBotBody {
   factory ChatBotBody.fromJson(Map<String, dynamic> json) => ChatBotBody(run: json['run'] as bool);
 
   Map<String, dynamic> toJson() => {'run': run};
+}
+
+class OrderPayment {
+  final String id;
+  final String kind;
+  final int amount;
+  final String method;
+  final String at;
+  final String? note;
+  final bool receipt;
+  final String? payForm;
+  final String? by;
+  final String? reviewed;
+  final String? voidReason;
+  final bool voided;
+
+  const OrderPayment({required this.id, required this.kind, required this.amount, required this.method, required this.at, this.note, required this.receipt, this.payForm, this.by, this.reviewed, this.voidReason, required this.voided});
+
+  factory OrderPayment.fromJson(Map<String, dynamic> json) => OrderPayment(id: json['id'] as String, kind: json['kind'] as String, amount: (json['amount'] as num).toInt(), method: json['method'] as String, at: json['at'] as String, note: json['note'] == null ? null : json['note'] as String, receipt: json['receipt'] as bool, payForm: json['payForm'] == null ? null : json['payForm'] as String, by: json['by'] == null ? null : json['by'] as String, reviewed: json['reviewed'] == null ? null : json['reviewed'] as String, voidReason: json['voidReason'] == null ? null : json['voidReason'] as String, voided: json['voided'] as bool);
+
+  Map<String, dynamic> toJson() => {'id': id, 'kind': kind, 'amount': amount, 'method': method, 'at': at, 'note': note == null ? null : note!, 'receipt': receipt, 'payForm': payForm == null ? null : payForm!, 'by': by == null ? null : by!, 'reviewed': reviewed == null ? null : reviewed!, 'voidReason': voidReason == null ? null : voidReason!, 'voided': voided};
+}
+
+class OrderMoney {
+  final String id;
+  final int number;
+  final String status;
+  final String statusLabel;
+  final List<Choice> statuses;
+  final bool printed;
+  final String? trackingNumber;
+  final int amount;
+  final int received;
+  final int refundable;
+  final bool settled;
+  final bool postpay;
+  final bool cancelled;
+  final List<OrderPayment> payments;
+  final List<String> payForms;
+  final String plan;
+  final List<PlanChoice> plans;
+  final int? agreed;
+  final double? maxDiscountPercent;
+  final bool canEdit;
+  final bool canVoid;
+  final bool canReview;
+  final bool canTerms;
+  final bool canRequestReprice;
+
+  const OrderMoney({required this.id, required this.number, required this.status, required this.statusLabel, required this.statuses, required this.printed, this.trackingNumber, required this.amount, required this.received, required this.refundable, required this.settled, required this.postpay, required this.cancelled, required this.payments, required this.payForms, required this.plan, required this.plans, this.agreed, this.maxDiscountPercent, required this.canEdit, required this.canVoid, required this.canReview, required this.canTerms, required this.canRequestReprice});
+
+  factory OrderMoney.fromJson(Map<String, dynamic> json) => OrderMoney(id: json['id'] as String, number: (json['number'] as num).toInt(), status: json['status'] as String, statusLabel: json['statusLabel'] as String, statuses: (json['statuses'] as List).map((e) => Choice.fromJson(e as Map<String, dynamic>)).toList(), printed: json['printed'] as bool, trackingNumber: json['trackingNumber'] == null ? null : json['trackingNumber'] as String, amount: (json['amount'] as num).toInt(), received: (json['received'] as num).toInt(), refundable: (json['refundable'] as num).toInt(), settled: json['settled'] as bool, postpay: json['postpay'] as bool, cancelled: json['cancelled'] as bool, payments: (json['payments'] as List).map((e) => OrderPayment.fromJson(e as Map<String, dynamic>)).toList(), payForms: (json['payForms'] as List).map((e) => e as String).toList(), plan: json['plan'] as String, plans: (json['plans'] as List).map((e) => PlanChoice.fromJson(e as Map<String, dynamic>)).toList(), agreed: json['agreed'] == null ? null : (json['agreed'] as num).toInt(), maxDiscountPercent: json['maxDiscountPercent'] == null ? null : (json['maxDiscountPercent'] as num).toDouble(), canEdit: json['canEdit'] as bool, canVoid: json['canVoid'] as bool, canReview: json['canReview'] as bool, canTerms: json['canTerms'] as bool, canRequestReprice: json['canRequestReprice'] as bool);
+
+  Map<String, dynamic> toJson() => {'id': id, 'number': number, 'status': status, 'statusLabel': statusLabel, 'statuses': statuses.map((e) => e.toJson()).toList(), 'printed': printed, 'trackingNumber': trackingNumber == null ? null : trackingNumber!, 'amount': amount, 'received': received, 'refundable': refundable, 'settled': settled, 'postpay': postpay, 'cancelled': cancelled, 'payments': payments.map((e) => e.toJson()).toList(), 'payForms': payForms.map((e) => e).toList(), 'plan': plan, 'plans': plans.map((e) => e.toJson()).toList(), 'agreed': agreed == null ? null : agreed!, 'maxDiscountPercent': maxDiscountPercent == null ? null : maxDiscountPercent!, 'canEdit': canEdit, 'canVoid': canVoid, 'canReview': canReview, 'canTerms': canTerms, 'canRequestReprice': canRequestReprice};
+}
+
+class ReasonBody {
+  final String reason;
+
+  const ReasonBody({required this.reason});
+
+  factory ReasonBody.fromJson(Map<String, dynamic> json) => ReasonBody(reason: json['reason'] as String);
+
+  Map<String, dynamic> toJson() => {'reason': reason};
+}
+
+class OrderTermsBody {
+  final String plan;
+  final int? agreedTotal;
+  final String? reason;
+
+  const OrderTermsBody({required this.plan, this.agreedTotal, this.reason});
+
+  factory OrderTermsBody.fromJson(Map<String, dynamic> json) => OrderTermsBody(plan: json['plan'] as String, agreedTotal: json['agreedTotal'] == null ? null : (json['agreedTotal'] as num).toInt(), reason: json['reason'] == null ? null : json['reason'] as String);
+
+  Map<String, dynamic> toJson() => {'plan': plan, 'agreedTotal': agreedTotal == null ? null : agreedTotal!, if (reason != null) 'reason': reason!};
+}
+
+class RepriceRequestBody {
+  final int price;
+  final String reason;
+
+  const RepriceRequestBody({required this.price, required this.reason});
+
+  factory RepriceRequestBody.fromJson(Map<String, dynamic> json) => RepriceRequestBody(price: (json['price'] as num).toInt(), reason: json['reason'] as String);
+
+  Map<String, dynamic> toJson() => {'price': price, 'reason': reason};
+}
+
+class OrderDeliveryBody {
+  final String status;
+  final String? trackingNumber;
+  final String? note;
+
+  const OrderDeliveryBody({required this.status, this.trackingNumber, this.note});
+
+  factory OrderDeliveryBody.fromJson(Map<String, dynamic> json) => OrderDeliveryBody(status: json['status'] as String, trackingNumber: json['trackingNumber'] == null ? null : json['trackingNumber'] as String, note: json['note'] == null ? null : json['note'] as String);
+
+  Map<String, dynamic> toJson() => {'status': status, if (trackingNumber != null) 'trackingNumber': trackingNumber!, if (note != null) 'note': note!};
 }

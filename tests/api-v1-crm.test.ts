@@ -17,6 +17,16 @@ vi.mock("@/modules/workspace", async (orig) => ({ ...(await orig<object>()), lis
 const updateDealAction = vi.fn<(state: unknown, form: FormData) => Promise<{ ok?: string; error?: string }>>(async () => ({ ok: "Сохранено" }));
 vi.mock("@/app/admin/deals/actions", () => ({ updateDealAction: (s: unknown, f: FormData) => updateDealAction(s, f), setDealAgreedPlanAction: vi.fn(), setDealAgreedGiftsAction: vi.fn() }));
 
+const payRoute = vi.fn(async (req: Request, ctx: { params: Promise<{ id: string }> }) => {
+  void req;
+  void ctx;
+  return Response.json({ payment: { id: "p1", amount: 30000 }, settled: true, overpaid: 0 });
+});
+vi.mock("@/app/api/admin/orders/[id]/payments/route", () => ({ POST: (req: Request, ctx: { params: Promise<{ id: string }> }) => payRoute(req, ctx) }));
+vi.mock("@/app/api/admin/orders/[id]/refunds/route", () => ({ POST: vi.fn() }));
+const updateOrderAction = vi.fn<(state: unknown, form: FormData) => Promise<{ ok?: string; error?: string }>>(async () => ({ ok: "Сохранено" }));
+vi.mock("@/app/admin/actions", async (orig) => ({ ...(await orig<object>()), updateOrderAction: (s: unknown, f: FormData) => updateOrderAction(s, f) }));
+
 const { v1 } = await import("@mybook/contracts");
 const { createApp } = await import("../apps/api/src/app");
 const { createRouter } = await import("../apps/api/src/http/router");
@@ -97,5 +107,43 @@ describe("CRM v1: правка сделки", () => {
     updateDealAction.mockClear();
     expect((await call(app, "PATCH", `/api/v1/crm/deals/${deal.id}`, { title: "Книга", hack: 1 })).status).toBe(400);
     expect(updateDealAction).not.toHaveBeenCalled();
+  });
+});
+
+describe("CRM v1: деньги и доставка заказа", () => {
+  const app = createApp(handlers, auth(true));
+  const ORDER = "8a7b6c5d-4e3f-4a1b-8c9d-0e1f2a3b4c5d";
+
+  it("оплата: сумма и дата из query и чек — в тот же маршрут денег сайта, успех — текстом", async () => {
+    const form = new FormData();
+    form.set("file", new File([new Uint8Array([0x25, 0x50, 0x44, 0x46])], "check.pdf", { type: "application/pdf" }));
+    const res = await app(new Request(`http://127.0.0.1:3044/api/v1/crm/orders/${ORDER}/payments?amount=30000&paidAt=2026-11-24&payForm=Kaspi%20Gold&requestKey=0b6f3c1e-2a4d-4e5f-9b6c-1d2e3f4a5b6c`, { method: "POST", body: form }));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, message: "Оплата записана, заказ оплачен" });
+    const [req, ctx] = payRoute.mock.calls[0];
+    expect(await ctx.params).toEqual({ id: ORDER });
+    const sent = await req.formData();
+    expect(Object.fromEntries([...sent].map(([k, v]) => [k, typeof v === "string" ? v : (v as File).name]))).toEqual({ amount: "30000", paidAt: "2026-11-24", payForm: "Kaspi Gold", requestKey: "0b6f3c1e-2a4d-4e5f-9b6c-1d2e3f4a5b6c", file: "check.pdf" });
+  });
+
+  it("отказ маршрута денег (заказ отменён) — его ответ как есть", async () => {
+    payRoute.mockResolvedValueOnce(Response.json({ error: "Заказ отменён" }, { status: 409 }));
+    const res = await app(new Request(`http://127.0.0.1:3044/api/v1/crm/orders/${ORDER}/payments?amount=1000&requestKey=0b6f3c1e-2a4d-4e5f-9b6c-1d2e3f4a5b6c`, { method: "POST", body: new FormData() }));
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: "Заказ отменён" });
+  });
+
+  it("сумма не числом — 400 до маршрута денег", async () => {
+    payRoute.mockClear();
+    const res = await app(new Request(`http://127.0.0.1:3044/api/v1/crm/orders/${ORDER}/payments?amount=1e5&requestKey=0b6f3c1e-2a4d-4e5f-9b6c-1d2e3f4a5b6c`, { method: "POST", body: new FormData() }));
+    expect(res.status).toBe(400);
+    expect(payRoute).not.toHaveBeenCalled();
+  });
+
+  it("статус и трек — форма действия карточки заказа", async () => {
+    updateOrderAction.mockClear();
+    const res = await call(app, "PATCH", `/api/v1/crm/orders/${ORDER}/delivery`, { status: "shipped", trackingNumber: "KZ123456789" });
+    expect(await res.json()).toEqual({ ok: true, message: "Сохранено" });
+    expect(Object.fromEntries(updateOrderAction.mock.calls[0][1])).toEqual({ orderId: ORDER, status: "shipped", trackingNumber: "KZ123456789" });
   });
 });
