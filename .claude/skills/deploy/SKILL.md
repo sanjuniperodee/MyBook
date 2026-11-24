@@ -38,7 +38,7 @@ prod() { ssh -i ~/.ssh/bilimland-prod/ssh-key-1778196525864 -o BatchMode=yes -o 
 
 ## С 19.10.2026 выкатка идёт через GitHub Actions
 
-Пуш в `master` сам запускает `.github/workflows/deploy.yml`: на GitHub проходят типы, линтер, тесты и сборка, на сервер уезжает готовый архив, и `deploy/deploy.sh --artifact` выкатывает его (smoke-тест, переключение, откат). Сервер больше не собирает. Ход и итог: `gh run list -R sanjuniperodee/MyBook -L 3`, `gh run watch <id> -R sanjuniperodee/MyBook`; лог на сервере — `~/mybook-deploy-<sha7>.log`. Повторить выкатку: `gh workflow run deploy.yml -R sanjuniperodee/MyBook`. Так же устроены DoseWear (`main`) и my-test (`sanjuniperodee/mytest.kz`, `main`). Ручной порядок ниже — запасной, если GitHub недоступен.
+Пуш в `master` сам запускает `.github/workflows/deploy.yml`: на GitHub проходят типы, линтер, тесты и сборка, релиз уезжает на сервер rsync-ом против текущего (по сети — только изменённое, ~1 МБ вместо архива 160 МБ), и `deploy/deploy.sh --artifact` выкатывает его. Коммит только с документами (`docs/`, `*.md`, `.claude/`) проверки и выкатку не запускает (smoke-тест, переключение, откат). Сервер больше не собирает. Ход и итог: `gh run list -R sanjuniperodee/MyBook -L 3`, `gh run watch <id> -R sanjuniperodee/MyBook`; лог на сервере — `~/mybook-deploy-<sha7>.log`. Повторить выкатку: `gh workflow run deploy.yml -R sanjuniperodee/MyBook`. Так же устроены DoseWear (`main`) и my-test (`sanjuniperodee/mytest.kz`, `main`). Ручной порядок ниже — запасной, если GitHub недоступен.
 
 ## Порядок
 
