@@ -38,7 +38,9 @@ class ShelfStore extends ChangeNotifier {
       error = null;
       LocalCache.write('shelf', shelf!.toJson());
     } on ApiException catch (e) {
-      error = e.status == 0 && shelf != null ? 'Нет связи — показано сохранённое на телефоне' : e.message;
+      error = e.status == 0 && shelf != null
+          ? 'Нет связи — показано сохранённое на телефоне'
+          : e.message;
     } finally {
       loading = false;
       notifyListeners();
@@ -66,8 +68,13 @@ class BookStore extends ChangeNotifier {
   bool _disposed = false;
 
   String get _cacheKey => 'book-$bookId';
+  Future<void>? _loading;
 
-  Future<void> load() async {
+  /// Загрузка (повторный вызов во время загрузки ждёт ту же).
+  Future<void> load() =>
+      _loading ??= _load().whenComplete(() => _loading = null);
+
+  Future<void> _load() async {
     final cached = await LocalCache.read(_cacheKey);
     if (cached != null && book == null) {
       book = BookModel.fromJson(cached['book'] as Map<String, dynamic>);
@@ -86,7 +93,8 @@ class BookStore extends ChangeNotifier {
       // Без сети с книгой из кэша работаем молча; ответы сохранятся, когда сеть появится.
       if (!(e.status == 0 && book != null)) error = e.message;
     } on SocketException {
-      if (book == null) error = 'Нет связи. Книга откроется, когда телефон будет в сети.';
+      if (book == null)
+        error = 'Нет связи. Книга откроется, когда телефон будет в сети.';
     }
     if (!_disposed) notifyListeners();
     if (_pending.isNotEmpty) _flush();
@@ -100,7 +108,11 @@ class BookStore extends ChangeNotifier {
   }
 
   void _persist() {
-    if (book != null) LocalCache.write(_cacheKey, {'book': book!.toJson(), 'pending': _pending});
+    if (book != null)
+      LocalCache.write(_cacheKey, {
+        'book': book!.toJson(),
+        'pending': _pending,
+      });
   }
 
   /// Автор печатает: запоминаем текст и откладываем сохранение.

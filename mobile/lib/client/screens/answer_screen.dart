@@ -130,148 +130,143 @@ class _AnswerScreenState extends State<AnswerScreen> {
               child: GestureDetector(
                 behavior: HitTestBehavior.translucent,
                 onTap: editable ? () => _focus.requestFocus() : null,
-                // Лист редактора: сюда «перетекает» первая страница открытой книги (Hero leaf-<id>).
-                child: Hero(
-                  tag: leafHeroTag(_book.id),
-                  child: ClipRect(
-                    child: PageTurnSwitcher(
-                      forward: _forward,
-                      child: KeyedSubtree(
-                        key: ValueKey(_id),
-                        child: Material(
-                          color: c.bg,
-                          child: ListView(
-                            keyboardDismissBehavior:
-                                ScrollViewKeyboardDismissBehavior.onDrag,
-                            padding: const EdgeInsets.fromLTRB(20, 22, 20, 32),
-                            children: [
-                              _Ticks(
-                                label:
-                                    'Вопрос ${pos + 1} из ${inChapter.length}',
-                                items: [
-                                  for (final q in inChapter)
-                                    q.answered ||
-                                        q.id == _id &&
-                                            _text.text.trim().isNotEmpty,
-                                ],
-                                current: pos,
-                              ),
-                              const SizedBox(height: 22),
+                // Лист редактора: сюда «вырастает» первая страница открытой книги (LeafRoute).
+                child: ClipRect(
+                  child: PageTurnSwitcher(
+                    forward: _forward,
+                    child: KeyedSubtree(
+                      key: ValueKey(_id),
+                      child: Material(
+                        color: c.bg,
+                        child: ListView(
+                          keyboardDismissBehavior:
+                              ScrollViewKeyboardDismissBehavior.onDrag,
+                          padding: const EdgeInsets.fromLTRB(20, 22, 20, 32),
+                          children: [
+                            _Ticks(
+                              label: 'Вопрос ${pos + 1} из ${inChapter.length}',
+                              items: [
+                                for (final q in inChapter)
+                                  q.answered ||
+                                      q.id == _id &&
+                                          _text.text.trim().isNotEmpty,
+                              ],
+                              current: pos,
+                            ),
+                            const SizedBox(height: 22),
+                            Text(
+                              _q.prompt.isNotEmpty ? _q.prompt : _q.title,
+                              style: AppText.serif(
+                                context,
+                                size: 30,
+                                weight: FontWeight.w500,
+                              ).copyWith(height: 1.18),
+                            ),
+                            if (_q.hint != null && _q.hint!.isNotEmpty) ...[
+                              const SizedBox(height: 12),
                               Text(
-                                _q.prompt.isNotEmpty ? _q.prompt : _q.title,
-                                style: AppText.serif(
-                                  context,
-                                  size: 30,
-                                  weight: FontWeight.w500,
-                                ).copyWith(height: 1.18),
-                              ),
-                              if (_q.hint != null && _q.hint!.isNotEmpty) ...[
-                                const SizedBox(height: 12),
-                                Text(
-                                  _q.hint!,
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    height: 1.55,
-                                    color: c.textMuted,
-                                  ),
-                                ),
-                              ],
-                              if (h != null && h.tips.isNotEmpty) ...[
-                                const SizedBox(height: 10),
-                                Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: InkWell(
-                                    onTap: () => setState(() => _tips = !_tips),
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 10,
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(
-                                            LucideIcons.lightbulb,
-                                            size: 17,
-                                            color: c.brand,
-                                          ),
-                                          const SizedBox(width: 7),
-                                          Text(
-                                            h.whereToStart,
-                                            style: TextStyle(
-                                              fontSize: 15.5,
-                                              color: c.brand,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 4),
-                                          AnimatedRotation(
-                                            turns: _tips ? 0.5 : 0,
-                                            duration: const Duration(
-                                              milliseconds: 180,
-                                            ),
-                                            child: Icon(
-                                              LucideIcons.chevronDown,
-                                              size: 15,
-                                              color: c.brand,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                if (_tips)
-                                  Column(
-                                    children: [
-                                      if (h.tipsNote != null)
-                                        Enter(
-                                          i: 0,
-                                          child: _Tip(
-                                            text: h.tipsNote!,
-                                            rose: true,
-                                          ),
-                                        ),
-                                      for (var i = 0; i < h.tips.length; i++)
-                                        Enter(
-                                          i: i + 1,
-                                          child: _Tip(text: h.tips[i]),
-                                        ),
-                                    ],
-                                  ),
-                              ],
-                              const SizedBox(height: 26),
-                              TextField(
-                                controller: _text,
-                                focusNode: _focus,
-                                readOnly: !editable,
-                                maxLines: null,
-                                minLines: 6,
-                                keyboardType: TextInputType.multiline,
-                                textCapitalization:
-                                    TextCapitalization.sentences,
-                                onChanged: (v) =>
-                                    setState(() => widget.store.edit(_q, v)),
-                                style: AppText.serif(
-                                  context,
-                                  size: 21,
-                                ).copyWith(height: 1.65),
-                                decoration: InputDecoration(
-                                  hintText: editable
-                                      ? 'Начните писать — сохраняется само'
-                                      : null,
-                                  hintStyle: AppText.serif(context, size: 21)
-                                      .copyWith(
-                                        color: c.textFaint,
-                                        fontStyle: FontStyle.italic,
-                                      ),
-                                  filled: false,
-                                  border: InputBorder.none,
-                                  enabledBorder: InputBorder.none,
-                                  focusedBorder: InputBorder.none,
-                                  contentPadding: EdgeInsets.zero,
+                                _q.hint!,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  height: 1.55,
+                                  color: c.textMuted,
                                 ),
                               ),
                             ],
-                          ),
+                            if (h != null && h.tips.isNotEmpty) ...[
+                              const SizedBox(height: 10),
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: InkWell(
+                                  onTap: () => setState(() => _tips = !_tips),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 10,
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          LucideIcons.lightbulb,
+                                          size: 17,
+                                          color: c.brand,
+                                        ),
+                                        const SizedBox(width: 7),
+                                        Text(
+                                          h.whereToStart,
+                                          style: TextStyle(
+                                            fontSize: 15.5,
+                                            color: c.brand,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        AnimatedRotation(
+                                          turns: _tips ? 0.5 : 0,
+                                          duration: const Duration(
+                                            milliseconds: 180,
+                                          ),
+                                          child: Icon(
+                                            LucideIcons.chevronDown,
+                                            size: 15,
+                                            color: c.brand,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              if (_tips)
+                                Column(
+                                  children: [
+                                    if (h.tipsNote != null)
+                                      Enter(
+                                        i: 0,
+                                        child: _Tip(
+                                          text: h.tipsNote!,
+                                          rose: true,
+                                        ),
+                                      ),
+                                    for (var i = 0; i < h.tips.length; i++)
+                                      Enter(
+                                        i: i + 1,
+                                        child: _Tip(text: h.tips[i]),
+                                      ),
+                                  ],
+                                ),
+                            ],
+                            const SizedBox(height: 26),
+                            TextField(
+                              controller: _text,
+                              focusNode: _focus,
+                              readOnly: !editable,
+                              maxLines: null,
+                              minLines: 6,
+                              keyboardType: TextInputType.multiline,
+                              textCapitalization: TextCapitalization.sentences,
+                              onChanged: (v) =>
+                                  setState(() => widget.store.edit(_q, v)),
+                              style: AppText.serif(
+                                context,
+                                size: 21,
+                              ).copyWith(height: 1.65),
+                              decoration: InputDecoration(
+                                hintText: editable
+                                    ? 'Начните писать — сохраняется само'
+                                    : null,
+                                hintStyle: AppText.serif(context, size: 21)
+                                    .copyWith(
+                                      color: c.textFaint,
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                filled: false,
+                                border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -279,6 +274,7 @@ class _AnswerScreenState extends State<AnswerScreen> {
                 ),
               ),
             ),
+
             // Нижняя панель редактора: «назад» и тёмная «Следующий».
             Container(
               padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),

@@ -6,7 +6,9 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../core/api.dart';
 import '../../core/auth.dart' show defaultServer;
 import '../../core/cache.dart';
+import '../../api/mybook_api.g.dart' as v1api;
 import 'backend.dart';
+import 'stores.dart';
 import 'models.dart';
 
 enum ClientStatus { loading, loggedOut, loggedIn }
@@ -26,6 +28,22 @@ class ClientSession extends ChangeNotifier {
   ClientUser? user;
   String? notice;
 
+  /// Книги, открытые в этом запуске: модель редактора с очередью несохранённых ответов и штаб — общие для экранов
+  /// книги, редактора и фото; главную книгу полки загружаем заранее — «Продолжить писать» открывается без ожидания.
+  final Map<String, BookStore> _books = {};
+  final Map<String, v1api.CabinetBook> hubs = {};
+
+  BookStore book(String id) =>
+      _books.putIfAbsent(id, () => BookStore(backend, id)..load());
+
+  /// Заранее: модель редактора и штаб книги (без ошибок — это только ускорение).
+  Future<void> preload(String id) async {
+    book(id);
+    try {
+      hubs[id] = await backend.hub(id);
+    } catch (_) {}
+  }
+
   Future<void> restore() async {
     final token = await _secure.read(key: 'client_token');
     if (token == null) {
@@ -37,10 +55,13 @@ class ClientSession extends ChangeNotifier {
     if (cached != null) {
       // Без сети — работаем с кэшем; «кто я» обновится, когда сеть появится.
       await _enter(cached);
-      backend.me().then((u) {
-        user = u;
-        notifyListeners();
-      }).catchError((Object _) {});
+      backend
+          .me()
+          .then((u) {
+            user = u;
+            notifyListeners();
+          })
+          .catchError((Object _) {});
       return;
     }
     try {
@@ -69,7 +90,10 @@ class ClientSession extends ChangeNotifier {
   Future<void> _enter(ClientUser u) async {
     user = u;
     await LocalCache.setUser('client-${u.id}');
-    await _secure.write(key: 'client_user', value: jsonEncode({'id': u.id, 'name': u.name, 'phone': u.phone}));
+    await _secure.write(
+      key: 'client_user',
+      value: jsonEncode({'id': u.id, 'name': u.name, 'phone': u.phone}),
+    );
     status = ClientStatus.loggedIn;
     notifyListeners();
   }
@@ -90,6 +114,11 @@ class ClientSession extends ChangeNotifier {
   }
 
   Future<void> _clear() async {
+    for (final b in _books.values) {
+      b.dispose();
+    }
+    _books.clear();
+    hubs.clear();
     api.token = null;
     user = null;
     await _secure.delete(key: 'client_token');

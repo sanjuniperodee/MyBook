@@ -40,8 +40,16 @@ flutter build apk --release --flavor client -t lib/main_client.dart        # к�
 `node scripts/build-api.mjs` (нужна папка `.next/standalone`) и `node .next/standalone/api.mjs` с `API_PORT`; `next dev` с тем
 же `API_PORT` (переписывает `/api/v1`); приложение — `--dart-define=SERVER_URL=http://localhost:<порт next>`.
 
-Отладка без сервера: `FixtureBackend` (только `kDebugMode` + `CLIENT_FIXTURES`), тестовый автор и книга — в нём же;
-на настоящем сервере — тестовый клиент из сидов проекта, не настоящие клиенты.
+Тестовый автор — из сида `scripts/visual/seed.ts` (база `mybook_visual`), не настоящие клиенты.
+
+## Экраны = сайт (решение владельца 24.11: только нативно, один в один с кабинетом)
+
+Модели экранов считает сервер теми же функциями, что страницы сайта: полка — `src/server/shelf.ts` (cabinetShelf),
+штаб книги — `src/server/book-hub.ts` (cabinetBook); обложка — картинкой той же, что в печати
+(`/api/books/<id>/cover-image`). Анимации сайта — `lib/client/ui/motion.dart`: Book3D и «книга открывается»
+(OpenBookLink) → страница вырастает в лист редактора (LeafRoute, старт после первого кадра), обложка-Hero, bar-grow,
+PageFade (CabinetRoute со свайпом «назад» от края), PageTurn (листание вопросов), .enter. Проверять анимации записью
+симулятора: `xcrun simctl io <udid> recordVideo` + кадры ffmpeg — в отладочной сборке первый кадр экрана медленный.
 
 ## Выпуски
 
