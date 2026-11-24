@@ -58,7 +58,11 @@ const worker = useWorker && {
   cwd: path.join(releasesDir, "current"),
   script: "worker.mjs",
   node_args: `--env-file=${path.join(root, ".env")}`,
-  env: { NODE_ENV: "production", TZ: "Asia/Almaty", ...allocatorEnv, DATABASE_POOL_SIZE: process.env.MYBOOK_WORKER_POOL || "4" },
+  // Пул БД воркера: каждый проход планировщика (src/server/scheduler.ts) держит своё соединение под advisory-блокировку
+  // весь проход, а шаги берут соединения из того же пула. При пуле 4 четыре прохода забирали все соединения, их шаги
+  // ждали свободного вечно — 24.11 фон (правила, автописьма, оплаты Kaspi) стоял с выкатки. 12 = 6 проходов + 6 для
+  // шагов; tests/worker-pool.test.ts следит, чтобы пул был больше числа проходов с блокировкой.
+  env: { NODE_ENV: "production", TZ: "Asia/Almaty", ...allocatorEnv, DATABASE_POOL_SIZE: process.env.MYBOOK_WORKER_POOL || "12" },
   // Обычно ~200–300 МБ. Вёрстка PDF (прогрев файлов после оплаты, сертификаты, предпросмотры) идёт отдельным дочерним
   // процессом pdf-worker.mjs (pdf/pool.ts) — в этот предел не входит и при нехватке памяти падает сам, не задевая фон.
   max_memory_restart: "1500M",
