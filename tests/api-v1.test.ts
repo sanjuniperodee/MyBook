@@ -6,11 +6,13 @@ import { CROP_ZOOM_MAX } from "@/lib/book/photo-crop";
 import { INVITE_TEXT_MAX } from "@/lib/content/letter-invite";
 import { MAX_LETTERS } from "@/modules/authoring/domain";
 import { CITY_MAX, NAME_MAX, RATING_MAX, TEXT_MAX } from "@/modules/feedback";
+import { NAMES_ON_COVER_MAX } from "@/lib/book/cover-names";
+import { MAX_EXTRA_PHOTOS } from "@/modules/authoring/domain/Book";
 
 // API v1 (ADR 0012): контракт первым (packages/contracts), сервер — apps/api.
 vi.mock("@/i18n/server", async () => ({ getMessages: async () => ({ api: (await import("@/i18n/messages/ru/api")).api }), getLocale: async () => "ru" }));
 
-const { v1, QuestionPatch, PhotoPatch, LettersOrder, LetterInviteText, ReviewBody, openapi } = await import("@mybook/contracts");
+const { v1, QuestionPatch, PhotoPatch, LettersOrder, LetterInviteText, ReviewBody, CoverPatch, openapi } = await import("@mybook/contracts");
 const { createApp } = await import("../apps/api/src/app");
 const { createRouter } = await import("../apps/api/src/http/router");
 const { handlers } = await import("../apps/api/src/routes");
@@ -46,7 +48,7 @@ describe("контракт", () => {
   it("Dart: необязательное поле с null — в наборе nulls (обнулить), обязательное с null — всегда в JSON", () => {
     const dart = generated()["mobile/lib/api/mybook_api.g.dart"];
     expect(dart).toContain("if (questionId != null || nulls.contains('questionId')) 'questionId'");
-    expect(dart).toContain("'anchor': anchor == null ? null : anchor!");
+    expect(dart).toContain("'anchor': anchor,");
   });
 
   it("у каждого маршрута есть обработчик, и только у них", () => {
@@ -80,6 +82,12 @@ describe("контракт", () => {
     expect(review({ text: "а".repeat(TEXT_MAX + 1) })).toBe(false);
     expect(review({ authorName: "а".repeat(NAME_MAX + 1) })).toBe(false);
     expect(review({ city: "а".repeat(CITY_MAX + 1) })).toBe(false);
+    const cover = (body: Record<string, unknown>) => CoverPatch.safeParse(body).success;
+    expect(cover({ namesOnCover: "а".repeat(NAMES_ON_COVER_MAX) })).toBe(true);
+    expect(cover({ namesOnCover: "а".repeat(NAMES_ON_COVER_MAX + 1) })).toBe(false);
+    expect(cover({ coverPhotoExtra: Array.from({ length: MAX_EXTRA_PHOTOS }, () => BOOK) })).toBe(true);
+    expect(cover({ coverPhotoExtra: Array.from({ length: MAX_EXTRA_PHOTOS + 1 }, () => BOOK) })).toBe(false);
+    expect(cover({ coverDesign: {} })).toBe(false);
   });
 
   it("OpenAPI: каждая операция с operationId, телом ответа-компонентом и схемой ошибки", () => {

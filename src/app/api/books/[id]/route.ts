@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { idParams, uuid } from "@/server/input";
+import { CoverFields } from "@mybook/contracts";
+import { idParams } from "@/server/input";
 import { api, apiViewer } from "@/server/api";
 import { isLocale } from "@/i18n/config";
 import { container } from "@/server/container";
-import { MAX_EXTRA_PHOTOS } from "@/modules/authoring/domain/Book";
-import { NAMES_ON_COVER_MAX } from "@/lib/book/cover-names";
 import { RECORDED_BY_MAX } from "@/lib/content/kinds";
 import { INVITE_TEXT_MAX } from "@/lib/content/letter-invite";
 import { END_TEXT_MAX } from "@/lib/book/end-page";
@@ -14,24 +13,14 @@ import { TOC_EPIGRAPH_MAX, TOC_LINES_MAX, TOC_MODES, TOC_TITLE_MAX } from "@/lib
 
 const patchSchema = z
   .object({
-    title: z.string().trim().max(80),
-    subtitle: z.string().trim().max(80),
+    // Поля обложки — из контракта API v1 (CoverFields): те же, что у PATCH /api/v1/books/{id}/cover.
+    ...CoverFields.shape,
     authorName: z.string().trim().max(60),
     authorGender: z.enum(["m", "f"]),
     // Автобиография: кто записал со слов рассказчика (у остальных книг домен поле пропускает).
     recordedBy: z.string().trim().max(RECORDED_BY_MAX),
     recipientName: z.string().trim().max(60),
     recipientGender: z.enum(["m", "f"]),
-    hideRecipientOnCover: z.boolean(),
-    namesOnCover: z.string().trim().max(NAMES_ON_COVER_MAX),
-    coverTemplate: z.string().max(40),
-    coverLines: z.boolean(),
-    coverPhotoId: uuid.nullable(),
-    coverPhotoExtra: z.array(uuid).max(MAX_EXTRA_PHOTOS),
-    backText: z.string().trim().max(400),
-    backLayout: z.string().max(20),
-    backPhotoId: uuid.nullable(),
-    backPhotoExtra: z.array(uuid).max(MAX_EXTRA_PHOTOS),
     // Кадры фото на обложке: форму и числа проверяет домен (parseFrames), здесь — только размер.
     photoFrames: z.record(z.string().max(12), z.object({ zoom: z.number(), x: z.number(), y: z.number() })).refine((o) => Object.keys(o).length <= 12),
     dedication: z.string().trim().max(600),

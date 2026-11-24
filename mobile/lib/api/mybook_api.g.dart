@@ -212,6 +212,18 @@ class MybookApi {
     return Review.fromJson(json as Map<String, dynamic>);
   }
 
+  /// Обложка книги и каталог шаблонов
+  Future<CoverView> coverGet({required String bookId}) async {
+    final json = await _send('GET', '/api/v1/books/${Uri.encodeComponent(bookId)}/cover');
+    return CoverView.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Правка обложки (только изменённые поля): шаблон, линии, тексты, фото
+  Future<CoverView> coverUpdate({required String bookId, required CoverPatch body}) async {
+    final json = await _send('PATCH', '/api/v1/books/${Uri.encodeComponent(bookId)}/cover', body: body.toJson());
+    return CoverView.fromJson(json as Map<String, dynamic>);
+  }
+
   /// Полка «Мои книги» — как на сайте: книги в работе первыми, прогресс, срок к празднику, заказ, обложка
   Future<CabinetShelf> cabinetShelf() async {
     final json = await _send('GET', '/api/v1/cabinet/shelf');
@@ -541,7 +553,7 @@ class User {
 
   factory User.fromJson(Map<String, dynamic> json) => User(id: json['id'] as String, name: json['name'] as String, email: json['email'] as String, phone: json['phone'] == null ? null : json['phone'] as String, locale: json['locale'] as String, isStaff: json['isStaff'] as bool);
 
-  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'email': email, 'phone': phone == null ? null : phone!, 'locale': locale, 'isStaff': isStaff};
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'email': email, 'phone': phone, 'locale': locale, 'isStaff': isStaff};
 }
 
 class Session {
@@ -564,7 +576,7 @@ class LoginResult {
 
   factory LoginResult.fromJson(Map<String, dynamic> json) => LoginResult(session: json['session'] == null ? null : Session.fromJson(json['session'] as Map<String, dynamic>), secondFactorTicket: json['secondFactorTicket'] == null ? null : json['secondFactorTicket'] as String);
 
-  Map<String, dynamic> toJson() => {'session': session == null ? null : session!.toJson(), 'secondFactorTicket': secondFactorTicket == null ? null : secondFactorTicket!};
+  Map<String, dynamic> toJson() => {'session': session == null ? null : session!.toJson(), 'secondFactorTicket': secondFactorTicket};
 }
 
 class LoginBody {
@@ -630,7 +642,7 @@ class BoardInfo {
 
   factory BoardInfo.fromJson(Map<String, dynamic> json) => BoardInfo(id: json['id'] as String, name: json['name'] as String, description: json['description'] == null ? null : json['description'] as String, kind: json['kind'] as String, color: json['color'] as String, visibility: json['visibility'] as String, isDefault: json['isDefault'] as bool, canManage: json['canManage'] as bool, openCards: json['openCards'] == null ? null : (json['openCards'] as num).toInt());
 
-  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'description': description == null ? null : description!, 'kind': kind, 'color': color, 'visibility': visibility, 'isDefault': isDefault, 'canManage': canManage, if (openCards != null) 'openCards': openCards!};
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'description': description, 'kind': kind, 'color': color, 'visibility': visibility, 'isDefault': isDefault, 'canManage': canManage, if (openCards != null) 'openCards': openCards!};
 }
 
 class BoardList {
@@ -653,7 +665,7 @@ class BoardColumn {
 
   factory BoardColumn.fromJson(Map<String, dynamic> json) => BoardColumn(id: json['id'] as String, name: json['name'] as String, done: json['done'] as bool, wipLimit: json['wipLimit'] == null ? null : (json['wipLimit'] as num).toInt());
 
-  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'done': done, 'wipLimit': wipLimit == null ? null : wipLimit!};
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'done': done, 'wipLimit': wipLimit};
 }
 
 class BoardLabel {
@@ -713,7 +725,7 @@ class CardSummary {
 
   factory CardSummary.fromJson(Map<String, dynamic> json) => CardSummary(id: json['id'] as String, title: json['title'] as String, kind: json['kind'] as String, boardId: json['boardId'] == null ? null : json['boardId'] as String, columnId: json['columnId'] == null ? null : json['columnId'] as String, position: json['position'] == null ? null : (json['position'] as num).toDouble(), priority: json['priority'] == null ? null : json['priority'] as String, startAt: json['startAt'] == null ? null : json['startAt'] as String, dueAt: json['dueAt'] == null ? null : json['dueAt'] as String, doneAt: json['doneAt'] == null ? null : json['doneAt'] as String, archived: json['archived'] as bool, coverColor: json['coverColor'] == null ? null : json['coverColor'] as String, coverImage: json['coverImage'] == null ? null : json['coverImage'] as String, assigneeIds: (json['assigneeIds'] as List).map((e) => e as String).toList(), watcherIds: (json['watcherIds'] as List).map((e) => e as String).toList(), labelIds: (json['labelIds'] as List).map((e) => e as String).toList(), checklistDone: (json['checklistDone'] as num).toInt(), checklistTotal: (json['checklistTotal'] as num).toInt(), comments: (json['comments'] as num).toInt(), attachments: (json['attachments'] as num).toInt(), hasDescription: json['hasDescription'] as bool, recurring: json['recurring'] as bool, links: (json['links'] as List).map((e) => CardLink.fromJson(e as Map<String, dynamic>)).toList(), editable: json['editable'] as bool);
 
-  Map<String, dynamic> toJson() => {'id': id, 'title': title, 'kind': kind, 'boardId': boardId == null ? null : boardId!, 'columnId': columnId == null ? null : columnId!, 'position': position == null ? null : position!, 'priority': priority == null ? null : priority!, 'startAt': startAt == null ? null : startAt!, 'dueAt': dueAt == null ? null : dueAt!, 'doneAt': doneAt == null ? null : doneAt!, 'archived': archived, 'coverColor': coverColor == null ? null : coverColor!, 'coverImage': coverImage == null ? null : coverImage!, 'assigneeIds': assigneeIds.map((e) => e).toList(), 'watcherIds': watcherIds.map((e) => e).toList(), 'labelIds': labelIds.map((e) => e).toList(), 'checklistDone': checklistDone, 'checklistTotal': checklistTotal, 'comments': comments, 'attachments': attachments, 'hasDescription': hasDescription, 'recurring': recurring, 'links': links.map((e) => e.toJson()).toList(), 'editable': editable};
+  Map<String, dynamic> toJson() => {'id': id, 'title': title, 'kind': kind, 'boardId': boardId, 'columnId': columnId, 'position': position, 'priority': priority, 'startAt': startAt, 'dueAt': dueAt, 'doneAt': doneAt, 'archived': archived, 'coverColor': coverColor, 'coverImage': coverImage, 'assigneeIds': assigneeIds.map((e) => e).toList(), 'watcherIds': watcherIds.map((e) => e).toList(), 'labelIds': labelIds.map((e) => e).toList(), 'checklistDone': checklistDone, 'checklistTotal': checklistTotal, 'comments': comments, 'attachments': attachments, 'hasDescription': hasDescription, 'recurring': recurring, 'links': links.map((e) => e.toJson()).toList(), 'editable': editable};
 }
 
 class BoardDetail {
@@ -742,7 +754,7 @@ class ChecklistItem {
 
   factory ChecklistItem.fromJson(Map<String, dynamic> json) => ChecklistItem(id: json['id'] as String, text: json['text'] as String, done: json['done'] as bool, assigneeId: json['assigneeId'] == null ? null : json['assigneeId'] as String, dueAt: json['dueAt'] == null ? null : json['dueAt'] as String);
 
-  Map<String, dynamic> toJson() => {'id': id, 'text': text, 'done': done, 'assigneeId': assigneeId == null ? null : assigneeId!, 'dueAt': dueAt == null ? null : dueAt!};
+  Map<String, dynamic> toJson() => {'id': id, 'text': text, 'done': done, 'assigneeId': assigneeId, 'dueAt': dueAt};
 }
 
 class Checklist {
@@ -769,7 +781,7 @@ class CardComment {
 
   factory CardComment.fromJson(Map<String, dynamic> json) => CardComment(id: json['id'] as String, authorId: json['authorId'] == null ? null : json['authorId'] as String, text: json['text'] as String, createdAt: json['createdAt'] as String, editedAt: json['editedAt'] == null ? null : json['editedAt'] as String, mine: json['mine'] as bool);
 
-  Map<String, dynamic> toJson() => {'id': id, 'authorId': authorId == null ? null : authorId!, 'text': text, 'createdAt': createdAt, 'editedAt': editedAt == null ? null : editedAt!, 'mine': mine};
+  Map<String, dynamic> toJson() => {'id': id, 'authorId': authorId, 'text': text, 'createdAt': createdAt, 'editedAt': editedAt, 'mine': mine};
 }
 
 class CardFile {
@@ -799,7 +811,7 @@ class CardActivity {
 
   factory CardActivity.fromJson(Map<String, dynamic> json) => CardActivity(id: json['id'] as String, actorId: json['actorId'] == null ? null : json['actorId'] as String, kind: json['kind'] as String, text: json['text'] as String, createdAt: json['createdAt'] as String);
 
-  Map<String, dynamic> toJson() => {'id': id, 'actorId': actorId == null ? null : actorId!, 'kind': kind, 'text': text, 'createdAt': createdAt};
+  Map<String, dynamic> toJson() => {'id': id, 'actorId': actorId, 'kind': kind, 'text': text, 'createdAt': createdAt};
 }
 
 class CardDetail {
@@ -823,7 +835,7 @@ class CardDetail {
 
   factory CardDetail.fromJson(Map<String, dynamic> json) => CardDetail(card: CardSummary.fromJson(json['card'] as Map<String, dynamic>), description: json['description'] as String, createdById: json['createdById'] == null ? null : json['createdById'] as String, createdAt: json['createdAt'] as String, remindBeforeMin: json['remindBeforeMin'] == null ? null : (json['remindBeforeMin'] as num).toInt(), result: json['result'] as String, estimateMin: json['estimateMin'] == null ? null : (json['estimateMin'] as num).toInt(), spentMin: json['spentMin'] == null ? null : (json['spentMin'] as num).toInt(), board: json['board'] == null ? null : CardDetailBoard.fromJson(json['board'] as Map<String, dynamic>), columns: (json['columns'] as List).map((e) => BoardColumn.fromJson(e as Map<String, dynamic>)).toList(), labels: (json['labels'] as List).map((e) => BoardLabel.fromJson(e as Map<String, dynamic>)).toList(), checklists: (json['checklists'] as List).map((e) => Checklist.fromJson(e as Map<String, dynamic>)).toList(), comments: (json['comments'] as List).map((e) => CardComment.fromJson(e as Map<String, dynamic>)).toList(), files: (json['files'] as List).map((e) => CardFile.fromJson(e as Map<String, dynamic>)).toList(), activity: (json['activity'] as List).map((e) => CardActivity.fromJson(e as Map<String, dynamic>)).toList());
 
-  Map<String, dynamic> toJson() => {'card': card.toJson(), 'description': description, 'createdById': createdById == null ? null : createdById!, 'createdAt': createdAt, 'remindBeforeMin': remindBeforeMin == null ? null : remindBeforeMin!, 'result': result, 'estimateMin': estimateMin == null ? null : estimateMin!, 'spentMin': spentMin == null ? null : spentMin!, 'board': board == null ? null : board!.toJson(), 'columns': columns.map((e) => e.toJson()).toList(), 'labels': labels.map((e) => e.toJson()).toList(), 'checklists': checklists.map((e) => e.toJson()).toList(), 'comments': comments.map((e) => e.toJson()).toList(), 'files': files.map((e) => e.toJson()).toList(), 'activity': activity.map((e) => e.toJson()).toList()};
+  Map<String, dynamic> toJson() => {'card': card.toJson(), 'description': description, 'createdById': createdById, 'createdAt': createdAt, 'remindBeforeMin': remindBeforeMin, 'result': result, 'estimateMin': estimateMin, 'spentMin': spentMin, 'board': board == null ? null : board!.toJson(), 'columns': columns.map((e) => e.toJson()).toList(), 'labels': labels.map((e) => e.toJson()).toList(), 'checklists': checklists.map((e) => e.toJson()).toList(), 'comments': comments.map((e) => e.toJson()).toList(), 'files': files.map((e) => e.toJson()).toList(), 'activity': activity.map((e) => e.toJson()).toList()};
 }
 
 class CardDetailBoard {
@@ -859,7 +871,7 @@ class CardCreate {
 
   factory CardCreate.fromJson(Map<String, dynamic> json) => CardCreate(boardId: json['boardId'] == null ? null : json['boardId'] as String, columnId: json['columnId'] == null ? null : json['columnId'] as String, title: json['title'] as String, kind: json['kind'] == null ? null : json['kind'] as String, description: json['description'] == null ? null : json['description'] as String, dueAt: json['dueAt'] == null ? null : json['dueAt'] as String, startAt: json['startAt'] == null ? null : json['startAt'] as String, priority: json['priority'] == null ? null : json['priority'] as String, assigneeIds: json['assigneeIds'] == null ? null : (json['assigneeIds'] as List).map((e) => e as String).toList(), labelIds: json['labelIds'] == null ? null : (json['labelIds'] as List).map((e) => e as String).toList(), dealId: json['dealId'] == null ? null : json['dealId'] as String, clientId: json['clientId'] == null ? null : json['clientId'] as String, orderId: json['orderId'] == null ? null : json['orderId'] as String);
 
-  Map<String, dynamic> toJson() => {if (boardId != null || nulls.contains('boardId')) 'boardId': boardId == null ? null : boardId!, if (columnId != null || nulls.contains('columnId')) 'columnId': columnId == null ? null : columnId!, 'title': title, if (kind != null) 'kind': kind!, if (description != null || nulls.contains('description')) 'description': description == null ? null : description!, if (dueAt != null || nulls.contains('dueAt')) 'dueAt': dueAt == null ? null : dueAt!, if (startAt != null || nulls.contains('startAt')) 'startAt': startAt == null ? null : startAt!, if (priority != null || nulls.contains('priority')) 'priority': priority == null ? null : priority!, if (assigneeIds != null) 'assigneeIds': assigneeIds!.map((e) => e).toList(), if (labelIds != null) 'labelIds': labelIds!.map((e) => e).toList(), if (dealId != null || nulls.contains('dealId')) 'dealId': dealId == null ? null : dealId!, if (clientId != null || nulls.contains('clientId')) 'clientId': clientId == null ? null : clientId!, if (orderId != null || nulls.contains('orderId')) 'orderId': orderId == null ? null : orderId!};
+  Map<String, dynamic> toJson() => {if (boardId != null || nulls.contains('boardId')) 'boardId': boardId, if (columnId != null || nulls.contains('columnId')) 'columnId': columnId, 'title': title, if (kind != null) 'kind': kind!, if (description != null || nulls.contains('description')) 'description': description, if (dueAt != null || nulls.contains('dueAt')) 'dueAt': dueAt, if (startAt != null || nulls.contains('startAt')) 'startAt': startAt, if (priority != null || nulls.contains('priority')) 'priority': priority, if (assigneeIds != null) 'assigneeIds': assigneeIds!.map((e) => e).toList(), if (labelIds != null) 'labelIds': labelIds!.map((e) => e).toList(), if (dealId != null || nulls.contains('dealId')) 'dealId': dealId, if (clientId != null || nulls.contains('clientId')) 'clientId': clientId, if (orderId != null || nulls.contains('orderId')) 'orderId': orderId};
 }
 
 class CardPatch {
@@ -881,7 +893,7 @@ class CardPatch {
 
   factory CardPatch.fromJson(Map<String, dynamic> json) => CardPatch(title: json['title'] == null ? null : json['title'] as String, kind: json['kind'] == null ? null : json['kind'] as String, description: json['description'] == null ? null : json['description'] as String, priority: json['priority'] == null ? null : json['priority'] as String, startAt: json['startAt'] == null ? null : json['startAt'] as String, dueAt: json['dueAt'] == null ? null : json['dueAt'] as String, remindBeforeMin: json['remindBeforeMin'] == null ? null : (json['remindBeforeMin'] as num).toInt(), result: json['result'] == null ? null : json['result'] as String, estimateMin: json['estimateMin'] == null ? null : (json['estimateMin'] as num).toInt(), spentMin: json['spentMin'] == null ? null : (json['spentMin'] as num).toInt());
 
-  Map<String, dynamic> toJson() => {if (title != null) 'title': title!, if (kind != null) 'kind': kind!, if (description != null || nulls.contains('description')) 'description': description == null ? null : description!, if (priority != null || nulls.contains('priority')) 'priority': priority == null ? null : priority!, if (startAt != null || nulls.contains('startAt')) 'startAt': startAt == null ? null : startAt!, if (dueAt != null || nulls.contains('dueAt')) 'dueAt': dueAt == null ? null : dueAt!, if (remindBeforeMin != null || nulls.contains('remindBeforeMin')) 'remindBeforeMin': remindBeforeMin == null ? null : remindBeforeMin!, if (result != null || nulls.contains('result')) 'result': result == null ? null : result!, if (estimateMin != null || nulls.contains('estimateMin')) 'estimateMin': estimateMin == null ? null : estimateMin!, if (spentMin != null || nulls.contains('spentMin')) 'spentMin': spentMin == null ? null : spentMin!};
+  Map<String, dynamic> toJson() => {if (title != null) 'title': title!, if (kind != null) 'kind': kind!, if (description != null || nulls.contains('description')) 'description': description, if (priority != null || nulls.contains('priority')) 'priority': priority, if (startAt != null || nulls.contains('startAt')) 'startAt': startAt, if (dueAt != null || nulls.contains('dueAt')) 'dueAt': dueAt, if (remindBeforeMin != null || nulls.contains('remindBeforeMin')) 'remindBeforeMin': remindBeforeMin, if (result != null || nulls.contains('result')) 'result': result, if (estimateMin != null || nulls.contains('estimateMin')) 'estimateMin': estimateMin, if (spentMin != null || nulls.contains('spentMin')) 'spentMin': spentMin};
 }
 
 class CardResult {
@@ -927,7 +939,7 @@ class CardMove {
 
   factory CardMove.fromJson(Map<String, dynamic> json) => CardMove(boardId: json['boardId'] == null ? null : json['boardId'] as String, columnId: json['columnId'] as String, beforeId: json['beforeId'] == null ? null : json['beforeId'] as String, afterId: json['afterId'] == null ? null : json['afterId'] as String);
 
-  Map<String, dynamic> toJson() => {if (boardId != null || nulls.contains('boardId')) 'boardId': boardId == null ? null : boardId!, 'columnId': columnId, if (beforeId != null || nulls.contains('beforeId')) 'beforeId': beforeId == null ? null : beforeId!, if (afterId != null || nulls.contains('afterId')) 'afterId': afterId == null ? null : afterId!};
+  Map<String, dynamic> toJson() => {if (boardId != null || nulls.contains('boardId')) 'boardId': boardId, 'columnId': columnId, if (beforeId != null || nulls.contains('beforeId')) 'beforeId': beforeId, if (afterId != null || nulls.contains('afterId')) 'afterId': afterId};
 }
 
 class CardDone {
@@ -940,7 +952,7 @@ class CardDone {
 
   factory CardDone.fromJson(Map<String, dynamic> json) => CardDone(done: json['done'] as bool, result: json['result'] == null ? null : json['result'] as String);
 
-  Map<String, dynamic> toJson() => {'done': done, if (result != null || nulls.contains('result')) 'result': result == null ? null : result!};
+  Map<String, dynamic> toJson() => {'done': done, if (result != null || nulls.contains('result')) 'result': result};
 }
 
 class CardArchive {
@@ -1016,7 +1028,7 @@ class ChecklistItemPatch {
 
   factory ChecklistItemPatch.fromJson(Map<String, dynamic> json) => ChecklistItemPatch(text: json['text'] == null ? null : json['text'] as String, done: json['done'] == null ? null : json['done'] as bool, assigneeId: json['assigneeId'] == null ? null : json['assigneeId'] as String, dueAt: json['dueAt'] == null ? null : json['dueAt'] as String);
 
-  Map<String, dynamic> toJson() => {if (text != null) 'text': text!, if (done != null) 'done': done!, if (assigneeId != null || nulls.contains('assigneeId')) 'assigneeId': assigneeId == null ? null : assigneeId!, if (dueAt != null || nulls.contains('dueAt')) 'dueAt': dueAt == null ? null : dueAt!};
+  Map<String, dynamic> toJson() => {if (text != null) 'text': text!, if (done != null) 'done': done!, if (assigneeId != null || nulls.contains('assigneeId')) 'assigneeId': assigneeId, if (dueAt != null || nulls.contains('dueAt')) 'dueAt': dueAt};
 }
 
 class CommentCreate {
@@ -1061,7 +1073,7 @@ class Theme {
 
   factory Theme.fromJson(Map<String, dynamic> json) => Theme(id: json['id'] as String, kind: json['kind'] as String, recipient: json['recipient'] as String, name: json['name'] as String, short: json['short'] as String, description: json['description'] as String, emoji: json['emoji'] as String, recipientLabel: json['recipientLabel'] == null ? null : json['recipientLabel'] as String, recipientPlaceholder: json['recipientPlaceholder'] == null ? null : json['recipientPlaceholder'] as String, recipientGender: json['recipientGender'] == null ? null : json['recipientGender'] as String, recipientGenderChoice: json['recipientGenderChoice'] as bool, defaultRecipientGender: json['defaultRecipientGender'] as String, titleSuggestions: (json['titleSuggestions'] as List).map((e) => e as String).toList());
 
-  Map<String, dynamic> toJson() => {'id': id, 'kind': kind, 'recipient': recipient, 'name': name, 'short': short, 'description': description, 'emoji': emoji, 'recipientLabel': recipientLabel == null ? null : recipientLabel!, 'recipientPlaceholder': recipientPlaceholder == null ? null : recipientPlaceholder!, 'recipientGender': recipientGender == null ? null : recipientGender!, 'recipientGenderChoice': recipientGenderChoice, 'defaultRecipientGender': defaultRecipientGender, 'titleSuggestions': titleSuggestions.map((e) => e).toList()};
+  Map<String, dynamic> toJson() => {'id': id, 'kind': kind, 'recipient': recipient, 'name': name, 'short': short, 'description': description, 'emoji': emoji, 'recipientLabel': recipientLabel, 'recipientPlaceholder': recipientPlaceholder, 'recipientGender': recipientGender, 'recipientGenderChoice': recipientGenderChoice, 'defaultRecipientGender': defaultRecipientGender, 'titleSuggestions': titleSuggestions.map((e) => e).toList()};
 }
 
 class ThemeList {
@@ -1142,7 +1154,7 @@ class BookSummary {
 
   factory BookSummary.fromJson(Map<String, dynamic> json) => BookSummary(id: json['id'] as String, title: json['title'] as String, theme: json['theme'] as String, status: json['status'] as String, authorName: json['authorName'] as String, recipientName: json['recipientName'] as String, updatedAt: json['updatedAt'] as String, answered: (json['answered'] as num).toInt(), total: (json['total'] as num).toInt(), words: (json['words'] as num).toInt(), photos: (json['photos'] as num).toInt(), coverTemplate: json['coverTemplate'] as String, coverPhotoUrl: json['coverPhotoUrl'] == null ? null : json['coverPhotoUrl'] as String, order: json['order'] == null ? null : OrderBrief.fromJson(json['order'] as Map<String, dynamic>));
 
-  Map<String, dynamic> toJson() => {'id': id, 'title': title, 'theme': theme, 'status': status, 'authorName': authorName, 'recipientName': recipientName, 'updatedAt': updatedAt, 'answered': answered, 'total': total, 'words': words, 'photos': photos, 'coverTemplate': coverTemplate, 'coverPhotoUrl': coverPhotoUrl == null ? null : coverPhotoUrl!, 'order': order == null ? null : order!.toJson()};
+  Map<String, dynamic> toJson() => {'id': id, 'title': title, 'theme': theme, 'status': status, 'authorName': authorName, 'recipientName': recipientName, 'updatedAt': updatedAt, 'answered': answered, 'total': total, 'words': words, 'photos': photos, 'coverTemplate': coverTemplate, 'coverPhotoUrl': coverPhotoUrl, 'order': order == null ? null : order!.toJson()};
 }
 
 class BookList {
@@ -1168,7 +1180,7 @@ class AnswerMedia {
 
   factory AnswerMedia.fromJson(Map<String, dynamic> json) => AnswerMedia(id: json['id'] as String, kind: json['kind'] as String, url: json['url'] as String, fileId: json['fileId'] == null ? null : json['fileId'] as String, title: json['title'] as String, anchor: json['anchor'] == null ? null : (json['anchor'] as num).toInt());
 
-  Map<String, dynamic> toJson() => {'id': id, 'kind': kind, 'url': url, if (fileId != null) 'fileId': fileId!, 'title': title, 'anchor': anchor == null ? null : anchor!};
+  Map<String, dynamic> toJson() => {'id': id, 'kind': kind, 'url': url, if (fileId != null) 'fileId': fileId!, 'title': title, 'anchor': anchor};
 }
 
 class Question {
@@ -1189,7 +1201,7 @@ class Question {
 
   factory Question.fromJson(Map<String, dynamic> json) => Question(id: json['id'] as String, chapter: json['chapter'] as String, chapterTitle: json['chapterTitle'] as String, prompt: json['prompt'] as String, hint: json['hint'] == null ? null : json['hint'] as String, defaultTitle: json['defaultTitle'] as String, displayText: json['displayText'] == null ? null : json['displayText'] as String, hideHeading: json['hideHeading'] as bool, answer: json['answer'] as String, media: (json['media'] as List).map((e) => AnswerMedia.fromJson(e as Map<String, dynamic>)).toList(), isCustom: json['isCustom'] as bool, pageBreak: json['pageBreak'] as bool);
 
-  Map<String, dynamic> toJson() => {'id': id, 'chapter': chapter, 'chapterTitle': chapterTitle, 'prompt': prompt, 'hint': hint == null ? null : hint!, 'defaultTitle': defaultTitle, 'displayText': displayText == null ? null : displayText!, 'hideHeading': hideHeading, 'answer': answer, 'media': media.map((e) => e.toJson()).toList(), 'isCustom': isCustom, 'pageBreak': pageBreak};
+  Map<String, dynamic> toJson() => {'id': id, 'chapter': chapter, 'chapterTitle': chapterTitle, 'prompt': prompt, 'hint': hint, 'defaultTitle': defaultTitle, 'displayText': displayText, 'hideHeading': hideHeading, 'answer': answer, 'media': media.map((e) => e.toJson()).toList(), 'isCustom': isCustom, 'pageBreak': pageBreak};
 }
 
 class Chapter {
@@ -1220,7 +1232,7 @@ class Photo {
 
   factory Photo.fromJson(Map<String, dynamic> json) => Photo(id: json['id'] as String, width: (json['width'] as num).toInt(), height: (json['height'] as num).toInt(), caption: json['caption'] as String, layout: json['layout'] as String, questionId: json['questionId'] == null ? null : json['questionId'] as String, thumbUrl: json['thumbUrl'] as String, url: json['url'] as String);
 
-  Map<String, dynamic> toJson() => {'id': id, 'width': width, 'height': height, 'caption': caption, 'layout': layout, 'questionId': questionId == null ? null : questionId!, 'thumbUrl': thumbUrl, 'url': url};
+  Map<String, dynamic> toJson() => {'id': id, 'width': width, 'height': height, 'caption': caption, 'layout': layout, 'questionId': questionId, 'thumbUrl': thumbUrl, 'url': url};
 }
 
 class BookEditor {
@@ -1270,7 +1282,7 @@ class QuestionPatch {
 
   factory QuestionPatch.fromJson(Map<String, dynamic> json) => QuestionPatch(answer: json['answer'] == null ? null : json['answer'] as String, displayText: json['displayText'] == null ? null : json['displayText'] as String, hideHeading: json['hideHeading'] == null ? null : json['hideHeading'] as bool, pageBreak: json['pageBreak'] == null ? null : json['pageBreak'] as bool, media: json['media'] == null ? null : (json['media'] as List).map((e) => AnswerMedia.fromJson(e as Map<String, dynamic>)).toList(), title: json['title'] == null ? null : json['title'] as String, prompt: json['prompt'] == null ? null : json['prompt'] as String);
 
-  Map<String, dynamic> toJson() => {if (answer != null) 'answer': answer!, if (displayText != null || nulls.contains('displayText')) 'displayText': displayText == null ? null : displayText!, if (hideHeading != null) 'hideHeading': hideHeading!, if (pageBreak != null) 'pageBreak': pageBreak!, if (media != null) 'media': media!.map((e) => e.toJson()).toList(), if (title != null) 'title': title!, if (prompt != null) 'prompt': prompt!};
+  Map<String, dynamic> toJson() => {if (answer != null) 'answer': answer!, if (displayText != null || nulls.contains('displayText')) 'displayText': displayText, if (hideHeading != null) 'hideHeading': hideHeading!, if (pageBreak != null) 'pageBreak': pageBreak!, if (media != null) 'media': media!.map((e) => e.toJson()).toList(), if (title != null) 'title': title!, if (prompt != null) 'prompt': prompt!};
 }
 
 class PhotoPatch {
@@ -1289,7 +1301,7 @@ class PhotoPatch {
 
   factory PhotoPatch.fromJson(Map<String, dynamic> json) => PhotoPatch(caption: json['caption'] == null ? null : json['caption'] as String, layout: json['layout'] == null ? null : json['layout'] as String, questionId: json['questionId'] == null ? null : json['questionId'] as String, inline: json['inline'] == null ? null : PhotoPatchInline.fromJson(json['inline'] as Map<String, dynamic>), chapter: json['chapter'] == null ? null : json['chapter'] as String, opener: json['opener'] == null ? null : json['opener'] as bool, crop: json['crop'] == null ? null : PhotoPatchCrop.fromJson(json['crop'] as Map<String, dynamic>));
 
-  Map<String, dynamic> toJson() => {if (caption != null) 'caption': caption!, if (layout != null) 'layout': layout!, if (questionId != null || nulls.contains('questionId')) 'questionId': questionId == null ? null : questionId!, if (inline != null || nulls.contains('inline')) 'inline': inline == null ? null : inline!.toJson(), if (chapter != null || nulls.contains('chapter')) 'chapter': chapter == null ? null : chapter!, if (opener != null) 'opener': opener!, if (crop != null || nulls.contains('crop')) 'crop': crop == null ? null : crop!.toJson()};
+  Map<String, dynamic> toJson() => {if (caption != null) 'caption': caption!, if (layout != null) 'layout': layout!, if (questionId != null || nulls.contains('questionId')) 'questionId': questionId, if (inline != null || nulls.contains('inline')) 'inline': inline == null ? null : inline!.toJson(), if (chapter != null || nulls.contains('chapter')) 'chapter': chapter, if (opener != null) 'opener': opener!, if (crop != null || nulls.contains('crop')) 'crop': crop == null ? null : crop!.toJson()};
 }
 
 class PhotoPatchInline {
@@ -1313,7 +1325,7 @@ class PhotoPatchInline {
 
   factory PhotoPatchInline.fromJson(Map<String, dynamic> json) => PhotoPatchInline(width: (json['width'] as num).toDouble(), align: json['align'] as String, anchor: json['anchor'] == null ? null : (json['anchor'] as num).toInt(), aspect: json['aspect'] as String, focusX: (json['focusX'] as num).toDouble(), focusY: (json['focusY'] as num).toDouble(), frame: json['frame'] as String, page: json['page'] == null ? null : json['page'] as bool, pageFit: json['pageFit'] == null ? null : json['pageFit'] as String, keepSize: json['keepSize'] == null ? null : json['keepSize'] as bool, spaceAbove: json['spaceAbove'] == null ? null : (json['spaceAbove'] as num).toDouble(), breakBefore: json['breakBefore'] == null ? null : json['breakBefore'] as bool);
 
-  Map<String, dynamic> toJson() => {'width': width, 'align': align, 'anchor': anchor == null ? null : anchor!, 'aspect': aspect, 'focusX': focusX, 'focusY': focusY, 'frame': frame, if (page != null) 'page': page!, if (pageFit != null) 'pageFit': pageFit!, if (keepSize != null) 'keepSize': keepSize!, if (spaceAbove != null) 'spaceAbove': spaceAbove!, if (breakBefore != null) 'breakBefore': breakBefore!};
+  Map<String, dynamic> toJson() => {'width': width, 'align': align, 'anchor': anchor, 'aspect': aspect, 'focusX': focusX, 'focusY': focusY, 'frame': frame, if (page != null) 'page': page!, if (pageFit != null) 'pageFit': pageFit!, if (keepSize != null) 'keepSize': keepSize!, if (spaceAbove != null) 'spaceAbove': spaceAbove!, if (breakBefore != null) 'breakBefore': breakBefore!};
 }
 
 class PhotoPatchCrop {
@@ -1397,7 +1409,7 @@ class LetterInvite {
 
   factory LetterInvite.fromJson(Map<String, dynamic> json) => LetterInvite(enabled: json['enabled'] as bool, url: json['url'] == null ? null : json['url'] as String, text: json['text'] as String, shareText: json['shareText'] == null ? null : json['shareText'] as String);
 
-  Map<String, dynamic> toJson() => {'enabled': enabled, 'url': url == null ? null : url!, 'text': text, 'shareText': shareText == null ? null : shareText!};
+  Map<String, dynamic> toJson() => {'enabled': enabled, 'url': url, 'text': text, 'shareText': shareText};
 }
 
 class LettersView {
@@ -1477,7 +1489,7 @@ class BookPage {
 
   factory BookPage.fromJson(Map<String, dynamic> json) => BookPage(n: (json['n'] as num).toInt(), kind: json['kind'] as String, chapterKey: json['chapterKey'] == null ? null : json['chapterKey'] as String);
 
-  Map<String, dynamic> toJson() => {'n': n, 'kind': kind, 'chapterKey': chapterKey == null ? null : chapterKey!};
+  Map<String, dynamic> toJson() => {'n': n, 'kind': kind, 'chapterKey': chapterKey};
 }
 
 class BookBuild {
@@ -1520,7 +1532,7 @@ class BuildState {
 
   factory BuildState.fromJson(Map<String, dynamic> json) => BuildState(status: json['status'] as String, build: json['build'] == null ? null : BookBuild.fromJson(json['build'] as Map<String, dynamic>), error: json['error'] == null ? null : json['error'] as String, retryInMs: json['retryInMs'] == null ? null : (json['retryInMs'] as num).toInt(), pdfUrl: json['pdfUrl'] as String);
 
-  Map<String, dynamic> toJson() => {'status': status, 'build': build == null ? null : build!.toJson(), 'error': error == null ? null : error!, 'retryInMs': retryInMs == null ? null : retryInMs!, 'pdfUrl': pdfUrl};
+  Map<String, dynamic> toJson() => {'status': status, 'build': build == null ? null : build!.toJson(), 'error': error, 'retryInMs': retryInMs, 'pdfUrl': pdfUrl};
 }
 
 class BuildProgress {
@@ -1546,7 +1558,7 @@ class BuildProgressProgress {
 
   factory BuildProgressProgress.fromJson(Map<String, dynamic> json) => BuildProgressProgress(state: json['state'] as String, stage: json['stage'] == null ? null : json['stage'] as String, percent: (json['percent'] as num).toInt(), etaMs: json['etaMs'] == null ? null : (json['etaMs'] as num).toInt(), overrun: json['overrun'] as bool, ahead: (json['ahead'] as num).toInt());
 
-  Map<String, dynamic> toJson() => {'state': state, 'stage': stage == null ? null : stage!, 'percent': percent, 'etaMs': etaMs == null ? null : etaMs!, 'overrun': overrun, 'ahead': ahead};
+  Map<String, dynamic> toJson() => {'state': state, 'stage': stage, 'percent': percent, 'etaMs': etaMs, 'overrun': overrun, 'ahead': ahead};
 }
 
 class Review {
@@ -1563,7 +1575,7 @@ class Review {
 
   factory Review.fromJson(Map<String, dynamic> json) => Review(rating: (json['rating'] as num).toInt(), text: json['text'] as String, authorName: json['authorName'] as String, city: json['city'] as String, consent: json['consent'] as bool, status: json['status'] as String, photoUrl: json['photoUrl'] == null ? null : json['photoUrl'] as String, thankYouCode: json['thankYouCode'] == null ? null : json['thankYouCode'] as String);
 
-  Map<String, dynamic> toJson() => {'rating': rating, 'text': text, 'authorName': authorName, 'city': city, 'consent': consent, 'status': status, 'photoUrl': photoUrl == null ? null : photoUrl!, 'thankYouCode': thankYouCode == null ? null : thankYouCode!};
+  Map<String, dynamic> toJson() => {'rating': rating, 'text': text, 'authorName': authorName, 'city': city, 'consent': consent, 'status': status, 'photoUrl': photoUrl, 'thankYouCode': thankYouCode};
 }
 
 class ReviewView {
@@ -1590,6 +1602,76 @@ class ReviewBody {
   factory ReviewBody.fromJson(Map<String, dynamic> json) => ReviewBody(rating: (json['rating'] as num).toInt(), text: json['text'] as String, authorName: json['authorName'] as String, city: json['city'] as String, consent: json['consent'] as bool);
 
   Map<String, dynamic> toJson() => {'rating': rating, 'text': text, 'authorName': authorName, 'city': city, 'consent': consent};
+}
+
+class CoverPatch {
+  final String? title;
+  final String? subtitle;
+  final bool? hideRecipientOnCover;
+  final String? namesOnCover;
+  final String? coverTemplate;
+  final bool? coverLines;
+  final String? coverPhotoId;
+  final List<String>? coverPhotoExtra;
+  final String? backText;
+  final String? backLayout;
+  final String? backPhotoId;
+  final List<String>? backPhotoExtra;
+  /// Поля, которые отправить как null (иначе пустое необязательное поле не отправляется).
+  final Set<String> nulls;
+
+  const CoverPatch({this.title, this.subtitle, this.hideRecipientOnCover, this.namesOnCover, this.coverTemplate, this.coverLines, this.coverPhotoId, this.coverPhotoExtra, this.backText, this.backLayout, this.backPhotoId, this.backPhotoExtra, this.nulls = const {}});
+
+  factory CoverPatch.fromJson(Map<String, dynamic> json) => CoverPatch(title: json['title'] == null ? null : json['title'] as String, subtitle: json['subtitle'] == null ? null : json['subtitle'] as String, hideRecipientOnCover: json['hideRecipientOnCover'] == null ? null : json['hideRecipientOnCover'] as bool, namesOnCover: json['namesOnCover'] == null ? null : json['namesOnCover'] as String, coverTemplate: json['coverTemplate'] == null ? null : json['coverTemplate'] as String, coverLines: json['coverLines'] == null ? null : json['coverLines'] as bool, coverPhotoId: json['coverPhotoId'] == null ? null : json['coverPhotoId'] as String, coverPhotoExtra: json['coverPhotoExtra'] == null ? null : (json['coverPhotoExtra'] as List).map((e) => e as String).toList(), backText: json['backText'] == null ? null : json['backText'] as String, backLayout: json['backLayout'] == null ? null : json['backLayout'] as String, backPhotoId: json['backPhotoId'] == null ? null : json['backPhotoId'] as String, backPhotoExtra: json['backPhotoExtra'] == null ? null : (json['backPhotoExtra'] as List).map((e) => e as String).toList());
+
+  Map<String, dynamic> toJson() => {if (title != null) 'title': title!, if (subtitle != null) 'subtitle': subtitle!, if (hideRecipientOnCover != null) 'hideRecipientOnCover': hideRecipientOnCover!, if (namesOnCover != null) 'namesOnCover': namesOnCover!, if (coverTemplate != null) 'coverTemplate': coverTemplate!, if (coverLines != null) 'coverLines': coverLines!, if (coverPhotoId != null || nulls.contains('coverPhotoId')) 'coverPhotoId': coverPhotoId, if (coverPhotoExtra != null) 'coverPhotoExtra': coverPhotoExtra!.map((e) => e).toList(), if (backText != null) 'backText': backText!, if (backLayout != null) 'backLayout': backLayout!, if (backPhotoId != null || nulls.contains('backPhotoId')) 'backPhotoId': backPhotoId, if (backPhotoExtra != null) 'backPhotoExtra': backPhotoExtra!.map((e) => e).toList()};
+}
+
+class CoverTemplate {
+  final String id;
+  final String name;
+  final String mood;
+  final int photoSlots;
+  final String previewUrl;
+
+  const CoverTemplate({required this.id, required this.name, required this.mood, required this.photoSlots, required this.previewUrl});
+
+  factory CoverTemplate.fromJson(Map<String, dynamic> json) => CoverTemplate(id: json['id'] as String, name: json['name'] as String, mood: json['mood'] as String, photoSlots: (json['photoSlots'] as num).toInt(), previewUrl: json['previewUrl'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'mood': mood, 'photoSlots': photoSlots, 'previewUrl': previewUrl};
+}
+
+class Cover {
+  final String template;
+  final bool lines;
+  final String title;
+  final String subtitle;
+  final String namesOnCover;
+  final bool hideRecipientOnCover;
+  final List<String?> photoIds;
+  final String backText;
+  final String backLayout;
+  final String? backPhotoId;
+  final bool hasDesign;
+  final String imageUrl;
+  final bool editable;
+
+  const Cover({required this.template, required this.lines, required this.title, required this.subtitle, required this.namesOnCover, required this.hideRecipientOnCover, required this.photoIds, required this.backText, required this.backLayout, this.backPhotoId, required this.hasDesign, required this.imageUrl, required this.editable});
+
+  factory Cover.fromJson(Map<String, dynamic> json) => Cover(template: json['template'] as String, lines: json['lines'] as bool, title: json['title'] as String, subtitle: json['subtitle'] as String, namesOnCover: json['namesOnCover'] as String, hideRecipientOnCover: json['hideRecipientOnCover'] as bool, photoIds: (json['photoIds'] as List).map((e) => e == null ? null : e as String).toList(), backText: json['backText'] as String, backLayout: json['backLayout'] as String, backPhotoId: json['backPhotoId'] == null ? null : json['backPhotoId'] as String, hasDesign: json['hasDesign'] as bool, imageUrl: json['imageUrl'] as String, editable: json['editable'] as bool);
+
+  Map<String, dynamic> toJson() => {'template': template, 'lines': lines, 'title': title, 'subtitle': subtitle, 'namesOnCover': namesOnCover, 'hideRecipientOnCover': hideRecipientOnCover, 'photoIds': photoIds.map((e) => e).toList(), 'backText': backText, 'backLayout': backLayout, 'backPhotoId': backPhotoId, 'hasDesign': hasDesign, 'imageUrl': imageUrl, 'editable': editable};
+}
+
+class CoverView {
+  final Cover cover;
+  final List<CoverTemplate> templates;
+
+  const CoverView({required this.cover, required this.templates});
+
+  factory CoverView.fromJson(Map<String, dynamic> json) => CoverView(cover: Cover.fromJson(json['cover'] as Map<String, dynamic>), templates: (json['templates'] as List).map((e) => CoverTemplate.fromJson(e as Map<String, dynamic>)).toList());
+
+  Map<String, dynamic> toJson() => {'cover': cover.toJson(), 'templates': templates.map((e) => e.toJson()).toList()};
 }
 
 class ShelfDeadline {
@@ -1641,7 +1723,7 @@ class ShelfItem {
 
   factory ShelfItem.fromJson(Map<String, dynamic> json) => ShelfItem(id: json['id'] as String, title: json['title'] as String, subtitle: json['subtitle'] as String, kind: json['kind'] as String, blank: json['blank'] as bool, ordered: json['ordered'] as bool, progress: (json['progress'] as num).toInt(), progressLabel: json['progressLabel'] as String, counts: json['counts'] as String, updated: json['updated'] as String, deadline: json['deadline'] == null ? null : ShelfDeadline.fromJson(json['deadline'] as Map<String, dynamic>), order: json['order'] == null ? null : ShelfOrder.fromJson(json['order'] as Map<String, dynamic>), started: json['started'] as bool, writeSectionId: json['writeSectionId'] == null ? null : json['writeSectionId'] as String, coverUrl: json['coverUrl'] as String, coverThumbUrl: json['coverThumbUrl'] as String);
 
-  Map<String, dynamic> toJson() => {'id': id, 'title': title, 'subtitle': subtitle, 'kind': kind, 'blank': blank, 'ordered': ordered, 'progress': progress, 'progressLabel': progressLabel, 'counts': counts, 'updated': updated, 'deadline': deadline == null ? null : deadline!.toJson(), 'order': order == null ? null : order!.toJson(), 'started': started, 'writeSectionId': writeSectionId == null ? null : writeSectionId!, 'coverUrl': coverUrl, 'coverThumbUrl': coverThumbUrl};
+  Map<String, dynamic> toJson() => {'id': id, 'title': title, 'subtitle': subtitle, 'kind': kind, 'blank': blank, 'ordered': ordered, 'progress': progress, 'progressLabel': progressLabel, 'counts': counts, 'updated': updated, 'deadline': deadline == null ? null : deadline!.toJson(), 'order': order == null ? null : order!.toJson(), 'started': started, 'writeSectionId': writeSectionId, 'coverUrl': coverUrl, 'coverThumbUrl': coverThumbUrl};
 }
 
 class CabinetShelf {
@@ -1680,7 +1762,7 @@ class HubCard {
 
   factory HubCard.fromJson(Map<String, dynamic> json) => HubCard(eyebrow: json['eyebrow'] as String, title: json['title'] as String, text: json['text'] == null ? null : json['text'] as String, serif: json['serif'] as bool, primary: HubLink.fromJson(json['primary'] as Map<String, dynamic>), primaryWrite: json['primaryWrite'] as bool, secondary: json['secondary'] == null ? null : HubLink.fromJson(json['secondary'] as Map<String, dynamic>), moreText: json['moreText'] == null ? null : json['moreText'] as String, more: json['more'] == null ? null : HubLink.fromJson(json['more'] as Map<String, dynamic>));
 
-  Map<String, dynamic> toJson() => {'eyebrow': eyebrow, 'title': title, 'text': text == null ? null : text!, 'serif': serif, 'primary': primary.toJson(), 'primaryWrite': primaryWrite, 'secondary': secondary == null ? null : secondary!.toJson(), 'moreText': moreText == null ? null : moreText!, 'more': more == null ? null : more!.toJson()};
+  Map<String, dynamic> toJson() => {'eyebrow': eyebrow, 'title': title, 'text': text, 'serif': serif, 'primary': primary.toJson(), 'primaryWrite': primaryWrite, 'secondary': secondary == null ? null : secondary!.toJson(), 'moreText': moreText, 'more': more == null ? null : more!.toJson()};
 }
 
 class HubDeadline {
@@ -1697,7 +1779,7 @@ class HubDeadline {
 
   factory HubDeadline.fromJson(Map<String, dynamic> json) => HubDeadline(days: (json['days'] as num).toInt(), daysShort: json['daysShort'] as String, tone: json['tone'] as String, headline: json['headline'] as String, line: json['line'] as String, icon: json['icon'] == null ? null : json['icon'] as String, changeLabel: json['changeLabel'] as String);
 
-  Map<String, dynamic> toJson() => {'days': days, 'daysShort': daysShort, 'tone': tone, 'headline': headline, 'line': line, 'icon': icon == null ? null : icon!, 'changeLabel': changeLabel};
+  Map<String, dynamic> toJson() => {'days': days, 'daysShort': daysShort, 'tone': tone, 'headline': headline, 'line': line, 'icon': icon, 'changeLabel': changeLabel};
 }
 
 class HubStep {
@@ -1715,7 +1797,7 @@ class HubStep {
 
   factory HubStep.fromJson(Map<String, dynamic> json) => HubStep(key: json['key'] as String, href: json['href'] as String, title: json['title'] as String, value: json['value'] as String, action: json['action'] as String, status: json['status'] as String, fraction: (json['fraction'] as num).toDouble(), bar: json['bar'] == null ? null : (json['bar'] as num).toInt(), active: json['active'] as bool);
 
-  Map<String, dynamic> toJson() => {'key': key, 'href': href, 'title': title, 'value': value, 'action': action, 'status': status, 'fraction': fraction, 'bar': bar == null ? null : bar!, 'active': active};
+  Map<String, dynamic> toJson() => {'key': key, 'href': href, 'title': title, 'value': value, 'action': action, 'status': status, 'fraction': fraction, 'bar': bar, 'active': active};
 }
 
 class HubNeed {
@@ -1728,7 +1810,7 @@ class HubNeed {
 
   factory HubNeed.fromJson(Map<String, dynamic> json) => HubNeed(level: json['level'] as String, text: json['text'] as String, href: json['href'] == null ? null : json['href'] as String);
 
-  Map<String, dynamic> toJson() => {'level': level, 'text': text, 'href': href == null ? null : href!};
+  Map<String, dynamic> toJson() => {'level': level, 'text': text, 'href': href};
 }
 
 class HubChapter {
@@ -1743,7 +1825,7 @@ class HubChapter {
 
   factory HubChapter.fromJson(Map<String, dynamic> json) => HubChapter(key: json['key'] as String, title: json['title'] as String, label: json['label'] as String, done: json['done'] as bool, percent: (json['percent'] as num).toInt(), sectionId: json['sectionId'] == null ? null : json['sectionId'] as String);
 
-  Map<String, dynamic> toJson() => {'key': key, 'title': title, 'label': label, 'done': done, 'percent': percent, 'sectionId': sectionId == null ? null : sectionId!};
+  Map<String, dynamic> toJson() => {'key': key, 'title': title, 'label': label, 'done': done, 'percent': percent, 'sectionId': sectionId};
 }
 
 class CabinetBook {
@@ -1777,7 +1859,7 @@ class CabinetBook {
 
   factory CabinetBook.fromJson(Map<String, dynamic> json) => CabinetBook(id: json['id'] as String, title: json['title'] as String, subtitle: json['subtitle'] as String, kind: json['kind'] as String, language: json['language'] as String, blank: json['blank'] as bool, editable: json['editable'] as bool, coverUrl: json['coverUrl'] as String, coverThumbUrl: json['coverThumbUrl'] as String, card: json['card'] == null ? null : HubCard.fromJson(json['card'] as Map<String, dynamic>), deadline: json['deadline'] == null ? null : HubDeadline.fromJson(json['deadline'] as Map<String, dynamic>), pathTitle: json['pathTitle'] as String, steps: (json['steps'] as List).map((e) => HubStep.fromJson(e as Map<String, dynamic>)).toList(), needsTitle: json['needsTitle'] as String, needsFix: json['needsFix'] as String, needs: (json['needs'] as List).map((e) => HubNeed.fromJson(e as Map<String, dynamic>)).toList(), chaptersTitle: json['chaptersTitle'] as String, chaptersAside: json['chaptersAside'] == null ? null : json['chaptersAside'] as String, allChaptersLabel: json['allChaptersLabel'] as String, chapters: (json['chapters'] as List).map((e) => HubChapter.fromJson(e as Map<String, dynamic>)).toList(), letters: CabinetBookLetters.fromJson(json['letters'] as Map<String, dynamic>), help: CabinetBookHelp.fromJson(json['help'] as Map<String, dynamic>), whereToStart: json['whereToStart'] as String, tips: (json['tips'] as List).map((e) => e as String).toList(), tipsNote: json['tipsNote'] == null ? null : json['tipsNote'] as String);
 
-  Map<String, dynamic> toJson() => {'id': id, 'title': title, 'subtitle': subtitle, 'kind': kind, 'language': language, 'blank': blank, 'editable': editable, 'coverUrl': coverUrl, 'coverThumbUrl': coverThumbUrl, 'card': card == null ? null : card!.toJson(), 'deadline': deadline == null ? null : deadline!.toJson(), 'pathTitle': pathTitle, 'steps': steps.map((e) => e.toJson()).toList(), 'needsTitle': needsTitle, 'needsFix': needsFix, 'needs': needs.map((e) => e.toJson()).toList(), 'chaptersTitle': chaptersTitle, 'chaptersAside': chaptersAside == null ? null : chaptersAside!, 'allChaptersLabel': allChaptersLabel, 'chapters': chapters.map((e) => e.toJson()).toList(), 'letters': letters.toJson(), 'help': help.toJson(), 'whereToStart': whereToStart, 'tips': tips.map((e) => e).toList(), 'tipsNote': tipsNote == null ? null : tipsNote!};
+  Map<String, dynamic> toJson() => {'id': id, 'title': title, 'subtitle': subtitle, 'kind': kind, 'language': language, 'blank': blank, 'editable': editable, 'coverUrl': coverUrl, 'coverThumbUrl': coverThumbUrl, 'card': card == null ? null : card!.toJson(), 'deadline': deadline == null ? null : deadline!.toJson(), 'pathTitle': pathTitle, 'steps': steps.map((e) => e.toJson()).toList(), 'needsTitle': needsTitle, 'needsFix': needsFix, 'needs': needs.map((e) => e.toJson()).toList(), 'chaptersTitle': chaptersTitle, 'chaptersAside': chaptersAside, 'allChaptersLabel': allChaptersLabel, 'chapters': chapters.map((e) => e.toJson()).toList(), 'letters': letters.toJson(), 'help': help.toJson(), 'whereToStart': whereToStart, 'tips': tips.map((e) => e).toList(), 'tipsNote': tipsNote};
 }
 
 class CabinetBookLetters {
@@ -1816,7 +1898,7 @@ class CabPhotoPlace {
 
   factory CabPhotoPlace.fromJson(Map<String, dynamic> json) => CabPhotoPlace(kind: json['kind'] as String, label: json['label'] as String, auto: json['auto'] as bool, onCover: json['onCover'] == null ? null : json['onCover'] as String, option: json['option'] as String);
 
-  Map<String, dynamic> toJson() => {'kind': kind, 'label': label, 'auto': auto, 'onCover': onCover == null ? null : onCover!, 'option': option};
+  Map<String, dynamic> toJson() => {'kind': kind, 'label': label, 'auto': auto, 'onCover': onCover, 'option': option};
 }
 
 class CabPhoto {
@@ -1837,7 +1919,7 @@ class CabPhoto {
 
   factory CabPhoto.fromJson(Map<String, dynamic> json) => CabPhoto(id: json['id'] as String, n: (json['n'] as num).toInt(), width: (json['width'] as num).toInt(), height: (json['height'] as num).toInt(), caption: json['caption'] as String, layout: json['layout'] as String, thumbUrl: json['thumbUrl'] as String, url: json['url'] as String, place: CabPhotoPlace.fromJson(json['place'] as Map<String, dynamic>), questionId: json['questionId'] == null ? null : json['questionId'] as String, chapter: json['chapter'] == null ? null : json['chapter'] as String, loss: json['loss'] == null ? null : json['loss'] as String);
 
-  Map<String, dynamic> toJson() => {'id': id, 'n': n, 'width': width, 'height': height, 'caption': caption, 'layout': layout, 'thumbUrl': thumbUrl, 'url': url, 'place': place.toJson(), 'questionId': questionId == null ? null : questionId!, 'chapter': chapter == null ? null : chapter!, 'loss': loss == null ? null : loss!};
+  Map<String, dynamic> toJson() => {'id': id, 'n': n, 'width': width, 'height': height, 'caption': caption, 'layout': layout, 'thumbUrl': thumbUrl, 'url': url, 'place': place.toJson(), 'questionId': questionId, 'chapter': chapter, 'loss': loss};
 }
 
 class CabLabeled {
@@ -1850,7 +1932,7 @@ class CabLabeled {
 
   factory CabLabeled.fromJson(Map<String, dynamic> json) => CabLabeled(key: json['key'] as String, label: json['label'] as String, hint: json['hint'] == null ? null : json['hint'] as String, count: json['count'] == null ? null : (json['count'] as num).toInt());
 
-  Map<String, dynamic> toJson() => {'key': key, 'label': label, 'hint': hint == null ? null : hint!, 'count': count == null ? null : count!};
+  Map<String, dynamic> toJson() => {'key': key, 'label': label, 'hint': hint, 'count': count};
 }
 
 class CabinetPhotos {
@@ -2044,7 +2126,7 @@ class CheckoutPlan {
 
   factory CheckoutPlan.fromJson(Map<String, dynamic> json) => CheckoutPlan(id: json['id'] as String, name: json['name'] as String, features: (json['features'] as List).map((e) => e as String).toList(), price: (json['price'] as num).toInt(), priceLabel: json['priceLabel'] as String, printed: json['printed'] as bool, extraCopy: json['extraCopy'] == null ? null : json['extraCopy'] as String, addons: (json['addons'] as List).map((e) => CheckoutAddon.fromJson(e as Map<String, dynamic>)).toList());
 
-  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'features': features.map((e) => e).toList(), 'price': price, 'priceLabel': priceLabel, 'printed': printed, 'extraCopy': extraCopy == null ? null : extraCopy!, 'addons': addons.map((e) => e.toJson()).toList()};
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'features': features.map((e) => e).toList(), 'price': price, 'priceLabel': priceLabel, 'printed': printed, 'extraCopy': extraCopy, 'addons': addons.map((e) => e.toJson()).toList()};
 }
 
 class CheckoutDelivery {
@@ -2072,7 +2154,7 @@ class CheckoutIssue {
 
   factory CheckoutIssue.fromJson(Map<String, dynamic> json) => CheckoutIssue(level: json['level'] as String, text: json['text'] as String, href: json['href'] == null ? null : json['href'] as String);
 
-  Map<String, dynamic> toJson() => {'level': level, 'text': text, 'href': href == null ? null : href!};
+  Map<String, dynamic> toJson() => {'level': level, 'text': text, 'href': href};
 }
 
 class CheckoutAgreement {
@@ -2088,7 +2170,7 @@ class CheckoutAgreement {
 
   factory CheckoutAgreement.fromJson(Map<String, dynamic> json) => CheckoutAgreement(title: json['title'] as String, summary: json['summary'] as String, batch: json['batch'] == null ? null : json['batch'] as String, gifts: json['gifts'] == null ? null : json['gifts'] as String, modes: (json['modes'] as List).map((e) => CheckoutAgreementModes.fromJson(e as Map<String, dynamic>)).toList(), refund: json['refund'] as String, whatsapp: json['whatsapp'] as String);
 
-  Map<String, dynamic> toJson() => {'title': title, 'summary': summary, 'batch': batch == null ? null : batch!, 'gifts': gifts == null ? null : gifts!, 'modes': modes.map((e) => e.toJson()).toList(), 'refund': refund, 'whatsapp': whatsapp};
+  Map<String, dynamic> toJson() => {'title': title, 'summary': summary, 'batch': batch, 'gifts': gifts, 'modes': modes.map((e) => e.toJson()).toList(), 'refund': refund, 'whatsapp': whatsapp};
 }
 
 class CheckoutAgreementModes {
@@ -2129,7 +2211,7 @@ class CabinetCheckout {
 
   factory CabinetCheckout.fromJson(Map<String, dynamic> json) => CabinetCheckout(closed: json['closed'] as bool, orderId: json['orderId'] == null ? null : json['orderId'] as String, title: json['title'] == null ? null : json['title'] as String, summary: json['summary'] == null ? null : json['summary'] as String, design: json['design'] == null ? null : (json['design'] as List).map((e) => e as String).toList(), checkPreview: json['checkPreview'] == null ? null : json['checkPreview'] as String, blocked: json['blocked'] == null ? null : json['blocked'] as bool, issues: json['issues'] == null ? null : (json['issues'] as List).map((e) => CheckoutIssue.fromJson(e as Map<String, dynamic>)).toList(), plans: json['plans'] == null ? null : (json['plans'] as List).map((e) => CheckoutPlan.fromJson(e as Map<String, dynamic>)).toList(), lockedPlan: json['lockedPlan'] == null ? null : json['lockedPlan'] as String, deliveries: json['deliveries'] == null ? null : (json['deliveries'] as List).map((e) => CheckoutDelivery.fromJson(e as Map<String, dynamic>)).toList(), quotedNote: json['quotedNote'] == null ? null : json['quotedNote'] as String, giftNote: json['giftNote'] == null ? null : json['giftNote'] as bool, occasionLabel: json['occasionLabel'] == null ? null : json['occasionLabel'] as String, agreement: json['agreement'] == null ? null : CheckoutAgreement.fromJson(json['agreement'] as Map<String, dynamic>), defaults: json['defaults'] == null ? null : CabinetCheckoutDefaults.fromJson(json['defaults'] as Map<String, dynamic>), offerUrl: json['offerUrl'] == null ? null : json['offerUrl'] as String, privacyUrl: json['privacyUrl'] == null ? null : json['privacyUrl'] as String);
 
-  Map<String, dynamic> toJson() => {'closed': closed, 'orderId': orderId == null ? null : orderId!, if (title != null) 'title': title!, if (summary != null) 'summary': summary!, if (design != null) 'design': design!.map((e) => e).toList(), if (checkPreview != null) 'checkPreview': checkPreview!, if (blocked != null) 'blocked': blocked!, if (issues != null) 'issues': issues!.map((e) => e.toJson()).toList(), if (plans != null) 'plans': plans!.map((e) => e.toJson()).toList(), if (lockedPlan != null || nulls.contains('lockedPlan')) 'lockedPlan': lockedPlan == null ? null : lockedPlan!, if (deliveries != null) 'deliveries': deliveries!.map((e) => e.toJson()).toList(), if (quotedNote != null) 'quotedNote': quotedNote!, if (giftNote != null) 'giftNote': giftNote!, if (occasionLabel != null || nulls.contains('occasionLabel')) 'occasionLabel': occasionLabel == null ? null : occasionLabel!, if (agreement != null || nulls.contains('agreement')) 'agreement': agreement == null ? null : agreement!.toJson(), if (defaults != null) 'defaults': defaults!.toJson(), if (offerUrl != null) 'offerUrl': offerUrl!, if (privacyUrl != null) 'privacyUrl': privacyUrl!};
+  Map<String, dynamic> toJson() => {'closed': closed, 'orderId': orderId, if (title != null) 'title': title!, if (summary != null) 'summary': summary!, if (design != null) 'design': design!.map((e) => e).toList(), if (checkPreview != null) 'checkPreview': checkPreview!, if (blocked != null) 'blocked': blocked!, if (issues != null) 'issues': issues!.map((e) => e.toJson()).toList(), if (plans != null) 'plans': plans!.map((e) => e.toJson()).toList(), if (lockedPlan != null || nulls.contains('lockedPlan')) 'lockedPlan': lockedPlan, if (deliveries != null) 'deliveries': deliveries!.map((e) => e.toJson()).toList(), if (quotedNote != null) 'quotedNote': quotedNote!, if (giftNote != null) 'giftNote': giftNote!, if (occasionLabel != null || nulls.contains('occasionLabel')) 'occasionLabel': occasionLabel, if (agreement != null || nulls.contains('agreement')) 'agreement': agreement == null ? null : agreement!.toJson(), if (defaults != null) 'defaults': defaults!.toJson(), if (offerUrl != null) 'offerUrl': offerUrl!, if (privacyUrl != null) 'privacyUrl': privacyUrl!};
 }
 
 class CabinetCheckoutDefaults {
@@ -2157,7 +2239,7 @@ class CheckoutQuoteBody {
 
   factory CheckoutQuoteBody.fromJson(Map<String, dynamic> json) => CheckoutQuoteBody(plan: json['plan'] as String, quantity: (json['quantity'] as num).toInt(), delivery: json['delivery'] == null ? null : json['delivery'] as String, addons: (json['addons'] as List).map((e) => e as String).toList(), promoCode: json['promoCode'] == null ? null : json['promoCode'] as String, mode: json['mode'] == null ? null : json['mode'] as String);
 
-  Map<String, dynamic> toJson() => {'plan': plan, 'quantity': quantity, 'delivery': delivery == null ? null : delivery!, 'addons': addons.map((e) => e).toList(), 'promoCode': promoCode == null ? null : promoCode!, 'mode': mode == null ? null : mode!};
+  Map<String, dynamic> toJson() => {'plan': plan, 'quantity': quantity, 'delivery': delivery, 'addons': addons.map((e) => e).toList(), 'promoCode': promoCode, 'mode': mode};
 }
 
 class CheckoutQuote {
@@ -2172,7 +2254,7 @@ class CheckoutQuote {
 
   factory CheckoutQuote.fromJson(Map<String, dynamic> json) => CheckoutQuote(plan: json['plan'] as String, lines: (json['lines'] as List).map((e) => PriceLine.fromJson(e as Map<String, dynamic>)).toList(), totalLabel: json['totalLabel'] as String, total: json['total'] as String, quotedTotal: json['quotedTotal'] == null ? null : json['quotedTotal'] as String, promo: json['promo'] == null ? null : CheckoutQuotePromo.fromJson(json['promo'] as Map<String, dynamic>));
 
-  Map<String, dynamic> toJson() => {'plan': plan, 'lines': lines.map((e) => e.toJson()).toList(), 'totalLabel': totalLabel, 'total': total, 'quotedTotal': quotedTotal == null ? null : quotedTotal!, 'promo': promo == null ? null : promo!.toJson()};
+  Map<String, dynamic> toJson() => {'plan': plan, 'lines': lines.map((e) => e.toJson()).toList(), 'totalLabel': totalLabel, 'total': total, 'quotedTotal': quotedTotal, 'promo': promo == null ? null : promo!.toJson()};
 }
 
 class CheckoutQuotePromo {
@@ -2210,7 +2292,7 @@ class OrderPlaceBody {
 
   factory OrderPlaceBody.fromJson(Map<String, dynamic> json) => OrderPlaceBody(plan: json['plan'] as String, quantity: (json['quantity'] as num).toInt(), delivery: json['delivery'] == null ? null : json['delivery'] as String, addons: (json['addons'] as List).map((e) => e as String).toList(), promoCode: json['promoCode'] == null ? null : json['promoCode'] as String, mode: json['mode'] == null ? null : json['mode'] as String, contactName: json['contactName'] as String, contactPhone: json['contactPhone'] as String, contactEmail: json['contactEmail'] as String, country: json['country'] as String, city: json['city'] as String, address: json['address'] as String, postalCode: json['postalCode'] as String, comment: json['comment'] as String, giftNote: json['giftNote'] as String, desiredDate: json['desiredDate'] as String, surprise: json['surprise'] as bool, consent: json['consent'] as bool);
 
-  Map<String, dynamic> toJson() => {'plan': plan, 'quantity': quantity, 'delivery': delivery == null ? null : delivery!, 'addons': addons.map((e) => e).toList(), 'promoCode': promoCode == null ? null : promoCode!, 'mode': mode == null ? null : mode!, 'contactName': contactName, 'contactPhone': contactPhone, 'contactEmail': contactEmail, 'country': country, 'city': city, 'address': address, 'postalCode': postalCode, 'comment': comment, 'giftNote': giftNote, 'desiredDate': desiredDate, 'surprise': surprise, 'consent': consent};
+  Map<String, dynamic> toJson() => {'plan': plan, 'quantity': quantity, 'delivery': delivery, 'addons': addons.map((e) => e).toList(), 'promoCode': promoCode, 'mode': mode, 'contactName': contactName, 'contactPhone': contactPhone, 'contactEmail': contactEmail, 'country': country, 'city': city, 'address': address, 'postalCode': postalCode, 'comment': comment, 'giftNote': giftNote, 'desiredDate': desiredDate, 'surprise': surprise, 'consent': consent};
 }
 
 class OrderPlaced {
@@ -2238,7 +2320,7 @@ class KaspiInvoice {
 
   factory KaspiInvoice.fromJson(Map<String, dynamic> json) => KaspiInvoice(id: json['id'] as String, method: json['method'] as String, status: json['status'] as String, amount: (json['amount'] as num).toDouble(), phone: json['phone'] == null ? null : json['phone'] as String, link: json['link'] == null ? null : json['link'] as String, qrSvg: json['qrSvg'] == null ? null : json['qrSvg'] as String, expiresAt: json['expiresAt'] == null ? null : json['expiresAt'] as String, paidAt: json['paidAt'] == null ? null : json['paidAt'] as String);
 
-  Map<String, dynamic> toJson() => {'id': id, 'method': method, 'status': status, 'amount': amount, 'phone': phone == null ? null : phone!, 'link': link == null ? null : link!, 'qrSvg': qrSvg == null ? null : qrSvg!, 'expiresAt': expiresAt == null ? null : expiresAt!, 'paidAt': paidAt == null ? null : paidAt!};
+  Map<String, dynamic> toJson() => {'id': id, 'method': method, 'status': status, 'amount': amount, 'phone': phone, 'link': link, 'qrSvg': qrSvg, 'expiresAt': expiresAt, 'paidAt': paidAt};
 }
 
 class CabinetOrder {
@@ -2271,7 +2353,7 @@ class CabinetOrder {
 
   factory CabinetOrder.fromJson(Map<String, dynamic> json) => CabinetOrder(id: json['id'] as String, number: (json['number'] as num).toInt(), title: json['title'] as String, created: json['created'] as String, bookId: json['bookId'] as String, bookTitle: json['bookTitle'] as String, status: json['status'] as String, statusLabel: json['statusLabel'] as String, tone: json['tone'] as String, printed: json['printed'] as bool, paid: json['paid'] as bool, nowTitle: json['nowTitle'] as String, nowText: json['nowText'] as String, steps: (json['steps'] as List).map((e) => CabinetOrderSteps.fromJson(e as Map<String, dynamic>)).toList(), stepOf: json['stepOf'] == null ? null : json['stepOf'] as String, trackingLabel: json['trackingLabel'] as String, trackingNumber: json['trackingNumber'] == null ? null : json['trackingNumber'] as String, detailsTitle: json['detailsTitle'] as String, facts: (json['facts'] as List).map((e) => CabinetOrderFacts.fromJson(e as Map<String, dynamic>)).toList(), lines: (json['lines'] as List).map((e) => PriceLine.fromJson(e as Map<String, dynamic>)).toList(), totalLabel: json['totalLabel'] as String, total: json['total'] as String, quotedNote: json['quotedNote'] == null ? null : json['quotedNote'] as String, payment: json['payment'] == null ? null : CabinetOrderPayment.fromJson(json['payment'] as Map<String, dynamic>));
 
-  Map<String, dynamic> toJson() => {'id': id, 'number': number, 'title': title, 'created': created, 'bookId': bookId, 'bookTitle': bookTitle, 'status': status, 'statusLabel': statusLabel, 'tone': tone, 'printed': printed, 'paid': paid, 'nowTitle': nowTitle, 'nowText': nowText, 'steps': steps.map((e) => e.toJson()).toList(), 'stepOf': stepOf == null ? null : stepOf!, 'trackingLabel': trackingLabel, 'trackingNumber': trackingNumber == null ? null : trackingNumber!, 'detailsTitle': detailsTitle, 'facts': facts.map((e) => e.toJson()).toList(), 'lines': lines.map((e) => e.toJson()).toList(), 'totalLabel': totalLabel, 'total': total, 'quotedNote': quotedNote == null ? null : quotedNote!, 'payment': payment == null ? null : payment!.toJson()};
+  Map<String, dynamic> toJson() => {'id': id, 'number': number, 'title': title, 'created': created, 'bookId': bookId, 'bookTitle': bookTitle, 'status': status, 'statusLabel': statusLabel, 'tone': tone, 'printed': printed, 'paid': paid, 'nowTitle': nowTitle, 'nowText': nowText, 'steps': steps.map((e) => e.toJson()).toList(), 'stepOf': stepOf, 'trackingLabel': trackingLabel, 'trackingNumber': trackingNumber, 'detailsTitle': detailsTitle, 'facts': facts.map((e) => e.toJson()).toList(), 'lines': lines.map((e) => e.toJson()).toList(), 'totalLabel': totalLabel, 'total': total, 'quotedNote': quotedNote, 'payment': payment == null ? null : payment!.toJson()};
 }
 
 class CabinetOrderSteps {
@@ -2346,7 +2428,7 @@ class CabinetOrderPaymentManual {
 
   factory CabinetOrderPaymentManual.fromJson(Map<String, dynamic> json) => CabinetOrderPaymentManual(title: json['title'] as String, steps: (json['steps'] as List).map((e) => e as String).toList(), claim: json['claim'] as String, claimed: json['claimed'] == null ? null : json['claimed'] as String);
 
-  Map<String, dynamic> toJson() => {'title': title, 'steps': steps.map((e) => e).toList(), 'claim': claim, 'claimed': claimed == null ? null : claimed!};
+  Map<String, dynamic> toJson() => {'title': title, 'steps': steps.map((e) => e).toList(), 'claim': claim, 'claimed': claimed};
 }
 
 class CabinetOrderPaymentCancel {
@@ -2394,7 +2476,7 @@ class CabinetOrdersOrders {
 
   factory CabinetOrdersOrders.fromJson(Map<String, dynamic> json) => CabinetOrdersOrders(id: json['id'] as String, number: (json['number'] as num).toInt(), title: json['title'] as String, bookTitle: json['bookTitle'] as String, bookId: json['bookId'] as String, status: json['status'] as String, statusLabel: json['statusLabel'] as String, tone: json['tone'] as String, amount: json['amount'] as String, created: json['created'] as String, pay: json['pay'] == null ? null : json['pay'] as String);
 
-  Map<String, dynamic> toJson() => {'id': id, 'number': number, 'title': title, 'bookTitle': bookTitle, 'bookId': bookId, 'status': status, 'statusLabel': statusLabel, 'tone': tone, 'amount': amount, 'created': created, 'pay': pay == null ? null : pay!};
+  Map<String, dynamic> toJson() => {'id': id, 'number': number, 'title': title, 'bookTitle': bookTitle, 'bookId': bookId, 'status': status, 'statusLabel': statusLabel, 'tone': tone, 'amount': amount, 'created': created, 'pay': pay};
 }
 
 class KaspiPayBody {
@@ -2448,7 +2530,7 @@ class Done {
 
   factory Done.fromJson(Map<String, dynamic> json) => Done(ok: json['ok'] as bool, message: json['message'] == null ? null : json['message'] as String);
 
-  Map<String, dynamic> toJson() => {'ok': ok, 'message': message == null ? null : message!};
+  Map<String, dynamic> toJson() => {'ok': ok, 'message': message};
 }
 
 class CustomField {
@@ -2504,7 +2586,7 @@ class DealForm {
 
   factory DealForm.fromJson(Map<String, dynamic> json) => DealForm(id: json['id'] as String, number: (json['number'] as num).toInt(), title: json['title'] as String, contactName: json['contactName'] as String, phone: json['phone'] == null ? null : json['phone'] as String, email: json['email'] == null ? null : json['email'] as String, extraPhones: (json['extraPhones'] as List).map((e) => e as String).toList(), canEditContacts: json['canEditContacts'] as bool, amount: (json['amount'] as num).toInt(), maxDiscountPercent: json['maxDiscountPercent'] == null ? null : (json['maxDiscountPercent'] as num).toDouble(), source: json['source'] as String, sources: (json['sources'] as List).map((e) => Choice.fromJson(e as Map<String, dynamic>)).toList(), tags: (json['tags'] as List).map((e) => e as String).toList(), fields: (json['fields'] as List).map((e) => CustomField.fromJson(e as Map<String, dynamic>)).toList(), canEdit: json['canEdit'] as bool, plan: json['plan'] == null ? null : json['plan'] as String, plans: (json['plans'] as List).map((e) => PlanChoice.fromJson(e as Map<String, dynamic>)).toList(), gifts: (json['gifts'] as List).map((e) => e as String).toList(), giftOptions: (json['giftOptions'] as List).map((e) => Choice.fromJson(e as Map<String, dynamic>)).toList(), agreementLocked: json['agreementLocked'] as bool);
 
-  Map<String, dynamic> toJson() => {'id': id, 'number': number, 'title': title, 'contactName': contactName, 'phone': phone == null ? null : phone!, 'email': email == null ? null : email!, 'extraPhones': extraPhones.map((e) => e).toList(), 'canEditContacts': canEditContacts, 'amount': amount, 'maxDiscountPercent': maxDiscountPercent == null ? null : maxDiscountPercent!, 'source': source, 'sources': sources.map((e) => e.toJson()).toList(), 'tags': tags.map((e) => e).toList(), 'fields': fields.map((e) => e.toJson()).toList(), 'canEdit': canEdit, 'plan': plan == null ? null : plan!, 'plans': plans.map((e) => e.toJson()).toList(), 'gifts': gifts.map((e) => e).toList(), 'giftOptions': giftOptions.map((e) => e.toJson()).toList(), 'agreementLocked': agreementLocked};
+  Map<String, dynamic> toJson() => {'id': id, 'number': number, 'title': title, 'contactName': contactName, 'phone': phone, 'email': email, 'extraPhones': extraPhones.map((e) => e).toList(), 'canEditContacts': canEditContacts, 'amount': amount, 'maxDiscountPercent': maxDiscountPercent, 'source': source, 'sources': sources.map((e) => e.toJson()).toList(), 'tags': tags.map((e) => e).toList(), 'fields': fields.map((e) => e.toJson()).toList(), 'canEdit': canEdit, 'plan': plan, 'plans': plans.map((e) => e.toJson()).toList(), 'gifts': gifts.map((e) => e).toList(), 'giftOptions': giftOptions.map((e) => e.toJson()).toList(), 'agreementLocked': agreementLocked};
 }
 
 class DealPatch {
@@ -2532,7 +2614,7 @@ class DealPlanBody {
 
   factory DealPlanBody.fromJson(Map<String, dynamic> json) => DealPlanBody(plan: json['plan'] == null ? null : json['plan'] as String);
 
-  Map<String, dynamic> toJson() => {'plan': plan == null ? null : plan!};
+  Map<String, dynamic> toJson() => {'plan': plan};
 }
 
 class DealGiftsBody {
@@ -2566,7 +2648,7 @@ class ClientForm {
 
   factory ClientForm.fromJson(Map<String, dynamic> json) => ClientForm(id: json['id'] as String, name: json['name'] as String, phone: json['phone'] == null ? null : json['phone'] as String, extraPhones: (json['extraPhones'] as List).map((e) => e as String).toList(), canEditPhones: json['canEditPhones'] as bool, tags: (json['tags'] as List).map((e) => e as String).toList(), fields: (json['fields'] as List).map((e) => CustomField.fromJson(e as Map<String, dynamic>)).toList(), noMarketing: json['noMarketing'] as bool, locale: json['locale'] as String, locales: (json['locales'] as List).map((e) => Choice.fromJson(e as Map<String, dynamic>)).toList(), channel: json['channel'] == null ? null : json['channel'] as String, channels: (json['channels'] as List).map((e) => Choice.fromJson(e as Map<String, dynamic>)).toList(), managerId: json['managerId'] == null ? null : json['managerId'] as String, managers: (json['managers'] as List).map((e) => Choice.fromJson(e as Map<String, dynamic>)).toList(), canEdit: json['canEdit'] as bool);
 
-  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'phone': phone == null ? null : phone!, 'extraPhones': extraPhones.map((e) => e).toList(), 'canEditPhones': canEditPhones, 'tags': tags.map((e) => e).toList(), 'fields': fields.map((e) => e.toJson()).toList(), 'noMarketing': noMarketing, 'locale': locale, 'locales': locales.map((e) => e.toJson()).toList(), 'channel': channel == null ? null : channel!, 'channels': channels.map((e) => e.toJson()).toList(), 'managerId': managerId == null ? null : managerId!, 'managers': managers.map((e) => e.toJson()).toList(), 'canEdit': canEdit};
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'phone': phone, 'extraPhones': extraPhones.map((e) => e).toList(), 'canEditPhones': canEditPhones, 'tags': tags.map((e) => e).toList(), 'fields': fields.map((e) => e.toJson()).toList(), 'noMarketing': noMarketing, 'locale': locale, 'locales': locales.map((e) => e.toJson()).toList(), 'channel': channel, 'channels': channels.map((e) => e.toJson()).toList(), 'managerId': managerId, 'managers': managers.map((e) => e.toJson()).toList(), 'canEdit': canEdit};
 }
 
 class ClientPatch {
@@ -2584,7 +2666,7 @@ class ClientPatch {
 
   factory ClientPatch.fromJson(Map<String, dynamic> json) => ClientPatch(extraPhones: json['extraPhones'] == null ? null : (json['extraPhones'] as List).map((e) => e as String).toList(), tags: json['tags'] == null ? null : (json['tags'] as List).map((e) => e as String).toList(), fields: json['fields'] == null ? null : json['fields'] as Map<String, dynamic>, noMarketing: json['noMarketing'] == null ? null : json['noMarketing'] as bool, locale: json['locale'] == null ? null : json['locale'] as String, channel: json['channel'] == null ? null : json['channel'] as String, managerId: json['managerId'] == null ? null : json['managerId'] as String);
 
-  Map<String, dynamic> toJson() => {if (extraPhones != null) 'extraPhones': extraPhones!.map((e) => e).toList(), if (tags != null) 'tags': tags!.map((e) => e).toList(), if (fields != null) 'fields': fields!, if (noMarketing != null) 'noMarketing': noMarketing!, if (locale != null) 'locale': locale!, if (channel != null) 'channel': channel!, if (managerId != null || nulls.contains('managerId')) 'managerId': managerId == null ? null : managerId!};
+  Map<String, dynamic> toJson() => {if (extraPhones != null) 'extraPhones': extraPhones!.map((e) => e).toList(), if (tags != null) 'tags': tags!.map((e) => e).toList(), if (fields != null) 'fields': fields!, if (noMarketing != null) 'noMarketing': noMarketing!, if (locale != null) 'locale': locale!, if (channel != null) 'channel': channel!, if (managerId != null || nulls.contains('managerId')) 'managerId': managerId};
 }
 
 class ChatBotBody {
@@ -2615,7 +2697,7 @@ class OrderPayment {
 
   factory OrderPayment.fromJson(Map<String, dynamic> json) => OrderPayment(id: json['id'] as String, kind: json['kind'] as String, amount: (json['amount'] as num).toInt(), method: json['method'] as String, at: json['at'] as String, note: json['note'] == null ? null : json['note'] as String, receipt: json['receipt'] as bool, payForm: json['payForm'] == null ? null : json['payForm'] as String, by: json['by'] == null ? null : json['by'] as String, reviewed: json['reviewed'] == null ? null : json['reviewed'] as String, voidReason: json['voidReason'] == null ? null : json['voidReason'] as String, voided: json['voided'] as bool);
 
-  Map<String, dynamic> toJson() => {'id': id, 'kind': kind, 'amount': amount, 'method': method, 'at': at, 'note': note == null ? null : note!, 'receipt': receipt, 'payForm': payForm == null ? null : payForm!, 'by': by == null ? null : by!, 'reviewed': reviewed == null ? null : reviewed!, 'voidReason': voidReason == null ? null : voidReason!, 'voided': voided};
+  Map<String, dynamic> toJson() => {'id': id, 'kind': kind, 'amount': amount, 'method': method, 'at': at, 'note': note, 'receipt': receipt, 'payForm': payForm, 'by': by, 'reviewed': reviewed, 'voidReason': voidReason, 'voided': voided};
 }
 
 class OrderMoney {
@@ -2648,7 +2730,7 @@ class OrderMoney {
 
   factory OrderMoney.fromJson(Map<String, dynamic> json) => OrderMoney(id: json['id'] as String, number: (json['number'] as num).toInt(), status: json['status'] as String, statusLabel: json['statusLabel'] as String, statuses: (json['statuses'] as List).map((e) => Choice.fromJson(e as Map<String, dynamic>)).toList(), printed: json['printed'] as bool, trackingNumber: json['trackingNumber'] == null ? null : json['trackingNumber'] as String, amount: (json['amount'] as num).toInt(), received: (json['received'] as num).toInt(), refundable: (json['refundable'] as num).toInt(), settled: json['settled'] as bool, postpay: json['postpay'] as bool, cancelled: json['cancelled'] as bool, payments: (json['payments'] as List).map((e) => OrderPayment.fromJson(e as Map<String, dynamic>)).toList(), payForms: (json['payForms'] as List).map((e) => e as String).toList(), plan: json['plan'] as String, plans: (json['plans'] as List).map((e) => PlanChoice.fromJson(e as Map<String, dynamic>)).toList(), agreed: json['agreed'] == null ? null : (json['agreed'] as num).toInt(), maxDiscountPercent: json['maxDiscountPercent'] == null ? null : (json['maxDiscountPercent'] as num).toDouble(), canEdit: json['canEdit'] as bool, canVoid: json['canVoid'] as bool, canReview: json['canReview'] as bool, canTerms: json['canTerms'] as bool, canRequestReprice: json['canRequestReprice'] as bool);
 
-  Map<String, dynamic> toJson() => {'id': id, 'number': number, 'status': status, 'statusLabel': statusLabel, 'statuses': statuses.map((e) => e.toJson()).toList(), 'printed': printed, 'trackingNumber': trackingNumber == null ? null : trackingNumber!, 'amount': amount, 'received': received, 'refundable': refundable, 'settled': settled, 'postpay': postpay, 'cancelled': cancelled, 'payments': payments.map((e) => e.toJson()).toList(), 'payForms': payForms.map((e) => e).toList(), 'plan': plan, 'plans': plans.map((e) => e.toJson()).toList(), 'agreed': agreed == null ? null : agreed!, 'maxDiscountPercent': maxDiscountPercent == null ? null : maxDiscountPercent!, 'canEdit': canEdit, 'canVoid': canVoid, 'canReview': canReview, 'canTerms': canTerms, 'canRequestReprice': canRequestReprice};
+  Map<String, dynamic> toJson() => {'id': id, 'number': number, 'status': status, 'statusLabel': statusLabel, 'statuses': statuses.map((e) => e.toJson()).toList(), 'printed': printed, 'trackingNumber': trackingNumber, 'amount': amount, 'received': received, 'refundable': refundable, 'settled': settled, 'postpay': postpay, 'cancelled': cancelled, 'payments': payments.map((e) => e.toJson()).toList(), 'payForms': payForms.map((e) => e).toList(), 'plan': plan, 'plans': plans.map((e) => e.toJson()).toList(), 'agreed': agreed, 'maxDiscountPercent': maxDiscountPercent, 'canEdit': canEdit, 'canVoid': canVoid, 'canReview': canReview, 'canTerms': canTerms, 'canRequestReprice': canRequestReprice};
 }
 
 class ReasonBody {
@@ -2670,7 +2752,7 @@ class OrderTermsBody {
 
   factory OrderTermsBody.fromJson(Map<String, dynamic> json) => OrderTermsBody(plan: json['plan'] as String, agreedTotal: json['agreedTotal'] == null ? null : (json['agreedTotal'] as num).toInt(), reason: json['reason'] == null ? null : json['reason'] as String);
 
-  Map<String, dynamic> toJson() => {'plan': plan, 'agreedTotal': agreedTotal == null ? null : agreedTotal!, if (reason != null) 'reason': reason!};
+  Map<String, dynamic> toJson() => {'plan': plan, 'agreedTotal': agreedTotal, if (reason != null) 'reason': reason!};
 }
 
 class RepriceRequestBody {

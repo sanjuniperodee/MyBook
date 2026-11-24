@@ -26,7 +26,9 @@ class DartWriter {
     const base = s.anyOf ? s.anyOf.find((x) => x.type !== "null")! : Array.isArray(s.type) ? { ...s, type: s.type.find((t) => t !== "null") } : s;
     const t = this.baseType(base, hint);
     if (!nullable) return t;
-    return { type: `${t.type}?`, from: (v) => `${v} == null ? null : ${t.from(v)}`, to: (v) => `${v} == null ? null : ${t.to(`${v}!`)}` };
+    // Простой тип (строка, число) пишется как есть, null тоже; класс и список — через проверку на null.
+    const to = (v: string) => (t.to(`${v}!`) === `${v}!` ? v : `${v} == null ? null : ${t.to(`${v}!`)}`);
+    return { type: `${t.type}?`, from: (v) => `${v} == null ? null : ${t.from(v)}`, to };
   }
 
   private baseType(s: Schema, hint: string): DartType {

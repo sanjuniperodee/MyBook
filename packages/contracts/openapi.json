@@ -1301,6 +1301,102 @@
         "x-auth": "user"
       }
     },
+    "/api/v1/books/{bookId}/cover": {
+      "get": {
+        "operationId": "coverGet",
+        "tags": [
+          "cover"
+        ],
+        "summary": "Обложка книги и каталог шаблонов",
+        "parameters": [
+          {
+            "name": "bookId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoverView"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      },
+      "patch": {
+        "operationId": "coverUpdate",
+        "tags": [
+          "cover"
+        ],
+        "summary": "Правка обложки (только изменённые поля): шаблон, линии, тексты, фото",
+        "parameters": [
+          {
+            "name": "bookId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CoverPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoverView"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
+    },
     "/api/v1/cabinet/shelf": {
       "get": {
         "operationId": "cabinetShelf",
@@ -6810,6 +6906,214 @@
           "authorName",
           "city",
           "consent"
+        ],
+        "additionalProperties": false
+      },
+      "CoverPatch": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "subtitle": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "hideRecipientOnCover": {
+            "type": "boolean"
+          },
+          "namesOnCover": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "coverTemplate": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "coverLines": {
+            "type": "boolean"
+          },
+          "coverPhotoId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "coverPhotoExtra": {
+            "maxItems": 5,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          "backText": {
+            "type": "string",
+            "maxLength": 400
+          },
+          "backLayout": {
+            "type": "string",
+            "maxLength": 20
+          },
+          "backPhotoId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "backPhotoExtra": {
+            "maxItems": 5,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "CoverTemplate": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "mood": {
+            "type": "string"
+          },
+          "photoSlots": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "previewUrl": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "mood",
+          "photoSlots",
+          "previewUrl"
+        ],
+        "additionalProperties": false
+      },
+      "Cover": {
+        "type": "object",
+        "properties": {
+          "template": {
+            "type": "string"
+          },
+          "lines": {
+            "type": "boolean"
+          },
+          "title": {
+            "type": "string"
+          },
+          "subtitle": {
+            "type": "string"
+          },
+          "namesOnCover": {
+            "type": "string"
+          },
+          "hideRecipientOnCover": {
+            "type": "boolean"
+          },
+          "photoIds": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "backText": {
+            "type": "string"
+          },
+          "backLayout": {
+            "type": "string"
+          },
+          "backPhotoId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hasDesign": {
+            "type": "boolean"
+          },
+          "imageUrl": {
+            "type": "string"
+          },
+          "editable": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "template",
+          "lines",
+          "title",
+          "subtitle",
+          "namesOnCover",
+          "hideRecipientOnCover",
+          "photoIds",
+          "backText",
+          "backLayout",
+          "backPhotoId",
+          "hasDesign",
+          "imageUrl",
+          "editable"
+        ],
+        "additionalProperties": false
+      },
+      "CoverView": {
+        "type": "object",
+        "properties": {
+          "cover": {
+            "$ref": "#/components/schemas/Cover"
+          },
+          "templates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CoverTemplate"
+            }
+          }
+        },
+        "required": [
+          "cover",
+          "templates"
         ],
         "additionalProperties": false
       },
