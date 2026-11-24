@@ -326,6 +326,18 @@ class MybookApi {
     return BookModel.fromJson(json as Map<String, dynamic>);
   }
 
+  /// Мастер новой книги: виды книг, поводы, надписи (как /books/new сайта)
+  Future<BookWizard> bookWizard() async {
+    final json = await _send('GET', '/api/v1/books/new');
+    return BookWizard.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Подсказка мастера: до какого дня заказать, чтобы книга успела к дате повода
+  Future<WizardDeadline> wizardDeadline({required String occasion, required String date}) async {
+    final json = await _send('GET', '/api/v1/occasions/deadline', query: {'occasion': '${occasion}', 'date': '${date}'});
+    return WizardDeadline.fromJson(json as Map<String, dynamic>);
+  }
+
   /// Полка «Мои книги» — как на сайте: книги в работе первыми, прогресс, срок к празднику, заказ, обложка
   Future<CabinetShelf> cabinetShelf() async {
     final json = await _send('GET', '/api/v1/cabinet/shelf');
@@ -3242,6 +3254,230 @@ class BookModelLabels {
   Map<String, dynamic> toJson() => {'read': read, 'prev': prev, 'next': next, 'zoomIn': zoomIn, 'zoomOut': zoomOut, 'autoOn': autoOn, 'autoOff': autoOff, 'reset': reset, 'dims': dims, 'hint': hint, 'note': note};
 }
 
+class WizardTheme {
+  final String id;
+  /// gift | autobiography | blank
+  final String kind;
+  /// gift | own
+  final String group;
+  /// required | optional | none
+  final String recipient;
+  final String name;
+  final String description;
+  final String questionsLabel;
+  final String coverUrl;
+  final String? recipientLabel;
+  final String? recipientPlaceholder;
+  final String? recipientGender;
+  final bool recipientGenderChoice;
+  /// m | f
+  final String defaultRecipientGender;
+  final List<WizardThemePerLanguage> perLanguage;
+  final List<WizardThemeOccasions> occasions;
+
+  const WizardTheme({required this.id, required this.kind, required this.group, required this.recipient, required this.name, required this.description, required this.questionsLabel, required this.coverUrl, this.recipientLabel, this.recipientPlaceholder, this.recipientGender, required this.recipientGenderChoice, required this.defaultRecipientGender, required this.perLanguage, required this.occasions});
+
+  factory WizardTheme.fromJson(Map<String, dynamic> json) => WizardTheme(id: json['id'] as String, kind: json['kind'] as String, group: json['group'] as String, recipient: json['recipient'] as String, name: json['name'] as String, description: json['description'] as String, questionsLabel: json['questionsLabel'] as String, coverUrl: json['coverUrl'] as String, recipientLabel: json['recipientLabel'] == null ? null : json['recipientLabel'] as String, recipientPlaceholder: json['recipientPlaceholder'] == null ? null : json['recipientPlaceholder'] as String, recipientGender: json['recipientGender'] == null ? null : json['recipientGender'] as String, recipientGenderChoice: json['recipientGenderChoice'] as bool, defaultRecipientGender: json['defaultRecipientGender'] as String, perLanguage: (json['perLanguage'] as List).map((e) => WizardThemePerLanguage.fromJson(e as Map<String, dynamic>)).toList(), occasions: (json['occasions'] as List).map((e) => WizardThemeOccasions.fromJson(e as Map<String, dynamic>)).toList());
+
+  Map<String, dynamic> toJson() => {'id': id, 'kind': kind, 'group': group, 'recipient': recipient, 'name': name, 'description': description, 'questionsLabel': questionsLabel, 'coverUrl': coverUrl, 'recipientLabel': recipientLabel, 'recipientPlaceholder': recipientPlaceholder, 'recipientGender': recipientGender, 'recipientGenderChoice': recipientGenderChoice, 'defaultRecipientGender': defaultRecipientGender, 'perLanguage': perLanguage.map((e) => e.toJson()).toList(), 'occasions': occasions.map((e) => e.toJson()).toList()};
+}
+
+class WizardThemePerLanguage {
+  final String language;
+  final List<String> titles;
+  final String firstChapter;
+
+  const WizardThemePerLanguage({required this.language, required this.titles, required this.firstChapter});
+
+  factory WizardThemePerLanguage.fromJson(Map<String, dynamic> json) => WizardThemePerLanguage(language: json['language'] as String, titles: (json['titles'] as List).map((e) => e as String).toList(), firstChapter: json['firstChapter'] as String);
+
+  Map<String, dynamic> toJson() => {'language': language, 'titles': titles.map((e) => e).toList(), 'firstChapter': firstChapter};
+}
+
+class WizardThemeOccasions {
+  final String id;
+  final String label;
+  final String? date;
+
+  const WizardThemeOccasions({required this.id, required this.label, this.date});
+
+  factory WizardThemeOccasions.fromJson(Map<String, dynamic> json) => WizardThemeOccasions(id: json['id'] as String, label: json['label'] as String, date: json['date'] == null ? null : json['date'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'label': label, 'date': date};
+}
+
+class BookWizard {
+  final List<WizardTheme> themes;
+  final List<BookWizardLanguages> languages;
+  final String defaultLanguage;
+  final String defaultAuthor;
+  final BookWizardLimits limits;
+  final BookWizardLabels labels;
+
+  const BookWizard({required this.themes, required this.languages, required this.defaultLanguage, required this.defaultAuthor, required this.limits, required this.labels});
+
+  factory BookWizard.fromJson(Map<String, dynamic> json) => BookWizard(themes: (json['themes'] as List).map((e) => WizardTheme.fromJson(e as Map<String, dynamic>)).toList(), languages: (json['languages'] as List).map((e) => BookWizardLanguages.fromJson(e as Map<String, dynamic>)).toList(), defaultLanguage: json['defaultLanguage'] as String, defaultAuthor: json['defaultAuthor'] as String, limits: BookWizardLimits.fromJson(json['limits'] as Map<String, dynamic>), labels: BookWizardLabels.fromJson(json['labels'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'themes': themes.map((e) => e.toJson()).toList(), 'languages': languages.map((e) => e.toJson()).toList(), 'defaultLanguage': defaultLanguage, 'defaultAuthor': defaultAuthor, 'limits': limits.toJson(), 'labels': labels.toJson()};
+}
+
+class BookWizardLanguages {
+  final String id;
+  final String label;
+
+  const BookWizardLanguages({required this.id, required this.label});
+
+  factory BookWizardLanguages.fromJson(Map<String, dynamic> json) => BookWizardLanguages(id: json['id'] as String, label: json['label'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'label': label};
+}
+
+class BookWizardLimits {
+  final int authorName;
+  final int recipientName;
+  final int title;
+  final int recordedBy;
+  final int dedication;
+  final int firstChapterTitle;
+
+  const BookWizardLimits({required this.authorName, required this.recipientName, required this.title, required this.recordedBy, required this.dedication, required this.firstChapterTitle});
+
+  factory BookWizardLimits.fromJson(Map<String, dynamic> json) => BookWizardLimits(authorName: (json['authorName'] as num).toInt(), recipientName: (json['recipientName'] as num).toInt(), title: (json['title'] as num).toInt(), recordedBy: (json['recordedBy'] as num).toInt(), dedication: (json['dedication'] as num).toInt(), firstChapterTitle: (json['firstChapterTitle'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'authorName': authorName, 'recipientName': recipientName, 'title': title, 'recordedBy': recordedBy, 'dedication': dedication, 'firstChapterTitle': firstChapterTitle};
+}
+
+class BookWizardLabels {
+  final String whoTitle;
+  final String whoText;
+  final BookWizardLabelsGroups groups;
+  final List<String> steps;
+  final List<String> stepOf;
+  final BookWizardLabelsStepTitles stepTitles;
+  final String detailsText;
+  final String detailsTextBlank;
+  final String titleText;
+  final String authorName;
+  final String authorAs;
+  final BookWizardLabelsGenders genders;
+  final String recipientFor;
+  final BookWizardLabelsStory story;
+  final BookWizardLabelsBlank blank;
+  final String language;
+  final String languageHint;
+  final String languageHintBlank;
+  final String bookTitle;
+  final String occasion;
+  final String occasionHint;
+  final String occasionDate;
+  final String occasionPickDate;
+  final String optional;
+  final String submit;
+  final String pending;
+  final String coverNote;
+  final String next;
+  final String prev;
+  final String back;
+  final String previewTitle;
+  final BookWizardLabelsErrors errors;
+
+  const BookWizardLabels({required this.whoTitle, required this.whoText, required this.groups, required this.steps, required this.stepOf, required this.stepTitles, required this.detailsText, required this.detailsTextBlank, required this.titleText, required this.authorName, required this.authorAs, required this.genders, required this.recipientFor, required this.story, required this.blank, required this.language, required this.languageHint, required this.languageHintBlank, required this.bookTitle, required this.occasion, required this.occasionHint, required this.occasionDate, required this.occasionPickDate, required this.optional, required this.submit, required this.pending, required this.coverNote, required this.next, required this.prev, required this.back, required this.previewTitle, required this.errors});
+
+  factory BookWizardLabels.fromJson(Map<String, dynamic> json) => BookWizardLabels(whoTitle: json['whoTitle'] as String, whoText: json['whoText'] as String, groups: BookWizardLabelsGroups.fromJson(json['groups'] as Map<String, dynamic>), steps: (json['steps'] as List).map((e) => e as String).toList(), stepOf: (json['stepOf'] as List).map((e) => e as String).toList(), stepTitles: BookWizardLabelsStepTitles.fromJson(json['stepTitles'] as Map<String, dynamic>), detailsText: json['detailsText'] as String, detailsTextBlank: json['detailsTextBlank'] as String, titleText: json['titleText'] as String, authorName: json['authorName'] as String, authorAs: json['authorAs'] as String, genders: BookWizardLabelsGenders.fromJson(json['genders'] as Map<String, dynamic>), recipientFor: json['recipientFor'] as String, story: BookWizardLabelsStory.fromJson(json['story'] as Map<String, dynamic>), blank: BookWizardLabelsBlank.fromJson(json['blank'] as Map<String, dynamic>), language: json['language'] as String, languageHint: json['languageHint'] as String, languageHintBlank: json['languageHintBlank'] as String, bookTitle: json['bookTitle'] as String, occasion: json['occasion'] as String, occasionHint: json['occasionHint'] as String, occasionDate: json['occasionDate'] as String, occasionPickDate: json['occasionPickDate'] as String, optional: json['optional'] as String, submit: json['submit'] as String, pending: json['pending'] as String, coverNote: json['coverNote'] as String, next: json['next'] as String, prev: json['prev'] as String, back: json['back'] as String, previewTitle: json['previewTitle'] as String, errors: BookWizardLabelsErrors.fromJson(json['errors'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'whoTitle': whoTitle, 'whoText': whoText, 'groups': groups.toJson(), 'steps': steps.map((e) => e).toList(), 'stepOf': stepOf.map((e) => e).toList(), 'stepTitles': stepTitles.toJson(), 'detailsText': detailsText, 'detailsTextBlank': detailsTextBlank, 'titleText': titleText, 'authorName': authorName, 'authorAs': authorAs, 'genders': genders.toJson(), 'recipientFor': recipientFor, 'story': story.toJson(), 'blank': blank.toJson(), 'language': language, 'languageHint': languageHint, 'languageHintBlank': languageHintBlank, 'bookTitle': bookTitle, 'occasion': occasion, 'occasionHint': occasionHint, 'occasionDate': occasionDate, 'occasionPickDate': occasionPickDate, 'optional': optional, 'submit': submit, 'pending': pending, 'coverNote': coverNote, 'next': next, 'prev': prev, 'back': back, 'previewTitle': previewTitle, 'errors': errors.toJson()};
+}
+
+class BookWizardLabelsGroups {
+  final String gift;
+  final String own;
+
+  const BookWizardLabelsGroups({required this.gift, required this.own});
+
+  factory BookWizardLabelsGroups.fromJson(Map<String, dynamic> json) => BookWizardLabelsGroups(gift: json['gift'] as String, own: json['own'] as String);
+
+  Map<String, dynamic> toJson() => {'gift': gift, 'own': own};
+}
+
+class BookWizardLabelsStepTitles {
+  final String names;
+  final String namesBlank;
+  final String title;
+
+  const BookWizardLabelsStepTitles({required this.names, required this.namesBlank, required this.title});
+
+  factory BookWizardLabelsStepTitles.fromJson(Map<String, dynamic> json) => BookWizardLabelsStepTitles(names: json['names'] as String, namesBlank: json['namesBlank'] as String, title: json['title'] as String);
+
+  Map<String, dynamic> toJson() => {'names': names, 'namesBlank': namesBlank, 'title': title};
+}
+
+class BookWizardLabelsGenders {
+  final List<String> author;
+  final List<String> recipient;
+
+  const BookWizardLabelsGenders({required this.author, required this.recipient});
+
+  factory BookWizardLabelsGenders.fromJson(Map<String, dynamic> json) => BookWizardLabelsGenders(author: (json['author'] as List).map((e) => e as String).toList(), recipient: (json['recipient'] as List).map((e) => e as String).toList());
+
+  Map<String, dynamic> toJson() => {'author': author.map((e) => e).toList(), 'recipient': recipient.map((e) => e).toList()};
+}
+
+class BookWizardLabelsStory {
+  final String title;
+  final String own;
+  final String other;
+  final String narratorName;
+  final String narratorNamePlaceholder;
+  final String narratorAs;
+  final String recordedBy;
+  final String recordedByPlaceholder;
+  final String recordedByHint;
+  final String dedication;
+  final String dedicationPlaceholder;
+  final String dedicationHint;
+
+  const BookWizardLabelsStory({required this.title, required this.own, required this.other, required this.narratorName, required this.narratorNamePlaceholder, required this.narratorAs, required this.recordedBy, required this.recordedByPlaceholder, required this.recordedByHint, required this.dedication, required this.dedicationPlaceholder, required this.dedicationHint});
+
+  factory BookWizardLabelsStory.fromJson(Map<String, dynamic> json) => BookWizardLabelsStory(title: json['title'] as String, own: json['own'] as String, other: json['other'] as String, narratorName: json['narratorName'] as String, narratorNamePlaceholder: json['narratorNamePlaceholder'] as String, narratorAs: json['narratorAs'] as String, recordedBy: json['recordedBy'] as String, recordedByPlaceholder: json['recordedByPlaceholder'] as String, recordedByHint: json['recordedByHint'] as String, dedication: json['dedication'] as String, dedicationPlaceholder: json['dedicationPlaceholder'] as String, dedicationHint: json['dedicationHint'] as String);
+
+  Map<String, dynamic> toJson() => {'title': title, 'own': own, 'other': other, 'narratorName': narratorName, 'narratorNamePlaceholder': narratorNamePlaceholder, 'narratorAs': narratorAs, 'recordedBy': recordedBy, 'recordedByPlaceholder': recordedByPlaceholder, 'recordedByHint': recordedByHint, 'dedication': dedication, 'dedicationPlaceholder': dedicationPlaceholder, 'dedicationHint': dedicationHint};
+}
+
+class BookWizardLabelsBlank {
+  final String authorName;
+  final String firstChapter;
+  final String firstChapterHint;
+  final String titleHint;
+
+  const BookWizardLabelsBlank({required this.authorName, required this.firstChapter, required this.firstChapterHint, required this.titleHint});
+
+  factory BookWizardLabelsBlank.fromJson(Map<String, dynamic> json) => BookWizardLabelsBlank(authorName: json['authorName'] as String, firstChapter: json['firstChapter'] as String, firstChapterHint: json['firstChapterHint'] as String, titleHint: json['titleHint'] as String);
+
+  Map<String, dynamic> toJson() => {'authorName': authorName, 'firstChapter': firstChapter, 'firstChapterHint': firstChapterHint, 'titleHint': titleHint};
+}
+
+class BookWizardLabelsErrors {
+  final String authorName;
+  final String recipientName;
+  final String title;
+
+  const BookWizardLabelsErrors({required this.authorName, required this.recipientName, required this.title});
+
+  factory BookWizardLabelsErrors.fromJson(Map<String, dynamic> json) => BookWizardLabelsErrors(authorName: json['authorName'] as String, recipientName: json['recipientName'] as String, title: json['title'] as String);
+
+  Map<String, dynamic> toJson() => {'authorName': authorName, 'recipientName': recipientName, 'title': title};
+}
+
+class WizardDeadline {
+  final String? text;
+
+  const WizardDeadline({this.text});
+
+  factory WizardDeadline.fromJson(Map<String, dynamic> json) => WizardDeadline(text: json['text'] == null ? null : json['text'] as String);
+
+  Map<String, dynamic> toJson() => {'text': text};
+}
+
 class ShelfDeadline {
   final String text;
   /// calm | warm | hot
@@ -3296,12 +3532,49 @@ class ShelfItem {
 
 class CabinetShelf {
   final List<ShelfItem> books;
+  final CabinetShelfLabels labels;
 
-  const CabinetShelf({required this.books});
+  const CabinetShelf({required this.books, required this.labels});
 
-  factory CabinetShelf.fromJson(Map<String, dynamic> json) => CabinetShelf(books: (json['books'] as List).map((e) => ShelfItem.fromJson(e as Map<String, dynamic>)).toList());
+  factory CabinetShelf.fromJson(Map<String, dynamic> json) => CabinetShelf(books: (json['books'] as List).map((e) => ShelfItem.fromJson(e as Map<String, dynamic>)).toList(), labels: CabinetShelfLabels.fromJson(json['labels'] as Map<String, dynamic>));
 
-  Map<String, dynamic> toJson() => {'books': books.map((e) => e.toJson()).toList()};
+  Map<String, dynamic> toJson() => {'books': books.map((e) => e.toJson()).toList(), 'labels': labels.toJson()};
+}
+
+class CabinetShelfLabels {
+  final String newBook;
+  final CabinetShelfLabelsFirst first;
+
+  const CabinetShelfLabels({required this.newBook, required this.first});
+
+  factory CabinetShelfLabels.fromJson(Map<String, dynamic> json) => CabinetShelfLabels(newBook: json['newBook'] as String, first: CabinetShelfLabelsFirst.fromJson(json['first'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'newBook': newBook, 'first': first.toJson()};
+}
+
+class CabinetShelfLabelsFirst {
+  final String hello;
+  final String text;
+  final String create;
+  final String coverTitle;
+  final List<CabinetShelfLabelsFirstSteps> steps;
+
+  const CabinetShelfLabelsFirst({required this.hello, required this.text, required this.create, required this.coverTitle, required this.steps});
+
+  factory CabinetShelfLabelsFirst.fromJson(Map<String, dynamic> json) => CabinetShelfLabelsFirst(hello: json['hello'] as String, text: json['text'] as String, create: json['create'] as String, coverTitle: json['coverTitle'] as String, steps: (json['steps'] as List).map((e) => CabinetShelfLabelsFirstSteps.fromJson(e as Map<String, dynamic>)).toList());
+
+  Map<String, dynamic> toJson() => {'hello': hello, 'text': text, 'create': create, 'coverTitle': coverTitle, 'steps': steps.map((e) => e.toJson()).toList()};
+}
+
+class CabinetShelfLabelsFirstSteps {
+  final String title;
+  final String text;
+
+  const CabinetShelfLabelsFirstSteps({required this.title, required this.text});
+
+  factory CabinetShelfLabelsFirstSteps.fromJson(Map<String, dynamic> json) => CabinetShelfLabelsFirstSteps(title: json['title'] as String, text: json['text'] as String);
+
+  Map<String, dynamic> toJson() => {'title': title, 'text': text};
 }
 
 class HubLink {
@@ -3423,12 +3696,13 @@ class CabinetBook {
   final List<String> tips;
   final String? tipsNote;
   final CabinetBookPreview preview;
+  final CabinetBookEditor editor;
 
-  const CabinetBook({required this.id, required this.title, required this.subtitle, required this.kind, required this.language, required this.blank, required this.editable, required this.coverUrl, required this.coverThumbUrl, this.card, this.deadline, required this.pathTitle, required this.steps, required this.needsTitle, required this.needsFix, required this.needs, required this.chaptersTitle, this.chaptersAside, required this.allChaptersLabel, required this.chapters, required this.letters, required this.help, required this.whereToStart, required this.tips, this.tipsNote, required this.preview});
+  const CabinetBook({required this.id, required this.title, required this.subtitle, required this.kind, required this.language, required this.blank, required this.editable, required this.coverUrl, required this.coverThumbUrl, this.card, this.deadline, required this.pathTitle, required this.steps, required this.needsTitle, required this.needsFix, required this.needs, required this.chaptersTitle, this.chaptersAside, required this.allChaptersLabel, required this.chapters, required this.letters, required this.help, required this.whereToStart, required this.tips, this.tipsNote, required this.preview, required this.editor});
 
-  factory CabinetBook.fromJson(Map<String, dynamic> json) => CabinetBook(id: json['id'] as String, title: json['title'] as String, subtitle: json['subtitle'] as String, kind: json['kind'] as String, language: json['language'] as String, blank: json['blank'] as bool, editable: json['editable'] as bool, coverUrl: json['coverUrl'] as String, coverThumbUrl: json['coverThumbUrl'] as String, card: json['card'] == null ? null : HubCard.fromJson(json['card'] as Map<String, dynamic>), deadline: json['deadline'] == null ? null : HubDeadline.fromJson(json['deadline'] as Map<String, dynamic>), pathTitle: json['pathTitle'] as String, steps: (json['steps'] as List).map((e) => HubStep.fromJson(e as Map<String, dynamic>)).toList(), needsTitle: json['needsTitle'] as String, needsFix: json['needsFix'] as String, needs: (json['needs'] as List).map((e) => HubNeed.fromJson(e as Map<String, dynamic>)).toList(), chaptersTitle: json['chaptersTitle'] as String, chaptersAside: json['chaptersAside'] == null ? null : json['chaptersAside'] as String, allChaptersLabel: json['allChaptersLabel'] as String, chapters: (json['chapters'] as List).map((e) => HubChapter.fromJson(e as Map<String, dynamic>)).toList(), letters: CabinetBookLetters.fromJson(json['letters'] as Map<String, dynamic>), help: CabinetBookHelp.fromJson(json['help'] as Map<String, dynamic>), whereToStart: json['whereToStart'] as String, tips: (json['tips'] as List).map((e) => e as String).toList(), tipsNote: json['tipsNote'] == null ? null : json['tipsNote'] as String, preview: CabinetBookPreview.fromJson(json['preview'] as Map<String, dynamic>));
+  factory CabinetBook.fromJson(Map<String, dynamic> json) => CabinetBook(id: json['id'] as String, title: json['title'] as String, subtitle: json['subtitle'] as String, kind: json['kind'] as String, language: json['language'] as String, blank: json['blank'] as bool, editable: json['editable'] as bool, coverUrl: json['coverUrl'] as String, coverThumbUrl: json['coverThumbUrl'] as String, card: json['card'] == null ? null : HubCard.fromJson(json['card'] as Map<String, dynamic>), deadline: json['deadline'] == null ? null : HubDeadline.fromJson(json['deadline'] as Map<String, dynamic>), pathTitle: json['pathTitle'] as String, steps: (json['steps'] as List).map((e) => HubStep.fromJson(e as Map<String, dynamic>)).toList(), needsTitle: json['needsTitle'] as String, needsFix: json['needsFix'] as String, needs: (json['needs'] as List).map((e) => HubNeed.fromJson(e as Map<String, dynamic>)).toList(), chaptersTitle: json['chaptersTitle'] as String, chaptersAside: json['chaptersAside'] == null ? null : json['chaptersAside'] as String, allChaptersLabel: json['allChaptersLabel'] as String, chapters: (json['chapters'] as List).map((e) => HubChapter.fromJson(e as Map<String, dynamic>)).toList(), letters: CabinetBookLetters.fromJson(json['letters'] as Map<String, dynamic>), help: CabinetBookHelp.fromJson(json['help'] as Map<String, dynamic>), whereToStart: json['whereToStart'] as String, tips: (json['tips'] as List).map((e) => e as String).toList(), tipsNote: json['tipsNote'] == null ? null : json['tipsNote'] as String, preview: CabinetBookPreview.fromJson(json['preview'] as Map<String, dynamic>), editor: CabinetBookEditor.fromJson(json['editor'] as Map<String, dynamic>));
 
-  Map<String, dynamic> toJson() => {'id': id, 'title': title, 'subtitle': subtitle, 'kind': kind, 'language': language, 'blank': blank, 'editable': editable, 'coverUrl': coverUrl, 'coverThumbUrl': coverThumbUrl, 'card': card == null ? null : card!.toJson(), 'deadline': deadline == null ? null : deadline!.toJson(), 'pathTitle': pathTitle, 'steps': steps.map((e) => e.toJson()).toList(), 'needsTitle': needsTitle, 'needsFix': needsFix, 'needs': needs.map((e) => e.toJson()).toList(), 'chaptersTitle': chaptersTitle, 'chaptersAside': chaptersAside, 'allChaptersLabel': allChaptersLabel, 'chapters': chapters.map((e) => e.toJson()).toList(), 'letters': letters.toJson(), 'help': help.toJson(), 'whereToStart': whereToStart, 'tips': tips.map((e) => e).toList(), 'tipsNote': tipsNote, 'preview': preview.toJson()};
+  Map<String, dynamic> toJson() => {'id': id, 'title': title, 'subtitle': subtitle, 'kind': kind, 'language': language, 'blank': blank, 'editable': editable, 'coverUrl': coverUrl, 'coverThumbUrl': coverThumbUrl, 'card': card == null ? null : card!.toJson(), 'deadline': deadline == null ? null : deadline!.toJson(), 'pathTitle': pathTitle, 'steps': steps.map((e) => e.toJson()).toList(), 'needsTitle': needsTitle, 'needsFix': needsFix, 'needs': needs.map((e) => e.toJson()).toList(), 'chaptersTitle': chaptersTitle, 'chaptersAside': chaptersAside, 'allChaptersLabel': allChaptersLabel, 'chapters': chapters.map((e) => e.toJson()).toList(), 'letters': letters.toJson(), 'help': help.toJson(), 'whereToStart': whereToStart, 'tips': tips.map((e) => e).toList(), 'tipsNote': tipsNote, 'preview': preview.toJson(), 'editor': editor.toJson()};
 }
 
 class CabinetBookLetters {
@@ -3466,6 +3740,23 @@ class CabinetBookPreview {
   factory CabinetBookPreview.fromJson(Map<String, dynamic> json) => CabinetBookPreview(href: json['href'] as String, tab: json['tab'] as String, cta: json['cta'] as String);
 
   Map<String, dynamic> toJson() => {'href': href, 'tab': tab, 'cta': cta};
+}
+
+class CabinetBookEditor {
+  final String answerPlaceholder;
+  final String prev;
+  final String next;
+  final String dictate;
+  final String dictateTitle;
+  final String stop;
+  final String recording;
+  final String recognizing;
+
+  const CabinetBookEditor({required this.answerPlaceholder, required this.prev, required this.next, required this.dictate, required this.dictateTitle, required this.stop, required this.recording, required this.recognizing});
+
+  factory CabinetBookEditor.fromJson(Map<String, dynamic> json) => CabinetBookEditor(answerPlaceholder: json['answerPlaceholder'] as String, prev: json['prev'] as String, next: json['next'] as String, dictate: json['dictate'] as String, dictateTitle: json['dictateTitle'] as String, stop: json['stop'] as String, recording: json['recording'] as String, recognizing: json['recognizing'] as String);
+
+  Map<String, dynamic> toJson() => {'answerPlaceholder': answerPlaceholder, 'prev': prev, 'next': next, 'dictate': dictate, 'dictateTitle': dictateTitle, 'stop': stop, 'recording': recording, 'recognizing': recognizing};
 }
 
 class CabPhotoPlace {

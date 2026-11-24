@@ -2306,6 +2306,89 @@
         "x-auth": "user"
       }
     },
+    "/api/v1/books/new": {
+      "get": {
+        "operationId": "bookWizard",
+        "tags": [
+          "books"
+        ],
+        "summary": "Мастер новой книги: виды книг, поводы, надписи (как /books/new сайта)",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookWizard"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
+    },
+    "/api/v1/occasions/deadline": {
+      "get": {
+        "operationId": "wizardDeadline",
+        "tags": [
+          "books"
+        ],
+        "summary": "Подсказка мастера: до какого дня заказать, чтобы книга успела к дате повода",
+        "parameters": [
+          {
+            "name": "occasion",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WizardDeadline"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
+    },
     "/api/v1/cabinet/shelf": {
       "get": {
         "operationId": "cabinetShelf",
@@ -12537,6 +12620,541 @@
         ],
         "additionalProperties": false
       },
+      "WizardTheme": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "gift",
+              "autobiography",
+              "blank"
+            ]
+          },
+          "group": {
+            "type": "string",
+            "enum": [
+              "gift",
+              "own"
+            ]
+          },
+          "recipient": {
+            "type": "string",
+            "enum": [
+              "required",
+              "optional",
+              "none"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "questionsLabel": {
+            "type": "string"
+          },
+          "coverUrl": {
+            "type": "string"
+          },
+          "recipientLabel": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "recipientPlaceholder": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "recipientGender": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "m",
+                  "f"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "recipientGenderChoice": {
+            "type": "boolean"
+          },
+          "defaultRecipientGender": {
+            "type": "string",
+            "enum": [
+              "m",
+              "f"
+            ]
+          },
+          "perLanguage": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "language": {
+                  "type": "string"
+                },
+                "titles": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "firstChapter": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "language",
+                "titles",
+                "firstChapter"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "occasions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "date": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "label",
+                "date"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "group",
+          "recipient",
+          "name",
+          "description",
+          "questionsLabel",
+          "coverUrl",
+          "recipientLabel",
+          "recipientPlaceholder",
+          "recipientGender",
+          "recipientGenderChoice",
+          "defaultRecipientGender",
+          "perLanguage",
+          "occasions"
+        ],
+        "additionalProperties": false
+      },
+      "BookWizard": {
+        "type": "object",
+        "properties": {
+          "themes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WizardTheme"
+            }
+          },
+          "languages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "label"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "defaultLanguage": {
+            "type": "string"
+          },
+          "defaultAuthor": {
+            "type": "string"
+          },
+          "limits": {
+            "type": "object",
+            "properties": {
+              "authorName": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "recipientName": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "title": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "recordedBy": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "dedication": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "firstChapterTitle": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "authorName",
+              "recipientName",
+              "title",
+              "recordedBy",
+              "dedication",
+              "firstChapterTitle"
+            ],
+            "additionalProperties": false
+          },
+          "labels": {
+            "type": "object",
+            "properties": {
+              "whoTitle": {
+                "type": "string"
+              },
+              "whoText": {
+                "type": "string"
+              },
+              "groups": {
+                "type": "object",
+                "properties": {
+                  "gift": {
+                    "type": "string"
+                  },
+                  "own": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "gift",
+                  "own"
+                ],
+                "additionalProperties": false
+              },
+              "steps": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "stepOf": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "stepTitles": {
+                "type": "object",
+                "properties": {
+                  "names": {
+                    "type": "string"
+                  },
+                  "namesBlank": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "names",
+                  "namesBlank",
+                  "title"
+                ],
+                "additionalProperties": false
+              },
+              "detailsText": {
+                "type": "string"
+              },
+              "detailsTextBlank": {
+                "type": "string"
+              },
+              "titleText": {
+                "type": "string"
+              },
+              "authorName": {
+                "type": "string"
+              },
+              "authorAs": {
+                "type": "string"
+              },
+              "genders": {
+                "type": "object",
+                "properties": {
+                  "author": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "recipient": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "author",
+                  "recipient"
+                ],
+                "additionalProperties": false
+              },
+              "recipientFor": {
+                "type": "string"
+              },
+              "story": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "own": {
+                    "type": "string"
+                  },
+                  "other": {
+                    "type": "string"
+                  },
+                  "narratorName": {
+                    "type": "string"
+                  },
+                  "narratorNamePlaceholder": {
+                    "type": "string"
+                  },
+                  "narratorAs": {
+                    "type": "string"
+                  },
+                  "recordedBy": {
+                    "type": "string"
+                  },
+                  "recordedByPlaceholder": {
+                    "type": "string"
+                  },
+                  "recordedByHint": {
+                    "type": "string"
+                  },
+                  "dedication": {
+                    "type": "string"
+                  },
+                  "dedicationPlaceholder": {
+                    "type": "string"
+                  },
+                  "dedicationHint": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "title",
+                  "own",
+                  "other",
+                  "narratorName",
+                  "narratorNamePlaceholder",
+                  "narratorAs",
+                  "recordedBy",
+                  "recordedByPlaceholder",
+                  "recordedByHint",
+                  "dedication",
+                  "dedicationPlaceholder",
+                  "dedicationHint"
+                ],
+                "additionalProperties": false
+              },
+              "blank": {
+                "type": "object",
+                "properties": {
+                  "authorName": {
+                    "type": "string"
+                  },
+                  "firstChapter": {
+                    "type": "string"
+                  },
+                  "firstChapterHint": {
+                    "type": "string"
+                  },
+                  "titleHint": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "authorName",
+                  "firstChapter",
+                  "firstChapterHint",
+                  "titleHint"
+                ],
+                "additionalProperties": false
+              },
+              "language": {
+                "type": "string"
+              },
+              "languageHint": {
+                "type": "string"
+              },
+              "languageHintBlank": {
+                "type": "string"
+              },
+              "bookTitle": {
+                "type": "string"
+              },
+              "occasion": {
+                "type": "string"
+              },
+              "occasionHint": {
+                "type": "string"
+              },
+              "occasionDate": {
+                "type": "string"
+              },
+              "occasionPickDate": {
+                "type": "string"
+              },
+              "optional": {
+                "type": "string"
+              },
+              "submit": {
+                "type": "string"
+              },
+              "pending": {
+                "type": "string"
+              },
+              "coverNote": {
+                "type": "string"
+              },
+              "next": {
+                "type": "string"
+              },
+              "prev": {
+                "type": "string"
+              },
+              "back": {
+                "type": "string"
+              },
+              "previewTitle": {
+                "type": "string"
+              },
+              "errors": {
+                "type": "object",
+                "properties": {
+                  "authorName": {
+                    "type": "string"
+                  },
+                  "recipientName": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "authorName",
+                  "recipientName",
+                  "title"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "whoTitle",
+              "whoText",
+              "groups",
+              "steps",
+              "stepOf",
+              "stepTitles",
+              "detailsText",
+              "detailsTextBlank",
+              "titleText",
+              "authorName",
+              "authorAs",
+              "genders",
+              "recipientFor",
+              "story",
+              "blank",
+              "language",
+              "languageHint",
+              "languageHintBlank",
+              "bookTitle",
+              "occasion",
+              "occasionHint",
+              "occasionDate",
+              "occasionPickDate",
+              "optional",
+              "submit",
+              "pending",
+              "coverNote",
+              "next",
+              "prev",
+              "back",
+              "previewTitle",
+              "errors"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "themes",
+          "languages",
+          "defaultLanguage",
+          "defaultAuthor",
+          "limits",
+          "labels"
+        ],
+        "additionalProperties": false
+      },
+      "WizardDeadline": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "additionalProperties": false
+      },
       "ShelfDeadline": {
         "type": "object",
         "properties": {
@@ -12695,10 +13313,68 @@
             "items": {
               "$ref": "#/components/schemas/ShelfItem"
             }
+          },
+          "labels": {
+            "type": "object",
+            "properties": {
+              "newBook": {
+                "type": "string"
+              },
+              "first": {
+                "type": "object",
+                "properties": {
+                  "hello": {
+                    "type": "string"
+                  },
+                  "text": {
+                    "type": "string"
+                  },
+                  "create": {
+                    "type": "string"
+                  },
+                  "coverTitle": {
+                    "type": "string"
+                  },
+                  "steps": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "title": {
+                          "type": "string"
+                        },
+                        "text": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "title",
+                        "text"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "hello",
+                  "text",
+                  "create",
+                  "coverTitle",
+                  "steps"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "newBook",
+              "first"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
-          "books"
+          "books",
+          "labels"
         ],
         "additionalProperties": false
       },
@@ -13114,6 +13790,46 @@
               "cta"
             ],
             "additionalProperties": false
+          },
+          "editor": {
+            "type": "object",
+            "properties": {
+              "answerPlaceholder": {
+                "type": "string"
+              },
+              "prev": {
+                "type": "string"
+              },
+              "next": {
+                "type": "string"
+              },
+              "dictate": {
+                "type": "string"
+              },
+              "dictateTitle": {
+                "type": "string"
+              },
+              "stop": {
+                "type": "string"
+              },
+              "recording": {
+                "type": "string"
+              },
+              "recognizing": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "answerPlaceholder",
+              "prev",
+              "next",
+              "dictate",
+              "dictateTitle",
+              "stop",
+              "recording",
+              "recognizing"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
@@ -13142,7 +13858,8 @@
           "whereToStart",
           "tips",
           "tipsNote",
-          "preview"
+          "preview",
+          "editor"
         ],
         "additionalProperties": false
       },

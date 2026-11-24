@@ -34,6 +34,14 @@ abstract class ClientBackend {
   /// Помощник по книге: беседа и подсказки (section — раздел кабинета для частых вопросов), вопрос.
   Future<v1api.CabinetHelp> help(String bookId, String section);
 
+  // ── Новая книга (мастер) и голос → текст ──
+  Future<v1api.BookWizard> wizard();
+  Future<String?> wizardDeadline(String occasion, String date);
+  Future<String> createBook(v1api.CreateBookBody body);
+
+  /// Голос → текст для ответа: запись на языке книги (m4a), ответ — распознанный текст.
+  Future<String> dictate(String bookId, File audio);
+
   // ── Обложка (режим «Шаблон») ──
   Future<v1api.CoverView> cover(String bookId);
   Future<v1api.CoverView> updateCover(String bookId, v1api.CoverPatch patch);
@@ -161,6 +169,21 @@ class ApiBackend implements ClientBackend {
 
   @override
   Future<v1api.CabinetPhotos> photosTab(String bookId) => _call(() => v1.cabinetPhotos(bookId: bookId));
+
+  @override
+  Future<v1api.BookWizard> wizard() => _call(() => v1.bookWizard());
+
+  @override
+  Future<String?> wizardDeadline(String occasion, String date) => _call(() async => (await v1.wizardDeadline(occasion: occasion, date: date)).text);
+
+  @override
+  Future<String> createBook(v1api.CreateBookBody body) => _call(() async => (await v1.bookCreate(body: body)).id);
+
+  @override
+  Future<String> dictate(String bookId, File audio) => _call(() async {
+        final part = await http.MultipartFile.fromPath('audio', audio.path, filename: audio.uri.pathSegments.last, contentType: MediaType.parse('audio/mp4'));
+        return (await v1.answerDictate(bookId: bookId, files: [part])).text;
+      });
 
   @override
   Future<v1api.CoverView> cover(String bookId) => _call(() => v1.coverGet(bookId: bookId));

@@ -40,6 +40,9 @@ export const editor: typeof ru = {
   dictate: "Ovozda yozish",
   dictateTitle: "Javobni ovoz bilan yozdirish",
   stop: "To‘xtatish",
+  /** Приложение: диктовка записью — идёт запись, затем распознавание на сервере. */
+  recording: "Yozib olinmoqda — gapiring. «To‘xtatish»ni bosing, matn javobga tushadi.",
+  recognizing: "Yozuv matnga aylantirilmoqda…",
   dictationLang: "Yozdirish tili",
   photoInAnswer: "Javobga surat",
   ownQuestion: "O‘z savolim",

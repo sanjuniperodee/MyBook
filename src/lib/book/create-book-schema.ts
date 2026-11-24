@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { COVER_TEXT_MAX } from "@mybook/contracts";
 import { isLocale } from "@/i18n/config";
 import type { getMessages } from "@/i18n/server";
 import { isThemeId } from "@/lib/content/themes";
@@ -7,7 +8,7 @@ import { getOccasion } from "@/lib/occasions";
 
 type WizardErrors = Awaited<ReturnType<typeof getMessages>>["books"]["wizard"]["errors"];
 
-const DEDICATION_MAX = 600;
+export const DEDICATION_MAX = 600;
 
 /**
  * Мастер новой книги. Правила — по виду книги (recipientPolicy):
@@ -21,14 +22,14 @@ export const createBookSchema = (e: WizardErrors) =>
     .object({
       theme: z.string().refine(isThemeId, e.theme),
       language: z.string().refine(isLocale).default("ru"),
-      authorName: z.string().trim().min(1, e.authorName).max(60),
+      authorName: z.string().trim().min(1, e.authorName).max(COVER_TEXT_MAX.authorName),
       authorGender: z.enum(["m", "f"], { message: e.authorGender }),
-      recipientName: z.string().trim().max(60).default(""),
+      recipientName: z.string().trim().max(COVER_TEXT_MAX.recipientName).default(""),
       recipientGender: z.enum(["m", "f"]).default("m"),
       recordedBy: z.string().trim().max(RECORDED_BY_MAX).default(""),
       firstChapterTitle: z.string().trim().max(CHAPTER_TITLE_MAX).default(""),
       dedication: z.string().trim().max(DEDICATION_MAX).default(""),
-      title: z.string().trim().max(80).default(""),
+      title: z.string().trim().max(COVER_TEXT_MAX.title).default(""),
       occasion: z
         .string()
         .refine((v) => !v || !!getOccasion(v))

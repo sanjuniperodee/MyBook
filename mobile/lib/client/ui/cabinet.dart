@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
@@ -189,6 +190,32 @@ class CoverImage extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+}
+
+/// Рисунок обложки по адресу сайта: рисованные шаблоны — SVG, на снимках и с фото — WebP; свои картинки книги
+/// (/api/books/…) — с токеном автора. Пока грузится — бумага.
+class CoverArt extends StatelessWidget {
+  const CoverArt({super.key, required this.url, this.fit = BoxFit.cover});
+  final String url;
+  final BoxFit fit;
+
+  @override
+  Widget build(BuildContext context) {
+    final backend = context.read<ClientSession>().backend;
+    final c = context.c;
+    if (Uri.parse(url).path.endsWith('.svg')) {
+      return SvgPicture.network(backend.url(url), fit: fit, placeholderBuilder: (_) => ColoredBox(color: c.surface));
+    }
+    return Image.network(
+      backend.url(url),
+      headers: url.startsWith('/api/books/') ? backend.imageHeaders : null,
+      fit: fit,
+      cacheWidth: 360,
+      gaplessPlayback: true,
+      frameBuilder: (_, child, frame, sync) => sync || frame != null ? child : ColoredBox(color: c.surface),
+      errorBuilder: (_, _, _) => ColoredBox(color: c.surface),
     );
   }
 }

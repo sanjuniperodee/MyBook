@@ -12,7 +12,8 @@ import { reviewHandlers } from "./reviews";
 import { coverHandlers } from "./cover";
 import { crmListHandlers } from "./crm-lists";
 import { bookModelHandlers } from "./book-model";
+import { wizardHandlers } from "./wizard";
 import { photoHandlers } from "./photos";
 
 /** Все обработчики v1: тип Handlers требует обработчик на каждый маршрут контракта — забытый маршрут не соберётся. */
-export const handlers: Handlers = { ...authHandlers, ...bookHandlers, ...photoHandlers, ...dictationHandlers, ...letterHandlers, ...previewHandlers, ...reviewHandlers, ...coverHandlers, ...bookModelHandlers, ...crmListHandlers, ...cabinetHandlers, ...cabinetOrderHandlers, ...crmHandlers, ...boardHandlers };
+export const handlers: Handlers = { ...authHandlers, ...bookHandlers, ...photoHandlers, ...dictationHandlers, ...letterHandlers, ...previewHandlers, ...reviewHandlers, ...coverHandlers, ...bookModelHandlers, ...wizardHandlers, ...crmListHandlers, ...cabinetHandlers, ...cabinetOrderHandlers, ...crmHandlers, ...boardHandlers };

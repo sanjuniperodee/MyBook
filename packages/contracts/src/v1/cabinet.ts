@@ -52,7 +52,16 @@ export const ShelfItem = z
   })
   .register(schemas, { id: "ShelfItem" });
 
-export const CabinetShelf = z.object({ books: z.array(ShelfItem) }).register(schemas, { id: "CabinetShelf" });
+export const CabinetShelf = z
+  .object({
+    books: z.array(ShelfItem),
+    /** «Новая книга» и приглашение пустой полки (FirstBook сайта): привет, текст, кнопка, название воображаемой обложки, шаги. */
+    labels: z.object({
+      newBook: z.string(),
+      first: z.object({ hello: z.string(), text: z.string(), create: z.string(), coverTitle: z.string(), steps: z.array(z.object({ title: z.string(), text: z.string() })) }),
+    }),
+  })
+  .register(schemas, { id: "CabinetShelf" });
 
 // ─── Книга (штаб) ─────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -150,6 +159,17 @@ export const CabinetBook = z
     tipsNote: z.string().nullable(),
     /** Макет и 3D-книга — всегда на виду: подпись вкладки в ленте книги и кнопки под обложкой, адрес сайта. */
     preview: z.object({ href: z.string(), tab: z.string(), cta: z.string() }),
+    /** Надписи редактора ответа (сообщения editor сайта): поле ответа, листание, диктовка. */
+    editor: z.object({
+      answerPlaceholder: z.string(),
+      prev: z.string(),
+      next: z.string(),
+      dictate: z.string(),
+      dictateTitle: z.string(),
+      stop: z.string(),
+      recording: z.string(),
+      recognizing: z.string(),
+    }),
   })
   .register(schemas, { id: "CabinetBook" });
 

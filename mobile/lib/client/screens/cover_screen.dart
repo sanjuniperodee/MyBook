@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
@@ -636,7 +635,6 @@ class _DesignTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.c;
-    final backend = context.read<ClientSession>().backend;
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
@@ -653,19 +651,7 @@ class _DesignTile extends StatelessWidget {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(2),
               child: Stack(fit: StackFit.expand, children: [
-                // Рисованные обложки — SVG, на снимках и с фото — WebP.
-                if (Uri.parse(url).path.endsWith('.svg'))
-                  SvgPicture.network(backend.url(url), fit: BoxFit.cover, placeholderBuilder: (_) => ColoredBox(color: c.surface))
-                else
-                  Image.network(
-                    backend.url(url),
-                    headers: url.startsWith('/api/books/') ? backend.imageHeaders : null,
-                    fit: BoxFit.cover,
-                    cacheWidth: 360,
-                    gaplessPlayback: true,
-                    frameBuilder: (_, child, frame, sync) => sync || frame != null ? child : ColoredBox(color: c.surface),
-                    errorBuilder: (_, _, _) => ColoredBox(color: c.surface),
-                  ),
+                CoverArt(url: url),
                 if (needsPhoto)
                   Positioned(
                     left: 6,

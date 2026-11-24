@@ -1,9 +1,17 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:provider/provider.dart';
+import 'package:record/record.dart';
 
 import '../../api/mybook_api.g.dart' as v1api;
+import '../../core/api.dart';
 import '../../ui/tokens.dart';
 import '../data/models.dart';
+import '../data/session.dart';
 import '../data/stores.dart';
 import '../ui/book_chrome.dart';
 import '../ui/cabinet.dart';
@@ -36,6 +44,13 @@ class _AnswerScreenState extends State<AnswerScreen> {
   bool _forward = true;
   bool _tips = false;
 
+  // Диктовка: запись голоса (m4a) → распознавание на сервере (answerDictate, язык книги) → текст в ответ у курсора.
+  final _recorder = AudioRecorder();
+  bool _recording = false;
+  bool _recognizing = false;
+  int _seconds = 0;
+  Timer? _clock;
+
   BookModel get _book => widget.store.book!;
   List<Question> get _all => _book.questions;
   Question get _q => _all.firstWhere((q) => q.id == _id);
@@ -43,10 +58,63 @@ class _AnswerScreenState extends State<AnswerScreen> {
 
   @override
   void dispose() {
+    _clock?.cancel();
+    _recorder.dispose();
     widget.store.flush();
     _text.dispose();
     _focus.dispose();
     super.dispose();
+  }
+
+  Future<void> _dictate() async {
+    if (_recognizing) return;
+    if (_recording) return _stopDictation();
+    if (!await _recorder.hasPermission()) return;
+    final dir = await getTemporaryDirectory();
+    final path = '${dir.path}/dictation-${DateTime.now().millisecondsSinceEpoch}.m4a';
+    await _recorder.start(const RecordConfig(encoder: AudioEncoder.aacLc, bitRate: 64000, sampleRate: 44100, numChannels: 1), path: path);
+    setState(() {
+      _recording = true;
+      _seconds = 0;
+    });
+    _clock = Timer.periodic(const Duration(seconds: 1), (_) => setState(() => _seconds++));
+  }
+
+  Future<void> _stopDictation() async {
+    _clock?.cancel();
+    final path = await _recorder.stop();
+    setState(() {
+      _recording = false;
+      _recognizing = path != null;
+    });
+    if (path == null) return;
+    final question = _q;
+    try {
+      final text = (await context.read<ClientSession>().backend.dictate(_book.id, File(path))).trim();
+      if (!mounted || text.isEmpty || question.id != _id) return;
+      // Текст — туда, где курсор; без курсора — в конец, отдельным предложением.
+      final v = _text.value;
+      final sel = v.selection;
+      final String next;
+      final int caret;
+      if (sel.isValid && sel.start >= 0) {
+        final before = v.text.substring(0, sel.start);
+        final glue = before.isEmpty || before.endsWith(' ') || before.endsWith('\n') ? '' : ' ';
+        next = '$before$glue$text${v.text.substring(sel.end)}';
+        caret = before.length + glue.length + text.length;
+      } else {
+        final glue = v.text.isEmpty || v.text.endsWith(' ') || v.text.endsWith('\n') ? '' : ' ';
+        next = '${v.text}$glue$text';
+        caret = next.length;
+      }
+      _text.value = TextEditingValue(text: next, selection: TextSelection.collapsed(offset: caret));
+      widget.store.edit(question, next);
+    } on ApiException catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    } finally {
+      File(path).delete().ignore();
+      if (mounted) setState(() => _recognizing = false);
+    }
   }
 
   void _go(int delta) {
@@ -251,9 +319,7 @@ class _AnswerScreenState extends State<AnswerScreen> {
                                 size: 21,
                               ).copyWith(height: 1.65),
                               decoration: InputDecoration(
-                                hintText: editable
-                                    ? 'Начните писать — сохраняется само'
-                                    : null,
+                                hintText: editable ? h?.editor.answerPlaceholder : null,
                                 hintStyle: AppText.serif(context, size: 21)
                                     .copyWith(
                                       color: c.textFaint,
@@ -275,7 +341,22 @@ class _AnswerScreenState extends State<AnswerScreen> {
               ),
             ),
 
-            // Нижняя панель редактора: «назад» и тёмная «Следующий».
+            // Диктовка: идёт запись (с секундами) или распознавание — над нижней панелью.
+            if (_recording || _recognizing)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+                color: c.bubbleOut,
+                child: Row(children: [
+                  _recording
+                      ? Icon(LucideIcons.mic, size: 16, color: c.brand)
+                      : const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
+                  const SizedBox(width: 10),
+                  Expanded(child: Text(_recording ? (h?.editor.recording ?? '') : (h?.editor.recognizing ?? ''), style: const TextStyle(fontSize: 13.5))),
+                  if (_recording) Text('${_seconds ~/ 60}:${(_seconds % 60).toString().padLeft(2, '0')}', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: c.brand, fontFeatures: const [FontFeature.tabularFigures()])),
+                ]),
+              ),
+            // Нижняя панель редактора: «назад», «Надиктовать» и тёмная «Следующий».
             Container(
               padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
               decoration: BoxDecoration(
@@ -304,6 +385,31 @@ class _AnswerScreenState extends State<AnswerScreen> {
                       ),
                     ),
                   ),
+                  // Диктовка — как на сайте на телефоне: значок, во время записи — «Стоп».
+                  if (editable && h != null) ...[
+                    const SizedBox(width: 10),
+                    Tooltip(
+                      message: _recording ? h.editor.stop : h.editor.dictateTitle,
+                      child: SizedBox(
+                        height: 50,
+                        child: OutlinedButton(
+                          onPressed: _recognizing ? null : _dictate,
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size(52, 50),
+                            padding: EdgeInsets.symmetric(horizontal: _recording ? 14 : 0),
+                            side: BorderSide(color: _recording ? c.brand : c.border),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Cab.ctl)),
+                            backgroundColor: _recording ? c.brand : c.surfaceRaised,
+                            foregroundColor: _recording ? Colors.white : c.text,
+                          ),
+                          child: Row(mainAxisSize: MainAxisSize.min, children: [
+                            Icon(_recording ? LucideIcons.square : LucideIcons.mic, size: 18),
+                            if (_recording) ...[const SizedBox(width: 6), Text(h.editor.stop, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500))],
+                          ]),
+                        ),
+                      ),
+                    ),
+                  ],
                   const SizedBox(width: 10),
                   Expanded(
                     child: SizedBox(
@@ -319,18 +425,18 @@ class _AnswerScreenState extends State<AnswerScreen> {
                             borderRadius: BorderRadius.circular(Cab.ctl),
                           ),
                         ),
-                        child: const Row(
+                        child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
-                              'Следующий',
-                              style: TextStyle(
+                              h?.editor.next ?? '',
+                              style: const TextStyle(
                                 fontSize: 17,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
-                            SizedBox(width: 8),
-                            Icon(LucideIcons.arrowRight, size: 18),
+                            const SizedBox(width: 8),
+                            const Icon(LucideIcons.arrowRight, size: 18),
                           ],
                         ),
                       ),

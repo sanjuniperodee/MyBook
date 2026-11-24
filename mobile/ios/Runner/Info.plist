@@ -67,7 +67,7 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Микрофон нужен, чтобы записывать голосовые сообщения клиентам.</string>
+	<string>$(MIC_USAGE_DESCRIPTION)</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Камера нужна, чтобы фотографировать и отправлять фото клиентам.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

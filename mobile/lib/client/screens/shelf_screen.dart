@@ -11,6 +11,7 @@ import '../data/stores.dart';
 import '../ui/cabinet.dart';
 import '../ui/motion.dart';
 import 'book_screen.dart';
+import 'new_book_screen.dart';
 import 'order_screen.dart';
 
 /// «Мои книги» — как полка кабинета на телефоне (src/app/(app)/books/page.tsx, BooksShelf.tsx): главная книга крупно
@@ -33,6 +34,15 @@ class _ShelfScreenState extends State<ShelfScreen> {
   void dispose() {
     _shelf.dispose();
     super.dispose();
+  }
+
+  /// Мастер новой книги; создана — сразу её страница (как переход на /books/<id> сайта).
+  Future<void> _newBook() async {
+    final id = await Navigator.of(context).push<String>(CabinetRoute<String>(builder: (_) => const NewBookScreen()));
+    if (id == null || !mounted) return;
+    _shelf.refresh();
+    await Navigator.of(context).push(CabinetRoute<void>(builder: (_) => BookScreen(summary: BookSummary(id: id, title: '', status: 'draft', answered: 0, questions: 0, photos: 0))));
+    _shelf.refresh();
   }
 
   Future<void> _openOrder(String id) async {
@@ -97,13 +107,8 @@ class _ShelfScreenState extends State<ShelfScreen> {
                     onAction: _shelf.refresh,
                   );
           }
-          if (books.isEmpty) {
-            return const EmptyState(
-              icon: LucideIcons.bookOpen,
-              title: 'Книг пока нет',
-              hint: 'Начните книгу на сайте mybooks.kz — она появится здесь.',
-            );
-          }
+          final labels = _shelf.shelf!.labels;
+          if (books.isEmpty) return _FirstBook(l: labels.first, onCreate: _newBook);
           final hero = books.first;
           final rest = books.skip(1).toList();
           return RefreshIndicator(
@@ -130,6 +135,8 @@ class _ShelfScreenState extends State<ShelfScreen> {
                   onWrite: () => _open(hero, write: true),
                   onOrder: () => hero.order == null ? null : _openOrder(hero.order!.id),
                 ),
+                const SizedBox(height: 16),
+                DashedButton(label: labels.newBook, onPressed: _newBook),
                 if (rest.isNotEmpty) ...[
                   const SizedBox(height: 44),
                   Divider(color: c.border, height: 1),
@@ -153,6 +160,52 @@ class _ShelfScreenState extends State<ShelfScreen> {
           );
         },
       ),
+    );
+  }
+}
+
+/// Пустая полка — приглашение к первой книге (FirstBook сайта): воображаемая обложка, привет, «Создать книгу», три шага.
+class _FirstBook extends StatelessWidget {
+  const _FirstBook({required this.l, required this.onCreate});
+  final v1api.CabinetShelfLabelsFirst l;
+  final VoidCallback onCreate;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.c;
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 28, 20, 40),
+      children: [
+        Text(l.hello, style: AppText.serif(context, size: 36, weight: FontWeight.w500).copyWith(height: 1.05)),
+        const SizedBox(height: 12),
+        Text(l.text, style: TextStyle(fontSize: 16.5, height: 1.5, color: c.textMuted)),
+        const SizedBox(height: 24),
+        CabinetButton(label: l.create, icon: LucideIcons.plus, onPressed: onCreate),
+        const SizedBox(height: 32),
+        Divider(color: c.border, height: 1),
+        const SizedBox(height: 24),
+        for (var i = 0; i < l.steps.length; i++)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 18),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Container(
+                width: 30,
+                height: 30,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(shape: BoxShape.circle, color: i == 0 ? c.brand : Colors.transparent, border: i == 0 ? null : Border.all(color: c.border)),
+                child: Text('${i + 1}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: i == 0 ? Colors.white : c.textMuted)),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(l.steps[i].title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 2),
+                  Text(l.steps[i].text, style: TextStyle(fontSize: 14, height: 1.4, color: c.textMuted)),
+                ]),
+              ),
+            ]),
+          ),
+      ],
     );
   }
 }

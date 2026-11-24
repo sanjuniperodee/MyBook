@@ -46,6 +46,10 @@ export const cabinetHandlers: Pick<Handlers, "cabinetShelf" | "cabinetBook" | "c
           coverThumbUrl: coverImagePath(book, 240),
         };
       }),
+      labels: {
+        newBook: t.newBook,
+        first: { hello: t.hello(user!.name ?? ""), text: t.firstText, create: t.create, coverTitle: t.firstCoverTitle, steps: t.firstSteps.map(([title, text]) => ({ title, text })) },
+      },
     };
   },
 
@@ -100,6 +104,16 @@ export const cabinetHandlers: Pick<Handlers, "cabinetShelf" | "cabinetBook" | "c
       tips: [...(h.blank ? m.editor.blank.tips : h.kind === "autobiography" ? m.editor.life.tips : m.editor.tips)],
       tipsNote: h.kind === "autobiography" ? m.editor.life.recordedNote : null,
       preview: h.preview,
+      editor: {
+        answerPlaceholder: m.editor.answerPlaceholder,
+        prev: m.editor.prev,
+        next: m.editor.next,
+        dictate: m.editor.dictate,
+        dictateTitle: m.editor.dictateTitle,
+        stop: m.editor.stop,
+        recording: m.editor.recording,
+        recognizing: m.editor.recognizing,
+      },
     };
   },
 

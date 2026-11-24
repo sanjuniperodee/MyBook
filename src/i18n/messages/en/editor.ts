@@ -40,6 +40,9 @@ export const editor: typeof ru = {
   dictate: "Dictate",
   dictateTitle: "Dictate your answer by voice",
   stop: "Stop",
+  /** Приложение: диктовка записью — идёт запись, затем распознавание на сервере. */
+  recording: "Recording — speak now. Tap “Stop” and the text will appear in your answer.",
+  recognizing: "Transcribing…",
   dictationLang: "Dictation language",
   photoInAnswer: "Add photo",
   ownQuestion: "Your own question",

@@ -13,6 +13,8 @@ import { cn } from "@/lib/class-names";
 import { useMessages } from "@/i18n/client";
 import { localeMeta, locales, type Locale } from "@/i18n/config";
 import type { ThemeId } from "@/lib/content/types";
+import { COVER_TEXT_MAX } from "@mybook/contracts";
+import { DEDICATION_MAX } from "@/lib/book/create-book-schema";
 import { CHAPTER_TITLE_MAX, RECORDED_BY_MAX, type BookKind, type RecipientPolicy } from "@/lib/content/kinds";
 import { coverNames } from "@/lib/book/cover-names";
 import type { Gender } from "@/modules/authoring/domain";
@@ -354,7 +356,7 @@ export function NewBookWizard({ themes, defaultTheme, defaultAuthor, defaultLang
                       value={effectiveAuthor}
                       placeholder={asNarrator ? t.story.narratorNamePlaceholder : undefined}
                       onChange={(e) => (asNarrator ? setNarratorName(e.target.value) : setAuthorName(e.target.value))}
-                      maxLength={60}
+                      maxLength={COVER_TEXT_MAX.authorName}
                       required
                       {...error("authorName")}
                     />
@@ -392,7 +394,7 @@ export function NewBookWizard({ themes, defaultTheme, defaultAuthor, defaultLang
                         placeholder={theme.recipientPlaceholder}
                         value={recipientName}
                         onChange={(e) => setRecipientName(e.target.value)}
-                        maxLength={60}
+                        maxLength={COVER_TEXT_MAX.recipientName}
                         required={theme.recipient === "required"}
                         {...error("recipientName")}
                       />
@@ -438,7 +440,7 @@ export function NewBookWizard({ themes, defaultTheme, defaultAuthor, defaultLang
                       <label className="label" htmlFor="dedication">
                         {t.story.dedication} <span className="font-normal text-muted">{t.optional}</span>
                       </label>
-                      <input className="input" id="dedication" name="dedication" value={dedication} onChange={(e) => setDedication(e.target.value)} placeholder={t.story.dedicationPlaceholder} maxLength={600} />
+                      <input className="input" id="dedication" name="dedication" value={dedication} onChange={(e) => setDedication(e.target.value)} placeholder={t.story.dedicationPlaceholder} maxLength={DEDICATION_MAX} />
                       <p className="hint">{t.story.dedicationHint}</p>
                     </div>
                   </div>
@@ -453,7 +455,7 @@ export function NewBookWizard({ themes, defaultTheme, defaultAuthor, defaultLang
                   <label className="label" htmlFor="title">
                     {t.bookTitle}
                   </label>
-                  <input className="input" id="title" name="title" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={80} required={kind === "blank"} {...error("title")} />
+                  <input className="input" id="title" name="title" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={COVER_TEXT_MAX.title} required={kind === "blank"} {...error("title")} />
                   {errorText("title", t.errors.title)}
                   {kind === "blank" ? <p className="hint">{t.blank.titleHint}</p> : null}
                   <div className="mt-3 flex flex-wrap gap-2">
