@@ -31,7 +31,7 @@ export const metadata = {
 export const viewport = { themeColor: "#7a1f2b", viewportFit: "cover" as const, interactiveWidget: "resizes-content" as const };
 
 // Открыто как установленное приложение — страница не «резинится» при протяжке (см. .crm-shell в globals.css).
-const STANDALONE_SCRIPT = `try{if(matchMedia("(display-mode: standalone)").matches||navigator.standalone===true)document.documentElement.dataset.standalone="1"}catch(e){}`;
+const STANDALONE_SCRIPT = `try{if(matchMedia("(display-mode: standalone)").matches||navigator.standalone===true)document.documentElement.dataset.standalone="1";if(/MyBooksCRMApp/.test(navigator.userAgent))document.documentElement.dataset.inapp="1"}catch(e){}`;
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const { staff, gate } = await requireStaffShell();

@@ -528,6 +528,18 @@ body {
 }
 
 /*
+ * CRM внутри мобильного приложения (встроенный браузер, User-Agent «MyBooksCRMApp»; data-inapp ставит скрипт в admin/layout):
+ * нижняя панель разделов и подсказка «установите CRM» не нужны — навигация и push у самого приложения.
+ */
+html[data-inapp] [data-testid="mobile-tabbar"],
+html[data-inapp] [data-testid="push-prompt"] {
+  display: none !important;
+}
+html[data-inapp] {
+  --tabbar-h: 0px !important;
+}
+
+/*
  * Телефон и установленная CRM (PWA): приложение, а не сайт. Нижняя панель разделов (MobileTabBar), чат на весь экран,
  * отступы под «домашнюю» полоску iPhone, без задержки нажатия и случайного масштаба, без «резинки» страницы вверх.
  */

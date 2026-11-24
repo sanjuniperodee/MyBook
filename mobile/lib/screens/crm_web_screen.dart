@@ -18,7 +18,11 @@ class _WebSession {
   static String? server;
 
   static Future<String> get(ApiClient api) async {
-    if (token != null && server == api.baseUrl && until != null && until!.isAfter(DateTime.now().add(const Duration(minutes: 5)))) return token!;
+    if (token != null &&
+        server == api.baseUrl &&
+        until != null &&
+        until!.isAfter(DateTime.now().add(const Duration(minutes: 5))))
+      return token!;
     final r = await api.post('/api/mobile/web-session') as Map<String, dynamic>;
     token = r['token'] as String;
     until = DateTime.parse(r['expiresAt'] as String);
@@ -30,7 +34,11 @@ class _WebSession {
 /// Открыть страницу CRM внутри приложения (уже вошедшим): разделы, которых в приложении нет, и полные карточки
 /// (правка сделки, деньги заказа, финансы, обращения, настройки). Права — те же, что на сайте.
 Future<void> openCrm(BuildContext context, String path, {String? title}) {
-  return Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => CrmWebScreen(path: path, title: title)));
+  return Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => CrmWebScreen(path: path, title: title),
+    ),
+  );
 }
 
 class CrmWebScreen extends StatefulWidget {
@@ -61,37 +69,62 @@ class _CrmWebScreenState extends State<CrmWebScreen> {
     try {
       final token = await _WebSession.get(api);
       final base = Uri.parse(api.baseUrl);
-      await WebViewCookieManager().setCookie(WebViewCookie(name: 'mb_session', value: token, domain: base.host, path: '/'));
+      await WebViewCookieManager().setCookie(
+        WebViewCookie(
+          name: 'mb_session',
+          value: token,
+          domain: base.host,
+          path: '/',
+        ),
+      );
       // Звонки WhatsApp в CRM — микрофон и звук в странице: разрешение страницы CRM подтверждаем (система спросит сама),
       // на iPhone звук играет внутри страницы, без перехода в полноэкранный плеер.
       final params = WebViewPlatform.instance is WebKitWebViewPlatform
-          ? WebKitWebViewControllerCreationParams(allowsInlineMediaPlayback: true, mediaTypesRequiringUserAction: const <PlaybackMediaTypes>{})
+          ? WebKitWebViewControllerCreationParams(
+              allowsInlineMediaPlayback: true,
+              mediaTypesRequiringUserAction: const <PlaybackMediaTypes>{},
+            )
           : const PlatformWebViewControllerCreationParams();
-      final ctl = WebViewController.fromPlatformCreationParams(params, onPermissionRequest: (r) => r.grant())
-        ..setJavaScriptMode(JavaScriptMode.unrestricted)
-        ..setBackgroundColor(Colors.transparent)
-        ..setNavigationDelegate(
-          NavigationDelegate(
-            onProgress: (p) => mounted ? setState(() => _progress = p) : null,
-            onPageFinished: (_) async {
-              final t = await _web?.getTitle();
-              final back = await _web?.canGoBack() ?? false;
-              if (mounted) setState(() {
-                if (t != null && t.isNotEmpty) _title = t.replaceAll(RegExp(r'\s*[—|·-]\s*MyBooks.*$'), '');
-                _canBack = back;
-              });
-            },
-            // Звонок, WhatsApp, почта, файлы и чужие сайты — системой; страницы CRM — здесь же.
-            onNavigationRequest: (req) {
-              final u = Uri.tryParse(req.url);
-              if (u == null) return NavigationDecision.prevent;
-              if ((u.scheme == 'http' || u.scheme == 'https') && u.host == base.host) return NavigationDecision.navigate;
-              launchUrl(u, mode: LaunchMode.externalApplication);
-              return NavigationDecision.prevent;
-            },
-          ),
-        )
-        ..loadRequest(api.uri(widget.path));
+      final ctl =
+          WebViewController.fromPlatformCreationParams(
+              params,
+              onPermissionRequest: (r) => r.grant(),
+            )
+            ..setJavaScriptMode(JavaScriptMode.unrestricted)
+            ..setBackgroundColor(Colors.transparent)
+            ..setNavigationDelegate(
+              NavigationDelegate(
+                onProgress: (p) =>
+                    mounted ? setState(() => _progress = p) : null,
+                onPageFinished: (_) async {
+                  final t = await _web?.getTitle();
+                  final back = await _web?.canGoBack() ?? false;
+                  if (mounted)
+                    setState(() {
+                      if (t != null && t.isNotEmpty)
+                        _title = t.replaceAll(
+                          RegExp(r'\s*[—|·-]\s*MyBooks.*$'),
+                          '',
+                        );
+                      _canBack = back;
+                    });
+                },
+                // Звонок, WhatsApp, почта, файлы и чужие сайты — системой; страницы CRM — здесь же.
+                onNavigationRequest: (req) {
+                  final u = Uri.tryParse(req.url);
+                  if (u == null) return NavigationDecision.prevent;
+                  if ((u.scheme == 'http' || u.scheme == 'https') &&
+                      u.host == base.host)
+                    return NavigationDecision.navigate;
+                  launchUrl(u, mode: LaunchMode.externalApplication);
+                  return NavigationDecision.prevent;
+                },
+              ),
+            );
+      // Метка приложения в User-Agent: CRM прячет свою нижнюю панель и подсказку «установите CRM» (data-inapp).
+      final ua = await ctl.getUserAgent();
+      await ctl.setUserAgent('${ua ?? ''} MyBooksCRMApp/1'.trim());
+      await ctl.loadRequest(api.uri(widget.path));
       if (mounted) setState(() => _web = ctl);
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
@@ -116,25 +149,57 @@ class _CrmWebScreenState extends State<CrmWebScreen> {
           backgroundColor: c.bg,
           surfaceTintColor: Colors.transparent,
           titleSpacing: 0,
-          leading: IconButton(icon: const Icon(LucideIcons.x), tooltip: 'Закрыть', onPressed: () => Navigator.of(context).pop()),
-          title: Text(_title, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.headline(context)),
+          leading: IconButton(
+            icon: const Icon(LucideIcons.x),
+            tooltip: 'Закрыть',
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          title: Text(
+            _title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppText.headline(context),
+          ),
           actions: [
-            if (_canBack) IconButton(icon: const Icon(LucideIcons.chevronLeft), tooltip: 'Назад', onPressed: () async {
-              await _web?.goBack();
-              final back = await _web?.canGoBack() ?? false;
-              if (mounted) setState(() => _canBack = back);
-            }),
-            IconButton(icon: const Icon(LucideIcons.refreshCw, size: 20), tooltip: 'Обновить', onPressed: () => _web?.reload()),
+            if (_canBack)
+              IconButton(
+                icon: const Icon(LucideIcons.chevronLeft),
+                tooltip: 'Назад',
+                onPressed: () async {
+                  await _web?.goBack();
+                  final back = await _web?.canGoBack() ?? false;
+                  if (mounted) setState(() => _canBack = back);
+                },
+              ),
+            IconButton(
+              icon: const Icon(LucideIcons.refreshCw, size: 20),
+              tooltip: 'Обновить',
+              onPressed: () => _web?.reload(),
+            ),
           ],
           bottom: _progress > 0 && _progress < 100
-              ? PreferredSize(preferredSize: const Size.fromHeight(2), child: LinearProgressIndicator(value: _progress / 100, minHeight: 2, color: c.brand, backgroundColor: Colors.transparent))
+              ? PreferredSize(
+                  preferredSize: const Size.fromHeight(2),
+                  child: LinearProgressIndicator(
+                    value: _progress / 100,
+                    minHeight: 2,
+                    color: c.brand,
+                    backgroundColor: Colors.transparent,
+                  ),
+                )
               : null,
         ),
         body: _error != null
-            ? EmptyState(icon: LucideIcons.wifiOff, title: 'Не удалось открыть CRM', hint: _error, action: 'Повторить', onAction: () {
-                setState(() => _error = null);
-                _open();
-              })
+            ? EmptyState(
+                icon: LucideIcons.wifiOff,
+                title: 'Не удалось открыть CRM',
+                hint: _error,
+                action: 'Повторить',
+                onAction: () {
+                  setState(() => _error = null);
+                  _open();
+                },
+              )
             : _web == null
             ? const Center(child: CircularProgressIndicator())
             : WebViewWidget(controller: _web!),
