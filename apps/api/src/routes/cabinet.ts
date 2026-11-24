@@ -15,9 +15,10 @@ import { isBookEditableBy } from "@/modules/authoring";
 import { currentOption, placeNames, placeText } from "@/components/editor/photos/model";
 import { filterCounts, isLossy, lossOf, placeTotals, visibleFilters } from "@/app/(app)/books/[id]/photos/photos-tab";
 import { photosTabData } from "@/app/(app)/books/[id]/photos/photos-data";
+import { helpAsk, helpThread } from "@/server/book-help";
 import type { Handlers } from "../app";
 
-export const cabinetHandlers: Pick<Handlers, "cabinetShelf" | "cabinetBook" | "cabinetPhotos"> = {
+export const cabinetHandlers: Pick<Handlers, "cabinetShelf" | "cabinetBook" | "cabinetPhotos" | "cabinetHelp" | "cabinetHelpAsk"> = {
   async cabinetShelf({ user }) {
     const locale = user!.locale === "kk" ? "kk" : "ru";
     const m = messagesFor(locale);
@@ -183,5 +184,46 @@ export const cabinetHandlers: Pick<Handlers, "cabinetShelf" | "cabinetBook" | "c
         cancel: tt.delete.cancel,
       },
     };
+  },
+
+  async cabinetHelp({ req, user, input }) {
+    const locale = user!.locale === "kk" ? "kk" : "ru";
+    const m = messagesFor(locale);
+    const { book } = await apiBook(req, input.bookId);
+    const t = m.help;
+    const thread = await helpThread(book, user!.id);
+    const section = (input.section ?? "overview") as keyof typeof t.faq;
+    const faq = t.faq[section] ?? t.faq.overview;
+    return {
+      enabled: thread.enabled,
+      whatsapp: thread.whatsapp,
+      messages: thread.messages,
+      hints: [...thread.hints.map((k) => t.hints[k as keyof typeof t.hints]).filter(Boolean), ...faq],
+      labels: {
+        button: t.button,
+        title: t.title,
+        subtitle: t.subtitle,
+        hello: t.hello,
+        faqTitle: t.faqTitle,
+        placeholder: t.placeholder,
+        typing: t.typing,
+        bot: t.bot,
+        manager: t.manager,
+        notHelped: t.notHelped,
+        callHuman: t.callHuman,
+        handoff: t.handoff,
+        whatsapp: t.whatsapp,
+        disclaimer: t.disclaimer,
+        off: t.off,
+        error: t.error,
+      },
+    };
+  },
+
+  async cabinetHelpAsk({ req, user, input }) {
+    const locale = user!.locale === "kk" ? "kk" : "ru";
+    const { book } = await apiBook(req, input.bookId);
+    const r = await helpAsk(book, user!, { text: input.body.text, place: null, human: input.body.human }, locale);
+    return { outcome: r.outcome, suggestions: r.suggestions, messages: r.messages };
   },
 };

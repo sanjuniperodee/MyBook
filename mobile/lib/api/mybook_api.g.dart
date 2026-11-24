@@ -194,6 +194,18 @@ class MybookApi {
     return CabinetPhotos.fromJson(json as Map<String, dynamic>);
   }
 
+  /// Помощник по книге: беседа, подсказки пустого чата, подписи виджета; section — раздел кабинета для частых вопросов
+  Future<CabinetHelp> cabinetHelp({required String bookId, String? section}) async {
+    final json = await _send('GET', '/api/v1/cabinet/books/${Uri.encodeComponent(bookId)}/help', query: {if (section != null) 'section': '${section}'});
+    return CabinetHelp.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Вопрос помощнику по книге (или «Позвать менеджера»): ответ и беседа целиком
+  Future<HelpAnswer> cabinetHelpAsk({required String bookId, required HelpAskBody body}) async {
+    final json = await _send('POST', '/api/v1/cabinet/books/${Uri.encodeComponent(bookId)}/help', body: body.toJson());
+    return HelpAnswer.fromJson(json as Map<String, dynamic>);
+  }
+
   /// Сделка для правки: поля, свои поля, договорённость
   Future<DealForm> crmDealForm({required String dealId}) async {
     final json = await _send('GET', '/api/v1/crm/deals/${Uri.encodeComponent(dealId)}/form');
@@ -1698,6 +1710,83 @@ class CabinetPhotosSheet {
   factory CabinetPhotosSheet.fromJson(Map<String, dynamic> json) => CabinetPhotosSheet(title: json['title'] as String, options: (json['options'] as List).map((e) => CabLabeled.fromJson(e as Map<String, dynamic>)).toList(), stepChapter: json['stepChapter'] as String, stepAnswer: json['stepAnswer'] as String, here: json['here'] as String, layoutTitle: json['layoutTitle'] as String, layouts: (json['layouts'] as List).map((e) => CabLabeled.fromJson(e as Map<String, dynamic>)).toList(), caption: json['caption'] as String, done: json['done'] as String, coverNote: json['coverNote'] as String, backNote: json['backNote'] as String, deleteLabel: json['deleteLabel'] as String, deleteTitle: json['deleteTitle'] as String, deleteText: json['deleteText'] as String, deleteConfirm: json['deleteConfirm'] as String, deleteKeep: json['deleteKeep'] as String, cancel: json['cancel'] as String);
 
   Map<String, dynamic> toJson() => {'title': title, 'options': options.map((e) => e.toJson()).toList(), 'stepChapter': stepChapter, 'stepAnswer': stepAnswer, 'here': here, 'layoutTitle': layoutTitle, 'layouts': layouts.map((e) => e.toJson()).toList(), 'caption': caption, 'done': done, 'coverNote': coverNote, 'backNote': backNote, 'deleteLabel': deleteLabel, 'deleteTitle': deleteTitle, 'deleteText': deleteText, 'deleteConfirm': deleteConfirm, 'deleteKeep': deleteKeep, 'cancel': cancel};
+}
+
+class HelpMessage {
+  final String id;
+  /// client | bot | manager
+  final String from;
+  final String at;
+  final String text;
+  final String place;
+
+  const HelpMessage({required this.id, required this.from, required this.at, required this.text, required this.place});
+
+  factory HelpMessage.fromJson(Map<String, dynamic> json) => HelpMessage(id: json['id'] as String, from: json['from'] as String, at: json['at'] as String, text: json['text'] as String, place: json['place'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'from': from, 'at': at, 'text': text, 'place': place};
+}
+
+class CabinetHelp {
+  final bool enabled;
+  final String whatsapp;
+  final List<HelpMessage> messages;
+  final List<String> hints;
+  final CabinetHelpLabels labels;
+
+  const CabinetHelp({required this.enabled, required this.whatsapp, required this.messages, required this.hints, required this.labels});
+
+  factory CabinetHelp.fromJson(Map<String, dynamic> json) => CabinetHelp(enabled: json['enabled'] as bool, whatsapp: json['whatsapp'] as String, messages: (json['messages'] as List).map((e) => HelpMessage.fromJson(e as Map<String, dynamic>)).toList(), hints: (json['hints'] as List).map((e) => e as String).toList(), labels: CabinetHelpLabels.fromJson(json['labels'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'enabled': enabled, 'whatsapp': whatsapp, 'messages': messages.map((e) => e.toJson()).toList(), 'hints': hints.map((e) => e).toList(), 'labels': labels.toJson()};
+}
+
+class CabinetHelpLabels {
+  final String button;
+  final String title;
+  final String subtitle;
+  final String hello;
+  final String faqTitle;
+  final String placeholder;
+  final String typing;
+  final String bot;
+  final String manager;
+  final String notHelped;
+  final String callHuman;
+  final String handoff;
+  final String whatsapp;
+  final String disclaimer;
+  final String off;
+  final String error;
+
+  const CabinetHelpLabels({required this.button, required this.title, required this.subtitle, required this.hello, required this.faqTitle, required this.placeholder, required this.typing, required this.bot, required this.manager, required this.notHelped, required this.callHuman, required this.handoff, required this.whatsapp, required this.disclaimer, required this.off, required this.error});
+
+  factory CabinetHelpLabels.fromJson(Map<String, dynamic> json) => CabinetHelpLabels(button: json['button'] as String, title: json['title'] as String, subtitle: json['subtitle'] as String, hello: json['hello'] as String, faqTitle: json['faqTitle'] as String, placeholder: json['placeholder'] as String, typing: json['typing'] as String, bot: json['bot'] as String, manager: json['manager'] as String, notHelped: json['notHelped'] as String, callHuman: json['callHuman'] as String, handoff: json['handoff'] as String, whatsapp: json['whatsapp'] as String, disclaimer: json['disclaimer'] as String, off: json['off'] as String, error: json['error'] as String);
+
+  Map<String, dynamic> toJson() => {'button': button, 'title': title, 'subtitle': subtitle, 'hello': hello, 'faqTitle': faqTitle, 'placeholder': placeholder, 'typing': typing, 'bot': bot, 'manager': manager, 'notHelped': notHelped, 'callHuman': callHuman, 'handoff': handoff, 'whatsapp': whatsapp, 'disclaimer': disclaimer, 'off': off, 'error': error};
+}
+
+class HelpAskBody {
+  final String text;
+  final bool human;
+
+  const HelpAskBody({required this.text, required this.human});
+
+  factory HelpAskBody.fromJson(Map<String, dynamic> json) => HelpAskBody(text: json['text'] as String, human: json['human'] as bool);
+
+  Map<String, dynamic> toJson() => {'text': text, 'human': human};
+}
+
+class HelpAnswer {
+  final String outcome;
+  final List<String> suggestions;
+  final List<HelpMessage> messages;
+
+  const HelpAnswer({required this.outcome, required this.suggestions, required this.messages});
+
+  factory HelpAnswer.fromJson(Map<String, dynamic> json) => HelpAnswer(outcome: json['outcome'] as String, suggestions: (json['suggestions'] as List).map((e) => e as String).toList(), messages: (json['messages'] as List).map((e) => HelpMessage.fromJson(e as Map<String, dynamic>)).toList());
+
+  Map<String, dynamic> toJson() => {'outcome': outcome, 'suggestions': suggestions.map((e) => e).toList(), 'messages': messages.map((e) => e.toJson()).toList()};
 }
 
 class Choice {

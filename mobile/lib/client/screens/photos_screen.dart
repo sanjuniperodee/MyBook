@@ -14,6 +14,7 @@ import '../data/session.dart';
 import '../data/stores.dart';
 import '../ui/book_chrome.dart';
 import '../ui/cabinet.dart';
+import 'help_sheet.dart';
 
 /// Ключи особых мест фото (src/lib/book/toc.ts GALLERY_KEY, src/lib/book/layout.ts PHOTO_OFF_KEY).
 const _galleryKey = '__gallery';
@@ -142,6 +143,17 @@ class _PhotosScreenState extends State<PhotosScreen> {
     final h = widget.hub;
     return Scaffold(
       backgroundColor: c.bg,
+      floatingActionButton: tab == null ? null : HelpButton(bookId: _bookId, section: 'photos'),
+      bottomNavigationBar: tab == null || !tab.editable
+          ? null
+          : Container(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+              decoration: BoxDecoration(color: c.bg, border: Border(top: BorderSide(color: c.border))),
+              child: SafeArea(
+                top: false,
+                child: CabinetButton(label: _uploading > 0 ? 'Загружаем $_uploading…' : tab.addLabel, icon: LucideIcons.imagePlus, onPressed: _uploading > 0 ? null : _choose, large: false),
+              ),
+            ),
       appBar: BookHeader(bookId: _bookId, title: h?.title ?? widget.store.book?.title ?? '', kind: h?.kind ?? '', coverUrl: h?.coverThumbUrl ?? ''),
       body: tab == null
           ? (_error == null ? const Center(child: CircularProgressIndicator()) : EmptyState(icon: LucideIcons.wifiOff, title: 'Фото не открылись', hint: _error, action: 'Повторить', onAction: _load))
@@ -159,21 +171,6 @@ class _PhotosScreenState extends State<PhotosScreen> {
                   child: _body(tab),
                 ),
               ),
-              if (tab.editable)
-                Container(
-                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-                  decoration: BoxDecoration(color: c.bg, border: Border(top: BorderSide(color: c.border))),
-                  child: SafeArea(
-                    top: false,
-                    child: CabinetButton(
-                      label: _uploading > 0 ? 'Загружаем $_uploading…' : tab.addLabel,
-                      icon: LucideIcons.imagePlus,
-                      busy: false,
-                      onPressed: _uploading > 0 ? null : _choose,
-                      large: false,
-                    ),
-                  ),
-                ),
             ]),
     );
   }

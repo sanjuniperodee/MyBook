@@ -230,6 +230,57 @@ export const CabinetPhotos = z
   })
   .register(schemas, { id: "CabinetPhotos" });
 
+// ─── Помощник по книге ────────────────────────────────────────────────────────────────────────────────────────────
+
+export const HelpMessage = z.object({ id: z.string(), from: z.enum(["client", "bot", "manager"]), at: z.string(), text: z.string(), place: z.string() }).register(schemas, { id: "HelpMessage" });
+
+export const CabinetHelp = z
+  .object({
+    enabled: z.boolean(),
+    /** Ссылка WhatsApp магазина — «Написать в WhatsApp», когда помощник выключен или для своего вопроса. */
+    whatsapp: z.string(),
+    messages: z.array(HelpMessage),
+    /** Вопросы-подсказки пустого чата: по состоянию книги и частые по разделу. */
+    hints: z.array(z.string()),
+    /** Подписи виджета (на языке пользователя). */
+    labels: z.object({
+      button: z.string(),
+      title: z.string(),
+      subtitle: z.string(),
+      hello: z.string(),
+      faqTitle: z.string(),
+      placeholder: z.string(),
+      typing: z.string(),
+      bot: z.string(),
+      manager: z.string(),
+      notHelped: z.string(),
+      callHuman: z.string(),
+      handoff: z.string(),
+      whatsapp: z.string(),
+      disclaimer: z.string(),
+      off: z.string(),
+      error: z.string(),
+    }),
+  })
+  .register(schemas, { id: "CabinetHelp" });
+
+export const HelpAskBody = z
+  .object({
+    text: z.string().trim().max(1000),
+    /** «Позвать менеджера» — без модели. */
+    human: z.boolean(),
+  })
+  .register(schemas, { id: "HelpAskBody" });
+
+export const HelpAnswer = z
+  .object({
+    /** answered | handoff | manager */
+    outcome: z.string(),
+    suggestions: z.array(z.string()),
+    messages: z.array(HelpMessage),
+  })
+  .register(schemas, { id: "HelpAnswer" });
+
 // ─── Маршруты ─────────────────────────────────────────────────────────────────────────────────────────────────────
 
 export const cabinetRoutes = {
@@ -258,5 +309,25 @@ export const cabinetRoutes = {
     summary: "Вкладка «Фото» — как на сайте: где стоит каждое фото, итоги, фильтры, правило книги, лист «Где стоит фото»",
     params: z.object({ bookId: uuid }),
     response: CabinetPhotos,
+  },
+  cabinetHelp: {
+    method: "GET",
+    path: "/api/v1/cabinet/books/{bookId}/help",
+    auth: "user",
+    tag: "cabinet",
+    summary: "Помощник по книге: беседа, подсказки пустого чата, подписи виджета; section — раздел кабинета для частых вопросов",
+    params: z.object({ bookId: uuid }),
+    query: z.object({ section: z.string().max(20).optional() }),
+    response: CabinetHelp,
+  },
+  cabinetHelpAsk: {
+    method: "POST",
+    path: "/api/v1/cabinet/books/{bookId}/help",
+    auth: "user",
+    tag: "cabinet",
+    summary: "Вопрос помощнику по книге (или «Позвать менеджера»): ответ и беседа целиком",
+    params: z.object({ bookId: uuid }),
+    body: HelpAskBody,
+    response: HelpAnswer,
   },
 } as const satisfies Record<string, RouteDef>;

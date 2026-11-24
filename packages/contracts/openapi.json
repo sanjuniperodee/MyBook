@@ -1118,6 +1118,111 @@
         "x-auth": "user"
       }
     },
+    "/api/v1/cabinet/books/{bookId}/help": {
+      "get": {
+        "operationId": "cabinetHelp",
+        "tags": [
+          "cabinet"
+        ],
+        "summary": "Помощник по книге: беседа, подсказки пустого чата, подписи виджета; section — раздел кабинета для частых вопросов",
+        "parameters": [
+          {
+            "name": "bookId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "section",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CabinetHelp"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      },
+      "post": {
+        "operationId": "cabinetHelpAsk",
+        "tags": [
+          "cabinet"
+        ],
+        "summary": "Вопрос помощнику по книге (или «Позвать менеджера»): ответ и беседа целиком",
+        "parameters": [
+          {
+            "name": "bookId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HelpAskBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HelpAnswer"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
+    },
     "/api/v1/crm/deals/{dealId}/form": {
       "get": {
         "operationId": "crmDealForm",
@@ -6555,6 +6660,185 @@
           "chapters",
           "answers",
           "sheet"
+        ],
+        "additionalProperties": false
+      },
+      "HelpMessage": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "from": {
+            "type": "string",
+            "enum": [
+              "client",
+              "bot",
+              "manager"
+            ]
+          },
+          "at": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "place": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "from",
+          "at",
+          "text",
+          "place"
+        ],
+        "additionalProperties": false
+      },
+      "CabinetHelp": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "whatsapp": {
+            "type": "string"
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HelpMessage"
+            }
+          },
+          "hints": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "labels": {
+            "type": "object",
+            "properties": {
+              "button": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "subtitle": {
+                "type": "string"
+              },
+              "hello": {
+                "type": "string"
+              },
+              "faqTitle": {
+                "type": "string"
+              },
+              "placeholder": {
+                "type": "string"
+              },
+              "typing": {
+                "type": "string"
+              },
+              "bot": {
+                "type": "string"
+              },
+              "manager": {
+                "type": "string"
+              },
+              "notHelped": {
+                "type": "string"
+              },
+              "callHuman": {
+                "type": "string"
+              },
+              "handoff": {
+                "type": "string"
+              },
+              "whatsapp": {
+                "type": "string"
+              },
+              "disclaimer": {
+                "type": "string"
+              },
+              "off": {
+                "type": "string"
+              },
+              "error": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "button",
+              "title",
+              "subtitle",
+              "hello",
+              "faqTitle",
+              "placeholder",
+              "typing",
+              "bot",
+              "manager",
+              "notHelped",
+              "callHuman",
+              "handoff",
+              "whatsapp",
+              "disclaimer",
+              "off",
+              "error"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "enabled",
+          "whatsapp",
+          "messages",
+          "hints",
+          "labels"
+        ],
+        "additionalProperties": false
+      },
+      "HelpAskBody": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "human": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "text",
+          "human"
+        ],
+        "additionalProperties": false
+      },
+      "HelpAnswer": {
+        "type": "object",
+        "properties": {
+          "outcome": {
+            "type": "string"
+          },
+          "suggestions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HelpMessage"
+            }
+          }
+        },
+        "required": [
+          "outcome",
+          "suggestions",
+          "messages"
         ],
         "additionalProperties": false
       },

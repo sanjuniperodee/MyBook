@@ -15,6 +15,7 @@ import '../ui/book_chrome.dart';
 import '../ui/cabinet.dart';
 import '../ui/motion.dart';
 import 'answer_screen.dart';
+import 'help_sheet.dart';
 import 'photos_screen.dart';
 
 /// Штаб книги — как страница книги на сайте (src/app/(app)/books/[id]/page.tsx): книга, следующий шаг, срок к празднику,
@@ -179,6 +180,8 @@ class _BookScreenState extends State<BookScreen> {
     if (_writing) return const SizedBox.expand();
     return Scaffold(
       backgroundColor: c.bg,
+      // Помощник по книге — как на сайте: квадрат со спасательным кругом справа внизу.
+      floatingActionButton: h == null ? null : HelpButton(bookId: widget.summary.id, section: 'overview'),
       appBar: BookHeader(
         bookId: widget.summary.id,
         title: h?.title ?? widget.summary.title,

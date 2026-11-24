@@ -31,6 +31,10 @@ abstract class ClientBackend {
 
   Future<void> deletePhoto(String bookId, String photoId);
 
+  /// Помощник по книге: беседа и подсказки (section — раздел кабинета для частых вопросов), вопрос.
+  Future<v1api.CabinetHelp> help(String bookId, String section);
+  Future<v1api.HelpAnswer> askHelp(String bookId, String text, {bool human = false});
+
   /// Полный адрес своего ресурса (обложка, фото) и заголовки для картинок (токен автора).
   String url(String path);
   Map<String, String> get imageHeaders;
@@ -141,6 +145,12 @@ class ApiBackend implements ClientBackend {
   Future<void> updatePhoto(String bookId, String photoId, Map<String, Object?> patch) => _call(() async {
         await api.patch('/api/v1/books/$bookId/photos/$photoId', body: patch);
       });
+
+  @override
+  Future<v1api.CabinetHelp> help(String bookId, String section) => _call(() => v1.cabinetHelp(bookId: bookId, section: section));
+
+  @override
+  Future<v1api.HelpAnswer> askHelp(String bookId, String text, {bool human = false}) => _call(() => v1.cabinetHelpAsk(bookId: bookId, body: v1api.HelpAskBody(text: text, human: human)));
 
   @override
   Future<void> deletePhoto(String bookId, String photoId) => _call(() async {
