@@ -114,6 +114,61 @@ class AppColors extends ThemeExtension<AppColors> {
     bubbleBot: Color(0xFF14263A),
   );
 
+  // Клиентское приложение «MyBooks» — кабинет автора на сайте: тёплая бумага (@theme в globals.css), тёмная — dark.css.
+  static const paper = AppColors(
+    brand: Color(0xFF7A1F2B), // wine
+    brandDeep: Color(0xFF5C1520), // wine-dark
+    onBrand: Colors.white,
+    bg: Color(0xFFF5F2ED), // canvas
+    surface: Color(0xFFF0ECE6), // sunken
+    surfaceRaised: Colors.white,
+    border: Color(0xFFE6E0D7), // line
+    text: Color(0xFF1E1916), // ink
+    textMuted: Color(0xFF6B625A), // muted
+    textFaint: Color(0xFF948A80),
+    bubbleOut: Color(0xFFF4E4DF), // rose
+    bubbleIn: Colors.white,
+    wallpaper: Color(0xFFFAF7F2), // paper
+    wallpaperInk: Color(0xFFD3C9BC), // line-strong
+    danger: Color(0xFFB42318),
+    warn: Color(0xFF8A5300),
+    warnBg: Color(0xFFFBF0DA),
+    success: Color(0xFF1D6B45),
+    tickRead: Color(0xFF1D5A94),
+    note: Color(0xFFFBF0DA),
+    violet: Color(0xFF1D5A94),
+    violetBg: Color(0xFFE8F0F8),
+    dangerBg: Color(0xFFFCEBE9),
+    bubbleBot: Color(0xFFE8F0F8),
+  );
+
+  static const paperDark = AppColors(
+    brand: Color(0xFFC94B5F),
+    brandDeep: Color(0xFFE07A8B),
+    onBrand: Colors.white,
+    bg: Color(0xFF14110F), // canvas
+    surface: Color(0xFF28221D), // sunken
+    surfaceRaised: Color(0xFF1E1A17), // white
+    border: Color(0xFF3A322B),
+    text: Color(0xFFF2ECE4),
+    textMuted: Color(0xFFA2978C),
+    textFaint: Color(0xFF7A7067),
+    bubbleOut: Color(0xFF3B2228),
+    bubbleIn: Color(0xFF28221D),
+    wallpaper: Color(0xFF14110F),
+    wallpaperInk: Color(0xFF4A4037),
+    danger: Color(0xFFF4A39B),
+    warn: Color(0xFFF0C47A),
+    warnBg: Color(0xFF33270F),
+    success: Color(0xFF8FD3AE),
+    tickRead: Color(0xFF9CC4EE),
+    note: Color(0xFF33270F),
+    violet: Color(0xFF9CC4EE),
+    violetBg: Color(0xFF14263A),
+    dangerBg: Color(0xFF3A1A17),
+    bubbleBot: Color(0xFF14263A),
+  );
+
   @override
   AppColors copyWith() => this;
 
@@ -150,15 +205,19 @@ class AppText {
   static TextStyle body(BuildContext c) => TextStyle(fontSize: 16, height: 1.35, color: c.c.text);
   static TextStyle sub(BuildContext c) => TextStyle(fontSize: 14.5, height: 1.3, color: c.c.textMuted);
   static TextStyle caption(BuildContext c) => TextStyle(fontSize: 12.5, height: 1.25, color: c.c.textMuted);
+  /// Текст книги и заголовки витрины — засечки, как на сайте (Cormorant).
+  static TextStyle serif(BuildContext c, {double size = 20, FontWeight weight = FontWeight.w500}) => TextStyle(fontFamily: 'Cormorant', fontSize: size, height: 1.3, fontWeight: weight, color: c.c.text);
   static TextStyle label(BuildContext c) => TextStyle(fontSize: 12, height: 1.2, fontWeight: FontWeight.w700, letterSpacing: 0.4, color: c.c.textFaint);
 }
 
-ThemeData buildTheme(Brightness b) {
-  final c = b == Brightness.dark ? AppColors.dark : AppColors.light;
+/// Тема приложения. CRM — палитра html.crm и системный шрифт; клиентское — тёплая бумага кабинета и Onest (client: true).
+ThemeData buildTheme(Brightness b, {bool client = false}) {
+  final c = client ? (b == Brightness.dark ? AppColors.paperDark : AppColors.paper) : (b == Brightness.dark ? AppColors.dark : AppColors.light);
   final scheme = ColorScheme.fromSeed(seedColor: c.brand, brightness: b).copyWith(primary: c.brand, onPrimary: c.onBrand, surface: c.bg, error: c.danger);
   return ThemeData(
     useMaterial3: true,
     brightness: b,
+    fontFamily: client ? 'Onest' : null,
     colorScheme: scheme,
     extensions: [c],
     scaffoldBackgroundColor: c.bg,

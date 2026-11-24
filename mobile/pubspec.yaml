@@ -81,8 +81,27 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
+  # Шрифты сайта (assets/fonts в корне репозитория): кабинет — Onest, книга — Cormorant. Нужны клиентскому приложению.
+  fonts:
+    - family: Onest
+      fonts:
+        - asset: assets/fonts/Onest-400.ttf
+        - asset: assets/fonts/Onest-500.ttf
+          weight: 500
+        - asset: assets/fonts/Onest-600.ttf
+          weight: 600
+    - family: Cormorant
+      fonts:
+        - asset: assets/fonts/Cormorant-500.ttf
+          weight: 500
+        - asset: assets/fonts/Cormorant-600.ttf
+          weight: 600
+        - asset: assets/fonts/Cormorant-400-italic.ttf
+          style: italic
+
   assets:
     - assets/images/logo_mark.png
+    - assets/client/icon.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:

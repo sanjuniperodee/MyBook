@@ -35,6 +35,23 @@ android {
         versionName = flutter.versionName
     }
 
+    // Два приложения из одной кодовой базы (mobile/CLIENT-APP.md): crm — сотрудникам (APK из CRM, как раньше),
+    // client — клиентам «MyBooks» (Google Play). Сборка: flutter build apk --flavor crm | client (-t lib/main_client.dart).
+    buildFeatures { resValues = true }
+    flavorDimensions += "app"
+    productFlavors {
+        create("crm") {
+            dimension = "app"
+            applicationId = "kz.mybooks.mybooks_seller"
+            resValue("string", "app_name", "MyBooks CRM")
+        }
+        create("client") {
+            dimension = "app"
+            applicationId = "kz.mybooks.app"
+            resValue("string", "app_name", "MyBooks")
+        }
+    }
+
     signingConfigs {
         create("release") {
             if (keystoreProperties.containsKey("storeFile")) {

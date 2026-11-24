@@ -1,0 +1,8 @@
+# Значок клиентского приложения «MyBooks» (flavor client): знак сайта на винном поле.
+# dart run flutter_launcher_icons -f flutter_launcher_icons-client.yaml
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/client/icon.png"
+  remove_alpha_ios: true
+  min_sdk_android: 21

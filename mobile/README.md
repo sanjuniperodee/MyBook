@@ -104,7 +104,7 @@ flutter analyze && flutter test
 при открытии приложения в рабочее время. Сервер: `/api/mobile/templates*`, `/api/mobile/chats/{id}/pin|forward`,
 `/api/mobile/chats/targets`. Версия 1.1.0+2.
 
-Сборка APK: `flutter build apk --release` (подпись — `android/key.properties`), готовый файл кладём в `build/MyBooks-CRM.apk`.
+Сборка APK: `flutter build apk --release --flavor crm` (подпись — `android/key.properties`), готовый файл кладём в `build/MyBooks-CRM.apk`.
 
 ## Раскладки по ролям (v1.2.0)
 
@@ -159,7 +159,7 @@ WhatsApp; «Повторить отправку» сообщения, котор
 
 ## Выпуск
 
-- **Android** — `flutter build apk --release` (подпись `android/key.properties` + `android/app/upload-keystore.jks`, в git их
+- **Android** — `flutter build apk --release --flavor crm` (подпись `android/key.properties` + `android/app/upload-keystore.jks`, в git их
   нет — лежат в основной папке репозитория). Готовый APK загружается в CRM: «Сайт» → «Приложение для Android» (или
   `scripts/mobile/upload-apk.sh`); сотрудники скачивают его по `/api/admin/mobile-apk`.
 - **iPhone без App Store и TestFlight (Ad Hoc, до 100 телефонов в год).** Сотрудник открывает в Safari на iPhone
