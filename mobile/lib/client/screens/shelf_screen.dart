@@ -11,6 +11,7 @@ import '../data/stores.dart';
 import '../ui/cabinet.dart';
 import '../ui/motion.dart';
 import 'book_screen.dart';
+import 'order_screen.dart';
 
 /// «Мои книги» — как полка кабинета на телефоне (src/app/(app)/books/page.tsx, BooksShelf.tsx): главная книга крупно
 /// (объёмная обложка, тема, название, подзаголовок, ход работы, срок, «Продолжить писать» и «Открыть книгу»), остальные —
@@ -32,6 +33,11 @@ class _ShelfScreenState extends State<ShelfScreen> {
   void dispose() {
     _shelf.dispose();
     super.dispose();
+  }
+
+  Future<void> _openOrder(String id) async {
+    await Navigator.of(context).push(CabinetRoute<void>(builder: (_) => OrderScreen(orderId: id)));
+    _shelf.refresh();
   }
 
   Future<void> _open(v1api.ShelfItem b, {bool write = false}) async {
@@ -75,7 +81,7 @@ class _ShelfScreenState extends State<ShelfScreen> {
     final c = context.c;
     return Scaffold(
       backgroundColor: c.bg,
-      appBar: CabinetTopBar(title: 'Мои книги'),
+      appBar: const CabinetTopBar(title: 'Мои книги'),
       body: ListenableBuilder(
         listenable: _shelf,
         builder: (context, _) {
@@ -122,6 +128,7 @@ class _ShelfScreenState extends State<ShelfScreen> {
                   book: _book,
                   onOpen: () => _open(hero),
                   onWrite: () => _open(hero, write: true),
+                  onOrder: () => hero.order == null ? null : _openOrder(hero.order!.id),
                 ),
                 if (rest.isNotEmpty) ...[
                   const SizedBox(height: 44),
@@ -138,7 +145,7 @@ class _ShelfScreenState extends State<ShelfScreen> {
                   for (final b in rest)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 14),
-                      child: _ShelfCard(b: b, onTap: () => _open(b)),
+                      child: _ShelfCard(b: b, onTap: () => b.ordered && b.order != null ? _openOrder(b.order!.id) : _open(b)),
                     ),
                 ],
               ],
@@ -156,11 +163,13 @@ class _Hero extends StatelessWidget {
     required this.book,
     required this.onOpen,
     required this.onWrite,
+    required this.onOrder,
   });
   final v1api.ShelfItem b;
   final Book3DController book;
   final VoidCallback onOpen;
   final VoidCallback onWrite;
+  final VoidCallback onOrder;
 
   @override
   Widget build(BuildContext context) {
@@ -236,6 +245,11 @@ class _Hero extends StatelessWidget {
         ],
         const SizedBox(height: 24),
         if (b.ordered) ...[
+          // «Следить за заказом» — главное действие заказанной книги (как на сайте).
+          if (b.order != null) ...[
+            CabinetButton(label: 'Следить за заказом', onPressed: onOrder),
+            const SizedBox(height: 12),
+          ],
           CabinetButton(
             label: 'Открыть книгу',
             onPressed: onOpen,

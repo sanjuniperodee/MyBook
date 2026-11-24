@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 
 import 'client/data/session.dart';
 import 'client/screens/client_login_screen.dart';
-import 'client/screens/shelf_screen.dart';
+import 'client/screens/client_home.dart';
 import 'ui/tokens.dart';
 
 /// Клиентское приложение «MyBooks» (flavor client, mobile/CLIENT-APP.md): автор пишет книгу с телефона.
@@ -44,7 +44,7 @@ class _Root extends StatelessWidget {
     return switch (context.watch<ClientSession>().status) {
       ClientStatus.loading => Scaffold(backgroundColor: context.c.bg, body: const Center(child: CircularProgressIndicator())),
       ClientStatus.loggedOut => const ClientLoginScreen(),
-      ClientStatus.loggedIn => const ShelfScreen(),
+      ClientStatus.loggedIn => const ClientHome(),
     };
   }
 }

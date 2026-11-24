@@ -15,7 +15,9 @@ import '../ui/book_chrome.dart';
 import '../ui/cabinet.dart';
 import '../ui/motion.dart';
 import 'answer_screen.dart';
+import 'checkout_screen.dart';
 import 'help_sheet.dart';
+import 'order_screen.dart';
 import 'photos_screen.dart';
 
 /// Штаб книги — как страница книги на сайте (src/app/(app)/books/[id]/page.tsx): книга, следующий шаг, срок к празднику,
@@ -158,12 +160,26 @@ class _BookScreenState extends State<BookScreen> {
       return () => _write(u.queryParameters['s'], animate: animate);
     if (parts.length >= 3 && parts[0] == 'books' && parts[2] == 'photos')
       return _photos;
+    if (parts.length >= 3 && parts[0] == 'books' && parts[2] == 'checkout')
+      return _checkout;
+    if (parts.length >= 2 && parts[0] == 'orders')
+      return () => _openOrder(parts[1]);
     return null;
+  }
+
+  Future<void> _checkout() async {
+    await Navigator.of(context).push(CabinetRoute<void>(builder: (_) => CheckoutScreen(bookId: widget.summary.id, bookTitle: _hub?.title ?? widget.summary.title)));
+    _loadHub();
+  }
+
+  Future<void> _openOrder(String id) async {
+    await Navigator.of(context).push(CabinetRoute<void>(builder: (_) => OrderScreen(orderId: id)));
+    _loadHub();
   }
 
   List<BookStep> _steps(v1api.CabinetBook h) => [
     for (final s in h.steps)
-      if (s.key == 'write' || s.key == 'photos')
+      if (s.key == 'write' || s.key == 'photos' || s.key == 'order')
         BookStep(
           key: s.key,
           label: s.title,
@@ -203,9 +219,14 @@ class _BookScreenState extends State<BookScreen> {
                 StepTabs(
                   steps: _steps(h),
                   active: 'hub',
-                  onTap: (k) => k == 'write'
-                      ? _write(null)
-                      : (k == 'photos' ? _photos() : null),
+                  onTap: (k) {
+                    if (k == 'write') _write(null);
+                    if (k == 'photos') _photos();
+                    if (k == 'order') {
+                      final step = h.steps.where((s) => s.key == 'order').firstOrNull;
+                      _target(step?.href ?? '/books/${h.id}/checkout')?.call();
+                    }
+                  },
                 ),
                 Expanded(
                   child: RefreshIndicator(

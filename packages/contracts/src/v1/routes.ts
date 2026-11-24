@@ -15,6 +15,7 @@ import { booksRoutes } from "./books";
 import { lettersRoutes } from "./letters";
 import { previewRoutes } from "./preview";
 import { cabinetRoutes } from "./cabinet";
+import { cabinetOrderRoutes } from "./cabinet-orders";
 import { crmRoutes } from "./crm";
 import type { RouteDef } from "./core";
 
@@ -25,6 +26,7 @@ export * from "./books";
 export * from "./letters";
 export * from "./preview";
 export * from "./cabinet";
+export * from "./cabinet-orders";
 export * from "./crm";
 
 export const v1 = {
@@ -33,6 +35,7 @@ export const v1 = {
   ...lettersRoutes,
   ...previewRoutes,
   ...cabinetRoutes,
+  ...cabinetOrderRoutes,
   // CRM для сотрудников (приложение CRM).
   ...crmRoutes,
   // Доски задач и календарь (приложение CRM).

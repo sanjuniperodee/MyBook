@@ -33,6 +33,17 @@ abstract class ClientBackend {
 
   /// Помощник по книге: беседа и подсказки (section — раздел кабинета для частых вопросов), вопрос.
   Future<v1api.CabinetHelp> help(String bookId, String section);
+
+  // ── Заказ и оплата ──
+  Future<v1api.CabinetCheckout> checkout(String bookId);
+  Future<v1api.CheckoutQuote> quote(String bookId, v1api.CheckoutQuoteBody body);
+  Future<String> placeOrder(String bookId, v1api.OrderPlaceBody body);
+  Future<v1api.CabinetOrders> orders();
+  Future<v1api.CabinetOrder> order(String orderId);
+  Future<v1api.KaspiInvoice> kaspiPay(String orderId, String method, String phone);
+  Future<v1api.KaspiInvoice> kaspiStatus(String orderId, String invoiceId);
+  Future<void> claimPayment(String orderId);
+  Future<void> cancelOrder(String orderId);
   Future<v1api.HelpAnswer> askHelp(String bookId, String text, {bool human = false});
 
   /// Полный адрес своего ресурса (обложка, фото) и заголовки для картинок (токен автора).
@@ -139,6 +150,37 @@ class ApiBackend implements ClientBackend {
 
   @override
   Future<v1api.CabinetPhotos> photosTab(String bookId) => _call(() => v1.cabinetPhotos(bookId: bookId));
+
+  @override
+  Future<v1api.CabinetCheckout> checkout(String bookId) => _call(() => v1.cabinetCheckout(bookId: bookId));
+
+  @override
+  Future<v1api.CheckoutQuote> quote(String bookId, v1api.CheckoutQuoteBody body) => _call(() => v1.cabinetCheckoutQuote(bookId: bookId, body: body));
+
+  @override
+  Future<String> placeOrder(String bookId, v1api.OrderPlaceBody body) => _call(() async => (await v1.cabinetOrderPlace(bookId: bookId, body: body)).orderId);
+
+  @override
+  Future<v1api.CabinetOrders> orders() => _call(() => v1.cabinetOrders());
+
+  @override
+  Future<v1api.CabinetOrder> order(String orderId) => _call(() => v1.cabinetOrder(orderId: orderId));
+
+  @override
+  Future<v1api.KaspiInvoice> kaspiPay(String orderId, String method, String phone) => _call(() async => (await v1.cabinetOrderKaspi(orderId: orderId, body: v1api.KaspiPayBody(method: method, phone: phone))).invoice);
+
+  @override
+  Future<v1api.KaspiInvoice> kaspiStatus(String orderId, String invoiceId) => _call(() async => (await v1.cabinetOrderKaspiStatus(orderId: orderId, invoiceId: invoiceId)).invoice);
+
+  @override
+  Future<void> claimPayment(String orderId) => _call(() async {
+        await v1.cabinetOrderClaim(orderId: orderId);
+      });
+
+  @override
+  Future<void> cancelOrder(String orderId) => _call(() async {
+        await v1.cabinetOrderCancel(orderId: orderId);
+      });
 
   @override
   Future<v1api.CabinetHelp> help(String bookId, String section) => _call(() => v1.cabinetHelp(bookId: bookId, section: section));

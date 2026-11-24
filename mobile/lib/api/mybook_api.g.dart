@@ -218,6 +218,60 @@ class MybookApi {
     return HelpAnswer.fromJson(json as Map<String, dynamic>);
   }
 
+  /// Оформление заказа — как на сайте: проверка макета, тарифы, доставка, допы, договорённость
+  Future<CabinetCheckout> cabinetCheckout({required String bookId}) async {
+    final json = await _send('GET', '/api/v1/cabinet/books/${Uri.encodeComponent(bookId)}/checkout');
+    return CabinetCheckout.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Итог по выбранному: строки чека и «К оплате» (правила цены сервера), проверка промокода
+  Future<CheckoutQuote> cabinetCheckoutQuote({required String bookId, required CheckoutQuoteBody body}) async {
+    final json = await _send('POST', '/api/v1/cabinet/books/${Uri.encodeComponent(bookId)}/checkout/quote', body: body.toJson());
+    return CheckoutQuote.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Оформить заказ (те же проверки, что у формы сайта)
+  Future<OrderPlaced> cabinetOrderPlace({required String bookId, required OrderPlaceBody body}) async {
+    final json = await _send('POST', '/api/v1/cabinet/books/${Uri.encodeComponent(bookId)}/orders', body: body.toJson());
+    return OrderPlaced.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Мои заказы
+  Future<CabinetOrders> cabinetOrders() async {
+    final json = await _send('GET', '/api/v1/cabinet/orders');
+    return CabinetOrders.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Заказ — как на сайте: что сейчас, этапы, детали, чек, оплата
+  Future<CabinetOrder> cabinetOrder({required String orderId}) async {
+    final json = await _send('GET', '/api/v1/cabinet/orders/${Uri.encodeComponent(orderId)}');
+    return CabinetOrder.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Оплата через Kaspi: счёт в приложение Kaspi по номеру или QR-код
+  Future<KaspiInvoiceResult> cabinetOrderKaspi({required String orderId, required KaspiPayBody body}) async {
+    final json = await _send('POST', '/api/v1/cabinet/orders/${Uri.encodeComponent(orderId)}/kaspi', body: body.toJson());
+    return KaspiInvoiceResult.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Состояние счёта Kaspi (опрос, пока клиент платит)
+  Future<KaspiInvoiceResult> cabinetOrderKaspiStatus({required String orderId, required String invoiceId}) async {
+    final json = await _send('GET', '/api/v1/cabinet/orders/${Uri.encodeComponent(orderId)}/kaspi/${Uri.encodeComponent(invoiceId)}');
+    return KaspiInvoiceResult.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// «Я оплатил(а)» переводом
+  Future<OkResult> cabinetOrderClaim({required String orderId}) async {
+    final json = await _send('POST', '/api/v1/cabinet/orders/${Uri.encodeComponent(orderId)}/claim');
+    return OkResult.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Отменить заказ — книга снова открыта для правок
+  Future<OkResult> cabinetOrderCancel({required String orderId}) async {
+    final json = await _send('POST', '/api/v1/cabinet/orders/${Uri.encodeComponent(orderId)}/cancel');
+    return OkResult.fromJson(json as Map<String, dynamic>);
+  }
+
   /// Сделка для правки: поля, свои поля, договорённость
   Future<DealForm> crmDealForm({required String dealId}) async {
     final json = await _send('GET', '/api/v1/crm/deals/${Uri.encodeComponent(dealId)}/form');
@@ -1881,6 +1935,431 @@ class HelpAnswer {
   factory HelpAnswer.fromJson(Map<String, dynamic> json) => HelpAnswer(outcome: json['outcome'] as String, suggestions: (json['suggestions'] as List).map((e) => e as String).toList(), messages: (json['messages'] as List).map((e) => HelpMessage.fromJson(e as Map<String, dynamic>)).toList());
 
   Map<String, dynamic> toJson() => {'outcome': outcome, 'suggestions': suggestions.map((e) => e).toList(), 'messages': messages.map((e) => e.toJson()).toList()};
+}
+
+class PriceLine {
+  final String label;
+  final String value;
+  /// plain | success | muted
+  final String tone;
+
+  const PriceLine({required this.label, required this.value, required this.tone});
+
+  factory PriceLine.fromJson(Map<String, dynamic> json) => PriceLine(label: json['label'] as String, value: json['value'] as String, tone: json['tone'] as String);
+
+  Map<String, dynamic> toJson() => {'label': label, 'value': value, 'tone': tone};
+}
+
+class CheckoutAddon {
+  final String id;
+  final String name;
+  final String description;
+  final String priceLabel;
+
+  const CheckoutAddon({required this.id, required this.name, required this.description, required this.priceLabel});
+
+  factory CheckoutAddon.fromJson(Map<String, dynamic> json) => CheckoutAddon(id: json['id'] as String, name: json['name'] as String, description: json['description'] as String, priceLabel: json['priceLabel'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'description': description, 'priceLabel': priceLabel};
+}
+
+class CheckoutPlan {
+  final String id;
+  final String name;
+  final List<String> features;
+  final int price;
+  final String priceLabel;
+  final bool printed;
+  final String? extraCopy;
+  final List<CheckoutAddon> addons;
+
+  const CheckoutPlan({required this.id, required this.name, required this.features, required this.price, required this.priceLabel, required this.printed, this.extraCopy, required this.addons});
+
+  factory CheckoutPlan.fromJson(Map<String, dynamic> json) => CheckoutPlan(id: json['id'] as String, name: json['name'] as String, features: (json['features'] as List).map((e) => e as String).toList(), price: (json['price'] as num).toInt(), priceLabel: json['priceLabel'] as String, printed: json['printed'] as bool, extraCopy: json['extraCopy'] == null ? null : json['extraCopy'] as String, addons: (json['addons'] as List).map((e) => CheckoutAddon.fromJson(e as Map<String, dynamic>)).toList());
+
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'features': features.map((e) => e).toList(), 'price': price, 'priceLabel': priceLabel, 'printed': printed, 'extraCopy': extraCopy == null ? null : extraCopy!, 'addons': addons.map((e) => e.toJson()).toList()};
+}
+
+class CheckoutDelivery {
+  final String id;
+  final String name;
+  final String description;
+  final String priceLabel;
+  final bool quoted;
+  final bool abroad;
+
+  const CheckoutDelivery({required this.id, required this.name, required this.description, required this.priceLabel, required this.quoted, required this.abroad});
+
+  factory CheckoutDelivery.fromJson(Map<String, dynamic> json) => CheckoutDelivery(id: json['id'] as String, name: json['name'] as String, description: json['description'] as String, priceLabel: json['priceLabel'] as String, quoted: json['quoted'] as bool, abroad: json['abroad'] as bool);
+
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'description': description, 'priceLabel': priceLabel, 'quoted': quoted, 'abroad': abroad};
+}
+
+class CheckoutIssue {
+  /// error | warning
+  final String level;
+  final String text;
+  final String? href;
+
+  const CheckoutIssue({required this.level, required this.text, this.href});
+
+  factory CheckoutIssue.fromJson(Map<String, dynamic> json) => CheckoutIssue(level: json['level'] as String, text: json['text'] as String, href: json['href'] == null ? null : json['href'] as String);
+
+  Map<String, dynamic> toJson() => {'level': level, 'text': text, 'href': href == null ? null : href!};
+}
+
+class CheckoutAgreement {
+  final String title;
+  final String summary;
+  final String? batch;
+  final String? gifts;
+  final List<CheckoutAgreementModes> modes;
+  final String refund;
+  final String whatsapp;
+
+  const CheckoutAgreement({required this.title, required this.summary, this.batch, this.gifts, required this.modes, required this.refund, required this.whatsapp});
+
+  factory CheckoutAgreement.fromJson(Map<String, dynamic> json) => CheckoutAgreement(title: json['title'] as String, summary: json['summary'] as String, batch: json['batch'] == null ? null : json['batch'] as String, gifts: json['gifts'] == null ? null : json['gifts'] as String, modes: (json['modes'] as List).map((e) => CheckoutAgreementModes.fromJson(e as Map<String, dynamic>)).toList(), refund: json['refund'] as String, whatsapp: json['whatsapp'] as String);
+
+  Map<String, dynamic> toJson() => {'title': title, 'summary': summary, 'batch': batch == null ? null : batch!, 'gifts': gifts == null ? null : gifts!, 'modes': modes.map((e) => e.toJson()).toList(), 'refund': refund, 'whatsapp': whatsapp};
+}
+
+class CheckoutAgreementModes {
+  final String id;
+  final String title;
+  final String hint;
+
+  const CheckoutAgreementModes({required this.id, required this.title, required this.hint});
+
+  factory CheckoutAgreementModes.fromJson(Map<String, dynamic> json) => CheckoutAgreementModes(id: json['id'] as String, title: json['title'] as String, hint: json['hint'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'title': title, 'hint': hint};
+}
+
+class CabinetCheckout {
+  final bool closed;
+  final String? orderId;
+  final String? title;
+  final String? summary;
+  final List<String>? design;
+  final String? checkPreview;
+  final bool? blocked;
+  final List<CheckoutIssue>? issues;
+  final List<CheckoutPlan>? plans;
+  final String? lockedPlan;
+  final List<CheckoutDelivery>? deliveries;
+  final String? quotedNote;
+  final bool? giftNote;
+  final String? occasionLabel;
+  final CheckoutAgreement? agreement;
+  final CabinetCheckoutDefaults? defaults;
+  final String? offerUrl;
+  final String? privacyUrl;
+  /// Поля, которые отправить как null (иначе пустое необязательное поле не отправляется).
+  final Set<String> nulls;
+
+  const CabinetCheckout({required this.closed, this.orderId, this.title, this.summary, this.design, this.checkPreview, this.blocked, this.issues, this.plans, this.lockedPlan, this.deliveries, this.quotedNote, this.giftNote, this.occasionLabel, this.agreement, this.defaults, this.offerUrl, this.privacyUrl, this.nulls = const {}});
+
+  factory CabinetCheckout.fromJson(Map<String, dynamic> json) => CabinetCheckout(closed: json['closed'] as bool, orderId: json['orderId'] == null ? null : json['orderId'] as String, title: json['title'] == null ? null : json['title'] as String, summary: json['summary'] == null ? null : json['summary'] as String, design: json['design'] == null ? null : (json['design'] as List).map((e) => e as String).toList(), checkPreview: json['checkPreview'] == null ? null : json['checkPreview'] as String, blocked: json['blocked'] == null ? null : json['blocked'] as bool, issues: json['issues'] == null ? null : (json['issues'] as List).map((e) => CheckoutIssue.fromJson(e as Map<String, dynamic>)).toList(), plans: json['plans'] == null ? null : (json['plans'] as List).map((e) => CheckoutPlan.fromJson(e as Map<String, dynamic>)).toList(), lockedPlan: json['lockedPlan'] == null ? null : json['lockedPlan'] as String, deliveries: json['deliveries'] == null ? null : (json['deliveries'] as List).map((e) => CheckoutDelivery.fromJson(e as Map<String, dynamic>)).toList(), quotedNote: json['quotedNote'] == null ? null : json['quotedNote'] as String, giftNote: json['giftNote'] == null ? null : json['giftNote'] as bool, occasionLabel: json['occasionLabel'] == null ? null : json['occasionLabel'] as String, agreement: json['agreement'] == null ? null : CheckoutAgreement.fromJson(json['agreement'] as Map<String, dynamic>), defaults: json['defaults'] == null ? null : CabinetCheckoutDefaults.fromJson(json['defaults'] as Map<String, dynamic>), offerUrl: json['offerUrl'] == null ? null : json['offerUrl'] as String, privacyUrl: json['privacyUrl'] == null ? null : json['privacyUrl'] as String);
+
+  Map<String, dynamic> toJson() => {'closed': closed, 'orderId': orderId == null ? null : orderId!, if (title != null) 'title': title!, if (summary != null) 'summary': summary!, if (design != null) 'design': design!.map((e) => e).toList(), if (checkPreview != null) 'checkPreview': checkPreview!, if (blocked != null) 'blocked': blocked!, if (issues != null) 'issues': issues!.map((e) => e.toJson()).toList(), if (plans != null) 'plans': plans!.map((e) => e.toJson()).toList(), if (lockedPlan != null || nulls.contains('lockedPlan')) 'lockedPlan': lockedPlan == null ? null : lockedPlan!, if (deliveries != null) 'deliveries': deliveries!.map((e) => e.toJson()).toList(), if (quotedNote != null) 'quotedNote': quotedNote!, if (giftNote != null) 'giftNote': giftNote!, if (occasionLabel != null || nulls.contains('occasionLabel')) 'occasionLabel': occasionLabel == null ? null : occasionLabel!, if (agreement != null || nulls.contains('agreement')) 'agreement': agreement == null ? null : agreement!.toJson(), if (defaults != null) 'defaults': defaults!.toJson(), if (offerUrl != null) 'offerUrl': offerUrl!, if (privacyUrl != null) 'privacyUrl': privacyUrl!};
+}
+
+class CabinetCheckoutDefaults {
+  final String name;
+  final String email;
+  final String phone;
+  final String desiredDate;
+
+  const CabinetCheckoutDefaults({required this.name, required this.email, required this.phone, required this.desiredDate});
+
+  factory CabinetCheckoutDefaults.fromJson(Map<String, dynamic> json) => CabinetCheckoutDefaults(name: json['name'] as String, email: json['email'] as String, phone: json['phone'] as String, desiredDate: json['desiredDate'] as String);
+
+  Map<String, dynamic> toJson() => {'name': name, 'email': email, 'phone': phone, 'desiredDate': desiredDate};
+}
+
+class CheckoutQuoteBody {
+  final String plan;
+  final int quantity;
+  final String? delivery;
+  final List<String> addons;
+  final String? promoCode;
+  final String? mode;
+
+  const CheckoutQuoteBody({required this.plan, required this.quantity, this.delivery, required this.addons, this.promoCode, this.mode});
+
+  factory CheckoutQuoteBody.fromJson(Map<String, dynamic> json) => CheckoutQuoteBody(plan: json['plan'] as String, quantity: (json['quantity'] as num).toInt(), delivery: json['delivery'] == null ? null : json['delivery'] as String, addons: (json['addons'] as List).map((e) => e as String).toList(), promoCode: json['promoCode'] == null ? null : json['promoCode'] as String, mode: json['mode'] == null ? null : json['mode'] as String);
+
+  Map<String, dynamic> toJson() => {'plan': plan, 'quantity': quantity, 'delivery': delivery == null ? null : delivery!, 'addons': addons.map((e) => e).toList(), 'promoCode': promoCode == null ? null : promoCode!, 'mode': mode == null ? null : mode!};
+}
+
+class CheckoutQuote {
+  final String plan;
+  final List<PriceLine> lines;
+  final String totalLabel;
+  final String total;
+  final String? quotedTotal;
+  final CheckoutQuotePromo? promo;
+
+  const CheckoutQuote({required this.plan, required this.lines, required this.totalLabel, required this.total, this.quotedTotal, this.promo});
+
+  factory CheckoutQuote.fromJson(Map<String, dynamic> json) => CheckoutQuote(plan: json['plan'] as String, lines: (json['lines'] as List).map((e) => PriceLine.fromJson(e as Map<String, dynamic>)).toList(), totalLabel: json['totalLabel'] as String, total: json['total'] as String, quotedTotal: json['quotedTotal'] == null ? null : json['quotedTotal'] as String, promo: json['promo'] == null ? null : CheckoutQuotePromo.fromJson(json['promo'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'plan': plan, 'lines': lines.map((e) => e.toJson()).toList(), 'totalLabel': totalLabel, 'total': total, 'quotedTotal': quotedTotal == null ? null : quotedTotal!, 'promo': promo == null ? null : promo!.toJson()};
+}
+
+class CheckoutQuotePromo {
+  final bool ok;
+  final String text;
+
+  const CheckoutQuotePromo({required this.ok, required this.text});
+
+  factory CheckoutQuotePromo.fromJson(Map<String, dynamic> json) => CheckoutQuotePromo(ok: json['ok'] as bool, text: json['text'] as String);
+
+  Map<String, dynamic> toJson() => {'ok': ok, 'text': text};
+}
+
+class OrderPlaceBody {
+  final String plan;
+  final int quantity;
+  final String? delivery;
+  final List<String> addons;
+  final String? promoCode;
+  final String? mode;
+  final String contactName;
+  final String contactPhone;
+  final String contactEmail;
+  final String country;
+  final String city;
+  final String address;
+  final String postalCode;
+  final String comment;
+  final String giftNote;
+  final String desiredDate;
+  final bool surprise;
+  final bool consent;
+
+  const OrderPlaceBody({required this.plan, required this.quantity, this.delivery, required this.addons, this.promoCode, this.mode, required this.contactName, required this.contactPhone, required this.contactEmail, required this.country, required this.city, required this.address, required this.postalCode, required this.comment, required this.giftNote, required this.desiredDate, required this.surprise, required this.consent});
+
+  factory OrderPlaceBody.fromJson(Map<String, dynamic> json) => OrderPlaceBody(plan: json['plan'] as String, quantity: (json['quantity'] as num).toInt(), delivery: json['delivery'] == null ? null : json['delivery'] as String, addons: (json['addons'] as List).map((e) => e as String).toList(), promoCode: json['promoCode'] == null ? null : json['promoCode'] as String, mode: json['mode'] == null ? null : json['mode'] as String, contactName: json['contactName'] as String, contactPhone: json['contactPhone'] as String, contactEmail: json['contactEmail'] as String, country: json['country'] as String, city: json['city'] as String, address: json['address'] as String, postalCode: json['postalCode'] as String, comment: json['comment'] as String, giftNote: json['giftNote'] as String, desiredDate: json['desiredDate'] as String, surprise: json['surprise'] as bool, consent: json['consent'] as bool);
+
+  Map<String, dynamic> toJson() => {'plan': plan, 'quantity': quantity, 'delivery': delivery == null ? null : delivery!, 'addons': addons.map((e) => e).toList(), 'promoCode': promoCode == null ? null : promoCode!, 'mode': mode == null ? null : mode!, 'contactName': contactName, 'contactPhone': contactPhone, 'contactEmail': contactEmail, 'country': country, 'city': city, 'address': address, 'postalCode': postalCode, 'comment': comment, 'giftNote': giftNote, 'desiredDate': desiredDate, 'surprise': surprise, 'consent': consent};
+}
+
+class OrderPlaced {
+  final String orderId;
+
+  const OrderPlaced({required this.orderId});
+
+  factory OrderPlaced.fromJson(Map<String, dynamic> json) => OrderPlaced(orderId: json['orderId'] as String);
+
+  Map<String, dynamic> toJson() => {'orderId': orderId};
+}
+
+class KaspiInvoice {
+  final String id;
+  final String method;
+  final String status;
+  final double amount;
+  final String? phone;
+  final String? link;
+  final String? qrSvg;
+  final String? expiresAt;
+  final String? paidAt;
+
+  const KaspiInvoice({required this.id, required this.method, required this.status, required this.amount, this.phone, this.link, this.qrSvg, this.expiresAt, this.paidAt});
+
+  factory KaspiInvoice.fromJson(Map<String, dynamic> json) => KaspiInvoice(id: json['id'] as String, method: json['method'] as String, status: json['status'] as String, amount: (json['amount'] as num).toDouble(), phone: json['phone'] == null ? null : json['phone'] as String, link: json['link'] == null ? null : json['link'] as String, qrSvg: json['qrSvg'] == null ? null : json['qrSvg'] as String, expiresAt: json['expiresAt'] == null ? null : json['expiresAt'] as String, paidAt: json['paidAt'] == null ? null : json['paidAt'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'method': method, 'status': status, 'amount': amount, 'phone': phone == null ? null : phone!, 'link': link == null ? null : link!, 'qrSvg': qrSvg == null ? null : qrSvg!, 'expiresAt': expiresAt == null ? null : expiresAt!, 'paidAt': paidAt == null ? null : paidAt!};
+}
+
+class CabinetOrder {
+  final String id;
+  final int number;
+  final String title;
+  final String created;
+  final String bookId;
+  final String bookTitle;
+  final String status;
+  final String statusLabel;
+  final String tone;
+  final bool printed;
+  final bool paid;
+  final String nowTitle;
+  final String nowText;
+  final List<CabinetOrderSteps> steps;
+  final String? stepOf;
+  final String trackingLabel;
+  final String? trackingNumber;
+  final String detailsTitle;
+  final List<CabinetOrderFacts> facts;
+  final List<PriceLine> lines;
+  final String totalLabel;
+  final String total;
+  final String? quotedNote;
+  final CabinetOrderPayment? payment;
+
+  const CabinetOrder({required this.id, required this.number, required this.title, required this.created, required this.bookId, required this.bookTitle, required this.status, required this.statusLabel, required this.tone, required this.printed, required this.paid, required this.nowTitle, required this.nowText, required this.steps, this.stepOf, required this.trackingLabel, this.trackingNumber, required this.detailsTitle, required this.facts, required this.lines, required this.totalLabel, required this.total, this.quotedNote, this.payment});
+
+  factory CabinetOrder.fromJson(Map<String, dynamic> json) => CabinetOrder(id: json['id'] as String, number: (json['number'] as num).toInt(), title: json['title'] as String, created: json['created'] as String, bookId: json['bookId'] as String, bookTitle: json['bookTitle'] as String, status: json['status'] as String, statusLabel: json['statusLabel'] as String, tone: json['tone'] as String, printed: json['printed'] as bool, paid: json['paid'] as bool, nowTitle: json['nowTitle'] as String, nowText: json['nowText'] as String, steps: (json['steps'] as List).map((e) => CabinetOrderSteps.fromJson(e as Map<String, dynamic>)).toList(), stepOf: json['stepOf'] == null ? null : json['stepOf'] as String, trackingLabel: json['trackingLabel'] as String, trackingNumber: json['trackingNumber'] == null ? null : json['trackingNumber'] as String, detailsTitle: json['detailsTitle'] as String, facts: (json['facts'] as List).map((e) => CabinetOrderFacts.fromJson(e as Map<String, dynamic>)).toList(), lines: (json['lines'] as List).map((e) => PriceLine.fromJson(e as Map<String, dynamic>)).toList(), totalLabel: json['totalLabel'] as String, total: json['total'] as String, quotedNote: json['quotedNote'] == null ? null : json['quotedNote'] as String, payment: json['payment'] == null ? null : CabinetOrderPayment.fromJson(json['payment'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'id': id, 'number': number, 'title': title, 'created': created, 'bookId': bookId, 'bookTitle': bookTitle, 'status': status, 'statusLabel': statusLabel, 'tone': tone, 'printed': printed, 'paid': paid, 'nowTitle': nowTitle, 'nowText': nowText, 'steps': steps.map((e) => e.toJson()).toList(), 'stepOf': stepOf == null ? null : stepOf!, 'trackingLabel': trackingLabel, 'trackingNumber': trackingNumber == null ? null : trackingNumber!, 'detailsTitle': detailsTitle, 'facts': facts.map((e) => e.toJson()).toList(), 'lines': lines.map((e) => e.toJson()).toList(), 'totalLabel': totalLabel, 'total': total, 'quotedNote': quotedNote == null ? null : quotedNote!, 'payment': payment == null ? null : payment!.toJson()};
+}
+
+class CabinetOrderSteps {
+  final String label;
+  final String state;
+
+  const CabinetOrderSteps({required this.label, required this.state});
+
+  factory CabinetOrderSteps.fromJson(Map<String, dynamic> json) => CabinetOrderSteps(label: json['label'] as String, state: json['state'] as String);
+
+  Map<String, dynamic> toJson() => {'label': label, 'state': state};
+}
+
+class CabinetOrderFacts {
+  final String label;
+  final String value;
+
+  const CabinetOrderFacts({required this.label, required this.value});
+
+  factory CabinetOrderFacts.fromJson(Map<String, dynamic> json) => CabinetOrderFacts(label: json['label'] as String, value: json['value'] as String);
+
+  Map<String, dynamic> toJson() => {'label': label, 'value': value};
+}
+
+class CabinetOrderPayment {
+  final String title;
+  final String amount;
+  final CabinetOrderPaymentKaspi? kaspi;
+  final CabinetOrderPaymentManual? manual;
+  final String unavailable;
+  final CabinetOrderPaymentCancel cancel;
+
+  const CabinetOrderPayment({required this.title, required this.amount, this.kaspi, this.manual, required this.unavailable, required this.cancel});
+
+  factory CabinetOrderPayment.fromJson(Map<String, dynamic> json) => CabinetOrderPayment(title: json['title'] as String, amount: json['amount'] as String, kaspi: json['kaspi'] == null ? null : CabinetOrderPaymentKaspi.fromJson(json['kaspi'] as Map<String, dynamic>), manual: json['manual'] == null ? null : CabinetOrderPaymentManual.fromJson(json['manual'] as Map<String, dynamic>), unavailable: json['unavailable'] as String, cancel: CabinetOrderPaymentCancel.fromJson(json['cancel'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'title': title, 'amount': amount, 'kaspi': kaspi == null ? null : kaspi!.toJson(), 'manual': manual == null ? null : manual!.toJson(), 'unavailable': unavailable, 'cancel': cancel.toJson()};
+}
+
+class CabinetOrderPaymentKaspi {
+  final String title;
+  final String phoneLabel;
+  final String invoiceNote;
+  final String sendInvoice;
+  final String payByQr;
+  final String sentSteps;
+  final String scanQr;
+  final String openKaspi;
+  final String waiting;
+  final String paid;
+  final String failed;
+  final String cancelled;
+  final String expired;
+  final String again;
+  final String defaultPhone;
+  final KaspiInvoice? current;
+
+  const CabinetOrderPaymentKaspi({required this.title, required this.phoneLabel, required this.invoiceNote, required this.sendInvoice, required this.payByQr, required this.sentSteps, required this.scanQr, required this.openKaspi, required this.waiting, required this.paid, required this.failed, required this.cancelled, required this.expired, required this.again, required this.defaultPhone, this.current});
+
+  factory CabinetOrderPaymentKaspi.fromJson(Map<String, dynamic> json) => CabinetOrderPaymentKaspi(title: json['title'] as String, phoneLabel: json['phoneLabel'] as String, invoiceNote: json['invoiceNote'] as String, sendInvoice: json['sendInvoice'] as String, payByQr: json['payByQr'] as String, sentSteps: json['sentSteps'] as String, scanQr: json['scanQr'] as String, openKaspi: json['openKaspi'] as String, waiting: json['waiting'] as String, paid: json['paid'] as String, failed: json['failed'] as String, cancelled: json['cancelled'] as String, expired: json['expired'] as String, again: json['again'] as String, defaultPhone: json['defaultPhone'] as String, current: json['current'] == null ? null : KaspiInvoice.fromJson(json['current'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'title': title, 'phoneLabel': phoneLabel, 'invoiceNote': invoiceNote, 'sendInvoice': sendInvoice, 'payByQr': payByQr, 'sentSteps': sentSteps, 'scanQr': scanQr, 'openKaspi': openKaspi, 'waiting': waiting, 'paid': paid, 'failed': failed, 'cancelled': cancelled, 'expired': expired, 'again': again, 'defaultPhone': defaultPhone, 'current': current == null ? null : current!.toJson()};
+}
+
+class CabinetOrderPaymentManual {
+  final String title;
+  final List<String> steps;
+  final String claim;
+  final String? claimed;
+
+  const CabinetOrderPaymentManual({required this.title, required this.steps, required this.claim, this.claimed});
+
+  factory CabinetOrderPaymentManual.fromJson(Map<String, dynamic> json) => CabinetOrderPaymentManual(title: json['title'] as String, steps: (json['steps'] as List).map((e) => e as String).toList(), claim: json['claim'] as String, claimed: json['claimed'] == null ? null : json['claimed'] as String);
+
+  Map<String, dynamic> toJson() => {'title': title, 'steps': steps.map((e) => e).toList(), 'claim': claim, 'claimed': claimed == null ? null : claimed!};
+}
+
+class CabinetOrderPaymentCancel {
+  final String label;
+  final String title;
+  final String text;
+  final String confirm;
+  final String keep;
+
+  const CabinetOrderPaymentCancel({required this.label, required this.title, required this.text, required this.confirm, required this.keep});
+
+  factory CabinetOrderPaymentCancel.fromJson(Map<String, dynamic> json) => CabinetOrderPaymentCancel(label: json['label'] as String, title: json['title'] as String, text: json['text'] as String, confirm: json['confirm'] as String, keep: json['keep'] as String);
+
+  Map<String, dynamic> toJson() => {'label': label, 'title': title, 'text': text, 'confirm': confirm, 'keep': keep};
+}
+
+class CabinetOrders {
+  final String title;
+  final String lead;
+  final String empty;
+  final String emptyText;
+  final List<CabinetOrdersOrders> orders;
+
+  const CabinetOrders({required this.title, required this.lead, required this.empty, required this.emptyText, required this.orders});
+
+  factory CabinetOrders.fromJson(Map<String, dynamic> json) => CabinetOrders(title: json['title'] as String, lead: json['lead'] as String, empty: json['empty'] as String, emptyText: json['emptyText'] as String, orders: (json['orders'] as List).map((e) => CabinetOrdersOrders.fromJson(e as Map<String, dynamic>)).toList());
+
+  Map<String, dynamic> toJson() => {'title': title, 'lead': lead, 'empty': empty, 'emptyText': emptyText, 'orders': orders.map((e) => e.toJson()).toList()};
+}
+
+class CabinetOrdersOrders {
+  final String id;
+  final int number;
+  final String title;
+  final String bookTitle;
+  final String bookId;
+  final String status;
+  final String statusLabel;
+  final String tone;
+  final String amount;
+  final String created;
+  final String? pay;
+
+  const CabinetOrdersOrders({required this.id, required this.number, required this.title, required this.bookTitle, required this.bookId, required this.status, required this.statusLabel, required this.tone, required this.amount, required this.created, this.pay});
+
+  factory CabinetOrdersOrders.fromJson(Map<String, dynamic> json) => CabinetOrdersOrders(id: json['id'] as String, number: (json['number'] as num).toInt(), title: json['title'] as String, bookTitle: json['bookTitle'] as String, bookId: json['bookId'] as String, status: json['status'] as String, statusLabel: json['statusLabel'] as String, tone: json['tone'] as String, amount: json['amount'] as String, created: json['created'] as String, pay: json['pay'] == null ? null : json['pay'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'number': number, 'title': title, 'bookTitle': bookTitle, 'bookId': bookId, 'status': status, 'statusLabel': statusLabel, 'tone': tone, 'amount': amount, 'created': created, 'pay': pay == null ? null : pay!};
+}
+
+class KaspiPayBody {
+  /// invoice | qr
+  final String method;
+  final String phone;
+
+  const KaspiPayBody({required this.method, required this.phone});
+
+  factory KaspiPayBody.fromJson(Map<String, dynamic> json) => KaspiPayBody(method: json['method'] as String, phone: json['phone'] as String);
+
+  Map<String, dynamic> toJson() => {'method': method, 'phone': phone};
+}
+
+class KaspiInvoiceResult {
+  final KaspiInvoice invoice;
+
+  const KaspiInvoiceResult({required this.invoice});
+
+  factory KaspiInvoiceResult.fromJson(Map<String, dynamic> json) => KaspiInvoiceResult(invoice: KaspiInvoice.fromJson(json['invoice'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'invoice': invoice.toJson()};
+}
+
+class OkResult {
+  final bool ok;
+
+  const OkResult({required this.ok});
+
+  factory OkResult.fromJson(Map<String, dynamic> json) => OkResult(ok: json['ok'] as bool);
+
+  Map<String, dynamic> toJson() => {'ok': ok};
 }
 
 class Choice {
