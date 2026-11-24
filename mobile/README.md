@@ -50,22 +50,19 @@ flutter run --dart-define=SERVER_URL=http://localhost:3000
 
 ### iPhone — APNs (без Firebase)
 
-1. developer.apple.com → Certificates, Identifiers & Profiles → **Keys** → «+» → включить *Apple Push Notifications
-   service (APNs)* → скачать файл `AuthKey_XXXXXXXXXX.p8` (скачивается один раз). Запишите **Key ID** и **Team ID**
-   (команда приложения — `MN7BW2N3B7`).
-2. Capability *Push Notifications* и *Background Modes → Remote notifications* уже прописаны в `Runner.entitlements` и
-   `Info.plist`; идентификатор приложения — `kz.mybooks.mybooksSeller`.
-3. На сервере (`ssh srv@185.102.75.191`, файл `~/mybook/.env`):
+С 24.11.2026 iPhone-версия подписывается командой ILM-HUB (`C5M94BBAFM`, раздача Ad Hoc — ниже), идентификатор
+приложения — нейтральный **`kz.workdesk.mobile`** («Workdesk»). Ключ push этой команды — `AuthKey_A929PTSY67.p8`; на сервере:
 
-   ```
-   APNS_KEY_ID=XXXXXXXXXX
-   APNS_TEAM_ID=MN7BW2N3B7
-   APNS_KEY_FILE=/home/srv/mybook/AuthKey_XXXXXXXXXX.p8   # или APNS_KEY_P8 — текст ключа (переводы строк как \n)
-   APNS_TOPIC=kz.mybooks.mybooksSeller                    # по умолчанию он же
-   ```
+```
+APNS_KEY_ID=A929PTSY67
+APNS_TEAM_ID=C5M94BBAFM
+APNS_KEY_FILE=/home/srv/mybook/AuthKey_A929PTSY67.p8   # или APNS_KEY_P8 — текст ключа (переводы строк как \n)
+APNS_TOPIC=kz.workdesk.mobile                         # по умолчанию он же
+```
 
-4. Перезапустить сайт (`pm2 restart mybook --update-env`). Телефон сам регистрирует токен при входе; сборки из Xcode шлют на
-   sandbox APNs, TestFlight и App Store — на production (определяется сборкой, можно задать `--dart-define=APNS_ENV=…`).
+Сборки из Xcode шлют на sandbox APNs, Ad Hoc / TestFlight / App Store — на production (определяется сборкой, можно задать
+`--dart-define=APNS_ENV=…`). Перенос на свой аккаунт Apple: новый идентификатор и ключ push, `IOS_*` в
+`~/.appstoreconnect/mybooks-ios.env`, `APNS_*` на сервере.
 
 ### Android — Firebase Cloud Messaging (без пересборки)
 
@@ -89,7 +86,7 @@ flutter run --dart-define=SERVER_URL=http://localhost:3000
 Без ключей всё остальное работает: пока приложение открыто — плашки сверху со звуком; напоминания по задачам приложение
 ставит на телефон само (до 40 ближайших своих задач, на время «срок минус напоминание»), а когда сервер умеет слать push на
 этот телефон, расписание на телефоне не используется — повторов нет. Проверка без сервера на симуляторе: `xcrun simctl push
-booted kz.mybooks.mybooksSeller payload.json` (пример тела — `apnsBody` в `src/modules/workspace/infrastructure/apns.ts`).
+booted kz.workdesk.mobile payload.json` (пример тела — `apnsBody` в `src/modules/workspace/infrastructure/apns.ts`).
 
 ## Проверки
 
@@ -165,6 +162,15 @@ WhatsApp; «Повторить отправку» сообщения, котор
 - **Android** — `flutter build apk --release` (подпись `android/key.properties` + `android/app/upload-keystore.jks`, в git их
   нет — лежат в основной папке репозитория). Готовый APK загружается в CRM: «Сайт» → «Приложение для Android» (или
   `scripts/mobile/upload-apk.sh`); сотрудники скачивают его по `/api/admin/mobile-apk`.
-- **iPhone** — архив `flutter build ipa` (или Xcode → Product → Archive) → App Store Connect / TestFlight. Нужны: вход
-  владельца команды `MN7BW2N3B7` в Xcode (Settings → Accounts), сертификат Apple Distribution и запись приложения
-  `kz.mybooks.mybooksSeller` в App Store Connect.
+- **iPhone без App Store и TestFlight (Ad Hoc, до 100 телефонов в год).** Сотрудник открывает в Safari на iPhone
+  CRM → «Ещё» → «Приложение для iPhone и Android» (`/admin/app`) → «Зарегистрировать iPhone»: ставит профиль, телефон
+  присылает UDID (`/api/ios-app/udid`, таблица `crm_ios_devices`). Потом на этом Mac:
+
+  ```bash
+  bash scripts/mobile/ios-adhoc.sh
+  ```
+
+  Скрипт забирает новые телефоны с прода, регистрирует их в Apple (ключ App Store Connect — `~/.appstoreconnect/mybooks-ios.env`,
+  `scripts/mobile/asc.mjs`), собирает подписанную сборку и выкладывает её в хранилище (`mobile/ios/app.ipa`). На странице
+  у сотрудника появляется «Установить на iPhone» (itms-services, манифест и IPA — по подписанной ссылке на час). Каждый новый
+  телефон — новый запуск скрипта. Профиль Ad Hoc действует год (до 31.03.2027), затем — пересборка.

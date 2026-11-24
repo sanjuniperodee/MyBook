@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronRight, Globe, LogOut } from "lucide-react";
+import { ChevronRight, Globe, LogOut, Smartphone } from "lucide-react";
 import type { Permission } from "@/shared/domain/permissions";
 import { logoutAction } from "@/app/(auth)/actions";
 import { navSections, ShiftToggle } from "./AdminNav";
@@ -89,12 +89,20 @@ export function MoreMenu({ name, role, email, perms, onShift, tabHrefs }: { name
         </div>
       </section>
 
-      {!standalone ? (
-        <section aria-label="Приложение">
-          <h2 className={headCls}>Приложение</h2>
-          <InstallCrm />
-        </section>
-      ) : null}
+      <section aria-label="Приложение">
+        <h2 className={headCls}>Приложение</h2>
+        {!standalone ? <InstallCrm /> : null}
+        <ul className={cn(group, !standalone && "mt-2")}>
+          <li className={inset}>
+            <Link href="/admin/app" className="flex min-h-12 items-center gap-3 px-4 py-2 text-[15px] active:bg-sunken">
+              <span className="flex size-7 items-center justify-center rounded-[7px] bg-sunken text-ink-soft">
+                <Smartphone className="size-[17px]" strokeWidth={1.8} aria-hidden />
+              </span>
+              Приложение для iPhone и Android
+            </Link>
+          </li>
+        </ul>
+      </section>
 
       <ul className={group}>
         <li className={inset}>

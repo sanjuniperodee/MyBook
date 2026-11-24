@@ -20,6 +20,7 @@ export { readChatNotifications, syncMobileBadge, vapidKeys } from "./infrastruct
 export { fcmClientOptions, fcmConfig } from "./infrastructure/fcm";
 export { pinnedChats } from "./infrastructure/pinnedChats";
 export { mobileDevices } from "./infrastructure/mobileDevices";
+export { iosDevices } from "./infrastructure/iosDevices";
 export { staffNotifications } from "./infrastructure/notificationsList";
 export { smtpConfig, smtpFromEnvironment } from "./infrastructure/mail";
 export type { FinanceResolutionInput } from "./infrastructure/financeResolutions";

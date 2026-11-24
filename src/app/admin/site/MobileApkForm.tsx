@@ -43,11 +43,17 @@ export function MobileApkForm({ uploaded }: { uploaded: boolean }) {
       description={uploaded ? "Скачивание доступно только сотрудникам, вошедшим в CRM" : "Загрузите APK — сотрудники скачают его по ссылке из CRM"}
       status={uploaded ? { tone: "ok", label: "загружено" } : { tone: "off", label: "не загружено" }}
       actions={
-        uploaded ? (
-          <a href="/api/admin/mobile-apk" className="btn btn-outline btn-sm" download>
-            <Download className="size-4" strokeWidth={1.8} aria-hidden /> Скачать APK
+        <>
+          {uploaded ? (
+            <a href="/api/admin/mobile-apk" className="btn btn-outline btn-sm" download>
+              <Download className="size-4" strokeWidth={1.8} aria-hidden /> Скачать APK
+            </a>
+          ) : null}
+          {/* Страница для сотрудников: APK и iPhone (регистрация телефона и установка без App Store). */}
+          <a href="/admin/app" className="btn btn-ghost btn-sm">
+            Страница для сотрудников
           </a>
-        ) : null
+        </>
       }
     >
       <div className="space-y-5" data-testid="mobile-apk-form">

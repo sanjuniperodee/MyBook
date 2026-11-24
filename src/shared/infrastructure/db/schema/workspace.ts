@@ -72,6 +72,26 @@ export const crmMobileDevices = pgTable(
   (t) => [index("crm_mobile_devices_user_idx").on(t.userId)],
 );
 
+/**
+ * iPhone сотрудников для установки приложения CRM без App Store (Ad Hoc): сотрудник ставит в CRM профиль, телефон сообщает
+ * свой UDID; затем телефон регистрируется в Apple и входит в следующую сборку (scripts/mobile/ios-adhoc.sh).
+ */
+export const crmIosDevices = pgTable(
+  "crm_ios_devices",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    udid: text("udid").notNull().unique(),
+    /** Модель (PRODUCT, «iPhone15,2») и версия iOS — из ответа телефона. */
+    product: text("product").notNull().default(""),
+    iosVersion: text("ios_version").notNull().default(""),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("crm_ios_devices_user_idx").on(t.userId)],
+);
+
 /** Закреплённые чаты: у каждого сотрудника свои, поднимаются вверх его списка «Чатов». */
 export const crmPinnedChats = pgTable(
   "crm_pinned_chats",

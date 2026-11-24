@@ -6,7 +6,7 @@ import { connect } from "node:http2";
 /**
  * Push на iPhone через APNs напрямую (без Firebase): токен-аутентификация ключом .p8 из кабинета Apple Developer
  * (Keys → Apple Push Notifications service). Нужны: APNS_KEY_ID, APNS_TEAM_ID и сам ключ — APNS_KEY_P8 (текст PEM)
- * или APNS_KEY_FILE (путь к файлу). APNS_TOPIC — идентификатор приложения (по умолчанию kz.mybooks.mybooksSeller).
+ * или APNS_KEY_FILE (путь к файлу). APNS_TOPIC — идентификатор приложения (по умолчанию kz.workdesk.mobile).
  * Не заданы — push на телефоны не отправляется, остальное работает как раньше.
  */
 
@@ -29,7 +29,7 @@ export function apnsConfig(env: Record<string, string | undefined> = process.env
     }
   }
   if (!keyId || !teamId || !key) return null;
-  return { keyId, teamId, privateKey: key, topic: env.APNS_TOPIC?.trim() || "kz.mybooks.mybooksSeller" };
+  return { keyId, teamId, privateKey: key, topic: env.APNS_TOPIC?.trim() || "kz.workdesk.mobile" };
 }
 
 const b64 = (v: string | Buffer) => Buffer.from(v).toString("base64url");
