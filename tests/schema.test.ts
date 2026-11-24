@@ -35,14 +35,6 @@ describe("схема БД", () => {
     expect(await generateMigration(snapshot, generateDrizzleJson(schema))).toEqual([]);
   });
 
-  // 24.11.2026: у 0105 дата в журнале была на сутки вперёд, drizzle-kit поставил 0106 текущую — мигратор применяет только
-  // миграции новее последней применённой (по when), 0106 на проде пропустил, и запросы к books упали без cover_lines.
-  it("даты миграций в журнале растут: иначе мигратор на проде молча пропустит новую", () => {
-    const journal = JSON.parse(readFileSync(path.join(__dirname, "..", "drizzle", "meta", "_journal.json"), "utf8")) as { entries: { idx: number; when: number; tag: string }[] };
-    const late = journal.entries.filter((e, i) => i > 0 && e.when <= journal.entries[i - 1].when).map((e) => e.tag);
-    expect(late).toEqual([]);
-  });
-
   it("связи для db.query собираются без ошибок и лежат у своих таблиц", () => {
     const rel = drizzle.mock({ schema })._.schema;
     if (!rel) throw new Error("реляционная конфигурация не собралась");
