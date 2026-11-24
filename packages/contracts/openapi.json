@@ -1849,6 +1849,367 @@
         "x-auth": "staff"
       }
     },
+    "/api/v1/crm/chats": {
+      "get": {
+        "operationId": "crmChatsList",
+        "tags": [
+          "crm-lists"
+        ],
+        "summary": "Диалоги: f=open|mine|unread|waiting|closed, q — поиск",
+        "parameters": [
+          {
+            "name": "f",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "open",
+                "mine",
+                "unread",
+                "waiting",
+                "closed"
+              ]
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CrmChatList"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "staff"
+      }
+    },
+    "/api/v1/crm/chats/{chatId}": {
+      "get": {
+        "operationId": "crmChatGet",
+        "tags": [
+          "crm-lists"
+        ],
+        "summary": "Диалог: шапка, последние сообщения (limit 20–300, по умолчанию 50), права, шаблоны, сделка и счета",
+        "parameters": [
+          {
+            "name": "chatId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 20,
+              "maximum": 300
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CrmChat"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "staff"
+      }
+    },
+    "/api/v1/crm/chats/{chatId}/messages": {
+      "get": {
+        "operationId": "crmChatMessages",
+        "tags": [
+          "crm-lists"
+        ],
+        "summary": "Сообщения диалога: before (ISO) — старше, limit (10–200, по умолчанию 40)",
+        "parameters": [
+          {
+            "name": "chatId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 10,
+              "maximum": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CrmMessages"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "staff"
+      }
+    },
+    "/api/v1/crm/deals": {
+      "get": {
+        "operationId": "crmDealsList",
+        "tags": [
+          "crm-lists"
+        ],
+        "summary": "Воронка: этапы и сделки; p — воронка, фильтры как у страницы «Сделки»: mine, a (ответственный), q, task, stale, src",
+        "parameters": [
+          {
+            "name": "p",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "mine",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "a",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "task",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "stale",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "src",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CrmDeals"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "staff"
+      }
+    },
+    "/api/v1/crm/deals/{dealId}": {
+      "get": {
+        "operationId": "crmDealGet",
+        "tags": [
+          "crm-lists"
+        ],
+        "summary": "Карточка сделки: данные, этапы, задачи, заметки, платежи, счета, чат",
+        "parameters": [
+          {
+            "name": "dealId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CrmDeal"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "staff"
+      },
+      "patch": {
+        "operationId": "crmDealUpdate",
+        "tags": [
+          "crm"
+        ],
+        "summary": "Правка сделки (только переданные поля)",
+        "parameters": [
+          {
+            "name": "dealId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DealPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Done"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "staff"
+      }
+    },
     "/api/v1/crm/notifications/read": {
       "post": {
         "operationId": "crmNotificationsRead",
@@ -2566,60 +2927,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/DealForm"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Ошибка: текст для экрана и код",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          }
-        },
-        "x-auth": "staff"
-      }
-    },
-    "/api/v1/crm/deals/{dealId}": {
-      "patch": {
-        "operationId": "crmDealUpdate",
-        "tags": [
-          "crm"
-        ],
-        "summary": "Правка сделки (только переданные поля)",
-        "parameters": [
-          {
-            "name": "dealId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DealPatch"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Done"
                 }
               }
             }
@@ -9185,6 +9492,1356 @@
             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
           }
         },
+        "additionalProperties": false
+      },
+      "CrmChatRow": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "channel": {
+            "type": "string"
+          },
+          "channelLabel": {
+            "type": "string"
+          },
+          "avatarUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "lastMessageAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "preview": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "unread": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "status": {
+            "type": "string"
+          },
+          "assignee": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "assigneeId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "waitLabel": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "overdue": {
+            "type": "boolean"
+          },
+          "bot": {
+            "type": "boolean"
+          },
+          "pinned": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "channel",
+          "channelLabel",
+          "avatarUrl",
+          "lastMessageAt",
+          "preview",
+          "unread",
+          "status",
+          "assignee",
+          "assigneeId",
+          "waitLabel",
+          "overdue",
+          "bot",
+          "pinned"
+        ],
+        "additionalProperties": false
+      },
+      "CrmChatList": {
+        "type": "object",
+        "properties": {
+          "chats": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CrmChatRow"
+            }
+          }
+        },
+        "required": [
+          "chats"
+        ],
+        "additionalProperties": false
+      },
+      "CrmMessageCard": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "product",
+              "order",
+              "catalog"
+            ]
+          },
+          "productId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "price": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "currency": {
+            "type": "string"
+          },
+          "retailerId": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "orderId": {
+            "type": "string"
+          },
+          "token": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "itemCount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "total": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "note": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "quantity": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "price": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "name",
+                "quantity",
+                "price"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "additionalProperties": false
+      },
+      "CrmMessage": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "in",
+              "out"
+            ]
+          },
+          "type": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "mediaUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "media": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string"
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "author": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "at": {
+            "type": "string"
+          },
+          "internal": {
+            "type": "boolean"
+          },
+          "gateway": {
+            "type": "boolean"
+          },
+          "mediaGone": {
+            "type": "boolean"
+          },
+          "authorId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "replyTo": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "text": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string"
+                  },
+                  "direction": {
+                    "type": "string",
+                    "enum": [
+                      "in",
+                      "out"
+                    ]
+                  },
+                  "author": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "id",
+                  "text",
+                  "type",
+                  "direction",
+                  "author"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "forwarded": {
+            "type": "boolean"
+          },
+          "edited": {
+            "type": "boolean"
+          },
+          "deleted": {
+            "type": "boolean"
+          },
+          "transcript": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "trace": {
+            "type": "boolean"
+          },
+          "card": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CrmMessageCard"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "editHistory": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                },
+                "at": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text",
+                "at"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "revoked": {
+            "type": "string",
+            "enum": [
+              "client",
+              "shop"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "direction",
+          "type",
+          "text",
+          "mediaUrl",
+          "media",
+          "status",
+          "error",
+          "author",
+          "at"
+        ],
+        "additionalProperties": false
+      },
+      "CrmMessages": {
+        "type": "object",
+        "properties": {
+          "messages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CrmMessage"
+            }
+          },
+          "more": {
+            "type": "boolean"
+          },
+          "unread": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "messages",
+          "more",
+          "unread",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "CrmInvoice": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number"
+          },
+          "purpose": {
+            "type": "string",
+            "enum": [
+              "prepayment",
+              "remainder",
+              "full",
+              "custom"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending_payment",
+              "paid",
+              "cancelled",
+              "expired"
+            ]
+          },
+          "overdue": {
+            "type": "boolean"
+          },
+          "expiresLabel": {
+            "type": "string"
+          },
+          "paidLabel": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "paidMethod": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "manual",
+                  "kaspi",
+                  "cloudpayments"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "paidRef": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "closedReason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "claimedLabel": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "viewedLabel": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "access": {
+            "type": "string",
+            "enum": [
+              "none",
+              "due",
+              "sent",
+              "delivered",
+              "failed",
+              "needs_manager",
+              "skipped"
+            ]
+          },
+          "hasChat": {
+            "type": "boolean"
+          },
+          "link": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "amount",
+          "purpose",
+          "status",
+          "overdue",
+          "expiresLabel",
+          "paidLabel",
+          "paidMethod",
+          "paidRef",
+          "closedReason",
+          "claimedLabel",
+          "access",
+          "hasChat",
+          "link"
+        ],
+        "additionalProperties": false
+      },
+      "CrmChat": {
+        "type": "object",
+        "properties": {
+          "conversation": {
+            "type": "object",
+            "properties": {
+              "pinned": {
+                "type": "boolean"
+              },
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "channel": {
+                "type": "string"
+              },
+              "channelLabel": {
+                "type": "string"
+              },
+              "avatarUrl": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "status": {
+                "type": "string"
+              },
+              "unread": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "assigneeId": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "assignee": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "dealId": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "clientId": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "clientName": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "pinned",
+              "id",
+              "title",
+              "channel",
+              "channelLabel",
+              "avatarUrl",
+              "status",
+              "unread",
+              "assigneeId",
+              "assignee",
+              "dealId",
+              "clientId",
+              "clientName"
+            ],
+            "additionalProperties": false
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CrmMessage"
+            }
+          },
+          "more": {
+            "type": "boolean"
+          },
+          "deal": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "number": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "amount": {
+                    "type": "number"
+                  },
+                  "stage": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "color": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name",
+                      "color"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "source": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "number",
+                  "title",
+                  "amount",
+                  "stage",
+                  "source"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "perms": {
+            "type": "object",
+            "properties": {
+              "canReply": {
+                "type": "boolean"
+              },
+              "canNote": {
+                "type": "boolean"
+              },
+              "canInvoice": {
+                "type": "boolean"
+              },
+              "canEditInvoices": {
+                "type": "boolean"
+              },
+              "canCreateDeal": {
+                "type": "boolean"
+              },
+              "mine": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "canReply",
+              "canNote",
+              "canInvoice",
+              "canEditInvoices",
+              "canCreateDeal",
+              "mine"
+            ],
+            "additionalProperties": false
+          },
+          "sendBlocker": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "bot": {
+            "type": "object",
+            "properties": {
+              "label": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "canStart": {
+                "type": "boolean"
+              },
+              "canStop": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "label",
+              "canStart",
+              "canStop"
+            ],
+            "additionalProperties": false
+          },
+          "templates": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "own": {
+                  "type": "boolean"
+                },
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "title",
+                "own",
+                "text"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "invoices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CrmInvoice"
+            }
+          }
+        },
+        "required": [
+          "conversation",
+          "messages",
+          "more",
+          "deal",
+          "perms",
+          "sendBlocker",
+          "bot",
+          "templates",
+          "invoices"
+        ],
+        "additionalProperties": false
+      },
+      "CrmStage": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "position": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "color",
+          "kind",
+          "position"
+        ],
+        "additionalProperties": false
+      },
+      "CrmDealRow": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "number": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "title": {
+            "type": "string"
+          },
+          "contactName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "stageId": {
+            "type": "string"
+          },
+          "stageKind": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number"
+          },
+          "paid": {
+            "type": "number"
+          },
+          "source": {
+            "type": "string"
+          },
+          "assigneeId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "assignee": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "unsorted": {
+            "type": "boolean"
+          },
+          "unread": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "daysInStage": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "nextTask": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "at": {
+                    "type": "string"
+                  },
+                  "overdue": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "at",
+                  "overdue"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "title",
+          "contactName",
+          "stageId",
+          "stageKind",
+          "amount",
+          "paid",
+          "source",
+          "assigneeId",
+          "assignee",
+          "unsorted",
+          "unread",
+          "daysInStage",
+          "nextTask",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "CrmDeals": {
+        "type": "object",
+        "properties": {
+          "pipelines": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "pipeline": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "stages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CrmStage"
+            }
+          },
+          "deals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CrmDealRow"
+            }
+          }
+        },
+        "required": [
+          "pipelines",
+          "pipeline",
+          "stages",
+          "deals"
+        ],
+        "additionalProperties": false
+      },
+      "CrmDeal": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "number": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "title": {
+            "type": "string"
+          },
+          "contactName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "phone": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "amount": {
+            "type": "number"
+          },
+          "paid": {
+            "type": "number"
+          },
+          "source": {
+            "type": "string"
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "color": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name",
+                  "color",
+                  "kind"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "stages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "color": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "color",
+                "kind"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "assigneeId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "assignee": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "unsorted": {
+            "type": "boolean"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "customFields": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "perms": {
+            "type": "object",
+            "properties": {
+              "canEdit": {
+                "type": "boolean"
+              },
+              "canMove": {
+                "type": "boolean"
+              },
+              "canInvoice": {
+                "type": "boolean"
+              },
+              "mine": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "canEdit",
+              "canMove",
+              "canInvoice",
+              "mine"
+            ],
+            "additionalProperties": false
+          },
+          "maxDiscountPercent": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "chatId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "client": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "order": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "number": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "status": {
+                    "type": "string"
+                  },
+                  "amount": {
+                    "type": "number"
+                  },
+                  "plan": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "number",
+                  "status",
+                  "amount",
+                  "plan"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tasks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "dueAt": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "done": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "id",
+                "title",
+                "dueAt",
+                "done"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "text": {
+                  "type": "string"
+                },
+                "at": {
+                  "type": "string"
+                },
+                "author": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "text",
+                "at",
+                "author"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "payments": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "amount": {
+                  "type": "number"
+                },
+                "kind": {
+                  "type": "string"
+                },
+                "method": {
+                  "type": "string"
+                },
+                "payForm": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "at": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "amount",
+                "kind",
+                "method",
+                "payForm",
+                "at"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "payForms": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "hasOrder": {
+            "type": "boolean"
+          },
+          "invoices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CrmInvoice"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "title",
+          "contactName",
+          "phone",
+          "amount",
+          "paid",
+          "source",
+          "stage",
+          "stages",
+          "assigneeId",
+          "assignee",
+          "unsorted",
+          "tags",
+          "customFields",
+          "createdAt",
+          "perms",
+          "maxDiscountPercent",
+          "chatId",
+          "client",
+          "order",
+          "tasks",
+          "notes",
+          "payments",
+          "payForms",
+          "hasOrder",
+          "invoices"
+        ],
         "additionalProperties": false
       },
       "ShelfDeadline": {

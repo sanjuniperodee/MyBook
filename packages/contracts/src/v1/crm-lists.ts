@@ -129,6 +129,207 @@ export const CrmNotification = z.object({ id, kind: z.string(), title: z.string(
 export const CrmNotifications = z.object({ notifications: z.array(CrmNotification) }).register(schemas, { id: "CrmNotifications" });
 export const CrmNotificationsRead = z.object({ id: uuid.optional() }).strict().register(schemas, { id: "CrmNotificationsRead" });
 
+// ─── Чаты ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+export const CrmChatRow = z
+  .object({
+    id,
+    title: z.string(),
+    channel: z.string(),
+    channelLabel: z.string(),
+    avatarUrl: nid,
+    lastMessageAt: nid,
+    preview: nid,
+    unread: z.number().int(),
+    status: z.string(),
+    assignee: nid,
+    assigneeId: nid,
+    waitLabel: nid,
+    overdue: z.boolean(),
+    /** Ведёт AI-продажник. */
+    bot: z.boolean(),
+    pinned: z.boolean(),
+  })
+  .register(schemas, { id: "CrmChatRow" });
+
+export const CrmChatList = z.object({ chats: z.array(CrmChatRow) }).register(schemas, { id: "CrmChatList" });
+
+/** Карточка WhatsApp в сообщении: kind = product (товар), order (корзина клиента) или catalog (ссылка на каталог). */
+export const CrmMessageCard = z
+  .object({
+    kind: z.enum(["product", "order", "catalog"]),
+    productId: z.string().optional(),
+    name: z.string().optional(),
+    description: z.string().optional(),
+    price: z.number().nullable().optional(),
+    currency: z.string().optional(),
+    retailerId: z.string().optional(),
+    url: z.string().optional(),
+    body: z.string().optional(),
+    orderId: z.string().optional(),
+    token: z.string().optional(),
+    title: z.string().optional(),
+    itemCount: z.number().int().optional(),
+    total: z.number().nullable().optional(),
+    note: z.string().optional(),
+    items: z.array(z.object({ name: z.string(), quantity: z.number().int(), price: z.number().nullable() })).optional(),
+  })
+  .register(schemas, { id: "CrmMessageCard" });
+
+export const CrmMessage = z
+  .object({
+    id,
+    direction: z.enum(["in", "out"]),
+    type: z.string(),
+    text: z.string(),
+    mediaUrl: nid,
+    /** Файл вложения: путь сайта (шлюз — /api/admin/chats/messages/<id>/media) или ссылка; null — нет. */
+    media: nid,
+    status: z.string(),
+    error: nid,
+    author: nid,
+    at: z.string(),
+    internal: z.boolean().optional(),
+    gateway: z.boolean().optional(),
+    mediaGone: z.boolean().optional(),
+    authorId: nid.optional(),
+    replyTo: z.object({ id, text: z.string(), type: z.string(), direction: z.enum(["in", "out"]), author: nid }).nullable().optional(),
+    forwarded: z.boolean().optional(),
+    edited: z.boolean().optional(),
+    deleted: z.boolean().optional(),
+    transcript: nid.optional(),
+    trace: z.boolean().optional(),
+    card: CrmMessageCard.nullable().optional(),
+    editHistory: z.array(z.object({ text: z.string(), at: z.string() })).optional(),
+    revoked: z.enum(["client", "shop"]).optional(),
+  })
+  .register(schemas, { id: "CrmMessage" });
+
+/** Страница сообщений и состояние диалога (для живого обновления без пересборки шапки). */
+export const CrmMessages = z.object({ messages: z.array(CrmMessage), more: z.boolean(), unread: z.number().int(), status: z.string() }).register(schemas, { id: "CrmMessages" });
+
+export const CrmInvoice = z
+  .object({
+    id,
+    label: z.string(),
+    amount: z.number(),
+    purpose: z.enum(["prepayment", "remainder", "full", "custom"]),
+    status: z.enum(["pending_payment", "paid", "cancelled", "expired"]),
+    overdue: z.boolean(),
+    expiresLabel: z.string(),
+    paidLabel: nid,
+    paidMethod: z.enum(["manual", "kaspi", "cloudpayments"]).nullable(),
+    paidRef: nid,
+    closedReason: nid,
+    claimedLabel: nid,
+    viewedLabel: nid.optional(),
+    access: z.enum(["none", "due", "sent", "delivered", "failed", "needs_manager", "skipped"]),
+    hasChat: z.boolean(),
+    link: nid,
+  })
+  .register(schemas, { id: "CrmInvoice" });
+
+const StageRef = z.object({ id, name: z.string(), color: z.string() });
+
+export const CrmChat = z
+  .object({
+    conversation: z.object({
+      pinned: z.boolean(),
+      id,
+      title: z.string(),
+      channel: z.string(),
+      channelLabel: z.string(),
+      avatarUrl: nid,
+      status: z.string(),
+      unread: z.number().int(),
+      assigneeId: nid,
+      assignee: nid,
+      dealId: nid,
+      clientId: nid,
+      clientName: nid,
+    }),
+    messages: z.array(CrmMessage),
+    more: z.boolean(),
+    deal: z.object({ id, number: z.number().int(), title: z.string(), amount: z.number(), stage: StageRef, source: z.string() }).nullable(),
+    perms: z.object({ canReply: z.boolean(), canNote: z.boolean(), canInvoice: z.boolean(), canEditInvoices: z.boolean(), canCreateDeal: z.boolean(), mine: z.boolean() }),
+    /** Почему отправка сейчас не сработает (канал не настроен); null — можно. */
+    sendBlocker: nid,
+    bot: z.object({ label: nid, canStart: z.boolean(), canStop: z.boolean() }),
+    /** Быстрые ответы — уже с подстановкой имени, заказа, менеджера. */
+    templates: z.array(z.object({ id, title: z.string(), own: z.boolean(), text: z.string() })),
+    invoices: z.array(CrmInvoice),
+  })
+  .register(schemas, { id: "CrmChat" });
+
+// ─── Сделки ───────────────────────────────────────────────────────────────────────────────────────────────────────
+
+export const CrmStage = z.object({ id, name: z.string(), color: z.string(), kind: z.string(), position: z.number().int() }).register(schemas, { id: "CrmStage" });
+
+export const CrmDealRow = z
+  .object({
+    id,
+    number: z.number().int(),
+    title: z.string(),
+    contactName: nid,
+    stageId: id,
+    stageKind: z.string(),
+    amount: z.number(),
+    paid: z.number(),
+    source: z.string(),
+    assigneeId: nid,
+    assignee: nid,
+    unsorted: z.boolean(),
+    unread: z.number().int(),
+    daysInStage: z.number().int(),
+    nextTask: z.object({ at: z.string(), overdue: z.boolean() }).nullable(),
+    createdAt: z.string(),
+  })
+  .register(schemas, { id: "CrmDealRow" });
+
+export const CrmDeals = z
+  .object({
+    pipelines: z.array(z.object({ id, name: z.string() })),
+    pipeline: z.object({ id, name: z.string() }).nullable(),
+    stages: z.array(CrmStage),
+    deals: z.array(CrmDealRow),
+  })
+  .register(schemas, { id: "CrmDeals" });
+
+export const CrmDeal = z
+  .object({
+    id,
+    number: z.number().int(),
+    title: z.string(),
+    contactName: nid,
+    phone: nid,
+    amount: z.number(),
+    paid: z.number(),
+    source: z.string(),
+    stage: z.object({ id, name: z.string(), color: z.string(), kind: z.string() }).nullable(),
+    stages: z.array(z.object({ id, name: z.string(), color: z.string(), kind: z.string() })),
+    assigneeId: nid,
+    assignee: nid,
+    unsorted: z.boolean(),
+    tags: z.array(z.string()),
+    /** Свои поля сделки (ключ поля → значение). */
+    customFields: z.record(z.string(), z.unknown()),
+    createdAt: z.string(),
+    perms: z.object({ canEdit: z.boolean(), canMove: z.boolean(), canInvoice: z.boolean(), mine: z.boolean() }),
+    /** Предел скидки сотрудника, %; null — без предела. */
+    maxDiscountPercent: z.number().nullable(),
+    chatId: nid,
+    client: z.object({ id, name: z.string() }).nullable(),
+    order: z.object({ id, number: z.number().int(), status: z.string(), amount: z.number(), plan: z.string() }).nullable(),
+    tasks: z.array(z.object({ id, title: z.string(), dueAt: nid, done: z.boolean() })),
+    notes: z.array(z.object({ id, text: z.string(), at: z.string(), author: nid })),
+    payments: z.array(z.object({ id, amount: z.number(), kind: z.string(), method: z.string(), payForm: nid, at: z.string() })),
+    /** Формы оплаты для приёма денег (как в CRM). */
+    payForms: z.array(z.string()),
+    hasOrder: z.boolean(),
+    invoices: z.array(CrmInvoice),
+  })
+  .register(schemas, { id: "CrmDeal" });
+
 export const crmListsRoutes = {
   crmToday: route({ method: "GET", path: "/api/v1/crm/today", auth: "staff", tag: "crm-lists", summary: "«Мой день»: плитки, план месяца, задачи, ждут ответа, пропущенные звонки", response: CrmToday }),
   crmTasksList: route({
@@ -161,5 +362,44 @@ export const crmListsRoutes = {
   crmClientCard: route({ method: "GET", path: "/api/v1/crm/clients/{clientId}", auth: "staff", tag: "crm-lists", summary: "Карточка клиента: деньги, книги, заказы, сделки, задачи, заметки", params: z.object({ clientId: uuid }), response: CrmClientCard }),
   crmStaffList: route({ method: "GET", path: "/api/v1/crm/staff", auth: "staff", tag: "crm-lists", summary: "Сотрудники для выбора ответственного", response: CrmStaffList }),
   crmNotificationsList: route({ method: "GET", path: "/api/v1/crm/notifications", auth: "staff", tag: "crm-lists", summary: "Лента уведомлений сотрудника (limit, по умолчанию 60)", query: z.object({ limit: z.coerce.number().int().min(1).max(200).optional() }), response: CrmNotifications }),
+  crmChatsList: route({
+    method: "GET",
+    path: "/api/v1/crm/chats",
+    auth: "staff",
+    tag: "crm-lists",
+    summary: "Диалоги: f=open|mine|unread|waiting|closed, q — поиск",
+    query: z.object({ f: z.enum(["open", "mine", "unread", "waiting", "closed"]).optional(), q: z.string().max(100).optional() }),
+    response: CrmChatList,
+  }),
+  crmChatGet: route({
+    method: "GET",
+    path: "/api/v1/crm/chats/{chatId}",
+    auth: "staff",
+    tag: "crm-lists",
+    summary: "Диалог: шапка, последние сообщения (limit 20–300, по умолчанию 50), права, шаблоны, сделка и счета",
+    params: z.object({ chatId: uuid }),
+    query: z.object({ limit: z.coerce.number().int().min(20).max(300).optional() }),
+    response: CrmChat,
+  }),
+  crmChatMessages: route({
+    method: "GET",
+    path: "/api/v1/crm/chats/{chatId}/messages",
+    auth: "staff",
+    tag: "crm-lists",
+    summary: "Сообщения диалога: before (ISO) — старше, limit (10–200, по умолчанию 40)",
+    params: z.object({ chatId: uuid }),
+    query: z.object({ before: z.string().optional(), limit: z.coerce.number().int().min(10).max(200).optional() }),
+    response: CrmMessages,
+  }),
+  crmDealsList: route({
+    method: "GET",
+    path: "/api/v1/crm/deals",
+    auth: "staff",
+    tag: "crm-lists",
+    summary: "Воронка: этапы и сделки; p — воронка, фильтры как у страницы «Сделки»: mine, a (ответственный), q, task, stale, src",
+    query: z.object({ p: z.string().optional(), mine: z.string().optional(), a: z.string().optional(), q: z.string().max(100).optional(), task: z.string().optional(), stale: z.string().optional(), src: z.string().optional() }),
+    response: CrmDeals,
+  }),
+  crmDealGet: route({ method: "GET", path: "/api/v1/crm/deals/{dealId}", auth: "staff", tag: "crm-lists", summary: "Карточка сделки: данные, этапы, задачи, заметки, платежи, счета, чат", params: z.object({ dealId: uuid }), response: CrmDeal }),
   crmNotificationsRead: route({ method: "POST", path: "/api/v1/crm/notifications/read", auth: "staff", tag: "crm-lists", summary: "Отметить прочитанными: id — одно, без id — все", body: CrmNotificationsRead, response: Ok }),
 } as const satisfies Record<string, RouteDef>;

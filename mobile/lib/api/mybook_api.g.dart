@@ -278,6 +278,42 @@ class MybookApi {
     return CrmNotifications.fromJson(json as Map<String, dynamic>);
   }
 
+  /// Диалоги: f=open|mine|unread|waiting|closed, q — поиск
+  Future<CrmChatList> crmChatsList({String? f, String? q}) async {
+    final json = await _send('GET', '/api/v1/crm/chats', query: {if (f != null) 'f': '${f}', if (q != null) 'q': '${q}'});
+    return CrmChatList.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Диалог: шапка, последние сообщения (limit 20–300, по умолчанию 50), права, шаблоны, сделка и счета
+  Future<CrmChat> crmChatGet({required String chatId, int? limit}) async {
+    final json = await _send('GET', '/api/v1/crm/chats/${Uri.encodeComponent('$chatId')}', query: {if (limit != null) 'limit': '${limit}'});
+    return CrmChat.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Сообщения диалога: before (ISO) — старше, limit (10–200, по умолчанию 40)
+  Future<CrmMessages> crmChatMessages({required String chatId, String? before, int? limit}) async {
+    final json = await _send('GET', '/api/v1/crm/chats/${Uri.encodeComponent('$chatId')}/messages', query: {if (before != null) 'before': '${before}', if (limit != null) 'limit': '${limit}'});
+    return CrmMessages.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Воронка: этапы и сделки; p — воронка, фильтры как у страницы «Сделки»: mine, a (ответственный), q, task, stale, src
+  Future<CrmDeals> crmDealsList({String? p, String? mine, String? a, String? q, String? task, String? stale, String? src}) async {
+    final json = await _send('GET', '/api/v1/crm/deals', query: {if (p != null) 'p': '${p}', if (mine != null) 'mine': '${mine}', if (a != null) 'a': '${a}', if (q != null) 'q': '${q}', if (task != null) 'task': '${task}', if (stale != null) 'stale': '${stale}', if (src != null) 'src': '${src}'});
+    return CrmDeals.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Карточка сделки: данные, этапы, задачи, заметки, платежи, счета, чат
+  Future<CrmDeal> crmDealGet({required String dealId}) async {
+    final json = await _send('GET', '/api/v1/crm/deals/${Uri.encodeComponent('$dealId')}');
+    return CrmDeal.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Правка сделки (только переданные поля)
+  Future<Done> crmDealUpdate({required String dealId, required DealPatch body}) async {
+    final json = await _send('PATCH', '/api/v1/crm/deals/${Uri.encodeComponent('$dealId')}', body: body.toJson());
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
   /// Отметить прочитанными: id — одно, без id — все
   Future<Ok> crmNotificationsRead({required CrmNotificationsRead body}) async {
     final json = await _send('POST', '/api/v1/crm/notifications/read', body: body.toJson());
@@ -372,12 +408,6 @@ class MybookApi {
   Future<DealForm> crmDealForm({required String dealId}) async {
     final json = await _send('GET', '/api/v1/crm/deals/${Uri.encodeComponent('$dealId')}/form');
     return DealForm.fromJson(json as Map<String, dynamic>);
-  }
-
-  /// Правка сделки (только переданные поля)
-  Future<Done> crmDealUpdate({required String dealId, required DealPatch body}) async {
-    final json = await _send('PATCH', '/api/v1/crm/deals/${Uri.encodeComponent('$dealId')}', body: body.toJson());
-    return Done.fromJson(json as Map<String, dynamic>);
   }
 
   /// Тариф договорённости (null — клиент выберет сам)
@@ -2240,6 +2270,518 @@ class CrmNotificationsRead {
   factory CrmNotificationsRead.fromJson(Map<String, dynamic> json) => CrmNotificationsRead(id: json['id'] == null ? null : json['id'] as String);
 
   Map<String, dynamic> toJson() => {if (id != null) 'id': id!};
+}
+
+class CrmChatRow {
+  final String id;
+  final String title;
+  final String channel;
+  final String channelLabel;
+  final String? avatarUrl;
+  final String? lastMessageAt;
+  final String? preview;
+  final int unread;
+  final String status;
+  final String? assignee;
+  final String? assigneeId;
+  final String? waitLabel;
+  final bool overdue;
+  final bool bot;
+  final bool pinned;
+
+  const CrmChatRow({required this.id, required this.title, required this.channel, required this.channelLabel, this.avatarUrl, this.lastMessageAt, this.preview, required this.unread, required this.status, this.assignee, this.assigneeId, this.waitLabel, required this.overdue, required this.bot, required this.pinned});
+
+  factory CrmChatRow.fromJson(Map<String, dynamic> json) => CrmChatRow(id: json['id'] as String, title: json['title'] as String, channel: json['channel'] as String, channelLabel: json['channelLabel'] as String, avatarUrl: json['avatarUrl'] == null ? null : json['avatarUrl'] as String, lastMessageAt: json['lastMessageAt'] == null ? null : json['lastMessageAt'] as String, preview: json['preview'] == null ? null : json['preview'] as String, unread: (json['unread'] as num).toInt(), status: json['status'] as String, assignee: json['assignee'] == null ? null : json['assignee'] as String, assigneeId: json['assigneeId'] == null ? null : json['assigneeId'] as String, waitLabel: json['waitLabel'] == null ? null : json['waitLabel'] as String, overdue: json['overdue'] as bool, bot: json['bot'] as bool, pinned: json['pinned'] as bool);
+
+  Map<String, dynamic> toJson() => {'id': id, 'title': title, 'channel': channel, 'channelLabel': channelLabel, 'avatarUrl': avatarUrl, 'lastMessageAt': lastMessageAt, 'preview': preview, 'unread': unread, 'status': status, 'assignee': assignee, 'assigneeId': assigneeId, 'waitLabel': waitLabel, 'overdue': overdue, 'bot': bot, 'pinned': pinned};
+}
+
+class CrmChatList {
+  final List<CrmChatRow> chats;
+
+  const CrmChatList({required this.chats});
+
+  factory CrmChatList.fromJson(Map<String, dynamic> json) => CrmChatList(chats: (json['chats'] as List).map((e) => CrmChatRow.fromJson(e as Map<String, dynamic>)).toList());
+
+  Map<String, dynamic> toJson() => {'chats': chats.map((e) => e.toJson()).toList()};
+}
+
+class CrmMessageCard {
+  /// product | order | catalog
+  final String kind;
+  final String? productId;
+  final String? name;
+  final String? description;
+  final double? price;
+  final String? currency;
+  final String? retailerId;
+  final String? url;
+  final String? body;
+  final String? orderId;
+  final String? token;
+  final String? title;
+  final int? itemCount;
+  final double? total;
+  final String? note;
+  final List<CrmMessageCardItems>? items;
+  /// Поля, которые отправить как null (иначе пустое необязательное поле не отправляется).
+  final Set<String> nulls;
+
+  const CrmMessageCard({required this.kind, this.productId, this.name, this.description, this.price, this.currency, this.retailerId, this.url, this.body, this.orderId, this.token, this.title, this.itemCount, this.total, this.note, this.items, this.nulls = const {}});
+
+  factory CrmMessageCard.fromJson(Map<String, dynamic> json) => CrmMessageCard(kind: json['kind'] as String, productId: json['productId'] == null ? null : json['productId'] as String, name: json['name'] == null ? null : json['name'] as String, description: json['description'] == null ? null : json['description'] as String, price: json['price'] == null ? null : (json['price'] as num).toDouble(), currency: json['currency'] == null ? null : json['currency'] as String, retailerId: json['retailerId'] == null ? null : json['retailerId'] as String, url: json['url'] == null ? null : json['url'] as String, body: json['body'] == null ? null : json['body'] as String, orderId: json['orderId'] == null ? null : json['orderId'] as String, token: json['token'] == null ? null : json['token'] as String, title: json['title'] == null ? null : json['title'] as String, itemCount: json['itemCount'] == null ? null : (json['itemCount'] as num).toInt(), total: json['total'] == null ? null : (json['total'] as num).toDouble(), note: json['note'] == null ? null : json['note'] as String, items: json['items'] == null ? null : (json['items'] as List).map((e) => CrmMessageCardItems.fromJson(e as Map<String, dynamic>)).toList());
+
+  Map<String, dynamic> toJson() => {'kind': kind, if (productId != null) 'productId': productId!, if (name != null) 'name': name!, if (description != null) 'description': description!, if (price != null || nulls.contains('price')) 'price': price, if (currency != null) 'currency': currency!, if (retailerId != null) 'retailerId': retailerId!, if (url != null) 'url': url!, if (body != null) 'body': body!, if (orderId != null) 'orderId': orderId!, if (token != null) 'token': token!, if (title != null) 'title': title!, if (itemCount != null) 'itemCount': itemCount!, if (total != null || nulls.contains('total')) 'total': total, if (note != null) 'note': note!, if (items != null) 'items': items!.map((e) => e.toJson()).toList()};
+}
+
+class CrmMessageCardItems {
+  final String name;
+  final int quantity;
+  final double? price;
+
+  const CrmMessageCardItems({required this.name, required this.quantity, this.price});
+
+  factory CrmMessageCardItems.fromJson(Map<String, dynamic> json) => CrmMessageCardItems(name: json['name'] as String, quantity: (json['quantity'] as num).toInt(), price: json['price'] == null ? null : (json['price'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'name': name, 'quantity': quantity, 'price': price};
+}
+
+class CrmMessage {
+  final String id;
+  /// in | out
+  final String direction;
+  final String type;
+  final String text;
+  final String? mediaUrl;
+  final String? media;
+  final String status;
+  final String? error;
+  final String? author;
+  final String at;
+  final bool? internal;
+  final bool? gateway;
+  final bool? mediaGone;
+  final String? authorId;
+  final CrmMessageReplyTo? replyTo;
+  final bool? forwarded;
+  final bool? edited;
+  final bool? deleted;
+  final String? transcript;
+  final bool? trace;
+  final CrmMessageCard? card;
+  final List<CrmMessageEditHistory>? editHistory;
+  /// client | shop
+  final String? revoked;
+  /// Поля, которые отправить как null (иначе пустое необязательное поле не отправляется).
+  final Set<String> nulls;
+
+  const CrmMessage({required this.id, required this.direction, required this.type, required this.text, this.mediaUrl, this.media, required this.status, this.error, this.author, required this.at, this.internal, this.gateway, this.mediaGone, this.authorId, this.replyTo, this.forwarded, this.edited, this.deleted, this.transcript, this.trace, this.card, this.editHistory, this.revoked, this.nulls = const {}});
+
+  factory CrmMessage.fromJson(Map<String, dynamic> json) => CrmMessage(id: json['id'] as String, direction: json['direction'] as String, type: json['type'] as String, text: json['text'] as String, mediaUrl: json['mediaUrl'] == null ? null : json['mediaUrl'] as String, media: json['media'] == null ? null : json['media'] as String, status: json['status'] as String, error: json['error'] == null ? null : json['error'] as String, author: json['author'] == null ? null : json['author'] as String, at: json['at'] as String, internal: json['internal'] == null ? null : json['internal'] as bool, gateway: json['gateway'] == null ? null : json['gateway'] as bool, mediaGone: json['mediaGone'] == null ? null : json['mediaGone'] as bool, authorId: json['authorId'] == null ? null : json['authorId'] as String, replyTo: json['replyTo'] == null ? null : CrmMessageReplyTo.fromJson(json['replyTo'] as Map<String, dynamic>), forwarded: json['forwarded'] == null ? null : json['forwarded'] as bool, edited: json['edited'] == null ? null : json['edited'] as bool, deleted: json['deleted'] == null ? null : json['deleted'] as bool, transcript: json['transcript'] == null ? null : json['transcript'] as String, trace: json['trace'] == null ? null : json['trace'] as bool, card: json['card'] == null ? null : CrmMessageCard.fromJson(json['card'] as Map<String, dynamic>), editHistory: json['editHistory'] == null ? null : (json['editHistory'] as List).map((e) => CrmMessageEditHistory.fromJson(e as Map<String, dynamic>)).toList(), revoked: json['revoked'] == null ? null : json['revoked'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'direction': direction, 'type': type, 'text': text, 'mediaUrl': mediaUrl, 'media': media, 'status': status, 'error': error, 'author': author, 'at': at, if (internal != null) 'internal': internal!, if (gateway != null) 'gateway': gateway!, if (mediaGone != null) 'mediaGone': mediaGone!, if (authorId != null || nulls.contains('authorId')) 'authorId': authorId, if (replyTo != null || nulls.contains('replyTo')) 'replyTo': replyTo == null ? null : replyTo!.toJson(), if (forwarded != null) 'forwarded': forwarded!, if (edited != null) 'edited': edited!, if (deleted != null) 'deleted': deleted!, if (transcript != null || nulls.contains('transcript')) 'transcript': transcript, if (trace != null) 'trace': trace!, if (card != null || nulls.contains('card')) 'card': card == null ? null : card!.toJson(), if (editHistory != null) 'editHistory': editHistory!.map((e) => e.toJson()).toList(), if (revoked != null) 'revoked': revoked!};
+}
+
+class CrmMessageReplyTo {
+  final String id;
+  final String text;
+  final String type;
+  /// in | out
+  final String direction;
+  final String? author;
+
+  const CrmMessageReplyTo({required this.id, required this.text, required this.type, required this.direction, this.author});
+
+  factory CrmMessageReplyTo.fromJson(Map<String, dynamic> json) => CrmMessageReplyTo(id: json['id'] as String, text: json['text'] as String, type: json['type'] as String, direction: json['direction'] as String, author: json['author'] == null ? null : json['author'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'text': text, 'type': type, 'direction': direction, 'author': author};
+}
+
+class CrmMessageEditHistory {
+  final String text;
+  final String at;
+
+  const CrmMessageEditHistory({required this.text, required this.at});
+
+  factory CrmMessageEditHistory.fromJson(Map<String, dynamic> json) => CrmMessageEditHistory(text: json['text'] as String, at: json['at'] as String);
+
+  Map<String, dynamic> toJson() => {'text': text, 'at': at};
+}
+
+class CrmMessages {
+  final List<CrmMessage> messages;
+  final bool more;
+  final int unread;
+  final String status;
+
+  const CrmMessages({required this.messages, required this.more, required this.unread, required this.status});
+
+  factory CrmMessages.fromJson(Map<String, dynamic> json) => CrmMessages(messages: (json['messages'] as List).map((e) => CrmMessage.fromJson(e as Map<String, dynamic>)).toList(), more: json['more'] as bool, unread: (json['unread'] as num).toInt(), status: json['status'] as String);
+
+  Map<String, dynamic> toJson() => {'messages': messages.map((e) => e.toJson()).toList(), 'more': more, 'unread': unread, 'status': status};
+}
+
+class CrmInvoice {
+  final String id;
+  final String label;
+  final double amount;
+  /// prepayment | remainder | full | custom
+  final String purpose;
+  /// pending_payment | paid | cancelled | expired
+  final String status;
+  final bool overdue;
+  final String expiresLabel;
+  final String? paidLabel;
+  final String? paidMethod;
+  final String? paidRef;
+  final String? closedReason;
+  final String? claimedLabel;
+  final String? viewedLabel;
+  /// none | due | sent | delivered | failed | needs_manager | skipped
+  final String access;
+  final bool hasChat;
+  final String? link;
+  /// Поля, которые отправить как null (иначе пустое необязательное поле не отправляется).
+  final Set<String> nulls;
+
+  const CrmInvoice({required this.id, required this.label, required this.amount, required this.purpose, required this.status, required this.overdue, required this.expiresLabel, this.paidLabel, this.paidMethod, this.paidRef, this.closedReason, this.claimedLabel, this.viewedLabel, required this.access, required this.hasChat, this.link, this.nulls = const {}});
+
+  factory CrmInvoice.fromJson(Map<String, dynamic> json) => CrmInvoice(id: json['id'] as String, label: json['label'] as String, amount: (json['amount'] as num).toDouble(), purpose: json['purpose'] as String, status: json['status'] as String, overdue: json['overdue'] as bool, expiresLabel: json['expiresLabel'] as String, paidLabel: json['paidLabel'] == null ? null : json['paidLabel'] as String, paidMethod: json['paidMethod'] == null ? null : json['paidMethod'] as String, paidRef: json['paidRef'] == null ? null : json['paidRef'] as String, closedReason: json['closedReason'] == null ? null : json['closedReason'] as String, claimedLabel: json['claimedLabel'] == null ? null : json['claimedLabel'] as String, viewedLabel: json['viewedLabel'] == null ? null : json['viewedLabel'] as String, access: json['access'] as String, hasChat: json['hasChat'] as bool, link: json['link'] == null ? null : json['link'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'label': label, 'amount': amount, 'purpose': purpose, 'status': status, 'overdue': overdue, 'expiresLabel': expiresLabel, 'paidLabel': paidLabel, 'paidMethod': paidMethod, 'paidRef': paidRef, 'closedReason': closedReason, 'claimedLabel': claimedLabel, if (viewedLabel != null || nulls.contains('viewedLabel')) 'viewedLabel': viewedLabel, 'access': access, 'hasChat': hasChat, 'link': link};
+}
+
+class CrmChat {
+  final CrmChatConversation conversation;
+  final List<CrmMessage> messages;
+  final bool more;
+  final CrmChatDeal? deal;
+  final CrmChatPerms perms;
+  final String? sendBlocker;
+  final CrmChatBot bot;
+  final List<CrmChatTemplates> templates;
+  final List<CrmInvoice> invoices;
+
+  const CrmChat({required this.conversation, required this.messages, required this.more, this.deal, required this.perms, this.sendBlocker, required this.bot, required this.templates, required this.invoices});
+
+  factory CrmChat.fromJson(Map<String, dynamic> json) => CrmChat(conversation: CrmChatConversation.fromJson(json['conversation'] as Map<String, dynamic>), messages: (json['messages'] as List).map((e) => CrmMessage.fromJson(e as Map<String, dynamic>)).toList(), more: json['more'] as bool, deal: json['deal'] == null ? null : CrmChatDeal.fromJson(json['deal'] as Map<String, dynamic>), perms: CrmChatPerms.fromJson(json['perms'] as Map<String, dynamic>), sendBlocker: json['sendBlocker'] == null ? null : json['sendBlocker'] as String, bot: CrmChatBot.fromJson(json['bot'] as Map<String, dynamic>), templates: (json['templates'] as List).map((e) => CrmChatTemplates.fromJson(e as Map<String, dynamic>)).toList(), invoices: (json['invoices'] as List).map((e) => CrmInvoice.fromJson(e as Map<String, dynamic>)).toList());
+
+  Map<String, dynamic> toJson() => {'conversation': conversation.toJson(), 'messages': messages.map((e) => e.toJson()).toList(), 'more': more, 'deal': deal == null ? null : deal!.toJson(), 'perms': perms.toJson(), 'sendBlocker': sendBlocker, 'bot': bot.toJson(), 'templates': templates.map((e) => e.toJson()).toList(), 'invoices': invoices.map((e) => e.toJson()).toList()};
+}
+
+class CrmChatConversation {
+  final bool pinned;
+  final String id;
+  final String title;
+  final String channel;
+  final String channelLabel;
+  final String? avatarUrl;
+  final String status;
+  final int unread;
+  final String? assigneeId;
+  final String? assignee;
+  final String? dealId;
+  final String? clientId;
+  final String? clientName;
+
+  const CrmChatConversation({required this.pinned, required this.id, required this.title, required this.channel, required this.channelLabel, this.avatarUrl, required this.status, required this.unread, this.assigneeId, this.assignee, this.dealId, this.clientId, this.clientName});
+
+  factory CrmChatConversation.fromJson(Map<String, dynamic> json) => CrmChatConversation(pinned: json['pinned'] as bool, id: json['id'] as String, title: json['title'] as String, channel: json['channel'] as String, channelLabel: json['channelLabel'] as String, avatarUrl: json['avatarUrl'] == null ? null : json['avatarUrl'] as String, status: json['status'] as String, unread: (json['unread'] as num).toInt(), assigneeId: json['assigneeId'] == null ? null : json['assigneeId'] as String, assignee: json['assignee'] == null ? null : json['assignee'] as String, dealId: json['dealId'] == null ? null : json['dealId'] as String, clientId: json['clientId'] == null ? null : json['clientId'] as String, clientName: json['clientName'] == null ? null : json['clientName'] as String);
+
+  Map<String, dynamic> toJson() => {'pinned': pinned, 'id': id, 'title': title, 'channel': channel, 'channelLabel': channelLabel, 'avatarUrl': avatarUrl, 'status': status, 'unread': unread, 'assigneeId': assigneeId, 'assignee': assignee, 'dealId': dealId, 'clientId': clientId, 'clientName': clientName};
+}
+
+class CrmChatDeal {
+  final String id;
+  final int number;
+  final String title;
+  final double amount;
+  final CrmChatDealStage stage;
+  final String source;
+
+  const CrmChatDeal({required this.id, required this.number, required this.title, required this.amount, required this.stage, required this.source});
+
+  factory CrmChatDeal.fromJson(Map<String, dynamic> json) => CrmChatDeal(id: json['id'] as String, number: (json['number'] as num).toInt(), title: json['title'] as String, amount: (json['amount'] as num).toDouble(), stage: CrmChatDealStage.fromJson(json['stage'] as Map<String, dynamic>), source: json['source'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'number': number, 'title': title, 'amount': amount, 'stage': stage.toJson(), 'source': source};
+}
+
+class CrmChatDealStage {
+  final String id;
+  final String name;
+  final String color;
+
+  const CrmChatDealStage({required this.id, required this.name, required this.color});
+
+  factory CrmChatDealStage.fromJson(Map<String, dynamic> json) => CrmChatDealStage(id: json['id'] as String, name: json['name'] as String, color: json['color'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'color': color};
+}
+
+class CrmChatPerms {
+  final bool canReply;
+  final bool canNote;
+  final bool canInvoice;
+  final bool canEditInvoices;
+  final bool canCreateDeal;
+  final bool mine;
+
+  const CrmChatPerms({required this.canReply, required this.canNote, required this.canInvoice, required this.canEditInvoices, required this.canCreateDeal, required this.mine});
+
+  factory CrmChatPerms.fromJson(Map<String, dynamic> json) => CrmChatPerms(canReply: json['canReply'] as bool, canNote: json['canNote'] as bool, canInvoice: json['canInvoice'] as bool, canEditInvoices: json['canEditInvoices'] as bool, canCreateDeal: json['canCreateDeal'] as bool, mine: json['mine'] as bool);
+
+  Map<String, dynamic> toJson() => {'canReply': canReply, 'canNote': canNote, 'canInvoice': canInvoice, 'canEditInvoices': canEditInvoices, 'canCreateDeal': canCreateDeal, 'mine': mine};
+}
+
+class CrmChatBot {
+  final String? label;
+  final bool canStart;
+  final bool canStop;
+
+  const CrmChatBot({this.label, required this.canStart, required this.canStop});
+
+  factory CrmChatBot.fromJson(Map<String, dynamic> json) => CrmChatBot(label: json['label'] == null ? null : json['label'] as String, canStart: json['canStart'] as bool, canStop: json['canStop'] as bool);
+
+  Map<String, dynamic> toJson() => {'label': label, 'canStart': canStart, 'canStop': canStop};
+}
+
+class CrmChatTemplates {
+  final String id;
+  final String title;
+  final bool own;
+  final String text;
+
+  const CrmChatTemplates({required this.id, required this.title, required this.own, required this.text});
+
+  factory CrmChatTemplates.fromJson(Map<String, dynamic> json) => CrmChatTemplates(id: json['id'] as String, title: json['title'] as String, own: json['own'] as bool, text: json['text'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'title': title, 'own': own, 'text': text};
+}
+
+class CrmStage {
+  final String id;
+  final String name;
+  final String color;
+  final String kind;
+  final int position;
+
+  const CrmStage({required this.id, required this.name, required this.color, required this.kind, required this.position});
+
+  factory CrmStage.fromJson(Map<String, dynamic> json) => CrmStage(id: json['id'] as String, name: json['name'] as String, color: json['color'] as String, kind: json['kind'] as String, position: (json['position'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'color': color, 'kind': kind, 'position': position};
+}
+
+class CrmDealRow {
+  final String id;
+  final int number;
+  final String title;
+  final String? contactName;
+  final String stageId;
+  final String stageKind;
+  final double amount;
+  final double paid;
+  final String source;
+  final String? assigneeId;
+  final String? assignee;
+  final bool unsorted;
+  final int unread;
+  final int daysInStage;
+  final CrmDealRowNextTask? nextTask;
+  final String createdAt;
+
+  const CrmDealRow({required this.id, required this.number, required this.title, this.contactName, required this.stageId, required this.stageKind, required this.amount, required this.paid, required this.source, this.assigneeId, this.assignee, required this.unsorted, required this.unread, required this.daysInStage, this.nextTask, required this.createdAt});
+
+  factory CrmDealRow.fromJson(Map<String, dynamic> json) => CrmDealRow(id: json['id'] as String, number: (json['number'] as num).toInt(), title: json['title'] as String, contactName: json['contactName'] == null ? null : json['contactName'] as String, stageId: json['stageId'] as String, stageKind: json['stageKind'] as String, amount: (json['amount'] as num).toDouble(), paid: (json['paid'] as num).toDouble(), source: json['source'] as String, assigneeId: json['assigneeId'] == null ? null : json['assigneeId'] as String, assignee: json['assignee'] == null ? null : json['assignee'] as String, unsorted: json['unsorted'] as bool, unread: (json['unread'] as num).toInt(), daysInStage: (json['daysInStage'] as num).toInt(), nextTask: json['nextTask'] == null ? null : CrmDealRowNextTask.fromJson(json['nextTask'] as Map<String, dynamic>), createdAt: json['createdAt'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'number': number, 'title': title, 'contactName': contactName, 'stageId': stageId, 'stageKind': stageKind, 'amount': amount, 'paid': paid, 'source': source, 'assigneeId': assigneeId, 'assignee': assignee, 'unsorted': unsorted, 'unread': unread, 'daysInStage': daysInStage, 'nextTask': nextTask == null ? null : nextTask!.toJson(), 'createdAt': createdAt};
+}
+
+class CrmDealRowNextTask {
+  final String at;
+  final bool overdue;
+
+  const CrmDealRowNextTask({required this.at, required this.overdue});
+
+  factory CrmDealRowNextTask.fromJson(Map<String, dynamic> json) => CrmDealRowNextTask(at: json['at'] as String, overdue: json['overdue'] as bool);
+
+  Map<String, dynamic> toJson() => {'at': at, 'overdue': overdue};
+}
+
+class CrmDeals {
+  final List<CrmDealsPipelines> pipelines;
+  final CrmDealsPipeline? pipeline;
+  final List<CrmStage> stages;
+  final List<CrmDealRow> deals;
+
+  const CrmDeals({required this.pipelines, this.pipeline, required this.stages, required this.deals});
+
+  factory CrmDeals.fromJson(Map<String, dynamic> json) => CrmDeals(pipelines: (json['pipelines'] as List).map((e) => CrmDealsPipelines.fromJson(e as Map<String, dynamic>)).toList(), pipeline: json['pipeline'] == null ? null : CrmDealsPipeline.fromJson(json['pipeline'] as Map<String, dynamic>), stages: (json['stages'] as List).map((e) => CrmStage.fromJson(e as Map<String, dynamic>)).toList(), deals: (json['deals'] as List).map((e) => CrmDealRow.fromJson(e as Map<String, dynamic>)).toList());
+
+  Map<String, dynamic> toJson() => {'pipelines': pipelines.map((e) => e.toJson()).toList(), 'pipeline': pipeline == null ? null : pipeline!.toJson(), 'stages': stages.map((e) => e.toJson()).toList(), 'deals': deals.map((e) => e.toJson()).toList()};
+}
+
+class CrmDealsPipelines {
+  final String id;
+  final String name;
+
+  const CrmDealsPipelines({required this.id, required this.name});
+
+  factory CrmDealsPipelines.fromJson(Map<String, dynamic> json) => CrmDealsPipelines(id: json['id'] as String, name: json['name'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'name': name};
+}
+
+class CrmDealsPipeline {
+  final String id;
+  final String name;
+
+  const CrmDealsPipeline({required this.id, required this.name});
+
+  factory CrmDealsPipeline.fromJson(Map<String, dynamic> json) => CrmDealsPipeline(id: json['id'] as String, name: json['name'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'name': name};
+}
+
+class CrmDeal {
+  final String id;
+  final int number;
+  final String title;
+  final String? contactName;
+  final String? phone;
+  final double amount;
+  final double paid;
+  final String source;
+  final CrmDealStage? stage;
+  final List<CrmDealStages> stages;
+  final String? assigneeId;
+  final String? assignee;
+  final bool unsorted;
+  final List<String> tags;
+  final Map<String, dynamic> customFields;
+  final String createdAt;
+  final CrmDealPerms perms;
+  final double? maxDiscountPercent;
+  final String? chatId;
+  final CrmDealClient? client;
+  final CrmDealOrder? order;
+  final List<CrmDealTasks> tasks;
+  final List<CrmDealNotes> notes;
+  final List<CrmDealPayments> payments;
+  final List<String> payForms;
+  final bool hasOrder;
+  final List<CrmInvoice> invoices;
+
+  const CrmDeal({required this.id, required this.number, required this.title, this.contactName, this.phone, required this.amount, required this.paid, required this.source, this.stage, required this.stages, this.assigneeId, this.assignee, required this.unsorted, required this.tags, required this.customFields, required this.createdAt, required this.perms, this.maxDiscountPercent, this.chatId, this.client, this.order, required this.tasks, required this.notes, required this.payments, required this.payForms, required this.hasOrder, required this.invoices});
+
+  factory CrmDeal.fromJson(Map<String, dynamic> json) => CrmDeal(id: json['id'] as String, number: (json['number'] as num).toInt(), title: json['title'] as String, contactName: json['contactName'] == null ? null : json['contactName'] as String, phone: json['phone'] == null ? null : json['phone'] as String, amount: (json['amount'] as num).toDouble(), paid: (json['paid'] as num).toDouble(), source: json['source'] as String, stage: json['stage'] == null ? null : CrmDealStage.fromJson(json['stage'] as Map<String, dynamic>), stages: (json['stages'] as List).map((e) => CrmDealStages.fromJson(e as Map<String, dynamic>)).toList(), assigneeId: json['assigneeId'] == null ? null : json['assigneeId'] as String, assignee: json['assignee'] == null ? null : json['assignee'] as String, unsorted: json['unsorted'] as bool, tags: (json['tags'] as List).map((e) => e as String).toList(), customFields: json['customFields'] as Map<String, dynamic>, createdAt: json['createdAt'] as String, perms: CrmDealPerms.fromJson(json['perms'] as Map<String, dynamic>), maxDiscountPercent: json['maxDiscountPercent'] == null ? null : (json['maxDiscountPercent'] as num).toDouble(), chatId: json['chatId'] == null ? null : json['chatId'] as String, client: json['client'] == null ? null : CrmDealClient.fromJson(json['client'] as Map<String, dynamic>), order: json['order'] == null ? null : CrmDealOrder.fromJson(json['order'] as Map<String, dynamic>), tasks: (json['tasks'] as List).map((e) => CrmDealTasks.fromJson(e as Map<String, dynamic>)).toList(), notes: (json['notes'] as List).map((e) => CrmDealNotes.fromJson(e as Map<String, dynamic>)).toList(), payments: (json['payments'] as List).map((e) => CrmDealPayments.fromJson(e as Map<String, dynamic>)).toList(), payForms: (json['payForms'] as List).map((e) => e as String).toList(), hasOrder: json['hasOrder'] as bool, invoices: (json['invoices'] as List).map((e) => CrmInvoice.fromJson(e as Map<String, dynamic>)).toList());
+
+  Map<String, dynamic> toJson() => {'id': id, 'number': number, 'title': title, 'contactName': contactName, 'phone': phone, 'amount': amount, 'paid': paid, 'source': source, 'stage': stage == null ? null : stage!.toJson(), 'stages': stages.map((e) => e.toJson()).toList(), 'assigneeId': assigneeId, 'assignee': assignee, 'unsorted': unsorted, 'tags': tags.map((e) => e).toList(), 'customFields': customFields, 'createdAt': createdAt, 'perms': perms.toJson(), 'maxDiscountPercent': maxDiscountPercent, 'chatId': chatId, 'client': client == null ? null : client!.toJson(), 'order': order == null ? null : order!.toJson(), 'tasks': tasks.map((e) => e.toJson()).toList(), 'notes': notes.map((e) => e.toJson()).toList(), 'payments': payments.map((e) => e.toJson()).toList(), 'payForms': payForms.map((e) => e).toList(), 'hasOrder': hasOrder, 'invoices': invoices.map((e) => e.toJson()).toList()};
+}
+
+class CrmDealStage {
+  final String id;
+  final String name;
+  final String color;
+  final String kind;
+
+  const CrmDealStage({required this.id, required this.name, required this.color, required this.kind});
+
+  factory CrmDealStage.fromJson(Map<String, dynamic> json) => CrmDealStage(id: json['id'] as String, name: json['name'] as String, color: json['color'] as String, kind: json['kind'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'color': color, 'kind': kind};
+}
+
+class CrmDealStages {
+  final String id;
+  final String name;
+  final String color;
+  final String kind;
+
+  const CrmDealStages({required this.id, required this.name, required this.color, required this.kind});
+
+  factory CrmDealStages.fromJson(Map<String, dynamic> json) => CrmDealStages(id: json['id'] as String, name: json['name'] as String, color: json['color'] as String, kind: json['kind'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'color': color, 'kind': kind};
+}
+
+class CrmDealPerms {
+  final bool canEdit;
+  final bool canMove;
+  final bool canInvoice;
+  final bool mine;
+
+  const CrmDealPerms({required this.canEdit, required this.canMove, required this.canInvoice, required this.mine});
+
+  factory CrmDealPerms.fromJson(Map<String, dynamic> json) => CrmDealPerms(canEdit: json['canEdit'] as bool, canMove: json['canMove'] as bool, canInvoice: json['canInvoice'] as bool, mine: json['mine'] as bool);
+
+  Map<String, dynamic> toJson() => {'canEdit': canEdit, 'canMove': canMove, 'canInvoice': canInvoice, 'mine': mine};
+}
+
+class CrmDealClient {
+  final String id;
+  final String name;
+
+  const CrmDealClient({required this.id, required this.name});
+
+  factory CrmDealClient.fromJson(Map<String, dynamic> json) => CrmDealClient(id: json['id'] as String, name: json['name'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'name': name};
+}
+
+class CrmDealOrder {
+  final String id;
+  final int number;
+  final String status;
+  final double amount;
+  final String plan;
+
+  const CrmDealOrder({required this.id, required this.number, required this.status, required this.amount, required this.plan});
+
+  factory CrmDealOrder.fromJson(Map<String, dynamic> json) => CrmDealOrder(id: json['id'] as String, number: (json['number'] as num).toInt(), status: json['status'] as String, amount: (json['amount'] as num).toDouble(), plan: json['plan'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'number': number, 'status': status, 'amount': amount, 'plan': plan};
+}
+
+class CrmDealTasks {
+  final String id;
+  final String title;
+  final String? dueAt;
+  final bool done;
+
+  const CrmDealTasks({required this.id, required this.title, this.dueAt, required this.done});
+
+  factory CrmDealTasks.fromJson(Map<String, dynamic> json) => CrmDealTasks(id: json['id'] as String, title: json['title'] as String, dueAt: json['dueAt'] == null ? null : json['dueAt'] as String, done: json['done'] as bool);
+
+  Map<String, dynamic> toJson() => {'id': id, 'title': title, 'dueAt': dueAt, 'done': done};
+}
+
+class CrmDealNotes {
+  final String id;
+  final String text;
+  final String at;
+  final String? author;
+
+  const CrmDealNotes({required this.id, required this.text, required this.at, this.author});
+
+  factory CrmDealNotes.fromJson(Map<String, dynamic> json) => CrmDealNotes(id: json['id'] as String, text: json['text'] as String, at: json['at'] as String, author: json['author'] == null ? null : json['author'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'text': text, 'at': at, 'author': author};
+}
+
+class CrmDealPayments {
+  final String id;
+  final double amount;
+  final String kind;
+  final String method;
+  final String? payForm;
+  final String at;
+
+  const CrmDealPayments({required this.id, required this.amount, required this.kind, required this.method, this.payForm, required this.at});
+
+  factory CrmDealPayments.fromJson(Map<String, dynamic> json) => CrmDealPayments(id: json['id'] as String, amount: (json['amount'] as num).toDouble(), kind: json['kind'] as String, method: json['method'] as String, payForm: json['payForm'] == null ? null : json['payForm'] as String, at: json['at'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'amount': amount, 'kind': kind, 'method': method, 'payForm': payForm, 'at': at};
 }
 
 class ShelfDeadline {
