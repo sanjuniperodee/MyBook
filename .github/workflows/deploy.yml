@@ -111,9 +111,15 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm }
       - run: npm ci --no-audit --no-fund
+      # Версии страницы после выкатки (node_modules/next/dist/docs/01-app/02-guides/self-hosting.md, «Version Skew»):
+      # постоянный ключ серверных действий — их ID не меняются между сборками, если не менялся код действия (иначе каждая
+      # выкатка ломала отправку форм у открытых вкладок: «Failed to find Server Action»); deploymentId = коммит — при
+      # переходе со страницы прошлой выкатки Next перезагружает её целиком. Ключ — секрет репозитория, он же в .env сервера.
       - run: npm run build
         env:
           MYBOOK_SKIP_TYPECHECK: 1
+          NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: ${{ secrets.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY }}
+          NEXT_DEPLOYMENT_ID: ${{ github.sha }}
       # mybook-files (services/files) — статический бинарник в релиз: <релиз>/bin/mybook-files, запускает PM2.
       - uses: actions/setup-go@v5
         with: { go-version-file: services/files/go.mod, cache-dependency-path: services/files/go.mod }

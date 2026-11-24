@@ -6,6 +6,7 @@ import "./globals.css";
 import { Suspense } from "react";
 import { Analytics } from "@/components/analytics/Analytics";
 import { Overlays } from "@/components/ui/overlays";
+import { StaleVersionGuard } from "@/components/StaleVersionGuard";
 import { I18nProvider } from "@/i18n/client";
 import { getLocale } from "@/i18n/server";
 import { ensureCatalog } from "@/server/catalog";
@@ -61,6 +62,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <I18nProvider locale={locale}>
           {children}
           <Overlays />
+          <StaleVersionGuard />
         </I18nProvider>
         <Suspense fallback={null}>
           <Analytics ids={{ ym: process.env.YANDEX_METRIKA_ID, ga: process.env.GA_MEASUREMENT_ID, pixel: process.env.META_PIXEL_ID }} />

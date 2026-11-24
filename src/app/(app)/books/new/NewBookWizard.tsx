@@ -8,6 +8,7 @@ import { Alert } from "@/components/ui/Alert";
 import { CoverFace } from "@/components/cover/CoverFace";
 import type { CoverMeta } from "@/lib/book/covers/meta";
 import { OccasionPicker } from "@/components/OccasionPicker";
+import { useFormDraft } from "@/lib/form-draft";
 import { cn } from "@/lib/class-names";
 import { useMessages } from "@/i18n/client";
 import { localeMeta, locales, type Locale } from "@/i18n/config";
@@ -146,8 +147,37 @@ export function NewBookWizard({ themes, defaultTheme, defaultAuthor, defaultLang
   const [recordedBy, setRecordedBy] = useState("");
   const [dedication, setDedication] = useState("");
   const [firstChapter, setFirstChapter] = useState("");
+  const [occasion, setOccasion] = useState<{ id: string | null; date: string | null }>({ id: null, date: null });
+  // Черновик восстановлен — повод заново рисуется со своим значением (OccasionPicker берёт его только при показе).
+  const [restored, setRestored] = useState(0);
   const top = useRef<HTMLDivElement>(null);
   const suggestions = theme?.titleSuggestions[language] ?? [];
+
+  // Черновик (localStorage): введённое переживает перезагрузку страницы — например, после выкатки новой версии, когда
+  // форма не отправилась. Удаляется после создания книги. Пришли со ссылкой на другую тему — черновик не подставляем.
+  const draft = useFormDraft(
+    "new-book",
+    { language, themeId, step, authorName, authorGender, recipientName, recipientGender, title, storyOther, narratorName, recordedBy, dedication, firstChapter, occasion },
+    (d) => {
+      if (defaultTheme && d.themeId !== defaultTheme) return;
+      if (d.themeId && !themes.some((th) => th.id === d.themeId)) return;
+      setLanguage(locales.includes(d.language) ? d.language : defaultLanguage);
+      setThemeId(d.themeId);
+      setStep(d.themeId ? d.step : 0);
+      setAuthorName(d.authorName);
+      setAuthorGender(d.authorGender);
+      setRecipientName(d.recipientName);
+      setRecipientGender(d.recipientGender);
+      setTitle(d.title);
+      setStoryOther(d.storyOther);
+      setNarratorName(d.narratorName);
+      setRecordedBy(d.recordedBy);
+      setDedication(d.dedication);
+      setFirstChapter(d.firstChapter);
+      setOccasion(d.occasion ?? { id: null, date: null });
+      setRestored((n) => n + 1);
+    },
+  );
 
   const goTo = (s: Step) => {
     setStep(s);
@@ -245,7 +275,9 @@ export function NewBookWizard({ themes, defaultTheme, defaultAuthor, defaultLang
       e.preventDefault();
       if (missing(1).length) setStep(1);
       showErrors(bad);
+      return;
     }
+    draft.sent();
   };
   const error = (id: FieldId) => {
     if (!errors.includes(id)) return {};
@@ -463,7 +495,7 @@ export function NewBookWizard({ themes, defaultTheme, defaultAuthor, defaultLang
                     {t.occasion} <span className="font-normal text-muted">{t.optional}</span>
                   </span>
                   <p className="-mt-1 mb-3 text-sm text-muted">{t.occasionHint}</p>
-                  <OccasionPicker theme={theme.id} />
+                  <OccasionPicker key={restored} theme={theme.id} defaultOccasion={occasion.id} defaultDate={occasion.date} onChange={(id, date) => setOccasion({ id, date })} />
                 </div>
               </div>
             </div>

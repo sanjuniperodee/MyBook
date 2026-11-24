@@ -114,9 +114,13 @@ export const common: Messages["common"] = {
   },
   errorPage: {
     title: "Something went wrong",
-    text: "We already know about the error. Your answers are saved — please try again.",
+    text: "We already know about the error. Please try again — it usually helps.",
+    /** В редакторе ответов — там ответы правда сохраняются автосохранением. */
+    textEditor: "We already know about the error. Your answers are saved — please try again.",
     code: "Code:",
   },
+  /** После перезагрузки вкладки из-за новой версии сайта (lib/stale-version.ts). */
+  staleReloaded: "We refreshed the page to the new version",
   trust: [
     { title: "An exact proof before you pay", text: "You flip through a PDF of every page — the book will be printed exactly as you see it." },
     { title: "Free reprint", text: "If the book has a printing or binding defect, we will make a new one at our expense." },

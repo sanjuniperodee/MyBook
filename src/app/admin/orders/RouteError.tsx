@@ -3,15 +3,19 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { RotateCcw, TriangleAlert } from "lucide-react";
+import { useStaleReload } from "@/components/useStaleReload";
 
 /**
  * Ошибка внутри раздела (заказы, производство, финансы, цены): меню и шапка CRM остаются на месте. Что случилось, что
  * сделать — «Повторить» запросит страницу заново, данные не потеряны; код (digest) — для разбора в логах руководителем.
  */
 export function RouteError({ error, retry, title, back }: { error: Error & { digest?: string }; retry: () => void; title: string; back: { href: string; label: string } }) {
+  // Ошибка от прошлой версии страницы (после выкатки) — одна перезагрузка вместо этой страницы.
+  const reloading = useStaleReload(error);
   useEffect(() => {
     console.error(error);
   }, [error]);
+  if (reloading) return null;
   return (
     <div className="mx-auto flex max-w-md flex-col items-center gap-3 py-16 text-center" role="alert">
       <span className="flex size-11 items-center justify-center rounded-[var(--r-panel)] bg-danger-bg text-danger">

@@ -116,9 +116,13 @@ export const common: Messages["common"] = {
   },
   errorPage: {
     title: "Nimadir xato ketdi",
-    text: "Xato haqida bizga allaqachon ma’lum. Javoblaringiz saqlangan — qayta urinib ko‘ring.",
+    text: "Xato haqida bizga allaqachon ma’lum. Qayta urinib ko‘ring — odatda bu yordam beradi.",
+    /** В редакторе ответов — там ответы правда сохраняются автосохранением. */
+    textEditor: "Xato haqida bizga allaqachon ma’lum. Javoblaringiz saqlangan — qayta urinib ko‘ring.",
     code: "Kod:",
   },
+  /** После перезагрузки вкладки из-за новой версии сайта (lib/stale-version.ts). */
+  staleReloaded: "Sahifa yangi versiyaga yangilandi",
   trust: [
     { title: "To‘lovdan oldin aniq maket", text: "Barcha sahifalarning PDF faylini varaqlaysiz — kitob aynan shunday bosiladi." },
     { title: "Bepul qayta bosamiz", text: "Kitobda bosma yoki muqovalash nuqsoni bo‘lsa — o‘z hisobimizdan yangisini tayyorlaymiz." },

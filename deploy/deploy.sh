@@ -96,7 +96,8 @@ if [ -z "$ARTIFACT" ]; then
   # пуша (npx tsc --noEmit); MYBOOK_TYPECHECK=1 вернёт проверку при сборке.
   SKIP_TS=1
   [ "${MYBOOK_TYPECHECK:-0}" = 1 ] && SKIP_TS=0
-  MYBOOK_SKIP_TYPECHECK="$SKIP_TS" NEXT_TELEMETRY_DISABLED=1 limited npm run build
+  # Версия выкатки — коммит (как в CI); ключ серверных действий Next берёт из .env (NEXT_SERVER_ACTIONS_ENCRYPTION_KEY).
+  NEXT_DEPLOYMENT_ID="$(git rev-parse HEAD)" MYBOOK_SKIP_TYPECHECK="$SKIP_TS" NEXT_TELEMETRY_DISABLED=1 limited npm run build
 fi
 
 echo "→ Релиз $SHA"
@@ -113,6 +114,12 @@ if [ -n "$ARTIFACT" ]; then
   fi
 else
   bash deploy/pack-release.sh "$REL"
+fi
+
+# Куски JS и CSS прошлой выкатки (за неделю) — и в новом релизе: у открытых вкладок старая страница догружает их по
+# старым именам (имена с хэшем, новые файлы не перезаписываются). Без них после выкатки — ChunkLoadError и «Что-то пошло не так».
+if [ -d "$CURRENT/.next/static" ] && [ -d "$REL/.next/static" ]; then
+  (cd "$CURRENT/.next/static" && find . -type f -mtime -7 -print0 | rsync -a --ignore-existing --from0 --files-from=- ./ "$REL/.next/static/") || true
 fi
 
 # PM2 при reload не перечитывает cwd, поэтому процесс пересоздаётся (для fork-режима это тот же перезапуск, 1–2 с).

@@ -1,5 +1,6 @@
 "use client";
 
+import { useFormDraft } from "@/lib/form-draft";
 import { Link, useMessages } from "@/i18n/client";
 import { localeMeta, locales, type Locale } from "@/i18n/config";
 import { useActionState, useState } from "react";
@@ -27,6 +28,16 @@ export function GiftForm({ defaults, intro }: { defaults: { name: string; email:
   const [delivery, setDelivery] = useState<"me" | "email">("me");
   const [today] = useState(() => toIsoDay(new Date(nowMs())));
   const price = formatPrice(getPlans().find((p) => p.id === plan)!.price);
+  // Черновик (localStorage): текст открытки и имена переживают перезагрузку страницы (после выкатки новой версии);
+  // удаляется после оформления сертификата.
+  const draft = useFormDraft("gift", { giftLocale, plan, buyerName, recipientName, message, delivery }, (d) => {
+    if (locales.includes(d.giftLocale)) setGiftLocale(d.giftLocale);
+    if (getPlans().some((p) => p.id === d.plan)) setPlan(d.plan);
+    setBuyerName(d.buyerName);
+    setRecipientName(d.recipientName);
+    setMessage(d.message);
+    setDelivery(d.delivery === "email" ? "email" : "me");
+  });
 
   // Пример в пустых полях открытки — из подсказок формы (без «Например,»).
   const samples = { recipient: t.recipientPlaceholder.replace(/^[^,]+,\s*/, ""), buyer: t.buyerPlaceholder, message: t.messagePlaceholder };
@@ -37,7 +48,7 @@ export function GiftForm({ defaults, intro }: { defaults: { name: string; email:
     </>
   );
   return (
-    <form action={action} className="grid gap-8 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-14">
+    <form action={action} onSubmit={() => draft.sent()} className="grid gap-8 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-14">
       <input type="hidden" name="plan" value={plan} />
       <input type="hidden" name="delivery" value={delivery} />
       <input type="hidden" name="locale" value={giftLocale} />

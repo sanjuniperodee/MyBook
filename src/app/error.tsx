@@ -3,13 +3,20 @@
 import { useEffect } from "react";
 import { RotateCcw } from "lucide-react";
 import { Link, useMessages } from "@/i18n/client";
+import { useStaleReload } from "@/components/useStaleReload";
 
-/** Ошибка страницы: лист бумаги в тонкой рамке — что случилось и что сделать, без лишних картинок. */
-export default function ErrorPage({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+/**
+ * Ошибка страницы: лист бумаги в тонкой рамке — что случилось и что сделать, без лишних картинок. «Попробовать снова» —
+ * полная перезагрузка (повтор без неё после выкатки оставлял вечную заготовку); ошибка от прошлой версии страницы —
+ * сразу перезагрузка (useStaleReload).
+ */
+export default function ErrorPage({ error }: { error: Error & { digest?: string } }) {
   const m = useMessages().common;
+  const reloading = useStaleReload(error);
   useEffect(() => {
     console.error(error);
   }, [error]);
+  if (reloading) return null;
   return (
     <main className="flex min-h-[80dvh] items-center justify-center px-4 py-16">
       <div className="relative w-full max-w-xl px-6 py-14 text-center sm:px-12">
@@ -23,7 +30,7 @@ export default function ErrorPage({ error, reset }: { error: Error & { digest?: 
           </p>
         ) : null}
         <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-          <button onClick={reset} className="btn btn-primary btn-lg">
+          <button onClick={() => window.location.reload()} className="btn btn-primary btn-lg">
             <RotateCcw className="size-4" aria-hidden /> {m.actions.retry}
           </button>
           <Link href="/books" className="btn btn-outline btn-lg">

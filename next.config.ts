@@ -50,6 +50,9 @@ const nextConfig: NextConfig = {
   // типы проверяются до пуша (npx tsc), поэтому deploy/deploy.sh её пропускает (MYBOOK_SKIP_TYPECHECK=1).
   typescript: { ignoreBuildErrors: process.env.MYBOOK_SKIP_TYPECHECK === "1" },
   poweredByHeader: false,
+  // Версия выкатки (коммит; CI и deploy/deploy.sh ставят NEXT_DEPLOYMENT_ID): со страницы прошлой выкатки переход идёт
+  // полной перезагрузкой, к статике добавляется ?dpl= (Next и nginx его не читают — файлы те же). Без переменной — как раньше.
+  deploymentId: process.env.NEXT_DEPLOYMENT_ID || undefined,
   env: { COVER_ART_VERSION: coverArtVersion() },
   // Файлы хранилища по подписанной ссылке сайта — Go-сервису mybook-files на 127.0.0.1 (services/files, пилот G3,
   // src/server/files-service.ts, режим redirect). Строка nginx из docs/microservices/06-operations.md отдаёт их мимо Next.

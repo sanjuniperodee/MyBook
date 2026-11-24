@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { AlertTriangle, CheckCircle2, Info, X } from "lucide-react";
 import { cn } from "@/lib/class-names";
 import { useMessages } from "@/i18n/client";
+import { reloadIfStale } from "@/lib/stale-version";
 
 /**
  * Тосты и диалог подтверждения вместо alert/confirm.
@@ -81,6 +82,8 @@ function runAction(id: number, action: ToastAction) {
 
 /** Сообщение об ошибке из исключения (или запасной текст). */
 export function toastError(e: unknown, fallback?: string) {
+  // Ошибка от прошлой версии страницы (после выкатки) — не тост, а одна перезагрузка (lib/stale-version.ts).
+  if (reloadIfStale(e)) return;
   // Пустой текст — Overlays покажет общее «Не получилось» на языке страницы.
   toast(e instanceof Error && e.message ? e.message : (fallback ?? ""), "error");
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { useFormDraft } from "@/lib/form-draft";
 import { useMessages } from "@/i18n/client";
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { track } from "@/lib/analytics-client";
@@ -89,6 +90,17 @@ export function CheckoutForm({
   const [desiredDate, setDesiredDate] = useState(defaults.desiredDate && defaults.desiredDate >= today ? defaults.desiredDate : "");
   const [giftOpen] = useState(() => !!defaults.desiredDate && defaults.desiredDate >= today);
   const [values, setValues] = useState<FormValues>({ contactName: defaults.name, contactPhone: defaults.phone, contactEmail: defaults.email, country: "", city: "", address: "", postalCode: "", giftNote: "", comment: "", surprise: false, consent: false });
+  // Черновик (localStorage): контакты и адрес переживают перезагрузку страницы (после выкатки новой версии) и удаляются
+  // после оформления. Согласие с условиями не сохраняем — его ставят при каждой отправке.
+  const draft = useFormDraft(
+    `checkout:${bookId}`,
+    { values: { ...values, consent: false }, delivery, qty },
+    (d) => {
+      setValues((v) => ({ ...v, ...d.values, consent: false }));
+      if ((["pickup", "courier", "post", "abroad"] as const).includes(d.delivery)) setDelivery(d.delivery);
+      setQty(Math.max(1, Number(d.qty) || 1));
+    },
+  );
   const promoField = usePromo(initialPromo, t.promoFailed);
   const promo = promoField.value;
   const discount = promo?.ok && promo.kind && promo.value ? { kind: promo.kind, value: promo.value } : null;
@@ -169,6 +181,7 @@ export function CheckoutForm({
           return;
         }
         if (fail(validateAll())) e.preventDefault();
+        else draft.sent();
       }}
       className="space-y-5 pb-28 lg:pb-0"
     >
