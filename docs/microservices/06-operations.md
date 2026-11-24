@@ -261,6 +261,26 @@ PM2 `mybook-api` (`<релиз>/api.mjs`, 127.0.0.1:3044), nginx `location ^~ /a
 приложение на v1); nginx — `sudo cp /etc/nginx/backup-2026-11-24-api/mybooks-kz /etc/nginx/sites-available/mybooks-kz &&
 sudo nginx -t && sudo systemctl reload nginx` (вход `ubuntu@` с ключом администратора).
 
+### 2.10. Открытые страницы при выкатке (24.11)
+
+Вкладка, открытая до выкатки, работает со старым кодом. Чтобы выкатка её не ломала
+(`node_modules/next/dist/docs/01-app/02-guides/self-hosting.md`, «Version Skew»):
+
+- **Ключ серверных действий** `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` — секрет GitHub (сборка в CI) и строка в `~/mybook/.env`
+  (сервер, запасная сборка). Им солятся ID действий: при постоянном ключе ID меняется только вместе с кодом действия.
+  Без него CI (сборка без кэша) каждый раз брал новый ключ — после любой выкатки формы открытых вкладок падали с
+  «Failed to find Server Action». Сменить ключ = один раз сбросить все действия у открытых вкладок; значения в секрете и
+  `.env` должны совпадать.
+- **deploymentId** = коммит (`NEXT_DEPLOYMENT_ID`): у статики `?dpl=<sha>` (Next и nginx его не читают), переход со
+  страницы прошлой выкатки — полной перезагрузкой. Проверка: `curl -s https://mybooks.kz/ | grep -o 'data-dpl-id="[^"]*"'`.
+- **Старые куски JS/CSS** (за неделю) `deploy.sh` переносит в новый релиз — старые вкладки догружают их без ChunkLoadError.
+- **На клиенте** ошибка от прошлой версии (`UnrecognizedActionError`, `ChunkLoadError`) — одна перезагрузка вкладки
+  (не чаще раза в минуту) и подсказка «Обновили страницу до новой версии» (`src/lib/stale-version.ts`); введённое в
+  «Новой книге», оформлении заказа и сертификате хранится черновиком в localStorage (`src/lib/form-draft.ts`).
+- Проверить, что действие узнаётся: `curl -s -o /dev/null -D - -X POST https://mybooks.kz/books/new -H "Next-Action: <id>"
+  -H "Content-Type: text/plain" --data '[{},"$undefined"]'` — известное без входа отвечает `x-action-redirect: /login`,
+  неизвестное — 404 и `x-nextjs-action-not-found: 1`. ID — в `current/.next/server/server-reference-manifest.json`.
+
 ## 3. Миграции
 
 - Владелец схемы — владелец миграций.
