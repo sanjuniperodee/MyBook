@@ -4,7 +4,7 @@
  * страницы вопросов; создание — та же схема мастера и BookService.start, что у server action сайта.
  */
 import type { z } from "zod";
-import type { BookSummary, OrderBrief, Photo, Question, Theme } from "@mybook/contracts";
+import type { BookSummary, OrderBrief, Question, Theme } from "@mybook/contracts";
 import { createBookSchema, startBookInput } from "@/lib/book/create-book-schema";
 import { isLocale } from "@/i18n/config";
 import { getLocale, getMessages } from "@/i18n/server";
@@ -12,7 +12,7 @@ import { bookKind } from "@/lib/content/kinds";
 import { getThemes } from "@/lib/content/themes";
 import type { ThemeDef } from "@/lib/content/types";
 import { editorModel } from "@/lib/book/editor-data";
-import type { EditorPhoto, EditorQuestion } from "@/lib/book/editor-model";
+import type { EditorQuestion } from "@/lib/book/editor-model";
 import { photoUrl } from "@/lib/urls";
 import { isBookEditableBy } from "@/modules/authoring";
 import { isPrintedPlan, lastOrderPerBook } from "@/modules/ordering/ui/status";
@@ -20,6 +20,7 @@ import { apiBook, apiViewer } from "@/server/api";
 import { container } from "@/server/container";
 import { maxPhotos } from "@/server/photoLimit";
 import type { Handlers } from "../app";
+import { toPhoto } from "./photos";
 
 type Queries = ReturnType<typeof container>;
 type UserBookRow = Awaited<ReturnType<Queries["authoring"]["queries"]["userBooks"]>>[number];
@@ -42,17 +43,6 @@ const toTheme = (t: ThemeDef): z.output<typeof Theme> => ({
 });
 
 const toOrderBrief = (o: UserOrder): z.output<typeof OrderBrief> => ({ id: o.id, number: o.number, status: o.status, printed: isPrintedPlan(o.plan) });
-
-const toPhoto = (p: EditorPhoto): z.output<typeof Photo> => ({
-  id: p.id,
-  width: p.width,
-  height: p.height,
-  caption: p.caption,
-  layout: p.layout,
-  questionId: p.questionId,
-  thumbUrl: photoUrl(p.id, "thumb"),
-  url: photoUrl(p.id, "view"),
-});
 
 const toBookSummary = (r: UserBookRow, order: UserOrder | undefined): z.output<typeof BookSummary> => ({
   id: r.book.id,

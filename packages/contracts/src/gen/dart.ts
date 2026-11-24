@@ -95,7 +95,7 @@ interface Operation {
   operationId: string;
   summary?: string;
   parameters?: { name: string; in: "path" | "query"; required: boolean; schema: Schema }[];
-  requestBody?: { content: { "application/json": { schema: Schema } } };
+  requestBody?: { content: { "application/json"?: { schema: Schema }; "multipart/form-data"?: { schema: Schema & { required?: string[] } } } };
   responses: { "200": { content: { "application/json": { schema: Schema } } } };
 }
 
@@ -107,8 +107,15 @@ export function renderDart(spec: { paths: Record<string, Record<string, Operatio
     for (const [method, op] of Object.entries(ops)) {
       const params = op.parameters ?? [];
       const out = w.typeOf(op.responses["200"].content["application/json"].schema, pascal(op.operationId) + "Result");
-      const body = op.requestBody ? w.typeOf(op.requestBody.content["application/json"].schema, pascal(op.operationId) + "Body") : null;
-      const args = [...params.map((p) => `${p.required ? "required " : ""}${w.typeOf(p.schema, "").type}${p.required ? "" : "?"} ${p.name}`), ...(body ? [`required ${body.type} body`] : [])];
+      const json = op.requestBody?.content["application/json"];
+      const body = json ? w.typeOf(json.schema, pascal(op.operationId) + "Body") : null;
+      // Загрузка файлов: поле multipart — список http.MultipartFile (имя поля подставляется при отправке).
+      const filesField = op.requestBody?.content["multipart/form-data"]?.schema.required?.[0] ?? null;
+      const args = [
+        ...params.map((p) => `${p.required ? "required " : ""}${w.typeOf(p.schema, "").type}${p.required ? "" : "?"} ${p.name}`),
+        ...(body ? [`required ${body.type} body`] : []),
+        ...(filesField ? ["required List<http.MultipartFile> files"] : []),
+      ];
       const url = path.replace(/\{(\w+)\}/g, (_, k: string) => `\${Uri.encodeComponent(${k})}`);
       const query = params.filter((p) => p.in === "query");
       const queryArg = query.length ? `, query: {${query.map((p) => `if (${p.name} != null) '${p.name}': '\${${p.name}}'`).join(", ")}}` : "";
@@ -116,7 +123,9 @@ export function renderDart(spec: { paths: Record<string, Record<string, Operatio
         [
           `  /// ${op.summary ?? op.operationId}`,
           `  Future<${out.type}> ${op.operationId}(${args.length ? `{${args.join(", ")}}` : ""}) async {`,
-          `    final json = await _send('${method.toUpperCase()}', '${url}'${body ? ", body: body.toJson()" : ""}${queryArg});`,
+          filesField
+            ? `    final json = await _sendFiles('${method.toUpperCase()}', '${url}', '${filesField}', files);`
+            : `    final json = await _send('${method.toUpperCase()}', '${url}'${body ? ", body: body.toJson()" : ""}${queryArg});`,
           `    return ${out.from("json")};`,
           "  }",
         ].join("\n"),
@@ -156,7 +165,21 @@ class MybookApi {
       request.headers['content-type'] = 'application/json';
       request.body = jsonEncode(body);
     }
-    final res = await http.Response.fromStream(await _http.send(request));
+    return _read(await http.Response.fromStream(await _http.send(request)));
+  }
+
+  /// Загрузка файлов (multipart/form-data): каждый файл — в поле [field]; filename у MultipartFile обязателен.
+  Future<dynamic> _sendFiles(String method, String path, String field, List<http.MultipartFile> files) async {
+    final request = http.MultipartRequest(method, Uri.parse(baseUrl + path));
+    request.headers['accept'] = 'application/json';
+    if (token != null) request.headers['authorization'] = 'Bearer $token';
+    for (final f in files) {
+      request.files.add(f.field == field ? f : http.MultipartFile(field, f.finalize(), f.length, filename: f.filename, contentType: f.contentType));
+    }
+    return _read(await http.Response.fromStream(await _http.send(request)));
+  }
+
+  dynamic _read(http.Response res) {
     final text = utf8.decode(res.bodyBytes);
     final data = text.isEmpty ? null : jsonDecode(text);
     if (res.statusCode >= 400) {

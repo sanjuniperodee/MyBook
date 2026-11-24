@@ -1,6 +1,6 @@
 /** Книги клиента в API v1: виды книг, создание, список, книга для редактора (с фото), автосохранение ответа. */
 import { z } from "zod";
-import { iso, route, schemas, uuid, type RouteDef } from "./core";
+import { Ok, iso, route, schemas, uuid, type RouteDef } from "./core";
 
 export const BookStatus = z.enum(["draft", "ordered"]);
 const Gender = z.enum(["m", "f"]);
@@ -173,6 +173,45 @@ export const QuestionPatch = z
   .strict()
   .register(schemas, { id: "QuestionPatch" });
 
+/** Правка фото (одна): подпись, раскладка, место, кадр, стиль в тексте. Правила места проверяет домен (Photo.update). Лимиты — как у сайта. */
+export const PhotoPatch = z
+  .object({
+    caption: z.string().trim().max(200),
+    layout: z.enum(["full", "bleed", "half", "grid"]),
+    questionId: uuid.nullable(),
+    inline: z
+      .object({
+        width: z.number().min(25).max(100),
+        align: z.enum(["left", "center", "right"]),
+        anchor: z.number().int().min(-1).max(10_000).nullable(),
+        aspect: z.enum(["original", "1:1", "4:3", "3:4", "16:9"]),
+        focusX: z.number().min(0).max(1),
+        focusY: z.number().min(0).max(1),
+        frame: z.enum(["none", "line", "polaroid", "round"]),
+        page: z.boolean().optional(),
+        pageFit: z.literal("contain").optional(),
+        keepSize: z.boolean().optional(),
+        // Отступ сверху — доля полосы набора; предел (0,6) приводит normalizeStyle.
+        spaceAbove: z.number().min(0).max(1).optional(),
+        breakBefore: z.boolean().optional(),
+      })
+      .strict()
+      .nullable(),
+    chapter: z.string().regex(/^[\w-]{1,80}$/).nullable(),
+    opener: z.boolean(),
+    // Кадр автора: точка (доли снимка) и приближение (до 3); пределы приводит домен (normalizeCrop).
+    crop: z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1), zoom: z.number().min(1).max(3) }).strict().nullable(),
+  })
+  .partial()
+  .strict()
+  .register(schemas, { id: "PhotoPatch" });
+
+/** Итог загрузки: новые фото и ошибки по файлам (текст на языке пользователя: формат, размер, повреждён). */
+export const PhotoUploadResult = z.object({ photos: z.array(Photo), errors: z.array(z.string()) }).register(schemas, { id: "PhotoUploadResult" });
+
+/** Фото после правки и версия правил раскладки книги (правка места может перевести книгу на правила 2). */
+export const PhotoSaved = z.object({ photo: Photo, layoutRev: z.number().int() }).register(schemas, { id: "PhotoSaved" });
+
 export const Saved = z.object({ ok: z.literal(true), updatedAt: iso }).register(schemas, { id: "Saved" });
 
 const BookParams = z.object({ bookId: uuid });
@@ -192,4 +231,25 @@ export const booksRoutes = {
     body: QuestionPatch,
     response: Saved,
   }),
+  photoUpload: route({
+    method: "POST",
+    path: "/api/v1/books/{bookId}/photos",
+    auth: "user",
+    tag: "books",
+    summary: "Загрузка фото книги (multipart, поле files; JPEG, PNG, HEIC, WebP); лимит — maxPhotos из bookEditor",
+    params: BookParams,
+    files: { field: "files" },
+    response: PhotoUploadResult,
+  }),
+  photoUpdate: route({
+    method: "PATCH",
+    path: "/api/v1/books/{bookId}/photos/{photoId}",
+    auth: "user",
+    tag: "books",
+    summary: "Правка фото: подпись, раскладка, место (к ответу или в альбом), кадр",
+    params: z.object({ bookId: uuid, photoId: uuid }),
+    body: PhotoPatch,
+    response: PhotoSaved,
+  }),
+  photoDelete: route({ method: "DELETE", path: "/api/v1/books/{bookId}/photos/{photoId}", auth: "user", tag: "books", summary: "Удалить фото", params: z.object({ bookId: uuid, photoId: uuid }), response: Ok }),
 } as const satisfies Record<string, RouteDef>;

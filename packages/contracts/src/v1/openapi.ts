@@ -47,6 +47,9 @@ export function openapi(): Json {
       ...(r.auth === "none" ? { security: [] } : {}),
       ...(parameters(r).length ? { parameters: parameters(r) } : {}),
       ...(r.body ? { requestBody: { required: true, content: { "application/json": { schema: schemaOf(r.body, `${name}: body`) } } } } : {}),
+      ...(r.files
+        ? { requestBody: { required: true, content: { "multipart/form-data": { schema: { type: "object", properties: { [r.files.field]: { type: "array", items: { type: "string", format: "binary" } } }, required: [r.files.field] } } } } }
+        : {}),
       responses: {
         "200": { description: "OK", content: { "application/json": { schema: schemaOf(r.response, `${name}: response`) } } },
         default: { description: "Ошибка: текст для экрана и код", content: { "application/json": { schema: schemaOf(ApiError, "ApiError") } } },

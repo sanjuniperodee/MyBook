@@ -31,7 +31,21 @@ class MybookApi {
       request.headers['content-type'] = 'application/json';
       request.body = jsonEncode(body);
     }
-    final res = await http.Response.fromStream(await _http.send(request));
+    return _read(await http.Response.fromStream(await _http.send(request)));
+  }
+
+  /// Загрузка файлов (multipart/form-data): каждый файл — в поле [field]; filename у MultipartFile обязателен.
+  Future<dynamic> _sendFiles(String method, String path, String field, List<http.MultipartFile> files) async {
+    final request = http.MultipartRequest(method, Uri.parse(baseUrl + path));
+    request.headers['accept'] = 'application/json';
+    if (token != null) request.headers['authorization'] = 'Bearer $token';
+    for (final f in files) {
+      request.files.add(f.field == field ? f : http.MultipartFile(field, f.finalize(), f.length, filename: f.filename, contentType: f.contentType));
+    }
+    return _read(await http.Response.fromStream(await _http.send(request)));
+  }
+
+  dynamic _read(http.Response res) {
     final text = utf8.decode(res.bodyBytes);
     final data = text.isEmpty ? null : jsonDecode(text);
     if (res.statusCode >= 400) {
@@ -93,6 +107,24 @@ class MybookApi {
   Future<Saved> questionSave({required String bookId, required String questionId, required QuestionPatch body}) async {
     final json = await _send('PATCH', '/api/v1/books/${Uri.encodeComponent(bookId)}/questions/${Uri.encodeComponent(questionId)}', body: body.toJson());
     return Saved.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Загрузка фото книги (multipart, поле files; JPEG, PNG, HEIC, WebP); лимит — maxPhotos из bookEditor
+  Future<PhotoUploadResult> photoUpload({required String bookId, required List<http.MultipartFile> files}) async {
+    final json = await _sendFiles('POST', '/api/v1/books/${Uri.encodeComponent(bookId)}/photos', 'files', files);
+    return PhotoUploadResult.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Правка фото: подпись, раскладка, место (к ответу или в альбом), кадр
+  Future<PhotoSaved> photoUpdate({required String bookId, required String photoId, required PhotoPatch body}) async {
+    final json = await _send('PATCH', '/api/v1/books/${Uri.encodeComponent(bookId)}/photos/${Uri.encodeComponent(photoId)}', body: body.toJson());
+    return PhotoSaved.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Удалить фото
+  Future<Ok> photoDelete({required String bookId, required String photoId}) async {
+    final json = await _send('DELETE', '/api/v1/books/${Uri.encodeComponent(bookId)}/photos/${Uri.encodeComponent(photoId)}');
+    return Ok.fromJson(json as Map<String, dynamic>);
   }
 
   /// Полка «Мои книги» — как на сайте: книги в работе первыми, прогресс, срок к празднику, заказ, обложка
@@ -456,6 +488,81 @@ class QuestionPatch {
   factory QuestionPatch.fromJson(Map<String, dynamic> json) => QuestionPatch(answer: json['answer'] == null ? null : json['answer'] as String, displayText: json['displayText'] == null ? null : json['displayText'] as String, hideHeading: json['hideHeading'] == null ? null : json['hideHeading'] as bool, pageBreak: json['pageBreak'] == null ? null : json['pageBreak'] as bool, media: json['media'] == null ? null : (json['media'] as List).map((e) => AnswerMedia.fromJson(e as Map<String, dynamic>)).toList(), title: json['title'] == null ? null : json['title'] as String, prompt: json['prompt'] == null ? null : json['prompt'] as String);
 
   Map<String, dynamic> toJson() => {if (answer != null) 'answer': answer == null ? null : answer!, if (displayText != null) 'displayText': displayText == null ? null : displayText!, if (hideHeading != null) 'hideHeading': hideHeading == null ? null : hideHeading!, if (pageBreak != null) 'pageBreak': pageBreak == null ? null : pageBreak!, if (media != null) 'media': media == null ? null : media!.map((e) => e.toJson()).toList(), if (title != null) 'title': title == null ? null : title!, if (prompt != null) 'prompt': prompt == null ? null : prompt!};
+}
+
+class PhotoPatch {
+  final String? caption;
+  /// full | bleed | half | grid
+  final String? layout;
+  final String? questionId;
+  final PhotoPatchInline? inline;
+  final String? chapter;
+  final bool? opener;
+  final PhotoPatchCrop? crop;
+
+  const PhotoPatch({this.caption, this.layout, this.questionId, this.inline, this.chapter, this.opener, this.crop});
+
+  factory PhotoPatch.fromJson(Map<String, dynamic> json) => PhotoPatch(caption: json['caption'] == null ? null : json['caption'] as String, layout: json['layout'] == null ? null : json['layout'] as String, questionId: json['questionId'] == null ? null : json['questionId'] as String, inline: json['inline'] == null ? null : PhotoPatchInline.fromJson(json['inline'] as Map<String, dynamic>), chapter: json['chapter'] == null ? null : json['chapter'] as String, opener: json['opener'] == null ? null : json['opener'] as bool, crop: json['crop'] == null ? null : PhotoPatchCrop.fromJson(json['crop'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {if (caption != null) 'caption': caption == null ? null : caption!, if (layout != null) 'layout': layout == null ? null : layout!, if (questionId != null) 'questionId': questionId == null ? null : questionId!, if (inline != null) 'inline': inline == null ? null : inline!.toJson(), if (chapter != null) 'chapter': chapter == null ? null : chapter!, if (opener != null) 'opener': opener == null ? null : opener!, if (crop != null) 'crop': crop == null ? null : crop!.toJson()};
+}
+
+class PhotoPatchInline {
+  final double width;
+  /// left | center | right
+  final String align;
+  final int? anchor;
+  /// original | 1:1 | 4:3 | 3:4 | 16:9
+  final String aspect;
+  final double focusX;
+  final double focusY;
+  /// none | line | polaroid | round
+  final String frame;
+  final bool? page;
+  final String? pageFit;
+  final bool? keepSize;
+  final double? spaceAbove;
+  final bool? breakBefore;
+
+  const PhotoPatchInline({required this.width, required this.align, this.anchor, required this.aspect, required this.focusX, required this.focusY, required this.frame, this.page, this.pageFit, this.keepSize, this.spaceAbove, this.breakBefore});
+
+  factory PhotoPatchInline.fromJson(Map<String, dynamic> json) => PhotoPatchInline(width: (json['width'] as num).toDouble(), align: json['align'] as String, anchor: json['anchor'] == null ? null : (json['anchor'] as num).toInt(), aspect: json['aspect'] as String, focusX: (json['focusX'] as num).toDouble(), focusY: (json['focusY'] as num).toDouble(), frame: json['frame'] as String, page: json['page'] == null ? null : json['page'] as bool, pageFit: json['pageFit'] == null ? null : json['pageFit'] as String, keepSize: json['keepSize'] == null ? null : json['keepSize'] as bool, spaceAbove: json['spaceAbove'] == null ? null : (json['spaceAbove'] as num).toDouble(), breakBefore: json['breakBefore'] == null ? null : json['breakBefore'] as bool);
+
+  Map<String, dynamic> toJson() => {'width': width, 'align': align, if (anchor != null) 'anchor': anchor == null ? null : anchor!, 'aspect': aspect, 'focusX': focusX, 'focusY': focusY, 'frame': frame, if (page != null) 'page': page == null ? null : page!, if (pageFit != null) 'pageFit': pageFit == null ? null : pageFit!, if (keepSize != null) 'keepSize': keepSize == null ? null : keepSize!, if (spaceAbove != null) 'spaceAbove': spaceAbove == null ? null : spaceAbove!, if (breakBefore != null) 'breakBefore': breakBefore == null ? null : breakBefore!};
+}
+
+class PhotoPatchCrop {
+  final double x;
+  final double y;
+  final double zoom;
+
+  const PhotoPatchCrop({required this.x, required this.y, required this.zoom});
+
+  factory PhotoPatchCrop.fromJson(Map<String, dynamic> json) => PhotoPatchCrop(x: (json['x'] as num).toDouble(), y: (json['y'] as num).toDouble(), zoom: (json['zoom'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'x': x, 'y': y, 'zoom': zoom};
+}
+
+class PhotoUploadResult {
+  final List<Photo> photos;
+  final List<String> errors;
+
+  const PhotoUploadResult({required this.photos, required this.errors});
+
+  factory PhotoUploadResult.fromJson(Map<String, dynamic> json) => PhotoUploadResult(photos: (json['photos'] as List).map((e) => Photo.fromJson(e as Map<String, dynamic>)).toList(), errors: (json['errors'] as List).map((e) => e as String).toList());
+
+  Map<String, dynamic> toJson() => {'photos': photos.map((e) => e.toJson()).toList(), 'errors': errors.map((e) => e).toList()};
+}
+
+class PhotoSaved {
+  final Photo photo;
+  final int layoutRev;
+
+  const PhotoSaved({required this.photo, required this.layoutRev});
+
+  factory PhotoSaved.fromJson(Map<String, dynamic> json) => PhotoSaved(photo: Photo.fromJson(json['photo'] as Map<String, dynamic>), layoutRev: (json['layoutRev'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'photo': photo.toJson(), 'layoutRev': layoutRev};
 }
 
 class Saved {

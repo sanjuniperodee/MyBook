@@ -47,8 +47,16 @@ export function createApiClient(opts: ApiClientOptions): ApiClient {
     client[name] = async (input = {}) => {
       const headers: Record<string, string> = { accept: "application/json", ...opts.headers };
       if (opts.token) headers.authorization = `Bearer ${opts.token}`;
-      if (r.body) headers["content-type"] = "application/json";
-      const res = await f(opts.baseUrl + buildUrl(r, input), { method: r.method, headers, body: r.body ? JSON.stringify(input.body ?? {}) : undefined });
+      let body: BodyInit | undefined;
+      if (r.files) {
+        const form = new FormData();
+        for (const file of (input.files as Blob[] | undefined) ?? []) form.append(r.files.field, file);
+        body = form;
+      } else if (r.body) {
+        headers["content-type"] = "application/json";
+        body = JSON.stringify(input.body ?? {});
+      }
+      const res = await f(opts.baseUrl + buildUrl(r, input), { method: r.method, headers, body });
       const data = (await res.json().catch(() => ({}))) as { error?: string; code?: string };
       if (!res.ok) throw new ApiClientError(res.status, data.code, data.error ?? res.statusText);
       return data;

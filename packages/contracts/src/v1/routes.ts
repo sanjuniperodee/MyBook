@@ -33,5 +33,6 @@ export type V1 = typeof v1;
 export type RouteName = keyof V1;
 export type Input<N extends RouteName> = (V1[N] extends { params: infer P extends z.ZodType } ? z.input<P> : unknown) &
   (V1[N] extends { query: infer Q extends z.ZodType } ? z.input<Q> : unknown) &
-  (V1[N] extends { body: infer B extends z.ZodType } ? { body: z.input<B> } : unknown);
+  (V1[N] extends { body: infer B extends z.ZodType } ? { body: z.input<B> } : unknown) &
+  (V1[N] extends { files: object } ? { files: Blob[] } : unknown);
 export type Output<N extends RouteName> = z.output<V1[N]["response"]>;

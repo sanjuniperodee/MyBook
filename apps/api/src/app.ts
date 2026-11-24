@@ -4,7 +4,7 @@
  * api() (src/server/api.ts): тексты на языке пользователя, домен и права — как у веба.
  */
 import { openapi, v1, type Input, type Output, type RouteDef, type RouteName } from "@mybook/contracts";
-import { api } from "@/server/api";
+import { api, HttpError } from "@/server/api";
 import type { User } from "@/shared/infrastructure/db/schema";
 import { createRouter } from "./http/router";
 
@@ -33,6 +33,12 @@ async function readInput(req: Request, route: RouteDef, params: Record<string, s
   if (route.params) Object.assign(input, route.params.parse(params));
   if (route.query) Object.assign(input, route.query.parse(Object.fromEntries(new URL(req.url).searchParams)));
   if (route.body) input.body = route.body.parse(await req.json());
+  if (route.files) {
+    const form = await req.formData().catch(() => {
+      throw new HttpError(400, "badRequest");
+    });
+    input.files = form.getAll(route.files.field).filter((f): f is File => f instanceof File && f.size > 0);
+  }
   return input;
 }
 

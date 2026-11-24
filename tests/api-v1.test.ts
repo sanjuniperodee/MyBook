@@ -2,11 +2,12 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import { ANSWER_MAX, SECTION_PROMPT_MAX, SECTION_TITLE_MAX } from "@/lib/content/kinds";
 import { MAX_MEDIA } from "@/lib/book/answer-media";
+import { CROP_ZOOM_MAX } from "@/lib/book/photo-crop";
 
 // API v1 (ADR 0012): контракт первым (packages/contracts), сервер — apps/api.
 vi.mock("@/i18n/server", async () => ({ getMessages: async () => ({ api: (await import("@/i18n/messages/ru/api")).api }), getLocale: async () => "ru" }));
 
-const { v1, QuestionPatch, openapi } = await import("@mybook/contracts");
+const { v1, QuestionPatch, PhotoPatch, openapi } = await import("@mybook/contracts");
 const { createApp } = await import("../apps/api/src/app");
 const { createRouter } = await import("../apps/api/src/http/router");
 const { handlers } = await import("../apps/api/src/routes");
@@ -55,6 +56,9 @@ describe("контракт", () => {
     expect(ok({ media: media(MAX_MEDIA) })).toBe(true);
     expect(ok({ media: media(MAX_MEDIA + 1) })).toBe(false);
     expect(ok({ unknown: 1 })).toBe(false);
+    const crop = (zoom: number) => PhotoPatch.safeParse({ crop: { x: 0.5, y: 0.5, zoom } }).success;
+    expect(crop(CROP_ZOOM_MAX)).toBe(true);
+    expect(crop(CROP_ZOOM_MAX + 0.01)).toBe(false);
   });
 
   it("OpenAPI: каждая операция с operationId, телом ответа-компонентом и схемой ошибки", () => {
@@ -128,5 +132,15 @@ describe("приложение", () => {
     const { getThemes } = await import("@/lib/content/themes");
     expect(themes.map((t: { id: string }) => t.id)).toEqual(getThemes("kk").map((t) => t.id));
     expect(themes.find((t: { kind: string }) => t.kind === "blank")).toMatchObject({ recipient: "optional" });
+  });
+
+  it("загрузка: multipart с полем files доходит до обработчика файлами, пустые отброшены", async () => {
+    const photoUpload = vi.fn(async ({ input }: { input: { files: File[] } }) => ({ photos: [], errors: input.files.map((f) => f.name) }));
+    const form = new FormData();
+    form.append("files", new File([new Uint8Array([1, 2, 3])], "a.jpg", { type: "image/jpeg" }));
+    form.append("files", new File([], "empty.jpg"));
+    const res = await createApp({ ...handlers, photoUpload } as never, fakeAuth())(new Request(`http://127.0.0.1:3044/api/v1/books/${BOOK}/photos`, { method: "POST", body: form }));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ photos: [], errors: ["a.jpg"] });
   });
 });
