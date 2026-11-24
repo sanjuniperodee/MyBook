@@ -7,7 +7,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { asciiBundle } from "./ascii-bundle.mjs";
 
-export const EXTERNAL = ["@react-pdf/renderer", "sharp", "pdf-lib", "hyphen", "pg", "archiver", "hunspell-asm", "heic-decode", "libheif-js", "react", "react-dom"];
+export const EXTERNAL = ["@react-pdf/renderer", "@react-pdf/layout", "sharp", "pdf-lib", "hyphen", "pg", "archiver", "hunspell-asm", "heic-decode", "libheif-js", "react", "react-dom"];
 
 /** Собрать entry в .next/standalone/<name>.mjs; nextShim — чем заменить next/server, next/headers, next/navigation. */
 export async function bundleNodeProcess({ name, entry, nextShim }) {

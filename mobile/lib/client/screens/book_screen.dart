@@ -18,6 +18,7 @@ import 'answer_screen.dart';
 import 'checkout_screen.dart';
 import 'help_sheet.dart';
 import 'order_screen.dart';
+import 'preview_screen.dart';
 import 'photos_screen.dart';
 
 /// Штаб книги — как страница книги на сайте (src/app/(app)/books/[id]/page.tsx): книга, следующий шаг, срок к празднику,
@@ -162,6 +163,8 @@ class _BookScreenState extends State<BookScreen> {
       return _photos;
     if (parts.length >= 3 && parts[0] == 'books' && parts[2] == 'checkout')
       return _checkout;
+    if (parts.length >= 3 && parts[0] == 'books' && parts[2] == 'preview' && _hub != null)
+      return _preview;
     if (parts.length >= 2 && parts[0] == 'orders')
       return () => _openOrder(parts[1]);
     return null;
@@ -169,6 +172,11 @@ class _BookScreenState extends State<BookScreen> {
 
   Future<void> _checkout() async {
     await Navigator.of(context).push(CabinetRoute<void>(builder: (_) => CheckoutScreen(bookId: widget.summary.id, bookTitle: _hub?.title ?? widget.summary.title)));
+    _loadHub();
+  }
+
+  Future<void> _preview() async {
+    await Navigator.of(context).push(CabinetRoute<void>(builder: (_) => PreviewScreen(hub: _hub!)));
     _loadHub();
   }
 

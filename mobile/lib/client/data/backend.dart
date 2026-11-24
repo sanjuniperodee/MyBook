@@ -34,6 +34,10 @@ abstract class ClientBackend {
   /// Помощник по книге: беседа и подсказки (section — раздел кабинета для частых вопросов), вопрос.
   Future<v1api.CabinetHelp> help(String bookId, String section);
 
+  // ── Макет книги (экранная сборка) ──
+  Future<v1api.BuildState> build(String bookId, {bool retry = false});
+  Future<v1api.BuildProgress> buildProgress(String bookId);
+
   // ── Заказ и оплата ──
   Future<v1api.CabinetCheckout> checkout(String bookId);
   Future<v1api.CheckoutQuote> quote(String bookId, v1api.CheckoutQuoteBody body);
@@ -150,6 +154,12 @@ class ApiBackend implements ClientBackend {
 
   @override
   Future<v1api.CabinetPhotos> photosTab(String bookId) => _call(() => v1.cabinetPhotos(bookId: bookId));
+
+  @override
+  Future<v1api.BuildState> build(String bookId, {bool retry = false}) => _call(() => v1.bookBuild(bookId: bookId, retry: retry ? '1' : null));
+
+  @override
+  Future<v1api.BuildProgress> buildProgress(String bookId) => _call(() => v1.bookBuildProgress(bookId: bookId));
 
   @override
   Future<v1api.CabinetCheckout> checkout(String bookId) => _call(() => v1.cabinetCheckout(bookId: bookId));
