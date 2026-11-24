@@ -31,7 +31,7 @@ async function measure(name: string, run: (report: RenderReport) => Promise<{ by
   const timer = setInterval(() => (peak = Math.max(peak, workerRss())), 200);
   const t0 = performance.now();
   const res = await run((e) => {
-    if ("stage" in e && e.stage) stages.push(`${e.stage}@${((performance.now() - t0) / 1000).toFixed(1)}s`);
+    if ("stage" in e && e.stage) stages.push(`${e.stage}@${((performance.now() - t0) / 1000).toFixed(1)}s ${Math.round(workerRss())} МБ`);
   });
   const ms = performance.now() - t0;
   clearInterval(timer);
