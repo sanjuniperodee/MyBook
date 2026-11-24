@@ -145,21 +145,34 @@ echo off      > ~/mybook-flags/files-service   # откат: сайт отдаё
 Сервис не отвечает (`pm2 stop mybook-files`, упал) — сайт сам отдаёт файлы старым путём (проверка `/healthz` раз в 10 с).
 Сверка со старым путём перед включением: `scripts/files/parity.ts` (как запускать — в шапке файла), условие — 0 расхождений.
 
-**Строка nginx (нужен sudo — делает владелец).** Чтобы байты в режиме `redirect` шли мимо Next, в `server` сайта
-mybooks.kz (`/etc/nginx/sites-enabled/mybooks-kz`) перед `location /`:
+**nginx — включено 24.11.** В `server` сайта (`/etc/nginx/sites-available/mybooks-kz`) перед `location /` стоит блок,
+байты `/files/` идут из nginx сразу в Go, мимо Next:
 
 ```nginx
 location ^~ /files/ {
     proxy_pass http://127.0.0.1:3050;
     proxy_http_version 1.1;
     proxy_set_header Connection "";
+    proxy_set_header Host $host;
     proxy_buffering off;
     proxy_read_timeout 1h;
+    proxy_send_timeout 1h;
 }
 ```
 
-`sudo nginx -t && sudo systemctl reload nginx`. Откат — удалить блок и перезагрузить nginx (или `echo off` в флаг выше:
-ссылок `/files/` сайт тогда не выдаёт).
+Режим сейчас — `redirect`. Маршруты со своим ETag (фото) и в `redirect` идут как `proxy`: 302 браузер не кэширует, и
+фото стало бы двумя запросами вместо одного 304.
+
+**Откат.** Быстрый, без sudo: `echo proxy > ~/mybook-flags/files-service` (или `off`) — сайт перестаёт выдавать ссылки
+`/files/` за ≤ 10 с, блок nginx остаётся, но не используется. Полный (нужен sudo, вход `ubuntu@` с ключом администратора):
+
+```sh
+sudo cp /etc/nginx/backup-2026-11-24/mybooks-kz /etc/nginx/sites-available/mybooks-kz
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+На сервере же ILM HUB и my-test — их конфиги не трогать. `/_next/static` с диска nginx не отдаёт: `/home/srv` закрыт
+(700) для `www-data`, открывать домашнюю папку ради этого не стали.
 
 ## 3. Миграции
 

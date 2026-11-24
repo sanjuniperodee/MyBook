@@ -4,6 +4,7 @@
 import { build } from "esbuild";
 import { existsSync } from "node:fs";
 import path from "node:path";
+import { asciiBundle } from "./ascii-bundle.mjs";
 
 const out = path.join(".next", "standalone", "pdf-worker.mjs");
 if (!existsSync(path.dirname(out))) {
@@ -28,6 +29,10 @@ await build({
   alias: { "server-only": "./scripts/empty-module.mjs", "react/jsx-runtime": "./scripts/pdf-worker-jsx.mjs" },
   // require внутри бандла — для CommonJS-кода, вшитого в ESM-файл.
   banner: { js: 'import { createRequire as __mbCreateRequire } from "node:module"; const require = __mbCreateRequire(import.meta.url);' },
+  // Без пробелов и комментариев, исходник — чистый ASCII (как mybook-worker, scripts/build-worker.mjs): V8 держит его
+  // в куче однобайтной строкой. Откат — MYBOOK_WORKER_MINIFY=off.
+  minifyWhitespace: process.env.MYBOOK_WORKER_MINIFY !== "off",
   logLevel: "warning",
 });
+asciiBundle(out);
 console.log(`pdf-worker: ${out}`);

@@ -1,8 +1,10 @@
 // Нагрузка файлами на пробный экземпляр: node fileload.mjs <порт> <параллельно> <запросов> <токен>...
 // Половина — целиком, половина — Range (как плеер). Печатает TTFB p50/p95, МБ/с, CPU и пик RSS процесса.
+// BASE=https://mybooks.kz — через nginx (режим redirect: 302 и /files/ мимо Next), PID_FILE — чей RSS мерить (прод: ~/.pm2/pids/mybook-<n>.pid).
 import fs from "node:fs";
 const [port, conc, total, ...tokens] = process.argv.slice(2);
-const pid = fs.readFileSync(`${process.env.HOME}/gopilot/probe-${port}.pid`, "utf8").trim();
+const pid = fs.readFileSync(process.env.PID_FILE || `${process.env.HOME}/gopilot/probe-${port}.pid`, "utf8").trim();
+const base = process.env.BASE || `http://localhost:${port}`;
 const cpuOf = (p) => { const f = fs.readFileSync(`/proc/${p}/stat`, "utf8").split(") ")[1].split(" "); return (Number(f[11]) + Number(f[12])) / 100; };
 const cpu = () => cpuOf(pid);
 const goPid = fs.readdirSync(`${process.env.HOME}/.pm2/pids`).filter((f) => f.startsWith("mybook-files-")).map((f) => fs.readFileSync(`${process.env.HOME}/.pm2/pids/${f}`, "utf8").trim())[0];
@@ -20,7 +22,7 @@ async function worker() {
     const headers = n % 2 ? { range: `bytes=${(n * 7919) % 100000}-` } : {};
     const s = performance.now();
     try {
-      const r = await fetch(`http://localhost:${port}/api/v/${tok}`, { headers });
+      const r = await fetch(`${base}/api/v/${tok}`, { headers });
       const reader = r.body.getReader();
       let first = true;
       for (;;) { const { done, value } = await reader.read(); if (first) { ttfb.push(performance.now() - s); first = false; } if (done) break; bytes += value.length; }

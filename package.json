@@ -91,6 +91,7 @@
     "@types/react-dom": "^19.3.0",
     "@types/three": "^0.186.0",
     "@types/web-push": "^3.6.4",
+    "acorn": "^8.19.0",
     "drizzle-kit": "^0.31.11",
     "esbuild": "^0.28.2",
     "eslint": "^9.39.5",

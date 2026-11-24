@@ -5,6 +5,7 @@
 import { build } from "esbuild";
 import { existsSync } from "node:fs";
 import path from "node:path";
+import { asciiBundle } from "./ascii-bundle.mjs";
 
 const out = path.join(".next", "standalone", "worker.mjs");
 if (!existsSync(path.dirname(out))) {
@@ -41,6 +42,11 @@ await build({
       "const __dirname = __mbDirname(__filename);",
     ].join(" "),
   },
+  // Без пробелов и комментариев (имена функций те же — в журналах ошибок видно, где упало): исходник бандла V8 держит
+  // в куче строкой, а русские комментарии делали её двухбайтной — ~30 МБ на 15 МБ файла (замер G4, perf.md).
+  // Откат — MYBOOK_WORKER_MINIFY=off; экранирование не-ASCII (scripts/ascii-bundle.mjs) — MYBOOK_ASCII_BUNDLE=off.
+  minifyWhitespace: process.env.MYBOOK_WORKER_MINIFY !== "off",
   logLevel: "warning",
 });
+asciiBundle(out);
 console.log(`worker: ${out}`);
