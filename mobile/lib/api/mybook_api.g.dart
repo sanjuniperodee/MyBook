@@ -190,37 +190,37 @@ class MybookApi {
 
   /// Отзыв к заказу: можно ли оставить и свой отзыв
   Future<ReviewView> reviewGet({required String orderId}) async {
-    final json = await _send('GET', '/api/v1/orders/${Uri.encodeComponent(orderId)}/review');
+    final json = await _send('GET', '/api/v1/orders/${Uri.encodeComponent('$orderId')}/review');
     return ReviewView.fromJson(json as Map<String, dynamic>);
   }
 
   /// Оставить или поправить отзыв (фото не трогает)
   Future<Review> reviewSubmit({required String orderId, required ReviewBody body}) async {
-    final json = await _send('PUT', '/api/v1/orders/${Uri.encodeComponent(orderId)}/review', body: body.toJson());
+    final json = await _send('PUT', '/api/v1/orders/${Uri.encodeComponent('$orderId')}/review', body: body.toJson());
     return Review.fromJson(json as Map<String, dynamic>);
   }
 
   /// Фото к отзыву (multipart, поле photo; до 15 МБ) — после reviewSubmit
   Future<Review> reviewPhotoSet({required String orderId, required List<http.MultipartFile> files}) async {
-    final json = await _sendFiles('POST', '/api/v1/orders/${Uri.encodeComponent(orderId)}/review/photo', 'photo', files);
+    final json = await _sendFiles('POST', '/api/v1/orders/${Uri.encodeComponent('$orderId')}/review/photo', 'photo', files);
     return Review.fromJson(json as Map<String, dynamic>);
   }
 
   /// Убрать фото из отзыва
   Future<Review> reviewPhotoDelete({required String orderId}) async {
-    final json = await _send('DELETE', '/api/v1/orders/${Uri.encodeComponent(orderId)}/review/photo');
+    final json = await _send('DELETE', '/api/v1/orders/${Uri.encodeComponent('$orderId')}/review/photo');
     return Review.fromJson(json as Map<String, dynamic>);
   }
 
   /// Обложка книги и каталог шаблонов
   Future<CoverView> coverGet({required String bookId}) async {
-    final json = await _send('GET', '/api/v1/books/${Uri.encodeComponent(bookId)}/cover');
+    final json = await _send('GET', '/api/v1/books/${Uri.encodeComponent('$bookId')}/cover');
     return CoverView.fromJson(json as Map<String, dynamic>);
   }
 
   /// Правка обложки (только изменённые поля): шаблон, линии, тексты, фото
   Future<CoverView> coverUpdate({required String bookId, required CoverPatch body}) async {
-    final json = await _send('PATCH', '/api/v1/books/${Uri.encodeComponent(bookId)}/cover', body: body.toJson());
+    final json = await _send('PATCH', '/api/v1/books/${Uri.encodeComponent('$bookId')}/cover', body: body.toJson());
     return CoverView.fromJson(json as Map<String, dynamic>);
   }
 
@@ -256,19 +256,19 @@ class MybookApi {
 
   /// Оформление заказа — как на сайте: проверка макета, тарифы, доставка, допы, договорённость
   Future<CabinetCheckout> cabinetCheckout({required String bookId}) async {
-    final json = await _send('GET', '/api/v1/cabinet/books/${Uri.encodeComponent(bookId)}/checkout');
+    final json = await _send('GET', '/api/v1/cabinet/books/${Uri.encodeComponent('$bookId')}/checkout');
     return CabinetCheckout.fromJson(json as Map<String, dynamic>);
   }
 
   /// Итог по выбранному: строки чека и «К оплате» (правила цены сервера), проверка промокода
   Future<CheckoutQuote> cabinetCheckoutQuote({required String bookId, required CheckoutQuoteBody body}) async {
-    final json = await _send('POST', '/api/v1/cabinet/books/${Uri.encodeComponent(bookId)}/checkout/quote', body: body.toJson());
+    final json = await _send('POST', '/api/v1/cabinet/books/${Uri.encodeComponent('$bookId')}/checkout/quote', body: body.toJson());
     return CheckoutQuote.fromJson(json as Map<String, dynamic>);
   }
 
   /// Оформить заказ (те же проверки, что у формы сайта)
   Future<OrderPlaced> cabinetOrderPlace({required String bookId, required OrderPlaceBody body}) async {
-    final json = await _send('POST', '/api/v1/cabinet/books/${Uri.encodeComponent(bookId)}/orders', body: body.toJson());
+    final json = await _send('POST', '/api/v1/cabinet/books/${Uri.encodeComponent('$bookId')}/orders', body: body.toJson());
     return OrderPlaced.fromJson(json as Map<String, dynamic>);
   }
 
@@ -280,31 +280,31 @@ class MybookApi {
 
   /// Заказ — как на сайте: что сейчас, этапы, детали, чек, оплата
   Future<CabinetOrder> cabinetOrder({required String orderId}) async {
-    final json = await _send('GET', '/api/v1/cabinet/orders/${Uri.encodeComponent(orderId)}');
+    final json = await _send('GET', '/api/v1/cabinet/orders/${Uri.encodeComponent('$orderId')}');
     return CabinetOrder.fromJson(json as Map<String, dynamic>);
   }
 
   /// Оплата через Kaspi: счёт в приложение Kaspi по номеру или QR-код
   Future<KaspiInvoiceResult> cabinetOrderKaspi({required String orderId, required KaspiPayBody body}) async {
-    final json = await _send('POST', '/api/v1/cabinet/orders/${Uri.encodeComponent(orderId)}/kaspi', body: body.toJson());
+    final json = await _send('POST', '/api/v1/cabinet/orders/${Uri.encodeComponent('$orderId')}/kaspi', body: body.toJson());
     return KaspiInvoiceResult.fromJson(json as Map<String, dynamic>);
   }
 
   /// Состояние счёта Kaspi (опрос, пока клиент платит)
   Future<KaspiInvoiceResult> cabinetOrderKaspiStatus({required String orderId, required String invoiceId}) async {
-    final json = await _send('GET', '/api/v1/cabinet/orders/${Uri.encodeComponent(orderId)}/kaspi/${Uri.encodeComponent(invoiceId)}');
+    final json = await _send('GET', '/api/v1/cabinet/orders/${Uri.encodeComponent('$orderId')}/kaspi/${Uri.encodeComponent('$invoiceId')}');
     return KaspiInvoiceResult.fromJson(json as Map<String, dynamic>);
   }
 
   /// «Я оплатил(а)» переводом
   Future<OkResult> cabinetOrderClaim({required String orderId}) async {
-    final json = await _send('POST', '/api/v1/cabinet/orders/${Uri.encodeComponent(orderId)}/claim');
+    final json = await _send('POST', '/api/v1/cabinet/orders/${Uri.encodeComponent('$orderId')}/claim');
     return OkResult.fromJson(json as Map<String, dynamic>);
   }
 
   /// Отменить заказ — книга снова открыта для правок
   Future<OkResult> cabinetOrderCancel({required String orderId}) async {
-    final json = await _send('POST', '/api/v1/cabinet/orders/${Uri.encodeComponent(orderId)}/cancel');
+    final json = await _send('POST', '/api/v1/cabinet/orders/${Uri.encodeComponent('$orderId')}/cancel');
     return OkResult.fromJson(json as Map<String, dynamic>);
   }
 
@@ -2849,7 +2849,7 @@ class NewClientOptions {
 
   factory NewClientOptions.fromJson(Map<String, dynamic> json) => NewClientOptions(channels: (json['channels'] as List).map((e) => Choice.fromJson(e as Map<String, dynamic>)).toList(), locales: (json['locales'] as List).map((e) => Choice.fromJson(e as Map<String, dynamic>)).toList(), plans: (json['plans'] as List).map((e) => PlanChoice.fromJson(e as Map<String, dynamic>)).toList(), payForms: (json['payForms'] as List).map((e) => e as String).toList(), stages: (json['stages'] as List).map((e) => Choice.fromJson(e as Map<String, dynamic>)).toList(), defaultStageId: json['defaultStageId'] == null ? null : json['defaultStageId'] as String, managers: (json['managers'] as List).map((e) => Choice.fromJson(e as Map<String, dynamic>)).toList(), me: json['me'] as String, canAssign: json['canAssign'] as bool, canDeal: json['canDeal'] as bool, maxDiscountPercent: json['maxDiscountPercent'] == null ? null : (json['maxDiscountPercent'] as num).toDouble());
 
-  Map<String, dynamic> toJson() => {'channels': channels.map((e) => e.toJson()).toList(), 'locales': locales.map((e) => e.toJson()).toList(), 'plans': plans.map((e) => e.toJson()).toList(), 'payForms': payForms.map((e) => e).toList(), 'stages': stages.map((e) => e.toJson()).toList(), 'defaultStageId': defaultStageId == null ? null : defaultStageId!, 'managers': managers.map((e) => e.toJson()).toList(), 'me': me, 'canAssign': canAssign, 'canDeal': canDeal, 'maxDiscountPercent': maxDiscountPercent == null ? null : maxDiscountPercent!};
+  Map<String, dynamic> toJson() => {'channels': channels.map((e) => e.toJson()).toList(), 'locales': locales.map((e) => e.toJson()).toList(), 'plans': plans.map((e) => e.toJson()).toList(), 'payForms': payForms.map((e) => e).toList(), 'stages': stages.map((e) => e.toJson()).toList(), 'defaultStageId': defaultStageId, 'managers': managers.map((e) => e.toJson()).toList(), 'me': me, 'canAssign': canAssign, 'canDeal': canDeal, 'maxDiscountPercent': maxDiscountPercent};
 }
 
 class NewClientDeal {
@@ -2900,7 +2900,7 @@ class DealPartOut {
 
   factory DealPartOut.fromJson(Map<String, dynamic> json) => DealPartOut(dealId: json['dealId'] as String, dealNumber: (json['dealNumber'] as num).toInt(), agreed: (json['agreed'] as num).toInt(), prepaid: (json['prepaid'] as num).toInt(), paymentId: json['paymentId'] == null ? null : json['paymentId'] as String);
 
-  Map<String, dynamic> toJson() => {'dealId': dealId, 'dealNumber': dealNumber, 'agreed': agreed, 'prepaid': prepaid, 'paymentId': paymentId == null ? null : paymentId!};
+  Map<String, dynamic> toJson() => {'dealId': dealId, 'dealNumber': dealNumber, 'agreed': agreed, 'prepaid': prepaid, 'paymentId': paymentId};
 }
 
 class NewClientResult {
@@ -2923,7 +2923,7 @@ class NewClientResult {
 
   factory NewClientResult.fromJson(Map<String, dynamic> json) => NewClientResult(clientId: json['clientId'] as String, clientName: json['clientName'] as String, dealId: json['dealId'] == null ? null : json['dealId'] as String, dealNumber: json['dealNumber'] == null ? null : (json['dealNumber'] as num).toInt(), parts: (json['parts'] as List).map((e) => DealPartOut.fromJson(e as Map<String, dynamic>)).toList(), count: (json['count'] as num).toInt(), loginText: json['loginText'] as String, password: json['password'] as String, loginUrl: json['loginUrl'] as String, message: json['message'] as String, agreed: (json['agreed'] as num).toInt(), prepaid: (json['prepaid'] as num).toInt(), remainder: (json['remainder'] as num).toInt(), tasks: (json['tasks'] as num).toInt());
 
-  Map<String, dynamic> toJson() => {'clientId': clientId, 'clientName': clientName, 'dealId': dealId == null ? null : dealId!, 'dealNumber': dealNumber == null ? null : dealNumber!, 'parts': parts.map((e) => e.toJson()).toList(), 'count': count, 'loginText': loginText, 'password': password, 'loginUrl': loginUrl, 'message': message, 'agreed': agreed, 'prepaid': prepaid, 'remainder': remainder, 'tasks': tasks};
+  Map<String, dynamic> toJson() => {'clientId': clientId, 'clientName': clientName, 'dealId': dealId, 'dealNumber': dealNumber, 'parts': parts.map((e) => e.toJson()).toList(), 'count': count, 'loginText': loginText, 'password': password, 'loginUrl': loginUrl, 'message': message, 'agreed': agreed, 'prepaid': prepaid, 'remainder': remainder, 'tasks': tasks};
 }
 
 class OrderFileLink {
@@ -2951,7 +2951,7 @@ class OrderFiles {
 
   factory OrderFiles.fromJson(Map<String, dynamic> json) => OrderFiles(canFiles: json['canFiles'] as bool, spec: json['spec'] == null ? null : OrderFilesSpec.fromJson(json['spec'] as Map<String, dynamic>), files: (json['files'] as List).map((e) => OrderFileLink.fromJson(e as Map<String, dynamic>)).toList(), packageUrl: json['packageUrl'] == null ? null : json['packageUrl'] as String, progressUrl: json['progressUrl'] as String, bookLocked: json['bookLocked'] as bool, canLock: json['canLock'] as bool);
 
-  Map<String, dynamic> toJson() => {'canFiles': canFiles, 'spec': spec == null ? null : spec!.toJson(), 'files': files.map((e) => e.toJson()).toList(), 'packageUrl': packageUrl == null ? null : packageUrl!, 'progressUrl': progressUrl, 'bookLocked': bookLocked, 'canLock': canLock};
+  Map<String, dynamic> toJson() => {'canFiles': canFiles, 'spec': spec == null ? null : spec!.toJson(), 'files': files.map((e) => e.toJson()).toList(), 'packageUrl': packageUrl, 'progressUrl': progressUrl, 'bookLocked': bookLocked, 'canLock': canLock};
 }
 
 class OrderFilesSpec {
@@ -3024,7 +3024,7 @@ class SupportFile {
 
   factory SupportFile.fromJson(Map<String, dynamic> json) => SupportFile(id: json['id'] as String, name: json['name'] as String, kind: json['kind'] as String, size: (json['size'] as num).toInt(), url: json['url'] as String, transcript: json['transcript'] == null ? null : json['transcript'] as String, transcriptError: json['transcriptError'] == null ? null : json['transcriptError'] as String);
 
-  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'kind': kind, 'size': size, 'url': url, 'transcript': transcript == null ? null : transcript!, 'transcriptError': transcriptError == null ? null : transcriptError!};
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'kind': kind, 'size': size, 'url': url, 'transcript': transcript, 'transcriptError': transcriptError};
 }
 
 class SupportTicketView {
@@ -3056,7 +3056,7 @@ class SupportTicketView {
 
   factory SupportTicketView.fromJson(Map<String, dynamic> json) => SupportTicketView(id: json['id'] as String, number: (json['number'] as num).toInt(), status: json['status'] as String, statusLabel: json['statusLabel'] as String, statuses: (json['statuses'] as List).map((e) => Choice.fromJson(e as Map<String, dynamic>)).toList(), kindLabel: json['kindLabel'] as String, urgent: json['urgent'] as bool, summary: json['summary'] as String, description: json['description'] as String, place: json['place'] as String, expected: json['expected'] as String, reporter: json['reporter'] as String, createdAt: json['createdAt'] as String, files: (json['files'] as List).map((e) => SupportFile.fromJson(e as Map<String, dynamic>)).toList(), chatId: json['chatId'] == null ? null : json['chatId'] as String, chat: (json['chat'] as List).map((e) => SupportTicketViewChat.fromJson(e as Map<String, dynamic>)).toList(), resolution: json['resolution'] as String, devNote: json['devNote'] as String, commits: (json['commits'] as List).map((e) => SupportTicketViewCommits.fromJson(e as Map<String, dynamic>)).toList(), history: (json['history'] as List).map((e) => SupportTicketViewHistory.fromJson(e as Map<String, dynamic>)).toList(), notifiedAt: json['notifiedAt'] == null ? null : json['notifiedAt'] as String, notifyError: json['notifyError'] == null ? null : json['notifyError'] as String, canManage: json['canManage'] as bool);
 
-  Map<String, dynamic> toJson() => {'id': id, 'number': number, 'status': status, 'statusLabel': statusLabel, 'statuses': statuses.map((e) => e.toJson()).toList(), 'kindLabel': kindLabel, 'urgent': urgent, 'summary': summary, 'description': description, 'place': place, 'expected': expected, 'reporter': reporter, 'createdAt': createdAt, 'files': files.map((e) => e.toJson()).toList(), 'chatId': chatId == null ? null : chatId!, 'chat': chat.map((e) => e.toJson()).toList(), 'resolution': resolution, 'devNote': devNote, 'commits': commits.map((e) => e.toJson()).toList(), 'history': history.map((e) => e.toJson()).toList(), 'notifiedAt': notifiedAt == null ? null : notifiedAt!, 'notifyError': notifyError == null ? null : notifyError!, 'canManage': canManage};
+  Map<String, dynamic> toJson() => {'id': id, 'number': number, 'status': status, 'statusLabel': statusLabel, 'statuses': statuses.map((e) => e.toJson()).toList(), 'kindLabel': kindLabel, 'urgent': urgent, 'summary': summary, 'description': description, 'place': place, 'expected': expected, 'reporter': reporter, 'createdAt': createdAt, 'files': files.map((e) => e.toJson()).toList(), 'chatId': chatId, 'chat': chat.map((e) => e.toJson()).toList(), 'resolution': resolution, 'devNote': devNote, 'commits': commits.map((e) => e.toJson()).toList(), 'history': history.map((e) => e.toJson()).toList(), 'notifiedAt': notifiedAt, 'notifyError': notifyError, 'canManage': canManage};
 }
 
 class SupportTicketViewChat {
