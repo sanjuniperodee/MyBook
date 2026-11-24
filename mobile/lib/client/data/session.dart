@@ -15,7 +15,7 @@ enum ClientStatus { loading, loggedOut, loggedIn }
 /// (LocalCache по пользователю): полка и последняя открытая книга видны сразу и без сети, сервер их обновляет.
 class ClientSession extends ChangeNotifier {
   ClientSession() : api = ApiClient(baseUrl: defaultServer) {
-    backend = FixtureBackend.enabled ? FixtureBackend() : ApiBackend(api);
+    backend = ApiBackend(api);
     api.onUnauthorized = _expired;
   }
 
@@ -27,7 +27,7 @@ class ClientSession extends ChangeNotifier {
   String? notice;
 
   Future<void> restore() async {
-    final token = FixtureBackend.enabled ? null : await _secure.read(key: 'client_token');
+    final token = await _secure.read(key: 'client_token');
     if (token == null) {
       status = ClientStatus.loggedOut;
       return notifyListeners();
@@ -55,7 +55,7 @@ class ClientSession extends ChangeNotifier {
     notice = null;
     final r = await backend.login(login.trim(), password);
     api.token = r.token;
-    if (!FixtureBackend.enabled) await _secure.write(key: 'client_token', value: r.token);
+    await _secure.write(key: 'client_token', value: r.token);
     await _enter(r.user);
   }
 
@@ -69,7 +69,7 @@ class ClientSession extends ChangeNotifier {
   Future<void> _enter(ClientUser u) async {
     user = u;
     await LocalCache.setUser('client-${u.id}');
-    if (!FixtureBackend.enabled) await _secure.write(key: 'client_user', value: jsonEncode({'id': u.id, 'name': u.name, 'phone': u.phone}));
+    await _secure.write(key: 'client_user', value: jsonEncode({'id': u.id, 'name': u.name, 'phone': u.phone}));
     status = ClientStatus.loggedIn;
     notifyListeners();
   }

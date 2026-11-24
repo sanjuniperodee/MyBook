@@ -119,7 +119,7 @@ class AppColors extends ThemeExtension<AppColors> {
     brand: Color(0xFF7A1F2B), // wine
     brandDeep: Color(0xFF5C1520), // wine-dark
     onBrand: Colors.white,
-    bg: Color(0xFFF5F2ED), // canvas
+    bg: Color(0xFFFAF7F2), // paper — фон кабинета на телефоне
     surface: Color(0xFFF0ECE6), // sunken
     surfaceRaised: Colors.white,
     border: Color(0xFFE6E0D7), // line

@@ -3,22 +3,15 @@ import { Link } from "@/i18n/client";
 import { Plus } from "lucide-react";
 import { requireUser } from "@/server/auth";
 import { container } from "@/server/container";
-import { getTheme } from "@/lib/content/themes";
-import { BLANK_READY_WORDS, bookKind } from "@/lib/content/kinds";
-import { formatDate, nowMs } from "@/lib/dates";
-import { deadlineFor, getOccasion } from "@/lib/occasions";
 import { getLocale, getMessages } from "@/i18n/server";
 import { AgreementCard } from "@/components/AgreementCard";
-import { isPrintedPlan, lastOrderPerBook } from "@/modules/ordering/ui/status";
 import { PageHead } from "../_components/PageHead";
-import { FirstBook, HeroBook, ShelfCard, type ShelfBook } from "./BooksShelf";
+import { shelfBooks } from "@/server/shelf";
+import { FirstBook, HeroBook, ShelfCard } from "./BooksShelf";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getMessages()).books.list.meta };
 }
-
-/** Сколько книг «в работе» ищут следующий раздел без ответа: у остальных «Продолжить писать» ведёт в начало редактора. */
-const NEXT_SECTION_LOOKUP = 6;
 
 /**
  * Мои книги: главная — самая свежая из тех, что пишутся, — показана крупно: объёмная обложка, где книга на пути и одно
@@ -27,59 +20,10 @@ const NEXT_SECTION_LOOKUP = 6;
  */
 export default async function BooksPage() {
   const user = await requireUser("/books");
-  const [rows, orders, locale, m, agreement] = await Promise.all([
-    container().authoring.queries.userBooks(user.id),
-    container().ordering.queries.userOrders(user.id),
-    getLocale(),
-    getMessages(),
-    container().ordering.orders.agreementFor(user.id),
-  ]);
+  const [rows, locale, m, agreement] = await Promise.all([container().authoring.queries.userBooks(user.id), getLocale(), getMessages(), container().ordering.orders.agreementFor(user.id)]);
   const card = agreement ? <AgreementCard agreement={agreement} books={rows.map((r) => ({ id: r.book.id, status: r.book.status, theme: r.book.theme, answered: r.answered, total: r.total, words: r.words }))} /> : null;
   const t = m.books.list;
-  const now = new Date(nowMs());
-
-  // Книги в работе — первыми (свежие выше), заказанные — после: «Продолжить писать» относится к первой.
-  const sorted = [...rows].sort((a, b) => Number(a.book.status !== "draft") - Number(b.book.status !== "draft"));
-  const lastOrder = lastOrderPerBook(orders);
-
-  // Следующий раздел без ответа — как «Следующий вопрос» на странице книги; ищем только у начатых книг в работе.
-  const nextSection = new Map<string, string>();
-  await Promise.all(
-    sorted
-      .filter((r) => r.book.status === "draft" && r.answered > 0 && r.answered < r.total)
-      .slice(0, NEXT_SECTION_LOOKUP)
-      .map(async (r) => {
-        const next = (await container().authoring.queries.questions(r.book.id)).find((q) => !q.answer.trim());
-        if (next) nextSection.set(r.book.id, `/books/${r.book.id}/questions?s=${next.id}`);
-      }),
-  );
-
-  const books: ShelfBook[] = sorted.map((row) => {
-    const { book, answered, total, words } = row;
-    const blank = bookKind(book.theme) === "blank";
-    const ordered = book.status !== "draft";
-    const occasion = getOccasion(book.occasion);
-    const dl = !ordered && occasion && book.occasionDate ? deadlineFor(book.occasionDate, now) : null;
-    const last = lastOrder.get(book.id);
-    return {
-      row,
-      kind: getTheme(book.theme, locale).name,
-      blank,
-      // Своя книга измеряется не ответами на вопросы, а объёмом: полоса — путь к «почти готовой» книге.
-      progress: blank ? Math.min(100, Math.round((words / BLANK_READY_WORDS) * 100)) : total ? Math.round((answered / total) * 100) : 0,
-      order: last ? { id: last.id, number: last.number, status: last.status, printed: isPrintedPlan(last.plan) } : null,
-      ordered,
-      writeHref: nextSection.get(book.id) ?? `/books/${book.id}/questions`,
-      deadline:
-        dl && occasion && dl.state !== "past"
-          ? {
-              text: m.common.deadline.chip(m.common.occasions[occasion.id].label, dl.daysToTarget) + (dl.state === "relaxed" || dl.state === "soon" || dl.state === "urgent" ? m.common.deadline.chipOrderBy(dl.orderBy) : ""),
-              tone: dl.state === "relaxed" ? "calm" : dl.state === "soon" ? "warm" : "hot",
-            }
-          : null,
-      updated: t.updated(formatDate(book.updatedAt, false, locale)),
-    };
-  });
+  const books = await shelfBooks(user.id, locale, m);
 
   if (books.length === 0) {
     return (

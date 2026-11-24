@@ -2,14 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
+import '../../api/mybook_api.g.dart' as v1api;
 import '../../ui/kit.dart';
 import '../../ui/tokens.dart';
 import '../data/models.dart';
 import '../data/session.dart';
 import '../data/stores.dart';
+import '../ui/cabinet.dart';
 import 'book_screen.dart';
 
-/// «Мои книги» — полка кабинета: каждая книга корешком-обложкой, ход работы и заказ.
+/// «Мои книги» — как полка кабинета на телефоне (src/app/(app)/books/page.tsx, BooksShelf.tsx): главная книга крупно
+/// (объёмная обложка, тема, название, подзаголовок, ход работы, срок, «Продолжить писать» и «Открыть книгу»), остальные —
+/// листами «Другие книги». Данные и подписи — модель экрана с сервера (cabinetShelf).
 class ShelfScreen extends StatefulWidget {
   const ShelfScreen({super.key});
 
@@ -26,163 +30,164 @@ class _ShelfScreenState extends State<ShelfScreen> {
     super.dispose();
   }
 
-  Future<void> _account() async {
-    final session = context.read<ClientSession>();
-    await showAppSheet<void>(context, title: session.user?.name.isNotEmpty == true ? session.user!.name : 'Аккаунт', icon: LucideIcons.user, builder: (ctx) {
-      return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        if (session.user?.phone.isNotEmpty == true) Padding(padding: const EdgeInsets.only(bottom: 16), child: Text(session.user!.phone, style: AppText.sub(ctx))),
-        GroupCard(padding: EdgeInsets.zero, children: [
-          GroupTile(
-            title: 'Выйти',
-            icon: LucideIcons.logOut,
-            destructive: true,
-            onTap: () async {
-              Navigator.of(ctx).pop();
-              if (await confirm(context, title: 'Выйти из аккаунта?', message: 'Несохранённые без сети ответы на этом телефоне пропадут.', ok: 'Выйти', destructive: true)) await session.logout();
-            },
-          ),
-        ]),
-      ]);
-    });
+  Future<void> _open(v1api.ShelfItem b, {bool write = false}) async {
+    final summary = BookSummary(id: b.id, title: b.title, status: b.ordered ? 'ordered' : 'draft', answered: 0, questions: 0, photos: 0);
+    await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => BookScreen(summary: summary, writeSectionId: write ? (b.writeSectionId ?? '') : null)));
+    _shelf.refresh();
   }
 
   @override
   Widget build(BuildContext context) {
     final c = context.c;
-    return ListenableBuilder(
-      listenable: _shelf,
-      builder: (context, _) {
-        final books = _shelf.books;
-        return Scaffold(
-          backgroundColor: c.bg,
-          body: RefreshIndicator(
+    return Scaffold(
+      backgroundColor: c.bg,
+      appBar: CabinetTopBar(title: 'Мои книги'),
+      body: ListenableBuilder(
+        listenable: _shelf,
+        builder: (context, _) {
+          final books = _shelf.shelf?.books;
+          if (books == null) {
+            return _shelf.error == null
+                ? const Center(child: CircularProgressIndicator())
+                : EmptyState(icon: LucideIcons.wifiOff, title: 'Не удалось загрузить книги', hint: _shelf.error, action: 'Повторить', onAction: _shelf.refresh);
+          }
+          if (books.isEmpty) {
+            return const EmptyState(icon: LucideIcons.bookOpen, title: 'Книг пока нет', hint: 'Начните книгу на сайте mybooks.kz — она появится здесь.');
+          }
+          final hero = books.first;
+          final rest = books.skip(1).toList();
+          return RefreshIndicator(
             color: c.brand,
             onRefresh: _shelf.refresh,
-            child: CustomScrollView(
+            child: ListView(
               physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-              slivers: [
-                SliverAppBar(
-                  pinned: true,
-                  backgroundColor: c.bg,
-                  surfaceTintColor: Colors.transparent,
-                  expandedHeight: 108,
-                  actions: [IconButton(icon: const Icon(LucideIcons.circleUser), tooltip: 'Аккаунт', onPressed: _account)],
-                  flexibleSpace: FlexibleSpaceBar(
-                    centerTitle: false,
-                    titlePadding: const EdgeInsetsDirectional.only(start: 20, bottom: 12),
-                    title: Text('Мои книги', style: AppText.serif(context, size: 28, weight: FontWeight.w600)),
-                  ),
-                ),
-                if (_shelf.error != null && books != null)
-                  SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.fromLTRB(20, 0, 20, 8), child: Text(_shelf.error!, style: AppText.caption(context).copyWith(color: c.warn)))),
-                if (books == null && _shelf.error == null)
-                  const SliverFillRemaining(child: Center(child: CircularProgressIndicator()))
-                else if (books == null)
-                  SliverFillRemaining(child: EmptyState(icon: LucideIcons.wifiOff, title: 'Не удалось загрузить книги', hint: _shelf.error, action: 'Повторить', onAction: _shelf.refresh))
-                else if (books.isEmpty)
-                  const SliverFillRemaining(child: EmptyState(icon: LucideIcons.bookOpen, title: 'Книг пока нет', hint: 'Начните книгу на сайте mybooks.kz — она появится здесь.'))
-                else
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
-                    sliver: SliverList.separated(
-                      itemCount: books.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 12),
-                      itemBuilder: (context, i) => _BookCard(
-                        book: books[i],
-                        onTap: () async {
-                          await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => BookScreen(summary: books[i])));
-                          _shelf.refresh();
-                        },
-                      ),
-                    ),
-                  ),
+              padding: const EdgeInsets.fromLTRB(16, 24, 16, 40),
+              children: [
+                if (_shelf.error != null) Padding(padding: const EdgeInsets.only(bottom: 12), child: Text(_shelf.error!, style: AppText.caption(context).copyWith(color: c.warn))),
+                _Hero(b: hero, onOpen: () => _open(hero), onWrite: () => _open(hero, write: true)),
+                if (rest.isNotEmpty) ...[
+                  const SizedBox(height: 44),
+                  Divider(color: c.border, height: 1),
+                  const SizedBox(height: 26),
+                  const Text('Другие книги', style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 16),
+                  for (final b in rest) Padding(padding: const EdgeInsets.only(bottom: 14), child: _ShelfCard(b: b, onTap: () => _open(b))),
+                ],
               ],
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }
 
-/// Обложка-корешок: винный переплёт с названием засечками — пока у книги нет снимка обложки.
-class BookCoverMini extends StatelessWidget {
-  const BookCoverMini({super.key, required this.title, this.width = 64});
-  final String title;
-  final double width;
+class _Hero extends StatelessWidget {
+  const _Hero({required this.b, required this.onOpen, required this.onWrite});
+  final v1api.ShelfItem b;
+  final VoidCallback onOpen;
+  final VoidCallback onWrite;
 
   @override
   Widget build(BuildContext context) {
     final c = context.c;
-    return Container(
-      width: width,
-      height: width * 1.43,
-      padding: const EdgeInsets.fromLTRB(9, 8, 6, 8),
-      decoration: BoxDecoration(
-        color: c.brandDeep,
-        borderRadius: const BorderRadius.horizontal(left: Radius.circular(3), right: Radius.circular(6)),
-        border: Border(left: BorderSide(color: Colors.black.withValues(alpha: 0.25), width: 4)),
-      ),
-      alignment: Alignment.center,
-      child: Text(title, maxLines: 4, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center, style: const TextStyle(fontFamily: 'Cormorant', fontSize: 11.5, height: 1.1, fontWeight: FontWeight.w600, color: Color(0xFFF5EBDD))),
-    );
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Row(children: [
+        GestureDetector(onTap: onOpen, child: CoverImage(url: b.coverUrl, width: 112)),
+        const SizedBox(width: 20),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(b.kind, style: TextStyle(fontSize: 14.5, color: c.textMuted)),
+            const SizedBox(height: 4),
+            GestureDetector(onTap: onOpen, child: Text(b.title, style: AppText.serif(context, size: 31, weight: FontWeight.w500).copyWith(height: 1.05))),
+            if (b.subtitle.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(b.subtitle, style: AppText.serif(context, size: 17).copyWith(fontStyle: FontStyle.italic, color: c.textMuted)),
+            ],
+          ]),
+        ),
+      ]),
+      const SizedBox(height: 24),
+      if (b.ordered)
+        _OrderState(b: b)
+      else ...[
+        ProgressRow(label: b.progressLabel, percent: b.progress),
+        const SizedBox(height: 12),
+        Text('${b.counts} · ${b.updated}', style: TextStyle(fontSize: 14.5, color: c.textMuted)),
+      ],
+      if (b.deadline != null && !b.ordered) ...[const SizedBox(height: 16), DeadlineChip(text: b.deadline!.text, tone: b.deadline!.tone)],
+      const SizedBox(height: 24),
+      if (b.ordered) ...[
+        CabinetButton(label: 'Открыть книгу', onPressed: onOpen, kind: b.order == null ? CabBtn.primary : CabBtn.outline),
+      ] else ...[
+        CabinetButton(label: b.started ? 'Продолжить писать' : 'Начать писать', icon: LucideIcons.penLine, onPressed: onWrite),
+        const SizedBox(height: 12),
+        CabinetButton(label: 'Открыть книгу', onPressed: onOpen, kind: CabBtn.outline),
+      ],
+    ]);
   }
 }
 
-class _BookCard extends StatelessWidget {
-  const _BookCard({required this.book, required this.onTap});
-  final BookSummary book;
+class _OrderState extends StatelessWidget {
+  const _OrderState({required this.b});
+  final v1api.ShelfItem b;
+
+  @override
+  Widget build(BuildContext context) {
+    final o = b.order;
+    if (o == null) return const Align(alignment: Alignment.centerLeft, child: StatusBadge(label: 'Заказ оформлен', tone: 'success'));
+    return Row(children: [
+      Text(o.label, style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w500)),
+      const SizedBox(width: 12),
+      StatusBadge(label: o.statusLabel, tone: o.tone),
+    ]);
+  }
+}
+
+/// Книга на второй полке: мини-обложка, тема, название, прогресс и действие — лист .panel.
+class _ShelfCard extends StatelessWidget {
+  const _ShelfCard({required this.b, required this.onTap});
+  final v1api.ShelfItem b;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final c = context.c;
-    final status = book.editable ? null : _orderLabel(book.orderStatus);
     return Material(
       color: c.surfaceRaised,
-      borderRadius: BorderRadius.circular(14),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Cab.panel), side: BorderSide(color: c.border)),
       child: InkWell(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(Cab.panel),
         onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), border: Border.all(color: c.border)),
-          child: Row(children: [
-            BookCoverMini(title: book.title),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            CoverImage(url: b.coverThumbUrl, width: 80, flat: true),
             const SizedBox(width: 16),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(book.title.isEmpty ? 'Без названия' : book.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: AppText.serif(context, size: 21, weight: FontWeight.w600).copyWith(height: 1.15)),
-                const SizedBox(height: 6),
-                if (status != null)
-                  Row(children: [
-                    Container(width: 7, height: 7, decoration: BoxDecoration(color: c.success, shape: BoxShape.circle)),
-                    const SizedBox(width: 6),
-                    Text(status, style: AppText.caption(context).copyWith(color: c.text, fontWeight: FontWeight.w500)),
-                  ])
+                Text(b.kind, style: TextStyle(fontSize: 12.5, color: c.textMuted)),
+                const SizedBox(height: 2),
+                Text(b.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: AppText.serif(context, size: 21, weight: FontWeight.w500).copyWith(height: 1.2)),
+                const SizedBox(height: 12),
+                if (b.ordered)
+                  _OrderState(b: b)
                 else ...[
-                  Text('Отвечено ${book.answered} из ${book.questions}${book.photos > 0 ? ' · фото ${book.photos}' : ''}', style: AppText.caption(context)),
+                  ProgressRow(label: b.progressLabel, percent: b.progress, compact: true),
                   const SizedBox(height: 8),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(3),
-                    child: LinearProgressIndicator(value: book.progress, minHeight: 4, color: c.brand, backgroundColor: c.surface),
-                  ),
+                  Text(b.counts, style: TextStyle(fontSize: 12.5, color: c.textMuted)),
                 ],
+                if (b.deadline != null && !b.ordered) ...[const SizedBox(height: 12), DeadlineChip(text: b.deadline!.text, tone: b.deadline!.tone, small: true)],
+                const SizedBox(height: 14),
+                Row(children: [
+                  Text(b.ordered ? (b.order != null ? 'Следить за заказом' : 'Открыть книгу') : (b.started ? 'Продолжить писать' : 'Начать писать'), style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w500, color: c.text)),
+                  Icon(LucideIcons.chevronRight, size: 16, color: c.text),
+                ]),
               ]),
             ),
-            const SizedBox(width: 8),
-            Icon(LucideIcons.chevronRight, size: 18, color: c.textFaint),
           ]),
         ),
       ),
     );
   }
-
-  static String _orderLabel(String? s) => switch (s) {
-        'printing' => 'Печатается',
-        'shipped' => 'В пути',
-        'delivered' => 'Доставлена',
-        'paid' => 'Оплачена, готовим к печати',
-        _ => 'Заказана',
-      };
 }

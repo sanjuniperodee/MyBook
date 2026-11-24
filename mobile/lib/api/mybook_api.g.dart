@@ -94,6 +94,12 @@ class MybookApi {
     final json = await _send('PATCH', '/api/v1/books/${Uri.encodeComponent(bookId)}/questions/${Uri.encodeComponent(questionId)}', body: body.toJson());
     return Saved.fromJson(json as Map<String, dynamic>);
   }
+
+  /// Полка «Мои книги» — как на сайте: книги в работе первыми, прогресс, срок к празднику, заказ, обложка
+  Future<CabinetShelf> cabinetShelf() async {
+    final json = await _send('GET', '/api/v1/cabinet/shelf');
+    return CabinetShelf.fromJson(json as Map<String, dynamic>);
+  }
 }
 
 class ApiError {
@@ -419,4 +425,66 @@ class Saved {
   factory Saved.fromJson(Map<String, dynamic> json) => Saved(ok: json['ok'] as bool, updatedAt: json['updatedAt'] as String);
 
   Map<String, dynamic> toJson() => {'ok': ok, 'updatedAt': updatedAt};
+}
+
+class ShelfDeadline {
+  final String text;
+  /// calm | warm | hot
+  final String tone;
+
+  const ShelfDeadline({required this.text, required this.tone});
+
+  factory ShelfDeadline.fromJson(Map<String, dynamic> json) => ShelfDeadline(text: json['text'] as String, tone: json['tone'] as String);
+
+  Map<String, dynamic> toJson() => {'text': text, 'tone': tone};
+}
+
+class ShelfOrder {
+  final String id;
+  final int number;
+  final String label;
+  final String status;
+  final String statusLabel;
+  final String tone;
+
+  const ShelfOrder({required this.id, required this.number, required this.label, required this.status, required this.statusLabel, required this.tone});
+
+  factory ShelfOrder.fromJson(Map<String, dynamic> json) => ShelfOrder(id: json['id'] as String, number: (json['number'] as num).toInt(), label: json['label'] as String, status: json['status'] as String, statusLabel: json['statusLabel'] as String, tone: json['tone'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'number': number, 'label': label, 'status': status, 'statusLabel': statusLabel, 'tone': tone};
+}
+
+class ShelfItem {
+  final String id;
+  final String title;
+  final String subtitle;
+  final String kind;
+  final bool blank;
+  final bool ordered;
+  final int progress;
+  final String progressLabel;
+  final String counts;
+  final String updated;
+  final ShelfDeadline? deadline;
+  final ShelfOrder? order;
+  final bool started;
+  final String? writeSectionId;
+  final String coverUrl;
+  final String coverThumbUrl;
+
+  const ShelfItem({required this.id, required this.title, required this.subtitle, required this.kind, required this.blank, required this.ordered, required this.progress, required this.progressLabel, required this.counts, required this.updated, this.deadline, this.order, required this.started, this.writeSectionId, required this.coverUrl, required this.coverThumbUrl});
+
+  factory ShelfItem.fromJson(Map<String, dynamic> json) => ShelfItem(id: json['id'] as String, title: json['title'] as String, subtitle: json['subtitle'] as String, kind: json['kind'] as String, blank: json['blank'] as bool, ordered: json['ordered'] as bool, progress: (json['progress'] as num).toInt(), progressLabel: json['progressLabel'] as String, counts: json['counts'] as String, updated: json['updated'] as String, deadline: json['deadline'] == null ? null : ShelfDeadline.fromJson(json['deadline'] as Map<String, dynamic>), order: json['order'] == null ? null : ShelfOrder.fromJson(json['order'] as Map<String, dynamic>), started: json['started'] as bool, writeSectionId: json['writeSectionId'] == null ? null : json['writeSectionId'] as String, coverUrl: json['coverUrl'] as String, coverThumbUrl: json['coverThumbUrl'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'title': title, 'subtitle': subtitle, 'kind': kind, 'blank': blank, 'ordered': ordered, 'progress': progress, 'progressLabel': progressLabel, 'counts': counts, 'updated': updated, if (deadline != null) 'deadline': deadline == null ? null : deadline!.toJson(), if (order != null) 'order': order == null ? null : order!.toJson(), 'started': started, if (writeSectionId != null) 'writeSectionId': writeSectionId == null ? null : writeSectionId!, 'coverUrl': coverUrl, 'coverThumbUrl': coverThumbUrl};
+}
+
+class CabinetShelf {
+  final List<ShelfItem> books;
+
+  const CabinetShelf({required this.books});
+
+  factory CabinetShelf.fromJson(Map<String, dynamic> json) => CabinetShelf(books: (json['books'] as List).map((e) => ShelfItem.fromJson(e as Map<String, dynamic>)).toList());
+
+  Map<String, dynamic> toJson() => {'books': books.map((e) => e.toJson()).toList()};
 }

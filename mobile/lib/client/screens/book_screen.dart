@@ -9,19 +9,33 @@ import '../data/session.dart';
 import '../data/stores.dart';
 import 'answer_screen.dart';
 import 'photos_screen.dart';
-import 'shelf_screen.dart';
 
 /// Книга: ход работы, главы с вопросами и фото. Как главная страница книги в кабинете.
 class BookScreen extends StatefulWidget {
-  const BookScreen({super.key, required this.summary});
+  const BookScreen({super.key, required this.summary, this.writeSectionId});
   final BookSummary summary;
+
+  /// «Продолжить писать» с полки: сразу открыть этот раздел ('' — первый без ответа).
+  final String? writeSectionId;
 
   @override
   State<BookScreen> createState() => _BookScreenState();
 }
 
 class _BookScreenState extends State<BookScreen> {
-  late final BookStore _store = BookStore(context.read<ClientSession>().backend, widget.summary.id)..load();
+  late final BookStore _store = BookStore(context.read<ClientSession>().backend, widget.summary.id);
+
+  @override
+  void initState() {
+    super.initState();
+    _store.load().then((_) {
+      final want = widget.writeSectionId;
+      final qs = _store.book?.questions ?? const <Question>[];
+      if (want == null || !mounted || qs.isEmpty) return;
+      final q = qs.where((x) => x.id == want).firstOrNull ?? qs.where((x) => !x.answered).firstOrNull ?? qs.first;
+      _open(q);
+    });
+  }
 
   @override
   void dispose() {
@@ -92,7 +106,7 @@ class _Header extends StatelessWidget {
     final c = context.c;
     final total = book.questions.length;
     return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      BookCoverMini(title: book.title, width: 86),
+      const SizedBox(width: 0),
       const SizedBox(width: 18),
       Expanded(
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

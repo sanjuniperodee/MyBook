@@ -10,55 +10,14 @@ import { coverNames } from "@/lib/book/cover-names";
 import { photoUrls } from "@/lib/urls";
 import { cn } from "@/lib/class-names";
 import { orderStatusLabel, orderStatusTone } from "@/modules/ordering/ui/status";
-import type { OrderStatus } from "@/shared/domain/orders";
 import type { Locale } from "@/i18n/config";
 import type { getMessages } from "@/i18n/server";
 import { nowKey, orderSteps, StatusTrack } from "../orders/StatusTrack";
 
 type M = Awaited<ReturnType<typeof getMessages>>;
 
-/** Всё, что нужно показать о книге на полке. Считает страница: карточке остаётся только разметка. */
-export interface ShelfBook {
-  /** Строка из userBooks: книга и её цифры. */
-  row: {
-    book: {
-      id: string;
-      title: string;
-      subtitle: string;
-      theme: string;
-      format: string;
-      coverTemplate: string;
-      coverLines?: boolean;
-      coverPhotoId: string | null;
-      coverPhotoExtra?: string[] | null;
-      coverDesign: unknown;
-      authorName: string;
-      recipientName: string;
-      hideRecipientOnCover: boolean;
-      namesOnCover: string;
-    };
-    answered: number;
-    total: number;
-    words: number;
-    photos: number;
-  };
-  /** Название темы («Любимому человеку»). */
-  kind: string;
-  /** Своя книга: прогресс по словам и разделам, а не по ответам на вопросы. */
-  blank: boolean;
-  /** Готовность, 0–100. */
-  progress: number;
-  /** Последний заказ книги — у заказанной. */
-  order: { id: string; number: number; status: OrderStatus; printed: boolean } | null;
-  /** Заказана: правка закрыта, главное действие — следить за заказом. */
-  ordered: boolean;
-  /** Куда ведёт «Продолжить писать»: следующий раздел без ответа или начало редактора. */
-  writeHref: string;
-  /** Срок к празднику: уже собранная строка и тон. */
-  deadline: { text: string; tone: "calm" | "warm" | "hot" } | null;
-  /** Строка «Изменена …». */
-  updated: string;
-}
+export type { ShelfBook } from "@/server/shelf";
+import type { ShelfBook } from "@/server/shelf";
 
 const coverProps = (b: ShelfBook["row"]["book"]) => ({
   template: b.coverTemplate,

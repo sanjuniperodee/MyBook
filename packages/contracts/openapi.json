@@ -395,6 +395,38 @@
         },
         "x-auth": "user"
       }
+    },
+    "/api/v1/cabinet/shelf": {
+      "get": {
+        "operationId": "cabinetShelf",
+        "tags": [
+          "cabinet"
+        ],
+        "summary": "Полка «Мои книги» — как на сайте: книги в работе первыми, прогресс, срок к празднику, заказ, обложка",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CabinetShelf"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
     }
   },
   "components": {
@@ -1220,6 +1252,171 @@
         "required": [
           "ok",
           "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "ShelfDeadline": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "tone": {
+            "type": "string",
+            "enum": [
+              "calm",
+              "warm",
+              "hot"
+            ]
+          }
+        },
+        "required": [
+          "text",
+          "tone"
+        ],
+        "additionalProperties": false
+      },
+      "ShelfOrder": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "number": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "label": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "statusLabel": {
+            "type": "string"
+          },
+          "tone": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "label",
+          "status",
+          "statusLabel",
+          "tone"
+        ],
+        "additionalProperties": false
+      },
+      "ShelfItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "title": {
+            "type": "string"
+          },
+          "subtitle": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "blank": {
+            "type": "boolean"
+          },
+          "ordered": {
+            "type": "boolean"
+          },
+          "progress": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "progressLabel": {
+            "type": "string"
+          },
+          "counts": {
+            "type": "string"
+          },
+          "updated": {
+            "type": "string"
+          },
+          "deadline": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ShelfDeadline"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "order": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ShelfOrder"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "started": {
+            "type": "boolean"
+          },
+          "writeSectionId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "coverUrl": {
+            "type": "string"
+          },
+          "coverThumbUrl": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "subtitle",
+          "kind",
+          "blank",
+          "ordered",
+          "progress",
+          "progressLabel",
+          "counts",
+          "updated",
+          "deadline",
+          "order",
+          "started",
+          "writeSectionId",
+          "coverUrl",
+          "coverThumbUrl"
+        ],
+        "additionalProperties": false
+      },
+      "CabinetShelf": {
+        "type": "object",
+        "properties": {
+          "books": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ShelfItem"
+            }
+          }
+        },
+        "required": [
+          "books"
         ],
         "additionalProperties": false
       }

@@ -11,15 +11,18 @@
 import type { z } from "zod";
 import { authRoutes } from "./auth";
 import { booksRoutes } from "./books";
+import { cabinetRoutes } from "./cabinet";
 import type { RouteDef } from "./core";
 
 export * from "./core";
 export * from "./auth";
 export * from "./books";
+export * from "./cabinet";
 
 export const v1 = {
   ...authRoutes,
   ...booksRoutes,
+  ...cabinetRoutes,
 } as const satisfies Record<string, RouteDef>;
 
 export type V1 = typeof v1;

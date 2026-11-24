@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
+import '../../api/mybook_api.g.dart' as v1api;
 import '../../core/api.dart';
 import '../../core/cache.dart';
 import 'backend.dart';
@@ -12,16 +13,18 @@ import 'models.dart';
 class ShelfStore extends ChangeNotifier {
   ShelfStore(this.backend);
   final ClientBackend backend;
-  List<BookSummary>? books;
+  v1api.CabinetShelf? shelf;
   String? error;
   bool loading = false;
 
   Future<void> load() async {
-    if (books == null) {
-      final cached = await LocalCache.read('books');
-      if (cached != null && books == null) {
-        books = [for (final b in cached['books'] as List) BookSummary.fromJson(b as Map<String, dynamic>)];
-        notifyListeners();
+    if (shelf == null) {
+      final cached = await LocalCache.read('shelf');
+      if (cached != null && shelf == null) {
+        try {
+          shelf = v1api.CabinetShelf.fromJson(cached);
+          notifyListeners();
+        } catch (_) {}
       }
     }
     await refresh();
@@ -31,13 +34,11 @@ class ShelfStore extends ChangeNotifier {
     loading = true;
     notifyListeners();
     try {
-      books = await backend.books();
+      shelf = await backend.shelf();
       error = null;
-      LocalCache.write('books', {'books': [for (final b in books!) b.toJson()]});
+      LocalCache.write('shelf', shelf!.toJson());
     } on ApiException catch (e) {
-      error = e.status == 0 && books != null ? 'Нет связи — показано сохранённое на телефоне' : e.message;
-    } on SocketException {
-      error = 'Нет связи — показано сохранённое на телефоне';
+      error = e.status == 0 && shelf != null ? 'Нет связи — показано сохранённое на телефоне' : e.message;
     } finally {
       loading = false;
       notifyListeners();
