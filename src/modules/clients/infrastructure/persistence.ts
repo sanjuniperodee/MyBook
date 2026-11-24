@@ -115,7 +115,8 @@ export const drizzleTasks: TaskRepository = {
     const rows = await executor()
       .update(crmTasks)
       .set({ assigneeId: to, remindedAt: null })
-      .where(and(eq(crmTasks.dealId, dealId), isNull(crmTasks.doneAt), from ? or(isNull(crmTasks.assigneeId), eq(crmTasks.assigneeId, from)) : isNull(crmTasks.assigneeId)))
+      // Только задачи продаж (доска по умолчанию): карточки производства и поддержки по сделке — не менеджеру продаж.
+      .where(and(eq(crmTasks.dealId, dealId), isNull(crmTasks.doneAt), from ? or(isNull(crmTasks.assigneeId), eq(crmTasks.assigneeId, from)) : isNull(crmTasks.assigneeId), sql`(${crmTasks.boardId} is null or ${crmTasks.boardId} = (select b.id from crm_boards b where b.is_default))`))
       .returning({ id: crmTasks.id });
     return rows.length;
   },

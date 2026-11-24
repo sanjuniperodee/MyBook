@@ -59,4 +59,4 @@ export const missedCalls = (viewer: Viewer) =>
  * У сделки нет открытой задачи — нет следующего шага: фильтр сделок «Без задачи» (task=none) и плитка «Моего дня».
  * В выборке из crm_deals; по частичному индексу crm_tasks_open_deal_idx.
  */
-export const noOpenTask = () => sql`not exists (select 1 from crm_tasks t where t.deal_id = ${crmDealsId} and t.done_at is null)`;
+export const noOpenTask = () => sql`not exists (select 1 from crm_tasks t where t.deal_id = ${crmDealsId} and t.done_at is null and (t.board_id is null or t.board_id in (select b.id from crm_boards b where b.is_default)))`;

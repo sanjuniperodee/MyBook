@@ -467,7 +467,7 @@ export class SqlScheduledSource implements ScheduledSource {
         where d.stage_changed_at < ${before}
           ${q.stageId ? sql`and d.stage_id = ${q.stageId}::uuid` : sql``}
           and not d.unsorted
-          and not exists (select 1 from crm_tasks t where t.deal_id = d.id and t.done_at is null)
+          and not exists (select 1 from crm_tasks t where t.deal_id = d.id and t.done_at is null and (t.board_id is null or t.board_id in (select b.id from crm_boards b where b.is_default)))
           and not exists (select 1 from crm_conversations bc join crm_blocklist bl on bl.value = bc.chat_id where bc.deal_id = d.id)
           and not exists (select 1 from crm_blocklist bl where bl.value = any (array(select ${normalizedPhone(sql`p`)} from unnest(array[d.contact_phone] || d.extra_phones) as p)))
           and not exists (select 1 from crm_conversations bc where bc.deal_id = d.id and coalesce(bc.bot_state->>'phase', 'done') <> 'done' and coalesce(bc.bot_step, 0) <> -1)
@@ -504,7 +504,7 @@ export class SqlScheduledSource implements ScheduledSource {
         and c.status = 'open' and c.awaiting_since is null
         and not (coalesce(c.bot_state->>'phase', 'done') <> 'done' and coalesce(c.bot_step, 0) <> -1)
         and not exists (select 1 from crm_messages m where m.conversation_id = c.id and m.direction = 'in' and m.created_at > c.last_outgoing_at)
-        and not exists (select 1 from crm_tasks t where t.deal_id = c.deal_id and t.done_at is null)
+        and not exists (select 1 from crm_tasks t where t.deal_id = c.deal_id and t.done_at is null and (t.board_id is null or t.board_id in (select b.id from crm_boards b where b.is_default)))
         and not exists (select 1 from crm_blocklist bl where bl.value = c.chat_id)
         and (u.id is null or not ${noMarketing(sql`u`)})
         and ${notFired(ruleId, sql`'conv:' || c.id::text || ':silent:' || ${isoText(sql`c.last_outgoing_at`)}`)}

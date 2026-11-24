@@ -35,7 +35,7 @@ function dealWhere(viewer: Viewer, pipeline: { id: string }, sp: DealParams, sel
   // Быстрые фильтры: без задачи (открытые сделки без следующего шага — как плитка «Моего дня»), просроченная задача,
   // застряла на этапе.
   if (sp.task === "none") w.push(noOpenTask(), eq(crmStages.kind, "open"));
-  if (sp.task === "overdue") w.push(sql`exists (select 1 from crm_tasks t where t.deal_id = ${crmDealsId} and t.done_at is null and t.due_at < now())`);
+  if (sp.task === "overdue") w.push(sql`exists (select 1 from crm_tasks t where t.deal_id = ${crmDealsId} and t.done_at is null and t.due_at < now() and (t.board_id is null or t.board_id in (select b.id from crm_boards b where b.is_default)))`);
   // Списки для менеджеров (отчёт 15.11): «остановились на оплате», «книга почти готова, заказа нет» и т. д.
   const list = managerListKey(sp.list);
   if (list) w.push(managerListWhere(list), eq(crmStages.kind, "open"));
@@ -87,7 +87,7 @@ export async function dealList(viewer: Viewer, pipeline: { id: string }, sp: Dea
       .select({
         deal: crmDeals,
         stageKind: crmStages.kind,
-        nextTask: sql<Date | null>`(select min(t.due_at) from crm_tasks t where t.deal_id = ${crmDealsId} and t.done_at is null)`,
+        nextTask: sql<Date | null>`(select min(t.due_at) from crm_tasks t where t.deal_id = ${crmDealsId} and t.done_at is null and (t.board_id is null or t.board_id in (select b.id from crm_boards b where b.is_default)))`,
         // Принятые деньги по сделке (платежи менеджеров): на карточке видно, сколько уже получено.
         paid: sql<number>`coalesce((select sum(case when p.kind = 'refund' then -p.amount else p.amount end) from crm_payments p where p.deal_id = ${crmDealsId}), 0)::int`,
         unread: sql<number>`coalesce((select sum(c.unread) from crm_conversations c where c.deal_id = ${crmDealsId}), 0)::int`,
