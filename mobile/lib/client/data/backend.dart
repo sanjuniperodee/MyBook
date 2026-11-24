@@ -9,6 +9,11 @@ import 'models.dart';
 
 /// Откуда клиентское приложение берёт данные. Экраны знают только этот интерфейс; на сервере — контракт API v1.
 abstract class ClientBackend {
+  /// Сгенерированный клиент API v1 и вызов через него с ошибками экрана (ApiException) — для экранов, у которых
+  /// весь контракт уже есть (письма, отзыв): без своих обёрток на каждый маршрут.
+  v1api.MybookApi get contract;
+  Future<T> call<T>(Future<T> Function() run);
+
   Future<({String token, ClientUser user})> login(
     String login,
     String password,
@@ -92,6 +97,12 @@ class ApiBackend implements ClientBackend {
   ApiBackend(this.api) : v1 = v1api.MybookApi(baseUrl: api.baseUrl);
   final ApiClient api;
   final v1api.MybookApi v1;
+
+  @override
+  v1api.MybookApi get contract => v1;
+
+  @override
+  Future<T> call<T>(Future<T> Function() run) => _call(run);
 
   Map<String, String> get _auth =>
       api.token == null ? const {} : {'Authorization': 'Bearer ${api.token}'};

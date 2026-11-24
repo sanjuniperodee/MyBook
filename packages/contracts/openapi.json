@@ -9439,6 +9439,205 @@
         ],
         "additionalProperties": false
       },
+      "LettersLabels": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "lead": {
+            "type": "string"
+          },
+          "tabs": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "string"
+              },
+              "approved": {
+                "type": "string"
+              },
+              "hidden": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "approved",
+              "hidden"
+            ],
+            "additionalProperties": false
+          },
+          "empty": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "string"
+              },
+              "approved": {
+                "type": "string"
+              },
+              "hidden": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "approved",
+              "hidden"
+            ],
+            "additionalProperties": false
+          },
+          "emptyText": {
+            "type": "object",
+            "properties": {
+              "pending": {
+                "type": "string"
+              },
+              "pendingInvited": {
+                "type": "string"
+              },
+              "approved": {
+                "type": "string"
+              },
+              "hidden": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pending",
+              "pendingInvited",
+              "approved",
+              "hidden"
+            ],
+            "additionalProperties": false
+          },
+          "linkTitle": {
+            "type": "string"
+          },
+          "linkText": {
+            "type": "string"
+          },
+          "copy": {
+            "type": "string"
+          },
+          "copied": {
+            "type": "string"
+          },
+          "whatsapp": {
+            "type": "string"
+          },
+          "inviteText": {
+            "type": "string"
+          },
+          "inviteTextHint": {
+            "type": "string"
+          },
+          "invitePlaceholder": {
+            "type": "string"
+          },
+          "privacy": {
+            "type": "string"
+          },
+          "regen": {
+            "type": "string"
+          },
+          "regenTitle": {
+            "type": "string"
+          },
+          "regenText": {
+            "type": "string"
+          },
+          "regenConfirm": {
+            "type": "string"
+          },
+          "close": {
+            "type": "string"
+          },
+          "create": {
+            "type": "string"
+          },
+          "approve": {
+            "type": "string"
+          },
+          "unapprove": {
+            "type": "string"
+          },
+          "edit": {
+            "type": "string"
+          },
+          "hide": {
+            "type": "string"
+          },
+          "delete": {
+            "type": "string"
+          },
+          "deleteTitle": {
+            "type": "string"
+          },
+          "deleteText": {
+            "type": "string"
+          },
+          "relation": {
+            "type": "string"
+          },
+          "moveUp": {
+            "type": "string"
+          },
+          "moveDown": {
+            "type": "string"
+          },
+          "orderHint": {
+            "type": "string"
+          },
+          "readMore": {
+            "type": "string"
+          },
+          "save": {
+            "type": "string"
+          },
+          "cancel": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "lead",
+          "tabs",
+          "empty",
+          "emptyText",
+          "linkTitle",
+          "linkText",
+          "copy",
+          "copied",
+          "whatsapp",
+          "inviteText",
+          "inviteTextHint",
+          "invitePlaceholder",
+          "privacy",
+          "regen",
+          "regenTitle",
+          "regenText",
+          "regenConfirm",
+          "close",
+          "create",
+          "approve",
+          "unapprove",
+          "edit",
+          "hide",
+          "delete",
+          "deleteTitle",
+          "deleteText",
+          "relation",
+          "moveUp",
+          "moveDown",
+          "orderHint",
+          "readMore",
+          "save",
+          "cancel"
+        ],
+        "additionalProperties": false
+      },
       "LettersView": {
         "type": "object",
         "properties": {
@@ -9455,12 +9654,53 @@
             "type": "integer",
             "minimum": -9007199254740991,
             "maximum": 9007199254740991
+          },
+          "editable": {
+            "type": "boolean"
+          },
+          "labels": {
+            "$ref": "#/components/schemas/LettersLabels"
+          },
+          "limits": {
+            "type": "object",
+            "properties": {
+              "inviteText": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "authorName": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "relation": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "text": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "inviteText",
+              "authorName",
+              "relation",
+              "text"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
           "letters",
           "invite",
-          "max"
+          "max",
+          "editable",
+          "labels",
+          "limits"
         ],
         "additionalProperties": false
       },
@@ -14422,13 +14662,17 @@
               },
               "href": {
                 "type": "string"
+              },
+              "tab": {
+                "type": "string"
               }
             },
             "required": [
               "title",
               "text",
               "action",
-              "href"
+              "href",
+              "tab"
             ],
             "additionalProperties": false
           },

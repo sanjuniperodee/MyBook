@@ -7,6 +7,9 @@ import { Ok, iso, route, schemas, uuid, type RouteDef } from "./core";
 
 const LetterStatus = z.enum(["pending", "approved", "hidden"]);
 
+/** Длины полей писем — одни для схемы, сайта и приложения (отдаются в LettersView.limits). */
+export const LETTER_MAX = { inviteText: 500, authorName: 80, relation: 80, text: 8000 } as const;
+
 export const Letter = z
   .object({
     id: uuid,
@@ -30,17 +33,68 @@ export const LetterInvite = z
   })
   .register(schemas, { id: "LetterInvite" });
 
-export const LettersView = z.object({ letters: z.array(Letter), invite: LetterInvite, max: z.number().int() }).register(schemas, { id: "LettersView" });
+/** Надписи экрана писем — сообщения books.letters и bookStudio.letters сайта, посчитанные под эту книгу. */
+export const LettersLabels = z
+  .object({
+    title: z.string(),
+    lead: z.string(),
+    tabs: z.object({ pending: z.string(), approved: z.string(), hidden: z.string() }),
+    empty: z.object({ pending: z.string(), approved: z.string(), hidden: z.string() }),
+    emptyText: z.object({ pending: z.string(), pendingInvited: z.string(), approved: z.string(), hidden: z.string() }),
+    linkTitle: z.string(),
+    linkText: z.string(),
+    copy: z.string(),
+    copied: z.string(),
+    whatsapp: z.string(),
+    inviteText: z.string(),
+    inviteTextHint: z.string(),
+    /** Текст приглашения по умолчанию (подсказка в пустом поле). */
+    invitePlaceholder: z.string(),
+    privacy: z.string(),
+    regen: z.string(),
+    regenTitle: z.string(),
+    regenText: z.string(),
+    regenConfirm: z.string(),
+    close: z.string(),
+    create: z.string(),
+    approve: z.string(),
+    unapprove: z.string(),
+    edit: z.string(),
+    hide: z.string(),
+    delete: z.string(),
+    deleteTitle: z.string(),
+    deleteText: z.string(),
+    relation: z.string(),
+    moveUp: z.string(),
+    moveDown: z.string(),
+    orderHint: z.string(),
+    readMore: z.string(),
+    save: z.string(),
+    cancel: z.string(),
+  })
+  .register(schemas, { id: "LettersLabels" });
+
+export const LettersView = z
+  .object({
+    letters: z.array(Letter),
+    invite: LetterInvite,
+    max: z.number().int(),
+    /** Можно править: черновик и право правки (как editable страницы писем). */
+    editable: z.boolean(),
+    labels: LettersLabels,
+    limits: z.object({ inviteText: z.number().int(), authorName: z.number().int(), relation: z.number().int(), text: z.number().int() }),
+  })
+  .register(schemas, { id: "LettersView" });
 
 export const LetterInviteBody = z.object({ enabled: z.boolean(), regenerate: z.boolean().optional() }).strict().register(schemas, { id: "LetterInviteBody" });
-export const LetterInviteText = z.object({ text: z.string().trim().max(500) }).strict().register(schemas, { id: "LetterInviteText" });
+export const LetterInviteText = z.object({ text: z.string().trim().max(LETTER_MAX.inviteText) }).strict().register(schemas, { id: "LetterInviteText" });
 
 export const LetterPatch = z
   .object({
     status: LetterStatus,
-    authorName: z.string().trim().min(1).max(80),
-    relation: z.string().trim().max(80),
-    text: z.string().trim().min(1).max(8000),
+    authorName: z.string().trim().min(1).max(LETTER_MAX.authorName),
+    relation: z.string().trim().max(LETTER_MAX.relation),
+    text: z.string().trim().min(1).max(LETTER_MAX.text),
   })
   .partial()
   .strict()

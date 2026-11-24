@@ -98,7 +98,7 @@ export const cabinetHandlers: Pick<Handlers, "cabinetShelf" | "cabinetBook" | "c
         const done = ch.total > 0 && ch.answered === ch.total;
         return { key: ch.key, title: ch.title, label: ch.total ? t.chapterSections(ch.answered, ch.total) : t.chapterEmpty, done, percent: ch.total ? Math.round((ch.answered / ch.total) * 100) : 0, sectionId: sectionOf(h.sectionHref(ch.firstOpenId ?? ch.firstId)) };
       }),
-      letters: h.letters,
+      letters: { ...h.letters, tab: m.bookStudio.nav.letters },
       help: { title: t.help, text: t.helpText, url: site.contacts.whatsapp },
       whereToStart: m.editor.whereToStart,
       tips: [...(h.blank ? m.editor.blank.tips : h.kind === "autobiography" ? m.editor.life.tips : m.editor.tips)],

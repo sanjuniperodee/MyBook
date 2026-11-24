@@ -1766,16 +1766,112 @@ class LetterInvite {
   Map<String, dynamic> toJson() => {'enabled': enabled, 'url': url, 'text': text, 'shareText': shareText};
 }
 
+class LettersLabels {
+  final String title;
+  final String lead;
+  final LettersLabelsTabs tabs;
+  final LettersLabelsEmpty empty;
+  final LettersLabelsEmptyText emptyText;
+  final String linkTitle;
+  final String linkText;
+  final String copy;
+  final String copied;
+  final String whatsapp;
+  final String inviteText;
+  final String inviteTextHint;
+  final String invitePlaceholder;
+  final String privacy;
+  final String regen;
+  final String regenTitle;
+  final String regenText;
+  final String regenConfirm;
+  final String close;
+  final String create;
+  final String approve;
+  final String unapprove;
+  final String edit;
+  final String hide;
+  final String delete;
+  final String deleteTitle;
+  final String deleteText;
+  final String relation;
+  final String moveUp;
+  final String moveDown;
+  final String orderHint;
+  final String readMore;
+  final String save;
+  final String cancel;
+
+  const LettersLabels({required this.title, required this.lead, required this.tabs, required this.empty, required this.emptyText, required this.linkTitle, required this.linkText, required this.copy, required this.copied, required this.whatsapp, required this.inviteText, required this.inviteTextHint, required this.invitePlaceholder, required this.privacy, required this.regen, required this.regenTitle, required this.regenText, required this.regenConfirm, required this.close, required this.create, required this.approve, required this.unapprove, required this.edit, required this.hide, required this.delete, required this.deleteTitle, required this.deleteText, required this.relation, required this.moveUp, required this.moveDown, required this.orderHint, required this.readMore, required this.save, required this.cancel});
+
+  factory LettersLabels.fromJson(Map<String, dynamic> json) => LettersLabels(title: json['title'] as String, lead: json['lead'] as String, tabs: LettersLabelsTabs.fromJson(json['tabs'] as Map<String, dynamic>), empty: LettersLabelsEmpty.fromJson(json['empty'] as Map<String, dynamic>), emptyText: LettersLabelsEmptyText.fromJson(json['emptyText'] as Map<String, dynamic>), linkTitle: json['linkTitle'] as String, linkText: json['linkText'] as String, copy: json['copy'] as String, copied: json['copied'] as String, whatsapp: json['whatsapp'] as String, inviteText: json['inviteText'] as String, inviteTextHint: json['inviteTextHint'] as String, invitePlaceholder: json['invitePlaceholder'] as String, privacy: json['privacy'] as String, regen: json['regen'] as String, regenTitle: json['regenTitle'] as String, regenText: json['regenText'] as String, regenConfirm: json['regenConfirm'] as String, close: json['close'] as String, create: json['create'] as String, approve: json['approve'] as String, unapprove: json['unapprove'] as String, edit: json['edit'] as String, hide: json['hide'] as String, delete: json['delete'] as String, deleteTitle: json['deleteTitle'] as String, deleteText: json['deleteText'] as String, relation: json['relation'] as String, moveUp: json['moveUp'] as String, moveDown: json['moveDown'] as String, orderHint: json['orderHint'] as String, readMore: json['readMore'] as String, save: json['save'] as String, cancel: json['cancel'] as String);
+
+  Map<String, dynamic> toJson() => {'title': title, 'lead': lead, 'tabs': tabs.toJson(), 'empty': empty.toJson(), 'emptyText': emptyText.toJson(), 'linkTitle': linkTitle, 'linkText': linkText, 'copy': copy, 'copied': copied, 'whatsapp': whatsapp, 'inviteText': inviteText, 'inviteTextHint': inviteTextHint, 'invitePlaceholder': invitePlaceholder, 'privacy': privacy, 'regen': regen, 'regenTitle': regenTitle, 'regenText': regenText, 'regenConfirm': regenConfirm, 'close': close, 'create': create, 'approve': approve, 'unapprove': unapprove, 'edit': edit, 'hide': hide, 'delete': delete, 'deleteTitle': deleteTitle, 'deleteText': deleteText, 'relation': relation, 'moveUp': moveUp, 'moveDown': moveDown, 'orderHint': orderHint, 'readMore': readMore, 'save': save, 'cancel': cancel};
+}
+
+class LettersLabelsTabs {
+  final String pending;
+  final String approved;
+  final String hidden;
+
+  const LettersLabelsTabs({required this.pending, required this.approved, required this.hidden});
+
+  factory LettersLabelsTabs.fromJson(Map<String, dynamic> json) => LettersLabelsTabs(pending: json['pending'] as String, approved: json['approved'] as String, hidden: json['hidden'] as String);
+
+  Map<String, dynamic> toJson() => {'pending': pending, 'approved': approved, 'hidden': hidden};
+}
+
+class LettersLabelsEmpty {
+  final String pending;
+  final String approved;
+  final String hidden;
+
+  const LettersLabelsEmpty({required this.pending, required this.approved, required this.hidden});
+
+  factory LettersLabelsEmpty.fromJson(Map<String, dynamic> json) => LettersLabelsEmpty(pending: json['pending'] as String, approved: json['approved'] as String, hidden: json['hidden'] as String);
+
+  Map<String, dynamic> toJson() => {'pending': pending, 'approved': approved, 'hidden': hidden};
+}
+
+class LettersLabelsEmptyText {
+  final String pending;
+  final String pendingInvited;
+  final String approved;
+  final String hidden;
+
+  const LettersLabelsEmptyText({required this.pending, required this.pendingInvited, required this.approved, required this.hidden});
+
+  factory LettersLabelsEmptyText.fromJson(Map<String, dynamic> json) => LettersLabelsEmptyText(pending: json['pending'] as String, pendingInvited: json['pendingInvited'] as String, approved: json['approved'] as String, hidden: json['hidden'] as String);
+
+  Map<String, dynamic> toJson() => {'pending': pending, 'pendingInvited': pendingInvited, 'approved': approved, 'hidden': hidden};
+}
+
 class LettersView {
   final List<Letter> letters;
   final LetterInvite invite;
   final int max;
+  final bool editable;
+  final LettersLabels labels;
+  final LettersViewLimits limits;
 
-  const LettersView({required this.letters, required this.invite, required this.max});
+  const LettersView({required this.letters, required this.invite, required this.max, required this.editable, required this.labels, required this.limits});
 
-  factory LettersView.fromJson(Map<String, dynamic> json) => LettersView(letters: (json['letters'] as List).map((e) => Letter.fromJson(e as Map<String, dynamic>)).toList(), invite: LetterInvite.fromJson(json['invite'] as Map<String, dynamic>), max: (json['max'] as num).toInt());
+  factory LettersView.fromJson(Map<String, dynamic> json) => LettersView(letters: (json['letters'] as List).map((e) => Letter.fromJson(e as Map<String, dynamic>)).toList(), invite: LetterInvite.fromJson(json['invite'] as Map<String, dynamic>), max: (json['max'] as num).toInt(), editable: json['editable'] as bool, labels: LettersLabels.fromJson(json['labels'] as Map<String, dynamic>), limits: LettersViewLimits.fromJson(json['limits'] as Map<String, dynamic>));
 
-  Map<String, dynamic> toJson() => {'letters': letters.map((e) => e.toJson()).toList(), 'invite': invite.toJson(), 'max': max};
+  Map<String, dynamic> toJson() => {'letters': letters.map((e) => e.toJson()).toList(), 'invite': invite.toJson(), 'max': max, 'editable': editable, 'labels': labels.toJson(), 'limits': limits.toJson()};
+}
+
+class LettersViewLimits {
+  final int inviteText;
+  final int authorName;
+  final int relation;
+  final int text;
+
+  const LettersViewLimits({required this.inviteText, required this.authorName, required this.relation, required this.text});
+
+  factory LettersViewLimits.fromJson(Map<String, dynamic> json) => LettersViewLimits(inviteText: (json['inviteText'] as num).toInt(), authorName: (json['authorName'] as num).toInt(), relation: (json['relation'] as num).toInt(), text: (json['text'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'inviteText': inviteText, 'authorName': authorName, 'relation': relation, 'text': text};
 }
 
 class LetterInviteBody {
@@ -3800,12 +3896,13 @@ class CabinetBookLetters {
   final String text;
   final String action;
   final String href;
+  final String tab;
 
-  const CabinetBookLetters({required this.title, required this.text, required this.action, required this.href});
+  const CabinetBookLetters({required this.title, required this.text, required this.action, required this.href, required this.tab});
 
-  factory CabinetBookLetters.fromJson(Map<String, dynamic> json) => CabinetBookLetters(title: json['title'] as String, text: json['text'] as String, action: json['action'] as String, href: json['href'] as String);
+  factory CabinetBookLetters.fromJson(Map<String, dynamic> json) => CabinetBookLetters(title: json['title'] as String, text: json['text'] as String, action: json['action'] as String, href: json['href'] as String, tab: json['tab'] as String);
 
-  Map<String, dynamic> toJson() => {'title': title, 'text': text, 'action': action, 'href': href};
+  Map<String, dynamic> toJson() => {'title': title, 'text': text, 'action': action, 'href': href, 'tab': tab};
 }
 
 class CabinetBookHelp {

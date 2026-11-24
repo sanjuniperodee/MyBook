@@ -17,6 +17,7 @@ import '../ui/motion.dart';
 import 'answer_screen.dart';
 import 'checkout_screen.dart';
 import 'cover_screen.dart';
+import 'letters_screen.dart';
 import 'help_sheet.dart';
 import 'order_screen.dart';
 import 'preview_screen.dart';
@@ -168,6 +169,8 @@ class _BookScreenState extends State<BookScreen> {
       return _preview;
     if (parts.length >= 3 && parts[0] == 'books' && parts[2] == 'cover' && _hub != null)
       return _cover;
+    if (parts.length >= 3 && parts[0] == 'books' && parts[2] == 'letters' && _hub != null)
+      return _letters;
     if (parts.length >= 2 && parts[0] == 'orders')
       return () => _openOrder(parts[1]);
     return null;
@@ -180,6 +183,11 @@ class _BookScreenState extends State<BookScreen> {
 
   Future<void> _preview() async {
     await Navigator.of(context).push(CabinetRoute<void>(builder: (_) => PreviewScreen(hub: _hub!)));
+    _loadHub();
+  }
+
+  Future<void> _letters() async {
+    await Navigator.of(context).push(CabinetRoute<void>(builder: (_) => LettersScreen(hub: _hub!)));
     _loadHub();
   }
 
@@ -236,8 +244,10 @@ class _BookScreenState extends State<BookScreen> {
                   steps: _steps(h),
                   active: 'hub',
                   preview: h.preview.tab,
+                  letters: h.letters.tab,
                   onTap: (k) {
                     if (k == 'preview') _preview();
+                    if (k == 'letters') _letters();
                     if (k == 'write') _write(null);
                     if (k == 'photos') _photos();
                     if (k == 'design') _cover();
@@ -301,7 +311,7 @@ class _BookScreenState extends State<BookScreen> {
                           onOpen: (id) => _write(id),
                         ),
                         const SizedBox(height: 32),
-                        _Letters(h: h),
+                        _Letters(h: h, onOpen: _letters),
                         const SizedBox(height: 18),
                         _Help(h: h),
                       ],
@@ -933,13 +943,14 @@ class _Chapters extends StatelessWidget {
 
 /// Письма близких (кнопка — когда письма появятся в приложении; пока — состояние).
 class _Letters extends StatelessWidget {
-  const _Letters({required this.h});
+  const _Letters({required this.h, required this.onOpen});
   final v1api.CabinetBook h;
+  final VoidCallback onOpen;
 
   @override
   Widget build(BuildContext context) {
     final c = context.c;
-    return Panel(
+    return InkWell(onTap: onOpen, borderRadius: BorderRadius.circular(Cab.panel), child: Panel(
       padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -962,9 +973,15 @@ class _Letters extends StatelessWidget {
             h.letters.text,
             style: TextStyle(fontSize: 15, height: 1.6, color: c.textMuted),
           ),
+          const SizedBox(height: 10),
+          Row(children: [
+            Text(h.letters.action, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: c.brand)),
+            const SizedBox(width: 4),
+            Icon(LucideIcons.chevronRight, size: 16, color: c.brand),
+          ]),
         ],
       ),
-    );
+    ));
   }
 }
 

@@ -226,8 +226,12 @@ class StepTabs extends StatelessWidget {
     required this.active,
     required this.onTap,
     this.preview,
+    this.letters,
   });
   final List<BookStep> steps;
+
+  /// «Письма» — после «Макет и 3D», как в ленте книги сайта; ключ 'letters', подпись с сервера.
+  final String? letters;
 
   /// «Макет и 3D» — всегда на виду после шагов (как лента книги сайта); ключ 'preview', подпись с сервера.
   final String? preview;
@@ -317,6 +321,10 @@ class StepTabs extends StatelessWidget {
         ),
       );
       items.add(tab('preview', Icon(LucideIcons.box, size: 18, color: c.brand), preview!));
+    }
+    if (letters != null) {
+      items.add(const SizedBox(width: 14));
+      items.add(tab('letters', Icon(LucideIcons.mail, size: 18, color: c.textMuted), letters!));
     }
     return Container(
       height: 52,

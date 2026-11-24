@@ -151,7 +151,7 @@ export const CabinetBook = z
     chaptersAside: z.string().nullable(),
     allChaptersLabel: z.string(),
     chapters: z.array(HubChapter),
-    letters: z.object({ title: z.string(), text: z.string(), action: z.string(), href: z.string() }),
+    letters: z.object({ title: z.string(), text: z.string(), action: z.string(), href: z.string(), /** Подпись вкладки «Письма» в ленте книги. */ tab: z.string() }),
     help: z.object({ title: z.string(), text: z.string(), url: z.string() }),
     /** Редактор: «С чего начать?» и подсказки (свои у своей книги и «о себе»), заметка о записи с голоса. */
     whereToStart: z.string(),
