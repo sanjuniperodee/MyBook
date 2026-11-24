@@ -174,6 +174,35 @@ sudo nginx -t && sudo systemctl reload nginx
 На сервере же ILM HUB и my-test — их конфиги не трогать. `/_next/static` с диска nginx не отдаёт: `/home/srv` закрыт
 (700) для `www-data`, открывать домашнюю папку ради этого не стали.
 
+### 2.6. Cloudflare перед сайтом (24.11)
+
+Зачем: статика (`/_next/static`, картинки сайта) — из ближайшей точки Cloudflare, защита от DDoS. Страницы, API и данные
+остаются на нашем сервере в Казахстане: Cloudflare их не кэширует (у страниц и файлов `Cache-Control: private`/`no-store`).
+
+На сервере (сделано 24.11): `snippets/mybook-cloudflare-realip.conf` (копия — `deploy/nginx-cloudflare-realip.conf`)
+подключён в `server` mybooks.kz — `$remote_addr` и `X-Real-IP` берутся из `CF-Connecting-IP`, но только от адресов
+Cloudflare; без Cloudflare ничего не меняет. Это нужно лимитам частоты и списку разрешённых IP (`src/server/rateLimit.ts`).
+Диапазоны меняются редко — сверять с https://www.cloudflare.com/ips-v4 и ips-v6. Откат — копия
+`/etc/nginx/backup-2026-11-24-cf/mybooks-kz`, `nginx -t`, `systemctl reload nginx`.
+
+В Cloudflare (Free):
+- DNS: `mybooks.kz` A 185.102.75.191 и `www` — **Proxied**; `mail` (A 94.131.93.92), MX, SPF/DKIM/TXT — **DNS only**
+  (почта через Cloudflare не ходит); перенести все записи из панели ps.kz.
+- SSL/TLS: **Full (strict)** (на сервере сертификат Let's Encrypt; продление HTTP-01 идёт через Cloudflare на порт 80).
+  «Always Use HTTPS» не нужен — nginx сам переводит на https.
+- Выключить: **Rocket Loader**, **Email Address Obfuscation** (ломают гидратацию React), **Bot Fight Mode** (режет
+  CloudPayments `/api/payments/cloudpayments/*` и приложение `/api/mobile/*`).
+- Security → WAF → Custom rule «Skip» (все проверки) для `starts_with(http.request.uri.path, "/api/payments/")` или
+  `"/api/mobile/"`.
+- Caching → Cache Rules: **Bypass** для путей `/files/`, `/api/v/` (свои видео по QR — Cloudflare не для видео),
+  `/wa-call/`. Остальное — по заголовкам сайта.
+- Network: WebSockets — вкл. (звонки WhatsApp `/wa-call/*`); тело запроса до 100 МБ (у nginx 80 МБ); ответ должен
+  начаться за 100 с, иначе 524 (SSE `/api/admin/live/stream` шлёт ping каждые 25 с; сборка PDF — ~25 с).
+- Последний шаг — у регистратора (ps.kz) сменить NS `ns1–3.ps.kz` на два NS Cloudflare. Откат — вернуть NS ps.kz.
+
+Проверка после переключения: `curl -sI https://mybooks.kz/ | grep -i cf-ray` (код точки в конце), вход в CRM, чаты
+(живая лента), звонок, оплата CloudPayments, загрузка видео, приложение, в журнале nginx — настоящие адреса клиентов.
+
 ## 3. Миграции
 
 - Владелец схемы — владелец миграций.
