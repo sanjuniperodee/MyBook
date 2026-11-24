@@ -2,14 +2,14 @@ import "server-only";
 import { and, desc, eq, isNull, lte, or, sql } from "drizzle-orm";
 import { bookQuestions, books, crmNotes, emailLog, orderEvents, orders, reviews, users } from "@/shared/infrastructure/db/schema";
 import { booksId, ordersBookId, ordersId } from "@/shared/infrastructure/db/refs";
-import { WORD_PATTERN, answeredSql, totalSql, wordsSql } from "@/shared/infrastructure/db/bookProgress";
+import { answeredSql, totalSql, wordsSql } from "@/shared/infrastructure/db/bookProgress";
 import { executor } from "@/shared/infrastructure/database";
 import type { ClientTimeline, EmailJournal, LifecycleSource, Recipient, RecipientRepository } from "../application";
 
 const recipientCols = { id: users.id, email: users.email, name: users.name, locale: users.locale, remindedAt: users.remindedAt, optOut: users.emailOptOut };
 const answered = answeredSql(booksId);
 // Первый раздел без текста — по позиции (позиции подряд), «без текста» — как в answeredSql (пробелы и переводы строк не в счёт).
-const firstEmpty = sql<string | null>`(select q.id::text from ${bookQuestions} q where q.book_id = ${booksId} and q.answer !~ ${WORD_PATTERN} order by q.position limit 1)`;
+const firstEmpty = sql<string | null>`(select q.id::text from ${bookQuestions} q where q.book_id = ${booksId} and q.answer_words = 0 order by q.position limit 1)`;
 
 // Тема книги заказа; книга могла быть удалена — тогда это подарок по умолчанию (bookKind).
 const orderTheme = sql<string>`coalesce((select b.theme from books b where b.id = ${ordersBookId}), '')`;

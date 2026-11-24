@@ -28,6 +28,8 @@ function coverArtVersion() {
   }
 }
 
+const PUBLIC_IMAGE_CACHE = "public, max-age=604800, stale-while-revalidate=2592000";
+
 const nextConfig: NextConfig = {
   output: "standalone",
   // Heavy Node-only packages used by PDF generation and image processing.
@@ -69,6 +71,11 @@ const nextConfig: NextConfig = {
           { key: "Permissions-Policy", value: "camera=(), microphone=(self), geolocation=()" },
         ],
       },
+      // Картинки сайта из public/ (лого, значки, лендинг): без хэша в имени, поэтому не immutable — неделя и ещё месяц
+      // отдаются из кэша (браузер, Cloudflare), пока проверяется новая. Next по умолчанию ставит max-age=0 — каждый заход
+      // спрашивал сервер. Служебный воркер CRM, манифесты и worklet звонков — как были (обновления должны доходить сразу).
+      { source: "/:file(logo|mark|icon-192|icon-512|crm-icon-192|crm-icon-512|crm-icon-maskable-512|crm-badge-96).:ext(png|webp)", headers: [{ key: "Cache-Control", value: PUBLIC_IMAGE_CACHE }] },
+      { source: "/lp/:path*", headers: [{ key: "Cache-Control", value: PUBLIC_IMAGE_CACHE }] },
     ];
   },
 };

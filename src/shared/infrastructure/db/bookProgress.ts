@@ -15,14 +15,18 @@ type BookRef = SQL | string;
 /** Есть ли в ответе текст — как answer.trim() в JS (пробелы, переводы строк и неразрывный пробел не в счёт). */
 export const hasText = (answer: SQL) => sql<boolean>`(${answer} ~ ${WORD_PATTERN})`;
 
-/** Вопросов (разделов) с текстом в книге. */
-export const answeredSql = (book: BookRef) => sql<number>`(select count(*)::int from book_questions q where q.book_id = ${book} and q.answer ~ ${WORD_PATTERN})`;
+/**
+ * Вопросов (разделов) с текстом в книге. answer_words — слова ответа, считает база при записи (миграция 0105, функция
+ * mybook_word_count с тем же WORD_PATTERN; в схеме drizzle столбца нет): «есть текст» = хотя бы одно слово.
+ * Раньше regexp по всем ответам на каждый запрос — /admin, сделки и книги CRM ждали 150–600 мс (perf.md, 24.11).
+ */
+export const answeredSql = (book: BookRef) => sql<number>`(select count(*)::int from book_questions q where q.book_id = ${book} and q.answer_words > 0)`;
 
 /** Всего вопросов (разделов) в книге. */
 export const totalSql = (book: BookRef) => sql<number>`(select count(*)::int from book_questions q where q.book_id = ${book})`;
 
-/** Слов во всех ответах книги — как сумма countWords по вопросам. */
-export const wordsSql = (book: BookRef) => sql<number>`(select count(*)::int from book_questions q, regexp_matches(q.answer, ${WORD_PATTERN}, 'g') w where q.book_id = ${book})`;
+/** Слов во всех ответах книги — как сумма countWords по вопросам (answer_words — см. answeredSql). */
+export const wordsSql = (book: BookRef) => sql<number>`(select coalesce(sum(q.answer_words), 0)::int from book_questions q where q.book_id = ${book})`;
 
 interface ProgressCols {
   theme: AnyColumn | SQL;
