@@ -191,7 +191,7 @@ export const crmFinanceHandlers: Pick<Handlers, FinanceHandlers> = {
   async crmProfit({ req, input }) {
     const staff = await apiStaff(req, "finance.view");
     const { tz, period } = periodOf(input);
-    const [{ screen: s, feeRates, taxRate }, dealFields] = await Promise.all([loadProfit(period, tz), listFields("deal")]);
+    const [{ screen: s, feeRates }, dealFields] = await Promise.all([loadProfit(period, tz), listFields("deal")]);
     const t = s.totals;
     // Строки отчёта — как на странице «Прибыль».
     const lines: { label: string; value: number; prev: number; kind: "sum" | "sub" | "result" | null; minus: boolean }[] = [
