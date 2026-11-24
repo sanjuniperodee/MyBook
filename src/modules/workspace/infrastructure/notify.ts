@@ -37,7 +37,7 @@ export async function notify(userIds: (string | null | undefined)[], n: StaffNot
       continue;
     }
     const count = prev.count + 1;
-    await db.update(crmNotifications).set({ title: next.title, body: threadBody(next.kind, count, next.body), count, createdAt: now }).where(eq(crmNotifications.id, prev.id));
+    await db.update(crmNotifications).set({ title: next.title, body: threadBody(!!n.incoming, count, next.body), count, createdAt: now }).where(eq(crmNotifications.id, prev.id));
   }
   if (fresh.length) await db.insert(crmNotifications).values(fresh.map((userId) => ({ userId, ...next })));
   // Мгновенно — открытым вкладкам CRM (SSE) и на устройства с push (если push не выключен), не задерживая основное действие.

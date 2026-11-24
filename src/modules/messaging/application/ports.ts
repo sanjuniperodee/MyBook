@@ -209,7 +209,7 @@ export interface LinkAttribution {
 
 export interface StaffNotifier {
   /** Ответственному или всем сотрудникам с правом. */
-  notify(assigneeId: string | null, permission: "chats.view" | "deals.view", n: { kind: "message" | "task"; title: string; body: string; link: string }): Promise<void>;
+  notify(assigneeId: string | null, permission: "chats.view" | "deals.view", n: { kind: "message" | "task"; title: string; body: string; link: string; incoming?: boolean }): Promise<void>;
   /** Руководителям (право «Сотрудники и роли»): то, что нужно проверить, — например, реквизиты с телефона компании. */
   managers?(n: { kind: "system"; title: string; body: string; link: string }): Promise<void>;
 }

@@ -5,6 +5,10 @@ const chat = "/admin/chats?c=1";
 const deal = "/admin/deals/1";
 
 describe("Одно уведомление на объект (24.11: тысячи непрочитанных у админов)", () => {
+  it("«клиент написал» и «заявку взял(а)» по одному чату — разные уведомления", () => {
+    expect(sameThread({ kind: "message", title: "Айгерим · WhatsApp", link: chat }, { kind: "message", title: "Заявку взял(а) Margo: ответил(а) с телефона WhatsApp", link: chat })).toBe(false);
+  });
+
   it("сообщения клиента одного чата — в одно уведомление, другой чат — отдельно", () => {
     expect(sameThread({ kind: "message", title: "Айгерим · WhatsApp", link: chat }, { kind: "message", title: "Айгерим · WhatsApp", link: chat })).toBe(true);
     expect(sameThread({ kind: "message", title: "Айгерим · WhatsApp", link: chat }, { kind: "message", title: "Айгерим · WhatsApp", link: "/admin/chats?c=2" })).toBe(false);
@@ -25,11 +29,12 @@ describe("Одно уведомление на объект (24.11: тысячи
   });
 
   it("текст: сколько новых сообщений и последнее", () => {
-    expect(threadBody("message", 1, "Цена ?")).toBe("Цена ?");
-    expect(threadBody("message", 2, "Цена ?")).toBe("2 новых сообщения · Цена ?");
-    expect(threadBody("message", 5, "Нет")).toBe("5 новых сообщений · Нет");
-    expect(threadBody("message", 21, "Астана")).toBe("21 новое сообщение · Астана");
-    expect(threadBody("message", 12, "Да")).toBe("12 новых сообщений · Да");
-    expect(threadBody("sla", 3, "назначьте")).toBe("назначьте");
+    expect(threadBody(true, 1, "Цена ?")).toBe("Цена ?");
+    expect(threadBody(true, 2, "Цена ?")).toBe("2 новых сообщения · Цена ?");
+    expect(threadBody(true, 5, "Нет")).toBe("5 новых сообщений · Нет");
+    expect(threadBody(true, 21, "Астана")).toBe("21 новое сообщение · Астана");
+    expect(threadBody(true, 12, "Да")).toBe("12 новых сообщений · Да");
+    // Служебное о чате («заявку взял(а)») — без «новых сообщений».
+    expect(threadBody(false, 3, "Kanat")).toBe("Kanat");
   });
 });

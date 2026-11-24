@@ -322,6 +322,7 @@ export class MessagingService {
           title: `${conv.contactName || m.contactName || phoneTail(conv.chatId) || conv.chatId} · ${channelLabel(conv.channel)}`,
           body: preview(m.text),
           link: `/admin/chats?c=${conv.id}`,
+          incoming: true,
         })
         .catch((err) => this.logger.error("notify", err));
     // Бот мог взять диалог (плашка «ведёт бот») — ещё раз.

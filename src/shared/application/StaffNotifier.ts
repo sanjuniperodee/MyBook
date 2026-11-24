@@ -6,6 +6,11 @@ export interface StaffNotification {
   link?: string | null;
   /** false — только колокольчик и открытые вкладки, без push на устройства: ночью никого не будим. По умолчанию — с push. */
   push?: boolean;
+  /**
+   * Входящее сообщение клиента: пока уведомление о чате не прочитано, следующие складываются в него — «3 новых
+   * сообщения · последний текст» (workspace/domain/notifyThread).
+   */
+  incoming?: boolean;
 }
 
 /**
