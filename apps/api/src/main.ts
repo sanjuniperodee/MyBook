@@ -9,14 +9,14 @@ import { createApp } from "./app";
 import { siteAuthenticator } from "./auth";
 import { serve } from "./http/server";
 import { handlers } from "./routes";
-import { handleProvider } from "./providers";
+import { handleSiteRoute } from "./site-routes";
 
 const port = Number(process.env.API_PORT) || 3044;
 const host = process.env.API_HOST || "127.0.0.1";
 
 await configureSharpMemory();
 startPerfSampler();
-const server = serve(createApp(handlers, siteAuthenticator, handleProvider), { port, host });
+const server = serve(createApp(handlers, siteAuthenticator, handleSiteRoute), { port, host });
 server.on("listening", () => console.log(`[api] v1 на ${host}:${port} (pid ${process.pid})`));
 
 const stop = (signal: string) => {
