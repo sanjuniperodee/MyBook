@@ -16,7 +16,7 @@ import { fileRoute } from "@/server/file-route";
  * Обложки на снимках и с фото клиента (на снимках-примерах) — JPEG: картинка-SVG не может загрузить снимок,
  * поэтому растрируем на сервере.
  */
-const FILE = /^([a-z0-9]+)-([a-z0-9]+)(-lite)?(-back|-backplain)?(?:-p(\d{1,4}))?\.(svg|jpg|webp)$/;
+const FILE = /^([a-z0-9]+)-([a-z0-9]+)(-nl)?(-lite)?(-back|-backplain)?(?:-p(\d{1,4}))?\.(svg|jpg|webp)$/;
 /**
  * Толщина книги для фона задней крышки, когда страниц в адресе нет (-p<страниц>). От неё зависит, где на обороте рисунок
  * и снимок шаблона, растянутые на всю развёртку, — с настоящим числом страниц оборот такой же, как в cover.pdf.
@@ -56,30 +56,32 @@ async function photoArt(template: CoverTemplate, format: BookFormat, lite: boole
 async function art(file: string): Promise<Entry | null> {
   const m = FILE.exec(file);
   if (!m || !isKnownCover(m[1]) || !(m[2] in formats)) return null;
-  const template = getCoverTemplate(m[1]);
+  // -nl — без декоративных линий (books.cover_lines).
+  const template = getCoverTemplate(m[1], !m[3]);
+  const [lite, side, pagesIn, ext] = [m[4], m[5], m[6], m[7]];
   const raster = !!(template.photo || template.samples);
-  if ((m[6] !== "svg") !== raster) return null;
+  if ((ext !== "svg") !== raster) return null;
   // Страницы — только у оборота.
-  if (m[5] && !m[4]) return null;
-  const pages = m[5] ? Number(m[5]) : PREVIEW_PAGES;
+  if (pagesIn && !side) return null;
+  const pages = pagesIn ? Number(pagesIn) : PREVIEW_PAGES;
   if (pages < 1 || pages > MAX_PAGES) return null;
   const key = `${file}@${template.rev ?? 0}`;
   const hit = cache.get(key);
   if (hit) return hit;
   const format = getFormat(m[2]);
   // -backplain — оборот без повтора композиции лица: под карточками «Полароидов».
-  const plainBack = m[4] === "-backplain";
+  const plainBack = side === "-backplain";
   let entry: Entry;
   if (raster) {
-    const webp = m[6] === "webp";
-    entry = { type: webp ? "image/webp" : "image/jpeg", raw: await photoArt(template, format, !!m[3], !!m[4], plainBack, webp, pages) };
+    const webp = ext === "webp";
+    entry = { type: webp ? "image/webp" : "image/jpeg", raw: await photoArt(template, format, !!lite, !!side, plainBack, webp, pages) };
   } else {
     let raw: string;
-    if (m[4]) {
+    if (side) {
       // Задняя крышка — кусок развёртки: так её узор и повтор композиции лица такие же, как в печати.
       const g = coverSpreadGeometry(format, pages);
-      raw = cropSvg(renderCoverSvg(template, g, { uid: `${template.id}${format.id}b` }, { noTexture: !!m[3], plainBack }), g.back!, { w: g.width, h: g.height });
-    } else raw = renderCoverSvg(template, coverFrontGeometry(format), { uid: `${template.id}${format.id}` }, { noTexture: !!m[3] });
+      raw = cropSvg(renderCoverSvg(template, g, { uid: `${template.id}${format.id}b` }, { noTexture: !!lite, plainBack }), g.back!, { w: g.width, h: g.height });
+    } else raw = renderCoverSvg(template, coverFrontGeometry(format), { uid: `${template.id}${format.id}` }, { noTexture: !!lite });
     entry = { type: "image/svg+xml; charset=utf-8", raw, br: brotliCompressSync(raw, { params: { [constants.BROTLI_PARAM_QUALITY]: 11 } }), gzip: gzipSync(raw, { level: 9 }) };
   }
   // Старые версии шаблона из CRM больше не запросят — не держим их в памяти.

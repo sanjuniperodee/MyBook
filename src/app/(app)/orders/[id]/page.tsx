@@ -67,7 +67,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
         <div className="w-14 shrink-0 lg:hidden">
           <Morph name={`order-${order.id}`}>
             <div>
-              <CoverPreview template={book.coverTemplate} format={book.format} title={book.title} names={coverNames(book)} photos={photoUrls(coverPhotoIds(book), "thumb")} design={book.coverDesign} lite className="rounded-[3px] shadow-book" />
+              <CoverPreview template={book.coverTemplate} lines={book.coverLines} format={book.format} title={book.title} names={coverNames(book)} photos={photoUrls(coverPhotoIds(book), "thumb")} design={book.coverDesign} lite className="rounded-[3px] shadow-book" />
             </div>
           </Morph>
         </div>

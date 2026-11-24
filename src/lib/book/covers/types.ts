@@ -60,6 +60,8 @@ export interface CoverTemplate {
   subtitle: CoverTextStyle;
   names: CoverTextStyle;
   ornament?: { kind: "line" | "heart" | "star" | "dots"; color: string };
+  /** false — вариант шаблона без декоративных линий (books.cover_lines, covers/lines.ts). */
+  lines?: false;
   spine: { color: string; font: FontKey };
   /**
    * Задняя сторона. mirror — повторить композицию лица (плашку, рамку, марку): текст ложится туда же,

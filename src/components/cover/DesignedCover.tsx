@@ -16,12 +16,12 @@ import { CoverLayers, type CoverLayersProps } from "./CoverLayers";
 const samplePhotoHref = (key: string) => coverPhotoUrl(key, 1000);
 
 /** Фон холста: рисунок шаблона (с фото клиента в его местах) или свой цвет/градиент — SVG в мм. */
-export function designBackgroundSvg(templateId: string, formatId: string, design: CoverDesign, opts: { wrap?: number; uid: string; photos?: (PhotoRef | undefined)[]; lite?: boolean }) {
+export function designBackgroundSvg(templateId: string, formatId: string, design: CoverDesign, opts: { wrap?: number; uid: string; photos?: (PhotoRef | undefined)[]; lite?: boolean; lines?: boolean }) {
   const format = getFormat(formatId);
   const g = canvasGeometry(format, opts.wrap ?? 0);
   if (design.background.kind !== "template")
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${n(g.width)} ${n(g.height)}" preserveAspectRatio="xMidYMid slice">${backgroundArt(design.background, g, opts.uid)}</svg>`;
-  const template = getCoverTemplate(templateId);
+  const template = getCoverTemplate(templateId, opts.lines ?? true);
   return renderCoverSvg(
     template,
     g,
@@ -32,6 +32,8 @@ export function designBackgroundSvg(templateId: string, formatId: string, design
 
 export interface DesignedCoverProps extends Partial<Pick<CoverLayersProps, "placeholders" | "layerProps">> {
   template: string;
+  /** Декоративные линии рисунка шаблона под слоями (books.cover_lines); false — без них. */
+  lines?: boolean;
   format?: string;
   design: CoverDesign;
   texts: CoverTexts;
@@ -51,11 +53,11 @@ export interface DesignedCoverProps extends Partial<Pick<CoverLayersProps, "plac
   underlay?: CoverLayer[];
 }
 
-export function DesignedCover({ template, format: formatId = "a5", design, texts, photos, wrap = 0, uid = "dc", lite, className, overlay, boardRef, placeholders, layerProps, backdrop, underlay }: DesignedCoverProps) {
+export function DesignedCover({ template, lines = true, format: formatId = "a5", design, texts, photos, wrap = 0, uid = "dc", lite, className, overlay, boardRef, placeholders, layerProps, backdrop, underlay }: DesignedCoverProps) {
   const format = getFormat(formatId);
   const board = boardSize(format);
   const g = canvasGeometry(format, wrap);
-  const svg = backdrop ?? designBackgroundSvg(template, format.id, design, { wrap, uid, photos, lite });
+  const svg = backdrop ?? designBackgroundSvg(template, format.id, design, { wrap, uid, photos, lite, lines });
   return (
     <div className={cn("relative overflow-hidden select-none", className)} style={{ aspectRatio: `${g.width} / ${g.height}`, background: "#EEE8E0" }}>
       <div className="absolute inset-0 [&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: svg }} />

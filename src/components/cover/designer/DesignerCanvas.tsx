@@ -61,6 +61,7 @@ const pct = (v: number) => `${v * 100}%`;
 export function DesignerCanvas({
   dz,
   template,
+  lines = true,
   format: formatId,
   texts,
   photos,
@@ -81,6 +82,8 @@ export function DesignerCanvas({
 }: {
   dz: Designer;
   template: string;
+  /** Декоративные линии рисунка шаблона на фоне (books.cover_lines); false — без них. */
+  lines?: boolean;
   format: string;
   texts: CoverTexts;
   /** Фото клиента в местах шаблона (фон «шаблон»). */
@@ -383,6 +386,7 @@ export function DesignerCanvas({
     >
       <DesignedCover
         template={template}
+        lines={lines}
         format={format.id}
         design={design}
         texts={texts}

@@ -28,6 +28,7 @@ export interface ShelfBook {
       theme: string;
       format: string;
       coverTemplate: string;
+      coverLines?: boolean;
       coverPhotoId: string | null;
       coverPhotoExtra?: string[] | null;
       coverDesign: unknown;
@@ -61,6 +62,7 @@ export interface ShelfBook {
 
 const coverProps = (b: ShelfBook["row"]["book"]) => ({
   template: b.coverTemplate,
+  lines: b.coverLines,
   format: b.format,
   title: b.title,
   subtitle: b.subtitle,

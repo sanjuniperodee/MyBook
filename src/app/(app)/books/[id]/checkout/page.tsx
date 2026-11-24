@@ -75,6 +75,7 @@ export default async function CheckoutPage({ params, searchParams }: { params: P
         <div className="w-12 shrink-0 sm:w-14">
           <CoverPreview
             template={book.coverTemplate}
+            lines={book.coverLines}
             format={book.format}
             title={book.title}
             subtitle={book.subtitle}

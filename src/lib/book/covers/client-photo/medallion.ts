@@ -21,17 +21,17 @@ export const medallion: CoverTemplate = {
     const rx = ry * 0.8;
     let out = `<defs>${foil(`${uid}au`, f)}<radialGradient id="${uid}bg" gradientUnits="userSpaceOnUse" cx="${n(cx)}" cy="${n(f.y + f.h * 0.4)}" r="${n(Math.max(f.w, f.h) * 0.75)}"><stop offset="0" stop-color="#6A2736"/><stop offset="0.6" stop-color="#43141F"/><stop offset="1" stop-color="#260A11"/></radialGradient></defs><rect width="${n(g.width)}" height="${n(g.height)}" fill="url(#${uid}bg)"/>`;
     out += rectFrame(f, 7, "#CDAE70", 0.5) + rectFrame(f, 8.6, "#CDAE70", 0.18);
-    // Ромбики на углах внутренней рамки
+    // Ромбики на углах внутренней рамки — часть рамки: без декоративных линий их нет вместе с ней
     for (const [x, y] of [
       [f.x + 7, f.y + 7],
       [f.x + f.w - 7, f.y + 7],
       [f.x + 7, f.y + f.h - 7],
       [f.x + f.w - 7, f.y + f.h - 7],
     ])
-      out += `<path d="M${n(x)},${n(y - 2.2)} L${n(x + 2.2)},${n(y)} L${n(x)},${n(y + 2.2)} L${n(x - 2.2)},${n(y)}Z" fill="#CDAE70"/>`;
+      out += `<path d="M${n(x)},${n(y - 2.2)} L${n(x + 2.2)},${n(y)} L${n(x)},${n(y + 2.2)} L${n(x - 2.2)},${n(y)}Z" fill="#CDAE70" data-line=""/>`;
     out += `<path d="${ellipsePath(cx, cy + 1.6, rx + 2, ry + 2)}" fill="#000" fill-opacity="0.35"/>`;
     out += photoSlot(ctx, 0, { x: cx - rx, y: cy - ry, w: rx * 2, h: ry * 2 }, { clip: ellipsePath(cx, cy, rx, ry), scene: 3 });
-    out += `<path d="${ellipsePath(cx, cy, rx + 1.3, ry + 1.3)}" fill="none" stroke="${gold}" stroke-width="1.6"/><path d="${ellipsePath(cx, cy, rx + 3.2, ry + 3.2)}" fill="none" stroke="${gold}" stroke-width="0.25"/>`;
+    out += `<path d="${ellipsePath(cx, cy, rx + 1.3, ry + 1.3)}" fill="none" stroke="${gold}" stroke-width="1.6"/><path d="${ellipsePath(cx, cy, rx + 3.2, ry + 3.2)}" fill="none" stroke="${gold}" stroke-width="0.25" data-line=""/>`;
     // Жемчужная нить вокруг рамы
     const beads = 64;
     for (let i = 0; i < beads; i++) {

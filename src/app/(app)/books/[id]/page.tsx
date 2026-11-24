@@ -245,6 +245,7 @@ export default async function BookHubPage({ params }: { params: Promise<{ id: st
               <Book3D
                 bookId={book.id}
                 template={book.coverTemplate}
+                lines={book.coverLines}
                 format={book.format}
                 title={book.title}
                 subtitle={book.subtitle}

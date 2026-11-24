@@ -21,7 +21,7 @@ export const arch: CoverTemplate = {
     out += `<path d="${archPath(x + w * 0.13, y + w * 0.1, w, h - w * 0.1)}" fill="#D9AC8C"/>`;
     out += photoSlot(ctx, 0, { x, y, w, h }, { clip: archPath(x, y, w, h), scene: 0 });
     const o = 3.4;
-    out += `<path d="${archPath(x - o, y - o, w + o * 2, h + o)}" fill="none" stroke="${line}" stroke-width="0.3"/>`;
+    out += `<path d="${archPath(x - o, y - o, w + o * 2, h + o)}" fill="none" stroke="${line}" stroke-width="0.3" data-line=""/>`;
     const base = y + h + 0.01;
     out += `<line x1="${n(x - o - 9)}" y1="${n(base)}" x2="${n(x + w + o + 9)}" y2="${n(base)}" stroke="${line}" stroke-width="0.3"/>`;
     for (const cx of [x - o - 10.5, x + w + o + 10.5]) out += `<circle cx="${n(cx)}" cy="${n(base)}" r="0.7" fill="${line}"/>`;

@@ -64,6 +64,8 @@ const typing = (t: EventTarget | null) => t instanceof HTMLElement && (t.isConte
 export interface CoverDesignerProps {
   bookId: string;
   template: string;
+  /** Декоративные линии рисунка шаблона на фоне (books.cover_lines); false — без них. */
+  lines?: boolean;
   format: string;
   initial: CoverDesign;
   texts: CoverTexts;
@@ -105,6 +107,7 @@ export interface CoverDesignerProps {
 export function CoverDesigner({
   bookId,
   template,
+  lines = true,
   format: formatId,
   initial,
   texts,
@@ -271,7 +274,7 @@ export function CoverDesigner({
         }}
         renderPreview={(patch, key) => {
           const d = parseCoverDesign(patch.coverDesign);
-          return d ? <DesignedCover template={patch.coverTemplate ?? template} format={formatId} design={d} texts={texts} photos={templatePhotos} uid={`ai${key}`} lite className="shadow-soft" /> : null;
+          return d ? <DesignedCover template={patch.coverTemplate ?? template} lines={lines} format={formatId} design={d} texts={texts} photos={templatePhotos} uid={`ai${key}`} lite className="shadow-soft" /> : null;
         }}
         previewMin={110}
         onUndo={dz.undo}
@@ -398,6 +401,7 @@ export function CoverDesigner({
         <DesignerCanvas
           dz={dz}
           template={template}
+          lines={lines}
           format={format.id}
           texts={texts}
           photos={templatePhotos}

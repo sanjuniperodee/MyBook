@@ -29,14 +29,17 @@ export interface CoverPreviewProps {
   photoHint?: string;
   /** Обложка из конструктора (books.cover_design): есть — рисуется она, текст шаблона не нужен. */
   design?: unknown;
+  /** Декоративные линии шаблона (books.cover_lines); false — без них. */
+  lines?: boolean;
 }
 
-export function CoverPreview({ template: templateId, format: formatId = "a5", title, subtitle, names, photos, className, uid, lite, priority, titlePlaceholder = "…", photoHint, design: rawDesign }: CoverPreviewProps) {
+export function CoverPreview({ template: templateId, format: formatId = "a5", title, subtitle, names, photos, className, uid, lite, priority, titlePlaceholder = "…", photoHint, design: rawDesign, lines = true }: CoverPreviewProps) {
   const design = rawDesign ? parseCoverDesign(rawDesign) : null;
   if (design)
     return (
       <DesignedCover
         template={templateId}
+        lines={lines}
         format={formatId}
         design={design}
         // Обложка из конструктора печатает название, как его ввёл автор: стёр — его нет и в cover.pdf (без подстановки).
@@ -47,7 +50,7 @@ export function CoverPreview({ template: templateId, format: formatId = "a5", ti
         className={className}
       />
     );
-  const template = getCoverTemplate(templateId);
+  const template = getCoverTemplate(templateId, lines);
   const format = getFormat(formatId);
   // Фон — кэшируемая картинка; встраивать SVG нужно только обложке с фото клиента (картинка-SVG не грузит чужие файлы).
   const hasPhoto = !!template.requiresPhoto && !!photos?.some(Boolean);

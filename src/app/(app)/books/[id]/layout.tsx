@@ -64,6 +64,7 @@ export default async function BookLayout({ children, params }: { children: React
           <div className="w-7 shrink-0">
             <CoverPreview
               template={book.coverTemplate}
+              lines={book.coverLines}
               format={book.format}
               title={book.title}
               names={coverNames(book)}

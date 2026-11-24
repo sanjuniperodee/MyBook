@@ -68,6 +68,7 @@ export default async function CoverPage({ params, searchParams }: { params: Prom
         year={book.occasionDate ? Number(book.occasionDate.slice(0, 4)) : new Date().getFullYear()}
         initial={{
           coverTemplate: book.coverTemplate,
+          coverLines: book.coverLines,
           title: book.title,
           subtitle: book.subtitle,
           authorName: book.authorName,

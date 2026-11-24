@@ -398,6 +398,8 @@ export const books: typeof ru = {
     recordedByPlaceholder: "For example, granddaughter Aruzhan",
     recipientNone: "An autobiography has no recipient: the dedication is written in the “Pages” tab.",
     hideRecipient: "Don’t show on the cover",
+    coverLines: "Decorative lines",
+    coverLinesHint: "Lines and frames of the design and the line by the names. Photos and text stay the same.",
     namesOnCover: "Names on the cover",
     namesOnCoverText: "You can change the order or write it your own way. Empty — as it is now.",
     namesSwap: "Swap places",

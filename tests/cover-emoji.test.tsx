@@ -35,6 +35,7 @@ const book: Book = {
   recipientName: "Мама",
   recipientGender: "f",
   hideRecipientOnCover: false,
+  coverLines: true,
   namesOnCover: "Для мамы ❤️",
   coverTemplate: "tenderness",
   coverPhotoId: null,

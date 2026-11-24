@@ -73,6 +73,7 @@ export default async function OrdersPage() {
                       <div>
                         <CoverPreview
                           template={order.book.coverTemplate}
+                          lines={order.book.coverLines}
                           format={order.book.format}
                           title={order.book.title}
                           names={coverNames(order.book)}

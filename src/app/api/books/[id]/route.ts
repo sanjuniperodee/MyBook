@@ -25,6 +25,7 @@ const patchSchema = z
     hideRecipientOnCover: z.boolean(),
     namesOnCover: z.string().trim().max(NAMES_ON_COVER_MAX),
     coverTemplate: z.string().max(40),
+    coverLines: z.boolean(),
     coverPhotoId: uuid.nullable(),
     coverPhotoExtra: z.array(uuid).max(MAX_EXTRA_PHOTOS),
     backText: z.string().trim().max(400),

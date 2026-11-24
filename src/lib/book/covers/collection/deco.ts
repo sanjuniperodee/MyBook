@@ -32,10 +32,10 @@ export const deco: CoverTemplate = {
     const R = f.w * 0.3;
     for (let k = 0; k <= 18; k++) {
       const a = Math.PI + (k / 18) * Math.PI;
-      out += `<line x1="${n(cx + Math.cos(a) * R * 0.28)}" y1="${n(cy + Math.sin(a) * R * 0.28)}" x2="${n(cx + Math.cos(a) * R)}" y2="${n(cy + Math.sin(a) * R)}" stroke="${gold}" stroke-width="${k % 2 ? 0.2 : 0.4}"/>`;
+      out += `<line x1="${n(cx + Math.cos(a) * R * 0.28)}" y1="${n(cy + Math.sin(a) * R * 0.28)}" x2="${n(cx + Math.cos(a) * R)}" y2="${n(cy + Math.sin(a) * R)}" stroke="${gold}" stroke-width="${k % 2 ? 0.2 : 0.4}" data-keep=""/>`;
     }
     for (const rr of [R, R * 0.28, R * 0.2]) out += `<path d="M${n(cx - rr)},${n(cy)} A${n(rr)},${n(rr)} 0 0 1 ${n(cx + rr)},${n(cy)}" fill="none" stroke="${gold}" stroke-width="0.4"/>`;
-    out += `<line x1="${n(cx - R * 1.1)}" y1="${n(cy)}" x2="${n(cx + R * 1.1)}" y2="${n(cy)}" stroke="${gold}" stroke-width="0.4"/>`;
+    out += `<line x1="${n(cx - R * 1.1)}" y1="${n(cy)}" x2="${n(cx + R * 1.1)}" y2="${n(cy)}" stroke="${gold}" stroke-width="0.4" data-keep=""/>`;
     // Шевроны внизу
     for (let i = 0; i < 3; i++) {
       const y = f.y + f.h * 0.86 + i * 2.2;

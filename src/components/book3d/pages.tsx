@@ -16,7 +16,7 @@ import { pageImageUrl, type BookBuild, type BookBuildState, type PageImageWidth 
  * спрашивает сама (useFlipbookPages); толщина корешка — по числу полос этой сборки.
  */
 export interface FlipbookData {
-  cover: Pick<CoverPreviewProps, "template" | "format" | "title" | "subtitle" | "names" | "photos" | "titlePlaceholder" | "photoHint" | "design"> & {
+  cover: Pick<CoverPreviewProps, "template" | "format" | "title" | "subtitle" | "names" | "photos" | "titlePlaceholder" | "photoHint" | "design" | "lines"> & {
     /** Оборот: свой фон и слои (books.cover_back, разбирает parseCoverBack). */
     back?: unknown;
   };

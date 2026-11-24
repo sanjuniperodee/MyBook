@@ -20,6 +20,7 @@ const book = {
   showToc: true,
   coverPhotoId: null,
   hideRecipientOnCover: false,
+  coverLines: true,
   coverTemplate: "linen",
 };
 const bundle = { book } as never;

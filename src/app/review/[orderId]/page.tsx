@@ -35,7 +35,7 @@ export default async function ReviewPage({ params, searchParams }: { params: Pro
   // Ссылка из письма работает без входа, а фото книги отдаются только владельцу в кабинете — поэтому шаблон без фото.
   const template = getCoverTemplate(book.coverTemplate).requiresPhoto ? "linen" : book.coverTemplate;
 
-  const cover = <CoverPreview template={template} format={book.format} title={book.title} names={coverNames(book)} lite className="rounded-[3px] shadow-book" />;
+  const cover = <CoverPreview template={template} lines={book.coverLines} format={book.format} title={book.title} names={coverNames(book)} lite className="rounded-[3px] shadow-book" />;
 
   return (
     <PlainShell size="lg">

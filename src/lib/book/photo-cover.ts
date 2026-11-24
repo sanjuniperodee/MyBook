@@ -140,7 +140,7 @@ function decor(data: Pick<PhotoTemplateData, "layout" | "textArea">, g: CoverGeo
       out += plateShape(plate.shape, { ...r, x: r.x + 0.4, y: r.y + 1 }, `fill="#000" fill-opacity="0.3" filter="url(#${uid}ps)"`);
     }
     out += plateShape(plate.shape, r, `fill="${plate.fill}" fill-opacity="${n(plate.opacity)}"`);
-    if (plate.stroke) out += plateShape(plate.shape, inset(r, Math.min(2, r.w * 0.025)), `fill="none" stroke="${plate.stroke}" stroke-width="0.3"`);
+    if (plate.stroke) out += plateShape(plate.shape, inset(r, Math.min(2, r.w * 0.025)), `fill="none" stroke="${plate.stroke}" stroke-width="0.3" data-line=""`);
   }
   if (frame) {
     const a = inset(f, frame.inset);

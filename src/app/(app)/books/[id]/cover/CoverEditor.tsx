@@ -70,6 +70,8 @@ const DESIGNS_SHOWN = 12;
 
 interface CoverState {
   coverTemplate: string;
+  /** Декоративные линии шаблона (линии и рамки рисунка, линия у имён); false — без них. */
+  coverLines: boolean;
   title: string;
   subtitle: string;
   authorName: string;
@@ -244,7 +246,7 @@ export function CoverEditor({
     return photoUrls([f.coverPhotoId, ...f.coverPhotoExtra].slice(0, coverPhotoSlots(getCoverTemplate(templateId))));
   };
 
-  const template = getCoverTemplate(state.coverTemplate);
+  const template = getCoverTemplate(state.coverTemplate, state.coverLines);
   const slots = coverPhotoSlots(template);
   const [mood, setMood] = useState<CoverMood | "all">("all");
   // Все 60+ обложек сразу — стена на телефоне: сначала дюжина (выбранная — всегда в ней), остальные по кнопке.
@@ -271,7 +273,7 @@ export function CoverEditor({
     const key = frameKey("cover", b.slot);
     return p ? [{ ...b, key, photo: { width: p.width, height: p.height }, frame: state.photoFrames[key] ?? DEFAULT_FRAME }] : [];
   });
-  const backLayoutInfo = backPreviewLayout(state.coverTemplate, format, backContent, state.coverDesign, state.coverBack, pages);
+  const backLayoutInfo = backPreviewLayout(state.coverTemplate, format, backContent, state.coverDesign, state.coverBack, pages, state.coverLines);
   const backLayered = !!state.coverBack?.layers;
   const backSlots: FrameSlot[] = backSlotBoxes(backLayoutInfo.design, backLayoutInfo.back.w, backLayoutInfo.back.h).flatMap((b) => {
     const p = backPhotos[b.slot];
@@ -288,6 +290,7 @@ export function CoverEditor({
       <CoverBackPreview
         pages={pages}
         template={state.coverTemplate}
+        lines={state.coverLines}
         format={format}
         content={backContent}
         photos={backPhotoRefs(backPhotos, state, "view")}
@@ -301,6 +304,7 @@ export function CoverEditor({
     ) : (
       <CoverPreview
         template={state.coverTemplate}
+        lines={state.coverLines}
         format={format}
         title={state.title}
         subtitle={state.subtitle}
@@ -346,7 +350,7 @@ export function CoverEditor({
     const ids = backPhotos.map((p) => p.id);
     for (const id of fillOrder) if (ids.length < need && !ids.includes(id)) ids.push(id);
     const list = ids.flatMap((id) => photos.filter((p) => p.id === id));
-    const info = backPreviewLayout(state.coverTemplate, format, { ...backContent, layout, photos: list.map((p) => ({ width: p.width, height: p.height })) }, state.coverDesign, { v: 1, background: backBg }, pages);
+    const info = backPreviewLayout(state.coverTemplate, format, { ...backContent, layout, photos: list.map((p) => ({ width: p.width, height: p.height })) }, state.coverDesign, { v: 1, background: backBg }, pages, state.coverLines);
     return backLayersFromLayout(info.design, info.back.w, info.back.h, { photoIds: ids, frames: ids.map((_, i) => state.photoFrames[frameKey("back", i)]), names: coverNamesLine });
   };
 
@@ -392,7 +396,7 @@ export function CoverEditor({
 
   // ─── обложка целиком ──────────────────────────────────────────────────────
   const spread = coverSpreadGeometry(getFormat(format), pages || PREVIEW_PAGES);
-  const spineHtml = spineSvg(state.coverTemplate, format, state.coverDesign, state.coverBack, "sp", coverPhotos, pages);
+  const spineHtml = spineSvg(state.coverTemplate, format, state.coverDesign, state.coverBack, "sp", coverPhotos, pages, state.coverLines);
   const spreadStrip = (className: string, uid: string) => (
     <SpreadStrip
       side={side}
@@ -403,6 +407,7 @@ export function CoverEditor({
         <CoverBackPreview
           pages={pages}
           template={state.coverTemplate}
+          lines={state.coverLines}
           format={format}
           content={backContent}
           photos={backPhotoRefs(backPhotos, state, "view")}
@@ -414,7 +419,7 @@ export function CoverEditor({
         />
       }
       spine={<div className="[&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: spineHtml }} />}
-      front={<CoverPreview template={state.coverTemplate} format={format} title={state.title} subtitle={state.subtitle} names={coverNamesLine} photos={coverPhotos} uid={`s${uid}f`} lite titlePlaceholder={defaultTitle || t.bookTitle} design={state.coverDesign} />}
+      front={<CoverPreview template={state.coverTemplate} lines={state.coverLines} format={format} title={state.title} subtitle={state.subtitle} names={coverNamesLine} photos={coverPhotos} uid={`s${uid}f`} lite titlePlaceholder={defaultTitle || t.bookTitle} design={state.coverDesign} />}
     />
   );
   const backTemplate = templateForCover(template, state.coverDesign, state.coverBack);
@@ -474,7 +479,7 @@ export function CoverEditor({
                 aria-pressed={on}
               >
                 <div className={cn("relative overflow-hidden rounded-[3px] transition duration-200", on ? "shadow-[0_0_0_2px_var(--color-white),0_0_0_4px_var(--color-wine)]" : "shadow-book ring-1 ring-black/5 group-hover:-translate-y-1 group-hover:shadow-soft")}>
-                  <CoverPreview template={c.id} format={format} title={state.title} names={coverNamesLine} photos={c.requiresPhoto ? slotUrls(c.id) : undefined} lite uid={`pick-${c.id}`} />
+                  <CoverPreview template={c.id} lines={state.coverLines} format={format} title={state.title} names={coverNamesLine} photos={c.requiresPhoto ? slotUrls(c.id) : undefined} lite uid={`pick-${c.id}`} />
                   {c.requiresPhoto && !photos.length ? (
                     <span className="absolute bottom-1.5 left-1.5 flex size-6 items-center justify-center rounded-full bg-black/45 text-white" aria-hidden>
                       <ImagePlus className="size-3.5" />
@@ -541,6 +546,14 @@ export function CoverEditor({
         onChange={(v) => update({ namesOnCover: v })}
         disabled={!editable}
       />
+      {/* Линии и рамки рисунка шаблона и линия у имён — для всех шаблонов; фото, затемнение и текст остаются. */}
+      <label className="flex min-h-11 items-start gap-2.5 text-sm text-ink-soft pointer-fine:min-h-0">
+        <input type="checkbox" className="mt-0.5 size-4 shrink-0 accent-wine" checked={state.coverLines} onChange={(e) => update({ coverLines: e.target.checked })} disabled={!editable} />
+        <span>
+          {t.coverLines}
+          <span className="mt-0.5 block text-xs text-muted">{t.coverLinesHint}</span>
+        </span>
+      </label>
     </div>
   );
 
@@ -685,14 +698,14 @@ export function CoverEditor({
     ) : stageMode === "3d" ? (
       <div className="absolute inset-0 flex items-center justify-center px-4 pt-14 pb-5">
         <div style={fit(frontRatio * 1.12)}>
-          <Book3D template={state.coverTemplate} format={format} title={state.title} subtitle={state.subtitle} names={coverNamesLine} photos={coverPhotos} uid="b3d" lite titlePlaceholder={defaultTitle || t.bookTitle} design={state.coverDesign} rotate={-24} />
+          <Book3D template={state.coverTemplate} lines={state.coverLines} format={format} title={state.title} subtitle={state.subtitle} names={coverNamesLine} photos={coverPhotos} uid="b3d" lite titlePlaceholder={defaultTitle || t.bookTitle} design={state.coverDesign} rotate={-24} />
         </div>
       </div>
     ) : (
       <div className="absolute inset-0 flex items-center justify-center px-4 pt-14 pb-5">
         <div className="relative" style={fit(side === "back" ? backBoard.w / backBoard.h : frontRatio)}>
           {tryOn ? (
-            <CoverPreview template={tryOn} format={format} title={state.title} subtitle={state.subtitle} names={coverNamesLine} photos={getCoverTemplate(tryOn).requiresPhoto ? slotUrls(tryOn) : undefined} uid="try" titlePlaceholder={defaultTitle || t.bookTitle} className="rounded-[4px] shadow-book" />
+            <CoverPreview template={tryOn} lines={state.coverLines} format={format} title={state.title} subtitle={state.subtitle} names={coverNamesLine} photos={getCoverTemplate(tryOn).requiresPhoto ? slotUrls(tryOn) : undefined} uid="try" titlePlaceholder={defaultTitle || t.bookTitle} className="rounded-[4px] shadow-book" />
           ) : (
             renderSide("rounded-[4px] shadow-book", "editor")
           )}
@@ -777,6 +790,7 @@ export function CoverEditor({
                 stageOverlay={stageOverlay}
                 bookId={bookId}
                 template={state.coverTemplate}
+                lines={state.coverLines}
                 format={format}
                 initial={state.coverDesign!}
                 texts={designTexts}
@@ -787,7 +801,7 @@ export function CoverEditor({
                 onChange={(coverDesign) => update({ coverDesign })}
                 onBookText={setBookText}
                 onTemplate={(coverTemplate) => update({ coverTemplate })}
-                layouts={(onPick) => <CoverLayoutPicker format={format} texts={designTexts} photos={photos} currentTemplate={state.coverTemplate} onPick={onPick} />}
+                layouts={(onPick) => <CoverLayoutPicker format={format} texts={designTexts} photos={photos} currentTemplate={state.coverTemplate} lines={state.coverLines} onPick={onPick} />}
               />
             </div>
           ) : null}
@@ -800,6 +814,7 @@ export function CoverEditor({
                 stageOverlay={stageOverlay}
                 bookId={bookId}
                 template={state.coverTemplate}
+                lines={state.coverLines}
                 format={format}
                 initial={{ v: 1, background: backBg, layers: state.coverBack.layers }}
                 texts={designTexts}
@@ -807,7 +822,7 @@ export function CoverEditor({
                 editable={editable}
                 side="back"
                 active={side === "back"}
-                backdrop={backCanvasSvg(state.coverTemplate, format, state.coverDesign, state.coverBack, 8, "bkc", pages)}
+                backdrop={backCanvasSvg(state.coverTemplate, format, state.coverDesign, state.coverBack, 8, "bkc", pages, state.coverLines)}
                 underlay={repeatedFrontLayers(state.coverDesign, state.coverBack)}
                 baseColor={likeFrontBase}
                 colors={frontColors}

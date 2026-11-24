@@ -189,7 +189,7 @@ export function BookViewer3D({ data, bookId, className }: { data: FlipbookData; 
   const design = useMemo(() => (data.cover.design ? parseCoverDesign(data.cover.design) : null), [data.cover.design]);
   // Оборот: свой фон и слои; надписи корешка и оборота — контрастно фону, который на них лежит.
   const backSide = useMemo(() => parseCoverBack(data.cover.back), [data.cover.back]);
-  const template = useMemo(() => templateForCover(getCoverTemplate(data.cover.template), design, backSide), [data.cover.template, design, backSide]);
+  const template = useMemo(() => templateForCover(getCoverTemplate(data.cover.template, data.cover.lines ?? true), design, backSide), [data.cover.template, data.cover.lines, design, backSide]);
   // «Как спереди»: фото, фигуры и украшения лица повторяются на обороте (под его текстом).
   const repeated = useMemo(() => repeatedFrontLayers(design, backSide), [design, backSide]);
   const { brand, back, backPhotos } = data.model;

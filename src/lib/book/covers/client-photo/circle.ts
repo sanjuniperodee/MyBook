@@ -20,7 +20,7 @@ export const circle: CoverTemplate = {
     let out = bg(g, "#C5CBB3");
     out += `<circle cx="${n(cx + r * 0.16)}" cy="${n(cy + r * 0.13)}" r="${n(r)}" fill="#ABB396"/>`;
     out += photoSlot(ctx, 0, { x: cx - r, y: cy - r, w: r * 2, h: r * 2 }, { clip: ellipsePath(cx, cy, r, r), scene: 3 });
-    out += `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(r + 4)}" fill="none" stroke="${line}" stroke-width="0.35"/>`;
+    out += `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(r + 4)}" fill="none" stroke="${line}" stroke-width="0.35" data-line=""/>`;
     // Метки на кольце — по сторонам света, как на циферблате
     for (let i = 0; i < 4; i++) {
       const a = (i * Math.PI) / 2;

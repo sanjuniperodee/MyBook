@@ -20,8 +20,8 @@ export const PREVIEW_PAGES = 120;
  * Раскладка оборота для превью: нужна и самому превью, и редактору (места под фото для кадрирования). Цвета надписей —
  * по фону, который на обороте на самом деле (свой фон лица или оборота), как в PDF (templateForCover).
  */
-export function backPreviewLayout(templateId: string, formatId: string, content: BackContent, front: CoverDesign | null = null, back: CoverBack | null = null, pages = PREVIEW_PAGES) {
-  const template = templateForCover(getCoverTemplate(templateId), front, back);
+export function backPreviewLayout(templateId: string, formatId: string, content: BackContent, front: CoverDesign | null = null, back: CoverBack | null = null, pages = PREVIEW_PAGES, lines = true) {
+  const template = templateForCover(getCoverTemplate(templateId, lines), front, back);
   const g = coverSpreadGeometry(getFormat(formatId), pages || PREVIEW_PAGES);
   const rect = g.back!;
   return { template, g, back: rect, design: back?.layers ? layeredBack(template, rect.h) : designBack(template, rect.w, rect.h, content) };
@@ -43,8 +43,11 @@ export function CoverBackPreview({
   pages = PREVIEW_PAGES,
   lite,
   className,
+  lines = true,
 }: {
   template: string;
+  /** Декоративные линии шаблона (books.cover_lines); false — без них. */
+  lines?: boolean;
   format?: string;
   content: BackContent;
   photos?: (PhotoRef | undefined)[];
@@ -61,7 +64,7 @@ export function CoverBackPreview({
   className?: string;
 }) {
   const format = getFormat(formatId);
-  const layout = backPreviewLayout(templateId, formatId, content, design, back, pages);
+  const layout = backPreviewLayout(templateId, formatId, content, design, back, pages, lines);
   const { template, g } = layout;
   const rect = layout.back;
   const own = backFaceSvg(design, back, g, rect, uid);

@@ -48,6 +48,7 @@ const book = (over: Partial<Book> = {}): Book => ({
   recipientName: "Василий",
   recipientGender: "m",
   hideRecipientOnCover: false,
+  coverLines: true,
   namesOnCover: "",
   coverTemplate: "photo",
   coverPhotoId: null,

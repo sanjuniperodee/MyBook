@@ -78,6 +78,8 @@ export const books = pgTable(
     /** Своя строка имён на обложке (порядок, «мен», что угодно); пусто — «Автор & Получатель» (lib/book/cover-names). */
     namesOnCover: text("names_on_cover").notNull().default(""),
     hideRecipientOnCover: boolean("hide_recipient_on_cover").notNull().default(false),
+    /** Декоративные линии шаблона обложки (линии и рамки рисунка, линия у имён); false — без них (src/lib/book/covers/lines.ts). */
+    coverLines: boolean("cover_lines").notNull().default(true),
     coverTemplate: text("cover_template").notNull().default("linen"),
     coverPhotoId: uuid("cover_photo_id"),
     /** Остальные снимки обложек на несколько фото (коллаж, мозаика, плёнка) — по порядку мест; первое — coverPhotoId. */

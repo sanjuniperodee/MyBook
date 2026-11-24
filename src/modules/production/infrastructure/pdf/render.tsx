@@ -374,7 +374,7 @@ export async function coverBackground(
   layered: CoverDesign | null,
   backSide: CoverBack | null,
 ) {
-  const template = getCoverTemplate(bundle.book.coverTemplate);
+  const template = getCoverTemplate(bundle.book.coverTemplate, bundle.book.coverLines ?? true);
   const frames = parseFrames(bundle.book.photoFrames);
   // Свой фон лица из конструктора (base) — вместо рисунка шаблона на всю развёртку; свой фон оборота (over) — поверх.
   const own = ownSpreadArt(layered, backSide, geometry, "c");
@@ -509,7 +509,7 @@ export async function renderCover(bundle: BookBundle, pageCount: number, mode: R
   // оборота — по фону, который на них лежит (templateForCover).
   const layered = bundle.book.coverDesign ? parseCoverDesign(bundle.book.coverDesign) : null;
   const backDesign = frontOnly ? null : parseCoverBack(bundle.book.coverBack);
-  const template = templateForCover(getCoverTemplate(bundle.book.coverTemplate), layered, backDesign);
+  const template = templateForCover(getCoverTemplate(bundle.book.coverTemplate, bundle.book.coverLines ?? true), layered, backDesign);
   const back = await backSide(bundle, geometry, source, template, !!backDesign?.layers);
   const background = await coverBackground(bundle, geometry, dpi, source, back, layered, backDesign);
   const named = coverText(bundle.book);

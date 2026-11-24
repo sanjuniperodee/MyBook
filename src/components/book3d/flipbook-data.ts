@@ -24,7 +24,7 @@ export function flipbookData(book: Book, questions: ContentArgs[1], chapters: Co
   // Название на лице и корешке — как в cover.pdf: обложка из конструктора со стёртым названием печатается без него.
   const title = printedCoverTitle(book, !!parseCoverDesign(book.coverDesign), content.title);
   return {
-    cover: { template: book.coverTemplate, format: book.format, title, subtitle: book.subtitle, names, photos, ...(book.coverDesign ? { design: book.coverDesign } : {}), ...(book.coverBack ? { back: book.coverBack } : {}) },
+    cover: { template: book.coverTemplate, ...(book.coverLines === false ? { lines: false } : {}), format: book.format, title, subtitle: book.subtitle, names, photos, ...(book.coverDesign ? { design: book.coverDesign } : {}), ...(book.coverBack ? { back: book.coverBack } : {}) },
     formatId: content.format.id,
     title,
     model: {

@@ -85,7 +85,7 @@ export function BookViewerGL({ data, bookId, onUnsupported, className }: { data:
   const design = useMemo(() => (data.cover.design ? parseCoverDesign(data.cover.design) : null), [data.cover.design]);
   // Оборот: свой фон и слои; надписи корешка и оборота — контрастно фону, который на них лежит.
   const backSide = useMemo(() => parseCoverBack(data.cover.back), [data.cover.back]);
-  const template = useMemo(() => templateForCover(getCoverTemplate(data.cover.template), design, backSide), [data.cover.template, design, backSide]);
+  const template = useMemo(() => templateForCover(getCoverTemplate(data.cover.template, data.cover.lines ?? true), design, backSide), [data.cover.template, data.cover.lines, design, backSide]);
   // «Как спереди»: фото, фигуры и украшения лица повторяются на обороте (под его текстом).
   const repeated = useMemo(() => repeatedFrontLayers(design, backSide), [design, backSide]);
   const { brand, back, backPhotos } = data.model;
@@ -129,7 +129,7 @@ export function BookViewerGL({ data, bookId, onUnsupported, className }: { data:
   const imageHref = useCoverImage(template);
   const samples = useCoverSamples(template);
   // Фото, снимок обложки и снимки-примеры приходят позже первой отрисовки: по этой версии пересоздаём текстуры обложки.
-  const artVersion = `${template.id}:${design ? hash(JSON.stringify(design)) : "-"}:${backSide ? hash(JSON.stringify(backSide)) : "-"}:${photoHrefs ? photoHrefs.map((h) => (h ? 1 : 0)).join("") : "-"}:${hash(photoKey)}:${imageHref ? 1 : 0}:${samples ? 1 : 0}:${backDesign.plainArt ? 1 : 0}`;
+  const artVersion = `${template.id}${template.lines === false ? "-nl" : ""}:${design ? hash(JSON.stringify(design)) : "-"}:${backSide ? hash(JSON.stringify(backSide)) : "-"}:${photoHrefs ? photoHrefs.map((h) => (h ? 1 : 0)).join("") : "-"}:${hash(photoKey)}:${imageHref ? 1 : 0}:${samples ? 1 : 0}:${backDesign.plainArt ? 1 : 0}`;
   const art = useMemo(() => buildCoverArt(template, format, pageCount, dims, { photos: photoHrefs, imageHref, plainBack: backDesign.plainArt, samples, design, back: backSide }), [template, format, pageCount, dims, photoHrefs, imageHref, backDesign.plainArt, samples, design, backSide]);
   // Пока снимки обложки ещё грузятся, растеризация даёт пустую (чёрную) текстуру: до их прихода обложку не снимаем,
   // а на случай медленной сети или сбоя ждём не дольше нескольких секунд — потом рисуем с тем, что есть.

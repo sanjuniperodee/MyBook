@@ -29,7 +29,7 @@ export const leather: CoverTemplate = {
     const cy = f.y + f.h * 0.28;
     out += `<circle cx="${n(cx)}" cy="${n(cy)}" r="7" fill="none" stroke="${gold}" stroke-width="0.4"/><circle cx="${n(cx)}" cy="${n(cy)}" r="5.8" fill="none" stroke="${gold}" stroke-width="0.18"/>`;
     out += `<path d="${HEART}" fill="${gold}" transform="translate(${n(cx - 2.6)},${n(cy - 2.3)}) scale(5.2)"/>`;
-    out += `<path d="M${n(cx - 20)},${n(cy)} h11 M${n(cx + 9)},${n(cy)} h11" stroke="${gold}" stroke-width="0.3"/>`;
+    out += `<path d="M${n(cx - 20)},${n(cy)} h11 M${n(cx + 9)},${n(cy)} h11" stroke="${gold}" stroke-width="0.3" data-line=""/>`;
     return out;
   },
   textArea: { x: 0.14, y: 0.38, w: 0.72, h: 0.4 },

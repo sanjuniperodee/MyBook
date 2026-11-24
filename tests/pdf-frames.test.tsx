@@ -50,6 +50,7 @@ const book: Book = {
   recipientName: "Марғұлан",
   recipientGender: "m",
   hideRecipientOnCover: false,
+  coverLines: true,
   namesOnCover: "",
   coverTemplate: "mosaic",
   coverPhotoId: "00000000-0000-0000-0000-000000000010",

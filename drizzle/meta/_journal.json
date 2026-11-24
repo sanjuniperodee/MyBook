@@ -743,6 +743,13 @@
       "when": 1795586564262,
       "tag": "0105_answer_words",
       "breakpoints": true
+    },
+    {
+      "idx": 106,
+      "version": "7",
+      "when": 1795505058947,
+      "tag": "0106_cover_lines",
+      "breakpoints": true
     }
   ]
 }

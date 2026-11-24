@@ -10,7 +10,7 @@ export const noir: CoverTemplate = {
     const f = g.front;
     const i = 11;
     const c = { x: f.x + f.w / 2, y: f.y + i };
-    return `${bg(g, "#131313")}<rect x="${n(f.x + i)}" y="${n(f.y + i)}" width="${n(f.w - i * 2)}" height="${n(f.h - i * 2)}" fill="none" stroke="#B8975A" stroke-width="0.3"/><rect x="${n(c.x - 1.6)}" y="${n(c.y - 1.6)}" width="3.2" height="3.2" fill="#131313" stroke="#B8975A" stroke-width="0.3" transform="rotate(45 ${n(c.x)} ${n(c.y)})"/><rect x="${n(c.x - 1.6)}" y="${n(f.y + f.h - i - 1.6)}" width="3.2" height="3.2" fill="#131313" stroke="#B8975A" stroke-width="0.3" transform="rotate(45 ${n(c.x)} ${n(f.y + f.h - i)})"/>`;
+    return `${bg(g, "#131313")}<rect x="${n(f.x + i)}" y="${n(f.y + i)}" width="${n(f.w - i * 2)}" height="${n(f.h - i * 2)}" fill="none" stroke="#B8975A" stroke-width="0.3"/><rect x="${n(c.x - 1.6)}" y="${n(c.y - 1.6)}" width="3.2" height="3.2" fill="#131313" stroke="#B8975A" stroke-width="0.3" data-line="" transform="rotate(45 ${n(c.x)} ${n(c.y)})"/><rect x="${n(c.x - 1.6)}" y="${n(f.y + f.h - i - 1.6)}" width="3.2" height="3.2" fill="#131313" stroke="#B8975A" stroke-width="0.3" data-line="" transform="rotate(45 ${n(c.x)} ${n(f.y + f.h - i)})"/>`;
   },
   textArea: { x: 0.15, y: 0.2, w: 0.7, h: 0.6 },
   justify: "center",

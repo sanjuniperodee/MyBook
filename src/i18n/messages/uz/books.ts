@@ -398,6 +398,8 @@ export const books: typeof ru = {
     recordedByPlaceholder: "Masalan, nevara Aruzhan",
     recipientNone: "Tarjimai holning oluvchisi yo‘q: bag‘ishlov «Sahifalar» yorlig‘ida yoziladi.",
     hideRecipient: "Muqovada ko‘rsatmaslik",
+    coverLines: "Bezak chiziqlari",
+    coverLinesHint: "Shablon chiziqlari va ramkalari hamda ismlar yonidagi chiziq. Rasm va matn o‘zgarmaydi.",
     namesOnCover: "Muqovadagi ismlar",
     namesOnCoverText: "Tartibini almashtirish yoki o‘zingizcha yozish mumkin. Bo‘sh — hozirgidek.",
     namesSwap: "O‘rnini almashtirish",

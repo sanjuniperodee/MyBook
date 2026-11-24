@@ -20,7 +20,8 @@ import { fixtureBook, fixtureDesigns } from "../fixtures/books";
  * ни один хеш не должен измениться.
  */
 
-const sha = (svg: string) => `#${createHash("sha256").update(svg).digest("hex").slice(0, 12)}`;
+// Пометки декоративных линий (data-line, data-keep — covers/lines.ts) на рисунок не влияют: без них хэши те же, что до 24.11.
+const sha = (svg: string) => `#${createHash("sha256").update(svg.replace(/ data-(line|keep)=""/g, "")).digest("hex").slice(0, 12)}`;
 const formatIds = Object.keys(formats) as FormatId[];
 const languages: Locale[] = ["ru", "kk"];
 /** Толщина книги для развёртки — как у книг набора в A5. */

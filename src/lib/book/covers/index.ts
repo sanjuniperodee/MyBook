@@ -9,10 +9,12 @@ import { classicTemplates, linen } from "./classic";
 import { clientPhotoOrder, clientPhotoTemplates } from "./client-photo";
 import { collectionTemplates } from "./collection";
 import { photoCollection } from "./photo";
+import { withoutLines } from "./lines";
 import { grainFilter, linenFilter, n, type ArtContext } from "./svg-kit";
 import type { CoverTemplate } from "./types";
 
 export type { ArtContext } from "./svg-kit";
+export { stripLines, withoutLines } from "./lines";
 export { coverMoods, type CoverMood, type CoverTemplate, type CoverTextContent, type CoverTextStyle } from "./types";
 
 const builtIn = [...classicTemplates, ...collectionTemplates, ...photoCollection, ...clientPhotoTemplates];
@@ -57,8 +59,10 @@ export function coverPhotoIds(book: { coverTemplate: string; coverPhotoId: strin
   return Array.from({ length: slots }, (_, i) => ids[i] ?? null);
 }
 
-export function getCoverTemplate(id: string): CoverTemplate {
-  return byId[id] ?? customCover(id) ?? linen;
+/** Шаблон по id; lines = false — без декоративных линий (books.cover_lines): тот же объект на каждый вызов. */
+export function getCoverTemplate(id: string, lines = true): CoverTemplate {
+  const template = byId[id] ?? customCover(id) ?? linen;
+  return lines ? template : withoutLines(template);
 }
 
 /** Шаблон существует (встроенный — даже убранный из выбора — или из CRM). */

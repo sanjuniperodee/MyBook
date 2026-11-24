@@ -170,6 +170,7 @@ export function BookAside({ book, orderId, t }: { book: OrderView["book"]; order
             <div>
               <CoverPreview
                 template={book.coverTemplate}
+                lines={book.coverLines}
                 format={book.format}
                 title={book.title}
                 subtitle={book.subtitle}

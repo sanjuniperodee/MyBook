@@ -117,6 +117,7 @@ describe("картинка обложки для осмотра (настоящ�
     recipientName: "Олжас",
     recipientGender: "m",
     hideRecipientOnCover: false,
+    coverLines: true,
     namesOnCover: "",
     coverTemplate: "linen",
     coverPhotoId: null,

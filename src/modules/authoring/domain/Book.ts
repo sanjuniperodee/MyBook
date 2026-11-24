@@ -40,6 +40,8 @@ export interface BookProps {
   /** Своя строка имён на обложке; пусто — «Автор & Получатель». */
   namesOnCover: string;
   coverTemplate: string;
+  /** Декоративные линии шаблона обложки; false — без них (src/lib/book/covers/lines.ts). */
+  coverLines: boolean;
   coverPhotoId: string | null;
   /** Остальные снимки обложек на несколько фото, по порядку мест (первое — coverPhotoId). */
   coverPhotoExtra: string[];
@@ -107,7 +109,7 @@ export const isBookEditableBy = (ownerId: string, viewer: BookViewer) => (viewer
 
 /** Настройки книги, которые клиент меняет в редакторе. */
 export type BookSettings = Partial<
-  Pick<BookProps, "title" | "subtitle" | "authorName" | "authorGender" | "recordedBy" | "recipientName" | "recipientGender" | "hideRecipientOnCover" | "namesOnCover" | "coverTemplate" | "backText" | "backLayout" | "dedication" | "interior" | "format" | "photoPlacement" | "showToc" | "tocMode" | "occasion" | "occasionDate" | "inviteText" | "endText" | "chapterStart" | "titlePage">
+  Pick<BookProps, "title" | "subtitle" | "authorName" | "authorGender" | "recordedBy" | "recipientName" | "recipientGender" | "hideRecipientOnCover" | "namesOnCover" | "coverTemplate" | "coverLines" | "backText" | "backLayout" | "dedication" | "interior" | "format" | "photoPlacement" | "showToc" | "tocMode" | "occasion" | "occasionDate" | "inviteText" | "endText" | "chapterStart" | "titlePage">
 >;
 
 /** Вопрос из банка темы, который копируется в книгу при создании. */
@@ -197,6 +199,7 @@ export class Book extends AggregateRoot<BookProps> {
       hideRecipientOnCover: false,
       namesOnCover: "",
       coverTemplate: theme.defaultCover,
+      coverLines: true,
       coverPhotoId: null,
       coverPhotoExtra: [],
       backText: "",

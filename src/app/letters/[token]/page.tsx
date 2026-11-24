@@ -37,7 +37,7 @@ export default async function LetterPage({ params }: { params: Promise<{ token: 
         {/* Приглашение: обложка книги и слова автора. Одно действие на странице — написать письмо. */}
         <header className="flex items-start gap-5 lg:sticky lg:top-8 lg:block lg:self-start">
           <div className="w-20 shrink-0 sm:w-24 lg:w-44">
-            <CoverPreview template={template} format={book.format} title={book.title} lite className="rounded-[3px] shadow-book" />
+            <CoverPreview template={template} lines={book.coverLines} format={book.format} title={book.title} lite className="rounded-[3px] shadow-book" />
           </div>
           <div className="min-w-0 lg:mt-7">
             <div className="text-sm text-muted">{t.invite}</div>

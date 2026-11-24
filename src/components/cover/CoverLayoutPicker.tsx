@@ -23,6 +23,7 @@ const LayoutCard = memo(function LayoutCard({
   description,
   onPick,
   fallbackTemplate,
+  lines,
 }: {
   layout: CoverLayout;
   design: CoverDesign;
@@ -32,12 +33,13 @@ const LayoutCard = memo(function LayoutCard({
   description: string;
   onPick: (design: CoverDesign, template?: string) => void;
   fallbackTemplate: string;
+  lines: boolean;
 }) {
   return (
     <li>
       <button type="button" onClick={() => onPick(design, layout.template)} className="group w-full text-left" aria-label={`${name}. ${description}`}>
         <div className="overflow-hidden rounded-[4px] ring-1 ring-line ring-offset-2 ring-offset-paper transition group-hover:-translate-y-0.5 group-hover:ring-ink/30 group-focus-visible:ring-2 group-focus-visible:ring-wine">
-          <DesignedCover template={layout.template ?? fallbackTemplate} format={format} design={design} texts={texts} uid={`lp${layout.id.replace(/[^a-z0-9]/g, "")}`} lite className="shadow-soft" />
+          <DesignedCover template={layout.template ?? fallbackTemplate} lines={lines} format={format} design={design} texts={texts} uid={`lp${layout.id.replace(/[^a-z0-9]/g, "")}`} lite className="shadow-soft" />
         </div>
         <div className="mt-2 text-sm font-medium text-ink">{name}</div>
         <div className="line-clamp-2 text-xs text-muted">{description}</div>
@@ -52,6 +54,7 @@ export function CoverLayoutPicker({
   photos,
   onPick,
   currentTemplate = "linen",
+  lines = true,
 }: {
   format: string;
   texts: CoverTexts;
@@ -59,6 +62,8 @@ export function CoverLayoutPicker({
   onPick: (design: CoverDesign, template?: string) => void;
   /** Шаблон книги — фон для макетов без своего фона. */
   currentTemplate?: string;
+  /** Декоративные линии шаблона книги (books.cover_lines). */
+  lines?: boolean;
 }) {
   const t = useMessages().design.layouts;
   const [genre, setGenre] = useState<LayoutGenre | "all">("all");
@@ -104,7 +109,7 @@ export function CoverLayoutPicker({
       {shown.length ? (
         <ul className="mt-5 grid gap-x-4 gap-y-6" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(min(150px, 45%), 1fr))" }}>
           {shown.map((l) => (
-            <LayoutCard key={l.id} layout={l} design={built.get(l.id)!} format={format} texts={texts} name={label(l).name} description={label(l).description} onPick={onPick} fallbackTemplate={currentTemplate} />
+            <LayoutCard key={l.id} layout={l} design={built.get(l.id)!} format={format} texts={texts} name={label(l).name} description={label(l).description} onPick={onPick} fallbackTemplate={currentTemplate} lines={lines} />
           ))}
         </ul>
       ) : (

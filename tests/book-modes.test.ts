@@ -469,6 +469,7 @@ const bookRow = (p: Partial<BookRow> = {}): BookRow => ({
   recipientName: "",
   recipientGender: "m",
   hideRecipientOnCover: false,
+  coverLines: true,
   namesOnCover: "",
   coverTemplate: "linen",
   coverPhotoId: null,

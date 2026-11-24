@@ -1,0 +1,1 @@
+ALTER TABLE "books" ADD COLUMN IF NOT EXISTS "cover_lines" boolean DEFAULT true NOT NULL;
