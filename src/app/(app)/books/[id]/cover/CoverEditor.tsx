@@ -22,9 +22,10 @@ import { Book3D } from "@/components/cover/Book3D";
 import { confirmDialog } from "@/components/ui/overlays";
 import { useAutosave } from "@/hooks/useAutosave";
 import { apiFetch } from "@/lib/client-api";
-import { coverLabel, coverMoods, coverPhotoSlots, getCoverTemplate, pickerCovers, type CoverMood } from "@/lib/book/covers";
+import { coverLabel, coverMoods, coverPhotoSlots, getCoverTemplate, PICKER_SHOWN, pickerCovers, type CoverMood } from "@/lib/book/covers";
 import { coverNames, NAMES_ON_COVER_MAX } from "@/lib/book/cover-names";
 import { EmojiNote } from "./EmojiNote";
+import { COVER_TEXT_MAX } from "@mybook/contracts";
 import { bookKind, RECORDED_BY_MAX } from "@/lib/content/kinds";
 import { coverSpreadGeometry, getFormat } from "@/lib/book/formats";
 import { getInteriorDesign, interiorsForCover } from "@/lib/book/interiors";
@@ -66,7 +67,6 @@ type TplTab = "designs" | "photo" | "text" | "fill" | "variant" | "details";
 type StageView = "flat" | "spread" | "3d";
 
 /** Сколько обложек видно сразу во «Все» (выбранная показывается всегда). */
-const DESIGNS_SHOWN = 12;
 
 interface CoverState {
   coverTemplate: string;
@@ -463,7 +463,7 @@ export function CoverEditor({
       <div ref={strip} className="mt-4 grid grid-cols-[repeat(auto-fill,minmax(min(46%,9.5rem),1fr))] gap-x-4 gap-y-6" onMouseLeave={() => setTrying(null)}>
         {choices
           .filter((c) => mood === "all" || c.mood === mood || c.id === state.coverTemplate)
-          .filter((c, i) => mood !== "all" || allDesigns || i < DESIGNS_SHOWN || c.id === state.coverTemplate)
+          .filter((c, i) => mood !== "all" || allDesigns || i < PICKER_SHOWN || c.id === state.coverTemplate)
           .sort((a, b) => Number(b.id === state.coverTemplate) - Number(a.id === state.coverTemplate))
           .map((c) => {
             const on = c.id === state.coverTemplate && !state.coverDesign;
@@ -498,7 +498,7 @@ export function CoverEditor({
             );
           })}
       </div>
-      {mood === "all" && !allDesigns && choices.length > DESIGNS_SHOWN ? (
+      {mood === "all" && !allDesigns && choices.length > PICKER_SHOWN ? (
         <button type="button" className="btn btn-outline mt-4 w-full" onClick={() => setAllDesigns(true)}>
           {t.showAllDesigns(choices.length)}
         </button>
@@ -523,14 +523,14 @@ export function CoverEditor({
 
   const textPanel = (
     <div className="space-y-4">
-      <Field label={t.bookTitle} value={state.title} max={80} onChange={(v) => update({ title: v })} disabled={!editable} />
-      <Field label={t.subtitle} placeholder={t.subtitlePlaceholder} value={state.subtitle} max={80} onChange={(v) => update({ subtitle: v })} disabled={!editable} />
-      <Field label={kind === "autobiography" ? t.narratorName : t.authorName} value={state.authorName} max={60} onChange={(v) => update({ authorName: v })} disabled={!editable} />
+      <Field label={t.bookTitle} value={state.title} max={COVER_TEXT_MAX.title} onChange={(v) => update({ title: v })} disabled={!editable} />
+      <Field label={t.subtitle} placeholder={t.subtitlePlaceholder} value={state.subtitle} max={COVER_TEXT_MAX.subtitle} onChange={(v) => update({ subtitle: v })} disabled={!editable} />
+      <Field label={kind === "autobiography" ? t.narratorName : t.authorName} value={state.authorName} max={COVER_TEXT_MAX.authorName} onChange={(v) => update({ authorName: v })} disabled={!editable} />
       {kind === "autobiography" ? <Field label={t.recordedBy} placeholder={t.recordedByPlaceholder} value={state.recordedBy} max={RECORDED_BY_MAX} onChange={(v) => update({ recordedBy: v })} disabled={!editable} /> : null}
       {/* Получатель: у подарка — обязательное поле, у своей книги — «необязательно», у автобиографии его нет (посвящение — во вкладке «Страницы»). */}
       {kind !== "autobiography" ? (
         <div>
-          <Field label={recipientLabel} value={state.recipientName} max={60} onChange={(v) => update({ recipientName: v })} disabled={!editable} />
+          <Field label={recipientLabel} value={state.recipientName} max={COVER_TEXT_MAX.recipientName} onChange={(v) => update({ recipientName: v })} disabled={!editable} />
           <label className="mt-2.5 flex min-h-11 items-center gap-2.5 text-sm text-ink-soft pointer-fine:min-h-0">
             <input type="checkbox" className="size-4 accent-wine" checked={state.hideRecipientOnCover} onChange={(e) => update({ hideRecipientOnCover: e.target.checked })} disabled={!editable} />
             {t.hideRecipient}

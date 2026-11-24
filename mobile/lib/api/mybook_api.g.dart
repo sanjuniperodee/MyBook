@@ -1921,16 +1921,146 @@ class CoverMood {
   Map<String, dynamic> toJson() => {'id': id, 'label': label};
 }
 
+class CoverBackLayout {
+  final String id;
+  final String name;
+  final String hint;
+  final String? label;
+  final String? placeholder;
+  final String? note;
+  final int photos;
+  final String? photosLabel;
+
+  const CoverBackLayout({required this.id, required this.name, required this.hint, this.label, this.placeholder, this.note, required this.photos, this.photosLabel});
+
+  factory CoverBackLayout.fromJson(Map<String, dynamic> json) => CoverBackLayout(id: json['id'] as String, name: json['name'] as String, hint: json['hint'] as String, label: json['label'] == null ? null : json['label'] as String, placeholder: json['placeholder'] == null ? null : json['placeholder'] as String, note: json['note'] == null ? null : json['note'] as String, photos: (json['photos'] as num).toInt(), photosLabel: json['photosLabel'] == null ? null : json['photosLabel'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'hint': hint, 'label': label, 'placeholder': placeholder, 'note': note, 'photos': photos, 'photosLabel': photosLabel};
+}
+
+class CoverLabels {
+  final String title;
+  final String saving;
+  final CoverLabelsSides sides;
+  final CoverLabelsTabs tabs;
+  final String variants;
+  final int shown;
+  final String showAll;
+  final String onCover;
+  final String designActive;
+  final String readonly;
+  final CoverLabelsPhoto photo;
+  final CoverLabelsText text;
+  final CoverLabelsBack back;
+
+  const CoverLabels({required this.title, required this.saving, required this.sides, required this.tabs, required this.variants, required this.shown, required this.showAll, required this.onCover, required this.designActive, required this.readonly, required this.photo, required this.text, required this.back});
+
+  factory CoverLabels.fromJson(Map<String, dynamic> json) => CoverLabels(title: json['title'] as String, saving: json['saving'] as String, sides: CoverLabelsSides.fromJson(json['sides'] as Map<String, dynamic>), tabs: CoverLabelsTabs.fromJson(json['tabs'] as Map<String, dynamic>), variants: json['variants'] as String, shown: (json['shown'] as num).toInt(), showAll: json['showAll'] as String, onCover: json['onCover'] as String, designActive: json['designActive'] as String, readonly: json['readonly'] as String, photo: CoverLabelsPhoto.fromJson(json['photo'] as Map<String, dynamic>), text: CoverLabelsText.fromJson(json['text'] as Map<String, dynamic>), back: CoverLabelsBack.fromJson(json['back'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'title': title, 'saving': saving, 'sides': sides.toJson(), 'tabs': tabs.toJson(), 'variants': variants, 'shown': shown, 'showAll': showAll, 'onCover': onCover, 'designActive': designActive, 'readonly': readonly, 'photo': photo.toJson(), 'text': text.toJson(), 'back': back.toJson()};
+}
+
+class CoverLabelsSides {
+  final String front;
+  final String back;
+
+  const CoverLabelsSides({required this.front, required this.back});
+
+  factory CoverLabelsSides.fromJson(Map<String, dynamic> json) => CoverLabelsSides(front: json['front'] as String, back: json['back'] as String);
+
+  Map<String, dynamic> toJson() => {'front': front, 'back': back};
+}
+
+class CoverLabelsTabs {
+  final String designs;
+  final String photo;
+  final String text;
+  final String variant;
+
+  const CoverLabelsTabs({required this.designs, required this.photo, required this.text, required this.variant});
+
+  factory CoverLabelsTabs.fromJson(Map<String, dynamic> json) => CoverLabelsTabs(designs: json['designs'] as String, photo: json['photo'] as String, text: json['text'] as String, variant: json['variant'] as String);
+
+  Map<String, dynamic> toJson() => {'designs': designs, 'photo': photo, 'text': text, 'variant': variant};
+}
+
+class CoverLabelsPhoto {
+  final String title;
+  final List<String> slots;
+  final String slotsHint;
+  final String uploadFirst;
+  final String note;
+
+  const CoverLabelsPhoto({required this.title, required this.slots, required this.slotsHint, required this.uploadFirst, required this.note});
+
+  factory CoverLabelsPhoto.fromJson(Map<String, dynamic> json) => CoverLabelsPhoto(title: json['title'] as String, slots: (json['slots'] as List).map((e) => e as String).toList(), slotsHint: json['slotsHint'] as String, uploadFirst: json['uploadFirst'] as String, note: json['note'] as String);
+
+  Map<String, dynamic> toJson() => {'title': title, 'slots': slots.map((e) => e).toList(), 'slotsHint': slotsHint, 'uploadFirst': uploadFirst, 'note': note};
+}
+
+class CoverLabelsText {
+  final String bookTitle;
+  final String subtitle;
+  final String subtitlePlaceholder;
+  final String author;
+  final String recordedBy;
+  final String recordedByPlaceholder;
+  final String recipientNone;
+  final String hideRecipient;
+  final String namesOnCover;
+  final String namesOnCoverText;
+  final String coverLines;
+  final String coverLinesHint;
+
+  const CoverLabelsText({required this.bookTitle, required this.subtitle, required this.subtitlePlaceholder, required this.author, required this.recordedBy, required this.recordedByPlaceholder, required this.recipientNone, required this.hideRecipient, required this.namesOnCover, required this.namesOnCoverText, required this.coverLines, required this.coverLinesHint});
+
+  factory CoverLabelsText.fromJson(Map<String, dynamic> json) => CoverLabelsText(bookTitle: json['bookTitle'] as String, subtitle: json['subtitle'] as String, subtitlePlaceholder: json['subtitlePlaceholder'] as String, author: json['author'] as String, recordedBy: json['recordedBy'] as String, recordedByPlaceholder: json['recordedByPlaceholder'] as String, recipientNone: json['recipientNone'] as String, hideRecipient: json['hideRecipient'] as String, namesOnCover: json['namesOnCover'] as String, namesOnCoverText: json['namesOnCoverText'] as String, coverLines: json['coverLines'] as String, coverLinesHint: json['coverLinesHint'] as String);
+
+  Map<String, dynamic> toJson() => {'bookTitle': bookTitle, 'subtitle': subtitle, 'subtitlePlaceholder': subtitlePlaceholder, 'author': author, 'recordedBy': recordedBy, 'recordedByPlaceholder': recordedByPlaceholder, 'recipientNone': recipientNone, 'hideRecipient': hideRecipient, 'namesOnCover': namesOnCover, 'namesOnCoverText': namesOnCoverText, 'coverLines': coverLines, 'coverLinesHint': coverLinesHint};
+}
+
+class CoverLabelsBack {
+  final String title;
+  final String text;
+  final String noPhotos;
+  final String? signed;
+
+  const CoverLabelsBack({required this.title, required this.text, required this.noPhotos, this.signed});
+
+  factory CoverLabelsBack.fromJson(Map<String, dynamic> json) => CoverLabelsBack(title: json['title'] as String, text: json['text'] as String, noPhotos: json['noPhotos'] as String, signed: json['signed'] == null ? null : json['signed'] as String);
+
+  Map<String, dynamic> toJson() => {'title': title, 'text': text, 'noPhotos': noPhotos, 'signed': signed};
+}
+
 class CoverView {
   final Cover cover;
   final List<CoverTemplate> templates;
   final List<CoverMood> moods;
+  final List<CoverBackLayout> backLayouts;
+  final CoverLabels labels;
+  final CoverViewLimits limits;
 
-  const CoverView({required this.cover, required this.templates, required this.moods});
+  const CoverView({required this.cover, required this.templates, required this.moods, required this.backLayouts, required this.labels, required this.limits});
 
-  factory CoverView.fromJson(Map<String, dynamic> json) => CoverView(cover: Cover.fromJson(json['cover'] as Map<String, dynamic>), templates: (json['templates'] as List).map((e) => CoverTemplate.fromJson(e as Map<String, dynamic>)).toList(), moods: (json['moods'] as List).map((e) => CoverMood.fromJson(e as Map<String, dynamic>)).toList());
+  factory CoverView.fromJson(Map<String, dynamic> json) => CoverView(cover: Cover.fromJson(json['cover'] as Map<String, dynamic>), templates: (json['templates'] as List).map((e) => CoverTemplate.fromJson(e as Map<String, dynamic>)).toList(), moods: (json['moods'] as List).map((e) => CoverMood.fromJson(e as Map<String, dynamic>)).toList(), backLayouts: (json['backLayouts'] as List).map((e) => CoverBackLayout.fromJson(e as Map<String, dynamic>)).toList(), labels: CoverLabels.fromJson(json['labels'] as Map<String, dynamic>), limits: CoverViewLimits.fromJson(json['limits'] as Map<String, dynamic>));
 
-  Map<String, dynamic> toJson() => {'cover': cover.toJson(), 'templates': templates.map((e) => e.toJson()).toList(), 'moods': moods.map((e) => e.toJson()).toList()};
+  Map<String, dynamic> toJson() => {'cover': cover.toJson(), 'templates': templates.map((e) => e.toJson()).toList(), 'moods': moods.map((e) => e.toJson()).toList(), 'backLayouts': backLayouts.map((e) => e.toJson()).toList(), 'labels': labels.toJson(), 'limits': limits.toJson()};
+}
+
+class CoverViewLimits {
+  final int title;
+  final int authorName;
+  final int recordedBy;
+  final int recipientName;
+  final int subtitle;
+  final int namesOnCover;
+  final int backText;
+
+  const CoverViewLimits({required this.title, required this.authorName, required this.recordedBy, required this.recipientName, required this.subtitle, required this.namesOnCover, required this.backText});
+
+  factory CoverViewLimits.fromJson(Map<String, dynamic> json) => CoverViewLimits(title: (json['title'] as num).toInt(), authorName: (json['authorName'] as num).toInt(), recordedBy: (json['recordedBy'] as num).toInt(), recipientName: (json['recipientName'] as num).toInt(), subtitle: (json['subtitle'] as num).toInt(), namesOnCover: (json['namesOnCover'] as num).toInt(), backText: (json['backText'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'title': title, 'authorName': authorName, 'recordedBy': recordedBy, 'recipientName': recipientName, 'subtitle': subtitle, 'namesOnCover': namesOnCover, 'backText': backText};
 }
 
 class CrmTaskContext {

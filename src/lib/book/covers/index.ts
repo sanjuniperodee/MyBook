@@ -59,6 +59,9 @@ export function coverPhotoIds(book: { coverTemplate: string; coverPhotoId: strin
   return Array.from({ length: slots }, (_, i) => ids[i] ?? null);
 }
 
+/** Сколько обложек показывать в выборе сразу (выбранная — всегда среди них), остальные — по «Показать все». Сайт и приложение. */
+export const PICKER_SHOWN = 12;
+
 /** Шаблон по id; lines = false — без декоративных линий (books.cover_lines): тот же объект на каждый вызов. */
 export function getCoverTemplate(id: string, lines = true): CoverTemplate {
   const template = byId[id] ?? customCover(id) ?? linen;

@@ -6,22 +6,25 @@
 import { z } from "zod";
 import { route, schemas, uuid, type RouteDef } from "./core";
 
+/** Длины текстов обложки — одни для схемы, сайта и приложения (отдаются в CoverView.limits). */
+export const COVER_TEXT_MAX = { title: 80, authorName: 60, recordedBy: 80, recipientName: 60, subtitle: 80, namesOnCover: 120, backText: 400 } as const;
+
 /** Поля обложки в настройках книги (PATCH /api/books/{id} сайта берёт их отсюда). Каталог шаблонов проверяет домен. */
 export const CoverFields = z.object({
-  title: z.string().trim().max(80),
+  title: z.string().trim().max(COVER_TEXT_MAX.title),
   /** Автор; у автобиографии — рассказчик. */
-  authorName: z.string().trim().max(60),
+  authorName: z.string().trim().max(COVER_TEXT_MAX.authorName),
   /** Автобиография: кто записал со слов рассказчика (у остальных книг домен поле пропускает). */
-  recordedBy: z.string().trim().max(80),
-  recipientName: z.string().trim().max(60),
-  subtitle: z.string().trim().max(80),
+  recordedBy: z.string().trim().max(COVER_TEXT_MAX.recordedBy),
+  recipientName: z.string().trim().max(COVER_TEXT_MAX.recipientName),
+  subtitle: z.string().trim().max(COVER_TEXT_MAX.subtitle),
   hideRecipientOnCover: z.boolean(),
-  namesOnCover: z.string().trim().max(120),
+  namesOnCover: z.string().trim().max(COVER_TEXT_MAX.namesOnCover),
   coverTemplate: z.string().max(40),
   coverLines: z.boolean(),
   coverPhotoId: uuid.nullable(),
   coverPhotoExtra: z.array(uuid).max(5),
-  backText: z.string().trim().max(400),
+  backText: z.string().trim().max(COVER_TEXT_MAX.backText),
   backLayout: z.string().max(20),
   backPhotoId: uuid.nullable(),
   backPhotoExtra: z.array(uuid).max(5),
@@ -80,12 +83,74 @@ export const Cover = z
 
 export const CoverMood = z.object({ id: z.string(), label: z.string() }).register(schemas, { id: "CoverMood" });
 
+/** Вариант оборота (lib/book/cover-back.ts): подписи, подсказка и поле текста по виду книги, сколько фото умеет показать. */
+export const CoverBackLayout = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    hint: z.string(),
+    /** Подпись и подсказка поля текста; null — текст не нужен («Лаконично»: note). */
+    label: z.string().nullable(),
+    placeholder: z.string().nullable(),
+    note: z.string().nullable(),
+    photos: z.number().int(),
+    /** «Какое фото» / «Какие фото — до 3, в порядке выбора»; null — без фото. */
+    photosLabel: z.string().nullable(),
+  })
+  .register(schemas, { id: "CoverBackLayout" });
+
+/**
+ * Надписи экрана обложки — сообщения сайта (books.cover, design.cover, design.ui.studio.cover), посчитанные под эту книгу
+ * и выбранный шаблон: у приложения своих строк нет.
+ */
+export const CoverLabels = z
+  .object({
+    title: z.string(),
+    saving: z.string(),
+    sides: z.object({ front: z.string(), back: z.string() }),
+    tabs: z.object({ designs: z.string(), photo: z.string(), text: z.string(), variant: z.string() }),
+    variants: z.string(),
+    /** Сколько обложек в выборе сразу, подпись кнопки «Показать все обложки (N)». */
+    shown: z.number().int(),
+    showAll: z.string(),
+    onCover: z.string(),
+    designActive: z.string(),
+    readonly: z.string(),
+    photo: z.object({ title: z.string(), slots: z.array(z.string()), slotsHint: z.string(), uploadFirst: z.string(), note: z.string() }),
+    text: z.object({
+      bookTitle: z.string(),
+      subtitle: z.string(),
+      subtitlePlaceholder: z.string(),
+      author: z.string(),
+      recordedBy: z.string(),
+      recordedByPlaceholder: z.string(),
+      recipientNone: z.string(),
+      hideRecipient: z.string(),
+      namesOnCover: z.string(),
+      namesOnCoverText: z.string(),
+      coverLines: z.string(),
+      coverLinesHint: z.string(),
+    }),
+    back: z.object({ title: z.string(), text: z.string(), noPhotos: z.string(), signed: z.string().nullable() }),
+  })
+  .register(schemas, { id: "CoverLabels" });
+
 /**
  * Обложка и выбор. Миниатюры сетки — templates[].previewUrl (графика без текста); крупный предпросмотр выбранного
  * шаблона с текущими надписями и фото — `/api/books/{id}/cover-image?template=<id>&w=…` (вёрстка печати; только для
  * выбранного — растр PDF на каждую клетку сетки слишком тяжёл).
  */
-export const CoverView = z.object({ cover: Cover, templates: z.array(CoverTemplate), moods: z.array(CoverMood) }).register(schemas, { id: "CoverView" });
+export const CoverView = z
+  .object({
+    cover: Cover,
+    templates: z.array(CoverTemplate),
+    moods: z.array(CoverMood),
+    backLayouts: z.array(CoverBackLayout),
+    labels: CoverLabels,
+    /** Наибольшие длины полей (COVER_TEXT_MAX). */
+    limits: z.object({ title: z.number().int(), authorName: z.number().int(), recordedBy: z.number().int(), recipientName: z.number().int(), subtitle: z.number().int(), namesOnCover: z.number().int(), backText: z.number().int() }),
+  })
+  .register(schemas, { id: "CoverView" });
 
 const BookParams = z.object({ bookId: uuid });
 

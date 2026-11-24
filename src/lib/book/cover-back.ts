@@ -9,13 +9,14 @@ import { printableText } from "./printable";
 import { photoHref, photoImage, type PhotoRef } from "./covers/svg-kit";
 import { fontWidth, type FontKey } from "./fonts";
 import { PT_TO_MM, type Rect } from "./formats";
+import { COVER_TEXT_MAX } from "@mybook/contracts";
 
 export type BackLayout = "quote" | "letter" | "photo" | "fullPhoto" | "polaroids" | "minimal";
 export const backLayouts: BackLayout[] = ["quote", "letter", "photo", "fullPhoto", "polaroids", "minimal"];
 /** Варианты с фото и сколько снимков каждый умеет показать. */
 export const BACK_PHOTO_SLOTS: Partial<Record<BackLayout, number>> = { photo: 1, fullPhoto: 1, polaroids: 3 };
 export const DEFAULT_BACK_LAYOUT: BackLayout = "quote";
-export const BACK_TEXT_MAX = 400;
+export const BACK_TEXT_MAX = COVER_TEXT_MAX.backText;
 
 export function isBackLayout(v: unknown): v is BackLayout {
   return typeof v === "string" && (backLayouts as string[]).includes(v);

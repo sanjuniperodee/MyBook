@@ -5,6 +5,8 @@
  * сервер, CRM и SQL-отчёты (пороги прогресса — здесь же, одни на всех: shared/infrastructure/db/bookProgress.ts).
  */
 
+import { COVER_TEXT_MAX } from "@mybook/contracts";
+
 export type BookKind = "gift" | "autobiography" | "blank";
 
 /** Вид книги по теме: всё, что не автобиография и не своя книга, — подарок (в том числе незнакомые старые строки). */
@@ -41,7 +43,7 @@ export const ANSWER_MAX = 100_000;
 /** С этой длины под ответом виден остаток знаков. */
 export const ANSWER_WARN = 95_000;
 /** «Кто записал со слов» у автобиографии. */
-export const RECORDED_BY_MAX = 80;
+export const RECORDED_BY_MAX = COVER_TEXT_MAX.recordedBy;
 
 // ─── прогресс (§3.1) ────────────────────────────────────────────────────────
 

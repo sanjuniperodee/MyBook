@@ -9269,6 +9269,261 @@
         ],
         "additionalProperties": false
       },
+      "CoverBackLayout": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "hint": {
+            "type": "string"
+          },
+          "label": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "placeholder": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "photos": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "photosLabel": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "hint",
+          "label",
+          "placeholder",
+          "note",
+          "photos",
+          "photosLabel"
+        ],
+        "additionalProperties": false
+      },
+      "CoverLabels": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "saving": {
+            "type": "string"
+          },
+          "sides": {
+            "type": "object",
+            "properties": {
+              "front": {
+                "type": "string"
+              },
+              "back": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "front",
+              "back"
+            ],
+            "additionalProperties": false
+          },
+          "tabs": {
+            "type": "object",
+            "properties": {
+              "designs": {
+                "type": "string"
+              },
+              "photo": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              },
+              "variant": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "designs",
+              "photo",
+              "text",
+              "variant"
+            ],
+            "additionalProperties": false
+          },
+          "variants": {
+            "type": "string"
+          },
+          "shown": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "showAll": {
+            "type": "string"
+          },
+          "onCover": {
+            "type": "string"
+          },
+          "designActive": {
+            "type": "string"
+          },
+          "readonly": {
+            "type": "string"
+          },
+          "photo": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "slots": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "slotsHint": {
+                "type": "string"
+              },
+              "uploadFirst": {
+                "type": "string"
+              },
+              "note": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "title",
+              "slots",
+              "slotsHint",
+              "uploadFirst",
+              "note"
+            ],
+            "additionalProperties": false
+          },
+          "text": {
+            "type": "object",
+            "properties": {
+              "bookTitle": {
+                "type": "string"
+              },
+              "subtitle": {
+                "type": "string"
+              },
+              "subtitlePlaceholder": {
+                "type": "string"
+              },
+              "author": {
+                "type": "string"
+              },
+              "recordedBy": {
+                "type": "string"
+              },
+              "recordedByPlaceholder": {
+                "type": "string"
+              },
+              "recipientNone": {
+                "type": "string"
+              },
+              "hideRecipient": {
+                "type": "string"
+              },
+              "namesOnCover": {
+                "type": "string"
+              },
+              "namesOnCoverText": {
+                "type": "string"
+              },
+              "coverLines": {
+                "type": "string"
+              },
+              "coverLinesHint": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "bookTitle",
+              "subtitle",
+              "subtitlePlaceholder",
+              "author",
+              "recordedBy",
+              "recordedByPlaceholder",
+              "recipientNone",
+              "hideRecipient",
+              "namesOnCover",
+              "namesOnCoverText",
+              "coverLines",
+              "coverLinesHint"
+            ],
+            "additionalProperties": false
+          },
+          "back": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              },
+              "noPhotos": {
+                "type": "string"
+              },
+              "signed": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "title",
+              "text",
+              "noPhotos",
+              "signed"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "title",
+          "saving",
+          "sides",
+          "tabs",
+          "variants",
+          "shown",
+          "showAll",
+          "onCover",
+          "designActive",
+          "readonly",
+          "photo",
+          "text",
+          "back"
+        ],
+        "additionalProperties": false
+      },
       "CoverView": {
         "type": "object",
         "properties": {
@@ -9286,12 +9541,74 @@
             "items": {
               "$ref": "#/components/schemas/CoverMood"
             }
+          },
+          "backLayouts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CoverBackLayout"
+            }
+          },
+          "labels": {
+            "$ref": "#/components/schemas/CoverLabels"
+          },
+          "limits": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "authorName": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "recordedBy": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "recipientName": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "subtitle": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "namesOnCover": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "backText": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "title",
+              "authorName",
+              "recordedBy",
+              "recipientName",
+              "subtitle",
+              "namesOnCover",
+              "backText"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
           "cover",
           "templates",
-          "moods"
+          "moods",
+          "backLayouts",
+          "labels",
+          "limits"
         ],
         "additionalProperties": false
       },

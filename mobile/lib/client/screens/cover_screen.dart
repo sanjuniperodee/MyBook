@@ -25,36 +25,6 @@ class CoverScreen extends StatefulWidget {
   State<CoverScreen> createState() => _CoverScreenState();
 }
 
-const _moods = ['all', 'romance', 'tender', 'classic', 'bright', 'photo'];
-const _moodNames = {'all': 'Все', 'romance': 'Романтика', 'tender': 'Нежные', 'classic': 'Классика', 'bright': 'Яркие', 'photo': 'С фото'};
-const _designsShown = 12;
-
-/// Варианты оборота (lib/book/cover-back.ts) и сколько фото у каждого.
-const _backLayouts = ['quote', 'letter', 'photo', 'fullPhoto', 'polaroids', 'minimal'];
-const _backSlots = {'photo': 1, 'fullPhoto': 1, 'polaroids': 3};
-const _backNames = {
-  'quote': ('Цитата', 'Фраза в центре'),
-  'letter': ('Письмо', 'Несколько строк с подписью'),
-  'photo': ('Фото', 'Снимок с подписью'),
-  'fullPhoto': ('Фото во всю', 'Снимок на всю крышку, текст поверх'),
-  'polaroids': ('Полароиды', 'Два-три снимка внахлёст'),
-  'minimal': ('Лаконично', 'Имена и год'),
-};
-const _backLabel = {'quote': 'Цитата', 'letter': 'Текст письма', 'photo': 'Подпись к фото', 'fullPhoto': 'Текст поверх фото', 'polaroids': 'Подпись под снимками'};
-const _backPlaceholder = {
-  'quote': 'Фраза, которая о вас двоих',
-  'letter': 'Пара строк от вас — их прочитают первыми, когда перевернут книгу',
-  'photo': 'Например: «Наше первое лето. Алматы, 2022»',
-  'fullPhoto': 'Фраза на фоне вашего снимка — или оставьте пустым, будут имена и год',
-  'polaroids': 'Например: «Наши лучшие дни — 2019–2026»',
-};
-
-String _variants(int n) {
-  final m10 = n % 10, m100 = n % 100;
-  final w = m10 == 1 && m100 != 11 ? 'вариант' : (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? 'варианта' : 'вариантов');
-  return '$n $w';
-}
-
 class _CoverScreenState extends State<CoverScreen> {
   late final ClientSession _session = context.read<ClientSession>();
   v1api.CoverView? _view;
@@ -74,6 +44,9 @@ class _CoverScreenState extends State<CoverScreen> {
   final _title = TextEditingController();
   final _subtitle = TextEditingController();
   final _names = TextEditingController();
+  final _author = TextEditingController();
+  final _recordedBy = TextEditingController();
+  final _recipient = TextEditingController();
   final _backText = TextEditingController();
   Timer? _typing;
   v1api.CoverPatch? _pendingText;
@@ -93,6 +66,9 @@ class _CoverScreenState extends State<CoverScreen> {
     _title.dispose();
     _subtitle.dispose();
     _names.dispose();
+    _author.dispose();
+    _recordedBy.dispose();
+    _recipient.dispose();
     _backText.dispose();
     super.dispose();
   }
@@ -111,6 +87,9 @@ class _CoverScreenState extends State<CoverScreen> {
       _title.text = v.cover.title;
       _subtitle.text = v.cover.subtitle;
       _names.text = v.cover.namesOnCover;
+      _author.text = v.cover.authorName;
+      _recordedBy.text = v.cover.recordedBy;
+      _recipient.text = v.cover.recipientName;
       _backText.text = v.cover.backText;
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
@@ -139,6 +118,9 @@ class _CoverScreenState extends State<CoverScreen> {
       title: patch.title ?? p?.title,
       subtitle: patch.subtitle ?? p?.subtitle,
       namesOnCover: patch.namesOnCover ?? p?.namesOnCover,
+      authorName: patch.authorName ?? p?.authorName,
+      recordedBy: patch.recordedBy ?? p?.recordedBy,
+      recipientName: patch.recipientName ?? p?.recipientName,
       backText: patch.backText ?? p?.backText,
     );
     _typing?.cancel();
@@ -219,8 +201,15 @@ class _CoverScreenState extends State<CoverScreen> {
     if (mounted && _slot < slots - 1 && list[_slot + 1] == null) setState(() => _slot++);
   }
 
+  v1api.CoverBackLayout? _backLayout(String id) {
+    for (final l in _view?.backLayouts ?? const <v1api.CoverBackLayout>[]) {
+      if (l.id == id) return l;
+    }
+    return null;
+  }
+
   Future<void> _pickBackLayout(String layout) async {
-    final need = _backSlots[layout] ?? 0;
+    final need = _backLayout(layout)?.photos ?? 0;
     var ids = _backIds;
     // Вариант с фото без выбранных снимков — сразу первые подходящие фото книги.
     if (need > 0 && ids.length < need) {
@@ -283,20 +272,21 @@ class _CoverScreenState extends State<CoverScreen> {
     final cover = v.cover;
     final template = _template(cover.template);
     final slots = template?.photoSlots ?? 0;
+    final l = v.labels;
     final tabs = _back
-        ? const [('variant', 'Вариант')]
-        : [const ('designs', 'Дизайн'), if (slots > 0 && !cover.hasDesign) const ('photo', 'Фото'), const ('text', 'Текст')];
+        ? [('variant', l.tabs.variant)]
+        : [('designs', l.tabs.designs), if (slots > 0 && !cover.hasDesign) ('photo', l.tabs.photo), ('text', l.tabs.text)];
     final tab = tabs.any((t) => t.$1 == _tab) ? _tab : tabs.first.$1;
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 18, 16, 48),
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       children: [
         Row(children: [
-          Expanded(child: Text('Обложка', style: AppText.serif(context, size: 30, weight: FontWeight.w500))),
-          _SideSwitch(back: _back, onChanged: _side),
+          Expanded(child: Text(l.title, style: AppText.serif(context, size: 30, weight: FontWeight.w500))),
+          _SideSwitch(back: _back, front: l.sides.front, backLabel: l.sides.back, onChanged: _side),
         ]),
         const SizedBox(height: 18),
-        if (!_back) _stage(cover, template) else _backIntro(),
+        if (!_back) _stage(v, template) else _backStage(v),
         const SizedBox(height: 10),
         SizedBox(
           height: 20,
@@ -305,7 +295,7 @@ class _CoverScreenState extends State<CoverScreen> {
                 ? Row(mainAxisSize: MainAxisSize.min, children: [
                     const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 1.6)),
                     const SizedBox(width: 8),
-                    Text('Сохраняем…', style: TextStyle(fontSize: 13, color: c.textMuted)),
+                    Text(l.saving, style: TextStyle(fontSize: 13, color: c.textMuted)),
                   ])
                 : _saveError != null
                     ? Text(_saveError!, style: TextStyle(fontSize: 13, color: c.danger), textAlign: TextAlign.center)
@@ -314,11 +304,11 @@ class _CoverScreenState extends State<CoverScreen> {
         ),
         if (!cover.editable) ...[
           const SizedBox(height: 8),
-          _Note(icon: LucideIcons.lock, text: 'Книга заказана — обложку уже нельзя менять.'),
+          _Note(icon: LucideIcons.lock, text: l.readonly),
         ],
         if (cover.hasDesign && !_back) ...[
           const SizedBox(height: 8),
-          _Note(icon: LucideIcons.layers, text: 'Обложка собрана в конструкторе: дизайн, надписи и фото на ней правятся на сайте, в разделе «Обложка» → «Конструктор».'),
+          _Note(icon: LucideIcons.layers, text: l.designActive),
         ],
         const SizedBox(height: 14),
         _Tabs(tabs: tabs, value: tab, onChanged: (t) => setState(() => _tab = t)),
@@ -329,9 +319,9 @@ class _CoverScreenState extends State<CoverScreen> {
             key: ValueKey(tab),
             child: switch (tab) {
               'designs' => _designs(v),
-              'photo' => _coverPhotos(cover, slots),
-              'text' => _texts(cover),
-              _ => _variant(cover),
+              'photo' => _coverPhotos(v, slots),
+              'text' => _texts(v),
+              _ => _variant(v),
             },
           ),
         ),
@@ -339,43 +329,53 @@ class _CoverScreenState extends State<CoverScreen> {
     );
   }
 
-  Widget _stage(v1api.Cover cover, v1api.CoverTemplate? t) {
+  String _moodName(v1api.CoverView v, String id) {
+    for (final m in v.moods) {
+      if (m.id == id) return m.label;
+    }
+    return '';
+  }
+
+  Widget _stage(v1api.CoverView v, v1api.CoverTemplate? t) {
     final c = context.c;
+    final cover = v.cover;
     return Column(children: [
       Center(child: CoverImage(url: '${cover.imageUrl}&w=480', width: 200)),
       const SizedBox(height: 14),
       if (t != null && !cover.hasDesign) ...[
         Text(t.name, style: AppText.serif(context, size: 21, weight: FontWeight.w500)),
-        Text(_moodNames[t.mood] ?? '', style: TextStyle(fontSize: 12.5, color: c.textMuted)),
+        Text(_moodName(v, t.mood), style: TextStyle(fontSize: 12.5, color: c.textMuted)),
       ],
     ]);
   }
 
-  Widget _backIntro() {
+  /// Оборот на сцене — картинка той же вёрстки, что печать (вырез развёртки), под ней — что это за сторона.
+  Widget _backStage(v1api.CoverView v) {
     final c = context.c;
-    return Panel(
-      padding: const EdgeInsets.all(16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Задняя сторона', style: AppText.serif(context, size: 21, weight: FontWeight.w600)),
-        const SizedBox(height: 4),
-        Text('Её видят, когда переворачивают книгу: последние слова, которые остаются в руках.', style: TextStyle(fontSize: 14, height: 1.4, color: c.textMuted)),
-      ]),
-    );
+    final l = v.labels.back;
+    return Column(children: [
+      Center(child: CoverImage(url: '${v.cover.backImageUrl}&w=480', width: 200, flat: true)),
+      const SizedBox(height: 14),
+      Text(l.title, style: AppText.serif(context, size: 21, weight: FontWeight.w500)),
+      const SizedBox(height: 2),
+      Text(l.text, textAlign: TextAlign.center, style: TextStyle(fontSize: 13, height: 1.4, color: c.textMuted)),
+    ]);
   }
 
   Widget _designs(v1api.CoverView v) {
     final c = context.c;
     final cover = v.cover;
+    final l = v.labels;
     final all = v.templates;
-    final moods = _moods.where((m) => m == 'all' || all.any((t) => t.mood == m)).toList();
+    final moods = v.moods.where((m) => m.id == 'all' || all.any((t) => t.mood == m.id)).toList();
     var list = all.where((t) => _mood == 'all' || t.mood == _mood || t.id == cover.template).toList();
-    // Выбранная — первой и всегда в списке; сначала дюжина, остальные по кнопке.
+    // Выбранная — первой и всегда в списке; сначала l.shown обложек, остальные по кнопке (как на сайте).
     list.sort((a, b) => (b.id == cover.template ? 1 : 0) - (a.id == cover.template ? 1 : 0));
-    final more = _mood == 'all' && !_allDesigns && list.length > _designsShown;
-    if (more) list = list.take(_designsShown).toList();
+    final more = _mood == 'all' && !_allDesigns && list.length > l.shown;
+    if (more) list = list.take(l.shown).toList();
     final noPhotos = (_photos?.photos ?? const []).isEmpty;
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(_variants(all.length), style: TextStyle(fontSize: 12.5, color: c.textMuted, fontFeatures: const [FontFeature.tabularFigures()])),
+      Text(l.variants, style: TextStyle(fontSize: 12.5, color: c.textMuted, fontFeatures: const [FontFeature.tabularFigures()])),
       const SizedBox(height: 10),
       SingleChildScrollView(
         scrollDirection: Axis.horizontal,
@@ -383,7 +383,7 @@ class _CoverScreenState extends State<CoverScreen> {
           for (final m in moods)
             Padding(
               padding: const EdgeInsets.only(right: 6),
-              child: _Chip(label: _moodNames[m] ?? m, on: _mood == m, onTap: () => setState(() => _mood = m)),
+              child: _Chip(label: m.label, on: _mood == m.id, onTap: () => setState(() => _mood = m.id)),
             ),
         ]),
       ),
@@ -399,12 +399,13 @@ class _CoverScreenState extends State<CoverScreen> {
               child: _DesignTile(
                 t: t,
                 on: t.id == cover.template && !cover.hasDesign,
+                onCover: l.onCover,
                 needsPhoto: t.photoSlots > 0 && noPhotos,
                 // Шаблон с фото — с фото этой книги на местах (как миниатюры сайта); адрес меняется вместе с выбором.
                 url: t.photoSlots > 0 && !noPhotos
                     ? '/api/books/${_bookId}/cover-thumb/${t.id}?v=${Object.hash(Object.hashAll(cover.photoIds), cover.lines, (_photos?.photos ?? const []).length)}'
                     : t.previewUrl,
-                mood: _moodNames[t.mood] ?? '',
+                mood: _moodName(v, t.mood),
                 onTap: cover.editable && !cover.hasDesign && t.id != cover.template ? () => _choose(t) : null,
               ),
             ),
@@ -412,13 +413,15 @@ class _CoverScreenState extends State<CoverScreen> {
       }),
       if (more) ...[
         const SizedBox(height: 18),
-        CabinetButton(label: 'Показать все обложки (${all.length})', kind: CabBtn.outline, large: false, onPressed: () => setState(() => _allDesigns = true)),
+        CabinetButton(label: l.showAll, kind: CabBtn.outline, large: false, onPressed: () => setState(() => _allDesigns = true)),
       ],
     ]);
   }
 
-  Widget _coverPhotos(v1api.Cover cover, int slots) {
+  Widget _coverPhotos(v1api.CoverView v, int slots) {
     final c = context.c;
+    final cover = v.cover;
+    final l = v.labels.photo;
     final photos = _photos?.photos ?? const <v1api.CabPhoto>[];
     final chosen = [...cover.photoIds];
     while (chosen.length < slots) {
@@ -426,18 +429,18 @@ class _CoverScreenState extends State<CoverScreen> {
     }
     final slot = _slot.clamp(0, slots - 1);
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(slots > 1 ? 'Фото для обложки — $slots места' : 'Фото для обложки', style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
+      Text(l.title, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
       if (slots > 1) ...[
         const SizedBox(height: 10),
         Wrap(spacing: 8, runSpacing: 8, children: [
-          for (var i = 0; i < slots; i++) _Chip(label: 'Фото ${i + 1}', on: slot == i, onTap: () => setState(() => _slot = i)),
+          for (var i = 0; i < slots && i < l.slots.length; i++) _Chip(label: l.slots[i], on: slot == i, onTap: () => setState(() => _slot = i)),
         ]),
         const SizedBox(height: 8),
-        Text('Выберите место, затем фото — оно встанет туда. Фото из другого места поменяется с ним местами.', style: TextStyle(fontSize: 13, height: 1.4, color: c.textMuted)),
+        Text(l.slotsHint, style: TextStyle(fontSize: 13, height: 1.4, color: c.textMuted)),
       ],
       const SizedBox(height: 12),
       if (photos.isEmpty)
-        Text('Сначала загрузите фото — во вкладке «Фото» книги.', style: TextStyle(fontSize: 14, color: c.textMuted))
+        Text(l.uploadFirst, style: TextStyle(fontSize: 14, color: c.textMuted))
       else
         _PhotoGrid(
           photos: photos,
@@ -448,77 +451,83 @@ class _CoverScreenState extends State<CoverScreen> {
           onTap: cover.editable ? (p) => _pickCoverPhoto(p.id, slots) : null,
         ),
       const SizedBox(height: 12),
-      Text('Фото с обложки внутри книги сами не повторяются. Хотите и на странице — нажмите «Где в книге» во вкладке «Фото».', style: TextStyle(fontSize: 12.5, height: 1.4, color: c.textFaint)),
+      Text(l.note, style: TextStyle(fontSize: 12.5, height: 1.4, color: c.textFaint)),
     ]);
   }
 
-  Widget _texts(v1api.Cover cover) {
+  Widget _texts(v1api.CoverView v) {
     final c = context.c;
+    final cover = v.cover;
+    final l = v.labels.text;
+    final max = v.limits;
     final on = cover.editable && !cover.hasDesign;
+    final autobiography = cover.kind == 'autobiography';
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      _Field(label: 'Название книги', controller: _title, max: 80, enabled: on, onChanged: (s) => _text(v1api.CoverPatch(title: s))),
+      _Field(label: l.bookTitle, controller: _title, max: max.title, enabled: on, onChanged: (s) => _text(v1api.CoverPatch(title: s))),
       const SizedBox(height: 16),
-      _Field(label: 'Подзаголовок', hint: 'Например, «Четыре года вместе»', controller: _subtitle, max: 80, enabled: on, onChanged: (s) => _text(v1api.CoverPatch(subtitle: s))),
+      _Field(label: l.subtitle, hint: l.subtitlePlaceholder, controller: _subtitle, max: max.subtitle, enabled: on, onChanged: (s) => _text(v1api.CoverPatch(subtitle: s))),
       const SizedBox(height: 16),
-      _Field(label: 'Имена на обложке', hint: 'Пусто — как сейчас', controller: _names, max: 120, enabled: on, onChanged: (s) => _text(v1api.CoverPatch(namesOnCover: s))),
-      const SizedBox(height: 6),
-      Text('Можно поменять порядок или написать по-своему. Пусто — как сейчас.', style: TextStyle(fontSize: 12.5, color: c.textMuted)),
+      _Field(label: l.author, controller: _author, max: max.authorName, enabled: on, onChanged: (s) => _text(v1api.CoverPatch(authorName: s))),
+      const SizedBox(height: 16),
+      // Получатель: у автобиографии его нет (есть «кто записал»), у остальных — поле и «не отображать на обложке».
+      if (autobiography) ...[
+        _Field(label: l.recordedBy, hint: l.recordedByPlaceholder, controller: _recordedBy, max: max.recordedBy, enabled: on, onChanged: (s) => _text(v1api.CoverPatch(recordedBy: s))),
+        const SizedBox(height: 10),
+        Text(l.recipientNone, style: TextStyle(fontSize: 13, color: c.textMuted)),
+      ] else ...[
+        _Field(label: cover.recipientLabel ?? '', controller: _recipient, max: max.recipientName, enabled: on, onChanged: (s) => _text(v1api.CoverPatch(recipientName: s))),
+        _Check(value: cover.hideRecipientOnCover, title: l.hideRecipient, onChanged: on ? (b) => _save(v1api.CoverPatch(hideRecipientOnCover: b)) : null),
+      ],
       const SizedBox(height: 14),
-      _Check(
-        value: cover.hideRecipientOnCover,
-        title: 'Не отображать получателя на обложке',
-        onChanged: on ? (b) => _save(v1api.CoverPatch(hideRecipientOnCover: b)) : null,
-      ),
-      _Check(
-        value: cover.lines,
-        title: 'Декоративные линии',
-        hint: 'Линии и рамки рисунка шаблона. Украшение под именами остаётся — его можно убрать в «Конструкторе». Фото и текст не меняются.',
-        onChanged: on ? (b) => _save(v1api.CoverPatch(coverLines: b)) : null,
-      ),
+      _Field(label: l.namesOnCover, hint: cover.autoNames, controller: _names, max: max.namesOnCover, enabled: on, onChanged: (s) => _text(v1api.CoverPatch(namesOnCover: s))),
+      const SizedBox(height: 6),
+      Text(l.namesOnCoverText, style: TextStyle(fontSize: 12.5, color: c.textMuted)),
+      const SizedBox(height: 14),
+      _Check(value: cover.lines, title: l.coverLines, hint: l.coverLinesHint, onChanged: on ? (b) => _save(v1api.CoverPatch(coverLines: b)) : null),
     ]);
   }
 
-  Widget _variant(v1api.Cover cover) {
+  Widget _variant(v1api.CoverView v) {
     final c = context.c;
-    final layout = _backNames.containsKey(cover.backLayout) ? cover.backLayout : 'quote';
-    final need = _backSlots[layout] ?? 0;
+    final cover = v.cover;
+    final l = v.labels.back;
+    final layouts = v.backLayouts;
+    final layout = _backLayout(cover.backLayout) ?? layouts.first;
+    final need = layout.photos;
     final photos = _photos?.photos ?? const <v1api.CabPhoto>[];
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       LayoutBuilder(builder: (context, box) {
         const gap = 10.0;
         final w = (box.maxWidth - gap) / 2;
         return Wrap(spacing: gap, runSpacing: gap, children: [
-          for (final l in _backLayouts)
+          for (final x in layouts)
             SizedBox(
               width: w,
-              child: _LayoutCard(
-                name: _backNames[l]!.$1,
-                hint: _backNames[l]!.$2,
-                on: l == layout,
-                onTap: cover.editable && l != layout ? () => _pickBackLayout(l) : null,
-              ),
+              child: _LayoutCard(name: x.name, hint: x.hint, on: x.id == layout.id, onTap: cover.editable && x.id != layout.id ? () => _pickBackLayout(x.id) : null),
             ),
         ]);
       }),
       const SizedBox(height: 18),
-      if (layout == 'minimal')
-        Text('На обороте — имена и год. Текст не нужен.', style: TextStyle(fontSize: 14, color: c.textMuted))
-      else
+      if (layout.label == null)
+        Text(layout.note ?? '', style: TextStyle(fontSize: 14, color: c.textMuted))
+      else ...[
         _Field(
-          label: _backLabel[layout] ?? 'Текст',
-          hint: _backPlaceholder[layout],
+          label: layout.label!,
+          hint: layout.placeholder,
           controller: _backText,
-          max: 400,
-          lines: layout == 'letter' ? 5 : 3,
+          max: v.limits.backText,
+          lines: 3,
           enabled: cover.editable,
           onChanged: (s) => _text(v1api.CoverPatch(backText: s)),
         ),
+        if (l.signed != null) Padding(padding: const EdgeInsets.only(top: 6), child: Text(l.signed!, style: TextStyle(fontSize: 12.5, color: c.textMuted))),
+      ],
       if (need > 0) ...[
         const SizedBox(height: 18),
-        Text(need > 1 ? 'Какие фото — до $need, в порядке выбора' : 'Какое фото', style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
+        Text(layout.photosLabel ?? '', style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
         const SizedBox(height: 10),
         if (photos.isEmpty)
-          Text('В книге пока нет фото.', style: TextStyle(fontSize: 14, color: c.textMuted))
+          Text(l.noPhotos, style: TextStyle(fontSize: 14, color: c.textMuted))
         else
           _PhotoGrid(
             photos: photos,
@@ -535,8 +544,10 @@ class _CoverScreenState extends State<CoverScreen> {
 
 /// «Лицо / Оборот» — как переключатель сторон сайта.
 class _SideSwitch extends StatelessWidget {
-  const _SideSwitch({required this.back, required this.onChanged});
+  const _SideSwitch({required this.back, required this.front, required this.backLabel, required this.onChanged});
   final bool back;
+  final String front;
+  final String backLabel;
   final ValueChanged<bool> onChanged;
 
   @override
@@ -554,7 +565,7 @@ class _SideSwitch extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(color: c.surface, borderRadius: BorderRadius.circular(12)),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [item('Лицо', false), item('Оборот', true)]),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [item(front, false), item(backLabel, true)]),
     );
   }
 }
@@ -613,8 +624,9 @@ class _Chip extends StatelessWidget {
 
 /// Обложка в галерее: крупно, лицом к читателю; выбранная — с винной рамкой и «На обложке».
 class _DesignTile extends StatelessWidget {
-  const _DesignTile({required this.t, required this.url, required this.on, required this.needsPhoto, required this.mood, required this.onTap});
+  const _DesignTile({required this.t, required this.url, required this.on, required this.onCover, required this.needsPhoto, required this.mood, required this.onTap});
   final v1api.CoverTemplate t;
+  final String onCover;
   final String url;
   final bool on;
   final bool needsPhoto;
@@ -675,7 +687,7 @@ class _DesignTile extends StatelessWidget {
             ? Row(children: [
                 Icon(LucideIcons.check, size: 13, color: c.brand),
                 const SizedBox(width: 3),
-                Text('На обложке', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: c.brand)),
+                Text(onCover, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: c.brand)),
               ])
             : Text(mood, maxLines: 1, style: TextStyle(fontSize: 12, color: c.textMuted)),
       ]),
