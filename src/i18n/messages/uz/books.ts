@@ -658,6 +658,9 @@ export const books: typeof ru = {
       retryAt: (time: string) => `Qayta urinish mumkin: ${time}`,
       slow: "Yig‘ish odatdagidan uzoq davom etmoqda — kitob katta yoki navbat bor. Sahifalar o‘zi paydo bo‘ladi, yorliqni yangilash shart emas.",
       pageFailed: "Sahifa yuklanmadi",
+      /** Нажатие на место полосы открывает правку (превью кабинета, zones). */
+      edit: { text: "Matnni tuzatish", photo: "Suratni o‘zgartirish", chapter: "Bobni sozlash" },
+      editHint: "Matn, surat yoki bob nomiga bosing — tahrir ochiladi.",
       pagesFailed: "Sahifalarning bir qismi yuklanmadi.",
     },
     model: {

@@ -233,3 +233,36 @@ describe("читалка по разворотам", () => {
     expect(kz).toContain(kk.bookStudio.reader.scrollMode);
   });
 });
+
+// Превью кабинета: нажатие на текст, фото или главу на полосе открывает их правку (места — zones сборки).
+describe("места правки на полосах", () => {
+  const zoned: BookBuild = {
+    ...build(FP, 4),
+    zones: {
+      2: [
+        { x: 0.1, y: 0.1, w: 0.8, h: 0.05, t: "text", q: "q1" },
+        { x: 0.1, y: 0.2, w: 0.8, h: 0.3, t: "text", q: "q1", p: 2 },
+      ],
+      3: [{ x: 0.2, y: 0.1, w: 0.6, h: 0.4, t: "photo", id: "ph1", q: "q1" }],
+    },
+  };
+  const state: BookBuildState = { status: "ready", build: zoned };
+  const zones = (markup: string) => [...markup.matchAll(/<button [^>]*data-zone="([^"]*)"[^>]*>/g)].map((m) => ({ t: m[1], tag: m[0] }));
+
+  it("правка разрешена — кнопки на местах полос, в долях полосы, с подписью; в читалке и в ленте", () => {
+    for (const mode of ["spread", "scroll"] as const) {
+      const markup = html(createElement(PageReaderView, { bookId: "b1", state, error: null, onRetry: () => {}, mode, onZone: () => {} }));
+      const list = zones(markup);
+      expect(list.map((z) => z.t)).toEqual(mode === "spread" ? [] : ["text", "text", "photo"]);
+    }
+    // Читалка показывает первый разворот (полоса 1): мест на нём нет; на развороте 2–3 — все три.
+    const ok = zones(html(createElement(PageReaderView, { bookId: "b1", state, error: null, onRetry: () => {}, mode: "scroll", onZone: () => {} })));
+    expect(attr(ok[1].tag, "style")).toBe("left:10%;top:20%;width:80%;height:30%");
+    expect(attr(ok[2].tag, "aria-label")).toBe(ru.books.preview.reader.edit.photo);
+  });
+
+  it("правки нет (заказанная книга, только просмотр) — мест нет", () => {
+    const markup = html(createElement(PageReaderView, { bookId: "b1", state, error: null, onRetry: () => {}, mode: "scroll" }));
+    expect(zones(markup)).toEqual([]);
+  });
+});

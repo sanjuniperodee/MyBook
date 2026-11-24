@@ -22,7 +22,7 @@ type Tab = "read" | "book";
  * 3D-книга — осмотр со всех сторон. Сборку спрашивает открытая вкладка. orderHref — после последней страницы
  * читалки предлагаем оформить заказ (только у черновика).
  */
-export function PreviewTabs({ bookId, flipbook, orderHref }: { bookId: string; flipbook: FlipbookData; orderHref: string | null }) {
+export function PreviewTabs({ bookId, flipbook, orderHref, editable = false }: { bookId: string; flipbook: FlipbookData; orderHref: string | null; /** Нажатие на полосу открывает правку. */ editable?: boolean }) {
   const m = useMessages();
   const t = m.books.preview;
   const rd = m.bookStudio.reader;
@@ -74,6 +74,7 @@ export function PreviewTabs({ bookId, flipbook, orderHref }: { bookId: string; f
         <div role="tabpanel" id="preview-panel-read" aria-labelledby="preview-tab-read">
           <PageReader
             bookId={bookId}
+            editable={editable}
             lead={
               <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                 {switcher}

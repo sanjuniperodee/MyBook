@@ -6,7 +6,7 @@ import { framedBox, placedByAuthor, polaroidFontSize, ROW_GAP, rowSpaceAbove, ty
 import { PHOTO_COLORS } from "@/lib/book/interiors";
 import { INLINE_ROW } from "@/lib/book/typesetting";
 import { face } from "@/modules/production/infrastructure/pdf/fonts";
-import { mark, noHyphens, type PdfKit } from "./kit";
+import { mark, noHyphens, zone, type PdfKit } from "./kit";
 
 /** Фото ответа вместе с его стилем вставки (рамка, выравнивание, пропорции). */
 interface InlineItem {
@@ -23,7 +23,7 @@ function RowPhoto({ kit, item: { p, style }, b, k, i }: { kit: PdfKit; item: Inl
   const polaroid = style.frame === "polaroid";
   const bw = polaroid ? INLINE_ROW.polaroidBorder : style.frame === "line" ? INLINE_ROW.lineBorder : 0;
   return (
-    <View style={{ width: box.outerW, marginLeft: i ? textWidthPt * ROW_GAP : 0 }}>
+    <View {...zone(`p|${p.id}`)} style={{ width: box.outerW, marginLeft: i ? textWidthPt * ROW_GAP : 0 }}>
       <View
         style={{
           width: box.outerW,

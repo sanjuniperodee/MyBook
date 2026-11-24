@@ -9,7 +9,7 @@ import { photoArea, photoPagePlan } from "@/lib/book/photo-pages";
 import { photoCaptionFace } from "@/lib/book/typesetting";
 import { face } from "@/modules/production/infrastructure/pdf/fonts";
 import { PdfPageLayer } from "@/modules/production/infrastructure/pdf/art";
-import { labelStyle, noHyphens, pageMark, type PdfKit } from "./kit";
+import { labelStyle, noHyphens, pageMark, zone, type PdfKit } from "./kit";
 
 /** Подпись под снимком: ручная, служебная или курсив — по дизайну (photoCaptionFace). */
 function captionStyle(kit: PdfKit, size: number): Style {
@@ -39,7 +39,7 @@ export function PhotoPage({ kit, group, chapterKey }: { kit: PdfKit; group: Phot
       : { width: pageSize.width, height: pageSize.height, left: 0, top: 0 };
     return (
       <Page {...kind} size={pageSize} style={{ backgroundColor: PAPER }}>
-        {img ? <Image fixed src={{ data: img.data, format: "jpg" }} style={{ position: "absolute", ...box }} /> : null}
+        {img ? <Image {...zone(`p|${group[0].id}`)} fixed src={{ data: img.data, format: "jpg" }} style={{ position: "absolute", ...box }} /> : null}
       </Page>
     );
   }
@@ -49,7 +49,7 @@ export function PhotoPage({ kit, group, chapterKey }: { kit: PdfKit; group: Phot
       <PdfPageLayer shapes={plan.under} box={box} />
       {plan.cells.map((c) => {
         const img = options.images.get(c.id);
-        return img ? <Image key={c.id} src={{ data: img.data, format: "jpg" }} style={{ position: "absolute", left: mm(B + c.img.x), top: mm(B + c.img.y), width: mm(c.img.w), height: mm(c.img.h) }} /> : null;
+        return img ? <Image key={c.id} {...zone(`p|${c.id}`)} src={{ data: img.data, format: "jpg" }} style={{ position: "absolute", left: mm(B + c.img.x), top: mm(B + c.img.y), width: mm(c.img.w), height: mm(c.img.h) }} /> : null;
       })}
       <PdfPageLayer shapes={plan.over} box={box} />
       {plan.cells.map((c) =>

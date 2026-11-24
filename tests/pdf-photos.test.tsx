@@ -134,6 +134,40 @@ describe("PDF с фотографиями", () => {
     expect(await run({ spaceAbove: 0.6 })).toBe(plain + 1);
   });
 
+  // Превью кабинета: нажатие на текст, фото и начальную полосу главы открывает их правку (pdf/zones.ts, zoneHref).
+  it("места правки полос: заголовок и абзацы ответа, фото в ответе и на страницах, начальная полоса главы", async () => {
+    const { renderInterior, contentFor } = await import("@/modules/production/infrastructure/pdf/render");
+    const { zoneHref } = await import("@/lib/book/book-build");
+    const answer = "Первый абзац о встрече.\nВторой абзац — о том, что было потом.";
+    const qs = questions.map((q, i) => (i === 0 ? { ...q, answer } : q));
+    const ph = photos.map((p, i) => (i === 0 ? { ...p, questionId: "q0", inline: { width: 60, align: "center" as const, anchor: null, aspect: "original" as const, focusX: 0.5, focusY: 0.5, frame: "none" as const } } : p));
+    const bundle = { book: { ...book, interior: "classic" }, questions: qs, chapters: [], photos: ph };
+    const res = await renderInterior(bundle, "preview");
+    const all = Object.entries(res.zones).flatMap(([n, zs]) => zs.map((z) => ({ n: Number(n), ...z })));
+    // Все места — внутри полосы.
+    for (const z of all) {
+      expect(z.x).toBeGreaterThanOrEqual(0);
+      expect(z.y).toBeGreaterThanOrEqual(0);
+      expect(z.x + z.w).toBeLessThanOrEqual(1.001);
+      expect(z.y + z.h).toBeLessThanOrEqual(1.001);
+    }
+    const text = all.filter((z) => z.t === "text" && z.q === "q0");
+    expect(text.some((z) => z.p === undefined)).toBe(true); // заголовок
+    expect(text.map((z) => z.p).filter((p) => p !== undefined)).toContain(0);
+    const inAnswer = all.find((z) => z.t === "photo" && z.id === ph[0].id);
+    expect(inAnswer).toMatchObject({ q: "q0" });
+    expect(res.pages[inAnswer!.n - 1].kind).toBe("text");
+    expect(zoneHref("b1", inAnswer!)).toBe(`/books/b1/questions?s=q0&photo=${ph[0].id}`);
+    // Фото на страницах главы — без ответа; начальная полоса — лист главы с её первым вопросом.
+    const onPages = all.filter((z) => z.t === "photo" && z.id !== ph[0].id);
+    expect(onPages.length).toBeGreaterThan(0);
+    expect(onPages.every((z) => res.pages[z.n - 1].kind === "photo" && !z.q)).toBe(true);
+    const opener = all.find((z) => z.t === "chapter" && z.key === "intro");
+    expect(opener).toMatchObject({ x: 0, y: 0, w: 1, h: 1, q: "q0" });
+    expect(zoneHref("b1", opener!)).toBe("/books/b1/questions?s=q0&chapter=intro");
+    expect(contentFor(bundle).chapters.length).toBeGreaterThan(0);
+  });
+
   it("обложка-мозаика из четырёх фото и оборот с полароидами — одна страница развёртки", async () => {
     const { renderCover } = await import("@/modules/production/infrastructure/pdf/render");
     const ids = photos.map((p) => p.id);

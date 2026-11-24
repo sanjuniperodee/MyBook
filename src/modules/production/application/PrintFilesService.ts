@@ -232,7 +232,8 @@ const RENDER_FAILED = "renderFailed";
  * в отпечаток через LAYOUT_VERSION (render.tsx) — её правки только со сменой той версии: адреса картинок полос содержат
  * отпечаток, и браузер держит их навсегда.
  */
-const BUILD_VERSION = 1;
+// 2 — места правки полос (zones): превью кабинета открывает правку по нажатию на текст, фото и название главы.
+const BUILD_VERSION = 2;
 
 /** Манифест в кэше: сборка без адреса картинок и версия сборки. */
 type StoredManifest = BookBuildManifest & { v: number };
@@ -329,7 +330,7 @@ export class BookPreviewService {
     try {
       const m = JSON.parse((await this.files.get(key)).toString("utf8")) as Partial<StoredManifest>;
       if (m.v !== BUILD_VERSION || m.fp !== fp || !m.pages || m.pages.length !== m.pageCount || typeof m.contentPages !== "number" || !m.trimMm || !m.chapterPages) return null;
-      return { fp, pageCount: m.pageCount, contentPages: m.contentPages, trimMm: m.trimMm, pages: m.pages, chapterPages: m.chapterPages, imageBase: buildImageBase(bookId, fp) };
+      return { fp, pageCount: m.pageCount, contentPages: m.contentPages, trimMm: m.trimMm, pages: m.pages, chapterPages: m.chapterPages, ...(m.zones ? { zones: m.zones } : {}), imageBase: buildImageBase(bookId, fp) };
     } catch {
       // Манифест испорчен — как будто сборки нет.
       return null;

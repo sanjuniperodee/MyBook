@@ -30,6 +30,36 @@ export interface BookBuild {
   chapterPages: Record<string, number>;
   /** "/api/books/<bookId>/pages/<fp>" — к нему добавляется номер полосы. */
   imageBase: string;
+  /** Места полос, которые открывают правку (превью в кабинете): номер полосы → места. Нет — сборка прежней версии. */
+  zones?: Record<number, PageZone[]>;
+}
+
+/**
+ * Место на полосе, нажатие на которое открывает правку: прямоугольник в долях обрезного формата (от левого верхнего угла)
+ * и что править. text — ответ q (p — с какого абзаца, нет — с начала), photo — фото id (q — ответ, где оно стоит),
+ * chapter — глава key (q — её первый вопрос; у альбома в конце — "__gallery").
+ */
+export interface PageZone {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  t: "text" | "photo" | "chapter";
+  q?: string;
+  p?: number;
+  id?: string;
+  key?: string;
+}
+
+/** Куда ведёт нажатие на место полосы: редактор ответов с нужным ответом, абзацем, фото или листом главы. */
+export function zoneHref(bookId: string, z: Pick<PageZone, "t" | "q" | "p" | "id" | "key">): string {
+  const q = new URLSearchParams();
+  if (z.q) q.set("s", z.q);
+  if (z.t === "text" && z.p !== undefined && z.p > 0) q.set("p", String(z.p));
+  if (z.t === "photo" && z.id) q.set("photo", z.id);
+  if (z.t === "chapter" && z.key) q.set(z.key === "__gallery" ? "album" : "chapter", z.key === "__gallery" ? "1" : z.key);
+  const query = q.toString();
+  return `/books/${bookId}/questions${query ? `?${query}` : ""}`;
 }
 
 /** Этапы сборки PDF по порядку: фото под печать, доводка вёрстки, итоговая сборка, обложка, упаковка файлов. */

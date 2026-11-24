@@ -187,6 +187,23 @@ export function splitParagraphsDetailed(answer: string): { paragraphs: string[];
   return { paragraphs, breaks };
 }
 
+/**
+ * С какого знака текста ответа начинается абзац n (нумерация splitParagraphs: непустые строки) — куда поставить курсор,
+ * когда правку открыли нажатием на абзац в превью книги. Нет такого абзаца — конец текста.
+ */
+export function paragraphOffset(answer: string, n: number): number {
+  let at = 0;
+  let index = 0;
+  for (const raw of answer.split("\n")) {
+    if (raw.trim()) {
+      if (index === n) return at + (raw.length - raw.trimStart().length);
+      index++;
+    }
+    at += raw.length + 1;
+  }
+  return answer.length;
+}
+
 /** Абзацы from…end (не включая end) обратно в текст ответа: пустые строки между строфами сохраняются. */
 export function joinParagraphs(paragraphs: readonly string[], breaks: ReadonlySet<number>, from: number, end: number) {
   let out = "";

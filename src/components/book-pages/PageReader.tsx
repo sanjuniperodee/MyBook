@@ -3,9 +3,10 @@
 import { PageTurn, turnPage } from "@/components/motion/PageTurn";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 import { BookOpen, ChevronLeft, ChevronRight, Download, LayoutList, LoaderCircle, Maximize2, Minimize2, RotateCcw, TriangleAlert } from "lucide-react";
-import { useLocale, useMessages } from "@/i18n/client";
+import { useLocale, useLocaleRouter, useMessages } from "@/i18n/client";
+import { toast } from "@/components/ui/overlays";
 import { localeMeta } from "@/i18n/config";
-import { pageImageUrl, type BookBuild, type BookBuildState, type BuildProgress, type PageImageWidth } from "@/lib/book/book-build";
+import { pageImageUrl, zoneHref, type BookBuild, type BookBuildState, type BuildProgress, type PageImageWidth, type PageZone } from "@/lib/book/book-build";
 import { cn } from "@/lib/class-names";
 import { progressSummary, RenderStatus } from "@/components/ui/RenderProgress";
 import { useBookBuild } from "./useBookBuild";
@@ -33,7 +34,37 @@ const BOX_WIDTH = 800;
 /** Время, когда сработает повтор, — на языке страницы. */
 const clock = (ms: number, locale: keyof typeof localeMeta) => new Date(ms).toLocaleTimeString(localeMeta[locale].intl, { hour: "2-digit", minute: "2-digit" });
 
-export function BookPage({ build, n, side, onFailed, onLoaded }: { build: BookBuild; n: number; side: Side; onFailed?: (n: number) => void; onLoaded?: (n: number) => void }) {
+/** Нажали на место полосы — открыть его правку (zoneHref). Есть только у книги, которую можно править. */
+export type OnZone = (zone: PageZone) => void;
+
+/**
+ * Места правки полосы поверх картинки: кнопки в долях полосы. На компьютере место подсвечивается при наведении,
+ * на телефоне — при касании. Пустые поля полосы остаются прозрачными для нажатий (листание в читалке).
+ */
+function PageZones({ zones, onZone }: { zones: PageZone[]; onZone: OnZone }) {
+  const t = useMessages().books.preview.reader.edit;
+  return (
+    <div className="absolute inset-0">
+      {zones.map((z, i) => (
+        <button
+          key={i}
+          type="button"
+          aria-label={t[z.t]}
+          title={t[z.t]}
+          data-zone={z.t}
+          onClick={(e) => {
+            e.stopPropagation();
+            onZone(z);
+          }}
+          className="pointer-events-auto absolute cursor-pointer rounded-[2px] outline-none transition-[background-color,box-shadow] duration-150 focus-visible:ring-2 focus-visible:ring-wine/70 active:bg-wine/15 pointer-fine:hover:bg-wine/[.07] pointer-fine:hover:ring-2 pointer-fine:hover:ring-wine/55"
+          style={{ left: `${z.x * 100}%`, top: `${z.y * 100}%`, width: `${z.w * 100}%`, height: `${z.h * 100}%` }}
+        />
+      ))}
+    </div>
+  );
+}
+
+export function BookPage({ build, n, side, onFailed, onLoaded, onZone }: { build: BookBuild; n: number; side: Side; onFailed?: (n: number) => void; onLoaded?: (n: number) => void; onZone?: OnZone }) {
   const m = useMessages();
   const t = m.books.preview.reader;
   // Не загрузилась — заглушка с повтором; повтор перемонтирует картинку (тот же адрес: сбой браузер не кэширует).
@@ -49,7 +80,7 @@ export function BookPage({ build, n, side, onFailed, onLoaded }: { build: BookBu
             <span>{t.pageFailed}</span>
             <button
               type="button"
-              className="btn btn-outline btn-sm"
+              className="btn btn-outline btn-sm pointer-events-auto"
               onClick={() => {
                 setFailed(false);
                 setAttempt((a) => a + 1);
@@ -79,6 +110,7 @@ export function BookPage({ build, n, side, onFailed, onLoaded }: { build: BookBu
             }}
           />
         )}
+        {onZone && !failed && build.zones?.[n]?.length ? <PageZones zones={build.zones[n]} onZone={onZone} /> : null}
         {/* Тень корешка — только на развороте. */}
         <div
           aria-hidden
@@ -106,16 +138,18 @@ export function BookSpreads({
   reload = 0,
   onPageFailed,
   onPageLoaded,
+  onZone,
 }: {
   build: BookBuild;
   dimmed?: boolean;
   reload?: number;
   onPageFailed?: (n: number) => void;
   onPageLoaded?: (n: number) => void;
+  onZone?: OnZone;
 }) {
   const t = useMessages().books.preview.reader;
   const slot = (n: number | null, side: Side) =>
-    n ? <BookPage key={`${build.fp}:${n}:${reload}`} build={build} n={n} side={side} onFailed={onPageFailed} onLoaded={onPageLoaded} /> : <div aria-hidden className="hidden md:block md:flex-1" />;
+    n ? <BookPage key={`${build.fp}:${n}:${reload}`} build={build} n={n} side={side} onFailed={onPageFailed} onLoaded={onPageLoaded} onZone={onZone} /> : <div aria-hidden className="hidden md:block md:flex-1" />;
   return (
     <section aria-label={t.group} aria-busy={dimmed} className="rounded-[14px] border border-line bg-sunken px-4 py-6 sm:px-6 sm:py-8">
       <div className={cn("mx-auto flex max-w-4xl flex-col gap-8 transition-opacity duration-300", dimmed && "opacity-50")}>
@@ -155,6 +189,7 @@ export function SpreadViewer({
   onPageFailed,
   onPageLoaded,
   end,
+  onZone,
 }: {
   build: BookBuild;
   dimmed?: boolean;
@@ -162,6 +197,7 @@ export function SpreadViewer({
   onPageFailed?: (n: number) => void;
   onPageLoaded?: (n: number) => void;
   end?: ReactNode;
+  onZone?: OnZone;
 }) {
   const m = useMessages();
   const t = m.books.preview;
@@ -223,6 +259,16 @@ export function SpreadViewer({
     }
     go(index + step);
   };
+  // Нажатие на место полосы — правка; после свайпа браузер может прислать щелчок туда, где палец начал листать, — его пропускаем.
+  const zone: OnZone | undefined = onZone
+    ? (z) => {
+        if (swiped.current) {
+          swiped.current = false;
+          return;
+        }
+        onZone(z);
+      }
+    : undefined;
   // Разворот целиком в окне: ширина — по высоте сцены (две полосы на компьютере, одна на телефоне).
   const ratio = ((wide ? 2 : 1) * build.trimMm.w) / build.trimMm.h;
   const label = t.flip.pages(left, right);
@@ -230,7 +276,7 @@ export function SpreadViewer({
   // Одиночная полоса (телефон) листается как правая страница.
   const slot = (n: number | null, side: Side) => (
     <PageTurn key={`${side}:${n ?? "empty"}`} side={wide ? side : "right"}>
-      {n ? <BookPage key={`${build.fp}:${n}:${reload}`} build={build} n={n} side={side} onFailed={onPageFailed} onLoaded={onPageLoaded} /> : <div aria-hidden className="hidden md:block md:flex-1" />}
+      {n ? <BookPage key={`${build.fp}:${n}:${reload}`} build={build} n={n} side={side} onFailed={onPageFailed} onLoaded={onPageLoaded} onZone={zone} /> : <div aria-hidden className="hidden md:block md:flex-1" />}
     </PageTurn>
   );
 
@@ -240,7 +286,10 @@ export function SpreadViewer({
         ref={stage}
         tabIndex={0}
         onKeyDown={onKey}
-        onPointerDown={(e) => (swipe.current = e.clientX)}
+        onPointerDown={(e) => {
+          swipe.current = e.clientX;
+          swiped.current = false;
+        }}
         onPointerUp={onUp}
         onPointerCancel={() => (swipe.current = null)}
         style={{ containerType: "size" }}
@@ -250,7 +299,8 @@ export function SpreadViewer({
         )}
       >
         <div
-          className={cn("flex flex-row items-start transition-opacity duration-300", dimmed && "opacity-50")}
+          // С местами правки полосы — над половинками листания: места ловят нажатия, остальное проходит к листанию.
+          className={cn("flex flex-row items-start transition-opacity duration-300", dimmed && "opacity-50", onZone && "pointer-events-none relative z-[1]")}
           style={{ width: `min(calc(100cqw - 2.5rem), calc((100cqh - 2.5rem) * ${ratio}))` }}
           data-spread={[left, right].filter(Boolean).join("-")}
         >
@@ -350,6 +400,7 @@ export function PageReaderView({
   onMode,
   end,
   lead,
+  onZone,
 }: {
   bookId: string;
   state: BookBuildState | null;
@@ -372,6 +423,8 @@ export function PageReaderView({
   end?: ReactNode;
   /** Начало панели над страницами (вкладки «Читать / 3D-книга» и т. п.): одна строка вместо двух, развороту — место. */
   lead?: ReactNode;
+  /** Нажатие на текст, фото или главу на полосе открывает правку; нет — страницы только смотрят. */
+  onZone?: OnZone;
 }) {
   const m = useMessages();
   const t = m.books.preview.reader;
@@ -477,9 +530,9 @@ export function PageReaderView({
             </div>
           ) : null}
           {mode === "spread" ? (
-            <SpreadViewer build={build} dimmed={building} reload={reload} onPageFailed={onPageFailed} onPageLoaded={onPageLoaded} end={end} />
+            <SpreadViewer build={build} dimmed={building} reload={reload} onPageFailed={onPageFailed} onPageLoaded={onPageLoaded} end={end} onZone={onZone} />
           ) : (
-            <BookSpreads build={build} dimmed={building} reload={reload} onPageFailed={onPageFailed} onPageLoaded={onPageLoaded} />
+            <BookSpreads build={build} dimmed={building} reload={reload} onPageFailed={onPageFailed} onPageLoaded={onPageLoaded} onZone={onZone} />
           )}
         </div>
       ) : lines.length ? (
@@ -508,8 +561,25 @@ export function PageReaderView({
  * Предпросмотр книги страницами настоящего PDF: картинки полос экранной сборки (тот же рендер, что и файл для
  * скачивания). Пока сборка обновляется после правок — прошлые страницы приглушены, поверх строка состояния.
  */
-export function PageReader({ bookId, end, lead }: { bookId: string; end?: ReactNode; lead?: ReactNode }) {
+/** Подсказку «нажмите, чтобы исправить» показываем один раз на браузер. */
+const EDIT_HINT_KEY = "mybook:page-edit-hint";
+
+export function PageReader({ bookId, end, lead, editable = false }: { bookId: string; end?: ReactNode; lead?: ReactNode; /** Книгу можно править: нажатие на полосу открывает правку. */ editable?: boolean }) {
   const { state, error, slow, retryAt, retry, recover } = useBookBuild(bookId);
+  const router = useLocaleRouter();
+  const hint = useMessages().books.preview.reader.editHint;
+  const build = state?.status === "ready" ? state.build : (state?.previous ?? null);
+  const zoned = editable && !!build?.zones && Object.keys(build.zones).length > 0;
+  useEffect(() => {
+    if (!zoned) return;
+    try {
+      if (localStorage.getItem(EDIT_HINT_KEY)) return;
+      localStorage.setItem(EDIT_HINT_KEY, "1");
+    } catch {
+      return;
+    }
+    toast(hint, "info");
+  }, [zoned, hint]);
   const [retrying, setRetrying] = useState(false);
   const [mode, setMode] = useState<"scroll" | "spread">("spread");
   const progress = useBuildProgress(bookId, state?.status === "building");
@@ -517,5 +587,5 @@ export function PageReader({ bookId, end, lead }: { bookId: string; end?: ReactN
     setRetrying(true);
     void retry().finally(() => setRetrying(false));
   };
-  return <PageReaderView bookId={bookId} state={state} error={error} slow={slow} retryAt={retryAt} retrying={retrying} progress={progress} onRetry={onRetry} onPageError={recover} mode={mode} onMode={setMode} end={end} lead={lead} />;
+  return <PageReaderView bookId={bookId} state={state} error={error} slow={slow} retryAt={retryAt} retrying={retrying} progress={progress} onRetry={onRetry} onPageError={recover} mode={mode} onMode={setMode} end={end} lead={lead} onZone={zoned ? (z) => router.push(zoneHref(bookId, z)) : undefined} />;
 }

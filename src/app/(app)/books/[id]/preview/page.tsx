@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Link } from "@/i18n/client";
 import { requireUser } from "@/server/auth";
-import { getAccessibleBook } from "@/server/books";
+import { getAccessibleBook, viewerOf } from "@/server/books";
+import { isBookEditableBy } from "@/modules/authoring";
 import { PreviewTabs } from "./PreviewTabs";
 import { getMessages } from "@/i18n/server";
 import { container } from "@/server/container";
@@ -23,6 +24,8 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
   const bundle = await container().authoring.queries.bundle(book.id);
   const flipbook = flipbookData(book, questions, bundle?.chapters ?? [], bundle?.photos ?? [], bundle?.letters ?? []);
   const orderHref = book.status === "draft" ? `/books/${book.id}/checkout` : null;
+  // Нажатие на текст, фото и главу на полосе открывает правку — у черновика и тому, кто может его править (сотруднику — с правом правки).
+  const editable = book.status === "draft" && isBookEditableBy(book.userId, await viewerOf(user, book.id));
   return (
     <main className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6">
       <header className="mb-4 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
@@ -36,7 +39,7 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
           </Link>
         ) : null}
       </header>
-      <PreviewTabs bookId={book.id} flipbook={flipbook} orderHref={orderHref} />
+      <PreviewTabs bookId={book.id} flipbook={flipbook} orderHref={orderHref} editable={editable} />
     </main>
   );
 }

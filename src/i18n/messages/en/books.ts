@@ -658,6 +658,9 @@ export const books: typeof ru = {
       retryAt: (time: string) => `You can retry at ${time}`,
       slow: "The build is taking longer than usual — a large book or a queue. The pages will appear on their own, no need to refresh the tab.",
       pageFailed: "The page did not load",
+      /** Нажатие на место полосы открывает правку (превью кабинета, zones). */
+      edit: { text: "Edit text", photo: "Change photo", chapter: "Chapter settings" },
+      editHint: "Tap text, a photo or a chapter title to edit it.",
       pagesFailed: "Some pages did not load.",
     },
     model: {

@@ -41,7 +41,7 @@ import { AiWriter } from "./proofread/AiWriter";
 import { useDictation } from "@/hooks/useDictation";
 import { getFormat } from "@/lib/book/formats";
 import { cssFont } from "@/lib/book/fonts";
-import { normalizeStyle } from "@/lib/book/inline-photo";
+import { normalizeStyle, paragraphOffset } from "@/lib/book/inline-photo";
 import { groupByChapter, sectionLabel, type EditorBook, type EditorChapter, type EditorPhoto, type EditorQuestion } from "@/lib/book/editor-model";
 import type { TocLines } from "@/lib/book/toc";
 import { bookInterior } from "@/lib/book/interiors";
@@ -206,6 +206,44 @@ function EditorBody({
   useLayoutEffect(() => {
     latest.current = { flush, currentId: q?.id ?? null };
   });
+
+  // Пришли из превью книги нажатием на полосу (zoneHref, ответ уже выбран по ?s=): абзац — курсор в его начало, фото —
+  // его настройки (фото ответа) или лист «Где стоит фото», глава — лист главы, альбом — его лист. Один раз: метки из адреса
+  // убираем, чтобы обновление страницы не открывало лист снова.
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const get = (k: string) => url.searchParams.get(k);
+    const p = get("p");
+    const photo = get("photo");
+    const chapter = get("chapter");
+    const album = get("album");
+    if (p === null && !photo && !chapter && !album) return;
+    for (const k of ["p", "photo", "chapter", "album"]) url.searchParams.delete(k);
+    window.history.replaceState(window.history.state, "", url);
+    /* eslint-disable react-hooks/set-state-in-effect -- один раз по адресу, пришедшему из превью */
+    if (chapter) setSheet({ kind: "opener", chapterKey: chapter });
+    else if (album) setSheet({ kind: "gallery" });
+    else if (photo) {
+      const ph = photos.find((x) => x.id === photo);
+      if (ph?.questionId && ph.questionId === q?.id) {
+        setSelectedPhotoId(photo);
+        setTimeout(() => document.querySelector('[data-testid="photo-inspector"]')?.scrollIntoView({ block: "center", behavior: "smooth" }), 150);
+      } else if (ph) setSheet({ kind: "photo", photoId: photo });
+    } else if (p !== null && q) {
+      const el = textarea.current;
+      const at = paragraphOffset(q.answer, Number(p) || 0);
+      if (el) {
+        el.focus({ preventScroll: true });
+        el.setSelectionRange(at, at);
+        // Поле растёт по тексту: прокручиваем страницу к строке абзаца, а не к началу поля.
+        const r = el.getBoundingClientRect();
+        const y = window.scrollY + r.top + (r.height * at) / Math.max(1, q.answer.length) - window.innerHeight / 3;
+        window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
+      }
+    }
+    /* eslint-enable react-hooks/set-state-in-effect */
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- только при открытии редактора
+  }, []);
 
   useEffect(() => {
     try {

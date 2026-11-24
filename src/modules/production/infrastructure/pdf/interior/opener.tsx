@@ -10,7 +10,7 @@ import { openerPhotoPlan, openerTextColors, type OpenerPhotoPlan } from "@/lib/b
 import { OPENER, VIGNETTE_RULE } from "@/lib/book/typesetting";
 import { CHAPTER_HEAD, chapterHeadSizes } from "@/lib/book/chapter-head";
 import { PdfPageLayer } from "@/modules/production/infrastructure/pdf/art";
-import { labelStyle, noHyphens, pageMark, textFace, type PdfKit } from "./kit";
+import { labelStyle, noHyphens, pageMark, textFace, zone, type PdfKit } from "./kit";
 import { Placed, Vignette } from "./parts";
 
 type Rect = { x: number; y: number; w: number; h: number };
@@ -116,7 +116,7 @@ export function ChapterHead({ kit, chapterKey, number, title, epigraph }: { kit:
   const colors = design.palette;
   const H = chapterHeadSizes(S);
   return (
-    <View wrap={false} style={{ alignItems: align === "left" ? "flex-start" : "center", marginBottom: H.after }}>
+    <View {...zone(`c|${chapterKey}`)} wrap={false} style={{ alignItems: align === "left" ? "flex-start" : "center", marginBottom: H.after }}>
       <ChapterPageMark kit={kit} chapterKey={chapterKey} />
       <ChapterMark kit={kit} colors={colors} number={number} numeralSize={H.numeral} />
       <Text hyphenationCallback={noHyphens} style={{ ...textFace(design.display, H.title), lineHeight: OPENER.title.lineHeight, textAlign: align, color: colors.ink, maxWidth: OPENER.title.maxWidth }}>{title}</Text>

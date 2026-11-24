@@ -43,7 +43,8 @@ import { DraftBook } from "@/modules/production/infrastructure/pdf/drafts";
 import { readLayout, refineDropCaps, refineFlow } from "@/modules/production/infrastructure/pdf/flow";
 import { readPages } from "@/modules/production/infrastructure/pdf/pages";
 import { GALLERY_KEY, tocKey } from "@/lib/book/toc";
-import type { BookBuildManifest, BookBuildPage } from "@/lib/book/book-build";
+import type { BookBuildManifest, BookBuildPage, PageZone } from "@/lib/book/book-build";
+import { readZones } from "./zones";
 import type { RenderReport } from "../../application/RenderProgress";
 
 export type RenderMode = "print" | "preview" | "reading";
@@ -203,6 +204,8 @@ export interface InteriorResult {
   entryPages: Record<string, number>;
   /** Помеченные блоки итоговой раскладки (полоса с 0, координаты от верха полосы) — сверка с превью (scripts/visual/parity.ts). */
   blocks: FlowLayout["blocks"];
+  /** Места полос, открывающие правку в превью кабинета (pdf/zones.ts): номер полосы → места. */
+  zones: Record<number, PageZone[]>;
 }
 
 /**
@@ -339,7 +342,8 @@ export async function renderInterior(bundle: BookBundle, mode: RenderMode, repor
   const entryPages: Record<string, number> = {};
   const blocks = final ? readLayout(final, chapterOf).blocks : [];
   for (const b of blocks) if (b.kind !== "t") entryPages[b.item] = Math.min(entryPages[b.item] ?? Infinity, b.first.page + 1);
-  return { pdf, pageCount, contentPages, chapterPages: tocPages ?? {}, pages, flow, entryPages, blocks };
+  const zones = final ? readZones(final, content, new Set(bundle.questions.map((q) => q.id)), new Map(bundle.photos.map((p) => [p.id, p.questionId])), mm(bleed)) : {};
+  return { pdf, pageCount, contentPages, chapterPages: tocPages ?? {}, pages, flow, entryPages, blocks, zones };
 }
 
 /** Раскладка экранной сборки — манифест без отпечатка (его считает тот, кто запросил сборку). */
@@ -354,7 +358,7 @@ export async function renderScreenBuild(bundle: BookBundle, report?: RenderRepor
   const format = getFormat(bundle.book.format);
   return {
     pdf: res.pdf,
-    layout: { pageCount: res.pageCount, contentPages: res.contentPages, trimMm: { w: format.widthMm, h: format.heightMm }, pages: res.pages, chapterPages: res.chapterPages },
+    layout: { pageCount: res.pageCount, contentPages: res.contentPages, trimMm: { w: format.widthMm, h: format.heightMm }, pages: res.pages, chapterPages: res.chapterPages, zones: res.zones },
   };
 }
 

@@ -12,6 +12,7 @@ import { bodyAlign, bodyWeight, interiorSizes, measureInsets, quoteFace, trackin
 import { face } from "@/modules/production/infrastructure/pdf/fonts";
 import { FLOW_MARK } from "@/modules/production/infrastructure/pdf/flow";
 import { PAGE_MARK } from "@/modules/production/infrastructure/pdf/pages";
+import { ZONE_MARK } from "@/modules/production/infrastructure/pdf/zones";
 
 export interface PreparedImage {
   data: Buffer;
@@ -124,6 +125,9 @@ export function pdfKit(content: BookContent, options: InteriorOptions): PdfKit {
 
 /** Пометка блока для доводки вёрстки (react-pdf сохраняет её в раскладке). */
 export const mark = (id: string) => ({ [FLOW_MARK]: id }) as object;
+
+/** Место правки в превью кабинета (pdf/zones.ts): фото `p|<id>` или глава `c|<ключ>`. */
+export const zone = (value: string) => ({ [ZONE_MARK]: value }) as object;
 
 /** Пометка страницы блока: вид полосы и глава — для манифеста сборки (pdf/pages.ts). Нужна у каждой <Page>. */
 export const pageMark = (kind: BookPageKind, chapterKey?: string) => ({ [PAGE_MARK]: chapterKey === undefined ? { kind } : { kind, chapterKey } }) as object;
