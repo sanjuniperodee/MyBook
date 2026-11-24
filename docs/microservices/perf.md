@@ -329,7 +329,7 @@ jemalloc +280 МБ; вёрстка — около 100 МБ. Предел куч�
 на маршрут и два перезапуска).
 
 **Кэш картинок сайта:** `public/` (лого, значки, `lp/*`) — `public, max-age=604800, stale-while-revalidate=2592000`
-(было `max-age=0`: каждый заход спрашивал сервер, Cloudflare не кэшировал). `/_next/static`, `/api/covers`,
+(было `max-age=0`: браузер спрашивал сервер на каждый заход; Cloudflare откатили — 06-operations §2.6, кэш только в браузере). `/_next/static`, `/api/covers`,
 `/api/cover-photos` — уже `immutable` на год; личное (`/api/photos`, CRM) — `private`, как было.
 
 **Медленные запросы Postgres:** для базы mybook включён `auto_explain` (> 150 мс, план в журнал Postgres) и
