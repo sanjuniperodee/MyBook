@@ -21,13 +21,16 @@ prod() { ssh -i ~/.ssh/bilimland-prod/ssh-key-1778196525864 -o BatchMode=yes -o 
 
 | Что | Где |
 |---|---|
-| Репозиторий | `~/mybook` (ветка `master`, тянет из `origin` = github.com/sanjuniperodee/MyBook) |
+| Репозиторий | `~/mybook` (ветка `master`, неглубокий клон — последние коммиты; `.env` и `deploy/*` для выкатки). В `node_modules` нет сборочного (компилятор Next, typescript, vite, eslint) — только для разовых скриптов |
+| Разовые скрипты | из `~/mybook`: `SCHEDULER=off PDF_WORKER=off node_modules/.bin/tsx --env-file-if-exists=.env --import ./scripts/preload.mjs scripts/<скрипт>.ts`; проверка, что запуск работает, — `scripts/ops/check.ts` (06-operations §2.8) |
 | Релизы | `~/mybook-releases/releases/<время>-<sha>`, работает симлинк `~/mybook-releases/current` |
 | Процессы PM2 | `mybook` (порт 3040), `mybook-gowa` (шлюз WhatsApp), `kaspi-pos` |
 | Сайт | https://mybooks.kz, здоровье — `/api/health` |
 | Логи выкаток | `~/mybook-deploy-<sha>.log` |
 
 Сервер общий: на нём ещё bilimland, balapan, ilmhub и др. Трогать только `mybook*`. Не перезапускать чужие процессы PM2, не менять nginx, `.env` и базы данных без прямой просьбы. `kaspi-pos` общий с my-test.kz — не перезапускать.
+
+Ручная выкатка со сборкой на сервере (запасной путь ниже) сначала сама поставит зависимости заново (`npm ci`, ~1 ГБ на диске) — сборочных пакетов в `~/mybook/node_modules` нет.
 
 Машина небольшая (4 ядра, 8 ГБ, рядом чужие проекты): вся выкатка идёт 20–25 минут, почти всё время — сборка на одном ядре. Две выкатки одновременно не запускать.
 

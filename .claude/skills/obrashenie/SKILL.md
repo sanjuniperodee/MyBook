@@ -14,4 +14,6 @@ description: Разобрать и исправить обращение MyBooks
 4. `ticket.sh resolution <N> "Исправили: …"` (простыми словами для человека), коммит `… (Обращение №<N>)`.
 5. Пуш в master = выкатка — только с разрешения владельца. После выкатки обращение закроется само.
 
+Данные с прода разовым скриптом — на сервере из `~/mybook`: `SCHEDULER=off PDF_WORKER=off node_modules/.bin/tsx --env-file-if-exists=.env --import ./scripts/preload.mjs scripts/<скрипт>.ts` (скрипт — scp в `~/mybook/scripts/`, потом удалить; проверка запуска — `scripts/ops/check.ts`, 06-operations §2.8).
+
 Слежение: `bash scripts/support/watch.sh <последний номер>` фоном (run_in_background) — завершится с номерами новых.

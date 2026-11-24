@@ -222,6 +222,35 @@ nginx-сниппет адреса клиента оставлен: без Cloudf
 - `book_questions.answer_words` считает база (миграция 0105); откат кода — вернуть regexp в `bookProgress.ts`, столбец
   не мешает. **Новые миграции:** `when` в журнале — время генерации; не править вручную на будущее (тест в schema.test.ts).
 
+### 2.8. Код на сервере, разовые скрипты, своп (24.11)
+
+Сборка — в GitHub Actions; на сервере для выкатки нужны `~/mybook/.env`, `deploy/*` и git (ci-run.sh делает
+`git fetch` + `merge --ff-only`). `~/mybook` — неглубокий клон (`git fetch --depth=20`, только `master`; полная история —
+`git fetch --unshallow`). Из `node_modules` убраны сборочные пакеты (swc Next, typescript, vite/vitest, playwright,
+eslint, lightningcss, tailwind, drizzle-kit): 1,3 ГБ → 0,8 ГБ. Разовые скрипты — как раньше, из `~/mybook`:
+
+```sh
+cd ~/mybook && SCHEDULER=off PDF_WORKER=off node_modules/.bin/tsx --env-file-if-exists=.env --import ./scripts/preload.mjs scripts/<скрипт>.ts
+# проверка, что запуск работает (только чтение): scripts/ops/check.ts → «ops-check ok»
+```
+
+Скрипту нужен пакет, которого нет (ошибка «Cannot find module») — `cd ~/mybook && npm ci --no-audit --no-fund`
+(вернёт всё, ~1 ГБ). Ручная выкатка со сборкой на сервере (запасной путь) делает `npm ci` сама.
+
+my-test (`~/bilimland`, работает из папки репозитория: `next start`, `dist/main.js`): убраны `apps/mobile/node_modules`
+(приложение для телефона, на сервере не нужно), musl-варианты нативных пакетов (сервер на glibc) и playwright —
+2,2 → 1,8 ГБ. Выкатка my-test при смене зависимостей делает `npm install` — вернёт их, это не ошибка.
+
+jemalloc у my-test (`~/ecosystem.mytest.config.cjs`, как у MyBooks): откат — `MYTEST_JEMALLOC=off pm2 startOrReload
+~/ecosystem.mytest.config.cjs --only mytest-v2 --update-env` (и `bilimland-api`), или копия `.bak-20261124-jemalloc`.
+
+Своп: `/swapfile` 2 ГБ, `vm.swappiness=10` (`/etc/sysctl.d/90-swap.conf`, строка в `/etc/fstab`) — страховка от OOM,
+в обычной работе не используется. Убрать: `sudo swapoff /swapfile`, строку из fstab, файл.
+
+Postgres: роли `mybook` и `bilimland` — `idle_in_transaction_session_timeout = 5min` (зависшая транзакция не держит
+блокировки). `idle_session_timeout` не ставили: в коде нет `pool.on("error")`, убитое простаивающее соединение уронило бы
+процесс, а LISTEN живых обновлений CRM рвался бы каждые N минут; соединения пула и так закрываются через 10 с.
+
 ## 3. Миграции
 
 - Владелец схемы — владелец миграций.
