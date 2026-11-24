@@ -83,13 +83,17 @@ class MessageBubble extends StatelessWidget {
     final out = m.outgoing;
     final width = MediaQuery.of(context).size.width;
     final imageOnly = m.type == 'image' && m.text.isEmpty && m.replyTo == null;
+    // Голосовое — как в WhatsApp: у всех одна ширина пузыря (доля экрана), волна тянется на всю ширину; иначе пузырь
+    // подстраивался под самую длинную строку (подпись «с телефона», цитата) и голосовые в ряд были разной ширины.
+    final voice = m.type == 'audio' && m.card == null && !m.mediaGone && !m.deleted;
     return Align(
       alignment: out ? Alignment.centerRight : Alignment.centerLeft,
       child: GestureDetector(
         onLongPress: onLongPress,
         child: Container(
-          constraints: BoxConstraints(maxWidth: width * 0.8),
-          margin: EdgeInsets.only(left: out ? 56 : 14 + (tail ? 0 : BubbleBorder.tailWidth), right: out ? 14 + (tail ? 0 : BubbleBorder.tailWidth) : 56, top: tail ? 7 : 1.5, bottom: 1.5),
+          constraints: voice ? BoxConstraints.tightFor(width: min(width * 0.75, 360)) : BoxConstraints(maxWidth: width * 0.8),
+          // Хвостик рисуется снаружи пузыря (BubbleBorder) — в отступ; сам пузырь у всех сообщений стоит по одной линии.
+          margin: EdgeInsets.only(left: out ? 56 : 14 + BubbleBorder.tailWidth, right: out ? 14 + BubbleBorder.tailWidth : 56, top: tail ? 7 : 1.5, bottom: 1.5),
           decoration: ShapeDecoration(color: !out ? c.bubbleIn : (m.isFailed && !m.id.startsWith('local-') ? c.dangerBg : (m.author == 'бот' ? c.bubbleBot : c.bubbleOut)), shape: BubbleBorder(outgoing: out, tail: tail), shadows: [BoxShadow(color: Colors.black.withValues(alpha: 0.07), blurRadius: 0.8, offset: const Offset(0, 0.8))]),
           padding: EdgeInsets.fromLTRB(imageOnly ? 3 : 10, imageOnly ? 3 : 6, imageOnly ? 3 : 10, imageOnly ? 3 : 5),
           child: _content(context, imageOnly),
@@ -104,7 +108,7 @@ class MessageBubble extends StatelessWidget {
     if (m.deleted) return _textMeta(context, 'Сообщение удалено', italic: true, icon: LucideIcons.ban);
     final children = <Widget>[];
     if (m.outgoing && m.author != null && m.author!.isNotEmpty && (myId == null || m.authorId != myId)) {
-      children.add(Padding(padding: const EdgeInsets.only(bottom: 2), child: Text(m.author!, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: c.brandDeep))));
+      children.add(Padding(padding: const EdgeInsets.only(bottom: 2), child: Text(m.author!, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: c.brandDeep))));
     }
     if (m.forwarded) children.add(Padding(padding: const EdgeInsets.only(bottom: 3), child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(LucideIcons.forward, size: 13, color: c.textFaint), const SizedBox(width: 4), Text('Пересланное', style: TextStyle(fontSize: 12.5, fontStyle: FontStyle.italic, color: c.textFaint))])));
     if (m.replyTo != null) children.add(_Quote(quote: m.replyTo!, onTap: () => onQuoteTap(m.replyTo!.id)));

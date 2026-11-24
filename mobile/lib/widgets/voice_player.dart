@@ -102,8 +102,9 @@ class _VoicePlayerState extends State<VoicePlayer> {
     final c = context.c;
     final accent = widget.outgoing ? c.brandDeep : c.textMuted;
     final bars = _bars(widget.seed);
+    // Ширину задаёт пузырь (одна для всех голосовых): кнопка слева, волна — на всё остальное.
     return SizedBox(
-      width: 236,
+      width: double.infinity,
       child: Row(children: [
         GestureDetector(
           onTap: _toggle,
