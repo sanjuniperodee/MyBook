@@ -33,9 +33,11 @@ export function pdfWorkerHeapMb(value = process.env.PDF_WORKER_HEAP_MB): number 
  * Следующая задача поднимет новый процесс (запуск и шрифты — около секунды).
  */
 export function pdfWorkerIdleMs(value = process.env.PDF_WORKER_IDLE_MIN): number {
-  if (value === undefined || value === "") return 10 * 60_000;
+  // 2 мин (было 10): процесс с шрифтами держит ~200 МБ, а следующая сборка поднимает его за ~1 с; серия правок
+  // (предпросмотр раз в несколько секунд) в 2 минуты укладывается.
+  if (value === undefined || value === "") return 2 * 60_000;
   const n = Number(value);
-  return Number.isFinite(n) && n >= 0 ? Math.round(n * 60_000) : 10 * 60_000;
+  return Number.isFinite(n) && n >= 0 ? Math.round(n * 60_000) : 2 * 60_000;
 }
 
 let worker: ChildProcess | null = null;

@@ -31,12 +31,12 @@ describe("процесс вёрстки PDF", () => {
     expect(pdfWorkerHeapMb("1536")).toBe(1536);
   });
 
-  it("простой: по умолчанию 10 мин, PDF_WORKER_IDLE_MIN меняет, 0 — не закрывать", async () => {
+  it("простой: по умолчанию 2 мин, PDF_WORKER_IDLE_MIN меняет, 0 — не закрывать", async () => {
     const { pdfWorkerIdleMs } = await import("@/modules/production/infrastructure/pdf/pool");
-    expect(pdfWorkerIdleMs(undefined)).toBe(600_000);
-    expect(pdfWorkerIdleMs("")).toBe(600_000);
-    expect(pdfWorkerIdleMs("abc")).toBe(600_000);
-    expect(pdfWorkerIdleMs("-1")).toBe(600_000);
+    expect(pdfWorkerIdleMs(undefined)).toBe(120_000);
+    expect(pdfWorkerIdleMs("")).toBe(120_000);
+    expect(pdfWorkerIdleMs("abc")).toBe(120_000);
+    expect(pdfWorkerIdleMs("-1")).toBe(120_000);
     expect(pdfWorkerIdleMs("0")).toBe(0);
     expect(pdfWorkerIdleMs("0.01")).toBe(600);
   });

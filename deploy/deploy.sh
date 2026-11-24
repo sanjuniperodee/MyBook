@@ -241,6 +241,19 @@ warm_covers() {
 }
 warm_covers && echo "  обложки прогреты" || true
 
+# Частые маршруты (лог nginx, 24.11): next.config — preloadEntriesOnStart: false, модуль маршрута грузится при первом
+# запросе. Здесь — без входа: модуль страницы и layout загружаются и при ответе «войдите» (307/401). Ошибки не важны.
+warm_routes() {
+  local z=00000000-0000-4000-8000-000000000000 r
+  for r in /admin /admin/deals /admin/deals/$z /admin/books /admin/chats /admin/orders /admin/orders/$z /admin/clients \
+    /admin/clients/$z /admin/tasks /admin/finance /admin/support /admin/support/new /admin/calls /admin/templates /admin/more \
+    /books /books/$z /books/$z/questions /books/$z/checkout /books/$z/cover /books/$z/photos /books/$z/pages /books/$z/preview \
+    /api/photos/$z /api/admin/live /api/admin/chats/inbox /api/books/$z/build /api/books/$z/help; do
+    curl -s -m 20 -o /dev/null -H "x-forwarded-proto: https" "http://localhost:$PORT$r" 2>/dev/null || true
+  done
+}
+warm_routes && echo "  частые маршруты прогреты" || true
+
 # Видео в WhatsApp шлюз GOWA готовит через ffmpeg: без него «ffmpeg not installed» (сайт тогда шлёт видео файлом).
 # Ставим, если можно без пароля; нет — подсказываем команду. Выкатку это не ломает.
 if pm2 describe mybook-gowa >/dev/null 2>&1 && ! command -v ffmpeg >/dev/null; then

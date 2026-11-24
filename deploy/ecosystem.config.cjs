@@ -58,7 +58,7 @@ const worker = useWorker && {
   cwd: path.join(releasesDir, "current"),
   script: "worker.mjs",
   node_args: `--env-file=${path.join(root, ".env")}`,
-  env: { NODE_ENV: "production", TZ: "Asia/Almaty", ...allocatorEnv },
+  env: { NODE_ENV: "production", TZ: "Asia/Almaty", ...allocatorEnv, DATABASE_POOL_SIZE: process.env.MYBOOK_WORKER_POOL || "4" },
   // Обычно ~200–300 МБ. Вёрстка PDF (прогрев файлов после оплаты, сертификаты, предпросмотры) идёт отдельным дочерним
   // процессом pdf-worker.mjs (pdf/pool.ts) — в этот предел не входит и при нехватке памяти падает сам, не задевая фон.
   max_memory_restart: "1500M",

@@ -46,7 +46,18 @@ const mb = (bytes: number) => Math.round(bytes / 1048576);
 /** Память текущего процесса, МБ: всего (RSS), пик за жизнь процесса, куча JS, память вне кучи (Buffer, sharp). */
 export function memorySnapshot() {
   const m = process.memoryUsage();
-  return { rssMb: mb(m.rss), peakRssMb: Math.round(process.resourceUsage().maxRSS / 1024), heapMb: mb(m.heapUsed), heapTotalMb: mb(m.heapTotal), externalMb: mb(m.external), buffersMb: mb(m.arrayBuffers) };
+  return { rssMb: mb(m.rss), peakRssMb: Math.round(process.resourceUsage().maxRSS / 1024), heapMb: mb(m.heapUsed), heapTotalMb: mb(m.heapTotal), externalMb: mb(m.external), buffersMb: mb(m.arrayBuffers), ...takePoolStats() };
+}
+
+/** Пул БД процесса (db/index.ts кладёт счётчики в globalThis): соединений, пик занятых и очереди с прошлого замера. */
+function takePoolStats() {
+  const s = (globalThis as Record<symbol, unknown>)[Symbol.for("mybook.poolStats")] as { peakBusy: number; peakWaiting: number; read?: () => { total: number; idle: number; waiting: number; max: number } } | undefined;
+  if (!s?.read) return {};
+  const now = s.read();
+  const out = { dbConns: now.total, dbMax: now.max, dbPeakBusy: s.peakBusy, dbPeakWaiting: s.peakWaiting };
+  s.peakBusy = now.total - now.idle;
+  s.peakWaiting = now.waiting;
+  return out;
 }
 
 type Counter = { n: number; bytes: number; ms: number; maxMs: number; statuses: Record<string, number> };
