@@ -16,6 +16,7 @@ import '../ui/cabinet.dart';
 import '../ui/motion.dart';
 import 'answer_screen.dart';
 import 'checkout_screen.dart';
+import 'cover_screen.dart';
 import 'help_sheet.dart';
 import 'order_screen.dart';
 import 'preview_screen.dart';
@@ -165,6 +166,8 @@ class _BookScreenState extends State<BookScreen> {
       return _checkout;
     if (parts.length >= 3 && parts[0] == 'books' && parts[2] == 'preview' && _hub != null)
       return _preview;
+    if (parts.length >= 3 && parts[0] == 'books' && parts[2] == 'cover' && _hub != null)
+      return _cover;
     if (parts.length >= 2 && parts[0] == 'orders')
       return () => _openOrder(parts[1]);
     return null;
@@ -180,6 +183,11 @@ class _BookScreenState extends State<BookScreen> {
     _loadHub();
   }
 
+  Future<void> _cover() async {
+    await Navigator.of(context).push(CabinetRoute<void>(builder: (_) => CoverScreen(hub: _hub!)));
+    _loadHub();
+  }
+
   Future<void> _openOrder(String id) async {
     await Navigator.of(context).push(CabinetRoute<void>(builder: (_) => OrderScreen(orderId: id)));
     _loadHub();
@@ -187,7 +195,7 @@ class _BookScreenState extends State<BookScreen> {
 
   List<BookStep> _steps(v1api.CabinetBook h) => [
     for (final s in h.steps)
-      if (s.key == 'write' || s.key == 'photos' || s.key == 'order')
+      if (s.key == 'write' || s.key == 'photos' || s.key == 'design' || s.key == 'order')
         BookStep(
           key: s.key,
           label: s.title,
@@ -230,6 +238,7 @@ class _BookScreenState extends State<BookScreen> {
                   onTap: (k) {
                     if (k == 'write') _write(null);
                     if (k == 'photos') _photos();
+                    if (k == 'design') _cover();
                     if (k == 'order') {
                       final step = h.steps.where((s) => s.key == 'order').firstOrNull;
                       _target(step?.href ?? '/books/${h.id}/checkout')?.call();
