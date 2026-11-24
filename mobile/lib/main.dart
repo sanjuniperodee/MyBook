@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import 'core/auth.dart';
 import 'core/cache.dart';
@@ -15,6 +14,7 @@ import 'core/tasks_store.dart';
 import 'core/templates_store.dart';
 import 'core/theme_controller.dart';
 import 'screens/chat_screen.dart';
+import 'screens/crm_web_screen.dart';
 import 'screens/client_screen.dart';
 import 'screens/deal_screen.dart';
 import 'screens/home_screen.dart';
@@ -130,8 +130,8 @@ class _WorkspaceScopeState extends State<WorkspaceScope> {
     if (t.dealId != null) nav.push(MaterialPageRoute<void>(builder: (_) => DealScreen(dealId: t.dealId!)));
     if (t.clientId != null) nav.push(MaterialPageRoute<void>(builder: (_) => ClientScreen(clientId: t.clientId!)));
     if (t.orderId != null) nav.push(MaterialPageRoute<void>(builder: (_) => OrderScreen(orderId: t.orderId!)));
-    // Обращения, финансы, настройки — в CRM на сайте (в приложении этих разделов нет).
-    if (t.web != null) launchUrl(Uri.parse(context.read<AuthState>().api.uri(t.web!).toString()), mode: LaunchMode.externalApplication);
+    // Обращения, финансы, настройки — страница CRM во встроенном браузере (уже вошедшим).
+    if (t.web != null) nav.push(MaterialPageRoute<void>(builder: (_) => CrmWebScreen(path: t.web!)));
     if (t.tab != null) {
       nav.popUntil((r) => r.isFirst);
       tabRequest.value = t.tab;

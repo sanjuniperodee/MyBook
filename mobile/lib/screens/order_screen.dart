@@ -8,6 +8,7 @@ import '../core/api.dart';
 import '../core/auth.dart';
 import '../ui/kit.dart';
 import '../ui/tokens.dart';
+import 'crm_web_screen.dart';
 import 'orders_screen.dart' show orderStatusColor;
 
 /// Заказ для производства: статус и его смена одной кнопкой, получатель с кнопкой «позвонить», доставка и трек, книга,
@@ -110,6 +111,14 @@ class _OrderScreenState extends State<OrderScreen> {
           scrolledUnderElevation: 0,
           leading: RoundIconButton(icon: LucideIcons.chevronLeft, iconSize: 28, color: c.brandDeep, onTap: () => Navigator.of(context).pop(_changed)),
           title: Text(_number == 0 ? 'Заказ' : 'Заказ №$_number', style: AppText.headline(context)),
+          actions: [
+            // Деньги заказа (оплата, возврат, отмена платежа, цена оплаченного), трек, файлы — карточка CRM внутри приложения.
+            RoundIconButton(icon: LucideIcons.externalLink, size: 44, iconSize: 20, color: c.text, tooltip: 'Открыть в CRM', onTap: () async {
+              await openCrm(context, '/admin/orders/${widget.orderId}', title: _number == 0 ? 'Заказ' : 'Заказ №$_number');
+              _changed = true;
+              _load();
+            }),
+          ],
         ),
         body: o == null
             ? (_error != null

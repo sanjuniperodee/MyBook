@@ -63,3 +63,43 @@ List<AppSection> extraSections(Staff staff) {
 }
 
 const layoutTitles = {'leader': 'Руководитель', 'sales': 'Продажи', 'production': 'Производство', 'analyst': 'Аналитика', 'support': 'Поддержка', 'basic': 'Сотрудник'};
+
+/// Раздел CRM, которого нет в приложении экраном: открывается во встроенном браузере (тот же вход и права, что на сайте).
+class CrmWebSection {
+  const CrmWebSection(this.group, this.path, this.label, this.icon, [this.perms = const []]);
+  final String group;
+  final String path;
+  final String label;
+  final IconData icon;
+
+  /// Хотя бы одно из прав (как `perm` в боковой панели CRM, AdminNav.tsx); пусто — всем сотрудникам.
+  final List<String> perms;
+  bool allowed(Staff s) => perms.isEmpty || perms.any(s.can);
+}
+
+/// Боковая панель CRM (src/components/admin/AdminNav.tsx) без разделов, которые в приложении есть экранами.
+const crmWebSections = <CrmWebSection>[
+  CrmWebSection('Сегодня', '/admin/support', 'Обращения', LucideIcons.lifeBuoy),
+  CrmWebSection('Продажи', '/admin/deals', 'Воронка (доска и фильтры)', LucideIcons.kanban, ['deals.view']),
+  CrmWebSection('Продажи', '/admin/catalog', 'Каталог WhatsApp', LucideIcons.shoppingBag, ['catalog.manage']),
+  CrmWebSection('Выпуск', '/admin/board', 'Канбан заказов', LucideIcons.kanban, ['orders.view']),
+  CrmWebSection('Выпуск', '/admin/books', 'Книги', LucideIcons.bookOpen, ['clients.view']),
+  CrmWebSection('Деньги', '/admin/finance', 'Финансы', LucideIcons.wallet, ['analytics.view']),
+  CrmWebSection('Деньги', '/admin/expenses', 'Расходы', LucideIcons.receiptText, ['finance.view']),
+  CrmWebSection('Деньги', '/admin/profit', 'Прибыль', LucideIcons.trendingUp, ['finance.view']),
+  CrmWebSection('Деньги', '/admin/sales', 'Реестр продаж', LucideIcons.scrollText, ['analytics.view']),
+  CrmWebSection('Деньги', '/admin/analytics', 'Аналитика продаж', LucideIcons.chartColumn, ['analytics.view']),
+  CrmWebSection('Деньги', '/admin/leads', 'Статистика лидов', LucideIcons.activity, ['analytics.view']),
+  CrmWebSection('Маркетинг', '/admin/marketing', 'Ссылки и каналы', LucideIcons.link2, ['analytics.view', 'promo.manage']),
+  CrmWebSection('Маркетинг', '/admin/promo', 'Промокоды', LucideIcons.tag, ['promo.manage']),
+  CrmWebSection('Маркетинг', '/admin/gifts', 'Сертификаты', LucideIcons.gift, ['gifts.manage']),
+  CrmWebSection('Маркетинг', '/admin/reviews', 'Отзывы', LucideIcons.star, ['reviews.manage']),
+  CrmWebSection('Маркетинг', '/admin/ai-designer', 'ИИ-дизайнер', LucideIcons.sparkles, ['analytics.view']),
+  CrmWebSection('Настройки', '/admin/automations', 'Автоматизации', LucideIcons.workflow, ['settings.manage']),
+  CrmWebSection('Настройки', '/admin/pricing', 'Цены и тарифы', LucideIcons.coins, ['settings.manage']),
+  CrmWebSection('Настройки', '/admin/site', 'Сайт', LucideIcons.globe, ['settings.manage']),
+  CrmWebSection('Настройки', '/admin/settings', 'Интеграции', LucideIcons.settings, ['settings.manage']),
+  CrmWebSection('Настройки', '/admin/ai-limits', 'Лимиты AI', LucideIcons.gauge, ['settings.manage']),
+  CrmWebSection('Настройки', '/admin/team', 'Команда', LucideIcons.shieldCheck, ['team.manage']),
+  CrmWebSection('Настройки', '/admin/security', 'Безопасность', LucideIcons.lockKeyhole),
+];

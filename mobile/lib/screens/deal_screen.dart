@@ -18,6 +18,7 @@ import 'deals_screen.dart' show hexColor;
 import 'invoice_sheet.dart';
 import 'payment_sheet.dart';
 import 'task_editor.dart';
+import 'crm_web_screen.dart';
 
 /// Карточка сделки: этап (меняется в один тап), чат и счёт, задачи, заметки, платежи и счета.
 class DealScreen extends StatefulWidget {
@@ -175,6 +176,11 @@ class _DealScreenState extends State<DealScreen> {
               child: Row(children: [
                 RoundIconButton(icon: LucideIcons.chevronLeft, size: 44, iconSize: 28, color: c.brandDeep, onTap: () => Navigator.of(context).maybePop()),
                 Expanded(child: Text(d == null ? 'Сделка' : 'Сделка №${d['number']}', style: AppText.headline(context))),
+                // Всё, чего нет на телефоне (поля, план и подарки, клиент, объединение, история), — карточка CRM внутри приложения.
+                RoundIconButton(icon: LucideIcons.externalLink, size: 44, iconSize: 20, color: c.text, tooltip: 'Открыть в CRM', onTap: () async {
+                  await openCrm(context, '/admin/deals/${widget.dealId}', title: d == null ? 'Сделка' : 'Сделка Д${d['number']}');
+                  _load();
+                }),
               ]),
             ),
           ),

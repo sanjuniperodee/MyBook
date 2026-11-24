@@ -68,7 +68,14 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   Future<void> _toggle() async {
     final t = _task!;
     HapticFeedback.mediumImpact();
-    _toast(await context.read<TasksStore>().toggle(t));
+    // Вернуть в работу — сразу; выполнить — «Что сделали?» с итогом и следующим шагом, как в CRM.
+    if (t.done) {
+      _toast(await context.read<TasksStore>().toggle(t));
+    } else {
+      final r = await showCompleteSheet(context, kind: t.kind);
+      if (r == null || !mounted) return;
+      _toast(await context.read<TasksStore>().complete(t, result: r.result, nextTitle: r.next, nextDays: r.days));
+    }
     await _load();
   }
 
@@ -445,4 +452,47 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       ),
     );
   }
+}
+
+
+/// Итог задачи: кнопки по типу задачи (как в CRM, CompleteTask.tsx), свои слова и следующий шаг со сроком.
+Future<({String? result, String? next, int days})?> showCompleteSheet(BuildContext context, {required String kind}) {
+  const chips = {
+    'call': ['Дозвонился', 'Не ответил', 'Перезвонить позже', 'Договорились'],
+    'message': ['Написал', 'Клиент ответил', 'Клиент думает', 'Отказ'],
+  };
+  final options = chips[kind] ?? const ['Сделано', 'Договорились', 'Клиент думает', 'Отказ'];
+  final result = TextEditingController();
+  final next = TextEditingController();
+  var days = 1;
+  return showAppSheet<({String? result, String? next, int days})>(
+    context,
+    title: 'Что сделали?',
+    icon: LucideIcons.circleCheck,
+    builder: (sheet) => StatefulBuilder(
+      builder: (sheet, set) => SafeArea(
+        child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(20, 4, 20, 20 + MediaQuery.of(sheet).viewInsets.bottom),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Wrap(spacing: 8, runSpacing: 8, children: [
+              for (final o in options) FilterPill(label: o, selected: result.text == o, onTap: () => set(() => result.text = result.text == o ? '' : o)),
+            ]),
+            const SizedBox(height: 12),
+            TextField(controller: result, maxLength: 500, onChanged: (_) => set(() {}), decoration: const InputDecoration(hintText: 'Итог своими словами (необязательно)', counterText: '')),
+            const SizedBox(height: 12),
+            TextField(controller: next, maxLength: 300, onChanged: (_) => set(() {}), decoration: const InputDecoration(hintText: 'Следующий шаг (необязательно)', counterText: '')),
+            if (next.text.trim().isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Wrap(spacing: 8, children: [
+                for (final (label, n) in const [('Завтра', 1), ('Через 3 дня', 3), ('Через неделю', 7)]) FilterPill(label: label, selected: days == n, onTap: () => set(() => days = n)),
+              ]),
+            ],
+            const SizedBox(height: 18),
+            PrimaryButton(label: 'Выполнено', icon: LucideIcons.check, onPressed: () => Navigator.pop(sheet, (result: result.text, next: next.text, days: days))),
+            TextButton(onPressed: () => Navigator.pop(sheet, (result: null, next: null, days: 1)), child: const Text('Без итога')),
+          ]),
+        ),
+      ),
+    ),
+  );
 }

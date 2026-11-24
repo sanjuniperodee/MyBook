@@ -13,6 +13,7 @@ import '../ui/tokens.dart';
 import 'home_screen.dart' show SectionPage;
 import 'my_templates_screen.dart';
 import 'support_screen.dart';
+import 'crm_web_screen.dart';
 
 /// Профиль сотрудника: кто вошёл, уведомления, сервер и выход.
 class ProfileScreen extends StatefulWidget {
@@ -83,6 +84,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     title: sec.label,
                     onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => SectionPage(section: sec))),
                   ),
+              ],
+            ),
+          // Остальная CRM — во встроенном браузере, уже вошедшим, по тем же правам, что на сайте.
+          for (final group in {for (final w in crmWebSections) if (w.allowed(staff)) w.group})
+            GroupCard(
+              title: group == 'Сегодня' ? 'CRM' : group,
+              children: [
+                for (final w in crmWebSections)
+                  if (w.group == group && w.allowed(staff)) GroupTile(icon: w.icon, title: w.label, onTap: () => openCrm(context, w.path, title: w.label)),
               ],
             ),
           GroupCard(

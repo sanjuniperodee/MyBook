@@ -16,6 +16,7 @@ import 'deal_screen.dart';
 import 'deals_screen.dart' show hexColor;
 import 'new_deal_sheet.dart';
 import 'task_editor.dart';
+import 'crm_web_screen.dart';
 
 const _orderStatus = {'pending_payment': 'Ожидает оплаты', 'paid': 'Оплачен', 'in_production': 'В производстве', 'shipped': 'Отправлен', 'delivered': 'Доставлен', 'cancelled': 'Отменён'};
 const _bookStatus = {'draft': 'Пишется', 'ordered': 'Заказана'};
@@ -66,6 +67,8 @@ class _ClientScreenState extends State<ClientScreen> {
               child: Row(children: [
                 RoundIconButton(icon: LucideIcons.chevronLeft, size: 44, iconSize: 28, color: c.brandDeep, onTap: () => Navigator.of(context).maybePop()),
                 Expanded(child: Text(d?['name'] as String? ?? widget.title ?? 'Клиент', maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.headline(context))),
+                // Правка клиента, поля, «Не писать первым» — карточка CRM внутри приложения.
+                RoundIconButton(icon: LucideIcons.externalLink, size: 44, iconSize: 20, color: c.text, tooltip: 'Открыть в CRM', onTap: () => openCrm(context, '/admin/clients/${widget.clientId}', title: d?['name'] as String? ?? 'Клиент')),
               ]),
             ),
           ),

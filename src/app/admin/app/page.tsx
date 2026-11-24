@@ -4,12 +4,13 @@ import { PageHeader } from "@/components/admin/PageHeader";
 import { requireStaff } from "@/server/access";
 import { hasMobileApk } from "@/server/mobile-apk";
 import { iosStatus, iosToken } from "@/server/ios-app";
+import { IosEnroll } from "./IosEnroll";
 
 export const metadata = { title: "Приложение для телефона" };
 export const dynamic = "force-dynamic";
 
 const NOTICE: Record<string, { tone: "ok" | "warn"; text: string }> = {
-  registered: { tone: "ok", text: "iPhone зарегистрирован. Как только для него соберут приложение, здесь появится кнопка «Установить» — обычно в течение дня." },
+  registered: { tone: "ok", text: "iPhone зарегистрирован. Приложение подписывается под него — через минуту здесь появится «Установить на iPhone», придёт и уведомление." },
   expired: { tone: "warn", text: "Профиль устарел — скачайте его ещё раз." },
   failed: { tone: "warn", text: "Телефон не прислал свой идентификатор. Скачайте профиль ещё раз в Safari." },
 };
@@ -44,17 +45,7 @@ export default async function AppPage({ searchParams }: { searchParams: Promise<
             <p className="text-xs text-muted">После установки приложение появится на экране «Домой». Если iOS скажет «Ненадёжный разработчик» — это не про нашу сборку; при ошибке «Не удаётся установить» напишите руководителю.</p>
           </>
         ) : (
-          <>
-            <ol className="list-decimal space-y-1.5 pl-5 text-sm">
-              <li>Откройте эту страницу <b>в Safari на iPhone</b> и нажмите «Зарегистрировать iPhone».</li>
-              <li>iPhone предложит загрузить профиль — «Разрешить». Затем «Настройки» → «Профиль загружен» → «Установить» (код-пароль телефона).</li>
-              <li>Телефон вернёт вас сюда. Когда для него соберут приложение, здесь появится «Установить на iPhone».</li>
-            </ol>
-            <a href="/api/admin/ios-app/enroll" className="btn btn-primary">
-              <Smartphone className="size-4" strokeWidth={1.8} aria-hidden /> Зарегистрировать iPhone
-            </a>
-            <p className="text-xs text-muted">Профиль только сообщает CRM идентификатор телефона — ничего не устанавливает и не меняет настройки, после ответа удаляется сам.</p>
-          </>
+          <IosEnroll initial={status} notice={ios} />
         )}
         {status.devices.length ? (
           <ul className="space-y-1 border-t border-line pt-3 text-sm">

@@ -80,6 +80,24 @@ class TasksStore extends ChangeNotifier {
     }
   }
 
+  /// «Что сделали?»: выполнить с итогом (уходит заметкой в ленту сделки) и, если задан, следующим шагом через [nextDays] дней.
+  Future<String?> complete(CrmTask t, {String? result, String? nextTitle, int nextDays = 1}) async {
+    final d = DateTime.now().add(Duration(days: nextDays));
+    final due = '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+    try {
+      await api.post('/api/mobile/tasks/${t.id}/complete', body: {
+        if (result != null && result.trim().isNotEmpty) 'result': result.trim(),
+        if (nextTitle != null && nextTitle.trim().isNotEmpty) ...{'nextTitle': nextTitle.trim(), 'nextDue': due},
+      });
+      t.done = true;
+      await load(silent: true);
+      if (doneLoaded) unawaited(loadDone());
+      return null;
+    } on ApiException catch (e) {
+      return e.message;
+    }
+  }
+
   /// by: hour — через час, tomorrow — завтра (срок считает сервер).
   Future<String?> snooze(CrmTask t, String by) async {
     try {

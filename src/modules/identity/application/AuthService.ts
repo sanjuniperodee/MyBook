@@ -182,6 +182,17 @@ export class AuthService {
     });
   }
 
+  /**
+   * Отдельная короткая сессия того же сотрудника — для встроенного браузера мобильного приложения (страницы CRM, которых
+   * нет в приложении): свой токен, поэтому «Выйти» на сайте внутри приложения не закрывает само приложение.
+   */
+  async openCompanionSession(userId: string, ttlMs: number) {
+    const token = this.tokens.newToken();
+    const expiresAt = new Date(this.clock.now().getTime() + ttlMs);
+    await this.sessions.create(userId, this.tokens.hash(token), expiresAt);
+    return { token, expiresAt };
+  }
+
   private async openSession(userId: string) {
     const token = this.tokens.newToken();
     const now = this.clock.now();

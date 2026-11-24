@@ -30,7 +30,8 @@ class DealsScreen extends StatefulWidget {
 class _DealsScreenState extends State<DealsScreen> {
   DealsData? _data;
   String? _error;
-  String? _stageId; // null — все открытые
+  String? _stageId; // null — все открытые, _unsorted — неразобранные заявки
+  static const _unsorted = '__unsorted';
   bool _mine = false;
   String _q = '';
   bool _loading = false;
@@ -67,8 +68,10 @@ class _DealsScreenState extends State<DealsScreen> {
     final stages = data?.stages ?? const <Stage>[];
     final stageById = {for (final s in stages) s.id: s};
     var deals = data?.deals ?? const <DealRow>[];
-    deals = _stageId == null ? deals.where((d) => stageById[d.stageId]?.kind == 'open').toList() : deals.where((d) => d.stageId == _stageId).toList();
-    int count(String? id) => (data?.deals ?? const <DealRow>[]).where((d) => id == null ? stageById[d.stageId]?.kind == 'open' : d.stageId == id).length;
+    // «Неразобранное» — как колонка на доске CRM: новые заявки, которые ещё никто не принял.
+    bool match(DealRow d, String? id) => id == null ? stageById[d.stageId]?.kind == 'open' : (id == _unsorted ? d.unsorted : d.stageId == id);
+    deals = deals.where((d) => match(d, _stageId)).toList();
+    int count(String? id) => (data?.deals ?? const <DealRow>[]).where((d) => match(d, id)).length;
     final top = MediaQuery.of(context).padding.top;
     Widget body;
     if (data == null && _error == null) {
@@ -138,6 +141,8 @@ class _DealsScreenState extends State<DealsScreen> {
                       _load();
                     })),
                     Padding(padding: const EdgeInsets.only(right: 8), child: FilterPill(label: 'Все открытые', count: count(null), selected: _stageId == null, onTap: () => setState(() => _stageId = null))),
+                    if (count(_unsorted) > 0)
+                      Padding(padding: const EdgeInsets.only(right: 8), child: FilterPill(label: 'Неразобранное', count: count(_unsorted), selected: _stageId == _unsorted, onTap: () => setState(() => _stageId = _unsorted))),
                     for (final s in stages) Padding(padding: const EdgeInsets.only(right: 8), child: FilterPill(label: s.name, count: count(s.id), dot: hexColor(s.color), selected: _stageId == s.id, onTap: () => setState(() => _stageId = s.id))),
                   ]),
                 ),

@@ -31,6 +31,7 @@ import 'my_templates_screen.dart';
 import 'support_screen.dart';
 import 'template_editor_screen.dart';
 import 'templates_sheet.dart';
+import 'crm_web_screen.dart';
 
 /// Переписка: обои, пузыри с хвостиками, голосовые с волной, файлы, ответы на сообщения. Сверху — сделка диалога и счета,
 /// внизу — поле ответа с быстрыми ответами, счётом и записью голоса.
@@ -447,6 +448,8 @@ class _ChatScreenState extends State<ChatScreen> {
             if (d.status == 'closed' && d.perms.canReply) GroupTile(title: 'Открыть снова', icon: LucideIcons.rotateCcw, onTap: () => Navigator.pop(sheet, 'open')),
             if (d.perms.canReply) GroupTile(title: 'Передать коллеге', icon: LucideIcons.userRoundPlus, onTap: () => Navigator.pop(sheet, 'assign')),
             GroupTile(title: d.pinned ? 'Открепить чат' : 'Закрепить чат', icon: d.pinned ? LucideIcons.pinOff : LucideIcons.pin, onTap: () => Navigator.pop(sheet, d.pinned ? 'unpin' : 'pin')),
+            if (d.channel == 'whatsapp' && d.perms.canReply) GroupTile(title: 'Позвонить в WhatsApp', icon: LucideIcons.phone, onTap: () => Navigator.pop(sheet, 'web')),
+            GroupTile(title: 'Открыть в CRM', subtitle: 'бот, «Почему так?», предложение, звонок', icon: LucideIcons.externalLink, onTap: () => Navigator.pop(sheet, 'web')),
             GroupTile(title: 'Обращение в поддержку', icon: LucideIcons.lifeBuoy, onTap: () => Navigator.pop(sheet, 'support')),
             GroupTile(title: 'Обновить', icon: LucideIcons.refreshCw, onTap: () => Navigator.pop(sheet, 'refresh')),
           ],
@@ -472,6 +475,11 @@ class _ChatScreenState extends State<ChatScreen> {
         final ids = ctrl.messages.where((m) => !m.id.startsWith('local-')).map((m) => m.id).toList();
         if (!mounted) return;
         await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => SupportScreen(conversationId: widget.chatId, chatTitle: d.title, messageIds: ids.length > 30 ? ids.sublist(ids.length - 30) : ids)));
+      case 'web':
+        // Звонок WhatsApp, бот, «Почему так?», предложение — чат CRM внутри приложения.
+        if (!mounted) return;
+        await openCrm(context, '/admin/chats?c=${widget.chatId}', title: d.title);
+        await ctrl.load(silent: true);
       case 'refresh':
         await ctrl.load();
     }
