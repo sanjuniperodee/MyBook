@@ -311,6 +311,12 @@ export class AutomationEngine {
         });
         return created ? ok : skipped("такая карточка по сделке уже есть на доске");
       }
+      case "move_card": {
+        // «Заказ в печати → карточка заказа в колонку „Печать“»: ищем карточку этого заказа (или сделки) на доске.
+        if (!a.boardId || !a.columnId || !this.effects.moveCard) return skipped("доска или колонка не выбраны");
+        const moved = await this.effects.moveCard({ boardId: a.boardId, columnId: a.columnId, orderId: ctx.orderId ?? null, dealId: s.deal?.id ?? null });
+        return moved ? ok : skipped("карточки этого заказа или сделки на доске нет");
+      }
       case "draft_message": {
         // Текст кладётся в историю сделки — без сделки его негде показать (поставьте раньше «Создать сделку»).
         if (!s.deal) return skipped("нет сделки — текст негде показать");

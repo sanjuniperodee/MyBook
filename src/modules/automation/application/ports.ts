@@ -63,6 +63,8 @@ export interface AutomationEffects {
    * Карточка на доске задач (модуль досок): одна открытая с этим заголовком на сделку и доску; чек-лист — пункты шаблона.
    * false — такая уже есть или доски нет (в архиве, удалена).
    */
+  /** Карточку заказа (или сделки) на доске — в колонку; false — такой карточки на доске нет. */
+  moveCard?(input: { boardId: string; columnId: string; orderId: string | null; dealId: string | null }): Promise<boolean>;
   createCard?(card: { boardId: string; columnId: string | null; title: string; dueAt: Date | null; clientId: string | null; dealId: string | null; orderId: string | null; assigneeId: string | null; checklist: { title: string; items: string[] } | null }): Promise<boolean>;
   /**
    * Сообщение клиенту от правила (rule — его название, для заметки, если текст не отправлен). reply — ответ на только что

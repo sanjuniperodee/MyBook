@@ -120,6 +120,7 @@ function setup(
     addNote: async (n) => void log.push(`note:${n.dealId}:${n.text}`),
     notify: async (to, n) => void log.push(`notify:${Array.isArray(to) ? to.join(",") : to}:${n.title}`),
     whatsappStaff: async (to, text) => (log.push(`wa:${Array.isArray(to) ? to.join(",") : to}:${text.split("\n")[0]}`), opts.whatsappSent ?? 1),
+    moveCard: async (m) => (log.push(`move-card:${m.boardId}:${m.columnId}:${m.orderId}:${m.dealId}`), true),
     createCard: async (c) => (log.push(`card:${c.boardId}:${c.columnId}:${c.title}:${c.dealId}:${c.assigneeId}:${c.checklist?.items.join("|") ?? ""}:${c.dueAt ? "срок" : "без срока"}`), true),
   };
   const sales: SalesGateway = {
@@ -194,6 +195,11 @@ describe("«Сделка перешла на этап → карточка на 
     const { engine, log } = setup([rule({ trigger: "deal.stage_changed", actions: [{ type: "create_card", boardId: "b1", columnId: "c2", title: "Книга для {имя}", items: ["Макет для {имя}", " "], dueMinutes: 0, userId: "u7" }] })]);
     await engine.run("deal.stage_changed", { subject: "d1:won", dealId: "d1", stageId: "won" });
     expect(log[0]).toBe("card:b1:c2:Книга для Айгерим:d1:u7:Макет для Айгерим:без срока");
+  });
+  it("заказ в печати — карточка заказа переезжает в колонку", async () => {
+    const { engine, log } = setup([rule({ trigger: "order.status_changed", actions: [{ type: "move_card", boardId: "b1", columnId: "print" }] })]);
+    await engine.run("order.status_changed", { subject: "o1:in_production", orderId: "o1", orderStatus: "in_production" });
+    expect(log[0]).toBe("move-card:b1:print:o1:d1");
   });
   it("без доски — шаг пропущен, а не ошибка", async () => {
     const { engine, log, errors } = setup([rule({ actions: [{ type: "create_card", title: "x" }] })]);

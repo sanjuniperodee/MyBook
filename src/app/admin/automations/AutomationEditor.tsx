@@ -64,6 +64,8 @@ const blank = (type: AutomationActionType): AutomationAction =>
     ? { type, title: "", dueMinutes: 60, userId: null }
     : type === "create_card"
       ? { type, title: "", boardId: "", columnId: null, dueMinutes: 0, userId: null, items: [] }
+      : type === "move_card"
+        ? { type, boardId: "", columnId: "" }
     : type === "create_deal"
       ? { type, title: "", userId: null }
       : type === "send_message" || type === "draft_message"
@@ -871,6 +873,30 @@ function Editor({
                   </div>
                   <textarea className="input text-sm" rows={3} placeholder={"Чек-лист — по пункту в строке, например:\nПроверить тексты\nСобрать макет\nСогласовать с клиентом"} value={(a.items ?? []).join("\n")} onChange={(e) => setAction(i, { items: e.target.value.split("\n") })} aria-label="Чек-лист карточки" />
                   <p className="text-xs text-muted">Одна открытая карточка с этим названием на сделку — повтор события её не дублирует. Карточка — со ссылкой на сделку и клиента; на доске сработают её правила.</p>
+                </div>
+              ) : a.type === "move_card" ? (
+                <div className="flex flex-col gap-2">
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <select className="input h-10 text-sm" value={a.boardId ?? ""} onChange={(e) => setAction(i, { boardId: e.target.value, columnId: "" })} aria-label="Доска">
+                      <option value="">Доска…</option>
+                      {(ctx.boards ?? []).map((b) => (
+                        <option key={b.id} value={b.id}>
+                          {b.name}
+                        </option>
+                      ))}
+                    </select>
+                    <select className="input h-10 text-sm" value={a.columnId ?? ""} onChange={(e) => setAction(i, { columnId: e.target.value })} aria-label="Колонка">
+                      <option value="">Колонка…</option>
+                      {(ctx.boards ?? [])
+                        .find((b) => b.id === a.boardId)
+                        ?.columns.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                  <p className="text-xs text-muted">Карточка этого заказа (нет заказа — сделки), созданная на доске правилом или вручную, переедет в колонку; сработают правила доски.</p>
                 </div>
               ) : a.type === "create_deal" ? (
                 <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_14rem]">

@@ -27,6 +27,7 @@ export class AutomationModule {
       createTask: AutomationEffects["createTask"];
       /** Карточка на доске задач — порт контекста «Доски». */
       createCard?: AutomationEffects["createCard"];
+      moveCard?: AutomationEffects["moveCard"];
       sendMessage: AutomationEffects["sendMessage"];
       canMessageNow: AutomationEffects["canMessageNow"];
       addNote: AutomationEffects["addNote"];

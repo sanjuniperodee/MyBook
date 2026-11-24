@@ -11,7 +11,7 @@ type TemplateVars = Parameters<typeof fillTemplate>[1];
 export type { AutomationTrigger } from "@/modules/automation/domain/meta";
 
 export interface RuleAction {
-  type: "create_task" | "send_message" | "assign" | "move_stage" | "notify" | "create_deal" | "draft_message" | "create_card";
+  type: "create_task" | "send_message" | "assign" | "move_stage" | "notify" | "create_deal" | "draft_message" | "create_card" | "move_card";
   title?: string;
   text?: string;
   /** Текст клиенту на казахском: его получает клиент с казахским языком (users.locale); пусто — русский text. */

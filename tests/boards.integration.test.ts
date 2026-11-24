@@ -168,6 +168,21 @@ run("доски задач (PostgreSQL)", () => {
     expect(after.every((c) => c.columnId === col.id && c.labelIds.includes(view.labels[1].id))).toBe(true);
   });
 
+  it("правило CRM: карточка заказа на доске (одна на сделку), перенос по статусу заказа в колонку", async () => {
+    const view = await boards.view(me, boardId);
+    const { rows } = await db.execute<{ id: string }>(sql`insert into crm_deals (title, contact_name, stage_id) values (${`${tag} сделка`}, 'Алия', (select id from crm_stages limit 1)) returning id`);
+    const dealId = rows[0].id;
+    const id = await cards.createFromRule({ boardId, title: "Книга для Алии", dealId, checklist: { title: "Шаги", items: ["Макет", "Печать"] } });
+    expect(id).toBeTruthy();
+    expect(await cards.createFromRule({ boardId, title: "Книга для Алии", dealId })).toBeNull();
+    expect(await cards.moveFromRule({ boardId, columnId: view.columns[3].id, orderId: null, dealId })).toBe(true);
+    const s = await cards.summary(me, id!);
+    expect(s.columnId).toBe(view.columns[3].id);
+    expect(s.checklist.total).toBe(2);
+    expect(await cards.moveFromRule({ boardId, columnId: view.columns[3].id, orderId: null, dealId: "00000000-0000-0000-0000-000000000001" })).toBe(false);
+    await db.execute(sql`delete from crm_deals where id = ${dealId}`);
+  });
+
   it("доска по умолчанию показывает и задачи без доски (из сделок и правил)", async () => {
     const def = await drizzleBoards.defaultBoard();
     expect(def?.isDefault).toBe(true);

@@ -12,11 +12,12 @@ import { parseHolidays } from "../domain";
  * уведомления — рабочее пространство; их подключает корень композиции.
  */
 export const crmEffects = (
-  ports: Pick<AutomationEffects, "createTask" | "createCard" | "sendMessage" | "canMessageNow" | "addNote" | "whatsappStaff">,
+  ports: Pick<AutomationEffects, "createTask" | "createCard" | "moveCard" | "sendMessage" | "canMessageNow" | "addNote" | "whatsappStaff">,
   notifier: StaffNotifier<"deals.view" | "team.manage">,
 ): AutomationEffects => ({
   createTask: ports.createTask,
   createCard: ports.createCard,
+  moveCard: ports.moveCard,
   whatsappStaff: ports.whatsappStaff,
   sendMessage: ports.sendMessage,
   canMessageNow: ports.canMessageNow,

@@ -4,7 +4,7 @@ import { boolean, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, 
 import { timestamps } from "./columns";
 
 export interface AutomationAction {
-  type: "create_task" | "send_message" | "assign" | "move_stage" | "notify" | "create_deal" | "draft_message" | "create_card";
+  type: "create_task" | "send_message" | "assign" | "move_stage" | "notify" | "create_deal" | "draft_message" | "create_card" | "move_card";
   title?: string;
   text?: string;
   /** Текст клиенту на казахском (клиенту с казахским языком); пусто — русский text. */

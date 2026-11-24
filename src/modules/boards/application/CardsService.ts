@@ -227,6 +227,21 @@ export class CardsService {
     return id;
   }
 
+  /**
+   * Перенос от правила CRM («заказ в печати → колонка „Печать“»): открытые карточки этого заказа (иначе — сделки) на
+   * доске — в колонку, с правилами доски. false — таких карточек нет.
+   */
+  async moveFromRule(input: { boardId: string; columnId: string; orderId: string | null; dealId: string | null }): Promise<boolean> {
+    if (!input.orderId && !input.dealId) return false;
+    const board = await this.store.board(input.boardId, "00000000-0000-0000-0000-000000000000");
+    if (!board || board.archivedAt) return false;
+    const all = await this.store.cards(board.id, board.isDefault, { doneSince: new Date(this.clock.now().getTime() - 30 * 86_400_000) });
+    const byOrder = input.orderId ? all.filter((c) => c.orderId === input.orderId) : [];
+    const list = byOrder.length ? byOrder : input.dealId ? all.filter((c) => c.dealId === input.dealId) : [];
+    for (const c of list) if (c.columnId !== input.columnId) await this.moveInternal(c, board, { columnId: input.columnId }, { viewer: null, userId: null, name: "Автоматизация" }, 0);
+    return list.length > 0;
+  }
+
   // ─── Правка ───
 
   async update(v: BoardViewer, id: string, patch: CardUpdateInput) {
