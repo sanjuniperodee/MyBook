@@ -61,8 +61,17 @@ async function register(file) {
   console.log(JSON.stringify({ added }));
 }
 
+/** Сертификат Apple Distribution по CSR (закрытый ключ остаётся там, где создан CSR — на сервере). Печатает id и PEM. */
+async function cert(csrPath) {
+  const csr = readFileSync(csrPath, "utf8").replace(/-----[^-]+-----/g, "").replace(/\s+/g, "");
+  const r = await asc("POST", "/v1/certificates", { data: { type: "certificates", attributes: { certificateType: "DISTRIBUTION", csrContent: csr } } });
+  const pem = `-----BEGIN CERTIFICATE-----\n${r.data.attributes.certificateContent.match(/.{1,64}/g).join("\n")}\n-----END CERTIFICATE-----\n`;
+  console.log(JSON.stringify({ id: r.data.id, expires: r.data.attributes.expirationDate, pem }));
+}
+
 const [cmd, arg] = process.argv.slice(2);
 if (cmd === "setup") await setup();
 else if (cmd === "devices") console.log(JSON.stringify(await devices()));
 else if (cmd === "register") await register(arg);
+else if (cmd === "cert") await cert(arg);
 else console.log("setup | devices | register <файл>");

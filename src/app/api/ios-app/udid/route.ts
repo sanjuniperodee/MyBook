@@ -1,4 +1,6 @@
+import { after } from "next/server";
 import { env } from "@/config/env";
+import { resignAfterEnroll } from "@/server/ios-sign";
 import { parseDeviceAttributes, readIosToken, saveIosDevice } from "@/server/ios-app";
 
 export const dynamic = "force-dynamic";
@@ -15,5 +17,7 @@ export async function POST(req: Request) {
   const device = body.length < 64 * 1024 ? parseDeviceAttributes(body) : null;
   if (!device) return Response.redirect(`${back}?ios=failed`, 301);
   await saveIosDevice(userId, device);
+  // Сразу после ответа: телефон — в Apple, профиль — заново, приложение — переподписать (секунды), сотруднику — уведомление.
+  after(resignAfterEnroll);
   return Response.redirect(`${back}?ios=registered`, 301);
 }

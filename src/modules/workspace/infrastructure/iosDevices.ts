@@ -16,5 +16,5 @@ export const iosDevices = {
   ofUser: (userId: string) => db.select().from(crmIosDevices).where(eq(crmIosDevices.userId, userId)).orderBy(desc(crmIosDevices.createdAt)),
 
   /** Все телефоны с именем сотрудника — для регистрации в Apple. */
-  all: () => db.select({ udid: crmIosDevices.udid, product: crmIosDevices.product, name: users.name, email: users.email }).from(crmIosDevices).innerJoin(users, eq(users.id, crmIosDevices.userId)),
+  all: () => db.select({ userId: crmIosDevices.userId, udid: crmIosDevices.udid, product: crmIosDevices.product, name: users.name, email: users.email }).from(crmIosDevices).innerJoin(users, eq(users.id, crmIosDevices.userId)),
 };

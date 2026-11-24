@@ -90,6 +90,8 @@ export const admin = {
   mobileTooManyLogins: "Слишком много попыток входа. Подождите 15 минут.",
   mobileSiteVisitor: "Посетитель сайта",
   iosLinkExpired: "Ссылка устарела — откройте страницу «Приложение для телефона» в CRM ещё раз",
+  iosReadyTitle: "iPhone готов: можно ставить приложение CRM",
+  iosReadyBody: "Откройте в Safari «Приложение для телефона» и нажмите «Установить на iPhone».",
   iosNoBuild: "Сборки для iPhone пока нет",
   iosProfileName: "Регистрация iPhone для приложения CRM",
   iosProfileDescription: "Телефон сообщит CRM свой идентификатор, чтобы для него собрали приложение. Ничего не устанавливает и не меняет настройки.",

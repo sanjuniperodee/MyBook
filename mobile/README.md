@@ -170,7 +170,12 @@ WhatsApp; «Повторить отправку» сообщения, котор
   bash scripts/mobile/ios-adhoc.sh
   ```
 
-  Скрипт забирает новые телефоны с прода, регистрирует их в Apple (ключ App Store Connect — `~/.appstoreconnect/mybooks-ios.env`,
-  `scripts/mobile/asc.mjs`), собирает подписанную сборку и выкладывает её в хранилище (`mobile/ios/app.ipa`). На странице
-  у сотрудника появляется «Установить на iPhone» (itms-services, манифест и IPA — по подписанной ссылке на час). Каждый новый
-  телефон — новый запуск скрипта. Профиль Ad Hoc действует год (до 31.03.2027), затем — пересборка.
+  **С 24.11 новые телефоны подписываются сами, на сервере** (`src/server/ios-sign.ts`): после регистрации телефона сервер
+  вносит его в Apple (App Store Connect API), пересоздаёт профиль «Workdesk Ad Hoc» со всеми iPhone и переподписывает
+  выложенное приложение (`zsign`, `/home/srv/bin/zsign`, исходники `~/src/zsign`) — секунды; сотруднику приходит
+  уведомление «iPhone готов», на странице — «Установить на iPhone». Ключи — `/home/srv/secrets/ios` (ключ App Store Connect,
+  закрытый ключ и сертификат Apple Distribution `26P54S9GZF`, до 24.11.2027), переменные `IOS_*` в `.env`. Вручную:
+  `npx tsx --env-file-if-exists=.env --import ./scripts/preload.mjs scripts/mobile/ios-devices.ts resign`.
+
+  Скрипт на Mac нужен только для **новой версии приложения**: собирает, выкладывает и (через `publish`) сразу переподписывает
+  на сервере под все телефоны. Профиль Ad Hoc действует до конца срока сертификата; лимит — 100 iPhone в год на команду.

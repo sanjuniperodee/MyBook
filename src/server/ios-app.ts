@@ -129,7 +129,7 @@ export async function iosStatus(userId: string) {
  */
 export async function allIosDevices() {
   const rows = await iosDevices.all();
-  return rows.map((r) => ({ udid: r.udid, name: deviceLabel(r.udid, r.product) }));
+  return rows.map((r) => ({ userId: r.userId, udid: r.udid, name: deviceLabel(r.udid, r.product) }));
 }
 
 export const deviceLabel = (udid: string, product: string) => `WD-${udid.replace(/-/g, "").slice(-6).toLowerCase()} ${product || "iPhone"}`.trim();
