@@ -1,10 +1,10 @@
 ---
-updated: 2026-11-24T19:30:00+05:00
+updated: 2026-11-25T02:30:00+05:00
 branch: master
 wave: G
-task: API v1 (ADR 0012) — web / api / mobile по контракту; A1 сделан, дальше A2–A6
+task: API v1 (ADR 0012) — A1, A2, A3, A6 сделаны; A4 (чтение CRM — моё, правка/финансы/настройки — crm-api-v1) и A5 (веб без БД) идут
 status: in_progress
-next: "A5 — первый раздел веба на TS-клиенте API за флагом + тест архитектуры; A4 — CRM: что не занято сессией crm-api-v1"
+next: "A5 — частые JSON-маршруты редактора и CRM в mybook-api (site-routes + nginx), затем страницы на TS-клиенте за флагом; A4 — заказы, счета, шаблоны, каталог из /api/mobile в v1"
 blockers:
   - "S3: Yandex отвечает 403 SignatureDoesNotMatch — проверить секрет (нужен только волне 2, G0 не блокирует)"
 ---
