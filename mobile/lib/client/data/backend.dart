@@ -140,17 +140,25 @@ class ApiBackend implements ClientBackend {
   @override
   Future<v1api.CabinetPhotos> photosTab(String bookId) => _call(() => v1.cabinetPhotos(bookId: bookId));
 
-  // Свой JSON вместо v1.photoUpdate: сгенерированный клиент не отправляет явный null (сбросить место нельзя).
-  @override
-  Future<void> updatePhoto(String bookId, String photoId, Map<String, Object?> patch) => _call(() async {
-        await api.patch('/api/v1/books/$bookId/photos/$photoId', body: patch);
-      });
-
   @override
   Future<v1api.CabinetHelp> help(String bookId, String section) => _call(() => v1.cabinetHelp(bookId: bookId, section: section));
 
   @override
   Future<v1api.HelpAnswer> askHelp(String bookId, String text, {bool human = false}) => _call(() => v1.cabinetHelpAsk(bookId: bookId, body: v1api.HelpAskBody(text: text, human: human)));
+
+  // Ключи со значением null — явный сброс (nulls у сгенерированной модели): убрать из ответа, «встанет само».
+  @override
+  Future<void> updatePhoto(String bookId, String photoId, Map<String, Object?> patch) => _call(() async {
+        final body = v1api.PhotoPatch(
+          caption: patch['caption'] as String?,
+          layout: patch['layout'] as String?,
+          questionId: patch['questionId'] as String?,
+          chapter: patch['chapter'] as String?,
+          opener: patch['opener'] as bool?,
+          nulls: {for (final e in patch.entries) if (e.value == null) e.key},
+        );
+        await v1.photoUpdate(bookId: bookId, photoId: photoId, body: body);
+      });
 
   @override
   Future<void> deletePhoto(String bookId, String photoId) => _call(() async {
