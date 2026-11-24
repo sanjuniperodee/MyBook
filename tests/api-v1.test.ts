@@ -172,4 +172,13 @@ describe("приложение", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ photos: [], errors: ["a.jpg"] });
   });
+
+  it("вебхуки провайдеров (адреса вне /api/v1) — их обработчику без входа; чужой адрес — 404", async () => {
+    const seen: string[] = [];
+    const providers = async (req: Request) => (new URL(req.url).pathname === "/api/payments/kaspi/webhook" ? (seen.push(req.method), new Response("ok")) : null);
+    const app = createApp(handlers, fakeAuth(null), providers);
+    expect(await (await call(app, "POST", "/api/payments/kaspi/webhook", { x: 1 })).text()).toBe("ok");
+    expect(seen).toEqual(["POST"]);
+    expect((await call(app, "POST", "/api/whatever")).status).toBe(404);
+  });
 });

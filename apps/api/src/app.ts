@@ -43,11 +43,13 @@ async function readInput(req: Request, route: RouteDef, params: Record<string, s
   return input;
 }
 
-export function createApp(handlers: Handlers, auth: Authenticator) {
+/** providers — вебхуки провайдеров (адреса вне /api/v1, providers.ts): null — не их адрес. */
+export function createApp(handlers: Handlers, auth: Authenticator, providers?: (req: Request) => Promise<Response | null>) {
   let spec: string | null = null;
   return async function handle(req: Request): Promise<Response> {
     const { pathname } = new URL(req.url);
     if (pathname === "/api/v1/health") return json({ ok: true });
+    if (!pathname.startsWith("/api/v1/")) return (await providers?.(req)) ?? json({ error: "Not found", code: "notFound" }, 404);
     if (pathname === "/api/v1/openapi.json") return new Response((spec ??= JSON.stringify(openapi())), { headers: { "content-type": "application/json", "cache-control": "public, max-age=300" } });
     const found = router.match(req.method, pathname);
     if (!found) return json({ error: "Not found", code: "notFound" }, 404);
