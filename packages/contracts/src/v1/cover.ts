@@ -9,6 +9,11 @@ import { route, schemas, uuid, type RouteDef } from "./core";
 /** Поля обложки в настройках книги (PATCH /api/books/{id} сайта берёт их отсюда). Каталог шаблонов проверяет домен. */
 export const CoverFields = z.object({
   title: z.string().trim().max(80),
+  /** Автор; у автобиографии — рассказчик. */
+  authorName: z.string().trim().max(60),
+  /** Автобиография: кто записал со слов рассказчика (у остальных книг домен поле пропускает). */
+  recordedBy: z.string().trim().max(80),
+  recipientName: z.string().trim().max(60),
   subtitle: z.string().trim().max(80),
   hideRecipientOnCover: z.boolean(),
   namesOnCover: z.string().trim().max(120),
@@ -30,6 +35,7 @@ export const CoverTemplate = z
     name: z.string(),
     /** Настроение — для фильтра в выборе. */
     mood: z.string(),
+    requiresPhoto: z.boolean(),
     /** Сколько фото клиента нужно (0 — без фото клиента). */
     photoSlots: z.number().int(),
     /** Миниатюра шаблона (графика без текста), путь от сайта; кэшируется навсегда. */
@@ -45,6 +51,17 @@ export const Cover = z
     subtitle: z.string(),
     namesOnCover: z.string(),
     hideRecipientOnCover: z.boolean(),
+    authorName: z.string(),
+    recordedBy: z.string(),
+    recipientName: z.string(),
+    /** gift — подарок, autobiography — о себе (получателя нет, есть «кто записал»), blank — своя книга. */
+    kind: z.enum(["gift", "autobiography", "blank"]),
+    /** Подпись поля получателя по теме («Мама», «Любимый человек»…); null — у темы нет. */
+    recipientLabel: z.string().nullable(),
+    /** Что будет на обложке при пустом namesOnCover (по виду книги и «не показывать получателя»). */
+    autoNames: z.string(),
+    /** Год на обороте («Лаконично»): год праздника или текущий. */
+    year: z.number().int(),
     /** Фото лицевой стороны по местам шаблона (длина = photoSlots шаблона; null — место пустое). */
     photoIds: z.array(uuid.nullable()),
     backText: z.string(),
@@ -54,16 +71,25 @@ export const Cover = z
     hasDesign: z.boolean(),
     /** Готовая лицевая крышка (WebP), путь от сайта с версией: ?w=240|480|900 подставляет клиент. */
     imageUrl: z.string(),
+    /** Оборот картинкой (WebP), путь от сайта с версией оборота: &w=240|480|900 подставляет клиент. */
+    backImageUrl: z.string(),
     /** Можно править: черновик и (для сотрудника) есть право правки. */
     editable: z.boolean(),
   })
   .register(schemas, { id: "Cover" });
 
-export const CoverView = z.object({ cover: Cover, templates: z.array(CoverTemplate) }).register(schemas, { id: "CoverView" });
+export const CoverMood = z.object({ id: z.string(), label: z.string() }).register(schemas, { id: "CoverMood" });
+
+/**
+ * Обложка и выбор. Миниатюры сетки — templates[].previewUrl (графика без текста); крупный предпросмотр выбранного
+ * шаблона с текущими надписями и фото — `/api/books/{id}/cover-image?template=<id>&w=…` (вёрстка печати; только для
+ * выбранного — растр PDF на каждую клетку сетки слишком тяжёл).
+ */
+export const CoverView = z.object({ cover: Cover, templates: z.array(CoverTemplate), moods: z.array(CoverMood) }).register(schemas, { id: "CoverView" });
 
 const BookParams = z.object({ bookId: uuid });
 
 export const coverRoutes = {
-  coverGet: route({ method: "GET", path: "/api/v1/books/{bookId}/cover", auth: "user", tag: "cover", summary: "Обложка книги и каталог шаблонов", params: BookParams, response: CoverView }),
+  coverGet: route({ method: "GET", path: "/api/v1/books/{bookId}/cover", auth: "user", tag: "cover", summary: "Обложка книги, каталог шаблонов и настроения для фильтра", params: BookParams, response: CoverView }),
   coverUpdate: route({ method: "PATCH", path: "/api/v1/books/{bookId}/cover", auth: "user", tag: "cover", summary: "Правка обложки (только изменённые поля): шаблон, линии, тексты, фото", params: BookParams, body: CoverPatch, response: CoverView }),
 } as const satisfies Record<string, RouteDef>;

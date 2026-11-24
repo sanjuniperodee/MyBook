@@ -167,6 +167,20 @@ describe("картинка обложки для осмотра (настоящ�
     expect(channels[0].mean).toBeLessThan(90);
   }, 60_000);
 
+  it.skipIf(!hasTool("pdftoppm"))("оборот картинкой (приложение): вырезан из развёртки печати — размер задней крышки, не белый лист", async () => {
+    const { renderCoverBackPreview } = await import("@/modules/production");
+    const { coverSpreadGeometry } = await import("@/lib/book/formats");
+    const out = await renderCoverBackPreview({ book: { ...real, coverTemplate: "midnight", backLayout: "quote", backText: "Для мамы — с любовью" }, questions: [], chapters: [], photos: [], letters: [] } as never, 480);
+    const png = Buffer.from(out!.data, "base64");
+    const meta = await sharp(png).metadata();
+    const back = coverSpreadGeometry(formats.a5, 100).back!;
+    expect(meta.width).toBe(480);
+    expect(Math.abs(meta.height! - Math.round((480 * back.h) / back.w))).toBeLessThanOrEqual(2);
+    // Тёмный шаблон: оборот того же фона, а не белый лист и не корешок.
+    const { channels } = await sharp(png).stats();
+    expect(channels[0].mean).toBeLessThan(110);
+  }, 60_000);
+
   it.skipIf(!hasTool("pdftoppm"))("лист первых страниц: титул, оглавление, главы и текст; без ответов подставляется образец текста", async () => {
     const { renderPagesPreview, sampleBundle } = await import("@/modules/production");
     const q = (i: number, chapter: string, answer = "") => ({ id: `00000000-0000-0000-0000-00000000010${i}`, bookId: real.id, position: i, chapter, questionKey: `k${i}`, prompt: `Вопрос ${i}`, title: `Вопрос ${i}`, hint: null, displayText: null, hideHeading: false, pageBreak: false, answer, media: [], createdAt: now, updatedAt: now });

@@ -1307,7 +1307,7 @@
         "tags": [
           "cover"
         ],
-        "summary": "Обложка книги и каталог шаблонов",
+        "summary": "Обложка книги, каталог шаблонов и настроения для фильтра",
         "parameters": [
           {
             "name": "bookId",
@@ -7365,6 +7365,18 @@
             "type": "string",
             "maxLength": 80
           },
+          "authorName": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "recordedBy": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "recipientName": {
+            "type": "string",
+            "maxLength": 60
+          },
           "subtitle": {
             "type": "string",
             "maxLength": 80
@@ -7448,6 +7460,9 @@
           "mood": {
             "type": "string"
           },
+          "requiresPhoto": {
+            "type": "boolean"
+          },
           "photoSlots": {
             "type": "integer",
             "minimum": -9007199254740991,
@@ -7461,6 +7476,7 @@
           "id",
           "name",
           "mood",
+          "requiresPhoto",
           "photoSlots",
           "previewUrl"
         ],
@@ -7486,6 +7502,37 @@
           },
           "hideRecipientOnCover": {
             "type": "boolean"
+          },
+          "authorName": {
+            "type": "string"
+          },
+          "recordedBy": {
+            "type": "string"
+          },
+          "recipientName": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "gift",
+              "autobiography",
+              "blank"
+            ]
+          },
+          "recipientLabel": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "autoNames": {
+            "type": "string"
+          },
+          "year": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
           },
           "photoIds": {
             "type": "array",
@@ -7526,6 +7573,9 @@
           "imageUrl": {
             "type": "string"
           },
+          "backImageUrl": {
+            "type": "string"
+          },
           "editable": {
             "type": "boolean"
           }
@@ -7537,13 +7587,37 @@
           "subtitle",
           "namesOnCover",
           "hideRecipientOnCover",
+          "authorName",
+          "recordedBy",
+          "recipientName",
+          "kind",
+          "recipientLabel",
+          "autoNames",
+          "year",
           "photoIds",
           "backText",
           "backLayout",
           "backPhotoId",
           "hasDesign",
           "imageUrl",
+          "backImageUrl",
           "editable"
+        ],
+        "additionalProperties": false
+      },
+      "CoverMood": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label"
         ],
         "additionalProperties": false
       },
@@ -7558,11 +7632,18 @@
             "items": {
               "$ref": "#/components/schemas/CoverTemplate"
             }
+          },
+          "moods": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CoverMood"
+            }
           }
         },
         "required": [
           "cover",
-          "templates"
+          "templates",
+          "moods"
         ],
         "additionalProperties": false
       },

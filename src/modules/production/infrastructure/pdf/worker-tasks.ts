@@ -13,6 +13,7 @@ export type PdfTask =
   | { task: "reading"; bundle: BookBundle }
   | { task: "preview"; bundle: BookBundle }
   | { task: "coverPreview"; bundle: BookBundle }
+  | { task: "coverSpreadPreview"; bundle: BookBundle; pageCount: number }
   | { task: "pagesPreview"; bundle: BookBundle }
   | { task: "watermark"; pdf: Uint8Array; language: Locale; format: string };
 
@@ -57,6 +58,9 @@ export async function runPdfTask(t: PdfTask, report?: RenderReport): Promise<Pri
     case "coverPreview":
       // Лицевая крышка одной страницей — ИИ-дизайнер показывает её модели, чтобы та проверила свою работу глазами.
       return new Uint8Array((await r.renderCover(t.bundle, 0, "preview", true)).pdf);
+    case "coverSpreadPreview":
+      // Развёртка целиком (оборот, корешок, лицо) — из неё вырезается картинка оборота для приложения (cover-image).
+      return new Uint8Array((await r.renderCover(t.bundle, t.pageCount, "preview", false)).pdf);
     case "pagesPreview":
       // Короткая выборка книги на настоящей вёрстке — ИИ-дизайнер осматривает страницы глазами.
       return new Uint8Array((await r.renderScreenBuild(t.bundle)).pdf);

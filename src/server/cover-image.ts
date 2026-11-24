@@ -2,7 +2,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import sharp from "sharp";
 import { container } from "@/server/container";
-import { coverPhotoDataUrl, renderCoverPreview } from "@/modules/production";
+import { coverPhotoDataUrl, renderCoverBackPreview, renderCoverPreview } from "@/modules/production";
 import { coverPhotoSlots, getCoverTemplate, isKnownCover, renderCoverSvg } from "@/lib/book/covers";
 import { coverFrontGeometry, getFormat } from "@/lib/book/formats";
 import { getFile, putFile } from "@/shared/infrastructure/storage";
@@ -26,7 +26,20 @@ type CoverBook = {
   recipientName: string;
   hideRecipientOnCover: boolean;
   namesOnCover?: string | null;
+  // Оборот (side: "back"): вариант, текст, фото, своё оформление, год праздника.
+  backText?: string;
+  backLayout?: string;
+  backPhotoId?: string | null;
+  backPhotoExtra?: string[] | null;
+  coverBack?: unknown;
+  occasionDate?: string | null;
 };
+
+/** Что рисовать: лицо книги как есть, лицо с другим шаблоном (предпросмотр выбора, в книгу не пишется) или оборот. */
+export interface CoverImageOptions {
+  template?: string;
+  side?: "front" | "back";
+}
 
 /** Версия картинки: меняется вместе со всем, что видно на лицевой крышке (шаблон, надписи, фото, формат). */
 export function coverImageVersion(b: CoverBook): string {
@@ -34,18 +47,29 @@ export function coverImageVersion(b: CoverBook): string {
   return createHash("sha1").update(JSON.stringify(visible)).digest("hex").slice(0, 12);
 }
 
+/** Версия оборота: вариант, текст, фото и оформление оборота, подпись и имена, а также фон лица (по нему цвета надписей). */
+export function coverBackVersion(b: CoverBook): string {
+  const visible = [b.backLayout ?? null, b.backText ?? null, b.backPhotoId ?? null, b.backPhotoExtra ?? null, b.coverBack ?? null, b.occasionDate ?? null, coverImageVersion(b)];
+  return createHash("sha1").update(JSON.stringify(visible)).digest("hex").slice(0, 12);
+}
+
+/** Версия картинки по тому, что рисуется: лицо, лицо с другим шаблоном или оборот (ключ хранилища и ETag). */
+export const coverVersion = (b: CoverBook, o: CoverImageOptions) => (o.side === "back" ? `back-${coverBackVersion(b)}` : o.template ? `t-${o.template}-${coverImageVersion({ ...b, coverTemplate: o.template, coverDesign: null })}` : coverImageVersion(b));
+
 /**
  * Лицевая крышка картинкой (WebP) — для приложения: та же обложка, что в печати (renderCoverPreview, PDF → растр).
  * Готовая картинка лежит в хранилище по версии обложки: рисуется один раз после правки, дальше — из хранилища.
  */
-export async function coverImage(b: CoverBook, width: CoverImageWidth): Promise<Buffer | null> {
-  const key = `cover-images/${b.id}/${coverImageVersion(b)}-${width}.webp`;
+export async function coverImage(b: CoverBook, width: CoverImageWidth, o: CoverImageOptions = {}): Promise<Buffer | null> {
+  const key = `cover-images/${b.id}/${coverVersion(b, o)}-${width}.webp`;
   try {
     return await getFile(key);
   } catch {}
   const bundle = await container().authoring.queries.bundle(b.id);
   if (!bundle) return null;
-  const picture = await renderCoverPreview(bundle, width);
+  // Предпросмотр шаблона: та же книга с другим шаблоном и без обложки из слоёв — в книгу не пишется.
+  const drawn = o.template ? { ...bundle, book: { ...bundle.book, coverTemplate: o.template, coverDesign: null } } : bundle;
+  const picture = o.side === "back" ? await renderCoverBackPreview(drawn, width) : await renderCoverPreview(drawn, width);
   if (!picture) return null;
   // WebP вместо PNG: обложка с фото в 5–7 раз легче (телефон, мобильный интернет).
   const webp = await sharp(Buffer.from(picture.data, "base64")).webp({ quality: 86 }).toBuffer();
@@ -100,3 +124,6 @@ export async function coverTemplateThumb(
   await putFile(key, webp).catch(() => undefined);
   return webp;
 }
+
+/** Адрес картинки оборота (ширину ?w= подставляет клиент): версия оборота в адресе. */
+export const coverBackImagePath = (b: CoverBook) => `/api/books/${b.id}/cover-image?side=back&v=${coverBackVersion(b)}`;

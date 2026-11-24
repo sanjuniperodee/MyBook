@@ -7,6 +7,7 @@ import sharp from "sharp";
 import { inPdfThread } from "./pdf/pool";
 import { slots } from "./pdf/queue";
 import type { BookBundle } from "./pdf/render";
+import { coverSpreadGeometry, getFormat } from "@/lib/book/formats";
 
 /**
  * Картинки оформления для ИИ-дизайнера: он смотрит на свою работу глазами. Обложка и первые страницы книги рисуются той
@@ -52,6 +53,35 @@ export function renderCoverPreview(bundle: BookBundle, widthPx = 760): Promise<P
     const raw = ppm.subarray(header[0].length, header[0].length + width * height * 3);
     if (raw.length < width * height * 3) return null;
     const png = await sharp(raw, { raw: { width, height, channels: 3 } }).png({ compressionLevel: 6 }).toBuffer();
+    return { mime: "image/png" as const, data: png.toString("base64") };
+  });
+}
+
+/**
+ * Задняя крышка (оборот) одной картинкой шириной widthPx: развёртка той же вёрстки, что в печати, растрируется целиком и
+ * обрезается по прямоугольнику оборота (coverSpreadGeometry). Толщина корешка на оборот не влияет — pageCount условный.
+ */
+export function renderCoverBackPreview(bundle: BookBundle, widthPx = 760): Promise<PreviewPicture | null> {
+  return inTemp(async (dir) => {
+    const pageCount = 100;
+    const g = coverSpreadGeometry(getFormat(bundle.book.format), pageCount);
+    const back = g.back!;
+    const file = path.join(dir, "spread.pdf");
+    await writeFile(file, await inPdfThread({ task: "coverSpreadPreview", bundle, pageCount }));
+    const fullWidth = Math.round((widthPx * g.width) / back.w);
+    const ppm = await rasterSlot(() => pdftoppm(["-f", "1", "-l", "1", "-scale-to-x", String(fullWidth), "-scale-to-y", "-1", file]));
+    const header = /^P6\s+(\d+)\s+(\d+)\s+255\s/.exec(ppm.subarray(0, 64).toString("latin1"));
+    if (!header) return null;
+    const [width, height] = [Number(header[1]), Number(header[2])];
+    const raw = ppm.subarray(header[0].length, header[0].length + width * height * 3);
+    if (raw.length < width * height * 3) return null;
+    const crop = {
+      left: Math.round((back.x / g.width) * width),
+      top: Math.round((back.y / g.height) * height),
+      width: Math.min(widthPx, width),
+      height: Math.round((back.h / g.height) * height),
+    };
+    const png = await sharp(raw, { raw: { width, height, channels: 3 } }).extract(crop).png({ compressionLevel: 6 }).toBuffer();
     return { mime: "image/png" as const, data: png.toString("base64") };
   });
 }
