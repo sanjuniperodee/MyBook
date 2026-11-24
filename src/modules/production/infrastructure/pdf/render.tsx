@@ -39,6 +39,7 @@ import { CoverDocument, CoverReverseDocument } from "@/modules/production/infras
 import { ensureFonts, renderPdf } from "@/modules/production/infrastructure/pdf/fonts";
 import { slots } from "@/modules/production/infrastructure/pdf/queue";
 import { InteriorDocument, type PreparedImage } from "@/modules/production/infrastructure/pdf/interior";
+import { DraftBook } from "@/modules/production/infrastructure/pdf/drafts";
 import { readLayout, refineDropCaps, refineFlow } from "@/modules/production/infrastructure/pdf/flow";
 import { readPages } from "@/modules/production/infrastructure/pdf/pages";
 import { GALLERY_KEY, tocKey } from "@/lib/book/toc";
@@ -238,7 +239,7 @@ let placeholderJpeg: Promise<Buffer> | undefined;
 const placeholder = () => (placeholderJpeg ??= sharp({ create: { width: 4, height: 4, channels: 3, background: "#cccccc" } }).jpeg().toBuffer());
 
 /** report: этапы сборки блока — картинки, доводка вёрстки, итоговая сборка (size — оценка страниц и фото: от неё срок). */
-export async function renderInterior(bundle: BookBundle, mode: RenderMode, report?: RenderReport): Promise<InteriorResult> {
+export async function renderInterior(bundle: BookBundle, mode: RenderMode, report?: RenderReport, opts: { wholeBookDrafts?: boolean } = {}): Promise<InteriorResult> {
   ensureFonts();
   const content = contentFor(bundle);
   const { bleed } = modeSettings[mode];
@@ -267,18 +268,10 @@ export async function renderInterior(bundle: BookBundle, mode: RenderMode, repor
     return pages;
   };
   let tocPages: Record<string, number> | undefined;
+  // Черновые проходы — по частям книги и без записи PDF (pdf/drafts.tsx): верстаются только главы с новыми решениями.
+  const drafts = new DraftBook(content, bundle.book.language, bleed, draftImages, opts.wholeBookDrafts);
   for (let pass = 0; pass < MAX_FLOW_PASSES; pass++) {
-    let layout: unknown;
-    const captured: Record<string, number> = {};
-    const rowHeights = new Map<string, number>();
-    const dropColumns = new Map<string, { text: string; lines: number }>();
-    await renderPdf(
-      <InteriorDocument
-        content={content}
-        options={{ bleedMm: bleed, images: draftImages, flow, rowHeights, dropColumns, tocPages, onLayout: (l) => (layout = l), onChapterPage: (k, p) => (captured[k] = p) }}
-      />,
-      bundle.book.language,
-    );
+    const { layout, captured, rowHeights, dropColumns } = await drafts.layout(flow, tocPages);
     tocPages = withSections(layout, captured);
     if (!layout) break;
     // Буквицы: где кончились строки рядом с ними — с этого знака продолжается абзац (обычно сходится за один проход).

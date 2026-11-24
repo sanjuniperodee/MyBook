@@ -4,6 +4,7 @@ import path from "node:path";
 import * as fontkit from "fontkit";
 import type { ReactElement } from "react";
 import { Font, pdf, type DocumentProps } from "@react-pdf/renderer";
+import layoutDocument from "@react-pdf/layout";
 import type { Locale } from "@/i18n/config";
 import { fontFaces, type FontKey } from "@/lib/book/fonts";
 import { hyphenateWord } from "@/lib/book/hyphenate";
@@ -87,6 +88,32 @@ export function renderPdf(document: ReactElement<DocumentProps>, language?: Loca
     freshFonts();
     hyphenLang = language;
     return renderAndRelease(document);
+  });
+  renderQueue = run.catch(() => undefined);
+  return run;
+}
+
+/**
+ * Только раскладка документа (как onRender у react-pdf: _INTERNAL__LAYOUT__DATA_), без самого PDF: черновые проходы
+ * доводки вёрстки читают одну раскладку, а запись файла (рисование, подмножества шрифтов, сжатие) им не нужна.
+ * Объекты шрифтов не меняются (freshFonts): подмножество шрифта портит только запись файла, а ширины глифов те же —
+ * и разобранные глифы остаются в кэше fontkit между проходами. Очередь — общая со сборкой PDF.
+ */
+export function layoutPdf(document: ReactElement<DocumentProps>, language?: Locale): Promise<unknown> {
+  const run = renderQueue.then(async () => {
+    hyphenLang = language;
+    const instance = pdf(document);
+    const container = instance.container as { document: unknown };
+    try {
+      // Типы layout объявляют один аргумент, а react-pdf передаёт вторым хранилище шрифтов (так же, как здесь).
+      const layout = layoutDocument as unknown as (doc: unknown, fonts: unknown) => Promise<unknown>;
+      return await layout(container.document, Font);
+    } finally {
+      const empty = null as unknown as ReactElement<DocumentProps>;
+      instance.updateContainer(empty);
+      instance.updateContainer(empty);
+      container.document = null;
+    }
   });
   renderQueue = run.catch(() => undefined);
   return run;

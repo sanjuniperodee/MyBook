@@ -11,7 +11,7 @@ import { labelStyle, mark, noHyphens, type PdfKit } from "./kit";
  * «наведите камеру». Карточка не делится между полосами; высота известна заранее (mediaCardBox), поэтому оценка
  * объёма с вёрсткой не расходятся. В электронной версии (options.links) карточка — ещё и ссылка.
  */
-function MediaCard({ kit, media, id }: { kit: PdfKit; media: AnswerMedia; id: string }) {
+export function MediaCard({ kit, media, id }: { kit: PdfKit; media: AnswerMedia; id: string }) {
   const { design, sizes: S, scale, textWidthPt, t } = kit;
   const { palette: P, type: typo } = design;
   const box = mediaCardBox(textWidthPt, scale);
@@ -72,16 +72,5 @@ function MediaCard({ kit, media, id }: { kit: PdfKit; media: AnswerMedia; id: st
         card
       )}
     </View>
-  );
-}
-
-/** Карточки QR-кодов в одном месте ответа (at — как у рядов фото: −1, номер блока, Infinity). */
-export function MediaCards({ kit, itemId, at, media }: { kit: PdfKit; itemId: string; at: number; media: AnswerMedia[] | undefined }) {
-  return (
-    <>
-      {(media ?? []).map((m) => (
-        <MediaCard key={m.id} kit={kit} media={m} id={`b:${itemId}:m${at}:${m.id}`} />
-      ))}
-    </>
   );
 }

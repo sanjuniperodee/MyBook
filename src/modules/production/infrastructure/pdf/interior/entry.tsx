@@ -4,14 +4,14 @@ import { Text, View } from "@react-pdf/renderer";
 import type { Style } from "@react-pdf/stylesheet";
 import { answerBlocks, rowsByBlock } from "@/lib/book/answer-blocks";
 import { layoutMedia } from "@/lib/book/answer-media";
-import { layoutInline, normalizeStyle, splitParagraphsDetailed } from "@/lib/book/inline-photo";
+import { layoutInline, normalizeStyle, placedByAuthor, splitParagraphsDetailed } from "@/lib/book/inline-photo";
 import type { ContentItem } from "@/lib/book/layout";
 import { dividerDrawing } from "@/lib/book/interior-art";
 import { DIVIDER, HEADING, headingFace, KEEP_WITH_NEXT } from "@/lib/book/typesetting";
 import { face } from "@/modules/production/infrastructure/pdf/fonts";
 import { PdfDrawing } from "@/modules/production/infrastructure/pdf/art";
 import { InlineRow, rowBreaks, rowKeyOf } from "./inline-rows";
-import { MediaCards } from "./media-card";
+import { MediaCard } from "./media-card";
 import { mark, noHyphens, textFace, type PdfKit } from "./kit";
 import { TextBlock } from "./text-block";
 
@@ -72,7 +72,13 @@ function Divider({ kit, id }: { kit: PdfKit; id: string }) {
  * Части ответа: новая часть — с ряда фото «с новой страницы» (Entry ставит перед ней разрыв). fresh — перед ответом
  * на полосе ничего нет и у него нет заголовка: первому ряду разрыв не нужен, он и так в верху полосы.
  */
-function entryParts({ kit, item, leadIn, start, fresh }: { kit: PdfKit; item: ContentItem; leadIn: boolean; /** Ответ открывает главу: буквица. */ start: boolean; fresh: boolean }): ReactNode[][] {
+/** Блок ответа в вёрстке и его пометка (по ней черновой проход начинает и кончает документ на блоке). */
+interface Node {
+  node: ReactNode;
+  mark: string;
+}
+
+function entryParts({ kit, item, leadIn, start, fresh }: { kit: PdfKit; item: ContentItem; leadIn: boolean; /** Ответ открывает главу: буквица. */ start: boolean; fresh: boolean }): Node[][] {
   const { paragraphs, breaks } = splitParagraphsDetailed(item.answer);
   const blocks = answerBlocks(paragraphs, { plain: kit.design.plainAnswers, breaks });
   const photos = (item.photos ?? []).filter((p) => kit.options.images.has(p.id));
@@ -84,8 +90,8 @@ function entryParts({ kit, item, leadIn, start, fresh }: { kit: PdfKit; item: Co
     ),
   );
   const media = rowsByBlock(blocks, layoutMedia(item.media ?? [], paragraphs.length));
-  const parts: ReactNode[][] = [[]];
-  const push = (node: ReactNode) => parts[parts.length - 1].push(node);
+  const parts: Node[][] = [[]];
+  const push = (node: ReactNode, mark: string) => parts[parts.length - 1].push({ node, mark });
   // Первое, что стоит в ответе: ряды перед текстом, а без текста — ряды в конце.
   const lead = blocks.length ? -1 : Number.POSITIVE_INFINITY;
   // В одном месте текста сначала фото, потом QR-коды.
@@ -94,13 +100,17 @@ function entryParts({ kit, item, leadIn, start, fresh }: { kit: PdfKit; item: Co
       const key = rowKeyOf(item.id, at, r);
       const breaks = rowBreaks(row, fresh && at === lead && r === 0);
       if (breaks) parts.push([]);
-      push(<InlineRow key={key} kit={kit} rowKey={key} row={row} breaks={breaks} />);
+      push(<InlineRow key={key} kit={kit} rowKey={key} row={row} breaks={breaks} />, rowMark(row, key));
     });
-    push(<MediaCards key={`m:${at}`} kit={kit} itemId={item.id} at={at} media={media.get(at)} />);
+    for (const m of media.get(at) ?? []) {
+      const id = `b:${item.id}:m${at}:${m.id}`;
+      push(<MediaCard key={id} kit={kit} media={m} id={id} />, id);
+    }
   };
   if (blocks.length) rowsAt(-1);
   blocks.forEach((b, i) => {
-    push(<TextBlock key={`b:${i}`} kit={kit} block={b} id={`${b.kind === "lede" ? "k" : "b"}:${item.id}:${i}`} leadIn={leadIn && i === 0} dropCap={start && i === 0} first={i === 0} />);
+    const id = `${b.kind === "lede" ? "k" : "b"}:${item.id}:${i}`;
+    push(<TextBlock key={`b:${i}`} kit={kit} block={b} id={id} leadIn={leadIn && i === 0} dropCap={start && i === 0} first={i === 0} />, id);
     if (i < blocks.length - 1) rowsAt(i);
   });
   rowsAt(Number.POSITIVE_INFINITY);
@@ -112,7 +122,25 @@ function entryParts({ kit, item, leadIn, start, fresh }: { kit: PdfKit; item: Co
  * Если доводка решила начать ответ с новой полосы — разрыв перед ним; ряд фото «с новой страницы» — разрыв перед
  * своей частью ответа.
  */
-export function Entry({ kit, item, index, leadIn = index === 0 }: { kit: PdfKit; item: ContentItem; index: number; leadIn?: boolean }) {
+export function Entry({
+  kit,
+  item,
+  index,
+  leadIn = index === 0,
+  pageStart = false,
+  begin,
+  end,
+}: {
+  kit: PdfKit;
+  item: ContentItem;
+  index: number;
+  leadIn?: boolean;
+  /** Ответ с разрывом — первый в своём документе (черновой проход): полосу уже начинает, разрыв не нужен. */
+  pageStart?: boolean;
+  /** Черновой проход: начать с блока с этой пометкой (он в верху полосы) и кончить блоком с пометкой end. */
+  begin?: string;
+  end?: string;
+}) {
   const { design, sizes: S, flow } = kit;
   // Разрыв: решение доводки вёрстки или «с новой страницы» автора.
   const breaks = flow.breakBefore.has(item.id) || !!item.pageBreak;
@@ -120,17 +148,43 @@ export function Entry({ kit, item, index, leadIn = index === 0 }: { kit: PdfKit;
   // Ответ в верху полосы без заголовка и разделителя (над первым ответом главы может стоять её название — inline).
   const bare = !item.heading && !(index > 0 && !item.continued) && !(index === 0 && leadIn && kit.content.chapterStart === "inline");
   const parts = entryParts({ kit, item, leadIn: design.leadIn && leadIn && !item.continued, start: leadIn && !item.continued, fresh: fresh && bare });
+  const head = item.heading ? <Heading key="h" kit={kit} text={item.heading} id={`h:${item.id}`} /> : index > 0 && !item.continued ? <Divider key="h" kit={kit} id={`h:${item.id}`} /> : null;
+  // Обёртки ответа: первая — с заголовком, следующие — части с ряда «с новой страницы» (с разрывом перед собой).
+  const wrappers: Node[][] = [[...(head ? [{ node: head, mark: `h:${item.id}` }] : []), ...parts[0]], ...parts.slice(1)];
+  const at = (mark: string | undefined) => {
+    for (let w = 0; mark && w < wrappers.length; w++) {
+      const k = wrappers[w].findIndex((n) => n.mark === mark);
+      if (k >= 0) return { w, k };
+    }
+    return null;
+  };
+  const from = at(begin) ?? { w: 0, k: 0 };
+  const to = at(end) ?? { w: wrappers.length - 1, k: Number.POSITIVE_INFINITY };
   return (
     <>
-      <View break={index > 0 && breaks} style={{ marginTop: fresh ? 0 : item.heading ? S.beforeHeading : S.beforeHeadless }}>
-        {item.heading ? <Heading kit={kit} text={item.heading} id={`h:${item.id}`} /> : index > 0 && !item.continued ? <Divider kit={kit} id={`h:${item.id}`} /> : null}
-        {parts[0]}
-      </View>
-      {parts.slice(1).map((part, i) => (
-        <View key={i} break>
-          {part}
-        </View>
-      ))}
+      {wrappers.map((nodes, w) => {
+        if (w < from.w || w > to.w) return null;
+        const first = w === from.w && begin !== undefined;
+        const shown = nodes.slice(w === from.w ? from.k : 0, w === to.w ? to.k + 1 : undefined).map((n) => n.node);
+        // Начало с середины обёртки — как её продолжение у react-pdf на новой полосе: без верхнего поля.
+        const cont = first && from.k > 0;
+        if (w === 0)
+          return (
+            <View key={w} break={index > 0 && breaks && !pageStart && !first} style={{ marginTop: fresh || cont ? 0 : item.heading ? S.beforeHeading : S.beforeHeadless }}>
+              {shown}
+            </View>
+          );
+        return (
+          <View key={w} break={!first}>
+            {shown}
+          </View>
+        );
+      })}
     </>
   );
+}
+
+/** Пометка ряда фото в вёрстке (InlineRow: ряд, поставленный автором, — вид f). */
+function rowMark(row: Parameters<typeof rowBreaks>[0], key: string) {
+  return placedByAuthor(row[0].style) ? `f${key.slice(1)}` : key;
 }

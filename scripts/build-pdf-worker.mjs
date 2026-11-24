@@ -23,7 +23,7 @@ await build({
   jsx: "automatic",
   tsconfig: "tsconfig.json",
   // Как serverExternalPackages + react: react-pdf рендерит той же копией react, что лежит в node_modules.
-  external: ["@react-pdf/renderer", "sharp", "pdf-lib", "hyphen", "pg", "archiver", "hunspell-asm", "react", "react-dom"],
+  external: ["@react-pdf/renderer", "@react-pdf/layout", "sharp", "pdf-lib", "hyphen", "pg", "archiver", "hunspell-asm", "react", "react-dom"],
   // «server-only» в воркере не нужен: он и так выполняется только на сервере.
   // react/jsx-runtime — CommonJS-модуль, и в ESM из него виден только default: берём его через require (pdf-worker-jsx.mjs).
   alias: { "server-only": "./scripts/empty-module.mjs", "react/jsx-runtime": "./scripts/pdf-worker-jsx.mjs" },

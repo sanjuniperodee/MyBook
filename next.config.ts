@@ -32,7 +32,7 @@ const nextConfig: NextConfig = {
   output: "standalone",
   // Heavy Node-only packages used by PDF generation and image processing.
   // heic-decode (libheif в wasm) читает HEIC с iPhone; поток раскодирования подключает его по имени, поэтому пакет едет в релиз как есть.
-  serverExternalPackages: ["@react-pdf/renderer", "sharp", "pdf-lib", "hyphen", "pg", "archiver", "hunspell-asm", "heic-decode", "libheif-js"],
+  serverExternalPackages: ["@react-pdf/renderer", "@react-pdf/layout", "sharp", "pdf-lib", "hyphen", "pg", "archiver", "hunspell-asm", "heic-decode", "libheif-js"],
   outputFileTracingIncludes: {
     "/**": ["./assets/**/*", "./drizzle/**/*"],
   },
