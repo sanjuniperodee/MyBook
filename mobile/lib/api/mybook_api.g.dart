@@ -548,6 +548,66 @@ class MybookApi {
     return Done.fromJson(json as Map<String, dynamic>);
   }
 
+  /// Финансы: проверить, вернуть или зачесть, пришло за период, кто должен
+  Future<Finance> crmFinance({String? p, String? from, String? to}) async {
+    final json = await _send('GET', '/api/v1/crm/finance', query: {if (p != null) 'p': '${p}', if (from != null) 'from': '${from}', if (to != null) 'to': '${to}'});
+    return Finance.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// «Проверено»: ручная оплата или возврат сверены с выпиской (руководитель)
+  Future<Done> crmFinanceReview({required FinanceReviewBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/finance/review', body: body.toJson());
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Отметить случай «вернуть или зачесть» решённым (с комментарием)
+  Future<Done> crmFinanceResolve({required FinanceResolveBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/finance/issues', body: body.toJson());
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Отменить решение — случай вернётся в очередь
+  Future<Done> crmFinanceUndo({required String resolutionId}) async {
+    final json = await _send('POST', '/api/v1/crm/finance/resolutions/${Uri.encodeComponent('$resolutionId')}/undo');
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Расходы за период: итог, категории, записи
+  Future<Expenses> crmExpenses({String? p, String? from, String? to}) async {
+    final json = await _send('GET', '/api/v1/crm/expenses', query: {if (p != null) 'p': '${p}', if (from != null) 'from': '${from}', if (to != null) 'to': '${to}'});
+    return Expenses.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Внести расход (реклама — в расходы канала)
+  Future<Done> crmExpenseAdd({required ExpenseBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/expenses', body: body.toJson());
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Изменить расход
+  Future<Done> crmExpenseUpdate({required String expenseId, required ExpenseBody body}) async {
+    final json = await _send('PUT', '/api/v1/crm/expenses/${Uri.encodeComponent('$expenseId')}', body: body.toJson());
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Удалить расход
+  Future<Done> crmExpenseRemove({required String expenseId, required String source}) async {
+    final json = await _send('DELETE', '/api/v1/crm/expenses/${Uri.encodeComponent('$expenseId')}', query: {'source': '${source}'});
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Прибыль за период: отчёт строками, по времени, экономика продаж
+  Future<Profit> crmProfit({String? p, String? from, String? to}) async {
+    final json = await _send('GET', '/api/v1/crm/profit', query: {if (p != null) 'p': '${p}', if (from != null) 'from': '${from}', if (to != null) 'to': '${to}'});
+    return Profit.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Проценты комиссий по формам оплаты и налог с выручки
+  Future<Done> crmProfitFees({required FeeRatesBody body}) async {
+    final json = await _send('PUT', '/api/v1/crm/profit/fees', body: body.toJson());
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
   /// Доски, которые видит сотрудник (с числом открытых карточек)
   Future<BoardList> boardsList() async {
     final json = await _send('GET', '/api/v1/boards');
@@ -4206,4 +4266,514 @@ class SupportUpdateBody {
   factory SupportUpdateBody.fromJson(Map<String, dynamic> json) => SupportUpdateBody(status: json['status'] as String, resolution: json['resolution'] as String, devNote: json['devNote'] as String, notify: json['notify'] as bool);
 
   Map<String, dynamic> toJson() => {'status': status, 'resolution': resolution, 'devNote': devNote, 'notify': notify};
+}
+
+class MoneyPeriod {
+  /// today | 7d | month | prev | custom
+  final String preset;
+  final String label;
+  final String first;
+  final String last;
+  final List<Choice> presets;
+
+  const MoneyPeriod({required this.preset, required this.label, required this.first, required this.last, required this.presets});
+
+  factory MoneyPeriod.fromJson(Map<String, dynamic> json) => MoneyPeriod(preset: json['preset'] as String, label: json['label'] as String, first: json['first'] as String, last: json['last'] as String, presets: (json['presets'] as List).map((e) => Choice.fromJson(e as Map<String, dynamic>)).toList());
+
+  Map<String, dynamic> toJson() => {'preset': preset, 'label': label, 'first': first, 'last': last, 'presets': presets.map((e) => e.toJson()).toList()};
+}
+
+class MoneyRef {
+  final String label;
+  final String href;
+
+  const MoneyRef({required this.label, required this.href});
+
+  factory MoneyRef.fromJson(Map<String, dynamic> json) => MoneyRef(label: json['label'] as String, href: json['href'] as String);
+
+  Map<String, dynamic> toJson() => {'label': label, 'href': href};
+}
+
+class MoneyBar {
+  final String key;
+  final String label;
+  final int value;
+  final int count;
+
+  const MoneyBar({required this.key, required this.label, required this.value, required this.count});
+
+  factory MoneyBar.fromJson(Map<String, dynamic> json) => MoneyBar(key: json['key'] as String, label: json['label'] as String, value: (json['value'] as num).toInt(), count: (json['count'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'key': key, 'label': label, 'value': value, 'count': count};
+}
+
+class MoneyFlow {
+  final int incoming;
+  final int refunds;
+  final int fees;
+  final int tax;
+  final int net;
+  final int other;
+  final int profit;
+
+  const MoneyFlow({required this.incoming, required this.refunds, required this.fees, required this.tax, required this.net, required this.other, required this.profit});
+
+  factory MoneyFlow.fromJson(Map<String, dynamic> json) => MoneyFlow(incoming: (json['incoming'] as num).toInt(), refunds: (json['refunds'] as num).toInt(), fees: (json['fees'] as num).toInt(), tax: (json['tax'] as num).toInt(), net: (json['net'] as num).toInt(), other: (json['other'] as num).toInt(), profit: (json['profit'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'incoming': incoming, 'refunds': refunds, 'fees': fees, 'tax': tax, 'net': net, 'other': other, 'profit': profit};
+}
+
+class FinanceMoneyRow {
+  final String key;
+  final String dateLabel;
+  final int amount;
+  final bool refund;
+  final String method;
+  final String what;
+  final List<MoneyRef> refs;
+  final String client;
+  final String manager;
+  final String acceptedBy;
+  final String? receiptUrl;
+  final String? check;
+
+  const FinanceMoneyRow({required this.key, required this.dateLabel, required this.amount, required this.refund, required this.method, required this.what, required this.refs, required this.client, required this.manager, required this.acceptedBy, this.receiptUrl, this.check});
+
+  factory FinanceMoneyRow.fromJson(Map<String, dynamic> json) => FinanceMoneyRow(key: json['key'] as String, dateLabel: json['dateLabel'] as String, amount: (json['amount'] as num).toInt(), refund: json['refund'] as bool, method: json['method'] as String, what: json['what'] as String, refs: (json['refs'] as List).map((e) => MoneyRef.fromJson(e as Map<String, dynamic>)).toList(), client: json['client'] as String, manager: json['manager'] as String, acceptedBy: json['acceptedBy'] as String, receiptUrl: json['receiptUrl'] == null ? null : json['receiptUrl'] as String, check: json['check'] == null ? null : json['check'] as String);
+
+  Map<String, dynamic> toJson() => {'key': key, 'dateLabel': dateLabel, 'amount': amount, 'refund': refund, 'method': method, 'what': what, 'refs': refs.map((e) => e.toJson()).toList(), 'client': client, 'manager': manager, 'acceptedBy': acceptedBy, 'receiptUrl': receiptUrl, 'check': check};
+}
+
+class FinanceReviewRow {
+  final String key;
+  /// deal | order
+  final String kind;
+  final String id;
+  final int amount;
+  final String dateLabel;
+  final String what;
+  final bool refund;
+  final bool mine;
+  final List<MoneyRef> refs;
+  final String client;
+  final String manager;
+  final String acceptedBy;
+  final String? receiptUrl;
+  final String? invoice;
+  final String? note;
+
+  const FinanceReviewRow({required this.key, required this.kind, required this.id, required this.amount, required this.dateLabel, required this.what, required this.refund, required this.mine, required this.refs, required this.client, required this.manager, required this.acceptedBy, this.receiptUrl, this.invoice, this.note});
+
+  factory FinanceReviewRow.fromJson(Map<String, dynamic> json) => FinanceReviewRow(key: json['key'] as String, kind: json['kind'] as String, id: json['id'] as String, amount: (json['amount'] as num).toInt(), dateLabel: json['dateLabel'] as String, what: json['what'] as String, refund: json['refund'] as bool, mine: json['mine'] as bool, refs: (json['refs'] as List).map((e) => MoneyRef.fromJson(e as Map<String, dynamic>)).toList(), client: json['client'] as String, manager: json['manager'] as String, acceptedBy: json['acceptedBy'] as String, receiptUrl: json['receiptUrl'] == null ? null : json['receiptUrl'] as String, invoice: json['invoice'] == null ? null : json['invoice'] as String, note: json['note'] == null ? null : json['note'] as String);
+
+  Map<String, dynamic> toJson() => {'key': key, 'kind': kind, 'id': id, 'amount': amount, 'dateLabel': dateLabel, 'what': what, 'refund': refund, 'mine': mine, 'refs': refs.map((e) => e.toJson()).toList(), 'client': client, 'manager': manager, 'acceptedBy': acceptedBy, 'receiptUrl': receiptUrl, 'invoice': invoice, 'note': note};
+}
+
+class FinanceIssue {
+  final String key;
+  final String kind;
+  final String title;
+  final String? href;
+  final String ref;
+  final String client;
+  final String manager;
+  final int amount;
+  final String note;
+  final String? dateLabel;
+  final FinanceIssueTarget? target;
+  final bool canUpgrade;
+
+  const FinanceIssue({required this.key, required this.kind, required this.title, this.href, required this.ref, required this.client, required this.manager, required this.amount, required this.note, this.dateLabel, this.target, required this.canUpgrade});
+
+  factory FinanceIssue.fromJson(Map<String, dynamic> json) => FinanceIssue(key: json['key'] as String, kind: json['kind'] as String, title: json['title'] as String, href: json['href'] == null ? null : json['href'] as String, ref: json['ref'] as String, client: json['client'] as String, manager: json['manager'] as String, amount: (json['amount'] as num).toInt(), note: json['note'] as String, dateLabel: json['dateLabel'] == null ? null : json['dateLabel'] as String, target: json['target'] == null ? null : FinanceIssueTarget.fromJson(json['target'] as Map<String, dynamic>), canUpgrade: json['canUpgrade'] as bool);
+
+  Map<String, dynamic> toJson() => {'key': key, 'kind': kind, 'title': title, 'href': href, 'ref': ref, 'client': client, 'manager': manager, 'amount': amount, 'note': note, 'dateLabel': dateLabel, 'target': target == null ? null : target!.toJson(), 'canUpgrade': canUpgrade};
+}
+
+class FinanceIssueTarget {
+  /// deal | order
+  final String kind;
+  final String id;
+  final int number;
+
+  const FinanceIssueTarget({required this.kind, required this.id, required this.number});
+
+  factory FinanceIssueTarget.fromJson(Map<String, dynamic> json) => FinanceIssueTarget(kind: json['kind'] as String, id: json['id'] as String, number: (json['number'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'kind': kind, 'id': id, 'number': number};
+}
+
+class FinanceResolved {
+  final String id;
+  final String title;
+  final String ref;
+  final String client;
+  final String? href;
+  final int amount;
+  final String note;
+  final String by;
+  final String dateLabel;
+  final bool stillOpen;
+
+  const FinanceResolved({required this.id, required this.title, required this.ref, required this.client, this.href, required this.amount, required this.note, required this.by, required this.dateLabel, required this.stillOpen});
+
+  factory FinanceResolved.fromJson(Map<String, dynamic> json) => FinanceResolved(id: json['id'] as String, title: json['title'] as String, ref: json['ref'] as String, client: json['client'] as String, href: json['href'] == null ? null : json['href'] as String, amount: (json['amount'] as num).toInt(), note: json['note'] as String, by: json['by'] as String, dateLabel: json['dateLabel'] as String, stillOpen: json['stillOpen'] as bool);
+
+  Map<String, dynamic> toJson() => {'id': id, 'title': title, 'ref': ref, 'client': client, 'href': href, 'amount': amount, 'note': note, 'by': by, 'dateLabel': dateLabel, 'stillOpen': stillOpen};
+}
+
+class FinanceDue {
+  final String key;
+  /// deal | order | postpay
+  final String kind;
+  final String href;
+  final String ref;
+  final String client;
+  final String manager;
+  final int total;
+  final int paid;
+  final int left;
+  /// ready | progress | none
+  final String group;
+  final String bookLabel;
+  final String? dueLabel;
+  final bool overdue;
+  final String? invoice;
+  final String? note;
+
+  const FinanceDue({required this.key, required this.kind, required this.href, required this.ref, required this.client, required this.manager, required this.total, required this.paid, required this.left, required this.group, required this.bookLabel, this.dueLabel, required this.overdue, this.invoice, this.note});
+
+  factory FinanceDue.fromJson(Map<String, dynamic> json) => FinanceDue(key: json['key'] as String, kind: json['kind'] as String, href: json['href'] as String, ref: json['ref'] as String, client: json['client'] as String, manager: json['manager'] as String, total: (json['total'] as num).toInt(), paid: (json['paid'] as num).toInt(), left: (json['left'] as num).toInt(), group: json['group'] as String, bookLabel: json['bookLabel'] as String, dueLabel: json['dueLabel'] == null ? null : json['dueLabel'] as String, overdue: json['overdue'] as bool, invoice: json['invoice'] == null ? null : json['invoice'] as String, note: json['note'] == null ? null : json['note'] as String);
+
+  Map<String, dynamic> toJson() => {'key': key, 'kind': kind, 'href': href, 'ref': ref, 'client': client, 'manager': manager, 'total': total, 'paid': paid, 'left': left, 'group': group, 'bookLabel': bookLabel, 'dueLabel': dueLabel, 'overdue': overdue, 'invoice': invoice, 'note': note};
+}
+
+class Finance {
+  final MoneyPeriod period;
+  final bool own;
+  final FinanceTotals totals;
+  final MoneyFlow? flow;
+  final List<FinanceByDay> byDay;
+  final List<MoneyBar> byMethod;
+  final List<MoneyBar> byManager;
+  final List<FinanceReviewRow> review;
+  final List<FinanceIssue> issues;
+  final List<FinanceResolved> resolved;
+  final List<FinanceMoneyRow> recent;
+  final List<FinanceMoneyRow> refunds;
+  final FinanceExpected expected;
+  final FinancePerms perms;
+
+  const Finance({required this.period, required this.own, required this.totals, this.flow, required this.byDay, required this.byMethod, required this.byManager, required this.review, required this.issues, required this.resolved, required this.recent, required this.refunds, required this.expected, required this.perms});
+
+  factory Finance.fromJson(Map<String, dynamic> json) => Finance(period: MoneyPeriod.fromJson(json['period'] as Map<String, dynamic>), own: json['own'] as bool, totals: FinanceTotals.fromJson(json['totals'] as Map<String, dynamic>), flow: json['flow'] == null ? null : MoneyFlow.fromJson(json['flow'] as Map<String, dynamic>), byDay: (json['byDay'] as List).map((e) => FinanceByDay.fromJson(e as Map<String, dynamic>)).toList(), byMethod: (json['byMethod'] as List).map((e) => MoneyBar.fromJson(e as Map<String, dynamic>)).toList(), byManager: (json['byManager'] as List).map((e) => MoneyBar.fromJson(e as Map<String, dynamic>)).toList(), review: (json['review'] as List).map((e) => FinanceReviewRow.fromJson(e as Map<String, dynamic>)).toList(), issues: (json['issues'] as List).map((e) => FinanceIssue.fromJson(e as Map<String, dynamic>)).toList(), resolved: (json['resolved'] as List).map((e) => FinanceResolved.fromJson(e as Map<String, dynamic>)).toList(), recent: (json['recent'] as List).map((e) => FinanceMoneyRow.fromJson(e as Map<String, dynamic>)).toList(), refunds: (json['refunds'] as List).map((e) => FinanceMoneyRow.fromJson(e as Map<String, dynamic>)).toList(), expected: FinanceExpected.fromJson(json['expected'] as Map<String, dynamic>), perms: FinancePerms.fromJson(json['perms'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'period': period.toJson(), 'own': own, 'totals': totals.toJson(), 'flow': flow == null ? null : flow!.toJson(), 'byDay': byDay.map((e) => e.toJson()).toList(), 'byMethod': byMethod.map((e) => e.toJson()).toList(), 'byManager': byManager.map((e) => e.toJson()).toList(), 'review': review.map((e) => e.toJson()).toList(), 'issues': issues.map((e) => e.toJson()).toList(), 'resolved': resolved.map((e) => e.toJson()).toList(), 'recent': recent.map((e) => e.toJson()).toList(), 'refunds': refunds.map((e) => e.toJson()).toList(), 'expected': expected.toJson(), 'perms': perms.toJson()};
+}
+
+class FinanceTotals {
+  final int net;
+  final int incoming;
+  final int refunds;
+  final int online;
+  final int manual;
+  final int count;
+  final int refundCount;
+  final int prevNet;
+  final double? delta;
+  final int expected;
+  final int expectedReady;
+  final int postpay;
+  final int postpayCount;
+  final int overpaid;
+  final int overpaidCount;
+  final int reviewCount;
+  final int reviewSum;
+
+  const FinanceTotals({required this.net, required this.incoming, required this.refunds, required this.online, required this.manual, required this.count, required this.refundCount, required this.prevNet, this.delta, required this.expected, required this.expectedReady, required this.postpay, required this.postpayCount, required this.overpaid, required this.overpaidCount, required this.reviewCount, required this.reviewSum});
+
+  factory FinanceTotals.fromJson(Map<String, dynamic> json) => FinanceTotals(net: (json['net'] as num).toInt(), incoming: (json['incoming'] as num).toInt(), refunds: (json['refunds'] as num).toInt(), online: (json['online'] as num).toInt(), manual: (json['manual'] as num).toInt(), count: (json['count'] as num).toInt(), refundCount: (json['refundCount'] as num).toInt(), prevNet: (json['prevNet'] as num).toInt(), delta: json['delta'] == null ? null : (json['delta'] as num).toDouble(), expected: (json['expected'] as num).toInt(), expectedReady: (json['expectedReady'] as num).toInt(), postpay: (json['postpay'] as num).toInt(), postpayCount: (json['postpayCount'] as num).toInt(), overpaid: (json['overpaid'] as num).toInt(), overpaidCount: (json['overpaidCount'] as num).toInt(), reviewCount: (json['reviewCount'] as num).toInt(), reviewSum: (json['reviewSum'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'net': net, 'incoming': incoming, 'refunds': refunds, 'online': online, 'manual': manual, 'count': count, 'refundCount': refundCount, 'prevNet': prevNet, 'delta': delta, 'expected': expected, 'expectedReady': expectedReady, 'postpay': postpay, 'postpayCount': postpayCount, 'overpaid': overpaid, 'overpaidCount': overpaidCount, 'reviewCount': reviewCount, 'reviewSum': reviewSum};
+}
+
+class FinanceByDay {
+  final String date;
+  final int incoming;
+  final int refunds;
+
+  const FinanceByDay({required this.date, required this.incoming, required this.refunds});
+
+  factory FinanceByDay.fromJson(Map<String, dynamic> json) => FinanceByDay(date: json['date'] as String, incoming: (json['incoming'] as num).toInt(), refunds: (json['refunds'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'date': date, 'incoming': incoming, 'refunds': refunds};
+}
+
+class FinanceExpected {
+  final List<FinanceDue> rows;
+  final List<MoneyBar> groups;
+  final int total;
+
+  const FinanceExpected({required this.rows, required this.groups, required this.total});
+
+  factory FinanceExpected.fromJson(Map<String, dynamic> json) => FinanceExpected(rows: (json['rows'] as List).map((e) => FinanceDue.fromJson(e as Map<String, dynamic>)).toList(), groups: (json['groups'] as List).map((e) => MoneyBar.fromJson(e as Map<String, dynamic>)).toList(), total: (json['total'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'rows': rows.map((e) => e.toJson()).toList(), 'groups': groups.map((e) => e.toJson()).toList(), 'total': total};
+}
+
+class FinancePerms {
+  final bool reviewDeal;
+  final bool reviewOrder;
+  final bool resolveDeal;
+  final bool resolveOrder;
+  final bool refundDeal;
+  final bool editOrder;
+
+  const FinancePerms({required this.reviewDeal, required this.reviewOrder, required this.resolveDeal, required this.resolveOrder, required this.refundDeal, required this.editOrder});
+
+  factory FinancePerms.fromJson(Map<String, dynamic> json) => FinancePerms(reviewDeal: json['reviewDeal'] as bool, reviewOrder: json['reviewOrder'] as bool, resolveDeal: json['resolveDeal'] as bool, resolveOrder: json['resolveOrder'] as bool, refundDeal: json['refundDeal'] as bool, editOrder: json['editOrder'] as bool);
+
+  Map<String, dynamic> toJson() => {'reviewDeal': reviewDeal, 'reviewOrder': reviewOrder, 'resolveDeal': resolveDeal, 'resolveOrder': resolveOrder, 'refundDeal': refundDeal, 'editOrder': editOrder};
+}
+
+class FinanceReviewBody {
+  /// deal | order
+  final String kind;
+  final String id;
+
+  const FinanceReviewBody({required this.kind, required this.id});
+
+  factory FinanceReviewBody.fromJson(Map<String, dynamic> json) => FinanceReviewBody(kind: json['kind'] as String, id: json['id'] as String);
+
+  Map<String, dynamic> toJson() => {'kind': kind, 'id': id};
+}
+
+class FinanceResolveBody {
+  final String key;
+  final int amount;
+  final String note;
+
+  const FinanceResolveBody({required this.key, required this.amount, required this.note});
+
+  factory FinanceResolveBody.fromJson(Map<String, dynamic> json) => FinanceResolveBody(key: json['key'] as String, amount: (json['amount'] as num).toInt(), note: json['note'] as String);
+
+  Map<String, dynamic> toJson() => {'key': key, 'amount': amount, 'note': note};
+}
+
+class ExpenseRow {
+  final String id;
+  /// expense | ads
+  final String source;
+  final String day;
+  final String category;
+  final String categoryLabel;
+  final String name;
+  final String title;
+  final int amount;
+  final int? quantity;
+  final String note;
+  final String? channel;
+  final String by;
+
+  const ExpenseRow({required this.id, required this.source, required this.day, required this.category, required this.categoryLabel, required this.name, required this.title, required this.amount, this.quantity, required this.note, this.channel, required this.by});
+
+  factory ExpenseRow.fromJson(Map<String, dynamic> json) => ExpenseRow(id: json['id'] as String, source: json['source'] as String, day: json['day'] as String, category: json['category'] as String, categoryLabel: json['categoryLabel'] as String, name: json['name'] as String, title: json['title'] as String, amount: (json['amount'] as num).toInt(), quantity: json['quantity'] == null ? null : (json['quantity'] as num).toInt(), note: json['note'] as String, channel: json['channel'] == null ? null : json['channel'] as String, by: json['by'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'source': source, 'day': day, 'category': category, 'categoryLabel': categoryLabel, 'name': name, 'title': title, 'amount': amount, 'quantity': quantity, 'note': note, 'channel': channel, 'by': by};
+}
+
+class Expenses {
+  final MoneyPeriod period;
+  final int total;
+  final List<MoneyBar> byCategory;
+  final List<MoneyBar> byGroup;
+  final List<ExpenseRow> rows;
+  final bool canManage;
+  final List<ExpensesCategories> categories;
+  final List<Choice> channels;
+
+  const Expenses({required this.period, required this.total, required this.byCategory, required this.byGroup, required this.rows, required this.canManage, required this.categories, required this.channels});
+
+  factory Expenses.fromJson(Map<String, dynamic> json) => Expenses(period: MoneyPeriod.fromJson(json['period'] as Map<String, dynamic>), total: (json['total'] as num).toInt(), byCategory: (json['byCategory'] as List).map((e) => MoneyBar.fromJson(e as Map<String, dynamic>)).toList(), byGroup: (json['byGroup'] as List).map((e) => MoneyBar.fromJson(e as Map<String, dynamic>)).toList(), rows: (json['rows'] as List).map((e) => ExpenseRow.fromJson(e as Map<String, dynamic>)).toList(), canManage: json['canManage'] as bool, categories: (json['categories'] as List).map((e) => ExpensesCategories.fromJson(e as Map<String, dynamic>)).toList(), channels: (json['channels'] as List).map((e) => Choice.fromJson(e as Map<String, dynamic>)).toList());
+
+  Map<String, dynamic> toJson() => {'period': period.toJson(), 'total': total, 'byCategory': byCategory.map((e) => e.toJson()).toList(), 'byGroup': byGroup.map((e) => e.toJson()).toList(), 'rows': rows.map((e) => e.toJson()).toList(), 'canManage': canManage, 'categories': categories.map((e) => e.toJson()).toList(), 'channels': channels.map((e) => e.toJson()).toList()};
+}
+
+class ExpensesCategories {
+  final String id;
+  final String label;
+  final String group;
+
+  const ExpensesCategories({required this.id, required this.label, required this.group});
+
+  factory ExpensesCategories.fromJson(Map<String, dynamic> json) => ExpensesCategories(id: json['id'] as String, label: json['label'] as String, group: json['group'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'label': label, 'group': group};
+}
+
+class ExpenseBody {
+  final String category;
+  final String day;
+  final int amount;
+  final String title;
+  final int? quantity;
+  final String note;
+  final String? channel;
+  /// Поля, которые отправить как null (иначе пустое необязательное поле не отправляется).
+  final Set<String> nulls;
+
+  const ExpenseBody({required this.category, required this.day, required this.amount, required this.title, this.quantity, required this.note, this.channel, this.nulls = const {}});
+
+  factory ExpenseBody.fromJson(Map<String, dynamic> json) => ExpenseBody(category: json['category'] as String, day: json['day'] as String, amount: (json['amount'] as num).toInt(), title: json['title'] as String, quantity: json['quantity'] == null ? null : (json['quantity'] as num).toInt(), note: json['note'] as String, channel: json['channel'] == null ? null : json['channel'] as String);
+
+  Map<String, dynamic> toJson() => {'category': category, 'day': day, 'amount': amount, 'title': title, if (quantity != null || nulls.contains('quantity')) 'quantity': quantity, 'note': note, if (channel != null || nulls.contains('channel')) 'channel': channel};
+}
+
+class ProfitLine {
+  final String label;
+  final int value;
+  final int prev;
+  final String? kind;
+  final bool minus;
+
+  const ProfitLine({required this.label, required this.value, required this.prev, this.kind, required this.minus});
+
+  factory ProfitLine.fromJson(Map<String, dynamic> json) => ProfitLine(label: json['label'] as String, value: (json['value'] as num).toInt(), prev: (json['prev'] as num).toInt(), kind: json['kind'] == null ? null : json['kind'] as String, minus: json['minus'] as bool);
+
+  Map<String, dynamic> toJson() => {'label': label, 'value': value, 'prev': prev, 'kind': kind, 'minus': minus};
+}
+
+class Profit {
+  final MoneyPeriod period;
+  final ProfitTotals totals;
+  final List<ProfitLine> lines;
+  /// day | week | month
+  final String step;
+  final List<ProfitRows> rows;
+  final MoneyFlow flow;
+  final ProfitUnit unit;
+  final ProfitFees fees;
+  final ProfitTax tax;
+  final bool noExpenses;
+  final bool canManage;
+  final List<String> payForms;
+  final Map<String, dynamic> feeRates;
+
+  const Profit({required this.period, required this.totals, required this.lines, required this.step, required this.rows, required this.flow, required this.unit, required this.fees, required this.tax, required this.noExpenses, required this.canManage, required this.payForms, required this.feeRates});
+
+  factory Profit.fromJson(Map<String, dynamic> json) => Profit(period: MoneyPeriod.fromJson(json['period'] as Map<String, dynamic>), totals: ProfitTotals.fromJson(json['totals'] as Map<String, dynamic>), lines: (json['lines'] as List).map((e) => ProfitLine.fromJson(e as Map<String, dynamic>)).toList(), step: json['step'] as String, rows: (json['rows'] as List).map((e) => ProfitRows.fromJson(e as Map<String, dynamic>)).toList(), flow: MoneyFlow.fromJson(json['flow'] as Map<String, dynamic>), unit: ProfitUnit.fromJson(json['unit'] as Map<String, dynamic>), fees: ProfitFees.fromJson(json['fees'] as Map<String, dynamic>), tax: ProfitTax.fromJson(json['tax'] as Map<String, dynamic>), noExpenses: json['noExpenses'] as bool, canManage: json['canManage'] as bool, payForms: (json['payForms'] as List).map((e) => e as String).toList(), feeRates: json['feeRates'] as Map<String, dynamic>);
+
+  Map<String, dynamic> toJson() => {'period': period.toJson(), 'totals': totals.toJson(), 'lines': lines.map((e) => e.toJson()).toList(), 'step': step, 'rows': rows.map((e) => e.toJson()).toList(), 'flow': flow.toJson(), 'unit': unit.toJson(), 'fees': fees.toJson(), 'tax': tax.toJson(), 'noExpenses': noExpenses, 'canManage': canManage, 'payForms': payForms.map((e) => e).toList(), 'feeRates': feeRates};
+}
+
+class ProfitTotals {
+  final int revenue;
+  final int expenses;
+  final int profit;
+  final double? margin;
+  final double? deltaRevenue;
+  final double? deltaExpenses;
+  final double? deltaProfit;
+
+  const ProfitTotals({required this.revenue, required this.expenses, required this.profit, this.margin, this.deltaRevenue, this.deltaExpenses, this.deltaProfit});
+
+  factory ProfitTotals.fromJson(Map<String, dynamic> json) => ProfitTotals(revenue: (json['revenue'] as num).toInt(), expenses: (json['expenses'] as num).toInt(), profit: (json['profit'] as num).toInt(), margin: json['margin'] == null ? null : (json['margin'] as num).toDouble(), deltaRevenue: json['deltaRevenue'] == null ? null : (json['deltaRevenue'] as num).toDouble(), deltaExpenses: json['deltaExpenses'] == null ? null : (json['deltaExpenses'] as num).toDouble(), deltaProfit: json['deltaProfit'] == null ? null : (json['deltaProfit'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'revenue': revenue, 'expenses': expenses, 'profit': profit, 'margin': margin, 'deltaRevenue': deltaRevenue, 'deltaExpenses': deltaExpenses, 'deltaProfit': deltaProfit};
+}
+
+class ProfitRows {
+  final String key;
+  final String label;
+  final int revenue;
+  final int expenses;
+  final int profit;
+
+  const ProfitRows({required this.key, required this.label, required this.revenue, required this.expenses, required this.profit});
+
+  factory ProfitRows.fromJson(Map<String, dynamic> json) => ProfitRows(key: json['key'] as String, label: json['label'] as String, revenue: (json['revenue'] as num).toInt(), expenses: (json['expenses'] as num).toInt(), profit: (json['profit'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'key': key, 'label': label, 'revenue': revenue, 'expenses': expenses, 'profit': profit};
+}
+
+class ProfitUnit {
+  final int leads;
+  final int buyers;
+  final int orders;
+  final double? conversion;
+  final double? cpl;
+  final double? cac;
+  final double? roasCash;
+  final double? roasFirst;
+  final double? roasAgreed;
+  final double? adShare;
+  final double? avgFirst;
+  final double? avgAgreed;
+  final double? printPerBook;
+  final double? profitPerBuyer;
+
+  const ProfitUnit({required this.leads, required this.buyers, required this.orders, this.conversion, this.cpl, this.cac, this.roasCash, this.roasFirst, this.roasAgreed, this.adShare, this.avgFirst, this.avgAgreed, this.printPerBook, this.profitPerBuyer});
+
+  factory ProfitUnit.fromJson(Map<String, dynamic> json) => ProfitUnit(leads: (json['leads'] as num).toInt(), buyers: (json['buyers'] as num).toInt(), orders: (json['orders'] as num).toInt(), conversion: json['conversion'] == null ? null : (json['conversion'] as num).toDouble(), cpl: json['cpl'] == null ? null : (json['cpl'] as num).toDouble(), cac: json['cac'] == null ? null : (json['cac'] as num).toDouble(), roasCash: json['roasCash'] == null ? null : (json['roasCash'] as num).toDouble(), roasFirst: json['roasFirst'] == null ? null : (json['roasFirst'] as num).toDouble(), roasAgreed: json['roasAgreed'] == null ? null : (json['roasAgreed'] as num).toDouble(), adShare: json['adShare'] == null ? null : (json['adShare'] as num).toDouble(), avgFirst: json['avgFirst'] == null ? null : (json['avgFirst'] as num).toDouble(), avgAgreed: json['avgAgreed'] == null ? null : (json['avgAgreed'] as num).toDouble(), printPerBook: json['printPerBook'] == null ? null : (json['printPerBook'] as num).toDouble(), profitPerBuyer: json['profitPerBuyer'] == null ? null : (json['profitPerBuyer'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'leads': leads, 'buyers': buyers, 'orders': orders, 'conversion': conversion, 'cpl': cpl, 'cac': cac, 'roasCash': roasCash, 'roasFirst': roasFirst, 'roasAgreed': roasAgreed, 'adShare': adShare, 'avgFirst': avgFirst, 'avgAgreed': avgAgreed, 'printPerBook': printPerBook, 'profitPerBuyer': profitPerBuyer};
+}
+
+class ProfitFees {
+  final int auto;
+  final double base;
+  final List<ProfitFeesByForm> byForm;
+
+  const ProfitFees({required this.auto, required this.base, required this.byForm});
+
+  factory ProfitFees.fromJson(Map<String, dynamic> json) => ProfitFees(auto: (json['auto'] as num).toInt(), base: (json['base'] as num).toDouble(), byForm: (json['byForm'] as List).map((e) => ProfitFeesByForm.fromJson(e as Map<String, dynamic>)).toList());
+
+  Map<String, dynamic> toJson() => {'auto': auto, 'base': base, 'byForm': byForm.map((e) => e.toJson()).toList()};
+}
+
+class ProfitFeesByForm {
+  final String form;
+  final double rate;
+  final int money;
+  final int fee;
+  final int count;
+
+  const ProfitFeesByForm({required this.form, required this.rate, required this.money, required this.fee, required this.count});
+
+  factory ProfitFeesByForm.fromJson(Map<String, dynamic> json) => ProfitFeesByForm(form: json['form'] as String, rate: (json['rate'] as num).toDouble(), money: (json['money'] as num).toInt(), fee: (json['fee'] as num).toInt(), count: (json['count'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'form': form, 'rate': rate, 'money': money, 'fee': fee, 'count': count};
+}
+
+class ProfitTax {
+  final double rate;
+  final int auto;
+
+  const ProfitTax({required this.rate, required this.auto});
+
+  factory ProfitTax.fromJson(Map<String, dynamic> json) => ProfitTax(rate: (json['rate'] as num).toDouble(), auto: (json['auto'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'rate': rate, 'auto': auto};
+}
+
+class FeeRatesBody {
+  final List<FeeRatesBodyRates> rates;
+  final double taxRate;
+
+  const FeeRatesBody({required this.rates, required this.taxRate});
+
+  factory FeeRatesBody.fromJson(Map<String, dynamic> json) => FeeRatesBody(rates: (json['rates'] as List).map((e) => FeeRatesBodyRates.fromJson(e as Map<String, dynamic>)).toList(), taxRate: (json['taxRate'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'rates': rates.map((e) => e.toJson()).toList(), 'taxRate': taxRate};
+}
+
+class FeeRatesBodyRates {
+  final String form;
+  final double rate;
+
+  const FeeRatesBodyRates({required this.form, required this.rate});
+
+  factory FeeRatesBodyRates.fromJson(Map<String, dynamic> json) => FeeRatesBodyRates(form: json['form'] as String, rate: (json['rate'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'form': form, 'rate': rate};
 }

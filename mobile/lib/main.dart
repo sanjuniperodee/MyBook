@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'core/auth.dart';
 import 'core/cache.dart';
 import 'core/chats_store.dart';
+import 'core/links.dart';
 import 'core/live.dart';
 import 'core/nav.dart';
 import 'core/notifications_store.dart';
@@ -133,8 +134,8 @@ class _WorkspaceScopeState extends State<WorkspaceScope> {
     if (t.dealId != null) nav.push(MaterialPageRoute<void>(builder: (_) => DealScreen(dealId: t.dealId!)));
     if (t.clientId != null) nav.push(MaterialPageRoute<void>(builder: (_) => ClientScreen(clientId: t.clientId!)));
     if (t.orderId != null) nav.push(MaterialPageRoute<void>(builder: (_) => OrderScreen(orderId: t.orderId!)));
-    // Обращения, финансы, настройки — страница CRM во встроенном браузере (уже вошедшим).
-    if (t.web != null) nav.push(MaterialPageRoute<void>(builder: (_) => CrmWebScreen(path: t.web!)));
+    // Раздел, который в приложении свой (финансы, обращения…), — своим экраном; остальное — страница CRM во встроенном браузере.
+    if (t.web != null) nav.push(MaterialPageRoute<void>(builder: (_) => nativePageFor(t.web!) ?? CrmWebScreen(path: t.web!)));
     if (t.tab != null) {
       nav.popUntil((r) => r.isFirst);
       tabRequest.value = t.tab;

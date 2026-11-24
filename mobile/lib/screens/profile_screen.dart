@@ -87,10 +87,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ],
             ),
           // Остальная CRM — во встроенном браузере, уже вошедшим, по тем же правам, что на сайте.
-          for (final group in {for (final w in crmWebSections) if (w.allowed(staff)) w.group})
+          for (final group in sectionGroups(staff))
             GroupCard(
               title: group == 'Сегодня' ? 'CRM' : group,
               children: [
+                for (final sec in groupSections(staff, group))
+                  GroupTile(icon: sec.icon, title: sec.label, onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => SectionPage(section: sec)))),
                 for (final w in crmWebSections)
                   if (w.group == group && w.allowed(staff)) GroupTile(icon: w.icon, title: w.label, onTap: () => openCrm(context, w.path, title: w.label)),
               ],

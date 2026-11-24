@@ -6,6 +6,9 @@ import '../screens/calls_screen.dart';
 import '../screens/chats_screen.dart';
 import '../screens/clients_screen.dart';
 import '../screens/deals_screen.dart';
+import '../screens/money/expenses_screen.dart';
+import '../screens/money/finance_screen.dart';
+import '../screens/money/profit_screen.dart';
 import '../screens/orders_screen.dart';
 import '../screens/overview_screen.dart';
 import '../screens/tasks_screen.dart';
@@ -14,8 +17,10 @@ import 'auth.dart';
 
 /// Раздел приложения: подпись, значок, право, без которого его нет, и сам экран.
 class AppSection {
-  const AppSection(this.key, this.label, this.icon, this.allowed, this.page);
+  const AppSection(this.key, this.label, this.icon, this.allowed, this.page, {this.group});
   final String key;
+  /// Группа в «Профиле» / «Ещё» рядом с разделами CRM той же группы («Деньги», «Маркетинг»…); null — «Разделы».
+  final String? group;
   final String label;
   final IconData icon;
   final bool Function(Staff) allowed;
@@ -35,6 +40,10 @@ final appSections = <String, AppSection>{
   'clients': AppSection('clients', 'Клиенты', LucideIcons.users, (s) => s.can('clients.view'), () => const ClientsScreen()),
   'orders': AppSection('orders', 'Заказы', LucideIcons.package, (s) => s.can('orders.view'), () => const OrdersScreen()),
   'calls': AppSection('calls', 'Звонки', LucideIcons.phone, (s) => s.can('calls.view'), () => const CallsScreen()),
+  // Деньги — API v1 crmFinance / crmExpenses / crmProfit (те же модели экранов, что на сайте).
+  'finance': AppSection('finance', 'Финансы', LucideIcons.wallet, (s) => s.can('analytics.view'), () => const FinanceScreen(), group: 'Деньги'),
+  'expenses': AppSection('expenses', 'Расходы', LucideIcons.receiptText, (s) => s.can('finance.view'), () => const ExpensesScreen(), group: 'Деньги'),
+  'profit': AppSection('profit', 'Прибыль', LucideIcons.trendingUp, (s) => s.can('finance.view'), () => const ProfitScreen(), group: 'Деньги'),
 };
 
 /// Вкладки нижней панели по раскладке роли (до «Профиля», он всегда последний). Недоступные по правам отбрасываются.
@@ -64,9 +73,23 @@ List<AppSection> extraSections(Staff staff) {
   final inTabs = layoutFor(staff).tabs.toSet();
   return [
     for (final s in appSections.values)
-      if (!inTabs.contains(s.key) && s.allowed(staff)) s,
+      if (!inTabs.contains(s.key) && s.group == null && s.allowed(staff)) s,
   ];
 }
+
+/// Разделы приложения своей группы («Деньги»…) — в «Профиле» / «Ещё» над разделами CRM той же группы.
+List<AppSection> groupSections(Staff staff, String group) => [
+      for (final s in appSections.values)
+        if (s.group == group && s.allowed(staff)) s,
+    ];
+
+/// Группы «Профиля» / «Ещё» по порядку: разделы приложения с группой и разделы CRM.
+List<String> sectionGroups(Staff staff) => {
+      for (final w in crmWebSections)
+        if (w.allowed(staff)) w.group,
+      for (final s in appSections.values)
+        if (s.group != null && s.allowed(staff)) s.group!,
+    }.toList();
 
 const layoutTitles = {'leader': 'Руководитель', 'sales': 'Продажи', 'production': 'Производство', 'analyst': 'Аналитика', 'support': 'Поддержка', 'basic': 'Сотрудник'};
 
@@ -89,9 +112,6 @@ const crmWebSections = <CrmWebSection>[
   CrmWebSection('Продажи', '/admin/catalog', 'Каталог WhatsApp', LucideIcons.shoppingBag, ['catalog.manage']),
   CrmWebSection('Выпуск', '/admin/board', 'Канбан заказов', LucideIcons.kanban, ['orders.view']),
   CrmWebSection('Выпуск', '/admin/books', 'Книги', LucideIcons.bookOpen, ['clients.view']),
-  CrmWebSection('Деньги', '/admin/finance', 'Финансы', LucideIcons.wallet, ['analytics.view']),
-  CrmWebSection('Деньги', '/admin/expenses', 'Расходы', LucideIcons.receiptText, ['finance.view']),
-  CrmWebSection('Деньги', '/admin/profit', 'Прибыль', LucideIcons.trendingUp, ['finance.view']),
   CrmWebSection('Деньги', '/admin/sales', 'Реестр продаж', LucideIcons.scrollText, ['analytics.view']),
   CrmWebSection('Деньги', '/admin/analytics', 'Аналитика продаж', LucideIcons.chartColumn, ['analytics.view']),
   CrmWebSection('Деньги', '/admin/leads', 'Статистика лидов', LucideIcons.activity, ['analytics.view']),

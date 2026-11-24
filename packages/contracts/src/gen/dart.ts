@@ -61,9 +61,17 @@ class DartWriter {
     }
   }
 
+  /** Схема каждого класса: два разных объекта с одним именем (зарегистрированная схема и вложенный объект «Родитель+поле») дали бы один класс и падение разбора. */
+  private shapes = new Map<string, string>();
+
   /** Класс модели (один раз на имя). */
   model(name: string, s: Schema) {
-    if (this.classes.has(name)) return;
+    const shape = JSON.stringify(s);
+    if (this.classes.has(name)) {
+      if (this.shapes.get(name) !== shape) throw new Error(`Dart: два разных объекта дают класс ${name} — дайте одной из схем другой id`);
+      return;
+    }
+    this.shapes.set(name, shape);
     this.classes.set(name, "");
     const required = new Set(s.required ?? []);
     const fields = Object.entries(s.properties ?? {}).map(([key, p]) => {
