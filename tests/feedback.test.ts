@@ -244,6 +244,21 @@ describe("ReviewsService", () => {
     expect(await failsWith(service.submit("o1", input(), { file: Buffer.alloc(5000) }))).toBe("reviewPhotoInvalid");
   });
 
+  it("фото отдельно от полей (приложение): только к своему непроверенному отзыву, замена и удаление чистят файл", async () => {
+    const { service, removed, stored } = setup();
+    expect(await failsWith(service.setPhoto("o1", { file: Buffer.alloc(10) }))).toBe("reviewNotFound");
+    await service.submit("o1", input());
+    expect((await service.setPhoto("o1", { file: Buffer.alloc(100) })).photo?.key).toBe(stored[0]);
+    expect((await service.setPhoto("o1", { file: Buffer.alloc(120) })).photo?.key).toBe(stored[1]);
+    expect(removed).toEqual([stored[0]]);
+    expect((await service.setPhoto("o1", "remove")).photo).toBeNull();
+    expect(removed).toEqual([stored[0], stored[1]]);
+    expect(await failsWith(service.setPhoto("o1", { file: Buffer.alloc(5000) }))).toBe("reviewPhotoInvalid");
+    const r = await service.submit("o1", input());
+    await service.moderate(r.id, "publish");
+    expect(await failsWith(service.setPhoto("o1", { file: Buffer.alloc(10) }))).toBe("reviewLocked");
+  });
+
   it("модерация: опубликованный отзыв автор уже не правит", async () => {
     const { service } = setup();
     const r = await service.submit("o1", input());

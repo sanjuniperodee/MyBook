@@ -14,6 +14,7 @@ import { boardsRoutes } from "./boards";
 import { booksRoutes } from "./books";
 import { lettersRoutes } from "./letters";
 import { previewRoutes } from "./preview";
+import { reviewsRoutes } from "./reviews";
 import { cabinetRoutes } from "./cabinet";
 import { cabinetOrderRoutes } from "./cabinet-orders";
 import { crmRoutes } from "./crm";
@@ -25,6 +26,7 @@ export * from "./boards";
 export * from "./books";
 export * from "./letters";
 export * from "./preview";
+export * from "./reviews";
 export * from "./cabinet";
 export * from "./cabinet-orders";
 export * from "./crm";
@@ -34,6 +36,7 @@ export const v1 = {
   ...booksRoutes,
   ...lettersRoutes,
   ...previewRoutes,
+  ...reviewsRoutes,
   ...cabinetRoutes,
   ...cabinetOrderRoutes,
   // CRM для сотрудников (приложение CRM).

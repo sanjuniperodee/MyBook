@@ -36,9 +36,7 @@ export class ReviewsService {
   async submit(orderId: string, input: ReviewInput, photo: PhotoChange = "keep") {
     const { order, review: existing } = await this.open(orderId);
     if (existing && existing.status !== "new") throw new FeedbackError("reviewLocked");
-    if (typeof photo === "object" && photo.file.length > this.photos.maxBytes) throw new FeedbackError("reviewPhotoInvalid");
-
-    const stored: ReviewPhoto | null | undefined = typeof photo === "object" ? await this.photos.save(orderId, photo.file) : photo === "remove" ? null : undefined;
+    const stored = await this.storePhoto(orderId, photo);
     const previousPhoto = existing?.photo ?? null;
     const now = this.clock.now();
     const review = await this.uow.run(async () => {
@@ -49,7 +47,7 @@ export class ReviewsService {
       this.uow.track(r);
       return r;
     });
-    if (stored !== undefined && previousPhoto && previousPhoto.key !== stored?.key) await this.photos.remove(previousPhoto.key).catch((err) => this.logger.error("photo cleanup", err));
+    await this.dropReplaced(previousPhoto, stored);
 
     if (!existing) {
       await this.thank(review, order.number);
@@ -59,6 +57,36 @@ export class ReviewsService {
           .catch((err) => this.logger.error("low rating alert", err));
     }
     return review;
+  }
+
+  /**
+   * Фото к уже оставленному отзыву — приложение шлёт поля (submit) и фото отдельно. Как и правка полей — только пока
+   * отзыв не проверен (status new).
+   */
+  async setPhoto(orderId: string, photo: Exclude<PhotoChange, "keep">) {
+    const { review } = await this.open(orderId);
+    if (!review) throw new FeedbackError("reviewNotFound");
+    if (review.status !== "new") throw new FeedbackError("reviewLocked");
+    const stored = await this.storePhoto(orderId, photo);
+    const previousPhoto = review.photo ?? null;
+    await this.uow.run(async () => {
+      review.attachPhoto(stored ?? null, this.clock.now());
+      await this.reviews.save(review);
+      this.uow.track(review);
+    });
+    await this.dropReplaced(previousPhoto, stored);
+    return review;
+  }
+
+  /** Новое фото — в хранилище (с проверкой размера); "remove" — null; "keep" — undefined (не трогать). */
+  private async storePhoto(orderId: string, photo: PhotoChange): Promise<ReviewPhoto | null | undefined> {
+    if (typeof photo === "object" && photo.file.length > this.photos.maxBytes) throw new FeedbackError("reviewPhotoInvalid");
+    return typeof photo === "object" ? await this.photos.save(orderId, photo.file) : photo === "remove" ? null : undefined;
+  }
+
+  /** Прежнее фото, которое заменили или убрали, — из хранилища (после фиксации: сбой не теряет отзыв). */
+  private async dropReplaced(previous: ReviewPhoto | null, stored: ReviewPhoto | null | undefined) {
+    if (stored !== undefined && previous && previous.key !== stored?.key) await this.photos.remove(previous.key).catch((err) => this.logger.error("photo cleanup", err));
   }
 
   /** Промокод-благодарность: код случайный, при редком совпадении пробуем ещё. */

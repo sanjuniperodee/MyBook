@@ -5,11 +5,12 @@ import { MAX_MEDIA } from "@/lib/book/answer-media";
 import { CROP_ZOOM_MAX } from "@/lib/book/photo-crop";
 import { INVITE_TEXT_MAX } from "@/lib/content/letter-invite";
 import { MAX_LETTERS } from "@/modules/authoring/domain";
+import { CITY_MAX, NAME_MAX, RATING_MAX, TEXT_MAX } from "@/modules/feedback";
 
 // API v1 (ADR 0012): контракт первым (packages/contracts), сервер — apps/api.
 vi.mock("@/i18n/server", async () => ({ getMessages: async () => ({ api: (await import("@/i18n/messages/ru/api")).api }), getLocale: async () => "ru" }));
 
-const { v1, QuestionPatch, PhotoPatch, LettersOrder, LetterInviteText, openapi } = await import("@mybook/contracts");
+const { v1, QuestionPatch, PhotoPatch, LettersOrder, LetterInviteText, ReviewBody, openapi } = await import("@mybook/contracts");
 const { createApp } = await import("../apps/api/src/app");
 const { createRouter } = await import("../apps/api/src/http/router");
 const { handlers } = await import("../apps/api/src/routes");
@@ -72,6 +73,13 @@ describe("контракт", () => {
     expect(LettersOrder.safeParse({ ids: ids(MAX_LETTERS + 1) }).success).toBe(false);
     expect(LetterInviteText.safeParse({ text: "а".repeat(INVITE_TEXT_MAX) }).success).toBe(true);
     expect(LetterInviteText.safeParse({ text: "а".repeat(INVITE_TEXT_MAX + 1) }).success).toBe(false);
+    const review = (over: Record<string, unknown>) => ReviewBody.safeParse({ rating: 5, text: "", authorName: "Анна", city: "", consent: true, ...over }).success;
+    expect(review({ rating: RATING_MAX })).toBe(true);
+    expect(review({ rating: RATING_MAX + 1 })).toBe(false);
+    expect(review({ text: "а".repeat(TEXT_MAX) })).toBe(true);
+    expect(review({ text: "а".repeat(TEXT_MAX + 1) })).toBe(false);
+    expect(review({ authorName: "а".repeat(NAME_MAX + 1) })).toBe(false);
+    expect(review({ city: "а".repeat(CITY_MAX + 1) })).toBe(false);
   });
 
   it("OpenAPI: каждая операция с operationId, телом ответа-компонентом и схемой ошибки", () => {

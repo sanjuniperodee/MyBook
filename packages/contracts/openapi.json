@@ -1097,6 +1097,210 @@
         "x-auth": "user"
       }
     },
+    "/api/v1/orders/{orderId}/review": {
+      "get": {
+        "operationId": "reviewGet",
+        "tags": [
+          "reviews"
+        ],
+        "summary": "Отзыв к заказу: можно ли оставить и свой отзыв",
+        "parameters": [
+          {
+            "name": "orderId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewView"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      },
+      "put": {
+        "operationId": "reviewSubmit",
+        "tags": [
+          "reviews"
+        ],
+        "summary": "Оставить или поправить отзыв (фото не трогает)",
+        "parameters": [
+          {
+            "name": "orderId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Review"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
+    },
+    "/api/v1/orders/{orderId}/review/photo": {
+      "post": {
+        "operationId": "reviewPhotoSet",
+        "tags": [
+          "reviews"
+        ],
+        "summary": "Фото к отзыву (multipart, поле photo; до 15 МБ) — после reviewSubmit",
+        "parameters": [
+          {
+            "name": "orderId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "photo": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    }
+                  }
+                },
+                "required": [
+                  "photo"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Review"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      },
+      "delete": {
+        "operationId": "reviewPhotoDelete",
+        "tags": [
+          "reviews"
+        ],
+        "summary": "Убрать фото из отзыва",
+        "parameters": [
+          {
+            "name": "orderId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Review"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
+    },
     "/api/v1/cabinet/shelf": {
       "get": {
         "operationId": "cabinetShelf",
@@ -6497,6 +6701,115 @@
         },
         "required": [
           "progress"
+        ],
+        "additionalProperties": false
+      },
+      "Review": {
+        "type": "object",
+        "properties": {
+          "rating": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "text": {
+            "type": "string"
+          },
+          "authorName": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "consent": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string"
+          },
+          "photoUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "thankYouCode": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "rating",
+          "text",
+          "authorName",
+          "city",
+          "consent",
+          "status",
+          "photoUrl",
+          "thankYouCode"
+        ],
+        "additionalProperties": false
+      },
+      "ReviewView": {
+        "type": "object",
+        "properties": {
+          "canReview": {
+            "type": "boolean"
+          },
+          "defaultName": {
+            "type": "string"
+          },
+          "review": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Review"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "canReview",
+          "defaultName",
+          "review"
+        ],
+        "additionalProperties": false
+      },
+      "ReviewBody": {
+        "type": "object",
+        "properties": {
+          "rating": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "authorName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "city": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "consent": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "rating",
+          "text",
+          "authorName",
+          "city",
+          "consent"
         ],
         "additionalProperties": false
       },

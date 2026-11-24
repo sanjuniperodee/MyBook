@@ -188,6 +188,30 @@ class MybookApi {
     return BuildProgress.fromJson(json as Map<String, dynamic>);
   }
 
+  /// Отзыв к заказу: можно ли оставить и свой отзыв
+  Future<ReviewView> reviewGet({required String orderId}) async {
+    final json = await _send('GET', '/api/v1/orders/${Uri.encodeComponent(orderId)}/review');
+    return ReviewView.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Оставить или поправить отзыв (фото не трогает)
+  Future<Review> reviewSubmit({required String orderId, required ReviewBody body}) async {
+    final json = await _send('PUT', '/api/v1/orders/${Uri.encodeComponent(orderId)}/review', body: body.toJson());
+    return Review.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Фото к отзыву (multipart, поле photo; до 15 МБ) — после reviewSubmit
+  Future<Review> reviewPhotoSet({required String orderId, required List<http.MultipartFile> files}) async {
+    final json = await _sendFiles('POST', '/api/v1/orders/${Uri.encodeComponent(orderId)}/review/photo', 'photo', files);
+    return Review.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Убрать фото из отзыва
+  Future<Review> reviewPhotoDelete({required String orderId}) async {
+    final json = await _send('DELETE', '/api/v1/orders/${Uri.encodeComponent(orderId)}/review/photo');
+    return Review.fromJson(json as Map<String, dynamic>);
+  }
+
   /// Полка «Мои книги» — как на сайте: книги в работе первыми, прогресс, срок к празднику, заказ, обложка
   Future<CabinetShelf> cabinetShelf() async {
     final json = await _send('GET', '/api/v1/cabinet/shelf');
@@ -1523,6 +1547,49 @@ class BuildProgressProgress {
   factory BuildProgressProgress.fromJson(Map<String, dynamic> json) => BuildProgressProgress(state: json['state'] as String, stage: json['stage'] == null ? null : json['stage'] as String, percent: (json['percent'] as num).toInt(), etaMs: json['etaMs'] == null ? null : (json['etaMs'] as num).toInt(), overrun: json['overrun'] as bool, ahead: (json['ahead'] as num).toInt());
 
   Map<String, dynamic> toJson() => {'state': state, 'stage': stage == null ? null : stage!, 'percent': percent, 'etaMs': etaMs == null ? null : etaMs!, 'overrun': overrun, 'ahead': ahead};
+}
+
+class Review {
+  final int rating;
+  final String text;
+  final String authorName;
+  final String city;
+  final bool consent;
+  final String status;
+  final String? photoUrl;
+  final String? thankYouCode;
+
+  const Review({required this.rating, required this.text, required this.authorName, required this.city, required this.consent, required this.status, this.photoUrl, this.thankYouCode});
+
+  factory Review.fromJson(Map<String, dynamic> json) => Review(rating: (json['rating'] as num).toInt(), text: json['text'] as String, authorName: json['authorName'] as String, city: json['city'] as String, consent: json['consent'] as bool, status: json['status'] as String, photoUrl: json['photoUrl'] == null ? null : json['photoUrl'] as String, thankYouCode: json['thankYouCode'] == null ? null : json['thankYouCode'] as String);
+
+  Map<String, dynamic> toJson() => {'rating': rating, 'text': text, 'authorName': authorName, 'city': city, 'consent': consent, 'status': status, 'photoUrl': photoUrl == null ? null : photoUrl!, 'thankYouCode': thankYouCode == null ? null : thankYouCode!};
+}
+
+class ReviewView {
+  final bool canReview;
+  final String defaultName;
+  final Review? review;
+
+  const ReviewView({required this.canReview, required this.defaultName, this.review});
+
+  factory ReviewView.fromJson(Map<String, dynamic> json) => ReviewView(canReview: json['canReview'] as bool, defaultName: json['defaultName'] as String, review: json['review'] == null ? null : Review.fromJson(json['review'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'canReview': canReview, 'defaultName': defaultName, 'review': review == null ? null : review!.toJson()};
+}
+
+class ReviewBody {
+  final int rating;
+  final String text;
+  final String authorName;
+  final String city;
+  final bool consent;
+
+  const ReviewBody({required this.rating, required this.text, required this.authorName, required this.city, required this.consent});
+
+  factory ReviewBody.fromJson(Map<String, dynamic> json) => ReviewBody(rating: (json['rating'] as num).toInt(), text: json['text'] as String, authorName: json['authorName'] as String, city: json['city'] as String, consent: json['consent'] as bool);
+
+  Map<String, dynamic> toJson() => {'rating': rating, 'text': text, 'authorName': authorName, 'city': city, 'consent': consent};
 }
 
 class ShelfDeadline {

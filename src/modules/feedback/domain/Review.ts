@@ -77,6 +77,12 @@ export class Review extends AggregateRoot<ReviewProps> {
   get authorName() {
     return this.props.authorName;
   }
+  get city() {
+    return this.props.city;
+  }
+  get consent() {
+    return this.props.consent;
+  }
   get status() {
     return this.props.status;
   }
