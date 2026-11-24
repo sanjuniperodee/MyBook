@@ -1,20 +1,13 @@
+import { LetterPatch } from "@mybook/contracts";
 import { NextResponse } from "next/server";
-import { z } from "zod";
 import { api, apiViewer } from "@/server/api";
 import { container } from "@/server/container";
 import { idParams } from "@/server/input";
 
 type Ctx = { params: Promise<{ id: string; lid: string }> };
 
-const schema = z
-  .object({
-    status: z.enum(["pending", "approved", "hidden"]),
-    authorName: z.string().trim().min(1).max(80),
-    relation: z.string().trim().max(80),
-    text: z.string().trim().min(1).max(8000),
-  })
-  .partial()
-  .strict();
+/** Схема — из контракта API v1 (LetterPatch): та же, что у PATCH /api/v1/books/{id}/letters/{id}. */
+const schema = LetterPatch;
 
 export const PATCH = api(async (req, { params }: Ctx) => {
   const { id, lid } = idParams(await params, "id", "lid");

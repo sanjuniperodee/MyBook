@@ -133,6 +133,42 @@ class MybookApi {
     return DictationResult.fromJson(json as Map<String, dynamic>);
   }
 
+  /// Письма близких и приглашение
+  Future<LettersView> lettersGet({required String bookId}) async {
+    final json = await _send('GET', '/api/v1/books/${Uri.encodeComponent(bookId)}/letters');
+    return LettersView.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Включить или выключить приём писем по ссылке; regenerate — новая ссылка
+  Future<LetterInvite> letterInviteSet({required String bookId, required LetterInviteBody body}) async {
+    final json = await _send('POST', '/api/v1/books/${Uri.encodeComponent(bookId)}/letters/invite', body: body.toJson());
+    return LetterInvite.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Свой текст приглашения ('' — по умолчанию)
+  Future<LetterInvite> letterInviteText({required String bookId, required LetterInviteText body}) async {
+    final json = await _send('PUT', '/api/v1/books/${Uri.encodeComponent(bookId)}/letters/invite-text', body: body.toJson());
+    return LetterInvite.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Порядок писем в книге (id в нужной очерёдности)
+  Future<Ok> lettersReorder({required String bookId, required LettersOrder body}) async {
+    final json = await _send('PUT', '/api/v1/books/${Uri.encodeComponent(bookId)}/letters/order', body: body.toJson());
+    return Ok.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Правка письма: текст, подпись, в книге или скрыто
+  Future<LetterSaved> letterUpdate({required String bookId, required String letterId, required LetterPatch body}) async {
+    final json = await _send('PATCH', '/api/v1/books/${Uri.encodeComponent(bookId)}/letters/${Uri.encodeComponent(letterId)}', body: body.toJson());
+    return LetterSaved.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Удалить письмо
+  Future<Ok> letterDelete({required String bookId, required String letterId}) async {
+    final json = await _send('DELETE', '/api/v1/books/${Uri.encodeComponent(bookId)}/letters/${Uri.encodeComponent(letterId)}');
+    return Ok.fromJson(json as Map<String, dynamic>);
+  }
+
   /// Полка «Мои книги» — как на сайте: книги в работе первыми, прогресс, срок к празднику, заказ, обложка
   Future<CabinetShelf> cabinetShelf() async {
     final json = await _send('GET', '/api/v1/cabinet/shelf');
@@ -1137,6 +1173,102 @@ class Saved {
   factory Saved.fromJson(Map<String, dynamic> json) => Saved(ok: json['ok'] as bool, updatedAt: json['updatedAt'] as String);
 
   Map<String, dynamic> toJson() => {'ok': ok, 'updatedAt': updatedAt};
+}
+
+class Letter {
+  final String id;
+  final String authorName;
+  final String relation;
+  final String text;
+  /// pending | approved | hidden
+  final String status;
+  final String createdAt;
+
+  const Letter({required this.id, required this.authorName, required this.relation, required this.text, required this.status, required this.createdAt});
+
+  factory Letter.fromJson(Map<String, dynamic> json) => Letter(id: json['id'] as String, authorName: json['authorName'] as String, relation: json['relation'] as String, text: json['text'] as String, status: json['status'] as String, createdAt: json['createdAt'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'authorName': authorName, 'relation': relation, 'text': text, 'status': status, 'createdAt': createdAt};
+}
+
+class LetterInvite {
+  final bool enabled;
+  final String? url;
+  final String text;
+  final String? shareText;
+
+  const LetterInvite({required this.enabled, this.url, required this.text, this.shareText});
+
+  factory LetterInvite.fromJson(Map<String, dynamic> json) => LetterInvite(enabled: json['enabled'] as bool, url: json['url'] == null ? null : json['url'] as String, text: json['text'] as String, shareText: json['shareText'] == null ? null : json['shareText'] as String);
+
+  Map<String, dynamic> toJson() => {'enabled': enabled, if (url != null) 'url': url == null ? null : url!, 'text': text, if (shareText != null) 'shareText': shareText == null ? null : shareText!};
+}
+
+class LettersView {
+  final List<Letter> letters;
+  final LetterInvite invite;
+  final int max;
+
+  const LettersView({required this.letters, required this.invite, required this.max});
+
+  factory LettersView.fromJson(Map<String, dynamic> json) => LettersView(letters: (json['letters'] as List).map((e) => Letter.fromJson(e as Map<String, dynamic>)).toList(), invite: LetterInvite.fromJson(json['invite'] as Map<String, dynamic>), max: (json['max'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'letters': letters.map((e) => e.toJson()).toList(), 'invite': invite.toJson(), 'max': max};
+}
+
+class LetterInviteBody {
+  final bool enabled;
+  final bool? regenerate;
+
+  const LetterInviteBody({required this.enabled, this.regenerate});
+
+  factory LetterInviteBody.fromJson(Map<String, dynamic> json) => LetterInviteBody(enabled: json['enabled'] as bool, regenerate: json['regenerate'] == null ? null : json['regenerate'] as bool);
+
+  Map<String, dynamic> toJson() => {'enabled': enabled, if (regenerate != null) 'regenerate': regenerate == null ? null : regenerate!};
+}
+
+class LetterInviteText {
+  final String text;
+
+  const LetterInviteText({required this.text});
+
+  factory LetterInviteText.fromJson(Map<String, dynamic> json) => LetterInviteText(text: json['text'] as String);
+
+  Map<String, dynamic> toJson() => {'text': text};
+}
+
+class LetterPatch {
+  /// pending | approved | hidden
+  final String? status;
+  final String? authorName;
+  final String? relation;
+  final String? text;
+
+  const LetterPatch({this.status, this.authorName, this.relation, this.text});
+
+  factory LetterPatch.fromJson(Map<String, dynamic> json) => LetterPatch(status: json['status'] == null ? null : json['status'] as String, authorName: json['authorName'] == null ? null : json['authorName'] as String, relation: json['relation'] == null ? null : json['relation'] as String, text: json['text'] == null ? null : json['text'] as String);
+
+  Map<String, dynamic> toJson() => {if (status != null) 'status': status == null ? null : status!, if (authorName != null) 'authorName': authorName == null ? null : authorName!, if (relation != null) 'relation': relation == null ? null : relation!, if (text != null) 'text': text == null ? null : text!};
+}
+
+class LetterSaved {
+  final Letter letter;
+
+  const LetterSaved({required this.letter});
+
+  factory LetterSaved.fromJson(Map<String, dynamic> json) => LetterSaved(letter: Letter.fromJson(json['letter'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'letter': letter.toJson()};
+}
+
+class LettersOrder {
+  final List<String> ids;
+
+  const LettersOrder({required this.ids});
+
+  factory LettersOrder.fromJson(Map<String, dynamic> json) => LettersOrder(ids: (json['ids'] as List).map((e) => e as String).toList());
+
+  Map<String, dynamic> toJson() => {'ids': ids.map((e) => e).toList()};
 }
 
 class ShelfDeadline {

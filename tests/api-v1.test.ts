@@ -3,11 +3,13 @@ import { describe, expect, it, vi } from "vitest";
 import { ANSWER_MAX, SECTION_PROMPT_MAX, SECTION_TITLE_MAX } from "@/lib/content/kinds";
 import { MAX_MEDIA } from "@/lib/book/answer-media";
 import { CROP_ZOOM_MAX } from "@/lib/book/photo-crop";
+import { INVITE_TEXT_MAX } from "@/lib/content/letter-invite";
+import { MAX_LETTERS } from "@/modules/authoring/domain";
 
 // API v1 (ADR 0012): контракт первым (packages/contracts), сервер — apps/api.
 vi.mock("@/i18n/server", async () => ({ getMessages: async () => ({ api: (await import("@/i18n/messages/ru/api")).api }), getLocale: async () => "ru" }));
 
-const { v1, QuestionPatch, PhotoPatch, openapi } = await import("@mybook/contracts");
+const { v1, QuestionPatch, PhotoPatch, LettersOrder, LetterInviteText, openapi } = await import("@mybook/contracts");
 const { createApp } = await import("../apps/api/src/app");
 const { createRouter } = await import("../apps/api/src/http/router");
 const { handlers } = await import("../apps/api/src/routes");
@@ -59,6 +61,11 @@ describe("контракт", () => {
     const crop = (zoom: number) => PhotoPatch.safeParse({ crop: { x: 0.5, y: 0.5, zoom } }).success;
     expect(crop(CROP_ZOOM_MAX)).toBe(true);
     expect(crop(CROP_ZOOM_MAX + 0.01)).toBe(false);
+    const ids = (n: number) => Array.from({ length: n }, () => BOOK);
+    expect(LettersOrder.safeParse({ ids: ids(MAX_LETTERS) }).success).toBe(true);
+    expect(LettersOrder.safeParse({ ids: ids(MAX_LETTERS + 1) }).success).toBe(false);
+    expect(LetterInviteText.safeParse({ text: "а".repeat(INVITE_TEXT_MAX) }).success).toBe(true);
+    expect(LetterInviteText.safeParse({ text: "а".repeat(INVITE_TEXT_MAX + 1) }).success).toBe(false);
   });
 
   it("OpenAPI: каждая операция с operationId, телом ответа-компонентом и схемой ошибки", () => {
