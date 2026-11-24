@@ -56,7 +56,7 @@ flutter run --dart-define=SERVER_URL=http://localhost:3000
 ```
 APNS_KEY_ID=A929PTSY67
 APNS_TEAM_ID=C5M94BBAFM
-APNS_KEY_FILE=/home/srv/mybook/AuthKey_A929PTSY67.p8   # или APNS_KEY_P8 — текст ключа (переводы строк как \n)
+APNS_KEY_FILE=/home/srv/secrets/AuthKey_A929PTSY67.p8  # или APNS_KEY_P8 — текст ключа (переводы строк как \n)
 APNS_TOPIC=kz.workdesk.mobile                         # по умолчанию он же
 ```
 
