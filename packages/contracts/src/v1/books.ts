@@ -212,6 +212,9 @@ export const PhotoUploadResult = z.object({ photos: z.array(Photo), errors: z.ar
 /** Фото после правки и версия правил раскладки книги (правка места может перевести книгу на правила 2). */
 export const PhotoSaved = z.object({ photo: Photo, layoutRev: z.number().int() }).register(schemas, { id: "PhotoSaved" });
 
+/** Распознанная диктовка: текст вставляет в ответ само приложение (автосохранение — questionSave). */
+export const DictationResult = z.object({ text: z.string() }).register(schemas, { id: "DictationResult" });
+
 export const Saved = z.object({ ok: z.literal(true), updatedAt: iso }).register(schemas, { id: "Saved" });
 
 const BookParams = z.object({ bookId: uuid });
@@ -250,6 +253,16 @@ export const booksRoutes = {
     params: z.object({ bookId: uuid, photoId: uuid }),
     body: PhotoPatch,
     response: PhotoSaved,
+  }),
+  answerDictate: route({
+    method: "POST",
+    path: "/api/v1/books/{bookId}/dictation",
+    auth: "user",
+    tag: "books",
+    summary: "Голос → текст для ответа: запись (multipart, поле audio; m4a/aac/ogg/webm/mp3, до 10 минут) на языке книги",
+    params: BookParams,
+    files: { field: "audio" },
+    response: DictationResult,
   }),
   photoDelete: route({ method: "DELETE", path: "/api/v1/books/{bookId}/photos/{photoId}", auth: "user", tag: "books", summary: "Удалить фото", params: z.object({ bookId: uuid, photoId: uuid }), response: Ok }),
 } as const satisfies Record<string, RouteDef>;

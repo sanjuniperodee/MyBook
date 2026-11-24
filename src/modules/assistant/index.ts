@@ -1,5 +1,6 @@
 import type { Clock, CustomFieldsReader, SettingsReader } from "@/shared/application";
-import { aiProviders } from "./domain";
+import type { Locale } from "@/i18n/config";
+import { aiProviders, dictationPrompt } from "./domain";
 import { AssistantService, ProofreadService, type ConversationReader, type LanguageModel } from "./application";
 import { DESIGN_SETTING_KEYS, parseDesignAiSettings, type DesignAiSettings } from "@/lib/book/design-ai";
 import { modelOf } from "./infrastructure/models";
@@ -88,6 +89,18 @@ export class AssistantModule {
    * нет денег на балансе) — модель «Голосовые и фото» из «Интеграций» (на проде это Whisper у Groq). by — кто расшифровал.
    */
   async transcribeSupport(input: { system: string; glossary: string; data: string; mime: string }): Promise<{ text: string; by: string } | { error: string }> {
+    return this.#transcribe(input);
+  }
+
+  /**
+   * Диктовка ответа автором книги (приложение клиента): запись голоса → текст дословно, на языке книги, с пунктуацией.
+   * Та же цепочка моделей, что у обращений (Gemini, при отказе — Whisper из «Голосовые и фото»).
+   */
+  async dictate(input: { data: string; mime: string; language: Locale }): Promise<{ text: string; by: string } | { error: string }> {
+    return this.#transcribe({ ...dictationPrompt(input.language), data: input.data, mime: input.mime });
+  }
+
+  async #transcribe(input: { system: string; glossary: string; data: string; mime: string }): Promise<{ text: string; by: string } | { error: string }> {
     const reasons: string[] = [];
     for (const connection of [this.#ai.support, this.#ai.media]) {
       const c = await connection();

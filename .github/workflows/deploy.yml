@@ -106,6 +106,22 @@ jobs:
           go vet ./...
           go test ./...
 
+  # Dart-клиент API v1 (mobile/lib/api/mybook_api.g.dart, генерирует scripts/contracts/generate.ts): маршруты добавляют
+  # разные сессии — генератор не должен выдать код, который приложение не соберёт.
+  dart-client:
+    name: Dart-клиент
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with: { channel: stable, cache: true }
+      - name: dart analyze
+        working-directory: mobile
+        run: |
+          flutter pub get
+          dart analyze --fatal-infos lib/api
+
   # Сборка и архив релиза. Кэш .next/cache не сохраняем: это кэш Turbopack на гигабайты, а сборка (~1 мин) короче
   # тестов и общее время не задаёт.
   build:
@@ -144,7 +160,7 @@ jobs:
 
   deploy:
     name: Выкатка
-    needs: [types, lint, test, go, build]
+    needs: [types, lint, test, go, dart-client, build]
     if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
     timeout-minutes: 30

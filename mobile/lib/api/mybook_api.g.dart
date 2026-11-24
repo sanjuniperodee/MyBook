@@ -127,6 +127,12 @@ class MybookApi {
     return Ok.fromJson(json as Map<String, dynamic>);
   }
 
+  /// Голос → текст для ответа: запись (multipart, поле audio; m4a/aac/ogg/webm/mp3, до 10 минут) на языке книги
+  Future<DictationResult> answerDictate({required String bookId, required List<http.MultipartFile> files}) async {
+    final json = await _sendFiles('POST', '/api/v1/books/${Uri.encodeComponent(bookId)}/dictation', 'audio', files);
+    return DictationResult.fromJson(json as Map<String, dynamic>);
+  }
+
   /// Полка «Мои книги» — как на сайте: книги в работе первыми, прогресс, срок к празднику, заказ, обложка
   Future<CabinetShelf> cabinetShelf() async {
     final json = await _send('GET', '/api/v1/cabinet/shelf');
@@ -291,7 +297,7 @@ class MybookApi {
 
   /// Карточки со сроком или началом в периоде (до 120 дней): со всех видимых досок или одной; mine=1 — только мои
   Future<CardList> tasksCalendar({required String from, required String to, String? boardId, String? mine}) async {
-    final json = await _send('GET', '/api/v1/tasks/calendar', query: {if (from != null) 'from': '${from}', if (to != null) 'to': '${to}', if (boardId != null) 'boardId': '${boardId}', if (mine != null) 'mine': '${mine}'});
+    final json = await _send('GET', '/api/v1/tasks/calendar', query: {'from': '${from}', 'to': '${to}', if (boardId != null) 'boardId': '${boardId}', if (mine != null) 'mine': '${mine}'});
     return CardList.fromJson(json as Map<String, dynamic>);
   }
 }
@@ -1110,6 +1116,16 @@ class PhotoSaved {
   factory PhotoSaved.fromJson(Map<String, dynamic> json) => PhotoSaved(photo: Photo.fromJson(json['photo'] as Map<String, dynamic>), layoutRev: (json['layoutRev'] as num).toInt());
 
   Map<String, dynamic> toJson() => {'photo': photo.toJson(), 'layoutRev': layoutRev};
+}
+
+class DictationResult {
+  final String text;
+
+  const DictationResult({required this.text});
+
+  factory DictationResult.fromJson(Map<String, dynamic> json) => DictationResult(text: json['text'] as String);
+
+  Map<String, dynamic> toJson() => {'text': text};
 }
 
 class Saved {

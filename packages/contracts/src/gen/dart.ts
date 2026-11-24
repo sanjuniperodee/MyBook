@@ -118,7 +118,7 @@ export function renderDart(spec: { paths: Record<string, Record<string, Operatio
       ];
       const url = path.replace(/\{(\w+)\}/g, (_, k: string) => `\${Uri.encodeComponent(${k})}`);
       const query = params.filter((p) => p.in === "query");
-      const queryArg = query.length ? `, query: {${query.map((p) => `if (${p.name} != null) '${p.name}': '\${${p.name}}'`).join(", ")}}` : "";
+      const queryArg = query.length ? `, query: {${query.map((p) => `${p.required ? "" : `if (${p.name} != null) `}'${p.name}': '\${${p.name}}'`).join(", ")}}` : "";
       methods.push(
         [
           `  /// ${op.summary ?? op.operationId}`,

@@ -11,7 +11,7 @@
 | Модуль | Что делает | Файлов / строк | Вызовов `container()` |
 |---|---|---:|---:|
 | [access](#access) | Access: сотрудники, роли и права, правила безопасности, журнал. | 16 / 866 | 47 |
-| [assistant](#assistant) | AI-помощник (Claude, ChatGPT, DeepSeek или свой OpenAI-совместимый сервер). | 23 / 2279 | 25 |
+| [assistant](#assistant) | AI-помощник (Claude, ChatGPT, DeepSeek или свой OpenAI-совместимый сервер). | 24 / 2314 | 25 |
 | [authoring](#authoring) | Authoring: книги, вопросы, оглавление своей книги, фото, письма близких. | 28 / 3815 | 72 |
 | [automation](#automation) | Автоматизации (цифровая воронка CRM). | 16 / 1987 | 9 |
 | [boards](#boards) | Доски задач: доски отделов, личные и проектные, колонки с лимитами, карточки (задачи CRM) с исполнителями, метками, чек-листами, комментариями и вложениями, правила досок, календарь, личная iCal-ссылка и Google Календарь сотрудника. | 15 / 3218 | 15 |
@@ -46,7 +46,7 @@ AI-помощник (Claude, ChatGPT, DeepSeek или свой OpenAI-совме
 
 - Папка: `src/modules/assistant` (domain, application, infrastructure)
 - Фасад: `AssistantModule` → `container().assistant`
-- Публичное: `service`, `proofreader`, `writer`, `seller`, `designSettings`, `designerFor`, `writerProvider`, `proofreadProvider`, `sellerProvider`, `sellerFallbacks`, `mediaProvider`, `transcribeSupport`, `briefly`, `mediaModel`
+- Публичное: `service`, `proofreader`, `writer`, `seller`, `designSettings`, `designerFor`, `writerProvider`, `proofreadProvider`, `sellerProvider`, `sellerFallbacks`, `mediaProvider`, `transcribeSupport`, `dictate`, `briefly`, `mediaModel`
 - Таблицы: своих нет
 - Тесты (12): `ai-providers.test.ts`, `assistant.test.ts`, `crm-modes.integration.test.ts`, `crm-v4.test.ts`, `delivery-abroad.test.ts`, `llm-router.test.ts`, `proofread-ai.test.ts`, `rewrite.test.ts`, `stage-order.test.ts`, `system-blocks.test.ts`, `template-draft.test.ts`, `workspace-ports.test.ts`
 
