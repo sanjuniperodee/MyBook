@@ -158,7 +158,7 @@ export const boardHandlers: Pick<Handlers, Names> = {
   cardFileUpload: ({ req, input }) =>
     guard(async () => {
       const v = await viewer(req);
-      const file = (input.files as File[])[0];
+      const file = input.files[0];
       if (!file) throw new BoardsError("invalid", "Выберите файл");
       return { id: await c().cards.attach(v, input.cardId, { name: file.name, type: file.type, data: new Uint8Array(await file.arrayBuffer()) }) };
     }),
