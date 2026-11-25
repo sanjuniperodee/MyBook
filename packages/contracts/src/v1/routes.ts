@@ -35,6 +35,7 @@ import { crmKpRoutes } from "./crm-kp";
 import { crmSecurityRoutes } from "./crm-security";
 import { crmInvoiceRoutes } from "./crm-invoices";
 import { crmMobileRestRoutes } from "./crm-mobile-rest";
+import { answerFilesRoutes } from "./answer-files";
 import type { RouteDef } from "./core";
 
 export * from "./core";
@@ -64,6 +65,7 @@ export * from "./crm-kp";
 export * from "./crm-security";
 export * from "./crm-invoices";
 export * from "./crm-mobile-rest";
+export * from "./answer-files";
 
 export const v1 = {
   ...authRoutes,
@@ -94,6 +96,8 @@ export const v1 = {
   ...crmMobileRestRoutes,
   // Доски задач и календарь (приложение CRM).
   ...boardsRoutes,
+  // Свои видео, аудио и ссылки по QR в ответах клиента.
+  ...answerFilesRoutes,
 } as const satisfies Record<string, RouteDef>;
 
 export type V1 = typeof v1;

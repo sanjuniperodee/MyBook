@@ -12007,6 +12007,668 @@
         },
         "x-auth": "staff"
       }
+    },
+    "/api/v1/books/{bookId}/questions/{questionId}/media": {
+      "get": {
+        "operationId": "answerMediaGet",
+        "tags": [
+          "answer-files"
+        ],
+        "summary": "Свои видео, аудио и ссылки по QR для ответа: карточки, QR SVG, квота минут, пакеты, подписи и лимиты",
+        "parameters": [
+          {
+            "name": "bookId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "questionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnswerMediaState"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      },
+      "put": {
+        "operationId": "answerMediaSave",
+        "tags": [
+          "answer-files"
+        ],
+        "summary": "Сохранить список QR-медиа ответа (вид, подпись, место в тексте, добавленный файл или удаление карточки)",
+        "parameters": [
+          {
+            "name": "bookId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "questionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnswerMediaSaveBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnswerMediaState"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
+    },
+    "/api/v1/books/{bookId}/questions/{questionId}/media/link": {
+      "post": {
+        "operationId": "answerMediaAddLink",
+        "tags": [
+          "answer-files"
+        ],
+        "summary": "Добавить ссылку (YouTube, музыка, др.) по QR в ответ: разбор URL и название YouTube (oEmbed) на сервере",
+        "parameters": [
+          {
+            "name": "bookId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "questionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnswerMediaLinkBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnswerMediaState"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
+    },
+    "/api/v1/books/{bookId}/files": {
+      "post": {
+        "operationId": "answerFileStart",
+        "tags": [
+          "answer-files"
+        ],
+        "summary": "Начать загрузку своего видео или аудио: проверка типа, размера, лимита минут и резервирование исходника",
+        "parameters": [
+          {
+            "name": "bookId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnswerFileStartBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnswerFileStarted"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
+    },
+    "/api/v1/books/{bookId}/files/{fileId}": {
+      "get": {
+        "operationId": "answerFileStatus",
+        "tags": [
+          "answer-files"
+        ],
+        "summary": "Состояние своего файла (опрос во время обработки или докачки) и актуальная квота минут книги",
+        "parameters": [
+          {
+            "name": "bookId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "fileId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnswerFileStatusResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      },
+      "delete": {
+        "operationId": "answerFileDelete",
+        "tags": [
+          "answer-files"
+        ],
+        "summary": "Удалить свой видео/аудио файл (или отменить незавершённую загрузку)",
+        "parameters": [
+          {
+            "name": "bookId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "fileId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
+    },
+    "/api/v1/books/{bookId}/files/{fileId}/chunk": {
+      "put": {
+        "operationId": "answerFileChunk",
+        "tags": [
+          "answer-files"
+        ],
+        "summary": "Загрузить кусок исходного файла по смещению ?offset= (multipart, поле chunk)",
+        "parameters": [
+          {
+            "name": "bookId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "fileId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "chunk": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    }
+                  }
+                },
+                "required": [
+                  "chunk"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnswerFileChunkResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
+    },
+    "/api/v1/books/{bookId}/files/{fileId}/finish": {
+      "post": {
+        "operationId": "answerFileFinish",
+        "tags": [
+          "answer-files"
+        ],
+        "summary": "Завершить загрузку файла и поставить его в очередь обработки (ffmpeg)",
+        "parameters": [
+          {
+            "name": "bookId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "fileId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnswerFileStatusResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
+    },
+    "/api/v1/books/{bookId}/files/packs": {
+      "post": {
+        "operationId": "answerFilePackBuy",
+        "tags": [
+          "answer-files"
+        ],
+        "summary": "Оформить покупку пакета дополнительных минут для книги (цены каталога + данные Kaspi Pay)",
+        "parameters": [
+          {
+            "name": "bookId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnswerFilePackBuyBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnswerFilePackPurchase"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
+    },
+    "/api/v1/books/{bookId}/files/packs/{purchaseId}/kaspi": {
+      "post": {
+        "operationId": "answerFilePackKaspi",
+        "tags": [
+          "answer-files"
+        ],
+        "summary": "Выставить счёт Kaspi Pay или QR для оплаты пакета минут",
+        "parameters": [
+          {
+            "name": "bookId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "purchaseId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KaspiPayBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KaspiInvoiceResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
+    },
+    "/api/v1/books/{bookId}/files/packs/{purchaseId}/kaspi/{invoiceId}": {
+      "get": {
+        "operationId": "answerFilePackKaspiStatus",
+        "tags": [
+          "answer-files"
+        ],
+        "summary": "Проверить статус оплаты счёта Kaspi за пакет минут (и получить обновлённую квоту)",
+        "parameters": [
+          {
+            "name": "bookId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "purchaseId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "invoiceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnswerFilePackKaspiStatus"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
     }
   },
   "components": {
@@ -34920,6 +35582,1006 @@
         },
         "required": [
           "status"
+        ],
+        "additionalProperties": false
+      },
+      "AnswerFileState": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "token": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "video",
+              "audio"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "uploading",
+              "queued",
+              "processing",
+              "ready",
+              "failed",
+              "gone"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "durationSec": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "durationLabel": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sourceBytes": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "receivedBytes": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "statusLabel": {
+            "type": "string"
+          },
+          "errorText": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "poster": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "playbackUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "downloadUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "token",
+          "url",
+          "kind",
+          "status",
+          "name",
+          "durationSec",
+          "durationLabel",
+          "sourceBytes",
+          "receivedBytes",
+          "error",
+          "statusLabel",
+          "errorText",
+          "poster",
+          "playbackUrl",
+          "downloadUrl"
+        ],
+        "additionalProperties": false
+      },
+      "AnswerMediaEntry": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "video",
+              "music",
+              "audio"
+            ]
+          },
+          "url": {
+            "type": "string"
+          },
+          "fileId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "anchor": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source": {
+            "type": "string"
+          },
+          "qrSvg": {
+            "type": "string"
+          },
+          "thumbUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "playbackUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "file": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AnswerFileState"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "url",
+          "fileId",
+          "title",
+          "anchor",
+          "source",
+          "qrSvg",
+          "thumbUrl",
+          "playbackUrl",
+          "file"
+        ],
+        "additionalProperties": false
+      },
+      "AnswerFileQuota": {
+        "type": "object",
+        "properties": {
+          "minutes": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "usedSec": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "leftSec": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "files": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "maxFiles": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "full": {
+            "type": "boolean"
+          },
+          "statusText": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "minutes",
+          "usedSec",
+          "leftSec",
+          "files",
+          "maxFiles",
+          "full",
+          "statusText"
+        ],
+        "additionalProperties": false
+      },
+      "AnswerMediaPack": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "minutes": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "price": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "featured": {
+            "type": "boolean"
+          },
+          "minutesLabel": {
+            "type": "string"
+          },
+          "priceLabel": {
+            "type": "string"
+          },
+          "perMinuteLabel": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "minutes",
+          "price",
+          "featured",
+          "minutesLabel",
+          "priceLabel",
+          "perMinuteLabel"
+        ],
+        "additionalProperties": false
+      },
+      "AnswerMediaPosition": {
+        "type": "object",
+        "properties": {
+          "anchor": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "anchor",
+          "label"
+        ],
+        "additionalProperties": false
+      },
+      "AnswerMediaLimits": {
+        "type": "object",
+        "properties": {
+          "maxMedia": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "titleMax": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "urlMax": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "chunkBytes": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "maxSourceBytes": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "maxVideoSec": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "maxAudioSec": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "maxFilesPerBook": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "pollIntervalMs": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "kaspiPollIntervalMs": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "maxRetries": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "videoExtensions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "audioExtensions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "maxMedia",
+          "titleMax",
+          "urlMax",
+          "chunkBytes",
+          "maxSourceBytes",
+          "maxVideoSec",
+          "maxAudioSec",
+          "maxFilesPerBook",
+          "pollIntervalMs",
+          "kaspiPollIntervalMs",
+          "maxRetries",
+          "videoExtensions",
+          "audioExtensions"
+        ],
+        "additionalProperties": false
+      },
+      "AnswerMediaLabels": {
+        "type": "object",
+        "properties": {
+          "add": {
+            "type": "string"
+          },
+          "addTitle": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "intro": {
+            "type": "string"
+          },
+          "howTo": {
+            "type": "string"
+          },
+          "urlLabel": {
+            "type": "string"
+          },
+          "urlPlaceholder": {
+            "type": "string"
+          },
+          "submit": {
+            "type": "string"
+          },
+          "cancel": {
+            "type": "string"
+          },
+          "badUrl": {
+            "type": "string"
+          },
+          "limitReached": {
+            "type": "string"
+          },
+          "duplicate": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "kinds": {
+            "type": "object",
+            "properties": {
+              "video": {
+                "type": "string"
+              },
+              "music": {
+                "type": "string"
+              },
+              "audio": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "video",
+              "music",
+              "audio"
+            ],
+            "additionalProperties": false
+          },
+          "caption": {
+            "type": "string"
+          },
+          "captionPlaceholder": {
+            "type": "object",
+            "properties": {
+              "video": {
+                "type": "string"
+              },
+              "music": {
+                "type": "string"
+              },
+              "audio": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "video",
+              "music",
+              "audio"
+            ],
+            "additionalProperties": false
+          },
+          "place": {
+            "type": "string"
+          },
+          "open": {
+            "type": "string"
+          },
+          "openFile": {
+            "type": "string"
+          },
+          "remove": {
+            "type": "string"
+          },
+          "printNote": {
+            "type": "string"
+          },
+          "upload": {
+            "type": "object",
+            "properties": {
+              "button": {
+                "type": "string"
+              },
+              "hint": {
+                "type": "string"
+              },
+              "orLink": {
+                "type": "string"
+              },
+              "reading": {
+                "type": "string"
+              },
+              "progressTemplate": {
+                "type": "string"
+              },
+              "keepOpen": {
+                "type": "string"
+              },
+              "retrying": {
+                "type": "string"
+              },
+              "stop": {
+                "type": "string"
+              },
+              "retry": {
+                "type": "string"
+              },
+              "notMedia": {
+                "type": "string"
+              },
+              "tooBig": {
+                "type": "string"
+              },
+              "tooLongVideo": {
+                "type": "string"
+              },
+              "tooLongAudio": {
+                "type": "string"
+              },
+              "needMinutes": {
+                "type": "string"
+              },
+              "more": {
+                "type": "string"
+              },
+              "featured": {
+                "type": "string"
+              },
+              "buy": {
+                "type": "string"
+              },
+              "payUnavailable": {
+                "type": "string"
+              },
+              "close": {
+                "type": "string"
+              },
+              "networkError": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "button",
+              "hint",
+              "orLink",
+              "reading",
+              "progressTemplate",
+              "keepOpen",
+              "retrying",
+              "stop",
+              "retry",
+              "notMedia",
+              "tooBig",
+              "tooLongVideo",
+              "tooLongAudio",
+              "needMinutes",
+              "more",
+              "featured",
+              "buy",
+              "payUnavailable",
+              "close",
+              "networkError"
+            ],
+            "additionalProperties": false
+          },
+          "file": {
+            "type": "object",
+            "properties": {
+              "queued": {
+                "type": "string"
+              },
+              "processing": {
+                "type": "string"
+              },
+              "wait": {
+                "type": "string"
+              },
+              "reupload": {
+                "type": "string"
+              },
+              "removeConfirm": {
+                "type": "string"
+              },
+              "removeYes": {
+                "type": "string"
+              },
+              "removeNo": {
+                "type": "string"
+              },
+              "gone": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "queued",
+              "processing",
+              "wait",
+              "reupload",
+              "removeConfirm",
+              "removeYes",
+              "removeNo",
+              "gone"
+            ],
+            "additionalProperties": false
+          },
+          "kaspi": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "phoneLabel": {
+                "type": "string"
+              },
+              "invoiceNote": {
+                "type": "string"
+              },
+              "sendInvoice": {
+                "type": "string"
+              },
+              "payByQr": {
+                "type": "string"
+              },
+              "sentSteps": {
+                "type": "string"
+              },
+              "scanQr": {
+                "type": "string"
+              },
+              "openKaspi": {
+                "type": "string"
+              },
+              "waiting": {
+                "type": "string"
+              },
+              "paid": {
+                "type": "string"
+              },
+              "failed": {
+                "type": "string"
+              },
+              "cancelled": {
+                "type": "string"
+              },
+              "expired": {
+                "type": "string"
+              },
+              "again": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "title",
+              "phoneLabel",
+              "invoiceNote",
+              "sendInvoice",
+              "payByQr",
+              "sentSteps",
+              "scanQr",
+              "openKaspi",
+              "waiting",
+              "paid",
+              "failed",
+              "cancelled",
+              "expired",
+              "again"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "add",
+          "addTitle",
+          "title",
+          "intro",
+          "howTo",
+          "urlLabel",
+          "urlPlaceholder",
+          "submit",
+          "cancel",
+          "badUrl",
+          "limitReached",
+          "duplicate",
+          "kind",
+          "kinds",
+          "caption",
+          "captionPlaceholder",
+          "place",
+          "open",
+          "openFile",
+          "remove",
+          "printNote",
+          "upload",
+          "file",
+          "kaspi"
+        ],
+        "additionalProperties": false
+      },
+      "AnswerMediaState": {
+        "type": "object",
+        "properties": {
+          "editable": {
+            "type": "boolean"
+          },
+          "media": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnswerMediaEntry"
+            }
+          },
+          "quota": {
+            "$ref": "#/components/schemas/AnswerFileQuota"
+          },
+          "packs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnswerMediaPack"
+            }
+          },
+          "positions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnswerMediaPosition"
+            }
+          },
+          "limits": {
+            "$ref": "#/components/schemas/AnswerMediaLimits"
+          },
+          "labels": {
+            "$ref": "#/components/schemas/AnswerMediaLabels"
+          }
+        },
+        "required": [
+          "editable",
+          "media",
+          "quota",
+          "packs",
+          "positions",
+          "limits",
+          "labels"
+        ],
+        "additionalProperties": false
+      },
+      "AnswerFileStartBody": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483648
+          },
+          "type": {
+            "default": "",
+            "type": "string",
+            "maxLength": 200
+          },
+          "durationSec": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 86400
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "size",
+          "type",
+          "durationSec"
+        ],
+        "additionalProperties": false
+      },
+      "AnswerFileStarted": {
+        "type": "object",
+        "properties": {
+          "file": {
+            "$ref": "#/components/schemas/AnswerFileState"
+          },
+          "chunkBytes": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "file",
+          "chunkBytes"
+        ],
+        "additionalProperties": false
+      },
+      "AnswerFileStatusResult": {
+        "type": "object",
+        "properties": {
+          "file": {
+            "$ref": "#/components/schemas/AnswerFileState"
+          },
+          "quota": {
+            "$ref": "#/components/schemas/AnswerFileQuota"
+          }
+        },
+        "required": [
+          "file",
+          "quota"
+        ],
+        "additionalProperties": false
+      },
+      "AnswerFileChunkResult": {
+        "type": "object",
+        "properties": {
+          "received": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "received"
+        ],
+        "additionalProperties": false
+      },
+      "AnswerMediaSaveBody": {
+        "type": "object",
+        "properties": {
+          "media": {
+            "maxItems": 8,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnswerMedia"
+            }
+          }
+        },
+        "required": [
+          "media"
+        ],
+        "additionalProperties": false
+      },
+      "AnswerMediaLinkBody": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1200
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "additionalProperties": false
+      },
+      "AnswerFilePackBuyBody": {
+        "type": "object",
+        "properties": {
+          "packId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20
+          }
+        },
+        "required": [
+          "packId"
+        ],
+        "additionalProperties": false
+      },
+      "AnswerFilePackPurchase": {
+        "type": "object",
+        "properties": {
+          "purchase": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "number": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "minutes": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "amount": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "amountLabel": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "note": {
+                "type": "string"
+              },
+              "paidToast": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "number",
+              "minutes",
+              "amount",
+              "amountLabel",
+              "title",
+              "note",
+              "paidToast"
+            ],
+            "additionalProperties": false
+          },
+          "kaspi": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "defaultPhone": {
+                    "type": "string"
+                  },
+                  "current": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/KaspiInvoice"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "defaultPhone",
+                  "current"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "purchase",
+          "kaspi"
+        ],
+        "additionalProperties": false
+      },
+      "AnswerFilePackKaspiStatus": {
+        "type": "object",
+        "properties": {
+          "invoice": {
+            "$ref": "#/components/schemas/KaspiInvoice"
+          },
+          "quota": {
+            "$ref": "#/components/schemas/AnswerFileQuota"
+          }
+        },
+        "required": [
+          "invoice",
+          "quota"
         ],
         "additionalProperties": false
       }

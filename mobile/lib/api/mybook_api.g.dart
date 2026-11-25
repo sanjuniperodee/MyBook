@@ -1531,6 +1531,72 @@ class MybookApi {
     final json = await _send('GET', '/api/v1/tasks/calendar', query: {'from': '${from}', 'to': '${to}', if (boardId != null) 'boardId': '${boardId}', if (mine != null) 'mine': '${mine}'});
     return CardList.fromJson(json as Map<String, dynamic>);
   }
+
+  /// Свои видео, аудио и ссылки по QR для ответа: карточки, QR SVG, квота минут, пакеты, подписи и лимиты
+  Future<AnswerMediaState> answerMediaGet({required String bookId, required String questionId}) async {
+    final json = await _send('GET', '/api/v1/books/${Uri.encodeComponent('$bookId')}/questions/${Uri.encodeComponent('$questionId')}/media');
+    return AnswerMediaState.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Сохранить список QR-медиа ответа (вид, подпись, место в тексте, добавленный файл или удаление карточки)
+  Future<AnswerMediaState> answerMediaSave({required String bookId, required String questionId, required AnswerMediaSaveBody body}) async {
+    final json = await _send('PUT', '/api/v1/books/${Uri.encodeComponent('$bookId')}/questions/${Uri.encodeComponent('$questionId')}/media', body: body.toJson());
+    return AnswerMediaState.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Добавить ссылку (YouTube, музыка, др.) по QR в ответ: разбор URL и название YouTube (oEmbed) на сервере
+  Future<AnswerMediaState> answerMediaAddLink({required String bookId, required String questionId, required AnswerMediaLinkBody body}) async {
+    final json = await _send('POST', '/api/v1/books/${Uri.encodeComponent('$bookId')}/questions/${Uri.encodeComponent('$questionId')}/media/link', body: body.toJson());
+    return AnswerMediaState.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Начать загрузку своего видео или аудио: проверка типа, размера, лимита минут и резервирование исходника
+  Future<AnswerFileStarted> answerFileStart({required String bookId, required AnswerFileStartBody body}) async {
+    final json = await _send('POST', '/api/v1/books/${Uri.encodeComponent('$bookId')}/files', body: body.toJson());
+    return AnswerFileStarted.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Состояние своего файла (опрос во время обработки или докачки) и актуальная квота минут книги
+  Future<AnswerFileStatusResult> answerFileStatus({required String bookId, required String fileId}) async {
+    final json = await _send('GET', '/api/v1/books/${Uri.encodeComponent('$bookId')}/files/${Uri.encodeComponent('$fileId')}');
+    return AnswerFileStatusResult.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Удалить свой видео/аудио файл (или отменить незавершённую загрузку)
+  Future<Ok> answerFileDelete({required String bookId, required String fileId}) async {
+    final json = await _send('DELETE', '/api/v1/books/${Uri.encodeComponent('$bookId')}/files/${Uri.encodeComponent('$fileId')}');
+    return Ok.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Загрузить кусок исходного файла по смещению ?offset= (multipart, поле chunk)
+  Future<AnswerFileChunkResult> answerFileChunk({required String bookId, required String fileId, required int offset, required List<http.MultipartFile> files}) async {
+    final json = await _sendFiles('PUT', '/api/v1/books/${Uri.encodeComponent('$bookId')}/files/${Uri.encodeComponent('$fileId')}/chunk', 'chunk', files, query: {'offset': '${offset}'});
+    return AnswerFileChunkResult.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Завершить загрузку файла и поставить его в очередь обработки (ffmpeg)
+  Future<AnswerFileStatusResult> answerFileFinish({required String bookId, required String fileId}) async {
+    final json = await _send('POST', '/api/v1/books/${Uri.encodeComponent('$bookId')}/files/${Uri.encodeComponent('$fileId')}/finish');
+    return AnswerFileStatusResult.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Оформить покупку пакета дополнительных минут для книги (цены каталога + данные Kaspi Pay)
+  Future<AnswerFilePackPurchase> answerFilePackBuy({required String bookId, required AnswerFilePackBuyBody body}) async {
+    final json = await _send('POST', '/api/v1/books/${Uri.encodeComponent('$bookId')}/files/packs', body: body.toJson());
+    return AnswerFilePackPurchase.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Выставить счёт Kaspi Pay или QR для оплаты пакета минут
+  Future<KaspiInvoiceResult> answerFilePackKaspi({required String bookId, required String purchaseId, required KaspiPayBody body}) async {
+    final json = await _send('POST', '/api/v1/books/${Uri.encodeComponent('$bookId')}/files/packs/${Uri.encodeComponent('$purchaseId')}/kaspi', body: body.toJson());
+    return KaspiInvoiceResult.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Проверить статус оплаты счёта Kaspi за пакет минут (и получить обновлённую квоту)
+  Future<AnswerFilePackKaspiStatus> answerFilePackKaspiStatus({required String bookId, required String purchaseId, required String invoiceId}) async {
+    final json = await _send('GET', '/api/v1/books/${Uri.encodeComponent('$bookId')}/files/packs/${Uri.encodeComponent('$purchaseId')}/kaspi/${Uri.encodeComponent('$invoiceId')}');
+    return AnswerFilePackKaspiStatus.fromJson(json as Map<String, dynamic>);
+  }
 }
 
 class ApiError {
@@ -10275,4 +10341,384 @@ class CrmOrderStatusBody {
   factory CrmOrderStatusBody.fromJson(Map<String, dynamic> json) => CrmOrderStatusBody(status: json['status'] as String);
 
   Map<String, dynamic> toJson() => {'status': status};
+}
+
+class AnswerFileState {
+  final String id;
+  final String token;
+  final String url;
+  /// video | audio
+  final String kind;
+  /// uploading | queued | processing | ready | failed | gone
+  final String status;
+  final String name;
+  final int? durationSec;
+  final String? durationLabel;
+  final int sourceBytes;
+  final int receivedBytes;
+  final String? error;
+  final String statusLabel;
+  final String? errorText;
+  final String? poster;
+  final String? playbackUrl;
+  final String? downloadUrl;
+
+  const AnswerFileState({required this.id, required this.token, required this.url, required this.kind, required this.status, required this.name, this.durationSec, this.durationLabel, required this.sourceBytes, required this.receivedBytes, this.error, required this.statusLabel, this.errorText, this.poster, this.playbackUrl, this.downloadUrl});
+
+  factory AnswerFileState.fromJson(Map<String, dynamic> json) => AnswerFileState(id: json['id'] as String, token: json['token'] as String, url: json['url'] as String, kind: json['kind'] as String, status: json['status'] as String, name: json['name'] as String, durationSec: json['durationSec'] == null ? null : (json['durationSec'] as num).toInt(), durationLabel: json['durationLabel'] == null ? null : json['durationLabel'] as String, sourceBytes: (json['sourceBytes'] as num).toInt(), receivedBytes: (json['receivedBytes'] as num).toInt(), error: json['error'] == null ? null : json['error'] as String, statusLabel: json['statusLabel'] as String, errorText: json['errorText'] == null ? null : json['errorText'] as String, poster: json['poster'] == null ? null : json['poster'] as String, playbackUrl: json['playbackUrl'] == null ? null : json['playbackUrl'] as String, downloadUrl: json['downloadUrl'] == null ? null : json['downloadUrl'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'token': token, 'url': url, 'kind': kind, 'status': status, 'name': name, 'durationSec': durationSec, 'durationLabel': durationLabel, 'sourceBytes': sourceBytes, 'receivedBytes': receivedBytes, 'error': error, 'statusLabel': statusLabel, 'errorText': errorText, 'poster': poster, 'playbackUrl': playbackUrl, 'downloadUrl': downloadUrl};
+}
+
+class AnswerMediaEntry {
+  final String id;
+  /// video | music | audio
+  final String kind;
+  final String url;
+  final String? fileId;
+  final String title;
+  final int? anchor;
+  final String source;
+  final String qrSvg;
+  final String? thumbUrl;
+  final String? playbackUrl;
+  final AnswerFileState? file;
+
+  const AnswerMediaEntry({required this.id, required this.kind, required this.url, this.fileId, required this.title, this.anchor, required this.source, required this.qrSvg, this.thumbUrl, this.playbackUrl, this.file});
+
+  factory AnswerMediaEntry.fromJson(Map<String, dynamic> json) => AnswerMediaEntry(id: json['id'] as String, kind: json['kind'] as String, url: json['url'] as String, fileId: json['fileId'] == null ? null : json['fileId'] as String, title: json['title'] as String, anchor: json['anchor'] == null ? null : (json['anchor'] as num).toInt(), source: json['source'] as String, qrSvg: json['qrSvg'] as String, thumbUrl: json['thumbUrl'] == null ? null : json['thumbUrl'] as String, playbackUrl: json['playbackUrl'] == null ? null : json['playbackUrl'] as String, file: json['file'] == null ? null : AnswerFileState.fromJson(json['file'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'id': id, 'kind': kind, 'url': url, 'fileId': fileId, 'title': title, 'anchor': anchor, 'source': source, 'qrSvg': qrSvg, 'thumbUrl': thumbUrl, 'playbackUrl': playbackUrl, 'file': file == null ? null : file!.toJson()};
+}
+
+class AnswerFileQuota {
+  final int minutes;
+  final int usedSec;
+  final int leftSec;
+  final int files;
+  final int maxFiles;
+  final bool full;
+  final String statusText;
+
+  const AnswerFileQuota({required this.minutes, required this.usedSec, required this.leftSec, required this.files, required this.maxFiles, required this.full, required this.statusText});
+
+  factory AnswerFileQuota.fromJson(Map<String, dynamic> json) => AnswerFileQuota(minutes: (json['minutes'] as num).toInt(), usedSec: (json['usedSec'] as num).toInt(), leftSec: (json['leftSec'] as num).toInt(), files: (json['files'] as num).toInt(), maxFiles: (json['maxFiles'] as num).toInt(), full: json['full'] as bool, statusText: json['statusText'] as String);
+
+  Map<String, dynamic> toJson() => {'minutes': minutes, 'usedSec': usedSec, 'leftSec': leftSec, 'files': files, 'maxFiles': maxFiles, 'full': full, 'statusText': statusText};
+}
+
+class AnswerMediaPack {
+  final String id;
+  final int minutes;
+  final int price;
+  final bool featured;
+  final String minutesLabel;
+  final String priceLabel;
+  final String perMinuteLabel;
+
+  const AnswerMediaPack({required this.id, required this.minutes, required this.price, required this.featured, required this.minutesLabel, required this.priceLabel, required this.perMinuteLabel});
+
+  factory AnswerMediaPack.fromJson(Map<String, dynamic> json) => AnswerMediaPack(id: json['id'] as String, minutes: (json['minutes'] as num).toInt(), price: (json['price'] as num).toInt(), featured: json['featured'] as bool, minutesLabel: json['minutesLabel'] as String, priceLabel: json['priceLabel'] as String, perMinuteLabel: json['perMinuteLabel'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'minutes': minutes, 'price': price, 'featured': featured, 'minutesLabel': minutesLabel, 'priceLabel': priceLabel, 'perMinuteLabel': perMinuteLabel};
+}
+
+class AnswerMediaPosition {
+  final int? anchor;
+  final String label;
+
+  const AnswerMediaPosition({this.anchor, required this.label});
+
+  factory AnswerMediaPosition.fromJson(Map<String, dynamic> json) => AnswerMediaPosition(anchor: json['anchor'] == null ? null : (json['anchor'] as num).toInt(), label: json['label'] as String);
+
+  Map<String, dynamic> toJson() => {'anchor': anchor, 'label': label};
+}
+
+class AnswerMediaLimits {
+  final int maxMedia;
+  final int titleMax;
+  final int urlMax;
+  final int chunkBytes;
+  final int maxSourceBytes;
+  final int maxVideoSec;
+  final int maxAudioSec;
+  final int maxFilesPerBook;
+  final int pollIntervalMs;
+  final int kaspiPollIntervalMs;
+  final int maxRetries;
+  final List<String> videoExtensions;
+  final List<String> audioExtensions;
+
+  const AnswerMediaLimits({required this.maxMedia, required this.titleMax, required this.urlMax, required this.chunkBytes, required this.maxSourceBytes, required this.maxVideoSec, required this.maxAudioSec, required this.maxFilesPerBook, required this.pollIntervalMs, required this.kaspiPollIntervalMs, required this.maxRetries, required this.videoExtensions, required this.audioExtensions});
+
+  factory AnswerMediaLimits.fromJson(Map<String, dynamic> json) => AnswerMediaLimits(maxMedia: (json['maxMedia'] as num).toInt(), titleMax: (json['titleMax'] as num).toInt(), urlMax: (json['urlMax'] as num).toInt(), chunkBytes: (json['chunkBytes'] as num).toInt(), maxSourceBytes: (json['maxSourceBytes'] as num).toInt(), maxVideoSec: (json['maxVideoSec'] as num).toInt(), maxAudioSec: (json['maxAudioSec'] as num).toInt(), maxFilesPerBook: (json['maxFilesPerBook'] as num).toInt(), pollIntervalMs: (json['pollIntervalMs'] as num).toInt(), kaspiPollIntervalMs: (json['kaspiPollIntervalMs'] as num).toInt(), maxRetries: (json['maxRetries'] as num).toInt(), videoExtensions: (json['videoExtensions'] as List).map((e) => e as String).toList(), audioExtensions: (json['audioExtensions'] as List).map((e) => e as String).toList());
+
+  Map<String, dynamic> toJson() => {'maxMedia': maxMedia, 'titleMax': titleMax, 'urlMax': urlMax, 'chunkBytes': chunkBytes, 'maxSourceBytes': maxSourceBytes, 'maxVideoSec': maxVideoSec, 'maxAudioSec': maxAudioSec, 'maxFilesPerBook': maxFilesPerBook, 'pollIntervalMs': pollIntervalMs, 'kaspiPollIntervalMs': kaspiPollIntervalMs, 'maxRetries': maxRetries, 'videoExtensions': videoExtensions.map((e) => e).toList(), 'audioExtensions': audioExtensions.map((e) => e).toList()};
+}
+
+class AnswerMediaLabels {
+  final String add;
+  final String addTitle;
+  final String title;
+  final String intro;
+  final String howTo;
+  final String urlLabel;
+  final String urlPlaceholder;
+  final String submit;
+  final String cancel;
+  final String badUrl;
+  final String limitReached;
+  final String duplicate;
+  final String kind;
+  final AnswerMediaLabelsKinds kinds;
+  final String caption;
+  final AnswerMediaLabelsCaptionPlaceholder captionPlaceholder;
+  final String place;
+  final String open;
+  final String openFile;
+  final String remove;
+  final String printNote;
+  final AnswerMediaLabelsUpload upload;
+  final AnswerMediaLabelsFile file;
+  final AnswerMediaLabelsKaspi kaspi;
+
+  const AnswerMediaLabels({required this.add, required this.addTitle, required this.title, required this.intro, required this.howTo, required this.urlLabel, required this.urlPlaceholder, required this.submit, required this.cancel, required this.badUrl, required this.limitReached, required this.duplicate, required this.kind, required this.kinds, required this.caption, required this.captionPlaceholder, required this.place, required this.open, required this.openFile, required this.remove, required this.printNote, required this.upload, required this.file, required this.kaspi});
+
+  factory AnswerMediaLabels.fromJson(Map<String, dynamic> json) => AnswerMediaLabels(add: json['add'] as String, addTitle: json['addTitle'] as String, title: json['title'] as String, intro: json['intro'] as String, howTo: json['howTo'] as String, urlLabel: json['urlLabel'] as String, urlPlaceholder: json['urlPlaceholder'] as String, submit: json['submit'] as String, cancel: json['cancel'] as String, badUrl: json['badUrl'] as String, limitReached: json['limitReached'] as String, duplicate: json['duplicate'] as String, kind: json['kind'] as String, kinds: AnswerMediaLabelsKinds.fromJson(json['kinds'] as Map<String, dynamic>), caption: json['caption'] as String, captionPlaceholder: AnswerMediaLabelsCaptionPlaceholder.fromJson(json['captionPlaceholder'] as Map<String, dynamic>), place: json['place'] as String, open: json['open'] as String, openFile: json['openFile'] as String, remove: json['remove'] as String, printNote: json['printNote'] as String, upload: AnswerMediaLabelsUpload.fromJson(json['upload'] as Map<String, dynamic>), file: AnswerMediaLabelsFile.fromJson(json['file'] as Map<String, dynamic>), kaspi: AnswerMediaLabelsKaspi.fromJson(json['kaspi'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'add': add, 'addTitle': addTitle, 'title': title, 'intro': intro, 'howTo': howTo, 'urlLabel': urlLabel, 'urlPlaceholder': urlPlaceholder, 'submit': submit, 'cancel': cancel, 'badUrl': badUrl, 'limitReached': limitReached, 'duplicate': duplicate, 'kind': kind, 'kinds': kinds.toJson(), 'caption': caption, 'captionPlaceholder': captionPlaceholder.toJson(), 'place': place, 'open': open, 'openFile': openFile, 'remove': remove, 'printNote': printNote, 'upload': upload.toJson(), 'file': file.toJson(), 'kaspi': kaspi.toJson()};
+}
+
+class AnswerMediaLabelsKinds {
+  final String video;
+  final String music;
+  final String audio;
+
+  const AnswerMediaLabelsKinds({required this.video, required this.music, required this.audio});
+
+  factory AnswerMediaLabelsKinds.fromJson(Map<String, dynamic> json) => AnswerMediaLabelsKinds(video: json['video'] as String, music: json['music'] as String, audio: json['audio'] as String);
+
+  Map<String, dynamic> toJson() => {'video': video, 'music': music, 'audio': audio};
+}
+
+class AnswerMediaLabelsCaptionPlaceholder {
+  final String video;
+  final String music;
+  final String audio;
+
+  const AnswerMediaLabelsCaptionPlaceholder({required this.video, required this.music, required this.audio});
+
+  factory AnswerMediaLabelsCaptionPlaceholder.fromJson(Map<String, dynamic> json) => AnswerMediaLabelsCaptionPlaceholder(video: json['video'] as String, music: json['music'] as String, audio: json['audio'] as String);
+
+  Map<String, dynamic> toJson() => {'video': video, 'music': music, 'audio': audio};
+}
+
+class AnswerMediaLabelsUpload {
+  final String button;
+  final String hint;
+  final String orLink;
+  final String reading;
+  final String progressTemplate;
+  final String keepOpen;
+  final String retrying;
+  final String stop;
+  final String retry;
+  final String notMedia;
+  final String tooBig;
+  final String tooLongVideo;
+  final String tooLongAudio;
+  final String needMinutes;
+  final String more;
+  final String featured;
+  final String buy;
+  final String payUnavailable;
+  final String close;
+  final String networkError;
+
+  const AnswerMediaLabelsUpload({required this.button, required this.hint, required this.orLink, required this.reading, required this.progressTemplate, required this.keepOpen, required this.retrying, required this.stop, required this.retry, required this.notMedia, required this.tooBig, required this.tooLongVideo, required this.tooLongAudio, required this.needMinutes, required this.more, required this.featured, required this.buy, required this.payUnavailable, required this.close, required this.networkError});
+
+  factory AnswerMediaLabelsUpload.fromJson(Map<String, dynamic> json) => AnswerMediaLabelsUpload(button: json['button'] as String, hint: json['hint'] as String, orLink: json['orLink'] as String, reading: json['reading'] as String, progressTemplate: json['progressTemplate'] as String, keepOpen: json['keepOpen'] as String, retrying: json['retrying'] as String, stop: json['stop'] as String, retry: json['retry'] as String, notMedia: json['notMedia'] as String, tooBig: json['tooBig'] as String, tooLongVideo: json['tooLongVideo'] as String, tooLongAudio: json['tooLongAudio'] as String, needMinutes: json['needMinutes'] as String, more: json['more'] as String, featured: json['featured'] as String, buy: json['buy'] as String, payUnavailable: json['payUnavailable'] as String, close: json['close'] as String, networkError: json['networkError'] as String);
+
+  Map<String, dynamic> toJson() => {'button': button, 'hint': hint, 'orLink': orLink, 'reading': reading, 'progressTemplate': progressTemplate, 'keepOpen': keepOpen, 'retrying': retrying, 'stop': stop, 'retry': retry, 'notMedia': notMedia, 'tooBig': tooBig, 'tooLongVideo': tooLongVideo, 'tooLongAudio': tooLongAudio, 'needMinutes': needMinutes, 'more': more, 'featured': featured, 'buy': buy, 'payUnavailable': payUnavailable, 'close': close, 'networkError': networkError};
+}
+
+class AnswerMediaLabelsFile {
+  final String queued;
+  final String processing;
+  final String wait;
+  final String reupload;
+  final String removeConfirm;
+  final String removeYes;
+  final String removeNo;
+  final String gone;
+
+  const AnswerMediaLabelsFile({required this.queued, required this.processing, required this.wait, required this.reupload, required this.removeConfirm, required this.removeYes, required this.removeNo, required this.gone});
+
+  factory AnswerMediaLabelsFile.fromJson(Map<String, dynamic> json) => AnswerMediaLabelsFile(queued: json['queued'] as String, processing: json['processing'] as String, wait: json['wait'] as String, reupload: json['reupload'] as String, removeConfirm: json['removeConfirm'] as String, removeYes: json['removeYes'] as String, removeNo: json['removeNo'] as String, gone: json['gone'] as String);
+
+  Map<String, dynamic> toJson() => {'queued': queued, 'processing': processing, 'wait': wait, 'reupload': reupload, 'removeConfirm': removeConfirm, 'removeYes': removeYes, 'removeNo': removeNo, 'gone': gone};
+}
+
+class AnswerMediaLabelsKaspi {
+  final String title;
+  final String phoneLabel;
+  final String invoiceNote;
+  final String sendInvoice;
+  final String payByQr;
+  final String sentSteps;
+  final String scanQr;
+  final String openKaspi;
+  final String waiting;
+  final String paid;
+  final String failed;
+  final String cancelled;
+  final String expired;
+  final String again;
+
+  const AnswerMediaLabelsKaspi({required this.title, required this.phoneLabel, required this.invoiceNote, required this.sendInvoice, required this.payByQr, required this.sentSteps, required this.scanQr, required this.openKaspi, required this.waiting, required this.paid, required this.failed, required this.cancelled, required this.expired, required this.again});
+
+  factory AnswerMediaLabelsKaspi.fromJson(Map<String, dynamic> json) => AnswerMediaLabelsKaspi(title: json['title'] as String, phoneLabel: json['phoneLabel'] as String, invoiceNote: json['invoiceNote'] as String, sendInvoice: json['sendInvoice'] as String, payByQr: json['payByQr'] as String, sentSteps: json['sentSteps'] as String, scanQr: json['scanQr'] as String, openKaspi: json['openKaspi'] as String, waiting: json['waiting'] as String, paid: json['paid'] as String, failed: json['failed'] as String, cancelled: json['cancelled'] as String, expired: json['expired'] as String, again: json['again'] as String);
+
+  Map<String, dynamic> toJson() => {'title': title, 'phoneLabel': phoneLabel, 'invoiceNote': invoiceNote, 'sendInvoice': sendInvoice, 'payByQr': payByQr, 'sentSteps': sentSteps, 'scanQr': scanQr, 'openKaspi': openKaspi, 'waiting': waiting, 'paid': paid, 'failed': failed, 'cancelled': cancelled, 'expired': expired, 'again': again};
+}
+
+class AnswerMediaState {
+  final bool editable;
+  final List<AnswerMediaEntry> media;
+  final AnswerFileQuota quota;
+  final List<AnswerMediaPack> packs;
+  final List<AnswerMediaPosition> positions;
+  final AnswerMediaLimits limits;
+  final AnswerMediaLabels labels;
+
+  const AnswerMediaState({required this.editable, required this.media, required this.quota, required this.packs, required this.positions, required this.limits, required this.labels});
+
+  factory AnswerMediaState.fromJson(Map<String, dynamic> json) => AnswerMediaState(editable: json['editable'] as bool, media: (json['media'] as List).map((e) => AnswerMediaEntry.fromJson(e as Map<String, dynamic>)).toList(), quota: AnswerFileQuota.fromJson(json['quota'] as Map<String, dynamic>), packs: (json['packs'] as List).map((e) => AnswerMediaPack.fromJson(e as Map<String, dynamic>)).toList(), positions: (json['positions'] as List).map((e) => AnswerMediaPosition.fromJson(e as Map<String, dynamic>)).toList(), limits: AnswerMediaLimits.fromJson(json['limits'] as Map<String, dynamic>), labels: AnswerMediaLabels.fromJson(json['labels'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'editable': editable, 'media': media.map((e) => e.toJson()).toList(), 'quota': quota.toJson(), 'packs': packs.map((e) => e.toJson()).toList(), 'positions': positions.map((e) => e.toJson()).toList(), 'limits': limits.toJson(), 'labels': labels.toJson()};
+}
+
+class AnswerFileStartBody {
+  final String name;
+  final int size;
+  final String type;
+  final double? durationSec;
+
+  const AnswerFileStartBody({required this.name, required this.size, required this.type, this.durationSec});
+
+  factory AnswerFileStartBody.fromJson(Map<String, dynamic> json) => AnswerFileStartBody(name: json['name'] as String, size: (json['size'] as num).toInt(), type: json['type'] as String, durationSec: json['durationSec'] == null ? null : (json['durationSec'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'name': name, 'size': size, 'type': type, 'durationSec': durationSec};
+}
+
+class AnswerFileStarted {
+  final AnswerFileState file;
+  final int chunkBytes;
+
+  const AnswerFileStarted({required this.file, required this.chunkBytes});
+
+  factory AnswerFileStarted.fromJson(Map<String, dynamic> json) => AnswerFileStarted(file: AnswerFileState.fromJson(json['file'] as Map<String, dynamic>), chunkBytes: (json['chunkBytes'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'file': file.toJson(), 'chunkBytes': chunkBytes};
+}
+
+class AnswerFileStatusResult {
+  final AnswerFileState file;
+  final AnswerFileQuota quota;
+
+  const AnswerFileStatusResult({required this.file, required this.quota});
+
+  factory AnswerFileStatusResult.fromJson(Map<String, dynamic> json) => AnswerFileStatusResult(file: AnswerFileState.fromJson(json['file'] as Map<String, dynamic>), quota: AnswerFileQuota.fromJson(json['quota'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'file': file.toJson(), 'quota': quota.toJson()};
+}
+
+class AnswerFileChunkResult {
+  final int received;
+
+  const AnswerFileChunkResult({required this.received});
+
+  factory AnswerFileChunkResult.fromJson(Map<String, dynamic> json) => AnswerFileChunkResult(received: (json['received'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'received': received};
+}
+
+class AnswerMediaSaveBody {
+  final List<AnswerMedia> media;
+
+  const AnswerMediaSaveBody({required this.media});
+
+  factory AnswerMediaSaveBody.fromJson(Map<String, dynamic> json) => AnswerMediaSaveBody(media: (json['media'] as List).map((e) => AnswerMedia.fromJson(e as Map<String, dynamic>)).toList());
+
+  Map<String, dynamic> toJson() => {'media': media.map((e) => e.toJson()).toList()};
+}
+
+class AnswerMediaLinkBody {
+  final String url;
+
+  const AnswerMediaLinkBody({required this.url});
+
+  factory AnswerMediaLinkBody.fromJson(Map<String, dynamic> json) => AnswerMediaLinkBody(url: json['url'] as String);
+
+  Map<String, dynamic> toJson() => {'url': url};
+}
+
+class AnswerFilePackBuyBody {
+  final String packId;
+
+  const AnswerFilePackBuyBody({required this.packId});
+
+  factory AnswerFilePackBuyBody.fromJson(Map<String, dynamic> json) => AnswerFilePackBuyBody(packId: json['packId'] as String);
+
+  Map<String, dynamic> toJson() => {'packId': packId};
+}
+
+class AnswerFilePackPurchase {
+  final AnswerFilePackPurchasePurchase purchase;
+  final AnswerFilePackPurchaseKaspi? kaspi;
+
+  const AnswerFilePackPurchase({required this.purchase, this.kaspi});
+
+  factory AnswerFilePackPurchase.fromJson(Map<String, dynamic> json) => AnswerFilePackPurchase(purchase: AnswerFilePackPurchasePurchase.fromJson(json['purchase'] as Map<String, dynamic>), kaspi: json['kaspi'] == null ? null : AnswerFilePackPurchaseKaspi.fromJson(json['kaspi'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'purchase': purchase.toJson(), 'kaspi': kaspi == null ? null : kaspi!.toJson()};
+}
+
+class AnswerFilePackPurchasePurchase {
+  final String id;
+  final int number;
+  final int minutes;
+  final int amount;
+  final String amountLabel;
+  final String title;
+  final String note;
+  final String paidToast;
+
+  const AnswerFilePackPurchasePurchase({required this.id, required this.number, required this.minutes, required this.amount, required this.amountLabel, required this.title, required this.note, required this.paidToast});
+
+  factory AnswerFilePackPurchasePurchase.fromJson(Map<String, dynamic> json) => AnswerFilePackPurchasePurchase(id: json['id'] as String, number: (json['number'] as num).toInt(), minutes: (json['minutes'] as num).toInt(), amount: (json['amount'] as num).toInt(), amountLabel: json['amountLabel'] as String, title: json['title'] as String, note: json['note'] as String, paidToast: json['paidToast'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'number': number, 'minutes': minutes, 'amount': amount, 'amountLabel': amountLabel, 'title': title, 'note': note, 'paidToast': paidToast};
+}
+
+class AnswerFilePackPurchaseKaspi {
+  final String defaultPhone;
+  final KaspiInvoice? current;
+
+  const AnswerFilePackPurchaseKaspi({required this.defaultPhone, this.current});
+
+  factory AnswerFilePackPurchaseKaspi.fromJson(Map<String, dynamic> json) => AnswerFilePackPurchaseKaspi(defaultPhone: json['defaultPhone'] as String, current: json['current'] == null ? null : KaspiInvoice.fromJson(json['current'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'defaultPhone': defaultPhone, 'current': current == null ? null : current!.toJson()};
+}
+
+class AnswerFilePackKaspiStatus {
+  final KaspiInvoice invoice;
+  final AnswerFileQuota quota;
+
+  const AnswerFilePackKaspiStatus({required this.invoice, required this.quota});
+
+  factory AnswerFilePackKaspiStatus.fromJson(Map<String, dynamic> json) => AnswerFilePackKaspiStatus(invoice: KaspiInvoice.fromJson(json['invoice'] as Map<String, dynamic>), quota: AnswerFileQuota.fromJson(json['quota'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'invoice': invoice.toJson(), 'quota': quota.toJson()};
 }
