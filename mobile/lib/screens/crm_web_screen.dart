@@ -7,10 +7,11 @@ import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
 
 import '../core/api.dart';
 import '../core/auth.dart';
+import '../core/v1.dart';
 import '../ui/kit.dart';
 import '../ui/tokens.dart';
 
-/// Сессия встроенного браузера: отдельный короткий токен (POST /api/mobile/web-session) — «Выйти» на сайте внутри
+/// Сессия встроенного браузера: отдельный короткий токен (POST /api/v1/auth/web-session) — «Выйти» на сайте внутри
 /// приложения не закрывает приложение. Один на запуск, пока не истёк.
 class _WebSession {
   static String? token;
@@ -21,11 +22,12 @@ class _WebSession {
     if (token != null &&
         server == api.baseUrl &&
         until != null &&
-        until!.isAfter(DateTime.now().add(const Duration(minutes: 5))))
+        until!.isAfter(DateTime.now().add(const Duration(minutes: 5)))) {
       return token!;
-    final r = await api.post('/api/mobile/web-session') as Map<String, dynamic>;
-    token = r['token'] as String;
-    until = DateTime.parse(r['expiresAt'] as String);
+    }
+    final r = await v1(api, (c) => c.authWebSession());
+    token = r.token;
+    until = DateTime.parse(r.expiresAt);
     server = api.baseUrl;
     return token!;
   }

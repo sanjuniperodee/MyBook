@@ -5,9 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
+import '../api/mybook_api.g.dart' as v1api;
 import '../core/api.dart';
 import '../core/auth.dart';
 import '../core/format.dart';
+import '../core/v1.dart';
 import '../models/work.dart';
 import '../ui/avatar.dart';
 import '../ui/kit.dart';
@@ -34,7 +36,22 @@ class _ClientsScreenState extends State<ClientsScreen> {
   String _q = '';
   String _sort = 'new';
   bool _mine = false;
+  String? _etag;
+  String? _etagKey;
   Timer? _debounce;
+
+  String get _key => '$_q|$_sort|$_mine';
+
+  static ClientRow _fromV1(v1api.CrmClientRow c) => ClientRow(
+    id: c.id,
+    name: c.name,
+    phone: c.phone,
+    ltv: c.ltv.toInt(),
+    orders: c.orders,
+    books: c.books,
+    lastSeenAt: c.lastSeenAt == null ? null : DateTime.parse(c.lastSeenAt!).toLocal(),
+    tags: c.tags,
+  );
 
   @override
   void initState() {
@@ -56,18 +73,35 @@ class _ClientsScreenState extends State<ClientsScreen> {
     if (_loading) return;
     _loading = true;
     final page = reset ? 1 : _page + 1;
+    final key = _key;
     try {
-      final r = await context.read<AuthState>().api.get('/api/mobile/clients', query: {'q': _q, 'sort': _sort, 'mine': _mine ? '1' : null, 'page': '$page'}) as Map<String, dynamic>;
-      if (!mounted) return;
-      final rows = [for (final c in (r['clients'] as List)) ClientRow.fromJson(c as Map<String, dynamic>)];
-      setState(() {
-        if (reset) _rows.clear();
-        _rows.addAll(rows);
-        _page = page;
-        _total = (r['total'] as num).toInt();
-        _loaded = true;
-        _error = null;
-      });
+      final api = context.read<AuthState>().api;
+      final r = await v1Cached(
+        api,
+        (c) => c.crmClientsList(q: _q.isEmpty ? null : _q, sort: _sort, mine: _mine ? '1' : null, page: page),
+        etag: reset && _loaded && key == _etagKey ? _etag : null,
+      );
+      if (!mounted || _key != key) {
+        _loading = false;
+        return;
+      }
+      if (reset) {
+        _etag = r.etag;
+        _etagKey = key;
+      }
+      if (!r.notModified && r.data != null) {
+        final rows = [for (final c in r.data!.clients) _fromV1(c)];
+        setState(() {
+          if (reset) _rows.clear();
+          _rows.addAll(rows);
+          _page = page;
+          _total = r.data!.total;
+          _loaded = true;
+          _error = null;
+        });
+      } else if (_error != null) {
+        setState(() => _error = null);
+      }
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     }

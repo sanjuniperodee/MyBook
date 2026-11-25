@@ -243,8 +243,8 @@ class ChatController extends ChangeNotifier {
       notifyListeners();
     }
     try {
-      final r = await api.get('/api/mobile/chats/$chatId') as Map<String, dynamic>;
-      detail = ChatDetail.fromJson(r);
+      final r = await v1(api, (c) => c.crmChatGet(chatId: chatId));
+      detail = ChatDetail.fromJson(r.toJson());
       _detailAt = DateTime.now();
       // Страница сервера — последние сообщения: всё, что новее самого старого в ней, сервер прислал целиком.
       final page = detail!.messages;
@@ -267,11 +267,10 @@ class ChatController extends ChangeNotifier {
   /// Живое обновление: только последние сообщения (новые, статусы доставки, правки), с ETag — без изменений сервер шлёт 304.
   Future<void> refresh() async {
     try {
-      final r = await api.getCached('/api/mobile/chats/$chatId/messages', query: {'limit': '40'}, etag: _etag);
+      final r = await v1Cached(api, (c) => c.crmChatMessages(chatId: chatId, limit: 40), etag: _etag);
       _etag = r.etag;
-      final data = r.data as Map<String, dynamic>?;
-      if (data == null) return;
-      final page = [for (final m in (data['messages'] as List)) Message.fromJson(m as Map<String, dynamic>)];
+      if (r.notModified || r.data == null) return;
+      final page = [for (final m in r.data!.messages) Message.fromJson(m.toJson())];
       if (_merge(page)) {
         _changed();
         _save();
@@ -289,9 +288,9 @@ class ChatController extends ChangeNotifier {
     loadingOlder = true;
     notifyListeners();
     try {
-      final r = await api.get('/api/mobile/chats/$chatId/messages', query: {'limit': '50', 'before': oldest.at.toUtc().toIso8601String()}) as Map<String, dynamic>;
-      _merge([for (final m in (r['messages'] as List)) Message.fromJson(m as Map<String, dynamic>)]);
-      more = r['more'] == true;
+      final r = await v1(api, (c) => c.crmChatMessages(chatId: chatId, limit: 50, before: oldest.at.toUtc().toIso8601String()));
+      _merge([for (final m in r.messages) Message.fromJson(m.toJson())]);
+      more = r.more;
     } on ApiException {
       // Повторим при следующей прокрутке.
     }

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
 /// Кэш на телефоне: последний ответ сервера по списку чатов и по каждому диалогу. Экран открывается сразу с ним, а свежие
@@ -12,6 +13,14 @@ class LocalCache {
   static String? _user;
   static Directory? _dir;
   static Future<void> _ready = Future.value();
+
+  /// Для тестов: задать временную папку кэша без вызова path_provider.
+  @visibleForTesting
+  static void setDirectoryForTest(Directory? dir) {
+    _user = dir?.path;
+    _dir = dir;
+    _ready = Future.value();
+  }
 
   /// Чей кэш: вызывается при входе (id сотрудника) и при выходе (null — стереть). Чтение и запись ждут, пока папка готова.
   static Future<void> setUser(String? userId) {

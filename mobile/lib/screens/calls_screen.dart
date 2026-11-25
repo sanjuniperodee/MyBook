@@ -6,6 +6,7 @@ import '../core/api.dart';
 import '../core/auth.dart';
 import '../core/contact_actions.dart';
 import '../core/format.dart';
+import '../core/v1.dart';
 import '../models/work.dart';
 import '../ui/avatar.dart';
 import '../ui/kit.dart';
@@ -23,6 +24,8 @@ class _CallsScreenState extends State<CallsScreen> {
   String _f = 'missed';
   List<CallItem>? _calls;
   String? _error;
+  String? _etag;
+  String? _etagFilter;
 
   @override
   void initState() {
@@ -31,13 +34,38 @@ class _CallsScreenState extends State<CallsScreen> {
   }
 
   Future<void> _load() async {
+    final filter = _f;
     try {
-      final r = await context.read<AuthState>().api.get('/api/mobile/calls', query: {'f': _f, 'days': '14'}) as Map<String, dynamic>;
-      if (!mounted) return;
-      setState(() {
-        _calls = [for (final c in (r['calls'] as List)) CallItem.fromJson(c as Map<String, dynamic>)];
-        _error = null;
-      });
+      final r = await v1Cached(
+        context.read<AuthState>().api,
+        (c) => c.crmCallsList(f: filter, days: 14),
+        etag: _calls != null && _etagFilter == filter ? _etag : null,
+      );
+      if (!mounted || _f != filter) return;
+      _etag = r.etag;
+      _etagFilter = filter;
+      if (!r.notModified && r.data != null) {
+        setState(() {
+          _calls = [
+            for (final c in r.data!.calls)
+              CallItem(
+                id: c.id,
+                direction: c.direction,
+                status: c.status,
+                at: DateTime.parse(c.at).toLocal(),
+                durationSec: c.durationSec ?? 0,
+                phone: c.phone,
+                name: c.name,
+                handled: c.handled,
+                dealId: c.dealId,
+                clientId: c.clientId,
+              ),
+          ];
+          _error = null;
+        });
+      } else if (_error != null) {
+        setState(() => _error = null);
+      }
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     }

@@ -5,6 +5,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../api/mybook_api.g.dart' as v1api;
 import '../core/api.dart';
 import '../core/auth.dart';
 import '../core/contact_actions.dart';
@@ -15,11 +16,11 @@ import '../models/work.dart';
 import '../ui/avatar.dart';
 import '../ui/kit.dart';
 import '../ui/tokens.dart';
+import 'client_edit_screen.dart';
 import 'deal_screen.dart';
 import 'deals_screen.dart' show hexColor;
 import 'new_deal_sheet.dart';
 import 'task_editor.dart';
-import 'client_edit_screen.dart';
 
 const _orderStatus = {'pending_payment': 'Ожидает оплаты', 'paid': 'Оплачен', 'in_production': 'В производстве', 'shipped': 'Отправлен', 'delivered': 'Доставлен', 'cancelled': 'Отменён'};
 const _bookStatus = {'draft': 'Пишется', 'ordered': 'Заказана'};
@@ -36,7 +37,7 @@ class ClientScreen extends StatefulWidget {
 }
 
 class _ClientScreenState extends State<ClientScreen> {
-  Map<String, dynamic>? _d;
+  v1api.CrmClientCard? _d;
   String? _error;
 
   @override
@@ -47,8 +48,13 @@ class _ClientScreenState extends State<ClientScreen> {
 
   Future<void> _load() async {
     try {
-      final r = await context.read<AuthState>().api.get('/api/mobile/clients/${widget.clientId}') as Map<String, dynamic>;
-      if (mounted) setState(() => _d = r);
+      final r = await v1(context.read<AuthState>().api, (c) => c.crmClientCard(clientId: widget.clientId));
+      if (mounted) {
+        setState(() {
+          _d = r;
+          _error = null;
+        });
+      }
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     }
@@ -123,14 +129,14 @@ class _ClientScreenState extends State<ClientScreen> {
               height: 52,
               child: Row(children: [
                 RoundIconButton(icon: LucideIcons.chevronLeft, size: 44, iconSize: 28, color: c.brandDeep, onTap: () => Navigator.of(context).maybePop()),
-                Expanded(child: Text(d?['name'] as String? ?? widget.title ?? 'Клиент', maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.headline(context))),
+                Expanded(child: Text(d?.name ?? widget.title ?? 'Клиент', maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.headline(context))),
                 // Номера, теги, свои поля, «Не писать первым», язык, канал, ответственный — экраном приложения (API v1).
                 RoundIconButton(icon: LucideIcons.pencil, size: 44, iconSize: 20, color: c.text, tooltip: 'Изменить клиента', onTap: () async {
                   final saved = await Navigator.of(context).push<bool>(MaterialPageRoute(builder: (_) => ClientEditScreen(clientId: widget.clientId)));
                   if (saved == true) _load();
                 }),
                 // Доступ в кабинет (новый пароль) и напоминание о книге — API v1 crmClientAccess / crmClientRemind.
-                RoundIconButton(icon: LucideIcons.ellipsis, size: 44, iconSize: 22, color: c.text, tooltip: 'Ещё', onTap: () => _more(d?['name'] as String? ?? 'Клиент')),
+                RoundIconButton(icon: LucideIcons.ellipsis, size: 44, iconSize: 22, color: c.text, tooltip: 'Ещё', onTap: () => _more(d?.name ?? 'Клиент')),
               ]),
             ),
           ),
@@ -144,22 +150,15 @@ class _ClientScreenState extends State<ClientScreen> {
     );
   }
 
-  Widget _body(BuildContext context, Map<String, dynamic> d) {
+  Widget _body(BuildContext context, v1api.CrmClientCard d) {
     final c = context.c;
     final staff = context.read<AuthState>().staff!;
-    final name = d['name'] as String? ?? '';
-    final phone = d['phone'] as String?;
-    final email = d['email'] as String?;
-    final tags = [for (final t in (d['tags'] as List? ?? const [])) t as String];
-    final money0 = (d['money'] as Map<String, dynamic>?) ?? const {};
-    num n(Object? v) => num.tryParse('${v ?? 0}') ?? 0;
-    final canWrite = d['canWrite'] == true;
+    final name = d.name;
+    final phone = d.phone;
+    final email = d.email;
+    final tags = d.tags;
+    final canWrite = d.canWrite;
     final target = TaskTarget(clientId: widget.clientId);
-    final deals = (d['deals'] as List).cast<Map<String, dynamic>>();
-    final orders = (d['orders'] as List).cast<Map<String, dynamic>>();
-    final books = (d['books'] as List).cast<Map<String, dynamic>>();
-    final tasks = (d['tasks'] as List).cast<Map<String, dynamic>>();
-    final notes = (d['notes'] as List).cast<Map<String, dynamic>>();
     final actions = <(IconData, String, VoidCallback)>[
       if (phone != null || staff.can('calls.make')) (LucideIcons.phone, 'Позвонить', () => ContactActions(context).call(phone: phone, target: target)),
       if (staff.can('chats.send')) (LucideIcons.messageCircle, 'Написать', () => ContactActions(context).chat(target: target)),
@@ -197,13 +196,13 @@ class _ClientScreenState extends State<ClientScreen> {
             if (tags.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 14), child: Wrap(spacing: 6, runSpacing: 6, children: [for (final t in tags) Tag(t, fg: c.brandDeep, bg: c.brand.withValues(alpha: 0.12))])),
             const SizedBox(height: 16),
             Row(children: [
-              _Stat(label: 'Куплено', value: money(n(money0['total']))),
+              _Stat(label: 'Куплено', value: money(d.money.total)),
               const SizedBox(width: 12),
-              _Stat(label: 'Заказов', value: '${orders.length}'),
+              _Stat(label: 'Заказов', value: '${d.orders.length}'),
               const SizedBox(width: 12),
-              _Stat(label: 'Книг', value: '${books.length}'),
+              _Stat(label: 'Книг', value: '${d.books.length}'),
             ]),
-            if (d['manager'] != null) Padding(padding: const EdgeInsets.only(top: 14), child: Row(children: [Icon(LucideIcons.user, size: 15, color: c.textFaint), const SizedBox(width: 6), Text('Ведёт: ${d['manager']}', style: AppText.caption(context).copyWith(fontSize: 13.5))])),
+            if (d.manager != null) Padding(padding: const EdgeInsets.only(top: 14), child: Row(children: [Icon(LucideIcons.user, size: 15, color: c.textFaint), const SizedBox(width: 6), Text('Ведёт: ${d.manager}', style: AppText.caption(context).copyWith(fontSize: 13.5))])),
           ]),
         ),
       ),
@@ -217,48 +216,62 @@ class _ClientScreenState extends State<ClientScreen> {
             ],
           ]),
         ),
-      if (deals.isNotEmpty)
+      if (d.deals.isNotEmpty)
         GroupCard(title: 'Сделки', children: [
-          for (final x in deals)
+          for (final x in d.deals)
             GroupTile(
               icon: LucideIcons.handshake,
-              iconColor: hexColor(((x['stage'] as Map)['color'] as String?) ?? '#888888'),
-              title: x['title'] as String? ?? '',
-              subtitle: '№${x['number']} · ${(x['stage'] as Map)['name']} · ${money(n(x['amount']))}',
-              onTap: () => Navigator.of(context).push(CupertinoPageRoute<void>(builder: (_) => DealScreen(dealId: x['id'] as String))),
+              iconColor: hexColor(x.stage.color.isEmpty ? '#888888' : x.stage.color),
+              title: x.title,
+              subtitle: '№${x.number} · ${x.stage.name} · ${money(x.amount)}',
+              onTap: () => Navigator.of(context).push(CupertinoPageRoute<void>(builder: (_) => DealScreen(dealId: x.id))),
             ),
         ]),
-      if (tasks.isNotEmpty)
+      if (d.tasks.isNotEmpty)
         GroupCard(title: 'Задачи', children: [
-          for (final t in tasks)
+          for (final t in d.tasks)
             GroupTile(
               icon: LucideIcons.squareCheck,
-              title: t['title'] as String? ?? '',
-              subtitle: t['dueAt'] == null ? null : dueLabel(DateTime.parse(t['dueAt'] as String).toLocal()),
+              title: t.title,
+              subtitle: t.dueAt == null ? null : dueLabel(DateTime.parse(t.dueAt!).toLocal()),
               trailing: IconButton(
                 icon: Icon(LucideIcons.circle, size: 24, color: c.textFaint),
                 onPressed: () async {
-                  await context.read<TasksStore>().toggle(CrmTask.fromJson({...t, 'id': t['id'], 'kind': 'task'}));
+                  await context.read<TasksStore>().toggle(
+                    CrmTask(
+                      id: t.id,
+                      title: t.title,
+                      kind: 'task',
+                      dueAt: t.dueAt == null ? null : DateTime.parse(t.dueAt!).toLocal(),
+                      overdue: false,
+                      done: false,
+                      remindBeforeMin: null,
+                      fromBot: false,
+                      editable: true,
+                      context: null,
+                      target: TaskTarget(),
+                    ),
+                  );
                   _load();
                 },
               ),
             ),
         ]),
-      if (orders.isNotEmpty)
+      if (d.orders.isNotEmpty)
         GroupCard(title: 'Заказы', children: [
-          for (final o in orders) GroupTile(icon: LucideIcons.package, title: 'Заказ №${o['number']}', subtitle: '${_orderStatus[o['status']] ?? o['status']} · ${_plan[o['plan']] ?? o['plan']}${n(o['amount']) > 0 ? ' · ${money(n(o['amount']))}' : ''}'),
+          for (final o in d.orders) GroupTile(icon: LucideIcons.package, title: 'Заказ №${o.number}', subtitle: '${_orderStatus[o.status] ?? o.status} · ${_plan[o.plan] ?? o.plan}${o.amount > 0 ? ' · ${money(o.amount)}' : ''}'),
         ]),
-      if (books.isNotEmpty)
+      if (d.books.isNotEmpty)
         GroupCard(title: 'Книги', children: [
-          for (final b in books) GroupTile(icon: LucideIcons.bookOpen, title: b['title'] as String? ?? 'Без названия', subtitle: '${_bookStatus[b['status']] ?? b['status']} · ответов ${b['answered']}/${b['total']}'),
+          for (final b in d.books) GroupTile(icon: LucideIcons.bookOpen, title: b.title.isEmpty ? 'Без названия' : b.title, subtitle: '${_bookStatus[b.status] ?? b.status} · ответов ${b.answered}/${b.total}'),
         ]),
-      if (notes.isNotEmpty)
+      if (d.notes.isNotEmpty)
         GroupCard(title: 'Заметки', children: [
-          for (final x in notes)
+          for (final x in d.notes)
             Padding(padding: const EdgeInsets.all(14), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(x['text'] as String? ?? '', style: AppText.body(context)),
+              Text(x.text, style: AppText.body(context)),
               const SizedBox(height: 4),
-              Text('${x['author'] ?? ''} · ${listTime(DateTime.parse(x['at'] as String).toLocal())}', style: AppText.caption(context)),
+              Text('${x.author ?? ''} · ${listTime(DateTime.parse(x.at).toLocal())}', style: AppText.caption(context)),
             ])),
         ]),
     ]);

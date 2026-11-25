@@ -3,10 +3,12 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../api/mybook_api.g.dart' as v1api;
 import '../models/work.dart';
 import 'api.dart';
 import 'live.dart';
 import 'notifier.dart';
+import 'v1.dart';
 
 /// Задачи и «Мой день»: загрузка, действия (выполнить, отложить, создать, изменить, удалить) и напоминания на телефоне.
 class TasksStore extends ChangeNotifier {
@@ -29,6 +31,10 @@ class TasksStore extends ChangeNotifier {
   bool loaded = false;
   bool doneLoaded = false;
   String? error;
+  String? _todayEtag;
+  String? _openEtag;
+  String? _doneEtag;
+  bool _first = true;
 
   /// Число для бейджа вкладки: задачи на сегодня.
   int get badge => today?.counts.tasks ?? 0;
@@ -39,26 +45,80 @@ class TasksStore extends ChangeNotifier {
     _debounce = Timer(d, () => load(silent: true));
   }
 
+  /// «Мой день» и открытые задачи из кэша телефона — до ответа сервера (вместе с ETag для 304).
+  Future<void> _fromCache() async {
+    final cachedToday = await v1ReadCache('tasks_today', v1api.CrmToday.fromJson);
+    final cachedOpen = await v1ReadCache('tasks_open', v1api.CrmTaskList.fromJson);
+    if (loaded || (cachedToday == null && cachedOpen == null)) return;
+    if (cachedToday != null) {
+      today = TodayData.fromJson(cachedToday.data.toJson());
+      _todayEtag = cachedToday.etag;
+    }
+    if (cachedOpen != null) {
+      open = [for (final t in cachedOpen.data.tasks) CrmTask.fromJson(t.toJson())];
+      _openEtag = cachedOpen.etag;
+    }
+    if (cachedToday != null && cachedOpen != null) {
+      loaded = true;
+      notifyListeners();
+    }
+  }
+
   Future<void> load({bool silent = false}) async {
+    if (_first) {
+      _first = false;
+      await _fromCache();
+    }
+    final hadError = error;
+    var changed = !loaded;
     try {
-      final results = await Future.wait([api.get('/api/mobile/today'), api.get('/api/mobile/tasks')]);
-      today = TodayData.fromJson(results[0] as Map<String, dynamic>);
-      open = [for (final t in ((results[1] as Map<String, dynamic>)['tasks'] as List)) CrmTask.fromJson(t as Map<String, dynamic>)];
+      final todayFuture = v1Cached(
+        api,
+        (c) => c.crmToday(),
+        etag: loaded ? _todayEtag : null,
+        cacheKey: 'tasks_today',
+        toJson: (d) => d.toJson(),
+      );
+      final openFuture = v1Cached(
+        api,
+        (c) => c.crmTasksList(),
+        etag: loaded ? _openEtag : null,
+        cacheKey: 'tasks_open',
+        toJson: (d) => d.toJson(),
+      );
+      final todayRes = await todayFuture;
+      final openRes = await openFuture;
+      _todayEtag = todayRes.etag;
+      _openEtag = openRes.etag;
+      if (!todayRes.notModified && todayRes.data != null) {
+        today = TodayData.fromJson(todayRes.data!.toJson());
+        changed = true;
+      }
+      if (!openRes.notModified && openRes.data != null) {
+        open = [for (final t in openRes.data!.tasks) CrmTask.fromJson(t.toJson())];
+        changed = true;
+        unawaited(_syncReminders());
+      }
       error = null;
       loaded = true;
-      unawaited(_syncReminders());
     } on ApiException catch (e) {
       if (!silent || !loaded) error = e.message;
     }
-    notifyListeners();
+    if (changed || hadError != error) notifyListeners();
   }
 
   Future<void> loadDone() async {
     try {
-      final r = await api.get('/api/mobile/tasks', query: {'done': '1'}) as Map<String, dynamic>;
-      done = [for (final t in (r['tasks'] as List)) CrmTask.fromJson(t as Map<String, dynamic>)];
-      doneLoaded = true;
-      notifyListeners();
+      final r = await v1Cached(api, (c) => c.crmTasksList(done: '1'), etag: doneLoaded ? _doneEtag : null);
+      _doneEtag = r.etag;
+      if (!r.notModified && r.data != null) {
+        done = [for (final t in r.data!.tasks) CrmTask.fromJson(t.toJson())];
+        doneLoaded = true;
+        notifyListeners();
+      } else if (!doneLoaded) {
+        doneLoaded = true;
+        notifyListeners();
+      }
     } on ApiException {
       // Список выполненных подождёт.
     }

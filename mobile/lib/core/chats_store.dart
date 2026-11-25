@@ -2,10 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../api/mybook_api.g.dart' as v1api;
 import '../models/chat.dart';
 import 'api.dart';
 import 'cache.dart';
 import 'live.dart';
+import 'v1.dart';
 
 const chatFilters = {'open': 'Все', 'mine': 'Мои', 'unread': 'Непрочитанные', 'waiting': 'Ждут ответа', 'closed': 'Закрытые'};
 
@@ -59,6 +61,23 @@ class ChatsStore extends ChangeNotifier {
 
   final _prefetched = <String, DateTime>{};
 
+  static ChatSummary _fromV1(v1api.CrmChatRow c) => ChatSummary(
+    id: c.id,
+    title: c.title,
+    channel: c.channel,
+    channelLabel: c.channelLabel,
+    avatarUrl: c.avatarUrl,
+    lastMessageAt: c.lastMessageAt == null ? null : DateTime.parse(c.lastMessageAt!).toLocal(),
+    preview: c.preview ?? '',
+    unread: c.unread,
+    status: c.status,
+    assignee: c.assignee,
+    waitLabel: c.waitLabel,
+    overdue: c.overdue,
+    bot: c.bot,
+    pinned: c.pinned,
+  );
+
   /// Непрочитанные диалоги заранее кладём в кэш телефона: по нажатию переписка уже на экране, без ожидания сервера.
   Future<void> _prefetch() async {
     final now = DateTime.now();
@@ -66,24 +85,25 @@ class ChatsStore extends ChangeNotifier {
     for (final c in todo) {
       _prefetched[c.id] = now;
       try {
-        final r = await api.get('/api/mobile/chats/${c.id}', query: {'limit': '40'}) as Map<String, dynamic>;
-        await LocalCache.write('chat_${c.id}', r);
+        final r = await v1(api, (client) => client.crmChatGet(chatId: c.id, limit: 40));
+        await LocalCache.write('chat_${c.id}', r.toJson());
       } on ApiException {
         return;
       }
     }
   }
 
-  /// Список из кэша телефона — до ответа сервера (вкладка «Чаты» открывается сразу со строками).
+  /// Список из кэша телефона — до ответа сервера (вкладка «Чаты» открывается сразу со строками и сохранённым ETag).
   Future<void> _fromCache() async {
     if (query.isNotEmpty) return;
-    final cached = await LocalCache.read('chats_$filter');
-    if (cached == null || loaded) return;
-    try {
-      items = [for (final c in (cached['chats'] as List)) ChatSummary.fromJson(c as Map<String, dynamic>)];
-      loaded = true;
-      notifyListeners();
-    } catch (_) {}
+    final key = '$filter|';
+    final cached = await v1ReadCache('chats_$filter', v1api.CrmChatList.fromJson);
+    if (cached == null || loaded || '$filter|$query' != key) return;
+    items = [for (final c in cached.data.chats) _fromV1(c)];
+    _etag = cached.etag;
+    _etagKey = key;
+    loaded = true;
+    notifyListeners();
   }
 
   bool _first = true;
@@ -99,14 +119,18 @@ class ChatsStore extends ChangeNotifier {
     var changed = !loaded;
     try {
       // ETag — только для того же фильтра и поиска: иначе 304 оставил бы на экране строки другого списка.
-      final r = await api.getCached('/api/mobile/chats', query: {'f': filter, 'q': query}, etag: key == _etagKey && loaded ? _etag : null);
+      final r = await v1Cached(
+        api,
+        (c) => c.crmChatsList(f: filter, q: query.isEmpty ? null : query),
+        etag: key == _etagKey && loaded ? _etag : null,
+        cacheKey: query.isEmpty ? 'chats_$filter' : null,
+        toJson: (d) => d.toJson(),
+      );
       if ('$filter|$query' != key) return; // пока ждали, сменили фильтр или поиск
       _etag = r.etag;
       _etagKey = key;
-      final data = r.data as Map<String, dynamic>?;
-      if (data != null) {
-        items = [for (final c in (data['chats'] as List)) ChatSummary.fromJson(c as Map<String, dynamic>)];
-        if (query.isEmpty) LocalCache.write('chats_$filter', data);
+      if (!r.notModified && r.data != null) {
+        items = [for (final c in r.data!.chats) _fromV1(c)];
         changed = true;
         unawaited(_prefetch());
       }

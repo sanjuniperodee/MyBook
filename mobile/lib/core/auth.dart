@@ -2,8 +2,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../api/mybook_api.g.dart' as v1api;
 import 'api.dart';
 import 'notifier.dart';
+import 'v1.dart';
 
 const defaultServer = String.fromEnvironment('SERVER_URL', defaultValue: 'https://mybooks.kz');
 
@@ -93,19 +95,21 @@ class AuthState extends ChangeNotifier {
   }
 
   Future<void> login(String login, String password) async {
-    final r = await api.post('/api/mobile/auth/login', body: {'login': login, 'password': password}) as Map<String, dynamic>;
-    if (r['twoFactor'] == true) {
-      _ticket = r['ticket'] as String;
+    final r = await v1(api, (c) => c.authLogin(body: v1api.LoginBody(login: login, password: password)));
+    if (r.secondFactorTicket != null) {
+      _ticket = r.secondFactorTicket;
       notifyListeners();
       return;
     }
-    await _open(r);
+    final session = r.session;
+    if (session == null) throw ApiException(401, 'Не удалось войти');
+    await _openSession(session);
   }
 
   Future<void> verifyCode(String code) async {
-    final r = await api.post('/api/mobile/auth/2fa', body: {'ticket': _ticket, 'code': code}) as Map<String, dynamic>;
+    final r = await v1(api, (c) => c.authSecondFactor(body: v1api.SecondFactorBody(ticket: _ticket ?? '', code: code)));
     _ticket = null;
-    await _open(r);
+    await _openSession(r);
   }
 
   void cancelCode() {
@@ -113,8 +117,18 @@ class AuthState extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> _open(Map<String, dynamic> session) async {
-    api.token = session['token'] as String;
+  Future<void> _openSession(v1api.Session session) async {
+    if (!session.user.isStaff) {
+      api.token = session.token;
+      try {
+        await v1(api, (c) => c.authLogout());
+      } on ApiException {
+        // Не критично: клиентская сессия не должна остаться на устройстве.
+      }
+      api.token = null;
+      throw ApiException(403, 'Доступ только для сотрудников');
+    }
+    api.token = session.token;
     await _secure.write(key: 'token', value: api.token);
     try {
       staff = Staff.fromJson(await api.get('/api/mobile/me') as Map<String, dynamic>);
@@ -132,7 +146,7 @@ class AuthState extends ChangeNotifier {
   Future<void> logout() async {
     await Notifier.forgetDevice(api);
     try {
-      await api.post('/api/mobile/auth/logout');
+      await v1(api, (c) => c.authLogout());
     } on ApiException {
       // Сервер недоступен — токен всё равно забываем.
     }

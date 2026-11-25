@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
+import '../api/mybook_api.g.dart' as v1api;
 import '../core/api.dart';
 import '../core/auth.dart';
+import '../core/v1.dart';
 import '../ui/kit.dart';
 import '../ui/tokens.dart';
 import 'order_screen.dart';
@@ -33,53 +35,78 @@ class OrdersScreen extends StatefulWidget {
 }
 
 class _OrdersScreenState extends State<OrdersScreen> {
-  List<Map<String, dynamic>> _orders = [];
-  List<Map<String, dynamic>> _statuses = [];
+  List<v1api.CrmOrderCard> _orders = [];
+  List<v1api.CrmOrderStatus> _statuses = [];
   bool _loaded = false;
   String? _error;
+  String? _etag;
   String _status = 'paid';
   String _q = '';
   // Как фильтры канбана заказов CRM: срочные (до срока 3 дня и меньше или экспресс) и «клиент сообщил об оплате».
   bool _urgent = false;
   bool _claimed = false;
 
-  static bool _isUrgent(Map<String, dynamic> o) {
-    final d = (o['daysLeft'] as num?)?.toInt();
-    return o['express'] == true || (d != null && d <= 3 && o['status'] != 'delivered' && o['status'] != 'shipped');
+  static bool _isUrgent(v1api.CrmOrderCard o) {
+    final d = o.daysLeft;
+    return o.express || (d != null && d <= 3 && o.status != 'delivered' && o.status != 'shipped');
   }
 
   @override
   void initState() {
     super.initState();
-    _load();
+    _initLoad();
+  }
+
+  Future<void> _initLoad() async {
+    final cached = await v1ReadCache('orders_list', v1api.CrmOrders.fromJson);
+    if (cached != null && mounted && !_loaded) {
+      setState(() {
+        _applyData(cached.data);
+        _etag = cached.etag;
+      });
+    }
+    await _load();
+  }
+
+  void _applyData(v1api.CrmOrders data) {
+    _orders = data.orders;
+    _statuses = data.statuses;
+    // Первый раз открываем статус, где есть заказы: пустой «Оплачен» выглядел как «заказов нет».
+    if (!_loaded && _count(_status) == 0) {
+      final first = ['paid', 'in_production', 'pending_payment', 'shipped', 'delivered'].where((s) => _count(s) > 0);
+      if (first.isNotEmpty) _status = first.first;
+    }
+    _loaded = true;
+    _error = null;
   }
 
   Future<void> _load() async {
     try {
-      final r = await context.read<AuthState>().api.get('/api/mobile/orders') as Map<String, dynamic>;
+      final r = await v1Cached(
+        context.read<AuthState>().api,
+        (c) => c.crmOrdersList(),
+        etag: _loaded ? _etag : null,
+        cacheKey: 'orders_list',
+        toJson: (d) => d.toJson(),
+      );
       if (!mounted) return;
-      setState(() {
-        _orders = [for (final o in (r['orders'] as List)) o as Map<String, dynamic>];
-        _statuses = [for (final s in (r['statuses'] as List)) s as Map<String, dynamic>];
-        // Первый раз открываем статус, где есть заказы: пустой «Оплачен» выглядел как «заказов нет».
-        if (!_loaded && _count(_status) == 0) {
-          final first = ['paid', 'in_production', 'pending_payment', 'shipped', 'delivered'].where((s) => _count(s) > 0);
-          if (first.isNotEmpty) _status = first.first;
-        }
-        _loaded = true;
-        _error = null;
-      });
+      _etag = r.etag;
+      if (!r.notModified && r.data != null) {
+        setState(() => _applyData(r.data!));
+      } else if (_error != null) {
+        setState(() => _error = null);
+      }
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     }
   }
 
-  int _count(String s) => _orders.where((o) => o['status'] == s).length;
+  int _count(String s) => _orders.where((o) => o.status == s).length;
 
-  Future<void> _open(Map<String, dynamic> o) async {
+  Future<void> _open(v1api.CrmOrderCard o) async {
     final changed = await Navigator.of(context).push<bool>(
       CupertinoPageRoute<bool>(
-        builder: (_) => OrderScreen(orderId: o['id'] as String, number: (o['number'] as num).toInt()),
+        builder: (_) => OrderScreen(orderId: o.id, number: o.number),
       ),
     );
     if (changed == true) await _load();
@@ -90,7 +117,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
     final c = context.c;
     final top = MediaQuery.of(context).padding.top;
     final q = _q.toLowerCase();
-    final list = _orders.where((o) => o['status'] == _status && (q.isEmpty || '${o['number']} ${o['contactName']}'.toLowerCase().contains(q)) && (!_urgent || _isUrgent(o)) && (!_claimed || o['claimed'] == true)).toList();
+    final list = _orders.where((o) => o.status == _status && (q.isEmpty || '${o.number} ${o.contactName}'.toLowerCase().contains(q)) && (!_urgent || _isUrgent(o)) && (!_claimed || o.claimed)).toList();
     return Scaffold(
       backgroundColor: c.bg,
       body: RefreshIndicator(
@@ -119,17 +146,17 @@ class _OrdersScreenState extends State<OrdersScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   children: [
                     Padding(padding: const EdgeInsets.only(right: 8), child: FilterPill(label: 'Срочные', selected: _urgent, onTap: () => setState(() => _urgent = !_urgent))),
-                    if (_orders.any((o) => o['claimed'] == true))
+                    if (_orders.any((o) => o.claimed))
                       Padding(padding: const EdgeInsets.only(right: 8), child: FilterPill(label: 'Сообщили об оплате', selected: _claimed, onTap: () => setState(() => _claimed = !_claimed))),
                     for (final s in _statuses)
                       Padding(
                         padding: const EdgeInsets.only(right: 8),
                         child: FilterPill(
-                          label: s['label'] as String,
-                          count: _count(s['key'] as String),
-                          dot: orderStatusColor(context, s['key'] as String),
-                          selected: _status == s['key'],
-                          onTap: () => setState(() => _status = s['key'] as String),
+                          label: s.label,
+                          count: _count(s.key),
+                          dot: orderStatusColor(context, s.key),
+                          selected: _status == s.key,
+                          onTap: () => setState(() => _status = s.key),
                         ),
                       ),
                   ],
@@ -164,16 +191,16 @@ class _OrdersScreenState extends State<OrdersScreen> {
 
 class _OrderCard extends StatelessWidget {
   const _OrderCard({required this.order, required this.onTap});
-  final Map<String, dynamic> order;
+  final v1api.CrmOrderCard order;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final c = context.c;
     final o = order;
-    final daysLeft = (o['daysLeft'] as num?)?.toInt();
-    final urgent = daysLeft != null && daysLeft <= 3 && o['status'] != 'delivered' && o['status'] != 'shipped';
-    final qty = (o['quantity'] as num?)?.toInt() ?? 1;
+    final daysLeft = o.daysLeft;
+    final urgent = daysLeft != null && daysLeft <= 3 && o.status != 'delivered' && o.status != 'shipped';
+    final qty = o.quantity;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
       child: Material(
@@ -192,17 +219,17 @@ class _OrderCard extends StatelessWidget {
                     Container(
                       width: 4,
                       height: 38,
-                      decoration: BoxDecoration(color: orderStatusColor(context, o['status'] as String), borderRadius: BorderRadius.circular(2)),
+                      decoration: BoxDecoration(color: orderStatusColor(context, o.status), borderRadius: BorderRadius.circular(2)),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('№${o['number']} · ${o['contactName']}', maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.headline(context).copyWith(fontSize: 16.5)),
+                          Text('№${o.number} · ${o.contactName}', maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.headline(context).copyWith(fontSize: 16.5)),
                           const SizedBox(height: 2),
                           Text(
-                            '${o['planName']}${qty > 1 ? ' × $qty' : ''}${(o['printed'] as bool? ?? true) ? '' : ' · электронная'}',
+                            '${o.planName}${qty > 1 ? ' × $qty' : ''}${o.printed ? '' : ' · электронная'}',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: AppText.sub(context),
@@ -212,7 +239,7 @@ class _OrderCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      o['amountLabel'] as String,
+                      o.amountLabel,
                       style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700, color: c.text),
                     ),
                   ],
@@ -222,10 +249,10 @@ class _OrderCard extends StatelessWidget {
                   spacing: 6,
                   runSpacing: 6,
                   children: [
-                    if (o['express'] == true) Tag('срочно', fg: c.danger, bg: c.danger.withValues(alpha: 0.12), icon: LucideIcons.zap),
-                    if (o['claimed'] == true) Tag('клиент сообщил об оплате', fg: c.warn, bg: c.warnBg, icon: LucideIcons.circleDollarSign),
-                    if (o['surprise'] == true) Tag('сюрприз', fg: c.violet, bg: c.violetBg, icon: LucideIcons.gift),
-                    if (o['giftNote'] == true) Tag('открытка', fg: c.violet, bg: c.violetBg, icon: LucideIcons.heart),
+                    if (o.express) Tag('срочно', fg: c.danger, bg: c.danger.withValues(alpha: 0.12), icon: LucideIcons.zap),
+                    if (o.claimed) Tag('клиент сообщил об оплате', fg: c.warn, bg: c.warnBg, icon: LucideIcons.circleDollarSign),
+                    if (o.surprise) Tag('сюрприз', fg: c.violet, bg: c.violetBg, icon: LucideIcons.gift),
+                    if (o.giftNote) Tag('открытка', fg: c.violet, bg: c.violetBg, icon: LucideIcons.heart),
                     if (daysLeft != null)
                       Tag(
                         daysLeft < 0
@@ -237,7 +264,7 @@ class _OrderCard extends StatelessWidget {
                         bg: urgent ? c.danger.withValues(alpha: 0.12) : c.border,
                         icon: LucideIcons.calendarClock,
                       ),
-                    if (o['assignee'] != null) Tag(o['assignee'] as String, fg: c.textMuted, bg: c.border, icon: LucideIcons.user),
+                    if (o.assignee != null) Tag(o.assignee!, fg: c.textMuted, bg: c.border, icon: LucideIcons.user),
                   ],
                 ),
               ],
