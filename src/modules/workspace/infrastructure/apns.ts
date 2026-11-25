@@ -14,8 +14,14 @@ export interface ApnsConfig {
   keyId: string;
   teamId: string;
   privateKey: string;
+  /** Bundle id приложения продажника (APNS_TOPIC). */
   topic: string;
+  /** Bundle id клиентского «MyBooks» (APNS_CLIENT_TOPIC): ключ .p8 у команды один, topic у приложения свой. */
+  clientTopic: string;
 }
+
+/** topic APNs для устройства: токен выдан конкретному приложению, чужой topic Apple отклоняет. */
+export const apnsTopic = (cfg: ApnsConfig, app: string) => (app === "client" ? cfg.clientTopic : cfg.topic);
 
 export function apnsConfig(env: Record<string, string | undefined> = process.env): ApnsConfig | null {
   const keyId = env.APNS_KEY_ID?.trim();
@@ -29,7 +35,7 @@ export function apnsConfig(env: Record<string, string | undefined> = process.env
     }
   }
   if (!keyId || !teamId || !key) return null;
-  return { keyId, teamId, privateKey: key, topic: env.APNS_TOPIC?.trim() || "kz.workdesk.mobile" };
+  return { keyId, teamId, privateKey: key, topic: env.APNS_TOPIC?.trim() || "kz.workdesk.mobile", clientTopic: env.APNS_CLIENT_TOPIC?.trim() || "kz.mybooks.app" };
 }
 
 const b64 = (v: string | Buffer) => Buffer.from(v).toString("base64url");
@@ -136,7 +142,7 @@ export const APNS_ORIGIN = { production: "https://api.push.apple.com", sandbox: 
  * Отправить уведомление на устройство. "gone" — токен больше не действует (приложение удалено, токен от другого
  * окружения): вызывающий удаляет его из базы.
  */
-export async function sendApns(cfg: ApnsConfig, device: { token: string; environment: string }, message: ApnsMessage, transport: ApnsTransport = http2Transport): Promise<ApnsResult> {
+export async function sendApns(cfg: ApnsConfig, device: { token: string; environment: string; app?: string }, message: ApnsMessage, transport: ApnsTransport = http2Transport): Promise<ApnsResult> {
   const origin = device.environment === "sandbox" ? APNS_ORIGIN.sandbox : APNS_ORIGIN.production;
   try {
     const res = await transport.post(
@@ -144,7 +150,7 @@ export async function sendApns(cfg: ApnsConfig, device: { token: string; environ
       `/3/device/${device.token}`,
       {
         authorization: `bearer ${providerToken(cfg)}`,
-        "apns-topic": cfg.topic,
+        "apns-topic": apnsTopic(cfg, device.app ?? "crm"),
         "apns-push-type": "alert",
         // Значок без текста — низкий приоритет (Apple не будит телефон ради него), уведомление — сразу.
         "apns-priority": message.badgeOnly ? "5" : "10",

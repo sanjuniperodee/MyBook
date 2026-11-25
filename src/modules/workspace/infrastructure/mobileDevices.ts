@@ -5,16 +5,20 @@ import { crmMobileDevices } from "@/shared/infrastructure/db/schema";
 import { apnsConfig } from "./apns";
 import { fcmConfig } from "./fcm";
 
-/** Телефоны сотрудников с мобильным приложением: токен устройства для push (iPhone — APNs, Android — FCM). */
+/**
+ * Телефоны с мобильными приложениями: токен устройства для push (iPhone — APNs, Android — FCM). app — какое
+ * приложение: crm (продажник) или client (клиентское «MyBooks»); push уходит только устройствам нужного приложения.
+ */
 export const mobileDevices = {
   /** Повторная регистрация того же токена передаёт его новому владельцу (сменили аккаунт на телефоне) и обновляет окружение. */
-  async register(userId: string, d: { token: string; platform: "ios" | "android"; environment: "production" | "sandbox" }) {
+  async register(userId: string, d: { token: string; platform: "ios" | "android"; environment: "production" | "sandbox"; app?: "crm" | "client" }) {
     // Токен APNs — hex (регистр не важен), токен FCM чувствителен к регистру.
     const token = d.platform === "ios" ? d.token.toLowerCase() : d.token;
+    const app = d.app ?? "crm";
     await db
       .insert(crmMobileDevices)
-      .values({ userId, token, platform: d.platform, environment: d.environment })
-      .onConflictDoUpdate({ target: crmMobileDevices.token, set: { userId, platform: d.platform, environment: d.environment, lastSeenAt: new Date() } });
+      .values({ userId, token, platform: d.platform, environment: d.environment, app })
+      .onConflictDoUpdate({ target: crmMobileDevices.token, set: { userId, platform: d.platform, environment: d.environment, app, lastSeenAt: new Date() } });
   },
 
   /** Забыть телефон (выход из аккаунта): чужой токен не трогаем. */

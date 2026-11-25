@@ -326,6 +326,24 @@ class MybookApi {
     return Ok.fromJson(json as Map<String, dynamic>);
   }
 
+  /// Телефон для push клиентского «MyBooks»: ответ менеджера, заказ, оплата, письмо близкого
+  Future<DeviceRegistered> meDevicePut({required DeviceBody body}) async {
+    final json = await _send('PUT', '/api/v1/me/devices', body: body.toJson());
+    return DeviceRegistered.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Забыть телефон (выход из аккаунта)
+  Future<Ok> meDeviceDelete({required DeviceForgetBody body}) async {
+    final json = await _send('POST', '/api/v1/me/devices/forget', body: body.toJson());
+    return Ok.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Настройки приложения: адреса политики конфиденциальности и оферты (locale=ru|kk)
+  Future<AppConfig> appConfig({String? locale}) async {
+    final json = await _send('GET', '/api/v1/app-config', query: {if (locale != null) 'locale': '${locale}'});
+    return AppConfig.fromJson(json as Map<String, dynamic>);
+  }
+
   /// Объёмная модель книги для 3D-книги: размеры, развёртка обложки, ракурсы, свет, подписи (pages — страниц в сборке)
   Future<BookModel> bookModel({required String bookId, int? pages}) async {
     final json = await _send('GET', '/api/v1/books/${Uri.encodeComponent('$bookId')}/model', query: {if (pages != null) 'pages': '${pages}'});
@@ -3408,6 +3426,52 @@ class CrmDealPayments {
   factory CrmDealPayments.fromJson(Map<String, dynamic> json) => CrmDealPayments(id: json['id'] as String, amount: (json['amount'] as num).toDouble(), kind: json['kind'] as String, method: json['method'] as String, payForm: json['payForm'] == null ? null : json['payForm'] as String, at: json['at'] as String);
 
   Map<String, dynamic> toJson() => {'id': id, 'amount': amount, 'kind': kind, 'method': method, 'payForm': payForm, 'at': at};
+}
+
+class DeviceBody {
+  /// ios | android
+  final String platform;
+  final String token;
+  /// production | sandbox
+  final String environment;
+
+  const DeviceBody({required this.platform, required this.token, required this.environment});
+
+  factory DeviceBody.fromJson(Map<String, dynamic> json) => DeviceBody(platform: json['platform'] as String, token: json['token'] as String, environment: json['environment'] as String);
+
+  Map<String, dynamic> toJson() => {'platform': platform, 'token': token, 'environment': environment};
+}
+
+class DeviceForgetBody {
+  final String token;
+
+  const DeviceForgetBody({required this.token});
+
+  factory DeviceForgetBody.fromJson(Map<String, dynamic> json) => DeviceForgetBody(token: json['token'] as String);
+
+  Map<String, dynamic> toJson() => {'token': token};
+}
+
+class DeviceRegistered {
+  final bool ok;
+  final bool serverReady;
+
+  const DeviceRegistered({required this.ok, required this.serverReady});
+
+  factory DeviceRegistered.fromJson(Map<String, dynamic> json) => DeviceRegistered(ok: json['ok'] as bool, serverReady: json['serverReady'] as bool);
+
+  Map<String, dynamic> toJson() => {'ok': ok, 'serverReady': serverReady};
+}
+
+class AppConfig {
+  final String privacyUrl;
+  final String termsUrl;
+
+  const AppConfig({required this.privacyUrl, required this.termsUrl});
+
+  factory AppConfig.fromJson(Map<String, dynamic> json) => AppConfig(privacyUrl: json['privacyUrl'] as String, termsUrl: json['termsUrl'] as String);
+
+  Map<String, dynamic> toJson() => {'privacyUrl': privacyUrl, 'termsUrl': termsUrl};
 }
 
 class BookModel {

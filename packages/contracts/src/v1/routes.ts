@@ -17,6 +17,7 @@ import { previewRoutes } from "./preview";
 import { reviewsRoutes } from "./reviews";
 import { coverRoutes } from "./cover";
 import { crmListsRoutes } from "./crm-lists";
+import { meRoutes } from "./me";
 import { bookModelRoutes } from "./book-model";
 import { wizardRoutes } from "./wizard";
 import { cabinetRoutes } from "./cabinet";
@@ -39,6 +40,7 @@ export * from "./preview";
 export * from "./reviews";
 export * from "./cover";
 export * from "./crm-lists";
+export * from "./me";
 export * from "./book-model";
 export * from "./wizard";
 export * from "./cabinet";
@@ -59,6 +61,7 @@ export const v1 = {
   ...reviewsRoutes,
   ...coverRoutes,
   ...crmListsRoutes,
+  ...meRoutes,
   ...bookModelRoutes,
   ...wizardRoutes,
   ...cabinetRoutes,

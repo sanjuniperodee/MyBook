@@ -42,16 +42,31 @@ async function unreadCounts(userIds: string[]) {
  * уведомлений сотрудника. Токены, которые Apple или Google больше не принимают, удаляются. Ключей нет — тихо ничего не делаем.
  */
 export async function pushToMobile(userIds: string[], payload: PushPayload & { kind?: string }) {
+  await pushToApp("crm", userIds, payload);
+}
+
+/**
+ * Push клиенту в «MyBooks» (ответ менеджера, заказ, оплата, письмо близкого): только устройства клиентского приложения,
+ * без значка (у клиента нет счётчика уведомлений CRM). link — адрес страницы сайта; приложение открывает свой экран.
+ */
+export async function pushToClient(userId: string, payload: PushPayload & { kind?: string }) {
+  await pushToApp("client", [userId], payload);
+}
+
+async function pushToApp(app: "crm" | "client", userIds: string[], payload: PushPayload & { kind?: string }) {
   const apns = apnsConfig();
   const fcm = fcmConfig();
   if ((!apns && !fcm) || !userIds.length) return;
   const platforms = [...(apns ? ["ios"] : []), ...(fcm ? ["android"] : [])];
-  const devices = await db.select().from(crmMobileDevices).where(and(inArray(crmMobileDevices.userId, userIds), inArray(crmMobileDevices.platform, platforms)));
+  const devices = await db
+    .select()
+    .from(crmMobileDevices)
+    .where(and(inArray(crmMobileDevices.userId, userIds), inArray(crmMobileDevices.platform, platforms), eq(crmMobileDevices.app, app)));
   if (!devices.length) return;
-  const unread = await unreadCounts(userIds);
+  const unread = app === "crm" ? await unreadCounts(userIds) : new Map<string, number>();
   await Promise.all(
     devices.map(async (d) => {
-      const badge = unread.get(d.userId) ?? 0;
+      const badge = app === "crm" ? (unread.get(d.userId) ?? 0) : undefined;
       const result =
         d.platform === "android"
           ? await sendFcm(fcm!, d.token, { title: payload.title, body: payload.body, link: payload.link, tag: payload.tag, kind: payload.kind, badge })
@@ -68,7 +83,7 @@ export async function pushToMobile(userIds: string[], payload: PushPayload & { k
 export async function syncMobileBadge(userId: string) {
   const apns = apnsConfig();
   if (!apns) return;
-  const devices = await db.select().from(crmMobileDevices).where(and(eq(crmMobileDevices.userId, userId), eq(crmMobileDevices.platform, "ios")));
+  const devices = await db.select().from(crmMobileDevices).where(and(eq(crmMobileDevices.userId, userId), eq(crmMobileDevices.platform, "ios"), eq(crmMobileDevices.app, "crm")));
   if (!devices.length) return;
   const badge = (await unreadCounts([userId])).get(userId) ?? 0;
   await Promise.all(

@@ -771,6 +771,13 @@
       "when": 1795530550795,
       "tag": "0109_boards",
       "breakpoints": true
+    },
+    {
+      "idx": 110,
+      "version": "7",
+      "when": 1795570006218,
+      "tag": "0110_mobile_device_app",
+      "breakpoints": true
     }
   ]
 }

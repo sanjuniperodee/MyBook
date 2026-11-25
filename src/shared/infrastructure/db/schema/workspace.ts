@@ -68,6 +68,8 @@ export const crmMobileDevices = pgTable(
     platform: text("platform").notNull(),
     /** APNs: токены тестовых сборок (sandbox) и магазина (production) — разные адреса отправки. */
     environment: text("environment").notNull().default("production"),
+    /** Какое приложение: crm — продажника (kz.workdesk.mobile), client — клиентское «MyBooks» (kz.mybooks.app). У APNs свой topic. */
+    app: text("app", { enum: ["crm", "client"] }).notNull().default("crm"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
   },

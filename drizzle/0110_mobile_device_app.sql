@@ -1,0 +1,1 @@
+ALTER TABLE "crm_mobile_devices" ADD COLUMN "app" text DEFAULT 'crm' NOT NULL;
