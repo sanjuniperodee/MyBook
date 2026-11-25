@@ -102,7 +102,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
             SliverToBoxAdapter(
               child: Padding(
                 padding: EdgeInsets.fromLTRB(20, top + 10, 20, 4),
-                child: Text('Заказы', style: AppText.largeTitle(context)),
+                child: PageTitle('Заказы'),
               ),
             ),
             SliverToBoxAdapter(

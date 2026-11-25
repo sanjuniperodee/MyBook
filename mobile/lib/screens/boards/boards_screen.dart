@@ -48,12 +48,11 @@ class _BoardsScreenState extends State<BoardsScreen> {
       backgroundColor: c.surface,
       // Крупный заголовок, как у других разделов (обёртка раздела в «Ещё» даёт только кнопку «назад»).
       appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(64),
+        preferredSize: Size.fromHeight(InNavBar.of(context) ? 0 : 64),
         child: Container(
           color: c.bg,
           padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 6, 10, 8),
-          child: Row(children: [
-            Expanded(child: Text('Доски', style: AppText.largeTitle(context))),
+          child: PageTitleBar('Доски', actions: [
             RoundIconButton(
               icon: LucideIcons.calendarDays,
               size: 44,

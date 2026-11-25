@@ -175,7 +175,7 @@ class _SalesSettingsScreenState extends State<SalesSettingsScreen> {
                 keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 10, bottom: 40),
                 children: [
-                  Padding(padding: const EdgeInsets.fromLTRB(20, 0, 20, 16), child: Text('Отдел продаж', style: AppText.largeTitle(context))),
+                  Padding(padding: const EdgeInsets.fromLTRB(20, 0, 20, 16), child: PageTitle('Отдел продаж')),
                   FormSection(title: 'AI-продажник', hint: 'меняется сразу; тексты и вопросы бота — в «Интеграциях» → «Бот»', children: [
                     GroupCard(padding: const EdgeInsets.only(bottom: 14), children: [
                       ChoiceRow(label: 'Режим', icon: LucideIcons.bot, value: s.botModes.where((m) => m.id == s.botMode).map((m) => m.label).firstOrNull ?? s.botMode, onTap: () => _botMode(s)),

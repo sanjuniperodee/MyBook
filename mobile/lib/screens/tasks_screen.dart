@@ -97,7 +97,7 @@ class _TasksScreenState extends State<TasksScreen> {
                 Row(children: [
                   Expanded(
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text('Мой день', style: AppText.largeTitle(context)),
+                      PageTitle('Мой день'),
                       Text(_dateLine(staff.name), style: AppText.sub(context)),
                     ]),
                   ),

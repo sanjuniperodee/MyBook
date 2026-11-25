@@ -70,7 +70,7 @@ class _OverviewScreenState extends State<OverviewScreen> {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(4, 0, 4, 12),
-              child: Text('Обзор', style: AppText.largeTitle(context)),
+              child: PageTitle('Обзор'),
             ),
             SizedBox(
               height: 40,

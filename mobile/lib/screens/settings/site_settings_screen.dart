@@ -97,7 +97,7 @@ class _SiteSettingsScreenState extends State<SiteSettingsScreen> {
                 keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 10, bottom: 40),
                 children: [
-                  Padding(padding: const EdgeInsets.fromLTRB(20, 0, 20, 16), child: Text('Сайт', style: AppText.largeTitle(context))),
+                  Padding(padding: const EdgeInsets.fromLTRB(20, 0, 20, 16), child: PageTitle('Сайт')),
                   FormSection(title: 'Сразу на сайте', children: [
                     GroupCard(padding: const EdgeInsets.only(bottom: 14), children: [
                       SwitchListTile.adaptive(

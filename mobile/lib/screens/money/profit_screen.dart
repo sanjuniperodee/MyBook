@@ -197,9 +197,9 @@ class _ExpensesPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(backgroundColor: context.c.bg, surfaceTintColor: Colors.transparent, toolbarHeight: 48),
+        appBar: AppBar(backgroundColor: context.c.bg, surfaceTintColor: Colors.transparent, toolbarHeight: 52, titleSpacing: 0, title: Text('Расходы', style: AppText.headline(context))),
         backgroundColor: context.c.bg,
-        body: MediaQuery.removePadding(context: context, removeTop: true, child: const ExpensesScreen()),
+        body: MediaQuery.removePadding(context: context, removeTop: true, child: InNavBar(actions: ValueNotifier(const []), child: const ExpensesScreen())),
       );
 }
 

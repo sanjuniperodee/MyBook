@@ -74,8 +74,7 @@ class _TicketsScreenState extends State<TicketsScreen> {
             child: Padding(
               padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 10, 12, 0),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(children: [
-                  Expanded(child: Text('Обращения', style: AppText.largeTitle(context))),
+                PageTitleBar('Обращения', actions: [
                   RoundIconButton(
                     icon: LucideIcons.plus,
                     size: 44,

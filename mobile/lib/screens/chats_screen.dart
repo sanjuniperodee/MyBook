@@ -53,7 +53,7 @@ class ChatsScreen extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Expanded(child: Text('Чаты', style: AppText.largeTitle(context))),
+                  Expanded(child: PageTitle('Чаты')),
                   if (store.unreadChats > 0) CountBadge(store.unreadChats),
                 ],
               ),

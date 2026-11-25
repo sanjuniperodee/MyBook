@@ -253,7 +253,7 @@ class MoneyPage extends StatelessWidget {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(4, 0, 0, 4),
-              child: Row(children: [Expanded(child: Text(title, style: AppText.largeTitle(context))), ...actions]),
+              child: PageTitleBar(title, actions: actions),
             ),
             if (subtitle != null) Padding(padding: const EdgeInsets.fromLTRB(4, 0, 4, 8), child: Text(subtitle!, style: AppText.sub(context))),
             if (onPeriod != null) Padding(padding: const EdgeInsets.only(top: 6, bottom: 14), child: PeriodBar(period: period, onPick: onPeriod!)),

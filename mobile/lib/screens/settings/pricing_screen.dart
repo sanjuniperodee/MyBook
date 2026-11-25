@@ -103,7 +103,7 @@ class _PricingScreenState extends State<PricingScreen> {
                 keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 10, bottom: 40),
                 children: [
-                  Padding(padding: const EdgeInsets.fromLTRB(20, 0, 20, 4), child: Text('Цены и тарифы', style: AppText.largeTitle(context))),
+                  Padding(padding: const EdgeInsets.fromLTRB(20, 0, 20, 4), child: PageTitle('Цены и тарифы')),
                   Padding(padding: const EdgeInsets.fromLTRB(20, 0, 20, 16), child: Text(f.changed ? 'Цены изменены относительно заводских' : 'Заводские цены', style: AppText.sub(context))),
                   for (final s in f.sections)
                     FormSection(title: s.title, children: [

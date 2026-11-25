@@ -112,8 +112,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
             child: Padding(
               padding: EdgeInsets.fromLTRB(20, top + 10, 20, 0),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(children: [
-                  Expanded(child: Text('Клиенты', style: AppText.largeTitle(context))),
+                PageTitleBar('Клиенты', actions: [
                   if (_loaded) Text('$_total', style: AppText.sub(context)),
                   // Новый клиент с доступом, сделкой и предоплатой (как «Новый клиент» в CRM).
                   if (context.read<AuthState>().staff?.can('clients.create') == true)

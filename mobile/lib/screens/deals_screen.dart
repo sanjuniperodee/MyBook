@@ -152,9 +152,8 @@ class _DealsScreenState extends State<DealsScreen> {
               color: c.bg,
               padding: EdgeInsets.fromLTRB(20, top + 10, 20, 0),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(children: [
-                  Expanded(child: Text('Сделки', style: AppText.largeTitle(context))),
-                  if (data?.pipelineName.isNotEmpty == true) Flexible(child: Text(data!.pipelineName, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.sub(context))),
+                PageTitleBar('Сделки', actions: [
+                  if (data?.pipelineName.isNotEmpty == true) ConstrainedBox(constraints: const BoxConstraints(maxWidth: 140), child: Center(child: Text(data!.pipelineName, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppText.sub(context)))),
                   if (context.read<AuthState>().staff!.can('deals.edit'))
                     RoundIconButton(
                       icon: LucideIcons.plus,

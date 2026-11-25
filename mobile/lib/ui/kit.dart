@@ -454,3 +454,39 @@ Future<String?> promptText(BuildContext context, {required String title, String?
   final v = r?.trim();
   return v == null || v.isEmpty ? null : v;
 }
+
+
+/// Раздел открыт внутри страницы с шапкой (назад и название — в шапке): большой заголовок экрана не нужен, а кнопки экрана
+/// (PageTitleBar.actions) переезжают в шапку.
+class InNavBar extends InheritedWidget {
+  const InNavBar({super.key, required this.actions, required super.child});
+  final ValueNotifier<List<Widget>> actions;
+  static InNavBar? maybeOf(BuildContext context) => context.dependOnInheritedWidgetOfExactType<InNavBar>();
+  static bool of(BuildContext context) => maybeOf(context) != null;
+  @override
+  bool updateShouldNotify(InNavBar oldWidget) => false;
+}
+
+/// Большой заголовок экрана; внутри страницы с шапкой (InNavBar) — не рисуется: название уже в шапке рядом с «назад».
+class PageTitle extends StatelessWidget {
+  const PageTitle(this.text, {super.key});
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => InNavBar.of(context) ? const SizedBox.shrink() : Text(text, style: AppText.largeTitle(context));
+}
+
+/// Строка большого заголовка с кнопками справа. Внутри страницы с шапкой заголовка нет, а кнопки — в шапке.
+class PageTitleBar extends StatelessWidget {
+  const PageTitleBar(this.text, {super.key, this.actions = const []});
+  final String text;
+  final List<Widget> actions;
+
+  @override
+  Widget build(BuildContext context) {
+    final nav = InNavBar.maybeOf(context);
+    if (nav == null) return Row(children: [Expanded(child: Text(text, style: AppText.largeTitle(context))), ...actions]);
+    WidgetsBinding.instance.addPostFrameCallback((_) => nav.actions.value = actions);
+    return const SizedBox.shrink();
+  }
+}

@@ -163,12 +163,27 @@ class _TabButton extends StatelessWidget {
 }
 
 /// Раздел, открытый поверх вкладок (из «Профиля» / «Ещё» или по уведомлению): тонкая шапка с «назад» над экраном раздела.
-class SectionPage extends StatelessWidget {
+class SectionPage extends StatefulWidget {
   const SectionPage({super.key, required this.section});
   final AppSection section;
 
   @override
+  State<SectionPage> createState() => _SectionPageState();
+}
+
+class _SectionPageState extends State<SectionPage> {
+  /// Кнопки экрана раздела (PageTitleBar) — в шапке рядом с названием.
+  final _actions = ValueNotifier<List<Widget>>(const []);
+
+  @override
+  void dispose() {
+    _actions.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final section = widget.section;
     final c = context.c;
     return Scaffold(
       backgroundColor: c.bg,
@@ -176,11 +191,15 @@ class SectionPage extends StatelessWidget {
         backgroundColor: c.bg,
         surfaceTintColor: Colors.transparent,
         scrolledUnderElevation: 0,
-        toolbarHeight: 48,
+        toolbarHeight: 52,
+        titleSpacing: 0,
         leading: RoundIconButton(icon: LucideIcons.chevronLeft, iconSize: 28, color: c.brandDeep, onTap: () => Navigator.of(context).maybePop()),
+        // Название раздела — в шапке рядом с «назад»; большой заголовок экрана внутри не рисуется (InNavBar, PageTitle).
+        title: Text(section.label, style: AppText.headline(context)),
+        actions: [ValueListenableBuilder<List<Widget>>(valueListenable: _actions, builder: (_, list, _) => Row(mainAxisSize: MainAxisSize.min, children: [...list, const SizedBox(width: 6)]))],
       ),
-      // У экранов разделов свой большой заголовок и отступ под статус-баром — шапка уже занимает это место.
-      body: MediaQuery.removePadding(context: context, removeTop: true, child: section.page()),
+      // Отступ под статус-баром у экрана не нужен: шапка уже занимает это место.
+      body: MediaQuery.removePadding(context: context, removeTop: true, child: InNavBar(actions: _actions, child: section.page())),
     );
   }
 }
