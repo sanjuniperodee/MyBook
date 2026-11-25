@@ -15,6 +15,7 @@ import '../data/session.dart';
 import '../ui/book_chrome.dart';
 import '../ui/cabinet.dart';
 import 'book_stages.dart';
+import 'pages_studio.dart';
 
 /// «Страницы» — вторая половина шага «Оформить», как на сайте (/books/[id]/pages, PagesEditor): сверху переключатель
 /// «Обложка · Страницы», сцена — разворот книги (Глава, Титул, Оглавление, Фото) картинкой той же вёрстки, что печать,
@@ -31,7 +32,7 @@ class PagesScreen extends StatefulWidget {
 /// Задержка автосохранения текста — как useAutosave(…, 600) у PagesEditor сайта.
 const _autosave = Duration(milliseconds: 600);
 
-class _PagesScreenState extends State<PagesScreen> {
+class _PagesScreenState extends State<PagesScreen> implements PagesHost {
   late final ClientBackend _backend = context.read<ClientSession>().backend;
   v1api.PagesView? _v;
   String? _error;
@@ -47,6 +48,66 @@ class _PagesScreenState extends State<PagesScreen> {
   /// «Своя фраза» остаётся выбранной, даже пока поле пустое (как endMode сайта).
   String? _endMode;
 
+  /// «Отменить» / «Вернуть» студии (как история DesignStudio сайта): оформление до и после правок.
+  final _past = <v1api.PagesAiPatch>[];
+  final _scroll = ScrollController();
+  final _topKey = GlobalKey();
+
+  /// Смена вкладки: её содержимое — с начала, под закреплённой сценой.
+  void _openTab(String t) {
+    setState(() => _tab = t);
+    final top = (_topKey.currentContext?.size?.height ?? 0) + 24;
+    if (_scroll.hasClients && _scroll.offset > top) _scroll.jumpTo(top);
+  }
+  final _future = <v1api.PagesAiPatch>[];
+
+  @override
+  ClientBackend get backend => _backend;
+  @override
+  String get bookId => widget.hub.id;
+  @override
+  v1api.PagesView get view => _v!;
+
+  v1api.PagesAiPatch _now(v1api.PagesView v) => v1api.PagesAiPatch(interior: v.state.interior, styleJson: v.state.styleJson);
+
+  @override
+  void commit(v1api.PagesView next, {String? spread, bool undoable = true}) {
+    final prev = _v;
+    setState(() {
+      if (undoable && prev != null && (prev.state.styleJson != next.state.styleJson || prev.state.interior != next.state.interior)) {
+        _past.add(_now(prev));
+        _future.clear();
+      }
+      _apply(next);
+      if (spread != null && next.spreads.any((s) => s.kind == spread)) _spread = spread;
+    });
+  }
+
+  @override
+  void showSpread(String kind) {
+    if (_v?.spreads.any((s) => s.kind == kind) == true) setState(() => _spread = kind);
+  }
+
+  @override
+  void error(String message) {
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _history(bool back) async {
+    final from = back ? _past : _future;
+    final to = back ? _future : _past;
+    final v = _v;
+    if (from.isEmpty || v == null) return;
+    final target = from.removeLast();
+    to.add(_now(v));
+    try {
+      final next = await _backend.call(() => _backend.contract.pagesUpdate(bookId: widget.hub.id, body: v1api.PagesPatch(interior: target.interior, styleJson: target.styleJson)));
+      if (mounted) setState(() => _apply(next));
+    } on ApiException catch (e) {
+      error(e.message);
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -58,6 +119,7 @@ class _PagesScreenState extends State<PagesScreen> {
     _textTimer?.cancel();
     _dedication.dispose();
     _endText.dispose();
+    _scroll.dispose();
     super.dispose();
   }
 
@@ -87,11 +149,10 @@ class _PagesScreenState extends State<PagesScreen> {
     try {
       final next = await _backend.call(() => _backend.contract.pagesUpdate(bookId: widget.hub.id, body: patch));
       if (!mounted) return;
-      setState(() {
-        // Смена стиля сбросила свои настройки — сказать, как сайт.
-        _notice = patch.interior != null && hadCustom && next.state.customCount == 0 ? next.labels.styles.reset : _notice;
-        _apply(next);
-      });
+      // Смена стиля сбросила свои настройки — сказать, как сайт.
+      final notice = patch.interior != null && hadCustom && next.state.customCount == 0 ? next.labels.styles.reset : _notice;
+      commit(next, undoable: patch.interior != null || patch.fontPair != null);
+      setState(() => _notice = notice);
     } on ApiException catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
     } finally {
@@ -151,20 +212,35 @@ class _PagesScreenState extends State<PagesScreen> {
         SizedBox(
           height: tabsH,
           child: _Tabs(
-            tabs: [('content', v.labels.tabs.content), ('styles', v.labels.tabs.styles), ('fonts', v.labels.tabs.fonts)],
+            // Порядок вкладок — как у студии сайта на телефоне: состав книги, ИИ, стили, шрифты, текст, элементы, цвета, главы.
+            tabs: [
+              ('content', v.labels.tabs.content),
+              ('ai', v.labels.tabs.ai),
+              ('styles', v.labels.tabs.styles),
+              ('fonts', v.labels.tabs.fonts),
+              ('text', v.labels.tabs.text),
+              ('elements', v.labels.tabs.elements),
+              ('colors', v.labels.tabs.colors),
+              ('chapters', v.labels.tabs.chapters),
+            ],
             value: _tab,
-            onChanged: (t) => setState(() => _tab = t),
+            onChanged: _openTab,
+            trailing: [
+              IconButton(tooltip: v.labels.history.undo, onPressed: _past.isEmpty ? null : () => _history(true), icon: const Icon(LucideIcons.undo2, size: 18)),
+              IconButton(tooltip: v.labels.history.redo, onPressed: _future.isEmpty ? null : () => _history(false), icon: const Icon(LucideIcons.redo2, size: 18)),
+            ],
           ),
         ),
       ]),
     );
     return CustomScrollView(
+      controller: _scroll,
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       slivers: [
         SliverPadding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
           sliver: SliverToBoxAdapter(
-            child: Row(children: [
+            child: Row(key: _topKey, children: [
               Expanded(child: DesignSwitch(hub: widget.hub, active: 'pages', cover: v.labels.designSwitch.cover, pages: v.labels.designSwitch.pages)),
               if (_saving) SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2, color: c.textMuted)),
             ]),
@@ -189,7 +265,9 @@ class _PagesScreenState extends State<PagesScreen> {
                   opacity: v.editable ? 1 : 0.6,
                   child: switch (_tab) {
                     'styles' => _StylesTab(view: v, img: _img, headers: _backend.imageHeaders, onPick: (id) => _save(v1api.PagesPatch(interior: id))),
-                    'fonts' => _FontsTab(view: v, backend: _backend, onPick: (id) => _save(v1api.PagesPatch(fontPair: id))),
+                    'fonts' => StudioTabView(key: const ValueKey('fonts'), host: this, tab: 'fonts', header: _FontsTab(view: v, backend: _backend, onPick: (id) => _save(v1api.PagesPatch(fontPair: id)))),
+                    'text' || 'elements' || 'colors' || 'chapters' => StudioTabView(key: ValueKey(_tab), host: this, tab: _tab),
+                    'ai' => AiDesignerView(host: this, imageUrl: _img, headers: _backend.imageHeaders),
                     _ => _content(v),
                   },
                 ),
@@ -300,6 +378,9 @@ class _PagesScreenState extends State<PagesScreen> {
           ],
         ],
       ),
+      const SizedBox(height: 22),
+      // Главы книги: названия, эпиграфы, убрать или вернуть, порядок; режим оглавления (ChaptersEditor, TocEditor сайта).
+      ChaptersEditorView(host: this),
       const SizedBox(height: 22),
       _GroupTitle(l.photos),
       Text(l.photosSummary, style: TextStyle(fontSize: 14.5, height: 1.45, color: c.text.withValues(alpha: 0.85))),
@@ -750,8 +831,11 @@ class _Segmented extends StatelessWidget {
 }
 
 class _Tabs extends StatelessWidget {
-  const _Tabs({required this.tabs, required this.value, required this.onChanged});
+  const _Tabs({required this.tabs, required this.value, required this.onChanged, this.trailing = const []});
   final List<(String, String)> tabs;
+
+  /// «Отменить» и «Вернуть» — в конце ленты вкладок, как у студии сайта.
+  final List<Widget> trailing;
   final String value;
   final ValueChanged<String> onChanged;
 
@@ -761,7 +845,8 @@ class _Tabs extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(border: Border(bottom: BorderSide(color: c.border))),
       // Длинные подписи (другие языки) — лента листается, а не вылезает за край.
-      child: SingleChildScrollView(scrollDirection: Axis.horizontal, child: Row(children: [
+      child: Row(children: [
+        Expanded(child: SingleChildScrollView(scrollDirection: Axis.horizontal, child: Row(children: [
         for (final (id, label) in tabs)
           InkWell(
             onTap: () => onChanged(id),
@@ -772,7 +857,9 @@ class _Tabs extends StatelessWidget {
               child: Text(label, style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w500, color: value == id ? c.text : c.textMuted)),
             ),
           ),
-      ])),
+      ]))),
+        if (trailing.isNotEmpty) Container(decoration: BoxDecoration(border: Border(left: BorderSide(color: c.border))), child: Row(children: trailing)),
+      ]),
     );
   }
 }

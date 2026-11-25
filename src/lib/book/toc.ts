@@ -12,7 +12,8 @@ export const TOC_MODES = ["chapters", "sections", "both"] as const;
 /** По главам; по заголовкам разделов; главы и под ними заголовки разделов. */
 export type TocMode = (typeof TOC_MODES)[number];
 
-export const isTocMode = (v: unknown): v is TocMode => (TOC_MODES as readonly unknown[]).includes(v);
+export const isTocMode = (v: unknown): v is TocMode =>
+  (TOC_MODES as readonly unknown[]).includes(v);
 
 /** Настройка строки: своё название (пустое — как в книге) и «не показывать в оглавлении». */
 export interface TocLineSetting {
@@ -76,30 +77,64 @@ export interface TocLine {
 }
 
 /** Все кандидаты по порядку книги: глава, её разделы, следующая глава…, в конце галерея. */
-export function tocCandidates(content: Pick<BookContent, "chapters" | "galleryPhotos" | "galleryTitle">): TocCandidate[] {
+export function tocCandidates(
+  content: Pick<BookContent, "chapters" | "galleryPhotos" | "galleryTitle">,
+): TocCandidate[] {
   const out: TocCandidate[] = [];
   content.chapters.forEach((ch, i) => {
     let parent = tocKey.chapter(ch.key);
     const epigraph = ch.defaultEpigraph ?? ch.epigraph;
-    out.push({ key: parent, pageKey: ch.key, kind: "chapter", number: ch.number, label: ch.defaultTitle ?? ch.title, ...(i === 0 ? { first: true } : {}), ...(epigraph ? { epigraph } : {}) });
+    out.push({
+      key: parent,
+      pageKey: ch.key,
+      kind: "chapter",
+      number: ch.number,
+      label: ch.defaultTitle ?? ch.title,
+      ...(i === 0 ? { first: true } : {}),
+      ...(epigraph ? { epigraph } : {}),
+    });
     ch.items.forEach((it, at) => {
       for (const f of ch.folded ?? []) {
         if (f.at !== at) continue;
         parent = tocKey.chapter(f.key);
-        out.push({ key: parent, pageKey: f.key, kind: "chapter", number: null, label: f.title, folded: true });
+        out.push({
+          key: parent,
+          pageKey: f.key,
+          kind: "chapter",
+          number: null,
+          label: f.title,
+          folded: true,
+        });
       }
       // Продолжение истории после фото на всю страницу — та же история, отдельной строкой её нет.
       if (it.continued) return;
       const key = tocKey.section(it.id);
-      out.push({ key, pageKey: key, kind: "section", number: null, label: it.heading ?? "", parent });
+      out.push({
+        key,
+        pageKey: key,
+        kind: "section",
+        number: null,
+        label: it.heading ?? "",
+        parent,
+      });
     });
   });
-  if (content.galleryPhotos.length) out.push({ key: tocKey.chapter(GALLERY_KEY), pageKey: GALLERY_KEY, kind: "chapter", number: null, label: content.galleryTitle });
+  if (content.galleryPhotos.length)
+    out.push({
+      key: tocKey.chapter(GALLERY_KEY),
+      pageKey: GALLERY_KEY,
+      kind: "chapter",
+      number: null,
+      label: content.galleryTitle,
+    });
   return out;
 }
 
 /** Попадает ли кандидат в оглавление этого режима (до скрытия автором). Галерея — во всех режимах. */
-export function inMode(c: Pick<TocCandidate, "kind" | "pageKey">, mode: TocMode) {
+export function inMode(
+  c: Pick<TocCandidate, "kind" | "pageKey">,
+  mode: TocMode,
+) {
   if (mode === "both") return true;
   if (mode === "chapters") return c.kind === "chapter";
   return c.kind === "section" || c.pageKey === GALLERY_KEY;
@@ -109,17 +144,30 @@ export function inMode(c: Pick<TocCandidate, "kind" | "pageKey">, mode: TocMode)
  * Строки оглавления: режим, скрытые строки и свои названия. Строка без названия (раздел без заголовка, которому
  * автор не дал названия) не печатается. В режиме «по заголовкам» номеров нет: нумеруются только главы.
  */
-export function selectToc(candidates: readonly TocCandidate[], mode: TocMode, lines: TocLines): TocLine[] {
+export function selectToc(
+  candidates: readonly TocCandidate[],
+  mode: TocMode,
+  lines: TocLines,
+): TocLine[] {
   // Номера глав — подряд по оставшимся главам: убранная глава номер не занимает (в редакторе видно сразу, до сохранения).
   let chapterNo = 0;
   return candidates.flatMap((c): TocLine[] => {
     const s = lines[c.key];
     if (isRemovedChapter(c, lines)) return [];
-    const number = c.kind === "chapter" && c.pageKey !== GALLERY_KEY ? ++chapterNo : null;
+    const number =
+      c.kind === "chapter" && c.pageKey !== GALLERY_KEY ? ++chapterNo : null;
     if (!inMode(c, mode) || s?.hidden) return [];
     const label = s?.title?.trim() || c.label;
     if (!label) return [];
-    return [{ key: c.key, pageKey: c.pageKey, level: mode === "both" && c.kind === "section" ? 1 : 0, number: mode === "sections" ? null : number, label }];
+    return [
+      {
+        key: c.key,
+        pageKey: c.pageKey,
+        level: mode === "both" && c.kind === "section" ? 1 : 0,
+        number: mode === "sections" ? null : number,
+        label,
+      },
+    ];
   });
 }
 
@@ -127,26 +175,44 @@ export function selectToc(candidates: readonly TocCandidate[], mode: TocMode, li
  * Глава убрана из книги: автор скрыл её строку (кроме первой и галереи — их убрать некуда). По текущим настройкам, а не
  * по folded: вернул главу в редакторе — она сразу на месте, хотя образец собран ещё с убранной.
  */
-export function isRemovedChapter(c: Pick<TocCandidate, "kind" | "key" | "pageKey" | "first">, lines: TocLines) {
-  return c.kind === "chapter" && !!lines[c.key]?.hidden && !c.first && c.pageKey !== GALLERY_KEY;
+export function isRemovedChapter(
+  c: Pick<TocCandidate, "kind" | "key" | "pageKey" | "first">,
+  lines: TocLines,
+) {
+  return (
+    c.kind === "chapter" &&
+    !!lines[c.key]?.hidden &&
+    !c.first &&
+    c.pageKey !== GALLERY_KEY
+  );
 }
 
 /**
  * Название альбома в конце, как его печатает книга: своё (название строки альбома в оглавлении) или по умолчанию.
  * Одно на начальную полосу альбома в PDF, строку оглавления, образец «Страниц» и превью редактора.
  */
-export const printedGalleryTitle = (content: Pick<BookContent, "galleryTitle" | "tocLines">) => content.tocLines?.[tocKey.chapter(GALLERY_KEY)]?.title || content.galleryTitle;
+export const printedGalleryTitle = (
+  content: Pick<BookContent, "galleryTitle" | "tocLines">,
+) =>
+  content.tocLines?.[tocKey.chapter(GALLERY_KEY)]?.title ||
+  content.galleryTitle;
 
 /** Оглавление книги по её настройкам. */
 export function bookToc(content: BookContent): TocLine[] {
-  return selectToc(tocCandidates(content), content.tocMode ?? "chapters", content.tocLines ?? {});
+  return selectToc(
+    tocCandidates(content),
+    content.tocMode ?? "chapters",
+    content.tocLines ?? {},
+  );
 }
 
 /** Есть ли в книге страница оглавления: включено, в книге есть главы и в оглавлении осталась хоть одна строка. */
-export const hasToc = (content: BookContent) => content.showToc && content.chapters.length > 0 && bookToc(content).length > 0;
+export const hasToc = (content: BookContent) =>
+  content.showToc && content.chapters.length > 0 && bookToc(content).length > 0;
 
 /** Настроено ли оглавление не по умолчанию (по главам, без своих строк). */
-export const isCustomToc = (mode: TocMode, lines: TocLines) => mode !== "chapters" || Object.keys(lines).length > 0;
+export const isCustomToc = (mode: TocMode, lines: TocLines) =>
+  mode !== "chapters" || Object.keys(lines).length > 0;
 
 /**
  * Настройки строк из запроса: только известный вид ключа, название не длиннее TOC_TITLE_MAX, пустые настройки
@@ -155,15 +221,29 @@ export const isCustomToc = (mode: TocMode, lines: TocLines) => mode !== "chapter
 export function parseTocLines(raw: unknown): TocLines {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
   const out: TocLines = {};
-  for (const [key, v] of Object.entries(raw as Record<string, unknown>).slice(0, TOC_LINES_MAX)) {
+  for (const [key, v] of Object.entries(raw as Record<string, unknown>).slice(
+    0,
+    TOC_LINES_MAX,
+  )) {
     if (!KEY.test(key) || !v || typeof v !== "object") continue;
-    const { title, hidden, epigraph, noOpenerPhoto } = v as Record<string, unknown>;
+    const { title, hidden, epigraph, noOpenerPhoto } = v as Record<
+      string,
+      unknown
+    >;
     const s: TocLineSetting = {};
-    if (typeof title === "string" && title.trim()) s.title = title.trim().slice(0, TOC_TITLE_MAX);
+    if (typeof title === "string" && title.trim())
+      s.title = title.trim().slice(0, TOC_TITLE_MAX);
     if (hidden === true) s.hidden = true;
-    if (key.startsWith("c:") && typeof epigraph === "string" && epigraph.trim()) s.epigraph = epigraph.trim().slice(0, TOC_EPIGRAPH_MAX);
+    if (key.startsWith("c:") && typeof epigraph === "string" && epigraph.trim())
+      s.epigraph = epigraph.trim().slice(0, TOC_EPIGRAPH_MAX);
     if (key.startsWith("c:") && noOpenerPhoto === true) s.noOpenerPhoto = true;
-    if (s.title !== undefined || s.hidden || s.epigraph !== undefined || s.noOpenerPhoto) out[key] = s;
+    if (
+      s.title !== undefined ||
+      s.hidden ||
+      s.epigraph !== undefined ||
+      s.noOpenerPhoto
+    )
+      out[key] = s;
   }
   return out;
 }
@@ -182,9 +262,71 @@ export interface SampleTocLine {
 }
 
 /** Строки оглавления для разворота: на странице помещается не больше полосы — лишнее всё равно обрезается. */
-export function sampleToc(all: readonly SampleTocCandidate[], mode: TocMode, lines: TocLines): SampleTocLine[] {
+export function sampleToc(
+  all: readonly SampleTocCandidate[],
+  mode: TocMode,
+  lines: TocLines,
+): SampleTocLine[] {
   const page = new Map(all.map((c) => [c.key, c.page]));
   return selectToc(all, mode, lines)
     .slice(0, 24)
-    .map((l) => ({ key: l.key, title: l.label, number: l.number, level: l.level, page: page.get(l.key) ?? 0 }));
+    .map((l) => ({
+      key: l.key,
+      title: l.label,
+      number: l.number,
+      level: l.level,
+      page: page.get(l.key) ?? 0,
+    }));
+}
+
+/**
+ * Строки глав с правкой строки key: пустое название и эпиграф не хранятся, строка без настроек убирается. «Без фото
+ * главы» (noOpenerPhoto) этот блок не правит — переименование, «убрать» и эпиграф его не теряют.
+ */
+export function withChapterLine(
+  lines: TocLines,
+  key: string,
+  patch: TocLineSetting,
+): TocLines {
+  const next = { ...lines[key], ...patch };
+  const clean: TocLineSetting = {};
+  if (next.title) clean.title = next.title.slice(0, TOC_TITLE_MAX);
+  if (next.hidden) clean.hidden = true;
+  if (next.epigraph) clean.epigraph = next.epigraph.slice(0, TOC_EPIGRAPH_MAX);
+  if (next.noOpenerPhoto) clean.noOpenerPhoto = true;
+  const rest = { ...lines };
+  delete rest[key];
+  return Object.keys(clean).length ? { ...rest, [key]: clean } : rest;
+}
+
+/** Номер главы и куда уйдут истории убранной — по текущим правкам, ещё до сохранения. */
+export function chapterRows(
+  chapters: readonly SampleTocCandidate[],
+  lines: TocLines,
+  stories: (key: string) => number,
+) {
+  const rows: {
+    c: SampleTocCandidate;
+    removed: boolean;
+    number: number | null;
+    into: string;
+    count: number;
+  }[] = [];
+  let no = 0;
+  let host = "";
+  for (const c of chapters) {
+    const removed = isRemovedChapter(c, lines);
+    if (!removed) {
+      no += 1;
+      host = lines[c.key]?.title?.trim() || c.label;
+    }
+    rows.push({
+      c,
+      removed,
+      number: removed ? null : no,
+      into: removed ? host : "",
+      count: stories(c.key),
+    });
+  }
+  return rows;
 }

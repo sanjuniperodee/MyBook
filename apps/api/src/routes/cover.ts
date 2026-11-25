@@ -37,7 +37,7 @@ import {
 import { coverNames } from "@/lib/book/cover-names";
 import { fontCategories, fontFaces, fontKeys, fontWeights } from "@/lib/book/fonts";
 import { coverSpreadGeometry, getFormat } from "@/lib/book/formats";
-import type { Drawing, Shape } from "@/lib/book/interior-art";
+import { drawingToSvg, shapeToSvgTag } from "@/lib/book/interior-art/svg";
 import { coverPhotoUrl } from "@/lib/book/photo-cover";
 import { frameKey, MAX_ZOOM, parseFrames, type FrameMap } from "@/lib/book/photo-frame";
 import { bookKind } from "@/lib/content/kinds";
@@ -66,31 +66,6 @@ const TEXT_PRESETS = [
   { id: "body" as const, font: "lora", weight: 400, size: 0.032, lineHeight: 1.35, h: 0.1 },
   { id: "script" as const, font: "caveat", weight: 500, size: 0.07, lineHeight: 1.1, h: 0.1 },
 ];
-
-/** Перевод фигур interior-art (Shape[]) в чистый SVG-фрагмент для значков и мотивов в приложении. */
-function shapeToSvgTag(s: Shape): string {
-  const op = (attr: string) => (s.opacity !== undefined ? ` ${attr}="${s.opacity}"` : "");
-  switch (s.kind) {
-    case "circle":
-      return `<circle cx="${s.cx}" cy="${s.cy}" r="${s.r}" fill="${s.fill}"${op("fill-opacity")}/>`;
-    case "rect": {
-      const fill = s.fill ?? "none";
-      const stroke = s.stroke ? ` stroke="${s.stroke}" stroke-width="${s.width ?? 1}"${op("stroke-opacity")}` : "";
-      return `<rect x="${s.x}" y="${s.y}" width="${s.w}" height="${s.h}" fill="${fill}"${s.fill ? op("fill-opacity") : ""}${stroke}/>`;
-    }
-    case "path": {
-      const fill = s.fill ?? "none";
-      const stroke = s.stroke ? ` stroke="${s.stroke}" stroke-width="${s.width ?? 1}"${op("stroke-opacity")}` : "";
-      const cap = s.round ? ` stroke-linecap="round" stroke-linejoin="round"` : "";
-      const tr = s.transform ? ` transform="${s.transform}"` : "";
-      return `<path d="${s.d}" fill="${fill}"${s.fill ? op("fill-opacity") : ""}${stroke}${cap}${tr}/>`;
-    }
-  }
-}
-
-function drawingToSvg(d: Drawing): string {
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${d.w} ${d.h}">${d.shapes.map(shapeToSvgTag).join("")}</svg>`;
-}
 
 function shapeIconSvg(shape: ShapeKind): string {
   const shapes = shapeElements({ id: "i", kind: "shape", shape, x: 0, y: 0, w: 1, h: 1, fill: "#B8925A", stroke: "#3B332E", strokeWidth: 0.07 }, 26, 26, 26);

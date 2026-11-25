@@ -1,7 +1,8 @@
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { ChaptersEditor, withChapterLine } from "@/app/(app)/books/[id]/pages/ChaptersEditor";
+import { ChaptersEditor } from "@/app/(app)/books/[id]/pages/ChaptersEditor";
+import { withChapterLine } from "@/lib/book/toc";
 import { MessagesContext } from "@/i18n/context";
 import { kk } from "@/i18n/messages/kk";
 import { ru } from "@/i18n/messages/ru";

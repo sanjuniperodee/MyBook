@@ -1655,6 +1655,318 @@
         "x-auth": "user"
       }
     },
+    "/api/v1/books/{bookId}/pages/studio": {
+      "get": {
+        "operationId": "pagesStudioGet",
+        "tags": [
+          "pages"
+        ],
+        "summary": "Вкладка студии оформления страниц как данные: разделы, элементы управления, значения",
+        "parameters": [
+          {
+            "name": "bookId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "tab",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "text",
+                "elements",
+                "colors",
+                "chapters",
+                "fonts"
+              ]
+            }
+          },
+          {
+            "name": "chapter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 90
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagesStudio"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      },
+      "post": {
+        "operationId": "pagesStudioApply",
+        "tags": [
+          "pages"
+        ],
+        "summary": "Правки студии (операции): стиль, оформление главы, настройки книги, шрифт роли",
+        "parameters": [
+          {
+            "name": "bookId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PagesStudioBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagesStudioResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
+    },
+    "/api/v1/books/{bookId}/pages/ai": {
+      "get": {
+        "operationId": "pagesAiInfo",
+        "tags": [
+          "pages"
+        ],
+        "summary": "ИИ-дизайнер страниц: остаток запросов, режимы, идеи и надписи",
+        "parameters": [
+          {
+            "name": "bookId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagesAiInfo"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      },
+      "post": {
+        "operationId": "pagesAi",
+        "tags": [
+          "pages"
+        ],
+        "summary": "Просьба к ИИ-дизайнеру страниц: правка и «с нуля» сохраняются сразу, варианты и советы — с картинками и оформлением",
+        "parameters": [
+          {
+            "name": "bookId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PagesAiBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagesAiAnswer"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
+    },
+    "/api/v1/books/{bookId}/pages/chapters": {
+      "get": {
+        "operationId": "pagesChapters",
+        "tags": [
+          "pages"
+        ],
+        "summary": "«Главы книги»: названия, эпиграфы, убранные главы, порядок и режим оглавления",
+        "parameters": [
+          {
+            "name": "bookId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagesChapters"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      },
+      "post": {
+        "operationId": "pagesChaptersUpdate",
+        "tags": [
+          "pages"
+        ],
+        "summary": "Правка «Глав книги»: название, эпиграф, убрать/вернуть, перестановка, режим оглавления",
+        "parameters": [
+          {
+            "name": "bookId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PagesChaptersBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagesChaptersResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
+    },
     "/api/v1/books/{bookId}/photos/{photoId}/editor": {
       "get": {
         "operationId": "photoEditorGet",
@@ -19176,6 +19488,9 @@
             "type": "integer",
             "minimum": -9007199254740991,
             "maximum": 9007199254740991
+          },
+          "styleJson": {
+            "type": "string"
           }
         },
         "required": [
@@ -19185,7 +19500,8 @@
           "endText",
           "titlePage",
           "photoPlacement",
-          "customCount"
+          "customCount",
+          "styleJson"
         ],
         "additionalProperties": false
       },
@@ -19402,6 +19718,22 @@
                 ],
                 "additionalProperties": false
               },
+              "history": {
+                "type": "object",
+                "properties": {
+                  "undo": {
+                    "type": "string"
+                  },
+                  "redo": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "undo",
+                  "redo"
+                ],
+                "additionalProperties": false
+              },
               "tabs": {
                 "type": "object",
                 "properties": {
@@ -19413,12 +19745,32 @@
                   },
                   "fonts": {
                     "type": "string"
+                  },
+                  "text": {
+                    "type": "string"
+                  },
+                  "elements": {
+                    "type": "string"
+                  },
+                  "colors": {
+                    "type": "string"
+                  },
+                  "chapters": {
+                    "type": "string"
+                  },
+                  "ai": {
+                    "type": "string"
                   }
                 },
                 "required": [
                   "content",
                   "styles",
-                  "fonts"
+                  "fonts",
+                  "text",
+                  "elements",
+                  "colors",
+                  "chapters",
+                  "ai"
                 ],
                 "additionalProperties": false
               },
@@ -19606,6 +19958,7 @@
             },
             "required": [
               "designSwitch",
+              "history",
               "tabs",
               "content",
               "styles",
@@ -19659,8 +20012,1345 @@
           },
           "titlePage": {
             "type": "boolean"
+          },
+          "styleJson": {
+            "type": "string",
+            "maxLength": 60000
           }
         },
+        "additionalProperties": false
+      },
+      "PagesStudioOp": {
+        "type": "object",
+        "properties": {
+          "target": {
+            "type": "string",
+            "enum": [
+              "style",
+              "chapter",
+              "book",
+              "fontRole"
+            ]
+          },
+          "section": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "key": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 30
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "json": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "target",
+          "section",
+          "key",
+          "json"
+        ],
+        "additionalProperties": false
+      },
+      "PagesStudioOption": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "json": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "svg": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "swatches": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "json",
+          "svg",
+          "swatches"
+        ],
+        "additionalProperties": false
+      },
+      "PagesStudioControl": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "number",
+              "choice",
+              "tiles",
+              "toggle",
+              "text",
+              "color",
+              "font",
+              "note",
+              "warning"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "hint": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "spread": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "style",
+                  "chapter",
+                  "book",
+                  "fontRole"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "section": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "key": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "custom": {
+            "type": "boolean"
+          },
+          "value": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "min": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "max": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "step": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "scale": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "unit": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "slider": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "unsetAt": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "selected": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "options": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PagesStudioOption"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "checked": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "onJson": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "offJson": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "text": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "placeholder": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "maxLength": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "color": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "swatches": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "noneLabel": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "noneJson": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "bodyOnly": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "id",
+          "label",
+          "hint",
+          "spread",
+          "target",
+          "section",
+          "key",
+          "custom",
+          "value",
+          "min",
+          "max",
+          "step",
+          "scale",
+          "unit",
+          "slider",
+          "unsetAt",
+          "selected",
+          "options",
+          "checked",
+          "onJson",
+          "offJson",
+          "text",
+          "placeholder",
+          "maxLength",
+          "color",
+          "swatches",
+          "noneLabel",
+          "noneJson",
+          "bodyOnly"
+        ],
+        "additionalProperties": false
+      },
+      "PagesStudioFont": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "body": {
+            "type": "boolean"
+          },
+          "weights": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          },
+          "italic": {
+            "type": "boolean"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "category",
+          "body",
+          "weights",
+          "italic",
+          "url"
+        ],
+        "additionalProperties": false
+      },
+      "PagesStudio": {
+        "type": "object",
+        "properties": {
+          "tab": {
+            "type": "string"
+          },
+          "sections": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "text": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "controls": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PagesStudioControl"
+                  }
+                },
+                "reset": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/PagesStudioOp"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "resetLabel": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "title",
+                "text",
+                "controls",
+                "reset",
+                "resetLabel"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "chapters": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string"
+                    },
+                    "label": {
+                      "type": "string"
+                    },
+                    "styled": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "label",
+                    "styled"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "chapter": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "fonts": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PagesStudioFont"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fontCategories": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "label": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "label"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "labels": {
+            "type": "object",
+            "properties": {
+              "reset": {
+                "type": "string"
+              },
+              "search": {
+                "type": "string"
+              },
+              "empty": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "reset",
+              "search",
+              "empty"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "tab",
+          "sections",
+          "chapters",
+          "chapter",
+          "fonts",
+          "fontCategories",
+          "labels"
+        ],
+        "additionalProperties": false
+      },
+      "PagesStudioBody": {
+        "type": "object",
+        "properties": {
+          "tab": {
+            "type": "string",
+            "enum": [
+              "text",
+              "elements",
+              "colors",
+              "chapters",
+              "fonts"
+            ]
+          },
+          "chapter": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 90
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ops": {
+            "minItems": 1,
+            "maxItems": 10,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PagesStudioOp"
+            }
+          }
+        },
+        "required": [
+          "tab",
+          "chapter",
+          "ops"
+        ],
+        "additionalProperties": false
+      },
+      "PagesStudioResult": {
+        "type": "object",
+        "properties": {
+          "view": {
+            "$ref": "#/components/schemas/PagesView"
+          },
+          "studio": {
+            "$ref": "#/components/schemas/PagesStudio"
+          }
+        },
+        "required": [
+          "view",
+          "studio"
+        ],
+        "additionalProperties": false
+      },
+      "PagesAiPatch": {
+        "type": "object",
+        "properties": {
+          "interior": {
+            "type": "string"
+          },
+          "styleJson": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "interior",
+          "styleJson"
+        ],
+        "additionalProperties": false
+      },
+      "PagesAiInfo": {
+        "type": "object",
+        "properties": {
+          "remaining": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "credits": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "out": {
+            "type": "boolean"
+          },
+          "ideas": {
+            "type": "object",
+            "properties": {
+              "edit": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "create": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "variants": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "review": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "edit",
+              "create",
+              "variants",
+              "review"
+            ],
+            "additionalProperties": false
+          },
+          "labels": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "lead": {
+                "type": "string"
+              },
+              "modes": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "enum": [
+                        "edit",
+                        "create",
+                        "variants",
+                        "review"
+                      ]
+                    },
+                    "label": {
+                      "type": "string"
+                    },
+                    "hint": {
+                      "type": "string"
+                    },
+                    "placeholder": {
+                      "type": "string"
+                    },
+                    "send": {
+                      "type": "string"
+                    },
+                    "thinking": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "label",
+                    "hint",
+                    "placeholder",
+                    "send",
+                    "thinking"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "examplesLabel": {
+                "type": "string"
+              },
+              "left": {
+                "type": "string"
+              },
+              "credits": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "notice": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "freeNote": {
+                "type": "string"
+              },
+              "outTitle": {
+                "type": "string"
+              },
+              "outText": {
+                "type": "string"
+              },
+              "perks": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "concept": {
+                "type": "string"
+              },
+              "undo": {
+                "type": "string"
+              },
+              "noChange": {
+                "type": "string"
+              },
+              "ai": {
+                "type": "string"
+              },
+              "variantsTitle": {
+                "type": "string"
+              },
+              "pick": {
+                "type": "string"
+              },
+              "picked": {
+                "type": "string"
+              },
+              "noVariants": {
+                "type": "string"
+              },
+              "scoreLabel": {
+                "type": "string"
+              },
+              "strengths": {
+                "type": "string"
+              },
+              "tips": {
+                "type": "string"
+              },
+              "apply": {
+                "type": "string"
+              },
+              "applied": {
+                "type": "string"
+              },
+              "createDefault": {
+                "type": "string"
+              },
+              "variantsDefault": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "title",
+              "lead",
+              "modes",
+              "examplesLabel",
+              "left",
+              "credits",
+              "notice",
+              "freeNote",
+              "outTitle",
+              "outText",
+              "perks",
+              "concept",
+              "undo",
+              "noChange",
+              "ai",
+              "variantsTitle",
+              "pick",
+              "picked",
+              "noVariants",
+              "scoreLabel",
+              "strengths",
+              "tips",
+              "apply",
+              "applied",
+              "createDefault",
+              "variantsDefault"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "remaining",
+          "limit",
+          "credits",
+          "out",
+          "ideas",
+          "labels"
+        ],
+        "additionalProperties": false
+      },
+      "PagesAiBody": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "edit",
+              "create",
+              "variants",
+              "review"
+            ]
+          },
+          "prompt": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "history": {
+            "maxItems": 4,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "prompt": {
+                  "type": "string",
+                  "maxLength": 500
+                },
+                "reply": {
+                  "type": "string",
+                  "maxLength": 600
+                }
+              },
+              "required": [
+                "prompt",
+                "reply"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "mode",
+          "prompt",
+          "history"
+        ],
+        "additionalProperties": false
+      },
+      "PagesAiAnswer": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "edit",
+              "create",
+              "variants",
+              "review"
+            ]
+          },
+          "reply": {
+            "type": "string"
+          },
+          "concept": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "changed": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "patch": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PagesAiPatch"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "before": {
+            "$ref": "#/components/schemas/PagesAiPatch"
+          },
+          "variants": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "idea": {
+                      "type": "string"
+                    },
+                    "patch": {
+                      "$ref": "#/components/schemas/PagesAiPatch"
+                    },
+                    "imageUrl": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "idea",
+                    "patch",
+                    "imageUrl"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "scoreText": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "summary": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "strengths": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tips": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "title": {
+                      "type": "string"
+                    },
+                    "why": {
+                      "type": "string"
+                    },
+                    "patch": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/components/schemas/PagesAiPatch"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "title",
+                    "why",
+                    "patch"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "info": {
+            "$ref": "#/components/schemas/PagesAiInfo"
+          }
+        },
+        "required": [
+          "mode",
+          "reply",
+          "concept",
+          "changed",
+          "patch",
+          "before",
+          "variants",
+          "score",
+          "scoreText",
+          "summary",
+          "strengths",
+          "tips",
+          "info"
+        ],
+        "additionalProperties": false
+      },
+      "PagesChapterRow": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "pageKey": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "epigraph": {
+            "type": "string"
+          },
+          "epigraphPlaceholder": {
+            "type": "string"
+          },
+          "removed": {
+            "type": "boolean"
+          },
+          "number": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "meta": {
+            "type": "string"
+          },
+          "first": {
+            "type": "boolean"
+          },
+          "movable": {
+            "type": "boolean"
+          },
+          "canUp": {
+            "type": "boolean"
+          },
+          "canDown": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "key",
+          "pageKey",
+          "label",
+          "title",
+          "epigraph",
+          "epigraphPlaceholder",
+          "removed",
+          "number",
+          "meta",
+          "first",
+          "movable",
+          "canUp",
+          "canDown"
+        ],
+        "additionalProperties": false
+      },
+      "PagesChapters": {
+        "type": "object",
+        "properties": {
+          "editable": {
+            "type": "boolean"
+          },
+          "blank": {
+            "type": "boolean"
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PagesChapterRow"
+            }
+          },
+          "tocMode": {
+            "type": "string"
+          },
+          "tocModes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "title",
+                "text"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "limits": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "epigraph": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "title",
+              "epigraph"
+            ],
+            "additionalProperties": false
+          },
+          "labels": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              },
+              "later": {
+                "type": "string"
+              },
+              "removedCount": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "nameReset": {
+                "type": "string"
+              },
+              "epigraphReset": {
+                "type": "string"
+              },
+              "remove": {
+                "type": "string"
+              },
+              "restore": {
+                "type": "string"
+              },
+              "removed": {
+                "type": "string"
+              },
+              "toStart": {
+                "type": "string"
+              },
+              "up": {
+                "type": "string"
+              },
+              "down": {
+                "type": "string"
+              },
+              "toEnd": {
+                "type": "string"
+              },
+              "moveError": {
+                "type": "string"
+              },
+              "toc": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "title",
+              "text",
+              "later",
+              "removedCount",
+              "nameReset",
+              "epigraphReset",
+              "remove",
+              "restore",
+              "removed",
+              "toStart",
+              "up",
+              "down",
+              "toEnd",
+              "moveError",
+              "toc"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "editable",
+          "blank",
+          "rows",
+          "tocMode",
+          "tocModes",
+          "limits",
+          "labels"
+        ],
+        "additionalProperties": false
+      },
+      "PagesChaptersBody": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "maxLength": 90
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "epigraph": {
+            "type": "string",
+            "maxLength": 400
+          },
+          "hidden": {
+            "type": "boolean"
+          },
+          "move": {
+            "type": "string",
+            "enum": [
+              "start",
+              "up",
+              "down",
+              "end"
+            ]
+          },
+          "tocMode": {
+            "type": "string",
+            "enum": [
+              "chapters",
+              "sections",
+              "both"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "PagesChaptersResult": {
+        "type": "object",
+        "properties": {
+          "view": {
+            "$ref": "#/components/schemas/PagesView"
+          },
+          "chapters": {
+            "$ref": "#/components/schemas/PagesChapters"
+          }
+        },
+        "required": [
+          "view",
+          "chapters"
+        ],
         "additionalProperties": false
       },
       "PhotoEditRect": {

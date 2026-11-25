@@ -8,7 +8,7 @@ import { useMessages } from "@/i18n/client";
 import { apiFetch } from "@/lib/client-api";
 import { isChapterPhotoKey } from "@/lib/book/layout";
 import type { PhotoPlace } from "@/lib/book/photo-place";
-import { GALLERY_KEY, isRemovedChapter, TOC_EPIGRAPH_MAX, TOC_TITLE_MAX, type SampleTocCandidate, type TocLines, type TocLineSetting } from "@/lib/book/toc";
+import { chapterRows, GALLERY_KEY, TOC_EPIGRAPH_MAX, TOC_TITLE_MAX, withChapterLine, type SampleTocCandidate, type TocLines, type TocLineSetting } from "@/lib/book/toc";
 import { cn } from "@/lib/class-names";
 import { photoUrl } from "@/lib/urls";
 import { StoryList, type StoryInfo } from "./StoryList";
@@ -239,38 +239,6 @@ export function ChaptersEditor({
       ) : null}
     </div>
   );
-}
-
-/**
- * Строки глав с правкой строки key: пустое название и эпиграф не хранятся, строка без настроек убирается. «Без фото
- * главы» (noOpenerPhoto) этот блок не правит — переименование, «убрать» и эпиграф его не теряют.
- */
-export function withChapterLine(lines: TocLines, key: string, patch: TocLineSetting): TocLines {
-  const next = { ...lines[key], ...patch };
-  const clean: TocLineSetting = {};
-  if (next.title) clean.title = next.title.slice(0, TOC_TITLE_MAX);
-  if (next.hidden) clean.hidden = true;
-  if (next.epigraph) clean.epigraph = next.epigraph.slice(0, TOC_EPIGRAPH_MAX);
-  if (next.noOpenerPhoto) clean.noOpenerPhoto = true;
-  const rest = { ...lines };
-  delete rest[key];
-  return Object.keys(clean).length ? { ...rest, [key]: clean } : rest;
-}
-
-/** Номер главы и куда уйдут истории убранной — по текущим правкам, ещё до сохранения. */
-function chapterRows(chapters: readonly SampleTocCandidate[], lines: TocLines, stories: (key: string) => number) {
-  const rows: { c: SampleTocCandidate; removed: boolean; number: number | null; into: string; count: number }[] = [];
-  let no = 0;
-  let host = "";
-  for (const c of chapters) {
-    const removed = isRemovedChapter(c, lines);
-    if (!removed) {
-      no += 1;
-      host = lines[c.key]?.title?.trim() || c.label;
-    }
-    rows.push({ c, removed, number: removed ? null : no, into: removed ? host : "", count: stories(c.key) });
-  }
-  return rows;
 }
 
 /**

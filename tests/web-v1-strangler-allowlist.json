@@ -199,7 +199,6 @@
   "src/app/api/books/[id]/chapters/move/route.ts",
   "src/app/api/books/[id]/chapters/order/route.ts",
   "src/app/api/books/[id]/chapters/route.ts",
-  "src/app/api/books/[id]/design-ai/route.ts",
   "src/app/api/books/[id]/export/route.ts",
   "src/app/api/books/[id]/files/route.ts",
   "src/app/api/books/[id]/help/route.ts",

@@ -672,6 +672,16 @@ void main() {
         patches.add(body);
         if (body['interior'] != null) (fixture['state'] as Map<String, dynamic>)['interior'] = body['interior'];
       }
+      // Вкладки студии, «Главы книги» и ИИ-дизайнер — ответы API v1 из фикстур.
+      final path = req.url.path;
+      String? file;
+      if (path.endsWith('/pages/chapters')) file = 'pages_chapters';
+      if (path.endsWith('/pages/studio')) file = 'pages_studio_tab_${req.url.queryParameters['tab']}';
+      if (path.endsWith('/pages/ai')) file = 'pages_ai';
+      if (file != null) {
+        final f = File('test/fixtures/$file.json');
+        return http.Response(f.existsSync() ? f.readAsStringSync() : '{}', 200, headers: {'content-type': 'application/json'});
+      }
       return http.Response(jsonEncode(fixture), 200, headers: {'content-type': 'application/json'});
     });
     final api = v1api.MybookApi(baseUrl: 'http://127.0.0.1', client: mockClient);
@@ -696,8 +706,20 @@ void main() {
     expect(find.text(content['toc'] as String), findsWidgets);
     expect(find.text(content['endTitle'] as String), findsOneWidget);
 
+    // Вкладка студии: лента вкладок листается — сначала докрутить до неё.
+    Future<void> openTab(String key) async {
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, 4000));
+      await tester.pump();
+      final f = find.text((labels['tabs'] as Map)[key] as String);
+      await tester.ensureVisible(f);
+      await tester.pump();
+      await tester.tap(f);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+
     // Стили: выбранный — первым; нажатие на другой — PATCH { interior }.
-    await tester.tap(find.text((labels['tabs'] as Map)['styles'] as String));
+    await openTab('styles');
     await tester.pump();
     final items = (fixture['styles'] as Map)['items'] as List;
     final other = items.firstWhere((d) => (d as Map)['id'] != (fixture['state'] as Map)['interior']) as Map;
@@ -708,10 +730,7 @@ void main() {
     expect(patches.last, {'interior': other['id']});
 
     // Шрифты: пары по названиям с сервера; нажатие — PATCH { fontPair }.
-    await tester.drag(find.byType(CustomScrollView), const Offset(0, 4000));
-    await tester.pump();
-    await tester.tap(find.text((labels['tabs'] as Map)['fonts'] as String));
-    await tester.pump();
+    await openTab('fonts');
     expect(find.text(((labels['fonts'] as Map)['pairs'] as String).toUpperCase()), findsOneWidget);
     final pair = ((fixture['fonts'] as Map)['pairs'] as List).first as Map;
     final pairName = pair['upper'] == true ? (pair['name'] as String).toUpperCase() : pair['name'] as String;
@@ -720,5 +739,12 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
     expect(patches.last, {'fontPair': pair['id']});
+
+    // «Текст»: разделы студии — с сервера (pagesStudioGet), значения — у ползунков.
+    final textTab = jsonDecode(File('test/fixtures/pages_studio_tab_text.json').readAsStringSync()) as Map<String, dynamic>;
+    await openTab('text');
+    final firstSection = ((textTab['sections'] as List).first as Map)['title'] as String;
+    expect(find.text(firstSection.toUpperCase()), findsOneWidget);
+    expect(find.byType(Slider), findsWidgets);
   });
 }
