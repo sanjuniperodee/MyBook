@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -7,6 +8,7 @@ import '../../core/api.dart';
 import '../../core/auth.dart' show defaultServer;
 import '../../core/cache.dart';
 import '../../api/mybook_api.g.dart' as v1api;
+import '../push.dart';
 import 'backend.dart';
 import 'stores.dart';
 import 'models.dart';
@@ -16,13 +18,15 @@ enum ClientStatus { loading, loggedOut, loggedIn }
 /// Вход клиента и его данные на телефоне: токен — в защищённом хранилище (свой ключ, не как у CRM), книги — в кэше
 /// (LocalCache по пользователю): полка и последняя открытая книга видны сразу и без сети, сервер их обновляет.
 class ClientSession extends ChangeNotifier {
-  ClientSession() : api = ApiClient(baseUrl: defaultServer) {
+  ClientSession({ClientPush? push}) : api = ApiClient(baseUrl: defaultServer) {
     backend = ApiBackend(api);
     api.onUnauthorized = _expired;
+    this.push = push ?? ClientPush.forSession(this);
   }
 
   final ApiClient api;
   late final ClientBackend backend;
+  late final ClientPush push;
   final _secure = const FlutterSecureStorage();
   ClientStatus status = ClientStatus.loading;
   ClientUser? user;
@@ -82,12 +86,14 @@ class ClientSession extends ChangeNotifier {
 
   /// Аккаунт удалён (сервер уже закрыл все сессии): данные на телефоне стираем, на входе — сообщение сервера.
   Future<void> accountDeleted(String message) async {
+    await push.unregister();
     await _clear();
     notice = message;
     notifyListeners();
   }
 
   Future<void> logout() async {
+    await push.unregister();
     try {
       await backend.logout();
     } catch (_) {}
@@ -103,6 +109,7 @@ class ClientSession extends ChangeNotifier {
     );
     status = ClientStatus.loggedIn;
     notifyListeners();
+    unawaited(push.onLoggedIn());
   }
 
   Future<ClientUser?> _cachedUser() async {
@@ -128,6 +135,7 @@ class ClientSession extends ChangeNotifier {
     hubs.clear();
     api.token = null;
     user = null;
+    push.onLoggedOut();
     await _secure.delete(key: 'client_token');
     await _secure.delete(key: 'client_user');
     await LocalCache.setUser(null);

@@ -185,4 +185,25 @@ export const mail: typeof ru = {
     more: "Әр келесі дос үшін — тағы осындай промокод.",
     button: "Менің шақыруларым",
   },
+  push: {
+    bookReady: {
+      title: "Кітап дайын",
+      body: (n: number) => `№${n} тапсырыс бойынша кітап беттеуі дайын — қосымшадан ашуға болады.`,
+      bodyWithTitle: (book: string) => `«${book}» кітабы беттеліп, дайын болды — қосымшадан ашыңыз.`,
+    },
+    orderPaid: {
+      title: "Тапсырыс төленді",
+      bodyPrinted: (n: number) => `№${n} тапсырыс төленді — кітапты баспаға дайындап жатырмыз.`,
+      bodyDigital: (n: number) => `№${n} тапсырыс төленді — электрондық кітап ашық.`,
+    },
+    orderShipped: {
+      title: "Тапсырыс жіберілді",
+      body: (n: number) => `№${n} тапсырыстағы кітап жолда.`,
+      bodyTracking: (n: number, track: string) => `№${n} тапсырыс жолда. Трек-нөмір: ${track}`,
+    },
+    managerReply: {
+      title: "Менеджер жауабы",
+      bodyFallback: "Менеджер хабарламаңызға жауап берді.",
+    },
+  },
 };

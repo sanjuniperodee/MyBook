@@ -26,6 +26,7 @@ import {
   type ConversationMeta,
   type DeliveryStatus,
   type InboundMessage,
+  type ManagerReplyPayload,
   type RuleSendBlock,
   type RuleSendingPolicy,
 } from "../domain";
@@ -132,6 +133,8 @@ export class MessagingService {
      * обработает сообщение заново, а не примет его за уже принятое. По умолчанию (тесты) — без транзакции.
      */
     private readonly atomic: <T>(work: () => Promise<T>) => Promise<T> = (work) => work(),
+    /** Сообщение живого менеджера клиенту (не бот и не рассылка) — для доменного события и push клиенту. */
+    private readonly onManagerReply: ((reply: ManagerReplyPayload) => Promise<void>) | null = null,
   ) {}
 
   /**
@@ -140,6 +143,21 @@ export class MessagingService {
    */
   private async answered(conv: Conversation) {
     if (conv.dealId && this.answeredTasks) await this.answeredTasks.answered(conv.dealId).catch((err) => this.logger.error("tasks answered", err));
+  }
+
+  /** Событие «менеджер ответил клиенту»: сбой доставки не мешает отправке сообщения. */
+  private async notifyManagerReply(conv: Conversation, authorId: string | null, text: string) {
+    if (!this.onManagerReply) return;
+    await this.onManagerReply({
+      conversationId: conv.id,
+      channel: conv.channel,
+      chatId: conv.chatId,
+      clientId: conv.clientId,
+      dealId: conv.dealId,
+      phone: contactPhone(conv),
+      authorId,
+      text,
+    }).catch((err) => this.logger.error("manager reply", err));
   }
 
   /** Переписка в WhatsApp с номером действующего сотрудника (сбой проверки — как с клиентом: заявку не теряем). */
@@ -273,6 +291,7 @@ export class MessagingService {
       // Ответ с телефона магазина — в открытых вкладках CRM сразу, а не со следующим опросом.
       this.live.chatChanged(base.id);
       await this.answered(base);
+      await this.notifyManagerReply(base, holder?.id ?? null, m.text);
       // Ответил человек с телефона магазина — бот в этом диалоге больше не пишет (и не начнёт).
       await this.bot.stopByHuman(base.id, "phone").catch((err) => this.logger.error("bot stop", err));
       // Отвечал тот, у кого сейчас телефон: новая заявка — его.
@@ -480,7 +499,10 @@ export class MessagingService {
     }
     await this.attach(msg.id, r.externalId);
     if (conv.channel === "email") this.live.chatChanged(conversationId);
-    if (authorId) await this.answered(conv);
+    if (authorId) {
+      await this.answered(conv);
+      await this.notifyManagerReply(conv, authorId, body);
+    }
     return { ...msg, externalId: r.externalId, status: "sent" as const };
   }
 
@@ -511,6 +533,7 @@ export class MessagingService {
     await this.attach(msg.id, r.externalId);
     this.live.chatChanged(conversationId);
     await this.answered(conv);
+    await this.notifyManagerReply(conv, authorId, text || label);
     return { ...msg, externalId: r.externalId, status: "sent" as const };
   }
 
@@ -539,6 +562,7 @@ export class MessagingService {
     await this.attach(msg.id, r.externalId);
     this.live.chatChanged(conversationId);
     await this.answered(conv);
+    await this.notifyManagerReply(conv, authorId, text);
     return { ...msg, externalId: r.externalId, status: "sent" as const };
   }
 
@@ -618,6 +642,7 @@ export class MessagingService {
     await this.messages.setStatus(m.id, "sent", null);
     await this.attach(m.id, r.externalId);
     this.live.chatChanged(conversationId);
+    if (m.authorId) await this.notifyManagerReply(conv, m.authorId, m.text);
     return { ok: true };
   }
 

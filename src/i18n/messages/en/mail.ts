@@ -192,4 +192,25 @@ export const mail: typeof ru = {
     more: "For every further friend, you get another promo code like this.",
     button: "My invitations",
   },
+  push: {
+    bookReady: {
+      title: "Your book is ready",
+      body: (n: number) => `Your book layout for order #${n} is ready — open it in the app.`,
+      bodyWithTitle: (book: string) => `“${book}” is formatted and ready — open it in the app.`,
+    },
+    orderPaid: {
+      title: "Order paid",
+      bodyPrinted: (n: number) => `Order #${n} is paid — we are preparing your book for print.`,
+      bodyDigital: (n: number) => `Order #${n} is paid — your digital book is ready.`,
+    },
+    orderShipped: {
+      title: "Order shipped",
+      body: (n: number) => `Your book from order #${n} is on its way.`,
+      bodyTracking: (n: number, track: string) => `Order #${n} is on its way. Tracking number: ${track}`,
+    },
+    managerReply: {
+      title: "Reply from manager",
+      bodyFallback: "A manager replied to your message.",
+    },
+  },
 };

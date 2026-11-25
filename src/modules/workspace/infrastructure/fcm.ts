@@ -86,6 +86,8 @@ export interface FcmMessage {
   tag?: string;
   kind?: string;
   badge?: number;
+  /** Дополнительные поля data (например, bookId, orderId для навигации по тапу в клиентском приложении). */
+  data?: Record<string, string | undefined>;
 }
 
 /**
@@ -94,11 +96,15 @@ export interface FcmMessage {
  * телефон и при закрытом приложении.
  */
 export function fcmBody(token: string, m: FcmMessage) {
+  const extra: Record<string, string> = {};
+  if (m.data) {
+    for (const [k, v] of Object.entries(m.data)) if (v !== undefined && v !== "") extra[k] = v;
+  }
   return {
     message: {
       token,
       android: { priority: "HIGH", ttl: "3600s", ...(m.tag ? { collapse_key: m.tag.slice(0, 64) } : {}) },
-      data: { title: m.title.slice(0, 120), body: (m.body ?? "").slice(0, 240), link: m.link ?? "", tag: m.tag ?? "", kind: m.kind ?? "", badge: String(m.badge ?? 0) },
+      data: { ...extra, title: m.title.slice(0, 120), body: (m.body ?? "").slice(0, 240), link: m.link ?? "", tag: m.tag ?? "", kind: m.kind ?? "", badge: String(m.badge ?? 0) },
     },
   };
 }
