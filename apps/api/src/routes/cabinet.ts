@@ -168,6 +168,7 @@ export const cabinetHandlers: Pick<Handlers, "cabinetShelf" | "cabinetBook" | "c
           questionId: p.questionId ?? null,
           chapter: p.chapter ?? null,
           loss: isLossy(l) ? tt.lossChip(Math.round(l * 100)) : null,
+          edited: !!p.edited,
         };
       }),
       chapters: data.chapters.map((c) => ({ key: c.key, title: c.title })),
@@ -197,6 +198,9 @@ export const cabinetHandlers: Pick<Handlers, "cabinetShelf" | "cabinetBook" | "c
         deleteConfirm: tt.delete.confirm,
         deleteKeep: tt.delete.keep,
         cancel: tt.delete.cancel,
+        editLabel: m.editor.photoEditor.open,
+        editHint: m.editor.photoEditor.openHint,
+        editedLabel: m.editor.photoEditor.edited,
       },
     };
   },

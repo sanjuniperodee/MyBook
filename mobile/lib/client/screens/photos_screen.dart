@@ -15,6 +15,7 @@ import '../data/stores.dart';
 import '../ui/book_chrome.dart';
 import '../ui/cabinet.dart';
 import 'help_sheet.dart';
+import 'photo_editor_screen.dart';
 
 /// Ключи особых мест фото (src/lib/book/toc.ts GALLERY_KEY, src/lib/book/layout.ts PHOTO_OFF_KEY).
 const _galleryKey = '__gallery';
@@ -260,7 +261,7 @@ class _PhotosScreenState extends State<PhotosScreen> {
               physics: const NeverScrollableScrollPhysics(),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, mainAxisSpacing: 14, crossAxisSpacing: 12, childAspectRatio: 0.78),
               itemCount: shown.length,
-              itemBuilder: (_, i) => _Tile(photo: shown[i], onTap: () => _open(shown[i])),
+              itemBuilder: (_, i) => _Tile(photo: shown[i], editedLabel: tab.sheet.editedLabel, onTap: () => _open(shown[i])),
             ),
         ],
       ],
@@ -270,8 +271,9 @@ class _PhotosScreenState extends State<PhotosScreen> {
 
 /// Плитка фото: снимок с номером, подпись «где в книге» (значок места), отметка обрезки.
 class _Tile extends StatelessWidget {
-  const _Tile({required this.photo, required this.onTap});
+  const _Tile({required this.photo, this.editedLabel, required this.onTap});
   final v1api.CabPhoto photo;
+  final String? editedLabel;
   final VoidCallback onTap;
 
   static IconData placeIcon(String kind) => switch (kind) {
@@ -304,6 +306,16 @@ class _Tile extends StatelessWidget {
                   child: Text('${photo.n}', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
                 ),
               ),
+              if (photo.edited == true && editedLabel != null)
+                Positioned(
+                  left: 8,
+                  bottom: 8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                    decoration: BoxDecoration(color: c.brand, borderRadius: BorderRadius.circular(7)),
+                    child: Text(editedLabel!, style: TextStyle(color: c.onBrand, fontSize: 11, fontWeight: FontWeight.w500)),
+                  ),
+                ),
               if (photo.loss != null)
                 Positioned(
                   right: 8,
@@ -403,6 +415,15 @@ class _PlaceSheetState extends State<_PlaceSheet> {
     if (mounted) Navigator.of(context).pop(_changed);
   }
 
+  Future<void> _openEditor() async {
+    final res = await Navigator.of(context).push<v1api.PhotoEditorResult>(
+      MaterialPageRoute(builder: (_) => PhotoEditorScreen(bookId: widget.bookId, photoId: widget.photo.id)),
+    );
+    if (res != null && mounted) {
+      Navigator.of(context).pop(true);
+    }
+  }
+
   Future<void> _delete() async {
     final c = context.c;
     final answer = await showDialog<String>(
@@ -494,6 +515,23 @@ class _PlaceSheetState extends State<_PlaceSheet> {
                   Text(t.caption, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 6),
                   TextField(controller: _caption, readOnly: !editable, maxLength: 300, maxLines: 2, minLines: 1, decoration: const InputDecoration(counterText: '')),
+                ],
+                if (editable && t.editLabel != null) ...[
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: c.text,
+                        foregroundColor: c.bg,
+                        minimumSize: const Size.fromHeight(46),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Cab.ctl)),
+                      ),
+                      onPressed: _busy ? null : _openEditor,
+                      icon: const Icon(LucideIcons.slidersHorizontal, size: 17),
+                      label: Text(t.editLabel!, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+                    ),
+                  ),
                 ],
                 if (editable) ...[
                   const SizedBox(height: 10),

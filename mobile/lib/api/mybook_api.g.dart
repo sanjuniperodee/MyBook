@@ -224,6 +224,24 @@ class MybookApi {
     return CoverView.fromJson(json as Map<String, dynamic>);
   }
 
+  /// Состояние редактора фото: текущая правка photo_edits, оригинал, слот книги, пределы, пресеты и подписи на языке пользователя
+  Future<PhotoEditorState> photoEditorGet({required String bookId, required String photoId}) async {
+    final json = await _send('GET', '/api/v1/books/${Uri.encodeComponent('$bookId')}/photos/${Uri.encodeComponent('$photoId')}/editor');
+    return PhotoEditorState.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Сохранить правку редактора фото: пересобрать готовую картинку и миниатюру на сервере и записать photo_edits
+  Future<PhotoEditorResult> photoEditorSave({required String bookId, required String photoId, required PhotoEditorSaveBody body}) async {
+    final json = await _send('PUT', '/api/v1/books/${Uri.encodeComponent('$bookId')}/photos/${Uri.encodeComponent('$photoId')}/editor', body: body.toJson());
+    return PhotoEditorResult.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Сбросить правку редактора фото и вернуть оригинальный снимок
+  Future<PhotoEditorResult> photoEditorRevert({required String bookId, required String photoId}) async {
+    final json = await _send('DELETE', '/api/v1/books/${Uri.encodeComponent('$bookId')}/photos/${Uri.encodeComponent('$photoId')}/editor');
+    return PhotoEditorResult.fromJson(json as Map<String, dynamic>);
+  }
+
   /// «Мой день»: плитки, план месяца, задачи, ждут ответа, пропущенные звонки
   Future<CrmToday> crmToday() async {
     final json = await _send('GET', '/api/v1/crm/today');
@@ -2583,6 +2601,264 @@ class CoverViewLimits {
   Map<String, dynamic> toJson() => {'title': title, 'authorName': authorName, 'recordedBy': recordedBy, 'recipientName': recipientName, 'subtitle': subtitle, 'namesOnCover': namesOnCover, 'backText': backText};
 }
 
+class PhotoEditRect {
+  final double x;
+  final double y;
+  final double w;
+  final double h;
+
+  const PhotoEditRect({required this.x, required this.y, required this.w, required this.h});
+
+  factory PhotoEditRect.fromJson(Map<String, dynamic> json) => PhotoEditRect(x: (json['x'] as num).toDouble(), y: (json['y'] as num).toDouble(), w: (json['w'] as num).toDouble(), h: (json['h'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'x': x, 'y': y, 'w': w, 'h': h};
+}
+
+class PhotoEditGeometry {
+  final int turns;
+  final bool flip;
+  final double straighten;
+  final PhotoEditRect? crop;
+  final String aspect;
+
+  const PhotoEditGeometry({required this.turns, required this.flip, required this.straighten, this.crop, required this.aspect});
+
+  factory PhotoEditGeometry.fromJson(Map<String, dynamic> json) => PhotoEditGeometry(turns: (json['turns'] as num).toInt(), flip: json['flip'] as bool, straighten: (json['straighten'] as num).toDouble(), crop: json['crop'] == null ? null : PhotoEditRect.fromJson(json['crop'] as Map<String, dynamic>), aspect: json['aspect'] as String);
+
+  Map<String, dynamic> toJson() => {'turns': turns, 'flip': flip, 'straighten': straighten, 'crop': crop == null ? null : crop!.toJson(), 'aspect': aspect};
+}
+
+class PhotoEditLevels {
+  final double black;
+  final double white;
+  final double gamma;
+
+  const PhotoEditLevels({required this.black, required this.white, required this.gamma});
+
+  factory PhotoEditLevels.fromJson(Map<String, dynamic> json) => PhotoEditLevels(black: (json['black'] as num).toDouble(), white: (json['white'] as num).toDouble(), gamma: (json['gamma'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'black': black, 'white': white, 'gamma': gamma};
+}
+
+class PhotoEditFilter {
+  /// none | vivid | warm | cool | soft | film | vintage | drama | bw | noir | sepia | fade
+  final String id;
+  final double strength;
+
+  const PhotoEditFilter({required this.id, required this.strength});
+
+  factory PhotoEditFilter.fromJson(Map<String, dynamic> json) => PhotoEditFilter(id: json['id'] as String, strength: (json['strength'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'id': id, 'strength': strength};
+}
+
+class PhotoEditDoc {
+  final int v;
+  final PhotoEditGeometry geometry;
+  final Map<String, dynamic> adjust;
+  final PhotoEditLevels? levels;
+  final PhotoEditFilter filter;
+  final List<Map<String, dynamic>> layers;
+
+  const PhotoEditDoc({required this.v, required this.geometry, required this.adjust, this.levels, required this.filter, required this.layers});
+
+  factory PhotoEditDoc.fromJson(Map<String, dynamic> json) => PhotoEditDoc(v: (json['v'] as num).toInt(), geometry: PhotoEditGeometry.fromJson(json['geometry'] as Map<String, dynamic>), adjust: json['adjust'] as Map<String, dynamic>, levels: json['levels'] == null ? null : PhotoEditLevels.fromJson(json['levels'] as Map<String, dynamic>), filter: PhotoEditFilter.fromJson(json['filter'] as Map<String, dynamic>), layers: (json['layers'] as List).map((e) => e as Map<String, dynamic>).toList());
+
+  Map<String, dynamic> toJson() => {'v': v, 'geometry': geometry.toJson(), 'adjust': adjust, 'levels': levels == null ? null : levels!.toJson(), 'filter': filter.toJson(), 'layers': layers.map((e) => e).toList()};
+}
+
+class PhotoEditorAspect {
+  final String key;
+  final String label;
+  final double? ratio;
+
+  const PhotoEditorAspect({required this.key, required this.label, this.ratio});
+
+  factory PhotoEditorAspect.fromJson(Map<String, dynamic> json) => PhotoEditorAspect(key: json['key'] as String, label: json['label'] as String, ratio: json['ratio'] == null ? null : (json['ratio'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'key': key, 'label': label, 'ratio': ratio};
+}
+
+class PhotoEditorAdjustControl {
+  /// brightness | contrast | highlights | shadows | saturation | warmth | tint | fade | vignette | sharpen
+  final String key;
+  final String label;
+  final double min;
+  final double max;
+  final double step;
+  final double defaultValue;
+  final bool centered;
+
+  const PhotoEditorAdjustControl({required this.key, required this.label, required this.min, required this.max, required this.step, required this.defaultValue, required this.centered});
+
+  factory PhotoEditorAdjustControl.fromJson(Map<String, dynamic> json) => PhotoEditorAdjustControl(key: json['key'] as String, label: json['label'] as String, min: (json['min'] as num).toDouble(), max: (json['max'] as num).toDouble(), step: (json['step'] as num).toDouble(), defaultValue: (json['defaultValue'] as num).toDouble(), centered: json['centered'] as bool);
+
+  Map<String, dynamic> toJson() => {'key': key, 'label': label, 'min': min, 'max': max, 'step': step, 'defaultValue': defaultValue, 'centered': centered};
+}
+
+class PhotoEditorFilterPreset {
+  /// none | vivid | warm | cool | soft | film | vintage | drama | bw | noir | sepia | fade
+  final String id;
+  final String label;
+  final Map<String, dynamic> adjust;
+  final double mono;
+  final double sepia;
+  final List<double>? splitShadows;
+  final List<double>? splitHighlights;
+
+  const PhotoEditorFilterPreset({required this.id, required this.label, required this.adjust, required this.mono, required this.sepia, this.splitShadows, this.splitHighlights});
+
+  factory PhotoEditorFilterPreset.fromJson(Map<String, dynamic> json) => PhotoEditorFilterPreset(id: json['id'] as String, label: json['label'] as String, adjust: json['adjust'] as Map<String, dynamic>, mono: (json['mono'] as num).toDouble(), sepia: (json['sepia'] as num).toDouble(), splitShadows: json['splitShadows'] == null ? null : (json['splitShadows'] as List).map((e) => (e as num).toDouble()).toList(), splitHighlights: json['splitHighlights'] == null ? null : (json['splitHighlights'] as List).map((e) => (e as num).toDouble()).toList());
+
+  Map<String, dynamic> toJson() => {'id': id, 'label': label, 'adjust': adjust, 'mono': mono, 'sepia': sepia, 'splitShadows': splitShadows == null ? null : splitShadows!.map((e) => e).toList(), 'splitHighlights': splitHighlights == null ? null : splitHighlights!.map((e) => e).toList()};
+}
+
+class PhotoEditorSlot {
+  final double ratio;
+  final double widthMm;
+  final double heightMm;
+  /// cover | contain
+  final String mode;
+  final String? label;
+  final String? mask;
+
+  const PhotoEditorSlot({required this.ratio, required this.widthMm, required this.heightMm, required this.mode, this.label, this.mask});
+
+  factory PhotoEditorSlot.fromJson(Map<String, dynamic> json) => PhotoEditorSlot(ratio: (json['ratio'] as num).toDouble(), widthMm: (json['widthMm'] as num).toDouble(), heightMm: (json['heightMm'] as num).toDouble(), mode: json['mode'] as String, label: json['label'] == null ? null : json['label'] as String, mask: json['mask'] == null ? null : json['mask'] as String);
+
+  Map<String, dynamic> toJson() => {'ratio': ratio, 'widthMm': widthMm, 'heightMm': heightMm, 'mode': mode, 'label': label, 'mask': mask};
+}
+
+class PhotoEditorLimits {
+  final double minCropFraction;
+  final int smallLongSidePx;
+  final int minDpi;
+  final double straightenMin;
+  final double straightenMax;
+  final double straightenStep;
+  final double filterStrengthMin;
+  final double filterStrengthMax;
+  final double filterStrengthStep;
+  final double filterStrengthDefault;
+  final int maxLayers;
+
+  const PhotoEditorLimits({required this.minCropFraction, required this.smallLongSidePx, required this.minDpi, required this.straightenMin, required this.straightenMax, required this.straightenStep, required this.filterStrengthMin, required this.filterStrengthMax, required this.filterStrengthStep, required this.filterStrengthDefault, required this.maxLayers});
+
+  factory PhotoEditorLimits.fromJson(Map<String, dynamic> json) => PhotoEditorLimits(minCropFraction: (json['minCropFraction'] as num).toDouble(), smallLongSidePx: (json['smallLongSidePx'] as num).toInt(), minDpi: (json['minDpi'] as num).toInt(), straightenMin: (json['straightenMin'] as num).toDouble(), straightenMax: (json['straightenMax'] as num).toDouble(), straightenStep: (json['straightenStep'] as num).toDouble(), filterStrengthMin: (json['filterStrengthMin'] as num).toDouble(), filterStrengthMax: (json['filterStrengthMax'] as num).toDouble(), filterStrengthStep: (json['filterStrengthStep'] as num).toDouble(), filterStrengthDefault: (json['filterStrengthDefault'] as num).toDouble(), maxLayers: (json['maxLayers'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'minCropFraction': minCropFraction, 'smallLongSidePx': smallLongSidePx, 'minDpi': minDpi, 'straightenMin': straightenMin, 'straightenMax': straightenMax, 'straightenStep': straightenStep, 'filterStrengthMin': filterStrengthMin, 'filterStrengthMax': filterStrengthMax, 'filterStrengthStep': filterStrengthStep, 'filterStrengthDefault': filterStrengthDefault, 'maxLayers': maxLayers};
+}
+
+class PhotoEditorLabels {
+  final String title;
+  final String close;
+  final String save;
+  final String saving;
+  final String savingHint;
+  final String saved;
+  final String unsaved;
+  final String reverted;
+  final String loading;
+  final String loadError;
+  final String retry;
+  final String undo;
+  final String redo;
+  final String compare;
+  final String compareShort;
+  final String more;
+  final String resetAll;
+  final String revert;
+  final String revertTitle;
+  final String revertText;
+  final String revertYes;
+  final String discardTitle;
+  final String discardText;
+  final String discardYes;
+  final String discardNo;
+  final String cancel;
+  final String done;
+  final String toolCrop;
+  final String toolAdjust;
+  final String toolFilters;
+  final String cropAspect;
+  final String cropRotateLeft;
+  final String cropRotateRight;
+  final String cropFlip;
+  final String cropStraighten;
+  final String cropReset;
+  final String cropHint;
+  final String cropSmallTemplate;
+  final String lowRes;
+  final String lowDpiTemplate;
+  final String adjustAuto;
+  final String adjustAutoHint;
+  final String adjustReset;
+  final String adjustResetAll;
+  final String filterStrength;
+
+  const PhotoEditorLabels({required this.title, required this.close, required this.save, required this.saving, required this.savingHint, required this.saved, required this.unsaved, required this.reverted, required this.loading, required this.loadError, required this.retry, required this.undo, required this.redo, required this.compare, required this.compareShort, required this.more, required this.resetAll, required this.revert, required this.revertTitle, required this.revertText, required this.revertYes, required this.discardTitle, required this.discardText, required this.discardYes, required this.discardNo, required this.cancel, required this.done, required this.toolCrop, required this.toolAdjust, required this.toolFilters, required this.cropAspect, required this.cropRotateLeft, required this.cropRotateRight, required this.cropFlip, required this.cropStraighten, required this.cropReset, required this.cropHint, required this.cropSmallTemplate, required this.lowRes, required this.lowDpiTemplate, required this.adjustAuto, required this.adjustAutoHint, required this.adjustReset, required this.adjustResetAll, required this.filterStrength});
+
+  factory PhotoEditorLabels.fromJson(Map<String, dynamic> json) => PhotoEditorLabels(title: json['title'] as String, close: json['close'] as String, save: json['save'] as String, saving: json['saving'] as String, savingHint: json['savingHint'] as String, saved: json['saved'] as String, unsaved: json['unsaved'] as String, reverted: json['reverted'] as String, loading: json['loading'] as String, loadError: json['loadError'] as String, retry: json['retry'] as String, undo: json['undo'] as String, redo: json['redo'] as String, compare: json['compare'] as String, compareShort: json['compareShort'] as String, more: json['more'] as String, resetAll: json['resetAll'] as String, revert: json['revert'] as String, revertTitle: json['revertTitle'] as String, revertText: json['revertText'] as String, revertYes: json['revertYes'] as String, discardTitle: json['discardTitle'] as String, discardText: json['discardText'] as String, discardYes: json['discardYes'] as String, discardNo: json['discardNo'] as String, cancel: json['cancel'] as String, done: json['done'] as String, toolCrop: json['toolCrop'] as String, toolAdjust: json['toolAdjust'] as String, toolFilters: json['toolFilters'] as String, cropAspect: json['cropAspect'] as String, cropRotateLeft: json['cropRotateLeft'] as String, cropRotateRight: json['cropRotateRight'] as String, cropFlip: json['cropFlip'] as String, cropStraighten: json['cropStraighten'] as String, cropReset: json['cropReset'] as String, cropHint: json['cropHint'] as String, cropSmallTemplate: json['cropSmallTemplate'] as String, lowRes: json['lowRes'] as String, lowDpiTemplate: json['lowDpiTemplate'] as String, adjustAuto: json['adjustAuto'] as String, adjustAutoHint: json['adjustAutoHint'] as String, adjustReset: json['adjustReset'] as String, adjustResetAll: json['adjustResetAll'] as String, filterStrength: json['filterStrength'] as String);
+
+  Map<String, dynamic> toJson() => {'title': title, 'close': close, 'save': save, 'saving': saving, 'savingHint': savingHint, 'saved': saved, 'unsaved': unsaved, 'reverted': reverted, 'loading': loading, 'loadError': loadError, 'retry': retry, 'undo': undo, 'redo': redo, 'compare': compare, 'compareShort': compareShort, 'more': more, 'resetAll': resetAll, 'revert': revert, 'revertTitle': revertTitle, 'revertText': revertText, 'revertYes': revertYes, 'discardTitle': discardTitle, 'discardText': discardText, 'discardYes': discardYes, 'discardNo': discardNo, 'cancel': cancel, 'done': done, 'toolCrop': toolCrop, 'toolAdjust': toolAdjust, 'toolFilters': toolFilters, 'cropAspect': cropAspect, 'cropRotateLeft': cropRotateLeft, 'cropRotateRight': cropRotateRight, 'cropFlip': cropFlip, 'cropStraighten': cropStraighten, 'cropReset': cropReset, 'cropHint': cropHint, 'cropSmallTemplate': cropSmallTemplate, 'lowRes': lowRes, 'lowDpiTemplate': lowDpiTemplate, 'adjustAuto': adjustAuto, 'adjustAutoHint': adjustAutoHint, 'adjustReset': adjustReset, 'adjustResetAll': adjustResetAll, 'filterStrength': filterStrength};
+}
+
+class PhotoEditorState {
+  final String bookId;
+  final String photoId;
+  final bool editable;
+  final bool edited;
+  final String version;
+  final int width;
+  final int height;
+  final int originalWidth;
+  final int originalHeight;
+  final String originalUrl;
+  final String thumbUrl;
+  final String viewUrl;
+  final PhotoEditDoc edit;
+  final PhotoEditLevels suggestedLevels;
+  final PhotoEditorSlot? slot;
+  final PhotoEditorLimits limits;
+  final List<PhotoEditorAspect> aspects;
+  final List<PhotoEditorAdjustControl> adjustControls;
+  final List<PhotoEditorFilterPreset> filters;
+  final PhotoEditorLabels labels;
+
+  const PhotoEditorState({required this.bookId, required this.photoId, required this.editable, required this.edited, required this.version, required this.width, required this.height, required this.originalWidth, required this.originalHeight, required this.originalUrl, required this.thumbUrl, required this.viewUrl, required this.edit, required this.suggestedLevels, this.slot, required this.limits, required this.aspects, required this.adjustControls, required this.filters, required this.labels});
+
+  factory PhotoEditorState.fromJson(Map<String, dynamic> json) => PhotoEditorState(bookId: json['bookId'] as String, photoId: json['photoId'] as String, editable: json['editable'] as bool, edited: json['edited'] as bool, version: json['version'] as String, width: (json['width'] as num).toInt(), height: (json['height'] as num).toInt(), originalWidth: (json['originalWidth'] as num).toInt(), originalHeight: (json['originalHeight'] as num).toInt(), originalUrl: json['originalUrl'] as String, thumbUrl: json['thumbUrl'] as String, viewUrl: json['viewUrl'] as String, edit: PhotoEditDoc.fromJson(json['edit'] as Map<String, dynamic>), suggestedLevels: PhotoEditLevels.fromJson(json['suggestedLevels'] as Map<String, dynamic>), slot: json['slot'] == null ? null : PhotoEditorSlot.fromJson(json['slot'] as Map<String, dynamic>), limits: PhotoEditorLimits.fromJson(json['limits'] as Map<String, dynamic>), aspects: (json['aspects'] as List).map((e) => PhotoEditorAspect.fromJson(e as Map<String, dynamic>)).toList(), adjustControls: (json['adjustControls'] as List).map((e) => PhotoEditorAdjustControl.fromJson(e as Map<String, dynamic>)).toList(), filters: (json['filters'] as List).map((e) => PhotoEditorFilterPreset.fromJson(e as Map<String, dynamic>)).toList(), labels: PhotoEditorLabels.fromJson(json['labels'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'bookId': bookId, 'photoId': photoId, 'editable': editable, 'edited': edited, 'version': version, 'width': width, 'height': height, 'originalWidth': originalWidth, 'originalHeight': originalHeight, 'originalUrl': originalUrl, 'thumbUrl': thumbUrl, 'viewUrl': viewUrl, 'edit': edit.toJson(), 'suggestedLevels': suggestedLevels.toJson(), 'slot': slot == null ? null : slot!.toJson(), 'limits': limits.toJson(), 'aspects': aspects.map((e) => e.toJson()).toList(), 'adjustControls': adjustControls.map((e) => e.toJson()).toList(), 'filters': filters.map((e) => e.toJson()).toList(), 'labels': labels.toJson()};
+}
+
+class PhotoEditorSaveBody {
+  final String version;
+  final PhotoEditDoc edit;
+
+  const PhotoEditorSaveBody({required this.version, required this.edit});
+
+  factory PhotoEditorSaveBody.fromJson(Map<String, dynamic> json) => PhotoEditorSaveBody(version: json['version'] as String, edit: PhotoEditDoc.fromJson(json['edit'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'version': version, 'edit': edit.toJson()};
+}
+
+class PhotoEditorResult {
+  final String photoId;
+  final int width;
+  final int height;
+  final bool edited;
+  final String version;
+  final String thumbUrl;
+  final String url;
+
+  const PhotoEditorResult({required this.photoId, required this.width, required this.height, required this.edited, required this.version, required this.thumbUrl, required this.url});
+
+  factory PhotoEditorResult.fromJson(Map<String, dynamic> json) => PhotoEditorResult(photoId: json['photoId'] as String, width: (json['width'] as num).toInt(), height: (json['height'] as num).toInt(), edited: json['edited'] as bool, version: json['version'] as String, thumbUrl: json['thumbUrl'] as String, url: json['url'] as String);
+
+  Map<String, dynamic> toJson() => {'photoId': photoId, 'width': width, 'height': height, 'edited': edited, 'version': version, 'thumbUrl': thumbUrl, 'url': url};
+}
+
 class CrmTaskContext {
   /// deal | order | client
   final String type;
@@ -4542,12 +4818,13 @@ class CabPhoto {
   final String? questionId;
   final String? chapter;
   final String? loss;
+  final bool? edited;
 
-  const CabPhoto({required this.id, required this.n, required this.width, required this.height, required this.caption, required this.layout, required this.thumbUrl, required this.url, required this.place, this.questionId, this.chapter, this.loss});
+  const CabPhoto({required this.id, required this.n, required this.width, required this.height, required this.caption, required this.layout, required this.thumbUrl, required this.url, required this.place, this.questionId, this.chapter, this.loss, this.edited});
 
-  factory CabPhoto.fromJson(Map<String, dynamic> json) => CabPhoto(id: json['id'] as String, n: (json['n'] as num).toInt(), width: (json['width'] as num).toInt(), height: (json['height'] as num).toInt(), caption: json['caption'] as String, layout: json['layout'] as String, thumbUrl: json['thumbUrl'] as String, url: json['url'] as String, place: CabPhotoPlace.fromJson(json['place'] as Map<String, dynamic>), questionId: json['questionId'] == null ? null : json['questionId'] as String, chapter: json['chapter'] == null ? null : json['chapter'] as String, loss: json['loss'] == null ? null : json['loss'] as String);
+  factory CabPhoto.fromJson(Map<String, dynamic> json) => CabPhoto(id: json['id'] as String, n: (json['n'] as num).toInt(), width: (json['width'] as num).toInt(), height: (json['height'] as num).toInt(), caption: json['caption'] as String, layout: json['layout'] as String, thumbUrl: json['thumbUrl'] as String, url: json['url'] as String, place: CabPhotoPlace.fromJson(json['place'] as Map<String, dynamic>), questionId: json['questionId'] == null ? null : json['questionId'] as String, chapter: json['chapter'] == null ? null : json['chapter'] as String, loss: json['loss'] == null ? null : json['loss'] as String, edited: json['edited'] == null ? null : json['edited'] as bool);
 
-  Map<String, dynamic> toJson() => {'id': id, 'n': n, 'width': width, 'height': height, 'caption': caption, 'layout': layout, 'thumbUrl': thumbUrl, 'url': url, 'place': place.toJson(), 'questionId': questionId, 'chapter': chapter, 'loss': loss};
+  Map<String, dynamic> toJson() => {'id': id, 'n': n, 'width': width, 'height': height, 'caption': caption, 'layout': layout, 'thumbUrl': thumbUrl, 'url': url, 'place': place.toJson(), 'questionId': questionId, 'chapter': chapter, 'loss': loss, if (edited != null) 'edited': edited!};
 }
 
 class CabLabeled {
@@ -4629,12 +4906,15 @@ class CabinetPhotosSheet {
   final String deleteConfirm;
   final String deleteKeep;
   final String cancel;
+  final String? editLabel;
+  final String? editHint;
+  final String? editedLabel;
 
-  const CabinetPhotosSheet({required this.title, required this.options, required this.stepChapter, required this.stepAnswer, required this.here, required this.layoutTitle, required this.layouts, required this.caption, required this.done, required this.coverNote, required this.backNote, required this.deleteLabel, required this.deleteTitle, required this.deleteText, required this.deleteConfirm, required this.deleteKeep, required this.cancel});
+  const CabinetPhotosSheet({required this.title, required this.options, required this.stepChapter, required this.stepAnswer, required this.here, required this.layoutTitle, required this.layouts, required this.caption, required this.done, required this.coverNote, required this.backNote, required this.deleteLabel, required this.deleteTitle, required this.deleteText, required this.deleteConfirm, required this.deleteKeep, required this.cancel, this.editLabel, this.editHint, this.editedLabel});
 
-  factory CabinetPhotosSheet.fromJson(Map<String, dynamic> json) => CabinetPhotosSheet(title: json['title'] as String, options: (json['options'] as List).map((e) => CabLabeled.fromJson(e as Map<String, dynamic>)).toList(), stepChapter: json['stepChapter'] as String, stepAnswer: json['stepAnswer'] as String, here: json['here'] as String, layoutTitle: json['layoutTitle'] as String, layouts: (json['layouts'] as List).map((e) => CabLabeled.fromJson(e as Map<String, dynamic>)).toList(), caption: json['caption'] as String, done: json['done'] as String, coverNote: json['coverNote'] as String, backNote: json['backNote'] as String, deleteLabel: json['deleteLabel'] as String, deleteTitle: json['deleteTitle'] as String, deleteText: json['deleteText'] as String, deleteConfirm: json['deleteConfirm'] as String, deleteKeep: json['deleteKeep'] as String, cancel: json['cancel'] as String);
+  factory CabinetPhotosSheet.fromJson(Map<String, dynamic> json) => CabinetPhotosSheet(title: json['title'] as String, options: (json['options'] as List).map((e) => CabLabeled.fromJson(e as Map<String, dynamic>)).toList(), stepChapter: json['stepChapter'] as String, stepAnswer: json['stepAnswer'] as String, here: json['here'] as String, layoutTitle: json['layoutTitle'] as String, layouts: (json['layouts'] as List).map((e) => CabLabeled.fromJson(e as Map<String, dynamic>)).toList(), caption: json['caption'] as String, done: json['done'] as String, coverNote: json['coverNote'] as String, backNote: json['backNote'] as String, deleteLabel: json['deleteLabel'] as String, deleteTitle: json['deleteTitle'] as String, deleteText: json['deleteText'] as String, deleteConfirm: json['deleteConfirm'] as String, deleteKeep: json['deleteKeep'] as String, cancel: json['cancel'] as String, editLabel: json['editLabel'] == null ? null : json['editLabel'] as String, editHint: json['editHint'] == null ? null : json['editHint'] as String, editedLabel: json['editedLabel'] == null ? null : json['editedLabel'] as String);
 
-  Map<String, dynamic> toJson() => {'title': title, 'options': options.map((e) => e.toJson()).toList(), 'stepChapter': stepChapter, 'stepAnswer': stepAnswer, 'here': here, 'layoutTitle': layoutTitle, 'layouts': layouts.map((e) => e.toJson()).toList(), 'caption': caption, 'done': done, 'coverNote': coverNote, 'backNote': backNote, 'deleteLabel': deleteLabel, 'deleteTitle': deleteTitle, 'deleteText': deleteText, 'deleteConfirm': deleteConfirm, 'deleteKeep': deleteKeep, 'cancel': cancel};
+  Map<String, dynamic> toJson() => {'title': title, 'options': options.map((e) => e.toJson()).toList(), 'stepChapter': stepChapter, 'stepAnswer': stepAnswer, 'here': here, 'layoutTitle': layoutTitle, 'layouts': layouts.map((e) => e.toJson()).toList(), 'caption': caption, 'done': done, 'coverNote': coverNote, 'backNote': backNote, 'deleteLabel': deleteLabel, 'deleteTitle': deleteTitle, 'deleteText': deleteText, 'deleteConfirm': deleteConfirm, 'deleteKeep': deleteKeep, 'cancel': cancel, if (editLabel != null) 'editLabel': editLabel!, if (editHint != null) 'editHint': editHint!, if (editedLabel != null) 'editedLabel': editedLabel!};
 }
 
 class HelpMessage {

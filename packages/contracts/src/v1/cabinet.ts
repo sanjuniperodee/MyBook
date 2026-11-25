@@ -205,6 +205,8 @@ export const CabPhoto = z
     chapter: z.string().nullable(),
     /** «Обрежется 12%» — у фото с заметной обрезкой на месте; null — без обрезки. */
     loss: z.string().nullable(),
+    /** Правлено в редакторе фото. */
+    edited: z.boolean().optional(),
   })
   .register(schemas, { id: "CabPhoto" });
 
@@ -248,6 +250,10 @@ export const CabinetPhotos = z
       deleteConfirm: z.string(),
       deleteKeep: z.string(),
       cancel: z.string(),
+      /** Кнопка открытия редактора фото, подсказка и бейдж «Изменено» (из словаря photoEditor сайта). */
+      editLabel: z.string().optional(),
+      editHint: z.string().optional(),
+      editedLabel: z.string().optional(),
     }),
   })
   .register(schemas, { id: "CabinetPhotos" });
