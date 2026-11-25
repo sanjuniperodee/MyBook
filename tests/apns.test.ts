@@ -4,7 +4,7 @@ import { APNS_ORIGIN, apnsBody, apnsConfig, apnsJwt, collapseKey, sendApns, type
 
 const { privateKey, publicKey } = generateKeyPairSync("ec", { namedCurve: "P-256" });
 const pem = privateKey.export({ type: "pkcs8", format: "pem" }).toString();
-const cfg = { keyId: "ABC123DEFG", teamId: "TEAM123456", privateKey: pem, topic: "kz.workdesk.mobile" };
+const cfg = { keyId: "ABC123DEFG", teamId: "TEAM123456", privateKey: pem, topic: "kz.workdesk.mobile", clientTopic: "kz.mybooks.app" };
 
 function transport(status: number, body = ""): ApnsTransport & { calls: { origin: string; path: string; headers: Record<string, string>; body: string }[] } {
   const calls: { origin: string; path: string; headers: Record<string, string>; body: string }[] = [];
@@ -18,6 +18,8 @@ describe("push на iPhone: APNs", () => {
     const c = apnsConfig({ APNS_KEY_ID: "K", APNS_TEAM_ID: "T", APNS_KEY_P8: "-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----" });
     expect(c?.privateKey).toContain("\nabc\n");
     expect(c?.topic).toBe("kz.workdesk.mobile");
+    expect(c?.clientTopic).toBe("kz.mybooks.app");
+    expect(apnsConfig({ APNS_KEY_ID: "K", APNS_TEAM_ID: "T", APNS_KEY_P8: "x", APNS_CLIENT_TOPIC: "kz.other.app" })?.clientTopic).toBe("kz.other.app");
     expect(apnsConfig({ APNS_KEY_ID: "K", APNS_TEAM_ID: "T", APNS_KEY_FILE: "/нет/такого/файла.p8" })).toBeNull();
   });
 
@@ -45,6 +47,9 @@ describe("push на iPhone: APNs", () => {
     expect(t.calls[1].origin).toBe(APNS_ORIGIN.production);
     expect(t.calls[0].path).toBe(`/3/device/${"ab".repeat(32)}`);
     expect(t.calls[0].headers).toMatchObject({ "apns-topic": "kz.workdesk.mobile", "apns-push-type": "alert", "apns-priority": "10" });
+    // Клиентское «MyBooks» — свой bundle id: токен его устройства с topic продажника Apple отклоняет.
+    expect(await sendApns(cfg, { token: "ef".repeat(32), environment: "production", app: "client" }, { title: "Заказ" }, t)).toBe("sent");
+    expect(t.calls.at(-1)!.headers).toMatchObject({ "apns-topic": "kz.mybooks.app" });
     expect(t.calls[0].headers.authorization).toMatch(/^bearer [\w-]+\.[\w-]+\.[\w-]+$/);
   });
 
