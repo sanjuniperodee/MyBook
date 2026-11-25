@@ -3012,6 +3012,222 @@
         "x-auth": "user"
       }
     },
+    "/api/v1/me/account": {
+      "get": {
+        "operationId": "meAccount",
+        "tags": [
+          "me"
+        ],
+        "summary": "Аккаунт: профиль, напоминания, язык и все надписи страницы (как /account сайта)",
+        "parameters": [
+          {
+            "name": "locale",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ru",
+                "kk",
+                "uz",
+                "en"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountView"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
+    },
+    "/api/v1/me/profile": {
+      "patch": {
+        "operationId": "meProfileUpdate",
+        "tags": [
+          "me"
+        ],
+        "summary": "Имя и телефон (ошибка формы — в notice)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountView"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
+    },
+    "/api/v1/me/password": {
+      "post": {
+        "operationId": "mePasswordChange",
+        "tags": [
+          "me"
+        ],
+        "summary": "Смена пароля: остальные устройства выходят, этот остаётся (ошибка формы — в notice)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountView"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
+    },
+    "/api/v1/me/reminders": {
+      "put": {
+        "operationId": "meRemindersSet",
+        "tags": [
+          "me"
+        ],
+        "summary": "Напоминания дописать книгу: включить или выключить",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemindersBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountView"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
+    },
+    "/api/v1/me/locale": {
+      "put": {
+        "operationId": "meLocaleSet",
+        "tags": [
+          "me"
+        ],
+        "summary": "Язык писем и текстов с сервера (как переключатель языка на сайте)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocaleBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountView"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "user"
+      }
+    },
     "/api/v1/me/deletion": {
       "get": {
         "operationId": "meDeletionInfo",
@@ -23315,6 +23531,387 @@
         "required": [
           "ios",
           "android"
+        ],
+        "additionalProperties": false
+      },
+      "AccountView": {
+        "type": "object",
+        "properties": {
+          "profile": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "phone": {
+                "type": "string"
+              },
+              "email": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "phone",
+              "email"
+            ],
+            "additionalProperties": false
+          },
+          "remindersOn": {
+            "type": "boolean"
+          },
+          "locale": {
+            "type": "string"
+          },
+          "locales": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "label"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "limits": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "passwordMin": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "name",
+              "passwordMin"
+            ],
+            "additionalProperties": false
+          },
+          "notice": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "ok": {
+                    "type": "boolean"
+                  },
+                  "text": {
+                    "type": "string"
+                  },
+                  "field": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "name",
+                          "phone",
+                          "current",
+                          "next"
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "ok",
+                  "text",
+                  "field"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "labels": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "lead": {
+                "type": "string"
+              },
+              "groups": {
+                "type": "object",
+                "properties": {
+                  "profile": {
+                    "type": "object",
+                    "properties": {
+                      "title": {
+                        "type": "string"
+                      },
+                      "text": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "title",
+                      "text"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "password": {
+                    "type": "object",
+                    "properties": {
+                      "title": {
+                        "type": "string"
+                      },
+                      "text": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "title",
+                      "text"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "notifications": {
+                    "type": "object",
+                    "properties": {
+                      "title": {
+                        "type": "string"
+                      },
+                      "text": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "title",
+                      "text"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "language": {
+                    "type": "object",
+                    "properties": {
+                      "title": {
+                        "type": "string"
+                      },
+                      "text": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "title",
+                      "text"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "data": {
+                    "type": "object",
+                    "properties": {
+                      "title": {
+                        "type": "string"
+                      },
+                      "text": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "title",
+                      "text"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "profile",
+                  "password",
+                  "notifications",
+                  "language",
+                  "data"
+                ],
+                "additionalProperties": false
+              },
+              "email": {
+                "type": "string"
+              },
+              "emailHint": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "phone": {
+                "type": "string"
+              },
+              "save": {
+                "type": "string"
+              },
+              "current": {
+                "type": "string"
+              },
+              "next": {
+                "type": "string"
+              },
+              "change": {
+                "type": "string"
+              },
+              "languageText": {
+                "type": "string"
+              },
+              "logout": {
+                "type": "string"
+              },
+              "notifications": {
+                "type": "object",
+                "properties": {
+                  "orderMail": {
+                    "type": "string"
+                  },
+                  "orderMailValue": {
+                    "type": "string"
+                  },
+                  "reminders": {
+                    "type": "string"
+                  },
+                  "on": {
+                    "type": "string"
+                  },
+                  "off": {
+                    "type": "string"
+                  },
+                  "onHint": {
+                    "type": "string"
+                  },
+                  "offHint": {
+                    "type": "string"
+                  },
+                  "turnOn": {
+                    "type": "string"
+                  },
+                  "turnOff": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "orderMail",
+                  "orderMailValue",
+                  "reminders",
+                  "on",
+                  "off",
+                  "onHint",
+                  "offHint",
+                  "turnOn",
+                  "turnOff"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "title",
+              "lead",
+              "groups",
+              "email",
+              "emailHint",
+              "name",
+              "phone",
+              "save",
+              "current",
+              "next",
+              "change",
+              "languageText",
+              "logout",
+              "notifications"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "profile",
+          "remindersOn",
+          "locale",
+          "locales",
+          "limits",
+          "notice",
+          "labels"
+        ],
+        "additionalProperties": false
+      },
+      "ProfileBody": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "phone": {
+            "type": "string",
+            "maxLength": 40
+          }
+        },
+        "required": [
+          "name",
+          "phone"
+        ],
+        "additionalProperties": false
+      },
+      "PasswordBody": {
+        "type": "object",
+        "properties": {
+          "current": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "next": {
+            "type": "string",
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "current",
+          "next"
+        ],
+        "additionalProperties": false
+      },
+      "RemindersBody": {
+        "type": "object",
+        "properties": {
+          "on": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "on"
+        ],
+        "additionalProperties": false
+      },
+      "LocaleBody": {
+        "type": "object",
+        "properties": {
+          "locale": {
+            "type": "string",
+            "enum": [
+              "ru",
+              "kk",
+              "uz",
+              "en"
+            ]
+          }
+        },
+        "required": [
+          "locale"
         ],
         "additionalProperties": false
       },

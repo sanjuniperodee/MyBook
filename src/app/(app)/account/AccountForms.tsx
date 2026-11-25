@@ -1,5 +1,6 @@
 "use client";
 
+import { ACCOUNT_LIMITS } from "@mybook/contracts/limits";
 import { useActionState, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { LoaderCircle } from "lucide-react";
@@ -25,7 +26,7 @@ export function ProfileForm({ name, phone, email }: { name: string; phone: strin
         <input className="input" type="email" value={email} autoComplete="email" disabled readOnly />
       </Field>
       <Field label={t.name} error={at("name")}>
-        <input className="input" id="name" name="name" value={nameValue} onChange={(e) => setNameValue(e.target.value)} maxLength={100} autoComplete="name" required />
+        <input className="input" id="name" name="name" value={nameValue} onChange={(e) => setNameValue(e.target.value)} maxLength={ACCOUNT_LIMITS.name} autoComplete="name" required />
       </Field>
       <Field label={t.phone} error={at("phone")}>
         <input className="input" id="phone" name="phone" type="tel" inputMode="tel" autoComplete="tel" value={phoneValue} onChange={(e) => setPhoneValue(e.target.value)} placeholder="+7 7__ ___ __ __" />

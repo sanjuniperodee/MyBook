@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { ACCOUNT_LIMITS } from "@mybook/contracts/limits";
 import { formObject, formText } from "@/server/input";
 import { destroySession, requireUser, sessionToken } from "@/server/auth";
 import { deleteClientAccount } from "@/server/account-deletion";
@@ -23,8 +24,8 @@ export async function updateProfileAction(_: AccountState, form: FormData): Prom
   const t = (await getMessages()).orders.account;
   const parsed = z
     .object({
-      name: z.string().trim().min(1, t.errors.name).max(100),
-      phone: z.union([z.literal(""), z.string().trim().regex(/^[+\d][\d\s()-]{9,20}$/, t.errors.phone)]),
+      name: z.string().trim().min(1, t.errors.name).max(ACCOUNT_LIMITS.name),
+      phone: z.union([z.literal(""), z.string().trim().regex(ACCOUNT_LIMITS.phone, t.errors.phone)]),
     })
     .safeParse(Object.fromEntries(form));
   if (!parsed.success) {

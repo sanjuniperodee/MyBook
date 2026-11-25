@@ -36,6 +36,9 @@ export const COVER_DESIGN_LIMITS = {
 /** Тексты страниц книги: посвящение и фраза последней страницы (сайт, API v1, приложение). */
 export const PAGES_TEXT_MAX = { dedication: 600, endText: 120 } as const;
 
+/** Профиль в аккаунте: имя и телефон (сайт и API v1 проверяют одинаково). */
+export const ACCOUNT_LIMITS = { name: 100, phone: /^[+\d][\d\s()-]{9,20}$/ } as const;
+
 export const LETTER_MAX = { inviteText: 500, authorName: 80, relation: 80, text: 8000 } as const;
 /** Отзыв о книге: текст, имя, город. */
 export const REVIEW_MAX = { text: 2000, authorName: 40, city: 40 } as const;

@@ -28,7 +28,7 @@ export interface UserProps {
   deletedAt: Date | null;
 }
 
-const MIN_PASSWORD_LENGTH = 8;
+export const MIN_PASSWORD_LENGTH = 8;
 
 /** Не хэш ни одного пароля: проверка пароля удалённого аккаунта всегда ложна. */
 export const DELETED_PASSWORD_HASH = "!deleted";

@@ -84,6 +84,14 @@ class ClientSession extends ChangeNotifier {
     await _enter(r.user);
   }
 
+  /// Профиль изменили в «Аккаунте»: имя и телефон — заново с сервера (полка, шапка).
+  Future<void> refreshUser() async {
+    try {
+      user = await backend.me();
+      notifyListeners();
+    } on ApiException catch (_) {}
+  }
+
   /// Аккаунт удалён (сервер уже закрыл все сессии): данные на телефоне стираем, на входе — сообщение сервера.
   Future<void> accountDeleted(String message) async {
     await push.unregister();

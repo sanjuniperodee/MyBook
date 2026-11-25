@@ -5,10 +5,101 @@ import { getLocale } from "@/i18n/server";
 import { accountDeletionFor } from "@/i18n/messages/account-deletion";
 import { messagesFor } from "@/i18n/messages";
 import { IdentityError } from "@/modules/identity";
-import { fcmClientOptions, fcmConfig, mobileDevices } from "@/modules/workspace";
-import { deleteClientAccount, deletionPreview } from "@/server/account-deletion";
+import {
+  fcmClientOptions,
+  fcmConfig,
+  mobileDevices,
+} from "@/modules/workspace";
+import {
+  deleteClientAccount,
+  deletionPreview,
+} from "@/server/account-deletion";
 import { HttpError } from "@/server/api";
+import { sessionToken } from "@/server/auth";
+import { container } from "@/server/container";
+import { rateLimit, trustedClientIp } from "@/server/rateLimit";
+import { locales, localeMeta } from "@/i18n/config";
+import type { AccountView } from "@mybook/contracts";
+import { ACCOUNT_LIMITS } from "@mybook/contracts/limits";
+import { MIN_PASSWORD_LENGTH } from "@/modules/identity";
+import type { z } from "zod";
 import type { Handlers } from "../app";
+
+type Account = z.infer<typeof AccountView>;
+type Notice = Account["notice"];
+
+/** Свежий пользователь сессии (после правки: getCurrentUser держит прежнего на весь запрос). */
+async function freshUser() {
+  const identity = container().identity;
+  const token = await sessionToken();
+  const user = token
+    ? await identity.queries.userBySession(
+        identity.tokens.hash(token),
+        new Date(),
+      )
+    : null;
+  if (!user) throw new HttpError(401, "unauthorized");
+  return user;
+}
+
+/** Аккаунт как страница /account сайта: те же тексты (orders.account), язык — выбранный пользователем. */
+async function accountView(
+  notice: Notice = null,
+  raw?: string,
+): Promise<Account> {
+  const u = await freshUser();
+  const locale = isLocale(raw)
+    ? raw
+    : isLocale(u.locale)
+      ? u.locale
+      : await localeOf(undefined);
+  const m = messagesFor(locale);
+  const t = m.orders.account;
+  return {
+    profile: { name: u.name, phone: u.phone ?? "", email: u.email },
+    remindersOn: !u.emailOptOut,
+    locale,
+    locales: locales.map((id) => ({ id, label: localeMeta[id].label })),
+    limits: { name: ACCOUNT_LIMITS.name, passwordMin: MIN_PASSWORD_LENGTH },
+    notice,
+    labels: {
+      title: t.title,
+      lead: t.lead,
+      groups: t.groups,
+      email: t.email,
+      emailHint: t.emailHint,
+      name: t.name,
+      phone: t.phone,
+      save: t.save,
+      current: t.current,
+      next: t.next,
+      change: t.change,
+      languageText: t.languageText,
+      logout: m.common.nav.logout,
+      notifications: {
+        orderMail: t.notifications.orderMail,
+        orderMailValue: t.notifications.orderMailValue,
+        reminders: t.notifications.reminders,
+        on: t.notifications.on,
+        off: t.notifications.off,
+        onHint: t.notifications.onHint,
+        offHint: t.notifications.offHint,
+        turnOn: t.notifications.turnOn,
+        turnOff: t.notifications.turnOff,
+      },
+    },
+  };
+}
+
+/** Тексты формы аккаунта на языке пользователя. */
+async function accountTexts() {
+  const u = await freshUser();
+  return {
+    user: u,
+    t: messagesFor(isLocale(u.locale) ? u.locale : await localeOf(undefined))
+      .orders.account,
+  };
+}
 
 /** Язык ответа: из запроса, иначе язык пользователя (cookie или профиль). */
 async function localeOf(raw: string | undefined): Promise<Locale> {
@@ -19,13 +110,114 @@ async function localeOf(raw: string | undefined): Promise<Locale> {
 /** Надписи экрана удаления для приложения — тексты кабинета сайта (один источник), без списков. */
 function deletionLabels(locale: Locale) {
   const t = accountDeletionFor(locale);
-  return { title: t.title, intro: t.intro, accounting: t.accounting, password: t.password, forgot: t.forgot, next: t.next, confirmTitle: t.confirmTitle, confirm: t.confirm, cancel: t.cancel, done: t.done };
+  return {
+    title: t.title,
+    intro: t.intro,
+    accounting: t.accounting,
+    password: t.password,
+    forgot: t.forgot,
+    next: t.next,
+    confirmTitle: t.confirmTitle,
+    confirm: t.confirm,
+    cancel: t.cancel,
+    done: t.done,
+  };
 }
 
-export const meHandlers: Pick<Handlers, "meDevicePut" | "meDeviceDelete" | "crmPushConfig" | "crmDevicePut" | "crmDeviceDelete" | "appConfig" | "meDeletionInfo" | "meDelete"> = {
+export const meHandlers: Pick<
+  Handlers,
+  | "meDevicePut"
+  | "meDeviceDelete"
+  | "crmPushConfig"
+  | "crmDevicePut"
+  | "crmDeviceDelete"
+  | "appConfig"
+  | "meDeletionInfo"
+  | "meDelete"
+  | "meAccount"
+  | "meProfileUpdate"
+  | "mePasswordChange"
+  | "meRemindersSet"
+  | "meLocaleSet"
+> = {
+  async meAccount({ input }) {
+    return accountView(null, input.locale);
+  },
+
+  /** Как updateProfileAction сайта: имя обязательно, телефон — пустой или похожий на номер. */
+  async meProfileUpdate({ input }) {
+    const { user, t } = await accountTexts();
+    const name = input.body.name.trim();
+    const phone = input.body.phone.trim();
+    if (!name || name.length > ACCOUNT_LIMITS.name)
+      return accountView({ ok: false, text: t.errors.name, field: "name" });
+    if (phone && !ACCOUNT_LIMITS.phone.test(phone))
+      return accountView({ ok: false, text: t.errors.phone, field: "phone" });
+    await container().identity.accounts.updateProfile(
+      user.id,
+      name,
+      phone || null,
+    );
+    return accountView({ ok: true, text: t.saved, field: null });
+  },
+
+  /** Как changePasswordAction сайта: 10 попыток за 15 минут, остальные устройства выходят, этот телефон — нет. */
+  async mePasswordChange({ input }) {
+    const { user, t } = await accountTexts();
+    if (
+      !(await rateLimit(
+        `pwd:${user.id}:${await trustedClientIp()}`,
+        10,
+        900_000,
+      ))
+    )
+      return accountView({ ok: false, text: t.errors.tooMany, field: null });
+    try {
+      await container().identity.accounts.changePassword(
+        user.id,
+        input.body.current,
+        input.body.next,
+        await sessionToken(),
+      );
+    } catch (err) {
+      if (IdentityError.is(err))
+        return accountView(
+          err.code === "password"
+            ? { ok: false, text: t.errors.short, field: "next" }
+            : { ok: false, text: t.errors.wrong, field: "current" },
+        );
+      throw err;
+    }
+    return accountView({ ok: true, text: t.changed, field: null });
+  },
+
+  async meRemindersSet({ input }) {
+    const { user, t } = await accountTexts();
+    await container().notifications.subscriptions.setReminders(
+      user.id,
+      input.body.on,
+    );
+    return accountView({
+      ok: true,
+      text: input.body.on ? t.notifications.savedOn : t.notifications.savedOff,
+      field: null,
+    });
+  },
+
+  /** Как переключатель языка сайта (/api/locale): язык профиля — письма и тексты с сервера. */
+  async meLocaleSet({ input }) {
+    const { user } = await accountTexts();
+    if (user.locale !== input.body.locale)
+      await container().identity.accounts.setLocale(user.id, input.body.locale);
+    return accountView(null, input.body.locale);
+  },
+
   async meDevicePut({ user, input }) {
     await mobileDevices.register(user!.id, { ...input.body, app: "client" });
-    return { ok: true, serverReady: mobileDevices.pushReady(input.body.platform) };
+    return {
+      ok: true,
+      serverReady: mobileDevices.pushReady(input.body.platform),
+    };
   },
 
   async meDeviceDelete({ user, input }) {
@@ -34,12 +226,18 @@ export const meHandlers: Pick<Handlers, "meDevicePut" | "meDeviceDelete" | "crmP
   },
 
   async crmPushConfig() {
-    return { ios: mobileDevices.pushReady("ios"), android: fcmClientOptions(fcmConfig()) };
+    return {
+      ios: mobileDevices.pushReady("ios"),
+      android: fcmClientOptions(fcmConfig()),
+    };
   },
 
   async crmDevicePut({ user, input }) {
     await mobileDevices.register(user!.id, { ...input.body, app: "crm" });
-    return { ok: true, serverReady: mobileDevices.pushReady(input.body.platform) };
+    return {
+      ok: true,
+      serverReady: mobileDevices.pushReady(input.body.platform),
+    };
   },
 
   async crmDeviceDelete({ user, input }) {
@@ -59,7 +257,10 @@ export const meHandlers: Pick<Handlers, "meDevicePut" | "meDeviceDelete" | "crmP
 
   async meDeletionInfo({ user, input }) {
     const locale = await localeOf(input.locale);
-    return { ...(await deletionPreview(user!.id, locale)), labels: deletionLabels(locale) };
+    return {
+      ...(await deletionPreview(user!.id, locale)),
+      labels: deletionLabels(locale),
+    };
   },
 
   /** Сотрудник себя не удаляет (его отключает руководитель); неверный пароль — 400, чтобы приложение не сочло это выходом. */
@@ -67,7 +268,11 @@ export const meHandlers: Pick<Handlers, "meDevicePut" | "meDeviceDelete" | "crmP
     if (user!.role !== "user") throw new HttpError(403, "staffAccount");
     try {
       const locale = await localeOf(input.locale);
-      return { ok: true as const, ...(await deleteClientAccount(user!.id, input.body.password, locale)), labels: deletionLabels(locale) };
+      return {
+        ok: true as const,
+        ...(await deleteClientAccount(user!.id, input.body.password, locale)),
+        labels: deletionLabels(locale),
+      };
     } catch (err) {
       if (IdentityError.is(err)) throw new HttpError(400, "wrongPassword");
       throw err;

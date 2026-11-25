@@ -416,6 +416,36 @@ class MybookApi {
     return Ok.fromJson(json as Map<String, dynamic>);
   }
 
+  /// Аккаунт: профиль, напоминания, язык и все надписи страницы (как /account сайта)
+  Future<AccountView> meAccount({String? locale}) async {
+    final json = await _send('GET', '/api/v1/me/account', query: {if (locale != null) 'locale': '${locale}'});
+    return AccountView.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Имя и телефон (ошибка формы — в notice)
+  Future<AccountView> meProfileUpdate({required ProfileBody body}) async {
+    final json = await _send('PATCH', '/api/v1/me/profile', body: body.toJson());
+    return AccountView.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Смена пароля: остальные устройства выходят, этот остаётся (ошибка формы — в notice)
+  Future<AccountView> mePasswordChange({required PasswordBody body}) async {
+    final json = await _send('POST', '/api/v1/me/password', body: body.toJson());
+    return AccountView.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Напоминания дописать книгу: включить или выключить
+  Future<AccountView> meRemindersSet({required RemindersBody body}) async {
+    final json = await _send('PUT', '/api/v1/me/reminders', body: body.toJson());
+    return AccountView.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Язык писем и текстов с сервера (как переключатель языка на сайте)
+  Future<AccountView> meLocaleSet({required LocaleBody body}) async {
+    final json = await _send('PUT', '/api/v1/me/locale', body: body.toJson());
+    return AccountView.fromJson(json as Map<String, dynamic>);
+  }
+
   /// Удаление аккаунта: что удалится, что останется (заказы в работе), чем подтверждать
   Future<DeletionInfo> meDeletionInfo({String? locale}) async {
     final json = await _send('GET', '/api/v1/me/deletion', query: {if (locale != null) 'locale': '${locale}'});
@@ -5692,6 +5722,221 @@ class CrmPushConfigAndroid {
   factory CrmPushConfigAndroid.fromJson(Map<String, dynamic> json) => CrmPushConfigAndroid(apiKey: json['apiKey'] as String, appId: json['appId'] as String, projectId: json['projectId'] as String, senderId: json['senderId'] as String);
 
   Map<String, dynamic> toJson() => {'apiKey': apiKey, 'appId': appId, 'projectId': projectId, 'senderId': senderId};
+}
+
+class AccountView {
+  final AccountViewProfile profile;
+  final bool remindersOn;
+  final String locale;
+  final List<AccountViewLocales> locales;
+  final AccountViewLimits limits;
+  final AccountViewNotice? notice;
+  final AccountViewLabels labels;
+
+  const AccountView({required this.profile, required this.remindersOn, required this.locale, required this.locales, required this.limits, this.notice, required this.labels});
+
+  factory AccountView.fromJson(Map<String, dynamic> json) => AccountView(profile: AccountViewProfile.fromJson(json['profile'] as Map<String, dynamic>), remindersOn: json['remindersOn'] as bool, locale: json['locale'] as String, locales: (json['locales'] as List).map((e) => AccountViewLocales.fromJson(e as Map<String, dynamic>)).toList(), limits: AccountViewLimits.fromJson(json['limits'] as Map<String, dynamic>), notice: json['notice'] == null ? null : AccountViewNotice.fromJson(json['notice'] as Map<String, dynamic>), labels: AccountViewLabels.fromJson(json['labels'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'profile': profile.toJson(), 'remindersOn': remindersOn, 'locale': locale, 'locales': locales.map((e) => e.toJson()).toList(), 'limits': limits.toJson(), 'notice': notice == null ? null : notice!.toJson(), 'labels': labels.toJson()};
+}
+
+class AccountViewProfile {
+  final String name;
+  final String phone;
+  final String email;
+
+  const AccountViewProfile({required this.name, required this.phone, required this.email});
+
+  factory AccountViewProfile.fromJson(Map<String, dynamic> json) => AccountViewProfile(name: json['name'] as String, phone: json['phone'] as String, email: json['email'] as String);
+
+  Map<String, dynamic> toJson() => {'name': name, 'phone': phone, 'email': email};
+}
+
+class AccountViewLocales {
+  final String id;
+  final String label;
+
+  const AccountViewLocales({required this.id, required this.label});
+
+  factory AccountViewLocales.fromJson(Map<String, dynamic> json) => AccountViewLocales(id: json['id'] as String, label: json['label'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'label': label};
+}
+
+class AccountViewLimits {
+  final int name;
+  final int passwordMin;
+
+  const AccountViewLimits({required this.name, required this.passwordMin});
+
+  factory AccountViewLimits.fromJson(Map<String, dynamic> json) => AccountViewLimits(name: (json['name'] as num).toInt(), passwordMin: (json['passwordMin'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'name': name, 'passwordMin': passwordMin};
+}
+
+class AccountViewNotice {
+  final bool ok;
+  final String text;
+  final String? field;
+
+  const AccountViewNotice({required this.ok, required this.text, this.field});
+
+  factory AccountViewNotice.fromJson(Map<String, dynamic> json) => AccountViewNotice(ok: json['ok'] as bool, text: json['text'] as String, field: json['field'] == null ? null : json['field'] as String);
+
+  Map<String, dynamic> toJson() => {'ok': ok, 'text': text, 'field': field};
+}
+
+class AccountViewLabels {
+  final String title;
+  final String lead;
+  final AccountViewLabelsGroups groups;
+  final String email;
+  final String emailHint;
+  final String name;
+  final String phone;
+  final String save;
+  final String current;
+  final String next;
+  final String change;
+  final String languageText;
+  final String logout;
+  final AccountViewLabelsNotifications notifications;
+
+  const AccountViewLabels({required this.title, required this.lead, required this.groups, required this.email, required this.emailHint, required this.name, required this.phone, required this.save, required this.current, required this.next, required this.change, required this.languageText, required this.logout, required this.notifications});
+
+  factory AccountViewLabels.fromJson(Map<String, dynamic> json) => AccountViewLabels(title: json['title'] as String, lead: json['lead'] as String, groups: AccountViewLabelsGroups.fromJson(json['groups'] as Map<String, dynamic>), email: json['email'] as String, emailHint: json['emailHint'] as String, name: json['name'] as String, phone: json['phone'] as String, save: json['save'] as String, current: json['current'] as String, next: json['next'] as String, change: json['change'] as String, languageText: json['languageText'] as String, logout: json['logout'] as String, notifications: AccountViewLabelsNotifications.fromJson(json['notifications'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'title': title, 'lead': lead, 'groups': groups.toJson(), 'email': email, 'emailHint': emailHint, 'name': name, 'phone': phone, 'save': save, 'current': current, 'next': next, 'change': change, 'languageText': languageText, 'logout': logout, 'notifications': notifications.toJson()};
+}
+
+class AccountViewLabelsGroups {
+  final AccountViewLabelsGroupsProfile profile;
+  final AccountViewLabelsGroupsPassword password;
+  final AccountViewLabelsGroupsNotifications notifications;
+  final AccountViewLabelsGroupsLanguage language;
+  final AccountViewLabelsGroupsData data;
+
+  const AccountViewLabelsGroups({required this.profile, required this.password, required this.notifications, required this.language, required this.data});
+
+  factory AccountViewLabelsGroups.fromJson(Map<String, dynamic> json) => AccountViewLabelsGroups(profile: AccountViewLabelsGroupsProfile.fromJson(json['profile'] as Map<String, dynamic>), password: AccountViewLabelsGroupsPassword.fromJson(json['password'] as Map<String, dynamic>), notifications: AccountViewLabelsGroupsNotifications.fromJson(json['notifications'] as Map<String, dynamic>), language: AccountViewLabelsGroupsLanguage.fromJson(json['language'] as Map<String, dynamic>), data: AccountViewLabelsGroupsData.fromJson(json['data'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'profile': profile.toJson(), 'password': password.toJson(), 'notifications': notifications.toJson(), 'language': language.toJson(), 'data': data.toJson()};
+}
+
+class AccountViewLabelsGroupsProfile {
+  final String title;
+  final String text;
+
+  const AccountViewLabelsGroupsProfile({required this.title, required this.text});
+
+  factory AccountViewLabelsGroupsProfile.fromJson(Map<String, dynamic> json) => AccountViewLabelsGroupsProfile(title: json['title'] as String, text: json['text'] as String);
+
+  Map<String, dynamic> toJson() => {'title': title, 'text': text};
+}
+
+class AccountViewLabelsGroupsPassword {
+  final String title;
+  final String text;
+
+  const AccountViewLabelsGroupsPassword({required this.title, required this.text});
+
+  factory AccountViewLabelsGroupsPassword.fromJson(Map<String, dynamic> json) => AccountViewLabelsGroupsPassword(title: json['title'] as String, text: json['text'] as String);
+
+  Map<String, dynamic> toJson() => {'title': title, 'text': text};
+}
+
+class AccountViewLabelsGroupsNotifications {
+  final String title;
+  final String text;
+
+  const AccountViewLabelsGroupsNotifications({required this.title, required this.text});
+
+  factory AccountViewLabelsGroupsNotifications.fromJson(Map<String, dynamic> json) => AccountViewLabelsGroupsNotifications(title: json['title'] as String, text: json['text'] as String);
+
+  Map<String, dynamic> toJson() => {'title': title, 'text': text};
+}
+
+class AccountViewLabelsGroupsLanguage {
+  final String title;
+  final String text;
+
+  const AccountViewLabelsGroupsLanguage({required this.title, required this.text});
+
+  factory AccountViewLabelsGroupsLanguage.fromJson(Map<String, dynamic> json) => AccountViewLabelsGroupsLanguage(title: json['title'] as String, text: json['text'] as String);
+
+  Map<String, dynamic> toJson() => {'title': title, 'text': text};
+}
+
+class AccountViewLabelsGroupsData {
+  final String title;
+  final String text;
+
+  const AccountViewLabelsGroupsData({required this.title, required this.text});
+
+  factory AccountViewLabelsGroupsData.fromJson(Map<String, dynamic> json) => AccountViewLabelsGroupsData(title: json['title'] as String, text: json['text'] as String);
+
+  Map<String, dynamic> toJson() => {'title': title, 'text': text};
+}
+
+class AccountViewLabelsNotifications {
+  final String orderMail;
+  final String orderMailValue;
+  final String reminders;
+  final String on;
+  final String off;
+  final String onHint;
+  final String offHint;
+  final String turnOn;
+  final String turnOff;
+
+  const AccountViewLabelsNotifications({required this.orderMail, required this.orderMailValue, required this.reminders, required this.on, required this.off, required this.onHint, required this.offHint, required this.turnOn, required this.turnOff});
+
+  factory AccountViewLabelsNotifications.fromJson(Map<String, dynamic> json) => AccountViewLabelsNotifications(orderMail: json['orderMail'] as String, orderMailValue: json['orderMailValue'] as String, reminders: json['reminders'] as String, on: json['on'] as String, off: json['off'] as String, onHint: json['onHint'] as String, offHint: json['offHint'] as String, turnOn: json['turnOn'] as String, turnOff: json['turnOff'] as String);
+
+  Map<String, dynamic> toJson() => {'orderMail': orderMail, 'orderMailValue': orderMailValue, 'reminders': reminders, 'on': on, 'off': off, 'onHint': onHint, 'offHint': offHint, 'turnOn': turnOn, 'turnOff': turnOff};
+}
+
+class ProfileBody {
+  final String name;
+  final String phone;
+
+  const ProfileBody({required this.name, required this.phone});
+
+  factory ProfileBody.fromJson(Map<String, dynamic> json) => ProfileBody(name: json['name'] as String, phone: json['phone'] as String);
+
+  Map<String, dynamic> toJson() => {'name': name, 'phone': phone};
+}
+
+class PasswordBody {
+  final String current;
+  final String next;
+
+  const PasswordBody({required this.current, required this.next});
+
+  factory PasswordBody.fromJson(Map<String, dynamic> json) => PasswordBody(current: json['current'] as String, next: json['next'] as String);
+
+  Map<String, dynamic> toJson() => {'current': current, 'next': next};
+}
+
+class RemindersBody {
+  final bool on;
+
+  const RemindersBody({required this.on});
+
+  factory RemindersBody.fromJson(Map<String, dynamic> json) => RemindersBody(on: json['on'] as bool);
+
+  Map<String, dynamic> toJson() => {'on': on};
+}
+
+class LocaleBody {
+  /// ru | kk | uz | en
+  final String locale;
+
+  const LocaleBody({required this.locale});
+
+  factory LocaleBody.fromJson(Map<String, dynamic> json) => LocaleBody(locale: json['locale'] as String);
+
+  Map<String, dynamic> toJson() => {'locale': locale};
 }
 
 class BookModel {
