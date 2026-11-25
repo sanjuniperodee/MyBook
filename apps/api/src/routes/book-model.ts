@@ -4,6 +4,7 @@
  * иначе оценка (как в штабе книги).
  */
 import { AMBIENT, BOARD_MM, BOOK_PAPER, bookDims, INITIAL_VIEW, LIGHT, READ_VIEW, READ_ZOOM, SHADE_MAX, TILT_LIMIT, VIEWS, ZOOM } from "@/lib/book/book-model";
+import { sceneForApp } from "@/lib/book/book-scene";
 import { leafCount, RENDER_WINDOW, sheetCount, visibleSpread } from "@/lib/book/flipbook";
 import { getFormat } from "@/lib/book/formats";
 import { getMessages } from "@/i18n/server";
@@ -50,6 +51,7 @@ export const bookModelHandlers: Pick<Handlers, "bookModel"> = {
       },
       light: { x: LIGHT[0], y: LIGHT[1], z: LIGHT[2], ambient: AMBIENT, shadeMax: SHADE_MAX },
       paper: { endpaper: [...BOOK_PAPER.endpaper], edge: [...BOOK_PAPER.edge], edgeLine: BOOK_PAPER.edgeLine, stage: [...BOOK_PAPER.stage] },
+      scene: sceneForApp(d),
       labels: {
         read: m.model.views.read,
         prev: m.flip.prev,

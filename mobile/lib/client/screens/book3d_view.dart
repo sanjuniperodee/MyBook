@@ -1,24 +1,22 @@
+import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
-import 'package:vector_math/vector_math_64.dart' show Vector3;
 
 import '../../api/mybook_api.g.dart' as v1api;
 import '../../core/api.dart';
 import '../../ui/kit.dart';
 import '../../ui/tokens.dart';
 import '../data/session.dart';
+import '../ui/book3d_scene.dart';
 
-/// Объёмная книга — как 3D-книга сайта. Всё про книгу приходит из API v1 bookModel и считается на сервере теми же
-/// функциями, что у сайта (lib/book/book-model.ts, flipbook.ts, formats.ts): размеры крышек, корешка и блока по
-/// печатным параметрам, лицо, оборот и корешок — вырезы одной картинки развёртки той же вёрстки, что cover.pdf, ракурсы,
-/// свет, цвета бумаги, подписи разворотов и панели. Здесь — только сцена и жесты.
-///
-/// Книгу крутят пальцем, щипок — масштаб; нажатие открывает книгу и листает (справа — дальше, слева — назад).
-/// Сцена — плоскости с 3D-преобразованием (как CSS-версия сайта): грани сортируются по глубине, отвёрнутые не рисуются.
+/// 3D-книга — как на сайте (BookViewerGL): книга в студии, камера облетает её пальцем (с инерцией), щипок — масштаб,
+/// нажатие на обложку или страницу открывает и листает, ракурсы, «Читать», масштаб кнопками, автоповорот, исходный
+/// ракурс, ползунок и подпись разворота. Сцена — ui/book3d_scene.dart; все числа — API v1 bookModel.
 class Book3DView extends StatefulWidget {
   const Book3DView({super.key, required this.bookId, required this.pageCount, required this.pageUrl});
   final String bookId;
@@ -33,101 +31,51 @@ class Book3DView extends StatefulWidget {
   State<Book3DView> createState() => _Book3DViewState();
 }
 
-double _rad(double deg) => deg * math.pi / 180;
 double _clamp(double v, double lo, double hi) => math.min(hi, math.max(lo, v));
-double _shortest(double from, double to) => ((((to - from) % 360) + 540) % 360) - 180;
+double _shortest(double from, double to) => ((((to - from) % (2 * math.pi)) + 3 * math.pi) % (2 * math.pi)) - math.pi;
+double _ease(double k) => k < 0.5 ? 4 * k * k * k : 1 - math.pow(-2 * k + 2, 3) / 2;
 
-/// Цвет CSS из ответа сервера: #rrggbb или rgba(r,g,b,a).
-Color _css(String s) {
-  final v = s.trim();
-  if (v.startsWith('#')) return Color(int.parse('FF${v.substring(1)}', radix: 16));
-  final m = RegExp(r'rgba?\(([^)]+)\)').firstMatch(v);
-  if (m == null) return Colors.transparent;
-  final p = m.group(1)!.split(',').map((e) => double.parse(e.trim())).toList();
-  return Color.fromRGBO(p[0].round(), p[1].round(), p[2].round(), p.length > 3 ? p[3] : 1);
-}
-
-class _Face {
-  _Face(this.w, this.h, this.m, this.child);
-  final double w;
-  final double h;
-
-  /// Модель грани в мм: начало — левый верхний угол грани, x вправо, y вниз, нормаль — +z грани.
-  final Matrix4 m;
-  final Widget child;
-  double depth = 0;
-  double shade = 0;
-  Matrix4? screen;
-
-  /// Углы и плоскость грани в системе зрителя (до перспективы): для порядка рисования.
-  List<Vector3> corners = const [];
-  Vector3 normal = Vector3.zero();
-  Vector3 point = Vector3.zero();
-}
-
-/// Грань a лежит за гранью b (рисовать раньше): a целиком по ту сторону плоскости b, где нет зрителя, или b целиком по
-/// сторону зрителя от плоскости a. Для непересекающихся плоских граней этого достаточно (как в CSS 3D браузера).
-bool _behind(_Face a, _Face b, Vector3 eye) {
-  const eps = 1e-3;
-  final eb = b.normal.dot(eye - b.point);
-  if (a.corners.every((v) => b.normal.dot(v - b.point) * eb <= eps * eb.abs())) return true;
-  final ea = a.normal.dot(eye - a.point);
-  return b.corners.every((v) => a.normal.dot(v - a.point) * ea >= -eps * ea.abs());
-}
-
-/// Порядок рисования: от дальних к ближним по отношению «за» (сортировка Кана); где отношения нет или оно
-/// зациклилось — по глубине середины.
-List<_Face> _paintOrder(List<_Face> faces, Vector3 eye) {
-  final n = faces.length;
-  final after = List.generate(n, (_) => <int>[]);
-  final indeg = List.filled(n, 0);
-  for (var i = 0; i < n; i++) {
-    for (var j = i + 1; j < n; j++) {
-      final ij = _behind(faces[i], faces[j], eye);
-      final ji = _behind(faces[j], faces[i], eye);
-      if (ij == ji) continue;
-      final (from, to) = ij ? (i, j) : (j, i);
-      after[from].add(to);
-      indeg[to]++;
-    }
-  }
-  final done = List.filled(n, false);
-  final out = <_Face>[];
-  while (out.length < n) {
-    var pick = -1;
-    for (var i = 0; i < n; i++) {
-      if (done[i] || indeg[i] > 0) continue;
-      if (pick < 0 || faces[i].depth < faces[pick].depth) pick = i;
-    }
-    if (pick < 0) {
-      // Зацикливание (бывает у граней, лежащих в одной плоскости): самую дальнюю из оставшихся.
-      for (var i = 0; i < n; i++) {
-        if (!done[i] && (pick < 0 || faces[i].depth < faces[pick].depth)) pick = i;
-      }
-    }
-    done[pick] = true;
-    out.add(faces[pick]);
-    for (final k in after[pick]) {
-      indeg[k]--;
-    }
-  }
-  return out;
+class _Tween {
+  _Tween(this.from, this.to, this.t0, this.ms);
+  final (double, double, double) from;
+  final (double, double, double) to;
+  final Duration t0;
+  final double ms;
 }
 
 class _Book3DViewState extends State<Book3DView> with SingleTickerProviderStateMixin {
   late final ClientSession _session = context.read<ClientSession>();
   late final Ticker _ticker = createTicker(_tick);
-  Duration _last = Duration.zero;
   v1api.BookModel? _model;
+  BookSceneModel? _scene;
   String? _error;
+  ui.FragmentShader? _studio;
 
-  // Текущее и целевое: поворот, масштаб, позиция листания (число перевёрнутых листов; дробное — в движении).
-  double _rx = 0, _ry = 0, _zoom = 1, _pos = 0;
-  double _trx = 0, _try = 0, _tzoom = 1, _tpos = 0;
-  bool _auto = false;
-  String? _active;
+  // Камера (как OrbitControls): углы, расстояние, остаток вращения от пальца (инерция).
+  Camera3? _cam;
+  double _dTheta = 0, _dPhi = 0;
+  _Tween? _view;
+  // Свои часы: время тикера начинается с нуля при каждом запуске, а анимации переживают паузы цикла.
+  final Stopwatch _clock = Stopwatch()..start();
+  Duration get _now => _clock.elapsed;
+  Duration _last = Duration.zero;
 
-  double _zoomAtStart = 1;
+  // Листание: позиция 0 — закрыта, 1 — обложка откинута, дальше — по листу.
+  double _pos = 0;
+  int _target = 0;
+  ({double from, double to, Duration t0, double ms})? _flip;
+
+  bool _auto = true;
+  String? _active = 'front';
+
+  // Картинки: развёртка обложки, полосы у разворота, цвет кромки крышек — средний цвет лица (как на сайте).
+  ui.Image? _spread;
+  Color? _edge;
+  final Map<int, ui.Image> _pages = {};
+  final Set<int> _loading = {};
+
+  BookFrame? _frame;
+  double _pinchStart = 1;
   Offset? _down;
   bool _moved = false;
 
@@ -135,6 +83,9 @@ class _Book3DViewState extends State<Book3DView> with SingleTickerProviderStateM
   void initState() {
     super.initState();
     _load();
+    ui.FragmentProgram.fromAsset('shaders/studio.frag').then((p) {
+      if (mounted) setState(() => _studio = p.fragmentShader());
+    });
   }
 
   @override
@@ -143,454 +94,379 @@ class _Book3DViewState extends State<Book3DView> with SingleTickerProviderStateM
     if (old.pageCount != widget.pageCount) _load();
   }
 
+  @override
+  void dispose() {
+    _ticker.dispose();
+    _spread?.dispose();
+    for (final i in _pages.values) {
+      i.dispose();
+    }
+    super.dispose();
+  }
+
   Future<void> _load() async {
     try {
       final m = await _session.backend.bookModel(widget.bookId, widget.pageCount);
       if (!mounted) return;
-      final first = _model == null;
+      final scene = BookSceneModel(m);
       setState(() {
         _model = m;
+        _scene = scene;
         _error = null;
-        if (first) {
-          _rx = _trx = m.views.initial.rx;
-          _ry = _try = m.views.initial.ry;
-        }
-        _tpos = _clamp(_tpos, 0, (m.sheets - 1).toDouble());
+        _cam ??= Camera3(m.scene.initial.azimuth, m.scene.initial.polar, scene.baseDistance);
       });
-      if (!_ticker.isActive) _ticker.start();
+      _loadSpread(m);
+      _kick();
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     }
   }
 
-  @override
-  void dispose() {
-    _ticker.dispose();
-    super.dispose();
-  }
-
-  /// Плавное доведение к целям: экспонента по времени кадра.
-  void _tick(Duration now) {
-    final dt = _last == Duration.zero ? 0.016 : (now - _last).inMicroseconds / 1e6;
-    _last = now;
-    if (_auto) _try += dt * 24;
-    final k = 1 - math.exp(-dt * 9);
-    final kp = 1 - math.exp(-dt * 7);
-    final nrx = _rx + (_trx - _rx) * k;
-    final nry = _ry + _shortest(_ry, _try) * k;
-    final nz = _zoom + (_tzoom - _zoom) * k;
-    final np = _pos + (_tpos - _pos) * kp;
-    final moving = (nrx - _rx).abs() > 0.01 || (nry - _ry).abs() > 0.01 || (nz - _zoom).abs() > 0.0005 || (np - _pos).abs() > 0.0005;
-    if (!moving) {
-      if (_rx != _trx || _pos != _tpos) {
-        setState(() {
-          _rx = _trx;
-          _pos = _tpos;
-        });
-      }
-      return;
-    }
-    setState(() {
-      _rx = nrx;
-      _ry = nry;
-      _zoom = nz;
-      _pos = (np - _tpos).abs() < 0.002 ? _tpos : np;
+  Future<ui.Image> _image(String url) {
+    final c = Completer<ui.Image>();
+    final stream = NetworkImage(url, headers: _session.backend.imageHeaders).resolve(ImageConfiguration.empty);
+    late ImageStreamListener l;
+    l = ImageStreamListener((info, _) {
+      stream.removeListener(l);
+      c.complete(info.image.clone());
+      info.dispose();
+    }, onError: (e, _) {
+      stream.removeListener(l);
+      c.completeError(e);
     });
+    stream.addListener(l);
+    return c.future;
   }
 
-  // ── Управление ──
-
-  void _view(v1api.BookModelViewsList v) => setState(() {
-        _active = v.id;
-        _auto = false;
-        _tpos = 0;
-        _trx = v.rx;
-        _try = _ry + _shortest(_ry, v.ry);
-        _tzoom = 1;
-      });
-
-  void _readMode() {
-    final v = _model!.views;
-    setState(() {
-      _active = 'read';
-      _auto = false;
-      if (_tpos < 1) _tpos = 1;
-      _trx = v.read.rx;
-      _try = _ry + _shortest(_ry, v.read.ry);
-      _tzoom = v.readZoom;
-    });
-  }
-
-  void _seek(double p) {
-    final to = _clamp(p.roundToDouble(), 0, (_model!.sheets - 1).toDouble());
-    if (to == _tpos) return;
-    if (_tpos == 0 && to > 0) {
-      _readMode();
-    } else if (to == 0) {
-      _active = null;
-    }
-    setState(() => _tpos = to);
-  }
-
-  void _reset() {
-    final v = _model!.views.initial;
-    setState(() {
-      _active = null;
-      _auto = false;
-      _trx = v.rx;
-      _try = _ry + _shortest(_ry, v.ry);
-      _tzoom = 1;
-    });
-  }
-
-  void _zoomBy(double f) {
-    final z = _model!.views.zoom;
-    setState(() => _tzoom = _clamp(_tzoom * f, z.min, z.max));
-  }
-
-  /// Нажатие: закрытая книга открывается; открытая листается — справа от корешка дальше, слева назад.
-  void _tapAt(Offset p, Size size) {
-    if (_tpos == 0) {
-      _readMode();
-      return;
-    }
-    _seek(p.dx >= size.width / 2 ? _tpos + 1 : _tpos - 1);
-  }
-
-  // ── Сцена ──
-
-  /// Сдвиг книги в долях ширины крышки: закрытая — по центру, открытая — корешок по центру (bookShift сайта).
-  double _shift(v1api.BookModel m, double pos) {
-    final opening = _clamp(pos, 0, 1);
-    final closing = _clamp(pos - (m.sheets - 2), 0, 1);
-    return -0.5 * (1 - opening) + 0.5 * closing;
-  }
-
-  /// Угол листа: при позиции pos перевёрнуты листы < pos (leafAngle сайта).
-  double _leafAngle(int i) => _clamp(_pos - i, 0, 1) * 180;
-
-  /// Лист вокруг корешка: петля на x = 0, высота z; угол — на сколько он уже перевёрнут.
-  Matrix4 _leaf(double z, double angle) => Matrix4.identity()
-    ..translateByDouble(0.0, 0.0, z, 1.0)
-    ..rotateY(_rad(-angle));
-
-  /// Лицо листа (смотрит на зрителя, пока лист справа) и оборот (смотрит на зрителя, когда перевёрнут).
-  Matrix4 _front(Matrix4 leaf, double h, [double lift = 0]) => leaf.clone()..translateByDouble(0.0, -h / 2, lift, 1.0);
-  Matrix4 _back(Matrix4 leaf, double w, double h, [double lift = 0]) => leaf.clone()
-    ..translateByDouble(w, -h / 2, -lift, 1.0)
-    ..rotateY(math.pi);
-
-  List<_Face> _faces(v1api.BookModel m, double pxPerMm) {
-    final backend = _session.backend;
-    final headers = backend.imageHeaders;
-    final d = m.dims;
-    final w = d.w, h = d.h, depth = d.d, bw = d.block.w, bh = d.block.h, bd = d.block.d;
-    final endpaper = DecoratedBox(
-      decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [for (final c in m.paper.endpaper) _css(c)])),
-    );
-    final faces = <_Face>[];
-
-    // Развёртка обложки — одна картинка; лицо, оборот и корешок — её прямоугольники (rects сервера). Ширина — по
-    // размеру книги на экране (с запасом на приближение), из ширин, которые отдаёт сервер.
+  Future<void> _loadSpread(v1api.BookModel m) async {
     final widths = [...m.spreadWidths]..sort();
-    final need = d.rects.front.w * pxPerMm * 1.5;
-    final sw = widths.firstWhere((x) => x >= need, orElse: () => widths.last);
-    final spread = backend.url('${m.spreadUrl}&w=$sw');
-    Widget crop(double x, double y) => ClipRect(
-          child: OverflowBox(
-            alignment: Alignment.topLeft,
-            minWidth: d.spread.w,
-            maxWidth: d.spread.w,
-            minHeight: d.spread.h,
-            maxHeight: d.spread.h,
-            child: Transform.translate(
-              offset: Offset(-x, -y),
-              child: Image.network(spread, headers: headers, width: d.spread.w, height: d.spread.h, fit: BoxFit.fill, gaplessPlayback: true, errorBuilder: (_, _, _) => endpaper),
-            ),
-          ),
-        );
-    Widget page(int n) => n < 1 || n > m.pageCount
-        ? const ColoredBox(color: Colors.white)
-        : ColoredBox(
-            color: Colors.white,
-            child: Image.network(widget.pageUrl(n, bw * pxPerMm * 1.5), headers: headers, fit: BoxFit.fill, gaplessPlayback: true, errorBuilder: (_, _, _) => const SizedBox()),
-          );
-
-    // Обложка: лист 0 — петля на верхней крышке; лицо — лицо развёртки, оборот — форзац. Перевернувшись, лист
-    // переходит из правой стопки в левую: обе лежат на «столе», поэтому петля опускается (pileState сайта).
-    double lerp(double a, double b, double angle) => a + (b - a) * angle / 180;
-    final coverAngle = _leafAngle(0);
-    final coverLeaf = _leaf(lerp(depth / 2, -depth / 2, coverAngle), coverAngle);
-    faces.add(_Face(w, h, _front(coverLeaf, h), crop(d.rects.front.x, d.rects.front.y)));
-    faces.add(_Face(w, h, _back(coverLeaf, w, h, d.boardMm), endpaper));
-
-    // Задняя крышка (последний лист не переворачивается): внутри — форзац, снаружи — оборот развёртки.
-    final backLeaf = _leaf(-depth / 2, 0);
-    faces.add(_Face(w, h, _front(backLeaf, h, d.boardMm), endpaper));
-    faces.add(_Face(w, h, _back(backLeaf, w, h), crop(d.rects.back.x, d.rects.back.y)));
-
-    // Корешок — стенка слева у закрытой книги: корешок развёртки (надписи — как в печати).
-    faces.add(_Face(
-      depth,
-      h,
-      Matrix4.identity()
-        ..translateByDouble(0.0, -h / 2, -depth / 2, 1.0)
-        ..rotateY(-math.pi / 2),
-      crop(d.rects.spine.x, d.rects.spine.y),
-    ));
-
-    // Листы блока: рядом с позицией — по одному с полосами, остальные — стопками справа и слева.
-    final leaves = m.leaves;
-    final t = bd / leaves;
-    // Высота петли листа i (с 1): справа первый — сверху, слева первый перевёрнутый — снизу.
-    double leafZ(int i, double angle) => lerp(bd / 2 - (i - 0.5) * t, -bd / 2 + (i - 0.5) * t, angle);
-    final int first = math.max(1, (_pos - m.window).ceil());
-    final int last = math.min(leaves, (_pos + m.window).floor());
-    for (var i = first; i <= last; i++) {
-      final angle = _leafAngle(i);
-      final leaf = _leaf(leafZ(i, angle), angle);
-      faces.add(_Face(bw, bh, _front(leaf, bh), page(2 * i - 1)));
-      faces.add(_Face(bw, bh, _back(leaf, bw, bh), page(2 * i)));
-    }
-    final int right = leaves - math.max(last, first - 1);
-    if (right > 0) _pile(faces, m, -bd / 2, -bd / 2 + right * t, 0, page(2 * (leaves - right + 1) - 1));
-    final int left = math.max(0, first - 1);
-    if (left > 0 && _pos > 0) _pile(faces, m, bd / 2 - left * t, bd / 2, 180, page(2 * left));
-    return faces;
+    // Ширина лица в картинке — по экрану (с запасом на приближение).
+    final need = MediaQuery.devicePixelRatioOf(context) * 320;
+    final w = widths.firstWhere((x) => x >= need, orElse: () => widths.last);
+    try {
+      final img = await _image(_session.backend.url('${m.spreadUrl}&w=$w'));
+      if (!mounted) return img.dispose();
+      final edge = await _average(img, m);
+      setState(() {
+        _spread?.dispose();
+        _spread = img;
+        _edge = edge;
+      });
+      _kick();
+    } catch (_) {}
   }
 
-  /// Стопка листов — брусок блока от z0 до z1 у петли, повёрнутый вокруг корешка на angle: срез (обрез), верх и низ —
-  /// бумагой со штрихами листов, лицо — полоса сверху стопки.
-  void _pile(List<_Face> faces, v1api.BookModel m, double z0, double z1, double angle, Widget top) {
-    final bw = m.dims.block.w, bh = m.dims.block.h;
-    final depth = math.max(0.05, z1 - z0);
-    final leaf = _leaf(0, angle);
-    final edgeV = _PaperEdge(paper: m.paper, vertical: true);
-    final edgeH = _PaperEdge(paper: m.paper, vertical: false);
-    faces.add(angle < 90
-        ? _Face(bw, bh, leaf.clone()..translateByDouble(0.0, -bh / 2, z1, 1.0), top)
-        : _Face(
-            bw,
-            bh,
-            leaf.clone()
-              ..translateByDouble(bw, -bh / 2, z0, 1.0)
-              ..rotateY(math.pi),
-            top,
-          ));
-    faces.add(_Face(
-      depth,
-      bh,
-      leaf.clone()
-        ..translateByDouble(bw, -bh / 2, z1, 1.0)
-        ..rotateY(math.pi / 2),
-      edgeV,
-    ));
-    faces.add(_Face(
-      bw,
-      depth,
-      leaf.clone()
-        ..translateByDouble(0.0, -bh / 2, z0, 1.0)
-        ..rotateX(math.pi / 2),
-      edgeH,
-    ));
-    faces.add(_Face(
-      bw,
-      depth,
-      leaf.clone()
-        ..translateByDouble(0.0, bh / 2, z1, 1.0)
-        ..rotateX(-math.pi / 2),
-      edgeH,
-    ));
+  /// Средний цвет лица обложки — цвет кромки картона (averageColor сайта).
+  Future<Color?> _average(ui.Image img, v1api.BookModel m) async {
+    final data = await img.toByteData(format: ui.ImageByteFormat.rawRgba);
+    if (data == null) return null;
+    final k = img.width / m.dims.spread.w;
+    final r = m.dims.rects.front;
+    var rs = 0, gs = 0, bs = 0, n = 0;
+    for (var j = 0; j < 24; j++) {
+      for (var i = 0; i < 24; i++) {
+        final x = ((r.x + r.w * (i + 0.5) / 24) * k).floor().clamp(0, img.width - 1);
+        final y = ((r.y + r.h * (j + 0.5) / 24) * k).floor().clamp(0, img.height - 1);
+        final o = (y * img.width + x) * 4;
+        rs += data.getUint8(o);
+        gs += data.getUint8(o + 1);
+        bs += data.getUint8(o + 2);
+        n++;
+      }
+    }
+    return Color.fromARGB(255, rs ~/ n, gs ~/ n, bs ~/ n);
+  }
+
+  /// Полосы у разворота цели и у начала листания (как окно загрузки сайта); дальние освобождаются.
+  void _wantPages() {
+    final m = _model;
+    if (m == null) return;
+    final win = m.window;
+    final leaves = <int>{};
+    for (final p in [_pos, _target.toDouble()]) {
+      for (var i = math.max(1, (p - win).ceil()); i <= math.min(m.leaves, (p + win).floor()); i++) {
+        leaves.add(i);
+      }
+    }
+    final want = {for (final i in leaves) ...[2 * i - 1, 2 * i]}..removeWhere((n) => n < 1 || n > m.pageCount);
+    for (final n in [..._pages.keys]) {
+      if (!want.contains(n)) _pages.remove(n)?.dispose();
+    }
+    final px = MediaQuery.devicePixelRatioOf(context) * 360;
+    for (final n in want) {
+      if (_pages.containsKey(n) || _loading.contains(n)) continue;
+      _loading.add(n);
+      _image(widget.pageUrl(n, px)).then((img) {
+        _loading.remove(n);
+        if (!mounted) return img.dispose();
+        _pages[n]?.dispose();
+        _pages[n] = img;
+        _kick();
+        setState(() {});
+      }).catchError((_) {
+        _loading.remove(n);
+      });
+    }
+  }
+
+  // ── движение ──
+
+  void _kick() {
+    if (!_ticker.isActive) {
+      _last = Duration.zero;
+      _ticker.start();
+    }
+  }
+
+  void _tick(Duration _) {
+    final m = _model, cam = _cam;
+    if (m == null || cam == null) return;
+    final now = _now;
+    final dt = _last == Duration.zero ? 1 / 60 : math.min(0.1, (now - _last).inMicroseconds / 1e6);
+    _last = now;
+    final s = m.scene;
+    var busy = false;
+    final v = _view;
+    if (v != null) {
+      final k = _clamp((now - v.t0).inMicroseconds / 1000 / v.ms, 0, 1);
+      final e = _ease(k);
+      cam
+        ..azimuth = v.from.$1 + (v.to.$1 - v.from.$1) * e
+        ..polar = v.from.$2 + (v.to.$2 - v.from.$2) * e
+        ..distance = v.from.$3 + (v.to.$3 - v.from.$3) * e;
+      if (k >= 1) _view = null;
+      busy = true;
+    }
+    final f = _flip;
+    if (f != null) {
+      final k = _clamp((now - f.t0).inMicroseconds / 1000 / f.ms, 0, 1);
+      _pos = f.from + (f.to - f.from) * _ease(k);
+      if (k >= 1) _flip = null;
+      busy = true;
+    }
+    // Инерция вращения, как enableDamping у OrbitControls (затухание — доля за кадр 60 Гц).
+    final damp = 1 - math.pow(1 - s.orbit.damping, dt * 60).toDouble();
+    if (_dTheta.abs() > 1e-5 || _dPhi.abs() > 1e-5) {
+      cam.azimuth += _dTheta * damp;
+      cam.polar = _clamp(cam.polar + _dPhi * damp, s.camera.polarMin, math.pi - s.camera.polarMin);
+      _dTheta *= 1 - damp;
+      _dPhi *= 1 - damp;
+      busy = true;
+    }
+    // Закрытая книга медленно поворачивается сама; открытую не трогаем — её читают.
+    final auto = _auto && _pos < 0.001 && _view == null;
+    if (auto) cam.azimuth -= 2 * math.pi / 60 * s.orbit.autoRotateSpeed * dt;
+    setState(() {});
+    if (busy) _wantPages();
+    if (!busy && !auto) _ticker.stop();
+  }
+
+  void _setView(double azimuth, double polar, double distance, double ms) {
+    final cam = _cam!, sc = _scene!;
+    final to = (
+      cam.azimuth + _shortest(cam.azimuth, azimuth),
+      _clamp(polar, sc.s.camera.polarMin, math.pi - sc.s.camera.polarMin),
+      _clamp(distance, sc.baseDistance * sc.s.camera.zoomMin, sc.baseDistance * sc.s.camera.zoomMax),
+    );
+    _dTheta = _dPhi = 0;
+    _view = _Tween((cam.azimuth, cam.polar, cam.distance), to, _now, ms);
+    _kick();
+  }
+
+  void _stopAuto() => setState(() => _auto = false);
+
+  /// Листает к позиции n; открывая закрытую книгу, разворачивает её к читателю (goTo сайта).
+  void _goTo(int n) {
+    final m = _model!, cam = _cam!, s = m.scene;
+    final to = n.clamp(0, m.sheets - 1);
+    final from = _pos;
+    _target = to;
+    if (from < 0.5 && to >= 1) {
+      final r = s.read;
+      if (_shortest(0, cam.azimuth).abs() > r.turnIfAzimuthOver || cam.polar > r.turnIfPolarOver || cam.polar < r.turnIfPolarUnder) {
+        _setView(r.azimuth, r.polar, _scene!.baseDistance / r.zoom, r.turnMs);
+        _active = 'read';
+      }
+    }
+    if (to != from) {
+      final f = s.flip;
+      _flip = (from: from, to: to.toDouble(), t0: _now, ms: math.min(f.maxMs, f.baseMs + f.perLeafMs * math.max(0, (to - from).abs() - 1)));
+      _wantPages();
+      _kick();
+    }
+    setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
     final c = context.c;
-    final m = _model;
-    if (m == null) {
+    final m = _model, sc = _scene, cam = _cam;
+    if (m == null || sc == null || cam == null) {
       return _error == null ? const Center(child: CircularProgressIndicator()) : EmptyState(icon: LucideIcons.wifiOff, title: '3D-книга не открылась', hint: _error, action: 'Повторить', onAction: _load);
     }
-    final slot = _tpos.round().clamp(0, m.sheets - 1);
+    final s = m.scene;
     final l = m.labels;
-    return Column(children: [
-      Expanded(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: LayoutBuilder(builder: (context, box) {
-            final size = Size(box.maxWidth, box.maxHeight);
-            return GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onScaleStart: (d) {
-                _zoomAtStart = _tzoom;
-                _down = d.localFocalPoint;
-                _moved = false;
-              },
-              onScaleUpdate: (d) {
-                if (d.pointerCount > 1) {
-                  _moved = true;
-                  setState(() => _tzoom = _clamp(_zoomAtStart * d.scale, m.views.zoom.min, m.views.zoom.max));
-                  return;
-                }
-                if (_down != null && (d.localFocalPoint - _down!).distance > 6) _moved = true;
-                if (!_moved) return;
-                setState(() {
-                  _auto = false;
-                  _active = null;
-                  _try -= d.focalPointDelta.dx * 0.45;
-                  _trx = _clamp(_trx + d.focalPointDelta.dy * 0.45, -m.views.tiltLimit, m.views.tiltLimit);
-                  // Пальцем — сразу, без доводки: книга идёт за пальцем.
-                  _ry = _try;
-                  _rx = _trx;
-                });
-              },
-              onScaleEnd: (_) {
-                if (!_moved && _down != null) _tapAt(_down!, size);
-                _down = null;
-              },
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(24),
-                  gradient: RadialGradient(center: const Alignment(0, -0.3), radius: 0.9, colors: [for (final s in m.paper.stage) _css(s)]),
-                ),
-                child: ClipRRect(borderRadius: BorderRadius.circular(24), child: _scene(m, size, MediaQuery.devicePixelRatioOf(context))),
+    final slot = _target.clamp(0, m.sheets - 1);
+    final angles = {for (final v in s.views) v.id: v};
+    return LayoutBuilder(builder: (context, box) {
+      return SingleChildScrollView(
+        child: Column(children: [
+          // Сцена — того же формата, что на сайте (5:4), со скруглением.
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: AspectRatio(
+              aspectRatio: 5 / 4,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                child: LayoutBuilder(builder: (context, stage) {
+                  final size = Size(stage.maxWidth, stage.maxHeight);
+                  return GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    // Нажатие — как raycast сайта: обложка и правая страница листают вперёд, левая — назад.
+                    onTapUp: (d) {
+                      final hit = _frame?.pick(d.localPosition);
+                      if (hit != null) _goTo(_target + (hit == 'next' ? 1 : -1));
+                    },
+                    onScaleStart: (d) {
+                      _pinchStart = cam.distance;
+                      _down = d.localFocalPoint;
+                      _moved = false;
+                    },
+                    onScaleUpdate: (d) {
+                      if (d.pointerCount > 1) {
+                        _moved = true;
+                        _view = null;
+                        cam.distance = _clamp(_pinchStart / d.scale, sc.baseDistance * s.camera.zoomMin, sc.baseDistance * s.camera.zoomMax);
+                        _kick();
+                        return;
+                      }
+                      if (_down != null && (d.localFocalPoint - _down!).distance > 6) {
+                        if (!_moved) {
+                          _auto = false;
+                          _active = null;
+                          _view = null;
+                        }
+                        _moved = true;
+                      }
+                      if (!_moved) return;
+                      // Поворот пальцем — как OrbitControls: доля полного оборота на высоту кадра.
+                      final k = 2 * math.pi / size.height * s.orbit.rotateSpeed;
+                      _dTheta -= d.focalPointDelta.dx * k;
+                      _dPhi -= d.focalPointDelta.dy * k;
+                      _kick();
+                    },
+                    onScaleEnd: (_) => _down = null,
+                    child: CustomPaint(
+                      size: size,
+                      painter: _ScenePainter(
+                        build: () => _frame = BookFrame(model: sc, cam: cam, pos: _pos, spread: _spread, pages: (n) => _pages[n], edgeColor: _edge ?? Color(int.parse('FF${s.materials.edge.substring(1)}', radix: 16))),
+                        studio: _studio,
+                        stage: [for (final x in m.paper.stage) Color(int.parse('FF${x.substring(1)}', radix: 16))],
+                      ),
+                    ),
+                  );
+                }),
               ),
-            );
-          }),
-        ),
-      ),
-      Padding(
-        padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
-        child: Row(children: [
-          IconButton(tooltip: l.prev, icon: const Icon(LucideIcons.chevronLeft), onPressed: slot <= 0 ? null : () => _seek(_tpos - 1)),
-          Expanded(
-            child: Slider(
-              value: _tpos.clamp(0, (m.sheets - 1).toDouble()),
-              max: (m.sheets - 1).toDouble(),
-              divisions: m.sheets - 1,
-              activeColor: c.brand,
-              onChanged: _seek,
             ),
           ),
-          IconButton(tooltip: l.next, icon: const Icon(LucideIcons.chevronRight), onPressed: slot >= m.sheets - 1 ? null : () => _seek(_tpos + 1)),
-        ]),
-      ),
-      Text(m.spreads[slot], style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500, color: c.textMuted)),
-      const SizedBox(height: 10),
-      SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Row(children: [
-          for (final v in m.views.list) _Pill(label: v.label, on: _active == v.id, onTap: () => _view(v)),
-          _Pill(label: l.read, on: _active == 'read', onTap: _readMode),
-        ]),
-      ),
-      const SizedBox(height: 8),
-      Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-        _Round(icon: LucideIcons.minus, tip: l.zoomOut, onTap: () => _zoomBy(1 / m.views.zoom.step)),
-        _Round(icon: LucideIcons.plus, tip: l.zoomIn, onTap: () => _zoomBy(m.views.zoom.step)),
-        _Round(icon: _auto ? LucideIcons.pause : LucideIcons.play, tip: _auto ? l.autoOff : l.autoOn, on: _auto, onTap: () => setState(() => _auto = !_auto)),
-        _Round(icon: LucideIcons.rotateCcw, tip: l.reset, onTap: _reset),
-      ]),
-      const SizedBox(height: 8),
-      Text(l.dims, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: c.text)),
-      Padding(
-        padding: const EdgeInsets.fromLTRB(24, 4, 24, 14),
-        child: Text('${l.hint} ${l.note}', textAlign: TextAlign.center, style: TextStyle(fontSize: 12, height: 1.35, color: c.textMuted)),
-      ),
-    ]);
-  }
-
-  Widget _scene(v1api.BookModel m, Size size, double dpr) {
-    final d = m.dims;
-    final open = _clamp(_pos, 0, 1) * (1 - _clamp(_pos - (m.sheets - 2), 0, 1));
-    // Масштаб: закрытая книга помещается в кадр при любом повороте, раскрытая — так же (fitScale сайта).
-    final extent = math.sqrt(d.w * d.w + d.h * d.h + d.d * d.d);
-    final openExtent = math.sqrt(4 * d.block.w * d.block.w + d.h * d.h + d.d * d.d);
-    final fit = 1 + (extent / openExtent - 1) * open;
-    final u = math.min(size.width, size.height) * 0.9 / extent * fit * _zoom;
-    final persp = math.max(size.width, size.height) * 2.4;
-    final world = Matrix4.identity()
-      ..rotateX(_rad(_rx))
-      ..rotateY(_rad(_ry))
-      ..scaleByDouble(u, u, u, 1.0)
-      ..translateByDouble(_shift(m, _pos) * d.w, 0.0, 0.0, 1.0);
-    // Перспектива вокруг середины сцены: сначала деление на глубину, потом сдвиг в середину (порядок важен — в одной
-    // матрице сдвиг с перспективой делили бы и сдвиг, и книга «скашивалась» к левому краю).
-    final project = Matrix4.translationValues(size.width / 2, size.height / 2, 0) * (Matrix4.identity()..setEntry(3, 2, -1 / persp)) as Matrix4;
-    final eye = Vector3(0, 0, persp);
-    final light = Vector3(m.light.x, m.light.y, m.light.z);
-
-    final visible = <_Face>[];
-    for (final f in _faces(m, u * dpr)) {
-      final mm = world * f.m as Matrix4;
-      final center = mm.transform3(Vector3(f.w / 2, f.h / 2, 0));
-      final normal = (mm.transform3(Vector3(f.w / 2, f.h / 2, 1)) - center)..normalize();
-      if (normal.dot(eye - center) <= 0) continue;
-      f.depth = center.z;
-      f.normal = normal;
-      f.point = center;
-      f.corners = [mm.transform3(Vector3(0, 0, 0)), mm.transform3(Vector3(f.w, 0, 0)), mm.transform3(Vector3(f.w, f.h, 0)), mm.transform3(Vector3(0, f.h, 0))];
-      final lit = m.light.ambient + (1 - m.light.ambient) * math.max(0, normal.dot(light));
-      f.shade = (1 - lit) * m.light.shadeMax;
-      f.screen = project * mm as Matrix4;
-      visible.add(f);
-    }
-    final ordered = _paintOrder(visible, eye);
-
-    return Stack(clipBehavior: Clip.none, children: [
-      for (final f in ordered)
-        Positioned(
-          left: 0,
-          top: 0,
-          child: Transform(
-            transform: f.screen!,
-            child: SizedBox(
-              width: f.w,
-              height: f.h,
-              child: Stack(fit: StackFit.expand, children: [
-                f.child,
-                if (f.shade > 0.005) IgnorePointer(child: ColoredBox(color: Colors.black.withValues(alpha: f.shade))),
-              ]),
-            ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+            child: Row(children: [
+              IconButton(tooltip: l.prev, icon: const Icon(LucideIcons.chevronLeft), onPressed: slot <= 0 ? null : () => _goTo(_target - 1)),
+              Expanded(
+                child: Slider(
+                  value: slot.toDouble(),
+                  max: (m.sheets - 1).toDouble(),
+                  divisions: m.sheets - 1,
+                  activeColor: c.brand,
+                  onChanged: (v) => _goTo(v.round()),
+                ),
+              ),
+              IconButton(tooltip: l.next, icon: const Icon(LucideIcons.chevronRight), onPressed: slot >= m.sheets - 1 ? null : () => _goTo(_target + 1)),
+            ]),
           ),
-        ),
-    ]);
+          Text(m.spreads[slot], style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500, color: c.textMuted)),
+          const SizedBox(height: 10),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(children: [
+              for (final v in m.views.list)
+                _Pill(
+                  label: v.label,
+                  on: _active == v.id,
+                  onTap: () {
+                    final a = angles[v.id];
+                    if (a == null) return;
+                    _stopAuto();
+                    _setView(a.azimuth, a.polar, sc.baseDistance, s.orbit.viewMs);
+                    setState(() => _active = v.id);
+                  },
+                ),
+              _Pill(
+                label: l.read,
+                on: _active == 'read',
+                onTap: () {
+                  _stopAuto();
+                  if (_pos < 0.5) _goTo(1);
+                  _setView(s.read.azimuth, s.read.polar, sc.baseDistance / s.read.zoom, s.read.turnMs);
+                  setState(() => _active = 'read');
+                },
+              ),
+            ]),
+          ),
+          const SizedBox(height: 8),
+          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            _Round(icon: LucideIcons.minus, tip: l.zoomOut, onTap: () {
+              _stopAuto();
+              _setView(cam.azimuth, cam.polar, cam.distance * m.views.zoom.step, s.orbit.zoomMs);
+            }),
+            _Round(icon: LucideIcons.plus, tip: l.zoomIn, onTap: () {
+              _stopAuto();
+              _setView(cam.azimuth, cam.polar, cam.distance / m.views.zoom.step, s.orbit.zoomMs);
+            }),
+            _Round(icon: _auto ? LucideIcons.pause : LucideIcons.play, tip: _auto ? l.autoOff : l.autoOn, on: _auto, onTap: () {
+              setState(() => _auto = !_auto);
+              _kick();
+            }),
+            _Round(icon: LucideIcons.rotateCcw, tip: l.reset, onTap: () {
+              _stopAuto();
+              _setView(s.initial.azimuth, s.initial.polar, sc.baseDistance, s.orbit.viewMs);
+              setState(() => _active = 'front');
+            }),
+          ]),
+          const SizedBox(height: 8),
+          Text(l.dims, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: c.text)),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 4, 24, 14),
+            child: Text('${l.hint} ${l.note}', textAlign: TextAlign.center, style: TextStyle(fontSize: 12, height: 1.35, color: c.textMuted)),
+          ),
+        ]),
+      );
+    });
   }
 }
 
-/// Срез блока: гладкая основа (цвета сервера) и еле заметные штрихи листов — как paperEdge сайта.
-class _PaperEdge extends StatelessWidget {
-  const _PaperEdge({required this.paper, required this.vertical});
-  final v1api.BookModelPaper paper;
-  final bool vertical;
+class _ScenePainter extends CustomPainter {
+  _ScenePainter({required this.build, required this.studio, required this.stage});
+  final BookFrame Function() build;
+  final ui.FragmentShader? studio;
+  final List<Color> stage;
 
   @override
-  Widget build(BuildContext context) {
-    final base = _css(paper.edge[0]), mid = _css(paper.edge[1]);
-    return Stack(fit: StackFit.expand, children: [
-      DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: vertical ? Alignment.topCenter : Alignment.centerLeft,
-            end: vertical ? Alignment.bottomCenter : Alignment.centerRight,
-            colors: [base, mid, base],
-            stops: const [0, 0.4, 1],
-          ),
-        ),
-      ),
-      DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: vertical ? Alignment.centerLeft : Alignment.topCenter,
-            end: vertical ? const Alignment(-0.6, 0) : const Alignment(0, -0.6),
-            colors: [Colors.transparent, Colors.transparent, _css(paper.edgeLine)],
-            stops: const [0, 0.66, 1],
-            tileMode: TileMode.repeated,
-          ),
-        ),
-      ),
-    ]);
+  void paint(Canvas canvas, Size size) {
+    final frame = build()..layout(size);
+    final sh = studio;
+    if (sh != null) {
+      frame.paintStudio(canvas, size, sh);
+    } else {
+      canvas.drawRect(Offset.zero & size, Paint()..shader = RadialGradient(center: const Alignment(0, -0.3), colors: stage).createShader(Offset.zero & size));
+    }
+    frame.paint(canvas);
   }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter old) => true;
 }
 
 class _Pill extends StatelessWidget {

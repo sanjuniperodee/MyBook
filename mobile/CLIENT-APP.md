@@ -68,7 +68,7 @@ PageFade (CabinetRoute со свайпом «назад» от края), PageTu
    cabinet-orders.ts. Было в плане: тарифы, доставка, оплата Kaspi / CloudPayments (страница оплаты, статус по возврату),
    статус заказа.
 3. **v3 — остальное:** места фото и помощник по книге — сделаны 24.11; превью, чтение и 3D-книга — сделаны 25.11
-   (`preview_screen.dart`, API v1 bookBuild); 3D-книга (`book3d_view.dart`, API v1 bookModel — всё с сервера) и обложка
+   (`preview_screen.dart`, API v1 bookBuild); 3D-книга (`book3d_view.dart` + `ui/book3d_scene.dart` + `shaders/studio.frag`, API v1 bookModel и `scene` — всё с сервера, переделана 26.11 один в один с сайтом, см. `docs/mobile-3d`) и обложка
    в режиме «Шаблон» (`cover_screen.dart`, coverGet/coverUpdate) — 25.11; письма близких и отзыв — 25.11 (`letters_screen.dart`,
    `review_screen.dart`); редактор фото (`photo_editor_screen.dart`, API v1 `photoEdit*`), конструктор обложки
    (`cover_designer.dart`, API v1 `coverDesign*`: шаблоны, фото, тексты, «Декоративные линии», 22 мотива, 24 макета,

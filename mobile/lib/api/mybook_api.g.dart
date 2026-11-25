@@ -5414,13 +5414,14 @@ class BookModel {
   final BookModelViews views;
   final BookModelLight light;
   final BookModelPaper paper;
+  final BookModelScene scene;
   final BookModelLabels labels;
 
-  const BookModel({required this.pageCount, required this.dims, required this.spreadUrl, required this.spreadWidths, required this.sheets, required this.leaves, required this.window, required this.spreads, required this.views, required this.light, required this.paper, required this.labels});
+  const BookModel({required this.pageCount, required this.dims, required this.spreadUrl, required this.spreadWidths, required this.sheets, required this.leaves, required this.window, required this.spreads, required this.views, required this.light, required this.paper, required this.scene, required this.labels});
 
-  factory BookModel.fromJson(Map<String, dynamic> json) => BookModel(pageCount: (json['pageCount'] as num).toInt(), dims: BookModelDims.fromJson(json['dims'] as Map<String, dynamic>), spreadUrl: json['spreadUrl'] as String, spreadWidths: (json['spreadWidths'] as List).map((e) => (e as num).toInt()).toList(), sheets: (json['sheets'] as num).toInt(), leaves: (json['leaves'] as num).toInt(), window: (json['window'] as num).toInt(), spreads: (json['spreads'] as List).map((e) => e as String).toList(), views: BookModelViews.fromJson(json['views'] as Map<String, dynamic>), light: BookModelLight.fromJson(json['light'] as Map<String, dynamic>), paper: BookModelPaper.fromJson(json['paper'] as Map<String, dynamic>), labels: BookModelLabels.fromJson(json['labels'] as Map<String, dynamic>));
+  factory BookModel.fromJson(Map<String, dynamic> json) => BookModel(pageCount: (json['pageCount'] as num).toInt(), dims: BookModelDims.fromJson(json['dims'] as Map<String, dynamic>), spreadUrl: json['spreadUrl'] as String, spreadWidths: (json['spreadWidths'] as List).map((e) => (e as num).toInt()).toList(), sheets: (json['sheets'] as num).toInt(), leaves: (json['leaves'] as num).toInt(), window: (json['window'] as num).toInt(), spreads: (json['spreads'] as List).map((e) => e as String).toList(), views: BookModelViews.fromJson(json['views'] as Map<String, dynamic>), light: BookModelLight.fromJson(json['light'] as Map<String, dynamic>), paper: BookModelPaper.fromJson(json['paper'] as Map<String, dynamic>), scene: BookModelScene.fromJson(json['scene'] as Map<String, dynamic>), labels: BookModelLabels.fromJson(json['labels'] as Map<String, dynamic>));
 
-  Map<String, dynamic> toJson() => {'pageCount': pageCount, 'dims': dims.toJson(), 'spreadUrl': spreadUrl, 'spreadWidths': spreadWidths.map((e) => e).toList(), 'sheets': sheets, 'leaves': leaves, 'window': window, 'spreads': spreads.map((e) => e).toList(), 'views': views.toJson(), 'light': light.toJson(), 'paper': paper.toJson(), 'labels': labels.toJson()};
+  Map<String, dynamic> toJson() => {'pageCount': pageCount, 'dims': dims.toJson(), 'spreadUrl': spreadUrl, 'spreadWidths': spreadWidths.map((e) => e).toList(), 'sheets': sheets, 'leaves': leaves, 'window': window, 'spreads': spreads.map((e) => e).toList(), 'views': views.toJson(), 'light': light.toJson(), 'paper': paper.toJson(), 'scene': scene.toJson(), 'labels': labels.toJson()};
 }
 
 class BookModelDims {
@@ -5600,6 +5601,235 @@ class BookModelPaper {
   factory BookModelPaper.fromJson(Map<String, dynamic> json) => BookModelPaper(endpaper: (json['endpaper'] as List).map((e) => e as String).toList(), edge: (json['edge'] as List).map((e) => e as String).toList(), edgeLine: json['edgeLine'] as String, stage: (json['stage'] as List).map((e) => e as String).toList());
 
   Map<String, dynamic> toJson() => {'endpaper': endpaper.map((e) => e).toList(), 'edge': edge.map((e) => e).toList(), 'edgeLine': edgeLine, 'stage': stage.map((e) => e).toList()};
+}
+
+class BookModelScene {
+  final BookModelSceneCamera camera;
+  final BookModelSceneInitial initial;
+  final BookModelSceneRead read;
+  final List<BookModelSceneViews> views;
+  final BookModelSceneOrbit orbit;
+  final BookModelSceneFlip flip;
+  final double aperture;
+  final double boardMm;
+  final double spineBulge;
+  final BookModelSceneCurl curl;
+  final BookModelSceneLights lights;
+  final BookModelSceneStudio studio;
+  final BookModelSceneMaterials materials;
+  final BookModelSceneGutter gutter;
+
+  const BookModelScene({required this.camera, required this.initial, required this.read, required this.views, required this.orbit, required this.flip, required this.aperture, required this.boardMm, required this.spineBulge, required this.curl, required this.lights, required this.studio, required this.materials, required this.gutter});
+
+  factory BookModelScene.fromJson(Map<String, dynamic> json) => BookModelScene(camera: BookModelSceneCamera.fromJson(json['camera'] as Map<String, dynamic>), initial: BookModelSceneInitial.fromJson(json['initial'] as Map<String, dynamic>), read: BookModelSceneRead.fromJson(json['read'] as Map<String, dynamic>), views: (json['views'] as List).map((e) => BookModelSceneViews.fromJson(e as Map<String, dynamic>)).toList(), orbit: BookModelSceneOrbit.fromJson(json['orbit'] as Map<String, dynamic>), flip: BookModelSceneFlip.fromJson(json['flip'] as Map<String, dynamic>), aperture: (json['aperture'] as num).toDouble(), boardMm: (json['boardMm'] as num).toDouble(), spineBulge: (json['spineBulge'] as num).toDouble(), curl: BookModelSceneCurl.fromJson(json['curl'] as Map<String, dynamic>), lights: BookModelSceneLights.fromJson(json['lights'] as Map<String, dynamic>), studio: BookModelSceneStudio.fromJson(json['studio'] as Map<String, dynamic>), materials: BookModelSceneMaterials.fromJson(json['materials'] as Map<String, dynamic>), gutter: BookModelSceneGutter.fromJson(json['gutter'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'camera': camera.toJson(), 'initial': initial.toJson(), 'read': read.toJson(), 'views': views.map((e) => e.toJson()).toList(), 'orbit': orbit.toJson(), 'flip': flip.toJson(), 'aperture': aperture, 'boardMm': boardMm, 'spineBulge': spineBulge, 'curl': curl.toJson(), 'lights': lights.toJson(), 'studio': studio.toJson(), 'materials': materials.toJson(), 'gutter': gutter.toJson()};
+}
+
+class BookModelSceneCamera {
+  final double fovDeg;
+  final double distanceK;
+  final double zoomMin;
+  final double zoomMax;
+  final double polarMin;
+
+  const BookModelSceneCamera({required this.fovDeg, required this.distanceK, required this.zoomMin, required this.zoomMax, required this.polarMin});
+
+  factory BookModelSceneCamera.fromJson(Map<String, dynamic> json) => BookModelSceneCamera(fovDeg: (json['fovDeg'] as num).toDouble(), distanceK: (json['distanceK'] as num).toDouble(), zoomMin: (json['zoomMin'] as num).toDouble(), zoomMax: (json['zoomMax'] as num).toDouble(), polarMin: (json['polarMin'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'fovDeg': fovDeg, 'distanceK': distanceK, 'zoomMin': zoomMin, 'zoomMax': zoomMax, 'polarMin': polarMin};
+}
+
+class BookModelSceneInitial {
+  final double azimuth;
+  final double polar;
+
+  const BookModelSceneInitial({required this.azimuth, required this.polar});
+
+  factory BookModelSceneInitial.fromJson(Map<String, dynamic> json) => BookModelSceneInitial(azimuth: (json['azimuth'] as num).toDouble(), polar: (json['polar'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'azimuth': azimuth, 'polar': polar};
+}
+
+class BookModelSceneRead {
+  final double azimuth;
+  final double polar;
+  final double zoom;
+  final double turnIfAzimuthOver;
+  final double turnIfPolarOver;
+  final double turnIfPolarUnder;
+  final double turnMs;
+
+  const BookModelSceneRead({required this.azimuth, required this.polar, required this.zoom, required this.turnIfAzimuthOver, required this.turnIfPolarOver, required this.turnIfPolarUnder, required this.turnMs});
+
+  factory BookModelSceneRead.fromJson(Map<String, dynamic> json) => BookModelSceneRead(azimuth: (json['azimuth'] as num).toDouble(), polar: (json['polar'] as num).toDouble(), zoom: (json['zoom'] as num).toDouble(), turnIfAzimuthOver: (json['turnIfAzimuthOver'] as num).toDouble(), turnIfPolarOver: (json['turnIfPolarOver'] as num).toDouble(), turnIfPolarUnder: (json['turnIfPolarUnder'] as num).toDouble(), turnMs: (json['turnMs'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'azimuth': azimuth, 'polar': polar, 'zoom': zoom, 'turnIfAzimuthOver': turnIfAzimuthOver, 'turnIfPolarOver': turnIfPolarOver, 'turnIfPolarUnder': turnIfPolarUnder, 'turnMs': turnMs};
+}
+
+class BookModelSceneViews {
+  final String id;
+  final double azimuth;
+  final double polar;
+
+  const BookModelSceneViews({required this.id, required this.azimuth, required this.polar});
+
+  factory BookModelSceneViews.fromJson(Map<String, dynamic> json) => BookModelSceneViews(id: json['id'] as String, azimuth: (json['azimuth'] as num).toDouble(), polar: (json['polar'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'id': id, 'azimuth': azimuth, 'polar': polar};
+}
+
+class BookModelSceneOrbit {
+  final double rotateSpeed;
+  final double damping;
+  final double autoRotateSpeed;
+  final double zoomMs;
+  final double viewMs;
+
+  const BookModelSceneOrbit({required this.rotateSpeed, required this.damping, required this.autoRotateSpeed, required this.zoomMs, required this.viewMs});
+
+  factory BookModelSceneOrbit.fromJson(Map<String, dynamic> json) => BookModelSceneOrbit(rotateSpeed: (json['rotateSpeed'] as num).toDouble(), damping: (json['damping'] as num).toDouble(), autoRotateSpeed: (json['autoRotateSpeed'] as num).toDouble(), zoomMs: (json['zoomMs'] as num).toDouble(), viewMs: (json['viewMs'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'rotateSpeed': rotateSpeed, 'damping': damping, 'autoRotateSpeed': autoRotateSpeed, 'zoomMs': zoomMs, 'viewMs': viewMs};
+}
+
+class BookModelSceneFlip {
+  final double baseMs;
+  final double perLeafMs;
+  final double maxMs;
+
+  const BookModelSceneFlip({required this.baseMs, required this.perLeafMs, required this.maxMs});
+
+  factory BookModelSceneFlip.fromJson(Map<String, dynamic> json) => BookModelSceneFlip(baseMs: (json['baseMs'] as num).toDouble(), perLeafMs: (json['perLeafMs'] as num).toDouble(), maxMs: (json['maxMs'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'baseMs': baseMs, 'perLeafMs': perLeafMs, 'maxMs': maxMs};
+}
+
+class BookModelSceneCurl {
+  final double lag;
+  final int segments;
+
+  const BookModelSceneCurl({required this.lag, required this.segments});
+
+  factory BookModelSceneCurl.fromJson(Map<String, dynamic> json) => BookModelSceneCurl(lag: (json['lag'] as num).toDouble(), segments: (json['segments'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'lag': lag, 'segments': segments};
+}
+
+class BookModelSceneLights {
+  final BookModelSceneLightsKey key;
+  final BookModelSceneLightsBack back;
+  final BookModelSceneLightsBounce bounce;
+  final BookModelSceneLightsHemi hemi;
+  final double environment;
+  final double environmentIrradiance;
+  final double exposure;
+  final double shadowRadius;
+  final double contactOpacity;
+
+  const BookModelSceneLights({required this.key, required this.back, required this.bounce, required this.hemi, required this.environment, required this.environmentIrradiance, required this.exposure, required this.shadowRadius, required this.contactOpacity});
+
+  factory BookModelSceneLights.fromJson(Map<String, dynamic> json) => BookModelSceneLights(key: BookModelSceneLightsKey.fromJson(json['key'] as Map<String, dynamic>), back: BookModelSceneLightsBack.fromJson(json['back'] as Map<String, dynamic>), bounce: BookModelSceneLightsBounce.fromJson(json['bounce'] as Map<String, dynamic>), hemi: BookModelSceneLightsHemi.fromJson(json['hemi'] as Map<String, dynamic>), environment: (json['environment'] as num).toDouble(), environmentIrradiance: (json['environmentIrradiance'] as num).toDouble(), exposure: (json['exposure'] as num).toDouble(), shadowRadius: (json['shadowRadius'] as num).toDouble(), contactOpacity: (json['contactOpacity'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'key': key.toJson(), 'back': back.toJson(), 'bounce': bounce.toJson(), 'hemi': hemi.toJson(), 'environment': environment, 'environmentIrradiance': environmentIrradiance, 'exposure': exposure, 'shadowRadius': shadowRadius, 'contactOpacity': contactOpacity};
+}
+
+class BookModelSceneLightsKey {
+  final double x;
+  final double y;
+  final double z;
+  final String color;
+  final double intensity;
+
+  const BookModelSceneLightsKey({required this.x, required this.y, required this.z, required this.color, required this.intensity});
+
+  factory BookModelSceneLightsKey.fromJson(Map<String, dynamic> json) => BookModelSceneLightsKey(x: (json['x'] as num).toDouble(), y: (json['y'] as num).toDouble(), z: (json['z'] as num).toDouble(), color: json['color'] as String, intensity: (json['intensity'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'x': x, 'y': y, 'z': z, 'color': color, 'intensity': intensity};
+}
+
+class BookModelSceneLightsBack {
+  final double x;
+  final double y;
+  final double z;
+  final String color;
+  final double intensity;
+
+  const BookModelSceneLightsBack({required this.x, required this.y, required this.z, required this.color, required this.intensity});
+
+  factory BookModelSceneLightsBack.fromJson(Map<String, dynamic> json) => BookModelSceneLightsBack(x: (json['x'] as num).toDouble(), y: (json['y'] as num).toDouble(), z: (json['z'] as num).toDouble(), color: json['color'] as String, intensity: (json['intensity'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'x': x, 'y': y, 'z': z, 'color': color, 'intensity': intensity};
+}
+
+class BookModelSceneLightsBounce {
+  final double x;
+  final double y;
+  final double z;
+  final String color;
+  final double intensity;
+
+  const BookModelSceneLightsBounce({required this.x, required this.y, required this.z, required this.color, required this.intensity});
+
+  factory BookModelSceneLightsBounce.fromJson(Map<String, dynamic> json) => BookModelSceneLightsBounce(x: (json['x'] as num).toDouble(), y: (json['y'] as num).toDouble(), z: (json['z'] as num).toDouble(), color: json['color'] as String, intensity: (json['intensity'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'x': x, 'y': y, 'z': z, 'color': color, 'intensity': intensity};
+}
+
+class BookModelSceneLightsHemi {
+  final String sky;
+  final String ground;
+  final double intensity;
+
+  const BookModelSceneLightsHemi({required this.sky, required this.ground, required this.intensity});
+
+  factory BookModelSceneLightsHemi.fromJson(Map<String, dynamic> json) => BookModelSceneLightsHemi(sky: json['sky'] as String, ground: json['ground'] as String, intensity: (json['intensity'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'sky': sky, 'ground': ground, 'intensity': intensity};
+}
+
+class BookModelSceneStudio {
+  final String zenith;
+  final String horizon;
+  final String nadir;
+  final String floorCenter;
+  final String floorEdge;
+  final double floorRadiusK;
+  final double fogNearK;
+  final double fogFarK;
+  final String contact;
+
+  const BookModelSceneStudio({required this.zenith, required this.horizon, required this.nadir, required this.floorCenter, required this.floorEdge, required this.floorRadiusK, required this.fogNearK, required this.fogFarK, required this.contact});
+
+  factory BookModelSceneStudio.fromJson(Map<String, dynamic> json) => BookModelSceneStudio(zenith: json['zenith'] as String, horizon: json['horizon'] as String, nadir: json['nadir'] as String, floorCenter: json['floorCenter'] as String, floorEdge: json['floorEdge'] as String, floorRadiusK: (json['floorRadiusK'] as num).toDouble(), fogNearK: (json['fogNearK'] as num).toDouble(), fogFarK: (json['fogFarK'] as num).toDouble(), contact: json['contact'] as String);
+
+  Map<String, dynamic> toJson() => {'zenith': zenith, 'horizon': horizon, 'nadir': nadir, 'floorCenter': floorCenter, 'floorEdge': floorEdge, 'floorRadiusK': floorRadiusK, 'fogNearK': fogNearK, 'fogFarK': fogFarK, 'contact': contact};
+}
+
+class BookModelSceneMaterials {
+  final String edge;
+  final String endpaper;
+  final String paper;
+  final String page;
+
+  const BookModelSceneMaterials({required this.edge, required this.endpaper, required this.paper, required this.page});
+
+  factory BookModelSceneMaterials.fromJson(Map<String, dynamic> json) => BookModelSceneMaterials(edge: json['edge'] as String, endpaper: json['endpaper'] as String, paper: json['paper'] as String, page: json['page'] as String);
+
+  Map<String, dynamic> toJson() => {'edge': edge, 'endpaper': endpaper, 'paper': paper, 'page': page};
+}
+
+class BookModelSceneGutter {
+  final double a0;
+  final double u1;
+  final double a1;
+  final double u2;
+
+  const BookModelSceneGutter({required this.a0, required this.u1, required this.a1, required this.u2});
+
+  factory BookModelSceneGutter.fromJson(Map<String, dynamic> json) => BookModelSceneGutter(a0: (json['a0'] as num).toDouble(), u1: (json['u1'] as num).toDouble(), a1: (json['a1'] as num).toDouble(), u2: (json['u2'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'a0': a0, 'u1': u1, 'a1': a1, 'u2': u2};
 }
 
 class BookModelLabels {

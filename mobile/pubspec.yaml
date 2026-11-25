@@ -82,6 +82,9 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+  # Студия 3D-книги (купол, стол, туман, тень) — шейдер, как сцена three.js сайта.
+  shaders:
+    - shaders/studio.frag
 
   # Шрифты сайта (assets/fonts в корне репозитория): кабинет — Onest, книга — Cormorant. Нужны клиентскому приложению.
   fonts:

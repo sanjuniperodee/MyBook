@@ -7,6 +7,7 @@ import { getCoverTemplate } from "@/lib/book/covers";
 import { parseCoverBack, parseCoverDesign, repeatedFrontLayers, templateForCover } from "@/lib/book/cover-design";
 import { getFormat } from "@/lib/book/formats";
 import { APERTURE, apertureDegrees, bookDims, clamp } from "@/lib/book/book-model";
+import { SCENE_FLIP, SCENE_INITIAL, SCENE_ORBIT, SCENE_READ, SCENE_VIEWS } from "@/lib/book/book-scene";
 import { leafCount, pageLeaf, pagesNear, sheetCount, visibleSpread } from "@/lib/book/flipbook";
 import { cn } from "@/lib/class-names";
 import { BuildNotice, BuildPlaceholder, leafImage, leafImageWidth, NEAR_SPREADS, useFlipbookPages, type FlipbookData } from "./pages";
@@ -21,16 +22,9 @@ import { BookScene, type FaceKey } from "./webgl/BookScene";
 import { fetchBitmap, PageTextures, type PageFailure } from "./webgl/page-textures";
 
 /** Ракурсы осмотра: азимут и полярный угол камеры в радианах. */
-const VIEW_ANGLES: Record<ViewId, { azimuth: number; polar: number }> = {
-  front: { azimuth: 0, polar: Math.PI / 2 },
-  spine: { azimuth: -Math.PI / 2, polar: Math.PI / 2 },
-  back: { azimuth: Math.PI, polar: Math.PI / 2 },
-  edge: { azimuth: Math.PI / 2, polar: Math.PI / 2 },
-  top: { azimuth: 0, polar: 0.02 },
-  bottom: { azimuth: 0, polar: Math.PI - 0.02 },
-};
-const INITIAL = { azimuth: -0.49, polar: 1.33 };
-const READ = { azimuth: 0, polar: 1.36, zoom: 1.04 };
+const VIEW_ANGLES: Record<ViewId, { azimuth: number; polar: number }> = SCENE_VIEWS;
+const INITIAL = SCENE_INITIAL;
+const READ = SCENE_READ;
 const COVER_KEYS = ["front", "back", "spine"] as const;
 /** Сколько ждём снимки обложки (фото, снимки-примеры), прежде чем снять обложку с тем, что есть. */
 const ART_WAIT_MS = 6000;
@@ -190,12 +184,12 @@ export function BookViewerGL({ data, bookId, onUnsupported, className }: { data:
     if (from < 0.5 && to >= 1) {
       const v = s.getView();
       // Открытую книгу удобно читать только лицом к себе: если смотрели сбоку, сверху или снизу, разворачиваем.
-      if (Math.abs(v.azimuth) > 0.14 || v.polar > 1.5 || v.polar < 0.8) {
-        s.setView({ azimuth: READ.azimuth, polar: READ.polar, distance: s.baseDistance / READ.zoom }, 750);
+      if (Math.abs(v.azimuth) > READ.turnIfAzimuthOver || v.polar > READ.turnIfPolarOver || v.polar < READ.turnIfPolarUnder) {
+        s.setView({ azimuth: READ.azimuth, polar: READ.polar, distance: s.baseDistance / READ.zoom }, READ.turnMs);
         setActive("read");
       }
     }
-    if (to !== from) s.flipTo(to, Math.min(1500, 700 + 110 * Math.max(0, Math.abs(to - from) - 1)));
+    if (to !== from) s.flipTo(to, Math.min(SCENE_FLIP.maxMs, SCENE_FLIP.baseMs + SCENE_FLIP.perLeafMs * Math.max(0, Math.abs(to - from) - 1)));
   }, []);
 
   // ── Сцена: создаётся, когда известно число листов; пересоздаётся, если оно или размеры изменились ──
@@ -445,7 +439,7 @@ export function BookViewerGL({ data, bookId, onUnsupported, className }: { data:
         onView={(id) => {
           stopAuto();
           const s = scene.current;
-          if (s) s.setView({ ...VIEW_ANGLES[id], distance: s.baseDistance }, 750);
+          if (s) s.setView({ ...VIEW_ANGLES[id], distance: s.baseDistance }, SCENE_ORBIT.viewMs);
           setActive(id);
         }}
         onRead={() => {
@@ -453,7 +447,7 @@ export function BookViewerGL({ data, bookId, onUnsupported, className }: { data:
           const s = scene.current;
           if (!s) return;
           if (s.position < 0.5) goTo(1);
-          s.setView({ azimuth: READ.azimuth, polar: READ.polar, distance: s.baseDistance / READ.zoom }, 750);
+          s.setView({ azimuth: READ.azimuth, polar: READ.polar, distance: s.baseDistance / READ.zoom }, READ.turnMs);
           setActive("read");
         }}
         onZoom={(factor) => {
@@ -468,7 +462,7 @@ export function BookViewerGL({ data, bookId, onUnsupported, className }: { data:
         onReset={() => {
           stopAuto();
           const s = scene.current;
-          if (s) s.setView({ ...INITIAL, distance: s.baseDistance }, 750);
+          if (s) s.setView({ ...INITIAL, distance: s.baseDistance }, SCENE_ORBIT.viewMs);
           setActive("front");
         }}
         onFull={toggleFull}

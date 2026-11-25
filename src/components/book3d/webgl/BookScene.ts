@@ -4,6 +4,7 @@ import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.j
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { APERTURE, BOARD_MM, clamp, clampAperture, leafZ, shortestDelta, spineFold, windowPiles, type BookDims } from "@/lib/book/book-model";
 import { RENDER_WINDOW } from "@/lib/book/flipbook";
+import { SCENE_CAMERA, SCENE_INITIAL, SCENE_LIGHTS, SCENE_MATERIALS, SCENE_ORBIT, SCENE_STUDIO } from "@/lib/book/book-scene";
 import { bendLeaf, leafGeometry, spineGeometry } from "./geometry";
 import { bookMaterials } from "./materials";
 import { contactTexture, domeTexture, floorTexture, STUDIO, stripeTexture } from "./textures";
@@ -122,7 +123,7 @@ export class BookScene {
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     // Нейтральное тоновое отображение сохраняет цвета обложки и белизну бумаги, не «заваливая» их, как ACES.
     renderer.toneMapping = THREE.NeutralToneMapping;
-    renderer.toneMappingExposure = 1.07;
+    renderer.toneMappingExposure = SCENE_LIGHTS.exposure;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFShadowMap;
     this.maxAnisotropy = Math.min(16, renderer.capabilities.getMaxAnisotropy());
@@ -135,52 +136,54 @@ export class BookScene {
     const room = new RoomEnvironment();
     this.scene.environment = pmrem.fromScene(room, 0.04).texture;
     // Интенсивности подобраны по замеру: освещённая обложка даёт ~94% цвета ткани в текстуре — фактура не «выбеливается».
-    this.scene.environmentIntensity = 0.42;
+    this.scene.environmentIntensity = SCENE_LIGHTS.environment;
     room.dispose();
     pmrem.dispose();
 
     const { w: W, h: H, d: D } = dims;
-    const key = new THREE.DirectionalLight(0xfff4e6, 1.2);
+    const L = SCENE_LIGHTS;
+    const at = (v: readonly number[]) => [v[0] * W, v[1] * H, v[2] * W] as const;
+    const key = new THREE.DirectionalLight(L.key.color, L.key.intensity);
     // Свет почти сверху и чуть слева-спереди: тень падает коротко назад-вправо, а не длинным «лезвием».
-    key.position.set(-W * 0.7, H * 3.3, W * 1.3);
+    key.position.set(...at(L.key.at));
     key.castShadow = true;
     key.shadow.mapSize.set(2048, 2048);
     const half = Math.max(W, H) * 1.4;
     Object.assign(key.shadow.camera, { left: -half, right: half, top: half, bottom: -half, near: 10, far: W * 8 });
     key.shadow.bias = SHADOW_BIAS;
     key.shadow.normalBias = 0.35;
-    key.shadow.radius = 9;
+    key.shadow.radius = L.shadowRadius;
     key.target.position.set(0, 0, 0);
     this.scene.add(key, key.target);
     this.shadowLight = key;
-    const fill = new THREE.HemisphereLight(0xfff8ee, 0xe3d9c6, 0.28);
+    const fill = new THREE.HemisphereLight(L.hemi.sky, L.hemi.ground, L.hemi.intensity);
     // Слабый встречный свет сзади и справа без теней: обратная сторона и срез не должны проваливаться в темноту.
-    const back = new THREE.DirectionalLight(0xf3efe8, 0.75);
-    back.position.set(W * 1.8, H * 1.2, -W * 2.2);
+    const back = new THREE.DirectionalLight(L.back.color, L.back.intensity);
+    back.position.set(...at(L.back.at));
     // И отражённый от «стола» свет снизу: когда смотрят снизу, нижний торец и обложки не проваливаются в чёрное.
-    const bounce = new THREE.DirectionalLight(0xf6ecda, 0.5);
-    bounce.position.set(-W * 0.4, -H * 2, W * 1.2);
+    const bounce = new THREE.DirectionalLight(L.bounce.color, L.bounce.intensity);
+    bounce.position.set(...at(L.bounce.at));
     this.scene.add(fill, back, bounce);
 
     // Камера: лёгкий «телеобъектив» — меньше перспективных искажений страниц.
-    const fov = 24;
+    const fov = SCENE_CAMERA.fovDeg;
     this.camera = new THREE.PerspectiveCamera(fov, 1.25, 20, 8000);
-    this.baseDistance = H / (1.3 * Math.tan(THREE.MathUtils.degToRad(fov / 2)));
-    this.placeCamera({ azimuth: -0.49, polar: 1.33, distance: this.baseDistance });
+    this.baseDistance = H / (SCENE_CAMERA.distanceK * Math.tan(THREE.MathUtils.degToRad(fov / 2)));
+    this.placeCamera({ ...SCENE_INITIAL, distance: this.baseDistance });
 
     this.controls = new OrbitControls(this.camera, canvas);
     const c = this.controls;
     c.enablePan = false;
     c.enableDamping = true;
-    c.dampingFactor = 0.09;
-    c.rotateSpeed = 0.85;
+    c.dampingFactor = SCENE_ORBIT.damping;
+    c.rotateSpeed = SCENE_ORBIT.rotateSpeed;
     c.zoomSpeed = 0.9;
-    c.minDistance = this.baseDistance * 0.4;
-    c.maxDistance = this.baseDistance * 1.9;
+    c.minDistance = this.baseDistance * SCENE_CAMERA.zoomMin;
+    c.maxDistance = this.baseDistance * SCENE_CAMERA.zoomMax;
     c.minPolarAngle = 0.02;
     c.maxPolarAngle = Math.PI - 0.02;
     c.autoRotate = !this.reduced;
-    c.autoRotateSpeed = 1.1;
+    c.autoRotateSpeed = SCENE_ORBIT.autoRotateSpeed;
     c.addEventListener("start", () => {
       this.autoWanted = false;
       this.tween = null;
@@ -197,7 +200,7 @@ export class BookScene {
 
     // ── Материалы ──
     const stripes = { u: this.track(stripeTexture("u", this.leavesCount, this.maxAnisotropy)), v: this.track(stripeTexture("v", this.leavesCount, this.maxAnisotropy)) };
-    const mats = bookMaterials((item) => this.track(item), init.edgeColor ?? "#b9ab93", stripes);
+    const mats = bookMaterials((item) => this.track(item), init.edgeColor ?? SCENE_MATERIALS.edge, stripes);
     this.edgeMat = mats.edge;
     this.spineMat = mats.spine;
     this.frontMats = mats.front;
@@ -260,7 +263,7 @@ export class BookScene {
     // ── Студия: купол с градиентом, «стол» с пятном света, туман для глубины, пятно контакта ──
     const groundY = -H / 2 - 0.3;
     this.groundY = groundY;
-    this.scene.fog = new THREE.Fog(STUDIO.horizon, this.baseDistance * 2.4, this.baseDistance * 7.5);
+    this.scene.fog = new THREE.Fog(STUDIO.horizon, this.baseDistance * SCENE_STUDIO.fogNearK, this.baseDistance * SCENE_STUDIO.fogFarK);
     const dome = new THREE.Mesh(
       this.track(new THREE.SphereGeometry(this.baseDistance * 9, 40, 24)),
       this.track(new THREE.MeshBasicMaterial({ map: this.track(domeTexture(this.maxAnisotropy)), side: THREE.BackSide, fog: false, toneMapped: false, depthWrite: false })),
@@ -268,12 +271,12 @@ export class BookScene {
     dome.renderOrder = -10;
     this.scene.add(dome);
     this.floorMat = this.track(new THREE.MeshStandardMaterial({ map: this.track(floorTexture(this.maxAnisotropy)), roughness: 0.97, metalness: 0, transparent: true }));
-    this.floor = new THREE.Mesh(this.track(new THREE.CircleGeometry(this.baseDistance * 8, 72)), this.floorMat);
+    this.floor = new THREE.Mesh(this.track(new THREE.CircleGeometry(this.baseDistance * SCENE_STUDIO.floorRadiusK, 72)), this.floorMat);
     this.floor.rotation.x = -Math.PI / 2;
     this.floor.position.y = groundY;
     this.floor.receiveShadow = true;
     this.scene.add(this.floor);
-    this.contactMat = this.track(new THREE.MeshBasicMaterial({ map: this.track(contactTexture()), transparent: true, depthWrite: false, opacity: 0.5 }));
+    this.contactMat = this.track(new THREE.MeshBasicMaterial({ map: this.track(contactTexture()), transparent: true, depthWrite: false, opacity: SCENE_LIGHTS.contactOpacity }));
     this.contact = new THREE.Mesh(this.track(new THREE.PlaneGeometry(1, 1)), this.contactMat);
     this.contact.rotation.x = -Math.PI / 2;
     this.contact.position.y = groundY + 0.05;
@@ -393,8 +396,8 @@ export class BookScene {
     const from = this.getView();
     const target: ViewTarget = {
       azimuth: from.azimuth + shortestDelta((from.azimuth * 180) / Math.PI, ((to.azimuth ?? from.azimuth) * 180) / Math.PI) * (Math.PI / 180),
-      polar: clamp(to.polar ?? from.polar, 0.02, Math.PI - 0.02),
-      distance: clamp(to.distance ?? from.distance, this.baseDistance * 0.4, this.baseDistance * 1.9),
+      polar: clamp(to.polar ?? from.polar, SCENE_CAMERA.polarMin, Math.PI - SCENE_CAMERA.polarMin),
+      distance: clamp(to.distance ?? from.distance, this.baseDistance * SCENE_CAMERA.zoomMin, this.baseDistance * SCENE_CAMERA.zoomMax),
     };
     if (ms <= 0 || this.reduced) {
       this.tween = null;
@@ -406,7 +409,7 @@ export class BookScene {
   }
 
   zoomBy(factor: number) {
-    this.setView({ distance: this.getView().distance / factor }, 450);
+    this.setView({ distance: this.getView().distance / factor }, SCENE_ORBIT.zoomMs);
   }
 
   setAutoRotate(on: boolean) {
@@ -557,7 +560,7 @@ export class BookScene {
     this.floor.visible = fade > 0.01;
     this.floorMat.opacity = fade;
     this.contact.visible = fade > 0.01;
-    this.contactMat.opacity = 0.5 * fade;
+    this.contactMat.opacity = SCENE_LIGHTS.contactOpacity * fade;
   }
 
   private readonly handleContextLost = (e: Event) => {

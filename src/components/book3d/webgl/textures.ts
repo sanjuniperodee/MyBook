@@ -1,8 +1,9 @@
+import { SCENE_STUDIO } from "@/lib/book/book-scene";
 import * as THREE from "three";
 import { clamp } from "@/lib/book/book-model";
 
 /** Палитра студии: тёплая слоновая кость в тон бумаге сайта — книга выделяется, но фон не спорит с обложкой. */
-export const STUDIO = { zenith: "#cfbe9f", horizon: "#e8dbc3", floorCenter: "#f6eddc", floorEdge: "#d9c9ad" } as const;
+export const STUDIO = SCENE_STUDIO;
 
 function canvasTexture(canvas: HTMLCanvasElement, anisotropy?: number) {
   const tex = new THREE.CanvasTexture(canvas);
@@ -68,7 +69,7 @@ export function domeTexture(anisotropy: number) {
   const g = ctx.createLinearGradient(0, 0, 0, h);
   g.addColorStop(0, STUDIO.zenith);
   g.addColorStop(0.5, STUDIO.horizon);
-  g.addColorStop(1, "#dccfb6");
+  g.addColorStop(1, STUDIO.nadir);
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, w, h);
   // Детерминированный «случай»: фон одинаков при каждом открытии.
@@ -117,7 +118,7 @@ export function contactTexture() {
   canvas.width = canvas.height = 128;
   const ctx = canvas.getContext("2d")!;
   const g = ctx.createRadialGradient(64, 64, 4, 64, 64, 64);
-  g.addColorStop(0, "rgba(40,28,18,.9)");
+  g.addColorStop(0, STUDIO.contact);
   g.addColorStop(0.5, "rgba(40,28,18,.35)");
   g.addColorStop(1, "rgba(40,28,18,0)");
   ctx.fillStyle = g;

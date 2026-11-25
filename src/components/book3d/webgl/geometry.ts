@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import type { BookDims } from "@/lib/book/book-model";
 import { curlCurve, CURL_LAG, CURL_SEGMENTS } from "@/lib/book/page-curl";
+import { gutterShadeAt, spineBulge } from "@/lib/book/book-scene";
 
 /**
  * Тень у корешка на странице — как у раскрытой книги: от сгиба (u = 0) к полю светлеет и к 18% ширины сходит
@@ -8,8 +9,7 @@ import { curlCurve, CURL_LAG, CURL_SEGMENTS } from "@/lib/book/page-curl";
  * на долю a в sRGB — это (1 − a)^2,2.
  */
 export function gutterShade(u: number) {
-  const a = u < 0.07 ? 0.22 - (0.17 * u) / 0.07 : u < 0.18 ? 0.05 * (1 - (u - 0.07) / 0.11) : 0;
-  return Math.pow(1 - a, 2.2);
+  return gutterShadeAt(u);
 }
 
 /**
@@ -70,7 +70,7 @@ export function bendLeaf(geometry: THREE.BufferGeometry, dims: BookDims, t: numb
 export function spineGeometry(dims: BookDims) {
   const { h: H, d: D } = dims;
   const steps = 18;
-  const bulge = Math.min(1.6, D * 0.14);
+  const bulge = spineBulge(D);
   const positions: number[] = [];
   const uvs: number[] = [];
   const index: number[] = [];

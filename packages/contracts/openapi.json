@@ -22979,6 +22979,434 @@
             ],
             "additionalProperties": false
           },
+          "scene": {
+            "type": "object",
+            "properties": {
+              "camera": {
+                "type": "object",
+                "properties": {
+                  "fovDeg": {
+                    "type": "number"
+                  },
+                  "distanceK": {
+                    "type": "number"
+                  },
+                  "zoomMin": {
+                    "type": "number"
+                  },
+                  "zoomMax": {
+                    "type": "number"
+                  },
+                  "polarMin": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "fovDeg",
+                  "distanceK",
+                  "zoomMin",
+                  "zoomMax",
+                  "polarMin"
+                ],
+                "additionalProperties": false
+              },
+              "initial": {
+                "type": "object",
+                "properties": {
+                  "azimuth": {
+                    "type": "number"
+                  },
+                  "polar": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "azimuth",
+                  "polar"
+                ],
+                "additionalProperties": false
+              },
+              "read": {
+                "type": "object",
+                "properties": {
+                  "azimuth": {
+                    "type": "number"
+                  },
+                  "polar": {
+                    "type": "number"
+                  },
+                  "zoom": {
+                    "type": "number"
+                  },
+                  "turnIfAzimuthOver": {
+                    "type": "number"
+                  },
+                  "turnIfPolarOver": {
+                    "type": "number"
+                  },
+                  "turnIfPolarUnder": {
+                    "type": "number"
+                  },
+                  "turnMs": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "azimuth",
+                  "polar",
+                  "zoom",
+                  "turnIfAzimuthOver",
+                  "turnIfPolarOver",
+                  "turnIfPolarUnder",
+                  "turnMs"
+                ],
+                "additionalProperties": false
+              },
+              "views": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "azimuth": {
+                      "type": "number"
+                    },
+                    "polar": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "azimuth",
+                    "polar"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "orbit": {
+                "type": "object",
+                "properties": {
+                  "rotateSpeed": {
+                    "type": "number"
+                  },
+                  "damping": {
+                    "type": "number"
+                  },
+                  "autoRotateSpeed": {
+                    "type": "number"
+                  },
+                  "zoomMs": {
+                    "type": "number"
+                  },
+                  "viewMs": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "rotateSpeed",
+                  "damping",
+                  "autoRotateSpeed",
+                  "zoomMs",
+                  "viewMs"
+                ],
+                "additionalProperties": false
+              },
+              "flip": {
+                "type": "object",
+                "properties": {
+                  "baseMs": {
+                    "type": "number"
+                  },
+                  "perLeafMs": {
+                    "type": "number"
+                  },
+                  "maxMs": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "baseMs",
+                  "perLeafMs",
+                  "maxMs"
+                ],
+                "additionalProperties": false
+              },
+              "aperture": {
+                "type": "number"
+              },
+              "boardMm": {
+                "type": "number"
+              },
+              "spineBulge": {
+                "type": "number"
+              },
+              "curl": {
+                "type": "object",
+                "properties": {
+                  "lag": {
+                    "type": "number"
+                  },
+                  "segments": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "lag",
+                  "segments"
+                ],
+                "additionalProperties": false
+              },
+              "lights": {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "type": "object",
+                    "properties": {
+                      "x": {
+                        "type": "number"
+                      },
+                      "y": {
+                        "type": "number"
+                      },
+                      "z": {
+                        "type": "number"
+                      },
+                      "color": {
+                        "type": "string"
+                      },
+                      "intensity": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "x",
+                      "y",
+                      "z",
+                      "color",
+                      "intensity"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "back": {
+                    "type": "object",
+                    "properties": {
+                      "x": {
+                        "type": "number"
+                      },
+                      "y": {
+                        "type": "number"
+                      },
+                      "z": {
+                        "type": "number"
+                      },
+                      "color": {
+                        "type": "string"
+                      },
+                      "intensity": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "x",
+                      "y",
+                      "z",
+                      "color",
+                      "intensity"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "bounce": {
+                    "type": "object",
+                    "properties": {
+                      "x": {
+                        "type": "number"
+                      },
+                      "y": {
+                        "type": "number"
+                      },
+                      "z": {
+                        "type": "number"
+                      },
+                      "color": {
+                        "type": "string"
+                      },
+                      "intensity": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "x",
+                      "y",
+                      "z",
+                      "color",
+                      "intensity"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "hemi": {
+                    "type": "object",
+                    "properties": {
+                      "sky": {
+                        "type": "string"
+                      },
+                      "ground": {
+                        "type": "string"
+                      },
+                      "intensity": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "sky",
+                      "ground",
+                      "intensity"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "environment": {
+                    "type": "number"
+                  },
+                  "environmentIrradiance": {
+                    "type": "number"
+                  },
+                  "exposure": {
+                    "type": "number"
+                  },
+                  "shadowRadius": {
+                    "type": "number"
+                  },
+                  "contactOpacity": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "key",
+                  "back",
+                  "bounce",
+                  "hemi",
+                  "environment",
+                  "environmentIrradiance",
+                  "exposure",
+                  "shadowRadius",
+                  "contactOpacity"
+                ],
+                "additionalProperties": false
+              },
+              "studio": {
+                "type": "object",
+                "properties": {
+                  "zenith": {
+                    "type": "string"
+                  },
+                  "horizon": {
+                    "type": "string"
+                  },
+                  "nadir": {
+                    "type": "string"
+                  },
+                  "floorCenter": {
+                    "type": "string"
+                  },
+                  "floorEdge": {
+                    "type": "string"
+                  },
+                  "floorRadiusK": {
+                    "type": "number"
+                  },
+                  "fogNearK": {
+                    "type": "number"
+                  },
+                  "fogFarK": {
+                    "type": "number"
+                  },
+                  "contact": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "zenith",
+                  "horizon",
+                  "nadir",
+                  "floorCenter",
+                  "floorEdge",
+                  "floorRadiusK",
+                  "fogNearK",
+                  "fogFarK",
+                  "contact"
+                ],
+                "additionalProperties": false
+              },
+              "materials": {
+                "type": "object",
+                "properties": {
+                  "edge": {
+                    "type": "string"
+                  },
+                  "endpaper": {
+                    "type": "string"
+                  },
+                  "paper": {
+                    "type": "string"
+                  },
+                  "page": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "edge",
+                  "endpaper",
+                  "paper",
+                  "page"
+                ],
+                "additionalProperties": false
+              },
+              "gutter": {
+                "type": "object",
+                "properties": {
+                  "a0": {
+                    "type": "number"
+                  },
+                  "u1": {
+                    "type": "number"
+                  },
+                  "a1": {
+                    "type": "number"
+                  },
+                  "u2": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "a0",
+                  "u1",
+                  "a1",
+                  "u2"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "camera",
+              "initial",
+              "read",
+              "views",
+              "orbit",
+              "flip",
+              "aperture",
+              "boardMm",
+              "spineBulge",
+              "curl",
+              "lights",
+              "studio",
+              "materials",
+              "gutter"
+            ],
+            "additionalProperties": false
+          },
           "labels": {
             "type": "object",
             "properties": {
@@ -23044,6 +23472,7 @@
           "views",
           "light",
           "paper",
+          "scene",
           "labels"
         ],
         "additionalProperties": false

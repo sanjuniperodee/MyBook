@@ -8,6 +8,47 @@
 import { z } from "zod";
 import { route, schemas, uuid, type RouteDef } from "./core";
 
+const Num = z.number();
+const Light = z.object({ x: Num, y: Num, z: Num, color: z.string(), intensity: Num });
+
+/** Сцена three.js сайта числами (lib/book/book-scene.ts): камера, ракурсы, чтение, вращение, листание, свет, студия. */
+const Scene = z.object({
+  camera: z.object({ fovDeg: Num, distanceK: Num, zoomMin: Num, zoomMax: Num, polarMin: Num }),
+  initial: z.object({ azimuth: Num, polar: Num }),
+  read: z.object({ azimuth: Num, polar: Num, zoom: Num, turnIfAzimuthOver: Num, turnIfPolarOver: Num, turnIfPolarUnder: Num, turnMs: Num }),
+  views: z.array(z.object({ id: z.string(), azimuth: Num, polar: Num })),
+  orbit: z.object({ rotateSpeed: Num, damping: Num, autoRotateSpeed: Num, zoomMs: Num, viewMs: Num }),
+  flip: z.object({ baseMs: Num, perLeafMs: Num, maxMs: Num }),
+  aperture: Num,
+  boardMm: Num,
+  spineBulge: Num,
+  curl: z.object({ lag: Num, segments: z.number().int() }),
+  lights: z.object({
+    key: Light,
+    back: Light,
+    bounce: Light,
+    hemi: z.object({ sky: z.string(), ground: z.string(), intensity: Num }),
+    environment: Num,
+    environmentIrradiance: Num,
+    exposure: Num,
+    shadowRadius: Num,
+    contactOpacity: Num,
+  }),
+  studio: z.object({
+    zenith: z.string(),
+    horizon: z.string(),
+    nadir: z.string(),
+    floorCenter: z.string(),
+    floorEdge: z.string(),
+    floorRadiusK: Num,
+    fogNearK: Num,
+    fogFarK: Num,
+    contact: z.string(),
+  }),
+  materials: z.object({ edge: z.string(), endpaper: z.string(), paper: z.string(), page: z.string() }),
+  gutter: z.object({ a0: Num, u1: Num, a1: Num, u2: Num }),
+});
+
 const Rect = z.object({ x: z.number(), y: z.number(), w: z.number(), h: z.number() });
 const View = z.object({ rx: z.number(), ry: z.number() });
 
@@ -47,6 +88,8 @@ export const BookModel = z
     light: z.object({ x: z.number(), y: z.number(), z: z.number(), ambient: z.number(), shadeMax: z.number() }),
     /** Цвета бумаги (CSS): форзац — градиент из двух, срез — основа и середина, штрихи листов, фон сцены — центр и край. */
     paper: z.object({ endpaper: z.array(z.string()), edge: z.array(z.string()), edgeLine: z.string(), stage: z.array(z.string()) }),
+    /** Сцена 3D-книги сайта (three.js) — приложение рисует ту же студию, свет и движение. */
+    scene: Scene,
     labels: z.object({
       read: z.string(),
       prev: z.string(),
