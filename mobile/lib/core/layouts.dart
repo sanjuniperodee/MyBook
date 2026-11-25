@@ -22,9 +22,11 @@ import '../screens/money/sales_register_screen.dart';
 import '../screens/orders_screen.dart';
 import '../screens/settings/pricing_screen.dart';
 import '../screens/settings/reply_templates_screen.dart';
+import '../screens/settings/roles_screen.dart';
 import '../screens/settings/sales_settings_screen.dart';
 import '../screens/settings/site_settings_screen.dart';
 import '../screens/settings/team_screen.dart';
+import '../screens/settings/two_factor_screen.dart';
 import '../screens/overview_screen.dart';
 import '../screens/tasks_screen.dart';
 import '../screens/tickets_screen.dart';
@@ -78,6 +80,8 @@ final appSections = <String, AppSection>{
   'pricing': AppSection('pricing', 'Цены и тарифы', LucideIcons.coins, (s) => s.can('settings.manage'), () => const PricingScreen(), group: 'Настройки'),
   'site': AppSection('site', 'Сайт', LucideIcons.globe, (s) => s.can('settings.manage'), () => const SiteSettingsScreen(), group: 'Настройки'),
   'team': AppSection('team', 'Команда', LucideIcons.shieldCheck, (s) => s.can('team.manage'), () => const TeamScreen(), group: 'Настройки'),
+  'roles': AppSection('roles', 'Роли и права', LucideIcons.keyRound, (s) => s.can('team.manage'), () => const RolesScreen(), group: 'Настройки'),
+  'security': AppSection('security', 'Безопасность (2FA)', LucideIcons.lockKeyhole, (_) => true, () => const TwoFactorScreen(), group: 'Настройки'),
   'leads': AppSection('leads', 'Статистика лидов', LucideIcons.activity, (s) => s.can('analytics.view'), () => const LeadStatsScreen(), group: 'Деньги'),
 };
 
@@ -154,5 +158,4 @@ const crmWebSections = <CrmWebSection>[
   CrmWebSection('Настройки', '/admin/automations', 'Автоматизации', LucideIcons.workflow, ['settings.manage']),
   CrmWebSection('Настройки', '/admin/settings', 'Интеграции', LucideIcons.settings, ['settings.manage']),
   CrmWebSection('Настройки', '/admin/ai-limits', 'Лимиты AI', LucideIcons.gauge, ['settings.manage']),
-  CrmWebSection('Настройки', '/admin/security', 'Безопасность', LucideIcons.lockKeyhole),
 ];

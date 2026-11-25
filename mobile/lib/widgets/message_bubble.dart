@@ -61,7 +61,7 @@ class BubbleBorder extends ShapeBorder {
 
 /// Пузырь сообщения: цитата, вложение, текст, время и галочки доставки.
 class MessageBubble extends StatelessWidget {
-  const MessageBubble({super.key, required this.message, required this.api, required this.tail, required this.onLongPress, required this.onRetry, required this.onQuoteTap, this.onCartItems, this.myId});
+  const MessageBubble({super.key, required this.message, required this.api, required this.tail, required this.onLongPress, required this.onRetry, required this.onQuoteTap, this.onCartItems, this.onBotTrace, this.myId});
   final Message message;
   final ApiClient api;
   final bool tail;
@@ -74,6 +74,9 @@ class MessageBubble extends StatelessWidget {
 
   /// Состав корзины из каталога (кнопка «Показать состав»).
   final Future<List<CartItem>> Function(Message m)? onCartItems;
+
+  /// «Почему так?» у ответа бота — след хода AI-продажника.
+  final void Function(Message m)? onBotTrace;
 
   @override
   Widget build(BuildContext context) {
@@ -108,7 +111,18 @@ class MessageBubble extends StatelessWidget {
     if (m.deleted) return _textMeta(context, 'Сообщение удалено', italic: true, icon: LucideIcons.ban);
     final children = <Widget>[];
     if (m.outgoing && m.author != null && m.author!.isNotEmpty && (myId == null || m.authorId != myId)) {
-      children.add(Padding(padding: const EdgeInsets.only(bottom: 2), child: Text(m.author!, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: c.brandDeep))));
+      if (m.isBot) {
+        children.add(Padding(
+          padding: const EdgeInsets.only(bottom: 3),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(LucideIcons.bot, size: 13.5, color: c.violet),
+            const SizedBox(width: 4),
+            Text('Бот', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: c.violet)),
+          ]),
+        ));
+      } else {
+        children.add(Padding(padding: const EdgeInsets.only(bottom: 2), child: Text(m.author!, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: c.brandDeep))));
+      }
     }
     if (m.forwarded) children.add(Padding(padding: const EdgeInsets.only(bottom: 3), child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(LucideIcons.forward, size: 13, color: c.textFaint), const SizedBox(width: 4), Text('Пересланное', style: TextStyle(fontSize: 12.5, fontStyle: FontStyle.italic, color: c.textFaint))])));
     if (m.replyTo != null) children.add(_Quote(quote: m.replyTo!, onTap: () => onQuoteTap(m.replyTo!.id)));
@@ -151,6 +165,23 @@ class MessageBubble extends StatelessWidget {
       children.add(Padding(
         padding: const EdgeInsets.only(top: 3),
         child: GestureDetector(onTap: onRetry, child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(LucideIcons.rotateCw, size: 13, color: c.danger), const SizedBox(width: 5), Flexible(child: Text('${m.error} · повторить', style: TextStyle(fontSize: 12.5, color: c.danger)))])),
+      ));
+    }
+    if (m.isBot && m.hasTrace && !m.deleted && !m.id.startsWith('local-') && onBotTrace != null) {
+      children.add(Padding(
+        padding: const EdgeInsets.only(top: 5),
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => onBotTrace!(m),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(LucideIcons.circleHelp, size: 13.5, color: c.violet),
+              const SizedBox(width: 4),
+              Text('Почему так?', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: c.violet)),
+            ]),
+          ),
+        ),
       ));
     }
     return Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: children);

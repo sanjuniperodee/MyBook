@@ -51,6 +51,14 @@ vi.mock("@/app/admin/actions", async (orig) => ({
   saveAdminNoteAction: (s: unknown, f: FormData) => saveAdminNoteAction(s, f),
 }));
 
+const sendOfferAction = vi.fn(async (id: string, req: Record<string, unknown>) => (void id, void req, { ok: true, message: "Отправлено, промокод ABC123" }));
+vi.mock("@/app/admin/chats/actions", () => ({
+  startBotAction: vi.fn(),
+  stopBotAction: vi.fn(),
+  sendOfferAction: (id: string, r: Record<string, unknown>) => sendOfferAction(id, r),
+  botTraceAction: vi.fn(async () => ({ trace: { v: 1, purpose: "reply", model: null, result: { phase: "done", outcome: "handoff", handoff: "media" }, fields: {}, deadline: null, materials: null, notes: [], lessons: [], knowledge: null, tokens: null, error: null } })),
+}));
+
 const { v1 } = await import("@mybook/contracts");
 const { createApp } = await import("../apps/api/src/app");
 const { createRouter } = await import("../apps/api/src/http/router");
@@ -250,5 +258,24 @@ describe("CRM v1: сделка и заказ — то, что раньше от�
     const ORDER_ID = "6b1c3e2a-4d5f-4e6a-9b7c-1d2e3f4a5b6c";
     expect(await (await call(app, "PUT", `/api/v1/crm/orders/${ORDER_ID}/note`, { note: "Позвонить перед отправкой" })).json()).toEqual({ ok: true, message: "Заметка сохранена" });
     expect(Object.fromEntries(saveAdminNoteAction.mock.calls[0][1])).toEqual({ orderId: ORDER_ID, adminNote: "Позвонить перед отправкой" });
+  });
+});
+
+describe("CRM v1: чат — «Почему так?» и предложения", () => {
+  const app = createApp(handlers, auth(true));
+  const CHAT = "5e6dcde7-35d8-4016-b259-9b85acfd3b3e";
+
+  it("скидка без размера или срока — отказ до действия; с ними — в действие чата", async () => {
+    const bad = await call(app, "POST", `/api/v1/crm/chats/${CHAT}/offers`, { kind: "discount", percent: 10 });
+    expect(bad.status).toBe(400);
+    expect(sendOfferAction).not.toHaveBeenCalled();
+    expect(await (await call(app, "POST", `/api/v1/crm/chats/${CHAT}/offers`, { kind: "discount", percent: 10, hours: 48 })).json()).toEqual({ ok: true, message: "Отправлено, промокод ABC123" });
+    expect(sendOfferAction).toHaveBeenCalledWith(CHAT, { kind: "discount", percent: 10, hours: 48 });
+  });
+
+  it("«Почему так?» — строки следа хода", async () => {
+    const res = await call(app, "GET", `/api/v1/crm/chats/${CHAT}/messages/0b6f3c1e-2a4d-4e5f-9b6c-1d2e3f4a5b6c/trace`);
+    expect(res.status).toBe(200);
+    expect(Array.isArray((await res.json()).rows)).toBe(true);
   });
 });

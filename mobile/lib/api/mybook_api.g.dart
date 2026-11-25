@@ -554,6 +554,18 @@ class MybookApi {
     return Done.fromJson(json as Map<String, dynamic>);
   }
 
+  /// «Почему так?» у ответа бота: что решила модель, что сделал код, уроки, токены
+  Future<BotTrace> crmChatBotTrace({required String chatId, required String messageId}) async {
+    final json = await _send('GET', '/api/v1/crm/chats/${Uri.encodeComponent('$chatId')}/messages/${Uri.encodeComponent('$messageId')}/trace');
+    return BotTrace.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Последние ходы бота в диалоге («Почему так?» для ответов и молчания)
+  Future<BotTraces> crmChatBotTraces({required String chatId}) async {
+    final json = await _send('GET', '/api/v1/crm/chats/${Uri.encodeComponent('$chatId')}/bot/traces');
+    return BotTraces.fromJson(json as Map<String, dynamic>);
+  }
+
   /// Запустить или остановить бота в диалоге
   Future<Done> crmChatBot({required String chatId, required ChatBotBody body}) async {
     final json = await _send('POST', '/api/v1/crm/chats/${Uri.encodeComponent('$chatId')}/bot', body: body.toJson());
@@ -1007,6 +1019,78 @@ class MybookApi {
   /// Изменить настройки сайта (только переданные)
   Future<Done> crmSiteSave({required SiteSettingsPatch body}) async {
     final json = await _send('PATCH', '/api/v1/crm/site', body: body.toJson());
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// КП и предложения клиенту из чата: оплата заказа, ссылка на книгу, персональная скидка
+  Future<ChatOffers> crmChatOffers({required String chatId}) async {
+    final json = await _send('GET', '/api/v1/crm/chats/${Uri.encodeComponent('$chatId')}/offers');
+    return ChatOffers.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Отправить КП/предложение клиенту в чат (скидка — с промокодом, право promo.give)
+  Future<Done> crmChatOfferSend({required String chatId, required ChatOfferBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/chats/${Uri.encodeComponent('$chatId')}/offers', body: body.toJson());
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Роли и матрица прав CRM (право team.manage)
+  Future<CrmRoles> crmRoles() async {
+    final json = await _send('GET', '/api/v1/crm/roles');
+    return CrmRoles.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Создать или изменить роль и её права (право team.manage)
+  Future<Done> crmRoleSave({required CrmRoleSaveBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/roles', body: body.toJson());
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Удалить пользовательскую роль (право team.manage)
+  Future<Done> crmRoleDelete({required String roleId}) async {
+    final json = await _send('DELETE', '/api/v1/crm/roles/${Uri.encodeComponent('$roleId')}');
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Безопасность: статус 2FA сотрудника, правила команды и 2FA сотрудников
+  Future<CrmSecurity> crmSecurity() async {
+    final json = await _send('GET', '/api/v1/crm/security');
+    return CrmSecurity.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Начать настройку 2FA: выпустить секрет, otpauth URI и QR-код
+  Future<CrmTwoFactorStart> crmSecurity2faStart() async {
+    final json = await _send('POST', '/api/v1/crm/security/2fa/start');
+    return CrmTwoFactorStart.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Подтвердить включение 2FA по 6-значному коду и получить резервные коды
+  Future<CrmTwoFactorCodes> crmSecurity2faConfirm({required CrmTwoFactorCodeBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/security/2fa/confirm', body: body.toJson());
+    return CrmTwoFactorCodes.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Выпустить новые резервные коды 2FA (с проверкой текущего кода)
+  Future<CrmTwoFactorCodes> crmSecurity2faBackup({required CrmTwoFactorCodeBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/security/2fa/backup', body: body.toJson());
+    return CrmTwoFactorCodes.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Отключить свою 2FA (с проверкой текущего кода или резервного кода)
+  Future<Done> crmSecurity2faDisable({required CrmTwoFactorCodeBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/security/2fa/disable', body: body.toJson());
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Правила безопасности команды: обязательная 2FA и разрешённые IP (settings.manage + team.manage)
+  Future<Done> crmSecurityRules({required CrmSecurityRulesBody body}) async {
+    final json = await _send('PATCH', '/api/v1/crm/security/rules', body: body.toJson());
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Сбросить 2FA другому сотруднику (право team.manage)
+  Future<Done> crmSecurityStaffReset({required String userId}) async {
+    final json = await _send('POST', '/api/v1/crm/security/staff/${Uri.encodeComponent('$userId')}/reset-2fa');
     return Done.fromJson(json as Map<String, dynamic>);
   }
 
@@ -6137,6 +6221,53 @@ class DealPipelineBody {
   Map<String, dynamic> toJson() => {'pipelineId': pipelineId};
 }
 
+class BotTraceRow {
+  final String label;
+  final List<String> lines;
+  final bool warn;
+
+  const BotTraceRow({required this.label, required this.lines, required this.warn});
+
+  factory BotTraceRow.fromJson(Map<String, dynamic> json) => BotTraceRow(label: json['label'] as String, lines: (json['lines'] as List).map((e) => e as String).toList(), warn: json['warn'] as bool);
+
+  Map<String, dynamic> toJson() => {'label': label, 'lines': lines.map((e) => e).toList(), 'warn': warn};
+}
+
+class BotTrace {
+  final List<BotTraceRow> rows;
+
+  const BotTrace({required this.rows});
+
+  factory BotTrace.fromJson(Map<String, dynamic> json) => BotTrace(rows: (json['rows'] as List).map((e) => BotTraceRow.fromJson(e as Map<String, dynamic>)).toList());
+
+  Map<String, dynamic> toJson() => {'rows': rows.map((e) => e.toJson()).toList()};
+}
+
+class BotTraceItem {
+  final String id;
+  final String at;
+  final String? messageId;
+  final bool silent;
+  final String summary;
+  final List<BotTraceRow> rows;
+
+  const BotTraceItem({required this.id, required this.at, this.messageId, required this.silent, required this.summary, required this.rows});
+
+  factory BotTraceItem.fromJson(Map<String, dynamic> json) => BotTraceItem(id: json['id'] as String, at: json['at'] as String, messageId: json['messageId'] == null ? null : json['messageId'] as String, silent: json['silent'] as bool, summary: json['summary'] as String, rows: (json['rows'] as List).map((e) => BotTraceRow.fromJson(e as Map<String, dynamic>)).toList());
+
+  Map<String, dynamic> toJson() => {'id': id, 'at': at, 'messageId': messageId, 'silent': silent, 'summary': summary, 'rows': rows.map((e) => e.toJson()).toList()};
+}
+
+class BotTraces {
+  final List<BotTraceItem> items;
+
+  const BotTraces({required this.items});
+
+  factory BotTraces.fromJson(Map<String, dynamic> json) => BotTraces(items: (json['items'] as List).map((e) => BotTraceItem.fromJson(e as Map<String, dynamic>)).toList());
+
+  Map<String, dynamic> toJson() => {'items': items.map((e) => e.toJson()).toList()};
+}
+
 class ClientAccess {
   final String login;
   final String password;
@@ -7841,4 +7972,209 @@ class SiteSettingsPatch {
   factory SiteSettingsPatch.fromJson(Map<String, dynamic> json) => SiteSettingsPatch(registration: json['registration'] == null ? null : json['registration'] as bool, giftNote: json['giftNote'] == null ? null : json['giftNote'] as bool, maxPhotos: json['maxPhotos'] == null ? null : (json['maxPhotos'] as num).toInt(), seller: json['seller'] == null ? null : SellerDetails.fromJson(json['seller'] as Map<String, dynamic>));
 
   Map<String, dynamic> toJson() => {if (registration != null) 'registration': registration!, if (giftNote != null) 'giftNote': giftNote!, if (maxPhotos != null) 'maxPhotos': maxPhotos!, if (seller != null) 'seller': seller!.toJson()};
+}
+
+class ChatOfferHourOption {
+  final int hours;
+  final String label;
+
+  const ChatOfferHourOption({required this.hours, required this.label});
+
+  factory ChatOfferHourOption.fromJson(Map<String, dynamic> json) => ChatOfferHourOption(hours: (json['hours'] as num).toInt(), label: json['label'] as String);
+
+  Map<String, dynamic> toJson() => {'hours': hours, 'label': label};
+}
+
+class ChatOffers {
+  final ChatOffersOrder? order;
+  final ChatOffersBook? book;
+  final int maxDiscount;
+  final List<int> percents;
+  final List<int> hours;
+  final List<ChatOfferHourOption> hourOptions;
+  final bool canSend;
+
+  const ChatOffers({this.order, this.book, required this.maxDiscount, required this.percents, required this.hours, required this.hourOptions, required this.canSend});
+
+  factory ChatOffers.fromJson(Map<String, dynamic> json) => ChatOffers(order: json['order'] == null ? null : ChatOffersOrder.fromJson(json['order'] as Map<String, dynamic>), book: json['book'] == null ? null : ChatOffersBook.fromJson(json['book'] as Map<String, dynamic>), maxDiscount: (json['maxDiscount'] as num).toInt(), percents: (json['percents'] as List).map((e) => (e as num).toInt()).toList(), hours: (json['hours'] as List).map((e) => (e as num).toInt()).toList(), hourOptions: (json['hourOptions'] as List).map((e) => ChatOfferHourOption.fromJson(e as Map<String, dynamic>)).toList(), canSend: json['canSend'] as bool);
+
+  Map<String, dynamic> toJson() => {'order': order == null ? null : order!.toJson(), 'book': book == null ? null : book!.toJson(), 'maxDiscount': maxDiscount, 'percents': percents.map((e) => e).toList(), 'hours': hours.map((e) => e).toList(), 'hourOptions': hourOptions.map((e) => e.toJson()).toList(), 'canSend': canSend};
+}
+
+class ChatOffersOrder {
+  final int number;
+
+  const ChatOffersOrder({required this.number});
+
+  factory ChatOffersOrder.fromJson(Map<String, dynamic> json) => ChatOffersOrder(number: (json['number'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'number': number};
+}
+
+class ChatOffersBook {
+  final String title;
+
+  const ChatOffersBook({required this.title});
+
+  factory ChatOffersBook.fromJson(Map<String, dynamic> json) => ChatOffersBook(title: json['title'] as String);
+
+  Map<String, dynamic> toJson() => {'title': title};
+}
+
+class ChatOfferBody {
+  /// order | book | discount
+  final String kind;
+  final int? percent;
+  final int? hours;
+
+  const ChatOfferBody({required this.kind, this.percent, this.hours});
+
+  factory ChatOfferBody.fromJson(Map<String, dynamic> json) => ChatOfferBody(kind: json['kind'] as String, percent: json['percent'] == null ? null : (json['percent'] as num).toInt(), hours: json['hours'] == null ? null : (json['hours'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'kind': kind, if (percent != null) 'percent': percent!, if (hours != null) 'hours': hours!};
+}
+
+class CrmPermissionItem {
+  final String key;
+  final String label;
+
+  const CrmPermissionItem({required this.key, required this.label});
+
+  factory CrmPermissionItem.fromJson(Map<String, dynamic> json) => CrmPermissionItem(key: json['key'] as String, label: json['label'] as String);
+
+  Map<String, dynamic> toJson() => {'key': key, 'label': label};
+}
+
+class CrmPermissionGroup {
+  final String label;
+  final List<CrmPermissionItem> items;
+
+  const CrmPermissionGroup({required this.label, required this.items});
+
+  factory CrmPermissionGroup.fromJson(Map<String, dynamic> json) => CrmPermissionGroup(label: json['label'] as String, items: (json['items'] as List).map((e) => CrmPermissionItem.fromJson(e as Map<String, dynamic>)).toList());
+
+  Map<String, dynamic> toJson() => {'label': label, 'items': items.map((e) => e.toJson()).toList()};
+}
+
+class CrmRole {
+  final String id;
+  final String name;
+  /// all | own
+  final String scope;
+  final List<String> permissions;
+  final bool system;
+  final bool locked;
+  final int members;
+  final bool isOwnRole;
+
+  const CrmRole({required this.id, required this.name, required this.scope, required this.permissions, required this.system, required this.locked, required this.members, required this.isOwnRole});
+
+  factory CrmRole.fromJson(Map<String, dynamic> json) => CrmRole(id: json['id'] as String, name: json['name'] as String, scope: json['scope'] as String, permissions: (json['permissions'] as List).map((e) => e as String).toList(), system: json['system'] as bool, locked: json['locked'] as bool, members: (json['members'] as num).toInt(), isOwnRole: json['isOwnRole'] as bool);
+
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'scope': scope, 'permissions': permissions.map((e) => e).toList(), 'system': system, 'locked': locked, 'members': members, 'isOwnRole': isOwnRole};
+}
+
+class CrmRoles {
+  final List<CrmRole> roles;
+  final List<CrmPermissionGroup> groups;
+  final int totalPermissions;
+
+  const CrmRoles({required this.roles, required this.groups, required this.totalPermissions});
+
+  factory CrmRoles.fromJson(Map<String, dynamic> json) => CrmRoles(roles: (json['roles'] as List).map((e) => CrmRole.fromJson(e as Map<String, dynamic>)).toList(), groups: (json['groups'] as List).map((e) => CrmPermissionGroup.fromJson(e as Map<String, dynamic>)).toList(), totalPermissions: (json['totalPermissions'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'roles': roles.map((e) => e.toJson()).toList(), 'groups': groups.map((e) => e.toJson()).toList(), 'totalPermissions': totalPermissions};
+}
+
+class CrmRoleSaveBody {
+  final String? id;
+  final String name;
+  /// all | own
+  final String scope;
+  final List<String> permissions;
+  /// Поля, которые отправить как null (иначе пустое необязательное поле не отправляется).
+  final Set<String> nulls;
+
+  const CrmRoleSaveBody({this.id, required this.name, required this.scope, required this.permissions, this.nulls = const {}});
+
+  factory CrmRoleSaveBody.fromJson(Map<String, dynamic> json) => CrmRoleSaveBody(id: json['id'] == null ? null : json['id'] as String, name: json['name'] as String, scope: json['scope'] as String, permissions: (json['permissions'] as List).map((e) => e as String).toList());
+
+  Map<String, dynamic> toJson() => {if (id != null || nulls.contains('id')) 'id': id, 'name': name, 'scope': scope, 'permissions': permissions.map((e) => e).toList()};
+}
+
+class CrmSecurityTeamMember {
+  final String id;
+  final String name;
+  final String email;
+  final bool enabled;
+  final String? since;
+  final bool disabled;
+  final bool canReset;
+
+  const CrmSecurityTeamMember({required this.id, required this.name, required this.email, required this.enabled, this.since, required this.disabled, required this.canReset});
+
+  factory CrmSecurityTeamMember.fromJson(Map<String, dynamic> json) => CrmSecurityTeamMember(id: json['id'] as String, name: json['name'] as String, email: json['email'] as String, enabled: json['enabled'] as bool, since: json['since'] == null ? null : json['since'] as String, disabled: json['disabled'] as bool, canReset: json['canReset'] as bool);
+
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'email': email, 'enabled': enabled, 'since': since, 'disabled': disabled, 'canReset': canReset};
+}
+
+class CrmSecurity {
+  final bool enabled;
+  final String? since;
+  final int backupLeft;
+  final bool canDisable;
+  final String currentIp;
+  final bool canManage;
+  final bool require2fa;
+  final String ipAllowlist;
+  final List<CrmSecurityTeamMember> team;
+
+  const CrmSecurity({required this.enabled, this.since, required this.backupLeft, required this.canDisable, required this.currentIp, required this.canManage, required this.require2fa, required this.ipAllowlist, required this.team});
+
+  factory CrmSecurity.fromJson(Map<String, dynamic> json) => CrmSecurity(enabled: json['enabled'] as bool, since: json['since'] == null ? null : json['since'] as String, backupLeft: (json['backupLeft'] as num).toInt(), canDisable: json['canDisable'] as bool, currentIp: json['currentIp'] as String, canManage: json['canManage'] as bool, require2fa: json['require2fa'] as bool, ipAllowlist: json['ipAllowlist'] as String, team: (json['team'] as List).map((e) => CrmSecurityTeamMember.fromJson(e as Map<String, dynamic>)).toList());
+
+  Map<String, dynamic> toJson() => {'enabled': enabled, 'since': since, 'backupLeft': backupLeft, 'canDisable': canDisable, 'currentIp': currentIp, 'canManage': canManage, 'require2fa': require2fa, 'ipAllowlist': ipAllowlist, 'team': team.map((e) => e.toJson()).toList()};
+}
+
+class CrmTwoFactorStart {
+  final String secret;
+  final String otpauthUrl;
+  final String qrDataUrl;
+
+  const CrmTwoFactorStart({required this.secret, required this.otpauthUrl, required this.qrDataUrl});
+
+  factory CrmTwoFactorStart.fromJson(Map<String, dynamic> json) => CrmTwoFactorStart(secret: json['secret'] as String, otpauthUrl: json['otpauthUrl'] as String, qrDataUrl: json['qrDataUrl'] as String);
+
+  Map<String, dynamic> toJson() => {'secret': secret, 'otpauthUrl': otpauthUrl, 'qrDataUrl': qrDataUrl};
+}
+
+class CrmTwoFactorCodeBody {
+  final String code;
+
+  const CrmTwoFactorCodeBody({required this.code});
+
+  factory CrmTwoFactorCodeBody.fromJson(Map<String, dynamic> json) => CrmTwoFactorCodeBody(code: json['code'] as String);
+
+  Map<String, dynamic> toJson() => {'code': code};
+}
+
+class CrmTwoFactorCodes {
+  final List<String> codes;
+
+  const CrmTwoFactorCodes({required this.codes});
+
+  factory CrmTwoFactorCodes.fromJson(Map<String, dynamic> json) => CrmTwoFactorCodes(codes: (json['codes'] as List).map((e) => e as String).toList());
+
+  Map<String, dynamic> toJson() => {'codes': codes.map((e) => e).toList()};
+}
+
+class CrmSecurityRulesBody {
+  final bool? require2fa;
+  final String? ipAllowlist;
+
+  const CrmSecurityRulesBody({this.require2fa, this.ipAllowlist});
+
+  factory CrmSecurityRulesBody.fromJson(Map<String, dynamic> json) => CrmSecurityRulesBody(require2fa: json['require2fa'] == null ? null : json['require2fa'] as bool, ipAllowlist: json['ipAllowlist'] == null ? null : json['ipAllowlist'] as String);
+
+  Map<String, dynamic> toJson() => {if (require2fa != null) 'require2fa': require2fa!, if (ipAllowlist != null) 'ipAllowlist': ipAllowlist!};
 }

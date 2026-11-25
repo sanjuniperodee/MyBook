@@ -10,7 +10,9 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
 import '../core/api.dart';
+import '../api/mybook_api.g.dart' as v1api;
 import '../core/auth.dart';
+import '../core/v1.dart';
 import '../core/chat_controller.dart';
 import '../core/chats_store.dart';
 import '../core/format.dart';
@@ -27,6 +29,7 @@ import '../widgets/message_bubble.dart';
 import '../widgets/forward_sheet.dart';
 import 'deal_screen.dart';
 import 'invoice_sheet.dart';
+import 'kp_sheet.dart';
 import 'my_templates_screen.dart';
 import 'support_screen.dart';
 import 'template_editor_screen.dart';
@@ -115,6 +118,7 @@ class _ChatScreenState extends State<ChatScreen> {
       _Pick(LucideIcons.image, 'Галерея', const [Color(0xFFD59BF6), Color(0xFFBF59CF)], _pickGallery),
       _Pick(LucideIcons.camera, 'Камера', const [Color(0xFFFF8FB1), Color(0xFFD3396D)], _camera),
       if (d.perms.canInvoice) _Pick(LucideIcons.receipt, 'Счёт', const [Color(0xFF34D399), Color(0xFF0F8F7E)], _invoice),
+      if (d.perms.canReply) _Pick(LucideIcons.gift, 'Предложение', const [Color(0xFFA01F3A), Color(0xFF7D1730)], _offer),
       if (d.channel == 'whatsapp' && d.perms.canReply) _Pick(LucideIcons.shoppingBag, 'Товар', const [Color(0xFFF59E0B), Color(0xFFB45309)], _catalog),
       _Pick(LucideIcons.zap, 'Шаблон', const [Color(0xFFFFC857), Color(0xFFD99A00)], _templates),
       if (d.perms.canNote) _Pick(LucideIcons.stickyNote, 'Заметка', const [Color(0xFF9CA3AF), Color(0xFF6D7B83)], _note),
@@ -248,6 +252,8 @@ class _ChatScreenState extends State<ChatScreen> {
             if (d.perms.canReply && !m.deleted && !m.internal) GroupTile(title: 'Ответить', icon: LucideIcons.reply, trailing: const SizedBox.shrink(), onTap: () => Navigator.pop(sheet, 'reply')),
             if (ctrl.canForward(m)) GroupTile(title: 'Переслать', icon: LucideIcons.forward, trailing: const SizedBox.shrink(), onTap: () => Navigator.pop(sheet, 'forward')),
             if (m.text.isNotEmpty) GroupTile(title: 'Копировать', icon: LucideIcons.copy, trailing: const SizedBox.shrink(), onTap: () => Navigator.pop(sheet, 'copy')),
+            // След хода AI-продажника у его ответа — как «Почему так?» под сообщением в CRM.
+            if (m.isBot && m.hasTrace && !m.deleted) GroupTile(title: 'Почему так?', subtitle: 'что решил бот и почему', icon: LucideIcons.bot, trailing: const SizedBox.shrink(), onTap: () => Navigator.pop(sheet, 'trace')),
             if (!m.deleted && !m.internal && m.type == 'text' && m.text.trim().isNotEmpty)
               GroupTile(title: 'Создать шаблон (/)', icon: LucideIcons.zap, trailing: const SizedBox.shrink(), onTap: () => Navigator.pop(sheet, 'template')),
             if (m.type == 'audio' && !m.deleted)
@@ -285,7 +291,37 @@ class _ChatScreenState extends State<ChatScreen> {
         ctrl.startSelect(m);
       case 'template':
         await _templateFromMessage(m);
+      case 'trace':
+        await _botTrace(m);
     }
+  }
+
+  /// «Почему так?»: что решила модель, что сделал код, уроки, токены (API v1 crmChatBotTrace).
+  Future<void> _botTrace(Message m) async {
+    try {
+      final t = await v1(context.read<AuthState>().api, (c) => c.crmChatBotTrace(chatId: widget.chatId, messageId: m.id));
+      if (!mounted) return;
+      await showBotTraceSheet(context, rows: t.rows);
+    } on ApiException catch (e) {
+      _toast(e.message);
+    }
+  }
+
+  /// Последние ходы бота в диалоге («Почему так?» для ответов и молчания, API v1 crmChatBotTraces).
+  Future<void> _botTraces() async {
+    try {
+      final t = await v1(context.read<AuthState>().api, (c) => c.crmChatBotTraces(chatId: widget.chatId));
+      if (!mounted) return;
+      await showBotTracesSheet(context, items: t.items);
+    } on ApiException catch (e) {
+      _toast(e.message);
+    }
+  }
+
+  /// Коммерческое предложение (КП) клиенту из чата: оплата заказа, книга или персональная скидка (API v1).
+  Future<void> _offer() async {
+    final sent = await showKpSheet(context, chatId: widget.chatId);
+    if (sent && mounted) await ctrl.load(silent: true);
   }
 
   /// Прежние версии сообщения, изменённого в WhatsApp не из CRM.
@@ -453,7 +489,8 @@ class _ChatScreenState extends State<ChatScreen> {
             if (d.channel == 'whatsapp' && d.perms.canReply) GroupTile(title: 'Позвонить в WhatsApp', icon: LucideIcons.phone, onTap: () => Navigator.pop(sheet, 'web')),
             if (d.perms.canReply && d.botCanStop) GroupTile(title: 'Остановить бота', subtitle: d.botLabel, icon: LucideIcons.botOff, onTap: () => Navigator.pop(sheet, 'botStop')),
             if (d.perms.canReply && d.botCanStart && d.dealId != null) GroupTile(title: 'Запустить бота', subtitle: 'поздоровается и спросит, чего нет в сделке', icon: LucideIcons.bot, onTap: () => Navigator.pop(sheet, 'botStart')),
-            GroupTile(title: 'Открыть в CRM', subtitle: '«Почему так?», предложение', icon: LucideIcons.externalLink, onTap: () => Navigator.pop(sheet, 'web')),
+            if (d.botLabel != null && d.botLabel!.isNotEmpty) GroupTile(title: 'Ходы бота («Почему так?»)', subtitle: 'ответы, молчание, стадия и правила', icon: LucideIcons.circleHelp, onTap: () => Navigator.pop(sheet, 'botTraces')),
+            if (d.perms.canReply) GroupTile(title: 'Коммерческое предложение (КП)', subtitle: 'оплата заказа, книга, персональная скидка', icon: LucideIcons.gift, onTap: () => Navigator.pop(sheet, 'offer')),
             GroupTile(title: 'Обращение в поддержку', icon: LucideIcons.lifeBuoy, onTap: () => Navigator.pop(sheet, 'support')),
             GroupTile(title: 'Обновить', icon: LucideIcons.refreshCw, onTap: () => Navigator.pop(sheet, 'refresh')),
           ],
@@ -479,8 +516,12 @@ class _ChatScreenState extends State<ChatScreen> {
         final ids = ctrl.messages.where((m) => !m.id.startsWith('local-')).map((m) => m.id).toList();
         if (!mounted) return;
         await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => SupportScreen(conversationId: widget.chatId, chatTitle: d.title, messageIds: ids.length > 30 ? ids.sublist(ids.length - 30) : ids)));
+      case 'offer':
+        await _offer();
+      case 'botTraces':
+        await _botTraces();
       case 'web':
-        // Звонок WhatsApp, бот, «Почему так?», предложение — чат CRM внутри приложения.
+        // Звонок WhatsApp — чат CRM внутри приложения (нативный звонок — план в PARITY.md).
         if (!mounted) return;
         await openCrm(context, '/admin/chats?c=${widget.chatId}', title: d.title);
         await ctrl.load(silent: true);
@@ -687,16 +728,44 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  /// Сделка диалога и открытые счета: на каком этапе клиент и что ждёт оплаты.
+  /// Сделка диалога, полоса бота и открытые счета: на каком этапе клиент и что ждёт оплаты.
   Widget _topBars(BuildContext context, ChatDetail d) {
     final c = context.c;
     final payable = d.invoices.where((i) => i.payable).toList();
-    if (d.deal == null && payable.isEmpty) return const SizedBox.shrink();
+    final hasBot = d.botLabel != null && d.botLabel!.isNotEmpty;
+    if (d.deal == null && payable.isEmpty && !hasBot) return const SizedBox.shrink();
     return Container(
       color: c.bg,
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
       child: Column(
         children: [
+          if (hasBot)
+            Padding(
+              padding: EdgeInsets.only(bottom: d.deal != null || payable.isNotEmpty ? 6 : 0),
+              child: GestureDetector(
+                onTap: _botTraces,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(color: c.bubbleBot, borderRadius: BorderRadius.circular(12)),
+                  child: Row(
+                    children: [
+                      Icon(LucideIcons.bot, size: 16, color: c.violet),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          d.botLabel!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 13.5, color: c.violet, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text('Почему так?', style: TextStyle(fontSize: 12.5, color: c.violet, fontWeight: FontWeight.w700)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           if (d.deal != null)
             GestureDetector(
               onTap: () => _openDeal(d),
@@ -783,7 +852,7 @@ class _ChatScreenState extends State<ChatScreen> {
         // «Хвостик» — у первого сообщения серии: сменился отправитель, день или прошло больше пяти минут.
         final tail = newDay || older.outgoing != m.outgoing || older.internal || m.internal || m.at.difference(older.at).inMinutes >= 5;
         final key = _keys.putIfAbsent(m.id, () => GlobalKey());
-        Widget bubble = MessageBubble(message: m, api: auth.api, tail: tail, onLongPress: () => c.selecting ? c.toggleSelect(m) : _messageMenu(m), onRetry: () => _retry(m), onQuoteTap: _scrollTo, onCartItems: c.orderItems, myId: auth.staff?.id);
+        Widget bubble = MessageBubble(message: m, api: auth.api, tail: tail, onLongPress: () => c.selecting ? c.toggleSelect(m) : _messageMenu(m), onRetry: () => _retry(m), onQuoteTap: _scrollTo, onCartItems: c.orderItems, onBotTrace: _botTrace, myId: auth.staff?.id);
         // Идёт выбор: тап по любому месту сообщения отмечает его, плеер и ссылки внутри не срабатывают.
         if (c.selecting && c.isSelectable(m))
           bubble = _SelectRow(
@@ -1103,6 +1172,133 @@ class _CatalogPickerState extends State<_CatalogPicker> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Лист «Почему так?» для одного ответа бота: что решила модель, что сделал код, уроки, база знаний, токены.
+Future<void> showBotTraceSheet(BuildContext context, {required List<v1api.BotTraceRow> rows}) {
+  return showAppSheet<void>(
+    context,
+    title: 'Почему так?',
+    icon: LucideIcons.bot,
+    full: true,
+    builder: (sheet) => ListView(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
+      children: [BotTraceRowsView(rows: rows)],
+    ),
+  );
+}
+
+/// Лист «Ходы бота («Почему так?»)» по диалогу: все недавние ходы, включая молчание и передачу менеджеру.
+Future<void> showBotTracesSheet(BuildContext context, {required List<v1api.BotTraceItem> items}) {
+  return showAppSheet<void>(
+    context,
+    title: 'Ходы бота («Почему так?»)',
+    icon: LucideIcons.bot,
+    full: true,
+    builder: (sheet) {
+      final c = sheet.c;
+      if (items.isEmpty) {
+        return const EmptyState(
+          icon: LucideIcons.bot,
+          title: 'Следов ходов пока нет',
+          hint: 'Когда AI-продажник ответит или решит промолчать, здесь появится разбор его решения.',
+        );
+      }
+      return ListView.separated(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
+        itemCount: items.length,
+        separatorBuilder: (_, _) => const SizedBox(height: 12),
+        itemBuilder: (context, i) {
+          final item = items[i];
+          final at = DateTime.tryParse(item.at)?.toLocal();
+          return Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: c.surfaceRaised,
+              borderRadius: BorderRadius.circular(Rd.md),
+              border: Border.all(color: c.border, width: 0.7),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    if (item.silent)
+                      Tag('Бот промолчал', fg: c.warn, bg: c.warnBg, icon: LucideIcons.volumeOff)
+                    else
+                      Tag('Ответ бота', fg: c.violet, bg: c.bubbleBot, icon: LucideIcons.bot),
+                    const Spacer(),
+                    if (at != null) Text('${dayLabel(at)} · ${hhmm(at)}', style: AppText.caption(context)),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                BotTraceRowsView(rows: item.rows, flat: true),
+              ],
+            ),
+          );
+        },
+      );
+    },
+  );
+}
+
+/// Строки следа хода AI-продажника (как BotTraceView на сайте): подпись, значения, выделение предупреждений.
+class BotTraceRowsView extends StatelessWidget {
+  const BotTraceRowsView({super.key, required this.rows, this.flat = false});
+  final List<v1api.BotTraceRow> rows;
+  final bool flat;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.c;
+    if (rows.isEmpty) {
+      return Text('Подробностей хода нет', style: AppText.sub(context));
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final r in rows)
+          Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: flat ? EdgeInsets.zero : const EdgeInsets.all(12),
+            decoration: flat
+                ? null
+                : BoxDecoration(
+                    color: r.warn ? c.warnBg.withValues(alpha: 0.55) : c.surfaceRaised,
+                    borderRadius: BorderRadius.circular(Rd.sm + 2),
+                    border: Border.all(color: r.warn ? c.warn.withValues(alpha: 0.35) : c.border, width: 0.7),
+                  ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    if (r.warn) ...[
+                      Icon(LucideIcons.triangleAlert, size: 13.5, color: c.warn),
+                      const SizedBox(width: 5),
+                    ],
+                    Expanded(
+                      child: Text(
+                        r.label,
+                        style: AppText.caption(context).copyWith(fontWeight: FontWeight.w700, color: r.warn ? c.warn : c.textMuted),
+                      ),
+                    ),
+                  ],
+                ),
+                for (final line in r.lines)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 3),
+                    child: SelectableText(
+                      line,
+                      style: TextStyle(fontSize: 14, height: 1.38, color: r.warn ? c.warn : c.text),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 }

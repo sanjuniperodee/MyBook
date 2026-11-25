@@ -4103,6 +4103,104 @@
         "x-auth": "staff"
       }
     },
+    "/api/v1/crm/chats/{chatId}/messages/{messageId}/trace": {
+      "get": {
+        "operationId": "crmChatBotTrace",
+        "tags": [
+          "crm"
+        ],
+        "summary": "«Почему так?» у ответа бота: что решила модель, что сделал код, уроки, токены",
+        "parameters": [
+          {
+            "name": "chatId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "messageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BotTrace"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "staff"
+      }
+    },
+    "/api/v1/crm/chats/{chatId}/bot/traces": {
+      "get": {
+        "operationId": "crmChatBotTraces",
+        "tags": [
+          "crm"
+        ],
+        "summary": "Последние ходы бота в диалоге («Почему так?» для ответов и молчания)",
+        "parameters": [
+          {
+            "name": "chatId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BotTraces"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "staff"
+      }
+    },
     "/api/v1/crm/chats/{chatId}/bot": {
       "post": {
         "operationId": "crmChatBot",
@@ -7824,6 +7922,494 @@
             }
           }
         },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Done"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "staff"
+      }
+    },
+    "/api/v1/crm/chats/{chatId}/offers": {
+      "get": {
+        "operationId": "crmChatOffers",
+        "tags": [
+          "crm"
+        ],
+        "summary": "КП и предложения клиенту из чата: оплата заказа, ссылка на книгу, персональная скидка",
+        "parameters": [
+          {
+            "name": "chatId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatOffers"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "staff"
+      },
+      "post": {
+        "operationId": "crmChatOfferSend",
+        "tags": [
+          "crm"
+        ],
+        "summary": "Отправить КП/предложение клиенту в чат (скидка — с промокодом, право promo.give)",
+        "parameters": [
+          {
+            "name": "chatId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatOfferBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Done"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "staff"
+      }
+    },
+    "/api/v1/crm/roles": {
+      "get": {
+        "operationId": "crmRoles",
+        "tags": [
+          "crm"
+        ],
+        "summary": "Роли и матрица прав CRM (право team.manage)",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CrmRoles"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "staff"
+      },
+      "post": {
+        "operationId": "crmRoleSave",
+        "tags": [
+          "crm"
+        ],
+        "summary": "Создать или изменить роль и её права (право team.manage)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrmRoleSaveBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Done"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "staff"
+      }
+    },
+    "/api/v1/crm/roles/{roleId}": {
+      "delete": {
+        "operationId": "crmRoleDelete",
+        "tags": [
+          "crm"
+        ],
+        "summary": "Удалить пользовательскую роль (право team.manage)",
+        "parameters": [
+          {
+            "name": "roleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Done"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "staff"
+      }
+    },
+    "/api/v1/crm/security": {
+      "get": {
+        "operationId": "crmSecurity",
+        "tags": [
+          "crm"
+        ],
+        "summary": "Безопасность: статус 2FA сотрудника, правила команды и 2FA сотрудников",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CrmSecurity"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "staff"
+      }
+    },
+    "/api/v1/crm/security/2fa/start": {
+      "post": {
+        "operationId": "crmSecurity2faStart",
+        "tags": [
+          "crm"
+        ],
+        "summary": "Начать настройку 2FA: выпустить секрет, otpauth URI и QR-код",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CrmTwoFactorStart"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "staff"
+      }
+    },
+    "/api/v1/crm/security/2fa/confirm": {
+      "post": {
+        "operationId": "crmSecurity2faConfirm",
+        "tags": [
+          "crm"
+        ],
+        "summary": "Подтвердить включение 2FA по 6-значному коду и получить резервные коды",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrmTwoFactorCodeBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CrmTwoFactorCodes"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "staff"
+      }
+    },
+    "/api/v1/crm/security/2fa/backup": {
+      "post": {
+        "operationId": "crmSecurity2faBackup",
+        "tags": [
+          "crm"
+        ],
+        "summary": "Выпустить новые резервные коды 2FA (с проверкой текущего кода)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrmTwoFactorCodeBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CrmTwoFactorCodes"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "staff"
+      }
+    },
+    "/api/v1/crm/security/2fa/disable": {
+      "post": {
+        "operationId": "crmSecurity2faDisable",
+        "tags": [
+          "crm"
+        ],
+        "summary": "Отключить свою 2FA (с проверкой текущего кода или резервного кода)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrmTwoFactorCodeBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Done"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "staff"
+      }
+    },
+    "/api/v1/crm/security/rules": {
+      "patch": {
+        "operationId": "crmSecurityRules",
+        "tags": [
+          "crm"
+        ],
+        "summary": "Правила безопасности команды: обязательная 2FA и разрешённые IP (settings.manage + team.manage)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrmSecurityRulesBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Done"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "staff"
+      }
+    },
+    "/api/v1/crm/security/staff/{userId}/reset-2fa": {
+      "post": {
+        "operationId": "crmSecurityStaffReset",
+        "tags": [
+          "crm"
+        ],
+        "summary": "Сбросить 2FA другому сотруднику (право team.manage)",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -22089,6 +22675,107 @@
         ],
         "additionalProperties": false
       },
+      "BotTraceRow": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "warn": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "label",
+          "lines",
+          "warn"
+        ],
+        "additionalProperties": false
+      },
+      "BotTrace": {
+        "type": "object",
+        "properties": {
+          "rows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BotTraceRow"
+            }
+          }
+        },
+        "required": [
+          "rows"
+        ],
+        "additionalProperties": false
+      },
+      "BotTraceItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          },
+          "messageId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "silent": {
+            "type": "boolean"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BotTraceRow"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "at",
+          "messageId",
+          "silent",
+          "summary",
+          "rows"
+        ],
+        "additionalProperties": false
+      },
+      "BotTraces": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BotTraceItem"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
       "ClientAccess": {
         "type": "object",
         "properties": {
@@ -26967,6 +27654,447 @@
           },
           "seller": {
             "$ref": "#/components/schemas/SellerDetails"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ChatOfferHourOption": {
+        "type": "object",
+        "properties": {
+          "hours": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "hours",
+          "label"
+        ],
+        "additionalProperties": false
+      },
+      "ChatOffers": {
+        "type": "object",
+        "properties": {
+          "order": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "number": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "number"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "book": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "title"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "maxDiscount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "percents": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          },
+          "hours": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          },
+          "hourOptions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatOfferHourOption"
+            }
+          },
+          "canSend": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "order",
+          "book",
+          "maxDiscount",
+          "percents",
+          "hours",
+          "hourOptions",
+          "canSend"
+        ],
+        "additionalProperties": false
+      },
+      "ChatOfferBody": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "order",
+              "book",
+              "discount"
+            ]
+          },
+          "percent": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "hours": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "additionalProperties": false
+      },
+      "CrmPermissionItem": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label"
+        ],
+        "additionalProperties": false
+      },
+      "CrmPermissionGroup": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CrmPermissionItem"
+            }
+          }
+        },
+        "required": [
+          "label",
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "CrmRole": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "all",
+              "own"
+            ]
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "system": {
+            "type": "boolean"
+          },
+          "locked": {
+            "type": "boolean"
+          },
+          "members": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "isOwnRole": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "scope",
+          "permissions",
+          "system",
+          "locked",
+          "members",
+          "isOwnRole"
+        ],
+        "additionalProperties": false
+      },
+      "CrmRoles": {
+        "type": "object",
+        "properties": {
+          "roles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CrmRole"
+            }
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CrmPermissionGroup"
+            }
+          },
+          "totalPermissions": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "roles",
+          "groups",
+          "totalPermissions"
+        ],
+        "additionalProperties": false
+      },
+      "CrmRoleSaveBody": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 60
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "all",
+              "own"
+            ]
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 60
+            }
+          }
+        },
+        "required": [
+          "name",
+          "scope",
+          "permissions"
+        ],
+        "additionalProperties": false
+      },
+      "CrmSecurityTeamMember": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "since": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "disabled": {
+            "type": "boolean"
+          },
+          "canReset": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email",
+          "enabled",
+          "since",
+          "disabled",
+          "canReset"
+        ],
+        "additionalProperties": false
+      },
+      "CrmSecurity": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "since": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "backupLeft": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "canDisable": {
+            "type": "boolean"
+          },
+          "currentIp": {
+            "type": "string"
+          },
+          "canManage": {
+            "type": "boolean"
+          },
+          "require2fa": {
+            "type": "boolean"
+          },
+          "ipAllowlist": {
+            "type": "string"
+          },
+          "team": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CrmSecurityTeamMember"
+            }
+          }
+        },
+        "required": [
+          "enabled",
+          "since",
+          "backupLeft",
+          "canDisable",
+          "currentIp",
+          "canManage",
+          "require2fa",
+          "ipAllowlist",
+          "team"
+        ],
+        "additionalProperties": false
+      },
+      "CrmTwoFactorStart": {
+        "type": "object",
+        "properties": {
+          "secret": {
+            "type": "string"
+          },
+          "otpauthUrl": {
+            "type": "string"
+          },
+          "qrDataUrl": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "secret",
+          "otpauthUrl",
+          "qrDataUrl"
+        ],
+        "additionalProperties": false
+      },
+      "CrmTwoFactorCodeBody": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 12
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      },
+      "CrmTwoFactorCodes": {
+        "type": "object",
+        "properties": {
+          "codes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "codes"
+        ],
+        "additionalProperties": false
+      },
+      "CrmSecurityRulesBody": {
+        "type": "object",
+        "properties": {
+          "require2fa": {
+            "type": "boolean"
+          },
+          "ipAllowlist": {
+            "type": "string",
+            "maxLength": 4000
           }
         },
         "additionalProperties": false

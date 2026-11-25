@@ -901,6 +901,22 @@ export class DrizzleMessagingQueries {
     return row ? readBotTrace(row.meta) : null;
   }
 
+  /** Последние следы ходов бота в диалоге (включая ходы, где бот промолчал — messageId = null). */
+  async botTraces(conversationId: string, limit = 15): Promise<{ id: string; at: Date; messageId: string | null; trace: BotTurnTrace }[]> {
+    const rows = await executor()
+      .select({ id: crmBotEvents.id, at: crmBotEvents.createdAt, messageId: crmBotEvents.messageId, meta: crmBotEvents.meta })
+      .from(crmBotEvents)
+      .where(and(eq(crmBotEvents.conversationId, conversationId), eq(crmBotEvents.kind, "turn")))
+      .orderBy(desc(crmBotEvents.createdAt))
+      .limit(limit);
+    const out: { id: string; at: Date; messageId: string | null; trace: BotTurnTrace }[] = [];
+    for (const r of rows) {
+      const trace = readBotTrace(r.meta);
+      if (trace) out.push({ id: r.id, at: r.at, messageId: r.messageId, trace });
+    }
+    return out;
+  }
+
   /** Стоп-лист для настроек: спам и «не писать первым», кто добавил (null — CRM сама). */
   blocklist() {
     return executor()

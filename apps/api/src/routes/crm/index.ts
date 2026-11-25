@@ -14,8 +14,10 @@ import { crmBookHandlers } from "./books";
 import { crmCatalogHandlers } from "./catalog";
 import { crmDealExtraHandlers } from "./deal-extras";
 import { crmAdminHandlers } from "./admin";
+import { crmKpHandlers } from "./kp";
+import { crmSecurityHandlers } from "./security";
 
-const all = { ...crmDealHandlers, ...crmClientHandlers, ...crmChatHandlers, ...crmOrderHandlers, ...crmNewClientHandlers, ...crmOrderFileHandlers, ...crmSupportHandlers, ...crmFinanceHandlers, ...crmAnalyticsHandlers, ...crmSettingsHandlers, ...crmMarketingHandlers, ...crmBookHandlers, ...crmCatalogHandlers, ...crmDealExtraHandlers, ...crmAdminHandlers };
+const all = { ...crmDealHandlers, ...crmClientHandlers, ...crmChatHandlers, ...crmKpHandlers, ...crmSecurityHandlers, ...crmOrderHandlers, ...crmNewClientHandlers, ...crmOrderFileHandlers, ...crmSupportHandlers, ...crmFinanceHandlers, ...crmAnalyticsHandlers, ...crmSettingsHandlers, ...crmMarketingHandlers, ...crmBookHandlers, ...crmCatalogHandlers, ...crmDealExtraHandlers, ...crmAdminHandlers };
 
 /** Обработчики CRM-маршрутов контракта (packages/contracts/src/v1/crm.ts). */
 export const crmHandlers: Pick<Handlers, keyof typeof all> = all;
