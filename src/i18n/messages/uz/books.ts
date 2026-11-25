@@ -352,7 +352,7 @@ export const books: typeof ru = {
     order: (left: string) => (left === "0" ? "Buyurtmani rasmiylashtirish" : `Buyurtmani rasmiylashtirish — kitob uchun ${left} qo‘shimcha to‘lanadi`),
     orderHint: "Kitob buyurtmaga tayyor. Rasmiylashtirishda kelishuv bo‘yicha davom etish yoki odatiy narxlarda noldan boshlash mumkin.",
     keep: "Oldindan to‘lov har qanday tanlovda yo‘qolmaydi: u ham kelishuv bo‘yicha, ham noldan buyurtma berilganda hisobga olinadi.",
-    refund: "Fikringizdan qaytdingizmi? Menejerga yozing — oldindan to‘lovni qaytaramiz.",
+    refund: "Buyurtma bo‘yicha savollar bormi? Menejerga yozing.",
     refundLink: "WhatsApp’da yozish",
   },
   cover: {

@@ -88,7 +88,7 @@ export const checkout: typeof ru = {
     continueHint: "The book price is as agreed, the amount already paid is deducted; delivery (calculated individually) and extras are added on top.",
     newTitle: "Place the order from scratch at regular prices",
     newHint: (paid: string) => `Any plan and extras at list prices. The ${paid} you have already paid will not be lost — we will deduct it from the amount to pay.`,
-    refund: "Don’t want to continue? Message the manager — we will refund your prepayment.",
+    refund: "Questions about your order? Message the manager.",
     refundLink: "Message on WhatsApp",
     agreedLine: "Agreed discount",
     prepaidLine: "Paid earlier",

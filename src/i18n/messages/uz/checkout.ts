@@ -86,7 +86,7 @@ export const checkout: typeof ru = {
     continueHint: "Kitob narxi — kelishilganidek, kiritilgan summa ayirilgan; yetkazib berish (alohida hisoblanadi) va qo‘shimchalar — ustiga.",
     newTitle: "Buyurtmani noldan, odatiy narxlarda rasmiylashtirish",
     newHint: (paid: string) => `Istalgan tarif va qo‘shimchalar — narxnoma bo‘yicha. Kiritilgan ${paid} yo‘qolmaydi — to‘lanadigan summadan ayiramiz.`,
-    refund: "Davom etishni xohlamaysizmi? Menejerga yozing — oldindan to‘lovni qaytaramiz.",
+    refund: "Buyurtma bo‘yicha savollar bormi? Menejerga yozing.",
     refundLink: "WhatsApp orqali yozish",
     agreedLine: "Kelishuv bo‘yicha chegirma",
     prepaidLine: "Avval kiritilgan",

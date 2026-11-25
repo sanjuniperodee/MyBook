@@ -352,7 +352,7 @@ export const books: typeof ru = {
     order: (left: string) => (left === "0" ? "Place the order" : `Place the order — ${left} left to pay for the book`),
     orderHint: "The book is ready to order. When ordering you can continue by arrangement or start from scratch at regular prices.",
     keep: "The prepayment won’t be lost whichever you choose: it will count both for the arrangement and for an order from scratch.",
-    refund: "Changed your mind? Write to the manager — we’ll refund the prepayment.",
+    refund: "Questions about your order? Write to the manager.",
     refundLink: "Write on WhatsApp",
   },
   cover: {
