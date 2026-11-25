@@ -45,8 +45,11 @@ const unavailable = (name: string) => () => {
   throw new Error(`${name}() недоступен в mybook-api`);
 };
 export const draftMode = unavailable("draftMode");
-export const redirect = unavailable("redirect");
-export const permanentRedirect = unavailable("permanentRedirect");
+/** Совместимо с Next redirect(): серверные действия CRM (создание/удаление сделки) завершаются redirect(url). */
+export function redirect(url: string): never {
+  throw Object.assign(new Error("NEXT_REDIRECT"), { digest: `NEXT_REDIRECT;replace;${url};307;` });
+}
+export const permanentRedirect = redirect;
 export const notFound = unavailable("notFound");
 export const forbidden = unavailable("forbidden");
 export const unauthorized = unavailable("unauthorized");
