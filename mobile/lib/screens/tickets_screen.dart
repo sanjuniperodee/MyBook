@@ -7,13 +7,13 @@ import 'package:provider/provider.dart';
 import '../api/mybook_api.g.dart' as v1api;
 import '../core/api.dart';
 import '../core/auth.dart';
+import '../core/links.dart';
 import '../core/format.dart';
 import '../core/v1.dart';
 import '../ui/kit.dart';
 import '../ui/tokens.dart';
 import '../widgets/crm_form.dart';
 import 'chat_screen.dart';
-import 'crm_web_screen.dart';
 import 'support_screen.dart';
 
 /// Обращения — как /admin/support: открытые (срочные и старые сверху), по статусу, поиск; руководитель видит и ведёт все,
@@ -304,7 +304,7 @@ class _TicketScreenState extends State<TicketScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           InkWell(
-                            onTap: f.kind == 'audio' ? () => _play(f) : () => openCrm(context, f.url, title: f.name),
+                            onTap: f.kind == 'audio' ? () => _play(f) : () => openFile(context, f.url, title: f.name),
                             child: Row(children: [
                               Icon(
                                 f.kind == 'audio' ? (_playing == f.id ? LucideIcons.circleStop : LucideIcons.circlePlay) : f.kind == 'image' ? LucideIcons.image : f.kind == 'video' ? LucideIcons.video : LucideIcons.fileText,

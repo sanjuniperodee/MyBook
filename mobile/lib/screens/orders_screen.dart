@@ -39,6 +39,14 @@ class _OrdersScreenState extends State<OrdersScreen> {
   String? _error;
   String _status = 'paid';
   String _q = '';
+  // Как фильтры канбана заказов CRM: срочные (до срока 3 дня и меньше или экспресс) и «клиент сообщил об оплате».
+  bool _urgent = false;
+  bool _claimed = false;
+
+  static bool _isUrgent(Map<String, dynamic> o) {
+    final d = (o['daysLeft'] as num?)?.toInt();
+    return o['express'] == true || (d != null && d <= 3 && o['status'] != 'delivered' && o['status'] != 'shipped');
+  }
 
   @override
   void initState() {
@@ -82,7 +90,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
     final c = context.c;
     final top = MediaQuery.of(context).padding.top;
     final q = _q.toLowerCase();
-    final list = _orders.where((o) => o['status'] == _status && (q.isEmpty || '${o['number']} ${o['contactName']}'.toLowerCase().contains(q))).toList();
+    final list = _orders.where((o) => o['status'] == _status && (q.isEmpty || '${o['number']} ${o['contactName']}'.toLowerCase().contains(q)) && (!_urgent || _isUrgent(o)) && (!_claimed || o['claimed'] == true)).toList();
     return Scaffold(
       backgroundColor: c.bg,
       body: RefreshIndicator(
@@ -110,6 +118,9 @@ class _OrdersScreenState extends State<OrdersScreen> {
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   children: [
+                    Padding(padding: const EdgeInsets.only(right: 8), child: FilterPill(label: 'Срочные', selected: _urgent, onTap: () => setState(() => _urgent = !_urgent))),
+                    if (_orders.any((o) => o['claimed'] == true))
+                      Padding(padding: const EdgeInsets.only(right: 8), child: FilterPill(label: 'Сообщили об оплате', selected: _claimed, onTap: () => setState(() => _claimed = !_claimed))),
                     for (final s in _statuses)
                       Padding(
                         padding: const EdgeInsets.only(right: 8),

@@ -45,7 +45,7 @@ class NotificationTarget {
     if (link.startsWith('/admin/tasks') || link.startsWith('/admin/today') || link == '/admin') return NotificationTarget(tab: 'tasks');
     if (link.startsWith('/admin/deals')) return NotificationTarget(tab: 'deals');
     if (link.startsWith('/admin/chats')) return NotificationTarget(tab: 'chats');
-    if (link.startsWith('/admin/orders')) return NotificationTarget(tab: 'orders');
+    if (link.startsWith('/admin/orders') || link.startsWith('/admin/board')) return NotificationTarget(tab: 'orders');
     if (link.startsWith('/admin/')) return NotificationTarget(web: link);
     return NotificationTarget();
   }

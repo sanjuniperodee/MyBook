@@ -35,6 +35,48 @@ class _DealsScreenState extends State<DealsScreen> {
   bool _mine = false;
   String _q = '';
   bool _loading = false;
+  // Фильтры доски CRM («Воронка»): воронка, задачи (нет / просрочена), без движения N дней — те же параметры, что у сайта.
+  String? _pipeline;
+  String? _task;
+  int? _stale;
+  List<(String, String)> _pipelines = const [];
+
+  int get _filters => (_pipeline != null ? 1 : 0) + (_task != null ? 1 : 0) + (_stale != null ? 1 : 0);
+
+  Future<void> _filterSheet() async {
+    final c = context.c;
+    await showAppSheet<void>(context, title: 'Фильтры', builder: (sheet) {
+      return StatefulBuilder(builder: (context, set) {
+        void pick(VoidCallback f) {
+          set(f);
+          setState(() {});
+          _load();
+        }
+
+        Widget pills(String title, List<(String?, String)> options, String? current, void Function(String?) onPick) => Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Padding(padding: const EdgeInsets.only(bottom: 8, left: 4), child: Text(title, style: AppText.caption(context))),
+                Wrap(spacing: 8, runSpacing: 8, children: [for (final (id, label) in options) FilterPill(label: label, selected: current == id, onTap: () => pick(() => onPick(id)))]),
+              ]),
+            );
+        return ListView(shrinkWrap: true, padding: const EdgeInsets.fromLTRB(16, 4, 16, 24), children: [
+          if (_pipelines.length > 1) pills('Воронка', [for (final (id, name) in _pipelines) (id, name)], _pipeline ?? _pipelines.first.$1, (v) => _pipeline = v == _pipelines.first.$1 ? null : v),
+          pills('Задачи', const [(null, 'Любые'), ('none', 'Без задачи'), ('overdue', 'Просрочена')], _task, (v) => _task = v),
+          pills('Без движения', const [(null, 'Любые'), ('7', '7+ дней'), ('14', '14+ дней'), ('30', '30+ дней')], _stale?.toString(), (v) => _stale = v == null ? null : int.parse(v)),
+          if (_filters > 0)
+            TextButton(
+              onPressed: () => pick(() {
+                _pipeline = null;
+                _task = null;
+                _stale = null;
+              }),
+              child: Text('Сбросить фильтры', style: TextStyle(color: c.brand)),
+            ),
+        ]);
+      });
+    });
+  }
 
   @override
   void initState() {
@@ -49,9 +91,10 @@ class _DealsScreenState extends State<DealsScreen> {
     if (_loading) return;
     _loading = true;
     try {
-      final r = await context.read<AuthState>().api.get('/api/mobile/deals', query: {'mine': _mine ? '1' : null, 'q': _q}) as Map<String, dynamic>;
+      final r = await context.read<AuthState>().api.get('/api/mobile/deals', query: {'mine': _mine ? '1' : null, 'q': _q, 'p': _pipeline, 'task': _task, 'stale': _stale?.toString()}) as Map<String, dynamic>;
       if (!mounted) return;
       setState(() {
+        _pipelines = [for (final p in (r['pipelines'] as List? ?? const [])) ((p as Map)['id'] as String, p['name'] as String)];
         _data = DealsData.fromJson(r);
         _error = null;
       });
@@ -136,6 +179,7 @@ class _DealsScreenState extends State<DealsScreen> {
                 SizedBox(
                   height: 36,
                   child: ListView(scrollDirection: Axis.horizontal, clipBehavior: Clip.none, children: [
+                    Padding(padding: const EdgeInsets.only(right: 8), child: FilterPill(label: _filters > 0 ? 'Фильтры · $_filters' : 'Фильтры', selected: _filters > 0, onTap: _filterSheet)),
                     Padding(padding: const EdgeInsets.only(right: 8), child: FilterPill(label: 'Мои', selected: _mine, onTap: () {
                       setState(() => _mine = !_mine);
                       _load();

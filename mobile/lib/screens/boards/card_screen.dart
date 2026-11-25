@@ -10,13 +10,13 @@ import 'package:provider/provider.dart';
 import '../../api/mybook_api.g.dart' as v1api;
 import '../../core/api.dart';
 import '../../core/auth.dart';
+import '../../core/links.dart';
 import '../../core/format.dart';
 import '../../core/v1.dart';
 import '../../ui/kit.dart';
 import '../../ui/tokens.dart';
 import '../chat_screen.dart';
 import '../client_screen.dart';
-import '../crm_web_screen.dart';
 import '../deal_screen.dart';
 import '../order_screen.dart';
 import 'board_common.dart';
@@ -216,7 +216,7 @@ class _CardScreenState extends State<CardScreen> {
     if (page != null) {
       await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => page));
     } else {
-      await openCrm(context, l.href, title: l.label);
+      await openAdminLink(context, l.href, title: l.label);
     }
   }
 
@@ -388,7 +388,7 @@ class _CardScreenState extends State<CardScreen> {
               title: f.name,
               subtitle: '${(f.size / 1024).ceil()} КБ',
               icon: f.isImage ? LucideIcons.image : LucideIcons.fileText,
-              onTap: () => openCrm(context, f.url, title: f.name),
+              onTap: () => openFile(context, f.url, title: f.name),
             ),
         ]),
       if (d.comments.isNotEmpty)

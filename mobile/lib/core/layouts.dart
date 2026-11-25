@@ -143,8 +143,6 @@ class CrmWebSection {
 
 /// Боковая панель CRM (src/components/admin/AdminNav.tsx) без разделов, которые в приложении есть экранами.
 const crmWebSections = <CrmWebSection>[
-  CrmWebSection('Продажи', '/admin/deals', 'Воронка (доска и фильтры)', LucideIcons.kanban, ['deals.view']),
-  CrmWebSection('Выпуск', '/admin/board', 'Канбан заказов', LucideIcons.kanban, ['orders.view']),
   CrmWebSection('Настройки', '/admin/automations', 'Автоматизации', LucideIcons.workflow, ['settings.manage']),
   CrmWebSection('Настройки', '/admin/pricing', 'Цены и тарифы', LucideIcons.coins, ['settings.manage']),
   CrmWebSection('Настройки', '/admin/site', 'Сайт', LucideIcons.globe, ['settings.manage']),
