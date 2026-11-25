@@ -7,6 +7,7 @@ import { getLocale, getMessages } from "@/i18n/server";
 import { AgreementCard } from "@/components/AgreementCard";
 import { PageHead } from "../_components/PageHead";
 import { shelfBooks } from "@/server/shelf";
+import { v1WebRead } from "@/server/v1-web-client";
 import { FirstBook, HeroBook, ShelfCard } from "./BooksShelf";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -20,8 +21,18 @@ export async function generateMetadata(): Promise<Metadata> {
  */
 export default async function BooksPage() {
   const user = await requireUser("/books");
-  const [rows, locale, m, agreement] = await Promise.all([container().authoring.queries.userBooks(user.id), getLocale(), getMessages(), container().ordering.orders.agreementFor(user.id)]);
-  const card = agreement ? <AgreementCard agreement={agreement} books={rows.map((r) => ({ id: r.book.id, status: r.book.status, theme: r.book.theme, answered: r.answered, total: r.total, words: r.words }))} /> : null;
+  const [locale, m, agreement] = await Promise.all([getLocale(), getMessages(), container().ordering.orders.agreementFor(user.id)]);
+  const agreementBooks = agreement
+    ? await v1WebRead({
+        name: "shelf.agreementBooks",
+        section: "shelf",
+        locale,
+        local: async () =>
+          (await container().authoring.queries.userBooks(user.id)).map((r) => ({ id: r.book.id, status: r.book.status, theme: r.book.theme, answered: r.answered, total: r.total, words: r.words })),
+        viaApi: async (api) => (await api.booksList({})).books.map((b) => ({ id: b.id, status: b.status, theme: b.theme, answered: b.answered, total: b.total, words: b.words })),
+      })
+    : [];
+  const card = agreement ? <AgreementCard agreement={agreement} books={agreementBooks} /> : null;
   const t = m.books.list;
   const books = await shelfBooks(user.id, locale, m);
 

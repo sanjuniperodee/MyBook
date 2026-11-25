@@ -5,7 +5,7 @@ import { getLocale } from "@/i18n/server";
 import { accountDeletionFor } from "@/i18n/messages/account-deletion";
 import { messagesFor } from "@/i18n/messages";
 import { IdentityError } from "@/modules/identity";
-import { mobileDevices } from "@/modules/workspace";
+import { fcmClientOptions, fcmConfig, mobileDevices } from "@/modules/workspace";
 import { deleteClientAccount, deletionPreview } from "@/server/account-deletion";
 import { HttpError } from "@/server/api";
 import type { Handlers } from "../app";
@@ -22,13 +22,27 @@ function deletionLabels(locale: Locale) {
   return { title: t.title, intro: t.intro, accounting: t.accounting, password: t.password, forgot: t.forgot, next: t.next, confirmTitle: t.confirmTitle, confirm: t.confirm, cancel: t.cancel, done: t.done };
 }
 
-export const meHandlers: Pick<Handlers, "meDevicePut" | "meDeviceDelete" | "appConfig" | "meDeletionInfo" | "meDelete"> = {
+export const meHandlers: Pick<Handlers, "meDevicePut" | "meDeviceDelete" | "crmPushConfig" | "crmDevicePut" | "crmDeviceDelete" | "appConfig" | "meDeletionInfo" | "meDelete"> = {
   async meDevicePut({ user, input }) {
     await mobileDevices.register(user!.id, { ...input.body, app: "client" });
     return { ok: true, serverReady: mobileDevices.pushReady(input.body.platform) };
   },
 
   async meDeviceDelete({ user, input }) {
+    await mobileDevices.forget(user!.id, input.body.token);
+    return { ok: true };
+  },
+
+  async crmPushConfig() {
+    return { ios: mobileDevices.pushReady("ios"), android: fcmClientOptions(fcmConfig()) };
+  },
+
+  async crmDevicePut({ user, input }) {
+    await mobileDevices.register(user!.id, { ...input.body, app: "crm" });
+    return { ok: true, serverReady: mobileDevices.pushReady(input.body.platform) };
+  },
+
+  async crmDeviceDelete({ user, input }) {
     await mobileDevices.forget(user!.id, input.body.token);
     return { ok: true };
   },

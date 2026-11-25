@@ -3,6 +3,7 @@ import { requireUser } from "@/server/auth";
 import { site } from "@/config/site";
 import { DeleteAccountForm, PasswordForm, ProfileForm, RemindersForm } from "./AccountForms";
 import { deletionPreview } from "@/server/account-deletion";
+import { v1WebRead } from "@/server/v1-web-client";
 import { accountDeletionFor } from "@/i18n/messages/account-deletion";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
 import { Facts } from "@/components/ui/Facts";
@@ -35,7 +36,19 @@ export default async function AccountPage() {
   const [t, locale] = [(await getMessages()).orders.account, await getLocale()];
   const g = t.groups;
   // Клиент удаляет аккаунт сам; сотрудника отключает руководитель в CRM.
-  const deletion = user.role === "user" ? await deletionPreview(user.id, locale) : null;
+  const deletion =
+    user.role === "user"
+      ? await v1WebRead({
+          name: "cabinet.deletionPreview",
+          section: "cabinet",
+          locale,
+          local: () => deletionPreview(user.id, locale),
+          viaApi: async (api) => {
+            const info = await api.meDeletionInfo({ locale });
+            return { confirm: info.confirm, items: info.items, kept: info.kept, keptOrders: info.keptOrders };
+          },
+        })
+      : null;
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
       <PageHead title={t.title} lead={t.lead} />

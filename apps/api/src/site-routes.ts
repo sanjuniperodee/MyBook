@@ -14,6 +14,23 @@ import * as google from "@/app/api/integrations/google/webhook/route";
 import * as questionSave from "@/app/api/books/[id]/questions/[qid]/route";
 import * as live from "@/app/api/admin/live/route";
 import * as chatsInbox from "@/app/api/admin/chats/inbox/route";
+import * as chatMessages from "@/app/api/admin/chats/[id]/messages/route";
+import * as adminNotifications from "@/app/api/admin/notifications/route";
+import * as bookRoute from "@/app/api/books/[id]/route";
+import * as chapters from "@/app/api/books/[id]/chapters/route";
+import * as chaptersOrder from "@/app/api/books/[id]/chapters/order/route";
+import * as chaptersMove from "@/app/api/books/[id]/chapters/move/route";
+import * as chapterItem from "@/app/api/books/[id]/chapters/[key]/route";
+import * as questions from "@/app/api/books/[id]/questions/route";
+import * as questionsOrder from "@/app/api/books/[id]/questions/order/route";
+import * as questionMove from "@/app/api/books/[id]/questions/[qid]/move/route";
+import * as photosOrder from "@/app/api/books/[id]/photos/order/route";
+import * as photosBatch from "@/app/api/books/[id]/photos/batch/route";
+import * as photoItem from "@/app/api/books/[id]/photos/[pid]/route";
+import * as bookLayout from "@/app/api/books/[id]/layout/route";
+import * as lettersInvite from "@/app/api/books/[id]/letters/invite/route";
+import * as lettersOrder from "@/app/api/books/[id]/letters/order/route";
+import * as letterItem from "@/app/api/books/[id]/letters/[lid]/route";
 import * as spell from "@/app/api/books/[id]/proofread/spell/route";
 import * as build from "@/app/api/books/[id]/build/route";
 import * as buildProgress from "@/app/api/books/[id]/build-progress/route";
@@ -31,15 +48,34 @@ const table: [string, RouteModule][] = [
   ["/api/integrations/zadarma", zadarma as RouteModule],
   ["/api/integrations/google/webhook", google as RouteModule],
   // Автосохранение ответа и удаление своего раздела — самый частый маршрут редактора (~17 тыс. в сутки).
+  // Статические подмаршруты (/order, /move, /batch, /invite) идут раньше параметрических ({qid}, {key}, {pid}, {lid}).
+  ["/api/books/{id}/questions/order", questionsOrder as RouteModule],
+  ["/api/books/{id}/questions/{qid}/move", questionMove as RouteModule],
   ["/api/books/{id}/questions/{qid}", questionSave as RouteModule],
+  ["/api/books/{id}/questions", questions as RouteModule],
+  // Редактор: главы, фото (порядок, правка, пакет, раскладка), письма близких, настройки книги.
+  ["/api/books/{id}/chapters/order", chaptersOrder as RouteModule],
+  ["/api/books/{id}/chapters/move", chaptersMove as RouteModule],
+  ["/api/books/{id}/chapters/{key}", chapterItem as RouteModule],
+  ["/api/books/{id}/chapters", chapters as RouteModule],
+  ["/api/books/{id}/photos/order", photosOrder as RouteModule],
+  ["/api/books/{id}/photos/batch", photosBatch as RouteModule],
+  ["/api/books/{id}/photos/{pid}", photoItem as RouteModule],
+  ["/api/books/{id}/layout", bookLayout as RouteModule],
+  ["/api/books/{id}/letters/invite", lettersInvite as RouteModule],
+  ["/api/books/{id}/letters/order", lettersOrder as RouteModule],
+  ["/api/books/{id}/letters/{lid}", letterItem as RouteModule],
   // Частые JSON-маршруты (лог nginx 23–25.11): счётчики CRM (~9 тыс./сутки), орфография редактора (~3,5 тыс.),
-  // входящие чатов, экранная сборка и её ход. Сборка и ход — вместе: ход живёт в памяти процесса, который начал
-  // сборку, а приложение уже собирает через api (bookBuild).
+  // входящие и сообщения чатов, уведомления CRM, экранная сборка и её ход. Сборка и ход — вместе: ход живёт
+  // в памяти процесса, который начал сборку, а приложение уже собирает через api (bookBuild).
   ["/api/admin/live", live as RouteModule],
   ["/api/admin/chats/inbox", chatsInbox as RouteModule],
+  ["/api/admin/chats/{id}/messages", chatMessages as RouteModule],
+  ["/api/admin/notifications", adminNotifications as RouteModule],
   ["/api/books/{id}/proofread/spell", spell as RouteModule],
   ["/api/books/{id}/build", build as RouteModule],
   ["/api/books/{id}/build-progress", buildProgress as RouteModule],
+  ["/api/books/{id}", bookRoute as RouteModule],
 ];
 
 const compiled = table.map(([path, module]) => ({ path, module, re: new RegExp(`^${path.replace(/\{(\w+)\}/g, "(?<$1>[^/]+)")}$`) }));

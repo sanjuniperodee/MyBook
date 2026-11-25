@@ -33,6 +33,8 @@ import { crmCatalogRoutes } from "./crm-catalog";
 import { crmAdminRoutes } from "./crm-admin";
 import { crmKpRoutes } from "./crm-kp";
 import { crmSecurityRoutes } from "./crm-security";
+import { crmInvoiceRoutes } from "./crm-invoices";
+import { crmMobileRestRoutes } from "./crm-mobile-rest";
 import type { RouteDef } from "./core";
 
 export * from "./core";
@@ -60,6 +62,8 @@ export * from "./crm-catalog";
 export * from "./crm-admin";
 export * from "./crm-kp";
 export * from "./crm-security";
+export * from "./crm-invoices";
+export * from "./crm-mobile-rest";
 
 export const v1 = {
   ...authRoutes,
@@ -86,6 +90,8 @@ export const v1 = {
   ...crmAdminRoutes,
   ...crmKpRoutes,
   ...crmSecurityRoutes,
+  ...crmInvoiceRoutes,
+  ...crmMobileRestRoutes,
   // Доски задач и календарь (приложение CRM).
   ...boardsRoutes,
 } as const satisfies Record<string, RouteDef>;
