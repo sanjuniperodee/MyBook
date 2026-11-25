@@ -28,6 +28,8 @@ export const AppConfig = z
     /** Политика конфиденциальности и оферта — полные адреса на языке пользователя. */
     privacyUrl: z.string(),
     termsUrl: z.string(),
+    /** Названия документов — заголовки их страниц на сайте (legal.privacy.title, legal.offer.title). */
+    labels: z.object({ privacy: z.string(), terms: z.string() }),
   })
   .register(schemas, { id: "AppConfig" });
 
@@ -41,6 +43,19 @@ export const DeletionInfo = z
     kept: z.array(z.string()),
     /** Номера заказов в работе. */
     keptOrders: z.array(z.number().int()),
+    /** Надписи экрана удаления — те же тексты, что в кабинете сайта (account-deletion.ts). */
+    labels: z.object({
+      title: z.string(),
+      intro: z.string(),
+      accounting: z.string(),
+      password: z.string(),
+      forgot: z.string(),
+      next: z.string(),
+      confirmTitle: z.string(),
+      confirm: z.string(),
+      cancel: z.string(),
+      done: z.string(),
+    }),
   })
   .register(schemas, { id: "DeletionInfo" });
 

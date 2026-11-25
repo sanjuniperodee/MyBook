@@ -15055,11 +15055,28 @@
           },
           "termsUrl": {
             "type": "string"
+          },
+          "labels": {
+            "type": "object",
+            "properties": {
+              "privacy": {
+                "type": "string"
+              },
+              "terms": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "privacy",
+              "terms"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
           "privacyUrl",
-          "termsUrl"
+          "termsUrl",
+          "labels"
         ],
         "additionalProperties": false
       },
@@ -15091,13 +15108,62 @@
               "minimum": -9007199254740991,
               "maximum": 9007199254740991
             }
+          },
+          "labels": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "intro": {
+                "type": "string"
+              },
+              "accounting": {
+                "type": "string"
+              },
+              "password": {
+                "type": "string"
+              },
+              "forgot": {
+                "type": "string"
+              },
+              "next": {
+                "type": "string"
+              },
+              "confirmTitle": {
+                "type": "string"
+              },
+              "confirm": {
+                "type": "string"
+              },
+              "cancel": {
+                "type": "string"
+              },
+              "done": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "title",
+              "intro",
+              "accounting",
+              "password",
+              "forgot",
+              "next",
+              "confirmTitle",
+              "confirm",
+              "cancel",
+              "done"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
           "confirm",
           "items",
           "kept",
-          "keptOrders"
+          "keptOrders",
+          "labels"
         ],
         "additionalProperties": false
       },
@@ -15144,6 +15210,54 @@
               "maximum": 9007199254740991
             }
           },
+          "labels": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "intro": {
+                "type": "string"
+              },
+              "accounting": {
+                "type": "string"
+              },
+              "password": {
+                "type": "string"
+              },
+              "forgot": {
+                "type": "string"
+              },
+              "next": {
+                "type": "string"
+              },
+              "confirmTitle": {
+                "type": "string"
+              },
+              "confirm": {
+                "type": "string"
+              },
+              "cancel": {
+                "type": "string"
+              },
+              "done": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "title",
+              "intro",
+              "accounting",
+              "password",
+              "forgot",
+              "next",
+              "confirmTitle",
+              "confirm",
+              "cancel",
+              "done"
+            ],
+            "additionalProperties": false
+          },
           "ok": {
             "type": "boolean",
             "const": true
@@ -15154,6 +15268,7 @@
           "items",
           "kept",
           "keptOrders",
+          "labels",
           "ok"
         ],
         "additionalProperties": false

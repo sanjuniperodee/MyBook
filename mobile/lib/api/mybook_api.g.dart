@@ -3550,12 +3550,24 @@ class DeviceRegistered {
 class AppConfig {
   final String privacyUrl;
   final String termsUrl;
+  final AppConfigLabels labels;
 
-  const AppConfig({required this.privacyUrl, required this.termsUrl});
+  const AppConfig({required this.privacyUrl, required this.termsUrl, required this.labels});
 
-  factory AppConfig.fromJson(Map<String, dynamic> json) => AppConfig(privacyUrl: json['privacyUrl'] as String, termsUrl: json['termsUrl'] as String);
+  factory AppConfig.fromJson(Map<String, dynamic> json) => AppConfig(privacyUrl: json['privacyUrl'] as String, termsUrl: json['termsUrl'] as String, labels: AppConfigLabels.fromJson(json['labels'] as Map<String, dynamic>));
 
-  Map<String, dynamic> toJson() => {'privacyUrl': privacyUrl, 'termsUrl': termsUrl};
+  Map<String, dynamic> toJson() => {'privacyUrl': privacyUrl, 'termsUrl': termsUrl, 'labels': labels.toJson()};
+}
+
+class AppConfigLabels {
+  final String privacy;
+  final String terms;
+
+  const AppConfigLabels({required this.privacy, required this.terms});
+
+  factory AppConfigLabels.fromJson(Map<String, dynamic> json) => AppConfigLabels(privacy: json['privacy'] as String, terms: json['terms'] as String);
+
+  Map<String, dynamic> toJson() => {'privacy': privacy, 'terms': terms};
 }
 
 class DeletionInfo {
@@ -3564,12 +3576,32 @@ class DeletionInfo {
   final List<String> items;
   final List<String> kept;
   final List<int> keptOrders;
+  final DeletionInfoLabels labels;
 
-  const DeletionInfo({required this.confirm, required this.items, required this.kept, required this.keptOrders});
+  const DeletionInfo({required this.confirm, required this.items, required this.kept, required this.keptOrders, required this.labels});
 
-  factory DeletionInfo.fromJson(Map<String, dynamic> json) => DeletionInfo(confirm: json['confirm'] as String, items: (json['items'] as List).map((e) => e as String).toList(), kept: (json['kept'] as List).map((e) => e as String).toList(), keptOrders: (json['keptOrders'] as List).map((e) => (e as num).toInt()).toList());
+  factory DeletionInfo.fromJson(Map<String, dynamic> json) => DeletionInfo(confirm: json['confirm'] as String, items: (json['items'] as List).map((e) => e as String).toList(), kept: (json['kept'] as List).map((e) => e as String).toList(), keptOrders: (json['keptOrders'] as List).map((e) => (e as num).toInt()).toList(), labels: DeletionInfoLabels.fromJson(json['labels'] as Map<String, dynamic>));
 
-  Map<String, dynamic> toJson() => {'confirm': confirm, 'items': items.map((e) => e).toList(), 'kept': kept.map((e) => e).toList(), 'keptOrders': keptOrders.map((e) => e).toList()};
+  Map<String, dynamic> toJson() => {'confirm': confirm, 'items': items.map((e) => e).toList(), 'kept': kept.map((e) => e).toList(), 'keptOrders': keptOrders.map((e) => e).toList(), 'labels': labels.toJson()};
+}
+
+class DeletionInfoLabels {
+  final String title;
+  final String intro;
+  final String accounting;
+  final String password;
+  final String forgot;
+  final String next;
+  final String confirmTitle;
+  final String confirm;
+  final String cancel;
+  final String done;
+
+  const DeletionInfoLabels({required this.title, required this.intro, required this.accounting, required this.password, required this.forgot, required this.next, required this.confirmTitle, required this.confirm, required this.cancel, required this.done});
+
+  factory DeletionInfoLabels.fromJson(Map<String, dynamic> json) => DeletionInfoLabels(title: json['title'] as String, intro: json['intro'] as String, accounting: json['accounting'] as String, password: json['password'] as String, forgot: json['forgot'] as String, next: json['next'] as String, confirmTitle: json['confirmTitle'] as String, confirm: json['confirm'] as String, cancel: json['cancel'] as String, done: json['done'] as String);
+
+  Map<String, dynamic> toJson() => {'title': title, 'intro': intro, 'accounting': accounting, 'password': password, 'forgot': forgot, 'next': next, 'confirmTitle': confirmTitle, 'confirm': confirm, 'cancel': cancel, 'done': done};
 }
 
 class DeleteAccountBody {
@@ -3588,13 +3620,33 @@ class AccountDeleted {
   final List<String> items;
   final List<String> kept;
   final List<int> keptOrders;
+  final AccountDeletedLabels labels;
   final bool ok;
 
-  const AccountDeleted({required this.confirm, required this.items, required this.kept, required this.keptOrders, required this.ok});
+  const AccountDeleted({required this.confirm, required this.items, required this.kept, required this.keptOrders, required this.labels, required this.ok});
 
-  factory AccountDeleted.fromJson(Map<String, dynamic> json) => AccountDeleted(confirm: json['confirm'] as String, items: (json['items'] as List).map((e) => e as String).toList(), kept: (json['kept'] as List).map((e) => e as String).toList(), keptOrders: (json['keptOrders'] as List).map((e) => (e as num).toInt()).toList(), ok: json['ok'] as bool);
+  factory AccountDeleted.fromJson(Map<String, dynamic> json) => AccountDeleted(confirm: json['confirm'] as String, items: (json['items'] as List).map((e) => e as String).toList(), kept: (json['kept'] as List).map((e) => e as String).toList(), keptOrders: (json['keptOrders'] as List).map((e) => (e as num).toInt()).toList(), labels: AccountDeletedLabels.fromJson(json['labels'] as Map<String, dynamic>), ok: json['ok'] as bool);
 
-  Map<String, dynamic> toJson() => {'confirm': confirm, 'items': items.map((e) => e).toList(), 'kept': kept.map((e) => e).toList(), 'keptOrders': keptOrders.map((e) => e).toList(), 'ok': ok};
+  Map<String, dynamic> toJson() => {'confirm': confirm, 'items': items.map((e) => e).toList(), 'kept': kept.map((e) => e).toList(), 'keptOrders': keptOrders.map((e) => e).toList(), 'labels': labels.toJson(), 'ok': ok};
+}
+
+class AccountDeletedLabels {
+  final String title;
+  final String intro;
+  final String accounting;
+  final String password;
+  final String forgot;
+  final String next;
+  final String confirmTitle;
+  final String confirm;
+  final String cancel;
+  final String done;
+
+  const AccountDeletedLabels({required this.title, required this.intro, required this.accounting, required this.password, required this.forgot, required this.next, required this.confirmTitle, required this.confirm, required this.cancel, required this.done});
+
+  factory AccountDeletedLabels.fromJson(Map<String, dynamic> json) => AccountDeletedLabels(title: json['title'] as String, intro: json['intro'] as String, accounting: json['accounting'] as String, password: json['password'] as String, forgot: json['forgot'] as String, next: json['next'] as String, confirmTitle: json['confirmTitle'] as String, confirm: json['confirm'] as String, cancel: json['cancel'] as String, done: json['done'] as String);
+
+  Map<String, dynamic> toJson() => {'title': title, 'intro': intro, 'accounting': accounting, 'password': password, 'forgot': forgot, 'next': next, 'confirmTitle': confirmTitle, 'confirm': confirm, 'cancel': cancel, 'done': done};
 }
 
 class BookModel {

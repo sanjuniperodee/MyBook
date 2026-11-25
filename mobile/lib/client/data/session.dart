@@ -80,6 +80,13 @@ class ClientSession extends ChangeNotifier {
     await _enter(r.user);
   }
 
+  /// Аккаунт удалён (сервер уже закрыл все сессии): данные на телефоне стираем, на входе — сообщение сервера.
+  Future<void> accountDeleted(String message) async {
+    await _clear();
+    notice = message;
+    notifyListeners();
+  }
+
   Future<void> logout() async {
     try {
       await backend.logout();
