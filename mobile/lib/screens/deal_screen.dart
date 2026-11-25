@@ -3,32 +3,33 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 
+import '../api/mybook_api.g.dart' as v1api;
 import '../core/api.dart';
 import '../core/auth.dart';
 import '../core/contact_actions.dart';
 import '../core/format.dart';
+import '../core/v1.dart';
 import '../models/chat.dart';
 import '../models/deal.dart';
 import '../models/work.dart' show TaskTarget;
 import '../ui/kit.dart';
 import '../ui/tokens.dart';
+import '../widgets/crm_form.dart';
 import 'chat_screen.dart';
+import 'client_screen.dart';
+import 'deal_edit_screen.dart';
 import 'deals_screen.dart' show hexColor;
 import 'invoice_sheet.dart';
+import 'order_screen.dart';
 import 'payment_sheet.dart';
 import 'task_editor.dart';
-import '../api/mybook_api.g.dart' as v1api;
-import '../core/v1.dart';
-import '../widgets/crm_form.dart';
-import 'client_screen.dart';
-import 'order_screen.dart';
-import 'package:share_plus/share_plus.dart';
-import 'deal_edit_screen.dart';
 
 /// Карточка сделки: этап (меняется в один тап), чат и счёт, задачи, заметки, платежи и счета.
 
 const _orderStatusLabels = {'pending_payment': 'Ожидает оплаты', 'paid': 'Оплачен', 'in_production': 'В производстве', 'shipped': 'Отправлен', 'delivered': 'Доставлен', 'cancelled': 'Отменён'};
+
 class DealScreen extends StatefulWidget {
   const DealScreen({super.key, required this.dealId, this.fromChat = false});
   final String dealId;
@@ -39,10 +40,11 @@ class DealScreen extends StatefulWidget {
 }
 
 class _DealScreenState extends State<DealScreen> {
-  Map<String, dynamic>? _d;
+  v1api.CrmDeal? _d;
+  v1api.DealExtras? _x;
   String? _error;
 
-  ApiClientRef get _api => ApiClientRef(context.read<AuthState>().api);
+  ApiClient get _api => context.read<AuthState>().api;
 
   @override
   void initState() {
@@ -52,25 +54,28 @@ class _DealScreenState extends State<DealScreen> {
 
   Future<void> _load() async {
     try {
-      final r = await _api.c.get('/api/mobile/deals/${widget.dealId}') as Map<String, dynamic>;
-      if (mounted) setState(() => _d = r);
+      final r = await v1(_api, (c) => c.crmDealGet(dealId: widget.dealId));
+      if (mounted) {
+        setState(() {
+          _d = r;
+          _error = null;
+        });
+      }
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     }
     // Клиент, дубли, прошлые сделки, воронки — API v1 (необязательно: без них карточка работает).
     try {
-      final x = await v1(_api.c, (c) => c.crmDealExtras(dealId: widget.dealId));
+      final x = await v1(_api, (c) => c.crmDealExtras(dealId: widget.dealId));
       if (mounted) setState(() => _x = x);
     } on ApiException {
       // нет прав или сеть — меню «Ещё» покажет только доступное
     }
   }
 
-  v1api.DealExtras? _x;
-
   Future<void> _done(Future<v1api.Done> Function(v1api.MybookApi) call) async {
     try {
-      final r = await v1(_api.c, call);
+      final r = await v1(_api, call);
       HapticFeedback.lightImpact();
       _toast(r.message);
       await _load();
@@ -109,7 +114,7 @@ class _DealScreenState extends State<DealScreen> {
       case 'delete':
         if (!await confirm(context, title: 'Удалить сделку?', message: 'Сделку с деньгами или счётом удалить нельзя.', ok: 'Удалить', destructive: true)) return;
         try {
-          final r = await v1(_api.c, (c) => c.crmDealDelete(dealId: widget.dealId));
+          final r = await v1(_api, (c) => c.crmDealDelete(dealId: widget.dealId));
           _toast(r.message);
           if (mounted) Navigator.of(context).pop(true);
         } on ApiException catch (e) {
@@ -121,7 +126,7 @@ class _DealScreenState extends State<DealScreen> {
   }
 
   Future<void> _createClient(v1api.DealExtras x) async {
-    final name = TextEditingController(text: (_d?['contactName'] as String?) ?? '');
+    final name = TextEditingController(text: _d?.contactName ?? '');
     final email = TextEditingController();
     String? channel;
     final ok = await showAppSheet<bool>(context, title: 'Завести клиента', builder: (sheet) {
@@ -147,7 +152,7 @@ class _DealScreenState extends State<DealScreen> {
     if (ok != true || !mounted) return;
     if (channel == null) return _toast('Укажите, откуда пришёл клиент');
     try {
-      final r = await v1(_api.c, (c) => c.crmDealClientCreate(dealId: widget.dealId, body: v1api.DealClientBody(name: name.text.trim(), email: email.text.trim(), locale: 'ru', channel: channel!)));
+      final r = await v1(_api, (c) => c.crmDealClientCreate(dealId: widget.dealId, body: v1api.DealClientBody(name: name.text.trim(), email: email.text.trim(), locale: 'ru', channel: channel!)));
       await _load();
       if (!mounted) return;
       await showAppSheet<void>(context, title: 'Клиент заведён', builder: (sheet) {
@@ -179,7 +184,7 @@ class _DealScreenState extends State<DealScreen> {
       if (reason == null) return;
     }
     try {
-      await _api.c.post('/api/mobile/deals/${widget.dealId}/move', body: {'stageId': stage.id, 'lostReason': ?reason});
+      await _api.post('/api/mobile/deals/${widget.dealId}/move', body: {'stageId': stage.id, 'lostReason': ?reason});
       HapticFeedback.mediumImpact();
       await _load();
     } on ApiException catch (e) {
@@ -187,12 +192,12 @@ class _DealScreenState extends State<DealScreen> {
     }
   }
 
-  /// Передать сделку коллеге (или снять ответственного): список сотрудников — с сервера, права проверяет он же.
+  /// Передать сделку коллеге (или снять ответственного): список сотрудников — с сервера (API v1), права проверяет он же.
   Future<void> _assign() async {
     final api = context.read<AuthState>().api;
-    List<Map<String, dynamic>> people;
+    List<v1api.CrmStaffListStaff> people;
     try {
-      people = ((await api.get('/api/mobile/staff') as Map<String, dynamic>)['staff'] as List).cast<Map<String, dynamic>>();
+      people = (await v1(api, (c) => c.crmStaffList())).staff;
     } on ApiException catch (e) {
       return _toast(e.message);
     }
@@ -203,7 +208,7 @@ class _DealScreenState extends State<DealScreen> {
       icon: LucideIcons.userRoundPlus,
       builder: (sheet) => SingleChildScrollView(
         child: GroupCard(padding: const EdgeInsets.fromLTRB(16, 4, 16, 24), children: [
-          for (final p in people) GroupTile(title: p['name'] as String, icon: LucideIcons.user, onTap: () => Navigator.pop(sheet, p['id'] as String)),
+          for (final p in people) GroupTile(title: p.name, icon: LucideIcons.user, onTap: () => Navigator.pop(sheet, p.id)),
           GroupTile(title: 'Снять ответственного', icon: LucideIcons.userX, iconColor: sheet.c.textMuted, onTap: () => Navigator.pop(sheet, '')),
         ]),
       ),
@@ -222,7 +227,7 @@ class _DealScreenState extends State<DealScreen> {
     final text = await promptText(context, title: 'Заметка по сделке', lines: 4);
     if (text == null) return;
     try {
-      await _api.c.post('/api/mobile/deals/${widget.dealId}/notes', body: {'text': text});
+      await _api.post('/api/mobile/deals/${widget.dealId}/notes', body: {'text': text});
       await _load();
     } on ApiException catch (e) {
       _toast(e.message);
@@ -230,13 +235,13 @@ class _DealScreenState extends State<DealScreen> {
   }
 
   Future<void> _addTask() async {
-    final label = _d?['title'] as String?;
+    final label = _d?.title;
     if (await showTaskEditor(context, target: TaskTarget(dealId: widget.dealId), contextLabel: label)) await _load();
   }
 
   Future<void> _accept() async {
     try {
-      await _api.c.post('/api/mobile/deals/${widget.dealId}/accept');
+      await _api.post('/api/mobile/deals/${widget.dealId}/accept');
       HapticFeedback.mediumImpact();
       _toast('Заявка принята в работу');
       await _load();
@@ -249,7 +254,7 @@ class _DealScreenState extends State<DealScreen> {
     final reason = await promptText(context, title: 'Почему отклоняете заявку?', hint: 'Например: спам, нет бюджета', ok: 'Отклонить');
     if (reason == null) return;
     try {
-      final r = await _api.c.post('/api/mobile/deals/${widget.dealId}/reject', body: {'reason': reason, 'spam': false});
+      final r = await _api.post('/api/mobile/deals/${widget.dealId}/reject', body: {'reason': reason, 'spam': false});
       _toast((r is Map && r['message'] is String) ? r['message'] as String : 'Заявка отклонена');
       await _load();
     } on ApiException catch (e) {
@@ -260,7 +265,7 @@ class _DealScreenState extends State<DealScreen> {
   Future<void> _toggleTask(TaskItem t) async {
     setState(() => t.done = !t.done);
     try {
-      await _api.c.post('/api/mobile/tasks/${t.id}/toggle');
+      await _api.post('/api/mobile/tasks/${t.id}/toggle');
     } on ApiException catch (e) {
       setState(() => t.done = !t.done);
       _toast(e.message);
@@ -269,7 +274,7 @@ class _DealScreenState extends State<DealScreen> {
 
   Future<void> _invoiceAction(String id, String action) async {
     try {
-      await _api.c.post('/api/mobile/invoices/$id', body: {'action': action});
+      await _api.post('/api/mobile/invoices/$id', body: {'action': action});
       _toast(action == 'cancel' ? 'Счёт отменён' : 'Счёт отправлен ещё раз');
       await _load();
     } on ApiException catch (e) {
@@ -292,9 +297,9 @@ class _DealScreenState extends State<DealScreen> {
               height: 52,
               child: Row(children: [
                 RoundIconButton(icon: LucideIcons.chevronLeft, size: 44, iconSize: 28, color: c.brandDeep, onTap: () => Navigator.of(context).maybePop()),
-                Expanded(child: Text(d == null ? 'Сделка' : 'Сделка №${d['number']}', style: AppText.headline(context))),
+                Expanded(child: Text(d == null ? 'Сделка' : 'Сделка №${d.number}', style: AppText.headline(context))),
                 // Правка полей, своих полей, тарифа и подарков — экраном приложения (API v1).
-                if (d != null && (d['perms'] as Map<String, dynamic>)['canEdit'] == true)
+                if (d != null && d.perms.canEdit)
                   RoundIconButton(icon: LucideIcons.pencil, size: 44, iconSize: 20, color: c.text, tooltip: 'Изменить сделку', onTap: () async {
                     final saved = await Navigator.of(context).push<bool>(MaterialPageRoute(builder: (_) => DealEditScreen(dealId: widget.dealId)));
                     if (saved == true) _load();
@@ -314,32 +319,44 @@ class _DealScreenState extends State<DealScreen> {
     );
   }
 
-  Widget _body(BuildContext context, Map<String, dynamic> d) {
+  Widget _body(BuildContext context, v1api.CrmDeal d) {
     final c = context.c;
-    final perms = d['perms'] as Map<String, dynamic>;
-    final stages = [for (final s in (d['stages'] as List)) Stage.fromJson(s as Map<String, dynamic>)];
-    final stage = d['stage'] as Map<String, dynamic>?;
-    final tasks = [for (final t in (d['tasks'] as List)) TaskItem.fromJson(t as Map<String, dynamic>)];
-    final notes = [for (final n in (d['notes'] as List)) NoteItem.fromJson(n as Map<String, dynamic>)];
-    final payments = [for (final p in (d['payments'] as List)) PaymentItem.fromJson(p as Map<String, dynamic>)];
-    final invoices = [for (final i in (d['invoices'] as List)) InvoiceBrief.fromJson(i as Map<String, dynamic>)];
-    final order = d['order'] as Map<String, dynamic>?;
-    final chatId = d['chatId'] as String?;
-    final amount = ((d['amount'] as num?) ?? 0).toInt();
-    final paid = ((d['paid'] as num?) ?? 0).toInt();
+    final perms = d.perms;
+    final stages = [for (final s in d.stages) Stage(id: s.id, name: s.name, color: s.color, kind: s.kind)];
+    final stage = d.stage;
+    final tasks = [for (final t in d.tasks) TaskItem(id: t.id, title: t.title, dueAt: t.dueAt == null ? null : DateTime.parse(t.dueAt!).toLocal(), done: t.done)];
+    final notes = [for (final n in d.notes) NoteItem(id: n.id, text: n.text, at: DateTime.parse(n.at).toLocal(), author: n.author)];
+    final payments = [for (final p in d.payments) PaymentItem(id: p.id, amount: p.amount.toInt(), kind: p.kind, method: p.method, at: DateTime.parse(p.at).toLocal(), payForm: p.payForm)];
+    final invoices = [
+      for (final i in d.invoices)
+        InvoiceBrief(
+          id: i.id,
+          label: i.label,
+          amount: i.amount.toInt(),
+          status: i.status,
+          overdue: i.overdue,
+          expiresLabel: i.expiresLabel,
+          paidLabel: i.paidLabel,
+          link: i.link,
+        ),
+    ];
+    final order = d.order;
+    final chatId = d.chatId;
+    final amount = d.amount.toInt();
+    final paid = d.paid.toInt();
     final progress = amount > 0 ? (paid / amount).clamp(0.0, 1.0) : 0.0;
     final actions = <_ActionItem>[
-      if (chatId != null && !widget.fromChat) _ActionItem(LucideIcons.messageCircle, 'Чат', () => Navigator.of(context).push(CupertinoPageRoute<void>(builder: (_) => ChatScreen(chatId: chatId, title: d['contactName'] as String?)))),
-      if (perms['canInvoice'] == true && order == null)
+      if (chatId != null && !widget.fromChat) _ActionItem(LucideIcons.messageCircle, 'Чат', () => Navigator.of(context).push(CupertinoPageRoute<void>(builder: (_) => ChatScreen(chatId: chatId, title: d.contactName)))),
+      if (perms.canInvoice && order == null)
         _ActionItem(LucideIcons.receipt, 'Счёт', () async {
           final api = context.read<AuthState>().api;
           final ok = await showInvoiceSheet(context, api: api, dealId: widget.dealId, conversationId: chatId);
           if (ok) _load();
         }),
-      if (d['phone'] != null || (context.read<AuthState>().staff!.can('calls.make') && perms['canEdit'] == true))
-        _ActionItem(LucideIcons.phone, 'Позвонить', () => ContactActions(context).call(phone: d['phone'] as String?, target: TaskTarget(dealId: widget.dealId))),
-      if (perms['canEdit'] == true) _ActionItem(LucideIcons.listPlus, 'Задача', _addTask),
-      if (perms['canEdit'] == true) _ActionItem(LucideIcons.stickyNote, 'Заметка', _addNote),
+      if (d.phone != null || (context.read<AuthState>().staff!.can('calls.make') && perms.canEdit))
+        _ActionItem(LucideIcons.phone, 'Позвонить', () => ContactActions(context).call(phone: d.phone, target: TaskTarget(dealId: widget.dealId))),
+      if (perms.canEdit) _ActionItem(LucideIcons.listPlus, 'Задача', _addTask),
+      if (perms.canEdit) _ActionItem(LucideIcons.stickyNote, 'Заметка', _addNote),
     ];
     return ListView(physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()), padding: const EdgeInsets.only(top: 16, bottom: 40), children: [
       Padding(
@@ -348,12 +365,12 @@ class _DealScreenState extends State<DealScreen> {
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(color: c.surfaceRaised, borderRadius: BorderRadius.circular(Rd.lg), border: Border.all(color: c.border, width: 0.6)),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(d['title'] as String? ?? '', style: AppText.title(context)),
+            Text(d.title, style: AppText.title(context)),
             const SizedBox(height: 4),
             Text([
-              if ((d['contactName'] as String?)?.isNotEmpty == true) d['contactName'] as String,
-              if (d['phone'] != null) d['phone'] as String,
-              d['source'] as String? ?? '',
+              if ((d.contactName ?? '').isNotEmpty) d.contactName!,
+              if (d.phone != null) d.phone!,
+              d.source,
             ].where((e) => e.isNotEmpty).join(' · '), style: AppText.sub(context)),
             const SizedBox(height: 16),
             Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
@@ -366,19 +383,19 @@ class _DealScreenState extends State<DealScreen> {
               padding: const EdgeInsets.only(top: 14),
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                onTap: perms['canEdit'] == true ? _assign : null,
+                onTap: perms.canEdit ? _assign : null,
                 child: Row(children: [
                   Icon(LucideIcons.user, size: 15, color: c.textFaint),
                   const SizedBox(width: 6),
-                  Text(d['assignee'] != null ? 'Ведёт: ${d['assignee']}' : 'Ответственного нет', style: AppText.caption(context).copyWith(fontSize: 13.5)),
-                  if (perms['canEdit'] == true) ...[const SizedBox(width: 4), Icon(LucideIcons.chevronDown, size: 14, color: c.textFaint)],
+                  Text(d.assignee != null ? 'Ведёт: ${d.assignee}' : 'Ответственного нет', style: AppText.caption(context).copyWith(fontSize: 13.5)),
+                  if (perms.canEdit) ...[const SizedBox(width: 4), Icon(LucideIcons.chevronDown, size: 14, color: c.textFaint)],
                 ]),
               ),
             ),
           ]),
         ),
       ),
-      if (d['unsorted'] == true)
+      if (d.unsorted)
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           child: Container(
@@ -415,9 +432,9 @@ class _DealScreenState extends State<DealScreen> {
             Padding(
               padding: const EdgeInsets.only(right: 8),
               child: Opacity(
-                opacity: perms['canMove'] == true || stage?['id'] == s.id ? 1 : 0.5,
-                child: FilterPill(label: s.name, dot: hexColor(s.color), selected: stage?['id'] == s.id, onTap: () {
-                  if (perms['canMove'] == true && stage?['id'] != s.id) _move(s);
+                opacity: perms.canMove || stage?.id == s.id ? 1 : 0.5,
+                child: FilterPill(label: s.name, dot: hexColor(s.color), selected: stage?.id == s.id, onTap: () {
+                  if (perms.canMove && stage?.id != s.id) _move(s);
                 }),
               ),
             ),
@@ -428,9 +445,9 @@ class _DealScreenState extends State<DealScreen> {
         GroupCard(title: 'Заказ', children: [
           GroupTile(
             icon: LucideIcons.package,
-            title: 'Заказ №${order['number']}',
-            subtitle: '${_orderStatusLabels[order['status']] ?? order['status']} · ${money(order['amount'] as num)}',
-            onTap: order['id'] is String ? () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => OrderScreen(orderId: order['id'] as String, number: (order['number'] as num).toInt()))) : null,
+            title: 'Заказ №${order.number}',
+            subtitle: '${_orderStatusLabels[order.status] ?? order.status} · ${money(order.amount)}',
+            onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => OrderScreen(orderId: order.id, number: order.number))),
           ),
         ]),
       if (invoices.isNotEmpty)
@@ -441,14 +458,14 @@ class _DealScreenState extends State<DealScreen> {
               iconColor: i.paidLabel != null ? c.success : (i.overdue ? c.danger : c.warn),
               title: '${i.label} · ${money(i.amount)}',
               subtitle: i.paidLabel != null ? 'оплачен ${i.paidLabel}' : (i.status == 'pending_payment' ? (i.overdue ? 'срок вышел ${i.expiresLabel}' : 'ждёт оплаты до ${i.expiresLabel}') : i.status),
-              trailing: i.payable && perms['canEdit'] == true ? _InvoiceMenu(onSelected: (v) => _invoiceAction(i.id, v)) : const SizedBox.shrink(),
+              trailing: i.payable && perms.canEdit ? _InvoiceMenu(onSelected: (v) => _invoiceAction(i.id, v)) : const SizedBox.shrink(),
             ),
         ]),
       GroupCard(title: 'Задачи', children: [
         if (tasks.isEmpty) GroupTile(icon: LucideIcons.circleAlert, iconColor: c.warn, title: 'Нет следующего шага', subtitle: 'Запланируйте задачу, чтобы сделка не потерялась'),
         for (final t in tasks) _TaskRow(task: t, onToggle: () => _toggleTask(t)),
       ]),
-      if (payments.isNotEmpty || perms['canEdit'] == true)
+      if (payments.isNotEmpty || perms.canEdit)
         GroupCard(title: 'Платежи', children: [
           for (final p in payments)
             GroupTile(
@@ -457,11 +474,11 @@ class _DealScreenState extends State<DealScreen> {
               title: '${p.kind == 'refund' ? '−' : ''}${money(p.amount)}',
               subtitle: [p.methodLabel, if (p.payForm != null) p.payForm!, '${two(p.at.day)}.${two(p.at.month)}.${p.at.year}'].join(' · '),
             ),
-          if (perms['canEdit'] == true)
+          if (perms.canEdit)
             GroupTile(
-              icon: d['hasOrder'] == true ? LucideIcons.undo2 : LucideIcons.plus,
+              icon: d.hasOrder ? LucideIcons.undo2 : LucideIcons.plus,
               iconColor: c.brand,
-              title: d['hasOrder'] == true ? 'Оформить возврат лишнего' : 'Принять оплату',
+              title: d.hasOrder ? 'Оформить возврат лишнего' : 'Принять оплату',
               subtitle: 'с чеком и формой оплаты',
               onTap: () async {
                 final ok = await showPaymentSheet(
@@ -469,8 +486,8 @@ class _DealScreenState extends State<DealScreen> {
                   api: context.read<AuthState>().api,
                   dealId: widget.dealId,
                   suggested: amount - paid,
-                  payForms: [for (final f in (d['payForms'] as List? ?? const [])) '$f'],
-                  refundOnly: d['hasOrder'] == true,
+                  payForms: d.payForms,
+                  refundOnly: d.hasOrder,
                   invoices: invoices,
                   paymentIds: [for (final p in payments) p.id],
                 );
@@ -517,12 +534,6 @@ class _DealScreenState extends State<DealScreen> {
         ]),
     ]);
   }
-}
-
-/// Обёртка, чтобы не тянуть клиент через виджет-дерево в каждый метод.
-class ApiClientRef {
-  ApiClientRef(this.c);
-  final dynamic c;
 }
 
 class _ActionItem {

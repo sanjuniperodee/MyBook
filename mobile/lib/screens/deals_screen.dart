@@ -1,12 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
+import '../api/mybook_api.g.dart' as v1api;
 import '../core/api.dart';
 import '../core/auth.dart';
 import '../core/format.dart';
 import '../core/live.dart';
+import '../core/v1.dart';
 import '../models/deal.dart';
 import '../ui/kit.dart';
 import '../ui/tokens.dart';
@@ -40,8 +44,13 @@ class _DealsScreenState extends State<DealsScreen> {
   String? _task;
   int? _stale;
   List<(String, String)> _pipelines = const [];
+  String? _etag;
+  String? _etagKey;
+  StreamSubscription<LiveEvent>? _sub;
 
   int get _filters => (_pipeline != null ? 1 : 0) + (_task != null ? 1 : 0) + (_stale != null ? 1 : 0);
+  bool get _isDefault => !_mine && _q.isEmpty && _pipeline == null && _task == null && _stale == null;
+  String get _queryKey => '$_mine|$_q|${_pipeline ?? ''}|${_task ?? ''}|${_stale ?? ''}';
 
   Future<void> _filterSheet() async {
     final c = context.c;
@@ -81,23 +90,88 @@ class _DealsScreenState extends State<DealsScreen> {
   @override
   void initState() {
     super.initState();
-    _load();
-    context.read<LiveService>().events.listen((e) {
+    _initLoad();
+    _sub = context.read<LiveService>().events.listen((e) {
       if (mounted && (e.type == 'tick' || e.type == 'notify')) _load(silent: true);
     });
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
+  }
+
+  void _apply(v1api.CrmDeals r) {
+    _pipelines = [for (final p in r.pipelines) (p.id, p.name)];
+    _data = DealsData(
+      stages: [for (final s in r.stages) Stage(id: s.id, name: s.name, color: s.color, kind: s.kind)],
+      deals: [
+        for (final d in r.deals)
+          DealRow(
+            id: d.id,
+            number: d.number,
+            title: d.title,
+            contactName: d.contactName ?? '',
+            stageId: d.stageId,
+            amount: d.amount.toInt(),
+            paid: d.paid.toInt(),
+            source: d.source,
+            assignee: d.assignee,
+            unsorted: d.unsorted,
+            unread: d.unread,
+            daysInStage: d.daysInStage,
+            taskAt: d.nextTask == null ? null : DateTime.parse(d.nextTask!.at).toLocal(),
+            taskOverdue: d.nextTask?.overdue == true,
+          ),
+      ],
+      pipelineName: r.pipeline?.name ?? '',
+    );
+    _error = null;
+  }
+
+  Future<void> _initLoad() async {
+    final key = _queryKey;
+    final cached = await v1ReadCache('deals_default', v1api.CrmDeals.fromJson);
+    if (cached != null && mounted && _data == null && _queryKey == key) {
+      setState(() {
+        _apply(cached.data);
+        _etag = cached.etag;
+        _etagKey = key;
+      });
+    }
+    await _load();
   }
 
   Future<void> _load({bool silent = false}) async {
     if (_loading) return;
     _loading = true;
+    final key = _queryKey;
     try {
-      final r = await context.read<AuthState>().api.get('/api/mobile/deals', query: {'mine': _mine ? '1' : null, 'q': _q, 'p': _pipeline, 'task': _task, 'stale': _stale?.toString()}) as Map<String, dynamic>;
-      if (!mounted) return;
-      setState(() {
-        _pipelines = [for (final p in (r['pipelines'] as List? ?? const [])) ((p as Map)['id'] as String, p['name'] as String)];
-        _data = DealsData.fromJson(r);
-        _error = null;
-      });
+      final r = await v1Cached(
+        context.read<AuthState>().api,
+        (c) => c.crmDealsList(
+          mine: _mine ? '1' : null,
+          q: _q.isEmpty ? null : _q,
+          p: _pipeline,
+          task: _task,
+          stale: _stale?.toString(),
+        ),
+        etag: key == _etagKey && _data != null ? _etag : null,
+        cacheKey: _isDefault ? 'deals_default' : null,
+        toJson: (d) => d.toJson(),
+      );
+      if (!mounted || _queryKey != key) {
+        _loading = false;
+        return;
+      }
+      _etag = r.etag;
+      _etagKey = key;
+      if (!r.notModified && r.data != null) {
+        setState(() => _apply(r.data!));
+      } else if (_error != null) {
+        setState(() => _error = null);
+      }
     } on ApiException catch (e) {
       if (mounted && !silent) setState(() => _error = e.message);
     }

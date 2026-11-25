@@ -4,15 +4,15 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../api/mybook_api.g.dart' as v1api;
 import '../core/api.dart';
 import '../core/auth.dart';
+import '../core/v1.dart';
 import '../ui/kit.dart';
 import '../ui/tokens.dart';
-import '../api/mybook_api.g.dart' as v1api;
-import '../core/v1.dart';
-import 'crm_web_screen.dart';
 import 'chat_screen.dart';
 import 'client_screen.dart';
+import 'crm_web_screen.dart';
 import 'deal_screen.dart';
 import 'order_details_screen.dart';
 import 'order_files.dart';
@@ -25,6 +25,7 @@ import 'orders_screen.dart' show orderStatusColor;
 class OrderScreen extends StatefulWidget {
   const OrderScreen({super.key, required this.orderId, this.number = 0});
   final String orderId;
+
   /// Номер заказа для шапки; 0 — неизвестен (открыт из уведомления), берётся из ответа сервера.
   final int number;
 
@@ -33,12 +34,13 @@ class OrderScreen extends StatefulWidget {
 }
 
 class _OrderScreenState extends State<OrderScreen> {
-  Map<String, dynamic>? _o;
+  v1api.CrmOrder? _o;
   String? _error;
   bool _changed = false;
   bool _busy = false;
+  v1api.OrderLinks? _links;
 
-  int get _number => widget.number != 0 ? widget.number : ((_o?['number'] as num?)?.toInt() ?? 0);
+  int get _number => widget.number != 0 ? widget.number : (_o?.number ?? 0);
 
   @override
   void initState() {
@@ -49,13 +51,17 @@ class _OrderScreenState extends State<OrderScreen> {
 
   Future<void> _load() async {
     try {
-      final r = await context.read<AuthState>().api.get('/api/mobile/orders/${widget.orderId}') as Map<String, dynamic>;
-      if (mounted) setState(() => _o = r);
+      final r = await v1(context.read<AuthState>().api, (c) => c.crmOrder(orderId: widget.orderId));
+      if (mounted) {
+        setState(() {
+          _o = r;
+          _error = null;
+        });
+      }
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     }
   }
-  v1api.OrderLinks? _links;
 
   Future<void> _loadLinks() async {
     try {
@@ -108,19 +114,18 @@ class _OrderScreenState extends State<OrderScreen> {
     }
   }
 
-
   void _toast(String text) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
 
   Future<void> _setStatus() async {
     final api = context.read<AuthState>().api;
-    List<Map<String, dynamic>> statuses;
+    List<v1api.CrmOrderStatus> statuses;
     try {
-      statuses = [for (final s in ((await api.get('/api/mobile/orders') as Map<String, dynamic>)['statuses'] as List)) s as Map<String, dynamic>];
+      statuses = (await v1(api, (c) => c.crmOrdersList())).statuses;
     } on ApiException catch (e) {
       return _toast(e.message);
     }
     if (!mounted) return;
-    final current = _o!['status'] as String;
+    final current = _o!.status;
     final picked = await showAppSheet<String>(
       context,
       title: 'Перевести заказ',
@@ -130,14 +135,14 @@ class _OrderScreenState extends State<OrderScreen> {
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
           children: [
             // «Оплачен» без записи платежа — только в CRM (приём денег с чеком); отменённый не возвращается в «ждёт оплаты».
-            for (final s in statuses.where((s) => !(current == 'pending_payment' && s['key'] == 'paid') && !(current == 'cancelled' && s['key'] == 'pending_payment')))
+            for (final s in statuses.where((s) => !(current == 'pending_payment' && s.key == 'paid') && !(current == 'cancelled' && s.key == 'pending_payment')))
               GroupTile(
-                title: s['label'] as String,
-                subtitle: s['key'] == current ? 'сейчас' : null,
+                title: s.label,
+                subtitle: s.key == current ? 'сейчас' : null,
                 icon: LucideIcons.circleDot,
-                iconColor: orderStatusColor(sheet, s['key'] as String),
-                trailing: s['key'] == current ? Icon(LucideIcons.check, size: 20, color: sheet.c.brandDeep) : const SizedBox.shrink(),
-                onTap: s['key'] == current ? null : () => Navigator.pop(sheet, s['key'] as String),
+                iconColor: orderStatusColor(sheet, s.key),
+                trailing: s.key == current ? Icon(LucideIcons.check, size: 20, color: sheet.c.brandDeep) : const SizedBox.shrink(),
+                onTap: s.key == current ? null : () => Navigator.pop(sheet, s.key),
               ),
           ],
         ),
@@ -147,7 +152,7 @@ class _OrderScreenState extends State<OrderScreen> {
     if (!await confirm(context, title: 'Перевести заказ №$_number?', message: 'Клиент получит сообщение о смене статуса, если для этого настроены правила.', ok: 'Перевести')) return;
     setState(() => _busy = true);
     try {
-      await api.post('/api/mobile/orders/${widget.orderId}/status', body: {'status': picked});
+      await v1(api, (c) => c.crmOrderDelivery(orderId: widget.orderId, body: v1api.OrderDeliveryBody(status: picked)));
       HapticFeedback.mediumImpact();
       _changed = true;
       await _load();
@@ -167,10 +172,10 @@ class _OrderScreenState extends State<OrderScreen> {
 
   /// Трек-номер — тем же действием, что форма «Доставка» на сайте (статус не меняется; клиенту — по правилам заказа).
   Future<void> _setTracking() async {
-    final track = await promptText(context, title: 'Трек-номер', hint: 'например KZ123456789', initial: (_o!['tracking'] as String?) ?? '');
+    final track = await promptText(context, title: 'Трек-номер', hint: 'например KZ123456789', initial: _o!.tracking ?? '');
     if (track == null || !mounted) return;
     try {
-      final r = await v1(context.read<AuthState>().api, (c) => c.crmOrderDelivery(orderId: widget.orderId, body: v1api.OrderDeliveryBody(status: _o!['status'] as String, trackingNumber: track)));
+      final r = await v1(context.read<AuthState>().api, (c) => c.crmOrderDelivery(orderId: widget.orderId, body: v1api.OrderDeliveryBody(status: _o!.status, trackingNumber: track)));
       _toast(r.message ?? 'Сохранено');
       _changed = true;
       await _load();
@@ -218,41 +223,41 @@ class _OrderScreenState extends State<OrderScreen> {
                     },
                   ),
                   _group(context, 'Получатель', [
-                    _row(context, 'Имя', o['contact']['name'] as String),
-                    if (o['contact']['phone'] != null)
+                    _row(context, 'Имя', o.contact.name),
+                    if (o.contact.phone != null)
                       _row(
                         context,
                         'Телефон',
-                        o['contact']['phone'] as String,
-                        onTap: o['contact']['masked'] == true ? null : () => launchUrl(Uri(scheme: 'tel', path: (o['contact']['phone'] as String).replaceAll(RegExp(r'[^0-9+]'), ''))),
+                        o.contact.phone!,
+                        onTap: o.contact.masked ? null : () => launchUrl(Uri(scheme: 'tel', path: o.contact.phone!.replaceAll(RegExp(r'[^0-9+]'), ''))),
                       ),
-                    if (o['contact']['email'] != null) _row(context, 'E-mail', o['contact']['email'] as String),
-                    if (o['canEdit'] == true && o['contact']['masked'] != true)
+                    if (o.contact.email != null) _row(context, 'E-mail', o.contact.email!),
+                    if (o.canEdit && !o.contact.masked)
                       GroupTile(title: 'Изменить контакты и доставку', subtitle: 'получатель, адрес, дата, открытка', icon: LucideIcons.pencil, onTap: _editDetails),
                   ]),
-                  if (o['delivery'] != null)
+                  if (o.delivery != null)
                     _group(context, 'Доставка', [
-                      _row(context, 'Способ', o['delivery']['method'] as String),
-                      _row(context, 'Адрес', (o['delivery']['address'] as String?) ?? '—'),
-                      if (o['delivery']['quoted'] == true) _note(context, 'Стоимость доставки считается отдельно — в сумму не входит', c.warn, c.warnBg),
-                      if (o['tracking'] != null)
-                        _row(context, 'Трек-номер', o['tracking'] as String, onTap: () => Clipboard.setData(ClipboardData(text: o['tracking'] as String)).then((_) => _toast('Скопировано'))),
-                      if (o['canEdit'] == true)
-                        GroupTile(title: o['tracking'] == null ? 'Указать трек-номер' : 'Изменить трек-номер', subtitle: 'клиент получит его в сообщении о доставке', icon: LucideIcons.truck, onTap: _setTracking),
+                      _row(context, 'Способ', o.delivery!.method),
+                      _row(context, 'Адрес', o.delivery!.address ?? '—'),
+                      if (o.delivery!.quoted) _note(context, 'Стоимость доставки считается отдельно — в сумму не входит', c.warn, c.warnBg),
+                      if (o.tracking != null)
+                        _row(context, 'Трек-номер', o.tracking!, onTap: () => Clipboard.setData(ClipboardData(text: o.tracking!)).then((_) => _toast('Скопировано'))),
+                      if (o.canEdit)
+                        GroupTile(title: o.tracking == null ? 'Указать трек-номер' : 'Изменить трек-номер', subtitle: 'клиент получит его в сообщении о доставке', icon: LucideIcons.truck, onTap: _setTracking),
                     ]),
                   _group(context, 'Книга', [
-                    _row(context, 'Название', (o['book']['title'] as String?) ?? '—'),
-                    _row(context, 'Для кого', [o['book']['author'], o['book']['recipient']].where((e) => e != null && (e as String).isNotEmpty).join(' → ')),
-                    _row(context, 'Тариф', '${o['planName']}${(o['quantity'] as num) > 1 ? ' × ${o['quantity']}' : ''}'),
-                    _row(context, 'Сумма', o['amountLabel'] as String),
-                    if ((o['addons'] as List).isNotEmpty) _row(context, 'Допы', (o['addons'] as List).join(', ')),
+                    _row(context, 'Название', o.book.title.isEmpty ? '—' : o.book.title),
+                    _row(context, 'Для кого', [o.book.author, o.book.recipient].where((e) => e.isNotEmpty).join(' → ')),
+                    _row(context, 'Тариф', '${o.planName}${o.quantity > 1 ? ' × ${o.quantity}' : ''}'),
+                    _row(context, 'Сумма', o.amountLabel),
+                    if (o.addons.isNotEmpty) _row(context, 'Допы', o.addons.join(', ')),
                   ]),
-                  if (o['desiredDate'] != null || o['comment'] != null || o['giftNote'] != null || o['surprise'] == true)
+                  if (o.desiredDate != null || o.comment != null || o.giftNote != null || o.surprise)
                     _group(context, 'Пожелания', [
-                      if (o['desiredDate'] != null) _row(context, 'Нужна к', (o['desiredDate'] as String).split('-').reversed.join('.'), accent: true),
-                      if (o['surprise'] == true) _note(context, 'Сюрприз: не звонить получателю, связываться с заказчиком', c.violet, c.violetBg),
-                      if (o['comment'] != null) _row(context, 'Комментарий', o['comment'] as String),
-                      if (o['giftNote'] != null) _row(context, 'Открытка', '«${o['giftNote']}»'),
+                      if (o.desiredDate != null) _row(context, 'Нужна к', o.desiredDate!.split('-').reversed.join('.'), accent: true),
+                      if (o.surprise) _note(context, 'Сюрприз: не звонить получателю, связываться с заказчиком', c.violet, c.violetBg),
+                      if (o.comment != null) _row(context, 'Комментарий', o.comment!),
+                      if (o.giftNote != null) _row(context, 'Открытка', '«${o.giftNote}»'),
                     ]),
                   OrderFilesSection(orderId: widget.orderId, number: _number),
                   if (_links != null && (_links!.adminNote.isNotEmpty || _links!.canNote))
@@ -264,10 +269,10 @@ class _OrderScreenState extends State<OrderScreen> {
                         onTap: _links!.canNote ? _editNote : null,
                       ),
                     ]),
-                  if ((o['events'] as List).isNotEmpty)
+                  if (o.events.isNotEmpty)
                     _group(context, 'Журнал', [
-                      for (final e in (o['events'] as List).cast<Map<String, dynamic>>())
-                        _row(context, _when(e['at'] as String), [if (e['status'] != null) e['status'], if (e['note'] != null) e['note']].join('. ')),
+                      for (final e in o.events)
+                        _row(context, _when(e.at), [if (e.status != null) e.status!, if (e.note != null) e.note!].join('. ')),
                     ]),
                 ],
               ),
@@ -281,9 +286,9 @@ class _OrderScreenState extends State<OrderScreen> {
     return '${two(d.day)}.${two(d.month)} ${two(d.hour)}:${two(d.minute)}';
   }
 
-  Widget _statusCard(BuildContext context, Map<String, dynamic> o) {
+  Widget _statusCard(BuildContext context, v1api.CrmOrder o) {
     final c = context.c;
-    final color = orderStatusColor(context, o['status'] as String);
+    final color = orderStatusColor(context, o.status);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -302,15 +307,15 @@ class _OrderScreenState extends State<OrderScreen> {
                 decoration: BoxDecoration(color: color, shape: BoxShape.circle),
               ),
               const SizedBox(width: 10),
-              Expanded(child: Text(o['statusLabel'] as String, style: AppText.title(context))),
+              Expanded(child: Text(o.statusLabel, style: AppText.title(context))),
               Text(
-                o['amountLabel'] as String,
+                o.amountLabel,
                 style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: c.text),
               ),
             ],
           ),
-          if (o['claimed'] == true) ...[const SizedBox(height: 10), Tag('клиент сообщил об оплате', fg: c.warn, bg: c.warnBg, icon: LucideIcons.circleDollarSign)],
-          if (o['canEdit'] == true) ...[const SizedBox(height: 14), PrimaryButton(label: 'Сменить статус', icon: LucideIcons.arrowRightLeft, busy: _busy, onPressed: _setStatus)],
+          if (o.claimed) ...[const SizedBox(height: 10), Tag('клиент сообщил об оплате', fg: c.warn, bg: c.warnBg, icon: LucideIcons.circleDollarSign)],
+          if (o.canEdit) ...[const SizedBox(height: 14), PrimaryButton(label: 'Сменить статус', icon: LucideIcons.arrowRightLeft, busy: _busy, onPressed: _setStatus)],
         ],
       ),
     );

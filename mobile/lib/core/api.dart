@@ -22,7 +22,7 @@ class ApiException implements Exception {
 
 /// Клиент API CRM: адрес сервера, токен сессии (Authorization: Bearer) и разбор ответов.
 class ApiClient {
-  ApiClient({required this.baseUrl, this.token});
+  ApiClient({required this.baseUrl, this.token, http.Client? client}) : _http = client ?? http.Client();
 
   String baseUrl;
   String? token;
@@ -30,7 +30,10 @@ class ApiClient {
   /// Вызывается, когда сервер отвечает 401 на запрос с токеном: сессия закрыта, нужен новый вход.
   void Function()? onUnauthorized;
 
-  final http.Client _http = http.Client();
+  final http.Client _http;
+
+  /// Общий HTTP-клиент (keep-alive и подмена в тестах): используется и для API v1.
+  http.Client get httpClient => _http;
 
   Map<String, String> get headers => {
         'Accept': 'application/json',
