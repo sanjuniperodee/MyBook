@@ -1,4 +1,4 @@
-import type { Clock, CustomFieldsReader, LiveFeed, SettingsStore, StaffNotifier, WorkSchedule } from "@/shared/application";
+import type { Clock, CustomFieldsReader, EventBus, LiveFeed, SettingsStore, StaffNotifier, WorkSchedule } from "@/shared/application";
 import { consoleLogger } from "@/shared/application";
 import type { SmtpConfigSource } from "@/shared/infrastructure/mail";
 import { BotCoach, CabinetHelpService, ChatMediaService, MessageActionError, MessagingService, QualifierBot, SELLER_MEDIA_PROMPT, SiteChatService, type AnsweredTasks, type BotBrain, type BotCrm, type BotInvoices, type BotSellerModel, type IncomingRules, type LinkAttribution, type SalesGateway, type Tasks } from "./application";
@@ -22,8 +22,10 @@ import { MATERIAL_MAX_BYTES, MAX_MATERIALS, mediaLine, parseCoachLog, parseLesso
 import { getFile, putFile } from "@/shared/infrastructure/storage";
 import { DrizzleBotStore, DrizzleConversationRepository, DrizzleMessageRepository, DrizzleMessagingQueries, aiParsedSince, atomically, autofillCandidates, drizzleBlocklist, markAiParsed, purgeBotTraces } from "./infrastructure/persistence";
 import { botPreview, botStatus, type BotPreviewInput } from "./application/botPreview";
-import { contactPhone, isMediaPlaceholder, parseRuleSending, type Conversation, type HistoryMessage, type InboundMessage } from "./domain";
+import { contactPhone, isMediaPlaceholder, MessagingEvents, parseRuleSending, type Conversation, type HistoryMessage, type InboundMessage } from "./domain";
 import { normalizePhone } from "@/shared/domain/phone";
+
+export { MessagingEvents, type ManagerReplied, type ManagerReplyPayload, type MessagingEvent } from "./domain";
 
 export { MATERIAL_MAX_BYTES, MAX_MATERIALS, materialsSummary, type BotMaterial, type MaterialKind, type MaterialLang } from "./domain";
 export { DEFAULT_RULE_SENDING, RULE_DAILY_LIMIT_MAX, type RuleSendingPolicy } from "./domain";
@@ -141,6 +143,8 @@ export class MessagingModule {
       sellerModel?: BotSellerModel | null;
       /** Номера действующих сотрудников (Access): переписка с ними — служебная, не заявки. */
       staffPhones?: () => Promise<string[]>;
+      /** Шина доменных событий: публикация ответа живого менеджера клиенту (messaging.manager_replied). */
+      bus?: EventBus;
     } & WorkspacePorts,
   ) {
     const conversations = new DrizzleConversationRepository();
@@ -201,7 +205,8 @@ export class MessagingModule {
     const messages = this.messages;
     // Окно и суточный лимит сообщений от правил — настройки «Интеграции» → «Мессенджеры» (кэш настроек — 10 секунд).
     const ruleSending = async () => parseRuleSending(await deps.settings.get("whatsapp.rulesWindow"), await deps.settings.get("whatsapp.rulesDailyLimit"));
-    this.chats = new MessagingService(conversations, messages, drizzleBlocklist, transport, deps.sales, deps.links, notifier, live, deps.rules, bot, deps.clock, consoleLogger("chats"), deps.whatsapp, () => this.phoneHolder(), ruleSending, this.staffLine, deps.tasks, atomically);
+    const onManagerReply = deps.bus ? (reply: Parameters<typeof MessagingEvents.managerReplied>[0]) => deps.bus!.publish([MessagingEvents.managerReplied(reply)]) : null;
+    this.chats = new MessagingService(conversations, messages, drizzleBlocklist, transport, deps.sales, deps.links, notifier, live, deps.rules, bot, deps.clock, consoleLogger("chats"), deps.whatsapp, () => this.phoneHolder(), ruleSending, this.staffLine, deps.tasks, atomically, onManagerReply);
     this.media = new ChatMediaService(conversations, messages, gowaMediaGateway(this.gowa), async () => (await deps.whatsappSettings.provider()) === "gowa", Date.now, chatFiles);
     // Номер магазина для каталога: привязанный к шлюзу, иначе — из настроек сайта.
     const shopPhone = async () => (await this.gowa.cachedStatus().catch(() => null))?.phone || (await deps.whatsapp());

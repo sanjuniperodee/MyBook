@@ -16,7 +16,7 @@ export { notify, notifyPrefsOf, saveNotifyPrefs, staffNotifier, staffWith } from
 export { DEFAULT_NOTIFY_PREFS, isValidPrefTime, readNotifyPrefs, type NotifyPrefs } from "./domain";
 export { subscribe, type LiveEvent } from "./infrastructure/realtime";
 export { mentionableStaff, notifyMentions } from "./infrastructure/mentions";
-export { readChatNotifications, syncMobileBadge, vapidKeys } from "./infrastructure/push";
+export { pushToClient, readChatNotifications, syncMobileBadge, vapidKeys, type PushPayload } from "./infrastructure/push";
 export { fcmClientOptions, fcmConfig } from "./infrastructure/fcm";
 export { pinnedChats } from "./infrastructure/pinnedChats";
 export { mobileDevices } from "./infrastructure/mobileDevices";

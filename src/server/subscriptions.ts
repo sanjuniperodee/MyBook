@@ -26,6 +26,7 @@ import { orderRuleSubject } from "@/shared/domain/orders";
 import { isOrderRuleStatus } from "@/modules/automation/domain/meta";
 import { runInBackground } from "@/shared/infrastructure/background";
 import { getSetting } from "@/modules/workspace";
+import { registerClientPushSubscriptions } from "./client-push";
 import type { Container } from "./container";
 
 /**
@@ -246,4 +247,27 @@ export function registerSubscriptions(c: Container) {
     async (e) => rules().run("deal.stage_changed", { subject: `${e.payload.dealId}:${e.payload.stageId}:${e.payload.at}`, dealId: e.payload.dealId, clientId: e.payload.clientId, stageId: e.payload.stageId, source: e.payload.source }),
     "crm.automation.deal_stage_changed",
   );
+
+  // ─── клиентские push-уведомления в «MyBooks» (выключаются через notify.auto=off) ──
+  registerClientPushSubscriptions(c.bus, {
+    autoEnabled: async () => (await getSetting("notify.auto")) !== "off",
+    clientLocale: async (userId) => (await c.identity.accounts.account(userId))?.locale ?? "ru",
+    bookInfo: async (bookId) => {
+      const b = await c.authoring.queries.book(bookId);
+      return b ? { title: b.title, language: b.language } : null;
+    },
+    orderInfo: async (orderId) => {
+      const o = await c.ordering.queries.orderDetails(orderId);
+      return o ? { status: o.status, bookId: o.bookId, number: o.number, trackingNumber: o.trackingNumber } : null;
+    },
+    dealInfo: async (dealId) => {
+      const d = await c.sales.deals.findById(dealId);
+      return d ? { clientId: d.clientId, orderId: d.orderId } : null;
+    },
+    findClientByPhone: (phone) => c.sales.deals.findClientByPhone(phone),
+    latestBookId: async (userId) => (await c.authoring.queries.userBooks(userId))[0]?.book.id ?? null,
+    send: async (userId, payload) => {
+      await (await notify()).pushToClient(userId, payload);
+    },
+  });
 }

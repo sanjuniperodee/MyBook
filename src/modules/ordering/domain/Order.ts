@@ -621,7 +621,9 @@ export class Order extends AggregateRoot<OrderProps> {
   }
 
   recordPrintSpec(spec: OrderPrintSpec) {
+    const first = !this.props.printSpec;
     this.props.printSpec = spec;
+    if (first) this.record(OrderingEvents.printFilesReady({ ...this.ref(), pageCount: spec.pageCount }));
   }
 
   private log(status: OrderStatus | null, note: string, actor: string, at: Date) {

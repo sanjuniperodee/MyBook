@@ -123,6 +123,7 @@ export class Container {
   /** Переписка создаёт и ведёт сделки через порт продаж, а правила на входящие — через движок автоматизаций. */
   get messaging(): MessagingModule {
     return (this.#messaging ??= new MessagingModule({
+      bus: this.bus,
       clock: this.clock,
       settings: this.workspace.settings,
       notifier: this.workspace.notifier,

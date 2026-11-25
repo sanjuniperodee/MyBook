@@ -2,6 +2,7 @@ package kz.mybooks.mybooks_seller
 
 import android.content.Intent
 import androidx.core.app.NotificationManagerCompat
+import com.google.firebase.FirebaseApp
 import com.google.firebase.messaging.FirebaseMessaging
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -22,6 +23,21 @@ class MainActivity : FlutterActivity() {
         val ch = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "kz.mybooks.mybooksSeller/push")
         ch.setMethodCallHandler { call, result ->
             when (call.method) {
+                "register" -> {
+                    if (FirebaseApp.getApps(this).isEmpty()) {
+                        result.success(null)
+                        return@setMethodCallHandler
+                    }
+                    try {
+                        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+                            if (task.isSuccessful && task.result != null) ch.invokeMethod("token", task.result)
+                            else ch.invokeMethod("error", task.exception?.message ?: "token")
+                        }
+                        result.success(null)
+                    } catch (e: Exception) {
+                        result.error("fcm", e.message, null)
+                    }
+                }
                 "registerAndroid" -> {
                     @Suppress("UNCHECKED_CAST")
                     val o = call.arguments as? Map<String, String>

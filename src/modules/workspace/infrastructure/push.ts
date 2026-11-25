@@ -22,11 +22,13 @@ export async function vapidKeys() {
   return { publicKey, privateKey };
 }
 
-interface PushPayload {
+export interface PushPayload {
   title: string;
   body?: string;
   link?: string | null;
   tag?: string;
+  /** Дополнительные поля data (kind, bookId, orderId) — для навигации по тапу в клиентском приложении. */
+  data?: Record<string, string | undefined>;
 }
 
 /** Непрочитанные уведомления сотрудников — число на значке приложения. */
@@ -69,8 +71,8 @@ async function pushToApp(app: "crm" | "client", userIds: string[], payload: Push
       const badge = app === "crm" ? (unread.get(d.userId) ?? 0) : undefined;
       const result =
         d.platform === "android"
-          ? await sendFcm(fcm!, d.token, { title: payload.title, body: payload.body, link: payload.link, tag: payload.tag, kind: payload.kind, badge })
-          : await sendApns(apns!, d, { title: payload.title, body: payload.body, link: payload.link, badge, collapseId: payload.tag });
+          ? await sendFcm(fcm!, d.token, { title: payload.title, body: payload.body, link: payload.link, tag: payload.tag, kind: payload.kind, badge, data: payload.data })
+          : await sendApns(apns!, d, { title: payload.title, body: payload.body, link: payload.link, badge, collapseId: payload.tag, threadId: app, data: payload.data });
       if (result === "gone") await db.delete(crmMobileDevices).where(eq(crmMobileDevices.id, d.id));
     }),
   );

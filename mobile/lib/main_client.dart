@@ -14,6 +14,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('ru');
   final session = ClientSession();
+  await session.push.init();
   await session.restore();
   runApp(ChangeNotifierProvider.value(value: session, child: const ClientApp()));
 }
@@ -23,7 +24,9 @@ class ClientApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final push = context.read<ClientSession>().push;
     return MaterialApp(
+      navigatorKey: push.navigatorKey,
       title: 'MyBooks',
       debugShowCheckedModeBanner: false,
       theme: buildTheme(Brightness.light, client: true),
@@ -41,7 +44,11 @@ class _Root extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return switch (context.watch<ClientSession>().status) {
+    final session = context.watch<ClientSession>();
+    if (session.status == ClientStatus.loggedIn && session.push.pendingTarget != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => session.push.flushPending());
+    }
+    return switch (session.status) {
       ClientStatus.loading => Scaffold(backgroundColor: context.c.bg, body: const Center(child: CircularProgressIndicator())),
       ClientStatus.loggedOut => const ClientLoginScreen(),
       ClientStatus.loggedIn => const ClientHome(),

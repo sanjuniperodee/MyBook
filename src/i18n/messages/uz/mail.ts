@@ -194,4 +194,25 @@ export const mail: typeof ru = {
     more: "Har bir keyingi do‘st uchun — yana shunday promokod.",
     button: "Mening takliflarim",
   },
+  push: {
+    bookReady: {
+      title: "Kitob tayyor",
+      body: (n: number) => `№${n} buyurtma bo‘yicha kitob sahifalanishi tayyor — ilovada ochishingiz mumkin.`,
+      bodyWithTitle: (book: string) => `«${book}» kitobi sahifalandi va tayyor — ilovada oching.`,
+    },
+    orderPaid: {
+      title: "Buyurtma to‘landi",
+      bodyPrinted: (n: number) => `№${n} buyurtma to‘landi — kitobni bosmaga tayyorlayapmiz.`,
+      bodyDigital: (n: number) => `№${n} buyurtma to‘landi — elektron kitob ochiq.`,
+    },
+    orderShipped: {
+      title: "Buyurtma yuborildi",
+      body: (n: number) => `№${n} buyurtmadagi kitob yo‘lda.`,
+      bodyTracking: (n: number, track: string) => `№${n} buyurtma yo‘lda. Trek-raqam: ${track}`,
+    },
+    managerReply: {
+      title: "Menejer javobi",
+      bodyFallback: "Menejer xabaringizga javob berdi.",
+    },
+  },
 };

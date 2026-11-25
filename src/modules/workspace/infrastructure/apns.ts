@@ -60,7 +60,7 @@ function providerToken(cfg: ApnsConfig, nowSec = Math.floor(Date.now() / 1000)) 
 export interface ApnsMessage {
   title: string;
   body?: string;
-  /** Куда ведёт уведомление в CRM (/admin/chats?c=…): приложение открывает диалог или сделку. */
+  /** Куда ведёт уведомление (/admin/chats?c=…, /books/…, /orders/…): приложение открывает нужный экран. */
   link?: string | null;
   /** Число на значке приложения. */
   badge?: number;
@@ -68,6 +68,10 @@ export interface ApnsMessage {
   collapseId?: string;
   /** Только обновить число на значке — без текста и звука (сотрудник прочитал на другом устройстве). */
   badgeOnly?: boolean;
+  /** Группа уведомлений в шторке iOS (по умолчанию "crm"; для клиентского приложения — "client"). */
+  threadId?: string;
+  /** Дополнительные поля (kind, bookId, orderId) — для навигации по тапу в клиентском приложении. */
+  data?: Record<string, string | undefined>;
 }
 
 /** apns-collapse-id — не длиннее 64 байт: длинный тег сворачивается в хеш. */
@@ -76,15 +80,31 @@ export function collapseKey(tag: string): string {
   return `h:${createHash("sha1").update(tag).digest("base64url")}`;
 }
 
+export interface ApnsBodyPayload {
+  aps: { alert?: { title: string; body: string }; sound?: string; badge?: number; "thread-id"?: string };
+  NotificationId?: number;
+  presentAlert?: boolean;
+  presentSound?: boolean;
+  presentBadge?: boolean;
+  presentBanner?: boolean;
+  presentList?: boolean;
+  payload?: string;
+  [key: string]: unknown;
+}
+
 /**
  * Тело push. Служебные ключи (NotificationId, presentAlert…) — чтобы плагин локальных уведомлений в приложении узнал
  * его «своим»: по нажатию приложение получает payload и открывает нужный экран, а на открытом экране система ничего
  * не показывает — приложение рисует свою плашку.
  */
-export function apnsBody(m: ApnsMessage) {
+export function apnsBody(m: ApnsMessage): ApnsBodyPayload {
   if (m.badgeOnly) return { aps: { badge: m.badge ?? 0 } };
+  const extra: Record<string, string> = {};
+  if (m.data) {
+    for (const [k, v] of Object.entries(m.data)) if (v !== undefined && v !== "") extra[k] = v;
+  }
   return {
-    aps: { alert: { title: m.title.slice(0, 120), body: (m.body ?? "").slice(0, 240) }, sound: "default", ...(m.badge !== undefined ? { badge: m.badge } : {}), "thread-id": "crm" },
+    aps: { alert: { title: m.title.slice(0, 120), body: (m.body ?? "").slice(0, 240) }, sound: "default", ...(m.badge !== undefined ? { badge: m.badge } : {}), "thread-id": m.threadId ?? "crm" },
     NotificationId: (m.link ?? m.title).split("").reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) | 0, 7) & 0x7fffffff,
     presentAlert: false,
     presentSound: false,
@@ -92,6 +112,7 @@ export function apnsBody(m: ApnsMessage) {
     presentBanner: false,
     presentList: false,
     payload: m.link ?? "",
+    ...extra,
   };
 }
 
