@@ -11,6 +11,7 @@ import '../../core/api.dart';
 import '../../ui/kit.dart';
 import '../../ui/tokens.dart';
 import '../data/session.dart';
+import 'book_stages.dart';
 import '../ui/book_chrome.dart';
 import '../ui/cabinet.dart';
 
@@ -157,7 +158,9 @@ class _LettersScreenState extends State<LettersScreen> {
       appBar: BookHeader(bookId: h.id, title: h.title, kind: h.kind, coverUrl: h.coverThumbUrl),
       body: v == null
           ? (_error == null ? const Center(child: CircularProgressIndicator()) : EmptyState(icon: LucideIcons.wifiOff, title: _error!, action: 'Повторить', onAction: _load))
-          : RefreshIndicator(
+          : Column(children: [
+              BookStageTabs(hub: h, active: 'letters'),
+              Expanded(child: RefreshIndicator(
               color: c.brand,
               onRefresh: _load,
               child: ListView(
@@ -175,7 +178,8 @@ class _LettersScreenState extends State<LettersScreen> {
                   ..._list(v),
                 ],
               ),
-            ),
+            )),
+            ]),
     );
   }
 

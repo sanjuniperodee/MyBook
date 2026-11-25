@@ -12,11 +12,10 @@ import '../../core/api.dart';
 import '../../ui/kit.dart';
 import '../../ui/tokens.dart';
 import '../data/session.dart';
+import 'book_stages.dart';
 import '../ui/book_chrome.dart';
 import '../ui/cabinet.dart';
-import '../ui/motion.dart';
 import 'book3d_view.dart';
-import 'checkout_screen.dart';
 
 /// Макет книги — как на сайте (/books/[id]/preview): «Читать» — полосы настоящего макета (экранная сборка того же PDF,
 /// что уйдёт в типографию) с листанием и ползунком или все подряд; «3D-книга» — книга, которую можно крутить пальцем.
@@ -129,12 +128,13 @@ class _PreviewScreenState extends State<PreviewScreen> {
                 child: CabinetButton(
                   label: 'Всё отлично — заказать',
                   large: false,
-                  onPressed: () => Navigator.of(context).push(CabinetRoute<void>(builder: (_) => CheckoutScreen(bookId: h.id, bookTitle: h.title))),
+                  onPressed: () => openBookStage(context, h, 'order', from: 'preview'),
                 ),
               ),
             )
           : null,
       body: Column(children: [
+        BookStageTabs(hub: h, active: 'preview'),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 18, 16, 12),
           child: Row(children: [

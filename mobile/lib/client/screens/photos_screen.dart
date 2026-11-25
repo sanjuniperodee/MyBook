@@ -12,6 +12,7 @@ import '../../ui/kit.dart';
 import '../../ui/tokens.dart';
 import '../data/session.dart';
 import '../data/stores.dart';
+import 'book_stages.dart';
 import '../ui/book_chrome.dart';
 import '../ui/cabinet.dart';
 import 'help_sheet.dart';
@@ -160,11 +161,7 @@ class _PhotosScreenState extends State<PhotosScreen> {
           ? (_error == null ? const Center(child: CircularProgressIndicator()) : EmptyState(icon: LucideIcons.wifiOff, title: 'Фото не открылись', hint: _error, action: 'Повторить', onAction: _load))
           : Column(children: [
               if (h != null)
-                StepTabs(
-                  steps: [for (final s in h.steps) if (s.key == 'write' || s.key == 'photos') BookStep(key: s.key, label: s.title, status: s.status, fraction: s.fraction)],
-                  active: 'photos',
-                  onTap: (k) => k == 'photos' ? null : Navigator.of(context).maybePop(),
-                ),
+                BookStageTabs(hub: h, active: 'photos'),
               Expanded(
                 child: RefreshIndicator(
                   color: c.brand,

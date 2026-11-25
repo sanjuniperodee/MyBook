@@ -397,10 +397,15 @@ class _FakeSession extends ChangeNotifier implements ClientSession {
   ClientBackend get backend => _backend;
   @override
   ClientUser? get user => const ClientUser(id: 'u1', name: 'Айгерим', phone: '+77001112233');
+  @override
+  final Map<String, v1api.CabinetBook> hubs = {};
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
+
+/// Вертикальная прокрутка экрана (над ней — горизонтальная лента этапов книги).
+final _page = find.byWidgetPredicate((w) => w is Scrollable && w.axisDirection == AxisDirection.down).first;
 
 v1api.CabinetBook _fakeHub() => const v1api.CabinetBook(
       id: _bookId,
@@ -581,11 +586,11 @@ void main() {
       await tester.ensureVisible(find.text('Текст'));
       await tester.tap(find.text('Текст'));
       await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(find.text('Декоративные линии'), 200, scrollable: find.byType(Scrollable).first);
+      await tester.scrollUntilVisible(find.text('Декоративные линии'), 200, scrollable: _page);
       expect(find.text('Декоративные линии'), findsOneWidget);
 
       // 3. Возвращаемся вверх и переходим в нативный «Конструктор» → вызывается coverDesignInit
-      await tester.scrollUntilVisible(find.text('Конструктор'), -300, scrollable: find.byType(Scrollable).first);
+      await tester.scrollUntilVisible(find.text('Конструктор'), -300, scrollable: _page);
       await tester.tap(find.text('Конструктор'));
       await tester.pumpAndSettle();
       expect(calls, contains('POST /api/v1/books/$_bookId/cover/design/init'));
@@ -596,7 +601,7 @@ void main() {
       expect(find.text('Фон'), findsOneWidget);
 
       // 4. Добавляем декоративную рамку («Двойная рамка») из вкладки «Добавить» → сохраняется через PUT /cover/design
-      await tester.scrollUntilVisible(find.text('Двойная рамка'), 200, scrollable: find.byType(Scrollable).first);
+      await tester.scrollUntilVisible(find.text('Двойная рамка'), 200, scrollable: _page);
       await tester.ensureVisible(find.text('Двойная рамка'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Двойная рамка'));
@@ -605,7 +610,7 @@ void main() {
       expect((state['cover']['coverDesign']['layers'] as List).length, 2);
 
       // 5. Undo возвращает к 1 слою
-      await tester.scrollUntilVisible(find.byIcon(LucideIcons.undo2), -300, scrollable: find.byType(Scrollable).first);
+      await tester.scrollUntilVisible(find.byIcon(LucideIcons.undo2), -300, scrollable: _page);
       await tester.ensureVisible(find.byIcon(LucideIcons.undo2));
       await tester.pumpAndSettle();
       await tester.tap(find.byIcon(LucideIcons.undo2));
@@ -613,12 +618,12 @@ void main() {
       expect((state['cover']['coverDesign']['layers'] as List).length, 1);
 
       // 6. Применяем готовый макет «Золото» во вкладке «Макеты»
-      await tester.scrollUntilVisible(find.text('Макеты'), 200, scrollable: find.byType(Scrollable).first);
+      await tester.scrollUntilVisible(find.text('Макеты'), 200, scrollable: _page);
       await tester.ensureVisible(find.text('Макеты'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Макеты'));
       await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(find.text('Золото'), 200, scrollable: find.byType(Scrollable).first);
+      await tester.scrollUntilVisible(find.text('Золото'), 200, scrollable: _page);
       await tester.ensureVisible(find.text('Золото'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Золото'));
@@ -626,7 +631,7 @@ void main() {
       expect(state['cover']['coverDesign']['background']['kind'], 'color');
 
       // 7. Переключаем на «Оборот» прямо в конструкторе → вызывается coverDesignInit(side: back)
-      await tester.scrollUntilVisible(find.text('Оборот'), -300, scrollable: find.byType(Scrollable).first);
+      await tester.scrollUntilVisible(find.text('Оборот'), -300, scrollable: _page);
       await tester.ensureVisible(find.text('Оборот'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Оборот'));
@@ -637,7 +642,7 @@ void main() {
       await tester.ensureVisible(find.text('Лицо'));
       await tester.tap(find.text('Лицо'));
       await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(find.byIcon(LucideIcons.rotateCcw), 200, scrollable: find.byType(Scrollable).first);
+      await tester.scrollUntilVisible(find.byIcon(LucideIcons.rotateCcw), 200, scrollable: _page);
       await tester.ensureVisible(find.byIcon(LucideIcons.rotateCcw));
       await tester.pumpAndSettle();
       await tester.tap(find.byIcon(LucideIcons.rotateCcw));

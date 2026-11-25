@@ -13,6 +13,7 @@ import '../data/session.dart';
 import '../ui/book_chrome.dart';
 import '../ui/cabinet.dart';
 import '../ui/motion.dart';
+import 'book_stages.dart';
 import 'order_screen.dart';
 
 /// Оформление заказа — как на сайте (CheckoutForm на телефоне): шаги «Тариф» → «Доставка» (или «Контакты» у электронной)
@@ -193,17 +194,23 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final c = context.c;
     final m = _model;
     final steps = ['Тариф', _printed ? 'Доставка' : 'Контакты', 'Оплата'];
+    final hub = context.read<ClientSession>().hubs[widget.bookId];
+    void back() => _step > 0 ? setState(() => _step--) : Navigator.of(context).maybePop();
     return Scaffold(
       backgroundColor: c.bg,
-      appBar: AppBar(
-        backgroundColor: c.bg,
-        surfaceTintColor: Colors.transparent,
-        leading: IconButton(icon: Icon(LucideIcons.chevronLeft, color: c.textMuted), onPressed: () => _step > 0 ? setState(() => _step--) : Navigator.of(context).maybePop()),
-        title: Text(m?.title ?? 'Оформление', style: AppText.serif(context, size: 24, weight: FontWeight.w500)),
-      ),
+      // Шапка и лента книги — общие для всех этапов; «назад» — шаг назад внутри оформления.
+      appBar: hub != null
+          ? BookHeader(bookId: hub.id, title: hub.title, kind: hub.kind, coverUrl: hub.coverThumbUrl, onBack: back)
+          : AppBar(
+              backgroundColor: c.bg,
+              surfaceTintColor: Colors.transparent,
+              leading: IconButton(icon: Icon(LucideIcons.chevronLeft, color: c.textMuted), onPressed: back),
+              title: Text(m?.title ?? 'Оформление', style: AppText.serif(context, size: 24, weight: FontWeight.w500)),
+            ),
       body: m == null
           ? (_error == null ? const Center(child: CircularProgressIndicator()) : EmptyState(icon: LucideIcons.wifiOff, title: 'Не открылось', hint: _error, action: 'Повторить', onAction: _load))
           : Column(children: [
+              if (hub != null) BookStageTabs(hub: hub, active: 'order'),
               _Stepper(steps: steps, current: _step, onGo: (i) => i < _step ? setState(() => _step = i) : null),
               Expanded(
                 child: ListView(

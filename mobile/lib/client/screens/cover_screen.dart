@@ -11,6 +11,7 @@ import '../../core/api.dart';
 import '../../ui/kit.dart';
 import '../../ui/tokens.dart';
 import '../data/session.dart';
+import 'book_stages.dart';
 import '../ui/book_chrome.dart';
 import '../ui/cabinet.dart';
 import 'cover_designer.dart';
@@ -473,7 +474,10 @@ class _CoverScreenState extends State<CoverScreen> {
                   action: MaterialLocalizations.of(context).refreshIndicatorSemanticLabel,
                   onAction: _load,
                 ))
-          : _body(v),
+          : Column(children: [
+              BookStageTabs(hub: h, active: 'design'),
+              Expanded(child: _body(v)),
+            ]),
     );
   }
 

@@ -15,6 +15,7 @@ import '../ui/book_chrome.dart';
 import '../ui/cabinet.dart';
 import '../ui/motion.dart';
 import 'answer_screen.dart';
+import 'book_stages.dart';
 import 'checkout_screen.dart';
 import 'cover_screen.dart';
 import 'letters_screen.dart';
@@ -201,17 +202,6 @@ class _BookScreenState extends State<BookScreen> {
     _loadHub();
   }
 
-  List<BookStep> _steps(v1api.CabinetBook h) => [
-    for (final s in h.steps)
-      if (s.key == 'write' || s.key == 'photos' || s.key == 'design' || s.key == 'order')
-        BookStep(
-          key: s.key,
-          label: s.title,
-          status: s.status,
-          fraction: s.fraction,
-        ),
-  ];
-
   @override
   Widget build(BuildContext context) {
     final c = context.c;
@@ -240,21 +230,12 @@ class _BookScreenState extends State<BookScreen> {
                   ))
           : Column(
               children: [
-                StepTabs(
-                  steps: _steps(h),
+                BookStageTabs(
+                  hub: h,
                   active: 'hub',
-                  preview: h.preview.tab,
-                  letters: h.letters.tab,
-                  onTap: (k) {
-                    if (k == 'preview') _preview();
-                    if (k == 'letters') _letters();
-                    if (k == 'write') _write(null);
-                    if (k == 'photos') _photos();
-                    if (k == 'design') _cover();
-                    if (k == 'order') {
-                      final step = h.steps.where((s) => s.key == 'order').firstOrNull;
-                      _target(step?.href ?? '/books/${h.id}/checkout')?.call();
-                    }
+                  onTap: (k) async {
+                    await openBookStage(context, h, k, from: 'hub');
+                    _loadHub();
                   },
                 ),
                 Expanded(

@@ -16,7 +16,11 @@ class BookHeader extends StatelessWidget implements PreferredSizeWidget {
     required this.kind,
     required this.coverUrl,
     this.actions = const [],
+    this.onBack,
   });
+
+  /// Своя «назад» (оформление заказа — шаг назад внутри); по умолчанию — закрыть экран.
+  final VoidCallback? onBack;
   final String bookId;
   final String title;
   final String kind;
@@ -42,7 +46,7 @@ class BookHeader extends StatelessWidget implements PreferredSizeWidget {
             children: [
               IconButton(
                 icon: Icon(LucideIcons.chevronLeft, color: c.textMuted),
-                onPressed: () => Navigator.of(context).maybePop(),
+                onPressed: onBack ?? () => Navigator.of(context).maybePop(),
               ),
               if (coverUrl.isNotEmpty)
                 Padding(
@@ -219,7 +223,7 @@ class BookStep {
 }
 
 /// Лента разделов книги (BookTabs): «Обзор» и шаги пути через тире; активный подчёркнут винной чертой.
-class StepTabs extends StatelessWidget {
+class StepTabs extends StatefulWidget {
   const StepTabs({
     super.key,
     required this.steps,
@@ -227,8 +231,12 @@ class StepTabs extends StatelessWidget {
     required this.onTap,
     this.preview,
     this.letters,
+    this.memory,
   });
   final List<BookStep> steps;
+
+  /// Ключ памяти прокрутки (id книги): лента на всех экранах книги стоит там же, где была, — не прыгает к началу.
+  final String? memory;
 
   /// «Письма» — после «Макет и 3D», как в ленте книги сайта; ключ 'letters', подпись с сервера.
   final String? letters;
@@ -241,11 +249,77 @@ class StepTabs extends StatelessWidget {
   final ValueChanged<String> onTap;
 
   @override
+  State<StepTabs> createState() => _StepTabsState();
+}
+
+class _StepTabsState extends State<StepTabs> {
+  static final _offsets = <String, double>{};
+  late final _scroll = ScrollController(initialScrollOffset: _offsets[widget.memory] ?? 0);
+  final _activeKey = GlobalKey();
+
+  @override
+  void initState() {
+    super.initState();
+    _scroll.addListener(() {
+      if (widget.memory != null) _offsets[widget.memory!] = _scroll.offset;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _reveal());
+  }
+
+  Animation<double>? _cover;
+
+  /// Экран снова наверху (этап поверх закрылся): лента встаёт как на закрывшемся экране и показывает активный пункт.
+  void _onCover(AnimationStatus st) {
+    if (st != AnimationStatus.reverse || !_scroll.hasClients) return;
+    final at = _offsets[widget.memory];
+    if (at != null) _scroll.jumpTo(at.clamp(0, _scroll.position.maxScrollExtent));
+    // Экран под закрывающимся только что вернулся на сцену — раскладка будет в следующем кадре.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _reveal());
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final a = ModalRoute.of(context)?.secondaryAnimation;
+    if (a != _cover) {
+      _cover?.removeStatusListener(_onCover);
+      _cover = a?..addStatusListener(_onCover);
+    }
+  }
+
+  @override
+  void didUpdateWidget(StepTabs old) {
+    super.didUpdateWidget(old);
+    if (old.active != widget.active) WidgetsBinding.instance.addPostFrameCallback((_) => _reveal());
+  }
+
+  /// Активный этап — целиком в ленте: прокрутка только если он за краем.
+  void _reveal() {
+    final ctx = _activeKey.currentContext;
+    if (ctx == null || !mounted) return;
+    Scrollable.ensureVisible(ctx, alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd);
+    Scrollable.ensureVisible(ctx, alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtStart);
+  }
+
+  @override
+  void dispose() {
+    _cover?.removeStatusListener(_onCover);
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final c = context.c;
+    final steps = widget.steps;
+    final active = widget.active;
+    final onTap = widget.onTap;
+    final preview = widget.preview;
+    final letters = widget.letters;
     Widget tab(String key, Widget lead, String label) {
       final on = key == active;
       return InkWell(
+        key: on ? _activeKey : null,
         onTap: () => onTap(key),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -320,11 +394,11 @@ class StepTabs extends StatelessWidget {
           ),
         ),
       );
-      items.add(tab('preview', Icon(LucideIcons.box, size: 18, color: c.brand), preview!));
+      items.add(tab('preview', Icon(LucideIcons.box, size: 18, color: c.brand), preview));
     }
     if (letters != null) {
       items.add(const SizedBox(width: 14));
-      items.add(tab('letters', Icon(LucideIcons.mail, size: 18, color: c.textMuted), letters!));
+      items.add(tab('letters', Icon(LucideIcons.mail, size: 18, color: c.textMuted), letters));
     }
     return Container(
       height: 52,
@@ -332,10 +406,12 @@ class StepTabs extends StatelessWidget {
         color: c.bg,
         border: Border(bottom: BorderSide(color: c.border)),
       ),
-      child: ListView(
+      // Пунктов немного — строим все сразу (не ListView): активный пункт всегда есть, чтобы докрутить к нему.
+      child: SingleChildScrollView(
+        controller: _scroll,
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
-        children: items,
+        child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: items),
       ),
     );
   }

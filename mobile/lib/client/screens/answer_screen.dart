@@ -13,6 +13,7 @@ import '../../ui/tokens.dart';
 import '../data/models.dart';
 import '../data/session.dart';
 import '../data/stores.dart';
+import 'book_stages.dart';
 import '../ui/book_chrome.dart';
 import '../ui/cabinet.dart';
 import '../ui/motion.dart';
@@ -206,6 +207,7 @@ class _AnswerScreenState extends State<AnswerScreen> {
         top: false,
         child: Column(
           children: [
+            if (h != null) BookStageTabs(hub: h, active: 'write'),
             // Строка редактора: глава и раздел, отметка сохранения.
             Container(
               height: 56,
