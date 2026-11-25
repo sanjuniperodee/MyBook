@@ -152,7 +152,7 @@ class _OrderScreenState extends State<OrderScreen> {
     if (!await confirm(context, title: 'Перевести заказ №$_number?', message: 'Клиент получит сообщение о смене статуса, если для этого настроены правила.', ok: 'Перевести')) return;
     setState(() => _busy = true);
     try {
-      await v1(api, (c) => c.crmOrderDelivery(orderId: widget.orderId, body: v1api.OrderDeliveryBody(status: picked)));
+      await v1(api, (c) => c.crmOrderStatus(orderId: widget.orderId, body: v1api.CrmOrderStatusBody(status: picked)));
       HapticFeedback.mediumImpact();
       _changed = true;
       await _load();

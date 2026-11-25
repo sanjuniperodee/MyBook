@@ -4,11 +4,13 @@ import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
+import '../api/mybook_api.g.dart' as v1api;
 import '../core/api.dart';
 import '../core/auth.dart';
 import '../core/contact_actions.dart';
 import '../core/format.dart';
 import '../core/tasks_store.dart';
+import '../core/v1.dart';
 import '../models/work.dart';
 import '../ui/kit.dart';
 import '../ui/tokens.dart';
@@ -32,7 +34,7 @@ class TaskDetailScreen extends StatefulWidget {
 }
 
 class _TaskDetailScreenState extends State<TaskDetailScreen> {
-  Map<String, dynamic>? _d;
+  v1api.CrmTaskDetail? _d;
   CrmTask? _task;
   String? _error;
 
@@ -44,11 +46,11 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
   Future<void> _load() async {
     try {
-      final r = await context.read<AuthState>().api.get('/api/mobile/tasks/${widget.taskId}') as Map<String, dynamic>;
+      final r = await v1(context.read<AuthState>().api, (c) => c.crmTaskGet(taskId: widget.taskId));
       if (!mounted) return;
       setState(() {
         _d = r;
-        _task = CrmTask.fromJson(r['item'] as Map<String, dynamic>);
+        _task = CrmTask.fromJson(r.item.toJson());
         _error = null;
       });
     } on ApiException catch (e) {
@@ -120,12 +122,12 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
                 children: [
                   _head(context, d, t),
-                  if (d['deal'] != null) _dealCard(context, d['deal'] as Map<String, dynamic>),
-                  if (d['client'] != null || (d['contact'] as Map<String, dynamic>)['name'] != null) _clientCard(context, d, t),
-                  if (d['order'] != null && staff.can('orders.view')) _orderCard(context, d['order'] as Map<String, dynamic>),
-                  if (d['chat'] != null) _chatCard(context, d['chat'] as Map<String, dynamic>),
-                  if ((d['others'] as List).isNotEmpty) _others(context, (d['others'] as List).cast<Map<String, dynamic>>()),
-                  if ((d['notes'] as List).isNotEmpty) _notes(context, (d['notes'] as List).cast<Map<String, dynamic>>()),
+                  if (d.deal != null) _dealCard(context, d.deal!),
+                  if (d.client != null || d.contact.name != null) _clientCard(context, d, t),
+                  if (d.order != null && staff.can('orders.view')) _orderCard(context, d.order!),
+                  if (d.chat != null) _chatCard(context, d.chat!),
+                  if (d.others.isNotEmpty) _others(context, d.others),
+                  if (d.notes.isNotEmpty) _notes(context, d.notes),
                 ],
               ),
             ),
@@ -168,9 +170,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     );
   }
 
-  Widget _head(BuildContext context, Map<String, dynamic> d, CrmTask t) {
+  Widget _head(BuildContext context, v1api.CrmTaskDetail d, CrmTask t) {
     final c = context.c;
-    final task = d['task'] as Map<String, dynamic>;
+    final task = d.task;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -217,14 +219,14 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 )
               else
                 Tag('без срока', fg: c.textMuted, bg: c.border),
-              Tag(task['assignee'] != null ? '${task['assignee']}' : 'ничья', fg: c.textMuted, bg: c.border, icon: LucideIcons.user),
+              Tag(task.assignee ?? 'ничья', fg: c.textMuted, bg: c.border, icon: LucideIcons.user),
             ],
           ),
-          if ((task['result'] as String? ?? '').isNotEmpty) ...[
+          if (task.result.isNotEmpty) ...[
             const SizedBox(height: 12),
             Text('Результат', style: AppText.label(context)),
             const SizedBox(height: 4),
-            Text(task['result'] as String, style: TextStyle(fontSize: 15, height: 1.35, color: c.text)),
+            Text(task.result, style: TextStyle(fontSize: 15, height: 1.35, color: c.text)),
           ],
           if (t.editable) ...[
             const SizedBox(height: 14),
@@ -257,17 +259,17 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     );
   }
 
-  Widget _dealCard(BuildContext context, Map<String, dynamic> deal) {
+  Widget _dealCard(BuildContext context, v1api.CrmTaskDetailDeal deal) {
     final c = context.c;
-    final stage = deal['stage'] as Map<String, dynamic>?;
+    final stage = deal.stage;
     return _section(
       context,
       'Сделка',
-      onTap: () => _push(DealScreen(dealId: deal['id'] as String)),
+      onTap: () => _push(DealScreen(dealId: deal.id)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('№${deal['number']} · ${deal['title']}', style: AppText.headline(context)),
+          Text('№${deal.number} · ${deal.title}', style: AppText.headline(context)),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -277,22 +279,22 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               if (stage != null)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                  decoration: BoxDecoration(color: hexColor(stage['color'] as String), borderRadius: BorderRadius.circular(12)),
+                  decoration: BoxDecoration(color: hexColor(stage.color), borderRadius: BorderRadius.circular(12)),
                   child: Text(
-                    stage['name'] as String,
+                    stage.name,
                     style: const TextStyle(color: Colors.white, fontSize: 12.5, fontWeight: FontWeight.w600),
                   ),
                 ),
-              if (deal['amountLabel'] != null)
+              if (deal.amountLabel != null)
                 Text(
-                  deal['amountLabel'] as String,
+                  deal.amountLabel!,
                   style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: c.text),
                 ),
             ],
           ),
           const SizedBox(height: 6),
           Text(
-            '${deal['source']}${deal['assignee'] != null ? ' · ведёт ${deal['assignee']}' : ' · без ответственного'}${deal['unsorted'] == true ? ' · неразобранная' : ''}',
+            '${deal.source}${deal.assignee != null ? ' · ведёт ${deal.assignee}' : ' · без ответственного'}${deal.unsorted ? ' · неразобранная' : ''}',
             style: AppText.caption(context),
           ),
         ],
@@ -300,30 +302,30 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     );
   }
 
-  Widget _clientCard(BuildContext context, Map<String, dynamic> d, CrmTask t) {
+  Widget _clientCard(BuildContext context, v1api.CrmTaskDetail d, CrmTask t) {
     final c = context.c;
-    final client = d['client'] as Map<String, dynamic>?;
-    final contact = d['contact'] as Map<String, dynamic>;
+    final client = d.client;
+    final contact = d.contact;
     final reach = t.contact;
     final canCall = reach != null && (reach.phone != null || reach.pbx);
     final canChat = reach != null && reach.chat;
     return _section(
       context,
       'Клиент',
-      onTap: client == null ? null : () => _push(ClientScreen(clientId: client['id'] as String)),
+      onTap: client == null ? null : () => _push(ClientScreen(clientId: client.id)),
       child: Row(
         children: [
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text((client?['name'] as String?)?.isNotEmpty == true ? client!['name'] as String : (contact['name'] as String? ?? '—'), style: AppText.headline(context)),
-                if (contact['phone'] != null)
+                Text(client != null && client.name.isNotEmpty ? client.name : (contact.name ?? '—'), style: AppText.headline(context)),
+                if (contact.phone != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 3),
-                    child: Text(contact['phone'] as String, style: AppText.sub(context)),
+                    child: Text(contact.phone!, style: AppText.sub(context)),
                   ),
-                if (contact['email'] != null) Text(contact['email'] as String, style: AppText.caption(context)),
+                if (contact.email != null) Text(contact.email!, style: AppText.caption(context)),
               ],
             ),
           ),
@@ -351,44 +353,44 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     );
   }
 
-  Widget _orderCard(BuildContext context, Map<String, dynamic> o) {
+  Widget _orderCard(BuildContext context, v1api.CrmTaskDetailOrder o) {
     return _section(
       context,
       'Заказ',
-      onTap: () => _push(OrderScreen(orderId: o['id'] as String, number: (o['number'] as num).toInt())),
+      onTap: () => _push(OrderScreen(orderId: o.id, number: o.number)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('№${o['number']}', style: AppText.headline(context)),
-          if ((o['statusLabel'] as String).isNotEmpty)
+          Text('№${o.number}', style: AppText.headline(context)),
+          if (o.statusLabel.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 3),
-              child: Text([o['statusLabel'], o['amountLabel']].where((x) => (x as String).isNotEmpty).join(' · '), style: AppText.sub(context)),
+              child: Text([o.statusLabel, o.amountLabel].where((x) => x.isNotEmpty).join(' · '), style: AppText.sub(context)),
             ),
         ],
       ),
     );
   }
 
-  Widget _chatCard(BuildContext context, Map<String, dynamic> chat) {
+  Widget _chatCard(BuildContext context, v1api.CrmTaskDetailChat chat) {
     final c = context.c;
-    final unread = (chat['unread'] as num?)?.toInt() ?? 0;
+    final preview = chat.preview ?? '';
     return _section(
       context,
       'Диалог',
-      onTap: () => _push(ChatScreen(chatId: chat['id'] as String)),
+      onTap: () => _push(ChatScreen(chatId: chat.id)),
       child: Row(
         children: [
           Expanded(
-            child: Text((chat['preview'] as String).isEmpty ? 'Открыть переписку' : chat['preview'] as String, maxLines: 2, overflow: TextOverflow.ellipsis, style: AppText.sub(context)),
+            child: Text(preview.isEmpty ? 'Открыть переписку' : preview, maxLines: 2, overflow: TextOverflow.ellipsis, style: AppText.sub(context)),
           ),
-          if (unread > 0) CountBadge(unread, color: c.brandDeep),
+          if (chat.unread > 0) CountBadge(chat.unread, color: c.brandDeep),
         ],
       ),
     );
   }
 
-  Widget _others(BuildContext context, List<Map<String, dynamic>> list) {
+  Widget _others(BuildContext context, List<v1api.CrmTaskDetailOthers> list) {
     final c = context.c;
     return _section(
       context,
@@ -397,25 +399,25 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         children: [
           for (final o in list)
             InkWell(
-              onTap: () => _push(TaskDetailScreen(taskId: o['id'] as String)),
+              onTap: () => _push(TaskDetailScreen(taskId: o.id)),
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 9),
                 child: Row(
                   children: [
                     Expanded(
                       child: Text(
-                        o['title'] as String,
+                        o.title,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(fontSize: 15, color: c.text),
                       ),
                     ),
-                    if (o['dueAt'] != null)
+                    if (o.dueAt != null)
                       Padding(
                         padding: const EdgeInsets.only(left: 8),
                         child: Text(
-                          dueLabel(DateTime.parse(o['dueAt'] as String).toLocal()),
-                          style: TextStyle(fontSize: 12.5, color: o['overdue'] == true ? c.danger : c.textMuted, fontWeight: o['overdue'] == true ? FontWeight.w700 : FontWeight.w500),
+                          dueLabel(DateTime.parse(o.dueAt!).toLocal()),
+                          style: TextStyle(fontSize: 12.5, color: o.overdue ? c.danger : c.textMuted, fontWeight: o.overdue ? FontWeight.w700 : FontWeight.w500),
                         ),
                       ),
                     Icon(LucideIcons.chevronRight, size: 16, color: c.textFaint),
@@ -428,7 +430,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     );
   }
 
-  Widget _notes(BuildContext context, List<Map<String, dynamic>> notes) {
+  Widget _notes(BuildContext context, List<v1api.CrmTaskDetailNotes> notes) {
     final c = context.c;
     return _section(
       context,
@@ -442,9 +444,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('${n['author']} · ${dayLabel(DateTime.parse(n['at'] as String).toLocal())}, ${hhmm(DateTime.parse(n['at'] as String).toLocal())}', style: AppText.caption(context)),
+                  Text('${n.author} · ${dayLabel(DateTime.parse(n.at).toLocal())}, ${hhmm(DateTime.parse(n.at).toLocal())}', style: AppText.caption(context)),
                   const SizedBox(height: 2),
-                  Text(n['text'] as String, style: TextStyle(fontSize: 15, height: 1.35, color: c.text)),
+                  Text(n.text, style: TextStyle(fontSize: 15, height: 1.35, color: c.text)),
                 ],
               ),
             ),
@@ -453,7 +455,6 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     );
   }
 }
-
 
 /// Итог задачи: кнопки по типу задачи (как в CRM, CompleteTask.tsx), свои слова и следующий шаг со сроком.
 Future<({String? result, String? next, int days})?> showCompleteSheet(BuildContext context, {required String kind}) {

@@ -11,9 +11,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
+import '../api/mybook_api.g.dart' as v1api;
 import '../ui/tokens.dart';
 import 'api.dart';
 import 'live.dart';
+import 'v1.dart';
 
 /// Среда APNs этого запуска: из Xcode/flutter run — sandbox, из TestFlight и App Store — production.
 const apnsEnvironment = String.fromEnvironment('APNS_ENV', defaultValue: kReleaseMode ? 'production' : 'sandbox');
@@ -116,9 +118,16 @@ class Notifier with WidgetsBindingObserver {
       if (Platform.isIOS) {
         await _pushChannel.invokeMethod<void>('register');
       } else if (Platform.isAndroid) {
-        final r = await api.get('/api/mobile/push') as Map<String, dynamic>;
-        final options = r['android'];
-        if (options is Map) await _pushChannel.invokeMethod<void>('registerAndroid', {for (final e in options.entries) e.key as String: '${e.value}'});
+        final r = await v1(api, (c) => c.crmPushConfig());
+        final android = r.android;
+        if (android != null) {
+          await _pushChannel.invokeMethod<void>('registerAndroid', {
+            'apiKey': android.apiKey,
+            'appId': android.appId,
+            'projectId': android.projectId,
+            'senderId': android.senderId,
+          });
+        }
       }
     } on PlatformException {
       // Без разрешения или на устройстве без APNs/Google Play — остаются уведомления при открытом приложении.
@@ -153,8 +162,8 @@ class Notifier with WidgetsBindingObserver {
   Future<void> _sendToken(String token) async {
     try {
       final platform = Platform.isAndroid ? 'android' : 'ios';
-      final r = await api.post('/api/mobile/push', body: {'token': token, 'platform': platform, 'environment': apnsEnvironment}) as Map<String, dynamic>;
-      serverPush = r['serverReady'] == true;
+      final r = await v1(api, (c) => c.crmDevicePut(body: v1api.DeviceBody(token: token, platform: platform, environment: apnsEnvironment)));
+      serverPush = r.serverReady;
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('push_token', token);
     } on ApiException {
@@ -168,7 +177,7 @@ class Notifier with WidgetsBindingObserver {
     final token = prefs.getString('push_token');
     if (token == null) return;
     try {
-      await api.delete('/api/mobile/push', body: {'token': token});
+      await v1(api, (c) => c.crmDeviceDelete(body: v1api.DeviceForgetBody(token: token)));
       await prefs.remove('push_token');
     } on ApiException {
       // Не удалось — сервер сам уберёт токен, когда Apple его отвергнет.

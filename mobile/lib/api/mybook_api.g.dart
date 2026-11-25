@@ -236,6 +236,12 @@ class MybookApi {
     return CrmTaskList.fromJson(json as Map<String, dynamic>);
   }
 
+  /// Создать задачу (по сделке, клиенту, заказу или отдельно)
+  Future<Ok> crmTaskCreate({required CrmTaskCreateBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/tasks', body: body.toJson());
+    return Ok.fromJson(json as Map<String, dynamic>);
+  }
+
   /// Журнал звонков: f=missed|all|in|out|mine, days (1–60, по умолчанию 14)
   Future<CrmCalls> crmCallsList({String? f, int? days}) async {
     final json = await _send('GET', '/api/v1/crm/calls', query: {if (f != null) 'f': '${f}', if (days != null) 'days': '${days}'});
@@ -296,10 +302,22 @@ class MybookApi {
     return CrmMessages.fromJson(json as Map<String, dynamic>);
   }
 
+  /// Отправить текстовое сообщение в диалог (с фильтром реквизитов)
+  Future<CrmChatMessageSent> crmChatSendMessage({required String chatId, required CrmChatMessageSendBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/chats/${Uri.encodeComponent('$chatId')}/messages', body: body.toJson());
+    return CrmChatMessageSent.fromJson(json as Map<String, dynamic>);
+  }
+
   /// Воронка: этапы и сделки; p — воронка, фильтры как у страницы «Сделки»: mine, a (ответственный), q, task, stale, src
   Future<CrmDeals> crmDealsList({String? p, String? mine, String? a, String? q, String? task, String? stale, String? src}) async {
     final json = await _send('GET', '/api/v1/crm/deals', query: {if (p != null) 'p': '${p}', if (mine != null) 'mine': '${mine}', if (a != null) 'a': '${a}', if (q != null) 'q': '${q}', if (task != null) 'task': '${task}', if (stale != null) 'stale': '${stale}', if (src != null) 'src': '${src}'});
     return CrmDeals.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Создать сделку вручную
+  Future<CrmIdResult> crmDealCreate({required CrmDealCreateBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/deals', body: body.toJson());
+    return CrmIdResult.fromJson(json as Map<String, dynamic>);
   }
 
   /// Карточка сделки: данные, этапы, задачи, заметки, платежи, счета, чат
@@ -360,6 +378,24 @@ class MybookApi {
   Future<AccountDeleted> meDelete({String? locale, required DeleteAccountBody body}) async {
     final json = await _send('POST', '/api/v1/me/delete', body: body.toJson(), query: {if (locale != null) 'locale': '${locale}'});
     return AccountDeleted.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Push приложения CRM: готов ли APNs, данные Firebase для Android
+  Future<CrmPushConfig> crmPushConfig() async {
+    final json = await _send('GET', '/api/v1/crm/push');
+    return CrmPushConfig.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Телефон сотрудника для push приложения CRM (сообщения клиентов, задачи, заявки)
+  Future<DeviceRegistered> crmDevicePut({required DeviceBody body}) async {
+    final json = await _send('PUT', '/api/v1/crm/devices', body: body.toJson());
+    return DeviceRegistered.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Забыть телефон сотрудника (выход из приложения CRM)
+  Future<Ok> crmDeviceDelete({required DeviceForgetBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/devices/forget', body: body.toJson());
+    return Ok.fromJson(json as Map<String, dynamic>);
   }
 
   /// Настройки приложения: адреса политики конфиденциальности и оферты (locale=ru|kk)
@@ -990,6 +1026,276 @@ class MybookApi {
   Future<Done> crmSiteSave({required SiteSettingsPatch body}) async {
     final json = await _send('PATCH', '/api/v1/crm/site', body: body.toJson());
     return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Форма счёта: договорённость сделки, тарифы, способы оплаты, открытый счёт, лимит скидки (dealId или conversationId)
+  Future<CrmInvoiceForm> crmInvoiceForm({String? dealId, String? conversationId}) async {
+    final json = await _send('GET', '/api/v1/crm/invoices/form', query: {if (dealId != null) 'dealId': '${dealId}', if (conversationId != null) 'conversationId': '${conversationId}'});
+    return CrmInvoiceForm.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Выставить счёт из чата или сделки: ссылка клиенту в WhatsApp (диалог без сделки — сделка заводится)
+  Future<CrmInvoiceSent> crmInvoiceIssue({required CrmInvoiceBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/invoices', body: body.toJson());
+    return CrmInvoiceSent.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Отменить счёт, который ждёт оплаты
+  Future<CrmInvoiceCancelled> crmInvoiceCancel({required String invoiceId}) async {
+    final json = await _send('POST', '/api/v1/crm/invoices/${Uri.encodeComponent('$invoiceId')}/cancel');
+    return CrmInvoiceCancelled.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Отправить счёт клиенту ещё раз (тот же текст и ссылка)
+  Future<CrmInvoiceSent> crmInvoiceResend({required String invoiceId}) async {
+    final json = await _send('POST', '/api/v1/crm/invoices/${Uri.encodeComponent('$invoiceId')}/resend');
+    return CrmInvoiceSent.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Профиль сотрудника: роль, права, раскладка вкладок, смена, счётчики
+  Future<CrmMe> crmMe() async {
+    final json = await _send('GET', '/api/v1/crm/me');
+    return CrmMe.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Выйти на смену или уйти со смены
+  Future<CrmShiftResult> crmShiftSet({required CrmShiftBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/me/shift', body: body.toJson());
+    return CrmShiftResult.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// «Обзор» руководителя: выручка, продажи, воронка, тарифы, этапы, внимание (period=7|30|90)
+  Future<CrmOverview> crmOverview({int? period}) async {
+    final json = await _send('GET', '/api/v1/crm/overview', query: {if (period != null) 'period': '${period}'});
+    return CrmOverview.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Личные и общие шаблоны быстрых ответов сотрудника
+  Future<CrmMyTemplates> crmMyTemplates() async {
+    final json = await _send('GET', '/api/v1/crm/my-templates');
+    return CrmMyTemplates.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Создать или изменить личный шаблон ответа
+  Future<CrmIdResult> crmMyTemplateSave({required CrmMyTemplateBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/my-templates', body: body.toJson());
+    return CrmIdResult.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Удалить личный шаблон ответа
+  Future<Ok> crmMyTemplateDelete({required String id}) async {
+    final json = await _send('DELETE', '/api/v1/crm/my-templates/${Uri.encodeComponent('$id')}');
+    return Ok.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Скопировать шаблон (свой или общий) в личные
+  Future<Ok> crmMyTemplateDuplicate({required String id}) async {
+    final json = await _send('POST', '/api/v1/crm/my-templates/${Uri.encodeComponent('$id')}/duplicate');
+    return Ok.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Изменить порядок личных шаблонов
+  Future<Ok> crmMyTemplatesReorder({required CrmTemplatesReorderBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/my-templates/reorder', body: body.toJson());
+    return Ok.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Сделать черновик шаблона из сообщения диалога (с подстановками и ИИ)
+  Future<CrmTemplateDraft> crmMyTemplateDraft({required CrmTemplateDraftBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/my-templates/draft', body: body.toJson());
+    return CrmTemplateDraft.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Позвонить клиенту через АТС по сделке, заказу, клиенту или звонку
+  Future<Done> crmCallDial({required CrmReachTargetBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/calls/dial', body: body.toJson());
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Отметить пропущенный звонок обработанным
+  Future<Ok> crmCallHandled({required String callId}) async {
+    final json = await _send('POST', '/api/v1/crm/calls/${Uri.encodeComponent('$callId')}/handled');
+    return Ok.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Товары каталога WhatsApp для отправки в чат
+  Future<CrmChatCatalog> crmChatCatalog() async {
+    final json = await _send('GET', '/api/v1/crm/catalog/for-chat');
+    return CrmChatCatalog.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Отправить в чат товар каталога или ссылку на весь каталог
+  Future<Ok> crmChatSendCatalog({required String chatId, required CrmChatCatalogSendBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/chats/${Uri.encodeComponent('$chatId')}/catalog', body: body.toJson());
+    return Ok.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Состав корзины каталога WhatsApp из сообщения клиента
+  Future<CrmChatMessageOrder> crmChatMessageOrder({required String messageId}) async {
+    final json = await _send('GET', '/api/v1/crm/chat-messages/${Uri.encodeComponent('$messageId')}/order');
+    return CrmChatMessageOrder.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Открыть или создать чат WhatsApp по сделке, заказу, клиенту или звонку
+  Future<CrmIdResult> crmChatOpen({required CrmReachTargetBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/chats/open', body: body.toJson());
+    return CrmIdResult.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Диалоги, куда можно переслать сообщение
+  Future<CrmForwardTargets> crmChatForwardTargets({String? q}) async {
+    final json = await _send('GET', '/api/v1/crm/chat-targets', query: {if (q != null) 'q': '${q}'});
+    return CrmForwardTargets.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Передать диалог сотруднику или снять ответственного
+  Future<Ok> crmChatAssign({required String chatId, required CrmAssignUserBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/chats/${Uri.encodeComponent('$chatId')}/assign', body: body.toJson());
+    return Ok.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Завести сделку из диалога (или вернуть существующую)
+  Future<CrmEntityId> crmChatCreateDeal({required String chatId}) async {
+    final json = await _send('POST', '/api/v1/crm/chats/${Uri.encodeComponent('$chatId')}/deal');
+    return CrmEntityId.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Переслать сообщения в другие диалоги
+  Future<CrmChatForwardResult> crmChatForward({required String chatId, required CrmChatForwardBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/chats/${Uri.encodeComponent('$chatId')}/forward', body: body.toJson());
+    return CrmChatForwardResult.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Добавить внутреннюю заметку в диалог
+  Future<CrmEntityId> crmChatNote({required String chatId, required CrmTextBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/chats/${Uri.encodeComponent('$chatId')}/note', body: body.toJson());
+    return CrmEntityId.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Закрепить или открепить диалог вверху списка
+  Future<Ok> crmChatPin({required String chatId, required CrmChatPinBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/chats/${Uri.encodeComponent('$chatId')}/pin', body: body.toJson());
+    return Ok.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Отметить диалог прочитанным
+  Future<Ok> crmChatRead({required String chatId}) async {
+    final json = await _send('POST', '/api/v1/crm/chats/${Uri.encodeComponent('$chatId')}/read');
+    return Ok.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Закрыть или снова открыть диалог
+  Future<Ok> crmChatStatus({required String chatId, required CrmChatStatusBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/chats/${Uri.encodeComponent('$chatId')}/status', body: body.toJson());
+    return Ok.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Отправить голосовое сообщение (multipart, поле voice; replyToId в query)
+  Future<CrmChatVoiceSent> crmChatSendVoice({required String chatId, String? replyToId, required List<http.MultipartFile> files}) async {
+    final json = await _sendFiles('POST', '/api/v1/crm/chats/${Uri.encodeComponent('$chatId')}/voice', 'voice', files, query: {if (replyToId != null) 'replyToId': '${replyToId}'});
+    return CrmChatVoiceSent.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Изменить своё сообщение (WhatsApp — до 15 мин)
+  Future<Ok> crmChatMessageEdit({required String chatId, required String messageId, required CrmTextBody body}) async {
+    final json = await _send('PATCH', '/api/v1/crm/chats/${Uri.encodeComponent('$chatId')}/messages/${Uri.encodeComponent('$messageId')}', body: body.toJson());
+    return Ok.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Удалить сообщение у всех
+  Future<Ok> crmChatMessageDelete({required String chatId, required String messageId}) async {
+    final json = await _send('DELETE', '/api/v1/crm/chats/${Uri.encodeComponent('$chatId')}/messages/${Uri.encodeComponent('$messageId')}');
+    return Ok.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Повторить отправку сообщения, которое шлюз не принял
+  Future<Ok> crmChatMessageResend({required String chatId, required String messageId}) async {
+    final json = await _send('POST', '/api/v1/crm/chats/${Uri.encodeComponent('$chatId')}/messages/${Uri.encodeComponent('$messageId')}/resend');
+    return Ok.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Расшифровать голосовое сообщение текстом
+  Future<CrmTranscript> crmChatMessageTranscribe({required String chatId, required String messageId}) async {
+    final json = await _send('POST', '/api/v1/crm/chats/${Uri.encodeComponent('$chatId')}/messages/${Uri.encodeComponent('$messageId')}/transcribe');
+    return CrmTranscript.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Принять неразобранную заявку в работу
+  Future<Ok> crmDealAccept({required String dealId}) async {
+    final json = await _send('POST', '/api/v1/crm/deals/${Uri.encodeComponent('$dealId')}/accept');
+    return Ok.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Назначить ответственного по сделке
+  Future<Ok> crmDealAssign({required String dealId, required CrmAssignUserBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/deals/${Uri.encodeComponent('$dealId')}/assign', body: body.toJson());
+    return Ok.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Перенести сделку на этап (для отказа нужна причина)
+  Future<Ok> crmDealMove({required String dealId, required CrmDealMoveBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/deals/${Uri.encodeComponent('$dealId')}/move', body: body.toJson());
+    return Ok.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Добавить заметку в сделку
+  Future<Ok> crmDealNote({required String dealId, required CrmDealNoteBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/deals/${Uri.encodeComponent('$dealId')}/notes', body: body.toJson());
+    return Ok.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Отклонить неразобранную заявку (спам/отказ)
+  Future<CrmDealRejectResult> crmDealReject({required String dealId, required CrmDealRejectBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/deals/${Uri.encodeComponent('$dealId')}/reject', body: body.toJson());
+    return CrmDealRejectResult.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Создать задачу по сделке
+  Future<Ok> crmDealTaskCreate({required String dealId, required CrmDealTaskBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/deals/${Uri.encodeComponent('$dealId')}/tasks', body: body.toJson());
+    return Ok.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Карточка задачи со сделкой, клиентом, заказом, чатом и лентой
+  Future<CrmTaskDetail> crmTaskGet({required String taskId}) async {
+    final json = await _send('GET', '/api/v1/crm/tasks/${Uri.encodeComponent('$taskId')}');
+    return CrmTaskDetail.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Изменить задачу
+  Future<Ok> crmTaskUpdate({required String taskId, required CrmTaskPatchBody body}) async {
+    final json = await _send('PATCH', '/api/v1/crm/tasks/${Uri.encodeComponent('$taskId')}', body: body.toJson());
+    return Ok.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Удалить задачу
+  Future<Ok> crmTaskDelete({required String taskId}) async {
+    final json = await _send('DELETE', '/api/v1/crm/tasks/${Uri.encodeComponent('$taskId')}');
+    return Ok.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Выполнить задачу с итогом и следующим шагом
+  Future<Ok> crmTaskComplete({required String taskId, required CrmTaskCompleteBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/tasks/${Uri.encodeComponent('$taskId')}/complete', body: body.toJson());
+    return Ok.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Отложить задачу на час или до завтра
+  Future<Ok> crmTaskSnooze({required String taskId, required CrmTaskSnoozeBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/tasks/${Uri.encodeComponent('$taskId')}/snooze', body: body.toJson());
+    return Ok.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Отметить задачу выполненной или вернуть в работу
+  Future<Ok> crmTaskToggle({required String taskId}) async {
+    final json = await _send('POST', '/api/v1/crm/tasks/${Uri.encodeComponent('$taskId')}/toggle');
+    return Ok.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Перевести заказ в другой статус (как перенос карточки на канбане)
+  Future<Ok> crmOrderStatus({required String orderId, required CrmOrderStatusBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/orders/${Uri.encodeComponent('$orderId')}/status', body: body.toJson());
+    return Ok.fromJson(json as Map<String, dynamic>);
   }
 
   /// Доски, которые видит сотрудник (с числом открытых карточек)
@@ -3787,6 +4093,30 @@ class AccountDeletedLabels {
   factory AccountDeletedLabels.fromJson(Map<String, dynamic> json) => AccountDeletedLabels(title: json['title'] as String, intro: json['intro'] as String, accounting: json['accounting'] as String, password: json['password'] as String, forgot: json['forgot'] as String, next: json['next'] as String, confirmTitle: json['confirmTitle'] as String, confirm: json['confirm'] as String, cancel: json['cancel'] as String, done: json['done'] as String);
 
   Map<String, dynamic> toJson() => {'title': title, 'intro': intro, 'accounting': accounting, 'password': password, 'forgot': forgot, 'next': next, 'confirmTitle': confirmTitle, 'confirm': confirm, 'cancel': cancel, 'done': done};
+}
+
+class CrmPushConfig {
+  final bool ios;
+  final CrmPushConfigAndroid? android;
+
+  const CrmPushConfig({required this.ios, this.android});
+
+  factory CrmPushConfig.fromJson(Map<String, dynamic> json) => CrmPushConfig(ios: json['ios'] as bool, android: json['android'] == null ? null : CrmPushConfigAndroid.fromJson(json['android'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'ios': ios, 'android': android == null ? null : android!.toJson()};
+}
+
+class CrmPushConfigAndroid {
+  final String apiKey;
+  final String appId;
+  final String projectId;
+  final String senderId;
+
+  const CrmPushConfigAndroid({required this.apiKey, required this.appId, required this.projectId, required this.senderId});
+
+  factory CrmPushConfigAndroid.fromJson(Map<String, dynamic> json) => CrmPushConfigAndroid(apiKey: json['apiKey'] as String, appId: json['appId'] as String, projectId: json['projectId'] as String, senderId: json['senderId'] as String);
+
+  Map<String, dynamic> toJson() => {'apiKey': apiKey, 'appId': appId, 'projectId': projectId, 'senderId': senderId};
 }
 
 class BookModel {
@@ -7561,4 +7891,915 @@ class SiteSettingsPatch {
   factory SiteSettingsPatch.fromJson(Map<String, dynamic> json) => SiteSettingsPatch(registration: json['registration'] == null ? null : json['registration'] as bool, giftNote: json['giftNote'] == null ? null : json['giftNote'] as bool, maxPhotos: json['maxPhotos'] == null ? null : (json['maxPhotos'] as num).toInt(), seller: json['seller'] == null ? null : SellerDetails.fromJson(json['seller'] as Map<String, dynamic>));
 
   Map<String, dynamic> toJson() => {if (registration != null) 'registration': registration!, if (giftNote != null) 'giftNote': giftNote!, if (maxPhotos != null) 'maxPhotos': maxPhotos!, if (seller != null) 'seller': seller!.toJson()};
+}
+
+class CrmInvoicePlan {
+  final String id;
+  final String label;
+  final int price;
+  final bool printed;
+  final bool giftwrap;
+
+  const CrmInvoicePlan({required this.id, required this.label, required this.price, required this.printed, required this.giftwrap});
+
+  factory CrmInvoicePlan.fromJson(Map<String, dynamic> json) => CrmInvoicePlan(id: json['id'] as String, label: json['label'] as String, price: (json['price'] as num).toInt(), printed: json['printed'] as bool, giftwrap: json['giftwrap'] as bool);
+
+  Map<String, dynamic> toJson() => {'id': id, 'label': label, 'price': price, 'printed': printed, 'giftwrap': giftwrap};
+}
+
+class CrmInvoiceForm {
+  final String? dealId;
+  final int? dealNumber;
+  final String? plan;
+  final int agreedTotal;
+  final int? batchSize;
+  final int paid;
+  final bool hasOrder;
+  final String? orderId;
+  final bool closed;
+  final CrmInvoiceFormOpen? open;
+  final String clientName;
+  final String locale;
+  final String channel;
+  final String? chat;
+  final List<CrmInvoicePlan> plans;
+  final List<String> gifts;
+  final CrmInvoiceFormGiftPrices giftPrices;
+  final CrmInvoiceFormMethods methods;
+  final String? kaspiPhoneMasked;
+  final String? kaspiWarning;
+  final double? maxDiscountPercent;
+  final CrmInvoiceFormPreview preview;
+  /// Поля, которые отправить как null (иначе пустое необязательное поле не отправляется).
+  final Set<String> nulls;
+
+  const CrmInvoiceForm({this.dealId, this.dealNumber, this.plan, required this.agreedTotal, this.batchSize, required this.paid, required this.hasOrder, this.orderId, required this.closed, this.open, required this.clientName, required this.locale, required this.channel, this.chat, required this.plans, required this.gifts, required this.giftPrices, required this.methods, this.kaspiPhoneMasked, this.kaspiWarning, this.maxDiscountPercent, required this.preview, this.nulls = const {}});
+
+  factory CrmInvoiceForm.fromJson(Map<String, dynamic> json) => CrmInvoiceForm(dealId: json['dealId'] == null ? null : json['dealId'] as String, dealNumber: json['dealNumber'] == null ? null : (json['dealNumber'] as num).toInt(), plan: json['plan'] == null ? null : json['plan'] as String, agreedTotal: (json['agreedTotal'] as num).toInt(), batchSize: json['batchSize'] == null ? null : (json['batchSize'] as num).toInt(), paid: (json['paid'] as num).toInt(), hasOrder: json['hasOrder'] as bool, orderId: json['orderId'] == null ? null : json['orderId'] as String, closed: json['closed'] as bool, open: json['open'] == null ? null : CrmInvoiceFormOpen.fromJson(json['open'] as Map<String, dynamic>), clientName: json['clientName'] as String, locale: json['locale'] as String, channel: json['channel'] as String, chat: json['chat'] == null ? null : json['chat'] as String, plans: (json['plans'] as List).map((e) => CrmInvoicePlan.fromJson(e as Map<String, dynamic>)).toList(), gifts: (json['gifts'] as List).map((e) => e as String).toList(), giftPrices: CrmInvoiceFormGiftPrices.fromJson(json['giftPrices'] as Map<String, dynamic>), methods: CrmInvoiceFormMethods.fromJson(json['methods'] as Map<String, dynamic>), kaspiPhoneMasked: json['kaspiPhoneMasked'] == null ? null : json['kaspiPhoneMasked'] as String, kaspiWarning: json['kaspiWarning'] == null ? null : json['kaspiWarning'] as String, maxDiscountPercent: json['maxDiscountPercent'] == null ? null : (json['maxDiscountPercent'] as num).toDouble(), preview: CrmInvoiceFormPreview.fromJson(json['preview'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'dealId': dealId, 'dealNumber': dealNumber, 'plan': plan, 'agreedTotal': agreedTotal, if (batchSize != null || nulls.contains('batchSize')) 'batchSize': batchSize, 'paid': paid, 'hasOrder': hasOrder, 'orderId': orderId, 'closed': closed, 'open': open == null ? null : open!.toJson(), 'clientName': clientName, 'locale': locale, 'channel': channel, 'chat': chat, 'plans': plans.map((e) => e.toJson()).toList(), 'gifts': gifts.map((e) => e).toList(), 'giftPrices': giftPrices.toJson(), 'methods': methods.toJson(), 'kaspiPhoneMasked': kaspiPhoneMasked, if (kaspiWarning != null || nulls.contains('kaspiWarning')) 'kaspiWarning': kaspiWarning, 'maxDiscountPercent': maxDiscountPercent, 'preview': preview.toJson()};
+}
+
+class CrmInvoiceFormOpen {
+  final String id;
+  final String label;
+  final int amount;
+
+  const CrmInvoiceFormOpen({required this.id, required this.label, required this.amount});
+
+  factory CrmInvoiceFormOpen.fromJson(Map<String, dynamic> json) => CrmInvoiceFormOpen(id: json['id'] as String, label: json['label'] as String, amount: (json['amount'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'id': id, 'label': label, 'amount': amount};
+}
+
+class CrmInvoiceFormGiftPrices {
+  final int giftwrap;
+  final int delivery;
+
+  const CrmInvoiceFormGiftPrices({required this.giftwrap, required this.delivery});
+
+  factory CrmInvoiceFormGiftPrices.fromJson(Map<String, dynamic> json) => CrmInvoiceFormGiftPrices(giftwrap: (json['giftwrap'] as num).toInt(), delivery: (json['delivery'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'giftwrap': giftwrap, 'delivery': delivery};
+}
+
+class CrmInvoiceFormMethods {
+  final bool kaspi;
+  final bool card;
+  final bool transfer;
+
+  const CrmInvoiceFormMethods({required this.kaspi, required this.card, required this.transfer});
+
+  factory CrmInvoiceFormMethods.fromJson(Map<String, dynamic> json) => CrmInvoiceFormMethods(kaspi: json['kaspi'] as bool, card: json['card'] as bool, transfer: json['transfer'] as bool);
+
+  Map<String, dynamic> toJson() => {'kaspi': kaspi, 'card': card, 'transfer': transfer};
+}
+
+class CrmInvoiceFormPreview {
+  final Map<String, dynamic> until;
+  final Map<String, dynamic> link;
+
+  const CrmInvoiceFormPreview({required this.until, required this.link});
+
+  factory CrmInvoiceFormPreview.fromJson(Map<String, dynamic> json) => CrmInvoiceFormPreview(until: json['until'] as Map<String, dynamic>, link: json['link'] as Map<String, dynamic>);
+
+  Map<String, dynamic> toJson() => {'until': until, 'link': link};
+}
+
+class CrmInvoiceBody {
+  final String? dealId;
+  final String? conversationId;
+  final String? clientName;
+  /// ru | kk | uz | en
+  final String? locale;
+  final String channel;
+  final String plan;
+  final int agreedTotal;
+  final int? count;
+  final int amount;
+  /// prepayment | remainder | full | custom
+  final String purpose;
+  final String? issueKey;
+  final bool? kaspiPush;
+  final List<String>? gifts;
+
+  const CrmInvoiceBody({this.dealId, this.conversationId, this.clientName, this.locale, required this.channel, required this.plan, required this.agreedTotal, this.count, required this.amount, required this.purpose, this.issueKey, this.kaspiPush, this.gifts});
+
+  factory CrmInvoiceBody.fromJson(Map<String, dynamic> json) => CrmInvoiceBody(dealId: json['dealId'] == null ? null : json['dealId'] as String, conversationId: json['conversationId'] == null ? null : json['conversationId'] as String, clientName: json['clientName'] == null ? null : json['clientName'] as String, locale: json['locale'] == null ? null : json['locale'] as String, channel: json['channel'] as String, plan: json['plan'] as String, agreedTotal: (json['agreedTotal'] as num).toInt(), count: json['count'] == null ? null : (json['count'] as num).toInt(), amount: (json['amount'] as num).toInt(), purpose: json['purpose'] as String, issueKey: json['issueKey'] == null ? null : json['issueKey'] as String, kaspiPush: json['kaspiPush'] == null ? null : json['kaspiPush'] as bool, gifts: json['gifts'] == null ? null : (json['gifts'] as List).map((e) => e as String).toList());
+
+  Map<String, dynamic> toJson() => {if (dealId != null) 'dealId': dealId!, if (conversationId != null) 'conversationId': conversationId!, if (clientName != null) 'clientName': clientName!, if (locale != null) 'locale': locale!, 'channel': channel, 'plan': plan, 'agreedTotal': agreedTotal, if (count != null) 'count': count!, 'amount': amount, 'purpose': purpose, if (issueKey != null) 'issueKey': issueKey!, if (kaspiPush != null) 'kaspiPush': kaspiPush!, if (gifts != null) 'gifts': gifts!.map((e) => e).toList()};
+}
+
+class CrmInvoiceSent {
+  final bool ok;
+  final String message;
+  final String link;
+  final String text;
+  final bool sent;
+
+  const CrmInvoiceSent({required this.ok, required this.message, required this.link, required this.text, required this.sent});
+
+  factory CrmInvoiceSent.fromJson(Map<String, dynamic> json) => CrmInvoiceSent(ok: json['ok'] as bool, message: json['message'] as String, link: json['link'] as String, text: json['text'] as String, sent: json['sent'] as bool);
+
+  Map<String, dynamic> toJson() => {'ok': ok, 'message': message, 'link': link, 'text': text, 'sent': sent};
+}
+
+class CrmInvoiceCancelled {
+  final bool ok;
+  final String message;
+
+  const CrmInvoiceCancelled({required this.ok, required this.message});
+
+  factory CrmInvoiceCancelled.fromJson(Map<String, dynamic> json) => CrmInvoiceCancelled(ok: json['ok'] as bool, message: json['message'] as String);
+
+  Map<String, dynamic> toJson() => {'ok': ok, 'message': message};
+}
+
+class CrmCounters {
+  final int attention;
+  final int tasks;
+  final int chats;
+  final int calls;
+  final int deals;
+  final int reviews;
+  final int finance;
+
+  const CrmCounters({required this.attention, required this.tasks, required this.chats, required this.calls, required this.deals, required this.reviews, required this.finance});
+
+  factory CrmCounters.fromJson(Map<String, dynamic> json) => CrmCounters(attention: (json['attention'] as num).toInt(), tasks: (json['tasks'] as num).toInt(), chats: (json['chats'] as num).toInt(), calls: (json['calls'] as num).toInt(), deals: (json['deals'] as num).toInt(), reviews: (json['reviews'] as num).toInt(), finance: (json['finance'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'attention': attention, 'tasks': tasks, 'chats': chats, 'calls': calls, 'deals': deals, 'reviews': reviews, 'finance': finance};
+}
+
+class CrmMe {
+  final String id;
+  final String name;
+  final String email;
+  final String role;
+  final bool isOwner;
+  final String scope;
+  final bool onShift;
+  /// leader | sales | production | analyst | support | basic
+  final String layout;
+  final List<String> permissions;
+  final CrmCounters counters;
+  final int unread;
+
+  const CrmMe({required this.id, required this.name, required this.email, required this.role, required this.isOwner, required this.scope, required this.onShift, required this.layout, required this.permissions, required this.counters, required this.unread});
+
+  factory CrmMe.fromJson(Map<String, dynamic> json) => CrmMe(id: json['id'] as String, name: json['name'] as String, email: json['email'] as String, role: json['role'] as String, isOwner: json['isOwner'] as bool, scope: json['scope'] as String, onShift: json['onShift'] as bool, layout: json['layout'] as String, permissions: (json['permissions'] as List).map((e) => e as String).toList(), counters: CrmCounters.fromJson(json['counters'] as Map<String, dynamic>), unread: (json['unread'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'email': email, 'role': role, 'isOwner': isOwner, 'scope': scope, 'onShift': onShift, 'layout': layout, 'permissions': permissions.map((e) => e).toList(), 'counters': counters.toJson(), 'unread': unread};
+}
+
+class CrmShiftBody {
+  final bool onShift;
+
+  const CrmShiftBody({required this.onShift});
+
+  factory CrmShiftBody.fromJson(Map<String, dynamic> json) => CrmShiftBody(onShift: json['onShift'] as bool);
+
+  Map<String, dynamic> toJson() => {'onShift': onShift};
+}
+
+class CrmShiftResult {
+  final bool ok;
+  final bool onShift;
+
+  const CrmShiftResult({required this.ok, required this.onShift});
+
+  factory CrmShiftResult.fromJson(Map<String, dynamic> json) => CrmShiftResult(ok: json['ok'] as bool, onShift: json['onShift'] as bool);
+
+  Map<String, dynamic> toJson() => {'ok': ok, 'onShift': onShift};
+}
+
+class CrmPeriodPair {
+  final double cur;
+  final double prev;
+
+  const CrmPeriodPair({required this.cur, required this.prev});
+
+  factory CrmPeriodPair.fromJson(Map<String, dynamic> json) => CrmPeriodPair(cur: (json['cur'] as num).toDouble(), prev: (json['prev'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'cur': cur, 'prev': prev};
+}
+
+class CrmOverview {
+  final int period;
+  final CrmPeriodPair revenue;
+  final CrmPeriodPair sales;
+  final CrmPeriodPair avgCheck;
+  final CrmPeriodPair newClients;
+  final List<CrmOverviewSeries> series;
+  final CrmOverviewFunnel funnel;
+  final List<CrmOverviewByPlan> byPlan;
+  final List<CrmOverviewStages> stages;
+  final CrmOverviewAttention attention;
+  final CrmCounters counters;
+
+  const CrmOverview({required this.period, required this.revenue, required this.sales, required this.avgCheck, required this.newClients, required this.series, required this.funnel, required this.byPlan, required this.stages, required this.attention, required this.counters});
+
+  factory CrmOverview.fromJson(Map<String, dynamic> json) => CrmOverview(period: (json['period'] as num).toInt(), revenue: CrmPeriodPair.fromJson(json['revenue'] as Map<String, dynamic>), sales: CrmPeriodPair.fromJson(json['sales'] as Map<String, dynamic>), avgCheck: CrmPeriodPair.fromJson(json['avgCheck'] as Map<String, dynamic>), newClients: CrmPeriodPair.fromJson(json['newClients'] as Map<String, dynamic>), series: (json['series'] as List).map((e) => CrmOverviewSeries.fromJson(e as Map<String, dynamic>)).toList(), funnel: CrmOverviewFunnel.fromJson(json['funnel'] as Map<String, dynamic>), byPlan: (json['byPlan'] as List).map((e) => CrmOverviewByPlan.fromJson(e as Map<String, dynamic>)).toList(), stages: (json['stages'] as List).map((e) => CrmOverviewStages.fromJson(e as Map<String, dynamic>)).toList(), attention: CrmOverviewAttention.fromJson(json['attention'] as Map<String, dynamic>), counters: CrmCounters.fromJson(json['counters'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'period': period, 'revenue': revenue.toJson(), 'sales': sales.toJson(), 'avgCheck': avgCheck.toJson(), 'newClients': newClients.toJson(), 'series': series.map((e) => e.toJson()).toList(), 'funnel': funnel.toJson(), 'byPlan': byPlan.map((e) => e.toJson()).toList(), 'stages': stages.map((e) => e.toJson()).toList(), 'attention': attention.toJson(), 'counters': counters.toJson()};
+}
+
+class CrmOverviewSeries {
+  final String day;
+  final double sum;
+  final int n;
+
+  const CrmOverviewSeries({required this.day, required this.sum, required this.n});
+
+  factory CrmOverviewSeries.fromJson(Map<String, dynamic> json) => CrmOverviewSeries(day: json['day'] as String, sum: (json['sum'] as num).toDouble(), n: (json['n'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'day': day, 'sum': sum, 'n': n};
+}
+
+class CrmOverviewFunnel {
+  final int registered;
+  final int withBook;
+  final int engaged;
+  final int ordered;
+  final int paid;
+
+  const CrmOverviewFunnel({required this.registered, required this.withBook, required this.engaged, required this.ordered, required this.paid});
+
+  factory CrmOverviewFunnel.fromJson(Map<String, dynamic> json) => CrmOverviewFunnel(registered: (json['registered'] as num).toInt(), withBook: (json['withBook'] as num).toInt(), engaged: (json['engaged'] as num).toInt(), ordered: (json['ordered'] as num).toInt(), paid: (json['paid'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'registered': registered, 'withBook': withBook, 'engaged': engaged, 'ordered': ordered, 'paid': paid};
+}
+
+class CrmOverviewByPlan {
+  final String plan;
+  final String label;
+  final double sum;
+  final int n;
+
+  const CrmOverviewByPlan({required this.plan, required this.label, required this.sum, required this.n});
+
+  factory CrmOverviewByPlan.fromJson(Map<String, dynamic> json) => CrmOverviewByPlan(plan: json['plan'] as String, label: json['label'] as String, sum: (json['sum'] as num).toDouble(), n: (json['n'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'plan': plan, 'label': label, 'sum': sum, 'n': n};
+}
+
+class CrmOverviewStages {
+  final String id;
+  final String name;
+  final String color;
+  final int n;
+
+  const CrmOverviewStages({required this.id, required this.name, required this.color, required this.n});
+
+  factory CrmOverviewStages.fromJson(Map<String, dynamic> json) => CrmOverviewStages(id: json['id'] as String, name: json['name'] as String, color: json['color'] as String, n: (json['n'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'color': color, 'n': n};
+}
+
+class CrmOverviewAttention {
+  final int orders;
+  final int deadlines;
+
+  const CrmOverviewAttention({required this.orders, required this.deadlines});
+
+  factory CrmOverviewAttention.fromJson(Map<String, dynamic> json) => CrmOverviewAttention(orders: (json['orders'] as num).toInt(), deadlines: (json['deadlines'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'orders': orders, 'deadlines': deadlines};
+}
+
+class CrmPersonalTemplate {
+  final String id;
+  final String title;
+  final String text;
+
+  const CrmPersonalTemplate({required this.id, required this.title, required this.text});
+
+  factory CrmPersonalTemplate.fromJson(Map<String, dynamic> json) => CrmPersonalTemplate(id: json['id'] as String, title: json['title'] as String, text: json['text'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'title': title, 'text': text};
+}
+
+class CrmMyTemplates {
+  final List<CrmPersonalTemplate> mine;
+  final List<CrmPersonalTemplate> shared;
+
+  const CrmMyTemplates({required this.mine, required this.shared});
+
+  factory CrmMyTemplates.fromJson(Map<String, dynamic> json) => CrmMyTemplates(mine: (json['mine'] as List).map((e) => CrmPersonalTemplate.fromJson(e as Map<String, dynamic>)).toList(), shared: (json['shared'] as List).map((e) => CrmPersonalTemplate.fromJson(e as Map<String, dynamic>)).toList());
+
+  Map<String, dynamic> toJson() => {'mine': mine.map((e) => e.toJson()).toList(), 'shared': shared.map((e) => e.toJson()).toList()};
+}
+
+class CrmMyTemplateBody {
+  final String? id;
+  final String title;
+  final String text;
+
+  const CrmMyTemplateBody({this.id, required this.title, required this.text});
+
+  factory CrmMyTemplateBody.fromJson(Map<String, dynamic> json) => CrmMyTemplateBody(id: json['id'] == null ? null : json['id'] as String, title: json['title'] as String, text: json['text'] as String);
+
+  Map<String, dynamic> toJson() => {if (id != null) 'id': id!, 'title': title, 'text': text};
+}
+
+class CrmIdResult {
+  final bool ok;
+  final String id;
+
+  const CrmIdResult({required this.ok, required this.id});
+
+  factory CrmIdResult.fromJson(Map<String, dynamic> json) => CrmIdResult(ok: json['ok'] as bool, id: json['id'] as String);
+
+  Map<String, dynamic> toJson() => {'ok': ok, 'id': id};
+}
+
+class CrmTemplatesReorderBody {
+  final List<String> ids;
+
+  const CrmTemplatesReorderBody({required this.ids});
+
+  factory CrmTemplatesReorderBody.fromJson(Map<String, dynamic> json) => CrmTemplatesReorderBody(ids: (json['ids'] as List).map((e) => e as String).toList());
+
+  Map<String, dynamic> toJson() => {'ids': ids.map((e) => e).toList()};
+}
+
+class CrmTemplateDraftBody {
+  final String chatId;
+  final String messageId;
+
+  const CrmTemplateDraftBody({required this.chatId, required this.messageId});
+
+  factory CrmTemplateDraftBody.fromJson(Map<String, dynamic> json) => CrmTemplateDraftBody(chatId: json['chatId'] as String, messageId: json['messageId'] as String);
+
+  Map<String, dynamic> toJson() => {'chatId': chatId, 'messageId': messageId};
+}
+
+class CrmTemplateReplacement {
+  final String was;
+  final String placeholder;
+
+  const CrmTemplateReplacement({required this.was, required this.placeholder});
+
+  factory CrmTemplateReplacement.fromJson(Map<String, dynamic> json) => CrmTemplateReplacement(was: json['was'] as String, placeholder: json['placeholder'] as String);
+
+  Map<String, dynamic> toJson() => {'was': was, 'placeholder': placeholder};
+}
+
+class CrmTemplateDraft {
+  final String title;
+  final String text;
+  final List<CrmTemplateReplacement> replaced;
+  final bool ai;
+
+  const CrmTemplateDraft({required this.title, required this.text, required this.replaced, required this.ai});
+
+  factory CrmTemplateDraft.fromJson(Map<String, dynamic> json) => CrmTemplateDraft(title: json['title'] as String, text: json['text'] as String, replaced: (json['replaced'] as List).map((e) => CrmTemplateReplacement.fromJson(e as Map<String, dynamic>)).toList(), ai: json['ai'] as bool);
+
+  Map<String, dynamic> toJson() => {'title': title, 'text': text, 'replaced': replaced.map((e) => e.toJson()).toList(), 'ai': ai};
+}
+
+class CrmReachTargetBody {
+  final String? dealId;
+  final String? orderId;
+  final String? clientId;
+  final String? callId;
+  /// Поля, которые отправить как null (иначе пустое необязательное поле не отправляется).
+  final Set<String> nulls;
+
+  const CrmReachTargetBody({this.dealId, this.orderId, this.clientId, this.callId, this.nulls = const {}});
+
+  factory CrmReachTargetBody.fromJson(Map<String, dynamic> json) => CrmReachTargetBody(dealId: json['dealId'] == null ? null : json['dealId'] as String, orderId: json['orderId'] == null ? null : json['orderId'] as String, clientId: json['clientId'] == null ? null : json['clientId'] as String, callId: json['callId'] == null ? null : json['callId'] as String);
+
+  Map<String, dynamic> toJson() => {if (dealId != null || nulls.contains('dealId')) 'dealId': dealId, if (orderId != null || nulls.contains('orderId')) 'orderId': orderId, if (clientId != null || nulls.contains('clientId')) 'clientId': clientId, if (callId != null || nulls.contains('callId')) 'callId': callId};
+}
+
+class CrmChatCatalogProduct {
+  final String id;
+  final String name;
+  final double? price;
+  final String currency;
+  final bool hidden;
+  final bool image;
+
+  const CrmChatCatalogProduct({required this.id, required this.name, this.price, required this.currency, required this.hidden, required this.image});
+
+  factory CrmChatCatalogProduct.fromJson(Map<String, dynamic> json) => CrmChatCatalogProduct(id: json['id'] as String, name: json['name'] as String, price: json['price'] == null ? null : (json['price'] as num).toDouble(), currency: json['currency'] as String, hidden: json['hidden'] as bool, image: json['image'] as bool);
+
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'price': price, 'currency': currency, 'hidden': hidden, 'image': image};
+}
+
+class CrmChatCatalog {
+  final bool enabled;
+  final List<CrmChatCatalogProduct> products;
+
+  const CrmChatCatalog({required this.enabled, required this.products});
+
+  factory CrmChatCatalog.fromJson(Map<String, dynamic> json) => CrmChatCatalog(enabled: json['enabled'] as bool, products: (json['products'] as List).map((e) => CrmChatCatalogProduct.fromJson(e as Map<String, dynamic>)).toList());
+
+  Map<String, dynamic> toJson() => {'enabled': enabled, 'products': products.map((e) => e.toJson()).toList()};
+}
+
+class CrmChatCatalogSendBody {
+  final String? productId;
+  /// Поля, которые отправить как null (иначе пустое необязательное поле не отправляется).
+  final Set<String> nulls;
+
+  const CrmChatCatalogSendBody({this.productId, this.nulls = const {}});
+
+  factory CrmChatCatalogSendBody.fromJson(Map<String, dynamic> json) => CrmChatCatalogSendBody(productId: json['productId'] == null ? null : json['productId'] as String);
+
+  Map<String, dynamic> toJson() => {if (productId != null || nulls.contains('productId')) 'productId': productId};
+}
+
+class CrmOrderCartItem {
+  final String name;
+  final int quantity;
+  final double? price;
+
+  const CrmOrderCartItem({required this.name, required this.quantity, this.price});
+
+  factory CrmOrderCartItem.fromJson(Map<String, dynamic> json) => CrmOrderCartItem(name: json['name'] as String, quantity: (json['quantity'] as num).toInt(), price: json['price'] == null ? null : (json['price'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'name': name, 'quantity': quantity, 'price': price};
+}
+
+class CrmChatMessageOrder {
+  final List<CrmOrderCartItem> items;
+  final double? total;
+  final String currency;
+
+  const CrmChatMessageOrder({required this.items, this.total, required this.currency});
+
+  factory CrmChatMessageOrder.fromJson(Map<String, dynamic> json) => CrmChatMessageOrder(items: (json['items'] as List).map((e) => CrmOrderCartItem.fromJson(e as Map<String, dynamic>)).toList(), total: json['total'] == null ? null : (json['total'] as num).toDouble(), currency: json['currency'] as String);
+
+  Map<String, dynamic> toJson() => {'items': items.map((e) => e.toJson()).toList(), 'total': total, 'currency': currency};
+}
+
+class CrmForwardTarget {
+  final String id;
+  final String title;
+  final String channel;
+  final String last;
+
+  const CrmForwardTarget({required this.id, required this.title, required this.channel, required this.last});
+
+  factory CrmForwardTarget.fromJson(Map<String, dynamic> json) => CrmForwardTarget(id: json['id'] as String, title: json['title'] as String, channel: json['channel'] as String, last: json['last'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'title': title, 'channel': channel, 'last': last};
+}
+
+class CrmForwardTargets {
+  final List<CrmForwardTarget> targets;
+
+  const CrmForwardTargets({required this.targets});
+
+  factory CrmForwardTargets.fromJson(Map<String, dynamic> json) => CrmForwardTargets(targets: (json['targets'] as List).map((e) => CrmForwardTarget.fromJson(e as Map<String, dynamic>)).toList());
+
+  Map<String, dynamic> toJson() => {'targets': targets.map((e) => e.toJson()).toList()};
+}
+
+class CrmAssignUserBody {
+  final String? userId;
+
+  const CrmAssignUserBody({this.userId});
+
+  factory CrmAssignUserBody.fromJson(Map<String, dynamic> json) => CrmAssignUserBody(userId: json['userId'] == null ? null : json['userId'] as String);
+
+  Map<String, dynamic> toJson() => {'userId': userId};
+}
+
+class CrmEntityId {
+  final String id;
+
+  const CrmEntityId({required this.id});
+
+  factory CrmEntityId.fromJson(Map<String, dynamic> json) => CrmEntityId(id: json['id'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id};
+}
+
+class CrmChatForwardBody {
+  final List<String> messageIds;
+  final List<String> targetIds;
+
+  const CrmChatForwardBody({required this.messageIds, required this.targetIds});
+
+  factory CrmChatForwardBody.fromJson(Map<String, dynamic> json) => CrmChatForwardBody(messageIds: (json['messageIds'] as List).map((e) => e as String).toList(), targetIds: (json['targetIds'] as List).map((e) => e as String).toList());
+
+  Map<String, dynamic> toJson() => {'messageIds': messageIds.map((e) => e).toList(), 'targetIds': targetIds.map((e) => e).toList()};
+}
+
+class CrmChatForwardResult {
+  final bool ok;
+  final int forwarded;
+  final int total;
+  final List<String> failed;
+
+  const CrmChatForwardResult({required this.ok, required this.forwarded, required this.total, required this.failed});
+
+  factory CrmChatForwardResult.fromJson(Map<String, dynamic> json) => CrmChatForwardResult(ok: json['ok'] as bool, forwarded: (json['forwarded'] as num).toInt(), total: (json['total'] as num).toInt(), failed: (json['failed'] as List).map((e) => e as String).toList());
+
+  Map<String, dynamic> toJson() => {'ok': ok, 'forwarded': forwarded, 'total': total, 'failed': failed.map((e) => e).toList()};
+}
+
+class CrmTextBody {
+  final String text;
+
+  const CrmTextBody({required this.text});
+
+  factory CrmTextBody.fromJson(Map<String, dynamic> json) => CrmTextBody(text: json['text'] as String);
+
+  Map<String, dynamic> toJson() => {'text': text};
+}
+
+class CrmChatPinBody {
+  final bool pinned;
+
+  const CrmChatPinBody({required this.pinned});
+
+  factory CrmChatPinBody.fromJson(Map<String, dynamic> json) => CrmChatPinBody(pinned: json['pinned'] as bool);
+
+  Map<String, dynamic> toJson() => {'pinned': pinned};
+}
+
+class CrmChatStatusBody {
+  /// open | closed
+  final String status;
+
+  const CrmChatStatusBody({required this.status});
+
+  factory CrmChatStatusBody.fromJson(Map<String, dynamic> json) => CrmChatStatusBody(status: json['status'] as String);
+
+  Map<String, dynamic> toJson() => {'status': status};
+}
+
+class CrmChatMessageSendBody {
+  final String text;
+  final String? replyToId;
+  final String? override;
+  /// Поля, которые отправить как null (иначе пустое необязательное поле не отправляется).
+  final Set<String> nulls;
+
+  const CrmChatMessageSendBody({required this.text, this.replyToId, this.override, this.nulls = const {}});
+
+  factory CrmChatMessageSendBody.fromJson(Map<String, dynamic> json) => CrmChatMessageSendBody(text: json['text'] as String, replyToId: json['replyToId'] == null ? null : json['replyToId'] as String, override: json['override'] == null ? null : json['override'] as String);
+
+  Map<String, dynamic> toJson() => {'text': text, if (replyToId != null || nulls.contains('replyToId')) 'replyToId': replyToId, if (override != null) 'override': override!};
+}
+
+class CrmChatMessageSent {
+  final String? id;
+  final String? status;
+  final String? error;
+  final String? blocked;
+
+  const CrmChatMessageSent({this.id, this.status, this.error, this.blocked});
+
+  factory CrmChatMessageSent.fromJson(Map<String, dynamic> json) => CrmChatMessageSent(id: json['id'] == null ? null : json['id'] as String, status: json['status'] == null ? null : json['status'] as String, error: json['error'] == null ? null : json['error'] as String, blocked: json['blocked'] == null ? null : json['blocked'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'status': status, 'error': error, 'blocked': blocked};
+}
+
+class CrmChatVoiceSent {
+  final String id;
+  final String status;
+  final String? error;
+  final bool converted;
+
+  const CrmChatVoiceSent({required this.id, required this.status, this.error, required this.converted});
+
+  factory CrmChatVoiceSent.fromJson(Map<String, dynamic> json) => CrmChatVoiceSent(id: json['id'] as String, status: json['status'] as String, error: json['error'] == null ? null : json['error'] as String, converted: json['converted'] as bool);
+
+  Map<String, dynamic> toJson() => {'id': id, 'status': status, 'error': error, 'converted': converted};
+}
+
+class CrmTranscript {
+  final String text;
+
+  const CrmTranscript({required this.text});
+
+  factory CrmTranscript.fromJson(Map<String, dynamic> json) => CrmTranscript(text: json['text'] as String);
+
+  Map<String, dynamic> toJson() => {'text': text};
+}
+
+class CrmDealCreateBody {
+  final String title;
+  final String? contactName;
+  final String? contactPhone;
+  final int? amount;
+  final String? source;
+  final String? stageId;
+  final String? assigneeId;
+  final String? clientId;
+
+  const CrmDealCreateBody({required this.title, this.contactName, this.contactPhone, this.amount, this.source, this.stageId, this.assigneeId, this.clientId});
+
+  factory CrmDealCreateBody.fromJson(Map<String, dynamic> json) => CrmDealCreateBody(title: json['title'] as String, contactName: json['contactName'] == null ? null : json['contactName'] as String, contactPhone: json['contactPhone'] == null ? null : json['contactPhone'] as String, amount: json['amount'] == null ? null : (json['amount'] as num).toInt(), source: json['source'] == null ? null : json['source'] as String, stageId: json['stageId'] == null ? null : json['stageId'] as String, assigneeId: json['assigneeId'] == null ? null : json['assigneeId'] as String, clientId: json['clientId'] == null ? null : json['clientId'] as String);
+
+  Map<String, dynamic> toJson() => {'title': title, if (contactName != null) 'contactName': contactName!, if (contactPhone != null) 'contactPhone': contactPhone!, if (amount != null) 'amount': amount!, if (source != null) 'source': source!, if (stageId != null) 'stageId': stageId!, if (assigneeId != null) 'assigneeId': assigneeId!, if (clientId != null) 'clientId': clientId!};
+}
+
+class CrmDealMoveBody {
+  final String stageId;
+  final String? lostReason;
+
+  const CrmDealMoveBody({required this.stageId, this.lostReason});
+
+  factory CrmDealMoveBody.fromJson(Map<String, dynamic> json) => CrmDealMoveBody(stageId: json['stageId'] as String, lostReason: json['lostReason'] == null ? null : json['lostReason'] as String);
+
+  Map<String, dynamic> toJson() => {'stageId': stageId, if (lostReason != null) 'lostReason': lostReason!};
+}
+
+class CrmDealNoteBody {
+  final String text;
+
+  const CrmDealNoteBody({required this.text});
+
+  factory CrmDealNoteBody.fromJson(Map<String, dynamic> json) => CrmDealNoteBody(text: json['text'] as String);
+
+  Map<String, dynamic> toJson() => {'text': text};
+}
+
+class CrmDealRejectBody {
+  final bool spam;
+  final String reason;
+
+  const CrmDealRejectBody({required this.spam, required this.reason});
+
+  factory CrmDealRejectBody.fromJson(Map<String, dynamic> json) => CrmDealRejectBody(spam: json['spam'] as bool, reason: json['reason'] as String);
+
+  Map<String, dynamic> toJson() => {'spam': spam, 'reason': reason};
+}
+
+class CrmDealRejectResult {
+  final bool requested;
+  final String message;
+  final bool deleted;
+
+  const CrmDealRejectResult({required this.requested, required this.message, required this.deleted});
+
+  factory CrmDealRejectResult.fromJson(Map<String, dynamic> json) => CrmDealRejectResult(requested: json['requested'] as bool, message: json['message'] as String, deleted: json['deleted'] as bool);
+
+  Map<String, dynamic> toJson() => {'requested': requested, 'message': message, 'deleted': deleted};
+}
+
+class CrmDealTaskBody {
+  final String title;
+  final String? dueAt;
+  final String? dueTime;
+  /// task | call | message | meeting
+  final String? kind;
+
+  const CrmDealTaskBody({required this.title, this.dueAt, this.dueTime, this.kind});
+
+  factory CrmDealTaskBody.fromJson(Map<String, dynamic> json) => CrmDealTaskBody(title: json['title'] as String, dueAt: json['dueAt'] == null ? null : json['dueAt'] as String, dueTime: json['dueTime'] == null ? null : json['dueTime'] as String, kind: json['kind'] == null ? null : json['kind'] as String);
+
+  Map<String, dynamic> toJson() => {'title': title, if (dueAt != null) 'dueAt': dueAt!, if (dueTime != null) 'dueTime': dueTime!, if (kind != null) 'kind': kind!};
+}
+
+class CrmTaskCreateBody {
+  final String title;
+  final String? dueAt;
+  final String? dueTime;
+  /// task | call | message | meeting
+  final String? kind;
+  final int? remindBeforeMin;
+  final String? dealId;
+  final String? clientId;
+  final String? orderId;
+  final String? assigneeId;
+  /// Поля, которые отправить как null (иначе пустое необязательное поле не отправляется).
+  final Set<String> nulls;
+
+  const CrmTaskCreateBody({required this.title, this.dueAt, this.dueTime, this.kind, this.remindBeforeMin, this.dealId, this.clientId, this.orderId, this.assigneeId, this.nulls = const {}});
+
+  factory CrmTaskCreateBody.fromJson(Map<String, dynamic> json) => CrmTaskCreateBody(title: json['title'] as String, dueAt: json['dueAt'] == null ? null : json['dueAt'] as String, dueTime: json['dueTime'] == null ? null : json['dueTime'] as String, kind: json['kind'] == null ? null : json['kind'] as String, remindBeforeMin: json['remindBeforeMin'] == null ? null : (json['remindBeforeMin'] as num).toInt(), dealId: json['dealId'] == null ? null : json['dealId'] as String, clientId: json['clientId'] == null ? null : json['clientId'] as String, orderId: json['orderId'] == null ? null : json['orderId'] as String, assigneeId: json['assigneeId'] == null ? null : json['assigneeId'] as String);
+
+  Map<String, dynamic> toJson() => {'title': title, if (dueAt != null) 'dueAt': dueAt!, if (dueTime != null) 'dueTime': dueTime!, if (kind != null) 'kind': kind!, if (remindBeforeMin != null || nulls.contains('remindBeforeMin')) 'remindBeforeMin': remindBeforeMin, if (dealId != null) 'dealId': dealId!, if (clientId != null) 'clientId': clientId!, if (orderId != null) 'orderId': orderId!, if (assigneeId != null) 'assigneeId': assigneeId!};
+}
+
+class CrmTaskPatchBody {
+  final String? title;
+  /// task | call | message | meeting
+  final String? kind;
+  final String? dueAt;
+  final String? remindBeforeMin;
+  final String? assigneeId;
+  final String? result;
+  /// Поля, которые отправить как null (иначе пустое необязательное поле не отправляется).
+  final Set<String> nulls;
+
+  const CrmTaskPatchBody({this.title, this.kind, this.dueAt, this.remindBeforeMin, this.assigneeId, this.result, this.nulls = const {}});
+
+  factory CrmTaskPatchBody.fromJson(Map<String, dynamic> json) => CrmTaskPatchBody(title: json['title'] == null ? null : json['title'] as String, kind: json['kind'] == null ? null : json['kind'] as String, dueAt: json['dueAt'] == null ? null : json['dueAt'] as String, remindBeforeMin: json['remindBeforeMin'] == null ? null : json['remindBeforeMin'] as String, assigneeId: json['assigneeId'] == null ? null : json['assigneeId'] as String, result: json['result'] == null ? null : json['result'] as String);
+
+  Map<String, dynamic> toJson() => {if (title != null) 'title': title!, if (kind != null) 'kind': kind!, if (dueAt != null || nulls.contains('dueAt')) 'dueAt': dueAt, if (remindBeforeMin != null || nulls.contains('remindBeforeMin')) 'remindBeforeMin': remindBeforeMin, if (assigneeId != null) 'assigneeId': assigneeId!, if (result != null) 'result': result!};
+}
+
+class CrmTaskCompleteBody {
+  final String? result;
+  final String? nextTitle;
+  final String? nextDue;
+
+  const CrmTaskCompleteBody({this.result, this.nextTitle, this.nextDue});
+
+  factory CrmTaskCompleteBody.fromJson(Map<String, dynamic> json) => CrmTaskCompleteBody(result: json['result'] == null ? null : json['result'] as String, nextTitle: json['nextTitle'] == null ? null : json['nextTitle'] as String, nextDue: json['nextDue'] == null ? null : json['nextDue'] as String);
+
+  Map<String, dynamic> toJson() => {if (result != null) 'result': result!, if (nextTitle != null) 'nextTitle': nextTitle!, if (nextDue != null) 'nextDue': nextDue!};
+}
+
+class CrmTaskSnoozeBody {
+  /// hour | tomorrow
+  final String by;
+
+  const CrmTaskSnoozeBody({required this.by});
+
+  factory CrmTaskSnoozeBody.fromJson(Map<String, dynamic> json) => CrmTaskSnoozeBody(by: json['by'] as String);
+
+  Map<String, dynamic> toJson() => {'by': by};
+}
+
+class CrmTaskDetail {
+  final CrmDayTask item;
+  final CrmTaskDetailTask task;
+  final CrmTaskDetailDeal? deal;
+  final CrmTaskDetailClient? client;
+  final CrmTaskDetailContact contact;
+  final CrmTaskDetailOrder? order;
+  final CrmTaskDetailChat? chat;
+  final List<CrmTaskDetailNotes> notes;
+  final List<CrmTaskDetailOthers> others;
+  final CrmTaskContact? reach;
+
+  const CrmTaskDetail({required this.item, required this.task, this.deal, this.client, required this.contact, this.order, this.chat, required this.notes, required this.others, this.reach});
+
+  factory CrmTaskDetail.fromJson(Map<String, dynamic> json) => CrmTaskDetail(item: CrmDayTask.fromJson(json['item'] as Map<String, dynamic>), task: CrmTaskDetailTask.fromJson(json['task'] as Map<String, dynamic>), deal: json['deal'] == null ? null : CrmTaskDetailDeal.fromJson(json['deal'] as Map<String, dynamic>), client: json['client'] == null ? null : CrmTaskDetailClient.fromJson(json['client'] as Map<String, dynamic>), contact: CrmTaskDetailContact.fromJson(json['contact'] as Map<String, dynamic>), order: json['order'] == null ? null : CrmTaskDetailOrder.fromJson(json['order'] as Map<String, dynamic>), chat: json['chat'] == null ? null : CrmTaskDetailChat.fromJson(json['chat'] as Map<String, dynamic>), notes: (json['notes'] as List).map((e) => CrmTaskDetailNotes.fromJson(e as Map<String, dynamic>)).toList(), others: (json['others'] as List).map((e) => CrmTaskDetailOthers.fromJson(e as Map<String, dynamic>)).toList(), reach: json['reach'] == null ? null : CrmTaskContact.fromJson(json['reach'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'item': item.toJson(), 'task': task.toJson(), 'deal': deal == null ? null : deal!.toJson(), 'client': client == null ? null : client!.toJson(), 'contact': contact.toJson(), 'order': order == null ? null : order!.toJson(), 'chat': chat == null ? null : chat!.toJson(), 'notes': notes.map((e) => e.toJson()).toList(), 'others': others.map((e) => e.toJson()).toList(), 'reach': reach == null ? null : reach!.toJson()};
+}
+
+class CrmTaskDetailTask {
+  final String id;
+  final String title;
+  final String kind;
+  final String? dueAt;
+  final String? doneAt;
+  final bool done;
+  final String result;
+  final String? assigneeId;
+  final String? assignee;
+  final String? createdBy;
+  final bool fromBot;
+  final bool overdue;
+  final bool editable;
+  final int? remindBeforeMin;
+
+  const CrmTaskDetailTask({required this.id, required this.title, required this.kind, this.dueAt, this.doneAt, required this.done, required this.result, this.assigneeId, this.assignee, this.createdBy, required this.fromBot, required this.overdue, required this.editable, this.remindBeforeMin});
+
+  factory CrmTaskDetailTask.fromJson(Map<String, dynamic> json) => CrmTaskDetailTask(id: json['id'] as String, title: json['title'] as String, kind: json['kind'] as String, dueAt: json['dueAt'] == null ? null : json['dueAt'] as String, doneAt: json['doneAt'] == null ? null : json['doneAt'] as String, done: json['done'] as bool, result: json['result'] as String, assigneeId: json['assigneeId'] == null ? null : json['assigneeId'] as String, assignee: json['assignee'] == null ? null : json['assignee'] as String, createdBy: json['createdBy'] == null ? null : json['createdBy'] as String, fromBot: json['fromBot'] as bool, overdue: json['overdue'] as bool, editable: json['editable'] as bool, remindBeforeMin: json['remindBeforeMin'] == null ? null : (json['remindBeforeMin'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'id': id, 'title': title, 'kind': kind, 'dueAt': dueAt, 'doneAt': doneAt, 'done': done, 'result': result, 'assigneeId': assigneeId, 'assignee': assignee, 'createdBy': createdBy, 'fromBot': fromBot, 'overdue': overdue, 'editable': editable, 'remindBeforeMin': remindBeforeMin};
+}
+
+class CrmTaskDetailDeal {
+  final String id;
+  final int number;
+  final String title;
+  final CrmTaskDetailDealStage? stage;
+  final double amount;
+  final String? amountLabel;
+  final String source;
+  final String? assignee;
+  final bool unsorted;
+  final String? contactName;
+
+  const CrmTaskDetailDeal({required this.id, required this.number, required this.title, this.stage, required this.amount, this.amountLabel, required this.source, this.assignee, required this.unsorted, this.contactName});
+
+  factory CrmTaskDetailDeal.fromJson(Map<String, dynamic> json) => CrmTaskDetailDeal(id: json['id'] as String, number: (json['number'] as num).toInt(), title: json['title'] as String, stage: json['stage'] == null ? null : CrmTaskDetailDealStage.fromJson(json['stage'] as Map<String, dynamic>), amount: (json['amount'] as num).toDouble(), amountLabel: json['amountLabel'] == null ? null : json['amountLabel'] as String, source: json['source'] as String, assignee: json['assignee'] == null ? null : json['assignee'] as String, unsorted: json['unsorted'] as bool, contactName: json['contactName'] == null ? null : json['contactName'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'number': number, 'title': title, 'stage': stage == null ? null : stage!.toJson(), 'amount': amount, 'amountLabel': amountLabel, 'source': source, 'assignee': assignee, 'unsorted': unsorted, 'contactName': contactName};
+}
+
+class CrmTaskDetailDealStage {
+  final String name;
+  final String color;
+  final String kind;
+
+  const CrmTaskDetailDealStage({required this.name, required this.color, required this.kind});
+
+  factory CrmTaskDetailDealStage.fromJson(Map<String, dynamic> json) => CrmTaskDetailDealStage(name: json['name'] as String, color: json['color'] as String, kind: json['kind'] as String);
+
+  Map<String, dynamic> toJson() => {'name': name, 'color': color, 'kind': kind};
+}
+
+class CrmTaskDetailClient {
+  final String id;
+  final String name;
+  final String? email;
+  final String? phone;
+  final bool masked;
+
+  const CrmTaskDetailClient({required this.id, required this.name, this.email, this.phone, required this.masked});
+
+  factory CrmTaskDetailClient.fromJson(Map<String, dynamic> json) => CrmTaskDetailClient(id: json['id'] as String, name: json['name'] as String, email: json['email'] == null ? null : json['email'] as String, phone: json['phone'] == null ? null : json['phone'] as String, masked: json['masked'] as bool);
+
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'email': email, 'phone': phone, 'masked': masked};
+}
+
+class CrmTaskDetailContact {
+  final String? name;
+  final String? phone;
+  final String? email;
+  final bool masked;
+
+  const CrmTaskDetailContact({this.name, this.phone, this.email, required this.masked});
+
+  factory CrmTaskDetailContact.fromJson(Map<String, dynamic> json) => CrmTaskDetailContact(name: json['name'] == null ? null : json['name'] as String, phone: json['phone'] == null ? null : json['phone'] as String, email: json['email'] == null ? null : json['email'] as String, masked: json['masked'] as bool);
+
+  Map<String, dynamic> toJson() => {'name': name, 'phone': phone, 'email': email, 'masked': masked};
+}
+
+class CrmTaskDetailOrder {
+  final String id;
+  final int number;
+  final String status;
+  final String statusLabel;
+  final String amountLabel;
+
+  const CrmTaskDetailOrder({required this.id, required this.number, required this.status, required this.statusLabel, required this.amountLabel});
+
+  factory CrmTaskDetailOrder.fromJson(Map<String, dynamic> json) => CrmTaskDetailOrder(id: json['id'] as String, number: (json['number'] as num).toInt(), status: json['status'] as String, statusLabel: json['statusLabel'] as String, amountLabel: json['amountLabel'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'number': number, 'status': status, 'statusLabel': statusLabel, 'amountLabel': amountLabel};
+}
+
+class CrmTaskDetailChat {
+  final String id;
+  final String? preview;
+  final int unread;
+
+  const CrmTaskDetailChat({required this.id, this.preview, required this.unread});
+
+  factory CrmTaskDetailChat.fromJson(Map<String, dynamic> json) => CrmTaskDetailChat(id: json['id'] as String, preview: json['preview'] == null ? null : json['preview'] as String, unread: (json['unread'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'id': id, 'preview': preview, 'unread': unread};
+}
+
+class CrmTaskDetailNotes {
+  final String id;
+  final String kind;
+  final String text;
+  final String author;
+  final String at;
+
+  const CrmTaskDetailNotes({required this.id, required this.kind, required this.text, required this.author, required this.at});
+
+  factory CrmTaskDetailNotes.fromJson(Map<String, dynamic> json) => CrmTaskDetailNotes(id: json['id'] as String, kind: json['kind'] as String, text: json['text'] as String, author: json['author'] as String, at: json['at'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'kind': kind, 'text': text, 'author': author, 'at': at};
+}
+
+class CrmTaskDetailOthers {
+  final String id;
+  final String title;
+  final String? dueAt;
+  final bool overdue;
+
+  const CrmTaskDetailOthers({required this.id, required this.title, this.dueAt, required this.overdue});
+
+  factory CrmTaskDetailOthers.fromJson(Map<String, dynamic> json) => CrmTaskDetailOthers(id: json['id'] as String, title: json['title'] as String, dueAt: json['dueAt'] == null ? null : json['dueAt'] as String, overdue: json['overdue'] as bool);
+
+  Map<String, dynamic> toJson() => {'id': id, 'title': title, 'dueAt': dueAt, 'overdue': overdue};
+}
+
+class CrmOrderStatusBody {
+  /// pending_payment | paid | editing | printing | shipped | delivered | cancelled
+  final String status;
+
+  const CrmOrderStatusBody({required this.status});
+
+  factory CrmOrderStatusBody.fromJson(Map<String, dynamic> json) => CrmOrderStatusBody(status: json['status'] as String);
+
+  Map<String, dynamic> toJson() => {'status': status};
 }

@@ -28,6 +28,17 @@ class Staff {
 
   bool can(String p) => permissions.contains(p);
 
+  factory Staff.fromV1(v1api.CrmMe m) => Staff(
+        id: m.id,
+        name: m.name,
+        email: m.email,
+        role: m.role,
+        layout: m.layout,
+        permissions: m.permissions.toSet(),
+        onShift: m.onShift,
+        unread: m.unread,
+      );
+
   factory Staff.fromJson(Map<String, dynamic> j) => Staff(
         id: j['id'] as String,
         name: (j['name'] as String?) ?? '',
@@ -70,7 +81,7 @@ class AuthState extends ChangeNotifier {
       return;
     }
     try {
-      staff = Staff.fromJson(await api.get('/api/mobile/me') as Map<String, dynamic>);
+      staff = Staff.fromV1(await v1(api, (c) => c.crmMe()));
       status = AuthStatus.loggedIn;
     } on ApiException catch (e) {
       // Нет сети — оставляем вход, пусть экраны покажут ошибку; сессия закрыта — на экран входа.
@@ -131,7 +142,7 @@ class AuthState extends ChangeNotifier {
     api.token = session.token;
     await _secure.write(key: 'token', value: api.token);
     try {
-      staff = Staff.fromJson(await api.get('/api/mobile/me') as Map<String, dynamic>);
+      staff = Staff.fromV1(await v1(api, (c) => c.crmMe()));
     } on ApiException {
       // Вход заблокирован правилами безопасности CRM (сеть, обязательная 2FA).
       await _clear();
@@ -169,7 +180,7 @@ class AuthState extends ChangeNotifier {
 
   Future<void> refreshMe() async {
     try {
-      staff = Staff.fromJson(await api.get('/api/mobile/me') as Map<String, dynamic>);
+      staff = Staff.fromV1(await v1(api, (c) => c.crmMe()));
       notifyListeners();
     } on ApiException {
       // Бейдж подождёт следующего обновления.

@@ -184,7 +184,7 @@ class _DealScreenState extends State<DealScreen> {
       if (reason == null) return;
     }
     try {
-      await _api.post('/api/mobile/deals/${widget.dealId}/move', body: {'stageId': stage.id, 'lostReason': ?reason});
+      await v1(_api, (c) => c.crmDealMove(dealId: widget.dealId, body: v1api.CrmDealMoveBody(stageId: stage.id, lostReason: reason)));
       HapticFeedback.mediumImpact();
       await _load();
     } on ApiException catch (e) {
@@ -215,7 +215,7 @@ class _DealScreenState extends State<DealScreen> {
     );
     if (picked == null) return;
     try {
-      await api.post('/api/mobile/deals/${widget.dealId}/assign', body: {'userId': picked.isEmpty ? null : picked});
+      await v1(api, (c) => c.crmDealAssign(dealId: widget.dealId, body: v1api.CrmAssignUserBody(userId: picked.isEmpty ? null : picked)));
       _toast(picked.isEmpty ? 'Ответственный снят' : 'Сделка передана');
       _load();
     } on ApiException catch (e) {
@@ -227,7 +227,7 @@ class _DealScreenState extends State<DealScreen> {
     final text = await promptText(context, title: 'Заметка по сделке', lines: 4);
     if (text == null) return;
     try {
-      await _api.post('/api/mobile/deals/${widget.dealId}/notes', body: {'text': text});
+      await v1(_api, (c) => c.crmDealNote(dealId: widget.dealId, body: v1api.CrmDealNoteBody(text: text)));
       await _load();
     } on ApiException catch (e) {
       _toast(e.message);
@@ -241,7 +241,7 @@ class _DealScreenState extends State<DealScreen> {
 
   Future<void> _accept() async {
     try {
-      await _api.post('/api/mobile/deals/${widget.dealId}/accept');
+      await v1(_api, (c) => c.crmDealAccept(dealId: widget.dealId));
       HapticFeedback.mediumImpact();
       _toast('Заявка принята в работу');
       await _load();
@@ -254,8 +254,8 @@ class _DealScreenState extends State<DealScreen> {
     final reason = await promptText(context, title: 'Почему отклоняете заявку?', hint: 'Например: спам, нет бюджета', ok: 'Отклонить');
     if (reason == null) return;
     try {
-      final r = await _api.post('/api/mobile/deals/${widget.dealId}/reject', body: {'reason': reason, 'spam': false});
-      _toast((r is Map && r['message'] is String) ? r['message'] as String : 'Заявка отклонена');
+      final r = await v1(_api, (c) => c.crmDealReject(dealId: widget.dealId, body: v1api.CrmDealRejectBody(reason: reason, spam: false)));
+      _toast(r.message.isNotEmpty ? r.message : 'Заявка отклонена');
       await _load();
     } on ApiException catch (e) {
       _toast(e.message);
@@ -265,7 +265,7 @@ class _DealScreenState extends State<DealScreen> {
   Future<void> _toggleTask(TaskItem t) async {
     setState(() => t.done = !t.done);
     try {
-      await _api.post('/api/mobile/tasks/${t.id}/toggle');
+      await v1(_api, (c) => c.crmTaskToggle(taskId: t.id));
     } on ApiException catch (e) {
       setState(() => t.done = !t.done);
       _toast(e.message);
@@ -274,8 +274,13 @@ class _DealScreenState extends State<DealScreen> {
 
   Future<void> _invoiceAction(String id, String action) async {
     try {
-      await _api.post('/api/mobile/invoices/$id', body: {'action': action});
-      _toast(action == 'cancel' ? 'Счёт отменён' : 'Счёт отправлен ещё раз');
+      if (action == 'cancel') {
+        final r = await v1(_api, (c) => c.crmInvoiceCancel(invoiceId: id));
+        _toast(r.message.isNotEmpty ? r.message : 'Счёт отменён');
+      } else {
+        final r = await v1(_api, (c) => c.crmInvoiceResend(invoiceId: id));
+        _toast(r.message.isNotEmpty ? r.message : 'Счёт отправлен ещё раз');
+      }
       await _load();
     } on ApiException catch (e) {
       _toast(e.message);

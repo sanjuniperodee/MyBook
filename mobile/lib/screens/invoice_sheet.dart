@@ -3,8 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:uuid/uuid.dart';
 
+import '../api/mybook_api.g.dart' as v1api;
 import '../core/api.dart';
 import '../core/format.dart';
+import '../core/v1.dart';
 import '../ui/kit.dart';
 import '../ui/tokens.dart';
 
@@ -45,7 +47,7 @@ class _InvoiceSheet extends StatefulWidget {
 }
 
 class _InvoiceSheetState extends State<_InvoiceSheet> {
-  Map<String, dynamic>? _info;
+  v1api.CrmInvoiceForm? _info;
   String? _loadError;
   String? _error;
   bool _busy = false;
@@ -70,25 +72,25 @@ class _InvoiceSheetState extends State<_InvoiceSheet> {
 
   Future<void> _load() async {
     try {
-      final r = await widget.api.get('/api/mobile/invoices/info', query: {'dealId': widget.dealId, 'conversationId': widget.conversationId}) as Map<String, dynamic>;
-      final info = r['info'] as Map<String, dynamic>;
+      final info = await v1(widget.api, (c) => c.crmInvoiceForm(dealId: widget.dealId, conversationId: widget.conversationId));
+      if (!mounted) return;
       setState(() {
         _info = info;
-        _plan = info['plan'] as String?;
-        final plans = (info['plans'] as List).cast<Map<String, dynamic>>();
-        if (_plan == null && plans.isNotEmpty) _plan = plans.first['id'] as String;
-        final agreed = (info['agreedTotal'] as num).toInt();
-        final price = agreed > 0 ? agreed : ((plans.firstWhere((p) => p['id'] == _plan, orElse: () => {'price': 0})['price'] as num).toInt());
+        _plan = info.plan;
+        if (_plan == null && info.plans.isNotEmpty) _plan = info.plans.first.id;
+        final agreed = info.agreedTotal;
+        final selectedPlan = info.plans.where((p) => p.id == _plan).firstOrNull;
+        final price = agreed > 0 ? agreed : (selectedPlan?.price ?? 0);
         _agreed.text = price > 0 ? '$price' : '';
-        _name.text = (info['clientName'] as String?) ?? '';
-        _locale = (info['locale'] as String?) ?? 'ru';
-        _channel = (info['channel'] as String?) ?? '';
-        _gifts.addAll(((info['gifts'] as List?) ?? const []).cast<String>());
-        _kaspi = info['kaspiPhoneMasked'] != null;
+        _name.text = info.clientName;
+        _locale = info.locale.isNotEmpty ? info.locale : 'ru';
+        _channel = info.channel;
+        _gifts.addAll(info.gifts);
+        _kaspi = info.kaspiPhoneMasked != null;
         _suggest();
       });
     } on ApiException catch (e) {
-      setState(() => _loadError = e.message);
+      if (mounted) setState(() => _loadError = e.message);
     }
   }
 
@@ -96,7 +98,7 @@ class _InvoiceSheetState extends State<_InvoiceSheet> {
 
   /// Подсказка суммы по назначению: предоплата — половина, остаток — за вычетом внесённого, вся сумма.
   void _suggest() {
-    final paid = (_info?['paid'] as num?)?.toInt() ?? 0;
+    final paid = _info?.paid ?? 0;
     final total = _agreedTotal * _count;
     int v;
     switch (_purpose) {
@@ -119,33 +121,38 @@ class _InvoiceSheetState extends State<_InvoiceSheet> {
       _error = null;
     });
     try {
-      final r = await widget.api.post('/api/mobile/invoices', body: {
-        'dealId': info['dealId'] ?? widget.dealId ?? '',
-        'conversationId': widget.conversationId ?? '',
-        'clientName': _name.text.trim(),
-        'locale': _locale,
-        'channel': _channel,
-        'plan': _plan,
-        'agreedTotal': _agreedTotal,
-        'count': _count,
-        'amount': int.tryParse(_amount.text.trim()) ?? 0,
-        'purpose': _purpose,
-        'issueKey': _issueKey,
-        'kaspiPush': _kaspi && info['kaspiPhoneMasked'] != null,
-        'gifts': _gifts.toList(),
-      }) as Map<String, dynamic>;
+      final r = await v1(
+        widget.api,
+        (c) => c.crmInvoiceIssue(
+          body: v1api.CrmInvoiceBody(
+            dealId: info.dealId ?? widget.dealId,
+            conversationId: widget.conversationId,
+            clientName: _name.text.trim(),
+            locale: _locale,
+            channel: _channel,
+            plan: _plan!,
+            agreedTotal: _agreedTotal,
+            count: _count,
+            amount: int.tryParse(_amount.text.trim()) ?? 0,
+            purpose: _purpose,
+            issueKey: _issueKey,
+            kaspiPush: _kaspi && info.kaspiPhoneMasked != null,
+            gifts: _gifts.toList(),
+          ),
+        ),
+      );
       if (!mounted) return;
       await showDialog<void>(
         context: context,
         builder: (_) => AlertDialog(
           title: const Text('Счёт выставлен'),
           content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(r['message'] as String? ?? ''),
+            Text(r.message),
             const SizedBox(height: 10),
-            SelectableText(r['link'] as String? ?? '', style: const TextStyle(fontSize: 13)),
+            SelectableText(r.link, style: const TextStyle(fontSize: 13)),
           ]),
           actions: [
-            TextButton(onPressed: () => Clipboard.setData(ClipboardData(text: r['link'] as String? ?? '')), child: const Text('Скопировать ссылку')),
+            TextButton(onPressed: () => Clipboard.setData(ClipboardData(text: r.link)), child: const Text('Скопировать ссылку')),
             FilledButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Готово')),
           ],
         ),
@@ -165,35 +172,35 @@ class _InvoiceSheetState extends State<_InvoiceSheet> {
     return SizedBox(height: 260, child: _loadError != null ? EmptyState(icon: LucideIcons.circleAlert, title: 'Не удалось открыть форму', hint: _loadError, action: 'Повторить', onAction: _load) : const Center(child: CircularProgressIndicator()));
   }
 
-  Widget _form(BuildContext context, Map<String, dynamic> info) {
-    final plans = (info['plans'] as List).cast<Map<String, dynamic>>();
-    final open = info['open'] as Map<String, dynamic>?;
-    final closed = info['closed'] == true;
-    final hasOrder = info['hasOrder'] == true;
-    final maxDiscount = info['maxDiscountPercent'];
-    final selected = plans.firstWhere((p) => p['id'] == _plan, orElse: () => <String, dynamic>{});
+  Widget _form(BuildContext context, v1api.CrmInvoiceForm info) {
+    final plans = info.plans;
+    final open = info.open;
+    final closed = info.closed;
+    final hasOrder = info.hasOrder;
+    final maxDiscount = info.maxDiscountPercent;
+    final selected = plans.where((p) => p.id == _plan).firstOrNull;
     final blocked = closed || hasOrder || open != null;
-    final methods = (info['methods'] as Map<String, dynamic>?) ?? const {};
+    final methods = info.methods;
     return ListView(
       shrinkWrap: true,
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
       children: [
-        Text(info['chat'] != null ? 'Ссылка на оплату уйдёт клиенту в ${info['chat']}' : 'Чата нет — ссылку на оплату отправьте клиенту сами', style: AppText.sub(context)),
+        Text(info.chat != null ? 'Ссылка на оплату уйдёт клиенту в ${info.chat}' : 'Чата нет — ссылку на оплату отправьте клиенту сами', style: AppText.sub(context)),
         const SizedBox(height: 12),
-        if (info['kaspiWarning'] != null) _notice(info['kaspiWarning'] as String, warn: true),
+        if (info.kaspiWarning != null) _notice(info.kaspiWarning!, warn: true),
         if (closed) _notice('Сделка закрыта — вернуть в работу нужно в CRM, потом выставить счёт.', warn: true),
         if (hasOrder) _notice('По сделке уже есть заказ — оплата идёт в заказе.', warn: true),
-        if (open != null) _notice('Уже есть открытый счёт ${open['label']} на ${money(open['amount'] as num)}. Отмените его в сделке, чтобы выставить новый.', warn: true),
+        if (open != null) _notice('Уже есть открытый счёт ${open.label} на ${money(open.amount)}. Отмените его в сделке, чтобы выставить новый.', warn: true),
         if (!blocked) ...[
           const _Label('Тариф договорённости'),
           Wrap(spacing: 8, runSpacing: 8, children: [
             for (final p in plans)
               FilterPill(
-                label: '${p['label']} · ${money(p['price'] as num)}',
-                selected: _plan == p['id'],
+                label: '${p.label} · ${money(p.price)}',
+                selected: _plan == p.id,
                 onTap: () => setState(() {
-                  _plan = p['id'] as String;
-                  if (_agreedTotal == 0) _agreed.text = '${(p['price'] as num).toInt()}';
+                  _plan = p.id;
+                  if (_agreedTotal == 0) _agreed.text = '${p.price}';
                   _suggest();
                 }),
               ),
@@ -207,7 +214,7 @@ class _InvoiceSheetState extends State<_InvoiceSheet> {
               _suggest();
             })),
           ]),
-          if (maxDiscount != null && selected.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 4), child: Text('Скидка от прайса — не больше $maxDiscount%', style: TextStyle(fontSize: 12, color: context.c.textMuted))),
+          if (maxDiscount != null && selected != null) Padding(padding: const EdgeInsets.only(top: 4), child: Text('Скидка от прайса — не больше $maxDiscount%', style: TextStyle(fontSize: 12, color: context.c.textMuted))),
           const SizedBox(height: 14),
           const _Label('Что оплачивает счёт'),
           Wrap(spacing: 8, runSpacing: 8, children: [
@@ -223,7 +230,7 @@ class _InvoiceSheetState extends State<_InvoiceSheet> {
           ]),
           const SizedBox(height: 10),
           _field(_amount, 'Сумма счёта, ₸', onChanged: (_) => setState(() => _purpose = _purpose)),
-          if ((info['paid'] as num) > 0) Padding(padding: const EdgeInsets.only(top: 4), child: Text('Уже внесено: ${money(info['paid'] as num)}', style: TextStyle(fontSize: 12, color: context.c.textMuted))),
+          if (info.paid > 0) Padding(padding: const EdgeInsets.only(top: 4), child: Text('Уже внесено: ${money(info.paid)}', style: TextStyle(fontSize: 12, color: context.c.textMuted))),
           const SizedBox(height: 14),
           _field(_name, 'Имя клиента'),
           const SizedBox(height: 14),
@@ -239,18 +246,18 @@ class _InvoiceSheetState extends State<_InvoiceSheet> {
             const SizedBox(width: 12),
             SegmentedButton<String>(segments: const [ButtonSegment(value: 'ru', label: Text('RU')), ButtonSegment(value: 'kk', label: Text('KK'))], selected: {_locale}, showSelectedIcon: false, onSelectionChanged: (s) => setState(() => _locale = s.first)),
           ]),
-          if (selected['giftwrap'] == true || selected['printed'] == true) ...[
+          if (selected != null && (selected.giftwrap || selected.printed)) ...[
             const SizedBox(height: 10),
             Wrap(spacing: 8, children: [
-              if (selected['giftwrap'] == true) FilterChip(label: const Text('Упаковка бесплатно'), selected: _gifts.contains('giftwrap'), onSelected: (v) => setState(() => v ? _gifts.add('giftwrap') : _gifts.remove('giftwrap'))),
-              if (selected['printed'] == true) FilterChip(label: const Text('Доставка бесплатно'), selected: _gifts.contains('delivery'), onSelected: (v) => setState(() => v ? _gifts.add('delivery') : _gifts.remove('delivery'))),
+              if (selected.giftwrap) FilterChip(label: const Text('Упаковка бесплатно'), selected: _gifts.contains('giftwrap'), onSelected: (v) => setState(() => v ? _gifts.add('giftwrap') : _gifts.remove('giftwrap'))),
+              if (selected.printed) FilterChip(label: const Text('Доставка бесплатно'), selected: _gifts.contains('delivery'), onSelected: (v) => setState(() => v ? _gifts.add('delivery') : _gifts.remove('delivery'))),
             ]),
           ],
-          if (info['kaspiPhoneMasked'] != null && methods['kaspi'] == true)
-            SwitchListTile(contentPadding: EdgeInsets.zero, value: _kaspi, onChanged: (v) => setState(() => _kaspi = v), title: const Text('Счёт в приложение Kaspi'), subtitle: Text('на номер ${info['kaspiPhoneMasked']}')),
+          if (info.kaspiPhoneMasked != null && methods.kaspi)
+            SwitchListTile(contentPadding: EdgeInsets.zero, value: _kaspi, onChanged: (v) => setState(() => _kaspi = v), title: const Text('Счёт в приложение Kaspi'), subtitle: Text('на номер ${info.kaspiPhoneMasked}')),
           if (_error != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(_error!, style: TextStyle(color: context.c.danger, fontWeight: FontWeight.w500))),
           const SizedBox(height: 14),
-          PrimaryButton(label: info['chat'] != null ? 'Выставить и отправить в чат' : 'Выставить счёт', icon: LucideIcons.send, busy: _busy, onPressed: _channel.isEmpty || _plan == null ? null : _submit),
+          PrimaryButton(label: info.chat != null ? 'Выставить и отправить в чат' : 'Выставить счёт', icon: LucideIcons.send, busy: _busy, onPressed: _channel.isEmpty || _plan == null ? null : _submit),
         ],
       ],
     );

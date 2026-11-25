@@ -200,7 +200,7 @@ class ChatsStore extends ChangeNotifier {
       notifyListeners();
     }
     try {
-      await api.post('/api/mobile/chats/$id/pin', body: {'pinned': pinned});
+      await v1(api, (c) => c.crmChatPin(chatId: id, body: v1api.CrmChatPinBody(pinned: pinned)));
       return null;
     } on ApiException catch (e) {
       await load();

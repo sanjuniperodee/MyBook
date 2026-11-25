@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import 'package:mime/mime.dart';
 
 import '../models/chat.dart';
@@ -126,18 +128,17 @@ class ChatController extends ChangeNotifier {
 
   /// Диалоги, куда можно переслать (поиск по имени и номеру).
   Future<List<ForwardTarget>> forwardTargets(String q) async {
-    final r = await api.get('/api/mobile/chats/targets', query: {'q': q}) as Map<String, dynamic>;
-    return [for (final t in (r['targets'] as List)) ForwardTarget.fromJson(t as Map<String, dynamic>)];
+    final r = await v1(api, (c) => c.crmChatForwardTargets(q: q.isEmpty ? null : q));
+    return [for (final t in r.targets) ForwardTarget(id: t.id, title: t.title, channel: t.channel, last: t.last)];
   }
 
   /// Переслать отмеченные сообщения. Возвращает текст итога для уведомления и признак успеха.
   Future<(bool, String)> forwardPicked(List<String> targetIds) async {
     final ids = picked.map((m) => m.id).toList();
     try {
-      final r = await api.post('/api/mobile/chats/$chatId/forward', body: {'messageIds': ids, 'targetIds': targetIds}) as Map<String, dynamic>;
-      final failed = ((r['failed'] as List?) ?? const []).cast<String>();
+      final r = await v1(api, (c) => c.crmChatForward(chatId: chatId, body: v1api.CrmChatForwardBody(messageIds: ids, targetIds: targetIds)));
       clearSelect();
-      if (failed.isNotEmpty) return (true, 'Переслано: ${r['forwarded']} из ${r['total']}. Не ушло: ${failed.join('; ')}');
+      if (r.failed.isNotEmpty) return (true, 'Переслано: ${r.forwarded} из ${r.total}. Не ушло: ${r.failed.join('; ')}');
       return (true, ids.length == 1 ? (targetIds.length == 1 ? 'Переслано' : 'Переслано в ${targetIds.length} диалога') : 'Переслано сообщений: ${ids.length}');
     } on ApiException catch (e) {
       return (false, e.message);
@@ -150,7 +151,7 @@ class ChatController extends ChangeNotifier {
     final errors = <String>{};
     for (final m in list) {
       try {
-        await api.delete('/api/mobile/chats/$chatId/messages/${m.id}');
+        await v1(api, (c) => c.crmChatMessageDelete(chatId: chatId, messageId: m.id));
       } on ApiException catch (e) {
         errors.add(e.message);
       }
@@ -174,7 +175,7 @@ class ChatController extends ChangeNotifier {
 
   Future<String?> setPinned(bool pinned) async {
     try {
-      await api.post('/api/mobile/chats/$chatId/pin', body: {'pinned': pinned});
+      await v1(api, (c) => c.crmChatPin(chatId: chatId, body: v1api.CrmChatPinBody(pinned: pinned)));
       await load(silent: true);
       return null;
     } on ApiException catch (e) {
@@ -185,9 +186,9 @@ class ChatController extends ChangeNotifier {
   /// Шаблон из сообщения: код и ИИ заменяют данные клиента подстановками. Ошибка — текст.
   Future<(TemplateDraft?, String?)> draftTemplate(Message m) async {
     try {
-      final r = await api.post('/api/mobile/templates/draft', body: {'chatId': chatId, 'messageId': m.id}) as Map<String, dynamic>;
-      final replaced = [for (final x in ((r['replaced'] as List?) ?? const [])) ((x as Map<String, dynamic>)['was'] as String? ?? '', x['with'] as String? ?? '')];
-      return (TemplateDraft(title: (r['title'] as String?) ?? '', text: (r['text'] as String?) ?? '', replaced: replaced), null);
+      final r = await v1(api, (c) => c.crmMyTemplateDraft(body: v1api.CrmTemplateDraftBody(chatId: chatId, messageId: m.id)));
+      final replaced = [for (final x in r.replaced) (x.was, x.placeholder)];
+      return (TemplateDraft(title: r.title, text: r.text, replaced: replaced), null);
     } on ApiException catch (e) {
       return (null, e.message);
     }
@@ -314,7 +315,7 @@ class ChatController extends ChangeNotifier {
 
   Future<void> markRead() async {
     try {
-      await api.post('/api/mobile/chats/$chatId/read');
+      await v1(api, (c) => c.crmChatRead(chatId: chatId));
     } on ApiException {
       // Счётчик погаснет при следующем обновлении.
     }
@@ -355,15 +356,21 @@ class ChatController extends ChangeNotifier {
     replyTo = null;
     notifyListeners();
     try {
-      final r = await api.post('/api/mobile/chats/$chatId/messages', body: {'text': body, 'replyToId': reply, 'override': ?override}) as Map<String, dynamic>;
-      if (r['blocked'] != null) {
+      final r = await v1(
+        api,
+        (c) => c.crmChatSendMessage(
+          chatId: chatId,
+          body: v1api.CrmChatMessageSendBody(text: body, replyToId: reply, override: override),
+        ),
+      );
+      if (r.blocked != null) {
         _local.remove(local);
         notifyListeners();
-        return SendResult(blocked: r['blocked'] as String);
+        return SendResult(blocked: r.blocked);
       }
-      if (r['status'] == 'error') {
+      if (r.status == 'error') {
         local.status = 'error';
-        local.error = r['error'] as String? ?? 'Не отправилось';
+        local.error = r.error ?? 'Не отправилось';
         notifyListeners();
         return SendResult(error: local.error);
       }
@@ -383,10 +390,15 @@ class ChatController extends ChangeNotifier {
     replyTo = null;
     notifyListeners();
     try {
-      final r = await api.upload('/api/mobile/chats/$chatId/voice', field: 'voice', file: file, filename: 'voice.m4a', contentType: 'audio/mp4', fields: {'replyToId': ?reply}) as Map<String, dynamic>;
-      if (r['status'] == 'error') {
+      final part = await http.MultipartFile.fromPath('voice', file.path, filename: 'voice.m4a', contentType: MediaType('audio', 'mp4'));
+      final r = await v1(
+        api,
+        (c) => c.crmChatSendVoice(chatId: chatId, replyToId: reply, files: [part]),
+        timeout: const Duration(minutes: 3),
+      );
+      if (r.status == 'error') {
         local.status = 'error';
-        local.error = r['error'] as String? ?? 'Не отправилось';
+        local.error = r.error ?? 'Не отправилось';
         notifyListeners();
         return local.error;
       }
@@ -445,7 +457,7 @@ class ChatController extends ChangeNotifier {
 
   Future<String?> edit(Message m, String text) async {
     try {
-      await api.patch('/api/mobile/chats/$chatId/messages/${m.id}', body: {'text': text});
+      await v1(api, (c) => c.crmChatMessageEdit(chatId: chatId, messageId: m.id, body: v1api.CrmTextBody(text: text)));
       await refresh();
       return null;
     } on ApiException catch (e) {
@@ -455,7 +467,7 @@ class ChatController extends ChangeNotifier {
 
   Future<String?> remove(Message m) async {
     try {
-      await api.delete('/api/mobile/chats/$chatId/messages/${m.id}');
+      await v1(api, (c) => c.crmChatMessageDelete(chatId: chatId, messageId: m.id));
       await refresh();
       return null;
     } on ApiException catch (e) {
@@ -465,8 +477,8 @@ class ChatController extends ChangeNotifier {
 
   Future<String?> transcribe(Message m) async {
     try {
-      final r = await api.post('/api/mobile/chats/$chatId/messages/${m.id}/transcribe') as Map<String, dynamic>;
-      m.transcript = r['text'] as String?;
+      final r = await v1(api, (c) => c.crmChatMessageTranscribe(chatId: chatId, messageId: m.id));
+      m.transcript = r.text;
       notifyListeners();
       return null;
     } on ApiException catch (e) {
@@ -479,7 +491,7 @@ class ChatController extends ChangeNotifier {
     m.status = 'sending';
     notifyListeners();
     try {
-      await api.post('/api/mobile/chats/$chatId/messages/${m.id}/resend');
+      await v1(api, (c) => c.crmChatMessageResend(chatId: chatId, messageId: m.id));
       await refresh();
       return null;
     } on ApiException catch (e) {
@@ -491,14 +503,23 @@ class ChatController extends ChangeNotifier {
 
   /// Товары каталога WhatsApp для выбора в чате. enabled=false — каталог в чатах выключен в настройках CRM.
   Future<({bool enabled, List<CatalogItem> items})> catalog() async {
-    final r = await api.get('/api/mobile/catalog') as Map<String, dynamic>;
-    return (enabled: r['enabled'] == true, items: [for (final p in (r['products'] as List)) CatalogItem.fromJson(p as Map<String, dynamic>)]);
+    final r = await v1(api, (c) => c.crmChatCatalog());
+    return (
+      enabled: r.enabled,
+      items: [for (final p in r.products) CatalogItem(id: p.id, name: p.name, price: p.price, currency: p.currency, hidden: p.hidden, image: p.image)],
+    );
   }
 
   /// Клиенту карточку товара (productId) или ссылку на весь каталог (null).
   Future<String?> sendCatalog(String? productId) async {
     try {
-      await api.post('/api/mobile/chats/$chatId/catalog', body: {'productId': productId});
+      await v1(
+        api,
+        (c) => c.crmChatSendCatalog(
+          chatId: chatId,
+          body: v1api.CrmChatCatalogSendBody(productId: productId, nulls: productId == null ? const {'productId'} : const {}),
+        ),
+      );
       await refresh();
       return null;
     } on ApiException catch (e) {
@@ -508,13 +529,13 @@ class ChatController extends ChangeNotifier {
 
   /// Состав корзины, которую прислал клиент.
   Future<List<CartItem>> orderItems(Message m) async {
-    final r = await api.get('/api/mobile/chats/messages/${m.id}/order') as Map<String, dynamic>;
-    return [for (final i in (r['items'] as List)) CartItem.fromJson(i as Map<String, dynamic>)];
+    final r = await v1(api, (c) => c.crmChatMessageOrder(messageId: m.id));
+    return [for (final i in r.items) CartItem(name: i.name, quantity: i.quantity, price: i.price)];
   }
 
   Future<String?> addNote(String text) async {
     try {
-      await api.post('/api/mobile/chats/$chatId/note', body: {'text': text});
+      await v1(api, (c) => c.crmChatNote(chatId: chatId, body: v1api.CrmTextBody(text: text)));
       await refresh();
       return null;
     } on ApiException catch (e) {
@@ -524,7 +545,7 @@ class ChatController extends ChangeNotifier {
 
   Future<String?> setStatus(String status) async {
     try {
-      await api.post('/api/mobile/chats/$chatId/status', body: {'status': status});
+      await v1(api, (c) => c.crmChatStatus(chatId: chatId, body: v1api.CrmChatStatusBody(status: status)));
       await load(silent: true);
       return null;
     } on ApiException catch (e) {
@@ -534,7 +555,7 @@ class ChatController extends ChangeNotifier {
 
   Future<String?> createDeal() async {
     try {
-      await api.post('/api/mobile/chats/$chatId/deal');
+      await v1(api, (c) => c.crmChatCreateDeal(chatId: chatId));
       await load(silent: true);
       return null;
     } on ApiException catch (e) {
