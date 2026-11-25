@@ -129,7 +129,7 @@ class TasksStore extends ChangeNotifier {
     t.done = !was;
     notifyListeners();
     try {
-      await api.post('/api/mobile/tasks/${t.id}/toggle');
+      await v1(api, (c) => c.crmTaskToggle(taskId: t.id));
       await load(silent: true);
       if (doneLoaded) unawaited(loadDone());
       return null;
@@ -144,11 +144,20 @@ class TasksStore extends ChangeNotifier {
   Future<String?> complete(CrmTask t, {String? result, String? nextTitle, int nextDays = 1}) async {
     final d = DateTime.now().add(Duration(days: nextDays));
     final due = '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+    final res = result?.trim();
+    final next = nextTitle?.trim();
     try {
-      await api.post('/api/mobile/tasks/${t.id}/complete', body: {
-        if (result != null && result.trim().isNotEmpty) 'result': result.trim(),
-        if (nextTitle != null && nextTitle.trim().isNotEmpty) ...{'nextTitle': nextTitle.trim(), 'nextDue': due},
-      });
+      await v1(
+        api,
+        (c) => c.crmTaskComplete(
+          taskId: t.id,
+          body: v1api.CrmTaskCompleteBody(
+            result: res != null && res.isNotEmpty ? res : null,
+            nextTitle: next != null && next.isNotEmpty ? next : null,
+            nextDue: next != null && next.isNotEmpty ? due : null,
+          ),
+        ),
+      );
       t.done = true;
       await load(silent: true);
       if (doneLoaded) unawaited(loadDone());
@@ -161,7 +170,7 @@ class TasksStore extends ChangeNotifier {
   /// by: hour — через час, tomorrow — завтра (срок считает сервер).
   Future<String?> snooze(CrmTask t, String by) async {
     try {
-      await api.post('/api/mobile/tasks/${t.id}/snooze', body: {'by': by});
+      await v1(api, (c) => c.crmTaskSnooze(taskId: t.id, body: v1api.CrmTaskSnoozeBody(by: by)));
       await load(silent: true);
       return null;
     } on ApiException catch (e) {
@@ -171,14 +180,22 @@ class TasksStore extends ChangeNotifier {
 
   Future<String?> create({required String title, DateTime? due, bool withTime = true, String kind = 'task', int? remindBeforeMin, TaskTarget? target}) async {
     try {
-      await api.post('/api/mobile/tasks', body: {
-        'title': title,
-        'kind': kind,
-        if (due != null) 'dueAt': _date(due),
-        if (due != null && withTime) 'dueTime': _time(due),
-        if (remindBeforeMin != null) 'remindBeforeMin': remindBeforeMin < 0 ? 'none' : remindBeforeMin,
-        ...?target?.toJson(),
-      });
+      await v1(
+        api,
+        (c) => c.crmTaskCreate(
+          body: v1api.CrmTaskCreateBody(
+            title: title,
+            kind: kind,
+            dueAt: due != null ? _date(due) : null,
+            dueTime: due != null && withTime ? _time(due) : null,
+            remindBeforeMin: remindBeforeMin != null && remindBeforeMin >= 0 ? remindBeforeMin : null,
+            nulls: remindBeforeMin != null && remindBeforeMin < 0 ? const {'remindBeforeMin'} : const {},
+            dealId: target?.dealId,
+            clientId: target?.clientId,
+            orderId: target?.orderId,
+          ),
+        ),
+      );
       await load(silent: true);
       return null;
     } on ApiException catch (e) {
@@ -188,12 +205,18 @@ class TasksStore extends ChangeNotifier {
 
   Future<String?> update(CrmTask t, {String? title, String? kind, DateTime? due, bool clearDue = false, bool withTime = true, int? remindBeforeMin}) async {
     try {
-      await api.patch('/api/mobile/tasks/${t.id}', body: {
-        'title': ?title,
-        'kind': ?kind,
-        if (clearDue) 'dueAt': '' else if (due != null) 'dueAt': withTime ? '${_date(due)}T${_time(due)}' : _date(due),
-        if (remindBeforeMin != null) 'remindBeforeMin': remindBeforeMin < 0 ? 'none' : '$remindBeforeMin',
-      });
+      await v1(
+        api,
+        (c) => c.crmTaskUpdate(
+          taskId: t.id,
+          body: v1api.CrmTaskPatchBody(
+            title: title,
+            kind: kind,
+            dueAt: clearDue ? '' : (due != null ? (withTime ? '${_date(due)}T${_time(due)}' : _date(due)) : null),
+            remindBeforeMin: remindBeforeMin != null ? (remindBeforeMin < 0 ? 'none' : '$remindBeforeMin') : null,
+          ),
+        ),
+      );
       await load(silent: true);
       return null;
     } on ApiException catch (e) {
@@ -203,7 +226,7 @@ class TasksStore extends ChangeNotifier {
 
   Future<String?> remove(CrmTask t) async {
     try {
-      await api.delete('/api/mobile/tasks/${t.id}');
+      await v1(api, (c) => c.crmTaskDelete(taskId: t.id));
       open.removeWhere((x) => x.id == t.id);
       notifyListeners();
       await load(silent: true);

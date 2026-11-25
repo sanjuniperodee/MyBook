@@ -82,7 +82,7 @@ class _CallsScreenState extends State<CallsScreen> {
   Future<void> _handled(CallItem call) async {
     setState(() => call.handled = true);
     try {
-      await context.read<AuthState>().api.post('/api/mobile/calls/${call.id}/handled');
+      await v1(context.read<AuthState>().api, (c) => c.crmCallHandled(callId: call.id));
     } on ApiException catch (e) {
       if (mounted) {
         setState(() => call.handled = false);

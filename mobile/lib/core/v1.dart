@@ -50,12 +50,12 @@ class _EtagClient extends http.BaseClient {
 
 /// Клиент контракта API v1 (сгенерированный, lib/api/mybook_api.g.dart) поверх ApiClient приложения: тот же сервер,
 /// HTTP-клиент и токен; ошибки — в ApiException, как у остальных экранов (401 — выход, 0 — нет связи, refused — текст отказа CRM).
-Future<T> v1<T>(ApiClient api, Future<T> Function(MybookApi v1) run) async {
+Future<T> v1<T>(ApiClient api, Future<T> Function(MybookApi v1) run, {Duration timeout = const Duration(seconds: 30)}) async {
   final base = _normalizedBase(api.baseUrl);
   final client = _clients[api] ??= MybookApi(baseUrl: base, client: api.httpClient);
   if (client.baseUrl != base) _clients[api] = MybookApi(baseUrl: base, client: api.httpClient);
   final c = _clients[api]!..token = api.token;
-  return _guard(api, () => run(c).timeout(const Duration(seconds: 30)));
+  return _guard(api, () => run(c).timeout(timeout));
 }
 
 /// GET API v1 с поддержкой ETag / If-None-Match → 304 Not Modified и опциональным сохранением в [LocalCache].

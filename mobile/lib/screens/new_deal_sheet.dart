@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../api/mybook_api.g.dart' as v1api;
 import '../core/api.dart';
+import '../core/v1.dart';
 import '../ui/kit.dart';
 import '../ui/tokens.dart';
 
@@ -56,14 +58,19 @@ class _NewDealState extends State<_NewDeal> {
     });
     final amount = int.tryParse(_amount.text.replaceAll(RegExp(r'\s'), ''));
     try {
-      final r = await widget.api.post('/api/mobile/deals', body: {
-        'title': title,
-        if (_name.text.trim().isNotEmpty) 'contactName': _name.text.trim(),
-        if (_phone.text.trim().isNotEmpty) 'contactPhone': _phone.text.trim(),
-        'amount': ?amount,
-        'clientId': ?widget.clientId,
-      }) as Map<String, dynamic>;
-      if (mounted) Navigator.pop(context, r['id'] as String?);
+      final r = await v1(
+        widget.api,
+        (c) => c.crmDealCreate(
+          body: v1api.CrmDealCreateBody(
+            title: title,
+            contactName: _name.text.trim().isNotEmpty ? _name.text.trim() : null,
+            contactPhone: _phone.text.trim().isNotEmpty ? _phone.text.trim() : null,
+            amount: amount,
+            clientId: widget.clientId,
+          ),
+        ),
+      );
+      if (mounted) Navigator.pop(context, r.id);
     } on ApiException catch (e) {
       if (mounted) {
         setState(() {

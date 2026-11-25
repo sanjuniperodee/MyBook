@@ -19,14 +19,20 @@ import 'package:mybooks_seller/core/live.dart';
 import 'package:mybooks_seller/core/notifications_store.dart';
 import 'package:mybooks_seller/core/notifier.dart';
 import 'package:mybooks_seller/core/tasks_store.dart';
+import 'package:mybooks_seller/core/templates_store.dart';
 import 'package:mybooks_seller/core/v1.dart';
+import 'package:mybooks_seller/models/chat.dart';
+import 'package:mybooks_seller/models/work.dart';
 import 'package:mybooks_seller/screens/calls_screen.dart';
 import 'package:mybooks_seller/screens/client_screen.dart';
 import 'package:mybooks_seller/screens/clients_screen.dart';
 import 'package:mybooks_seller/screens/deal_screen.dart';
 import 'package:mybooks_seller/screens/deals_screen.dart';
+import 'package:mybooks_seller/screens/invoice_sheet.dart';
 import 'package:mybooks_seller/screens/order_screen.dart';
 import 'package:mybooks_seller/screens/orders_screen.dart';
+import 'package:mybooks_seller/screens/overview_screen.dart';
+import 'package:mybooks_seller/screens/task_detail_screen.dart';
 import 'package:mybooks_seller/ui/tokens.dart';
 
 http.Response _jsonRes(Object body, {int status = 200, Map<String, String>? headers}) => http.Response.bytes(
@@ -142,8 +148,12 @@ void main() {
 
   tearDown(() async {
     LocalCache.setDirectoryForTest(null);
-    if (await tempDir.exists()) {
-      await tempDir.delete(recursive: true);
+    try {
+      if (await tempDir.exists()) {
+        await tempDir.delete(recursive: true);
+      }
+    } on FileSystemException {
+      // Фоновая запись кэша могла переименовать .tmp одновременно с удалением временной папки.
     }
   });
 
@@ -772,6 +782,311 @@ void main() {
           '/api/v1/crm/calls',
         ]),
       );
+    });
+
+    testWidgets('OverviewScreen, TaskDetailScreen и showInvoiceSheet работают полностью через API v1', (tester) async {
+      LocalCache.setDirectoryForTest(null);
+      final hitPaths = <String>[];
+      final mock = MockClient((req) async {
+        hitPaths.add('${req.method} ${req.url.path}');
+        expect(req.url.path.startsWith('/api/mobile'), isFalse, reason: 'Не должно быть вызовов ${req.url.path}');
+        if (req.url.path == '/api/v1/crm/overview') {
+          return _jsonRes({
+            'period': 30,
+            'revenue': {'cur': 500000, 'prev': 400000},
+            'sales': {'cur': 12, 'prev': 10},
+            'avgCheck': {'cur': 41666, 'prev': 40000},
+            'newClients': {'cur': 25, 'prev': 20},
+            'series': [
+              {'day': '2026-11-25', 'sum': 50000, 'n': 2},
+            ],
+            'funnel': {'registered': 25, 'withBook': 18, 'engaged': 12, 'ordered': 8, 'paid': 6},
+            'byPlan': [
+              {'plan': 'hardcover', 'label': 'Твёрдая', 'sum': 350000, 'n': 10},
+            ],
+            'stages': [
+              {'id': 's1', 'name': 'Новый', 'color': '#2B8FD6', 'n': 5},
+            ],
+            'attention': {'orders': 2, 'deadlines': 1},
+            'counters': {'attention': 2, 'tasks': 1, 'chats': 3, 'calls': 0, 'deals': 1, 'reviews': 0, 'finance': 0},
+          }, headers: {'etag': 'W/"ov-30"'});
+        }
+        if (req.url.path == '/api/v1/crm/tasks/55555555-5555-4555-8555-555555555551') {
+          return _jsonRes({
+            'item': {
+              'id': '55555555-5555-4555-8555-555555555551',
+              'title': 'Согласовать макет',
+              'kind': 'call',
+              'dueAt': '2026-11-26T10:00:00.000Z',
+              'overdue': false,
+              'done': false,
+              'remindBeforeMin': 30,
+              'fromBot': false,
+              'assigneeId': 'u1',
+              'editable': true,
+              'context': {'type': 'deal', 'id': 'd1', 'label': 'Сделка №12'},
+              'target': {'dealId': 'd1', 'orderId': null, 'clientId': null},
+              'contact': {'phone': '+7 701 555 66 77', 'target': {'dealId': 'd1'}, 'pbx': true, 'chat': true},
+            },
+            'task': {
+              'id': '55555555-5555-4555-8555-555555555551',
+              'title': 'Согласовать макет',
+              'kind': 'call',
+              'dueAt': '2026-11-26T10:00:00.000Z',
+              'doneAt': null,
+              'done': false,
+              'result': '',
+              'assigneeId': 'u1',
+              'assignee': 'Марго',
+              'createdBy': 'Марго',
+              'fromBot': false,
+              'overdue': false,
+              'editable': true,
+              'remindBeforeMin': 30,
+            },
+            'deal': null,
+            'client': null,
+            'contact': {'name': 'Асем', 'phone': '+7 701 555 66 77', 'email': null, 'masked': false},
+            'order': null,
+            'chat': null,
+            'notes': <dynamic>[],
+            'others': <dynamic>[],
+            'reach': {'phone': '+7 701 555 66 77', 'target': {'dealId': 'd1'}, 'pbx': true, 'chat': true},
+          });
+        }
+        if (req.url.path == '/api/v1/crm/invoices/form') {
+          return _jsonRes({
+            'dealId': '88888888-8888-4888-8888-888888888888',
+            'dealNumber': 51,
+            'plan': 'hardcover',
+            'agreedTotal': 35000,
+            'batchSize': 1,
+            'paid': 0,
+            'hasOrder': false,
+            'orderId': null,
+            'closed': false,
+            'open': null,
+            'clientName': 'Ерлан',
+            'locale': 'ru',
+            'channel': 'whatsapp',
+            'chat': 'WhatsApp',
+            'plans': [
+              {'id': 'hardcover', 'label': 'Твёрдая', 'price': 35000, 'printed': true, 'giftwrap': true},
+            ],
+            'gifts': <dynamic>[],
+            'giftPrices': {'giftwrap': 3000, 'delivery': 2000},
+            'methods': {'kaspi': true, 'card': true, 'transfer': true},
+            'kaspiPhoneMasked': '+7 702 *** ** 67',
+            'kaspiWarning': null,
+            'maxDiscountPercent': 10,
+            'preview': {'until': <String, dynamic>{}, 'link': <String, dynamic>{}},
+          });
+        }
+        if (req.method == 'POST' && req.url.path == '/api/v1/crm/invoices') {
+          return _jsonRes({'ok': true, 'message': 'Счёт отправлен в WhatsApp', 'link': 'https://mybooks.kz/pay/abc', 'text': 'Оплатите', 'sent': true});
+        }
+        return _jsonRes({'error': 'unexpected ${req.url.path}'}, status: 404);
+      });
+
+      final api = ApiClient(baseUrl: 'https://mybooks.kz', token: 'tok', client: mock);
+
+      await tester.pumpWidget(wrap(api, const OverviewScreen()));
+      await tester.pumpAndSettle();
+      expect(find.text('Выручка'), findsOneWidget);
+      expect(find.text('ВОРОНКА КЛИЕНТОВ'), findsOneWidget);
+
+      await tester.pumpWidget(wrap(api, const TaskDetailScreen(taskId: '55555555-5555-4555-8555-555555555551')));
+      await tester.pumpAndSettle();
+      expect(find.text('Согласовать макет'), findsOneWidget);
+
+      late BuildContext hostCtx;
+      await tester.pumpWidget(
+        wrap(
+          api,
+          Builder(builder: (c) {
+            hostCtx = c;
+            return const Scaffold(body: SizedBox.shrink());
+          }),
+        ),
+      );
+      showInvoiceSheet(hostCtx, api: api, dealId: '88888888-8888-4888-8888-888888888888');
+      await tester.pumpAndSettle();
+      expect(find.text('Ссылка на оплату уйдёт клиенту в WhatsApp'), findsOneWidget);
+      await tester.drag(find.byType(ListView), const Offset(0, -500));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Выставить и отправить в чат'));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('Счёт выставлен'), findsOneWidget);
+      await tester.tap(find.text('Готово'));
+      await tester.pumpAndSettle();
+
+      expect(
+        hitPaths,
+        containsAll([
+          'GET /api/v1/crm/overview',
+          'GET /api/v1/crm/tasks/55555555-5555-4555-8555-555555555551',
+          'GET /api/v1/crm/invoices/form',
+          'POST /api/v1/crm/invoices',
+        ]),
+      );
+    });
+  });
+
+  group('мутации сторов, шаблоны и push через API v1 (вторая волна A4)', () {
+    test('TemplatesStore: load с ETag/304, save, duplicate, reorder, remove через /api/v1/crm/my-templates*', () async {
+      final calls = <String>[];
+      final mock = MockClient((req) async {
+        calls.add('${req.method} ${req.url.path}');
+        expect(req.url.path.startsWith('/api/mobile'), isFalse);
+        if (req.method == 'GET' && req.url.path == '/api/v1/crm/my-templates') {
+          const etag = 'W/"tpl-1"';
+          if (req.headers['if-none-match'] == etag) return http.Response('', 304, headers: {'etag': etag});
+          return _jsonRes({
+            'mine': [
+              {'id': 't1', 'title': 'Привет', 'text': 'Здравствуйте!'},
+              {'id': 't2', 'title': 'Цена', 'text': '35 000 ₸'},
+            ],
+            'shared': [
+              {'id': 's1', 'title': 'Общий', 'text': 'Спасибо'},
+            ],
+          }, headers: {'etag': etag});
+        }
+        if (req.method == 'POST' && req.url.path == '/api/v1/crm/my-templates') {
+          return _jsonRes({'ok': true, 'id': 't3'});
+        }
+        return _jsonRes({'ok': true});
+      });
+
+      final api = ApiClient(baseUrl: 'https://mybooks.kz', token: 'tok', client: mock);
+      final store = TemplatesStore(api);
+      await store.load();
+      expect(store.mine.length, 2);
+      expect(store.mine.first.own, isTrue);
+      expect(store.shared.single.own, isFalse);
+
+      await store.save(title: 'Новый', text: 'Текст');
+      await store.duplicate(store.mine.first);
+      await store.reorder(0, 1);
+      await store.remove(store.mine.first);
+
+      expect(
+        calls,
+        containsAll([
+          'GET /api/v1/crm/my-templates',
+          'POST /api/v1/crm/my-templates',
+          'POST /api/v1/crm/my-templates/t1/duplicate',
+          'POST /api/v1/crm/my-templates/reorder',
+          'DELETE /api/v1/crm/my-templates/t2',
+        ]),
+      );
+    });
+
+    test('TasksStore и ChatController мутации + Notifier.forgetDevice + AuthState.refreshMe ходят в /api/v1/crm/*', () async {
+      final calls = <(String, Map<String, dynamic>?)>[];
+      const chatId = '44444444-4444-4444-8444-444444444444';
+      const taskId = '55555555-5555-4555-8555-555555555551';
+      final mock = MockClient((req) async {
+        expect(req.url.path.startsWith('/api/mobile'), isFalse, reason: 'Старый путь ${req.url.path}');
+        final body = req.body.isNotEmpty ? jsonDecode(req.body) as Map<String, dynamic> : null;
+        calls.add(('${req.method} ${req.url.path}', body));
+        if (req.url.path == '/api/v1/crm/me') {
+          return _jsonRes({
+            'id': 'u1',
+            'name': 'Марго',
+            'email': 'm@mybooks.kz',
+            'role': 'manager',
+            'isOwner': false,
+            'scope': 'own',
+            'onShift': true,
+            'layout': 'sales',
+            'permissions': ['chats.view'],
+            'counters': {'attention': 0, 'tasks': 0, 'chats': 1, 'calls': 0, 'deals': 0, 'reviews': 0, 'finance': 0},
+            'unread': 1,
+          });
+        }
+        if (req.url.path == '/api/v1/crm/today') {
+          return _jsonRes({'counts': {'tasks': 0, 'overdueTasks': 0, 'waiting': 0, 'missed': 0, 'unsorted': 0, 'openDeals': 0, 'openDealsSum': 0, 'noNextStep': 0}, 'plan': null, 'tasks': <dynamic>[], 'waiting': <dynamic>[], 'missed': <dynamic>[]});
+        }
+        if (req.url.path == '/api/v1/crm/tasks' && req.method == 'GET') {
+          return _jsonRes({'tasks': <dynamic>[]});
+        }
+        if (req.url.path == '/api/v1/crm/chats/$chatId/messages' && req.method == 'POST') {
+          return _jsonRes({'id': 'm-new', 'status': 'sent', 'error': null, 'blocked': null});
+        }
+        if (req.url.path == '/api/v1/crm/chats/$chatId/messages' && req.method == 'GET') {
+          return _jsonRes({'messages': <dynamic>[], 'more': false, 'unread': 0, 'status': 'open'});
+        }
+        if (req.url.path == '/api/v1/crm/chats/$chatId' && req.method == 'GET') {
+          return _jsonRes(_sampleChatDetail(chatId));
+        }
+        if (req.url.path == '/api/v1/crm/catalog/for-chat') {
+          return _jsonRes({'enabled': true, 'products': <dynamic>[]});
+        }
+        if (req.url.path == '/api/v1/crm/my-templates/draft') {
+          return _jsonRes({
+            'title': 'Ответ',
+            'text': 'Привет, {{name}}',
+            'replaced': [
+              {'was': 'Алия', 'placeholder': '{{name}}'},
+            ],
+            'ai': true,
+          });
+        }
+        if (req.url.path == '/api/v1/crm/chats/$chatId/messages/m1/transcribe') {
+          return _jsonRes({'text': 'Расшифровка'});
+        }
+        return _jsonRes({'ok': true, 'id': 'x1'});
+      });
+
+      final api = ApiClient(baseUrl: 'https://mybooks.kz', token: 'tok', client: mock);
+      final live = LiveService(api);
+      final notifier = Notifier(api: api, live: live, navigatorKey: GlobalKey<NavigatorState>(), onOpen: (_) {})..enabled = false;
+      final tasks = TasksStore(api, live, notifier, myId: 'u1');
+
+      await tasks.create(title: 'Позвонить', remindBeforeMin: -1, target: TaskTarget(dealId: 'd1'));
+      final sampleTask = CrmTask(id: taskId, title: 'Позвонить', kind: 'call', dueAt: null, overdue: false, done: false, remindBeforeMin: null, fromBot: false, editable: true, context: null, target: TaskTarget());
+      await tasks.snooze(sampleTask, 'hour');
+      await tasks.complete(sampleTask, result: 'Дозвонился', nextTitle: 'Написать', nextDays: 1);
+      await tasks.update(sampleTask, title: 'Новое', clearDue: true, remindBeforeMin: -1);
+      await tasks.toggle(sampleTask);
+      await tasks.remove(sampleTask);
+
+      final chat = ChatController(api: api, live: live, chatId: chatId, myId: 'u1');
+      await chat.markRead();
+      await chat.sendText('Привет');
+      await chat.setPinned(true);
+      await chat.addNote('Заметка');
+      await chat.setStatus('closed');
+      await chat.createDeal();
+      await chat.catalog();
+      await chat.sendCatalog(null);
+      final m = Message(id: 'm1', outgoing: true, type: 'audio', text: '', media: null, status: 'sent', error: null, author: null, at: DateTime.now());
+      final (draft, err) = await chat.draftTemplate(m);
+      expect(err, isNull);
+      expect(draft!.replaced, [('Алия', '{{name}}')]);
+      await chat.transcribe(m);
+      expect(m.transcript, 'Расшифровка');
+
+      SharedPreferences.setMockInitialValues({'push_token': 'a' * 40});
+      await Notifier.forgetDevice(api);
+
+      final auth = _FakeAuthState(api, _testStaff());
+      await auth.refreshMe();
+      expect(auth.staff!.name, 'Марго');
+
+      final createCall = calls.firstWhere((c) => c.$1 == 'POST /api/v1/crm/tasks');
+      expect(createCall.$2!.containsKey('remindBeforeMin'), isTrue);
+      expect(createCall.$2!['remindBeforeMin'], isNull);
+
+      final sendCatalogCall = calls.firstWhere((c) => c.$1 == 'POST /api/v1/crm/chats/$chatId/catalog');
+      expect(sendCatalogCall.$2!.containsKey('productId'), isTrue);
+      expect(sendCatalogCall.$2!['productId'], isNull);
+
+      expect(calls.any((c) => c.$1 == 'POST /api/v1/crm/devices/forget'), isTrue);
+      expect(calls.any((c) => c.$1 == 'GET /api/v1/crm/me'), isTrue);
+
+      tasks.dispose();
+      chat.dispose();
     });
   });
 }

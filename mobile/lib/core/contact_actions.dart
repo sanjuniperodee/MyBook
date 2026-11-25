@@ -3,12 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../api/mybook_api.g.dart' as v1api;
 import '../models/work.dart';
 import '../screens/chat_screen.dart';
 import '../screens/client_screen.dart';
 import '../screens/deal_screen.dart';
 import 'api.dart';
 import 'auth.dart';
+import 'v1.dart';
 
 /// Действия «позвонить» и «написать» по сделке, заказу или клиенту — одни и те же из задач, клиентов, звонков и сделок.
 class ContactActions {
@@ -21,6 +23,13 @@ class ContactActions {
     if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
   }
 
+  static v1api.CrmReachTargetBody _reachBody(TaskTarget? target, String? callId) => v1api.CrmReachTargetBody(
+        dealId: target?.dealId,
+        orderId: target?.orderId,
+        clientId: target?.clientId,
+        callId: callId,
+      );
+
   /// Номер виден — набираем с телефона; скрыт ролью — просим АТС соединить (номер берёт сервер).
   Future<void> call({String? phone, TaskTarget? target, String? callId}) async {
     if (phone != null && phone.isNotEmpty) {
@@ -29,8 +38,8 @@ class ContactActions {
       return;
     }
     try {
-      await _api.post('/api/mobile/calls/dial', body: {...?target?.toJson(), 'callId': ?callId});
-      _toast('Сначала зазвонит ваш телефон, затем АТС соединит с клиентом');
+      final r = await v1(_api, (c) => c.crmCallDial(body: _reachBody(target, callId)));
+      _toast(r.message ?? 'Сначала зазвонит ваш телефон, затем АТС соединит с клиентом');
     } on ApiException catch (e) {
       _toast(e.message);
     }
@@ -39,10 +48,9 @@ class ContactActions {
   /// Открывает (или создаёт) чат WhatsApp с клиентом.
   Future<void> chat({TaskTarget? target, String? callId}) async {
     try {
-      final r = await _api.post('/api/mobile/chats/open', body: {...?target?.toJson(), 'callId': ?callId}) as Map<String, dynamic>;
-      final id = r['id'] as String?;
-      if (id == null || !context.mounted) return;
-      await Navigator.of(context).push(CupertinoPageRoute<void>(builder: (_) => ChatScreen(chatId: id)));
+      final r = await v1(_api, (c) => c.crmChatOpen(body: _reachBody(target, callId)));
+      if (!context.mounted) return;
+      await Navigator.of(context).push(CupertinoPageRoute<void>(builder: (_) => ChatScreen(chatId: r.id)));
     } on ApiException catch (e) {
       _toast(e.message);
     }

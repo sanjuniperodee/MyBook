@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
+import '../api/mybook_api.g.dart' as v1api;
 import '../core/api.dart';
 import '../core/auth.dart';
 import '../core/format.dart';
 import '../core/nav.dart';
+import '../core/v1.dart';
 import '../ui/kit.dart';
 import '../ui/tokens.dart';
 import 'deals_screen.dart' show hexColor;
@@ -20,9 +22,11 @@ class OverviewScreen extends StatefulWidget {
 }
 
 class _OverviewScreenState extends State<OverviewScreen> {
-  Map<String, dynamic>? _d;
+  v1api.CrmOverview? _d;
   String? _error;
   int _period = 30;
+  String? _etag;
+  int? _etagPeriod;
 
   @override
   void initState() {
@@ -31,14 +35,24 @@ class _OverviewScreenState extends State<OverviewScreen> {
   }
 
   Future<void> _load() async {
+    final period = _period;
     try {
       final api = context.read<AuthState>().api;
-      final r = await api.get('/api/mobile/overview', query: {'period': '$_period'}) as Map<String, dynamic>;
-      if (mounted) {
+      final r = await v1Cached(
+        api,
+        (c) => c.crmOverview(period: period),
+        etag: _d != null && _etagPeriod == period ? _etag : null,
+      );
+      if (!mounted || _period != period) return;
+      _etag = r.etag;
+      _etagPeriod = period;
+      if (!r.notModified && r.data != null) {
         setState(() {
-          _d = r;
+          _d = r.data;
           _error = null;
         });
+      } else if (_error != null) {
+        setState(() => _error = null);
       }
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
@@ -101,42 +115,42 @@ class _OverviewScreenState extends State<OverviewScreen> {
     );
   }
 
-  List<Widget> _content(BuildContext context, Map<String, dynamic> d) {
+  List<Widget> _content(BuildContext context, v1api.CrmOverview d) {
     final c = context.c;
-    final revenue = d['revenue'] as Map<String, dynamic>;
-    final sales = d['sales'] as Map<String, dynamic>;
-    final avg = d['avgCheck'] as Map<String, dynamic>;
-    final clients = d['newClients'] as Map<String, dynamic>;
-    final counters = (d['counters'] as Map<String, dynamic>?) ?? const {};
-    final attention = (d['attention'] as Map<String, dynamic>?) ?? const {};
-    final funnel = d['funnel'] as Map<String, dynamic>;
-    final plans = [for (final p in (d['byPlan'] as List)) p as Map<String, dynamic>];
-    final stages = [for (final s in (d['stages'] as List)) s as Map<String, dynamic>];
-    final series = _series(d['series'] as List, _period);
+    final revenue = d.revenue;
+    final sales = d.sales;
+    final avg = d.avgCheck;
+    final clients = d.newClients;
+    final counters = d.counters;
+    final attention = d.attention;
+    final funnel = d.funnel;
+    final plans = d.byPlan;
+    final stages = d.stages;
+    final series = _series(d.series, _period);
     final staff = context.read<AuthState>().staff!;
     final hot = <({String label, int n, IconData icon, Color color, String? tab})>[
-      (label: 'Ждут ответа', n: (counters['chats'] as num?)?.toInt() ?? 0, icon: LucideIcons.messageCircle, color: c.warn, tab: staff.can('chats.view') ? 'chats' : null),
-      (label: 'Задачи горят', n: (counters['tasks'] as num?)?.toInt() ?? 0, icon: LucideIcons.squareCheck, color: c.danger, tab: 'tasks'),
-      (label: 'Заказы к работе', n: (attention['orders'] as num?)?.toInt() ?? 0, icon: LucideIcons.package, color: c.violet, tab: staff.can('orders.view') ? 'orders' : null),
-      (label: 'Горит срок', n: (attention['deadlines'] as num?)?.toInt() ?? 0, icon: LucideIcons.calendarClock, color: c.danger, tab: null),
+      (label: 'Ждут ответа', n: counters.chats, icon: LucideIcons.messageCircle, color: c.warn, tab: staff.can('chats.view') ? 'chats' : null),
+      (label: 'Задачи горят', n: counters.tasks, icon: LucideIcons.squareCheck, color: c.danger, tab: 'tasks'),
+      (label: 'Заказы к работе', n: attention.orders, icon: LucideIcons.package, color: c.violet, tab: staff.can('orders.view') ? 'orders' : null),
+      (label: 'Горит срок', n: attention.deadlines, icon: LucideIcons.calendarClock, color: c.danger, tab: null),
     ].where((h) => h.n > 0).toList();
     return [
-      _HeroCard(value: (revenue['cur'] as num).toInt(), prev: (revenue['prev'] as num).toInt(), series: series, period: _period),
+      _HeroCard(value: revenue.cur.toInt(), prev: revenue.prev.toInt(), series: series, period: _period),
       const SizedBox(height: 12),
       IntrinsicHeight(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(
-              child: _Tile(label: 'Продажи', value: '${sales['cur']}', cur: (sales['cur'] as num).toInt(), prev: (sales['prev'] as num).toInt(), icon: LucideIcons.badgeCheck),
+              child: _Tile(label: 'Продажи', value: '${sales.cur.toInt()}', cur: sales.cur.toInt(), prev: sales.prev.toInt(), icon: LucideIcons.badgeCheck),
             ),
             const SizedBox(width: 10),
             Expanded(
-              child: _Tile(label: 'Средний чек', value: money(avg['cur'] as num), cur: (avg['cur'] as num).toInt(), prev: (avg['prev'] as num).toInt(), icon: LucideIcons.receipt),
+              child: _Tile(label: 'Средний чек', value: money(avg.cur), cur: avg.cur.toInt(), prev: avg.prev.toInt(), icon: LucideIcons.receipt),
             ),
             const SizedBox(width: 10),
             Expanded(
-              child: _Tile(label: 'Клиенты', value: '${clients['cur']}', cur: (clients['cur'] as num).toInt(), prev: (clients['prev'] as num).toInt(), icon: LucideIcons.userPlus),
+              child: _Tile(label: 'Клиенты', value: '${clients.cur.toInt()}', cur: clients.cur.toInt(), prev: clients.prev.toInt(), icon: LucideIcons.userPlus),
             ),
           ],
         ),
@@ -178,17 +192,17 @@ class _OverviewScreenState extends State<OverviewScreen> {
       _Card(
         child: _Bars(
           rows: [
-            _BarRowData('Зарегистрировались', (funnel['registered'] as num).toInt(), null),
-            _BarRowData('Создали книгу', (funnel['withBook'] as num).toInt(), _pct(funnel['withBook'], funnel['registered'])),
-            _BarRowData('Начали писать текст', (funnel['engaged'] as num).toInt(), _pct(funnel['engaged'], funnel['registered'])),
-            _BarRowData('Оформили заказ', (funnel['ordered'] as num).toInt(), _pct(funnel['ordered'], funnel['registered'])),
-            _BarRowData('Оплатили', (funnel['paid'] as num).toInt(), _pct(funnel['paid'], funnel['registered'])),
+            _BarRowData('Зарегистрировались', funnel.registered, null),
+            _BarRowData('Создали книгу', funnel.withBook, _pct(funnel.withBook, funnel.registered)),
+            _BarRowData('Начали писать текст', funnel.engaged, _pct(funnel.engaged, funnel.registered)),
+            _BarRowData('Оформили заказ', funnel.ordered, _pct(funnel.ordered, funnel.registered)),
+            _BarRowData('Оплатили', funnel.paid, _pct(funnel.paid, funnel.registered)),
           ],
         ),
       ),
       if (plans.isNotEmpty) ...[
         const _Section('Выручка по тарифам'),
-        _Card(child: _Bars(rows: [for (final p in plans) _BarRowData(p['label'] as String, (p['sum'] as num).toInt(), '${p['n']} шт.', money: true)])),
+        _Card(child: _Bars(rows: [for (final p in plans) _BarRowData(p.label, p.sum.toInt(), '${p.n} шт.', money: true)])),
       ],
       if (stages.isNotEmpty) ...[
         const _Section('Сделки по этапам'),
@@ -203,14 +217,14 @@ class _OverviewScreenState extends State<OverviewScreen> {
                       Container(
                         width: 10,
                         height: 10,
-                        decoration: BoxDecoration(color: hexColor(stages[i]['color'] as String), shape: BoxShape.circle),
+                        decoration: BoxDecoration(color: hexColor(stages[i].color), shape: BoxShape.circle),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: Text(stages[i]['name'] as String, style: TextStyle(fontSize: 15.5, color: c.text)),
+                        child: Text(stages[i].name, style: TextStyle(fontSize: 15.5, color: c.text)),
                       ),
                       Text(
-                        '${stages[i]['n']}',
+                        '${stages[i].n}',
                         style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: c.text),
                       ),
                     ],
@@ -225,15 +239,11 @@ class _OverviewScreenState extends State<OverviewScreen> {
     ];
   }
 
-  static String? _pct(Object? a, Object? b) {
-    final x = (a as num?) ?? 0;
-    final y = (b as num?) ?? 0;
-    return y == 0 ? null : '${(x / y * 100).round()}%';
-  }
+  static String? _pct(int a, int b) => b == 0 ? null : '${(a / b * 100).round()}%';
 
   /// Выручка по дням: пропущенные дни — нули, ровно period значений до сегодня.
-  static List<int> _series(List rows, int period) {
-    final byDay = {for (final r in rows) (r as Map<String, dynamic>)['day'] as String: (r['sum'] as num).toInt()};
+  static List<int> _series(List<v1api.CrmOverviewSeries> rows, int period) {
+    final byDay = {for (final r in rows) r.day: r.sum.toInt()};
     final now = DateTime.now();
     return [
       for (var i = period - 1; i >= 0; i--)
@@ -283,11 +293,12 @@ class _Delta extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.c;
     if (prev == 0 && cur == 0) return const SizedBox.shrink();
-    if (prev == 0)
+    if (prev == 0) {
       return Text(
         'новое',
         style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: onDark ? Colors.white70 : c.success),
       );
+    }
     final ch = (cur - prev) / prev;
     final up = ch >= 0;
     final color = onDark ? Colors.white : (up ? c.success : c.danger);
