@@ -212,7 +212,7 @@ class MybookApi {
     return Review.fromJson(json as Map<String, dynamic>);
   }
 
-  /// Обложка книги, каталог шаблонов и настроения для фильтра
+  /// Обложка книги, каталог шаблонов, настроения и данные конструктора
   Future<CoverView> coverGet({required String bookId}) async {
     final json = await _send('GET', '/api/v1/books/${Uri.encodeComponent('$bookId')}/cover');
     return CoverView.fromJson(json as Map<String, dynamic>);
@@ -221,6 +221,24 @@ class MybookApi {
   /// Правка обложки (только изменённые поля): шаблон, линии, тексты, фото
   Future<CoverView> coverUpdate({required String bookId, required CoverPatch body}) async {
     final json = await _send('PATCH', '/api/v1/books/${Uri.encodeComponent('$bookId')}/cover', body: body.toJson());
+    return CoverView.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Сохранение конструктора обложки (слои лица/оборота, фон, кадры фото, привязанные тексты)
+  Future<CoverView> coverDesignSave({required String bookId, required CoverDesignSaveBody body}) async {
+    final json = await _send('PUT', '/api/v1/books/${Uri.encodeComponent('$bookId')}/cover/design', body: body.toJson());
+    return CoverView.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Сборка слоёв конструктора из шаблона, готового макета или варианта оборота
+  Future<CoverView> coverDesignInit({required String bookId, required CoverDesignInitBody body}) async {
+    final json = await _send('POST', '/api/v1/books/${Uri.encodeComponent('$bookId')}/cover/design/init', body: body.toJson());
+    return CoverView.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Сброс конструктора лица к шаблону или оборота к варианту
+  Future<CoverView> coverDesignReset({required String bookId, required CoverDesignResetBody body}) async {
+    final json = await _send('POST', '/api/v1/books/${Uri.encodeComponent('$bookId')}/cover/design/reset', body: body.toJson());
     return CoverView.fromJson(json as Map<String, dynamic>);
   }
 
@@ -2384,6 +2402,223 @@ class CoverPatch {
   Map<String, dynamic> toJson() => {if (title != null) 'title': title!, if (authorName != null) 'authorName': authorName!, if (recordedBy != null) 'recordedBy': recordedBy!, if (recipientName != null) 'recipientName': recipientName!, if (subtitle != null) 'subtitle': subtitle!, if (hideRecipientOnCover != null) 'hideRecipientOnCover': hideRecipientOnCover!, if (namesOnCover != null) 'namesOnCover': namesOnCover!, if (coverTemplate != null) 'coverTemplate': coverTemplate!, if (coverLines != null) 'coverLines': coverLines!, if (coverPhotoId != null || nulls.contains('coverPhotoId')) 'coverPhotoId': coverPhotoId, if (coverPhotoExtra != null) 'coverPhotoExtra': coverPhotoExtra!.map((e) => e).toList(), if (backText != null) 'backText': backText!, if (backLayout != null) 'backLayout': backLayout!, if (backPhotoId != null || nulls.contains('backPhotoId')) 'backPhotoId': backPhotoId, if (backPhotoExtra != null) 'backPhotoExtra': backPhotoExtra!.map((e) => e).toList()};
 }
 
+class CoverRect {
+  final double x;
+  final double y;
+  final double w;
+  final double h;
+
+  const CoverRect({required this.x, required this.y, required this.w, required this.h});
+
+  factory CoverRect.fromJson(Map<String, dynamic> json) => CoverRect(x: (json['x'] as num).toDouble(), y: (json['y'] as num).toDouble(), w: (json['w'] as num).toDouble(), h: (json['h'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'x': x, 'y': y, 'w': w, 'h': h};
+}
+
+class CoverBoardSize {
+  final double w;
+  final double h;
+
+  const CoverBoardSize({required this.w, required this.h});
+
+  factory CoverBoardSize.fromJson(Map<String, dynamic> json) => CoverBoardSize(w: (json['w'] as num).toDouble(), h: (json['h'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'w': w, 'h': h};
+}
+
+class CoverPhotoFrame {
+  final double zoom;
+  final double x;
+  final double y;
+
+  const CoverPhotoFrame({required this.zoom, required this.x, required this.y});
+
+  factory CoverPhotoFrame.fromJson(Map<String, dynamic> json) => CoverPhotoFrame(zoom: (json['zoom'] as num).toDouble(), x: (json['x'] as num).toDouble(), y: (json['y'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'zoom': zoom, 'x': x, 'y': y};
+}
+
+class CoverSlotFrame {
+  final String key;
+  final CoverPhotoFrame frame;
+
+  const CoverSlotFrame({required this.key, required this.frame});
+
+  factory CoverSlotFrame.fromJson(Map<String, dynamic> json) => CoverSlotFrame(key: json['key'] as String, frame: CoverPhotoFrame.fromJson(json['frame'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'key': key, 'frame': frame.toJson()};
+}
+
+class CoverBackground {
+  /// template | color | gradient
+  final String kind;
+  final String? color;
+  final String? from;
+  final String? to;
+  final double? angle;
+
+  const CoverBackground({required this.kind, this.color, this.from, this.to, this.angle});
+
+  factory CoverBackground.fromJson(Map<String, dynamic> json) => CoverBackground(kind: json['kind'] as String, color: json['color'] == null ? null : json['color'] as String, from: json['from'] == null ? null : json['from'] as String, to: json['to'] == null ? null : json['to'] as String, angle: json['angle'] == null ? null : (json['angle'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'kind': kind, if (color != null) 'color': color!, if (from != null) 'from': from!, if (to != null) 'to': to!, if (angle != null) 'angle': angle!};
+}
+
+class CoverTextShadow {
+  final String color;
+  final double x;
+  final double y;
+  final double? opacity;
+
+  const CoverTextShadow({required this.color, required this.x, required this.y, this.opacity});
+
+  factory CoverTextShadow.fromJson(Map<String, dynamic> json) => CoverTextShadow(color: json['color'] as String, x: (json['x'] as num).toDouble(), y: (json['y'] as num).toDouble(), opacity: json['opacity'] == null ? null : (json['opacity'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'color': color, 'x': x, 'y': y, if (opacity != null) 'opacity': opacity!};
+}
+
+class CoverColorWidth {
+  final String color;
+  final double width;
+
+  const CoverColorWidth({required this.color, required this.width});
+
+  factory CoverColorWidth.fromJson(Map<String, dynamic> json) => CoverColorWidth(color: json['color'] as String, width: (json['width'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'color': color, 'width': width};
+}
+
+class CoverColorOpacity {
+  final String color;
+  final double opacity;
+
+  const CoverColorOpacity({required this.color, required this.opacity});
+
+  factory CoverColorOpacity.fromJson(Map<String, dynamic> json) => CoverColorOpacity(color: json['color'] as String, opacity: (json['opacity'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'color': color, 'opacity': opacity};
+}
+
+class CoverTextPlate {
+  final String color;
+  final double opacity;
+  final double? radius;
+  final double? pad;
+
+  const CoverTextPlate({required this.color, required this.opacity, this.radius, this.pad});
+
+  factory CoverTextPlate.fromJson(Map<String, dynamic> json) => CoverTextPlate(color: json['color'] as String, opacity: (json['opacity'] as num).toDouble(), radius: json['radius'] == null ? null : (json['radius'] as num).toDouble(), pad: json['pad'] == null ? null : (json['pad'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'color': color, 'opacity': opacity, if (radius != null) 'radius': radius!, if (pad != null) 'pad': pad!};
+}
+
+class CoverShapeGradient {
+  final String to;
+  final double angle;
+
+  const CoverShapeGradient({required this.to, required this.angle});
+
+  factory CoverShapeGradient.fromJson(Map<String, dynamic> json) => CoverShapeGradient(to: json['to'] as String, angle: (json['angle'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'to': to, 'angle': angle};
+}
+
+class CoverTextStyle {
+  final String font;
+  final int weight;
+  final bool? italic;
+  final bool? underline;
+  final bool? upper;
+  final double size;
+  final String color;
+  final double? tracking;
+  final double? lineHeight;
+  /// left | center | right
+  final String align;
+  /// top | middle | bottom
+  final String valign;
+  final CoverTextShadow? shadow;
+  final CoverColorWidth? outline;
+  final CoverTextPlate? plate;
+
+  const CoverTextStyle({required this.font, required this.weight, this.italic, this.underline, this.upper, required this.size, required this.color, this.tracking, this.lineHeight, required this.align, required this.valign, this.shadow, this.outline, this.plate});
+
+  factory CoverTextStyle.fromJson(Map<String, dynamic> json) => CoverTextStyle(font: json['font'] as String, weight: (json['weight'] as num).toInt(), italic: json['italic'] == null ? null : json['italic'] as bool, underline: json['underline'] == null ? null : json['underline'] as bool, upper: json['upper'] == null ? null : json['upper'] as bool, size: (json['size'] as num).toDouble(), color: json['color'] as String, tracking: json['tracking'] == null ? null : (json['tracking'] as num).toDouble(), lineHeight: json['lineHeight'] == null ? null : (json['lineHeight'] as num).toDouble(), align: json['align'] as String, valign: json['valign'] as String, shadow: json['shadow'] == null ? null : CoverTextShadow.fromJson(json['shadow'] as Map<String, dynamic>), outline: json['outline'] == null ? null : CoverColorWidth.fromJson(json['outline'] as Map<String, dynamic>), plate: json['plate'] == null ? null : CoverTextPlate.fromJson(json['plate'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'font': font, 'weight': weight, if (italic != null) 'italic': italic!, if (underline != null) 'underline': underline!, if (upper != null) 'upper': upper!, 'size': size, 'color': color, if (tracking != null) 'tracking': tracking!, if (lineHeight != null) 'lineHeight': lineHeight!, 'align': align, 'valign': valign, if (shadow != null) 'shadow': shadow!.toJson(), if (outline != null) 'outline': outline!.toJson(), if (plate != null) 'plate': plate!.toJson()};
+}
+
+class CoverLayer {
+  final String id;
+  /// text | image | shape | decor
+  final String kind;
+  final String? name;
+  final double x;
+  final double y;
+  final double w;
+  final double h;
+  final double? rotate;
+  final double? opacity;
+  final bool? locked;
+  final bool? hidden;
+  /// title | subtitle | names
+  final String? bind;
+  final String? text;
+  final CoverTextStyle? style;
+  final String? photoId;
+  final String? stock;
+  final CoverPhotoFrame? frame;
+  /// rect | rounded | circle | arch
+  final String? mask;
+  final double? radius;
+  final CoverColorWidth? border;
+  final bool? mono;
+  final CoverColorOpacity? overlay;
+  /// rect | ellipse | line | frame | double | corners | arch
+  final String? shape;
+  final String? fill;
+  final CoverShapeGradient? gradient;
+  final String? stroke;
+  final double? strokeWidth;
+  final String? motif;
+  final String? color;
+  final String? accent;
+  final Map<String, dynamic>? art;
+  final Map<String, dynamic>? spec;
+  /// Поля, которые отправить как null (иначе пустое необязательное поле не отправляется).
+  final Set<String> nulls;
+
+  const CoverLayer({required this.id, required this.kind, this.name, required this.x, required this.y, required this.w, required this.h, this.rotate, this.opacity, this.locked, this.hidden, this.bind, this.text, this.style, this.photoId, this.stock, this.frame, this.mask, this.radius, this.border, this.mono, this.overlay, this.shape, this.fill, this.gradient, this.stroke, this.strokeWidth, this.motif, this.color, this.accent, this.art, this.spec, this.nulls = const {}});
+
+  factory CoverLayer.fromJson(Map<String, dynamic> json) => CoverLayer(id: json['id'] as String, kind: json['kind'] as String, name: json['name'] == null ? null : json['name'] as String, x: (json['x'] as num).toDouble(), y: (json['y'] as num).toDouble(), w: (json['w'] as num).toDouble(), h: (json['h'] as num).toDouble(), rotate: json['rotate'] == null ? null : (json['rotate'] as num).toDouble(), opacity: json['opacity'] == null ? null : (json['opacity'] as num).toDouble(), locked: json['locked'] == null ? null : json['locked'] as bool, hidden: json['hidden'] == null ? null : json['hidden'] as bool, bind: json['bind'] == null ? null : json['bind'] as String, text: json['text'] == null ? null : json['text'] as String, style: json['style'] == null ? null : CoverTextStyle.fromJson(json['style'] as Map<String, dynamic>), photoId: json['photoId'] == null ? null : json['photoId'] as String, stock: json['stock'] == null ? null : json['stock'] as String, frame: json['frame'] == null ? null : CoverPhotoFrame.fromJson(json['frame'] as Map<String, dynamic>), mask: json['mask'] == null ? null : json['mask'] as String, radius: json['radius'] == null ? null : (json['radius'] as num).toDouble(), border: json['border'] == null ? null : CoverColorWidth.fromJson(json['border'] as Map<String, dynamic>), mono: json['mono'] == null ? null : json['mono'] as bool, overlay: json['overlay'] == null ? null : CoverColorOpacity.fromJson(json['overlay'] as Map<String, dynamic>), shape: json['shape'] == null ? null : json['shape'] as String, fill: json['fill'] == null ? null : json['fill'] as String, gradient: json['gradient'] == null ? null : CoverShapeGradient.fromJson(json['gradient'] as Map<String, dynamic>), stroke: json['stroke'] == null ? null : json['stroke'] as String, strokeWidth: json['strokeWidth'] == null ? null : (json['strokeWidth'] as num).toDouble(), motif: json['motif'] == null ? null : json['motif'] as String, color: json['color'] == null ? null : json['color'] as String, accent: json['accent'] == null ? null : json['accent'] as String, art: json['art'] == null ? null : json['art'] as Map<String, dynamic>, spec: json['spec'] == null ? null : json['spec'] as Map<String, dynamic>);
+
+  Map<String, dynamic> toJson() => {'id': id, 'kind': kind, if (name != null) 'name': name!, 'x': x, 'y': y, 'w': w, 'h': h, if (rotate != null) 'rotate': rotate!, if (opacity != null) 'opacity': opacity!, if (locked != null) 'locked': locked!, if (hidden != null) 'hidden': hidden!, if (bind != null) 'bind': bind!, if (text != null) 'text': text!, if (style != null) 'style': style!.toJson(), if (photoId != null || nulls.contains('photoId')) 'photoId': photoId, if (stock != null || nulls.contains('stock')) 'stock': stock, if (frame != null) 'frame': frame!.toJson(), if (mask != null) 'mask': mask!, if (radius != null) 'radius': radius!, if (border != null || nulls.contains('border')) 'border': border == null ? null : border!.toJson(), if (mono != null) 'mono': mono!, if (overlay != null || nulls.contains('overlay')) 'overlay': overlay == null ? null : overlay!.toJson(), if (shape != null) 'shape': shape!, if (fill != null || nulls.contains('fill')) 'fill': fill, if (gradient != null || nulls.contains('gradient')) 'gradient': gradient == null ? null : gradient!.toJson(), if (stroke != null || nulls.contains('stroke')) 'stroke': stroke, if (strokeWidth != null) 'strokeWidth': strokeWidth!, if (motif != null) 'motif': motif!, if (color != null) 'color': color!, if (accent != null) 'accent': accent!, if (art != null) 'art': art!, if (spec != null) 'spec': spec!};
+}
+
+class CoverDesign {
+  final int v;
+  final CoverBackground background;
+  final List<CoverLayer> layers;
+
+  const CoverDesign({required this.v, required this.background, required this.layers});
+
+  factory CoverDesign.fromJson(Map<String, dynamic> json) => CoverDesign(v: (json['v'] as num).toInt(), background: CoverBackground.fromJson(json['background'] as Map<String, dynamic>), layers: (json['layers'] as List).map((e) => CoverLayer.fromJson(e as Map<String, dynamic>)).toList());
+
+  Map<String, dynamic> toJson() => {'v': v, 'background': background.toJson(), 'layers': layers.map((e) => e.toJson()).toList()};
+}
+
+class CoverBack {
+  final int v;
+  final CoverBackground background;
+  final List<CoverLayer>? layers;
+
+  const CoverBack({required this.v, required this.background, this.layers});
+
+  factory CoverBack.fromJson(Map<String, dynamic> json) => CoverBack(v: (json['v'] as num).toInt(), background: CoverBackground.fromJson(json['background'] as Map<String, dynamic>), layers: json['layers'] == null ? null : (json['layers'] as List).map((e) => CoverLayer.fromJson(e as Map<String, dynamic>)).toList());
+
+  Map<String, dynamic> toJson() => {'v': v, 'background': background.toJson(), if (layers != null) 'layers': layers!.map((e) => e.toJson()).toList()};
+}
+
 class CoverTemplate {
   final String id;
   final String name;
@@ -2418,16 +2653,32 @@ class Cover {
   final String backText;
   final String backLayout;
   final String? backPhotoId;
+  final List<String>? backPhotoIds;
   final bool hasDesign;
+  final bool? hasBackDesign;
+  final CoverDesign? coverDesign;
+  final CoverBack? coverBack;
+  final List<CoverLayer>? backUnderlay;
+  final List<CoverSlotFrame>? photoFrames;
+  final String? format;
+  final CoverBoardSize? board;
+  final CoverRect? safeFront;
+  final CoverRect? safeBack;
   final String imageUrl;
   final String backImageUrl;
+  final String? spreadImageUrl;
+  final String? templateBgUrl;
+  final String? backTemplateBgUrl;
+  final String? templateBaseColor;
   final bool editable;
+  /// Поля, которые отправить как null (иначе пустое необязательное поле не отправляется).
+  final Set<String> nulls;
 
-  const Cover({required this.template, required this.lines, required this.title, required this.subtitle, required this.namesOnCover, required this.hideRecipientOnCover, required this.authorName, required this.recordedBy, required this.recipientName, required this.kind, this.recipientLabel, required this.autoNames, required this.year, required this.photoIds, required this.backText, required this.backLayout, this.backPhotoId, required this.hasDesign, required this.imageUrl, required this.backImageUrl, required this.editable});
+  const Cover({required this.template, required this.lines, required this.title, required this.subtitle, required this.namesOnCover, required this.hideRecipientOnCover, required this.authorName, required this.recordedBy, required this.recipientName, required this.kind, this.recipientLabel, required this.autoNames, required this.year, required this.photoIds, required this.backText, required this.backLayout, this.backPhotoId, this.backPhotoIds, required this.hasDesign, this.hasBackDesign, this.coverDesign, this.coverBack, this.backUnderlay, this.photoFrames, this.format, this.board, this.safeFront, this.safeBack, required this.imageUrl, required this.backImageUrl, this.spreadImageUrl, this.templateBgUrl, this.backTemplateBgUrl, this.templateBaseColor, required this.editable, this.nulls = const {}});
 
-  factory Cover.fromJson(Map<String, dynamic> json) => Cover(template: json['template'] as String, lines: json['lines'] as bool, title: json['title'] as String, subtitle: json['subtitle'] as String, namesOnCover: json['namesOnCover'] as String, hideRecipientOnCover: json['hideRecipientOnCover'] as bool, authorName: json['authorName'] as String, recordedBy: json['recordedBy'] as String, recipientName: json['recipientName'] as String, kind: json['kind'] as String, recipientLabel: json['recipientLabel'] == null ? null : json['recipientLabel'] as String, autoNames: json['autoNames'] as String, year: (json['year'] as num).toInt(), photoIds: (json['photoIds'] as List).map((e) => e == null ? null : e as String).toList(), backText: json['backText'] as String, backLayout: json['backLayout'] as String, backPhotoId: json['backPhotoId'] == null ? null : json['backPhotoId'] as String, hasDesign: json['hasDesign'] as bool, imageUrl: json['imageUrl'] as String, backImageUrl: json['backImageUrl'] as String, editable: json['editable'] as bool);
+  factory Cover.fromJson(Map<String, dynamic> json) => Cover(template: json['template'] as String, lines: json['lines'] as bool, title: json['title'] as String, subtitle: json['subtitle'] as String, namesOnCover: json['namesOnCover'] as String, hideRecipientOnCover: json['hideRecipientOnCover'] as bool, authorName: json['authorName'] as String, recordedBy: json['recordedBy'] as String, recipientName: json['recipientName'] as String, kind: json['kind'] as String, recipientLabel: json['recipientLabel'] == null ? null : json['recipientLabel'] as String, autoNames: json['autoNames'] as String, year: (json['year'] as num).toInt(), photoIds: (json['photoIds'] as List).map((e) => e == null ? null : e as String).toList(), backText: json['backText'] as String, backLayout: json['backLayout'] as String, backPhotoId: json['backPhotoId'] == null ? null : json['backPhotoId'] as String, backPhotoIds: json['backPhotoIds'] == null ? null : (json['backPhotoIds'] as List).map((e) => e as String).toList(), hasDesign: json['hasDesign'] as bool, hasBackDesign: json['hasBackDesign'] == null ? null : json['hasBackDesign'] as bool, coverDesign: json['coverDesign'] == null ? null : CoverDesign.fromJson(json['coverDesign'] as Map<String, dynamic>), coverBack: json['coverBack'] == null ? null : CoverBack.fromJson(json['coverBack'] as Map<String, dynamic>), backUnderlay: json['backUnderlay'] == null ? null : (json['backUnderlay'] as List).map((e) => CoverLayer.fromJson(e as Map<String, dynamic>)).toList(), photoFrames: json['photoFrames'] == null ? null : (json['photoFrames'] as List).map((e) => CoverSlotFrame.fromJson(e as Map<String, dynamic>)).toList(), format: json['format'] == null ? null : json['format'] as String, board: json['board'] == null ? null : CoverBoardSize.fromJson(json['board'] as Map<String, dynamic>), safeFront: json['safeFront'] == null ? null : CoverRect.fromJson(json['safeFront'] as Map<String, dynamic>), safeBack: json['safeBack'] == null ? null : CoverRect.fromJson(json['safeBack'] as Map<String, dynamic>), imageUrl: json['imageUrl'] as String, backImageUrl: json['backImageUrl'] as String, spreadImageUrl: json['spreadImageUrl'] == null ? null : json['spreadImageUrl'] as String, templateBgUrl: json['templateBgUrl'] == null ? null : json['templateBgUrl'] as String, backTemplateBgUrl: json['backTemplateBgUrl'] == null ? null : json['backTemplateBgUrl'] as String, templateBaseColor: json['templateBaseColor'] == null ? null : json['templateBaseColor'] as String, editable: json['editable'] as bool);
 
-  Map<String, dynamic> toJson() => {'template': template, 'lines': lines, 'title': title, 'subtitle': subtitle, 'namesOnCover': namesOnCover, 'hideRecipientOnCover': hideRecipientOnCover, 'authorName': authorName, 'recordedBy': recordedBy, 'recipientName': recipientName, 'kind': kind, 'recipientLabel': recipientLabel, 'autoNames': autoNames, 'year': year, 'photoIds': photoIds.map((e) => e).toList(), 'backText': backText, 'backLayout': backLayout, 'backPhotoId': backPhotoId, 'hasDesign': hasDesign, 'imageUrl': imageUrl, 'backImageUrl': backImageUrl, 'editable': editable};
+  Map<String, dynamic> toJson() => {'template': template, 'lines': lines, 'title': title, 'subtitle': subtitle, 'namesOnCover': namesOnCover, 'hideRecipientOnCover': hideRecipientOnCover, 'authorName': authorName, 'recordedBy': recordedBy, 'recipientName': recipientName, 'kind': kind, 'recipientLabel': recipientLabel, 'autoNames': autoNames, 'year': year, 'photoIds': photoIds.map((e) => e).toList(), 'backText': backText, 'backLayout': backLayout, 'backPhotoId': backPhotoId, if (backPhotoIds != null) 'backPhotoIds': backPhotoIds!.map((e) => e).toList(), 'hasDesign': hasDesign, if (hasBackDesign != null) 'hasBackDesign': hasBackDesign!, if (coverDesign != null || nulls.contains('coverDesign')) 'coverDesign': coverDesign == null ? null : coverDesign!.toJson(), if (coverBack != null || nulls.contains('coverBack')) 'coverBack': coverBack == null ? null : coverBack!.toJson(), if (backUnderlay != null) 'backUnderlay': backUnderlay!.map((e) => e.toJson()).toList(), if (photoFrames != null) 'photoFrames': photoFrames!.map((e) => e.toJson()).toList(), if (format != null) 'format': format!, if (board != null) 'board': board!.toJson(), if (safeFront != null) 'safeFront': safeFront!.toJson(), if (safeBack != null) 'safeBack': safeBack!.toJson(), 'imageUrl': imageUrl, 'backImageUrl': backImageUrl, if (spreadImageUrl != null) 'spreadImageUrl': spreadImageUrl!, if (templateBgUrl != null) 'templateBgUrl': templateBgUrl!, if (backTemplateBgUrl != null) 'backTemplateBgUrl': backTemplateBgUrl!, if (templateBaseColor != null || nulls.contains('templateBaseColor')) 'templateBaseColor': templateBaseColor, 'editable': editable};
 }
 
 class CoverMood {
@@ -2439,6 +2690,563 @@ class CoverMood {
   factory CoverMood.fromJson(Map<String, dynamic> json) => CoverMood(id: json['id'] as String, label: json['label'] as String);
 
   Map<String, dynamic> toJson() => {'id': id, 'label': label};
+}
+
+class CoverOption {
+  final String id;
+  final String label;
+
+  const CoverOption({required this.id, required this.label});
+
+  factory CoverOption.fromJson(Map<String, dynamic> json) => CoverOption(id: json['id'] as String, label: json['label'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'label': label};
+}
+
+class CoverWeightOption {
+  final int weight;
+  final String label;
+
+  const CoverWeightOption({required this.weight, required this.label});
+
+  factory CoverWeightOption.fromJson(Map<String, dynamic> json) => CoverWeightOption(weight: (json['weight'] as num).toInt(), label: json['label'] as String);
+
+  Map<String, dynamic> toJson() => {'weight': weight, 'label': label};
+}
+
+class CoverFontOption {
+  final String id;
+  final String name;
+  final String category;
+  final List<int> weights;
+  final bool italic;
+  final bool body;
+
+  const CoverFontOption({required this.id, required this.name, required this.category, required this.weights, required this.italic, required this.body});
+
+  factory CoverFontOption.fromJson(Map<String, dynamic> json) => CoverFontOption(id: json['id'] as String, name: json['name'] as String, category: json['category'] as String, weights: (json['weights'] as List).map((e) => (e as num).toInt()).toList(), italic: json['italic'] as bool, body: json['body'] as bool);
+
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'category': category, 'weights': weights.map((e) => e).toList(), 'italic': italic, 'body': body};
+}
+
+class CoverShapeOption {
+  /// rect | ellipse | line | frame | double | corners | arch
+  final String id;
+  final String label;
+  final bool outlineOnly;
+  final bool supportsRadius;
+  final String svg;
+
+  const CoverShapeOption({required this.id, required this.label, required this.outlineOnly, required this.supportsRadius, required this.svg});
+
+  factory CoverShapeOption.fromJson(Map<String, dynamic> json) => CoverShapeOption(id: json['id'] as String, label: json['label'] as String, outlineOnly: json['outlineOnly'] as bool, supportsRadius: json['supportsRadius'] as bool, svg: json['svg'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'label': label, 'outlineOnly': outlineOnly, 'supportsRadius': supportsRadius, 'svg': svg};
+}
+
+class CoverDecorOption {
+  final String id;
+  final String label;
+  final double aspect;
+  final String svg;
+
+  const CoverDecorOption({required this.id, required this.label, required this.aspect, required this.svg});
+
+  factory CoverDecorOption.fromJson(Map<String, dynamic> json) => CoverDecorOption(id: json['id'] as String, label: json['label'] as String, aspect: (json['aspect'] as num).toDouble(), svg: json['svg'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'label': label, 'aspect': aspect, 'svg': svg};
+}
+
+class CoverTextPresetOption {
+  /// heading | subheading | body | script
+  final String id;
+  final String label;
+  final String sampleText;
+  final String font;
+  final int weight;
+  final double size;
+  final double lineHeight;
+  final double? tracking;
+  final bool? upper;
+  final double h;
+
+  const CoverTextPresetOption({required this.id, required this.label, required this.sampleText, required this.font, required this.weight, required this.size, required this.lineHeight, this.tracking, this.upper, required this.h});
+
+  factory CoverTextPresetOption.fromJson(Map<String, dynamic> json) => CoverTextPresetOption(id: json['id'] as String, label: json['label'] as String, sampleText: json['sampleText'] as String, font: json['font'] as String, weight: (json['weight'] as num).toInt(), size: (json['size'] as num).toDouble(), lineHeight: (json['lineHeight'] as num).toDouble(), tracking: json['tracking'] == null ? null : (json['tracking'] as num).toDouble(), upper: json['upper'] == null ? null : json['upper'] as bool, h: (json['h'] as num).toDouble());
+
+  Map<String, dynamic> toJson() => {'id': id, 'label': label, 'sampleText': sampleText, 'font': font, 'weight': weight, 'size': size, 'lineHeight': lineHeight, if (tracking != null) 'tracking': tracking!, if (upper != null) 'upper': upper!, 'h': h};
+}
+
+class CoverStockPhoto {
+  final String id;
+  final String group;
+  final String thumbUrl;
+  final String viewUrl;
+
+  const CoverStockPhoto({required this.id, required this.group, required this.thumbUrl, required this.viewUrl});
+
+  factory CoverStockPhoto.fromJson(Map<String, dynamic> json) => CoverStockPhoto(id: json['id'] as String, group: json['group'] as String, thumbUrl: json['thumbUrl'] as String, viewUrl: json['viewUrl'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'group': group, 'thumbUrl': thumbUrl, 'viewUrl': viewUrl};
+}
+
+class CoverLayoutOption {
+  final String id;
+  final String genre;
+  final String name;
+  final String description;
+  final String? template;
+
+  const CoverLayoutOption({required this.id, required this.genre, required this.name, required this.description, this.template});
+
+  factory CoverLayoutOption.fromJson(Map<String, dynamic> json) => CoverLayoutOption(id: json['id'] as String, genre: json['genre'] as String, name: json['name'] as String, description: json['description'] as String, template: json['template'] == null ? null : json['template'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'genre': genre, 'name': name, 'description': description, 'template': template};
+}
+
+class CoverDesignerLimits {
+  final int layers;
+  final int text;
+  final int name;
+  final double bleed;
+  final double minSize;
+  final double maxSize;
+  final double fontSizeMin;
+  final double fontSizeMax;
+  final double trackingMin;
+  final double trackingMax;
+  final double lineHeightMin;
+  final double lineHeightMax;
+  final double shadowMin;
+  final double shadowMax;
+  final double outlineMin;
+  final double outlineMax;
+  final double strokeMin;
+  final double strokeMax;
+  final double borderMin;
+  final double borderMax;
+  final double frameZoomMin;
+  final double frameZoomMax;
+  final int minDpi;
+  final double ptPerMm;
+  final int historyLimit;
+
+  const CoverDesignerLimits({required this.layers, required this.text, required this.name, required this.bleed, required this.minSize, required this.maxSize, required this.fontSizeMin, required this.fontSizeMax, required this.trackingMin, required this.trackingMax, required this.lineHeightMin, required this.lineHeightMax, required this.shadowMin, required this.shadowMax, required this.outlineMin, required this.outlineMax, required this.strokeMin, required this.strokeMax, required this.borderMin, required this.borderMax, required this.frameZoomMin, required this.frameZoomMax, required this.minDpi, required this.ptPerMm, required this.historyLimit});
+
+  factory CoverDesignerLimits.fromJson(Map<String, dynamic> json) => CoverDesignerLimits(layers: (json['layers'] as num).toInt(), text: (json['text'] as num).toInt(), name: (json['name'] as num).toInt(), bleed: (json['bleed'] as num).toDouble(), minSize: (json['minSize'] as num).toDouble(), maxSize: (json['maxSize'] as num).toDouble(), fontSizeMin: (json['fontSizeMin'] as num).toDouble(), fontSizeMax: (json['fontSizeMax'] as num).toDouble(), trackingMin: (json['trackingMin'] as num).toDouble(), trackingMax: (json['trackingMax'] as num).toDouble(), lineHeightMin: (json['lineHeightMin'] as num).toDouble(), lineHeightMax: (json['lineHeightMax'] as num).toDouble(), shadowMin: (json['shadowMin'] as num).toDouble(), shadowMax: (json['shadowMax'] as num).toDouble(), outlineMin: (json['outlineMin'] as num).toDouble(), outlineMax: (json['outlineMax'] as num).toDouble(), strokeMin: (json['strokeMin'] as num).toDouble(), strokeMax: (json['strokeMax'] as num).toDouble(), borderMin: (json['borderMin'] as num).toDouble(), borderMax: (json['borderMax'] as num).toDouble(), frameZoomMin: (json['frameZoomMin'] as num).toDouble(), frameZoomMax: (json['frameZoomMax'] as num).toDouble(), minDpi: (json['minDpi'] as num).toInt(), ptPerMm: (json['ptPerMm'] as num).toDouble(), historyLimit: (json['historyLimit'] as num).toInt());
+
+  Map<String, dynamic> toJson() => {'layers': layers, 'text': text, 'name': name, 'bleed': bleed, 'minSize': minSize, 'maxSize': maxSize, 'fontSizeMin': fontSizeMin, 'fontSizeMax': fontSizeMax, 'trackingMin': trackingMin, 'trackingMax': trackingMax, 'lineHeightMin': lineHeightMin, 'lineHeightMax': lineHeightMax, 'shadowMin': shadowMin, 'shadowMax': shadowMax, 'outlineMin': outlineMin, 'outlineMax': outlineMax, 'strokeMin': strokeMin, 'strokeMax': strokeMax, 'borderMin': borderMin, 'borderMax': borderMax, 'frameZoomMin': frameZoomMin, 'frameZoomMax': frameZoomMax, 'minDpi': minDpi, 'ptPerMm': ptPerMm, 'historyLimit': historyLimit};
+}
+
+class CoverDesignerLabels {
+  final CoverDesignerLabelsModes modes;
+  final CoverDesignerLabelsViews views;
+  final CoverDesignerLabelsCta cta;
+  final CoverDesignerLabelsBackCta backCta;
+  final CoverDesignerLabelsReplace replace;
+  final CoverDesignerLabelsBackFill backFill;
+  final CoverDesignerLabelsFrame frame;
+  final CoverDesignerLabelsPanels panels;
+  final CoverDesignerLabelsToolbar toolbar;
+  final CoverDesignerLabelsAdd add;
+  final CoverDesignerLabelsLayers layers;
+  final CoverDesignerLabelsProps props;
+  final CoverDesignerLabelsLayouts layouts;
+  final CoverDesignerLabelsCanvas canvas;
+  final String namesSwap;
+  final String namesAuto;
+  final String retry;
+  final String loadError;
+
+  const CoverDesignerLabels({required this.modes, required this.views, required this.cta, required this.backCta, required this.replace, required this.backFill, required this.frame, required this.panels, required this.toolbar, required this.add, required this.layers, required this.props, required this.layouts, required this.canvas, required this.namesSwap, required this.namesAuto, required this.retry, required this.loadError});
+
+  factory CoverDesignerLabels.fromJson(Map<String, dynamic> json) => CoverDesignerLabels(modes: CoverDesignerLabelsModes.fromJson(json['modes'] as Map<String, dynamic>), views: CoverDesignerLabelsViews.fromJson(json['views'] as Map<String, dynamic>), cta: CoverDesignerLabelsCta.fromJson(json['cta'] as Map<String, dynamic>), backCta: CoverDesignerLabelsBackCta.fromJson(json['backCta'] as Map<String, dynamic>), replace: CoverDesignerLabelsReplace.fromJson(json['replace'] as Map<String, dynamic>), backFill: CoverDesignerLabelsBackFill.fromJson(json['backFill'] as Map<String, dynamic>), frame: CoverDesignerLabelsFrame.fromJson(json['frame'] as Map<String, dynamic>), panels: CoverDesignerLabelsPanels.fromJson(json['panels'] as Map<String, dynamic>), toolbar: CoverDesignerLabelsToolbar.fromJson(json['toolbar'] as Map<String, dynamic>), add: CoverDesignerLabelsAdd.fromJson(json['add'] as Map<String, dynamic>), layers: CoverDesignerLabelsLayers.fromJson(json['layers'] as Map<String, dynamic>), props: CoverDesignerLabelsProps.fromJson(json['props'] as Map<String, dynamic>), layouts: CoverDesignerLabelsLayouts.fromJson(json['layouts'] as Map<String, dynamic>), canvas: CoverDesignerLabelsCanvas.fromJson(json['canvas'] as Map<String, dynamic>), namesSwap: json['namesSwap'] as String, namesAuto: json['namesAuto'] as String, retry: json['retry'] as String, loadError: json['loadError'] as String);
+
+  Map<String, dynamic> toJson() => {'modes': modes.toJson(), 'views': views.toJson(), 'cta': cta.toJson(), 'backCta': backCta.toJson(), 'replace': replace.toJson(), 'backFill': backFill.toJson(), 'frame': frame.toJson(), 'panels': panels.toJson(), 'toolbar': toolbar.toJson(), 'add': add.toJson(), 'layers': layers.toJson(), 'props': props.toJson(), 'layouts': layouts.toJson(), 'canvas': canvas.toJson(), 'namesSwap': namesSwap, 'namesAuto': namesAuto, 'retry': retry, 'loadError': loadError};
+}
+
+class CoverDesignerLabelsModes {
+  final String template;
+  final String designer;
+
+  const CoverDesignerLabelsModes({required this.template, required this.designer});
+
+  factory CoverDesignerLabelsModes.fromJson(Map<String, dynamic> json) => CoverDesignerLabelsModes(template: json['template'] as String, designer: json['designer'] as String);
+
+  Map<String, dynamic> toJson() => {'template': template, 'designer': designer};
+}
+
+class CoverDesignerLabelsViews {
+  final String flat;
+  final String spread;
+  final String spreadHint;
+
+  const CoverDesignerLabelsViews({required this.flat, required this.spread, required this.spreadHint});
+
+  factory CoverDesignerLabelsViews.fromJson(Map<String, dynamic> json) => CoverDesignerLabelsViews(flat: json['flat'] as String, spread: json['spread'] as String, spreadHint: json['spreadHint'] as String);
+
+  Map<String, dynamic> toJson() => {'flat': flat, 'spread': spread, 'spreadHint': spreadHint};
+}
+
+class CoverDesignerLabelsCta {
+  final String title;
+  final String text;
+  final String open;
+  final String openActive;
+  final String reset;
+  final String confirmReset;
+
+  const CoverDesignerLabelsCta({required this.title, required this.text, required this.open, required this.openActive, required this.reset, required this.confirmReset});
+
+  factory CoverDesignerLabelsCta.fromJson(Map<String, dynamic> json) => CoverDesignerLabelsCta(title: json['title'] as String, text: json['text'] as String, open: json['open'] as String, openActive: json['openActive'] as String, reset: json['reset'] as String, confirmReset: json['confirmReset'] as String);
+
+  Map<String, dynamic> toJson() => {'title': title, 'text': text, 'open': open, 'openActive': openActive, 'reset': reset, 'confirmReset': confirmReset};
+}
+
+class CoverDesignerLabelsBackCta {
+  final String title;
+  final String text;
+  final String open;
+  final String active;
+  final String openActive;
+  final String reset;
+  final String confirmReset;
+  final String readonly;
+
+  const CoverDesignerLabelsBackCta({required this.title, required this.text, required this.open, required this.active, required this.openActive, required this.reset, required this.confirmReset, required this.readonly});
+
+  factory CoverDesignerLabelsBackCta.fromJson(Map<String, dynamic> json) => CoverDesignerLabelsBackCta(title: json['title'] as String, text: json['text'] as String, open: json['open'] as String, active: json['active'] as String, openActive: json['openActive'] as String, reset: json['reset'] as String, confirmReset: json['confirmReset'] as String, readonly: json['readonly'] as String);
+
+  Map<String, dynamic> toJson() => {'title': title, 'text': text, 'open': open, 'active': active, 'openActive': openActive, 'reset': reset, 'confirmReset': confirmReset, 'readonly': readonly};
+}
+
+class CoverDesignerLabelsReplace {
+  final String titleTemplate;
+  final String text;
+  final String ok;
+  final String cancel;
+
+  const CoverDesignerLabelsReplace({required this.titleTemplate, required this.text, required this.ok, required this.cancel});
+
+  factory CoverDesignerLabelsReplace.fromJson(Map<String, dynamic> json) => CoverDesignerLabelsReplace(titleTemplate: json['titleTemplate'] as String, text: json['text'] as String, ok: json['ok'] as String, cancel: json['cancel'] as String);
+
+  Map<String, dynamic> toJson() => {'titleTemplate': titleTemplate, 'text': text, 'ok': ok, 'cancel': cancel};
+}
+
+class CoverDesignerLabelsBackFill {
+  final String title;
+  final String likeFront;
+  final String own;
+  final String likeFrontNote;
+  final String ownNote;
+  final String color;
+  final String frontColors;
+  final String more;
+
+  const CoverDesignerLabelsBackFill({required this.title, required this.likeFront, required this.own, required this.likeFrontNote, required this.ownNote, required this.color, required this.frontColors, required this.more});
+
+  factory CoverDesignerLabelsBackFill.fromJson(Map<String, dynamic> json) => CoverDesignerLabelsBackFill(title: json['title'] as String, likeFront: json['likeFront'] as String, own: json['own'] as String, likeFrontNote: json['likeFrontNote'] as String, ownNote: json['ownNote'] as String, color: json['color'] as String, frontColors: json['frontColors'] as String, more: json['more'] as String);
+
+  Map<String, dynamic> toJson() => {'title': title, 'likeFront': likeFront, 'own': own, 'likeFrontNote': likeFrontNote, 'ownNote': ownNote, 'color': color, 'frontColors': frontColors, 'more': more};
+}
+
+class CoverDesignerLabelsFrame {
+  final String title;
+  final String hint;
+  final String zoom;
+  final String reset;
+  final String slotPrefix;
+
+  const CoverDesignerLabelsFrame({required this.title, required this.hint, required this.zoom, required this.reset, required this.slotPrefix});
+
+  factory CoverDesignerLabelsFrame.fromJson(Map<String, dynamic> json) => CoverDesignerLabelsFrame(title: json['title'] as String, hint: json['hint'] as String, zoom: json['zoom'] as String, reset: json['reset'] as String, slotPrefix: json['slotPrefix'] as String);
+
+  Map<String, dynamic> toJson() => {'title': title, 'hint': hint, 'zoom': zoom, 'reset': reset, 'slotPrefix': slotPrefix};
+}
+
+class CoverDesignerLabelsPanels {
+  final String add;
+  final String layouts;
+  final String background;
+  final String properties;
+  final String layers;
+  final String fill;
+
+  const CoverDesignerLabelsPanels({required this.add, required this.layouts, required this.background, required this.properties, required this.layers, required this.fill});
+
+  factory CoverDesignerLabelsPanels.fromJson(Map<String, dynamic> json) => CoverDesignerLabelsPanels(add: json['add'] as String, layouts: json['layouts'] as String, background: json['background'] as String, properties: json['properties'] as String, layers: json['layers'] as String, fill: json['fill'] as String);
+
+  Map<String, dynamic> toJson() => {'add': add, 'layouts': layouts, 'background': background, 'properties': properties, 'layers': layers, 'fill': fill};
+}
+
+class CoverDesignerLabelsToolbar {
+  final String undo;
+  final String redo;
+  final String duplicate;
+  final String remove;
+  final String front;
+  final String forward;
+  final String backward;
+  final String back;
+  final String lock;
+  final String unlock;
+  final String hide;
+  final String show;
+  final String safe;
+  final String grid;
+  final String alignTitle;
+  final String alignLeft;
+  final String alignCenter;
+  final String alignRight;
+  final String alignTop;
+  final String alignMiddle;
+  final String alignBottom;
+  final String backToTemplate;
+
+  const CoverDesignerLabelsToolbar({required this.undo, required this.redo, required this.duplicate, required this.remove, required this.front, required this.forward, required this.backward, required this.back, required this.lock, required this.unlock, required this.hide, required this.show, required this.safe, required this.grid, required this.alignTitle, required this.alignLeft, required this.alignCenter, required this.alignRight, required this.alignTop, required this.alignMiddle, required this.alignBottom, required this.backToTemplate});
+
+  factory CoverDesignerLabelsToolbar.fromJson(Map<String, dynamic> json) => CoverDesignerLabelsToolbar(undo: json['undo'] as String, redo: json['redo'] as String, duplicate: json['duplicate'] as String, remove: json['remove'] as String, front: json['front'] as String, forward: json['forward'] as String, backward: json['backward'] as String, back: json['back'] as String, lock: json['lock'] as String, unlock: json['unlock'] as String, hide: json['hide'] as String, show: json['show'] as String, safe: json['safe'] as String, grid: json['grid'] as String, alignTitle: json['alignTitle'] as String, alignLeft: json['alignLeft'] as String, alignCenter: json['alignCenter'] as String, alignRight: json['alignRight'] as String, alignTop: json['alignTop'] as String, alignMiddle: json['alignMiddle'] as String, alignBottom: json['alignBottom'] as String, backToTemplate: json['backToTemplate'] as String);
+
+  Map<String, dynamic> toJson() => {'undo': undo, 'redo': redo, 'duplicate': duplicate, 'remove': remove, 'front': front, 'forward': forward, 'backward': backward, 'back': back, 'lock': lock, 'unlock': unlock, 'hide': hide, 'show': show, 'safe': safe, 'grid': grid, 'alignTitle': alignTitle, 'alignLeft': alignLeft, 'alignCenter': alignCenter, 'alignRight': alignRight, 'alignTop': alignTop, 'alignMiddle': alignMiddle, 'alignBottom': alignBottom, 'backToTemplate': backToTemplate};
+}
+
+class CoverDesignerLabelsAdd {
+  final String text;
+  final String photo;
+  final String bookPhotos;
+  final String noBookPhotos;
+  final String upload;
+  final String stock;
+  final String shapes;
+  final String decor;
+  final String limit;
+
+  const CoverDesignerLabelsAdd({required this.text, required this.photo, required this.bookPhotos, required this.noBookPhotos, required this.upload, required this.stock, required this.shapes, required this.decor, required this.limit});
+
+  factory CoverDesignerLabelsAdd.fromJson(Map<String, dynamic> json) => CoverDesignerLabelsAdd(text: json['text'] as String, photo: json['photo'] as String, bookPhotos: json['bookPhotos'] as String, noBookPhotos: json['noBookPhotos'] as String, upload: json['upload'] as String, stock: json['stock'] as String, shapes: json['shapes'] as String, decor: json['decor'] as String, limit: json['limit'] as String);
+
+  Map<String, dynamic> toJson() => {'text': text, 'photo': photo, 'bookPhotos': bookPhotos, 'noBookPhotos': noBookPhotos, 'upload': upload, 'stock': stock, 'shapes': shapes, 'decor': decor, 'limit': limit};
+}
+
+class CoverDesignerLabelsLayers {
+  final String empty;
+  final String hint;
+  final String rename;
+  final String kindText;
+  final String kindImage;
+  final String kindShape;
+  final String kindDecor;
+  final String bindTitle;
+  final String bindSubtitle;
+  final String bindNames;
+
+  const CoverDesignerLabelsLayers({required this.empty, required this.hint, required this.rename, required this.kindText, required this.kindImage, required this.kindShape, required this.kindDecor, required this.bindTitle, required this.bindSubtitle, required this.bindNames});
+
+  factory CoverDesignerLabelsLayers.fromJson(Map<String, dynamic> json) => CoverDesignerLabelsLayers(empty: json['empty'] as String, hint: json['hint'] as String, rename: json['rename'] as String, kindText: json['kindText'] as String, kindImage: json['kindImage'] as String, kindShape: json['kindShape'] as String, kindDecor: json['kindDecor'] as String, bindTitle: json['bindTitle'] as String, bindSubtitle: json['bindSubtitle'] as String, bindNames: json['bindNames'] as String);
+
+  Map<String, dynamic> toJson() => {'empty': empty, 'hint': hint, 'rename': rename, 'kindText': kindText, 'kindImage': kindImage, 'kindShape': kindShape, 'kindDecor': kindDecor, 'bindTitle': bindTitle, 'bindSubtitle': bindSubtitle, 'bindNames': bindNames};
+}
+
+class CoverDesignerLabelsProps {
+  final String nothing;
+  final String none;
+  final String position;
+  final String x;
+  final String y;
+  final String w;
+  final String h;
+  final String rotate;
+  final String opacity;
+  final String mm;
+  final String pt;
+  final String deg;
+  final String pct;
+  final String fullCover;
+  final CoverDesignerLabelsPropsText text;
+  final CoverDesignerLabelsPropsImage image;
+  final CoverDesignerLabelsPropsShape shape;
+  final CoverDesignerLabelsPropsDecor decor;
+  final CoverDesignerLabelsPropsBackground background;
+
+  const CoverDesignerLabelsProps({required this.nothing, required this.none, required this.position, required this.x, required this.y, required this.w, required this.h, required this.rotate, required this.opacity, required this.mm, required this.pt, required this.deg, required this.pct, required this.fullCover, required this.text, required this.image, required this.shape, required this.decor, required this.background});
+
+  factory CoverDesignerLabelsProps.fromJson(Map<String, dynamic> json) => CoverDesignerLabelsProps(nothing: json['nothing'] as String, none: json['none'] as String, position: json['position'] as String, x: json['x'] as String, y: json['y'] as String, w: json['w'] as String, h: json['h'] as String, rotate: json['rotate'] as String, opacity: json['opacity'] as String, mm: json['mm'] as String, pt: json['pt'] as String, deg: json['deg'] as String, pct: json['pct'] as String, fullCover: json['fullCover'] as String, text: CoverDesignerLabelsPropsText.fromJson(json['text'] as Map<String, dynamic>), image: CoverDesignerLabelsPropsImage.fromJson(json['image'] as Map<String, dynamic>), shape: CoverDesignerLabelsPropsShape.fromJson(json['shape'] as Map<String, dynamic>), decor: CoverDesignerLabelsPropsDecor.fromJson(json['decor'] as Map<String, dynamic>), background: CoverDesignerLabelsPropsBackground.fromJson(json['background'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'nothing': nothing, 'none': none, 'position': position, 'x': x, 'y': y, 'w': w, 'h': h, 'rotate': rotate, 'opacity': opacity, 'mm': mm, 'pt': pt, 'deg': deg, 'pct': pct, 'fullCover': fullCover, 'text': text.toJson(), 'image': image.toJson(), 'shape': shape.toJson(), 'decor': decor.toJson(), 'background': background.toJson()};
+}
+
+class CoverDesignerLabelsPropsText {
+  final String title;
+  final String content;
+  final String linkedTitle;
+  final String linkedSubtitle;
+  final String linkedNames;
+  final String unlink;
+  final String font;
+  final String fontSearch;
+  final String fontEmpty;
+  final String weight;
+  final String italic;
+  final String size;
+  final String color;
+  final String tracking;
+  final String lineHeight;
+  final String align;
+  final String valign;
+  final String underline;
+  final String upper;
+  final String effects;
+  final String shadow;
+  final String shadowX;
+  final String shadowY;
+  final String outline;
+  final String outlineWidth;
+  final String plate;
+  final String plateRadius;
+  final String platePad;
+  final String effectsNote;
+
+  const CoverDesignerLabelsPropsText({required this.title, required this.content, required this.linkedTitle, required this.linkedSubtitle, required this.linkedNames, required this.unlink, required this.font, required this.fontSearch, required this.fontEmpty, required this.weight, required this.italic, required this.size, required this.color, required this.tracking, required this.lineHeight, required this.align, required this.valign, required this.underline, required this.upper, required this.effects, required this.shadow, required this.shadowX, required this.shadowY, required this.outline, required this.outlineWidth, required this.plate, required this.plateRadius, required this.platePad, required this.effectsNote});
+
+  factory CoverDesignerLabelsPropsText.fromJson(Map<String, dynamic> json) => CoverDesignerLabelsPropsText(title: json['title'] as String, content: json['content'] as String, linkedTitle: json['linkedTitle'] as String, linkedSubtitle: json['linkedSubtitle'] as String, linkedNames: json['linkedNames'] as String, unlink: json['unlink'] as String, font: json['font'] as String, fontSearch: json['fontSearch'] as String, fontEmpty: json['fontEmpty'] as String, weight: json['weight'] as String, italic: json['italic'] as String, size: json['size'] as String, color: json['color'] as String, tracking: json['tracking'] as String, lineHeight: json['lineHeight'] as String, align: json['align'] as String, valign: json['valign'] as String, underline: json['underline'] as String, upper: json['upper'] as String, effects: json['effects'] as String, shadow: json['shadow'] as String, shadowX: json['shadowX'] as String, shadowY: json['shadowY'] as String, outline: json['outline'] as String, outlineWidth: json['outlineWidth'] as String, plate: json['plate'] as String, plateRadius: json['plateRadius'] as String, platePad: json['platePad'] as String, effectsNote: json['effectsNote'] as String);
+
+  Map<String, dynamic> toJson() => {'title': title, 'content': content, 'linkedTitle': linkedTitle, 'linkedSubtitle': linkedSubtitle, 'linkedNames': linkedNames, 'unlink': unlink, 'font': font, 'fontSearch': fontSearch, 'fontEmpty': fontEmpty, 'weight': weight, 'italic': italic, 'size': size, 'color': color, 'tracking': tracking, 'lineHeight': lineHeight, 'align': align, 'valign': valign, 'underline': underline, 'upper': upper, 'effects': effects, 'shadow': shadow, 'shadowX': shadowX, 'shadowY': shadowY, 'outline': outline, 'outlineWidth': outlineWidth, 'plate': plate, 'plateRadius': plateRadius, 'platePad': platePad, 'effectsNote': effectsNote};
+}
+
+class CoverDesignerLabelsPropsImage {
+  final String title;
+  final String source;
+  final String crop;
+  final String cropDone;
+  final String cropHint;
+  final String zoom;
+  final String resetFrame;
+  final String mask;
+  final String radius;
+  final String border;
+  final String borderWidth;
+  final String mono;
+  final String overlay;
+  final String empty;
+  final String lowResPrefix;
+
+  const CoverDesignerLabelsPropsImage({required this.title, required this.source, required this.crop, required this.cropDone, required this.cropHint, required this.zoom, required this.resetFrame, required this.mask, required this.radius, required this.border, required this.borderWidth, required this.mono, required this.overlay, required this.empty, required this.lowResPrefix});
+
+  factory CoverDesignerLabelsPropsImage.fromJson(Map<String, dynamic> json) => CoverDesignerLabelsPropsImage(title: json['title'] as String, source: json['source'] as String, crop: json['crop'] as String, cropDone: json['cropDone'] as String, cropHint: json['cropHint'] as String, zoom: json['zoom'] as String, resetFrame: json['resetFrame'] as String, mask: json['mask'] as String, radius: json['radius'] as String, border: json['border'] as String, borderWidth: json['borderWidth'] as String, mono: json['mono'] as String, overlay: json['overlay'] as String, empty: json['empty'] as String, lowResPrefix: json['lowResPrefix'] as String);
+
+  Map<String, dynamic> toJson() => {'title': title, 'source': source, 'crop': crop, 'cropDone': cropDone, 'cropHint': cropHint, 'zoom': zoom, 'resetFrame': resetFrame, 'mask': mask, 'radius': radius, 'border': border, 'borderWidth': borderWidth, 'mono': mono, 'overlay': overlay, 'empty': empty, 'lowResPrefix': lowResPrefix};
+}
+
+class CoverDesignerLabelsPropsShape {
+  final String title;
+  final String kind;
+  final String fill;
+  final String gradient;
+  final String gradientTo;
+  final String angle;
+  final String stroke;
+  final String strokeWidth;
+  final String radius;
+
+  const CoverDesignerLabelsPropsShape({required this.title, required this.kind, required this.fill, required this.gradient, required this.gradientTo, required this.angle, required this.stroke, required this.strokeWidth, required this.radius});
+
+  factory CoverDesignerLabelsPropsShape.fromJson(Map<String, dynamic> json) => CoverDesignerLabelsPropsShape(title: json['title'] as String, kind: json['kind'] as String, fill: json['fill'] as String, gradient: json['gradient'] as String, gradientTo: json['gradientTo'] as String, angle: json['angle'] as String, stroke: json['stroke'] as String, strokeWidth: json['strokeWidth'] as String, radius: json['radius'] as String);
+
+  Map<String, dynamic> toJson() => {'title': title, 'kind': kind, 'fill': fill, 'gradient': gradient, 'gradientTo': gradientTo, 'angle': angle, 'stroke': stroke, 'strokeWidth': strokeWidth, 'radius': radius};
+}
+
+class CoverDesignerLabelsPropsDecor {
+  final String title;
+  final String motif;
+  final String color;
+  final String accent;
+  final String artNote;
+
+  const CoverDesignerLabelsPropsDecor({required this.title, required this.motif, required this.color, required this.accent, required this.artNote});
+
+  factory CoverDesignerLabelsPropsDecor.fromJson(Map<String, dynamic> json) => CoverDesignerLabelsPropsDecor(title: json['title'] as String, motif: json['motif'] as String, color: json['color'] as String, accent: json['accent'] as String, artNote: json['artNote'] as String);
+
+  Map<String, dynamic> toJson() => {'title': title, 'motif': motif, 'color': color, 'accent': accent, 'artNote': artNote};
+}
+
+class CoverDesignerLabelsPropsBackground {
+  final String title;
+  final String titleBack;
+  final String likeFront;
+  final String color;
+  final String fromColor;
+  final String toColor;
+  final String angle;
+  final String templateNote;
+  final String likeFrontNote;
+
+  const CoverDesignerLabelsPropsBackground({required this.title, required this.titleBack, required this.likeFront, required this.color, required this.fromColor, required this.toColor, required this.angle, required this.templateNote, required this.likeFrontNote});
+
+  factory CoverDesignerLabelsPropsBackground.fromJson(Map<String, dynamic> json) => CoverDesignerLabelsPropsBackground(title: json['title'] as String, titleBack: json['titleBack'] as String, likeFront: json['likeFront'] as String, color: json['color'] as String, fromColor: json['fromColor'] as String, toColor: json['toColor'] as String, angle: json['angle'] as String, templateNote: json['templateNote'] as String, likeFrontNote: json['likeFrontNote'] as String);
+
+  Map<String, dynamic> toJson() => {'title': title, 'titleBack': titleBack, 'likeFront': likeFront, 'color': color, 'fromColor': fromColor, 'toColor': toColor, 'angle': angle, 'templateNote': templateNote, 'likeFrontNote': likeFrontNote};
+}
+
+class CoverDesignerLabelsLayouts {
+  final String title;
+  final String text;
+  final String photosNote;
+  final String search;
+  final String empty;
+  final String apply;
+  final String backTitle;
+  final String backText;
+
+  const CoverDesignerLabelsLayouts({required this.title, required this.text, required this.photosNote, required this.search, required this.empty, required this.apply, required this.backTitle, required this.backText});
+
+  factory CoverDesignerLabelsLayouts.fromJson(Map<String, dynamic> json) => CoverDesignerLabelsLayouts(title: json['title'] as String, text: json['text'] as String, photosNote: json['photosNote'] as String, search: json['search'] as String, empty: json['empty'] as String, apply: json['apply'] as String, backTitle: json['backTitle'] as String, backText: json['backText'] as String);
+
+  Map<String, dynamic> toJson() => {'title': title, 'text': text, 'photosNote': photosNote, 'search': search, 'empty': empty, 'apply': apply, 'backTitle': backTitle, 'backText': backText};
+}
+
+class CoverDesignerLabelsCanvas {
+  final String wrap;
+  final String spine;
+  final String placeholderTitle;
+  final String placeholderSubtitle;
+  final String placeholderNames;
+  final String placeholderText;
+  final String imagePlaceholder;
+  final String unsafeWarning;
+  final String unsafeShow;
+
+  const CoverDesignerLabelsCanvas({required this.wrap, required this.spine, required this.placeholderTitle, required this.placeholderSubtitle, required this.placeholderNames, required this.placeholderText, required this.imagePlaceholder, required this.unsafeWarning, required this.unsafeShow});
+
+  factory CoverDesignerLabelsCanvas.fromJson(Map<String, dynamic> json) => CoverDesignerLabelsCanvas(wrap: json['wrap'] as String, spine: json['spine'] as String, placeholderTitle: json['placeholderTitle'] as String, placeholderSubtitle: json['placeholderSubtitle'] as String, placeholderNames: json['placeholderNames'] as String, placeholderText: json['placeholderText'] as String, imagePlaceholder: json['imagePlaceholder'] as String, unsafeWarning: json['unsafeWarning'] as String, unsafeShow: json['unsafeShow'] as String);
+
+  Map<String, dynamic> toJson() => {'wrap': wrap, 'spine': spine, 'placeholderTitle': placeholderTitle, 'placeholderSubtitle': placeholderSubtitle, 'placeholderNames': placeholderNames, 'placeholderText': placeholderText, 'imagePlaceholder': imagePlaceholder, 'unsafeWarning': unsafeWarning, 'unsafeShow': unsafeShow};
+}
+
+class CoverDesignerCatalog {
+  final List<String> swatches;
+  final List<String> backSwatches;
+  final List<CoverFontOption> fonts;
+  final List<CoverOption> fontCategories;
+  final List<CoverWeightOption> weightLabels;
+  final List<CoverShapeOption> shapes;
+  final List<CoverDecorOption> decors;
+  final List<CoverTextPresetOption> textPresets;
+  final List<CoverOption> imageMasks;
+  final List<CoverOption> aligns;
+  final List<CoverOption> valigns;
+  final List<CoverOption> bgKinds;
+  final List<CoverOption> stockGroups;
+  final List<CoverStockPhoto> stockPhotos;
+  final List<CoverOption> layoutGenres;
+  final List<CoverLayoutOption> layouts;
+  final CoverDesignerLimits limits;
+  final CoverDesignerLabels labels;
+
+  const CoverDesignerCatalog({required this.swatches, required this.backSwatches, required this.fonts, required this.fontCategories, required this.weightLabels, required this.shapes, required this.decors, required this.textPresets, required this.imageMasks, required this.aligns, required this.valigns, required this.bgKinds, required this.stockGroups, required this.stockPhotos, required this.layoutGenres, required this.layouts, required this.limits, required this.labels});
+
+  factory CoverDesignerCatalog.fromJson(Map<String, dynamic> json) => CoverDesignerCatalog(swatches: (json['swatches'] as List).map((e) => e as String).toList(), backSwatches: (json['backSwatches'] as List).map((e) => e as String).toList(), fonts: (json['fonts'] as List).map((e) => CoverFontOption.fromJson(e as Map<String, dynamic>)).toList(), fontCategories: (json['fontCategories'] as List).map((e) => CoverOption.fromJson(e as Map<String, dynamic>)).toList(), weightLabels: (json['weightLabels'] as List).map((e) => CoverWeightOption.fromJson(e as Map<String, dynamic>)).toList(), shapes: (json['shapes'] as List).map((e) => CoverShapeOption.fromJson(e as Map<String, dynamic>)).toList(), decors: (json['decors'] as List).map((e) => CoverDecorOption.fromJson(e as Map<String, dynamic>)).toList(), textPresets: (json['textPresets'] as List).map((e) => CoverTextPresetOption.fromJson(e as Map<String, dynamic>)).toList(), imageMasks: (json['imageMasks'] as List).map((e) => CoverOption.fromJson(e as Map<String, dynamic>)).toList(), aligns: (json['aligns'] as List).map((e) => CoverOption.fromJson(e as Map<String, dynamic>)).toList(), valigns: (json['valigns'] as List).map((e) => CoverOption.fromJson(e as Map<String, dynamic>)).toList(), bgKinds: (json['bgKinds'] as List).map((e) => CoverOption.fromJson(e as Map<String, dynamic>)).toList(), stockGroups: (json['stockGroups'] as List).map((e) => CoverOption.fromJson(e as Map<String, dynamic>)).toList(), stockPhotos: (json['stockPhotos'] as List).map((e) => CoverStockPhoto.fromJson(e as Map<String, dynamic>)).toList(), layoutGenres: (json['layoutGenres'] as List).map((e) => CoverOption.fromJson(e as Map<String, dynamic>)).toList(), layouts: (json['layouts'] as List).map((e) => CoverLayoutOption.fromJson(e as Map<String, dynamic>)).toList(), limits: CoverDesignerLimits.fromJson(json['limits'] as Map<String, dynamic>), labels: CoverDesignerLabels.fromJson(json['labels'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'swatches': swatches.map((e) => e).toList(), 'backSwatches': backSwatches.map((e) => e).toList(), 'fonts': fonts.map((e) => e.toJson()).toList(), 'fontCategories': fontCategories.map((e) => e.toJson()).toList(), 'weightLabels': weightLabels.map((e) => e.toJson()).toList(), 'shapes': shapes.map((e) => e.toJson()).toList(), 'decors': decors.map((e) => e.toJson()).toList(), 'textPresets': textPresets.map((e) => e.toJson()).toList(), 'imageMasks': imageMasks.map((e) => e.toJson()).toList(), 'aligns': aligns.map((e) => e.toJson()).toList(), 'valigns': valigns.map((e) => e.toJson()).toList(), 'bgKinds': bgKinds.map((e) => e.toJson()).toList(), 'stockGroups': stockGroups.map((e) => e.toJson()).toList(), 'stockPhotos': stockPhotos.map((e) => e.toJson()).toList(), 'layoutGenres': layoutGenres.map((e) => e.toJson()).toList(), 'layouts': layouts.map((e) => e.toJson()).toList(), 'limits': limits.toJson(), 'labels': labels.toJson()};
 }
 
 class CoverBackLayout {
@@ -2559,12 +3367,13 @@ class CoverView {
   final List<CoverBackLayout> backLayouts;
   final CoverLabels labels;
   final CoverViewLimits limits;
+  final CoverDesignerCatalog? designer;
 
-  const CoverView({required this.cover, required this.templates, required this.moods, required this.backLayouts, required this.labels, required this.limits});
+  const CoverView({required this.cover, required this.templates, required this.moods, required this.backLayouts, required this.labels, required this.limits, this.designer});
 
-  factory CoverView.fromJson(Map<String, dynamic> json) => CoverView(cover: Cover.fromJson(json['cover'] as Map<String, dynamic>), templates: (json['templates'] as List).map((e) => CoverTemplate.fromJson(e as Map<String, dynamic>)).toList(), moods: (json['moods'] as List).map((e) => CoverMood.fromJson(e as Map<String, dynamic>)).toList(), backLayouts: (json['backLayouts'] as List).map((e) => CoverBackLayout.fromJson(e as Map<String, dynamic>)).toList(), labels: CoverLabels.fromJson(json['labels'] as Map<String, dynamic>), limits: CoverViewLimits.fromJson(json['limits'] as Map<String, dynamic>));
+  factory CoverView.fromJson(Map<String, dynamic> json) => CoverView(cover: Cover.fromJson(json['cover'] as Map<String, dynamic>), templates: (json['templates'] as List).map((e) => CoverTemplate.fromJson(e as Map<String, dynamic>)).toList(), moods: (json['moods'] as List).map((e) => CoverMood.fromJson(e as Map<String, dynamic>)).toList(), backLayouts: (json['backLayouts'] as List).map((e) => CoverBackLayout.fromJson(e as Map<String, dynamic>)).toList(), labels: CoverLabels.fromJson(json['labels'] as Map<String, dynamic>), limits: CoverViewLimits.fromJson(json['limits'] as Map<String, dynamic>), designer: json['designer'] == null ? null : CoverDesignerCatalog.fromJson(json['designer'] as Map<String, dynamic>));
 
-  Map<String, dynamic> toJson() => {'cover': cover.toJson(), 'templates': templates.map((e) => e.toJson()).toList(), 'moods': moods.map((e) => e.toJson()).toList(), 'backLayouts': backLayouts.map((e) => e.toJson()).toList(), 'labels': labels.toJson(), 'limits': limits.toJson()};
+  Map<String, dynamic> toJson() => {'cover': cover.toJson(), 'templates': templates.map((e) => e.toJson()).toList(), 'moods': moods.map((e) => e.toJson()).toList(), 'backLayouts': backLayouts.map((e) => e.toJson()).toList(), 'labels': labels.toJson(), 'limits': limits.toJson(), if (designer != null) 'designer': designer!.toJson()};
 }
 
 class CoverViewLimits {
@@ -2581,6 +3390,54 @@ class CoverViewLimits {
   factory CoverViewLimits.fromJson(Map<String, dynamic> json) => CoverViewLimits(title: (json['title'] as num).toInt(), authorName: (json['authorName'] as num).toInt(), recordedBy: (json['recordedBy'] as num).toInt(), recipientName: (json['recipientName'] as num).toInt(), subtitle: (json['subtitle'] as num).toInt(), namesOnCover: (json['namesOnCover'] as num).toInt(), backText: (json['backText'] as num).toInt());
 
   Map<String, dynamic> toJson() => {'title': title, 'authorName': authorName, 'recordedBy': recordedBy, 'recipientName': recipientName, 'subtitle': subtitle, 'namesOnCover': namesOnCover, 'backText': backText};
+}
+
+class CoverDesignSaveBody {
+  final CoverDesign? coverDesign;
+  final CoverBack? coverBack;
+  final String? coverTemplate;
+  final bool? coverLines;
+  final String? title;
+  final String? subtitle;
+  final String? namesOnCover;
+  final List<CoverSlotFrame>? photoFrames;
+  /// Поля, которые отправить как null (иначе пустое необязательное поле не отправляется).
+  final Set<String> nulls;
+
+  const CoverDesignSaveBody({this.coverDesign, this.coverBack, this.coverTemplate, this.coverLines, this.title, this.subtitle, this.namesOnCover, this.photoFrames, this.nulls = const {}});
+
+  factory CoverDesignSaveBody.fromJson(Map<String, dynamic> json) => CoverDesignSaveBody(coverDesign: json['coverDesign'] == null ? null : CoverDesign.fromJson(json['coverDesign'] as Map<String, dynamic>), coverBack: json['coverBack'] == null ? null : CoverBack.fromJson(json['coverBack'] as Map<String, dynamic>), coverTemplate: json['coverTemplate'] == null ? null : json['coverTemplate'] as String, coverLines: json['coverLines'] == null ? null : json['coverLines'] as bool, title: json['title'] == null ? null : json['title'] as String, subtitle: json['subtitle'] == null ? null : json['subtitle'] as String, namesOnCover: json['namesOnCover'] == null ? null : json['namesOnCover'] as String, photoFrames: json['photoFrames'] == null ? null : (json['photoFrames'] as List).map((e) => CoverSlotFrame.fromJson(e as Map<String, dynamic>)).toList());
+
+  Map<String, dynamic> toJson() => {if (coverDesign != null || nulls.contains('coverDesign')) 'coverDesign': coverDesign == null ? null : coverDesign!.toJson(), if (coverBack != null || nulls.contains('coverBack')) 'coverBack': coverBack == null ? null : coverBack!.toJson(), if (coverTemplate != null) 'coverTemplate': coverTemplate!, if (coverLines != null) 'coverLines': coverLines!, if (title != null) 'title': title!, if (subtitle != null) 'subtitle': subtitle!, if (namesOnCover != null) 'namesOnCover': namesOnCover!, if (photoFrames != null) 'photoFrames': photoFrames!.map((e) => e.toJson()).toList()};
+}
+
+class CoverDesignInitBody {
+  /// front | back
+  final String side;
+  final String? layoutId;
+  final String? backLayout;
+
+  const CoverDesignInitBody({required this.side, this.layoutId, this.backLayout});
+
+  factory CoverDesignInitBody.fromJson(Map<String, dynamic> json) => CoverDesignInitBody(side: json['side'] as String, layoutId: json['layoutId'] == null ? null : json['layoutId'] as String, backLayout: json['backLayout'] == null ? null : json['backLayout'] as String);
+
+  Map<String, dynamic> toJson() => {'side': side, if (layoutId != null) 'layoutId': layoutId!, if (backLayout != null) 'backLayout': backLayout!};
+}
+
+class CoverDesignResetBody {
+  /// front | back
+  final String side;
+  final String? coverTemplate;
+  final String? coverPhotoId;
+  final List<String>? coverPhotoExtra;
+  /// Поля, которые отправить как null (иначе пустое необязательное поле не отправляется).
+  final Set<String> nulls;
+
+  const CoverDesignResetBody({required this.side, this.coverTemplate, this.coverPhotoId, this.coverPhotoExtra, this.nulls = const {}});
+
+  factory CoverDesignResetBody.fromJson(Map<String, dynamic> json) => CoverDesignResetBody(side: json['side'] as String, coverTemplate: json['coverTemplate'] == null ? null : json['coverTemplate'] as String, coverPhotoId: json['coverPhotoId'] == null ? null : json['coverPhotoId'] as String, coverPhotoExtra: json['coverPhotoExtra'] == null ? null : (json['coverPhotoExtra'] as List).map((e) => e as String).toList());
+
+  Map<String, dynamic> toJson() => {'side': side, if (coverTemplate != null) 'coverTemplate': coverTemplate!, if (coverPhotoId != null || nulls.contains('coverPhotoId')) 'coverPhotoId': coverPhotoId, if (coverPhotoExtra != null) 'coverPhotoExtra': coverPhotoExtra!.map((e) => e).toList()};
 }
 
 class CrmTaskContext {

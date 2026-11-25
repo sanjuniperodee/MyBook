@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
@@ -11,11 +13,16 @@ import '../../ui/tokens.dart';
 import '../data/session.dart';
 import '../ui/book_chrome.dart';
 import '../ui/cabinet.dart';
+import 'cover_designer.dart';
 
-/// Обложка — как на сайте (/books/[id]/cover), режим «Шаблон»: лицо — «Дизайн» (настроение, обложки крупно, выбранная
-/// первой с «На обложке»), «Фото» (места шаблона), «Текст» (название, подзаголовок, имена, получатель, линии); оборот —
-/// «Вариант» (цитата, письмо, фото…), текст и фото. На сцене — лицевая крышка картинкой той же вёрстки, что в печати:
-/// после правки сервер отдаёт новый адрес, картинка меняется без мигания. Обложка из конструктора правится на сайте.
+/// Обложка — один в один с кабинетом сайта (/books/[id]/cover):
+/// - Режим «Готовые дизайны»: лицо — «Дизайн» (настроение, обложки крупно, выбранная первой с «На обложке»),
+///   «Фото» (места шаблона + кадр/масштаб фото), «Текст» (название, подзаголовок, имена, получатель, декоративные линии);
+///   оборот — «Фон» («Как спереди» / «Свой цвет») и «Вариант» (цитата, письмо, фото, полароиды, лаконично + кадр фото).
+/// - Режим «Конструктор»: полноценный нативный конструктор слоёв лица и оборота (тексты, фото книги/сток/загрузка,
+///   фигуры и декоративные линии/рамки, декор, макеты, фон, слои, отмена/повтор) с сохранением в API v1.
+/// - Вид сцены: «Плоско» (крышка или холст конструктора) и «Целиком» (развёртка: оборот + корешок + лицо).
+/// Все надписи, палитры, шрифты, макеты, значки и пределы приходят с сервера в [v1api.CoverView].
 class CoverScreen extends StatefulWidget {
   const CoverScreen({super.key, required this.hub});
   final v1api.CabinetBook hub;
@@ -30,14 +37,16 @@ class _CoverScreenState extends State<CoverScreen> {
   v1api.CabinetPhotos? _photos;
   String? _error;
   bool _back = false;
+  bool _designerMode = false;
+  bool _spreadView = false;
   String _tab = 'designs';
   String _mood = 'all';
   bool _allDesigns = false;
   int _slot = 0;
+  int _backFrameSlot = 0;
   int _saving = 0;
   String? _saveError;
 
-  /// Фото оборота по порядку: ответ сервера знает только первое — остальные помним сами, пока экран открыт.
   List<String> _backIds = [];
 
   final _title = TextEditingController();
@@ -72,6 +81,17 @@ class _CoverScreenState extends State<CoverScreen> {
     super.dispose();
   }
 
+  void _syncControllers(v1api.CoverView v) {
+    _title.text = v.cover.title;
+    _subtitle.text = v.cover.subtitle;
+    _names.text = v.cover.namesOnCover;
+    _author.text = v.cover.authorName;
+    _recordedBy.text = v.cover.recordedBy;
+    _recipient.text = v.cover.recipientName;
+    _backText.text = v.cover.backText;
+    _backIds = v.cover.backPhotoIds ?? [if (v.cover.backPhotoId != null) v.cover.backPhotoId!];
+  }
+
   Future<void> _load() async {
     try {
       final r = await Future.wait([_session.backend.cover(_bookId), _session.backend.photosTab(_bookId)]);
@@ -81,15 +101,8 @@ class _CoverScreenState extends State<CoverScreen> {
         _view = v;
         _photos = r[1] as v1api.CabinetPhotos;
         _error = null;
-        _backIds = [if (v.cover.backPhotoId != null) v.cover.backPhotoId!];
+        _syncControllers(v);
       });
-      _title.text = v.cover.title;
-      _subtitle.text = v.cover.subtitle;
-      _names.text = v.cover.namesOnCover;
-      _author.text = v.cover.authorName;
-      _recordedBy.text = v.cover.recordedBy;
-      _recipient.text = v.cover.recipientName;
-      _backText.text = v.cover.backText;
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     }
@@ -102,11 +115,138 @@ class _CoverScreenState extends State<CoverScreen> {
     });
     try {
       final v = await _session.backend.updateCover(_bookId, patch);
-      if (mounted) setState(() => _view = v);
+      if (mounted) {
+        setState(() {
+          _view = v;
+          if (v.cover.backPhotoIds != null) _backIds = v.cover.backPhotoIds!;
+        });
+      }
     } on ApiException catch (e) {
       if (mounted) setState(() => _saveError = e.message);
     } finally {
       if (mounted) setState(() => _saving--);
+    }
+  }
+
+  Future<void> _saveDesignBody(v1api.CoverDesignSaveBody body, {bool syncText = false}) async {
+    setState(() {
+      _saving++;
+      _saveError = null;
+    });
+    try {
+      final v = await _session.backend.call(() => _session.backend.contract.coverDesignSave(bookId: _bookId, body: body));
+      if (mounted) {
+        setState(() {
+          _view = v;
+          if (syncText) _syncControllers(v);
+        });
+      }
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _saveError = e.message);
+    } finally {
+      if (mounted) setState(() => _saving--);
+    }
+  }
+
+  Future<void> _initDesigner({required String side, String? layoutId, String? backLayout}) async {
+    setState(() {
+      _saving++;
+      _saveError = null;
+    });
+    try {
+      final v = await _session.backend.call(
+        () => _session.backend.contract.coverDesignInit(
+          bookId: _bookId,
+          body: v1api.CoverDesignInitBody(side: side, layoutId: layoutId, backLayout: backLayout),
+        ),
+      );
+      if (mounted) {
+        setState(() {
+          _view = v;
+          _syncControllers(v);
+        });
+      }
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _saveError = e.message);
+    } finally {
+      if (mounted) setState(() => _saving--);
+    }
+  }
+
+  Future<void> _resetDesigner({
+    required String side,
+    String? coverTemplate,
+    String? coverPhotoId,
+    List<String>? coverPhotoExtra,
+    bool clearPhotoId = false,
+  }) async {
+    setState(() {
+      _saving++;
+      _saveError = null;
+    });
+    try {
+      final v = await _session.backend.call(
+        () => _session.backend.contract.coverDesignReset(
+          bookId: _bookId,
+          body: v1api.CoverDesignResetBody(
+            side: side,
+            coverTemplate: coverTemplate,
+            coverPhotoId: coverPhotoId,
+            coverPhotoExtra: coverPhotoExtra,
+            nulls: clearPhotoId ? {'coverPhotoId'} : const {},
+          ),
+        ),
+      );
+      if (mounted) {
+        setState(() {
+          _view = v;
+          _syncControllers(v);
+          _designerMode = false;
+        });
+      }
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _saveError = e.message);
+    } finally {
+      if (mounted) setState(() => _saving--);
+    }
+  }
+
+  Future<void> _openDesigner({bool? backSide}) async {
+    _flushText();
+    final targetBack = backSide ?? _back;
+    final cover = _view?.cover;
+    if (cover == null) return;
+    final side = targetBack ? 'back' : 'front';
+    final hasLayers = targetBack ? (cover.hasBackDesign ?? false) : cover.hasDesign;
+    if (!hasLayers && !cover.editable) return;
+    setState(() {
+      _back = targetBack;
+      _spreadView = false;
+      _designerMode = true;
+    });
+    if (!hasLayers && cover.editable) {
+      await _initDesigner(side: side);
+    }
+  }
+
+  Future<v1api.CabPhoto?> _uploadPhotoForDesigner() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery);
+    if (picked == null) return null;
+    try {
+      final res = await _session.backend.uploadPhotos(_bookId, [File(picked.path)]);
+      final refreshed = await _session.backend.photosTab(_bookId);
+      if (mounted) setState(() => _photos = refreshed);
+      if (res.photos.isNotEmpty) {
+        final id = res.photos.first.id;
+        for (final p in refreshed.photos) {
+          if (p.id == id) return p;
+        }
+      }
+      return refreshed.photos.isNotEmpty ? refreshed.photos.last : null;
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _saveError = e.message);
+      return null;
     }
   }
 
@@ -162,7 +302,8 @@ class _CoverScreenState extends State<CoverScreen> {
   }
 
   Future<void> _choose(v1api.CoverTemplate t) async {
-    final cover = _view!.cover;
+    final v = _view!;
+    final cover = v.cover;
     final ids = [...cover.photoIds];
     final patch = <String, Object?>{};
     // Шаблону с фото — сразу снимки книги в пустые места, как на сайте.
@@ -173,6 +314,32 @@ class _CoverScreenState extends State<CoverScreen> {
         patch['photo'] = fill.isEmpty ? null : fill.first;
         patch['extra'] = fill.skip(1).toList();
       }
+    }
+    // Обложка из конструктора закрывает шаблон целиком: спрашиваем подтверждение и сбрасываем, как на сайте.
+    if (cover.hasDesign) {
+      final repl = v.designer?.labels.replace;
+      if (repl != null) {
+        final ok = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text(repl.titleTemplate.replaceAll('{name}', t.name)),
+            content: Text(repl.text),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(repl.cancel)),
+              FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(repl.ok)),
+            ],
+          ),
+        );
+        if (ok != true) return;
+      }
+      await _resetDesigner(
+        side: 'front',
+        coverTemplate: t.id,
+        coverPhotoId: patch.containsKey('photo') ? patch['photo'] as String? : null,
+        coverPhotoExtra: patch['extra'] as List<String>?,
+        clearPhotoId: patch.containsKey('photo') && patch['photo'] == null,
+      );
+      return;
     }
     await _save(v1api.CoverPatch(
       coverTemplate: t.id,
@@ -188,7 +355,6 @@ class _CoverScreenState extends State<CoverScreen> {
       ids.add(null);
     }
     final from = ids.indexOf(id);
-    // Фото из другого места меняется с ним местами (как на сайте).
     if (from >= 0) ids[from] = ids[_slot];
     ids[_slot] = id;
     final list = ids.take(slots).toList();
@@ -210,7 +376,6 @@ class _CoverScreenState extends State<CoverScreen> {
   Future<void> _pickBackLayout(String layout) async {
     final need = _backLayout(layout)?.photos ?? 0;
     var ids = _backIds;
-    // Вариант с фото без выбранных снимков — сразу первые подходящие фото книги.
     if (need > 0 && ids.length < need) {
       ids = [...ids, ..._fillOrder().where((id) => !ids.contains(id))].take(need).toList();
     }
@@ -242,12 +407,48 @@ class _CoverScreenState extends State<CoverScreen> {
     ));
   }
 
-  void _side(bool back) {
+  v1api.CoverPhotoFrame _frameFor(String key) {
+    for (final f in _view?.cover.photoFrames ?? const <v1api.CoverSlotFrame>[]) {
+      if (f.key == key) return f.frame;
+    }
+    return const v1api.CoverPhotoFrame(zoom: 1, x: 0.5, y: 0.5);
+  }
+
+  Future<void> _updatePhotoFrame(String key, v1api.CoverPhotoFrame? next) async {
+    final list = <v1api.CoverSlotFrame>[
+      for (final f in _view?.cover.photoFrames ?? const <v1api.CoverSlotFrame>[])
+        if (f.key != key) f,
+    ];
+    if (next != null && !(next.zoom == 1 && next.x == 0.5 && next.y == 0.5)) {
+      list.add(v1api.CoverSlotFrame(key: key, frame: next));
+    }
+    await _saveDesignBody(v1api.CoverDesignSaveBody(photoFrames: list));
+  }
+
+  Future<void> _setBackFill(v1api.CoverBackground bg) async {
+    final existing = _view!.cover.coverBack;
+    final clear = bg.kind == 'template' && existing?.layers == null;
+    await _saveDesignBody(
+      v1api.CoverDesignSaveBody(
+        coverBack: clear ? null : v1api.CoverBack(v: 1, background: bg, layers: existing?.layers),
+        nulls: clear ? {'coverBack'} : const {},
+      ),
+    );
+  }
+
+  Future<void> _side(bool back) async {
     _flushText();
     setState(() {
       _back = back;
+      _spreadView = false;
       _tab = back ? 'variant' : 'designs';
     });
+    if (_designerMode && _view != null) {
+      final hasLayers = back ? (_view!.cover.hasBackDesign ?? false) : _view!.cover.hasDesign;
+      if (!hasLayers && _view!.cover.editable) {
+        await _initDesigner(side: back ? 'back' : 'front');
+      }
+    }
   }
 
   @override
@@ -257,11 +458,21 @@ class _CoverScreenState extends State<CoverScreen> {
     final v = _view;
     return Scaffold(
       backgroundColor: c.bg,
-      appBar: BookHeader(bookId: h.id, title: h.title, kind: h.kind, coverUrl: v?.cover.imageUrl != null ? '${v!.cover.imageUrl}&w=240' : h.coverThumbUrl),
+      appBar: BookHeader(
+        bookId: h.id,
+        title: h.title,
+        kind: h.kind,
+        coverUrl: v?.cover.imageUrl != null ? '${v!.cover.imageUrl}&w=240' : h.coverThumbUrl,
+      ),
       body: v == null
           ? (_error == null
               ? const Center(child: CircularProgressIndicator())
-              : EmptyState(icon: LucideIcons.wifiOff, title: 'Обложка не открылась', hint: _error, action: 'Повторить', onAction: _load))
+              : EmptyState(
+                  icon: LucideIcons.wifiOff,
+                  title: _error!,
+                  action: MaterialLocalizations.of(context).refreshIndicatorSemanticLabel,
+                  onAction: _load,
+                ))
           : _body(v),
     );
   }
@@ -269,63 +480,210 @@ class _CoverScreenState extends State<CoverScreen> {
   Widget _body(v1api.CoverView v) {
     final c = context.c;
     final cover = v.cover;
+    final designer = v.designer;
     final template = _template(cover.template);
     final slots = template?.photoSlots ?? 0;
     final l = v.labels;
+    final backLayered = cover.hasBackDesign ?? false;
+    final hasDesignerForSide = _back ? backLayered : cover.hasDesign;
+    final canEnterDesigner = designer != null && (cover.editable || hasDesignerForSide);
+    final showDesigner = _designerMode && designer != null && hasDesignerForSide;
+
     final tabs = _back
-        ? [('variant', l.tabs.variant)]
-        : [('designs', l.tabs.designs), if (slots > 0 && !cover.hasDesign) ('photo', l.tabs.photo), ('text', l.tabs.text)];
+        ? [
+            if (designer != null) ('fill', designer.labels.panels.fill),
+            ('variant', l.tabs.variant),
+          ]
+        : [
+            ('designs', l.tabs.designs),
+            if (slots > 0 && !cover.hasDesign) ('photo', l.tabs.photo),
+            ('text', l.tabs.text),
+          ];
     final tab = tabs.any((t) => t.$1 == _tab) ? _tab : tabs.first.$1;
+
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 18, 16, 48),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 48),
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       children: [
+        // Заголовок и переключатель «Лицо / Оборот»
         Row(children: [
-          Expanded(child: Text(l.title, style: AppText.serif(context, size: 30, weight: FontWeight.w500))),
-          _SideSwitch(back: _back, front: l.sides.front, backLabel: l.sides.back, onChanged: _side),
+          Expanded(child: Text(l.title, style: AppText.serif(context, size: 28, weight: FontWeight.w500))),
+          _PillToggle(
+            value: _back,
+            leftLabel: l.sides.front,
+            rightLabel: l.sides.back,
+            onChanged: (b) => _side(b),
+          ),
         ]),
-        const SizedBox(height: 18),
-        if (!_back) _stage(v, template) else _backStage(v),
-        const SizedBox(height: 10),
-        SizedBox(
-          height: 20,
-          child: Center(
-            child: _saving > 0
-                ? Row(mainAxisSize: MainAxisSize.min, children: [
-                    const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 1.6)),
-                    const SizedBox(width: 8),
-                    Text(l.saving, style: TextStyle(fontSize: 13, color: c.textMuted)),
-                  ])
-                : _saveError != null
-                    ? Text(_saveError!, style: TextStyle(fontSize: 13, color: c.danger), textAlign: TextAlign.center)
-                    : null,
-          ),
-        ),
-        if (!cover.editable) ...[
-          const SizedBox(height: 8),
-          _Note(icon: LucideIcons.lock, text: l.readonly),
+
+        // Переключатель «Готовые дизайны / Конструктор» и вид «Плоско / Целиком»
+        if (designer != null) ...[
+          const SizedBox(height: 12),
+          Row(children: [
+            Expanded(
+              child: _PillToggle(
+                value: _designerMode,
+                leftLabel: designer.labels.modes.template,
+                rightLabel: designer.labels.modes.designer,
+                rightEnabled: canEnterDesigner,
+                onChanged: (d) {
+                  if (d) {
+                    _openDesigner();
+                  } else {
+                    setState(() => _designerMode = false);
+                  }
+                },
+              ),
+            ),
+            if (cover.spreadImageUrl != null) ...[
+              const SizedBox(width: 8),
+              _PillToggle(
+                value: _spreadView,
+                leftLabel: designer.labels.views.flat,
+                rightLabel: designer.labels.views.spread,
+                onChanged: (s) => setState(() => _spreadView = s),
+              ),
+            ],
+          ]),
         ],
-        if (cover.hasDesign && !_back) ...[
-          const SizedBox(height: 8),
-          _Note(icon: LucideIcons.layers, text: l.designActive),
-        ],
-        const SizedBox(height: 14),
-        _Tabs(tabs: tabs, value: tab, onChanged: (t) => setState(() => _tab = t)),
         const SizedBox(height: 16),
-        AnimatedSwitcher(
-          duration: const Duration(milliseconds: 180),
-          child: KeyedSubtree(
-            key: ValueKey(tab),
-            child: switch (tab) {
-              'designs' => _designs(v),
-              'photo' => _coverPhotos(v, slots),
-              'text' => _texts(v),
-              _ => _variant(v),
-            },
+
+        if (!cover.editable) ...[
+          _Note(icon: LucideIcons.lock, text: _back && designer != null ? designer.labels.backCta.readonly : l.readonly),
+          const SizedBox(height: 12),
+        ],
+
+        if (_designerMode && designer != null)
+          showDesigner
+              ? CoverDesignerView(
+                  bookId: _bookId,
+                  view: v,
+                  catalog: designer,
+                  side: _back ? 'back' : 'front',
+                  photos: _photos?.photos ?? const [],
+                  saving: _saving > 0,
+                  saveError: _saveError,
+                  stageSpread: _spreadView && cover.spreadImageUrl != null ? _spreadStage(v) : null,
+                  onSaveDesign: (d) async {
+                    if (_back) {
+                      await _saveDesignBody(
+                        v1api.CoverDesignSaveBody(
+                          coverBack: v1api.CoverBack(v: 1, background: d.background, layers: d.layers),
+                        ),
+                      );
+                    } else {
+                      await _saveDesignBody(v1api.CoverDesignSaveBody(coverDesign: d));
+                    }
+                  },
+                  onSaveBookText: (bind, value) async {
+                    final body = switch (bind) {
+                      'title' => v1api.CoverDesignSaveBody(title: value),
+                      'subtitle' => v1api.CoverDesignSaveBody(subtitle: value),
+                      _ => v1api.CoverDesignSaveBody(namesOnCover: value),
+                    };
+                    await _saveDesignBody(body, syncText: true);
+                  },
+                  onToggleCoverLines: (lines) => _saveDesignBody(v1api.CoverDesignSaveBody(coverLines: lines)),
+                  onApplyLayout: ({layoutId, backLayout}) => _initDesigner(
+                    side: _back ? 'back' : 'front',
+                    layoutId: layoutId,
+                    backLayout: backLayout,
+                  ),
+                  onReset: () => _resetDesigner(side: _back ? 'back' : 'front'),
+                  onUploadPhoto: _uploadPhotoForDesigner,
+                )
+              : const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 48),
+                  child: Center(child: CircularProgressIndicator()),
+                )
+        else ...[
+          // Режим «Готовые дизайны»
+          if (_spreadView && cover.spreadImageUrl != null)
+            _spreadStage(v)
+          else if (!_back)
+            _stage(v, template)
+          else
+            _backStage(v),
+          const SizedBox(height: 10),
+          SizedBox(
+            height: 20,
+            child: Center(
+              child: _saving > 0
+                  ? Row(mainAxisSize: MainAxisSize.min, children: [
+                      const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 1.6)),
+                      const SizedBox(width: 8),
+                      Text(l.saving, style: TextStyle(fontSize: 13, color: c.textMuted)),
+                    ])
+                  : _saveError != null
+                      ? Text(_saveError!, style: TextStyle(fontSize: 13, color: c.danger), textAlign: TextAlign.center)
+                      : null,
+            ),
           ),
-        ),
+
+          // Карточка «Сейчас на обложке — вариант из конструктора» с кнопками открыть и сбросить
+          if (cover.hasDesign && !_back && designer != null) ...[
+            const SizedBox(height: 8),
+            _DesignerActiveBanner(
+              text: l.designActive,
+              openLabel: designer.labels.cta.openActive,
+              resetLabel: cover.editable ? designer.labels.cta.reset : null,
+              onOpen: () => _openDesigner(backSide: false),
+              onReset: cover.editable ? () => _confirmResetFromTemplate(designer, backSide: false) : null,
+            ),
+          ],
+          if (backLayered && _back && designer != null) ...[
+            const SizedBox(height: 8),
+            _DesignerActiveBanner(
+              text: designer.labels.backCta.active,
+              openLabel: designer.labels.backCta.openActive,
+              resetLabel: cover.editable ? designer.labels.backCta.reset : null,
+              onOpen: () => _openDesigner(backSide: true),
+              onReset: cover.editable ? () => _confirmResetFromTemplate(designer, backSide: true) : null,
+            ),
+          ],
+
+          const SizedBox(height: 14),
+          _Tabs(tabs: tabs, value: tab, onChanged: (t) => setState(() => _tab = t)),
+          const SizedBox(height: 16),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 180),
+            child: KeyedSubtree(
+              key: ValueKey(tab),
+              child: switch (tab) {
+                'designs' => _designs(v),
+                'photo' => _coverPhotos(v, slots),
+                'text' => _texts(v),
+                'fill' => _backFill(v),
+                _ => _variant(v),
+              },
+            ),
+          ),
+        ],
       ],
     );
+  }
+
+  Future<void> _confirmResetFromTemplate(v1api.CoverDesignerCatalog designer, {required bool backSide}) async {
+    final title = backSide ? designer.labels.backCta.reset : designer.labels.cta.reset;
+    final body = backSide ? designer.labels.backCta.confirmReset : designer.labels.cta.confirmReset;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: Text(body),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(designer.labels.replace.cancel)),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: ctx.c.danger),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(title),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      await _resetDesigner(side: backSide ? 'back' : 'front');
+    }
   }
 
   String _moodName(v1api.CoverView v, String id) {
@@ -348,7 +706,6 @@ class _CoverScreenState extends State<CoverScreen> {
     ]);
   }
 
-  /// Оборот на сцене — картинка той же вёрстки, что печать (вырез развёртки), под ней — что это за сторона.
   Widget _backStage(v1api.CoverView v) {
     final c = context.c;
     final l = v.labels.back;
@@ -361,14 +718,62 @@ class _CoverScreenState extends State<CoverScreen> {
     ]);
   }
 
+  /// Развёртка целиком (оборот + корешок + лицо) из серверного рендера печати: нажатие на левую/правую сторону выбирает её.
+  Widget _spreadStage(v1api.CoverView v) {
+    final c = context.c;
+    final backend = context.read<ClientSession>().backend;
+    final url = '${v.cover.spreadImageUrl!}&w=900';
+    return Column(children: [
+      ClipRRect(
+        borderRadius: BorderRadius.circular(4),
+        child: Stack(children: [
+          Image.network(
+            backend.url(url),
+            headers: backend.imageHeaders,
+            width: double.infinity,
+            fit: BoxFit.contain,
+            gaplessPlayback: true,
+            errorBuilder: (_, _, _) => Container(height: 160, color: c.surface),
+          ),
+          Positioned.fill(
+            child: Row(children: [
+              Expanded(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.translucent,
+                  onTap: () => _side(true),
+                  child: Container(
+                    decoration: BoxDecoration(border: _back ? Border.all(color: c.brand, width: 2) : null),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.translucent,
+                  onTap: () => _side(false),
+                  child: Container(
+                    decoration: BoxDecoration(border: !_back ? Border.all(color: c.brand, width: 2) : null),
+                  ),
+                ),
+              ),
+            ]),
+          ),
+        ]),
+      ),
+      if (v.designer != null) ...[
+        const SizedBox(height: 8),
+        Text(v.designer!.labels.views.spreadHint, textAlign: TextAlign.center, style: TextStyle(fontSize: 12.5, color: c.textMuted)),
+      ],
+    ]);
+  }
+
   Widget _designs(v1api.CoverView v) {
     final c = context.c;
     final cover = v.cover;
     final l = v.labels;
+    final designer = v.designer;
     final all = v.templates;
     final moods = v.moods.where((m) => m.id == 'all' || all.any((t) => t.mood == m.id)).toList();
     var list = all.where((t) => _mood == 'all' || t.mood == _mood || t.id == cover.template).toList();
-    // Выбранная — первой и всегда в списке; сначала l.shown обложек, остальные по кнопке (как на сайте).
     list.sort((a, b) => (b.id == cover.template ? 1 : 0) - (a.id == cover.template ? 1 : 0));
     final more = _mood == 'all' && !_allDesigns && list.length > l.shown;
     if (more) list = list.take(l.shown).toList();
@@ -400,12 +805,11 @@ class _CoverScreenState extends State<CoverScreen> {
                 on: t.id == cover.template && !cover.hasDesign,
                 onCover: l.onCover,
                 needsPhoto: t.photoSlots > 0 && noPhotos,
-                // Шаблон с фото — с фото этой книги на местах (как миниатюры сайта); адрес меняется вместе с выбором.
                 url: t.photoSlots > 0 && !noPhotos
-                    ? '/api/books/${_bookId}/cover-thumb/${t.id}?v=${Object.hash(Object.hashAll(cover.photoIds), cover.lines, (_photos?.photos ?? const []).length)}'
+                    ? '/api/books/$_bookId/cover-thumb/${t.id}?v=${Object.hash(Object.hashAll(cover.photoIds), cover.lines, (_photos?.photos ?? const []).length)}'
                     : t.previewUrl,
                 mood: _moodName(v, t.mood),
-                onTap: cover.editable && !cover.hasDesign && t.id != cover.template ? () => _choose(t) : null,
+                onTap: cover.editable && (cover.hasDesign || t.id != cover.template) ? () => _choose(t) : null,
               ),
             ),
         ]);
@@ -414,6 +818,15 @@ class _CoverScreenState extends State<CoverScreen> {
         const SizedBox(height: 18),
         CabinetButton(label: l.showAll, kind: CabBtn.outline, large: false, onPressed: () => setState(() => _allDesigns = true)),
       ],
+      if (designer != null && !cover.hasDesign && cover.editable) ...[
+        const SizedBox(height: 22),
+        _DesignerCtaCard(
+          title: designer.labels.cta.title,
+          text: designer.labels.cta.text,
+          button: designer.labels.cta.open,
+          onTap: () => _openDesigner(backSide: false),
+        ),
+      ],
     ]);
   }
 
@@ -421,12 +834,16 @@ class _CoverScreenState extends State<CoverScreen> {
     final c = context.c;
     final cover = v.cover;
     final l = v.labels.photo;
+    final designer = v.designer;
     final photos = _photos?.photos ?? const <v1api.CabPhoto>[];
     final chosen = [...cover.photoIds];
     while (chosen.length < slots) {
       chosen.add(null);
     }
     final slot = _slot.clamp(0, slots - 1);
+    final frameKey = 'cover:$slot';
+    final hasChosenInSlot = slot < chosen.length && chosen[slot] != null;
+
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text(l.title, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
       if (slots > 1) ...[
@@ -449,6 +866,14 @@ class _CoverScreenState extends State<CoverScreen> {
           },
           onTap: cover.editable ? (p) => _pickCoverPhoto(p.id, slots) : null,
         ),
+      if (hasChosenInSlot && designer != null && cover.editable) ...[
+        const SizedBox(height: 16),
+        _PhotoFrameCard(
+          catalog: designer,
+          frame: _frameFor(frameKey),
+          onChanged: (f) => _updatePhotoFrame(frameKey, f),
+        ),
+      ],
       const SizedBox(height: 12),
       Text(l.note, style: TextStyle(fontSize: 12.5, height: 1.4, color: c.textFaint)),
     ]);
@@ -458,9 +883,12 @@ class _CoverScreenState extends State<CoverScreen> {
     final c = context.c;
     final cover = v.cover;
     final l = v.labels.text;
+    final designer = v.designer;
     final max = v.limits;
     final on = cover.editable && !cover.hasDesign;
     final autobiography = cover.kind == 'autobiography';
+    final swapped = !autobiography && cover.authorName.trim().isNotEmpty && cover.recipientName.trim().isNotEmpty ? '${cover.recipientName.trim()} & ${cover.authorName.trim()}' : null;
+
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       _Field(label: l.bookTitle, controller: _title, max: max.title, enabled: on, onChanged: (s) => _text(v1api.CoverPatch(title: s))),
       const SizedBox(height: 16),
@@ -468,7 +896,6 @@ class _CoverScreenState extends State<CoverScreen> {
       const SizedBox(height: 16),
       _Field(label: l.author, controller: _author, max: max.authorName, enabled: on, onChanged: (s) => _text(v1api.CoverPatch(authorName: s))),
       const SizedBox(height: 16),
-      // Получатель: у автобиографии его нет (есть «кто записал»), у остальных — поле и «не отображать на обложке».
       if (autobiography) ...[
         _Field(label: l.recordedBy, hint: l.recordedByPlaceholder, controller: _recordedBy, max: max.recordedBy, enabled: on, onChanged: (s) => _text(v1api.CoverPatch(recordedBy: s))),
         const SizedBox(height: 10),
@@ -481,19 +908,126 @@ class _CoverScreenState extends State<CoverScreen> {
       _Field(label: l.namesOnCover, hint: cover.autoNames, controller: _names, max: max.namesOnCover, enabled: on, onChanged: (s) => _text(v1api.CoverPatch(namesOnCover: s))),
       const SizedBox(height: 6),
       Text(l.namesOnCoverText, style: TextStyle(fontSize: 12.5, color: c.textMuted)),
-      const SizedBox(height: 14),
+      if (designer != null && on) ...[
+        Wrap(spacing: 8, children: [
+          if (swapped != null && _names.text.trim() != swapped)
+            TextButton(
+              onPressed: () {
+                _names.text = swapped;
+                _save(v1api.CoverPatch(namesOnCover: swapped));
+              },
+              child: Text(designer.labels.namesSwap),
+            ),
+          if (_names.text.trim().isNotEmpty)
+            TextButton(
+              onPressed: () {
+                _names.clear();
+                _save(const v1api.CoverPatch(namesOnCover: ''));
+              },
+              child: Text(designer.labels.namesAuto),
+            ),
+        ]),
+      ],
+      const SizedBox(height: 10),
       _Check(value: cover.lines, title: l.coverLines, hint: l.coverLinesHint, onChanged: on ? (b) => _save(v1api.CoverPatch(coverLines: b)) : null),
+    ]);
+  }
+
+  /// Вкладка «Фон» оборота: «Как спереди» или «Свой цвет» (палитра с цветами лица первыми + переход в конструктор).
+  Widget _backFill(v1api.CoverView v) {
+    final c = context.c;
+    final cover = v.cover;
+    final designer = v.designer!;
+    final bf = designer.labels.backFill;
+    final bg = cover.coverBack?.background ?? const v1api.CoverBackground(kind: 'template');
+    final linked = bg.kind == 'template';
+    final ownColor = bg.kind == 'color' ? bg.color : (bg.kind == 'gradient' ? bg.from : null);
+    final swatches = designer.backSwatches;
+
+    Widget radioCard({required bool active, required String label, required Color preview, required VoidCallback? onTap}) => InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(Cab.ctl),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            decoration: BoxDecoration(
+              color: active ? c.bubbleOut : c.surfaceRaised,
+              borderRadius: BorderRadius.circular(Cab.ctl),
+              border: Border.all(color: active ? c.brand : c.border, width: active ? 1.5 : 1),
+            ),
+            child: Row(children: [
+              Container(width: 24, height: 24, decoration: BoxDecoration(color: preview, borderRadius: BorderRadius.circular(6), border: Border.all(color: c.border))),
+              const SizedBox(width: 10),
+              Expanded(child: Text(label, style: TextStyle(fontSize: 14.5, fontWeight: active ? FontWeight.w600 : FontWeight.w500, color: active ? c.brand : c.text))),
+              if (active) Icon(LucideIcons.check, size: 16, color: c.brand),
+            ]),
+          ),
+        );
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(bf.title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+      const SizedBox(height: 10),
+      radioCard(
+        active: linked,
+        label: bf.likeFront,
+        preview: CoverDesignerLogic.parseHex(cover.templateBaseColor, fallback: c.surface),
+        onTap: cover.editable ? () => _setBackFill(const v1api.CoverBackground(kind: 'template')) : null,
+      ),
+      const SizedBox(height: 8),
+      radioCard(
+        active: !linked,
+        label: bf.own,
+        preview: CoverDesignerLogic.parseHex(ownColor ?? (swatches.isNotEmpty ? swatches.first : '#1F1A17')),
+        onTap: cover.editable ? () => _setBackFill(v1api.CoverBackground(kind: 'color', color: ownColor ?? (swatches.isNotEmpty ? swatches.first : '#1F1A17'))) : null,
+      ),
+      const SizedBox(height: 10),
+      Text(linked ? bf.likeFrontNote : bf.ownNote, style: TextStyle(fontSize: 13, color: c.textMuted)),
+      if (!linked && cover.editable) ...[
+        const SizedBox(height: 14),
+        Text(bf.color, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.textMuted)),
+        const SizedBox(height: 8),
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          for (final hex in swatches)
+            GestureDetector(
+              onTap: () => _setBackFill(v1api.CoverBackground(kind: 'color', color: hex)),
+              child: Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: CoverDesignerLogic.parseHex(hex),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: ownColor?.toUpperCase() == hex.toUpperCase() ? c.brand : c.border, width: ownColor?.toUpperCase() == hex.toUpperCase() ? 3 : 1),
+                ),
+              ),
+            ),
+        ]),
+        const SizedBox(height: 6),
+        Text(bf.frontColors, style: TextStyle(fontSize: 12, color: c.textMuted)),
+      ],
+      if (cover.editable || (cover.hasBackDesign ?? false)) ...[
+        const SizedBox(height: 14),
+        TextButton(
+          onPressed: () => _openDesigner(backSide: true),
+          child: Text(bf.more, style: TextStyle(color: c.brand)),
+        ),
+      ],
     ]);
   }
 
   Widget _variant(v1api.CoverView v) {
     final c = context.c;
     final cover = v.cover;
+    final designer = v.designer;
+    final backLayered = cover.hasBackDesign ?? false;
+    if (backLayered && designer != null) {
+      return Text(designer.labels.backCta.active, style: TextStyle(fontSize: 14, color: c.textMuted));
+    }
     final l = v.labels.back;
     final layouts = v.backLayouts;
     final layout = _backLayout(cover.backLayout) ?? layouts.first;
     final need = layout.photos;
     final photos = _photos?.photos ?? const <v1api.CabPhoto>[];
+    final activeBackSlot = _backFrameSlot.clamp(0, _backIds.isEmpty ? 0 : _backIds.length - 1);
+
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       LayoutBuilder(builder: (context, box) {
         const gap = 10.0;
@@ -527,7 +1061,7 @@ class _CoverScreenState extends State<CoverScreen> {
         const SizedBox(height: 10),
         if (photos.isEmpty)
           Text(l.noPhotos, style: TextStyle(fontSize: 14, color: c.textMuted))
-        else
+        else ...[
           _PhotoGrid(
             photos: photos,
             badge: (id) {
@@ -536,35 +1070,248 @@ class _CoverScreenState extends State<CoverScreen> {
             },
             onTap: cover.editable ? (p) => _toggleBackPhoto(p.id, need) : null,
           ),
+          if (_backIds.isNotEmpty && designer != null && cover.editable) ...[
+            const SizedBox(height: 14),
+            if (_backIds.length > 1) ...[
+              Wrap(spacing: 6, children: [
+                for (var i = 0; i < _backIds.length && i < need; i++)
+                  _Chip(
+                    label: '${designer.labels.frame.slotPrefix} ${i + 1}',
+                    on: activeBackSlot == i,
+                    onTap: () => setState(() => _backFrameSlot = i),
+                  ),
+              ]),
+              const SizedBox(height: 8),
+            ],
+            _PhotoFrameCard(
+              catalog: designer,
+              frame: _frameFor('back:$activeBackSlot'),
+              onChanged: (f) => _updatePhotoFrame('back:$activeBackSlot', f),
+            ),
+          ],
+        ],
+      ],
+      if (designer != null && cover.editable) ...[
+        const SizedBox(height: 22),
+        _DesignerCtaCard(
+          title: designer.labels.backCta.title,
+          text: designer.labels.backCta.text,
+          button: designer.labels.backCta.open,
+          onTap: () => _openDesigner(backSide: true),
+        ),
       ],
     ]);
   }
 }
 
-/// «Лицо / Оборот» — как переключатель сторон сайта.
-class _SideSwitch extends StatelessWidget {
-  const _SideSwitch({required this.back, required this.front, required this.backLabel, required this.onChanged});
-  final bool back;
-  final String front;
-  final String backLabel;
+/// Переключатель из двух сегментов («Лицо / Оборот», «Готовые дизайны / Конструктор», «Плоско / Целиком»).
+class _PillToggle extends StatelessWidget {
+  const _PillToggle({
+    required this.value,
+    required this.leftLabel,
+    required this.rightLabel,
+    required this.onChanged,
+    this.rightEnabled = true,
+  });
+
+  final bool value;
+  final String leftLabel;
+  final String rightLabel;
+  final bool rightEnabled;
   final ValueChanged<bool> onChanged;
 
   @override
   Widget build(BuildContext context) {
     final c = context.c;
-    Widget item(String label, bool value) => GestureDetector(
-          onTap: () => onChanged(value),
+    Widget item(String label, bool target, bool enabled) => GestureDetector(
+          onTap: enabled ? () => onChanged(target) : null,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 180),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            decoration: BoxDecoration(color: back == value ? c.surfaceRaised : Colors.transparent, borderRadius: BorderRadius.circular(10), boxShadow: back == value ? [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 4)] : null),
-            child: Text(label, style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500, color: back == value ? c.text : c.textMuted)),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: value == target ? c.surfaceRaised : Colors.transparent,
+              borderRadius: BorderRadius.circular(10),
+              boxShadow: value == target ? [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 4)] : null,
+            ),
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: !enabled ? c.textFaint : (value == target ? c.text : c.textMuted),
+              ),
+            ),
           ),
         );
     return Container(
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(color: c.surface, borderRadius: BorderRadius.circular(12)),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [item(front, false), item(backLabel, true)]),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Flexible(child: item(leftLabel, false, true)),
+        Flexible(child: item(rightLabel, true, rightEnabled)),
+      ]),
+    );
+  }
+}
+
+/// Карточка приглашения в конструктор (как designerCard в CoverEditor.tsx).
+class _DesignerCtaCard extends StatelessWidget {
+  const _DesignerCtaCard({required this.title, required this.text, required this.button, required this.onTap});
+  final String title;
+  final String text;
+  final String button;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.c;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: c.surfaceRaised, borderRadius: BorderRadius.circular(Cab.panel), border: Border.all(color: c.border)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(color: c.bubbleOut, borderRadius: BorderRadius.circular(Cab.ctl)),
+            child: Icon(LucideIcons.layers, size: 18, color: c.brand),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(title, style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 3),
+              Text(text, style: TextStyle(fontSize: 13, height: 1.35, color: c.textMuted)),
+            ]),
+          ),
+        ]),
+        const SizedBox(height: 12),
+        CabinetButton(label: button, kind: CabBtn.dark, large: false, onPressed: onTap),
+      ]),
+    );
+  }
+}
+
+/// Плашка «обложка собрана в конструкторе» с действиями «Открыть» и «Сбросить».
+class _DesignerActiveBanner extends StatelessWidget {
+  const _DesignerActiveBanner({required this.text, required this.openLabel, required this.onOpen, this.resetLabel, this.onReset});
+  final String text;
+  final String openLabel;
+  final String? resetLabel;
+  final VoidCallback onOpen;
+  final VoidCallback? onReset;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.c;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: c.bubbleOut, borderRadius: BorderRadius.circular(Cab.panel)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Icon(LucideIcons.layers, size: 17, color: c.brand),
+          const SizedBox(width: 10),
+          Expanded(child: Text(text, style: TextStyle(fontSize: 13.5, height: 1.4, color: c.text))),
+        ]),
+        const SizedBox(height: 10),
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          FilledButton(onPressed: onOpen, child: Text(openLabel)),
+          if (resetLabel != null && onReset != null) TextButton(onPressed: onReset, child: Text(resetLabel!)),
+        ]),
+      ]),
+    );
+  }
+}
+
+/// Кадрирование фото слота (масштаб и положение X/Y) в режиме «Готовые дизайны» и на обороте.
+class _PhotoFrameCard extends StatefulWidget {
+  const _PhotoFrameCard({required this.catalog, required this.frame, required this.onChanged});
+  final v1api.CoverDesignerCatalog catalog;
+  final v1api.CoverPhotoFrame frame;
+  final ValueChanged<v1api.CoverPhotoFrame?> onChanged;
+
+  @override
+  State<_PhotoFrameCard> createState() => _PhotoFrameCardState();
+}
+
+class _PhotoFrameCardState extends State<_PhotoFrameCard> {
+  late v1api.CoverPhotoFrame _local;
+
+  @override
+  void initState() {
+    super.initState();
+    _local = widget.frame;
+  }
+
+  @override
+  void didUpdateWidget(covariant _PhotoFrameCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.frame.zoom != widget.frame.zoom || oldWidget.frame.x != widget.frame.x || oldWidget.frame.y != widget.frame.y) {
+      _local = widget.frame;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.c;
+    final fl = widget.catalog.labels.frame;
+    final pl = widget.catalog.labels.props;
+    final lim = widget.catalog.limits;
+    final isDefault = _local.zoom == 1 && _local.x == 0.5 && _local.y == 0.5;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: c.surfaceRaised, borderRadius: BorderRadius.circular(Cab.panel), border: Border.all(color: c.border)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Expanded(child: Text(fl.title, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600))),
+          if (!isDefault)
+            TextButton(
+              onPressed: () {
+                setState(() => _local = const v1api.CoverPhotoFrame(zoom: 1, x: 0.5, y: 0.5));
+                widget.onChanged(null);
+              },
+              child: Text(fl.reset),
+            ),
+        ]),
+        Text(fl.hint, style: TextStyle(fontSize: 12, color: c.textMuted)),
+        const SizedBox(height: 6),
+        Row(children: [
+          Expanded(child: Text(fl.zoom, style: TextStyle(fontSize: 12.5, color: c.textMuted))),
+          Text('${(_local.zoom * 100).round()}${pl.pct}', style: TextStyle(fontSize: 12, color: c.textMuted)),
+        ]),
+        Slider(
+          value: _local.zoom.clamp(lim.frameZoomMin, lim.frameZoomMax),
+          min: lim.frameZoomMin,
+          max: lim.frameZoomMax,
+          onChanged: (z) => setState(() => _local = v1api.CoverPhotoFrame(zoom: z, x: _local.x, y: _local.y)),
+          onChangeEnd: (z) => widget.onChanged(v1api.CoverPhotoFrame(zoom: z, x: _local.x, y: _local.y)),
+        ),
+        Row(children: [
+          Expanded(child: Text(pl.x, style: TextStyle(fontSize: 12.5, color: c.textMuted))),
+          Text('${(_local.x * 100).round()}${pl.pct}', style: TextStyle(fontSize: 12, color: c.textMuted)),
+        ]),
+        Slider(
+          value: _local.x.clamp(0, 1),
+          min: 0,
+          max: 1,
+          onChanged: (x) => setState(() => _local = v1api.CoverPhotoFrame(zoom: _local.zoom, x: x, y: _local.y)),
+          onChangeEnd: (x) => widget.onChanged(v1api.CoverPhotoFrame(zoom: _local.zoom, x: x, y: _local.y)),
+        ),
+        Row(children: [
+          Expanded(child: Text(pl.y, style: TextStyle(fontSize: 12.5, color: c.textMuted))),
+          Text('${(_local.y * 100).round()}${pl.pct}', style: TextStyle(fontSize: 12, color: c.textMuted)),
+        ]),
+        Slider(
+          value: _local.y.clamp(0, 1),
+          min: 0,
+          max: 1,
+          onChanged: (y) => setState(() => _local = v1api.CoverPhotoFrame(zoom: _local.zoom, x: _local.x, y: y)),
+          onChangeEnd: (y) => widget.onChanged(v1api.CoverPhotoFrame(zoom: _local.zoom, x: _local.x, y: y)),
+        ),
+      ]),
     );
   }
 }
@@ -673,9 +1420,9 @@ class _DesignTile extends StatelessWidget {
             ? Row(children: [
                 Icon(LucideIcons.check, size: 13, color: c.brand),
                 const SizedBox(width: 3),
-                Text(onCover, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: c.brand)),
+                Flexible(child: Text(onCover, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: c.brand))),
               ])
-            : Text(mood, maxLines: 1, style: TextStyle(fontSize: 12, color: c.textMuted)),
+            : Text(mood, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: c.textMuted)),
       ]),
     );
   }
