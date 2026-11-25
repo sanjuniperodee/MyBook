@@ -20,7 +20,11 @@ import '../screens/money/lead_stats_screen.dart';
 import '../screens/money/profit_screen.dart';
 import '../screens/money/sales_register_screen.dart';
 import '../screens/orders_screen.dart';
+import '../screens/settings/pricing_screen.dart';
+import '../screens/settings/reply_templates_screen.dart';
 import '../screens/settings/sales_settings_screen.dart';
+import '../screens/settings/site_settings_screen.dart';
+import '../screens/settings/team_screen.dart';
 import '../screens/overview_screen.dart';
 import '../screens/tasks_screen.dart';
 import '../screens/tickets_screen.dart';
@@ -70,6 +74,10 @@ final appSections = <String, AppSection>{
   'reviews': AppSection('reviews', 'Отзывы', LucideIcons.star, (s) => s.can('reviews.manage'), () => const ReviewsScreen(), group: 'Маркетинг'),
   // Настройки отдела продаж и режим AI-продажника — API v1 crmSettingsSales; остальные настройки — страницами CRM.
   'salesSettings': AppSection('salesSettings', 'Отдел продаж', LucideIcons.slidersHorizontal, (s) => s.can('settings.manage'), () => const SalesSettingsScreen(), group: 'Настройки'),
+  'replyTemplates': AppSection('replyTemplates', 'Общие шаблоны ответов', LucideIcons.messageSquareText, (s) => s.can('settings.manage'), () => const ReplyTemplatesScreen(), group: 'Настройки'),
+  'pricing': AppSection('pricing', 'Цены и тарифы', LucideIcons.coins, (s) => s.can('settings.manage'), () => const PricingScreen(), group: 'Настройки'),
+  'site': AppSection('site', 'Сайт', LucideIcons.globe, (s) => s.can('settings.manage'), () => const SiteSettingsScreen(), group: 'Настройки'),
+  'team': AppSection('team', 'Команда', LucideIcons.shieldCheck, (s) => s.can('team.manage'), () => const TeamScreen(), group: 'Настройки'),
   'leads': AppSection('leads', 'Статистика лидов', LucideIcons.activity, (s) => s.can('analytics.view'), () => const LeadStatsScreen(), group: 'Деньги'),
 };
 
@@ -144,10 +152,7 @@ class CrmWebSection {
 /// Боковая панель CRM (src/components/admin/AdminNav.tsx) без разделов, которые в приложении есть экранами.
 const crmWebSections = <CrmWebSection>[
   CrmWebSection('Настройки', '/admin/automations', 'Автоматизации', LucideIcons.workflow, ['settings.manage']),
-  CrmWebSection('Настройки', '/admin/pricing', 'Цены и тарифы', LucideIcons.coins, ['settings.manage']),
-  CrmWebSection('Настройки', '/admin/site', 'Сайт', LucideIcons.globe, ['settings.manage']),
   CrmWebSection('Настройки', '/admin/settings', 'Интеграции', LucideIcons.settings, ['settings.manage']),
   CrmWebSection('Настройки', '/admin/ai-limits', 'Лимиты AI', LucideIcons.gauge, ['settings.manage']),
-  CrmWebSection('Настройки', '/admin/team', 'Команда', LucideIcons.shieldCheck, ['team.manage']),
   CrmWebSection('Настройки', '/admin/security', 'Безопасность', LucideIcons.lockKeyhole),
 ];

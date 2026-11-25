@@ -45,6 +45,20 @@ vi.mock("@/app/admin/catalog/actions", () => ({
   deleteProductAction: vi.fn(),
 }));
 
+const savePricingAction = vi.fn(async (state: unknown, form: FormData) => (void state, void form, { ok: "Сохранено" }));
+vi.mock("@/app/admin/pricing/actions", () => ({ savePricingAction: (s: unknown, f: FormData) => savePricingAction(s, f) }));
+const setStaffRoleAction = vi.fn(async (id: string, role: string) => void (id + role));
+const setStaffPhoneAction = vi.fn(async (id: string, phone: string) => (void id, void phone, { ok: false, message: "Проверьте номер: нужно не меньше 10 цифр" }));
+vi.mock("@/app/admin/team/actions", () => ({
+  createStaffAction: vi.fn(),
+  resetStaffPasswordAction: vi.fn(),
+  revokeStaffAction: vi.fn(),
+  setStaffDisabledAction: vi.fn(),
+  setStaffExtensionAction: vi.fn(),
+  setStaffRoleAction: (id: string, r: string) => setStaffRoleAction(id, r),
+  setStaffPhoneAction: (id: string, p: string) => setStaffPhoneAction(id, p),
+}));
+
 const { createApp } = await import("../apps/api/src/app");
 const { handlers } = await import("../apps/api/src/routes");
 
@@ -161,5 +175,19 @@ describe("API v1: каталог WhatsApp", () => {
     form.append("image", new File(["%PDF"], "a.pdf", { type: "application/pdf" }));
     const up = await app(new Request("http://127.0.0.1:3044/api/v1/crm/catalog/uploads", { method: "POST", body: form }));
     expect(up.status).toBe(400);
+  });
+});
+
+describe("API v1: настройки с телефона", () => {
+  it("цены: выключенный переключатель — без поля (как флажок формы), остальное — как есть", async () => {
+    await call("PUT", "/api/v1/crm/pricing", { values: { plan_digital_price: "9900", plan_digital_visible: "on", plan_premium_visible: "" } });
+    expect(Object.fromEntries(savePricingAction.mock.calls[0][1])).toEqual({ plan_digital_price: "9900", plan_digital_visible: "on" });
+  });
+
+  it("сотрудник: роль меняется, неверный телефон — отказ текстом", async () => {
+    const res = await call("PATCH", `/api/v1/crm/team/${ID}`, { roleId: "0b6f3c1e-2a4d-4e5f-9b6c-1d2e3f4a5b6c", phone: "123" });
+    expect(setStaffRoleAction).toHaveBeenCalledWith(ID, "0b6f3c1e-2a4d-4e5f-9b6c-1d2e3f4a5b6c");
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/не меньше 10 цифр/);
   });
 });

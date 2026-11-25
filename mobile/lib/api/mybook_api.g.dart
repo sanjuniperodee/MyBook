@@ -908,6 +908,78 @@ class MybookApi {
     return Done.fromJson(json as Map<String, dynamic>);
   }
 
+  /// Команда: сотрудники и роли
+  Future<Team> crmTeam() async {
+    final json = await _send('GET', '/api/v1/crm/team');
+    return Team.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Добавить сотрудника (почта, роль; пароль — свой или придумает система)
+  Future<Done> crmTeamInvite({required TeamInviteBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/team', body: body.toJson());
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Роль, добавочный, телефон для напоминаний, отключить или включить
+  Future<Done> crmTeamMember({required String userId, required TeamMemberPatch body}) async {
+    final json = await _send('PATCH', '/api/v1/crm/team/${Uri.encodeComponent('$userId')}', body: body.toJson());
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Забрать доступ к CRM (аккаунт станет клиентским)
+  Future<Done> crmTeamRevoke({required String userId}) async {
+    final json = await _send('POST', '/api/v1/crm/team/${Uri.encodeComponent('$userId')}/revoke');
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Сбросить пароль сотрудника — новый придёт ему на почту
+  Future<Done> crmTeamPassword({required String userId}) async {
+    final json = await _send('POST', '/api/v1/crm/team/${Uri.encodeComponent('$userId')}/password');
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Общие шаблоны быстрых ответов и переменные
+  Future<ReplyTemplates> crmTemplates() async {
+    final json = await _send('GET', '/api/v1/crm/templates');
+    return ReplyTemplates.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Новый шаблон или правка
+  Future<Done> crmTemplateSave({required ReplyTemplateBody body}) async {
+    final json = await _send('POST', '/api/v1/crm/templates', body: body.toJson());
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Удалить шаблон
+  Future<Done> crmTemplateDelete({required String id}) async {
+    final json = await _send('DELETE', '/api/v1/crm/templates/${Uri.encodeComponent('$id')}');
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Цены и тарифы полями: тарифы, допы, доставка, пакеты ИИ и видео
+  Future<PricingForm> crmPricing() async {
+    final json = await _send('GET', '/api/v1/crm/pricing');
+    return PricingForm.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Сохранить цены (всё разом, как форма сайта)
+  Future<Done> crmPricingSave({required SettingsValuesBody body}) async {
+    final json = await _send('PUT', '/api/v1/crm/pricing', body: body.toJson());
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Сайт: регистрация, открытка, предел фото, реквизиты продавца
+  Future<SiteSettings> crmSite() async {
+    final json = await _send('GET', '/api/v1/crm/site');
+    return SiteSettings.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Изменить настройки сайта (только переданные)
+  Future<Done> crmSiteSave({required SiteSettingsPatch body}) async {
+    final json = await _send('PATCH', '/api/v1/crm/site', body: body.toJson());
+    return Done.fromJson(json as Map<String, dynamic>);
+  }
+
   /// Доски, которые видит сотрудник (с числом открытых карточек)
   Future<BoardList> boardsList() async {
     final json = await _send('GET', '/api/v1/boards');
@@ -7109,4 +7181,192 @@ class HiddenBody {
   factory HiddenBody.fromJson(Map<String, dynamic> json) => HiddenBody(hidden: json['hidden'] as bool);
 
   Map<String, dynamic> toJson() => {'hidden': hidden};
+}
+
+class TeamMember {
+  final String id;
+  final String name;
+  final String email;
+  final String roleId;
+  final String roleName;
+  final String extension;
+  final String phone;
+  final bool disabled;
+  final bool onShift;
+  final String? lastSeen;
+  final int openDeals;
+  final int calls7d;
+  final bool isSelf;
+  final bool locked;
+
+  const TeamMember({required this.id, required this.name, required this.email, required this.roleId, required this.roleName, required this.extension, required this.phone, required this.disabled, required this.onShift, this.lastSeen, required this.openDeals, required this.calls7d, required this.isSelf, required this.locked});
+
+  factory TeamMember.fromJson(Map<String, dynamic> json) => TeamMember(id: json['id'] as String, name: json['name'] as String, email: json['email'] as String, roleId: json['roleId'] as String, roleName: json['roleName'] as String, extension: json['extension'] as String, phone: json['phone'] as String, disabled: json['disabled'] as bool, onShift: json['onShift'] as bool, lastSeen: json['lastSeen'] == null ? null : json['lastSeen'] as String, openDeals: (json['openDeals'] as num).toInt(), calls7d: (json['calls7d'] as num).toInt(), isSelf: json['isSelf'] as bool, locked: json['locked'] as bool);
+
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'email': email, 'roleId': roleId, 'roleName': roleName, 'extension': extension, 'phone': phone, 'disabled': disabled, 'onShift': onShift, 'lastSeen': lastSeen, 'openDeals': openDeals, 'calls7d': calls7d, 'isSelf': isSelf, 'locked': locked};
+}
+
+class Team {
+  final List<TeamMember> members;
+  final List<Choice> roles;
+  final List<Choice> inviteRoles;
+
+  const Team({required this.members, required this.roles, required this.inviteRoles});
+
+  factory Team.fromJson(Map<String, dynamic> json) => Team(members: (json['members'] as List).map((e) => TeamMember.fromJson(e as Map<String, dynamic>)).toList(), roles: (json['roles'] as List).map((e) => Choice.fromJson(e as Map<String, dynamic>)).toList(), inviteRoles: (json['inviteRoles'] as List).map((e) => Choice.fromJson(e as Map<String, dynamic>)).toList());
+
+  Map<String, dynamic> toJson() => {'members': members.map((e) => e.toJson()).toList(), 'roles': roles.map((e) => e.toJson()).toList(), 'inviteRoles': inviteRoles.map((e) => e.toJson()).toList()};
+}
+
+class TeamInviteBody {
+  final String email;
+  final String name;
+  final String password;
+  final String roleId;
+  final String extension;
+
+  const TeamInviteBody({required this.email, required this.name, required this.password, required this.roleId, required this.extension});
+
+  factory TeamInviteBody.fromJson(Map<String, dynamic> json) => TeamInviteBody(email: json['email'] as String, name: json['name'] as String, password: json['password'] as String, roleId: json['roleId'] as String, extension: json['extension'] as String);
+
+  Map<String, dynamic> toJson() => {'email': email, 'name': name, 'password': password, 'roleId': roleId, 'extension': extension};
+}
+
+class TeamMemberPatch {
+  final String? roleId;
+  final String? extension;
+  final String? phone;
+  final bool? disabled;
+
+  const TeamMemberPatch({this.roleId, this.extension, this.phone, this.disabled});
+
+  factory TeamMemberPatch.fromJson(Map<String, dynamic> json) => TeamMemberPatch(roleId: json['roleId'] == null ? null : json['roleId'] as String, extension: json['extension'] == null ? null : json['extension'] as String, phone: json['phone'] == null ? null : json['phone'] as String, disabled: json['disabled'] == null ? null : json['disabled'] as bool);
+
+  Map<String, dynamic> toJson() => {if (roleId != null) 'roleId': roleId!, if (extension != null) 'extension': extension!, if (phone != null) 'phone': phone!, if (disabled != null) 'disabled': disabled!};
+}
+
+class ReplyTemplate {
+  final String id;
+  final String title;
+  final String text;
+
+  const ReplyTemplate({required this.id, required this.title, required this.text});
+
+  factory ReplyTemplate.fromJson(Map<String, dynamic> json) => ReplyTemplate(id: json['id'] as String, title: json['title'] as String, text: json['text'] as String);
+
+  Map<String, dynamic> toJson() => {'id': id, 'title': title, 'text': text};
+}
+
+class ReplyTemplates {
+  final List<ReplyTemplate> templates;
+  final List<String> vars;
+
+  const ReplyTemplates({required this.templates, required this.vars});
+
+  factory ReplyTemplates.fromJson(Map<String, dynamic> json) => ReplyTemplates(templates: (json['templates'] as List).map((e) => ReplyTemplate.fromJson(e as Map<String, dynamic>)).toList(), vars: (json['vars'] as List).map((e) => e as String).toList());
+
+  Map<String, dynamic> toJson() => {'templates': templates.map((e) => e.toJson()).toList(), 'vars': vars.map((e) => e).toList()};
+}
+
+class ReplyTemplateBody {
+  final String? id;
+  final String title;
+  final String text;
+  /// Поля, которые отправить как null (иначе пустое необязательное поле не отправляется).
+  final Set<String> nulls;
+
+  const ReplyTemplateBody({this.id, required this.title, required this.text, this.nulls = const {}});
+
+  factory ReplyTemplateBody.fromJson(Map<String, dynamic> json) => ReplyTemplateBody(id: json['id'] == null ? null : json['id'] as String, title: json['title'] as String, text: json['text'] as String);
+
+  Map<String, dynamic> toJson() => {if (id != null || nulls.contains('id')) 'id': id, 'title': title, 'text': text};
+}
+
+class SettingsField {
+  final String key;
+  final String label;
+  /// money | number | switch
+  final String kind;
+  final String value;
+  final String? hint;
+  final bool optional;
+
+  const SettingsField({required this.key, required this.label, required this.kind, required this.value, this.hint, required this.optional});
+
+  factory SettingsField.fromJson(Map<String, dynamic> json) => SettingsField(key: json['key'] as String, label: json['label'] as String, kind: json['kind'] as String, value: json['value'] as String, hint: json['hint'] == null ? null : json['hint'] as String, optional: json['optional'] as bool);
+
+  Map<String, dynamic> toJson() => {'key': key, 'label': label, 'kind': kind, 'value': value, 'hint': hint, 'optional': optional};
+}
+
+class SettingsSection {
+  final String title;
+  final List<SettingsField> fields;
+
+  const SettingsSection({required this.title, required this.fields});
+
+  factory SettingsSection.fromJson(Map<String, dynamic> json) => SettingsSection(title: json['title'] as String, fields: (json['fields'] as List).map((e) => SettingsField.fromJson(e as Map<String, dynamic>)).toList());
+
+  Map<String, dynamic> toJson() => {'title': title, 'fields': fields.map((e) => e.toJson()).toList()};
+}
+
+class PricingForm {
+  final List<SettingsSection> sections;
+  final bool changed;
+
+  const PricingForm({required this.sections, required this.changed});
+
+  factory PricingForm.fromJson(Map<String, dynamic> json) => PricingForm(sections: (json['sections'] as List).map((e) => SettingsSection.fromJson(e as Map<String, dynamic>)).toList(), changed: json['changed'] as bool);
+
+  Map<String, dynamic> toJson() => {'sections': sections.map((e) => e.toJson()).toList(), 'changed': changed};
+}
+
+class SettingsValuesBody {
+  final Map<String, dynamic> values;
+
+  const SettingsValuesBody({required this.values});
+
+  factory SettingsValuesBody.fromJson(Map<String, dynamic> json) => SettingsValuesBody(values: json['values'] as Map<String, dynamic>);
+
+  Map<String, dynamic> toJson() => {'values': values};
+}
+
+class SellerDetails {
+  final String legalName;
+  final String bin;
+  final String phone;
+  final String whatsapp;
+
+  const SellerDetails({required this.legalName, required this.bin, required this.phone, required this.whatsapp});
+
+  factory SellerDetails.fromJson(Map<String, dynamic> json) => SellerDetails(legalName: json['legalName'] as String, bin: json['bin'] as String, phone: json['phone'] as String, whatsapp: json['whatsapp'] as String);
+
+  Map<String, dynamic> toJson() => {'legalName': legalName, 'bin': bin, 'phone': phone, 'whatsapp': whatsapp};
+}
+
+class SiteSettings {
+  final bool registration;
+  final bool giftNote;
+  final int maxPhotos;
+  final int maxPhotosCeiling;
+  final SellerDetails seller;
+  final SellerDetails sellerPlaceholder;
+
+  const SiteSettings({required this.registration, required this.giftNote, required this.maxPhotos, required this.maxPhotosCeiling, required this.seller, required this.sellerPlaceholder});
+
+  factory SiteSettings.fromJson(Map<String, dynamic> json) => SiteSettings(registration: json['registration'] as bool, giftNote: json['giftNote'] as bool, maxPhotos: (json['maxPhotos'] as num).toInt(), maxPhotosCeiling: (json['maxPhotosCeiling'] as num).toInt(), seller: SellerDetails.fromJson(json['seller'] as Map<String, dynamic>), sellerPlaceholder: SellerDetails.fromJson(json['sellerPlaceholder'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {'registration': registration, 'giftNote': giftNote, 'maxPhotos': maxPhotos, 'maxPhotosCeiling': maxPhotosCeiling, 'seller': seller.toJson(), 'sellerPlaceholder': sellerPlaceholder.toJson()};
+}
+
+class SiteSettingsPatch {
+  final bool? registration;
+  final bool? giftNote;
+  final int? maxPhotos;
+  final SellerDetails? seller;
+
+  const SiteSettingsPatch({this.registration, this.giftNote, this.maxPhotos, this.seller});
+
+  factory SiteSettingsPatch.fromJson(Map<String, dynamic> json) => SiteSettingsPatch(registration: json['registration'] == null ? null : json['registration'] as bool, giftNote: json['giftNote'] == null ? null : json['giftNote'] as bool, maxPhotos: json['maxPhotos'] == null ? null : (json['maxPhotos'] as num).toInt(), seller: json['seller'] == null ? null : SellerDetails.fromJson(json['seller'] as Map<String, dynamic>));
+
+  Map<String, dynamic> toJson() => {if (registration != null) 'registration': registration!, if (giftNote != null) 'giftNote': giftNote!, if (maxPhotos != null) 'maxPhotos': maxPhotos!, if (seller != null) 'seller': seller!.toJson()};
 }
