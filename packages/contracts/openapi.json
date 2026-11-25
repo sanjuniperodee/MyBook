@@ -2294,6 +2294,82 @@
         "x-auth": "staff"
       }
     },
+    "/api/v1/crm/orders": {
+      "get": {
+        "operationId": "crmOrdersList",
+        "tags": [
+          "crm-lists"
+        ],
+        "summary": "Заказы для производства за 30 дней (канбан): статусы с подписями, карточки, можно ли менять",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CrmOrders"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "staff"
+      }
+    },
+    "/api/v1/crm/orders/{orderId}": {
+      "get": {
+        "operationId": "crmOrder",
+        "tags": [
+          "crm-lists"
+        ],
+        "summary": "Карточка заказа для производства: книга, получатель, доставка, пожелания, журнал",
+        "parameters": [
+          {
+            "name": "orderId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CrmOrder"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Ошибка: текст для экрана и код",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "x-auth": "staff"
+      }
+    },
     "/api/v1/me/devices": {
       "put": {
         "operationId": "meDevicePut",
@@ -14984,6 +15060,355 @@
           "payForms",
           "hasOrder",
           "invoices"
+        ],
+        "additionalProperties": false
+      },
+      "CrmOrderStatus": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label"
+        ],
+        "additionalProperties": false
+      },
+      "CrmOrderCard": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "number": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "status": {
+            "type": "string"
+          },
+          "contactName": {
+            "type": "string"
+          },
+          "planName": {
+            "type": "string"
+          },
+          "printed": {
+            "type": "boolean"
+          },
+          "quantity": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "amount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "amountLabel": {
+            "type": "string"
+          },
+          "desiredDate": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "daysLeft": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "claimed": {
+            "type": "boolean"
+          },
+          "surprise": {
+            "type": "boolean"
+          },
+          "giftNote": {
+            "type": "boolean"
+          },
+          "express": {
+            "type": "boolean"
+          },
+          "assignee": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ageDays": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "status",
+          "contactName",
+          "planName",
+          "printed",
+          "quantity",
+          "amount",
+          "amountLabel",
+          "desiredDate",
+          "daysLeft",
+          "claimed",
+          "surprise",
+          "giftNote",
+          "express",
+          "assignee",
+          "ageDays"
+        ],
+        "additionalProperties": false
+      },
+      "CrmOrders": {
+        "type": "object",
+        "properties": {
+          "canEdit": {
+            "type": "boolean"
+          },
+          "statuses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CrmOrderStatus"
+            }
+          },
+          "orders": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CrmOrderCard"
+            }
+          }
+        },
+        "required": [
+          "canEdit",
+          "statuses",
+          "orders"
+        ],
+        "additionalProperties": false
+      },
+      "CrmOrder": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "number": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "status": {
+            "type": "string"
+          },
+          "statusLabel": {
+            "type": "string"
+          },
+          "canEdit": {
+            "type": "boolean"
+          },
+          "planName": {
+            "type": "string"
+          },
+          "printed": {
+            "type": "boolean"
+          },
+          "quantity": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "amountLabel": {
+            "type": "string"
+          },
+          "addons": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "book": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "author": {
+                "type": "string"
+              },
+              "recipient": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "title",
+              "author",
+              "recipient"
+            ],
+            "additionalProperties": false
+          },
+          "contact": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "phone": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "email": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "masked": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "name",
+              "phone",
+              "email",
+              "masked"
+            ],
+            "additionalProperties": false
+          },
+          "delivery": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "method": {
+                    "type": "string"
+                  },
+                  "quoted": {
+                    "type": "boolean"
+                  },
+                  "address": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "method",
+                  "quoted",
+                  "address"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tracking": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "desiredDate": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "comment": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "giftNote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "surprise": {
+            "type": "boolean"
+          },
+          "claimed": {
+            "type": "boolean"
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "note": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "at": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "status",
+                "note",
+                "at"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "status",
+          "statusLabel",
+          "canEdit",
+          "planName",
+          "printed",
+          "quantity",
+          "amountLabel",
+          "addons",
+          "book",
+          "contact",
+          "delivery",
+          "tracking",
+          "desiredDate",
+          "comment",
+          "giftNote",
+          "surprise",
+          "claimed",
+          "events"
         ],
         "additionalProperties": false
       },

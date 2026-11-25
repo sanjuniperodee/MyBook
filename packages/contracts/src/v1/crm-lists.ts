@@ -330,6 +330,66 @@ export const CrmDeal = z
   })
   .register(schemas, { id: "CrmDeal" });
 
+// ─── Заказы для производства ──────────────────────────────────────────────────────────────────────────────────────
+
+/** Статус заказа и подпись по-русски (CRM). Ключи — ORDER_STATUSES (src/shared/domain/orders). */
+export const CrmOrderStatus = z.object({ key: z.string(), label: z.string() }).register(schemas, { id: "CrmOrderStatus" });
+
+export const CrmOrderCard = z
+  .object({
+    id,
+    number: z.number().int(),
+    status: z.string(),
+    contactName: z.string(),
+    planName: z.string(),
+    printed: z.boolean(),
+    quantity: z.number().int(),
+    amount: z.number().int(),
+    amountLabel: z.string(),
+    desiredDate: nid,
+    /** Дней до желаемой даты (меньше нуля — просрочено). */
+    daysLeft: z.number().int().nullable(),
+    /** Клиент сообщил об оплате, ждёт проверки. */
+    claimed: z.boolean(),
+    surprise: z.boolean(),
+    giftNote: z.boolean(),
+    express: z.boolean(),
+    assignee: nid,
+    ageDays: z.number().int(),
+  })
+  .register(schemas, { id: "CrmOrderCard" });
+
+export const CrmOrders = z
+  .object({ canEdit: z.boolean(), statuses: z.array(CrmOrderStatus), orders: z.array(CrmOrderCard) })
+  .register(schemas, { id: "CrmOrders" });
+
+export const CrmOrder = z
+  .object({
+    id,
+    number: z.number().int(),
+    status: z.string(),
+    statusLabel: z.string(),
+    canEdit: z.boolean(),
+    planName: z.string(),
+    printed: z.boolean(),
+    quantity: z.number().int(),
+    amountLabel: z.string(),
+    addons: z.array(z.string()),
+    book: z.object({ title: z.string(), author: z.string(), recipient: z.string() }),
+    /** Телефон и почта скрыты (masked), если у роли нет права видеть контакты. */
+    contact: z.object({ name: z.string(), phone: nid, email: nid, masked: z.boolean() }),
+    /** Только у печатных тарифов; quoted — стоимость доставки считает менеджер и ещё не посчитал. */
+    delivery: z.object({ method: z.string(), quoted: z.boolean(), address: nid }).nullable(),
+    tracking: nid,
+    desiredDate: nid,
+    comment: nid,
+    giftNote: nid,
+    surprise: z.boolean(),
+    claimed: z.boolean(),
+    events: z.array(z.object({ id, status: nid, note: nid, at: z.string() })),
+  })
+  .register(schemas, { id: "CrmOrder" });
+
 export const crmListsRoutes = {
   crmToday: route({ method: "GET", path: "/api/v1/crm/today", auth: "staff", tag: "crm-lists", summary: "«Мой день»: плитки, план месяца, задачи, ждут ответа, пропущенные звонки", response: CrmToday }),
   crmTasksList: route({
@@ -402,4 +462,6 @@ export const crmListsRoutes = {
   }),
   crmDealGet: route({ method: "GET", path: "/api/v1/crm/deals/{dealId}", auth: "staff", tag: "crm-lists", summary: "Карточка сделки: данные, этапы, задачи, заметки, платежи, счета, чат", params: z.object({ dealId: uuid }), response: CrmDeal }),
   crmNotificationsRead: route({ method: "POST", path: "/api/v1/crm/notifications/read", auth: "staff", tag: "crm-lists", summary: "Отметить прочитанными: id — одно, без id — все", body: CrmNotificationsRead, response: Ok }),
+  crmOrdersList: route({ method: "GET", path: "/api/v1/crm/orders", auth: "staff", tag: "crm-lists", summary: "Заказы для производства за 30 дней (канбан): статусы с подписями, карточки, можно ли менять", response: CrmOrders }),
+  crmOrder: route({ method: "GET", path: "/api/v1/crm/orders/{orderId}", auth: "staff", tag: "crm-lists", summary: "Карточка заказа для производства: книга, получатель, доставка, пожелания, журнал", params: z.object({ orderId: uuid }), response: CrmOrder }),
 } as const satisfies Record<string, RouteDef>;

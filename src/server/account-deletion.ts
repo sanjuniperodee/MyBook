@@ -21,6 +21,7 @@ import { messagingPrivacy } from "@/modules/messaging";
 import { notificationsPrivacy } from "@/modules/notifications";
 import { orderingPrivacy, type ClientOrderRef } from "@/modules/ordering";
 import { salesPrivacy } from "@/modules/sales";
+import { supportPrivacy } from "@/modules/support";
 import { telephonyPrivacy } from "@/modules/telephony";
 import { workspacePrivacy } from "@/modules/workspace";
 import { container } from "@/server/container";
@@ -59,7 +60,11 @@ export async function deletionPreview(userId: string, locale: Locale): Promise<D
  */
 export async function deleteClientAccount(userId: string, password: string, locale: Locale): Promise<DeletionPreview> {
   const c = container();
+  // Номера — до обезличивания: обращения поддержки связаны с клиентом только телефоном.
+  const before = await c.identity.accounts.account(userId);
+  const extra = await clientsPrivacy.phonesOf(userId);
   await c.identity.accounts.deleteAccount(userId, password);
+  await supportPrivacy.forgetPhones([before?.phone ?? "", ...extra]);
   await workspacePrivacy.forgetDevices(userId);
   const orders = await orderingPrivacy.ordersOf(userId);
   for (const o of orders.filter((x) => x.status === "pending_payment")) {

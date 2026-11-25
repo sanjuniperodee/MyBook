@@ -8,6 +8,12 @@ import { executor } from "@/shared/infrastructure/database";
  * свободный текст сотрудников — удаляются; доп. телефоны, теги, свои поля и метки первого касания стираются.
  */
 export const clientsPrivacy = {
+  /** Дополнительные телефоны клиента (второй номер, WhatsApp на другой SIM). */
+  async phonesOf(clientId: string): Promise<string[]> {
+    const [r] = await executor().select({ extra: users.extraPhones }).from(users).where(eq(users.id, clientId)).limit(1);
+    return r?.extra ?? [];
+  },
+
   async forgetClient(clientId: string, dealIds: string[]) {
     const db = executor();
     const byClient = (col: typeof crmNotes.clientId | typeof crmTasks.clientId, deal: typeof crmNotes.dealId | typeof crmTasks.dealId) =>

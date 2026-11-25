@@ -6,11 +6,12 @@ import { apiStaff, HttpError } from "@/server/api";
 import { assertVisible } from "@/server/access";
 import { container } from "@/server/container";
 import { mobileCalls, mobileClient, mobileClients, mobileStaff, mobileTasks, mobileToday } from "@/app/api/_crm-lists/work";
+import { mobileOrder, mobileOrders } from "@/app/api/_crm-lists/orders";
 import { mobileChatDetail, mobileChatList, mobileDealDetail, mobileDeals, mobileMessages } from "@/app/api/_crm-lists/data";
 import { staffNotifications } from "@/modules/workspace";
 import type { Handlers } from "../app";
 
-export const crmListHandlers: Pick<Handlers, "crmToday" | "crmTasksList" | "crmCallsList" | "crmClientsList" | "crmClientCard" | "crmStaffList" | "crmNotificationsList" | "crmNotificationsRead" | "crmChatsList" | "crmChatGet" | "crmChatMessages" | "crmDealsList" | "crmDealGet"> = {
+export const crmListHandlers: Pick<Handlers, "crmToday" | "crmTasksList" | "crmCallsList" | "crmClientsList" | "crmClientCard" | "crmStaffList" | "crmNotificationsList" | "crmNotificationsRead" | "crmChatsList" | "crmChatGet" | "crmChatMessages" | "crmDealsList" | "crmDealGet" | "crmOrdersList" | "crmOrder"> = {
   async crmToday({ req }) {
     return mobileToday(await apiStaff(req));
   },
@@ -69,5 +70,13 @@ export const crmListHandlers: Pick<Handlers, "crmToday" | "crmTasksList" | "crmC
     const staff = await apiStaff(req);
     await container().workspace.inbox.markRead(staff.user.id, input.body.id);
     return { ok: true };
+  },
+
+  async crmOrdersList({ req }) {
+    return mobileOrders(await apiStaff(req, "orders.view"));
+  },
+
+  async crmOrder({ req, input }) {
+    return mobileOrder(await apiStaff(req, "orders.view"), input.orderId);
   },
 };

@@ -120,6 +120,18 @@ describe("приложение", () => {
     expect(spec.openapi).toBe("3.1.0");
   });
 
+  it("GET — с ETag: тот же ответ при If-None-Match — пустой 304 (кэш приложения)", async () => {
+    const appConfig = vi.fn(async () => ({ privacyUrl: "https://x/privacy", termsUrl: "https://x/offer", labels: { privacy: "Политика", terms: "Оферта" } }));
+    const app = appWith({ appConfig }, null);
+    const first = await call(app, "GET", "/api/v1/app-config");
+    const tag = first.headers.get("etag");
+    expect(first.status).toBe(200);
+    expect(tag).toBeTruthy();
+    const again = await app(new Request("http://127.0.0.1:3044/api/v1/app-config", { headers: { "if-none-match": tag! } }));
+    expect(again.status).toBe(304);
+    expect(await again.text()).toBe("");
+  });
+
   it("без входа — 401 в формате сайта, обработчик не вызывается", async () => {
     const booksList = vi.fn();
     const res = await call(appWith({ booksList }, null), "GET", "/api/v1/books");

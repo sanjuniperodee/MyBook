@@ -7,6 +7,9 @@ import { DrizzleTicketRepository } from "./infrastructure/persistence";
 export { SupportError, chatMessageText, ticketAlert, ticketRefs, ticketLabel, notificationText, FILES_MAX, FILE_MAX_BYTES, TOTAL_MAX_BYTES, DESCRIPTION_MAX, type Ticket, type NewTicketInput } from "./domain";
 export type { UploadedFile, Actor, TicketFilter } from "./application";
 
+/** Удаление аккаунта клиента: стереть телефон клиента в обращениях (оркеструет src/server/account-deletion). */
+export { supportPrivacy } from "./infrastructure/privacy";
+
 /** Публичный фасад контекста «Обращения»: проблемы и просьбы с формы /support, расшифровка голосовых, статусы, уведомление и закрытие по выкатке. */
 export class SupportModule {
   readonly tickets: TicketsService;

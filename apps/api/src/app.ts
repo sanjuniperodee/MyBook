@@ -5,6 +5,7 @@
  */
 import { openapi, v1, type Output, type Parsed, type RouteDef, type RouteName } from "@mybook/contracts";
 import { api, HttpError } from "@/server/api";
+import { jsonWithEtag } from "@/server/mobile-api";
 import type { User } from "@/shared/infrastructure/db/schema";
 import { createRouter } from "./http/router";
 
@@ -66,7 +67,8 @@ export function createApp(handlers: Handlers, auth: Authenticator, siteRoutes?: 
         const check = route.response.safeParse(out);
         if (!check.success) throw new Error(`Ответ ${name} не по контракту: ${check.error.message}`);
       }
-      return json(out);
+      // GET — с ETag, как /api/mobile: приложение шлёт If-None-Match и при неизменных данных получает пустой 304.
+      return req.method === "GET" ? jsonWithEtag(req, out) : json(out);
     })(req, undefined);
   };
 }
