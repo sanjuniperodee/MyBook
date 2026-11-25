@@ -14,6 +14,8 @@ export const api: typeof ru = {
   server: "Сервердің ішкі қатесі",
   unauthorized: "Аккаунтқа кіру керек",
   forbidden: "Кіруге рұқсат жоқ",
+  wrongPassword: "Құпиясөз қате",
+  staffAccount: "Қызметкер аккаунтын CRM-де басшы өшіреді",
   notFound: "Табылмады",
   bookNotFound: "Кітап табылмады",
   bookLocked: "Кітап баспаға берілген, оны өзгертуге болмайды",

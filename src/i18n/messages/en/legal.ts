@@ -63,7 +63,7 @@ export const legal: typeof ru = {
     meta: "Privacy policy",
     metaDescription: "What data MyBooks collects, why it is needed, who it is shared with and where it is stored: account, books, orders, chats, AI services.",
     title: "Privacy policy",
-    updated: "24 November 2026",
+    updated: "November 25, 2026",
     blocks: (f: LegalFacts): LegalBlock[] => [
       {
         p: `This policy describes what data ${f.legalName} collects when you use the ${f.brand} service, why it is needed, who it is shared with and where it is stored. The texts and photographs in your book are not published: they are seen by you, by the people you yourself invite into the book (for example, to write a letter), and by ${f.brand} staff when they help you with the book or prepare it for printing.`,
@@ -114,7 +114,7 @@ export const legal: typeof ru = {
       },
       {
         h: "Storage and deletion",
-        p: `You can delete a book at any time on its page. To delete your account, your conversations with us and all related data, write to us at ${f.email}. Order data is kept for the periods set by law for accounting records.`,
+        p: `You can delete a book at any time on its page. You can delete your account in your account settings (“Account” → “Data and deletion”) or in the app, confirming with your password. Sign-in is closed on all devices at once, and your name, e-mail, phone and password are deleted; within a day we delete your books (texts, photos, letters from loved ones, your own video and audio, print files), our copy of your WhatsApp and site chat messages with attachments, call recordings, reviews and AI designer requests. If an order is already paid and not yet delivered, we keep its book, print files and the recipient's address and phone until the order is delivered or cancelled, and delete them right after. Orders, payments and receipts stay without your contact details for the periods set by accounting law (at least five years). The WhatsApp chat itself is not deleted on your phone: it is not our copy. Questions about your data: ${f.email}.`,
       },
       { h: "Contacts", p: `For questions about data processing: ${f.email}.` },
     ],

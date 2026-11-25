@@ -19,6 +19,7 @@ const toDomain = (r: Row) =>
     source: r.source,
     twoFactor: { encryptedSecret: r.totpSecret, enabledAt: r.totpEnabledAt, backupHashes: r.totpBackup },
     createdAt: r.createdAt,
+    deletedAt: r.deletedAt,
   });
 
 /**
@@ -65,7 +66,7 @@ export class DrizzleUserRepository implements UserRepository {
     const s = user.snapshot();
     await executor()
       .update(users)
-      .set({ name: s.name, phone: s.phone, passwordHash: s.passwordHash, role: s.role, locale: s.locale, totpSecret: s.twoFactor.encryptedSecret, totpEnabledAt: s.twoFactor.enabledAt, totpBackup: s.twoFactor.backupHashes, updatedAt: new Date() })
+      .set({ email: s.email, name: s.name, phone: s.phone, deletedAt: s.deletedAt, source: s.source, passwordHash: s.passwordHash, role: s.role, locale: s.locale, totpSecret: s.twoFactor.encryptedSecret, totpEnabledAt: s.twoFactor.enabledAt, totpBackup: s.twoFactor.backupHashes, updatedAt: new Date() })
       .where(eq(users.id, user.id));
   }
 }

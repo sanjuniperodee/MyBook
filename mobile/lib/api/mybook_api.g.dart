@@ -338,6 +338,18 @@ class MybookApi {
     return Ok.fromJson(json as Map<String, dynamic>);
   }
 
+  /// Удаление аккаунта: что удалится, что останется (заказы в работе), чем подтверждать
+  Future<DeletionInfo> meDeletionInfo({String? locale}) async {
+    final json = await _send('GET', '/api/v1/me/deletion', query: {if (locale != null) 'locale': '${locale}'});
+    return DeletionInfo.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Удалить аккаунт навсегда (подтверждение паролем; 400 wrongPassword, 403 staffAccount). Заказ в работе доставим, затем дочистим
+  Future<AccountDeleted> meDelete({String? locale, required DeleteAccountBody body}) async {
+    final json = await _send('POST', '/api/v1/me/delete', body: body.toJson(), query: {if (locale != null) 'locale': '${locale}'});
+    return AccountDeleted.fromJson(json as Map<String, dynamic>);
+  }
+
   /// Настройки приложения: адреса политики конфиденциальности и оферты (locale=ru|kk)
   Future<AppConfig> appConfig({String? locale}) async {
     final json = await _send('GET', '/api/v1/app-config', query: {if (locale != null) 'locale': '${locale}'});
@@ -3472,6 +3484,45 @@ class AppConfig {
   factory AppConfig.fromJson(Map<String, dynamic> json) => AppConfig(privacyUrl: json['privacyUrl'] as String, termsUrl: json['termsUrl'] as String);
 
   Map<String, dynamic> toJson() => {'privacyUrl': privacyUrl, 'termsUrl': termsUrl};
+}
+
+class DeletionInfo {
+  /// password
+  final String confirm;
+  final List<String> items;
+  final List<String> kept;
+  final List<int> keptOrders;
+
+  const DeletionInfo({required this.confirm, required this.items, required this.kept, required this.keptOrders});
+
+  factory DeletionInfo.fromJson(Map<String, dynamic> json) => DeletionInfo(confirm: json['confirm'] as String, items: (json['items'] as List).map((e) => e as String).toList(), kept: (json['kept'] as List).map((e) => e as String).toList(), keptOrders: (json['keptOrders'] as List).map((e) => (e as num).toInt()).toList());
+
+  Map<String, dynamic> toJson() => {'confirm': confirm, 'items': items.map((e) => e).toList(), 'kept': kept.map((e) => e).toList(), 'keptOrders': keptOrders.map((e) => e).toList()};
+}
+
+class DeleteAccountBody {
+  final String password;
+
+  const DeleteAccountBody({required this.password});
+
+  factory DeleteAccountBody.fromJson(Map<String, dynamic> json) => DeleteAccountBody(password: json['password'] as String);
+
+  Map<String, dynamic> toJson() => {'password': password};
+}
+
+class AccountDeleted {
+  /// password
+  final String confirm;
+  final List<String> items;
+  final List<String> kept;
+  final List<int> keptOrders;
+  final bool ok;
+
+  const AccountDeleted({required this.confirm, required this.items, required this.kept, required this.keptOrders, required this.ok});
+
+  factory AccountDeleted.fromJson(Map<String, dynamic> json) => AccountDeleted(confirm: json['confirm'] as String, items: (json['items'] as List).map((e) => e as String).toList(), kept: (json['kept'] as List).map((e) => e as String).toList(), keptOrders: (json['keptOrders'] as List).map((e) => (e as num).toInt()).toList(), ok: json['ok'] as bool);
+
+  Map<String, dynamic> toJson() => {'confirm': confirm, 'items': items.map((e) => e).toList(), 'kept': kept.map((e) => e).toList(), 'keptOrders': keptOrders.map((e) => e).toList(), 'ok': ok};
 }
 
 class BookModel {

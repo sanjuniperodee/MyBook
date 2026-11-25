@@ -26,6 +26,9 @@ export { smtpConfig, smtpFromEnvironment } from "./infrastructure/mail";
 export type { FinanceResolutionInput } from "./infrastructure/financeResolutions";
 export type { ExpenseInput } from "./infrastructure/expenses";
 
+/** Удаление аккаунта клиента: стереть персональные данные этого контекста (оркеструет src/server/account-deletion). */
+export { workspacePrivacy } from "./infrastructure/privacy";
+
 /** Публичный фасад контекста «Рабочее пространство CRM»: свои поля, шаблоны ответов, уведомления и push сотрудников. */
 export class WorkspaceModule {
   readonly fields = new CustomFieldsService(drizzleFields);

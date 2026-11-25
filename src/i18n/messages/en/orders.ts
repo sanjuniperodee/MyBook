@@ -129,7 +129,7 @@ export const orders: typeof ru = {
       password: { title: "Password", text: "After you change it, you will need to log in again on your other devices." },
       notifications: { title: "Notifications", text: "Which e-mails we send you." },
       language: { title: "Language", text: "The language of the site and of the e-mails we send you." },
-      data: { title: "Data and deletion", text: "To change your e-mail or delete your account with all its data, contact support." },
+      data: { title: "Data and deletion", text: "You can delete your account with all books and messages here. To change your e-mail, contact support." },
     },
     notifications: {
       orderMail: "Order e-mails",
@@ -157,7 +157,7 @@ export const orders: typeof ru = {
     current: "Current password",
     next: "New password",
     change: "Change password",
-    contact: "To change your e-mail or delete your account with all its data, write to us:",
+    contact: "To change your e-mail or ask about your data, write to us:",
     saved: "Details saved",
     changed: "Password changed. You will need to log in again on your other devices.",
     errors: {

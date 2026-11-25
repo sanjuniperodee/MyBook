@@ -8,6 +8,9 @@ import { hmacUnsubscribeLinks } from "./infrastructure/unsubscribe";
 export { LIFECYCLE_CHAT_KINDS, REMINDER_COOLDOWN_DAYS, canRemind, parseChatKinds, type LifecycleChatKind } from "./domain";
 export type { ReminderResult } from "./application";
 
+/** Удаление аккаунта клиента: стереть персональные данные этого контекста (оркеструет src/server/account-deletion). */
+export { notificationsPrivacy } from "./infrastructure/privacy";
+
 /** Публичный фасад контекста «Уведомления»: автописьма, напоминания из CRM, отписка. */
 export class NotificationsModule {
   readonly lifecycle: LifecycleService;

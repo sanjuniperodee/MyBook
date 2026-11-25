@@ -14,6 +14,8 @@ export const api: typeof ru = {
   server: "Internal server error",
   unauthorized: "Please log in to your account",
   forbidden: "Request declined",
+  wrongPassword: "Wrong password",
+  staffAccount: "Staff accounts are disabled by a manager in the CRM",
   notFound: "Not found",
   bookNotFound: "Book not found",
   bookLocked: "The book has already gone to print and can no longer be changed",

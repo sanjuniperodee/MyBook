@@ -509,3 +509,46 @@ describe("Access: политика безопасности", () => {
     expect(p.gate("10.1.2.7", true)).toBeNull();
   });
 });
+
+describe("Identity: удаление аккаунта клиентом", () => {
+  it("пароль подтверждает; адрес и телефон освобождаются, сессии закрыты, вход закрыт, событие без персональных данных", async () => {
+    const { auth, accounts, users, sessions, uow } = identity();
+    const r = await auth.register({ email: "aliya@mail.kz", name: "Алия", password: "secret123", locale: "ru", source: { source: "instagram" } });
+    await accounts.updateProfile(r.user.id, "Алия", "+7 775 000 11 22");
+    await expect(accounts.deleteAccount(r.user.id, "wrong-pass")).rejects.toMatchObject({ code: "credentials" });
+    uow.events = [];
+
+    await accounts.deleteAccount(r.user.id, "secret123");
+    const u = (await users.findById(r.user.id))!;
+    expect(u.isDeleted).toBe(true);
+    expect(u.email).toBe(`deleted+${r.user.id}@deleted.invalid`);
+    expect([u.name, u.phone, u.snapshot().source]).toEqual(["", null, null]);
+    expect(await sessions.findUserId(`#${r.token}`, T0)).toBeNull();
+    expect(uow.events.map((e) => [e.type, e.payload])).toEqual([["identity.account_deleted", { userId: r.user.id }]]);
+
+    await expect(auth.login({ login: "aliya@mail.kz", password: "secret123", locale: "ru" })).rejects.toMatchObject({ code: "credentials" });
+    await expect(auth.login({ login: u.email, password: "secret123", locale: "ru" })).rejects.toMatchObject({ code: "credentials" });
+    await expect(auth.issueAccessLink(r.user.id)).rejects.toMatchObject({ code: "credentials" });
+    // Адрес свободен: можно зарегистрироваться заново — это новый аккаунт.
+    const again = await auth.register({ email: "aliya@mail.kz", name: "Алия", password: "secret123", locale: "ru", source: null });
+    expect(again.user.id).not.toBe(r.user.id);
+    // Повтор — без ошибки и без нового события.
+    uow.events = [];
+    await accounts.deleteAccount(r.user.id, "secret123");
+    expect(uow.events).toEqual([]);
+  });
+
+  it("сотрудник себя не удаляет; пароль удалённому аккаунту не выдаётся", async () => {
+    const { auth, accounts, users } = identity();
+    const staff = await auth.register({ email: "boss@mybooks.kz", name: "Босс", password: "secret123", locale: "ru", source: null });
+    const s = (await users.findById(staff.user.id))!;
+    s.promoteToAdmin();
+    await users.save(s);
+    await expect(accounts.deleteAccount(staff.user.id, "secret123")).rejects.toMatchObject({ code: "credentials" });
+    expect((await users.findById(staff.user.id))!.isDeleted).toBe(false);
+
+    const c = await auth.register({ email: "c@mail.kz", name: "К", password: "secret123", locale: "ru", source: null });
+    await accounts.deleteAccount(c.user.id, "secret123");
+    await expect(accounts.issueClientPassword(c.user.id, "newpass123")).rejects.toMatchObject({ code: "credentials" });
+  });
+});

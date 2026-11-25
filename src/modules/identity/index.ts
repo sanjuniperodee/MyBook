@@ -9,6 +9,9 @@ export * from "./domain";
 export type { LoginResult } from "./application";
 export type { CurrentUser } from "./infrastructure/queries";
 
+/** Удаление аккаунта клиента: какие удалённые аккаунты ещё дочищаются (оркеструет src/server/account-deletion). */
+export { identityPrivacy } from "./infrastructure/privacy";
+
 /** Публичный фасад контекста Identity: учётные записи, вход, пароли, второй фактор. */
 export class IdentityModule {
   readonly auth: AuthService;

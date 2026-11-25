@@ -10,6 +10,7 @@ import { kickAnswerFiles } from "@/server/answerFilesWorker";
 import { dedupWhatsappMedia } from "@/server/whatsapp-media";
 import { stageOrderDeps, stageOrderPass } from "@/server/stage-order";
 import { tagKaspiPayForms } from "@/server/kaspi-pay-forms";
+import { purgeDeletedAccounts } from "@/server/account-deletion";
 
 const INTERVAL_MS = 15 * 60_000;
 /** Сколько хранятся уведомления сотрудников (колокольчик, приложение). */
@@ -72,6 +73,9 @@ export async function tick() {
     // Свои видео и аудио: брошенные за сутки загрузки — удалить, очередь обработки — разобрать (если её прервал сбой).
     const abandoned = await step("answer files sweep", () => sweepAbandonedUploads(), 0);
     if (abandoned) console.log(`[scheduler] abandoned answer uploads removed=${abandoned}`);
+    // Удалённые аккаунты: дочистить книги, заказы и переписку; заказ в работе — после доставки или отмены.
+    const purgedAccounts = await step("deleted accounts purge", () => purgeDeletedAccounts(), 0);
+    if (purgedAccounts) console.log(`[scheduler] deleted accounts purged=${purgedAccounts}`);
     // Одинаковые вложения WhatsApp (одни и те же фото примеров каждому клиенту с телефона магазина) — ссылки на один файл.
     const media = await step("whatsapp media dedup", () => dedupWhatsappMedia(), null);
     if (media?.linked) console.log(`[scheduler] whatsapp media linked=${media.linked} freed=${(media.freed / 1_048_576).toFixed(1)}MB`);

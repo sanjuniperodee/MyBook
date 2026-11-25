@@ -6,6 +6,9 @@ export { ClientsError } from "./domain";
 export type { AccountUsage, Actor, DealPart, ExistingClientDealsInput, OnboardingInput, OnboardingResult } from "./application";
 export type { ContactTarget };
 
+/** Удаление аккаунта клиента: стереть персональные данные этого контекста (оркеструет src/server/account-deletion). */
+export { clientsPrivacy } from "./infrastructure/privacy";
+
 /** Публичный фасад контекста «Клиенты CRM»: профиль клиента, задачи и заметки менеджеров. */
 export class ClientsModule {
   readonly clients = new ClientsService(drizzleClients, drizzleStaff);

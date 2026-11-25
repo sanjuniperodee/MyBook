@@ -10,6 +10,9 @@ export type { Review } from "./domain";
 export type { PublicReview, StaffReview } from "./infrastructure/persistence";
 export { reviewUrl, verifyReviewToken } from "./infrastructure/adapters";
 
+/** Удаление аккаунта клиента: стереть персональные данные этого контекста (оркеструет src/server/account-deletion). */
+export { feedbackPrivacy } from "./infrastructure/privacy";
+
 /** Публичный фасад контекста «Отзывы»: отзыв клиента о книге, благодарность автору, модерация и витрина. */
 export class FeedbackModule {
   readonly reviews: ReviewsService;

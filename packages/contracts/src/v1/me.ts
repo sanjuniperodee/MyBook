@@ -31,8 +31,39 @@ export const AppConfig = z
   })
   .register(schemas, { id: "AppConfig" });
 
+/** Удаление аккаунта: что удалится и что останется — строки на языке пользователя (один текст с кабинетом сайта). */
+export const DeletionInfo = z
+  .object({
+    /** Чем подтверждать удаление. Сейчас у клиентов только пароль. */
+    confirm: z.enum(["password"]),
+    items: z.array(z.string()),
+    /** Что останется: заказы в работе (доставим, затем удалим) и учёт без контактов. */
+    kept: z.array(z.string()),
+    /** Номера заказов в работе. */
+    keptOrders: z.array(z.number().int()),
+  })
+  .register(schemas, { id: "DeletionInfo" });
+
+export const DeleteAccountBody = z.object({ password: z.string().min(1).max(200) }).strict().register(schemas, { id: "DeleteAccountBody" });
+
+/** Аккаунт удалён: сессия закрыта (токен больше не действует); kept — что ещё останется до доставки. */
+export const AccountDeleted = DeletionInfo.extend({ ok: z.literal(true) }).register(schemas, { id: "AccountDeleted" });
+
+const LocaleQuery = z.object({ locale: z.enum(["ru", "kk", "uz", "en"]).optional() });
+
 export const meRoutes = {
   meDevicePut: route({ method: "PUT", path: "/api/v1/me/devices", auth: "user", tag: "me", summary: "Телефон для push клиентского «MyBooks»: ответ менеджера, заказ, оплата, письмо близкого", body: DeviceBody, response: DeviceRegistered }),
   meDeviceDelete: route({ method: "POST", path: "/api/v1/me/devices/forget", auth: "user", tag: "me", summary: "Забыть телефон (выход из аккаунта)", body: DeviceForgetBody, response: Ok }),
+  meDeletionInfo: route({ method: "GET", path: "/api/v1/me/deletion", auth: "user", tag: "me", summary: "Удаление аккаунта: что удалится, что останется (заказы в работе), чем подтверждать", query: LocaleQuery, response: DeletionInfo }),
+  meDelete: route({
+    method: "POST",
+    path: "/api/v1/me/delete",
+    auth: "user",
+    tag: "me",
+    summary: "Удалить аккаунт навсегда (подтверждение паролем; 400 wrongPassword, 403 staffAccount). Заказ в работе доставим, затем дочистим",
+    query: LocaleQuery,
+    body: DeleteAccountBody,
+    response: AccountDeleted,
+  }),
   appConfig: route({ method: "GET", path: "/api/v1/app-config", auth: "none", tag: "me", summary: "Настройки приложения: адреса политики конфиденциальности и оферты (locale=ru|kk)", query: z.object({ locale: z.enum(["ru", "kk"]).optional() }), response: AppConfig }),
 } as const satisfies Record<string, RouteDef>;

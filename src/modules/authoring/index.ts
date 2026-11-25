@@ -19,6 +19,9 @@ export type { DesignAiAllowance, DesignAiPack, DesignAiPurchase } from "./infras
 export * as answerFiles from "./infrastructure/answerFiles";
 export * as answerFilesWorker from "./infrastructure/answerFilesWorker";
 
+/** Удаление аккаунта клиента: стереть персональные данные этого контекста (оркеструет src/server/account-deletion). */
+export { authoringPrivacy } from "./infrastructure/privacy";
+
 /** Публичный фасад контекста Authoring: книги, вопросы, оглавление своей книги, фото, письма близких. */
 export class AuthoringModule {
   readonly books: BooksService;

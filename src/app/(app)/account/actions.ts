@@ -3,11 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { formObject, formText } from "@/server/input";
-import { requireUser, sessionToken } from "@/server/auth";
+import { destroySession, requireUser, sessionToken } from "@/server/auth";
+import { deleteClientAccount } from "@/server/account-deletion";
 import { container } from "@/server/container";
 import { IdentityError } from "@/modules/identity";
 import { trustedClientIp, rateLimit } from "@/server/rateLimit";
-import { getMessages } from "@/i18n/server";
+import { getLocale, getMessages, lredirect } from "@/i18n/server";
+import { accountDeletionFor } from "@/i18n/messages/account-deletion";
 
 export interface AccountState {
   error?: string;
@@ -59,4 +61,23 @@ export async function changePasswordAction(_: AccountState, form: FormData): Pro
     throw err;
   }
   return { ok: t.changed };
+}
+
+/** Удаление аккаунта (тот же сценарий, что meDelete в API v1): пароль, затем выход и главная. */
+export async function deleteAccountAction(_: AccountState, form: FormData): Promise<AccountState> {
+  const user = await requireUser();
+  const locale = await getLocale();
+  const [t, d] = [(await getMessages()).orders.account, accountDeletionFor(locale)];
+  if (user.role !== "user") return { error: d.staff };
+  if (!(await rateLimit(`del:${user.id}:${await trustedClientIp()}`, 10, 900_000))) return { error: t.errors.tooMany };
+  const input = z.object({ password: formText }).safeParse(formObject(form));
+  if (!input.success) return { error: t.errors.wrong, field: "current" };
+  try {
+    await deleteClientAccount(user.id, input.data.password, locale);
+  } catch (err) {
+    if (IdentityError.is(err)) return { error: t.errors.wrong, field: "current" };
+    throw err;
+  }
+  await destroySession();
+  return lredirect("/");
 }

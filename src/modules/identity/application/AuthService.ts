@@ -56,7 +56,7 @@ export class AuthService {
       const found = await this.users.findClientsByPhone(id.value);
       user = found.length === 1 ? found[0] : null;
     }
-    if (!user || !(await this.hasher.verify(input.password, user.passwordHash))) throw new IdentityError("credentials");
+    if (!user || user.isDeleted || !(await this.hasher.verify(input.password, user.passwordHash))) throw new IdentityError("credentials");
     if (user.needsSecondFactor) return { kind: "second_factor", userId: user.id };
     await this.rememberLocale(user, input.locale);
     return { kind: "session", user, ...(await this.openSession(user.id)) };
@@ -131,7 +131,7 @@ export class AuthService {
   async issueAccessLink(userId: string, ttlMs: number = ACCESS_LINK_MAX_MS): Promise<{ token: string; expiresAt: Date; login: string }> {
     if (!Number.isFinite(ttlMs) || ttlMs <= 0 || ttlMs > ACCESS_LINK_MAX_MS) throw new RangeError("access link ttl must be within 72 hours");
     const user = await this.users.findById(userId);
-    if (!user || user.role !== "user" || this.adminEmails.isAdminEmail(user.email)) throw new IdentityError("credentials");
+    if (!user || user.isDeleted || user.role !== "user" || this.adminEmails.isAdminEmail(user.email)) throw new IdentityError("credentials");
     const token = this.tokens.newToken();
     const now = this.clock.now();
     const expiresAt = new Date(now.getTime() + ttlMs);
@@ -170,7 +170,7 @@ export class AuthService {
     return this.uow.run(async () => {
       const u = await this.users.findById(reset.userId);
       // Доступ после оплаты — только клиенту: аккаунт, ставший сотрудником, по такой ссылке не входит.
-      if (!u || (purpose === "access" && u.role !== "user")) throw new IdentityError("resetExpired");
+      if (!u || u.isDeleted || (purpose === "access" && u.role !== "user")) throw new IdentityError("resetExpired");
       // Одна ссылка — один новый пароль: два одновременных отправления формы не пройдут оба.
       if (!(await this.resets.markUsed(reset.id, now))) throw new IdentityError("resetExpired");
       u.changePassword(hash, true);

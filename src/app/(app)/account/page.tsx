@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import { requireUser } from "@/server/auth";
 import { site } from "@/config/site";
-import { PasswordForm, ProfileForm, RemindersForm } from "./AccountForms";
+import { DeleteAccountForm, PasswordForm, ProfileForm, RemindersForm } from "./AccountForms";
+import { deletionPreview } from "@/server/account-deletion";
+import { accountDeletionFor } from "@/i18n/messages/account-deletion";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
 import { Facts } from "@/components/ui/Facts";
 import { Badge } from "@/components/ui/Badge";
-import { getMessages } from "@/i18n/server";
+import { getLocale, getMessages } from "@/i18n/server";
 import { PageHead } from "../_components/PageHead";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -30,8 +32,10 @@ function Group({ id, title, text, children }: { id: string; title: string; text:
 /** Аккаунт: настройки по группам — профиль, пароль, уведомления, язык, данные. Слева что за группа, справа — сама настройка. */
 export default async function AccountPage() {
   const user = await requireUser("/account");
-  const t = (await getMessages()).orders.account;
+  const [t, locale] = [(await getMessages()).orders.account, await getLocale()];
   const g = t.groups;
+  // Клиент удаляет аккаунт сам; сотрудника отключает руководитель в CRM.
+  const deletion = user.role === "user" ? await deletionPreview(user.id, locale) : null;
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
       <PageHead title={t.title} lead={t.lead} />
@@ -58,7 +62,12 @@ export default async function AccountPage() {
           <p className="mt-3 text-sm text-muted">{t.languageText}</p>
         </Group>
         <Group id="data" title={g.data.title} text={g.data.text}>
-          <p className="text-sm leading-relaxed text-ink-soft">{t.contact}</p>
+          {deletion ? (
+            <DeleteAccountForm email={user.email} items={deletion.items} kept={deletion.kept} t={accountDeletionFor(locale)} />
+          ) : (
+            <p className="text-sm leading-relaxed text-ink-soft">{accountDeletionFor(locale).staff}</p>
+          )}
+          <p className="mt-6 text-sm leading-relaxed text-muted">{t.contact}</p>
           <a className="btn btn-outline mt-4 max-sm:w-full" href={`mailto:${site.contacts.email}`}>
             {t.write}: {site.contacts.email}
           </a>

@@ -60,6 +60,10 @@ export const users = pgTable(
     totpEnabledAt: timestamp("totp_enabled_at", { withTimezone: true }),
     /** Резервные коды 2FA — sha256, использованный код удаляется. */
     totpBackup: text("totp_backup").array().notNull().default(sql`'{}'::text[]`),
+    /** Клиент удалил аккаунт: профиль обезличен, вход закрыт; данные дочищает планировщик (account-deletion). */
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    /** Дочищено всё: заказов в работе не осталось, книги, переписка и контакты удалены. */
+    purgedAt: timestamp("purged_at", { withTimezone: true }),
     ...timestamps,
   },
   (t) => [uniqueIndex("users_email_idx").on(sql`lower(${t.email})`), index("users_manager_idx").on(t.managerId)],

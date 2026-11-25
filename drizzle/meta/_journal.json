@@ -778,6 +778,13 @@
       "when": 1795570006218,
       "tag": "0110_mobile_device_app",
       "breakpoints": true
+    },
+    {
+      "idx": 111,
+      "version": "7",
+      "when": 1795587270539,
+      "tag": "0111_account_deletion",
+      "breakpoints": true
     }
   ]
 }

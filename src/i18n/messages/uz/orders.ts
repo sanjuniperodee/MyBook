@@ -129,7 +129,7 @@ export const orders: typeof ru = {
       password: { title: "Parol", text: "O‘zgartirgandan keyin boshqa qurilmalarda qaytadan kirishingiz kerak bo‘ladi." },
       notifications: { title: "Bildirishnomalar", text: "Sizga qanday xatlar yuboramiz." },
       language: { title: "Til", text: "Sayt tili va biz yuboradigan xatlar tili." },
-      data: { title: "Ma’lumotlar va o‘chirish", text: "E-mailni o‘zgartirish yoki akkauntni barcha ma’lumotlari bilan o‘chirish yordam xizmati orqali mumkin." },
+      data: { title: "Ma’lumotlar va o‘chirish", text: "Akkauntni barcha kitoblari va yozishmalari bilan shu yerda o‘chirish mumkin. E-mailni o‘zgartirish — yordam xizmati orqali." },
     },
     notifications: {
       orderMail: "Buyurtma haqidagi xatlar",
@@ -157,7 +157,7 @@ export const orders: typeof ru = {
     current: "Joriy parol",
     next: "Yangi parol",
     change: "Parolni o‘zgartirish",
-    contact: "E-mailni o‘zgartirish yoki akkauntni barcha ma’lumotlari bilan o‘chirish uchun bizga yozing:",
+    contact: "E-mailni o‘zgartirish yoki ma’lumotlaringiz haqida savol berish uchun bizga yozing:",
     saved: "Ma’lumotlar saqlandi",
     changed: "Parol o‘zgartirildi. Boshqa qurilmalarda qaytadan kirish kerak bo‘ladi.",
     errors: {

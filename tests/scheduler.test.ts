@@ -33,6 +33,7 @@ vi.mock("@/server/ai-autofill", () => ({ aiAutofill: () => stepFn("autofill", 0)
 vi.mock("@/server/kaspi-pay-forms", () => ({ tagKaspiPayForms: async () => 0 }));
 vi.mock("@/server/stage-order", () => ({ stageOrderPass: async () => null, stageOrderDeps: () => ({}) }));
 vi.mock("@/server/answerFiles", () => ({ sweepAbandonedUploads: async () => 0 }));
+vi.mock("@/server/account-deletion", () => ({ purgeDeletedAccounts: async () => 0 }));
 vi.mock("@/server/answerFilesWorker", () => ({ kickAnswerFiles: () => {} }));
 const settings: Record<string, string> = {};
 vi.mock("@/modules/workspace", () => ({ getSetting: async (k: string) => settings[k] ?? "" }));

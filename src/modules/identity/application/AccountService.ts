@@ -55,6 +55,23 @@ export class AccountService {
     });
   }
 
+  /**
+   * Клиент удаляет свой аккаунт, подтвердив паролем: профиль обезличивается, все сессии закрываются. Остальное
+   * (книги, заказы, переписку) дочищает src/server/account-deletion — в том числе по событию identity.account_deleted.
+   * Повторный вызов для уже удалённого аккаунта ничего не меняет.
+   */
+  async deleteAccount(userId: string, password: string) {
+    const user = await this.load(userId);
+    if (user.isDeleted) return;
+    if (!(await this.hasher.verify(password, user.passwordHash))) throw new IdentityError("credentials");
+    await this.uow.run(async () => {
+      user.deleteAccount(this.clock.now());
+      await this.users.save(user);
+      await this.auth.revokeAllSessions(user.id, null);
+      this.uow.track(user);
+    });
+  }
+
   /** Аккаунт сотрудника, заведённый руководителем. */
   async provision(input: { email: string; name: string; password: string }): Promise<string> {
     const email = Email.parse(input.email);

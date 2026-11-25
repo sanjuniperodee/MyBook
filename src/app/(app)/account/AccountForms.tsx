@@ -1,14 +1,16 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { LoaderCircle } from "lucide-react";
-import { changePasswordAction, setRemindersAction, updateProfileAction, type AccountState } from "./actions";
+import { changePasswordAction, deleteAccountAction, setRemindersAction, updateProfileAction, type AccountState } from "./actions";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { Alert } from "@/components/ui/Alert";
 import { Field } from "@/components/ui/Field";
 import { PasswordInput } from "@/app/(auth)/PasswordInput";
 import { useMessages } from "@/i18n/client";
+import { confirmDialog } from "@/components/ui/overlays";
+import type { AccountDeletionMessages } from "@/i18n/messages/account-deletion";
 
 /** Профиль: поля не теряются после ошибки (форма после ответа сервера сбрасывается), ошибка стоит у своего поля. */
 export function ProfileForm({ name, phone, email }: { name: string; phone: string; email: string }) {
@@ -77,6 +79,48 @@ export function PasswordForm({ email }: { email: string }) {
       {state.error && !state.field ? <Alert>{state.error}</Alert> : null}
       {state.ok ? <Alert kind="success">{state.ok}</Alert> : null}
       <SubmitButton variant="dark" className="max-sm:w-full">{t.change}</SubmitButton>
+    </form>
+  );
+}
+
+/**
+ * Удаление аккаунта: что удалится и что останется (тексты и заказы в работе — с сервера, как в приложении), пароль,
+ * затем отдельный вопрос «Удалить навсегда?». Только после «Да» форма уходит на сервер.
+ */
+export function DeleteAccountForm({ email, items, kept, t }: { email: string; items: string[]; kept: string[]; t: AccountDeletionMessages }) {
+  const [state, action] = useActionState<AccountState, FormData>(deleteAccountAction, {});
+  const form = useRef<HTMLFormElement>(null);
+  const confirmed = useRef(false);
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    if (confirmed.current) {
+      confirmed.current = false;
+      return;
+    }
+    e.preventDefault();
+    if (!(await confirmDialog({ title: t.confirmTitle, text: t.intro, confirmLabel: t.confirm, cancelLabel: t.cancel, danger: true }))) return;
+    confirmed.current = true;
+    form.current?.requestSubmit();
+  }
+  return (
+    <form ref={form} action={action} onSubmit={onSubmit} className="max-w-lg space-y-4">
+      <p className="text-sm leading-relaxed text-ink-soft">{t.intro}</p>
+      <ul className="list-disc space-y-1 pl-5 text-sm leading-relaxed text-ink-soft">
+        {items.map((x) => (
+          <li key={x}>{x}</li>
+        ))}
+      </ul>
+      {kept.map((x) => (
+        <p key={x} className="text-sm leading-relaxed text-muted">
+          {x}
+        </p>
+      ))}
+      <input type="email" name="username" autoComplete="username" value={email} className="sr-only" aria-hidden tabIndex={-1} readOnly />
+      <Field label={t.password} error={state.field === "current" ? state.error : undefined}>
+        <PasswordInput id="delete-password" name="password" autoComplete="current-password" required />
+      </Field>
+      <p className="text-sm text-muted">{t.forgot}</p>
+      {state.error && !state.field ? <Alert>{state.error}</Alert> : null}
+      <SubmitButton variant="danger" className="max-sm:w-full">{t.next}</SubmitButton>
     </form>
   );
 }

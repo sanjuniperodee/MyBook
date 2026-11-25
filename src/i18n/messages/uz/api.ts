@@ -14,6 +14,8 @@ export const api: typeof ru = {
   server: "Serverning ichki xatosi",
   unauthorized: "Profilingizga kirish kerak",
   forbidden: "So‘rov rad etildi",
+  wrongPassword: "Parol noto‘g‘ri",
+  staffAccount: "Xodim akkauntini rahbar CRM’da o‘chiradi",
   notFound: "Topilmadi",
   bookNotFound: "Kitob topilmadi",
   bookLocked: "Kitob allaqachon bosmaga topshirilgan, uni o‘zgartirib bo‘lmaydi",

@@ -9,6 +9,9 @@ export { TelephonyError, type CallEvent } from "./domain";
 export type { SalesGateway as TelephonySalesGateway, CallSideEffects, WhatsappCallGateway } from "./application";
 export { WHATSAPP, WHATSAPP_HEARTBEAT_MS, WHATSAPP_RECORDING_DAYS, WHATSAPP_SILENT_MS, recordingDays } from "./application";
 
+/** Удаление аккаунта клиента: стереть персональные данные этого контекста (оркеструет src/server/account-deletion). */
+export { telephonyPrivacy } from "./infrastructure/privacy";
+
 /** Публичный фасад контекста «Телефония»: журнал звонков из АТС, звонки из CRM, веб-телефон, записи, звонки WhatsApp. */
 export class TelephonyModule {
   readonly calls: CallsService;

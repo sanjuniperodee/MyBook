@@ -17,6 +17,8 @@ export const api = {
   server: "Внутренняя ошибка сервера",
   unauthorized: "Нужно войти в аккаунт",
   forbidden: "Запрос отклонён",
+  wrongPassword: "Неверный пароль",
+  staffAccount: "Аккаунт сотрудника отключает руководитель в CRM",
   notFound: "Не найдено",
   bookNotFound: "Книга не найдена",
   bookLocked: "Книга уже передана в печать и не может быть изменена",

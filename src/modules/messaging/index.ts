@@ -88,6 +88,9 @@ export function fileKind(mime: string, name: string): "image" | "video" | "audio
 /** Cookie посетителя для чата на сайте. */
 export const VISITOR_COOKIE = "mb_chat";
 
+/** Удаление аккаунта клиента: стереть персональные данные этого контекста (оркеструет src/server/account-deletion). */
+export { messagingPrivacy } from "./infrastructure/privacy";
+
 /** Публичный фасад контекста «Переписка»: единый инбокс, бот-квалификатор, виджет на сайте. */
 export class MessagingModule {
   readonly chats: MessagingService;

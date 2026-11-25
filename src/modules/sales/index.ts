@@ -17,6 +17,9 @@ export type { DealAgreement } from "./infrastructure/agreements";
 export type { PaymentRow } from "./infrastructure/payments";
 export { MAX_PAYMENT, PaymentError, RECEIPT_MAX_BYTES, ReceiptError, ReceiptUsedError } from "./domain";
 
+/** Удаление аккаунта клиента: стереть персональные данные этого контекста (оркеструет src/server/account-deletion). */
+export { salesPrivacy } from "./infrastructure/privacy";
+
 /** Публичный фасад контекста «Продажи»: сделки, воронки, этапы, дубли, воронка по действиям на сайте. */
 export class SalesModule {
   readonly deals: DealsService;

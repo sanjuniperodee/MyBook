@@ -24,9 +24,16 @@ export interface UserProps {
   source: Record<string, string> | null;
   twoFactor: TwoFactorState;
   createdAt: Date;
+  /** Клиент удалил аккаунт (вход закрыт, профиль обезличен). */
+  deletedAt: Date | null;
 }
 
 const MIN_PASSWORD_LENGTH = 8;
+
+/** Не хэш ни одного пароля: проверка пароля удалённого аккаунта всегда ложна. */
+export const DELETED_PASSWORD_HASH = "!deleted";
+/** Служебный адрес удалённого аккаунта: уникален (users_email_idx) и никуда не доставляется (.invalid, RFC 2606). */
+export const deletedEmail = (userId: string) => `deleted+${userId}@deleted.invalid`;
 
 /**
  * Учётная запись (контекст Identity): вход, пароль, профиль и второй фактор.
@@ -49,6 +56,7 @@ export class User extends AggregateRoot<UserProps> {
       source: input.source,
       twoFactor: { encryptedSecret: null, enabledAt: null, backupHashes: [] },
       createdAt: now,
+      deletedAt: null,
     });
     user.record(IdentityEvents.registered({ userId: id, email: user.props.email, name: user.props.name }));
     return user;
@@ -67,6 +75,7 @@ export class User extends AggregateRoot<UserProps> {
       source: null,
       twoFactor: { encryptedSecret: null, enabledAt: null, backupHashes: [] },
       createdAt: now,
+      deletedAt: null,
     });
   }
 
@@ -83,6 +92,7 @@ export class User extends AggregateRoot<UserProps> {
       source: null,
       twoFactor: { encryptedSecret: null, enabledAt: null, backupHashes: [] },
       createdAt: now,
+      deletedAt: null,
     });
   }
 
@@ -117,6 +127,9 @@ export class User extends AggregateRoot<UserProps> {
   get twoFactorEnabled() {
     return !!this.props.twoFactor.enabledAt && !!this.props.twoFactor.encryptedSecret;
   }
+  get isDeleted() {
+    return !!this.props.deletedAt;
+  }
   /** Сотруднику с включённой 2FA нужен код после пароля. Клиентам второй фактор не нужен. */
   get needsSecondFactor() {
     return this.props.role === "admin" && this.twoFactorEnabled;
@@ -137,8 +150,27 @@ export class User extends AggregateRoot<UserProps> {
   }
 
   changePassword(newHash: string, viaReset: boolean) {
+    if (this.props.deletedAt) throw new IdentityError("credentials");
     this.props.passwordHash = newHash;
     this.record(IdentityEvents.passwordChanged({ userId: this.id, viaReset }));
+  }
+
+  /**
+   * Клиент удаляет аккаунт: адрес и телефон освобождаются (по ним можно зарегистрироваться заново), имя стирается,
+   * пароль перестаёт подходить к любому вводу. Удалить себя может только клиент — учётные записи команды отключает
+   * руководитель. Книги, заказы и переписку дочищают их контексты по событию (src/server/account-deletion).
+   */
+  deleteAccount(now: Date) {
+    if (this.props.role !== "user") throw new IdentityError("credentials");
+    if (this.props.deletedAt) return;
+    this.props.email = deletedEmail(this.id);
+    this.props.name = "";
+    this.props.phone = null;
+    this.props.passwordHash = DELETED_PASSWORD_HASH;
+    this.props.source = null;
+    this.props.twoFactor = { encryptedSecret: null, enabledAt: null, backupHashes: [] };
+    this.props.deletedAt = now;
+    this.record(IdentityEvents.accountDeleted({ userId: this.id }));
   }
 
   /** Права администратора выдаются только после подтверждения владения адресом (сброс пароля по ссылке). */

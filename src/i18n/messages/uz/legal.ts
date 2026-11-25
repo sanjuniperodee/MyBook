@@ -63,7 +63,7 @@ export const legal: typeof ru = {
     meta: "Maxfiylik siyosati",
     metaDescription: "MyBooks qanday ma’lumotlarni to‘playdi, ular nega kerak, kimga va qayerga uzatiladi: akkaunt, kitoblar, buyurtmalar, yozishmalar, AI-servislar.",
     title: "Maxfiylik siyosati",
-    updated: "2026-yil 24-noyabr",
+    updated: "2026-yil 25-noyabr",
     blocks: (f: LegalFacts): LegalBlock[] => [
       {
         p: `Ushbu siyosat ${f.legalName} ${f.brand} servisidan foydalanishda qanday ma’lumotlarni to‘plashini, ular nima uchun kerakligini, kimga va qayerga uzatilishini bayon etadi. Kitobingiz matnlari va suratlari e’lon qilinmaydi: ularni siz, kitobga o‘zingiz taklif qilgan odamlar (masalan, xat yozish uchun) va kitobingizga yordam berayotganda yoki uni bosmaga tayyorlayotganda ${f.brand} xodimlari ko‘radi.`,
@@ -114,7 +114,7 @@ export const legal: typeof ru = {
       },
       {
         h: "Saqlash va o‘chirish",
-        p: `Kitobni istalgan payt uning sahifasida o‘chirishingiz mumkin. Akkauntni, biz bilan yozishmalarni va ularga oid barcha ma’lumotlarni o‘chirish uchun bizga ${f.email} manziliga yozing. Buyurtmalar haqidagi ma’lumotlar buxgalteriya hisoboti uchun qonunchilikda belgilangan muddatlarda saqlanadi.`,
+        p: `Kitobni istalgan payt uning sahifasida o‘chirishingiz mumkin. Akkaunt kabinetda («Akkaunt» → «Ma’lumotlar va o‘chirish») yoki ilovada parol bilan tasdiqlab o‘chiriladi. Barcha qurilmalarda kirish darhol yopiladi, ism, e-mail, telefon va parol o‘chiriladi; bir sutka ichida — kitoblar (matnlar, suratlar, yaqinlar maktublari, o‘z video va audiolaringiz, chop etish fayllari), WhatsApp va sayt chatidagi yozishmaning bizdagi nusxasi ilovalari bilan, qo‘ng‘iroq yozuvlari, sharhlar va sun’iy intellekt dizaynerga so‘rovlar. Buyurtma to‘langan va hali yetkazilmagan bo‘lsa, uning kitobi, chop etish fayllari, qabul qiluvchining manzili va telefonini buyurtma yetkazilguncha yoki bekor qilinguncha saqlaymiz va darhol so‘ng o‘chiramiz. Buyurtmalar, to‘lovlar va cheklar kontaktlaringizsiz buxgalteriya hisobi uchun qonunchilikda belgilangan muddatlarda (kamida besh yil) saqlanadi. WhatsApp’dagi chatning o‘zi sizda o‘chirilmaydi: bu bizning nusxamiz emas. Ma’lumotlar bo‘yicha savollar — ${f.email}.`,
       },
       { h: "Aloqa", p: `Ma’lumotlarni qayta ishlash masalalari bo‘yicha: ${f.email}.` },
     ],
